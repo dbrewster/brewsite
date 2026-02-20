@@ -14,5 +14,6 @@
     "strict": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/legacy", "node_modules", "dist"]
 }

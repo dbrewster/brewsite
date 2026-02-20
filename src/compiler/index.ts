@@ -1,0 +1,7 @@
+// DSL authoring surface — the only things scene authors need to import.
+// Infrastructure types (SceneTrack, compileSceneTrack, cache functions) are
+// imported directly from their source files by the engine/player layer.
+
+export { Scene, resolveSceneFromDsl } from './sceneDslCompiler';
+export type { SceneGroup, SceneDefinition, SceneFrameContext, SceneTransition } from './sceneTypes';
+export type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
