@@ -14,15 +14,9 @@ export function applyLighting(state: SceneLighting, refs: LightingThreeRefs): vo
   const scene = refs.scene;
 
   // Clean up existing lights added by this renderer (marked with a custom property)
-  const lightsToRemove: THREE.Light[] = [];
+  const lightsToRemove: THREE.Object3D[] = [];
   scene.traverse((obj: THREE.Object3D) => {
-    if (
-      (obj instanceof THREE.AmbientLight ||
-        obj instanceof THREE.DirectionalLight ||
-        obj instanceof THREE.PointLight ||
-        obj instanceof THREE.SpotLight) &&
-      (obj as unknown as { __managedByLightingElement?: boolean }).__managedByLightingElement
-    ) {
+    if ((obj as unknown as { __managedByLightingElement?: boolean }).__managedByLightingElement) {
       lightsToRemove.push(obj);
     }
   });
@@ -84,6 +78,7 @@ export function applyLighting(state: SceneLighting, refs: LightingThreeRefs): vo
         spotLight.decay = spotSpec.decay;
       }
       (spotLight as unknown as { __managedByLightingElement?: boolean }).__managedByLightingElement = true;
+      (spotLight.target as unknown as { __managedByLightingElement?: boolean }).__managedByLightingElement = true;
       scene.add(spotLight);
       scene.add(spotLight.target);
       spotLight.target.updateMatrixWorld();

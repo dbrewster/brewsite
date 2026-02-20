@@ -1,4 +1,4 @@
-import { clamp01 } from '../timeline/timelineMath';
+import { clamp01 } from '../timeline/math';
 import type { SceneTrack, SceneTrackTick } from './sceneTrackTypes';
 
 export type SceneTrackSampler = {

@@ -9,7 +9,7 @@ export const scene01Move: SceneDefinition = {
     <Scene id="move-left">
       <Lighting intensityScale={1}>
         <Ambient intensity={1.2} color="#ffffff" />
-        <Directional intensity={2} color="#ffffff" position={[20, 30, 40]} target={[0, 0, 0]} />
+        <Directional intensity={2} color="#ffffff" position={[20, 30, 40]} />
       </Lighting>
       <PrimaryModel
         position={[-18, -12, 0]}

@@ -14,11 +14,12 @@ import { LabelItem } from '../labels/LabelItem';
 import { clipMetaFromManifest, assertManifestValid } from '../elements/model/metadata';
 import type { AssetManifest } from '../elements/model/metadata';
 import { clearCache } from '../compiler/sceneTrackCache';
+import { SceneMetaWidget } from './SceneMetaWidget';
 
 export type ScenePlayerProps = {
   sceneGroup: SceneGroup;
   manifestUrl: string;
-  widgetSetup: (manifest: AssetManifest | null, options?: { onSceneChange?: (sceneId: string, sceneIndex: number) => void }) => WidgetRegistry;
+  widgetSetup: (manifest: AssetManifest | null) => WidgetRegistry;
   className?: string;
   fpsCap?: number;
   pixelsPerScene?: number;
@@ -58,9 +59,16 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
   const isBrowser = typeof window !== 'undefined';
 
   const widgetRegistry = useMemo(
-    () => props.widgetSetup(manifest, { onSceneChange: props.onSceneChange }),
-    [manifest, props.widgetSetup, props.onSceneChange],
+    () => props.widgetSetup(manifest),
+    [manifest, props.widgetSetup],
   );
+
+  useEffect(() => {
+    const metaWidget = widgetRegistry.get('__scene_meta__');
+    if (metaWidget && typeof (metaWidget as SceneMetaWidget).setOnSceneChange === 'function') {
+      (metaWidget as SceneMetaWidget).setOnSceneChange(props.onSceneChange);
+    }
+  }, [widgetRegistry, props.onSceneChange]);
 
   const annotationPositioner = useMemo(() => new AnnotationPositioner(), []);
   const clipMeta = useMemo(() => (manifest ? clipMetaFromManifest(manifest) : []), [manifest]);

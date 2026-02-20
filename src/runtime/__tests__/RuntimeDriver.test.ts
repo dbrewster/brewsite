@@ -115,7 +115,7 @@ describe('RuntimeDriverImpl', () => {
       readonly DslComponent = () => null;
       isLoaded = false;
       private anchor: THREE.Bone | null = null;
-      private anchorTargets = { head: 'headBone' };
+      private anchorTargets: Record<string, string> = { head: 'headBone' };
 
       initialize(ctx: { scene: THREE.Scene; widgetId: string }): void {
         this.anchor = new THREE.Bone();
@@ -209,5 +209,139 @@ describe('RuntimeDriverImpl', () => {
 
     expect(order[0]).toBe('tick');
     expect(order[1]).toBe('render:1');
+  });
+
+  it('initialize reports errors from renderables', async () => {
+    const registry = new WidgetRegistry();
+    const variableStore = new VariableStore();
+    let errorCount = 0;
+
+    class BadRenderable implements IRenderable<{ value: number }>, ISceneElement<{ value: number }> {
+      readonly widgetId = 'bad';
+      readonly defaultState = { value: 1 };
+      readonly transitionSpec: ElementTransitionSpec<{ value: number }> = {
+        exit: (s) => s,
+        enter: (s) => s,
+        interpolate: (_a, b) => b,
+      };
+      readonly DslComponent = () => null;
+      initialize(): void { throw new Error('init fail'); }
+      apply(): void {}
+      dispose(): void {}
+    }
+
+    registry.register(new BadRenderable());
+    const driver = new RuntimeDriverImpl({
+      widgetRegistry: registry,
+      variableStore,
+      manifest: null,
+      onError: () => { errorCount += 1; },
+    });
+
+    await expect(driver.initialize(new THREE.Scene())).rejects.toThrow('init fail');
+    expect(errorCount).toBe(1);
+  });
+
+  it('initialize reports errors from loadables', async () => {
+    const registry = new WidgetRegistry();
+    const variableStore = new VariableStore();
+    let errorCount = 0;
+
+    class BadLoadable implements IRenderable<{ value: number }>, ISceneElement<{ value: number }>, ILoadable {
+      readonly widgetId = 'bad-load';
+      readonly defaultState = { value: 1 };
+      readonly transitionSpec: ElementTransitionSpec<{ value: number }> = {
+        exit: (s) => s,
+        enter: (s) => s,
+        interpolate: (_a, b) => b,
+      };
+      readonly DslComponent = () => null;
+      isLoaded = false;
+      initialize(): void {}
+      async load(): Promise<void> { throw new Error('load fail'); }
+      apply(): void {}
+      dispose(): void {}
+    }
+
+    registry.register(new BadLoadable());
+    const driver = new RuntimeDriverImpl({
+      widgetRegistry: registry,
+      variableStore,
+      manifest: null,
+      onError: () => { errorCount += 1; },
+    });
+
+    await expect(driver.initialize(new THREE.Scene())).rejects.toThrow('load fail');
+    expect(errorCount).toBe(1);
+  });
+
+  it('attachContainedModels handles missing anchor info safely', async () => {
+    const registry = new WidgetRegistry();
+    const variableStore = new VariableStore();
+    const scene = new THREE.Scene();
+
+    const noopSpec: ElementTransitionSpec<{ enabled: boolean }> = {
+      exit: (s) => s,
+      enter: (s) => s,
+      interpolate: (_a, b) => b,
+    };
+
+    class ContainedWidget implements ISceneElement<{ enabled: boolean }>, IContainedModel<{ enabled: boolean }>, ILoadable {
+      readonly widgetId = 'child';
+      readonly anchorModelId = 'missing';
+      readonly anchorKey = 'head';
+      readonly defaultState = { enabled: true };
+      readonly transitionSpec = noopSpec;
+      readonly DslComponent = () => null;
+      isLoaded = false;
+      initialize(): void {}
+      async load(): Promise<void> { this.isLoaded = true; }
+      apply(): void {}
+      dispose(): void {}
+    }
+
+    registry.register(new ContainedWidget());
+    const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
+    await expect(driver.initialize(scene)).resolves.toBeUndefined();
+  });
+
+  it('tick reports errors from controllers and renderables', async () => {
+    const registry = new WidgetRegistry();
+    const variableStore = new VariableStore();
+    let errorCount = 0;
+
+    const noopSpec: ElementTransitionSpec<{ value: number }> = {
+      exit: (s) => s,
+      enter: (s) => s,
+      interpolate: (_a, b) => b,
+    };
+
+    class BadRender implements ISceneElement<{ value: number }>, IRenderable<{ value: number }> {
+      readonly widgetId = 'render';
+      readonly defaultState = { value: 1 };
+      readonly transitionSpec = noopSpec;
+      readonly DslComponent = () => null;
+      initialize(): void {}
+      apply(): void { throw new Error('render fail'); }
+      dispose(): void {}
+    }
+
+    class BadController implements IAnimationController {
+      readonly widgetId = 'controller';
+      onTick(): void { throw new Error('tick fail'); }
+    }
+
+    registry.register(new BadRender()).register(new BadController());
+    const driver = new RuntimeDriverImpl({
+      widgetRegistry: registry,
+      variableStore,
+      manifest: null,
+      onError: () => { errorCount += 1; },
+    });
+
+    driver.setSceneTrack(makeEmptySceneTrack());
+    await driver.initialize(new THREE.Scene());
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0.5 });
+    expect(errorCount).toBeGreaterThan(0);
   });
 });

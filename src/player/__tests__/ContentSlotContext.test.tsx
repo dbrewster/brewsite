@@ -1,41 +1,29 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
-import renderer, { act } from 'react-test-renderer';
+import React from 'react';
+import { renderHook } from '@testing-library/react';
 import { ContentSlotContext, useContentSlot } from '../ContentSlotContext';
 
 describe('ContentSlotContext', () => {
   it('resolves slot content by id', () => {
-    let resolved: unknown;
-    const Test = () => {
-      resolved = useContentSlot('hero');
-      return null;
-    };
-
-    act(() => {
-      renderer.create(
+    const { result } = renderHook(() => useContentSlot('hero'), {
+      wrapper: ({ children }) => (
         <ContentSlotContext.Provider value={{ hero: 'Hello' }}>
-          <Test />
-        </ContentSlotContext.Provider>,
-      );
+          {children}
+        </ContentSlotContext.Provider>
+      ),
     });
-
-    expect(resolved).toBe('Hello');
+    expect(result.current).toBe('Hello');
   });
 
   it('returns undefined for missing slot', () => {
-    let resolved: unknown = 'init';
-    const Test = () => {
-      resolved = useContentSlot('missing');
-      return null;
-    };
-
-    act(() => {
-      renderer.create(
+    const { result } = renderHook(() => useContentSlot('missing'), {
+      wrapper: ({ children }) => (
         <ContentSlotContext.Provider value={{}}>
-          <Test />
-        </ContentSlotContext.Provider>,
-      );
+          {children}
+        </ContentSlotContext.Provider>
+      ),
     });
-
-    expect(resolved).toBeUndefined();
+    expect(result.current).toBeUndefined();
   });
 });

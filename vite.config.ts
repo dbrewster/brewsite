@@ -23,9 +23,10 @@ export default defineConfig({
       reporter: ['text', 'html', 'json'],
       reportsDirectory: './coverage',
       include: [
-        'src/**/__tests__/**/*.ts',
+        'src/**/*.{ts,tsx}',
       ],
       exclude: [
+        'src/**/__tests__/**',
         'src/runtime/mocks/**/*.ts',
         // Three.js files — cannot instrument in Node test environment
         'src/elements/**/render.ts',

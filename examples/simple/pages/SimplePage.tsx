@@ -1,7 +1,7 @@
-import { ScenePlayer, createDefaultWidgetRegistry } from '@brewsite/core';
+import { ScenePlayer } from '@brewsite/core';
 import { simpleSceneGroup } from '../scenes/sceneGroup';
-import type { AssetManifest } from '@brewsite/core';
 import type { JSX } from 'react';
+import { createWidgetSetup } from '../widgetSetup';
 
 export default function SimplePage(): JSX.Element {
   return (
@@ -9,8 +9,7 @@ export default function SimplePage(): JSX.Element {
       <ScenePlayer
         sceneGroup={simpleSceneGroup}
         manifestUrl="/scene-manifest.json"
-        widgetSetup={(manifest: AssetManifest | null, options) =>
-          createDefaultWidgetRegistry(manifest, options)}
+        widgetSetup={createWidgetSetup}
       />
     </div>
   );

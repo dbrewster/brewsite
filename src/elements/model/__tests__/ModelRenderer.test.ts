@@ -124,6 +124,9 @@ describe('ModelRenderer', () => {
     const instanceMesh = instance.group.getObjectByName('Cortex') as THREE.Mesh | null;
     const mat = instanceMesh?.material as THREE.MeshStandardMaterial | undefined;
     expect(instanceMesh).toBeTruthy();
+    if (!mat) {
+      throw new Error('Expected material to be defined');
+    }
     expect(mat.opacity).toBeCloseTo(0.4);
   });
 });

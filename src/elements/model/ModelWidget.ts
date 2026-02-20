@@ -173,14 +173,20 @@ const applyModelPartToOverrides = (
     }
   }
 
+  const resolvedEnabled = props.enabled as boolean | undefined;
+  const resolvedOpacity = props.opacity as number | undefined;
+  const resolvedPosition = props.position as Vec3 | undefined;
+  const resolvedRotation = props.rotation as Vec3 | undefined;
+  const resolvedScale = props.scale as number | undefined;
+
   parts[id] = {
     ...base,
     anchor: props.anchor ?? base.anchor,
-    enabled: props.enabled ?? base.enabled,
-    opacity: props.opacity ?? base.opacity,
-    position: props.position ?? position,
-    rotation: props.rotation ?? rotation,
-    scale: props.scale ?? scale,
+    enabled: resolvedEnabled ?? base.enabled,
+    opacity: resolvedOpacity ?? base.opacity,
+    position: resolvedPosition ?? position,
+    rotation: resolvedRotation ?? rotation,
+    scale: resolvedScale ?? scale,
     modelId,
     subparts,
   };

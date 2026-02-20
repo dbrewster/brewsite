@@ -58,6 +58,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   const [driverReady, setDriverReady] = useState(false);
   const [sceneTrack, setSceneTrack] = useState<SceneTrack | null>(null);
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -77,6 +78,22 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     scrollRegionRef,
     scrollRegionHeightPx,
   });
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('matchMedia' in window)) return;
+    const media = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setPrefersReducedMotion(media.matches);
+    update();
+    if (typeof media.addEventListener === 'function') {
+      media.addEventListener('change', update);
+      return () => media.removeEventListener('change', update);
+    }
+    if (typeof (media as MediaQueryList).addListener === 'function') {
+      (media as MediaQueryList).addListener(update);
+      return () => (media as MediaQueryList).removeListener(update);
+    }
+    return undefined;
+  }, []);
 
   const setCanvasRef = useCallback((next: HTMLCanvasElement | null) => {
     setCanvas(next);
@@ -161,7 +178,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       scenes: options.sceneGroup.scenes,
       timeline: options.sceneGroup.timeline,
       widgetRegistry: options.widgetRegistry,
-      prefersReducedMotion: false,
+      prefersReducedMotion,
       assetsReady,
     });
     const cached = getCachedTrack(key);
@@ -175,10 +192,11 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       assetsReady,
       widgetRegistry: options.widgetRegistry,
       clipMeta: options.clipMeta,
+      prefersReducedMotion,
     });
     setCachedTrack(key, compiled);
     setSceneTrack(compiled);
-  }, [options.sceneGroup, options.widgetRegistry, options.clipMeta, assetsReady]);
+  }, [options.sceneGroup, options.widgetRegistry, options.clipMeta, assetsReady, prefersReducedMotion]);
 
   useEffect(() => {
     const driver = driverRef.current;

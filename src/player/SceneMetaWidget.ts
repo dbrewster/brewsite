@@ -16,6 +16,10 @@ export class SceneMetaWidget implements IAnimationController {
     this.onSceneChange = options?.onSceneChange;
   }
 
+  setOnSceneChange(callback?: (sceneId: string, sceneIndex: number) => void): void {
+    this.onSceneChange = callback;
+  }
+
   onTick({ variables, tick }: AnimationTickContext): void {
     if (!tick) return;
 

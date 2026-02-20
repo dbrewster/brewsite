@@ -36,7 +36,7 @@ export type SceneDefinition = {
   meta?: Record<string, JsonPrimitive>;
   entryLead?: number;
   entryStart?: number;
-  getFrame: (context: SceneFrameContext) => ReactNode;
+  getFrame: (context: SceneFrameContext) => ReactNode | SceneFrame;
   transitions?: SceneTransition[];
 };
 

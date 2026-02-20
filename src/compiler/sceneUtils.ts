@@ -1,4 +1,4 @@
-import { clamp01, rangeProgress } from '../timeline/timelineMath';
+import { clamp01, rangeProgress } from '../timeline/math';
 import type { SceneFrameContext, SceneTransition } from './sceneTypes';
 import type { SceneFrame } from './sceneTrackTypes';
 

@@ -18,10 +18,8 @@ export type CompileSceneTrackOptions = {
    * Derived from the manifest via clipMetaFromManifest(). Empty before manifest loads.
    */
   clipMeta: ClipMeta[];
-  // NOTE: prefersReducedMotion is intentionally absent here.
-  // The compiler is a pure function with no knowledge of browser accessibility settings.
-  // It is always passed as false in CompileExtraContext — the engine detects and
-  // propagates it separately if needed.
+  /** Provided by the engine layer (never read from window here). */
+  prefersReducedMotion?: boolean;
 };
 
 type NormalizedScene = {
@@ -368,8 +366,7 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     // Compile labels
     const labelPrimitives = compileLabels(resolved.labels ?? [], context);
 
-    // Collect widget extras via compileExtra() — compiler passes prefersReducedMotion:false
-    // (the engine layer detects actual browser preference and handles it separately)
+    // Collect widget extras via compileExtra() — engine passes prefersReducedMotion.
     const widgetExtras: Record<string, unknown> = {};
     for (const widget of options.widgetRegistry.getSceneElements()) {
       const widgetState = resolved.widgets[widget.widgetId];
@@ -378,7 +375,7 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
           sceneProgress: context.sceneProgress,
           globalProgress: context.globalProgress,
           clipMeta: options.clipMeta,
-          prefersReducedMotion: false,
+          prefersReducedMotion: options.prefersReducedMotion ?? false,
         };
         widgetExtras[widget.widgetId] = widget.compileExtra(widgetState, compileExtraCtx);
       }

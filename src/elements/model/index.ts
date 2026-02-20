@@ -8,7 +8,6 @@ export type { ModelWidgetConfig } from './ModelWidget';
 
 // Types
 export type {
-  Vec3,
   ClipMeta,
   ModelPartId,
   ModelPartAnchor,
