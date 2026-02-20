@@ -1,0 +1,174 @@
+import type {RuntimeDriver} from './types';
+
+export type RuntimeFrame = {
+  nowMs: number;
+  deltaSeconds: number;
+  wallTimeSeconds: number;
+  globalProgress: number;
+};
+
+export type RuntimeLoopFrameHandle = number | ReturnType<typeof setTimeout>;
+
+export type RuntimeLoopClock = {
+  now: () => number;
+  requestFrame: (cb: (nowMs: number) => void) => RuntimeLoopFrameHandle;
+  cancelFrame: (id: RuntimeLoopFrameHandle) => void;
+};
+
+export type RuntimeLoopOptions = {
+  driver: RuntimeDriver;
+  getGlobalProgress: () => number;
+  render?: () => void;
+  onAfterTick?: (frame: RuntimeFrame) => void;
+  fpsCap?: number;
+  fixedDeltaSeconds?: number;
+  clock?: RuntimeLoopClock;
+};
+
+const defaultClock: RuntimeLoopClock = {
+  now: () => (typeof performance !== 'undefined' ? performance.now() : Date.now()),
+  requestFrame: (cb) => {
+    if (typeof requestAnimationFrame !== 'undefined') {
+      return requestAnimationFrame(cb);
+    }
+    return globalThis.setTimeout(() => cb(Date.now()), 16);
+  },
+  cancelFrame: (id) => {
+    if (typeof cancelAnimationFrame !== 'undefined' && typeof id === 'number') {
+      cancelAnimationFrame(id);
+      return;
+    }
+    globalThis.clearTimeout(id);
+  },
+};
+
+export class RuntimeLoop {
+  private driver: RuntimeDriver;
+  private readonly getGlobalProgress: () => number;
+  private readonly render?: () => void;
+  private readonly onAfterTick?: (frame: RuntimeFrame) => void;
+  private clock: RuntimeLoopClock;
+  private lastMs: number | null = null;
+  private wallTimeSeconds = 0;
+  private wallTimeOverride: number | null = null;
+  private active = true;
+  private running = false;
+  private rafId: RuntimeLoopFrameHandle | null = null;
+  private readonly fpsCap: number | null = null;
+  private readonly fixedDeltaSeconds: number | null = null;
+  private fpsAccumulatorMs = 0;
+  private errorLogged = false;
+  private readonly perfBuffer: Array<{ tickMs: number; afterTickMs: number; renderMs: number; totalMs: number }> = [];
+  private perfIndex = 0;
+
+  constructor(options: RuntimeLoopOptions) {
+    this.driver = options.driver;
+    this.getGlobalProgress = options.getGlobalProgress;
+    this.render = options.render;
+    this.onAfterTick = options.onAfterTick;
+    this.fpsCap = typeof options.fpsCap === 'number' ? options.fpsCap : null;
+    this.fixedDeltaSeconds = typeof options.fixedDeltaSeconds === 'number' ? options.fixedDeltaSeconds : null;
+    this.clock = options.clock ?? defaultClock;
+    this.perfBuffer = new Array(120).fill(0).map(() => ({ tickMs: 0, afterTickMs: 0, renderMs: 0, totalMs: 0 }));
+  }
+
+  start(): void {
+    if (this.running) return;
+    this.running = true;
+    const step = (nowMs: number) => {
+      if (!this.running) return;
+      this.step(nowMs);
+      this.rafId = this.clock.requestFrame(step);
+    };
+    this.rafId = this.clock.requestFrame(step);
+  }
+
+  stop(): void {
+    this.running = false;
+    if (this.rafId !== null) {
+      this.clock.cancelFrame(this.rafId);
+      this.rafId = null;
+    }
+    this.lastMs = null;
+    this.fpsAccumulatorMs = 0;
+  }
+
+  setWallTimeOverride(value: number | null): void {
+    this.wallTimeOverride = typeof value === 'number' ? value : null;
+  }
+
+  step(nowMs: number): void {
+    this.runStep(nowMs, false);
+  }
+
+  stepImmediate(nowMs: number): void {
+    this.runStep(nowMs, true);
+  }
+
+  private runStep(nowMs: number, force: boolean): void {
+    if (!this.active) {
+      this.lastMs = nowMs;
+      return;
+    }
+
+    let deltaMs = 0;
+    if (this.lastMs === null) {
+      this.lastMs = nowMs;
+    } else {
+      deltaMs = Math.max(0, nowMs - this.lastMs);
+      this.lastMs = nowMs;
+    }
+
+    if (!force && this.fpsCap && this.fpsCap > 0) {
+      this.fpsAccumulatorMs += deltaMs;
+      const intervalMs = 1000 / this.fpsCap;
+      if (this.fpsAccumulatorMs < intervalMs) return;
+      deltaMs = this.fpsAccumulatorMs;
+      this.fpsAccumulatorMs = 0;
+    }
+
+    const deltaSeconds =
+      typeof this.fixedDeltaSeconds === 'number' ? this.fixedDeltaSeconds : deltaMs / 1000;
+
+    if (this.wallTimeOverride !== null) {
+      this.wallTimeSeconds = this.wallTimeOverride;
+    } else {
+      this.wallTimeSeconds = nowMs / 1000;
+    }
+
+    const globalProgress = this.getGlobalProgress();
+
+    try {
+      const perfEnabled =
+        typeof window !== 'undefined' &&
+        (window as unknown as { __robotRuntimeDebug?: { perf?: boolean } }).__robotRuntimeDebug?.perf;
+      const perfStart = perfEnabled ? this.clock.now() : 0;
+      this.driver.tick({ deltaSeconds, globalProgress, wallTimeSeconds: this.wallTimeSeconds });
+      const afterTickStart = perfEnabled ? this.clock.now() : 0;
+      if (this.onAfterTick) {
+        this.onAfterTick({
+          nowMs,
+          deltaSeconds,
+          wallTimeSeconds: this.wallTimeSeconds,
+          globalProgress,
+        });
+      }
+      const renderStart = perfEnabled ? this.clock.now() : 0;
+      if (this.render) this.render();
+      if (perfEnabled) {
+        const end = this.clock.now();
+        const tickMs = Math.max(0, afterTickStart - perfStart);
+        const afterTickMs = Math.max(0, renderStart - afterTickStart);
+        const renderMs = Math.max(0, end - renderStart);
+        this.perfBuffer[this.perfIndex] = { tickMs, afterTickMs, renderMs, totalMs: end - perfStart };
+        this.perfIndex = (this.perfIndex + 1) % this.perfBuffer.length;
+      }
+      this.errorLogged = false;
+    } catch (error) {
+      if (!this.errorLogged) {
+        this.errorLogged = true;
+        console.error('[RobotRuntimeLoop]', 'frame.failed', error);
+      }
+    }
+  }
+}

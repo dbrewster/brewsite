@@ -1,0 +1,42 @@
+{
+  "name": "brewflow-website",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "extract-metadata": "node scripts/extract-model-metadata.mjs",
+    "gen:scene-dsl": "node scripts/gen-scene-dsl.mjs --input src/resources/sceneResources.ts --out-dir src/resources",
+    "build": "node scripts/extract-model-metadata.mjs && tsc -b && vite build && node scripts/prune-dist.mjs",
+    "typecheck": "pnpm exec tsc --noEmit -p tsconfig.json",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "meshoptimizer": "^0.23.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router": "^7.13.0",
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "@babel/parser": "^7.29.0",
+    "@gltf-transform/cli": "^4.3.0",
+    "@gltf-transform/core": "^4.3.0",
+    "@gltf-transform/extensions": "^4.3.0",
+    "@gltf-transform/functions": "^4.3.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/react-test-renderer": "^19.1.0",
+    "@types/three": "^0.169.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "fbx2gltf": "0.9.7-p1",
+    "react-test-renderer": "^19.2.4",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.9"
+  }
+}
