@@ -3,10 +3,13 @@
 // Uses a real WidgetRegistry and real VariableStore; no mocks.
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import * as THREE from 'three';
 import { RuntimeDriverImpl } from '../RuntimeDriver';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import { VariableStore } from '../../widget/VariableStore';
 import type { SceneTrack, SceneTrackTick } from '../../compiler/sceneTrackTypes';
+import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
+import type { IAnimationController, IContainedModel, ILoadable, IRenderable, ISceneElement } from '../../widget/types';
 
 // ---------------------------------------------------------------------------
 // Test doubles
@@ -92,5 +95,119 @@ describe('RuntimeDriverImpl', () => {
     });
     driverWithCb.setAssetsReady(true);
     expect(called).toBe(true);
+  });
+
+  it('initializes renderables, loads assets, and attaches contained models', async () => {
+    const registry = new WidgetRegistry();
+    const variableStore = new VariableStore();
+    const scene = new THREE.Scene();
+
+    const noopSpec: ElementTransitionSpec<{ enabled: boolean }> = {
+      exit: (s) => s,
+      enter: (s) => s,
+      interpolate: (_a, b) => b,
+    };
+
+    class AnchorWidget implements ISceneElement<{ enabled: boolean }>, IRenderable<{ enabled: boolean }>, ILoadable {
+      readonly widgetId = 'primary';
+      readonly defaultState = { enabled: true };
+      readonly transitionSpec = noopSpec;
+      readonly DslComponent = () => null;
+      isLoaded = false;
+      private anchor: THREE.Bone | null = null;
+      private anchorTargets = { head: 'headBone' };
+
+      initialize(ctx: { scene: THREE.Scene; widgetId: string }): void {
+        this.anchor = new THREE.Bone();
+        this.anchor.name = 'headBone';
+        ctx.scene.add(this.anchor);
+      }
+      async load(): Promise<void> { this.isLoaded = true; }
+      apply(): void {}
+      dispose(): void {}
+      getAnchorBoneName(key: string): string | undefined { return this.anchorTargets[key]; }
+      findBoneNode(name: string): THREE.Object3D | undefined {
+        if (this.anchor?.name === name) return this.anchor;
+        return undefined;
+      }
+    }
+
+    class ContainedWidget implements ISceneElement<{ enabled: boolean }>, IContainedModel<{ enabled: boolean }>, ILoadable {
+      readonly widgetId = 'brain';
+      readonly anchorModelId = 'primary';
+      readonly anchorKey = 'head';
+      readonly defaultState = { enabled: true };
+      readonly transitionSpec = noopSpec;
+      readonly DslComponent = () => null;
+      isLoaded = false;
+      private group: THREE.Group | null = null;
+
+      initialize(ctx: { scene: THREE.Scene; widgetId: string }): void {
+        this.group = new THREE.Group();
+        this.group.name = 'brainGroup';
+        ctx.scene.add(this.group);
+      }
+      async load(): Promise<void> { this.isLoaded = true; }
+      apply(): void {}
+      dispose(): void {}
+      getObject3D(): THREE.Object3D | null { return this.group; }
+    }
+
+    const anchor = new AnchorWidget();
+    const contained = new ContainedWidget();
+    registry.register(anchor).register(contained);
+
+    const driver = new RuntimeDriverImpl({
+      widgetRegistry: registry,
+      variableStore,
+      manifest: { version: 2, models: [], containedModels: [], animations: [] },
+    });
+
+    await driver.initialize(scene);
+
+    const group = contained.getObject3D();
+    expect(group?.parent).toBe(anchor.findBoneNode('headBone'));
+  });
+
+  it('ticks animation controllers before renderables', async () => {
+    const registry = new WidgetRegistry();
+    const variableStore = new VariableStore();
+    const order: string[] = [];
+
+    const noopSpec: ElementTransitionSpec<{ value: number }> = {
+      exit: (s) => s,
+      enter: (s) => s,
+      interpolate: (_a, b) => b,
+    };
+
+    class RenderWidget implements ISceneElement<{ value: number }>, IRenderable<{ value: number }> {
+      readonly widgetId = 'renderable';
+      readonly defaultState = { value: 1 };
+      readonly transitionSpec = noopSpec;
+      readonly DslComponent = () => null;
+      initialize(): void {}
+      apply(state: { value: number }): void { order.push(`render:${state.value}`); }
+      dispose(): void {}
+    }
+
+    class ControllerWidget implements IAnimationController {
+      readonly widgetId = 'controller';
+      onTick(): void { order.push('tick'); }
+    }
+
+    registry.register(new RenderWidget()).register(new ControllerWidget());
+
+    const driver = new RuntimeDriverImpl({
+      widgetRegistry: registry,
+      variableStore,
+      manifest: null,
+    });
+
+    driver.setSceneTrack(makeEmptySceneTrack());
+    await driver.initialize(new THREE.Scene());
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0.5 });
+
+    expect(order[0]).toBe('tick');
+    expect(order[1]).toBe('render:1');
   });
 });

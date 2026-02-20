@@ -70,6 +70,7 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
     sceneGroup: props.sceneGroup,
     widgetRegistry,
     clipMeta,
+    manifest,
     fpsCap: props.fpsCap,
     pixelsPerScene: props.pixelsPerScene,
     onReady: props.onReady,

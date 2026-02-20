@@ -171,4 +171,8 @@ export class BrainModelWidget
       this.group = null;
     }
   }
+
+  getObject3D(): THREE.Object3D | null {
+    return this.group;
+  }
 }

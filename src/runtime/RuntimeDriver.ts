@@ -75,12 +75,52 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     const loadables = this.widgetRegistry.getLoadables();
     try {
       await Promise.all(loadables.map((w) => w.load(this.manifest)));
+      this.attachContainedModels();
       this.assetsReady = true;
       this.onAssetsReady?.();
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e));
       this.onError?.(err);
       throw err;
+    }
+  }
+
+  private attachContainedModels(): void {
+    const contained = this.widgetRegistry.getContainedModels();
+    for (const widget of contained) {
+      const anchorModel = this.widgetRegistry.get(widget.anchorModelId);
+      if (!anchorModel) {
+        console.warn(`[RuntimeDriver] Anchor model "${widget.anchorModelId}" not found for "${widget.widgetId}"`);
+        continue;
+      }
+
+      const anchorName =
+        (anchorModel as { getAnchorBoneName?: (key: string) => string | undefined })
+          .getAnchorBoneName?.(widget.anchorKey) ?? widget.anchorKey;
+      if (!anchorName) {
+        console.warn(`[RuntimeDriver] Anchor key "${widget.anchorKey}" not resolved for "${widget.widgetId}"`);
+        continue;
+      }
+
+      const anchorNode =
+        (anchorModel as { findBoneNode?: (name: string) => unknown })
+          .findBoneNode?.(anchorName) as { add?: (obj: unknown) => void } | undefined;
+      if (!anchorNode || typeof anchorNode.add !== 'function') {
+        console.warn(`[RuntimeDriver] Anchor bone "${anchorName}" not found for "${widget.widgetId}"`);
+        continue;
+      }
+
+      const obj =
+        (widget as unknown as { getObject3D?: () => unknown; object3D?: unknown; group?: unknown })
+          .getObject3D?.() ??
+        (widget as unknown as { object3D?: unknown }).object3D ??
+        (widget as unknown as { group?: unknown }).group;
+      if (!obj) {
+        console.warn(`[RuntimeDriver] Contained model "${widget.widgetId}" has no Object3D to attach`);
+        continue;
+      }
+
+      anchorNode.add(obj);
     }
   }
 

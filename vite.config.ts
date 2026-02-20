@@ -23,15 +23,7 @@ export default defineConfig({
       reporter: ['text', 'html', 'json'],
       reportsDirectory: './coverage',
       include: [
-        'src/widget/**/*.ts',
-        'src/compiler/**/*.ts',
-        'src/runtime/**/*.ts',
-        'src/elements/**/*.ts',
-        'src/timeline/**/*.ts',
-        'src/math/**/*.ts',
-        'src/labels/**/*.ts',
-        'src/annotations/**/*.ts',
-        'src/player/**/*.ts',
+        'src/**/__tests__/**/*.ts',
       ],
       exclude: [
         'src/runtime/mocks/**/*.ts',

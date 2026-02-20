@@ -30,6 +30,8 @@ import type {
   ClipMeta,
   BodyPartOverride,
   BodyPartOverrideMap,
+  ModelPartSpec,
+  ModelSubpartSpec,
   MotionCommand,
   MotionScene,
   CustomAnimation,
@@ -62,6 +64,9 @@ import type {
   AnimationProps,
   MotionProps,
   PoseProps,
+  ModelPartProps,
+  ContainedModelProps,
+  SubpartProps,
 } from './dsl';
 import { ModelRenderer } from './ModelRenderer';
 
@@ -115,6 +120,72 @@ const applyBodyPartToOverrides = (
   overrides[id] = override;
 };
 
+/**
+ * Merge a single <ModelPart id="..."> element into the parts map.
+ * Handles nested <ContainedModel> and <Subpart> children.
+ */
+const applyModelPartToOverrides = (
+  el: ReactElement,
+  parts: Record<string, ModelPartSpec>,
+  ctx: SceneFrameContext,
+  helpers: CompileHelpers,
+): void => {
+  const props = helpers.resolveObjectValues(el.props as ModelPartProps, ctx);
+  if (!props?.id) return;
+  const id = props.id as string;
+  const base = parts[id] ?? {
+    id,
+    anchor: props.anchor ?? id,
+    enabled: true,
+    space: 'local',
+    position: [0, 0, 0] as Vec3,
+    rotation: [0, 0, 0] as Vec3,
+    scale: 1,
+  };
+
+  let modelId = base.modelId;
+  let position = base.position;
+  let rotation = base.rotation;
+  let scale = base.scale;
+  const subparts: Partial<Record<string, ModelSubpartSpec>> = { ...(base.subparts ?? {}) };
+
+  const children = helpers.collectChildren(el);
+  for (const child of children) {
+    if (!isValidElement(child)) continue;
+    const ce = child as ReactElement;
+    if (ce.type === ContainedModel) {
+      const contained = helpers.resolveObjectValues(ce.props as ContainedModelProps, ctx);
+      if (contained.modelId) modelId = contained.modelId as string;
+      if (contained.position) position = contained.position as Vec3;
+      if (contained.rotation) rotation = contained.rotation as Vec3;
+      if (contained.scale !== undefined) scale = contained.scale as number;
+    } else if (ce.type === Subpart) {
+      const subProps = helpers.resolveObjectValues(ce.props as SubpartProps, ctx);
+      if (!subProps.id) continue;
+      subparts[subProps.id] = {
+        id: subProps.id,
+        enabled: subProps.enabled as boolean | undefined,
+        opacity: subProps.opacity as number | undefined,
+        color: subProps.color as string | undefined,
+        metalness: subProps.metalness as number | undefined,
+        roughness: subProps.roughness as number | undefined,
+      };
+    }
+  }
+
+  parts[id] = {
+    ...base,
+    anchor: props.anchor ?? base.anchor,
+    enabled: props.enabled ?? base.enabled,
+    opacity: props.opacity ?? base.opacity,
+    position: props.position ?? position,
+    rotation: props.rotation ?? rotation,
+    scale: props.scale ?? scale,
+    modelId,
+    subparts,
+  };
+};
+
 // ─── Widget class ─────────────────────────────────────────────────────────────
 
 /**
@@ -137,6 +208,7 @@ export class ModelWidget
   readonly defaultState: SceneModelInstanceState;
   readonly transitionSpec = instanceTransitionSpec;
   readonly DslComponent = Model;
+  private anchorTargets: Record<string, string> = {};
 
   readonly childDslComponents: readonly {
     component: React.ComponentType<unknown>;
@@ -165,6 +237,7 @@ export class ModelWidget
     this.config = config;
     this.clipMeta = config.clipMeta;
     this.defaultState = createDefaultModelInstanceState(config.modelMeta.id);
+    this.anchorTargets = config.modelMeta.anchorTargets ?? {};
 
     // Register CUSTOM_NODE_HANDLER for complex child DSL processing.
     // WidgetRegistry's routing handler calls this when it encounters
@@ -187,6 +260,7 @@ export class ModelWidget
       let motionCustomAnimations: CustomAnimation[] | undefined =
         base.playback.motion.customAnimations;
       let animation: SceneAnimation = { ...base.playback.animation };
+      const modelParts: Record<string, ModelPartSpec> = { ...(base.model.parts ?? {}) };
 
       // Walk immediate children of <Model>
       const children = helpers.collectChildren(node);
@@ -207,6 +281,8 @@ export class ModelWidget
         } else if (el.type === BodyPart) {
           // Direct <BodyPart id="..."> child of <Model>
           applyBodyPartToOverrides(el, bodyPartOverrides, ctx, helpers);
+        } else if (el.type === ModelPart) {
+          applyModelPartToOverrides(el, modelParts, ctx, helpers);
         } else if (el.type === Playback) {
           // <Playback> container: <Animation> and <Motion> children
           const pbChildren = helpers.collectChildren(el);
@@ -256,6 +332,7 @@ export class ModelWidget
           ...(props.metalness !== undefined ? { metalness: props.metalness as number } : {}),
           ...(props.roughness !== undefined ? { roughness: props.roughness as number } : {}),
           bodyPartOverrides,
+          parts: Object.keys(modelParts).length > 0 ? modelParts : undefined,
         },
         playback: {
           motion: {
@@ -288,18 +365,19 @@ export class ModelWidget
    */
   async load(manifest: unknown): Promise<void> {
     const typedManifest = manifest as AssetManifest | null;
-    if (!typedManifest || !this.renderer) {
-      console.warn('[ModelWidget] no manifest or renderer');
+    if (!this.renderer) {
+      console.warn('[ModelWidget] no renderer');
       return;
     }
 
-    const modelMeta = typedManifest.models?.find((m) => m.id === this.widgetId) ?? this.config.modelMeta;
+    const modelMeta = typedManifest?.models?.find((m) => m.id === this.widgetId) ?? this.config.modelMeta;
     if (!modelMeta.glb) {
       console.warn(`[ModelWidget] no GLB URL for model "${this.widgetId}"`);
       return;
     }
 
-    await this.renderer.loadGlb(modelMeta.glb, modelMeta.anchorTargets);
+    this.anchorTargets = modelMeta.anchorTargets ?? {};
+    await this.renderer.loadGlb(modelMeta.glb, { anchorTargets: this.anchorTargets, manifest: typedManifest });
     this.isLoaded = true;
   }
 
@@ -325,5 +403,17 @@ export class ModelWidget
    */
   dispose(): void {
     this.renderer?.dispose();
+  }
+
+  getAnchorBoneName(anchorKey: string): string | undefined {
+    return this.anchorTargets[anchorKey];
+  }
+
+  findBoneNode(boneName: string): THREE.Object3D | undefined {
+    return this.renderer?.findNodeByName(boneName);
+  }
+
+  getBoneWorldPositions(): Map<string, [number, number, number]> {
+    return this.renderer?.getBoneWorldPositions() ?? new Map();
   }
 }

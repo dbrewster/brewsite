@@ -13,11 +13,13 @@ import { EngineFrameDriver } from './EngineFrameDriver';
 import type { EngineFrameState } from './engineTypes';
 import { useEngineScroll } from './useEngineScroll';
 import type { AnnotationPositioner } from './AnnotationPositioner';
+import type { AssetManifest } from '../elements/model/metadata';
 
 export type UseSceneEngineOptions = {
   sceneGroup: SceneGroup;
   widgetRegistry: WidgetRegistry;
   clipMeta: ClipMeta[];
+  manifest?: AssetManifest | null;
   fpsCap?: number;
   pixelsPerScene?: number;
   onReady?: () => void;
@@ -124,7 +126,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     const driver = new RuntimeDriverImpl({
       widgetRegistry: options.widgetRegistry,
       variableStore,
-      manifest: null,
+      manifest: options.manifest ?? null,
       onAssetsReady: () => setAssetsReady(true),
       onError: options.onError,
     });
@@ -152,7 +154,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       loopRef.current = null;
       frameDriverRef.current?.reset();
     };
-  }, [canvas, options.widgetRegistry, options.onError, variableStore]);
+  }, [canvas, options.widgetRegistry, options.onError, options.manifest, variableStore]);
 
   useEffect(() => {
     const key = buildSceneTrackKey({
