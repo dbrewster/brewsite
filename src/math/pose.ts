@@ -1,5 +1,5 @@
 import { lerpVec3, quatFromEuler, quatSlerp, quatToEuler } from './index';
-import type { Node, PoseSnapshot, PoseSnapshotMap, Vec3 } from '../legacy/runtime/types';
+import type { Node, PoseSnapshot, PoseSnapshotMap, Vec3 } from '../runtime/types';
 
 export const capturePose = (node: Node, pose: PoseSnapshotMap): void => {
   pose.set(node.name, {
@@ -7,7 +7,7 @@ export const capturePose = (node: Node, pose: PoseSnapshotMap): void => {
     rotation: [node.localRotation[0], node.localRotation[1], node.localRotation[2]],
     scale: [node.localScale[0], node.localScale[1], node.localScale[2]],
   });
-  node.children.forEach((child) => capturePose(child, pose));
+  node.children.forEach((child: Node) => capturePose(child, pose));
 };
 
 export const applyPoseSnapshot = (node: Node, pose: PoseSnapshotMap): void => {
@@ -17,7 +17,7 @@ export const applyPoseSnapshot = (node: Node, pose: PoseSnapshotMap): void => {
     node.localRotation = [snapshot.rotation[0], snapshot.rotation[1], snapshot.rotation[2]];
     node.localScale = [snapshot.scale[0], snapshot.scale[1], snapshot.scale[2]];
   }
-  node.children.forEach((child) => applyPoseSnapshot(child, pose));
+  node.children.forEach((child: Node) => applyPoseSnapshot(child, pose));
 };
 
 export const blendPoseSnapshot = (node: Node, pose: PoseSnapshotMap, t: number): void => {
@@ -30,7 +30,7 @@ export const blendPoseSnapshot = (node: Node, pose: PoseSnapshotMap, t: number):
     const blended = quatSlerp(fromQ, toQ, t);
     node.localRotation = quatToEuler(blended);
   }
-  node.children.forEach((child) => blendPoseSnapshot(child, pose, t));
+  node.children.forEach((child: Node) => blendPoseSnapshot(child, pose, t));
 };
 
 export const blendPoseSnapshots = (
@@ -57,7 +57,7 @@ export const blendPoseSnapshots = (
     node.localRotation = [from.rotation[0], from.rotation[1], from.rotation[2]];
     node.localScale = [from.scale[0], from.scale[1], from.scale[2]];
   }
-  node.children.forEach((child) => blendPoseSnapshots(child, fromPose, toPose, t));
+  node.children.forEach((child: Node) => blendPoseSnapshots(child, fromPose, toPose, t));
 };
 
 const vec3Equals = (a: Vec3, b: Vec3, epsilon: number): boolean => (

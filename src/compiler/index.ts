@@ -5,3 +5,4 @@
 export { Scene, resolveSceneFromDsl } from './sceneDslCompiler';
 export type { SceneGroup, SceneDefinition, SceneFrameContext, SceneTransition } from './sceneTypes';
 export type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
+export { Annotations, MessageAnnotation } from './blocks/annotationBlocks';

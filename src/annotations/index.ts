@@ -12,3 +12,4 @@ export { computeLabelSize, computeAnchorOffset, type LabelSize } from './annotat
 export { computeLineIntersection2D, type LineIntersection2D } from './annotationLineMath';
 export { type AnnotationTargetResolution, type AnnotationTargetProvider } from './annotationTargets';
 export { DEFAULT_FONT_FAMILY, resolveAnnotationFont } from './annotationFonts';
+export { AnnotationItem } from './AnnotationItem';

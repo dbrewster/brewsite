@@ -1,9 +1,12 @@
-import {createRobotTimeline} from '../../../robot/robotTimeline';
-import type {SceneGroup} from '../../../robot/runtime/compiler/sceneTypes';
-import {CORE_MESSAGE_SCENES} from './sceneOrder';
+import type { SceneGroup } from '@brewsite/core';
+import { createSceneTimeline } from '@brewsite/core';
+import { scene01Move } from './scene01_move';
+import { scene02Move } from './scene02_move';
 
-export const coreMessageSceneGroup: SceneGroup = {
-  id: 'core-message',
-  scenes: CORE_MESSAGE_SCENES,
-  timeline: createRobotTimeline(CORE_MESSAGE_SCENES),
+const scenes = [scene01Move, scene02Move];
+
+export const simpleSceneGroup: SceneGroup = {
+  id: 'simple',
+  scenes,
+  timeline: createSceneTimeline(scenes),
 };

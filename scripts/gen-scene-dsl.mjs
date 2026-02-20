@@ -2,9 +2,10 @@
  * gen-scene-dsl.mjs
  *
  * CLI:
- *   node scripts/gen-scene-dsl.mjs --input <resources.tsx> --out-dir <dir> [--page-ids a,b]
+ *   node scripts/gen-scene-dsl.mjs --input <sceneResources.ts> --out-dir <dir> [--manifest-out <path>] [--page-ids a,b]
  *
- * Reads a shared sceneResources JSX export and generates a typed DSL module.
+ * Reads a sceneResources object export and generates typed DSL wrappers and (optionally)
+ * a version-2 AssetManifest JSON.
  */
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -24,6 +25,7 @@ const getArg = (flag) => {
 
 const inputPath = getArg('--input');
 const outDir = getArg('--out-dir');
+const manifestOut = getArg('--manifest-out');
 const pageIdsArg = getArg('--page-ids');
 
 if (!inputPath || !outDir) {
@@ -33,6 +35,9 @@ if (!inputPath || !outDir) {
 
 const absInput = path.isAbsolute(inputPath) ? inputPath : path.resolve(process.cwd(), inputPath);
 const absOutDir = path.isAbsolute(outDir) ? outDir : path.resolve(process.cwd(), outDir);
+const absManifestOut = manifestOut
+  ? (path.isAbsolute(manifestOut) ? manifestOut : path.resolve(process.cwd(), manifestOut))
+  : null;
 
 const source = await readFile(absInput, 'utf8');
 
@@ -62,59 +67,60 @@ const getExportedConstInit = (node, name) => {
 const unwrapExpression = (node) => {
   if (!node) return null;
   if (node.type === 'ParenthesizedExpression') return unwrapExpression(node.expression);
+  if (node.type === 'TSAsExpression') return unwrapExpression(node.expression);
+  if (node.type === 'TSNonNullExpression') return unwrapExpression(node.expression);
   return node;
-};
-
-const getJsxName = (node) => {
-  if (!node) return null;
-  if (node.type === 'JSXIdentifier') return node.name;
-  return null;
-};
-
-const getCallName = (node) => {
-  if (!node || node.type !== 'CallExpression') return null;
-  if (node.callee.type === 'Identifier') return node.callee.name;
-  return null;
 };
 
 const getObjectLiteral = (node) => (node && node.type === 'ObjectExpression' ? node : null);
 
-const getObjectStringProp = (obj, name, { required = false } = {}) => {
-  if (!obj) {
-    if (required) throw new Error(`Missing object for attribute: ${name}`);
-    return null;
-  }
-  const prop = obj.properties.find(
+const getObjectProp = (obj, name) => {
+  return obj.properties.find(
     (p) =>
       p.type === 'ObjectProperty' &&
       ((p.key.type === 'Identifier' && p.key.name === name) ||
         (p.key.type === 'StringLiteral' && p.key.value === name)),
   );
+};
+
+const readStringLiteral = (node, name) => {
+  const unwrapped = unwrapExpression(node);
+  if (!unwrapped) return null;
+  if (unwrapped.type === 'StringLiteral') return unwrapped.value;
+  throw new Error(`Attribute ${name} must be a string literal.`);
+};
+
+const readStringProp = (obj, name, { required = false } = {}) => {
+  const prop = getObjectProp(obj, name);
   if (!prop) {
     if (required) throw new Error(`Missing required attribute: ${name}`);
     return null;
   }
-  if (prop.value.type === 'StringLiteral') return prop.value.value;
-  throw new Error(`Attribute ${name} must be a string literal.`);
+  if (prop.type !== 'ObjectProperty') {
+    if (required) throw new Error(`Invalid attribute: ${name}`);
+    return null;
+  }
+  return readStringLiteral(prop.value, name);
 };
 
-const getStringAttr = (attrs, name, { required = false } = {}) => {
-  const attr = attrs.find(
-    (a) => a.type === 'JSXAttribute' && a.name?.name === name,
-  );
-  if (!attr) {
+const readStringArrayProp = (obj, name, { required = false } = {}) => {
+  const prop = getObjectProp(obj, name);
+  if (!prop) {
     if (required) throw new Error(`Missing required attribute: ${name}`);
     return null;
   }
-  if (!attr.value) {
-    if (required) throw new Error(`Missing value for attribute: ${name}`);
+  if (prop.type !== 'ObjectProperty') {
+    if (required) throw new Error(`Invalid attribute: ${name}`);
     return null;
   }
-  if (attr.value.type === 'StringLiteral') return attr.value.value;
-  if (attr.value.type === 'JSXExpressionContainer' && attr.value.expression.type === 'StringLiteral') {
-    return attr.value.expression.value;
+  const value = unwrapExpression(prop.value);
+  if (!value || value.type !== 'ArrayExpression') {
+    throw new Error(`Attribute ${name} must be an array of string literals.`);
   }
-  throw new Error(`Attribute ${name} must be a string literal.`);
+  return value.elements.map((el, idx) => {
+    if (!el) throw new Error(`Attribute ${name}[${idx}] is missing`);
+    return readStringLiteral(el, `${name}[${idx}]`);
+  });
 };
 
 let resourcesNode = null;
@@ -131,166 +137,69 @@ if (!resourcesNode) {
   process.exit(1);
 }
 
+const resourcesObj = getObjectLiteral(resourcesNode);
+if (!resourcesObj) {
+  console.error('[gen-scene-dsl] sceneResources must be an object literal.');
+  process.exit(1);
+}
+
+const getArrayProp = (obj, name) => {
+  const prop = getObjectProp(obj, name);
+  if (!prop || prop.type !== 'ObjectProperty') return [];
+  const value = unwrapExpression(prop.value);
+  if (!value || value.type !== 'ArrayExpression') return [];
+  return value.elements.filter(Boolean);
+};
+
 const modelDefs = [];
+const containedDefs = [];
 const animDefs = [];
 const allowedRoles = new Set(['primary', 'brain', 'attachment', 'unknown']);
 
-const registerModel = ({ id, pathValue, role, parts }) => {
-  if (!id || !pathValue || !role) throw new Error('Missing required attributes on ModelDefinition.');
-  if (!allowedRoles.has(role)) {
-    throw new Error(`Invalid role \"${role}\". Expected one of: ${Array.from(allowedRoles).join(', ')}`);
-  }
-  if (!pathValue.startsWith('/assets/')) {
-    throw new Error(`Invalid path \"${pathValue}\". Expected to start with /assets/.`);
-  }
-  modelDefs.push({ id, path: pathValue, role, parts });
-};
-
-const registerAnimation = ({ id, pathValue, clipName }) => {
-  if (!id || !pathValue) throw new Error('Missing required attributes on AnimationDefinition.');
-  if (!pathValue.startsWith('/assets/')) {
-    throw new Error(`Invalid path \"${pathValue}\". Expected to start with /assets/.`);
-  }
-  animDefs.push({ id, path: pathValue, clipName: clipName ?? null });
-};
-
-const parseJsxResources = (node) => {
-  if (node.type !== 'JSXElement') {
-    throw new Error('sceneResources must be a JSX element (<Resources>...</Resources>) or Resources([...]) call.');
-  }
-  const rootName = getJsxName(node.openingElement.name);
-  if (rootName !== 'Resources') {
-    throw new Error(`sceneResources root must be <Resources>, got <${rootName ?? 'unknown'}>.`);
-  }
-  for (const child of node.children) {
-    if (!child || child.type !== 'JSXElement') continue;
-    const name = getJsxName(child.openingElement.name);
-    if (name === 'ModelDefinition') {
-      const attrs = child.openingElement.attributes;
-      const id = getStringAttr(attrs, 'id', { required: true });
-      const pathValue = getStringAttr(attrs, 'path', { required: true });
-      const role = getStringAttr(attrs, 'role', { required: true });
-      registerModel({ id, pathValue, role });
-    } else if (name === 'AnimationDefinition') {
-      const attrs = child.openingElement.attributes;
-      const id = getStringAttr(attrs, 'id', { required: true });
-      const pathValue = getStringAttr(attrs, 'path', { required: true });
-      const clipName = getStringAttr(attrs, 'clipName', { required: false });
-      registerAnimation({ id, pathValue, clipName });
-    }
-  }
-};
-
-const parseCallResources = (node) => {
-  const callName = getCallName(node);
-  if (callName !== 'Resources') {
-    throw new Error('sceneResources must be a JSX <Resources> element or Resources(...) call.');
-  }
-  const arg = node.arguments[0];
-  const entries = [];
-  if (!arg) return;
-  if (arg.type === 'ArrayExpression') {
-    entries.push(...arg.elements.filter(Boolean));
-  } else {
-    entries.push(arg);
-  }
-  for (const entry of entries) {
-    if (!entry) continue;
-    if (entry.type !== 'CallExpression') continue;
-    const entryName = getCallName(entry);
-    const propsArg = entry.arguments[0];
-    const obj = getObjectLiteral(propsArg);
-    if (!obj) continue;
-    if (entryName === 'ModelDefinition') {
-      const id = getObjectStringProp(obj, 'id', { required: true });
-      const pathValue = getObjectStringProp(obj, 'path', { required: true });
-      const role = getObjectStringProp(obj, 'role', { required: true });
-      const partsProp = obj.properties.find(
-        (p) =>
-          p.type === 'ObjectProperty' &&
-          ((p.key.type === 'Identifier' && p.key.name === 'parts') ||
-            (p.key.type === 'StringLiteral' && p.key.value === 'parts')),
-      );
-      const partsValue = partsProp && partsProp.type === 'ObjectProperty' ? partsProp.value : null;
-      let parts = undefined;
-      if (partsValue && partsValue.type === 'ObjectExpression') {
-        const entries = {};
-        for (const prop of partsValue.properties) {
-          if (prop.type !== 'ObjectProperty') continue;
-          const key =
-            prop.key.type === 'Identifier'
-              ? prop.key.name
-              : prop.key.type === 'StringLiteral'
-                ? prop.key.value
-                : null;
-          if (!key) continue;
-          if (prop.value.type !== 'ObjectExpression') continue;
-          const partObj = prop.value;
-          const idVal = getObjectStringProp(partObj, 'id', { required: true });
-          const anchorVal = getObjectStringProp(partObj, 'anchor', { required: true });
-          const modelIdVal = getObjectStringProp(partObj, 'modelId', { required: false });
-          const readNumber = (node) => {
-            if (!node) return null;
-            if (node.type === 'NumericLiteral') return node.value;
-            if (node.type === 'UnaryExpression' && node.argument.type === 'NumericLiteral') {
-              return node.operator === '-' ? -node.argument.value : node.argument.value;
-            }
-            return null;
-          };
-          const readVec = (name) => {
-            const p = partObj.properties.find(
-              (p) =>
-                p.type === 'ObjectProperty' &&
-                ((p.key.type === 'Identifier' && p.key.name === name) ||
-                  (p.key.type === 'StringLiteral' && p.key.value === name)),
-            );
-            if (!p || p.type !== 'ObjectProperty') return undefined;
-            if (p.value.type !== 'ArrayExpression') return undefined;
-            const nums = p.value.elements.map((el) => readNumber(el));
-            if (nums.length !== 3 || nums.some((n) => n === null)) return undefined;
-            return [nums[0], nums[1], nums[2]];
-          };
-          const position = readVec('position');
-          const rotation = readVec('rotation');
-          let scale = undefined;
-          const scaleProp = partObj.properties.find(
-            (p) =>
-              p.type === 'ObjectProperty' &&
-              ((p.key.type === 'Identifier' && p.key.name === 'scale') ||
-                (p.key.type === 'StringLiteral' && p.key.value === 'scale')),
-          );
-          if (scaleProp && scaleProp.type === 'ObjectProperty') {
-            const scaleValue = readNumber(scaleProp.value);
-            if (typeof scaleValue === 'number') scale = scaleValue;
-          }
-          entries[key] = {
-            id: idVal,
-            anchor: anchorVal,
-            modelId: modelIdVal ?? undefined,
-            position,
-            rotation,
-            scale,
-          };
-        }
-        parts = entries;
-      }
-      registerModel({ id, pathValue, role, parts });
-    } else if (entryName === 'AnimationDefinition') {
-      const id = getObjectStringProp(obj, 'id', { required: true });
-      const pathValue = getObjectStringProp(obj, 'path', { required: true });
-      const clipName = getObjectStringProp(obj, 'clipName', { required: false });
-      registerAnimation({ id, pathValue, clipName });
-    }
-  }
-};
-
 try {
-  if (resourcesNode.type === 'JSXElement') {
-    parseJsxResources(resourcesNode);
-  } else if (resourcesNode.type === 'CallExpression') {
-    parseCallResources(resourcesNode);
-  } else {
-    throw new Error('sceneResources must be a JSX <Resources> element or Resources(...) call.');
+  const modelNodes = getArrayProp(resourcesObj, 'models');
+  for (const entry of modelNodes) {
+    const obj = getObjectLiteral(unwrapExpression(entry));
+    if (!obj) continue;
+    const id = readStringProp(obj, 'id', { required: true });
+    const pathValue = readStringProp(obj, 'path', { required: true });
+    const role = readStringProp(obj, 'role', { required: true });
+    const anchorKeys = readStringArrayProp(obj, 'anchorKeys', { required: false }) ?? [];
+    if (!id || !pathValue || !role) throw new Error('Missing required attributes on model definition.');
+    if (!allowedRoles.has(role)) {
+      throw new Error(`Invalid role "${role}". Expected one of: ${Array.from(allowedRoles).join(', ')}`);
+    }
+    if (!pathValue.startsWith('/assets/')) {
+      throw new Error(`Invalid path "${pathValue}". Expected to start with /assets/.`);
+    }
+    modelDefs.push({ id, path: pathValue, role, anchorKeys });
+  }
+
+  const containedNodes = getArrayProp(resourcesObj, 'containedModels');
+  for (const entry of containedNodes) {
+    const obj = getObjectLiteral(unwrapExpression(entry));
+    if (!obj) continue;
+    const id = readStringProp(obj, 'id', { required: true });
+    const pathValue = readStringProp(obj, 'path', { required: true });
+    if (!id || !pathValue) throw new Error('Missing required attributes on containedModel definition.');
+    if (!pathValue.startsWith('/assets/')) {
+      throw new Error(`Invalid path "${pathValue}". Expected to start with /assets/.`);
+    }
+    containedDefs.push({ id, path: pathValue });
+  }
+
+  const animNodes = getArrayProp(resourcesObj, 'animations');
+  for (const entry of animNodes) {
+    const obj = getObjectLiteral(unwrapExpression(entry));
+    if (!obj) continue;
+    const id = readStringProp(obj, 'id', { required: true });
+    const pathValue = readStringProp(obj, 'path', { required: true });
+    const clipName = readStringProp(obj, 'clipName', { required: false });
+    if (!id || !pathValue) throw new Error('Missing required attributes on animation definition.');
+    if (!pathValue.startsWith('/assets/')) {
+      throw new Error(`Invalid path "${pathValue}". Expected to start with /assets/.`);
+    }
+    animDefs.push({ id, path: pathValue, clipName: clipName ?? null });
   }
 } catch (err) {
   console.error('[gen-scene-dsl] Invalid sceneResources:', err?.message ?? err);
@@ -300,20 +209,27 @@ try {
 const idSet = new Set();
 for (const entry of modelDefs) {
   if (idSet.has(entry.id)) {
-    console.error(`[gen-scene-dsl] Duplicate ModelDefinition id: ${entry.id}`);
+    console.error(`[gen-scene-dsl] Duplicate model id: ${entry.id}`);
     process.exit(1);
   }
   idSet.add(entry.id);
 }
+const containedIdSet = new Set();
+for (const entry of containedDefs) {
+  if (containedIdSet.has(entry.id)) {
+    console.error(`[gen-scene-dsl] Duplicate contained model id: ${entry.id}`);
+    process.exit(1);
+  }
+  containedIdSet.add(entry.id);
+}
 const animIdSet = new Set();
 for (const entry of animDefs) {
   if (animIdSet.has(entry.id)) {
-    console.error(`[gen-scene-dsl] Duplicate AnimationDefinition id: ${entry.id}`);
+    console.error(`[gen-scene-dsl] Duplicate animation id: ${entry.id}`);
     process.exit(1);
   }
   animIdSet.add(entry.id);
 }
-
 
 const canonicalizeName = (raw) => {
   const cleaned = raw.replace(/[^A-Za-z0-9]+/g, ' ').trim();
@@ -330,6 +246,7 @@ const makeUnion = (values) => {
 
 const modelIdUnion = makeUnion(modelDefs.map((m) => m.id));
 const animationIdUnion = makeUnion(animDefs.map((a) => a.id));
+const containedIdUnion = makeUnion(containedDefs.map((c) => c.id));
 const pageIds = pageIdsArg ? pageIdsArg.split(',').map((v) => v.trim()).filter(Boolean) : [];
 const scenePageIdUnion = makeUnion(pageIds);
 
@@ -371,39 +288,58 @@ const animationDuration = (anim) => {
   return Math.round(max * 1000) / 1000;
 };
 
-const resolveBone = (boneNames, candidates, fallbackPattern) => {
-  for (const candidate of candidates) {
-    if (boneNames.includes(candidate)) return candidate;
-  }
-  return boneNames.find((n) => fallbackPattern.test(n)) ?? null;
+const resolveAnchorTarget = (key, nodeNames) => {
+  const lowerKey = key.toLowerCase();
+  const exact = nodeNames.find((n) => n.toLowerCase() === lowerKey);
+  if (exact) return exact;
+  const suffix = nodeNames.find((n) => n.toLowerCase().endsWith(`:${lowerKey}`));
+  if (suffix) return suffix;
+  const contains = nodeNames.find((n) => {
+    const lower = n.toLowerCase();
+    return lower.includes(lowerKey) && !lower.includes('end');
+  });
+  if (contains) return contains;
+  console.warn(`[gen-scene-dsl] Anchor key "${key}" not found. Using key as value.`);
+  return key;
 };
 
-const HEAD_BONE_CANDIDATES = ['mixamorig:Head', 'HEAD'];
-const CHEST_BONE_CANDIDATES = ['mixamorig:Spine1', 'mixamorig:Spine2', 'mixamorig:Spine', 'CHEST'];
-
 const modelRegistry = {};
+const modelBodyParts = {};
 for (const entry of modelDefs) {
   const root = await readGlb(entry.path);
-  const bones = root.listNodes().map((n) => n.getName()).filter(Boolean).sort();
+  const nodes = root.listNodes();
+  const bones = nodes.map((n) => n.getName()).filter(Boolean).sort();
   const meshes = root.listMeshes().map((m) => m.getName()).filter(Boolean).sort();
-  const anchorTargets = {
-    head: resolveBone(bones, HEAD_BONE_CANDIDATES, /head/i),
-    chest: resolveBone(bones, CHEST_BONE_CANDIDATES, /spine|chest|torso/i),
-  };
-  const subparts = entry.role === 'brain'
-    ? bones.filter((n) => !n.startsWith('marker_'))
-    : undefined;
+  const anchorTargets = {};
+  for (const anchorKey of entry.anchorKeys ?? []) {
+    anchorTargets[anchorKey] = resolveAnchorTarget(anchorKey, bones);
+  }
   modelRegistry[entry.id] = {
     id: entry.id,
-    role: entry.role,
-    path: entry.path,
+    glb: entry.path,
     bones,
     meshes,
-    bodyParts: meshes,
-    anchors: anchorTargets,
-    subparts,
-    parts: entry.parts,
+    anchorTargets,
   };
+  modelBodyParts[entry.id] = meshes;
+}
+
+const containedRegistry = {};
+const containedSubparts = {};
+for (const entry of containedDefs) {
+  const root = await readGlb(entry.path);
+  const subparts = root
+    .listNodes()
+    .filter((n) => n.getMesh && n.getMesh())
+    .map((n) => n.getName())
+    .filter(Boolean)
+    .sort();
+  containedRegistry[entry.id] = {
+    id: entry.id,
+    glb: entry.path,
+    subparts,
+  };
+  containedSubparts[entry.id] = subparts;
 }
 
 const animationRegistry = {};
@@ -424,142 +360,57 @@ for (const entry of animDefs) {
   }
   animationRegistry[entry.id] = {
     id: entry.id,
-    path: entry.path,
+    glb: entry.path,
     clipName,
     duration: animationDuration(chosen),
   };
 }
 
+const resourceOutput = `/* eslint-disable */\n// Auto-generated by scripts/gen-scene-dsl.mjs.\n\nexport type ModelId = ${modelIdUnion};\nexport type AnimationId = ${animationIdUnion};\nexport type ContainedModelId = ${containedIdUnion};\n${pageIds.length ? `export type ScenePageId = ${scenePageIdUnion};\n` : ''}\n`;
 
-const primaryModelEntry = modelDefs.find((m) => m.role === 'primary') ?? modelDefs[0];
-const primaryModel = primaryModelEntry ? modelRegistry[primaryModelEntry.id] : null;
-const meshNames = primaryModel?.meshes ?? [];
-const bodyPartComponents = [];
-const usedBodyPartNames = new Map();
-for (const meshName of meshNames) {
-  const base = canonicalizeName(meshName);
-  let name = base;
-  let counter = 1;
-  while (usedBodyPartNames.has(name)) {
-    counter += 1;
-    name = `${base}${counter}`;
-  }
-  usedBodyPartNames.set(name, meshName);
-  bodyPartComponents.push({ name, id: meshName });
-}
+const modelBodyPartTypes = modelDefs.map((entry) => {
+  const name = canonicalizeName(entry.id);
+  const typeName = `${name}BodyPartId`;
+  const union = makeUnion(modelBodyParts[entry.id] ?? []);
+  return `export type ${typeName} = ${union};`;
+}).join('\n');
 
-const subpartModelEntry = modelDefs.find((m) => m.role === 'brain');
-const subpartModel = subpartModelEntry ? modelRegistry[subpartModelEntry.id] : null;
-const subpartIds = subpartModel?.subparts ?? [];
-const subpartComponents = [];
-const usedSubpartNames = new Map();
-for (const subpart of subpartIds) {
-  const base = canonicalizeName(subpart);
-  let name = base;
-  let counter = 1;
-  while (usedSubpartNames.has(name)) {
-    counter += 1;
-    name = `${base}${counter}`;
-  }
-  usedSubpartNames.set(name, subpart);
-  subpartComponents.push({ name, id: subpart });
-}
-const registryJson = JSON.stringify({ models: modelRegistry, animations: animationRegistry }, null, 2);
+const containedSubpartTypes = containedDefs.map((entry) => {
+  const name = canonicalizeName(entry.id);
+  const typeName = `${name}SubpartId`;
+  const union = makeUnion(containedSubparts[entry.id] ?? []);
+  return `export type ${typeName} = ${union};`;
+}).join('\n');
 
-const output = `/* eslint-disable */
-// Auto-generated by scripts/gen-scene-dsl.mjs.
-
-export type ModelId = ${modelIdUnion};
-export type AnimationId = ${animationIdUnion};
-${pageIds.length ? `export type ScenePageId = ${scenePageIdUnion};` : ''}
-
-export type ModelRole = 'primary' | 'brain' | 'attachment' | 'unknown';
-
-export type ModelPartId = string;
-export type ModelPartAnchor = string;
-
-export type ModelPartDefinition = {
-  id: ModelPartId;
-  anchor: ModelPartAnchor;
-  modelId?: ModelId;
-  position?: [number, number, number];
-  rotation?: [number, number, number];
-  scale?: number;
+const toRelative = (abs) => {
+  const rel = path.relative(absOutDir, abs).replaceAll(path.sep, '/');
+  return rel.startsWith('.') ? rel : `./${rel}`;
 };
 
-export type ModelRegistryEntry = {
-  id: ModelId;
-  role: ModelRole;
-  path: string;
-  bones: string[];
-  meshes: string[];
-  anchors: { [key: string]: string | null | undefined };
-  subparts?: string[];
-  bodyParts?: string[];
-  parts?: Record<ModelPartId, ModelPartDefinition>;
-};
+const modelDslImportPath = '@brewsite/core';
 
-export type AnimationRegistryEntry = {
-  id: AnimationId;
-  path: string;
-  clipName: string;
-  duration: number;
-};
+const dslOutput = `/* eslint-disable */\n// Auto-generated by scripts/gen-scene-dsl.mjs.\n\nimport type { ReactNode } from 'react';\nimport { Model as BaseModel, BodyParts as BaseBodyParts, BodyPart as BaseBodyPart, Pose as BasePose, ModelPart as BaseModelPart, ContainedModel as BaseContainedModel, Subpart as BaseSubpart, Playback as BasePlayback, Motion as BaseMotion, Animation as BaseAnimation } from '${modelDslImportPath}';\n\nexport type ModelId = ${modelIdUnion};\nexport type AnimationId = ${animationIdUnion};\nexport type ContainedModelId = ${containedIdUnion};\n${pageIds.length ? `export type ScenePageId = ${scenePageIdUnion};\n` : ''}\n\n${modelBodyPartTypes}\n\n${containedSubpartTypes}\n\nexport type ModelDslProps<TBodyPartId extends string = string> = Omit<Parameters<typeof BaseModel>[0], 'id'> & { id?: ModelId; children?: ReactNode };\nexport type AnimationProps = Parameters<typeof BaseAnimation>[0] & { clipName?: AnimationId };\nexport type BodyPartProps<TBodyPartId extends string = string> = Omit<Parameters<typeof BaseBodyPart>[0], 'id'> & { id: TBodyPartId };\nexport type ModelPartProps = Parameters<typeof BaseModelPart>[0];\nexport type ContainedModelProps = Parameters<typeof BaseContainedModel>[0] & { modelId: ContainedModelId };\nexport type SubpartProps<TSubpartId extends string = string> = Omit<Parameters<typeof BaseSubpart>[0], 'id'> & { id: TSubpartId };\n\nexport const Model = (props: ModelDslProps) => BaseModel(props as Parameters<typeof BaseModel>[0]);\nexport const BodyParts = BaseBodyParts;\nexport const BodyPart = (props: BodyPartProps) => BaseBodyPart(props as Parameters<typeof BaseBodyPart>[0]);\nexport const Pose = BasePose;\nexport const ModelPart = (props: ModelPartProps) => BaseModelPart(props as Parameters<typeof BaseModelPart>[0]);\nexport const ContainedModel = (props: ContainedModelProps) => BaseContainedModel(props as Parameters<typeof BaseContainedModel>[0]);\nexport const Subpart = (props: SubpartProps) => BaseSubpart(props as Parameters<typeof BaseSubpart>[0]);\nexport const Playback = BasePlayback;\nexport const Motion = BaseMotion;\nexport const Animation = (props: AnimationProps) => BaseAnimation(props as Parameters<typeof BaseAnimation>[0]);\n\n${modelDefs.map((entry) => {
+  const name = canonicalizeName(entry.id);
+  const typeName = `${name}BodyPartId`;
+  const propsName = `${name}ModelProps`;
+  const componentName = `${name}Model`;
+  return `export type ${propsName} = ModelDslProps<${typeName}>;\nexport const ${componentName} = (props: ${propsName}) => BaseModel({ ...props, id: '${entry.id}' });`;
+}).join('\n\n')}\n`;
 
-export type ResourceRegistry = {
-  models: Record<ModelId, ModelRegistryEntry>;
-  animations: Record<AnimationId, AnimationRegistryEntry>;
-};
-
-export const resourceRegistry: ResourceRegistry = ${registryJson};
-`;
-
-const bodyPartExports = bodyPartComponents
-  .map(({ name, id }) => `export const ${name} = (props: Omit<BodyPartProps, 'id'>) => <BodyPart id="${id}" {...props} />;`)
-  .join('\n');
-const modelPartIds = Array.from(new Set(Object.values(modelRegistry).flatMap((entry) => Object.keys(entry.parts ?? {}))));
-const modelPartUnion = makeUnion(modelPartIds);
-const subpartExports = subpartComponents
-  .map(({ name, id }) => `export const ${name} = (props: Omit<SubpartProps, 'id'>) => <Subpart id="${id}" {...props} />;`)
-  .join('\n');
-
-const dslOutput = `/* eslint-disable */
-// Auto-generated by scripts/gen-scene-dsl.mjs.
-
-import type { ReactNode } from 'react';
-import { Model as BaseModel, BodyParts as BaseBodyParts, BodyPart as BaseBodyPart, Pose as BasePose, ModelPart as BaseModelPart, ContainedModel as BaseContainedModel, Subpart as BaseSubpart, Playback as BasePlayback, Motion as BaseMotion, Animation as BaseAnimation } from '../robot/elements/model/dsl';
-
-export type ModelId = ${modelIdUnion};
-export type AnimationId = ${animationIdUnion};
-export type BodyMeshId = ${meshNames.length ? meshNames.map((m) => `'${m.replace("'", "\'")}'`).join(' | ') : 'string'};
-export type BodyPartId = BodyMeshId | string;
-export type ModelPartId = ${modelPartIds.length ? modelPartUnion : 'string'};
-export type SubpartId = ${subpartIds.length ? subpartIds.map((m) => `'${m.replace("'", "\'")}'`).join(' | ') : 'string'};
-
-export type ModelProps = Parameters<typeof BaseModel>[0] & { id: ModelId };
-export type AnimationProps = Parameters<typeof BaseAnimation>[0] & { clipName?: AnimationId };
-export type BodyPartProps = Parameters<typeof BaseBodyPart>[0] & { id: BodyPartId };
-export type ModelPartProps = Parameters<typeof BaseModelPart>[0] & { id: ModelPartId };
-export type ContainedModelProps = Parameters<typeof BaseContainedModel>[0] & { modelId: ModelId };
-export type SubpartProps = Parameters<typeof BaseSubpart>[0] & { id: SubpartId };
-
-export const Model = (props: ModelProps) => BaseModel(props);
-export const BodyParts = BaseBodyParts;
-export const BodyPart = (props: BodyPartProps) => BaseBodyPart(props);
-export const Pose = BasePose;
-export const ModelPart = (props: ModelPartProps) => BaseModelPart(props);
-export const ContainedModel = (props: ContainedModelProps) => BaseContainedModel(props);
-export const Subpart = (props: SubpartProps) => BaseSubpart(props);
-export const Playback = BasePlayback;
-export const Motion = BaseMotion;
-export const Animation = (props: AnimationProps) => BaseAnimation(props);
-
-${bodyPartExports}
-
-${subpartExports}
-`;
 await mkdir(absOutDir, { recursive: true });
-await writeFile(path.join(absOutDir, 'sceneResources.generated.ts'), output);
-await writeFile(path.join(absOutDir, 'sceneDsl.generated.tsx'), dslOutput);
+await writeFile(path.join(absOutDir, 'sceneResources.generated.ts'), `${resourceOutput}\n${modelBodyPartTypes}\n\n${containedSubpartTypes}\n`, 'utf8');
+await writeFile(path.join(absOutDir, 'sceneDsl.generated.tsx'), dslOutput, 'utf8');
 console.log(`[gen-scene-dsl] Wrote ${path.join(absOutDir, 'sceneResources.generated.ts')}`);
 console.log(`[gen-scene-dsl] Wrote ${path.join(absOutDir, 'sceneDsl.generated.tsx')}`);
+
+if (absManifestOut) {
+  const manifest = {
+    version: 2,
+    models: Object.values(modelRegistry),
+    containedModels: Object.values(containedRegistry),
+    animations: Object.values(animationRegistry),
+  };
+  await mkdir(path.dirname(absManifestOut), { recursive: true });
+  await writeFile(absManifestOut, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  console.log(`[gen-scene-dsl] Wrote ${absManifestOut}`);
+}

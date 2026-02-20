@@ -2,11 +2,13 @@
 // The compiler is a pure transformation: Scene DSL → SceneTrack.
 // Tests pass real inputs and assert on real outputs; no mocks needed.
 
+import { createElement } from 'react';
 import { describe, it, expect } from 'vitest';
 import { compileSceneTrack } from '../sceneTrackCompiler';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import { createSceneTimeline } from '../../timeline';
 import type { SceneDefinition } from '../sceneTypes';
+import { Scene } from '../sceneDslCompiler';
 
 // ---------------------------------------------------------------------------
 // Minimal scene fixture
@@ -15,12 +17,8 @@ import type { SceneDefinition } from '../sceneTypes';
 const makeScene = (id: string, index: number): SceneDefinition => ({
   id,
   index,
-  // Return a minimal SceneFrame object so the compiler can resolve widget state.
-  getFrame: (_ctx) => ({
-    id,
-    scrollProgress: _ctx.sceneProgress,
-    widgets: {},
-  }),
+  // Return a minimal Scene DSL tree.
+  getFrame: () => createElement(Scene, { id }),
   transitions: [],
 });
 

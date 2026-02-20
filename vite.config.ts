@@ -5,6 +5,9 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     dedupe: ['react', 'react-dom'],
+    alias: {
+      '@brewsite/core': '/src/index.ts',
+    },
   },
   server: {
     host: true,

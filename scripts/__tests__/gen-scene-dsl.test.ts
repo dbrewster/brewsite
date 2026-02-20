@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { mkdtemp, writeFile, readFile } from 'node:fs/promises';
+import { mkdtemp, writeFile, readFile, mkdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
+import { NodeIO, Document } from '@gltf-transform/core';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
@@ -33,6 +34,23 @@ const writeResourceFile = async (dir: string, content: string) => {
   return filePath;
 };
 
+const writeMinimalGlb = async (filePath: string) => {
+  const doc = new Document();
+  const buffer = doc.createBuffer();
+  const position = doc
+    .createAccessor()
+    .setType('VEC3')
+    .setArray(new Float32Array([0, 0, 0]))
+    .setBuffer(buffer);
+  const prim = doc.createPrimitive().setAttribute('POSITION', position);
+  const mesh = doc.createMesh('BodyMesh').addPrimitive(prim);
+  const node = doc.createNode('Head').setMesh(mesh);
+  const scene = doc.createScene('Scene').addChild(node);
+  doc.getRoot().setDefaultScene(scene);
+  const io = new NodeIO();
+  await io.write(filePath, doc);
+};
+
 describe('gen-scene-dsl', () => {
   it('fails when sceneResources export is missing', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'scene-dsl-'));
@@ -51,11 +69,13 @@ describe('gen-scene-dsl', () => {
     const input = await writeResourceFile(
       dir,
       `
-        export const sceneResources = (
-          <Resources>
-            <ModelDefinition id="robot" path="/assets/robot.glb" role="primary-ish" />
-          </Resources>
-        );
+        export const sceneResources = {
+          models: [
+            { id: 'robot', path: '/assets/robot.glb', role: 'primary-ish', anchorKeys: [] },
+          ],
+          containedModels: [],
+          animations: [],
+        } as const;
       `,
     );
     const outDir = path.join(dir, 'out');
@@ -66,15 +86,21 @@ describe('gen-scene-dsl', () => {
 
   it('writes a generated DSL file with expected exports', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'scene-dsl-'));
+    const publicDir = path.join(ROOT, 'public', 'assets');
+    await mkdir(publicDir, { recursive: true });
+    const robotGlb = path.join(publicDir, 'robot.glb');
+    await writeMinimalGlb(robotGlb);
+
     const input = await writeResourceFile(
       dir,
       `
-        export const sceneResources = (
-          <Resources>
-            <ModelDefinition id="robot" path="/assets/robot.glb" role="primary" />
-            <AnimationDefinition id="waving" path="/assets/motion/wave.glb" clipName="wave" />
-          </Resources>
-        );
+        export const sceneResources = {
+          models: [
+            { id: 'robot', path: '/assets/robot.glb', role: 'primary', anchorKeys: ['head'] },
+          ],
+          containedModels: [],
+          animations: [],
+        } as const;
       `,
     );
     const outDir = path.join(dir, 'out');
@@ -83,10 +109,10 @@ describe('gen-scene-dsl', () => {
     const generated = await readFile(path.join(outDir, 'sceneResources.generated.ts'), 'utf8');
     expect(generated).toContain('export type ModelId =');
     expect(generated).toContain('export type AnimationId =');
-    expect(generated).toContain('export const resourceRegistry');
     const dsl = await readFile(path.join(outDir, 'sceneDsl.generated.tsx'), 'utf8');
     expect(dsl).toContain('export const BodyPart');
     expect(dsl).toContain('export const ModelPart');
     expect(dsl).toContain('export const Subpart');
+    await rm(robotGlb, { force: true });
   });
 });
