@@ -1,4 +1,4 @@
-import { Scene, Lighting, Ambient, Directional } from '@brewsite/core';
+import {Scene, Lighting, Ambient, Directional, BodyParts} from '@brewsite/core';
 import { Robot } from '../../generated/sceneDsl.generated';
 import type { SceneDefinition } from '@brewsite/core';
 
@@ -12,17 +12,25 @@ export const scene02Move: SceneDefinition = {
         <Directional intensity={2} color="#ffffff" position={[-20, 30, 40]} />
       </Lighting>
       <Robot
-        id="robot-left"
-        position={[0, -12, 0]}
-        rotation={[0, -Math.PI / 2 -.2, 0]}
-        scale={0.2}
+        id="robot-1"
+        position={[0, 0, -20]}
+        rotation={[0, -Math.PI / 2 - .2, 0]}
+        scale={0.1}
+        metalness={.9}
+        roughness={.2}
+      >
+        <BodyParts>
+          <Robot.Chest color='#0000ff'/>
+        </BodyParts>
+      </Robot>
+      <Robot
+        id="robot-2"
+        position={[-18, 0, 20]}
+        rotation={[0, -Math.PI / 2 - .2, 0]}
+        scale={0.1}
         metalness={.9}
         roughness={.1}
-      >
-        <Robot.Eyes color="#ff0000" opacity={1} />
-        <Robot.Neck color="#000000" opacity={1}/>
-        <Robot.RightForeArm color="#00ff00" opacity={1}/>
-      </Robot>
+      />
     </Scene>
   ),
 };

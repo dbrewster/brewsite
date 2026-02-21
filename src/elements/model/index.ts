@@ -49,6 +49,7 @@ export { ModelRenderer } from './ModelRenderer';
 // DSL components
 export {
   Model,
+  ModelRouter,
   BodyParts,
   BodyPart,
   Pose,

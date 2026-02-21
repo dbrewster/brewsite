@@ -9,9 +9,28 @@ import type { AssetManifest } from '../metadata';
 
 const makeManifest = (): AssetManifest => ({
   version: ASSET_MANIFEST_VERSION,
-  models: [{ id: 'bot', glb: '/bot.glb', bones: [], meshes: [], anchorTargets: {} }],
+  models: [{
+    type: 'bot',
+    glb: '/bot.glb',
+    bones: [],
+    meshes: [],
+    anchorTargets: {},
+    identity: {
+      model: {
+        scale: 0.1,
+        position: [0, 0, 0],
+        rotation: [0, 0, 0],
+        enabled: true,
+        bodyPartOverrides: {},
+      },
+      playback: {
+        motion: { commands: [], scenes: [], customAnimations: [] },
+        animation: { enabled: false },
+      },
+    },
+  }],
   containedModels: [],
-  animations: [{ id: 'idle', glb: '/idle.glb', clipName: 'Idle', duration: 2 }],
+  animations: [{ type: 'idle', glb: '/idle.glb', clipName: 'Idle', duration: 2 }],
 });
 
 describe('model metadata helpers', () => {
@@ -28,7 +47,7 @@ describe('model metadata helpers', () => {
     expect(clips).toEqual([]);
   });
 
-  it('findModelMeta finds by id', () => {
+  it('findModelMeta finds by type', () => {
     const manifest = makeManifest();
     const model = findModelMeta(manifest, 'bot');
     expect(model?.glb).toBe('/bot.glb');

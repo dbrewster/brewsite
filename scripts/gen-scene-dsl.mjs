@@ -2,10 +2,10 @@
  * gen-scene-dsl.mjs
  *
  * CLI:
- *   node scripts/gen-scene-dsl.mjs --input <sceneResources.ts> --out-dir <dir> [--manifest-out <path>] [--page-ids a,b]
+ *   node scripts/gen-scene-dsl.mjs --input <siteResources.ts> --out-dir <dir> [--manifest-out <path>] [--page-ids a,b]
  *
- * Reads a sceneResources object export and generates typed DSL wrappers and (optionally)
- * a version-2 AssetManifest JSON.
+ * Reads a siteResources object export and generates typed DSL wrappers and a
+ * version-2 AssetManifest JSON (defaults to public/assets/scene-manifest.json).
  */
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -35,9 +35,10 @@ if (!inputPath || !outDir) {
 
 const absInput = path.isAbsolute(inputPath) ? inputPath : path.resolve(process.cwd(), inputPath);
 const absOutDir = path.isAbsolute(outDir) ? outDir : path.resolve(process.cwd(), outDir);
+const defaultManifestOut = path.resolve(ROOT, 'public', 'assets', 'scene-manifest.json');
 const absManifestOut = manifestOut
   ? (path.isAbsolute(manifestOut) ? manifestOut : path.resolve(process.cwd(), manifestOut))
-  : null;
+  : defaultManifestOut;
 
 const source = await readFile(absInput, 'utf8');
 
@@ -123,23 +124,46 @@ const readStringArrayProp = (obj, name, { required = false } = {}) => {
   });
 };
 
+const RESERVED_TYPE_NAMES = new Set([
+  'break', 'case', 'catch', 'class', 'const', 'continue', 'debugger', 'default',
+  'delete', 'do', 'else', 'enum', 'export', 'extends', 'false', 'finally', 'for',
+  'function', 'if', 'import', 'in', 'instanceof', 'new', 'null', 'return', 'super',
+  'switch', 'this', 'throw', 'true', 'try', 'typeof', 'var', 'void', 'while',
+  'with', 'yield', 'let', 'static', 'implements', 'interface', 'package', 'private',
+  'protected', 'public', 'await',
+]);
+
+const isValidTypeName = (value) => (
+  typeof value === 'string' &&
+  /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(value) &&
+  !RESERVED_TYPE_NAMES.has(value)
+);
+
+const assertValidTypeName = (value, label) => {
+  if (!isValidTypeName(value)) {
+    throw new Error(
+      `Invalid ${label}: "${value}". Expected a legal TypeScript type name (identifier).`,
+    );
+  }
+};
+
 let resourcesNode = null;
 for (const node of ast.program.body) {
-  if (isExportedConst(node, 'sceneResources')) {
-    const init = getExportedConstInit(node, 'sceneResources');
+  if (isExportedConst(node, 'siteResources')) {
+    const init = getExportedConstInit(node, 'siteResources');
     resourcesNode = unwrapExpression(init);
     break;
   }
 }
 
 if (!resourcesNode) {
-  console.error('[gen-scene-dsl] Missing required export: sceneResources');
+  console.error('[gen-scene-dsl] Missing required export: siteResources');
   process.exit(1);
 }
 
 const resourcesObj = getObjectLiteral(resourcesNode);
 if (!resourcesObj) {
-  console.error('[gen-scene-dsl] sceneResources must be an object literal.');
+  console.error('[gen-scene-dsl] siteResources must be an object literal.');
   process.exit(1);
 }
 
@@ -161,81 +185,95 @@ try {
   for (const entry of modelNodes) {
     const obj = getObjectLiteral(unwrapExpression(entry));
     if (!obj) continue;
-    const id = readStringProp(obj, 'id', { required: true });
+    const type = readStringProp(obj, 'type', { required: true });
     const pathValue = readStringProp(obj, 'path', { required: true });
     const role = readStringProp(obj, 'role', { required: true });
     const anchorKeys = readStringArrayProp(obj, 'anchorKeys', { required: false }) ?? [];
-    if (!id || !pathValue || !role) throw new Error('Missing required attributes on model definition.');
+    if (!type || !pathValue || !role) throw new Error('Missing required attributes on model definition.');
+    assertValidTypeName(type, 'model.type');
     if (!allowedRoles.has(role)) {
       throw new Error(`Invalid role "${role}". Expected one of: ${Array.from(allowedRoles).join(', ')}`);
     }
     if (!pathValue.startsWith('/assets/')) {
       throw new Error(`Invalid path "${pathValue}". Expected to start with /assets/.`);
     }
-    modelDefs.push({ id, path: pathValue, role, anchorKeys });
+    modelDefs.push({ type, path: pathValue, role, anchorKeys });
   }
 
   const containedNodes = getArrayProp(resourcesObj, 'containedModels');
   for (const entry of containedNodes) {
     const obj = getObjectLiteral(unwrapExpression(entry));
     if (!obj) continue;
-    const id = readStringProp(obj, 'id', { required: true });
+    const type = readStringProp(obj, 'type', { required: true });
     const pathValue = readStringProp(obj, 'path', { required: true });
-    if (!id || !pathValue) throw new Error('Missing required attributes on containedModel definition.');
+    if (!type || !pathValue) throw new Error('Missing required attributes on containedModel definition.');
+    assertValidTypeName(type, 'containedModel.type');
     if (!pathValue.startsWith('/assets/')) {
       throw new Error(`Invalid path "${pathValue}". Expected to start with /assets/.`);
     }
-    containedDefs.push({ id, path: pathValue });
+    containedDefs.push({ type, path: pathValue });
   }
 
   const animNodes = getArrayProp(resourcesObj, 'animations');
   for (const entry of animNodes) {
     const obj = getObjectLiteral(unwrapExpression(entry));
     if (!obj) continue;
-    const id = readStringProp(obj, 'id', { required: true });
+    const type = readStringProp(obj, 'type', { required: true });
     const pathValue = readStringProp(obj, 'path', { required: true });
     const clipName = readStringProp(obj, 'clipName', { required: false });
-    if (!id || !pathValue) throw new Error('Missing required attributes on animation definition.');
+    if (!type || !pathValue) throw new Error('Missing required attributes on animation definition.');
+    assertValidTypeName(type, 'animation.type');
     if (!pathValue.startsWith('/assets/')) {
       throw new Error(`Invalid path "${pathValue}". Expected to start with /assets/.`);
     }
-    animDefs.push({ id, path: pathValue, clipName: clipName ?? null });
+    animDefs.push({ type, path: pathValue, clipName: clipName ?? null });
   }
 } catch (err) {
-  console.error('[gen-scene-dsl] Invalid sceneResources:', err?.message ?? err);
+  console.error('[gen-scene-dsl] Invalid siteResources:', err?.message ?? err);
   process.exit(1);
 }
 
 const idSet = new Set();
 for (const entry of modelDefs) {
-  if (idSet.has(entry.id)) {
-    console.error(`[gen-scene-dsl] Duplicate model id: ${entry.id}`);
+  if (idSet.has(entry.type)) {
+    console.error(`[gen-scene-dsl] Duplicate model type: ${entry.type}`);
     process.exit(1);
   }
-  idSet.add(entry.id);
+  idSet.add(entry.type);
 }
 const containedIdSet = new Set();
 for (const entry of containedDefs) {
-  if (containedIdSet.has(entry.id)) {
-    console.error(`[gen-scene-dsl] Duplicate contained model id: ${entry.id}`);
+  if (containedIdSet.has(entry.type)) {
+    console.error(`[gen-scene-dsl] Duplicate contained model type: ${entry.type}`);
     process.exit(1);
   }
-  containedIdSet.add(entry.id);
+  containedIdSet.add(entry.type);
 }
 const animIdSet = new Set();
 for (const entry of animDefs) {
-  if (animIdSet.has(entry.id)) {
-    console.error(`[gen-scene-dsl] Duplicate animation id: ${entry.id}`);
+  if (animIdSet.has(entry.type)) {
+    console.error(`[gen-scene-dsl] Duplicate animation type: ${entry.type}`);
     process.exit(1);
   }
-  animIdSet.add(entry.id);
+  animIdSet.add(entry.type);
 }
 
-const canonicalizeName = (raw) => {
-  const cleaned = raw.replace(/[^A-Za-z0-9]+/g, ' ').trim();
+const canonicalizeComponentName = (raw) => {
+  const cleaned = raw
+    .replace(/^mixamorig:/i, '')
+    .replace(/[^A-Za-z0-9]+/g, ' ')
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .trim();
   if (!cleaned) return 'Part';
   const parts = cleaned.split(/\s+/g).filter(Boolean);
-  const name = parts.map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()).join('');
+  const name = parts
+    .map((part) => {
+      if (!part) return '';
+      const isAllCaps = part === part.toUpperCase() && part !== part.toLowerCase();
+      const normalized = isAllCaps ? part.toLowerCase() : part;
+      return normalized.charAt(0).toUpperCase() + normalized.slice(1);
+    })
+    .join('');
   const safe = name.match(/^[A-Za-z_]/) ? name : `Part${name}`;
   return safe || 'Part';
 };
@@ -244,9 +282,9 @@ const makeUnion = (values) => {
   return values.map((v) => `'${v.replace(/'/g, "\\'")}'`).join(' | ');
 };
 
-const modelIdUnion = makeUnion(modelDefs.map((m) => m.id));
-const animationIdUnion = makeUnion(animDefs.map((a) => a.id));
-const containedIdUnion = makeUnion(containedDefs.map((c) => c.id));
+const modelTypeUnion = makeUnion(modelDefs.map((m) => m.type));
+const animationTypeUnion = makeUnion(animDefs.map((a) => a.type));
+const containedTypeUnion = makeUnion(containedDefs.map((c) => c.type));
 const pageIds = pageIdsArg ? pageIdsArg.split(',').map((v) => v.trim()).filter(Boolean) : [];
 const scenePageIdUnion = makeUnion(pageIds);
 
@@ -305,23 +343,103 @@ const resolveAnchorTarget = (key, nodeNames) => {
 
 const modelRegistry = {};
 const modelBodyParts = {};
+const DEFAULT_MODEL_SCALE = 0.1;
+const DEFAULT_MODEL_POSITION = [0, 0, 0];
+const DEFAULT_MODEL_ROTATION = [0, 0, 0];
+
+const clamp01 = (value) => Math.max(0, Math.min(1, value));
+const toHex = (value) => Math.round(clamp01(value) * 255).toString(16).padStart(2, '0');
+const rgbaToHex = (rgba) => `#${toHex(rgba[0] ?? 1)}${toHex(rgba[1] ?? 1)}${toHex(rgba[2] ?? 1)}`;
+
+const resolveMeshDefaults = (mesh) => {
+  const primitives = mesh.listPrimitives();
+  let material = null;
+  for (const prim of primitives) {
+    material = prim.getMaterial();
+    if (material) break;
+  }
+  if (!material) {
+    return { color: '#ffffff', metalness: 1, roughness: 1 };
+  }
+  const baseColor = material.getBaseColorFactor();
+  const alphaMode = material.getAlphaMode?.() ?? 'OPAQUE';
+  const opacity = alphaMode === 'BLEND' ? baseColor[3] : undefined;
+  return {
+    color: rgbaToHex(baseColor ?? [1, 1, 1, 1]),
+    opacity,
+    metalness: material.getMetallicFactor?.() ?? 1,
+    roughness: material.getRoughnessFactor?.() ?? 1,
+  };
+};
+const normalizePartName = (name) =>
+  name.replace(/^mixamorig:/i, '').replace(/[^A-Za-z0-9]+/g, '').toUpperCase();
 for (const entry of modelDefs) {
   const root = await readGlb(entry.path);
   const nodes = root.listNodes();
-  const bones = nodes.map((n) => n.getName()).filter(Boolean).sort();
+  const bones = Array.from(new Set(
+    root.listSkins().flatMap((skin) => skin.listJoints().map((joint) => joint.getName())),
+  ))
+    .filter(Boolean)
+    .sort();
   const meshes = root.listMeshes().map((m) => m.getName()).filter(Boolean).sort();
+  const nodeNames = nodes.map((n) => n.getName()).filter(Boolean);
+  const anchorCandidates = Array.from(new Set([...bones, ...nodeNames, ...meshes])).sort();
   const anchorTargets = {};
   for (const anchorKey of entry.anchorKeys ?? []) {
-    anchorTargets[anchorKey] = resolveAnchorTarget(anchorKey, bones);
+    anchorTargets[anchorKey] = resolveAnchorTarget(anchorKey, anchorCandidates);
   }
-  modelRegistry[entry.id] = {
-    id: entry.id,
+  const meshDefaults = new Map();
+  for (const mesh of root.listMeshes()) {
+    const name = mesh.getName();
+    if (!name || meshDefaults.has(name)) continue;
+    meshDefaults.set(name, resolveMeshDefaults(mesh));
+  }
+
+  const bodyPartOverrides = {};
+  for (const bone of bones) {
+    bodyPartOverrides[bone] = { targetKind: 'bone' };
+  }
+  for (const mesh of meshes) {
+    const defaults = meshDefaults.get(mesh) ?? { color: '#ffffff', metalness: 1, roughness: 1 };
+    bodyPartOverrides[mesh] = {
+      targetKind: 'mesh',
+      color: defaults.color,
+      opacity: defaults.opacity,
+      metalness: defaults.metalness,
+      roughness: defaults.roughness,
+    };
+  }
+
+  const identity = {
+    model: {
+      scale: DEFAULT_MODEL_SCALE,
+      position: [...DEFAULT_MODEL_POSITION],
+      rotation: [...DEFAULT_MODEL_ROTATION],
+      enabled: true,
+      bodyPartOverrides,
+    },
+    playback: {
+      motion: {
+        commands: [],
+        scenes: [],
+        customAnimations: [],
+      },
+      animation: {
+        enabled: false,
+      },
+    },
+  };
+
+  modelRegistry[entry.type] = {
+    type: entry.type,
     glb: entry.path,
     bones,
     meshes,
     anchorTargets,
+    bodyParts: Array.from(new Set([...bones, ...meshes])).sort(),
+    identity,
   };
-  modelBodyParts[entry.id] = Array.from(new Set([...bones, ...meshes])).sort();
+  modelBodyParts[entry.type] = Array.from(new Set([...bones, ...meshes])).sort();
 }
 
 const containedRegistry = {};
@@ -334,12 +452,12 @@ for (const entry of containedDefs) {
     .map((n) => n.getName())
     .filter(Boolean)
     .sort();
-  containedRegistry[entry.id] = {
-    id: entry.id,
+  containedRegistry[entry.type] = {
+    type: entry.type,
     glb: entry.path,
     subparts,
   };
-  containedSubparts[entry.id] = subparts;
+  containedSubparts[entry.type] = subparts;
 }
 
 const animationRegistry = {};
@@ -358,27 +476,27 @@ for (const entry of animDefs) {
   if (!clipName) {
     throw new Error(`Animation in ${entry.path} has no name`);
   }
-  animationRegistry[entry.id] = {
-    id: entry.id,
+  animationRegistry[entry.type] = {
+    type: entry.type,
     glb: entry.path,
     clipName,
     duration: animationDuration(chosen),
   };
 }
 
-const resourceOutput = `/* eslint-disable */\n// Auto-generated by scripts/gen-scene-dsl.mjs.\n\nexport type ModelId = ${modelIdUnion};\nexport type AnimationId = ${animationIdUnion};\nexport type ContainedModelId = ${containedIdUnion};\n${pageIds.length ? `export type ScenePageId = ${scenePageIdUnion};\n` : ''}\n`;
+const resourceOutput = `/* eslint-disable */\n// Auto-generated by scripts/gen-scene-dsl.mjs.\n\nexport type ModelType = ${modelTypeUnion};\nexport type AnimationType = ${animationTypeUnion};\nexport type ContainedModelType = ${containedTypeUnion};\n${pageIds.length ? `export type ScenePageId = ${scenePageIdUnion};\n` : ''}\n`;
 
 const modelBodyPartTypes = modelDefs.map((entry) => {
-  const name = canonicalizeName(entry.id);
-  const typeName = `${name}BodyPartId`;
-  const union = makeUnion(modelBodyParts[entry.id] ?? []);
+  const name = entry.type;
+  const typeName = `${name}BodyPart`;
+  const union = makeUnion(modelBodyParts[entry.type] ?? []);
   return `export type ${typeName} = ${union};`;
 }).join('\n');
 
 const containedSubpartTypes = containedDefs.map((entry) => {
-  const name = canonicalizeName(entry.id);
-  const typeName = `${name}SubpartId`;
-  const union = makeUnion(containedSubparts[entry.id] ?? []);
+  const name = entry.type;
+  const typeName = `${name}Subpart`;
+  const union = makeUnion(containedSubparts[entry.type] ?? []);
   return `export type ${typeName} = ${union};`;
 }).join('\n');
 
@@ -390,36 +508,66 @@ const toRelative = (abs) => {
 const modelDslImportPath = '@brewsite/core';
 
 const modelBodyPartComponents = modelDefs.map((entry) => {
-  const modelName = canonicalizeName(entry.id);
-  const bones = modelRegistry[entry.id]?.bones ?? [];
-  const meshes = modelRegistry[entry.id]?.meshes ?? [];
-  const boneSet = new Set(bones);
-  const meshSet = new Set(meshes);
-  const duplicates = new Set([...boneSet].filter((id) => meshSet.has(id)));
+  const modelName = entry.type;
+  const bones = modelRegistry[entry.type]?.bones ?? [];
+  const meshes = modelRegistry[entry.type]?.meshes ?? [];
   const parts = [
     ...bones.map((id) => ({ id, kind: 'bone' })),
     ...meshes.map((id) => ({ id, kind: 'mesh' })),
   ];
-  const seen = new Set();
-  const lines = [];
+  const grouped = new Map();
   for (const part of parts) {
-    const partName = canonicalizeName(part.id);
-    const baseName = `${modelName}${partName}`;
-    let componentName = baseName;
-    if (duplicates.has(part.id) && part.kind === 'mesh') {
-      componentName = `${baseName}Mesh`;
+    const normalized = normalizePartName(part.id);
+    const displayName = part.id.replace(/^mixamorig:/i, '');
+    if (!grouped.has(normalized)) {
+      grouped.set(normalized, { normalized, displayName, bones: [], meshes: [] });
     }
+    const group = grouped.get(normalized);
+    if (!group.displayName) group.displayName = displayName;
+    if (part.kind === 'bone') {
+      group.bones.push(part.id);
+    } else {
+      group.meshes.push(part.id);
+    }
+  }
+  const seen = new Set();
+  const entries = [];
+  const addComponent = (baseName, partId, kind, index = 0) => {
+    let componentName = baseName;
+    if (index > 0) componentName = `${baseName}${index + 1}`;
     if (seen.has(componentName)) {
       let suffix = 2;
       while (seen.has(`${componentName}${suffix}`)) suffix += 1;
       componentName = `${componentName}${suffix}`;
     }
     seen.add(componentName);
-    lines.push(`export const ${componentName} = (props: BodyPartProps) => (
-  <BodyPart {...props} id=${JSON.stringify(part.id)} targetKind=${JSON.stringify(part.kind)} />
-);`);
+    entries.push(`  ${componentName}: (props: BodyPartProps) => (
+    <BodyPart {...props} id=${JSON.stringify(partId)} targetKind=${JSON.stringify(kind)} />
+  )`);
+  };
+  for (const group of grouped.values()) {
+    const partName = canonicalizeComponentName(group.displayName ?? group.normalized);
+    const baseName = `${partName}`;
+    if (group.bones.length && group.meshes.length) {
+      group.bones.forEach((id, idx) => addComponent(baseName, id, 'bone', idx));
+      group.meshes.forEach((id, idx) => addComponent(`${baseName}Mesh`, id, 'mesh', idx));
+    } else if (group.bones.length) {
+      group.bones.forEach((id, idx) => addComponent(baseName, id, 'bone', idx));
+    } else {
+      group.meshes.forEach((id, idx) => addComponent(baseName, id, 'mesh', idx));
+    }
   }
-  return lines.join('\n\n');
+  const propsName = `${modelName}ModelProps`;
+  return `export type ${propsName} = Omit<ModelProps, 'type'>;
+export const ${modelName} = Object.assign(
+  (props: ${propsName}) => (
+    <ModelRouter {...props} type=${JSON.stringify(entry.type)} />
+  ),
+  {
+${entries.length ? entries.join(',\n') : '  '}
+  },
+);
+`;
 }).filter(Boolean).join('\n\n');
 
 const dslOutput = `/* eslint-disable */
@@ -439,6 +587,7 @@ import type {
 } from '${modelDslImportPath}';
 import {
   Model,
+  ModelRouter,
   BodyParts,
   BodyPart,
   Pose,
@@ -465,6 +614,7 @@ export type {
 
 export {
   Model,
+  ModelRouter,
   BodyParts,
   BodyPart,
   Pose,
@@ -476,9 +626,9 @@ export {
   Animation,
 };
 
-export type ModelId = ${modelIdUnion};
-export type AnimationId = ${animationIdUnion};
-export type ContainedModelId = ${containedIdUnion};
+export type ModelType = ${modelTypeUnion};
+export type AnimationType = ${animationTypeUnion};
+export type ContainedModelType = ${containedTypeUnion};
 ${pageIds.length ? `export type ScenePageId = ${scenePageIdUnion};
 ` : ''}
 
@@ -486,28 +636,18 @@ ${modelBodyPartTypes}
 
 ${containedSubpartTypes}
 
-export type ModelDslProps = Omit<ModelProps, 'id'> & { id?: ModelId };
-export type AnimationDslProps = Omit<AnimationProps, 'clipName'> & { clipName?: AnimationId };
+export type ModelDslProps = Omit<ModelProps, 'id' | 'type'> & { id: string; type: ModelType };
+export type AnimationDslProps = Omit<AnimationProps, 'clipName'> & { clipName?: AnimationType };
 export type BodyPartDslProps<TBodyPartId extends string = string> = Omit<BodyPartByIdProps, 'id'> & { id: TBodyPartId };
-export type ContainedModelDslProps = Omit<ContainedModelProps, 'modelId'> & { modelId: ContainedModelId };
+export type ContainedModelDslProps = Omit<ContainedModelProps, 'modelId'> & { modelId: ContainedModelType };
 export type SubpartDslProps<TSubpartId extends string = string> = Omit<SubpartProps, 'id'> & { id: TSubpartId };
-
-${modelDefs.map((entry) => {
-  const name = canonicalizeName(entry.id);
-  const propsName = `${name}ModelProps`;
-  const componentName = `${name}Model`;
-  return `export type ${propsName} = Omit<ModelProps, 'id'>;
-export const ${componentName} = (props: ${propsName}) => (
-  <Model {...props} id="${entry.id}" />
-);`;
-}).join('\n\n')}
 
 ${modelBodyPartComponents}
 `;
 await mkdir(absOutDir, { recursive: true });
-await writeFile(path.join(absOutDir, 'sceneResources.generated.ts'), `${resourceOutput}\n${modelBodyPartTypes}\n\n${containedSubpartTypes}\n`, 'utf8');
+await writeFile(path.join(absOutDir, 'siteResources.generated.ts'), `${resourceOutput}\n${modelBodyPartTypes}\n\n${containedSubpartTypes}\n`, 'utf8');
 await writeFile(path.join(absOutDir, 'sceneDsl.generated.tsx'), dslOutput, 'utf8');
-console.log(`[gen-scene-dsl] Wrote ${path.join(absOutDir, 'sceneResources.generated.ts')}`);
+console.log(`[gen-scene-dsl] Wrote ${path.join(absOutDir, 'siteResources.generated.ts')}`);
 console.log(`[gen-scene-dsl] Wrote ${path.join(absOutDir, 'sceneDsl.generated.tsx')}`);
 
 if (absManifestOut) {
@@ -520,4 +660,10 @@ if (absManifestOut) {
   await mkdir(path.dirname(absManifestOut), { recursive: true });
   await writeFile(absManifestOut, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   console.log(`[gen-scene-dsl] Wrote ${absManifestOut}`);
+  const publicAssets = path.resolve(ROOT, 'public', 'assets', 'scene-manifest.json');
+  const publicRoot = path.resolve(ROOT, 'public', 'scene-manifest.json');
+  if (path.resolve(absManifestOut) === publicAssets) {
+    await writeFile(publicRoot, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+    console.log(`[gen-scene-dsl] Wrote ${publicRoot}`);
+  }
 }

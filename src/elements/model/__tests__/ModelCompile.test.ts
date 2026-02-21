@@ -97,7 +97,20 @@ describe('model compile helpers', () => {
   });
 
   it('createDefaultModelInstanceState seeds model + playback defaults', () => {
-    const state = createDefaultModelInstanceState('bot');
+    const identity: SceneModelInstanceState = {
+      model: {
+        scale: 0.1,
+        position: [0, 0, 0],
+        rotation: [0, 0, 0],
+        enabled: true,
+        bodyPartOverrides: {},
+      },
+      playback: {
+        motion: { commands: [], scenes: [], customAnimations: [] },
+        animation: { enabled: false },
+      },
+    };
+    const state = createDefaultModelInstanceState('bot', identity);
     expect(state.model.enabled).toBe(true);
     expect(state.model.scale).toBeCloseTo(0.1);
     expect(state.playback.motion.commands).toHaveLength(0);

@@ -3,7 +3,7 @@ title: "BrewFlow Scene Toolkit — Vision & Overview"
 doc_type: prd
 owner: Website Product
 status: draft
-updated: 2026-02-20
+updated: 2026-02-21
 change_history:
   - date: 2026-02-20
     author: Website Product (TPM)
@@ -17,6 +17,9 @@ change_history:
   - date: 2026-02-20
     author: Website Product (TPM)
     summary: "Fourth revision: four gap fixes identified during plan-vs-PRD audit. (1) widgetSetup type updated to accept optional second options argument carrying onSceneChange, matching ScenePlayer's internal invocation pattern; (2) window.__robotRuntimeDebug renamed to window.__sceneEngineDebug to satisfy the no-robot-prefix acceptance criterion; (3) FR-SDK-007 extended to specify that SceneMetaWidget publishes SceneDefinition.meta fields as scene.meta.<key> variables, enabling useVariable('scene', 'meta.theme') usage shown in section 6.4; (4) useSceneEngine options corrected — framesPerScene removed (already in SceneGroup.timeline) and pixelsPerScene added (scroll height per scene, distinct parameter)."
+  - date: 2026-02-21
+    author: Website Product (TPM)
+    summary: "siteResources definitions now use type fields for models, contained models, and animations."
 ---
 
 # BrewFlow Scene Toolkit — Vision & Overview
@@ -106,7 +109,7 @@ Building scroll-driven, mixed 2D/3D marketing or storytelling websites is expens
 
 ### 4.4 Asset Pipeline Engineer
 
-> **As a pipeline engineer**, I want a single build-time script that reads my `sceneResources.ts` and produces both typed DSL components and a runtime manifest JSON in one pass.
+> **As a pipeline engineer**, I want a single build-time script that reads my `siteResources.ts` and produces both typed DSL components and a runtime manifest JSON in one pass.
 
 > **As a pipeline engineer**, I want `createDefaultWidgetRegistry(manifest)` to read model IDs directly from the manifest — so I don't declare the same model twice in two different places.
 
@@ -185,9 +188,9 @@ Building scroll-driven, mixed 2D/3D marketing or storytelling websites is expens
 
 ### 5.4 Asset Metadata Pipeline
 
-**FR-ASSET-001:** The unified `gen-scene-dsl.mjs --manifest-out` script must read a `sceneResources.ts` file and produce in a single GLB-reading pass: (a) a typed TypeScript DSL module with union types for all asset identifiers, and (b) a version-2 `AssetManifest` JSON file.
+**FR-ASSET-001:** The unified `gen-scene-dsl.mjs --manifest-out` script must read a `siteResources.ts` file and produce in a single GLB-reading pass: (a) a typed TypeScript DSL module with union types for all asset identifiers, and (b) a version-2 `AssetManifest` JSON file.
 
-**FR-ASSET-002:** `sceneResources.ts` must support: `models[]` (with `id`, `role`, `path`, `anchorKeys[]`), `containedModels[]` (with `id`, `path`), and `animations[]` (with `id`, `path`). `anchorKeys` are consumer-defined names resolved to bone names via a four-step heuristic cascade: exact match → substring match → pattern match → warn and use key as value.
+**FR-ASSET-002:** `siteResources.ts` must support: `models[]` (with `type`, `role`, `path`, `anchorKeys[]`), `containedModels[]` (with `type`, `path`), and `animations[]` (with `type`, `path`). `anchorKeys` are consumer-defined names resolved to bone names via a four-step heuristic cascade: exact match → substring match → pattern match → warn and use key as value.
 
 **FR-ASSET-003:** The generated TypeScript module must export typed union types for all asset identifiers, making bad asset references a `tsc` error.
 
@@ -471,7 +474,7 @@ The authoring journey must be completable in nine documented steps with no undoc
 
 ```
 1. Prepare assets      → GLB models + animation GLBs → public/assets/
-2. Define resources    → sceneResources.ts: models, containedModels, animations, anchorKeys
+2. Define resources    → siteResources.ts: models, containedModels, animations, anchorKeys
 3. Generate DSL        → pnpm gen:scene-dsl → typed DSL + scene-manifest.json
 4. Build widgets       → implement custom Widget classes (optional)
 5. Register widgets    → widgetSetup.ts: createDefaultWidgetRegistry(manifest).register(...)

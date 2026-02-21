@@ -14,7 +14,7 @@ import {
 
 describe('model DSL components', () => {
   it('render null for all DSL components', () => {
-    expect(Model({})).toBeNull();
+    expect(Model({ type: 'robot', id: 'robot-1' })).toBeNull();
     expect(BodyParts({})).toBeNull();
     expect(BodyPart({ id: 'Body' })).toBeNull();
     expect(Pose({})).toBeNull();

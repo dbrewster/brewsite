@@ -149,6 +149,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     setDriverReady(false);
     setAssetsReady(false);
     setFrameState(makeInitialFrameState());
+    if (!sceneTrack) return;
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
@@ -187,9 +188,13 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       loopRef.current = null;
       frameDriverRef.current?.reset();
     };
-  }, [canvas, options.widgetRegistry, options.onError, options.manifest, variableStore]);
+  }, [canvas, options.widgetRegistry, options.onError, options.manifest, variableStore, sceneTrack]);
 
   useEffect(() => {
+    if (options.manifest === null) {
+      setSceneTrack(null);
+      return;
+    }
     const key = buildSceneTrackKey({
       scenes: options.sceneGroup.scenes,
       widgetRegistry: options.widgetRegistry,
@@ -210,7 +215,14 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     });
     setCachedTrack(key, compiled);
     setSceneTrack(compiled);
-  }, [options.sceneGroup, options.widgetRegistry, options.clipMeta, blockSize, prefersReducedMotion]);
+  }, [
+    options.sceneGroup,
+    options.widgetRegistry,
+    options.clipMeta,
+    options.manifest,
+    blockSize,
+    prefersReducedMotion,
+  ]);
 
   useEffect(() => {
     const driver = driverRef.current;

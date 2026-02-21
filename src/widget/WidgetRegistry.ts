@@ -17,6 +17,50 @@ export const CUSTOM_NODE_HANDLER = Symbol('customNodeHandler');
 
 export class WidgetRegistry {
   private widgets = new Map<string, IWidget>();
+  private typeFactories = new Map<unknown, (props: Record<string, unknown>) => IWidget>();
+
+  registerTypeFactory(
+    component: unknown,
+    factory: (props: Record<string, unknown>) => IWidget,
+  ): this {
+    this.typeFactories.set(component, factory);
+    if (!getNodeHandler(component)) {
+      const registry = this;
+      registerNode(component, (node, api, helpers) => {
+        const props = node.props as Record<string, unknown>;
+        const targetType = typeof props['type'] === 'string' ? props['type'] : undefined;
+        const targetId = typeof props['id'] === 'string' ? props['id'] : undefined;
+        if (!targetType) {
+          throw new Error(`<Model> requires a string "type" prop.`);
+        }
+        if (!targetId) {
+          throw new Error(`<Model> requires a string "id" prop.`);
+        }
+        let target = registry.get(targetId);
+        if (!target) {
+          target = factory(props);
+          registry.register(target);
+        }
+        if (!target || !isSceneElement(target)) {
+          throw new Error(
+            `[WidgetRegistry] No widget found for DSL component with type="${targetType}" and id="${targetId}"`,
+          );
+        }
+        const customHandler = (target as unknown as Record<symbol, NodeHandler | undefined>)[
+          CUSTOM_NODE_HANDLER
+        ];
+        if (customHandler) {
+          customHandler(node, api, helpers);
+        } else {
+          api.setWidgetState(target.widgetId, {
+            ...(target.defaultState as object),
+            ...props,
+          });
+        }
+      });
+    }
+    return this;
+  }
 
   register(widget: IWidget): this {
     if (this.widgets.has(widget.widgetId)) {
@@ -32,9 +76,45 @@ export class WidgetRegistry {
         const registry = this;
         registerNode(widget.DslComponent, (node, api, helpers) => {
           const props = node.props as Record<string, unknown>;
+          const targetType = typeof props['type'] === 'string' ? props['type'] : undefined;
           const targetId = typeof props['id'] === 'string' ? props['id'] : undefined;
+          const factory = registry.typeFactories.get(widget.DslComponent);
 
-          // Find the target widget: by id prop first, otherwise first with this DslComponent
+          if (factory) {
+            if (!targetType) {
+              throw new Error(
+                `<${widget.DslComponent.displayName ?? 'Model'}> requires a string "type" prop.`,
+              );
+            }
+            if (!targetId) {
+              throw new Error(
+                `<${widget.DslComponent.displayName ?? 'Model'}> requires a string "id" prop.`,
+              );
+            }
+            let target = registry.get(targetId);
+            if (!target) {
+              target = factory(props);
+              registry.register(target);
+            }
+            if (!target || !isSceneElement(target)) {
+              throw new Error(
+                `[WidgetRegistry] No widget found for DSL component with type="${targetType}" and id="${targetId}"`,
+              );
+            }
+            const customHandler = (target as unknown as Record<symbol, NodeHandler | undefined>)[
+              CUSTOM_NODE_HANDLER
+            ];
+            if (customHandler) {
+              customHandler(node, api, helpers);
+            } else {
+              api.setWidgetState(target.widgetId, {
+                ...(target.defaultState as object),
+                ...props,
+              });
+            }
+            return;
+          }
+
           const target =
             targetId
               ? registry.get(targetId)

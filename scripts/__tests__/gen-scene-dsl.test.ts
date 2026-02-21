@@ -52,7 +52,7 @@ const writeMinimalGlb = async (filePath: string) => {
 };
 
 describe('gen-scene-dsl', () => {
-  it('fails when sceneResources export is missing', async () => {
+  it('fails when siteResources export is missing', async () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'scene-dsl-'));
     const input = await writeResourceFile(
       dir,
@@ -61,7 +61,7 @@ describe('gen-scene-dsl', () => {
     const outDir = path.join(dir, 'out');
     const result = await run(['--input', input, '--out-dir', outDir]);
     expect(result.code).not.toBe(0);
-    expect(result.stderr).toContain('Missing required export: sceneResources');
+    expect(result.stderr).toContain('Missing required export: siteResources');
   });
 
   it('fails on invalid role', async () => {
@@ -69,9 +69,9 @@ describe('gen-scene-dsl', () => {
     const input = await writeResourceFile(
       dir,
       `
-        export const sceneResources = {
+        export const siteResources = {
           models: [
-            { id: 'robot', path: '/assets/robot.glb', role: 'primary-ish', anchorKeys: [] },
+            { type: 'Robot', path: '/assets/robot.glb', role: 'primary-ish', anchorKeys: [] },
           ],
           containedModels: [],
           animations: [],
@@ -94,9 +94,9 @@ describe('gen-scene-dsl', () => {
     const input = await writeResourceFile(
       dir,
       `
-        export const sceneResources = {
+        export const siteResources = {
           models: [
-            { id: 'robot', path: '/assets/robot.glb', role: 'primary', anchorKeys: ['head'] },
+            { type: 'Robot', path: '/assets/robot.glb', role: 'primary', anchorKeys: ['head'] },
           ],
           containedModels: [],
           animations: [],
@@ -106,15 +106,18 @@ describe('gen-scene-dsl', () => {
     const outDir = path.join(dir, 'out');
     const result = await run(['--input', input, '--out-dir', outDir]);
     expect(result.code).toBe(0);
-    const generated = await readFile(path.join(outDir, 'sceneResources.generated.ts'), 'utf8');
-    expect(generated).toContain('export type ModelId =');
-    expect(generated).toContain('export type AnimationId =');
+    const generated = await readFile(path.join(outDir, 'siteResources.generated.ts'), 'utf8');
+    expect(generated).toContain('export type ModelType =');
+    expect(generated).toContain('export type AnimationType =');
     const dsl = await readFile(path.join(outDir, 'sceneDsl.generated.tsx'), 'utf8');
     expect(dsl).toContain('export {');
     expect(dsl).toContain('BodyPart');
     expect(dsl).toContain('ModelPart');
     expect(dsl).toContain('Subpart');
-    expect(dsl).toContain('id="BodyMesh"');
+    expect(dsl).toContain('export const Robot = Object.assign');
+    expect(dsl).toContain('type="Robot"');
+    expect(dsl).toContain('ModelRouter');
+    expect(dsl).toContain('BodyMesh: (props: BodyPartProps) =>');
     await rm(robotGlb, { force: true });
   });
 });

@@ -587,28 +587,18 @@ export const compileAnimation = (
 
 // ─── Default state factory ──────────────────────────────────────────────────
 
-const DEFAULT_MODEL_SCALE = 0.1;
-const MODEL_BASE_POSITION: [number, number, number] = [0, 0, 0];
+const cloneIdentityState = (state: SceneModelInstanceState): SceneModelInstanceState => {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(state) as SceneModelInstanceState;
+  }
+  return JSON.parse(JSON.stringify(state)) as SceneModelInstanceState;
+};
 
-export function createDefaultModelInstanceState(modelId: string) {
-  return {
-    model: {
-      scale: DEFAULT_MODEL_SCALE,
-      position: [...MODEL_BASE_POSITION] as [number, number, number],
-      rotation: [0, 0, 0] as [number, number, number],
-      enabled: true,
-    },
-    playback: {
-      motion: {
-        commands: [],
-        scenes: [],
-        customAnimations: [],
-      },
-      animation: {
-        enabled: false,
-      },
-    },
-  };
+export function createDefaultModelInstanceState(
+  modelId: string,
+  identity: SceneModelInstanceState,
+) {
+  return cloneIdentityState(identity);
 }
 
 // ─── Instance state transition spec (wraps model and playback) ─────────────

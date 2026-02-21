@@ -3,7 +3,7 @@ title: "BrewFlow Scene Toolkit — Architecture Reference"
 doc_type: prd
 owner: brewflow-architect
 status: active
-updated: 2026-02-20
+updated: 2026-02-21
 change_history:
   - date: 2026-02-20
     author: brewflow-architect
@@ -11,6 +11,9 @@ change_history:
   - date: 2026-02-20
     author: brewflow-architect
     summary: "Batch-fill transition model: scenes are discrete snapshots; compiler dispatches enter/exit/interpolate to widgets per transition block. Removes TransitionContext, SceneTransition, entryLead/entryStart, SceneTimeline from compiler interface. Renames sceneProgress → blockProgress on SceneTrackTick. Replaces SceneFrameContext with SceneSnapshotContext."
+  - date: 2026-02-21
+    author: brewflow-architect
+    summary: "Update siteResources format to use type fields instead of id, aligning generator output naming."
 ---
 
 # BrewFlow Scene Toolkit — Architecture Reference
@@ -58,7 +61,7 @@ examples/
     └── brain-model/
 
 scripts/
-├── gen-scene-dsl.mjs       Asset pipeline: sceneResources.ts → DSL + manifest
+├── gen-scene-dsl.mjs       Asset pipeline: siteResources.ts → DSL + manifest
 ├── extract-model-metadata.mjs
 └── prune-dist.mjs
 ```
@@ -848,22 +851,22 @@ type UseSceneEngineResult = {
 
 **Script:** `scripts/gen-scene-dsl.mjs`
 
-Single GLB-reading pass that accepts a `sceneResources.ts` file and produces:
-1. `sceneResources.generated.ts` — union types for all asset identifiers, typed DSL component wrappers.
+Single GLB-reading pass that accepts a `siteResources.ts` file and produces:
+1. `siteResources.generated.ts` — union types for all asset identifiers, typed DSL component wrappers.
 2. `scene-manifest.json` (with `--manifest-out`) — version-2 `AssetManifest` JSON.
 
-**`sceneResources.ts` format:**
+**`siteResources.ts` format:**
 ```typescript
-export const sceneResources = {
+export const siteResources = {
   models: [
-    { id: 'primary', role: 'primary' as const,
+    { type: 'Robot', role: 'primary' as const,
       path: '/assets/robot.glb', anchorKeys: ['head', 'chest'] },
   ],
   containedModels: [
-    { id: 'brain', path: '/assets/brain.glb' },
+    { type: 'Brain', path: '/assets/brain.glb' },
   ],
   animations: [
-    { id: 'chat-relax-f', path: '/assets/motion/chat-relax-f.glb' },
+    { type: 'ChatRelaxF', path: '/assets/motion/chat-relax-f.glb' },
   ],
 } as const;
 ```
@@ -1061,7 +1064,7 @@ pnpm vitest run src/compiler/__tests__/someFile.test.ts
 
 # Asset pipeline:
 node scripts/gen-scene-dsl.mjs \
-  --input   examples/simple/sceneResources.ts \
+  --input   examples/simple/siteResources.ts \
   --out-dir src/resources/ \
   --manifest-out public/assets/scene-manifest.json
 ```

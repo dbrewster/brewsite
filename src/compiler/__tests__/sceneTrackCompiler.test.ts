@@ -115,7 +115,7 @@ describe('compileSceneTrack', () => {
     expect(block.slice(2)).toEqual([0, 0]);
   });
 
-  it('uses defaultState for first half and enter for second half when arriving', () => {
+  it('uses toState for first half and enter for second half when arriving', () => {
     const spec: ElementTransitionSpec<number> = {
       exit: () => {},
       enter: (frames, widgetId, toState) => {
@@ -133,7 +133,7 @@ describe('compileSceneTrack', () => {
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 4 });
     const block = track.ticks.slice(0, 4).map((tick) => tick.state.widgets['w'] as number);
-    expect(block.slice(0, 2)).toEqual([0, 0]);
+    expect(block.slice(0, 2)).toEqual([20, 20]);
     expect(block.slice(2)).toEqual([20, 20]);
   });
 

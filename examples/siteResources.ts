@@ -1,7 +1,7 @@
-export const sceneResources = {
+export const siteResources = {
   models: [
     {
-      id: 'primary',
+      type: 'Robot',
       role: 'primary' as const,
       path: '/assets/robot.no-normals.glb',
       anchorKeys: ['head', 'chest'],
@@ -10,7 +10,7 @@ export const sceneResources = {
   containedModels: [],
   animations: [
     {
-      id: 'chat-relax-f',
+      type: 'ChatRelaxF',
       path: '/assets/motion/chat-relax-f.glb',
     },
   ],

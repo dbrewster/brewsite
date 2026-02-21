@@ -14,5 +14,5 @@ export default defineConfig({
       '@brewsite/core': path.resolve(__dirname, '../../src/index.ts'),
     },
   },
-  publicDir: path.resolve(__dirname, '../simple/generated'),
+  publicDir: path.resolve(__dirname, '../generated'),
 });

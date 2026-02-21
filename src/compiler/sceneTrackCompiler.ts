@@ -102,6 +102,24 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     throw new Error(`Scene "${scene.id}" getFrame must return a JSX element or SceneFrame`);
   });
 
+  // ── Step 1.5: Allow widgets to merge snapshots for persistence ─────────────
+  for (const widget of widgetRegistry.getSceneElements()) {
+    if (!widget.mergeSnapshot) continue;
+    let prev: unknown = undefined;
+    for (let i = 0; i < snapshots.length; i++) {
+      const snap = snapshots[i];
+      if (!snap) continue;
+      const next = snap.widgets[widget.widgetId] as unknown;
+      const merged = widget.mergeSnapshot(prev as never, next as never);
+      if (merged === undefined) {
+        delete snap.widgets[widget.widgetId];
+      } else {
+        snap.widgets[widget.widgetId] = merged as never;
+      }
+      prev = merged;
+    }
+  }
+
   // ── Step 2: Allocate the flat frame array ────────────────────────────────────
   // Each frame starts with an empty widgets map. Widgets fill their own slots.
   const frames: SceneTrackTick[] = Array.from({ length: totalFrames }, (_, globalIdx) => {
@@ -159,9 +177,9 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
           block[i]!.state.widgets[widgetId] = defaultState;
         }
       } else if (inTo) {
-        // Widget arriving — defaultState in first half, enter in second half
+        // Widget arriving — apply incoming scene state in first half, enter in second half
         for (let i = 0; i < mid; i++) {
-          block[i]!.state.widgets[widgetId] = defaultState;
+          block[i]!.state.widgets[widgetId] = toState as never;
         }
         transitionSpec.enter(block.slice(mid), widgetId, toState as never);
       } else {

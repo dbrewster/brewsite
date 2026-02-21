@@ -4,10 +4,24 @@ import { ModelRenderer } from '../ModelRenderer';
 import { createDefaultModelInstanceState } from '../compile';
 import type { SceneModelInstanceState } from '../types';
 
-const buildState = (): SceneModelInstanceState => ({
-  ...createDefaultModelInstanceState('primary'),
+const identity: SceneModelInstanceState = {
   model: {
-    ...createDefaultModelInstanceState('primary').model,
+    scale: 0.1,
+    position: [0, 0, 0],
+    rotation: [0, 0, 0],
+    enabled: true,
+    bodyPartOverrides: {},
+  },
+  playback: {
+    motion: { commands: [], scenes: [], customAnimations: [] },
+    animation: { enabled: false },
+  },
+};
+
+const buildState = (): SceneModelInstanceState => ({
+  ...createDefaultModelInstanceState('primary', identity),
+  model: {
+    ...createDefaultModelInstanceState('primary', identity).model,
     position: [1, 2, 3],
     rotation: [0.1, 0.2, 0.3],
     scale: 2,
@@ -93,7 +107,7 @@ describe('ModelRenderer', () => {
 
     (renderer as any).containedModelTemplates.set('brain', contained);
 
-    const state = createDefaultModelInstanceState('primary') as SceneModelInstanceState;
+    const state = createDefaultModelInstanceState('primary', identity) as SceneModelInstanceState;
     state.model.parts = {
       brain: {
         id: 'brain',

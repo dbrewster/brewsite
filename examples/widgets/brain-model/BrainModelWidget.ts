@@ -130,7 +130,7 @@ export class BrainModelWidget
 
   async load(manifest: AssetManifest | null): Promise<void> {
     if (!manifest) return;
-    const meta = manifest.containedModels.find((model) => model.id === this.widgetId);
+    const meta = manifest.containedModels.find((model) => model.type === this.widgetId);
     if (!meta) {
       console.warn(`[BrainModelWidget] No contained model with id "${this.widgetId}" in manifest.`);
       return;

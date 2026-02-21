@@ -24,7 +24,9 @@ export type ModelProps = {
   metalness?: number | ((context: unknown) => number);
   roughness?: number | ((context: unknown) => number);
   enabled?: boolean | ((context: unknown) => boolean);
-  id?: string;
+  reset?: boolean | ((context: unknown) => boolean);
+  type: string;
+  id: string;
   children?: ReactNode;
 };
 
@@ -33,6 +35,7 @@ export type BodyPartProps = {
   color?: string | ((context: unknown) => string);
   metalness?: number | ((context: unknown) => number);
   roughness?: number | ((context: unknown) => number);
+  reset?: boolean | ((context: unknown) => boolean);
   children?: ReactNode;
 };
 
@@ -44,6 +47,7 @@ export type BodyPartByIdProps = BodyPartProps & {
 export type PoseProps = {
   rotate?: AxisRotation | ((context: unknown) => AxisRotation);
   translate?: AxisTranslation | ((context: unknown) => AxisTranslation);
+  reset?: boolean | ((context: unknown) => boolean);
 };
 
 export type ModelPartProps = {
@@ -54,6 +58,7 @@ export type ModelPartProps = {
   scale?: number | ((context: unknown) => number);
   position?: [number, number, number] | ((context: unknown) => [number, number, number]);
   rotation?: [number, number, number] | ((context: unknown) => [number, number, number]);
+  reset?: boolean | ((context: unknown) => boolean);
   children?: ReactNode;
 };
 
@@ -72,19 +77,23 @@ export type SubpartProps = {
   color?: string | ((context: unknown) => string);
   metalness?: number | ((context: unknown) => number);
   roughness?: number | ((context: unknown) => number);
+  reset?: boolean | ((context: unknown) => boolean);
 };
 
 export type PlaybackProps = {
+  reset?: boolean | ((context: unknown) => boolean);
   children?: ReactNode;
 };
 
 export type MotionProps = {
+  reset?: boolean | ((context: unknown) => boolean);
   commands?: unknown;
   scenes?: unknown;
   customAnimations?: unknown;
 };
 
 export type AnimationProps = {
+  reset?: boolean;
   enabled?: boolean;
   clipName?: string;
   gltfUrl?: string;
@@ -106,6 +115,7 @@ export type AnimationProps = {
 // ─── DSL Components (render as null - compilation happens in ModelWidget) ────
 
 export const Model = (_props: ModelProps) => null;
+export const ModelRouter = (_props: ModelProps) => null;
 export const BodyParts = (_props: { children?: ReactNode }) => null;
 export const BodyPart = (_props: BodyPartByIdProps) => null;
 export const Pose = (_props: PoseProps) => null;

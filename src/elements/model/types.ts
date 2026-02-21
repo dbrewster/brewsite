@@ -25,6 +25,7 @@ export type ModelSubpartSpec = {
   color?: string;
   metalness?: number;
   roughness?: number;
+  reset?: boolean;
 };
 
 export type ModelPartSpec = {
@@ -40,6 +41,7 @@ export type ModelPartSpec = {
   roughness?: number;
   modelId?: string;
   subparts?: Partial<Record<ModelSubpartId, ModelSubpartSpec>>;
+  reset?: boolean;
 };
 
 export type ModelPartOverrides = Partial<Record<ModelPartId, Partial<ModelPartSpec>>>;
@@ -53,6 +55,8 @@ export type BodyPartOverride = {
   roughness?: number;
   targetKind?: 'bone' | 'mesh';
   pose?: PoseGroup;
+  reset?: boolean;
+  poseReset?: boolean;
 };
 
 export type BodyPartOverrideMap = Partial<Record<string, BodyPartOverride>>;
@@ -82,6 +86,7 @@ export type MotionCommand = {
 export type PoseGroup = {
   rotate?: AxisRotation;
   translate?: AxisTranslation;
+  reset?: boolean;
 };
 
 export type ModelPose = {
@@ -136,6 +141,7 @@ export type SceneMotion = {
   scenes: MotionScene[];
   customAnimations?: CustomAnimation[];
   pose?: ModelPose;
+  reset?: boolean;
 };
 
 // ─── Animation (clip playback) ───────────────────────────────────────────────
@@ -157,6 +163,7 @@ export type SceneAnimation = {
   holdStartPose?: boolean;
   allowRotation?: boolean;
   allowScale?: boolean;
+  reset?: boolean;
 };
 
 // ─── Playback (motion + animation) ──────────────────────────────────────────
@@ -164,6 +171,7 @@ export type SceneAnimation = {
 export type ScenePlayback = {
   motion: SceneMotion;
   animation: SceneAnimation;
+  reset?: boolean;
 };
 
 // ─── Model base state ───────────────────────────────────────────────────────
@@ -177,6 +185,7 @@ export type SceneModel = {
   bodyPartOverrides?: BodyPartOverrideMap;
   parts?: Record<ModelPartId, ModelPartSpec>;
   enabled?: boolean;
+  reset?: boolean;
 };
 
 // ─── Instance state (the main state type for ModelWidget) ────────────────────

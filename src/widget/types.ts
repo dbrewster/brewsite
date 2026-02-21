@@ -12,8 +12,17 @@ export interface IWidget {
 export interface ISceneElement<TState, TExtra = void> extends IWidget {
   readonly defaultState: TState;
   readonly transitionSpec: ElementTransitionSpec<TState>;
-  readonly DslComponent: React.ComponentType<Partial<TState> & { children?: React.ReactNode }>;
+  readonly DslComponent: React.ComponentType<any>;
   compileExtra?(state: TState, context: CompileExtraContext): TExtra;
+  /**
+   * When true, the DSL component requires a string "type" prop to route.
+   */
+  readonly requiresTypeProp?: boolean;
+  /**
+   * Optional snapshot merge hook for compiler-level state persistence.
+   * Called per-scene before transitions are baked.
+   */
+  mergeSnapshot?(prev: TState | undefined, next: TState | undefined): TState | undefined;
 }
 
 export interface IDslComposite extends IWidget {

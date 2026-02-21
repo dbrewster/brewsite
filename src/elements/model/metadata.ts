@@ -6,6 +6,7 @@
  */
 
 import type { ClipMeta } from '../../compiler/sceneTrackTypes';
+import type { SceneModelInstanceState } from './types';
 
 export const ASSET_MANIFEST_VERSION = 2;
 
@@ -17,19 +18,21 @@ export type AnchorTargetMap = Record<string, string>;
 // ─── Model Metadata ─────────────────────────────────────────────────────────
 
 export type ModelMeta = {
-  id: string;
+  type: string;
   glb: string;
   bones: string[];
   meshes: string[];
   /** Resolved anchor targets: anchorKey → bone node name. */
   anchorTargets: AnchorTargetMap;
   bodyParts?: string[];
+  /** Fully specified default state derived from the GLB. */
+  identity: SceneModelInstanceState;
 };
 
 // ─── Contained Model Metadata ────────────────────────────────────────────────
 
 export type ContainedModelMeta = {
-  id: string;
+  type: string;
   glb: string;
   subparts: string[];
 };
@@ -37,7 +40,7 @@ export type ContainedModelMeta = {
 // ─── Animation Entry ─────────────────────────────────────────────────────────
 
 export type AnimationEntry = {
-  id: string;
+  type: string;
   glb: string;
   clipName: string;
   duration: number;
@@ -67,8 +70,8 @@ export const clipMetaFromManifest = (manifest: AssetManifest): ClipMeta[] =>
 /**
  * Finds a model by ID in the manifest.
  */
-export const findModelMeta = (manifest: AssetManifest, modelId: string): ModelMeta | undefined =>
-  manifest.models.find((m) => m.id === modelId);
+export const findModelMeta = (manifest: AssetManifest, modelType: string): ModelMeta | undefined =>
+  manifest.models.find((m) => m.type === modelType);
 
 /**
  * Asserts manifest is valid at expected version.

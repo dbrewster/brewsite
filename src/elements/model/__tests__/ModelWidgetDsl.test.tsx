@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import React from 'react';
 import { ModelWidget } from '../ModelWidget';
 import {
-  Model,
+  ModelRouter,
   BodyParts,
   BodyPart,
   Pose,
@@ -24,6 +24,19 @@ const makeContext = (): SceneSnapshotContext => ({
   numScenes: 1,
   assetsReady: false,
 });
+const identity: SceneModelInstanceState = {
+  model: {
+    scale: 0.1,
+    position: [0, 0, 0],
+    rotation: [0, 0, 0],
+    enabled: true,
+    bodyPartOverrides: {},
+  },
+  playback: {
+    motion: { commands: [], scenes: [], customAnimations: [] },
+    animation: { enabled: false },
+  },
+};
 
 describe('ModelWidget DSL handler', () => {
   beforeEach(() => {
@@ -37,12 +50,14 @@ describe('ModelWidget DSL handler', () => {
 
   it('compiles model, body parts, parts, and playback from DSL', () => {
     const widget = new ModelWidget({
+      widgetId: 'bot-instance',
       modelMeta: {
-        id: 'bot',
+        type: 'bot',
         glb: '/bot.glb',
         bones: [],
         meshes: [],
         anchorTargets: { head: 'Head' },
+        identity,
       },
       clipMeta: [{ name: 'idle', duration: 2 }],
     });
@@ -50,8 +65,9 @@ describe('ModelWidget DSL handler', () => {
 
     const tree = (
       <Scene id="scene">
-        <Model
-          id="bot"
+        <ModelRouter
+          id="bot-instance"
+          type="bot"
           scale={() => 0.5}
           position={[1, 2, 3]}
           rotation={[0, 0, 1]}
@@ -77,12 +93,12 @@ describe('ModelWidget DSL handler', () => {
               customAnimations={[{ id: 'c1', enabled: true, apply: () => [] }]}
             />
           </Playback>
-        </Model>
+        </ModelRouter>
       </Scene>
     );
 
     const { frame } = resolveSceneFromDsl(tree, makeContext(), registry);
-    const state = frame.widgets['bot'] as SceneModelInstanceState;
+    const state = frame.widgets['bot-instance'] as SceneModelInstanceState;
 
     expect(state.model.scale).toBeCloseTo(0.5);
     expect(state.model.position).toEqual([1, 2, 3]);
@@ -113,7 +129,7 @@ describe('ModelWidget DSL handler', () => {
 describe('ModelWidget runtime helpers', () => {
   const makeWidget = () =>
     new ModelWidget({
-      modelMeta: { id: 'bot', glb: '/bot.glb', bones: [], meshes: [], anchorTargets: {} },
+      modelMeta: { type: 'bot', glb: '/bot.glb', bones: [], meshes: [], anchorTargets: {}, identity },
       clipMeta: [{ name: 'idle', duration: 2 }],
     });
 
@@ -139,7 +155,14 @@ describe('ModelWidget runtime helpers', () => {
 
   it('load warns when GLB is missing', async () => {
     const widget = new ModelWidget({
-      modelMeta: { id: 'bot', glb: undefined as unknown as string, bones: [], meshes: [], anchorTargets: {} },
+      modelMeta: {
+        type: 'bot',
+        glb: undefined as unknown as string,
+        bones: [],
+        meshes: [],
+        anchorTargets: {},
+        identity,
+      },
       clipMeta: [],
     });
     const renderer = { loadGlb: vi.fn() };
@@ -164,7 +187,14 @@ describe('ModelWidget runtime helpers', () => {
 
     await widget.load({
       version: 2,
-      models: [{ id: 'bot', glb: '/manifest.glb', bones: [], meshes: [], anchorTargets: { head: 'Head' } }],
+      models: [{
+        type: 'bot',
+        glb: '/manifest.glb',
+        bones: [],
+        meshes: [],
+        anchorTargets: { head: 'Head' },
+        identity,
+      }],
       containedModels: [],
       animations: [],
     });

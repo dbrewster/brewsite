@@ -45,6 +45,8 @@ export class ModelRenderer {
   private animationClips = new Map<string, THREE.AnimationClip>();
   private activeClipName: string | null = null;
   private animationTimeSeconds = 0;
+  private warnedMissingPoseTargets = new Set<string>();
+  private warnedMissingMeshes = new Set<string>();
 
   private anchorTargets: Record<string, string> = {};
   private nodeByName = new Map<string, THREE.Object3D>();
@@ -54,6 +56,17 @@ export class ModelRenderer {
 
   private containedModelTemplates = new Map<string, THREE.Group>();
   private attachedParts = new Map<string, ContainedInstance>();
+
+  private static ktx2Loaders = new WeakMap<THREE.WebGLRenderer, KTX2Loader>();
+  private static getKtx2Loader(renderer: THREE.WebGLRenderer): KTX2Loader {
+    const existing = ModelRenderer.ktx2Loaders.get(renderer);
+    if (existing) return existing;
+    const loader = new KTX2Loader();
+    loader.setTranscoderPath('/assets/basis/');
+    loader.detectSupport(renderer);
+    ModelRenderer.ktx2Loaders.set(renderer, loader);
+    return loader;
+  }
 
   constructor(scene: THREE.Scene, renderer?: THREE.WebGLRenderer) {
     this.scene = scene;
@@ -67,10 +80,7 @@ export class ModelRenderer {
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
     if (this.renderer) {
-      const ktx2Loader = new KTX2Loader();
-      ktx2Loader.setTranscoderPath('/assets/basis/');
-      ktx2Loader.detectSupport(this.renderer);
-      loader.setKTX2Loader(ktx2Loader);
+      loader.setKTX2Loader(ModelRenderer.getKtx2Loader(this.renderer));
     }
 
     const gltf = await new Promise<THREE.Group & { animations?: THREE.AnimationClip[] }>((resolve, reject) => {
@@ -239,7 +249,7 @@ export class ModelRenderer {
       new Promise<{ id: string; group: THREE.Group }>((resolve, reject) => {
         loader.load(
           meta.glb,
-          (gltf) => resolve({ id: meta.id, group: gltf.scene }),
+          (gltf) => resolve({ id: meta.type, group: gltf.scene }),
           undefined,
           (error) => reject(error),
         );
@@ -292,6 +302,10 @@ export class ModelRenderer {
     const overrides = state.model.bodyPartOverrides ?? {};
     for (const [id, override] of Object.entries(overrides)) {
       const mesh = this.meshByName.get(id);
+      if (!mesh && !this.warnedMissingMeshes.has(id)) {
+        console.warn(`[ModelRenderer] missing mesh for BodyPart override "${id}"`);
+        this.warnedMissingMeshes.add(id);
+      }
       if (!mesh || !override) continue;
       this.applyMaterialOverrides(mesh.material, {
         color: override.color,
@@ -313,8 +327,22 @@ export class ModelRenderer {
     for (const [id, override] of Object.entries(overrides)) {
       if (!override?.pose) continue;
       const target = this.resolvePoseTarget(id, override.targetKind);
-      if (!target) continue;
+      if (!target) {
+        if (!this.warnedMissingPoseTargets.has(id)) {
+          console.warn(
+            `[ModelRenderer] missing pose target "${id}" (targetKind=${override.targetKind ?? 'auto'})`,
+          );
+          this.warnedMissingPoseTargets.add(id);
+        }
+        continue;
+      }
       const base = basePose.get(target.name);
+      if (!base && !this.warnedMissingPoseTargets.has(`${id}::base`)) {
+        console.warn(
+          `[ModelRenderer] missing base pose for "${id}" (resolved to "${target.name}")`,
+        );
+        this.warnedMissingPoseTargets.add(`${id}::base`);
+      }
       if (!base) continue;
 
       if (override.pose.rotate) {
@@ -345,8 +373,12 @@ export class ModelRenderer {
     id: string,
     targetKind?: 'bone' | 'mesh',
   ): THREE.Object3D | undefined {
-    if (targetKind === 'bone') return this.boneByName.get(id);
-    if (targetKind === 'mesh') return this.meshByName.get(id);
+    if (targetKind === 'bone') {
+      return this.boneByName.get(id) ?? this.nodeByName.get(id) ?? this.meshByName.get(id);
+    }
+    if (targetKind === 'mesh') {
+      return this.meshByName.get(id) ?? this.nodeByName.get(id) ?? this.boneByName.get(id);
+    }
     return this.boneByName.get(id) ?? this.meshByName.get(id) ?? this.nodeByName.get(id);
   }
 
