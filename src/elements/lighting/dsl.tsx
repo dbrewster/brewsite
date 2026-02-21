@@ -4,52 +4,55 @@
 
 import type { ReactElement } from 'react';
 import { isValidElement } from 'react';
+import type { SceneSnapshotContext } from '../../compiler/sceneTypes';
 import type { SceneLighting, Vec3 } from './types';
 
+type Resolvable<T> = T | ((context: SceneSnapshotContext) => T);
+
 export type AmbientProps = {
-  intensity: number;
-  color: string;
+  intensity: Resolvable<number>;
+  color: Resolvable<string>;
 };
 
 export type DirectionalProps = {
-  intensity: number;
-  color: string;
-  position: Vec3;
+  intensity: Resolvable<number>;
+  color: Resolvable<string>;
+  position: Resolvable<Vec3>;
 };
 
 export type PointProps = {
-  intensity: number;
-  color: string;
-  position: Vec3;
+  intensity: Resolvable<number>;
+  color: Resolvable<string>;
+  position: Resolvable<Vec3>;
 };
 
 export type SpotProps = {
-  intensity: number;
-  color: string;
-  position: Vec3;
-  target: Vec3;
-  angle: number;
-  penumbra: number;
-  distance?: number;
-  decay?: number;
+  intensity: Resolvable<number>;
+  color: Resolvable<string>;
+  position: Resolvable<Vec3>;
+  target: Resolvable<Vec3>;
+  angle: Resolvable<number>;
+  penumbra: Resolvable<number>;
+  distance?: Resolvable<number>;
+  decay?: Resolvable<number>;
 };
 
 export type PanelProps = {
   id: string;
-  origin: Vec3;
-  rows: number;
-  cols: number;
-  spacing: Vec3;
-  intensity: number;
-  distance?: number;
-  decay?: number;
-  color?: string;
-  matrix?: number[];
+  origin: Resolvable<Vec3>;
+  rows: Resolvable<number>;
+  cols: Resolvable<number>;
+  spacing: Resolvable<Vec3>;
+  intensity: Resolvable<number>;
+  distance?: Resolvable<number>;
+  decay?: Resolvable<number>;
+  color?: Resolvable<string>;
+  matrix?: Resolvable<number[]>;
 };
 
 export type LightingProps = {
-  intensityScale?: number;
-  color?: string;
+  intensityScale?: Resolvable<number>;
+  color?: Resolvable<string>;
   children?: ReactElement | ReactElement[];
 };
 

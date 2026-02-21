@@ -36,7 +36,6 @@ export type SceneWindow = {
   index: number;
   start: number;
   end: number;
-  entryStart: number;
 };
 
 export type SceneTrackTick = {
@@ -44,7 +43,7 @@ export type SceneTrackTick = {
   progress: number;
   sceneId: string;
   sceneIndex: number;
-  sceneProgress: number;
+  blockProgress: number;
   state: SceneFrame;
   annotationPrimitives?: import('../annotations/annotationTypes').AnnotationResolved[];
   labelPrimitives?: import('../labels/types').LabelResolved[];

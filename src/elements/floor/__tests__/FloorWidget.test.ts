@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { FloorWidget } from '../FloorWidget';
 import type { SceneFloor } from '../types';
 import {
-  makeTransitionContext,
+  makeFrameSlice,
   makeInitContext,
   makeRenderContext,
 } from '../../__tests__/elementTestMocks';
@@ -31,33 +31,43 @@ describe('FloorWidget', () => {
 
   it('transitionSpec.exit disables when tExit=1', () => {
     const state: SceneFloor = { enabled: true, textureUrl: '/floor.jpg' };
-    const result = widget.transitionSpec.exit(state, makeTransitionContext({ tExit: 1 }));
+    const frames = makeFrameSlice(2);
+    widget.transitionSpec.exit(frames, widget.widgetId, state);
+    const result = frames[1]!.state.widgets[widget.widgetId] as SceneFloor;
     expect(result.enabled).toBe(false);
   });
 
   it('transitionSpec.exit preserves enabled when tExit=0', () => {
     const state: SceneFloor = { enabled: true };
-    const result = widget.transitionSpec.exit(state, makeTransitionContext({ tExit: 0 }));
+    const frames = makeFrameSlice(2);
+    widget.transitionSpec.exit(frames, widget.widgetId, state);
+    const result = frames[0]!.state.widgets[widget.widgetId] as SceneFloor;
     expect(result.enabled).toBe(true);
   });
 
   it('transitionSpec.enter enables when tEnter>0', () => {
     const state: SceneFloor = { enabled: true };
-    const result = widget.transitionSpec.enter(state, makeTransitionContext({ tEnter: 0.2 }));
+    const frames = makeFrameSlice(3);
+    widget.transitionSpec.enter(frames, widget.widgetId, state);
+    const result = frames[1]!.state.widgets[widget.widgetId] as SceneFloor;
     expect(result.enabled).toBe(true);
   });
 
   it('transitionSpec.enter stays disabled when tEnter=0', () => {
     const state: SceneFloor = { enabled: true };
-    const result = widget.transitionSpec.enter(state, makeTransitionContext({ tEnter: 0 }));
+    const frames = makeFrameSlice(2);
+    widget.transitionSpec.enter(frames, widget.widgetId, state);
+    const result = frames[0]!.state.widgets[widget.widgetId] as SceneFloor;
     expect(result.enabled).toBe(false);
   });
 
   it('transitionSpec.interpolate switches textureUrl at midpoint', () => {
     const from: SceneFloor = { enabled: true, textureUrl: '/from.jpg' };
     const to: SceneFloor = { enabled: true, textureUrl: '/to.jpg' };
-    const at25 = widget.transitionSpec.interpolate(from, to, makeTransitionContext({ tFull: 0.25 }));
-    const at75 = widget.transitionSpec.interpolate(from, to, makeTransitionContext({ tFull: 0.75 }));
+    const frames = makeFrameSlice(5);
+    widget.transitionSpec.interpolate(frames, widget.widgetId, from, to);
+    const at25 = frames[1]!.state.widgets[widget.widgetId] as SceneFloor;
+    const at75 = frames[3]!.state.widgets[widget.widgetId] as SceneFloor;
     expect(at25.textureUrl).toBe('/from.jpg');
     expect(at75.textureUrl).toBe('/to.jpg');
   });
@@ -65,8 +75,10 @@ describe('FloorWidget', () => {
   it('transitionSpec.interpolate honors enabled on either side', () => {
     const from: SceneFloor = { enabled: true };
     const to: SceneFloor = { enabled: false };
-    const at0 = widget.transitionSpec.interpolate(from, to, makeTransitionContext({ tFull: 0 }));
-    const at1 = widget.transitionSpec.interpolate(from, to, makeTransitionContext({ tFull: 1 }));
+    const frames = makeFrameSlice(2);
+    widget.transitionSpec.interpolate(frames, widget.widgetId, from, to);
+    const at0 = frames[0]!.state.widgets[widget.widgetId] as SceneFloor;
+    const at1 = frames[1]!.state.widgets[widget.widgetId] as SceneFloor;
     expect(at0.enabled).toBe(true);
     expect(at1.enabled).toBe(false);
   });

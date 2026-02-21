@@ -6,6 +6,7 @@ export { EngineScrollRegion } from './EngineScrollRegion';
 export { useEngineScrubber } from './useEngineScrubber';
 export { useSceneProgress } from './useSceneProgress';
 export { useCurrentScene } from './useCurrentScene';
+export { useEngineState } from './EngineStateContext';
 export { createDefaultWidgetRegistry } from './defaultWidgets';
 export { ContentSlotContext, useContentSlot } from './ContentSlotContext';
 export { AnnotationPositioner } from './AnnotationPositioner';

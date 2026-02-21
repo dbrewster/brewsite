@@ -46,8 +46,10 @@ describe('transitionTypes blend helpers', () => {
   it('blendColor returns interpolated hex when valid, otherwise picks defined', () => {
     expect(blendColor(undefined, undefined, 0.5)).toBeUndefined();
     expect(blendColor('#ff0000', '#00ff00', 0.5)).toBe('#808000');
+    expect(blendColor('#abc', '#def', 0.5)).toBe('#c4d5e6');
     expect(blendColor('#ff0000', undefined, 0.5)).toBe('#ff0000');
     expect(blendColor('bad', '#00ff00', 0.5)).toBe('#00ff00');
+    expect(blendColor('#ff0000', '#00ff00', undefined)).toBe('#00ff00');
   });
 
   it('blendAxisRotation and blendAxisTranslation interpolate per-axis', () => {
@@ -73,9 +75,9 @@ describe('transitionTypes blend helpers', () => {
 
   it('blendStyleValuesPartial only includes keys from target', () => {
     const from = { size: 10, color: '#ff0000' };
-    const to = { size: 20 };
+    const to = { size: 20, color: '#00ff00' };
     const result = blendStyleValuesPartial(from, to, 0.5);
-    expect(result).toEqual({ size: 15 });
+    expect(result).toEqual({ size: 15, color: '#808000' });
   });
 
   it('resolveTransitionOpacity prefers explicit opacity and enabled flag', () => {

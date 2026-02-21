@@ -110,9 +110,11 @@ describe('gen-scene-dsl', () => {
     expect(generated).toContain('export type ModelId =');
     expect(generated).toContain('export type AnimationId =');
     const dsl = await readFile(path.join(outDir, 'sceneDsl.generated.tsx'), 'utf8');
-    expect(dsl).toContain('export const BodyPart');
-    expect(dsl).toContain('export const ModelPart');
-    expect(dsl).toContain('export const Subpart');
+    expect(dsl).toContain('export {');
+    expect(dsl).toContain('BodyPart');
+    expect(dsl).toContain('ModelPart');
+    expect(dsl).toContain('Subpart');
+    expect(dsl).toContain('id="BodyMesh"');
     await rm(robotGlb, { force: true });
   });
 });

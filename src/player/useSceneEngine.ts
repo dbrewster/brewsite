@@ -22,6 +22,8 @@ export type UseSceneEngineOptions = {
   manifest?: AssetManifest | null;
   fpsCap?: number;
   pixelsPerScene?: number;
+  framesPerTick?: number;
+  blockSize?: number;
   onReady?: () => void;
   onError?: (error: Error) => void;
   annotationPositioner?: AnnotationPositioner;
@@ -40,6 +42,7 @@ export type UseSceneEngineResult = {
 };
 
 const DEFAULT_PIXELS_PER_SCENE = 800;
+const DEFAULT_BLOCK_SIZE = 10;
 
 const makeInitialFrameState = (): EngineFrameState => ({
   tickIndex: -1,
@@ -59,6 +62,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   const [sceneTrack, setSceneTrack] = useState<SceneTrack | null>(null);
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+  const [viewportHeight, setViewportHeight] = useState(1);
 
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -69,10 +73,21 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   const readyRef = useRef(false);
   const viewportRef = useRef({ width: 1, height: 1 });
 
+  const blockSize = useMemo(
+    () => Math.max(1, Math.round(options.framesPerTick ?? options.blockSize ?? DEFAULT_BLOCK_SIZE)),
+    [options.framesPerTick, options.blockSize],
+  );
+
   const scrollRegionHeightPx = useMemo(() => {
-    const perScene = options.pixelsPerScene ?? DEFAULT_PIXELS_PER_SCENE;
-    return Math.max(1, perScene * Math.max(1, options.sceneGroup.scenes.length));
-  }, [options.pixelsPerScene, options.sceneGroup.scenes.length]);
+    const sceneCount = Math.max(1, options.sceneGroup.scenes.length);
+    const numTransitions = Math.max(0, sceneCount - 1);
+    const totalFrames = numTransitions * blockSize + 1;
+    if (options.pixelsPerScene !== undefined) {
+      return Math.max(1, options.pixelsPerScene * sceneCount);
+    }
+    if (sceneCount <= 1) return Math.max(1, viewportHeight);
+    return Math.max(1, viewportHeight + totalFrames);
+  }, [options.pixelsPerScene, options.sceneGroup.scenes.length, blockSize, viewportHeight]);
 
   const { progress, scrollToProgress, getGlobalProgress } = useEngineScroll({
     scrollRegionRef,
@@ -101,6 +116,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
 
   const setViewportSize = useCallback((width: number, height: number) => {
     viewportRef.current = { width, height };
+    setViewportHeight(height);
     const renderer = rendererRef.current;
     const camera = cameraRef.current;
     if (renderer) renderer.setSize(width, height, false);
@@ -150,7 +166,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     driverRef.current = driver;
 
     let disposed = false;
-    driver.initialize(scene)
+    driver.initialize(scene, rendererRef.current ?? undefined)
       .then(() => {
         if (disposed) return;
         setDriverReady(true);
@@ -176,10 +192,9 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   useEffect(() => {
     const key = buildSceneTrackKey({
       scenes: options.sceneGroup.scenes,
-      timeline: options.sceneGroup.timeline,
       widgetRegistry: options.widgetRegistry,
+      blockSize,
       prefersReducedMotion,
-      assetsReady,
     });
     const cached = getCachedTrack(key);
     if (cached) {
@@ -188,15 +203,14 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     }
     const compiled = compileSceneTrack({
       scenes: options.sceneGroup.scenes,
-      timeline: options.sceneGroup.timeline,
-      assetsReady,
       widgetRegistry: options.widgetRegistry,
+      blockSize,
       clipMeta: options.clipMeta,
       prefersReducedMotion,
     });
     setCachedTrack(key, compiled);
     setSceneTrack(compiled);
-  }, [options.sceneGroup, options.widgetRegistry, options.clipMeta, assetsReady, prefersReducedMotion]);
+  }, [options.sceneGroup, options.widgetRegistry, options.clipMeta, blockSize, prefersReducedMotion]);
 
   useEffect(() => {
     const driver = driverRef.current;

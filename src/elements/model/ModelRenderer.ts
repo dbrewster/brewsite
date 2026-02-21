@@ -10,6 +10,7 @@
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'meshoptimizer';
 import type { SceneModelInstanceState, Vec3, ModelPartSpec, ModelSubpartSpec, CustomAnimation, CustomAnimationOp } from './types';
 import type { CompiledAnimation } from './compile';
@@ -38,6 +39,7 @@ type ContainedInstance = {
 
 export class ModelRenderer {
   private scene: THREE.Scene;
+  private renderer?: THREE.WebGLRenderer;
   private model: THREE.Group | null = null;
   private mixer: THREE.AnimationMixer | null = null;
   private animationClips = new Map<string, THREE.AnimationClip>();
@@ -53,8 +55,9 @@ export class ModelRenderer {
   private containedModelTemplates = new Map<string, THREE.Group>();
   private attachedParts = new Map<string, ContainedInstance>();
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, renderer?: THREE.WebGLRenderer) {
     this.scene = scene;
+    this.renderer = renderer;
   }
 
   /**
@@ -63,6 +66,12 @@ export class ModelRenderer {
   async loadGlb(glbUrl: string, options?: LoadOptions): Promise<void> {
     const loader = new GLTFLoader();
     loader.setMeshoptDecoder(MeshoptDecoder);
+    if (this.renderer) {
+      const ktx2Loader = new KTX2Loader();
+      ktx2Loader.setTranscoderPath('/assets/basis/');
+      ktx2Loader.detectSupport(this.renderer);
+      loader.setKTX2Loader(ktx2Loader);
+    }
 
     const gltf = await new Promise<THREE.Group & { animations?: THREE.AnimationClip[] }>((resolve, reject) => {
       loader.load(
@@ -139,6 +148,9 @@ export class ModelRenderer {
     if (customAnimations.length > 0) {
       this.applyCustomAnimations(customAnimations, ctx);
     }
+
+    // Apply body part pose overrides last so they are visible on top of animations.
+    this.applyBodyPartPoseOverrides(state);
   }
 
   /**
@@ -291,6 +303,51 @@ export class ModelRenderer {
         mesh.visible = override.opacity > 0;
       }
     }
+  }
+
+  private applyBodyPartPoseOverrides(state: SceneModelInstanceState): void {
+    if (!this.model) return;
+    const overrides = state.model.bodyPartOverrides ?? {};
+    const basePose = this.capturePose();
+
+    for (const [id, override] of Object.entries(overrides)) {
+      if (!override?.pose) continue;
+      const target = this.resolvePoseTarget(id, override.targetKind);
+      if (!target) continue;
+      const base = basePose.get(target.name);
+      if (!base) continue;
+
+      if (override.pose.rotate) {
+        const yaw = override.pose.rotate.yawPct ?? 0;
+        const pitch = override.pose.rotate.pitchPct ?? 0;
+        const roll = override.pose.rotate.rollPct ?? 0;
+        target.rotation.set(
+          base.rotation[0] + pitch,
+          base.rotation[1] + yaw,
+          base.rotation[2] + roll,
+        );
+      }
+
+      if (override.pose.translate) {
+        const x = override.pose.translate.xPct ?? 0;
+        const y = override.pose.translate.yPct ?? 0;
+        const z = override.pose.translate.zPct ?? 0;
+        target.position.set(
+          base.position[0] + x,
+          base.position[1] + y,
+          base.position[2] + z,
+        );
+      }
+    }
+  }
+
+  private resolvePoseTarget(
+    id: string,
+    targetKind?: 'bone' | 'mesh',
+  ): THREE.Object3D | undefined {
+    if (targetKind === 'bone') return this.boneByName.get(id);
+    if (targetKind === 'mesh') return this.meshByName.get(id);
+    return this.boneByName.get(id) ?? this.meshByName.get(id) ?? this.nodeByName.get(id);
   }
 
   private applyModelParts(parts: Record<string, ModelPartSpec>): void {

@@ -23,6 +23,7 @@ export type ScenePlayerProps = {
   className?: string;
   fpsCap?: number;
   pixelsPerScene?: number;
+  framesPerTick?: number;
   onReady?: () => void;
   onError?: (error: Error) => void;
   onSceneChange?: (sceneId: string, sceneIndex: number) => void;
@@ -81,6 +82,7 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
     manifest,
     fpsCap: props.fpsCap,
     pixelsPerScene: props.pixelsPerScene,
+    framesPerTick: props.framesPerTick,
     onReady: props.onReady,
     onError: props.onError,
     annotationPositioner,

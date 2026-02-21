@@ -1,4 +1,4 @@
-import type { Scene as ThreeScene } from 'three';
+import type { Scene as ThreeScene, WebGLRenderer } from 'three';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { VariableStore } from '../widget/VariableStore';
 import type { SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
@@ -57,13 +57,13 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     this.onError = config.onError;
   }
 
-  async initialize(threeScene: ThreeScene): Promise<void> {
+  async initialize(threeScene: ThreeScene, renderer?: WebGLRenderer): Promise<void> {
     this.threeScene = threeScene;
 
     // Step 1: Initialize all renderable widgets (sync)
     for (const renderable of this.widgetRegistry.getRenderables()) {
       try {
-        renderable.initialize({ scene: threeScene, widgetId: renderable.widgetId });
+        renderable.initialize({ scene: threeScene, widgetId: renderable.widgetId, renderer });
       } catch (e) {
         const err = e instanceof Error ? e : new Error(String(e));
         this.onError?.(err);

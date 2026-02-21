@@ -38,7 +38,7 @@ export const EngineScrollRegion = ({ engine, className, children }: EngineScroll
     <div
       ref={engine.scrollRegionRef}
       className={className}
-      style={{ position: 'relative', height: engine.scrollRegionHeightPx }}
+      style={{ position: 'relative', height: engine.scrollRegionHeightPx, overscrollBehavior: 'none' }}
     >
       <div
         ref={stickyRef}

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { registerNode } from '../registry';
 import type { AnnotationContent, AnnotationDefinition, AnnotationPlacement, AnnotationStyle } from '../../annotations/annotationTypes';
 import type { CompileApi, CompileHelpers } from '../sceneDslTypes';
-import type { SceneFrameContext } from '../sceneTypes';
+import type { SceneSnapshotContext } from '../sceneTypes';
 
 export type AnnotationsProps = {
   children?: ReactNode;
@@ -10,12 +10,12 @@ export type AnnotationsProps = {
 
 export type MessageAnnotationProps = {
   id: string;
-  label?: string | ((context: SceneFrameContext) => string);
-  enabled?: boolean | ((context: SceneFrameContext) => boolean);
+  label?: string | ((context: SceneSnapshotContext) => string);
+  enabled?: boolean | ((context: SceneSnapshotContext) => boolean);
   content?: ReactNode;
   contentId?: string;
-  placement?: AnnotationPlacement | ((context: SceneFrameContext) => AnnotationPlacement);
-  style?: Partial<AnnotationStyle> | ((context: SceneFrameContext) => Partial<AnnotationStyle>);
+  placement?: AnnotationPlacement | ((context: SceneSnapshotContext) => AnnotationPlacement);
+  style?: Partial<AnnotationStyle> | ((context: SceneSnapshotContext) => Partial<AnnotationStyle>);
   children?: ReactNode;
 };
 

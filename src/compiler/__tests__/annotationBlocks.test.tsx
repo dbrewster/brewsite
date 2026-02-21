@@ -1,23 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import { Annotations, MessageAnnotation, Scene, resolveSceneFromDsl } from '../index';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
-import { createSceneTimeline } from '../../timeline';
-import type { SceneFrameContext } from '../sceneTypes';
+import type { SceneSnapshotContext } from '../sceneTypes';
 import type { AnnotationPlacement } from '../../annotations/annotationTypes';
 
 describe('annotationBlocks', () => {
-  const makeContext = (): SceneFrameContext => {
-    const timeline = createSceneTimeline([{ id: 'scene' }]);
-    return {
-      progress: 0,
-      sceneProgress: 0,
-      globalProgress: 0,
-      sceneStart: 0,
-      sceneEnd: 1,
-      assetsReady: false,
-      timeline,
-    };
-  };
+  const makeContext = (): SceneSnapshotContext => ({
+    sceneIndex: 0,
+    numScenes: 1,
+    assetsReady: false,
+  });
 
   it('compiles MessageAnnotation into scene annotations with defaults', () => {
     const context = makeContext();
@@ -153,15 +145,15 @@ describe('annotationBlocks', () => {
         <Annotations>
           <MessageAnnotation
             id="note"
-            label={(ctx) => `p-${ctx.sceneProgress}`}
-            enabled={(ctx) => ctx.sceneProgress === 0}
+            label={(ctx) => `p-${ctx.sceneIndex}`}
+            enabled={(ctx) => ctx.sceneIndex === 0}
             placement={(ctx) => ({
               mode: 'fixed',
               reference: { x: 'left', y: 'top' },
-              offset: { xPct: ctx.sceneProgress * 10, yPct: 5 },
+              offset: { xPct: ctx.sceneIndex * 10, yPct: 5 },
             })}
             style={(ctx) => ({
-              color: ctx.sceneProgress === 0 ? '#fff' : undefined,
+              color: ctx.sceneIndex === 0 ? '#fff' : undefined,
               backgroundColor: undefined,
             })}
           />
@@ -263,11 +255,11 @@ describe('annotationBlocks', () => {
             placement={{
               mode: 'fixed',
               reference: {
-                x: ((ctx: SceneFrameContext) => (ctx.sceneProgress > 0.5 ? 'right' : 'left')) as unknown as 'left',
+                x: ((ctx: SceneSnapshotContext) => (ctx.sceneIndex > 0 ? 'right' : 'left')) as unknown as 'left',
                 y: 'bottom',
               },
               offset: {
-                xPct: (ctx: SceneFrameContext) => ctx.sceneProgress * 20,
+                xPct: (ctx: SceneSnapshotContext) => ctx.sceneIndex * 20,
                 yPct: 10,
               },
             } as unknown as AnnotationPlacement}

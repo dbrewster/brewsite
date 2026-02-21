@@ -18,7 +18,7 @@ export class EngineFrameDriver {
       progress: tick.progress,
       sceneId: tick.sceneId,
       sceneIndex: tick.sceneIndex,
-      sceneProgress: tick.sceneProgress,
+      sceneProgress: tick.blockProgress,
       tick,
     });
   }

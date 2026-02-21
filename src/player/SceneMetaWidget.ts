@@ -25,7 +25,7 @@ export class SceneMetaWidget implements IAnimationController {
 
     const sceneId = tick.sceneId;
     const sceneIndex = tick.sceneIndex;
-    const sceneProgress = tick.sceneProgress;
+    const sceneProgress = tick.blockProgress;
 
     variables.set('scene', 'id', sceneId);
     variables.set('scene', 'index', sceneIndex);

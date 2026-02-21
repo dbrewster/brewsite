@@ -12,8 +12,8 @@ import type {
 } from '../../../src/widget/types';
 import { CUSTOM_NODE_HANDLER } from '../../../src/widget/WidgetRegistry';
 import type { NodeHandler } from '../../../src/compiler/sceneDslTypes';
-import type { ElementTransitionSpec, TransitionContext } from '../../../src/compiler/transitions/transitionTypes';
-import { blendOpacity } from '../../../src/compiler/transitions/transitionTypes';
+import type { ElementTransitionSpec } from '../../../src/compiler/transitions/transitionTypes';
+import { blendOpacity, transitionT } from '../../../src/compiler/transitions/transitionTypes';
 import type { AssetManifest } from '../../../src/elements/model/metadata';
 import { Brain, Subpart } from './dsl';
 import type { BrainProps, SubpartProps } from './dsl';
@@ -25,24 +25,45 @@ const DEFAULT_BRAIN_STATE: BrainState = {
   subparts: {},
 };
 
+const applyBrainExit = (from: BrainState, t: number): BrainState => ({
+  ...from,
+  enabled: t < 1 && from.enabled,
+  opacity: blendOpacity(from.opacity, 0, t) ?? from.opacity,
+});
+
+const applyBrainEnter = (to: BrainState, t: number): BrainState => ({
+  ...to,
+  enabled: t > 0 && to.enabled,
+  opacity: blendOpacity(0, to.opacity, t) ?? to.opacity,
+});
+
+const applyBrainInterpolate = (from: BrainState, to: BrainState, t: number): BrainState => ({
+  ...from,
+  ...to,
+  enabled: (from.enabled && t < 1) || (to.enabled && t > 0),
+  opacity: blendOpacity(from.opacity, to.opacity, t) ?? to.opacity,
+  subparts: to.subparts,
+});
+
 const brainTransitionSpec: ElementTransitionSpec<BrainState> = {
-  exit: (from: BrainState, context: TransitionContext): BrainState => ({
-    ...from,
-    enabled: context.tExit < 1 && from.enabled,
-    opacity: blendOpacity(from.opacity, 0, context.tExit) ?? from.opacity,
-  }),
-  enter: (to: BrainState, context: TransitionContext): BrainState => ({
-    ...to,
-    enabled: context.tEnter > 0 && to.enabled,
-    opacity: blendOpacity(0, to.opacity, context.tEnter) ?? to.opacity,
-  }),
-  interpolate: (from: BrainState, to: BrainState, context: TransitionContext): BrainState => ({
-    ...from,
-    ...to,
-    enabled: (from.enabled && context.tExit < 1) || (to.enabled && context.tEnter > 0),
-    opacity: blendOpacity(from.opacity, to.opacity, context.tFull) ?? to.opacity,
-    subparts: to.subparts,
-  }),
+  exit: (frames, widgetId, fromState) => {
+    for (let i = 0; i < frames.length; i++) {
+      const t = transitionT(i, frames.length);
+      frames[i]!.state.widgets[widgetId] = applyBrainExit(fromState, t);
+    }
+  },
+  enter: (frames, widgetId, toState) => {
+    for (let i = 0; i < frames.length; i++) {
+      const t = transitionT(i, frames.length);
+      frames[i]!.state.widgets[widgetId] = applyBrainEnter(toState, t);
+    }
+  },
+  interpolate: (frames, widgetId, fromState, toState) => {
+    for (let i = 0; i < frames.length; i++) {
+      const t = transitionT(i, frames.length);
+      frames[i]!.state.widgets[widgetId] = applyBrainInterpolate(fromState, toState, t);
+    }
+  },
 };
 
 export class BrainModelWidget

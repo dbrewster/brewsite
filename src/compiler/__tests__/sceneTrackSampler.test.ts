@@ -8,7 +8,7 @@ const makeTrack = (count: number): SceneTrack => {
     progress: count === 1 ? 0 : i / (count - 1),
     sceneId: 'scene',
     sceneIndex: 0,
-    sceneProgress: 0,
+    blockProgress: 0,
     state: { id: 'scene', scrollProgress: 0, widgets: {} },
     deltaForward: {},
     deltaBackward: {},
@@ -17,7 +17,7 @@ const makeTrack = (count: number): SceneTrack => {
     ticks,
     tickStep: count === 1 ? 1 : 1 / (count - 1),
     subTickCount: count,
-    sceneWindows: [{ id: 'scene', index: 0, start: 0, end: 1, entryStart: 0 }],
+    sceneWindows: [{ id: 'scene', index: 0, start: 0, end: 1 }],
   };
 };
 

@@ -1,21 +1,19 @@
 import * as THREE from 'three';
-import type { TransitionContext } from '../../compiler/transitions/transitionTypes';
+import type { SceneTrackTick } from '../../compiler/sceneTrackTypes';
 import type { WidgetInitContext, WidgetRenderContext } from '../../widget/types';
 import { VariableStore } from '../../widget/VariableStore';
 
-export const makeTransitionContext = (
-  overrides: Partial<TransitionContext> = {},
-): TransitionContext => ({
-  tExit: 0,
-  tEnter: 0,
-  tFull: 0,
-  progress: 0,
-  exitStart: 0,
-  exitEnd: 1,
-  enterStart: 0,
-  enterEnd: 1,
-  ...overrides,
-});
+export const makeFrameSlice = (count: number, sceneId = 'scene'): SceneTrackTick[] =>
+  Array.from({ length: count }, (_value, index) => ({
+    index,
+    progress: count > 1 ? index / (count - 1) : 0,
+    sceneId,
+    sceneIndex: 0,
+    blockProgress: count > 1 ? index / (count - 1) : 0,
+    state: { id: sceneId, scrollProgress: 0, widgets: {} },
+    deltaForward: {},
+    deltaBackward: {},
+  }));
 
 export const makeRenderContext = (
   overrides: Partial<WidgetRenderContext> = {},

@@ -3,7 +3,7 @@ import { Floor } from '../dsl';
 import { DEFAULT_FLOOR, floorTransitionSpec } from '../compile';
 import { applyFloor } from '../render';
 import type { SceneFloor } from '../types';
-import { makeTransitionContext, makeInitContext } from '../../__tests__/elementTestMocks';
+import { makeFrameSlice, makeInitContext } from '../../__tests__/elementTestMocks';
 
 describe('floor compile + render', () => {
   it('defaults are disabled with no texture', () => {
@@ -13,15 +13,19 @@ describe('floor compile + render', () => {
 
   it('transitionSpec.exit disables at tExit=1', () => {
     const state: SceneFloor = { enabled: true, textureUrl: '/floor.jpg' };
-    const result = floorTransitionSpec.exit(state, makeTransitionContext({ tExit: 1 }));
+    const frames = makeFrameSlice(2);
+    floorTransitionSpec.exit(frames, 'floor', state);
+    const result = frames[1]!.state.widgets['floor'] as SceneFloor;
     expect(result.enabled).toBe(false);
   });
 
   it('transitionSpec.interpolate switches texture at midpoint', () => {
     const from: SceneFloor = { enabled: true, textureUrl: '/from.jpg' };
     const to: SceneFloor = { enabled: true, textureUrl: '/to.jpg' };
-    const at25 = floorTransitionSpec.interpolate(from, to, makeTransitionContext({ tFull: 0.25 }));
-    const at75 = floorTransitionSpec.interpolate(from, to, makeTransitionContext({ tFull: 0.75 }));
+    const frames = makeFrameSlice(5);
+    floorTransitionSpec.interpolate(frames, 'floor', from, to);
+    const at25 = frames[1]!.state.widgets['floor'] as SceneFloor;
+    const at75 = frames[3]!.state.widgets['floor'] as SceneFloor;
     expect(at25.textureUrl).toBe('/from.jpg');
     expect(at75.textureUrl).toBe('/to.jpg');
   });

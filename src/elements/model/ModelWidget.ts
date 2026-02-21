@@ -23,7 +23,7 @@ import type {
 } from '../../widget/types';
 import { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
 import type { NodeHandler, CompileHelpers } from '../../compiler/sceneDslTypes';
-import type { SceneFrameContext } from '../../compiler/sceneTypes';
+import type { SceneSnapshotContext } from '../../compiler/sceneTypes';
 import type {
   Vec3,
   SceneModelInstanceState,
@@ -88,7 +88,7 @@ export type ModelWidgetConfig = {
 const applyBodyPartToOverrides = (
   el: ReactElement,
   overrides: BodyPartOverrideMap,
-  ctx: SceneFrameContext,
+  ctx: SceneSnapshotContext,
   helpers: CompileHelpers,
 ): void => {
   const bpProps = helpers.resolveObjectValues(el.props as BodyPartByIdProps, ctx);
@@ -102,6 +102,7 @@ const applyBodyPartToOverrides = (
     ...(bpProps.color !== undefined ? { color: bpProps.color as string } : {}),
     ...(bpProps.metalness !== undefined ? { metalness: bpProps.metalness as number } : {}),
     ...(bpProps.roughness !== undefined ? { roughness: bpProps.roughness as number } : {}),
+    ...(bpProps.targetKind ? { targetKind: bpProps.targetKind } : {}),
   };
   // <Pose> nested inside <BodyPart> contributes a per-part pose override
   const bpChildren = helpers.collectChildren(el);
@@ -113,7 +114,6 @@ const applyBodyPartToOverrides = (
       override.pose = {
         ...(poseProps.rotate !== undefined ? { rotate: poseProps.rotate as AxisRotation } : {}),
         ...(poseProps.translate !== undefined ? { translate: poseProps.translate as AxisTranslation } : {}),
-        ...(poseProps.space !== undefined ? { space: poseProps.space as 'local' | 'world' } : {}),
       };
     }
   }
@@ -127,7 +127,7 @@ const applyBodyPartToOverrides = (
 const applyModelPartToOverrides = (
   el: ReactElement,
   parts: Record<string, ModelPartSpec>,
-  ctx: SceneFrameContext,
+  ctx: SceneSnapshotContext,
   helpers: CompileHelpers,
 ): void => {
   const props = helpers.resolveObjectValues(el.props as ModelPartProps, ctx);
@@ -392,7 +392,7 @@ export class ModelWidget
    */
   initialize(context: WidgetInitContext): void {
     const scene = context.scene as THREE.Scene;
-    this.renderer = new ModelRenderer(scene);
+    this.renderer = new ModelRenderer(scene, context.renderer);
   }
 
   /**

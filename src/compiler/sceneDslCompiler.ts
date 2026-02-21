@@ -1,6 +1,5 @@
 import { Children, Fragment, isValidElement, type ReactElement, type ReactNode } from 'react';
-import { createBaseSceneState } from './sceneDefaults';
-import type { SceneFrameContext, SceneTransition } from './sceneTypes';
+import type { SceneSnapshotContext } from './sceneTypes';
 import { getNodeHandler, isPrimitiveComponent, registerNode } from './registry';
 import type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
@@ -9,22 +8,21 @@ import type { SceneFrame } from './sceneTrackTypes';
 
 export type ResolvedScene = {
   frame: SceneFrame;
-  transitions: SceneTransition[];
 };
 
-const resolveValue = <T,>(value: T | ((context: SceneFrameContext) => T), context: SceneFrameContext): T =>
-  typeof value === 'function' ? (value as (ctx: SceneFrameContext) => T)(context) : value;
+const resolveValue = <T,>(value: T | ((context: SceneSnapshotContext) => T), context: SceneSnapshotContext): T =>
+  typeof value === 'function' ? (value as (ctx: SceneSnapshotContext) => T)(context) : value;
 
-const resolveObjectValues = <T extends Record<string, unknown>>(value: T, context: SceneFrameContext): T => {
+const resolveObjectValues = <T extends Record<string, unknown>>(value: T, context: SceneSnapshotContext): T => {
   const entries = Object.entries(value).map(([key, entry]) => {
     if (typeof entry === 'function') {
-      return [key, (entry as (ctx: SceneFrameContext) => unknown)(context)];
+      return [key, (entry as (ctx: SceneSnapshotContext) => unknown)(context)];
     }
     if (Array.isArray(entry)) {
       return [
         key,
         entry.map((item) =>
-          typeof item === 'function' ? (item as (ctx: SceneFrameContext) => unknown)(context) : item,
+          typeof item === 'function' ? (item as (ctx: SceneSnapshotContext) => unknown)(context) : item,
         ),
       ];
     }
@@ -100,7 +98,7 @@ const helpers: CompileHelpers = {
   collectChildren,
 };
 
-const createApi = (context: SceneFrameContext): CompileApi => {
+const createApi = (context: SceneSnapshotContext): CompileApi => {
   const state: SceneFrame = {
     id: '',
     scrollProgress: 0,
@@ -109,7 +107,6 @@ const createApi = (context: SceneFrameContext): CompileApi => {
   return {
     context,
     state,
-    transitions: [],
     pushAnnotation: (annotation) => {
       state.annotations = state.annotations ?? [];
       state.annotations.push(annotation);
@@ -145,7 +142,7 @@ registerNode(Scene, (node, api, helpers) => {
 
 export const resolveSceneFromDsl = (
   tree: unknown,
-  context: SceneFrameContext,
+  context: SceneSnapshotContext,
   widgetRegistry: WidgetRegistry,
 ): ResolvedScene => {
   if (!isValidElement(tree)) {
@@ -160,10 +157,9 @@ export const resolveSceneFromDsl = (
   handler(treeEl, api, helpers);
 
   api.state.id = api.state.id ?? 'scene';
-  api.state.scrollProgress = context.sceneProgress;
+  api.state.scrollProgress = 0;
 
   return {
     frame: api.state,
-    transitions: api.transitions,
   };
 };

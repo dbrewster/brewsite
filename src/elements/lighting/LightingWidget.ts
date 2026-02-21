@@ -58,29 +58,41 @@ export class LightingWidget
       const props = node.props as LightingProps;
       const children = helpers.collectChildren(node);
 
-      const ambients: AmbientProps[] = [];
-      const directionals: DirectionalProps[] = [];
-      const points: PointProps[] = [];
-      const spots: SpotProps[] = [];
-      const panels: PanelProps[] = [];
+      const ambients: SceneLighting['ambient'][] = [];
+      const directionals: SceneLighting['directional'][] = [];
+      const points: NonNullable<SceneLighting['points']> = [];
+      const spots: NonNullable<SceneLighting['spots']> = [];
+      const panels: NonNullable<SceneLighting['panels']> = [];
 
       for (const child of children) {
         if (!isValidElement(child)) continue;
         const childEl = child as React.ReactElement;
         if (childEl.type === Ambient) {
-          ambients.push(helpers.resolveObjectValues(childEl.props as AmbientProps, api.context));
+          ambients.push(
+            helpers.resolveObjectValues(childEl.props as AmbientProps, api.context) as SceneLighting['ambient'],
+          );
         } else if (childEl.type === Directional) {
-          directionals.push(helpers.resolveObjectValues(childEl.props as DirectionalProps, api.context));
+          directionals.push(
+            helpers.resolveObjectValues(childEl.props as DirectionalProps, api.context) as SceneLighting['directional'],
+          );
         } else if (childEl.type === Point) {
-          points.push(helpers.resolveObjectValues(childEl.props as PointProps, api.context));
+          points.push(
+            helpers.resolveObjectValues(childEl.props as PointProps, api.context) as NonNullable<SceneLighting['points']>[number],
+          );
         } else if (childEl.type === Spot) {
-          spots.push(helpers.resolveObjectValues(childEl.props as SpotProps, api.context));
+          spots.push(
+            helpers.resolveObjectValues(childEl.props as SpotProps, api.context) as NonNullable<SceneLighting['spots']>[number],
+          );
         } else if (childEl.type === Panel) {
-          panels.push(helpers.resolveObjectValues(childEl.props as PanelProps, api.context));
+          panels.push(
+            helpers.resolveObjectValues(childEl.props as PanelProps, api.context) as NonNullable<SceneLighting['panels']>[number],
+          );
         }
       }
 
       const base = (api.state.widgets[this.widgetId] as SceneLighting | undefined) ?? DEFAULT_LIGHTING;
+      const resolvedIntensityScale = helpers.resolveValue(props.intensityScale, api.context);
+      const resolvedColor = helpers.resolveValue(props.color, api.context);
       const compiled: SceneLighting = {
         ...base,
         ambient: ambients[0] ?? base.ambient,
@@ -88,8 +100,8 @@ export class LightingWidget
         points: points.length > 0 ? points : [],
         spots: spots.length > 0 ? spots : [],
         panels: panels.length > 0 ? panels : [],
-        intensityScale: props.intensityScale ?? base.intensityScale,
-        color: props.color ?? base.color,
+        intensityScale: resolvedIntensityScale ?? base.intensityScale,
+        color: resolvedColor ?? base.color,
       };
       api.setWidgetState(this.widgetId, compiled);
     };

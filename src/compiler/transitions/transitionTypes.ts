@@ -1,21 +1,40 @@
-// Phase 4: Full transition type definitions and blend functions
-// Stub - implemented in Phase 4
+import type { SceneTrackTick } from '../sceneTrackTypes';
 
-export type TransitionContext = {
-  tExit: number;
-  tEnter: number;
-  tFull: number;
-  progress: number;
-  exitStart: number;
-  exitEnd: number;
-  enterStart: number;
-  enterEnd: number;
-};
+// Compiler transition contract — batch-fill model.
+// The compiler calls exactly one method per widget per transition block.
+// The widget writes frame.state.widgets[widgetId] for every frame in its slice.
+
+/**
+ * Computes the normalized progress scalar for frame i within a slice of length len.
+ * Use this inside enter/exit/interpolate loops.
+ * Returns 1 when len === 1 (single-frame edge case).
+ */
+export const transitionT = (i: number, len: number): number => (len > 1 ? i / (len - 1) : 1);
 
 export type ElementTransitionSpec<T> = {
-  exit: (from: T, context: TransitionContext) => T;
-  enter: (to: T, context: TransitionContext) => T;
-  interpolate: (from: T, to: T, context: TransitionContext) => T;
+  /**
+   * Widget is leaving (present in scene N, absent from scene N+1).
+   * frames is the first half of the transition block.
+   * Write frames[i].state.widgets[widgetId] for every i in [0, frames.length).
+   * Use transitionT(i, frames.length) for normalized 0→1 progress.
+   */
+  exit: (frames: SceneTrackTick[], widgetId: string, fromState: T) => void;
+
+  /**
+   * Widget is arriving (absent from scene N, present in scene N+1).
+   * frames is the second half of the transition block.
+   * Write frames[i].state.widgets[widgetId] for every i in [0, frames.length).
+   * Use transitionT(i, frames.length) for normalized 0→1 progress.
+   */
+  enter: (frames: SceneTrackTick[], widgetId: string, toState: T) => void;
+
+  /**
+   * Widget is present in both scenes.
+   * frames is the full transition block.
+   * Write frames[i].state.widgets[widgetId] for every i in [0, frames.length).
+   * Use transitionT(i, frames.length) for normalized 0→1 progress.
+   */
+  interpolate: (frames: SceneTrackTick[], widgetId: string, fromState: T, toState: T) => void;
 };
 
 // ====================

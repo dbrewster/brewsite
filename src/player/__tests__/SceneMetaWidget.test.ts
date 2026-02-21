@@ -13,7 +13,7 @@ const makeTick = (
   progress: sceneProgress,
   sceneId,
   sceneIndex,
-  sceneProgress,
+  blockProgress: sceneProgress,
   state: {
     id: sceneId,
     scrollProgress: sceneProgress,

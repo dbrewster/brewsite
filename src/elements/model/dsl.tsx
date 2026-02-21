@@ -38,12 +38,12 @@ export type BodyPartProps = {
 
 export type BodyPartByIdProps = BodyPartProps & {
   id: string;
+  targetKind?: 'bone' | 'mesh';
 };
 
 export type PoseProps = {
   rotate?: AxisRotation | ((context: unknown) => AxisRotation);
   translate?: AxisTranslation | ((context: unknown) => AxisTranslation);
-  space?: 'local' | 'world' | ((context: unknown) => 'local' | 'world');
 };
 
 export type ModelPartProps = {

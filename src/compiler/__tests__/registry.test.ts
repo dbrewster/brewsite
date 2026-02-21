@@ -5,7 +5,6 @@ import type { CompileApi } from '../sceneDslTypes';
 const fakeApi: CompileApi = {
   context: {} as CompileApi['context'],
   state: { id: '', scrollProgress: 0, widgets: {} },
-  transitions: [],
   pushAnnotation: () => {},
   pushLabel: () => {},
   setWidgetState: () => {},

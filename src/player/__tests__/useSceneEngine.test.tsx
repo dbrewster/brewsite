@@ -5,7 +5,6 @@ import { createRoot } from 'react-dom/client';
 import { act } from '@testing-library/react';
 import { useSceneEngine } from '../useSceneEngine';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
-import { createSceneTimeline } from '../../timeline';
 import type { SceneGroup } from '../../compiler/sceneTypes';
 import { AnnotationPositioner } from '../AnnotationPositioner';
 
@@ -14,7 +13,7 @@ const makeSceneGroup = (): SceneGroup => {
     { id: 's1', index: 0, getFrame: () => ({ id: 's1', scrollProgress: 0, widgets: {} }) },
     { id: 's2', index: 1, getFrame: () => ({ id: 's2', scrollProgress: 1, widgets: {} }) },
   ];
-  return { id: 'group', scenes, timeline: createSceneTimeline(scenes) };
+  return { id: 'group', scenes };
 };
 
 describe('useSceneEngine', () => {
@@ -39,7 +38,12 @@ describe('useSceneEngine', () => {
     let height = 0;
 
     const Test = () => {
-      const engine = useSceneEngine({ sceneGroup, widgetRegistry: registry, clipMeta: [], pixelsPerScene: 500 });
+      const engine = useSceneEngine({
+        sceneGroup,
+        widgetRegistry: registry,
+        clipMeta: [],
+        pixelsPerScene: 500,
+      });
       useEffect(() => { height = engine.scrollRegionHeightPx; }, [engine.scrollRegionHeightPx]);
       return <div />;
     };

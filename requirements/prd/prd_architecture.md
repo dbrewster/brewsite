@@ -8,6 +8,9 @@ change_history:
   - date: 2026-02-20
     author: brewflow-architect
     summary: "Initial architecture reference document."
+  - date: 2026-02-20
+    author: brewflow-architect
+    summary: "Batch-fill transition model: scenes are discrete snapshots; compiler dispatches enter/exit/interpolate to widgets per transition block. Removes TransitionContext, SceneTransition, entryLead/entryStart, SceneTimeline from compiler interface. Renames sceneProgress → blockProgress on SceneTrackTick. Replaces SceneFrameContext with SceneSnapshotContext."
 ---
 
 # BrewFlow Scene Toolkit — Architecture Reference
@@ -344,10 +347,12 @@ type SceneFrame = {
 ```typescript
 type SceneTrackTick = {
   index: number;
-  progress: number;       // global [0, 1]
-  sceneId: string;
-  sceneIndex: number;
-  sceneProgress: number;  // scene-local [0, 1]
+  progress: number;         // global [0, 1]
+  sceneId: string;          // id of scene N (the "from" scene for this transition block)
+  sceneIndex: number;       // index of scene N
+  blockProgress: number;    // [0, 1] within this transition block
+                            //   0 = widget is at scene N's authored state
+                            //   1 = widget is at scene N+1's authored state
   state: SceneFrame;
   deltaForward: SceneFrameDelta;   // what changed relative to tick[index+1]
   deltaBackward: SceneFrameDelta;  // what changed relative to tick[index-1]
@@ -377,9 +382,8 @@ type SceneTrack = {
 type SceneWindow = {
   id: string;
   index: number;
-  start: number;       // global progress where this scene begins
-  end: number;         // global progress where this scene ends
-  entryStart: number;  // global progress where entry transitions begin (≤ start)
+  start: number;  // normalized [0, 1] progress of this block's first frame
+  end: number;    // normalized [0, 1] progress of this block's last frame (inclusive)
 };
 ```
 
@@ -392,47 +396,32 @@ type SceneDefinition = {
   id: string;
   index: number;
   meta?: Record<string, JsonPrimitive>; // published to VariableStore by SceneMetaWidget
-  entryLead?: number;   // how far before scene boundary entry transitions begin
-  entryStart?: number;  // explicit override
-  getFrame: (context: SceneFrameContext) => React.ReactNode;
-  transitions?: SceneTransition[];
-};
-
-type SceneTransition = {
-  id: string;
-  start: number | ((context: SceneFrameContext) => number);
-  end: number | ((context: SceneFrameContext) => number);
-  scope?: 'active' | 'persist';
-  apply: (state: SceneFrame, context: SceneFrameContext, t: number) => SceneFrame;
+  getFrame: (context: SceneSnapshotContext) => React.ReactNode | SceneFrame;
 };
 
 type SceneGroup = {
   id: string;
   scenes: SceneDefinition[];
-  timeline: SceneTimeline;
 };
 ```
 
-`SceneTransition.start` may be negative, indicating the transition begins during the preceding scene's tail. Entry transitions belong to the **incoming** scene's `transitions[]`.
+Scenes are discrete state snapshots. There are no `SceneTransition` objects, no `entryLead`, and no `entryStart`. The space between adjacent scenes is entirely owned by the widget's `transitionSpec` methods.
 
-### 5.5 SceneFrameContext
+### 5.5 SceneSnapshotContext
 
-Passed to `SceneDefinition.getFrame()` and to function-valued transition props.
+Passed to `SceneDefinition.getFrame()` during compilation. Scenes are evaluated exactly once per compilation — there is no `sceneProgress` variation within a scene.
 
 ```typescript
-type SceneFrameContext = {
-  progress: number;
-  sceneProgress: number;
-  sceneProgressRaw?: number;  // unclamped — may be <0 or >1 during entry/exit
-  globalProgress: number;
-  sceneStart: number;
-  sceneEnd: number;
+type SceneSnapshotContext = {
+  /** 0-based index of this scene in the scene array. */
+  sceneIndex: number;
+  /** Total number of scenes. */
+  numScenes: number;
+  /** Whether model/texture assets have finished loading. */
   assetsReady: boolean;
-  timeline: SceneTimeline;
-  baseState?: SceneFrame;
-  baseStateRaw?: SceneFrame;
-  nextState?: SceneFrame;
+  /** Runtime variable store — for variable-driven DSL content. */
   variables?: VariableStoreReader;
+  /** Viewport dimensions — for viewport-responsive DSL layout. */
   viewport?: { width: number; height: number; aspectRatio: number };
 };
 ```
@@ -441,22 +430,19 @@ type SceneFrameContext = {
 
 **File:** `src/timeline/index.ts`
 
+`SceneTimeline` is used by the player layer (`src/player/`) for scroll-progress algebra — mapping scroll position to global progress, snapping to tick boundaries, and reporting scene count. It is **not passed to the compiler**. The compiler accepts `blockSize: number` directly.
+
 ```typescript
 type SceneTimeline = {
   stops: ReadonlyArray<{ id: string }>;
   sceneCount: number;
-  framesPerScene: number;
-  subTicksPerSegment: number;
-  oversamplingRate: number;
   tickStep: number;
   subTickCount: number;
-  tick: (index: number) => number;
-  mapToSceneProgress: (progress: number) => number;
   snapToTick: (progress: number) => number;
 };
 ```
 
-Factories: `createSceneTimeline(scenes, options?)`, `createQualityTimeline(base, subTicksPerSegment)`.
+Factory: `createSceneTimeline(scenes, options?)` remains in `src/timeline/` for player use.
 
 ### 5.7 AssetManifest
 
@@ -493,45 +479,52 @@ The compiler is a pure function. No Three.js. No browser APIs. Fully Node-testab
 ```typescript
 type CompileSceneTrackOptions = {
   scenes: SceneDefinition[];
-  timeline: SceneTimeline;
-  assetsReady: boolean;
   widgetRegistry: WidgetRegistry;
-  clipMeta: ClipMeta[];
-  prefersReducedMotion?: boolean; // detected at engine startup; not a browser call
+  /**
+   * Number of frames per transition block.
+   * totalFrames = (numScenes - 1) * blockSize + 1
+   * Provided by the player layer from its scroll configuration.
+   */
+  blockSize: number;
+  clipMeta?: ClipMeta[];
+  prefersReducedMotion?: boolean;
 };
 
 const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
 ```
 
-### 6.1 Three Compiler Passes
+### 6.1 Compiler Algorithm
 
-**Pass 1 — Base State Resolution:**
-Evaluates each scene at `sceneProgress = 1.0` to capture its end state. Each scene's `baseState` is set to the preceding scene's end state, enabling smooth continuity.
+The compiler operates in two steps. Think of it as the index-card animation trick: draw a card for each pose, then fill in all the cards between poses — each widget draws its own in-between cards.
 
-**Pass 2 — Auto-Entry Detection:**
-Scans each scene's transitions for `start < 0`. When found, pulls the scene's `entryStart` earlier in global progress — activating the scene before its nominal boundary so incoming entry transitions have room.
+**Step 1 — Scene Snapshot Evaluation:**
+Each scene's `getFrame(context)` is called exactly once with a `SceneSnapshotContext`. The result is a `SceneFrame` snapshot: a map of `widgetId → authored state` for widgets explicitly present in that scene. Widgets absent from a scene are absent from its snapshot — there is no inheritance from prior scenes.
 
-**Pass 3 — Tick Baking:**
-For each tick across global progress `[0, 1]`:
-1. Build `SceneFrame.widgets` with all `ISceneElement.defaultState` values (via `createBaseSceneState(widgetRegistry, context)`).
-2. Resolve the active scene's `getFrame(context)` via `resolveSceneFromDsl()` — each registered widget's DSL handler calls `api.setWidgetState(widgetId, state)`.
-3. For each `ISceneElement` widget: interpolate between frames using `transitionSpec.interpolate(fromState, toState, transitionContext)`.
-4. Apply `SceneTransition.apply()` functions.
-5. For each widget implementing `compileExtra()`: call it with `CompileExtraContext`, store the result in `tick.widgetExtras[widgetId]`.
-6. Compile `annotationPrimitives` and `labelPrimitives`.
-7. Compute `deltaForward` / `deltaBackward` using structural equality via `JSON.stringify`.
+**Step 2 — Transition Block Baking:**
+The flat frame array has `(numScenes - 1) * blockSize + 1` entries. For each adjacent pair of scenes (N, N+1), the compiler allocates a contiguous block of `blockSize` frames and inspects `snapshot[N]` and `snapshot[N+1]` for each registered widget:
+
+- **Present in both** → `widget.transitionSpec.interpolate(fullBlock, widgetId, fromState, toState)` fills all `blockSize` frames.
+- **Present in N only** → `widget.transitionSpec.exit(firstHalf, widgetId, fromState)` fills the first `blockSize/2` frames; `defaultState` fills the remainder.
+- **Present in N+1 only** → `defaultState` fills the first `blockSize/2` frames; `widget.transitionSpec.enter(secondHalf, widgetId, toState)` fills the rest.
+- **Present in neither** → `widget.defaultState` fills all frames in the block.
+
+The terminal frame (`+1`) holds the last scene's snapshot directly — no outbound transition.
+
+After all blocks are filled:
+- `compileExtra()` is called per-frame for widgets that implement it.
+- `annotationPrimitives` and `labelPrimitives` are compiled per-frame.
+- `deltaForward` / `deltaBackward` are computed via `JSON.stringify` structural equality.
 
 **The compiler imports zero element-specific modules.** It does not reference `SceneLighting`, `SceneModel`, `compileAnimation`, or any concrete element type.
 
 ### 6.2 CompileApi
 
-The sole interface through which DSL node handlers write scene state.
+The sole interface through which DSL node handlers write scene state during snapshot evaluation.
 
 ```typescript
 type CompileApi = {
-  context: SceneFrameContext;
+  context: SceneSnapshotContext;
   state: SceneFrame;
-  transitions: SceneTransition[];
   pushAnnotation: (a: AnnotationDefinition) => void;
   pushLabel: (l: LabelDefinition) => void;
   setWidgetState: (widgetId: string, state: unknown) => void; // only write path
@@ -548,32 +541,44 @@ Recursively delegates child processing to `compileChildren`. Non-primitive JSX c
 
 ### 6.4 ElementTransitionSpec
 
-Each `ISceneElement` widget provides a transition spec defining how its state blends during scene transitions.
+Each `ISceneElement` widget provides a transition spec that **batch-fills** a pre-allocated slice of the `SceneTrackTick` array. The compiler calls exactly one method per widget per transition block, passing the appropriate frame slice and the widget's authored states at the scene endpoints. The widget writes `frames[i].state.widgets[widgetId]` for every frame in the slice.
 
 ```typescript
 type ElementTransitionSpec<T> = {
-  exit: (from: T, context: TransitionContext) => T;       // scene is leaving
-  enter: (to: T, context: TransitionContext) => T;        // scene is entering
-  interpolate: (from: T, to: T, context: TransitionContext) => T; // scenes overlap
-};
+  /**
+   * Widget is leaving (present in scene N, absent from scene N+1).
+   * frames = first half of the transition block.
+   * Write frames[i].state.widgets[widgetId] for every i in [0, frames.length).
+   */
+  exit(frames: SceneTrackTick[], widgetId: string, fromState: T): void;
 
-type TransitionContext = {
-  tExit: number;  // exit-side progress [0, 1]
-  tEnter: number; // enter-side progress [0, 1]
-  tFull: number;  // full overlap window progress [0, 1]
-  progress: number;
-  exitStart: number; exitEnd: number;
-  enterStart: number; enterEnd: number;
+  /**
+   * Widget is arriving (absent from scene N, present in scene N+1).
+   * frames = second half of the transition block.
+   * Write frames[i].state.widgets[widgetId] for every i in [0, frames.length).
+   */
+  enter(frames: SceneTrackTick[], widgetId: string, toState: T): void;
+
+  /**
+   * Widget is present in both scenes.
+   * frames = the full transition block.
+   * Write frames[i].state.widgets[widgetId] for every i in [0, frames.length).
+   */
+  interpolate(frames: SceneTrackTick[], widgetId: string, fromState: T, toState: T): void;
 };
 ```
 
-Blend helpers exported from `src/compiler/transitions/transitionTypes.ts`: `blendNumber`, `blendVec3`, `blendColor`, `blendOpacity`, `blendAxisRotation`, `blendAxisTranslation`, `blendStyleValues`.
+The normalized progress scalar for frame `i` within a slice of length `len`:
+```typescript
+const transitionT = (i: number, len: number): number => len > 1 ? i / (len - 1) : 1;
+```
+`transitionT` is exported from `src/compiler/transitions/transitionTypes.ts` alongside the blend helpers: `blendNumber`, `blendVec3`, `blendColor`, `blendOpacity`, `blendAxisRotation`, `blendAxisTranslation`, `blendStyleValues`.
 
 ### 6.5 SceneTrackCache
 
 **File:** `src/compiler/sceneTrackCache.ts`
 
-Module-level singleton `Map<string, CacheEntry>`. A track is reused when all of the following are identical: scene IDs and order, timeline parameters, widget registry cache key (from `buildCacheKey()`), `assetsReady`, and `prefersReducedMotion`. Cache entries are replaced on key collision. Multiple `ScenePlayer` instances share the cache and benefit from shared compilation results.
+Module-level singleton `Map<string, CacheEntry>`. A track is reused when all of the following are identical: scene IDs and order, `blockSize`, widget registry cache key (from `buildCacheKey()`), and `prefersReducedMotion`. Cache entries are replaced on key collision. Multiple `ScenePlayer` instances share the cache and benefit from shared compilation results.
 
 `clearCache()` is exported for test isolation — each test that compiles a scene track calls it in `beforeEach`.
 
@@ -906,19 +911,29 @@ exclude: [
 
 ### Test Patterns
 
-**Testing a transition spec (pure function):**
+**Testing a transition spec (extract helpers, test as pure functions):**
 ```typescript
-const widget = new LightingWidget();
-const ctx: TransitionContext = { tExit: 0.5, tEnter: 0.5, tFull: 0.5, ... };
-const result = widget.transitionSpec.interpolate(fromState, toState, ctx);
+// Pull out the internal helper that computes a single blended state at t.
+// Call it directly — no frame array needed for unit tests.
+const result = applyLightingInterpolate(fromState, toState, 0.5);
 expect(result.ambient.intensity).toBeCloseTo(1.0);
+```
+
+**Testing the batch-fill methods end-to-end:**
+```typescript
+const frames = Array.from({ length: 10 }, (_, i) => makeTick(i));
+widget.transitionSpec.interpolate(frames, 'lighting', fromState, toState);
+expect(frames[0].state.widgets['lighting']).toEqual(fromState);
+expect(frames[9].state.widgets['lighting']).toEqual(toState);
 ```
 
 **Testing the compiler with a mock widget:**
 ```typescript
 const registry = new WidgetRegistry();
 registry.register(createMockSceneElementWidget('fog', { density: 0 }));
-const track = compileSceneTrack({ scenes, timeline, widgetRegistry: registry, ... });
+const track = compileSceneTrack({ scenes, blockSize: 4, widgetRegistry: registry });
+// totalFrames = (2 scenes - 1) * 4 + 1 = 5
+expect(track.ticks.length).toBe(5);
 expect(track.ticks[0].state.widgets['fog']).toEqual({ density: 0 });
 ```
 
@@ -952,7 +967,31 @@ type FogState = { enabled: boolean; color: string; near: number; far: number };
 export class FogWidget implements ISceneElement<FogState>, IRenderable<FogState> {
   readonly widgetId = 'fog';
   readonly defaultState: FogState = { enabled: false, color: '#ffffff', near: 10, far: 100 };
-  readonly transitionSpec: ElementTransitionSpec<FogState> = { /* ... */ };
+  readonly transitionSpec: ElementTransitionSpec<FogState> = {
+    exit(frames, widgetId, from) {
+      for (let i = 0; i < frames.length; i++) {
+        const t = transitionT(i, frames.length);
+        frames[i].state.widgets[widgetId] = { ...from, enabled: t < 1 };
+      }
+    },
+    enter(frames, widgetId, to) {
+      for (let i = 0; i < frames.length; i++) {
+        const t = transitionT(i, frames.length);
+        frames[i].state.widgets[widgetId] = { ...to, enabled: t > 0 };
+      }
+    },
+    interpolate(frames, widgetId, from, to) {
+      for (let i = 0; i < frames.length; i++) {
+        const t = transitionT(i, frames.length);
+        frames[i].state.widgets[widgetId] = {
+          enabled: from.enabled || to.enabled,
+          color:   blendColor(from.color, to.color, t) ?? to.color,
+          near:    lerp(from.near,  to.near,  t),
+          far:     lerp(from.far,   to.far,   t),
+        };
+      }
+    },
+  };
   readonly DslComponent = FogDsl;
 
   initialize({ scene }: WidgetInitContext): void { /* create THREE.Fog */ }

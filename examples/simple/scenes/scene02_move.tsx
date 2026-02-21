@@ -1,6 +1,6 @@
-import type { SceneDefinition } from '@brewsite/core';
 import { Scene, Lighting, Ambient, Directional } from '@brewsite/core';
-import { PrimaryModel } from '../generated/sceneDsl.generated';
+import { Pose, PrimaryModel, PrimaryEyes, PrimaryNeck, PrimaryForearmRight } from '../generated/sceneDsl.generated';
+import type { SceneDefinition } from '@brewsite/core';
 
 export const scene02Move: SceneDefinition = {
   id: 'move-right',
@@ -12,10 +12,16 @@ export const scene02Move: SceneDefinition = {
         <Directional intensity={2} color="#ffffff" position={[-20, 30, 40]} />
       </Lighting>
       <PrimaryModel
-        position={[18, -12, 0]}
-        rotation={[0, Math.PI / 2, 0]}
+        position={[0, -12, 0]}
+        rotation={[0, -Math.PI / 2 -.2, 0]}
         scale={0.2}
-      />
+        metalness={.9}
+        roughness={.1}
+      >
+        <PrimaryEyes color="#ff0000" opacity={1} />
+        <PrimaryNeck color="#000000" opacity={1}/>
+        <PrimaryForearmRight color="#00ff00" opacity={1}/>
+      </PrimaryModel>
     </Scene>
   ),
 };

@@ -3,8 +3,8 @@
  */
 
 import type { SceneBackground } from './types';
-import type { ElementTransitionSpec, TransitionContext } from '../../compiler/transitions/transitionTypes';
-import { blendOpacity } from '../../compiler/transitions/transitionTypes';
+import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
+import { blendOpacity, blendVec3, transitionT } from '../../compiler/transitions/transitionTypes';
 
 const crossFadeOpacity = (from: SceneBackground, to: SceneBackground, t: number) => {
   if (from.imageUrl === to.imageUrl) {
@@ -16,8 +16,8 @@ const crossFadeOpacity = (from: SceneBackground, to: SceneBackground, t: number)
   return blendOpacity(0, to.opacity, (t - 0.5) * 2) ?? to.opacity;
 };
 
-const selectImageUrl = (from: SceneBackground, to: SceneBackground, t: number) =>
-  from.imageUrl === to.imageUrl ? to.imageUrl : t < 0.5 ? from.imageUrl : to.imageUrl;
+const selectImageUrl = (from: string | undefined, to: string | undefined, t: number) =>
+  from === to ? to : t < 0.5 ? from : to;
 
 export const DEFAULT_BACKGROUND: SceneBackground = {
   imageUrl: undefined,
@@ -29,18 +29,35 @@ export const DEFAULT_BACKGROUND: SceneBackground = {
 };
 
 export const backgroundTransitionSpec: ElementTransitionSpec<SceneBackground> = {
-  exit: (from, context) => ({
-    ...from,
-    opacity: blendOpacity(from.opacity, 0, context.tExit) ?? 0,
-  }),
-  enter: (to, context) => ({
-    ...to,
-    opacity: blendOpacity(0, to.opacity, context.tEnter) ?? to.opacity,
-  }),
-  interpolate: (from, to, context) => ({
-    ...from,
-    ...to,
-    imageUrl: selectImageUrl(from, to, context.tFull),
-    opacity: crossFadeOpacity(from, to, context.tFull),
-  }),
+  exit: (frames, widgetId, fromState) => {
+    for (let i = 0; i < frames.length; i++) {
+      const t = transitionT(i, frames.length);
+      frames[i]!.state.widgets[widgetId] = {
+        ...fromState,
+        opacity: blendOpacity(fromState.opacity, 0, t),
+      };
+    }
+  },
+  enter: (frames, widgetId, toState) => {
+    for (let i = 0; i < frames.length; i++) {
+      const t = transitionT(i, frames.length);
+      frames[i]!.state.widgets[widgetId] = {
+        ...toState,
+        opacity: blendOpacity(0, toState.opacity, t),
+      };
+    }
+  },
+  interpolate: (frames, widgetId, fromState, toState) => {
+    for (let i = 0; i < frames.length; i++) {
+      const t = transitionT(i, frames.length);
+      frames[i]!.state.widgets[widgetId] = {
+        imageUrl: selectImageUrl(fromState.imageUrl, toState.imageUrl, t),
+        opacity: crossFadeOpacity(fromState, toState, t),
+        position: blendVec3(fromState.position, toState.position, t),
+        cssPosition: t < 0.5 ? fromState.cssPosition : toState.cssPosition,
+        cssSize: t < 0.5 ? fromState.cssSize : toState.cssSize,
+        cssRepeat: t < 0.5 ? fromState.cssRepeat : toState.cssRepeat,
+      };
+    }
+  },
 };

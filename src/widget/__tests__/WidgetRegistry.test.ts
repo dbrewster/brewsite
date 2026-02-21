@@ -7,6 +7,7 @@ import { WidgetRegistry, CUSTOM_NODE_HANDLER } from '../WidgetRegistry';
 import {
   clearRegistry,
   getNodeHandler,
+  registerNode,
 } from '../../compiler/registry';
 import type {
   IAnimationController,
@@ -18,6 +19,7 @@ import type {
 } from '../types';
 import type { CompileApi } from '../../compiler/sceneDslTypes';
 import type { NodeHandler } from '../../compiler/sceneDslTypes';
+import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
 
 // ---------------------------------------------------------------------------
 // Minimal test doubles
@@ -25,14 +27,28 @@ import type { NodeHandler } from '../../compiler/sceneDslTypes';
 
 type TestState = { value: number };
 
+const makeNoopSpec = <T,>(): ElementTransitionSpec<T> => ({
+  exit: (frames, widgetId, fromState) => {
+    for (const frame of frames) {
+      frame.state.widgets[widgetId] = fromState;
+    }
+  },
+  enter: (frames, widgetId, toState) => {
+    for (const frame of frames) {
+      frame.state.widgets[widgetId] = toState;
+    }
+  },
+  interpolate: (frames, widgetId, _fromState, toState) => {
+    for (const frame of frames) {
+      frame.state.widgets[widgetId] = toState;
+    }
+  },
+});
+
 class TestWidget implements ISceneElement<TestState>, IRenderable<TestState> {
   readonly widgetId: string;
   readonly defaultState: TestState;
-  readonly transitionSpec = {
-    exit: (s: TestState) => s,
-    enter: (s: TestState) => s,
-    interpolate: (a: TestState) => a,
-  };
+  readonly transitionSpec = makeNoopSpec<TestState>();
   // Each TestWidget class has its own unique lambda — no cross-test nodeRegistry collisions.
   readonly DslComponent: () => null;
 
@@ -58,7 +74,6 @@ const makeFakeApi = (): CompileApi & { widgetStates: Record<string, unknown> } =
     widgetStates,
     context: {} as CompileApi['context'],
     state: { id: '', scrollProgress: 0, widgets: widgetStates },
-    transitions: [],
     pushAnnotation: () => {},
     pushLabel: () => {},
     setWidgetState: (id, s) => { widgetStates[id] = s; },
@@ -166,11 +181,7 @@ describe('WidgetRegistry', () => {
     {
       readonly widgetId = 'composite';
       readonly defaultState: TestState = { value: 0 };
-      readonly transitionSpec = {
-        exit: (s: TestState) => s,
-        enter: (s: TestState) => s,
-        interpolate: (a: TestState) => a,
-      };
+      readonly transitionSpec = makeNoopSpec<TestState>();
       readonly DslComponent: () => null = () => null;
       readonly childDslComponents = [
         { component: ChildComponent as React.ComponentType<unknown>, displayName: 'Child', topLevelError: false },
@@ -199,11 +210,7 @@ describe('WidgetRegistry', () => {
     {
       readonly widgetId = 'strict-composite';
       readonly defaultState: TestState = { value: 0 };
-      readonly transitionSpec = {
-        exit: (s: TestState) => s,
-        enter: (s: TestState) => s,
-        interpolate: (a: TestState) => a,
-      };
+      readonly transitionSpec = makeNoopSpec<TestState>();
       readonly DslComponent: () => null = () => null;
       readonly childDslComponents = [
         { component: ErrorChild as React.ComponentType<unknown>, displayName: 'ErrorChild', topLevelError: true },
@@ -223,6 +230,89 @@ describe('WidgetRegistry', () => {
     }).toThrow();
   });
 
+  it('routes by id prop when multiple widgets share the same DslComponent', () => {
+    const SharedComponent = (): null => null;
+
+    class SharedWidget extends TestWidget {
+      constructor(id: string) {
+        super(id);
+        // Override DslComponent to shared reference
+        // @ts-expect-error test override
+        this.DslComponent = SharedComponent;
+      }
+    }
+
+    const alpha = new SharedWidget('alpha');
+    const beta = new SharedWidget('beta');
+    registry.register(alpha).register(beta);
+
+    const handler = getNodeHandler(SharedComponent);
+    const api = makeFakeApi();
+    handler?.({ props: { id: 'beta', value: 42 } } as never, api as never, {} as never);
+    expect(api.widgetStates['beta']).toEqual({ value: 42, id: 'beta' });
+  });
+
+  it('uses CUSTOM_NODE_HANDLER when provided', () => {
+    const widget = new TestWidget('custom');
+    (widget as unknown as Record<symbol, NodeHandler>)[CUSTOM_NODE_HANDLER] = (node, api) => {
+      api.setWidgetState('custom', { value: 9, id: (node.props as { id?: string }).id });
+    };
+    registry.register(widget);
+    const handler = getNodeHandler(widget.DslComponent);
+    const api = makeFakeApi();
+    handler?.({ props: { id: 'custom' } } as never, api as never, {} as never);
+    expect(api.widgetStates['custom']).toEqual({ value: 9, id: 'custom' });
+  });
+
+  it('does not override existing node handlers', () => {
+    const Existing = (): null => null;
+    const existingHandler: NodeHandler = (_node, api) => {
+      api.setSceneMeta({ id: 'existing' });
+    };
+    registerNode(Existing, existingHandler);
+
+    class WidgetWithExisting extends TestWidget {
+      constructor(id: string) {
+        super(id);
+        // @ts-expect-error test override
+        this.DslComponent = Existing;
+      }
+    }
+
+    registry.register(new WidgetWithExisting('w'));
+    expect(getNodeHandler(Existing)).toBe(existingHandler);
+  });
+
+  it('warns when no widget is found for DSL component with id', () => {
+    const widget = new TestWidget('only');
+    registry.register(widget);
+    const handler = getNodeHandler(widget.DslComponent);
+    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const api = makeFakeApi();
+    handler?.({ props: { id: 'missing' } } as never, api as never, {} as never);
+    expect(spy).toHaveBeenCalledWith(expect.stringContaining('No widget found'));
+    spy.mockRestore();
+  });
+
+  it('buildCacheKey includes clipMeta entries', () => {
+    const widget = new TestWidget('with-clips');
+    (widget as unknown as { clipMeta: Array<{ name: string; duration: number }> }).clipMeta = [
+      { name: 'clip', duration: 1.23456 },
+    ];
+    registry.register(widget);
+    const key = registry.buildCacheKey();
+    expect(key).toContain('clip:1.235');
+  });
+
+  it('detects variable providers', () => {
+    const provider = { widgetId: 'vars', variableNamespace: 'ns', variableKeys: ['a'] } as const;
+    registry.register(provider);
+    const all = registry.getAll();
+    const found = all.find((w) => w.widgetId === 'vars');
+    expect(found).toBeDefined();
+    expect('variableNamespace' in (found as object)).toBe(true);
+  });
+
   it('error-throwing handler message includes the child display name', () => {
     const BadChild = (): null => null;
 
@@ -231,11 +321,7 @@ describe('WidgetRegistry', () => {
     {
       readonly widgetId = 'owner';
       readonly defaultState: TestState = { value: 0 };
-      readonly transitionSpec = {
-        exit: (s: TestState) => s,
-        enter: (s: TestState) => s,
-        interpolate: (a: TestState) => a,
-      };
+      readonly transitionSpec = makeNoopSpec<TestState>();
       readonly DslComponent: () => null = () => null;
       readonly childDslComponents = [
         { component: BadChild as React.ComponentType<unknown>, displayName: 'BadChild', topLevelError: true },
@@ -267,11 +353,7 @@ describe('WidgetRegistry', () => {
     class CustomWidget implements ISceneElement<TestState>, IRenderable<TestState> {
       readonly widgetId = 'custom';
       readonly defaultState: TestState = { value: 0 };
-      readonly transitionSpec = {
-        exit: (s: TestState) => s,
-        enter: (s: TestState) => s,
-        interpolate: (a: TestState) => a,
-      };
+      readonly transitionSpec = makeNoopSpec<TestState>();
       readonly DslComponent = CustomDsl;
 
       constructor() {

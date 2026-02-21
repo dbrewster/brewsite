@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { buildSceneTrackKey, clearCache, getCachedTrack, setCachedTrack } from '../sceneTrackCache';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
-import { createSceneTimeline } from '../../timeline';
 import type { SceneTrack } from '../sceneTrackTypes';
 
 const makeTrack = (): SceneTrack => ({
@@ -16,20 +15,17 @@ describe('sceneTrackCache', () => {
     clearCache();
   });
 
-  it('buildSceneTrackKey includes scenes, timeline, registry, and options', () => {
+  it('buildSceneTrackKey includes scenes, blockSize, registry, and options', () => {
     const registry = new WidgetRegistry();
-    const timeline = createSceneTimeline([{ id: 'a' }, { id: 'b' }]);
     const key = buildSceneTrackKey({
       scenes: [{ id: 'a', index: 0, getFrame: () => ({ id: 'a', scrollProgress: 0, widgets: {} }) }],
-      timeline,
       widgetRegistry: registry,
+      blockSize: 4,
       prefersReducedMotion: true,
-      assetsReady: false,
     });
     expect(key).toContain('a');
-    expect(key).toContain(`t:${timeline.sceneCount}`);
+    expect(key).toContain('b:4');
     expect(key).toContain('rm:1');
-    expect(key).toContain('ar:0');
   });
 
   it('getCachedTrack returns undefined when cache is empty', () => {

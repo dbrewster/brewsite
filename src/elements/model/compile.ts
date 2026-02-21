@@ -16,10 +16,7 @@ import type {
   ClipMeta,
   SceneModelInstanceState,
 } from './types';
-import type {
-  ElementTransitionSpec,
-  TransitionContext,
-} from '../../compiler/transitions/transitionTypes';
+import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
 import {
   blendAxisRotation,
   blendAxisTranslation,
@@ -27,8 +24,8 @@ import {
   blendNumber,
   blendOpacity,
   blendVec3,
-  clamp01,
   resolveEnabledByOpacity,
+  transitionT,
 } from '../../compiler/transitions/transitionTypes';
 
 const OPAQUE_OPACITY = 1;
@@ -55,20 +52,7 @@ export const resolveClipRangeSeconds = (animation: SceneAnimation, clipDuration:
 
 // ─── Transition helpers ──────────────────────────────────────────────────────
 
-const MODEL_EXIT_END = 0.5;
 const HIDDEN_MODEL_SCALE = 0.001;
-
-const isModelHidden = (model?: SceneModel) =>
-  typeof model?.scale === 'number' && model.scale <= HIDDEN_MODEL_SCALE;
-
-const resolveExitT = (context: TransitionContext, overrideEnd: number) => {
-  const end = overrideEnd <= context.exitStart ? context.exitEnd : Math.min(context.exitEnd, overrideEnd);
-  const span = end - context.exitStart;
-  if (span <= 0) {
-    return context.progress >= end ? 1 : 0;
-  }
-  return clamp01((context.progress - context.exitStart) / span);
-};
 
 const scaleAxisRotation = (
   value?: { yawPct?: number; pitchPct?: number; rollPct?: number },
@@ -81,6 +65,7 @@ const scaleAxisRotation = (
     rollPct: typeof value.rollPct === 'number' ? value.rollPct * scale : undefined,
   };
 };
+
 
 const scaleAxisTranslation = (
   value?: { xPct?: number; yPct?: number; zPct?: number },
@@ -100,7 +85,6 @@ export const poseGroupTransition = (from?: PoseGroup, to?: PoseGroup, t?: number
     return {
       rotate: blendAxisRotation(from.rotate, to.rotate, t),
       translate: blendAxisTranslation(from.translate, to.translate, t),
-      space: to.space ?? from.space,
     };
   }
   if (from) {
@@ -108,14 +92,12 @@ export const poseGroupTransition = (from?: PoseGroup, to?: PoseGroup, t?: number
     return {
       rotate: scaleAxisRotation(from.rotate, scale),
       translate: scaleAxisTranslation(from.translate, scale),
-      space: from.space,
     };
   }
   const scale = t ?? 0;
   return {
     rotate: scaleAxisRotation(to?.rotate, scale),
     translate: scaleAxisTranslation(to?.translate, scale),
-    space: to?.space,
   };
 };
 
@@ -298,42 +280,34 @@ const blendParts = (
 
 // ─── Model transition spec ───────────────────────────────────────────────────
 
-export const modelTransitionSpec: ElementTransitionSpec<SceneModel> = {
-  exit: (from: SceneModel, context: TransitionContext): SceneModel => {
-    const tExit = resolveExitT(context, MODEL_EXIT_END);
-    return {
-      ...from,
-      position: from.position,
-      rotation: from.rotation,
-      scale: blendNumber(from.scale, HIDDEN_MODEL_SCALE, tExit) ?? from.scale,
-      enabled: tExit >= 1 ? false : from.enabled,
-      bodyPartOverrides: blendBodyOverrides(from.bodyPartOverrides, undefined, tExit, context.tEnter, tExit),
-      parts: blendParts(from.parts, undefined, tExit, context.tEnter, tExit),
-    };
-  },
-  enter: (to: SceneModel, context: TransitionContext): SceneModel => ({
-    ...to,
-    scale: blendNumber(HIDDEN_MODEL_SCALE, to.scale, context.tEnter) ?? to.scale,
-    enabled: context.tEnter > 0 ? (to.enabled ?? true) : to.enabled,
-    bodyPartOverrides: blendBodyOverrides(undefined, to.bodyPartOverrides, context.tExit, context.tEnter, context.tFull),
-    parts: blendParts(undefined, to.parts, context.tExit, context.tEnter, context.tFull),
+export const modelTransitionSpec = {
+  exit: (from: SceneModel, t: number): SceneModel => ({
+    ...from,
+    position: from.position,
+    rotation: from.rotation,
+    scale: blendNumber(from.scale, HIDDEN_MODEL_SCALE, t) ?? from.scale,
+    enabled: t >= 1 ? false : from.enabled,
+    bodyPartOverrides: blendBodyOverrides(from.bodyPartOverrides, undefined, t, 0, t),
+    parts: blendParts(from.parts, undefined, t, 0, t),
   }),
-  interpolate: (from: SceneModel, to: SceneModel, context: TransitionContext): SceneModel => {
-    const exitEarly = isModelHidden(to);
-    const tExit = exitEarly ? resolveExitT(context, MODEL_EXIT_END) : context.tExit;
-    const tFull = exitEarly ? tExit : context.tFull;
-    return {
-      ...from,
-      ...to,
-      position: blendVec3(from.position, to.position, tFull) ?? to.position,
-      rotation: blendVec3(from.rotation, to.rotation, tFull) ?? to.rotation,
-      scale: blendNumber(from.scale, to.scale, tFull) ?? to.scale,
-      metalness: blendNumber(from.metalness, to.metalness, tFull) ?? to.metalness ?? from.metalness,
-      roughness: blendNumber(from.roughness, to.roughness, tFull) ?? to.roughness ?? from.roughness,
-      bodyPartOverrides: blendBodyOverrides(from.bodyPartOverrides, to.bodyPartOverrides, tExit, context.tEnter, tFull),
-      parts: blendParts(from.parts, to.parts, tExit, context.tEnter, tFull),
-    };
-  },
+  enter: (to: SceneModel, t: number): SceneModel => ({
+    ...to,
+    scale: blendNumber(HIDDEN_MODEL_SCALE, to.scale, t) ?? to.scale,
+    enabled: t > 0 ? (to.enabled ?? true) : to.enabled,
+    bodyPartOverrides: blendBodyOverrides(undefined, to.bodyPartOverrides, 0, t, t),
+    parts: blendParts(undefined, to.parts, 0, t, t),
+  }),
+  interpolate: (from: SceneModel, to: SceneModel, t: number): SceneModel => ({
+    ...from,
+    ...to,
+    position: blendVec3(from.position, to.position, t) ?? to.position ?? from.position,
+    rotation: blendVec3(from.rotation, to.rotation, t) ?? to.rotation ?? from.rotation,
+    scale: blendNumber(from.scale, to.scale, t) ?? to.scale ?? from.scale,
+    metalness: blendNumber(from.metalness, to.metalness, t) ?? to.metalness ?? from.metalness,
+    roughness: blendNumber(from.roughness, to.roughness, t) ?? to.roughness ?? from.roughness,
+    bodyPartOverrides: blendBodyOverrides(from.bodyPartOverrides, to.bodyPartOverrides, t, t, t),
+    parts: blendParts(from.parts, to.parts, t, t, t),
+  }),
 };
 
 // ─── Playback (motion + animation) transition helpers ────────────────────────
@@ -350,7 +324,7 @@ const blendPoseGroups = (
     const prev = from?.[key];
     const next = to?.[key];
     if (!prev && !next) continue;
-    result[key] = (poseGroupTransition(prev, next, t) ?? prev ?? next) as PoseGroup;
+    result[key] = poseGroupTransition(prev, next, t) as PoseGroup;
   }
   return Object.keys(result).length > 0 ? result : undefined;
 };
@@ -358,9 +332,9 @@ const blendPoseGroups = (
 const blendCommands = (
   from?: MotionCommand[],
   to?: MotionCommand[],
-  tExit?: number,
-  tEnter?: number,
-  tFull?: number,
+  tExit = 1,
+  tEnter = 0,
+  tFull = 0,
 ) => {
   if (!from && !to) return [];
   const result: MotionCommand[] = [];
@@ -382,22 +356,22 @@ const blendCommands = (
       byId.delete(prev.groupId);
       continue;
     }
-    if ((tExit ?? 1) < 1) {
+    if (tExit < 1) {
       result.push({
         ...prev,
         rotate: blendAxisRotation(prev.rotate, undefined, tExit),
         translate: blendAxisTranslation(prev.translate, undefined, tExit),
-        weight: blendNumber(prev.weight ?? 1, 0, tExit) ?? 0,
+        weight: blendNumber(prev.weight ?? 1, 0, tExit),
       });
     }
   }
   for (const next of byId.values()) {
-    if ((tEnter ?? 0) > 0) {
+    if (tEnter > 0) {
       result.push({
         ...next,
         rotate: blendAxisRotation(undefined, next.rotate, tEnter),
         translate: blendAxisTranslation(undefined, next.translate, tEnter),
-        weight: blendNumber(0, next.weight ?? 1, tEnter) ?? next.weight,
+        weight: blendNumber(0, next.weight ?? 1, tEnter),
       });
     }
   }
@@ -407,9 +381,9 @@ const blendCommands = (
 const blendMotionScenes = (
   from?: MotionScene[],
   to?: MotionScene[],
-  tExit?: number,
-  tEnter?: number,
-  tFull?: number,
+  tExit = 1,
+  tEnter = 0,
+  tFull = 0,
 ) => {
   if (!from && !to) return [];
   const result: MotionScene[] = [];
@@ -423,21 +397,21 @@ const blendMotionScenes = (
       result.push({
         ...prev,
         ...next,
-        start: blendNumber(prev.start, next.start, tFull) ?? next.start,
-        end: blendNumber(prev.end, next.end, tFull) ?? next.end,
-        ease: (tFull ?? 0) < 0.5 ? prev.ease : next.ease,
+        start: blendNumber(prev.start, next.start, tFull) ?? next.start ?? prev.start,
+        end: blendNumber(prev.end, next.end, tFull) ?? next.end ?? prev.end,
+        ease: tFull < 0.5 ? prev.ease : next.ease,
         commands: next.commands ?? prev.commands,
-        holdAtEnd: (tFull ?? 0) < 0.5 ? prev.holdAtEnd : next.holdAtEnd,
+        holdAtEnd: tFull < 0.5 ? prev.holdAtEnd : next.holdAtEnd,
       });
       byId.delete(prev.id);
       continue;
     }
-    if ((tExit ?? 1) < 1) {
+    if (tExit < 1) {
       result.push(prev);
     }
   }
   for (const next of byId.values()) {
-    if ((tEnter ?? 0) > 0) {
+    if (tEnter > 0) {
       result.push(next);
     }
   }
@@ -447,9 +421,9 @@ const blendMotionScenes = (
 const blendCustomAnimations = (
   from?: CustomAnimation[],
   to?: CustomAnimation[],
-  tExit?: number,
-  tEnter?: number,
-  tFull?: number,
+  tExit = 1,
+  tEnter = 0,
+  tFull = 0,
 ) => {
   if (!from && !to) return [];
   const result: CustomAnimation[] = [];
@@ -464,27 +438,27 @@ const blendCustomAnimations = (
         ...prev,
         ...next,
         weight: blendNumber(prev.weight ?? 1, next.weight ?? 1, tFull),
-        enabled: (next.enabled ?? prev.enabled) && (tFull ?? 0) > 0,
+        enabled: (next.enabled ?? prev.enabled) && tFull > 0,
         layer: next.layer ?? prev.layer,
-        apply: (tFull ?? 0) < 0.5 ? prev.apply : next.apply,
+        apply: tFull < 0.5 ? prev.apply : next.apply,
       });
       byId.delete(prev.id);
       continue;
     }
-    if ((tExit ?? 1) < 1) {
+    if (tExit < 1) {
       result.push({
         ...prev,
-        weight: blendNumber(prev.weight ?? 1, 0, tExit) ?? 0,
-        enabled: (prev.enabled ?? false) && (tExit ?? 0) < 1,
+        weight: blendNumber(prev.weight ?? 1, 0, tExit),
+        enabled: (prev.enabled ?? false) && tExit < 1,
       });
     }
   }
   for (const next of byId.values()) {
-    if ((tEnter ?? 0) > 0) {
+    if (tEnter > 0) {
       result.push({
         ...next,
-        weight: blendNumber(0, next.weight ?? 1, tEnter) ?? next.weight,
-        enabled: (next.enabled ?? false) && (tEnter ?? 0) > 0,
+        weight: blendNumber(0, next.weight ?? 1, tEnter),
+        enabled: (next.enabled ?? false) && tEnter > 0,
       });
     }
   }
@@ -493,62 +467,62 @@ const blendCustomAnimations = (
 
 // ─── Playback transition spec ────────────────────────────────────────────────
 
-export const playbackTransitionSpec: ElementTransitionSpec<ScenePlayback> = {
-  exit: (from: ScenePlayback, context: TransitionContext): ScenePlayback => ({
+export const playbackTransitionSpec = {
+  exit: (from: ScenePlayback, t: number): ScenePlayback => ({
     ...from,
     animation: {
       ...from.animation,
-      weight: blendNumber(from.animation.weight ?? 1, 0, context.tExit) ?? 0,
-      enabled: (from.animation.enabled ?? false) && context.tExit < 1,
+      weight: blendNumber(from.animation.weight ?? 1, 0, t),
+      enabled: (from.animation.enabled ?? false) && t < 1,
     },
     motion: from.motion,
   }),
-  enter: (to: ScenePlayback, context: TransitionContext): ScenePlayback => ({
+  enter: (to: ScenePlayback, t: number): ScenePlayback => ({
     ...to,
     animation: {
       ...to.animation,
-      weight: blendNumber(0, to.animation.weight ?? 1, context.tEnter) ?? to.animation.weight,
-      enabled: (to.animation.enabled ?? false) && context.tEnter > 0,
+      weight: blendNumber(0, to.animation.weight ?? 1, t),
+      enabled: (to.animation.enabled ?? false) && t > 0,
     },
     motion: to.motion,
   }),
-  interpolate: (from: ScenePlayback, to: ScenePlayback, context: TransitionContext): ScenePlayback => ({
+  interpolate: (from: ScenePlayback, to: ScenePlayback, t: number): ScenePlayback => ({
     ...from,
     ...to,
     animation: {
       ...from.animation,
       ...to.animation,
-      weight: blendNumber(from.animation.weight ?? 1, to.animation.weight ?? 1, context.tFull),
-      enabled: (to.animation.enabled ?? from.animation.enabled ?? false) && context.tFull > 0,
+      weight: blendNumber(from.animation.weight ?? 1, to.animation.weight ?? 1, t),
+      enabled: (to.animation.enabled ?? from.animation.enabled ?? false) && t > 0,
     },
     motion: {
       ...from.motion,
       ...to.motion,
-      commands: blendCommands(from.motion.commands, to.motion.commands, context.tExit, context.tEnter, context.tFull),
-      scenes: blendMotionScenes(from.motion.scenes, to.motion.scenes, context.tExit, context.tEnter, context.tFull),
-      customAnimations: blendCustomAnimations(from.motion.customAnimations, to.motion.customAnimations, context.tExit, context.tEnter, context.tFull),
+      commands: blendCommands(from.motion.commands, to.motion.commands, t, t, t),
+      scenes: blendMotionScenes(from.motion.scenes, to.motion.scenes, t, t, t),
+      customAnimations: blendCustomAnimations(from.motion.customAnimations, to.motion.customAnimations, t, t, t),
       pose: (() => {
         const fromPose = from.motion.pose;
         const toPose = to.motion.pose;
         const toHasGroups = Object.keys(toPose?.groups ?? {}).length > 0;
         const resolvedToPose = toHasGroups ? toPose : undefined;
         if (fromPose && resolvedToPose) {
-          const blendedGroups = blendPoseGroups(fromPose.groups, resolvedToPose.groups, context.tFull);
+          const blendedGroups = blendPoseGroups(fromPose.groups, resolvedToPose.groups, t);
           return {
             ...resolvedToPose,
-            groups: blendedGroups ?? resolvedToPose.groups ?? fromPose.groups ?? {},
+            groups: blendedGroups ?? resolvedToPose.groups,
           };
         }
         if (fromPose) {
           return {
             ...fromPose,
-            groups: blendPoseGroups(fromPose.groups, undefined, context.tExit) ?? fromPose.groups ?? {},
+            groups: blendPoseGroups(fromPose.groups, undefined, t) ?? fromPose.groups ?? {},
           };
         }
-        if (resolvedToPose && context.tEnter > 0) {
+        if (resolvedToPose && t > 0) {
           return {
             ...resolvedToPose,
-            groups: blendPoseGroups(undefined, resolvedToPose.groups, context.tEnter) ?? resolvedToPose.groups ?? {},
+            groups: blendPoseGroups(undefined, resolvedToPose.groups, t) ?? resolvedToPose.groups,
           };
         }
         return undefined;
@@ -639,24 +613,55 @@ export function createDefaultModelInstanceState(modelId: string) {
 
 // ─── Instance state transition spec (wraps model and playback) ─────────────
 
+export const applyModelExit = (
+  from: SceneModelInstanceState,
+  t: number,
+): SceneModelInstanceState => ({
+  ...from,
+  model: modelTransitionSpec.exit(from.model, t),
+  playback: playbackTransitionSpec.exit(from.playback, t),
+  enabled: t >= 1 ? false : from.enabled,
+});
+
+export const applyModelEnter = (
+  to: SceneModelInstanceState,
+  t: number,
+): SceneModelInstanceState => ({
+  ...to,
+  model: modelTransitionSpec.enter(to.model, t),
+  playback: playbackTransitionSpec.enter(to.playback, t),
+  enabled: t > 0 ? (to.enabled ?? true) : to.enabled,
+});
+
+export const applyModelInterpolate = (
+  from: SceneModelInstanceState,
+  to: SceneModelInstanceState,
+  t: number,
+): SceneModelInstanceState => ({
+  ...from,
+  ...to,
+  model: modelTransitionSpec.interpolate(from.model, to.model, t),
+  playback: playbackTransitionSpec.interpolate(from.playback, to.playback, t),
+  enabled: (to.enabled ?? from.enabled ?? true) && t < 1,
+});
+
 export const instanceTransitionSpec: ElementTransitionSpec<SceneModelInstanceState> = {
-  exit: (from: SceneModelInstanceState, context: TransitionContext): SceneModelInstanceState => ({
-    ...from,
-    model: modelTransitionSpec.exit(from.model, context),
-    playback: playbackTransitionSpec.exit(from.playback, context),
-    enabled: context.progress >= context.exitEnd ? false : from.enabled,
-  }),
-  enter: (to: SceneModelInstanceState, context: TransitionContext): SceneModelInstanceState => ({
-    ...to,
-    model: modelTransitionSpec.enter(to.model, context),
-    playback: playbackTransitionSpec.enter(to.playback, context),
-    enabled: context.tEnter > 0 ? (to.enabled ?? true) : to.enabled,
-  }),
-  interpolate: (from: SceneModelInstanceState, to: SceneModelInstanceState, context: TransitionContext): SceneModelInstanceState => ({
-    ...from,
-    ...to,
-    model: modelTransitionSpec.interpolate(from.model, to.model, context),
-    playback: playbackTransitionSpec.interpolate(from.playback, to.playback, context),
-    enabled: (to.enabled ?? from.enabled ?? true) && context.progress < context.exitEnd,
-  }),
+  exit: (frames, widgetId, fromState) => {
+    for (let i = 0; i < frames.length; i++) {
+      const t = transitionT(i, frames.length);
+      frames[i]!.state.widgets[widgetId] = applyModelExit(fromState, t);
+    }
+  },
+  enter: (frames, widgetId, toState) => {
+    for (let i = 0; i < frames.length; i++) {
+      const t = transitionT(i, frames.length);
+      frames[i]!.state.widgets[widgetId] = applyModelEnter(toState, t);
+    }
+  },
+  interpolate: (frames, widgetId, fromState, toState) => {
+    for (let i = 0; i < frames.length; i++) {
+      const t = transitionT(i, frames.length);
+      frames[i]!.state.widgets[widgetId] = applyModelInterpolate(fromState, toState, t);
+    }
+  },
 };

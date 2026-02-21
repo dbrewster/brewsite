@@ -7,7 +7,7 @@ const makeTick = (index: number, progress: number): SceneTrackTick => ({
   progress,
   sceneId: `scene-${index}`,
   sceneIndex: index,
-  sceneProgress: progress,
+  blockProgress: progress,
   state: {
     id: `scene-${index}`,
     scrollProgress: progress,

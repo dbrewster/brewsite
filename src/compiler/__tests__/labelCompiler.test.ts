@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { compileLabels } from '../labelCompiler';
 import type { LabelDefinition } from '../../labels/types';
-import type { SceneFrameContext } from '../sceneTypes';
+import type { LabelCompileContext } from '../labelCompiler';
 
-const ctx = {} as SceneFrameContext;
+const ctx = { sceneProgress: 0 } as LabelCompileContext;
 
 describe('compileLabels', () => {
   it('filters out disabled labels', () => {

@@ -1,4 +1,4 @@
-import type { Scene as ThreeScene } from 'three';
+import type { Scene as ThreeScene, WebGLRenderer } from 'three';
 import type { VariableStoreReader, JsonPrimitive } from './VariableStore';
 import type { ElementTransitionSpec } from '../compiler/transitions/transitionTypes';
 import type { ClipMeta, SceneTrackTick } from '../compiler/sceneTrackTypes';
@@ -60,6 +60,7 @@ export type CompileExtraContext = {
 export type WidgetInitContext = {
   scene: ThreeScene;
   widgetId: string;
+  renderer?: WebGLRenderer;
 };
 
 export type WidgetRenderContext = {

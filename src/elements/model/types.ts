@@ -51,6 +51,7 @@ export type BodyPartOverride = {
   color?: string;
   metalness?: number;
   roughness?: number;
+  targetKind?: 'bone' | 'mesh';
   pose?: PoseGroup;
 };
 
@@ -81,7 +82,6 @@ export type MotionCommand = {
 export type PoseGroup = {
   rotate?: AxisRotation;
   translate?: AxisTranslation;
-  space?: 'local' | 'world';
 };
 
 export type ModelPose = {

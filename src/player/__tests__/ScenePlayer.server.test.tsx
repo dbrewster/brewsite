@@ -4,14 +4,13 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ScenePlayer } from '../ScenePlayer';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
-import { createSceneTimeline } from '../../timeline';
 import type { SceneGroup } from '../../compiler/sceneTypes';
 
 const makeSceneGroup = (): SceneGroup => {
   const scenes = [
     { id: 's1', index: 0, getFrame: () => ({ id: 's1', scrollProgress: 0, widgets: {} }) },
   ];
-  return { id: 'group', scenes, timeline: createSceneTimeline(scenes) };
+  return { id: 'group', scenes };
 };
 
 const manifest = {

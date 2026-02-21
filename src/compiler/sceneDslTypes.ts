@@ -1,14 +1,13 @@
 import type { ReactElement } from 'react';
-import type { SceneFrameContext, SceneTransition } from './sceneTypes';
+import type { SceneSnapshotContext } from './sceneTypes';
 import type { SceneFrame } from './sceneTrackTypes';
 import type { AnnotationDefinition } from '../annotations/annotationTypes';
 import type { LabelDefinition } from '../labels/types';
 import type { JsonPrimitive } from '../widget/VariableStore';
 
 export type CompileApi = {
-  context: SceneFrameContext;
+  context: SceneSnapshotContext;
   state: SceneFrame;
-  transitions: SceneTransition[];
   pushAnnotation: (annotation: AnnotationDefinition) => void;
   pushLabel: (label: LabelDefinition) => void;
   setWidgetState: (widgetId: string, state: unknown) => void;
@@ -17,8 +16,8 @@ export type CompileApi = {
 
 export type CompileHelpers = {
   compileChildren: (node: ReactElement, api: CompileApi) => void;
-  resolveValue: <T>(value: T | ((context: SceneFrameContext) => T), context: SceneFrameContext) => T;
-  resolveObjectValues: <T extends Record<string, unknown>>(value: T, context: SceneFrameContext) => T;
+  resolveValue: <T>(value: T | ((context: SceneSnapshotContext) => T), context: SceneSnapshotContext) => T;
+  resolveObjectValues: <T extends Record<string, unknown>>(value: T, context: SceneSnapshotContext) => T;
   stripUndefinedDeep: <T extends Record<string, unknown>>(value: T) => T;
   collectChildren: (node: ReactElement) => unknown[];
 };

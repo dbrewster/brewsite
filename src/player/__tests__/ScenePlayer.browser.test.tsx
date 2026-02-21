@@ -4,7 +4,6 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { ScenePlayer } from '../ScenePlayer';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
-import { createSceneTimeline } from '../../timeline';
 import type { SceneGroup } from '../../compiler/sceneTypes';
 import { SceneMetaWidget } from '../SceneMetaWidget';
 
@@ -24,7 +23,7 @@ const makeSceneGroup = (): SceneGroup => {
     { id: 's1', index: 0, getFrame: () => ({ id: 's1', scrollProgress: 0, widgets: {} }) },
     { id: 's2', index: 1, getFrame: () => ({ id: 's2', scrollProgress: 1, widgets: {} }) },
   ];
-  return { id: 'group', scenes, timeline: createSceneTimeline(scenes) };
+  return { id: 'group', scenes };
 };
 
 const manifest = {

@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { EnvironmentWidget } from '../EnvironmentWidget';
 import type { SceneEnvironment } from '../types';
 import {
-  makeTransitionContext,
+  makeFrameSlice,
   makeInitContext,
   makeRenderContext,
 } from '../../__tests__/elementTestMocks';
@@ -33,14 +33,18 @@ describe('EnvironmentWidget', () => {
 
   it('transitionSpec.exit disables when tExit=1 and fades intensity', () => {
     const state: SceneEnvironment = { enabled: true, intensity: 1, url: '/env.hdr' };
-    const result = widget.transitionSpec.exit(state, makeTransitionContext({ tExit: 1 }));
+    const frames = makeFrameSlice(2);
+    widget.transitionSpec.exit(frames, widget.widgetId, state);
+    const result = frames[1]!.state.widgets[widget.widgetId] as SceneEnvironment;
     expect(result.enabled).toBe(false);
     expect(result.intensity).toBeCloseTo(0);
   });
 
   it('transitionSpec.enter enables when tEnter>0 and fades intensity in', () => {
     const state: SceneEnvironment = { enabled: true, intensity: 0.8 };
-    const result = widget.transitionSpec.enter(state, makeTransitionContext({ tEnter: 0.5 }));
+    const frames = makeFrameSlice(3);
+    widget.transitionSpec.enter(frames, widget.widgetId, state);
+    const result = frames[1]!.state.widgets[widget.widgetId] as SceneEnvironment;
     expect(result.enabled).toBe(true);
     expect(result.intensity).toBeGreaterThan(0);
   });
@@ -58,8 +62,10 @@ describe('EnvironmentWidget', () => {
       url: '/to.hdr',
       preset: 'room',
     };
-    const at25 = widget.transitionSpec.interpolate(from, to, makeTransitionContext({ tFull: 0.25 }));
-    const at75 = widget.transitionSpec.interpolate(from, to, makeTransitionContext({ tFull: 0.75 }));
+    const frames = makeFrameSlice(5);
+    widget.transitionSpec.interpolate(frames, widget.widgetId, from, to);
+    const at25 = frames[1]!.state.widgets[widget.widgetId] as SceneEnvironment;
+    const at75 = frames[3]!.state.widgets[widget.widgetId] as SceneEnvironment;
     expect(at25.url).toBe('/from.hdr');
     expect(at75.url).toBe('/to.hdr');
     expect(at25.preset).toBe('room');
