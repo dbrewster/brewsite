@@ -35,9 +35,117 @@ pnpm gen:scene-dsl
 pnpm dev
 ```
 
-The examples live under `examples/`:
-- `examples/simple/` — End-to-end sample scene group.
-- `examples/widgets/` — Reference custom widget implementations.
+The examples app routes live in `examples/vite-app/App.tsx` and include:
+- `/simple` → `examples/simple/pages/SimplePage.tsx`
+- `/two-bots` → `examples/two-bots/pages/TwoBots.tsx`
+- `/complex` → `examples/complex/pages/ComplexPage.tsx`
+- `/meeting` → `examples/meeting/pages/MeetingPage.tsx`
+
+## Examples Directory Guide
+
+- `examples/simple/` — Minimal two-scene demo with labels and a basic widget registry.
+- `examples/two-bots/` — Variant of the simple scene setup with alternate scenes and assets.
+- `examples/complex/` — Multi-scene walkthrough with more states and transitions.
+- `examples/meeting/` — Two-scene meeting demo using the same engine surface.
+- `examples/widgets/` — Reference custom widgets: `brain-model`, `logo-rotator`, `ribbon`.
+- `examples/siteResources.ts` — Asset manifest input for the generator.
+- `examples/generated/` — Auto-generated types and DSL wrappers from the asset pipeline.
+- `examples/public/` — Generated `scene-manifest.json` and public assets for the example app.
+
+## Defining a Site With `siteResources.ts`
+
+`examples/siteResources.ts` is the source of truth for models, contained models, and animations. The generator reads this file and produces:
+- `examples/generated/sceneDsl.generated.ts` — typed unions and DSL components (e.g., `Robot`, `BrainSubparts`).
+- `examples/public/scene-manifest.json` — runtime manifest consumed by the engine.
+
+Minimal example:
+
+```ts
+// examples/siteResources.ts
+export const siteResources = {
+  models: [
+    {
+      type: 'Robot',
+      role: 'primary' as const,
+      path: '/assets/robot.no-normals.glb',
+      anchorKeys: ['Head', 'chest'],
+      footOffsetY: -130,
+    },
+  ],
+  containedModels: [
+    {
+      type: 'brain',
+      path: '/assets/brain_separated.glb',
+      target: 'Head',
+      scale: 0.53,
+      position: [0, -0.03, 0.12],
+      rotation: [-0.3, 0, 0],
+    },
+  ],
+  animations: [
+    { type: 'ChatRelaxF', path: '/assets/motion/chat-relax-f.glb' },
+  ],
+} as const;
+```
+
+## Generate Code and Use It
+
+1. Generate the DSL and manifest:
+
+```bash
+pnpm gen:scene-dsl
+```
+
+2. Import generated DSL components and types in your scenes:
+
+```tsx
+import { Scene, Lighting, Ambient, Directional } from '@brewsite/core';
+import type { SceneDefinition } from '@brewsite/core';
+import { Robot, BrainSubparts } from '../generated/sceneDsl.generated';
+
+export const scene01: SceneDefinition = {
+  id: 'intro',
+  index: 0,
+  getFrame: () => (
+    <Scene id="intro">
+      <Lighting intensityScale={1}>
+        <Ambient intensity={2} color="#ffffff" />
+        <Directional intensity={2} color="#ffffff" position={[20, 30, 40]} />
+      </Lighting>
+      <Robot id="primary" position={[0, -30, 0]} scale={0.2}>
+        <Robot.Brain opacity={1}>
+          <BrainSubparts>
+            <BrainSubparts.MarkerFrontLeft />
+          </BrainSubparts>
+        </Robot.Brain>
+      </Robot>
+    </Scene>
+  ),
+};
+```
+
+3. Provide a widget registry and render `ScenePlayer`:
+
+```tsx
+import { ScenePlayer, createDefaultWidgetRegistry } from '@brewsite/core';
+import type { AssetManifest } from '@brewsite/core';
+import { scene01 } from './scenes/scene01';
+
+const createWidgetSetup = (manifest: AssetManifest | null) =>
+  createDefaultWidgetRegistry(manifest);
+
+export default function Page() {
+  return (
+    <ScenePlayer
+      sceneGroup={{ id: 'demo', scenes: [scene01] }}
+      manifestUrl="/scene-manifest.json"
+      widgetSetup={createWidgetSetup}
+      framesPerTick={100}
+      pixelsPerScene={1600}
+    />
+  );
+}
+```
 
 ## Common Commands
 
