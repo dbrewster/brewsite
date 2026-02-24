@@ -39,7 +39,7 @@ export { modelTransitionSpec, playbackTransitionSpec, instanceTransitionSpec, co
 export type { CompiledAnimation } from './compile';
 
 // Metadata
-export type { AnimationEntry, AnchorTargetMap, ModelMeta, ContainedModelMeta, AssetManifest } from './metadata';
+export type { AnimationEntry, AnchorTargetMap, BodyPartGroup, ModelMeta, ContainedModelMeta, AssetManifest } from './metadata';
 export { clipMetaFromManifest, findModelMeta, assertManifestValid, ASSET_MANIFEST_VERSION } from './metadata';
 
 // Rendering

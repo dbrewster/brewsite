@@ -1,5 +1,5 @@
 import type { AnnotationDefinition, AnnotationDefaults } from '../annotations/annotationTypes';
-import type { LabelDefinition } from '../labels/types';
+import type { LabelResolved } from '../labels/types';
 import type { JsonPrimitive } from '../widget/VariableStore';
 
 // Re-export annotation types
@@ -21,7 +21,7 @@ export type SceneFrame = {
   meta?: Record<string, JsonPrimitive>;
   annotations?: AnnotationDefinition[];
   annotationDefaults?: Partial<AnnotationDefaults>;
-  labels?: LabelDefinition[];
+  labels?: LabelResolved[];
 };
 
 export type SceneFrameDelta = {

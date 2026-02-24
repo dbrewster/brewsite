@@ -5,7 +5,16 @@ import {
   findModelMeta,
   assertManifestValid,
 } from '../metadata';
-import type { AssetManifest } from '../metadata';
+import type { AssetManifest, BodyPartGroup } from '../metadata';
+
+// boneIds use Three.js runtime format (colon stripped): "mixamorigRightForeArm"
+// gltf-transform reports "mixamorig:RightForeArm" but Three.js strips the colon.
+const makeBodyPartGroups = (): BodyPartGroup[] => [
+  { name: 'RightForeArm', boneIds: ['mixamorigRightForeArm'], meshIds: ['FOREARM_RIGHT'] },
+  { name: 'LeftHand', boneIds: ['mixamorigLeftHand'], meshIds: ['HAND_LEFT'] },
+  { name: 'CalfInRight', boneIds: [], meshIds: ['CALF_IN_RIGHT'] },
+  { name: 'LeftHandIndex1', boneIds: ['mixamorigLeftHandIndex1'], meshIds: [] },
+];
 
 const makeManifest = (): AssetManifest => ({
   version: ASSET_MANIFEST_VERSION,
@@ -15,6 +24,7 @@ const makeManifest = (): AssetManifest => ({
     bones: [],
     meshes: [],
     anchorTargets: {},
+    bodyPartGroups: makeBodyPartGroups(),
     identity: {
       model: {
         scale: 0.1,
@@ -78,5 +88,62 @@ describe('model metadata helpers', () => {
   it('assertManifestValid throws on non-object input', () => {
     expect(() => assertManifestValid(null)).toThrow('not an object');
     expect(() => assertManifestValid(123 as unknown)).toThrow('not an object');
+  });
+});
+
+describe('BodyPartGroup manifest round-trip', () => {
+  it('bodyPartGroups are preserved through manifest assertion', () => {
+    const groups = makeBodyPartGroups();
+    const manifest = makeManifest();
+    const validated = assertManifestValid(manifest);
+    const botMeta = validated.models.find((m) => m.type === 'bot');
+    expect(botMeta?.bodyPartGroups).toHaveLength(groups.length);
+    expect(botMeta?.bodyPartGroups?.[0].name).toBe('RightForeArm');
+    expect(botMeta?.bodyPartGroups?.[0].boneIds).toEqual(['mixamorigRightForeArm']);
+    expect(botMeta?.bodyPartGroups?.[0].meshIds).toEqual(['FOREARM_RIGHT']);
+  });
+
+  it('manifest without bodyPartGroups is still valid (optional field)', () => {
+    const manifest: AssetManifest = {
+      version: ASSET_MANIFEST_VERSION,
+      models: [{
+        type: 'legacy',
+        glb: '/legacy.glb',
+        bones: [],
+        meshes: [],
+        anchorTargets: {},
+        // bodyPartGroups intentionally omitted
+        identity: {
+          model: { scale: 0.1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true, bodyPartOverrides: {} },
+          playback: { motion: { commands: [], scenes: [], customAnimations: [] }, animation: { enabled: false } },
+        },
+      }],
+      containedModels: [],
+      animations: [],
+    };
+    const validated = assertManifestValid(manifest);
+    const legacyMeta = validated.models.find((m) => m.type === 'legacy');
+    expect(legacyMeta?.bodyPartGroups).toBeUndefined();
+  });
+
+  it('linked group has both boneIds and meshIds', () => {
+    const groups = makeBodyPartGroups();
+    const linked = groups.find((g) => g.name === 'RightForeArm');
+    expect(linked?.boneIds.length).toBeGreaterThan(0);
+    expect(linked?.meshIds.length).toBeGreaterThan(0);
+  });
+
+  it('mesh-only group has empty boneIds', () => {
+    const groups = makeBodyPartGroups();
+    const meshOnly = groups.find((g) => g.name === 'CalfInRight');
+    expect(meshOnly?.boneIds).toHaveLength(0);
+    expect(meshOnly?.meshIds.length).toBeGreaterThan(0);
+  });
+
+  it('bone-only group has empty meshIds', () => {
+    const groups = makeBodyPartGroups();
+    const boneOnly = groups.find((g) => g.name === 'LeftHandIndex1');
+    expect(boneOnly?.meshIds).toHaveLength(0);
+    expect(boneOnly?.boneIds.length).toBeGreaterThan(0);
   });
 });

@@ -3,7 +3,7 @@ title: "BrewFlow Scene Toolkit — Architecture Reference"
 doc_type: prd
 owner: brewflow-architect
 status: active
-updated: 2026-02-21
+updated: 2026-02-23
 change_history:
   - date: 2026-02-20
     author: brewflow-architect
@@ -14,6 +14,9 @@ change_history:
   - date: 2026-02-21
     author: brewflow-architect
     summary: "Update siteResources format to use type fields instead of id, aligning generator output naming."
+  - date: 2026-02-23
+    author: brewflow-architect
+    summary: "Allow containedModels to define baked target/position/rotation defaults."
 ---
 
 # BrewFlow Scene Toolkit — Architecture Reference
@@ -863,7 +866,7 @@ export const siteResources = {
       path: '/assets/robot.glb', anchorKeys: ['head', 'chest'] },
   ],
   containedModels: [
-    { type: 'Brain', path: '/assets/brain.glb' },
+    { type: 'Brain', path: '/assets/brain.glb', target: 'head', position: [0, 0.05, 0], rotation: [0, 0, 0], scale: 1 },
   ],
   animations: [
     { type: 'ChatRelaxF', path: '/assets/motion/chat-relax-f.glb' },

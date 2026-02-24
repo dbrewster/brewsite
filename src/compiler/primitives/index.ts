@@ -3,6 +3,7 @@
 // New code should import directly from src/elements/{name}/dsl.tsx.
 
 export * from './Background';
+export * from './Camera';
 export * from './Environment';
 export * from './Floor';
 export * from './Lighting';

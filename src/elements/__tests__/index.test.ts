@@ -8,19 +8,24 @@ import {
   environmentTransitionSpec,
   DEFAULT_FLOOR,
   floorTransitionSpec,
+  DEFAULT_CAMERA,
+  cameraTransitionSpec,
   applyLighting,
   applyBackground,
   applyEnvironment,
   applyFloor,
+  applyCamera,
   Lighting,
   Background,
   Environment,
   Floor,
+  Camera,
 } from '../index';
 import { DEFAULT_LIGHTING as DIRECT_LIGHTING, lightingTransitionSpec as DIRECT_LIGHTING_SPEC } from '../lighting';
 import { DEFAULT_BACKGROUND as DIRECT_BACKGROUND, backgroundTransitionSpec as DIRECT_BACKGROUND_SPEC } from '../background';
 import { DEFAULT_ENVIRONMENT as DIRECT_ENVIRONMENT, environmentTransitionSpec as DIRECT_ENVIRONMENT_SPEC } from '../environment';
 import { DEFAULT_FLOOR as DIRECT_FLOOR, floorTransitionSpec as DIRECT_FLOOR_SPEC } from '../floor';
+import { DEFAULT_CAMERA as DIRECT_CAMERA, cameraTransitionSpec as DIRECT_CAMERA_SPEC } from '../camera';
 
 describe('elements index re-exports', () => {
   it('re-exports lighting symbols', () => {
@@ -49,5 +54,12 @@ describe('elements index re-exports', () => {
     expect(floorTransitionSpec).toBe(DIRECT_FLOOR_SPEC);
     expect(typeof applyFloor).toBe('function');
     expect(typeof Floor).toBe('function');
+  });
+
+  it('re-exports camera symbols', () => {
+    expect(DEFAULT_CAMERA).toBe(DIRECT_CAMERA);
+    expect(cameraTransitionSpec).toBe(DIRECT_CAMERA_SPEC);
+    expect(typeof applyCamera).toBe('function');
+    expect(typeof Camera).toBe('function');
   });
 });

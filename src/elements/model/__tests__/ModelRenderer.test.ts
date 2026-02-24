@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
 import { ModelRenderer } from '../ModelRenderer';
 import { createDefaultModelInstanceState } from '../compile';
@@ -63,6 +63,29 @@ describe('ModelRenderer', () => {
     expect(mat.roughness).toBeCloseTo(0.9);
   });
 
+  it('treats disabled model as fully transparent', () => {
+    const scene = new THREE.Scene();
+    const renderer = new ModelRenderer(scene);
+
+    const group = new THREE.Group();
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial({ color: '#00ff00', metalness: 0.5, roughness: 0.5 }),
+    );
+    mesh.name = 'Body';
+    group.add(mesh);
+
+    (renderer as any).ingestModel(group, []);
+
+    const state = buildState();
+    state.model.enabled = false;
+    renderer.apply(state);
+
+    const mat = mesh.material as THREE.MeshStandardMaterial;
+    expect(mat.opacity).toBeCloseTo(0);
+    expect(mesh.visible).toBe(false);
+  });
+
   it('returns bone world positions', () => {
     const scene = new THREE.Scene();
     const renderer = new ModelRenderer(scene);
@@ -82,6 +105,114 @@ describe('ModelRenderer', () => {
     expect(head?.[0]).toBeCloseTo(5);
     expect(head?.[1]).toBeCloseTo(6);
     expect(head?.[2]).toBeCloseTo(7);
+  });
+
+  it('uses meshId field for material overrides on linked components', () => {
+    const scene = new THREE.Scene();
+    const renderer = new ModelRenderer(scene);
+
+    const group = new THREE.Group();
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial({ color: '#ffffff' }),
+    );
+    mesh.name = 'FOREARM_RIGHT';
+    group.add(mesh);
+    (renderer as any).ingestModel(group, []);
+
+    const state: SceneModelInstanceState = {
+      ...createDefaultModelInstanceState('primary', identity),
+      model: {
+        ...createDefaultModelInstanceState('primary', identity).model,
+        bodyPartOverrides: {
+          // Linked component: key is canonical name, meshId routes to actual mesh
+          RightForeArm: {
+            color: '#ff0000',
+            meshId: 'FOREARM_RIGHT',
+            boneId: 'mixamorigRightForeArm',
+          },
+        },
+      },
+    };
+
+    renderer.apply(state);
+
+    const mat = mesh.material as THREE.MeshStandardMaterial;
+    expect(mat.color.getHexString()).toBe('ff0000');
+  });
+
+  it('skips material application for bone-only entries (no warning spam)', () => {
+    const scene = new THREE.Scene();
+    const renderer = new ModelRenderer(scene);
+
+    const group = new THREE.Group();
+    // Add a bone — note: no mesh named 'mixamorigHead'
+    const bone = new THREE.Bone();
+    bone.name = 'mixamorigHead';
+    group.add(bone);
+    (renderer as any).ingestModel(group, []);
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const state: SceneModelInstanceState = {
+      ...createDefaultModelInstanceState('primary', identity),
+      model: {
+        ...createDefaultModelInstanceState('primary', identity).model,
+        bodyPartOverrides: {
+          // Bone-only identity entry — should NOT trigger a warning
+          'mixamorigHead': { targetKind: 'bone' },
+        },
+      },
+    };
+
+    renderer.apply(state);
+
+    expect(warnSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining('[ModelRenderer] missing mesh'),
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('uses boneId field for pose overrides on linked components', () => {
+    const scene = new THREE.Scene();
+    const renderer = new ModelRenderer(scene);
+
+    const group = new THREE.Group();
+    const bone = new THREE.Bone();
+    bone.name = 'mixamorigRightForeArm';
+    bone.position.set(0, 0, 0);
+    bone.rotation.set(0, 0, 0);
+    group.add(bone);
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(),
+      new THREE.MeshStandardMaterial(),
+    );
+    mesh.name = 'FOREARM_RIGHT';
+    group.add(mesh);
+    (renderer as any).ingestModel(group, []);
+
+    const state: SceneModelInstanceState = {
+      ...createDefaultModelInstanceState('primary', identity),
+      model: {
+        ...createDefaultModelInstanceState('primary', identity).model,
+        bodyPartOverrides: {
+          RightForeArm: {
+            color: '#00ff00',
+            boneId: 'mixamorigRightForeArm',
+            meshId: 'FOREARM_RIGHT',
+            pose: { rotate: { yawPct: 0.5 } },
+          },
+        },
+      },
+    };
+
+    renderer.apply(state);
+
+    // The bone should have its rotation modified via pose override
+    expect(bone.rotation.y).toBeCloseTo(0.5);
+    // The mesh should have its color updated via meshId routing
+    const mat = mesh.material as THREE.MeshStandardMaterial;
+    expect(mat.color.getHexString()).toBe('00ff00');
   });
 
   it('attaches contained model parts to anchors with overrides', () => {

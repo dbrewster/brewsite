@@ -144,6 +144,83 @@ describe('model compile helpers', () => {
   });
 });
 
+describe('blendBodyOverrides preserves boneId/meshId routing metadata', () => {
+  it('interpolate preserves boneId and meshId on matched keys', () => {
+    // blendBodyOverrides is exercised through modelTransitionSpec.interpolate
+    const from: SceneModel = {
+      scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true,
+      bodyPartOverrides: {
+        RightForeArm: {
+          color: '#ff0000',
+          opacity: 1,
+          boneId: 'mixamorigRightForeArm',
+          meshId: 'FOREARM_RIGHT',
+        },
+      },
+    };
+    const to: SceneModel = {
+      scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true,
+      bodyPartOverrides: {
+        RightForeArm: {
+          color: '#0000ff',
+          opacity: 0.5,
+          boneId: 'mixamorigRightForeArm',
+          meshId: 'FOREARM_RIGHT',
+        },
+      },
+    };
+    const result = modelTransitionSpec.interpolate(from, to, makeT({ tFull: 0.5 }));
+    const part = result.bodyPartOverrides?.RightForeArm;
+    expect(part?.boneId).toBe('mixamorigRightForeArm');
+    expect(part?.meshId).toBe('FOREARM_RIGHT');
+    // opacity blends from 1 → 0.5
+    expect(part?.opacity).toBeCloseTo(0.75);
+  });
+
+  it('enter (prev-only) preserves boneId and meshId during exit', () => {
+    const from: SceneModel = {
+      scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true,
+      bodyPartOverrides: {
+        RightForeArm: {
+          opacity: 1,
+          boneId: 'mixamorigRightForeArm',
+          meshId: 'FOREARM_RIGHT',
+        },
+      },
+    };
+    const to: SceneModel = {
+      scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true,
+      bodyPartOverrides: {},
+    };
+    const result = modelTransitionSpec.interpolate(from, to, makeT({ tExit: 0.5 }));
+    const part = result.bodyPartOverrides?.RightForeArm;
+    expect(part?.boneId).toBe('mixamorigRightForeArm');
+    expect(part?.meshId).toBe('FOREARM_RIGHT');
+    expect((part?.opacity ?? 0)).toBeGreaterThan(0);
+  });
+
+  it('enter (next-only) preserves boneId and meshId on enter', () => {
+    const from: SceneModel = {
+      scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true,
+      bodyPartOverrides: {},
+    };
+    const to: SceneModel = {
+      scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true,
+      bodyPartOverrides: {
+        RightForeArm: {
+          opacity: 1,
+          boneId: 'mixamorigRightForeArm',
+          meshId: 'FOREARM_RIGHT',
+        },
+      },
+    };
+    const result = modelTransitionSpec.enter(to, makeT({ tEnter: 0.5 }));
+    const part = result.bodyPartOverrides?.RightForeArm;
+    expect(part?.boneId).toBe('mixamorigRightForeArm');
+    expect(part?.meshId).toBe('FOREARM_RIGHT');
+  });
+});
+
 describe('model transition specs', () => {
   it('modelTransitionSpec.exit hides model at end of exit', () => {
     const model: SceneModel = {
@@ -154,7 +231,8 @@ describe('model transition specs', () => {
     };
     const result = modelTransitionSpec.exit(model, 1);
     expect(result.enabled).toBe(false);
-    expect(result.scale).toBeLessThan(0.01);
+    expect(result.opacity ?? 1).toBeLessThan(0.01);
+    expect(result.scale).toBeCloseTo(1);
   });
 
   it('modelTransitionSpec.interpolate blends parts and subparts', () => {
@@ -508,7 +586,7 @@ describe('model transition specs', () => {
       animation: { enabled: true, weight: 1 },
     };
     const result = playbackTransitionSpec.interpolate(from, to, makeT({ tFull: 0 }));
-    expect(result.animation.enabled).toBe(false);
+    expect(result.animation.enabled).toBe(true);
   });
 
   it('playbackTransitionSpec.interpolate defaults animation enabled to false', () => {

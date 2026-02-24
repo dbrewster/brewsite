@@ -15,6 +15,7 @@ import { clipMetaFromManifest, assertManifestValid } from '../elements/model/met
 import type { AssetManifest } from '../elements/model/metadata';
 import { clearCache } from '../compiler/sceneTrackCache';
 import { SceneMetaWidget } from './SceneMetaWidget';
+import { clearRegistry } from '../compiler/registry';
 
 export type ScenePlayerProps = {
   sceneGroup: SceneGroup;
@@ -35,6 +36,30 @@ export type ScenePlayerProps = {
 export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
   const [manifest, setManifest] = useState<AssetManifest | null>(null);
   const [loadError, setLoadError] = useState<Error | null>(null);
+  const [hmrVersion, setHmrVersion] = useState(0);
+
+  useEffect(() => {
+    const hot = (import.meta as ImportMeta & { hot?: { on?: (event: string, cb: () => void) => void; off?: (event: string, cb: () => void) => void } }).hot;
+    if (!hot) return undefined;
+    const handler = () => {
+      const debug = (window as unknown as { __robotRuntimeDebug?: { forceReloadOnHmr?: boolean } }).__robotRuntimeDebug;
+      if (debug?.forceReloadOnHmr) {
+        window.location.reload();
+        return;
+      }
+      clearRegistry();
+      clearCache();
+      setHmrVersion((version) => version + 1);
+    };
+    if (typeof hot.on === 'function') {
+      hot.on('vite:beforeUpdate', handler);
+    }
+    return () => {
+      if (typeof hot.off === 'function') {
+        hot.off('vite:beforeUpdate', handler);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -61,7 +86,7 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
 
   const widgetRegistry = useMemo(
     () => props.widgetSetup(manifest),
-    [manifest, props.widgetSetup],
+    [manifest],
   );
 
   useEffect(() => {
@@ -98,6 +123,9 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
   const annotations = engine.frameState.tick?.annotationPrimitives ?? [];
   const labels = engine.frameState.tick?.labelPrimitives ?? [];
   const showPlaceholder = props.placeholder && engine.frameState.tickIndex < 0;
+  const debugOverlayEnabled =
+    typeof window !== 'undefined' &&
+    (window as unknown as { __robotRuntimeDebug?: { overlay?: boolean } }).__robotRuntimeDebug?.overlay;
 
   if (!isBrowser) {
     return (props.placeholder ?? null) as ReactElement | null;
@@ -115,7 +143,34 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
                   {props.placeholder}
                 </div>
               )}
-              <EngineScrollRegion engine={engine}>
+              {debugOverlayEnabled && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: 12,
+                    background: 'rgba(0,0,0,0.7)',
+                    color: '#fff',
+                    fontSize: 12,
+                    padding: '8px 10px',
+                    borderRadius: 6,
+                    pointerEvents: 'none',
+                    zIndex: 5,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  <div>tickIndex: {engine.frameState.tickIndex}</div>
+                  <div>sceneId: {engine.frameState.sceneId || '(none)'}</div>
+                  <div>sceneIndex: {engine.frameState.sceneIndex}</div>
+                  <div>sceneProgress: {engine.frameState.sceneProgress.toFixed(3)}</div>
+                  <div>progress: {engine.progress.toFixed(3)}</div>
+                  <div>driverReady: {String(engine.debug?.driverReady)}</div>
+                  <div>assetsReady: {String(engine.debug?.assetsReady)}</div>
+                  <div>sceneTrackTicks: {engine.debug?.sceneTrackTicks ?? 0}</div>
+                  <div>viewport: {engine.debug?.viewport.width}×{engine.debug?.viewport.height}</div>
+                </div>
+              )}
+              <EngineScrollRegion key={hmrVersion} engine={engine}>
                 <>
                   {annotations.map((annotation) => (
                     <AnnotationItem key={annotation.id} annotation={annotation} />

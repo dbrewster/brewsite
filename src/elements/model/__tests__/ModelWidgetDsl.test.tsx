@@ -124,6 +124,90 @@ describe('ModelWidget DSL handler', () => {
   });
 
   // Base-state merging is not part of the snapshot compiler model.
+
+  it('flat PoseProps (yawPct direct) compile to correct AxisRotation', () => {
+    const widget = new ModelWidget({
+      widgetId: 'bot-pose',
+      modelMeta: {
+        type: 'bot',
+        glb: '/bot.glb',
+        bones: ['mixamorig:RightForeArm'],
+        meshes: ['FOREARM_RIGHT'],
+        anchorTargets: {},
+        identity,
+      },
+      clipMeta: [],
+    });
+    const registry = new WidgetRegistry().register(widget);
+
+    const tree = (
+      <Scene id="scene-flat-pose">
+        <ModelRouter id="bot-pose" type="bot">
+          <BodyPart
+            id="RightForeArm"
+            boneId="mixamorigRightForeArm"
+            meshId="FOREARM_RIGHT"
+            color="#ff0000"
+          >
+            <Pose yawPct={0.3} pitchPct={0.1} />
+          </BodyPart>
+        </ModelRouter>
+      </Scene>
+    );
+
+    const { frame } = resolveSceneFromDsl(tree, makeContext(), registry);
+    const state = frame.widgets['bot-pose'] as SceneModelInstanceState;
+    const part = state.model.bodyPartOverrides?.RightForeArm;
+
+    // Flat props compiled to rotate
+    expect(part?.pose?.rotate?.yawPct).toBeCloseTo(0.3);
+    expect(part?.pose?.rotate?.pitchPct).toBeCloseTo(0.1);
+    // meshId and boneId should be on the override
+    expect(part?.boneId).toBe('mixamorigRightForeArm');
+    expect(part?.meshId).toBe('FOREARM_RIGHT');
+    expect(part?.color).toBe('#ff0000');
+  });
+
+  it('linked component (boneId+meshId) populates both fields in the override', () => {
+    const widget = new ModelWidget({
+      widgetId: 'bot-linked',
+      modelMeta: {
+        type: 'bot',
+        glb: '/bot.glb',
+        bones: ['mixamorig:LeftHand'],
+        meshes: ['HAND_LEFT'],
+        anchorTargets: {},
+        identity,
+      },
+      clipMeta: [],
+    });
+    const registry = new WidgetRegistry().register(widget);
+
+    const tree = (
+      <Scene id="scene-linked">
+        <ModelRouter id="bot-linked" type="bot">
+          <BodyPart
+            id="LeftHand"
+            boneId="mixamorigLeftHand"
+            meshId="HAND_LEFT"
+            opacity={0.5}
+          >
+            <Pose rollPct={0.2} zPct={0.1} />
+          </BodyPart>
+        </ModelRouter>
+      </Scene>
+    );
+
+    const { frame } = resolveSceneFromDsl(tree, makeContext(), registry);
+    const state = frame.widgets['bot-linked'] as SceneModelInstanceState;
+    const part = state.model.bodyPartOverrides?.LeftHand;
+
+    expect(part?.boneId).toBe('mixamorigLeftHand');
+    expect(part?.meshId).toBe('HAND_LEFT');
+    expect(part?.opacity).toBeCloseTo(0.5);
+    expect(part?.pose?.rotate?.rollPct).toBeCloseTo(0.2);
+    expect(part?.pose?.translate?.zPct).toBeCloseTo(0.1);
+  });
 });
 
 describe('ModelWidget runtime helpers', () => {

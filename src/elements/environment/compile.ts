@@ -8,9 +8,8 @@ import { blendNumber, transitionT } from '../../compiler/transitions/transitionT
 
 export const DEFAULT_ENVIRONMENT: SceneEnvironment = {
   enabled: false,
-  url: undefined,
-  preset: undefined,
   intensity: 1,
+  source: undefined,
 };
 
 export const environmentTransitionSpec: ElementTransitionSpec<SceneEnvironment> = {
@@ -41,8 +40,7 @@ export const environmentTransitionSpec: ElementTransitionSpec<SceneEnvironment> 
         ? true
         : (t > 0 && toState.enabled) || (t < 1 && fromState.enabled);
       frames[i]!.state.widgets[widgetId] = {
-        url: t < 0.5 ? fromState.url : toState.url,
-        preset: t < 0.5 ? fromState.preset : toState.preset,
+        source: t < 0.5 ? fromState.source : toState.source,
         enabled,
         intensity: blendNumber(fromState.intensity, toState.intensity, t),
       };

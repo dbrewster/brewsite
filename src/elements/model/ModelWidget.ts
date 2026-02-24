@@ -35,6 +35,9 @@ import {compileAnimation, createDefaultModelInstanceState, instanceTransitionSpe
 import type {AssetManifest, ModelMeta} from './metadata';
 import type {AnimationProps, BodyPartByIdProps, ContainedModelProps, ModelPartProps, ModelProps, MotionProps, PlaybackProps, PoseProps, SubpartProps,} from './dsl';
 import {Animation, BodyPart, BodyParts, ContainedModel, ModelPart, ModelRouter, Motion, Playback, Pose, Subpart,} from './dsl';
+import type {LabelProps} from '../../labels/dsl';
+import {Label} from '../../labels/dsl';
+import type {LabelResolved} from '../../labels/types';
 import {ModelRenderer} from './ModelRenderer';
 
 export type ModelWidgetConfig = {
@@ -52,6 +55,7 @@ type ModelAuthoredFlags = {
     scale?: boolean;
     position?: boolean;
     rotation?: boolean;
+    opacity?: boolean;
     metalness?: boolean;
     roughness?: boolean;
   };
@@ -90,6 +94,7 @@ const applyBodyPartToOverrides = (
   overrides: BodyPartOverrideMap,
   ctx: SceneSnapshotContext,
   helpers: CompileHelpers,
+  pushLabel: (label: LabelResolved) => void,
 ): void => {
   const bpProps = helpers.resolveObjectValues(el.props as BodyPartByIdProps, ctx);
   const id = bpProps.id;
@@ -105,7 +110,10 @@ const applyBodyPartToOverrides = (
     ...(bpProps.metalness !== undefined ? { metalness: bpProps.metalness as number } : {}),
     ...(bpProps.roughness !== undefined ? { roughness: bpProps.roughness as number } : {}),
     ...(bpProps.targetKind ? { targetKind: bpProps.targetKind } : {}),
+    ...(bpProps.boneId !== undefined ? { boneId: bpProps.boneId as string } : {}),
+    ...(bpProps.meshId !== undefined ? { meshId: bpProps.meshId as string } : {}),
   };
+  const labelTarget = (bpProps.boneId as string | undefined) ?? (bpProps.meshId as string | undefined) ?? id;
   // <Pose> nested inside <BodyPart> contributes a per-part pose override
   const bpChildren = helpers.collectChildren(el);
   for (const c of bpChildren) {
@@ -116,10 +124,26 @@ const applyBodyPartToOverrides = (
       if (poseProps.reset) {
         override.poseReset = true;
       }
+      // Merge nested object props and flat shorthand props into rotate/translate
+      const rotate: AxisRotation = { ...(poseProps.rotate as AxisRotation | undefined) };
+      if (poseProps.yawPct !== undefined) rotate.yawPct = poseProps.yawPct as number;
+      if (poseProps.pitchPct !== undefined) rotate.pitchPct = poseProps.pitchPct as number;
+      if (poseProps.rollPct !== undefined) rotate.rollPct = poseProps.rollPct as number;
+      const translate: AxisTranslation = { ...(poseProps.translate as AxisTranslation | undefined) };
+      if (poseProps.xPct !== undefined) translate.xPct = poseProps.xPct as number;
+      if (poseProps.yPct !== undefined) translate.yPct = poseProps.yPct as number;
+      if (poseProps.zPct !== undefined) translate.zPct = poseProps.zPct as number;
       override.pose = {
-        ...(poseProps.rotate !== undefined ? { rotate: poseProps.rotate as AxisRotation } : {}),
-        ...(poseProps.translate !== undefined ? { translate: poseProps.translate as AxisTranslation } : {}),
+        ...(Object.keys(rotate).length > 0 ? { rotate } : {}),
+        ...(Object.keys(translate).length > 0 ? { translate } : {}),
       };
+    } else if (isComponent(ce, Label)) {
+      const labelProps = helpers.resolveObjectValues(ce.props as LabelProps, ctx);
+      if (!labelProps?.id || !labelProps?.text) continue;
+      pushLabel({
+        ...(labelProps as LabelProps),
+        targetPartId: labelTarget,
+      });
     }
   }
   overrides[id] = override;
@@ -132,19 +156,24 @@ const applyBodyPartToOverrides = (
 const applyModelPartToOverrides = (
   el: ReactElement,
   parts: Record<string, ModelPartSpec>,
+  baseParts: Record<string, ModelPartSpec>,
   ctx: SceneSnapshotContext,
   helpers: CompileHelpers,
+  pushLabel: (label: LabelResolved) => void,
 ): void => {
   const props = helpers.resolveObjectValues(el.props as ModelPartProps, ctx);
   if (!props?.id) return;
   const id = props.id as string;
   const reset = (props.reset as boolean | undefined) === true;
-  const base = (reset ? { id } : parts[id] ?? { id }) as Partial<ModelPartSpec>;
+  const base = (reset ? { id } : parts[id] ?? baseParts[id] ?? { id }) as Partial<ModelPartSpec>;
 
   let modelId = base.modelId;
   let position = base.position;
   let rotation = base.rotation;
   let scale = base.scale;
+  let containedPosition = base.containedPosition;
+  let containedRotation = base.containedRotation;
+  let containedScale = base.containedScale;
   const subparts: Partial<Record<string, ModelSubpartSpec>> = { ...(base.subparts ?? {}) };
 
   const children = helpers.collectChildren(el);
@@ -154,9 +183,11 @@ const applyModelPartToOverrides = (
     if (isComponent(ce, ContainedModel)) {
       const contained = helpers.resolveObjectValues(ce.props as ContainedModelProps, ctx);
       if (contained.modelId) modelId = contained.modelId as string;
-      if (contained.position) position = contained.position as Vec3;
-      if (contained.rotation) rotation = contained.rotation as Vec3;
-      if (contained.scale !== undefined) scale = contained.scale as number;
+      if (contained.position) containedPosition = contained.position as Vec3;
+      if (contained.rotation) containedRotation = contained.rotation as Vec3;
+      if (contained.scale !== undefined) containedScale = contained.scale as number;
+    } else if (isComponent(ce, Label)) {
+      throw new Error('<Label> must be nested under <Subpart> or <BodyPart>.');
     } else if (isComponent(ce, Subpart)) {
       const subProps = helpers.resolveObjectValues(ce.props as SubpartProps, ctx);
       if (!subProps.id) continue;
@@ -169,6 +200,19 @@ const applyModelPartToOverrides = (
         roughness: subProps.roughness as number | undefined,
         reset: subProps.reset as boolean | undefined,
       };
+      const subChildren = helpers.collectChildren(ce);
+      for (const sc of subChildren) {
+        if (!isValidElement(sc)) continue;
+        const se = sc as ReactElement;
+        if (isComponent(se, Label)) {
+          const labelProps = helpers.resolveObjectValues(se.props as LabelProps, ctx);
+          if (!labelProps?.id || !labelProps?.text) continue;
+          pushLabel({
+            ...(labelProps as LabelProps),
+            targetPartId: `${id}:${subProps.id}`,
+          });
+        }
+      }
     }
   }
 
@@ -177,6 +221,7 @@ const applyModelPartToOverrides = (
   const resolvedPosition = props.position as Vec3 | undefined;
   const resolvedRotation = props.rotation as Vec3 | undefined;
   const resolvedScale = props.scale as number | undefined;
+  const resolvedSpace = props.space as ModelPartSpec['space'] | undefined;
   const nextPosition = resolvedPosition ?? position;
   const nextRotation = resolvedRotation ?? rotation;
   const nextScale = resolvedScale ?? scale;
@@ -186,11 +231,15 @@ const applyModelPartToOverrides = (
     id,
     ...(reset ? { reset: true } : {}),
     ...(props.anchor !== undefined ? { anchor: props.anchor } : {}),
+    ...(resolvedSpace !== undefined ? { space: resolvedSpace } : {}),
     ...(resolvedEnabled !== undefined ? { enabled: resolvedEnabled } : {}),
     ...(resolvedOpacity !== undefined ? { opacity: resolvedOpacity } : {}),
     ...(nextPosition !== undefined ? { position: nextPosition } : {}),
     ...(nextRotation !== undefined ? { rotation: nextRotation } : {}),
     ...(nextScale !== undefined ? { scale: nextScale } : {}),
+    ...(containedPosition !== undefined ? { containedPosition } : {}),
+    ...(containedRotation !== undefined ? { containedRotation } : {}),
+    ...(containedScale !== undefined ? { containedScale } : {}),
     ...(modelId !== undefined ? { modelId } : {}),
     ...(subparts && Object.keys(subparts).length > 0 ? { subparts } : {}),
   } as ModelPartSpec;
@@ -207,7 +256,10 @@ const mergeBodyPartOverrides = (
     const base = override.reset ? {} : (result[id] ?? {});
     let pose = base.pose;
     if (override.poseReset) {
-      pose = undefined;
+      pose = {
+        rotate: { yawPct: 0, pitchPct: 0, rollPct: 0 },
+        translate: { xPct: 0, yPct: 0, zPct: 0 },
+      };
     }
     if (override.pose) {
       pose = { ...(pose ?? {}), ...override.pose };
@@ -276,6 +328,9 @@ const mergeModelParts = (
             : typeof prevPart?.scale === 'number'
               ? prevPart.scale
               : 1,
+      containedPosition: override.containedPosition ?? (reset ? undefined : prevPart?.containedPosition),
+      containedRotation: override.containedRotation ?? (reset ? undefined : prevPart?.containedRotation),
+      containedScale: override.containedScale ?? (reset ? undefined : prevPart?.containedScale),
       opacity: override.opacity ?? (reset ? undefined : prevPart?.opacity),
       metalness: override.metalness ?? (reset ? undefined : prevPart?.metalness),
       roughness: override.roughness ?? (reset ? undefined : prevPart?.roughness),
@@ -311,6 +366,7 @@ export class ModelWidget
   readonly defaultState: SceneModelInstanceState;
   readonly transitionSpec = instanceTransitionSpec;
   readonly DslComponent = ModelRouter;
+  readonly useDefaultStateWhenAbsent = false;
   private anchorTargets: Record<string, string> = {};
 
   readonly childDslComponents: readonly {
@@ -364,6 +420,7 @@ export class ModelWidget
           scale: hasProp(rawProps as Record<string, unknown>, 'scale'),
           position: hasProp(rawProps as Record<string, unknown>, 'position'),
           rotation: hasProp(rawProps as Record<string, unknown>, 'rotation'),
+          opacity: hasProp(rawProps as Record<string, unknown>, 'opacity'),
           metalness: hasProp(rawProps as Record<string, unknown>, 'metalness'),
           roughness: hasProp(rawProps as Record<string, unknown>, 'roughness'),
         },
@@ -381,6 +438,7 @@ export class ModelWidget
       let motionCustomAnimations: CustomAnimation[] | undefined =
         base.playback.motion.customAnimations;
       let animation: SceneAnimation = { ...base.playback.animation };
+      const baseModelParts: Record<string, ModelPartSpec> = base.model.parts ?? {};
       const modelParts: Record<string, ModelPartSpec> = {};
 
       // Walk immediate children of <Model>
@@ -396,14 +454,14 @@ export class ModelWidget
         if (!isValidElement(bpChild)) continue;
         const bpEl = bpChild as ReactElement;
         if (isComponent(bpEl, BodyPart)) {
-          applyBodyPartToOverrides(bpEl, bodyPartOverrides, ctx, helpers);
+          applyBodyPartToOverrides(bpEl, bodyPartOverrides, ctx, helpers, api.pushLabel);
         }
       }
     } else if (isComponent(el, BodyPart)) {
       // Direct <BodyPart id="..."> child of <Model>
-      applyBodyPartToOverrides(el, bodyPartOverrides, ctx, helpers);
+      applyBodyPartToOverrides(el, bodyPartOverrides, ctx, helpers, api.pushLabel);
     } else if (isComponent(el, ModelPart)) {
-      applyModelPartToOverrides(el, modelParts, ctx, helpers);
+      applyModelPartToOverrides(el, modelParts, baseModelParts, ctx, helpers, api.pushLabel);
     } else if (isComponent(el, Playback)) {
       const pbRaw = el.props as PlaybackProps;
       if (helpers.resolveValue(pbRaw.reset, ctx)) {
@@ -439,6 +497,7 @@ export class ModelWidget
                 clipEnd: hasProp(animRaw as Record<string, unknown>, 'clipEnd'),
                 clipRangeUnit: hasProp(animRaw as Record<string, unknown>, 'clipRangeUnit'),
                 clipRepeat: hasProp(animRaw as Record<string, unknown>, 'clipRepeat'),
+                clipStartOnce: hasProp(animRaw as Record<string, unknown>, 'clipStartOnce'),
                 holdStartPose: hasProp(animRaw as Record<string, unknown>, 'holdStartPose'),
                 allowRotation: hasProp(animRaw as Record<string, unknown>, 'allowRotation'),
                 allowScale: hasProp(animRaw as Record<string, unknown>, 'allowScale'),
@@ -488,6 +547,7 @@ export class ModelWidget
           ...(props.scale !== undefined ? { scale: props.scale as number } : {}),
           ...(props.position !== undefined ? { position: props.position as Vec3 } : {}),
           ...(props.rotation !== undefined ? { rotation: props.rotation as Vec3 } : {}),
+          ...(props.opacity !== undefined ? { opacity: props.opacity as number } : {}),
           ...(props.metalness !== undefined ? { metalness: props.metalness as number } : {}),
           ...(props.roughness !== undefined ? { roughness: props.roughness as number } : {}),
           bodyPartOverrides,
@@ -525,7 +585,7 @@ export class ModelWidget
     next: SceneModelInstanceState | undefined,
   ): SceneModelInstanceState | undefined {
     if (!prev && !next) return undefined;
-    if (!next) return prev ?? this.defaultState;
+    if (!next) return undefined;
     const authored = (next as SceneModelInstanceState & { __authored?: ModelAuthoredFlags }).__authored;
     const base = prev ?? this.defaultState;
 
@@ -538,6 +598,7 @@ export class ModelWidget
       ...(authored?.model?.scale ? { scale: next.model.scale } : {}),
       ...(authored?.model?.position ? { position: next.model.position } : {}),
       ...(authored?.model?.rotation ? { rotation: next.model.rotation } : {}),
+      ...(authored?.model?.opacity ? { opacity: next.model.opacity } : {}),
       ...(authored?.model?.metalness ? { metalness: next.model.metalness } : {}),
       ...(authored?.model?.roughness ? { roughness: next.model.roughness } : {}),
       bodyPartOverrides: mergeBodyPartOverrides(base.model.bodyPartOverrides, next.model.bodyPartOverrides),
@@ -567,6 +628,7 @@ export class ModelWidget
       ...(authored?.playback?.animation?.clipEnd ? { clipEnd: next.playback.animation.clipEnd } : {}),
       ...(authored?.playback?.animation?.clipRangeUnit ? { clipRangeUnit: next.playback.animation.clipRangeUnit } : {}),
       ...(authored?.playback?.animation?.clipRepeat ? { clipRepeat: next.playback.animation.clipRepeat } : {}),
+      ...(authored?.playback?.animation?.clipStartOnce ? { clipStartOnce: next.playback.animation.clipStartOnce } : {}),
       ...(authored?.playback?.animation?.holdStartPose ? { holdStartPose: next.playback.animation.holdStartPose } : {}),
       ...(authored?.playback?.animation?.allowRotation ? { allowRotation: next.playback.animation.allowRotation } : {}),
       ...(authored?.playback?.animation?.allowScale ? { allowScale: next.playback.animation.allowScale } : {}),
@@ -613,7 +675,11 @@ export class ModelWidget
     }
 
     this.anchorTargets = modelMeta.anchorTargets ?? {};
-    await this.renderer.loadGlb(modelMeta.glb, { anchorTargets: this.anchorTargets, manifest: typedManifest });
+    await this.renderer.loadGlb(modelMeta.glb, {
+      anchorTargets: this.anchorTargets,
+      manifest: typedManifest,
+      footOffsetY: modelMeta.footOffsetY ?? 0,
+    });
     this.isLoaded = true;
   }
 
@@ -651,5 +717,9 @@ export class ModelWidget
 
   getBoneWorldPositions(): Map<string, [number, number, number]> {
     return this.renderer?.getBoneWorldPositions() ?? new Map();
+  }
+
+  getTargetColors(): Map<string, string> {
+    return this.renderer?.getTargetColors() ?? new Map();
   }
 }

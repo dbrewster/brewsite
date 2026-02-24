@@ -81,6 +81,39 @@ describe('ModelWidget', () => {
     expect(names).toContain('Pose');
   });
 
+  it('mergeSnapshot propagates boneId/meshId from authored state', () => {
+    const widget = new ModelWidget(makeConfig('bot'));
+    const base = widget.defaultState;
+    const prev: SceneModelInstanceState = {
+      ...base,
+      model: {
+        ...base.model,
+        bodyPartOverrides: {},
+      },
+    };
+    const next: SceneModelInstanceState & { __authored?: unknown } = {
+      ...base,
+      model: {
+        ...base.model,
+        bodyPartOverrides: {
+          RightForeArm: {
+            color: '#ff0000',
+            boneId: 'mixamorigRightForeArm',
+            meshId: 'FOREARM_RIGHT',
+          },
+        },
+      },
+      playback: base.playback,
+      __authored: {},
+    };
+
+    const merged = widget.mergeSnapshot(prev, next) as SceneModelInstanceState;
+    const part = merged.model.bodyPartOverrides?.RightForeArm;
+    expect(part?.boneId).toBe('mixamorigRightForeArm');
+    expect(part?.meshId).toBe('FOREARM_RIGHT');
+    expect(part?.color).toBe('#ff0000');
+  });
+
   it('mergeSnapshot persists body part overrides until reset', () => {
     const widget = new ModelWidget(makeConfig('bot'));
     const base = widget.defaultState;

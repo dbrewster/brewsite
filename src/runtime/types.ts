@@ -76,6 +76,12 @@ export type RuntimeDriver = {
    */
   getBoneWorldPositions(): Map<string, [number, number, number]>;
 
+  /**
+   * Returns color lookups for target ids (mesh/bone/subpart names).
+   * Used by label styling when target-color is requested.
+   */
+  getTargetColors(): Map<string, string>;
+
   /** Returns the SceneTrackTick sampled during the most recent tick(). */
   getCurrentTick(): SceneTrackTick | null;
 

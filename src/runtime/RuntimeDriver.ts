@@ -193,6 +193,21 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     return result;
   }
 
+  getTargetColors(): Map<string, string> {
+    const result = new Map<string, string>();
+    for (const renderable of this.widgetRegistry.getRenderables()) {
+      const provider = renderable as unknown as {
+        getTargetColors?: () => Map<string, string>;
+      };
+      if (typeof provider.getTargetColors === 'function') {
+        for (const [key, color] of provider.getTargetColors()) {
+          result.set(key, color);
+        }
+      }
+    }
+    return result;
+  }
+
   getCurrentTick(): SceneTrackTick | null {
     return this.currentTick;
   }

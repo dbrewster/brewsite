@@ -2,14 +2,14 @@ import type { ReactElement } from 'react';
 import type { SceneSnapshotContext } from './sceneTypes';
 import type { SceneFrame } from './sceneTrackTypes';
 import type { AnnotationDefinition } from '../annotations/annotationTypes';
-import type { LabelDefinition } from '../labels/types';
+import type { LabelResolved } from '../labels/types';
 import type { JsonPrimitive } from '../widget/VariableStore';
 
 export type CompileApi = {
   context: SceneSnapshotContext;
   state: SceneFrame;
   pushAnnotation: (annotation: AnnotationDefinition) => void;
-  pushLabel: (label: LabelDefinition) => void;
+  pushLabel: (label: LabelResolved) => void;
   setWidgetState: (widgetId: string, state: unknown) => void;
   setSceneMeta: (meta: { id?: string; meta?: Record<string, JsonPrimitive> }) => void;
 };

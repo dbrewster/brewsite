@@ -6,7 +6,7 @@
  */
 
 import type { ClipMeta } from '../../compiler/sceneTrackTypes';
-import type { SceneModelInstanceState } from './types';
+import type { SceneModelInstanceState, Vec3 } from './types';
 
 export const ASSET_MANIFEST_VERSION = 2;
 
@@ -15,6 +15,24 @@ export const ASSET_MANIFEST_VERSION = 2;
 /** Maps anchor key names (e.g. 'head', 'chest') to actual bone node names in the GLB. */
 export type AnchorTargetMap = Record<string, string>;
 
+// ─── Body Part Groups ────────────────────────────────────────────────────────
+
+/**
+ * A canonical grouping of one or more bones and meshes representing the same
+ * anatomical part. Derived at build time by the generator's bag-of-words
+ * matching algorithm (side + base tokens). Used to produce unified DSL
+ * components that route material overrides to the mesh and pose overrides to
+ * the bone in a single authoring expression.
+ */
+export type BodyPartGroup = {
+  /** PascalCase component name derived from the bone display name (e.g. 'RightForeArm'). */
+  name: string;
+  /** GLB bone/joint names for pose overrides (may be empty). */
+  boneIds: string[];
+  /** GLB mesh names for material overrides (may be empty). */
+  meshIds: string[];
+};
+
 // ─── Model Metadata ─────────────────────────────────────────────────────────
 
 export type ModelMeta = {
@@ -22,9 +40,16 @@ export type ModelMeta = {
   glb: string;
   bones: string[];
   meshes: string[];
+  /** Y offset from model origin to feet (scale=1). Computed at build time with optional delta. */
+  footOffsetY?: number;
   /** Resolved anchor targets: anchorKey → bone node name. */
   anchorTargets: AnchorTargetMap;
   bodyParts?: string[];
+  /**
+   * Canonical body part groups built by the generator's bag-of-words matching.
+   * Optional for backward compatibility — old manifests may omit this field.
+   */
+  bodyPartGroups?: BodyPartGroup[];
   /** Fully specified default state derived from the GLB. */
   identity: SceneModelInstanceState;
 };
@@ -35,6 +60,10 @@ export type ContainedModelMeta = {
   type: string;
   glb: string;
   subparts: string[];
+  target?: string;
+  position?: Vec3;
+  rotation?: Vec3;
+  scale?: number;
 };
 
 // ─── Animation Entry ─────────────────────────────────────────────────────────

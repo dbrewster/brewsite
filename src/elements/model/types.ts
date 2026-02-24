@@ -36,6 +36,9 @@ export type ModelPartSpec = {
   position: Vec3;
   rotation: Vec3;
   scale: number;
+  containedPosition?: Vec3;
+  containedRotation?: Vec3;
+  containedScale?: number;
   opacity?: number;
   metalness?: number;
   roughness?: number;
@@ -57,6 +60,10 @@ export type BodyPartOverride = {
   pose?: PoseGroup;
   reset?: boolean;
   poseReset?: boolean;
+  /** When set, this mesh ID is used for material lookups instead of the map key. */
+  meshId?: string;
+  /** When set, this bone ID is used for pose lookups instead of the map key. */
+  boneId?: string;
 };
 
 export type BodyPartOverrideMap = Partial<Record<string, BodyPartOverride>>;
@@ -160,6 +167,12 @@ export type SceneAnimation = {
   clipEnd?: number;
   clipRangeUnit?: 'seconds' | 'percent';
   clipRepeat?: boolean;
+  /** Apply a start offset only the first time this animation starts. */
+  clipStartOnce?: number;
+  /** Trim N keyframes from the start of each track before playback. */
+  trimStartKeyframes?: number;
+  /** Trim N keyframes from the end of each track before playback. */
+  trimEndKeyframes?: number;
   holdStartPose?: boolean;
   allowRotation?: boolean;
   allowScale?: boolean;
@@ -180,6 +193,7 @@ export type SceneModel = {
   scale: number;
   position: Vec3;
   rotation: Vec3;
+  opacity?: number;
   metalness?: number;
   roughness?: number;
   bodyPartOverrides?: BodyPartOverrideMap;

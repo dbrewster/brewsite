@@ -39,6 +39,16 @@ export class LightingWidget
   readonly transitionSpec = lightingTransitionSpec;
   // Cast: LightingProps.children is more restrictive than Partial<SceneLighting>.children?.
   readonly DslComponent = Lighting as React.ComponentType<Partial<SceneLighting> & { children?: React.ReactNode }>;
+  readonly useDefaultStateWhenAbsent = false;
+
+  mergeSnapshot(
+    prev: SceneLighting | undefined,
+    next: SceneLighting | undefined,
+  ): SceneLighting | undefined {
+    if (!prev && !next) return undefined;
+    if (!next) return prev;
+    return { ...prev, ...next } as SceneLighting;
+  }
 
   // Pattern A: child components build up SceneLighting state — not independent widgets.
   readonly childDslComponents: IDslComposite['childDslComponents'] = [

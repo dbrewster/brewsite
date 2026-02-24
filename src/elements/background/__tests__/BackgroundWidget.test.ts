@@ -132,4 +132,15 @@ describe('BackgroundWidget', () => {
       widget.apply({ opacity: 0 }, makeRenderContext());
     }).not.toThrow();
   });
+
+  it('setDomElement(null) clears the DOM element reference', () => {
+    const el = makeFakeDomElement();
+    widget.setDomElement(el);
+    widget.apply({ opacity: 0.4 }, makeRenderContext());
+    widget.setDomElement(null);
+    expect(() => {
+      widget.apply({ opacity: 0.9 }, makeRenderContext());
+    }).not.toThrow();
+    expect((el.style as unknown as Record<string, string>)['opacity']).toBe('0.4');
+  });
 });

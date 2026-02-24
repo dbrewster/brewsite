@@ -133,12 +133,20 @@ export const Scene = (_props: {
 }) => null;
 Scene.displayName = 'Scene';
 
-registerNode(Scene, (node, api, helpers) => {
+const sceneRootHandler: NodeHandler = (node, api, helpers) => {
   helpers.compileChildren(node, api);
   const props = node.props as { id?: string; meta?: Record<string, JsonPrimitive> };
   if (props.id) api.setSceneMeta({ id: props.id });
   if (props.meta) api.setSceneMeta({ meta: props.meta });
-});
+};
+
+export const ensureSceneRegistry = (): void => {
+  if (!getNodeHandler(Scene)) {
+    registerNode(Scene, sceneRootHandler);
+  }
+};
+
+registerNode(Scene, sceneRootHandler);
 
 export const resolveSceneFromDsl = (
   tree: unknown,

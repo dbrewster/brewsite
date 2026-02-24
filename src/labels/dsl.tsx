@@ -4,7 +4,6 @@
 
 import { registerNode } from '../compiler/registry';
 import type { LabelDefinition } from './types';
-import type { CompileApi, CompileHelpers } from '../compiler/sceneDslTypes';
 
 export type LabelProps = LabelDefinition & { children?: never };
 
@@ -15,11 +14,10 @@ export const Labels = (_props: { children?: React.ReactNode }) => null;
 Labels.displayName = 'Labels';
 
 // Register handlers
-registerNode(Label, (node, api) => {
-  const props = node.props as LabelDefinition;
-  api.pushLabel(props);
+registerNode(Label, () => {
+  throw new Error('<Label> must be nested under <BodyPart> or <Subpart>.');
 });
 
-registerNode(Labels, (node, api, helpers) => {
-  helpers.compileChildren(node, api);
+registerNode(Labels, () => {
+  throw new Error('<Labels> is not supported. Use <Label> under <BodyPart> or <Subpart>.');
 });

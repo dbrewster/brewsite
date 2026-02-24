@@ -182,6 +182,556 @@
         "mixamorig:Spine1",
         "mixamorig:Spine2"
       ],
+      "bodyPartGroups": [
+        {
+          "name": "Head",
+          "boneIds": [
+            "mixamorigHead"
+          ],
+          "meshIds": [
+            "HEAD"
+          ]
+        },
+        {
+          "name": "Hips",
+          "boneIds": [
+            "mixamorigHips"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftArm",
+          "boneIds": [
+            "mixamorigLeftArm"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftFoot",
+          "boneIds": [
+            "mixamorigLeftFoot"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftForeArm",
+          "boneIds": [
+            "mixamorigLeftForeArm"
+          ],
+          "meshIds": [
+            "FOREARM__LEFT"
+          ]
+        },
+        {
+          "name": "LeftHand",
+          "boneIds": [
+            "mixamorigLeftHand"
+          ],
+          "meshIds": [
+            "HAND_LEFT"
+          ]
+        },
+        {
+          "name": "LeftHandIndex1",
+          "boneIds": [
+            "mixamorigLeftHandIndex1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftHandIndex2",
+          "boneIds": [
+            "mixamorigLeftHandIndex2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftHandIndex3",
+          "boneIds": [
+            "mixamorigLeftHandIndex3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftHandMiddle1",
+          "boneIds": [
+            "mixamorigLeftHandMiddle1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftHandMiddle2",
+          "boneIds": [
+            "mixamorigLeftHandMiddle2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftHandMiddle3",
+          "boneIds": [
+            "mixamorigLeftHandMiddle3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftHandPinky1",
+          "boneIds": [
+            "mixamorigLeftHandPinky1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftHandPinky2",
+          "boneIds": [
+            "mixamorigLeftHandPinky2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftHandPinky3",
+          "boneIds": [
+            "mixamorigLeftHandPinky3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftHandRing1",
+          "boneIds": [
+            "mixamorigLeftHandRing1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftHandRing2",
+          "boneIds": [
+            "mixamorigLeftHandRing2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftHandRing3",
+          "boneIds": [
+            "mixamorigLeftHandRing3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftHandThumb1",
+          "boneIds": [
+            "mixamorigLeftHandThumb1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftHandThumb2",
+          "boneIds": [
+            "mixamorigLeftHandThumb2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftHandThumb3",
+          "boneIds": [
+            "mixamorigLeftHandThumb3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftLeg",
+          "boneIds": [
+            "mixamorigLeftLeg"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftShoulder",
+          "boneIds": [
+            "mixamorigLeftShoulder"
+          ],
+          "meshIds": [
+            "SHOULDER__LEFT"
+          ]
+        },
+        {
+          "name": "LeftToeBase",
+          "boneIds": [
+            "mixamorigLeftToeBase"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LeftUpLeg",
+          "boneIds": [
+            "mixamorigLeftUpLeg"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "Neck",
+          "boneIds": [
+            "mixamorigNeck"
+          ],
+          "meshIds": [
+            "NECK"
+          ]
+        },
+        {
+          "name": "RightArm",
+          "boneIds": [
+            "mixamorigRightArm"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightFoot",
+          "boneIds": [
+            "mixamorigRightFoot"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightForeArm",
+          "boneIds": [
+            "mixamorigRightForeArm"
+          ],
+          "meshIds": [
+            "FOREARM_RIGHT"
+          ]
+        },
+        {
+          "name": "RightHand",
+          "boneIds": [
+            "mixamorigRightHand"
+          ],
+          "meshIds": [
+            "HAND_RIGHT"
+          ]
+        },
+        {
+          "name": "RightHandIndex1",
+          "boneIds": [
+            "mixamorigRightHandIndex1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightHandIndex2",
+          "boneIds": [
+            "mixamorigRightHandIndex2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightHandIndex3",
+          "boneIds": [
+            "mixamorigRightHandIndex3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightHandMiddle1",
+          "boneIds": [
+            "mixamorigRightHandMiddle1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightHandMiddle2",
+          "boneIds": [
+            "mixamorigRightHandMiddle2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightHandMiddle3",
+          "boneIds": [
+            "mixamorigRightHandMiddle3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightHandPinky1",
+          "boneIds": [
+            "mixamorigRightHandPinky1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightHandPinky2",
+          "boneIds": [
+            "mixamorigRightHandPinky2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightHandPinky3",
+          "boneIds": [
+            "mixamorigRightHandPinky3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightHandRing1",
+          "boneIds": [
+            "mixamorigRightHandRing1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightHandRing2",
+          "boneIds": [
+            "mixamorigRightHandRing2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightHandRing3",
+          "boneIds": [
+            "mixamorigRightHandRing3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightHandThumb1",
+          "boneIds": [
+            "mixamorigRightHandThumb1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightHandThumb2",
+          "boneIds": [
+            "mixamorigRightHandThumb2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightHandThumb3",
+          "boneIds": [
+            "mixamorigRightHandThumb3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightLeg",
+          "boneIds": [
+            "mixamorigRightLeg"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightShoulder",
+          "boneIds": [
+            "mixamorigRightShoulder"
+          ],
+          "meshIds": [
+            "SHOULDER_RIGHT"
+          ]
+        },
+        {
+          "name": "RightToeBase",
+          "boneIds": [
+            "mixamorigRightToeBase"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RightUpLeg",
+          "boneIds": [
+            "mixamorigRightUpLeg"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "Spine",
+          "boneIds": [
+            "mixamorigSpine"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "Spine1",
+          "boneIds": [
+            "mixamorigSpine1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "Spine2",
+          "boneIds": [
+            "mixamorigSpine2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "CalfInRight",
+          "boneIds": [],
+          "meshIds": [
+            "CALF_IN_RIGHT"
+          ]
+        },
+        {
+          "name": "CalfLeft",
+          "boneIds": [],
+          "meshIds": [
+            "CALF_LEFT"
+          ]
+        },
+        {
+          "name": "CalfRight",
+          "boneIds": [],
+          "meshIds": [
+            "CALF_RIGHT"
+          ]
+        },
+        {
+          "name": "CalfInLeft",
+          "boneIds": [],
+          "meshIds": [
+            "CALF__IN_LEFT"
+          ]
+        },
+        {
+          "name": "Chest",
+          "boneIds": [],
+          "meshIds": [
+            "CHEST"
+          ]
+        },
+        {
+          "name": "Eyes",
+          "boneIds": [],
+          "meshIds": [
+            "EYES"
+          ]
+        },
+        {
+          "name": "FootBackRight",
+          "boneIds": [],
+          "meshIds": [
+            "FOOT_BACK_RIGHT"
+          ]
+        },
+        {
+          "name": "FootBackLeft",
+          "boneIds": [],
+          "meshIds": [
+            "FOOT_BACK__LEFT"
+          ]
+        },
+        {
+          "name": "FootFrontLeft",
+          "boneIds": [],
+          "meshIds": [
+            "FOOT_FRONT_LEFT"
+          ]
+        },
+        {
+          "name": "FootFrontRight",
+          "boneIds": [],
+          "meshIds": [
+            "FOOT_FRONT_RIGHT"
+          ]
+        },
+        {
+          "name": "FootJointLeft",
+          "boneIds": [],
+          "meshIds": [
+            "FOOT_JOINT_LEFT"
+          ]
+        },
+        {
+          "name": "FootJointRight",
+          "boneIds": [],
+          "meshIds": [
+            "FOOT_JOINT_RIGHT"
+          ]
+        },
+        {
+          "name": "ForearmJointLeft",
+          "boneIds": [],
+          "meshIds": [
+            "FOREARM_JOINT_LEFT"
+          ]
+        },
+        {
+          "name": "ForearmJointRight",
+          "boneIds": [],
+          "meshIds": [
+            "FOREARM_JOINT_RIGHT"
+          ]
+        },
+        {
+          "name": "HipLegJointRight",
+          "boneIds": [],
+          "meshIds": [
+            "HIP_LEG_JOINT_RIGHT"
+          ]
+        },
+        {
+          "name": "HipLegJointLeft",
+          "boneIds": [],
+          "meshIds": [
+            "HIP_LEG__JOINT__LEFT"
+          ]
+        },
+        {
+          "name": "HipSpine",
+          "boneIds": [],
+          "meshIds": [
+            "HIP_SPINE"
+          ]
+        },
+        {
+          "name": "ShoulderOutLeft",
+          "boneIds": [],
+          "meshIds": [
+            "SHOULDER_OUT_LEFT"
+          ]
+        },
+        {
+          "name": "ShoulderOutRight",
+          "boneIds": [],
+          "meshIds": [
+            "SHOULDER_OUT_RIGHT"
+          ]
+        },
+        {
+          "name": "ShoulderInRight",
+          "boneIds": [],
+          "meshIds": [
+            "SHOULDER__IN__RIGHT"
+          ]
+        },
+        {
+          "name": "ThighJointLeft",
+          "boneIds": [],
+          "meshIds": [
+            "THIGH_JOINT_LEFT"
+          ]
+        },
+        {
+          "name": "ThighJointRight",
+          "boneIds": [],
+          "meshIds": [
+            "THIGH_JOINT_RIGHT"
+          ]
+        },
+        {
+          "name": "ThighRight",
+          "boneIds": [],
+          "meshIds": [
+            "THIGH_RIGHT"
+          ]
+        },
+        {
+          "name": "ThighLeft",
+          "boneIds": [],
+          "meshIds": [
+            "THIGH__LEFT"
+          ]
+        }
+      ],
       "identity": {
         "model": {
           "scale": 0.1,
@@ -197,353 +747,205 @@
           ],
           "enabled": true,
           "bodyPartOverrides": {
-            "mixamorig:Head": {
-              "targetKind": "bone"
+            "Head": {
+              "color": "#ffffff",
+              "metalness": 0.400000005960464,
+              "roughness": 0.0623782873153687,
+              "meshId": "HEAD",
+              "boneId": "mixamorigHead"
             },
-            "mixamorig:Hips": {
-              "targetKind": "bone"
+            "LeftForeArm": {
+              "color": "#ffffff",
+              "metalness": 0.400000005960464,
+              "roughness": 0.0691819414496422,
+              "meshId": "FOREARM__LEFT",
+              "boneId": "mixamorigLeftForeArm"
             },
-            "mixamorig:LeftArm": {
-              "targetKind": "bone"
+            "LeftHand": {
+              "color": "#ffffff",
+              "metalness": 0.400000005960464,
+              "roughness": 0.0441510789096355,
+              "meshId": "HAND_LEFT",
+              "boneId": "mixamorigLeftHand"
             },
-            "mixamorig:LeftFoot": {
-              "targetKind": "bone"
+            "LeftShoulder": {
+              "color": "#ffffff",
+              "metalness": 0.400000005960464,
+              "roughness": 0.0441510789096355,
+              "meshId": "SHOULDER__LEFT",
+              "boneId": "mixamorigLeftShoulder"
             },
-            "mixamorig:LeftForeArm": {
-              "targetKind": "bone"
+            "Neck": {
+              "color": "#ffffff",
+              "metalness": 0.400000005960464,
+              "roughness": 0.0623782873153687,
+              "meshId": "NECK",
+              "boneId": "mixamorigNeck"
             },
-            "mixamorig:LeftHand": {
-              "targetKind": "bone"
+            "RightForeArm": {
+              "color": "#ffffff",
+              "metalness": 0.400000005960464,
+              "roughness": 0.0691819414496422,
+              "meshId": "FOREARM_RIGHT",
+              "boneId": "mixamorigRightForeArm"
             },
-            "mixamorig:LeftHandIndex1": {
-              "targetKind": "bone"
+            "RightHand": {
+              "color": "#ffffff",
+              "metalness": 0.400000005960464,
+              "roughness": 0.0441510789096355,
+              "meshId": "HAND_RIGHT",
+              "boneId": "mixamorigRightHand"
             },
-            "mixamorig:LeftHandIndex2": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftHandIndex3": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftHandMiddle1": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftHandMiddle2": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftHandMiddle3": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftHandPinky1": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftHandPinky2": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftHandPinky3": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftHandRing1": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftHandRing2": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftHandRing3": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftHandThumb1": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftHandThumb2": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftHandThumb3": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftLeg": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftShoulder": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftToeBase": {
-              "targetKind": "bone"
-            },
-            "mixamorig:LeftUpLeg": {
-              "targetKind": "bone"
-            },
-            "mixamorig:Neck": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightArm": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightFoot": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightForeArm": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightHand": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightHandIndex1": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightHandIndex2": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightHandIndex3": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightHandMiddle1": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightHandMiddle2": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightHandMiddle3": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightHandPinky1": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightHandPinky2": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightHandPinky3": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightHandRing1": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightHandRing2": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightHandRing3": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightHandThumb1": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightHandThumb2": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightHandThumb3": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightLeg": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightShoulder": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightToeBase": {
-              "targetKind": "bone"
-            },
-            "mixamorig:RightUpLeg": {
-              "targetKind": "bone"
-            },
-            "mixamorig:Spine": {
-              "targetKind": "bone"
-            },
-            "mixamorig:Spine1": {
-              "targetKind": "bone"
-            },
-            "mixamorig:Spine2": {
-              "targetKind": "bone"
+            "RightShoulder": {
+              "color": "#ffffff",
+              "metalness": 0.400000005960464,
+              "roughness": 0.0441510789096355,
+              "meshId": "SHOULDER_RIGHT",
+              "boneId": "mixamorigRightShoulder"
             },
             "CALF_IN_RIGHT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "CALF_LEFT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "CALF_RIGHT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "CALF__IN_LEFT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "CHEST": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0623782873153687
+              "roughness": 0.0623782873153687,
+              "targetKind": "mesh"
             },
             "EYES": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0623782873153687
+              "roughness": 0.0623782873153687,
+              "targetKind": "mesh"
             },
             "FOOT_BACK_RIGHT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "FOOT_BACK__LEFT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "FOOT_FRONT_LEFT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "FOOT_FRONT_RIGHT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "FOOT_JOINT_LEFT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "FOOT_JOINT_RIGHT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "FOREARM_JOINT_LEFT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0691819414496422
+              "roughness": 0.0691819414496422,
+              "targetKind": "mesh"
             },
             "FOREARM_JOINT_RIGHT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0691819414496422
-            },
-            "FOREARM_RIGHT": {
-              "targetKind": "mesh",
-              "color": "#ffffff",
-              "metalness": 0.400000005960464,
-              "roughness": 0.0691819414496422
-            },
-            "FOREARM__LEFT": {
-              "targetKind": "mesh",
-              "color": "#ffffff",
-              "metalness": 0.400000005960464,
-              "roughness": 0.0691819414496422
-            },
-            "HAND_LEFT": {
-              "targetKind": "mesh",
-              "color": "#ffffff",
-              "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
-            },
-            "HAND_RIGHT": {
-              "targetKind": "mesh",
-              "color": "#ffffff",
-              "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
-            },
-            "HEAD": {
-              "targetKind": "mesh",
-              "color": "#ffffff",
-              "metalness": 0.400000005960464,
-              "roughness": 0.0623782873153687
+              "roughness": 0.0691819414496422,
+              "targetKind": "mesh"
             },
             "HIP_LEG_JOINT_RIGHT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "HIP_LEG__JOINT__LEFT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "HIP_SPINE": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.242535620927811
-            },
-            "NECK": {
-              "targetKind": "mesh",
-              "color": "#ffffff",
-              "metalness": 0.400000005960464,
-              "roughness": 0.0623782873153687
+              "roughness": 0.242535620927811,
+              "targetKind": "mesh"
             },
             "SHOULDER_OUT_LEFT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "SHOULDER_OUT_RIGHT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
-            },
-            "SHOULDER_RIGHT": {
-              "targetKind": "mesh",
-              "color": "#ffffff",
-              "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "SHOULDER__IN__RIGHT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
-            },
-            "SHOULDER__LEFT": {
-              "targetKind": "mesh",
-              "color": "#ffffff",
-              "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "THIGH_JOINT_LEFT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "THIGH_JOINT_RIGHT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "THIGH_RIGHT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             },
             "THIGH__LEFT": {
-              "targetKind": "mesh",
               "color": "#ffffff",
               "metalness": 0.400000005960464,
-              "roughness": 0.0441510789096355
+              "roughness": 0.0441510789096355,
+              "targetKind": "mesh"
             }
           }
         },

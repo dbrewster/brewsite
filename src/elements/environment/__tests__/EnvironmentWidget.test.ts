@@ -25,14 +25,17 @@ describe('EnvironmentWidget', () => {
   it('defaultState is disabled with intensity 1', () => {
     expect(widget.defaultState.enabled).toBe(false);
     expect(widget.defaultState.intensity).toBe(1);
-    expect(widget.defaultState.url).toBeUndefined();
-    expect(widget.defaultState.preset).toBeUndefined();
+    expect(widget.defaultState.source).toBeUndefined();
   });
 
   // ─── transitionSpec — pure blend functions ────────────────────────────────
 
   it('transitionSpec.exit disables when tExit=1 and fades intensity', () => {
-    const state: SceneEnvironment = { enabled: true, intensity: 1, url: '/env.hdr' };
+    const state: SceneEnvironment = {
+      enabled: true,
+      intensity: 1,
+      source: { type: 'hdr', url: '/env.hdr' },
+    };
     const frames = makeFrameSlice(2);
     widget.transitionSpec.exit(frames, widget.widgetId, state);
     const result = frames[1]!.state.widgets[widget.widgetId] as SceneEnvironment;
@@ -49,27 +52,23 @@ describe('EnvironmentWidget', () => {
     expect(result.intensity).toBeGreaterThan(0);
   });
 
-  it('transitionSpec.interpolate blends intensity and switches url/preset at midpoint', () => {
+  it('transitionSpec.interpolate blends intensity and switches source at midpoint', () => {
     const from: SceneEnvironment = {
       enabled: true,
       intensity: 0.2,
-      url: '/from.hdr',
-      preset: 'room',
+      source: { type: 'hdr', url: '/from.hdr' },
     };
     const to: SceneEnvironment = {
       enabled: true,
       intensity: 0.8,
-      url: '/to.hdr',
-      preset: 'room',
+      source: { type: 'hdr', url: '/to.hdr' },
     };
     const frames = makeFrameSlice(5);
     widget.transitionSpec.interpolate(frames, widget.widgetId, from, to);
     const at25 = frames[1]!.state.widgets[widget.widgetId] as SceneEnvironment;
     const at75 = frames[3]!.state.widgets[widget.widgetId] as SceneEnvironment;
-    expect(at25.url).toBe('/from.hdr');
-    expect(at75.url).toBe('/to.hdr');
-    expect(at25.preset).toBe('room');
-    expect(at75.preset).toBe('room');
+    expect(at25.source && 'url' in at25.source ? at25.source.url : '').toBe('/from.hdr');
+    expect(at75.source && 'url' in at75.source ? at75.source.url : '').toBe('/to.hdr');
     expect(at25.intensity).toBeGreaterThan(0.2);
     expect(at25.intensity).toBeLessThan(0.8);
   });

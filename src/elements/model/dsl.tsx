@@ -21,6 +21,7 @@ export type ModelProps = {
   scale?: number | ((context: unknown) => number);
   position?: [number, number, number] | ((context: unknown) => [number, number, number]);
   rotation?: [number, number, number] | ((context: unknown) => [number, number, number]);
+  opacity?: number | ((context: unknown) => number);
   metalness?: number | ((context: unknown) => number);
   roughness?: number | ((context: unknown) => number);
   enabled?: boolean | ((context: unknown) => boolean);
@@ -42,17 +43,29 @@ export type BodyPartProps = {
 export type BodyPartByIdProps = BodyPartProps & {
   id: string;
   targetKind?: 'bone' | 'mesh';
+  /** When set, this bone ID is used for pose lookups (enables unified bone+mesh component). */
+  boneId?: string;
+  /** When set, this mesh ID is used for material lookups (enables unified bone+mesh component). */
+  meshId?: string;
 };
 
 export type PoseProps = {
   rotate?: AxisRotation | ((context: unknown) => AxisRotation);
   translate?: AxisTranslation | ((context: unknown) => AxisTranslation);
   reset?: boolean | ((context: unknown) => boolean);
+  // Flat shortcuts — merged into rotate/translate objects at compilation
+  yawPct?: number | ((context: unknown) => number);
+  pitchPct?: number | ((context: unknown) => number);
+  rollPct?: number | ((context: unknown) => number);
+  xPct?: number | ((context: unknown) => number);
+  yPct?: number | ((context: unknown) => number);
+  zPct?: number | ((context: unknown) => number);
 };
 
 export type ModelPartProps = {
   id: string;
   anchor?: string;
+  space?: 'local' | 'world';
   enabled?: boolean | ((context: unknown) => boolean);
   opacity?: number | ((context: unknown) => number);
   scale?: number | ((context: unknown) => number);
@@ -78,6 +91,7 @@ export type SubpartProps = {
   metalness?: number | ((context: unknown) => number);
   roughness?: number | ((context: unknown) => number);
   reset?: boolean | ((context: unknown) => boolean);
+  children?: ReactNode;
 };
 
 export type PlaybackProps = {
@@ -107,6 +121,8 @@ export type AnimationProps = {
   clipEnd?: number;
   clipRangeUnit?: 'seconds' | 'percent';
   clipRepeat?: boolean;
+  /** Apply a start offset only the first time this animation starts. */
+  clipStartOnce?: number;
   holdStartPose?: boolean;
   allowRotation?: boolean;
   allowScale?: boolean;

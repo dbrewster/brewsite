@@ -33,7 +33,7 @@ describe('AnnotationPositioner', () => {
       },
     ];
 
-    positioner.update(annotations, [], makeCamera(), new Map());
+    positioner.update(annotations, [], makeCamera(), new Map(), new Map());
 
     expect((el.style as unknown as Record<string, string>).transform).toBe('translate(10px, 40px)');
   });
@@ -60,7 +60,7 @@ describe('AnnotationPositioner', () => {
 
     const bones = new Map<string, [number, number, number]>([['head', [0, 0, 0]]]);
 
-    positioner.update(annotations, [], makeCamera(), bones);
+    positioner.update(annotations, [], makeCamera(), bones, new Map());
 
     expect((el.style as unknown as Record<string, string>).transform).toBe('translate(50px, 50px)');
   });
@@ -95,7 +95,7 @@ describe('AnnotationPositioner', () => {
       },
     ];
 
-    positioner.update(annotations, labels, makeCamera(), new Map([['head', [0, 0, 0]]]));
+    positioner.update(annotations, labels, makeCamera(), new Map([['head', [0, 0, 0]]]), new Map());
 
     expect((annotationEl.style as unknown as Record<string, string>).display).toBe('none');
     expect((labelEl.style as unknown as Record<string, string>).display).toBe('none');
@@ -117,7 +117,7 @@ describe('AnnotationPositioner', () => {
         style: {},
       },
     ];
-    positioner.update(annotations, [], makeCamera(), new Map());
+    positioner.update(annotations, [], makeCamera(), new Map(), new Map());
     expect((el.style as unknown as Record<string, string>).transform).toBeUndefined();
   });
 
@@ -138,7 +138,7 @@ describe('AnnotationPositioner', () => {
         style: {},
       },
     ];
-    positioner.update(annotations, [], makeCamera(), new Map());
+    positioner.update(annotations, [], makeCamera(), new Map(), new Map());
     expect((el.style as unknown as Record<string, string>).transform).toBeUndefined();
   });
 
@@ -150,7 +150,7 @@ describe('AnnotationPositioner', () => {
     const labels: LabelResolved[] = [
       { id: 'l', text: 'Label', targetPartId: 'head', enabled: true },
     ];
-    positioner.update([], labels, makeCamera(), new Map([['head', [0, 0, 0]]]));
+    positioner.update([], labels, makeCamera(), new Map([['head', [0, 0, 0]]]), new Map());
     expect((labelEl.style as unknown as Record<string, string>).display).toBe('');
   });
 });

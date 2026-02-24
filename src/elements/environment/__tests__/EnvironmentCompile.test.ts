@@ -12,7 +12,11 @@ describe('environment compile + render', () => {
   });
 
   it('transitionSpec.exit disables and fades intensity', () => {
-    const state: SceneEnvironment = { enabled: true, intensity: 1, url: '/env.hdr' };
+    const state: SceneEnvironment = {
+      enabled: true,
+      intensity: 1,
+      source: { type: 'hdr', url: '/env.hdr' },
+    };
     const frames = makeFrameSlice(2);
     environmentTransitionSpec.exit(frames, 'env', state);
     const result = frames[1]!.state.widgets['env'] as SceneEnvironment;
@@ -20,18 +24,28 @@ describe('environment compile + render', () => {
     expect(result.intensity).toBeCloseTo(0);
   });
 
-  it('transitionSpec.interpolate switches url at midpoint', () => {
-    const from: SceneEnvironment = { enabled: true, intensity: 0.2, url: '/from.hdr' };
-    const to: SceneEnvironment = { enabled: true, intensity: 0.8, url: '/to.hdr' };
+  it('transitionSpec.interpolate switches source at midpoint', () => {
+    const from: SceneEnvironment = {
+      enabled: true,
+      intensity: 0.2,
+      source: { type: 'hdr', url: '/from.hdr' },
+    };
+    const to: SceneEnvironment = {
+      enabled: true,
+      intensity: 0.8,
+      source: { type: 'hdr', url: '/to.hdr' },
+    };
     const frames = makeFrameSlice(5);
     environmentTransitionSpec.interpolate(frames, 'env', from, to);
     const at25 = frames[1]!.state.widgets['env'] as SceneEnvironment;
     const at75 = frames[3]!.state.widgets['env'] as SceneEnvironment;
-    expect(at25.url).toBe('/from.hdr');
-    expect(at75.url).toBe('/to.hdr');
+    expect(at25.source?.type).toBe('hdr');
+    expect(at75.source?.type).toBe('hdr');
+    expect(at25.source && 'url' in at25.source ? at25.source.url : '').toBe('/from.hdr');
+    expect(at75.source && 'url' in at75.source ? at75.source.url : '').toBe('/to.hdr');
   });
 
-  it('applyEnvironment is a no-op stub that does not throw', () => {
+  it('applyEnvironment does not throw without a renderer', () => {
     const ctx = makeInitContext();
     const state: SceneEnvironment = { enabled: true, intensity: 1 };
     expect(() => applyEnvironment(state, { scene: ctx.scene })).not.toThrow();

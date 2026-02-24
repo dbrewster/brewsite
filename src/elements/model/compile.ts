@@ -36,23 +36,21 @@ const OPAQUE_OPACITY = 1;
  */
 export const resolveClipRangeSeconds = (animation: SceneAnimation, clipDuration: number) => {
   const clipStart = animation.clipStart ?? 0;
-  const rawClipEnd = animation.clipEnd ?? clipDuration;
+  const rawClipEnd = animation.clipEnd ?? 0;
   const clipRangeUnit = animation.clipRangeUnit ?? 'seconds';
   let startSeconds = clipStart;
-  let endSeconds = rawClipEnd;
+  let endSeconds = clipDuration - rawClipEnd;
   if (clipRangeUnit === 'percent') {
     const startPct = clipStart > 1 ? clipStart / 100 : clipStart;
     const endPct = rawClipEnd > 1 ? rawClipEnd / 100 : rawClipEnd;
     startSeconds = startPct * clipDuration;
-    endSeconds = endPct * clipDuration;
+    endSeconds = clipDuration - endPct * clipDuration;
   }
   const span = Math.max(1e-4, endSeconds - startSeconds);
   return { startSeconds, endSeconds, span };
 };
 
 // ─── Transition helpers ──────────────────────────────────────────────────────
-
-const HIDDEN_MODEL_SCALE = 0.001;
 
 const scaleAxisRotation = (
   value?: { yawPct?: number; pitchPct?: number; rollPct?: number },
@@ -116,14 +114,14 @@ const blendBodyOverrides = (
     const next = to?.[key];
     if (!prev && !next) continue;
     if (prev && next) {
+      const prevOpacity =
+        typeof prev.opacity === 'number' ? prev.opacity : OPAQUE_OPACITY;
+      const nextOpacity =
+        typeof next.opacity === 'number' ? next.opacity : prevOpacity;
       result[key] = {
         ...(prev ?? next),
         ...(next ?? {}),
-        opacity: blendOpacity(
-          typeof prev.opacity === 'number' ? prev.opacity : OPAQUE_OPACITY,
-          typeof next.opacity === 'number' ? next.opacity : OPAQUE_OPACITY,
-          tFull,
-        ),
+        opacity: blendOpacity(prevOpacity, nextOpacity, tFull),
         color: blendColor(prev.color, next.color, tFull) ?? next.color ?? prev.color,
         metalness: blendNumber(prev.metalness, next.metalness, tFull) ?? next.metalness ?? prev.metalness,
         roughness: blendNumber(prev.roughness, next.roughness, tFull) ?? next.roughness ?? prev.roughness,
@@ -226,6 +224,22 @@ const blendParts = (
       const nextRotation = next.rotation ?? prev.rotation ?? [0, 0, 0];
       const prevScale = typeof prev.scale === 'number' ? prev.scale : typeof next.scale === 'number' ? next.scale : 1;
       const nextScale = typeof next.scale === 'number' ? next.scale : typeof prev.scale === 'number' ? prev.scale : 1;
+      const prevContainedPosition = prev.containedPosition ?? next.containedPosition ?? [0, 0, 0];
+      const nextContainedPosition = next.containedPosition ?? prev.containedPosition ?? [0, 0, 0];
+      const prevContainedRotation = prev.containedRotation ?? next.containedRotation ?? [0, 0, 0];
+      const nextContainedRotation = next.containedRotation ?? prev.containedRotation ?? [0, 0, 0];
+      const prevContainedScale =
+        typeof prev.containedScale === 'number'
+          ? prev.containedScale
+          : typeof next.containedScale === 'number'
+            ? next.containedScale
+            : 1;
+      const nextContainedScale =
+        typeof next.containedScale === 'number'
+          ? next.containedScale
+          : typeof prev.containedScale === 'number'
+            ? prev.containedScale
+            : 1;
       const baseEnabled = next.enabled ?? prev.enabled ?? true;
       const opacity = blendOpacity(prev.opacity, next.opacity, tFull);
       result[key] = {
@@ -236,6 +250,9 @@ const blendParts = (
         position: blendVec3(prevPosition, nextPosition, tFull) ?? nextPosition,
         rotation: blendVec3(prevRotation, nextRotation, tFull) ?? nextRotation,
         scale: blendNumber(prevScale, nextScale, tFull) ?? nextScale,
+        containedPosition: blendVec3(prevContainedPosition, nextContainedPosition, tFull) ?? nextContainedPosition,
+        containedRotation: blendVec3(prevContainedRotation, nextContainedRotation, tFull) ?? nextContainedRotation,
+        containedScale: blendNumber(prevContainedScale, nextContainedScale, tFull) ?? nextContainedScale,
         metalness: blendNumber(prev.metalness, next.metalness, tFull) ?? next.metalness ?? prev.metalness,
         roughness: blendNumber(prev.roughness, next.roughness, tFull) ?? next.roughness ?? prev.roughness,
         modelId: next.modelId ?? prev.modelId,
@@ -247,6 +264,9 @@ const blendParts = (
       const prevPosition = prev.position ?? [0, 0, 0];
       const prevRotation = prev.rotation ?? [0, 0, 0];
       const prevScale = typeof prev.scale === 'number' ? prev.scale : 1;
+      const prevContainedPosition = prev.containedPosition ?? [0, 0, 0];
+      const prevContainedRotation = prev.containedRotation ?? [0, 0, 0];
+      const prevContainedScale = typeof prev.containedScale === 'number' ? prev.containedScale : 1;
       const opacity = blendOpacity(prev.opacity, 0, tExit);
       const baseEnabled = prev.enabled ?? true;
       result[key] = {
@@ -256,6 +276,9 @@ const blendParts = (
         position: prevPosition,
         rotation: prevRotation,
         scale: prevScale,
+        containedPosition: prevContainedPosition,
+        containedRotation: prevContainedRotation,
+        containedScale: prevContainedScale,
       };
       continue;
     }
@@ -263,6 +286,9 @@ const blendParts = (
       const nextPosition = next.position ?? [0, 0, 0];
       const nextRotation = next.rotation ?? [0, 0, 0];
       const nextScale = typeof next.scale === 'number' ? next.scale : 1;
+      const nextContainedPosition = next.containedPosition ?? [0, 0, 0];
+      const nextContainedRotation = next.containedRotation ?? [0, 0, 0];
+      const nextContainedScale = typeof next.containedScale === 'number' ? next.containedScale : 1;
       const opacity = blendOpacity(0, next.opacity, tEnter);
       const baseEnabled = next.enabled ?? true;
       result[key] = {
@@ -272,6 +298,9 @@ const blendParts = (
         position: nextPosition,
         rotation: nextRotation,
         scale: nextScale,
+        containedPosition: nextContainedPosition,
+        containedRotation: nextContainedRotation,
+        containedScale: nextContainedScale,
       };
     }
   }
@@ -285,14 +314,16 @@ export const modelTransitionSpec = {
     ...from,
     position: from.position,
     rotation: from.rotation,
-    scale: blendNumber(from.scale, HIDDEN_MODEL_SCALE, t) ?? from.scale,
+    scale: from.scale,
+    opacity: blendOpacity(from.opacity ?? 1, 0, t),
     enabled: t >= 1 ? false : from.enabled,
     bodyPartOverrides: blendBodyOverrides(from.bodyPartOverrides, undefined, t, 0, t),
     parts: blendParts(from.parts, undefined, t, 0, t),
   }),
   enter: (to: SceneModel, t: number): SceneModel => ({
     ...to,
-    scale: blendNumber(HIDDEN_MODEL_SCALE, to.scale, t) ?? to.scale,
+    scale: to.scale,
+    opacity: blendOpacity(0, to.opacity ?? 1, t),
     enabled: t > 0 ? (to.enabled ?? true) : to.enabled,
     bodyPartOverrides: blendBodyOverrides(undefined, to.bodyPartOverrides, 0, t, t),
     parts: blendParts(undefined, to.parts, 0, t, t),
@@ -303,6 +334,7 @@ export const modelTransitionSpec = {
     position: blendVec3(from.position, to.position, t) ?? to.position ?? from.position,
     rotation: blendVec3(from.rotation, to.rotation, t) ?? to.rotation ?? from.rotation,
     scale: blendNumber(from.scale, to.scale, t) ?? to.scale ?? from.scale,
+    opacity: blendOpacity(from.opacity ?? 1, to.opacity ?? 1, t),
     metalness: blendNumber(from.metalness, to.metalness, t) ?? to.metalness ?? from.metalness,
     roughness: blendNumber(from.roughness, to.roughness, t) ?? to.roughness ?? from.roughness,
     bodyPartOverrides: blendBodyOverrides(from.bodyPartOverrides, to.bodyPartOverrides, t, t, t),
@@ -473,7 +505,7 @@ export const playbackTransitionSpec = {
     animation: {
       ...from.animation,
       weight: blendNumber(from.animation.weight ?? 1, 0, t),
-      enabled: (from.animation.enabled ?? false) && t < 1,
+      enabled: from.animation.enabled ?? false,
     },
     motion: from.motion,
   }),
@@ -482,7 +514,7 @@ export const playbackTransitionSpec = {
     animation: {
       ...to.animation,
       weight: blendNumber(0, to.animation.weight ?? 1, t),
-      enabled: (to.animation.enabled ?? false) && t > 0,
+      enabled: to.animation.enabled ?? false,
     },
     motion: to.motion,
   }),
@@ -493,7 +525,7 @@ export const playbackTransitionSpec = {
       ...from.animation,
       ...to.animation,
       weight: blendNumber(from.animation.weight ?? 1, to.animation.weight ?? 1, t),
-      enabled: (to.animation.enabled ?? from.animation.enabled ?? false) && t > 0,
+      enabled: (from.animation.enabled ?? false) || (to.animation.enabled ?? false),
     },
     motion: {
       ...from.motion,

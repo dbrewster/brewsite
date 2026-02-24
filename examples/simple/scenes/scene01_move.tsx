@@ -1,6 +1,6 @@
-import { Scene, Lighting, Ambient, Directional } from '@brewsite/core';
+import {Scene, Lighting, Ambient, Directional, ModelPart, ContainedModel, Label, Subpart} from '@brewsite/core';
 import type { SceneDefinition } from '@brewsite/core';
-import { BodyParts, Pose, Robot } from '../../generated/sceneDsl.generated';
+import {BodyParts, BrainSubparts, Pose, Robot} from '../../generated/sceneDsl.generated';
 
 export const scene01Move: SceneDefinition = {
   id: 'move-left',
@@ -13,7 +13,7 @@ export const scene01Move: SceneDefinition = {
       </Lighting>
       <Robot
         id="robot-left"
-        position={[-18, -12, 0]}
+        position={[-18, -30, 0]}
         rotation={[0, -Math.PI / 2 + .2, 0]}
         scale={0.2}
         metalness={.9}
@@ -23,12 +23,20 @@ export const scene01Move: SceneDefinition = {
           <Robot.Eyes color="#ff00ff" opacity={1}/>
           <Robot.Neck color="#ff0000" opacity={1}>
             <Pose rotate={{
-              yawPct: .2,
               pitchPct: .4
             }}/>
           </Robot.Neck>
-          <Robot.RightForeArm color="#ff0000" opacity={1}/>
+          <Robot.RightForeArm color="#ff0000" opacity={1}>
+          </Robot.RightForeArm>
+          <Robot.Spine2>
+            <Pose rotate={{pitchPct: Math.PI/8}}/>
+          </Robot.Spine2>
+          <Robot.LeftShoulder>
+            <Pose rotate={{pitchPct: Math.PI/8}}/>
+          </Robot.LeftShoulder>
         </BodyParts>
+        <Robot.Brain opacity={1}>
+        </Robot.Brain>
       </Robot>
     </Scene>
   ),

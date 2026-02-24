@@ -50,12 +50,24 @@ export const EngineScrollRegion = ({ engine, className, children }: EngineScroll
           overflow: 'hidden',
         }}
       >
+        <div
+          ref={engine.setBackgroundRef}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 0,
+            backgroundPosition: 'center',
+            backgroundSize: 'cover',
+            backgroundRepeat: 'no-repeat',
+            pointerEvents: 'none',
+          }}
+        />
         <canvas
           ref={engine.setCanvasRef}
-          style={{ width: '100%', height: '100%', display: 'block' }}
+          style={{ width: '100%', height: '100%', display: 'block', position: 'relative', zIndex: 1 }}
         />
         {children && (
-          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 }}>
             {children}
           </div>
         )}

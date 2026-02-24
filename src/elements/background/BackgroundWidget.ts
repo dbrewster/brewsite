@@ -18,6 +18,16 @@ export class BackgroundWidget implements ISceneElement<SceneBackground>, IRender
   readonly defaultState: SceneBackground = DEFAULT_BACKGROUND;
   readonly transitionSpec = backgroundTransitionSpec;
   readonly DslComponent = Background;
+  readonly useDefaultStateWhenAbsent = false;
+
+  mergeSnapshot(
+    prev: SceneBackground | undefined,
+    next: SceneBackground | undefined,
+  ): SceneBackground | undefined {
+    if (!prev && !next) return undefined;
+    if (!next) return prev;
+    return { ...prev, ...next } as SceneBackground;
+  }
 
   /** DOM element for background rendering; set by engine layer after initialization. */
   private domElement: HTMLElement | null = null;

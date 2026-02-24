@@ -1,7 +1,7 @@
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { SceneDefinition } from './sceneTypes';
 import type { SceneFrame, SceneTrack, SceneTrackTick, SceneWindow, SceneFrameDelta, ClipMeta } from './sceneTrackTypes';
-import { resolveSceneFromDsl } from './sceneDslCompiler';
+import { ensureSceneRegistry, resolveSceneFromDsl } from './sceneDslCompiler';
 import { compileAnnotations } from './annotationCompiler';
 import { compileLabels } from './labelCompiler';
 
@@ -77,10 +77,24 @@ const buildDelta = (prev: SceneFrame | undefined, next: SceneFrame): SceneFrameD
 };
 
 export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack => {
+  ensureSceneRegistry();
   const { scenes, widgetRegistry, blockSize } = options;
   const numTransitions = scenes.length - 1;
   const totalFrames = numTransitions * blockSize + 1;
   const tickStep = totalFrames > 1 ? 1 / (totalFrames - 1) : 1;
+
+  const makeDisabledDefault = <T>(state: T): T => {
+    if (!state || typeof state !== 'object') return state;
+    const clone: any =
+      typeof structuredClone === 'function'
+        ? structuredClone(state as object)
+        : JSON.parse(JSON.stringify(state));
+    if ('enabled' in clone) clone.enabled = false;
+    if (clone.model && typeof clone.model === 'object' && 'enabled' in clone.model) {
+      clone.model.enabled = false;
+    }
+    return clone as T;
+  };
 
   // ── Step 1: Evaluate each scene's DSL once at sceneProgress = 0 ─────────────
   // Each snapshot maps widgetId → authored state for widgets present in that scene.
@@ -162,6 +176,9 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
 
     for (const widget of widgetRegistry.getSceneElements()) {
       const { widgetId, defaultState, transitionSpec } = widget;
+      const useDefaultWhenAbsent =
+        (widget as { useDefaultStateWhenAbsent?: boolean }).useDefaultStateWhenAbsent !== false;
+      const absentDefault = useDefaultWhenAbsent ? defaultState : makeDisabledDefault(defaultState);
       const fromState = fromSnap.widgets[widgetId];
       const toState = toSnap.widgets[widgetId];
       const inFrom = fromState !== undefined;
@@ -174,18 +191,19 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
         // Widget leaving — exit in first half, defaultState in second half
         transitionSpec.exit(block.slice(0, mid), widgetId, fromState as never);
         for (let i = mid; i < block.length; i++) {
-          block[i]!.state.widgets[widgetId] = defaultState;
+          block[i]!.state.widgets[widgetId] = absentDefault;
         }
       } else if (inTo) {
-        // Widget arriving — apply incoming scene state in first half, enter in second half
+        // Widget arriving — toState in first half (unless defaults suppressed), enter in second half
+        const firstHalfState = useDefaultWhenAbsent ? toState : absentDefault;
         for (let i = 0; i < mid; i++) {
-          block[i]!.state.widgets[widgetId] = toState as never;
+          block[i]!.state.widgets[widgetId] = firstHalfState as never;
         }
         transitionSpec.enter(block.slice(mid), widgetId, toState as never);
       } else {
-        // Widget absent from both scenes — fill with defaultState
+        // Widget absent from both scenes — fill with disabled default
         for (const frame of block) {
-          frame.state.widgets[widgetId] = defaultState;
+          frame.state.widgets[widgetId] = absentDefault;
         }
       }
     }
@@ -196,8 +214,13 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
   const terminalSnap = snapshots[scenes.length - 1];
   if (terminalTick && terminalSnap) {
     for (const widget of widgetRegistry.getSceneElements()) {
-      terminalTick.state.widgets[widget.widgetId] =
-        terminalSnap.widgets[widget.widgetId] ?? widget.defaultState;
+      const useDefaultWhenAbsent =
+        (widget as { useDefaultStateWhenAbsent?: boolean }).useDefaultStateWhenAbsent !== false;
+      const absentDefault = useDefaultWhenAbsent
+        ? widget.defaultState
+        : makeDisabledDefault(widget.defaultState);
+      const snapState = terminalSnap.widgets[widget.widgetId];
+      terminalTick.state.widgets[widget.widgetId] = snapState ?? absentDefault;
     }
   }
 
@@ -220,17 +243,19 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
   }
 
   // ── Step 6: Compile annotations and labels ───────────────────────────────────
-  // These live on SceneFrame directly and are compiled per-frame from the snapshot.
-  // Labels and annotations are drawn from the active scene's snapshot.
+  // These live on SceneFrame directly and are compiled per-frame from the snapshots.
   const warnOnce = new Set<string>();
   for (const frame of frames) {
-    const snap = snapshots[frame.sceneIndex] ?? snapshots[snapshots.length - 1];
-    if (!snap) continue;
-    if (snap.annotations?.length) {
-      frame.annotationPrimitives = compileAnnotations(frame.state, snap, warnOnce);
+    const isLast = frame.index === totalFrames - 1;
+    const blockIdx = isLast ? snapshots.length - 1 : Math.min(Math.floor(frame.index / blockSize), numTransitions - 1);
+    const fromSnap = snapshots[blockIdx];
+    const toSnap = snapshots[blockIdx + 1];
+    if (!fromSnap) continue;
+    if (fromSnap.annotations?.length || toSnap?.annotations?.length) {
+      frame.annotationPrimitives = compileAnnotations(frame.state, fromSnap, warnOnce);
     }
-    if (snap.labels?.length) {
-      frame.labelPrimitives = compileLabels(snap.labels, { sceneProgress: frame.blockProgress });
+    if (fromSnap.labels?.length || toSnap?.labels?.length) {
+      frame.labelPrimitives = compileLabels(fromSnap.labels, toSnap?.labels, { sceneProgress: frame.blockProgress });
     }
   }
 

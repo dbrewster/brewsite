@@ -6,6 +6,7 @@ import { compileSceneTrack } from '../compiler/sceneTrackCompiler';
 import { buildSceneTrackKey, getCachedTrack, setCachedTrack } from '../compiler/sceneTrackCache';
 import type { SceneTrack, ClipMeta } from '../compiler/sceneTrackTypes';
 import { RuntimeDriverImpl } from '../runtime/RuntimeDriver';
+import { ModelRenderer } from '../elements/model/ModelRenderer';
 import { RuntimeLoop } from '../runtime/RuntimeLoop';
 import { VariableStore } from '../widget/VariableStore';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
@@ -38,7 +39,14 @@ export type UseSceneEngineResult = {
   getGlobalProgress: () => number;
   variableStore: VariableStore;
   setCanvasRef: (canvas: HTMLCanvasElement | null) => void;
+  setBackgroundRef: (element: HTMLDivElement | null) => void;
   setViewportSize: (width: number, height: number) => void;
+  debug?: {
+    driverReady: boolean;
+    assetsReady: boolean;
+    sceneTrackTicks: number;
+    viewport: { width: number; height: number };
+  };
 };
 
 const DEFAULT_PIXELS_PER_SCENE = 800;
@@ -61,6 +69,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   const [driverReady, setDriverReady] = useState(false);
   const [sceneTrack, setSceneTrack] = useState<SceneTrack | null>(null);
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
+  const [backgroundElement, setBackgroundElement] = useState<HTMLDivElement | null>(null);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
   const [viewportHeight, setViewportHeight] = useState(1);
 
@@ -72,11 +81,20 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   const frameDriverRef = useRef<EngineFrameDriver | null>(null);
   const readyRef = useRef(false);
   const viewportRef = useRef({ width: 1, height: 1 });
+  const engineIdRef = useRef(Math.random().toString(36).slice(2, 7));
 
   const blockSize = useMemo(
     () => Math.max(1, Math.round(options.framesPerTick ?? options.blockSize ?? DEFAULT_BLOCK_SIZE)),
     [options.framesPerTick, options.blockSize],
   );
+
+  const debugLog = useCallback((...args: unknown[]) => {
+    if (typeof window === 'undefined') return;
+    const debug = (window as unknown as { __robotRuntimeDebug?: { logLifecycle?: boolean } }).__robotRuntimeDebug;
+    if (!debug?.logLifecycle) return;
+    // eslint-disable-next-line no-console
+    console.log(`[SceneEngine:${engineIdRef.current}]`, ...args);
+  }, []);
 
   const scrollRegionHeightPx = useMemo(() => {
     const sceneCount = Math.max(1, options.sceneGroup.scenes.length);
@@ -114,6 +132,10 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     setCanvas(next);
   }, []);
 
+  const setBackgroundRef = useCallback((next: HTMLDivElement | null) => {
+    setBackgroundElement(next);
+  }, []);
+
   const setViewportSize = useCallback((width: number, height: number) => {
     viewportRef.current = { width, height };
     setViewportHeight(height);
@@ -133,15 +155,43 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     if (!canvas || typeof window === 'undefined') return;
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
     renderer.setPixelRatio(window.devicePixelRatio ?? 1);
+    if (typeof renderer.setClearColor === 'function') {
+      renderer.setClearColor(0x000000, 0);
+    }
+    renderer.shadowMap.enabled = true;
     rendererRef.current = renderer;
+    debugLog('renderer:init', { canvas });
+
+    const onContextLost = (event: Event) => {
+      event.preventDefault();
+      debugLog('renderer:contextLost');
+    };
+    const onContextRestored = () => {
+      debugLog('renderer:contextRestored');
+    };
+    canvas.addEventListener('webglcontextlost', onContextLost);
+    canvas.addEventListener('webglcontextrestored', onContextRestored);
     const { width, height } = viewportRef.current;
     renderer.setSize(width, height, false);
 
     return () => {
+      canvas.removeEventListener('webglcontextlost', onContextLost);
+      canvas.removeEventListener('webglcontextrestored', onContextRestored);
+      debugLog('renderer:dispose');
+      ModelRenderer.disposeKtx2Loader(renderer);
       renderer.dispose();
       rendererRef.current = null;
     };
-  }, [canvas]);
+  }, [canvas, debugLog]);
+
+  useEffect(() => {
+    const backgroundWidget = options.widgetRegistry.get('background');
+    const backgroundWithDom = backgroundWidget as unknown as { setDomElement?: (el: HTMLElement | null) => void } | undefined;
+    if (!backgroundWithDom || typeof backgroundWithDom.setDomElement !== 'function') {
+      return;
+    }
+    backgroundWithDom.setDomElement(backgroundElement);
+  }, [backgroundElement, options.widgetRegistry]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !canvas) return;
@@ -150,10 +200,12 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     setAssetsReady(false);
     setFrameState(makeInitialFrameState());
     if (!sceneTrack) return;
+    debugLog('driver:init:start');
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
     camera.position.set(0, 0, 100);
+    scene.userData['__brewsite_camera'] = camera;
     sceneRef.current = scene;
     cameraRef.current = camera;
 
@@ -171,11 +223,13 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       .then(() => {
         if (disposed) return;
         setDriverReady(true);
+        debugLog('driver:init:ready');
       })
       .catch((error) => {
         if (disposed) return;
         const err = error instanceof Error ? error : new Error(String(error));
         options.onError?.(err);
+        debugLog('driver:init:error', err);
       });
 
     return () => {
@@ -184,11 +238,13 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       driverRef.current = null;
       sceneRef.current = null;
       cameraRef.current = null;
+      delete (scene as unknown as { userData?: Record<string, unknown> })?.userData?.['__brewsite_camera'];
       loopRef.current?.stop();
       loopRef.current = null;
       frameDriverRef.current?.reset();
+      debugLog('driver:dispose');
     };
-  }, [canvas, options.widgetRegistry, options.onError, options.manifest, variableStore, sceneTrack]);
+  }, [canvas, options.widgetRegistry, options.onError, options.manifest, variableStore, sceneTrack, debugLog]);
 
   useEffect(() => {
     if (options.manifest === null) {
@@ -203,6 +259,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     });
     const cached = getCachedTrack(key);
     if (cached) {
+      debugLog('sceneTrack:cacheHit', { key, totalTicks: cached.ticks?.length ?? 0 });
       setSceneTrack(cached);
       return;
     }
@@ -213,6 +270,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       clipMeta: options.clipMeta,
       prefersReducedMotion,
     });
+    debugLog('sceneTrack:compiled', { key, totalTicks: compiled.ticks?.length ?? 0 });
     setCachedTrack(key, compiled);
     setSceneTrack(compiled);
   }, [
@@ -222,6 +280,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     options.manifest,
     blockSize,
     prefersReducedMotion,
+    debugLog,
   ]);
 
   useEffect(() => {
@@ -247,6 +306,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
             tick.labelPrimitives ?? [],
             camera,
             driver.getBoneWorldPositions(),
+            driver.getTargetColors(),
           );
         }
       },
@@ -258,6 +318,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
 
     loopRef.current = loop;
     loop.start();
+    debugLog('loop:start');
 
     if (driverReady && !readyRef.current) {
       readyRef.current = true;
@@ -268,8 +329,9 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       loop.stop();
       loopRef.current = null;
       frameDriver.reset();
+      debugLog('loop:stop');
     };
-  }, [sceneTrack, getGlobalProgress, options.annotationPositioner, options.fpsCap, options.onReady, driverReady]);
+  }, [sceneTrack, getGlobalProgress, options.annotationPositioner, options.fpsCap, options.onReady, driverReady, debugLog]);
 
   return {
     frameState,
@@ -280,6 +342,13 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     getGlobalProgress,
     variableStore,
     setCanvasRef,
+    setBackgroundRef,
     setViewportSize,
+    debug: {
+      driverReady,
+      assetsReady,
+      sceneTrackTicks: sceneTrack?.ticks?.length ?? 0,
+      viewport: { ...viewportRef.current },
+    },
   };
 };

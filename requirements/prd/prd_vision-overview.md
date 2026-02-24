@@ -3,7 +3,7 @@ title: "BrewFlow Scene Toolkit — Vision & Overview"
 doc_type: prd
 owner: Website Product
 status: draft
-updated: 2026-02-21
+updated: 2026-02-23
 change_history:
   - date: 2026-02-20
     author: Website Product (TPM)
@@ -20,6 +20,9 @@ change_history:
   - date: 2026-02-21
     author: Website Product (TPM)
     summary: "siteResources definitions now use type fields for models, contained models, and animations."
+  - date: 2026-02-23
+    author: Website Product (TPM)
+    summary: "containedModels can declare baked target/position/rotation defaults."
 ---
 
 # BrewFlow Scene Toolkit — Vision & Overview
@@ -190,7 +193,7 @@ Building scroll-driven, mixed 2D/3D marketing or storytelling websites is expens
 
 **FR-ASSET-001:** The unified `gen-scene-dsl.mjs --manifest-out` script must read a `siteResources.ts` file and produce in a single GLB-reading pass: (a) a typed TypeScript DSL module with union types for all asset identifiers, and (b) a version-2 `AssetManifest` JSON file.
 
-**FR-ASSET-002:** `siteResources.ts` must support: `models[]` (with `type`, `role`, `path`, `anchorKeys[]`), `containedModels[]` (with `type`, `path`), and `animations[]` (with `type`, `path`). `anchorKeys` are consumer-defined names resolved to bone names via a four-step heuristic cascade: exact match → substring match → pattern match → warn and use key as value.
+**FR-ASSET-002:** `siteResources.ts` must support: `models[]` (with `type`, `role`, `path`, `anchorKeys[]`), `containedModels[]` (with `type`, `path`, optional `target`, `position`, `rotation`, `scale` for baked attachments), and `animations[]` (with `type`, `path`). `anchorKeys` are consumer-defined names resolved to bone names via a four-step heuristic cascade: exact match → substring match → pattern match → warn and use key as value.
 
 **FR-ASSET-003:** The generated TypeScript module must export typed union types for all asset identifiers, making bad asset references a `tsc` error.
 

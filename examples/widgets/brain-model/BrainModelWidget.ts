@@ -85,6 +85,7 @@ export class BrainModelWidget
 
   isLoaded = false;
   private group: THREE.Group | null = null;
+  private hasFallback = false;
 
   constructor() {
     (this as unknown as Record<symbol, NodeHandler>)[CUSTOM_NODE_HANDLER] = (
@@ -129,25 +130,31 @@ export class BrainModelWidget
   }
 
   async load(manifest: AssetManifest | null): Promise<void> {
-    if (!manifest) return;
-    const meta = manifest.containedModels.find((model) => model.type === this.widgetId);
+    const meta = manifest?.containedModels.find((model) => model.type === this.widgetId);
     if (!meta) {
-      console.warn(`[BrainModelWidget] No contained model with id "${this.widgetId}" in manifest.`);
+      this.buildFallback();
+      this.isLoaded = true;
       return;
     }
-    const loader = new GLTFLoader();
-    const scene = await new Promise<THREE.Group>((resolve, reject) => {
-      loader.load(
-        meta.glb,
-        (gltf) => resolve(gltf.scene),
-        undefined,
-        (error) => reject(error),
-      );
-    });
-    if (this.group) {
-      this.group.add(scene);
+    try {
+      const loader = new GLTFLoader();
+      const scene = await new Promise<THREE.Group>((resolve, reject) => {
+        loader.load(
+          meta.glb,
+          (gltf) => resolve(gltf.scene),
+          undefined,
+          (error) => reject(error),
+        );
+      });
+      if (this.group) {
+        this.group.add(scene);
+      }
+      this.isLoaded = true;
+    } catch (error) {
+      console.warn('[BrainModelWidget] Failed to load brain glb, using fallback.', error);
+      this.buildFallback();
+      this.isLoaded = true;
     }
-    this.isLoaded = true;
   }
 
   apply(state: BrainState, _ctx: WidgetRenderContext): void {
@@ -195,5 +202,43 @@ export class BrainModelWidget
 
   getObject3D(): THREE.Object3D | null {
     return this.group;
+  }
+
+  private buildFallback(): void {
+    if (!this.group || this.hasFallback) return;
+    this.hasFallback = true;
+    const coreGeom = new THREE.SphereGeometry(1.2, 24, 18);
+    const coreMat = new THREE.MeshStandardMaterial({
+      color: 0x8ff7ff,
+      emissive: 0x2aa3ff,
+      emissiveIntensity: 0.8,
+      roughness: 0.25,
+      metalness: 0.3,
+      transparent: true,
+      opacity: 0.9,
+    });
+    const core = new THREE.Mesh(coreGeom, coreMat);
+    core.name = 'core';
+
+    const shellGeom = new THREE.TorusKnotGeometry(1.6, 0.15, 120, 12);
+    const shellMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff,
+      emissive: 0x66c8ff,
+      emissiveIntensity: 0.6,
+      roughness: 0.4,
+      metalness: 0.2,
+      transparent: true,
+      opacity: 0.5,
+    });
+    const shell = new THREE.Mesh(shellGeom, shellMat);
+    shell.name = 'shell';
+    shell.rotation.set(0.2, 0.5, 0.1);
+
+    const group = new THREE.Group();
+    group.add(core);
+    group.add(shell);
+    group.scale.set(0.6, 0.6, 0.6);
+    group.position.set(0, 2.2, 0);
+    this.group.add(group);
   }
 }

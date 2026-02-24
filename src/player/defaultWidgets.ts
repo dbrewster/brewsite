@@ -5,6 +5,7 @@ import { LightingWidget } from '../elements/lighting/LightingWidget';
 import { BackgroundWidget } from '../elements/background/BackgroundWidget';
 import { EnvironmentWidget } from '../elements/environment/EnvironmentWidget';
 import { FloorWidget } from '../elements/floor/FloorWidget';
+import { CameraWidget } from '../elements/camera/CameraWidget';
 import type { AssetManifest } from '../elements/model/metadata';
 import { clipMetaFromManifest } from '../elements/model/metadata';
 import { SceneMetaWidget } from './SceneMetaWidget';
@@ -37,6 +38,7 @@ export const createDefaultWidgetRegistry = (
     .register(new BackgroundWidget())
     .register(new EnvironmentWidget())
     .register(new FloorWidget())
+    .register(new CameraWidget())
     .register(new SceneMetaWidget({ onSceneChange: options?.onSceneChange }));
 
   return registry;
