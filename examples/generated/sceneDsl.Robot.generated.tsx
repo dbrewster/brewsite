@@ -10,169 +10,163 @@ import { BrainSubparts } from './sceneDsl.brain.subparts.generated';
 export type RobotModelProps = Omit<ModelProps, 'type'>;
 
 const RobotHead = (props: BodyPartProps) => (
-  <BodyPart {...props} id="Head" boneId="mixamorigHead" meshId="HEAD" />
+  <BodyPart {...props} id="Head" boneId="CC_Base_Head" meshId="HEAD" />
 );
-const RobotHips = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigHips" targetKind="bone" />
+const RobotHip = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_Hip" targetKind="bone" />
 );
-const RobotLeftArm = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftArm" targetKind="bone" />
+const RobotLCalf = (props: BodyPartProps) => (
+  <BodyPart {...props} id="LCalf" boneId="CC_Base_L_Calf" meshId="CALF_LEFT" />
 );
-const RobotLeftFoot = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftFoot" targetKind="bone" />
+const RobotLClavicle = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Clavicle" targetKind="bone" />
 );
-const RobotLeftForeArm = (props: BodyPartProps) => (
-  <BodyPart {...props} id="LeftForeArm" boneId="mixamorigLeftForeArm" meshId="FOREARM__LEFT" />
+const RobotLFoot = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Foot" targetKind="bone" />
 );
-const RobotLeftHand = (props: BodyPartProps) => (
-  <BodyPart {...props} id="LeftHand" boneId="mixamorigLeftHand" meshId="HAND_LEFT" />
+const RobotLForearm = (props: BodyPartProps) => (
+  <BodyPart {...props} id="LForearm" boneId="CC_Base_L_Forearm" meshId="FOREARM__LEFT" />
 );
-const RobotLeftHandIndex1 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftHandIndex1" targetKind="bone" />
+const RobotLHand = (props: BodyPartProps) => (
+  <BodyPart {...props} id="LHand" boneId="CC_Base_L_Hand" meshId="HAND_LEFT" />
 );
-const RobotLeftHandIndex2 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftHandIndex2" targetKind="bone" />
+const RobotLIndex1 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Index1" targetKind="bone" />
 );
-const RobotLeftHandIndex3 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftHandIndex3" targetKind="bone" />
+const RobotLIndex2 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Index2" targetKind="bone" />
 );
-const RobotLeftHandMiddle1 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftHandMiddle1" targetKind="bone" />
+const RobotLIndex3 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Index3" targetKind="bone" />
 );
-const RobotLeftHandMiddle2 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftHandMiddle2" targetKind="bone" />
+const RobotLMid1 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Mid1" targetKind="bone" />
 );
-const RobotLeftHandMiddle3 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftHandMiddle3" targetKind="bone" />
+const RobotLMid2 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Mid2" targetKind="bone" />
 );
-const RobotLeftHandPinky1 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftHandPinky1" targetKind="bone" />
+const RobotLMid3 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Mid3" targetKind="bone" />
 );
-const RobotLeftHandPinky2 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftHandPinky2" targetKind="bone" />
+const RobotLPinky1 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Pinky1" targetKind="bone" />
 );
-const RobotLeftHandPinky3 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftHandPinky3" targetKind="bone" />
+const RobotLPinky2 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Pinky2" targetKind="bone" />
 );
-const RobotLeftHandRing1 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftHandRing1" targetKind="bone" />
+const RobotLPinky3 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Pinky3" targetKind="bone" />
 );
-const RobotLeftHandRing2 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftHandRing2" targetKind="bone" />
+const RobotLRing1 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Ring1" targetKind="bone" />
 );
-const RobotLeftHandRing3 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftHandRing3" targetKind="bone" />
+const RobotLRing2 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Ring2" targetKind="bone" />
 );
-const RobotLeftHandThumb1 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftHandThumb1" targetKind="bone" />
+const RobotLRing3 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Ring3" targetKind="bone" />
 );
-const RobotLeftHandThumb2 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftHandThumb2" targetKind="bone" />
+const RobotLThigh = (props: BodyPartProps) => (
+  <BodyPart {...props} id="LThigh" boneId="CC_Base_L_Thigh" meshId="THIGH__LEFT" />
 );
-const RobotLeftHandThumb3 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftHandThumb3" targetKind="bone" />
+const RobotLThumb1 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Thumb1" targetKind="bone" />
 );
-const RobotLeftLeg = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftLeg" targetKind="bone" />
+const RobotLThumb2 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Thumb2" targetKind="bone" />
 );
-const RobotLeftShoulder = (props: BodyPartProps) => (
-  <BodyPart {...props} id="LeftShoulder" boneId="mixamorigLeftShoulder" meshId="SHOULDER__LEFT" />
+const RobotLThumb3 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Thumb3" targetKind="bone" />
 );
-const RobotLeftToeBase = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftToeBase" targetKind="bone" />
+const RobotLToeBase = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_ToeBase" targetKind="bone" />
 );
-const RobotLeftUpLeg = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigLeftUpLeg" targetKind="bone" />
+const RobotLUpperarm = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_L_Upperarm" targetKind="bone" />
 );
-const RobotNeck = (props: BodyPartProps) => (
-  <BodyPart {...props} id="Neck" boneId="mixamorigNeck" meshId="NECK" />
+const RobotNeckTwist02 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_NeckTwist02" targetKind="bone" />
 );
-const RobotRightArm = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightArm" targetKind="bone" />
+const RobotRCalf = (props: BodyPartProps) => (
+  <BodyPart {...props} id="RCalf" boneId="CC_Base_R_Calf" meshId="CALF_RIGHT" />
 );
-const RobotRightFoot = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightFoot" targetKind="bone" />
+const RobotRClavicle = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Clavicle" targetKind="bone" />
 );
-const RobotRightForeArm = (props: BodyPartProps) => (
-  <BodyPart {...props} id="RightForeArm" boneId="mixamorigRightForeArm" meshId="FOREARM_RIGHT" />
+const RobotRFoot = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Foot" targetKind="bone" />
 );
-const RobotRightHand = (props: BodyPartProps) => (
-  <BodyPart {...props} id="RightHand" boneId="mixamorigRightHand" meshId="HAND_RIGHT" />
+const RobotRForearm = (props: BodyPartProps) => (
+  <BodyPart {...props} id="RForearm" boneId="CC_Base_R_Forearm" meshId="FOREARM_RIGHT" />
 );
-const RobotRightHandIndex1 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightHandIndex1" targetKind="bone" />
+const RobotRHand = (props: BodyPartProps) => (
+  <BodyPart {...props} id="RHand" boneId="CC_Base_R_Hand" meshId="HAND_RIGHT" />
 );
-const RobotRightHandIndex2 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightHandIndex2" targetKind="bone" />
+const RobotRIndex1 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Index1" targetKind="bone" />
 );
-const RobotRightHandIndex3 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightHandIndex3" targetKind="bone" />
+const RobotRIndex2 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Index2" targetKind="bone" />
 );
-const RobotRightHandMiddle1 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightHandMiddle1" targetKind="bone" />
+const RobotRIndex3 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Index3" targetKind="bone" />
 );
-const RobotRightHandMiddle2 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightHandMiddle2" targetKind="bone" />
+const RobotRMid1 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Mid1" targetKind="bone" />
 );
-const RobotRightHandMiddle3 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightHandMiddle3" targetKind="bone" />
+const RobotRMid2 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Mid2" targetKind="bone" />
 );
-const RobotRightHandPinky1 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightHandPinky1" targetKind="bone" />
+const RobotRMid3 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Mid3" targetKind="bone" />
 );
-const RobotRightHandPinky2 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightHandPinky2" targetKind="bone" />
+const RobotRPinky1 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Pinky1" targetKind="bone" />
 );
-const RobotRightHandPinky3 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightHandPinky3" targetKind="bone" />
+const RobotRPinky2 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Pinky2" targetKind="bone" />
 );
-const RobotRightHandRing1 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightHandRing1" targetKind="bone" />
+const RobotRPinky3 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Pinky3" targetKind="bone" />
 );
-const RobotRightHandRing2 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightHandRing2" targetKind="bone" />
+const RobotRRing1 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Ring1" targetKind="bone" />
 );
-const RobotRightHandRing3 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightHandRing3" targetKind="bone" />
+const RobotRRing2 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Ring2" targetKind="bone" />
 );
-const RobotRightHandThumb1 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightHandThumb1" targetKind="bone" />
+const RobotRRing3 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Ring3" targetKind="bone" />
 );
-const RobotRightHandThumb2 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightHandThumb2" targetKind="bone" />
+const RobotRThigh = (props: BodyPartProps) => (
+  <BodyPart {...props} id="RThigh" boneId="CC_Base_R_Thigh" meshId="THIGH_RIGHT" />
 );
-const RobotRightHandThumb3 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightHandThumb3" targetKind="bone" />
+const RobotRThumb1 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Thumb1" targetKind="bone" />
 );
-const RobotRightLeg = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightLeg" targetKind="bone" />
+const RobotRThumb2 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Thumb2" targetKind="bone" />
 );
-const RobotRightShoulder = (props: BodyPartProps) => (
-  <BodyPart {...props} id="RightShoulder" boneId="mixamorigRightShoulder" meshId="SHOULDER_RIGHT" />
+const RobotRThumb3 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Thumb3" targetKind="bone" />
 );
-const RobotRightToeBase = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightToeBase" targetKind="bone" />
+const RobotRToeBase = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_ToeBase" targetKind="bone" />
 );
-const RobotRightUpLeg = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigRightUpLeg" targetKind="bone" />
+const RobotRUpperarm = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_R_Upperarm" targetKind="bone" />
 );
-const RobotSpine = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigSpine" targetKind="bone" />
+const RobotSpine01 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_Spine01" targetKind="bone" />
 );
-const RobotSpine1 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigSpine1" targetKind="bone" />
+const RobotSpine02 = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_Spine02" targetKind="bone" />
 );
-const RobotSpine2 = (props: BodyPartProps) => (
-  <BodyPart {...props} id="mixamorigSpine2" targetKind="bone" />
+const RobotWaist = (props: BodyPartProps) => (
+  <BodyPart {...props} id="CC_Base_Waist" targetKind="bone" />
 );
 const RobotCalfInRight = (props: BodyPartProps) => (
   <BodyPart {...props} id="CALF_IN_RIGHT" targetKind="mesh" />
-);
-const RobotCalfLeft = (props: BodyPartProps) => (
-  <BodyPart {...props} id="CALF_LEFT" targetKind="mesh" />
-);
-const RobotCalfRight = (props: BodyPartProps) => (
-  <BodyPart {...props} id="CALF_RIGHT" targetKind="mesh" />
 );
 const RobotCalfInLeft = (props: BodyPartProps) => (
   <BodyPart {...props} id="CALF__IN_LEFT" targetKind="mesh" />
@@ -216,26 +210,29 @@ const RobotHipLegJointLeft = (props: BodyPartProps) => (
 const RobotHipSpine = (props: BodyPartProps) => (
   <BodyPart {...props} id="HIP_SPINE" targetKind="mesh" />
 );
+const RobotNeck = (props: BodyPartProps) => (
+  <BodyPart {...props} id="NECK" targetKind="mesh" />
+);
 const RobotShoulderOutLeft = (props: BodyPartProps) => (
   <BodyPart {...props} id="SHOULDER_OUT_LEFT" targetKind="mesh" />
 );
 const RobotShoulderOutRight = (props: BodyPartProps) => (
   <BodyPart {...props} id="SHOULDER_OUT_RIGHT" targetKind="mesh" />
 );
+const RobotShoulderRight = (props: BodyPartProps) => (
+  <BodyPart {...props} id="SHOULDER_RIGHT" targetKind="mesh" />
+);
 const RobotShoulderInRight = (props: BodyPartProps) => (
   <BodyPart {...props} id="SHOULDER__IN__RIGHT" targetKind="mesh" />
+);
+const RobotShoulderLeft = (props: BodyPartProps) => (
+  <BodyPart {...props} id="SHOULDER__LEFT" targetKind="mesh" />
 );
 const RobotThighJointLeft = (props: BodyPartProps) => (
   <BodyPart {...props} id="THIGH_JOINT_LEFT" targetKind="mesh" />
 );
 const RobotThighJointRight = (props: BodyPartProps) => (
   <BodyPart {...props} id="THIGH_JOINT_RIGHT" targetKind="mesh" />
-);
-const RobotThighRight = (props: BodyPartProps) => (
-  <BodyPart {...props} id="THIGH_RIGHT" targetKind="mesh" />
-);
-const RobotThighLeft = (props: BodyPartProps) => (
-  <BodyPart {...props} id="THIGH__LEFT" targetKind="mesh" />
 );
 
 export type RobotBrainChildren =
@@ -260,7 +257,7 @@ const RobotBrain = Object.assign(
 );
 
 
-export type RobotBodyPartElement = ReactElement<BodyPartProps, typeof RobotHead> | ReactElement<BodyPartProps, typeof RobotHips> | ReactElement<BodyPartProps, typeof RobotLeftArm> | ReactElement<BodyPartProps, typeof RobotLeftFoot> | ReactElement<BodyPartProps, typeof RobotLeftForeArm> | ReactElement<BodyPartProps, typeof RobotLeftHand> | ReactElement<BodyPartProps, typeof RobotLeftHandIndex1> | ReactElement<BodyPartProps, typeof RobotLeftHandIndex2> | ReactElement<BodyPartProps, typeof RobotLeftHandIndex3> | ReactElement<BodyPartProps, typeof RobotLeftHandMiddle1> | ReactElement<BodyPartProps, typeof RobotLeftHandMiddle2> | ReactElement<BodyPartProps, typeof RobotLeftHandMiddle3> | ReactElement<BodyPartProps, typeof RobotLeftHandPinky1> | ReactElement<BodyPartProps, typeof RobotLeftHandPinky2> | ReactElement<BodyPartProps, typeof RobotLeftHandPinky3> | ReactElement<BodyPartProps, typeof RobotLeftHandRing1> | ReactElement<BodyPartProps, typeof RobotLeftHandRing2> | ReactElement<BodyPartProps, typeof RobotLeftHandRing3> | ReactElement<BodyPartProps, typeof RobotLeftHandThumb1> | ReactElement<BodyPartProps, typeof RobotLeftHandThumb2> | ReactElement<BodyPartProps, typeof RobotLeftHandThumb3> | ReactElement<BodyPartProps, typeof RobotLeftLeg> | ReactElement<BodyPartProps, typeof RobotLeftShoulder> | ReactElement<BodyPartProps, typeof RobotLeftToeBase> | ReactElement<BodyPartProps, typeof RobotLeftUpLeg> | ReactElement<BodyPartProps, typeof RobotNeck> | ReactElement<BodyPartProps, typeof RobotRightArm> | ReactElement<BodyPartProps, typeof RobotRightFoot> | ReactElement<BodyPartProps, typeof RobotRightForeArm> | ReactElement<BodyPartProps, typeof RobotRightHand> | ReactElement<BodyPartProps, typeof RobotRightHandIndex1> | ReactElement<BodyPartProps, typeof RobotRightHandIndex2> | ReactElement<BodyPartProps, typeof RobotRightHandIndex3> | ReactElement<BodyPartProps, typeof RobotRightHandMiddle1> | ReactElement<BodyPartProps, typeof RobotRightHandMiddle2> | ReactElement<BodyPartProps, typeof RobotRightHandMiddle3> | ReactElement<BodyPartProps, typeof RobotRightHandPinky1> | ReactElement<BodyPartProps, typeof RobotRightHandPinky2> | ReactElement<BodyPartProps, typeof RobotRightHandPinky3> | ReactElement<BodyPartProps, typeof RobotRightHandRing1> | ReactElement<BodyPartProps, typeof RobotRightHandRing2> | ReactElement<BodyPartProps, typeof RobotRightHandRing3> | ReactElement<BodyPartProps, typeof RobotRightHandThumb1> | ReactElement<BodyPartProps, typeof RobotRightHandThumb2> | ReactElement<BodyPartProps, typeof RobotRightHandThumb3> | ReactElement<BodyPartProps, typeof RobotRightLeg> | ReactElement<BodyPartProps, typeof RobotRightShoulder> | ReactElement<BodyPartProps, typeof RobotRightToeBase> | ReactElement<BodyPartProps, typeof RobotRightUpLeg> | ReactElement<BodyPartProps, typeof RobotSpine> | ReactElement<BodyPartProps, typeof RobotSpine1> | ReactElement<BodyPartProps, typeof RobotSpine2> | ReactElement<BodyPartProps, typeof RobotCalfInRight> | ReactElement<BodyPartProps, typeof RobotCalfLeft> | ReactElement<BodyPartProps, typeof RobotCalfRight> | ReactElement<BodyPartProps, typeof RobotCalfInLeft> | ReactElement<BodyPartProps, typeof RobotChest> | ReactElement<BodyPartProps, typeof RobotEyes> | ReactElement<BodyPartProps, typeof RobotFootBackRight> | ReactElement<BodyPartProps, typeof RobotFootBackLeft> | ReactElement<BodyPartProps, typeof RobotFootFrontLeft> | ReactElement<BodyPartProps, typeof RobotFootFrontRight> | ReactElement<BodyPartProps, typeof RobotFootJointLeft> | ReactElement<BodyPartProps, typeof RobotFootJointRight> | ReactElement<BodyPartProps, typeof RobotForearmJointLeft> | ReactElement<BodyPartProps, typeof RobotForearmJointRight> | ReactElement<BodyPartProps, typeof RobotHipLegJointRight> | ReactElement<BodyPartProps, typeof RobotHipLegJointLeft> | ReactElement<BodyPartProps, typeof RobotHipSpine> | ReactElement<BodyPartProps, typeof RobotShoulderOutLeft> | ReactElement<BodyPartProps, typeof RobotShoulderOutRight> | ReactElement<BodyPartProps, typeof RobotShoulderInRight> | ReactElement<BodyPartProps, typeof RobotThighJointLeft> | ReactElement<BodyPartProps, typeof RobotThighJointRight> | ReactElement<BodyPartProps, typeof RobotThighRight> | ReactElement<BodyPartProps, typeof RobotThighLeft>;
+export type RobotBodyPartElement = ReactElement<BodyPartProps, typeof RobotHead> | ReactElement<BodyPartProps, typeof RobotHip> | ReactElement<BodyPartProps, typeof RobotLCalf> | ReactElement<BodyPartProps, typeof RobotLClavicle> | ReactElement<BodyPartProps, typeof RobotLFoot> | ReactElement<BodyPartProps, typeof RobotLForearm> | ReactElement<BodyPartProps, typeof RobotLHand> | ReactElement<BodyPartProps, typeof RobotLIndex1> | ReactElement<BodyPartProps, typeof RobotLIndex2> | ReactElement<BodyPartProps, typeof RobotLIndex3> | ReactElement<BodyPartProps, typeof RobotLMid1> | ReactElement<BodyPartProps, typeof RobotLMid2> | ReactElement<BodyPartProps, typeof RobotLMid3> | ReactElement<BodyPartProps, typeof RobotLPinky1> | ReactElement<BodyPartProps, typeof RobotLPinky2> | ReactElement<BodyPartProps, typeof RobotLPinky3> | ReactElement<BodyPartProps, typeof RobotLRing1> | ReactElement<BodyPartProps, typeof RobotLRing2> | ReactElement<BodyPartProps, typeof RobotLRing3> | ReactElement<BodyPartProps, typeof RobotLThigh> | ReactElement<BodyPartProps, typeof RobotLThumb1> | ReactElement<BodyPartProps, typeof RobotLThumb2> | ReactElement<BodyPartProps, typeof RobotLThumb3> | ReactElement<BodyPartProps, typeof RobotLToeBase> | ReactElement<BodyPartProps, typeof RobotLUpperarm> | ReactElement<BodyPartProps, typeof RobotNeckTwist02> | ReactElement<BodyPartProps, typeof RobotRCalf> | ReactElement<BodyPartProps, typeof RobotRClavicle> | ReactElement<BodyPartProps, typeof RobotRFoot> | ReactElement<BodyPartProps, typeof RobotRForearm> | ReactElement<BodyPartProps, typeof RobotRHand> | ReactElement<BodyPartProps, typeof RobotRIndex1> | ReactElement<BodyPartProps, typeof RobotRIndex2> | ReactElement<BodyPartProps, typeof RobotRIndex3> | ReactElement<BodyPartProps, typeof RobotRMid1> | ReactElement<BodyPartProps, typeof RobotRMid2> | ReactElement<BodyPartProps, typeof RobotRMid3> | ReactElement<BodyPartProps, typeof RobotRPinky1> | ReactElement<BodyPartProps, typeof RobotRPinky2> | ReactElement<BodyPartProps, typeof RobotRPinky3> | ReactElement<BodyPartProps, typeof RobotRRing1> | ReactElement<BodyPartProps, typeof RobotRRing2> | ReactElement<BodyPartProps, typeof RobotRRing3> | ReactElement<BodyPartProps, typeof RobotRThigh> | ReactElement<BodyPartProps, typeof RobotRThumb1> | ReactElement<BodyPartProps, typeof RobotRThumb2> | ReactElement<BodyPartProps, typeof RobotRThumb3> | ReactElement<BodyPartProps, typeof RobotRToeBase> | ReactElement<BodyPartProps, typeof RobotRUpperarm> | ReactElement<BodyPartProps, typeof RobotSpine01> | ReactElement<BodyPartProps, typeof RobotSpine02> | ReactElement<BodyPartProps, typeof RobotWaist> | ReactElement<BodyPartProps, typeof RobotCalfInRight> | ReactElement<BodyPartProps, typeof RobotCalfInLeft> | ReactElement<BodyPartProps, typeof RobotChest> | ReactElement<BodyPartProps, typeof RobotEyes> | ReactElement<BodyPartProps, typeof RobotFootBackRight> | ReactElement<BodyPartProps, typeof RobotFootBackLeft> | ReactElement<BodyPartProps, typeof RobotFootFrontLeft> | ReactElement<BodyPartProps, typeof RobotFootFrontRight> | ReactElement<BodyPartProps, typeof RobotFootJointLeft> | ReactElement<BodyPartProps, typeof RobotFootJointRight> | ReactElement<BodyPartProps, typeof RobotForearmJointLeft> | ReactElement<BodyPartProps, typeof RobotForearmJointRight> | ReactElement<BodyPartProps, typeof RobotHipLegJointRight> | ReactElement<BodyPartProps, typeof RobotHipLegJointLeft> | ReactElement<BodyPartProps, typeof RobotHipSpine> | ReactElement<BodyPartProps, typeof RobotNeck> | ReactElement<BodyPartProps, typeof RobotShoulderOutLeft> | ReactElement<BodyPartProps, typeof RobotShoulderOutRight> | ReactElement<BodyPartProps, typeof RobotShoulderRight> | ReactElement<BodyPartProps, typeof RobotShoulderInRight> | ReactElement<BodyPartProps, typeof RobotShoulderLeft> | ReactElement<BodyPartProps, typeof RobotThighJointLeft> | ReactElement<BodyPartProps, typeof RobotThighJointRight>;
 
 export type RobotBodyPartsProps = {
   children?: RobotBodyPartElement | RobotBodyPartElement[];
@@ -288,60 +285,58 @@ export const Robot = Object.assign(
     BodyParts: RobotBodyParts,
     ModelParts: RobotModelParts,
     Head: RobotHead,
-    Hips: RobotHips,
-    LeftArm: RobotLeftArm,
-    LeftFoot: RobotLeftFoot,
-    LeftForeArm: RobotLeftForeArm,
-    LeftHand: RobotLeftHand,
-    LeftHandIndex1: RobotLeftHandIndex1,
-    LeftHandIndex2: RobotLeftHandIndex2,
-    LeftHandIndex3: RobotLeftHandIndex3,
-    LeftHandMiddle1: RobotLeftHandMiddle1,
-    LeftHandMiddle2: RobotLeftHandMiddle2,
-    LeftHandMiddle3: RobotLeftHandMiddle3,
-    LeftHandPinky1: RobotLeftHandPinky1,
-    LeftHandPinky2: RobotLeftHandPinky2,
-    LeftHandPinky3: RobotLeftHandPinky3,
-    LeftHandRing1: RobotLeftHandRing1,
-    LeftHandRing2: RobotLeftHandRing2,
-    LeftHandRing3: RobotLeftHandRing3,
-    LeftHandThumb1: RobotLeftHandThumb1,
-    LeftHandThumb2: RobotLeftHandThumb2,
-    LeftHandThumb3: RobotLeftHandThumb3,
-    LeftLeg: RobotLeftLeg,
-    LeftShoulder: RobotLeftShoulder,
-    LeftToeBase: RobotLeftToeBase,
-    LeftUpLeg: RobotLeftUpLeg,
-    Neck: RobotNeck,
-    RightArm: RobotRightArm,
-    RightFoot: RobotRightFoot,
-    RightForeArm: RobotRightForeArm,
-    RightHand: RobotRightHand,
-    RightHandIndex1: RobotRightHandIndex1,
-    RightHandIndex2: RobotRightHandIndex2,
-    RightHandIndex3: RobotRightHandIndex3,
-    RightHandMiddle1: RobotRightHandMiddle1,
-    RightHandMiddle2: RobotRightHandMiddle2,
-    RightHandMiddle3: RobotRightHandMiddle3,
-    RightHandPinky1: RobotRightHandPinky1,
-    RightHandPinky2: RobotRightHandPinky2,
-    RightHandPinky3: RobotRightHandPinky3,
-    RightHandRing1: RobotRightHandRing1,
-    RightHandRing2: RobotRightHandRing2,
-    RightHandRing3: RobotRightHandRing3,
-    RightHandThumb1: RobotRightHandThumb1,
-    RightHandThumb2: RobotRightHandThumb2,
-    RightHandThumb3: RobotRightHandThumb3,
-    RightLeg: RobotRightLeg,
-    RightShoulder: RobotRightShoulder,
-    RightToeBase: RobotRightToeBase,
-    RightUpLeg: RobotRightUpLeg,
-    Spine: RobotSpine,
-    Spine1: RobotSpine1,
-    Spine2: RobotSpine2,
+    Hip: RobotHip,
+    LCalf: RobotLCalf,
+    LClavicle: RobotLClavicle,
+    LFoot: RobotLFoot,
+    LForearm: RobotLForearm,
+    LHand: RobotLHand,
+    LIndex1: RobotLIndex1,
+    LIndex2: RobotLIndex2,
+    LIndex3: RobotLIndex3,
+    LMid1: RobotLMid1,
+    LMid2: RobotLMid2,
+    LMid3: RobotLMid3,
+    LPinky1: RobotLPinky1,
+    LPinky2: RobotLPinky2,
+    LPinky3: RobotLPinky3,
+    LRing1: RobotLRing1,
+    LRing2: RobotLRing2,
+    LRing3: RobotLRing3,
+    LThigh: RobotLThigh,
+    LThumb1: RobotLThumb1,
+    LThumb2: RobotLThumb2,
+    LThumb3: RobotLThumb3,
+    LToeBase: RobotLToeBase,
+    LUpperarm: RobotLUpperarm,
+    NeckTwist02: RobotNeckTwist02,
+    RCalf: RobotRCalf,
+    RClavicle: RobotRClavicle,
+    RFoot: RobotRFoot,
+    RForearm: RobotRForearm,
+    RHand: RobotRHand,
+    RIndex1: RobotRIndex1,
+    RIndex2: RobotRIndex2,
+    RIndex3: RobotRIndex3,
+    RMid1: RobotRMid1,
+    RMid2: RobotRMid2,
+    RMid3: RobotRMid3,
+    RPinky1: RobotRPinky1,
+    RPinky2: RobotRPinky2,
+    RPinky3: RobotRPinky3,
+    RRing1: RobotRRing1,
+    RRing2: RobotRRing2,
+    RRing3: RobotRRing3,
+    RThigh: RobotRThigh,
+    RThumb1: RobotRThumb1,
+    RThumb2: RobotRThumb2,
+    RThumb3: RobotRThumb3,
+    RToeBase: RobotRToeBase,
+    RUpperarm: RobotRUpperarm,
+    Spine01: RobotSpine01,
+    Spine02: RobotSpine02,
+    Waist: RobotWaist,
     CalfInRight: RobotCalfInRight,
-    CalfLeft: RobotCalfLeft,
-    CalfRight: RobotCalfRight,
     CalfInLeft: RobotCalfInLeft,
     Chest: RobotChest,
     Eyes: RobotEyes,
@@ -356,13 +351,14 @@ export const Robot = Object.assign(
     HipLegJointRight: RobotHipLegJointRight,
     HipLegJointLeft: RobotHipLegJointLeft,
     HipSpine: RobotHipSpine,
+    Neck: RobotNeck,
     ShoulderOutLeft: RobotShoulderOutLeft,
     ShoulderOutRight: RobotShoulderOutRight,
+    ShoulderRight: RobotShoulderRight,
     ShoulderInRight: RobotShoulderInRight,
+    ShoulderLeft: RobotShoulderLeft,
     ThighJointLeft: RobotThighJointLeft,
-    ThighJointRight: RobotThighJointRight,
-    ThighRight: RobotThighRight,
-    ThighLeft: RobotThighLeft
+    ThighJointRight: RobotThighJointRight
 ,
     Brain: RobotBrain
   },

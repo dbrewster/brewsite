@@ -11,6 +11,7 @@ Defaults:
   out-no-normals:   public/assets/robot.no-normals.glb
   fbx2gltf: resolved from node_modules/fbx2gltf/bin
   keep-temp: false
+  target: mixamo
 
 Usage:
   bash scripts/rebuild_robot_asset_from_fbx.sh
@@ -18,6 +19,7 @@ Usage:
   bash scripts/rebuild_robot_asset_from_fbx.sh --fbx2gltf /path/to/FBX2glTF
   bash scripts/rebuild_robot_asset_from_fbx.sh --out-with path/to/with.glb --out-no path/to/no.glb
   bash scripts/rebuild_robot_asset_from_fbx.sh --keep-temp
+  bash scripts/rebuild_robot_asset_from_fbx.sh --target cc_base
 USAGE
 }
 
@@ -26,6 +28,7 @@ OUT_WITH="public/assets/robot.with-normals.glb"
 OUT_NO="public/assets/robot.no-normals.glb"
 FBX2GLTF=""
 KEEP_TEMP="false"
+TARGET="mixamo"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -48,6 +51,10 @@ while [[ $# -gt 0 ]]; do
     --keep-temp)
       KEEP_TEMP="true"
       shift 1
+      ;;
+    --target)
+      TARGET="$2"
+      shift 2
       ;;
     -h|--help)
       usage
@@ -77,6 +84,10 @@ if [[ ! -x "$FBX2GLTF" ]]; then
   echo "FBX2glTF executable not found/executable: $FBX2GLTF" >&2
   exit 1
 fi
+if [[ "$TARGET" != "mixamo" && "$TARGET" != "cc_base" ]]; then
+  echo "Unknown --target: $TARGET (expected mixamo or cc_base)" >&2
+  exit 1
+fi
 
 OUT_WITH_DIR="$(dirname "$OUT_WITH")"
 OUT_NO_DIR="$(dirname "$OUT_NO")"
@@ -95,7 +106,7 @@ NO_COMP="$TMP_DIR/robot.no-normals.comp.glb"
 NO_QUANT="$TMP_DIR/robot.no-normals.quant.glb"
 
 "$FBX2GLTF" -i "$INPUT" -o "$RAW"
-node scripts/rename_gltf_mixamo.mjs "$RAW" "$RENAMED"
+node scripts/rename_gltf_mixamo.mjs "$RAW" "$RENAMED" --target "$TARGET"
 
 node scripts/strip_normal_maps.mjs "$RENAMED" "$WITH_TMP"
 node scripts/strip_normal_maps.mjs "$RENAMED" "$NO_TMP" --strip

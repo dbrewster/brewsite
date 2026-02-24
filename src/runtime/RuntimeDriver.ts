@@ -8,7 +8,7 @@ import type { RuntimeDriver as IRuntimeDriver } from './types';
 export type SceneTrackSampler = ReturnType<typeof createSceneTrackSampler>;
 
 // AssetManifest type is defined in widget/types.ts
-type AssetManifest = { version: number; models: unknown[]; containedModels: unknown[]; animations: unknown[] };
+type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
 
 export type RuntimeConfig = {
   widgetRegistry: WidgetRegistry;

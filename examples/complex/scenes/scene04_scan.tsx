@@ -1,5 +1,6 @@
 import type { SceneDefinition } from '@brewsite/core';
 import { Ambient, Background, Directional, Environment, Floor, Hud, HudItem, Lighting, Point, Scene, Spot } from '@brewsite/core';
+import { Fade } from '../../../src/hud/animejs';
 import { Animation, BodyParts, ContainedModel, ModelPart, Playback, Pose, Robot } from '../../generated/sceneDsl.generated';
 import { backgrounds, sceneLighting } from './sceneAssets';
 
@@ -19,38 +20,39 @@ export const scene04Scan: SceneDefinition = {
       </Lighting>
       <Robot
         id="complex-robot"
-        position={[10, 0, 5]}
+        position={[-10, 0, 5]}
         rotation={[0, -Math.PI / 2 - 0.2, 0]}
         scale={0.19}
         metalness={0.92}
         roughness={0.1}
       >
+        <Playback>
+          <Animation clipName="08-drunken-stumble-and-fall" enabled weight={1}/>
+        </Playback>
         <BodyParts>
           <Robot.Eyes color="#66f0ff" opacity={1} />
-          <Robot.Head color="#d2e6ff" opacity={0.35} />
-          <Robot.Neck color="#7f9bb8" opacity={1}>
+          <Robot.Head color="#d2e6ff" opacity={0.85} />
+          <Robot.NeckTwist02 color="#7f9bb8" opacity={1}>
             <Pose rotate={{ yawPct: 0.22, pitchPct: 0.24 }} />
-          </Robot.Neck>
-          <Robot.RightForeArm color="#3b30ff" opacity={1}>
+          </Robot.NeckTwist02>
+          <Robot.RForearm color="#3b30ff" opacity={1}>
             <Pose rotate={{ yawPct: 0.32, pitchPct: -0.05 }} />
-          </Robot.RightForeArm>
+          </Robot.RForearm>
         </BodyParts>
       </Robot>
       <Hud>
-        <HudItem
-          id="complex-hud"
-          className="complex-hud complex-hud--right"
-          node={(
-            <>
+        <HudItem id="complex-hud">
+          <Fade duration={1200}>
+            <div className="complex-hud complex-hud--right">
               <div className="complex-hud__eyebrow">Scene 4</div>
               <h2 className="complex-hud__title">Scan and analyze.</h2>
               <div className="complex-hud__body">
                 Cooler hues and sharper highlights signal a diagnostic pass while the pose shifts
                 to emphasize precision.
               </div>
-            </>
-          )}
-        />
+            </div>
+          </Fade>
+        </HudItem>
       </Hud>
     </Scene>
   ),

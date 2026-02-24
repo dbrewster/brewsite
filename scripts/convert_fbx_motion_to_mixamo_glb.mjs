@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 /**
  * Convert an FBX animation to a GLB, resample/prune/quantize, then
- * remap CC_Base bones to Mixamo naming and prune non-mixamo tracks.
+ * optionally remap CC_Base bones to Mixamo naming and prune non-target tracks.
  *
  * Usage:
  *   node scripts/convert_fbx_motion_to_mixamo_glb.mjs --input path/to/clip.fbx --output path/to/clip.mixamo.glb
  *   node scripts/convert_fbx_motion_to_mixamo_glb.mjs --input path/to/clip.fbx --output path/to/clip.mixamo.glb --fps 24
  *   node scripts/convert_fbx_motion_to_mixamo_glb.mjs --input path/to/clip.fbx --output path/to/clip.mixamo.glb --no-quantize
  *   node scripts/convert_fbx_motion_to_mixamo_glb.mjs --input path/to/clip.fbx --output path/to/clip.mixamo.glb --keep-root
+ *   node scripts/convert_fbx_motion_to_mixamo_glb.mjs --input path/to/clip.fbx --output path/to/clip.cc_base.glb --target cc_base
  */
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -30,6 +31,7 @@ function parseArgs(argv) {
     prune: true,
     quantize: true,
     keepRoot: false,
+    target: 'mixamo',
   };
 
   for (let i = 2; i < argv.length; i += 1) {
@@ -68,6 +70,10 @@ function parseArgs(argv) {
       args.keepRoot = true;
       continue;
     }
+    if (token === '--target') {
+      args.target = (argv[++i] ?? '').toLowerCase();
+      continue;
+    }
     if (token === '-h' || token === '--help') {
       printUsage();
       process.exit(0);
@@ -77,6 +83,9 @@ function parseArgs(argv) {
 
   if (!args.input) throw new Error('Missing required --input path.');
   if (!args.output) throw new Error('Missing required --output path.');
+  if (args.target !== 'mixamo' && args.target !== 'cc_base') {
+    throw new Error(`Invalid --target "${args.target}". Expected "mixamo" or "cc_base".`);
+  }
   return args;
 }
 
@@ -84,7 +93,7 @@ function printUsage() {
   // eslint-disable-next-line no-console
   console.log(`
 Convert an FBX animation to a GLB and optimize it (resample + prune + quantize),
-then remap CC_Base bones to Mixamo names and prune non-mixamo tracks.
+then optionally remap CC_Base bones to Mixamo names and prune non-target tracks.
 
 Defaults:
   fps: 30
@@ -94,6 +103,7 @@ Usage:
   node scripts/convert_fbx_motion_to_mixamo_glb.mjs --input path/to/clip.fbx --output path/to/clip.mixamo.glb --fps 24
   node scripts/convert_fbx_motion_to_mixamo_glb.mjs --input path/to/clip.fbx --output path/to/clip.mixamo.glb --no-quantize
   node scripts/convert_fbx_motion_to_mixamo_glb.mjs --input path/to/clip.fbx --output path/to/clip.mixamo.glb --keep-root
+  node scripts/convert_fbx_motion_to_mixamo_glb.mjs --input path/to/clip.fbx --output path/to/clip.cc_base.glb --target cc_base
 `);
 }
 
@@ -252,6 +262,58 @@ function mapCcToMixamo(name) {
   return `mixamorig${mapped}`;
 }
 
+function mapMixamoToCcBase(name) {
+  if (!name) return null;
+  const raw = stripMixamoPrefix(stripNamespace(name));
+  const lower = raw.toLowerCase();
+
+  const table = {
+    hips: 'CC_Base_Hip',
+    pelvis: 'CC_Base_Pelvis',
+    spine: 'CC_Base_Waist',
+    spine1: 'CC_Base_Spine01',
+    spine2: 'CC_Base_Spine02',
+    neck: 'CC_Base_NeckTwist02',
+    head: 'CC_Base_Head',
+    leftshoulder: 'CC_Base_L_Clavicle',
+    leftarm: 'CC_Base_L_Upperarm',
+    leftforearm: 'CC_Base_L_Forearm',
+    lefthand: 'CC_Base_L_Hand',
+    leftupleg: 'CC_Base_L_Thigh',
+    leftleg: 'CC_Base_L_Calf',
+    leftfoot: 'CC_Base_L_Foot',
+    lefttoebase: 'CC_Base_L_ToeBase',
+    rightshoulder: 'CC_Base_R_Clavicle',
+    rightarm: 'CC_Base_R_Upperarm',
+    rightforearm: 'CC_Base_R_Forearm',
+    righthand: 'CC_Base_R_Hand',
+    rightupleg: 'CC_Base_R_Thigh',
+    rightleg: 'CC_Base_R_Calf',
+    rightfoot: 'CC_Base_R_Foot',
+    righttoebase: 'CC_Base_R_ToeBase',
+  };
+  if (table[lower]) return table[lower];
+
+  const fingerMatch = raw.match(/^(Left|Right)Hand(Thumb|Index|Middle|Ring|Pinky)(\d)$/i);
+  if (fingerMatch) {
+    const side = fingerMatch[1].toLowerCase() === 'left' ? 'L' : 'R';
+    const finger = fingerMatch[2].toLowerCase();
+    const idx = fingerMatch[3];
+    if (idx === '4') return null;
+    const fingerMap = {
+      thumb: 'Thumb',
+      index: 'Index',
+      middle: 'Mid',
+      ring: 'Ring',
+      pinky: 'Pinky',
+    };
+    const ccFinger = fingerMap[finger];
+    return ccFinger ? `CC_Base_${side}_${ccFinger}${idx}` : null;
+  }
+
+  return null;
+}
+
 async function resolveFbx2GltfPath() {
   const platform = process.platform === 'darwin' ? 'Darwin' : process.platform === 'linux' ? 'Linux' : null;
   if (!platform) {
@@ -316,31 +378,57 @@ async function main() {
     const root = doc.getRoot();
     const nodes = root.listNodes();
     let renamedCount = 0;
-    for (const node of nodes) {
-      const name = node.getName();
-      if (!name) continue;
-      const mapped = mapCcToMixamo(name);
-      if (!mapped || mapped === name) continue;
-      node.setName(mapped);
-      renamedCount += 1;
-    }
-
     let removed = 0;
     let kept = 0;
+
+    if (args.target === 'mixamo') {
+      for (const node of nodes) {
+        const name = node.getName();
+        if (!name) continue;
+        const mapped = mapCcToMixamo(name);
+        if (!mapped || mapped === name) continue;
+        node.setName(mapped);
+        renamedCount += 1;
+      }
+    } else if (args.target === 'cc_base') {
+      for (const node of nodes) {
+        const name = node.getName();
+        if (!name) continue;
+        if (!name.startsWith('mixamorig')) continue;
+        const mapped = mapMixamoToCcBase(name);
+        if (!mapped || mapped === name) continue;
+        node.setName(mapped);
+        renamedCount += 1;
+      }
+    }
+
     for (const animation of root.listAnimations()) {
       for (const channel of [...animation.listChannels()]) {
         const target = channel.getTargetNode();
         const name = target?.getName() ?? '';
-        if (!name.startsWith('mixamorig')) {
-          animation.removeChannel(channel);
-          removed += 1;
-          continue;
-        }
-        const pathKey = channel.getTargetPath();
-        if (!args.keepRoot && name === 'mixamorigHips' && (pathKey === 'translation' || pathKey === 'rotation')) {
-          animation.removeChannel(channel);
-          removed += 1;
-          continue;
+        if (args.target === 'mixamo') {
+          if (!name.startsWith('mixamorig')) {
+            animation.removeChannel(channel);
+            removed += 1;
+            continue;
+          }
+          const pathKey = channel.getTargetPath();
+          if (!args.keepRoot && name === 'mixamorigHips' && (pathKey === 'translation' || pathKey === 'rotation')) {
+            animation.removeChannel(channel);
+            removed += 1;
+            continue;
+          }
+        } else {
+          const pathKey = channel.getTargetPath();
+          if (
+            !args.keepRoot &&
+            (name === 'CC_Base_Hip' || name === 'CC_Base_Hips' || name === 'CC_Base_Pelvis') &&
+            (pathKey === 'translation' || pathKey === 'rotation')
+          ) {
+            animation.removeChannel(channel);
+            removed += 1;
+            continue;
+          }
         }
         kept += 1;
       }
@@ -348,7 +436,9 @@ async function main() {
 
     await io.write(outputPath, doc);
     // eslint-disable-next-line no-console
-    console.log(`Remapped ${renamedCount} nodes. Pruned channels. kept=${kept} removed=${removed}`);
+    console.log(
+      `Target=${args.target}. Remapped ${renamedCount} nodes. Pruned channels. kept=${kept} removed=${removed}`,
+    );
     // eslint-disable-next-line no-console
     console.log(`Wrote ${outputPath}`);
   } finally {

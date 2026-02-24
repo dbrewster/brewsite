@@ -296,12 +296,12 @@ describe('WidgetRegistry', () => {
 
   it('buildCacheKey includes clipMeta entries', () => {
     const widget = new TestWidget('with-clips');
-    (widget as unknown as { clipMeta: Array<{ name: string; duration: number }> }).clipMeta = [
-      { name: 'clip', duration: 1.23456 },
+    (widget as unknown as { clipMeta: Array<{ name: string; duration: number; clipStart?: number; clipEnd?: number }> }).clipMeta = [
+      { name: 'clip', duration: 1.23456, clipStart: 0.1, clipEnd: 0.8 },
     ];
     registry.register(widget);
     const key = registry.buildCacheKey();
-    expect(key).toContain('clip:1.235');
+    expect(key).toContain('clip:1.235:0.1000:0.8000');
   });
 
   it('detects variable providers', () => {

@@ -3,7 +3,7 @@ import type { VariableStoreReader, JsonPrimitive } from './VariableStore';
 import type { ElementTransitionSpec } from '../compiler/transitions/transitionTypes';
 import type { ClipMeta, SceneTrackTick } from '../compiler/sceneTrackTypes';
 
-type AssetManifest = { version: number; models: unknown[]; containedModels: unknown[]; animations: unknown[] };
+type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
 
 export interface IWidget {
   readonly widgetId: string;

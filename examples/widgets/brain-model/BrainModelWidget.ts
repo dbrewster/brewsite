@@ -130,7 +130,7 @@ export class BrainModelWidget
   }
 
   async load(manifest: AssetManifest | null): Promise<void> {
-    const meta = manifest?.containedModels.find((model) => model.type === this.widgetId);
+    const meta = manifest?.models.find((model) => model.type === this.widgetId);
     if (!meta) {
       this.buildFallback();
       this.isLoaded = true;

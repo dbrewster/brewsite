@@ -20,21 +20,21 @@ export const scene02Move: SceneDefinition = {
         roughness={.1}
       >
         <Robot.Eyes color="#ff0000" opacity={1} />
-        <Robot.Neck color="#000000" opacity={1}>
+        <Robot.NeckTwist02 color="#000000" opacity={1}>
           <Pose reset/>
-        </Robot.Neck>
-        <Robot.Spine2>
+        </Robot.NeckTwist02>
+        <Robot.Spine02>
           <Pose reset/>
-        </Robot.Spine2>
-        <Robot.RightForeArm color="#00ff00" opacity={1}>
+        </Robot.Spine02>
+        <Robot.RForearm color="#00ff00" opacity={1}>
           <Pose reset/>
-        </Robot.RightForeArm>
-        <Robot.LeftForeArm color="#00ff00">
+        </Robot.RForearm>
+        <Robot.LForearm color="#00ff00">
           <Pose rotate={{yawPct: -Math.PI/8}}/>
-        </Robot.LeftForeArm>
-        <Robot.LeftShoulder>
+        </Robot.LForearm>
+        <Robot.LClavicle>
           <Pose rotate={{pitchPct: -Math.PI/8}}/>
-        </Robot.LeftShoulder>
+        </Robot.LClavicle>
         <Robot.Head opacity={.6}/>
         <Robot.Brain opacity={1}>
           <BrainSubparts>

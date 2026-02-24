@@ -33,7 +33,6 @@ const makeManifest = (): AssetManifest => ({
       },
     },
   ],
-  containedModels: [],
   animations: [],
 });
 

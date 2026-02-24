@@ -247,8 +247,14 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     const fromSnap = snapshots[blockIdx];
     const toSnap = snapshots[blockIdx + 1];
     if (!fromSnap) continue;
-    if (fromSnap.hudItems?.length) {
-      frame.hudPrimitives = compileHudItems(fromSnap.hudItems);
+    const fromHud = fromSnap.hudItems?.length
+      ? compileHudItems(fromSnap.hudItems, { sceneId: fromSnap.id || `scene-${blockIdx}`, phase: 'exit' })
+      : [];
+    const toHud = toSnap?.hudItems?.length
+      ? compileHudItems(toSnap.hudItems, { sceneId: toSnap.id || `scene-${blockIdx + 1}`, phase: 'enter' })
+      : [];
+    if (fromHud.length || toHud.length) {
+      frame.hudPrimitives = [...fromHud, ...toHud];
     }
     if (fromSnap.labels?.length || toSnap?.labels?.length) {
       frame.labelPrimitives = compileLabels(fromSnap.labels, toSnap?.labels, { sceneProgress: frame.blockProgress });

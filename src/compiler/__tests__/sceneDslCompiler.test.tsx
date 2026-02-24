@@ -96,7 +96,7 @@ describe('sceneDslCompiler', () => {
     registerNode(Annot, (_node, api) => {
       api.pushHudItem({
         id: 'a1',
-        node: null,
+        children: null,
       });
     });
     registerNode(Label, (_node, api) => {

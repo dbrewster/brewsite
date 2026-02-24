@@ -174,7 +174,7 @@ describe('RuntimeDriverImpl', () => {
     const driver = new RuntimeDriverImpl({
       widgetRegistry: registry,
       variableStore,
-      manifest: { version: 2, models: [], containedModels: [], animations: [] },
+      manifest: { version: 2, models: [], animations: [] },
     });
 
     await driver.initialize(scene);

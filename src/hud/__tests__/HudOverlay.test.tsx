@@ -7,7 +7,8 @@ import type { HudItemResolved } from '../types';
 
 const makeItem = (id: string): HudItemResolved => ({
   id,
-  node: <span>{id}</span>,
+  instanceId: `inst-${id}`,
+  children: <span>{id}</span>,
 });
 
 describe('HudOverlay', () => {
@@ -30,8 +31,8 @@ describe('HudOverlay', () => {
 
   it('does not render disabled items', () => {
     const items: HudItemResolved[] = [
-      { id: 'visible', node: <span />, enabled: true },
-      { id: 'hidden', node: <span />, enabled: false },
+      { id: 'visible', instanceId: 'inst-visible', children: <span />, enabled: true },
+      { id: 'hidden', instanceId: 'inst-hidden', children: <span />, enabled: false },
     ];
     const { container } = render(<HudOverlay items={items} />);
     expect(container.querySelector('[data-hud-id="visible"]')).not.toBeNull();

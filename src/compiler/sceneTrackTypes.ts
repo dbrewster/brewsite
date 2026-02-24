@@ -15,6 +15,8 @@ export type { HudItemResolved } from '../hud/types';
 export type ClipMeta = {
   name: string;
   duration: number;
+  clipStart?: number;
+  clipEnd?: number;
 };
 
 // ─── SceneFrame ───────────────────────────────────────────────────────────────

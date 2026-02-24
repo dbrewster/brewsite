@@ -3,4 +3,6 @@
 
 export * from './sceneDsl.common.generated';
 export * from './sceneDsl.Robot.generated';
+export * from './sceneDsl.Worker.generated';
+export * from './sceneDsl.brain.generated';
 export * from './sceneDsl.brain.subparts.generated';

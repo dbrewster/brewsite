@@ -73,7 +73,6 @@ describe('gen-scene-dsl', () => {
           models: [
             { type: 'Robot', path: '/assets/robot.glb', role: 'primary-ish', anchorKeys: [] },
           ],
-          containedModels: [],
           animations: [],
         } as const;
       `,
@@ -98,7 +97,6 @@ describe('gen-scene-dsl', () => {
           models: [
             { type: 'Robot', path: '/assets/robot.glb', role: 'primary', anchorKeys: ['head'] },
           ],
-          containedModels: [],
           animations: [],
         } as const;
       `,

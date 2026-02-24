@@ -675,9 +675,23 @@ export class ModelWidget
     }
 
     this.anchorTargets = modelMeta.anchorTargets ?? {};
+    const containedModelIds = new Set<string>();
+    const parts = modelMeta.identity?.model?.parts ?? {};
+    for (const part of Object.values(parts)) {
+      if (part?.modelId) containedModelIds.add(part.modelId);
+    }
+    const containedModels = containedModelIds.size > 0
+      ? (typedManifest?.models ?? []).filter((m) => containedModelIds.has(m.type))
+      : [];
+    for (const modelId of containedModelIds) {
+      if (!containedModels.some((m) => m.type === modelId)) {
+        console.warn(`[ModelWidget] contained model "${modelId}" not found in manifest`);
+      }
+    }
     await this.renderer.loadGlb(modelMeta.glb, {
       anchorTargets: this.anchorTargets,
       manifest: typedManifest,
+      containedModels,
       footOffsetY: modelMeta.footOffsetY ?? 0,
     });
     this.isLoaded = true;

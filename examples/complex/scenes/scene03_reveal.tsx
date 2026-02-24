@@ -1,5 +1,6 @@
 import type { SceneDefinition } from '@brewsite/core';
 import { Ambient, Background, Directional, Environment, Floor, Hud, HudItem, Lighting, Point, Scene, Spot } from '@brewsite/core';
+import { Fade } from '../../../src/hud/animejs';
 import { Animation, BodyParts, ContainedModel, ModelPart, Playback, Pose, Robot } from '../../generated/sceneDsl.generated';
 import { backgrounds, sceneLighting } from './sceneAssets';
 
@@ -28,10 +29,10 @@ export const scene03Reveal: SceneDefinition = {
         <BodyParts>
           <Robot.Eyes color="#8ff7ff" opacity={1} />
           <Robot.Head color="#d7e7ff" opacity={0.5} />
-          <Robot.Neck color="#9aa9c3" opacity={1} />
-          <Robot.RightForeArm color="#3bff30" opacity={1}>
+          <Robot.NeckTwist02 color="#9aa9c3" opacity={1} />
+          <Robot.RForearm color="#3bff30" opacity={1}>
             <Pose reset />
-          </Robot.RightForeArm>
+          </Robot.RForearm>
         </BodyParts>
         <ModelPart id="brain" anchor="Head" rotation={[0, 0, 0]} position={[0, 0.05, 0]} opacity={1}>
           <ContainedModel
@@ -43,20 +44,18 @@ export const scene03Reveal: SceneDefinition = {
         </ModelPart>
       </Robot>
       <Hud>
-        <HudItem
-          id="complex-hud"
-          className="complex-hud complex-hud--right"
-          node={(
-            <>
+        <HudItem id="complex-hud">
+          <Fade duration={1200}>
+            <div className="complex-hud complex-hud--right">
               <div className="complex-hud__eyebrow">Scene 3</div>
               <h2 className="complex-hud__title">Reveal with focal lighting.</h2>
               <div className="complex-hud__body">
                 Key lights tighten the frame while the head-mounted model appears, pulling
                 attention to the hero detail.
               </div>
-            </>
-          )}
-        />
+            </div>
+          </Fade>
+        </HudItem>
       </Hud>
     </Scene>
   ),

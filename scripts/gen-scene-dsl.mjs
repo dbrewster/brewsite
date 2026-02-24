@@ -254,8 +254,34 @@ const getArrayProp = (obj, name) => {
   return value.elements.filter(Boolean);
 };
 
+const readContainedModelsProp = (obj) => {
+  const prop = getObjectProp(obj, 'containedModels');
+  if (!prop || prop.type !== 'ObjectProperty') return [];
+  const value = unwrapExpression(prop.value);
+  if (!value || value.type !== 'ArrayExpression') return [];
+  const entries = [];
+  for (const entry of value.elements.filter(Boolean)) {
+    const entryObj = getObjectLiteral(unwrapExpression(entry));
+    if (!entryObj) continue;
+    const type = readStringProp(entryObj, 'type', { required: true });
+    const target = readStringProp(entryObj, 'target', { required: false });
+    const position = readNumberArrayProp(entryObj, 'position', { required: false, length: 3 });
+    const rotation = readNumberArrayProp(entryObj, 'rotation', { required: false, length: 3 });
+    const scale = readNumberProp(entryObj, 'scale', { required: false });
+    if (!type) throw new Error('Missing required type on containedModel definition.');
+    assertValidTypeName(type, 'containedModel.type');
+    entries.push({
+      type,
+      ...(target ? { target } : {}),
+      ...(position ? { position } : {}),
+      ...(rotation ? { rotation } : {}),
+      ...(typeof scale === 'number' ? { scale } : {}),
+    });
+  }
+  return entries;
+};
+
 const modelDefs = [];
-const containedDefs = [];
 const animDefs = [];
 const allowedRoles = new Set(['primary', 'brain', 'attachment', 'unknown']);
 
@@ -269,6 +295,7 @@ try {
     const role = readStringProp(obj, 'role', { required: true });
     const anchorKeys = readStringArrayProp(obj, 'anchorKeys', { required: false }) ?? [];
     const footOffsetY = readNumberProp(obj, 'footOffsetY', { required: false });
+    const containedModels = readContainedModelsProp(obj);
     if (!type || !pathValue || !role) throw new Error('Missing required attributes on model definition.');
     assertValidTypeName(type, 'model.type');
     if (!allowedRoles.has(role)) {
@@ -277,32 +304,7 @@ try {
     if (!pathValue.startsWith('/assets/')) {
       throw new Error(`Invalid path "${pathValue}". Expected to start with /assets/.`);
     }
-    modelDefs.push({ type, path: pathValue, role, anchorKeys, footOffsetY });
-  }
-
-  const containedNodes = getArrayProp(resourcesObj, 'containedModels');
-  for (const entry of containedNodes) {
-    const obj = getObjectLiteral(unwrapExpression(entry));
-    if (!obj) continue;
-    const type = readStringProp(obj, 'type', { required: true });
-    const pathValue = readStringProp(obj, 'path', { required: true });
-    const target = readStringProp(obj, 'target', { required: false });
-    const position = readNumberArrayProp(obj, 'position', { required: false, length: 3 });
-    const rotation = readNumberArrayProp(obj, 'rotation', { required: false, length: 3 });
-    const scale = readNumberProp(obj, 'scale', { required: false });
-    if (!type || !pathValue) throw new Error('Missing required attributes on containedModel definition.');
-    assertValidTypeName(type, 'containedModel.type');
-    if (!pathValue.startsWith('/assets/')) {
-      throw new Error(`Invalid path "${pathValue}". Expected to start with /assets/.`);
-    }
-    containedDefs.push({
-      type,
-      path: pathValue,
-      ...(target ? { target } : {}),
-      ...(position ? { position } : {}),
-      ...(rotation ? { rotation } : {}),
-      ...(typeof scale === 'number' ? { scale } : {}),
-    });
+    modelDefs.push({ type, path: pathValue, role, anchorKeys, footOffsetY, containedModels });
   }
 
   const animNodes = getArrayProp(resourcesObj, 'animations');
@@ -312,12 +314,20 @@ try {
     const type = readStringProp(obj, 'type', { required: true });
     const pathValue = readStringProp(obj, 'path', { required: true });
     const clipName = readStringProp(obj, 'clipName', { required: false });
+    const clipStart = readNumberProp(obj, 'clipStart', { required: false });
+    const clipEnd = readNumberProp(obj, 'clipEnd', { required: false });
     if (!type || !pathValue) throw new Error('Missing required attributes on animation definition.');
     assertValidTypeName(type, 'animation.type');
     if (!pathValue.startsWith('/assets/')) {
       throw new Error(`Invalid path "${pathValue}". Expected to start with /assets/.`);
     }
-    animDefs.push({ type, path: pathValue, clipName: clipName ?? null });
+    animDefs.push({
+      type,
+      path: pathValue,
+      clipName: clipName ?? null,
+      ...(typeof clipStart === 'number' ? { clipStart } : {}),
+      ...(typeof clipEnd === 'number' ? { clipEnd } : {}),
+    });
   }
 } catch (err) {
   console.error('[gen-scene-dsl] Invalid siteResources:', err?.message ?? err);
@@ -332,14 +342,6 @@ for (const entry of modelDefs) {
   }
   idSet.add(entry.type);
 }
-const containedIdSet = new Set();
-for (const entry of containedDefs) {
-  if (containedIdSet.has(entry.type)) {
-    console.error(`[gen-scene-dsl] Duplicate contained model type: ${entry.type}`);
-    process.exit(1);
-  }
-  containedIdSet.add(entry.type);
-}
 const animIdSet = new Set();
 for (const entry of animDefs) {
   if (animIdSet.has(entry.type)) {
@@ -349,9 +351,35 @@ for (const entry of animDefs) {
   animIdSet.add(entry.type);
 }
 
+const modelTypeSet = new Set(modelDefs.map((entry) => entry.type));
+const containedTypeSet = new Set();
+for (const entry of modelDefs) {
+  const contained = entry.containedModels ?? [];
+  for (const containedEntry of contained) {
+    if (!modelTypeSet.has(containedEntry.type)) {
+      console.error(
+        `[gen-scene-dsl] Unknown contained model type "${containedEntry.type}" on model "${entry.type}".`,
+      );
+      process.exit(1);
+    }
+    if (containedEntry.target) {
+      const anchors = entry.anchorKeys ?? [];
+      if (!anchors.includes(containedEntry.target)) {
+        console.error(
+          `[gen-scene-dsl] Invalid containedModel.target "${containedEntry.target}" on model "${entry.type}". ` +
+          `Expected one of: ${anchors.join(', ') || '(none)'}`,
+        );
+        process.exit(1);
+      }
+    }
+    containedTypeSet.add(containedEntry.type);
+  }
+}
+
 const canonicalizeComponentName = (raw) => {
   const cleaned = raw
     .replace(/^mixamorig:/i, '')
+    .replace(/^cc_base_/i, '')
     .replace(/[^A-Za-z0-9]+/g, ' ')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
     .trim();
@@ -375,7 +403,7 @@ const makeUnion = (values) => {
 
 const modelTypeUnion = makeUnion(modelDefs.map((m) => m.type));
 const animationTypeUnion = makeUnion(animDefs.map((a) => a.type));
-const containedTypeUnion = makeUnion(containedDefs.map((c) => c.type));
+const containedTypeUnion = makeUnion(Array.from(containedTypeSet).sort());
 const pageIds = pageIdsArg ? pageIdsArg.split(',').map((v) => v.trim()).filter(Boolean) : [];
 const scenePageIdUnion = makeUnion(pageIds);
 
@@ -434,6 +462,7 @@ const resolveAnchorTarget = (key, bones, nodes, meshes) => {
 
 const modelRegistry = {};
 const modelBodyParts = {};
+const containedSubparts = {};
 const DEFAULT_MODEL_SCALE = 0.1;
 const DEFAULT_MODEL_POSITION = [0, 0, 0];
 const DEFAULT_MODEL_ROTATION = [0, 0, 0];
@@ -516,10 +545,14 @@ const tokenizeName = (name) => {
   name = name.replace(/([A-Z]+)([A-Z][a-z])/g, '$1_$2');
   // Split on non-alphanumeric, lowercase, normalize numerics
   const raw = name.split(/[^A-Za-z0-9]+/).filter(Boolean);
-  return raw.map((t) => {
+  const tokens = raw.map((t) => {
     const lower = t.toLowerCase();
     return /^\d+$/.test(lower) ? String(parseInt(lower, 10)) : lower;
   }).filter(Boolean);
+  if (tokens[0] === 'cc' && tokens[1] === 'base') {
+    tokens.splice(0, 2);
+  }
+  return tokens.map((t) => (t === 'l' ? 'left' : t === 'r' ? 'right' : t));
 };
 
 /**
@@ -635,6 +668,14 @@ for (const entry of modelDefs) {
     .filter(Boolean)
     .sort();
   const meshes = root.listMeshes().map((m) => m.getName()).filter(Boolean).sort();
+  const subparts = nodes
+    .filter((n) => n.getMesh && n.getMesh())
+    .map((n) => n.getName())
+    .filter(Boolean)
+    .sort();
+  if (containedTypeSet.has(entry.type)) {
+    containedSubparts[entry.type] = subparts;
+  }
   const nodeNames = nodes.map((n) => n.getName()).filter(Boolean);
   const anchorCandidates = Array.from(new Set([...bones, ...nodeNames, ...meshes])).sort();
   const anchorTargets = {};
@@ -658,11 +699,9 @@ for (const entry of modelDefs) {
 
   const bodyPartGroups = buildBodyPartGroups(bones, meshes);
   const identity = buildIdentity(bodyPartGroups, meshDefaults);
-  if (entry.role === 'primary') {
-    const bakedParts = buildContainedParts(containedDefs);
-    if (bakedParts) {
-      identity.model.parts = bakedParts;
-    }
+  const bakedParts = buildContainedParts(entry.containedModels ?? []);
+  if (bakedParts) {
+    identity.model.parts = bakedParts;
   }
   const computedFootOffsetY = computeFootOffsetY(root);
   const footOffsetDeltaY = typeof entry.footOffsetY === 'number' ? entry.footOffsetY : 0;
@@ -685,48 +724,10 @@ for (const entry of modelDefs) {
     bodyParts: Array.from(new Set([...bones, ...meshes])).sort(),
     bodyPartGroups,
     identity,
+    ...(containedTypeSet.has(entry.type) ? { subparts } : {}),
     ...(Number.isFinite(footOffsetY) ? { footOffsetY } : {}),
   };
   modelBodyParts[entry.type] = Array.from(new Set([...bones, ...meshes])).sort();
-}
-
-const containedRegistry = {};
-const containedSubparts = {};
-for (const entry of containedDefs) {
-  const root = await readGlb(entry.path);
-  const subparts = root
-    .listNodes()
-    .filter((n) => n.getMesh && n.getMesh())
-    .map((n) => n.getName())
-    .filter(Boolean)
-    .sort();
-  containedRegistry[entry.type] = {
-    type: entry.type,
-    glb: entry.path,
-    subparts,
-    ...(entry.target ? { target: entry.target } : {}),
-    ...(entry.position ? { position: entry.position } : {}),
-    ...(entry.rotation ? { rotation: entry.rotation } : {}),
-    ...(typeof entry.scale === 'number' ? { scale: entry.scale } : {}),
-  };
-  containedSubparts[entry.type] = subparts;
-}
-
-// Validate contained model targets against available anchor keys on primary models.
-const validAnchorKeys = new Set(
-  modelDefs
-    .filter((entry) => entry.role === 'primary')
-    .flatMap((entry) => entry.anchorKeys ?? []),
-);
-for (const entry of containedDefs) {
-  if (!entry?.target) continue;
-  if (!validAnchorKeys.has(entry.target)) {
-    console.error(
-      `[gen-scene-dsl] Invalid containedModel.target "${entry.target}" for "${entry.type}". ` +
-        `Expected one of: ${Array.from(validAnchorKeys).join(', ') || '(none)'}`,
-    );
-    process.exit(1);
-  }
 }
 
 const animationRegistry = {};
@@ -750,6 +751,8 @@ for (const entry of animDefs) {
     glb: entry.path,
     clipName,
     duration: animationDuration(chosen),
+    ...(typeof entry.clipStart === 'number' ? { clipStart: entry.clipStart } : {}),
+    ...(typeof entry.clipEnd === 'number' ? { clipEnd: entry.clipEnd } : {}),
   };
 }
 
@@ -762,16 +765,17 @@ const modelBodyPartTypes = modelDefs.map((entry) => {
   return `export type ${typeName} = ${union};`;
 }).join('\n');
 
-const containedSubpartTypes = containedDefs.map((entry) => {
-  const name = entry.type;
+const containedTypeList = Array.from(containedTypeSet).sort();
+const containedSubpartTypes = containedTypeList.map((type) => {
+  const name = type;
   const typeName = `${name}Subpart`;
-  const union = makeUnion(containedSubparts[entry.type] ?? []);
+  const union = makeUnion(containedSubparts[type] ?? []);
   return { name, typeName, union };
 });
 
-const containedSubpartComponents = containedDefs.map((entry) => {
-  const subparts = containedSubparts[entry.type] ?? [];
-  const containerName = `${toPascalCase(entry.type) || entry.type}Subparts`;
+const containedSubpartComponents = containedTypeList.map((type) => {
+  const subparts = containedSubparts[type] ?? [];
+  const containerName = `${toPascalCase(type) || type}Subparts`;
   const entries = [];
   const seen = new Set();
   for (const id of subparts) {
@@ -782,7 +786,7 @@ const containedSubpartComponents = containedDefs.map((entry) => {
       render: `<Subpart {...props} id=${JSON.stringify(id)} />`,
     });
   }
-  return { name: entry.type, containerName, entries, hasEntries: entries.length > 0 };
+  return { name: type, containerName, entries, hasEntries: entries.length > 0 };
 });
 
 const toRelative = (abs) => {
@@ -799,28 +803,26 @@ const modelBodyPartComponents = modelDefs.map((entry) => {
   const entries = [];
   const modelPartEntries = [];
 
-  if (entry.role === 'primary') {
-    const partSeen = new Set();
-    for (const def of containedDefs) {
-      if (!def?.target) continue;
-      const baseName = toPascalCase(def.type) || def.type;
-      const componentName = ensureUniqueName(baseName, partSeen);
-      const subpartsContainerName = `${toPascalCase(def.type) || def.type}Subparts`;
-      const subpartsPropsTypeName = `${toPascalCase(def.type) || def.type}SubpartsProps`;
-      const containedPosition = def.position ?? null;
-      const containedRotation = def.rotation ?? null;
-      const containedScale = typeof def.scale === 'number' ? def.scale : null;
-      modelPartEntries.push({
-        name: componentName,
-        id: def.type,
-        target: def.target,
-        containedPosition,
-        containedRotation,
-        containedScale,
-        subpartsContainerName,
-        subpartsPropsTypeName,
-      });
-    }
+  const partSeen = new Set();
+  for (const def of entry.containedModels ?? []) {
+    if (!def?.target) continue;
+    const baseName = toPascalCase(def.type) || def.type;
+    const componentName = ensureUniqueName(baseName, partSeen);
+    const subpartsContainerName = `${toPascalCase(def.type) || def.type}Subparts`;
+    const subpartsPropsTypeName = `${toPascalCase(def.type) || def.type}SubpartsProps`;
+    const containedPosition = def.position ?? null;
+    const containedRotation = def.rotation ?? null;
+    const containedScale = typeof def.scale === 'number' ? def.scale : null;
+    modelPartEntries.push({
+      name: componentName,
+      id: def.type,
+      target: def.target,
+      containedPosition,
+      containedRotation,
+      containedScale,
+      subpartsContainerName,
+      subpartsPropsTypeName,
+    });
   }
 
   for (const group of bodyPartGroups) {
@@ -1072,16 +1074,16 @@ export const ${modelName} = Object.assign(
   };
 });
 
-const containedDslOutputs = containedDefs.map((entry) => {
-  const typeInfo = containedSubpartTypes.find((t) => t.name === entry.type);
-  const compInfo = containedSubpartComponents.find((c) => c.name === entry.type);
-  const typeName = typeInfo?.typeName ?? `${entry.type}Subpart`;
+const containedDslOutputs = containedTypeList.map((type) => {
+  const typeInfo = containedSubpartTypes.find((t) => t.name === type);
+  const compInfo = containedSubpartComponents.find((c) => c.name === type);
+  const typeName = typeInfo?.typeName ?? `${type}Subpart`;
   const union = typeInfo?.union ?? 'string';
-  const containerName = compInfo?.containerName ?? `${toPascalCase(entry.type) || entry.type}Subparts`;
+  const containerName = compInfo?.containerName ?? `${toPascalCase(type) || type}Subparts`;
   const entries = compInfo?.entries ?? [];
-  const typePrefix = toPascalCase(entry.type) || entry.type;
+  const typePrefix = toPascalCase(type) || type;
   return {
-    fileName: `sceneDsl.${entry.type}.subparts.generated.tsx`,
+    fileName: `sceneDsl.${type}.subparts.generated.tsx`,
     output: `/* eslint-disable */
 // Auto-generated by scripts/gen-scene-dsl.mjs.
 
@@ -1118,7 +1120,7 @@ const indexDslOutput = `/* eslint-disable */
 
 export * from './sceneDsl.common.generated';
 ${modelDefs.map((entry) => `export * from './sceneDsl.${entry.type}.generated';`).join('\n')}
-${containedDefs.map((entry) => `export * from './sceneDsl.${entry.type}.subparts.generated';`).join('\n')}
+${containedTypeList.map((type) => `export * from './sceneDsl.${type}.subparts.generated';`).join('\n')}
 `;
 await mkdir(absOutDir, { recursive: true });
 await writeFile(path.join(absOutDir, 'siteResources.generated.ts'), `${resourceOutput}\n${modelBodyPartTypes}\n\n${containedSubpartTypes.map((t) => `export type ${t.typeName} = ${t.union};`).join('\n')}\n`, 'utf8');
@@ -1144,7 +1146,6 @@ if (absManifestOut) {
   const manifest = {
     version: 2,
     models: Object.values(modelRegistry),
-    containedModels: Object.values(containedRegistry),
     animations: Object.values(animationRegistry),
   };
   await mkdir(path.dirname(absManifestOut), { recursive: true });

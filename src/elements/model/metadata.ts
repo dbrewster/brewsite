@@ -6,7 +6,7 @@
  */
 
 import type { ClipMeta } from '../../compiler/sceneTrackTypes';
-import type { SceneModelInstanceState, Vec3 } from './types';
+import type { SceneModelInstanceState } from './types';
 
 export const ASSET_MANIFEST_VERSION = 2;
 
@@ -40,6 +40,8 @@ export type ModelMeta = {
   glb: string;
   bones: string[];
   meshes: string[];
+  /** Node names for models intended to be used as contained models. */
+  subparts?: string[];
   /** Y offset from model origin to feet (scale=1). Computed at build time with optional delta. */
   footOffsetY?: number;
   /** Resolved anchor targets: anchorKey → bone node name. */
@@ -54,18 +56,6 @@ export type ModelMeta = {
   identity: SceneModelInstanceState;
 };
 
-// ─── Contained Model Metadata ────────────────────────────────────────────────
-
-export type ContainedModelMeta = {
-  type: string;
-  glb: string;
-  subparts: string[];
-  target?: string;
-  position?: Vec3;
-  rotation?: Vec3;
-  scale?: number;
-};
-
 // ─── Animation Entry ─────────────────────────────────────────────────────────
 
 export type AnimationEntry = {
@@ -73,6 +63,8 @@ export type AnimationEntry = {
   glb: string;
   clipName: string;
   duration: number;
+  clipStart?: number;
+  clipEnd?: number;
 };
 
 // ─── Asset Manifest (v2 schema) ───────────────────────────────────────────────
@@ -80,7 +72,6 @@ export type AnimationEntry = {
 export type AssetManifest = {
   version: number;
   models: ModelMeta[];
-  containedModels: ContainedModelMeta[];
   animations: AnimationEntry[];
 };
 
@@ -94,6 +85,8 @@ export const clipMetaFromManifest = (manifest: AssetManifest): ClipMeta[] =>
   manifest.animations.map((a) => ({
     name: a.clipName,
     duration: a.duration,
+    clipStart: a.clipStart,
+    clipEnd: a.clipEnd,
   }));
 
 /**
@@ -117,9 +110,6 @@ export const assertManifestValid = (raw: unknown): AssetManifest => {
   }
   if (!Array.isArray(m['models'])) {
     throw new Error('[AssetManifest] manifest is missing models array');
-  }
-  if (!Array.isArray(m['containedModels'])) {
-    throw new Error('[AssetManifest] manifest is missing containedModels array');
   }
   if (!Array.isArray(m['animations'])) {
     throw new Error('[AssetManifest] manifest is missing animations array');

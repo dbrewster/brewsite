@@ -7,7 +7,8 @@ import type { HudItemResolved } from '../types';
 
 const item = (overrides?: Partial<HudItemResolved>): HudItemResolved => ({
   id: 'test-item',
-  node: <span>Hello</span>,
+  instanceId: 'inst-test-item',
+  children: <span>Hello</span>,
   ...overrides,
 });
 
@@ -19,7 +20,7 @@ describe('HudItem', () => {
   });
 
   it('renders the node content', () => {
-    const { getByText } = render(<HudItem item={item({ node: <span>World</span> })} />);
+    const { getByText } = render(<HudItem item={item({ children: <span>World</span> })} />);
     expect(getByText('World')).toBeDefined();
   });
 

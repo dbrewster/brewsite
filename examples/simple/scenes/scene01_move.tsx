@@ -21,19 +21,19 @@ export const scene01Move: SceneDefinition = {
       >
         <BodyParts>
           <Robot.Eyes color="#ff00ff" opacity={1}/>
-          <Robot.Neck color="#ff0000" opacity={1}>
+          <Robot.NeckTwist02 color="#ff0000" opacity={1}>
             <Pose rotate={{
               pitchPct: .4
             }}/>
-          </Robot.Neck>
-          <Robot.RightForeArm color="#ff0000" opacity={1}>
-          </Robot.RightForeArm>
-          <Robot.Spine2>
+          </Robot.NeckTwist02>
+          <Robot.RForearm color="#ff0000" opacity={1}>
+          </Robot.RForearm>
+          <Robot.Spine02>
             <Pose rotate={{pitchPct: Math.PI/8}}/>
-          </Robot.Spine2>
-          <Robot.LeftShoulder>
+          </Robot.Spine02>
+          <Robot.LClavicle>
             <Pose rotate={{pitchPct: Math.PI/8}}/>
-          </Robot.LeftShoulder>
+          </Robot.LClavicle>
         </BodyParts>
         <Robot.Brain opacity={1}>
         </Robot.Brain>

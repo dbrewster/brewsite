@@ -19,8 +19,11 @@ export type HudItemDslProps = {
   className?: string;
   /** Optional inline styles. Positioning is fully CSS-owned — no placement logic here. */
   style?: CSSProperties;
-  /** React content to place inside the HUD slot. */
-  node: ReactNode;
+  /**
+   * React content. Passed as JSX children between the tags — not as a prop.
+   * May include animejs transition wrappers. Not compiled as DSL.
+   */
+  children?: ReactNode;
 };
 
 /** Container DSL component. Compiles its children. No output of its own. */
@@ -42,7 +45,7 @@ registerNode(HudItem, (node: import('react').ReactElement, api: CompileApi) => {
   const props = node.props as HudItemDslProps;
   const def: HudItemDefinition = {
     id: props.id,
-    node: props.node,
+    children: props.children ?? null,
   };
   if (props.enabled !== undefined) def.enabled = props.enabled;
   if (props.className !== undefined) def.className = props.className;

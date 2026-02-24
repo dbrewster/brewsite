@@ -1,0 +1,42 @@
+import type { SceneDefinition } from '@brewsite/core';
+import { Ambient, Background, Directional, Environment, Floor, Hud, HudItem, Lighting, Point, Scene, Spot } from '@brewsite/core';
+import { Fade } from '../../../src/hud/animejs';
+import {Animation, Playback, Worker} from '../../generated/sceneDsl.generated';
+import { backgrounds, sceneLighting } from './sceneAssets';
+
+export const scene04Scan: SceneDefinition = {
+  id: 'complex-scan',
+  index: 3,
+  getFrame: () => (
+    <Scene id="complex-scan">
+      <Background imageUrl={backgrounds.scan} opacity={1} cssSize="cover" cssPosition="center" />
+      <Lighting intensityScale={1}>
+        <Ambient intensity={sceneLighting.scan.ambient} color="#bdf6ff" />
+        <Directional intensity={sceneLighting.scan.directional} color="#ffffff" position={sceneLighting.scan.direction} />
+        <Point intensity={1.4} color="#5fe0ff" position={[18, 12, -10]} />
+        <Point intensity={0.7} color="#3b5bff" position={[-14, 6, 8]} />
+        <Spot intensity={2.6} color="#7bfff2" position={[4, 20, -2]} target={[6, -8, -4]} angle={0.5} penumbra={0.3} />
+        <Spot intensity={1.6} color="#5b9bff" position={[-8, 14, 14]} target={[2, -6, 4]} angle={0.6} penumbra={0.4} />
+      </Lighting>
+      <Worker
+        id="complex-worker"
+        position={[-10, 0, 5]}
+      >
+      </Worker>
+      <Hud>
+        <HudItem id="complex-hud">
+          <Fade duration={1200}>
+            <div className="complex-hud complex-hud--right">
+              <div className="complex-hud__eyebrow">Scene 4</div>
+              <h2 className="complex-hud__title">Scan and analyze.</h2>
+              <div className="complex-hud__body">
+                Cooler hues and sharper highlights signal a diagnostic pass while the pose shifts
+                to emphasize precision.
+              </div>
+            </div>
+          </Fade>
+        </HudItem>
+      </Hud>
+    </Scene>
+  ),
+};

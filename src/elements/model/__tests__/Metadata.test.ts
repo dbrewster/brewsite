@@ -39,8 +39,7 @@ const makeManifest = (): AssetManifest => ({
       },
     },
   }],
-  containedModels: [],
-  animations: [{ type: 'idle', glb: '/idle.glb', clipName: 'Idle', duration: 2 }],
+  animations: [{ type: 'idle', glb: '/idle.glb', clipName: 'Idle', duration: 2, clipStart: 0.1, clipEnd: 1.9 }],
 });
 
 describe('model metadata helpers', () => {
@@ -49,6 +48,8 @@ describe('model metadata helpers', () => {
     const clips = clipMetaFromManifest(manifest);
     expect(clips[0].name).toBe('Idle');
     expect(clips[0].duration).toBe(2);
+    expect(clips[0].clipStart).toBeCloseTo(0.1);
+    expect(clips[0].clipEnd).toBeCloseTo(1.9);
   });
 
   it('clipMetaFromManifest returns empty array when no animations', () => {
@@ -79,10 +80,9 @@ describe('model metadata helpers', () => {
   });
 
   it('assertManifestValid throws on missing arrays', () => {
-    const bad = { version: ASSET_MANIFEST_VERSION, models: [], containedModels: [] };
+    const bad = { version: ASSET_MANIFEST_VERSION, models: [] };
     expect(() => assertManifestValid(bad as unknown)).toThrow('animations');
-    expect(() => assertManifestValid({ version: ASSET_MANIFEST_VERSION, containedModels: [], animations: [] } as unknown)).toThrow('models');
-    expect(() => assertManifestValid({ version: ASSET_MANIFEST_VERSION, models: [], animations: [] } as unknown)).toThrow('containedModels');
+    expect(() => assertManifestValid({ version: ASSET_MANIFEST_VERSION, animations: [] } as unknown)).toThrow('models');
   });
 
   it('assertManifestValid throws on non-object input', () => {
@@ -118,7 +118,6 @@ describe('BodyPartGroup manifest round-trip', () => {
           playback: { motion: { commands: [], scenes: [], customAnimations: [] }, animation: { enabled: false } },
         },
       }],
-      containedModels: [],
       animations: [],
     };
     const validated = assertManifestValid(manifest);

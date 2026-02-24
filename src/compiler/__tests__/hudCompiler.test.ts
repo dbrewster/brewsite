@@ -4,7 +4,7 @@ import type { HudItemDefinition } from '../../hud/types';
 
 const item = (id: string, overrides?: Partial<HudItemDefinition>): HudItemDefinition => ({
   id,
-  node: null,
+  children: null,
   ...overrides,
 });
 
@@ -17,11 +17,13 @@ describe('compileHudItems', () => {
     expect(compileHudItems([])).toEqual([]);
   });
 
-  it('passes through enabled items', () => {
+  it('passes through enabled items and assigns instance ids', () => {
     const items = [item('a'), item('b', { enabled: true })];
-    const result = compileHudItems(items);
+    const result = compileHudItems(items, { sceneId: 's1', phase: 'exit' });
     expect(result).toHaveLength(2);
     expect(result.map((r) => r.id)).toEqual(['a', 'b']);
+    expect(result.map((r) => r.instanceId)).toEqual(['s1:a:0', 's1:b:1']);
+    expect(result.map((r) => r.phase)).toEqual(['exit', 'exit']);
   });
 
   it('excludes items with enabled === false', () => {
@@ -36,9 +38,10 @@ describe('compileHudItems', () => {
     expect(compileHudItems(items)).toHaveLength(0);
   });
 
-  it('preserves item identity (no deep clone)', () => {
-    const items = [item('z')];
-    const result = compileHudItems(items);
-    expect(result[0]).toBe(items[0]);
+  it('adds instanceId while preserving authored fields', () => {
+    const items = [item('z', { className: 'hud' })];
+    const result = compileHudItems(items, { sceneId: 's9' });
+    expect(result[0]?.className).toBe('hud');
+    expect(result[0]?.instanceId).toBe('s9:z:0');
   });
 });

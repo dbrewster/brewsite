@@ -16,7 +16,6 @@ const makeSceneGroup = (): SceneGroup => {
 const manifest = {
   version: 2,
   models: [],
-  containedModels: [],
   animations: [],
 };
 

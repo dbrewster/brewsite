@@ -46,6 +46,8 @@ export const resolveClipRangeSeconds = (animation: SceneAnimation, clipDuration:
     const endPct = endRaw > 1 ? endRaw / 100 : endRaw;
     startSeconds = startPct * clipDuration;
     endSeconds = endPct * clipDuration;
+  } else if (typeof rawClipEnd === 'number' && rawClipEnd < 0) {
+    endSeconds = Math.max(0, clipDuration + rawClipEnd);
   }
   const span = Math.max(1e-4, endSeconds - startSeconds);
   return { startSeconds, endSeconds, span };
@@ -609,7 +611,16 @@ export const compileAnimation = (
     return { enabled: false, clipName: requestedClip };
   }
 
-  const range = resolveClipRangeSeconds(animation, clip.duration);
+  const shouldUseClipDefaults =
+    typeof animation.clipStart !== 'number' && typeof animation.clipEnd !== 'number';
+  const effectiveAnimation: SceneAnimation = shouldUseClipDefaults
+    ? {
+        ...animation,
+        clipStart: animation.clipStart ?? clip.clipStart,
+        clipEnd: animation.clipEnd ?? clip.clipEnd,
+      }
+    : animation;
+  const range = resolveClipRangeSeconds(effectiveAnimation, clip.duration);
   return {
     enabled: true,
     clipName: requestedClip,

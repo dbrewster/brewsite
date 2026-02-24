@@ -1,6 +1,7 @@
 // Renders a single resolved HUD item as a positioned DOM container.
 
 import type { ReactElement } from 'react';
+import { HudPhaseContext } from './HudPhaseContext';
 import type { HudItemResolved } from './types';
 
 export type HudItemProps = {
@@ -15,12 +16,14 @@ export type HudItemProps = {
 export const HudItem = ({ item }: HudItemProps): ReactElement | null => {
   if (item.enabled === false) return null;
   return (
-    <div
-      data-hud-id={item.id}
-      className={item.className}
-      style={item.style}
-    >
-      {item.node}
-    </div>
+    <HudPhaseContext.Provider value={item.phase ?? null}>
+      <div
+        data-hud-id={item.id}
+        className={item.className}
+        style={item.style}
+      >
+        {item.children}
+      </div>
+    </HudPhaseContext.Provider>
   );
 };

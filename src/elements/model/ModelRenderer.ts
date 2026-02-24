@@ -18,7 +18,7 @@ import type { CompiledAnimation } from './compile';
 import type { WidgetRenderContext } from '../../widget/types';
 import { applyModelTransform } from './render';
 import type { IRenderable as RenderInterface } from './render';
-import type { AssetManifest, ContainedModelMeta, AnimationEntry } from './metadata';
+import type { AssetManifest, AnimationEntry, ModelMeta } from './metadata';
 
 type MaterialBase = {
   color?: THREE.Color;
@@ -32,6 +32,7 @@ type MaterialBase = {
 type LoadOptions = {
   anchorTargets?: Record<string, string>;
   manifest?: AssetManifest | null;
+  containedModels?: ModelMeta[];
   footOffsetY?: number;
 };
 
@@ -54,6 +55,7 @@ export class ModelRenderer {
   private animationClips = new Map<string, THREE.AnimationClip>();
   private activeClip: THREE.AnimationClip | null = null;
   private lastGlobalProgress: number | null = null;
+  private lastAnimationSignature: string | null = null;
   private initialStartOffsets = new Map<string, number>();
   private warnedMissingPoseTargets = new Set<string>();
   private warnedMissingMeshes = new Set<string>();
@@ -125,8 +127,11 @@ export class ModelRenderer {
     this.ingestModel(scene, gltf.animations ?? []);
 
     const manifest = options?.manifest ?? null;
+    const containedModels = options?.containedModels ?? [];
+    if (containedModels.length > 0) {
+      await this.loadContainedModels(loader, containedModels);
+    }
     if (manifest) {
-      await this.loadContainedModels(loader, manifest.containedModels ?? []);
       await this.loadAnimationClips(loader, manifest.animations ?? []);
     }
   }
@@ -185,7 +190,8 @@ export class ModelRenderer {
     this.applyModelParts(state.model.parts ?? {}, effectiveOpacity);
 
     if (animation?.enabled && animation.clipName) {
-      const resetDueToProgress = this.shouldResetOnProgress(ctx?.globalProgress);
+      const animationSignature = this.getAnimationSignature(state, animation);
+      const resetDueToProgress = this.shouldResetOnProgress(ctx?.globalProgress, animationSignature);
       this.applyAnimation(state, animation, ctx, resetDueToProgress);
     } else {
       this.clearActiveAnimation();
@@ -262,6 +268,7 @@ export class ModelRenderer {
     this.rangedClips.clear();
     this.initialStartOffsets.clear();
     this.lastGlobalProgress = null;
+    this.lastAnimationSignature = null;
     this.clearContainedModels();
     this.bodyPartMeshMap.clear();
   }
@@ -288,6 +295,7 @@ export class ModelRenderer {
     this.rangedClips.clear();
     this.initialStartOffsets.clear();
     this.lastGlobalProgress = null;
+    this.lastAnimationSignature = null;
 
     const seenMaterialUuids = new Set<string>();
     group.traverse((obj) => {
@@ -354,7 +362,7 @@ export class ModelRenderer {
     return pending;
   }
 
-  private async loadContainedModels(loader: GLTFLoader, models: ContainedModelMeta[]): Promise<void> {
+  private async loadContainedModels(loader: GLTFLoader, models: ModelMeta[]): Promise<void> {
     const loads = models.map(async (meta) => {
       const gltf = await ModelRenderer.loadGltfCached(
         loader,
@@ -387,9 +395,41 @@ export class ModelRenderer {
       if (clip) {
         const normalized = clip.clone();
         normalized.name = result.entry.clipName;
+        this.remapClipTrackNames(normalized);
         this.animationClips.set(result.entry.clipName, normalized);
       }
     }
+  }
+
+  private remapClipTrackNames(clip: THREE.AnimationClip): void {
+    const remap = new Map<string, string>();
+    if (!this.nodeByName.has('CC_Base_BoneRoot')) {
+      const resolved = this.nodeByName.has('RL_BoneRoot')
+        ? 'RL_BoneRoot'
+        : (this.nodeByName.has('RootNode') ? 'RootNode' : null);
+      if (resolved) remap.set('CC_Base_BoneRoot', resolved);
+    }
+    if (remap.size === 0) return;
+
+    const validTargets = new Set([
+      ...this.nodeByName.keys(),
+      ...this.boneByName.keys(),
+      ...this.meshByName.keys(),
+    ]);
+    const nextTracks: THREE.KeyframeTrack[] = [];
+    for (const track of clip.tracks) {
+      for (const [from, to] of remap) {
+        const prefix = `${from}.`;
+        if (track.name.startsWith(prefix)) {
+          track.name = `${to}.${track.name.slice(prefix.length)}`;
+          break;
+        }
+      }
+      const targetName = track.name.split('.')[0];
+      if (!validTargets.has(targetName)) continue;
+      nextTracks.push(track);
+    }
+    clip.tracks = nextTracks;
   }
 
   private applyBodyPartOverrides(
@@ -595,6 +635,10 @@ export class ModelRenderer {
       const prefixed = this.normalizeAnchorName(`mixamorig:${anchorName}`);
       resolved = this.boneByNormalizedName.get(prefixed);
     }
+    if (!resolved) {
+      const prefixed = this.normalizeAnchorName(`CC_Base_${anchorName}`);
+      resolved = this.boneByNormalizedName.get(prefixed);
+    }
     if (resolved && !this.warnedResolvedAnchors.has(anchorName)) {
       this.warnedResolvedAnchors.add(anchorName);
     }
@@ -602,7 +646,12 @@ export class ModelRenderer {
   }
 
   private normalizeAnchorName(name: string): string {
-    return name.replace(/^mixamorig:/i, '').replace(/[^a-z0-9]/gi, '').toLowerCase();
+    return name
+      .replace(/^mixamorig:/i, '')
+      .replace(/^mixamorig/i, '')
+      .replace(/^cc_base_/i, '')
+      .replace(/[^a-z0-9]/gi, '')
+      .toLowerCase();
   }
 
   private applyModelParts(parts: Record<string, ModelPartSpec>, modelOpacity?: number): void {
@@ -909,12 +958,31 @@ export class ModelRenderer {
 
   // (debug pose diff helpers removed)
 
-  private shouldResetOnProgress(globalProgress?: number): boolean {
+  private shouldResetOnProgress(globalProgress: number | undefined, animationSignature: string | null): boolean {
     if (typeof globalProgress !== 'number') return false;
     const last = this.lastGlobalProgress;
+    const lastSignature = this.lastAnimationSignature;
     this.lastGlobalProgress = globalProgress;
+    this.lastAnimationSignature = animationSignature;
     if (last === null) return false;
-    return globalProgress < last - 1e-4;
+    const wentBackward = globalProgress < last - 1e-4;
+    if (!wentBackward) return false;
+    return animationSignature !== lastSignature;
+  }
+
+  private getAnimationSignature(
+    state: SceneModelInstanceState,
+    animation?: CompiledAnimation,
+  ): string | null {
+    if (!animation?.enabled || !animation.clipName) return null;
+    const range = animation.range;
+    const rangeKey = range
+      ? `${range.startSeconds.toFixed(4)}-${range.endSeconds.toFixed(4)}`
+      : 'full';
+    const repeat = state.playback.animation.clipRepeat !== false;
+    const allowScale = state.playback.animation.allowScale === true;
+    const allowRotation = state.playback.animation.allowRotation !== false;
+    return `${animation.clipName}|${rangeKey}|r:${repeat ? 1 : 0}|s:${allowScale ? 1 : 0}|rot:${allowRotation ? 1 : 0}`;
   }
 
   private getInitialStartOffset(

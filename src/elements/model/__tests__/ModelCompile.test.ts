@@ -58,6 +58,23 @@ describe('model compile helpers', () => {
     expect(result.range?.span).toBeCloseTo(1);
   });
 
+  it('compileAnimation falls back to manifest defaults for clipStart/clipEnd', () => {
+    const anim: SceneAnimation = { enabled: true, clipName: 'idle' };
+    const result = compileAnimation(anim, [{ name: 'idle', duration: 2, clipStart: 0.2, clipEnd: 1.2 }], false);
+    expect(result.enabled).toBe(true);
+    expect(result.clipName).toBe('idle');
+    expect(result.range?.startSeconds).toBeCloseTo(0.2);
+    expect(result.range?.endSeconds).toBeCloseTo(1.2);
+  });
+
+  it('resolveClipRangeSeconds treats negative clipEnd as seconds from the end', () => {
+    const anim: SceneAnimation = { enabled: true, clipName: 'idle', clipStart: 0.1, clipEnd: -0.8 };
+    const result = compileAnimation(anim, [{ name: 'idle', duration: 2 }], false);
+    expect(result.enabled).toBe(true);
+    expect(result.range?.startSeconds).toBeCloseTo(0.1);
+    expect(result.range?.endSeconds).toBeCloseTo(1.2);
+  });
+
   it('compileAnimation returns disabled with clipName when clip is missing', () => {
     const anim: SceneAnimation = { enabled: true, clipName: 'missing' };
     const result = compileAnimation(anim, [], false);

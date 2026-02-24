@@ -1,0 +1,45 @@
+import {Animation, Playback, SceneDefinition} from '@brewsite/core';
+import {Ambient, Background, Directional, Hud, HudItem, Lighting, Point, Scene, Spot} from '@brewsite/core';
+import {Fade} from '../../../src/hud/animejs';
+import {Worker} from '../../generated/sceneDsl.generated';
+import {backgrounds, sceneLighting} from './sceneAssets';
+
+export const scene03Reveal: SceneDefinition = {
+  id: 'complex-reveal',
+  index: 2,
+  getFrame: () => (
+    <Scene id="complex-reveal">
+      <Background imageUrl={backgrounds.focus} opacity={1} cssSize="cover" cssPosition="center" />
+      <Lighting intensityScale={1}>
+        <Ambient intensity={sceneLighting.dramatic.ambient} color="#d6f3ff" />
+        <Directional intensity={sceneLighting.dramatic.directional} color="#ffffff" position={sceneLighting.dramatic.direction} />
+        <Point intensity={1.6} color="#7adfff" position={[22, 18, 14]} />
+        <Point intensity={0.8} color="#4b7cff" position={[-16, 8, -6]} />
+        <Spot intensity={2.4} color="#8ffff6" position={[6, 22, 18]} target={[0, -4, 0]} angle={0.45} penumbra={0.25} />
+        <Spot intensity={1.3} color="#5aa8ff" position={[-10, 16, 10]} target={[4, -6, 2]} angle={0.55} penumbra={0.35} />
+      </Lighting>
+      <Worker
+        id="complex-worker"
+        position={[0, 0, -10]}
+      >
+        <Playback>
+          <Animation clipName="08-drunken-stumble-and-fall" enabled weight={1}/>
+        </Playback>
+      </Worker>
+      <Hud>
+        <HudItem id="complex-hud">
+          <Fade duration={1200}>
+            <div className="complex-hud complex-hud--right">
+              <div className="complex-hud__eyebrow">Scene 3</div>
+              <h2 className="complex-hud__title">Reveal with focal lighting.</h2>
+              <div className="complex-hud__body">
+                Key lights tighten the frame while the head-mounted model appears, pulling
+                attention to the hero detail.
+              </div>
+            </div>
+          </Fade>
+        </HudItem>
+      </Hud>
+    </Scene>
+  ),
+};

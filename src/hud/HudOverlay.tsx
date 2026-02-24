@@ -17,7 +17,7 @@ export const HudOverlay = ({ items }: HudOverlayProps): ReactElement => {
   return (
     <>
       {items.map((item) => (
-        <HudItem key={item.id} item={item} />
+        <HudItem key={item.instanceId ?? item.id} item={item} />
       ))}
     </>
   );

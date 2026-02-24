@@ -20,7 +20,9 @@ describe('hudBlocks DSL compilation', () => {
     const tree = (
       <Scene id="s1">
         <Hud>
-          <HudItem id="banner" node={<span>Hello</span>} />
+          <HudItem id="banner">
+            <span>Hello</span>
+          </HudItem>
         </Hud>
       </Scene>
     );
@@ -33,8 +35,8 @@ describe('hudBlocks DSL compilation', () => {
     const tree = (
       <Scene id="s1">
         <Hud>
-          <HudItem id="a" node={null} />
-          <HudItem id="b" node={null} />
+          <HudItem id="a" />
+          <HudItem id="b" />
         </Hud>
       </Scene>
     );
@@ -48,7 +50,7 @@ describe('hudBlocks DSL compilation', () => {
     const tree = (
       <Scene id="s1">
         <Hud>
-          <HudItem id="x" node={null} enabled={false} className="my-cls" style={style} />
+          <HudItem id="x" enabled={false} className="my-cls" style={style} />
         </Hud>
       </Scene>
     );

@@ -28,23 +28,23 @@ export const BasicRobotPair = ({idBase, color1, color2, zPosition, xPosition, di
         <BodyParts>
           <Robot.Eyes color="#7ffcff" opacity={1}/>
           <Robot.Chest color="#223247" opacity={1}/>
-          <Robot.LeftForeArm color={color1} opacity={1}/>
-          <Robot.RightForeArm color={color1} opacity={1}/>
-          <Robot.Neck>
+          <Robot.LForearm color={color1} opacity={1}/>
+          <Robot.RForearm color={color1} opacity={1}/>
+          <Robot.NeckTwist02>
             <Pose yPct={.05}/>
-          </Robot.Neck>
-          <Robot.LeftFoot>
+          </Robot.NeckTwist02>
+          <Robot.LFoot>
             <Pose rotate={{pitchPct: -0.3}}/>
-          </Robot.LeftFoot>
-          <Robot.RightFoot>
+          </Robot.LFoot>
+          <Robot.RFoot>
             <Pose rotate={{pitchPct: -0.3}}/>
-          </Robot.RightFoot>
-          <Robot.Spine2>
+          </Robot.RFoot>
+          <Robot.Spine02>
             <Pose rotate={{pitchPct: 0.3}}/>
-          </Robot.Spine2>
+          </Robot.Spine02>
         </BodyParts>
         <Playback>
-          <Animation clipStartOnce={clipStartOnce} clipName={animationBase + "-f"} enabled weight={0.6} clipStart={.1} clipEnd={.8}/>
+          <Animation clipStartOnce={clipStartOnce} clipName={animationBase + "-f"} enabled weight={0.6} clipStart={.1} />
         </Playback>
       </Robot>
       <Robot
@@ -58,23 +58,23 @@ export const BasicRobotPair = ({idBase, color1, color2, zPosition, xPosition, di
         <BodyParts>
           <Robot.Eyes color="#7ffcff" opacity={1}/>
           <Robot.Chest color="#223247" opacity={1}/>
-          <Robot.LeftForeArm color={color2} opacity={1}/>
-          <Robot.RightForeArm color={color2} opacity={1}/>
-          <Robot.Neck>
+          <Robot.LForearm color={color2} opacity={1}/>
+          <Robot.RForearm color={color2} opacity={1}/>
+          <Robot.NeckTwist02>
             <Pose yPct={.1}/>
-          </Robot.Neck>
-          <Robot.LeftFoot>
+          </Robot.NeckTwist02>
+          <Robot.LFoot>
             <Pose rotate={{pitchPct: -0.3}}/>
-          </Robot.LeftFoot>
-          <Robot.RightFoot>
+          </Robot.LFoot>
+          <Robot.RFoot>
             <Pose rotate={{pitchPct: -0.3}}/>
-          </Robot.RightFoot>
-          <Robot.Spine2>
+          </Robot.RFoot>
+          <Robot.Spine02>
             <Pose rotate={{pitchPct: 0.3}}/>
-          </Robot.Spine2>
+          </Robot.Spine02>
         </BodyParts>
         <Playback>
-          <Animation clipStartOnce={clipStartOnce} clipName={animationBase + "-m"} enabled weight={0.6} clipStart={.1} clipEnd={.8}/>
+          <Animation clipStartOnce={clipStartOnce} clipName={animationBase + "-m"} enabled weight={0.6} clipStart={.1}/>
         </Playback>
       </Robot>
     </>

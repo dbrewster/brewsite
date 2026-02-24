@@ -279,7 +279,6 @@ describe('ModelWidget runtime helpers', () => {
         anchorTargets: { head: 'Head' },
         identity,
       }],
-      containedModels: [],
       animations: [],
     });
 
@@ -288,6 +287,7 @@ describe('ModelWidget runtime helpers', () => {
       expect.objectContaining({
         anchorTargets: { head: 'Head' },
         manifest: expect.any(Object),
+        containedModels: [],
         footOffsetY: 0,
       }),
     );

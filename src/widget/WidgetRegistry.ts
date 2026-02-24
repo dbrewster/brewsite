@@ -189,8 +189,13 @@ export class WidgetRegistry {
       .map((w) => {
         const extra =
           'clipMeta' in w
-            ? (w as { clipMeta: Array<{ name: string; duration: number }> }).clipMeta
-                .map((c) => `${c.name}:${c.duration.toFixed(3)}`)
+            ? (w as { clipMeta: Array<{ name: string; duration: number; clipStart?: number; clipEnd?: number }> })
+                .clipMeta
+                .map((c) => {
+                  const start = typeof c.clipStart === 'number' ? c.clipStart.toFixed(4) : '';
+                  const end = typeof c.clipEnd === 'number' ? c.clipEnd.toFixed(4) : '';
+                  return `${c.name}:${c.duration.toFixed(3)}:${start}:${end}`;
+                })
                 .join(',')
             : '';
         return `${w.widgetId}:${extra}`;

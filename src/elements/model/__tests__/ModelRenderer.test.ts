@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { ModelRenderer } from '../ModelRenderer';
 import { createDefaultModelInstanceState } from '../compile';
 import type { SceneModelInstanceState } from '../types';
+import { VariableStore } from '../../../widget/VariableStore';
 
 const identity: SceneModelInstanceState = {
   model: {
@@ -273,5 +274,97 @@ describe('ModelRenderer', () => {
       throw new Error('Expected material to be defined');
     }
     expect(mat.opacity).toBeCloseTo(0.4);
+  });
+
+  it('does not reset animation when scrubbing backward without signature change', () => {
+    const scene = new THREE.Scene();
+    const renderer = new ModelRenderer(scene);
+    const group = new THREE.Group();
+    (renderer as any).ingestModel(group, [
+      new THREE.AnimationClip('idle', 1, []),
+    ]);
+
+    const state: SceneModelInstanceState = {
+      ...createDefaultModelInstanceState('primary', identity),
+      playback: {
+        ...createDefaultModelInstanceState('primary', identity).playback,
+        animation: { enabled: true, clipName: 'idle' },
+      },
+    };
+    const animation = { enabled: true, clipName: 'idle' };
+    const variables = new VariableStore();
+
+    renderer.apply(state, animation, {
+      deltaSeconds: 0.016,
+      globalProgress: 0.6,
+      wallTimeSeconds: 0,
+      variables,
+      extra: undefined,
+    });
+
+    const mixer = (renderer as any).mixer as THREE.AnimationMixer;
+    const activeClip = (renderer as any).activeClip as THREE.AnimationClip;
+    const action = mixer.clipAction(activeClip);
+    const resetSpy = vi.spyOn(action, 'reset');
+
+    renderer.apply(state, animation, {
+      deltaSeconds: 0.016,
+      globalProgress: 0.5,
+      wallTimeSeconds: 0,
+      variables,
+      extra: undefined,
+    });
+
+    expect(resetSpy).not.toHaveBeenCalled();
+  });
+
+  it('resets animation when scrubbing backward and signature changes', () => {
+    const scene = new THREE.Scene();
+    const renderer = new ModelRenderer(scene);
+    const group = new THREE.Group();
+    (renderer as any).ingestModel(group, [
+      new THREE.AnimationClip('idle', 1, []),
+    ]);
+
+    const state: SceneModelInstanceState = {
+      ...createDefaultModelInstanceState('primary', identity),
+      playback: {
+        ...createDefaultModelInstanceState('primary', identity).playback,
+        animation: { enabled: true, clipName: 'idle' },
+      },
+    };
+    const animation = { enabled: true, clipName: 'idle' };
+    const variables = new VariableStore();
+
+    renderer.apply(state, animation, {
+      deltaSeconds: 0.016,
+      globalProgress: 0.6,
+      wallTimeSeconds: 0,
+      variables,
+      extra: undefined,
+    });
+
+    const mixer = (renderer as any).mixer as THREE.AnimationMixer;
+    const activeClip = (renderer as any).activeClip as THREE.AnimationClip;
+    const action = mixer.clipAction(activeClip);
+    const resetSpy = vi.spyOn(action, 'reset');
+
+    const nextState: SceneModelInstanceState = {
+      ...state,
+      playback: {
+        ...state.playback,
+        animation: { ...state.playback.animation, clipRepeat: false },
+      },
+    };
+
+    renderer.apply(nextState, animation, {
+      deltaSeconds: 0.016,
+      globalProgress: 0.5,
+      wallTimeSeconds: 0,
+      variables,
+      extra: undefined,
+    });
+
+    expect(resetSpy).toHaveBeenCalled();
   });
 });
