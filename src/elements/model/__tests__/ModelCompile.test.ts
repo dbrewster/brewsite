@@ -580,7 +580,7 @@ describe('model transition specs', () => {
     expect(result.enabled).toBe(false);
   });
 
-  it('playbackTransitionSpec.interpolate blends animation weight', () => {
+  it('playbackTransitionSpec.interpolate keeps animation weight from previous scene', () => {
     const from: ScenePlayback = {
       motion: { commands: [], scenes: [], customAnimations: [] },
       animation: { enabled: true, weight: 1 },
@@ -590,10 +590,10 @@ describe('model transition specs', () => {
       animation: { enabled: true, weight: 0 },
     };
     const result = playbackTransitionSpec.interpolate(from, to, makeT({ tFull: 0.5 }));
-    expect(result.animation.weight).toBeCloseTo(0.5);
+    expect(result.animation.weight).toBeCloseTo(1);
   });
 
-  it('playbackTransitionSpec.interpolate disables animation when tFull is 0', () => {
+  it('playbackTransitionSpec.interpolate keeps animation enabled from previous scene', () => {
     const from: ScenePlayback = {
       motion: { commands: [], scenes: [], customAnimations: [] },
       animation: { enabled: true, weight: 1 },

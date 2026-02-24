@@ -22,7 +22,7 @@ export const scene02Arrival: SceneDefinition = {
         metalness={.1}
       >
         <Playback>
-          <Animation clipName="chat-relax-f" enabled weight={1} fadeInSeconds={0.4} />
+          <Animation clipName="04-trip-forward-and-roll" enabled weight={1} fadeInSeconds={0.4} />
         </Playback>
       </Worker>
       <Hud>

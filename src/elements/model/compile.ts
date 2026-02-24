@@ -525,10 +525,11 @@ export const playbackTransitionSpec = {
     ...from,
     ...to,
     animation: {
+      // Keep the current scene's animation for the full transition block.
+      // The next scene's animation should not take over until the block boundary.
       ...from.animation,
-      ...to.animation,
-      weight: blendNumber(from.animation.weight ?? 1, to.animation.weight ?? 1, t),
-      enabled: (from.animation.enabled ?? false) || (to.animation.enabled ?? false),
+      weight: from.animation.weight ?? 1,
+      enabled: from.animation.enabled ?? false,
     },
     motion: {
       ...from.motion,

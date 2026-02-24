@@ -22,6 +22,9 @@ export const scene04Scan: SceneDefinition = {
         id="complex-worker"
         position={[-10, 0, 5]}
       >
+        <Playback>
+          <Animation clipName="08-drunken-stumble-and-fall" enabled weight={1}/>
+        </Playback>
       </Worker>
       <Hud>
         <HudItem id="complex-hud">
