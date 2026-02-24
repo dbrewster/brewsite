@@ -13,7 +13,7 @@ import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import { EngineFrameDriver } from './EngineFrameDriver';
 import type { EngineFrameState } from './engineTypes';
 import { useEngineScroll } from './useEngineScroll';
-import type { AnnotationPositioner } from './AnnotationPositioner';
+import type { LabelPositioner } from './LabelPositioner';
 import type { AssetManifest } from '../elements/model/metadata';
 
 export type UseSceneEngineOptions = {
@@ -27,7 +27,7 @@ export type UseSceneEngineOptions = {
   blockSize?: number;
   onReady?: () => void;
   onError?: (error: Error) => void;
-  annotationPositioner?: AnnotationPositioner;
+  labelPositioner?: LabelPositioner;
 };
 
 export type UseSceneEngineResult = {
@@ -146,10 +146,10 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       camera.aspect = width / Math.max(1, height);
       camera.updateProjectionMatrix();
     }
-    if (options.annotationPositioner) {
-      options.annotationPositioner.setContainerSize(width, height);
+    if (options.labelPositioner) {
+      options.labelPositioner.setContainerSize(width, height);
     }
-  }, [options.annotationPositioner]);
+  }, [options.labelPositioner]);
 
   useEffect(() => {
     if (!canvas || typeof window === 'undefined') return;
@@ -300,9 +300,8 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       render: () => {
         renderer.render(scene, camera);
         const tick = driver.getCurrentTick();
-        if (options.annotationPositioner && tick) {
-          options.annotationPositioner.update(
-            tick.annotationPrimitives ?? [],
+        if (options.labelPositioner && tick) {
+          options.labelPositioner.update(
             tick.labelPrimitives ?? [],
             camera,
             driver.getBoneWorldPositions(),
@@ -331,7 +330,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       frameDriver.reset();
       debugLog('loop:stop');
     };
-  }, [sceneTrack, getGlobalProgress, options.annotationPositioner, options.fpsCap, options.onReady, driverReady, debugLog]);
+  }, [sceneTrack, getGlobalProgress, options.labelPositioner, options.fpsCap, options.onReady, driverReady, debugLog]);
 
   return {
     frameState,

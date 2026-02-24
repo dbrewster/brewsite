@@ -51,7 +51,7 @@ src/
 │   ├── environment/
 │   └── floor/
 ├── labels/           World-space text labels
-├── annotations/      Screen-space HTML/React overlays
+├── hud/              Screen-space HTML/React HUD overlay
 ├── timeline/         SceneTimeline algebra and math utilities
 ├── math/             Pure math utilities (Vec3, quaternion, pose)
 └── player/           Consumer-facing API (ScenePlayer, hooks, engine)
@@ -84,8 +84,8 @@ Layers are ordered from most-stable (bottom) to most-consumer-facing (top). Depe
 ├──────────────────────────────────────────────────────────────────────┤
 │  src/player/                                                         │
 │  ScenePlayer, useSceneEngine, useEngineScroll, useSceneProgress,     │
-│  useCurrentScene, EngineScrollRegion, AnnotationPositioner,          │
-│  ContentSlotContext, EngineFrameDriver, createDefaultWidgetRegistry  │
+│  useCurrentScene, EngineScrollRegion, LabelPositioner,               │
+│  EngineFrameDriver, createDefaultWidgetRegistry                      │
 ├──────────────────────────────────────────────────────────────────────┤
 │  src/widget/                                                         │
 │  IWidget, ISceneElement, IRenderable, ILoadable, IDslComposite,      │
@@ -103,7 +103,7 @@ Layers are ordered from most-stable (bottom) to most-consumer-facing (top). Depe
 │  model / lighting / background / environment / floor                 │
 │  Three.js confined to widget initialize() / apply() / dispose()      │
 ├──────────────────────────────────────────────────────────────────────┤
-│  src/timeline/     src/math/           src/annotations/  src/labels/ │
+│  src/timeline/     src/math/           src/hud/          src/labels/ │
 │  Pure utilities — no Three.js, no React, fully Node-testable         │
 └──────────────────────────────────────────────────────────────────────┘
 ```
@@ -113,7 +113,7 @@ Layers are ordered from most-stable (bottom) to most-consumer-facing (top). Depe
 | Module | May import | Must NOT import |
 |--------|-----------|-----------------|
 | `src/widget/` | `src/timeline/`, `src/math/` | Three.js, React, compiler, runtime, elements |
-| `src/compiler/` | `src/widget/`, `src/timeline/`, `src/math/`, `src/annotations/`, `src/labels/` | Three.js, `src/runtime/`, any specific element type |
+| `src/compiler/` | `src/widget/`, `src/timeline/`, `src/math/`, `src/hud/`, `src/labels/` | Three.js, `src/runtime/`, any specific element type |
 | `src/runtime/` | `src/widget/`, `src/compiler/`, `src/timeline/`, `src/math/` | Specific element types |
 | `src/elements/*/types.ts` | `src/widget/`, `src/timeline/`, `src/math/` | Three.js, React, compiler |
 | `src/elements/*/compile.ts` | `src/widget/`, `src/elements/*/types.ts`, `src/timeline/` | Three.js, React |
@@ -342,9 +342,8 @@ type SceneFrame = {
   id: string;
   scrollProgress: number;
   widgets: Record<string, unknown>; // keyed by widgetId; type = widget's TState
-  annotations?: AnnotationDefinition[];
-  annotationDefaults?: Partial<AnnotationDefaults>;
-  labels?: LabelDefinition[];
+  hudItems?: HudItemDefinition[];
+  labels?: LabelResolved[];
 };
 ```
 
@@ -362,15 +361,14 @@ type SceneTrackTick = {
   state: SceneFrame;
   deltaForward: SceneFrameDelta;   // what changed relative to tick[index+1]
   deltaBackward: SceneFrameDelta;  // what changed relative to tick[index-1]
-  annotationPrimitives?: AnnotationResolved[];
+  hudPrimitives?: HudItemResolved[];
   labelPrimitives?: LabelResolved[];
   widgetExtras?: Record<string, unknown>; // compileExtra() outputs, keyed by widgetId
 };
 
 type SceneFrameDelta = {
   widgets?: Record<string, unknown>;
-  annotations?: SceneFrame['annotations'];
-  annotationDefaults?: SceneFrame['annotationDefaults'];
+  hudItems?: SceneFrame['hudItems'];
   labels?: SceneFrame['labels'];
 };
 ```
@@ -518,7 +516,7 @@ The terminal frame (`+1`) holds the last scene's snapshot directly — no outbou
 
 After all blocks are filled:
 - `compileExtra()` is called per-frame for widgets that implement it.
-- `annotationPrimitives` and `labelPrimitives` are compiled per-frame.
+- `hudPrimitives` and `labelPrimitives` are compiled per-frame.
 - `deltaForward` / `deltaBackward` are computed via `JSON.stringify` structural equality.
 
 **The compiler imports zero element-specific modules.** It does not reference `SceneLighting`, `SceneModel`, `compileAnimation`, or any concrete element type.
@@ -531,8 +529,8 @@ The sole interface through which DSL node handlers write scene state during snap
 type CompileApi = {
   context: SceneSnapshotContext;
   state: SceneFrame;
-  pushAnnotation: (a: AnnotationDefinition) => void;
-  pushLabel: (l: LabelDefinition) => void;
+  pushHudItem: (a: HudItemDefinition) => void;
+  pushLabel: (l: LabelResolved) => void;
   setWidgetState: (widgetId: string, state: unknown) => void; // only write path
   setSceneMeta: (meta: { id?: string; meta?: Record<string, JsonPrimitive> }) => void;
 };
@@ -612,7 +610,7 @@ Step 1  RuntimeDriverImpl.tick(deltaSeconds, globalProgress, wallTimeSeconds)
 
 Step 2  THREE.WebGLRenderer.render(scene, camera)
 
-Step 3  AnnotationPositioner.update(annotations, labels, camera, bonePositions)
+Step 3  LabelPositioner.update(labels, camera, bonePositions)
         → Reads bone worldMatrix (final after Step 2)
         → Sets element.style.transform on DOM nodes directly — NO React
 
@@ -626,8 +624,8 @@ Step 5  Browser paint: Three.js canvas + DOM changes in one visual frame
 
 **Key guarantees:**
 - Widget renderers read `VariableStore` values with zero lag (Steps 1 and 3 are within the same RAF callback).
-- Annotation positions update with zero lag via direct DOM mutation (Step 3).
-- Annotation content updates with at most one-frame lag via React (Step 4) — invisible in practice as the browser merges Steps 2–4 into one paint.
+- Label positions update with zero lag via direct DOM mutation (Step 3).
+- HUD content updates via React on tick changes; the browser merges Steps 2–4 into one paint.
 
 ### 7.2 RuntimeDriverImpl
 
@@ -737,50 +735,35 @@ Reads model IDs directly from `manifest.models[]` — one `ModelWidget` per mode
 
 ## 9. The Overlay Architecture
 
-Annotations and labels have two completely separate update pathways, running at different rates and through different mechanisms.
+The overlay system is split into two independent layers:
 
-### Tier 1 — Positions (every frame, no React)
+### HUD Overlay (React DOM — tick-driven)
 
+`HudOverlay` renders a flat list of `HudItemResolved` items from `SceneTrackTick.hudPrimitives`.
+It has no knowledge of 3D space. All positioning is CSS-owned by the consuming application.
+Scene authors declare items using `<Hud><HudItem id="..." node={...} /></Hud>` in scene DSL.
+The compiler writes `HudItemDefinition[]` to `SceneFrame.hudItems`; `compileHudItems()` produces
+`HudItemResolved[]` per tick; `ScenePlayer` renders `<HudOverlay items={tick.hudPrimitives ?? []} />`.
+
+There is no positioner loop, no DOM mutation, and no contentId resolution mechanism.
+External animation tooling (e.g., AnimeJS) targets items via the `data-hud-id` attribute.
+
+**Data flow:**
 ```
-Source:  THREE.Object3D.matrixWorld (computed by THREE.WebGLRenderer)
-Path:    Three.js → computeScreenPosition() → element.style.transform
-Timing:  After renderer.render() in every RAF frame
-React:   Never involved
-```
-
-`AnnotationPositioner` maintains a `Map<id, HTMLElement>` populated by React annotation components via `registerElement(id, el)` on mount/unmount. Every frame it iterates the map and sets `element.style.transform` directly. Annotation positions must never go through React state — doing so would cause one-frame lag at 60 FPS, visibly wrong.
-
-### Tier 2 — Content (when content changes, via React)
-
-```
-Source:  VariableStore, annotationPrimitives, labelPrimitives
-Path:    variableStore.set() → notify() → useSyncExternalStore → React re-render
-Timing:  Only when content actually changes (text, color, visibility)
-React:   Manages this entirely via useSyncExternalStore
+<HudItem> DSL → HudItemDefinition (SceneFrame.hudItems)
+  → compileHudItems() → HudItemResolved (SceneTrackTick.hudPrimitives)
+  → <HudOverlay> → <HudItem> DOM div[data-hud-id]
 ```
 
-### AnnotationPlacement
+### Label Overlay (3D bone-follow — positioner-driven)
 
-```typescript
-type AnnotationPlacement =
-  | {
-      mode: 'fixed';
-      reference: { x: 'left' | 'center' | 'right'; y: 'top' | 'middle' | 'bottom' };
-      offset: { xPct: number; yPct: number };
-    }
-  | {
-      mode: 'follow';
-      targetPartId: string;           // bone or subpart node name
-      targetOffset?: [number, number, number];
-      screenOffset?: { xPct: number; yPct: number };
-    };
-```
+`LabelItem` renders label text and a connecting line targeting a 3D bone. Position is
+computed in the render loop via `LabelPositioner.update()`, which projects bone world
+positions through the camera into screen space and applies CSS `transform: translate(...)`.
 
-### ContentSlotContext
-
-**File:** `src/player/ContentSlotContext.ts`
-
-Annotations may reference external React content by ID: `content: { contentId: 'hero-overlay' }`. The consumer provides slot content via `ScenePlayer.contentSlots`. The annotation renderer reads from `ContentSlotContext` via `useContentSlot(contentId)`.
+`LabelPositioner` is instantiated in `ScenePlayer`, provided via `LabelPositionerContext`,
+and consumed by `LabelItem` via `useLabelPositioner()`. It is passed to `useSceneEngine`
+as `options.labelPositioner` so the render loop can call `.update()` each frame.
 
 ---
 
@@ -788,7 +771,7 @@ Annotations may reference external React content by ID: `content: { contentId: '
 
 **File:** `src/player/ScenePlayer.tsx`
 
-The top-level consumer component. Manages manifest fetching, widget registry lifecycle, `VariableStore`, `AnnotationPositioner`, and overlay contexts.
+The top-level consumer component. Manages manifest fetching, widget registry lifecycle, `VariableStore`, `LabelPositioner`, and overlay contexts.
 
 ```typescript
 type ScenePlayerProps = {
@@ -802,7 +785,6 @@ type ScenePlayerProps = {
   onReady?: () => void;
   onError?: (error: Error) => void;
   onSceneChange?: (sceneId: string, sceneIndex: number) => void;
-  contentSlots?: Record<string, ReactNode>;
   placeholder?: ReactNode;         // rendered server-side and before engine init
   children?: ReactNode;            // overlay content, pointer-events: none
 };
@@ -810,8 +792,7 @@ type ScenePlayerProps = {
 
 `ScenePlayer` provides these React contexts to all descendants:
 - `VariableStoreContext` — for `useVariable()`
-- `AnnotationPositionerContext` — for annotation DOM registration
-- `ContentSlotContext` — for `contentId`-based annotation content
+- `LabelPositionerContext` — for label DOM registration
 
 ### Consumer Hooks
 
@@ -905,7 +886,7 @@ Tests live in `__tests__/` directories co-located with the code they test, named
 **Coverage targets** (`vite.config.ts`):
 ```typescript
 include: [
-  'src/{compiler,runtime,elements,widget,labels,annotations,timeline,math,player}/**/*.ts',
+  'src/{compiler,runtime,elements,widget,labels,hud,timeline,math,player}/**/*.ts',
 ],
 exclude: [
   'src/**/render.ts',   // Three.js render files

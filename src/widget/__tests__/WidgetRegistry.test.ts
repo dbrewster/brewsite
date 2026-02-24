@@ -74,7 +74,7 @@ const makeFakeApi = (): CompileApi & { widgetStates: Record<string, unknown> } =
     widgetStates,
     context: {} as CompileApi['context'],
     state: { id: '', scrollProgress: 0, widgets: widgetStates },
-    pushAnnotation: () => {},
+    pushHudItem: () => {},
     pushLabel: () => {},
     setWidgetState: (id, s) => { widgetStates[id] = s; },
     setSceneMeta: () => {},

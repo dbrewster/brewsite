@@ -2,7 +2,6 @@ export * from './player';
 export * from './compiler';
 export * from './timeline';
 export * from './widget';
-export * from './annotations';
 export * from './labels';
 export * from './elements';
 export * from './math';

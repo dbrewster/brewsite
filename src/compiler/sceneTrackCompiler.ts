@@ -2,7 +2,7 @@ import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { SceneDefinition } from './sceneTypes';
 import type { SceneFrame, SceneTrack, SceneTrackTick, SceneWindow, SceneFrameDelta, ClipMeta } from './sceneTrackTypes';
 import { ensureSceneRegistry, resolveSceneFromDsl } from './sceneDslCompiler';
-import { compileAnnotations } from './annotationCompiler';
+import { compileHudItems } from './hudCompiler';
 import { compileLabels } from './labelCompiler';
 
 export type CompileSceneTrackOptions = {
@@ -55,8 +55,7 @@ const buildDelta = (prev: SceneFrame | undefined, next: SceneFrame): SceneFrameD
   if (!prev) {
     return {
       widgets: next.widgets,
-      annotations: next.annotations,
-      annotationDefaults: next.annotationDefaults,
+      hudItems: next.hudItems,
       labels: next.labels,
     };
   }
@@ -64,11 +63,8 @@ const buildDelta = (prev: SceneFrame | undefined, next: SceneFrame): SceneFrameD
   if (serialize(prev.widgets) !== serialize(next.widgets)) {
     delta.widgets = next.widgets;
   }
-  if (serialize(prev.annotations) !== serialize(next.annotations)) {
-    delta.annotations = next.annotations;
-  }
-  if (serialize(prev.annotationDefaults) !== serialize(next.annotationDefaults)) {
-    delta.annotationDefaults = next.annotationDefaults;
+  if (serialize(prev.hudItems) !== serialize(next.hudItems)) {
+    delta.hudItems = next.hudItems;
   }
   if (serialize(prev.labels) !== serialize(next.labels)) {
     delta.labels = next.labels;
@@ -242,17 +238,17 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     if (Object.keys(extras).length > 0) frame.widgetExtras = extras;
   }
 
-  // ── Step 6: Compile annotations and labels ───────────────────────────────────
-  // These live on SceneFrame directly and are compiled per-frame from the snapshots.
-  const warnOnce = new Set<string>();
+  // ── Step 6: Compile HUD items and labels ─────────────────────────────────────
+  // HUD items come from the current scene snapshot (no interpolation across scenes).
+  // Labels interpolate between fromSnap and toSnap using compileLabels().
   for (const frame of frames) {
     const isLast = frame.index === totalFrames - 1;
     const blockIdx = isLast ? snapshots.length - 1 : Math.min(Math.floor(frame.index / blockSize), numTransitions - 1);
     const fromSnap = snapshots[blockIdx];
     const toSnap = snapshots[blockIdx + 1];
     if (!fromSnap) continue;
-    if (fromSnap.annotations?.length || toSnap?.annotations?.length) {
-      frame.annotationPrimitives = compileAnnotations(frame.state, fromSnap, warnOnce);
+    if (fromSnap.hudItems?.length) {
+      frame.hudPrimitives = compileHudItems(fromSnap.hudItems);
     }
     if (fromSnap.labels?.length || toSnap?.labels?.length) {
       frame.labelPrimitives = compileLabels(fromSnap.labels, toSnap?.labels, { sceneProgress: frame.blockProgress });

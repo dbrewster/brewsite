@@ -5,11 +5,10 @@ import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import { VariableStoreContext } from '../widget/VariableStoreContext';
 import { useSceneEngine } from './useSceneEngine';
 import { EngineScrollRegion } from './EngineScrollRegion';
-import { ContentSlotContext } from './ContentSlotContext';
 import { EngineStateContext } from './EngineStateContext';
-import { AnnotationPositioner } from './AnnotationPositioner';
-import { AnnotationPositionerContext } from './AnnotationPositionerContext';
-import { AnnotationItem } from '../annotations/AnnotationItem';
+import { HudOverlay } from '../hud/HudOverlay';
+import { LabelPositioner } from './LabelPositioner';
+import { LabelPositionerContext } from './LabelPositionerContext';
 import { LabelItem } from '../labels/LabelItem';
 import { clipMetaFromManifest, assertManifestValid } from '../elements/model/metadata';
 import type { AssetManifest } from '../elements/model/metadata';
@@ -28,7 +27,6 @@ export type ScenePlayerProps = {
   onReady?: () => void;
   onError?: (error: Error) => void;
   onSceneChange?: (sceneId: string, sceneIndex: number) => void;
-  contentSlots?: Record<string, ReactNode>;
   placeholder?: ReactNode;
   children?: ReactNode;
 };
@@ -96,9 +94,8 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
     }
   }, [widgetRegistry, props.onSceneChange]);
 
-  const annotationPositioner = useMemo(() => new AnnotationPositioner(), []);
+  const labelPositioner = useMemo(() => new LabelPositioner(), []);
   const clipMeta = useMemo(() => (manifest ? clipMetaFromManifest(manifest) : []), [manifest]);
-  const contentSlots = useMemo(() => props.contentSlots ?? {}, [props.contentSlots]);
 
   const engine = useSceneEngine({
     sceneGroup: props.sceneGroup,
@@ -110,7 +107,7 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
     framesPerTick: props.framesPerTick,
     onReady: props.onReady,
     onError: props.onError,
-    annotationPositioner,
+    labelPositioner,
   });
 
   const engineState = useMemo(() => ({
@@ -120,7 +117,6 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
     sceneProgress: engine.frameState.sceneProgress,
   }), [engine.progress, engine.frameState]);
 
-  const annotations = engine.frameState.tick?.annotationPrimitives ?? [];
   const labels = engine.frameState.tick?.labelPrimitives ?? [];
   const showPlaceholder = props.placeholder && engine.frameState.tickIndex < 0;
   const debugOverlayEnabled =
@@ -133,58 +129,54 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
 
   return (
     <VariableStoreContext.Provider value={engine.variableStore}>
-      <ContentSlotContext.Provider value={contentSlots}>
-        <AnnotationPositionerContext.Provider value={annotationPositioner}>
-          <EngineStateContext.Provider value={engineState}>
-            <div className={props.className} style={{ position: 'relative' }}>
-              {loadError && <div role="alert">Scene engine error: {loadError.message}</div>}
-              {showPlaceholder && (
-                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-                  {props.placeholder}
-                </div>
-              )}
-              {debugOverlayEnabled && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    right: 12,
-                    top: 12,
-                    background: 'rgba(0,0,0,0.7)',
-                    color: '#fff',
-                    fontSize: 12,
-                    padding: '8px 10px',
-                    borderRadius: 6,
-                    pointerEvents: 'none',
-                    zIndex: 5,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  <div>tickIndex: {engine.frameState.tickIndex}</div>
-                  <div>sceneId: {engine.frameState.sceneId || '(none)'}</div>
-                  <div>sceneIndex: {engine.frameState.sceneIndex}</div>
-                  <div>sceneProgress: {engine.frameState.sceneProgress.toFixed(3)}</div>
-                  <div>progress: {engine.progress.toFixed(3)}</div>
-                  <div>driverReady: {String(engine.debug?.driverReady)}</div>
-                  <div>assetsReady: {String(engine.debug?.assetsReady)}</div>
-                  <div>sceneTrackTicks: {engine.debug?.sceneTrackTicks ?? 0}</div>
-                  <div>viewport: {engine.debug?.viewport.width}×{engine.debug?.viewport.height}</div>
-                </div>
-              )}
-              <EngineScrollRegion key={hmrVersion} engine={engine}>
-                <>
-                  {annotations.map((annotation) => (
-                    <AnnotationItem key={annotation.id} annotation={annotation} />
-                  ))}
-                  {labels.map((label) => (
-                    <LabelItem key={label.id} label={label} />
-                  ))}
-                  {props.children}
-                </>
-              </EngineScrollRegion>
-            </div>
-          </EngineStateContext.Provider>
-        </AnnotationPositionerContext.Provider>
-      </ContentSlotContext.Provider>
+      <LabelPositionerContext.Provider value={labelPositioner}>
+        <EngineStateContext.Provider value={engineState}>
+          <div className={props.className} style={{ position: 'relative' }}>
+            {loadError && <div role="alert">Scene engine error: {loadError.message}</div>}
+            {showPlaceholder && (
+              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                {props.placeholder}
+              </div>
+            )}
+            {debugOverlayEnabled && (
+              <div
+                style={{
+                  position: 'absolute',
+                  right: 12,
+                  top: 12,
+                  background: 'rgba(0,0,0,0.7)',
+                  color: '#fff',
+                  fontSize: 12,
+                  padding: '8px 10px',
+                  borderRadius: 6,
+                  pointerEvents: 'none',
+                  zIndex: 5,
+                  lineHeight: 1.4,
+                }}
+              >
+                <div>tickIndex: {engine.frameState.tickIndex}</div>
+                <div>sceneId: {engine.frameState.sceneId || '(none)'}</div>
+                <div>sceneIndex: {engine.frameState.sceneIndex}</div>
+                <div>sceneProgress: {engine.frameState.sceneProgress.toFixed(3)}</div>
+                <div>progress: {engine.progress.toFixed(3)}</div>
+                <div>driverReady: {String(engine.debug?.driverReady)}</div>
+                <div>assetsReady: {String(engine.debug?.assetsReady)}</div>
+                <div>sceneTrackTicks: {engine.debug?.sceneTrackTicks ?? 0}</div>
+                <div>viewport: {engine.debug?.viewport.width}×{engine.debug?.viewport.height}</div>
+              </div>
+            )}
+            <EngineScrollRegion key={hmrVersion} engine={engine}>
+              <>
+                <HudOverlay items={engine.frameState.tick?.hudPrimitives ?? []} />
+                {labels.map((label) => (
+                  <LabelItem key={label.id} label={label} />
+                ))}
+                {props.children}
+              </>
+            </EngineScrollRegion>
+          </div>
+        </EngineStateContext.Provider>
+      </LabelPositionerContext.Provider>
     </VariableStoreContext.Provider>
   );
 };

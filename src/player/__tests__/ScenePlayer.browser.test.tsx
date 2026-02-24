@@ -10,9 +10,11 @@ import { SceneMetaWidget } from '../SceneMetaWidget';
 vi.mock('three', async () => {
   const actual = await vi.importActual<typeof import('three')>('three');
   class RendererStub {
+    shadowMap = { enabled: false };
     setPixelRatio(): void {}
     setSize(): void {}
     render(): void {}
+    setClearColor(): void {}
     dispose(): void {}
   }
   return { ...actual, WebGLRenderer: RendererStub };

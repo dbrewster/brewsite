@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { render } from '@testing-library/react';
 import { LabelItem } from '../LabelItem';
-import { AnnotationPositionerContext } from '../../player/AnnotationPositionerContext';
+import { LabelPositionerContext } from '../../player/LabelPositionerContext';
 import type { LabelResolved } from '../types';
 
 class TrackingPositioner {
@@ -24,14 +24,14 @@ describe('LabelItem', () => {
     };
 
     const { getByText, unmount } = render(
-      <AnnotationPositionerContext.Provider value={positioner as never}>
+      <LabelPositionerContext.Provider value={positioner as never}>
         <LabelItem label={label} />
-      </AnnotationPositionerContext.Provider>,
+      </LabelPositionerContext.Provider>,
     );
 
     const div = getByText('Hello') as HTMLDivElement;
     expect(div).toBeDefined();
-    expect(div.style.color).toBe('rgb(255, 255, 255)');
+    expect(div.style.color).toBe('var(--label-color, #ffffff)');
 
     unmount();
     expect(positioner.calls.length).toBeGreaterThan(0);
@@ -47,12 +47,12 @@ describe('LabelItem', () => {
     };
 
     const { getByText } = render(
-      <AnnotationPositionerContext.Provider value={positioner as never}>
+      <LabelPositionerContext.Provider value={positioner as never}>
         <LabelItem label={label} />
-      </AnnotationPositionerContext.Provider>,
+      </LabelPositionerContext.Provider>,
     );
     const div = getByText('Styled') as HTMLDivElement;
-    expect(div.style.color).toBe('rgb(0, 255, 0)');
+    expect(div.style.color).toBe('var(--label-color, #00ff00)');
     expect(div.style.fontSize).toBe('20px');
     expect(div.style.opacity).toBe('0.5');
   });

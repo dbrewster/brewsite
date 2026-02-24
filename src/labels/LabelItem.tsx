@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef } from 'react';
 import type { CSSProperties, ReactElement } from 'react';
 import type { LabelResolved } from './types';
-import { useAnnotationPositioner } from '../player/AnnotationPositionerContext';
+import { useLabelPositioner } from '../player/LabelPositionerContext';
 
 export const LabelItem = ({ label }: { label: LabelResolved }): ReactElement => {
   const ref = useRef<HTMLDivElement>(null);
-  const positioner = useAnnotationPositioner();
+  const positioner = useLabelPositioner();
 
   useEffect(() => {
     positioner.registerElement(label.id, ref.current);

@@ -107,9 +107,9 @@ const createApi = (context: SceneSnapshotContext): CompileApi => {
   return {
     context,
     state,
-    pushAnnotation: (annotation) => {
-      state.annotations = state.annotations ?? [];
-      state.annotations.push(annotation);
+    pushHudItem: (item) => {
+      state.hudItems = state.hudItems ?? [];
+      state.hudItems.push(item);
     },
     pushLabel: (label) => {
       state.labels = state.labels ?? [];

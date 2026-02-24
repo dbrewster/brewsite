@@ -283,10 +283,14 @@ describe('ModelWidget runtime helpers', () => {
       animations: [],
     });
 
-    expect(renderer.loadGlb).toHaveBeenCalledWith('/manifest.glb', {
-      anchorTargets: { head: 'Head' },
-      manifest: expect.any(Object),
-    });
+    expect(renderer.loadGlb).toHaveBeenCalledWith(
+      '/manifest.glb',
+      expect.objectContaining({
+        anchorTargets: { head: 'Head' },
+        manifest: expect.any(Object),
+        footOffsetY: 0,
+      }),
+    );
     expect(widget.isLoaded).toBe(true);
     expect(widget.getAnchorBoneName('head')).toBe('Head');
   });

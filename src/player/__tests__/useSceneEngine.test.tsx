@@ -6,7 +6,7 @@ import { act } from '@testing-library/react';
 import { useSceneEngine } from '../useSceneEngine';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import type { SceneGroup } from '../../compiler/sceneTypes';
-import { AnnotationPositioner } from '../AnnotationPositioner';
+import { LabelPositioner } from '../LabelPositioner';
 
 const makeSceneGroup = (): SceneGroup => {
   const scenes = [
@@ -58,17 +58,17 @@ describe('useSceneEngine', () => {
     root.unmount();
   });
 
-  it('setViewportSize forwards to annotation positioner', () => {
+  it('setViewportSize forwards to label positioner', () => {
     const registry = new WidgetRegistry();
     const sceneGroup = makeSceneGroup();
     let size: { w: number; h: number } | null = null;
-    const positioner = new AnnotationPositioner();
+    const positioner = new LabelPositioner();
     positioner.setContainerSize = (w: number, h: number) => {
       size = { w, h };
     };
 
     const Test = () => {
-      const engine = useSceneEngine({ sceneGroup, widgetRegistry: registry, clipMeta: [], annotationPositioner: positioner });
+      const engine = useSceneEngine({ sceneGroup, widgetRegistry: registry, clipMeta: [], labelPositioner: positioner });
       useEffect(() => { engine.setViewportSize(320, 240); }, [engine]);
       return <div />;
     };

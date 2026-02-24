@@ -36,15 +36,16 @@ const OPAQUE_OPACITY = 1;
  */
 export const resolveClipRangeSeconds = (animation: SceneAnimation, clipDuration: number) => {
   const clipStart = animation.clipStart ?? 0;
-  const rawClipEnd = animation.clipEnd ?? 0;
+  const rawClipEnd = animation.clipEnd;
   const clipRangeUnit = animation.clipRangeUnit ?? 'seconds';
   let startSeconds = clipStart;
-  let endSeconds = clipDuration - rawClipEnd;
+  let endSeconds = rawClipEnd ?? clipDuration;
   if (clipRangeUnit === 'percent') {
     const startPct = clipStart > 1 ? clipStart / 100 : clipStart;
-    const endPct = rawClipEnd > 1 ? rawClipEnd / 100 : rawClipEnd;
+    const endRaw = rawClipEnd ?? 1;
+    const endPct = endRaw > 1 ? endRaw / 100 : endRaw;
     startSeconds = startPct * clipDuration;
-    endSeconds = clipDuration - endPct * clipDuration;
+    endSeconds = endPct * clipDuration;
   }
   const span = Math.max(1e-4, endSeconds - startSeconds);
   return { startSeconds, endSeconds, span };
@@ -505,7 +506,7 @@ export const playbackTransitionSpec = {
     animation: {
       ...from.animation,
       weight: blendNumber(from.animation.weight ?? 1, 0, t),
-      enabled: from.animation.enabled ?? false,
+      enabled: (from.animation.enabled ?? false) && t < 1,
     },
     motion: from.motion,
   }),
