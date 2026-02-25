@@ -21,7 +21,7 @@ export const scene03Reveal: SceneDefinition = {
       <Robot
         id="complex-robot"
         position={[0, 0, -10]}
-        rotation={[0, -Math.PI/4, 0]}
+        rotation={[0, 0, 0]}
         scale={0.19}
         metalness={0.9}
         roughness={0.12}

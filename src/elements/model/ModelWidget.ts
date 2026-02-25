@@ -74,6 +74,7 @@ type ModelAuthoredFlags = {
 
 const hasProp = (props: Record<string, unknown>, key: string): boolean =>
   Object.prototype.hasOwnProperty.call(props, key);
+const addVec3 = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const isComponent = (el: ReactElement, component: React.ComponentType<any>): boolean => {
   if (el.type === component) return true;
   const a = el.type as { displayName?: string; name?: string };
@@ -391,6 +392,7 @@ export class ModelWidget
   private config: ModelWidgetConfig;
   private renderer: ModelRenderer | null = null;
   private readonly modelType: string;
+  private readonly baseRotation: Vec3 | null;
 
   constructor(config: ModelWidgetConfig) {
     this.widgetId = config.widgetId ?? config.modelMeta.type;
@@ -398,6 +400,10 @@ export class ModelWidget
     this.config = config;
     this.clipMeta = config.clipMeta;
     this.defaultState = createDefaultModelInstanceState(this.modelType, this.config.modelMeta.identity);
+    this.baseRotation = (this.config.modelMeta.baseRotation ?? null) as Vec3 | null;
+    if (this.baseRotation) {
+      this.defaultState.model.rotation = [0, 0, 0];
+    }
     this.anchorTargets = config.modelMeta.anchorTargets ?? {};
 
     // Register CUSTOM_NODE_HANDLER for complex child DSL processing.
@@ -411,6 +417,9 @@ export class ModelWidget
       const ctx = api.context;
       const rawProps = node.props as ModelProps;
       const props = helpers.resolveObjectValues(rawProps, ctx);
+      const resolvedRotation = props.rotation !== undefined
+        ? (props.rotation as Vec3)
+        : undefined;
       const base =
         (api.state.widgets[this.widgetId] as SceneModelInstanceState | undefined) ??
         this.defaultState;
@@ -546,7 +555,7 @@ export class ModelWidget
           ...(props.reset === true ? { reset: true } : {}),
           ...(props.scale !== undefined ? { scale: props.scale as number } : {}),
           ...(props.position !== undefined ? { position: props.position as Vec3 } : {}),
-          ...(props.rotation !== undefined ? { rotation: props.rotation as Vec3 } : {}),
+          ...(resolvedRotation !== undefined ? { rotation: resolvedRotation } : {}),
           ...(props.opacity !== undefined ? { opacity: props.opacity as number } : {}),
           ...(props.metalness !== undefined ? { metalness: props.metalness as number } : {}),
           ...(props.roughness !== undefined ? { roughness: props.roughness as number } : {}),
@@ -693,6 +702,7 @@ export class ModelWidget
       manifest: typedManifest,
       containedModels,
       footOffsetY: modelMeta.footOffsetY ?? 0,
+      baseRotation: this.baseRotation ?? undefined,
     });
     this.isLoaded = true;
   }

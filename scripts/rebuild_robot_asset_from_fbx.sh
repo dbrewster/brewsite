@@ -6,15 +6,14 @@ usage() {
 Rebuild robot GLBs from FBX with Mixamo-colon naming.
 
 Defaults:
-  input:  public/anroid_robot_rigged_and_materialed.fbx
-  out-with-normals: public/assets/robot.with-normals.glb
-  out-no-normals:   public/assets/robot.no-normals.glb
+  out-with-normals: <input dir>/<input basename>.with-normals.glb
+  out-no-normals:   <input dir>/<input basename>.no-normals.glb
   fbx2gltf: resolved from node_modules/fbx2gltf/bin
   keep-temp: false
   target: mixamo
 
 Usage:
-  bash scripts/rebuild_robot_asset_from_fbx.sh
+  bash scripts/rebuild_robot_asset_from_fbx.sh --input path/to/model.fbx
   bash scripts/rebuild_robot_asset_from_fbx.sh --input path/to/model.fbx
   bash scripts/rebuild_robot_asset_from_fbx.sh --fbx2gltf /path/to/FBX2glTF
   bash scripts/rebuild_robot_asset_from_fbx.sh --out-with path/to/with.glb --out-no path/to/no.glb
@@ -23,9 +22,9 @@ Usage:
 USAGE
 }
 
-INPUT="public/anroid_robot_rigged_and_materialed.fbx"
-OUT_WITH="public/assets/robot.with-normals.glb"
-OUT_NO="public/assets/robot.no-normals.glb"
+INPUT=""
+OUT_WITH=""
+OUT_NO=""
 FBX2GLTF=""
 KEEP_TEMP="false"
 TARGET="mixamo"
@@ -68,10 +67,26 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+if [[ -z "$INPUT" ]]; then
+  echo "Missing --input <path-to-fbx>" >&2
+  exit 1
+fi
 if [[ ! -f "$INPUT" ]]; then
   echo "Input .fbx not found: $INPUT" >&2
   exit 1
 fi
+if [[ -z "$OUT_WITH" || -z "$OUT_NO" ]]; then
+  INPUT_DIR="$(dirname "$INPUT")"
+  INPUT_BASE="$(basename "$INPUT")"
+  INPUT_STEM="${INPUT_BASE%.*}"
+  if [[ -z "$OUT_WITH" ]]; then
+    OUT_WITH="$INPUT_DIR/$INPUT_STEM.with-normals.glb"
+  fi
+  if [[ -z "$OUT_NO" ]]; then
+    OUT_NO="$INPUT_DIR/$INPUT_STEM.no-normals.glb"
+  fi
+fi
+
 if [[ -z "$FBX2GLTF" ]]; then
   OS="$(uname -s)"
   case "$OS" in

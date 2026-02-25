@@ -1,7 +1,7 @@
 import type {SceneDefinition} from '@brewsite/core';
 import {Ambient, Background, Directional, Hud, HudItem, Lighting, Scene} from '@brewsite/core';
 import {Fade} from '../../../src/hud/animejs';
-import {Animation, Playback, Worker} from '../../generated/sceneDsl.generated';
+import {Animation, MaleDummy, Playback} from '../../generated/sceneDsl.generated';
 import {backgrounds, sceneLighting} from './sceneAssets';
 
 export const scene02Arrival: SceneDefinition = {
@@ -14,7 +14,7 @@ export const scene02Arrival: SceneDefinition = {
         <Ambient intensity={sceneLighting.soft.ambient} color="#e6eeff" />
         <Directional intensity={sceneLighting.soft.directional} color="#ffffff" position={sceneLighting.soft.direction} />
       </Lighting>
-      <Worker
+      <MaleDummy
         id="complex-worker"
         position={[-10, 0, -200]}
         rotation={[0, 0, 0]}
@@ -24,7 +24,7 @@ export const scene02Arrival: SceneDefinition = {
         <Playback>
           <Animation clipName="04-trip-forward-and-roll" enabled weight={1} fadeInSeconds={0.4} />
         </Playback>
-      </Worker>
+      </MaleDummy>
       <Hud>
         <HudItem id="complex-hud">
           <Fade duration={1200}>

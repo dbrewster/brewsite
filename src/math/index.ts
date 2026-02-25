@@ -81,6 +81,13 @@ export const quatSlerp = (a: Quaternion, b: Quaternion, t: number): Quaternion =
   };
 };
 
+export const quatMultiply = (a: Quaternion, b: Quaternion): Quaternion => ({
+  x: a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
+  y: a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
+  z: a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
+  w: a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z,
+});
+
 export const quatToEuler = (q: Quaternion): Vec3 => {
   const x = q.x;
   const y = q.y;

@@ -52,6 +52,8 @@ export type ModelMeta = {
    * Optional for backward compatibility — old manifests may omit this field.
    */
   bodyPartGroups?: BodyPartGroup[];
+  /** Optional base rotation (radians) applied to the model root. */
+  baseRotation?: [number, number, number];
   /** Fully specified default state derived from the GLB. */
   identity: SceneModelInstanceState;
 };

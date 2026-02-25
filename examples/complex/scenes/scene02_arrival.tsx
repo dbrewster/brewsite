@@ -17,7 +17,6 @@ export const scene02Arrival: SceneDefinition = {
       <Robot
         id="complex-robot"
         position={[-10, 0, -200]}
-        rotation={[0, -Math.PI / 2, 0]}
         scale={0.18}
         metalness={0.85}
         roughness={0.18}
