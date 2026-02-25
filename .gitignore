@@ -45,3 +45,10 @@ cloud/apps/brew-flow/api/.brewflow
 .sidecar/
 coverage-tmp/
 **/_tmp_*
+
+# Turborepo
+.turbo
+
+# Per-package build outputs
+packages/*/dist/
+apps/*/dist/

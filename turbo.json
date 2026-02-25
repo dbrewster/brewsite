@@ -1,0 +1,38 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "tsconfig*.json", "vite.config.ts", "package.json"],
+      "outputs": ["dist/**"]
+    },
+    "build:lib": {
+      "dependsOn": ["^build:lib"],
+      "inputs": ["src/**", "tsconfig*.json", "package.json"],
+      "outputs": ["dist/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "inputs": ["src/**", "tsconfig*.json"]
+    },
+    "test": {
+      "dependsOn": [],
+      "inputs": ["src/**", "vitest.config.ts"],
+      "outputs": []
+    },
+    "coverage": {
+      "dependsOn": [],
+      "inputs": ["src/**", "vitest.config.ts"],
+      "outputs": ["coverage/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "gen:scene-dsl": {
+      "inputs": ["siteResources.ts", "public/**"],
+      "outputs": ["generated/**", "public/scene-manifest.json"]
+    }
+  }
+}

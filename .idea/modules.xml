@@ -3,6 +3,8 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/brewsite.iml" filepath="$PROJECT_DIR$/brewsite.iml" />
+      <module fileurl="file://$PROJECT_DIR$/packages/core/core.iml" filepath="$PROJECT_DIR$/packages/core/core.iml" />
+      <module fileurl="file://$PROJECT_DIR$/packages/diagram/diagram.iml" filepath="$PROJECT_DIR$/packages/diagram/diagram.iml" />
     </modules>
   </component>
 </project>

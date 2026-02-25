@@ -6,33 +6,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 pnpm install          # install dependencies
-pnpm dev              # start Vite dev server (port 5173, host=true)
-pnpm build            # full build: metadata extract → tsc → vite build → prune dist
-pnpm preview          # serve production build locally
-pnpm typecheck        # tsc --noEmit
-pnpm test             # run Vitest suite once
-pnpm test:watch       # Vitest in watch mode
-pnpm coverage         # test coverage with v8 provider
+pnpm dev              # turbo dev --filter=@brewsite/examples
+pnpm build            # turbo build
+pnpm typecheck        # turbo typecheck
+pnpm test             # turbo test
+pnpm coverage         # turbo coverage
+pnpm --filter @brewsite/examples preview    # serve production build locally (examples app)
+pnpm --filter @brewsite/core test:watch     # Vitest in watch mode (core)
 ```
 
 To run a single test file:
 ```bash
-pnpm vitest run src/robot/runtime/__tests__/someFile.test.ts
+pnpm --filter @brewsite/core vitest run src/robot/runtime/__tests__/someFile.test.ts
 ```
 
 ## Architecture Overview
 
-**BrewSite** is a TypeScript + React + Three.js app for authoring and playing back animated robot marketing scenes. The core lives entirely in `src/robot/`.
+**BrewSite** is a TypeScript + React + Three.js app for authoring and playing back animated robot marketing scenes. The core lives entirely in `packages/core/src/robot/`.
 
 ### Layers (top-to-bottom)
 
-1. **Engine** (`src/robot/engine/`) — React hook layer. Exports `useSceneEngine`, `useEngineScroll`, `SceneCompiler`, `ModelResourceManager`, `EngineFrameDriver`, `EngineScrollRegion`. This is the public integration surface for pages/routes.
+1. **Engine** (`packages/core/src/robot/engine/`) — React hook layer. Exports `useSceneEngine`, `useEngineScroll`, `SceneCompiler`, `ModelResourceManager`, `EngineFrameDriver`, `EngineScrollRegion`. This is the public integration surface for pages/routes.
 
-2. **Runtime** (`src/robot/runtime/`) — Execution coordinator. `RuntimeDriverImpl` drives playback: it owns the `World`, `Model`, `MotionSystem`, `AnimationPlayer`, and `ModelRenderer`. It consumes the pre-compiled `SceneTrack` and applies element state each tick.
+2. **Runtime** (`packages/core/src/robot/runtime/`) — Execution coordinator. `RuntimeDriverImpl` drives playback: it owns the `World`, `Model`, `MotionSystem`, `AnimationPlayer`, and `ModelRenderer`. It consumes the pre-compiled `SceneTrack` and applies element state each tick.
 
-3. **Compiler** (`src/robot/runtime/compiler/`) — Pure compilation pipeline. Scene DSL (JSX) → `SceneFrame[]` → pre-baked `SceneTrack` (flat tick lookup). Three passes: base state → auto-entry transitions → tick baking. No Three.js allowed here. See `src/robot/runtime/compiler/CLAUDE.md` for the full compiler contract.
+3. **Compiler** (`packages/core/src/robot/runtime/compiler/`) — Pure compilation pipeline. Scene DSL (JSX) → `SceneFrame[]` → pre-baked `SceneTrack` (flat tick lookup). Three passes: base state → auto-entry transitions → tick baking. No Three.js allowed here. See `packages/core/src/robot/runtime/compiler/CLAUDE.md` for the full compiler contract.
 
-4. **Elements** (`src/robot/elements/`) — One subdirectory per renderable concept (model, lighting, background, floor, environment, ribbon, annotations). Every element follows the **mandatory module pattern** with a hard dependency direction:
+4. **Elements** (`packages/core/src/robot/elements/`) — One subdirectory per renderable concept (model, lighting, background, floor, environment, ribbon, annotations). Every element follows the **mandatory module pattern** with a hard dependency direction:
 
    ```
    types.ts → dsl.tsx → compile.ts → render.ts → index.ts
@@ -43,9 +43,9 @@ pnpm vitest run src/robot/runtime/__tests__/someFile.test.ts
    - `render.ts` — Three.js application, no React, no compiler imports
    - `index.ts` — public re-exports
 
-5. **Scenes** (`src/robot/scenes/`) — Declarative scene definitions using the DSL. No animation logic, no Three.js, no frame math allowed here.
+5. **Scenes** (`packages/core/src/robot/scenes/`) — Declarative scene definitions using the DSL. No animation logic, no Three.js, no frame math allowed here.
 
-6. **Timeline** (`src/robot/robotTimeline.ts`, `robotTimelineMath.ts`) — Timeline algebra: stops, frame counts, tick steps, progress mapping.
+6. **Timeline** (`packages/core/src/robot/robotTimeline.ts`, `robotTimelineMath.ts`) — Timeline algebra: stops, frame counts, tick steps, progress mapping.
 
 ### Key Design Rules
 
@@ -56,7 +56,7 @@ pnpm vitest run src/robot/runtime/__tests__/someFile.test.ts
 
 ### Testing
 
-Tests live in `__tests__/` directories co-located with code, named `*.test.ts` / `*.test.tsx`. The pattern is **interface-based stateful tests**: use real inputs, assert real outputs. For runtime tests, use interface-conforming doubles from `src/robot/runtime/mocks/` rather than mocking internals. Coverage instrumentation targets `src/robot/{model,scenes,runtime,elements}/**/*.ts` and excludes `render.ts` files and barrel exports.
+Tests live in `__tests__/` directories co-located with code, named `*.test.ts` / `*.test.tsx`. The pattern is **interface-based stateful tests**: use real inputs, assert real outputs. For runtime tests, use interface-conforming doubles from `packages/core/src/robot/runtime/mocks/` rather than mocking internals. Coverage instrumentation targets `packages/core/src/robot/{model,scenes,runtime,elements}/**/*.ts` and excludes `render.ts` files and barrel exports.
 
 ### Asset Pipeline
 
@@ -66,6 +66,17 @@ Model/animation changes go through `scripts/`:
 - `prune-dist.mjs` — post-build artifact cleanup
 
 Prefer these helpers over ad-hoc pipelines for any asset-processing work.
+
+## Workspace Filters
+
+```bash
+pnpm --filter @brewsite/core test:watch
+pnpm --filter @brewsite/diagram typecheck
+```
+
+## Package Dependency Rules
+
+- `@brewsite/diagram` may import from `@brewsite/core`, never vice-versa.
 
 ## Requirements and Documentation Policies
 - PRDs live under `requirements/prd/**` and are the source of truth; the structure has changed, so read the specific PRD for the area you touch.
