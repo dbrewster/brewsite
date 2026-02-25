@@ -6,3 +6,5 @@ export * from './labels';
 export * from './elements';
 export * from './math';
 export * from './runtime';
+export type { FunctionalTransitionSpec, ElementTransitionSpec } from './compiler/transitions/transitionTypes';
+export { blendNumber, blendOpacity, blendVec3, blendColor, transitionT } from './compiler/transitions/transitionTypes';

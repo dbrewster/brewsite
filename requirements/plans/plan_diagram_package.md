@@ -73,8 +73,9 @@ packages/diagram/
 │   │   ├── diagram/                      ← diagram element module
 │   │   │   ├── types.ts                  ← ALL type contracts
 │   │   │   ├── dsl.tsx                   ← <Diagram>, <DiagramNode>, <DiagramEdge>, <DiagramGroup>
-│   │   │   ├── compile.ts                ← layout, edge routing, icon resolution
+│   │   │   ├── compile.ts                ← layout, edge routing, icon resolution, functionalDiagramTransitionSpec
 │   │   │   ├── render.ts                 ← Three.js geometry, materials, text, raycasting reg.
+│   │   │   ├── widget.ts                 ← DiagramWidget: ISceneElement<DiagramState> — wires compile + render
 │   │   │   ├── index.ts                  ← re-exports
 │   │   │   ├── shapes/
 │   │   │   │   ├── geometryFactory.ts    ← Three.js geometry per shape variant
@@ -91,8 +92,9 @@ packages/diagram/
 │   │   ├── image-panel/                  ← ImagePanel element — static image, pure WebGL
 │   │   │   ├── types.ts                  ← ImagePanelState, ImagePanelDSL
 │   │   │   ├── dsl.tsx                   ← <ImagePanel>
-│   │   │   ├── compile.ts                ← compileImagePanel() — pure defaults application
+│   │   │   ├── compile.ts                ← compileImagePanel(), functionalImagePanelTransitionSpec
 │   │   │   ├── render.ts                 ← PlaneGeometry + MeshPhysicalMaterial + bezel + glow
+│   │   │   ├── widget.ts                 ← ImagePanelWidget: ISceneElement<ImagePanelState>
 │   │   │   ├── index.ts                  ← re-exports
 │   │   │   └── __tests__/
 │   │   │       └── compile.test.ts
@@ -100,8 +102,9 @@ packages/diagram/
 │   │   └── screen/                       ← Screen element — live iframe, WebGL bezel + DOM overlay
 │   │       ├── types.ts                  ← ScreenState, ScreenDSL
 │   │       ├── dsl.tsx                   ← <Screen>
-│   │       ├── compile.ts                ← compileScreen() — pure defaults application + rotation warning
+│   │       ├── compile.ts                ← compileScreen(), functionalScreenTransitionSpec
 │   │       ├── render.ts                 ← WebGL bezel + DOM <iframe> tracked via world→screen projection
+│   │       ├── widget.ts                 ← ScreenWidget: ISceneElement<ScreenState>
 │   │       ├── index.ts                  ← re-exports
 │   │       └── __tests__/
 │   │           └── compile.test.ts
@@ -1453,6 +1456,79 @@ export function compileGroup(
  * @returns Fully resolved DiagramState ready for render.ts
  */
 export function compileDiagram(dsl: DiagramDSL): DiagramState;
+
+// ─── Functional Transition Spec ───────────────────────────────────────────────
+// Import blend helpers from @brewsite/core (same package that provides FunctionalTransitionSpec).
+// These are pure functions — no Three.js, no React. Safe in compile.ts.
+//
+// import type { FunctionalTransitionSpec } from '@brewsite/core';
+// import { blendNumber, blendVec3, blendOpacity } from '@brewsite/core';
+
+/**
+ * Functional transition spec for DiagramState.
+ * Used by DiagramWidget as its transitionSpec — evaluated by the runtime at
+ * tick.blockProgress for infinite easing fidelity with no oversampling overhead.
+ *
+ * INTERPOLATE: Blends each node's [x,y,z] position and opacity across the block.
+ * This is what produces the smooth Z-depth reveal as nodes move from z=0 to their
+ * drill-down positions. Nodes/edges present in only one state fade in or out.
+ *
+ * EXIT/ENTER: Fade entire diagram to/from opacity 0 over the half-block.
+ *
+ * Key constraint: node and edge arrays may differ in length between fromState/toState.
+ * Match nodes by id. Nodes present in toState but not fromState appear (fade in).
+ * Nodes present in fromState but not toState disappear (fade out).
+ */
+export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramState> = {
+  exitFn: (from) => (t) => ({
+    ...from,
+    nodes: from.nodes.map(n => ({ ...n, opacity: blendOpacity(n.opacity, 0, t) })),
+    edges: from.edges.map(e => ({ ...e, opacity: blendOpacity(e.opacity, 0, t) })),
+  }),
+  enterFn: (to) => (t) => ({
+    ...to,
+    nodes: to.nodes.map(n => ({ ...n, opacity: blendOpacity(0, n.opacity, t) })),
+    edges: to.edges.map(e => ({ ...e, opacity: blendOpacity(0, e.opacity, t) })),
+  }),
+  interpolateFn: (from, to) => (t) => {
+    // Build a lookup map from fromState nodes/edges for O(1) match by id
+    const fromNodeMap = new Map(from.nodes.map(n => [n.id, n]));
+    const fromEdgeMap = new Map(from.edges.map(e => [e.id, e]));
+
+    return {
+      ...to,                                         // use toState's structural data (ids, labels, etc.)
+      cameraTarget:   blendVec3(from.cameraTarget,   to.cameraTarget,   t),
+      cameraDistance: blendNumber(from.cameraDistance, to.cameraDistance, t),
+      nodes: to.nodes.map(toNode => {
+        const fromNode = fromNodeMap.get(toNode.id);
+        if (!fromNode) {
+          // Node only in toState: fade in over full block
+          return { ...toNode, opacity: blendOpacity(0, toNode.opacity, t) };
+        }
+        return {
+          ...toNode,
+          position: blendVec3(fromNode.position, toNode.position, t),
+          opacity:  blendOpacity(fromNode.opacity, toNode.opacity, t),
+        };
+      }),
+      edges: to.edges.map(toEdge => {
+        const fromEdge = fromEdgeMap.get(toEdge.id);
+        if (!fromEdge) {
+          return { ...toEdge, opacity: blendOpacity(0, toEdge.opacity, t) };
+        }
+        return {
+          ...toEdge,
+          opacity: blendOpacity(fromEdge.opacity, toEdge.opacity, t),
+          // Animate control points — this is what makes edge tubes glide between positions
+          controlPoints: toEdge.controlPoints.map((pt, i) => {
+            const fp = fromEdge.controlPoints[i] ?? pt;
+            return blendVec3(fp, pt, t);
+          }),
+        };
+      }),
+    };
+  },
+};
 ```
 
 ### 6.2 `src/elements/image-panel/compile.ts`
@@ -1487,6 +1563,40 @@ import type { ImagePanelDSL, ImagePanelState } from './types.ts';
  *   enabled:         true
  */
 export function compileImagePanel(dsl: ImagePanelDSL): ImagePanelState;
+
+// import type { FunctionalTransitionSpec } from '@brewsite/core';
+// import { blendNumber, blendVec3, blendOpacity } from '@brewsite/core';
+
+/**
+ * Functional transition spec for ImagePanelState.
+ * Position, rotation, scale, and opacity are all continuously interpolated.
+ * Discrete properties (src, bezel, gloss) step at t=0.5 — you cannot meaningfully
+ * interpolate an image URL or a bezel material variant.
+ */
+export const functionalImagePanelTransitionSpec: FunctionalTransitionSpec<ImagePanelState> = {
+  exitFn: (from) => (t) => ({
+    ...from,
+    opacity: blendOpacity(from.opacity, 0, t),
+  }),
+  enterFn: (to) => (t) => ({
+    ...to,
+    opacity: blendOpacity(0, to.opacity, t),
+  }),
+  interpolateFn: (from, to) => (t) => ({
+    ...to,
+    position:        blendVec3(from.position, to.position, t),
+    rotation:        blendVec3(from.rotation, to.rotation, t),
+    scale:           blendNumber(from.scale, to.scale, t),
+    opacity:         blendOpacity(from.opacity, to.opacity, t),
+    gloss:           blendNumber(from.gloss, to.gloss, t),
+    selfIllumination: blendNumber(from.selfIllumination, to.selfIllumination, t),
+    glowOpacity:     blendNumber(from.glowOpacity, to.glowOpacity, t),
+    // Discrete properties: step at midpoint
+    src:   t < 0.5 ? from.src   : to.src,
+    bezel: t < 0.5 ? from.bezel : to.bezel,
+    glow:  t < 0.5 ? from.glow  : to.glow,
+  }),
+};
 ```
 
 ### 6.3 `src/elements/screen/compile.ts`
@@ -1521,7 +1631,193 @@ import type { ScreenDSL, ScreenState } from './types.ts';
  *   enabled:         true
  */
 export function compileScreen(dsl: ScreenDSL): ScreenState;
+
+// import type { FunctionalTransitionSpec } from '@brewsite/core';
+// import { blendNumber, blendVec3, blendOpacity } from '@brewsite/core';
+
+/**
+ * Functional transition spec for ScreenState.
+ * Position, scale, and opacity are continuously interpolated (opacity drives both
+ * the WebGL bezel and the iframe CSS opacity simultaneously).
+ * src and bezel step at t=0.5 — URLs and variants cannot be interpolated.
+ *
+ * Note: height and width are not interpolated (no smooth resize of the iframe).
+ * They step at t=0.5. To animate a resize, change only position/scale.
+ */
+export const functionalScreenTransitionSpec: FunctionalTransitionSpec<ScreenState> = {
+  exitFn: (from) => (t) => ({
+    ...from,
+    opacity: blendOpacity(from.opacity, 0, t),
+  }),
+  enterFn: (to) => (t) => ({
+    ...to,
+    opacity: blendOpacity(0, to.opacity, t),
+  }),
+  interpolateFn: (from, to) => (t) => ({
+    ...to,
+    position:    blendVec3(from.position, to.position, t),
+    rotation:    blendVec3(from.rotation, to.rotation, t),
+    scale:       blendNumber(from.scale, to.scale, t),
+    opacity:     blendOpacity(from.opacity, to.opacity, t),
+    glowOpacity: blendNumber(from.glowOpacity, to.glowOpacity, t),
+    // Discrete properties: step at midpoint
+    src:    t < 0.5 ? from.src    : to.src,
+    bezel:  t < 0.5 ? from.bezel  : to.bezel,
+    width:  t < 0.5 ? from.width  : to.width,
+    height: t < 0.5 ? from.height : to.height,
+  }),
+};
 ```
+
+### 6.4 Widget Classes — `widget.ts` for Each Element
+
+Each element needs a **Widget class** that implements `ISceneElement<TState>` from `@brewsite/core`.
+This is the integration point between the compile layer (functional spec) and the render layer
+(Three.js renderer). It cannot live in `render.ts` (no React allowed there) or `index.ts`
+(re-exports only), so each element gets a dedicated `widget.ts`.
+
+The Widget class is what the consuming app registers with `WidgetRegistry`. The runtime then
+calls `widget.apply(state)` each tick with either the pre-baked discrete state or the
+functional closure result from `tick.transitionBlocks`.
+
+**`src/elements/diagram/widget.ts`**
+
+```typescript
+// src/elements/diagram/widget.ts
+// DiagramWidget — implements ISceneElement<DiagramState>.
+// Wires together: DSL component, functional transition spec, and Three.js renderer.
+// This is the only file in the diagram element that may import from all three tiers
+// (dsl.tsx for DslComponent, compile.ts for transitionSpec, render.ts for rendering).
+
+import type { ISceneElement } from '@brewsite/core';
+import { Diagram } from './dsl.tsx';
+import { functionalDiagramTransitionSpec } from './compile.ts';
+import { DiagramRenderer } from './render.ts';
+import type { DiagramState } from './types.ts';
+import type * as THREE from 'three';
+
+export class DiagramWidget implements ISceneElement<DiagramState> {
+  readonly widgetId: string;
+  readonly defaultState: DiagramState;
+  readonly transitionSpec = functionalDiagramTransitionSpec;
+  readonly DslComponent = Diagram;
+
+  private renderer = new DiagramRenderer();
+
+  /**
+   * @param widgetId - Must match the id prop used in <Diagram id="..."> DSL declarations
+   *                   and the setWidgetState() call in handlers.ts.
+   */
+  constructor(widgetId: string, defaultState: DiagramState) {
+    this.widgetId = widgetId;
+    this.defaultState = defaultState;
+  }
+
+  apply(state: DiagramState, scene: THREE.Scene): void {
+    this.renderer.update(state, scene);
+  }
+
+  dispose(scene: THREE.Scene): void {
+    this.renderer.dispose(this.widgetId, scene);
+  }
+}
+```
+
+**`src/elements/image-panel/widget.ts`**
+
+```typescript
+// src/elements/image-panel/widget.ts
+// ImagePanelWidget — implements ISceneElement<ImagePanelState>.
+
+import type { ISceneElement } from '@brewsite/core';
+import { ImagePanel } from './dsl.tsx';
+import { functionalImagePanelTransitionSpec } from './compile.ts';
+import { ImagePanelRenderer } from './render.ts';
+import type { ImagePanelState } from './types.ts';
+import type * as THREE from 'three';
+
+export class ImagePanelWidget implements ISceneElement<ImagePanelState> {
+  readonly widgetId: string;
+  readonly defaultState: ImagePanelState;
+  readonly transitionSpec = functionalImagePanelTransitionSpec;
+  readonly DslComponent = ImagePanel;
+
+  private renderer = new ImagePanelRenderer();
+
+  constructor(widgetId: string, defaultState: ImagePanelState) {
+    this.widgetId = widgetId;
+    this.defaultState = defaultState;
+  }
+
+  apply(state: ImagePanelState, scene: THREE.Scene): void {
+    this.renderer.update(state, scene);
+  }
+
+  dispose(scene: THREE.Scene): void {
+    this.renderer.dispose(this.widgetId, scene);
+  }
+}
+```
+
+**`src/elements/screen/widget.ts`**
+
+```typescript
+// src/elements/screen/widget.ts
+// ScreenWidget — implements ISceneElement<ScreenState>.
+// Note: ScreenRenderer requires camera and canvasRect in addition to scene.
+// These are provided via a separate setRenderContext() call before each apply().
+
+import type { ISceneElement } from '@brewsite/core';
+import { Screen } from './dsl.tsx';
+import { functionalScreenTransitionSpec } from './compile.ts';
+import { ScreenRenderer } from './render.ts';
+import type { ScreenState } from './types.ts';
+import type * as THREE from 'three';
+
+export class ScreenWidget implements ISceneElement<ScreenState> {
+  readonly widgetId: string;
+  readonly defaultState: ScreenState;
+  readonly transitionSpec = functionalScreenTransitionSpec;
+  readonly DslComponent = Screen;
+
+  private renderer: ScreenRenderer;
+
+  constructor(widgetId: string, defaultState: ScreenState, overlayContainer: HTMLDivElement) {
+    this.widgetId = widgetId;
+    this.defaultState = defaultState;
+    this.renderer = new ScreenRenderer(overlayContainer);
+  }
+
+  /**
+   * Must be called before apply() each frame to provide camera and canvas rect.
+   * The engine integration layer (RuntimeDriver or equivalent) is responsible for
+   * calling this with the current frame's camera and canvas bounding rect.
+   */
+  setRenderContext(camera: THREE.Camera, canvasRect: DOMRect): void {
+    this._camera = camera;
+    this._canvasRect = canvasRect;
+  }
+  private _camera: THREE.Camera | null = null;
+  private _canvasRect: DOMRect | null = null;
+
+  apply(state: ScreenState, scene: THREE.Scene): void {
+    if (!this._camera || !this._canvasRect) {
+      console.warn(`ScreenWidget(${this.widgetId}): setRenderContext() not called before apply()`);
+      return;
+    }
+    this.renderer.update(state, scene, this._camera, this._canvasRect);
+  }
+
+  dispose(scene: THREE.Scene): void {
+    this.renderer.dispose(this.widgetId, scene);
+  }
+}
+```
+
+> **On `ISceneElement`:** Verify the exact interface signature by reading
+> `packages/core/src/widget/types.ts` before implementing. The `apply()` method
+> signature may differ (e.g., it may receive a `RenderContext` object instead of
+> `THREE.Scene` directly). Adjust the widget classes to match the actual interface.
 
 ---
 
@@ -1929,12 +2225,19 @@ This file registers the `diagram`, `image-panel`, and `screen` DSL components wi
 
 ```typescript
 // src/compiler/handlers.ts
-// Registers diagram, image-panel, and screen element handlers with @brewsite/core registry.
-// Import this file once at app initialization (in the consuming app's entry point)
-// via the exported registerDiagramHandlers() function.
+// Registers diagram, image-panel, and screen DSL node handlers with @brewsite/core registry.
+// Call registerDiagramHandlers() once at app startup before any scenes compile.
+//
+// The NodeHandler type (from @brewsite/core sceneDslTypes.ts) is:
+//   (node: ReactElement, api: CompileApi, helpers: CompileHelpers) => void
+//
+// CompileApi.setWidgetState(widgetId, state) is the correct call to store compiled state.
+// The widgetId here MUST match the widgetId used in the registered Widget class
+// (DiagramWidget, ImagePanelWidget, ScreenWidget).
 
-import { registerNodeHandler } from '@brewsite/core';
-import type { SceneNode } from '@brewsite/core'; // the JSX node type passed by the registry
+import type { ReactElement } from 'react';
+import { registerNode }    from '@brewsite/core';     // registers a NodeHandler in the compiler registry
+import type { CompileApi, CompileHelpers } from '@brewsite/core';
 import { compileDiagram }    from '../elements/diagram/compile.ts';
 import { compileImagePanel } from '../elements/image-panel/compile.ts';
 import { compileScreen }     from '../elements/screen/compile.ts';
@@ -1942,77 +2245,72 @@ import type { DiagramDSL, DiagramNodeDSL, DiagramEdgeDSL, DiagramGroupDSL }
   from '../elements/diagram/types.ts';
 import type { ImagePanelDSL } from '../elements/image-panel/types.ts';
 import type { ScreenDSL }     from '../elements/screen/types.ts';
+import { Diagram }     from '../elements/diagram/dsl.tsx';
+import { ImagePanel }  from '../elements/image-panel/dsl.tsx';
+import { Screen }      from '../elements/screen/dsl.tsx';
 
 // ─── DSL Extraction Helpers ───────────────────────────────────────────────────
 //
-// These functions walk the React element tree (SceneNode) passed by the compiler
-// registry and convert JSX props + children into typed DSL objects.
+// The `helpers.collectChildren(node)` function from CompileHelpers flattens the
+// JSX children tree, expanding React.Fragment, function components, etc.
+// Use it to find <DiagramNode>, <DiagramEdge>, <DiagramGroup> children.
 //
-// A SceneNode is a React element record: { type: string, props: Record<string, unknown> }
-// Child nodes are in props.children (single element or array).
-// Walk children by calling getChildren(node) which flattens arrays and filters nulls.
+// Each child is a ReactElement with `child.type` (the component function) and
+// `child.props` (the prop object). Compare `child.type === DiagramNode` etc.
 
 /**
- * Extracts the DiagramDSL from a <Diagram> JSX node.
- * Walks children to find <DiagramNode>, <DiagramEdge>, <DiagramGroup> elements.
+ * Extracts a DiagramDSL from a <Diagram> ReactElement.
+ * Uses helpers.collectChildren() to traverse the JSX tree.
  *
- * GROUP MEMBERSHIP: <DiagramNode> elements nested inside a <DiagramGroup> have
- * their IDs added to DiagramGroupDSL.nodeIds. The extraction function must
- * track the current group context while walking children.
+ * GROUP MEMBERSHIP: <DiagramNode> elements nested inside a <DiagramGroup> children
+ * are collected into DiagramGroupDSL.nodeIds. The extraction tracks group context
+ * during the recursive walk.
  */
-function extractDiagramDSL(node: SceneNode): DiagramDSL {
-  const props = node.props;
+function extractDiagramDSL(node: ReactElement, helpers: CompileHelpers): DiagramDSL {
+  const props = node.props as Record<string, unknown>;
   const nodes: DiagramNodeDSL[] = [];
   const edges: DiagramEdgeDSL[] = [];
   const groups: DiagramGroupDSL[] = [];
 
-  // Walk all children, tracking group context
-  function walk(children: SceneNode | SceneNode[] | null, parentGroupId?: string): void {
-    if (!children) return;
-    const arr = Array.isArray(children) ? children : [children];
-    for (const child of arr) {
-      if (!child || typeof child !== 'object') continue;
-      switch (child.type) {
-        case 'DiagramNode':
-          nodes.push({ ...child.props, groupId: parentGroupId } as DiagramNodeDSL);
-          break;
-        case 'DiagramEdge':
-          edges.push(child.props as DiagramEdgeDSL);
-          break;
-        case 'DiagramGroup': {
-          const groupNodeIds: string[] = [];
-          // Recursively walk group children, collect their IDs
-          function collectGroupNodes(groupChildren: unknown): void {
-            if (!groupChildren) return;
-            const gArr = Array.isArray(groupChildren) ? groupChildren : [groupChildren];
-            for (const gc of gArr) {
-              if (gc && typeof gc === 'object' && (gc as SceneNode).type === 'DiagramNode') {
-                groupNodeIds.push(String((gc as SceneNode).props.id));
-              }
-            }
+  const allChildren = helpers.collectChildren(node);
+
+  for (const child of allChildren) {
+    if (!child || typeof child !== 'object' || !('type' in (child as object))) continue;
+    const el = child as ReactElement;
+    const elProps = el.props as Record<string, unknown>;
+
+    if (el.type === DiagramNode) {
+      nodes.push(elProps as DiagramNodeDSL);
+    } else if (el.type === DiagramEdge) {
+      edges.push(elProps as DiagramEdgeDSL);
+    } else if (el.type === DiagramGroup) {
+      // Collect nodeIds from direct <DiagramNode> children of this group
+      const groupChildren = helpers.collectChildren(el);
+      const nodeIds: string[] = [];
+      for (const gc of groupChildren) {
+        if (gc && typeof gc === 'object' && 'type' in (gc as object)) {
+          const gEl = gc as ReactElement;
+          if (gEl.type === DiagramNode) {
+            nodeIds.push(String((gEl.props as Record<string, unknown>).id));
+            // Also add to top-level nodes list with groupId
+            nodes.push({ ...(gEl.props as DiagramNodeDSL), groupId: String(elProps.id) });
           }
-          collectGroupNodes(child.props.children);
-          groups.push({
-            id:            String(child.props.id),
-            label:         String(child.props.label ?? ''),
-            variant:       child.props.variant as DiagramGroupDSL['variant'],
-            orientation:   child.props.orientation as DiagramGroupDSL['orientation'],
-            color:         child.props.color as string | undefined,
-            borderColor:   child.props.borderColor as string | undefined,
-            borderStyle:   child.props.borderStyle as DiagramGroupDSL['borderStyle'],
-            fillOpacity:   child.props.fillOpacity as number | undefined,
-            borderOpacity: child.props.borderOpacity as number | undefined,
-            nodeIds:       groupNodeIds,
-          });
-          // Also walk group children to register the nodes themselves
-          walk(child.props.children as SceneNode[], String(child.props.id));
-          break;
         }
       }
+      groups.push({
+        id:            String(elProps.id),
+        label:         String(elProps.label ?? ''),
+        variant:       elProps.variant as DiagramGroupDSL['variant'],
+        orientation:   elProps.orientation as DiagramGroupDSL['orientation'],
+        color:         elProps.color as string | undefined,
+        borderColor:   elProps.borderColor as string | undefined,
+        borderStyle:   elProps.borderStyle as DiagramGroupDSL['borderStyle'],
+        fillOpacity:   elProps.fillOpacity as number | undefined,
+        borderOpacity: elProps.borderOpacity as number | undefined,
+        nodeIds,
+      });
     }
   }
-
-  walk(props.children as SceneNode[]);
 
   return {
     id:            String(props.id),
@@ -2024,55 +2322,53 @@ function extractDiagramDSL(node: SceneNode): DiagramDSL {
   };
 }
 
-/**
- * Extracts ImagePanelDSL from an <ImagePanel> JSX node.
- * No child traversal needed — all data is in props.
- */
-function extractImagePanelDSL(node: SceneNode): ImagePanelDSL {
-  return node.props as ImagePanelDSL;
-}
-
-/**
- * Extracts ScreenDSL from a <Screen> JSX node.
- * No child traversal needed — all data is in props.
- */
-function extractScreenDSL(node: SceneNode): ScreenDSL {
-  return node.props as ScreenDSL;
-}
-
 // ─── Handler Registration ─────────────────────────────────────────────────────
+//
+// registerNode() (from @brewsite/core) registers a NodeHandler against a DSL component
+// function. When the compiler encounters that component in the JSX tree, it calls
+// the handler with (node, api, helpers).
+//
+// api.setWidgetState(widgetId, state) stores compiled state in the SceneFrame.
+// The widgetId must match the widgetId of the registered Widget instance.
+// For diagram/image-panel/screen, we use the element's `id` prop as the widgetId,
+// so each <Diagram id="system-arch"> stores state under widgetId "system-arch".
 
 export function registerDiagramHandlers(): void {
-  registerNodeHandler('Diagram', (node, api) => {
-    const dsl   = extractDiagramDSL(node);
+  registerNode(Diagram, (node, api, helpers) => {
+    const dsl   = extractDiagramDSL(node, helpers);
     const state = compileDiagram(dsl);
-    api.pushState('diagram', String(node.props.id), state);
+    // widgetId = the diagram's id prop — must match DiagramWidget.widgetId
+    api.setWidgetState(String(node.props.id), state);
   });
 
-  registerNodeHandler('ImagePanel', (node, api) => {
-    const dsl   = extractImagePanelDSL(node);
+  registerNode(ImagePanel, (node, api, _helpers) => {
+    const dsl   = node.props as ImagePanelDSL;
     const state = compileImagePanel(dsl);
-    api.pushState('image-panel', String(node.props.id), state);
+    api.setWidgetState(String(node.props.id), state);
   });
 
-  registerNodeHandler('Screen', (node, api) => {
-    const dsl   = extractScreenDSL(node);
+  registerNode(Screen, (node, api, _helpers) => {
+    const dsl   = node.props as ScreenDSL;
     const state = compileScreen(dsl);
-    api.pushState('screen', String(node.props.id), state);
+    api.setWidgetState(String(node.props.id), state);
   });
 }
 ```
 
-> **Implementation note on `SceneNode`:** The exact type of the node passed by
-> `@brewsite/core`'s registry handler should be imported from core. Check
-> `src/compiler/registry.ts` in `@brewsite/core` for the `NodeHandler` function signature
-> and the node type used. The structure above assumes `node.props` is a plain object and
-> `node.props.children` contains child React elements. Adjust to match the actual core type.
+> **`registerNode` vs `registerNodeHandler`:** Check `packages/core/src/compiler/registry.ts`
+> for the actual export name — it may be `registerNode`, `registerNodeHandler`, or similar.
+> Use whatever the registry actually exports. The function takes a component reference
+> (the DSL function itself) and a `NodeHandler` callback.
 >
-> **Important:** `DiagramGroupDSL.nodeIds` is NOT a prop on `<DiagramGroup>`. It is
-> **populated by the extraction function** by walking the group's JSX children and
-> collecting the `id` prop from each nested `<DiagramNode>`. The bot must NOT try to
-> read `nodeIds` from the group element's props.
+> **`DiagramGroupDSL.nodeIds` is populated by the extraction function**, not read from
+> the group element's props. The JSX children of `<DiagramGroup>` are walked to build
+> this array. Do NOT try to pass `nodeIds` as a prop — it does not appear in `DiagramGroupProps`.
+>
+> **Widget registration is separate from handler registration.** `registerDiagramHandlers()`
+> only tells the COMPILER how to extract DSL state. The Widget classes
+> (DiagramWidget, ImagePanelWidget, ScreenWidget) must ALSO be instantiated and registered
+> with the `WidgetRegistry` — this is the runtime's responsibility and is done by the
+> consuming app when it sets up the engine. See Section 6.4 for Widget class specs.
 
 ---
 
@@ -2153,28 +2449,41 @@ export type { DiagramShapeVariant, FlowShape, AwsShape, GcpShape, AzureShape, Ne
   from './elements/diagram/shapes/shapeVariants.ts';
 export { Diagram, DiagramNode, DiagramEdge, DiagramGroup }
   from './elements/diagram/dsl.tsx';
-export { compileDiagram, compileNode, compileEdge, compileGroup, resolveLayout, routeEdges }
-  from './elements/diagram/compile.ts';
-export { DiagramRenderer } from './elements/diagram/render.ts';
+export {
+  compileDiagram, compileNode, compileEdge, compileGroup, resolveLayout, routeEdges,
+  functionalDiagramTransitionSpec,
+} from './elements/diagram/compile.ts';
+export { DiagramRenderer }  from './elements/diagram/render.ts';
+export { DiagramWidget }    from './elements/diagram/widget.ts';
 
 // ─── ImagePanel element ───────────────────────────────────────────────────────
 // Static image displayed on a physical 3D floating plane. Fully WebGL.
 export type { ImagePanelState, ImagePanelDSL, ImagePanelBezelVariant }
   from './elements/image-panel/types.ts';
 export { ImagePanel } from './elements/image-panel/dsl.tsx';
-export { compileImagePanel } from './elements/image-panel/compile.ts';
+export {
+  compileImagePanel,
+  functionalImagePanelTransitionSpec,
+} from './elements/image-panel/compile.ts';
 export { ImagePanelRenderer } from './elements/image-panel/render.ts';
+export { ImagePanelWidget }   from './elements/image-panel/widget.ts';
 
 // ─── Screen element ───────────────────────────────────────────────────────────
 // Live interactive website in a 3D bezel. WebGL bezel + DOM <iframe> overlay.
 export type { ScreenState, ScreenDSL, ScreenBezelVariant }
   from './elements/screen/types.ts';
 export { Screen } from './elements/screen/dsl.tsx';
-export { compileScreen } from './elements/screen/compile.ts';
+export {
+  compileScreen,
+  functionalScreenTransitionSpec,
+} from './elements/screen/compile.ts';
 export { ScreenRenderer } from './elements/screen/render.ts';
+export { ScreenWidget }   from './elements/screen/widget.ts';
 
 // ─── Compiler handler registration ────────────────────────────────────────────
 // Call registerDiagramHandlers() once at app startup before any scenes compile.
+// Also instantiate and register DiagramWidget, ImagePanelWidget, ScreenWidget
+// with the WidgetRegistry for runtime rendering.
 export { registerDiagramHandlers } from './compiler/handlers.ts';
 ```
 
@@ -2335,6 +2644,78 @@ describe('compileScreen', () => {
 });
 ```
 
+**`packages/diagram/src/elements/diagram/__tests__/functionalTransitionSpec.test.ts`**
+
+```typescript
+// Tests for functionalDiagramTransitionSpec — pure function tests, no mocks.
+import { functionalDiagramTransitionSpec } from '../compile.ts';
+import type { DiagramState } from '../types.ts';
+
+// Minimal DiagramState factory for tests
+const makeState = (nodeZ: number, opacity = 1): DiagramState => ({
+  id: 'test',
+  layout: 'manual', layoutSpacing: [2, 2],
+  nodes: [{ id: 'a', label: 'A', position: [0, 0, nodeZ], opacity, /* ...other required fields */ }],
+  edges: [],
+  groups: [],
+  bounds: { x: 0, y: 0, w: 4, h: 2, minZ: nodeZ, maxZ: nodeZ },
+  cameraTarget: [0, 0, 0],
+  cameraDistance: 20,
+});
+
+describe('functionalDiagramTransitionSpec', () => {
+  describe('exitFn', () => {
+    it('at t=0 returns fromState opacity unchanged');
+    it('at t=1 returns opacity 0 on all nodes');
+  });
+
+  describe('enterFn', () => {
+    it('at t=0 returns opacity 0 on all nodes');
+    it('at t=1 returns toState opacity unchanged');
+  });
+
+  describe('interpolateFn', () => {
+    it('at t=0 node position matches fromState z=0');
+    it('at t=1 node position matches toState z=-50');
+    it('at t=0.5 node position is midpoint between from and to');
+    it('node absent from fromState fades in (opacity 0 at t=0, full at t=1)');
+    it('node absent from toState fades out (full at t=0, opacity 0 at t=1)');
+    it('edge control points interpolate at t=0.5');
+    it('cameraTarget blends from from.cameraTarget to to.cameraTarget');
+    it('cameraDistance blends from from.cameraDistance to to.cameraDistance');
+  });
+});
+```
+
+**`packages/diagram/src/elements/image-panel/__tests__/functionalTransitionSpec.test.ts`**
+
+```typescript
+describe('functionalImagePanelTransitionSpec', () => {
+  it('exitFn at t=0 returns full opacity');
+  it('exitFn at t=1 returns opacity 0');
+  it('enterFn at t=0 returns opacity 0');
+  it('enterFn at t=1 returns full opacity');
+  it('interpolateFn blends position at t=0.5');
+  it('interpolateFn blends rotation at t=0.5');
+  it('interpolateFn blends opacity at t=0.5');
+  it('interpolateFn: src steps at t=0.5 (not blended)');
+  it('interpolateFn: bezel steps at t=0.5 (not blended)');
+});
+```
+
+**`packages/diagram/src/elements/screen/__tests__/functionalTransitionSpec.test.ts`**
+
+```typescript
+describe('functionalScreenTransitionSpec', () => {
+  it('exitFn at t=1 returns opacity 0 (drives both bezel and iframe CSS)');
+  it('enterFn at t=0 returns opacity 0');
+  it('interpolateFn blends position at t=0.5');
+  it('interpolateFn blends opacity at t=0.5');
+  it('interpolateFn: src steps at t=0.5');
+  it('interpolateFn: width and height step at t=0.5 (no resize animation)');
+});
+```
+
 ### 10.4 `packages/diagram/vitest.config.ts`
 
 ```typescript
@@ -2361,6 +2742,8 @@ export default defineConfig({
       exclude: [
         'src/**/__tests__/**',
         'src/elements/**/render.ts',    // Three.js — excluded per project convention
+        'src/elements/**/_shared/**',   // Three.js shared utilities
+        'src/elements/**/widget.ts',    // Widget integration — wires compile+render, integration tested
         'src/**/index.ts',              // barrel files — no logic
         'src/compiler/handlers.ts',     // registration side-effect — integration tested
       ],
@@ -2689,35 +3072,43 @@ Implement in this order. Each step is independently testable before proceeding.
 ### Phase 3 — Compile Layer + Tests
 11. `src/elements/diagram/math/colorUtils.ts` — implement `deriveColor(hex, delta)` first since compile.ts depends on it
 12. `src/elements/diagram/shapes/iconRegistry.ts`
-13. `src/elements/diagram/compile.ts` — implement all functions
-14. `src/elements/image-panel/compile.ts`
-15. `src/elements/screen/compile.ts`
+13. `src/elements/diagram/compile.ts` — implement all functions + `functionalDiagramTransitionSpec`
+14. `src/elements/image-panel/compile.ts` — `compileImagePanel()` + `functionalImagePanelTransitionSpec`
+15. `src/elements/screen/compile.ts` — `compileScreen()` + `functionalScreenTransitionSpec`
 16. `src/elements/diagram/__tests__/colorUtils.test.ts`
 17. `src/elements/diagram/__tests__/iconRegistry.test.ts`
 18. `src/elements/diagram/__tests__/shapeVariants.test.ts`
 19. `src/elements/diagram/__tests__/compile.test.ts`
-20. `src/elements/image-panel/__tests__/compile.test.ts`
-21. `src/elements/screen/__tests__/compile.test.ts`
-22. Run `pnpm test` — all tests must pass
+20. `src/elements/diagram/__tests__/functionalTransitionSpec.test.ts`
+21. `src/elements/image-panel/__tests__/compile.test.ts`
+22. `src/elements/image-panel/__tests__/functionalTransitionSpec.test.ts`
+23. `src/elements/screen/__tests__/compile.test.ts`
+24. `src/elements/screen/__tests__/functionalTransitionSpec.test.ts`
+25. Run `pnpm test` — all tests must pass
 
 ### Phase 4 — Shared WebGL Utilities
-21. `src/elements/_shared/bezelGeometry.ts`
-22. `src/elements/_shared/glowSprite.ts`
-23. Visual smoke test: call `createBezel('dark', 10, 6, 0.3)`, inspect result in dev console
+26. `src/elements/_shared/bezelGeometry.ts`
+27. `src/elements/_shared/glowSprite.ts`
+28. Visual smoke test: call `createBezel('dark', 10, 6, 0.3)`, inspect result in dev console
 
-### Phase 5 — Render Layer
-24. `src/elements/diagram/shapes/geometryFactory.ts`
-25. `src/elements/diagram/render.ts`
-26. `src/elements/image-panel/render.ts` — uses `_shared/bezelGeometry` + `_shared/glowSprite`
-27. `src/elements/screen/render.ts` — uses `_shared/bezelGeometry` + `_shared/glowSprite` + DOM iframe
-28. Integrate into `apps/examples` — simple 3-node diagram scene + one `<ImagePanel>`
-29. Visual verification: nodes are physical boxes, edges are tubes, ImagePanel has bezel + gloss
-30. Visual verification: `<Screen>` iframe tracks bezel position on camera move
+### Phase 5 — Render Layer + Widget Classes
+29. `src/elements/diagram/shapes/geometryFactory.ts`
+30. `src/elements/diagram/render.ts`
+31. `src/elements/image-panel/render.ts` — uses `_shared/bezelGeometry` + `_shared/glowSprite`
+32. `src/elements/screen/render.ts` — uses `_shared/bezelGeometry` + `_shared/glowSprite` + DOM iframe
+33. `src/elements/diagram/widget.ts` — `DiagramWidget` implements `ISceneElement<DiagramState>`
+34. `src/elements/image-panel/widget.ts` — `ImagePanelWidget`
+35. `src/elements/screen/widget.ts` — `ScreenWidget`
 
-### Phase 6 — Compiler Handler Registration
-31. `src/compiler/handlers.ts`
-32. Update `src/index.ts` to export `registerDiagramHandlers`
-33. Wire up in `apps/examples` entry point
+### Phase 6 — Compiler Handler Registration + Widget Wiring
+36. `src/compiler/handlers.ts`
+37. Update `src/index.ts` to export all functional specs, widget classes, `registerDiagramHandlers`
+38. Wire up in `apps/examples` entry point:
+    - Call `registerDiagramHandlers()` (compiler side)
+    - Instantiate and register widget instances with `WidgetRegistry` (runtime side)
+39. Integrate into `apps/examples` — simple 3-node diagram scene + one `<ImagePanel>` + one `<Screen>`
+40. Visual verification: nodes are physical boxes, edges are tubes, ImagePanel has bezel + gloss
+41. Visual verification: `<Screen>` iframe tracks bezel position on camera move
 
 ### Phase 7 — Shape Assets
 34. Download AWS Architecture Icons, rename per `iconRegistry.ts` map, place in `public/assets/shapes/aws/`
@@ -2740,7 +3131,7 @@ Implement in this order. Each step is independently testable before proceeding.
 
 | Package | Version | Type | Justification |
 |---|---|---|---|
-| `@brewsite/core` | `workspace:*` | dependency | compiler registry, scene types, runtime |
+| `@brewsite/core` | `workspace:*` | dependency | compiler registry, scene types, runtime, `FunctionalTransitionSpec`, blend helpers |
 | `troika-three-text` | `^0.49.1` | dependency | SDF text rendering for node labels |
 | `three` | `^0.169.0` | peerDependency | must match host app's Three.js instance |
 | `react` | `^19.2.4` | peerDependency | DSL components are React |
@@ -2750,3 +3141,28 @@ Implement in this order. Each step is independently testable before proceeding.
 No new `peerDependencies` beyond Three.js and React. The `troika-three-text` dependency is
 a direct dependency (not peer) because it is an implementation detail of `render.ts` —
 consumers do not need to install it separately.
+
+**Imports from `@brewsite/core` used by `compile.ts` files:**
+
+```typescript
+// In each element's compile.ts:
+import type { FunctionalTransitionSpec } from '@brewsite/core';
+import { blendNumber, blendVec3, blendOpacity, blendColor } from '@brewsite/core';
+```
+
+`FunctionalTransitionSpec`, `blendNumber`, `blendVec3`, `blendOpacity`, and `blendColor`
+are all exported from `packages/core/src/compiler/transitions/transitionTypes.ts` and
+must be available via the top-level `@brewsite/core` barrel. If they are not yet in the
+barrel export, add them to `packages/core/src/index.ts` before implementing the diagram
+package.
+
+**Imports from `@brewsite/core` used by `widget.ts` files:**
+
+```typescript
+// In each element's widget.ts:
+import type { ISceneElement } from '@brewsite/core';
+```
+
+`ISceneElement<T>` is in `packages/core/src/widget/types.ts`. Verify it is exported
+from the core barrel and that its `apply()` method signature matches what is documented
+in Section 6.4 before implementing the Widget classes.
