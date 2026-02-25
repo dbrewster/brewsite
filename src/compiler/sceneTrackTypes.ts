@@ -30,6 +30,8 @@ export type SceneFrame = {
   scrollProgress: number;
   widgets: Record<string, unknown>;
   meta?: Record<string, JsonPrimitive>;
+  materialMetalnessMultiplier?: number;
+  materialRoughnessMultiplier?: number;
   /** HUD overlay items authored for this scene. Compiled to hudPrimitives per tick. */
   hudItems?: HudItemDefinition[];
   /** Label definitions authored for this scene. Compiled to labelPrimitives per tick. */

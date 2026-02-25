@@ -24,6 +24,8 @@ export type ModelProps = {
   opacity?: number | ((context: unknown) => number);
   metalness?: number | ((context: unknown) => number);
   roughness?: number | ((context: unknown) => number);
+  metalnessMultiplier?: number | ((context: unknown) => number);
+  roughnessMultiplier?: number | ((context: unknown) => number);
   enabled?: boolean | ((context: unknown) => boolean);
   reset?: boolean | ((context: unknown) => boolean);
   type: string;

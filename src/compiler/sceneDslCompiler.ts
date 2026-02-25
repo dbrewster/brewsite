@@ -129,15 +129,28 @@ const createApi = (context: SceneSnapshotContext): CompileApi => {
 export const Scene = (_props: {
   id?: string;
   meta?: Record<string, JsonPrimitive>;
+  metalnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
+  roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
   children?: React.ReactNode;
 }) => null;
 Scene.displayName = 'Scene';
 
 const sceneRootHandler: NodeHandler = (node, api, helpers) => {
-  helpers.compileChildren(node, api);
-  const props = node.props as { id?: string; meta?: Record<string, JsonPrimitive> };
+  const props = node.props as {
+    id?: string;
+    meta?: Record<string, JsonPrimitive>;
+    metalnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
+    roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
+  };
   if (props.id) api.setSceneMeta({ id: props.id });
   if (props.meta) api.setSceneMeta({ meta: props.meta });
+  if (props.metalnessMultiplier !== undefined) {
+    api.state.materialMetalnessMultiplier = helpers.resolveValue(props.metalnessMultiplier, api.context);
+  }
+  if (props.roughnessMultiplier !== undefined) {
+    api.state.materialRoughnessMultiplier = helpers.resolveValue(props.roughnessMultiplier, api.context);
+  }
+  helpers.compileChildren(node, api);
 };
 
 export const ensureSceneRegistry = (): void => {

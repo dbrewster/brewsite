@@ -58,6 +58,8 @@ type ModelAuthoredFlags = {
     opacity?: boolean;
     metalness?: boolean;
     roughness?: boolean;
+    metalnessMultiplier?: boolean;
+    roughnessMultiplier?: boolean;
   };
   enabled?: boolean;
   playback?: {
@@ -417,6 +419,8 @@ export class ModelWidget
       const ctx = api.context;
       const rawProps = node.props as ModelProps;
       const props = helpers.resolveObjectValues(rawProps, ctx);
+      const sceneMetalnessMultiplier = api.state.materialMetalnessMultiplier;
+      const sceneRoughnessMultiplier = api.state.materialRoughnessMultiplier;
       const resolvedRotation = props.rotation !== undefined
         ? (props.rotation as Vec3)
         : undefined;
@@ -432,6 +436,12 @@ export class ModelWidget
           opacity: hasProp(rawProps as Record<string, unknown>, 'opacity'),
           metalness: hasProp(rawProps as Record<string, unknown>, 'metalness'),
           roughness: hasProp(rawProps as Record<string, unknown>, 'roughness'),
+          metalnessMultiplier:
+            hasProp(rawProps as Record<string, unknown>, 'metalnessMultiplier')
+              || typeof sceneMetalnessMultiplier === 'number',
+          roughnessMultiplier:
+            hasProp(rawProps as Record<string, unknown>, 'roughnessMultiplier')
+              || typeof sceneRoughnessMultiplier === 'number',
         },
         enabled: hasProp(rawProps as Record<string, unknown>, 'enabled'),
         playback: {
@@ -549,6 +559,13 @@ export class ModelWidget
       }
 
       // resolveObjectValues resolves function-valued props; cast to concrete scalar types.
+      const resolvedSceneMetalnessMultiplier = sceneMetalnessMultiplier ?? 1;
+      const resolvedSceneRoughnessMultiplier = sceneRoughnessMultiplier ?? 1;
+      const modelMetalnessMultiplier =
+        props.metalnessMultiplier !== undefined ? (props.metalnessMultiplier as number) : 1;
+      const modelRoughnessMultiplier =
+        props.roughnessMultiplier !== undefined ? (props.roughnessMultiplier as number) : 1;
+
       const state: SceneModelInstanceState = {
         model: {
           ...base.model,
@@ -559,6 +576,8 @@ export class ModelWidget
           ...(props.opacity !== undefined ? { opacity: props.opacity as number } : {}),
           ...(props.metalness !== undefined ? { metalness: props.metalness as number } : {}),
           ...(props.roughness !== undefined ? { roughness: props.roughness as number } : {}),
+          metalnessMultiplier: resolvedSceneMetalnessMultiplier * modelMetalnessMultiplier,
+          roughnessMultiplier: resolvedSceneRoughnessMultiplier * modelRoughnessMultiplier,
           bodyPartOverrides,
           parts: Object.keys(modelParts).length > 0 ? modelParts : undefined,
         },
@@ -610,6 +629,8 @@ export class ModelWidget
       ...(authored?.model?.opacity ? { opacity: next.model.opacity } : {}),
       ...(authored?.model?.metalness ? { metalness: next.model.metalness } : {}),
       ...(authored?.model?.roughness ? { roughness: next.model.roughness } : {}),
+      ...(authored?.model?.metalnessMultiplier ? { metalnessMultiplier: next.model.metalnessMultiplier } : {}),
+      ...(authored?.model?.roughnessMultiplier ? { roughnessMultiplier: next.model.roughnessMultiplier } : {}),
       bodyPartOverrides: mergeBodyPartOverrides(base.model.bodyPartOverrides, next.model.bodyPartOverrides),
       parts: mergeModelParts(base.model.parts, next.model.parts),
     };

@@ -196,6 +196,8 @@ export type SceneModel = {
   opacity?: number;
   metalness?: number;
   roughness?: number;
+  metalnessMultiplier?: number;
+  roughnessMultiplier?: number;
   bodyPartOverrides?: BodyPartOverrideMap;
   parts?: Record<ModelPartId, ModelPartSpec>;
   enabled?: boolean;

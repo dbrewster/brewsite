@@ -297,7 +297,6 @@ export class ModelRenderer {
     this.lastGlobalProgress = null;
     this.lastAnimationSignature = null;
 
-    const seenMaterialUuids = new Set<string>();
     group.traverse((obj) => {
       if (!obj.name) return;
       this.nodeByName.set(obj.name, obj);
@@ -312,21 +311,9 @@ export class ModelRenderer {
         const mesh = obj as THREE.Mesh;
         // Ensure per-mesh material instances so overrides don't bleed across shared materials.
         if (Array.isArray(mesh.material)) {
-          mesh.material = mesh.material.map((mat) => {
-            if (!mat) return mat;
-            if (seenMaterialUuids.has(mat.uuid)) {
-              return mat.clone();
-            }
-            seenMaterialUuids.add(mat.uuid);
-            return mat;
-          });
+          mesh.material = mesh.material.map((mat) => (mat ? mat.clone() : mat));
         } else if (mesh.material) {
-          const mat = mesh.material;
-          if (seenMaterialUuids.has(mat.uuid)) {
-            mesh.material = mat.clone();
-          } else {
-            seenMaterialUuids.add(mat.uuid);
-          }
+          mesh.material = mesh.material.clone();
         }
         this.meshByName.set(mesh.name, mesh);
         this.cacheMaterialBase(mesh.material);
@@ -438,8 +425,12 @@ export class ModelRenderer {
   ): void {
     if (!this.model) return;
     this.bodyPartMeshMap.clear();
-    const baseMetalness = state.model.metalness;
-    const baseRoughness = state.model.roughness;
+    const metalnessMultiplier = state.model.metalnessMultiplier ?? 1;
+    const roughnessMultiplier = state.model.roughnessMultiplier ?? 1;
+    const applyMultiplier = (value: number | undefined, multiplier: number) =>
+      typeof value === 'number' ? value * multiplier : value;
+    const baseMetalness = applyMultiplier(state.model.metalness, metalnessMultiplier);
+    const baseRoughness = applyMultiplier(state.model.roughness, roughnessMultiplier);
     const modelOpacity = modelOpacityOverride ?? state.model.opacity;
 
     for (const mesh of this.meshByName.values()) {
@@ -484,11 +475,19 @@ export class ModelRenderer {
         typeof modelOpacity === 'number'
           ? (typeof override.opacity === 'number' ? override.opacity : 1) * modelOpacity
           : override.opacity;
+      const overrideMetalness =
+        override.metalness !== undefined
+          ? applyMultiplier(override.metalness, metalnessMultiplier)
+          : baseMetalness;
+      const overrideRoughness =
+        override.roughness !== undefined
+          ? applyMultiplier(override.roughness, roughnessMultiplier)
+          : baseRoughness;
       this.applyMaterialOverrides(mesh.material, {
         color: override.color,
         opacity,
-        metalness: override.metalness ?? baseMetalness,
-        roughness: override.roughness ?? baseRoughness,
+        metalness: overrideMetalness,
+        roughness: overrideRoughness,
       });
       if (typeof opacity === 'number') {
         mesh.visible = opacity > 0;
@@ -712,7 +711,13 @@ export class ModelRenderer {
       instance.group.rotation.set(part.rotation[0], part.rotation[1], part.rotation[2]);
       instance.group.scale.set(part.scale, part.scale, part.scale);
 
-      this.applyContainedOverrides(instance.group, part, modelOpacity);
+      this.applyContainedOverrides(
+        instance.group,
+        part,
+        modelOpacity,
+        state.model.metalnessMultiplier ?? 1,
+        state.model.roughnessMultiplier ?? 1,
+      );
     }
   }
 
@@ -789,8 +794,16 @@ export class ModelRenderer {
     material.dispose();
   }
 
-  private applyContainedOverrides(group: THREE.Group, part: ModelPartSpec, modelOpacity?: number): void {
+  private applyContainedOverrides(
+    group: THREE.Group,
+    part: ModelPartSpec,
+    modelOpacity?: number,
+    metalnessMultiplier = 1,
+    roughnessMultiplier = 1,
+  ): void {
     const opacityScale = typeof modelOpacity === 'number' ? modelOpacity : undefined;
+    const applyMultiplier = (value: number | undefined, multiplier: number) =>
+      typeof value === 'number' ? value * multiplier : value;
     group.traverse((obj) => {
       if (!((obj as THREE.Mesh).isMesh || obj.type === 'Mesh')) return;
       const mesh = obj as THREE.Mesh;
@@ -801,8 +814,8 @@ export class ModelRenderer {
           ? (typeof part.opacity === 'number' ? part.opacity : 1) * opacityScale
           : part.opacity;
       this.applyMaterialOverrides(mesh.material, {
-        metalness: part.metalness,
-        roughness: part.roughness,
+        metalness: applyMultiplier(part.metalness, metalnessMultiplier),
+        roughness: applyMultiplier(part.roughness, roughnessMultiplier),
         opacity,
       });
       if (typeof opacity === 'number') {
@@ -830,8 +843,8 @@ export class ModelRenderer {
         this.applyMaterialOverrides(mesh.material, {
           color: spec.color,
           opacity,
-          metalness: spec.metalness,
-          roughness: spec.roughness,
+          metalness: applyMultiplier(spec.metalness, metalnessMultiplier),
+          roughness: applyMultiplier(spec.roughness, roughnessMultiplier),
         });
         mesh.visible = spec.enabled !== false && opacity > 0;
       }

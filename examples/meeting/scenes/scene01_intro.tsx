@@ -13,7 +13,7 @@ export const scene01Intro: SceneDefinition = {
         mode="fitFloorDepth"
         fov={60}
         floorY={0}
-        floorZMin={-250}
+        floorZMin={-350}
         floorZMax={100}
         cameraY={80}
         lookAtZ={-200}
@@ -26,7 +26,7 @@ export const scene01Intro: SceneDefinition = {
       <Environment enabled intensity={0.05}>
         <EnvironmentCube urls={makeCubeUrls(skyEnvironment)} />
       </Environment>
-      <Floor enabled position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+      <Floor enabled position={[0, 0, -100]} rotation={[-Math.PI / 2, 0, 0]}>
         <FloorMirror
           mirrorColor="#ffe9c4"
           mirrorOpacity={0.3}

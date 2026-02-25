@@ -320,6 +320,8 @@ export const modelTransitionSpec = {
     scale: from.scale,
     opacity: blendOpacity(from.opacity ?? 1, 0, t),
     enabled: t >= 1 ? false : from.enabled,
+    metalnessMultiplier: from.metalnessMultiplier,
+    roughnessMultiplier: from.roughnessMultiplier,
     bodyPartOverrides: blendBodyOverrides(from.bodyPartOverrides, undefined, t, 0, t),
     parts: blendParts(from.parts, undefined, t, 0, t),
   }),
@@ -328,6 +330,8 @@ export const modelTransitionSpec = {
     scale: to.scale,
     opacity: blendOpacity(0, to.opacity ?? 1, t),
     enabled: t > 0 ? (to.enabled ?? true) : to.enabled,
+    metalnessMultiplier: to.metalnessMultiplier,
+    roughnessMultiplier: to.roughnessMultiplier,
     bodyPartOverrides: blendBodyOverrides(undefined, to.bodyPartOverrides, 0, t, t),
     parts: blendParts(undefined, to.parts, 0, t, t),
   }),
@@ -340,6 +344,14 @@ export const modelTransitionSpec = {
     opacity: blendOpacity(from.opacity ?? 1, to.opacity ?? 1, t),
     metalness: blendNumber(from.metalness, to.metalness, t) ?? to.metalness ?? from.metalness,
     roughness: blendNumber(from.roughness, to.roughness, t) ?? to.roughness ?? from.roughness,
+    metalnessMultiplier:
+      blendNumber(from.metalnessMultiplier, to.metalnessMultiplier, t)
+      ?? to.metalnessMultiplier
+      ?? from.metalnessMultiplier,
+    roughnessMultiplier:
+      blendNumber(from.roughnessMultiplier, to.roughnessMultiplier, t)
+      ?? to.roughnessMultiplier
+      ?? from.roughnessMultiplier,
     bodyPartOverrides: blendBodyOverrides(from.bodyPartOverrides, to.bodyPartOverrides, t, t, t),
     parts: blendParts(from.parts, to.parts, t, t, t),
   }),
