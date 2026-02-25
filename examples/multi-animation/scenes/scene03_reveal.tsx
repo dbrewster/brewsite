@@ -1,4 +1,4 @@
-import {Animation, Playback, SceneDefinition} from '@brewsite/core';
+import {Animation, Camera, Floor, FloorMirror, Playback, SceneDefinition} from '@brewsite/core';
 import {Ambient, Background, Directional, Hud, HudItem, Lighting, Point, Scene, Spot} from '@brewsite/core';
 import {Fade} from '../../../src/hud/animejs';
 import {Worker} from '../../generated/sceneDsl.generated';
@@ -9,6 +9,16 @@ export const scene03Reveal: SceneDefinition = {
   index: 2,
   getFrame: () => (
     <Scene id="complex-reveal">
+      <Camera
+        enabled
+        mode="fitFloorDepth"
+        fov={60}
+        floorY={0}
+        floorZMin={-250}
+        floorZMax={100}
+        cameraY={160}
+        lookAtZ={-200}
+      />
       <Background imageUrl={backgrounds.focus} opacity={1} cssSize="cover" cssPosition="center" />
       <Lighting intensityScale={1}>
         <Ambient intensity={sceneLighting.dramatic.ambient} color="#d6f3ff" />
@@ -26,6 +36,16 @@ export const scene03Reveal: SceneDefinition = {
           <Animation clipName="08-drunken-stumble-and-fall" enabled weight={1}/>
         </Playback>
       </Worker>
+      <Floor enabled position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <FloorMirror
+          mirrorColor="#ffe9c4"
+          mirrorOpacity={.3}
+          mirrorResolution={1024}
+          mirrorClipBias={0.003}
+          mirrorEnvironmentIntensity={.7}
+          mirrorUseEnvironmentBackground
+        />
+      </Floor>
       <Hud>
         <HudItem id="complex-hud">
           <Fade duration={1200}>

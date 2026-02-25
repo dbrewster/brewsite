@@ -10,7 +10,7 @@ import type {
   WidgetRenderContext,
 } from '../../widget/types';
 import type { SceneLighting } from './types';
-import { DEFAULT_LIGHTING, lightingTransitionSpec } from './compile';
+import { DEFAULT_LIGHTING, functionalLightingTransitionSpec } from './compile';
 import {
   Lighting,
   Ambient,
@@ -36,7 +36,7 @@ export class LightingWidget
 {
   readonly widgetId = 'lighting';
   readonly defaultState: SceneLighting = DEFAULT_LIGHTING;
-  readonly transitionSpec = lightingTransitionSpec;
+  readonly transitionSpec = functionalLightingTransitionSpec;
   // Cast: LightingProps.children is more restrictive than Partial<SceneLighting>.children?.
   readonly DslComponent = Lighting as React.ComponentType<Partial<SceneLighting> & { children?: React.ReactNode }>;
   readonly useDefaultStateWhenAbsent = false;

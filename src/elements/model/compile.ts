@@ -16,7 +16,7 @@ import type {
   ClipMeta,
   SceneModelInstanceState,
 } from './types';
-import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
+import type { ElementTransitionSpec, FunctionalTransitionSpec } from '../../compiler/transitions/transitionTypes';
 import {
   blendAxisRotation,
   blendAxisTranslation,
@@ -711,4 +711,15 @@ export const instanceTransitionSpec: ElementTransitionSpec<SceneModelInstanceSta
       frames[i]!.state.widgets[widgetId] = applyModelInterpolate(fromState, toState, t);
     }
   },
+};
+
+/**
+ * Functional form of the model instance transition spec.
+ * Preferred over instanceTransitionSpec for new scenes — evaluates at runtime for
+ * infinite easing fidelity without oversampling.
+ */
+export const functionalInstanceTransitionSpec: FunctionalTransitionSpec<SceneModelInstanceState> = {
+  exitFn: (from) => (t) => applyModelExit(from, t),
+  enterFn: (to) => (t) => applyModelEnter(to, t),
+  interpolateFn: (from, to) => (t) => applyModelInterpolate(from, to, t),
 };

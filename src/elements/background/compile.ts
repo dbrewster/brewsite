@@ -3,7 +3,10 @@
  */
 
 import type { SceneBackground } from './types';
-import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
+import type {
+  ElementTransitionSpec,
+  FunctionalTransitionSpec,
+} from '../../compiler/transitions/transitionTypes';
 import { blendOpacity, blendVec3, transitionT } from '../../compiler/transitions/transitionTypes';
 
 const crossFadeOpacity = (from: SceneBackground, to: SceneBackground, t: number) => {
@@ -60,4 +63,23 @@ export const backgroundTransitionSpec: ElementTransitionSpec<SceneBackground> = 
       };
     }
   },
+};
+
+export const functionalBackgroundTransitionSpec: FunctionalTransitionSpec<SceneBackground> = {
+  exitFn: (from) => (t) => ({
+    ...from,
+    opacity: blendOpacity(from.opacity, 0, t) ?? 0,
+  }),
+  enterFn: (to) => (t) => ({
+    ...to,
+    opacity: blendOpacity(0, to.opacity, t) ?? to.opacity ?? 0,
+  }),
+  interpolateFn: (from, to) => (t) => ({
+    imageUrl: selectImageUrl(from.imageUrl, to.imageUrl, t),
+    opacity: crossFadeOpacity(from, to, t),
+    position: blendVec3(from.position, to.position, t),
+    cssPosition: t < 0.5 ? from.cssPosition : to.cssPosition,
+    cssSize: t < 0.5 ? from.cssSize : to.cssSize,
+    cssRepeat: t < 0.5 ? from.cssRepeat : to.cssRepeat,
+  }),
 };

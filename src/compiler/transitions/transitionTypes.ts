@@ -37,6 +37,52 @@ export type ElementTransitionSpec<T> = {
   interpolate: (frames: SceneTrackTick[], widgetId: string, fromState: T, toState: T) => void;
 };
 
+/**
+ * Functional transition spec — closure-based alternative to ElementTransitionSpec.
+ *
+ * The compiler calls these once at compile time with the known endpoint states,
+ * capturing them into closures. Each closure is stored in SceneTrack.transitionBlocks
+ * and evaluated by the runtime at tick.blockProgress each frame.
+ *
+ * t semantics (same as transitionT in the discrete path):
+ *   exitFn:        t = 0 → widget at fromState.  t = 1 → widget fully absent.
+ *   enterFn:       t = 0 → widget fully absent.  t = 1 → widget at toState.
+ *   interpolateFn: t = 0 → widget at fromState.  t = 1 → widget at toState.
+ *
+ * Half-block semantics are handled by the compiler wrapper (see sceneTrackCompiler.ts
+ * §3.3). Widget authors write closures that expect t ∈ [0, 1] only.
+ */
+export type FunctionalTransitionSpec<T> = {
+  /**
+   * Widget is leaving (present in scene N, absent from N+1).
+   * Called once with fromState. Returns a pure function of t ∈ [0, 1].
+   * Active over the first half of the block (blockProgress ∈ [0, 0.5)).
+   */
+  exitFn: (fromState: T) => (t: number) => T;
+
+  /**
+   * Widget is arriving (absent from scene N, present in scene N+1).
+   * Called once with toState. Returns a pure function of t ∈ [0, 1].
+   * Active over the second half of the block (blockProgress ∈ [0.5, 1]).
+   */
+  enterFn: (toState: T) => (t: number) => T;
+
+  /**
+   * Widget present in both scenes.
+   * Called once with (fromState, toState). Returns a pure function of t ∈ [0, 1].
+   * Active over the full block (blockProgress ∈ [0, 1]).
+   */
+  interpolateFn: (fromState: T, toState: T) => (t: number) => T;
+};
+
+/**
+ * Type guard: returns true if spec is a FunctionalTransitionSpec.
+ * Used by the compiler to branch between discrete fill and closure capture.
+ */
+export const isFunctionalSpec = <T>(
+  spec: ElementTransitionSpec<T> | FunctionalTransitionSpec<T>,
+): spec is FunctionalTransitionSpec<T> => 'interpolateFn' in spec;
+
 // ====================
 // Math Utilities
 // ====================

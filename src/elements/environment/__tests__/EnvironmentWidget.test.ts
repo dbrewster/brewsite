@@ -5,11 +5,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { EnvironmentWidget } from '../EnvironmentWidget';
 import type { SceneEnvironment } from '../types';
-import {
-  makeFrameSlice,
-  makeInitContext,
-  makeRenderContext,
-} from '../../__tests__/elementTestMocks';
+import { makeInitContext, makeRenderContext } from '../../__tests__/elementTestMocks';
 
 describe('EnvironmentWidget', () => {
   let widget: EnvironmentWidget;
@@ -30,24 +26,22 @@ describe('EnvironmentWidget', () => {
 
   // ─── transitionSpec — pure blend functions ────────────────────────────────
 
-  it('transitionSpec.exit disables when tExit=1 and fades intensity', () => {
+  it('transitionSpec.exit disables when t=1 and fades intensity', () => {
     const state: SceneEnvironment = {
       enabled: true,
       intensity: 1,
       source: { type: 'hdr', url: '/env.hdr' },
     };
-    const frames = makeFrameSlice(2);
-    widget.transitionSpec.exit(frames, widget.widgetId, state);
-    const result = frames[1]!.state.widgets[widget.widgetId] as SceneEnvironment;
+    const fn = widget.transitionSpec.exitFn(state);
+    const result = fn(1);
     expect(result.enabled).toBe(false);
     expect(result.intensity).toBeCloseTo(0);
   });
 
-  it('transitionSpec.enter enables when tEnter>0 and fades intensity in', () => {
+  it('transitionSpec.enter enables when t>0 and fades intensity in', () => {
     const state: SceneEnvironment = { enabled: true, intensity: 0.8 };
-    const frames = makeFrameSlice(3);
-    widget.transitionSpec.enter(frames, widget.widgetId, state);
-    const result = frames[1]!.state.widgets[widget.widgetId] as SceneEnvironment;
+    const fn = widget.transitionSpec.enterFn(state);
+    const result = fn(0.5);
     expect(result.enabled).toBe(true);
     expect(result.intensity).toBeGreaterThan(0);
   });
@@ -63,10 +57,9 @@ describe('EnvironmentWidget', () => {
       intensity: 0.8,
       source: { type: 'hdr', url: '/to.hdr' },
     };
-    const frames = makeFrameSlice(5);
-    widget.transitionSpec.interpolate(frames, widget.widgetId, from, to);
-    const at25 = frames[1]!.state.widgets[widget.widgetId] as SceneEnvironment;
-    const at75 = frames[3]!.state.widgets[widget.widgetId] as SceneEnvironment;
+    const fn = widget.transitionSpec.interpolateFn(from, to);
+    const at25 = fn(0.25);
+    const at75 = fn(0.75);
     expect(at25.source && 'url' in at25.source ? at25.source.url : '').toBe('/from.hdr');
     expect(at75.source && 'url' in at75.source ? at75.source.url : '').toBe('/to.hdr');
     expect(at25.intensity).toBeGreaterThan(0.2);

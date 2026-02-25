@@ -14,7 +14,7 @@ export const scene01Move: SceneDefinition = {
       <Robot
         id="robot-1"
         position={[-18, 0, 20]}
-        rotation={[0, -Math.PI / 2 + .2, 0]}
+        rotation={[0, .2, 0]}
         scale={0.1}
         metalness={.9}
         roughness={.2}
@@ -26,7 +26,7 @@ export const scene01Move: SceneDefinition = {
       <Robot
         id="robot-2"
         position={[0, 0, -20]}
-        rotation={[0, -Math.PI / 2 + .2, 0]}
+        rotation={[0, .2, 0]}
         scale={0.1}
         metalness={.9}
         roughness={.1}

@@ -35,6 +35,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   private manifest: AssetManifest | null;
   private threeScene: ThreeScene | null = null;
   private sampler: SceneTrackSampler | null = null;
+  private track: SceneTrack | null = null;
   private currentTick: SceneTrackTick | null = null;
   private wallTimeSeconds = 0;
   private onAssetsReady?: () => void;
@@ -126,6 +127,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
 
   setSceneTrack(track: SceneTrack): void {
     this.sampler = createSceneTrackSampler(track);
+    this.track = track;
   }
 
   tick(options: { deltaSeconds: number; globalProgress: number; wallTimeSeconds?: number }): void {
@@ -141,6 +143,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
       scene: this.threeScene,
       variables: this.variableStore,
       tick: this.currentTick,
+      track: this.track,
     };
     for (const controller of this.widgetRegistry.getAnimationControllers()) {
       try {
@@ -165,9 +168,15 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     };
     for (const renderable of this.widgetRegistry.getRenderables()) {
       try {
-        const state = tick.state.widgets[renderable.widgetId] ?? (
-          this.widgetRegistry.getSceneElements().find(e => e.widgetId === renderable.widgetId)?.defaultState
-        );
+        // Functional transitions take priority: evaluate closure at blockProgress.
+        // Falls back to pre-baked discrete state, then widget defaultState.
+        const functionalBlock = this.track?.transitionBlocks?.[tick.sceneIndex];
+        const functionalWidget = functionalBlock?.widgetFns[renderable.widgetId];
+        const state = functionalWidget
+          ? functionalWidget.fn(tick.blockProgress)
+          : (tick.state.widgets[renderable.widgetId] ??
+            this.widgetRegistry.getSceneElements()
+              .find(e => e.widgetId === renderable.widgetId)?.defaultState);
         const extra = tick.widgetExtras?.[renderable.widgetId];
         renderable.apply(state as never, { ...renderCtx, extra });
       } catch (e) {
@@ -225,6 +234,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
       }
     }
     this.sampler = null;
+    this.track = null;
     this.currentTick = null;
   }
 }

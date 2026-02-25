@@ -22,7 +22,7 @@ pnpm vitest run src/robot/runtime/__tests__/someFile.test.ts
 
 ## Architecture Overview
 
-**BrewFlow Website** is a TypeScript + React + Three.js app for authoring and playing back animated robot marketing scenes. The core lives entirely in `src/robot/`.
+**BrewSite** is a TypeScript + React + Three.js app for authoring and playing back animated robot marketing scenes. The core lives entirely in `src/robot/`.
 
 ### Layers (top-to-bottom)
 

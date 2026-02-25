@@ -6,7 +6,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { LightingWidget } from '../LightingWidget';
 import type { SceneLighting } from '../types';
-import { makeFrameSlice } from '../../__tests__/elementTestMocks';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -42,55 +41,49 @@ describe('LightingWidget', () => {
 
   // ─── transitionSpec — pure blend functions ────────────────────────────────
 
-  it('transitionSpec.interpolate at tFull=0 returns from-state ambient intensity', () => {
+  it('transitionSpec.interpolate at t=0 returns from-state ambient intensity', () => {
     const from = makeLighting(2.0);
     const to = makeLighting(0.0);
-    const frames = makeFrameSlice(2);
-    widget.transitionSpec.interpolate(frames, widget.widgetId, from, to);
-    const result = frames[0]!.state.widgets[widget.widgetId] as SceneLighting;
+    const fn = widget.transitionSpec.interpolateFn(from, to);
+    const result = fn(0);
     expect(result.ambient.intensity).toBeCloseTo(2.0);
   });
 
-  it('transitionSpec.interpolate at tFull=1 returns to-state ambient intensity', () => {
+  it('transitionSpec.interpolate at t=1 returns to-state ambient intensity', () => {
     const from = makeLighting(2.0);
     const to = makeLighting(0.0);
-    const frames = makeFrameSlice(2);
-    widget.transitionSpec.interpolate(frames, widget.widgetId, from, to);
-    const result = frames[1]!.state.widgets[widget.widgetId] as SceneLighting;
+    const fn = widget.transitionSpec.interpolateFn(from, to);
+    const result = fn(1);
     expect(result.ambient.intensity).toBeCloseTo(0.0);
   });
 
-  it('transitionSpec.interpolate at tFull=0.5 blends ambient intensity', () => {
+  it('transitionSpec.interpolate at t=0.5 blends ambient intensity', () => {
     const from = makeLighting(2.0);
     const to = makeLighting(0.0);
-    const frames = makeFrameSlice(3);
-    widget.transitionSpec.interpolate(frames, widget.widgetId, from, to);
-    const result = frames[1]!.state.widgets[widget.widgetId] as SceneLighting;
+    const fn = widget.transitionSpec.interpolateFn(from, to);
+    const result = fn(0.5);
     expect(result.ambient.intensity).toBeGreaterThan(0);
     expect(result.ambient.intensity).toBeLessThan(2.0);
   });
 
-  it('transitionSpec.exit at tExit=1 fades ambient to 0', () => {
+  it('transitionSpec.exit at t=1 fades ambient to 0', () => {
     const state = makeLighting(2.0);
-    const frames = makeFrameSlice(2);
-    widget.transitionSpec.exit(frames, widget.widgetId, state);
-    const result = frames[1]!.state.widgets[widget.widgetId] as SceneLighting;
+    const fn = widget.transitionSpec.exitFn(state);
+    const result = fn(1);
     expect(result.ambient.intensity).toBeCloseTo(0);
   });
 
-  it('transitionSpec.enter at tEnter=0 has near-zero ambient intensity', () => {
+  it('transitionSpec.enter at t=0 has near-zero ambient intensity', () => {
     const state = makeLighting(2.0);
-    const frames = makeFrameSlice(2);
-    widget.transitionSpec.enter(frames, widget.widgetId, state);
-    const result = frames[0]!.state.widgets[widget.widgetId] as SceneLighting;
+    const fn = widget.transitionSpec.enterFn(state);
+    const result = fn(0);
     expect(result.ambient.intensity).toBeCloseTo(0);
   });
 
-  it('transitionSpec.enter at tEnter=1 returns full ambient intensity', () => {
+  it('transitionSpec.enter at t=1 returns full ambient intensity', () => {
     const state = makeLighting(2.0);
-    const frames = makeFrameSlice(2);
-    widget.transitionSpec.enter(frames, widget.widgetId, state);
-    const result = frames[1]!.state.widgets[widget.widgetId] as SceneLighting;
+    const fn = widget.transitionSpec.enterFn(state);
+    const result = fn(1);
     expect(result.ambient.intensity).toBeCloseTo(2.0);
   });
 

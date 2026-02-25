@@ -14,7 +14,7 @@ export const scene01Move: SceneDefinition = {
       <Robot
         id="robot-left"
         position={[-18, -30, 0]}
-        rotation={[0, -Math.PI / 2 + .2, 0]}
+        rotation={[0, .2, 0]}
         scale={0.2}
         metalness={.9}
         roughness={.1}

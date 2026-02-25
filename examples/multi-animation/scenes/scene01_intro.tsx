@@ -31,7 +31,7 @@ export const scene01Intro: SceneDefinition = {
       <Floor enabled position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <FloorMirror
           mirrorColor="#ffe9c4"
-          mirrorOpacity={0.3}
+          mirrorOpacity={1}
           mirrorResolution={1024}
           mirrorClipBias={0.003}
           mirrorEnvironmentIntensity={.7}

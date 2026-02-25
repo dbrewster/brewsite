@@ -3,7 +3,10 @@
  */
 
 import type { SceneLighting } from './types';
-import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
+import type {
+  ElementTransitionSpec,
+  FunctionalTransitionSpec,
+} from '../../compiler/transitions/transitionTypes';
 import { blendColor, blendNumber, blendVec3, transitionT } from '../../compiler/transitions/transitionTypes';
 
 const blendLightArray = <T extends { intensity: number; color: string; position: [number, number, number] }>(
@@ -225,4 +228,10 @@ export const lightingTransitionSpec: ElementTransitionSpec<SceneLighting> = {
       frames[i]!.state.widgets[widgetId] = applyLightingInterpolate(fromState, toState, t);
     }
   },
+};
+
+export const functionalLightingTransitionSpec: FunctionalTransitionSpec<SceneLighting> = {
+  exitFn: (from) => (t) => applyLightingExit(from, t),
+  enterFn: (to) => (t) => applyLightingEnter(to, t),
+  interpolateFn: (from, to) => (t) => applyLightingInterpolate(from, to, t),
 };

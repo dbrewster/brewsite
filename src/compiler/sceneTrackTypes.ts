@@ -50,6 +50,37 @@ export type SceneFrameDelta = {
   labels?: SceneFrame['labels'];
 };
 
+// ─── Functional Transition Types ──────────────────────────────────────────────
+
+/**
+ * A compiled functional transition closure for one widget in one transition block.
+ * fn accepts blockProgress ∈ [0, 1] (the same coordinate as SceneTrackTick.blockProgress).
+ * Half-block remapping for exit/enter is applied by the compiler before this closure
+ * is stored, so the caller (RuntimeDriver) passes blockProgress directly with no
+ * additional transformation.
+ */
+export type FunctionalWidgetTransition = {
+  /**
+   * Evaluate this widget's state at blockProgress ∈ [0, 1].
+   * For exit/enter closures: returns absentDefault when blockProgress is outside
+   * the active half-block — the remapping is already baked into this closure.
+   * For interpolate closures: maps blockProgress 0→1 to fromState→toState.
+   */
+  fn: (blockProgress: number) => unknown;
+  /** Diagnostic tag — identifies which transition scenario produced this closure. */
+  kind: 'exit' | 'enter' | 'interpolate';
+};
+
+/**
+ * Functional transition overrides for one scene-to-scene transition block.
+ * blockIndex N corresponds to the transition from scenes[N] to scenes[N+1].
+ * Only present when at least one widget in that block uses FunctionalTransitionSpec.
+ */
+export type SceneTrackTransitionBlock = {
+  blockIndex: number;
+  widgetFns: Record<string, FunctionalWidgetTransition>;
+};
+
 // ─── SceneWindow ─────────────────────────────────────────────────────────────
 
 export type SceneWindow = {
@@ -88,4 +119,10 @@ export type SceneTrack = {
   tickStep: number;
   subTickCount: number;
   sceneWindows: SceneWindow[];
+  /**
+   * Functional transition closures, indexed by block index (0 = scene 0→1 transition).
+   * Present only when at least one widget uses FunctionalTransitionSpec.
+   * Length ≤ numScenes - 1.
+   */
+  transitionBlocks?: SceneTrackTransitionBlock[];
 };

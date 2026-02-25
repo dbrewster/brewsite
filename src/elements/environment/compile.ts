@@ -3,7 +3,10 @@
  */
 
 import type { SceneEnvironment } from './types';
-import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
+import type {
+  ElementTransitionSpec,
+  FunctionalTransitionSpec,
+} from '../../compiler/transitions/transitionTypes';
 import { blendNumber, transitionT } from '../../compiler/transitions/transitionTypes';
 
 export const DEFAULT_ENVIRONMENT: SceneEnvironment = {
@@ -45,5 +48,28 @@ export const environmentTransitionSpec: ElementTransitionSpec<SceneEnvironment> 
         intensity: blendNumber(fromState.intensity, toState.intensity, t),
       };
     }
+  },
+};
+
+export const functionalEnvironmentTransitionSpec: FunctionalTransitionSpec<SceneEnvironment> = {
+  exitFn: (from) => (t) => ({
+    ...from,
+    enabled: t < 1 && from.enabled,
+    intensity: blendNumber(from.intensity, 0, t) ?? 0,
+  }),
+  enterFn: (to) => (t) => ({
+    ...to,
+    enabled: t > 0 && to.enabled,
+    intensity: blendNumber(0, to.intensity, t) ?? 0,
+  }),
+  interpolateFn: (from, to) => (t) => {
+    const enabled = (from.enabled && to.enabled)
+      ? true
+      : (t > 0 && to.enabled) || (t < 1 && from.enabled);
+    return {
+      source: t < 0.5 ? from.source : to.source,
+      enabled,
+      intensity: blendNumber(from.intensity, to.intensity, t) ?? to.intensity,
+    };
   },
 };

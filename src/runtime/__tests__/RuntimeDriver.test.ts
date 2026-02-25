@@ -54,6 +54,28 @@ const makeNoopSpec = <T,>(): ElementTransitionSpec<T> => ({
   },
 });
 
+const makeTick = (options: {
+  index: number;
+  progress: number;
+  sceneIndex: number;
+  blockProgress: number;
+  widgets?: Record<string, unknown>;
+}): SceneTrackTick => ({
+  index: options.index,
+  progress: options.progress,
+  sceneId: `scene-${options.sceneIndex}`,
+  sceneIndex: options.sceneIndex,
+  blockProgress: options.blockProgress,
+  state: {
+    id: `scene-${options.sceneIndex}`,
+    scrollProgress: options.blockProgress,
+    widgets: options.widgets ?? {},
+  },
+  deltaForward: {},
+  deltaBackward: {},
+  widgetExtras: {},
+});
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -219,6 +241,150 @@ describe('RuntimeDriverImpl', () => {
 
     expect(order[0]).toBe('tick');
     expect(order[1]).toBe('render:1');
+  });
+
+  it('evaluates functional closure at tick.blockProgress', async () => {
+    const registry = new WidgetRegistry();
+    const variableStore = new VariableStore();
+    const scene = new THREE.Scene();
+
+    const noopSpec = makeNoopSpec<{ value: number }>();
+    const applied: Array<{ widgetId: string; value: number }> = [];
+
+    class FunctionalWidget implements ISceneElement<{ value: number }>, IRenderable<{ value: number }> {
+      readonly widgetId = 'func';
+      readonly defaultState = { value: 0 };
+      readonly transitionSpec = noopSpec;
+      readonly DslComponent = () => null;
+      initialize(): void {}
+      apply(state: { value: number }): void { applied.push({ widgetId: this.widgetId, value: state.value }); }
+      dispose(): void {}
+    }
+
+    class DiscreteWidget implements ISceneElement<{ value: number }>, IRenderable<{ value: number }> {
+      readonly widgetId = 'disc';
+      readonly defaultState = { value: 0 };
+      readonly transitionSpec = noopSpec;
+      readonly DslComponent = () => null;
+      initialize(): void {}
+      apply(state: { value: number }): void { applied.push({ widgetId: this.widgetId, value: state.value }); }
+      dispose(): void {}
+    }
+
+    registry.register(new FunctionalWidget()).register(new DiscreteWidget());
+
+    const track: SceneTrack = {
+      ticks: [
+        makeTick({ index: 0, progress: 0, sceneIndex: 0, blockProgress: 0.5, widgets: { disc: { value: 3 } } }),
+        makeTick({ index: 1, progress: 1, sceneIndex: 1, blockProgress: 0, widgets: { disc: { value: 5 } } }),
+      ],
+      tickStep: 1,
+      subTickCount: 2,
+      sceneWindows: [{ id: 'scene-0', index: 0, start: 0, end: 1 }],
+      transitionBlocks: [{
+        blockIndex: 0,
+        widgetFns: {
+          func: {
+            kind: 'interpolate',
+            fn: (bp: number) => ({ value: bp * 10 }),
+          },
+        },
+      }],
+    };
+
+    const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
+    driver.setSceneTrack(track);
+    await driver.initialize(scene);
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0 });
+
+    const funcApplied = applied.find((entry) => entry.widgetId === 'func');
+    const discApplied = applied.find((entry) => entry.widgetId === 'disc');
+    expect(funcApplied?.value).toBeCloseTo(5);
+    expect(discApplied?.value).toBe(3);
+  });
+
+  it('falls back to discrete state when no functional block exists for that sceneIndex', async () => {
+    const registry = new WidgetRegistry();
+    const variableStore = new VariableStore();
+    const scene = new THREE.Scene();
+
+    const noopSpec = makeNoopSpec<{ value: number }>();
+    let appliedValue = 0;
+
+    class RenderWidget implements ISceneElement<{ value: number }>, IRenderable<{ value: number }> {
+      readonly widgetId = 'w';
+      readonly defaultState = { value: 0 };
+      readonly transitionSpec = noopSpec;
+      readonly DslComponent = () => null;
+      initialize(): void {}
+      apply(state: { value: number }): void { appliedValue = state.value; }
+      dispose(): void {}
+    }
+
+    registry.register(new RenderWidget());
+
+    const track: SceneTrack = {
+      ticks: [
+        makeTick({ index: 0, progress: 0, sceneIndex: 1, blockProgress: 1, widgets: { w: { value: 7 } } }),
+      ],
+      tickStep: 1,
+      subTickCount: 1,
+      sceneWindows: [{ id: 'scene-1', index: 1, start: 0, end: 1 }],
+      transitionBlocks: [],
+    };
+
+    const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
+    driver.setSceneTrack(track);
+    await driver.initialize(scene);
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0 });
+
+    expect(appliedValue).toBe(7);
+  });
+
+  it('falls back to discrete state when widget is not in functional block', async () => {
+    const registry = new WidgetRegistry();
+    const variableStore = new VariableStore();
+    const scene = new THREE.Scene();
+
+    const noopSpec = makeNoopSpec<{ value: number }>();
+    let appliedValue = 0;
+
+    class RenderWidget implements ISceneElement<{ value: number }>, IRenderable<{ value: number }> {
+      readonly widgetId = 'w';
+      readonly defaultState = { value: 0 };
+      readonly transitionSpec = noopSpec;
+      readonly DslComponent = () => null;
+      initialize(): void {}
+      apply(state: { value: number }): void { appliedValue = state.value; }
+      dispose(): void {}
+    }
+
+    registry.register(new RenderWidget());
+
+    const track: SceneTrack = {
+      ticks: [
+        makeTick({ index: 0, progress: 0, sceneIndex: 0, blockProgress: 0.5, widgets: { w: { value: 9 } } }),
+      ],
+      tickStep: 1,
+      subTickCount: 1,
+      sceneWindows: [{ id: 'scene-0', index: 0, start: 0, end: 1 }],
+      transitionBlocks: [{
+        blockIndex: 0,
+        widgetFns: {
+          other: {
+            kind: 'interpolate',
+            fn: () => ({ value: 1 }),
+          },
+        },
+      }],
+    };
+
+    const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
+    driver.setSceneTrack(track);
+    await driver.initialize(scene);
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0 });
+
+    expect(appliedValue).toBe(9);
   });
 
   it('initialize reports errors from renderables', async () => {

@@ -9,14 +9,14 @@ import type {
   WidgetRenderContext,
 } from '../../widget/types';
 import type { SceneBackground } from './types';
-import { DEFAULT_BACKGROUND, backgroundTransitionSpec } from './compile';
+import { DEFAULT_BACKGROUND, functionalBackgroundTransitionSpec } from './compile';
 import { Background } from './dsl';
 import { applyBackground } from './render';
 
 export class BackgroundWidget implements ISceneElement<SceneBackground>, IRenderable<SceneBackground> {
   readonly widgetId = 'background';
   readonly defaultState: SceneBackground = DEFAULT_BACKGROUND;
-  readonly transitionSpec = backgroundTransitionSpec;
+  readonly transitionSpec = functionalBackgroundTransitionSpec;
   readonly DslComponent = Background;
   readonly useDefaultStateWhenAbsent = false;
 

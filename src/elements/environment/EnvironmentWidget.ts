@@ -11,7 +11,7 @@ import type {
   WidgetRenderContext,
 } from '../../widget/types';
 import type { EnvironmentSource, SceneEnvironment } from './types';
-import { DEFAULT_ENVIRONMENT, environmentTransitionSpec } from './compile';
+import { DEFAULT_ENVIRONMENT, functionalEnvironmentTransitionSpec } from './compile';
 import {
   Environment,
   EnvironmentCube,
@@ -34,7 +34,7 @@ export class EnvironmentWidget
 {
   readonly widgetId = 'environment';
   readonly defaultState: SceneEnvironment = DEFAULT_ENVIRONMENT;
-  readonly transitionSpec = environmentTransitionSpec;
+  readonly transitionSpec = functionalEnvironmentTransitionSpec;
   readonly DslComponent = Environment as React.ComponentType<Partial<SceneEnvironment> & { children?: React.ReactNode }>;
   readonly useDefaultStateWhenAbsent = false;
   readonly childDslComponents: IDslComposite['childDslComponents'] = [

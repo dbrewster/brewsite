@@ -6,11 +6,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { BackgroundWidget } from '../BackgroundWidget';
 import type { SceneBackground } from '../types';
-import {
-  makeFrameSlice,
-  makeFakeDomElement,
-  makeRenderContext,
-} from '../../__tests__/elementTestMocks';
+import { makeFakeDomElement, makeRenderContext } from '../../__tests__/elementTestMocks';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -36,58 +32,52 @@ describe('BackgroundWidget', () => {
 
   // ─── transitionSpec — pure blend functions ────────────────────────────────
 
-  it('transitionSpec.exit at tExit=1 fades opacity to 0', () => {
+  it('transitionSpec.exit at t=1 fades opacity to 0', () => {
     const state: SceneBackground = { opacity: 1 };
-    const frames = makeFrameSlice(2);
-    widget.transitionSpec.exit(frames, widget.widgetId, state);
-    const result = frames[1]!.state.widgets[widget.widgetId] as SceneBackground;
+    const fn = widget.transitionSpec.exitFn(state);
+    const result = fn(1);
     expect(result.opacity).toBeCloseTo(0);
   });
 
-  it('transitionSpec.exit at tExit=0 preserves opacity', () => {
+  it('transitionSpec.exit at t=0 preserves opacity', () => {
     const state: SceneBackground = { opacity: 0.8 };
-    const frames = makeFrameSlice(2);
-    widget.transitionSpec.exit(frames, widget.widgetId, state);
-    const result = frames[0]!.state.widgets[widget.widgetId] as SceneBackground;
+    const fn = widget.transitionSpec.exitFn(state);
+    const result = fn(0);
     expect(result.opacity).toBeCloseTo(0.8);
   });
 
-  it('transitionSpec.enter at tEnter=0 has near-zero opacity', () => {
+  it('transitionSpec.enter at t=0 has near-zero opacity', () => {
     const state: SceneBackground = { opacity: 1 };
-    const frames = makeFrameSlice(2);
-    widget.transitionSpec.enter(frames, widget.widgetId, state);
-    const result = frames[0]!.state.widgets[widget.widgetId] as SceneBackground;
+    const fn = widget.transitionSpec.enterFn(state);
+    const result = fn(0);
     expect(result.opacity).toBeCloseTo(0);
   });
 
-  it('transitionSpec.enter at tEnter=1 returns full opacity', () => {
+  it('transitionSpec.enter at t=1 returns full opacity', () => {
     const state: SceneBackground = { opacity: 0.6 };
-    const frames = makeFrameSlice(2);
-    widget.transitionSpec.enter(frames, widget.widgetId, state);
-    const result = frames[1]!.state.widgets[widget.widgetId] as SceneBackground;
+    const fn = widget.transitionSpec.enterFn(state);
+    const result = fn(1);
     expect(result.opacity).toBeCloseTo(0.6);
   });
 
   it('transitionSpec.interpolate cross-fades opacity when imageUrls differ', () => {
     const from: SceneBackground = { opacity: 1, imageUrl: '/a.jpg' };
     const to: SceneBackground = { opacity: 1, imageUrl: '/b.jpg' };
-    // At tFull=0.25 (first half of cross-fade): fading out from image
-    const frames = makeFrameSlice(5);
-    widget.transitionSpec.interpolate(frames, widget.widgetId, from, to);
-    const at25 = frames[1]!.state.widgets[widget.widgetId] as SceneBackground;
+    const fn = widget.transitionSpec.interpolateFn(from, to);
+    // At t=0.25 (first half of cross-fade): fading out from image
+    const at25 = fn(0.25);
     expect(at25.opacity).toBeLessThan(1);
     expect(at25.imageUrl).toBe('/a.jpg');
-    // At tFull=0.75 (second half): fading in to image
-    const at75 = frames[3]!.state.widgets[widget.widgetId] as SceneBackground;
+    // At t=0.75 (second half): fading in to image
+    const at75 = fn(0.75);
     expect(at75.imageUrl).toBe('/b.jpg');
   });
 
   it('transitionSpec.interpolate blends opacity when imageUrls are the same', () => {
     const from: SceneBackground = { opacity: 0, imageUrl: '/same.jpg' };
     const to: SceneBackground = { opacity: 1, imageUrl: '/same.jpg' };
-    const frames = makeFrameSlice(3);
-    widget.transitionSpec.interpolate(frames, widget.widgetId, from, to);
-    const result = frames[1]!.state.widgets[widget.widgetId] as SceneBackground;
+    const fn = widget.transitionSpec.interpolateFn(from, to);
+    const result = fn(0.5);
     expect(result.opacity).toBeGreaterThan(0);
     expect(result.opacity).toBeLessThan(1);
     expect(result.imageUrl).toBe('/same.jpg');

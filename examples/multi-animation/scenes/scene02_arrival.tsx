@@ -1,4 +1,4 @@
-import type {SceneDefinition} from '@brewsite/core';
+import {Floor, FloorMirror, SceneDefinition} from '@brewsite/core';
 import {Ambient, Background, Directional, Hud, HudItem, Lighting, Scene} from '@brewsite/core';
 import {Fade} from '../../../src/hud/animejs';
 import {Animation, MaleDummy, Playback} from '../../generated/sceneDsl.generated';
@@ -25,6 +25,16 @@ export const scene02Arrival: SceneDefinition = {
           <Animation clipName="04-trip-forward-and-roll" enabled weight={1} fadeInSeconds={0.4} />
         </Playback>
       </MaleDummy>
+      <Floor enabled position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <FloorMirror
+          mirrorColor="#ffe9c4"
+          mirrorOpacity={.7}
+          mirrorResolution={1024}
+          mirrorClipBias={0.003}
+          mirrorEnvironmentIntensity={.7}
+          mirrorUseEnvironmentBackground
+        />
+      </Floor>
       <Hud>
         <HudItem id="complex-hud">
           <Fade duration={1200}>

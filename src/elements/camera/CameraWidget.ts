@@ -2,7 +2,7 @@
 
 import type { SceneCamera } from './types';
 import type * as THREE from 'three';
-import { DEFAULT_CAMERA, cameraTransitionSpec } from './compile';
+import { DEFAULT_CAMERA, functionalCameraTransitionSpec } from './compile';
 import { Camera } from './dsl';
 import { applyCamera } from './render';
 import type { AnimationTickContext, IAnimationController, ISceneElement } from '../../widget/types';
@@ -12,7 +12,7 @@ const CAMERA_KEY = '__brewsite_camera';
 export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationController {
   readonly widgetId = 'camera';
   readonly defaultState: SceneCamera = DEFAULT_CAMERA;
-  readonly transitionSpec = cameraTransitionSpec;
+  readonly transitionSpec = functionalCameraTransitionSpec;
   readonly DslComponent = Camera;
   readonly useDefaultStateWhenAbsent = false;
 
@@ -32,7 +32,11 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
     const camera = context.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
     if (!camera) return;
 
-    const state = (tick.state.widgets[this.widgetId] as SceneCamera | undefined) ?? this.defaultState;
+    const functionalBlock = context.track?.transitionBlocks?.[tick.sceneIndex];
+    const functionalWidget = functionalBlock?.widgetFns[this.widgetId];
+    const state = functionalWidget
+      ? (functionalWidget.fn(tick.blockProgress) as SceneCamera)
+      : ((tick.state.widgets[this.widgetId] as SceneCamera | undefined) ?? this.defaultState);
     applyCamera(state, { camera, tick });
   }
 }

@@ -5,6 +5,7 @@ import {
   applyLightingEnter,
   applyLightingExit,
   applyLightingInterpolate,
+  functionalLightingTransitionSpec,
 } from '../compile';
 import { applyLighting } from '../render';
 import {
@@ -35,6 +36,59 @@ describe('lighting compile + render', () => {
     const from = makeLighting({ ambient: { intensity: 2, color: '#ffffff' } });
     const to = makeLighting({ ambient: { intensity: 0, color: '#ffffff' } });
     const result = applyLightingInterpolate(from, to, 0.5);
+    expect(result.ambient.intensity).toBeGreaterThan(0);
+    expect(result.ambient.intensity).toBeLessThan(2);
+  });
+
+  it('functional transitionSpec.exit at t=0 preserves ambient intensity', () => {
+    const from = makeLighting({ ambient: { intensity: 2, color: '#ffffff' } });
+    const fn = functionalLightingTransitionSpec.exitFn(from);
+    const result = fn(0);
+    expect(result.ambient.intensity).toBeCloseTo(2);
+  });
+
+  it('functional transitionSpec.exit at t=1 fades ambient to 0', () => {
+    const from = makeLighting({ ambient: { intensity: 2, color: '#ffffff' } });
+    const fn = functionalLightingTransitionSpec.exitFn(from);
+    const result = fn(1);
+    expect(result.ambient.intensity).toBeCloseTo(0);
+  });
+
+  it('functional transitionSpec.enter at t=0 returns near-zero ambient intensity', () => {
+    const to = makeLighting({ ambient: { intensity: 2, color: '#ffffff' } });
+    const fn = functionalLightingTransitionSpec.enterFn(to);
+    const result = fn(0);
+    expect(result.ambient.intensity).toBeCloseTo(0);
+  });
+
+  it('functional transitionSpec.enter at t=1 returns full ambient intensity', () => {
+    const to = makeLighting({ ambient: { intensity: 2, color: '#ffffff' } });
+    const fn = functionalLightingTransitionSpec.enterFn(to);
+    const result = fn(1);
+    expect(result.ambient.intensity).toBeCloseTo(2);
+  });
+
+  it('functional transitionSpec.interpolate at t=0 returns from state', () => {
+    const from = makeLighting({ ambient: { intensity: 2, color: '#ffffff' } });
+    const to = makeLighting({ ambient: { intensity: 0, color: '#ffffff' } });
+    const fn = functionalLightingTransitionSpec.interpolateFn(from, to);
+    const result = fn(0);
+    expect(result.ambient.intensity).toBeCloseTo(2);
+  });
+
+  it('functional transitionSpec.interpolate at t=1 returns to state', () => {
+    const from = makeLighting({ ambient: { intensity: 2, color: '#ffffff' } });
+    const to = makeLighting({ ambient: { intensity: 0, color: '#ffffff' } });
+    const fn = functionalLightingTransitionSpec.interpolateFn(from, to);
+    const result = fn(1);
+    expect(result.ambient.intensity).toBeCloseTo(0);
+  });
+
+  it('functional transitionSpec.interpolate at t=0.5 blends ambient intensity', () => {
+    const from = makeLighting({ ambient: { intensity: 2, color: '#ffffff' } });
+    const to = makeLighting({ ambient: { intensity: 0, color: '#ffffff' } });
+    const fn = functionalLightingTransitionSpec.interpolateFn(from, to);
+    const result = fn(0.5);
     expect(result.ambient.intensity).toBeGreaterThan(0);
     expect(result.ambient.intensity).toBeLessThan(2);
   });

@@ -10,7 +10,7 @@ import type {
   WidgetRenderContext,
 } from '../../widget/types';
 import type { FloorSurface, FloorSurfaceMirror, FloorSurfacePhysical, SceneFloor } from './types';
-import { DEFAULT_FLOOR, floorTransitionSpec } from './compile';
+import { DEFAULT_FLOOR, functionalFloorTransitionSpec } from './compile';
 import { Floor, FloorMirror, FloorPhysical, type FloorMirrorProps, type FloorPhysicalProps, type FloorProps } from './dsl';
 import { applyFloor, disposeFloor } from './render';
 import type * as React from 'react';
@@ -23,7 +23,7 @@ export class FloorWidget
 {
   readonly widgetId = 'floor';
   readonly defaultState: SceneFloor = DEFAULT_FLOOR;
-  readonly transitionSpec = floorTransitionSpec;
+  readonly transitionSpec = functionalFloorTransitionSpec;
   readonly DslComponent = Floor as React.ComponentType<Partial<SceneFloor> & { children?: React.ReactNode }>;
   readonly useDefaultStateWhenAbsent = false;
   readonly childDslComponents: IDslComposite['childDslComponents'] = [

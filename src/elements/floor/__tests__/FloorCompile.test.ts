@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { Floor } from '../dsl';
-import { DEFAULT_FLOOR, floorTransitionSpec } from '../compile';
+import { DEFAULT_FLOOR, functionalFloorTransitionSpec } from '../compile';
 import { applyFloor } from '../render';
 import type { SceneFloor } from '../types';
-import { makeFrameSlice, makeInitContext } from '../../__tests__/elementTestMocks';
+import { makeInitContext } from '../../__tests__/elementTestMocks';
 
 describe('floor compile + render', () => {
   it('defaults are disabled with no texture', () => {
@@ -11,21 +11,56 @@ describe('floor compile + render', () => {
     expect(DEFAULT_FLOOR.surface).toBeUndefined();
   });
 
-  it('transitionSpec.exit disables at tExit=1', () => {
+  it('functional transitionSpec.exit disables at t=1', () => {
     const state: SceneFloor = { enabled: true, surface: { type: 'physical', textureUrl: '/floor.jpg' } };
-    const frames = makeFrameSlice(2);
-    floorTransitionSpec.exit(frames, 'floor', state);
-    const result = frames[1]!.state.widgets['floor'] as SceneFloor;
+    const fn = functionalFloorTransitionSpec.exitFn(state);
+    const result = fn(1);
     expect(result.enabled).toBe(false);
   });
 
-  it('transitionSpec.interpolate switches texture at midpoint', () => {
+  it('functional transitionSpec.exit preserves enabled at t=0', () => {
+    const state: SceneFloor = { enabled: true };
+    const fn = functionalFloorTransitionSpec.exitFn(state);
+    const result = fn(0);
+    expect(result.enabled).toBe(true);
+  });
+
+  it('functional transitionSpec.enter disables at t=0', () => {
+    const state: SceneFloor = { enabled: true };
+    const fn = functionalFloorTransitionSpec.enterFn(state);
+    const result = fn(0);
+    expect(result.enabled).toBe(false);
+  });
+
+  it('functional transitionSpec.enter enables at t=1', () => {
+    const state: SceneFloor = { enabled: true };
+    const fn = functionalFloorTransitionSpec.enterFn(state);
+    const result = fn(1);
+    expect(result.enabled).toBe(true);
+  });
+
+  it('functional transitionSpec.interpolate at t=0 returns from state', () => {
     const from: SceneFloor = { enabled: true, surface: { type: 'physical', textureUrl: '/from.jpg' } };
     const to: SceneFloor = { enabled: true, surface: { type: 'physical', textureUrl: '/to.jpg' } };
-    const frames = makeFrameSlice(5);
-    floorTransitionSpec.interpolate(frames, 'floor', from, to);
-    const at25 = frames[1]!.state.widgets['floor'] as SceneFloor;
-    const at75 = frames[3]!.state.widgets['floor'] as SceneFloor;
+    const fn = functionalFloorTransitionSpec.interpolateFn(from, to);
+    const result = fn(0);
+    expect((result.surface as { textureUrl?: string })?.textureUrl).toBe('/from.jpg');
+  });
+
+  it('functional transitionSpec.interpolate at t=1 returns to state', () => {
+    const from: SceneFloor = { enabled: true, surface: { type: 'physical', textureUrl: '/from.jpg' } };
+    const to: SceneFloor = { enabled: true, surface: { type: 'physical', textureUrl: '/to.jpg' } };
+    const fn = functionalFloorTransitionSpec.interpolateFn(from, to);
+    const result = fn(1);
+    expect((result.surface as { textureUrl?: string })?.textureUrl).toBe('/to.jpg');
+  });
+
+  it('functional transitionSpec.interpolate switches texture at midpoint', () => {
+    const from: SceneFloor = { enabled: true, surface: { type: 'physical', textureUrl: '/from.jpg' } };
+    const to: SceneFloor = { enabled: true, surface: { type: 'physical', textureUrl: '/to.jpg' } };
+    const fn = functionalFloorTransitionSpec.interpolateFn(from, to);
+    const at25 = fn(0.25);
+    const at75 = fn(0.75);
     expect(at25.surface?.type).toBe('physical');
     expect((at25.surface as { textureUrl?: string })?.textureUrl).toBe('/from.jpg');
     expect(at75.surface?.type).toBe('physical');

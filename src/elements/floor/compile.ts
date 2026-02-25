@@ -3,7 +3,10 @@
  */
 
 import type { SceneFloor } from './types';
-import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
+import type {
+  ElementTransitionSpec,
+  FunctionalTransitionSpec,
+} from '../../compiler/transitions/transitionTypes';
 import { transitionT } from '../../compiler/transitions/transitionTypes';
 
 export const DEFAULT_FLOOR: SceneFloor = {
@@ -51,4 +54,28 @@ export const floorTransitionSpec: ElementTransitionSpec<SceneFloor> = {
       };
     }
   },
+};
+
+export const functionalFloorTransitionSpec: FunctionalTransitionSpec<SceneFloor> = {
+  exitFn: (from) => (t) => ({
+    position: from.position,
+    rotation: from.rotation,
+    scale: from.scale,
+    surface: from.surface,
+    enabled: from.enabled && t < 1,
+  }),
+  enterFn: (to) => (t) => ({
+    position: to.position,
+    rotation: to.rotation,
+    scale: to.scale,
+    surface: to.surface,
+    enabled: to.enabled && t > 0,
+  }),
+  interpolateFn: (from, to) => (t) => ({
+    position: t < 0.5 ? from.position : to.position,
+    rotation: t < 0.5 ? from.rotation : to.rotation,
+    scale: t < 0.5 ? from.scale : to.scale,
+    surface: t < 0.5 ? from.surface : to.surface,
+    enabled: (from.enabled && t < 1) || (to.enabled && t > 0),
+  }),
 };

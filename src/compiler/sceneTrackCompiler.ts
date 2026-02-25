@@ -1,9 +1,18 @@
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { SceneDefinition } from './sceneTypes';
-import type { SceneFrame, SceneTrack, SceneTrackTick, SceneWindow, SceneFrameDelta, ClipMeta } from './sceneTrackTypes';
+import type {
+  SceneFrame,
+  SceneTrack,
+  SceneTrackTick,
+  SceneWindow,
+  SceneFrameDelta,
+  ClipMeta,
+  SceneTrackTransitionBlock,
+} from './sceneTrackTypes';
 import { ensureSceneRegistry, resolveSceneFromDsl } from './sceneDslCompiler';
 import { compileHudItems } from './hudCompiler';
 import { compileLabels } from './labelCompiler';
+import { isFunctionalSpec } from './transitions/transitionTypes';
 
 export type CompileSceneTrackOptions = {
   scenes: SceneDefinition[];
@@ -160,6 +169,10 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     lastTick.state.id = lastScene.id;
   }
 
+  // Accumulates functional closures per block. Populated during Step 3 when a widget
+  // uses FunctionalTransitionSpec instead of filling discrete frames.
+  const transitionBlocks: SceneTrackTransitionBlock[] = [];
+
   // ── Step 3: Fill each transition block via widget batch methods ──────────────
   for (let n = 0; n < numTransitions; n++) {
     const blockStart = n * blockSize;
@@ -179,6 +192,49 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
       const toState = toSnap.widgets[widgetId];
       const inFrom = fromState !== undefined;
       const inTo = toState !== undefined;
+
+      // ── Functional path ─────────────────────────────────────────────────────────
+      // Widget uses FunctionalTransitionSpec: capture a closure instead of filling frames.
+      // The closure wraps the author's t ∈ [0,1] function with half-block remapping so
+      // the runtime may call fn(tick.blockProgress) with no further transformation.
+      if (isFunctionalSpec(transitionSpec)) {
+        if (!inFrom && !inTo) {
+          // Absent from both scenes — no closure needed; fill frames discretely.
+          for (const frame of block) {
+            frame.state.widgets[widgetId] = absentDefault;
+          }
+          continue;
+        }
+
+        // Ensure a block entry exists for index n
+        const tBlock: SceneTrackTransitionBlock = transitionBlocks[n] ?? { blockIndex: n, widgetFns: {} };
+        transitionBlocks[n] = tBlock;
+
+        if (inFrom && inTo) {
+          const rawFn = transitionSpec.interpolateFn(fromState as never, toState as never);
+          tBlock.widgetFns[widgetId] = {
+            fn: (bp: number) => rawFn(bp),
+            kind: 'interpolate',
+          };
+        } else if (inFrom) {
+          const rawFn = transitionSpec.exitFn(fromState as never);
+          tBlock.widgetFns[widgetId] = {
+            // Active first half: blockProgress [0, 0.5) → t [0, 1). Second half → absentDefault.
+            fn: (bp: number) => (bp < 0.5 ? rawFn(bp * 2) : absentDefault),
+            kind: 'exit',
+          };
+        } else {
+          // inTo only
+          const rawFn = transitionSpec.enterFn(toState as never);
+          tBlock.widgetFns[widgetId] = {
+            // Active second half: blockProgress [0.5, 1] → t [0, 1]. First half → absentDefault.
+            fn: (bp: number) => (bp >= 0.5 ? rawFn((bp - 0.5) * 2) : absentDefault),
+            kind: 'enter',
+          };
+        }
+        // Do NOT write to frame.state.widgets[widgetId] — left absent for runtime evaluation.
+        continue;
+      }
 
       if (inFrom && inTo) {
         // Widget present in both scenes — interpolate across the full block
@@ -226,7 +282,15 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     const extras: Record<string, unknown> = {};
     for (const widget of widgetRegistry.getSceneElements()) {
       if (!widget.compileExtra) continue;
-      const state = frame.state.widgets[widget.widgetId];
+      // Prefer discrete state; fall back to evaluating the functional closure.
+      let state: unknown = frame.state.widgets[widget.widgetId];
+      if (state === undefined) {
+        const tBlock = transitionBlocks[frame.sceneIndex];
+        const funcOverride = tBlock?.widgetFns[widget.widgetId];
+        if (funcOverride) {
+          state = funcOverride.fn(frame.blockProgress);
+        }
+      }
       if (state === undefined) continue;
       extras[widget.widgetId] = widget.compileExtra(state as never, {
         sceneProgress: frame.blockProgress,
@@ -285,5 +349,6 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     tickStep,
     subTickCount: totalFrames,
     sceneWindows,
+    ...(transitionBlocks.length > 0 ? { transitionBlocks } : {}),
   };
 };

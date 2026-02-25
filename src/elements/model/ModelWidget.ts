@@ -31,7 +31,7 @@ import type {
   Vec3,
 } from './types';
 import type {CompiledAnimation} from './compile';
-import {compileAnimation, createDefaultModelInstanceState, instanceTransitionSpec,} from './compile';
+import {compileAnimation, createDefaultModelInstanceState, functionalInstanceTransitionSpec,} from './compile';
 import type {AssetManifest, ModelMeta} from './metadata';
 import type {AnimationProps, BodyPartByIdProps, ContainedModelProps, ModelPartProps, ModelProps, MotionProps, PlaybackProps, PoseProps, SubpartProps,} from './dsl';
 import {Animation, BodyPart, BodyParts, ContainedModel, ModelPart, ModelRouter, Motion, Playback, Pose, Subpart,} from './dsl';
@@ -367,7 +367,7 @@ export class ModelWidget
 
   readonly widgetId: string;
   readonly defaultState: SceneModelInstanceState;
-  readonly transitionSpec = instanceTransitionSpec;
+  readonly transitionSpec = functionalInstanceTransitionSpec;
   readonly DslComponent = ModelRouter;
   readonly useDefaultStateWhenAbsent = false;
   private anchorTargets: Record<string, string> = {};

@@ -1,7 +1,7 @@
 import type { Scene as ThreeScene, WebGLRenderer } from 'three';
 import type { VariableStoreReader, JsonPrimitive } from './VariableStore';
-import type { ElementTransitionSpec } from '../compiler/transitions/transitionTypes';
-import type { ClipMeta, SceneTrackTick } from '../compiler/sceneTrackTypes';
+import type { ElementTransitionSpec, FunctionalTransitionSpec } from '../compiler/transitions/transitionTypes';
+import type { ClipMeta, SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
 
 type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
 
@@ -11,7 +11,7 @@ export interface IWidget {
 
 export interface ISceneElement<TState, TExtra = void> extends IWidget {
   readonly defaultState: TState;
-  readonly transitionSpec: ElementTransitionSpec<TState>;
+  readonly transitionSpec: ElementTransitionSpec<TState> | FunctionalTransitionSpec<TState>;
   readonly DslComponent: React.ComponentType<any>;
   compileExtra?(state: TState, context: CompileExtraContext): TExtra;
   /**
@@ -86,6 +86,7 @@ export type AnimationTickContext = {
   scene: ThreeScene;
   variables: VariableStore;
   tick: SceneTrackTick | null;
+  track?: SceneTrack | null;
 };
 
 // Re-export VariableStoreReader type
