@@ -5,6 +5,7 @@ import TwoBots from '../two-bots/pages/TwoBots';
 import ComplexPage from '../complex/pages/ComplexPage';
 import MeetingPage from "../meeting/pages/MeetingPage";
 import MultiAnimation from "../multi-animation/pages/MultiAnimation";
+import DiagramPage from '../diagram/pages/DiagramPage';
 
 export default function App(): JSX.Element {
   return (
@@ -16,6 +17,7 @@ export default function App(): JSX.Element {
         <Route path="/complex" element={<ComplexPage />} />
         <Route path="/meeting" element={<MeetingPage />} />
         <Route path="/anim" element={<MultiAnimation />} />
+        <Route path="/diagram" element={<DiagramPage />} />
       </Routes>
     </div>
   );

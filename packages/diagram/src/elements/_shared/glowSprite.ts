@@ -1,0 +1,70 @@
+// Shared WebGL utility — Three.js only, no React, no compiler imports.
+
+import * as THREE from 'three';
+
+let cachedTexture: THREE.CanvasTexture | null = null;
+
+const createCanvas = (size: number): HTMLCanvasElement | OffscreenCanvas => {
+  if (typeof document !== 'undefined') {
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    return canvas;
+  }
+  if (typeof OffscreenCanvas !== 'undefined') {
+    return new OffscreenCanvas(size, size);
+  }
+  return { width: size, height: size, getContext: () => null } as unknown as HTMLCanvasElement;
+};
+
+export function createGlowTexture(): THREE.CanvasTexture {
+  if (cachedTexture) return cachedTexture;
+
+  const size = 128;
+  const canvas = createCanvas(size);
+  const ctx = canvas.getContext?.('2d') ?? null;
+  if (!ctx) {
+    const fallback = new THREE.CanvasTexture(canvas);
+    cachedTexture = fallback;
+    return fallback;
+  }
+
+  const gradient = ctx.createRadialGradient(
+    size / 2,
+    size / 2,
+    0,
+    size / 2,
+    size / 2,
+    size / 2,
+  );
+  gradient.addColorStop(0, 'rgba(255,255,255,1)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, size, size);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  cachedTexture = texture;
+  return texture;
+}
+
+export function createGlow(
+  color: string,
+  contentWidth: number,
+  contentHeight: number,
+  scale: number,
+  opacity: number,
+): THREE.Sprite {
+  const material = new THREE.SpriteMaterial({
+    map: createGlowTexture(),
+    color: new THREE.Color(color),
+    blending: THREE.AdditiveBlending,
+    transparent: true,
+    depthWrite: false,
+    opacity,
+  });
+  const sprite = new THREE.Sprite(material);
+  sprite.scale.set(contentWidth * scale, contentHeight * scale, 1);
+  sprite.position.z = -0.1;
+  return sprite;
+}

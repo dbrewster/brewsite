@@ -7,3 +7,4 @@ export type { SceneGroup, SceneDefinition, SceneSnapshotContext } from './sceneT
 export type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
 export { Hud, HudItem } from './blocks/hudBlocks';
 export type { HudProps, HudItemDslProps } from './blocks/hudBlocks';
+export { registerNode } from './registry';
