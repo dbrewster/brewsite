@@ -1,12 +1,28 @@
 {
-  "name": "brewflow-website",
-  "version": "0.1.0",
-  "private": true,
+  "name": "@brewsite/core",
+  "version": "0.4.2",
+  "private": false,
   "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "dev": "vite --config examples/vite-app/vite.config.ts",
     "gen:scene-dsl": "node scripts/gen-scene-dsl.mjs --input examples/siteResources.ts --out-dir examples/generated --asset-root examples/public --manifest-out examples/public/scene-manifest.json",
     "build": "pnpm gen:scene-dsl && tsc -b && vite build && node scripts/prune-dist.mjs",
+    "build:lib": "tsc -p tsconfig.build.json",
     "typecheck": "pnpm exec tsc --noEmit -p tsconfig.json",
     "preview": "vite preview",
     "test": "vitest run",
@@ -16,9 +32,11 @@
   "dependencies": {
     "animejs": "^3.2.2",
     "meshoptimizer": "^0.23.0",
+    "react-router": "^7.13.0"
+  },
+  "peerDependencies": {
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-router": "^7.13.0",
     "three": "^0.169.0"
   },
   "devDependencies": {

@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "moduleResolution": "bundler"
+  },
+  "include": ["src"],
+  "exclude": ["examples", "scripts", "**/__tests__/**", "**/*.test.*"]
+}

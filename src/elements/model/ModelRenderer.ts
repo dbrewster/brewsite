@@ -34,6 +34,7 @@ type LoadOptions = {
   manifest?: AssetManifest | null;
   containedModels?: ModelMeta[];
   footOffsetY?: number;
+  baseRotation?: Vec3;
 };
 
 type ContainedInstance = {
@@ -54,6 +55,7 @@ export class ModelRenderer {
   private mixer: THREE.AnimationMixer | null = null;
   private animationClips = new Map<string, THREE.AnimationClip>();
   private activeClip: THREE.AnimationClip | null = null;
+  private baseRotation: Vec3 | null = null;
   private lastGlobalProgress: number | null = null;
   private lastAnimationSignature: string | null = null;
   private initialStartOffsets = new Map<string, number>();
@@ -124,6 +126,7 @@ export class ModelRenderer {
 
     this.anchorTargets = options?.anchorTargets ?? {};
     this.footOffsetY = typeof options?.footOffsetY === 'number' ? options.footOffsetY : 0;
+    this.baseRotation = options?.baseRotation ?? null;
     this.ingestModel(scene, gltf.animations ?? []);
 
     const manifest = options?.manifest ?? null;
@@ -176,9 +179,16 @@ export class ModelRenderer {
 
     // Apply the model transform (with optional foot offset)
     const footOffset = this.footOffsetY * (state.model.scale ?? 1);
+    const withBaseRotation: Vec3 = this.baseRotation
+      ? [
+        state.model.rotation[0] + this.baseRotation[0],
+        state.model.rotation[1] + this.baseRotation[1],
+        state.model.rotation[2] + this.baseRotation[2],
+      ]
+      : state.model.rotation;
     const adjustedModel = footOffset !== 0
-      ? { ...state.model, position: [state.model.position[0], state.model.position[1] - footOffset, state.model.position[2]] as Vec3 }
-      : state.model;
+      ? { ...state.model, position: [state.model.position[0], state.model.position[1] - footOffset, state.model.position[2]] as Vec3, rotation: withBaseRotation }
+      : { ...state.model, rotation: withBaseRotation };
     applyModelTransform(adjustedModel, wrapper);
 
     const effectiveOpacity = state.model.enabled === false ? 0 : state.model.opacity;
@@ -187,7 +197,12 @@ export class ModelRenderer {
     this.applyBodyPartOverrides(state, effectiveOpacity);
 
     // Apply contained model attachments
-    this.applyModelParts(state.model.parts ?? {}, effectiveOpacity);
+    this.applyModelParts(
+      state.model.parts ?? {},
+      effectiveOpacity,
+      state.model.metalnessMultiplier ?? 1,
+      state.model.roughnessMultiplier ?? 1,
+    );
 
     if (animation?.enabled && animation.clipName) {
       const animationSignature = this.getAnimationSignature(state, animation);
@@ -653,7 +668,12 @@ export class ModelRenderer {
       .toLowerCase();
   }
 
-  private applyModelParts(parts: Record<string, ModelPartSpec>, modelOpacity?: number): void {
+  private applyModelParts(
+    parts: Record<string, ModelPartSpec>,
+    modelOpacity?: number,
+    metalnessMultiplier = 1,
+    roughnessMultiplier = 1,
+  ): void {
     if (!this.model) return;
     const partIds = new Set(Object.keys(parts));
 
@@ -715,8 +735,8 @@ export class ModelRenderer {
         instance.group,
         part,
         modelOpacity,
-        state.model.metalnessMultiplier ?? 1,
-        state.model.roughnessMultiplier ?? 1,
+        metalnessMultiplier,
+        roughnessMultiplier,
       );
     }
   }
