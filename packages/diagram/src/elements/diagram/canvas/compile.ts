@@ -10,7 +10,7 @@ import type {
 } from './types';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
 import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
-import { applyDiagramEnter, applyDiagramExit } from '../compile';
+import { applyDiagramEnter, applyDiagramExit, routeEdges } from '../compile';
 
 // ─── Defaults ────────────────────────────────────────────────────────────────
 
@@ -50,7 +50,7 @@ function nodeToCanvasSpace(
  * Uses a simple arc (elevated at the midpoint) to prevent pipes from cutting
  * through diagram geometry.
  */
-function routePipe(from: Vec3, to: Vec3): ReadonlyArray<Vec3> {
+export function routePipe(from: Vec3, to: Vec3): ReadonlyArray<Vec3> {
   const dist = Math.sqrt(
     (to[0] - from[0]) ** 2 +
     (to[1] - from[1]) ** 2 +
@@ -220,7 +220,6 @@ export const functionalDiagramCanvasTransitionSpec: FunctionalTransitionSpec<Dia
         return applyDiagramEnter(toDiagram, t);
       }
       const fromNodeMap = new Map(fromDiagram.nodes.map((n) => [n.id, n]));
-      const fromEdgeMap = new Map(fromDiagram.edges.map((e) => [e.id, e]));
       const toNodeIds = new Set(toDiagram.nodes.map((n) => n.id));
       const toEdgeIds = new Set(toDiagram.edges.map((e) => e.id));
 
@@ -239,23 +238,40 @@ export const functionalDiagramCanvasTransitionSpec: FunctionalTransitionSpec<Dia
         .filter((n) => !toNodeIds.has(n.id))
         .map((n) => ({ ...n, opacity: blendOpacity(n.opacity, 0, t) ?? 0 }));
 
+      // Re-route edges using live interpolated node positions (same strategy as
+      // functionalDiagramTransitionSpec.interpolateFn) so tubes track moving nodes.
+      const livePositions = new Map<string, readonly [number, number, number]>();
+      const liveSizes = new Map<string, readonly [number, number, number]>();
+      [...blendedNodes, ...fadingNodes].forEach((n) => {
+        livePositions.set(n.id, n.position);
+        liveSizes.set(n.id, [n.size[0], n.size[1], n.depth]);
+      });
+      const allEdgeDSLs = [
+        ...toDiagram.edges.map((e) => ({ id: e.id, from: e.fromId, to: e.toId })),
+        ...fromDiagram.edges
+          .filter((e) => !toEdgeIds.has(e.id))
+          .map((e) => ({ id: e.id, from: e.fromId, to: e.toId })),
+      ];
+      const liveEdgePoints = routeEdges(allEdgeDSLs, livePositions, liveSizes);
+
+      const fromEdgeMap = new Map(fromDiagram.edges.map((e) => [e.id, e]));
       const blendedEdges = toDiagram.edges.map((toEdge) => {
         const fromEdge = fromEdgeMap.get(toEdge.id);
-        if (!fromEdge) {
-          return { ...toEdge, opacity: blendOpacity(0, toEdge.opacity, t) ?? toEdge.opacity };
-        }
         return {
           ...toEdge,
-          opacity: blendOpacity(fromEdge.opacity, toEdge.opacity, t) ?? toEdge.opacity,
-          controlPoints: toEdge.controlPoints.map((pt, i) => {
-            const fp = fromEdge.controlPoints[i] ?? pt;
-            return blendVec3(toMut(fp), toMut(pt), t) ?? pt;
-          }),
+          opacity: fromEdge
+            ? blendOpacity(fromEdge.opacity, toEdge.opacity, t) ?? toEdge.opacity
+            : blendOpacity(0, toEdge.opacity, t) ?? toEdge.opacity,
+          controlPoints: liveEdgePoints.get(toEdge.id) ?? toEdge.controlPoints,
         };
       });
       const fadingEdges = fromDiagram.edges
         .filter((e) => !toEdgeIds.has(e.id))
-        .map((e) => ({ ...e, opacity: blendOpacity(e.opacity, 0, t) ?? 0 }));
+        .map((e) => ({
+          ...e,
+          opacity: blendOpacity(e.opacity, 0, t) ?? 0,
+          controlPoints: liveEdgePoints.get(e.id) ?? e.controlPoints,
+        }));
 
       return {
         ...toDiagram,
@@ -271,23 +287,44 @@ export const functionalDiagramCanvasTransitionSpec: FunctionalTransitionSpec<Dia
       .filter((d) => !to.diagrams.some((td) => td.id === d.id))
       .map((d) => applyDiagramExit(d, t));
 
+    // Build canvas-local node position map from ALL interpolated + fading diagrams.
+    // Used to re-route cross-diagram pipes so they track moving endpoint nodes.
+    const canvasNodePosMap = new Map<string, readonly [number, number, number]>();
+    for (const diagram of [...interpolatedDiagrams, ...fadingDiagrams]) {
+      for (const node of diagram.nodes) {
+        const canvasPos: readonly [number, number, number] = [
+          node.position[0] * diagram.scale + diagram.position[0],
+          node.position[1] * diagram.scale + diagram.position[1],
+          node.position[2] * diagram.scale + diagram.position[2],
+        ];
+        canvasNodePosMap.set(`${diagram.id}.${node.id}`, canvasPos);
+      }
+    }
+
     const blendedPipes = to.pipes.map((toPipe) => {
       const fromPipe = fromPipeMap.get(toPipe.id);
-      if (!fromPipe) {
-        return { ...toPipe, opacity: blendOpacity(0, toPipe.opacity, t) ?? toPipe.opacity };
-      }
+      // Re-route pipe using live canvas-space endpoint positions.
+      const fromPos = canvasNodePosMap.get(`${toPipe.fromDiagramId}.${toPipe.fromNodeId}`);
+      const toPos = canvasNodePosMap.get(`${toPipe.toDiagramId}.${toPipe.toNodeId}`);
+      const liveControlPoints = (fromPos && toPos)
+        ? routePipe(fromPos, toPos)
+        : toPipe.controlPoints;
       return {
         ...toPipe,
-        opacity: blendOpacity(fromPipe.opacity, toPipe.opacity, t) ?? toPipe.opacity,
-        controlPoints: toPipe.controlPoints.map((pt, i) => {
-          const fp = fromPipe.controlPoints[i] ?? pt;
-          return blendVec3(toMut(fp), toMut(pt), t) ?? pt;
-        }),
+        opacity: fromPipe
+          ? blendOpacity(fromPipe.opacity, toPipe.opacity, t) ?? toPipe.opacity
+          : blendOpacity(0, toPipe.opacity, t) ?? toPipe.opacity,
+        controlPoints: liveControlPoints,
       };
     });
     const fadingPipes = from.pipes
       .filter((p) => !toPipeIds.has(p.id))
-      .map((p) => ({ ...p, opacity: blendOpacity(p.opacity, 0, t) ?? 0 }));
+      .map((p) => {
+        const fromPos = canvasNodePosMap.get(`${p.fromDiagramId}.${p.fromNodeId}`);
+        const toPos = canvasNodePosMap.get(`${p.toDiagramId}.${p.toNodeId}`);
+        const liveControlPoints = (fromPos && toPos) ? routePipe(fromPos, toPos) : p.controlPoints;
+        return { ...p, opacity: blendOpacity(p.opacity, 0, t) ?? 0, controlPoints: liveControlPoints };
+      });
 
     return {
       ...to,

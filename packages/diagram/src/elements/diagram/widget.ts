@@ -118,13 +118,20 @@ export class DiagramWidget
 
   /**
    * Ghost-node merge: when a node appears in the next scene with an empty label
-   * (the ghost/partial-update pattern used to animate position-only changes across
-   * scenes), carry forward the visual identity properties from the previous scene's
-   * compiled state so the node renders with the correct shape and label during the
-   * transition.
+   * OR with positionInherited=true (no explicit position in a manual-layout diagram),
+   * carry forward properties from the previous scene's compiled state:
    *
-   * Fields carried forward: label, sublabel, shape, iconUrl, iconScale, sublabelColor.
-   * Position, opacity, color, and other layout properties always come from next.
+   * Always carried for ghost nodes (empty label):
+   *   label, sublabel, shape, iconUrl, iconScale, sublabelColor
+   *
+   * Additionally carried when positionInherited=true (no explicit position in DSL):
+   *   position, size, depth
+   *
+   * This enables minimal ghost node declarations:
+   *   <DiagramNode id="cdn" opacity={0.3} />   ← no position/label needed
+   *
+   * The positionInherited flag is cleared after merge so downstream code
+   * always receives a fully-resolved DiagramNodeState.
    */
   mergeSnapshot(
     prev: DiagramState | undefined,
@@ -135,8 +142,8 @@ export class DiagramWidget
 
     let anyChanged = false;
     const mergedNodes = next.nodes.map((node): DiagramNodeState => {
-      // Non-ghost: label is non-empty, no merge needed.
-      if (node.label !== '') return node;
+      // Fully-declared node: no merge needed.
+      if (node.label !== '' && !node.positionInherited) return node;
 
       const prevNode = prev.nodes.find((p) => p.id === node.id);
       if (!prevNode) return node;
@@ -144,12 +151,19 @@ export class DiagramWidget
       anyChanged = true;
       return {
         ...node,
-        label: prevNode.label,
-        sublabel: prevNode.sublabel,
-        shape: prevNode.shape,
-        iconUrl: prevNode.iconUrl,
-        iconScale: prevNode.iconScale,
-        sublabelColor: prevNode.sublabelColor,
+        // Visual identity (ghost nodes only — when label is empty).
+        label:        node.label !== '' ? node.label        : prevNode.label,
+        sublabel:     node.label !== '' ? node.sublabel     : prevNode.sublabel,
+        shape:        node.label !== '' ? node.shape        : prevNode.shape,
+        iconUrl:      node.label !== '' ? node.iconUrl      : prevNode.iconUrl,
+        iconScale:    node.label !== '' ? node.iconScale    : prevNode.iconScale,
+        sublabelColor: node.label !== '' ? node.sublabelColor : prevNode.sublabelColor,
+        // Layout geometry (only when DSL omitted position entirely).
+        position: node.positionInherited ? prevNode.position : node.position,
+        size:     node.positionInherited ? prevNode.size     : node.size,
+        depth:    node.positionInherited ? prevNode.depth    : node.depth,
+        // Clear the flag — the state is now fully resolved.
+        positionInherited: undefined,
       };
     });
 

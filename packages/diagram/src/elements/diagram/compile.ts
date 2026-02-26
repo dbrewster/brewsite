@@ -124,8 +124,15 @@ export function resolveLayout(
   });
 
   if (layout === 'manual') {
-    if (missing.length > 0) {
-      throw new Error('Diagram layout is manual but one or more nodes are missing positions.');
+    // Ghost nodes (empty/absent label) may omit position in manual layout —
+    // mergeSnapshot will carry forward their position from the previous scene.
+    // Non-ghost nodes must always provide explicit positions.
+    const nonGhostMissing = missing.filter((n) => !!n.label);
+    if (nonGhostMissing.length > 0) {
+      throw new Error(
+        'Diagram layout is manual but one or more non-ghost nodes are missing positions. ' +
+          'Ghost nodes (no label prop) may omit position — it will be inherited from the previous scene.',
+      );
     }
     return positions;
   }
@@ -317,13 +324,13 @@ const faceFromTo = (
   const absY = Math.abs(delta[1]);
   const absZ = Math.abs(delta[2]);
 
-  // Prefer top/bottom (Y-axis) faces unless the connection is clearly more
-  // horizontal. The 0.6 threshold means: only use a side face when the
-  // horizontal component exceeds 67% of the vertical. This gives architecture
-  // diagrams the natural "data flows downward" look for most connections while
-  // still routing side-to-side for genuinely horizontal edges.
+  // Use the top/bottom (Y) face only when the connection is clearly more
+  // vertical than horizontal.  Threshold 1.0 means: diagonal connections
+  // (absY ≈ absX) prefer the side (X) face.  This prevents two edges that
+  // fan out from the same node (e.g. api→ecs left and api→lambda right)
+  // from both exiting the bottom face center and then crossing each other.
   let maxAxis: number;
-  if (absY >= absX * 0.6 && absY >= absZ * 0.6) {
+  if (absY >= absX * 1.0 && absY >= absZ * 1.0) {
     maxAxis = 1; // Y-face: top or bottom
   } else if (absX >= absZ) {
     maxAxis = 0; // X-face: left or right
@@ -415,6 +422,7 @@ export function compileNode(
   dsl: DiagramNodeDSL,
   position: readonly [number, number, number],
   groupId: string | undefined,
+  positionInherited = false,
 ): DiagramNodeState {
   const shape = dsl.shape ?? NODE_DEFAULTS.shape;
   const color = dsl.color ?? NODE_DEFAULTS.color;
@@ -445,6 +453,7 @@ export function compileNode(
     iconUrl: resolveIconUrl(shape),
     iconScale: dsl.iconScale ?? NODE_DEFAULTS.iconScale,
     groupId,
+    positionInherited: positionInherited || undefined,
   };
 }
 
@@ -580,9 +589,13 @@ export function compileDiagram(dsl: DiagramDSL): DiagramState {
 
   const nodes = dsl.nodes
     .map((node) => {
-      const position = positions.get(node.id) ?? [0, 0, 0];
+      const positionFromMap = positions.get(node.id);
+      // positionFromMap is undefined for ghost nodes in manual layout that had no
+      // explicit position. Flag them for position inheritance in mergeSnapshot.
+      const positionInherited = positionFromMap === undefined;
+      const position: readonly [number, number, number] = positionFromMap ?? [0, 0, 0];
       const groupId = node.groupId ?? groupMap.get(node.id);
-      return compileNode(node, position, groupId);
+      return compileNode(node, position, groupId, positionInherited);
     })
     .sort((a, b) => a.position[2] - b.position[2]);
 
@@ -743,21 +756,35 @@ export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramSt
         opacity: blendOpacity(node.opacity, 0, t) ?? 0,
       }));
 
+    // Re-route all edges using the current interpolated node positions so tubes
+    // track their endpoint nodes frame-by-frame during transitions. This prevents
+    // the "tube floats ahead of the moving node" visual defect when nodes change
+    // position between scenes (e.g. ghost nodes moving from z=0 to z=-25).
+    const livePositions = new Map<string, readonly [number, number, number]>();
+    const liveSizes = new Map<string, readonly [number, number, number]>();
+    [...blendedNodes, ...fadingNodes].forEach((n) => {
+      livePositions.set(n.id, n.position);
+      liveSizes.set(n.id, [n.size[0], n.size[1], n.depth]);
+    });
+    // Construct minimal edge DSL (from/to/id) for re-routing.
+    // routeEdges only needs from, to, and an optional id — all other DSL fields
+    // are optional and unused by the routing algorithm.
+    const edgesForRouting = to.edges.map((e) => ({ id: e.id, from: e.fromId, to: e.toId }));
+    const fadingEdgesForRouting = from.edges
+      .filter((e) => !toEdgeIds.has(e.id))
+      .map((e) => ({ id: e.id, from: e.fromId, to: e.toId }));
+    const liveControlPoints = routeEdges([...edgesForRouting, ...fadingEdgesForRouting], livePositions, liveSizes);
+
     const blendedEdges = to.edges.map((toEdge) => {
       const fromEdge = fromEdgeMap.get(toEdge.id);
-      if (!fromEdge) {
-        return {
-          ...toEdge,
-          opacity: blendOpacity(0, toEdge.opacity, t) ?? toEdge.opacity,
-        };
-      }
       return {
         ...toEdge,
-        opacity: blendOpacity(fromEdge.opacity, toEdge.opacity, t) ?? toEdge.opacity,
-        controlPoints: toEdge.controlPoints.map((point, index) => {
-          const fromPoint = fromEdge.controlPoints[index] ?? point;
-          return blendVec3(toMutableVec3(fromPoint), toMutableVec3(point), t) ?? point;
-        }),
+        opacity: fromEdge
+          ? blendOpacity(fromEdge.opacity, toEdge.opacity, t) ?? toEdge.opacity
+          : blendOpacity(0, toEdge.opacity, t) ?? toEdge.opacity,
+        // Use live-routed control points so the tube always tracks both endpoint nodes.
+        // Falls back to compiled points if routing fails (missing nodes).
+        controlPoints: liveControlPoints.get(toEdge.id) ?? toEdge.controlPoints,
       };
     });
 
@@ -766,6 +793,7 @@ export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramSt
       .map((edge) => ({
         ...edge,
         opacity: blendOpacity(edge.opacity, 0, t) ?? 0,
+        controlPoints: liveControlPoints.get(edge.id) ?? edge.controlPoints,
       }));
 
     return {

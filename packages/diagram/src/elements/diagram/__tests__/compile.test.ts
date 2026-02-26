@@ -48,9 +48,18 @@ describe('resolveLayout', () => {
     expect(yA).toBeGreaterThan(yB);
   });
 
-  it('manual: throws when a node has no explicit position', () => {
-    const nodes = [makeNode('a')];
+  it('manual: throws when a non-ghost node has no explicit position', () => {
+    const nodes = [makeNode('a')]; // makeNode sets label:'a' — non-ghost
     expect(() => resolveLayout(nodes, [], 'manual', [2, 2])).toThrow();
+  });
+
+  it('manual: allows ghost nodes (no label) without explicit position', () => {
+    // Ghost nodes have no label — they inherit their position from mergeSnapshot.
+    const nodes: DiagramNodeDSL[] = [
+      { id: 'a', label: 'Explicit', position: [0, 0, 0] },
+      { id: 'b' }, // no label, no position — ghost
+    ];
+    expect(() => resolveLayout(nodes, [], 'manual', [2, 2])).not.toThrow();
   });
 
   it('grid: respects layoutSpacing parameter', () => {

@@ -156,6 +156,16 @@ export interface DiagramNodeState {
   readonly enabled: boolean;
 
   /**
+   * True when this node had no explicit position in the DSL and layout is 'manual'.
+   * mergeSnapshot will replace position (and size, depth) with the previous scene's
+   * compiled values — enabling minimal ghost-node declarations:
+   *   <DiagramNode id="cdn" opacity={0.3} />  ← inherits position from prev scene
+   * Always false after mergeSnapshot has run, and always false for grid/hierarchical layout
+   * (where auto-layout assigns positions).
+   */
+  readonly positionInherited?: boolean;
+
+  /**
    * Resolved public asset URL for the shape icon, or undefined for geometry-only shapes.
    * Populated by compile.ts via iconRegistry.resolveIconUrl(shape).
    * render.ts loads this URL via THREE.SVGLoader and composites it on the front face.

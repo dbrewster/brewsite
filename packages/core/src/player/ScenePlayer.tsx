@@ -4,7 +4,7 @@ import type { SceneGroup } from '../compiler/sceneTypes';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import { VariableStoreContext } from '../widget/VariableStoreContext';
 import { useSceneEngine } from './useSceneEngine';
-import { EngineScrollRegion } from './EngineScrollRegion';
+import { EngineInputRegion } from './EngineInputRegion';
 import { EngineStateContext } from './EngineStateContext';
 import { HudOverlay } from '../hud/HudOverlay';
 import { LabelPositioner } from './LabelPositioner';
@@ -15,6 +15,9 @@ import type { AssetManifest } from '../elements/model/metadata';
 import { clearCache } from '../compiler/sceneTrackCache';
 import { SceneMetaWidget } from './SceneMetaWidget';
 import { clearRegistry } from '../compiler/registry';
+import type { SceneNavInputMap } from '../input/types';
+import { TimelineWidget } from './TimelineWidget';
+import type { TimelineWidgetProps } from './TimelineWidgetTypes';
 
 export type ScenePlayerProps = {
   sceneGroup: SceneGroup;
@@ -29,6 +32,13 @@ export type ScenePlayerProps = {
   onSceneChange?: (sceneId: string, sceneIndex: number) => void;
   placeholder?: ReactNode;
   children?: ReactNode;
+  /** Input configuration for scene navigation. */
+  inputMap?: SceneNavInputMap;
+  /**
+   * Whether to render the built-in timeline widget at the bottom.
+   * Pass `true` for defaults, or a `TimelineWidgetProps` subset to configure it.
+   */
+  timeline?: boolean | Omit<TimelineWidgetProps, 'engine' | 'scenes'>;
 };
 
 export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
@@ -108,6 +118,7 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
     onReady: props.onReady,
     onError: props.onError,
     labelPositioner,
+    inputMap: props.inputMap,
   });
 
   const engineState = useMemo(() => ({
@@ -165,15 +176,22 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
                 <div>viewport: {engine.debug?.viewport.width}×{engine.debug?.viewport.height}</div>
               </div>
             )}
-            <EngineScrollRegion key={hmrVersion} engine={engine}>
+            <EngineInputRegion key={hmrVersion} engine={engine} inputMap={props.inputMap}>
               <>
                 <HudOverlay items={engine.frameState.tick?.hudPrimitives ?? []} />
                 {labels.map((label) => (
                   <LabelItem key={label.id} label={label} />
                 ))}
+                {props.timeline && (
+                  <TimelineWidget
+                    engine={engine}
+                    scenes={props.sceneGroup.scenes}
+                    {...(typeof props.timeline === 'object' ? props.timeline : {})}
+                  />
+                )}
                 {props.children}
               </>
-            </EngineScrollRegion>
+            </EngineInputRegion>
           </div>
         </EngineStateContext.Provider>
       </LabelPositionerContext.Provider>

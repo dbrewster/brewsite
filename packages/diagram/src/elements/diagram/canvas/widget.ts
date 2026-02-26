@@ -132,19 +132,23 @@ export class DiagramCanvasWidget
 
       let diagramChanged = false;
       const mergedNodes = nextDiagram.nodes.map((node): DiagramNodeState => {
-        if (node.label !== '') return node;
+        if (node.label !== '' && !node.positionInherited) return node;
         const prevNode = prevDiagram.nodes.find((p) => p.id === node.id);
         if (!prevNode) return node;
         diagramChanged = true;
         anyChanged = true;
         return {
           ...node,
-          label: prevNode.label,
-          sublabel: prevNode.sublabel,
-          shape: prevNode.shape,
-          iconUrl: prevNode.iconUrl,
-          iconScale: prevNode.iconScale,
-          sublabelColor: prevNode.sublabelColor,
+          label:        node.label !== '' ? node.label        : prevNode.label,
+          sublabel:     node.label !== '' ? node.sublabel     : prevNode.sublabel,
+          shape:        node.label !== '' ? node.shape        : prevNode.shape,
+          iconUrl:      node.label !== '' ? node.iconUrl      : prevNode.iconUrl,
+          iconScale:    node.label !== '' ? node.iconScale    : prevNode.iconScale,
+          sublabelColor: node.label !== '' ? node.sublabelColor : prevNode.sublabelColor,
+          position: node.positionInherited ? prevNode.position : node.position,
+          size:     node.positionInherited ? prevNode.size     : node.size,
+          depth:    node.positionInherited ? prevNode.depth    : node.depth,
+          positionInherited: undefined,
         };
       });
       return diagramChanged ? { ...nextDiagram, nodes: mergedNodes } : nextDiagram;

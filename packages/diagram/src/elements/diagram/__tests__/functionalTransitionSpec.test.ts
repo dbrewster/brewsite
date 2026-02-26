@@ -122,19 +122,30 @@ describe('functionalDiagramTransitionSpec', () => {
       expect(resultEnd.nodes.find((node) => node.id === 'c')!.opacity).toBeCloseTo(0);
     });
 
-    it('edge control points interpolate at t=0.5', () => {
-      const fromEdge = makeEdge('edge-1', [
-        [0, 0, 0],
-        [5, 0, 0],
-      ]);
-      const toEdge = makeEdge('edge-1', [
-        [0, 0, 0],
-        [10, 0, 0],
-      ]);
-      const from = makeState([makeNode('a', 0), makeNode('b', 0)], [fromEdge], 0);
-      const to = makeState([makeNode('a', 0), makeNode('b', 0)], [toEdge], 0);
-      const result = functionalDiagramTransitionSpec.interpolateFn(from, to)(0.5);
-      expect(result.edges[0]!.controlPoints[1]![0]).toBeCloseTo(7.5);
+    it('edge control points track live node positions during interpolation', () => {
+      // Node 'b' moves from z=0 to z=-10 during the transition.
+      // The edge must track the moving node, not hold a static pre-compiled position.
+      const nodeA = { ...makeNode('a', 0), position: [-5, 0, 0] as const };
+      const fromB = { ...makeNode('b', 0), position: [5, 0, 0] as const };
+      const toB   = { ...makeNode('b', 0), position: [5, 0, -10] as const };
+      const edge = makeEdge('a-b-0', [], 1);
+      const edgeWithIds = { ...edge, fromId: 'a', toId: 'b' };
+      const from = makeState([nodeA, fromB], [edgeWithIds], 0);
+      const to   = makeState([nodeA, toB],   [edgeWithIds], 0);
+
+      const resultMid = functionalDiagramTransitionSpec.interpolateFn(from, to)(0.5);
+      const pts = resultMid.edges[0]!.controlPoints;
+
+      // Live routing should produce at least 2 control points.
+      expect(pts.length).toBeGreaterThanOrEqual(2);
+      // Start point (near 'a' at [-5,0,0]) should have negative x.
+      expect(pts[0]![0]).toBeLessThan(0);
+      // End point (near 'b' at [5,0,-5] at t=0.5) should have positive x.
+      expect(pts[pts.length - 1]![0]).toBeGreaterThan(0);
+      // End point z should reflect node b's interpolated z (-5 at t=0.5, not the
+      // pre-compiled 0 or -10).
+      expect(pts[pts.length - 1]![2]).toBeLessThan(0);
+      expect(pts[pts.length - 1]![2]).toBeGreaterThan(-10);
     });
   });
 });

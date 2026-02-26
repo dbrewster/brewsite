@@ -34,7 +34,16 @@ export { DEFAULT_FLOOR, floorTransitionSpec } from './floor';
 export { applyFloor, type FloorThreeRefs } from './floor';
 
 // Camera
-export type { SceneCamera, CameraMode } from './camera';
+export type {
+  SceneCamera,
+  CameraPositionDescriptor,
+  CameraLens,
+  CameraPost,
+  CameraInteractionConfig,
+  PointerAction,
+  EaseFnName,
+  CameraTransitionInterpolation,
+} from './camera';
 export { Camera } from './camera';
-export { DEFAULT_CAMERA, cameraTransitionSpec } from './camera';
+export { DEFAULT_CAMERA, DEFAULT_CAMERA_DESCRIPTOR, cameraTransitionSpec } from './camera';
 export { applyCamera } from './camera';

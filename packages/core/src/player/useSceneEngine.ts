@@ -12,9 +12,10 @@ import { VariableStore } from '../widget/VariableStore';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import { EngineFrameDriver } from './EngineFrameDriver';
 import type { EngineFrameState } from './engineTypes';
-import { useEngineScroll } from './useEngineScroll';
+import { useEngineInput } from './useEngineInput';
 import type { LabelPositioner } from './LabelPositioner';
 import type { AssetManifest } from '../elements/model/metadata';
+import type { SceneNavInputMap } from '../input/types';
 
 export type UseSceneEngineOptions = {
   sceneGroup: SceneGroup;
@@ -28,6 +29,7 @@ export type UseSceneEngineOptions = {
   onReady?: () => void;
   onError?: (error: Error) => void;
   labelPositioner?: LabelPositioner;
+  inputMap?: SceneNavInputMap;
 };
 
 export type UseSceneEngineResult = {
@@ -37,6 +39,8 @@ export type UseSceneEngineResult = {
   progress: number;
   scrollToProgress: (next: number) => void;
   getGlobalProgress: () => number;
+  /** Total number of scenes in the scene group. Used by TimelineWidget and useEngineInput. */
+  sceneCount: number;
   variableStore: VariableStore;
   setCanvasRef: (canvas: HTMLCanvasElement | null) => void;
   setBackgroundRef: (element: HTMLDivElement | null) => void;
@@ -74,6 +78,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   const [viewportHeight, setViewportHeight] = useState(1);
 
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const driverRef = useRef<RuntimeDriverImpl | null>(null);
@@ -97,6 +102,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   }, []);
 
   const scrollRegionHeightPx = useMemo(() => {
+    if (options.inputMap?.mode === 'direct') return Math.max(1, viewportHeight);
     const sceneCount = Math.max(1, options.sceneGroup.scenes.length);
     const numTransitions = Math.max(0, sceneCount - 1);
     const totalFrames = numTransitions * blockSize + 1;
@@ -105,11 +111,22 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     }
     if (sceneCount <= 1) return Math.max(1, viewportHeight);
     return Math.max(1, viewportHeight + totalFrames);
-  }, [options.pixelsPerScene, options.sceneGroup.scenes.length, blockSize, viewportHeight]);
+  }, [options.inputMap?.mode, options.pixelsPerScene, options.sceneGroup.scenes.length, blockSize, viewportHeight]);
 
-  const { progress, scrollToProgress, getGlobalProgress } = useEngineScroll({
+  // wheelGuard: reads isWheelClaimedByInteraction from CameraWidget if registered.
+  // This prevents scene navigation advancing while camera dolly is active.
+  const wheelGuard = useCallback((): boolean => {
+    const cameraWidget = options.widgetRegistry.get('camera') as { isWheelClaimedByInteraction?: () => boolean } | undefined;
+    return cameraWidget?.isWheelClaimedByInteraction?.() ?? false;
+  }, [options.widgetRegistry]);
+
+  const { progress, scrollToProgress, getGlobalProgress } = useEngineInput({
     scrollRegionRef,
     scrollRegionHeightPx,
+    sceneCount: options.sceneGroup.scenes.length,
+    canvasRef: canvasElementRef,
+    inputMap: options.inputMap,
+    wheelGuard,
   });
 
   useEffect(() => {
@@ -130,6 +147,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
 
   const setCanvasRef = useCallback((next: HTMLCanvasElement | null) => {
     setCanvas(next);
+    canvasElementRef.current = next;
   }, []);
 
   const setBackgroundRef = useCallback((next: HTMLDivElement | null) => {
@@ -206,6 +224,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
     camera.position.set(0, 0, 100);
     scene.userData['__brewsite_camera'] = camera;
+    scene.userData['__brewsite_renderer'] = rendererRef.current;
     sceneRef.current = scene;
     cameraRef.current = camera;
 
@@ -239,6 +258,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       sceneRef.current = null;
       cameraRef.current = null;
       delete (scene as unknown as { userData?: Record<string, unknown> })?.userData?.['__brewsite_camera'];
+      delete (scene as unknown as { userData?: Record<string, unknown> })?.userData?.['__brewsite_renderer'];
       loopRef.current?.stop();
       loopRef.current = null;
       frameDriverRef.current?.reset();
@@ -339,6 +359,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     progress,
     scrollToProgress,
     getGlobalProgress,
+    sceneCount: options.sceneGroup.scenes.length,
     variableStore,
     setCanvasRef,
     setBackgroundRef,

@@ -186,14 +186,29 @@ const createBoxMaterials = (state: DiagramNodeState): THREE.MeshStandardMaterial
   return [side, side.clone(), top, bottom, front, back];
 };
 
+/**
+ * Updates a troika Text object and calls sync() only when layout-affecting
+ * properties change. Opacity (fillOpacity) is a cheap material-uniform update
+ * that does NOT require sync() — calling sync() unconditionally every tick
+ * triggers the troika SDF pipeline which is extremely expensive.
+ */
 const ensureText = (text: Text, value: string, color: string, fontSize: number, opacity: number): void => {
-  text.text = value;
-  text.color = color;
-  text.fontSize = fontSize;
+  // fillOpacity is a material uniform — update directly, no sync needed.
   text.fillOpacity = opacity;
-  text.anchorX = 'center';
-  text.anchorY = 'middle';
-  text.sync();
+
+  // Anchor props are one-time initialisation (never change at runtime).
+  if (!text.anchorX) {
+    text.anchorX = 'center';
+    text.anchorY = 'middle';
+  }
+
+  // Layout-affecting properties: only sync when they actually change.
+  if (text.text !== value || text.color !== color || text.fontSize !== fontSize) {
+    text.text = value;
+    text.color = color;
+    text.fontSize = fontSize;
+    text.sync();
+  }
 };
 
 export class DiagramRenderer {
@@ -420,27 +435,40 @@ export class DiagramRenderer {
     entry.group.position.set(state.position[0], state.position[1], state.position[2]);
     entry.group.visible = state.enabled;
 
-    // Only create new materials when appearance properties actually change to
-    // avoid a per-tick GC allocation + GPU upload of 6 material objects.
-    const needsMaterialUpdate =
+    // ── Material update strategy ─────────────────────────────────────────────
+    // Opacity changes every tick during scene transitions. Rebuilding all 6
+    // materials on every opacity change (dispose + allocate + GPU upload) would
+    // kill frame rate. Instead: rebuild only when colour/metalness/roughness
+    // changes (rare), and mutate opacity in-place for the common transition case.
+    const needsMaterialRebuild =
       !prev ||
       prev.color !== state.color ||
       prev.sideColor !== state.sideColor ||
       prev.metalness !== state.metalness ||
-      prev.roughness !== state.roughness ||
-      prev.opacity !== state.opacity;
-    if (needsMaterialUpdate) {
+      prev.roughness !== state.roughness;
+    if (needsMaterialRebuild) {
       const oldMats = Array.isArray(entry.boxMesh.material)
         ? (entry.boxMesh.material as THREE.Material[])
         : [entry.boxMesh.material as THREE.Material];
       entry.boxMesh.material = createBoxMaterials(state);
       oldMats.forEach((m) => m.dispose());
+    } else if (prev && prev.opacity !== state.opacity) {
+      // Light change: update opacity in-place — no allocation, no GPU upload.
+      const mats = Array.isArray(entry.boxMesh.material)
+        ? (entry.boxMesh.material as THREE.MeshStandardMaterial[])
+        : [entry.boxMesh.material as THREE.MeshStandardMaterial];
+      const op = state.opacity;
+      mats.forEach((m) => { m.opacity = op; m.transparent = true; });
     }
 
     const borderMaterial = entry.border.material as THREE.LineBasicMaterial;
-    borderMaterial.color.set(state.borderColor);
-    borderMaterial.opacity = Math.min(1, state.opacity);
-    borderMaterial.transparent = true;
+    if (!prev || prev.borderColor !== state.borderColor) {
+      borderMaterial.color.set(state.borderColor);
+    }
+    if (!prev || prev.opacity !== state.opacity) {
+      borderMaterial.opacity = Math.min(1, state.opacity);
+      borderMaterial.transparent = true;
+    }
 
     const labelY = state.iconUrl ? -state.size[1] * 0.1 : 0;
     ensureText(entry.label, state.label, state.labelColor, state.size[1] * 0.28, state.opacity);
@@ -580,16 +608,22 @@ export class DiagramRenderer {
       entry.tube.geometry = geometry;
     }
 
-    // Only rebuild tube material when appearance properties change.
-    const edgeMaterialChanged =
+    // ── Edge material update strategy ────────────────────────────────────────
+    // Rebuild the tube material only when style/color/thickness changes (rare).
+    // For opacity-only changes (every tick during transitions) mutate the existing
+    // material in-place — avoids per-tick disposal + allocation + GPU upload.
+    const edgeMaterialRebuild =
       !prev ||
       prev.color !== state.color ||
       prev.style !== state.style ||
-      prev.opacity !== state.opacity ||
       prev.thickness !== state.thickness;
-    if (edgeMaterialChanged) {
+    if (edgeMaterialRebuild) {
       (entry.tube.material as THREE.Material).dispose();
       entry.tube.material = this.createTubeMaterial(state);
+    } else if (prev && prev.opacity !== state.opacity) {
+      const mat = entry.tube.material as THREE.MeshStandardMaterial;
+      mat.opacity = state.opacity;
+      mat.transparent = state.opacity < 1 || state.style !== 'solid';
     }
 
     // Only update arrowheads when geometry changed or arrowhead style changed.
@@ -606,6 +640,8 @@ export class DiagramRenderer {
           const existing = kind === 'start' ? entry.arrowStart : entry.arrowEnd;
           if (existing) {
             entry.group.remove(existing);
+            existing.geometry.dispose();
+            (existing.material as THREE.Material).dispose();
           }
           if (kind === 'start') entry.arrowStart = undefined;
           if (kind === 'end') entry.arrowEnd = undefined;
@@ -614,24 +650,55 @@ export class DiagramRenderer {
         const arrow = kind === 'start'
           ? entry.arrowStart ?? new THREE.Mesh()
           : entry.arrowEnd ?? new THREE.Mesh();
-        const cone = new THREE.ConeGeometry(state.thickness * 3, state.thickness * 8, 8);
-        const mat = new THREE.MeshStandardMaterial({
+
+        // ── Flat 2D arrowhead ─────────────────────────────────────────────────
+        // 3D ConeGeometry arrowheads viewed "end-on" (when the edge points away
+        // from the camera, e.g. top-to-bottom edges in a tilted diagram) look
+        // like circles — you see the cone base instead of the tip.
+        //
+        // A flat triangle lying in the diagram's XY plane is always visible
+        // from the typical above/in-front viewing angle and correctly indicates
+        // direction for horizontal and diagonal edges.
+        //
+        // The tip is placed at the origin so arrow.position = curve endpoint.
+        // The triangle base extends backward by arrowH in the -tip direction.
+        const arrowH = state.thickness * 9;
+        const arrowW = state.thickness * 7;
+        const arrowShape = new THREE.Shape();
+        arrowShape.moveTo(0, 0);                     // tip (at origin, placed at curve endpoint)
+        arrowShape.lineTo(-arrowW / 2, -arrowH);     // left base corner
+        arrowShape.lineTo(arrowW / 2, -arrowH);      // right base corner
+        arrowShape.closePath();
+
+        // Dispose old geometry before assigning new one.
+        if (arrow.geometry) arrow.geometry.dispose();
+        arrow.geometry = new THREE.ShapeGeometry(arrowShape);
+
+        // MeshBasicMaterial for arrowheads: unlit so arrows are always clearly
+        // visible regardless of scene lighting.  DoubleSide ensures visibility
+        // when the diagram is tilted either direction.
+        if (arrow.material) (arrow.material as THREE.Material).dispose();
+        arrow.material = new THREE.MeshBasicMaterial({
           color: state.color,
-          metalness: 0.3,
-          roughness: 0.7,
           transparent: state.opacity < 1,
           opacity: state.opacity,
+          side: THREE.DoubleSide,
+          depthWrite: false,
         });
-        arrow.geometry = cone;
-        arrow.material = mat;
-        const t = kind === 'start' ? 0 : 1;
+
+        const curveT = kind === 'start' ? 0 : 1;
         const c = getCurve();
-        const position = c.getPointAt(t);
-        const tangent = c.getTangentAt(t).normalize();
+        const position = c.getPointAt(curveT);
+        const tangent = c.getTangentAt(curveT).normalize();
         const dir = kind === 'start' ? tangent.clone().multiplyScalar(-1) : tangent;
+
+        // Orient the flat triangle in the XY plane to point in the direction
+        // of travel.  rotation.z = θ makes local +Y → world (-sin θ, cos θ, 0).
+        // We want local +Y to align with (dir.x, dir.y), so:
+        //   θ = atan2(-dir.x, dir.y)
         arrow.position.copy(position);
-        arrow.lookAt(position.clone().add(dir));
-        arrow.rotateX(Math.PI / 2);
+        arrow.rotation.set(0, 0, Math.atan2(-dir.x, dir.y));
+
         if (!arrow.parent) {
           entry.group.add(arrow);
         }

@@ -6,6 +6,7 @@ import ComplexPage from '../complex/pages/ComplexPage';
 import MeetingPage from "../meeting/pages/MeetingPage";
 import MultiAnimation from "../multi-animation/pages/MultiAnimation";
 import DiagramPage from '../diagram/pages/DiagramPage';
+import DiagramAutoPage from '../diagram/pages/DiagramAutoPage';
 
 export default function App(): JSX.Element {
   return (
@@ -18,6 +19,7 @@ export default function App(): JSX.Element {
         <Route path="/meeting" element={<MeetingPage />} />
         <Route path="/anim" element={<MultiAnimation />} />
         <Route path="/diagram" element={<DiagramPage />} />
+        <Route path="/diagram-auto" element={<DiagramAutoPage />} />
       </Routes>
     </div>
   );
