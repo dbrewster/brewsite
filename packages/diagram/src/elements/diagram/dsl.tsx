@@ -14,8 +14,13 @@ import type {
 export interface DiagramNodeProps {
   /** Unique ID within the diagram */
   id: string;
-  /** Primary label text */
-  label: string;
+  /**
+   * Primary label text.
+   * Optional for ghost/partial-update nodes in later scenes that inherit their
+   * full state from the previous scene's compiled DiagramNodeState.
+   * Omitting label on a node that has no prior state results in an empty label.
+   */
+  label?: string;
   /** Secondary label text below primary */
   sublabel?: string;
   /**

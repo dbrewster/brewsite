@@ -2,7 +2,8 @@ import { ScenePlayer } from '@brewsite/core';
 import type { JSX } from 'react';
 import { useEffect, useState } from 'react';
 import { createWidgetSetup } from '../widgetSetup';
-import { scene01Diagram } from '../scenes/scene01_diagram';
+import { sceneArchEcsDetail } from '../scenes/scene_arch_ecs_detail';
+import { sceneArchOverview } from '../scenes/scene_arch_overview';
 
 export default function DiagramPage(): JSX.Element {
   const [error, setError] = useState<Error | null>(null);
@@ -19,7 +20,7 @@ export default function DiagramPage(): JSX.Element {
       <ScenePlayer
         sceneGroup={{
           id: 'diagram',
-          scenes: [scene01Diagram],
+          scenes: [sceneArchOverview, sceneArchEcsDetail],
         }}
         manifestUrl="/scene-manifest.json"
         widgetSetup={createWidgetSetup}

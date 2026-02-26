@@ -189,7 +189,7 @@ describe('compileDiagram', () => {
     const state = compileDiagram(dsl);
     const node = state.nodes[0]!;
     expect(node.size).toEqual([4, 2]);
-    expect(node.depth).toBe(0.4);
+    expect(node.depth).toBe(0.6);
     expect(node.color).toBe('#2a2d3e');
   });
 

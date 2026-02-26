@@ -12,6 +12,7 @@ export default defineConfig({
     dedupe: ['react', 'react-dom'],
     alias: {
       '@brewsite/core': path.resolve(__dirname, '../../packages/core/src/index.ts'),
+      '@brewsite/diagram': path.resolve(__dirname, '../../packages/diagram/src/index.ts'),
     },
   },
   publicDir: path.resolve(__dirname, '../public'),

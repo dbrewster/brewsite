@@ -20,9 +20,11 @@ export default defineConfig({
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
         'src/**/__tests__/**',
-        'src/elements/**/render.ts',
-        'src/**/index.ts',
-        'src/compiler/handlers.ts',
+        'src/elements/**/render.ts',    // Three.js — excluded per project convention
+        'src/elements/**/_shared/**',   // Three.js shared utilities
+        'src/elements/**/widget.ts',    // Widget integration — wires compile+render, integration tested
+        'src/**/index.ts',              // barrel files — no logic
+        'src/compiler/handlers.ts',     // registration side-effect — integration tested
       ],
     },
   },

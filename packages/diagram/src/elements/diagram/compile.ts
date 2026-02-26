@@ -27,7 +27,10 @@ const DEFAULT_COLOR = '#2a2d3e';
 const NODE_DEFAULTS = {
   shape: 'flow:rect' as const,
   size: [4, 2] as [number, number],
-  depth: 0.4,
+  // 0.6 gives a clearly readable 3D face from the default 25° elevated camera
+  // without looking too thick. Stays close to the plan's "0.4 for standard
+  // nodes" intent while being visually impactful for demos.
+  depth: 0.6,
   color: DEFAULT_COLOR,
   // sideColor:  derived from color — see compileNode()
   // borderColor: derived from color — see compileNode()
@@ -46,7 +49,9 @@ const EDGE_DEFAULTS = {
   arrowStart: 'none' as const,
   arrowEnd: 'open' as const,
   color: '#555e7a',
-  thickness: 0.04,
+  // 0.08 renders as a clearly visible 3D tube at the default camera distance.
+  // 0.04 was sub-pixel at the former camera distance of 100 units.
+  thickness: 0.08,
   opacity: 1,
 };
 
@@ -258,8 +263,24 @@ const faceFromTo = (
   size: NodeDimensions,
 ): { center: Vec3; normal: Vec3 } => {
   const delta: Vec3 = [target[0] - origin[0], target[1] - origin[1], target[2] - origin[2]];
-  const absDelta = [Math.abs(delta[0]), Math.abs(delta[1]), Math.abs(delta[2])];
-  const maxAxis = absDelta.indexOf(Math.max(...absDelta));
+  const absX = Math.abs(delta[0]);
+  const absY = Math.abs(delta[1]);
+  const absZ = Math.abs(delta[2]);
+
+  // Prefer top/bottom (Y-axis) faces unless the connection is clearly more
+  // horizontal. The 0.6 threshold means: only use a side face when the
+  // horizontal component exceeds 67% of the vertical. This gives architecture
+  // diagrams the natural "data flows downward" look for most connections while
+  // still routing side-to-side for genuinely horizontal edges.
+  let maxAxis: number;
+  if (absY >= absX * 0.6 && absY >= absZ * 0.6) {
+    maxAxis = 1; // Y-face: top or bottom
+  } else if (absX >= absZ) {
+    maxAxis = 0; // X-face: left or right
+  } else {
+    maxAxis = 2; // Z-face: front or back
+  }
+
   const sign = delta[maxAxis] >= 0 ? 1 : -1;
 
   let normal: Vec3 = [0, 0, 0];
@@ -315,23 +336,20 @@ export function routeEdges(
     const start = addVec(fromFace.center, scaleVec(fromFace.normal, EDGE_EPSILON));
     const end = addVec(toFace.center, scaleVec(toFace.normal, EDGE_EPSILON));
 
-    const mid: [number, number, number] = [
-      (start[0] + end[0]) / 2,
-      (start[1] + end[1]) / 2,
-      (start[2] + end[2]) / 2,
-    ];
+    // Compute the 3-D distance between face exit/entry points and use a
+    // fraction of it as stub length.  Clamping prevents crossing on short edges.
+    const dx = end[0] - start[0];
+    const dy = end[1] - start[1];
+    const dz = end[2] - start[2];
+    const dist3d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    const stub = Math.min(1.2, dist3d * 0.3);
 
-    const deltaY = toPos[1] - fromPos[1];
-    if (Math.abs(deltaY) < 0.5) {
-      const deltaZ = toPos[2] - fromPos[2];
-      const sign = deltaZ === 0 ? 1 : Math.sign(deltaZ);
-      mid[2] += sign * 0.6;
-    } else {
-      const sign = fromPos[1] >= toPos[1] ? 1 : -1;
-      mid[1] += sign * 0.6;
-    }
+    // Add perpendicular guide points in the face-normal direction so the curve
+    // exits/enters perpendicular to each face rather than at an angle.
+    const guide1 = addVec(start, scaleVec(fromFace.normal, stub));
+    const guide2 = addVec(end, scaleVec(toFace.normal, stub));
 
-    result.set(id, [start, mid, end]);
+    result.set(id, [start, guide1, guide2, end]);
   });
 
   return result;
@@ -355,7 +373,10 @@ export function compileNode(
 
   return {
     id: dsl.id,
-    label: dsl.label,
+    // Ghost/partial-update nodes omit label — fall back to '' so render.ts
+    // always receives a string. mergeSnapshot carries forward the real label
+    // from the previous scene's state when this DiagramWidget span transitions.
+    label: dsl.label ?? '',
     sublabel: dsl.sublabel,
     shape,
     position,
@@ -498,8 +519,11 @@ export function compileDiagram(dsl: DiagramDSL): DiagramState {
     (bounds.minZ + bounds.maxZ) / 2,
   ];
 
+  // Use the larger of width or height to ensure the entire diagram fits
+  // regardless of viewport orientation, then apply a 1.2× padding multiplier
+  // so nodes near the edge have breathing room.
   const fov = 45 * (Math.PI / 180);
-  const cameraDistance = bounds.w / (2 * Math.tan(fov / 2));
+  const cameraDistance = (Math.max(bounds.w, bounds.h) / (2 * Math.tan(fov / 2))) * 1.2;
 
   return {
     id: dsl.id,

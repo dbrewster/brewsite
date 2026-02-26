@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
-import { createGlow, createGlowTexture } from '../glowSprite';
+import { createGlow, createGlowTexture, disposeGlowSprite } from '../glowSprite';
 
 describe('glowSprite', () => {
   it('caches the glow texture', () => {
@@ -17,5 +17,21 @@ describe('glowSprite', () => {
     const material = sprite.material as THREE.SpriteMaterial;
     expect(material.opacity).toBeCloseTo(0.35, 4);
     expect(sprite.position.z).toBeCloseTo(-0.1, 4);
+  });
+});
+
+describe('disposeGlowSprite', () => {
+  it('disposes the SpriteMaterial but NOT the shared canvas texture', () => {
+    const sharedTexture = createGlowTexture();
+    const sprite = createGlow('#ff0000', 6, 4, 1.2, 0.5);
+    const matDisposeSpy = vi.spyOn(sprite.material, 'dispose');
+    // The texture is the module-level cached instance — spying on its dispose
+    // lets us verify it is NOT called.
+    const texDisposeSpy = vi.spyOn(sharedTexture, 'dispose');
+
+    disposeGlowSprite(sprite);
+
+    expect(matDisposeSpy).toHaveBeenCalledOnce();
+    expect(texDisposeSpy).not.toHaveBeenCalled();
   });
 });

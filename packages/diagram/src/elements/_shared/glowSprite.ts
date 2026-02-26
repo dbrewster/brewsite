@@ -68,3 +68,12 @@ export function createGlow(
   sprite.position.z = -0.1;
   return sprite;
 }
+
+/**
+ * Dispose the SpriteMaterial owned by a glow sprite.
+ * The shared canvas texture (createGlowTexture) is module-cached and must NOT
+ * be disposed here — only the per-sprite SpriteMaterial is owned by this instance.
+ */
+export function disposeGlowSprite(sprite: THREE.Sprite): void {
+  sprite.material.dispose();
+}

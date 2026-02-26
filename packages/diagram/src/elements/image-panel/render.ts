@@ -3,8 +3,8 @@
 
 import * as THREE from 'three';
 import type { ImagePanelState } from './types';
-import { createBezel } from '../_shared/bezelGeometry';
-import { createGlow } from '../_shared/glowSprite';
+import { createBezel, disposeBezel } from '../_shared/bezelGeometry';
+import { createGlow, disposeGlowSprite } from '../_shared/glowSprite';
 
 type PanelEntry = {
   group: THREE.Group;
@@ -72,6 +72,13 @@ export class ImagePanelRenderer {
           const aspect = texture.image.width / Math.max(1, texture.image.height);
           const height = state.width / Math.max(0.0001, aspect);
           this.updateGeometry(entry!, state.width, height);
+          // Rebuild bezel to match the texture's natural aspect ratio.
+          // The synchronous update() path used a guess (state.width/1.6) as
+          // fallbackHeight; now that we know the real height, we correct it.
+          disposeBezel(entry!.bezelGroup);
+          entry!.group.remove(entry!.bezelGroup);
+          entry!.bezelGroup = createBezel(state.bezel, state.width, height, state.bezelThickness);
+          entry!.group.add(entry!.bezelGroup);
         }
       });
     }
@@ -79,6 +86,7 @@ export class ImagePanelRenderer {
     if (!prev || state.bezel !== prev.bezel || state.bezelThickness !== prev.bezelThickness ||
         desiredWidth !== (prev?.width ?? desiredWidth) ||
         fallbackHeight !== (prev?.height ?? fallbackHeight)) {
+      disposeBezel(entry.bezelGroup);
       entry.group.remove(entry.bezelGroup);
       entry.bezelGroup = createBezel(state.bezel, desiredWidth, fallbackHeight, state.bezelThickness);
       entry.group.add(entry.bezelGroup);
@@ -93,7 +101,10 @@ export class ImagePanelRenderer {
 
     if (state.glow) {
       if (!entry.glowSprite || state.glowColor !== prev?.glowColor || state.glowScale !== prev?.glowScale) {
-        if (entry.glowSprite) entry.group.remove(entry.glowSprite);
+        if (entry.glowSprite) {
+          disposeGlowSprite(entry.glowSprite);
+          entry.group.remove(entry.glowSprite);
+        }
         entry.glowSprite = createGlow(
           state.glowColor,
           desiredWidth,
@@ -106,6 +117,7 @@ export class ImagePanelRenderer {
         entry.glowSprite.material.opacity = state.glowOpacity * state.opacity;
       }
     } else if (entry.glowSprite) {
+      disposeGlowSprite(entry.glowSprite);
       entry.group.remove(entry.glowSprite);
       entry.glowSprite = undefined;
     }
@@ -118,6 +130,10 @@ export class ImagePanelRenderer {
     const entry = this.panels.get(panelId);
     if (!entry) return;
     scene.remove(entry.group);
+    entry.imageMesh.geometry.dispose();
+    (entry.imageMesh.material as THREE.Material).dispose();
+    disposeBezel(entry.bezelGroup);
+    if (entry.glowSprite) disposeGlowSprite(entry.glowSprite);
     this.panels.delete(panelId);
     this.lastState.delete(panelId);
   }

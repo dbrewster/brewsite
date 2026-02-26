@@ -16,25 +16,39 @@ export const createWidgetSetup = (manifest: AssetManifest | null) => {
   const registry = createDefaultWidgetRegistry(manifest);
 
   const diagramDefault = compileDiagram({
-    id: 'diagram-basic',
+    id: 'system-arch',
     layout: 'manual',
     layoutSpacing: [2, 2],
     nodes: [
-      { id: 'frontend', label: 'Frontend', position: [-6, 2, 0], shape: 'flow:rounded' },
-      { id: 'api', label: 'API', position: [0, 2, 0], shape: 'flow:rect' },
-      { id: 'db', label: 'Database', position: [6, 2, 0], shape: 'flow:cylinder' },
+      { id: 'browser', label: 'Web Browser', position: [-6, 6, 0], shape: 'flow:actor' },
+      { id: 'mobile', label: 'Mobile App', position: [6, 6, 0], shape: 'net:mobile' },
+      { id: 'cdn', label: 'CloudFront CDN', position: [0, 2, 0], shape: 'aws:cloudfront' },
+      { id: 'alb', label: 'Load Balancer', position: [0, -1, 0], shape: 'aws:alb' },
+      { id: 'api', label: 'API Gateway', position: [0, -4, 0], shape: 'aws:api-gateway' },
+      { id: 'ecs', label: 'ECS Cluster', position: [-5, -8, 0], shape: 'aws:ecs' },
+      { id: 'lambda', label: 'Lambda', position: [5, -8, 0], shape: 'aws:lambda' },
+      { id: 'rds', label: 'RDS PostgreSQL', position: [-5, -13, 0], shape: 'aws:rds' },
+      { id: 'cache', label: 'ElastiCache', position: [0, -13, 0], shape: 'aws:elasticache' },
+      { id: 's3', label: 'S3 Assets', position: [5, -13, 0], shape: 'aws:s3' },
     ],
     edges: [
-      { from: 'frontend', to: 'api' },
-      { from: 'api', to: 'db' },
+      { from: 'browser', to: 'cdn' },
+      { from: 'mobile', to: 'cdn' },
+      { from: 'cdn', to: 'alb' },
+      { from: 'alb', to: 'api' },
+      { from: 'api', to: 'ecs' },
+      { from: 'api', to: 'lambda' },
+      { from: 'ecs', to: 'rds' },
+      { from: 'ecs', to: 'cache' },
+      { from: 'ecs', to: 's3' },
     ],
     groups: [],
   });
 
   const panelDefault = compileImagePanel({
-    id: 'diagram-image',
-    src: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=',
-    position: [-4, -6, 6],
+    id: 'api-docs-screenshot',
+    src: '/screenshots/api-docs.png',
+    position: [5, -4, 12],
     rotation: [0, -0.2, 0],
     width: 8,
     bezel: 'dark',
@@ -42,24 +56,26 @@ export const createWidgetSetup = (manifest: AssetManifest | null) => {
     selfIllumination: 0.2,
     glow: true,
     glowColor: '#4488ff',
+    enabled: false,
   });
 
   const screenDefault = compileScreen({
-    id: 'diagram-screen',
-    src: 'https://example.com',
-    position: [6, -6, 6],
+    id: 'api-explorer-live',
+    src: 'http://localhost:5173/simple',
+    position: [5, -9, 14],
     rotation: [0, 0, 0],
-    width: 8,
-    height: 4.5,
+    width: 10,
+    height: 6.25,
     bezel: 'chrome',
     glow: true,
     glowColor: '#6699ff',
+    enabled: false,
   });
 
   registry
-    .register(new DiagramWidget('diagram-basic', diagramDefault))
-    .register(new ImagePanelWidget('diagram-image', panelDefault))
-    .register(new ScreenWidget('diagram-screen', screenDefault));
+    .register(new DiagramWidget('system-arch', diagramDefault))
+    .register(new ImagePanelWidget('api-docs-screenshot', panelDefault))
+    .register(new ScreenWidget('api-explorer-live', screenDefault));
 
   return registry;
 };

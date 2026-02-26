@@ -258,7 +258,13 @@ export interface DiagramState {
  */
 export interface DiagramNodeDSL {
   readonly id: string;
-  readonly label: string;
+  /**
+   * Primary label text.
+   * Optional — omitted on ghost/partial-update nodes in multi-scene sequences.
+   * compile.ts falls back to '' when not provided; mergeSnapshot carries forward
+   * the label from the previous scene's compiled state.
+   */
+  readonly label?: string;
   readonly sublabel?: string;
   readonly shape?: DiagramShapeVariant;
   readonly position?: readonly [number, number, number];

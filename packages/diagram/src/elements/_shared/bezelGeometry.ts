@@ -66,3 +66,21 @@ export function createBezel(
   group.add(top, bottom, left, right);
   return group;
 }
+
+/**
+ * Dispose all GPU resources (geometries + materials) owned by a bezel group.
+ * The group itself is not removed from its parent — callers are responsible for
+ * calling group.parent?.remove(group) before or after this function.
+ */
+export function disposeBezel(group: THREE.Group): void {
+  group.traverse((obj) => {
+    const mesh = obj as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    mesh.geometry.dispose();
+    if (Array.isArray(mesh.material)) {
+      (mesh.material as THREE.Material[]).forEach((m) => m.dispose());
+    } else {
+      (mesh.material as THREE.Material).dispose();
+    }
+  });
+}

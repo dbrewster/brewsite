@@ -3,8 +3,8 @@
 
 import * as THREE from 'three';
 import type { ScreenState } from './types';
-import { createBezel } from '../_shared/bezelGeometry';
-import { createGlow } from '../_shared/glowSprite';
+import { createBezel, disposeBezel } from '../_shared/bezelGeometry';
+import { createGlow, disposeGlowSprite } from '../_shared/glowSprite';
 
 type ScreenEntry = {
   group: THREE.Group;
@@ -39,6 +39,7 @@ export class ScreenRenderer {
     const prev = entry.lastState;
     if (!prev || state.bezel !== prev.bezel || state.bezelThickness !== prev.bezelThickness ||
         state.width !== prev.width || state.height !== prev.height) {
+      disposeBezel(entry.bezelGroup);
       entry.group.remove(entry.bezelGroup);
       entry.bezelGroup = createBezel(state.bezel, state.width, state.height, state.bezelThickness);
       entry.group.add(entry.bezelGroup);
@@ -53,7 +54,10 @@ export class ScreenRenderer {
 
     if (state.glow) {
       if (!entry.glowSprite || state.glowColor !== prev?.glowColor || state.glowScale !== prev?.glowScale) {
-        if (entry.glowSprite) entry.group.remove(entry.glowSprite);
+        if (entry.glowSprite) {
+          disposeGlowSprite(entry.glowSprite);
+          entry.group.remove(entry.glowSprite);
+        }
         entry.glowSprite = createGlow(
           state.glowColor,
           state.width,
@@ -66,6 +70,7 @@ export class ScreenRenderer {
         entry.glowSprite.material.opacity = state.glowOpacity * state.opacity;
       }
     } else if (entry.glowSprite) {
+      disposeGlowSprite(entry.glowSprite);
       entry.group.remove(entry.glowSprite);
       entry.glowSprite = undefined;
     }
@@ -87,6 +92,8 @@ export class ScreenRenderer {
     const entry = this.screens.get(screenId);
     if (!entry) return;
     scene.remove(entry.group);
+    disposeBezel(entry.bezelGroup);
+    if (entry.glowSprite) disposeGlowSprite(entry.glowSprite);
     entry.iframeDiv.remove();
     this.screens.delete(screenId);
   }

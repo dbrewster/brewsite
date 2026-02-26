@@ -1,4 +1,4 @@
-import { Scene } from '@brewsite/core';
+import {Camera, Scene} from '@brewsite/core';
 import { Diagram, DiagramEdge, DiagramNode, ImagePanel, Screen } from '@brewsite/diagram';
 
 const PLACEHOLDER_IMAGE =
@@ -9,6 +9,16 @@ export const scene01Diagram = {
   index: 0,
   getFrame: () => (
     <Scene id="diagram-overview">
+      <Camera
+        enabled
+        mode="fitFloorDepth"
+        fov={60}
+        floorY={0}
+        floorZMin={-250}
+        floorZMax={100}
+        cameraY={40}
+        lookAtZ={-200}
+      />
       <Diagram id="diagram-basic" layout="manual">
         <DiagramNode id="frontend" label="Frontend" shape="flow:rounded" position={[-6, 2, 0]} />
         <DiagramNode id="api" label="API" shape="flow:rect" position={[0, 2, 0]} />
