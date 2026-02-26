@@ -7,6 +7,8 @@ import type {
   DiagramArrowVariant,
   DiagramGroupVariant,
   DiagramOrientation,
+  DiagramPivot,
+  DiagramEasing,
 } from './types';
 
 // ─── <DiagramNode> ────────────────────────────────────────────────────────────
@@ -158,6 +160,14 @@ export interface DiagramProps {
    * Default: [2, 2] (2 units horizontal, 2 units vertical gap)
    */
   layoutSpacing?: [number, number];
+  /** World/parent-space position. Default: [0, 0, 0] */
+  position?: [number, number, number];
+  /** World/parent-space Euler XYZ rotation in radians. Default: [0, 0, 0] */
+  rotation?: [number, number, number];
+  /** Uniform scale. Default: 1 */
+  scale?: number;
+  /** Pivot point. Default: 'center' */
+  pivot?: DiagramPivot;
   children?: React.ReactNode;
 }
 
@@ -167,5 +177,68 @@ export interface DiagramProps {
  * descendants of <Diagram>.
  */
 export function Diagram(_props: DiagramProps): null {
+  return null;
+}
+
+// ─── <Exit> ───────────────────────────────────────────────────────────────────
+
+export interface ExitProps {
+  /**
+   * Target position in parent space (canvas-local or world) at the end of the exit.
+   * If absent, the diagram does not translate during exit (scale/fade only).
+   */
+  to?: [number, number, number];
+  /**
+   * If true (default), fade all node and edge opacities to 0 during exit.
+   * Set false to disable the fade (translate/scale only).
+   */
+  fade?: boolean;
+  /**
+   * Target scale factor at the end of the exit. e.g., scaleTo={0} shrinks to a point.
+   * If absent, scale is not animated.
+   */
+  scaleTo?: number;
+  /**
+   * Easing function. Default: 'ease' (smooth ease-in-out).
+   * 'spring' produces a slight overshoot feel.
+   */
+  easing?: DiagramEasing;
+}
+
+/**
+ * Declares exit animation for the parent <Diagram>.
+ * Must be a direct child of <Diagram>. At most one <Exit> per diagram.
+ * Example: <Exit to={[0, -50, 0]} fade easing="ease-out" />
+ */
+export function Exit(_props: ExitProps): null {
+  return null;
+}
+
+// ─── <Enter> ──────────────────────────────────────────────────────────────────
+
+export interface EnterProps {
+  /**
+   * Source position in parent space at the start of the enter transition.
+   * If absent, the diagram enters from its declared position (scale/fade only).
+   */
+  from?: [number, number, number];
+  /**
+   * If true (default), fade all node and edge opacities from 0 during enter.
+   */
+  fade?: boolean;
+  /**
+   * Source scale factor at the start of the enter. e.g., scaleFrom={0} grows from a point.
+   */
+  scaleFrom?: number;
+  /** Easing function. Default: 'ease'. */
+  easing?: DiagramEasing;
+}
+
+/**
+ * Declares enter animation for the parent <Diagram>.
+ * Must be a direct child of <Diagram>. At most one <Enter> per diagram.
+ * Example: <Enter from={[-50, 0, 0]} fade easing="spring" />
+ */
+export function Enter(_props: EnterProps): null {
   return null;
 }

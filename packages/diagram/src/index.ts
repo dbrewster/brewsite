@@ -15,10 +15,17 @@ export type {
   DiagramArrowVariant,
   DiagramGroupVariant,
   DiagramOrientation,
+  DiagramPivot,
+  DiagramEasing,
+  DiagramExitConfig,
+  DiagramEnterConfig,
+  DiagramExitDSL,
+  DiagramEnterDSL,
   DiagramInteractionEvent,
 } from './elements/diagram/types';
 export type { DiagramShapeVariant } from './elements/diagram/shapes/shapeVariants';
-export { Diagram, DiagramNode, DiagramEdge, DiagramGroup } from './elements/diagram/dsl';
+export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, Exit, Enter } from './elements/diagram/dsl';
+export type { ExitProps, EnterProps } from './elements/diagram/dsl';
 export {
   compileDiagram,
   resolveLayout,
@@ -26,6 +33,8 @@ export {
   compileNode,
   compileEdge,
   compileGroup,
+  applyDiagramExit,
+  applyDiagramEnter,
   functionalDiagramTransitionSpec,
 } from './elements/diagram/compile';
 export { DiagramRenderer } from './elements/diagram/render';
@@ -37,6 +46,14 @@ export type {
   AzureShape,
   NetworkShape,
 } from './elements/diagram/shapes/shapeVariants';
+
+// ─── DiagramCanvas element ──────────────────────────────────────────────────
+export type { DiagramCanvasState, DiagramPipeState, DiagramCanvasDSL, DiagramPipeDSL } from './elements/diagram/canvas/types';
+export { DiagramCanvas, DiagramPipe } from './elements/diagram/canvas/dsl';
+export type { DiagramCanvasProps, DiagramPipeProps } from './elements/diagram/canvas/dsl';
+export { compileCanvas, compilePipe, functionalDiagramCanvasTransitionSpec } from './elements/diagram/canvas/compile';
+export { DiagramCanvasRenderer } from './elements/diagram/canvas/render';
+export { DiagramCanvasWidget } from './elements/diagram/canvas/widget';
 
 // ─── ImagePanel element ─────────────────────────────────────────────────────
 export type { ImagePanelState, ImagePanelDSL, ImagePanelBezelVariant } from './elements/image-panel/types';

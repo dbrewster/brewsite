@@ -1,0 +1,85 @@
+// Declarative DSL surface for DiagramCanvas and DiagramPipe. No Three.js.
+
+import React from 'react';
+import type { DiagramEdgeStyle, DiagramArrowVariant } from '../types';
+
+export interface DiagramCanvasProps {
+  /**
+   * Unique ID for this canvas. The DiagramCanvasWidget must be registered
+   * with this exact id in widgetSetup.ts.
+   */
+  id: string;
+  /** World-space position of the canvas group origin. Default: [0, 0, 0] */
+  position?: [number, number, number];
+  /** World-space Euler XYZ rotation in radians. Default: [0, 0, 0] */
+  rotation?: [number, number, number];
+  /**
+   * Uniform scale for the entire canvas group.
+   * All child diagram positions, scales, and pipe thicknesses scale with this.
+   * Default: 1
+   */
+  scale?: number;
+  children?: React.ReactNode;
+}
+
+/**
+ * Root container for a multi-diagram composition.
+ * Provides a shared world-space transform and enables cross-diagram pipes.
+ * Child <Diagram> elements use canvas-local coordinates.
+ * Child <DiagramPipe> elements connect nodes across child diagrams.
+ *
+ * Compilation: two-pass (diagrams first, then pipes).
+ * Rendering: single DiagramCanvasWidget owns all child diagrams and pipes.
+ *
+ * Example:
+ *   <DiagramCanvas id="system" scale={0.01}>
+ *     <Diagram id="frontend" position={[-600, 0, 0]}>...</Diagram>
+ *     <Diagram id="backend" position={[600, 0, 0]}>...</Diagram>
+ *     <DiagramPipe from="frontend.api" to="backend.gateway" />
+ *   </DiagramCanvas>
+ */
+export function DiagramCanvas(_props: DiagramCanvasProps): null {
+  return null;
+}
+
+export interface DiagramPipeProps {
+  /**
+   * Auto-generated id if omitted: "from--to" (dots replaced by dashes).
+   */
+  id?: string;
+  /**
+   * Source node in dot notation: "diagramId.nodeId"
+   * The diagramId must match a <Diagram id="..."> sibling inside this canvas.
+   */
+  from: string;
+  /**
+   * Destination node in dot notation: "diagramId.nodeId"
+   */
+  to: string;
+  /** Optional label at the pipe midpoint. */
+  label?: string;
+  /** Line visual style. Default: 'solid' */
+  style?: DiagramEdgeStyle;
+  /** Arrowhead at source. Default: 'none' */
+  arrowStart?: DiagramArrowVariant;
+  /** Arrowhead at destination. Default: 'open' */
+  arrowEnd?: DiagramArrowVariant;
+  /** Pipe color (CSS hex). Default: '#667788' */
+  color?: string;
+  /** Tube radius in canvas units. Default: 0.08 */
+  thickness?: number;
+  /** Opacity [0–1]. Default: 1 */
+  opacity?: number;
+}
+
+/**
+ * Declares a tube connector between nodes in two different <Diagram> elements
+ * inside the same <DiagramCanvas>.
+ * Must be a direct child of <DiagramCanvas>.
+ *
+ * Routing: CatmullRom arc in canvas-local space, computed at compile time.
+ * The pipe is rendered by DiagramCanvasWidget alongside the diagram tubes.
+ */
+export function DiagramPipe(_props: DiagramPipeProps): null {
+  return null;
+}

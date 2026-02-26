@@ -231,20 +231,6 @@ describe('compileDiagram', () => {
     expect(() => compileDiagram(dsl)).not.toThrow();
   });
 
-  it('cameraDistance is positive and greater than diagram width / 2', () => {
-    const dsl: DiagramDSL = {
-      id: 'diagram',
-      layout: 'grid',
-      layoutSpacing: [2, 2],
-      nodes: [makeNode('a'), makeNode('b')],
-      edges: [],
-      groups: [],
-    };
-    const state = compileDiagram(dsl);
-    expect(state.cameraDistance).toBeGreaterThan(0);
-    expect(state.cameraDistance).toBeGreaterThan(state.bounds.w / 2);
-  });
-
   it('groups have computed bounds that contain all member nodes', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
@@ -294,5 +280,152 @@ describe('compileDiagram', () => {
     };
     const state = compileDiagram(dsl);
     expect(state.edges[0]!.id).toBe('a-b-0');
+  });
+});
+
+describe('pivot offset', () => {
+  it("'center' pivot: bounds center maps to [0, 0]", () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: 'manual',
+      layoutSpacing: [2, 2],
+      pivot: 'center',
+      nodes: [
+        makeNode('a', { position: [0, 0, 0] }),
+        makeNode('b', { position: [10, 0, 0] }),
+      ],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    expect(state.bounds.x + state.bounds.w / 2).toBeCloseTo(0);
+    expect(state.bounds.y + state.bounds.h / 2).toBeCloseTo(0);
+  });
+
+  it("'top-left' pivot: top-left corner maps to [0, 0]", () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: 'manual',
+      layoutSpacing: [2, 2],
+      pivot: 'top-left',
+      nodes: [
+        makeNode('a', { position: [0, 0, 0] }),
+        makeNode('b', { position: [10, -10, 0] }),
+      ],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    expect(state.bounds.x).toBeCloseTo(0);
+    expect(state.bounds.y + state.bounds.h).toBeCloseTo(0);
+  });
+
+  it('pivot offset is applied before edge routing', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: 'manual',
+      layoutSpacing: [2, 2],
+      pivot: 'center',
+      nodes: [
+        makeNode('a', { position: [0, 0, 0] }),
+        makeNode('b', { position: [10, 0, 0] }),
+      ],
+      edges: [makeEdge('a', 'b')],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    const startX = state.edges[0]!.controlPoints[0]![0];
+    expect(startX).toBeCloseTo(-2.9, 2);
+  });
+});
+
+describe('exit / enter config compilation', () => {
+  it('compileExitConfig returns null when no <Exit> in DSL', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: 'grid',
+      layoutSpacing: [2, 2],
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    expect(state.exit).toBeNull();
+  });
+
+  it('compileExitConfig applies defaults (fade=true, easing=ease)', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: 'grid',
+      layoutSpacing: [2, 2],
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [],
+      exit: {},
+    };
+    const state = compileDiagram(dsl);
+    expect(state.exit?.fade).toBe(true);
+    expect(state.exit?.easing).toBe('ease');
+  });
+
+  it('compileEnterConfig applies defaults (fade=true, easing=ease)', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: 'grid',
+      layoutSpacing: [2, 2],
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [],
+      enter: {},
+    };
+    const state = compileDiagram(dsl);
+    expect(state.enter?.fade).toBe(true);
+    expect(state.enter?.easing).toBe('ease');
+  });
+});
+
+describe('DiagramState transform fields', () => {
+  it('position defaults to [0,0,0]', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: 'grid',
+      layoutSpacing: [2, 2],
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    expect(state.position).toEqual([0, 0, 0]);
+  });
+
+  it('scale defaults to 1', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: 'grid',
+      layoutSpacing: [2, 2],
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    expect(state.scale).toBe(1);
+  });
+
+  it('position/rotation/scale from DSL are passed through unchanged', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: 'grid',
+      layoutSpacing: [2, 2],
+      position: [1, 2, 3],
+      rotation: [0.1, 0.2, 0.3],
+      scale: 2,
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    expect(state.position).toEqual([1, 2, 3]);
+    expect(state.rotation).toEqual([0.1, 0.2, 0.3]);
+    expect(state.scale).toBe(2);
   });
 });

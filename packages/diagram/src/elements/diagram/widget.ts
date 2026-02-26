@@ -75,9 +75,7 @@ export class DiagramWidget
    *
    * When the scene has no active Camera widget (camera.enabled === false or
    * camera widget is absent), this method auto-frames the Three.js camera
-   * using the compiler-pre-computed cameraTarget and cameraDistance from
-   * DiagramState. This avoids needing to re-derive the bounding box in the
-   * render layer (which would violate the render.ts contract).
+   * using diagram bounds + position + scale from DiagramState.
    */
   onTick(context: AnimationTickContext): void {
     const tick = context.tick;
@@ -101,14 +99,15 @@ export class DiagramWidget
     const cam = context.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
     if (!cam) return;
 
-    // Use compiler-pre-computed camera hints.
-    // cameraTarget = diagram bounds centre; cameraDistance = width / (2*tan(22.5°)).
-    const [tx, ty, tz] = diagramState.cameraTarget;
-    const dist = diagramState.cameraDistance;
-
-    // Slightly elevated angle: 30% of distance up, full distance back along Z.
-    cam.position.set(tx, ty + dist * 0.3, tz + dist);
-    cam.lookAt(tx, ty, tz);
+    const { bounds, position, scale } = diagramState;
+    const worldCX = (bounds.x + bounds.w / 2) * scale + position[0];
+    const worldCY = (bounds.y + bounds.h / 2) * scale + position[1];
+    const worldCZ = position[2];
+    const worldMaxDim = Math.max(bounds.w, bounds.h) * scale;
+    const fov45 = 45 * (Math.PI / 180);
+    const dist = (worldMaxDim / (2 * Math.tan(fov45 / 2))) * 1.2;
+    cam.position.set(worldCX, worldCY + dist * 0.3, worldCZ + dist);
+    cam.lookAt(worldCX, worldCY, worldCZ);
   }
 
   apply(state: DiagramState, _ctx: WidgetRenderContext): void {

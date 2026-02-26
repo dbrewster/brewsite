@@ -16,6 +16,70 @@ export type DiagramGroupVariant = 'swimlane' | 'boundary' | 'cluster';
 /** Swimlane orientation when variant is 'swimlane' */
 export type DiagramOrientation = 'horizontal' | 'vertical';
 
+/** Pivot point: which corner/center of the node layout maps to diagram local [0,0,0]. */
+export type DiagramPivot =
+  | 'center'
+  | 'top-left'
+  | 'top-right'
+  | 'bottom-left'
+  | 'bottom-right';
+
+/** Easing function for <Exit> / <Enter> transitions. */
+export type DiagramEasing = 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'spring';
+
+/**
+ * Compiled exit behaviour for a diagram. Produced from <Exit> DSL child.
+ * Applied by exitFn in functionalDiagramTransitionSpec.
+ */
+export interface DiagramExitConfig {
+  /**
+   * Target position in parent space (canvas-local or world) at t=1.
+   * If absent, diagram stays at its declared position (scale/fade only).
+   */
+  readonly to?: readonly [number, number, number];
+  /** If true, fades all node and edge opacities from their declared values to 0. Default: true */
+  readonly fade: boolean;
+  /** Target scale factor at t=1. If absent, scale does not animate. */
+  readonly scaleTo?: number;
+  readonly easing: DiagramEasing;
+}
+
+/**
+ * Compiled enter behaviour for a diagram. Produced from <Enter> DSL child.
+ * Applied by enterFn in functionalDiagramTransitionSpec.
+ */
+export interface DiagramEnterConfig {
+  /**
+   * Source position in parent space (canvas-local or world) at t=0.
+   * If absent, diagram enters from its declared position (scale/fade only).
+   */
+  readonly from?: readonly [number, number, number];
+  /** If true, fades all node and edge opacities from 0 to their declared values. Default: true */
+  readonly fade: boolean;
+  /** Source scale factor at t=0. If absent, scale does not animate. */
+  readonly scaleFrom?: number;
+  readonly easing: DiagramEasing;
+}
+
+/**
+ * Raw DSL props from <Exit> before compile.ts applies defaults.
+ * All fields are optional; compile.ts fills in defaults.
+ */
+export interface DiagramExitDSL {
+  readonly to?: readonly [number, number, number];
+  readonly fade?: boolean;
+  readonly scaleTo?: number;
+  readonly easing?: DiagramEasing;
+}
+
+/** Raw DSL props from <Enter> before compile.ts applies defaults. */
+export interface DiagramEnterDSL {
+  readonly from?: readonly [number, number, number];
+  readonly fade?: boolean;
+  readonly scaleFrom?: number;
+  readonly easing?: DiagramEasing;
+}
+
 /**
  * Fully resolved state for a single diagram node.
  * All positions are in diagram units (1 unit ≈ scene world unit before diagram scale is applied).
@@ -224,7 +288,9 @@ export interface DiagramState {
 
   /**
    * Computed bounding box of the entire diagram in diagram units.
-   * Used by the camera system to auto-frame the diagram if no explicit camera is set.
+   * Bounding box of the diagram layout in DIAGRAM-LOCAL coordinates
+   * (after pivot offset is applied). Used by DiagramWidget.onTick() for
+   * camera auto-framing and by DiagramCanvasRenderer for canvas-level bounds.
    */
   readonly bounds: {
     readonly x: number;
@@ -236,17 +302,46 @@ export interface DiagramState {
   };
 
   /**
-   * Suggested camera look-at target in world space [x, y, z].
-   * Computed as the diagram bounds center. The consuming scene may override this.
+   * World/parent-space position of the diagram group origin.
+   * In a DiagramCanvas, parent space = canvas-local space.
+   * Defaults to [0, 0, 0].
    */
-  readonly cameraTarget: readonly [number, number, number];
+  readonly position: readonly [number, number, number];
 
   /**
-   * Suggested camera distance from cameraTarget.
-   * Computed from diagram width to ensure all nodes are visible.
-   * Based on a 45° vertical FOV: distance = boundsWidth / (2 * tan(22.5°))
+   * World/parent-space Euler XYZ rotation of the diagram group in radians.
+   * Defaults to [0, 0, 0].
    */
-  readonly cameraDistance: number;
+  readonly rotation: readonly [number, number, number];
+
+  /**
+   * Uniform scale applied to the entire diagram group.
+   * All node sizes, edge thicknesses, and depths scale proportionally.
+   * Use this to convert Lucid pixel coordinates to world units
+   * (e.g., scale={0.01} for a 1000px Lucid diagram → 10 world units wide).
+   * Defaults to 1.
+   */
+  readonly scale: number;
+
+  /**
+   * Which point of the node layout bounding box maps to local [0,0,0].
+   * Pivot offset is applied at compile time — all node/edge/group positions in the
+   * compiled state are already offset so the chosen pivot is at [0,0,0].
+   * Defaults to 'center'.
+   */
+  readonly pivot: DiagramPivot;
+
+  /**
+   * Compiled exit behaviour. null = default fade (no position/scale animation).
+   * Applied by exitFn in functionalDiagramTransitionSpec.
+   */
+  readonly exit: DiagramExitConfig | null;
+
+  /**
+   * Compiled enter behaviour. null = default fade.
+   * Applied by enterFn in functionalDiagramTransitionSpec.
+   */
+  readonly enter: DiagramEnterConfig | null;
 }
 
 // ─── DSL input types (used by dsl.tsx and consumed by compile.ts) ────────────
@@ -267,6 +362,12 @@ export interface DiagramNodeDSL {
   readonly label?: string;
   readonly sublabel?: string;
   readonly shape?: DiagramShapeVariant;
+  /**
+   * Diagram-LOCAL position [x, y, z] of the node center.
+   * z=0 puts the node on the diagram's base plane; non-zero z creates depth layering.
+   * Lucid imports: x/y are Lucid pixel coordinates (origin per the diagram's pivot setting).
+   * If omitted, auto-layout assigns a position based on declaration order.
+   */
   readonly position?: readonly [number, number, number];
   readonly size?: readonly [number, number];
   readonly depth?: number;
@@ -330,6 +431,27 @@ export interface DiagramDSL {
   readonly nodes: ReadonlyArray<DiagramNodeDSL>;
   readonly edges: ReadonlyArray<DiagramEdgeDSL>;
   readonly groups: ReadonlyArray<DiagramGroupDSL>;
+  /**
+   * World/parent-space position of the diagram group origin. Default: [0, 0, 0].
+   * In a DiagramCanvas, this is canvas-local space.
+   */
+  readonly position?: readonly [number, number, number];
+  /** World/parent-space Euler XYZ rotation in radians. Default: [0, 0, 0]. */
+  readonly rotation?: readonly [number, number, number];
+  /**
+   * Uniform scale factor. Default: 1.
+   * Lucid authors: set scale to (desired world units / Lucid diagram pixel width).
+   */
+  readonly scale?: number;
+  /**
+   * Pivot point. Default: 'center'.
+   * 'top-left' is convenient for Lucid imports (no coordinate offsetting needed).
+   */
+  readonly pivot?: DiagramPivot;
+  /** Raw exit config from <Exit> child. Absent = default fade. */
+  readonly exit?: DiagramExitDSL;
+  /** Raw enter config from <Enter> child. Absent = default fade. */
+  readonly enter?: DiagramEnterDSL;
 }
 
 // ─── Interaction ─────────────────────────────────────────────────────────────

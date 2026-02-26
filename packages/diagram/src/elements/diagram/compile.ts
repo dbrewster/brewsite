@@ -10,11 +10,36 @@ import type {
   DiagramEdgeState,
   DiagramGroupDSL,
   DiagramGroupState,
+  DiagramPivot,
+  DiagramEasing,
+  DiagramExitDSL,
+  DiagramEnterDSL,
+  DiagramExitConfig,
+  DiagramEnterConfig,
 } from './types';
 import { resolveIconUrl } from './shapes/iconRegistry';
 import { deriveColor } from './math/colorUtils';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
 import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
+
+/**
+ * Maps a linear t ∈ [0,1] through the given easing curve.
+ * Used by exitFn / enterFn to apply per-diagram transition curves.
+ */
+function applyEasing(t: number, easing: DiagramEasing): number {
+  switch (easing) {
+    case 'linear': return t;
+    case 'ease': return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+    case 'ease-in': return t * t;
+    case 'ease-out': return t * (2 - t);
+    case 'spring': {
+      // Damped spring: overshoots then settles. k=10, omega=20.
+      const s = 1 - Math.pow(2, -10 * t) * Math.cos(20 * t * (Math.PI / 3));
+      return Math.max(0, Math.min(1, s));
+    }
+    default: return t;
+  }
+}
 
 // ─── Defaults ────────────────────────────────────────────────────────────────
 
@@ -247,6 +272,31 @@ export function computeBounds(
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY, minZ, maxZ };
 }
 
+/**
+ * Computes the translation to apply to ALL node positions so that the declared
+ * pivot point of the diagram maps to local [0, 0, 0].
+ * bounds is the raw bounding box BEFORE the offset is applied.
+ *
+ * In Three.js / BrewSite diagram space, Y increases upward:
+ *   bounds.y        = bottom edge (most negative Y)
+ *   bounds.y + h    = top edge (most positive Y)
+ *   bounds.x        = left edge
+ *   bounds.x + w    = right edge
+ */
+function compilePivotOffset(
+  bounds: { x: number; y: number; w: number; h: number },
+  pivot: DiagramPivot,
+): readonly [number, number, number] {
+  switch (pivot) {
+    case 'center': return [-(bounds.x + bounds.w / 2), -(bounds.y + bounds.h / 2), 0];
+    case 'top-left': return [-bounds.x, -(bounds.y + bounds.h), 0];
+    case 'top-right': return [-(bounds.x + bounds.w), -(bounds.y + bounds.h), 0];
+    case 'bottom-left': return [-bounds.x, -bounds.y, 0];
+    case 'bottom-right': return [-(bounds.x + bounds.w), -bounds.y, 0];
+    default: return [0, 0, 0];
+  }
+}
+
 // ─── Edge Routing ─────────────────────────────────────────────────────────────
 
 type Vec3 = readonly [number, number, number];
@@ -455,6 +505,26 @@ export function compileGroup(
   };
 }
 
+function compileExitConfig(dsl: DiagramExitDSL | undefined): DiagramExitConfig | null {
+  if (!dsl) return null;
+  return {
+    to: dsl.to,
+    fade: dsl.fade ?? true,
+    scaleTo: dsl.scaleTo,
+    easing: dsl.easing ?? 'ease',
+  };
+}
+
+function compileEnterConfig(dsl: DiagramEnterDSL | undefined): DiagramEnterConfig | null {
+  if (!dsl) return null;
+  return {
+    from: dsl.from,
+    fade: dsl.fade ?? true,
+    scaleFrom: dsl.scaleFrom,
+    easing: dsl.easing ?? 'ease',
+  };
+}
+
 // ─── Top-Level Compilation ────────────────────────────────────────────────────
 
 /**
@@ -489,6 +559,23 @@ export function compileDiagram(dsl: DiagramDSL): DiagramState {
     sizeWithDepthMap.set(node.id, [size[0], size[1], depth]);
   });
 
+  // ── NEW: Pivot offset ───────────────────────────────────────────────────
+  // Compute raw bounds from the layout-assigned positions, then derive the
+  // pivot offset and apply it to every position in the map.
+  const pivot: DiagramPivot = dsl.pivot ?? 'center';
+  const rawBounds = computeBounds(
+    dsl.nodes.map((n) => n.id),
+    positions,
+    sizeMap,
+  );
+  const [ox, oy, oz] = compilePivotOffset(rawBounds, pivot);
+  if (ox !== 0 || oy !== 0 || oz !== 0) {
+    for (const [id, pos] of positions) {
+      positions.set(id, [pos[0] + ox, pos[1] + oy, pos[2] + oz]);
+    }
+  }
+  // ── END pivot offset ────────────────────────────────────────────────────
+
   const controlPointsMap = routeEdges(dsl.edges, positions, sizeWithDepthMap);
 
   const nodes = dsl.nodes
@@ -513,30 +600,112 @@ export function compileDiagram(dsl: DiagramDSL): DiagramState {
     sizeMap,
   );
 
-  const cameraTarget: [number, number, number] = [
-    bounds.x + bounds.w / 2,
-    bounds.y + bounds.h / 2,
-    (bounds.minZ + bounds.maxZ) / 2,
-  ];
-
-  // Use the larger of width or height to ensure the entire diagram fits
-  // regardless of viewport orientation, then apply a 1.2× padding multiplier
-  // so nodes near the edge have breathing room.
-  const fov = 45 * (Math.PI / 180);
-  const cameraDistance = (Math.max(bounds.w, bounds.h) / (2 * Math.tan(fov / 2))) * 1.2;
-
   return {
     id: dsl.id,
     nodes,
     edges,
     groups,
     bounds,
-    cameraTarget,
-    cameraDistance,
+    position: dsl.position ?? [0, 0, 0],
+    rotation: dsl.rotation ?? [0, 0, 0],
+    scale: dsl.scale ?? 1,
+    pivot,
+    exit: compileExitConfig(dsl.exit),
+    enter: compileEnterConfig(dsl.enter),
   };
 }
 
 // ─── Functional Transition Spec ───────────────────────────────────────────────
+
+const lerpNum = (a: number, b: number, t: number): number => a + (b - a) * t;
+
+const lerpVec3 = (
+  a: readonly [number, number, number],
+  b: readonly [number, number, number],
+  t: number,
+): readonly [number, number, number] => [
+  lerpNum(a[0], b[0], t),
+  lerpNum(a[1], b[1], t),
+  lerpNum(a[2], b[2], t),
+];
+
+const fadeNodesOut = (
+  nodes: ReadonlyArray<DiagramNodeState>,
+  t: number,
+): ReadonlyArray<DiagramNodeState> =>
+  nodes.map((n) => ({ ...n, opacity: blendOpacity(n.opacity, 0, t) ?? 0 }));
+
+const fadeNodesIn = (
+  nodes: ReadonlyArray<DiagramNodeState>,
+  t: number,
+): ReadonlyArray<DiagramNodeState> =>
+  nodes.map((n) => ({ ...n, opacity: blendOpacity(0, n.opacity, t) ?? n.opacity }));
+
+const fadeEdgesOut = (
+  edges: ReadonlyArray<DiagramEdgeState>,
+  t: number,
+): ReadonlyArray<DiagramEdgeState> =>
+  edges.map((e) => ({ ...e, opacity: blendOpacity(e.opacity, 0, t) ?? 0 }));
+
+const fadeEdgesIn = (
+  edges: ReadonlyArray<DiagramEdgeState>,
+  t: number,
+): ReadonlyArray<DiagramEdgeState> =>
+  edges.map((e) => ({ ...e, opacity: blendOpacity(0, e.opacity, t) ?? e.opacity }));
+
+/**
+ * Applies the diagram's exit config to produce the state at exit progress t.
+ * t=0: diagram at declared state; t=1: diagram at exit target (hidden/moved).
+ */
+export function applyDiagramExit(diagram: DiagramState, t: number): DiagramState {
+  const config = diagram.exit;
+  if (!config) {
+    return {
+      ...diagram,
+      nodes: fadeNodesOut(diagram.nodes, t),
+      edges: fadeEdgesOut(diagram.edges, t),
+    };
+  }
+  const et = applyEasing(t, config.easing);
+  let position = diagram.position;
+  if (config.to) {
+    position = lerpVec3(diagram.position, config.to, et);
+  }
+  let scale = diagram.scale;
+  if (config.scaleTo !== undefined) {
+    scale = lerpNum(diagram.scale, config.scaleTo, et);
+  }
+  const nodes = config.fade ? fadeNodesOut(diagram.nodes, et) : diagram.nodes;
+  const edges = config.fade ? fadeEdgesOut(diagram.edges, et) : diagram.edges;
+  return { ...diagram, position, scale, nodes, edges };
+}
+
+/**
+ * Applies the diagram's enter config to produce the state at enter progress t.
+ * t=0: diagram at enter source (hidden/offscreen); t=1: diagram at declared state.
+ */
+export function applyDiagramEnter(diagram: DiagramState, t: number): DiagramState {
+  const config = diagram.enter;
+  if (!config) {
+    return {
+      ...diagram,
+      nodes: fadeNodesIn(diagram.nodes, t),
+      edges: fadeEdgesIn(diagram.edges, t),
+    };
+  }
+  const et = applyEasing(t, config.easing);
+  let position = diagram.position;
+  if (config.from) {
+    position = lerpVec3(config.from, diagram.position, et);
+  }
+  let scale = diagram.scale;
+  if (config.scaleFrom !== undefined) {
+    scale = lerpNum(config.scaleFrom, diagram.scale, et);
+  }
+  const nodes = config.fade ? fadeNodesIn(diagram.nodes, et) : diagram.nodes;
+  const edges = config.fade ? fadeEdgesIn(diagram.edges, et) : diagram.edges;
+  return { ...diagram, position, scale, nodes, edges };
+}
 
 /**
  * Functional transition spec for DiagramState.
@@ -544,28 +713,8 @@ export function compileDiagram(dsl: DiagramDSL): DiagramState {
  * tick.blockProgress for infinite easing fidelity with no oversampling overhead.
  */
 export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramState> = {
-  exitFn: (from) => (t) => ({
-    ...from,
-    nodes: from.nodes.map((node) => ({
-      ...node,
-      opacity: blendOpacity(node.opacity, 0, t) ?? 0,
-    })),
-    edges: from.edges.map((edge) => ({
-      ...edge,
-      opacity: blendOpacity(edge.opacity, 0, t) ?? 0,
-    })),
-  }),
-  enterFn: (to) => (t) => ({
-    ...to,
-    nodes: to.nodes.map((node) => ({
-      ...node,
-      opacity: blendOpacity(0, node.opacity, t) ?? node.opacity,
-    })),
-    edges: to.edges.map((edge) => ({
-      ...edge,
-      opacity: blendOpacity(0, edge.opacity, t) ?? edge.opacity,
-    })),
-  }),
+  exitFn: (from) => (t) => applyDiagramExit(from, t),
+  enterFn: (to) => (t) => applyDiagramEnter(to, t),
   interpolateFn: (from, to) => (t) => {
     const fromNodeMap = new Map(from.nodes.map((node) => [node.id, node]));
     const fromEdgeMap = new Map(from.edges.map((edge) => [edge.id, edge]));
@@ -621,8 +770,9 @@ export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramSt
 
     return {
       ...to,
-      cameraTarget: blendVec3(toMutableVec3(from.cameraTarget), toMutableVec3(to.cameraTarget), t) ?? to.cameraTarget,
-      cameraDistance: blendNumber(from.cameraDistance, to.cameraDistance, t) ?? to.cameraDistance,
+      position: blendVec3(toMutableVec3(from.position), toMutableVec3(to.position), t) ?? to.position,
+      rotation: blendVec3(toMutableVec3(from.rotation), toMutableVec3(to.rotation), t) ?? to.rotation,
+      scale: blendNumber(from.scale, to.scale, t) ?? to.scale,
       nodes: [...blendedNodes, ...fadingNodes],
       edges: [...blendedEdges, ...fadingEdges],
     };

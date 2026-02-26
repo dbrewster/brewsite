@@ -4,6 +4,9 @@ import type { ReactElement } from 'react';
 import { registerNode } from '@brewsite/core';
 import type { CompileApi, CompileHelpers } from '@brewsite/core';
 import { compileDiagram } from '../elements/diagram/compile';
+import { DiagramCanvas, DiagramPipe } from '../elements/diagram/canvas/dsl';
+import { compileCanvas } from '../elements/diagram/canvas/compile';
+import type { DiagramCanvasDSL, DiagramPipeDSL } from '../elements/diagram/canvas/types';
 import { compileImagePanel } from '../elements/image-panel/compile';
 import { compileScreen } from '../elements/screen/compile';
 import type {
@@ -11,10 +14,14 @@ import type {
   DiagramNodeDSL,
   DiagramEdgeDSL,
   DiagramGroupDSL,
+  DiagramExitDSL,
+  DiagramEnterDSL,
+  DiagramPivot,
+  DiagramState,
 } from '../elements/diagram/types';
 import type { ImagePanelDSL } from '../elements/image-panel/types';
 import type { ScreenDSL } from '../elements/screen/types';
-import { Diagram, DiagramNode, DiagramEdge, DiagramGroup } from '../elements/diagram/dsl';
+import { Diagram, DiagramNode, DiagramEdge, DiagramGroup, Exit, Enter } from '../elements/diagram/dsl';
 import { ImagePanel } from '../elements/image-panel/dsl';
 import { Screen } from '../elements/screen/dsl';
 
@@ -24,6 +31,8 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
   const edges: DiagramEdgeDSL[] = [];
   const groups: DiagramGroupDSL[] = [];
   const groupedNodeIds = new Set<string>();
+  let exitDSL: DiagramExitDSL | undefined;
+  let enterDSL: DiagramEnterDSL | undefined;
 
   const allChildren = helpers.collectChildren(node);
 
@@ -31,6 +40,11 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
     if (!child || typeof child !== 'object' || !('type' in (child as object))) continue;
     const el = child as ReactElement;
     const elProps = el.props as Record<string, unknown>;
+    if (el.type === Exit) {
+      exitDSL = el.props as DiagramExitDSL;
+    } else if (el.type === Enter) {
+      enterDSL = el.props as DiagramEnterDSL;
+    }
     if (el.type !== DiagramGroup) continue;
 
     const groupChildren = helpers.collectChildren(el);
@@ -80,6 +94,12 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
     nodes,
     edges,
     groups,
+    position: props.position as readonly [number, number, number] | undefined,
+    rotation: props.rotation as readonly [number, number, number] | undefined,
+    scale: props.scale as number | undefined,
+    pivot: (props.pivot ?? 'center') as DiagramPivot,
+    exit: exitDSL,
+    enter: enterDSL,
   };
 };
 
@@ -88,12 +108,47 @@ export const registerDiagramHandlers = (): void => {
   registerNode(DiagramNode, () => {});
   registerNode(DiagramEdge, () => {});
   registerNode(DiagramGroup, () => {});
+  registerNode(Exit, () => {});
+  registerNode(Enter, () => {});
+  registerNode(DiagramPipe, () => {});
 
   registerNode(Diagram, (node: ReactElement, api: CompileApi, helpers: CompileHelpers) => {
     const dsl = extractDiagramDSL(node, helpers);
     const state = compileDiagram(dsl);
     const widgetId = String((node.props as { id?: string }).id ?? dsl.id);
     api.setWidgetState(widgetId, state);
+  });
+
+  registerNode(DiagramCanvas, (node: ReactElement, api: CompileApi, helpers: CompileHelpers) => {
+    const props = node.props as Record<string, unknown>;
+    const allChildren = helpers.collectChildren(node);
+
+    const diagramStates: DiagramState[] = [];
+    for (const child of allChildren) {
+      if (!child || typeof child !== 'object' || !('type' in (child as object))) continue;
+      const el = child as ReactElement;
+      if (el.type !== Diagram) continue;
+      const dsl = extractDiagramDSL(el, helpers);
+      diagramStates.push(compileDiagram(dsl));
+    }
+
+    const pipeDSLs: DiagramPipeDSL[] = [];
+    for (const child of allChildren) {
+      if (!child || typeof child !== 'object' || !('type' in (child as object))) continue;
+      const el = child as ReactElement;
+      if (el.type !== DiagramPipe) continue;
+      pipeDSLs.push(el.props as DiagramPipeDSL);
+    }
+
+    const canvasDSL: DiagramCanvasDSL = {
+      id: String(props.id),
+      position: props.position as readonly [number, number, number] | undefined,
+      rotation: props.rotation as readonly [number, number, number] | undefined,
+      scale: props.scale as number | undefined,
+    };
+
+    const canvasState = compileCanvas(canvasDSL, diagramStates, pipeDSLs);
+    api.setWidgetState(String(props.id), canvasState);
   });
 
   registerNode(ImagePanel, (node: ReactElement, api: CompileApi, _helpers: CompileHelpers) => {

@@ -1,9 +1,10 @@
 import { createDefaultWidgetRegistry } from '@brewsite/core';
 import type { AssetManifest } from '@brewsite/core';
 import {
-  DiagramWidget,
+  DiagramCanvasWidget,
   ImagePanelWidget,
   ScreenWidget,
+  compileCanvas,
   compileDiagram,
   compileImagePanel,
   compileScreen,
@@ -15,35 +16,36 @@ export const createWidgetSetup = (manifest: AssetManifest | null) => {
 
   const registry = createDefaultWidgetRegistry(manifest);
 
-  const diagramDefault = compileDiagram({
-    id: 'system-arch',
-    layout: 'manual',
-    layoutSpacing: [2, 2],
-    nodes: [
-      { id: 'browser', label: 'Web Browser', position: [-6, 6, 0], shape: 'flow:actor' },
-      { id: 'mobile', label: 'Mobile App', position: [6, 6, 0], shape: 'net:mobile' },
-      { id: 'cdn', label: 'CloudFront CDN', position: [0, 2, 0], shape: 'aws:cloudfront' },
-      { id: 'alb', label: 'Load Balancer', position: [0, -1, 0], shape: 'aws:alb' },
-      { id: 'api', label: 'API Gateway', position: [0, -4, 0], shape: 'aws:api-gateway' },
-      { id: 'ecs', label: 'ECS Cluster', position: [-5, -8, 0], shape: 'aws:ecs' },
-      { id: 'lambda', label: 'Lambda', position: [5, -8, 0], shape: 'aws:lambda' },
-      { id: 'rds', label: 'RDS PostgreSQL', position: [-5, -13, 0], shape: 'aws:rds' },
-      { id: 'cache', label: 'ElastiCache', position: [0, -13, 0], shape: 'aws:elasticache' },
-      { id: 's3', label: 'S3 Assets', position: [5, -13, 0], shape: 'aws:s3' },
+  const canvasDefault = compileCanvas(
+    { id: 'system-canvas' },
+    [
+      compileDiagram({
+        id: 'system-arch',
+        layout: 'manual',
+        layoutSpacing: [2, 2],
+        pivot: 'center',
+        nodes: [
+          { id: 'browser', label: 'Web Browser', position: [-6, 6, 0], shape: 'flow:actor' },
+          { id: 'cdn', label: 'CloudFront CDN', position: [0, 2, 0], shape: 'aws:cloudfront' },
+          { id: 'alb', label: 'Load Balancer', position: [0, -1, 0], shape: 'aws:alb' },
+          { id: 'api', label: 'API Gateway', position: [0, -4, 0], shape: 'aws:api-gateway' },
+          { id: 'ecs', label: 'ECS Cluster', position: [-5, -8, 0], shape: 'aws:ecs' },
+          { id: 'lambda', label: 'Lambda', position: [5, -8, 0], shape: 'aws:lambda' },
+          { id: 'rds', label: 'RDS PostgreSQL', position: [-5, -13, 0], shape: 'aws:rds' },
+          { id: 'cache', label: 'ElastiCache', position: [0, -13, 0], shape: 'aws:elasticache' },
+          { id: 's3', label: 'S3 Assets', position: [5, -13, 0], shape: 'aws:s3' },
+        ],
+        edges: [
+          { from: 'browser', to: 'cdn' }, { from: 'cdn', to: 'alb' },
+          { from: 'alb', to: 'api' }, { from: 'api', to: 'ecs' },
+          { from: 'api', to: 'lambda' }, { from: 'ecs', to: 'rds' },
+          { from: 'ecs', to: 'cache' }, { from: 'ecs', to: 's3' },
+        ],
+        groups: [],
+      }),
     ],
-    edges: [
-      { from: 'browser', to: 'cdn' },
-      { from: 'mobile', to: 'cdn' },
-      { from: 'cdn', to: 'alb' },
-      { from: 'alb', to: 'api' },
-      { from: 'api', to: 'ecs' },
-      { from: 'api', to: 'lambda' },
-      { from: 'ecs', to: 'rds' },
-      { from: 'ecs', to: 'cache' },
-      { from: 'ecs', to: 's3' },
-    ],
-    groups: [],
-  });
+    [],
+  );
 
   const panelDefault = compileImagePanel({
     id: 'api-docs-screenshot',
@@ -73,7 +75,7 @@ export const createWidgetSetup = (manifest: AssetManifest | null) => {
   });
 
   registry
-    .register(new DiagramWidget('system-arch', diagramDefault))
+    .register(new DiagramCanvasWidget('system-canvas', canvasDefault))
     .register(new ImagePanelWidget('api-docs-screenshot', panelDefault))
     .register(new ScreenWidget('api-explorer-live', screenDefault));
 

@@ -213,15 +213,18 @@ export class DiagramRenderer {
     return `${diagramId}::group::${groupId}`;
   }
 
-  update(state: DiagramState, scene: THREE.Scene): void {
+  update(state: DiagramState, parent: THREE.Object3D): void {
     const prev = this.lastState.get(state.id);
     if (!this.diagramGroups.has(state.id)) {
       const root = new THREE.Group();
       root.name = `diagram:${state.id}`;
       this.diagramGroups.set(state.id, root);
-      scene.add(root);
+      parent.add(root);
     }
     const root = this.diagramGroups.get(state.id)!;
+    root.position.set(state.position[0], state.position[1], state.position[2]);
+    root.rotation.set(state.rotation[0], state.rotation[1], state.rotation[2]);
+    root.scale.setScalar(state.scale);
 
     const nodesById = new Map(state.nodes.map((node) => [node.id, node]));
     const edgesById = new Map(state.edges.map((edge) => [edge.id, edge]));
@@ -300,10 +303,10 @@ export class DiagramRenderer {
     }
   }
 
-  dispose(diagramId: string, scene: THREE.Scene): void {
+  dispose(diagramId: string, parent: THREE.Object3D): void {
     const group = this.diagramGroups.get(diagramId);
     if (group) {
-      scene.remove(group);
+      parent.remove(group);
       this.diagramGroups.delete(diagramId);
     }
     for (const [id, entry] of this.nodeEntries) {
