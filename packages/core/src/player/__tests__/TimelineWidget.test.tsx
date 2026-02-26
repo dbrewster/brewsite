@@ -1,5 +1,6 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+// @vitest-environment jsdom
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
+import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import type { UseSceneEngineResult } from '../useSceneEngine';
 import { TimelineWidget } from '../TimelineWidget';
 
@@ -23,6 +24,19 @@ const makeEngineDouble = (overrides?: Partial<UseSceneEngineResult>): UseSceneEn
   setBackgroundRef: () => {},
   setViewportSize: () => {},
   debug: { driverReady: true, assetsReady: true, sceneTrackTicks: 5, viewport: { width: 100, height: 100 } },
+});
+
+afterEach(() => {
+  cleanup();
+});
+
+beforeAll(() => {
+  if (!Element.prototype.setPointerCapture) {
+    Element.prototype.setPointerCapture = () => {};
+  }
+  if (!Element.prototype.releasePointerCapture) {
+    Element.prototype.releasePointerCapture = () => {};
+  }
 });
 
 describe('TimelineWidget', () => {

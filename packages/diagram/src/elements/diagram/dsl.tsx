@@ -9,6 +9,7 @@ import type {
   DiagramOrientation,
   DiagramPivot,
   DiagramEasing,
+  SvgIcon3DStyle,
 } from './types';
 
 // ─── <DiagramNode> ────────────────────────────────────────────────────────────
@@ -62,6 +63,17 @@ export interface DiagramNodeProps {
   enabled?: boolean;
   /** Icon scale relative to node face [0–1]. Default: 0.6 */
   iconScale?: number;
+  /**
+   * 3D rendering style for the icon on this node's front face.
+   * Default: 'flat' — unchanged from current behaviour.
+   * 'layered' is the most visually impactful for AWS/GCP cloud icons.
+   */
+  iconStyle?: SvgIcon3DStyle;
+  /**
+   * Max Z extrusion depth for 3D icon geometry in diagram units.
+   * Default: 0.15. Sensible range: 0.05–0.25.
+   */
+  iconDepth?: number;
 }
 
 /**

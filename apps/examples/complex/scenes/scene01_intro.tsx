@@ -11,7 +11,6 @@ export const scene01Intro: SceneDefinition = {
   getFrame: () => (
     <Scene id="complex-intro">
       <Camera
-        enabled
         mode="fitFloorDepth"
         fov={60}
         floorY={0}

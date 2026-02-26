@@ -4,8 +4,9 @@
 import * as THREE from 'three';
 import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
 import { Text } from 'troika-three-text';
-import type { DiagramEdgeState, DiagramGroupState, DiagramNodeState, DiagramState } from './types';
+import type { DiagramEdgeState, DiagramGroupState, DiagramNodeState, DiagramState, SvgIcon3DStyle } from './types';
 import { createShapeGeometry } from './shapes/geometryFactory';
+import { buildSvgIcon3D } from './shapes/svgIcon3D';
 
 export const diagramInteractionRegistry = new Set<THREE.Mesh>();
 export const diagramInteractionLookup = new Map<THREE.Mesh, { diagramId: string; nodeId: string }>();
@@ -98,64 +99,108 @@ const getDotTexture = (): THREE.CanvasTexture => {
 
 const iconCache = new Map<string, Promise<THREE.Object3D>>();
 
-const loadIconObject = (url: string, width: number, height: number): Promise<THREE.Object3D> => {
-  const cacheKey = `${url}|${width}|${height}`;
+const loadIconObject = (
+  url: string,
+  width: number,
+  height: number,
+  style: SvgIcon3DStyle,
+  maxDepth: number,
+  metalness: number,
+  roughness: number,
+): Promise<THREE.Object3D> => {
+  const cacheKey = `${url}|${width}|${height}|${style}|${maxDepth}`;
   if (iconCache.has(cacheKey)) return iconCache.get(cacheKey)!;
 
   const promise = new Promise<THREE.Object3D>((resolve) => {
     if (url.toLowerCase().endsWith('.svg')) {
-      svgLoader.load(url, (data) => {
-        const group = new THREE.Group();
-        const paths = data.paths ?? [];
-        paths.forEach((path) => {
-          // Use the path's own fill color when available so icons render with
-          // their intended palette. Paths with fill:'none' are skipped.
-          const style = (path.userData as { style?: { fill?: string } } | undefined)?.style;
-          const fillColor = style?.fill;
-          if (fillColor === 'none') return; // stroke-only paths: skip
-          const color = fillColor && fillColor !== '' ? new THREE.Color(fillColor) : new THREE.Color(0xffffff);
+      if (style !== 'flat') {
+        // ── 3D extruded path ──────────────────────────────────────────────────
+        svgLoader.load(
+          url,
+          (data) => {
+            resolve(buildSvgIcon3D(data, { width, height, maxDepth, style, metalness, roughness }));
+          },
+          undefined,
+          (err) => {
+            console.warn(`[DiagramRenderer] Failed to load 3D SVG icon: ${url}`, err);
+            resolve(new THREE.Group());
+          },
+        );
+      } else {
+        // ── Flat path (existing behaviour, unchanged) ─────────────────────────
+        svgLoader.load(
+          url,
+          (data) => {
+            const group = new THREE.Group();
+            const paths = data.paths ?? [];
+            paths.forEach((path) => {
+              // Use the path's own fill color when available so icons render with
+              // their intended palette. Paths with fill:'none' are skipped.
+              const s = (path.userData as { style?: { fill?: string } } | undefined)?.style;
+              const fillColor = s?.fill;
+              if (fillColor === 'none') return; // stroke-only paths: skip
+              const color =
+                fillColor && fillColor !== ''
+                  ? new THREE.Color(fillColor)
+                  : new THREE.Color(0xffffff);
+              const material = new THREE.MeshBasicMaterial({
+                color,
+                transparent: true,
+                depthWrite: false,
+                side: THREE.DoubleSide,
+              });
+              const shapes = SVGLoader.createShapes(path);
+              shapes.forEach((shape) => {
+                const geometry = new THREE.ShapeGeometry(shape);
+                const mesh = new THREE.Mesh(geometry, material);
+                group.add(mesh);
+              });
+            });
+            // SVG coordinate system is Y-down; Three.js is Y-up.
+            // Apply a Y-flip so icons are right-side-up when placed on a box face.
+            group.scale.set(1, -1, 1);
+            const box = new THREE.Box3().setFromObject(group);
+            const size = new THREE.Vector3();
+            box.getSize(size);
+            const scale = Math.min(
+              width / Math.max(0.001, size.x),
+              height / Math.max(0.001, size.y),
+            );
+            // Apply scale while preserving the Y-flip.
+            group.scale.set(scale, -scale, 1);
+            box.setFromObject(group);
+            const center = new THREE.Vector3();
+            box.getCenter(center);
+            group.position.set(-center.x, -center.y, 0);
+            resolve(group);
+          },
+          undefined,
+          (err) => {
+            console.warn(`[DiagramRenderer] Failed to load SVG icon: ${url}`, err);
+            resolve(new THREE.Group());
+          },
+        );
+      }
+    } else {
+      // ── Texture (raster) path (unchanged) ──────────────────────────────────
+      textureLoader.load(
+        url,
+        (texture) => {
+          const geometry = new THREE.PlaneGeometry(width, height);
           const material = new THREE.MeshBasicMaterial({
-            color,
+            map: texture,
             transparent: true,
             depthWrite: false,
-            side: THREE.DoubleSide,
           });
-          const shapes = SVGLoader.createShapes(path);
-          shapes.forEach((shape) => {
-            const geometry = new THREE.ShapeGeometry(shape);
-            const mesh = new THREE.Mesh(geometry, material);
-            group.add(mesh);
-          });
-        });
-        // SVG coordinate system is Y-down; Three.js is Y-up.
-        // Apply a Y-flip so icons are right-side-up when placed on a box face.
-        group.scale.set(1, -1, 1);
-        const box = new THREE.Box3().setFromObject(group);
-        const size = new THREE.Vector3();
-        box.getSize(size);
-        const scale = Math.min(
-          width / Math.max(0.001, size.x),
-          height / Math.max(0.001, size.y),
-        );
-        // Apply scale while preserving the Y-flip.
-        group.scale.set(scale, -scale, 1);
-        box.setFromObject(group);
-        const center = new THREE.Vector3();
-        box.getCenter(center);
-        group.position.set(-center.x, -center.y, 0);
-        resolve(group);
-      });
-    } else {
-      textureLoader.load(url, (texture) => {
-        const geometry = new THREE.PlaneGeometry(width, height);
-        const material = new THREE.MeshBasicMaterial({
-          map: texture,
-          transparent: true,
-          depthWrite: false,
-        });
-        const mesh = new THREE.Mesh(geometry, material);
-        resolve(mesh);
-      });
+          const mesh = new THREE.Mesh(geometry, material);
+          resolve(mesh);
+        },
+        undefined,
+        (err) => {
+          console.warn(`[DiagramRenderer] Failed to load texture icon: ${url}`, err);
+          resolve(new THREE.Mesh());
+        },
+      );
     }
   });
 
@@ -461,6 +506,32 @@ export class DiagramRenderer {
       mats.forEach((m) => { m.opacity = op; m.transparent = true; });
     }
 
+    // Propagate opacity to 3D icon materials (MeshStandardMaterial, depthWrite:true).
+    // Flat icons use MeshBasicMaterial with depthWrite:false — opacity is already
+    // handled implicitly. 3D icons need an explicit traverse when opacity changes.
+    if (
+      entry.iconHolder &&
+      state.iconStyle !== 'flat' &&
+      prev &&
+      prev.opacity !== state.opacity
+    ) {
+      const op = state.opacity;
+      entry.iconHolder.traverse((child) => {
+        if (child instanceof THREE.Mesh) {
+          const mat = child.material;
+          if (Array.isArray(mat)) {
+            (mat as THREE.MeshStandardMaterial[]).forEach((m) => {
+              m.opacity = op;
+              m.transparent = true;
+            });
+          } else if (mat instanceof THREE.MeshStandardMaterial) {
+            (mat as THREE.MeshStandardMaterial).opacity = op;
+            (mat as THREE.MeshStandardMaterial).transparent = true;
+          }
+        }
+      });
+    }
+
     const borderMaterial = entry.border.material as THREE.LineBasicMaterial;
     if (!prev || prev.borderColor !== state.borderColor) {
       borderMaterial.color.set(state.borderColor);
@@ -499,17 +570,33 @@ export class DiagramRenderer {
     }
 
     if (state.iconUrl) {
-      if (!entry.iconHolder || entry.iconHolder.userData['iconUrl'] !== state.iconUrl) {
+      const needsIconRebuild =
+        !entry.iconHolder ||
+        entry.iconHolder.userData['iconUrl'] !== state.iconUrl ||
+        entry.iconHolder.userData['iconStyle'] !== state.iconStyle ||
+        entry.iconHolder.userData['iconDepth'] !== state.iconDepth;
+
+      if (needsIconRebuild) {
         if (entry.iconHolder) {
           entry.group.remove(entry.iconHolder);
         }
         const holder = new THREE.Group();
         holder.userData['iconUrl'] = state.iconUrl;
+        holder.userData['iconStyle'] = state.iconStyle;
+        holder.userData['iconDepth'] = state.iconDepth;
         entry.iconHolder = holder;
         entry.group.add(holder);
         const iconWidth = state.size[0] * state.iconScale;
         const iconHeight = state.size[1] * state.iconScale;
-        loadIconObject(state.iconUrl, iconWidth, iconHeight).then((obj) => {
+        loadIconObject(
+          state.iconUrl,
+          iconWidth,
+          iconHeight,
+          state.iconStyle,
+          state.iconDepth,
+          state.metalness,
+          state.roughness,
+        ).then((obj) => {
           holder.clear();
           holder.add(obj);
         });

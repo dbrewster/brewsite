@@ -10,7 +10,6 @@ export const scene04Scan: SceneDefinition = {
   getFrame: () => (
     <Scene id="complex-scan">
       <Camera
-        enabled
         mode="fitFloorDepth"
         fov={60}
         floorY={0}

@@ -101,6 +101,7 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
     // Keyboard events attach to the scrollRegionRef element (which has tabIndex=-1).
     // See EngineInputRegion for why tabIndex is needed.
     const attachTarget = canvasRef?.current ?? window;
+    const keyboardTarget = scrollRegionRef.current ?? undefined;
 
     const handler = {
       onScroll: (delta: number) => {
@@ -117,12 +118,12 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
       getSceneCount: () => sceneCount,
     };
 
-    const ctrl = new InputController(attachTarget, inputMap, handler);
+    const ctrl = new InputController(attachTarget, inputMap, handler, keyboardTarget ?? undefined);
     ctrl.attach();
     return () => ctrl.detach();
   }, [
     // Stable references only — no object literals that change every render
-    inputMap, mode, sceneCount, canvasRef,
+    inputMap, mode, sceneCount, canvasRef, scrollRegionRef,
     scrollToProgressStable, getGlobalProgressStable,
     setDirectProgressBoth, getDirectProgress, wheelGuard,
   ]);

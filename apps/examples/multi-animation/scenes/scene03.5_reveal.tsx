@@ -10,7 +10,6 @@ export const scene03_05Reveal: SceneDefinition = {
   getFrame: () => (
     <Scene id="complex-reveal">
       <Camera
-        enabled
         mode="fitFloorDepth"
         fov={60}
         floorY={0}

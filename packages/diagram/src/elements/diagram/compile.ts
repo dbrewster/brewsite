@@ -16,6 +16,7 @@ import type {
   DiagramEnterDSL,
   DiagramExitConfig,
   DiagramEnterConfig,
+  SvgIcon3DStyle,
 } from './types';
 import { resolveIconUrl } from './shapes/iconRegistry';
 import { deriveColor } from './math/colorUtils';
@@ -67,6 +68,8 @@ const NODE_DEFAULTS = {
   clickable: false,
   enabled: true,
   iconScale: 0.6,
+  iconStyle: 'flat' as SvgIcon3DStyle,
+  iconDepth: 0.15,
 };
 
 const EDGE_DEFAULTS = {
@@ -452,6 +455,8 @@ export function compileNode(
     enabled: dsl.enabled ?? NODE_DEFAULTS.enabled,
     iconUrl: resolveIconUrl(shape),
     iconScale: dsl.iconScale ?? NODE_DEFAULTS.iconScale,
+    iconStyle: dsl.iconStyle ?? NODE_DEFAULTS.iconStyle,
+    iconDepth: dsl.iconDepth ?? NODE_DEFAULTS.iconDepth,
     groupId,
     positionInherited: positionInherited || undefined,
   };

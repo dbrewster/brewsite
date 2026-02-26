@@ -61,11 +61,12 @@ export class InputController {
     target: HTMLElement | Window,
     map: SceneNavInputMap,
     handler: InputNavigationHandler,
+    keyboardTarget?: HTMLElement | Document,
   ) {
     this.target = target;
     this.map = map;
     this.handler = handler;
-    this.keyboardTarget = target instanceof HTMLElement ? target : document;
+    this.keyboardTarget = keyboardTarget ?? (target instanceof HTMLElement ? target : document);
 
     // Build bound listeners
     this.onWheel = this.handleWheel.bind(this);

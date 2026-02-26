@@ -16,6 +16,13 @@ export type DiagramGroupVariant = 'swimlane' | 'boundary' | 'cluster';
 /** Swimlane orientation when variant is 'swimlane' */
 export type DiagramOrientation = 'horizontal' | 'vertical';
 
+/**
+ * Visual rendering style for 3D SVG icons on diagram node faces.
+ * 'flat' preserves current behaviour (ShapeGeometry, unlit MeshBasicMaterial).
+ * All other values produce extruded geometry using MeshStandardMaterial (PBR, lit).
+ */
+export type SvgIcon3DStyle = 'flat' | 'extruded' | 'layered' | 'embossed';
+
 /** Pivot point: which corner/center of the node layout maps to diagram local [0,0,0]. */
 export type DiagramPivot =
   | 'center'
@@ -178,6 +185,21 @@ export interface DiagramNodeState {
    * Default: 0.6
    */
   readonly iconScale: number;
+
+  /**
+   * 3D rendering style for the icon placed on this node's front face.
+   * 'flat' uses ShapeGeometry + MeshBasicMaterial (current behaviour).
+   * 'extruded' / 'layered' / 'embossed' use ExtrudeGeometry + MeshStandardMaterial.
+   * Default: 'flat'.
+   */
+  readonly iconStyle: SvgIcon3DStyle;
+
+  /**
+   * Maximum Z extrusion depth for 3D icon geometry, in diagram units.
+   * Applies only when iconStyle !== 'flat'.
+   * Default: 0.15.
+   */
+  readonly iconDepth: number;
 
   /** ID of the parent DiagramGroup, or undefined if top-level */
   readonly groupId: string | undefined;
@@ -392,6 +414,10 @@ export interface DiagramNodeDSL {
   readonly clickable?: boolean;
   readonly enabled?: boolean;
   readonly iconScale?: number;
+  /** 3D icon rendering style. Default: 'flat' (no change from current behaviour). */
+  readonly iconStyle?: SvgIcon3DStyle;
+  /** Max extrusion depth for 3D icon in diagram units. Default: 0.15. */
+  readonly iconDepth?: number;
   readonly groupId?: string;
 }
 

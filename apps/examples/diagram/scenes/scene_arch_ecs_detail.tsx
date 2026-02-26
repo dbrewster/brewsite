@@ -8,7 +8,6 @@ export const sceneArchEcsDetail: SceneDefinition = {
   getFrame: () => (
     <Scene id="arch-ecs-detail">
       <Camera
-        enabled
         mode="fitFloorDepth"
         fov={60}
         floorY={0}

@@ -35,14 +35,14 @@ export const sceneArchAuto: SceneDefinition = {
           <DiagramNode id="browser" label="Web Browser" shape="flow:actor" />
 
           {/* ── Tier 2: CDN / Load Balancing ──────────────────────────── */}
-          <DiagramNode id="cdn"    label="CloudFront CDN"  shape="aws:cloudfront"  clickable />
+          <DiagramNode id="cdn"    label="CloudFront CDN"  shape="aws:cloudfront"  clickable metalness={.9} iconStyle={'embossed'} iconDepth={.5} enabled/>
           <DiagramNode id="alb"    label="Load Balancer"   shape="aws:alb"         clickable />
 
           {/* ── Tier 3: API ───────────────────────────────────────────── */}
           <DiagramNode id="api"    label="API Gateway"     shape="aws:api-gateway" clickable />
 
           {/* ── Tier 4: Compute ───────────────────────────────────────── */}
-          <DiagramNode id="ecs"    label="ECS Cluster"     shape="aws:ecs"         clickable />
+          <DiagramNode id="ecs"    label="ECS Cluster"     shape="aws:ecs"         clickable metalness={.9} iconStyle={'extruded'} />
           <DiagramNode id="lambda" label="Lambda"          shape="aws:lambda"      clickable color="#2a2d4e" />
 
           {/* ── Tier 5: Data ──────────────────────────────────────────── */}

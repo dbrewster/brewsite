@@ -10,7 +10,6 @@ export const scene01Diagram = {
   getFrame: () => (
     <Scene id="diagram-overview">
       <Camera
-        enabled
         mode="fitFloorDepth"
         fov={60}
         floorY={0}
