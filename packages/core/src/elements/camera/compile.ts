@@ -249,8 +249,9 @@ export const functionalCameraTransitionSpec: FunctionalTransitionSpec<SceneCamer
     descriptor: interpolateCameraDescriptor(from, to, t),
     lens: interpolateLens(from, to, t),
     post: interpolatePost(from, to, t),
-    // Interaction and transitionIn come from the destination (to) scene
-    interaction: to.interaction,
+    // Interaction follows the "from" scene in the first half, then the "to" scene.
+    // This keeps interaction available on scene 0 even if scene 1 has no camera.
+    interaction: t < 0.5 ? from.interaction : to.interaction,
     transitionIn: to.transitionIn,
   }),
 };

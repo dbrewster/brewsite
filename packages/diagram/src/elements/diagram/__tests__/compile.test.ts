@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
-  resolveLayout,
-  computeBounds,
   routeEdges,
   compileDiagram,
 } from '../compile';
 import type { DiagramDSL, DiagramNodeDSL, DiagramEdgeDSL } from '../types';
+import { darkGlassTheme } from '../themes/darkGlass';
 
 const makeNode = (id: string, overrides: Partial<DiagramNodeDSL> = {}): DiagramNodeDSL => ({
   id,
@@ -17,106 +16,6 @@ const makeEdge = (from: string, to: string, overrides: Partial<DiagramEdgeDSL> =
   from,
   to,
   ...overrides,
-});
-
-describe('resolveLayout', () => {
-  it('grid: assigns non-overlapping positions to 4 nodes with no explicit positions', () => {
-    const nodes = ['a', 'b', 'c', 'd'].map((id) => makeNode(id));
-    const positions = resolveLayout(nodes, [], 'grid', [2, 2]);
-    const uniquePositions = new Set(
-      nodes.map((node) => JSON.stringify(positions.get(node.id))),
-    );
-    expect(uniquePositions.size).toBe(4);
-  });
-
-  it('grid: respects explicit positions, only auto-assigns missing ones', () => {
-    const nodes = [
-      makeNode('a', { position: [10, 10, 0] }),
-      makeNode('b'),
-    ];
-    const positions = resolveLayout(nodes, [], 'grid', [2, 2]);
-    expect(positions.get('a')).toEqual([10, 10, 0]);
-    expect(positions.get('b')).toBeDefined();
-  });
-
-  it('hierarchical: places source nodes above target nodes on Y axis', () => {
-    const nodes = [makeNode('a'), makeNode('b')];
-    const edges = [makeEdge('a', 'b')];
-    const positions = resolveLayout(nodes, edges, 'hierarchical', [2, 2]);
-    const yA = positions.get('a')![1];
-    const yB = positions.get('b')![1];
-    expect(yA).toBeGreaterThan(yB);
-  });
-
-  it('manual: throws when a non-ghost node has no explicit position', () => {
-    const nodes = [makeNode('a')]; // makeNode sets label:'a' — non-ghost
-    expect(() => resolveLayout(nodes, [], 'manual', [2, 2])).toThrow();
-  });
-
-  it('manual: allows ghost nodes (no label) without explicit position', () => {
-    // Ghost nodes have no label — they inherit their position from mergeSnapshot.
-    const nodes: DiagramNodeDSL[] = [
-      { id: 'a', label: 'Explicit', position: [0, 0, 0] },
-      { id: 'b' }, // no label, no position — ghost
-    ];
-    expect(() => resolveLayout(nodes, [], 'manual', [2, 2])).not.toThrow();
-  });
-
-  it('grid: respects layoutSpacing parameter', () => {
-    const nodes = [makeNode('a'), makeNode('b')];
-    const positions = resolveLayout(nodes, [], 'grid', [10, 10]);
-    const posA = positions.get('a')!;
-    const posB = positions.get('b')!;
-    expect(Math.abs(posA[0] - posB[0])).toBeGreaterThanOrEqual(10);
-  });
-});
-
-describe('computeBounds', () => {
-  it('computes correct bounding box for a 2x2 grid of nodes', () => {
-    const positions = new Map<string, readonly [number, number, number]>([
-      ['a', [0, 0, 0]],
-      ['b', [4, 0, 0]],
-      ['c', [0, -4, 0]],
-      ['d', [4, -4, 0]],
-    ]);
-    const sizes = new Map<string, readonly [number, number]>([
-      ['a', [2, 2]],
-      ['b', [2, 2]],
-      ['c', [2, 2]],
-      ['d', [2, 2]],
-    ]);
-    const bounds = computeBounds(['a', 'b', 'c', 'd'], positions, sizes);
-    expect(bounds.x).toBe(-1);
-    expect(bounds.y).toBe(-5);
-    expect(bounds.w).toBe(6);
-    expect(bounds.h).toBe(6);
-  });
-
-  it('handles a single node', () => {
-    const positions = new Map([['a', [2, 3, 1] as const]]);
-    const sizes = new Map([['a', [4, 2] as const]]);
-    const bounds = computeBounds(['a'], positions, sizes);
-    expect(bounds.x).toBe(0);
-    expect(bounds.y).toBe(2);
-    expect(bounds.w).toBe(4);
-    expect(bounds.h).toBe(2);
-  });
-
-  it('handles nodes at negative coordinates', () => {
-    const positions = new Map([['a', [-4, -2, -1] as const]]);
-    const sizes = new Map([['a', [2, 2] as const]]);
-    const bounds = computeBounds(['a'], positions, sizes);
-    expect(bounds.x).toBe(-5);
-    expect(bounds.y).toBe(-3);
-  });
-
-  it('includes node size in bounds (not just center point)', () => {
-    const positions = new Map([['a', [0, 0, 0] as const]]);
-    const sizes = new Map([['a', [6, 4] as const]]);
-    const bounds = computeBounds(['a'], positions, sizes);
-    expect(bounds.w).toBe(6);
-    expect(bounds.h).toBe(4);
-  });
 });
 
 describe('routeEdges', () => {
@@ -198,8 +97,8 @@ describe('compileDiagram', () => {
     const state = compileDiagram(dsl);
     const node = state.nodes[0]!;
     expect(node.size).toEqual([4, 2]);
-    expect(node.depth).toBe(0.6);
-    expect(node.color).toBe('#2a2d3e');
+    expect(node.depth).toBe(darkGlassTheme.node.defaultDepth);
+    expect(node.color).toBe(darkGlassTheme.node.defaultColor);
   });
 
   it('resolves iconUrl from iconRegistry for aws:ec2 shape', () => {

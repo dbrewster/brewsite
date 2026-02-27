@@ -1,7 +1,8 @@
 // Declarative DSL surface for DiagramCanvas and DiagramPipe. No Three.js.
 
 import React from 'react';
-import type { DiagramEdgeStyle, DiagramArrowVariant } from '../types';
+import type { DiagramEdgeStyle, DiagramArrowVariant, DiagramTheme } from '../types';
+import type { PipeRoutingAlgorithm, PipeLandingAlgorithm } from './types';
 
 export interface DiagramCanvasProps {
   /**
@@ -19,6 +20,21 @@ export interface DiagramCanvasProps {
    * Default: 1
    */
   scale?: number;
+  /**
+   * Canvas-level theme. Acts as the default theme for all child <Diagram>
+   * elements. Each child can override with its own `theme` prop.
+   * Falls back to darkGlassTheme when absent.
+   */
+  theme?: DiagramTheme;
+  /**
+   * Pipe routing algorithm for cross-diagram connectors. Default: 'curved'.
+   */
+  pipeRouting?: PipeRoutingAlgorithm;
+  /**
+   * Pipe attachment strategy. Default: 'sides' (left/right face based on
+   * relative diagram X position — routes around front-face icons/labels).
+   */
+  pipeLanding?: PipeLandingAlgorithm;
   children?: React.ReactNode;
 }
 

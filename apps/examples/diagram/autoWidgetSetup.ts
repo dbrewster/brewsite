@@ -17,24 +17,34 @@ export const createAutoWidgetSetup = (manifest: AssetManifest | null) => {
 
   // Default state: same topology as the scene but compiled with auto-layout.
   // The ScenePlayer will replace this with the DSL-compiled state on first tick.
+  // NOTE: iconStyle / iconDepth / metalness / roughness must mirror scene_arch_auto.tsx
+  // so the initial render already uses 3D icons — no flat→3D flash on first load.
   const canvasDefault = compileCanvas(
     { id: 'auto-canvas' },
     [
       compileDiagram({
         id: 'arch-auto',
         layout: 'hierarchical',
-        layoutSpacing: [3, 5],
+        layoutSpacing: [3, 2],
         pivot: 'center',
         nodes: [
           { id: 'browser', label: 'Web Browser',    shape: 'flow:actor' },
-          { id: 'cdn',     label: 'CloudFront CDN', shape: 'aws:cloudfront' },
-          { id: 'alb',     label: 'Load Balancer',  shape: 'aws:alb' },
-          { id: 'api',     label: 'API Gateway',    shape: 'aws:api-gateway' },
-          { id: 'ecs',     label: 'ECS Cluster',    shape: 'aws:ecs' },
-          { id: 'lambda',  label: 'Lambda',         shape: 'aws:lambda' },
-          { id: 'rds',     label: 'RDS PostgreSQL', shape: 'aws:rds' },
-          { id: 'cache',   label: 'ElastiCache',    shape: 'aws:elasticache' },
-          { id: 's3',      label: 'S3 Assets',      shape: 'aws:s3' },
+          { id: 'cdn',     label: 'CloudFront CDN', shape: 'aws:cloudfront',
+            clickable: true, metalness: 0.25, roughness: 0.35, iconStyle: 'layered', iconDepth: 0.35 },
+          { id: 'alb',     label: 'Load Balancer',  shape: 'aws:alb',
+            clickable: true, metalness: 0.25, roughness: 0.35, iconStyle: 'layered', iconDepth: 0.35 },
+          { id: 'api',     label: 'API Gateway',    shape: 'aws:api-gateway',
+            clickable: true, metalness: 0.25, roughness: 0.35, iconStyle: 'layered', iconDepth: 0.35 },
+          { id: 'ecs',     label: 'ECS Cluster',    shape: 'aws:ecs',
+            clickable: true, metalness: 0.25, roughness: 0.35, iconStyle: 'extruded', iconDepth: 0.35 },
+          { id: 'lambda',  label: 'Lambda',         shape: 'aws:lambda',
+            clickable: true, color: '#2a2d4e', metalness: 0.55, roughness: 0.25, iconStyle: 'embossed', iconDepth: 0.32 },
+          { id: 'rds',     label: 'RDS PostgreSQL', shape: 'aws:rds',
+            metalness: 0.25, roughness: 0.35, iconStyle: 'layered', iconDepth: 0.35 },
+          { id: 'cache',   label: 'ElastiCache',    shape: 'aws:elasticache',
+            metalness: 0.25, roughness: 0.35, iconStyle: 'layered', iconDepth: 0.35 },
+          { id: 's3',      label: 'S3 Assets',      shape: 'aws:s3',
+            metalness: 0.25, roughness: 0.35, iconStyle: 'layered', iconDepth: 0.35 },
         ],
         edges: [
           { from: 'browser', to: 'cdn' },

@@ -8,7 +8,8 @@ import type { SceneModelInstanceState } from '../model/types';
 import type { SceneCamera, CameraInteractionConfig } from './types';
 
 // Install camera-controls THREE subset (called once at module load)
-CameraControls.install({ THREE: THREE });
+type CameraControlsThree = Parameters<typeof CameraControls.install>[0]['THREE'];
+CameraControls.install({ THREE: THREE as unknown as CameraControlsThree });
 
 export type CameraRenderContext = {
   camera: THREE.PerspectiveCamera;
@@ -181,24 +182,24 @@ export const applyCamera = (state: SceneCamera, ctx: CameraRenderContext): void 
  * The config is read from CameraInteractionConfig.
  * Call this when entering interactive mode.
  */
-export const createCameraControls = (
-  camera: THREE.PerspectiveCamera,
-  domElement: HTMLElement,
+export const configureCameraControls = (
+  cc: CameraControls,
   config: CameraInteractionConfig,
-): CameraControls => {
-  const cc = new CameraControls(camera, domElement);
-
-  // Damping
+): void => {
+  // Damping (camera-controls deprecated dampingFactor; use smoothTime in seconds)
   if (config.damping === false || config.damping === 0) {
-    cc.dampingFactor = 0;
+    cc.smoothTime = 0;
   } else if (typeof config.damping === 'number') {
-    cc.dampingFactor = config.damping;
+    cc.smoothTime = config.damping;
   } else {
-    cc.dampingFactor = 0.05; // default
+    cc.smoothTime = 0.25; // default
   }
 
   // Speeds
-  if (config.orbitSpeed !== undefined) cc.azimuthRotateSpeed = config.orbitSpeed;
+  if (config.orbitSpeed !== undefined) {
+    cc.azimuthRotateSpeed = config.orbitSpeed;
+    cc.polarRotateSpeed = config.orbitSpeed;
+  }
   if (config.panSpeed !== undefined) cc.truckSpeed = config.panSpeed;
   if (config.dollySpeed !== undefined) cc.dollySpeed = config.dollySpeed;
 
@@ -251,6 +252,15 @@ export const createCameraControls = (
       cc.touches.two = CameraControls.ACTION.TOUCH_DOLLY_TRUCK;
     }
   }
+};
 
+export const createCameraControls = (
+  camera: THREE.PerspectiveCamera,
+  domElement: HTMLElement,
+  config: CameraInteractionConfig,
+): CameraControls => {
+  type CameraControlsCamera = ConstructorParameters<typeof CameraControls>[0];
+  const cc = new CameraControls(camera as unknown as CameraControlsCamera, domElement);
+  configureCameraControls(cc, config);
   return cc;
 };

@@ -18,6 +18,8 @@ export default defineConfig({
       },
     },
     sourcemap: true,
+    // Preserve tsc declaration output emitted to dist before Vite runs.
+    emptyOutDir: false,
   },
   resolve: {
     alias: {

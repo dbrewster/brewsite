@@ -33,6 +33,11 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   private widgetRegistry: WidgetRegistry;
   private variableStore: VariableStore;
   private manifest: AssetManifest | null;
+  private sceneElements: Array<import('../widget/types').ISceneElement<unknown>>;
+  private renderables: Array<import('../widget/types').IRenderable<unknown>>;
+  private animationControllers: Array<import('../widget/types').IAnimationController>;
+  private containedModels: Array<import('../widget/types').IContainedModel<unknown>>;
+  private defaultStateById: Map<string, unknown>;
   private threeScene: ThreeScene | null = null;
   private sampler: SceneTrackSampler | null = null;
   private track: SceneTrack | null = null;
@@ -56,13 +61,20 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     this.manifest = config.manifest;
     this.onAssetsReady = config.onAssetsReady;
     this.onError = config.onError;
+    this.sceneElements = this.widgetRegistry.getSceneElements();
+    this.renderables = this.widgetRegistry.getRenderables();
+    this.animationControllers = this.widgetRegistry.getAnimationControllers();
+    this.containedModels = this.widgetRegistry.getContainedModels();
+    this.defaultStateById = new Map(
+      this.sceneElements.map((el) => [el.widgetId, el.defaultState as unknown]),
+    );
   }
 
   async initialize(threeScene: ThreeScene, renderer?: WebGLRenderer): Promise<void> {
     this.threeScene = threeScene;
 
     // Step 1: Initialize all renderable widgets (sync)
-    for (const renderable of this.widgetRegistry.getRenderables()) {
+    for (const renderable of this.renderables) {
       try {
         renderable.initialize({ scene: threeScene, widgetId: renderable.widgetId, renderer });
       } catch (e) {
@@ -87,8 +99,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   }
 
   private attachContainedModels(): void {
-    const contained = this.widgetRegistry.getContainedModels();
-    for (const widget of contained) {
+    for (const widget of this.containedModels) {
       const anchorModel = this.widgetRegistry.get(widget.anchorModelId);
       if (!anchorModel) {
         console.warn(`[RuntimeDriver] Anchor model "${widget.anchorModelId}" not found for "${widget.widgetId}"`);
@@ -145,7 +156,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
       tick: this.currentTick,
       track: this.track,
     };
-    for (const controller of this.widgetRegistry.getAnimationControllers()) {
+    for (const controller of this.animationControllers) {
       try {
         controller.onTick(animCtx);
       } catch (e) {
@@ -165,8 +176,9 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
       wallTimeSeconds,
       variables: this.variableStore,
       extra: undefined as unknown,
+      tick,
     };
-    for (const renderable of this.widgetRegistry.getRenderables()) {
+    for (const renderable of this.renderables) {
       try {
         // Functional transitions take priority: evaluate closure at blockProgress.
         // Falls back to pre-baked discrete state, then widget defaultState.
@@ -175,8 +187,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
         const state = functionalWidget
           ? functionalWidget.fn(tick.blockProgress)
           : (tick.state.widgets[renderable.widgetId] ??
-            this.widgetRegistry.getSceneElements()
-              .find(e => e.widgetId === renderable.widgetId)?.defaultState);
+            this.defaultStateById.get(renderable.widgetId));
         const extra = tick.widgetExtras?.[renderable.widgetId];
         renderable.apply(state as never, { ...renderCtx, extra });
       } catch (e) {
@@ -188,7 +199,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
 
   getBoneWorldPositions(): Map<string, [number, number, number]> {
     const result = new Map<string, [number, number, number]>();
-    for (const renderable of this.widgetRegistry.getRenderables()) {
+    for (const renderable of this.renderables) {
       // IRenderable may optionally expose getBoneWorldPositions (e.g. ModelWidget).
       const provider = renderable as unknown as {
         getBoneWorldPositions?: () => Map<string, [number, number, number]>;
@@ -204,7 +215,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
 
   getTargetColors(): Map<string, string> {
     const result = new Map<string, string>();
-    for (const renderable of this.widgetRegistry.getRenderables()) {
+    for (const renderable of this.renderables) {
       const provider = renderable as unknown as {
         getTargetColors?: () => Map<string, string>;
       };
@@ -226,7 +237,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   }
 
   dispose(): void {
-    for (const renderable of this.widgetRegistry.getRenderables()) {
+    for (const renderable of this.renderables) {
       try {
         renderable.dispose();
       } catch (e) {

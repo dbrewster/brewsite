@@ -26,6 +26,20 @@ export default function DiagramPage(): JSX.Element {
         widgetSetup={createWidgetSetup}
         framesPerTick={80}
         pixelsPerScene={1200}
+        // inputMap={{
+        //   mode: 'direct',
+        //   wheel: false,
+        //   drag: false,
+        //   swipe: false,
+        //   click: [
+        //     { button: 'left', action: 'nextScene' },
+        //     { button: 'right', action: 'prevScene' },
+        //   ],
+        //   keys: {
+        //     nextScene: { key: 'ArrowRight' },
+        //     prevScene: { key: 'ArrowLeft' },
+        //   },
+        // }}
         onError={(err) => setError(err)}
         placeholder={(
           <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>

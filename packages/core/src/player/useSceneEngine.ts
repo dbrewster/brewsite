@@ -178,6 +178,9 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     }
     renderer.shadowMap.enabled = true;
     rendererRef.current = renderer;
+    if (sceneRef.current) {
+      sceneRef.current.userData['__brewsite_renderer'] = renderer;
+    }
     debugLog('renderer:init', { canvas });
 
     const onContextLost = (event: Event) => {
@@ -199,6 +202,9 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       ModelRenderer.disposeKtx2Loader(renderer);
       renderer.dispose();
       rendererRef.current = null;
+      if (sceneRef.current) {
+        delete (sceneRef.current as unknown as { userData?: Record<string, unknown> })?.userData?.['__brewsite_renderer'];
+      }
     };
   }, [canvas, debugLog]);
 

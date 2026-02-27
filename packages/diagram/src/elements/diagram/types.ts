@@ -2,6 +2,170 @@
 
 import type { DiagramShapeVariant } from './shapes/shapeVariants';
 
+// ─── Theming ─────────────────────────────────────────────────────────────────
+
+/**
+ * Controls how edge control points are computed between nodes.
+ * Applied at the diagram level via the theme, or overridden per-edge.
+ * 'curved'      — current: CatmullRom spline exiting node face perpendicularly (default)
+ * 'orthogonal'  — Manhattan 90° routing (draw.io / Mermaid style)
+ * 'straight'    — direct line between face attachment points
+ * 'organic'     — curved with a deterministic perpendicular offset per edge
+ */
+export type EdgeRoutingAlgorithm = 'curved' | 'orthogonal' | 'straight' | 'organic';
+
+/**
+ * Controls which point on a node face an edge attaches to.
+ * 'nearest-face'   — current: pick face by dominant delta-vector direction (default)
+ * 'shortest-path'  — enumerate all 36 face-pair combos, pick minimum distance
+ * 'center'         — connect from/to node centers (pairs well with 'straight' routing)
+ * 'port'           — use author-specified fromPort/toPort on the edge DSL
+ */
+export type EdgeLandingAlgorithm = 'nearest-face' | 'shortest-path' | 'center' | 'port';
+
+/** Explicit attachment port for port-based landing. */
+export type DiagramEdgePort = 'top' | 'bottom' | 'left' | 'right' | 'front' | 'back';
+
+/** Node appearance defaults within a theme. */
+export interface DiagramThemeNodeConfig {
+  /** Default front-face fill color (CSS hex) */
+  readonly defaultColor: string;
+  /** PBR metalness [0–1]. ~0.35 = polished plastic, ~0.7 = brushed metal */
+  readonly defaultMetalness: number;
+  /** PBR roughness [0–1]. ~0.25 = glossy, ~0.65 = matte */
+  readonly defaultRoughness: number;
+  /** Emissive intensity on the front face [0–1], tinted to node color */
+  readonly defaultEmissiveIntensity: number;
+  /** Physical box depth in diagram units. 0.28 = card-like, 0.6 = block-like */
+  readonly defaultDepth: number;
+  /**
+   * Corner radius in diagram units for rect-like shapes.
+   * 0 = sharp BoxGeometry (legacy); > 0 = rounded box geometry.
+   * Ignored for non-rect shapes (cylinder, oval, hexagon, etc.).
+   */
+  readonly cornerRadius: number;
+  /** Glow sprite intensity behind each node [0–1]. 0 = no glow sprite. */
+  readonly glowIntensity: number;
+  /** Default label text color (CSS hex) */
+  readonly defaultLabelColor: string;
+  /** Default sublabel text color (CSS hex) */
+  readonly defaultSublabelColor: string;
+  /**
+   * Optional troika-three-text fontUrl override.
+   * Must be a URL to an MSDF-encoded .ttf or .woff font.
+   * If absent, troika uses its built-in font.
+   */
+  readonly fontUrl?: string;
+  /** Label font size multiplier relative to the default (node height × 0.28). Default: 1 */
+  readonly labelSizeFactor: number;
+  /** Sublabel font size multiplier relative to the default (node height × 0.18). Default: 1 */
+  readonly sublabelSizeFactor: number;
+  /** Default 3D icon rendering style when not specified per-node */
+  readonly defaultIconStyle: SvgIcon3DStyle;
+}
+
+/** Edge/connector appearance and routing defaults within a theme. */
+export interface DiagramThemeEdgeConfig {
+  /** Default edge color (CSS hex) */
+  readonly defaultColor: string;
+  /** Default tube radius in diagram units */
+  readonly defaultThickness: number;
+  /** PBR metalness for edge tubes [0–1] */
+  readonly defaultMetalness: number;
+  /** PBR roughness for edge tubes [0–1] */
+  readonly defaultRoughness: number;
+  /** Default routing algorithm for all edges in the diagram */
+  readonly routing: EdgeRoutingAlgorithm;
+  /** Default attachment-point selection algorithm */
+  readonly landing: EdgeLandingAlgorithm;
+  /**
+   * CatmullRom segment-count multiplier (applied to the base of max(20, pts×8)).
+   * Higher values produce smoother curves at the cost of more geometry.
+   * Default: 1.0
+   */
+  readonly smoothness: number;
+  /**
+   * If true, arrowheads are rendered as 3D cones (MeshStandardMaterial)
+   * instead of flat triangles (MeshBasicMaterial).
+   */
+  readonly use3DArrows: boolean;
+}
+
+/** Group/container appearance defaults within a theme. */
+export interface DiagramThemeGroupConfig {
+  /** Default fill color (CSS hex) */
+  readonly defaultColor: string;
+  /** Default border color (CSS hex) */
+  readonly defaultBorderColor: string;
+  /** Default fill opacity [0–1] */
+  readonly defaultFillOpacity: number;
+  /** Default border opacity [0–1] */
+  readonly defaultBorderOpacity: number;
+}
+
+/** Environment map / image-based lighting config within a theme. */
+export interface DiagramThemeEnvironmentConfig {
+  /**
+   * URL of an equirectangular Radiance HDR (.hdr) for image-based lighting.
+   * null  → use procedural gradient sky derived from skyColor/horizonColor.
+   * 'none' → disable environment map entirely (no IBL).
+   */
+  readonly envMapUrl: string | null | 'none';
+  /** IBL intensity applied to scene.environment [0–2]. Default: 0.9 */
+  readonly envMapIntensity: number;
+  /** Base sky color (CSS hex) for the procedural gradient sky */
+  readonly skyColor: string;
+  /** Horizon color (CSS hex) for the procedural gradient sky */
+  readonly horizonColor: string;
+}
+
+/**
+ * The complete visual and behavioral contract for a diagram.
+ * Pass to <Diagram theme={...}> or <DiagramCanvas theme={...}> to apply.
+ * Per-node / per-edge props still take precedence over theme defaults.
+ */
+export interface DiagramTheme {
+  readonly node: DiagramThemeNodeConfig;
+  readonly edge: DiagramThemeEdgeConfig;
+  readonly group: DiagramThemeGroupConfig;
+  readonly environment: DiagramThemeEnvironmentConfig;
+  /**
+   * Optional ordered color palette for auto-coloring nodes that have no
+   * explicit color. Colors are assigned round-robin by declaration order.
+   */
+  readonly palette?: readonly string[];
+}
+
+/**
+ * Render-time properties carried on DiagramState.themeConfig.
+ * Derived from DiagramTheme at compile time. render.ts reads this struct only —
+ * it never imports from themes/ or from compile.ts.
+ */
+export interface DiagramThemeRenderConfig {
+  /** See DiagramThemeEnvironmentConfig.envMapUrl */
+  readonly envMapUrl: string | null | 'none';
+  /** IBL intensity [0–2] */
+  readonly envMapIntensity: number;
+  /** Gradient sky base color (CSS hex) */
+  readonly skyColor: string;
+  /** Gradient sky horizon color (CSS hex) */
+  readonly horizonColor: string;
+  /** Glow sprite intensity for all nodes [0–1]. 0 = disabled */
+  readonly nodeGlowIntensity: number;
+  /** Corner radius in diagram units for rect nodes. 0 = BoxGeometry */
+  readonly nodeCornerRadius: number;
+  /** Use 3D cone arrowheads (MeshStandardMaterial) instead of flat triangles */
+  readonly use3DArrows: boolean;
+  /** CatmullRom segment multiplier */
+  readonly edgeSmoothness: number;
+  /** Edge tube metalness */
+  readonly edgeMetalness: number;
+  /** Edge tube roughness */
+  readonly edgeRoughness: number;
+  /** Optional troika fontUrl override */
+  readonly fontUrl: string | undefined;
+}
+
 // ─── Node ───────────────────────────────────────────────────────────────────
 
 /** Visual variant for edge connector lines */
@@ -9,6 +173,9 @@ export type DiagramEdgeStyle = 'solid' | 'dashed' | 'dotted';
 
 /** Arrowhead variant at a connector endpoint */
 export type DiagramArrowVariant = 'none' | 'open' | 'filled' | 'diamond' | 'circle';
+
+/** Animated flow direction for edges */
+export type DiagramEdgeFlow = 'none' | 'forward' | 'backward' | 'bidirectional';
 
 /** Group container visual variant */
 export type DiagramGroupVariant = 'swimlane' | 'boundary' | 'cluster';
@@ -135,11 +302,26 @@ export interface DiagramNodeState {
   /** CSS hex color for the node border outline (LineSegments overlay) */
   readonly borderColor: string;
 
-  /** Box material metalness [0–1]. Default: 0.15 */
+  /** Box material metalness [0–1]. Default: 0.35 */
   readonly metalness: number;
 
-  /** Box material roughness [0–1]. Default: 0.65 (matte industrial) */
+  /** Box material roughness [0–1]. Default: 0.35 (polished) */
   readonly roughness: number;
+
+  /**
+   * Emissive intensity on the node's front face [0–1].
+   * The emissive color is the node color itself, giving a faint "lit panel" look.
+   * 0 = no emissive (flat lit surface). Default: 0.10.
+   */
+  readonly emissiveIntensity: number;
+
+  /**
+   * Corner radius in diagram units for rect-like shapes.
+   * 0 = sharp BoxGeometry. > 0 = rounded box via ExtrudeGeometry.
+   * Only applies to flow:rect and other box-based shapes.
+   * Default: 0.06.
+   */
+  readonly cornerRadius: number;
 
   /** CSS hex color for label text */
   readonly labelColor: string;
@@ -235,6 +417,12 @@ export interface DiagramEdgeState {
   /** CSS hex edge color */
   readonly color: string;
 
+  /** Optional flow animation direction */
+  readonly flow: DiagramEdgeFlow;
+
+  /** Optional flow pulse color (defaults to edge color) */
+  readonly flowColor: string | undefined;
+
   /**
    * Tube geometry radius in diagram units.
    * Recommended: 0.04 for standard edges, 0.07 for highlighted/emphasized edges.
@@ -252,6 +440,13 @@ export interface DiagramEdgeState {
 
   /** Edge opacity [0–1] */
   readonly opacity: number;
+
+  /**
+   * Per-edge routing algorithm override.
+   * If absent, the diagram theme's edge.routing is used.
+   * Stored on compiled state so transitions can re-route edges correctly.
+   */
+  readonly routing: EdgeRoutingAlgorithm;
 }
 
 // ─── Group ──────────────────────────────────────────────────────────────────
@@ -374,6 +569,12 @@ export interface DiagramState {
    * Applied by enterFn in functionalDiagramTransitionSpec.
    */
   readonly enter: DiagramEnterConfig | null;
+
+  /**
+   * Render-time theme properties resolved at compile time.
+   * render.ts reads this struct to apply env map, glow, 3D arrows, etc.
+   */
+  readonly themeConfig: DiagramThemeRenderConfig;
 }
 
 // ─── DSL input types (used by dsl.tsx and consumed by compile.ts) ────────────
@@ -408,13 +609,17 @@ export interface DiagramNodeDSL {
   readonly borderColor?: string;
   readonly metalness?: number;
   readonly roughness?: number;
+  /** Emissive intensity on the front face [0–1]. Overrides theme default. */
+  readonly emissiveIntensity?: number;
+  /** Corner radius in diagram units. Overrides theme default (theme.node.cornerRadius). */
+  readonly cornerRadius?: number;
   readonly labelColor?: string;
   readonly sublabelColor?: string;
   readonly opacity?: number;
   readonly clickable?: boolean;
   readonly enabled?: boolean;
   readonly iconScale?: number;
-  /** 3D icon rendering style. Default: 'flat' (no change from current behaviour). */
+  /** 3D icon rendering style. Default: from theme (typically 'layered'). */
   readonly iconStyle?: SvgIcon3DStyle;
   /** Max extrusion depth for 3D icon in diagram units. Default: 0.15. */
   readonly iconDepth?: number;
@@ -431,9 +636,28 @@ export interface DiagramEdgeDSL {
   readonly style?: DiagramEdgeStyle;
   readonly arrowStart?: DiagramArrowVariant;
   readonly arrowEnd?: DiagramArrowVariant;
+  /** Optional flow animation direction */
+  readonly flow?: DiagramEdgeFlow;
+  /** Optional flow pulse color (defaults to edge color) */
+  readonly flowColor?: string;
   readonly color?: string;
   readonly thickness?: number;
   readonly opacity?: number;
+  /**
+   * Per-edge routing algorithm override. Overrides the diagram theme's edge.routing.
+   * Useful for mixing curved and orthogonal edges in the same diagram.
+   */
+  readonly routing?: EdgeRoutingAlgorithm;
+  /**
+   * Explicit attachment port at the source node.
+   * Requires landing: 'port' in the theme, or overrides to port landing for this edge.
+   */
+  readonly fromPort?: DiagramEdgePort;
+  /**
+   * Explicit attachment port at the destination node.
+   * Requires landing: 'port' in the theme, or overrides to port landing for this edge.
+   */
+  readonly toPort?: DiagramEdgePort;
 }
 
 /** Raw DSL data extracted from a <DiagramGroup> component by the compiler. */
@@ -488,6 +712,12 @@ export interface DiagramDSL {
   readonly exit?: DiagramExitDSL;
   /** Raw enter config from <Enter> child. Absent = default fade. */
   readonly enter?: DiagramEnterDSL;
+  /**
+   * Theme to apply to this diagram.
+   * In a DiagramCanvas, the canvas theme is the fallback; this merges on top.
+   * Individual node/edge props still override the theme.
+   */
+  readonly theme?: DiagramTheme;
 }
 
 // ─── Interaction ─────────────────────────────────────────────────────────────

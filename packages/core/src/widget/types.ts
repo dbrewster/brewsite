@@ -78,6 +78,8 @@ export type WidgetRenderContext = {
   wallTimeSeconds: number;
   variables: VariableStoreReader;
   extra: unknown;
+  /** Current tick snapshot (if available). */
+  tick?: SceneTrackTick | null;
 };
 
 export type AnimationTickContext = {

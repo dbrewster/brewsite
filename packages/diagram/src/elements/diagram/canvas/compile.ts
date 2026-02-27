@@ -7,10 +7,14 @@ import type {
   DiagramCanvasState,
   DiagramPipeDSL,
   DiagramPipeState,
+  PipeRoutingAlgorithm,
+  PipeLandingAlgorithm,
 } from './types';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
 import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
-import { applyDiagramEnter, applyDiagramExit, routeEdges } from '../compile';
+import { applyDiagramEnter, applyDiagramExit } from '../compile';
+import { blendDiagramNodes, buildLiveNodeMaps, rerouteLiveEdges, blendDiagramEdges } from '../compiler/transitionHelpers';
+import { sideAttachmentPoint, routePipe, rerouteLivePipes } from './compiler/pipeRouter';
 
 // ─── Defaults ────────────────────────────────────────────────────────────────
 
@@ -18,10 +22,13 @@ const PIPE_DEFAULTS = {
   style: 'solid' as DiagramEdgeStyle,
   arrowStart: 'none' as DiagramArrowVariant,
   arrowEnd: 'open' as DiagramArrowVariant,
-  color: '#667788',
+  color: '#3d5a9a',
   thickness: 0.08,
   opacity: 1,
 };
+
+const DEFAULT_PIPE_ROUTING: PipeRoutingAlgorithm = 'curved';
+const DEFAULT_PIPE_LANDING: PipeLandingAlgorithm = 'sides';
 
 // ─── Pipe routing ─────────────────────────────────────────────────────────────
 
@@ -45,34 +52,7 @@ function nodeToCanvasSpace(
   ];
 }
 
-/**
- * Routes a cross-diagram pipe between two canvas-local endpoints.
- * Uses a simple arc (elevated at the midpoint) to prevent pipes from cutting
- * through diagram geometry.
- */
-export function routePipe(from: Vec3, to: Vec3): ReadonlyArray<Vec3> {
-  const dist = Math.sqrt(
-    (to[0] - from[0]) ** 2 +
-    (to[1] - from[1]) ** 2 +
-    (to[2] - from[2]) ** 2,
-  );
-  // Arc height: 15% of the 3D distance, minimum 0.5 canvas units
-  const arcH = Math.max(0.5, dist * 0.15);
-  const midX = (from[0] + to[0]) / 2;
-  const midY = (from[1] + to[1]) / 2 + arcH;
-  const midZ = (from[2] + to[2]) / 2;
-  const ctrl1: Vec3 = [
-    from[0] + (midX - from[0]) * 0.5,
-    from[1] + (midY - from[1]) * 0.5,
-    from[2] + (midZ - from[2]) * 0.5,
-  ];
-  const ctrl2: Vec3 = [
-    midX + (to[0] - midX) * 0.5,
-    midY + (to[1] - midY) * 0.5,
-    midZ + (to[2] - midZ) * 0.5,
-  ];
-  return [from, ctrl1, ctrl2, to];
-}
+// sideAttachmentPoint and routePipe live in canvas/compiler/pipeRouter.ts
 
 /**
  * Parses a dot-notation reference "diagramId.nodeId" into its components.
@@ -91,6 +71,10 @@ function parsePipeRef(ref: string): { diagramId: string; nodeId: string } | null
  * Resolves the from/to node positions from the compiled diagram states and
  * routes the pipe in canvas-local space.
  *
+ * With pipeLanding='sides' (default), attaches to the left or right face of
+ * each node based on which side faces the target diagram, routing around the
+ * front-face icons and labels.
+ *
  * Emits console.warn for unresolvable references and returns a pipe with
  * empty controlPoints (rendered as invisible) rather than throwing.
  */
@@ -98,6 +82,8 @@ export function compilePipe(
   dsl: DiagramPipeDSL,
   diagrams: ReadonlyArray<DiagramState>,
   index: number,
+  routing: PipeRoutingAlgorithm = DEFAULT_PIPE_ROUTING,
+  landing: PipeLandingAlgorithm = DEFAULT_PIPE_LANDING,
 ): DiagramPipeState {
   const autoId = `pipe-${dsl.from.replace('.', '-')}--${dsl.to.replace('.', '-')}-${index}`;
   const id = dsl.id ?? autoId;
@@ -127,17 +113,35 @@ export function compilePipe(
         `DiagramCanvas compilePipe: cannot resolve to="${dsl.to}" in pipe "${id}".`,
       );
     } else {
-      const fromWorld = nodeToCanvasSpace(
-        fromNode.position,
-        fromDiagram.position,
-        fromDiagram.scale,
-      );
-      const toWorld = nodeToCanvasSpace(
-        toNode.position,
-        toDiagram.position,
-        toDiagram.scale,
-      );
-      controlPoints = routePipe(fromWorld, toWorld);
+      if (landing === 'sides') {
+        // Side-based attachment: exit from the left or right face of each node,
+        // determined by which side faces the target diagram. This routes around
+        // icons and labels on the front (+Z) face.
+        const fromAttach = sideAttachmentPoint(
+          fromNode.position,
+          fromNode.size,
+          fromNode.depth,
+          fromDiagram.position,
+          fromDiagram.scale,
+          fromDiagram.rotation,
+          toDiagram.position,
+        );
+        const toAttach = sideAttachmentPoint(
+          toNode.position,
+          toNode.size,
+          toNode.depth,
+          toDiagram.position,
+          toDiagram.scale,
+          toDiagram.rotation,
+          fromDiagram.position,
+        );
+        controlPoints = routePipe(fromAttach.point, toAttach.point, fromAttach.normal, toAttach.normal, routing);
+      } else {
+        // 'nearest-face': use node centers (legacy behaviour)
+        const fromWorld = nodeToCanvasSpace(fromNode.position, fromDiagram.position, fromDiagram.scale);
+        const toWorld   = nodeToCanvasSpace(toNode.position,   toDiagram.position,   toDiagram.scale);
+        controlPoints = routePipe(fromWorld, toWorld, undefined, undefined, routing);
+      }
     }
   }
 
@@ -173,7 +177,9 @@ export function compileCanvas(
   diagrams: ReadonlyArray<DiagramState>,
   pipes: ReadonlyArray<DiagramPipeDSL>,
 ): DiagramCanvasState {
-  const compiledPipes = pipes.map((pipe, index) => compilePipe(pipe, diagrams, index));
+  const pipeRouting = dsl.pipeRouting ?? DEFAULT_PIPE_ROUTING;
+  const pipeLanding = dsl.pipeLanding ?? DEFAULT_PIPE_LANDING;
+  const compiledPipes = pipes.map((pipe, index) => compilePipe(pipe, diagrams, index, pipeRouting, pipeLanding));
 
   return {
     id: dsl.id,
@@ -219,66 +225,23 @@ export const functionalDiagramCanvasTransitionSpec: FunctionalTransitionSpec<Dia
       if (!fromDiagram) {
         return applyDiagramEnter(toDiagram, t);
       }
-      const fromNodeMap = new Map(fromDiagram.nodes.map((n) => [n.id, n]));
-      const toNodeIds = new Set(toDiagram.nodes.map((n) => n.id));
+      const { blended, fading } = blendDiagramNodes(fromDiagram.nodes, toDiagram.nodes, t);
+      const { positions, sizes } = buildLiveNodeMaps([...blended, ...fading]);
       const toEdgeIds = new Set(toDiagram.edges.map((e) => e.id));
-
-      const blendedNodes = toDiagram.nodes.map((toNode) => {
-        const fromNode = fromNodeMap.get(toNode.id);
-        if (!fromNode) {
-          return { ...toNode, opacity: blendOpacity(0, toNode.opacity, t) ?? toNode.opacity };
-        }
-        return {
-          ...toNode,
-          position: blendVec3(toMut(fromNode.position), toMut(toNode.position), t) ?? toNode.position,
-          opacity: blendOpacity(fromNode.opacity, toNode.opacity, t) ?? toNode.opacity,
-        };
-      });
-      const fadingNodes = fromDiagram.nodes
-        .filter((n) => !toNodeIds.has(n.id))
-        .map((n) => ({ ...n, opacity: blendOpacity(n.opacity, 0, t) ?? 0 }));
-
-      // Re-route edges using live interpolated node positions (same strategy as
-      // functionalDiagramTransitionSpec.interpolateFn) so tubes track moving nodes.
-      const livePositions = new Map<string, readonly [number, number, number]>();
-      const liveSizes = new Map<string, readonly [number, number, number]>();
-      [...blendedNodes, ...fadingNodes].forEach((n) => {
-        livePositions.set(n.id, n.position);
-        liveSizes.set(n.id, [n.size[0], n.size[1], n.depth]);
-      });
-      const allEdgeDSLs = [
-        ...toDiagram.edges.map((e) => ({ id: e.id, from: e.fromId, to: e.toId })),
-        ...fromDiagram.edges
-          .filter((e) => !toEdgeIds.has(e.id))
-          .map((e) => ({ id: e.id, from: e.fromId, to: e.toId })),
-      ];
-      const liveEdgePoints = routeEdges(allEdgeDSLs, livePositions, liveSizes);
-
-      const fromEdgeMap = new Map(fromDiagram.edges.map((e) => [e.id, e]));
-      const blendedEdges = toDiagram.edges.map((toEdge) => {
-        const fromEdge = fromEdgeMap.get(toEdge.id);
-        return {
-          ...toEdge,
-          opacity: fromEdge
-            ? blendOpacity(fromEdge.opacity, toEdge.opacity, t) ?? toEdge.opacity
-            : blendOpacity(0, toEdge.opacity, t) ?? toEdge.opacity,
-          controlPoints: liveEdgePoints.get(toEdge.id) ?? toEdge.controlPoints,
-        };
-      });
-      const fadingEdges = fromDiagram.edges
-        .filter((e) => !toEdgeIds.has(e.id))
-        .map((e) => ({
-          ...e,
-          opacity: blendOpacity(e.opacity, 0, t) ?? 0,
-          controlPoints: liveEdgePoints.get(e.id) ?? e.controlPoints,
-        }));
+      const livePoints = rerouteLiveEdges(toDiagram.edges, fromDiagram.edges, toEdgeIds, positions, sizes);
+      const { blended: blendedEdges, fading: fadingEdges } = blendDiagramEdges(
+        fromDiagram.edges,
+        toDiagram.edges,
+        livePoints,
+        t,
+      );
 
       return {
         ...toDiagram,
         position: blendVec3(toMut(fromDiagram.position), toMut(toDiagram.position), t) ?? toDiagram.position,
         rotation: blendVec3(toMut(fromDiagram.rotation), toMut(toDiagram.rotation), t) ?? toDiagram.rotation,
         scale: blendNumber(fromDiagram.scale, toDiagram.scale, t) ?? toDiagram.scale,
-        nodes: [...blendedNodes, ...fadingNodes],
+        nodes: [...blended, ...fading],
         edges: [...blendedEdges, ...fadingEdges],
       };
     });
@@ -287,44 +250,30 @@ export const functionalDiagramCanvasTransitionSpec: FunctionalTransitionSpec<Dia
       .filter((d) => !to.diagrams.some((td) => td.id === d.id))
       .map((d) => applyDiagramExit(d, t));
 
-    // Build canvas-local node position map from ALL interpolated + fading diagrams.
-    // Used to re-route cross-diagram pipes so they track moving endpoint nodes.
-    const canvasNodePosMap = new Map<string, readonly [number, number, number]>();
-    for (const diagram of [...interpolatedDiagrams, ...fadingDiagrams]) {
-      for (const node of diagram.nodes) {
-        const canvasPos: readonly [number, number, number] = [
-          node.position[0] * diagram.scale + diagram.position[0],
-          node.position[1] * diagram.scale + diagram.position[1],
-          node.position[2] * diagram.scale + diagram.position[2],
-        ];
-        canvasNodePosMap.set(`${diagram.id}.${node.id}`, canvasPos);
-      }
-    }
+    const livePipePoints = rerouteLivePipes(
+      [...to.pipes, ...from.pipes.filter((p) => !toPipeIds.has(p.id))],
+      [...interpolatedDiagrams, ...fadingDiagrams],
+      DEFAULT_PIPE_ROUTING,
+      DEFAULT_PIPE_LANDING,
+    );
 
     const blendedPipes = to.pipes.map((toPipe) => {
       const fromPipe = fromPipeMap.get(toPipe.id);
-      // Re-route pipe using live canvas-space endpoint positions.
-      const fromPos = canvasNodePosMap.get(`${toPipe.fromDiagramId}.${toPipe.fromNodeId}`);
-      const toPos = canvasNodePosMap.get(`${toPipe.toDiagramId}.${toPipe.toNodeId}`);
-      const liveControlPoints = (fromPos && toPos)
-        ? routePipe(fromPos, toPos)
-        : toPipe.controlPoints;
       return {
         ...toPipe,
         opacity: fromPipe
           ? blendOpacity(fromPipe.opacity, toPipe.opacity, t) ?? toPipe.opacity
           : blendOpacity(0, toPipe.opacity, t) ?? toPipe.opacity,
-        controlPoints: liveControlPoints,
+        controlPoints: livePipePoints.get(toPipe.id) ?? toPipe.controlPoints,
       };
     });
     const fadingPipes = from.pipes
       .filter((p) => !toPipeIds.has(p.id))
-      .map((p) => {
-        const fromPos = canvasNodePosMap.get(`${p.fromDiagramId}.${p.fromNodeId}`);
-        const toPos = canvasNodePosMap.get(`${p.toDiagramId}.${p.toNodeId}`);
-        const liveControlPoints = (fromPos && toPos) ? routePipe(fromPos, toPos) : p.controlPoints;
-        return { ...p, opacity: blendOpacity(p.opacity, 0, t) ?? 0, controlPoints: liveControlPoints };
-      });
+      .map((p) => ({
+        ...p,
+        opacity: blendOpacity(p.opacity, 0, t) ?? 0,
+        controlPoints: livePipePoints.get(p.id) ?? p.controlPoints,
+      }));
 
     return {
       ...to,

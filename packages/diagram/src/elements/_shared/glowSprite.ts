@@ -4,7 +4,7 @@ import * as THREE from 'three';
 
 let cachedTexture: THREE.CanvasTexture | null = null;
 
-const createCanvas = (size: number): HTMLCanvasElement | OffscreenCanvas => {
+const createCanvas = (size: number): HTMLCanvasElement => {
   if (typeof document !== 'undefined') {
     const canvas = document.createElement('canvas');
     canvas.width = size;
@@ -12,7 +12,7 @@ const createCanvas = (size: number): HTMLCanvasElement | OffscreenCanvas => {
     return canvas;
   }
   if (typeof OffscreenCanvas !== 'undefined') {
-    return new OffscreenCanvas(size, size);
+    return new OffscreenCanvas(size, size) as unknown as HTMLCanvasElement;
   }
   return { width: size, height: size, getContext: () => null } as unknown as HTMLCanvasElement;
 };

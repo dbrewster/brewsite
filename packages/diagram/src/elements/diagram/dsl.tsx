@@ -5,11 +5,15 @@ import type { DiagramShapeVariant } from './shapes/shapeVariants';
 import type {
   DiagramEdgeStyle,
   DiagramArrowVariant,
+  DiagramEdgeFlow,
   DiagramGroupVariant,
   DiagramOrientation,
   DiagramPivot,
   DiagramEasing,
   SvgIcon3DStyle,
+  DiagramTheme,
+  EdgeRoutingAlgorithm,
+  DiagramEdgePort,
 } from './types';
 
 // ─── <DiagramNode> ────────────────────────────────────────────────────────────
@@ -47,11 +51,15 @@ export interface DiagramNodeProps {
   sideColor?: string;
   /** Border outline color (CSS hex). Default: derives from color (lighter) */
   borderColor?: string;
-  /** Surface metalness [0–1]. Default: 0.15 */
+  /** Surface metalness [0–1]. Default: from theme (darkGlass: 0.40) */
   metalness?: number;
-  /** Surface roughness [0–1]. Default: 0.65 */
+  /** Surface roughness [0–1]. Default: from theme (darkGlass: 0.30) */
   roughness?: number;
-  /** Label text color (CSS hex). Default: '#ffffff' */
+  /** Emissive intensity on front face [0–1]. Default: from theme (darkGlass: 0.10) */
+  emissiveIntensity?: number;
+  /** Corner radius in diagram units for rect shapes. Default: from theme (darkGlass: 0.06) */
+  cornerRadius?: number;
+  /** Label text color (CSS hex). Default: from theme */
   labelColor?: string;
   /** Sublabel text color (CSS hex). Default: '#a0a8c0' */
   sublabelColor?: string;
@@ -102,12 +110,30 @@ export interface DiagramEdgeProps {
   arrowStart?: DiagramArrowVariant;
   /** Arrowhead at destination end. Default: 'open' */
   arrowEnd?: DiagramArrowVariant;
-  /** Edge color (CSS hex). Default: '#555e7a' */
+  /** Optional flow animation direction */
+  flow?: DiagramEdgeFlow;
+  /** Optional flow pulse color (defaults to edge color) */
+  flowColor?: string;
+  /** Edge color (CSS hex). Default: from theme */
   color?: string;
-  /** Tube radius in diagram units. Default: 0.04 */
+  /** Tube radius in diagram units. Default: from theme */
   thickness?: number;
   /** Edge opacity [0–1]. Default: 1 */
   opacity?: number;
+  /**
+   * Per-edge routing algorithm. Overrides the diagram theme's default routing.
+   * Useful for mixing curved and orthogonal edges in the same diagram.
+   */
+  routing?: EdgeRoutingAlgorithm;
+  /**
+   * Explicit attachment port at the source node (requires landing: 'port' or
+   * automatically enables port landing for this edge).
+   */
+  fromPort?: DiagramEdgePort;
+  /**
+   * Explicit attachment port at the destination node.
+   */
+  toPort?: DiagramEdgePort;
 }
 
 /**
@@ -180,6 +206,13 @@ export interface DiagramProps {
   scale?: number;
   /** Pivot point. Default: 'center' */
   pivot?: DiagramPivot;
+  /**
+   * Visual + behavioral theme for this diagram.
+   * Overrides the canvas-level theme (if inside a DiagramCanvas).
+   * Falls back to the package default (darkGlassTheme) when absent.
+   * Per-node / per-edge props take precedence over all theme values.
+   */
+  theme?: DiagramTheme;
   children?: React.ReactNode;
 }
 

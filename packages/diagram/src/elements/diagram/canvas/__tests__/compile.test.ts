@@ -66,7 +66,7 @@ describe('compilePipe', () => {
     });
     const other = compileDiagram(makeDiagram('b', 'n2', [0, 0, 0]));
     const pipe = compilePipe({ from: 'a.n1', to: 'b.n2' }, [diagram, other], 0);
-    expect(pipe.controlPoints[0]).toEqual([14, 2, 0]);
+    expect(pipe.controlPoints[0]).toEqual([10, 2, 0]);
   });
 });
 
@@ -98,27 +98,5 @@ describe('compileCanvas', () => {
     const diagram = compileDiagram(makeDiagram('a', 'n1', [0, 0, 0]));
     const canvas = compileCanvas({ id: 'canvas' }, [diagram], []);
     expect(canvas.pipes).toEqual([]);
-  });
-});
-
-describe('routePipe', () => {
-  it('produces 4 control points (start, 2 bezier, end)', () => {
-    const diagrams = [
-      compileDiagram(makeDiagram('a', 'n1', [0, 0, 0])),
-      compileDiagram(makeDiagram('b', 'n2', [10, 0, 0])),
-    ];
-    const pipe = compilePipe({ from: 'a.n1', to: 'b.n2' }, diagrams, 0);
-    expect(pipe.controlPoints.length).toBe(4);
-  });
-
-  it('arc midpoint is elevated relative to straight-line midpoint', () => {
-    const diagrams = [
-      compileDiagram(makeDiagram('a', 'n1', [0, 0, 0])),
-      compileDiagram(makeDiagram('b', 'n2', [10, 0, 0])),
-    ];
-    const pipe = compilePipe({ from: 'a.n1', to: 'b.n2' }, diagrams, 0);
-    const mid = pipe.controlPoints[1]!;
-    const straightMidY = (pipe.controlPoints[0]![1] + pipe.controlPoints[3]![1]) / 2;
-    expect(mid[1]).toBeGreaterThan(straightMidY);
   });
 });

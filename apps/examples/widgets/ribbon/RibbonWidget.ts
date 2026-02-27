@@ -1,5 +1,6 @@
 import type { ReactElement } from 'react';
 import { isValidElement } from 'react';
+import * as THREE from 'three';
 import type { NodeHandler } from '@brewsite/core/compiler/sceneDslTypes';
 import type { ISceneElement, IRenderable, WidgetInitContext, WidgetRenderContext } from '@brewsite/core/widget/types';
 import { CUSTOM_NODE_HANDLER } from '@brewsite/core/widget/WidgetRegistry';
@@ -68,7 +69,8 @@ export class RibbonWidget implements ISceneElement<SceneRibbon>, IRenderable<Sce
   }
 
   initialize(ctx: WidgetInitContext): void {
-    this.renderer = new RibbonRenderer(ctx.scene);
+    const scene = ctx.scene as unknown as THREE.Scene;
+    this.renderer = new RibbonRenderer(scene);
   }
 
   apply(state: SceneRibbon, _ctx: WidgetRenderContext): void {

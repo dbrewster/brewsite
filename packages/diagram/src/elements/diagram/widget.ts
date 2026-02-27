@@ -11,12 +11,9 @@ import type {
 } from '@brewsite/core';
 import { Diagram } from './dsl';
 import { functionalDiagramTransitionSpec } from './compile';
-import {
-  DiagramRenderer,
-  diagramInteractionRegistry,
-  diagramInteractionLookup,
-} from './render';
+import { DiagramRenderer } from './render';
 import type { DiagramInteractionEvent, DiagramNodeState, DiagramState } from './types';
+import { rotateXYZ } from './canvas/compiler/pipeRouter';
 
 const CAMERA_KEY = '__brewsite_camera';
 
@@ -89,25 +86,51 @@ export class DiagramWidget
 
     // Yield to the Camera widget when it is explicitly enabled for this tick.
     const rawCamState = tick?.state.widgets['camera'];
+    const functionalCam = tick
+      ? context.track?.transitionBlocks?.[tick.sceneIndex]?.widgetFns['camera']
+      : undefined;
+    const resolvedCamState = functionalCam
+      ? (functionalCam.fn(tick!.blockProgress) as { enabled?: boolean })
+      : (rawCamState as { enabled?: boolean } | undefined);
     const cameraActive =
-      typeof rawCamState === 'object' &&
-      rawCamState !== null &&
-      'enabled' in rawCamState &&
-      (rawCamState as { enabled: boolean }).enabled === true;
+      typeof resolvedCamState === 'object' &&
+      resolvedCamState !== null &&
+      'enabled' in resolvedCamState &&
+      resolvedCamState.enabled === true;
     if (cameraActive) return;
 
     const cam = context.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
     if (!cam) return;
 
-    const { bounds, position, scale } = diagramState;
-    const worldCX = (bounds.x + bounds.w / 2) * scale + position[0];
-    const worldCY = (bounds.y + bounds.h / 2) * scale + position[1];
-    const worldCZ = position[2];
-    const worldMaxDim = Math.max(bounds.w, bounds.h) * scale;
+    const { bounds, position, scale, rotation } = diagramState;
+    const [drx, dry, drz] = rotation;
+    const corners: Array<readonly [number, number, number]> = [
+      [bounds.x, bounds.y, 0],
+      [bounds.x + bounds.w, bounds.y, 0],
+      [bounds.x, bounds.y + bounds.h, 0],
+      [bounds.x + bounds.w, bounds.y + bounds.h, 0],
+    ];
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const corner of corners) {
+      const cx = corner[0] * scale + position[0];
+      const cy = corner[1] * scale + position[1];
+      const cz = corner[2] * scale + position[2];
+      const [rx, ry] = rotateXYZ([cx, cy, cz], drx, dry, drz);
+      minX = Math.min(minX, rx);
+      maxX = Math.max(maxX, rx);
+      minY = Math.min(minY, ry);
+      maxY = Math.max(maxY, ry);
+    }
+    const worldCX = (minX + maxX) / 2;
+    const worldCY = (minY + maxY) / 2;
+    const worldMaxDim = Math.max(maxX - minX, maxY - minY);
     const fov45 = 45 * (Math.PI / 180);
     const dist = (worldMaxDim / (2 * Math.tan(fov45 / 2))) * 1.2;
-    cam.position.set(worldCX, worldCY + dist * 0.3, worldCZ + dist);
-    cam.lookAt(worldCX, worldCY, worldCZ);
+    cam.position.set(worldCX, worldCY + dist * 0.3, position[2] + dist);
+    cam.lookAt(worldCX, worldCY, position[2]);
   }
 
   apply(state: DiagramState, _ctx: WidgetRenderContext): void {
@@ -200,13 +223,13 @@ export class DiagramWidget
 
     this.raycaster.setFromCamera(this.ndc, cam);
 
-    const targets = Array.from(diagramInteractionRegistry);
+    const targets = Array.from(this.renderer.interactionRegistry.meshes);
     const intersects = this.raycaster.intersectObjects(targets, false);
     if (intersects.length === 0) return;
 
     const hit = intersects[0];
     const mesh = hit.object as THREE.Mesh;
-    const info = diagramInteractionLookup.get(mesh);
+    const info = this.renderer.interactionRegistry.lookup(mesh);
     if (!info) return;
 
     // Only fire events for nodes that belong to THIS widget's diagram.

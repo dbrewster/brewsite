@@ -49,6 +49,12 @@ export const EngineInputRegion = ({
       // received when the element or canvas is clicked. Without this, keydown
       // events attached to this HTMLElement never fire.
       tabIndex={-1}
+      onPointerDown={(event) => {
+        const el = event.currentTarget as HTMLDivElement;
+        if (typeof el.focus === 'function') {
+          el.focus();
+        }
+      }}
       style={{
         position: mode === 'scroll' ? 'sticky' : 'relative',
         top: 0,
@@ -81,7 +87,7 @@ export const EngineInputRegion = ({
 
   if (mode === 'direct') {
     return (
-      <div className={className} style={{ position: 'relative', height: '100vh' }}>
+      <div ref={engine.scrollRegionRef} className={className} style={{ position: 'relative', height: '100vh' }}>
         {innerContent}
       </div>
     );

@@ -23,6 +23,7 @@ export const makeRenderContext = (
   wallTimeSeconds: 0,
   variables: new VariableStore(),
   extra: undefined,
+  tick: null,
   ...overrides,
 });
 

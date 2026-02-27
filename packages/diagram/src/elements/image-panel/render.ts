@@ -68,8 +68,9 @@ export class ImagePanelRenderer {
       loadTexture(state.src, (texture) => {
         material.map = texture;
         material.needsUpdate = true;
-        if (!state.height && texture.image) {
-          const aspect = texture.image.width / Math.max(1, texture.image.height);
+        const image = texture.image as { width: number; height: number } | undefined;
+        if (!state.height && image) {
+          const aspect = image.width / Math.max(1, image.height);
           const height = state.width / Math.max(0.0001, aspect);
           this.updateGeometry(entry!, state.width, height);
           // Rebuild bezel to match the texture's natural aspect ratio.

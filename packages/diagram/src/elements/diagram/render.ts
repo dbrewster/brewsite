@@ -1,279 +1,49 @@
 // Three.js rendering for DiagramState.
-// WebGL only — no React.
+// Orchestrates NodeRenderer, EdgeRenderer, GroupRenderer, EnvMapManager.
 
 import * as THREE from 'three';
-import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
-import { Text } from 'troika-three-text';
-import type { DiagramEdgeState, DiagramGroupState, DiagramNodeState, DiagramState, SvgIcon3DStyle } from './types';
-import { createShapeGeometry } from './shapes/geometryFactory';
-import { buildSvgIcon3D } from './shapes/svgIcon3D';
+import type { DiagramState } from './types';
+import { NodeRenderer } from './rendering/NodeRenderer';
+import { EdgeRenderer } from './rendering/EdgeRenderer';
+import { GroupRenderer } from './rendering/GroupRenderer';
+import { EdgeMaterialFactory } from './rendering/EdgeMaterialFactory';
+import { EnvMapManager } from './rendering/EnvMapManager';
+import { InteractionRegistry } from './rendering/InteractionRegistry';
+import { sharedIconLoader } from './rendering/IconLoader';
 
-export const diagramInteractionRegistry = new Set<THREE.Mesh>();
-export const diagramInteractionLookup = new Map<THREE.Mesh, { diagramId: string; nodeId: string }>();
-
-type NodeEntry = {
-  group: THREE.Group;
-  boxMesh: THREE.Mesh;
-  border: THREE.LineSegments;
-  label: Text;
-  sublabel?: Text;
-  iconHolder?: THREE.Group;
-  diagramId: string;
-  lastState?: DiagramNodeState;
-};
-
-type EdgeEntry = {
-  group: THREE.Group;
-  tube: THREE.Mesh;
-  arrowStart?: THREE.Mesh;
-  arrowEnd?: THREE.Mesh;
-  lastState?: DiagramEdgeState;
-};
-
-type GroupEntry = {
-  group: THREE.Group;
-  fill: THREE.Mesh;
-  border: THREE.LineSegments;
-  label: Text;
-  lastState?: DiagramGroupState;
-};
-
-const svgLoader = new SVGLoader();
-const textureLoader = new THREE.TextureLoader();
-
-let cachedDashTexture: THREE.CanvasTexture | null = null;
-let cachedDotTexture: THREE.CanvasTexture | null = null;
-
-const createCanvas = (size: number): HTMLCanvasElement | OffscreenCanvas => {
-  if (typeof document !== 'undefined') {
-    const canvas = document.createElement('canvas');
-    canvas.width = size;
-    canvas.height = size;
-    return canvas;
+const findScene = (obj: THREE.Object3D): THREE.Scene | null => {
+  let current: THREE.Object3D | null = obj;
+  while (current) {
+    if (current instanceof THREE.Scene) return current;
+    current = current.parent;
   }
-  if (typeof OffscreenCanvas !== 'undefined') {
-    return new OffscreenCanvas(size, size);
-  }
-  return { width: size, height: size, getContext: () => null } as unknown as HTMLCanvasElement;
-};
-
-const getDashTexture = (): THREE.CanvasTexture => {
-  if (cachedDashTexture) return cachedDashTexture;
-  const size = 64;
-  const canvas = createCanvas(size);
-  const ctx = canvas.getContext?.('2d') ?? null;
-  if (ctx) {
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, size, size);
-    ctx.fillStyle = 'black';
-    ctx.fillRect(size * 0.5, 0, size * 0.5, size);
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(8, 1);
-  cachedDashTexture = texture;
-  return texture;
-};
-
-const getDotTexture = (): THREE.CanvasTexture => {
-  if (cachedDotTexture) return cachedDotTexture;
-  const size = 32;
-  const canvas = createCanvas(size);
-  const ctx = canvas.getContext?.('2d') ?? null;
-  if (ctx) {
-    ctx.fillStyle = 'white';
-    ctx.fillRect(0, 0, size, size);
-    ctx.fillStyle = 'black';
-    ctx.beginPath();
-    ctx.arc(size * 0.5, size * 0.5, size * 0.2, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(6, 1);
-  cachedDotTexture = texture;
-  return texture;
-};
-
-const iconCache = new Map<string, Promise<THREE.Object3D>>();
-
-const loadIconObject = (
-  url: string,
-  width: number,
-  height: number,
-  style: SvgIcon3DStyle,
-  maxDepth: number,
-  metalness: number,
-  roughness: number,
-): Promise<THREE.Object3D> => {
-  const cacheKey = `${url}|${width}|${height}|${style}|${maxDepth}`;
-  if (iconCache.has(cacheKey)) return iconCache.get(cacheKey)!;
-
-  const promise = new Promise<THREE.Object3D>((resolve) => {
-    if (url.toLowerCase().endsWith('.svg')) {
-      if (style !== 'flat') {
-        // ── 3D extruded path ──────────────────────────────────────────────────
-        svgLoader.load(
-          url,
-          (data) => {
-            resolve(buildSvgIcon3D(data, { width, height, maxDepth, style, metalness, roughness }));
-          },
-          undefined,
-          (err) => {
-            console.warn(`[DiagramRenderer] Failed to load 3D SVG icon: ${url}`, err);
-            resolve(new THREE.Group());
-          },
-        );
-      } else {
-        // ── Flat path (existing behaviour, unchanged) ─────────────────────────
-        svgLoader.load(
-          url,
-          (data) => {
-            const group = new THREE.Group();
-            const paths = data.paths ?? [];
-            paths.forEach((path) => {
-              // Use the path's own fill color when available so icons render with
-              // their intended palette. Paths with fill:'none' are skipped.
-              const s = (path.userData as { style?: { fill?: string } } | undefined)?.style;
-              const fillColor = s?.fill;
-              if (fillColor === 'none') return; // stroke-only paths: skip
-              const color =
-                fillColor && fillColor !== ''
-                  ? new THREE.Color(fillColor)
-                  : new THREE.Color(0xffffff);
-              const material = new THREE.MeshBasicMaterial({
-                color,
-                transparent: true,
-                depthWrite: false,
-                side: THREE.DoubleSide,
-              });
-              const shapes = SVGLoader.createShapes(path);
-              shapes.forEach((shape) => {
-                const geometry = new THREE.ShapeGeometry(shape);
-                const mesh = new THREE.Mesh(geometry, material);
-                group.add(mesh);
-              });
-            });
-            // SVG coordinate system is Y-down; Three.js is Y-up.
-            // Apply a Y-flip so icons are right-side-up when placed on a box face.
-            group.scale.set(1, -1, 1);
-            const box = new THREE.Box3().setFromObject(group);
-            const size = new THREE.Vector3();
-            box.getSize(size);
-            const scale = Math.min(
-              width / Math.max(0.001, size.x),
-              height / Math.max(0.001, size.y),
-            );
-            // Apply scale while preserving the Y-flip.
-            group.scale.set(scale, -scale, 1);
-            box.setFromObject(group);
-            const center = new THREE.Vector3();
-            box.getCenter(center);
-            group.position.set(-center.x, -center.y, 0);
-            resolve(group);
-          },
-          undefined,
-          (err) => {
-            console.warn(`[DiagramRenderer] Failed to load SVG icon: ${url}`, err);
-            resolve(new THREE.Group());
-          },
-        );
-      }
-    } else {
-      // ── Texture (raster) path (unchanged) ──────────────────────────────────
-      textureLoader.load(
-        url,
-        (texture) => {
-          const geometry = new THREE.PlaneGeometry(width, height);
-          const material = new THREE.MeshBasicMaterial({
-            map: texture,
-            transparent: true,
-            depthWrite: false,
-          });
-          const mesh = new THREE.Mesh(geometry, material);
-          resolve(mesh);
-        },
-        undefined,
-        (err) => {
-          console.warn(`[DiagramRenderer] Failed to load texture icon: ${url}`, err);
-          resolve(new THREE.Mesh());
-        },
-      );
-    }
-  });
-
-  iconCache.set(cacheKey, promise);
-  return promise;
-};
-
-const createBoxMaterials = (state: DiagramNodeState): THREE.MeshStandardMaterial[] => {
-  const side = new THREE.MeshStandardMaterial({
-    color: state.sideColor,
-    metalness: state.metalness,
-    roughness: state.roughness,
-    transparent: true,
-    opacity: state.opacity,
-  });
-  const top = side.clone();
-  top.emissive = new THREE.Color(state.sideColor).multiplyScalar(0.05);
-  const bottom = side.clone();
-  bottom.emissive = new THREE.Color(state.sideColor).multiplyScalar(0.02);
-  const front = new THREE.MeshStandardMaterial({
-    color: state.color,
-    metalness: state.metalness,
-    roughness: state.roughness,
-    transparent: true,
-    opacity: state.opacity,
-  });
-  const back = side.clone();
-  return [side, side.clone(), top, bottom, front, back];
-};
-
-/**
- * Updates a troika Text object and calls sync() only when layout-affecting
- * properties change. Opacity (fillOpacity) is a cheap material-uniform update
- * that does NOT require sync() — calling sync() unconditionally every tick
- * triggers the troika SDF pipeline which is extremely expensive.
- */
-const ensureText = (text: Text, value: string, color: string, fontSize: number, opacity: number): void => {
-  // fillOpacity is a material uniform — update directly, no sync needed.
-  text.fillOpacity = opacity;
-
-  // Anchor props are one-time initialisation (never change at runtime).
-  if (!text.anchorX) {
-    text.anchorX = 'center';
-    text.anchorY = 'middle';
-  }
-
-  // Layout-affecting properties: only sync when they actually change.
-  if (text.text !== value || text.color !== color || text.fontSize !== fontSize) {
-    text.text = value;
-    text.color = color;
-    text.fontSize = fontSize;
-    text.sync();
-  }
+  return null;
 };
 
 export class DiagramRenderer {
   private diagramGroups = new Map<string, THREE.Group>();
-  private nodeEntries = new Map<string, NodeEntry>();
-  private edgeEntries = new Map<string, EdgeEntry>();
-  private groupEntries = new Map<string, GroupEntry>();
   private lastState = new Map<string, DiagramState>();
+  private readonly envMapManager = new EnvMapManager();
 
-  private nodeKey(diagramId: string, nodeId: string): string {
-    return `${diagramId}::node::${nodeId}`;
-  }
-  private edgeKey(diagramId: string, edgeId: string): string {
-    return `${diagramId}::edge::${edgeId}`;
-  }
-  private groupKey(diagramId: string, groupId: string): string {
-    return `${diagramId}::group::${groupId}`;
-  }
+  readonly interactionRegistry = new InteractionRegistry();
+  private nodeRenderer: NodeRenderer | null = null;
+  private edgeRenderer: EdgeRenderer | null = null;
+  private groupRenderer: GroupRenderer | null = null;
 
   update(state: DiagramState, parent: THREE.Object3D): void {
+    const tc = state.themeConfig;
+    if (!this.nodeRenderer) {
+      this.nodeRenderer = new NodeRenderer(sharedIconLoader, this.interactionRegistry);
+      this.edgeRenderer = new EdgeRenderer(
+        new EdgeMaterialFactory(),
+        tc.use3DArrows,
+        tc.edgeSmoothness,
+        tc.edgeMetalness,
+        tc.edgeRoughness,
+      );
+      this.groupRenderer = new GroupRenderer();
+    }
+
     const prev = this.lastState.get(state.id);
     if (!this.diagramGroups.has(state.id)) {
       const root = new THREE.Group();
@@ -286,613 +56,69 @@ export class DiagramRenderer {
     root.rotation.set(state.rotation[0], state.rotation[1], state.rotation[2]);
     root.scale.setScalar(state.scale);
 
-    const nodesById = new Map(state.nodes.map((node) => [node.id, node]));
-    const edgesById = new Map(state.edges.map((edge) => [edge.id, edge]));
-    const groupsById = new Map(state.groups.map((group) => [group.id, group]));
-
-    // Remove missing nodes
-    for (const [id, entry] of this.nodeEntries) {
-      if (entry.diagramId !== state.id) continue;
-      const nodeId = id.split('::').slice(-1)[0];
-      if (!nodesById.has(nodeId)) {
-        root.remove(entry.group);
-        diagramInteractionRegistry.delete(entry.boxMesh);
-        diagramInteractionLookup.delete(entry.boxMesh);
-        this.disposeNode(entry);
-        this.nodeEntries.delete(id);
-      }
+    const scene = findScene(parent);
+    if (scene) {
+      this.envMapManager.apply(scene, tc.envMapUrl, tc.envMapIntensity);
     }
 
-    // Remove missing edges
-    for (const [id, entry] of this.edgeEntries) {
-      if (!id.startsWith(`${state.id}::edge::`)) continue;
-      const edgeId = id.split('::').slice(-1)[0];
-      if (!edgesById.has(edgeId)) {
-        root.remove(entry.group);
-        this.disposeEdge(entry);
-        this.edgeEntries.delete(id);
+    const activeGroupIds = new Set(state.groups.map((g) => g.id));
+    if (prev) {
+      for (const g of prev.groups) {
+        if (!activeGroupIds.has(g.id)) {
+          this.groupRenderer!.dispose(g.id, state.id, root);
+        }
       }
     }
-
-    // Remove missing groups
-    for (const [id, entry] of this.groupEntries) {
-      if (!id.startsWith(`${state.id}::group::`)) continue;
-      const groupId = id.split('::').slice(-1)[0];
-      if (!groupsById.has(groupId)) {
-        root.remove(entry.group);
-        this.disposeGroup(entry);
-        this.groupEntries.delete(id);
-      }
+    for (const groupState of state.groups) {
+      this.groupRenderer!.getOrCreate(groupState, state.id, root);
     }
 
-    // Groups first (background)
-    state.groups.forEach((groupState) => {
-      const entry = this.groupEntries.get(this.groupKey(state.id, groupState.id));
-      const updated = entry ?? this.createGroup(groupState);
-      this.updateGroup(updated, groupState);
-      if (!entry) {
-        this.groupEntries.set(this.groupKey(state.id, groupState.id), updated);
-        root.add(updated.group);
+    const activeEdgeIds = new Set(state.edges.map((e) => `${state.id}::${e.id}`));
+    for (const id of this.edgeRenderer!.ids) {
+      if (id.startsWith(`${state.id}::`) && !activeEdgeIds.has(id)) {
+        this.edgeRenderer!.dispose(id, root);
       }
-    });
-
-    // Edges
-    state.edges.forEach((edgeState) => {
-      const entry = this.edgeEntries.get(this.edgeKey(state.id, edgeState.id));
-      const updated = entry ?? this.createEdge(edgeState);
-      this.updateEdge(updated, edgeState);
-      if (!entry) {
-        this.edgeEntries.set(this.edgeKey(state.id, edgeState.id), updated);
-        root.add(updated.group);
-      }
-    });
-
-    // Nodes
-    state.nodes.forEach((nodeState) => {
-      const entry = this.nodeEntries.get(this.nodeKey(state.id, nodeState.id));
-      const updated = entry ?? this.createNode(nodeState, state.id);
-      this.updateNode(updated, nodeState, state.id);
-      if (!entry) {
-        this.nodeEntries.set(this.nodeKey(state.id, nodeState.id), updated);
-        root.add(updated.group);
-      }
-    });
-
-    if (prev !== state) {
-      this.lastState.set(state.id, state);
     }
+    for (const edgeState of state.edges) {
+      this.edgeRenderer!.getOrCreate({
+        ...edgeState,
+        id: `${state.id}::${edgeState.id}`,
+      }, root);
+    }
+
+    const activeNodeIds = new Set(state.nodes.map((n) => n.id));
+    if (prev) {
+      for (const n of prev.nodes) {
+        if (!activeNodeIds.has(n.id)) {
+          this.nodeRenderer!.dispose(n.id, state.id, root);
+        }
+      }
+    }
+    for (const nodeState of state.nodes) {
+      this.nodeRenderer!.getOrCreate(nodeState, state.id, tc, root);
+    }
+
+    this.lastState.set(state.id, state);
   }
 
   dispose(diagramId: string, parent: THREE.Object3D): void {
-    const group = this.diagramGroups.get(diagramId);
-    if (group) {
-      parent.remove(group);
-      this.diagramGroups.delete(diagramId);
+    const root = this.diagramGroups.get(diagramId);
+    if (root) {
+      parent.remove(root);
     }
-    for (const [id, entry] of this.nodeEntries) {
-      if (entry.diagramId === diagramId) {
-        diagramInteractionRegistry.delete(entry.boxMesh);
-        diagramInteractionLookup.delete(entry.boxMesh);
-        this.disposeNode(entry);
-        this.nodeEntries.delete(id);
+    this.nodeRenderer?.disposeAllForDiagram(diagramId, root ?? new THREE.Group());
+    this.groupRenderer?.disposeAllForDiagram(diagramId, root ?? new THREE.Group());
+    if (this.edgeRenderer && root) {
+      for (const id of this.edgeRenderer.ids) {
+        if (id.startsWith(`${diagramId}::`)) {
+          this.edgeRenderer.dispose(id, root);
+        }
       }
     }
-    for (const [id, entry] of this.edgeEntries) {
-      if (id.startsWith(`${diagramId}::edge::`)) {
-        this.disposeEdge(entry);
-        this.edgeEntries.delete(id);
-      }
-    }
-    for (const [id, entry] of this.groupEntries) {
-      if (id.startsWith(`${diagramId}::group::`)) {
-        this.disposeGroup(entry);
-        this.groupEntries.delete(id);
-      }
-    }
+    this.diagramGroups.delete(diagramId);
     this.lastState.delete(diagramId);
-  }
-
-  // ─── Disposal helpers ──────────────────────────────────────────────────────
-
-  /**
-   * Release all GPU resources owned by a node entry.
-   * Icon holder children originate from the module-level icon cache and are
-   * shared — do not dispose their internals, only detach them via clear().
-   */
-  private disposeNode(entry: NodeEntry): void {
-    entry.boxMesh.geometry.dispose();
-    const mats = Array.isArray(entry.boxMesh.material)
-      ? (entry.boxMesh.material as THREE.Material[])
-      : [entry.boxMesh.material as THREE.Material];
-    mats.forEach((m) => m.dispose());
-    entry.border.geometry.dispose();
-    (entry.border.material as THREE.Material).dispose();
-    // Troika Text: dispose the per-instance geometry. The derived material is
-    // managed by the troika base-material lifecycle and does not need manual
-    // disposal here (disposing the base material handles it automatically).
-    entry.label.geometry.dispose();
-    if (entry.sublabel) entry.sublabel.geometry.dispose();
-    entry.iconHolder?.clear();
-  }
-
-  /** Release all GPU resources owned by an edge entry. */
-  private disposeEdge(entry: EdgeEntry): void {
-    entry.tube.geometry.dispose();
-    (entry.tube.material as THREE.Material).dispose();
-    if (entry.arrowStart) {
-      entry.arrowStart.geometry.dispose();
-      (entry.arrowStart.material as THREE.Material).dispose();
-    }
-    if (entry.arrowEnd) {
-      entry.arrowEnd.geometry.dispose();
-      (entry.arrowEnd.material as THREE.Material).dispose();
-    }
-  }
-
-  /** Release all GPU resources owned by a group entry. */
-  private disposeGroup(entry: GroupEntry): void {
-    entry.fill.geometry.dispose();
-    (entry.fill.material as THREE.Material).dispose();
-    entry.border.geometry.dispose();
-    (entry.border.material as THREE.Material).dispose();
-    entry.label.geometry.dispose();
-  }
-
-  private createNode(state: DiagramNodeState, diagramId: string): NodeEntry {
-    const group = new THREE.Group();
-    const { geometry } = createShapeGeometry(state.shape, state.size, state.depth);
-    const materials = createBoxMaterials(state);
-    const boxMesh = new THREE.Mesh(geometry, materials);
-    const border = new THREE.LineSegments(
-      new THREE.EdgesGeometry(geometry),
-      new THREE.LineBasicMaterial({
-        color: state.borderColor,
-        opacity: 0.8,
-        transparent: true,
-      }),
-    );
-    const label = new Text();
-    const sublabel = state.sublabel ? new Text() : undefined;
-
-    group.add(boxMesh, border, label);
-    if (sublabel) group.add(sublabel);
-
-    return { group, boxMesh, border, label, sublabel, diagramId, lastState: state };
-  }
-
-  private updateNode(entry: NodeEntry, state: DiagramNodeState, diagramId: string): void {
-    const prev = entry.lastState;
-    const geometryChanged =
-      !prev ||
-      prev.shape !== state.shape ||
-      prev.size[0] !== state.size[0] ||
-      prev.size[1] !== state.size[1] ||
-      prev.depth !== state.depth;
-
-    if (geometryChanged) {
-      const { geometry } = createShapeGeometry(state.shape, state.size, state.depth);
-      entry.boxMesh.geometry.dispose();
-      entry.border.geometry.dispose();
-      entry.boxMesh.geometry = geometry;
-      entry.border.geometry = new THREE.EdgesGeometry(geometry);
-    }
-
-    entry.group.position.set(state.position[0], state.position[1], state.position[2]);
-    entry.group.visible = state.enabled;
-
-    // ── Material update strategy ─────────────────────────────────────────────
-    // Opacity changes every tick during scene transitions. Rebuilding all 6
-    // materials on every opacity change (dispose + allocate + GPU upload) would
-    // kill frame rate. Instead: rebuild only when colour/metalness/roughness
-    // changes (rare), and mutate opacity in-place for the common transition case.
-    const needsMaterialRebuild =
-      !prev ||
-      prev.color !== state.color ||
-      prev.sideColor !== state.sideColor ||
-      prev.metalness !== state.metalness ||
-      prev.roughness !== state.roughness;
-    if (needsMaterialRebuild) {
-      const oldMats = Array.isArray(entry.boxMesh.material)
-        ? (entry.boxMesh.material as THREE.Material[])
-        : [entry.boxMesh.material as THREE.Material];
-      entry.boxMesh.material = createBoxMaterials(state);
-      oldMats.forEach((m) => m.dispose());
-    } else if (prev && prev.opacity !== state.opacity) {
-      // Light change: update opacity in-place — no allocation, no GPU upload.
-      const mats = Array.isArray(entry.boxMesh.material)
-        ? (entry.boxMesh.material as THREE.MeshStandardMaterial[])
-        : [entry.boxMesh.material as THREE.MeshStandardMaterial];
-      const op = state.opacity;
-      mats.forEach((m) => { m.opacity = op; m.transparent = true; });
-    }
-
-    // Propagate opacity to 3D icon materials (MeshStandardMaterial, depthWrite:true).
-    // Flat icons use MeshBasicMaterial with depthWrite:false — opacity is already
-    // handled implicitly. 3D icons need an explicit traverse when opacity changes.
-    if (
-      entry.iconHolder &&
-      state.iconStyle !== 'flat' &&
-      prev &&
-      prev.opacity !== state.opacity
-    ) {
-      const op = state.opacity;
-      entry.iconHolder.traverse((child) => {
-        if (child instanceof THREE.Mesh) {
-          const mat = child.material;
-          if (Array.isArray(mat)) {
-            (mat as THREE.MeshStandardMaterial[]).forEach((m) => {
-              m.opacity = op;
-              m.transparent = true;
-            });
-          } else if (mat instanceof THREE.MeshStandardMaterial) {
-            (mat as THREE.MeshStandardMaterial).opacity = op;
-            (mat as THREE.MeshStandardMaterial).transparent = true;
-          }
-        }
-      });
-    }
-
-    const borderMaterial = entry.border.material as THREE.LineBasicMaterial;
-    if (!prev || prev.borderColor !== state.borderColor) {
-      borderMaterial.color.set(state.borderColor);
-    }
-    if (!prev || prev.opacity !== state.opacity) {
-      borderMaterial.opacity = Math.min(1, state.opacity);
-      borderMaterial.transparent = true;
-    }
-
-    const labelY = state.iconUrl ? -state.size[1] * 0.1 : 0;
-    ensureText(entry.label, state.label, state.labelColor, state.size[1] * 0.28, state.opacity);
-    entry.label.position.set(0, labelY, state.depth / 2 + 0.02);
-    entry.label.maxWidth = state.size[0] * 0.85;
-
-    if (state.sublabel) {
-      if (!entry.sublabel) {
-        entry.sublabel = new Text();
-        entry.group.add(entry.sublabel);
-      }
-      ensureText(entry.sublabel, state.sublabel, state.sublabelColor, state.size[1] * 0.18, state.opacity);
-      entry.sublabel.position.set(0, labelY - state.size[1] * 0.22, state.depth / 2 + 0.02);
-      entry.sublabel.maxWidth = state.size[0] * 0.85;
-    } else if (entry.sublabel) {
-      entry.group.remove(entry.sublabel);
-      entry.sublabel = undefined;
-    }
-
-    if (state.clickable && state.enabled) {
-      if (!diagramInteractionRegistry.has(entry.boxMesh)) {
-        diagramInteractionRegistry.add(entry.boxMesh);
-        diagramInteractionLookup.set(entry.boxMesh, { diagramId, nodeId: state.id });
-      }
-    } else if (diagramInteractionRegistry.has(entry.boxMesh)) {
-      diagramInteractionRegistry.delete(entry.boxMesh);
-      diagramInteractionLookup.delete(entry.boxMesh);
-    }
-
-    if (state.iconUrl) {
-      const needsIconRebuild =
-        !entry.iconHolder ||
-        entry.iconHolder.userData['iconUrl'] !== state.iconUrl ||
-        entry.iconHolder.userData['iconStyle'] !== state.iconStyle ||
-        entry.iconHolder.userData['iconDepth'] !== state.iconDepth;
-
-      if (needsIconRebuild) {
-        if (entry.iconHolder) {
-          entry.group.remove(entry.iconHolder);
-        }
-        const holder = new THREE.Group();
-        holder.userData['iconUrl'] = state.iconUrl;
-        holder.userData['iconStyle'] = state.iconStyle;
-        holder.userData['iconDepth'] = state.iconDepth;
-        entry.iconHolder = holder;
-        entry.group.add(holder);
-        const iconWidth = state.size[0] * state.iconScale;
-        const iconHeight = state.size[1] * state.iconScale;
-        loadIconObject(
-          state.iconUrl,
-          iconWidth,
-          iconHeight,
-          state.iconStyle,
-          state.iconDepth,
-          state.metalness,
-          state.roughness,
-        ).then((obj) => {
-          holder.clear();
-          holder.add(obj);
-        });
-      }
-      if (entry.iconHolder) {
-        entry.iconHolder.position.set(0, state.size[1] * 0.2, state.depth / 2 + 0.01);
-      }
-    } else if (entry.iconHolder) {
-      entry.group.remove(entry.iconHolder);
-      entry.iconHolder = undefined;
-    }
-
-    entry.lastState = state;
-  }
-
-  private createEdge(state: DiagramEdgeState): EdgeEntry {
-    const group = new THREE.Group();
-    const points = state.controlPoints.length >= 2
-      ? state.controlPoints.map((pt) => new THREE.Vector3(pt[0], pt[1], pt[2]))
-      : [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0)];
-    const curve = new THREE.CatmullRomCurve3(points);
-    const tubeGeometry = new THREE.TubeGeometry(
-      curve,
-      Math.max(20, state.controlPoints.length * 8),
-      state.thickness,
-      8,
-      false,
-    );
-    const tubeMaterial = this.createTubeMaterial(state);
-    const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
-    group.add(tube);
-
-    return { group, tube, lastState: state };
-  }
-
-  private createTubeMaterial(state: DiagramEdgeState): THREE.MeshStandardMaterial {
-    const material = new THREE.MeshStandardMaterial({
-      color: state.color,
-      metalness: 0.3,
-      roughness: 0.7,
-      transparent: state.opacity < 1 || state.style !== 'solid',
-      opacity: state.opacity,
-    });
-    if (state.style === 'dashed') {
-      material.alphaMap = getDashTexture();
-      material.transparent = true;
-    } else if (state.style === 'dotted') {
-      material.alphaMap = getDotTexture();
-      material.transparent = true;
-    }
-    return material;
-  }
-
-  private updateEdge(entry: EdgeEntry, state: DiagramEdgeState): void {
-    // Hide edges with insufficient control points.
-    if (state.controlPoints.length < 2) {
-      entry.group.visible = false;
-      entry.lastState = state;
-      return;
-    }
-    entry.group.visible = true;
-
-    const prev = entry.lastState;
-
-    // Only rebuild tube geometry when the path or tube radius actually changed.
-    // During steady-state rendering, state.controlPoints is the SAME compiled-track
-    // object reference every tick — this guard prevents per-tick TubeGeometry
-    // allocation and GPU upload. During functional transitions a new array is
-    // produced each tick, so this branch correctly fires on every transition frame.
-    const needsGeometry =
-      !prev ||
-      state.controlPoints !== prev.controlPoints ||
-      state.thickness !== prev.thickness;
-
-    // curve is computed lazily — only when needed for geometry or arrowheads.
-    let curve: THREE.CatmullRomCurve3 | undefined;
-    const getCurve = (): THREE.CatmullRomCurve3 => {
-      if (!curve) {
-        curve = new THREE.CatmullRomCurve3(
-          state.controlPoints.map((p) => new THREE.Vector3(p[0], p[1], p[2])),
-        );
-      }
-      return curve;
-    };
-
-    if (needsGeometry) {
-      const c = getCurve();
-      const geometry = new THREE.TubeGeometry(
-        c,
-        Math.max(20, state.controlPoints.length * 8),
-        state.thickness,
-        8,
-        false,
-      );
-      entry.tube.geometry.dispose();
-      entry.tube.geometry = geometry;
-    }
-
-    // ── Edge material update strategy ────────────────────────────────────────
-    // Rebuild the tube material only when style/color/thickness changes (rare).
-    // For opacity-only changes (every tick during transitions) mutate the existing
-    // material in-place — avoids per-tick disposal + allocation + GPU upload.
-    const edgeMaterialRebuild =
-      !prev ||
-      prev.color !== state.color ||
-      prev.style !== state.style ||
-      prev.thickness !== state.thickness;
-    if (edgeMaterialRebuild) {
-      (entry.tube.material as THREE.Material).dispose();
-      entry.tube.material = this.createTubeMaterial(state);
-    } else if (prev && prev.opacity !== state.opacity) {
-      const mat = entry.tube.material as THREE.MeshStandardMaterial;
-      mat.opacity = state.opacity;
-      mat.transparent = state.opacity < 1 || state.style !== 'solid';
-    }
-
-    // Only update arrowheads when geometry changed or arrowhead style changed.
-    // This avoids re-running getPointAt/getTangentAt every tick for static scenes.
-    const arrowsNeedUpdate =
-      needsGeometry ||
-      !prev ||
-      prev.arrowStart !== state.arrowStart ||
-      prev.arrowEnd !== state.arrowEnd;
-
-    if (arrowsNeedUpdate) {
-      const updateArrow = (kind: 'start' | 'end', variant: DiagramEdgeState['arrowEnd']) => {
-        if (variant === 'none') {
-          const existing = kind === 'start' ? entry.arrowStart : entry.arrowEnd;
-          if (existing) {
-            entry.group.remove(existing);
-            existing.geometry.dispose();
-            (existing.material as THREE.Material).dispose();
-          }
-          if (kind === 'start') entry.arrowStart = undefined;
-          if (kind === 'end') entry.arrowEnd = undefined;
-          return;
-        }
-        const arrow = kind === 'start'
-          ? entry.arrowStart ?? new THREE.Mesh()
-          : entry.arrowEnd ?? new THREE.Mesh();
-
-        // ── Flat 2D arrowhead ─────────────────────────────────────────────────
-        // 3D ConeGeometry arrowheads viewed "end-on" (when the edge points away
-        // from the camera, e.g. top-to-bottom edges in a tilted diagram) look
-        // like circles — you see the cone base instead of the tip.
-        //
-        // A flat triangle lying in the diagram's XY plane is always visible
-        // from the typical above/in-front viewing angle and correctly indicates
-        // direction for horizontal and diagonal edges.
-        //
-        // The tip is placed at the origin so arrow.position = curve endpoint.
-        // The triangle base extends backward by arrowH in the -tip direction.
-        const arrowH = state.thickness * 9;
-        const arrowW = state.thickness * 7;
-        const arrowShape = new THREE.Shape();
-        arrowShape.moveTo(0, 0);                     // tip (at origin, placed at curve endpoint)
-        arrowShape.lineTo(-arrowW / 2, -arrowH);     // left base corner
-        arrowShape.lineTo(arrowW / 2, -arrowH);      // right base corner
-        arrowShape.closePath();
-
-        // Dispose old geometry before assigning new one.
-        if (arrow.geometry) arrow.geometry.dispose();
-        arrow.geometry = new THREE.ShapeGeometry(arrowShape);
-
-        // MeshBasicMaterial for arrowheads: unlit so arrows are always clearly
-        // visible regardless of scene lighting.  DoubleSide ensures visibility
-        // when the diagram is tilted either direction.
-        if (arrow.material) (arrow.material as THREE.Material).dispose();
-        arrow.material = new THREE.MeshBasicMaterial({
-          color: state.color,
-          transparent: state.opacity < 1,
-          opacity: state.opacity,
-          side: THREE.DoubleSide,
-          depthWrite: false,
-        });
-
-        const curveT = kind === 'start' ? 0 : 1;
-        const c = getCurve();
-        const position = c.getPointAt(curveT);
-        const tangent = c.getTangentAt(curveT).normalize();
-        const dir = kind === 'start' ? tangent.clone().multiplyScalar(-1) : tangent;
-
-        // Orient the flat triangle in the XY plane to point in the direction
-        // of travel.  rotation.z = θ makes local +Y → world (-sin θ, cos θ, 0).
-        // We want local +Y to align with (dir.x, dir.y), so:
-        //   θ = atan2(-dir.x, dir.y)
-        arrow.position.copy(position);
-        arrow.rotation.set(0, 0, Math.atan2(-dir.x, dir.y));
-
-        if (!arrow.parent) {
-          entry.group.add(arrow);
-        }
-        if (kind === 'start') entry.arrowStart = arrow;
-        if (kind === 'end') entry.arrowEnd = arrow;
-      };
-
-      updateArrow('start', state.arrowStart);
-      updateArrow('end', state.arrowEnd);
-    }
-
-    entry.lastState = state;
-  }
-
-  private createGroup(state: DiagramGroupState): GroupEntry {
-    const group = new THREE.Group();
-    const geometry = new THREE.PlaneGeometry(state.bounds.w, state.bounds.h);
-    const fill = new THREE.Mesh(
-      geometry,
-      new THREE.MeshBasicMaterial({
-        color: state.color,
-        opacity: state.fillOpacity,
-        transparent: true,
-        side: THREE.DoubleSide,
-      }),
-    );
-    const borderMaterial =
-      state.borderStyle === 'dashed'
-        ? new THREE.LineDashedMaterial({
-          color: state.borderColor,
-          opacity: state.borderOpacity,
-          transparent: true,
-          dashSize: 0.3,
-          gapSize: 0.2,
-        })
-        : new THREE.LineBasicMaterial({
-          color: state.borderColor,
-          opacity: state.borderOpacity,
-          transparent: true,
-        });
-    const border = new THREE.LineSegments(new THREE.EdgesGeometry(geometry), borderMaterial);
-    if (borderMaterial instanceof THREE.LineDashedMaterial) {
-      border.computeLineDistances();
-    }
-    const label = new Text();
-    group.add(fill, border, label);
-    return { group, fill, border, label, lastState: state };
-  }
-
-  private updateGroup(entry: GroupEntry, state: DiagramGroupState): void {
-    const centerX = state.bounds.x + state.bounds.w / 2;
-    const centerY = state.bounds.y + state.bounds.h / 2;
-    entry.group.position.set(centerX, centerY, -0.6);
-
-    // Only rebuild geometry when the group bounds actually change.
-    // During steady-state ticks the compiled-track reference is stable,
-    // so reference equality on the bounds fields catches the common no-change case.
-    const prev = entry.lastState;
-    const boundsChanged =
-      !prev ||
-      prev.bounds.w !== state.bounds.w ||
-      prev.bounds.h !== state.bounds.h;
-    if (boundsChanged) {
-      const geometry = new THREE.PlaneGeometry(state.bounds.w, state.bounds.h);
-      entry.fill.geometry.dispose();
-      entry.fill.geometry = geometry;
-      entry.border.geometry.dispose();
-      entry.border.geometry = new THREE.EdgesGeometry(geometry);
-    }
-
-    const fillMat = entry.fill.material as THREE.MeshBasicMaterial;
-    fillMat.color.set(state.color);
-    fillMat.opacity = state.fillOpacity;
-    fillMat.transparent = true;
-
-    const borderMat = entry.border.material as THREE.LineBasicMaterial | THREE.LineDashedMaterial;
-    if (state.borderStyle === 'dashed' && !(borderMat instanceof THREE.LineDashedMaterial)) {
-      entry.border.material = new THREE.LineDashedMaterial({
-        color: state.borderColor,
-        opacity: state.borderOpacity,
-        transparent: true,
-        dashSize: 0.3,
-        gapSize: 0.2,
-      });
-    }
-    if (state.borderStyle === 'solid' && !(borderMat instanceof THREE.LineBasicMaterial)) {
-      entry.border.material = new THREE.LineBasicMaterial({
-        color: state.borderColor,
-        opacity: state.borderOpacity,
-        transparent: true,
-      });
-    }
-    const activeMat = entry.border.material as THREE.LineBasicMaterial | THREE.LineDashedMaterial;
-    activeMat.color.set(state.borderColor);
-    activeMat.opacity = state.borderOpacity;
-    activeMat.transparent = true;
-    if (activeMat instanceof THREE.LineDashedMaterial) {
-      entry.border.computeLineDistances();
-    }
-
-    ensureText(entry.label, state.label, '#ffffff', Math.max(0.4, state.bounds.h * 0.08), 1);
-    entry.label.position.set(
-      -state.bounds.w / 2 + 0.4,
-      state.bounds.h / 2 + 0.4,
-      0.01,
-    );
-
-    entry.lastState = state;
+    this.interactionRegistry.clear();
+    this.envMapManager.disposeAll();
+    sharedIconLoader.disposeAll();
   }
 }

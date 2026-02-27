@@ -6,7 +6,6 @@ import type { CompileApi, CompileHelpers } from '@brewsite/core';
 import { compileDiagram } from '../elements/diagram/compile';
 import { DiagramCanvas, DiagramPipe } from '../elements/diagram/canvas/dsl';
 import { compileCanvas } from '../elements/diagram/canvas/compile';
-import type { DiagramCanvasDSL, DiagramPipeDSL } from '../elements/diagram/canvas/types';
 import { compileImagePanel } from '../elements/image-panel/compile';
 import { compileScreen } from '../elements/screen/compile';
 import type {
@@ -18,7 +17,9 @@ import type {
   DiagramEnterDSL,
   DiagramPivot,
   DiagramState,
+  DiagramTheme,
 } from '../elements/diagram/types';
+import type { DiagramCanvasDSL, DiagramPipeDSL, PipeRoutingAlgorithm, PipeLandingAlgorithm } from '../elements/diagram/canvas/types';
 import type { ImagePanelDSL } from '../elements/image-panel/types';
 import type { ScreenDSL } from '../elements/screen/types';
 import { Diagram, DiagramNode, DiagramEdge, DiagramGroup, Exit, Enter } from '../elements/diagram/dsl';
@@ -33,6 +34,7 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
   const groupedNodeIds = new Set<string>();
   let exitDSL: DiagramExitDSL | undefined;
   let enterDSL: DiagramEnterDSL | undefined;
+  const theme = props.theme as DiagramTheme | undefined;
 
   const allChildren = helpers.collectChildren(node);
 
@@ -100,6 +102,7 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
     pivot: (props.pivot ?? 'center') as DiagramPivot,
     exit: exitDSL,
     enter: enterDSL,
+    theme,
   };
 };
 
@@ -122,6 +125,7 @@ export const registerDiagramHandlers = (): void => {
   registerNode(DiagramCanvas, (node: ReactElement, api: CompileApi, helpers: CompileHelpers) => {
     const props = node.props as Record<string, unknown>;
     const allChildren = helpers.collectChildren(node);
+    const canvasTheme = props.theme as DiagramTheme | undefined;
 
     const diagramStates: DiagramState[] = [];
     for (const child of allChildren) {
@@ -129,7 +133,8 @@ export const registerDiagramHandlers = (): void => {
       const el = child as ReactElement;
       if (el.type !== Diagram) continue;
       const dsl = extractDiagramDSL(el, helpers);
-      diagramStates.push(compileDiagram(dsl));
+      // Pass canvas theme as fallback; diagram's own theme (if any) overrides inside compileDiagram
+      diagramStates.push(compileDiagram(dsl, canvasTheme));
     }
 
     const pipeDSLs: DiagramPipeDSL[] = [];
@@ -145,6 +150,9 @@ export const registerDiagramHandlers = (): void => {
       position: props.position as readonly [number, number, number] | undefined,
       rotation: props.rotation as readonly [number, number, number] | undefined,
       scale: props.scale as number | undefined,
+      theme: canvasTheme,
+      pipeRouting: props.pipeRouting as PipeRoutingAlgorithm | undefined,
+      pipeLanding: props.pipeLanding as PipeLandingAlgorithm | undefined,
     };
 
     const canvasState = compileCanvas(canvasDSL, diagramStates, pipeDSLs);

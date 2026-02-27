@@ -1,4 +1,4 @@
-import {Camera, Floor, FloorMirror, SceneDefinition} from '@brewsite/core';
+import { Camera, Floor, FloorMirror, SceneDefinition } from '@brewsite/core';
 import { Ambient, Directional, Lighting, Scene } from '@brewsite/core';
 import { DiagramCanvas, Diagram, DiagramEdge, DiagramNode, Enter, ImagePanel, Screen } from '@brewsite/diagram';
 
@@ -7,21 +7,12 @@ export const sceneArchEcsDetail: SceneDefinition = {
   index: 1,
   getFrame: () => (
     <Scene id="arch-ecs-detail">
-      <Camera
-        mode="fitFloorDepth"
-        fov={60}
-        floorY={0}
-        floorZMin={-250}
-        floorZMax={100}
-        cameraY={40}
-        lookAtZ={-20}
-      />
       <Lighting intensityScale={1}>
         <Ambient intensity={1.0} color="#ffffff" />
         <Directional intensity={2.5} color="#ffffff" position={[20, 30, 50]} />
         <Directional intensity={0.6} color="#aaccff" position={[-20, 10, 20]} />
       </Lighting>
-      <DiagramCanvas id="system-canvas" rotation={[-Math.PI/4, 0, 0]}>
+      <DiagramCanvas id="system-canvas" rotation={[-Math.PI / 16, 0, 0]}  scale={1.4}>
         <Diagram id="system-arch" layout="manual" pivot="center">
           <Enter from={[-60, 0, 0]} fade easing="ease-in" />
           <DiagramNode id="cdn" position={[0, 2, -25]} opacity={0.3} />

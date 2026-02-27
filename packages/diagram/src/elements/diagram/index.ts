@@ -38,4 +38,6 @@ export {
   functionalDiagramTransitionSpec,
 } from './compile';
 export { DiagramRenderer } from './render';
+export { InteractionRegistry } from './rendering/InteractionRegistry';
+export type { IInteractionRegistry } from './rendering/InteractionRegistry';
 export { DiagramWidget } from './widget';

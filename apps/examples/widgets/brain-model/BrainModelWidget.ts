@@ -126,7 +126,8 @@ export class BrainModelWidget
 
   initialize(ctx: WidgetInitContext): void {
     this.group = new THREE.Group();
-    ctx.scene.add(this.group);
+    const scene = ctx.scene as unknown as THREE.Scene;
+    scene.add(this.group);
   }
 
   async load(manifest: AssetManifest | null): Promise<void> {

@@ -5,6 +5,7 @@ export type {
   WheelConfig,
   DragConfig,
   SwipeConfig,
+  ClickConfig,
   SceneNavKeys,
   KeyCombo,
   ModifierKey,

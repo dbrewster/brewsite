@@ -5,7 +5,6 @@
   "type": "module",
   "scripts": {
     "dev": "vite --config vite.config.ts",
-    "build": "pnpm gen:scene-dsl && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b tsconfig.json",
     "test": "vitest run --passWithNoTests",

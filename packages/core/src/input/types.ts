@@ -39,6 +39,32 @@ export type SwipeConfig = {
   velocityThreshold?: number;
 };
 
+/** Click configuration for scene navigation. */
+export type ClickConfig = {
+  /** Mouse button to trigger this action. Default 'left'. */
+  button?: MouseButton;
+  /** Required modifiers (all must be held). */
+  modifiers?: ModifierKey[];
+  /** Navigation action to perform. */
+  action: 'nextScene' | 'prevScene';
+  /**
+   * Number of scenes to advance. Default 1.
+   * For example, 2 advances two scenes per click.
+   */
+  stepScenes?: number;
+  /**
+   * Maximum pointer movement (px) between pointerdown and click that still
+   * counts as a click. If the pointer moves further than this the click is
+   * treated as a drag gesture and navigation is suppressed.
+   *
+   * This prevents conflicts when camera-controls orbit is bound to the same
+   * button: a short tap navigates, a drag orbits.
+   *
+   * Default: 8 px.
+   */
+  dragThreshold?: number;
+};
+
 /**
  * Named keyboard actions for scene navigation.
  * Each can be assigned a KeyCombo. null = disable.
@@ -80,6 +106,12 @@ export type SceneNavInputMap = {
    * Set to false to disable.
    */
   swipe?: SwipeConfig | false;
+
+  /**
+   * Click navigation (direct mode only; ignored in scroll mode).
+   * Set to false to disable.
+   */
+  click?: ClickConfig | ClickConfig[] | false;
 
   /**
    * Keyboard navigation shortcuts.

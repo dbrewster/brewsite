@@ -67,7 +67,10 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
   // ─── InputController attachment ───────────────────────────────────────
   useEffect(() => {
     if (!inputMap || mode === 'scroll') {
-      if (!inputMap || inputMap.keys === false) return;
+      // Always register keyboard navigation unless it has been explicitly disabled
+      // via inputMap.keys === false. When inputMap is undefined (not provided at all),
+      // we still want the default arrow/home/end keybindings to work.
+      if (inputMap?.keys === false) return;
 
       const handler = {
         onScroll: (delta: number) => {
@@ -83,13 +86,12 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
       };
 
       // In scroll mode: keyboard only. Wheel is handled by the browser + useEngineScroll.
-      // The wheelGuard is applied at the InputController level via shouldHandleWheel.
       const scrollModeMap: SceneNavInputMap = {
         mode: 'scroll',
         wheel: false,
         drag: false,
         swipe: false,
-        keys: inputMap.keys,
+        keys: inputMap?.keys, // undefined → InputController uses DEFAULT_KEYS for all actions
       };
 
       const ctrl = new InputController(window, scrollModeMap, handler);
@@ -97,16 +99,15 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
       return () => ctrl.detach();
     }
 
-    // Direct mode: attach to canvas (preferred) or window
-    // Keyboard events attach to the scrollRegionRef element (which has tabIndex=-1).
-    // See EngineInputRegion for why tabIndex is needed.
-    const attachTarget = canvasRef?.current ?? window;
-    const keyboardTarget = scrollRegionRef.current ?? undefined;
+    // Direct mode: attach to the scroll region (preferred), then canvas, then window.
+    // Keyboard events attach to window so they fire regardless of focus target.
+    const attachTarget = scrollRegionRef.current ?? canvasRef?.current ?? window;
+    const keyboardTarget = window;
 
     const handler = {
       onScroll: (delta: number) => {
-        // Respect wheelGuard: if camera-controls claims the wheel, do not advance scene
-        if (wheelGuard?.()) return;
+        // NOTE: wheelGuard is checked inside InputController.handleWheel, NOT here.
+        // Checking it here would incorrectly block keyboard/drag/swipe navigation.
         const next = clamp01(directProgressRef.current + delta);
         setDirectProgressBoth(next);
       },
@@ -118,12 +119,14 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
       getSceneCount: () => sceneCount,
     };
 
-    const ctrl = new InputController(attachTarget, inputMap, handler, keyboardTarget ?? undefined);
+    // wheelGuard is passed as the 5th arg so it only suppresses wheel events,
+    // leaving keyboard, drag, swipe, and click navigation fully operational.
+    const ctrl = new InputController(attachTarget, inputMap, handler, keyboardTarget, wheelGuard);
     ctrl.attach();
     return () => ctrl.detach();
   }, [
     // Stable references only — no object literals that change every render
-    inputMap, mode, sceneCount, canvasRef, scrollRegionRef,
+    inputMap, mode, sceneCount, canvasRef, canvasRef?.current, scrollRegionRef,
     scrollToProgressStable, getGlobalProgressStable,
     setDirectProgressBoth, getDirectProgress, wheelGuard,
   ]);

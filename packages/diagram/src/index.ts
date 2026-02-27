@@ -13,6 +13,7 @@ export type {
   DiagramGroupDSL,
   DiagramEdgeStyle,
   DiagramArrowVariant,
+  DiagramEdgeFlow,
   DiagramGroupVariant,
   DiagramOrientation,
   DiagramPivot,
@@ -22,6 +23,17 @@ export type {
   DiagramExitDSL,
   DiagramEnterDSL,
   DiagramInteractionEvent,
+  // Theming
+  DiagramTheme,
+  DiagramThemeRenderConfig,
+  DiagramThemeNodeConfig,
+  DiagramThemeEdgeConfig,
+  DiagramThemeGroupConfig,
+  DiagramThemeEnvironmentConfig,
+  EdgeRoutingAlgorithm,
+  EdgeLandingAlgorithm,
+  DiagramEdgePort,
+  SvgIcon3DStyle,
 } from './elements/diagram/types';
 export type { DiagramShapeVariant } from './elements/diagram/shapes/shapeVariants';
 export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, Exit, Enter } from './elements/diagram/dsl';
@@ -68,6 +80,9 @@ export { Screen } from './elements/screen/dsl';
 export { compileScreen, functionalScreenTransitionSpec } from './elements/screen/compile';
 export { ScreenRenderer } from './elements/screen/render';
 export { ScreenWidget } from './elements/screen/widget';
+
+// ─── Theme presets ────────────────────────────────────────────────────────────
+export { darkGlassTheme, neonCyberTheme, enterpriseTheme, lightMinimalTheme } from './elements/diagram/themes';
 
 // ─── Compiler handler registration ──────────────────────────────────────────
 export { registerDiagramHandlers } from './compiler/handlers';

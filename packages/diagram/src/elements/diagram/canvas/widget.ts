@@ -13,11 +13,8 @@ import { DiagramCanvas } from './dsl';
 import { functionalDiagramCanvasTransitionSpec } from './compile';
 import { DiagramCanvasRenderer } from './render';
 import type { DiagramCanvasState } from './types';
-import {
-  diagramInteractionRegistry,
-  diagramInteractionLookup,
-} from '../render';
 import type { DiagramInteractionEvent, DiagramNodeState } from '../types';
+import { rotateXYZ } from './compiler/pipeRouter';
 
 const CAMERA_KEY = '__brewsite_camera';
 
@@ -72,32 +69,54 @@ export class DiagramCanvasWidget
     if (!state || state.diagrams.length === 0) return;
 
     const rawCamState = tick?.state.widgets['camera'];
+    const functionalCam = tick
+      ? context.track?.transitionBlocks?.[tick.sceneIndex]?.widgetFns['camera']
+      : undefined;
+    const resolvedCamState = functionalCam
+      ? (functionalCam.fn(tick!.blockProgress) as { enabled?: boolean })
+      : (rawCamState as { enabled?: boolean } | undefined);
     const cameraActive =
-      typeof rawCamState === 'object' &&
-      rawCamState !== null &&
-      'enabled' in rawCamState &&
-      (rawCamState as { enabled: boolean }).enabled === true;
+      typeof resolvedCamState === 'object' &&
+      resolvedCamState !== null &&
+      'enabled' in resolvedCamState &&
+      resolvedCamState.enabled === true;
     if (cameraActive) return;
 
     const cam = context.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
     if (!cam) return;
 
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    const cs = state.scale;
+    const [crx, cry, crz] = state.rotation;
     const [cpx, cpy, cpz] = state.position;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
 
     for (const diagram of state.diagrams) {
-      const ds = diagram.scale * cs;
-      const [dpx, dpy] = diagram.position;
       const { bounds: b } = diagram;
-      const wx0 = (b.x * diagram.scale + dpx) * cs + cpx;
-      const wy0 = (b.y * diagram.scale + dpy) * cs + cpy;
-      const wx1 = ((b.x + b.w) * diagram.scale + dpx) * cs + cpx;
-      const wy1 = ((b.y + b.h) * diagram.scale + dpy) * cs + cpy;
-      minX = Math.min(minX, wx0, wx1);
-      maxX = Math.max(maxX, wx0, wx1);
-      minY = Math.min(minY, wy0, wy1);
-      maxY = Math.max(maxY, wy0, wy1);
+      const ds = diagram.scale;
+      const [drx, dry, drz] = diagram.rotation;
+      const [dpx, dpy, dpz] = diagram.position;
+      const cs = state.scale;
+
+      const corners: Array<readonly [number, number, number]> = [
+        [b.x, b.y, 0],
+        [b.x + b.w, b.y, 0],
+        [b.x, b.y + b.h, 0],
+        [b.x + b.w, b.y + b.h, 0],
+      ];
+
+      for (const corner of corners) {
+        const cx = corner[0] * ds + dpx;
+        const cy = corner[1] * ds + dpy;
+        const cz = corner[2] * ds + dpz;
+        const [rx1, ry1, rz1] = rotateXYZ([cx, cy, cz], drx, dry, drz);
+        const wx = rx1 * cs + cpx;
+        const wy = ry1 * cs + cpy;
+        const wz = rz1 * cs + cpz;
+        const [wx2, wy2] = rotateXYZ([wx, wy, wz], crx, cry, crz);
+        minX = Math.min(minX, wx2);
+        maxX = Math.max(maxX, wx2);
+        minY = Math.min(minY, wy2);
+        maxY = Math.max(maxY, wy2);
+      }
     }
 
     const worldCX = (minX + maxX) / 2;
@@ -180,12 +199,12 @@ export class DiagramCanvasWidget
     if (!cam) return;
     this.raycaster.setFromCamera(this.ndc, cam);
     const intersects = this.raycaster.intersectObjects(
-      Array.from(diagramInteractionRegistry),
+      Array.from(this.renderer.getInteractionMeshes()),
       false,
     );
     if (intersects.length === 0) return;
     const hit = intersects[0];
-    const info = diagramInteractionLookup.get(hit.object as THREE.Mesh);
+    const info = this.renderer.lookupInteraction(hit.object as THREE.Mesh);
     if (!info) return;
     const ownsDiagram = this.lastState?.diagrams.some((d) => d.id === info.diagramId) ?? false;
     if (!ownsDiagram) return;

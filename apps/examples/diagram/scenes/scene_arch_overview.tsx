@@ -1,18 +1,39 @@
-import type { SceneDefinition } from '@brewsite/core';
-import { Ambient, Directional, Lighting, Scene } from '@brewsite/core';
+import {Background, Environment, EnvironmentCube, Floor, FloorMirror, SceneDefinition} from '@brewsite/core';
+import { Ambient, Camera, Directional, Lighting, Scene } from '@brewsite/core';
 import { DiagramCanvas, Diagram, DiagramEdge, DiagramGroup, DiagramNode, Exit } from '@brewsite/diagram';
+import {backgrounds, makeCubeUrls, skyEnvironment} from "./sceneAssets";
 
 export const sceneArchOverview: SceneDefinition = {
   id: 'arch-overview',
   index: 0,
   getFrame: () => (
     <Scene id="arch-overview">
+      <Environment enabled intensity={0.05}>
+        <EnvironmentCube urls={makeCubeUrls(skyEnvironment)} />
+      </Environment>
+      <Background imageUrl={backgrounds.scan} opacity={.5} cssSize="cover" cssPosition="center" />
+      <Floor enabled position={[0, -20, 0]}>
+        <FloorMirror
+          mirrorColor="#ffe9c4"
+          mirrorOpacity={.2}
+          mirrorResolution={1024}
+          mirrorClipBias={0.003}
+          mirrorEnvironmentIntensity={.7}
+          mirrorUseEnvironmentBackground
+        />
+      </Floor>
+      <Camera
+        mode="world"
+        fov={55}
+        position={[0, 10, 50]}
+        target={[0, 0, 0]}
+      />
       <Lighting intensityScale={1}>
         <Ambient intensity={1.2} color="#ffffff" />
         <Directional intensity={2.5} color="#ffffff" position={[20, 30, 50]} />
         <Directional intensity={0.6} color="#aaccff" position={[-20, 10, 20]} />
       </Lighting>
-      <DiagramCanvas id="system-canvas" rotation={[-Math.PI/4, 0, 0]}>
+      <DiagramCanvas id="system-canvas" rotation={[-Math.PI / 8, 0, 0]} scale={1.4}>
         <Diagram id="system-arch" layout="manual" pivot="center">
           <Exit to={[0, -60, 0]} fade easing="ease-out" />
           <DiagramGroup id="frontend" label="Client Tier" variant="swimlane">
@@ -25,27 +46,25 @@ export const sceneArchOverview: SceneDefinition = {
               label="CloudFront CDN"
               shape="aws:cloudfront"
               position={[0, 2, 0]}
-              clickable
+             
             />
             <DiagramNode
               id="alb"
               label="Load Balancer"
               shape="aws:alb"
               position={[0, -1, 0]}
-              clickable
             />
             <DiagramNode
               id="api"
               label="API Gateway"
               shape="aws:api-gateway"
               position={[0, -4, 0]}
-              clickable
             />
           </DiagramGroup>
 
           <DiagramGroup id="compute" label="Compute Tier" variant="boundary">
-            <DiagramNode id="ecs" label="ECS Cluster" shape="aws:ecs" position={[-5, -8, 0]} clickable />
-            <DiagramNode id="lambda" label="Lambda" shape="aws:lambda" position={[5, -8, 0]} clickable />
+            <DiagramNode id="ecs" label="ECS Cluster" shape="aws:ecs" position={[-5, -8, 0]} />
+            <DiagramNode id="lambda" label="Lambda" shape="aws:lambda" position={[5, -8, 0]} />
           </DiagramGroup>
 
           <DiagramGroup id="data" label="Data Tier" variant="swimlane">

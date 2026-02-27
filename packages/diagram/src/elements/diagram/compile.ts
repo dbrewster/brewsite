@@ -4,24 +4,26 @@
 import type {
   DiagramDSL,
   DiagramState,
-  DiagramNodeDSL,
   DiagramNodeState,
-  DiagramEdgeDSL,
   DiagramEdgeState,
-  DiagramGroupDSL,
-  DiagramGroupState,
   DiagramPivot,
   DiagramEasing,
-  DiagramExitDSL,
-  DiagramEnterDSL,
-  DiagramExitConfig,
-  DiagramEnterConfig,
-  SvgIcon3DStyle,
+  DiagramTheme,
 } from './types';
-import { resolveIconUrl } from './shapes/iconRegistry';
-import { deriveColor } from './math/colorUtils';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
 import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
+import { darkGlassTheme } from './themes/darkGlass';
+import { resolveLayout, computeBounds } from './compiler/layoutAlgorithms';
+import { routeEdges } from './compiler/edgeRouter';
+import { buildNodeDefaults, compileNode, compileEdge } from './compiler/nodeCompiler';
+import { compileGroup } from './compiler/groupCompiler';
+import { buildThemeRenderConfig, compileExitConfig, compileEnterConfig } from './compiler/themeResolver';
+import {
+  blendDiagramNodes,
+  buildLiveNodeMaps,
+  rerouteLiveEdges,
+  blendDiagramEdges,
+} from './compiler/transitionHelpers';
 
 /**
  * Maps a linear t ∈ [0,1] through the given easing curve.
@@ -34,7 +36,6 @@ function applyEasing(t: number, easing: DiagramEasing): number {
     case 'ease-in': return t * t;
     case 'ease-out': return t * (2 - t);
     case 'spring': {
-      // Damped spring: overshoots then settles. k=10, omega=20.
       const s = 1 - Math.pow(2, -10 * t) * Math.cos(20 * t * (Math.PI / 3));
       return Math.max(0, Math.min(1, s));
     }
@@ -42,256 +43,9 @@ function applyEasing(t: number, easing: DiagramEasing): number {
   }
 }
 
-// ─── Defaults ────────────────────────────────────────────────────────────────
-
-// NOTE: sideColor and borderColor are NOT in NODE_DEFAULTS because they are
-// derived from `color` at compile time using deriveColor(). If the author
-// provides explicit sideColor/borderColor, those values are used directly.
-// If not, compileNode() calls deriveColor(dsl.color, -0.15) for sideColor
-// and deriveColor(dsl.color, +0.25) for borderColor.
-const DEFAULT_COLOR = '#2a2d3e';
-const NODE_DEFAULTS = {
-  shape: 'flow:rect' as const,
-  size: [4, 2] as [number, number],
-  // 0.6 gives a clearly readable 3D face from the default 25° elevated camera
-  // without looking too thick. Stays close to the plan's "0.4 for standard
-  // nodes" intent while being visually impactful for demos.
-  depth: 0.6,
-  color: DEFAULT_COLOR,
-  // sideColor:  derived from color — see compileNode()
-  // borderColor: derived from color — see compileNode()
-  metalness: 0.15,
-  roughness: 0.65,
-  labelColor: '#ffffff',
-  sublabelColor: '#a0a8c0',
-  opacity: 1,
-  clickable: false,
-  enabled: true,
-  iconScale: 0.6,
-  iconStyle: 'flat' as SvgIcon3DStyle,
-  iconDepth: 0.15,
-};
-
-const EDGE_DEFAULTS = {
-  style: 'solid' as const,
-  arrowStart: 'none' as const,
-  arrowEnd: 'open' as const,
-  color: '#555e7a',
-  // 0.08 renders as a clearly visible 3D tube at the default camera distance.
-  // 0.04 was sub-pixel at the former camera distance of 100 units.
-  thickness: 0.08,
-  opacity: 1,
-};
-
-const GROUP_DEFAULTS = {
-  variant: 'boundary' as const,
-  orientation: 'vertical' as const,
-  color: '#1a1d2e',
-  borderColor: '#3a4060',
-  borderStyle: 'solid' as const,
-  fillOpacity: 0.08,
-  borderOpacity: 0.6,
-};
-
-const GROUP_PADDING = 1.5; // diagram units — space around node bounds within a group
-
-const EDGE_EPSILON = 0.1;
-
-const edgeIdFor = (edge: DiagramEdgeDSL, index: number): string =>
-  edge.id ?? `${edge.from}-${edge.to}-${index}`;
-
-// ─── Layout Algorithms ───────────────────────────────────────────────────────
-
-/**
- * Assigns [x, y, z] positions to nodes that have no explicit position.
- * For the 'grid' layout, places nodes left-to-right in rows of ~4 nodes.
- * For the 'hierarchical' layout, performs a topological sort on edges and assigns
- * depth levels as Y-axis bands.
- * For 'manual', all nodes must have explicit positions — throws on missing position.
- */
-export function resolveLayout(
-  nodes: ReadonlyArray<DiagramNodeDSL>,
-  edges: ReadonlyArray<DiagramEdgeDSL>,
-  layout: 'manual' | 'grid' | 'hierarchical',
-  spacing: [number, number],
-): Map<string, readonly [number, number, number]> {
-  const positions = new Map<string, readonly [number, number, number]>();
-  const missing: DiagramNodeDSL[] = [];
-
-  nodes.forEach((node) => {
-    if (node.position) {
-      positions.set(node.id, node.position);
-    } else {
-      missing.push(node);
-    }
-  });
-
-  if (layout === 'manual') {
-    // Ghost nodes (empty/absent label) may omit position in manual layout —
-    // mergeSnapshot will carry forward their position from the previous scene.
-    // Non-ghost nodes must always provide explicit positions.
-    const nonGhostMissing = missing.filter((n) => !!n.label);
-    if (nonGhostMissing.length > 0) {
-      throw new Error(
-        'Diagram layout is manual but one or more non-ghost nodes are missing positions. ' +
-          'Ghost nodes (no label prop) may omit position — it will be inherited from the previous scene.',
-      );
-    }
-    return positions;
-  }
-
-  if (missing.length === 0) {
-    return positions;
-  }
-
-  const maxWidth = Math.max(
-    ...missing.map((node) => (node.size ?? NODE_DEFAULTS.size)[0]),
-  );
-  const maxHeight = Math.max(
-    ...missing.map((node) => (node.size ?? NODE_DEFAULTS.size)[1]),
-  );
-
-  if (layout === 'grid') {
-    const cols = 4;
-    missing.forEach((node, index) => {
-      const col = index % cols;
-      const row = Math.floor(index / cols);
-      const x = col * (maxWidth + spacing[0]);
-      const y = -row * (maxHeight + spacing[1]);
-      const z = node.position?.[2] ?? 0;
-      positions.set(node.id, [x, y, z]);
-    });
-    return positions;
-  }
-
-  const nodeIds = nodes.map((node) => node.id);
-  const inDegree = new Map<string, number>(nodeIds.map((id) => [id, 0]));
-  const adjacency = new Map<string, string[]>();
-
-  edges.forEach((edge) => {
-    const from = edge.from;
-    const to = edge.to;
-    if (!adjacency.has(from)) {
-      adjacency.set(from, []);
-    }
-    adjacency.get(from)!.push(to);
-    if (inDegree.has(to)) {
-      inDegree.set(to, (inDegree.get(to) ?? 0) + 1);
-    }
-  });
-
-  const queue: string[] = [];
-  inDegree.forEach((count, id) => {
-    if (count === 0) {
-      queue.push(id);
-    }
-  });
-
-  const level = new Map<string, number>();
-  const visitQueue = queue.length > 0 ? queue : [...nodeIds];
-
-  while (visitQueue.length > 0) {
-    const current = visitQueue.shift()!;
-    const currentLevel = level.get(current) ?? 0;
-    const neighbors = adjacency.get(current) ?? [];
-    neighbors.forEach((next) => {
-      const nextLevel = Math.max(level.get(next) ?? 0, currentLevel + 1);
-      level.set(next, nextLevel);
-      if (queue.length > 0) {
-        const nextDegree = (inDegree.get(next) ?? 1) - 1;
-        inDegree.set(next, nextDegree);
-        if (nextDegree <= 0) {
-          visitQueue.push(next);
-        }
-      } else if (!visitQueue.includes(next)) {
-        visitQueue.push(next);
-      }
-    });
-  }
-
-  nodes.forEach((node) => {
-    if (!level.has(node.id)) {
-      level.set(node.id, 0);
-    }
-  });
-
-  const levels = new Map<number, DiagramNodeDSL[]>();
-  missing.forEach((node) => {
-    const l = level.get(node.id) ?? 0;
-    if (!levels.has(l)) {
-      levels.set(l, []);
-    }
-    levels.get(l)!.push(node);
-  });
-
-  levels.forEach((levelNodes, l) => {
-    const count = levelNodes.length;
-    const totalWidth = count * maxWidth + (count - 1) * spacing[0];
-    const startX = -totalWidth / 2 + maxWidth / 2;
-    levelNodes.forEach((node, index) => {
-      const x = startX + index * (maxWidth + spacing[0]);
-      const y = -l * (maxHeight + spacing[1]);
-      const z = node.position?.[2] ?? 0;
-      positions.set(node.id, [x, y, z]);
-    });
-  });
-
-  return positions;
-}
-
-/**
- * Computes the bounding box of a set of nodes (resolved positions + sizes).
- * Used by compileDiagram for the overall bounds and by compileGroup for group bounds.
- */
-export function computeBounds(
-  nodeIds: ReadonlyArray<string>,
-  positions: Map<string, readonly [number, number, number]>,
-  sizes: Map<string, readonly [number, number]>,
-): { x: number; y: number; w: number; h: number; minZ: number; maxZ: number } {
-  if (nodeIds.length === 0) {
-    return { x: 0, y: 0, w: 0, h: 0, minZ: 0, maxZ: 0 };
-  }
-
-  let minX = Number.POSITIVE_INFINITY;
-  let maxX = Number.NEGATIVE_INFINITY;
-  let minY = Number.POSITIVE_INFINITY;
-  let maxY = Number.NEGATIVE_INFINITY;
-  let minZ = Number.POSITIVE_INFINITY;
-  let maxZ = Number.NEGATIVE_INFINITY;
-
-  nodeIds.forEach((id) => {
-    const position = positions.get(id);
-    const size = sizes.get(id);
-    if (!position || !size) {
-      return;
-    }
-    const [x, y, z] = position;
-    const [w, h] = size;
-    minX = Math.min(minX, x - w / 2);
-    maxX = Math.max(maxX, x + w / 2);
-    minY = Math.min(minY, y - h / 2);
-    maxY = Math.max(maxY, y + h / 2);
-    minZ = Math.min(minZ, z);
-    maxZ = Math.max(maxZ, z);
-  });
-
-  if (!Number.isFinite(minX) || !Number.isFinite(minY)) {
-    return { x: 0, y: 0, w: 0, h: 0, minZ: 0, maxZ: 0 };
-  }
-
-  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY, minZ, maxZ };
-}
-
 /**
  * Computes the translation to apply to ALL node positions so that the declared
  * pivot point of the diagram maps to local [0, 0, 0].
- * bounds is the raw bounding box BEFORE the offset is applied.
- *
- * In Three.js / BrewSite diagram space, Y increases upward:
- *   bounds.y        = bottom edge (most negative Y)
- *   bounds.y + h    = top edge (most positive Y)
- *   bounds.x        = left edge
- *   bounds.x + w    = right edge
  */
 function compilePivotOffset(
   bounds: { x: number; y: number; w: number; h: number },
@@ -307,244 +61,15 @@ function compilePivotOffset(
   }
 }
 
-// ─── Edge Routing ─────────────────────────────────────────────────────────────
-
-type Vec3 = readonly [number, number, number];
-
-type NodeDimensions = readonly [number, number, number];
-
-const addVec = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
-const scaleVec = (v: Vec3, scalar: number): Vec3 => [v[0] * scalar, v[1] * scalar, v[2] * scalar];
-const toMutableVec3 = (v: Vec3): [number, number, number] => [v[0], v[1], v[2]];
-
-const faceFromTo = (
-  origin: Vec3,
-  target: Vec3,
-  size: NodeDimensions,
-): { center: Vec3; normal: Vec3 } => {
-  const delta: Vec3 = [target[0] - origin[0], target[1] - origin[1], target[2] - origin[2]];
-  const absX = Math.abs(delta[0]);
-  const absY = Math.abs(delta[1]);
-  const absZ = Math.abs(delta[2]);
-
-  // Use the top/bottom (Y) face only when the connection is clearly more
-  // vertical than horizontal.  Threshold 1.0 means: diagonal connections
-  // (absY ≈ absX) prefer the side (X) face.  This prevents two edges that
-  // fan out from the same node (e.g. api→ecs left and api→lambda right)
-  // from both exiting the bottom face center and then crossing each other.
-  let maxAxis: number;
-  if (absY >= absX * 1.0 && absY >= absZ * 1.0) {
-    maxAxis = 1; // Y-face: top or bottom
-  } else if (absX >= absZ) {
-    maxAxis = 0; // X-face: left or right
-  } else {
-    maxAxis = 2; // Z-face: front or back
-  }
-
-  const sign = delta[maxAxis] >= 0 ? 1 : -1;
-
-  let normal: Vec3 = [0, 0, 0];
-  let offset: Vec3 = [0, 0, 0];
-
-  if (maxAxis === 0) {
-    normal = [sign, 0, 0];
-    offset = [sign * size[0] / 2, 0, 0];
-  } else if (maxAxis === 1) {
-    normal = [0, sign, 0];
-    offset = [0, sign * size[1] / 2, 0];
-  } else {
-    normal = [0, 0, sign];
-    offset = [0, 0, sign * size[2] / 2];
-  }
-
-  return { center: addVec(origin, offset), normal };
-};
-
-/**
- * Routes edges between node face centers, computing Bezier-style control points.
- */
-export function routeEdges(
-  edges: ReadonlyArray<DiagramEdgeDSL>,
-  positions: Map<string, readonly [number, number, number]>,
-  sizes: Map<string, NodeDimensions>,
-): Map<string, ReadonlyArray<readonly [number, number, number]>> {
-  const result = new Map<string, ReadonlyArray<readonly [number, number, number]>>();
-
-  edges.forEach((edge, index) => {
-    const id = edgeIdFor(edge, index);
-    if (edge.from === edge.to) {
-      result.set(id, []);
-      return;
-    }
-
-    const fromPos = positions.get(edge.from);
-    const toPos = positions.get(edge.to);
-    const fromSize = sizes.get(edge.from);
-    const toSize = sizes.get(edge.to);
-
-    if (!fromPos || !toPos || !fromSize || !toSize) {
-      console.warn(`Diagram routeEdges: missing node(s) for edge ${edge.from} -> ${edge.to}`);
-      const start = fromPos ?? [0, 0, 0];
-      const end = toPos ?? [0, 0, 0];
-      result.set(id, [start, end]);
-      return;
-    }
-
-    const fromFace = faceFromTo(fromPos, toPos, fromSize);
-    const toFace = faceFromTo(toPos, fromPos, toSize);
-
-    const start = addVec(fromFace.center, scaleVec(fromFace.normal, EDGE_EPSILON));
-    const end = addVec(toFace.center, scaleVec(toFace.normal, EDGE_EPSILON));
-
-    // Compute the 3-D distance between face exit/entry points and use a
-    // fraction of it as stub length.  Clamping prevents crossing on short edges.
-    const dx = end[0] - start[0];
-    const dy = end[1] - start[1];
-    const dz = end[2] - start[2];
-    const dist3d = Math.sqrt(dx * dx + dy * dy + dz * dz);
-    const stub = Math.min(1.2, dist3d * 0.3);
-
-    // Add perpendicular guide points in the face-normal direction so the curve
-    // exits/enters perpendicular to each face rather than at an angle.
-    const guide1 = addVec(start, scaleVec(fromFace.normal, stub));
-    const guide2 = addVec(end, scaleVec(toFace.normal, stub));
-
-    result.set(id, [start, guide1, guide2, end]);
-  });
-
-  return result;
-}
-
-// ─── Node / Edge / Group Compilation ─────────────────────────────────────────
-
-/**
- * Compiles a single node DSL into a fully resolved DiagramNodeState.
- * Applies defaults, resolves icon URL, and assigns groupId from parent group.
- */
-export function compileNode(
-  dsl: DiagramNodeDSL,
-  position: readonly [number, number, number],
-  groupId: string | undefined,
-  positionInherited = false,
-): DiagramNodeState {
-  const shape = dsl.shape ?? NODE_DEFAULTS.shape;
-  const color = dsl.color ?? NODE_DEFAULTS.color;
-  const sideColor = dsl.sideColor ?? deriveColor(color, -0.15);
-  const borderColor = dsl.borderColor ?? deriveColor(color, 0.25);
-
-  return {
-    id: dsl.id,
-    // Ghost/partial-update nodes omit label — fall back to '' so render.ts
-    // always receives a string. mergeSnapshot carries forward the real label
-    // from the previous scene's state when this DiagramWidget span transitions.
-    label: dsl.label ?? '',
-    sublabel: dsl.sublabel,
-    shape,
-    position,
-    size: dsl.size ?? NODE_DEFAULTS.size,
-    depth: dsl.depth ?? NODE_DEFAULTS.depth,
-    color,
-    sideColor,
-    borderColor,
-    metalness: dsl.metalness ?? NODE_DEFAULTS.metalness,
-    roughness: dsl.roughness ?? NODE_DEFAULTS.roughness,
-    labelColor: dsl.labelColor ?? NODE_DEFAULTS.labelColor,
-    sublabelColor: dsl.sublabelColor ?? NODE_DEFAULTS.sublabelColor,
-    opacity: dsl.opacity ?? NODE_DEFAULTS.opacity,
-    clickable: dsl.clickable ?? NODE_DEFAULTS.clickable,
-    enabled: dsl.enabled ?? NODE_DEFAULTS.enabled,
-    iconUrl: resolveIconUrl(shape),
-    iconScale: dsl.iconScale ?? NODE_DEFAULTS.iconScale,
-    iconStyle: dsl.iconStyle ?? NODE_DEFAULTS.iconStyle,
-    iconDepth: dsl.iconDepth ?? NODE_DEFAULTS.iconDepth,
-    groupId,
-    positionInherited: positionInherited || undefined,
-  };
-}
-
-/**
- * Compiles a single edge DSL into a DiagramEdgeState.
- * Applies defaults and attaches computed control points.
- * Auto-generates an id from `${from}-${to}` if not provided.
- */
-export function compileEdge(
-  dsl: DiagramEdgeDSL,
-  controlPoints: ReadonlyArray<readonly [number, number, number]>,
-  index: number,
-): DiagramEdgeState {
-  return {
-    id: edgeIdFor(dsl, index),
-    fromId: dsl.from,
-    toId: dsl.to,
-    label: dsl.label,
-    style: dsl.style ?? EDGE_DEFAULTS.style,
-    arrowStart: dsl.arrowStart ?? EDGE_DEFAULTS.arrowStart,
-    arrowEnd: dsl.arrowEnd ?? EDGE_DEFAULTS.arrowEnd,
-    color: dsl.color ?? EDGE_DEFAULTS.color,
-    thickness: dsl.thickness ?? EDGE_DEFAULTS.thickness,
-    controlPoints,
-    opacity: dsl.opacity ?? EDGE_DEFAULTS.opacity,
-  };
-}
-
-/**
- * Compiles a single group DSL into a DiagramGroupState.
- * Computes bounds from the union of all member node positions + sizes + padding.
- */
-export function compileGroup(
-  dsl: DiagramGroupDSL,
-  positions: Map<string, readonly [number, number, number]>,
-  sizes: Map<string, readonly [number, number]>,
-): DiagramGroupState {
-  const bounds = computeBounds(dsl.nodeIds, positions, sizes);
-  const padding = GROUP_PADDING;
-
-  return {
-    id: dsl.id,
-    label: dsl.label,
-    variant: dsl.variant ?? GROUP_DEFAULTS.variant,
-    orientation: dsl.orientation ?? GROUP_DEFAULTS.orientation,
-    bounds: {
-      x: bounds.x - padding,
-      y: bounds.y - padding,
-      w: bounds.w + padding * 2,
-      h: bounds.h + padding * 2,
-      padding,
-    },
-    color: dsl.color ?? GROUP_DEFAULTS.color,
-    borderColor: dsl.borderColor ?? GROUP_DEFAULTS.borderColor,
-    borderStyle: dsl.borderStyle ?? GROUP_DEFAULTS.borderStyle,
-    fillOpacity: dsl.fillOpacity ?? GROUP_DEFAULTS.fillOpacity,
-    borderOpacity: dsl.borderOpacity ?? GROUP_DEFAULTS.borderOpacity,
-  };
-}
-
-function compileExitConfig(dsl: DiagramExitDSL | undefined): DiagramExitConfig | null {
-  if (!dsl) return null;
-  return {
-    to: dsl.to,
-    fade: dsl.fade ?? true,
-    scaleTo: dsl.scaleTo,
-    easing: dsl.easing ?? 'ease',
-  };
-}
-
-function compileEnterConfig(dsl: DiagramEnterDSL | undefined): DiagramEnterConfig | null {
-  if (!dsl) return null;
-  return {
-    from: dsl.from,
-    fade: dsl.fade ?? true,
-    scaleFrom: dsl.scaleFrom,
-    easing: dsl.easing ?? 'ease',
-  };
-}
-
-// ─── Top-Level Compilation ────────────────────────────────────────────────────
-
 /**
  * Full diagram compilation pipeline. Called by the compiler registry handler.
  */
-export function compileDiagram(dsl: DiagramDSL): DiagramState {
+export function compileDiagram(
+  dsl: DiagramDSL,
+  fallbackTheme: DiagramTheme = darkGlassTheme,
+): DiagramState {
+  const theme: DiagramTheme = dsl.theme ?? fallbackTheme;
+
   const layout = dsl.layout ?? 'grid';
   const layoutSpacing: [number, number] = [
     dsl.layoutSpacing?.[0] ?? 2,
@@ -561,26 +86,24 @@ export function compileDiagram(dsl: DiagramDSL): DiagramState {
     });
   });
 
+  const nd = buildNodeDefaults(theme);
   const positions = resolveLayout(dsl.nodes, dsl.edges, layout, layoutSpacing);
 
   const sizeMap = new Map<string, readonly [number, number]>();
   const sizeWithDepthMap = new Map<string, readonly [number, number, number]>();
 
   dsl.nodes.forEach((node) => {
-    const size = node.size ?? NODE_DEFAULTS.size;
-    const depth = node.depth ?? NODE_DEFAULTS.depth;
+    const size = node.size ?? nd.size;
+    const depth = node.depth ?? nd.depth;
     sizeMap.set(node.id, size);
     sizeWithDepthMap.set(node.id, [size[0], size[1], depth]);
   });
 
-  // ── NEW: Pivot offset ───────────────────────────────────────────────────
-  // Compute raw bounds from the layout-assigned positions, then derive the
-  // pivot offset and apply it to every position in the map.
   const pivot: DiagramPivot = dsl.pivot ?? 'center';
   const rawBounds = computeBounds(
     dsl.nodes.map((n) => n.id),
     positions,
-    sizeMap,
+    sizeWithDepthMap,
   );
   const [ox, oy, oz] = compilePivotOffset(rawBounds, pivot);
   if (ox !== 0 || oy !== 0 || oz !== 0) {
@@ -588,34 +111,41 @@ export function compileDiagram(dsl: DiagramDSL): DiagramState {
       positions.set(id, [pos[0] + ox, pos[1] + oy, pos[2] + oz]);
     }
   }
-  // ── END pivot offset ────────────────────────────────────────────────────
 
-  const controlPointsMap = routeEdges(dsl.edges, positions, sizeWithDepthMap);
+  const edgesForRouting = dsl.edges.map((edge) => ({
+    ...edge,
+    thickness: edge.thickness ?? theme.edge.defaultThickness,
+  }));
+  const controlPointsMap = routeEdges(
+    edgesForRouting,
+    positions,
+    sizeWithDepthMap,
+    theme.edge.routing,
+    theme.edge.landing,
+  );
 
   const nodes = dsl.nodes
     .map((node) => {
       const positionFromMap = positions.get(node.id);
-      // positionFromMap is undefined for ghost nodes in manual layout that had no
-      // explicit position. Flag them for position inheritance in mergeSnapshot.
       const positionInherited = positionFromMap === undefined;
       const position: readonly [number, number, number] = positionFromMap ?? [0, 0, 0];
       const groupId = node.groupId ?? groupMap.get(node.id);
-      return compileNode(node, position, groupId, positionInherited);
+      return compileNode(node, position, groupId, theme, positionInherited);
     })
     .sort((a, b) => a.position[2] - b.position[2]);
 
   const edges = dsl.edges.map((edge, index) => {
-    const id = edgeIdFor(edge, index);
+    const id = edge.id ?? `${edge.from}-${edge.to}-${index}`;
     const controlPoints = controlPointsMap.get(id) ?? [];
-    return compileEdge(edge, controlPoints, index);
+    return compileEdge(edge, controlPoints, index, theme);
   });
 
-  const groups = dsl.groups.map((group) => compileGroup(group, positions, sizeMap));
+  const groups = dsl.groups.map((group) => compileGroup(group, positions, sizeWithDepthMap, theme));
 
   const bounds = computeBounds(
     dsl.nodes.map((node) => node.id),
     positions,
-    sizeMap,
+    sizeWithDepthMap,
   );
 
   return {
@@ -630,6 +160,7 @@ export function compileDiagram(dsl: DiagramDSL): DiagramState {
     pivot,
     exit: compileExitConfig(dsl.exit),
     enter: compileEnterConfig(dsl.enter),
+    themeConfig: buildThemeRenderConfig(theme),
   };
 }
 
@@ -673,7 +204,6 @@ const fadeEdgesIn = (
 
 /**
  * Applies the diagram's exit config to produce the state at exit progress t.
- * t=0: diagram at declared state; t=1: diagram at exit target (hidden/moved).
  */
 export function applyDiagramExit(diagram: DiagramState, t: number): DiagramState {
   const config = diagram.exit;
@@ -700,7 +230,6 @@ export function applyDiagramExit(diagram: DiagramState, t: number): DiagramState
 
 /**
  * Applies the diagram's enter config to produce the state at enter progress t.
- * t=0: diagram at enter source (hidden/offscreen); t=1: diagram at declared state.
  */
 export function applyDiagramEnter(diagram: DiagramState, t: number): DiagramState {
   const config = diagram.enter;
@@ -725,89 +254,38 @@ export function applyDiagramEnter(diagram: DiagramState, t: number): DiagramStat
   return { ...diagram, position, scale, nodes, edges };
 }
 
-/**
- * Functional transition spec for DiagramState.
- * Used by DiagramWidget as its transitionSpec — evaluated by the runtime at
- * tick.blockProgress for infinite easing fidelity with no oversampling overhead.
- */
 export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramState> = {
   exitFn: (from) => (t) => applyDiagramExit(from, t),
   enterFn: (to) => (t) => applyDiagramEnter(to, t),
   interpolateFn: (from, to) => (t) => {
-    const fromNodeMap = new Map(from.nodes.map((node) => [node.id, node]));
-    const fromEdgeMap = new Map(from.edges.map((edge) => [edge.id, edge]));
-    const toNodeIds = new Set(to.nodes.map((node) => node.id));
-    const toEdgeIds = new Set(to.edges.map((edge) => edge.id));
-
-    const blendedNodes = to.nodes.map((toNode) => {
-      const fromNode = fromNodeMap.get(toNode.id);
-      if (!fromNode) {
-        return {
-          ...toNode,
-          opacity: blendOpacity(0, toNode.opacity, t) ?? toNode.opacity,
-        };
-      }
-      return {
-        ...toNode,
-        position: blendVec3(toMutableVec3(fromNode.position), toMutableVec3(toNode.position), t) ?? toNode.position,
-        opacity: blendOpacity(fromNode.opacity, toNode.opacity, t) ?? toNode.opacity,
-      };
-    });
-
-    const fadingNodes = from.nodes
-      .filter((node) => !toNodeIds.has(node.id))
-      .map((node) => ({
-        ...node,
-        opacity: blendOpacity(node.opacity, 0, t) ?? 0,
-      }));
-
-    // Re-route all edges using the current interpolated node positions so tubes
-    // track their endpoint nodes frame-by-frame during transitions. This prevents
-    // the "tube floats ahead of the moving node" visual defect when nodes change
-    // position between scenes (e.g. ghost nodes moving from z=0 to z=-25).
-    const livePositions = new Map<string, readonly [number, number, number]>();
-    const liveSizes = new Map<string, readonly [number, number, number]>();
-    [...blendedNodes, ...fadingNodes].forEach((n) => {
-      livePositions.set(n.id, n.position);
-      liveSizes.set(n.id, [n.size[0], n.size[1], n.depth]);
-    });
-    // Construct minimal edge DSL (from/to/id) for re-routing.
-    // routeEdges only needs from, to, and an optional id — all other DSL fields
-    // are optional and unused by the routing algorithm.
-    const edgesForRouting = to.edges.map((e) => ({ id: e.id, from: e.fromId, to: e.toId }));
-    const fadingEdgesForRouting = from.edges
-      .filter((e) => !toEdgeIds.has(e.id))
-      .map((e) => ({ id: e.id, from: e.fromId, to: e.toId }));
-    const liveControlPoints = routeEdges([...edgesForRouting, ...fadingEdgesForRouting], livePositions, liveSizes);
-
-    const blendedEdges = to.edges.map((toEdge) => {
-      const fromEdge = fromEdgeMap.get(toEdge.id);
-      return {
-        ...toEdge,
-        opacity: fromEdge
-          ? blendOpacity(fromEdge.opacity, toEdge.opacity, t) ?? toEdge.opacity
-          : blendOpacity(0, toEdge.opacity, t) ?? toEdge.opacity,
-        // Use live-routed control points so the tube always tracks both endpoint nodes.
-        // Falls back to compiled points if routing fails (missing nodes).
-        controlPoints: liveControlPoints.get(toEdge.id) ?? toEdge.controlPoints,
-      };
-    });
-
-    const fadingEdges = from.edges
-      .filter((edge) => !toEdgeIds.has(edge.id))
-      .map((edge) => ({
-        ...edge,
-        opacity: blendOpacity(edge.opacity, 0, t) ?? 0,
-        controlPoints: liveControlPoints.get(edge.id) ?? edge.controlPoints,
-      }));
+    const { blended, fading } = blendDiagramNodes(from.nodes, to.nodes, t);
+    const { positions, sizes } = buildLiveNodeMaps([...blended, ...fading]);
+    const toEdgeIds = new Set(to.edges.map((e) => e.id));
+    const liveControlPoints = rerouteLiveEdges(
+      to.edges,
+      from.edges,
+      toEdgeIds,
+      positions,
+      sizes,
+    );
+    const { blended: blendedEdges, fading: fadingEdges } = blendDiagramEdges(
+      from.edges,
+      to.edges,
+      liveControlPoints,
+      t,
+    );
 
     return {
       ...to,
-      position: blendVec3(toMutableVec3(from.position), toMutableVec3(to.position), t) ?? to.position,
-      rotation: blendVec3(toMutableVec3(from.rotation), toMutableVec3(to.rotation), t) ?? to.rotation,
+      position: blendVec3([from.position[0], from.position[1], from.position[2]], [to.position[0], to.position[1], to.position[2]], t) ?? to.position,
+      rotation: blendVec3([from.rotation[0], from.rotation[1], from.rotation[2]], [to.rotation[0], to.rotation[1], to.rotation[2]], t) ?? to.rotation,
       scale: blendNumber(from.scale, to.scale, t) ?? to.scale,
-      nodes: [...blendedNodes, ...fadingNodes],
+      nodes: [...blended, ...fading],
       edges: [...blendedEdges, ...fadingEdges],
     };
   },
 };
+
+export { resolveLayout, computeBounds, routeEdges };
+export { compileNode, compileEdge } from './compiler/nodeCompiler';
+export { compileGroup } from './compiler/groupCompiler';

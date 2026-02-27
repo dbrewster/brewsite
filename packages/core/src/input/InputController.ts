@@ -9,6 +9,7 @@ import type {
   WheelConfig,
   DragConfig,
   SwipeConfig,
+  ClickConfig,
 } from './types';
 
 const DEFAULT_KEYS = {
@@ -20,7 +21,10 @@ const DEFAULT_KEYS = {
   end:        [{ key: 'End' }] as KeyCombo[],
 };
 
-const modifiersMatch = (event: KeyboardEvent | WheelEvent | PointerEvent, required?: ModifierKey[]): boolean => {
+const modifiersMatch = (
+  event: KeyboardEvent | WheelEvent | PointerEvent | MouseEvent,
+  required?: ModifierKey[],
+): boolean => {
   if (!required || required.length === 0) {
     // Only fire if NO modifiers are held (avoids hijacking browser shortcuts)
     return !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey;
@@ -41,12 +45,22 @@ export class InputController {
   private handler: InputNavigationHandler;
   private map: SceneNavInputMap;
   private target: HTMLElement | Window;
-  private keyboardTarget: HTMLElement | Document;
+  private keyboardTarget: HTMLElement | Document | Window;
+  /**
+   * Optional guard checked only for wheel events.
+   * When this returns true, wheel-based scene navigation is suppressed.
+   * Does NOT affect keyboard, drag, swipe, or click navigation.
+   * Typical use: suppress wheel nav when camera-controls claims the wheel for dolly.
+   */
+  private wheelGuard?: () => boolean;
 
   // Drag state
   private dragStart: { x: number; y: number; progress: number } | null = null;
   // Swipe state
   private touchStart: { x: number; y: number; t: number } | null = null;
+  // Click-vs-drag discrimination: record pointer position at pointerdown so
+  // handleMouseClick can suppress navigation when the pointer has moved too far.
+  private clickOrigin: { x: number; y: number } | null = null;
 
   // Bound listeners (kept as references for cleanup)
   private onWheel: (e: WheelEvent) => void;
@@ -56,17 +70,25 @@ export class InputController {
   private onPointerUp: (e: PointerEvent) => void;
   private onTouchStart: (e: TouchEvent) => void;
   private onTouchEnd: (e: TouchEvent) => void;
+  private onClick: (e: MouseEvent) => void;
+  private onAuxClick: (e: MouseEvent) => void;
+  private onContextMenu: (e: MouseEvent) => void;
+  // Lightweight pointerdown tracker attached whenever click navigation is configured.
+  // Distinct from onPointerDown (which handles drag navigation in direct mode).
+  private onClickOriginDown: (e: PointerEvent) => void;
 
   constructor(
     target: HTMLElement | Window,
     map: SceneNavInputMap,
     handler: InputNavigationHandler,
-    keyboardTarget?: HTMLElement | Document,
+    keyboardTarget?: HTMLElement | Document | Window,
+    wheelGuard?: () => boolean,
   ) {
     this.target = target;
     this.map = map;
     this.handler = handler;
     this.keyboardTarget = keyboardTarget ?? (target instanceof HTMLElement ? target : document);
+    this.wheelGuard = wheelGuard;
 
     // Build bound listeners
     this.onWheel = this.handleWheel.bind(this);
@@ -76,6 +98,13 @@ export class InputController {
     this.onPointerUp = this.handlePointerUp.bind(this);
     this.onTouchStart = this.handleTouchStart.bind(this);
     this.onTouchEnd = this.handleTouchEnd.bind(this);
+    this.onClick = this.handleClick.bind(this);
+    this.onAuxClick = this.handleAuxClick.bind(this);
+    this.onContextMenu = this.handleContextMenu.bind(this);
+    this.onClickOriginDown = (e: PointerEvent) => {
+      // Record the pointer position at press time for click-vs-drag discrimination.
+      this.clickOrigin = { x: e.clientX, y: e.clientY };
+    };
   }
 
   attach(): void {
@@ -103,6 +132,13 @@ export class InputController {
         this.target.addEventListener('touchstart', this.onTouchStart as EventListener, { passive: true });
         this.target.addEventListener('touchend', this.onTouchEnd as EventListener, { passive: true });
       }
+      if (this.map.click !== false) {
+        // Track pointer origin for click-vs-drag discrimination (see handleMouseClick).
+        this.target.addEventListener('pointerdown', this.onClickOriginDown as EventListener);
+        this.target.addEventListener('click', this.onClick as EventListener);
+        this.target.addEventListener('auxclick', this.onAuxClick as EventListener);
+        this.target.addEventListener('contextmenu', this.onContextMenu as EventListener);
+      }
     }
   }
 
@@ -110,11 +146,15 @@ export class InputController {
     this.target.removeEventListener('wheel', this.onWheel as EventListener);
     this.keyboardTarget.removeEventListener('keydown', this.onKeyDown as EventListener);
     this.target.removeEventListener('pointerdown', this.onPointerDown as EventListener);
+    this.target.removeEventListener('pointerdown', this.onClickOriginDown as EventListener);
     this.target.removeEventListener('pointermove', this.onPointerMove as EventListener);
     this.target.removeEventListener('pointerup', this.onPointerUp as EventListener);
     this.target.removeEventListener('pointercancel', this.onPointerUp as EventListener);
     this.target.removeEventListener('touchstart', this.onTouchStart as EventListener);
     this.target.removeEventListener('touchend', this.onTouchEnd as EventListener);
+    this.target.removeEventListener('click', this.onClick as EventListener);
+    this.target.removeEventListener('auxclick', this.onAuxClick as EventListener);
+    this.target.removeEventListener('contextmenu', this.onContextMenu as EventListener);
   }
 
   // ─── Handlers ────────────────────────────────────────────────────────────
@@ -124,6 +164,9 @@ export class InputController {
     if (cfg === false) return;
     const wheelCfg = typeof cfg === 'object' ? cfg : {} as WheelConfig;
     if (!modifiersMatch(e, wheelCfg.modifiers)) return;
+    // Suppress wheel-based scene navigation when another system (e.g. camera-controls)
+    // owns the wheel. Only applies to wheel events — keyboard/drag/swipe are unaffected.
+    if (this.wheelGuard?.()) return;
 
     const mode = this.map.mode ?? 'scroll';
     if (mode === 'scroll') {
@@ -250,6 +293,63 @@ export class InputController {
       if (vx > velocityThreshold && Math.abs(dx) > Math.abs(dy)) {
         this.handler.onScroll(dx > 0 ? -step : step);
       }
+    }
+  }
+
+  // ─── Click navigation ───────────────────────────────────────────────────
+
+  private normalizeClickConfigs(): ClickConfig[] {
+    const cfg = this.map.click;
+    if (!cfg) return [];
+    return Array.isArray(cfg) ? cfg : [cfg];
+  }
+
+  private handleClick(e: MouseEvent): void {
+    this.handleMouseClick(e, 'click');
+  }
+
+  private handleAuxClick(e: MouseEvent): void {
+    this.handleMouseClick(e, 'auxclick');
+  }
+
+  private handleContextMenu(e: MouseEvent): void {
+    this.handleMouseClick(e, 'contextmenu');
+  }
+
+  private handleMouseClick(e: MouseEvent, source: 'click' | 'auxclick' | 'contextmenu'): void {
+    const configs = this.normalizeClickConfigs();
+    if (configs.length === 0) return;
+
+    const button = e.button;
+    for (const cfg of configs) {
+      const desired = cfg.button ?? 'left';
+      const desiredButton = desired === 'left' ? 0 : desired === 'middle' ? 1 : 2;
+      if (button !== desiredButton) continue;
+      if (!modifiersMatch(e, cfg.modifiers)) continue;
+
+      // Suppress navigation if the pointer has moved further than the drag threshold
+      // since pointerdown. This lets camera-controls orbit/pan run without triggering
+      // scene navigation on mouse release.
+      if (this.clickOrigin !== null) {
+        const dx = e.clientX - this.clickOrigin.x;
+        const dy = e.clientY - this.clickOrigin.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        const threshold = cfg.dragThreshold ?? 8;
+        if (dist > threshold) continue;
+      }
+
+      // Right click is delivered as contextmenu in most browsers; prevent default to avoid menu.
+      if (source === 'contextmenu') {
+        e.preventDefault();
+      }
+
+      const sceneCount = this.handler.getSceneCount();
+      if (sceneCount <= 1) return;
+      const stepScenes = cfg.stepScenes ?? 1;
+      const step = stepScenes / (sceneCount - 1);
+      const delta = cfg.action === 'nextScene' ? step : -step;
+      this.handler.onScroll(delta);
+      return;
     }
   }
 }
