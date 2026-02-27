@@ -43,9 +43,9 @@ const svgGradientSquare = (id: string, stops: Array<[number, string]>, size = 10
 
 export const backgrounds = {
   intro: svgGradient('intro', [
-    [0, '#05060c'],
-    [40, '#1f1224'],
-    [100, '#ab2b45'],
+    [0, '#25262c'],
+    [40, '#424244'],
+    [100, '#8b8b85'],
   ]),
   reveal: svgGradient('reveal', [
     [0, '#b6630e'],

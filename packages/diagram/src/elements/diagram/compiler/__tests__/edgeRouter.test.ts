@@ -25,24 +25,25 @@ describe('nearestFace', () => {
 });
 
 describe('routeEdgeCurved — anti-parallel arc fix', () => {
-  it('returns 3 points for left→right face connection (anti-parallel)', () => {
+  it('returns 4 points for left→right face connection (anti-parallel)', () => {
     const pts = routeEdgeCurved(
       [0, -4, 0], [4, 2, 0.4] as NodeDimensions, 'left',
       [-5, -8, 0], [4, 2, 0.4] as NodeDimensions, 'right',
     );
-    expect(pts).toHaveLength(3);
-    const [start, arc, end] = pts;
+    expect(pts).toHaveLength(4);
+    const [start, c1, c2, end] = pts;
     const directMidX = (start[0] + end[0]) / 2;
     const directMidY = (start[1] + end[1]) / 2;
-    expect(Math.abs(arc[0] - directMidX) + Math.abs(arc[1] - directMidY)).toBeGreaterThan(0.1);
+    expect(Math.abs(c1[0] - directMidX) + Math.abs(c1[1] - directMidY)).toBeGreaterThan(0.1);
+    expect(Math.abs(c2[0] - directMidX) + Math.abs(c2[1] - directMidY)).toBeGreaterThan(0.1);
   });
 
-  it('returns 3 points for convergent faces (bottom→top, anti-parallel)', () => {
+  it('returns 2 points for convergent faces (bottom→top, anti-parallel)', () => {
     const pts = routeEdgeCurved(
       [0, 2, 0], [4, 2, 0.4] as NodeDimensions, 'bottom',
       [0, -1, 0], [4, 2, 0.4] as NodeDimensions, 'top',
     );
-    expect(pts).toHaveLength(3);
+    expect(pts).toHaveLength(2);
   });
 
   it('returns 4 points for same-side connection (left→left, dot=+1)', () => {

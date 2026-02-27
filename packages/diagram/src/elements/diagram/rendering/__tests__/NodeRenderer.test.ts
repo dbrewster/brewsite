@@ -17,6 +17,8 @@ const themeConfig: DiagramThemeRenderConfig = {
   edgeSmoothness: 0.5,
   edgeMetalness: 0.3,
   edgeRoughness: 0.7,
+  edgeFlowSpeed: 0.7,
+  edgeFlowWidth: 0.18,
   fontUrl: '',
 };
 

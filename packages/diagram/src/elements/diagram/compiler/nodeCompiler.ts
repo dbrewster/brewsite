@@ -117,6 +117,6 @@ export function compileEdge(
     opacity: dsl.opacity ?? ed.opacity,
     routing: dsl.routing ?? ed.routing,
     flow: dsl.flow ?? ed.flow,
-    flowColor: dsl.flowColor,
+    flowColor: dsl.flowColor ?? theme.edge.defaultFlowColor,
   };
 }

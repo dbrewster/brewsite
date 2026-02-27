@@ -22,6 +22,8 @@ export function buildThemeRenderConfig(theme: DiagramTheme): DiagramThemeRenderC
     edgeSmoothness:    theme.edge.smoothness,
     edgeMetalness:     theme.edge.defaultMetalness,
     edgeRoughness:     theme.edge.defaultRoughness,
+    edgeFlowSpeed:     theme.edge.defaultFlowSpeed,
+    edgeFlowWidth:     theme.edge.defaultFlowWidth,
     fontUrl:           theme.node.fontUrl,
   };
 }

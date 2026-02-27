@@ -33,6 +33,8 @@ export class EnvMapManager {
         scene.environment = tex;
         (scene as THREE.Scene & { environmentIntensity?: number }).environmentIntensity = intensity;
       },
+      undefined,
+      undefined,
     );
   }
 

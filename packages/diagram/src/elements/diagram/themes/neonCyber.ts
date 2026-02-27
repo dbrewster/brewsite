@@ -25,6 +25,8 @@ export const neonCyberTheme: DiagramTheme = {
   },
   edge: {
     defaultColor:         '#00ccff',
+    defaultFlowSpeed:     0.8,
+    defaultFlowWidth:     0.16,
     defaultThickness:     0.055,
     defaultMetalness:     0.70,
     defaultRoughness:     0.15,

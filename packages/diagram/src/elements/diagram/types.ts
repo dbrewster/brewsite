@@ -68,6 +68,12 @@ export interface DiagramThemeNodeConfig {
 export interface DiagramThemeEdgeConfig {
   /** Default edge color (CSS hex) */
   readonly defaultColor: string;
+  /** Optional default pulse/flow color (CSS hex). Falls back to edge color. */
+  readonly defaultFlowColor?: string;
+  /** Default flow animation speed (cycles per second). */
+  readonly defaultFlowSpeed: number;
+  /** Default flow pulse width (0–1 along edge UV). */
+  readonly defaultFlowWidth: number;
   /** Default tube radius in diagram units */
   readonly defaultThickness: number;
   /** PBR metalness for edge tubes [0–1] */
@@ -162,6 +168,10 @@ export interface DiagramThemeRenderConfig {
   readonly edgeMetalness: number;
   /** Edge tube roughness */
   readonly edgeRoughness: number;
+  /** Flow animation speed (cycles per second). */
+  readonly edgeFlowSpeed: number;
+  /** Flow pulse width (0–1 along edge UV). */
+  readonly edgeFlowWidth: number;
   /** Optional troika fontUrl override */
   readonly fontUrl: string | undefined;
 }

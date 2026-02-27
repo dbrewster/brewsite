@@ -41,3 +41,4 @@ export { DiagramRenderer } from './render';
 export { InteractionRegistry } from './rendering/InteractionRegistry';
 export type { IInteractionRegistry } from './rendering/InteractionRegistry';
 export { DiagramWidget } from './widget';
+export { enterpriseTheme, darkGlassTheme, lightMinimalTheme, neonCyberTheme } from './themes';

@@ -40,6 +40,8 @@ export class DiagramRenderer {
         tc.edgeSmoothness,
         tc.edgeMetalness,
         tc.edgeRoughness,
+        tc.edgeFlowSpeed,
+        tc.edgeFlowWidth,
       );
       this.groupRenderer = new GroupRenderer();
     }

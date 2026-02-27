@@ -128,7 +128,7 @@ export class NodeRenderer {
       ),
       new THREE.LineBasicMaterial({
         color: state.borderColor,
-        opacity: 0.8,
+        opacity: Math.min(1, state.opacity),
         transparent: true,
       }),
     );
@@ -140,7 +140,7 @@ export class NodeRenderer {
         createRoundedBorderGeometry(state.size[0], state.size[1], state.depth, state.cornerRadius),
         new THREE.LineBasicMaterial({
           color: state.borderColor,
-          opacity: 0.8,
+          opacity: Math.min(1, state.opacity),
           transparent: true,
         }),
       );

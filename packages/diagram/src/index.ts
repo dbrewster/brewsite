@@ -35,6 +35,7 @@ export type {
   DiagramEdgePort,
   SvgIcon3DStyle,
 } from './elements/diagram/types';
+
 export type { DiagramShapeVariant } from './elements/diagram/shapes/shapeVariants';
 export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, Exit, Enter } from './elements/diagram/dsl';
 export type { ExitProps, EnterProps } from './elements/diagram/dsl';

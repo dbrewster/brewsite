@@ -25,6 +25,8 @@ export const lightMinimalTheme: DiagramTheme = {
   },
   edge: {
     defaultColor:         '#3060b0',
+    defaultFlowSpeed:     0.7,
+    defaultFlowWidth:     0.18,
     defaultThickness:     0.060,
     defaultMetalness:     0.10,
     defaultRoughness:     0.60,

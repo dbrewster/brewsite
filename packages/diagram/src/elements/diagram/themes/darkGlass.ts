@@ -24,7 +24,10 @@ export const darkGlassTheme: DiagramTheme = {
     defaultIconStyle:          'layered',
   },
   edge: {
-    defaultColor:         '#3d5a9a',
+    defaultColor:         '#702dc6',
+    defaultFlowColor:     '#53ec68',
+    defaultFlowSpeed:     0.5,
+    defaultFlowWidth:     0.2,
     defaultThickness:     0.065,
     defaultMetalness:     0.50,
     defaultRoughness:     0.30,

@@ -1,6 +1,6 @@
 import {Background, Environment, EnvironmentCube, Floor, FloorMirror, SceneDefinition} from '@brewsite/core';
 import { Ambient, Camera, Directional, Lighting, Scene } from '@brewsite/core';
-import { DiagramCanvas, Diagram, DiagramEdge, DiagramGroup, DiagramNode, Exit } from '@brewsite/diagram';
+import {DiagramCanvas, Diagram, DiagramEdge, DiagramGroup, DiagramNode, Exit, darkGlassTheme} from '@brewsite/diagram';
 import {backgrounds, makeCubeUrls, skyEnvironment} from "./sceneAssets";
 
 export const sceneArchOverview: SceneDefinition = {
@@ -11,7 +11,7 @@ export const sceneArchOverview: SceneDefinition = {
       <Environment enabled intensity={0.05}>
         <EnvironmentCube urls={makeCubeUrls(skyEnvironment)} />
       </Environment>
-      <Background imageUrl={backgrounds.scan} opacity={.5} cssSize="cover" cssPosition="center" />
+      <Background imageUrl={backgrounds.intro} opacity={1} cssSize="cover" cssPosition="center" />
       <Floor enabled position={[0, -20, 0]}>
         <FloorMirror
           mirrorColor="#ffe9c4"
@@ -30,10 +30,10 @@ export const sceneArchOverview: SceneDefinition = {
       />
       <Lighting intensityScale={1}>
         <Ambient intensity={1.2} color="#ffffff" />
-        <Directional intensity={2.5} color="#ffffff" position={[20, 30, 50]} />
+        <Directional intensity={.5} color="#ffefef" position={[0, 30, 50]} />
         <Directional intensity={0.6} color="#aaccff" position={[-20, 10, 20]} />
       </Lighting>
-      <DiagramCanvas id="system-canvas" rotation={[-Math.PI / 8, 0, 0]} scale={1.4}>
+      <DiagramCanvas id="system-canvas" rotation={[-Math.PI / 8, 0, 0]} scale={1.4} theme={darkGlassTheme}>
         <Diagram id="system-arch" layout="manual" pivot="center">
           <Exit to={[0, -60, 0]} fade easing="ease-out" />
           <DiagramGroup id="frontend" label="Client Tier" variant="swimlane">
@@ -73,14 +73,14 @@ export const sceneArchOverview: SceneDefinition = {
             <DiagramNode id="s3" label="S3 Assets" shape="aws:s3" position={[5, -13, 0]} />
           </DiagramGroup>
 
-          <DiagramEdge from="browser" to="cdn" label="HTTPS" />
-          <DiagramEdge from="cdn" to="alb" />
-          <DiagramEdge from="alb" to="api" />
-          <DiagramEdge from="api" to="ecs" label="REST" />
-          <DiagramEdge from="api" to="lambda" label="Events" style="dashed" />
-          <DiagramEdge from="ecs" to="rds" label="TCP 5432" />
-          <DiagramEdge from="ecs" to="cache" label="Redis" />
-          <DiagramEdge from="ecs" to="s3" label="r/w" style="dashed" />
+          <DiagramEdge from="browser" to="cdn" label="HTTPS" flow="forward" />
+          <DiagramEdge from="cdn" to="alb" flow="forward" />
+          <DiagramEdge from="alb" to="api" flow="forward" />
+          <DiagramEdge from="api" to="ecs" label="REST" flow="forward" />
+          <DiagramEdge from="api" to="lambda" label="Events" style="dashed" flow="forward" />
+          <DiagramEdge from="ecs" to="rds" label="TCP 5432" flow="forward" />
+          <DiagramEdge from="ecs" to="cache" label="Redis" flow="forward" />
+          <DiagramEdge from="ecs" to="s3" label="r/w" style="dashed" flow="forward" />
         </Diagram>
       </DiagramCanvas>
     </Scene>

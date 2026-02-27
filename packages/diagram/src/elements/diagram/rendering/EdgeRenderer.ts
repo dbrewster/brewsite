@@ -17,6 +17,12 @@ export type EdgeLike = {
   flowColor?: string;
 };
 
+type ShaderLike = {
+  uniforms: Record<string, unknown>;
+  fragmentShader: string;
+  vertexShader: string;
+};
+
 type EdgeEntry = Omit<EdgeRenderEntry, 'lastState'> & { lastState?: EdgeLike };
 
 export class EdgeRenderer {
@@ -30,6 +36,8 @@ export class EdgeRenderer {
     private readonly edgeSmoothness: number = 0.5,
     private readonly edgeMetalness: number = 0.3,
     private readonly edgeRoughness: number = 0.7,
+    private readonly flowSpeed: number = 0.7,
+    private readonly flowWidth: number = 0.18,
   ) {}
 
   getOrCreate(edge: EdgeLike, parent: THREE.Object3D): EdgeRenderEntry {
@@ -253,7 +261,7 @@ export class EdgeRenderer {
 
     const mat = material as THREE.MeshStandardMaterial & {
       userData: Record<string, unknown>;
-      onBeforeCompile?: (shader: THREE.Shader) => void;
+      onBeforeCompile?: (shader: ShaderLike) => void;
       defines?: Record<string, unknown>;
     };
 
@@ -273,9 +281,9 @@ export class EdgeRenderer {
       const uniforms = {
         uTime: { value: 0 },
         uPulseColor: { value: new THREE.Color(edge.flowColor ?? edge.color) },
-        uPulseSpeed: { value: 0.7 },
-        uPulseWidth: { value: 0.18 },
-        uPulseIntensity: { value: 0.9 },
+        uPulseSpeed: { value: this.flowSpeed },
+        uPulseWidth: { value: this.flowWidth },
+        uPulseIntensity: { value: 1.6 },
         uPulseDir: { value: 1 },
         uPulseBidirectional: { value: 0 },
       };
@@ -310,13 +318,17 @@ export class EdgeRenderer {
             `// ${this.pulseShaderKey}`,
             `float pulseT = mod(uTime * uPulseSpeed * uPulseDir, 1.0);`,
             `if (pulseT < 0.0) pulseT += 1.0;`,
-            `float pulse = exp(-pow((vUv.x - pulseT) / uPulseWidth, 2.0) * 4.0);`,
+            `float width = clamp(uPulseWidth * 0.5, 0.01, 0.5);`,
+            `float d = abs(fract(vUv.x - pulseT) - 0.5);`,
+            `float pulse = smoothstep(width, 0.0, d);`,
             `if (uPulseBidirectional > 0.5) {`,
             `  float pulseT2 = mod(uTime * uPulseSpeed, 1.0);`,
-            `  float pulse2 = exp(-pow((vUv.x - (1.0 - pulseT2)) / uPulseWidth, 2.0) * 4.0);`,
+            `  float d2 = abs(fract(vUv.x - (1.0 - pulseT2)) - 0.5);`,
+            `  float pulse2 = smoothstep(width, 0.0, d2);`,
             `  pulse = max(pulse, pulse2);`,
             `}`,
-            `diffuseColor.rgb = mix(diffuseColor.rgb, uPulseColor, pulse * uPulseIntensity);`,
+            `float glow = pow(pulse, 0.35);`,
+            `gl_FragColor.rgb += uPulseColor * glow * uPulseIntensity;`,
           ].join('\n'),
         );
       };
@@ -329,6 +341,8 @@ export class EdgeRenderer {
     const uniforms = pulseData.uniforms;
     uniforms.uTime.value = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
     uniforms.uPulseColor.value = new THREE.Color(edge.flowColor ?? edge.color);
+    uniforms.uPulseSpeed.value = this.flowSpeed;
+    uniforms.uPulseWidth.value = this.flowWidth;
     uniforms.uPulseDir.value = flow === 'backward' ? -1 : 1;
     uniforms.uPulseBidirectional.value = flow === 'bidirectional' ? 1 : 0;
     uniforms.uPulseIntensity.value = wantsPulse ? 0.9 : 0;

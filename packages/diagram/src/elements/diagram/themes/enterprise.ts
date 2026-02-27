@@ -24,6 +24,8 @@ export const enterpriseTheme: DiagramTheme = {
   },
   edge: {
     defaultColor:         '#4a7abf',
+    defaultFlowSpeed:     0.7,
+    defaultFlowWidth:     0.18,
     defaultThickness:     0.070,
     defaultMetalness:     0.30,
     defaultRoughness:     0.50,

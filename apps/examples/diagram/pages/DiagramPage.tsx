@@ -1,12 +1,22 @@
 import { ScenePlayer } from '@brewsite/core';
 import type { JSX } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { createWidgetSetup } from '../widgetSetup';
 import { sceneArchEcsDetail } from '../scenes/scene_arch_ecs_detail';
 import { sceneArchOverview } from '../scenes/scene_arch_overview';
 
 export default function DiagramPage(): JSX.Element {
   const [error, setError] = useState<Error | null>(null);
+
+  useLayoutEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const prevRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = 'manual';
+    window.scrollTo({ top: 0, left: 0 });
+    return () => {
+      window.history.scrollRestoration = prevRestoration;
+    };
+  }, []);
 
   useEffect(() => {
     if (error) {
