@@ -18,9 +18,9 @@
     "build": "tsc -b tsconfig.build.json && vite build",
     "build:lib": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "coverage": "vitest run --coverage",
+    "test": "NODE_OPTIONS=--max-old-space-size=8192 vitest run",
+    "test:watch": "NODE_OPTIONS=--max-old-space-size=8192 vitest",
+    "coverage": "NODE_OPTIONS=--max-old-space-size=8192 vitest run --coverage",
     "dev": "vite build --watch"
   },
   "dependencies": {

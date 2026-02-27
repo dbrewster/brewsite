@@ -4,8 +4,11 @@
 // apply() is NOT tested here — it requires Three.js and is excluded from coverage.
 
 import { describe, it, expect, beforeEach } from 'vitest';
+import React from 'react';
 import { LightingWidget } from '../LightingWidget';
 import type { SceneLighting } from '../types';
+import { Ambient, Directional, Point, Spot, Panel, Lighting } from '../dsl';
+import { CUSTOM_NODE_HANDLER } from '../../../widget/WidgetRegistry';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -103,5 +106,50 @@ describe('LightingWidget', () => {
     for (const child of widget.childDslComponents) {
       expect(child.topLevelError).toBe(true);
     }
+  });
+
+  it('custom node handler compiles child elements into lighting state', () => {
+    const handler = (widget as unknown as Record<symbol, unknown>)[CUSTOM_NODE_HANDLER] as
+      | ((node: { props: unknown }, api: { setWidgetState: (id: string, state: SceneLighting) => void; state: { widgets: Record<string, unknown> }; context: unknown }, helpers: {
+        collectChildren: (n: { props: unknown }) => React.ReactNode[];
+        resolveObjectValues: (v: unknown) => unknown;
+        resolveValue: (v: unknown) => unknown;
+      }) => void)
+      | undefined;
+    expect(handler).toBeDefined();
+    let captured: SceneLighting | undefined;
+    const node = {
+      props: {
+        intensityScale: 0.5,
+        color: '#ff00ff',
+        children: [
+          React.createElement(Ambient, { intensity: 0.2, color: '#111111' }),
+          React.createElement(Directional, { intensity: 0.9, color: '#222222', position: [1, 2, 3] }),
+          React.createElement(Point, { intensity: 1, color: '#333333', position: [0, 1, 0] }),
+          React.createElement(Spot, { intensity: 1, color: '#444444', position: [0, 2, 0], target: [0, 0, 0], angle: 0.4, penumbra: 0.1 }),
+          React.createElement(Panel, { id: 'p1', origin: [0, 0, 0], rows: 1, cols: 1, spacing: [1, 1, 1], intensity: 1, color: '#ffffff' }),
+        ],
+      },
+    };
+    handler?.(
+      node,
+      { setWidgetState: (_id, state) => { captured = state; }, state: { widgets: {} }, context: {} } as never,
+      {
+        collectChildren: (n) => {
+          const children = (n.props as { children?: React.ReactNode }).children;
+          return Array.isArray(children) ? children : (children ? [children] : []);
+        },
+        resolveObjectValues: (v) => v,
+        resolveValue: (v) => v,
+      },
+    );
+    expect(captured?.ambient.intensity).toBe(0.2);
+    expect(captured?.directional.position).toEqual([1, 2, 3]);
+    expect(captured?.points?.length).toBe(1);
+    expect(captured?.spots?.length).toBe(1);
+    expect(captured?.panels?.length).toBe(1);
+    expect(captured?.intensityScale).toBe(0.5);
+    expect(captured?.color).toBe('#ff00ff');
+    expect(Lighting({})).toBeNull();
   });
 });

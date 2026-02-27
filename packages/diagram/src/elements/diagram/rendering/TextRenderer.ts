@@ -2,6 +2,15 @@
 
 import type { TextWithLayout } from './types';
 
+type TextLayoutOptions = {
+  anchorX?: 'left' | 'center' | 'right';
+  anchorY?: 'top' | 'middle' | 'bottom';
+  textAlign?: 'left' | 'center' | 'right';
+  overflowWrap?: 'normal' | 'break-word';
+  whiteSpace?: 'normal' | 'nowrap' | 'pre' | 'pre-line' | 'pre-wrap';
+  lineHeight?: number;
+};
+
 export function ensureText(
   text: TextWithLayout,
   value: string,
@@ -10,13 +19,14 @@ export function ensureText(
   opacity: number,
   maxWidth?: number,
   shrinkToFit: boolean = false,
+  layout: TextLayoutOptions = {},
 ): void {
-  const nextAnchorX = 'center';
-  const nextAnchorY = 'middle';
-  const nextAlign = 'center';
-  const nextOverflow = 'normal';
-  const nextWhiteSpace = 'nowrap';
-  const nextLineHeight = 1.1;
+  const nextAnchorX = layout.anchorX ?? 'center';
+  const nextAnchorY = layout.anchorY ?? 'middle';
+  const nextAlign = layout.textAlign ?? 'center';
+  const nextOverflow = layout.overflowWrap ?? 'normal';
+  const nextWhiteSpace = layout.whiteSpace ?? 'nowrap';
+  const nextLineHeight = layout.lineHeight ?? 1.1;
 
   const userData = text.userData as {
     baseFontSize?: number;

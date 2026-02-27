@@ -149,8 +149,8 @@ export function DiagramEdge(_props: DiagramEdgeProps): null {
 export interface DiagramGroupProps {
   /** Unique ID within the diagram */
   id: string;
-  /** Group header label */
-  label: string;
+  /** Group header label (optional) */
+  label?: string;
   /** Group visual variant. Default: 'boundary' */
   variant?: DiagramGroupVariant;
   /** Swimlane orientation (only for variant='swimlane'). Default: 'vertical' */
@@ -160,14 +160,30 @@ export interface DiagramGroupProps {
   /** Border color (CSS hex). Default: '#3a4060' */
   borderColor?: string;
   /** Border line style. Default: 'solid' */
-  borderStyle?: 'solid' | 'dashed';
+  borderStyle?: 'solid' | 'dashed' | 'none';
   /** Fill opacity [0–1]. Default: 0.08 */
   fillOpacity?: number;
   /** Border opacity [0–1]. Default: 0.6 */
   borderOpacity?: number;
   /**
-   * Child <DiagramNode> elements that belong to this group.
+   * Per-group auto-layout algorithm for arranging this group's direct member nodes.
+   * 'grid'         — rows of ~4 nodes, left-to-right top-to-bottom.
+   * 'hierarchical' — topological sort by edges (downstream nodes placed lower).
+   * Omit to inherit the parent <Diagram layout="..."> value.
+   * Note: 'manual' is not supported at the group level — nodes with explicit
+   * positions always bypass auto-layout regardless.
+   */
+  layout?: 'grid' | 'hierarchical';
+  /**
+   * Per-group node spacing in diagram units [horizontalGap, verticalGap].
+   * Overrides the parent <Diagram layoutSpacing={...}> for this group's
+   * internal arrangement. Default: inherits diagram-level layoutSpacing.
+   */
+  layoutSpacing?: [number, number];
+  /**
+   * Child <DiagramNode> and <DiagramGroup> elements that belong to this group.
    * Group bounds are computed from the union of child node positions + sizes.
+   * Nested <DiagramGroup> children establish sub-groups with their own layout.
    */
   children?: React.ReactNode;
 }

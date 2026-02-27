@@ -49,4 +49,25 @@ describe('GroupRenderer', () => {
     renderer.disposeAllForDiagram('d1', parent);
     expect(parent.children.length).toBe(0);
   });
+
+  it('updates geometry when bounds change', () => {
+    const entry = renderer.getOrCreate(makeGroup(), 'd1', parent);
+    const before = entry.fill.geometry;
+    renderer.getOrCreate(makeGroup({ bounds: { x: 0, y: 0, w: 6, h: 3, padding: 1 } }), 'd1', parent);
+    expect(entry.fill.geometry).not.toBe(before);
+  });
+
+  it('switches border material between solid and dashed', () => {
+    const entry = renderer.getOrCreate(makeGroup({ borderStyle: 'solid' }), 'd1', parent);
+    expect(entry.border).toBeDefined();
+    expect(entry.border?.material).toBeInstanceOf(THREE.LineBasicMaterial);
+    renderer.getOrCreate(makeGroup({ borderStyle: 'dashed' }), 'd1', parent);
+    expect(entry.border).toBeDefined();
+    expect(entry.border?.material).toBeInstanceOf(THREE.LineDashedMaterial);
+  });
+
+  it('omits border when borderStyle is none', () => {
+    const entry = renderer.getOrCreate(makeGroup({ borderStyle: 'none' }), 'd1', parent);
+    expect(entry.border).toBeUndefined();
+  });
 });

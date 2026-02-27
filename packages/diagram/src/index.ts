@@ -87,3 +87,16 @@ export { darkGlassTheme, neonCyberTheme, enterpriseTheme, lightMinimalTheme } fr
 
 // ─── Compiler handler registration ──────────────────────────────────────────
 export { registerDiagramHandlers } from './compiler/handlers';
+
+// ─── Lucid dynamic loading ───────────────────────────────────────────────────
+export type { LucidDocumentSummary, LucidSearchRequest, LucidSearchResponse } from './lucid/searchTypes';
+export type { LucidConvertOptions } from './lucid/types';
+export {
+  searchLucidDocuments, fetchLucidPage, checkLucidAuthStatus,
+  LucidAuthError, LucidFetchError,
+} from './lucid/client';
+export { selectLucidPage, convertLucidPage } from './lucid/converter';
+export { LucidDocumentPicker } from './lucid/picker';
+export type { LucidDocumentPickerProps } from './lucid/picker';
+export { useLucidDiagram } from './lucid/useLucidDiagram';
+export type { UseLucidDiagramResult, LucidDiagramStatus } from './lucid/useLucidDiagram';

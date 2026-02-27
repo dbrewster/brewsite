@@ -30,6 +30,10 @@
       "cache": false,
       "persistent": true
     },
+    "dev:server": {
+      "cache": false,
+      "persistent": true
+    },
     "gen:scene-dsl": {
       "inputs": ["siteResources.ts", "public/**"],
       "outputs": ["generated/**", "public/scene-manifest.json"]

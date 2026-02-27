@@ -179,6 +179,74 @@ describe('lighting compile + render', () => {
     expect(panel?.spacing).toEqual([1.5, 1.5, 1.5]);
     expect(panel?.matrix?.length).toBe(2);
   });
+
+  it('blends points when only one side exists', () => {
+    const from = makeLighting({
+      points: [{ intensity: 1, color: '#ff0000', position: [0, 1, 0] }],
+    });
+    const to = makeLighting({ points: [] });
+    const exit = applyLightingExit(from, 0.5);
+    expect(exit.points?.[0].intensity).toBeLessThan(1);
+
+    const enter = applyLightingEnter(makeLighting({ points: [{ intensity: 2, color: '#00ff00', position: [0, 1, 0] }] }), 0.5);
+    expect(enter.points?.[0].intensity).toBeGreaterThan(0);
+  });
+
+  it('blends spots when only one side exists', () => {
+    const from = makeLighting({
+      spots: [{
+        intensity: 1,
+        color: '#ff0000',
+        position: [0, 1, 0],
+        target: [0, 0, 0],
+        angle: 0.4,
+        penumbra: 0.1,
+      }],
+    });
+    const exit = applyLightingExit(from, 0.5);
+    expect(exit.spots?.[0].intensity).toBeLessThan(1);
+
+    const enter = applyLightingEnter(makeLighting({
+      spots: [{
+        intensity: 2,
+        color: '#00ff00',
+        position: [0, 1, 0],
+        target: [0, 0, 0],
+        angle: 0.4,
+        penumbra: 0.1,
+      }],
+    }), 0.5);
+    expect(enter.spots?.[0].intensity).toBeGreaterThan(0);
+  });
+
+  it('blends panels when only one side exists and matrix is missing', () => {
+    const from = makeLighting({
+      panels: [{
+        id: 'panel',
+        origin: [0, 0, 0],
+        rows: 1,
+        cols: 1,
+        spacing: [1, 1, 1],
+        intensity: 1,
+        color: '#ffffff',
+      }],
+    });
+    const exit = applyLightingExit(from, 0.5);
+    expect(exit.panels?.[0].intensity).toBeLessThan(1);
+
+    const enter = applyLightingEnter(makeLighting({
+      panels: [{
+        id: 'panel2',
+        origin: [1, 0, 0],
+        rows: 2,
+        cols: 2,
+        spacing: [2, 2, 2],
+        intensity: 2,
+        color: '#ffffff',
+      }],
+    }), 0.5);
+    expect(enter.panels?.[0].intensity).toBeGreaterThan(0);
+  });
   it('applyLighting populates scene and cleans up managed lights', () => {
     const scene = new THREE.Scene();
     const state: SceneLighting = makeLighting({

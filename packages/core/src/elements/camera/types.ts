@@ -132,90 +132,151 @@ export type CameraPost = {
   // dof?: DofConfig;  ← Phase 2: deferred
 };
 
-// ─── Interactive Camera Control ──────────────────────────────────────────────
+// ─── Interactive Camera Control (Modifier-Key Model) ─────────────────────────
 
 /**
- * Per-axis interaction override.
- * Setting to false disables the action entirely.
+ * Per-axis speed tuning for a camera interaction binding.
+ * `speed` multiplies the pixel-to-world delta. Default 1.0.
  */
-export type PointerAction = {
-  /** Which mouse button triggers this action. */
-  pointer?: MouseButton;
-  /** Required keyboard modifiers (all must be held). */
-  modifiers?: ModifierKey[];
-  /** Number of touch fingers (for touch devices). */
-  touchFingers?: number;
-} | false;
+export type CameraAxisConfig = {
+  /** Multiplier applied to pixel delta when computing the camera movement. Default 1.0. */
+  speed?: number;
+};
 
 /**
- * Camera interaction configuration embedded in SceneCamera.
- * When enabled, camera-controls takes over input on the canvas element.
- * Scene-defined camera position is saved and can be restored via reset.
+ * Trackpad / mouse interaction configuration.
+ *
+ * Modifier-key bindings (all use left-button drag or one-finger trackpad drag):
+ *   Ctrl  + drag → orbit (rotate around target)
+ *   Shift + drag → pan   (translate camera + target in screen space)
+ *   Alt   + drag → dolly (change distance to target)
+ *
+ * No modifier key held → drag does nothing (avoids conflicting with page scroll).
  */
-export type CameraInteractionConfig = {
-  /** Whether interactive camera control is active for this scene. Default false. */
+export type TrackpadCameraConfig = {
+  /** Whether interactive control is active for this scene. Default: false */
   enabled: boolean;
 
   /**
-   * Orbit (rotate around target).
-   * Default: left-click drag, single-finger touch.
+   * Ctrl + drag = orbit/rotate.
+   * false disables this binding. Object form sets speed. Default: enabled.
    */
-  orbit?: PointerAction;
+  rotate?: boolean | CameraAxisConfig;
 
   /**
-   * Pan (truck/pedestal — translate camera and target together).
-   * Default: right-click drag, two-finger touch drag.
+   * Shift + drag = pan/truck (translate camera + target together).
+   * false disables this binding. Object form sets speed. Default: enabled.
    */
-  pan?: PointerAction;
+  pan?: boolean | CameraAxisConfig;
 
   /**
-   * Dolly (zoom — change distance to target).
-   * wheel: true = enable mouse-wheel dolly.
-   * pinch: true = enable pinch-to-zoom (touch).
+   * Alt + drag = dolly/zoom (change distance to target).
+   * false disables this binding. Object form sets speed. Default: enabled.
    */
-  dolly?: {
-    wheel?: boolean;
-    pinch?: boolean;
-    wheelModifiers?: ModifierKey[];
-  } | false;
-
-  /** Keyboard shortcut to reset camera to scene-defined position. Default { key: 'r' }. */
-  reset?: KeyCombo;
+  zoom?: boolean | CameraAxisConfig;
 
   /**
-   * Whether to smoothly return the camera to the scene-defined position when
-   * the scene index changes (i.e. the user scrolls to a new scene while in
-   * interaction mode). Default true.
-   *
-   * The reset is animated — camera-controls.setLookAt(..., enableTransition=true)
-   * is called so the camera glides back rather than snapping. The duration is
-   * governed by camera-controls' internal smoothTime (~0.25s with default damping).
-   *
-   * Set to false if you want the user's camera position to persist across
-   * scene transitions (e.g. a continuous multi-scene diagram).
+   * Alt + scroll wheel also dolly/zooms.
+   * When true, the driver returns claimsWheel()=false — only Alt-modified
+   * wheel events are intercepted; regular wheel still reaches scene navigation.
+   * Default: false.
+   */
+  wheelZoom?: boolean;
+
+  /**
+   * Inertia/damping in seconds. Applies to all axes.
+   * false = no inertia (instant response).
+   * Default: 0.25s.
+   */
+  damping?: number | false;
+
+  /** Minimum camera distance from target. */
+  minDistance?: number;
+  /** Maximum camera distance from target. */
+  maxDistance?: number;
+  /** Minimum polar angle (radians from top). Default 0. */
+  minPolarAngle?: number;
+  /** Maximum polar angle (radians from top). Default Math.PI. */
+  maxPolarAngle?: number;
+
+  /**
+   * Keyboard shortcut to reset camera to scene-defined position.
+   * false disables the reset shortcut.
+   * Default: { key: 'r' }.
+   */
+  reset?: KeyCombo | false;
+
+  /**
+   * When true, camera smoothly resets to scene-defined position when the
+   * scene index changes (user scrolls to a new scene). Default: true.
    */
   resetOnSceneChange?: boolean;
-
-  // ─── Constraints ─────────────────────────────────────────────────────────
-  minDistance?: number;
-  maxDistance?: number;
-  /** Minimum polar angle from top (radians). Default 0. */
-  minPolarAngle?: number;
-  /** Maximum polar angle from top (radians). Default Math.PI. */
-  maxPolarAngle?: number;
-  minAzimuthAngle?: number;
-  maxAzimuthAngle?: number;
-
-  // ─── Feel ─────────────────────────────────────────────────────────────────
-  /**
-   * Inertia/damping coefficient. true = 0.05 default.
-   * Higher = more inertia. 0 = no inertia.
-   */
-  damping?: boolean | number;
-  orbitSpeed?: number;
-  panSpeed?: number;
-  dollySpeed?: number;
 };
+
+/**
+ * Abstraction over camera interaction backends.
+ * Production implementation: CameraControlsDriver (in render.ts, uses camera-controls).
+ * Test implementation: FakeInteractionDriver (in __tests__/, plain class, no Three.js).
+ *
+ * The `cameraObject` parameter is typed as `unknown` to keep this interface free of
+ * Three.js imports. Implementors cast to THREE.PerspectiveCamera internally.
+ *
+ * All methods take and return only plain types (Vec3, numbers, booleans, HTMLElement).
+ */
+export interface ICameraInteractionDriver {
+  /**
+   * Attach the driver to a camera and DOM element. Called once when entering
+   * interaction mode. Implementations add their own event listeners here.
+   */
+  attach(cameraObject: unknown, domElement: HTMLElement, config: TrackpadCameraConfig): void;
+
+  /**
+   * Sync the driver's internal look-at state to world-space position and target.
+   * Called when interaction mode is first entered (snap) and on smooth reset.
+   * `smooth=false` → instant snap. `smooth=true` → animated glide.
+   */
+  setLookAt(position: Vec3, target: Vec3, smooth: boolean): void;
+
+  /**
+   * Advance the driver by deltaSeconds for damping/inertia computation.
+   * Must be called every frame while interaction is active.
+   * Returns true if the camera moved this frame (used for dirty-checking, optional).
+   */
+  update(deltaSeconds: number): boolean;
+
+  /**
+   * Apply new configuration (speeds, constraints, damping) without re-attaching.
+   * Called every tick while interaction is active to pick up scene-state changes.
+   */
+  configure(config: TrackpadCameraConfig): void;
+
+  /**
+   * Returns true when this driver intends to claim ALL wheel events, suppressing
+   * scene navigation. Used by useSceneEngine's wheelGuard.
+   *
+   * NOTE: When wheelZoom is false (default), this returns false. The driver still
+   * handles Alt+wheel internally (since scene nav's modifiersMatch() ignores
+   * modifier-held events by default), without claiming unmodified wheel.
+   */
+  claimsWheel(): boolean;
+
+  /**
+   * Detach all DOM listeners and release internal state.
+   * Called when exiting interaction mode or when CameraWidget is disposed.
+   */
+  dispose(): void;
+}
+
+/**
+ * Factory function that creates an ICameraInteractionDriver, attaches it, and returns it.
+ * Injected into CameraWidget. Production default uses CameraControlsDriver from render.ts.
+ * Tests inject a FakeInteractionDriver factory.
+ */
+export type CameraInteractionDriverFactory = (
+  cameraObject: unknown,
+  domElement: HTMLElement,
+  config: TrackpadCameraConfig,
+) => ICameraInteractionDriver;
 
 // ─── Transition Interpolation ────────────────────────────────────────────────
 
@@ -296,11 +357,22 @@ export type SceneCamera = {
   post?: CameraPost;
 
   /** Interactive camera control for this scene. */
-  interaction?: CameraInteractionConfig;
+  interaction?: TrackpadCameraConfig;
 
   /**
    * Interpolation mode for this camera when transitioning INTO this scene.
    * Overrides the default linear blend in functionalCameraTransitionSpec.
    */
   transitionIn?: CameraTransitionInterpolation;
+};
+
+export type CameraOverrideState = {
+  enabled: boolean;
+  position: Vec3;
+  target: Vec3;
+  up?: Vec3;
+  fov?: number;
+  near?: number;
+  far?: number;
+  exposure?: number;
 };

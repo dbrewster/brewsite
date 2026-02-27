@@ -13,10 +13,10 @@ import type {
 import type { FunctionalTransitionSpec } from '@brewsite/core';
 import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
 import { darkGlassTheme } from './themes/darkGlass';
-import { resolveLayout, computeBounds } from './compiler/layoutAlgorithms';
+import { resolveLayout, resolveLayoutWithGroups, computeBounds } from './compiler/layoutAlgorithms';
 import { routeEdges } from './compiler/edgeRouter';
 import { buildNodeDefaults, compileNode, compileEdge } from './compiler/nodeCompiler';
-import { compileGroup } from './compiler/groupCompiler';
+import { compileGroup, resolveGroupBoundsMap } from './compiler/groupCompiler';
 import { buildThemeRenderConfig, compileExitConfig, compileEnterConfig } from './compiler/themeResolver';
 import {
   blendDiagramNodes,
@@ -41,6 +41,22 @@ function applyEasing(t: number, easing: DiagramEasing): number {
     }
     default: return t;
   }
+}
+
+function groupDepth(
+  group: { id: string; parentId?: string },
+  allGroups: ReadonlyArray<{ id: string; parentId?: string }>,
+): number {
+  if (!group.parentId) return 0;
+  const groupById = new Map(allGroups.map((g) => [g.id, g]));
+  let depth = 0;
+  let cursor = groupById.get(group.parentId);
+  while (cursor) {
+    depth += 1;
+    if (!cursor.parentId) break;
+    cursor = groupById.get(cursor.parentId);
+  }
+  return depth;
 }
 
 /**
@@ -87,17 +103,23 @@ export function compileDiagram(
   });
 
   const nd = buildNodeDefaults(theme);
-  const positions = resolveLayout(dsl.nodes, dsl.edges, layout, layoutSpacing);
-
   const sizeMap = new Map<string, readonly [number, number]>();
   const sizeWithDepthMap = new Map<string, readonly [number, number, number]>();
-
   dsl.nodes.forEach((node) => {
     const size = node.size ?? nd.size;
     const depth = node.depth ?? nd.depth;
     sizeMap.set(node.id, size);
     sizeWithDepthMap.set(node.id, [size[0], size[1], depth]);
   });
+
+  const positions = resolveLayoutWithGroups(
+    dsl.nodes,
+    dsl.edges,
+    dsl.groups,
+    layout,
+    layoutSpacing,
+    sizeWithDepthMap,
+  );
 
   const pivot: DiagramPivot = dsl.pivot ?? 'center';
   const rawBounds = computeBounds(
@@ -111,6 +133,15 @@ export function compileDiagram(
       positions.set(id, [pos[0] + ox, pos[1] + oy, pos[2] + oz]);
     }
   }
+
+  const groupBoundsMap = resolveGroupBoundsMap(dsl.groups, positions, sizeWithDepthMap);
+  groupBoundsMap.forEach((bounds, groupId) => {
+    if (bounds.w === 0 && bounds.h === 0) return;
+    const centerX = bounds.x + bounds.w / 2;
+    const centerY = bounds.y + bounds.h / 2;
+    positions.set(groupId, [centerX, centerY, 0]);
+    sizeWithDepthMap.set(groupId, [bounds.w, bounds.h, 0.2]);
+  });
 
   const edgesForRouting = dsl.edges.map((edge) => ({
     ...edge,
@@ -140,7 +171,21 @@ export function compileDiagram(
     return compileEdge(edge, controlPoints, index, theme);
   });
 
-  const groups = dsl.groups.map((group) => compileGroup(group, positions, sizeWithDepthMap, theme));
+  const groups = dsl.groups
+    .map((group) => {
+      const bounds = groupBoundsMap.get(group.id);
+      if (!bounds) return null;
+      return compileGroup(group, bounds, theme);
+    })
+    .filter((group): group is NonNullable<typeof group> => !!group)
+    .sort((a, b) => {
+      const depthA = groupDepth(a, dsl.groups);
+      const depthB = groupDepth(b, dsl.groups);
+      if (depthA !== depthB) return depthA - depthB;
+      const areaA = a.bounds.w * a.bounds.h;
+      const areaB = b.bounds.w * b.bounds.h;
+      return areaB - areaA;
+    });
 
   const bounds = computeBounds(
     dsl.nodes.map((node) => node.id),

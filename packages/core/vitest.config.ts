@@ -13,6 +13,12 @@ export default defineConfig({
     environment: 'node',
     include: ['src/**/__tests__/**/*.test.{ts,tsx}'],
     exclude: ['src/legacy'],
+    poolOptions: {
+      forks: {
+        singleFork: true,
+        isolate: true,
+      },
+    },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'json'],

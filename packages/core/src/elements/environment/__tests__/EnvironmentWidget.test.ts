@@ -6,6 +6,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { EnvironmentWidget } from '../EnvironmentWidget';
 import type { SceneEnvironment } from '../types';
 import { makeInitContext, makeRenderContext } from '../../__tests__/elementTestMocks';
+import { EnvironmentHdri, EnvironmentCube } from '../dsl';
+import { CUSTOM_NODE_HANDLER } from '../../../widget/WidgetRegistry';
+import React from 'react';
 
 describe('EnvironmentWidget', () => {
   let widget: EnvironmentWidget;
@@ -95,5 +98,46 @@ describe('EnvironmentWidget', () => {
     expect(() => {
       widget.apply({ enabled: true, intensity: 1 }, makeRenderContext());
     }).not.toThrow();
+  });
+
+  it('custom node handler resolves source from child components', () => {
+    const handler = (widget as unknown as Record<symbol, unknown>)[CUSTOM_NODE_HANDLER] as
+      | ((node: { props: unknown }, api: { setWidgetState: (id: string, state: SceneEnvironment) => void }, helpers: {
+        collectChildren: (n: { props: unknown }) => React.ReactNode[];
+        resolveObjectValues: (v: unknown) => unknown;
+        resolveValue: (v: unknown) => unknown;
+      }) => void)
+      | undefined;
+    expect(handler).toBeDefined();
+
+    let captured: SceneEnvironment | undefined;
+    const node = {
+      props: {
+        intensity: 0.5,
+        children: [
+          React.createElement(EnvironmentHdri, { url: '/a.hdr' }),
+          React.createElement(EnvironmentCube, { urls: ['/px.png', '/nx.png', '/py.png', '/ny.png', '/pz.png', '/nz.png'] }),
+        ],
+      },
+    };
+
+    handler?.(
+      node,
+      { setWidgetState: (_id, state) => { captured = state; }, state: { widgets: {} }, context: {} } as never,
+      {
+        collectChildren: (n) => (n.props as { children?: React.ReactNode }).children as React.ReactNode[],
+        resolveObjectValues: (v) => v,
+        resolveValue: (v) => v,
+      },
+    );
+
+    expect(captured?.intensity).toBe(0.5);
+    expect(captured?.source?.type).toBe('cube');
+  });
+
+  it('mergeSnapshot uses previous when next is undefined', () => {
+    const prev: SceneEnvironment = { enabled: true, intensity: 0.7 };
+    const merged = widget.mergeSnapshot(prev, undefined);
+    expect(merged).toEqual(prev);
   });
 });

@@ -6,6 +6,9 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { FloorWidget } from '../FloorWidget';
 import type { SceneFloor } from '../types';
 import { makeInitContext, makeRenderContext } from '../../__tests__/elementTestMocks';
+import { FloorPhysical, FloorMirror } from '../dsl';
+import { CUSTOM_NODE_HANDLER } from '../../../widget/WidgetRegistry';
+import React from 'react';
 
 describe('FloorWidget', () => {
   let widget: FloorWidget;
@@ -96,5 +99,45 @@ describe('FloorWidget', () => {
     expect(() => {
       widget.apply({ enabled: true }, makeRenderContext());
     }).not.toThrow();
+  });
+
+  it('custom node handler resolves surface from child components', () => {
+    const handler = (widget as unknown as Record<symbol, unknown>)[CUSTOM_NODE_HANDLER] as
+      | ((node: { props: unknown }, api: { setWidgetState: (id: string, state: SceneFloor) => void }, helpers: {
+        collectChildren: (n: { props: unknown }) => React.ReactNode[];
+        resolveObjectValues: (v: unknown) => unknown;
+        resolveValue: (v: unknown) => unknown;
+      }) => void)
+      | undefined;
+
+    expect(handler).toBeDefined();
+    let captured: SceneFloor | undefined;
+    const node = {
+      props: {
+        enabled: true,
+        children: [
+          React.createElement(FloorPhysical, { textureUrl: '/a.jpg' }),
+          React.createElement(FloorMirror, { blur: 0.2 }),
+        ],
+      },
+    };
+    handler?.(
+      node,
+      { setWidgetState: (_id, state) => { captured = state; }, state: { widgets: {} }, context: {} } as never,
+      {
+        collectChildren: (n) => (n.props as { children?: React.ReactNode }).children as React.ReactNode[],
+        resolveObjectValues: (v) => v,
+        resolveValue: (v) => v,
+      },
+    );
+    expect(captured?.enabled).toBe(true);
+    expect(captured?.surface?.type).toBe('mirror');
+  });
+
+  it('mergeSnapshot prefers next surface when provided', () => {
+    const prev: SceneFloor = { enabled: true, surface: { type: 'physical', textureUrl: '/a.jpg' } };
+    const next: SceneFloor = { enabled: true, surface: { type: 'mirror', blur: 0.2 } };
+    const merged = widget.mergeSnapshot(prev, next);
+    expect(merged?.surface?.type).toBe('mirror');
   });
 });

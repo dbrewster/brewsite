@@ -38,19 +38,12 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
 
   const allChildren = helpers.collectChildren(node);
 
-  for (const child of allChildren) {
-    if (!child || typeof child !== 'object' || !('type' in (child as object))) continue;
-    const el = child as ReactElement;
+  const collectGroup = (el: ReactElement, parentId?: string): string => {
     const elProps = el.props as Record<string, unknown>;
-    if (el.type === Exit) {
-      exitDSL = el.props as DiagramExitDSL;
-    } else if (el.type === Enter) {
-      enterDSL = el.props as DiagramEnterDSL;
-    }
-    if (el.type !== DiagramGroup) continue;
-
-    const groupChildren = helpers.collectChildren(el);
+    const groupId = String(elProps.id);
     const nodeIds: string[] = [];
+    const childGroupIds: string[] = [];
+    const groupChildren = helpers.collectChildren(el);
     for (const gc of groupChildren) {
       if (!gc || typeof gc !== 'object' || !('type' in (gc as object))) continue;
       const gEl = gc as ReactElement;
@@ -58,13 +51,16 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
         const nodeId = String((gEl.props as Record<string, unknown>).id);
         nodeIds.push(nodeId);
         groupedNodeIds.add(nodeId);
-        nodes.push({ ...(gEl.props as DiagramNodeDSL), groupId: String(elProps.id) });
+        nodes.push({ ...(gEl.props as DiagramNodeDSL), groupId });
+      } else if (gEl.type === DiagramGroup) {
+        const childId = collectGroup(gEl, groupId);
+        childGroupIds.push(childId);
       }
     }
 
     groups.push({
-      id: String(elProps.id),
-      label: String(elProps.label ?? ''),
+      id: groupId,
+      label: elProps.label !== undefined ? String(elProps.label) : undefined,
       variant: elProps.variant as DiagramGroupDSL['variant'],
       orientation: elProps.orientation as DiagramGroupDSL['orientation'],
       color: elProps.color as string | undefined,
@@ -73,7 +69,25 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
       fillOpacity: elProps.fillOpacity as number | undefined,
       borderOpacity: elProps.borderOpacity as number | undefined,
       nodeIds,
+      childGroupIds: childGroupIds.length > 0 ? childGroupIds : undefined,
+      parentId,
+      layout: elProps.layout as DiagramGroupDSL['layout'],
+      layoutSpacing: elProps.layoutSpacing as DiagramGroupDSL['layoutSpacing'],
     });
+
+    return groupId;
+  };
+
+  for (const child of allChildren) {
+    if (!child || typeof child !== 'object' || !('type' in (child as object))) continue;
+    const el = child as ReactElement;
+    if (el.type === Exit) {
+      exitDSL = el.props as DiagramExitDSL;
+    } else if (el.type === Enter) {
+      enterDSL = el.props as DiagramEnterDSL;
+    } else if (el.type === DiagramGroup) {
+      collectGroup(el);
+    }
   }
 
   for (const child of allChildren) {

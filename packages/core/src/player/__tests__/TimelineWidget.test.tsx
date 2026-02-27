@@ -23,6 +23,10 @@ const makeEngineDouble = (overrides?: Partial<UseSceneEngineResult>): UseSceneEn
   setCanvasRef: () => {},
   setBackgroundRef: () => {},
   setViewportSize: () => {},
+  getCamera: () => null,
+  getRenderer: () => null,
+  setCameraOverride: () => {},
+  getCameraOverride: () => null,
   debug: { driverReady: true, assetsReady: true, sceneTrackTicks: 5, viewport: { width: 100, height: 100 } },
 });
 

@@ -16,6 +16,7 @@ import { useEngineInput } from './useEngineInput';
 import type { LabelPositioner } from './LabelPositioner';
 import type { AssetManifest } from '../elements/model/metadata';
 import type { SceneNavInputMap } from '../input/types';
+import type { CameraOverrideState } from '../elements/camera/types';
 
 export type UseSceneEngineOptions = {
   sceneGroup: SceneGroup;
@@ -45,6 +46,10 @@ export type UseSceneEngineResult = {
   setCanvasRef: (canvas: HTMLCanvasElement | null) => void;
   setBackgroundRef: (element: HTMLDivElement | null) => void;
   setViewportSize: (width: number, height: number) => void;
+  getCamera: () => THREE.PerspectiveCamera | null;
+  getRenderer: () => THREE.WebGLRenderer | null;
+  setCameraOverride: (next: CameraOverrideState | null) => void;
+  getCameraOverride: () => CameraOverrideState | null;
   debug?: {
     driverReady: boolean;
     assetsReady: boolean;
@@ -81,6 +86,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   const canvasElementRef = useRef<HTMLCanvasElement | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
+  const cameraOverrideRef = useRef<CameraOverrideState | null>(null);
   const driverRef = useRef<RuntimeDriverImpl | null>(null);
   const loopRef = useRef<RuntimeLoop | null>(null);
   const frameDriverRef = useRef<EngineFrameDriver | null>(null);
@@ -169,6 +175,19 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     }
   }, [options.labelPositioner]);
 
+  const setCameraOverride = useCallback((next: CameraOverrideState | null) => {
+    cameraOverrideRef.current = next;
+    const scene = sceneRef.current;
+    if (!scene) return;
+    if (next) {
+      scene.userData['__brewsite_camera_override'] = next;
+    } else {
+      delete (scene as unknown as { userData?: Record<string, unknown> })?.userData?.['__brewsite_camera_override'];
+    }
+  }, []);
+
+  const getCameraOverride = useCallback(() => cameraOverrideRef.current, []);
+
   useEffect(() => {
     if (!canvas || typeof window === 'undefined') return;
     const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
@@ -231,6 +250,9 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     camera.position.set(0, 0, 100);
     scene.userData['__brewsite_camera'] = camera;
     scene.userData['__brewsite_renderer'] = rendererRef.current;
+    if (cameraOverrideRef.current) {
+      scene.userData['__brewsite_camera_override'] = cameraOverrideRef.current;
+    }
     sceneRef.current = scene;
     cameraRef.current = camera;
 
@@ -265,6 +287,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       cameraRef.current = null;
       delete (scene as unknown as { userData?: Record<string, unknown> })?.userData?.['__brewsite_camera'];
       delete (scene as unknown as { userData?: Record<string, unknown> })?.userData?.['__brewsite_renderer'];
+      delete (scene as unknown as { userData?: Record<string, unknown> })?.userData?.['__brewsite_camera_override'];
       loopRef.current?.stop();
       loopRef.current = null;
       frameDriverRef.current?.reset();
@@ -370,6 +393,10 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     setCanvasRef,
     setBackgroundRef,
     setViewportSize,
+    getCamera: () => cameraRef.current,
+    getRenderer: () => rendererRef.current,
+    setCameraOverride,
+    getCameraOverride,
     debug: {
       driverReady,
       assetsReady,

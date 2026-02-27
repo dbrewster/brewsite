@@ -7,6 +7,9 @@ import MeetingPage from "../meeting/pages/MeetingPage";
 import MultiAnimation from "../multi-animation/pages/MultiAnimation";
 import DiagramPage from '../diagram/pages/DiagramPage';
 import DiagramAutoPage from '../diagram/pages/DiagramAutoPage';
+import LucidPickerPage from '../lucid-picker/pages/LucidPickerPage';
+import LucidFilePage from '../lucid/pages/LucidFilePage';
+import LucidExamplePage from '../lucid/pages/LucidExamplePage';
 
 export default function App(): JSX.Element {
   return (
@@ -20,6 +23,9 @@ export default function App(): JSX.Element {
         <Route path="/anim" element={<MultiAnimation />} />
         <Route path="/diagram" element={<DiagramPage />} />
         <Route path="/diagram-auto" element={<DiagramAutoPage />} />
+        <Route path="/lucid" element={<LucidPickerPage />} />
+        <Route path="/lucid-file" element={<LucidFilePage />} />
+        <Route path="/lucid-example" element={<LucidExamplePage />} />
       </Routes>
     </div>
   );

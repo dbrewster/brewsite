@@ -1,13 +1,18 @@
 // CameraWidget — ISceneElement + IAnimationController.
 // Manages both scene-driven and interactive camera modes.
 
-import type { SceneCamera, Vec3 } from './types';
+import type {
+  SceneCamera,
+  Vec3,
+  CameraOverrideState,
+  ICameraInteractionDriver,
+  CameraInteractionDriverFactory,
+} from './types';
 import type * as THREE from 'three';
-import type CameraControls from 'camera-controls';
 import { DEFAULT_CAMERA, functionalCameraTransitionSpec, extractWorldPosFromDescriptor } from './compile';
 import { Camera } from './dsl';
 import type { CameraProps } from './dsl';
-import { applyCamera, createCameraControls, configureCameraControls } from './render';
+import { applyCamera, CameraControlsDriver } from './render';
 import type { AnimationTickContext, IAnimationController, ISceneElement } from '../../widget/types';
 import { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
 import type { SceneTrackTick } from '../../compiler/sceneTrackTypes';
@@ -15,6 +20,14 @@ import type { SceneModelInstanceState } from '../model/types';
 
 const CAMERA_KEY = '__brewsite_camera';
 const RENDERER_KEY = '__brewsite_renderer';
+const CAMERA_OVERRIDE_KEY = '__brewsite_camera_override';
+const CAMERA_FOCUS_KEY = '__brewsite_camera_focus';
+
+const defaultDriverFactory: CameraInteractionDriverFactory = (cameraObject, domElement, config) => {
+  const driver = new CameraControlsDriver();
+  driver.attach(cameraObject, domElement, config);
+  return driver;
+};
 
 export { CUSTOM_NODE_HANDLER };
 
@@ -25,23 +38,32 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
   readonly DslComponent = Camera;
   readonly useDefaultStateWhenAbsent = false;
 
-  // Lazy-initialised on first onTick call (read from scene.userData)
+  constructor(
+    /**
+     * Factory that creates an ICameraInteractionDriver, attaches it, and returns it.
+     * Defaults to creating a CameraControlsDriver (production implementation).
+     * Inject a FakeInteractionDriver factory in tests.
+     */
+    private readonly driverFactory: CameraInteractionDriverFactory = defaultDriverFactory,
+  ) {}
+
+  // ─── Renderer / DOM references (lazy-init from scene.userData) ──────────
   private domElement: HTMLElement | null = null;
   private rendererRef: THREE.WebGLRenderer | null = null;
 
-  // camera-controls lifecycle
-  private cameraControls: CameraControls | null = null;
+  // ─── Interaction driver lifecycle ────────────────────────────────────────
+  private driver: ICameraInteractionDriver | null = null;
   private isInteractionActive = false;
+  private savedSceneState: SceneCamera | null = null;
 
-  // Last tick + camera reference for reset logic
-  private lastTick: SceneTrackTick | null = null;
-  private cameraRef: THREE.PerspectiveCamera | null = null;
-
-  // Scene change tracking for smooth reset
+  // ─── Scene change tracking ───────────────────────────────────────────────
   private lastSceneIndex = -1;
-  private savedCameraState: SceneCamera | null = null;
 
-  // Keyboard reset listener (attached/detached with interaction mode)
+  // ─── Camera reference for reset fallback ────────────────────────────────
+  private cameraRef: THREE.PerspectiveCamera | null = null;
+  private lastTick: SceneTrackTick | null = null;
+
+  // ─── Keyboard/context-menu listeners ────────────────────────────────────
   private resetKeyListener: ((e: KeyboardEvent) => void) | null = null;
   private contextMenuListener: ((e: MouseEvent) => void) | null = null;
 
@@ -143,7 +165,7 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
     this.cameraRef = camera;
     this.lastTick = tick;
 
-    // Lazy-init DOM element and renderer on first tick (not available at construction time)
+    // Lazy-init DOM element + renderer from scene.userData (not available at construction)
     if (!this.domElement) {
       const renderer = context.scene.userData[RENDERER_KEY] as THREE.WebGLRenderer | undefined;
       if (renderer) {
@@ -152,7 +174,23 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
       }
     }
 
-    // Resolve current scene camera state
+    // Override path: bypass scene-driven + interactive camera
+    const override = context.scene.userData[CAMERA_OVERRIDE_KEY] as CameraOverrideState | undefined;
+    if (override?.enabled) {
+      if (this.isInteractionActive) this.exitInteractionMode();
+      applyCamera(
+        {
+          enabled: true,
+          descriptor: { mode: 'world', position: override.position, target: override.target, up: override.up },
+          lens: { fov: override.fov, near: override.near, far: override.far },
+          post: override.exposure !== undefined ? { exposure: override.exposure } : undefined,
+        },
+        { camera, tick, renderer: this.rendererRef ?? undefined },
+      );
+      return;
+    }
+
+    // Resolve current scene camera state from functional block or pre-baked tick
     const functionalBlock = context.track?.transitionBlocks?.[tick.sceneIndex];
     const functionalWidget = functionalBlock?.widgetFns[this.widgetId];
     const state = functionalWidget
@@ -160,35 +198,44 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
       : ((tick.state.widgets[this.widgetId] as SceneCamera | undefined) ?? this.defaultState);
 
     const wantsInteraction = state.interaction?.enabled === true;
+
+    // Seed camera position before camera-controls takes over (prevents zero-distance orbit)
     if (wantsInteraction && !this.isInteractionActive) {
-      // Ensure the camera is placed at the scene-defined position before
-      // camera-controls takes over (prevents a zero-distance orbit on frame 1).
       applyCamera({ ...state, enabled: true }, { camera, tick, renderer: this.rendererRef ?? undefined });
+      this.enterInteractionMode(state, camera, tick);
+    } else if (!wantsInteraction && this.isInteractionActive) {
+      this.exitInteractionMode();
     }
 
-    // Update camera-controls lifecycle
-    this.updateInteractionMode(state, camera, tick, tick.sceneIndex);
-
-    // If interactive mode is active, camera-controls owns the camera transform
-    if (this.isInteractionActive && this.cameraControls) {
-      if (state.interaction) {
-        configureCameraControls(this.cameraControls, state.interaction);
+    if (this.isInteractionActive && this.driver) {
+      const focus = context.scene.userData[CAMERA_FOCUS_KEY] as
+        | { position: Vec3; target: Vec3; smooth?: boolean }
+        | undefined;
+      if (focus) {
+        this.driver.setLookAt(focus.position, focus.target, focus.smooth !== false);
+        delete context.scene.userData[CAMERA_FOCUS_KEY];
       }
-      // Smooth reset when scene changes (unless opted out)
+
+      // Re-configure each tick so scene-state changes (speeds, constraints) propagate live
+      if (state.interaction) this.driver.configure(state.interaction);
+
+      // Smooth reset when user navigates to a different scene
       if (tick.sceneIndex !== this.lastSceneIndex && this.lastSceneIndex !== -1) {
-        this.savedCameraState = state; // update saved state to new scene definition
+        this.savedSceneState = state;
         if (state.interaction?.resetOnSceneChange !== false) {
-          this.smoothResetToSceneCamera(state, camera, tick);
+          const pos = extractWorldPosFromDescriptor(state.descriptor)
+            ?? this.resolveWorldPos(state, camera, tick);
+          if (pos) this.driver.setLookAt(pos.position, pos.target, true);
         }
       }
       this.lastSceneIndex = tick.sceneIndex;
-      this.cameraControls.update(context.deltaSeconds);
+      this.driver.update(context.deltaSeconds);
       return;
     }
 
     this.lastSceneIndex = tick.sceneIndex;
 
-    // Apply scene-driven camera position and exposure
+    // Scene-driven: apply compiled camera state each tick
     applyCamera(state, { camera, tick, renderer: this.rendererRef ?? undefined });
   }
 
@@ -201,31 +248,15 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
   // ─── Public API ───────────────────────────────────────────────────────────
 
   /**
-   * Returns true when camera-controls is active AND wheel dolly is enabled.
+   * Returns true when camera interaction is active and claims wheel events.
    * useEngineInput reads this to suppress wheel-based scene navigation.
    */
   isWheelClaimedByInteraction(): boolean {
-    if (!this.isInteractionActive) return false;
-    const dolly = this.savedCameraState?.interaction?.dolly;
-    return dolly !== false && (dolly?.wheel !== false);
+    if (!this.isInteractionActive || !this.driver) return false;
+    return this.driver.claimsWheel();
   }
 
   // ─── Interaction mode management ──────────────────────────────────────────
-
-  private updateInteractionMode(
-    state: SceneCamera,
-    camera: THREE.PerspectiveCamera,
-    tick: SceneTrackTick,
-    _sceneIndex: number,
-  ): void {
-    const wantsInteraction = state.interaction?.enabled === true;
-
-    if (wantsInteraction && !this.isInteractionActive) {
-      this.enterInteractionMode(state, camera, tick);
-    } else if (!wantsInteraction && this.isInteractionActive) {
-      this.exitInteractionMode();
-    }
-  }
 
   private enterInteractionMode(
     state: SceneCamera,
@@ -233,42 +264,50 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
     tick: SceneTrackTick,
   ): void {
     if (!this.domElement || !state.interaction) return;
-    this.cameraControls?.dispose();
-    this.cameraControls = createCameraControls(camera, this.domElement, state.interaction);
-    this.syncControlsToScene(state, camera, tick);
-    this.savedCameraState = state;
+
+    // Create and attach the driver
+    this.driver = this.driverFactory(camera, this.domElement, state.interaction);
+
+    // Sync driver's internal look-at to scene-defined position
+    const pos = extractWorldPosFromDescriptor(state.descriptor)
+      ?? this.resolveWorldPos(state, camera, tick);
+    if (pos) {
+      this.driver.setLookAt(pos.position, pos.target, false);
+      this.driver.update(0);
+    }
+
+    this.savedSceneState = state;
     this.isInteractionActive = true;
 
-    // Ensure pointer interactions are captured by the canvas.
-    this.domElement.style.touchAction = 'none';
+    // Prevent native context menu on right-click (no longer used for pan, but keeps UX clean)
+    this.contextMenuListener = (e: MouseEvent) => e.preventDefault();
+    this.domElement.addEventListener('contextmenu', this.contextMenuListener);
     this.domElement.style.pointerEvents = 'auto';
 
-    // Prevent native context menu from interfering with right-drag pan.
-    this.contextMenuListener = (e: MouseEvent) => {
-      e.preventDefault();
-    };
-    this.domElement.addEventListener('contextmenu', this.contextMenuListener);
-
-    // Keyboard reset listener
-    const resetKey = state.interaction.reset ?? { key: 'r' };
-    this.resetKeyListener = (e: KeyboardEvent) => {
-      if (e.key === resetKey.key) {
-        const mods = resetKey.modifiers ?? [];
+    // Keyboard reset shortcut
+    const resetCombo = state.interaction.reset;
+    if (resetCombo !== false) {
+      const combo = resetCombo ?? { key: 'r' };
+      this.resetKeyListener = (e: KeyboardEvent) => {
+        if (e.key !== combo.key) return;
+        const mods = combo.modifiers ?? [];
         const ok =
           (!mods.includes('alt') || e.altKey) &&
           (!mods.includes('ctrl') || e.ctrlKey) &&
           (!mods.includes('meta') || e.metaKey) &&
           (!mods.includes('shift') || e.shiftKey);
-        if (ok) {
-          e.preventDefault();
-          if (this.savedCameraState) {
-            this.smoothResetToSceneCamera(this.savedCameraState, this.cameraRef ?? undefined, this.lastTick ?? undefined);
-          }
+        if (!ok) return;
+        e.preventDefault();
+        if (this.savedSceneState) {
+          const cam = this.cameraRef;
+          const t = this.lastTick ?? undefined;
+          const p = extractWorldPosFromDescriptor(this.savedSceneState.descriptor)
+            ?? (cam && t ? this.resolveWorldPos(this.savedSceneState, cam, t) : null);
+          if (p) this.driver?.setLookAt(p.position, p.target, true);
         }
-      }
-    };
-    // Attach to domElement (requires tabIndex on canvas — set by EngineInputRegion)
-    this.domElement.addEventListener('keydown', this.resetKeyListener);
+      };
+      this.domElement.addEventListener('keydown', this.resetKeyListener);
+    }
   }
 
   private exitInteractionMode(): void {
@@ -280,54 +319,19 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
       this.domElement.removeEventListener('contextmenu', this.contextMenuListener);
       this.contextMenuListener = null;
     }
-    this.cameraControls?.dispose();
-    this.cameraControls = null;
+    this.driver?.dispose();
+    this.driver = null;
     this.isInteractionActive = false;
-    this.savedCameraState = null;
+    this.savedSceneState = null;
     this.lastSceneIndex = -1;
   }
 
   /**
-   * Smoothly animate back to the scene-defined camera position.
-   * Uses camera-controls' built-in smooth transition (governed by smoothTime,
-   * ~0.25s with default damping). NOT a snap — the camera glides back.
+   * Resolves a world-space {position, target} for modes that cannot be derived
+   * from the descriptor alone (fitBotHeight, fitFloorDepth).
+   * For world/orbit modes, use extractWorldPosFromDescriptor() instead.
    */
-  private smoothResetToSceneCamera(
-    state: SceneCamera,
-    camera?: THREE.PerspectiveCamera,
-    tick?: SceneTrackTick,
-  ): void {
-    if (!this.cameraControls) return;
-    const resolvedCamera = camera ?? this.cameraRef;
-    const resolvedTick = tick ?? this.lastTick ?? undefined;
-    const pos = extractWorldPosFromDescriptor(state.descriptor)
-      ?? (resolvedCamera && resolvedTick ? this.resolveCameraLookAt(state, resolvedCamera, resolvedTick) : null);
-    if (!pos) return;
-    this.cameraControls.setLookAt(
-      pos.position[0], pos.position[1], pos.position[2],
-      pos.target[0], pos.target[1], pos.target[2],
-      true, // enableTransition — camera glides, not jumps
-    );
-  }
-
-  private syncControlsToScene(
-    state: SceneCamera,
-    camera: THREE.PerspectiveCamera,
-    tick: SceneTrackTick,
-  ): void {
-    if (!this.cameraControls) return;
-    const pos = extractWorldPosFromDescriptor(state.descriptor)
-      ?? this.resolveCameraLookAt(state, camera, tick);
-    if (!pos) return;
-    this.cameraControls.setLookAt(
-      pos.position[0], pos.position[1], pos.position[2],
-      pos.target[0], pos.target[1], pos.target[2],
-      false,
-    );
-    this.cameraControls.update(0);
-  }
-
-  private resolveCameraLookAt(
+  private resolveWorldPos(
     state: SceneCamera,
     camera: THREE.PerspectiveCamera,
     tick?: SceneTrackTick,
@@ -336,17 +340,20 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
     if (d.mode === 'fitFloorDepth') {
       const lookAtZ = d.lookAtZ ?? (d.floorZMin + d.floorZMax) / 2;
       const cameraX = d.cameraX ?? 0;
-      const target: Vec3 = [cameraX, d.floorY, lookAtZ];
-      const position: Vec3 = [camera.position.x, camera.position.y, camera.position.z];
-      return { position, target };
+      return {
+        position: [camera.position.x, camera.position.y, camera.position.z],
+        target: [cameraX, d.floorY, lookAtZ],
+      };
     }
     if (d.mode === 'fitBotHeight') {
       if (!tick) return null;
       const raw = tick.state.widgets[d.targetId] as SceneModelInstanceState | undefined;
       const targetPos = raw?.model?.position;
       if (!targetPos) return null;
-      const position: Vec3 = [camera.position.x, camera.position.y, camera.position.z];
-      return { position, target: targetPos };
+      return {
+        position: [camera.position.x, camera.position.y, camera.position.z],
+        target: targetPos,
+      };
     }
     return null;
   }

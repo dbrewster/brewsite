@@ -14,6 +14,7 @@
   "dependencies": {
     "@brewsite/core": "workspace:*",
     "@brewsite/diagram": "workspace:*",
+    "fflate": "^0.8.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "three": "^0.169.0"

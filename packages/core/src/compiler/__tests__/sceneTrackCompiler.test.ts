@@ -1,9 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import type { ElementTransitionSpec } from '../transitions/transitionTypes';
 import { transitionT, blendNumber } from '../transitions/transitionTypes';
 import type { SceneDefinition } from '../sceneTypes';
 import { compileSceneTrack } from '../sceneTrackCompiler';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
+import type { FunctionalTransitionSpec } from '../transitions/transitionTypes';
 
 const makeScene = (id: string, index: number, widgetStates: Record<string, unknown>): SceneDefinition => ({
   id,
@@ -260,5 +261,184 @@ describe('compileSceneTrack', () => {
       blockSize: 2,
     });
     expect(changedTrack.ticks[1]!.deltaForward.widgets).toBeDefined();
+  });
+
+  it('uses disabled default when useDefaultStateWhenAbsent is false', () => {
+    const widget = {
+      ...makeWidget({
+        widgetId: 'w',
+        defaultState: { enabled: true },
+        transitionSpec: {
+          exit: () => {},
+          enter: () => {},
+          interpolate: () => {},
+        },
+      }),
+      useDefaultStateWhenAbsent: false,
+    };
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      makeScene('s1', 0, {}),
+      makeScene('s2', 1, {}),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+    const state = track.ticks[0]!.state.widgets['w'] as { enabled?: boolean };
+    expect(state.enabled).toBe(false);
+  });
+
+  it('captures functional transition spec in transitionBlocks', () => {
+    const spec: FunctionalTransitionSpec<number> = {
+      exitFn: (from) => (t) => from + t,
+      enterFn: (to) => (t) => to + t,
+      interpolateFn: (from, to) => (t) => from + (to - from) * t,
+    };
+    const widget = {
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: spec,
+      DslComponent: () => null,
+    };
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      makeScene('s1', 0, { w: 1 }),
+      makeScene('s2', 1, { w: 3 }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 4 });
+    expect(track.transitionBlocks?.[0]?.widgetFns['w']).toBeDefined();
+    expect(track.ticks[0]!.state.widgets['w']).toBeUndefined();
+  });
+
+  it('fills defaults for functional spec when absent in both scenes', () => {
+    const spec: FunctionalTransitionSpec<number> = {
+      exitFn: (from) => (t) => from + t,
+      enterFn: (to) => (t) => to + t,
+      interpolateFn: (from, to) => (t) => from + (to - from) * t,
+    };
+    const widget = {
+      widgetId: 'w',
+      defaultState: 5,
+      transitionSpec: spec,
+      DslComponent: () => null,
+    };
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      makeScene('s1', 0, {}),
+      makeScene('s2', 1, {}),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+    expect(track.ticks[0]!.state.widgets['w']).toBe(5);
+  });
+
+  it('compileExtra uses functional closure when state is undefined', () => {
+    const spec: FunctionalTransitionSpec<number> = {
+      exitFn: (from) => (t) => from + t,
+      enterFn: (to) => (t) => to + t,
+      interpolateFn: (from, to) => (t) => from + (to - from) * t,
+    };
+    const widget = {
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: spec,
+      DslComponent: () => null,
+      compileExtra: (state: number) => ({ value: state }),
+    };
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      makeScene('s1', 0, { w: 1 }),
+      makeScene('s2', 1, { w: 3 }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+    expect(track.ticks[0]!.widgetExtras?.['w']).toEqual({ value: 1 });
+  });
+
+  it('removes widget snapshot when mergeSnapshot returns undefined', () => {
+    const widget = {
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: {
+        exit: () => {},
+        enter: () => {},
+        interpolate: () => {},
+      },
+      DslComponent: () => null,
+      mergeSnapshot: () => undefined,
+    };
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      makeScene('s1', 0, { w: 1 }),
+      makeScene('s2', 1, { w: 2 }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+    expect(track.ticks[0]!.state.widgets['w']).toBe(0);
+  });
+
+  it('makeDisabledDefault disables nested model.enabled when absent', () => {
+    const widget = {
+      ...makeWidget({
+        widgetId: 'w',
+        defaultState: { enabled: true, model: { enabled: true } },
+        transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+      }),
+      useDefaultStateWhenAbsent: false,
+    };
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      makeScene('s1', 0, {}),
+      makeScene('s2', 1, {}),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+    const state = track.ticks[0]!.state.widgets['w'] as { enabled?: boolean; model?: { enabled?: boolean } };
+    expect(state.enabled).toBe(false);
+    expect(state.model?.enabled).toBe(false);
+  });
+
+  it('handles serialize for content and react-like objects', () => {
+    const widget = makeWidget({
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+    });
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      makeScene('s1', 0, { w: { content: 'ignored', value: 1 }, a: { $$typeof: 'react' } }),
+      makeScene('s2', 1, { w: { content: 'ignored', value: 1 }, a: { $$typeof: 'react' } }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+    expect(track.ticks[1]!.deltaForward.widgets).toBeUndefined();
+  });
+
+  it('warns when serialize fails on circular data', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const circular: { self?: unknown } = {};
+    circular.self = circular;
+    const widget = makeWidget({
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+    });
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      makeScene('s1', 0, { w: circular }),
+      makeScene('s2', 1, { w: circular }),
+    ];
+    compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+    expect(warn).toHaveBeenCalledWith('[SceneTrack]', 'serialize.failed', expect.anything());
+    warn.mockRestore();
+  });
+
+  it('handles blockSize=1', () => {
+    const widget = makeWidget({
+      widgetId: 'w',
+      defaultState: 1,
+      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+    });
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      makeScene('s1', 0, { w: 1 }),
+      makeScene('s2', 1, { w: 2 }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 1 });
+    expect(track.ticks[0]!.blockProgress).toBe(0);
+    expect(track.ticks.length).toBe(2);
   });
 });

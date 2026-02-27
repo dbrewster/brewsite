@@ -10,11 +10,16 @@
     "test": "turbo test",
     "coverage": "turbo coverage",
     "dev": "turbo dev --filter=@brewsite/examples",
-    "gen:scene-dsl": "turbo gen:scene-dsl --filter=@brewsite/examples"
+    "dev:server": "turbo dev:server --filter=@brewsite/lucid-server",
+    "gen:scene-dsl": "turbo gen:scene-dsl --filter=@brewsite/examples",
+    "sync:icons": "node scripts/sync-icons.mjs",
+    "sync:icons:force": "node scripts/sync-icons.mjs --force"
   },
   "devDependencies": {
     "adm-zip": "^0.5.16",
+    "heroicons": "^2.2.0",
     "hjson": "^3.2.2",
+    "simple-icons": "^16.9.0",
     "turbo": "^2.3.0",
     "typescript": "^5.9.3"
   }

@@ -49,4 +49,29 @@ describe('registerDiagramHandlers', () => {
     expect(panel.src).toBe('/mock.png');
     expect(screen.src).toBe('https://example.com');
   });
+
+  it('captures nested groups with parentId and node membership', () => {
+    registerDiagramHandlers();
+
+    const tree = (
+      <Scene id="diagram-nested">
+        <Diagram id="diagram-nested" layout="manual">
+          <DiagramGroup id="outer" label="Outer">
+            <DiagramGroup id="inner" label="Inner">
+              <DiagramNode id="n1" label="Node 1" position={[0, 0, 0]} />
+            </DiagramGroup>
+          </DiagramGroup>
+        </Diagram>
+      </Scene>
+    );
+
+    const { frame } = resolveSceneFromDsl(tree, makeContext(), new WidgetRegistry());
+    const diagram = frame.widgets['diagram-nested'] as DiagramState;
+    const inner = diagram.groups.find((g) => g.id === 'inner');
+    const outer = diagram.groups.find((g) => g.id === 'outer');
+
+    expect(inner?.parentId).toBe('outer');
+    expect(outer).toBeDefined();
+    expect(diagram.nodes.find((n) => n.id === 'n1')?.groupId).toBe('inner');
+  });
 });

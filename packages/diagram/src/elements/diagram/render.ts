@@ -2,7 +2,7 @@
 // Orchestrates NodeRenderer, EdgeRenderer, GroupRenderer, EnvMapManager.
 
 import * as THREE from 'three';
-import type { DiagramState } from './types';
+import type { DiagramState, DiagramGroupState, DiagramNodeState } from './types';
 import { NodeRenderer } from './rendering/NodeRenderer';
 import { EdgeRenderer } from './rendering/EdgeRenderer';
 import { GroupRenderer } from './rendering/GroupRenderer';
@@ -10,6 +10,7 @@ import { EdgeMaterialFactory } from './rendering/EdgeMaterialFactory';
 import { EnvMapManager } from './rendering/EnvMapManager';
 import { InteractionRegistry } from './rendering/InteractionRegistry';
 import { sharedIconLoader } from './rendering/IconLoader';
+import { GroupInteractionRegistry } from './rendering/GroupInteractionRegistry';
 
 const findScene = (obj: THREE.Object3D): THREE.Scene | null => {
   let current: THREE.Object3D | null = obj;
@@ -26,6 +27,7 @@ export class DiagramRenderer {
   private readonly envMapManager = new EnvMapManager();
 
   readonly interactionRegistry = new InteractionRegistry();
+  readonly groupInteractionRegistry = new GroupInteractionRegistry();
   private nodeRenderer: NodeRenderer | null = null;
   private edgeRenderer: EdgeRenderer | null = null;
   private groupRenderer: GroupRenderer | null = null;
@@ -43,7 +45,7 @@ export class DiagramRenderer {
         tc.edgeFlowSpeed,
         tc.edgeFlowWidth,
       );
-      this.groupRenderer = new GroupRenderer();
+      this.groupRenderer = new GroupRenderer(this.groupInteractionRegistry);
     }
 
     const prev = this.lastState.get(state.id);
@@ -71,8 +73,11 @@ export class DiagramRenderer {
         }
       }
     }
+    const groupBoundsOverride = computeGroupBoundsFromNodes(state.groups, state.nodes);
     for (const groupState of state.groups) {
-      this.groupRenderer!.getOrCreate(groupState, state.id, root);
+      const bounds = groupBoundsOverride.get(groupState.id);
+      const nextState = bounds ? { ...groupState, bounds } : groupState;
+      this.groupRenderer!.getOrCreate(nextState, state.id, root);
     }
 
     const activeEdgeIds = new Set(state.edges.map((e) => `${state.id}::${e.id}`));
@@ -120,7 +125,61 @@ export class DiagramRenderer {
     this.diagramGroups.delete(diagramId);
     this.lastState.delete(diagramId);
     this.interactionRegistry.clear();
+    this.groupInteractionRegistry.clear();
     this.envMapManager.disposeAll();
     sharedIconLoader.disposeAll();
   }
 }
+
+const computeGroupBoundsFromNodes = (
+  groups: ReadonlyArray<DiagramGroupState>,
+  nodes: ReadonlyArray<DiagramNodeState>,
+): Map<string, DiagramGroupState['bounds']> => {
+  const parentByGroup = new Map<string, string | undefined>();
+  const boundsByGroup = new Map<string, DiagramGroupState['bounds']>();
+  groups.forEach((g) => parentByGroup.set(g.id, g.parentId));
+
+  const accum = new Map<string, { minX: number; maxX: number; minY: number; maxY: number }>();
+  const addToGroup = (groupId: string, x: number, y: number, w: number, h: number): void => {
+    const minX = x - w / 2;
+    const maxX = x + w / 2;
+    const minY = y - h / 2;
+    const maxY = y + h / 2;
+    const current = accum.get(groupId);
+    if (!current) {
+      accum.set(groupId, { minX, maxX, minY, maxY });
+      return;
+    }
+    current.minX = Math.min(current.minX, minX);
+    current.maxX = Math.max(current.maxX, maxX);
+    current.minY = Math.min(current.minY, minY);
+    current.maxY = Math.max(current.maxY, maxY);
+  };
+
+  nodes.forEach((node) => {
+    let groupId = node.groupId;
+    if (!groupId) return;
+    let current: string | undefined = groupId;
+    while (current) {
+      addToGroup(current, node.position[0], node.position[1], node.size[0], node.size[1]);
+      current = parentByGroup.get(current);
+    }
+  });
+
+  groups.forEach((group) => {
+    const bounds = accum.get(group.id);
+    if (!bounds) return;
+    const padding = group.bounds.padding ?? 0;
+    const w = Math.max(0, bounds.maxX - bounds.minX);
+    const h = Math.max(0, bounds.maxY - bounds.minY);
+    boundsByGroup.set(group.id, {
+      x: bounds.minX - padding,
+      y: bounds.minY - padding,
+      w: w + padding * 2,
+      h: h + padding * 2,
+      padding,
+    });
+  });
+
+  return boundsByGroup;
+};

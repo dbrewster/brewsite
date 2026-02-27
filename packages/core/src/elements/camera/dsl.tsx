@@ -4,7 +4,7 @@ import type {
   Vec3,
   CameraLens,
   CameraPost,
-  CameraInteractionConfig,
+  TrackpadCameraConfig,
   CameraTransitionInterpolation,
 } from './types';
 
@@ -78,7 +78,7 @@ export type CameraProps = CameraDescriptorProps & {
   // Post (flat, maps to CameraPost) — DoF is Phase 2
   exposure?: CameraPost['exposure'];
   // Interaction
-  interaction?: CameraInteractionConfig;
+  interaction?: TrackpadCameraConfig;
   // Transition
   transitionIn?: CameraTransitionInterpolation;
 };

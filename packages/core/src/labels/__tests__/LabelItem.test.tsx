@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import React from 'react';
-import { render } from '@testing-library/react';
+import { render, cleanup, within } from '@testing-library/react';
 import { LabelItem } from '../LabelItem';
 import { LabelPositionerContext } from '../../player/LabelPositionerContext';
 import type { LabelResolved } from '../types';
@@ -15,6 +15,10 @@ class TrackingPositioner {
 }
 
 describe('LabelItem', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it('renders label text with default styles', () => {
     const positioner = new TrackingPositioner();
     const label: LabelResolved = {
@@ -23,13 +27,15 @@ describe('LabelItem', () => {
       targetPartId: 'head',
     };
 
-    const { getByText, unmount } = render(
+    const container = document.createElement('div');
+    const { unmount } = render(
       <LabelPositionerContext.Provider value={positioner as never}>
         <LabelItem label={label} />
       </LabelPositionerContext.Provider>,
+      { container },
     );
 
-    const div = getByText('Hello') as HTMLDivElement;
+    const div = within(container).getByText('Hello') as HTMLDivElement;
     expect(div).toBeDefined();
     expect(div.style.color).toBe('var(--label-color, #ffffff)');
 
@@ -46,12 +52,14 @@ describe('LabelItem', () => {
       style: { color: '#00ff00', fontSize: 20, labelOpacity: 0.5 },
     };
 
-    const { getByText } = render(
+    const container = document.createElement('div');
+    render(
       <LabelPositionerContext.Provider value={positioner as never}>
         <LabelItem label={label} />
       </LabelPositionerContext.Provider>,
+      { container },
     );
-    const div = getByText('Styled') as HTMLDivElement;
+    const div = within(container).getByText('Styled') as HTMLDivElement;
     expect(div.style.color).toBe('var(--label-color, #00ff00)');
     expect(div.style.fontSize).toBe('20px');
     expect(div.style.opacity).toBe('0.5');

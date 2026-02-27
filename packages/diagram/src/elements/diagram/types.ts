@@ -188,7 +188,7 @@ export type DiagramArrowVariant = 'none' | 'open' | 'filled' | 'diamond' | 'circ
 export type DiagramEdgeFlow = 'none' | 'forward' | 'backward' | 'bidirectional';
 
 /** Group container visual variant */
-export type DiagramGroupVariant = 'swimlane' | 'boundary' | 'cluster';
+export type DiagramGroupVariant = 'swimlane' | 'boundary' | 'cluster' | 'container';
 
 /** Swimlane orientation when variant is 'swimlane' */
 export type DiagramOrientation = 'horizontal' | 'vertical';
@@ -468,13 +468,15 @@ export interface DiagramEdgeState {
 export interface DiagramGroupState {
   readonly id: string;
 
-  /** Display label for the group header */
+  /** Display label for the group header (optional) */
   readonly label: string;
 
   readonly variant: DiagramGroupVariant;
 
   /** Swimlane divider orientation. Only meaningful when variant is 'swimlane'. */
   readonly orientation: DiagramOrientation;
+  /** Optional parent group id for nested groups. */
+  readonly parentId?: string;
 
   /**
    * Computed bounding box of all member nodes in diagram units.
@@ -495,7 +497,7 @@ export interface DiagramGroupState {
   /** CSS hex border color */
   readonly borderColor: string;
 
-  readonly borderStyle: 'solid' | 'dashed';
+  readonly borderStyle: 'solid' | 'dashed' | 'none';
 
   /** Fill opacity [0–1]. Recommended: 0.05–0.12 for subtle background wash. */
   readonly fillOpacity: number;
@@ -673,15 +675,31 @@ export interface DiagramEdgeDSL {
 /** Raw DSL data extracted from a <DiagramGroup> component by the compiler. */
 export interface DiagramGroupDSL {
   readonly id: string;
-  readonly label: string;
+  readonly label?: string;
   readonly variant?: DiagramGroupVariant;
   readonly orientation?: DiagramOrientation;
   readonly color?: string;
   readonly borderColor?: string;
-  readonly borderStyle?: 'solid' | 'dashed';
+  readonly borderStyle?: 'solid' | 'dashed' | 'none';
   readonly fillOpacity?: number;
   readonly borderOpacity?: number;
   readonly nodeIds: ReadonlyArray<string>;
+  readonly childGroupIds?: ReadonlyArray<string>;
+  readonly parentId?: string;
+  /**
+   * Per-group auto-layout algorithm for arranging this group's direct member nodes and
+   * child sub-groups. Overrides the parent <Diagram layout="..."> for this group's
+   * internal arrangement. 'manual' is excluded — nodes with explicit positions already
+   * bypass auto-layout regardless.
+   * If absent, inherits the diagram-level layout.
+   */
+  readonly layout?: 'grid' | 'hierarchical';
+  /**
+   * Per-group node spacing in diagram units [horizontalGap, verticalGap].
+   * Overrides the diagram-level layoutSpacing for this group's internal layout.
+   * If absent, inherits the diagram-level layoutSpacing.
+   */
+  readonly layoutSpacing?: readonly [number, number];
 }
 
 /** Top-level DSL input to compile.ts. Populated by the compiler handler from <Diagram> props. */

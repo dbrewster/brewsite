@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Floor } from '../dsl';
-import { DEFAULT_FLOOR, functionalFloorTransitionSpec } from '../compile';
+import { DEFAULT_FLOOR, floorTransitionSpec, functionalFloorTransitionSpec } from '../compile';
 import { applyFloor } from '../render';
 import type { SceneFloor } from '../types';
 import { makeInitContext } from '../../__tests__/elementTestMocks';
@@ -65,6 +65,29 @@ describe('floor compile + render', () => {
     expect((at25.surface as { textureUrl?: string })?.textureUrl).toBe('/from.jpg');
     expect(at75.surface?.type).toBe('physical');
     expect((at75.surface as { textureUrl?: string })?.textureUrl).toBe('/to.jpg');
+  });
+
+  it('discrete transitionSpec.exit writes enabled false at end', () => {
+    const frames = Array.from({ length: 3 }, () => ({ state: { widgets: {} as Record<string, unknown> } }));
+    const from: SceneFloor = { enabled: true };
+    floorTransitionSpec.exit(frames, 'floor', from);
+    expect((frames[2]!.state.widgets['floor'] as SceneFloor).enabled).toBe(false);
+  });
+
+  it('discrete transitionSpec.enter writes enabled true at end', () => {
+    const frames = Array.from({ length: 3 }, () => ({ state: { widgets: {} as Record<string, unknown> } }));
+    const to: SceneFloor = { enabled: true };
+    floorTransitionSpec.enter(frames, 'floor', to);
+    expect((frames[2]!.state.widgets['floor'] as SceneFloor).enabled).toBe(true);
+  });
+
+  it('discrete transitionSpec.interpolate switches surface at midpoint', () => {
+    const frames = Array.from({ length: 5 }, () => ({ state: { widgets: {} as Record<string, unknown> } }));
+    const from: SceneFloor = { enabled: true, surface: { type: 'physical', textureUrl: '/from.jpg' } };
+    const to: SceneFloor = { enabled: true, surface: { type: 'physical', textureUrl: '/to.jpg' } };
+    floorTransitionSpec.interpolate(frames, 'floor', from, to);
+    expect((frames[1]!.state.widgets['floor'] as SceneFloor).surface).toBe(from.surface);
+    expect((frames[3]!.state.widgets['floor'] as SceneFloor).surface).toBe(to.surface);
   });
 
   it('applyFloor is a no-op stub that does not throw', () => {

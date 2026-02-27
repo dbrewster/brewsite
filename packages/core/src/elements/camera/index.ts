@@ -11,12 +11,14 @@ export type {
   CameraPositionDescriptor,
   CameraLens,
   CameraPost,
-  CameraInteractionConfig,
-  PointerAction,
+  TrackpadCameraConfig,
+  ICameraInteractionDriver,
+  CameraInteractionDriverFactory,
   EaseFnName,
   CameraTransitionInterpolation,
+  CameraOverrideState,
 } from './types';
 export { Camera } from './dsl';
 export { DEFAULT_CAMERA, DEFAULT_CAMERA_DESCRIPTOR, cameraTransitionSpec, functionalCameraTransitionSpec } from './compile';
-export { applyCamera, createCameraControls } from './render';
+export { applyCamera } from './render';
 export { CameraWidget, CUSTOM_NODE_HANDLER } from './CameraWidget';

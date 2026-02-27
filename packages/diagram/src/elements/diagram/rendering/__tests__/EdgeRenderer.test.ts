@@ -79,4 +79,46 @@ describe('EdgeRenderer', () => {
     const entry = renderer.getOrCreate(makeEdge({ controlPoints: [[0, 0, 0]] }), parent);
     expect(entry.group.visible).toBe(false);
   });
+
+  it('opacity-only update toggles material transparency for dashed edges', () => {
+    const sharedPoints = [[0, 0, 0], [1, 0, 0]] as const;
+    const entry = renderer.getOrCreate(
+      makeEdge({ controlPoints: sharedPoints, style: 'dashed', opacity: 0.5 }),
+      parent,
+    );
+    const mat = entry.tube.material as THREE.MeshStandardMaterial;
+    renderer.getOrCreate(makeEdge({ controlPoints: sharedPoints, style: 'dashed', opacity: 1 }), parent);
+    expect(mat.transparent).toBe(true);
+  });
+
+  it('creates and removes arrow meshes when arrow style changes', () => {
+    const entry = renderer.getOrCreate(makeEdge({ arrowStart: 'none', arrowEnd: 'none' }), parent);
+    renderer.getOrCreate(makeEdge({ arrowStart: 'open', arrowEnd: 'open' }), parent);
+    expect(entry.arrowStart).toBeDefined();
+    expect(entry.arrowEnd).toBeDefined();
+
+    renderer.getOrCreate(makeEdge({ arrowStart: 'none', arrowEnd: 'none' }), parent);
+    expect(entry.arrowStart).toBeUndefined();
+    expect(entry.arrowEnd).toBeUndefined();
+  });
+
+  it('builds 3D arrows when use3DArrows is enabled', () => {
+    const threeD = new EdgeRenderer(new EdgeMaterialFactory(), true);
+    const localParent = new THREE.Group();
+    const entry = threeD.getOrCreate(makeEdge({ arrowEnd: 'none' }), localParent);
+    threeD.getOrCreate(makeEdge({ arrowEnd: 'open' }), localParent);
+    expect(entry.arrowEnd).toBeDefined();
+    expect(entry.arrowEnd?.geometry).toBeInstanceOf(THREE.ConeGeometry);
+  });
+
+  it('adds pulse uniforms when flow is enabled and clears intensity when disabled', () => {
+    const entry = renderer.getOrCreate(makeEdge({ flow: 'forward', flowColor: '#00ff00' }), parent);
+    const mat = entry.tube.material as THREE.MeshStandardMaterial;
+    const keys = Object.keys(mat.userData);
+    expect(keys.length).toBeGreaterThan(0);
+
+    renderer.getOrCreate(makeEdge({ flow: 'none' }), parent);
+    const pulseData = mat.userData[keys[0]!] as { uniforms: { uPulseIntensity?: { value: number } } };
+    expect(pulseData.uniforms.uPulseIntensity?.value).toBe(0);
+  });
 });

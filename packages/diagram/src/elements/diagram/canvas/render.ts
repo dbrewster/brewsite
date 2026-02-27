@@ -82,4 +82,20 @@ export class DiagramCanvasRenderer {
     }
     return undefined;
   }
+
+  getGroupInteractionMeshes(): ReadonlySet<THREE.Mesh> {
+    const all = new Set<THREE.Mesh>();
+    for (const dr of this.diagramRenderers.values()) {
+      for (const m of dr.groupInteractionRegistry.meshes) all.add(m);
+    }
+    return all;
+  }
+
+  lookupGroupInteraction(mesh: THREE.Mesh): { diagramId: string; groupId: string } | undefined {
+    for (const dr of this.diagramRenderers.values()) {
+      const info = dr.groupInteractionRegistry.lookup(mesh);
+      if (info) return info;
+    }
+    return undefined;
+  }
 }

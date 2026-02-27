@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Background } from '../dsl';
-import { DEFAULT_BACKGROUND, functionalBackgroundTransitionSpec } from '../compile';
+import { DEFAULT_BACKGROUND, backgroundTransitionSpec, functionalBackgroundTransitionSpec } from '../compile';
 import { applyBackground } from '../render';
 import type { SceneBackground } from '../types';
 import { makeFakeDomElement } from '../../__tests__/elementTestMocks';
@@ -77,6 +77,31 @@ describe('background compile + render', () => {
     expect(at75.imageUrl).toBe('/to.jpg');
     expect(at25.opacity).toBeLessThan(1);
     expect(at75.opacity).toBeLessThan(1);
+  });
+
+  it('discrete transitionSpec.exit writes frames with fading opacity', () => {
+    const frames = Array.from({ length: 3 }, () => ({ state: { widgets: {} as Record<string, unknown> } }));
+    const from: SceneBackground = { opacity: 1, imageUrl: '/a.jpg' };
+    backgroundTransitionSpec.exit(frames, 'bg', from);
+    expect((frames[0]!.state.widgets['bg'] as SceneBackground).opacity).toBeCloseTo(1);
+    expect((frames[2]!.state.widgets['bg'] as SceneBackground).opacity).toBeCloseTo(0);
+  });
+
+  it('discrete transitionSpec.enter writes frames with fading in opacity', () => {
+    const frames = Array.from({ length: 3 }, () => ({ state: { widgets: {} as Record<string, unknown> } }));
+    const to: SceneBackground = { opacity: 0.8, imageUrl: '/a.jpg' };
+    backgroundTransitionSpec.enter(frames, 'bg', to);
+    expect((frames[0]!.state.widgets['bg'] as SceneBackground).opacity).toBeCloseTo(0);
+    expect((frames[2]!.state.widgets['bg'] as SceneBackground).opacity).toBeCloseTo(0.8);
+  });
+
+  it('discrete transitionSpec.interpolate switches image at midpoint', () => {
+    const frames = Array.from({ length: 5 }, () => ({ state: { widgets: {} as Record<string, unknown> } }));
+    const from: SceneBackground = { opacity: 1, imageUrl: '/from.jpg' };
+    const to: SceneBackground = { opacity: 1, imageUrl: '/to.jpg' };
+    backgroundTransitionSpec.interpolate(frames, 'bg', from, to);
+    expect((frames[1]!.state.widgets['bg'] as SceneBackground).imageUrl).toBe('/from.jpg');
+    expect((frames[3]!.state.widgets['bg'] as SceneBackground).imageUrl).toBe('/to.jpg');
   });
 
   it('applyBackground writes styles to the element', () => {

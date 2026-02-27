@@ -17,6 +17,7 @@ import type { DiagramInteractionEvent, DiagramNodeState } from '../types';
 import { rotateXYZ } from './compiler/pipeRouter';
 
 const CAMERA_KEY = '__brewsite_camera';
+const CAMERA_FOCUS_KEY = '__brewsite_camera_focus';
 
 export class DiagramCanvasWidget
   implements
@@ -189,7 +190,7 @@ export class DiagramCanvasWidget
   }
 
   private handleClick(event: MouseEvent): void {
-    if (!this.onInteraction || !this.scene || !this.canvasElement) return;
+    if (!this.scene || !this.canvasElement) return;
     const rect = this.canvasElement.getBoundingClientRect();
     this.ndc.set(
       ((event.clientX - rect.left) / rect.width) * 2 - 1,
@@ -198,6 +199,20 @@ export class DiagramCanvasWidget
     const cam = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
     if (!cam) return;
     this.raycaster.setFromCamera(this.ndc, cam);
+
+    if (event.metaKey) {
+      const groupHits = this.raycaster.intersectObjects(
+        Array.from(this.renderer.getGroupInteractionMeshes()),
+        false,
+      );
+      if (groupHits.length > 0) {
+        const hit = groupHits[0];
+        this.focusMesh(hit.object, cam);
+        return;
+      }
+    }
+
+    if (!this.onInteraction) return;
     const intersects = this.raycaster.intersectObjects(
       Array.from(this.renderer.getInteractionMeshes()),
       false,
@@ -214,5 +229,33 @@ export class DiagramCanvasWidget
       nodeId: info.nodeId,
       intersectPoint: [hit.point.x, hit.point.y, hit.point.z],
     });
+  }
+
+  private focusMesh(mesh: THREE.Object3D, cam: THREE.PerspectiveCamera): void {
+    const box = new THREE.Box3().setFromObject(mesh);
+    if (!Number.isFinite(box.min.x) || !Number.isFinite(box.max.x)) return;
+
+    const center = new THREE.Vector3();
+    box.getCenter(center);
+    const size = new THREE.Vector3();
+    box.getSize(size);
+
+    const width = Math.max(0.001, size.x);
+    const height = Math.max(0.001, size.y);
+    const fov = THREE.MathUtils.degToRad(cam.fov);
+    const aspect = cam.aspect || 1;
+    const distY = (height / 2) / Math.tan(fov / 2);
+    const distX = (width / 2) / (Math.tan(fov / 2) * aspect);
+    const dist = Math.max(distX, distY) * 1.2;
+
+    const dir = new THREE.Vector3();
+    cam.getWorldDirection(dir);
+    const pos = center.clone().sub(dir.multiplyScalar(dist));
+
+    this.scene!.userData[CAMERA_FOCUS_KEY] = {
+      position: [pos.x, pos.y, pos.z],
+      target: [center.x, center.y, center.z],
+      smooth: true,
+    };
   }
 }

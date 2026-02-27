@@ -6,6 +6,7 @@ import { VariableStoreContext } from '../widget/VariableStoreContext';
 import { useSceneEngine } from './useSceneEngine';
 import { EngineInputRegion } from './EngineInputRegion';
 import { EngineStateContext } from './EngineStateContext';
+import { EngineContext } from './EngineContext';
 import { HudOverlay } from '../hud/HudOverlay';
 import { LabelPositioner } from './LabelPositioner';
 import { LabelPositionerContext } from './LabelPositionerContext';
@@ -142,57 +143,59 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
     <VariableStoreContext.Provider value={engine.variableStore}>
       <LabelPositionerContext.Provider value={labelPositioner}>
         <EngineStateContext.Provider value={engineState}>
-          <div className={props.className} style={{ position: 'relative' }}>
-            {loadError && <div role="alert">Scene engine error: {loadError.message}</div>}
-            {showPlaceholder && (
-              <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-                {props.placeholder}
-              </div>
-            )}
-            {debugOverlayEnabled && (
-              <div
-                style={{
-                  position: 'absolute',
-                  right: 12,
-                  top: 12,
-                  background: 'rgba(0,0,0,0.7)',
-                  color: '#fff',
-                  fontSize: 12,
-                  padding: '8px 10px',
-                  borderRadius: 6,
-                  pointerEvents: 'none',
-                  zIndex: 5,
-                  lineHeight: 1.4,
-                }}
-              >
-                <div>tickIndex: {engine.frameState.tickIndex}</div>
-                <div>sceneId: {engine.frameState.sceneId || '(none)'}</div>
-                <div>sceneIndex: {engine.frameState.sceneIndex}</div>
-                <div>sceneProgress: {engine.frameState.sceneProgress.toFixed(3)}</div>
-                <div>progress: {engine.progress.toFixed(3)}</div>
-                <div>driverReady: {String(engine.debug?.driverReady)}</div>
-                <div>assetsReady: {String(engine.debug?.assetsReady)}</div>
-                <div>sceneTrackTicks: {engine.debug?.sceneTrackTicks ?? 0}</div>
-                <div>viewport: {engine.debug?.viewport.width}×{engine.debug?.viewport.height}</div>
-              </div>
-            )}
-            <EngineInputRegion key={hmrVersion} engine={engine} inputMap={props.inputMap}>
-              <>
-                <HudOverlay items={engine.frameState.tick?.hudPrimitives ?? []} />
-                {labels.map((label) => (
-                  <LabelItem key={label.id} label={label} />
-                ))}
-                {props.timeline && (
-                  <TimelineWidget
-                    engine={engine}
-                    scenes={props.sceneGroup.scenes}
-                    {...(typeof props.timeline === 'object' ? props.timeline : {})}
-                  />
-                )}
-                {props.children}
-              </>
-            </EngineInputRegion>
-          </div>
+          <EngineContext.Provider value={engine}>
+            <div className={props.className} style={{ position: 'relative' }}>
+              {loadError && <div role="alert">Scene engine error: {loadError.message}</div>}
+              {showPlaceholder && (
+                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                  {props.placeholder}
+                </div>
+              )}
+              {debugOverlayEnabled && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    right: 12,
+                    top: 12,
+                    background: 'rgba(0,0,0,0.7)',
+                    color: '#fff',
+                    fontSize: 12,
+                    padding: '8px 10px',
+                    borderRadius: 6,
+                    pointerEvents: 'none',
+                    zIndex: 5,
+                    lineHeight: 1.4,
+                  }}
+                >
+                  <div>tickIndex: {engine.frameState.tickIndex}</div>
+                  <div>sceneId: {engine.frameState.sceneId || '(none)'}</div>
+                  <div>sceneIndex: {engine.frameState.sceneIndex}</div>
+                  <div>sceneProgress: {engine.frameState.sceneProgress.toFixed(3)}</div>
+                  <div>progress: {engine.progress.toFixed(3)}</div>
+                  <div>driverReady: {String(engine.debug?.driverReady)}</div>
+                  <div>assetsReady: {String(engine.debug?.assetsReady)}</div>
+                  <div>sceneTrackTicks: {engine.debug?.sceneTrackTicks ?? 0}</div>
+                  <div>viewport: {engine.debug?.viewport.width}×{engine.debug?.viewport.height}</div>
+                </div>
+              )}
+              <EngineInputRegion key={hmrVersion} engine={engine} inputMap={props.inputMap}>
+                <>
+                  <HudOverlay items={engine.frameState.tick?.hudPrimitives ?? []} />
+                  {labels.map((label) => (
+                    <LabelItem key={label.id} label={label} />
+                  ))}
+                  {props.timeline && (
+                    <TimelineWidget
+                      engine={engine}
+                      scenes={props.sceneGroup.scenes}
+                      {...(typeof props.timeline === 'object' ? props.timeline : {})}
+                    />
+                  )}
+                  {props.children}
+                </>
+              </EngineInputRegion>
+            </div>
+          </EngineContext.Provider>
         </EngineStateContext.Provider>
       </LabelPositionerContext.Provider>
     </VariableStoreContext.Provider>

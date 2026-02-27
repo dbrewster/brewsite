@@ -39,10 +39,12 @@ export type {
   CameraPositionDescriptor,
   CameraLens,
   CameraPost,
-  CameraInteractionConfig,
-  PointerAction,
+  TrackpadCameraConfig,
+  ICameraInteractionDriver,
+  CameraInteractionDriverFactory,
   EaseFnName,
   CameraTransitionInterpolation,
+  CameraOverrideState,
 } from './camera';
 export { Camera } from './camera';
 export { DEFAULT_CAMERA, DEFAULT_CAMERA_DESCRIPTOR, cameraTransitionSpec } from './camera';

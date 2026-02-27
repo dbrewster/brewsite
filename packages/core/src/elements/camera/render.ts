@@ -5,7 +5,7 @@ import * as THREE from 'three';
 import CameraControls from 'camera-controls';
 import type { SceneTrackTick } from '../../compiler/sceneTrackTypes';
 import type { SceneModelInstanceState } from '../model/types';
-import type { SceneCamera, CameraInteractionConfig } from './types';
+import type { SceneCamera, ICameraInteractionDriver, TrackpadCameraConfig, Vec3 } from './types';
 
 // Install camera-controls THREE subset (called once at module load)
 type CameraControlsThree = Parameters<typeof CameraControls.install>[0]['THREE'];
@@ -175,92 +175,269 @@ export const applyCamera = (state: SceneCamera, ctx: CameraRenderContext): void 
   }
 };
 
-// ─── CameraControls creation ─────────────────────────────────────────────
+// ─── Interactive Controls Driver ─────────────────────────────────────────
 
 /**
- * Creates a camera-controls instance for the given camera and DOM element.
- * The config is read from CameraInteractionConfig.
- * Call this when entering interactive mode.
+ * Production implementation of ICameraInteractionDriver using camera-controls.
+ * Disables all built-in camera-controls input bindings and drives the library
+ * programmatically via rotate(), truck(), dolly() based on modifier-key events.
+ *
+ * Modifier key → action mapping:
+ *   Ctrl  + left drag → rotate(azimuth, polar)
+ *   Shift + left drag → truck(x, y)  [pan in screen space]
+ *   Alt   + left drag → dolly(delta) [change distance to target]
+ *   Alt   + wheel     → dolly(delta) [when wheelZoom: true]
  */
-export const configureCameraControls = (
-  cc: CameraControls,
-  config: CameraInteractionConfig,
-): void => {
-  // Damping (camera-controls deprecated dampingFactor; use smoothTime in seconds)
-  if (config.damping === false || config.damping === 0) {
-    cc.smoothTime = 0;
-  } else if (typeof config.damping === 'number') {
-    cc.smoothTime = config.damping;
-  } else {
-    cc.smoothTime = 0.25; // default
+export class CameraControlsDriver implements ICameraInteractionDriver {
+  private cc: CameraControls | null = null;
+  private domElement: HTMLElement | null = null;
+  private camera: THREE.PerspectiveCamera | null = null;
+  private config: TrackpadCameraConfig | null = null;
+
+  // Drag tracking
+  private dragState: {
+    startX: number;
+    startY: number;
+    modifier: 'rotate' | 'pan' | 'zoom';
+  } | null = null;
+
+  // Bound event handlers (stored for cleanup)
+  private readonly handlePointerDownBound: (e: PointerEvent) => void;
+  private readonly handlePointerMoveBound: (e: PointerEvent) => void;
+  private readonly handlePointerUpBound: (e: PointerEvent) => void;
+  private readonly handleWheelBound: (e: WheelEvent) => void;
+
+  constructor() {
+    this.handlePointerDownBound = this.handlePointerDown.bind(this);
+    this.handlePointerMoveBound = this.handlePointerMove.bind(this);
+    this.handlePointerUpBound = this.handlePointerUp.bind(this);
+    this.handleWheelBound = this.handleWheel.bind(this);
   }
 
-  // Speeds
-  if (config.orbitSpeed !== undefined) {
-    cc.azimuthRotateSpeed = config.orbitSpeed;
-    cc.polarRotateSpeed = config.orbitSpeed;
-  }
-  if (config.panSpeed !== undefined) cc.truckSpeed = config.panSpeed;
-  if (config.dollySpeed !== undefined) cc.dollySpeed = config.dollySpeed;
+  attach(cameraObject: unknown, domElement: HTMLElement, config: TrackpadCameraConfig): void {
+    const camera = cameraObject as THREE.PerspectiveCamera;
+    type CCCamera = ConstructorParameters<typeof CameraControls>[0];
+    this.cc = new CameraControls(camera as unknown as CCCamera, domElement);
+    this.domElement = domElement;
+    this.camera = camera;
+    this.config = config;
 
-  // Constraints
-  if (config.minDistance !== undefined) cc.minDistance = config.minDistance;
-  if (config.maxDistance !== undefined) cc.maxDistance = config.maxDistance;
-  if (config.minPolarAngle !== undefined) cc.minPolarAngle = config.minPolarAngle;
-  if (config.maxPolarAngle !== undefined) cc.maxPolarAngle = config.maxPolarAngle;
-  if (config.minAzimuthAngle !== undefined) cc.minAzimuthAngle = config.minAzimuthAngle;
-  if (config.maxAzimuthAngle !== undefined) cc.maxAzimuthAngle = config.maxAzimuthAngle;
+    // Disable ALL built-in camera-controls mouse/touch bindings.
+    // We route pointer events to camera-controls' programmatic API ourselves.
+    this.cc.mouseButtons.left = CameraControls.ACTION.NONE;
+    this.cc.mouseButtons.right = CameraControls.ACTION.NONE;
+    this.cc.mouseButtons.middle = CameraControls.ACTION.NONE;
+    this.cc.mouseButtons.wheel = CameraControls.ACTION.NONE;
+    this.cc.touches.one = CameraControls.ACTION.NONE;
+    this.cc.touches.two = CameraControls.ACTION.NONE;
+    this.cc.touches.three = CameraControls.ACTION.NONE;
 
-  // Mouse button bindings
-  const LEFT = CameraControls.ACTION.ROTATE;
-  const MIDDLE = CameraControls.ACTION.DOLLY;
-  const RIGHT = CameraControls.ACTION.TRUCK;
-  const NONE = CameraControls.ACTION.NONE;
+    this.applyConfig(config);
 
-  // Orbit binding
-  const orbitCfg = config.orbit;
-  if (orbitCfg === false) {
-    cc.mouseButtons.left = NONE;
-    cc.touches.one = CameraControls.ACTION.NONE;
-  } else if (orbitCfg) {
-    const btn = orbitCfg.pointer ?? 'left';
-    if (btn === 'left') cc.mouseButtons.left = LEFT;
-    else if (btn === 'middle') cc.mouseButtons.middle = LEFT;
-    else if (btn === 'right') cc.mouseButtons.right = LEFT;
+    domElement.addEventListener('pointerdown', this.handlePointerDownBound);
+    domElement.addEventListener('pointermove', this.handlePointerMoveBound);
+    domElement.addEventListener('pointerup', this.handlePointerUpBound);
+    domElement.addEventListener('pointercancel', this.handlePointerUpBound);
+    domElement.addEventListener('wheel', this.handleWheelBound as EventListener, { passive: false });
+
+    // Ensure pointer capture works
+    domElement.style.touchAction = 'none';
   }
 
-  // Pan binding
-  const panCfg = config.pan;
-  if (panCfg === false) {
-    cc.mouseButtons.right = NONE;
-    cc.touches.two = CameraControls.ACTION.NONE;
-  } else if (panCfg) {
-    const btn = panCfg.pointer ?? 'right';
-    if (btn === 'left') cc.mouseButtons.left = RIGHT;
-    else if (btn === 'middle') cc.mouseButtons.middle = RIGHT;
-    else if (btn === 'right') cc.mouseButtons.right = RIGHT;
+  setLookAt(position: Vec3, target: Vec3, smooth: boolean): void {
+    this.cc?.setLookAt(
+      position[0], position[1], position[2],
+      target[0], target[1], target[2],
+      smooth,
+    );
   }
 
-  // Dolly binding
-  const dollyCfg = config.dolly;
-  if (dollyCfg === false) {
-    cc.mouseButtons.wheel = NONE;
-    cc.touches.two = CameraControls.ACTION.NONE;
-  } else if (dollyCfg) {
-    if (dollyCfg.wheel !== false) cc.mouseButtons.wheel = MIDDLE;
-    if (dollyCfg.pinch !== false) {
-      cc.touches.two = CameraControls.ACTION.TOUCH_DOLLY_TRUCK;
+  update(deltaSeconds: number): boolean {
+    return this.cc?.update(deltaSeconds) ?? false;
+  }
+
+  configure(config: TrackpadCameraConfig): void {
+    this.config = config;
+    if (this.cc) this.applyConfig(config);
+  }
+
+  claimsWheel(): boolean {
+    // Return false: we only intercept Alt+wheel (which scene nav ignores anyway
+    // because modifiersMatch() rejects events with unexpected modifiers held).
+    // Return true only if the caller wants ALL wheel events claimed.
+    return false;
+  }
+
+  dispose(): void {
+    const el = this.domElement;
+    if (el) {
+      el.removeEventListener('pointerdown', this.handlePointerDownBound);
+      el.removeEventListener('pointermove', this.handlePointerMoveBound);
+      el.removeEventListener('pointerup', this.handlePointerUpBound);
+      el.removeEventListener('pointercancel', this.handlePointerUpBound);
+      el.removeEventListener('wheel', this.handleWheelBound as EventListener);
+    }
+    this.cc?.dispose();
+    this.cc = null;
+    this.domElement = null;
+    this.camera = null;
+    this.dragState = null;
+    this.config = null;
+  }
+
+  // ─── Private helpers ───────────────────────────────────────────────────────
+
+  private applyConfig(config: TrackpadCameraConfig): void {
+    const cc = this.cc;
+    if (!cc) return;
+
+    if (config.damping === false) {
+      cc.smoothTime = 0;
+      cc.draggingSmoothTime = 0;
+    } else {
+      const t = typeof config.damping === 'number' ? config.damping : 0.25;
+      cc.smoothTime = t;
+      cc.draggingSmoothTime = t * 0.5;
+    }
+
+    if (config.minDistance !== undefined) cc.minDistance = config.minDistance;
+    if (config.maxDistance !== undefined) cc.maxDistance = config.maxDistance;
+    if (config.minPolarAngle !== undefined) cc.minPolarAngle = config.minPolarAngle;
+    if (config.maxPolarAngle !== undefined) cc.maxPolarAngle = config.maxPolarAngle;
+  }
+
+  private resolveModifier(
+    e: PointerEvent,
+    cfg: TrackpadCameraConfig,
+  ): 'rotate' | 'pan' | 'zoom' | null {
+    if (e.ctrlKey && cfg.rotate !== false) return 'rotate';
+    if (e.shiftKey && cfg.pan !== false) return 'pan';
+    if (e.altKey && cfg.zoom !== false) return 'zoom';
+    return null;
+  }
+
+  private handlePointerDown(e: PointerEvent): void {
+    if (e.button !== 0 && e.button !== 2) return; // Left (or Ctrl-click/right on macOS)
+    const cfg = this.config;
+    if (!cfg) return;
+
+    const modifier = this.resolveModifier(e, cfg);
+    if (!modifier) return;
+
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      // setPointerCapture may throw in certain environments (e.g. jsdom); safe to ignore
+    }
+    this.dragState = { startX: e.clientX, startY: e.clientY, modifier };
+    e.preventDefault();
+  }
+
+  private handlePointerMove(e: PointerEvent): void {
+    if (!this.cc) return;
+    const cfg = this.config!;
+
+    if (!this.dragState) {
+      if (e.buttons === 0) return;
+      const modifier = this.resolveModifier(e, cfg);
+      if (!modifier) return;
+      this.dragState = { startX: e.clientX, startY: e.clientY, modifier };
+    }
+
+    const dx = e.clientX - this.dragState.startX;
+    const dy = e.clientY - this.dragState.startY;
+    // Update start each move for incremental delta (not absolute from drag-start)
+    this.dragState.startX = e.clientX;
+    this.dragState.startY = e.clientY;
+
+    const w = this.domElement?.clientWidth ?? 800;
+    const h = this.domElement?.clientHeight ?? 600;
+
+    switch (this.dragState.modifier) {
+      case 'rotate': {
+        const speed = (cfg.rotate && typeof cfg.rotate === 'object' ? cfg.rotate.speed : undefined) ?? 1;
+        // Full canvas-width drag = 2pi azimuth, full canvas-height drag = pi polar
+        const azimuth = -(dx / w) * Math.PI * 2 * speed;
+        const polar = -(dy / h) * Math.PI * speed;
+        void this.cc.rotate(azimuth, polar, false);
+        break;
+      }
+      case 'pan': {
+        const speed = (cfg.pan && typeof cfg.pan === 'object' ? cfg.pan.speed : undefined) ?? 1;
+        // Normalize to [0..1] range; camera-controls truck() takes world-space delta
+        // relative to the current look-at distance. Using 0.01 * speed as a
+        // proportional scale (tune per scene via speed).
+        void this.cc.truck(-(dx / w) * speed, (dy / h) * speed, false);
+        break;
+      }
+      case 'zoom': {
+        const speed = (cfg.zoom && typeof cfg.zoom === 'object' ? cfg.zoom.speed : undefined) ?? 1;
+        // Positive dy (drag down) = zoom out (increase distance)
+        const delta = (dy / h) * 3 * speed;
+        void this.cc.dolly(delta, false);
+        break;
+      }
     }
   }
-};
 
-export const createCameraControls = (
-  camera: THREE.PerspectiveCamera,
-  domElement: HTMLElement,
-  config: CameraInteractionConfig,
-): CameraControls => {
-  type CameraControlsCamera = ConstructorParameters<typeof CameraControls>[0];
-  const cc = new CameraControls(camera as unknown as CameraControlsCamera, domElement);
-  configureCameraControls(cc, config);
-  return cc;
-};
+  private handlePointerUp(e: PointerEvent): void {
+    if (this.dragState) {
+      try {
+        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {
+        // safe to ignore
+      }
+      this.dragState = null;
+    }
+  }
+
+  private handleWheel(e: WheelEvent): void {
+    if (!this.cc || !this.config?.wheelZoom) return;
+    if (!e.altKey) return; // Alt+wheel only
+    e.preventDefault();
+    e.stopPropagation();
+    const speed = (this.config.zoom && typeof this.config.zoom === 'object' ? this.config.zoom.speed : undefined) ?? 1;
+    const delta = (e.deltaY / 100) * speed;
+    void this.cc.dolly(delta, false);
+  }
+
+  private setTargetFromPointer(e: PointerEvent): void {
+    const camera = this.camera;
+    const cc = this.cc;
+    const el = this.domElement;
+    if (!camera || !cc || !el) return;
+
+    const rect = el.getBoundingClientRect();
+    const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    const ny = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+    const raycaster = new THREE.Raycaster();
+    raycaster.setFromCamera(new THREE.Vector2(nx, ny), camera);
+
+    const target = new THREE.Vector3();
+    const getTarget = (cc as unknown as { getTarget?: (v: THREE.Vector3) => THREE.Vector3 }).getTarget;
+    if (getTarget) {
+      try {
+        getTarget(target);
+      } catch {
+        // Some camera-controls internals may be uninitialized; fall back to a forward target.
+        camera.getWorldDirection(target);
+        target.multiplyScalar(10).add(camera.position);
+      }
+    } else {
+      camera.getWorldDirection(target);
+      target.multiplyScalar(10).add(camera.position);
+    }
+
+    const normal = new THREE.Vector3();
+    camera.getWorldDirection(normal);
+    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, target);
+
+    const hit = new THREE.Vector3();
+    const ok = raycaster.ray.intersectPlane(plane, hit);
+    if (!ok) return;
+
+    const pos = camera.position;
+    this.cc.setLookAt(pos.x, pos.y, pos.z, hit.x, hit.y, hit.z, false);
+  }
+}

@@ -84,4 +84,15 @@ describe('deriveColor', () => {
     const lower = deriveColor('#AABBCC', -0.1);
     expect(lower).toMatch(/^#[0-9a-f]{6}$/);
   });
+
+  it('throws on invalid hex input length', () => {
+    expect(() => deriveColor('#abc', 0.1)).toThrow('Invalid hex color');
+  });
+
+  it('covers all HSL hue sectors', () => {
+    const samples = ['#ff0000', '#ffff00', '#00ff00', '#00ffff', '#0000ff', '#ff00ff'];
+    samples.forEach((hex) => {
+      expect(deriveColor(hex, 0)).toMatch(/^#[0-9a-f]{6}$/);
+    });
+  });
 });
