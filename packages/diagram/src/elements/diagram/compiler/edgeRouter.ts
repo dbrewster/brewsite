@@ -962,7 +962,7 @@ export function routeEdges(
 
     if (!fromPos || !toPos || !fromSize || !toSize) {
       console.warn(`Diagram routeEdges: missing node(s) for edge ${edge.from} -> ${edge.to}`);
-      result.set(id, [fromPos ?? [0, 0, 0], toPos ?? [0, 0, 0]]);
+      result.set(id, []);
       return;
     }
 

@@ -33,6 +33,8 @@ Hud.displayName = 'Hud';
 /**
  * Authoring DSL component for a single HUD item.
  * Compiles into a HudItemDefinition pushed to SceneFrame.hudItems.
+ *
+ * @see AnimeJS presets module: `@brewsite/core/hud/animejs`
  */
 export const HudItem = (_props: HudItemDslProps) => null;
 HudItem.displayName = 'HudItem';

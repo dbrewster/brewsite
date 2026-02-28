@@ -161,7 +161,10 @@ export type CameraAxisConfig = {
  * No modifier key held → drag does nothing (avoids conflicting with page scroll).
  */
 export type TrackpadCameraConfig = {
-  /** Whether interactive control is active for this scene. Default: false */
+  /**
+   * Whether interactive control is active for this scene. Default: false.
+   * When false, all other fields in this config are ignored.
+   */
   enabled: boolean;
 
   /**

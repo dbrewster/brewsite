@@ -2370,10 +2370,15 @@ Recommended sequence for the implementing engineer:
 
 ## 14. Design Decisions and Rationale
 
-- **Dark theme only**: Developer documentation is consumed primarily in dark-mode terminal environments and at desks. A fixed dark theme avoids toggle complexity and ensures consistent live demo rendering against dark backgrounds.
+- **Light/dark toggle, system-default**: Developers work in both light and dark environments. Defaulting to system preference is the most respectful starting point. Toggle persisted to `localStorage`.
 - **No external font CDN**: System fonts only to avoid network dependencies in offline dev.
 - **prism-react-renderer over highlight.js**: Lighter, React-native, tree-shakeable.
-- **Model-free demos**: All core demos work without GLB files to eliminate asset-management complexity in the docs app. Model features are documented with code examples and links to the live examples app.
+- **MaleDummy model for model demos**: The `motion-dummy_male.no-normals.glb` is a generic, license-clear model already in the monorepo. `ChatRelaxM` and `StandingChatM` are two clean, neutral, easily loopable animations that illustrate the core concepts without distraction. Only these two clips are included in the docs manifest to keep the asset footprint small.
+- **Model assets served from `apps/examples/public` via vite fs.allow in dev**: No asset duplication during development. `copy-demo-assets.mjs` handles the production build copy.
 - **Lazy-loaded pages**: Route-level code splitting via `React.lazy` keeps initial bundle under 200KB.
 - **No search in v1**: Search adds significant complexity (Algolia paid, or client-side index build). Ship v1 without search; add in v2 after user research.
-- **DemoScene with range slider**: Gives the reader full scrubbing control over scene progress, making it easy to see the full animation range.
+- **DemoScene with IntersectionObserver auto-play**: Demos start playing when they scroll into view, providing an immediate visual impression with no interaction required. The user can pause, scrub, or step through with controls. Suppressed for `prefers-reduced-motion`.
+- **Google Analytics behind `.env`**: GA is a build-time opt-in. Developers building locally never send analytics. Production deployments set `VITE_GA_MEASUREMENT_ID` in their CI environment variables.
+- **TypeDoc for API reference**: Keeps the reference in sync with the source automatically. Hand-written prose pages cover concepts and usage; TypeDoc covers the exact type signatures.
+- **Base path `/docs/`**: Default deployment path. Override with `DOCS_BASE_PATH` env var for different hosting.
+- **BrewSite brand gradient**: Dark orange (`#c2410c`) → orange (`#f97316`) → lighter orange (`#fb923c`). Applied to the logo wordmark and favicon. All other UI uses neutral dark/light backgrounds — the orange is reserved for brand elements only.

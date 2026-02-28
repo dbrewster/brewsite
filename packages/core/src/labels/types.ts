@@ -2,9 +2,21 @@
  * Label element types.
  */
 
+export type LabelColor = 'target-color' | (string & {});
+
 export type LabelStyle = {
-  color?: string;
-  lineColor?: string;
+  /**
+   * Text color.
+   * Use `'target-color'` to inherit the resolved color of the target body part
+   * at runtime.
+   */
+  color?: LabelColor;
+  /**
+   * Leader-line color.
+   * Use `'target-color'` to inherit the resolved color of the target body part
+   * at runtime.
+   */
+  lineColor?: LabelColor;
   fontSize?: number | string;
   lineOpacity?: number;
   labelOpacity?: number;

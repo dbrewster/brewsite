@@ -24,6 +24,9 @@ export interface DiagramCanvasProps {
    * Canvas-level theme. Acts as the default theme for all child <Diagram>
    * elements. Each child can override with its own `theme` prop.
    * Falls back to darkGlassTheme when absent.
+   *
+   * @example
+   * import { darkGlassTheme, lightMinimalTheme, enterpriseTheme, neonCyberTheme } from '@brewsite/diagram';
    */
   theme?: DiagramTheme;
   /**
@@ -85,7 +88,7 @@ export interface DiagramPipeProps {
   arrowStart?: DiagramArrowVariant;
   /** Arrowhead at destination. Default: 'open' */
   arrowEnd?: DiagramArrowVariant;
-  /** Pipe color (CSS hex). Default: '#667788' */
+  /** Pipe color (CSS hex). Default: DIAGRAM_PIPE_DEFAULT_COLOR */
   color?: string;
   /** Tube radius in canvas units. Default: 0.08 */
   thickness?: number;

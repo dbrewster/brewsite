@@ -248,14 +248,34 @@ export const resolveSceneFromDsl = (
   widgetRegistry: WidgetRegistry,
   pushWarning?: (warning: CompileWarning) => void,
 ): ResolvedScene => {
+  const describeValueType = (value: unknown): string => {
+    if (value === null) return 'null';
+    if (Array.isArray(value)) return 'array';
+    return typeof value;
+  };
+  const describeElementType = (elementType: ReactElement['type']): string => {
+    if (typeof elementType === 'string') return elementType;
+    if (typeof elementType === 'function') {
+      const component = elementType as ((props: unknown) => unknown) & { displayName?: string };
+      return component.displayName ?? component.name ?? 'anonymous';
+    }
+    return 'unknown';
+  };
+
   if (!isValidElement(tree)) {
-    throw new Error('Scene DSL must return a JSX element.');
+    throw new Error(
+      `Scene DSL must return a JSX element (got: ${describeValueType(tree)}). ` +
+      'Ensure getFrame() has a return statement returning <Scene>.',
+    );
   }
   const treeEl = tree as ReactElement;
   const api = createApi(context, pushWarning);
   const handler = getNodeHandler(treeEl.type) as NodeHandler | undefined;
   if (!handler) {
-    throw new Error('Scene DSL root must be <Scene>.');
+    throw new Error(
+      `Scene DSL root must be <Scene> (got: <${describeElementType(treeEl.type)}>). ` +
+      'Wrap your content in <Scene id="...">.',
+    );
   }
   handler(treeEl, api, helpers);
 

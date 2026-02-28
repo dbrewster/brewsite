@@ -8,6 +8,9 @@ change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Initial plan created. Full implementation blueprint for the @brewsite/diagram documentation book. Covers all diagram-specific pages, demo files, navigation, widget setup, and integration with the shared docs infrastructure from plan_docs_core.md."
+  - date: 2026-02-28
+    author: "Toolkit Product"
+    summary: "Incorporated resolved design decisions: widget constructors verified against source — all require (widgetId, defaultState); defaultState is produced via compileDiagram/compileCanvas/compileImagePanel/compileScreen functions. HDR environment map configured via vite fs.allow from packages/diagram/public. Icon registry populated via pnpm sync:icons with documentation on how to run it. All demos use DSL only (no direct widget API exposure). Light/dark theme toggle applies to diagram docs pages consistent with core book."
 ---
 
 # Documentation Site — @brewsite/diagram Book
@@ -114,6 +117,8 @@ All diagram demos require both `@brewsite/core` widgets AND `@brewsite/diagram` 
 
 ### 3.1 `src/demos/shared/diagramDemoSetup.ts`
 
+All four diagram widget constructors take `(widgetId: string, defaultState: T)`. The `defaultState` is produced by calling the compile function for that element type with a minimal default definition. This pattern is confirmed against the source code in `packages/diagram/src/elements/*/widget.ts`.
+
 ```typescript
 import { createDefaultWidgetRegistry, WidgetRegistry } from '@brewsite/core';
 import {
@@ -121,33 +126,126 @@ import {
   DiagramCanvasWidget,
   ImagePanelWidget,
   ScreenWidget,
+  compileDiagram,
+  compileCanvas,
+  compileImagePanel,
+  compileScreen,
 } from '@brewsite/diagram';
+import { darkGlassTheme } from '@brewsite/diagram';
+
+/**
+ * Creates the default DiagramState for a demo diagram widget.
+ * The widgetId here must match the `id` prop on the <Diagram> DSL component.
+ */
+function makeDiagramDefault(id: string) {
+  return compileDiagram({
+    id,
+    layout: { kind: 'grid', columns: 3 },
+    pivot: 'center',
+    nodes: [],
+    edges: [],
+    groups: [],
+  });
+}
+
+function makeCanvasDefault(id: string) {
+  return compileCanvas({ id }, [], []);
+}
+
+function makeImagePanelDefault(id: string) {
+  return compileImagePanel({
+    id,
+    src: '/assets/docs/sample-image.jpg',
+    position: [0, 0, 0],
+    width: 4,
+    bezel: 'thin',
+    gloss: 0.4,
+    glow: false,
+    enabled: true,
+  });
+}
+
+function makeScreenDefault(id: string) {
+  return compileScreen({
+    id,
+    src: '/assets/docs/sample-screen.png',
+    position: [0, 0, 0],
+    width: 5,
+    height: 3,
+    bezel: 'chrome',
+    glow: false,
+    enabled: true,
+  });
+}
 
 /**
  * Creates a WidgetRegistry with all @brewsite/core built-ins
- * plus all @brewsite/diagram widget instances.
- * Call once per demo component (stable reference — memoize or call at module level).
+ * plus diagram widget instances matching the IDs used in demos.
+ *
+ * widgetId values here MUST match the `id` prop on the corresponding DSL elements.
  */
 export function createDiagramDemoRegistry(): WidgetRegistry {
   const registry = createDefaultWidgetRegistry(null);
 
-  // Diagram element widget — handles <Diagram> DSL
-  registry.register(new DiagramWidget('diagram'));
-
-  // DiagramCanvas widget — handles <DiagramCanvas> DSL with orthographic camera
-  registry.register(new DiagramCanvasWidget('diagram-canvas'));
-
-  // ImagePanel widget — handles <ImagePanel> DSL
-  registry.register(new ImagePanelWidget('image-panel'));
-
-  // Screen widget — handles <Screen> DSL
-  registry.register(new ScreenWidget('screen'));
+  registry
+    .register(new DiagramWidget('diagram',           makeDiagramDefault('diagram')))
+    .register(new DiagramWidget('nodes-demo',        makeDiagramDefault('nodes-demo')))
+    .register(new DiagramWidget('edges-demo',        makeDiagramDefault('edges-demo')))
+    .register(new DiagramWidget('groups-demo',       makeDiagramDefault('groups-demo')))
+    .register(new DiagramWidget('layout-demo',       makeDiagramDefault('layout-demo')))
+    .register(new DiagramWidget('anim-demo',         makeDiagramDefault('anim-demo')))
+    .register(new DiagramWidget('theme-dark',        makeDiagramDefault('theme-dark')))
+    .register(new DiagramWidget('theme-neon',        makeDiagramDefault('theme-neon')))
+    .register(new DiagramWidget('theme-enterprise',  makeDiagramDefault('theme-enterprise')))
+    .register(new DiagramWidget('theme-light',       makeDiagramDefault('theme-light')))
+    .register(new DiagramCanvasWidget('canvas-demo', makeCanvasDefault('canvas-demo')))
+    .register(new DiagramWidget('arch',              makeDiagramDefault('arch')))  // child of canvas-demo
+    .register(new ImagePanelWidget('image-panel',    makeImagePanelDefault('image-panel')))
+    .register(new ScreenWidget('screen',             makeScreenDefault('screen')));
 
   return registry;
 }
 ```
 
-> **Note for implementor**: The exact constructor signatures for `DiagramWidget`, `DiagramCanvasWidget`, `ImagePanelWidget`, and `ScreenWidget` must be verified against the actual source files in `packages/diagram/src/elements/*/widget.ts`. The `widgetId` string arguments above are the expected IDs used in DSL props. Adjust if the constructors take different arguments.
+> **Important**: Every `<Diagram id="...">` that appears in any demo scene requires a corresponding `DiagramWidget` instance registered with a matching `widgetId`. The registry is created once at module level (not inside the component render function) to avoid recreation on re-renders.
+
+---
+
+## 3.2 HDR Environment Map for Diagram Demos
+
+`@brewsite/diagram` ships its HDR environment map at `packages/diagram/public/assets/envmaps/`. Diagram demos need this file to render the `darkGlassTheme` and `neonCyberTheme` correctly (those themes reference the env map via `DiagramThemeEnvironmentConfig.envMapPath`).
+
+**Dev server**: Add to the `vite.config.ts` `server.fs.allow` array:
+```typescript
+server: {
+  fs: {
+    allow: [
+      '../../apps/examples/public',      // MaleDummy and animation GLBs
+      '../../packages/diagram/public',   // diagram HDR env map
+      '../..',
+    ],
+  },
+},
+```
+
+Then the env map is accessible at `/assets/envmaps/...` via the Vite dev server's file serving, since `packages/diagram/public/` is the `publicDir` for the diagram package (which Vite's FS allow makes reachable).
+
+**Production build**: Add to `scripts/copy-demo-assets.mjs`:
+```javascript
+// Also copy diagram env map
+const diagramPublic = resolve(__dirname, '../../../packages/diagram/public');
+const envmapFiles = [
+  'assets/envmaps/diagram-envmap.hdr',  // verify exact filename with ls packages/diagram/public/assets/envmaps/
+];
+for (const asset of envmapFiles) {
+  const src = resolve(diagramPublic, asset);
+  const dst = resolve(docsPublic, asset);
+  mkdirSync(dirname(dst), { recursive: true });
+  if (existsSync(src)) cpSync(src, dst);
+}
+```
+
+> **Implementor note**: Verify the exact HDR filename by listing `packages/diagram/public/assets/envmaps/`. The filename is not hardcoded in this plan to avoid staleness.
 
 ---
 
@@ -504,9 +602,17 @@ All pages live in `src/pages/diagram/`.
 4. H2: "Auto-Registration of DSL Handlers"
    - Explain that `import '@brewsite/diagram'` auto-registers DSL node handlers via `./register.ts`
    - The widget instances (above) are still required for runtime rendering
-5. H2: "ScenePlayer Integration"
+5. H2: "Icon Assets (Optional)"
+   - `Callout type="note"`: "If you want icon-shape nodes (AWS, GCP, Azure, Heroicons), run `pnpm sync:icons` from the monorepo root after install."
+   - `CodeBlock` (bash): `pnpm sync:icons`
+   - Explanation of what the script does and where it puts files
+6. H2: "HDR Environment Map"
+   - The diagram package includes an HDR env map at `packages/diagram/public/assets/envmaps/`
+   - Vite alias setup needed so the env map is served correctly — shown in code
+   - Note: `neonCyberTheme` and `darkGlassTheme` reference this env map for realistic reflections
+7. H2: "ScenePlayer Integration"
    - Full `<ScenePlayer>` setup code with the diagram registry
-6. `Callout type="tip"`: "Because `@brewsite/diagram` imports from `@brewsite/core`, ensure both packages resolve to the same React and Three.js instances — use the `dedupe` option in Vite if needed."
+8. `Callout type="tip"`: "Because `@brewsite/diagram` imports from `@brewsite/core`, ensure both packages resolve to the same React and Three.js instances — use the `dedupe` option in Vite if needed."
 
 ---
 
@@ -567,7 +673,17 @@ All pages live in `src/pages/diagram/`.
    - Available values: `'pill'`, `'hex'`, `'circle'`, `'diamond'`, `'rectangle'`, plus icon shapes
 5. H2: "Icon Variants"
    - `DiagramIconVariant` — Heroicon name, AWS/GCP/Azure/Network shape names
-   - Note on `sync:icons` script for populating icon registry
+   - `Callout type="note"`: "Icon shapes require running `pnpm sync:icons` to download and register icon SVGs into the diagram package. This is a one-time setup step."
+   - H3: "Running the Icon Sync"
+     - `CodeBlock` (bash):
+       ```bash
+       # From the monorepo root — downloads Heroicons + Simple Icons SVGs
+       pnpm sync:icons
+       ```
+     - Explanation: `scripts/sync-icons.mjs` downloads the latest Heroicons and cloud provider icons (AWS, GCP, Azure, Network) into `packages/diagram/public/assets/shapes/`. Without running this, icon shapes fall back to a generic placeholder.
+     - `Callout type="tip"`: "Commit the generated icon files to your repo. The `sync:icons` script only needs to be re-run when you want to update icon versions."
+   - Table of available `DiagramIconVariant` categories: Heroicons UI (`ui:*`), AWS (`aws:*`), GCP (`gcp:*`), Azure (`azure:*`), Network (`network:*`)
+   - Link to the `sync:icons` script source in the repo
 6. H2: "Emissive (Glow) Effect"
    - `emissive`, `emissiveColor`, `emissiveIntensity` props
    - `CodeBlock` showing glowing node setup

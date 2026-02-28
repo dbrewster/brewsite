@@ -231,7 +231,13 @@ export type DiagramArrowVariant = 'none' | 'open' | 'filled' | 'diamond' | 'circ
 /** Animated flow direction for edges */
 export type DiagramEdgeFlow = 'none' | 'forward' | 'backward' | 'bidirectional';
 
-/** Group container visual variant */
+/**
+ * Group container visual variant.
+ * - 'boundary'  — outlined rectangular region.
+ * - 'cluster'   — shaded container region.
+ * - 'swimlane'  — lane container with orientation-aware title/divider.
+ * - 'container' — borderless region; border style is always suppressed.
+ */
 export type DiagramGroupVariant = 'swimlane' | 'boundary' | 'cluster' | 'container';
 
 /** Swimlane orientation when variant is 'swimlane' */

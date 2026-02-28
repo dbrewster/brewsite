@@ -126,7 +126,8 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     // Pre-compiled SceneFrame path
     if (isSceneFrame(raw)) return raw;
     throw new Error(
-      `Scene at index ${i} getFrame() must return a JSX element or SceneFrame (got: ${typeof raw})`,
+      `Scene at index ${i} getFrame() must return a JSX element or SceneFrame (got: ${typeof raw}). ` +
+      'Ensure getFrame() returns <Scene ...> (or a SceneFrame object) on every code path.',
     );
   });
 

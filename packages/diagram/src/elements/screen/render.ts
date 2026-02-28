@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import type { ScreenState } from './types';
 import { createBezel, disposeBezel } from '../_shared/bezelGeometry';
 import { createGlow, disposeGlowSprite } from '../_shared/glowSprite';
+import { SCREEN_ROTATION_WARNING_THRESHOLD_RAD } from './compile';
 
 type ScreenEntry = {
   group: THREE.Group;
@@ -18,6 +19,7 @@ type ScreenEntry = {
 export class ScreenRenderer {
   private screens = new Map<string, ScreenEntry>();
   private overlayContainer: HTMLDivElement;
+  private warnedRotation = new Set<string>();
 
   constructor(overlayContainer: HTMLDivElement) {
     this.overlayContainer = overlayContainer;
@@ -35,6 +37,17 @@ export class ScreenRenderer {
     entry.group.rotation.set(state.rotation[0], state.rotation[1], state.rotation[2]);
     entry.group.scale.setScalar(state.scale);
     entry.group.visible = state.enabled;
+
+    const exceedsRotationThreshold =
+      Math.abs(state.rotation[0]) > SCREEN_ROTATION_WARNING_THRESHOLD_RAD ||
+      Math.abs(state.rotation[1]) > SCREEN_ROTATION_WARNING_THRESHOLD_RAD ||
+      Math.abs(state.rotation[2]) > SCREEN_ROTATION_WARNING_THRESHOLD_RAD;
+    if (exceedsRotationThreshold && !this.warnedRotation.has(state.id)) {
+      console.warn(
+        `ScreenRenderer: screen "${state.id}" rotation ${state.rotation.join(', ')} may misalign iframe overlay.`,
+      );
+      this.warnedRotation.add(state.id);
+    }
 
     const prev = entry.lastState;
     if (!prev || state.bezel !== prev.bezel || state.bezelThickness !== prev.bezelThickness ||
@@ -96,6 +109,7 @@ export class ScreenRenderer {
     if (entry.glowSprite) disposeGlowSprite(entry.glowSprite);
     entry.iframeDiv.remove();
     this.screens.delete(screenId);
+    this.warnedRotation.delete(screenId);
   }
 
   private createScreen(state: ScreenState): ScreenEntry {

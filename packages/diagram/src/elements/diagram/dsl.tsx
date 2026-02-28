@@ -43,7 +43,10 @@ export interface DiagramNodeProps {
   shape?: DiagramNodeShape;
   /**
    * SVG icon overlaid on the node's front face.
-   * Accepts any DiagramIconVariant: ui:*, aws:*, gcp:*, azure:*, tech:*, etc.
+   * Accepts any DiagramIconVariant namespace:
+   * flow:*, ui:*, tech:*, security:*, data:*, net:*, aws:*, gcp:*, azure:*, custom:*.
+   * `custom:*` values are reserved for custom resolver integrations and resolve
+   * to no icon by default unless your runtime provides a mapping.
    * If omitted, no icon is rendered regardless of shape.
    */
   icon?: DiagramIconVariant;
@@ -118,9 +121,9 @@ export function DiagramNode(_props: DiagramNodeProps): null {
 export interface DiagramEdgeProps {
   /** Unique ID within the diagram */
   id?: string;
-  /** ID of the source node */
+  /** ID of the source node. Must exactly match a sibling `<DiagramNode id="...">`. */
   from: string;
-  /** ID of the destination node */
+  /** ID of the destination node. Must exactly match a sibling `<DiagramNode id="...">`. */
   to: string;
   /** Label displayed at edge midpoint */
   label?: string;
@@ -158,6 +161,9 @@ export interface DiagramEdgeProps {
 
 /**
  * Declares a directed connector between two diagram nodes.
+ * `from` and `to` must match `<DiagramNode id="...">` values in the same
+ * parent `<Diagram>`.
+ * Unresolvable endpoints are compiled as hidden edges (no control points).
  * Must be a direct or indirect child of <Diagram>.
  */
 export function DiagramEdge(_props: DiagramEdgeProps): null {
@@ -171,7 +177,13 @@ export interface DiagramGroupProps {
   id: string;
   /** Group header label (optional) */
   label?: string;
-  /** Group visual variant. Default: 'boundary' */
+  /**
+   * Group visual variant. Default: 'boundary'.
+   * - 'boundary'  — outlined rectangular region.
+   * - 'cluster'   — shaded container region.
+   * - 'swimlane'  — lane container with divider (`orientation` applies only here).
+   * - 'container' — borderless region (`borderStyle` is ignored and forced to 'none').
+   */
   variant?: DiagramGroupVariant;
   /** Swimlane orientation (only for variant='swimlane'). Default: 'vertical' */
   orientation?: DiagramOrientation;
@@ -204,7 +216,7 @@ export interface DiagramGroupProps {
 }
 
 /**
- * Declares a visual grouping container (swimlane, boundary, or cluster).
+ * Declares a visual grouping container (boundary, cluster, swimlane, or container).
  * Direct children that are <DiagramNode> elements are assigned to this group.
  */
 export function DiagramGroup(_props: DiagramGroupProps): null {
@@ -304,6 +316,9 @@ export interface DiagramProps {
    * Overrides the canvas-level theme (if inside a DiagramCanvas).
    * Falls back to the package default (darkGlassTheme) when absent.
    * Per-node / per-edge props take precedence over all theme values.
+   *
+   * @example
+   * import { darkGlassTheme, lightMinimalTheme, enterpriseTheme, neonCyberTheme } from '@brewsite/diagram';
    */
   theme?: DiagramTheme;
   children?: React.ReactNode;

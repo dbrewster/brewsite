@@ -3,6 +3,9 @@
 
 import type { DiagramState, DiagramEdgeStyle, DiagramArrowVariant, DiagramTheme } from '../types';
 
+/** Default pipe color used by compile.ts and documented on the DSL. */
+export const DIAGRAM_PIPE_DEFAULT_COLOR = '#3d5a9a';
+
 /**
  * Compiled state of a single cross-diagram pipe (tube connector).
  * Control points are in canvas-local space.

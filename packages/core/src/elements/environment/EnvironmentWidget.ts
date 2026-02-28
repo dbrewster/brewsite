@@ -77,6 +77,12 @@ export class EnvironmentWidget
         intensity: helpers.resolveValue(props.intensity, api.context) ?? base.intensity,
         source: source ?? base.source,
       };
+
+      if (resolved.enabled && !resolved.source) {
+        console.warn(
+          'EnvironmentWidget: <Environment enabled> requires an <EnvironmentHdri>, <EnvironmentExr>, or <EnvironmentCube> child.',
+        );
+      }
       api.setWidgetState(this.widgetId, resolved);
     };
   }

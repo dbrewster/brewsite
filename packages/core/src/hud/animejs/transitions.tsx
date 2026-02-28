@@ -11,7 +11,16 @@ import { useHudPhase } from '../HudPhaseContext';
 
 export type TransitionProps = {
   children?: ReactNode;
-  /** Total scrub duration in ms. sceneProgress 0→1 maps to 0→duration. Default varies per preset. */
+  /**
+   * Total scrub duration in ms. sceneProgress 0→1 maps to 0→duration.
+   * Preset defaults:
+   * - Fade: 600
+   * - MidFade: 1000
+   * - SlideUp: 600
+   * - SlideDown: 600
+   * - ScrollOn: 1000
+   * - ScrollOff: 1000
+   */
   duration?: number;
   /**
    * Delay in ms before the animation begins within the timeline.
@@ -26,6 +35,8 @@ export type TransitionProps = {
 
 /**
  * Fades from opacity 0 → 1 across the full sceneProgress range.
+ * This is the only phase-aware preset: when rendered in an exit-phase HudItem,
+ * it auto-reverses and fades 1 → 0.
  *
  * @example
  * <HudItem id="label"><Fade><span>Caption</span></Fade></HudItem>
@@ -62,6 +73,7 @@ export const Fade = ({
 /**
  * Fades in during the first half of sceneProgress, holds at full opacity for the second half.
  * Replicates the mid-fade behaviour from the legacy annotation system.
+ * Enter-only preset: does not auto-reverse during exit phase.
  *
  * @example
  * <HudItem id="title"><MidFade><h2>Heading</h2></MidFade></HudItem>
@@ -95,6 +107,7 @@ export const MidFade = ({
 /**
  * Slides up from below and fades in across the full sceneProgress range.
  * Use `delay` to stagger multiple items in a scene.
+ * Enter-only preset: does not auto-reverse during exit phase.
  *
  * @example
  * <HudItem id="line-1"><SlideUp>First</SlideUp></HudItem>
@@ -125,6 +138,7 @@ export const SlideUp = ({
 
 /**
  * Slides down from above and fades in across the full sceneProgress range.
+ * Enter-only preset: does not auto-reverse during exit phase.
  *
  * @example
  * <HudItem id="nav"><SlideDown><nav>Menu</nav></SlideDown></HudItem>
@@ -154,6 +168,7 @@ export const SlideDown = ({
 /**
  * Enters during the first 35% of sceneProgress, holds for the remainder.
  * Good for content that should be fully visible early and stay stable.
+ * Enter-only preset: does not auto-reverse during exit phase.
  *
  * @example
  * <HudItem id="stat"><ScrollOn><strong>247</strong> customers</ScrollOn></HudItem>
@@ -187,6 +202,7 @@ export const ScrollOn = ({
 /**
  * Holds visible until the final 35% of sceneProgress, then exits upward.
  * Good for content that should remain visible while the user is scrolling away.
+ * Enter-only preset: does not auto-reverse during exit phase.
  *
  * @example
  * <HudItem id="cta"><ScrollOff><button>Learn more</button></ScrollOff></HudItem>

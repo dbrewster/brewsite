@@ -9,9 +9,22 @@ export type FloorProps = {
   position?: [number, number, number];
   rotation?: [number, number, number];
   scale?: number;
+  /**
+   * Floor surface definition.
+   * Only `<FloorPhysical>` and `<FloorMirror>` children are compiled.
+   * When `enabled` is true and no surface child is provided, no visible floor
+   * surface will be produced.
+   */
   children?: React.ReactNode;
 };
 
+/**
+ * Floor element.
+ *
+ * Visible output requires one surface child:
+ * - `<FloorPhysical ... />`
+ * - `<FloorMirror ... />`
+ */
 export const Floor = (_props: FloorProps) => null;
 
 Floor.displayName = 'Floor';

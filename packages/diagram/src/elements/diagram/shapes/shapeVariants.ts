@@ -589,7 +589,8 @@ export type NetworkShape =
 /**
  * Full icon variant union — all valid SVG icon overlays for DiagramNode.
  * Resolved to public asset URLs by resolveIconUrl() in iconRegistry.ts.
- * `custom:${string}` is the escape hatch for one-off icons not in any namespace.
+ * `custom:${string}` is an escape hatch for custom resolver integrations.
+ * By default, `custom:*` has no built-in asset mapping and resolves to undefined.
  */
 export type DiagramIconVariant =
   | FlowIconShape

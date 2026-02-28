@@ -10,6 +10,7 @@ import type {
   PipeRoutingAlgorithm,
   PipeLandingAlgorithm,
 } from './types';
+import { DIAGRAM_PIPE_DEFAULT_COLOR } from './types';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
 import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
 import { applyDiagramEnter, applyDiagramExit } from '../compile';
@@ -22,7 +23,7 @@ const PIPE_DEFAULTS = {
   style: 'solid' as DiagramEdgeStyle,
   arrowStart: 'none' as DiagramArrowVariant,
   arrowEnd: 'open' as DiagramArrowVariant,
-  color: '#3d5a9a',
+  color: DIAGRAM_PIPE_DEFAULT_COLOR,
   thickness: 0.08,
   opacity: 1,
 };

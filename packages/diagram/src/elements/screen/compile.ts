@@ -5,6 +5,8 @@ import type { ScreenDSL, ScreenState } from './types';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
 import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
 
+export const SCREEN_ROTATION_WARNING_THRESHOLD_RAD = 0.1;
+
 const toMutableVec3 = (value: readonly [number, number, number]): [number, number, number] => [
   value[0],
   value[1],
@@ -15,12 +17,17 @@ const toMutableVec3 = (value: readonly [number, number, number]): [number, numbe
  * Compiles a ScreenDSL into a fully resolved ScreenState by applying defaults.
  * All fields in the output are defined — no undefined values.
  *
- * Side effect: emits console.warn if any rotation axis exceeds 0.15 radians,
+ * Side effect: emits console.warn if any rotation axis exceeds
+ * SCREEN_ROTATION_WARNING_THRESHOLD_RAD radians,
  * because the iframe overlay cannot meaningfully tilt with the WebGL bezel.
  */
 export function compileScreen(dsl: ScreenDSL): ScreenState {
   const rotation = dsl.rotation ?? [0, 0, 0];
-  if (Math.abs(rotation[0]) > 0.15 || Math.abs(rotation[1]) > 0.15 || Math.abs(rotation[2]) > 0.15) {
+  if (
+    Math.abs(rotation[0]) > SCREEN_ROTATION_WARNING_THRESHOLD_RAD ||
+    Math.abs(rotation[1]) > SCREEN_ROTATION_WARNING_THRESHOLD_RAD ||
+    Math.abs(rotation[2]) > SCREEN_ROTATION_WARNING_THRESHOLD_RAD
+  ) {
     console.warn(
       `Screen compileScreen: rotation ${rotation.join(', ')} may misalign the iframe overlay. ` +
         'Use <ImagePanel> for tilted content.',

@@ -59,6 +59,12 @@ export class FloorWidget
         surface: surface ?? base.surface,
       };
 
+      if (resolved.enabled && !resolved.surface) {
+        console.warn(
+          'FloorWidget: <Floor enabled> requires a <FloorPhysical> or <FloorMirror> child to render a visible surface.',
+        );
+      }
+
       api.setWidgetState(this.widgetId, resolved);
     };
   }
