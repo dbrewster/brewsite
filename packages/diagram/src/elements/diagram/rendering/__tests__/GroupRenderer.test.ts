@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GroupRenderer } from '../GroupRenderer';
 import type { DiagramGroupState } from '../../types';
 import { Text } from 'troika-three-text';
+import { GroupInteractionRegistry } from '../GroupInteractionRegistry';
 
 const makeGroup = (overrides: Partial<DiagramGroupState> = {}): DiagramGroupState => ({
   id: 'g1',
@@ -20,11 +21,13 @@ const makeGroup = (overrides: Partial<DiagramGroupState> = {}): DiagramGroupStat
 
 describe('GroupRenderer', () => {
   let renderer: GroupRenderer;
+  let registry: GroupInteractionRegistry;
   let parent: THREE.Group;
 
   beforeEach(() => {
     vi.spyOn(Text.prototype, 'sync').mockImplementation(() => undefined);
-    renderer = new GroupRenderer();
+    registry = new GroupInteractionRegistry();
+    renderer = new GroupRenderer(registry);
     parent = new THREE.Group();
   });
 

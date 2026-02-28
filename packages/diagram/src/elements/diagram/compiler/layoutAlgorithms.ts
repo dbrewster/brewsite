@@ -124,13 +124,75 @@ export function resolveLayout(
     levels.get(l)!.push(node);
   });
 
+  // Compute per-level max heights so the gap between adjacent level edges is
+  // always exactly spacing[1], regardless of how different item heights are.
+  // Include explicit nodes so anchor levels derived from explicit positions
+  // still respect the correct vertical spacing.
+  const levelMaxH = new Map<number, number>();
+  nodes.forEach((node) => {
+    const l = level.get(node.id) ?? 0;
+    const h = (node.size ?? DEFAULT_NODE_SIZE)[1];
+    levelMaxH.set(l, Math.max(levelMaxH.get(l) ?? 0, h));
+  });
+
+  // levelCenterY[l] is the Y center for all nodes at level l.
+  // Anchor the hierarchy to an explicit level when possible so auto-placed
+  // nodes align with authored coordinates instead of drifting above them.
+  const levelCenterY = new Map<number, number>();
+  const allLevelKeys = [...new Set(nodeIds.map((id) => level.get(id) ?? 0))].sort((a, b) => a - b);
+
+  const explicitNodes = nodes.filter((n) => !!n.position);
+  const explicitLevels = explicitNodes.map((n) => level.get(n.id) ?? 0);
+  const minMissingLevel = Math.min(...missing.map((n) => level.get(n.id) ?? 0));
+
+  let anchorLevel = minMissingLevel;
+  if (explicitNodes.length > 0) {
+    const eligible = explicitNodes.filter((n) => (level.get(n.id) ?? 0) <= minMissingLevel);
+    if (eligible.length > 0) {
+      anchorLevel = Math.max(...eligible.map((n) => level.get(n.id) ?? 0));
+    } else {
+      anchorLevel = Math.min(...explicitLevels);
+    }
+  }
+
+  const anchorNodes = explicitNodes.filter((n) => (level.get(n.id) ?? 0) === anchorLevel);
+  const anchorY = anchorNodes.length > 0
+    ? anchorNodes.reduce((sum, n) => sum + (n.position?.[1] ?? 0), 0) / anchorNodes.length
+    : 0;
+
+  const anchorIndex = allLevelKeys.indexOf(anchorLevel);
+  if (anchorIndex === -1) {
+    // Fallback: if for some reason the anchor level is absent, default to 0.
+    levelCenterY.set(minMissingLevel, 0);
+  } else {
+    levelCenterY.set(anchorLevel, anchorY);
+    // Walk downward (higher levels) from the anchor.
+    for (let i = anchorIndex + 1; i < allLevelKeys.length; i += 1) {
+      const prevL = allLevelKeys[i - 1];
+      const currL = allLevelKeys[i];
+      const prevH = levelMaxH.get(prevL) ?? 0;
+      const currH = levelMaxH.get(currL) ?? 0;
+      const prevCenter = levelCenterY.get(prevL)!;
+      levelCenterY.set(currL, prevCenter - prevH / 2 - spacing[1] - currH / 2);
+    }
+    // Walk upward (lower levels) from the anchor.
+    for (let i = anchorIndex - 1; i >= 0; i -= 1) {
+      const nextL = allLevelKeys[i + 1];
+      const currL = allLevelKeys[i];
+      const nextH = levelMaxH.get(nextL) ?? 0;
+      const currH = levelMaxH.get(currL) ?? 0;
+      const nextCenter = levelCenterY.get(nextL)!;
+      levelCenterY.set(currL, nextCenter + nextH / 2 + spacing[1] + currH / 2);
+    }
+  }
+
   levels.forEach((levelNodes, l) => {
     const count = levelNodes.length;
     const totalWidth = count * maxWidth + (count - 1) * spacing[0];
     const startX = -totalWidth / 2 + maxWidth / 2;
     levelNodes.forEach((node, index) => {
       const x = startX + index * (maxWidth + spacing[0]);
-      const y = -l * (maxHeight + spacing[1]);
+      const y = levelCenterY.get(l) ?? 0;
       const z = node.position?.[2] ?? 0;
       positions.set(node.id, [x, y, z]);
     });

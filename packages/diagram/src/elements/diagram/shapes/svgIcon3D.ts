@@ -9,15 +9,18 @@ import { SVGLoader } from 'three/examples/jsm/loaders/SVGLoader.js';
 /**
  * Visual rendering style for 3D SVG icons on diagram node faces.
  *
- * - 'flat':     ShapeGeometry + MeshBasicMaterial (current behaviour, unchanged)
- * - 'extruded': All filled paths extruded to a uniform depth with MeshStandardMaterial.
- *               Clean, symmetric. Best for single-colour icons.
- * - 'layered':  Paths separated by Z offset in painter's order — path[0] is the deep
- *               background slab, path[N] is closest to the viewer. AWS/GCP icons use
- *               this naturally (coloured background rect + white foreground symbol).
- *               Most visually impactful mode.
- * - 'embossed': Shallow extrusion with wide bevel — "coin" / "medallion" aesthetic.
- *               Every path shares the same Z base; the chamfered rim dominates.
+ * - 'flat':     ShapeGeometry + MeshBasicMaterial (unlit, 2-D).
+ * - 'extruded': All paths extruded to a uniform depth. Clean and symmetric.
+ *               Best for single-colour icons (tech:, security:, data: namespaces).
+ * - 'layered':  Paths stacked on the Z axis — path[0] is the deep background slab,
+ *               path[N] is closest to the viewer. AWS/GCP multi-colour icons use this
+ *               naturally. Most visually impactful mode.
+ * - 'embossed': Carved / debossed: same ExtrudeGeometry as 'extruded' but rendered
+ *               with THREE.BackSide normals. Inverted normals flip the PBR lighting:
+ *               the top walls darken (shadow) and the bottom walls brighten (reflected
+ *               fill), exactly the lighting signature of a concave carved channel.
+ *               The front cap is culled (open top), so the viewer looks into the shape.
+ *               No custom shaders required.
  */
 export type SvgIcon3DStyle = 'flat' | 'extruded' | 'layered' | 'embossed';
 
@@ -79,12 +82,11 @@ interface LayerConfig {
  * Resolves per-layer extrusion config for a path by index.
  *
  * Depth strategy summary:
- *   'extruded': all paths same depth, same zBase=0. Simple but effective.
- *   'layered':  path[0] = deep background slab starting at Z=0; subsequent paths
- *               start progressively further forward, creating a physical stack.
- *               The frontmost face of path[1] is always forward of path[0]'s front face.
- *   'embossed': all paths shallow, incrementally stepped to avoid z-fighting;
- *               the heavy bevel dominates the visual.
+ *   'extruded': all paths same depth, zBase=0. Body extrudes forward from face. Simple.
+ *   'layered':  path[0] = deep background slab; subsequent paths start progressively
+ *               further forward, creating a physical stack above the face.
+ *   'embossed': carved channel — zBase=0, depth ~0.35×maxDepth with small bevel.
+ *               Material uses THREE.BackSide in buildSvgIcon3D to invert lighting.
  *
  * Exported for unit testing only. Do not import from outside the shapes/ directory.
  */
@@ -122,16 +124,26 @@ export function resolveLayerConfig(
       };
     }
 
-    case 'embossed':
-      // All paths at same zBase with a small step per layer (avoids z-fighting).
-      // The wide bevel is the dominant visual feature.
+    case 'embossed': {
+      // Carved / debossed channel — BackSide normals applied in buildSvgIcon3D.
+      //
+      // The geometry is the same type as 'extruded' (ExtrudeGeometry above the face)
+      // but THREE.BackSide is set on the material, which:
+      //   • Culls the front cap  → open channel mouth (viewer looks down into it)
+      //   • Inverts all normals  → top walls become dark, bottom walls bright —
+      //     the exact PBR lighting signature of a concave carved channel
+      //
+      // Depth ~0.35 × maxDepth gives visible channel walls at the default 25°
+      // camera elevation without the icon feeling too deep.
+      // All paths share the same zBase (no per-path stagger).
       return {
-        zBase: pathIndex * maxDepth * 0.06,
-        depth: maxDepth * 0.28,
-        bevelThickness: maxDepth * 0.18,
-        bevelSize: maxDepth * 0.12,
-        bevelSegments: 5,
+        zBase:          0,
+        depth:          maxDepth * 0.35,
+        bevelThickness: maxDepth * 0.08,
+        bevelSize:      maxDepth * 0.06,
+        bevelSegments:  3,
       };
+    }
   }
 }
 
@@ -172,6 +184,10 @@ export function buildSvgIcon3D(
   const totalPaths = filledPaths.length;
   if (totalPaths === 0) return group;
 
+  // 'embossed' (carved) uses THREE.BackSide normals on an otherwise normal PBR
+  // material.  Inverted normals flip the lighting so the channel reads as concave.
+  const isSunken = style === 'embossed';
+
   filledPaths.forEach((path, pathIndex) => {
     const s = (path.userData as { style?: SvgPathStyle } | undefined)?.style;
     const fillColor = s?.fill ?? '#ffffff';
@@ -183,12 +199,14 @@ export function buildSvgIcon3D(
 
     const material = new THREE.MeshStandardMaterial({
       color,
-      metalness,
-      roughness,
+      metalness: isSunken ? metalness * 0.4 : metalness,  // less mirror, more matte
+      roughness: isSunken ? Math.min(1, roughness * 1.6) : roughness,
       transparent: true,
       opacity: 1,
       depthWrite: true,
-      side: THREE.FrontSide,
+      // BackSide inverts all normals → concave lighting signature:
+      // top channel walls darken (shadow), bottom walls brighten (fill-light).
+      side: isSunken ? THREE.BackSide : THREE.FrontSide,
     });
 
     shapes.forEach((shape) => {

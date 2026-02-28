@@ -44,19 +44,43 @@ describe('resolveLayerConfig', () => {
     expect(front1).toBeGreaterThan(front0);
   });
 
-  it('embossed: bevelThickness is larger than extruded bevelThickness', () => {
-    const embossed = resolveLayerConfig(0, 2, 'embossed', 0.15);
-    const extruded = resolveLayerConfig(0, 2, 'extruded', 0.15);
-    expect(embossed.bevelThickness).toBeGreaterThan(extruded.bevelThickness);
-  });
-
-  it('embossed: bevelSegments is 5 (smooth rim)', () => {
-    const c = resolveLayerConfig(0, 1, 'embossed', 0.15);
-    expect(c.bevelSegments).toBe(5);
-  });
-
-  it('extruded/embossed: bevelSegments is 3 (chamfer)', () => {
+  it('extruded: bevelSegments is 3 (chamfer)', () => {
     expect(resolveLayerConfig(0, 1, 'extruded', 0.15).bevelSegments).toBe(3);
+  });
+
+  // ── embossed (carved) geometry contract ────────────────────────────────────
+  // Embossed uses BackSide normals to invert PBR lighting, creating a concave
+  // channel effect. The geometry itself is similar to 'extruded' — the visual
+  // difference is entirely in the material side and roughness/metalness.
+
+  it('embossed: zBase is 0 (channel starts at face level)', () => {
+    const c = resolveLayerConfig(0, 1, 'embossed', 0.15);
+    expect(c.zBase).toBe(0);
+  });
+
+  it('embossed: depth provides visible channel walls at 25° camera elevation', () => {
+    const c = resolveLayerConfig(0, 1, 'embossed', 0.15);
+    // At 25° elevation, visible wall height = depth × sin(25°) ≈ depth × 0.42
+    // Must be at least 0.01 diagram units to read clearly
+    expect(c.depth * Math.sin(Math.PI / 180 * 25)).toBeGreaterThan(0.01);
+  });
+
+  it('embossed: bevelThickness is non-zero (chamfered channel rim)', () => {
+    const c = resolveLayerConfig(0, 1, 'embossed', 0.15);
+    expect(c.bevelThickness).toBeGreaterThan(0);
+  });
+
+  it('embossed: depth satisfies depth >= 2 * bevelThickness (ExtrudeGeometry validity)', () => {
+    const c = resolveLayerConfig(0, 1, 'embossed', 0.15);
+    expect(c.depth).toBeGreaterThanOrEqual(2 * c.bevelThickness);
+  });
+
+  it('embossed: all paths share the same zBase (no per-layer stagger)', () => {
+    const c0 = resolveLayerConfig(0, 3, 'embossed', 0.15);
+    const c1 = resolveLayerConfig(1, 3, 'embossed', 0.15);
+    const c2 = resolveLayerConfig(2, 3, 'embossed', 0.15);
+    expect(c0.zBase).toBeCloseTo(c1.zBase, 10);
+    expect(c1.zBase).toBeCloseTo(c2.zBase, 10);
   });
 
   it('all styles: depth scales proportionally with maxDepth', () => {
@@ -282,13 +306,13 @@ describe('buildSvgIcon3D', () => {
     expect(result.scale.z).toBe(1);
   });
 
-  it('accepts optional metalness and roughness without throwing', () => {
+  it('accepts optional metalness and roughness without throwing (extruded)', () => {
     const shape = makeShape();
     let result!: THREE.Group;
     expect(() => {
       withFakeShapes(shape, () => {
         result = buildSvgIcon3D({ paths: makePaths(['#123456']) }, {
-          width: 1, height: 1, maxDepth: 0.10, style: 'embossed',
+          width: 1, height: 1, maxDepth: 0.10, style: 'extruded',
           metalness: 0.5, roughness: 0.2,
         });
       });
@@ -296,5 +320,22 @@ describe('buildSvgIcon3D', () => {
     const mat = (result.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial;
     expect(mat.metalness).toBeCloseTo(0.5, 5);
     expect(mat.roughness).toBeCloseTo(0.2, 5);
+  });
+
+  it('embossed: uses MeshStandardMaterial with BackSide (inverted normals = concave lighting)', () => {
+    const shape = makeShape();
+    let result!: THREE.Group;
+    withFakeShapes(shape, () => {
+      result = buildSvgIcon3D({ paths: makePaths(['#ffffff']) }, {
+        width: 1, height: 1, maxDepth: 0.15, style: 'embossed',
+      });
+    });
+    expect(result.children.length).toBeGreaterThan(0);
+    const mat = (result.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    expect(mat).toBeInstanceOf(THREE.MeshStandardMaterial);
+    // BackSide inverts all normals → top channel walls dark, bottom bright = carved look
+    expect(mat.side).toBe(THREE.BackSide);
+    // Matte finish: less metallic, higher roughness than standard extruded
+    expect(mat.roughness).toBeGreaterThan(0.45);
   });
 });

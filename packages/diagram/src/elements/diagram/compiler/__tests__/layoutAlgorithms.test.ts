@@ -62,6 +62,47 @@ describe('resolveLayout', () => {
     const posB = positions.get('b')!;
     expect(Math.abs(posA[0] - posB[0])).toBeGreaterThanOrEqual(10);
   });
+
+  it('hierarchical: gap between adjacent levels equals spacing[1] regardless of height differences', () => {
+    // A tall node (h=20) drives a short node (h=2).
+    // The vertical gap between the bottom of the tall node and the top of the short node
+    // must equal exactly spacing[1] = 3, not the current behaviour where it is dominated
+    // by globalMaxHeight and becomes (20 - 2) / 2 + spacing = 11 instead of 3.
+    const nodes = [
+      makeNode('tall', { size: [4, 20] }),
+      makeNode('short', { size: [4, 2] }),
+    ];
+    const edges = [makeEdge('tall', 'short')];
+    const spacing: [number, number] = [2, 3];
+
+    const positions = resolveLayout(nodes, edges, 'hierarchical', spacing);
+
+    const yTall = positions.get('tall')![1];
+    const yShort = positions.get('short')![1];
+
+    // In Y-up space, "downstream" means smaller Y.
+    // tall occupies [yTall - 10, yTall + 10]; short occupies [yShort - 1, yShort + 1].
+    const tallBottom = yTall - 20 / 2;
+    const shortTop  = yShort + 2 / 2;
+
+    // The gap must be exactly spacing[1]. tallBottom > shortTop because Y decreases downstream.
+    const gap = tallBottom - shortTop;
+    expect(gap).toBeCloseTo(spacing[1]);
+  });
+
+  it('hierarchical: anchors auto layout to explicit node Y at the same level', () => {
+    // Explicit node at level 0 should anchor the auto-placed level 0 node.
+    const nodes = [
+      makeNode('explicit', { position: [0, 8, 0] as [number, number, number] }),
+      makeNode('auto-1'),
+      makeNode('auto-2'),
+    ];
+    const edges = [makeEdge('auto-1', 'auto-2')];
+    const positions = resolveLayout(nodes, edges, 'hierarchical', [2, 2]);
+    const yExplicit = positions.get('explicit')![1];
+    const yAuto1 = positions.get('auto-1')![1];
+    expect(yAuto1).toBeCloseTo(yExplicit);
+  });
 });
 
 const makeGroup = (id: string, nodeIds: string[], overrides: Partial<DiagramGroupDSL> = {}): DiagramGroupDSL => ({

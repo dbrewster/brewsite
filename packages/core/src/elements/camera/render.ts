@@ -184,8 +184,11 @@ export const applyCamera = (state: SceneCamera, ctx: CameraRenderContext): void 
  *
  * Modifier key → action mapping:
  *   Ctrl  + left drag → rotate(azimuth, polar)
+ *   Cmd   + left drag → rotate(azimuth, polar) [macOS]
  *   Shift + left drag → truck(x, y)  [pan in screen space]
  *   Alt   + left drag → dolly(delta) [change distance to target]
+ *   Shift + wheel     → truck(x, y)  [pan in screen space]
+ *   Cmd   + wheel     → rotate(azimuth, polar) [macOS]
  *   Alt   + wheel     → dolly(delta) [when wheelZoom: true]
  */
 export class CameraControlsDriver implements ICameraInteractionDriver {
@@ -310,7 +313,7 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
     e: PointerEvent,
     cfg: TrackpadCameraConfig,
   ): 'rotate' | 'pan' | 'zoom' | null {
-    if (e.ctrlKey && cfg.rotate !== false) return 'rotate';
+    if ((e.ctrlKey || e.metaKey) && cfg.rotate !== false) return 'rotate';
     if (e.shiftKey && cfg.pan !== false) return 'pan';
     if (e.altKey && cfg.zoom !== false) return 'zoom';
     return null;
@@ -367,7 +370,7 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
         // Normalize to [0..1] range; camera-controls truck() takes world-space delta
         // relative to the current look-at distance. Using 0.01 * speed as a
         // proportional scale (tune per scene via speed).
-        void this.cc.truck(-(dx / w) * speed, (dy / h) * speed, false);
+        void this.cc.truck((dx / w) * speed, -(dy / h) * speed, false);
         break;
       }
       case 'zoom': {
@@ -392,11 +395,35 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
   }
 
   private handleWheel(e: WheelEvent): void {
-    if (!this.cc || !this.config?.wheelZoom) return;
+    if (!this.cc) return;
+    const cfg = this.config;
+    if (!cfg) return;
+
+    if (e.shiftKey && cfg.pan !== false) {
+      e.preventDefault();
+      e.stopPropagation();
+      const speed = (cfg.pan && typeof cfg.pan === 'object' ? cfg.pan.speed : undefined) ?? 1;
+      const dx = (e.deltaX / 100) * speed;
+      const dy = (e.deltaY / 100) * speed;
+      void this.cc.truck(dx, -dy, false);
+      return;
+    }
+
+    if (e.metaKey && cfg.rotate !== false) {
+      e.preventDefault();
+      e.stopPropagation();
+      const speed = (cfg.rotate && typeof cfg.rotate === 'object' ? cfg.rotate.speed : undefined) ?? 1;
+      const azimuth = -(e.deltaX / 100) * Math.PI * 0.25 * speed;
+      const polar = -(e.deltaY / 100) * Math.PI * 0.25 * speed;
+      void this.cc.rotate(azimuth, polar, false);
+      return;
+    }
+
+    if (!cfg.wheelZoom) return;
     if (!e.altKey) return; // Alt+wheel only
     e.preventDefault();
     e.stopPropagation();
-    const speed = (this.config.zoom && typeof this.config.zoom === 'object' ? this.config.zoom.speed : undefined) ?? 1;
+    const speed = (cfg.zoom && typeof cfg.zoom === 'object' ? cfg.zoom.speed : undefined) ?? 1;
     const delta = (e.deltaY / 100) * speed;
     void this.cc.dolly(delta, false);
   }

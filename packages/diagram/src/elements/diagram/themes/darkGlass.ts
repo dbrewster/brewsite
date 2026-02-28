@@ -21,7 +21,7 @@ export const darkGlassTheme: DiagramTheme = {
     defaultSublabelColor:      '#8ba4d4',
     labelSizeFactor:           1.0,
     sublabelSizeFactor:        1.0,
-    defaultIconStyle:          'embossed',
+    defaultIconStyle:          'extruded',
   },
   edge: {
     defaultColor:         '#702dc6',

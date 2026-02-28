@@ -206,10 +206,29 @@ export class DiagramCanvasWidget
         false,
       );
       if (groupHits.length > 0) {
-        const hit = groupHits[0];
+        const pickSmallest = (hits: THREE.Intersection[]): THREE.Intersection => {
+          let best = hits[0]!;
+          let bestArea = Infinity;
+          const box = new THREE.Box3();
+          const size = new THREE.Vector3();
+          for (const h of hits) {
+            box.setFromObject(h.object);
+            box.getSize(size);
+            const area = size.x * size.y;
+            if (!Number.isFinite(area)) continue;
+            if (area < bestArea) {
+              bestArea = area;
+              best = h;
+            }
+          }
+          return best;
+        };
+        const hit = pickSmallest(groupHits);
         this.focusMesh(hit.object, cam);
         return;
       }
+      this.focusAll(cam);
+      return;
     }
 
     if (!this.onInteraction) return;
@@ -253,6 +272,73 @@ export class DiagramCanvasWidget
     const pos = center.clone().sub(dir.multiplyScalar(dist));
 
     this.scene!.userData[CAMERA_FOCUS_KEY] = {
+      position: [pos.x, pos.y, pos.z],
+      target: [center.x, center.y, center.z],
+      smooth: true,
+    };
+  }
+
+  private focusAll(cam: THREE.PerspectiveCamera): void {
+    if (!this.scene || !this.lastState) return;
+    const state = this.lastState;
+    const [crx, cry, crz] = state.rotation;
+    const [cpx, cpy, cpz] = state.position;
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    let minZ = Infinity, maxZ = -Infinity;
+
+    for (const diagram of state.diagrams) {
+      const { bounds: b } = diagram;
+      const ds = diagram.scale;
+      const [drx, dry, drz] = diagram.rotation;
+      const [dpx, dpy, dpz] = diagram.position;
+      const cs = state.scale;
+
+      const corners: Array<readonly [number, number, number]> = [
+        [b.x, b.y, 0],
+        [b.x + b.w, b.y, 0],
+        [b.x, b.y + b.h, 0],
+        [b.x + b.w, b.y + b.h, 0],
+      ];
+
+      for (const corner of corners) {
+        const cx = corner[0] * ds + dpx;
+        const cy = corner[1] * ds + dpy;
+        const cz = corner[2] * ds + dpz;
+        const [rx1, ry1, rz1] = rotateXYZ([cx, cy, cz], drx, dry, drz);
+        const wx = rx1 * cs + cpx;
+        const wy = ry1 * cs + cpy;
+        const wz = rz1 * cs + cpz;
+        const [wx2, wy2, wz2] = rotateXYZ([wx, wy, wz], crx, cry, crz);
+        minX = Math.min(minX, wx2);
+        maxX = Math.max(maxX, wx2);
+        minY = Math.min(minY, wy2);
+        maxY = Math.max(maxY, wy2);
+        minZ = Math.min(minZ, wz2);
+        maxZ = Math.max(maxZ, wz2);
+      }
+    }
+
+    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(minZ)) return;
+
+    const center = new THREE.Vector3(
+      (minX + maxX) / 2,
+      (minY + maxY) / 2,
+      (minZ + maxZ) / 2,
+    );
+    const width = Math.max(0.001, maxX - minX);
+    const height = Math.max(0.001, maxY - minY);
+    const fov = THREE.MathUtils.degToRad(cam.fov);
+    const aspect = cam.aspect || 1;
+    const distY = (height / 2) / Math.tan(fov / 2);
+    const distX = (width / 2) / (Math.tan(fov / 2) * aspect);
+    const dist = Math.max(distX, distY) * 1.2;
+
+    const dir = new THREE.Vector3();
+    cam.getWorldDirection(dir);
+    const pos = center.clone().sub(dir.multiplyScalar(dist));
+
+    this.scene.userData[CAMERA_FOCUS_KEY] = {
       position: [pos.x, pos.y, pos.z],
       target: [center.x, center.y, center.z],
       smooth: true,

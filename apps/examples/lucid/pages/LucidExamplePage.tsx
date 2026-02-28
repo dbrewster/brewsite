@@ -13,7 +13,6 @@ export default function LucidExamplePage(): JSX.Element {
         framesPerTick={80}
         pixelsPerScene={1200}
       >
-        <CameraControlPanel />
       </ScenePlayer>
     </div>
   );
