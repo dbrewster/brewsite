@@ -2099,6 +2099,18 @@ export default function ModelElementPage(): JSX.Element {
 6. H2: "Asset Loading"
    - `placeholder` prop shown until `assetsReady`
    - Manifest fetch + `createDefaultWidgetRegistry`
+7. H2: "TimelineWidget (Debug)"
+   - `<TimelineWidget>` overlay component — shows scene timeline, current tick, and progress in the browser
+   - Usage: render inside `<ScenePlayer>` as a child (via `contentSlots` named slot or direct child)
+   - `PropTable` for `TimelineWidgetProps` and `TimelineTheme`
+   - `Callout type="note"`: "TimelineWidget is a development tool — remove it before shipping to production."
+   - Code showing conditional dev-only usage:
+     ```tsx
+     <ScenePlayer widgetRegistry={registry} progress={progress}>
+       {scenes}
+       {import.meta.env.DEV && <TimelineWidget />}
+     </ScenePlayer>
+     ```
 
 ---
 
