@@ -18,6 +18,12 @@ export type SceneSnapshotContext = {
 };
 
 /**
+ * A prop value that can either be a plain value or a function that derives
+ * the value from the current scene snapshot context.
+ */
+export type Resolvable<T> = T | ((context: SceneSnapshotContext) => T);
+
+/**
  * @internal Constructed by ScenePlayer from registered <Scene> elements.
  */
 export type SceneDefinition = {

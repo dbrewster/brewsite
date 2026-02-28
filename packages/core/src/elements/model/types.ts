@@ -5,7 +5,8 @@
  * No React, no Three.js, no runtime logic.
  */
 
-export type Vec3 = [number, number, number];
+import type { Vec3 } from '../../math';
+export type { Vec3 } from '../../math';
 
 // ─── Metadata — re-exported from compiler so the compiler has no element dep ──
 

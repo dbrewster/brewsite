@@ -23,6 +23,8 @@ import type { TimelineWidgetProps } from './TimelineWidgetTypes';
 import { serializeJsx } from './serializeJsx';
 import { setSceneRuntimeState, unregisterSceneRuntime } from './ScenePlayerRegistry';
 import { SceneInspector } from './SceneInspector';
+import type { SceneModel } from '../elements/model/types';
+import type { CompileWarning } from '../compiler/sceneTrackTypes';
 
 export type InternalSceneSpec = {
   readonly sceneKey: string;
@@ -72,7 +74,10 @@ export type ScenePlayerProps = {
   onManifestError?: (error: Error) => void;
   /** Called when a single widget fails during load or apply. Engine continues rendering other widgets. */
   onWidgetError?: (widgetId: string, error: Error) => void;
+  onCompileWarning?: (warnings: CompileWarning[]) => void;
   onSceneChange?: (sceneId: string, sceneIndex: number) => void;
+  /** Default model state overrides keyed by <Model id>. */
+  defaultModelStates?: Partial<Record<string, Partial<SceneModel>>>;
   placeholder?: ReactNode;
   /** Input configuration for scene navigation. */
   inputMap?: SceneNavInputMap;
@@ -161,11 +166,11 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
   const isBrowser = typeof window !== 'undefined';
 
   const widgetRegistry = useMemo(() => {
-    if (!manifest) return createDefaultWidgetRegistry(null);
+    if (!manifest) return createDefaultWidgetRegistry(null, { defaultModelStates: props.defaultModelStates });
     return props.widgetSetup
       ? props.widgetSetup(manifest)
-      : createDefaultWidgetRegistry(manifest);
-  }, [manifest, props.widgetSetup]);
+      : createDefaultWidgetRegistry(manifest, { defaultModelStates: props.defaultModelStates });
+  }, [manifest, props.widgetSetup, props.defaultModelStates]);
 
   useEffect(() => {
     const metaWidget = widgetRegistry.get('__scene_meta__');
@@ -192,6 +197,7 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
     onReady: props.onReady,
     onError: props.onError,
     onWidgetError: props.onWidgetError,
+    onCompileWarning: props.onCompileWarning,
     labelPositioner,
     inputMap: props.inputMap,
   });

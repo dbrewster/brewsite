@@ -2,7 +2,8 @@
  * Lighting element types.
  */
 
-export type Vec3 = [number, number, number];
+import type { Vec3 } from '../../math';
+export type { Vec3 } from '../../math';
 
 export type SceneLightAmbient = {
   id?: string;

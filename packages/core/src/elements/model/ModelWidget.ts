@@ -390,18 +390,29 @@ export class ModelWidget
 
   isLoaded = false;
   readonly clipMeta: ClipMeta[];
+  private loadedClipNames = new Set<string>();
+  private warnedMissingClipNames = new Set<string>();
 
   private config: ModelWidgetConfig;
   private renderer: ModelRenderer | null = null;
   private readonly modelType: string;
   private readonly baseRotation: Vec3 | null;
 
-  constructor(config: ModelWidgetConfig) {
+  constructor(
+    config: ModelWidgetConfig,
+    defaultStateOverride?: Partial<SceneModelInstanceState['model']>,
+  ) {
     this.widgetId = config.widgetId ?? config.modelMeta.type;
     this.modelType = config.modelMeta.type;
     this.config = config;
     this.clipMeta = config.clipMeta;
     this.defaultState = createDefaultModelInstanceState(this.modelType, this.config.modelMeta.identity);
+    if (defaultStateOverride) {
+      this.defaultState.model = {
+        ...this.defaultState.model,
+        ...defaultStateOverride,
+      };
+    }
     this.baseRotation = (this.config.modelMeta.baseRotation ?? null) as Vec3 | null;
     if (this.baseRotation) {
       this.defaultState.model.rotation = [0, 0, 0];
@@ -494,10 +505,7 @@ export class ModelWidget
 
         if (isComponent(pbEl, Animation)) {
           const animRaw = pbEl.props as AnimationProps;
-          const animProps = helpers.resolveObjectValues(
-            animRaw,
-            ctx,
-          );
+          const animProps = helpers.resolveObjectValues(animRaw, ctx);
               if (helpers.resolveValue(animRaw.reset, ctx)) {
                 authored.playback!.animation!.reset = true;
               }
@@ -517,15 +525,26 @@ export class ModelWidget
                 clipRangeUnit: hasProp(animRaw as Record<string, unknown>, 'clipRangeUnit'),
                 clipRepeat: hasProp(animRaw as Record<string, unknown>, 'clipRepeat'),
                 clipStartOnce: hasProp(animRaw as Record<string, unknown>, 'clipStartOnce'),
+                trimStartKeyframes: hasProp(animRaw as Record<string, unknown>, 'trimStartKeyframes'),
+                trimEndKeyframes: hasProp(animRaw as Record<string, unknown>, 'trimEndKeyframes'),
                 holdStartPose: hasProp(animRaw as Record<string, unknown>, 'holdStartPose'),
                 allowRotation: hasProp(animRaw as Record<string, unknown>, 'allowRotation'),
                 allowScale: hasProp(animRaw as Record<string, unknown>, 'allowScale'),
               };
-              // children is not part of SceneAnimation — strip it before merging
-              const { children: _ignored, ...animState } = animProps as AnimationProps & {
+              // children/reset are not part of SceneAnimation merge payload.
+              const {
+                children: _ignored,
+                reset: _reset,
+                enabled: resolvedEnabled,
+                ...animState
+              } = animProps as AnimationProps & {
                 children?: unknown;
               };
-              animation = { ...animation, ...animState };
+              animation = {
+                ...animation,
+                ...animState,
+                ...(resolvedEnabled !== undefined ? { enabled: resolvedEnabled as boolean } : {}),
+              };
         } else if (isComponent(pbEl, Motion)) {
           const motionRaw = pbEl.props as MotionProps;
           const motionProps = helpers.resolveObjectValues(
@@ -659,6 +678,8 @@ export class ModelWidget
       ...(authored?.playback?.animation?.clipRangeUnit ? { clipRangeUnit: next.playback.animation.clipRangeUnit } : {}),
       ...(authored?.playback?.animation?.clipRepeat ? { clipRepeat: next.playback.animation.clipRepeat } : {}),
       ...(authored?.playback?.animation?.clipStartOnce ? { clipStartOnce: next.playback.animation.clipStartOnce } : {}),
+      ...(authored?.playback?.animation?.trimStartKeyframes ? { trimStartKeyframes: next.playback.animation.trimStartKeyframes } : {}),
+      ...(authored?.playback?.animation?.trimEndKeyframes ? { trimEndKeyframes: next.playback.animation.trimEndKeyframes } : {}),
       ...(authored?.playback?.animation?.holdStartPose ? { holdStartPose: next.playback.animation.holdStartPose } : {}),
       ...(authored?.playback?.animation?.allowRotation ? { allowRotation: next.playback.animation.allowRotation } : {}),
       ...(authored?.playback?.animation?.allowScale ? { allowScale: next.playback.animation.allowScale } : {}),
@@ -725,6 +746,13 @@ export class ModelWidget
       footOffsetY: modelMeta.footOffsetY ?? 0,
       baseRotation: this.baseRotation ?? undefined,
     });
+    this.loadedClipNames = new Set(this.config.clipMeta.map((clip) => clip.name));
+    this.warnedMissingClipNames.clear();
+    if (typedManifest?.animations?.length) {
+      for (const clip of typedManifest.animations) {
+        if (clip?.clipName) this.loadedClipNames.add(clip.clipName);
+      }
+    }
     this.isLoaded = true;
   }
 
@@ -741,6 +769,20 @@ export class ModelWidget
    */
   apply(state: SceneModelInstanceState, context: WidgetRenderContext): void {
     if (!this.renderer) return;
+    const clipName = state.playback.animation.clipName;
+    if (
+      this.isLoaded &&
+      clipName &&
+      this.loadedClipNames.size > 0 &&
+      !this.loadedClipNames.has(clipName) &&
+      !this.warnedMissingClipNames.has(clipName)
+    ) {
+      this.warnedMissingClipNames.add(clipName);
+      console.warn(
+        `[ModelWidget "${this.widgetId}"] Animation clip "${clipName}" not found. ` +
+        `Available clips: ${Array.from(this.loadedClipNames).join(', ')}`,
+      );
+    }
     const animation = context.extra as CompiledAnimation | undefined;
     this.renderer.apply(state, animation, context);
   }

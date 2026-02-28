@@ -13,7 +13,7 @@ import { getNodeHandler, isPrimitiveComponent, registerNode } from './registry';
 import type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { JsonPrimitive } from '../widget/VariableStore';
-import type { SceneFrame } from './sceneTrackTypes';
+import type { CompileWarning, SceneFrame } from './sceneTrackTypes';
 import type { EasingName } from './transitions/easingFunctions';
 import { ensureInputControllerRegistry } from './blocks/inputController';
 import { SceneRegistrationContext } from './SceneRegistrationContext';
@@ -130,7 +130,10 @@ const helpers: CompileHelpers = {
   collectChildren,
 };
 
-const createApi = (context: SceneSnapshotContext): CompileApi => {
+const createApi = (
+  context: SceneSnapshotContext,
+  pushWarning?: (warning: CompileWarning) => void,
+): CompileApi => {
   const state: SceneFrame = {
     id: '',
     scrollProgress: 0,
@@ -154,6 +157,9 @@ const createApi = (context: SceneSnapshotContext): CompileApi => {
       if (meta.id) state.id = meta.id;
       if (meta.meta) state.meta = meta.meta;
     },
+    pushWarning: (warning) => {
+      pushWarning?.(warning);
+    },
   };
 };
 
@@ -164,9 +170,19 @@ const useIsomorphicLayoutEffect =
 export const Scene = (props: {
   id: string;
   meta?: Record<string, JsonPrimitive>;
+  /**
+   * Multiplier applied to base metalness for all model materials in this scene.
+   */
   metalnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
+  /**
+   * Multiplier applied to base roughness for all model materials in this scene.
+   */
   roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
-  /** Easing curve for the transition into this scene. Only affects FunctionalTransitionSpec widgets. */
+  /**
+   * Easing curve for the transition into this scene.
+   * Only affects widgets using FunctionalTransitionSpec. Widgets using
+   * ElementTransitionSpec use pre-baked transition interpolation.
+   */
   transition?: { easing?: EasingName };
   children?: React.ReactNode;
 }): null => {
@@ -230,12 +246,13 @@ export const resolveSceneFromDsl = (
   tree: unknown,
   context: SceneSnapshotContext,
   widgetRegistry: WidgetRegistry,
+  pushWarning?: (warning: CompileWarning) => void,
 ): ResolvedScene => {
   if (!isValidElement(tree)) {
     throw new Error('Scene DSL must return a JSX element.');
   }
   const treeEl = tree as ReactElement;
-  const api = createApi(context);
+  const api = createApi(context, pushWarning);
   const handler = getNodeHandler(treeEl.type) as NodeHandler | undefined;
   if (!handler) {
     throw new Error('Scene DSL root must be <Scene>.');

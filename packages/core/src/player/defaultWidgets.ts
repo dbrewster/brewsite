@@ -9,12 +9,22 @@ import { CameraWidget } from '../elements/camera/CameraWidget';
 import type { AssetManifest } from '../elements/model/metadata';
 import { clipMetaFromManifest } from '../elements/model/metadata';
 import { SceneMetaWidget } from './SceneMetaWidget';
+import type { SceneModel } from '../elements/model/types';
+
+export type DefaultWidgetRegistryOptions = {
+  onSceneChange?: (sceneId: string, sceneIndex: number) => void;
+  /**
+   * Override default state fields for specific model widget IDs.
+   * Key = widgetId used by <Model id="...">.
+   */
+  defaultModelStates?: Partial<Record<string, Partial<SceneModel>>>;
+};
 
 export const createDefaultWidgetRegistry = (
   manifest: AssetManifest | null,
-  options?: { onSceneChange?: (sceneId: string, sceneIndex: number) => void },
+  options?: DefaultWidgetRegistryOptions,
 ): WidgetRegistry => {
-  const registry = new WidgetRegistry();
+  const registry = new WidgetRegistry({ strict: true });
   const clipMeta = manifest ? clipMetaFromManifest(manifest) : [];
 
   if (manifest) {
@@ -29,7 +39,10 @@ export const createDefaultWidgetRegistry = (
         const available = manifest.models.map((m) => m.type).join(', ') || '(none)';
         throw new Error(`[WidgetRegistry] Unknown model type "${type}". Available: ${available}`);
       }
-      return new ModelWidget({ modelMeta, clipMeta, widgetId: id });
+      return new ModelWidget(
+        { modelMeta, clipMeta, widgetId: id },
+        options?.defaultModelStates?.[id],
+      );
     });
   }
 

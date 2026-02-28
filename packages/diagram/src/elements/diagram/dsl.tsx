@@ -310,9 +310,12 @@ export interface DiagramProps {
 }
 
 /**
- * Root container for a 3D diagram declaration.
- * All <DiagramNode>, <DiagramEdge>, and <DiagramGroup> elements must be
- * descendants of <Diagram>.
+ * A standalone 3D diagram element with nodes, edges, groups, and layout.
+ *
+ * Use <Diagram> for single-diagram scenes where no cross-diagram connectors
+ * are required.
+ *
+ * Use <DiagramCanvas> when multiple diagrams need pipes/connections between them.
  */
 export function Diagram(_props: DiagramProps): null {
   return null;

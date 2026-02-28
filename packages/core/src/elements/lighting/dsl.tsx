@@ -2,10 +2,9 @@
  * Lighting element DSL components.
  */
 
-import type { ReactElement, ReactNode } from 'react';
-import { isValidElement } from 'react';
+import type { ReactNode } from 'react';
 import type { SceneSnapshotContext } from '../../compiler/sceneTypes';
-import type { LightStrandAxis, SceneLighting, SceneLightStrandCurve, Vec3 } from './types';
+import type { LightStrandAxis, SceneLightStrandCurve, Vec3 } from './types';
 
 type Resolvable<T> = T | ((context: SceneSnapshotContext) => T);
 
@@ -22,6 +21,15 @@ export type DirectionalProps = {
   position: Resolvable<Vec3>;
 };
 
+/**
+ * A standard Three.js PointLight that illuminates nearby geometry.
+ *
+ * Participates in shadow casting and material interactions (specular, diffuse).
+ * More GPU-expensive than <GlowPoint>.
+ *
+ * Use when you need real scene illumination. For a visual glow effect without
+ * lighting cost, use <GlowPoint> instead.
+ */
 export type PointProps = {
   id?: string;
   intensity: Resolvable<number>;
@@ -29,6 +37,15 @@ export type PointProps = {
   position: Resolvable<Vec3>;
 };
 
+/**
+ * A sprite-based pseudo-light that renders as a visible glowing orb.
+ *
+ * Does NOT illuminate surfaces, cast shadows, or participate in material PBR calculations.
+ * It is a visual effect only - a billboard sprite with a glow texture.
+ *
+ * Use for decorative light sources, UI indicators, or ambient atmosphere effects where
+ * performance matters. For actual scene illumination, use <Point> instead.
+ */
 export type GlowPointProps = {
   id?: string;
   intensity: Resolvable<number>;
@@ -59,8 +76,9 @@ export type LightStrandProps = {
   distance?: Resolvable<number>;
   decay?: Resolvable<number>;
   /**
-   * Back-compat for existing LightStrand usage.
-   * Equivalent to <Wave .../>.
+   * @deprecated Use <Wave>, <Circle>, or <Rectangle> as children instead.
+   * The child-component API is more expressive and composable. This prop will be
+   * removed in a future major version.
    */
   curve?: Resolvable<SceneLightStrandCurve>;
   children?: ReactNode;
@@ -108,7 +126,8 @@ export type PanelProps = {
 export type LightingProps = {
   intensityScale?: Resolvable<number>;
   color?: Resolvable<string>;
-  children?: ReactElement | ReactElement[];
+  /** Lighting sub-elements: <Ambient>, <Directional>, <Point>, <GlowPoint>, <Spot>, <LightStrand>, <Panel>. */
+  children?: ReactNode;
 };
 
 export const Lighting = (_props: LightingProps) => null;

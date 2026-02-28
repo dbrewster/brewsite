@@ -79,4 +79,24 @@ describe('createDefaultWidgetRegistry', () => {
     expect(registry.get('primary')).toBeDefined();
     expect(registry.get('primary')).not.toBe(routerWidget);
   });
+
+  it('applies defaultModelStates override to created ModelWidget defaultState', () => {
+    const manifest = makeManifest();
+    const registry = createDefaultWidgetRegistry(manifest, {
+      defaultModelStates: {
+        primary: { position: [0, -5, 0], opacity: 0 },
+      },
+    });
+
+    const tree = React.createElement(
+      Scene,
+      { id: 'scene' },
+      React.createElement(ModelRouter, { id: 'primary', type: 'primary' }),
+    );
+    resolveSceneFromDsl(tree, makeContext(), registry);
+
+    const modelWidget = registry.get('primary') as ModelWidget | undefined;
+    expect(modelWidget?.defaultState.model.position).toEqual([0, -5, 0]);
+    expect(modelWidget?.defaultState.model.opacity).toBe(0);
+  });
 });

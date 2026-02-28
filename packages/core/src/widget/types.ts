@@ -11,7 +11,25 @@ export interface IWidget {
 
 export interface ISceneElement<TState, TExtra = void> extends IWidget {
   readonly defaultState: TState;
+  /**
+   * Specifies how this widget's state transitions between adjacent scenes.
+   *
+   * Three transition scenarios (determined by widget presence in each scene):
+   * - exit: widget present in scene N, absent from scene N+1
+   * - enter: widget absent in scene N, present in scene N+1
+   * - interpolate: widget present in both scenes
+   *
+   * ElementTransitionSpec pre-bakes values into SceneTrack ticks at compile time.
+   * FunctionalTransitionSpec stores closures evaluated lazily each frame.
+   */
   readonly transitionSpec: ElementTransitionSpec<TState> | FunctionalTransitionSpec<TState>;
+  /**
+   * The DSL React component for this widget.
+   *
+   * Typed as ComponentType<any> because the registry is intentionally heterogeneous -
+   * each registered widget has a different prop type for its DSL component.
+   * DSL prop safety is enforced at each component's own props type.
+   */
   readonly DslComponent: React.ComponentType<any>;
   compileExtra?(state: TState, context: CompileExtraContext): TExtra;
   /**

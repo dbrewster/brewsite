@@ -8,6 +8,9 @@ change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents the full compiler pipeline for @brewsite/core including DSL evaluation, SceneTrack baking, transition specs (discrete and functional), HUD/label compilation, delta computation, caching, and the sampler."
+  - date: 2026-02-28
+    author: "Toolkit Product"
+    summary: "Added CompileWarning type (MISSING_WIDGET, DUPLICATE_WIDGET_ID, UNRESOLVED_REFERENCE) and SceneTrack.warnings? field. Warnings accumulated during compilation are surfaced to the host via ScenePlayer.onCompileWarning after compilation completes."
 ---
 
 # BrewSite Core — Compiler Pipeline
@@ -277,6 +280,18 @@ The sparse delta model allows the runtime driver to skip widget updates on frame
 ```typescript
 // packages/core/src/compiler/sceneTrackTypes.ts
 
+export type CompileWarningCode =
+  | 'MISSING_WIDGET'        // DSL element has no registered widget handler
+  | 'DUPLICATE_WIDGET_ID'   // same widgetId registered twice
+  | 'UNRESOLVED_REFERENCE'; // e.g. targetId on Camera points to unknown widget
+
+export type CompileWarning = {
+  code: CompileWarningCode;
+  message: string;
+  widgetId?: string;     // the widget ID involved, if applicable
+  sceneIndex?: number;   // the scene where the warning occurred, if applicable
+};
+
 export type SceneTrack = {
   /** The flat pre-baked frame array. Length = (numScenes - 1) * blockSize + 1. */
   ticks: SceneTrackTick[];
@@ -292,6 +307,11 @@ export type SceneTrack = {
    * Only present when at least one widget uses FunctionalTransitionSpec.
    */
   transitionBlocks?: SceneTrackTransitionBlock[];
+  /**
+   * Warnings accumulated during compilation. Empty or absent when no issues.
+   * Surfaced to the host via ScenePlayer's onCompileWarning prop after compilation.
+   */
+  warnings?: CompileWarning[];
 };
 
 export type SceneWindow = {

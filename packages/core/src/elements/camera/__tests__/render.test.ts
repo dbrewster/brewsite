@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
 import type { SceneCamera } from '../types';
 import type { SceneTrackTick } from '../../../compiler/sceneTrackTypes';
@@ -51,6 +51,18 @@ describe('applyCamera', () => {
     expect(camera.position.x).toBeCloseTo(5);
     expect(camera.position.y).toBeCloseTo(5);
     expect(camera.position.z).toBeCloseTo(5);
+  });
+
+  it('warns when fitBotHeight target is missing', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const camera = new THREE.PerspectiveCamera();
+    const state: SceneCamera = {
+      enabled: true,
+      descriptor: { mode: 'fitBotHeight', targetId: 'bot', targetHeight: 2 },
+    };
+    applyCamera(state, { camera, tick: makeTickDouble() });
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('bot'));
+    warnSpy.mockRestore();
   });
 
   it('applies focalLength via setFocalLength', () => {

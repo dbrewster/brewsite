@@ -2,7 +2,7 @@
 title: "Authoring DX Fixes — All 29 Issues from note_authoring_dx_gaps"
 doc_type: plan
 owner: brewsite-architect
-status: active
+status: complete
 updated: 2026-02-28
 ---
 

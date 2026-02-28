@@ -3,6 +3,7 @@
 import type { ReactElement } from 'react';
 import { registerNode } from '@brewsite/core';
 import type { CompileApi, CompileHelpers } from '@brewsite/core';
+import type { WidgetRegistry } from '@brewsite/core';
 import { compileDiagram } from '../elements/diagram/compile';
 import { DiagramCanvas, DiagramPipe } from '../elements/diagram/canvas/dsl';
 import { compileCanvas } from '../elements/diagram/canvas/compile';
@@ -194,14 +195,11 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
  * Not part of the public @brewsite/diagram API.
  * Test files that call clearRegistry() must import and re-call this directly.
  */
-export const registerDiagramHandlers = (): void => {
+export const registerDiagramHandlers = (registry?: WidgetRegistry): void => {
   // Register child DSL components as primitives so collectChildren preserves them.
   registerNode(DiagramNode, () => {});
   registerNode(DiagramEdge, () => {});
   registerNode(DiagramGroup, () => {});
-  registerNode(GridLayout, () => {});
-  registerNode(HierarchicalLayout, () => {});
-  registerNode(ManualLayout, () => {});
   registerNode(Exit, () => {});
   registerNode(Enter, () => {});
   registerNode(DiagramPipe, () => {});
@@ -215,6 +213,25 @@ export const registerDiagramHandlers = (): void => {
 
   registerNode(DiagramCanvas, (node: ReactElement, api: CompileApi, helpers: CompileHelpers) => {
     const props = node.props as Record<string, unknown>;
+    const canvasId = typeof props.id === 'string' ? props.id : undefined;
+    if (canvasId && registry && !registry.get(canvasId)) {
+      const warnApi = api as CompileApi & {
+        pushWarning?: (warning: {
+          code: string;
+          message: string;
+          widgetId?: string;
+          sceneIndex?: number;
+        }) => void;
+      };
+      warnApi.pushWarning?.({
+        code: 'MISSING_WIDGET',
+        message:
+          `<DiagramCanvas id="${canvasId}"> has no corresponding DiagramCanvasWidget registered. ` +
+          `Register a DiagramCanvasWidget with widgetId="${canvasId}" in widgetSetup.ts.`,
+        widgetId: canvasId,
+        sceneIndex: api.context.sceneIndex,
+      });
+    }
     const allChildren = helpers.collectChildren(node);
     const canvasTheme = props.theme as DiagramTheme | undefined;
 

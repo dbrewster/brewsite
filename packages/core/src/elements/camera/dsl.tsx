@@ -37,9 +37,16 @@ export type OrbitCameraProps = {
   up?: Vec3;
 };
 
-/** Legacy fitBotHeight props for backward compatibility. */
+/**
+ * Auto-framing camera that fits the target model's height within the viewport.
+ *
+ * Transition limitation: Transitioning between fitBotHeight and world/orbit
+ * cameras produces a hard cut at the midpoint - not a smooth interpolation.
+ * This is because the world-space position is resolved at render time, not compile time.
+ * For smooth camera transitions across modes, use world or orbit on both ends.
+ */
 export type FitBotHeightCameraProps = {
-  mode?: 'fitBotHeight';
+  mode: 'fitBotHeight';
   targetId: string;
   targetHeight: number;
   framingHeightPct?: number;
@@ -65,8 +72,11 @@ export type CameraDescriptorProps =
   | FitFloorDepthCameraProps;
 
 /**
- * Full Camera DSL props.
- * Combine a positioning descriptor with optional lens/post/interaction config.
+ * Full Camera DSL props. Combine a positioning descriptor with optional lens,
+ * post-processing, and interaction configuration.
+ *
+ * When absent from a scene: the camera holds its last rendered position from the
+ * previous scene. It does not reset to a default position.
  */
 export type CameraProps = CameraDescriptorProps & {
   // Lens (flat, maps to CameraLens)

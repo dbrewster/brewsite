@@ -9,6 +9,7 @@ import type {
   ClipMeta,
   SceneTrackTransitionBlock,
   EasingName,
+  CompileWarning,
 } from './sceneTrackTypes';
 import { ensureSceneRegistry, resolveSceneFromDsl } from './sceneDslCompiler';
 import { compileHudItems } from './hudCompiler';
@@ -87,6 +88,7 @@ const buildDelta = (prev: SceneFrame | undefined, next: SceneFrame): SceneFrameD
 export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack => {
   ensureSceneRegistry();
   const { scenes, widgetRegistry, blockSize } = options;
+  const warnings: CompileWarning[] = [];
   const numTransitions = scenes.length - 1;
   const totalFrames = numTransitions * blockSize + 1;
   const tickStep = totalFrames > 1 ? 1 / (totalFrames - 1) : 1;
@@ -116,7 +118,9 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     const raw = scene.getFrame(context);
     if (raw && typeof raw === 'object' && '$$typeof' in raw) {
       // JSX path — resolve through DSL compiler
-      const { frame } = resolveSceneFromDsl(raw, context, widgetRegistry);
+      const { frame } = resolveSceneFromDsl(raw, context, widgetRegistry, (warning) => {
+        warnings.push(warning);
+      });
       return frame;
     }
     // Pre-compiled SceneFrame path
@@ -404,5 +408,6 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     sceneWindows,
     ...(transitionBlocks.length > 0 ? { transitionBlocks } : {}),
     ...(Object.keys(transitionEasings).length > 0 ? { transitionEasings } : {}),
+    ...(warnings.length > 0 ? { warnings } : {}),
   };
 };

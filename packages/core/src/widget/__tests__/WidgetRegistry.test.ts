@@ -78,6 +78,7 @@ const makeFakeApi = (): CompileApi & { widgetStates: Record<string, unknown> } =
     pushLabel: () => {},
     setWidgetState: (id, s) => { widgetStates[id] = s; },
     setSceneMeta: () => {},
+    pushWarning: () => {},
   };
 };
 
@@ -134,6 +135,12 @@ describe('WidgetRegistry', () => {
     registry.register(new TestWidget('dupe'));
     expect(spy).toHaveBeenCalledWith(expect.stringContaining('"dupe"'));
     spy.mockRestore();
+  });
+
+  it('throws on duplicate id when strict=true', () => {
+    const strictRegistry = new WidgetRegistry({ strict: true });
+    strictRegistry.register(new TestWidget('dupe'));
+    expect(() => strictRegistry.register(new TestWidget('dupe'))).toThrow(/already registered/i);
   });
 
   it('exports CUSTOM_NODE_HANDLER symbol', () => {
@@ -283,15 +290,17 @@ describe('WidgetRegistry', () => {
     expect(getNodeHandler(Existing)).toBe(existingHandler);
   });
 
-  it('warns when no widget is found for DSL component with id', () => {
+  it('pushes MISSING_WIDGET warning when no widget is found for DSL component with id', () => {
     const widget = new TestWidget('only');
     registry.register(widget);
     const handler = getNodeHandler(widget.DslComponent);
-    const spy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const api = makeFakeApi();
+    const warnings: Array<{ code?: string }> = [];
+    api.pushWarning = (warning) => {
+      warnings.push(warning as { code?: string });
+    };
     handler?.({ props: { id: 'missing' } } as never, api as never, {} as never);
-    expect(spy).toHaveBeenCalledWith(expect.stringContaining('No widget found'));
-    spy.mockRestore();
+    expect(warnings[0]?.code).toBe('MISSING_WIDGET');
   });
 
   it('buildCacheKey includes clipMeta entries', () => {

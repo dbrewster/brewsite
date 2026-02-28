@@ -1,8 +1,10 @@
 // DiagramWidget — implements ISceneElement<DiagramState>, IRenderable, IAnimationController.
 
 import * as THREE from 'three';
+import type * as React from 'react';
 import type {
   IAnimationController,
+  IDslComposite,
   IRenderable,
   ISceneElement,
   AnimationTickContext,
@@ -10,7 +12,17 @@ import type {
   WidgetRenderContext,
 } from '@brewsite/core';
 import { setSceneLightEnabled } from '@brewsite/core';
-import { Diagram } from './dsl';
+import {
+  Diagram,
+  DiagramNode,
+  DiagramEdge,
+  DiagramGroup,
+  Exit,
+  Enter,
+  GridLayout,
+  HierarchicalLayout,
+  ManualLayout,
+} from './dsl';
 import { functionalDiagramTransitionSpec } from './compile';
 import { DiagramRenderer } from './render';
 import type {
@@ -32,12 +44,22 @@ type HoverTarget = {
 };
 
 export class DiagramWidget
-  implements ISceneElement<DiagramState>, IRenderable<DiagramState>, IAnimationController
+  implements ISceneElement<DiagramState>, IRenderable<DiagramState>, IAnimationController, IDslComposite
 {
   readonly widgetId: string;
   readonly defaultState: DiagramState;
   readonly transitionSpec = functionalDiagramTransitionSpec;
   readonly DslComponent = Diagram;
+  readonly childDslComponents: IDslComposite['childDslComponents'] = [
+    { component: DiagramNode as React.ComponentType<unknown>, displayName: 'DiagramNode', topLevelError: true },
+    { component: DiagramEdge as React.ComponentType<unknown>, displayName: 'DiagramEdge', topLevelError: true },
+    { component: DiagramGroup as React.ComponentType<unknown>, displayName: 'DiagramGroup', topLevelError: true },
+    { component: Exit as React.ComponentType<unknown>, displayName: 'Exit', topLevelError: true },
+    { component: Enter as React.ComponentType<unknown>, displayName: 'Enter', topLevelError: true },
+    { component: GridLayout as React.ComponentType<unknown>, displayName: 'GridLayout', topLevelError: true },
+    { component: HierarchicalLayout as React.ComponentType<unknown>, displayName: 'HierarchicalLayout', topLevelError: true },
+    { component: ManualLayout as React.ComponentType<unknown>, displayName: 'ManualLayout', topLevelError: true },
+  ];
 
   /**
    * Runs after CameraWidget (tickPriority = 0), ensuring the scene camera has

@@ -235,6 +235,11 @@ export class LightingWidget
             };
           }
           if (!shape) {
+            console.warn(
+              `[LightStrand] No shape specified for strand "${resolved.id}". ` +
+              `Provide <Wave>, <Circle>, or <Rectangle> as a child, or use the deprecated "curve" prop. ` +
+              `Defaulting to a zero-amplitude wave - all lights will appear stacked at the same position.`,
+            );
             shape = {
               kind: 'wave',
               curve: {
@@ -267,6 +272,12 @@ export class LightingWidget
       }
 
       const base = (api.state.widgets[this.widgetId] as SceneLighting | undefined) ?? DEFAULT_LIGHTING;
+      if (ambients.length > 1) {
+        console.warn(
+          `[Lighting] ${ambients.length} <Ambient> elements found - only the first will be used. ` +
+          `Combine them into a single <Ambient> with the desired intensity and color.`,
+        );
+      }
       const resolvedIntensityScale = helpers.resolveValue(props.intensityScale, api.context);
       const resolvedColor = helpers.resolveValue(props.color, api.context);
       const compiled: SceneLighting = {

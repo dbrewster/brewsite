@@ -360,6 +360,25 @@ describe('ModelWidget', () => {
     warn.mockRestore();
   });
 
+  it('apply warns when clipName is not in loaded clips', () => {
+    const widget = new ModelWidget(makeConfig('bot'));
+    widget.initialize(makeInitContext({ widgetId: widget.widgetId }));
+    (widget as unknown as { isLoaded: boolean }).isLoaded = true;
+    (widget as unknown as { loadedClipNames: Set<string> }).loadedClipNames = new Set(['idle']);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+
+    const state: SceneModelInstanceState = {
+      ...widget.defaultState,
+      playback: {
+        ...widget.defaultState.playback,
+        animation: { ...widget.defaultState.playback.animation, enabled: true, clipName: 'missing' },
+      },
+    };
+    widget.apply(state, makeRenderContext());
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('missing'));
+    warnSpy.mockRestore();
+  });
+
   it('load warns when contained model is missing from manifest', async () => {
     const meta = makeModelMeta('bot');
     meta.identity.model.parts = { arm: { id: 'arm', modelId: 'child' } } as never;

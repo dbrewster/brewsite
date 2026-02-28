@@ -1,7 +1,7 @@
 // Camera element — pure type contracts. No runtime or Three.js imports.
 
-/** 3-element tuple for world-space coordinates. */
-export type Vec3 = [number, number, number];
+import type { Vec3 } from '../../math';
+export type { Vec3 } from '../../math';
 
 /** Mouse button identifier for interaction bindings. */
 export type MouseButton = 'left' | 'middle' | 'right';

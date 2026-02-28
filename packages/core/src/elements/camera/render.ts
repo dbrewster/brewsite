@@ -136,7 +136,14 @@ export const applyCamera = (state: SceneCamera, ctx: CameraRenderContext): void 
   if (desc.mode === 'fitBotHeight') {
     if (!desc.targetId || typeof desc.targetHeight !== 'number') return;
     const target = getTargetState(tick, desc.targetId);
-    if (!target) return;
+    if (!target) {
+      console.warn(
+        `[CameraWidget] fitBotHeight camera could not find target widget "${desc.targetId}". ` +
+        `Ensure a ModelWidget with widgetId="${desc.targetId}" is registered in widgetSetup.ts. ` +
+        `Camera will hold its last position.`,
+      );
+      return;
+    }
     const targetPos = target.model.position;
     const targetScale = target.model.scale ?? 1;
     const framing = desc.framingHeightPct ?? 0.4;

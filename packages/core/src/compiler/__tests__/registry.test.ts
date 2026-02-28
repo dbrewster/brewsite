@@ -11,6 +11,7 @@ const fakeApi: CompileApi = {
   setSceneMeta: (meta) => {
     if (meta.id) fakeApi.state.id = meta.id;
   },
+  pushWarning: () => {},
 };
 
 describe('compiler registry', () => {

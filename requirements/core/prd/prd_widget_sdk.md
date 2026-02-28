@@ -8,6 +8,9 @@ change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Initial PRD created. Comprehensive documentation of the Widget SDK as the central extension mechanism for @brewsite/core, covering all interfaces, WidgetRegistry, VariableStore, CUSTOM_NODE_HANDLER, lifecycle phases, implementation patterns, and test infrastructure. Reflects the production implementation as of 2026-02-28."
+  - date: 2026-02-28
+    author: "Toolkit Product"
+    summary: "DX improvements: WidgetRegistry now accepts WidgetRegistryOptions { strict?: boolean } constructor option — throws on duplicate widgetId when strict=true, warns otherwise. createDefaultWidgetRegistry passes { strict: true } by convention. DslComponent remains ComponentType<any> with added JSDoc explaining the intentional choice. CompileWarning type added to sceneTrackTypes.ts; SceneTrack.warnings? field added; onCompileWarning? prop added to ScenePlayer. IDslComposite correction: DiagramWidget declares layout elements (GridLayout, HierarchicalLayout, ManualLayout, Enter, Exit) as childDslComponents with topLevelError: true — the correct ownership model."
 ---
 
 # BrewSite Core — Widget SDK
@@ -114,6 +117,12 @@ interface ISceneElement<TState, TExtra = void> extends IWidget {
   readonly transitionSpec:
     | ElementTransitionSpec<TState>
     | FunctionalTransitionSpec<TState>;
+  /**
+   * The DSL React component for this widget.
+   * Typed as ComponentType<any> because the registry is intentionally heterogeneous —
+   * each registered widget has a different prop type for its DSL component.
+   * DSL prop type safety is enforced at each widget's own component definition, not here.
+   */
   readonly DslComponent: React.ComponentType<any>;
   compileExtra?(state: TState, context: CompileExtraContext): TExtra;
   mergeSnapshot?(
@@ -255,7 +264,18 @@ Widgets that publish state to `VariableStore` declare themselves via `IVariableP
 ## 8. WidgetRegistry
 
 ```typescript
+type WidgetRegistryOptions = {
+  /**
+   * When true, registering a widget whose widgetId is already in the registry throws
+   * instead of warning. Recommended: pass { strict: true } in all production-path
+   * registry construction. createDefaultWidgetRegistry uses strict: true by default.
+   * @default false
+   */
+  strict?: boolean;
+};
+
 class WidgetRegistry {
+  constructor(options?: WidgetRegistryOptions);
   register(widget: IWidget): this;
   registerTypeFactory(
     component: unknown,
@@ -275,7 +295,13 @@ class WidgetRegistry {
 
 `WidgetRegistry` is the central registry for all widgets in a scene. A registry is created per `ScenePlayer` instance; it is not a singleton. This allows multiple independent players on the same page with different widget configurations.
 
-**`register(widget)`** — Installs the widget by `widgetId`. If a widget with the same `widgetId` is already registered, a console warning is emitted and the new widget overwrites the old one. For `ISceneElement` widgets, if no DSL node handler has been installed for `widget.DslComponent`, a routing handler is installed in the compiler's node registry. Returns `this` for chaining.
+**`constructor(options?)`** — Accepts `WidgetRegistryOptions`. The `strict` option controls duplicate-ID behavior (see `register()` below). Consumers building custom registries without `createDefaultWidgetRegistry` should pass `{ strict: true }` explicitly.
+
+**`register(widget)`** — Installs the widget by `widgetId`. If a widget with the same `widgetId` is already registered:
+- When `strict: true`: throws `Error` with a message identifying the duplicate `widgetId`. This is the behavior when using `createDefaultWidgetRegistry`.
+- When `strict: false` (default): emits `console.warn` and the new widget overwrites the old one.
+
+For `ISceneElement` widgets, a routing handler for `widget.DslComponent` is installed in the compiler's node registry (if not already present). For `IDslComposite` widgets, protective handlers are installed for each `childDslComponent` entry — entries with `topLevelError: true` throw a descriptive error if used outside their parent widget's DSL context. Returns `this` for chaining.
 
 **`registerTypeFactory(component, factory)`** — Registers a factory function for a given DSL component. When the component appears in a scene DSL tree, the routing handler calls `factory(props)` with the element's props to produce a concrete `IWidget`. The produced widget is registered under the `id` prop value. This is the correct API for polymorphic elements like `<Model>` where `type` determines the concrete widget class.
 

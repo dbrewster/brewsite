@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import React from 'react';
 import * as THREE from 'three';
 import { LightingWidget } from '../LightingWidget';
@@ -103,6 +103,39 @@ describe('LightingWidget DSL handler', () => {
     const state = frame.widgets['lighting'] as SceneLighting;
     expect(state.ambient.intensity).toBeCloseTo(0.2);
     expect(state.directional.position).toEqual([1, 1, 1]);
+  });
+
+  it('warns when multiple Ambient elements are declared', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const widget = new LightingWidget();
+    const registry = new WidgetRegistry().register(widget);
+    const tree = (
+      <Scene id="scene">
+        <Lighting>
+          <Ambient intensity={0.2} color="#000000" />
+          <Ambient intensity={0.9} color="#ffffff" />
+        </Lighting>
+      </Scene>
+    );
+    resolveSceneFromDsl(tree, makeContext(), registry);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('<Ambient>'));
+    warnSpy.mockRestore();
+  });
+
+  it('warns when LightStrand has no shape child', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const widget = new LightingWidget();
+    const registry = new WidgetRegistry().register(widget);
+    const tree = (
+      <Scene id="scene">
+        <Lighting>
+          <LightStrand id="strand" count={8} intensity={1} color="#fff" />
+        </Lighting>
+      </Scene>
+    );
+    resolveSceneFromDsl(tree, makeContext(), registry);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('No shape specified'));
+    warnSpy.mockRestore();
   });
 });
 

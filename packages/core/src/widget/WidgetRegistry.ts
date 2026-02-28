@@ -7,6 +7,14 @@ import type {
 import { registerNode, getNodeHandler } from '../compiler/registry';
 import type { NodeHandler } from '../compiler/sceneDslTypes';
 
+export type WidgetRegistryOptions = {
+  /**
+   * When true, duplicate widget IDs throw instead of warning/overwriting.
+   * @default false
+   */
+  strict?: boolean;
+};
+
 /**
  * Symbol key for widgets that need custom DSL node handlers (e.g., LightingWidget,
  * ModelWidget). Set this on the widget instance before calling registry.register().
@@ -18,6 +26,11 @@ export const CUSTOM_NODE_HANDLER = Symbol('customNodeHandler');
 export class WidgetRegistry {
   private widgets = new Map<string, IWidget>();
   private typeFactories = new Map<unknown, (props: Record<string, unknown>) => IWidget>();
+  private readonly strict: boolean;
+
+  constructor(options: WidgetRegistryOptions = {}) {
+    this.strict = options.strict ?? false;
+  }
 
   registerTypeFactory(
     component: unknown,
@@ -64,7 +77,14 @@ export class WidgetRegistry {
 
   register(widget: IWidget): this {
     if (this.widgets.has(widget.widgetId)) {
-      console.warn(`[WidgetRegistry] "${widget.widgetId}" already registered. Overwriting.`);
+      const msg =
+        `[WidgetRegistry] Widget ID "${widget.widgetId}" is already registered. ` +
+        `Duplicate widget IDs cause the first widget to be silently replaced. ` +
+        `Ensure each widget has a unique widgetId.`;
+      if (this.strict) {
+        throw new Error(msg);
+      }
+      console.warn(msg);
     }
     this.widgets.set(widget.widgetId, widget);
 
@@ -125,9 +145,14 @@ export class WidgetRegistry {
                 );
 
           if (!target || !isSceneElement(target)) {
-            console.warn(
-              `[WidgetRegistry] No widget found for DSL component with id="${targetId ?? 'unset'}"`,
-            );
+            api.pushWarning({
+              code: 'MISSING_WIDGET',
+              message:
+                `No registered widget found for DSL element with id="${targetId ?? 'unset'}". ` +
+                `Ensure a widget with this ID is registered in widgetSetup.ts before this scene compiles.`,
+              widgetId: targetId ?? undefined,
+              sceneIndex: api.context.sceneIndex,
+            });
             return;
           }
 

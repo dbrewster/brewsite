@@ -4,7 +4,7 @@ import type { RefObject } from 'react';
 import type { SceneDefinition } from '../compiler/sceneTypes';
 import { compileSceneTrack } from '../compiler/sceneTrackCompiler';
 import { buildSceneTrackKey, getCachedTrack, setCachedTrack } from '../compiler/sceneTrackCache';
-import type { SceneTrack, ClipMeta } from '../compiler/sceneTrackTypes';
+import type { SceneTrack, ClipMeta, CompileWarning } from '../compiler/sceneTrackTypes';
 import { RuntimeDriverImpl } from '../runtime/RuntimeDriver';
 import { ModelRenderer } from '../elements/model/ModelRenderer';
 import { RuntimeLoop } from '../runtime/RuntimeLoop';
@@ -32,6 +32,7 @@ export type UseSceneEngineOptions = {
   onReady?: () => void;
   onError?: (error: Error) => void;
   onWidgetError?: (widgetId: string, error: Error) => void;
+  onCompileWarning?: (warnings: CompileWarning[]) => void;
   labelPositioner?: LabelPositioner;
   inputMap?: SceneNavInputMap;
 };
@@ -462,6 +463,9 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       clipMeta: options.clipMeta,
       prefersReducedMotion,
     });
+    if (compiled.warnings?.length && options.onCompileWarning) {
+      options.onCompileWarning(compiled.warnings);
+    }
     setCachedTrack(key, compiled);
     setSceneTrack(compiled);
   }, [
@@ -472,6 +476,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     blockSize,
     prefersReducedMotion,
     sceneDefs,
+    options.onCompileWarning,
   ]);
 
   useEffect(() => {

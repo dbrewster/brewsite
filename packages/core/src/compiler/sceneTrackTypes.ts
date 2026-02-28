@@ -11,6 +11,20 @@ export type { EasingName } from './transitions/easingFunctions';
 export type { LabelResolved } from '../labels/types';
 export type { HudItemResolved } from '../hud/types';
 
+// ─── CompileWarning ───────────────────────────────────────────────────────────
+
+export type CompileWarningCode =
+  | 'MISSING_WIDGET'
+  | 'DUPLICATE_WIDGET_ID'
+  | 'UNRESOLVED_REFERENCE';
+
+export type CompileWarning = {
+  code: CompileWarningCode;
+  message: string;
+  widgetId?: string;
+  sceneIndex?: number;
+};
+
 // ─── ClipMeta ─────────────────────────────────────────────────────────────────
 
 /** Metadata about a single animation clip, used in CompileExtraContext. */
@@ -32,7 +46,13 @@ export type SceneFrame = {
   scrollProgress: number;
   widgets: Record<string, unknown>;
   meta?: Record<string, JsonPrimitive>;
+  /**
+   * Multiplier applied to base material metalness for all models in this scene.
+   */
   materialMetalnessMultiplier?: number;
+  /**
+   * Multiplier applied to base material roughness for all models in this scene.
+   */
   materialRoughnessMultiplier?: number;
   /** HUD overlay items authored for this scene. Compiled to hudPrimitives per tick. */
   hudItems?: HudItemDefinition[];
@@ -41,7 +61,10 @@ export type SceneFrame = {
   /**
    * Easing curve for the transition INTO this scene (from the preceding scene).
    * Declared via `transition={{ easing: '...' }}` on the `<Scene>` DSL element.
-   * Only affects FunctionalTransitionSpec widgets in Phase 1.
+   *
+   * Scope limitation: this easing only applies to widgets that use
+   * FunctionalTransitionSpec. Widgets using ElementTransitionSpec do not read it -
+   * those transitions are pre-baked at compile time.
    */
   transitionEasing?: EasingName;
 };
@@ -139,4 +162,8 @@ export type SceneTrack = {
    * Only present when at least one incoming scene declares a transition easing.
    */
   transitionEasings?: Partial<Record<number, EasingName>>;
+  /**
+   * Warnings accumulated during compilation. Empty/undefined when no issues.
+   */
+  warnings?: CompileWarning[];
 };
