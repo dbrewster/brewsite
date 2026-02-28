@@ -377,7 +377,7 @@ The coordinate system for transition specs is documented only in the implementat
 
 ---
 
-## Issue Count Summary
+## Issue Count Summary (Round 1)
 
 | Tier | Count | Description |
 |------|-------|-------------|
@@ -387,10 +387,13 @@ The coordinate system for transition specs is documented only in the implementat
 | T4 — Missing capabilities | 6 | Expected features that don't exist |
 | **Total** | **29** | |
 
+See `note_authoring_dx_gaps_round2.md` for 14 additional issues found in a second pass (T4-7 through T6-5).
+
 ---
 
-## Recommended Implementation Order
+## Recommended Implementation Order (Round 1 items)
 
+### Highest priority
 1. **T1-1** (Model `context: unknown`) — affects every function prop on the most-used element
 2. **T1-2** (MotionProps `unknown` fields) — blocks all procedural animation authoring
 3. **T2-1** (FitBotHeight targetId silent no-op) — most dangerous silent failure
@@ -398,8 +401,12 @@ The coordinate system for transition specs is documented only in the implementat
 5. **T1-3** (LightingProps children type) — one-line fix, breaks common pattern
 6. **T3-1** (KeyMap.key collision) — active footgun
 7. **T3-2** (PointerMap drag/click) — confusing but lower frequency
+
+### Medium priority
 8. **T4-2** (trimStartKeyframes in DSL) — small addition, real need
-9. **T4-1** (clipName validation) — requires warn at minimum, codegen long-term
+9. **T4-1** (clipName validation) — runtime warn minimum; codegen typed union long-term
+
+### Lower priority
 10. All remaining T3/T4 items — JSDoc, deprecations, minor type improvements
 
 ---
