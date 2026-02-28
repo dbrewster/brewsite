@@ -4,6 +4,8 @@
 import type { HudItemDefinition, HudItemResolved } from '../hud/types';
 import type { LabelResolved } from '../labels/types';
 import type { JsonPrimitive } from '../widget/VariableStore';
+import type { EasingName } from './transitions/easingFunctions';
+export type { EasingName } from './transitions/easingFunctions';
 
 // Re-export for consumers that import from here for convenience
 export type { LabelResolved } from '../labels/types';
@@ -36,6 +38,12 @@ export type SceneFrame = {
   hudItems?: HudItemDefinition[];
   /** Label definitions authored for this scene. Compiled to labelPrimitives per tick. */
   labels?: LabelResolved[];
+  /**
+   * Easing curve for the transition INTO this scene (from the preceding scene).
+   * Declared via `transition={{ easing: '...' }}` on the `<Scene>` DSL element.
+   * Only affects FunctionalTransitionSpec widgets in Phase 1.
+   */
+  transitionEasing?: EasingName;
 };
 
 // ─── SceneFrameDelta ──────────────────────────────────────────────────────────
@@ -125,4 +133,10 @@ export type SceneTrack = {
    * Length ≤ numScenes - 1.
    */
   transitionBlocks?: SceneTrackTransitionBlock[];
+  /**
+   * Per-block easing overrides. Key N = easing name for the transition from
+   * scene N to scene N+1, sourced from scene N+1's `transition.easing` prop.
+   * Only present when at least one incoming scene declares a transition easing.
+   */
+  transitionEasings?: Partial<Record<number, EasingName>>;
 };

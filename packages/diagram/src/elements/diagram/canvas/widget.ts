@@ -9,11 +9,18 @@ import type {
   WidgetInitContext,
   WidgetRenderContext,
 } from '@brewsite/core';
+import { setSceneLightEnabled } from '@brewsite/core';
 import { DiagramCanvas } from './dsl';
 import { functionalDiagramCanvasTransitionSpec } from './compile';
 import { DiagramCanvasRenderer } from './render';
 import type { DiagramCanvasState } from './types';
-import type { DiagramInteractionEvent, DiagramNodeState } from '../types';
+import type {
+  DiagramGroupHoverEvent,
+  DiagramHoverControls,
+  DiagramInteractionEvent,
+  DiagramNodeHoverEvent,
+  DiagramNodeState,
+} from '../types';
 import { rotateXYZ } from './compiler/pipeRouter';
 import {
   clearDiagramFocusRegion,
@@ -23,6 +30,12 @@ import {
 
 const CAMERA_KEY = '__brewsite_camera';
 const CAMERA_FOCUS_KEY = '__brewsite_camera_focus';
+type HoverTarget = {
+  diagramId: string;
+  groupPath: string[];
+  nodeId?: string;
+  point: readonly [number, number, number];
+};
 
 export class DiagramCanvasWidget
   implements
@@ -47,6 +60,9 @@ export class DiagramCanvasWidget
   private lastState: DiagramCanvasState | null = null;
   private canvasElement: HTMLCanvasElement | null = null;
   private clickHandler: ((e: MouseEvent) => void) | null = null;
+  private mouseMoveHandler: ((e: MouseEvent) => void) | null = null;
+  private mouseLeaveHandler: (() => void) | null = null;
+  private hovered: HoverTarget | null = null;
   private readonly raycaster = new THREE.Raycaster();
   private readonly ndc = new THREE.Vector2();
   private inputTranslation: [number, number, number] = [0, 0, 0];
@@ -62,7 +78,11 @@ export class DiagramCanvasWidget
     if (renderer?.domElement) {
       this.canvasElement = renderer.domElement;
       this.clickHandler = (e) => this.handleClick(e);
+      this.mouseMoveHandler = (e) => this.handleMouseMove(e);
+      this.mouseLeaveHandler = () => this.clearHover();
       this.canvasElement.addEventListener('click', this.clickHandler);
+      this.canvasElement.addEventListener('mousemove', this.mouseMoveHandler);
+      this.canvasElement.addEventListener('mouseleave', this.mouseLeaveHandler);
     }
   }
 
@@ -200,9 +220,14 @@ export class DiagramCanvasWidget
   dispose(): void {
     if (this.canvasElement && this.clickHandler) {
       this.canvasElement.removeEventListener('click', this.clickHandler);
+      if (this.mouseMoveHandler) this.canvasElement.removeEventListener('mousemove', this.mouseMoveHandler);
+      if (this.mouseLeaveHandler) this.canvasElement.removeEventListener('mouseleave', this.mouseLeaveHandler);
       this.canvasElement = null;
       this.clickHandler = null;
+      this.mouseMoveHandler = null;
+      this.mouseLeaveHandler = null;
     }
+    this.clearHover();
     if (!this.scene) return;
     this.renderer.dispose(this.widgetId, this.scene);
     this.scene = null;
@@ -315,6 +340,235 @@ export class DiagramCanvasWidget
       nodeId: info.nodeId,
       intersectPoint: [hit.point.x, hit.point.y, hit.point.z],
     });
+  }
+
+  private handleMouseMove(event: MouseEvent): void {
+    if (!this.scene || !this.canvasElement || !this.lastState) return;
+    const rect = this.canvasElement.getBoundingClientRect();
+    this.ndc.set(
+      ((event.clientX - rect.left) / rect.width) * 2 - 1,
+      -((event.clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    const cam = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
+    if (!cam) return;
+    this.raycaster.setFromCamera(this.ndc, cam);
+
+    const nodeIntersects = this.raycaster.intersectObjects(
+      Array.from(this.renderer.getInteractionMeshes()),
+      false,
+    );
+    const groupIntersects = this.raycaster.intersectObjects(
+      Array.from(this.renderer.getGroupInteractionMeshes()),
+      false,
+    );
+
+    let next: HoverTarget | null = null;
+    const nodeHit = nodeIntersects[0];
+    if (nodeHit) {
+      const nodeInfo = this.renderer.lookupInteraction(nodeHit.object as THREE.Mesh);
+      if (nodeInfo) {
+        const diagram = this.lastState.diagrams.find((d) => d.id === nodeInfo.diagramId);
+        if (diagram) {
+          const node = diagram.nodes.find((n) => n.id === nodeInfo.nodeId);
+          const groupPath = node?.groupId ? this.buildGroupPath(diagram, node.groupId) : [];
+          next = {
+            diagramId: nodeInfo.diagramId,
+            nodeId: nodeInfo.nodeId,
+            groupPath,
+            point: [nodeHit.point.x, nodeHit.point.y, nodeHit.point.z],
+          };
+        }
+      }
+    }
+    if (!next && groupIntersects.length > 0) {
+      const groupInfos = groupIntersects
+        .map((hit) => {
+          const info = this.renderer.lookupGroupInteraction(hit.object as THREE.Mesh);
+          if (!info) return null;
+          return { info, hit };
+        })
+        .filter((v): v is NonNullable<typeof v> => !!v);
+      if (groupInfos.length > 0) {
+        let selected = groupInfos[0]!;
+        let selectedDepth = this.groupDepth(selected.info.diagramId, selected.info.groupId);
+        for (const candidate of groupInfos.slice(1)) {
+          const depth = this.groupDepth(candidate.info.diagramId, candidate.info.groupId);
+          if (depth > selectedDepth) {
+            selected = candidate;
+            selectedDepth = depth;
+          }
+        }
+        const diagram = this.lastState.diagrams.find((d) => d.id === selected.info.diagramId);
+        if (diagram) {
+          next = {
+            diagramId: selected.info.diagramId,
+            groupPath: this.buildGroupPath(diagram, selected.info.groupId),
+            point: [selected.hit.point.x, selected.hit.point.y, selected.hit.point.z],
+          };
+        }
+      }
+    }
+
+    this.transitionHover(this.hovered, next);
+    this.hovered = next;
+  }
+
+  private clearHover(): void {
+    if (!this.lastState || !this.hovered) return;
+    this.transitionHover(this.hovered, null);
+    this.hovered = null;
+  }
+
+  private createHoverControls(defaultDiagramId: string): DiagramHoverControls {
+    return {
+      setLightEnabled: (lightId, enabled) => {
+        if (!this.scene) return;
+        setSceneLightEnabled(this.scene, lightId, enabled);
+      },
+      setNodeEmissive: (nodeId, enabled, options) => {
+        const diagramId = options?.diagramId ?? defaultDiagramId;
+        this.renderer.setNodeEmissiveOverride(diagramId, nodeId, enabled);
+      },
+      setGroupNodesEmissive: (groupId, enabled, options) => {
+        if (!this.lastState) return;
+        const diagramId = options?.diagramId ?? defaultDiagramId;
+        const diagram = this.lastState.diagrams.find((d) => d.id === diagramId);
+        if (!diagram) return;
+        const includeDescendants = options?.includeDescendants ?? true;
+        const groupIds = this.collectGroupIds(diagram, groupId, includeDescendants);
+        for (const node of diagram.nodes) {
+          if (!node.groupId || !groupIds.has(node.groupId)) continue;
+          this.renderer.setNodeEmissiveOverride(diagramId, node.id, enabled);
+        }
+      },
+    };
+  }
+
+  private collectGroupIds(
+    diagram: DiagramCanvasState['diagrams'][number],
+    groupId: string,
+    includeDescendants: boolean,
+  ): Set<string> {
+    const result = new Set<string>([groupId]);
+    if (!includeDescendants) return result;
+    const childMap = new Map<string, string[]>();
+    for (const group of diagram.groups) {
+      if (!group.parentId) continue;
+      const list = childMap.get(group.parentId) ?? [];
+      list.push(group.id);
+      childMap.set(group.parentId, list);
+    }
+    const queue = [groupId];
+    while (queue.length > 0) {
+      const current = queue.shift();
+      if (!current) continue;
+      const children = childMap.get(current) ?? [];
+      for (const child of children) {
+        if (result.has(child)) continue;
+        result.add(child);
+        queue.push(child);
+      }
+    }
+    return result;
+  }
+
+  private transitionHover(prev: HoverTarget | null, next: HoverTarget | null): void {
+    if (!this.lastState) return;
+    const prevPath = prev?.groupPath ?? [];
+    const nextPath = next?.groupPath ?? [];
+    let shared = 0;
+    while (
+      shared < prevPath.length &&
+      shared < nextPath.length &&
+      prevPath[shared] === nextPath[shared] &&
+      prev?.diagramId === next?.diagramId
+    ) {
+      shared += 1;
+    }
+    const prevNodeChanged = prev?.diagramId !== next?.diagramId || prev?.nodeId !== next?.nodeId;
+    if (prev?.nodeId && prevNodeChanged) {
+      if (this.dispatchNodeHover(prev.diagramId, prev.nodeId, prev.point, 'node-mouse-leave')) return;
+    }
+    for (let i = shared; i < prevPath.length; i += 1) {
+      if (this.dispatchGroupHover(prev!.diagramId, prevPath[i]!, prev!.point, 'group-mouse-leave')) return;
+    }
+    for (let i = shared; i < nextPath.length; i += 1) {
+      if (this.dispatchGroupHover(next!.diagramId, nextPath[i]!, next!.point, 'group-mouse-enter')) return;
+    }
+    if (next?.nodeId && prevNodeChanged) {
+      this.dispatchNodeHover(next.diagramId, next.nodeId, next.point, 'node-mouse-enter');
+    }
+  }
+
+  private buildGroupPath(
+    diagram: DiagramCanvasState['diagrams'][number],
+    leafGroupId: string,
+  ): string[] {
+    const byId = new Map(diagram.groups.map((group) => [group.id, group] as const));
+    const path: string[] = [];
+    let cursor = byId.get(leafGroupId);
+    while (cursor) {
+      path.push(cursor.id);
+      cursor = cursor.parentId ? byId.get(cursor.parentId) : undefined;
+    }
+    return path.reverse();
+  }
+
+  private groupDepth(diagramId: string, groupId: string): number {
+    const diagram = this.lastState?.diagrams.find((d) => d.id === diagramId);
+    if (!diagram) return 0;
+    return this.buildGroupPath(diagram, groupId).length;
+  }
+
+  private dispatchGroupHover(
+    diagramId: string,
+    groupId: string,
+    point: readonly [number, number, number],
+    type: 'group-mouse-enter' | 'group-mouse-leave',
+  ): boolean {
+    const diagram = this.lastState?.diagrams.find((d) => d.id === diagramId);
+    const group = diagram?.groups.find((g) => g.id === groupId);
+    if (!group) return false;
+    const handler = type === 'group-mouse-enter' ? group.onMouseEnter : group.onMouseLeave;
+    if (!handler) return false;
+    let stopped = false;
+    const event: DiagramGroupHoverEvent = {
+      type,
+      diagramId,
+      groupId,
+      intersectPoint: point,
+      controls: this.createHoverControls(diagramId),
+      stopPropagation: () => { stopped = true; },
+      isPropagationStopped: () => stopped,
+    };
+    handler(event);
+    return stopped;
+  }
+
+  private dispatchNodeHover(
+    diagramId: string,
+    nodeId: string,
+    point: readonly [number, number, number],
+    type: 'node-mouse-enter' | 'node-mouse-leave',
+  ): boolean {
+    const diagram = this.lastState?.diagrams.find((d) => d.id === diagramId);
+    const node = diagram?.nodes.find((n) => n.id === nodeId);
+    if (!node) return false;
+    const handler = type === 'node-mouse-enter' ? node.onMouseEnter : node.onMouseLeave;
+    if (!handler) return false;
+    let stopped = false;
+    const event: DiagramNodeHoverEvent = {
+      type,
+      diagramId,
+      nodeId,
+      groupId: node.groupId,
+      intersectPoint: point,
+      controls: this.createHoverControls(diagramId),
+      stopPropagation: () => { stopped = true; },
+      isPropagationStopped: () => stopped,
+    };
+    handler(event);
+    return stopped;
   }
 
   private focusMesh(mesh: THREE.Object3D, cam: THREE.PerspectiveCamera): void {

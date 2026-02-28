@@ -3,7 +3,7 @@ import { Fade } from '@brewsite/core/hud/animejs';
 import { backgrounds, sceneLighting } from './sceneAssets';
 
 export const scene05Outro= (
-    <Scene key="complex-outro">
+    <Scene id="complex-outro">
       <Background imageUrl={backgrounds.outro} opacity={1} cssSize="cover" cssPosition="center" />
       <Lighting intensityScale={1}>
         <Ambient intensity={sceneLighting.soft.ambient * 0.6} color="#d9e0ff" />

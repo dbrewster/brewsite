@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, waitFor } from '@testing-library/react';
 import { ScenePlayer } from '../ScenePlayer';
 import { Scene } from '../../compiler/sceneDslCompiler';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
@@ -78,97 +78,96 @@ describe('ScenePlayer scene extraction', () => {
     vi.clearAllMocks();
   });
 
-  it('derives sceneKey from Scene keys', async () => {
+  it('collects direct Scene and wrapped Scene components in source order', async () => {
     const { useSceneEngine } = await import('../useSceneEngine');
 
-    render(
-      <ScenePlayer manifestUrl={validManifestUrl} widgetSetup={() => new WidgetRegistry()}>
-        <Scene key="a" />
-        <Scene key="b" />
-      </ScenePlayer>,
-    );
-
-    const calls = (useSceneEngine as unknown as { mock: { calls: unknown[][] } }).mock.calls;
-    const options = calls[calls.length - 1]?.[0] as { scenes: Array<{ sceneKey: string }> };
-    expect(options.scenes.map((s) => s.sceneKey)).toEqual(['a', 'b']);
-  });
-
-  it('warns and falls back to index for unkeyed Scene', async () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { useSceneEngine } = await import('../useSceneEngine');
+    const Wrapped = () => <Scene id="wrapped" />;
 
     render(
       <ScenePlayer manifestUrl={validManifestUrl} widgetSetup={() => new WidgetRegistry()}>
-        <Scene />
+        <Scene id="direct-a" />
+        <Wrapped />
+        <Scene id="direct-b" />
       </ScenePlayer>,
     );
 
-    const calls = (useSceneEngine as unknown as { mock: { calls: unknown[][] } }).mock.calls;
-    const options = calls[calls.length - 1]?.[0] as { scenes: Array<{ sceneKey: string }> };
-    expect(options.scenes[0]?.sceneKey).toBe('0');
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('has no key prop'));
-  });
-
-  it('filters non-Scene children and warns with count', () => {
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    render(
-      <ScenePlayer manifestUrl={validManifestUrl} widgetSetup={() => new WidgetRegistry()}>
-        <Scene key="a" />
-        <div>ignored</div>
-      </ScenePlayer>,
-    );
-
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('1 non-<Scene> child(ren)'));
+    await waitFor(() => {
+      const calls = (useSceneEngine as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+      const options = calls[calls.length - 1]?.[0] as { scenes: Array<{ sceneKey: string }> };
+      expect(options.scenes.map((s) => s.sceneKey)).toEqual(['direct-a', 'wrapped', 'direct-b']);
+    });
   });
 
   it('updates contentKey when scene props change', async () => {
     const { useSceneEngine } = await import('../useSceneEngine');
     const { rerender } = render(
       <ScenePlayer manifestUrl={validManifestUrl} widgetSetup={() => new WidgetRegistry()}>
-        <Scene key="a" meta={{ tone: 'warm' }} />
+        <Scene id="a" meta={{ tone: 'warm' }} />
       </ScenePlayer>,
     );
 
-    const callsA = (useSceneEngine as unknown as { mock: { calls: unknown[][] } }).mock.calls;
-    const optionsA = callsA[callsA.length - 1]?.[0] as { scenes: Array<{ contentKey: string }> };
-    const keyA = optionsA.scenes[0]?.contentKey;
+    let keyA = '';
+    await waitFor(() => {
+      const calls = (useSceneEngine as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+      const options = calls[calls.length - 1]?.[0] as { scenes: Array<{ contentKey: string }> };
+      keyA = options.scenes[0]?.contentKey ?? '';
+      expect(keyA).not.toBe('');
+    });
 
     rerender(
       <ScenePlayer manifestUrl={validManifestUrl} widgetSetup={() => new WidgetRegistry()}>
-        <Scene key="a" meta={{ tone: 'cool' }} />
+        <Scene id="a" meta={{ tone: 'cool' }} />
       </ScenePlayer>,
     );
 
-    const callsB = (useSceneEngine as unknown as { mock: { calls: unknown[][] } }).mock.calls;
-    const optionsB = callsB[callsB.length - 1]?.[0] as { scenes: Array<{ contentKey: string }> };
-    const keyB = optionsB.scenes[0]?.contentKey;
-
-    expect(keyB).not.toBe(keyA);
+    await waitFor(() => {
+      const calls = (useSceneEngine as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+      const options = calls[calls.length - 1]?.[0] as { scenes: Array<{ contentKey: string }> };
+      const keyB = options.scenes[0]?.contentKey ?? '';
+      expect(keyB).not.toBe(keyA);
+    });
   });
 
   it('keeps contentKey stable across identical renders', async () => {
     const { useSceneEngine } = await import('../useSceneEngine');
     const { rerender } = render(
       <ScenePlayer manifestUrl={validManifestUrl} widgetSetup={() => new WidgetRegistry()}>
-        <Scene key="a" meta={{ tone: 'warm' }} />
+        <Scene id="a" meta={{ tone: 'warm' }} />
       </ScenePlayer>,
     );
 
-    const callsA = (useSceneEngine as unknown as { mock: { calls: unknown[][] } }).mock.calls;
-    const optionsA = callsA[callsA.length - 1]?.[0] as { scenes: Array<{ contentKey: string }> };
-    const keyA = optionsA.scenes[0]?.contentKey;
+    let keyA = '';
+    await waitFor(() => {
+      const calls = (useSceneEngine as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+      const options = calls[calls.length - 1]?.[0] as { scenes: Array<{ contentKey: string }> };
+      keyA = options.scenes[0]?.contentKey ?? '';
+      expect(keyA).not.toBe('');
+    });
 
     rerender(
       <ScenePlayer manifestUrl={validManifestUrl} widgetSetup={() => new WidgetRegistry()}>
-        <Scene key="a" meta={{ tone: 'warm' }} />
+        <Scene id="a" meta={{ tone: 'warm' }} />
       </ScenePlayer>,
     );
 
-    const callsB = (useSceneEngine as unknown as { mock: { calls: unknown[][] } }).mock.calls;
-    const optionsB = callsB[callsB.length - 1]?.[0] as { scenes: Array<{ contentKey: string }> };
-    const keyB = optionsB.scenes[0]?.contentKey;
+    await waitFor(() => {
+      const calls = (useSceneEngine as unknown as { mock: { calls: unknown[][] } }).mock.calls;
+      const options = calls[calls.length - 1]?.[0] as { scenes: Array<{ contentKey: string }> };
+      const keyB = options.scenes[0]?.contentKey ?? '';
+      expect(keyB).toBe(keyA);
+    });
+  });
 
-    expect(keyB).toBe(keyA);
+  it('does not warn for non-Scene children', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    render(
+      <ScenePlayer manifestUrl={validManifestUrl} widgetSetup={() => new WidgetRegistry()}>
+        <Scene id="a" />
+        <div>inert child</div>
+      </ScenePlayer>,
+    );
+
+    expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('non-<Scene>'));
   });
 });

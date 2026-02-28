@@ -22,7 +22,7 @@ describe('ScenePlayer (server)', () => {
         widgetSetup={() => new WidgetRegistry()}
         placeholder={<div>Loading</div>}
       >
-        <Scene key="s1" />
+        <Scene id="s1" />
       </ScenePlayer>,
     );
     expect(html).toContain('Loading');

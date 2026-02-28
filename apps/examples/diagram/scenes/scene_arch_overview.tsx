@@ -4,7 +4,7 @@ import {DiagramCanvas, Diagram, DiagramEdge, DiagramGroup, DiagramNode, Exit, Ma
 import {backgrounds, makeCubeUrls, skyEnvironment} from "./sceneAssets";
 
 export const sceneArchOverview= (
-    <Scene key="arch-overview">
+    <Scene id="arch-overview">
       <Environment enabled intensity={0.05}>
         <EnvironmentCube urls={makeCubeUrls(skyEnvironment)} />
       </Environment>

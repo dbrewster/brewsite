@@ -7,12 +7,9 @@ import {
   DiagramCanvasWidget,
   compileCanvas,
   compileDiagram,
-  registerDiagramHandlers,
 } from '@brewsite/diagram';
 
-export const createAutoWidgetSetup = (manifest: AssetManifest | null) => {
-  registerDiagramHandlers();
-
+export const createAutoWidgetSetup = (manifest: AssetManifest) => {
   const registry = createDefaultWidgetRegistry(manifest);
 
   // Default state: same topology as the scene but compiled with auto-layout.

@@ -3,23 +3,20 @@
 import { useEffect, useRef } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import type { UseSceneEngineResult } from './useSceneEngine';
-import type { SceneNavInputMap } from '../input/types';
 
 export type EngineInputRegionProps = {
   engine: UseSceneEngineResult;
-  inputMap?: SceneNavInputMap;
   className?: string;
   children?: ReactNode;
 };
 
 export const EngineInputRegion = ({
   engine,
-  inputMap,
   className,
   children,
 }: EngineInputRegionProps): ReactElement => {
   const stickyRef = useRef<HTMLDivElement | null>(null);
-  const mode = inputMap?.mode ?? 'scroll';
+  const mode = engine.inputMode;
 
   useEffect(() => {
     const el = stickyRef.current;

@@ -1,10 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
+import { brewsiteGenPlugin } from './vite-gen-plugin.mjs';
 
 export default defineConfig({
   root: resolve(__dirname, 'vite-app'),
-  plugins: [react()],
+  plugins: [react(), brewsiteGenPlugin()],
   resolve: {
     dedupe: ['react', 'react-dom', 'three'],
     alias: [

@@ -8,11 +8,14 @@ import type {
   SceneFrameDelta,
   ClipMeta,
   SceneTrackTransitionBlock,
+  EasingName,
 } from './sceneTrackTypes';
 import { ensureSceneRegistry, resolveSceneFromDsl } from './sceneDslCompiler';
 import { compileHudItems } from './hudCompiler';
 import { compileLabels } from './labelCompiler';
 import { isFunctionalSpec } from './transitions/transitionTypes';
+
+const INPUT_CONTROLLER_WIDGET_ID = '__input_controller';
 
 export type CompileSceneTrackOptions = {
   scenes: SceneDefinition[];
@@ -123,13 +126,6 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     );
   });
 
-  const sceneElementWidgetIds = new Set(widgetRegistry.getSceneElements().map((w) => w.widgetId));
-  const passthroughWidgetsByScene: Array<Record<string, unknown>> = snapshots.map((snapshot) =>
-    Object.fromEntries(
-      Object.entries(snapshot.widgets).filter(([widgetId]) => !sceneElementWidgetIds.has(widgetId)),
-    ),
-  );
-
   // ── Step 1.5: Allow widgets to merge snapshots for persistence ─────────────
   for (const widget of widgetRegistry.getSceneElements()) {
     if (!widget.mergeSnapshot) continue;
@@ -147,6 +143,27 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
       prev = merged;
     }
   }
+
+  // Scene-authored input controller is a compiler block, not a registered scene element.
+  // Carry it forward so authors don't need to restate <InputController> every scene.
+  let prevInputController: unknown = undefined;
+  for (const snapshot of snapshots) {
+    const nextInputController = snapshot.widgets[INPUT_CONTROLLER_WIDGET_ID];
+    const mergedInputController = nextInputController ?? prevInputController;
+    if (mergedInputController === undefined) {
+      delete snapshot.widgets[INPUT_CONTROLLER_WIDGET_ID];
+    } else {
+      snapshot.widgets[INPUT_CONTROLLER_WIDGET_ID] = mergedInputController;
+    }
+    prevInputController = mergedInputController;
+  }
+
+  const sceneElementWidgetIds = new Set(widgetRegistry.getSceneElements().map((w) => w.widgetId));
+  const passthroughWidgetsByScene: Array<Record<string, unknown>> = snapshots.map((snapshot) =>
+    Object.fromEntries(
+      Object.entries(snapshot.widgets).filter(([widgetId]) => !sceneElementWidgetIds.has(widgetId)),
+    ),
+  );
 
   // ── Step 2: Allocate the flat frame array ────────────────────────────────────
   // Each frame starts with an empty widgets map. Widgets fill their own slots.
@@ -182,6 +199,10 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
   // uses FunctionalTransitionSpec instead of filling discrete frames.
   const transitionBlocks: SceneTrackTransitionBlock[] = [];
 
+  // Accumulates per-block easing overrides. Key N = easing for scene N → scene N+1,
+  // sourced from scene N+1's transitionEasing field.
+  const transitionEasings: Partial<Record<number, EasingName>> = {};
+
   // ── Step 3: Fill each transition block via widget batch methods ──────────────
   for (let n = 0; n < numTransitions; n++) {
     const blockStart = n * blockSize;
@@ -191,6 +212,12 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     const toSnap = snapshots[n + 1];
 
     if (!fromSnap || !toSnap) continue;
+
+    // Capture easing from the incoming scene (scene n+1's transitionEasing prop).
+    const incomingEasing = toSnap.transitionEasing;
+    if (incomingEasing) {
+      transitionEasings[n] = incomingEasing;
+    }
 
     for (const widget of widgetRegistry.getSceneElements()) {
       const { widgetId, defaultState, transitionSpec } = widget;
@@ -376,5 +403,6 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     subTickCount: totalFrames,
     sceneWindows,
     ...(transitionBlocks.length > 0 ? { transitionBlocks } : {}),
+    ...(Object.keys(transitionEasings).length > 0 ? { transitionEasings } : {}),
   };
 };

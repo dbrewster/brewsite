@@ -31,6 +31,7 @@ export type UseSceneEngineOptions = {
   blockSize?: number;
   onReady?: () => void;
   onError?: (error: Error) => void;
+  onWidgetError?: (widgetId: string, error: Error) => void;
   labelPositioner?: LabelPositioner;
   inputMap?: SceneNavInputMap;
 };
@@ -39,6 +40,7 @@ export type UseSceneEngineResult = {
   frameState: EngineFrameState;
   scrollRegionRef: RefObject<HTMLDivElement | null>;
   scrollRegionHeightPx: number;
+  inputMode: 'scroll' | 'direct';
   progress: number;
   scrollToProgress: (next: number) => void;
   getGlobalProgress: () => number;
@@ -121,8 +123,13 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     [options.scenes],
   );
 
+  const hasSceneInputController = frameState.tick
+    ? ((frameState.tick.state.widgets[INPUT_CONTROLLER_WIDGET_ID] as SceneInputControllerSpec | undefined) ?? null) !== null
+    : false;
+  const inputMode: 'scroll' | 'direct' = hasSceneInputController ? 'direct' : 'scroll';
+
   const scrollRegionHeightPx = useMemo(() => {
-    if (options.inputMap?.mode === 'direct') return Math.max(1, viewportHeight);
+    if (inputMode === 'direct') return Math.max(1, viewportHeight);
     const sceneCount = Math.max(1, options.scenes.length);
     const numTransitions = Math.max(0, sceneCount - 1);
     const totalFrames = numTransitions * blockSize + 1;
@@ -131,7 +138,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     }
     if (sceneCount <= 1) return Math.max(1, viewportHeight);
     return Math.max(1, viewportHeight + totalFrames);
-  }, [options.inputMap?.mode, options.pixelsPerScene, options.scenes.length, blockSize, viewportHeight]);
+  }, [inputMode, options.pixelsPerScene, options.scenes.length, blockSize, viewportHeight]);
 
   // wheelGuard: reads isWheelClaimedByInteraction from CameraWidget if registered.
   // This prevents scene navigation advancing while camera dolly is active.
@@ -401,6 +408,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       manifest: options.manifest ?? null,
       onAssetsReady: () => setAssetsReady(true),
       onError: options.onError,
+      onWidgetError: options.onWidgetError,
     });
     driverRef.current = driver;
 
@@ -516,6 +524,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     frameState,
     scrollRegionRef,
     scrollRegionHeightPx,
+    inputMode,
     progress,
     scrollToProgress,
     getGlobalProgress,

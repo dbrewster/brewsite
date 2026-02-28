@@ -1,6 +1,28 @@
+// Serializes a JSX element tree to a stable string for scene content-change detection.
+
 import { Children, isValidElement } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 
+/**
+ * Converts a JSX subtree to a stable string for cache key computation and
+ * recompilation detection in ScenePlayer. Called once per scene per parent render.
+ *
+ * Design constraints:
+ * - Object keys are sorted so prop order does not affect the output.
+ * - React elements serialize as: TypeName[key](sortedProps){children}
+ * - Functions serialize to displayName or name. Anonymous functions produce '[fn]'.
+ * - Depth is capped at 15 to prevent stack overflow on pathological inputs.
+ * - This is NOT a general-purpose serializer. Its sole purpose is detecting
+ *   meaningful scene prop changes between parent renders.
+ *
+ * NOTE: Function-valued props serialize to displayName/name, or '[fn]' for anonymous
+ * functions. DSL scene components must NOT accept function-valued props that affect
+ * compiled output — if a DSL component needs dynamic behavior, the value should come
+ * from external state (useSceneRuntime, useState, etc.) that produces a concrete prop
+ * change, not a function reference change. A callback defined inline (e.g.
+ * `onFoo={() => doThing()}`) always produces '[fn]' and will never trigger recompilation
+ * even if the callback body changes.
+ */
 export const serializeJsx = (value: unknown, depth = 0): string => {
   if (depth > 15) return '[deep]';
   if (value === null || value === undefined) return String(value);

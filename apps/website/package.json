@@ -1,10 +1,9 @@
 {
-  "name": "@brewsite/examples",
+  "name": "@brewsite/website",
   "version": "0.0.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --config vite.config.ts",
     "preview": "vite preview",
     "typecheck": "tsc -b tsconfig.json",
     "test": "vitest run --passWithNoTests",

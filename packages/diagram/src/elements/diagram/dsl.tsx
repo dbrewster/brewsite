@@ -17,6 +17,9 @@ import type {
   LayoutAlignment,
   LayoutDisconnected,
   LayoutPadding,
+  DiagramGroupEdgeLightsDSL,
+  DiagramNodeMouseHandler,
+  DiagramGroupMouseHandler,
 } from './types';
 
 // ─── <DiagramNode> ────────────────────────────────────────────────────────────
@@ -66,6 +69,10 @@ export interface DiagramNodeProps {
   roughness?: number;
   /** Emissive intensity on front face [0–1]. Default: from theme (darkGlass: 0.10) */
   emissiveIntensity?: number;
+  /** Enables/disables front-face emissive contribution. */
+  emissive?: boolean;
+  /** Emissive color (CSS hex). Default: node `color`. */
+  emissiveColor?: string;
   /** Corner radius in diagram units for rect shapes. Default: from theme (darkGlass: 0.06) */
   cornerRadius?: number;
   /** Label text color (CSS hex). Default: from theme */
@@ -91,6 +98,10 @@ export interface DiagramNodeProps {
    * Default: 0.15. Sensible range: 0.05–0.25.
    */
   iconDepth?: number;
+  /** Runtime mouse-enter handler for this node. */
+  onMouseEnter?: DiagramNodeMouseHandler;
+  /** Runtime mouse-leave handler for this node. */
+  onMouseLeave?: DiagramNodeMouseHandler;
 }
 
 /**
@@ -174,6 +185,16 @@ export interface DiagramGroupProps {
   fillOpacity?: number;
   /** Border opacity [0–1]. Default: 0.6 */
   borderOpacity?: number;
+  /** Border emissive color (CSS hex). Default: borderColor */
+  borderEmissiveColor?: string;
+  /** Border emissive intensity [0–1+]. Default: 0 */
+  borderEmissiveIntensity?: number;
+  /** Runtime mouse-enter handler for this group. */
+  onMouseEnter?: DiagramGroupMouseHandler;
+  /** Runtime mouse-leave handler for this group. */
+  onMouseLeave?: DiagramGroupMouseHandler;
+  /** Optional point lights distributed clockwise around the group border. */
+  edgeLights?: DiagramGroupEdgeLightsDSL;
   /**
    * Child <DiagramNode> and <DiagramGroup> elements that belong to this group.
    * Group bounds are computed from the union of child node positions + sizes.

@@ -326,7 +326,8 @@ export class ActionInputController {
     const cameraId = action.cameraId ?? 'camera';
     const canvasId = action.canvasId ?? 'llm-canvas';
     const rawDx = e.deltaX;
-    const rawDy = e.deltaY;
+    // Keep wheel Y aligned with drag-style "positive is upward" interaction semantics.
+    const rawDy = -e.deltaY;
     const filtered = this.applyAxisToDelta(mapAxis, lockAxis, rawDx, rawDy);
     const mainDelta = this.pointerDelta(mapAxis, filtered.dx, filtered.dy);
 

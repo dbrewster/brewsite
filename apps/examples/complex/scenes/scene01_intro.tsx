@@ -6,7 +6,7 @@ import {backgrounds, sceneLighting} from "./sceneAssets";
 import {makeCubeUrls, skyEnvironment} from "../../meeting/scenes/sceneAssets";
 
 export const scene01Intro= (
-    <Scene key="complex-intro">
+    <Scene id="complex-intro">
       <Camera
         mode="fitFloorDepth"
         fov={60}

@@ -8,6 +8,12 @@ change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Initial PRD created. Comprehensive documentation of the Player and Runtime layers for @brewsite/core, covering ScenePlayer, useSceneEngine, RuntimeDriverImpl, RuntimeLoop, EngineFrameDriver, all consumer hooks, context providers, DOM region components, LabelPositioner, TimelineWidget, SceneMetaWidget, asset manifest, SSR safety contract, and test infrastructure. Reflects the production implementation as of 2026-02-28."
+  - date: 2026-02-28
+    author: "Toolkit Product"
+    summary: "Scene Authoring API Simplification (plan_scene_authoring_api.md implemented). ScenePlayerProps: sceneGroup removed, children: ReactNode added, id?: string added. UseSceneEngineOptions: sceneGroup replaced with scenes: InternalSceneSpec[]. Content-hash scene extraction via serializeJsx added to ScenePlayer. ScenePlayerRegistry module added (setSceneRuntimeState, getSceneRuntimeState, subscribeSceneRuntime, unregisterSceneRuntime, hasRegisteredPlayer). useSceneRuntime hook added to player exports. HMR scaffolding (hmrVersion state, import.meta.hot subscription) removed. Debug scaffolding (__robotRuntimeDebug, debugLog, engineIdRef) removed. Compiler adapter (InternalSceneSpec[] -> SceneDefinition[]) documented."
+  - date: 2026-02-28
+    author: "Toolkit Product"
+    summary: "DX improvements batch implemented: (1) widgetSetup is now optional — when provided, receives guaranteed non-null AssetManifest; onManifestError prop added for fetch failures. (2) quality preset prop added: 'performance'=30, 'balanced'=60, 'high'=120 framesPerTick; explicit framesPerTick wins when both present. (3) onWidgetError prop added; RuntimeDriverImpl wraps apply/onTick/load in per-widget try/catch with erroredWidgets Set quarantine. (4) debug prop added; SceneInspector component conditionally rendered and exported. (5) useVariable and VariableStoreReader added to main @brewsite/core barrel export."
 ---
 
 # BrewSite Core — Player & Runtime
@@ -76,12 +82,12 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 
 ## 6. Functional Requirements
 
-1. `ScenePlayer` shall accept `sceneGroup`, `manifestUrl`, and `widgetSetup` as required props. All other props are optional.
+1. `ScenePlayer` shall accept `children: ReactNode`, `manifestUrl`, and `widgetSetup` as required props. `children` must consist of `<Scene key="...">` elements. All other props are optional. The `sceneGroup` prop has been removed.
 2. `ScenePlayer` shall fetch the manifest from `manifestUrl` and pass the parsed result to `widgetSetup(manifest)` to construct the `WidgetRegistry`.
 3. `ScenePlayer` shall render the `placeholder` prop while `frameState.tickIndex < 0` (before the first tick completes).
 4. `ScenePlayer` shall render a `role="alert"` error message if manifest fetching fails. This does not throw; the host can handle via `onError`.
 5. `ScenePlayer` shall call `onSceneChange(sceneId, sceneIndex)` when the active scene changes.
-6. `ScenePlayer` shall support Vite HMR: on `vite:beforeUpdate`, the scene track cache and compiler node registry shall be cleared, and the engine shall reinitialize.
+6. `ScenePlayer` shall support Vite HMR automatically via content-hash compilation. When Vite HMR causes a parent component re-render, the `<Scene>` JSX elements are re-created. `serializeJsx` produces a new `contentKey` if any prop changed. If the `sceneContentKey` changes, `useMemo` fires and recompilation is triggered naturally. No manual `import.meta.hot` subscription, `hmrVersion` state counter, or `clearRegistry` call is needed or present.
 7. `useSceneEngine` shall create a `THREE.WebGLRenderer` once the canvas DOM element is available, and dispose it on unmount.
 8. `useSceneEngine` shall compile the `SceneTrack` via `compileSceneTrack` when `sceneGroup`, `widgetRegistry`, or `clipMeta` changes. Compiled tracks shall be cached by `buildSceneTrackKey` to avoid recompilation on unrelated re-renders.
 9. `RuntimeDriverImpl.tick` shall execute in this order per frame: (1) tick all `IAnimationController` widgets in priority order, (2) sample the scene track, (3) apply state to all `IRenderable` widgets.
@@ -105,10 +111,18 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 
 ```typescript
 type ScenePlayerProps = {
-  // Required
-  sceneGroup: SceneGroup;
+  // Scene content — required
+  children: ReactNode;   // <Scene key="..."> elements
+
+  // Player identity (required for useSceneRuntime)
+  id?: string;
+
+  // Required configuration
   manifestUrl: string;
-  widgetSetup: (manifest: AssetManifest | null) => WidgetRegistry;
+
+  // Widget configuration — optional. Receives guaranteed non-null manifest.
+  // When omitted, createDefaultWidgetRegistry(manifest) is used automatically.
+  widgetSetup?: (manifest: AssetManifest) => WidgetRegistry;
 
   // Layout
   className?: string;
@@ -116,7 +130,10 @@ type ScenePlayerProps = {
   // Engine configuration
   fpsCap?: number;
   pixelsPerScene?: number;
-  framesPerTick?: number;
+  framesPerTick?: number;  // explicit override; wins over quality when both set
+
+  // Rendering quality preset (maps to framesPerTick: performance=30, balanced=60, high=120)
+  quality?: 'performance' | 'balanced' | 'high';
 
   // Input
   inputMap?: SceneNavInputMap;
@@ -128,14 +145,30 @@ type ScenePlayerProps = {
   onReady?: () => void;
   onError?: (error: Error) => void;
   onSceneChange?: (sceneId: string, sceneIndex: number) => void;
+  onManifestError?: (error: Error) => void;   // manifest fetch failure (engine continues)
+  onWidgetError?: (widgetId: string, error: Error) => void;  // per-widget failure
 
-  // Content
+  // Loading UI
   placeholder?: ReactNode;
-  children?: ReactNode;
+
+  // Development
+  debug?: boolean;  // renders SceneInspector overlay; tree-shaken when false/absent
 };
 ```
 
-**`sceneGroup`** — The compiled scene definition tree produced by the DSL authoring surface. Contains an array of `SceneDefinition` objects, each with an `id`, optional `meta`, and child elements.
+**`children`** — Required. Each direct child must be a `<Scene key="...">` React element. Non-`<Scene>` children are filtered out with a `console.warn`. Order determines playback sequence.
+
+**`id`** — Optional player identifier. Required if the parent component uses `useSceneRuntime(id)`. Must be unique across all `<ScenePlayer>` instances in the application.
+
+**`widgetSetup`** — Optional widget configuration factory. When omitted, `createDefaultWidgetRegistry(manifest)` is used automatically — no code needed for the common case. When provided, receives a **guaranteed non-null** `AssetManifest` (the manifest load must succeed before this function is called). On manifest fetch failure, `onManifestError` is called instead, and the engine falls back to default widgets with a null manifest.
+
+**`quality`** — Rendering quality preset controlling how many frames are pre-baked per transition block. Higher values produce smoother easing at the cost of more memory and compilation time. When both `quality` and `framesPerTick` are set, `framesPerTick` wins.
+
+**`onManifestError`** — Called when the manifest fetch fails. The engine continues operating with default widgets (no models). Separates fetch failures from widget/runtime errors.
+
+**`onWidgetError`** — Called when a single widget fails during `load()`, `onTick()`, or `apply()`. The failed widget is quarantined (skipped in subsequent frames) and other widgets continue rendering normally.
+
+**`debug`** — When `true`, renders a `<SceneInspector>` overlay with scene list, progress readouts, and click-to-jump navigation. Use `debug={process.env.NODE_ENV === 'development'}` for automatic removal in production builds.
 
 **`manifestUrl`** — URL to the asset manifest JSON file. The manifest is fetched on mount and on `manifestUrl` changes. It is passed to `widgetSetup` and to `ILoadable` widgets. The manifest JSON must conform to `AssetManifest` schema (see Section 14).
 
@@ -170,16 +203,28 @@ const widgetSetup = useCallback(
 
 ### 7.2 Internal Behavior
 
-`ScenePlayer` performs the following operations on mount:
+`ScenePlayer` performs the following operations on each render:
 
-1. Starts manifest fetch from `manifestUrl`. On success, calls `assertManifestValid(raw)` and stores the result.
-2. Constructs `WidgetRegistry` via `widgetSetup(manifest)` inside `useMemo`.
-3. Constructs a `LabelPositioner` instance and a `VariableStore` instance (both stable across re-renders).
-4. Calls `useSceneEngine` with the registry, manifest, clip metadata, and configuration options.
-5. Wires `SceneMetaWidget.setOnSceneChange` to the `onSceneChange` prop.
-6. Renders the full context provider tree: `VariableStoreContext`, `LabelPositionerContext`, `EngineStateContext`, `EngineContext`.
-7. Renders `EngineInputRegion` as the primary viewport container.
-8. Renders `HudOverlay`, `LabelItem` elements, optional `TimelineWidget`, and `children` inside the input region.
+**Scene extraction and content hashing (every render, synchronous):**
+1. Calls `Children.toArray(props.children)` to collect all children.
+2. Filters for `<Scene>` elements; emits `console.warn` for any non-`<Scene>` children.
+3. Builds `InternalSceneSpec[]`: for each `<Scene>` element, reads `element.key` (warns and falls back to index string if absent), and computes `contentKey = serializeJsx(element)`.
+4. Computes `sceneContentKey` — concatenation of all `contentKey` strings, separated by `'|||'`.
+5. `useMemo([sceneContentKey])` — `scenes: InternalSceneSpec[]` reference is stable when content is identical, changes when any scene prop changes.
+
+**On mount:**
+6. Starts manifest fetch from `manifestUrl`. On success, calls `assertManifestValid(raw)` and stores the result.
+7. Constructs `WidgetRegistry` via `widgetSetup(manifest)` inside `useMemo`.
+8. Constructs a `LabelPositioner` instance and a `VariableStore` instance (both stable across re-renders).
+9. Calls `useSceneEngine` with the registry, manifest, clip metadata, `scenes`, and configuration options.
+10. Wires `SceneMetaWidget.setOnSceneChange` to the `onSceneChange` prop.
+11. Renders the full context provider tree: `VariableStoreContext`, `LabelPositionerContext`, `EngineStateContext`, `EngineContext`.
+12. Renders `EngineInputRegion` as the primary viewport container.
+13. Renders `HudOverlay`, `LabelItem` elements, optional `TimelineWidget`, and overlay children inside the input region.
+
+**Runtime state publishing (when `id` prop is set):**
+14. A `useEffect` publishes `SceneRuntimeState` to `ScenePlayerRegistry` on every change to `assetsReady`, viewport dimensions, `variableStore`, or `scenes.length`. Consumers using `useSceneRuntime(id)` receive these updates reactively.
+15. On unmount, calls `unregisterSceneRuntime(id)` to clean up the registry entry.
 
 On server (SSR), `ScenePlayer` short-circuits at `typeof window === 'undefined'` and returns `placeholder ?? null`. No Three.js imports are invoked on the server code path.
 
@@ -192,8 +237,15 @@ On server (SSR), `ScenePlayer` short-circuits at `typeof window === 'undefined'`
 ### 8.1 Options
 
 ```typescript
+// InternalSceneSpec — internal to player layer, not exported
+type InternalSceneSpec = {
+  readonly sceneKey: string;     // React key or index-derived fallback
+  readonly contentKey: string;   // serializeJsx output — changes when any prop changes
+  readonly element: ReactElement; // the <Scene> element passed to the compiler
+};
+
 type UseSceneEngineOptions = {
-  sceneGroup: SceneGroup;
+  scenes: InternalSceneSpec[];   // replaces sceneGroup: SceneGroup
   widgetRegistry: WidgetRegistry;
   clipMeta: ClipMeta[];
   manifest?: AssetManifest | null;
@@ -260,7 +312,7 @@ type UseSceneEngineResult = {
 
 **`setCameraOverride` / `getCameraOverride`** — Set and get a `CameraOverrideState` that is applied by `CameraWidget` each frame, overriding the compiled camera state. Used by camera orbit/dolly interaction handlers.
 
-**`debug`** — Development diagnostic object. Contains `driverReady`, `assetsReady`, `sceneTrackTicks`, and viewport dimensions. Rendered by the debug overlay when `window.__robotRuntimeDebug.overlay` is set.
+**`debug`** — Development diagnostic object. Contains `driverReady`, `assetsReady`, `sceneTrackTicks`, and viewport dimensions. Used internally by `ScenePlayer` to publish `SceneRuntimeState` to the `ScenePlayerRegistry`. Not intended for direct use by consumers.
 
 ### 8.3 EngineFrameState
 
@@ -283,7 +335,7 @@ type EngineFrameState = {
 
 The engine initializes across three separate `useEffect` phases that React schedules sequentially:
 
-**Phase 1 — Scene Track Compilation:** Triggered when `sceneGroup`, `widgetRegistry`, `clipMeta`, `manifest`, `blockSize`, or `prefersReducedMotion` changes. Computes a cache key via `buildSceneTrackKey`. If a matching cached track exists, it is used directly. Otherwise `compileSceneTrack` runs and the result is cached.
+**Phase 1 — Scene Track Compilation:** Triggered when `scenes` (the `InternalSceneSpec[]` reference from `useMemo`), `widgetRegistry`, `clipMeta`, `manifest`, `blockSize`, or `prefersReducedMotion` changes. Computes a cache key via `buildSceneTrackKey({ scenes, ... })` — the key uses each spec's `contentKey` field, so any prop change in any scene produces a cache miss. If a matching cached track exists, it is used directly. Otherwise a `SceneDefinition[]` adapter is constructed from `scenes` via `useMemo` and `compileSceneTrack` runs. The result is cached.
 
 **Phase 2 — Driver Initialization:** Triggered when `canvas` becomes available, `widgetRegistry` changes, `manifest` changes, `variableStore` changes, or `sceneTrack` is set. Creates a `THREE.Scene`, a `THREE.PerspectiveCamera`, and a `RuntimeDriverImpl`. Calls `driver.initialize(scene, renderer)` asynchronously. Sets `driverReady = true` on resolution.
 
@@ -304,6 +356,8 @@ type RuntimeConfig = {
   manifest: AssetManifest | null;
   onAssetsReady?: () => void;
   onError?: (error: Error) => void;
+  /** Called when a single widget fails during load(), onTick(), or apply(). Engine continues. */
+  onWidgetError?: (widgetId: string, error: Error) => void;
 };
 
 class RuntimeDriverImpl implements RuntimeDriver {
@@ -328,7 +382,7 @@ At construction time, `RuntimeDriverImpl` reads the sorted widget collections fr
 
 1. **Synchronous widget initialization:** Calls `renderable.initialize({ scene, widgetId, renderer })` for every `IRenderable` in order. If any widget throws, the error is forwarded to `onError` and re-thrown (halting initialization).
 
-2. **Parallel asset loading:** Calls `w.load(manifest)` on all `ILoadable` widgets via `Promise.all`. On resolution, calls `attachContainedModels()` to wire bone attachments, sets `assetsReady = true`, and fires `onAssetsReady`.
+2. **Parallel asset loading:** Calls `w.load(manifest)` on all `ILoadable` widgets via `Promise.all`. Each load call is individually wrapped in a try/catch — a widget that fails to load is added to `erroredWidgets` and `onWidgetError` is fired, but the promise resolves (not rejects) so the parallel chain continues. On all resolutions (success and failure), calls `attachContainedModels()` for successfully loaded models, sets `assetsReady = true`, and fires `onAssetsReady`.
 
 ### 9.3 Per-Frame Tick Sequence
 
@@ -336,17 +390,22 @@ At construction time, `RuntimeDriverImpl` reads the sorted widget collections fr
 
 ```
 1. For each IAnimationController (ascending tickPriority):
-   controller.onTick({ deltaSeconds, wallTimeSeconds, scene, variables, tick: currentTick, track })
+   — Skip if widgetId is in erroredWidgets
+   — try { controller.onTick(...) } catch → add to erroredWidgets, fire onWidgetError
 
 2. Sample SceneTrack:
    currentTick = sampler.sample(globalProgress)  // O(1) array index lookup
 
-3. For each IRenderable:
+3. Apply per-block easing to blockProgress (if SceneTrack.transitionEasings[sceneIndex] set):
+   bp = getEasingFn(easingName)(tick.blockProgress)
+
+4. For each IRenderable:
+   — Skip if widgetId is in erroredWidgets
    a. Check for FunctionalTransitionSpec block at tick.sceneIndex
-      - If present: state = functionalBlock.widgetFns[widgetId].fn(tick.blockProgress)
+      - If present: state = functionalBlock.widgetFns[widgetId].fn(bp)
    b. Else: state = tick.state.widgets[widgetId] ?? defaultState
    c. extra = tick.widgetExtras?.[widgetId]
-   d. renderable.apply(state, { deltaSeconds, globalProgress, wallTimeSeconds, variables, extra, tick })
+   — try { renderable.apply(state, { ..., tick }) } catch → add to erroredWidgets, fire onWidgetError
 ```
 
 After the tick sequence, the `RuntimeLoop` calls `render()` (Three.js renderer draw call) and then `onAfterTick` (which routes to `EngineFrameDriver.handleTick`).
@@ -423,9 +482,80 @@ This design ensures React re-renders from the animation loop are proportional to
 
 ---
 
-## 12. Consumer Hooks
+## 12. serializeJsx and Content-Hash Compilation
 
-### 12.1 useEngineScroll
+### 12.1 serializeJsx
+
+`serializeJsx` is an internal utility used by `ScenePlayer` to detect scene content changes between renders. It is not exported from the player public API.
+
+```typescript
+// packages/core/src/player/serializeJsx.ts — internal
+
+const serializeJsx = (value: unknown, depth = 0): string;
+```
+
+Converts a JSX element tree to a stable, deterministic string for cache key computation and recompilation detection. Called once per scene element on each parent render (sub-millisecond for typical scenes).
+
+**Serialization rules:**
+- Primitives (boolean, number, string, null, undefined) — stringified directly
+- Functions — serialized to `displayName` → `name` → `'[fn]'`
+- Arrays — each element serialized recursively
+- React elements — type name + sorted prop key/value pairs + children
+- Plain objects — sorted key/value pairs
+- Depth > 15 — returns `'[deep]'` (prevents stack overflow on pathological inputs)
+
+**Design constraint:** DSL components must not accept function-valued props that affect compiled output. The `[fn]` serialization for anonymous functions is intentional — it means two renders with the same anonymous callback produce the same `contentKey`. Authors who need dynamic scene content should pass concrete values (not callbacks) or use `useSceneRuntime()`.
+
+### 12.2 ScenePlayerRegistry
+
+`ScenePlayerRegistry` is a module-level registry that enables `useSceneRuntime()` to read engine-internal state from outside the `<ScenePlayer>` React subtree. It is not exported from the player public API.
+
+```typescript
+// packages/core/src/player/ScenePlayerRegistry.ts — internal
+
+export type SceneRuntimeState = {
+  readonly assetsReady: boolean;
+  readonly viewport: {
+    readonly width: number;
+    readonly height: number;
+    readonly aspectRatio: number;
+  };
+  readonly variables: VariableStoreReader | undefined;
+  readonly numScenes: number;
+};
+
+// Published by ScenePlayer when id prop is set
+export const setSceneRuntimeState: (id: string, state: SceneRuntimeState) => void;
+export const getSceneRuntimeState: (id: string) => SceneRuntimeState;
+export const subscribeSceneRuntime: (id: string, listener: () => void) => () => void;
+export const unregisterSceneRuntime: (id: string) => void;
+// Dev-mode check: returns true if a ScenePlayer with this id has registered
+export const hasRegisteredPlayer: (id: string) => boolean;
+```
+
+### 12.3 useSceneRuntime
+
+```typescript
+// packages/core/src/player/useSceneRuntime.ts
+
+export const useSceneRuntime = (playerId: string): SceneRuntimeState;
+```
+
+Reads reactive runtime state published by `<ScenePlayer id={playerId}>`. Uses `useSyncExternalStore` for concurrent-mode safety. When `assetsReady`, viewport, `variables`, or `numScenes` change, subscribers re-render automatically.
+
+**Recompile flow:**
+1. Assets finish loading → `engine.debug.assetsReady` → `true`
+2. ScenePlayer's publish effect fires → `setSceneRuntimeState` → notifies listeners
+3. Parent component re-renders via `useSceneRuntime`
+4. New JSX produces different `contentKey` via `serializeJsx`
+5. `sceneContentKey` changes → `useMemo` fires → new `scenes` reference
+6. Compilation effect fires → cache miss → `compileSceneTrack` → new `SceneTrack`
+
+**Dev-mode footgun warning:** If `useSceneRuntime(id)` is called but no `<ScenePlayer id={id}>` registers within 1000ms, a `console.warn` is emitted. Gated on `process.env.NODE_ENV !== 'production'`.
+
+## 13. Consumer Hooks
+
+### 13.1 useEngineScroll
 
 ```typescript
 type UseEngineScrollOptions = {
@@ -444,7 +574,7 @@ const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrollResult
 
 Subscribes to `window.scroll` and `window.resize` events. Computes progress as the normalized scroll position of the scroll region within the viewport: `(scrollTop - regionTop) / (scrollRegionHeightPx - viewportHeight)`. `getGlobalProgress` reads from a ref for synchronous access in the rAF loop.
 
-### 12.2 useEngineInput
+### 13.2 useEngineInput
 
 ```typescript
 type UseEngineInputOptions = {
@@ -486,7 +616,7 @@ type UseEngineInputResult = {
 
 The `wheelGuard` callback reads `CameraWidget.isWheelClaimedByInteraction()` — this prevents the scene from advancing while the user is using two-finger scroll to dolly the camera.
 
-### 12.3 useEngineScrubber
+### 13.3 useEngineScrubber
 
 ```typescript
 type UseEngineScrubberOptions = {
@@ -507,7 +637,7 @@ const useEngineScrubber = (options: UseEngineScrubberOptions): UseEngineScrubber
 
 Provides direct progress control for the `TimelineWidget`. `setProgress` calls `scrollToProgress`. `startScrub` / `stopScrub` manage the `isScrubbing` flag, which the `TimelineWidget` uses to show a visual drag indicator and suppress engine progress during active scrub.
 
-### 12.4 useSceneProgress
+### 13.4 useSceneProgress
 
 ```typescript
 const useSceneProgress = (): number
@@ -515,7 +645,7 @@ const useSceneProgress = (): number
 
 Returns the current global progress value [0, 1] from `EngineStateContext`. Re-renders on every tick index change. Used by progress indicators and overlay components that need to track scene advancement.
 
-### 12.5 useCurrentScene
+### 13.5 useCurrentScene
 
 ```typescript
 const useCurrentScene = (): { id: string; index: number }
@@ -537,7 +667,7 @@ return (
 );
 ```
 
-### 12.6 useEngineState
+### 13.6 useEngineState
 
 ```typescript
 const useEngineState = (): EngineState
@@ -547,7 +677,7 @@ Returns the full `EngineState` (`progress`, `sceneId`, `sceneIndex`, `sceneProgr
 
 ---
 
-## 13. Context Providers
+## 14. Context Providers
 
 All context providers are established by `ScenePlayer` in this nesting order (outer to inner):
 
@@ -560,7 +690,7 @@ VariableStoreContext.Provider
           [children, HudOverlay, LabelItems, TimelineWidget]
 ```
 
-### 13.1 EngineStateContext
+### 14.1 EngineStateContext
 
 ```typescript
 const EngineStateContext = createContext<EngineState | null>(null);
@@ -575,7 +705,7 @@ type EngineState = {
 
 Updated by `ScenePlayer` via `useMemo` from `engine.progress` and `engine.frameState`. Consumed by `useEngineState`, `useSceneProgress`, and `useCurrentScene`. The context value is a new object reference on every tick index change — memo comparisons on this context value must compare individual fields, not the object reference.
 
-### 13.2 VariableStoreContext
+### 14.2 VariableStoreContext
 
 ```typescript
 const VariableStoreContext = createContext<VariableStore | null>(null);
@@ -583,7 +713,7 @@ const VariableStoreContext = createContext<VariableStore | null>(null);
 
 Provides the `VariableStore` instance to all components in the tree. Consumed by `useVariable`. The store instance is stable for the engine lifetime — it is created once in `useSceneEngine` via `useMemo(() => new VariableStore(), [])`.
 
-### 13.3 LabelPositionerContext
+### 14.3 LabelPositionerContext
 
 ```typescript
 const LabelPositionerContext = createContext<LabelPositioner | null>(null);
@@ -593,7 +723,7 @@ const useLabelPositioner = (): LabelPositioner  // throws if outside ScenePlayer
 
 Provides the `LabelPositioner` instance to `LabelItem` components. The positioner is stable for the engine lifetime. `LabelItem` components call `positioner.registerElement(id, el)` on mount/unmount to register their DOM elements for per-frame positioning updates.
 
-### 13.4 EngineContext
+### 14.4 EngineContext
 
 ```typescript
 const EngineContext = createContext<UseSceneEngineResult | null>(null);
@@ -605,7 +735,7 @@ Provides the full `UseSceneEngineResult` to advanced consumers. Used by `CameraC
 
 ---
 
-## 14. EngineScrollRegion and EngineInputRegion
+## 15. EngineScrollRegion and EngineInputRegion
 
 ### 14.1 EngineScrollRegion
 
@@ -641,7 +771,7 @@ Both region components manage `ResizeObserver` and `window.resize` events to kee
 
 ---
 
-## 15. LabelPositioner
+## 16. LabelPositioner
 
 `LabelPositioner` manages DOM element registration and per-frame CSS transform positioning for label elements. It is the 3D-to-screen projection system for `LabelItem` components.
 
@@ -672,7 +802,7 @@ Labels for which `enabled === false` have `display: none` set without projection
 
 ---
 
-## 16. TimelineWidget
+## 17. TimelineWidget
 
 `TimelineWidget` is an interactive scrubbing UI component rendered inside `<ScenePlayer>` when `timeline` is set.
 
@@ -703,7 +833,7 @@ The `pointerEvents: 'auto'` style is critical: `HudOverlay` sets `pointer-events
 
 ---
 
-## 17. CameraControlPanel
+## 18. CameraControlPanel
 
 `CameraControlPanel` is an optional React component providing interactive camera reset and preset selection UI.
 
@@ -718,7 +848,36 @@ It reads `getCamera()` and `setCameraOverride()` from `useSceneEngineContext`. T
 
 ---
 
-## 18. SceneMetaWidget
+## 19. SceneInspector
+
+`SceneInspector` is a development-only overlay component that provides scene navigation and progress visibility directly in the browser. It is conditionally rendered by `ScenePlayer` when the `debug` prop is `true`.
+
+```typescript
+// Exported from @brewsite/core/player
+export { SceneInspector } from './SceneInspector';
+export type { SceneInspectorProps } from './SceneInspector';
+```
+
+**Features:**
+- **Scene list** — all scene keys listed; clicking a scene calls `scrollToProgress` to jump directly to it
+- **Progress readouts** — current `sceneId`, 0-based `sceneIndex`, `progress` (global, 2dp), `sceneProgress` / `blockProgress` (within current transition block, 2dp), raw `tickIndex`
+
+**Integration:**
+```tsx
+<ScenePlayer debug={process.env.NODE_ENV === 'development'} ...>
+  ...
+</ScenePlayer>
+```
+
+`SceneInspector` reads from `EngineStateContext` (same source as `useCurrentScene`, `useSceneProgress`). It receives the `scenes: InternalSceneSpec[]` array from `ScenePlayer` to render the scene key list.
+
+**Tree-shaking:** When `debug` is statically `false` or absent, bundlers eliminate the import. No SceneInspector code reaches production bundles in a properly tree-shaken build.
+
+`SceneInspector` is also exported standalone for consumers who want to mount it independently (e.g., in a portal, in a different position on screen) rather than through the `debug` prop.
+
+---
+
+## 20. SceneMetaWidget
 
 `SceneMetaWidget` is an `IAnimationController` that bridges the scene track to the `VariableStore`. It runs at `tickPriority = -1000`, ensuring it ticks before any consumer controller.
 
@@ -745,7 +904,7 @@ When the `sceneId` changes, `onSceneChange(sceneId, sceneIndex)` is fired. `Scen
 
 ---
 
-## 19. Asset Manifest
+## 21. Asset Manifest
 
 ### 19.1 Manifest Format
 
@@ -777,7 +936,7 @@ Validates the raw JSON fetched from `manifestUrl`. Throws if the manifest is not
 
 ---
 
-## 20. SSR Safety Contract
+## 22. SSR Safety Contract
 
 `ScenePlayer` must be safe to render server-side. The following constraints are enforced:
 
@@ -793,7 +952,7 @@ Validates the raw JSON fetched from `manifestUrl`. Throws if the manifest is not
 
 ---
 
-## 21. Test Infrastructure
+## 23. Test Infrastructure
 
 ### 21.1 Runtime Mocks
 
@@ -827,7 +986,7 @@ For hooks (`useSceneProgress`, `useCurrentScene`, `useEngineInput`), use React T
 
 ---
 
-## 22. Breaking Change Assessment
+## 24. Breaking Change Assessment
 
 **Current semver status:** `ScenePlayerProps.widgetSetup` was changed from `(registry: WidgetRegistry) => void` to `(manifest: AssetManifest | null) => WidgetRegistry`. This was a major breaking change — existing consumers that mutated a registry passed to them now need to construct and return a registry from `widgetSetup`. New consumers use `createDefaultWidgetRegistry(manifest)` inside `widgetSetup`.
 
@@ -837,7 +996,7 @@ For hooks (`useSceneProgress`, `useCurrentScene`, `useEngineInput`), use React T
 
 ---
 
-## 23. Open Questions
+## 25. Open Questions
 
 - Should `EngineScrollRegion` be deprecated in favor of `EngineInputRegion`? Both serve the scroll-mode use case; `EngineInputRegion` is more general. Having two components for scroll-mode integration is confusing.
 - Should `useSceneProgress()` return the full `EngineState` instead of just `number`, to avoid consumers calling both `useSceneProgress` and `useCurrentScene`? A combined hook would reduce context reads.
@@ -846,7 +1005,7 @@ For hooks (`useSceneProgress`, `useCurrentScene`, `useEngineInput`), use React T
 
 ---
 
-## 24. Launch Criteria
+## 26. Launch Criteria
 
 For any release that modifies the Player or Runtime public API:
 

@@ -34,8 +34,8 @@ vi.mock('../../compiler/sceneTrackCache', () => {
 });
 
 const makeScenes = () => [
-  { sceneKey: 's1', contentKey: 'scene:s1', element: <Scene key="s1" /> },
-  { sceneKey: 's2', contentKey: 'scene:s2', element: <Scene key="s2" /> },
+  { sceneKey: 's1', contentKey: 'scene:s1', element: <Scene id="s1" /> },
+  { sceneKey: 's2', contentKey: 'scene:s2', element: <Scene id="s2" /> },
 ];
 
 describe('useSceneEngine', () => {
@@ -181,7 +181,7 @@ describe('useSceneEngine', () => {
     root.unmount();
   });
 
-  it('returns direct mode scroll height based on viewport size', () => {
+  it('uses scroll-mode region height when scene InputController is not authored', () => {
     const registry = new WidgetRegistry();
     const scenes = makeScenes();
     let height = 0;
@@ -205,8 +205,7 @@ describe('useSceneEngine', () => {
     act(() => {
       root.render(<Test />);
     });
-
-    expect(height).toBe(200);
+    expect(height).toBe(211);
     root.unmount();
   });
 

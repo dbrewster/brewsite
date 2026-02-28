@@ -20,7 +20,7 @@ vi.mock('three', async () => {
   return { ...actual, WebGLRenderer: RendererStub };
 });
 
-const makeScenes = () => [<Scene key="s1" />, <Scene key="s2" />];
+const makeScenes = () => [<Scene key="s1" id="s1" />, <Scene key="s2" id="s2" />];
 
 const manifest = {
   version: 2,

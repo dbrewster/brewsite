@@ -22,3 +22,5 @@ export { createDefaultWidgetRegistry } from './defaultWidgets';
 export { LabelPositioner } from './LabelPositioner';
 export { LabelPositionerContext, useLabelPositioner } from './LabelPositionerContext';
 export type { EngineFrameState, EngineState } from './engineTypes';
+export { SceneInspector } from './SceneInspector';
+export type { SceneInspectorProps } from './SceneInspector';

@@ -414,10 +414,11 @@ describe('RuntimeDriverImpl', () => {
     expect(errorCount).toBe(1);
   });
 
-  it('initialize reports errors from loadables', async () => {
+  it('initialize reports errors from loadables via onWidgetError without throwing', async () => {
     const registry = new WidgetRegistry();
     const variableStore = new VariableStore();
-    let errorCount = 0;
+    const widgetErrors: Array<{ widgetId: string; error: Error }> = [];
+    let assetsReadyFired = false;
 
     class BadLoadable implements IRenderable<{ value: number }>, ISceneElement<{ value: number }>, ILoadable {
       readonly widgetId = 'bad-load';
@@ -436,11 +437,17 @@ describe('RuntimeDriverImpl', () => {
       widgetRegistry: registry,
       variableStore,
       manifest: null,
-      onError: () => { errorCount += 1; },
+      onAssetsReady: () => { assetsReadyFired = true; },
+      onWidgetError: (widgetId, error) => { widgetErrors.push({ widgetId, error }); },
     });
 
-    await expect(driver.initialize(new THREE.Scene())).rejects.toThrow('load fail');
-    expect(errorCount).toBe(1);
+    // Per-widget isolation: load() failure resolves (engine continues with other widgets).
+    await expect(driver.initialize(new THREE.Scene())).resolves.toBeUndefined();
+    expect(widgetErrors).toHaveLength(1);
+    expect(widgetErrors[0]!.widgetId).toBe('bad-load');
+    expect(widgetErrors[0]!.error.message).toBe('load fail');
+    // onAssetsReady still fires even when a widget fails to load.
+    expect(assetsReadyFired).toBe(true);
   });
 
   it('attachContainedModels handles missing anchor info safely', async () => {
@@ -469,10 +476,10 @@ describe('RuntimeDriverImpl', () => {
     await expect(driver.initialize(scene)).resolves.toBeUndefined();
   });
 
-  it('tick reports errors from controllers and renderables', async () => {
+  it('tick reports errors from controllers and renderables via onWidgetError', async () => {
     const registry = new WidgetRegistry();
     const variableStore = new VariableStore();
-    let errorCount = 0;
+    const widgetErrors: Array<{ widgetId: string; error: Error }> = [];
 
     const noopSpec = makeNoopSpec<{ value: number }>();
 
@@ -496,13 +503,17 @@ describe('RuntimeDriverImpl', () => {
       widgetRegistry: registry,
       variableStore,
       manifest: null,
-      onError: () => { errorCount += 1; },
+      onWidgetError: (widgetId, error) => { widgetErrors.push({ widgetId, error }); },
     });
 
     driver.setSceneTrack(makeEmptySceneTrack());
     await driver.initialize(new THREE.Scene());
     driver.tick({ deltaSeconds: 0.016, globalProgress: 0.5 });
-    expect(errorCount).toBeGreaterThan(0);
+    // Both the controller and renderable should have reported errors.
+    expect(widgetErrors.length).toBeGreaterThan(0);
+    const widgetIds = widgetErrors.map((e) => e.widgetId);
+    expect(widgetIds).toContain('controller');
+    expect(widgetIds).toContain('render');
   });
 
   it('tick uses defaultState when widget state is missing', async () => {

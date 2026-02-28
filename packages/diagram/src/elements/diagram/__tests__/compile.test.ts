@@ -100,6 +100,23 @@ describe('compileDiagram', () => {
     expect(node.color).toBe(darkGlassTheme.node.defaultColor);
   });
 
+  it('supports emissiveColor and emissive override on nodes', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [
+        makeNode('a', { color: '#112233', emissiveColor: '#ff00cc', emissiveIntensity: 0.7, emissive: false }),
+      ],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    const node = state.nodes[0]!;
+    expect(node.emissiveColor).toBe('#ff00cc');
+    expect(node.emissiveIntensity).toBeCloseTo(0.7);
+    expect(node.emissive).toBe(false);
+  });
+
   it('resolves iconUrl from iconRegistry for aws:ec2 icon', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
@@ -193,6 +210,87 @@ describe('compileDiagram', () => {
     const state = compileDiagram(dsl);
     expect(state.groups[0]?.borderWidth).toBe(darkGlassTheme.group.defaultBorderWidth);
     expect(state.groups[0]?.borderHeight).toBe(darkGlassTheme.group.defaultBorderHeight);
+  });
+
+  it('compiles group border emissive defaults and overrides', () => {
+    const baseDsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [{ id: 'group-1', nodeIds: ['a'] }],
+    };
+    const baseState = compileDiagram(baseDsl);
+    expect(baseState.groups[0]?.borderEmissiveColor).toBe(darkGlassTheme.group.defaultBorderColor);
+    expect(baseState.groups[0]?.borderEmissiveIntensity).toBe(0);
+
+    const overrideDsl: DiagramDSL = {
+      ...baseDsl,
+      groups: [{
+        id: 'group-1',
+        nodeIds: ['a'],
+        borderEmissiveColor: '#00ffcc',
+        borderEmissiveIntensity: 0.9,
+      }],
+    };
+    const overrideState = compileDiagram(overrideDsl);
+    expect(overrideState.groups[0]?.borderEmissiveColor).toBe('#00ffcc');
+    expect(overrideState.groups[0]?.borderEmissiveIntensity).toBe(0.9);
+  });
+
+  it('compiles group edge lights with per-side density and no corner overlap', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'manual' },
+      nodes: [makeNode('a', { position: [0, 0, 0] })],
+      edges: [],
+      groups: [{
+        id: 'g1',
+        nodeIds: ['a'],
+        edgeLights: {
+          density: 1,
+          color: '#ffaa00',
+        },
+      }],
+    };
+    const state = compileDiagram(dsl);
+    const edgeLights = state.groups[0]?.edgeLights;
+    expect(edgeLights).toBeDefined();
+    expect(edgeLights?.lights.length).toBe(24);
+    const unique = new Set(edgeLights?.lights.map((l) => `${l.position[0].toFixed(6)},${l.position[1].toFixed(6)}`));
+    expect(unique.size).toBe(edgeLights?.lights.length);
+  });
+
+  it('resolves group edge light color function using global index, side, and indexOnSide', () => {
+    const observed: Array<[number, string, number]> = [];
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'manual' },
+      nodes: [makeNode('a', { position: [0, 0, 0] })],
+      edges: [],
+      groups: [{
+        id: 'g1',
+        nodeIds: ['a'],
+        edgeLights: {
+          density: 0.4,
+          color: (lightIndex, side, indexOnSide) => {
+            observed.push([lightIndex, side, indexOnSide]);
+            return side === 'top' ? '#ff0000' : '#00ff00';
+          },
+        },
+      }],
+    };
+
+    const state = compileDiagram(dsl);
+    const edgeLights = state.groups[0]?.edgeLights;
+    expect(edgeLights).toBeDefined();
+    expect(edgeLights?.lights.length).toBe(10);
+    expect(edgeLights?.lights[0]).toMatchObject({ index: 0, side: 'top', indexOnSide: 0, color: '#ff0000' });
+    expect(edgeLights?.lights[3]).toMatchObject({ index: 3, side: 'right', indexOnSide: 0, color: '#00ff00' });
+    expect(edgeLights?.lights[5]).toMatchObject({ index: 5, side: 'bottom', indexOnSide: 0, color: '#00ff00' });
+    expect(edgeLights?.lights[8]).toMatchObject({ index: 8, side: 'left', indexOnSide: 0, color: '#00ff00' });
+    expect(observed[0]).toEqual([0, 'top', 0]);
+    expect(observed[9]).toEqual([9, 'left', 1]);
   });
 
   it('routes edges to the group border centerline (not inner fill or outer edge)', () => {

@@ -6,6 +6,7 @@ export class RibbonRenderer {
   private group: THREE.Group | null = null;
   private mesh: THREE.Mesh | null = null;
   private material: THREE.MeshStandardMaterial | null = null;
+  private glowLight: THREE.PointLight | null = null;
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -42,6 +43,31 @@ export class RibbonRenderer {
       this.material.opacity = typeof config.opacity === 'number' ? config.opacity : 0.9;
       this.material.color = new THREE.Color(config.glowLightColor ?? '#ffffff');
     }
+
+    this.updateGlowLight(config);
+  }
+
+  private updateGlowLight(config: RibbonConfig): void {
+    const enabled = config.glowLightsEnabled && config.glowLightIntensity > 0;
+    if (!enabled) {
+      if (this.glowLight) {
+        this.glowLight.removeFromParent();
+        this.glowLight = null;
+      }
+      return;
+    }
+
+    if (!this.glowLight) {
+      this.glowLight = new THREE.PointLight();
+      this.glowLight.castShadow = false;
+      this.glowLight.position.set(0, 0, 0);
+      this.group?.add(this.glowLight);
+    }
+
+    this.glowLight.color = new THREE.Color(config.glowLightColor ?? '#ffffff');
+    this.glowLight.intensity = config.glowLightIntensity;
+    this.glowLight.distance = config.glowLightDistance;
+    this.glowLight.decay = config.glowLightDecay;
   }
 
   dispose(): void {
@@ -52,6 +78,10 @@ export class RibbonRenderer {
     }
     if (this.group) {
       this.group.removeFromParent();
+    }
+    if (this.glowLight) {
+      this.glowLight.removeFromParent();
+      this.glowLight = null;
     }
     this.group = null;
     this.mesh = null;

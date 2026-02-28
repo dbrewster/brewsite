@@ -59,6 +59,7 @@ export type GroupRenderEntry = {
   group: THREE.Group;
   fill: THREE.Mesh;
   border?: THREE.Group;
+  edgeLights?: THREE.Group;
   label: TextWithLayout;
   lastState?: DiagramGroupState;
 };

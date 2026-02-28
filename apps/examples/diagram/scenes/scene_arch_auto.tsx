@@ -13,7 +13,7 @@ import { DiagramCanvas, Diagram, DiagramEdge, DiagramNode, HierarchicalLayout } 
  *   'embossed' — shallow extrusion with wide bevel, coin/medallion look
  */
 export const sceneArchAuto= (
-    <Scene key="arch-auto">
+    <Scene id="arch-auto">
       <Lighting intensityScale={1}>
         {/* Soft ambient so shadows on side faces are still readable */}
         <Ambient intensity={0.8} color="#ffffff" />

@@ -1,11 +1,22 @@
-import { Children, Fragment, isValidElement, type ReactElement, type ReactNode } from 'react';
+import React, {
+  Children,
+  Fragment,
+  isValidElement,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import type { SceneSnapshotContext } from './sceneTypes';
 import { getNodeHandler, isPrimitiveComponent, registerNode } from './registry';
 import type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { JsonPrimitive } from '../widget/VariableStore';
 import type { SceneFrame } from './sceneTrackTypes';
+import type { EasingName } from './transitions/easingFunctions';
 import { ensureInputControllerRegistry } from './blocks/inputController';
+import { SceneRegistrationContext } from './SceneRegistrationContext';
 
 export type ResolvedScene = {
   frame: SceneFrame;
@@ -14,7 +25,20 @@ export type ResolvedScene = {
 const resolveValue = <T,>(value: T | ((context: SceneSnapshotContext) => T), context: SceneSnapshotContext): T =>
   typeof value === 'function' ? (value as (ctx: SceneSnapshotContext) => T)(context) : value;
 
-const resolveObjectValues = <T extends Record<string, unknown>>(value: T, context: SceneSnapshotContext): T => {
+const isPlainObject = (value: unknown): value is Record<string, unknown> => {
+  if (!value || typeof value !== 'object') return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+};
+
+const resolveObjectValues = <T extends Record<string, unknown>>(
+  value: T,
+  context: SceneSnapshotContext,
+  seen = new WeakSet<object>(),
+): T => {
+  if (seen.has(value)) return value;
+  seen.add(value);
+
   const entries = Object.entries(value).map(([key, entry]) => {
     if (typeof entry === 'function') {
       return [key, (entry as (ctx: SceneSnapshotContext) => unknown)(context)];
@@ -23,12 +47,19 @@ const resolveObjectValues = <T extends Record<string, unknown>>(value: T, contex
       return [
         key,
         entry.map((item) =>
-          typeof item === 'function' ? (item as (ctx: SceneSnapshotContext) => unknown)(context) : item,
+          typeof item === 'function'
+            ? (item as (ctx: SceneSnapshotContext) => unknown)(context)
+            : isPlainObject(item)
+              ? resolveObjectValues(item, context, seen)
+              : item,
         ),
       ];
     }
-    if (entry && typeof entry === 'object') {
-      return [key, resolveObjectValues(entry as Record<string, unknown>, context)];
+    if (isValidElement(entry)) {
+      return [key, entry];
+    }
+    if (isPlainObject(entry)) {
+      return [key, resolveObjectValues(entry, context, seen)];
     }
     return [key, entry];
   });
@@ -127,13 +158,28 @@ const createApi = (context: SceneSnapshotContext): CompileApi => {
 };
 
 // Register Scene root handler
-export const Scene = (_props: {
-  id?: string;
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
+
+export const Scene = (props: {
+  id: string;
   meta?: Record<string, JsonPrimitive>;
   metalnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
   roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
+  /** Easing curve for the transition into this scene. Only affects FunctionalTransitionSpec widgets. */
+  transition?: { easing?: EasingName };
   children?: React.ReactNode;
-}) => null;
+}): null => {
+  const registration = useContext(SceneRegistrationContext);
+  const element = React.createElement(Scene, props);
+
+  useIsomorphicLayoutEffect(() => {
+    registration?.register(props.id, element);
+    return () => registration?.unregister(props.id);
+  });
+
+  return null;
+};
 Scene.displayName = 'Scene';
 
 const sceneRootHandler: NodeHandler = (node, api, helpers) => {
@@ -142,12 +188,18 @@ const sceneRootHandler: NodeHandler = (node, api, helpers) => {
     meta?: Record<string, JsonPrimitive>;
     metalnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
     roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
+    transition?: { easing?: EasingName };
   };
-  const sceneId = node.key ?? props.id ?? null;
+  // Children.toArray() prefixes keys with ".$" (e.g. "arch-auto" -> ".$arch-auto").
+  // Strip the prefix defensively for any direct-element fallback path.
+  const rawKey = typeof node.key === 'string' && node.key.startsWith('.$')
+    ? node.key.slice(2)
+    : node.key;
+  const sceneId = props.id ?? rawKey ?? null;
   if (sceneId === null) {
     console.warn(
-      '[ScenePlayer] A <Scene> element has no key or id. ' +
-      'Assign key="..." for stable scene identity.',
+      '[ScenePlayer] A <Scene> element has no id. ' +
+      'Assign id="..." to every <Scene> for stable scene identity.',
     );
   }
   if (sceneId) api.setSceneMeta({ id: String(sceneId) });
@@ -157,6 +209,9 @@ const sceneRootHandler: NodeHandler = (node, api, helpers) => {
   }
   if (props.roughnessMultiplier !== undefined) {
     api.state.materialRoughnessMultiplier = helpers.resolveValue(props.roughnessMultiplier, api.context);
+  }
+  if (props.transition?.easing) {
+    api.state.transitionEasing = props.transition.easing;
   }
   helpers.compileChildren(node, api);
 };

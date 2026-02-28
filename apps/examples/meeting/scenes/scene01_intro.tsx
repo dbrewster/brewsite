@@ -4,7 +4,7 @@ import { backgrounds, makeCubeUrls, sceneLighting, skyEnvironment } from './scen
 import {FloorMirror} from "@brewsite/core/elements/floor/dsl";
 
 export const scene01Intro= (
-    <Scene key="complex-intro">
+    <Scene id="complex-intro">
       <Camera
         mode="fitFloorDepth"
         fov={60}

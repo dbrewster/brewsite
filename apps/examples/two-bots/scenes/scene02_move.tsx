@@ -2,7 +2,7 @@ import {Scene, Lighting, Ambient, Directional, BodyParts} from '@brewsite/core';
 import { Robot } from '../../generated/sceneDsl.generated';
 
 export const scene02Move= (
-    <Scene key="move-right">
+    <Scene id="move-right">
       <Lighting intensityScale={1}>
         <Ambient intensity={1.2} color="#ffffff" />
         <Directional intensity={2} color="#ffffff" position={[-20, 30, 40]} />

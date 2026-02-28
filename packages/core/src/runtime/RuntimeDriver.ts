@@ -3,6 +3,7 @@ import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { VariableStore } from '../widget/VariableStore';
 import type { SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
 import { createSceneTrackSampler } from '../compiler/sceneTrackSampler';
+import { getEasingFn } from '../compiler/transitions/easingFunctions';
 import type { RuntimeDriver as IRuntimeDriver } from './types';
 
 export type SceneTrackSampler = ReturnType<typeof createSceneTrackSampler>;
@@ -16,6 +17,8 @@ export type RuntimeConfig = {
   manifest: AssetManifest | null;
   onAssetsReady?: () => void;
   onError?: (error: Error) => void;
+  /** Called when a single widget fails during load() or apply(). Engine continues. */
+  onWidgetError?: (widgetId: string, error: Error) => void;
 };
 
 /**
@@ -45,6 +48,8 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   private wallTimeSeconds = 0;
   private onAssetsReady?: () => void;
   private onError?: (error: Error) => void;
+  private onWidgetError?: (widgetId: string, error: Error) => void;
+  private erroredWidgets = new Set<string>();
 
   assetsReady = false;
 
@@ -61,6 +66,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     this.manifest = config.manifest;
     this.onAssetsReady = config.onAssetsReady;
     this.onError = config.onError;
+    this.onWidgetError = config.onWidgetError;
     this.sceneElements = this.widgetRegistry.getSceneElements();
     this.renderables = this.widgetRegistry.getRenderables();
     this.animationControllers = this.widgetRegistry.getAnimationControllers();
@@ -74,28 +80,33 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     this.threeScene = threeScene;
 
     // Step 1: Initialize all renderable widgets (sync)
+    // initialize() failures are fatal — a widget that fails to initialize the Three.js
+    // scene graph is unrecoverable.
     for (const renderable of this.renderables) {
       try {
         renderable.initialize({ scene: threeScene, widgetId: renderable.widgetId, renderer });
       } catch (e) {
         const err = e instanceof Error ? e : new Error(String(e));
         this.onError?.(err);
-        throw err;
+        throw new Error(`Widget "${renderable.widgetId}" failed to initialize: ${err.message}`);
       }
     }
 
-    // Step 2: Load all async assets in parallel
+    // Step 2: Load all async assets in parallel — per-widget isolation.
+    // Individual load() rejections are caught; the engine continues with remaining widgets.
     const loadables = this.widgetRegistry.getLoadables();
-    try {
-      await Promise.all(loadables.map((w) => w.load(this.manifest)));
-      this.attachContainedModels();
-      this.assetsReady = true;
-      this.onAssetsReady?.();
-    } catch (e) {
-      const err = e instanceof Error ? e : new Error(String(e));
-      this.onError?.(err);
-      throw err;
-    }
+    await Promise.all(
+      loadables.map((w) =>
+        w.load(this.manifest).catch((e: unknown) => {
+          const err = e instanceof Error ? e : new Error(String(e));
+          this.erroredWidgets.add(w.widgetId);
+          this.onWidgetError?.(w.widgetId, err);
+        }),
+      ),
+    );
+    this.attachContainedModels();
+    this.assetsReady = true;
+    this.onAssetsReady?.();
   }
 
   private attachContainedModels(): void {
@@ -157,11 +168,13 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
       track: this.track,
     };
     for (const controller of this.animationControllers) {
+      if (this.erroredWidgets.has(controller.widgetId)) continue;
       try {
         controller.onTick(animCtx);
       } catch (e) {
         const err = e instanceof Error ? e : new Error(String(e));
-        this.onError?.(err);
+        this.erroredWidgets.add(controller.widgetId);
+        this.onWidgetError?.(controller.widgetId, err);
       }
     }
 
@@ -179,20 +192,30 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
       tick,
     };
     for (const renderable of this.renderables) {
+      if (this.erroredWidgets.has(renderable.widgetId)) continue;
       try {
-        // Functional transitions take priority: evaluate closure at blockProgress.
+        // Functional transitions take priority: evaluate closure at (eased) blockProgress.
         // Falls back to pre-baked discrete state, then widget defaultState.
         const functionalBlock = this.track?.transitionBlocks?.[tick.sceneIndex];
         const functionalWidget = functionalBlock?.widgetFns[renderable.widgetId];
-        const state = functionalWidget
-          ? functionalWidget.fn(tick.blockProgress)
-          : (tick.state.widgets[renderable.widgetId] ??
-            this.defaultStateById.get(renderable.widgetId));
+        let state: unknown;
+        if (functionalWidget) {
+          const easingName = this.track?.transitionEasings?.[tick.sceneIndex];
+          const bp = easingName
+            ? getEasingFn(easingName)(tick.blockProgress)
+            : tick.blockProgress;
+          state = functionalWidget.fn(bp);
+        } else {
+          state =
+            tick.state.widgets[renderable.widgetId] ??
+            this.defaultStateById.get(renderable.widgetId);
+        }
         const extra = tick.widgetExtras?.[renderable.widgetId];
         renderable.apply(state as never, { ...renderCtx, extra });
       } catch (e) {
+        this.erroredWidgets.add(renderable.widgetId);
         const err = e instanceof Error ? e : new Error(String(e));
-        this.onError?.(err);
+        this.onWidgetError?.(renderable.widgetId, err);
       }
     }
   }
@@ -237,6 +260,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   }
 
   dispose(): void {
+    this.erroredWidgets.clear();
     for (const renderable of this.renderables) {
       try {
         renderable.dispose();

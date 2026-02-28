@@ -440,4 +440,32 @@ describe('compileSceneTrack', () => {
     expect(track.ticks[0]!.blockProgress).toBe(0);
     expect(track.ticks.length).toBe(2);
   });
+
+  it('carries input controller snapshot forward when a later scene omits it', () => {
+    const widget = makeWidget({
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+    });
+    const registry = new WidgetRegistry().register(widget);
+    const inputSpec = {
+      id: 'main',
+      scope: 'canvas',
+      actions: [
+        {
+          id: 'scene-next',
+          type: 'scene.next',
+          maps: [{ kind: 'wheel', axis: 'y' }],
+        },
+      ],
+    };
+
+    const scenes = [
+      makeScene('s1', { w: 1, __input_controller: inputSpec }),
+      makeScene('s2', { w: 2 }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+    const terminal = track.ticks[track.ticks.length - 1]!;
+    expect(terminal.state.widgets['__input_controller']).toEqual(inputSpec);
+  });
 });

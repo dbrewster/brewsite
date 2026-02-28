@@ -105,6 +105,14 @@ export class DiagramRenderer {
     this.lastState.set(state.id, state);
   }
 
+  setNodeEmissiveOverride(diagramId: string, nodeId: string, enabled: boolean | undefined): void {
+    this.nodeRenderer?.setNodeEmissiveOverride(diagramId, nodeId, enabled);
+  }
+
+  clearNodeEmissiveOverrides(diagramId: string): void {
+    this.nodeRenderer?.clearEmissiveOverridesForDiagram(diagramId);
+  }
+
   dispose(diagramId: string, parent: THREE.Object3D): void {
     const root = this.diagramGroups.get(diagramId);
     if (root) {
@@ -121,6 +129,7 @@ export class DiagramRenderer {
     }
     this.diagramGroups.delete(diagramId);
     this.lastState.delete(diagramId);
+    this.nodeRenderer?.clearEmissiveOverridesForDiagram(diagramId);
     this.interactionRegistry.clear();
     this.groupInteractionRegistry.clear();
     this.envMapManager.disposeAll();

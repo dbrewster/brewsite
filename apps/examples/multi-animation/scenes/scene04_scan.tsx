@@ -5,7 +5,7 @@ import {Animation, Playback, Worker} from '../../generated/sceneDsl.generated';
 import { backgrounds, sceneLighting } from './sceneAssets';
 
 export const scene04Scan= (
-    <Scene key="complex-scan">
+    <Scene id="complex-scan">
       <Camera
         mode="fitFloorDepth"
         fov={60}

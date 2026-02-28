@@ -5,7 +5,7 @@ import {Worker} from '../../generated/sceneDsl.generated';
 import {backgrounds, sceneLighting} from './sceneAssets';
 
 export const scene03_05Reveal= (
-    <Scene key="complex-reveal">
+    <Scene id="complex-reveal">
       <Camera
         mode="fitFloorDepth"
         fov={60}

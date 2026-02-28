@@ -111,6 +111,10 @@ export interface DiagramThemeGroupConfig {
   readonly defaultFillOpacity: number;
   /** Default border opacity [0–1] */
   readonly defaultBorderOpacity: number;
+  /** Optional default border emissive color (CSS hex). */
+  readonly defaultBorderEmissiveColor?: string;
+  /** Optional default border emissive intensity [0–1+]. */
+  readonly defaultBorderEmissiveIntensity?: number;
 }
 
 /** Environment map / image-based lighting config within a theme. */
@@ -232,6 +236,16 @@ export type DiagramGroupVariant = 'swimlane' | 'boundary' | 'cluster' | 'contain
 
 /** Swimlane orientation when variant is 'swimlane' */
 export type DiagramOrientation = 'horizontal' | 'vertical';
+
+/** Clockwise side identifiers for rectangular group bounds. */
+export type DiagramGroupSide = 'top' | 'right' | 'bottom' | 'left';
+
+/** Compile-time color resolver for group edge lights. */
+export type DiagramGroupEdgeLightColorResolver = (
+  lightIndex: number,
+  side: DiagramGroupSide,
+  indexOnSide: number,
+) => string;
 
 /**
  * Visual rendering style for 3D SVG icons on diagram node faces.
@@ -477,10 +491,14 @@ export interface DiagramNodeState {
 
   /**
    * Emissive intensity on the node's front face [0–1].
-   * The emissive color is the node color itself, giving a faint "lit panel" look.
+   * Combined with emissiveColor to produce a "lit panel" look.
    * 0 = no emissive (flat lit surface). Default: 0.10.
    */
   readonly emissiveIntensity: number;
+  /** Whether emissive lighting is enabled for this node. */
+  readonly emissive: boolean;
+  /** Emissive color (CSS hex). Defaults to node color. */
+  readonly emissiveColor: string;
 
   /**
    * Corner radius in diagram units for rect-like shapes.
@@ -552,6 +570,11 @@ export interface DiagramNodeState {
 
   /** ID of the parent DiagramGroup, or undefined if top-level */
   readonly groupId: string | undefined;
+
+  /** Runtime hover enter callback for this node. */
+  readonly onMouseEnter?: DiagramNodeMouseHandler;
+  /** Runtime hover leave callback for this node. */
+  readonly onMouseLeave?: DiagramNodeMouseHandler;
 }
 
 // ─── Edge ───────────────────────────────────────────────────────────────────
@@ -682,6 +705,37 @@ export interface DiagramGroupState {
 
   /** Border opacity [0–1] */
   readonly borderOpacity: number;
+  /** Border emissive color (CSS hex). */
+  readonly borderEmissiveColor: string;
+  /** Border emissive intensity [0–1+]. */
+  readonly borderEmissiveIntensity: number;
+  /** Runtime hover enter callback for this group. */
+  readonly onMouseEnter?: DiagramGroupMouseHandler;
+  /** Runtime hover leave callback for this group. */
+  readonly onMouseLeave?: DiagramGroupMouseHandler;
+
+  /** Optional point lights distributed around the group's border perimeter. */
+  readonly edgeLights?: DiagramGroupEdgeLightsState;
+}
+
+export interface DiagramGroupEdgeLightState {
+  /** Index across all lights on this group (clockwise order). */
+  readonly index: number;
+  /** Side the light belongs to. */
+  readonly side: DiagramGroupSide;
+  /** Index of this light within its side sequence. */
+  readonly indexOnSide: number;
+  /** Light position in GROUP-LOCAL space. */
+  readonly position: readonly [number, number, number];
+  /** Resolved CSS color for this light. */
+  readonly color: string;
+}
+
+export interface DiagramGroupEdgeLightsState {
+  readonly lights: ReadonlyArray<DiagramGroupEdgeLightState>;
+  readonly intensity: number;
+  readonly distance: number;
+  readonly decay: number;
 }
 
 // ─── Diagram (top-level compiled state) ─────────────────────────────────────
@@ -811,6 +865,10 @@ export interface DiagramNodeDSL {
   readonly roughness?: number;
   /** Emissive intensity on the front face [0–1]. Overrides theme default. */
   readonly emissiveIntensity?: number;
+  /** Enables/disables node emissive rendering. Defaults to true when intensity > 0. */
+  readonly emissive?: boolean;
+  /** Emissive color on the front face. Defaults to node color. */
+  readonly emissiveColor?: string;
   /** Corner radius in diagram units. Overrides theme default (theme.node.cornerRadius). */
   readonly cornerRadius?: number;
   readonly labelColor?: string;
@@ -824,6 +882,8 @@ export interface DiagramNodeDSL {
   /** Max extrusion depth for 3D icon in diagram units. Default: 0.15. */
   readonly iconDepth?: number;
   readonly groupId?: string;
+  readonly onMouseEnter?: DiagramNodeMouseHandler;
+  readonly onMouseLeave?: DiagramNodeMouseHandler;
 }
 
 /** Raw DSL data extracted from a <DiagramEdge> component by the compiler. */
@@ -871,6 +931,11 @@ export interface DiagramGroupDSL {
   readonly borderStyle?: 'solid' | 'dashed' | 'none';
   readonly fillOpacity?: number;
   readonly borderOpacity?: number;
+  readonly borderEmissiveColor?: string;
+  readonly borderEmissiveIntensity?: number;
+  readonly onMouseEnter?: DiagramGroupMouseHandler;
+  readonly onMouseLeave?: DiagramGroupMouseHandler;
+  readonly edgeLights?: DiagramGroupEdgeLightsDSL;
   readonly nodeIds: ReadonlyArray<string>;
   readonly childGroupIds?: ReadonlyArray<string>;
   readonly parentId?: string;
@@ -879,6 +944,28 @@ export interface DiagramGroupDSL {
    * Cascades from parent: same-kind merges, different-kind replaces, absent inherits.
    */
   readonly layout?: LayoutDSL;
+}
+
+export interface DiagramGroupEdgeLightsDSL {
+  /** Enable or disable edge light generation for this group. */
+  readonly enabled?: boolean;
+  /** Lights per diagram unit along each side, unless overridden by side. */
+  readonly density?: number;
+  /** Per-side density override in lights per diagram unit. */
+  readonly densityBySide?: Partial<Record<DiagramGroupSide, number>>;
+  /**
+   * Constant color or compile-time resolver.
+   * Resolver receives (globalIndex, side, indexOnSide) and must return CSS color.
+   */
+  readonly color?: string | DiagramGroupEdgeLightColorResolver;
+  /** PointLight intensity. */
+  readonly intensity?: number;
+  /** PointLight distance. */
+  readonly distance?: number;
+  /** PointLight decay. */
+  readonly decay?: number;
+  /** Extra local Z offset above the group border top surface. */
+  readonly zOffset?: number;
 }
 
 /** Top-level DSL input to compile.ts. Populated by the compiler handler from <Diagram> props. */
@@ -936,3 +1023,38 @@ export interface DiagramInteractionEvent {
   /** World-space position of the click intersection point */
   readonly intersectPoint: readonly [number, number, number];
 }
+
+export interface DiagramHoverEventBase {
+  readonly diagramId: string;
+  readonly intersectPoint: readonly [number, number, number];
+  readonly controls: DiagramHoverControls;
+  stopPropagation(): void;
+  isPropagationStopped(): boolean;
+}
+
+export interface DiagramHoverControls {
+  /** Enables/disables a light from the core Lighting widget by light id. */
+  setLightEnabled(lightId: string, enabled: boolean): void;
+  /** Enables/disables emissive rendering for a single node. */
+  setNodeEmissive(nodeId: string, enabled: boolean, options?: { diagramId?: string }): void;
+  /** Enables/disables emissive rendering for all nodes in a group. */
+  setGroupNodesEmissive(
+    groupId: string,
+    enabled: boolean,
+    options?: { diagramId?: string; includeDescendants?: boolean },
+  ): void;
+}
+
+export interface DiagramNodeHoverEvent extends DiagramHoverEventBase {
+  readonly type: 'node-mouse-enter' | 'node-mouse-leave';
+  readonly nodeId: string;
+  readonly groupId?: string;
+}
+
+export interface DiagramGroupHoverEvent extends DiagramHoverEventBase {
+  readonly type: 'group-mouse-enter' | 'group-mouse-leave';
+  readonly groupId: string;
+}
+
+export type DiagramNodeMouseHandler = (event: DiagramNodeHoverEvent) => void;
+export type DiagramGroupMouseHandler = (event: DiagramGroupHoverEvent) => void;

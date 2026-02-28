@@ -4,7 +4,7 @@ import { Animation, BodyParts, ContainedModel, ModelPart, Playback, Pose, Robot 
 import { backgrounds, sceneLighting } from './sceneAssets';
 
 export const scene04Scan= (
-    <Scene key="complex-scan">
+    <Scene id="complex-scan">
       <Background imageUrl={backgrounds.scan} opacity={1} cssSize="cover" cssPosition="center" />
       <Lighting intensityScale={1}>
         <Ambient intensity={sceneLighting.scan.ambient} color="#bdf6ff" />

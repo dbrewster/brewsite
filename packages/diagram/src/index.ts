@@ -1,5 +1,6 @@
 // @brewsite/diagram — 3D immersive diagram and screen elements
 // Full implementation: see requirements/plans/plan_diagram_package.md
+import './register';
 
 // ─── Diagram element ─────────────────────────────────────────────────────────
 export type {
@@ -23,6 +24,12 @@ export type {
   DiagramExitDSL,
   DiagramEnterDSL,
   DiagramInteractionEvent,
+  DiagramHoverControls,
+  DiagramHoverEventBase,
+  DiagramNodeHoverEvent,
+  DiagramGroupHoverEvent,
+  DiagramNodeMouseHandler,
+  DiagramGroupMouseHandler,
   LayoutDSL,
   LayoutPadding,
   LayoutAlignment,
@@ -103,4 +110,4 @@ export { ScreenWidget } from './elements/screen/widget';
 export { darkGlassTheme, neonCyberTheme, enterpriseTheme, lightMinimalTheme } from './elements/diagram/themes';
 
 // ─── Compiler handler registration ──────────────────────────────────────────
-export { registerDiagramHandlers } from './compiler/handlers';
+// registerDiagramHandlers is called automatically via ./register.ts at module-load time.

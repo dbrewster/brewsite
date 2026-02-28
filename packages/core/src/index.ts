@@ -9,4 +9,5 @@ export * from './runtime';
 export * from './input';
 export type { FunctionalTransitionSpec, ElementTransitionSpec } from './compiler/transitions/transitionTypes';
 export { blendNumber, blendOpacity, blendVec3, blendColor, transitionT } from './compiler/transitions/transitionTypes';
+export type { EasingName } from './compiler/transitions/easingFunctions';
 export { registerNode } from './compiler/registry';

@@ -18,7 +18,7 @@ export type SceneSnapshotContext = {
 };
 
 /**
- * @internal Constructed by ScenePlayer from <Scene> children.
+ * @internal Constructed by ScenePlayer from registered <Scene> elements.
  */
 export type SceneDefinition = {
   id: string;

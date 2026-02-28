@@ -4,10 +4,31 @@
 export * from './model';
 
 // Lighting
-export type { SceneLighting, SceneLightAmbient, SceneLightDirectional, SceneLightPoint, SceneLightSpot, SceneLightPanel } from './lighting';
-export { Lighting, Ambient, Directional, Point, Spot, Panel } from './lighting';
+export type {
+  SceneLighting,
+  SceneLightAmbient,
+  SceneLightDirectional,
+  SceneLightGlowPoint,
+  SceneLightStrand,
+  SceneLightStrandCurve,
+  SceneLightStrandShape,
+  SceneLightStrandWave,
+  SceneLightStrandCircle,
+  SceneLightStrandRectangle,
+  LightStrandAxis,
+  SceneLightPoint,
+  SceneLightSpot,
+  SceneLightPanel,
+} from './lighting';
+export { Lighting, Ambient, Directional, GlowPoint, Point, Spot, LightStrand, Wave, Circle, Rectangle, Panel } from './lighting';
 export { DEFAULT_LIGHTING, lightingTransitionSpec } from './lighting';
-export { applyLighting, type LightingThreeRefs } from './lighting';
+export {
+  applyLighting,
+  setSceneLightEnabled,
+  isSceneLightEnabled,
+  clearSceneLightOverrides,
+  type LightingThreeRefs,
+} from './lighting';
 
 // Background
 export type { SceneBackground } from './background';

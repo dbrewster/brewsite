@@ -8,7 +8,6 @@ import {
   DiagramCanvasWidget,
   compileCanvas,
   compileDiagram,
-  registerDiagramHandlers,
   darkGlassTheme,
 } from '@brewsite/diagram';
 
@@ -18,8 +17,7 @@ const C_CON = '#1a2832'; const C_INF = '#2e1f3a'; const C_OUT = '#2e1a18';
 const C_CONV = '#1a3228'; const C_LLM = '#0f221a';
 const S: [number, number] = [3.5, 1.3];
 
-export const createLlmWidgetSetup = (manifest: AssetManifest | null) => {
-  registerDiagramHandlers();
+export const createLlmWidgetSetup = (manifest: AssetManifest) => {
   const registry = createDefaultWidgetRegistry(manifest);
 
   const canvas = compileCanvas({ id: 'llm-canvas' }, [

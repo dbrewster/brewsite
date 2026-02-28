@@ -11,19 +11,23 @@ const makeContext = (): SceneSnapshotContext => ({
 });
 
 describe('scene root identity', () => {
-  it('uses Scene key as scene identity', () => {
-    const { frame } = resolveSceneFromDsl(<Scene key="arch" />, makeContext(), new WidgetRegistry());
+  it('uses Scene id as scene identity', () => {
+    const { frame } = resolveSceneFromDsl(<Scene id="arch" />, makeContext(), new WidgetRegistry());
     expect(frame.id).toBe('arch');
   });
 
-  it('uses Scene id as fallback identity for backward compatibility', () => {
-    const { frame } = resolveSceneFromDsl(<Scene id="legacy" />, makeContext(), new WidgetRegistry());
+  it('keeps Scene key as fallback identity for backward compatibility', () => {
+    const legacyScene = React.createElement(Scene as unknown as (props: Record<string, unknown>) => null, {
+      key: 'legacy',
+    });
+    const { frame } = resolveSceneFromDsl(legacyScene, makeContext(), new WidgetRegistry());
     expect(frame.id).toBe('legacy');
   });
 
-  it('warns when Scene has no key or id and falls back to default id', () => {
+  it('warns when Scene has no id and falls back to default id', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    const { frame } = resolveSceneFromDsl(<Scene />, makeContext(), new WidgetRegistry());
+    const noIdScene = React.createElement(Scene as unknown as (props: Record<string, unknown>) => null, {});
+    const { frame } = resolveSceneFromDsl(noIdScene, makeContext(), new WidgetRegistry());
     expect(frame.id).toBe('scene');
     expect(warn).toHaveBeenCalled();
     warn.mockRestore();

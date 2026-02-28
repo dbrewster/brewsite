@@ -8,17 +8,26 @@ import { createShapeGeometry, createShapeOutlineGeometry, isRectangularShape, ge
 import { createGlow, computeGlowScale, disposeGlowSprite } from '../../_shared/glowSprite';
 import { Text } from 'troika-three-text';
 
+const resolveEffectiveEmissiveIntensity = (
+  state: DiagramNodeState,
+  emissiveOverride: boolean | undefined,
+): number => {
+  const emissiveEnabled = emissiveOverride ?? state.emissive ?? true;
+  return emissiveEnabled ? state.emissiveIntensity : 0;
+};
+
 const createBoxMaterials = (
   state: DiagramNodeState,
   materialCount: 2 | 6,
+  effectiveEmissiveIntensity: number,
 ): THREE.MeshStandardMaterial[] => {
   if (materialCount === 2) {
     const caps = new THREE.MeshStandardMaterial({
       color: state.color,
       metalness: state.metalness,
       roughness: state.roughness,
-      emissive: new THREE.Color(state.color),
-      emissiveIntensity: state.emissiveIntensity,
+      emissive: new THREE.Color(state.emissiveColor ?? state.color),
+      emissiveIntensity: effectiveEmissiveIntensity,
       transparent: true,
       opacity: state.opacity,
     });
@@ -47,8 +56,8 @@ const createBoxMaterials = (
     color: state.color,
     metalness: state.metalness,
     roughness: state.roughness,
-    emissive: new THREE.Color(state.color),
-    emissiveIntensity: state.emissiveIntensity,
+    emissive: new THREE.Color(state.emissiveColor ?? state.color),
+    emissiveIntensity: effectiveEmissiveIntensity,
     transparent: true,
     opacity: state.opacity,
   });
@@ -58,6 +67,7 @@ const createBoxMaterials = (
 
 export class NodeRenderer {
   private readonly entries = new Map<string, NodeRenderEntry>();
+  private readonly emissiveOverrides = new Map<string, boolean>();
 
   constructor(
     private readonly iconLoader: IIconLoader,
@@ -66,6 +76,29 @@ export class NodeRenderer {
 
   private key(diagramId: string, nodeId: string): string {
     return `${diagramId}::${nodeId}`;
+  }
+
+  setNodeEmissiveOverride(diagramId: string, nodeId: string, enabled: boolean | undefined): void {
+    const key = this.key(diagramId, nodeId);
+    if (enabled === undefined) {
+      this.emissiveOverrides.delete(key);
+    } else {
+      this.emissiveOverrides.set(key, enabled);
+    }
+    const entry = this.entries.get(key);
+    if (!entry?.lastState) return;
+    this.applyEmissiveToEntry(entry, entry.lastState, enabled);
+  }
+
+  clearEmissiveOverridesForDiagram(diagramId: string): void {
+    const prefix = `${diagramId}::`;
+    for (const key of this.emissiveOverrides.keys()) {
+      if (!key.startsWith(prefix)) continue;
+      this.emissiveOverrides.delete(key);
+      const entry = this.entries.get(key);
+      if (!entry?.lastState) continue;
+      this.applyEmissiveToEntry(entry, entry.lastState, undefined);
+    }
   }
 
   getOrCreate(
@@ -117,7 +150,9 @@ export class NodeRenderer {
       state.depth,
       state.cornerRadius,
     );
-    const materials = createBoxMaterials(state, materialCount);
+    const emissiveOverride = this.emissiveOverrides.get(this.key(diagramId, state.id));
+    const effectiveEmissiveIntensity = resolveEffectiveEmissiveIntensity(state, emissiveOverride);
+    const materials = createBoxMaterials(state, materialCount, effectiveEmissiveIntensity);
     const boxMesh = new THREE.Mesh(geometry, materials);
     boxMesh.castShadow = true;
     boxMesh.receiveShadow = true;
@@ -254,15 +289,23 @@ export class NodeRenderer {
       prev.metalness !== state.metalness ||
       prev.roughness !== state.roughness ||
       prev.emissiveIntensity !== state.emissiveIntensity ||
+      prev.emissive !== state.emissive ||
+      prev.emissiveColor !== state.emissiveColor ||
       borderTypeChanged;
 
+    const emissiveOverride = this.emissiveOverrides.get(this.key(diagramId, state.id));
+    const effectiveEmissiveIntensity = resolveEffectiveEmissiveIntensity(state, emissiveOverride);
     if (needsMaterialRebuild) {
       const oldMats = Array.isArray(entry.boxMesh.material)
         ? (entry.boxMesh.material as THREE.Material[])
         : [entry.boxMesh.material as THREE.Material];
-      entry.boxMesh.material = createBoxMaterials(state, entry.materialCount);
+      entry.boxMesh.material = createBoxMaterials(state, entry.materialCount, effectiveEmissiveIntensity);
       oldMats.forEach((m) => m.dispose());
-    } else if (prev && prev.opacity !== state.opacity) {
+    } else {
+      this.applyEmissiveToEntry(entry, state, emissiveOverride);
+    }
+
+    if (prev && prev.opacity !== state.opacity) {
       const mats = Array.isArray(entry.boxMesh.material)
         ? (entry.boxMesh.material as THREE.MeshStandardMaterial[])
         : [entry.boxMesh.material as THREE.MeshStandardMaterial];
@@ -452,6 +495,28 @@ export class NodeRenderer {
     }
 
     entry.lastState = state;
+  }
+
+  private applyEmissiveToEntry(
+    entry: NodeRenderEntry,
+    state: DiagramNodeState,
+    emissiveOverride: boolean | undefined,
+  ): void {
+    const mats = Array.isArray(entry.boxMesh.material)
+      ? (entry.boxMesh.material as THREE.MeshStandardMaterial[])
+      : [entry.boxMesh.material as THREE.MeshStandardMaterial];
+    const effectiveEmissiveIntensity = resolveEffectiveEmissiveIntensity(state, emissiveOverride);
+    if (entry.materialCount === 2) {
+      if (mats[0]) {
+        mats[0].emissive.set(state.emissiveColor ?? state.color);
+        mats[0].emissiveIntensity = effectiveEmissiveIntensity;
+      }
+      return;
+    }
+    if (mats[4]) {
+      mats[4].emissive.set(state.emissiveColor ?? state.color);
+      mats[4].emissiveIntensity = effectiveEmissiveIntensity;
+    }
   }
 
   private disposeEntry(entry: NodeRenderEntry): void {

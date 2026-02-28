@@ -9,6 +9,8 @@ export class GroupRenderer {
   // Converts "pixel-like" border width values from theme/state into diagram units.
   private static readonly BORDER_PX_TO_UNITS = 0.4;
   private static readonly BORDER_SIDE_DARKEN = 0.4;
+  private static readonly BORDER_METALNESS = 0.35;
+  private static readonly BORDER_ROUGHNESS = 0.45;
   private readonly entries = new Map<string, GroupRenderEntry>();
 
   constructor(private readonly registry: IGroupInteractionRegistry) {}
@@ -64,13 +66,17 @@ export class GroupRenderer {
     fill.receiveShadow = false;
     const label = new Text() as TextWithLayout;
     const border = this.createBorder(state);
+    const edgeLights = this.createEdgeLights(state);
     if (border) {
       group.add(fill, border, label);
     } else {
       group.add(fill, label);
     }
+    if (edgeLights) {
+      group.add(edgeLights);
+    }
     this.registry.register(fill, diagramId, state.id);
-    return { group, fill, border, label, lastState: state };
+    return { group, fill, border, edgeLights, label, lastState: state };
   }
 
   private disposeBorder(border: THREE.Group): void {
@@ -88,6 +94,38 @@ export class GroupRenderer {
     entry.group.remove(entry.border);
     this.disposeBorder(entry.border);
     entry.border = undefined;
+  }
+
+  private removeEdgeLights(entry: GroupRenderEntry): void {
+    if (!entry.edgeLights) return;
+    entry.group.remove(entry.edgeLights);
+    entry.edgeLights.clear();
+    entry.edgeLights = undefined;
+  }
+
+  private edgeLightsEqual(
+    a: DiagramGroupState['edgeLights'] | undefined,
+    b: DiagramGroupState['edgeLights'] | undefined,
+  ): boolean {
+    if (a === b) return true;
+    if (!a || !b) return false;
+    if (a.intensity !== b.intensity || a.distance !== b.distance || a.decay !== b.decay) return false;
+    if (a.lights.length !== b.lights.length) return false;
+    for (let i = 0; i < a.lights.length; i += 1) {
+      const al = a.lights[i]!;
+      const bl = b.lights[i]!;
+      if (al.index !== bl.index || al.side !== bl.side || al.indexOnSide !== bl.indexOnSide || al.color !== bl.color) {
+        return false;
+      }
+      if (
+        al.position[0] !== bl.position[0] ||
+        al.position[1] !== bl.position[1] ||
+        al.position[2] !== bl.position[2]
+      ) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private updateGroup(entry: GroupRenderEntry, state: DiagramGroupState): void {
@@ -144,17 +182,21 @@ export class GroupRenderer {
         entry.border.traverse((obj) => {
           if (obj instanceof THREE.Mesh) {
             const mats = Array.isArray(obj.material)
-              ? obj.material as THREE.MeshBasicMaterial[]
-              : [obj.material as THREE.MeshBasicMaterial];
+              ? obj.material as THREE.MeshStandardMaterial[]
+              : [obj.material as THREE.MeshStandardMaterial];
             if (mats[0]) {
               mats[0].color.set(state.borderColor);
               mats[0].opacity = state.borderOpacity;
               mats[0].transparent = true;
+              mats[0].emissive.set(state.borderEmissiveColor);
+              mats[0].emissiveIntensity = state.borderEmissiveIntensity;
             }
             if (mats[1]) {
               mats[1].color.set(new THREE.Color(state.borderColor).multiplyScalar(GroupRenderer.BORDER_SIDE_DARKEN));
               mats[1].opacity = state.borderOpacity;
               mats[1].transparent = true;
+              mats[1].emissive.set(state.borderEmissiveColor);
+              mats[1].emissiveIntensity = state.borderEmissiveIntensity;
             }
             return;
           }
@@ -165,6 +207,17 @@ export class GroupRenderer {
             edgeMat.transparent = true;
           }
         });
+      }
+    }
+
+    const prevLights = prev?.edgeLights;
+    const nextLights = state.edgeLights;
+    if (!this.edgeLightsEqual(prevLights, nextLights)) {
+      this.removeEdgeLights(entry);
+      const rebuilt = this.createEdgeLights(state);
+      if (rebuilt) {
+        entry.edgeLights = rebuilt;
+        entry.group.add(rebuilt);
       }
     }
 
@@ -209,6 +262,10 @@ export class GroupRenderer {
     if (entry.border) {
       this.disposeBorder(entry.border);
     }
+    if (entry.edgeLights) {
+      entry.edgeLights.clear();
+      entry.edgeLights = undefined;
+    }
     entry.label.geometry.dispose();
   }
 
@@ -221,15 +278,23 @@ export class GroupRenderer {
     const h = Math.max(0.01, state.bounds.h);
     const halfW = w / 2;
     const halfH = h / 2;
-    const faceMat = new THREE.MeshBasicMaterial({
+    const faceMat = new THREE.MeshStandardMaterial({
       color: state.borderColor,
       opacity: state.borderOpacity,
       transparent: true,
+      metalness: GroupRenderer.BORDER_METALNESS,
+      roughness: GroupRenderer.BORDER_ROUGHNESS,
+      emissive: new THREE.Color(state.borderEmissiveColor),
+      emissiveIntensity: state.borderEmissiveIntensity,
     });
-    const sideMat = new THREE.MeshBasicMaterial({
+    const sideMat = new THREE.MeshStandardMaterial({
       color: new THREE.Color(state.borderColor).multiplyScalar(GroupRenderer.BORDER_SIDE_DARKEN),
       opacity: state.borderOpacity,
       transparent: true,
+      metalness: GroupRenderer.BORDER_METALNESS,
+      roughness: GroupRenderer.BORDER_ROUGHNESS,
+      emissive: new THREE.Color(state.borderEmissiveColor),
+      emissiveIntensity: state.borderEmissiveIntensity,
     });
 
     // Single ring mesh gives mitered corners with no gaps and no corner overdraw.
@@ -266,5 +331,22 @@ export class GroupRenderer {
     );
     border.add(frameMesh, edgeLines);
     return border;
+  }
+
+  private createEdgeLights(state: DiagramGroupState): THREE.Group | undefined {
+    const spec = state.edgeLights;
+    if (!spec || spec.lights.length === 0) return undefined;
+    const group = new THREE.Group();
+    for (const lightState of spec.lights) {
+      const light = new THREE.PointLight(
+        lightState.color,
+        spec.intensity,
+        spec.distance,
+        spec.decay,
+      );
+      light.position.set(lightState.position[0], lightState.position[1], lightState.position[2]);
+      group.add(light);
+    }
+    return group;
   }
 }

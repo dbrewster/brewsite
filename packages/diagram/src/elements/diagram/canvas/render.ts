@@ -98,4 +98,18 @@ export class DiagramCanvasRenderer {
     }
     return undefined;
   }
+
+  setNodeEmissiveOverride(diagramId: string, nodeId: string, enabled: boolean | undefined): void {
+    this.diagramRenderers.get(diagramId)?.setNodeEmissiveOverride(diagramId, nodeId, enabled);
+  }
+
+  clearNodeEmissiveOverrides(diagramId?: string): void {
+    if (diagramId) {
+      this.diagramRenderers.get(diagramId)?.clearNodeEmissiveOverrides(diagramId);
+      return;
+    }
+    for (const [id, renderer] of this.diagramRenderers.entries()) {
+      renderer.clearNodeEmissiveOverrides(id);
+    }
+  }
 }

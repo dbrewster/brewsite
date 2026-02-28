@@ -54,7 +54,6 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
     sceneCount,
     canvasRef,
     inputMap,
-    wheelGuard,
     inputControllerSpec,
     onCameraOrbit,
     onCameraDolly,
@@ -64,8 +63,6 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
     onDiagramCanvasReset,
     onDiagramCanvasFocus,
   } = options;
-
-  const mode = inputMap?.mode ?? 'scroll';
 
   // ─── Scroll mode: delegate to useEngineScroll ─────────────────────────
   const scrollResult = useEngineScroll({ scrollRegionRef, scrollRegionHeightPx });
@@ -137,69 +134,40 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
       return () => ctrl.detach();
     }
 
-    if (!inputMap || mode === 'scroll') {
-      // Always register keyboard navigation unless it has been explicitly disabled
-      // via inputMap.keys === false. When inputMap is undefined (not provided at all),
-      // we still want the default arrow/home/end keybindings to work.
-      if (inputMap?.keys === false) return;
-
-      const handler = {
-        onScroll: (delta: number) => {
-          const next = clamp01(getGlobalProgressStable() + delta);
-          scrollToProgressStable(next);
-        },
-        onJumpToScene: (index: number) => {
-          const progress = sceneCount > 1 ? index / (sceneCount - 1) : 0;
-          scrollToProgressStable(progress);
-        },
-        getProgress: getGlobalProgressStable,
-        getSceneCount: () => sceneCount,
-      };
-
-      // In scroll mode: keyboard only. Wheel is handled by the browser + useEngineScroll.
-      const scrollModeMap: SceneNavInputMap = {
-        mode: 'scroll',
-        wheel: false,
-        drag: false,
-        swipe: false,
-        keys: inputMap?.keys, // undefined → InputController uses DEFAULT_KEYS for all actions
-      };
-
-      const ctrl = new InputController(window, scrollModeMap, handler);
-      ctrl.attach();
-      return () => ctrl.detach();
-    }
-
-    // Direct mode: attach to the scroll region (preferred), then canvas, then window.
-    // Keyboard events attach to window so they fire regardless of focus target.
-    const attachTarget = scrollRegionRef.current ?? canvasRef?.current ?? window;
-    const keyboardTarget = window;
+    // Legacy fallback when no scene InputController is authored:
+    // preserve scroll-driven scene transitions and optional keyboard shortcuts.
+    // Wheel remains native browser scroll in this mode.
+    if (inputMap?.keys === false) return;
 
     const handler = {
       onScroll: (delta: number) => {
-        // NOTE: wheelGuard is checked inside InputController.handleWheel, NOT here.
-        // Checking it here would incorrectly block keyboard/drag/swipe navigation.
-        const next = clamp01(directProgressRef.current + delta);
-        setDirectProgressBoth(next);
+        const next = clamp01(getGlobalProgressStable() + delta);
+        scrollToProgressStable(next);
       },
       onJumpToScene: (index: number) => {
         const progress = sceneCount > 1 ? index / (sceneCount - 1) : 0;
-        setDirectProgressBoth(progress);
+        scrollToProgressStable(progress);
       },
-      getProgress: getDirectProgress,
+      getProgress: getGlobalProgressStable,
       getSceneCount: () => sceneCount,
     };
 
-    // wheelGuard is passed as the 5th arg so it only suppresses wheel events,
-    // leaving keyboard, drag, swipe, and click navigation fully operational.
-    const ctrl = new InputController(attachTarget, inputMap, handler, keyboardTarget, wheelGuard);
+    const scrollModeMap: SceneNavInputMap = {
+      mode: 'scroll',
+      wheel: false,
+      drag: false,
+      swipe: false,
+      keys: inputMap?.keys,
+    };
+
+    const ctrl = new InputController(window, scrollModeMap, handler);
     ctrl.attach();
     return () => ctrl.detach();
   }, [
     // Stable references only — no object literals that change every render
-    inputMap, mode, sceneCount, canvasRef, canvasRef?.current, scrollRegionRef,
+    inputMap, sceneCount, canvasRef, canvasRef?.current, scrollRegionRef,
     scrollToProgressStable, getGlobalProgressStable,
-    setDirectProgressBoth, getDirectProgress, wheelGuard,
+    setDirectProgressBoth, getDirectProgress,
     hasSceneController, sceneControllerScope,
     onCameraOrbit, onCameraDolly, onCameraReset, onDiagramCanvasMove, onDiagramCanvasRotate,
     onDiagramCanvasReset,
@@ -207,7 +175,7 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
   ]);
 
   // ─── Return appropriate interface ─────────────────────────────────────
-  if (hasSceneController || mode === 'direct') {
+  if (hasSceneController) {
     return {
       progress: directProgress,
       scrollToProgress: setDirectProgressBoth,

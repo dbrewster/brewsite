@@ -295,6 +295,42 @@ describe('ActionInputController', () => {
     expect(onDiagramCanvasMove).toHaveBeenCalledWith('llm-canvas', 18, 0, 1);
   });
 
+  it('inverts wheel Y deltas for wheel mappings', () => {
+    const spec = makeSpec();
+    spec.actions.push({
+      id: 'dolly-wheel',
+      type: 'camera.dolly',
+      cameraId: 'camera',
+      maps: [{ kind: 'wheel', axis: 'y' }],
+    });
+
+    const onCameraDolly = vi.fn();
+    const target = document.createElement('div');
+    const ctrl = new ActionInputController(
+      target,
+      () => spec,
+      {
+        getSceneCount: () => 2,
+        onSceneStep: () => {},
+        onCameraOrbit: () => {},
+        onCameraDolly,
+        onCameraReset: () => {},
+        onDiagramCanvasMove: () => {},
+        onDiagramCanvasRotate: () => {},
+        onDiagramCanvasReset: () => {},
+        onDiagramCanvasFocus: () => {},
+      },
+      target,
+    );
+
+    ctrl.attach();
+    target.dispatchEvent(new WheelEvent('wheel', { deltaY: 12, bubbles: true, cancelable: true }));
+    ctrl.detach();
+
+    expect(onCameraDolly).toHaveBeenCalledTimes(1);
+    expect(onCameraDolly).toHaveBeenCalledWith('camera', -12, 1);
+  });
+
   it('keeps wheel sticky lock axis across a continuous wheel gesture', () => {
     const spec = makeSpec();
     spec.actions.push({

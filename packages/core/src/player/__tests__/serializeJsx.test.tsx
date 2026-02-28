@@ -32,17 +32,17 @@ describe('serializeJsx', () => {
   });
 
   it('includes keys in the serialized output', () => {
-    expect(serializeJsx(<Scene key="a" />)).not.toBe(serializeJsx(<Scene key="b" />));
+    expect(serializeJsx(<Scene id="same" key="a" />)).not.toBe(serializeJsx(<Scene id="same" key="b" />));
   });
 
   it('captures nested child changes', () => {
     const a = serializeJsx(
-      <Scene key="s">
+      <Scene id="s" key="s">
         <Node label="first" x={1} />
       </Scene>,
     );
     const b = serializeJsx(
-      <Scene key="s">
+      <Scene id="s" key="s">
         <Node label="first" x={2} />
       </Scene>,
     );
@@ -62,15 +62,15 @@ describe('serializeJsx', () => {
     const nodes = Array.from({ length: 50 }, (_, i) => (
       <Node key={`n${i}`} label={`Node ${i}`} x={i * 100} />
     ));
-    const scene1 = <Scene key="big">{nodes}</Scene>;
-    const scene2 = <Scene key="big">{nodes}</Scene>;
+    const scene1 = <Scene id="big" key="big">{nodes}</Scene>;
+    const scene2 = <Scene id="big" key="big">{nodes}</Scene>;
     expect(serializeJsx(scene1)).toBe(serializeJsx(scene2));
 
     const nodesModified = [
       ...nodes.slice(0, 49),
       <Node key="n49" label="CHANGED" x={49 * 100} />,
     ];
-    const scene3 = <Scene key="big">{nodesModified}</Scene>;
+    const scene3 = <Scene id="big" key="big">{nodesModified}</Scene>;
     expect(serializeJsx(scene3)).not.toBe(serializeJsx(scene1));
   });
 });

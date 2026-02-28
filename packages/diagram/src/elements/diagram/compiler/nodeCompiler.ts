@@ -55,6 +55,8 @@ export const buildGroupDefaults = (theme: DiagramTheme) => ({
   borderStyle:   'solid' as const,
   fillOpacity:   theme.group.defaultFillOpacity,
   borderOpacity: theme.group.defaultBorderOpacity,
+  borderEmissiveColor: theme.group.defaultBorderEmissiveColor ?? theme.group.defaultBorderColor,
+  borderEmissiveIntensity: theme.group.defaultBorderEmissiveIntensity ?? 0,
 });
 
 export function compileNode(
@@ -69,6 +71,9 @@ export function compileNode(
   const color = dsl.color ?? nd.color;
   const sideColor = dsl.sideColor ?? deriveColor(color, -0.15);
   const borderColor = dsl.borderColor ?? deriveColor(color, 0.25);
+  const emissiveIntensity = dsl.emissiveIntensity ?? nd.emissiveIntensity;
+  const emissive = dsl.emissive ?? emissiveIntensity > 0;
+  const emissiveColor = dsl.emissiveColor ?? color;
 
   return {
     id: dsl.id,
@@ -83,7 +88,9 @@ export function compileNode(
     borderColor,
     metalness: dsl.metalness ?? nd.metalness,
     roughness: dsl.roughness ?? nd.roughness,
-    emissiveIntensity: dsl.emissiveIntensity ?? nd.emissiveIntensity,
+    emissiveIntensity,
+    emissive,
+    emissiveColor,
     cornerRadius: dsl.cornerRadius ?? nd.cornerRadius,
     labelColor: dsl.labelColor ?? nd.labelColor,
     sublabelColor: dsl.sublabelColor ?? nd.sublabelColor,
@@ -95,6 +102,8 @@ export function compileNode(
     iconStyle: dsl.iconStyle ?? nd.iconStyle,
     iconDepth: dsl.iconDepth ?? nd.iconDepth,
     groupId,
+    onMouseEnter: dsl.onMouseEnter,
+    onMouseLeave: dsl.onMouseLeave,
     positionInherited: positionInherited || undefined,
   };
 }

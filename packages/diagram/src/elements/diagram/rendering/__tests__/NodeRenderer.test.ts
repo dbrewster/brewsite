@@ -37,6 +37,8 @@ const makeNode = (overrides: Partial<DiagramNodeState> = {}): DiagramNodeState =
   metalness: 0.2,
   roughness: 0.8,
   emissiveIntensity: 0,
+  emissive: false,
+  emissiveColor: '#ffffff',
   cornerRadius: 0,
   labelColor: '#000000',
   sublabelColor: '#000000',
@@ -276,6 +278,37 @@ describe('NodeRenderer', () => {
     const mat = entry.roundedBorder?.material as THREE.LineBasicMaterial;
     expect(mat.color.getHexString()).toBe('ff00ff');
     expect(mat.opacity).toBeCloseTo(0.2);
+  });
+
+  it('applies node emissiveColor to front/cap material', () => {
+    const entry = renderer.getOrCreate(
+      makeNode({ emissive: true, emissiveIntensity: 0.5, emissiveColor: '#00ffcc' }),
+      'd1',
+      themeConfig,
+      parent,
+    );
+    const mats = entry.boxMesh.material as THREE.MeshStandardMaterial[];
+    const emissiveMat = entry.materialCount === 2 ? mats[0] : mats[4];
+    expect(emissiveMat?.emissive.getHexString()).toBe('00ffcc');
+    expect(emissiveMat?.emissiveIntensity).toBeCloseTo(0.5, 6);
+  });
+
+  it('setNodeEmissiveOverride toggles emissive intensity at runtime', () => {
+    const entry = renderer.getOrCreate(
+      makeNode({ emissive: false, emissiveIntensity: 0.8 }),
+      'd1',
+      themeConfig,
+      parent,
+    );
+    const mats = entry.boxMesh.material as THREE.MeshStandardMaterial[];
+    const emissiveMat = entry.materialCount === 2 ? mats[0]! : mats[4]!;
+    expect(emissiveMat.emissiveIntensity).toBeCloseTo(0, 6);
+
+    renderer.setNodeEmissiveOverride('d1', 'n1', true);
+    expect(emissiveMat.emissiveIntensity).toBeCloseTo(0.8, 6);
+
+    renderer.setNodeEmissiveOverride('d1', 'n1', false);
+    expect(emissiveMat.emissiveIntensity).toBeCloseTo(0, 6);
   });
 
   it('positions label and sublabel when iconUrl is present', () => {

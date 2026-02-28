@@ -8,6 +8,12 @@ change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents the full Scene Authoring DSL surface for @brewsite/core including SceneGroup, Scene, built-in DSL elements, authoring patterns, custom widget DSL extension, and snapshot context."
+  - date: 2026-02-28
+    author: "Toolkit Product"
+    summary: "Scene Authoring API Simplification (plan_scene_authoring_api.md implemented). SceneGroup and SceneDefinition removed from public API and made internal. ScenePlayer now accepts <Scene key=\"...\"> elements as direct children instead of a sceneGroup prop. Scene identity migrated from id prop to React key prop (id retained as backward-compat fallback). index removed from SceneDefinition. getFrame(context) function form removed from public authoring surface — replaced by useSceneRuntime() hook. HMR handling made automatic via content-hash compilation. SceneSnapshotContext values now accessed via useSceneRuntime(playerId) in parent components. Added documentation for useSceneRuntime hook and ScenePlayerRegistry."
+  - date: 2026-02-28
+    author: "Toolkit Product"
+    summary: "DX improvements: transition easing added to Scene DSL. <Scene transition={{ easing: '...' }}> declares the easing curve for the transition into that scene. EasingName type exported with 5 built-in curves. Easing stored in SceneTrack.transitionEasings and applied to blockProgress in RuntimeDriverImpl before widget apply."
 ---
 
 # BrewSite Core — Scene Authoring DSL
@@ -55,7 +61,7 @@ Without a clear, stable, well-typed authoring surface, consumer adoption is bloc
 
 - **Runtime scene navigation** (scroll, direct mode, programmatic seek) — belongs in the player PRD.
 - **Animation curve authoring** — easing and transition physics belong in widget implementations and the compiler's transition spec types.
-- **Scene hot-reload / HMR** — a runtime concern owned by the player layer.
+- **Scene hot-reload / HMR** — handled automatically via content-hash compilation. When a parent component re-renders (including from Vite HMR), new JSX content produces a new content hash, which triggers recompilation without manual cache-busting.
 - **Scene validation tooling** (lint rules, schema validators) — future tooling work, not part of the authoring surface itself.
 - **Server-side rendering of scenes** — the DSL compiler runs in a browser or Node.js context, but SSR output is not a current target.
 - **Scene scripting / procedural generation** — scenes are static snapshots; procedural logic belongs in the host application before scenes are constructed.
@@ -76,11 +82,11 @@ Without a clear, stable, well-typed authoring surface, consumer adoption is bloc
 
 ## 6. Functional Requirements
 
-1. Consumers must be able to define a collection of scenes using a `SceneGroup` data structure that carries a unique `id` and an ordered `scenes` array.
-2. Each scene must be uniquely identified by a string `id` within its `SceneGroup`. Duplicate IDs within the same group are a compiler error.
-3. Scene order within a `SceneGroup` determines playback order. The first scene has no entry transition; the last scene has no exit transition.
-4. Each scene must expose a `getFrame` function that, given a `SceneSnapshotContext`, returns either a JSX element rooted at `<Scene>` or a pre-compiled `SceneFrame` object.
-5. The `<Scene>` DSL component must accept `id`, `meta`, `metalnessMultiplier`, and `roughnessMultiplier` props.
+1. Consumers must be able to define a collection of scenes by passing `<Scene key="...">` elements as direct children of `<ScenePlayer>`. No intermediate wrapper type or factory function is required.
+2. Each scene must be uniquely identified by its React `key` prop within a `<ScenePlayer>`. The `key` is read from `element.key` by the compiler's `sceneRootHandler`. The `id` prop is retained as a backward-compat fallback. Duplicate keys within the same player are a compiler warning.
+3. Scene order — the top-to-bottom order of `<Scene>` children — determines playback order. The first scene has no entry transition; the last scene has no exit transition.
+4. Scene JSX elements are authored as plain `ReactElement` values (exported from scene files as constants). They are not wrapped in a factory function for normal static authoring. Dynamic values (viewport dimensions, asset-ready state, runtime variables) flow into scene JSX via React state in the parent component, using `useSceneRuntime()` if engine-internal values are needed.
+5. The `<Scene>` DSL component must accept `key` (React standard), `id` (backward-compat fallback), `meta`, `metalnessMultiplier`, and `roughnessMultiplier` props.
 6. The `<Scene>` root must delegate compilation of its children to registered DSL node handlers via `compileChildren`.
 7. All DSL element components (`Model`, `Camera`, `Lighting`, etc.) must be null-returning React components with a `displayName` set, so they carry no runtime weight.
 8. The compiler must register a node handler for each DSL component before any `resolveSceneFromDsl` call. The registration must be idempotent.
@@ -95,9 +101,44 @@ Without a clear, stable, well-typed authoring surface, consumer adoption is bloc
 
 ## 7. API Design
 
-### 7.1 SceneGroup and SceneDefinition
+### 7.1 SceneDefinition (internal) and InternalSceneSpec
 
-`SceneGroup` and `SceneDefinition` are the structural types that the compiler operates on. Scene authors do not typically construct these directly — they are produced by the player layer when it evaluates the scene tree. However, consumers building headless tooling or custom players construct them directly.
+`SceneDefinition` and `SceneGroup` are **internal types** as of the Scene Authoring API Simplification. They are no longer exported from `compiler/index.ts` or `player/index.ts`. Scene authors never construct them. The player layer converts `<Scene>` children into `InternalSceneSpec[]` before handing to the compiler adapter.
+
+```typescript
+// packages/core/src/compiler/sceneTypes.ts
+// @internal — constructed by ScenePlayer from <Scene> children. Not exported.
+
+export type SceneDefinition = {
+  id: string;                    // derived from element.key or element.props.id
+  meta?: Record<string, JsonPrimitive>;
+  getFrame: (context: SceneSnapshotContext) => ReactNode | SceneFrame;
+};
+
+// SceneGroup removed entirely.
+```
+
+```typescript
+// packages/core/src/player/ScenePlayer.tsx
+// Internal to the player layer — not exported.
+
+type InternalSceneSpec = {
+  /** React key from the <Scene> element, or index-derived fallback. */
+  readonly sceneKey: string;
+  /**
+   * Stable serialized string of the full JSX prop tree.
+   * Changes whenever any prop in this scene's subtree changes.
+   * Used as the cache key component and useMemo dependency for recompilation.
+   */
+  readonly contentKey: string;
+  /** The <Scene> ReactElement passed directly to the compiler. */
+  readonly element: ReactElement;
+};
+```
+
+The compiler adapter in `useSceneEngine` converts `InternalSceneSpec[]` to `SceneDefinition[]` just before calling `compileSceneTrack`. This preserves the compiler's internal contract unchanged while exposing a cleaner external API.
+
+`SceneSnapshotContext` remains the internal compilation-time context passed through the compiler:
 
 ```typescript
 // packages/core/src/compiler/sceneTypes.ts
@@ -114,40 +155,24 @@ export type SceneSnapshotContext = {
   /** Viewport dimensions — for viewport-responsive DSL layout. */
   viewport?: { width: number; height: number; aspectRatio: number };
 };
-
-export type SceneDefinition = {
-  /** Unique identifier within the SceneGroup. */
-  id: string;
-  /** 0-based index within the ordered scene array. */
-  index: number;
-  /** Optional arbitrary metadata attached to this scene. */
-  meta?: Record<string, JsonPrimitive>;
-  /**
-   * Returns the scene's DSL tree or a pre-compiled SceneFrame.
-   * Called once per compilation pass with a SceneSnapshotContext.
-   */
-  getFrame: (context: SceneSnapshotContext) => ReactNode | SceneFrame;
-};
-
-export type SceneGroup = {
-  /** Unique identifier for this group. */
-  id: string;
-  /** Ordered array of scene definitions. Order determines playback sequence. */
-  scenes: SceneDefinition[];
-};
 ```
 
-**Design note:** `SceneDefinition.getFrame` accepts a function rather than a direct JSX element to support context-responsive authoring — the function receives viewport dimensions and asset-ready state, which can influence element positions and visibility. This defers scene evaluation to compilation time, not module load time.
+See Section 10 for how these values are now surfaced to scene authors via `useSceneRuntime()`.
 
 ### 7.2 Scene DSL Component
 
 `<Scene>` is the required root for every scene DSL tree. It is a null-returning React component that registers its handler on import.
 
+Scene identity is determined by the React `key` prop (`element.key`), read directly by the compiler's `sceneRootHandler`. The `id` prop is retained as a backward-compat fallback for existing scenes. If neither is set, the compiler warns and falls back to the 0-based array index.
+
 ```typescript
 // packages/core/src/compiler/sceneDslCompiler.ts
 
 export const Scene = (_props: {
-  /** Optional explicit scene ID. Overrides the SceneDefinition id if set. */
+  /**
+   * Backward-compat scene identity. Prefer React key prop: <Scene key="my-scene">.
+   * When both key and id are present, key takes precedence.
+   */
   id?: string;
   /** Optional metadata map. Values must be JSON-serializable primitives. */
   meta?: Record<string, JsonPrimitive>;
@@ -167,10 +192,36 @@ export const Scene = (_props: {
 Scene.displayName = 'Scene';
 ```
 
-The `Scene` component is registered as a root-level DSL handler at module load time. Its handler:
-1. Reads `id`, `meta`, `metalnessMultiplier`, and `roughnessMultiplier` from props, resolving function forms against `SceneSnapshotContext`.
-2. Calls `helpers.compileChildren(node, api)` to recurse into child DSL elements.
-3. Sets scene-level metadata on the `SceneFrame` via `api.setSceneMeta`.
+The updated `Scene` component signature with all current props:
+
+```typescript
+export const Scene = (_props: {
+  id?: string;         // backward-compat; prefer React key prop
+  meta?: Record<string, JsonPrimitive>;
+  metalnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
+  roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
+  /**
+   * Easing curve applied to blockProgress for the transition INTO this scene.
+   * Declared on the incoming scene (the one being transitioned to).
+   * Has no effect on the first scene (no incoming transition).
+   */
+  transition?: { easing?: EasingName };
+  children?: React.ReactNode;
+}) => null;
+```
+
+Available easing curves (`EasingName`):
+- `'linear'` — constant rate (default when unset)
+- `'easeOutCubic'` — fast start, smooth deceleration
+- `'easeOutExpo'` — very fast start, long gentle tail
+- `'easeInOutSine'` — smooth acceleration and deceleration
+- `'easeInOutCubic'` — stronger S-curve acceleration/deceleration
+
+The `Scene` component handler:
+1. Reads `id`, `meta`, `metalnessMultiplier`, `roughnessMultiplier`, and `transition.easing` from props.
+2. Stores `transitionEasing` on the `SceneFrame` if set.
+3. Calls `helpers.compileChildren(node, api)` to recurse into child DSL elements.
+4. Sets scene-level metadata via `api.setSceneMeta`.
 
 ### 7.3 resolveSceneFromDsl
 
@@ -389,17 +440,24 @@ export type HudItemDslProps = {
 
 ### 8.1 Minimal Single Scene
 
+Scenes are plain JSX constants exported from scene files. They are passed as direct children of `<ScenePlayer>`.
+
 ```tsx
+// scene01_intro.tsx
 import { Scene } from '@brewsite/core';
 
-// Used inside a SceneDefinition.getFrame — not rendered directly
-const MyScene = (
-  <Scene id="intro">
+export const scene01Intro = (
+  <Scene key="intro">
     <Camera descriptor={{ mode: 'world', position: [0, 1, 5], target: [0, 0, 0] }} />
     <Model id="bot" type="mesh" position={[0, 0, 0]} scale={[1, 1, 1]} />
     <Lighting ambient={{ intensity: 0.5, color: '#ffffff' }} />
   </Scene>
 );
+
+// page.tsx
+<ScenePlayer manifestUrl="/manifest.json" widgetSetup={createWidgetSetup}>
+  {scene01Intro}
+</ScenePlayer>
 ```
 
 ### 8.2 Multi-Scene Interpolation
@@ -407,77 +465,133 @@ const MyScene = (
 Declaring the same widget ID in adjacent scenes causes the compiler to generate an interpolation transition between the two states:
 
 ```tsx
-// Scene A — model on the left
-<Scene id="left">
-  <Model id="bot" type="mesh" position={[-2, 0, 0]} scale={[1, 1, 1]} />
-</Scene>
+// sceneLeft.tsx
+export const sceneLeft = (
+  <Scene key="left">
+    <Model id="bot" type="mesh" position={[-2, 0, 0]} scale={[1, 1, 1]} />
+  </Scene>
+);
 
-// Scene B — same id="bot", different position
+// sceneRight.tsx — same id="bot", different position
 // Compiler produces: interpolate(botStateA, botStateB) across the transition block
-<Scene id="right">
-  <Model id="bot" type="mesh" position={[2, 0, 0]} scale={[1, 1, 1]} />
-</Scene>
+export const sceneRight = (
+  <Scene key="right">
+    <Model id="bot" type="mesh" position={[2, 0, 0]} scale={[1, 1, 1]} />
+  </Scene>
+);
+
+// page.tsx
+<ScenePlayer ...>
+  {sceneLeft}
+  {sceneRight}
+</ScenePlayer>
 ```
 
 ### 8.3 Enter Transition
 
-An element present in scene B but absent from scene A triggers an enter transition. The element's widget fills the first half of the transition block with the absent default state, then enters during the second half:
+An element present in scene B but absent from scene A triggers an enter transition:
 
 ```tsx
-// Scene A — no "badge" widget
-<Scene id="intro">
-  <Model id="bot" type="mesh" position={[0, 0, 0]} />
-</Scene>
+export const sceneIntro = (
+  <Scene key="intro">
+    <Model id="bot" type="mesh" position={[0, 0, 0]} />
+  </Scene>
+);
 
-// Scene B — "badge" appears fresh
-// Compiler produces: enter(badgeStateB) in the second half of the transition block
-<Scene id="detail">
-  <Model id="bot" type="mesh" position={[0, 0, 0]} />
-  <Model id="badge" type="badge-model" position={[1, 0.5, 0]} opacity={0} />
-</Scene>
-```
-
-The `opacity={0}` in the enter state is the author's choice; the widget's `enterFn` (if using `FunctionalTransitionSpec`) or `enter` (if using `ElementTransitionSpec`) controls how the enter animation plays.
-
-### 8.4 Exit Transition
-
-An element present in scene A but absent from scene B triggers an exit transition. The element fills the second half of the transition block with its disabled default state:
-
-```tsx
-// Scene A — "tooltip" is present
-<Scene id="detail">
-  <Model id="tooltip" type="tooltip-mesh" position={[0, 1.5, 0]} />
-</Scene>
-
-// Scene B — "tooltip" absent
-// Compiler produces: exit(tooltipStateA) in the first half of the transition block
-<Scene id="summary">
-  <Model id="bot" type="mesh" position={[0, 0, 0]} />
-</Scene>
-```
-
-### 8.5 Context-Responsive Layout
-
-Props may be functions of `SceneSnapshotContext`, evaluated once during compilation:
-
-```tsx
-const MyScene = (context: SceneSnapshotContext) => (
-  <Scene id="responsive">
-    <Model
-      id="bot"
-      type="mesh"
-      position={(ctx) => [
-        ctx.viewport?.aspectRatio ?? 1 > 1.5 ? -2 : 0,
-        0,
-        0,
-      ]}
-      scale={[1, 1, 1]}
-    />
+// "badge" appears fresh in "detail" — enter transition fires
+export const sceneDetail = (
+  <Scene key="detail">
+    <Model id="bot" type="mesh" position={[0, 0, 0]} />
+    <Model id="badge" type="badge-model" position={[1, 0.5, 0]} opacity={0} />
   </Scene>
 );
 ```
 
-### 8.6 HUD Overlay
+### 8.4 Exit Transition
+
+An element present in scene A but absent from scene B triggers an exit transition:
+
+```tsx
+export const sceneDetail = (
+  <Scene key="detail">
+    <Model id="tooltip" type="tooltip-mesh" position={[0, 1.5, 0]} />
+  </Scene>
+);
+
+// "tooltip" absent in "summary" — exit transition fires
+export const sceneSummary = (
+  <Scene key="summary">
+    <Model id="bot" type="mesh" position={[0, 0, 0]} />
+  </Scene>
+);
+```
+
+### 8.5 Dynamic / Context-Responsive Layout
+
+For scenes that need to respond to runtime values (viewport dimensions, asset-ready state, runtime variables), use `useSceneRuntime()` in the parent page component. When those values change, React re-renders the parent, new JSX content is produced, the content hash changes, and the scene track is automatically recompiled.
+
+```tsx
+// page.tsx
+function DiagramPage() {
+  // useSceneRuntime reads engine-internal values reactively.
+  // Requires matching id prop on <ScenePlayer>.
+  const { assetsReady, viewport } = useSceneRuntime('my-player');
+  const [theme] = useTheme(); // any external state also works
+
+  return (
+    <ScenePlayer id="my-player" manifestUrl="..." widgetSetup={...}>
+      <Scene key="responsive">
+        <Model
+          id="bot"
+          type="mesh"
+          position={[viewport.aspectRatio > 1.5 ? -2 : 0, 0, 0]}
+          scale={[1, 1, 1]}
+          opacity={assetsReady ? 1 : 0}
+        />
+        <Lighting
+          ambient={{ intensity: theme === 'dark' ? 1.0 : 0.5, color: '#ffffff' }}
+        />
+      </Scene>
+    </ScenePlayer>
+  );
+}
+```
+
+Individual DSL props also accept a context-function form that is evaluated once during compilation. This pattern is still supported for `SceneSnapshotContext` fields available internally to the compiler (`sceneIndex`, `numScenes`):
+
+```tsx
+export const sceneAdaptive = (
+  <Scene key="adaptive" roughnessMultiplier={(ctx) => ctx.sceneIndex === 0 ? 1.0 : 0.7}>
+    <Model id="bot" type="mesh" position={[0, 0, 0]} />
+  </Scene>
+);
+```
+
+### 8.6 Transition Easing
+
+Declare a custom easing curve on the incoming scene's `transition` prop. Easing affects how `blockProgress` advances through the transition — it controls the pacing of every widget's enter/exit/interpolate animation for that transition.
+
+```tsx
+export const sceneReveal = (
+  // Transition INTO this scene uses easeOutExpo — snappy start, long gentle settle
+  <Scene key="reveal" transition={{ easing: 'easeOutExpo' }}>
+    <Model id="product" type="product-model" position={[0, 0, 0]} />
+  </Scene>
+);
+
+export const sceneClose = (
+  // Smooth symmetric S-curve for a more considered exit feel
+  <Scene key="close" transition={{ easing: 'easeInOutCubic' }}>
+    <Model id="product" type="product-model" position={[0, -3, 0]} opacity={0} />
+  </Scene>
+);
+```
+
+**Easing applies to all widgets in the transition.** It is a scene-level property, not per-element. A widget's `transitionSpec` still controls the shape of the animation (e.g., fade vs slide); easing controls its tempo.
+
+**The first scene has no incoming transition** — its `transition` prop has no effect.
+
+### 8.7 HUD Overlay
 
 ```tsx
 <Scene id="features">
@@ -495,7 +609,7 @@ const MyScene = (context: SceneSnapshotContext) => (
 
 HUD items are not animated by the compiler — they appear/disappear at scene boundaries. Motion within a HudItem's `children` is owned by the host application (e.g., via anime.js wrappers).
 
-### 8.7 Input Controller
+### 8.8 Input Controller
 
 ```tsx
 <Scene id="interactive">
@@ -518,7 +632,7 @@ HUD items are not animated by the compiler — they appear/disappear at scene bo
 </Scene>
 ```
 
-### 8.8 Scene Metadata
+### 8.9 Scene Metadata
 
 ```tsx
 <Scene
@@ -531,7 +645,7 @@ HUD items are not animated by the compiler — they appear/disappear at scene bo
 
 The `meta` map accepts `JsonPrimitive` values (`string | number | boolean | null`). It is available on `SceneFrame.meta` and surfaced to the host application via the player layer.
 
-### 8.9 Material Multipliers
+### 8.10 Material Multipliers
 
 Scene-level metalness and roughness multipliers apply uniformly to all materials rendered in that scene. Useful for adjusting material appearance per-scene without modifying model assets:
 
@@ -569,15 +683,17 @@ Consequences for authors:
 
 ---
 
-## 10. SceneSnapshotContext
+## 10. SceneSnapshotContext and useSceneRuntime
 
-`SceneSnapshotContext` is the compilation-time context available to all DSL components that use the function-form prop pattern. It is the only mechanism for making scene content responsive to runtime-known values at compile time.
+### 10.1 SceneSnapshotContext (compiler-internal)
+
+`SceneSnapshotContext` is the compilation-time context used internally by the compiler. It is available to DSL components that use the context-function prop form (e.g., `position={(ctx) => ...}`). Scene authors don't typically construct or receive this directly.
 
 ```typescript
 export type SceneSnapshotContext = {
   sceneIndex: number;          // 0-based position of this scene in the group
   numScenes: number;           // Total scene count — for relative positioning
-  assetsReady: boolean;        // True during final compilation; false during loading
+  assetsReady: boolean;        // True after assets loaded; false during first compilation pass
   variables?: VariableStoreReader;   // Runtime variable store (injected by player)
   viewport?: {                 // Viewport dimensions (injected by player)
     width: number;
@@ -587,13 +703,47 @@ export type SceneSnapshotContext = {
 };
 ```
 
-**`sceneIndex`** — Enables relative positioning ("place this widget closer to the camera in later scenes") and conditional content ("only show this HUD item in the first scene").
+**`sceneIndex`** — Available via the context-function form only. Authors who need the current scene index at authoring time can use `(ctx) => ctx.sceneIndex`. There is no runtime equivalent at JSX authoring time — each `<Scene>` element is written individually and the author knows which scene they're in.
 
-**`assetsReady`** — The compiler calls `getFrame` twice: once during the loading phase (`assetsReady: false`) to render a loading state, and once when assets are ready (`assetsReady: true`) for the final compiled track. DSL components can use this flag to provide simplified geometries during loading.
+**`assetsReady`** — The compiler runs twice internally: once before assets load (`false`) for a loading state, once after (`true`) for the final track. This is used by the player to trigger recompilation via `useSceneRuntime`. See Section 10.2.
 
-**`variables`** — The runtime `VariableStore` reader, injected by the player layer. Allows DSL prop values to be driven by named runtime variables (e.g., user-selected configuration). Values accessed via `variables.get('key')` are read at compile time — the track is recompiled when variable-relevant state changes.
+### 10.2 useSceneRuntime Hook
 
-**`viewport`** — Injected by the player layer when viewport dimensions are known. Allows responsive layout: element positions, scales, and offsets that adapt to the container's aspect ratio.
+`useSceneRuntime(playerId)` is the primary hook for authoring dynamic scene content that responds to engine-internal state. It replaces the old `getFrame(context)` function pattern.
+
+```typescript
+// packages/core/src/player/useSceneRuntime.ts
+
+export type SceneRuntimeState = {
+  readonly assetsReady: boolean;
+  readonly viewport: {
+    readonly width: number;
+    readonly height: number;
+    readonly aspectRatio: number;
+  };
+  readonly variables: VariableStoreReader | undefined;
+  readonly numScenes: number;
+};
+
+export const useSceneRuntime = (playerId: string): SceneRuntimeState;
+```
+
+**How it works:** `ScenePlayer` publishes its runtime state to a module-level `ScenePlayerRegistry` whenever its `id` prop is set. `useSceneRuntime` reads from this registry via `useSyncExternalStore`, making it concurrent-mode safe. When engine state changes (assets finish loading, viewport resizes), `useSceneRuntime` causes the parent component to re-render with updated values. The new JSX content produces a different `contentKey` via `serializeJsx`, which triggers automatic recompilation of the SceneTrack.
+
+**Requirements:**
+- The `<ScenePlayer>` must have a matching `id` prop.
+- `useSceneRuntime` must be called in a component that **renders above or alongside** `<ScenePlayer>` in the tree — i.e., a parent or sibling, not a child.
+- In development, a 1000ms timeout warning is emitted if no matching player is found after mount.
+
+**Migration from old `getFrame(context)` pattern:**
+
+| Old `SceneSnapshotContext` field | New equivalent |
+|---|---|
+| `assetsReady` | `useSceneRuntime(id).assetsReady` |
+| `viewport` | `useSceneRuntime(id).viewport` |
+| `variables` | `useSceneRuntime(id).variables` |
+| `numScenes` | `useSceneRuntime(id).numScenes` |
+| `sceneIndex` | No authoring-time equivalent (by design). Use `useCurrentScene()` for runtime index. |
 
 ---
 
@@ -723,16 +873,23 @@ Tree-shaking: because each element's DSL component and handler live in the same 
 
 ## 15. Breaking Change Assessment
 
-**Current status: no breaking changes defined.** This PRD documents the existing, stable authoring surface.
+### Breaking changes introduced by Scene Authoring API Simplification (2026-02-28)
+
+1. **`sceneGroup` prop removed from `ScenePlayer`** — Hard removed. Migrate: replace `sceneGroup={{ id: 'x', scenes: [s1, s2] }}` with `<ScenePlayer>{s1}{s2}</ScenePlayer>`.
+2. **`SceneDefinition` and `SceneGroup` removed from public exports** — Code importing these types directly must update. Neither type is needed in the new authoring model.
+3. **`getFrame(context)` function pattern removed from public authoring surface** — Authors needing `assetsReady`, `viewport`, `variables`, `numScenes` must use `useSceneRuntime(id)` in the parent component. The `id` prop on `ScenePlayer` becomes required to use this hook.
+4. **`SceneDefinition.index` removed** — Was always redundant. Any code constructing `SceneDefinition` objects manually must remove the `index` field.
+
+### Future breaking changes
 
 Any future change to the following constitutes a breaking change requiring a major semver bump:
 
 - Removing or renaming any prop on `Scene`, `Model`, `Camera`, `Lighting`, `Background`, `Floor`, `Environment`, `Hud`, `HudItem`, `InputController`, `Action`, or any `*Map` component.
 - Changing the signature of `resolveSceneFromDsl`.
 - Changing the shape of `SceneSnapshotContext` in a way that removes existing fields.
-- Changing the shape of `SceneDefinition` such that existing `getFrame` implementations break.
 - Removing `CUSTOM_NODE_HANDLER` or changing its contract.
 - Removing `registerNode` from the public exports of `compiler/index.ts`.
+- Removing `useSceneRuntime` or changing the shape of `SceneRuntimeState`.
 
 ---
 

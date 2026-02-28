@@ -1,14 +1,9 @@
-import { ScenePlayer } from '@brewsite/core';
-import { useDiagramFocusRegion } from '@brewsite/diagram';
-import { useMemo } from 'react';
-import type { JSX } from 'react';
-import { createLlmWidgetSetup } from '../widgetSetup';
-import {
-  llmFilterGroupHudContent,
-  llmFilterSceneHudContent,
-  sceneLlmFilter,
-  type LlmFilterHudContent,
-} from '../scenes/scene_llm_filter';
+import {ScenePlayer} from '@brewsite/core';
+import {useDiagramFocusRegion} from '@brewsite/diagram';
+import type {JSX} from 'react';
+import {useMemo} from 'react';
+import {createLlmWidgetSetup} from '../widgetSetup';
+import {llmFilterGroupHudContent, type LlmFilterHudContent, llmFilterSceneHudContent, SceneLlmFilter,} from '../scenes/scene_llm_filter';
 import './LucidExamplePage.css';
 
 const LlmFilterHud = (): JSX.Element => {
@@ -51,7 +46,7 @@ export default function LucidExamplePage(): JSX.Element {
         framesPerTick={80}
         pixelsPerScene={1200}
       >
-        {sceneLlmFilter}
+        <SceneLlmFilter/>
       </ScenePlayer>
       {/*<CameraInteractionInfoDialog />*/}
       <LlmFilterHud />

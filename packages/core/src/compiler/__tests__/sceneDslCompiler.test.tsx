@@ -74,7 +74,7 @@ describe('sceneDslCompiler', () => {
     });
 
     const tree = (
-      <Scene>
+      <Scene id="array">
         <ArrayNode
           values={[1, () => 2]}
           nested={{ a: undefined, b: undefined }}
@@ -104,7 +104,7 @@ describe('sceneDslCompiler', () => {
     });
 
     const tree = (
-      <Scene>
+      <Scene id="hud">
         <Annot />
         <Label />
       </Scene>
@@ -121,7 +121,7 @@ describe('sceneDslCompiler', () => {
     });
     const Wrapper = () => 'text';
     const tree = (
-      <Scene>
+      <Scene id="wrapper">
         <Wrapper />
       </Scene>
     );

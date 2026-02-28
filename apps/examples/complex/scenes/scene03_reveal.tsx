@@ -4,7 +4,7 @@ import { Animation, BodyParts, ContainedModel, ModelPart, Playback, Pose, Robot 
 import { backgrounds, sceneLighting } from './sceneAssets';
 
 export const scene03Reveal= (
-    <Scene key="complex-reveal">
+    <Scene id="complex-reveal">
       <Background imageUrl={backgrounds.focus} opacity={1} cssSize="cover" cssPosition="center" />
       <Lighting intensityScale={1}>
         <Ambient intensity={sceneLighting.dramatic.ambient} color="#d6f3ff" />

@@ -8,8 +8,8 @@
 // The edge  filters → llm-conv  (instead of api → llm-conv) places llm-conv one
 // hierarchical level below the filters block so the three sections never share a row.
 
-import {Background, Environment, EnvironmentCube, Floor, FloorMirror, PinchMap} from '@brewsite/core';
-import {Ambient, Camera, Directional, Lighting, Scene} from '@brewsite/core';
+import {Background, Environment, EnvironmentCube, Floor, FloorMirror, PinchMap, Rectangle} from '@brewsite/core';
+import {Ambient, Camera, Circle, Directional, Lighting, Scene, LightStrand, Spot} from '@brewsite/core';
 import { Action, InputController, KeyMap, PointerMap, WheelMap } from '@brewsite/core';
 import {
   darkGlassTheme,
@@ -97,11 +97,25 @@ const C_OUT    = '#2e1a18';  // Output filter nodes
 const C_CONV   = '#1a3228';  // LLM Converter bar
 const C_LLM    = '#0f221a';  // LLM main bar
 
+const EMISSIVE_INTENSITY = 0.35;
+
 const S: [number, number] = [3.5, 1.3]; // standard node size
 const IS = 0.38;                         // icon scale for small nodes
+const OUTPUT_EMISSIVE = {
+  clickable: true,
+  emissive: false,
+  emissiveColor: '#ff8a66',
+  emissiveIntensity: 0.45,
+} as const;
+const outputNodeHover = (nodeId: string) => ({
+  onMouseEnter: (event: { controls: { setNodeEmissive: (id: string, enabled: boolean) => void } }) =>
+    event.controls.setNodeEmissive(nodeId, true),
+  onMouseLeave: (event: { controls: { setNodeEmissive: (id: string, enabled: boolean) => void } }) =>
+    event.controls.setNodeEmissive(nodeId, false),
+});
 
-export const sceneLlmFilter= (
-    <Scene key="llm-filter">
+export const SceneLlmFilter= () => (
+    <Scene id="llm-filter">
       <Camera
         mode="world"
         fov={55}
@@ -158,7 +172,7 @@ export const sceneLlmFilter= (
       <Floor enabled position={[0, -10, 0]} scale={4}>
         <FloorMirror
           mirrorColor="#ffffff"
-          mirrorOpacity={.3}
+          mirrorOpacity={.4}
           mirrorResolution={2048}
           mirrorClipBias={0.001}
           mirrorEnvironmentIntensity={1}
@@ -166,23 +180,65 @@ export const sceneLlmFilter= (
         />
       </Floor>
       <Lighting intensityScale={1}>
-        <Ambient intensity={1.0} color="#ffffff"/>
-        <Directional intensity={.8}  color="#b0ccff" position={[10, 40, 0]}/>
-        <Directional intensity={1.2} color="#b0ccff" position={[20, 40, 0]}/>
-        <Directional intensity={0.5} color="#ffe0b0" position={[0, -30, 0]}/>
+        {/*<Ambient intensity={1.0} color="#ffffff"/>*/}
+        <Directional intensity={0.35} color="#b0ccff" position={[10, 40, 0]}/>
+        <Directional intensity={0.45} color="#b0ccff" position={[-10, 40, 0]}/>
+        <Spot
+          id="console-spot-a"
+          intensity={24}
+          color='#8ab0f0'
+          position={[-20, 15, 24]}
+          target={[-20, -30, 0]}
+          angle={1.4}
+          penumbra={0.95}
+          decay={.6}
+        />
+        <Spot
+          id="console-spot-b"
+          intensity={24}
+          color='#8ab0f0'
+          position={[-40, 15, 24]}
+          target={[-40, -30, 0]}
+          angle={1.4}
+          penumbra={0.95}
+          decay={.6}
+        />
+        {/*<LightStrand*/}
+        {/*  id="strand-1"*/}
+        {/*  count={24}*/}
+        {/*  position = {[25, 4, 5]}*/}
+        {/*  intensity={2}*/}
+        {/*  color="#ffaa66"*/}
+        {/*  distance={30}*/}
+        {/*  decay={1}*/}
+        {/*>*/}
+        {/*  <Rectangle height={5} width={30} axis="xy" />*/}
+        {/*</LightStrand>*/}
       </Lighting>
 
-      <DiagramCanvas id="llm-canvas" rotation={[0, 0, 0]} position={[0, 11, -10]} theme={darkGlassTheme} focusCenter={[0, 10, 0]}>
+      <DiagramCanvas id="llm-canvas" rotation={[-.15, 0, 0]} position={[0, 11, -10]} theme={darkGlassTheme} focusCenter={[0, 10, 0]}>
         <Diagram id="llm-filter" pivot="center">
           <HierarchicalLayout spacing={[1, 1.5]} />
           {/* ── Top tier: explicit positions ─────────────────────────────── */}
           <DiagramNode id="admin" label="Admin"
                        icon="ui:identification"
                        shape='circle' size={[4, 4]}
+                       clickable
+                       emissive={false}
+                       emissiveIntensity={0.9}
+                       emissiveColor="#6fd9ff"
+                       onMouseEnter={(event) => event.controls.setNodeEmissive('admin', true)}
+                       onMouseLeave={(event) => event.controls.setNodeEmissive('admin', false)}
           />
           <DiagramNode id="users" label="Users"
                        icon="ui:users" iconScale={.5}
-                       shape='octagon' size={[4,4]}
+                       shape='circle' size={[4,4]}
+                       clickable
+                       emissive={false}
+                       emissiveIntensity={0.9}
+                       emissiveColor="#6fd9ff"
+                       onMouseEnter={(event) => event.controls.setNodeEmissive('users', true)}
+                       onMouseLeave={(event) => event.controls.setNodeEmissive('users', false)}
                        />
 
           {/* app-layer — explicit; allExplicit=true pins the synthetic block */}
@@ -192,7 +248,9 @@ export const sceneLlmFilter= (
                          color={C_APP} position={[-7.5, 3.5, 0]} size={S}/>
             <DiagramNode id="tool" label="Tool"
                          icon="ui:wrench-screwdriver" iconScale={IS}
-                         color={C_APP} position={[-2.5, 3.5, 0]} size={S}/>
+                         color={C_APP} position={[-2.5, 3.5, 0]} size={S}
+                         emissiveIntensity={0}
+            />s
             <DiagramNode id="llm-mid" label="LLM"
                          icon="ui:cpu-chip" iconScale={IS}
                          color={C_APP} position={[2.5, 3.5, 0]} size={S}/>
@@ -234,7 +292,8 @@ export const sceneLlmFilter= (
             <GridLayout columns={3} />
             {/* console — grid layout, 4 columns, no explicit node positions */}
             <DiagramGroup id="console" label="Console"
-                          variant="boundary" color="#1a2832" borderColor="#2a5060">
+                          variant="boundary" color="#1a2832" borderColor="#2a5060"
+            >
               <GridLayout columns={4} />
               <DiagramNode id="con-dashboard"  label="Dashboard"             icon="ui:presentation-chart-bar"  iconScale={IS} color={C_CON} size={S}/>
               <DiagramNode id="con-policy"     label="Policy Engine"         icon="ui:document-text"           iconScale={IS} color={C_CON} size={S}/>
@@ -252,48 +311,52 @@ export const sceneLlmFilter= (
 
             {/* input-filters — grid layout */}
             <DiagramGroup id="input-filters" label="Input Filters"
-                          variant="boundary" color="#2e1f3a" borderColor="#5a3a7a">
+                          variant="boundary" color="#2e1f3a" borderColor="#5a3a7a"
+                          onMouseEnter={(event) => event.controls.setGroupNodesEmissive('input-filters', true)}
+                          onMouseLeave={(event) => event.controls.setGroupNodesEmissive('input-filters', false)}
+            >
               <GridLayout columns={4}/>
-              <DiagramNode id="if-anon"        label="Anonymization"   icon="ui:eye-slash"              iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-p-inject"    label="Prompt Injection" icon="ui:bug-ant"               iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-halluc"      label="Hallucination"   icon="ui:exclamation-triangle"   iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-model-drift" label="Model Drift"     icon="ui:arrow-path"             iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-pii"         label="PII Leakage"     icon="ui:finger-print"           iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-sentiment"   label="Sentiment"       icon="ui:chart-bar-square"       iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-ban-topics"  label="Banned Topics"   icon="ui:x-circle"               iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-bias"        label="Bias"            icon="ui:adjustments-horizontal" iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-code"        label="Code"            icon="ui:code-bracket"           iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-toxicity"    label="Toxicity"        icon="ui:fire"                   iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-src-tag"     label="Source Tagging"  icon="ui:tag"                    iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-use-cases"   label="Use Cases"       icon="ui:bookmark"               iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-ban-str"     label="Banned Strings"  icon="ui:funnel"                 iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-tok-count"   label="Token Count"     icon="ui:chart-bar-square"       iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-encrypt"     label="Encryption"      icon="ui:lock-closed"            iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-observ"      label="Observability"   icon="ui:eye"                    iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-anon"        label="Anonymization"   icon="ui:eye-slash"              iconScale={IS} color={C_INF} size={S} emissive={false} emissiveColor="#6fd9ff" emissiveIntensity={EMISSIVE_INTENSITY}/>
+              <DiagramNode id="if-p-inject"    label="Prompt Injection" icon="ui:bug-ant"               iconScale={IS} color={C_INF} size={S} emissive={false} emissiveColor="#6fd9ff" emissiveIntensity={EMISSIVE_INTENSITY}/>
+              <DiagramNode id="if-halluc"      label="Hallucination"   icon="ui:exclamation-triangle"   iconScale={IS} color={C_INF} size={S} emissive={false} emissiveColor="#6fd9ff" emissiveIntensity={EMISSIVE_INTENSITY}/>
+              <DiagramNode id="if-model-drift" label="Model Drift"     icon="ui:arrow-path"             iconScale={IS} color={C_INF} size={S} emissive={false} emissiveColor="#6fd9ff" emissiveIntensity={EMISSIVE_INTENSITY}/>
+              <DiagramNode id="if-pii"         label="PII Leakage"     icon="ui:finger-print"           iconScale={IS} color={C_INF} size={S} emissive={false} emissiveColor="#6fd9ff" emissiveIntensity={EMISSIVE_INTENSITY}/>
+              <DiagramNode id="if-sentiment"   label="Sentiment"       icon="ui:chart-bar-square"       iconScale={IS} color={C_INF} size={S} emissive={false} emissiveColor="#6fd9ff" emissiveIntensity={EMISSIVE_INTENSITY}/>
+              <DiagramNode id="if-ban-topics"  label="Banned Topics"   icon="ui:x-circle"               iconScale={IS} color={C_INF} size={S} emissive={false} emissiveColor="#6fd9ff" emissiveIntensity={EMISSIVE_INTENSITY}/>
+              <DiagramNode id="if-bias"        label="Bias"            icon="ui:adjustments-horizontal" iconScale={IS} color={C_INF} size={S} emissive={false} emissiveColor="#6fd9ff" emissiveIntensity={EMISSIVE_INTENSITY}/>
+              <DiagramNode id="if-code"        label="Code"            icon="ui:code-bracket"           iconScale={IS} color={C_INF} size={S} emissive={false} emissiveColor="#6fd9ff" emissiveIntensity={EMISSIVE_INTENSITY}/>
+              <DiagramNode id="if-toxicity"    label="Toxicity"        icon="ui:fire"                   iconScale={IS} color={C_INF} size={S} emissive={false} emissiveColor="#6fd9ff" emissiveIntensity={EMISSIVE_INTENSITY}/>
+              <DiagramNode id="if-src-tag"     label="Source Tagging"  icon="ui:tag"                    iconScale={IS} color={C_INF} size={S} emissive={false} emissiveColor="#6fd9ff" emissiveIntensity={EMISSIVE_INTENSITY}/>
+              <DiagramNode id="if-use-cases"   label="Use Cases"       icon="ui:bookmark"               iconScale={IS} color={C_INF} size={S} emissive={false} emissiveColor="#6fd9ff" emissiveIntensity={EMISSIVE_INTENSITY}/>
+              <DiagramNode id="if-ban-str"     label="Banned Strings"  icon="ui:funnel"                 iconScale={IS} color={C_INF} size={S} emissive={false} emissiveColor="#6fd9ff" emissiveIntensity={EMISSIVE_INTENSITY}/>
+              <DiagramNode id="if-tok-count"   label="Token Count"     icon="ui:chart-bar-square"       iconScale={IS} color={C_INF} size={S} emissive={false} emissiveColor="#6fd9ff" emissiveIntensity={EMISSIVE_INTENSITY}/>
+              <DiagramNode id="if-encrypt"     label="Encryption"      icon="ui:lock-closed"            iconScale={IS} color={C_INF} size={S} emissive={false} emissiveColor="#6fd9ff" emissiveIntensity={EMISSIVE_INTENSITY}/>
+              <DiagramNode id="if-observ"      label="Observability"   icon="ui:eye"                    iconScale={IS} color={C_INF} size={S} emissive={false} emissiveColor="#6fd9ff" emissiveIntensity={EMISSIVE_INTENSITY}/>
             </DiagramGroup>
 
             {/* output-filters — grid layout */}
             <DiagramGroup id="output-filters" label="Output Filters"
-                          variant="boundary" color="#2e1a18" borderColor="#7a3a30">
+                          variant="boundary" color="#2e1a18" borderColor="#7a3a30"
+            >
               <GridLayout  columns={5}/>
-              <DiagramNode id="of-deanon"      label="DeAnonymize"     icon="ui:eye"                        iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-p-inject"    label="Prompt Injection" icon="ui:bug-ant"                   iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-mal-urls"    label="Malicious URLs"  icon="ui:shield-exclamation"         iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-code"        label="Code"            icon="ui:code-bracket"               iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-model-drift" label="Model Drift"     icon="ui:arrow-path"                 iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-refutation"  label="Refutation"      icon="ui:x-circle"                   iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-ban-topics"  label="Banned Topics"   icon="ui:x-circle"                   iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-relevance"   label="Relevance"       icon="ui:magnifying-glass"           iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-ban-str"     label="Banned Strings"  icon="ui:funnel"                     iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-bias"        label="Bias"            icon="ui:adjustments-horizontal"     iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-halluc"      label="Hallucination"   icon="ui:exclamation-circle"         iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-sensitive"   label="Sensitive"       icon="ui:lock-closed"                iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-fact-check"  label="Fact Checking"   icon="ui:document-magnifying-glass"  iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-on-topic"    label="On Topic"        icon="ui:check-circle"               iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-toxicity"    label="Toxicity"        icon="ui:fire"                       iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-access-ctrl" label="Access Control"  icon="ui:key"                        iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-regex"       label="Regex"           icon="ui:code-bracket-square"        iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-decrypt"     label="Decryption"      icon="ui:lock-open"                  iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-deanon"      label="DeAnonymize"     icon="ui:eye"                        iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-deanon')}/>
+              <DiagramNode id="of-p-inject"    label="Prompt Injection" icon="ui:bug-ant"                   iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-p-inject')}/>
+              <DiagramNode id="of-mal-urls"    label="Malicious URLs"  icon="ui:shield-exclamation"         iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-mal-urls')}/>
+              <DiagramNode id="of-code"        label="Code"            icon="ui:code-bracket"               iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-code')}/>
+              <DiagramNode id="of-model-drift" label="Model Drift"     icon="ui:arrow-path"                 iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-model-drift')}/>
+              <DiagramNode id="of-refutation"  label="Refutation"      icon="ui:x-circle"                   iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-refutation')}/>
+              <DiagramNode id="of-ban-topics"  label="Banned Topics"   icon="ui:x-circle"                   iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-ban-topics')}/>
+              <DiagramNode id="of-relevance"   label="Relevance"       icon="ui:magnifying-glass"           iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-relevance')}/>
+              <DiagramNode id="of-ban-str"     label="Banned Strings"  icon="ui:funnel"                     iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-ban-str')}/>
+              <DiagramNode id="of-bias"        label="Bias"            icon="ui:adjustments-horizontal"     iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-bias')}/>
+              <DiagramNode id="of-halluc"      label="Hallucination"   icon="ui:exclamation-circle"         iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-halluc')}/>
+              <DiagramNode id="of-sensitive"   label="Sensitive"       icon="ui:lock-closed"                iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-sensitive')}/>
+              <DiagramNode id="of-fact-check"  label="Fact Checking"   icon="ui:document-magnifying-glass"  iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-fact-check')}/>
+              <DiagramNode id="of-on-topic"    label="On Topic"        icon="ui:check-circle"               iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-on-topic')}/>
+              <DiagramNode id="of-toxicity"    label="Toxicity"        icon="ui:fire"                       iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-toxicity')}/>
+              <DiagramNode id="of-access-ctrl" label="Access Control"  icon="ui:key"                        iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-access-ctrl')}/>
+              <DiagramNode id="of-regex"       label="Regex"           icon="ui:code-bracket-square"        iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-regex')}/>
+              <DiagramNode id="of-decrypt"     label="Decryption"      icon="ui:lock-open"                  iconScale={IS} color={C_OUT} size={S} {...OUTPUT_EMISSIVE} {...outputNodeHover('of-decrypt')}/>
             </DiagramGroup>
 
           </DiagramGroup>

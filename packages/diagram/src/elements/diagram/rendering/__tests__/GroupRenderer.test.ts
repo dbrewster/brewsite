@@ -18,6 +18,8 @@ const makeGroup = (overrides: Partial<DiagramGroupState> = {}): DiagramGroupStat
   borderStyle: 'solid',
   fillOpacity: 0.2,
   borderOpacity: 0.8,
+  borderEmissiveColor: '#ffffff',
+  borderEmissiveIntensity: 0,
   ...overrides,
 });
 
@@ -100,6 +102,19 @@ describe('GroupRenderer', () => {
     expect(size.z).toBeCloseTo(1.75, 3);
   });
 
+  it('applies border emissive color and intensity to border materials', () => {
+    const entry = renderer.getOrCreate(makeGroup({
+      borderEmissiveColor: '#00ffcc',
+      borderEmissiveIntensity: 0.7,
+    }), 'd1', parent);
+    const ring = entry.border?.children[0] as THREE.Mesh;
+    const materials = ring.material as THREE.MeshStandardMaterial[];
+    expect(materials[0].emissive.getHexString()).toBe('00ffcc');
+    expect(materials[0].emissiveIntensity).toBeCloseTo(0.7, 6);
+    expect(materials[1].emissive.getHexString()).toBe('00ffcc');
+    expect(materials[1].emissiveIntensity).toBeCloseTo(0.7, 6);
+  });
+
   it('positions the title in the top padding band above group content', () => {
     const state = makeGroup({
       bounds: { x: 0, y: 0, w: 20, h: 12, padding: [2, 1, 1, 1], titleGap: 0.75 },
@@ -109,5 +124,46 @@ describe('GroupRenderer', () => {
 
     const contentTopY = state.bounds.h / 2 - state.bounds.padding[0];
     expect(entry.label.position.y).toBeGreaterThan(contentTopY);
+  });
+
+  it('creates point lights for compiled edge lights', () => {
+    const entry = renderer.getOrCreate(makeGroup({
+      edgeLights: {
+        lights: [
+          { index: 0, side: 'top', indexOnSide: 0, position: [-1, 1, 0.5], color: '#ff0000' },
+          { index: 1, side: 'top', indexOnSide: 1, position: [1, 1, 0.5], color: '#00ff00' },
+        ],
+        intensity: 0.6,
+        distance: 3,
+        decay: 2,
+      },
+    }), 'd1', parent);
+    expect(entry.edgeLights).toBeDefined();
+    expect(entry.edgeLights?.children.length).toBe(2);
+    expect(entry.edgeLights?.children[0]).toBeInstanceOf(THREE.PointLight);
+  });
+
+  it('rebuilds edge lights when compiled light state changes', () => {
+    const entry = renderer.getOrCreate(makeGroup({
+      edgeLights: {
+        lights: [{ index: 0, side: 'top', indexOnSide: 0, position: [0, 1, 0.5], color: '#ff0000' }],
+        intensity: 0.6,
+        distance: 3,
+        decay: 2,
+      },
+    }), 'd1', parent);
+    const before = entry.edgeLights;
+    renderer.getOrCreate(makeGroup({
+      edgeLights: {
+        lights: [{ index: 0, side: 'top', indexOnSide: 0, position: [0, 1, 0.5], color: '#00ff00' }],
+        intensity: 0.6,
+        distance: 3,
+        decay: 2,
+      },
+    }), 'd1', parent);
+    expect(entry.edgeLights).toBeDefined();
+    expect(entry.edgeLights).not.toBe(before);
+    const light = entry.edgeLights?.children[0] as THREE.PointLight;
+    expect(light.color.getHexString()).toBe('00ff00');
   });
 });

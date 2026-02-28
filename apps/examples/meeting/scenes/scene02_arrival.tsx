@@ -217,7 +217,7 @@ export const scene02Arrival = (() => {
       ];
     });
   return (
-    <Scene key="complex-arrival">
+    <Scene id="complex-arrival">
         <Background imageUrl={backgrounds.reveal} opacity={1} cssSize="cover" cssPosition="center"/>
         <Lighting intensityScale={1}>
           <Ambient intensity={sceneLighting.soft.ambient} color="#e6eeff"/>

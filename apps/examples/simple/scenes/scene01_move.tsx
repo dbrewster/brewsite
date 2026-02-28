@@ -2,7 +2,7 @@ import {Scene, Lighting, Ambient, Directional, ModelPart, ContainedModel, Label,
 import {BodyParts, BrainSubparts, Pose, Robot} from '../../generated/sceneDsl.generated';
 
 export const scene01Move= (
-    <Scene key="move-left">
+    <Scene id="move-left">
       <Lighting intensityScale={1}>
         <Ambient intensity={2.2} color="#ffffff" />
         <Directional intensity={2} color="#ffffff" position={[20, 30, 40]} />

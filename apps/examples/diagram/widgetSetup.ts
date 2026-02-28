@@ -8,12 +8,9 @@ import {
   compileDiagram,
   compileImagePanel,
   compileScreen,
-  registerDiagramHandlers,
 } from '@brewsite/diagram';
 
-export const createWidgetSetup = (manifest: AssetManifest | null) => {
-  registerDiagramHandlers();
-
+export const createWidgetSetup = (manifest: AssetManifest) => {
   const registry = createDefaultWidgetRegistry(manifest);
 
   const canvasDefault = compileCanvas(

@@ -114,6 +114,11 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
       borderStyle: elProps.borderStyle as DiagramGroupDSL['borderStyle'],
       fillOpacity: elProps.fillOpacity as number | undefined,
       borderOpacity: elProps.borderOpacity as number | undefined,
+      borderEmissiveColor: elProps.borderEmissiveColor as string | undefined,
+      borderEmissiveIntensity: elProps.borderEmissiveIntensity as number | undefined,
+      onMouseEnter: elProps.onMouseEnter as DiagramGroupDSL['onMouseEnter'],
+      onMouseLeave: elProps.onMouseLeave as DiagramGroupDSL['onMouseLeave'],
+      edgeLights: elProps.edgeLights as DiagramGroupDSL['edgeLights'],
       nodeIds,
       childGroupIds: childGroupIds.length > 0 ? childGroupIds : undefined,
       parentId,
@@ -182,6 +187,13 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
   };
 };
 
+/**
+ * @internal
+ * Registers all diagram DSL node handlers with the @brewsite/core compiler registry.
+ * Called automatically at module-load time via packages/diagram/src/register.ts.
+ * Not part of the public @brewsite/diagram API.
+ * Test files that call clearRegistry() must import and re-call this directly.
+ */
 export const registerDiagramHandlers = (): void => {
   // Register child DSL components as primitives so collectChildren preserves them.
   registerNode(DiagramNode, () => {});

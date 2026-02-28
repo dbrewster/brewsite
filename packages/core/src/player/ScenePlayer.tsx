@@ -1,6 +1,7 @@
-import { Children, isValidElement, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import { Scene } from '../compiler/sceneDslCompiler';
+import { SceneRegistrationContext } from '../compiler/SceneRegistrationContext';
+import type { SceneRegistrationValue } from '../compiler/SceneRegistrationContext';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import { VariableStoreContext } from '../widget/VariableStoreContext';
 import { useSceneEngine } from './useSceneEngine';
@@ -14,12 +15,14 @@ import { LabelItem } from '../labels/LabelItem';
 import { clipMetaFromManifest, assertManifestValid } from '../elements/model/metadata';
 import type { AssetManifest } from '../elements/model/metadata';
 import { clearCache } from '../compiler/sceneTrackCache';
+import { createDefaultWidgetRegistry } from './defaultWidgets';
 import { SceneMetaWidget } from './SceneMetaWidget';
 import type { SceneNavInputMap } from '../input/types';
 import { TimelineWidget } from './TimelineWidget';
 import type { TimelineWidgetProps } from './TimelineWidgetTypes';
 import { serializeJsx } from './serializeJsx';
 import { setSceneRuntimeState, unregisterSceneRuntime } from './ScenePlayerRegistry';
+import { SceneInspector } from './SceneInspector';
 
 export type InternalSceneSpec = {
   readonly sceneKey: string;
@@ -30,13 +33,45 @@ export type InternalSceneSpec = {
 export type ScenePlayerProps = {
   id?: string;
   manifestUrl: string;
-  widgetSetup: (manifest: AssetManifest | null) => WidgetRegistry;
+  /**
+   * Optional widget registry factory.
+   *
+   * When omitted, `createDefaultWidgetRegistry(manifest)` is used automatically.
+   * When provided, this function is called only after the manifest has loaded
+   * successfully — the `manifest` argument is guaranteed non-null.
+   *
+   * @deprecated If you previously typed this as `(manifest: AssetManifest | null)`
+   * the null case will never fire under this contract; update to `(manifest: AssetManifest)`.
+   */
+  widgetSetup?: (manifest: AssetManifest) => WidgetRegistry;
   className?: string;
   fpsCap?: number;
+  /**
+   * Pixels of scroll allocated per scene. Also described as "scroll depth" in docs.
+   * Higher values = slower scroll-to-advance. Default: 800.
+   */
   pixelsPerScene?: number;
   framesPerTick?: number;
+  /**
+   * Rendering quality preset. Controls pre-baked transition frame count (framesPerTick).
+   *
+   * | Preset        | framesPerTick | Use case                              |
+   * |---------------|---------------|---------------------------------------|
+   * | 'performance' | 30            | Low-power / battery-conscious devices |
+   * | 'balanced'    | 60            | Most marketing pages                  |
+   * | 'high'        | 120           | Maximum smoothness, larger memory     |
+   *
+   * When both `quality` and `framesPerTick` are present, `framesPerTick` wins.
+   * When neither is set, the internal default (10 frames) is preserved for
+   * backward compatibility with existing consumers.
+   */
+  quality?: 'performance' | 'balanced' | 'high';
   onReady?: () => void;
   onError?: (error: Error) => void;
+  /** Called when the manifest fetch fails. The engine continues with default widgets. */
+  onManifestError?: (error: Error) => void;
+  /** Called when a single widget fails during load or apply. Engine continues rendering other widgets. */
+  onWidgetError?: (widgetId: string, error: Error) => void;
   onSceneChange?: (sceneId: string, sceneIndex: number) => void;
   placeholder?: ReactNode;
   /** Input configuration for scene navigation. */
@@ -47,56 +82,59 @@ export type ScenePlayerProps = {
    */
   timeline?: boolean | Omit<TimelineWidgetProps, 'engine' | 'scenes'>;
   /**
-   * Scene content. Each direct child must be a <Scene key="..."> element.
-   * The key prop is required per scene; a warning is emitted and index used as fallback
-   * if omitted.
+   * When true, renders a `<SceneInspector>` overlay with scene list, progress
+   * readouts, and click-to-jump navigation. Intended for development only.
+   * Set via `debug={process.env.NODE_ENV === 'development'}` for automatic
+   * removal in production builds.
+   */
+  debug?: boolean;
+  /**
+   * Scene content. Direct <Scene id="..."> elements and React components that
+   * render <Scene> are both supported.
    */
   children: ReactNode;
 };
+
+const QUALITY_PRESET_FRAMES: Record<NonNullable<ScenePlayerProps['quality']>, number> = {
+  performance: 30,
+  balanced: 60,
+  high: 120,
+} as const;
 
 export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
   const [manifest, setManifest] = useState<AssetManifest | null>(null);
   const [loadError, setLoadError] = useState<Error | null>(null);
 
-  const allChildren = Children.toArray(props.children);
-  const rawSceneElements = allChildren.filter(
-    (c): c is ReactElement => isValidElement(c) && (c as ReactElement).type === Scene,
-  ) as ReactElement[];
+  const registrationsRef = useRef(new Map<string, ReactElement>());
+  const lastContentKeyRef = useRef('');
+  const [scenes, setScenes] = useState<InternalSceneSpec[]>([]);
 
-  const nonSceneCount = allChildren.length - rawSceneElements.length;
-  if (nonSceneCount > 0) {
-    console.warn(
-      `[ScenePlayer] ${nonSceneCount} non-<Scene> child(ren) were passed and will be ignored. ` +
-      'ScenePlayer only processes direct <Scene key="..."> children. ' +
-      'For overlay UI, use the HUD system or place content outside ScenePlayer.',
-    );
-  }
+  const register = useCallback((id: string, element: ReactElement) => {
+    registrationsRef.current.set(id, element);
+  }, []);
 
-  const rawSpecs: InternalSceneSpec[] = rawSceneElements.map((el, i) => {
-    const key = el.key;
-    const keyString = key === null ? null : String(key);
-    const hasExplicitKey = keyString !== null && keyString.startsWith('.$');
-    if (!hasExplicitKey) {
-      console.warn(
-        `[ScenePlayer] <Scene> at index ${i} has no key prop. ` +
-        'Assign key="..." to each <Scene> for stable identity. ' +
-        `Falling back to index "${i}".`,
-      );
-    }
-    return {
-      sceneKey: hasExplicitKey ? keyString.slice(2) : String(i),
-      contentKey: serializeJsx(el),
-      element: el,
-    };
-  });
+  const unregister = useCallback((id: string) => {
+    registrationsRef.current.delete(id);
+  }, []);
 
-  const sceneContentKey = rawSpecs.map((s) => s.contentKey).join('|||');
-
-  const scenes = useMemo(
-    () => rawSpecs,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [sceneContentKey],
+  const registrationContextValue = useMemo(
+    (): SceneRegistrationValue => ({ register, unregister }),
+    [register, unregister],
   );
+
+  useEffect(() => {
+    const specs = Array.from(registrationsRef.current.entries()).map(
+      ([id, element]): InternalSceneSpec => ({
+        sceneKey: id,
+        contentKey: serializeJsx(element),
+        element,
+      }),
+    );
+    const contentKey = specs.map((spec) => spec.contentKey).join('|||');
+    if (contentKey === lastContentKeyRef.current) return;
+    lastContentKeyRef.current = contentKey;
+    setScenes(specs);
+  });
 
   useEffect(() => {
     let cancelled = false;
@@ -111,6 +149,7 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
         const err = e instanceof Error ? e : new Error(String(e));
         setLoadError(err);
         props.onError?.(err);
+        props.onManifestError?.(err);
       });
     return () => {
       cancelled = true;
@@ -121,10 +160,12 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
 
   const isBrowser = typeof window !== 'undefined';
 
-  const widgetRegistry = useMemo(
-    () => props.widgetSetup(manifest),
-    [manifest],
-  );
+  const widgetRegistry = useMemo(() => {
+    if (!manifest) return createDefaultWidgetRegistry(null);
+    return props.widgetSetup
+      ? props.widgetSetup(manifest)
+      : createDefaultWidgetRegistry(manifest);
+  }, [manifest, props.widgetSetup]);
 
   useEffect(() => {
     const metaWidget = widgetRegistry.get('__scene_meta__');
@@ -136,6 +177,10 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
   const labelPositioner = useMemo(() => new LabelPositioner(), []);
   const clipMeta = useMemo(() => (manifest ? clipMetaFromManifest(manifest) : []), [manifest]);
 
+  const resolvedFramesPerTick =
+    props.framesPerTick ??
+    (props.quality !== undefined ? QUALITY_PRESET_FRAMES[props.quality] : undefined);
+
   const engine = useSceneEngine({
     scenes,
     widgetRegistry,
@@ -143,9 +188,10 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
     manifest,
     fpsCap: props.fpsCap,
     pixelsPerScene: props.pixelsPerScene,
-    framesPerTick: props.framesPerTick,
+    framesPerTick: resolvedFramesPerTick,
     onReady: props.onReady,
     onError: props.onError,
+    onWidgetError: props.onWidgetError,
     labelPositioner,
     inputMap: props.inputMap,
   });
@@ -184,36 +230,42 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
   }
 
   return (
-    <VariableStoreContext.Provider value={engine.variableStore}>
-      <LabelPositionerContext.Provider value={labelPositioner}>
-        <EngineStateContext.Provider value={engineState}>
-          <EngineContext.Provider value={engine}>
-            <div className={props.className} style={{ position: 'relative' }}>
-              {loadError && <div role="alert">Scene engine error: {loadError.message}</div>}
-              {showPlaceholder && (
-                <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-                  {props.placeholder}
-                </div>
-              )}
-              <EngineInputRegion engine={engine} inputMap={props.inputMap}>
-                <>
-                  <HudOverlay items={engine.frameState.tick?.hudPrimitives ?? []} />
-                  {labels.map((label) => (
-                    <LabelItem key={label.id} label={label} />
-                  ))}
-                  {props.timeline && (
-                    <TimelineWidget
-                      engine={engine}
-                      scenes={scenes.map((scene) => ({ id: scene.sceneKey }))}
-                      {...(typeof props.timeline === 'object' ? props.timeline : {})}
-                    />
-                  )}
-                </>
-              </EngineInputRegion>
-            </div>
-          </EngineContext.Provider>
-        </EngineStateContext.Provider>
-      </LabelPositionerContext.Provider>
-    </VariableStoreContext.Provider>
+    <SceneRegistrationContext.Provider value={registrationContextValue}>
+      <VariableStoreContext.Provider value={engine.variableStore}>
+        <LabelPositionerContext.Provider value={labelPositioner}>
+          <EngineStateContext.Provider value={engineState}>
+            <EngineContext.Provider value={engine}>
+              <div className={props.className} style={{ position: 'relative' }}>
+                {loadError && <div role="alert">Scene engine error: {loadError.message}</div>}
+                {showPlaceholder && (
+                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+                    {props.placeholder}
+                  </div>
+                )}
+                <EngineInputRegion engine={engine}>
+                  <>
+                    {props.children}
+                    <HudOverlay items={engine.frameState.tick?.hudPrimitives ?? []} />
+                    {labels.map((label) => (
+                      <LabelItem key={label.id} label={label} />
+                    ))}
+                    {props.timeline && (
+                      <TimelineWidget
+                        engine={engine}
+                        scenes={scenes.map((scene) => ({ id: scene.sceneKey }))}
+                        {...(typeof props.timeline === 'object' ? props.timeline : {})}
+                      />
+                    )}
+                    {props.debug && (
+                      <SceneInspector scenes={scenes} />
+                    )}
+                  </>
+                </EngineInputRegion>
+              </div>
+            </EngineContext.Provider>
+          </EngineStateContext.Provider>
+        </LabelPositionerContext.Provider>
+      </VariableStoreContext.Provider>
+    </SceneRegistrationContext.Provider>
   );
 };
