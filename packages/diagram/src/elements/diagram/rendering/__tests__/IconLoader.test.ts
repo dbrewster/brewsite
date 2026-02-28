@@ -36,7 +36,7 @@ describe('IconLoader — failed load cache eviction', () => {
     expect(callCount).toBe(2);
   });
 
-  it('successful load → result cached; second call returns same promise', async () => {
+  it('successful load → underlying fetch cached; returns distinct node instances', async () => {
     texSpy = vi.spyOn(THREE.TextureLoader.prototype, 'load').mockImplementation(
       // @ts-expect-error - signature compatibility for test
       (url: string, onLoad: (tex: THREE.Texture) => void) => {
@@ -45,10 +45,10 @@ describe('IconLoader — failed load cache eviction', () => {
       },
     );
 
-    const p1 = sharedIconLoader.load('icon.png', 1, 1, 'flat', 0.1, 0.3, 0.7);
-    const p2 = sharedIconLoader.load('icon.png', 1, 1, 'flat', 0.1, 0.3, 0.7);
-    expect(p1).toBe(p2);
-    await p1;
+    const o1 = await sharedIconLoader.load('icon.png', 1, 1, 'flat', 0.1, 0.3, 0.7);
+    const o2 = await sharedIconLoader.load('icon.png', 1, 1, 'flat', 0.1, 0.3, 0.7);
+    expect(o1).not.toBe(o2);
+    expect(texSpy).toHaveBeenCalledTimes(1);
   });
 
   it('disposeAll() → cache cleared', async () => {

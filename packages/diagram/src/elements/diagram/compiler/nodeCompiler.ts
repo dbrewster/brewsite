@@ -49,6 +49,8 @@ export const buildGroupDefaults = (theme: DiagramTheme) => ({
   orientation:   'vertical' as const,
   color:         theme.group.defaultColor,
   borderColor:   theme.group.defaultBorderColor,
+  borderWidth:   theme.group.defaultBorderWidth,
+  borderHeight:  theme.group.defaultBorderHeight,
   borderStyle:   'solid' as const,
   fillOpacity:   theme.group.defaultFillOpacity,
   borderOpacity: theme.group.defaultBorderOpacity,

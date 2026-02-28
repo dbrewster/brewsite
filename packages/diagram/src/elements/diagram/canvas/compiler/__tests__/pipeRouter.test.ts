@@ -63,8 +63,6 @@ describe('rerouteLivePipes', () => {
     rotation: [0, 0, 0],
     scale: 1,
     pivot: 'center',
-    layout: 'manual',
-    layoutSpacing: [2, 2],
     nodes: [
       {
         id: 'n1',

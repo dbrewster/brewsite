@@ -1,6 +1,6 @@
 import {Camera, Floor, FloorMirror, SceneDefinition, Spot} from '@brewsite/core';
 import { Ambient, Directional, Lighting, Scene } from '@brewsite/core';
-import {DiagramCanvas, Diagram, DiagramEdge, DiagramNode, Enter, enterpriseTheme, darkGlassTheme, neonCyberTheme, lightMinimalTheme} from '@brewsite/diagram';
+import {DiagramCanvas, Diagram, DiagramEdge, DiagramNode, Enter, ManualLayout, enterpriseTheme, darkGlassTheme, neonCyberTheme, lightMinimalTheme} from '@brewsite/diagram';
 
 export const sceneArchEcsDetail: SceneDefinition = {
   id: 'arch-ecs-detail',
@@ -12,7 +12,8 @@ export const sceneArchEcsDetail: SceneDefinition = {
         <Directional intensity={0.6} color="#aaccff" position={[-20, 10, 20]} />
       </Lighting>
       <DiagramCanvas id="system-canvas" rotation={[-Math.PI / 12, 0, 0]}  scale={1.4} theme={darkGlassTheme}>
-        <Diagram id="system-arch" layout="manual" pivot="center">
+        <Diagram id="system-arch" pivot="center">
+          <ManualLayout />
           <Enter from={[-60, 0, 0]} fade easing="ease-in" />
           <DiagramNode id="cdn" position={[0, 2, -25]} opacity={0.3} />
           <DiagramNode id="alb" position={[0, -1, -25]} opacity={0.3} />

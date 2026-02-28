@@ -3,7 +3,7 @@ import {
   routeEdges,
   compileDiagram,
 } from '../compile';
-import type { DiagramDSL, DiagramNodeDSL, DiagramEdgeDSL } from '../types';
+import type { DiagramDSL, DiagramNodeDSL, DiagramEdgeDSL, DiagramTheme } from '../types';
 import { darkGlassTheme } from '../themes/darkGlass';
 
 const makeNode = (id: string, overrides: Partial<DiagramNodeDSL> = {}): DiagramNodeDSL => ({
@@ -88,8 +88,7 @@ describe('compileDiagram', () => {
   it('applies NODE_DEFAULTS to nodes with no explicit values', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: 'grid',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'grid' },
       nodes: [makeNode('a')],
       edges: [],
       groups: [],
@@ -104,8 +103,7 @@ describe('compileDiagram', () => {
   it('resolves iconUrl from iconRegistry for aws:ec2 shape', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: 'grid',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'grid' },
       nodes: [makeNode('a', { shape: 'aws:ec2' })],
       edges: [],
       groups: [],
@@ -117,8 +115,7 @@ describe('compileDiagram', () => {
   it('does not set iconUrl for flow:rect shape', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: 'grid',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'grid' },
       nodes: [makeNode('a', { shape: 'flow:rect' })],
       edges: [],
       groups: [],
@@ -130,8 +127,7 @@ describe('compileDiagram', () => {
   it('compiles a 3-node, 2-edge diagram without throwing', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: 'grid',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'grid' },
       nodes: [makeNode('a'), makeNode('b'), makeNode('c')],
       edges: [makeEdge('a', 'b'), makeEdge('b', 'c')],
       groups: [],
@@ -139,11 +135,34 @@ describe('compileDiagram', () => {
     expect(() => compileDiagram(dsl)).not.toThrow();
   });
 
+  it('uses theme layout defaults when diagram DSL omits layout', () => {
+    const theme: DiagramTheme = {
+      ...darkGlassTheme,
+      layout: {
+        ...darkGlassTheme.layout,
+        defaultKind: 'hierarchical',
+        hierarchical: {
+          ...darkGlassTheme.layout?.hierarchical,
+          spacing: [4, 4],
+        },
+      },
+    };
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      nodes: [makeNode('a'), makeNode('b')],
+      edges: [makeEdge('a', 'b')],
+      groups: [],
+    };
+    const state = compileDiagram(dsl, theme);
+    const posA = state.nodes.find((n) => n.id === 'a')!.position;
+    const posB = state.nodes.find((n) => n.id === 'b')!.position;
+    expect(posB[1]).toBeLessThan(posA[1]);
+  });
+
   it('groups have computed bounds that contain all member nodes', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: 'grid',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'grid' },
       nodes: [
         makeNode('a', { position: [0, 0, 0] }),
         makeNode('b', { position: [4, 0, 0] }),
@@ -163,11 +182,44 @@ describe('compileDiagram', () => {
     expect(group.bounds.h).toBeGreaterThan(0);
   });
 
+  it('applies group border width default from theme', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [{ id: 'group-1', nodeIds: ['a'] }],
+    };
+    const state = compileDiagram(dsl);
+    expect(state.groups[0]?.borderWidth).toBe(darkGlassTheme.group.defaultBorderWidth);
+    expect(state.groups[0]?.borderHeight).toBe(darkGlassTheme.group.defaultBorderHeight);
+  });
+
+  it('routes edges to the group border centerline (not inner fill or outer edge)', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'manual' },
+      nodes: [
+        makeNode('src', { position: [-20, 0, 0], size: [2, 2] }),
+        makeNode('a', { position: [0, 0, 0], size: [4, 2] }),
+      ],
+      edges: [makeEdge('src', 'g1')],
+      groups: [{ id: 'g1', nodeIds: ['a'] }],
+    };
+    const state = compileDiagram(dsl);
+    const group = state.groups.find((g) => g.id === 'g1')!;
+    const edge = state.edges[0]!;
+    const end = edge.controlPoints[edge.controlPoints.length - 1]!;
+
+    const borderWidthUnits = darkGlassTheme.group.defaultBorderWidth * 0.4;
+    const expectedX = group.bounds.x - borderWidthUnits / 2 - 0.1; // left border-centerline + EDGE_EPSILON outwards
+    expect(end[0]).toBeCloseTo(expectedX, 3);
+  });
+
   it('edges in compiled output reference valid fromId/toId from nodes list', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: 'grid',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'grid' },
       nodes: [makeNode('a'), makeNode('b')],
       edges: [makeEdge('a', 'b')],
       groups: [],
@@ -180,8 +232,7 @@ describe('compileDiagram', () => {
   it('auto-generates edge id from from-to when id prop is omitted', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: 'grid',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'grid' },
       nodes: [makeNode('a'), makeNode('b')],
       edges: [makeEdge('a', 'b')],
       groups: [],
@@ -195,8 +246,7 @@ describe('pivot offset', () => {
   it("'center' pivot: bounds center maps to [0, 0]", () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: 'manual',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'manual' },
       pivot: 'center',
       nodes: [
         makeNode('a', { position: [0, 0, 0] }),
@@ -213,8 +263,7 @@ describe('pivot offset', () => {
   it("'top-left' pivot: top-left corner maps to [0, 0]", () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: 'manual',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'manual' },
       pivot: 'top-left',
       nodes: [
         makeNode('a', { position: [0, 0, 0] }),
@@ -231,8 +280,7 @@ describe('pivot offset', () => {
   it('pivot offset is applied before edge routing', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: 'manual',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'manual' },
       pivot: 'center',
       nodes: [
         makeNode('a', { position: [0, 0, 0] }),
@@ -251,8 +299,7 @@ describe('exit / enter config compilation', () => {
   it('compileExitConfig returns null when no <Exit> in DSL', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: 'grid',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'grid' },
       nodes: [makeNode('a')],
       edges: [],
       groups: [],
@@ -264,8 +311,7 @@ describe('exit / enter config compilation', () => {
   it('compileExitConfig applies defaults (fade=true, easing=ease)', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: 'grid',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'grid' },
       nodes: [makeNode('a')],
       edges: [],
       groups: [],
@@ -279,8 +325,7 @@ describe('exit / enter config compilation', () => {
   it('compileEnterConfig applies defaults (fade=true, easing=ease)', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: 'grid',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'grid' },
       nodes: [makeNode('a')],
       edges: [],
       groups: [],
@@ -296,8 +341,7 @@ describe('DiagramState transform fields', () => {
   it('position defaults to [0,0,0]', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: 'grid',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'grid' },
       nodes: [makeNode('a')],
       edges: [],
       groups: [],
@@ -309,8 +353,7 @@ describe('DiagramState transform fields', () => {
   it('scale defaults to 1', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: 'grid',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'grid' },
       nodes: [makeNode('a')],
       edges: [],
       groups: [],
@@ -322,8 +365,7 @@ describe('DiagramState transform fields', () => {
   it('position/rotation/scale from DSL are passed through unchanged', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: 'grid',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'grid' },
       position: [1, 2, 3],
       rotation: [0.1, 0.2, 0.3],
       scale: 2,

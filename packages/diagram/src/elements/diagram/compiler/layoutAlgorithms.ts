@@ -2,7 +2,10 @@
 // Pure functions only — no Three.js, no React.
 
 import type { DiagramNodeDSL, DiagramEdgeDSL, DiagramGroupDSL } from '../types';
-import { GROUP_PADDING } from './groupConstants';
+import {
+  DEFAULT_RESOLVED_GRID,
+} from './layoutResolver';
+import type { ResolvedLayout, ResolvedGridLayout, ResolvedHierarchicalLayout } from './layoutResolver';
 
 /**
  * Assigns [x, y, z] positions to nodes that have no explicit position.
@@ -14,9 +17,22 @@ import { GROUP_PADDING } from './groupConstants';
 export function resolveLayout(
   nodes: ReadonlyArray<DiagramNodeDSL>,
   edges: ReadonlyArray<DiagramEdgeDSL>,
-  layout: 'manual' | 'grid' | 'hierarchical',
-  spacing: [number, number],
+  layout: ResolvedLayout,
 ): Map<string, readonly [number, number, number]> {
+  const layoutKind = (layout as { kind?: string }).kind;
+  if (layoutKind !== 'manual' && layoutKind !== 'grid' && layoutKind !== 'hierarchical') {
+    console.warn(`Diagram resolveLayout: unknown layout kind "${String(layoutKind)}". Falling back to default grid.`);
+    return resolveLayout(nodes, edges, DEFAULT_RESOLVED_GRID);
+  }
+
+  const isFiniteNumber = (value: number): boolean => Number.isFinite(value);
+  const ensurePair = (
+    pair: readonly [number, number],
+    fallback: readonly [number, number],
+  ): readonly [number, number] => ([
+    isFiniteNumber(pair[0]) ? pair[0] : fallback[0],
+    isFiniteNumber(pair[1]) ? pair[1] : fallback[1],
+  ]);
   const positions = new Map<string, readonly [number, number, number]>();
   const missing: DiagramNodeDSL[] = [];
 
@@ -28,7 +44,7 @@ export function resolveLayout(
     }
   });
 
-  if (layout === 'manual') {
+  if (layout.kind === 'manual') {
     const nonGhostMissing = missing.filter((n) => !!n.label);
     if (nonGhostMissing.length > 0) {
       throw new Error(
@@ -51,18 +67,70 @@ export function resolveLayout(
     ...missing.map((node) => (node.size ?? DEFAULT_NODE_SIZE)[1]),
   );
 
-  if (layout === 'grid') {
-    const cols = 4;
-    missing.forEach((node, index) => {
+  if (layout.kind === 'grid') {
+    const { spacing, margin: rawMargin, columns: rawColumns, alignment, disconnected } = layout as ResolvedGridLayout;
+    const safeSpacing = ensurePair(spacing, [2, 2]);
+    const safeMargin = ensurePair(rawMargin, [0, 0]);
+    const resolvedCols = rawColumns === 'auto' || rawColumns === undefined ? 4 : rawColumns;
+    const cols = !Number.isFinite(resolvedCols) || resolvedCols <= 0 ? 4 : resolvedCols;
+    const margin = safeMargin;
+
+    const connectedNodeIds = new Set<string>();
+    edges.forEach((e) => { connectedNodeIds.add(e.from); connectedNodeIds.add(e.to); });
+    const orderedMissing = disconnected === 'after'
+      ? [
+          ...missing.filter((n) => connectedNodeIds.has(n.id)),
+          ...missing.filter((n) => !connectedNodeIds.has(n.id)),
+        ]
+      : missing;
+
+    const effectiveWidth = maxWidth + 2 * margin[0];
+    const effectiveHeight = maxHeight + 2 * margin[1];
+    const colStep = effectiveWidth + safeSpacing[0];
+    const rowStep = effectiveHeight + safeSpacing[1];
+
+    const rowCount = Math.ceil(orderedMissing.length / cols);
+    const rowWidths: number[] = [];
+    for (let r = 0; r < rowCount; r += 1) {
+      const nodesInRow = Math.min(cols, orderedMissing.length - r * cols);
+      rowWidths.push(nodesInRow * effectiveWidth + (nodesInRow - 1) * safeSpacing[0]);
+    }
+    const widestRowWidth = rowWidths.length > 0 ? Math.max(...rowWidths) : effectiveWidth;
+
+    orderedMissing.forEach((node, index) => {
       const col = index % cols;
       const row = Math.floor(index / cols);
-      const x = col * (maxWidth + spacing[0]);
-      const y = -row * (maxHeight + spacing[1]);
+      const nodesInRow = Math.min(cols, orderedMissing.length - row * cols);
+      const rowWidth = nodesInRow * effectiveWidth + (nodesInRow - 1) * safeSpacing[0];
+
+      let rowOffset = 0;
+      if (alignment === 'center') {
+        rowOffset = (widestRowWidth - rowWidth) / 2;
+      } else if (alignment === 'right') {
+        rowOffset = widestRowWidth - rowWidth;
+      } else if (alignment === 'fill' && nodesInRow > 1) {
+        const fillStep = widestRowWidth / (nodesInRow - 1);
+        const x = col * fillStep + rowOffset;
+        const y = -row * rowStep;
+        const z = node.position?.[2] ?? 0;
+        positions.set(node.id, [x, y, z]);
+        return;
+      }
+      if (alignment === 'fill' && nodesInRow === 1) {
+        rowOffset = (widestRowWidth - effectiveWidth) / 2;
+      }
+
+      const x = rowOffset + col * colStep;
+      const y = -row * rowStep;
       const z = node.position?.[2] ?? 0;
       positions.set(node.id, [x, y, z]);
     });
     return positions;
   }
+
+  const { spacing, margin: rawMargin, alignment, disconnected, direction } = layout as ResolvedHierarchicalLayout;
+  const safeSpacing = ensurePair(spacing, [2, 2]);
+  const margin = ensurePair(rawMargin, [0, 0]);
 
   const nodeIds = nodes.map((node) => node.id);
   const inDegree = new Map<string, number>(nodeIds.map((id) => [id, 0]));
@@ -79,6 +147,10 @@ export function resolveLayout(
       inDegree.set(to, (inDegree.get(to) ?? 0) + 1);
     }
   });
+
+  const connectedNodeIds = new Set<string>();
+  edges.forEach((e) => { connectedNodeIds.add(e.from); connectedNodeIds.add(e.to); });
+  const isDisconnected = (id: string): boolean => !connectedNodeIds.has(id);
 
   const queue: string[] = [];
   inDegree.forEach((count, id) => {
@@ -109,11 +181,20 @@ export function resolveLayout(
     });
   }
 
-  nodeIds.forEach((id) => {
-    if (!level.has(id)) {
-      level.set(id, 0);
-    }
-  });
+  const maxLevel = level.size > 0 ? Math.max(...level.values()) : 0;
+  if (disconnected === 'after') {
+    missing.forEach((node) => {
+      if (isDisconnected(node.id)) {
+        level.set(node.id, maxLevel + 1);
+      }
+    });
+  } else {
+    nodeIds.forEach((id) => {
+      if (!level.has(id)) {
+        level.set(id, 0);
+      }
+    });
+  }
 
   const levels = new Map<number, DiagramNodeDSL[]>();
   missing.forEach((node) => {
@@ -124,22 +205,24 @@ export function resolveLayout(
     levels.get(l)!.push(node);
   });
 
-  // Compute per-level max heights so the gap between adjacent level edges is
-  // always exactly spacing[1], regardless of how different item heights are.
-  // Include explicit nodes so anchor levels derived from explicit positions
-  // still respect the correct vertical spacing.
-  const levelMaxH = new Map<number, number>();
+  const allLevelKeys = [...new Set(nodeIds.map((id) => level.get(id) ?? 0))].sort((a, b) => a - b);
+  const isPrimary = direction === 'left-right';
+
+  const levelMaxPrimaryHalf = new Map<number, number>();
+  const levelMaxSecondaryDim = new Map<number, number>();
   nodes.forEach((node) => {
     const l = level.get(node.id) ?? 0;
-    const h = (node.size ?? DEFAULT_NODE_SIZE)[1];
-    levelMaxH.set(l, Math.max(levelMaxH.get(l) ?? 0, h));
+    const [w, h] = node.size ?? DEFAULT_NODE_SIZE;
+    const primaryHalf = isPrimary ? (w / 2 + margin[0]) : (h / 2 + margin[1]);
+    const secondaryDim = isPrimary ? (h + 2 * margin[1]) : (w + 2 * margin[0]);
+    levelMaxPrimaryHalf.set(l, Math.max(levelMaxPrimaryHalf.get(l) ?? 0, primaryHalf));
+    levelMaxSecondaryDim.set(l, Math.max(levelMaxSecondaryDim.get(l) ?? 0, secondaryDim));
   });
 
-  // levelCenterY[l] is the Y center for all nodes at level l.
+  // levelCenterPrimary[l] is the center for all nodes at level l on the primary axis.
   // Anchor the hierarchy to an explicit level when possible so auto-placed
-  // nodes align with authored coordinates instead of drifting above them.
-  const levelCenterY = new Map<number, number>();
-  const allLevelKeys = [...new Set(nodeIds.map((id) => level.get(id) ?? 0))].sort((a, b) => a - b);
+  // nodes align with authored coordinates instead of drifting away.
+  const levelCenterPrimary = new Map<number, number>();
 
   const explicitNodes = nodes.filter((n) => !!n.position);
   const explicitLevels = explicitNodes.map((n) => level.get(n.id) ?? 0);
@@ -156,44 +239,74 @@ export function resolveLayout(
   }
 
   const anchorNodes = explicitNodes.filter((n) => (level.get(n.id) ?? 0) === anchorLevel);
-  const anchorY = anchorNodes.length > 0
-    ? anchorNodes.reduce((sum, n) => sum + (n.position?.[1] ?? 0), 0) / anchorNodes.length
+  const anchorPrimary = anchorNodes.length > 0
+    ? anchorNodes.reduce((sum, n) => sum + (n.position?.[isPrimary ? 0 : 1] ?? 0), 0) / anchorNodes.length
     : 0;
 
   const anchorIndex = allLevelKeys.indexOf(anchorLevel);
   if (anchorIndex === -1) {
-    // Fallback: if for some reason the anchor level is absent, default to 0.
-    levelCenterY.set(minMissingLevel, 0);
+    levelCenterPrimary.set(minMissingLevel, 0);
   } else {
-    levelCenterY.set(anchorLevel, anchorY);
-    // Walk downward (higher levels) from the anchor.
+    levelCenterPrimary.set(anchorLevel, anchorPrimary);
+    const levelGap = isPrimary ? safeSpacing[0] : safeSpacing[1];
     for (let i = anchorIndex + 1; i < allLevelKeys.length; i += 1) {
       const prevL = allLevelKeys[i - 1];
       const currL = allLevelKeys[i];
-      const prevH = levelMaxH.get(prevL) ?? 0;
-      const currH = levelMaxH.get(currL) ?? 0;
-      const prevCenter = levelCenterY.get(prevL)!;
-      levelCenterY.set(currL, prevCenter - prevH / 2 - spacing[1] - currH / 2);
+      const prevH = levelMaxPrimaryHalf.get(prevL) ?? 0;
+      const currH = levelMaxPrimaryHalf.get(currL) ?? 0;
+      const prevCenter = levelCenterPrimary.get(prevL)!;
+      const sign = isPrimary ? 1 : -1;
+      levelCenterPrimary.set(currL, prevCenter + sign * (prevH + levelGap + currH));
     }
-    // Walk upward (lower levels) from the anchor.
     for (let i = anchorIndex - 1; i >= 0; i -= 1) {
       const nextL = allLevelKeys[i + 1];
       const currL = allLevelKeys[i];
-      const nextH = levelMaxH.get(nextL) ?? 0;
-      const currH = levelMaxH.get(currL) ?? 0;
-      const nextCenter = levelCenterY.get(nextL)!;
-      levelCenterY.set(currL, nextCenter + nextH / 2 + spacing[1] + currH / 2);
+      const nextH = levelMaxPrimaryHalf.get(nextL) ?? 0;
+      const currH = levelMaxPrimaryHalf.get(currL) ?? 0;
+      const nextCenter = levelCenterPrimary.get(nextL)!;
+      const sign = isPrimary ? 1 : -1;
+      levelCenterPrimary.set(currL, nextCenter - sign * (nextH + levelGap + currH));
     }
   }
 
+  const getWidestLevelWidth = (
+    levelsMap: Map<number, DiagramNodeDSL[]>,
+    levelMaxSecDim: Map<number, number>,
+    secGap: number,
+  ): number => {
+    let widest = 0;
+    levelsMap.forEach((lvlNodes, l) => {
+      const secDim = levelMaxSecDim.get(l) ?? 0;
+      const w = lvlNodes.length * secDim + (lvlNodes.length - 1) * secGap;
+      if (w > widest) widest = w;
+    });
+    return widest;
+  };
+
   levels.forEach((levelNodes, l) => {
     const count = levelNodes.length;
-    const totalWidth = count * maxWidth + (count - 1) * spacing[0];
-    const startX = -totalWidth / 2 + maxWidth / 2;
+    const secDim = levelMaxSecondaryDim.get(l) ?? DEFAULT_NODE_SIZE[isPrimary ? 1 : 0];
+    const secGap = isPrimary ? safeSpacing[1] : safeSpacing[0];
+    const totalSecWidth = count * secDim + (count - 1) * secGap;
+    const widestLevelWidth = getWidestLevelWidth(levels, levelMaxSecondaryDim, secGap);
+
+    let levelAlignOffset = 0;
+    if (alignment === 'center') levelAlignOffset = -totalSecWidth / 2 + secDim / 2;
+    else if (alignment === 'left') levelAlignOffset = -widestLevelWidth / 2 + secDim / 2;
+    else if (alignment === 'right') levelAlignOffset = widestLevelWidth / 2 - totalSecWidth + secDim / 2;
+
     levelNodes.forEach((node, index) => {
-      const x = startX + index * (maxWidth + spacing[0]);
-      const y = levelCenterY.get(l) ?? 0;
+      const primaryVal = levelCenterPrimary.get(l) ?? 0;
+      let secVal: number;
+      if (alignment === 'fill' && count > 1) {
+        secVal = -widestLevelWidth / 2 + index * (widestLevelWidth / (count - 1));
+      } else if (alignment === 'fill' && count === 1) {
+        secVal = 0;
+      } else {
+        secVal = levelAlignOffset + index * (secDim + secGap);
+      }
       const z = node.position?.[2] ?? 0;
+      const [x, y] = isPrimary ? [primaryVal, secVal] : [secVal, primaryVal];
       positions.set(node.id, [x, y, z]);
     });
   });
@@ -319,12 +432,12 @@ export function resolveLayoutWithGroups(
   nodes: ReadonlyArray<DiagramNodeDSL>,
   edges: ReadonlyArray<DiagramEdgeDSL>,
   groups: ReadonlyArray<DiagramGroupDSL>,
-  layout: 'manual' | 'grid' | 'hierarchical',
-  spacing: [number, number],
+  rootLayout: ResolvedLayout,
+  groupLayouts: Map<string, ResolvedLayout>,
   sizes: Map<string, readonly [number, number] | readonly [number, number, number]>,
 ): Map<string, readonly [number, number, number]> {
-  if (layout === 'manual' || groups.length === 0) {
-    return resolveLayout(nodes, edges, layout, spacing);
+  if (rootLayout.kind === 'manual' || groups.length === 0) {
+    return resolveLayout(nodes, edges, rootLayout);
   }
 
   const groupById = new Map(groups.map((g) => [g.id, g]));
@@ -380,12 +493,7 @@ export function resolveLayoutWithGroups(
       }
     } else {
       // ── Auto-layout path ────────────────────────────────────────────────────
-      // Determine this group's layout algorithm and spacing.
-      // At this point `layout` is narrowed to 'grid' | 'hierarchical' (manual early-returned).
-      const groupLayout: 'grid' | 'hierarchical' = group.layout ?? layout;
-      const groupSpacing: [number, number] = group.layoutSpacing
-        ? [group.layoutSpacing[0], group.layoutSpacing[1]]
-        : spacing;
+      const groupLayout = groupLayouts.get(group.id) ?? rootLayout;
 
       // Build virtual layout nodes: direct members + synthetic child-group blocks.
       // If a child group is all-explicit, pin its synthetic block at its absoluteCenter
@@ -443,7 +551,7 @@ export function resolveLayoutWithGroups(
       }
 
       // Run layout on virtual nodes.
-      const rawLocalPositions = resolveLayout(virtualNodes, virtualEdges, groupLayout, groupSpacing);
+      const rawLocalPositions = resolveLayout(virtualNodes, virtualEdges, groupLayout);
 
       // Expand: translate synthetic child-group positions into actual descendant node positions.
       expandedPositions = new Map();
@@ -475,8 +583,10 @@ export function resolveLayoutWithGroups(
       localPositions.set(id, [pos[0] - centerX, pos[1] - centerY, pos[2]]);
     });
 
-    const paddedW = bounds.w + GROUP_PADDING * 2;
-    const paddedH = bounds.h + GROUP_PADDING * 2;
+    const gl = groupLayouts.get(group.id) ?? rootLayout;
+    const [pt, pr, pb, pl] = gl.groupPadding;
+    const paddedW = bounds.w + pl + pr;
+    const paddedH = bounds.h + pb + pt;
 
     groupInfoMap.set(group.id, {
       allDescendantNodeIds,
@@ -572,7 +682,45 @@ export function resolveLayoutWithGroups(
     topLevelEdges.push({ from: fromId, to: toId });
   });
 
-  const topLevelPositions = resolveLayout(topLevelLayoutNodes, topLevelEdges, layout, spacing);
+  const topLevelPositions = resolveLayout(topLevelLayoutNodes, topLevelEdges, rootLayout);
+
+  // ─── Connection affinity refinement (hierarchical only) ──────────────────────
+  if (rootLayout.kind === 'hierarchical') {
+    const isLR = (rootLayout as ResolvedHierarchicalLayout).direction === 'left-right';
+    const affinityTargets = new Map<string, number[]>();
+
+    edges.forEach((edge) => {
+      if (topLevelGroupByDescendant.has(edge.from)) return;
+      if (topLevelSynthIdForGroup.has(edge.from)) return;
+
+      const toGroupId = topLevelGroupByDescendant.get(edge.to);
+      if (!toGroupId) return;
+
+      const groupInfo = groupInfoMap.get(toGroupId);
+      if (!groupInfo) return;
+
+      const groupBlockPos = topLevelPositions.get(groupNodeId(toGroupId));
+      if (!groupBlockPos) return;
+      const groupBlockCrossAxis = isLR ? groupBlockPos[1] : groupBlockPos[0];
+
+      const localPos = groupInfo.localPositions.get(edge.to);
+      if (!localPos) return;
+      const localCrossAxis = isLR ? localPos[1] : localPos[0];
+
+      const refinedCrossAxis = groupBlockCrossAxis + localCrossAxis;
+
+      if (!affinityTargets.has(edge.from)) affinityTargets.set(edge.from, []);
+      affinityTargets.get(edge.from)!.push(refinedCrossAxis);
+    });
+
+    affinityTargets.forEach((refinedValues, nodeId) => {
+      const pos = topLevelPositions.get(nodeId);
+      if (!pos) return;
+      const meanRefined = refinedValues.reduce((s, v) => s + v, 0) / refinedValues.length;
+      const [x, y, z] = pos;
+      topLevelPositions.set(nodeId, isLR ? [x, meanRefined, z] : [meanRefined, y, z]);
+    });
+  }
 
   // ─── Combine all positions ───────────────────────────────────────────────────
 

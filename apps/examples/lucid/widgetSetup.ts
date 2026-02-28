@@ -25,8 +25,7 @@ export const createLlmWidgetSetup = (manifest: AssetManifest | null) => {
   const canvas = compileCanvas({ id: 'llm-canvas' }, [
     compileDiagram({
       id: 'llm-filter',
-      layout: 'manual',
-      layoutSpacing: [4, 2.5],
+      layout: { kind: 'manual' },
       pivot: 'center',
       theme: darkGlassTheme,
       nodes: [

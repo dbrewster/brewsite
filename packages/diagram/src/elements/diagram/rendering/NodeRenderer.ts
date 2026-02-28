@@ -5,7 +5,7 @@ import type { IIconLoader } from './IconLoader';
 import type { IInteractionRegistry } from './InteractionRegistry';
 import { ensureText } from './TextRenderer';
 import { createShapeGeometry, createRoundedBorderGeometry } from '../shapes/geometryFactory';
-import { createGlow, disposeGlowSprite } from '../../_shared/glowSprite';
+import { createGlow, computeGlowScale, disposeGlowSprite } from '../../_shared/glowSprite';
 import { Text } from 'troika-three-text';
 
 const createBoxMaterials = (
@@ -321,7 +321,8 @@ export class NodeRenderer {
           entry.glow.material.color.set(state.color);
         }
         if (!prev || prev.size[0] !== state.size[0] || prev.size[1] !== state.size[1]) {
-          entry.glow.scale.set(state.size[0] * 2.2, state.size[1] * 2.2, 1);
+          const [glowW, glowH] = computeGlowScale(state.size[0], state.size[1], 2.2);
+          entry.glow.scale.set(glowW, glowH, 1);
         }
       }
     } else if (entry.glow) {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import React from 'react';
 import { resolveSceneFromDsl, Scene } from '@brewsite/core';
 import { WidgetRegistry } from '@brewsite/core';
-import { Diagram, DiagramEdge, DiagramGroup, DiagramNode } from '../../elements/diagram/dsl';
+import { Diagram, DiagramEdge, DiagramGroup, DiagramNode, ManualLayout } from '../../elements/diagram/dsl';
 import { ImagePanel } from '../../elements/image-panel/dsl';
 import { Screen } from '../../elements/screen/dsl';
 import { registerDiagramHandlers } from '../handlers';
@@ -23,7 +23,8 @@ describe('registerDiagramHandlers', () => {
 
     const tree = (
       <Scene id="diagram-test">
-        <Diagram id="diagram-basic" layout="manual">
+        <Diagram id="diagram-basic">
+          <ManualLayout />
           <DiagramGroup id="group-1" label="Group">
             <DiagramNode id="n1" label="Node 1" position={[0, 0, 0]} />
           </DiagramGroup>
@@ -55,7 +56,8 @@ describe('registerDiagramHandlers', () => {
 
     const tree = (
       <Scene id="diagram-nested">
-        <Diagram id="diagram-nested" layout="manual">
+        <Diagram id="diagram-nested">
+          <ManualLayout />
           <DiagramGroup id="outer" label="Outer">
             <DiagramGroup id="inner" label="Inner">
               <DiagramNode id="n1" label="Node 1" position={[0, 0, 0]} />

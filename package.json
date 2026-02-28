@@ -13,7 +13,8 @@
     "dev:server": "turbo dev:server --filter=@brewsite/lucid-server",
     "gen:scene-dsl": "turbo gen:scene-dsl --filter=@brewsite/examples",
     "sync:icons": "node scripts/sync-icons.mjs",
-    "sync:icons:force": "node scripts/sync-icons.mjs --force"
+    "sync:icons:force": "node scripts/sync-icons.mjs --force",
+    "publish:core-diagram": "node scripts/publish-core-diagram.mjs"
   },
   "devDependencies": {
     "adm-zip": "^0.5.16",

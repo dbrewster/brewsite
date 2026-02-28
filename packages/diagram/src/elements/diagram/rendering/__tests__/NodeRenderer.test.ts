@@ -4,6 +4,7 @@ import { NodeRenderer } from '../NodeRenderer';
 import { InteractionRegistry } from '../InteractionRegistry';
 import type { DiagramNodeState, DiagramThemeRenderConfig } from '../../types';
 import type { IIconLoader } from '../IconLoader';
+import { computeGlowScale } from '../../../_shared/glowSprite';
 import { Text } from 'troika-three-text';
 
 const themeConfig: DiagramThemeRenderConfig = {
@@ -135,7 +136,8 @@ describe('NodeRenderer', () => {
 
     renderer.getOrCreate(makeNode({ color: '#00ff00', size: [6, 3] }), 'd1', glowOn, parent);
     expect(glow.material.color.getHexString()).toBe('00ff00');
-    expect(glow.scale.x).toBeCloseTo(6 * 2.2, 4);
+    const [expectedW] = computeGlowScale(6, 3, 2.2);
+    expect(glow.scale.x).toBeCloseTo(expectedW, 4);
 
     renderer.getOrCreate(makeNode({ color: '#00ff00', size: [6, 3] }), 'd1', noGlow, parent);
     expect(entry.glow).toBeUndefined();

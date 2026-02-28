@@ -4,14 +4,17 @@
 import type { DiagramGroupDSL, DiagramGroupState, DiagramTheme } from '../types';
 import { buildGroupDefaults } from './nodeCompiler';
 import { computeBounds } from './layoutAlgorithms';
-import { GROUP_PADDING } from './groupConstants';
+import type { ResolvedLayout } from './layoutResolver';
 
 export type GroupBounds = {
   readonly x: number;
   readonly y: number;
   readonly w: number;
   readonly h: number;
-  readonly padding: number;
+  /** Resolved padding [top, right, bottom, left] in diagram units. */
+  readonly padding: readonly [number, number, number, number];
+  /** Gap between group title label and content, in diagram units. */
+  readonly titleGap: number;
 };
 
 const isEmptyBounds = (bounds: { w: number; h: number }): boolean =>
@@ -32,6 +35,7 @@ export function resolveGroupBoundsMap(
   groups: ReadonlyArray<DiagramGroupDSL>,
   positions: Map<string, readonly [number, number, number]>,
   sizes: Map<string, readonly [number, number] | readonly [number, number, number]>,
+  groupLayouts: Map<string, ResolvedLayout>,
 ): Map<string, GroupBounds> {
   const groupById = new Map(groups.map((g) => [g.id, g]));
   const memo = new Map<string, GroupBounds>();
@@ -41,12 +45,12 @@ export function resolveGroupBoundsMap(
     const cached = memo.get(groupId);
     if (cached) return cached;
     if (visiting.has(groupId)) {
-      return { x: 0, y: 0, w: 0, h: 0, padding: GROUP_PADDING };
+      return { x: 0, y: 0, w: 0, h: 0, padding: [1.5, 1.5, 1.5, 1.5] as const, titleGap: 0.75 };
     }
     visiting.add(groupId);
     const group = groupById.get(groupId);
     if (!group) {
-      const empty = { x: 0, y: 0, w: 0, h: 0, padding: GROUP_PADDING };
+      const empty: GroupBounds = { x: 0, y: 0, w: 0, h: 0, padding: [1.5, 1.5, 1.5, 1.5], titleGap: 0.75 };
       memo.set(groupId, empty);
       visiting.delete(groupId);
       return empty;
@@ -70,13 +74,16 @@ export function resolveGroupBoundsMap(
     }
 
     const base = combined ?? { x: 0, y: 0, w: 0, h: 0 };
-    const padding = GROUP_PADDING;
-    const padded = {
-      x: base.x - padding,
-      y: base.y - padding,
-      w: base.w + padding * 2,
-      h: base.h + padding * 2,
-      padding,
+    const gl = groupLayouts.get(groupId);
+    const [pt, pr, pb, pl] = gl?.groupPadding ?? [1.5, 1.5, 1.5, 1.5];
+    const titleGap = gl?.titleGap ?? 0.75;
+    const padded: GroupBounds = {
+      x: base.x - pl,
+      y: base.y - pb,
+      w: base.w + pl + pr,
+      h: base.h + pb + pt,
+      padding: [pt, pr, pb, pl],
+      titleGap,
     };
 
     memo.set(groupId, padded);
@@ -109,6 +116,8 @@ export function compileGroup(
     bounds,
     color: dsl.color ?? gd.color,
     borderColor: dsl.borderColor ?? gd.borderColor,
+    borderWidth: gd.borderWidth,
+    borderHeight: gd.borderHeight,
     borderStyle: isContainer ? 'none' : (dsl.borderStyle ?? gd.borderStyle),
     fillOpacity: isContainer ? 0 : (dsl.fillOpacity ?? gd.fillOpacity),
     borderOpacity: isContainer ? 0 : (dsl.borderOpacity ?? gd.borderOpacity),

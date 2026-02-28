@@ -38,6 +38,8 @@ export const neonCyberTheme: DiagramTheme = {
   group: {
     defaultColor:         '#050810',
     defaultBorderColor:   '#00ccff',
+    defaultBorderWidth:   1.75,
+    defaultBorderHeight:  1,
     defaultFillOpacity:   0.07,
     defaultBorderOpacity: 0.80,
   },
@@ -46,6 +48,31 @@ export const neonCyberTheme: DiagramTheme = {
     envMapIntensity: 0.6,
     skyColor:        '#001020',
     horizonColor:    '#002040',
+  },
+  layout: {
+    defaultKind: 'grid',
+    grid: {
+      columns: 'auto',
+      spacing: [2, 2],
+      margin: 0,
+      groupPadding: 1.5,
+      titleGap: 0.75,
+      alignment: 'left',
+      disconnected: 'next-to',
+    },
+    hierarchical: {
+      direction: 'top-down',
+      spacing: [2, 2],
+      margin: 0,
+      groupPadding: 1.5,
+      titleGap: 0.75,
+      alignment: 'center',
+      disconnected: 'next-to',
+    },
+    manual: {
+      groupPadding: 1.5,
+      titleGap: 0.75,
+    },
   },
   palette: ['#00ffcc', '#00ccff', '#cc00ff', '#ff6600', '#00ff66'],
 } as const;

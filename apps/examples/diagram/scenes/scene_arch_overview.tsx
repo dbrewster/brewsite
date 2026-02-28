@@ -1,6 +1,6 @@
 import {Background, Environment, EnvironmentCube, Floor, FloorMirror, SceneDefinition} from '@brewsite/core';
 import { Ambient, Camera, Directional, Lighting, Scene } from '@brewsite/core';
-import {DiagramCanvas, Diagram, DiagramEdge, DiagramGroup, DiagramNode, Exit, darkGlassTheme} from '@brewsite/diagram';
+import {DiagramCanvas, Diagram, DiagramEdge, DiagramGroup, DiagramNode, Exit, ManualLayout, darkGlassTheme} from '@brewsite/diagram';
 import {backgrounds, makeCubeUrls, skyEnvironment} from "./sceneAssets";
 
 export const sceneArchOverview: SceneDefinition = {
@@ -34,7 +34,8 @@ export const sceneArchOverview: SceneDefinition = {
         <Directional intensity={0.6} color="#aaccff" position={[-20, 10, 20]} />
       </Lighting>
       <DiagramCanvas id="system-canvas" rotation={[-Math.PI / 8, 0, 0]} scale={1.4} theme={darkGlassTheme}>
-        <Diagram id="system-arch" layout="manual" pivot="center">
+        <Diagram id="system-arch" pivot="center">
+          <ManualLayout />
           <Exit to={[0, -60, 0]} fade easing="ease-out" />
           <DiagramGroup id="frontend" label="Client Tier" variant="swimlane">
             <DiagramNode id="browser" label="Web Browser" shape="flow:actor" position={[-6, 6, 0]} />

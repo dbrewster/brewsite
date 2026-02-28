@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
-import { createGlow, createGlowTexture, disposeGlowSprite } from '../glowSprite';
+import { createGlow, createGlowTexture, disposeGlowSprite, computeGlowScale } from '../glowSprite';
 
 describe('glowSprite', () => {
   it('caches the glow texture', () => {
@@ -12,11 +12,18 @@ describe('glowSprite', () => {
   it('creates a sprite with expected scale and opacity', () => {
     const sprite = createGlow('#88ccff', 10, 5, 1.4, 0.35);
     expect(sprite).toBeInstanceOf(THREE.Sprite);
-    expect(sprite.scale.x).toBeCloseTo(10 * 1.4, 4);
-    expect(sprite.scale.y).toBeCloseTo(5 * 1.4, 4);
+    const expected = computeGlowScale(10, 5, 1.4);
+    expect(sprite.scale.x).toBeCloseTo(expected[0], 4);
+    expect(sprite.scale.y).toBeCloseTo(expected[1], 4);
     const material = sprite.material as THREE.SpriteMaterial;
     expect(material.opacity).toBeCloseTo(0.35, 4);
     expect(sprite.position.z).toBeCloseTo(-0.1, 4);
+  });
+
+  it('computeGlowScale keeps glow close for very wide nodes', () => {
+    const [w, h] = computeGlowScale(46, 1.4, 2.2);
+    expect(w).toBeLessThan(50);
+    expect(h).toBeGreaterThan(2.5);
   });
 });
 

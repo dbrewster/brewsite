@@ -1,6 +1,6 @@
 import type { SceneDefinition } from '@brewsite/core';
 import { Ambient, Directional, Lighting, Scene } from '@brewsite/core';
-import { DiagramCanvas, Diagram, DiagramEdge, DiagramNode } from '@brewsite/diagram';
+import { DiagramCanvas, Diagram, DiagramEdge, DiagramNode, HierarchicalLayout } from '@brewsite/diagram';
 
 /**
  * Auto-layout demo: the same AWS architecture as scene_arch_overview but with
@@ -34,7 +34,8 @@ export const sceneArchAuto: SceneDefinition = {
         the icon extrusion depth reads clearly without shrinking node faces.
       */}
       <DiagramCanvas id="auto-canvas" rotation={[-Math.PI / 6, 0, 0]}>
-        <Diagram id="arch-auto" layout="hierarchical" layoutSpacing={[3, 2]} pivot="center">
+        <Diagram id="arch-auto" pivot="center">
+          <HierarchicalLayout spacing={[3, 2]} />
 
           {/* ── Tier 1: Client (no icon — flow:actor is geometry-only) ─── */}
           <DiagramNode id="browser" label="Web Browser" shape="flow:actor" />

@@ -181,6 +181,22 @@ describe('buildSvgIcon3D', () => {
     expect(group.children.length).toBe(0);
   });
 
+  it('treats missing path fill as inherited and still extrudes', () => {
+    const shape = makeShape();
+    const paths = [{
+      userData: { style: { stroke: 'none', strokeWidth: '0' } },
+      subPaths: [],
+      color: new THREE.Color('#ffffff'),
+    }] as unknown as Parameters<typeof buildSvgIcon3D>[0]['paths'];
+    let result!: THREE.Group;
+    withFakeShapes(shape, () => {
+      result = buildSvgIcon3D({ paths }, {
+        width: 1, height: 1, maxDepth: 0.15, style: 'extruded',
+      });
+    });
+    expect(result.children.length).toBeGreaterThan(0);
+  });
+
   it('uses ExtrudeGeometry (not ShapeGeometry) for extruded style', () => {
     const shape = makeShape();
     let result!: THREE.Group;

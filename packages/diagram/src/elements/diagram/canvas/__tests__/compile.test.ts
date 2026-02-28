@@ -6,8 +6,7 @@ import type { DiagramDSL } from '../../types';
 
 const makeDiagram = (id: string, nodeId: string, position: [number, number, number]): DiagramDSL => ({
   id,
-  layout: 'manual',
-  layoutSpacing: [2, 2],
+  layout: { kind: 'manual' },
   nodes: [
     { id: nodeId, label: nodeId, position },
   ],
@@ -55,8 +54,7 @@ describe('compilePipe', () => {
   it('transforms node positions by diagram scale + position', () => {
     const diagram = compileDiagram({
       id: 'a',
-      layout: 'manual',
-      layoutSpacing: [2, 2],
+      layout: { kind: 'manual' },
       pivot: 'bottom-left',
       position: [10, 0, 0],
       scale: 2,

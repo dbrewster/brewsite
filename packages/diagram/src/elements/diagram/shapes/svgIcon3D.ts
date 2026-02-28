@@ -174,11 +174,12 @@ export function buildSvgIcon3D(
   const group = new THREE.Group();
   const paths = svgData.paths ?? [];
 
-  // Only filled paths become 3D geometry. Compute this subset first so that
-  // path indices passed to resolveLayerConfig reflect only the filled layers.
+  // Filled paths become 3D geometry. Treat missing fill as inherited/default fill
+  // (common in Heroicons where fill is set at the <svg> level). Only explicit
+  // fill='none' is excluded.
   const filledPaths = paths.filter((path) => {
     const s = (path.userData as { style?: SvgPathStyle } | undefined)?.style;
-    return s?.fill !== 'none' && s?.fill !== undefined && s?.fill !== '';
+    return s?.fill !== 'none';
   });
 
   const totalPaths = filledPaths.length;
@@ -204,9 +205,10 @@ export function buildSvgIcon3D(
       transparent: true,
       opacity: 1,
       depthWrite: true,
-      // BackSide inverts all normals → concave lighting signature:
-      // top channel walls darken (shadow), bottom walls brighten (fill-light).
-      side: isSunken ? THREE.BackSide : THREE.FrontSide,
+      // BackSide inverts all normals for carved style.
+      // For non-carved styles use DoubleSide because some SVG paths can have
+      // opposite winding; FrontSide culling can hide those icons entirely.
+      side: isSunken ? THREE.BackSide : THREE.DoubleSide,
     });
 
     shapes.forEach((shape) => {

@@ -149,6 +149,7 @@ export type CameraAxisConfig = {
  * Modifier-key bindings (all use left-button drag or one-finger trackpad drag):
  *   Ctrl  + drag → orbit (rotate around target)
  *   Cmd   + drag → orbit (rotate around target) [macOS]
+ *   Cmd+Shift+drag → orbit axis lock (horizontal OR vertical) [macOS]
  *   Shift + drag → pan   (translate camera + target in screen space)
  *   Alt   + drag → dolly (change distance to target)
  *

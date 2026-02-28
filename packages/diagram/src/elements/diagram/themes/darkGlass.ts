@@ -39,14 +39,41 @@ export const darkGlassTheme: DiagramTheme = {
   group: {
     defaultColor:         '#0d1126',
     defaultBorderColor:   '#2a4080',
+    defaultBorderWidth:   .5,
+    defaultBorderHeight:  .5,
     defaultFillOpacity:   0.10,
-    defaultBorderOpacity: 0.65,
+    defaultBorderOpacity: 0.85,
   },
   environment: {
     envMapUrl:       '/assets/envmaps/diagram-default.hdr',
     envMapIntensity: 0.9,
     skyColor:        '#1a2a6c',
     horizonColor:    '#0a1030',
+  },
+  layout: {
+    defaultKind: 'grid',
+    grid: {
+      columns: 'auto',
+      spacing: [1, 1],
+      margin: 0,
+      groupPadding: 1.5,
+      titleGap: 1,
+      alignment: 'left',
+      disconnected: 'next-to',
+    },
+    hierarchical: {
+      direction: 'top-down',
+      spacing: [2, 2],
+      margin: 0,
+      groupPadding: 1.5,
+      titleGap: 1,
+      alignment: 'center',
+      disconnected: 'next-to',
+    },
+    manual: {
+      groupPadding: 1.5,
+      titleGap: 1,
+    },
   },
   palette: ['#2a4fa0', '#1e7a5a', '#8a2a70', '#a06a20', '#2a8090'],
 } as const;

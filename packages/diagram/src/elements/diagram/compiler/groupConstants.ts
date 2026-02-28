@@ -1,3 +1,3 @@
-// Shared group constants for compiler/layout logic.
-
-export const GROUP_PADDING = 1.5;
+// Default group padding in diagram units. Used as the resolved default
+// when no groupPadding is specified in any layout ancestor.
+export const DEFAULT_GROUP_PADDING = 1.5;

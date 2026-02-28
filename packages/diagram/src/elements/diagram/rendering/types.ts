@@ -58,7 +58,7 @@ export type EdgeRenderEntry = {
 export type GroupRenderEntry = {
   group: THREE.Group;
   fill: THREE.Mesh;
-  border?: THREE.LineSegments;
+  border?: THREE.Group;
   label: TextWithLayout;
   lastState?: DiagramGroupState;
 };

@@ -103,6 +103,10 @@ export interface DiagramThemeGroupConfig {
   readonly defaultColor: string;
   /** Default border color (CSS hex) */
   readonly defaultBorderColor: string;
+  /** Default border width in pixels for group outlines. */
+  readonly defaultBorderWidth: number;
+  /** Default border height (depth on Z axis) for 3D group outlines. */
+  readonly defaultBorderHeight: number;
   /** Default fill opacity [0–1] */
   readonly defaultFillOpacity: number;
   /** Default border opacity [0–1] */
@@ -125,6 +129,40 @@ export interface DiagramThemeEnvironmentConfig {
   readonly horizonColor: string;
 }
 
+/** Layout defaults in a theme for grid/hierarchical/manual compilation. */
+export interface DiagramThemeLayoutConfig {
+  /**
+   * Root layout kind when no <GridLayout>/<HierarchicalLayout>/<ManualLayout>
+   * child is declared on <Diagram>. Default: 'grid'.
+   */
+  readonly defaultKind?: 'grid' | 'hierarchical' | 'manual';
+  /** Defaults applied when resolving a grid layout. */
+  readonly grid?: {
+    readonly columns?: number | 'auto';
+    readonly spacing?: readonly [number, number];
+    readonly margin?: number | readonly [number, number];
+    readonly groupPadding?: LayoutPadding;
+    readonly titleGap?: number;
+    readonly alignment?: LayoutAlignment;
+    readonly disconnected?: LayoutDisconnected;
+  };
+  /** Defaults applied when resolving a hierarchical layout. */
+  readonly hierarchical?: {
+    readonly direction?: 'top-down' | 'left-right';
+    readonly spacing?: readonly [number, number];
+    readonly margin?: number | readonly [number, number];
+    readonly groupPadding?: LayoutPadding;
+    readonly titleGap?: number;
+    readonly alignment?: LayoutAlignment;
+    readonly disconnected?: LayoutDisconnected;
+  };
+  /** Defaults applied when resolving a manual layout. */
+  readonly manual?: {
+    readonly groupPadding?: LayoutPadding;
+    readonly titleGap?: number;
+  };
+}
+
 /**
  * The complete visual and behavioral contract for a diagram.
  * Pass to <Diagram theme={...}> or <DiagramCanvas theme={...}> to apply.
@@ -135,6 +173,8 @@ export interface DiagramTheme {
   readonly edge: DiagramThemeEdgeConfig;
   readonly group: DiagramThemeGroupConfig;
   readonly environment: DiagramThemeEnvironmentConfig;
+  /** Optional layout defaults used by layoutResolver when DSL fields are omitted. */
+  readonly layout?: DiagramThemeLayoutConfig;
   /**
    * Optional ordered color palette for auto-coloring nodes that have no
    * explicit color. Colors are assigned round-robin by declaration order.
@@ -211,6 +251,123 @@ export type DiagramPivot =
 /** Easing function for <Exit> / <Enter> transitions. */
 export type DiagramEasing = 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'spring';
 
+/**
+ * CSS-style padding shorthand for group interior padding in diagram units.
+ * number                              → all four sides equal
+ * [vertical, horizontal]              → top/bottom and left/right
+ * [top, horizontal, bottom]           → top, left/right, bottom
+ * [top, right, bottom, left]          → each side individually (CSS order)
+ */
+export type LayoutPadding =
+  | number
+  | readonly [number, number]
+  | readonly [number, number, number]
+  | readonly [number, number, number, number];
+
+/**
+ * Alignment of nodes within a grid row or hierarchical level.
+ * 'left'   — pack left (grid default)
+ * 'center' — pack and center (hierarchical default)
+ * 'right'  — pack right
+ * 'fill'   — distribute nodes evenly across the widest-row reference width
+ */
+export type LayoutAlignment = 'left' | 'center' | 'right' | 'fill';
+
+/**
+ * Placement policy for nodes with no incoming or outgoing edges.
+ * 'next-to' — maintain declaration order; disconnected nodes appear inline
+ *             with connected nodes at their declaration position (default)
+ * 'after'   — all connected nodes positioned first; disconnected appended after
+ */
+export type LayoutDisconnected = 'next-to' | 'after';
+
+/**
+ * Properties shared by GridLayoutDSL and HierarchicalLayoutDSL.
+ * All fields optional in DSL; resolved defaults are applied by layoutResolver.ts.
+ */
+export interface BaseLayoutDSL {
+  /**
+   * Gap between adjacent node footprints [colGap, rowGap] in diagram units.
+   * CSS box model: spacing is the gap between expanded footprints (see margin).
+   * Default: [2, 2]
+   */
+  readonly spacing?: readonly [number, number];
+  /**
+   * Per-node breathing room in diagram units.
+   * Expands each node's claimed bounding box before spacing is applied.
+   * number     → uniform margin on all axes
+   * [h, v]     → separate horizontal (x) and vertical (y) margin
+   * Default: 0
+   */
+  readonly margin?: number | readonly [number, number];
+  /**
+   * Padding inside the group boundary box in diagram units (CSS shorthand).
+   * Replaces the hardcoded GROUP_PADDING = 1.5 constant per group.
+   * Default: 1.5 (all sides)
+   */
+  readonly groupPadding?: LayoutPadding;
+  /**
+   * Vertical gap in diagram units between the group title label
+   * and the top of the group's content area.
+   * Default: 0.75
+   */
+  readonly titleGap?: number;
+  /**
+   * Alignment of nodes within a grid row or hierarchical level.
+   * Default: 'left' for grid, 'center' for hierarchical.
+   */
+  readonly alignment?: LayoutAlignment;
+  /**
+   * Placement policy for nodes with no edges.
+   * Default: 'next-to'
+   */
+  readonly disconnected?: LayoutDisconnected;
+}
+
+/**
+ * DSL props for <GridLayout>.
+ * The `kind: 'grid'` discriminant is implicit from the component type;
+ * authors do not specify `kind` directly.
+ */
+export interface GridLayoutDSL extends BaseLayoutDSL {
+  readonly kind: 'grid';
+  /**
+   * Number of columns, or 'auto' to use the default (currently 4).
+   * Rows expand as needed. Default: 'auto'
+   */
+  readonly columns?: number | 'auto';
+}
+
+/**
+ * DSL props for <HierarchicalLayout>.
+ * The `kind: 'hierarchical'` discriminant is implicit from the component type.
+ */
+export interface HierarchicalLayoutDSL extends BaseLayoutDSL {
+  readonly kind: 'hierarchical';
+  /**
+   * Primary layout axis.
+   * 'top-down'   — roots at top, leaves below (default)
+   * 'left-right' — roots at left, leaves to the right
+   */
+  readonly direction?: 'top-down' | 'left-right';
+}
+
+/**
+ * DSL props for <ManualLayout>.
+ * All non-ghost nodes must have explicit positions; a compile-time error is
+ * thrown for any labeled node that lacks a position.
+ * Spacing/margin/alignment props are inapplicable and intentionally absent.
+ */
+export interface ManualLayoutDSL {
+  readonly kind: 'manual';
+  /** Padding inside group boundary boxes. Default: 1.5 */
+  readonly groupPadding?: LayoutPadding;
+  /** Gap between group title label and content area. Default: 0.75 */
+  readonly titleGap?: number;
+}
+
+/** Discriminated union of all layout DSL types. */
+export type LayoutDSL = GridLayoutDSL | HierarchicalLayoutDSL | ManualLayoutDSL;
 /**
  * Compiled exit behaviour for a diagram. Produced from <Exit> DSL child.
  * Applied by exitFn in functionalDiagramTransitionSpec.
@@ -488,7 +645,17 @@ export interface DiagramGroupState {
     readonly y: number;
     readonly w: number;
     readonly h: number;
-    readonly padding: number;
+    /**
+     * Resolved group padding [top, right, bottom, left] in diagram units.
+     * The bounds x/y/w/h already incorporate this padding.
+     * Stored for informational use by renderers.
+     */
+    readonly padding: readonly [number, number, number, number];
+    /**
+     * Gap between group title label and content area in diagram units.
+     * Used by GroupRenderer to offset the title text.
+     */
+    readonly titleGap: number;
   };
 
   /** CSS hex fill color for the group interior. Typically semi-transparent. */
@@ -496,6 +663,11 @@ export interface DiagramGroupState {
 
   /** CSS hex border color */
   readonly borderColor: string;
+
+  /** Border width in pixels */
+  readonly borderWidth: number;
+  /** Border height/depth in diagram units */
+  readonly borderHeight: number;
 
   readonly borderStyle: 'solid' | 'dashed' | 'none';
 
@@ -687,35 +859,21 @@ export interface DiagramGroupDSL {
   readonly childGroupIds?: ReadonlyArray<string>;
   readonly parentId?: string;
   /**
-   * Per-group auto-layout algorithm for arranging this group's direct member nodes and
-   * child sub-groups. Overrides the parent <Diagram layout="..."> for this group's
-   * internal arrangement. 'manual' is excluded — nodes with explicit positions already
-   * bypass auto-layout regardless.
-   * If absent, inherits the diagram-level layout.
+   * Layout configuration extracted from a layout child element of this group.
+   * Cascades from parent: same-kind merges, different-kind replaces, absent inherits.
    */
-  readonly layout?: 'grid' | 'hierarchical';
-  /**
-   * Per-group node spacing in diagram units [horizontalGap, verticalGap].
-   * Overrides the diagram-level layoutSpacing for this group's internal layout.
-   * If absent, inherits the diagram-level layoutSpacing.
-   */
-  readonly layoutSpacing?: readonly [number, number];
+  readonly layout?: LayoutDSL;
 }
 
 /** Top-level DSL input to compile.ts. Populated by the compiler handler from <Diagram> props. */
 export interface DiagramDSL {
   readonly id: string;
   /**
-   * Auto-layout algorithm. Sourced from <Diagram layout="..."> prop.
-   * Defaults to 'grid' if not provided.
+   * Layout configuration extracted from a <GridLayout>, <HierarchicalLayout>,
+   * or <ManualLayout> child element, if present.
+   * Absent = default grid layout (columns: 'auto', spacing: [2,2]).
    */
-  readonly layout: 'manual' | 'grid' | 'hierarchical';
-  /**
-   * Node spacing in diagram units [horizontalGap, verticalGap].
-   * Sourced from <Diagram layoutSpacing={[2, 2]}> prop.
-   * Defaults to [2, 2] if not provided.
-   */
-  readonly layoutSpacing: readonly [number, number];
+  readonly layout?: LayoutDSL;
   readonly nodes: ReadonlyArray<DiagramNodeDSL>;
   readonly edges: ReadonlyArray<DiagramEdgeDSL>;
   readonly groups: ReadonlyArray<DiagramGroupDSL>;

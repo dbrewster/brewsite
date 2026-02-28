@@ -21,10 +21,30 @@ export type {
   DiagramExitDSL,
   DiagramEnterDSL,
   DiagramInteractionEvent,
+  LayoutDSL,
+  LayoutPadding,
+  LayoutAlignment,
+  LayoutDisconnected,
 } from './types';
 export type { DiagramShapeVariant, FlowShape, AwsShape, GcpShape, AzureShape, NetworkShape } from './shapes/shapeVariants';
-export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, Exit, Enter } from './dsl';
-export type { ExitProps, EnterProps } from './dsl';
+export {
+  Diagram,
+  DiagramNode,
+  DiagramEdge,
+  DiagramGroup,
+  GridLayout,
+  HierarchicalLayout,
+  ManualLayout,
+  Exit,
+  Enter,
+} from './dsl';
+export type {
+  ExitProps,
+  EnterProps,
+  GridLayoutProps,
+  HierarchicalLayoutProps,
+  ManualLayoutProps,
+} from './dsl';
 export {
   compileDiagram,
   compileNode,

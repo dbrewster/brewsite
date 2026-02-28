@@ -38,6 +38,8 @@ export const lightMinimalTheme: DiagramTheme = {
   group: {
     defaultColor:         '#dce8f8',
     defaultBorderColor:   '#8090c0',
+    defaultBorderWidth:   1.25,
+    defaultBorderHeight:  1,
     defaultFillOpacity:   0.35,
     defaultBorderOpacity: 0.60,
   },
@@ -46,5 +48,30 @@ export const lightMinimalTheme: DiagramTheme = {
     envMapIntensity: 0,
     skyColor:        '#ffffff',
     horizonColor:    '#e0e8f8',
+  },
+  layout: {
+    defaultKind: 'grid',
+    grid: {
+      columns: 'auto',
+      spacing: [2, 2],
+      margin: 0,
+      groupPadding: 1.5,
+      titleGap: 0.75,
+      alignment: 'left',
+      disconnected: 'next-to',
+    },
+    hierarchical: {
+      direction: 'top-down',
+      spacing: [2, 2],
+      margin: 0,
+      groupPadding: 1.5,
+      titleGap: 0.75,
+      alignment: 'center',
+      disconnected: 'next-to',
+    },
+    manual: {
+      groupPadding: 1.5,
+      titleGap: 0.75,
+    },
   },
 } as const;

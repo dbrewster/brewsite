@@ -18,11 +18,22 @@ import type {
   DiagramPivot,
   DiagramState,
   DiagramTheme,
+  LayoutDSL,
 } from '../elements/diagram/types';
 import type { DiagramCanvasDSL, DiagramPipeDSL, PipeRoutingAlgorithm, PipeLandingAlgorithm } from '../elements/diagram/canvas/types';
 import type { ImagePanelDSL } from '../elements/image-panel/types';
 import type { ScreenDSL } from '../elements/screen/types';
-import { Diagram, DiagramNode, DiagramEdge, DiagramGroup, Exit, Enter } from '../elements/diagram/dsl';
+import {
+  Diagram,
+  DiagramNode,
+  DiagramEdge,
+  DiagramGroup,
+  Exit,
+  Enter,
+  GridLayout,
+  HierarchicalLayout,
+  ManualLayout,
+} from '../elements/diagram/dsl';
 import { ImagePanel } from '../elements/image-panel/dsl';
 import { Screen } from '../elements/screen/dsl';
 
@@ -34,15 +45,32 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
   const groupedNodeIds = new Set<string>();
   let exitDSL: DiagramExitDSL | undefined;
   let enterDSL: DiagramEnterDSL | undefined;
+  let layoutDSL: LayoutDSL | undefined;
   const theme = props.theme as DiagramTheme | undefined;
 
   const allChildren = helpers.collectChildren(node);
+
+  const extractLayoutProps = (p: Record<string, unknown>) => ({
+    ...(p.spacing !== undefined && { spacing: p.spacing }),
+    ...(p.margin !== undefined && { margin: p.margin }),
+    ...(p.groupPadding !== undefined && { groupPadding: p.groupPadding }),
+    ...(p.titleGap !== undefined && { titleGap: p.titleGap }),
+    ...(p.alignment !== undefined && { alignment: p.alignment }),
+    ...(p.disconnected !== undefined && { disconnected: p.disconnected }),
+    ...(p.columns !== undefined && { columns: p.columns }),
+    ...(p.direction !== undefined && { direction: p.direction }),
+  });
+  const extractManualLayoutProps = (p: Record<string, unknown>) => ({
+    ...(p.groupPadding !== undefined && { groupPadding: p.groupPadding }),
+    ...(p.titleGap !== undefined && { titleGap: p.titleGap }),
+  });
 
   const collectGroup = (el: ReactElement, parentId?: string): string => {
     const elProps = el.props as Record<string, unknown>;
     const groupId = String(elProps.id);
     const nodeIds: string[] = [];
     const childGroupIds: string[] = [];
+    let groupLayoutDSL: LayoutDSL | undefined;
     const groupChildren = helpers.collectChildren(el);
     for (const gc of groupChildren) {
       if (!gc || typeof gc !== 'object' || !('type' in (gc as object))) continue;
@@ -55,6 +83,24 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
       } else if (gEl.type === DiagramGroup) {
         const childId = collectGroup(gEl, groupId);
         childGroupIds.push(childId);
+      } else if (gEl.type === GridLayout) {
+        const p = gEl.props as Record<string, unknown>;
+        if (groupLayoutDSL) {
+          console.warn(`Diagram collectGroup: multiple layout elements detected for group ${groupId}. Using the last one.`);
+        }
+        groupLayoutDSL = { kind: 'grid', ...extractLayoutProps(p) } as LayoutDSL;
+      } else if (gEl.type === HierarchicalLayout) {
+        const p = gEl.props as Record<string, unknown>;
+        if (groupLayoutDSL) {
+          console.warn(`Diagram collectGroup: multiple layout elements detected for group ${groupId}. Using the last one.`);
+        }
+        groupLayoutDSL = { kind: 'hierarchical', ...extractLayoutProps(p) } as LayoutDSL;
+      } else if (gEl.type === ManualLayout) {
+        const p = gEl.props as Record<string, unknown>;
+        if (groupLayoutDSL) {
+          console.warn(`Diagram collectGroup: multiple layout elements detected for group ${groupId}. Using the last one.`);
+        }
+        groupLayoutDSL = { kind: 'manual', ...extractManualLayoutProps(p) } as LayoutDSL;
       }
     }
 
@@ -71,8 +117,7 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
       nodeIds,
       childGroupIds: childGroupIds.length > 0 ? childGroupIds : undefined,
       parentId,
-      layout: elProps.layout as DiagramGroupDSL['layout'],
-      layoutSpacing: elProps.layoutSpacing as DiagramGroupDSL['layoutSpacing'],
+      layout: groupLayoutDSL,
     });
 
     return groupId;
@@ -81,7 +126,25 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
   for (const child of allChildren) {
     if (!child || typeof child !== 'object' || !('type' in (child as object))) continue;
     const el = child as ReactElement;
-    if (el.type === Exit) {
+    if (el.type === GridLayout) {
+      const p = el.props as Record<string, unknown>;
+      if (layoutDSL) {
+        console.warn(`Diagram extractDiagramDSL: multiple layout elements detected for diagram ${String(props.id)}. Using the last one.`);
+      }
+      layoutDSL = { kind: 'grid', ...extractLayoutProps(p) } as LayoutDSL;
+    } else if (el.type === HierarchicalLayout) {
+      const p = el.props as Record<string, unknown>;
+      if (layoutDSL) {
+        console.warn(`Diagram extractDiagramDSL: multiple layout elements detected for diagram ${String(props.id)}. Using the last one.`);
+      }
+      layoutDSL = { kind: 'hierarchical', ...extractLayoutProps(p) } as LayoutDSL;
+    } else if (el.type === ManualLayout) {
+      const p = el.props as Record<string, unknown>;
+      if (layoutDSL) {
+        console.warn(`Diagram extractDiagramDSL: multiple layout elements detected for diagram ${String(props.id)}. Using the last one.`);
+      }
+      layoutDSL = { kind: 'manual', ...extractManualLayoutProps(p) } as LayoutDSL;
+    } else if (el.type === Exit) {
       exitDSL = el.props as DiagramExitDSL;
     } else if (el.type === Enter) {
       enterDSL = el.props as DiagramEnterDSL;
@@ -105,8 +168,7 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
 
   return {
     id: String(props.id),
-    layout: (props.layout ?? 'grid') as DiagramDSL['layout'],
-    layoutSpacing: (props.layoutSpacing ?? [2, 2]) as [number, number],
+    layout: layoutDSL,
     nodes,
     edges,
     groups,
@@ -125,6 +187,9 @@ export const registerDiagramHandlers = (): void => {
   registerNode(DiagramNode, () => {});
   registerNode(DiagramEdge, () => {});
   registerNode(DiagramGroup, () => {});
+  registerNode(GridLayout, () => {});
+  registerNode(HierarchicalLayout, () => {});
+  registerNode(ManualLayout, () => {});
   registerNode(Exit, () => {});
   registerNode(Enter, () => {});
   registerNode(DiagramPipe, () => {});

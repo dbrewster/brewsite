@@ -14,6 +14,9 @@ import type {
   DiagramTheme,
   EdgeRoutingAlgorithm,
   DiagramEdgePort,
+  LayoutAlignment,
+  LayoutDisconnected,
+  LayoutPadding,
 } from './types';
 
 // ─── <DiagramNode> ────────────────────────────────────────────────────────────
@@ -166,21 +169,6 @@ export interface DiagramGroupProps {
   /** Border opacity [0–1]. Default: 0.6 */
   borderOpacity?: number;
   /**
-   * Per-group auto-layout algorithm for arranging this group's direct member nodes.
-   * 'grid'         — rows of ~4 nodes, left-to-right top-to-bottom.
-   * 'hierarchical' — topological sort by edges (downstream nodes placed lower).
-   * Omit to inherit the parent <Diagram layout="..."> value.
-   * Note: 'manual' is not supported at the group level — nodes with explicit
-   * positions always bypass auto-layout regardless.
-   */
-  layout?: 'grid' | 'hierarchical';
-  /**
-   * Per-group node spacing in diagram units [horizontalGap, verticalGap].
-   * Overrides the parent <Diagram layoutSpacing={...}> for this group's
-   * internal arrangement. Default: inherits diagram-level layoutSpacing.
-   */
-  layoutSpacing?: [number, number];
-  /**
    * Child <DiagramNode> and <DiagramGroup> elements that belong to this group.
    * Group bounds are computed from the union of child node positions + sizes.
    * Nested <DiagramGroup> children establish sub-groups with their own layout.
@@ -196,24 +184,86 @@ export function DiagramGroup(_props: DiagramGroupProps): null {
   return null;
 }
 
+// ─── <GridLayout> ─────────────────────────────────────────────────────────────
+
+export interface GridLayoutProps {
+  /** Number of grid columns, or 'auto' (default 4). Rows expand as needed. */
+  columns?: number | 'auto';
+  /** Gap between node footprints [colGap, rowGap]. Default: [2, 2] */
+  spacing?: [number, number];
+  /** Per-node margin [h, v] expanding each node's footprint. Default: 0 */
+  margin?: number | [number, number];
+  /** Padding inside group boundary boxes. Default: 1.5 (all sides) */
+  groupPadding?: LayoutPadding;
+  /** Gap between group title and content. Default: 0.75 */
+  titleGap?: number;
+  /** Row alignment. Default: 'left' */
+  alignment?: LayoutAlignment;
+  /** Disconnected node placement. Default: 'next-to' */
+  disconnected?: LayoutDisconnected;
+}
+
+/**
+ * Declares a grid auto-layout for the parent <Diagram> or <DiagramGroup>.
+ * Must be a direct child of <Diagram> or <DiagramGroup>. At most one layout
+ * element per container. Cascades with parent layouts of the same kind.
+ */
+export function GridLayout(_props: GridLayoutProps): null {
+  return null;
+}
+
+// ─── <HierarchicalLayout> ─────────────────────────────────────────────────────
+
+export interface HierarchicalLayoutProps {
+  /** Layout axis direction. Default: 'top-down' */
+  direction?: 'top-down' | 'left-right';
+  /** Gap between node footprints [colGap, rowGap]. Default: [2, 2] */
+  spacing?: [number, number];
+  /** Per-node margin [h, v] expanding each node's footprint. Default: 0 */
+  margin?: number | [number, number];
+  /** Padding inside group boundary boxes. Default: 1.5 (all sides) */
+  groupPadding?: LayoutPadding;
+  /** Gap between group title and content. Default: 0.75 */
+  titleGap?: number;
+  /** Level alignment. Default: 'center' */
+  alignment?: LayoutAlignment;
+  /** Disconnected node placement. Default: 'next-to' */
+  disconnected?: LayoutDisconnected;
+}
+
+/**
+ * Declares a topological (edge-driven) auto-layout for the parent
+ * <Diagram> or <DiagramGroup>. Must be a direct child of either container.
+ * At most one layout element per container. Cascades with parent layouts
+ * of the same kind.
+ */
+export function HierarchicalLayout(_props: HierarchicalLayoutProps): null {
+  return null;
+}
+
+// ─── <ManualLayout> ───────────────────────────────────────────────────────────
+
+export interface ManualLayoutProps {
+  /** Padding inside group boundary boxes. Default: 1.5 (all sides) */
+  groupPadding?: LayoutPadding;
+  /** Gap between group title and content. Default: 0.75 */
+  titleGap?: number;
+}
+
+/**
+ * Declares that all node positions are manually specified.
+ * Non-ghost nodes (those with a label) that lack an explicit position
+ * will throw a compile-time error.
+ */
+export function ManualLayout(_props: ManualLayoutProps): null {
+  return null;
+}
+
 // ─── <Diagram> ────────────────────────────────────────────────────────────────
 
 export interface DiagramProps {
   /** Unique diagram ID. Must be stable across scenes. */
   id: string;
-  /**
-   * Auto-layout algorithm to apply when node positions are not explicitly set.
-   * 'manual' — uses only explicitly provided positions; throws if any node has no position.
-   * 'grid'   — arranges nodes in a left-to-right, top-to-bottom grid.
-   * 'hierarchical' — arranges nodes by dependency (edges define parent-child).
-   * Default: 'grid'
-   */
-  layout?: 'manual' | 'grid' | 'hierarchical';
-  /**
-   * Spacing between nodes in diagram units when using auto-layout.
-   * Default: [2, 2] (2 units horizontal, 2 units vertical gap)
-   */
-  layoutSpacing?: [number, number];
   /** World/parent-space position. Default: [0, 0, 0] */
   position?: [number, number, number];
   /** World/parent-space Euler XYZ rotation in radians. Default: [0, 0, 0] */

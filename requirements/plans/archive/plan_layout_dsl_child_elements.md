@@ -2,8 +2,8 @@
 title: "Layout as Child DSL Elements"
 doc_type: plan
 owner: architect
-status: ready
-updated: 2026-02-27
+status: complete
+updated: 2026-02-28
 ---
 
 # Plan: Layout as Child DSL Elements

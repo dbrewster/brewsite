@@ -185,6 +185,7 @@ export const applyCamera = (state: SceneCamera, ctx: CameraRenderContext): void 
  * Modifier key → action mapping:
  *   Ctrl  + left drag → rotate(azimuth, polar)
  *   Cmd   + left drag → rotate(azimuth, polar) [macOS]
+ *   Cmd+Shift+left drag → rotate with axis lock (horizontal OR vertical) [macOS]
  *   Shift + left drag → truck(x, y)  [pan in screen space]
  *   Alt   + left drag → dolly(delta) [change distance to target]
  *   Shift + wheel     → truck(x, y)  [pan in screen space]
@@ -196,12 +197,17 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
   private domElement: HTMLElement | null = null;
   private camera: THREE.PerspectiveCamera | null = null;
   private config: TrackpadCameraConfig | null = null;
+  private wheelRotateLockAxis: 'horizontal' | 'vertical' | null = null;
+  private wheelRotateAccumX = 0;
+  private wheelRotateAccumY = 0;
+  private wheelRotateLastTs = 0;
 
   // Drag tracking
   private dragState: {
     startX: number;
     startY: number;
     modifier: 'rotate' | 'pan' | 'zoom';
+    rotateLockAxis: 'horizontal' | 'vertical' | null;
   } | null = null;
 
   // Bound event handlers (stored for cleanup)
@@ -285,6 +291,10 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
     this.domElement = null;
     this.camera = null;
     this.dragState = null;
+    this.wheelRotateLockAxis = null;
+    this.wheelRotateAccumX = 0;
+    this.wheelRotateAccumY = 0;
+    this.wheelRotateLastTs = 0;
     this.config = null;
   }
 
@@ -313,6 +323,7 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
     e: PointerEvent,
     cfg: TrackpadCameraConfig,
   ): 'rotate' | 'pan' | 'zoom' | null {
+    if (e.metaKey && e.shiftKey && cfg.rotate !== false) return 'rotate';
     if ((e.ctrlKey || e.metaKey) && cfg.rotate !== false) return 'rotate';
     if (e.shiftKey && cfg.pan !== false) return 'pan';
     if (e.altKey && cfg.zoom !== false) return 'zoom';
@@ -332,7 +343,7 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
     } catch {
       // setPointerCapture may throw in certain environments (e.g. jsdom); safe to ignore
     }
-    this.dragState = { startX: e.clientX, startY: e.clientY, modifier };
+    this.dragState = { startX: e.clientX, startY: e.clientY, modifier, rotateLockAxis: null };
     e.preventDefault();
   }
 
@@ -344,7 +355,18 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
       if (e.buttons === 0) return;
       const modifier = this.resolveModifier(e, cfg);
       if (!modifier) return;
-      this.dragState = { startX: e.clientX, startY: e.clientY, modifier };
+      this.dragState = { startX: e.clientX, startY: e.clientY, modifier, rotateLockAxis: null };
+    } else {
+      // Modifiers can change mid-drag; re-resolve so Cmd+Shift can switch a Shift-pan
+      // gesture into rotate-with-lock regardless of key press order.
+      const modifier = this.resolveModifier(e, cfg);
+      if (modifier && modifier !== this.dragState.modifier) {
+        this.dragState.modifier = modifier;
+        this.dragState.rotateLockAxis = null;
+        this.dragState.startX = e.clientX;
+        this.dragState.startY = e.clientY;
+        return;
+      }
     }
 
     const dx = e.clientX - this.dragState.startX;
@@ -358,10 +380,25 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
 
     switch (this.dragState.modifier) {
       case 'rotate': {
+        let rotateDx = dx;
+        let rotateDy = dy;
+        // Cmd+Shift drag constrains orbit to a single axis for this gesture.
+        if (e.metaKey && e.shiftKey) {
+          if (this.dragState.rotateLockAxis === null && (dx !== 0 || dy !== 0)) {
+            this.dragState.rotateLockAxis = Math.abs(dx) >= Math.abs(dy) ? 'horizontal' : 'vertical';
+          }
+          if (this.dragState.rotateLockAxis === 'horizontal') {
+            rotateDy = 0;
+          } else if (this.dragState.rotateLockAxis === 'vertical') {
+            rotateDx = 0;
+          }
+        } else {
+          this.dragState.rotateLockAxis = null;
+        }
         const speed = (cfg.rotate && typeof cfg.rotate === 'object' ? cfg.rotate.speed : undefined) ?? 1;
         // Full canvas-width drag = 2pi azimuth, full canvas-height drag = pi polar
-        const azimuth = -(dx / w) * Math.PI * 2 * speed;
-        const polar = -(dy / h) * Math.PI * speed;
+        const azimuth = -(rotateDx / w) * Math.PI * 2 * speed;
+        const polar = -(rotateDy / h) * Math.PI * speed;
         void this.cc.rotate(azimuth, polar, false);
         break;
       }
@@ -398,6 +435,51 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
     if (!this.cc) return;
     const cfg = this.config;
     if (!cfg) return;
+
+    if (e.metaKey && e.shiftKey && cfg.rotate !== false) {
+      e.preventDefault();
+      e.stopPropagation();
+      const speed = (cfg.rotate && typeof cfg.rotate === 'object' ? cfg.rotate.speed : undefined) ?? 1;
+      // Cmd+Shift wheel: orbit with modifier-held axis lock.
+      // Axis is chosen from accumulated movement and kept until one modifier is released.
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      if (this.wheelRotateLastTs > 0 && now - this.wheelRotateLastTs > 160) {
+        // New two-finger swipe gesture while keys are still held: allow re-lock.
+        this.wheelRotateLockAxis = null;
+        this.wheelRotateAccumX = 0;
+        this.wheelRotateAccumY = 0;
+      }
+      this.wheelRotateLastTs = now;
+      if (this.wheelRotateLockAxis === null) {
+        this.wheelRotateAccumX += Math.abs(e.deltaX);
+        this.wheelRotateAccumY += Math.abs(e.deltaY);
+        const total = this.wheelRotateAccumX + this.wheelRotateAccumY;
+        const dominance = 1.2;
+        if (total >= 10) {
+          if (this.wheelRotateAccumX > this.wheelRotateAccumY * dominance) {
+            this.wheelRotateLockAxis = 'horizontal';
+          } else if (this.wheelRotateAccumY > this.wheelRotateAccumX * dominance) {
+            this.wheelRotateLockAxis = 'vertical';
+          }
+        }
+        if (this.wheelRotateLockAxis === null) {
+          return;
+        }
+      }
+      const dx = this.wheelRotateLockAxis === 'horizontal'
+        ? (Math.abs(e.deltaX) > 0.001 ? e.deltaX : e.deltaY)
+        : 0;
+      const dy = this.wheelRotateLockAxis === 'vertical' ? e.deltaY : 0;
+      const azimuth = -(dx / 100) * Math.PI * 0.25 * speed;
+      const polar = -(dy / 100) * Math.PI * 0.25 * speed;
+      void this.cc.rotate(azimuth, polar, false);
+      return;
+    }
+
+    this.wheelRotateLockAxis = null;
+    this.wheelRotateAccumX = 0;
+    this.wheelRotateAccumY = 0;
+    this.wheelRotateLastTs = 0;
 
     if (e.shiftKey && cfg.pan !== false) {
       e.preventDefault();
@@ -465,6 +547,6 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
     if (!ok) return;
 
     const pos = camera.position;
-    this.cc.setLookAt(pos.x, pos.y, pos.z, hit.x, hit.y, hit.z, false);
+    cc.setLookAt(pos.x, pos.y, pos.z, hit.x, hit.y, hit.z, false);
   }
 }

@@ -23,6 +23,10 @@ export type {
   DiagramExitDSL,
   DiagramEnterDSL,
   DiagramInteractionEvent,
+  LayoutDSL,
+  LayoutPadding,
+  LayoutAlignment,
+  LayoutDisconnected,
   // Theming
   DiagramTheme,
   DiagramThemeRenderConfig,
@@ -30,6 +34,7 @@ export type {
   DiagramThemeEdgeConfig,
   DiagramThemeGroupConfig,
   DiagramThemeEnvironmentConfig,
+  DiagramThemeLayoutConfig,
   EdgeRoutingAlgorithm,
   EdgeLandingAlgorithm,
   DiagramEdgePort,
@@ -37,8 +42,8 @@ export type {
 } from './elements/diagram/types';
 
 export type { DiagramShapeVariant } from './elements/diagram/shapes/shapeVariants';
-export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, Exit, Enter } from './elements/diagram/dsl';
-export type { ExitProps, EnterProps } from './elements/diagram/dsl';
+export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, Exit, Enter, GridLayout, HierarchicalLayout, ManualLayout } from './elements/diagram/dsl';
+export type { ExitProps, EnterProps, GridLayoutProps, HierarchicalLayoutProps, ManualLayoutProps } from './elements/diagram/dsl';
 export {
   compileDiagram,
   resolveLayout,
@@ -87,16 +92,3 @@ export { darkGlassTheme, neonCyberTheme, enterpriseTheme, lightMinimalTheme } fr
 
 // ─── Compiler handler registration ──────────────────────────────────────────
 export { registerDiagramHandlers } from './compiler/handlers';
-
-// ─── Lucid dynamic loading ───────────────────────────────────────────────────
-export type { LucidDocumentSummary, LucidSearchRequest, LucidSearchResponse } from './lucid/searchTypes';
-export type { LucidConvertOptions } from './lucid/types';
-export {
-  searchLucidDocuments, fetchLucidPage, checkLucidAuthStatus,
-  LucidAuthError, LucidFetchError,
-} from './lucid/client';
-export { selectLucidPage, convertLucidPage } from './lucid/converter';
-export { LucidDocumentPicker } from './lucid/picker';
-export type { LucidDocumentPickerProps } from './lucid/picker';
-export { useLucidDiagram } from './lucid/useLucidDiagram';
-export type { UseLucidDiagramResult, LucidDiagramStatus } from './lucid/useLucidDiagram';

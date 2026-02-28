@@ -10,7 +10,16 @@
 
 import type {SceneDefinition} from '@brewsite/core';
 import {Ambient, Camera, Directional, Lighting, Scene} from '@brewsite/core';
-import {darkGlassTheme, Diagram, DiagramCanvas, DiagramEdge, DiagramGroup, DiagramNode,} from '@brewsite/diagram';
+import {
+  darkGlassTheme,
+  Diagram,
+  DiagramCanvas,
+  DiagramEdge,
+  DiagramGroup,
+  DiagramNode,
+  GridLayout,
+  HierarchicalLayout,
+} from '@brewsite/diagram';
 
 // ─── Design tokens ────────────────────────────────────────────────────────────
 const C_APP    = '#4e4e1e';  // App tier
@@ -51,8 +60,8 @@ export const sceneLlmFilter: SceneDefinition = {
       </Lighting>
 
       <DiagramCanvas id="llm-canvas" rotation={[-Math.PI / 10, 0, 0]} theme={darkGlassTheme}>
-        <Diagram id="llm-filter" layout="hierarchical" pivot="center" layoutSpacing={[1, 1]}>
-
+        <Diagram id="llm-filter" pivot="center">
+          <HierarchicalLayout spacing={[1, 1]} />
           {/* ── Top tier: explicit positions ─────────────────────────────── */}
           <DiagramNode id="users" label="Users"
                        shape="ui:users" iconScale={0.55}
@@ -107,10 +116,11 @@ export const sceneLlmFilter: SceneDefinition = {
 
           {/* filters container — arranges 3 child groups horizontally */}
           <DiagramGroup id="filters" variant="container">
-
+            <GridLayout columns={3} />
             {/* console — grid layout, 4 columns, no explicit node positions */}
-            <DiagramGroup id="console" label="Console" layout="grid"
+            <DiagramGroup id="console" label="Console"
                           variant="boundary" color="#1a2832" borderColor="#2a5060">
+              <GridLayout columns={4} />
               <DiagramNode id="con-dashboard"  label="Dashboard"             shape="ui:presentation-chart-bar"  iconScale={IS} color={C_CON} size={S}/>
               <DiagramNode id="con-policy"     label="Policy Engine"         shape="ui:document-text"           iconScale={IS} color={C_CON} size={S}/>
               <DiagramNode id="con-observ"     label="Observability"         shape="ui:chart-bar"               iconScale={IS} color={C_CON} size={S}/>
@@ -126,8 +136,9 @@ export const sceneLlmFilter: SceneDefinition = {
             </DiagramGroup>
 
             {/* input-filters — grid layout */}
-            <DiagramGroup id="input-filters" label="Input Filters" layout="grid"
+            <DiagramGroup id="input-filters" label="Input Filters"
                           variant="boundary" color="#2e1f3a" borderColor="#5a3a7a">
+              <GridLayout columns={4}/>
               <DiagramNode id="if-anon"        label="Anonymization"   shape="ui:eye-slash"              iconScale={IS} color={C_INF} size={S}/>
               <DiagramNode id="if-p-inject"    label="Prompt Injection" shape="ui:bug-ant"               iconScale={IS} color={C_INF} size={S}/>
               <DiagramNode id="if-halluc"      label="Hallucination"   shape="ui:exclamation-triangle"   iconScale={IS} color={C_INF} size={S}/>
@@ -147,8 +158,9 @@ export const sceneLlmFilter: SceneDefinition = {
             </DiagramGroup>
 
             {/* output-filters — grid layout */}
-            <DiagramGroup id="output-filters" label="Output Filters" layout="grid"
+            <DiagramGroup id="output-filters" label="Output Filters"
                           variant="boundary" color="#2e1a18" borderColor="#7a3a30">
+              <GridLayout  columns={5}/>
               <DiagramNode id="of-deanon"      label="DeAnonymize"     shape="ui:eye"                        iconScale={IS} color={C_OUT} size={S}/>
               <DiagramNode id="of-p-inject"    label="Prompt Injection" shape="ui:bug-ant"                   iconScale={IS} color={C_OUT} size={S}/>
               <DiagramNode id="of-mal-urls"    label="Malicious URLs"  shape="ui:shield-exclamation"         iconScale={IS} color={C_OUT} size={S}/>
@@ -172,12 +184,12 @@ export const sceneLlmFilter: SceneDefinition = {
           </DiagramGroup>
 
           <DiagramNode id="llm-conv" label="LLM Converter"
-                       shape="flow:rounded" color={C_CONV}
-                       size={[46, 1.4]} depth={0.45}/>
+                       shape="data:transform" iconScale={0.28}
+                       color={C_CONV} size={[46, 1.4]} depth={0.45}/>
 
           <DiagramNode id="llm-main" label="LLM (public, private, etc.)"
-                       shape="flow:rounded" color={C_LLM}
-                       size={[46, 2.2]} depth={0.6}/>
+                       shape="ui:sparkles" iconScale={0.32}
+                       color={C_LLM} size={[46, 2.2]} depth={0.6}/>
 
           {/* ── Edges ────────────────────────────────────────────────────── */}
           <DiagramEdge from="users"         to="app-layer" flow="forward" />
@@ -189,10 +201,11 @@ export const sceneLlmFilter: SceneDefinition = {
 
           {/* api fans into both filter groups for edge visualisation */}
           <DiagramEdge from="api" to="input-filters"  flow="forward" color="#6a3a9a"/>
-          <DiagramEdge from="api" to="output-filters" flow="forward" color="#9a4a3a"/>
+          <DiagramEdge from="api" to="output-filters" flow="backward" color="#9a4a3a" toPort='top'/>
 
           {/* filters → llm-conv forces llm-conv one level below the filter block */}
-          <DiagramEdge from="filters"  to="llm-conv" flow="forward" color="#2a5a88" />
+          <DiagramEdge from="input-filters"  to="llm-conv" flow="forward" color="#2a5a88" />
+          <DiagramEdge from="output-filters"  to="llm-conv" flow="backward" color="#2a5a88" fromPort='bottom'/>
           <DiagramEdge from="llm-conv" to="llm-main" flow="forward" color="#2a6a48"/>
 
         </Diagram>

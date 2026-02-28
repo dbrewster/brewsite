@@ -21,8 +21,7 @@ export const createWidgetSetup = (manifest: AssetManifest | null) => {
     [
       compileDiagram({
         id: 'system-arch',
-        layout: 'manual',
-        layoutSpacing: [2, 2],
+        layout: { kind: 'manual' },
         pivot: 'center',
         nodes: [
           { id: 'browser', label: 'Web Browser', position: [-6, 6, 0], shape: 'flow:actor' },

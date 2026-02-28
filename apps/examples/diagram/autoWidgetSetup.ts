@@ -24,8 +24,7 @@ export const createAutoWidgetSetup = (manifest: AssetManifest | null) => {
     [
       compileDiagram({
         id: 'arch-auto',
-        layout: 'hierarchical',
-        layoutSpacing: [3, 2],
+        layout: { kind: 'hierarchical', spacing: [3, 2] },
         pivot: 'center',
         nodes: [
           { id: 'browser', label: 'Web Browser',    shape: 'flow:actor' },

@@ -15,15 +15,22 @@ import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
 import { darkGlassTheme } from './themes/darkGlass';
 import { resolveLayout, resolveLayoutWithGroups, computeBounds } from './compiler/layoutAlgorithms';
 import { routeEdges } from './compiler/edgeRouter';
-import { buildNodeDefaults, compileNode, compileEdge } from './compiler/nodeCompiler';
+import { buildNodeDefaults, buildGroupDefaults, compileNode, compileEdge } from './compiler/nodeCompiler';
 import { compileGroup, resolveGroupBoundsMap } from './compiler/groupCompiler';
 import { buildThemeRenderConfig, compileExitConfig, compileEnterConfig } from './compiler/themeResolver';
+import { resolveEffectiveLayout, resolveGroupLayouts, resolveThemeLayoutDefaults } from './compiler/layoutResolver';
+import type { ResolvedLayout } from './compiler/layoutResolver';
 import {
   blendDiagramNodes,
   buildLiveNodeMaps,
   rerouteLiveEdges,
   blendDiagramEdges,
 } from './compiler/transitionHelpers';
+
+// Keep in sync with GroupRenderer border width conversion.
+const GROUP_BORDER_PX_TO_UNITS = 0.4;
+// Keep in sync with GroupRenderer group Z placement.
+const GROUP_RENDER_Z = -0.6;
 
 /**
  * Maps a linear t ∈ [0,1] through the given easing curve.
@@ -86,11 +93,9 @@ export function compileDiagram(
 ): DiagramState {
   const theme: DiagramTheme = dsl.theme ?? fallbackTheme;
 
-  const layout = dsl.layout ?? 'grid';
-  const layoutSpacing: [number, number] = [
-    dsl.layoutSpacing?.[0] ?? 2,
-    dsl.layoutSpacing?.[1] ?? 2,
-  ];
+  const layoutDefaults = resolveThemeLayoutDefaults(theme.layout);
+  const rootLayout: ResolvedLayout = resolveEffectiveLayout(dsl.layout, undefined, layoutDefaults);
+  const groupLayouts = resolveGroupLayouts(dsl.groups, rootLayout, layoutDefaults);
 
   const groupMap = new Map<string, string>();
   dsl.groups.forEach((group) => {
@@ -116,8 +121,8 @@ export function compileDiagram(
     dsl.nodes,
     dsl.edges,
     dsl.groups,
-    layout,
-    layoutSpacing,
+    rootLayout,
+    groupLayouts,
     sizeWithDepthMap,
   );
 
@@ -134,13 +139,35 @@ export function compileDiagram(
     }
   }
 
-  const groupBoundsMap = resolveGroupBoundsMap(dsl.groups, positions, sizeWithDepthMap);
+  const groupBoundsMap = resolveGroupBoundsMap(dsl.groups, positions, sizeWithDepthMap, groupLayouts);
+  const groupDefaults = buildGroupDefaults(theme);
+  const groupDslById = new Map(dsl.groups.map((group) => [group.id, group]));
   groupBoundsMap.forEach((bounds, groupId) => {
     if (bounds.w === 0 && bounds.h === 0) return;
     const centerX = bounds.x + bounds.w / 2;
     const centerY = bounds.y + bounds.h / 2;
-    positions.set(groupId, [centerX, centerY, 0]);
-    sizeWithDepthMap.set(groupId, [bounds.w, bounds.h, 0.2]);
+    const groupDsl = groupDslById.get(groupId);
+    const variant = groupDsl?.variant ?? groupDefaults.variant;
+    const borderStyle = variant === 'container'
+      ? 'none'
+      : (groupDsl?.borderStyle ?? groupDefaults.borderStyle);
+    const borderWidthUnits = borderStyle === 'none'
+      ? 0
+      : Math.max(0, groupDefaults.borderWidth * GROUP_BORDER_PX_TO_UNITS);
+    const borderCenterInset = borderWidthUnits * 0.5;
+    const groupBorderHeight = borderStyle === 'none'
+      ? 0.01
+      : Math.max(0.01, groupDefaults.borderHeight);
+    // Route edges to the rendered group depth, not z=0, so group-target edges
+    // visually terminate into the 3D border frame.
+    positions.set(groupId, [centerX, centerY, GROUP_RENDER_Z]);
+    // Route edges to the centerline of the rendered border frame (not its outer edge),
+    // so tube centers visually hit the middle of the frame thickness.
+    sizeWithDepthMap.set(groupId, [
+      bounds.w + borderCenterInset * 2,
+      bounds.h + borderCenterInset * 2,
+      groupBorderHeight,
+    ]);
   });
 
   const edgesForRouting = dsl.edges.map((edge) => ({

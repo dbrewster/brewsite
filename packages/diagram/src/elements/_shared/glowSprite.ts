@@ -52,7 +52,7 @@ export function createGlow(
   color: string,
   contentWidth: number,
   contentHeight: number,
-  scale: number,
+  spread: number,
   opacity: number,
 ): THREE.Sprite {
   const material = new THREE.SpriteMaterial({
@@ -64,9 +64,27 @@ export function createGlow(
     opacity,
   });
   const sprite = new THREE.Sprite(material);
-  sprite.scale.set(contentWidth * scale, contentHeight * scale, 1);
+  const [glowW, glowH] = computeGlowScale(contentWidth, contentHeight, spread);
+  sprite.scale.set(glowW, glowH, 1);
   sprite.position.z = -0.1;
   return sprite;
+}
+
+/**
+ * Computes glow dimensions that stay visually close to the node bounds.
+ * Uses additive expansion (padding) based on the shorter side so ultra-wide
+ * nodes don't project huge stretched halos across the scene.
+ */
+export function computeGlowScale(
+  contentWidth: number,
+  contentHeight: number,
+  spread: number,
+): readonly [number, number] {
+  const w = Math.max(0, contentWidth);
+  const h = Math.max(0, contentHeight);
+  const minSide = Math.max(0.001, Math.min(w, h));
+  const halo = minSide * Math.max(0, spread - 1) * 0.5;
+  return [w + halo * 2, h + halo * 2];
 }
 
 /**
