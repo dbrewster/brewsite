@@ -51,7 +51,7 @@ describe('compilePipe', () => {
     warnSpy.mockRestore();
   });
 
-  it('transforms node positions by diagram scale + position', () => {
+  it('transforms node centers by diagram scale + position for nearest-face landing', () => {
     const diagram = compileDiagram({
       id: 'a',
       layout: { kind: 'manual' },
@@ -63,8 +63,8 @@ describe('compilePipe', () => {
       groups: [],
     });
     const other = compileDiagram(makeDiagram('b', 'n2', [0, 0, 0]));
-    const pipe = compilePipe({ from: 'a.n1', to: 'b.n2' }, [diagram, other], 0);
-    expect(pipe.controlPoints[0]).toEqual([10, 2, 0]);
+    const pipe = compilePipe({ from: 'a.n1', to: 'b.n2' }, [diagram, other], 0, 'curved', 'nearest-face');
+    expect(pipe.controlPoints[0]).toEqual([14, 2, 0]);
   });
 });
 
@@ -80,6 +80,12 @@ describe('compileCanvas', () => {
     const diagram = compileDiagram(makeDiagram('a', 'n1', [0, 0, 0]));
     const canvas = compileCanvas({ id: 'canvas' }, [diagram], []);
     expect(canvas.diagrams[0]!.id).toBe('a');
+  });
+
+  it('preserves optional canvas focusCenter', () => {
+    const diagram = compileDiagram(makeDiagram('a', 'n1', [0, 0, 0]));
+    const canvas = compileCanvas({ id: 'canvas', focusCenter: [1, 2, 3] }, [diagram], []);
+    expect(canvas.focusCenter).toEqual([1, 2, 3]);
   });
 
   it('compiles pipes using compiled diagram states', () => {

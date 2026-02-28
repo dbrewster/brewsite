@@ -5,6 +5,7 @@ import type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { JsonPrimitive } from '../widget/VariableStore';
 import type { SceneFrame } from './sceneTrackTypes';
+import { ensureInputControllerRegistry } from './blocks/inputController';
 
 export type ResolvedScene = {
   frame: SceneFrame;
@@ -154,11 +155,13 @@ const sceneRootHandler: NodeHandler = (node, api, helpers) => {
 };
 
 export const ensureSceneRegistry = (): void => {
+  ensureInputControllerRegistry();
   if (!getNodeHandler(Scene)) {
     registerNode(Scene, sceneRootHandler);
   }
 };
 
+ensureInputControllerRegistry();
 registerNode(Scene, sceneRootHandler);
 
 export const resolveSceneFromDsl = (

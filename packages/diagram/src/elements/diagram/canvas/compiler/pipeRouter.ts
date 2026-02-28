@@ -21,11 +21,18 @@ function nodeToCanvasSpace(
   nodeLocalPos: Vec3,
   diagramPos: Vec3,
   diagramScale: number,
+  diagramRotation: Vec3,
 ): Vec3 {
+  const scaled: Vec3 = [
+    nodeLocalPos[0] * diagramScale,
+    nodeLocalPos[1] * diagramScale,
+    nodeLocalPos[2] * diagramScale,
+  ];
+  const rotated = rotateXYZ(scaled, diagramRotation[0], diagramRotation[1], diagramRotation[2]);
   return [
-    nodeLocalPos[0] * diagramScale + diagramPos[0],
-    nodeLocalPos[1] * diagramScale + diagramPos[1],
-    nodeLocalPos[2] * diagramScale + diagramPos[2],
+    rotated[0] + diagramPos[0],
+    rotated[1] + diagramPos[1],
+    rotated[2] + diagramPos[2],
   ];
 }
 
@@ -36,31 +43,47 @@ export function sideAttachmentPoint(
   diagramPos: Vec3,
   diagramScale: number,
   diagramRotation: Vec3,
-  targetDiagramPos: Vec3,
+  targetPos: Vec3,
 ): { point: Vec3; normal: Vec3 } {
-  const cx = nodeLocalPos[0] * diagramScale + diagramPos[0];
-  const cy = nodeLocalPos[1] * diagramScale + diagramPos[1];
-  const cz = nodeLocalPos[2] * diagramScale + diagramPos[2];
+  const [cx, cy, cz] = nodeToCanvasSpace(nodeLocalPos, diagramPos, diagramScale, diagramRotation);
 
   const [rx, ry, rz] = diagramRotation;
   const localXinCanvas = rotateXYZ([1, 0, 0], rx, ry, rz);
+  const localYinCanvas = rotateXYZ([0, 1, 0], rx, ry, rz);
+  const localZinCanvas = rotateXYZ([0, 0, 1], rx, ry, rz);
 
-  const tx = targetDiagramPos[0];
-  const side = tx > cx ? 1 : -1;
+  const delta: Vec3 = [targetPos[0] - cx, targetPos[1] - cy, targetPos[2] - cz];
+  const localDx = delta[0] * localXinCanvas[0] + delta[1] * localXinCanvas[1] + delta[2] * localXinCanvas[2];
+  const localDy = delta[0] * localYinCanvas[0] + delta[1] * localYinCanvas[1] + delta[2] * localYinCanvas[2];
+  const localDz = delta[0] * localZinCanvas[0] + delta[1] * localZinCanvas[1] + delta[2] * localZinCanvas[2];
+  const side = localDx >= 0 ? 1 : -1;
 
   const halfW = (nodeSize[0] / 2) * diagramScale;
+  const halfH = (nodeSize[1] / 2) * diagramScale;
+  const halfD = (nodeDepth / 2) * diagramScale;
+  const absDx = Math.max(Math.abs(localDx), 1e-6);
+  const rayScale = halfW / absDx;
+  const localYOnFace = Math.max(-halfH, Math.min(halfH, localDy * rayScale));
+  const localZOnFace = Math.max(-halfD, Math.min(halfD, localDz * rayScale));
 
-  const px = cx + localXinCanvas[0] * side * halfW;
-  const py = cy + localXinCanvas[1] * side * halfW;
-  const pz = cz + localXinCanvas[2] * side * halfW;
+  const px = cx
+    + localXinCanvas[0] * side * halfW
+    + localYinCanvas[0] * localYOnFace
+    + localZinCanvas[0] * localZOnFace;
+  const py = cy
+    + localXinCanvas[1] * side * halfW
+    + localYinCanvas[1] * localYOnFace
+    + localZinCanvas[1] * localZOnFace;
+  const pz = cz
+    + localXinCanvas[2] * side * halfW
+    + localYinCanvas[2] * localYOnFace
+    + localZinCanvas[2] * localZOnFace;
 
   const normal: Vec3 = [
     localXinCanvas[0] * side,
     localXinCanvas[1] * side,
     localXinCanvas[2] * side,
   ];
-
-  void nodeDepth;
   return { point: [px, py, pz], normal };
 }
 
@@ -138,7 +161,7 @@ export function rerouteLivePipes(
         fromDiagram.position,
         fromDiagram.scale,
         fromDiagram.rotation,
-        toDiagram.position,
+        nodeToCanvasSpace(toNode.position, toDiagram.position, toDiagram.scale, toDiagram.rotation),
       );
       const toAttach = sideAttachmentPoint(
         toNode.position,
@@ -147,12 +170,12 @@ export function rerouteLivePipes(
         toDiagram.position,
         toDiagram.scale,
         toDiagram.rotation,
-        fromDiagram.position,
+        nodeToCanvasSpace(fromNode.position, fromDiagram.position, fromDiagram.scale, fromDiagram.rotation),
       );
       result.set(pipe.id, routePipe(fromAttach.point, toAttach.point, fromAttach.normal, toAttach.normal, routing));
     } else {
-      const fromWorld = nodeToCanvasSpace(fromNode.position, fromDiagram.position, fromDiagram.scale);
-      const toWorld = nodeToCanvasSpace(toNode.position, toDiagram.position, toDiagram.scale);
+      const fromWorld = nodeToCanvasSpace(fromNode.position, fromDiagram.position, fromDiagram.scale, fromDiagram.rotation);
+      const toWorld = nodeToCanvasSpace(toNode.position, toDiagram.position, toDiagram.scale, toDiagram.rotation);
       result.set(pipe.id, routePipe(fromWorld, toWorld, undefined, undefined, routing));
     }
   }

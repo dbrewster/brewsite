@@ -21,7 +21,7 @@ export default function App(): JSX.Element {
         <Route path="/anim" element={<MultiAnimation/>}/>
         <Route path="/diagram" element={<DiagramPage/>}/>
         <Route path="/diagram-auto" element={<DiagramAutoPage/>}/>
-        <Route path="/lucid-example" element={<LucidExamplePage/>}/>
+        <Route path="/diagram-example" element={<LucidExamplePage/>}/>
       </Routes>
     </div>
   );

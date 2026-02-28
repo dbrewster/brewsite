@@ -62,7 +62,7 @@ export const neonCyberTheme: DiagramTheme = {
     },
     hierarchical: {
       direction: 'top-down',
-      spacing: [2, 2],
+      spacing: [1.5, 1.5],
       margin: 0,
       groupPadding: 1.5,
       titleGap: 0.75,

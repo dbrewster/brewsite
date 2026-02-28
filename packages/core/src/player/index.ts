@@ -10,6 +10,7 @@ export type { EngineInputRegionProps } from './EngineInputRegion';
 export { TimelineWidget } from './TimelineWidget';
 export type { TimelineWidgetProps, TimelineTickStyle, TimelineTheme } from './TimelineWidgetTypes';
 export { CameraControlPanel } from './CameraControlPanel';
+export { CameraInteractionInfoDialog } from './CameraInteractionInfoDialog';
 export { useEngineScrubber } from './useEngineScrubber';
 export { useSceneProgress } from './useSceneProgress';
 export { useCurrentScene } from './useCurrentScene';

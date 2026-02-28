@@ -65,4 +65,30 @@ describe('applyCamera', () => {
     expect(typeof spy).toBe('function');
     expect(camera.getFocalLength()).toBeCloseTo(50);
   });
+
+  it('applies up vector before lookAt so orientation resets correctly', () => {
+    const camera = new THREE.PerspectiveCamera();
+    camera.up.set(0, 0, 1);
+
+    const state: SceneCamera = {
+      enabled: true,
+      descriptor: {
+        mode: 'world',
+        position: [10, 5, 20],
+        target: [0, 0, 0],
+        up: [0, 1, 0],
+      },
+    };
+    applyCamera(state, { camera, tick: makeTickDouble() });
+
+    const expected = new THREE.PerspectiveCamera();
+    expected.position.set(10, 5, 20);
+    expected.up.set(0, 1, 0);
+    expected.lookAt(0, 0, 0);
+
+    expect(camera.quaternion.x).toBeCloseTo(expected.quaternion.x, 6);
+    expect(camera.quaternion.y).toBeCloseTo(expected.quaternion.y, 6);
+    expect(camera.quaternion.z).toBeCloseTo(expected.quaternion.z, 6);
+    expect(camera.quaternion.w).toBeCloseTo(expected.quaternion.w, 6);
+  });
 });

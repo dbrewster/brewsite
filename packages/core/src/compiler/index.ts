@@ -7,4 +7,12 @@ export type { SceneGroup, SceneDefinition, SceneSnapshotContext } from './sceneT
 export type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
 export { Hud, HudItem } from './blocks/hudBlocks';
 export type { HudProps, HudItemDslProps } from './blocks/hudBlocks';
+export { InputController, Action, PointerMap, WheelMap, KeyMap } from './blocks/inputController';
+export type {
+  InputControllerProps,
+  ActionProps,
+  PointerMapProps,
+  WheelMapProps,
+  KeyMapProps,
+} from './blocks/inputController';
 export { registerNode } from './registry';

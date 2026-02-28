@@ -8,8 +8,9 @@
 // The edge  filters → llm-conv  (instead of api → llm-conv) places llm-conv one
 // hierarchical level below the filters block so the three sections never share a row.
 
-import type {SceneDefinition} from '@brewsite/core';
+import {Background, Environment, EnvironmentCube, Floor, FloorMirror, SceneDefinition} from '@brewsite/core';
 import {Ambient, Camera, Directional, Lighting, Scene} from '@brewsite/core';
+import { Action, InputController, KeyMap, PointerMap, WheelMap } from '@brewsite/core';
 import {
   darkGlassTheme,
   Diagram,
@@ -20,8 +21,73 @@ import {
   GridLayout,
   HierarchicalLayout,
 } from '@brewsite/diagram';
+import {makeCubeUrls, skyEnvironment} from "../../meeting/scenes/sceneAssets";
 
+const svgGradient = (id: string, stops: Array<[number, string]>, overlay?: string) => {
+  const gradient = stops
+    .map(([offset, color]) => `<stop offset=\"${offset}%\" stop-color=\"${color}\"/>`)
+    .join('');
+  const overlayLayer = overlay
+    ? `<rect x=\"0\" y=\"0\" width=\"1200\" height=\"800\" fill=\"${overlay}\"/>`
+    : '';
+  const svg = `
+    <svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 1200 800\">
+      <defs>
+        <linearGradient id=\"${id}\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\">
+          ${gradient}
+        </linearGradient>
+        <radialGradient id=\"${id}-glow\" cx=\"0.7\" cy=\"0.2\" r=\"0.6\">
+          <stop offset=\"0%\" stop-color=\"#ffffff\" stop-opacity=\"0.25\"/>
+          <stop offset=\"100%\" stop-color=\"#ffffff\" stop-opacity=\"0\"/>
+        </radialGradient>
+      </defs>
+      <rect x=\"0\" y=\"0\" width=\"1200\" height=\"800\" fill=\"url(#${id})\"/>
+      ${overlayLayer}
+      <rect x=\"0\" y=\"0\" width=\"1200\" height=\"800\" fill=\"url(#${id}-glow)\"/>
+    </svg>
+  `;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
+
+const svgSolid = (color: string) => {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+      <rect x="0" y="0" width="1200" height="800" fill="${color}"/>
+    </svg>
+  `;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+};
 // ─── Design tokens ────────────────────────────────────────────────────────────
+export const backgrounds = {
+  intro: svgGradient('intro', [
+    [0, '#05060c'],
+    [40, '#1f1224'],
+    [100, '#ab2b45'],
+  ]),
+  reveal: svgGradient('reveal', [
+    [0, '#f78a1c'],
+    [45, '#ba5f3b'],
+    [100, '#f78a1c'],
+  ], 'rgba(20, 40, 70, 0.25)'),
+  focus: svgGradient('focus', [
+    [0, '#0b111a'],
+    [50, '#11af2b'],
+    [100, '#1aad4d'],
+  ]),
+  scan: svgGradient('scan', [
+    [0, '#171a1f'],
+    [50, '#5a5f69'],
+    [100, '#21262d'],
+  ], 'rgba(150, 150, 150, 0.18)'),
+
+  outro: svgGradient('outro', [
+    [0, '#020205'],
+    [50, '#020205'],
+    [100, '#020205'],
+  ]),
+  black: svgSolid('#000000'),
+};
+
 const C_APP    = '#4e4e1e';  // App tier
 const C_CLIENT = '#1a2845';  // Client tier
 const C_API    = '#1a3a78';  // API bar — prominent accent
@@ -42,26 +108,68 @@ export const sceneLlmFilter: SceneDefinition = {
       <Camera
         mode="world"
         fov={55}
-        position={[2, 0, 75]}
+        position={[0, 5, 55]}
         target={[0, 0, 0]}
-        interaction={{
-          enabled: true,
-          rotate: true,
-          pan: { speed: 15 },
-          zoom: { speed: 15 },
-          wheelZoom: true,
-        }}
       />
+      <InputController id="main" scope="canvas">
+        <Action id="orbit-camera" type="camera.orbit" cameraId="camera" speed={1}>
+          <PointerMap drag button="left" modifiers={['ctrl']} axis="xy" />
+          <PointerMap drag button="left" modifiers={['meta']} axis="xy" />
+        </Action>
+        <Action id="dolly-camera" type="camera.dolly" cameraId="camera" speed={1}>
+          <PointerMap drag button="left" modifiers={['alt']} axis="y" />
+          <WheelMap modifiers={['alt']} axis="y" />
+        </Action>
+        <Action id="move-canvas" type="diagram-canvas.move" canvasId="llm-canvas" speed={1}>
+          <PointerMap drag button="left" modifiers={['shift']} axis="xy" />
+          <WheelMap modifiers={['shift']} axis="xy" />
+        </Action>
+        <Action id="rotate-canvas" type="diagram-canvas.rotate" canvasId="llm-canvas" speed={1}>
+          <PointerMap drag button="left" modifiers={['ctrl', 'shift']} axis="xy" />
+          <PointerMap drag button="left" modifiers={['meta', 'shift']} axis="xy" />
+          <WheelMap modifiers={['meta']} axis="xy" />
+        </Action>
+        <Action id="focus-canvas" type="diagram-canvas.focus" canvasId="llm-canvas">
+          <PointerMap click button="left" modifiers={['meta']} />
+        </Action>
+        <Action id="reset-camera" type="camera.reset" cameraId="camera">
+          <KeyMap key="1" modifiers={['ctrl']} />
+          <KeyMap key="1" modifiers={['meta']} />
+        </Action>
+        <Action id="reset-canvas" type="diagram-canvas.reset" canvasId="llm-canvas">
+          <KeyMap key="1" modifiers={['ctrl']} />
+          <KeyMap key="1" modifiers={['meta']} />
+        </Action>
+        <Action id="scene-next" type="scene.next" stepScenes={1}>
+          <KeyMap key="ArrowRight" />
+          <KeyMap key="ArrowDown" />
+        </Action>
+        <Action id="scene-prev" type="scene.prev" stepScenes={1}>
+          <KeyMap key="ArrowLeft" />
+          <KeyMap key="ArrowUp" />
+        </Action>
+      </InputController>
+      <Background imageUrl={backgrounds.black} opacity={1} cssSize="cover" cssPosition="center" />
+      <Floor enabled position={[0, -10, 0]} scale={4}>
+        <FloorMirror
+          mirrorColor="#ffffff"
+          mirrorOpacity={.3}
+          mirrorResolution={2048}
+          mirrorClipBias={0.001}
+          mirrorEnvironmentIntensity={1}
+          mirrorUseEnvironmentBackground
+        />
+      </Floor>
       <Lighting intensityScale={1}>
         <Ambient intensity={1.0} color="#ffffff"/>
-        <Directional intensity={.8}  color="#b0ccff" position={[10, 40, 60]}/>
-        <Directional intensity={1.2} color="#b0ccff" position={[20, 40, 20]}/>
-        <Directional intensity={0.5} color="#ffe0b0" position={[0, -30, 20]}/>
+        <Directional intensity={.8}  color="#b0ccff" position={[10, 40, 0]}/>
+        <Directional intensity={1.2} color="#b0ccff" position={[20, 40, 0]}/>
+        <Directional intensity={0.5} color="#ffe0b0" position={[0, -30, 0]}/>
       </Lighting>
 
-      <DiagramCanvas id="llm-canvas" rotation={[-Math.PI / 10, 0, 0]} theme={darkGlassTheme}>
+      <DiagramCanvas id="llm-canvas" rotation={[0, 0, 0]} position={[0, 11, -10]} theme={darkGlassTheme} focusCenter={[0, 10, 0]}>
         <Diagram id="llm-filter" pivot="center">
-          <HierarchicalLayout spacing={[1, 1]} />
+          <HierarchicalLayout spacing={[1, 1.5]} />
           {/* ── Top tier: explicit positions ─────────────────────────────── */}
           <DiagramNode id="users" label="Users"
                        shape="ui:users" iconScale={0.55}
@@ -212,4 +320,49 @@ export const sceneLlmFilter: SceneDefinition = {
       </DiagramCanvas>
     </Scene>
   ),
+};
+
+export interface LlmFilterHudContent {
+  readonly tagline: string;
+  readonly title: string;
+  readonly description: string;
+}
+
+export const llmFilterSceneHudContent: LlmFilterHudContent = {
+  tagline: 'LLM Governance Architecture',
+  title: 'Policy-Aware Request and Response Control Plane',
+  description: 'This scene maps the full lifecycle of an LLM interaction across client entry points, API mediation, governance filters, and model execution. It highlights where policy is enforced before inference, where output validation occurs after inference, and how operator tooling maintains continuous oversight of safety, compliance, observability, and risk.',
+};
+
+export const llmFilterGroupHudContent: Record<string, LlmFilterHudContent> = {
+  'app-layer': {
+    tagline: 'Application Surface',
+    title: 'App Layer Orchestration',
+    description: 'The app layer represents business-facing product surfaces and automation endpoints that originate AI requests. It standardizes how enterprise tools, model copilots, MCP services, and agents dispatch prompts into the governed stack, ensuring upstream clients enter a consistent policy envelope before model invocation.',
+  },
+  'client-layer': {
+    tagline: 'Client Entry Tier',
+    title: 'Client Layer Connectivity',
+    description: 'The client layer captures the user and system interfaces that feed the platform: chat clients, connectors, endpoint agents, and third-party applications. This tier normalizes heterogeneous traffic into a common API ingress so downstream controls can apply uniform identity, routing, and governance behavior.',
+  },
+  'filters': {
+    tagline: 'Governance Envelope',
+    title: 'Centralized Filter Domain',
+    description: 'The filters domain is the platform’s policy heart. It surrounds model calls with deterministic controls that inspect inbound prompts and outbound responses, enabling bidirectional safety guarantees. By unifying filter families behind one domain, policy authors can manage security, privacy, and quality controls as a coherent system.',
+  },
+  'console': {
+    tagline: 'Operations and Oversight',
+    title: 'Console Control Hub',
+    description: 'The console group provides operator-facing governance tooling for policy lifecycle management and runtime accountability. Teams use it to author rules, inspect telemetry, review audit trails, score risk, and trigger alerts, turning model governance into an observable and continuously improvable operational process.',
+  },
+  'input-filters': {
+    tagline: 'Pre-Inference Safeguards',
+    title: 'Input Filter Guardrails',
+    description: 'Input filters evaluate requests before they reach any model endpoint. They enforce controls such as anonymization, prompt injection defense, PII detection, topic restrictions, token constraints, and encryption hygiene. This stage reduces unsafe or non-compliant prompts early, shrinking downstream risk and improving model reliability.',
+  },
+  'output-filters': {
+    tagline: 'Post-Inference Safeguards',
+    title: 'Output Filter Enforcement',
+    description: 'Output filters validate model responses before delivery to users or systems. They screen for hallucinations, sensitive leakage, policy violations, harmful content, and relevance issues, while enabling fact checks and access-control-aware release decisions. This final gate ensures responses remain safe, on-topic, and policy-compliant.',
+  },
 };

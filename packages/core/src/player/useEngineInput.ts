@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import type { SceneNavInputMap } from '../input/types';
 import { InputController } from '../input/InputController';
+import { ActionInputController } from '../input/ActionInputController';
+import type { SceneInputControllerSpec } from '../input/types';
 import { useEngineScroll } from './useEngineScroll';
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
@@ -23,6 +25,20 @@ export type UseEngineInputOptions = {
    * prevent double-handling when camera-controls has wheel dolly active.
    */
   wheelGuard?: () => boolean;
+  /** Optional scene-authored action controller spec (from <InputController> DSL). */
+  inputControllerSpec?: SceneInputControllerSpec | null;
+  onCameraOrbit?: (cameraId: string, dx: number, dy: number, speed: number) => void;
+  onCameraDolly?: (cameraId: string, delta: number, speed: number) => void;
+  onCameraReset?: (cameraId: string) => void;
+  onDiagramCanvasMove?: (canvasId: string, dx: number, dy: number, speed: number) => void;
+  onDiagramCanvasRotate?: (canvasId: string, dx: number, dy: number, speed: number) => void;
+  onDiagramCanvasReset?: (canvasId: string) => void;
+  onDiagramCanvasFocus?: (
+    canvasId: string,
+    clientX: number,
+    clientY: number,
+    focusCenter?: [number, number] | [number, number, number],
+  ) => void;
 };
 
 export type UseEngineInputResult = {
@@ -39,6 +55,14 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
     canvasRef,
     inputMap,
     wheelGuard,
+    inputControllerSpec,
+    onCameraOrbit,
+    onCameraDolly,
+    onCameraReset,
+    onDiagramCanvasMove,
+    onDiagramCanvasRotate,
+    onDiagramCanvasReset,
+    onDiagramCanvasFocus,
   } = options;
 
   const mode = inputMap?.mode ?? 'scroll';
@@ -63,9 +87,56 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
   }, []);
 
   const getDirectProgress = useCallback(() => directProgressRef.current, []);
+  const specRef = useRef<SceneInputControllerSpec | null>(inputControllerSpec ?? null);
+  specRef.current = inputControllerSpec ?? null;
+  const hasSceneController = inputControllerSpec !== null && inputControllerSpec !== undefined;
+  const sceneControllerScope = inputControllerSpec?.scope ?? 'canvas';
 
   // ─── InputController attachment ───────────────────────────────────────
   useEffect(() => {
+    if (hasSceneController) {
+      const attachTarget = (sceneControllerScope === 'window')
+        ? window
+        : (canvasRef?.current ?? scrollRegionRef.current ?? window);
+      const keyboardTarget = window;
+
+      const ctrl = new ActionInputController(
+        attachTarget,
+        () => specRef.current,
+        {
+          getSceneCount: () => sceneCount,
+          onSceneStep: (direction, stepScenes) => {
+            const step = sceneCount > 1 ? stepScenes / (sceneCount - 1) : 1;
+            setDirectProgressBoth(clamp01(directProgressRef.current + direction * step));
+          },
+          onCameraOrbit: (cameraId, dx, dy, speed) => {
+            onCameraOrbit?.(cameraId, dx, dy, speed);
+          },
+          onCameraDolly: (cameraId, delta, speed) => {
+            onCameraDolly?.(cameraId, delta, speed);
+          },
+          onCameraReset: (cameraId) => {
+            onCameraReset?.(cameraId);
+          },
+          onDiagramCanvasMove: (canvasId, dx, dy, speed) => {
+            onDiagramCanvasMove?.(canvasId, dx, dy, speed);
+          },
+          onDiagramCanvasRotate: (canvasId, dx, dy, speed) => {
+            onDiagramCanvasRotate?.(canvasId, dx, dy, speed);
+          },
+          onDiagramCanvasReset: (canvasId) => {
+            onDiagramCanvasReset?.(canvasId);
+          },
+          onDiagramCanvasFocus: (canvasId, clientX, clientY, focusCenter) => {
+            onDiagramCanvasFocus?.(canvasId, clientX, clientY, focusCenter);
+          },
+        },
+        keyboardTarget,
+      );
+      ctrl.attach();
+      return () => ctrl.detach();
+    }
+
     if (!inputMap || mode === 'scroll') {
       // Always register keyboard navigation unless it has been explicitly disabled
       // via inputMap.keys === false. When inputMap is undefined (not provided at all),
@@ -129,10 +200,14 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
     inputMap, mode, sceneCount, canvasRef, canvasRef?.current, scrollRegionRef,
     scrollToProgressStable, getGlobalProgressStable,
     setDirectProgressBoth, getDirectProgress, wheelGuard,
+    hasSceneController, sceneControllerScope,
+    onCameraOrbit, onCameraDolly, onCameraReset, onDiagramCanvasMove, onDiagramCanvasRotate,
+    onDiagramCanvasReset,
+    onDiagramCanvasFocus,
   ]);
 
   // ─── Return appropriate interface ─────────────────────────────────────
-  if (mode === 'direct') {
+  if (hasSceneController || mode === 'direct') {
     return {
       progress: directProgress,
       scrollToProgress: setDirectProgressBoth,

@@ -138,3 +138,63 @@ export type InputNavigationHandler = {
   /** Get total number of scenes. */
   getSceneCount: () => number;
 };
+
+// ─── Action-based Scene Input Controller (DSL/runtime) ──────────────────────
+
+export type InputControllerScope = 'canvas' | 'window';
+
+export type InputActionType =
+  | 'camera.orbit'
+  | 'camera.dolly'
+  | 'camera.reset'
+  | 'canvas.pan'
+  | 'diagram-canvas.move'
+  | 'diagram-canvas.rotate'
+  | 'diagram-canvas.reset'
+  | 'diagram-canvas.focus'
+  | 'scene.next'
+  | 'scene.prev';
+
+export type InputPointerMap = {
+  kind: 'pointer';
+  event: 'drag' | 'click';
+  button?: MouseButton;
+  modifiers?: ModifierKey[];
+  axis?: 'x' | 'y' | 'xy';
+};
+
+export type InputWheelMap = {
+  kind: 'wheel';
+  modifiers?: ModifierKey[];
+  axis?: 'x' | 'y' | 'xy';
+};
+
+export type InputKeyMap = {
+  kind: 'key';
+  key: string;
+  modifiers?: ModifierKey[];
+};
+
+export type InputActionMap = InputPointerMap | InputWheelMap | InputKeyMap;
+
+export type InputActionSpec = {
+  id: string;
+  type: InputActionType;
+  cameraId?: string;
+  canvasId?: string;
+  /**
+   * Optional focus center used by diagram-canvas.focus.
+   * Z is ignored by the canvas focus logic; focus operates on X/Y.
+   * When provided on the action, it overrides the canvas default focus center.
+   */
+  focusCenter?: [number, number] | [number, number, number];
+  speed?: number;
+  stepScenes?: number;
+  maps: InputActionMap[];
+};
+
+export type SceneInputControllerSpec = {
+  id: string;
+  scope: InputControllerScope;
+  actions: InputActionSpec[];
+};

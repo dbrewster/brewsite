@@ -286,6 +286,51 @@ describe('resolveLayout — grid', () => {
     expect(dx).toBeGreaterThan(6);
   });
 
+  it('uses consistent horizontal edge gaps for mixed item sizes', () => {
+    const nodes = [
+      makeNode('group-left', { size: [20, 10] }),
+      makeNode('node-mid', { size: [4, 2] }),
+      makeNode('group-right', { size: [20, 10] }),
+    ];
+    const spacing: [number, number] = [3, 2];
+    const positions = resolveLayout(nodes, [], grid({ columns: 3, spacing }));
+
+    const left = positions.get('group-left')!;
+    const mid = positions.get('node-mid')!;
+    const right = positions.get('group-right')!;
+
+    const leftRightEdge = left[0] + 20 / 2;
+    const midLeftEdge = mid[0] - 4 / 2;
+    const midRightEdge = mid[0] + 4 / 2;
+    const rightLeftEdge = right[0] - 20 / 2;
+
+    const gapLeftToMid = midLeftEdge - leftRightEdge;
+    const gapMidToRight = rightLeftEdge - midRightEdge;
+
+    expect(gapLeftToMid).toBeCloseTo(spacing[0]);
+    expect(gapMidToRight).toBeCloseTo(spacing[0]);
+  });
+
+  it('uses consistent vertical edge gaps for mixed row heights', () => {
+    const nodes = [
+      makeNode('top-tall', { size: [8, 12] }),
+      makeNode('top-short', { size: [8, 2] }),
+      makeNode('bottom-short-a', { size: [8, 2] }),
+      makeNode('bottom-short-b', { size: [8, 2] }),
+    ];
+    const spacing: [number, number] = [2, 4];
+    const positions = resolveLayout(nodes, [], grid({ columns: 2, spacing }));
+
+    const topTall = positions.get('top-tall')!;
+    const bottomShortA = positions.get('bottom-short-a')!;
+
+    const topRowBottomEdge = topTall[1] - 12 / 2;
+    const bottomRowTopEdge = bottomShortA[1] + 2 / 2;
+    const verticalGap = topRowBottomEdge - bottomRowTopEdge;
+
+    expect(verticalGap).toBeCloseTo(spacing[1]);
+  });
+
   it('alignment: center → rows centered around widest row', () => {
     const nodes = ['a', 'b', 'c', 'd', 'e'].map((id) => makeNode(id));
     const positions = resolveLayout(nodes, [], grid({ alignment: 'center', columns: 4 }));
@@ -375,6 +420,19 @@ describe('resolveLayout — hierarchical', () => {
     const dy = Math.abs(positions.get('a')![1] - positions.get('b')![1]);
     expect(dy).toBeGreaterThan(2);
   });
+
+  it('top-down: spacing[0] is exact horizontal edge gap for mixed widths in a level', () => {
+    const nodes = [
+      makeNode('wide', { size: [20, 2] }),
+      makeNode('narrow', { size: [4, 2] }),
+    ];
+    const positions = resolveLayout(nodes, [], hierarchical({ direction: 'top-down', spacing: [3, 2] }));
+    const wide = positions.get('wide')!;
+    const narrow = positions.get('narrow')!;
+    const wideRight = wide[0] + 10;
+    const narrowLeft = narrow[0] - 2;
+    expect(narrowLeft - wideRight).toBeCloseTo(3);
+  });
 });
 
 const makeGroup = (id: string, nodeIds: string[], overrides: Partial<DiagramGroupDSL> = {}): DiagramGroupDSL => ({
@@ -453,17 +511,23 @@ describe('resolveLayoutWithGroups', () => {
     expect(overlapX).toBeLessThanOrEqual(0);
   });
 
-  it('preserves explicit node positions inside nested groups', () => {
-    const explicitPos: [number, number, number] = [99, 55, 0];
-    const nodes = [makeNode('a', { position: explicitPos }), makeNode('b')];
+  it('grouped explicit positions are treated as local offsets under parent auto-layout', () => {
+    const nodes = [
+      makeNode('a', { position: [-2, 0, 0] as [number, number, number] }),
+      makeNode('b', { position: [2, 0, 0] as [number, number, number] }),
+      makeNode('c'),
+    ];
     const sizes = makeSize(nodes);
     const groups = [
       makeGroup('g1', [], { childGroupIds: ['g1a'] }),
       makeGroup('g1a', ['a', 'b'], { parentId: 'g1' }),
     ];
-    const positions = resolveWithGroups(nodes, [], groups, grid(), sizes);
-    expect(positions.get('a')).toEqual(explicitPos);
-    expect(positions.get('b')).toBeDefined();
+    const positions = resolveWithGroups(nodes, [makeEdge('g1', 'c')], groups, hierarchical(), sizes);
+    const a = positions.get('a')!;
+    const b = positions.get('b')!;
+    // Local explicit spacing is preserved after parent-layout translation.
+    expect(b[0] - a[0]).toBeCloseTo(4);
+    expect(b[1] - a[1]).toBeCloseTo(0);
   });
 
   it('per-group layout: grid group places nodes in a grid regardless of diagram-level hierarchical', () => {
@@ -548,11 +612,7 @@ describe('resolveLayoutWithGroups', () => {
     expect(posStrings.size).toBe(4);
   });
 
-  it('all-explicit: preserves exact diagram-space positions through nested groups', () => {
-    // This mirrors the scene_llm_filter pattern: a parent container group (filters)
-    // with child groups (console, input-filters, output-filters) where every node
-    // has an explicit position. The final positions must be identical to the input
-    // positions — no coordinate system shift should occur.
+  it('all-explicit groups still obey parent layout spacing while preserving local offsets', () => {
     const consoleNodes = [
       makeNode('con-a', { position: [-20, -6.5, 0] as [number, number, number] }),
       makeNode('con-b', { position: [-15, -6.5, 0] as [number, number, number] }),
@@ -572,16 +632,22 @@ describe('resolveLayoutWithGroups', () => {
 
     const positions = resolveWithGroups(allNodes, [], groups, hierarchical(), sizes);
 
-    // Every node must land at its declared explicit position.
-    expect(positions.get('con-a')).toEqual([-20, -6.5, 0]);
-    expect(positions.get('con-b')).toEqual([-15, -6.5, 0]);
-    expect(positions.get('if-a')).toEqual([0, -6.5, 0]);
-    expect(positions.get('if-b')).toEqual([5, -6.5, 0]);
+    const conA = positions.get('con-a')!;
+    const conB = positions.get('con-b')!;
+    const ifA = positions.get('if-a')!;
+    const ifB = positions.get('if-b')!;
+
+    // Per-group local spacing is preserved.
+    expect(conB[0] - conA[0]).toBeCloseTo(5);
+    expect(ifB[0] - ifA[0]).toBeCloseTo(5);
+
+    // Parent layout still separates child groups in diagram space.
+    const consoleCenterX = (conA[0] + conB[0]) / 2;
+    const inputCenterX = (ifA[0] + ifB[0]) / 2;
+    expect(inputCenterX).toBeGreaterThan(consoleCenterX);
   });
 
-  it('all-explicit: ungrouped explicit nodes retain their positions alongside grouped nodes', () => {
-    // Some nodes are in groups (explicit positions), others are ungrouped (also explicit).
-    // All should keep their declared positions.
+  it('ungrouped explicit nodes stay fixed while grouped explicit nodes follow parent layout', () => {
     const nodes = [
       makeNode('a', { position: [-10, 0, 0] as [number, number, number] }),
       makeNode('b', { position: [-5, 0, 0] as [number, number, number] }),
@@ -591,8 +657,10 @@ describe('resolveLayoutWithGroups', () => {
     const groups = [makeGroup('g1', ['a', 'b'])];
 
     const positions = resolveWithGroups(nodes, [], groups, hierarchical(), sizes);
-    expect(positions.get('a')).toEqual([-10, 0, 0]);
-    expect(positions.get('b')).toEqual([-5, 0, 0]);
+    const a = positions.get('a')!;
+    const b = positions.get('b')!;
+    expect(b[0] - a[0]).toBeCloseTo(5);
+    expect(b[1] - a[1]).toBeCloseTo(0);
     expect(positions.get('api')).toEqual([0, -3, 0]);
   });
 

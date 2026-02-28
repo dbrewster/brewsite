@@ -37,6 +37,23 @@ describe('sideAttachmentPoint — full rotation fix', () => {
     expect(oldApprox[1]).toBeCloseTo(0);
     expect(newCombined[1]).not.toBeCloseTo(0);
   });
+
+  it('uses target-node direction to offset attachment on node Y axis', () => {
+    const upper = sideAttachmentPoint(
+      [0, 0, 0], [4, 2], 0.4,
+      [0, 0, 0], 1,
+      [0, 0, 0],
+      [10, 10, 0],
+    );
+    const lower = sideAttachmentPoint(
+      [0, 0, 0], [4, 2], 0.4,
+      [0, 0, 0], 1,
+      [0, 0, 0],
+      [10, -10, 0],
+    );
+    expect(upper.point[1]).toBeGreaterThan(0.5);
+    expect(lower.point[1]).toBeLessThan(-0.5);
+  });
 });
 
 describe('routePipe — anti-parallel arc fix', () => {

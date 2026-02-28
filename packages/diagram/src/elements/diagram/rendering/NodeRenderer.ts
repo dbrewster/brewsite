@@ -119,6 +119,8 @@ export class NodeRenderer {
     );
     const materials = createBoxMaterials(state, materialCount);
     const boxMesh = new THREE.Mesh(geometry, materials);
+    boxMesh.castShadow = true;
+    boxMesh.receiveShadow = true;
 
     const border = new THREE.LineSegments(
       new THREE.EdgesGeometry(
@@ -417,6 +419,12 @@ export class NodeRenderer {
           state.metalness,
           state.roughness,
         ).then((obj) => {
+          obj.traverse((child) => {
+            if (child instanceof THREE.Mesh) {
+              child.castShadow = true;
+              child.receiveShadow = true;
+            }
+          });
           holder.clear();
           holder.add(obj);
         });

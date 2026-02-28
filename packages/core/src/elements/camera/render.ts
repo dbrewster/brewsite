@@ -115,8 +115,8 @@ export const applyCamera = (state: SceneCamera, ctx: CameraRenderContext): void 
   // World-space mode
   if (desc.mode === 'world') {
     camera.position.set(...desc.position);
-    camera.lookAt(...desc.target);
     if (desc.up) camera.up.set(...desc.up);
+    camera.lookAt(...desc.target);
     return;
   }
 
@@ -127,8 +127,8 @@ export const applyCamera = (state: SceneCamera, ctx: CameraRenderContext): void 
     const y = target[1] + distance * Math.sin(polar);
     const z = target[2] + distance * Math.cos(polar) * Math.cos(azimuth);
     camera.position.set(x, y, z);
-    camera.lookAt(...target);
     if (desc.up) camera.up.set(...desc.up);
+    camera.lookAt(...target);
     return;
   }
 

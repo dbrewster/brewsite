@@ -20,6 +20,9 @@ type LightingCache = {
 };
 
 const LIGHTING_KEY = '__brewsite_lighting';
+const DIRECTIONAL_SHADOW_RANGE = 260;
+const DIRECTIONAL_SHADOW_NEAR = 0.5;
+const DIRECTIONAL_SHADOW_FAR = 600;
 
 const getCache = (scene: THREE.Scene): LightingCache => {
   const existing = scene.userData[LIGHTING_KEY] as LightingCache | undefined;
@@ -64,12 +67,13 @@ export function applyLighting(state: SceneLighting, refs: LightingThreeRefs): vo
     state.directional.position[2]
   );
   const dirCam = directionalLight.shadow.camera as THREE.OrthographicCamera;
-  dirCam.near = 0.5;
-  dirCam.far = 200;
-  dirCam.left = -80;
-  dirCam.right = 80;
-  dirCam.top = 80;
-  dirCam.bottom = -80;
+  // Wider bounds reduce shadow pop/disappear when camera pans across large scenes.
+  dirCam.near = DIRECTIONAL_SHADOW_NEAR;
+  dirCam.far = DIRECTIONAL_SHADOW_FAR;
+  dirCam.left = -DIRECTIONAL_SHADOW_RANGE;
+  dirCam.right = DIRECTIONAL_SHADOW_RANGE;
+  dirCam.top = DIRECTIONAL_SHADOW_RANGE;
+  dirCam.bottom = -DIRECTIONAL_SHADOW_RANGE;
 
   // Apply point lights
   const pointSpecs = state.points ?? [];

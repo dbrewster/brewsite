@@ -100,6 +100,8 @@ export class EdgeRenderer {
       this.edgeRoughness,
     );
     const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+    tube.castShadow = true;
+    tube.receiveShadow = true;
     group.add(tube);
     return { group, tube, lastState: edge };
   }
@@ -222,6 +224,8 @@ export class EdgeRenderer {
             depthWrite: false,
           });
         }
+        arrow.castShadow = true;
+        arrow.receiveShadow = true;
 
         const curveT = kind === 'start' ? 0.02 : 0.98;
         const c = getCurve();

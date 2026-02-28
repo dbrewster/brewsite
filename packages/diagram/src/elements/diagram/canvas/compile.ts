@@ -14,7 +14,7 @@ import type { FunctionalTransitionSpec } from '@brewsite/core';
 import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
 import { applyDiagramEnter, applyDiagramExit } from '../compile';
 import { blendDiagramNodes, buildLiveNodeMaps, rerouteLiveEdges, blendDiagramEdges } from '../compiler/transitionHelpers';
-import { sideAttachmentPoint, routePipe, rerouteLivePipes } from './compiler/pipeRouter';
+import { sideAttachmentPoint, routePipe, rerouteLivePipes, rotateXYZ } from './compiler/pipeRouter';
 
 // ─── Defaults ────────────────────────────────────────────────────────────────
 
@@ -36,19 +36,25 @@ type Vec3 = readonly [number, number, number];
 
 /**
  * Transforms a node's diagram-local position to canvas-local space.
- * Applies diagram position offset and uniform scale.
- * Note: this approximation ignores diagram rotation (adequate for v1 where
- * diagrams are typically axis-aligned within the canvas).
+ * Applies diagram scale + rotation + position.
  */
 function nodeToCanvasSpace(
   nodeLocalPos: Vec3,
   diagramPos: Vec3,
   diagramScale: number,
+  diagramRotation: Vec3,
 ): Vec3 {
+  const [rx, ry, rz] = diagramRotation;
+  const scaled: Vec3 = [
+    nodeLocalPos[0] * diagramScale,
+    nodeLocalPos[1] * diagramScale,
+    nodeLocalPos[2] * diagramScale,
+  ];
+  const rotated = rotateXYZ(scaled, rx, ry, rz);
   return [
-    nodeLocalPos[0] * diagramScale + diagramPos[0],
-    nodeLocalPos[1] * diagramScale + diagramPos[1],
-    nodeLocalPos[2] * diagramScale + diagramPos[2],
+    rotated[0] + diagramPos[0],
+    rotated[1] + diagramPos[1],
+    rotated[2] + diagramPos[2],
   ];
 }
 
@@ -124,7 +130,7 @@ export function compilePipe(
           fromDiagram.position,
           fromDiagram.scale,
           fromDiagram.rotation,
-          toDiagram.position,
+          nodeToCanvasSpace(toNode.position, toDiagram.position, toDiagram.scale, toDiagram.rotation),
         );
         const toAttach = sideAttachmentPoint(
           toNode.position,
@@ -133,13 +139,13 @@ export function compilePipe(
           toDiagram.position,
           toDiagram.scale,
           toDiagram.rotation,
-          fromDiagram.position,
+          nodeToCanvasSpace(fromNode.position, fromDiagram.position, fromDiagram.scale, fromDiagram.rotation),
         );
         controlPoints = routePipe(fromAttach.point, toAttach.point, fromAttach.normal, toAttach.normal, routing);
       } else {
         // 'nearest-face': use node centers (legacy behaviour)
-        const fromWorld = nodeToCanvasSpace(fromNode.position, fromDiagram.position, fromDiagram.scale);
-        const toWorld   = nodeToCanvasSpace(toNode.position,   toDiagram.position,   toDiagram.scale);
+        const fromWorld = nodeToCanvasSpace(fromNode.position, fromDiagram.position, fromDiagram.scale, fromDiagram.rotation);
+        const toWorld   = nodeToCanvasSpace(toNode.position,   toDiagram.position,   toDiagram.scale,   toDiagram.rotation);
         controlPoints = routePipe(fromWorld, toWorld, undefined, undefined, routing);
       }
     }
@@ -186,6 +192,7 @@ export function compileCanvas(
     position: dsl.position ?? [0, 0, 0],
     rotation: dsl.rotation ?? [0, 0, 0],
     scale: dsl.scale ?? 1,
+    focusCenter: dsl.focusCenter,
     diagrams,
     pipes: compiledPipes,
   };

@@ -54,13 +54,21 @@ export function createBezel(
   );
 
   const top = new THREE.Mesh(topGeom, cloneMaterial(materialBase));
+  top.castShadow = true;
+  top.receiveShadow = true;
   top.position.y = contentHeight / 2 + effectiveThickness / 2;
   const bottom = new THREE.Mesh(topGeom, cloneMaterial(materialBase));
+  bottom.castShadow = true;
+  bottom.receiveShadow = true;
   bottom.position.y = -(contentHeight / 2 + effectiveThickness / 2);
 
   const left = new THREE.Mesh(sideGeom, cloneMaterial(materialBase));
+  left.castShadow = true;
+  left.receiveShadow = true;
   left.position.x = -(contentWidth / 2 + effectiveThickness / 2);
   const right = new THREE.Mesh(sideGeom, cloneMaterial(materialBase));
+  right.castShadow = true;
+  right.receiveShadow = true;
   right.position.x = contentWidth / 2 + effectiveThickness / 2;
 
   group.add(top, bottom, left, right);

@@ -1,0 +1,43 @@
+.lucid-hud {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 33.333vh;
+  z-index: 7;
+  pointer-events: none;
+  display: flex;
+  align-items: flex-start;
+  background: rgba(8, 12, 18, 0.62);
+  color: #d7e8ff;
+  padding: 24px;
+  font-size: 12px;
+  line-height: 1.45;
+  justify-content: center;
+}
+
+.lucid-hud__content {
+  max-width: 66%;
+}
+
+.lucid-hud__tagline {
+  opacity: 0.9;
+  font-size: .8rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.lucid-hud__title {
+  margin-top: 8px;
+  font-size: 2rem;
+  line-height: 1.1;
+  font-weight: 600;
+  color: #f3f8ff;
+}
+
+.lucid-hud__description {
+  margin-top: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #d7e8ff;
+}

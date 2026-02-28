@@ -62,3 +62,14 @@ export { InteractionRegistry } from './rendering/InteractionRegistry';
 export type { IInteractionRegistry } from './rendering/InteractionRegistry';
 export { DiagramWidget } from './widget';
 export { enterpriseTheme, darkGlassTheme, lightMinimalTheme, neonCyberTheme } from './themes';
+export {
+  DIAGRAM_FOCUS_REGION_EVENT,
+  getDiagramFocusRegion,
+  clearDiagramFocusRegion,
+} from './focusRegion';
+export type {
+  DiagramFocusRegionKind,
+  DiagramFocusRegionState,
+} from './focusRegion';
+export { useDiagramFocusRegion } from './useDiagramFocusRegion';
+export type { UseDiagramFocusRegionOptions } from './useDiagramFocusRegion';

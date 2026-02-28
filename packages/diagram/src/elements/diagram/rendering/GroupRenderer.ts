@@ -60,6 +60,8 @@ export class GroupRenderer {
         side: THREE.DoubleSide,
       }),
     );
+    fill.castShadow = true;
+    fill.receiveShadow = false;
     const label = new Text() as TextWithLayout;
     const border = this.createBorder(state);
     if (border) {
@@ -252,6 +254,8 @@ export class GroupRenderer {
     });
     geom.translate(0, 0, -bh / 2);
     const frameMesh = new THREE.Mesh(geom, [faceMat, sideMat]);
+    frameMesh.castShadow = true;
+    frameMesh.receiveShadow = false;
     const edgeLines = new THREE.LineSegments(
       new THREE.EdgesGeometry(geom),
       new THREE.LineBasicMaterial({

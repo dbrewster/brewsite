@@ -165,6 +165,30 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
     this.cameraRef = camera;
     this.lastTick = tick;
 
+    // Focus requests can be emitted by other widgets (e.g. DiagramCanvasWidget).
+    // When interaction mode is active, delegate to the interaction driver for smooth motion.
+    // Otherwise, promote the focus request into camera override state so authored camera state
+    // does not immediately overwrite it on the next apply().
+    const focus = context.scene.userData[CAMERA_FOCUS_KEY] as
+      | { position: Vec3; target: Vec3; smooth?: boolean }
+      | undefined;
+    if (focus) {
+      if (this.isInteractionActive && this.driver) {
+        this.driver.setLookAt(focus.position, focus.target, focus.smooth !== false);
+      } else {
+        context.scene.userData[CAMERA_OVERRIDE_KEY] = {
+          enabled: true,
+          position: focus.position,
+          target: focus.target,
+          up: [camera.up.x, camera.up.y, camera.up.z] as Vec3,
+          fov: camera.fov,
+          near: camera.near,
+          far: camera.far,
+        };
+      }
+      delete context.scene.userData[CAMERA_FOCUS_KEY];
+    }
+
     // Lazy-init DOM element + renderer from scene.userData (not available at construction)
     if (!this.domElement) {
       const renderer = context.scene.userData[RENDERER_KEY] as THREE.WebGLRenderer | undefined;
@@ -208,14 +232,6 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
     }
 
     if (this.isInteractionActive && this.driver) {
-      const focus = context.scene.userData[CAMERA_FOCUS_KEY] as
-        | { position: Vec3; target: Vec3; smooth?: boolean }
-        | undefined;
-      if (focus) {
-        this.driver.setLookAt(focus.position, focus.target, focus.smooth !== false);
-        delete context.scene.userData[CAMERA_FOCUS_KEY];
-      }
-
       // Re-configure each tick so scene-state changes (speeds, constraints) propagate live
       if (state.interaction) this.driver.configure(state.interaction);
 

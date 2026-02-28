@@ -60,12 +60,6 @@ export function resolveLayout(
   }
 
   const DEFAULT_NODE_SIZE: [number, number] = [4, 2];
-  const maxWidth = Math.max(
-    ...missing.map((node) => (node.size ?? DEFAULT_NODE_SIZE)[0]),
-  );
-  const maxHeight = Math.max(
-    ...missing.map((node) => (node.size ?? DEFAULT_NODE_SIZE)[1]),
-  );
 
   if (layout.kind === 'grid') {
     const { spacing, margin: rawMargin, columns: rawColumns, alignment, disconnected } = layout as ResolvedGridLayout;
@@ -84,44 +78,88 @@ export function resolveLayout(
         ]
       : missing;
 
-    const effectiveWidth = maxWidth + 2 * margin[0];
-    const effectiveHeight = maxHeight + 2 * margin[1];
-    const colStep = effectiveWidth + safeSpacing[0];
-    const rowStep = effectiveHeight + safeSpacing[1];
-
     const rowCount = Math.ceil(orderedMissing.length / cols);
+    const nodeSizeById = new Map<string, readonly [number, number]>(
+      orderedMissing.map((node) => [
+        node.id,
+        (node.size ?? DEFAULT_NODE_SIZE) as readonly [number, number],
+      ]),
+    );
+    const effectiveSizeById = new Map<string, readonly [number, number]>(
+      orderedMissing.map((node) => {
+        const [w, h] = nodeSizeById.get(node.id) ?? DEFAULT_NODE_SIZE;
+        return [node.id, [w + 2 * margin[0], h + 2 * margin[1]] as const];
+      }),
+    );
+
+    const rowHeights: number[] = [];
     const rowWidths: number[] = [];
     for (let r = 0; r < rowCount; r += 1) {
-      const nodesInRow = Math.min(cols, orderedMissing.length - r * cols);
-      rowWidths.push(nodesInRow * effectiveWidth + (nodesInRow - 1) * safeSpacing[0]);
+      const rowNodes = orderedMissing.slice(r * cols, (r + 1) * cols);
+      const rowEffectiveWidths = rowNodes.map((n) => (effectiveSizeById.get(n.id) ?? DEFAULT_NODE_SIZE)[0]);
+      const rowEffectiveHeights = rowNodes.map((n) => (effectiveSizeById.get(n.id) ?? DEFAULT_NODE_SIZE)[1]);
+      const rowWidth = rowEffectiveWidths.reduce((sum, w) => sum + w, 0) +
+        Math.max(0, rowNodes.length - 1) * safeSpacing[0];
+      const rowHeight = rowEffectiveHeights.length > 0 ? Math.max(...rowEffectiveHeights) : 0;
+      rowWidths.push(rowWidth);
+      rowHeights.push(rowHeight);
     }
-    const widestRowWidth = rowWidths.length > 0 ? Math.max(...rowWidths) : effectiveWidth;
+
+    const widestRowWidth = rowWidths.length > 0 ? Math.max(...rowWidths) : 0;
+    const rowCenterY: number[] = [];
+    for (let r = 0; r < rowCount; r += 1) {
+      if (r === 0) {
+        rowCenterY.push(0);
+        continue;
+      }
+      const prevY = rowCenterY[r - 1] ?? 0;
+      const prevHeight = rowHeights[r - 1] ?? 0;
+      const currentHeight = rowHeights[r] ?? 0;
+      rowCenterY.push(prevY - (prevHeight / 2 + safeSpacing[1] + currentHeight / 2));
+    }
 
     orderedMissing.forEach((node, index) => {
       const col = index % cols;
       const row = Math.floor(index / cols);
-      const nodesInRow = Math.min(cols, orderedMissing.length - row * cols);
-      const rowWidth = nodesInRow * effectiveWidth + (nodesInRow - 1) * safeSpacing[0];
+      const rowNodes = orderedMissing.slice(row * cols, (row + 1) * cols);
+      const rowWidth = rowWidths[row] ?? 0;
 
       let rowOffset = 0;
       if (alignment === 'center') {
         rowOffset = (widestRowWidth - rowWidth) / 2;
       } else if (alignment === 'right') {
         rowOffset = widestRowWidth - rowWidth;
-      } else if (alignment === 'fill' && nodesInRow > 1) {
-        const fillStep = widestRowWidth / (nodesInRow - 1);
+      } else if (alignment === 'fill' && rowNodes.length > 1) {
+        const fillStep = widestRowWidth / (rowNodes.length - 1);
         const x = col * fillStep + rowOffset;
-        const y = -row * rowStep;
+        const y = rowCenterY[row] ?? 0;
         const z = node.position?.[2] ?? 0;
         positions.set(node.id, [x, y, z]);
         return;
       }
-      if (alignment === 'fill' && nodesInRow === 1) {
-        rowOffset = (widestRowWidth - effectiveWidth) / 2;
+      if (alignment === 'fill' && rowNodes.length === 1) {
+        rowOffset = (widestRowWidth - rowWidth) / 2;
+        const x = rowOffset + rowWidth / 2;
+        const y = rowCenterY[row] ?? 0;
+        const z = node.position?.[2] ?? 0;
+        positions.set(node.id, [x, y, z]);
+        return;
       }
 
-      const x = rowOffset + col * colStep;
-      const y = -row * rowStep;
+      let x = rowOffset;
+      for (let i = 0; i <= col; i += 1) {
+        const currentNode = rowNodes[i];
+        if (!currentNode) break;
+        const currentSize = effectiveSizeById.get(currentNode.id) ?? DEFAULT_NODE_SIZE;
+        if (i === 0) {
+          x += currentSize[0] / 2;
+        } else {
+          const prevNode = rowNodes[i - 1]!;
+          const prevSize = effectiveSizeById.get(prevNode.id) ?? DEFAULT_NODE_SIZE;
+          x += prevSize[0] / 2 + safeSpacing[0] + currentSize[0] / 2;
+        }
+      }
+      const y = rowCenterY[row] ?? 0;
       const z = node.position?.[2] ?? 0;
       positions.set(node.id, [x, y, z]);
     });
@@ -209,14 +247,14 @@ export function resolveLayout(
   const isPrimary = direction === 'left-right';
 
   const levelMaxPrimaryHalf = new Map<number, number>();
-  const levelMaxSecondaryDim = new Map<number, number>();
+  const levelSecondaryDimByNode = new Map<string, number>();
   nodes.forEach((node) => {
     const l = level.get(node.id) ?? 0;
     const [w, h] = node.size ?? DEFAULT_NODE_SIZE;
     const primaryHalf = isPrimary ? (w / 2 + margin[0]) : (h / 2 + margin[1]);
     const secondaryDim = isPrimary ? (h + 2 * margin[1]) : (w + 2 * margin[0]);
     levelMaxPrimaryHalf.set(l, Math.max(levelMaxPrimaryHalf.get(l) ?? 0, primaryHalf));
-    levelMaxSecondaryDim.set(l, Math.max(levelMaxSecondaryDim.get(l) ?? 0, secondaryDim));
+    levelSecondaryDimByNode.set(node.id, secondaryDim);
   });
 
   // levelCenterPrimary[l] is the center for all nodes at level l on the primary axis.
@@ -269,15 +307,21 @@ export function resolveLayout(
     }
   }
 
+  const getLevelSecondaryWidth = (
+    levelNodes: DiagramNodeDSL[],
+    secGap: number,
+  ): number => {
+    const dims = levelNodes.map((node) => levelSecondaryDimByNode.get(node.id) ?? DEFAULT_NODE_SIZE[isPrimary ? 1 : 0]);
+    return dims.reduce((sum, d) => sum + d, 0) + Math.max(0, levelNodes.length - 1) * secGap;
+  };
+
   const getWidestLevelWidth = (
     levelsMap: Map<number, DiagramNodeDSL[]>,
-    levelMaxSecDim: Map<number, number>,
     secGap: number,
   ): number => {
     let widest = 0;
-    levelsMap.forEach((lvlNodes, l) => {
-      const secDim = levelMaxSecDim.get(l) ?? 0;
-      const w = lvlNodes.length * secDim + (lvlNodes.length - 1) * secGap;
+    levelsMap.forEach((lvlNodes) => {
+      const w = getLevelSecondaryWidth(lvlNodes, secGap);
       if (w > widest) widest = w;
     });
     return widest;
@@ -285,15 +329,14 @@ export function resolveLayout(
 
   levels.forEach((levelNodes, l) => {
     const count = levelNodes.length;
-    const secDim = levelMaxSecondaryDim.get(l) ?? DEFAULT_NODE_SIZE[isPrimary ? 1 : 0];
     const secGap = isPrimary ? safeSpacing[1] : safeSpacing[0];
-    const totalSecWidth = count * secDim + (count - 1) * secGap;
-    const widestLevelWidth = getWidestLevelWidth(levels, levelMaxSecondaryDim, secGap);
+    const totalSecWidth = getLevelSecondaryWidth(levelNodes, secGap);
+    const widestLevelWidth = getWidestLevelWidth(levels, secGap);
 
     let levelAlignOffset = 0;
-    if (alignment === 'center') levelAlignOffset = -totalSecWidth / 2 + secDim / 2;
-    else if (alignment === 'left') levelAlignOffset = -widestLevelWidth / 2 + secDim / 2;
-    else if (alignment === 'right') levelAlignOffset = widestLevelWidth / 2 - totalSecWidth + secDim / 2;
+    if (alignment === 'center') levelAlignOffset = -totalSecWidth / 2;
+    else if (alignment === 'left') levelAlignOffset = -widestLevelWidth / 2;
+    else if (alignment === 'right') levelAlignOffset = widestLevelWidth / 2 - totalSecWidth;
 
     levelNodes.forEach((node, index) => {
       const primaryVal = levelCenterPrimary.get(l) ?? 0;
@@ -303,7 +346,20 @@ export function resolveLayout(
       } else if (alignment === 'fill' && count === 1) {
         secVal = 0;
       } else {
-        secVal = levelAlignOffset + index * (secDim + secGap);
+        const firstNode = levelNodes[0];
+        const firstDim = firstNode
+          ? (levelSecondaryDimByNode.get(firstNode.id) ?? DEFAULT_NODE_SIZE[isPrimary ? 1 : 0])
+          : 0;
+        if (index === 0) {
+          secVal = levelAlignOffset + firstDim / 2;
+        } else {
+          const prevNode = levelNodes[index - 1]!;
+          const prevDim = levelSecondaryDimByNode.get(prevNode.id) ?? DEFAULT_NODE_SIZE[isPrimary ? 1 : 0];
+          const currDim = levelSecondaryDimByNode.get(node.id) ?? DEFAULT_NODE_SIZE[isPrimary ? 1 : 0];
+          const prevNodePos = positions.get(prevNode.id);
+          const prevSecVal = prevNodePos ? (isPrimary ? prevNodePos[1] : prevNodePos[0]) : levelAlignOffset + firstDim / 2;
+          secVal = prevSecVal + prevDim / 2 + secGap + currDim / 2;
+        }
       }
       const z = node.position?.[2] ?? 0;
       const [x, y] = isPrimary ? [primaryVal, secVal] : [secVal, primaryVal];
@@ -425,8 +481,8 @@ function topologicalSortGroups(groups: ReadonlyArray<DiagramGroupDSL>): DiagramG
  *
  * Explicit positions are always preserved and never overwritten.
  * When every descendant of a group has an explicit position (allExplicit = true), the
- * group skips the auto-layout pass entirely; its absoluteCenter is used to pin the
- * synthetic block so parent layouts respect the author's manual coordinate choices.
+ * group skips the intra-group auto-layout pass and preserves local relative coordinates.
+ * Parent layouts still place the group block, so parent spacing/alignment is respected.
  */
 export function resolveLayoutWithGroups(
   nodes: ReadonlyArray<DiagramNodeDSL>,
@@ -496,8 +552,6 @@ export function resolveLayoutWithGroups(
       const groupLayout = groupLayouts.get(group.id) ?? rootLayout;
 
       // Build virtual layout nodes: direct members + synthetic child-group blocks.
-      // If a child group is all-explicit, pin its synthetic block at its absoluteCenter
-      // so the auto-layout for this group respects the explicit children's positions.
       const virtualNodes: DiagramNodeDSL[] = [...directMemberNodes];
       for (const childGroup of childGroups) {
         const childInfo = groupInfoMap.get(childGroup.id);
@@ -506,9 +560,6 @@ export function resolveLayoutWithGroups(
           id: groupNodeId(childGroup.id),
           label: groupNodeId(childGroup.id),
           size: [childInfo.size[0], childInfo.size[1]],
-          position: childInfo.allExplicit
-            ? [childInfo.absoluteCenter[0], childInfo.absoluteCenter[1], childInfo.absoluteCenter[2]]
-            : undefined,
         });
       }
 
@@ -611,8 +662,6 @@ export function resolveLayoutWithGroups(
   const topLevelLayoutNodeIds = new Set<string>();
 
   // Synthetic blocks for each top-level group.
-  // All-explicit groups are pinned to their absoluteCenter so the top-level layout
-  // does not relocate manually-positioned content.
   for (const group of topLevelGroups) {
     const info = groupInfoMap.get(group.id);
     if (!info) continue;
@@ -621,9 +670,6 @@ export function resolveLayoutWithGroups(
       id,
       label: id,
       size: [info.size[0], info.size[1]],
-      position: info.allExplicit
-        ? [info.absoluteCenter[0], info.absoluteCenter[1], info.absoluteCenter[2]]
-        : undefined,
     });
     topLevelLayoutNodeIds.add(id);
   }
@@ -726,9 +772,11 @@ export function resolveLayoutWithGroups(
 
   const finalPositions = new Map<string, readonly [number, number, number]>();
 
-  // 1. Explicit positions (highest priority — never overwritten).
+  // 1. Preserve explicit positions for ungrouped nodes only.
+  // Grouped explicit coordinates act as local positions; parent layout determines
+  // the group block placement and thus the final global positions.
   nodes.forEach((n) => {
-    if (n.position) finalPositions.set(n.id, n.position);
+    if (n.position && !allGroupedNodeIds.has(n.id)) finalPositions.set(n.id, n.position);
   });
 
   // 2. Top-level group descendants: translate local positions by group center.

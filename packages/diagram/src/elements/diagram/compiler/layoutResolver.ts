@@ -67,13 +67,14 @@ export function normalizeMargin(
 
 const DEFAULT_GROUP_PADDING_NORMALIZED: readonly [number, number, number, number] = [1.5, 1.5, 1.5, 1.5];
 const DEFAULT_TITLE_GAP = 1;
-const DEFAULT_SPACING: readonly [number, number] = [2, 2];
+const DEFAULT_GRID_SPACING: readonly [number, number] = [2, 2];
+const DEFAULT_HIERARCHICAL_SPACING: readonly [number, number] = [1.5, 1.5];
 const DEFAULT_MARGIN: readonly [number, number] = [0, 0];
 
 export const DEFAULT_RESOLVED_GRID: ResolvedGridLayout = {
   kind: 'grid',
   columns: 'auto',
-  spacing: DEFAULT_SPACING,
+  spacing: DEFAULT_GRID_SPACING,
   margin: DEFAULT_MARGIN,
   groupPadding: DEFAULT_GROUP_PADDING_NORMALIZED,
   titleGap: DEFAULT_TITLE_GAP,
@@ -84,7 +85,7 @@ export const DEFAULT_RESOLVED_GRID: ResolvedGridLayout = {
 export const DEFAULT_RESOLVED_HIERARCHICAL: ResolvedHierarchicalLayout = {
   kind: 'hierarchical',
   direction: 'top-down',
-  spacing: DEFAULT_SPACING,
+  spacing: DEFAULT_HIERARCHICAL_SPACING,
   margin: DEFAULT_MARGIN,
   groupPadding: DEFAULT_GROUP_PADDING_NORMALIZED,
   titleGap: DEFAULT_TITLE_GAP,

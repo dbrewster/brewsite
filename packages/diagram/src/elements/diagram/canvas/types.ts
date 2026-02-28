@@ -45,6 +45,8 @@ export interface DiagramCanvasState {
   readonly rotation: readonly [number, number, number];
   /** Canvas uniform scale. Default: 1 */
   readonly scale: number;
+  /** Optional default focus center (XY). Z is ignored for canvas-wide focus actions. */
+  readonly focusCenter?: readonly [number, number] | readonly [number, number, number];
   /** All child diagram states, in declaration order. */
   readonly diagrams: ReadonlyArray<DiagramState>;
   /** All cross-diagram pipe states. */
@@ -109,4 +111,6 @@ export interface DiagramCanvasDSL {
    * which live on the front Z+ face).
    */
   readonly pipeLanding?: PipeLandingAlgorithm;
+  /** Optional default focus center (XY). Z is ignored for canvas-wide focus actions. */
+  readonly focusCenter?: readonly [number, number] | readonly [number, number, number];
 }

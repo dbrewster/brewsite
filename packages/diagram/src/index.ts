@@ -57,6 +57,17 @@ export {
 } from './elements/diagram/compile';
 export { DiagramRenderer } from './elements/diagram/render';
 export { DiagramWidget } from './elements/diagram/widget';
+export {
+  DIAGRAM_FOCUS_REGION_EVENT,
+  getDiagramFocusRegion,
+  clearDiagramFocusRegion,
+} from './elements/diagram/focusRegion';
+export type {
+  DiagramFocusRegionKind,
+  DiagramFocusRegionState,
+} from './elements/diagram/focusRegion';
+export { useDiagramFocusRegion } from './elements/diagram/useDiagramFocusRegion';
+export type { UseDiagramFocusRegionOptions } from './elements/diagram/useDiagramFocusRegion';
 export type {
   FlowShape,
   AwsShape,

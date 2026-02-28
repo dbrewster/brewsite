@@ -121,6 +121,13 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     throw new Error(`Scene "${scene.id}" getFrame must return a JSX element or SceneFrame`);
   });
 
+  const sceneElementWidgetIds = new Set(widgetRegistry.getSceneElements().map((w) => w.widgetId));
+  const passthroughWidgetsByScene: Array<Record<string, unknown>> = snapshots.map((snapshot) =>
+    Object.fromEntries(
+      Object.entries(snapshot.widgets).filter(([widgetId]) => !sceneElementWidgetIds.has(widgetId)),
+    ),
+  );
+
   // ── Step 1.5: Allow widgets to merge snapshots for persistence ─────────────
   for (const widget of widgetRegistry.getSceneElements()) {
     if (!widget.mergeSnapshot) continue;
@@ -273,6 +280,23 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
         : makeDisabledDefault(widget.defaultState);
       const snapState = terminalSnap.widgets[widget.widgetId];
       terminalTick.state.widgets[widget.widgetId] = snapState ?? absentDefault;
+    }
+  }
+
+  // ── Step 4.5: Preserve non-widget scene-level specs across all frames ───────
+  // Examples: scene-level InputController DSL compiles to a widget-like state slot
+  // but is not an actual runtime widget in WidgetRegistry. Keep these states in
+  // tick.state.widgets so player/runtime layers can consume them.
+  for (const frame of frames) {
+    const isLast = frame.index === totalFrames - 1;
+    const blockIdx = isLast
+      ? snapshots.length - 1
+      : Math.min(Math.floor(frame.index / blockSize), numTransitions - 1);
+    const fromExtra = passthroughWidgetsByScene[blockIdx] ?? {};
+    const toExtra = passthroughWidgetsByScene[blockIdx + 1] ?? fromExtra;
+    const activeExtra = (isLast || frame.blockProgress < 0.5) ? fromExtra : toExtra;
+    for (const [widgetId, state] of Object.entries(activeExtra)) {
+      frame.state.widgets[widgetId] = state;
     }
   }
 

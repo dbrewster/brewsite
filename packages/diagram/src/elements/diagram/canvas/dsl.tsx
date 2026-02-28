@@ -35,6 +35,11 @@ export interface DiagramCanvasProps {
    * relative diagram X position — routes around front-face icons/labels).
    */
   pipeLanding?: PipeLandingAlgorithm;
+  /**
+   * Optional world-space center used when canvas focus action targets the full
+   * canvas (for example Cmd+click empty area).
+   */
+  focusCenter?: [number, number] | [number, number, number];
   children?: React.ReactNode;
 }
 

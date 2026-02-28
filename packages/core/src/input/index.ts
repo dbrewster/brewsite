@@ -11,6 +11,15 @@ export type {
   ModifierKey,
   InputNavigationHandler,
   MouseButton,
+  SceneInputControllerSpec,
+  InputControllerScope,
+  InputActionType,
+  InputActionSpec,
+  InputActionMap,
+  InputPointerMap,
+  InputWheelMap,
+  InputKeyMap,
 } from './types';
 
-export { InputController } from './InputController';
+export { InputController as SceneNavInputController } from './InputController';
+export { ActionInputController } from './ActionInputController';

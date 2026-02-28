@@ -17,6 +17,7 @@ import type { LabelPositioner } from './LabelPositioner';
 import type { AssetManifest } from '../elements/model/metadata';
 import type { SceneNavInputMap } from '../input/types';
 import type { CameraOverrideState } from '../elements/camera/types';
+import type { SceneInputControllerSpec } from '../input/types';
 
 export type UseSceneEngineOptions = {
   sceneGroup: SceneGroup;
@@ -60,6 +61,7 @@ export type UseSceneEngineResult = {
 
 const DEFAULT_PIXELS_PER_SCENE = 800;
 const DEFAULT_BLOCK_SIZE = 10;
+const INPUT_CONTROLLER_WIDGET_ID = '__input_controller';
 
 const makeInitialFrameState = (): EngineFrameState => ({
   tickIndex: -1,
@@ -94,6 +96,17 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   const viewportRef = useRef({ width: 1, height: 1 });
   const engineIdRef = useRef(Math.random().toString(36).slice(2, 7));
 
+  const setCameraOverrideInternal = useCallback((next: CameraOverrideState | null) => {
+    cameraOverrideRef.current = next;
+    const scene = sceneRef.current;
+    if (!scene) return;
+    if (next) {
+      scene.userData['__brewsite_camera_override'] = next;
+    } else {
+      delete (scene as unknown as { userData?: Record<string, unknown> })?.userData?.['__brewsite_camera_override'];
+    }
+  }, []);
+
   const blockSize = useMemo(
     () => Math.max(1, Math.round(options.framesPerTick ?? options.blockSize ?? DEFAULT_BLOCK_SIZE)),
     [options.framesPerTick, options.blockSize],
@@ -126,6 +139,136 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     return cameraWidget?.isWheelClaimedByInteraction?.() ?? false;
   }, [options.widgetRegistry]);
 
+  const resolveCurrentCameraTarget = useCallback((): [number, number, number] => {
+    const override = cameraOverrideRef.current;
+    if (override?.target) return override.target;
+
+    const tick = driverRef.current?.getCurrentTick();
+    const raw = tick?.state.widgets['camera'] as
+      | { descriptor?: { mode?: string; target?: [number, number, number] } }
+      | undefined;
+    const desc = raw?.descriptor;
+    if (desc?.mode === 'world' || desc?.mode === 'orbit') {
+      if (Array.isArray(desc.target) && desc.target.length === 3) {
+        return [desc.target[0], desc.target[1], desc.target[2]];
+      }
+    }
+    return [0, 0, 0];
+  }, []);
+
+  const handleCameraOrbit = useCallback((cameraId: string, dx: number, dy: number, speed: number) => {
+    if (cameraId !== 'camera') return;
+    const camera = cameraRef.current;
+    if (!camera) return;
+
+    const target = resolveCurrentCameraTarget();
+    const sourcePos = cameraOverrideRef.current?.position ?? [camera.position.x, camera.position.y, camera.position.z];
+    const vx = sourcePos[0] - target[0];
+    const vy = sourcePos[1] - target[1];
+    const vz = sourcePos[2] - target[2];
+    const radius = Math.max(0.001, Math.sqrt(vx * vx + vy * vy + vz * vz));
+    const azimuth = Math.atan2(vx, vz);
+    const polar = Math.asin(Math.max(-1, Math.min(1, vy / radius)));
+    const w = Math.max(1, viewportRef.current.width);
+    const h = Math.max(1, viewportRef.current.height);
+    const nextAz = azimuth - (dx / w) * Math.PI * 2 * speed;
+    const nextPol = Math.max(-1.4, Math.min(1.4, polar - (dy / h) * Math.PI * speed));
+    const cosPol = Math.cos(nextPol);
+    const next: CameraOverrideState = {
+      enabled: true,
+      target,
+      position: [
+        target[0] + radius * cosPol * Math.sin(nextAz),
+        target[1] + radius * Math.sin(nextPol),
+        target[2] + radius * cosPol * Math.cos(nextAz),
+      ],
+      up: [camera.up.x, camera.up.y, camera.up.z],
+      fov: camera.fov,
+      near: camera.near,
+      far: camera.far,
+    };
+    setCameraOverrideInternal(next);
+  }, [resolveCurrentCameraTarget, setCameraOverrideInternal]);
+
+  const handleCameraDolly = useCallback((cameraId: string, delta: number, speed: number) => {
+    if (cameraId !== 'camera') return;
+    const camera = cameraRef.current;
+    if (!camera) return;
+    const target = resolveCurrentCameraTarget();
+    const sourcePos = cameraOverrideRef.current?.position ?? [camera.position.x, camera.position.y, camera.position.z];
+    const vx = sourcePos[0] - target[0];
+    const vy = sourcePos[1] - target[1];
+    const vz = sourcePos[2] - target[2];
+    const radius = Math.max(0.001, Math.sqrt(vx * vx + vy * vy + vz * vz));
+    const unit = [vx / radius, vy / radius, vz / radius] as const;
+    const scale = 1 + (delta / 300) * speed;
+    const nextRadius = Math.max(2, Math.min(2000, radius * scale));
+    const next: CameraOverrideState = {
+      enabled: true,
+      target,
+      position: [
+        target[0] + unit[0] * nextRadius,
+        target[1] + unit[1] * nextRadius,
+        target[2] + unit[2] * nextRadius,
+      ],
+      up: [camera.up.x, camera.up.y, camera.up.z],
+      fov: camera.fov,
+      near: camera.near,
+      far: camera.far,
+    };
+    setCameraOverrideInternal(next);
+  }, [resolveCurrentCameraTarget, setCameraOverrideInternal]);
+
+  const handleCameraReset = useCallback((_cameraId: string) => {
+    setCameraOverrideInternal(null);
+  }, [setCameraOverrideInternal]);
+
+  const handleDiagramCanvasMove = useCallback((canvasId: string, dx: number, dy: number, speed: number) => {
+    const widget = options.widgetRegistry.get(canvasId) as
+      | { applyInputMove?: (dx: number, dy: number, dz?: number) => void }
+      | undefined;
+    widget?.applyInputMove?.(-dx, -dy, 0);
+    if (widget?.applyInputMove && speed !== 1) {
+      widget.applyInputMove(-dx * (speed - 1), -dy * (speed - 1), 0);
+    }
+  }, [options.widgetRegistry]);
+
+  const handleDiagramCanvasRotate = useCallback((canvasId: string, dx: number, dy: number, speed: number) => {
+    const widget = options.widgetRegistry.get(canvasId) as
+      | { applyInputRotate?: (rx: number, ry: number, rz?: number) => void }
+      | undefined;
+    const scaledX = dx * 0.005 * speed;
+    const scaledY = dy * 0.005 * speed;
+    widget?.applyInputRotate?.(-scaledY, 0, -scaledX);
+  }, [options.widgetRegistry]);
+
+  const handleDiagramCanvasReset = useCallback((canvasId: string) => {
+    const widget = options.widgetRegistry.get(canvasId) as
+      | { resetInputTransform?: () => void }
+      | undefined;
+    widget?.resetInputTransform?.();
+  }, [options.widgetRegistry]);
+
+  const handleDiagramCanvasFocus = useCallback((
+    canvasId: string,
+    clientX: number,
+    clientY: number,
+    focusCenter?: [number, number] | [number, number, number],
+  ) => {
+    const widget = options.widgetRegistry.get(canvasId) as
+      | { applyInputFocus?: (
+        clientX: number,
+        clientY: number,
+        focusCenter?: [number, number] | [number, number, number],
+      ) => void }
+      | undefined;
+    widget?.applyInputFocus?.(clientX, clientY, focusCenter);
+  }, [options.widgetRegistry]);
+
+  const inputControllerSpec = frameState.tick
+    ? (frameState.tick.state.widgets[INPUT_CONTROLLER_WIDGET_ID] as SceneInputControllerSpec | undefined) ?? null
+    : null;
+
   const { progress, scrollToProgress, getGlobalProgress } = useEngineInput({
     scrollRegionRef,
     scrollRegionHeightPx,
@@ -133,6 +276,14 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     canvasRef: canvasElementRef,
     inputMap: options.inputMap,
     wheelGuard,
+    inputControllerSpec,
+    onCameraOrbit: handleCameraOrbit,
+    onCameraDolly: handleCameraDolly,
+    onCameraReset: handleCameraReset,
+    onDiagramCanvasMove: handleDiagramCanvasMove,
+    onDiagramCanvasRotate: handleDiagramCanvasRotate,
+    onDiagramCanvasReset: handleDiagramCanvasReset,
+    onDiagramCanvasFocus: handleDiagramCanvasFocus,
   });
 
   useEffect(() => {
@@ -175,16 +326,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     }
   }, [options.labelPositioner]);
 
-  const setCameraOverride = useCallback((next: CameraOverrideState | null) => {
-    cameraOverrideRef.current = next;
-    const scene = sceneRef.current;
-    if (!scene) return;
-    if (next) {
-      scene.userData['__brewsite_camera_override'] = next;
-    } else {
-      delete (scene as unknown as { userData?: Record<string, unknown> })?.userData?.['__brewsite_camera_override'];
-    }
-  }, []);
+  const setCameraOverride = setCameraOverrideInternal;
 
   const getCameraOverride = useCallback(() => cameraOverrideRef.current, []);
 
@@ -246,8 +388,11 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     debugLog('driver:init:start');
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
+    const initialViewport = viewportRef.current;
+    const initialAspect = initialViewport.width / Math.max(1, initialViewport.height);
+    const camera = new THREE.PerspectiveCamera(45, initialAspect, 0.1, 2000);
     camera.position.set(0, 0, 100);
+    camera.updateProjectionMatrix();
     scene.userData['__brewsite_camera'] = camera;
     scene.userData['__brewsite_renderer'] = rendererRef.current;
     if (cameraOverrideRef.current) {

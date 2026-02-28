@@ -15,6 +15,11 @@ import { DiagramCanvasRenderer } from './render';
 import type { DiagramCanvasState } from './types';
 import type { DiagramInteractionEvent, DiagramNodeState } from '../types';
 import { rotateXYZ } from './compiler/pipeRouter';
+import {
+  clearDiagramFocusRegion,
+  publishDiagramFocusCanvas,
+  publishDiagramFocusGroup,
+} from '../focusRegion';
 
 const CAMERA_KEY = '__brewsite_camera';
 const CAMERA_FOCUS_KEY = '__brewsite_camera_focus';
@@ -44,6 +49,8 @@ export class DiagramCanvasWidget
   private clickHandler: ((e: MouseEvent) => void) | null = null;
   private readonly raycaster = new THREE.Raycaster();
   private readonly ndc = new THREE.Vector2();
+  private inputTranslation: [number, number, number] = [0, 0, 0];
+  private inputRotation: [number, number, number] = [0, 0, 0];
 
   constructor(widgetId: string, defaultState: DiagramCanvasState) {
     this.widgetId = widgetId;
@@ -131,8 +138,21 @@ export class DiagramCanvasWidget
 
   apply(state: DiagramCanvasState, _ctx: WidgetRenderContext): void {
     if (!this.scene) return;
-    this.lastState = state;
-    this.renderer.update(state, this.scene);
+    const effectiveState: DiagramCanvasState = {
+      ...state,
+      position: [
+        state.position[0] + this.inputTranslation[0],
+        state.position[1] + this.inputTranslation[1],
+        state.position[2] + this.inputTranslation[2],
+      ],
+      rotation: [
+        state.rotation[0] + this.inputRotation[0],
+        state.rotation[1] + this.inputRotation[1],
+        state.rotation[2] + this.inputRotation[2],
+      ],
+    };
+    this.lastState = effectiveState;
+    this.renderer.update(effectiveState, this.scene);
   }
 
   /**
@@ -187,6 +207,82 @@ export class DiagramCanvasWidget
     this.renderer.dispose(this.widgetId, this.scene);
     this.scene = null;
     this.lastState = null;
+    this.inputTranslation = [0, 0, 0];
+    this.inputRotation = [0, 0, 0];
+    clearDiagramFocusRegion(this.widgetId);
+  }
+
+  applyInputMove(dx: number, dy: number, dz: number = 0): void {
+    this.inputTranslation = [
+      this.inputTranslation[0] + dx * 0.03,
+      this.inputTranslation[1] + dy * 0.03,
+      this.inputTranslation[2] + dz * 0.03,
+    ];
+  }
+
+  applyInputRotate(rx: number, ry: number, rz: number = 0): void {
+    this.inputRotation = [
+      this.inputRotation[0] + rx,
+      this.inputRotation[1] + ry,
+      this.inputRotation[2] + rz,
+    ];
+  }
+
+  resetInputTransform(): void {
+    this.inputTranslation = [0, 0, 0];
+    this.inputRotation = [0, 0, 0];
+  }
+
+  applyInputFocus(
+    clientX: number,
+    clientY: number,
+    focusCenter?: [number, number] | [number, number, number] | readonly [number, number] | readonly [number, number, number],
+  ): void {
+    if (!this.scene || !this.canvasElement) return;
+    const requestedCenter = focusCenter ?? this.lastState?.focusCenter ?? this.defaultState.focusCenter;
+    if (requestedCenter) {
+      const cam = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
+      if (!cam) return;
+      this.focusAll(cam, requestedCenter);
+      return;
+    }
+
+    const rect = this.canvasElement.getBoundingClientRect();
+    this.ndc.set(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    const cam = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
+    if (!cam) return;
+    this.raycaster.setFromCamera(this.ndc, cam);
+
+    const groupHits = this.raycaster.intersectObjects(
+      Array.from(this.renderer.getGroupInteractionMeshes()),
+      false,
+    );
+    if (groupHits.length > 0) {
+      const pickSmallest = (hits: THREE.Intersection[]): THREE.Intersection => {
+        let best = hits[0]!;
+        let bestArea = Infinity;
+        const box = new THREE.Box3();
+        const size = new THREE.Vector3();
+        for (const h of hits) {
+          box.setFromObject(h.object);
+          box.getSize(size);
+          const area = size.x * size.y;
+          if (!Number.isFinite(area)) continue;
+          if (area < bestArea) {
+            bestArea = area;
+            best = h;
+          }
+        }
+        return best;
+      };
+      const hit = pickSmallest(groupHits);
+      this.focusMesh(hit.object, cam);
+      return;
+    }
+    this.focusAll(cam, focusCenter);
   }
 
   private handleClick(event: MouseEvent): void {
@@ -200,36 +296,7 @@ export class DiagramCanvasWidget
     if (!cam) return;
     this.raycaster.setFromCamera(this.ndc, cam);
 
-    if (event.metaKey) {
-      const groupHits = this.raycaster.intersectObjects(
-        Array.from(this.renderer.getGroupInteractionMeshes()),
-        false,
-      );
-      if (groupHits.length > 0) {
-        const pickSmallest = (hits: THREE.Intersection[]): THREE.Intersection => {
-          let best = hits[0]!;
-          let bestArea = Infinity;
-          const box = new THREE.Box3();
-          const size = new THREE.Vector3();
-          for (const h of hits) {
-            box.setFromObject(h.object);
-            box.getSize(size);
-            const area = size.x * size.y;
-            if (!Number.isFinite(area)) continue;
-            if (area < bestArea) {
-              bestArea = area;
-              best = h;
-            }
-          }
-          return best;
-        };
-        const hit = pickSmallest(groupHits);
-        this.focusMesh(hit.object, cam);
-        return;
-      }
-      this.focusAll(cam);
-      return;
-    }
+    if (event.metaKey) return;
 
     if (!this.onInteraction) return;
     const intersects = this.raycaster.intersectObjects(
@@ -276,9 +343,16 @@ export class DiagramCanvasWidget
       target: [center.x, center.y, center.z],
       smooth: true,
     };
+    const info = this.renderer.lookupGroupInteraction(mesh as THREE.Mesh);
+    if (info) {
+      publishDiagramFocusGroup(this.defaultState, info.diagramId, info.groupId);
+    }
   }
 
-  private focusAll(cam: THREE.PerspectiveCamera): void {
+  private focusAll(
+    cam: THREE.PerspectiveCamera,
+    focusCenter?: [number, number] | [number, number, number] | readonly [number, number] | readonly [number, number, number],
+  ): void {
     if (!this.scene || !this.lastState) return;
     const state = this.lastState;
     const [crx, cry, crz] = state.rotation;
@@ -321,10 +395,16 @@ export class DiagramCanvasWidget
 
     if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(minZ)) return;
 
+    // Focus center priority:
+    // 1) per-action focusCenter override
+    // 2) canvas authored focusCenter
+    // 3) authored canvas position
+    const centerSource = focusCenter ?? this.lastState.focusCenter ?? this.defaultState.focusCenter ?? this.defaultState.position;
+    const centerZ = this.lastState.position[2];
     const center = new THREE.Vector3(
-      (minX + maxX) / 2,
-      (minY + maxY) / 2,
-      (minZ + maxZ) / 2,
+      centerSource[0],
+      centerSource[1],
+      centerZ,
     );
     const width = Math.max(0.001, maxX - minX);
     const height = Math.max(0.001, maxY - minY);
@@ -343,5 +423,6 @@ export class DiagramCanvasWidget
       target: [center.x, center.y, center.z],
       smooth: true,
     };
+    publishDiagramFocusCanvas(this.defaultState);
   }
 }
