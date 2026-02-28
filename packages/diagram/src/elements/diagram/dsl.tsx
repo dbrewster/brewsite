@@ -47,6 +47,8 @@ export interface DiagramNodeProps {
    * flow:*, ui:*, tech:*, security:*, data:*, net:*, aws:*, gcp:*, azure:*, custom:*.
    * `custom:*` values are reserved for custom resolver integrations and resolve
    * to no icon by default unless your runtime provides a mapping.
+   * To support `custom:my-icon`, add a resolver mapping (for example in
+   * `resolveIconUrl`) from that token to a public SVG URL.
    * If omitted, no icon is rendered regardless of shape.
    */
   icon?: DiagramIconVariant;

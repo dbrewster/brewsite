@@ -4,12 +4,10 @@ import { BrowserRouter } from 'react-router';
 import App from './App';
 import './style.css';
 
-const root = document.getElementById('root');
-if (!root) {
-  throw new Error('Missing #root element');
-}
+const rootEl = document.getElementById('root');
+if (!rootEl) throw new Error('No #root element');
 
-createRoot(root).render(
+createRoot(rootEl).render(
   <StrictMode>
     <BrowserRouter>
       <App />

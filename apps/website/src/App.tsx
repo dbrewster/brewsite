@@ -1,11 +1,11 @@
-import {JSX} from 'react';
-import {Routes} from 'react-router';
+import type { JSX } from 'react';
+import { Route, Routes } from 'react-router';
+import LandingPage from './landing/LandingPage';
 
 export default function App(): JSX.Element {
   return (
-    <div className="app-shell">
-      <Routes>
-      </Routes>
-    </div>
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+    </Routes>
   );
 }

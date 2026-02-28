@@ -1079,25 +1079,24 @@ Light-theme demos use:
 <Background color="#f0f0f8" />
 ```
 
-### 6.4 Handling `DiagramWidget` Constructor Arguments
+### 6.4 `DiagramWidget` Constructor — Confirmed Signature
 
-The `DiagramWidget` constructor signature must be verified against the source. The expected pattern based on the index.ts export:
-
-```typescript
-// Likely constructor signature (verify against packages/diagram/src/elements/diagram/widget.ts)
-new DiagramWidget(widgetId: string)
-```
-
-If the constructor requires additional arguments (theme, renderer config), wrap in a factory:
+All four widget constructors are confirmed (from source `packages/diagram/src/elements/*/widget.ts`):
 
 ```typescript
-const createDiagramRegistry = () => {
-  const registry = createDefaultWidgetRegistry(null);
-  const diagramWidget = new DiagramWidget('diagram');  // or with options
-  registry.register(diagramWidget);
-  return registry;
-};
+new DiagramWidget(widgetId: string, defaultState: DiagramState)
+new DiagramCanvasWidget(widgetId: string, defaultState: DiagramCanvasState)
+new ImagePanelWidget(widgetId: string, defaultState: ImagePanelState)
+new ScreenWidget(widgetId: string, defaultState: ScreenState)
 ```
+
+The `defaultState` is produced by the corresponding compile function:
+- `compileDiagram({ id, layout, nodes, edges, groups })` → `DiagramState`
+- `compileCanvas({ id }, pipes, groups)` → `DiagramCanvasState`
+- `compileImagePanel({ id, src, position, width, ... })` → `ImagePanelState`
+- `compileScreen({ id, src, position, width, height, ... })` → `ScreenState`
+
+The `diagramDemoSetup.ts` helper in Section 3.1 shows the complete pattern for creating all widget instances. All demos MUST use the DSL authoring surface (`<Diagram>`, `<DiagramCanvas>`, etc.) — never expose the widget constructor or compile functions directly in the documented code examples.
 
 ---
 

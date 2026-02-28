@@ -4,18 +4,22 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "vite",
+    "build": "tsc -b tsconfig.json && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b tsconfig.json",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
-    "gen:scene-dsl": "node ../../scripts/gen-scene-dsl.mjs --input siteResources.ts --out-dir generated --asset-root public --manifest-out public/scene-manifest.json"
+    "gen:scene-dsl": "node ../../scripts/gen-scene-dsl.mjs --input ../website/siteResources.ts --out-dir src/generated --asset-root public --manifest-out public/scene-manifest.json"
   },
   "dependencies": {
     "@brewsite/core": "workspace:*",
     "@brewsite/diagram": "workspace:*",
+    "animejs": "^3.2.2",
     "fflate": "^0.8.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
+    "react-router": "^7.0.0",
     "three": "^0.169.0"
   },
   "devDependencies": {

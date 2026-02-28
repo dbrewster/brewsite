@@ -11,7 +11,7 @@ export default defineConfig({
       fileName: 'index',
     },
     rollupOptions: {
-      external: ['react', 'react-dom', 'three', 'react-router'],
+      external: ['react', 'react-dom', 'three', 'react-router', 'animejs'],
       output: {
         preserveModules: true,
         preserveModulesRoot: 'src',

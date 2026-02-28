@@ -346,7 +346,7 @@ apps/docs/src/
 
 ## 4. Entry Points
 
-### 3.1 `apps/docs/index.html` (final)
+### 2.8 `apps/docs/index.html` (final)
 
 ```html
 <!doctype html>

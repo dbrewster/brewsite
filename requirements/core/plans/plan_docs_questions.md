@@ -1,278 +1,206 @@
 ---
-title: "Documentation Site — Open Questions"
+title: "Documentation Site — Design Decisions"
 doc_type: plan
-status: draft
+status: active
 owner: brewsite-product-manager
 last_updated: 2026-02-28
 change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
-    summary: "Initial questions document created. Captures all design decisions, product choices, and technical uncertainties that surfaced during documentation planning. Organized by priority — resolve highest-priority items before implementation begins."
+    summary: "Initial questions document created. Captured all open design decisions and technical uncertainties surfaced during documentation planning."
+  - date: 2026-02-28
+    author: "Toolkit Product"
+    summary: "All questions resolved via stakeholder input. Converted from open-questions format to decisions record. Each decision is final and incorporated into plan_docs_core.md and plan_docs_diagram.md."
 ---
 
-# Documentation Site — Open Questions
+# Documentation Site — Resolved Design Decisions
 
-This document captures all open questions that arose during documentation planning. They are grouped by topic and roughly ordered from highest to lowest priority. Resolve the **Priority 1** items before implementation begins. Priority 2 and 3 items can be decided during implementation.
-
----
-
-## Priority 1 — Must Resolve Before Implementation
-
----
-
-### Q1: Where does the docs site live — `apps/docs` (new) or `apps/website` (existing)?
-
-**Context**: `apps/website` already exists as a stub with an essentially empty `App.tsx` (just a `<Routes>` shell with no routes). It has the correct dependencies (`@brewsite/core`, `@brewsite/diagram`, React, Three.js) and a `vite.config.ts` with the correct source aliases.
-
-The two plans assume a new `apps/docs/` workspace. But there's a strong argument for using the existing `apps/website` since:
-1. It already has the right setup
-2. The intent seems to be that this website serves the docs
-3. Avoids a new workspace with redundant toolchain config
-
-**Options**:
-- **A** (recommended): Use `apps/website` for docs. Rename mentally, keep the `@brewsite/website` package name, and build the docs app into it. The plans' `apps/docs/` path becomes `apps/website/`. All other implementation detail stays the same.
-- **B**: Create `apps/docs/` as a new separate workspace. Keep `apps/website` as a future "marketing landing page" app.
-- **C**: Create `apps/docs/` for docs and fold into `apps/website` later.
-
-**Impact**: High — all file paths in the plans change if option A is chosen.
+All design decisions for the BrewSite documentation site have been resolved. This document is the authoritative record of each decision and its rationale. Refer to `plan_docs_core.md` and `plan_docs_diagram.md` for the full implementation details.
 
 ---
 
-### Q2: Should model-dependent doc pages have live demos or code-only?
+## D1: Location — `apps/docs` (new workspace)
 
-**Context**: `@brewsite/core`'s Model element page (and Labels, which depends on model bones) cannot show a live 3D widget without a GLTF model file. The plans currently call for code-only on these pages, with notes pointing users to the examples app for live model demos.
+**Decision**: Create `apps/docs/` as a new, isolated Vite workspace in the monorepo.
 
-**Options**:
-- **A** (plans assume this): Code-only for model-dependent pages. Show syntax-highlighted code; link to `apps/examples/` for live experience. Keep docs app asset-free.
-- **B**: Include a minimal sample GLTF (< 50KB, procedural cube or capsule) in `apps/docs/public/assets/` to enable a live model demo. This requires generating or sourcing the asset.
-- **C**: Use a remotely hosted sample GLB (e.g., Three.js's default box.glb). Requires network access in docs.
+**Rationale**: Building in isolation avoids coupling to `apps/website` (which is being developed in parallel). The two apps can be integrated later. This keeps the docs dependency graph clean and the build fully independent.
 
-**Impact**: Medium — affects the Model, Labels, and Contained Model doc pages. Option A is the lowest-friction path.
+**Impact on plans**: All file paths in both plans use `apps/docs/` prefix.
 
 ---
 
-### Q3: What base URL/path will the docs be served from?
+## D2: Model Assets — MaleDummy with ChatRelaxM and StandingChatM
 
-**Context**: Vite's `base` option in `vite.config.ts` must be set correctly for all asset paths to work on the deployment host.
+**Decision**: Include live model demos using `motion-dummy_male.no-normals.glb` with two animation clips:
+- `ChatRelaxM` — relaxed idle standing (base/default state)
+- `StandingChatM` — subtle upper-body movement (active/scene-2 state)
 
-**Options**:
-- `'/'` — docs are served from the root of a dedicated domain (e.g., `docs.brewsite.dev`)
-- `'/docs/'` — docs live under a subdirectory of the main site (e.g., `brewsite.dev/docs/`)
-- `'/brewsite/'` — GitHub Pages default subdirectory (e.g., `your-org.github.io/brewsite/`)
+**Rationale**: These are the simplest, most neutral animations available — short, clean, loopable, and gender-neutral enough for generic documentation. Using a real model makes the model-element docs significantly more useful than code-only examples.
 
-**Impact**: Must be set in `vite.config.ts` before building. Can be an environment variable so different deployments can use different paths.
-
----
-
-### Q4: Who owns the `apps/website` package today, and is it in active use?
-
-**Context**: `apps/website` has a nearly empty `App.tsx` with only the React Router `<Routes>` shell. It has a `siteResources.ts` suggesting it may have had or planned scene-based content. It has a `src/landing/` directory not yet explored.
-
-**If the website has planned content**: The docs should be a section of it (e.g., `/docs/*` routes within the website app). This affects the sidebar layout — it needs to coexist with other routes.
-
-**If the website is a stub placeholder**: We can freely repurpose it as the docs app.
+**Asset strategy**:
+- Dev: served from `apps/examples/public` via `vite server.fs.allow`
+- Build: `scripts/copy-demo-assets.mjs` copies the three files to `apps/docs/public/assets/`
+- Manifest: generated by `gen:scene-dsl` from `apps/docs/siteResources.ts`
 
 ---
 
-### Q5: Does the `DiagramWidget` constructor require a `theme` argument?
+## D3: Base URL — `/docs/`
 
-**Context**: The `diagramDemoSetup.ts` file in the diagram plan calls `new DiagramWidget('diagram')`. The actual constructor signature for `DiagramWidget`, `DiagramCanvasWidget`, `ImagePanelWidget`, and `ScreenWidget` was not verified against source during planning (source verification was deferred to implementation).
+**Decision**: Default Vite `base` is `/docs/`. Overridable at build time via `DOCS_BASE_PATH` environment variable.
 
-**Resolution required before demo files are written**: Read `packages/diagram/src/elements/diagram/widget.ts`, `canvas/widget.ts`, `image-panel/widget.ts`, and `screen/widget.ts` to determine:
-1. Exact constructor parameter list for each
-2. Whether a theme/registry/options object is required
-3. Whether widgetId is a constructor arg or a class property
-
-**Impact**: Medium — affects all four diagram demo setup functions.
+**Rationale**: The docs will live at `brewsite.dev/docs/` or equivalent subdirectory. The `/docs/` default covers this without requiring CI configuration changes for the standard deployment.
 
 ---
 
-## Priority 2 — Decide During Implementation Phase 1
+## D4: `apps/website` Relationship — Build Docs as Separate App
+
+**Decision**: `apps/website` is not in active use. Build docs as a fully separate `apps/docs` app. Integration with `apps/website` is deferred and not a consideration for v1.
 
 ---
 
-### Q6: Should there be a search bar?
+## D5: Diagram Widget Constructors — Verified Against Source
 
-**Context**: Developer documentation without search is frustrating once the content grows beyond ~20 pages. The plans explicitly exclude search in v1.
+**Decision**: All four diagram widget constructors require `(widgetId: string, defaultState: T)`. The `defaultState` is produced by the corresponding `compile*` function. All demos use DSL-only code in documented examples — widget constructors and compile functions are infrastructure, not exposed in code snippets shown to readers.
 
-**Options**:
-- **A** (planned): No search in v1. Add in v2 after content settles.
-- **B**: Add Algolia DocSearch (free for open source docs). Requires an Algolia account and a crawler config.
-- **C**: Add client-side search using `flexsearch` or `fuse.js` with an index built at build time.
-
-**Recommendation**: Start with option A. Add Algolia in v2 if usage analytics show search frustration.
-
----
-
-### Q7: Should demos auto-play when scrolled into view?
-
-**Context**: The `DemoScene` component has an auto-play toggle. But the default behavior (autoplay off) means the first time a user sees a demo, it's frozen at scene 1.
-
-**Options**:
-- **A** (planned): Auto-play is a toggle the user enables. Default off.
-- **B**: Demos auto-play when their container scrolls into the viewport (using `IntersectionObserver`). Looping.
-- **C**: Demos auto-play always, looping continuously.
-
-**Recommendation**: Option B — auto-play on scroll-into-view feels polished and demonstrates the product without requiring user interaction. Easy to implement with `IntersectionObserver`.
+**Confirmed signatures** (from `packages/diagram/src/elements/*/widget.ts`):
+```typescript
+new DiagramWidget(widgetId, compileDiagram({ id, layout, nodes, edges, groups }))
+new DiagramCanvasWidget(widgetId, compileCanvas({ id }, pipes, groups))
+new ImagePanelWidget(widgetId, compileImagePanel({ id, src, ... }))
+new ScreenWidget(widgetId, compileScreen({ id, src, ... }))
+```
 
 ---
 
-### Q8: Dark mode only or light/dark toggle?
+## D6: Search — None in v1
 
-**Context**: The plans specify dark-mode-only. Most developer tools and docs (Tailwind, Next.js, Three.js) are dark-mode.
+**Decision**: No search functionality in v1.
 
-**Options**:
-- **A** (planned): Dark mode only. Fixed palette.
-- **B**: System preference (`prefers-color-scheme`) — dark or light based on OS setting.
-- **C**: Toggle button to switch.
-
-**Recommendation**: Start with dark-mode only (option A). The diagram demos especially look better on dark backgrounds, and the `lightMinimalTheme` demo would look odd on a light docs page.
+**Rationale**: Adds significant complexity with limited ROI until the content base and user volume are established. Add in v2 after usage patterns are understood. Algolia DocSearch (free for open source) is the preferred approach for v2.
 
 ---
 
-### Q9: Should the docs site have analytics?
+## D7: Demo Auto-Play — On Scroll Into View, Respecting prefers-reduced-motion
 
-**Options**:
-- **A**: No analytics. Privacy-first, no third-party scripts.
-- **B**: Plausible Analytics (privacy-friendly, no cookies, simple script).
-- **C**: Google Analytics.
+**Decision**: Demos auto-play when they scroll into the browser viewport (via `IntersectionObserver` with `threshold: 0.4`). Auto-play is completely suppressed when `prefers-reduced-motion: reduce` is set in the user's system accessibility settings.
 
-**Recommendation**: Option B if any analytics are desired. Option A is the simplest to ship.
+**Rationale**: Auto-play on viewport entry provides an immediate visual impression without requiring user interaction. Accessibility-first suppression ensures no motion is forced on users who have requested reduced motion. The manual controls (prev, next, scrubber, play/pause toggle) remain available at all times.
 
 ---
 
-### Q10: Should API reference be hand-written or auto-generated from TypeScript?
+## D8: Theme — Light/Dark Toggle, System Default
 
-**Context**: The plans call for hand-written API reference pages. TypeDoc or a similar tool could auto-generate them from the TSDoc comments in source.
+**Decision**: Full light/dark theme toggle. Default follows `prefers-color-scheme`. Preference persisted in `localStorage`. Theme class applied to `<html>` element before React mounts (inline script in `index.html`) to prevent flash.
 
-**Options**:
-- **A** (planned): Hand-written API reference. More control, stays in sync manually.
-- **B**: TypeDoc-generated API site, linked from the hand-written docs. Two separate outputs.
-- **C**: TypeDoc integrated into the Vite docs app (using `typedoc-plugin-markdown` to produce MDX).
-
-**Recommendation**: Start with option A. The PRDs are already excellent API documentation. Hand-written reference pages that distill the PRD content are more readable than auto-generated TypeDoc output.
+**Implementation**: `ThemeToggle` component in `DocHeader`. Two CSS variable sets: default (dark) and `.theme-light` override class.
 
 ---
 
-### Q11: Should the docs have versioning (e.g., v0.4, v0.5)?
+## D9: Analytics — Google Analytics, .env-gated
 
-**Context**: `@brewsite/core` is at `0.4.2` and `@brewsite/diagram` at `0.1.0`. As these evolve, doc content will diverge from older published versions.
+**Decision**: Google Analytics 4. Only active in production builds where `VITE_GA_MEASUREMENT_ID` is set. Completely absent from dev builds and builds without the env var. `.env.template` documents the variable.
 
-**Options**:
-- **A**: Single version — always tracks the `main` branch HEAD. Simpler.
-- **B**: Versioned docs — each major/minor release gets a frozen snapshot. Requires a versioning system.
-
-**Recommendation**: Option A until the packages reach 1.0. After 1.0, evaluate option B.
+**Implementation**: Vite plugin (`inject-ga`) replaces `%VITE_GA_SCRIPT%` placeholder in `index.html` with the GA snippet if the measurement ID is set. No GA code exists in the React application itself — it's purely an `index.html` injection.
 
 ---
 
-### Q12: What should the favicon look like?
+## D10: API Reference — TypeDoc Auto-Generated
 
-The plans include a `favicon.svg` in `public/`. The BrewSite brand identity needs to be defined or provided.
+**Decision**: The API Reference page uses TypeDoc + `typedoc-plugin-markdown` to auto-generate type documentation from `packages/core/src/index.ts` TSDoc comments. The `gen:api` script runs as part of `prebuild`.
 
-**Resolution**: Provide a favicon SVG (the BrewSite logo or a simple "B" wordmark in accent blue). This is a design asset question, not a code question.
+**Rationale**: Auto-generation keeps the reference in exact sync with the source without manual maintenance. The hand-written concept/guide pages are more valuable for learning; the reference page is for lookup.
 
----
-
-## Priority 3 — Low Urgency, Can Decide After v1 Ships
+**Scope**: Covers `@brewsite/core` on the core API Reference page and `@brewsite/diagram` types on the diagram Type Reference page.
 
 ---
 
-### Q13: Should the `apps/examples` scenes be linked from the docs?
+## D11: Versioning — Single Version, Always Tracks Main
 
-**Context**: The examples app has rich, full-page scenes with real models. It's the best demonstration of what's possible. The docs could link to a deployed version of `apps/examples` for full-scene demos.
-
-**Question**: Is `apps/examples` deployed anywhere publicly? Should the docs reference it?
+**Decision**: No versioned docs in v1. The docs site always reflects the current `main` branch. Versioned docs will be evaluated when the packages reach 1.0.
 
 ---
 
-### Q14: Should there be a "Playground" page?
+## D12: Favicon — BrewSite Orange Gradient Wordmark
 
-A playground would let users edit scene DSL code directly in the browser and see the result. This is complex (requires browser-side TypeScript compilation or Monaco editor with a simplified setup).
+**Decision**: The favicon is a 32×32 SVG with a dark-orange-to-lighter-orange linear gradient background and a white "B" lettermark. Full color specification:
+- Stop 0%: `#c2410c` (dark orange)
+- Stop 50%: `#f97316` (brand orange)
+- Stop 100%: `#fb923c` (lighter orange)
 
-**Recommendation**: Defer to v3+. The live demos with copy-able code achieve most of the benefit with much less complexity.
-
----
-
-### Q15: How should the `apps/website/src/landing/` directory be handled?
-
-There's a `landing/` directory inside `apps/website/src/` that was not explored during planning. It may contain marketing landing page content that should coexist with the docs.
-
-**Resolution**: Read the landing directory contents and decide if they're active, stubbed, or deprecated. If active: integrate docs as a `/docs/*` subdirectory within the existing app. If stubbed/empty: repurpose the whole app as the docs site.
+The same gradient is used as the `DocHeader` logo text via CSS `background-clip: text`.
 
 ---
 
-### Q16: Should diagram demos use the HDR environment map from `packages/diagram/public/`?
+## D13: Links to `apps/examples` — No
 
-**Context**: `@brewsite/diagram` ships with an HDR environment map for rendering high-quality diagram materials. Docs demos would look better with it. But the env map file lives in `packages/diagram/public/assets/envmaps/` and would need to be accessible to the docs Vite dev server.
+**Decision**: The docs site does not link to a deployed `apps/examples` instance. The docs are self-contained with their own live demos.
 
-**Options**:
-- **A**: Configure docs Vite server to serve `packages/diagram/public/` as a static directory.
-- **B**: Copy the env map to `apps/docs/public/assets/envmaps/` (or `apps/website/public/`).
-- **C**: Skip the env map in docs demos — use a simpler lighting setup.
-
-**Recommendation**: Option C for v1. The demos look good without the HDR env map and it simplifies the asset setup. The env map can be added in v2.
+**Rationale**: `apps/examples` is not publicly deployed and has no stable URL to reference. The docs demos cover the primary use cases adequately.
 
 ---
 
-### Q17: Should diagram icon registry be populated for icon-shape node demos?
+## D14: Playground Page — Deferred
 
-**Context**: `DiagramNode` supports icon shapes from the Heroicons and cloud provider icon libraries. These are populated via the `sync:icons` script (`pnpm sync:icons`). The docs diagram demos would benefit from showing icon-shape nodes (AWS, GCP, Azure icons).
-
-**If populated**: Icon-shape demos become available. Requires running `pnpm sync:icons` as part of the docs build.
-
-**If not populated**: Demos use non-icon shapes only (pill, hex, circle, diamond, rectangle). Still works, but misses a compelling feature.
-
-**Recommendation**: Populate the icon registry in the docs build. Add `pnpm sync:icons` to the docs prebuild step in `turbo.json`. Then a small set of icon shapes (3–5 examples) can be used in the Nodes demo.
+**Decision**: No interactive code playground in v1. Deferred to v3+ due to complexity (requires browser-side TypeScript compilation or Monaco editor integration).
 
 ---
 
-### Q18: Should the `DiagramCanvas` focus-region demo require `EngineInputRegion`?
+## D15: `apps/website` Integration — Not in Scope for v1
 
-**Context**: The `DiagramFocusRegion` demo requires click events on diagram nodes to trigger `canvas.focus`. This needs `EngineInputRegion` wrapping the player, and `InputController` + `Action` DSL in the scene. This adds complexity to the demo component.
-
-**Question**: Is there a simpler way to show `useDiagramFocusRegion` without requiring the full `InputController` setup?
-
-**Resolution**: The focus region hook can be demonstrated with a programmatic trigger (a button that calls `getDiagramFocusRegion` / sets a node focus directly) as an alternative to the full click-to-focus interaction. Simpler for a docs demo.
+**Decision**: `apps/docs` is built as a standalone app with no dependency on `apps/website`. Integration is explicitly deferred.
 
 ---
 
-### Q19: Code style in docs examples — should it exactly match the project's conventions?
+## D16: Diagram HDR Environment Map — Yes, Configure in Vite
 
-**Context**: The project uses 2-space indentation, semicolons, and named exports. Code in the docs should match this for credibility. The plans' code samples already follow these conventions.
-
-**Question**: Should the `CodeBlock` components run Prettier formatting on the code before display, or rely on hand-written formatting?
-
-**Recommendation**: Hand-written. Running Prettier at runtime in the browser is overkill. The code examples are hand-crafted and reviewed as part of the docs PR process.
+**Decision**: The HDR env map from `packages/diagram/public/assets/envmaps/` is served during dev via `server.fs.allow` and copied during production build via `copy-demo-assets.mjs`. This enables `darkGlassTheme` and `neonCyberTheme` to render with proper reflections in demos.
 
 ---
 
-### Q20: Should the docs cover the `TimelineWidget` and `CameraControlPanel` debug tools?
+## D17: Icon Registry — Yes, Populate and Document
 
-**Context**: `@brewsite/core` exports `TimelineWidget` and `CameraControlPanel` — debug components that show scene timeline and camera position overlays. The current plans include these under the Player & Hooks section briefly.
+**Decision**: The `pnpm sync:icons` script is run to populate the diagram icon registry, enabling AWS/GCP/Azure/Heroicon shapes in demo nodes. The DiagramNodes doc page explains how to run the script and what it does.
 
-**Question**: Should these get their own doc pages with live demos showing the debug overlays in action?
-
-**Recommendation**: Include them as a subsection of the Player page, not separate pages. They are development/debugging tools, not primary authoring surface.
+**Documentation placement**: `DiagramSetup.tsx` has an "Icon Assets" section explaining the one-time setup. `DiagramNodes.tsx` has a full "Icon Variants" subsection with the run instructions.
 
 ---
 
-### Q21: Should the docs cover the `SceneInspector` component?
+## D18: DiagramFocus Demo Approach — Programmatic Trigger
 
-**Context**: `SceneInspector` is exported from `@brewsite/core`'s player. It's not mentioned in the PRDs examined during planning, suggesting it may be a recent or niche addition.
-
-**Resolution**: Verify what `SceneInspector` does by reading its source before deciding if it warrants documentation.
+**Decision**: The `DiagramFocusRegion` demo uses a programmatic button trigger (calls `getDiagramFocusRegion` / dispatches a focus event) rather than requiring the full `InputController` + `Action` click-to-focus setup. This simplifies the demo component while still demonstrating the hook and focus state behavior.
 
 ---
 
-## Summary Checklist
+## D19: Code Style — Matches Project Conventions
 
-Before implementation begins, confirm decisions on:
+**Decision**: All code examples in the docs follow the project's TypeScript conventions:
+- 2-space indentation
+- Semicolons
+- Named exports preferred
+- `camelCase` functions/variables, `PascalCase` components/types
 
-- [ ] **Q1**: `apps/website` vs new `apps/docs/`
-- [ ] **Q2**: Live model demos vs code-only
-- [ ] **Q3**: Base URL for deployment
-- [ ] **Q4**: State of `apps/website` — repurpose or separate?
-- [ ] **Q5**: Diagram widget constructor signatures (read source files)
+No Prettier runtime formatting. Examples are hand-crafted and reviewed as part of docs PRs.
 
-These five answers unblock Phase 1 (infrastructure) of implementation.
+---
+
+## D20: TimelineWidget — Documented; CameraControlPanel Excluded
+
+**Decision**: `TimelineWidget` is documented in the Player page under a "Debug Tools" subsection with a dev-only conditional rendering pattern. `CameraControlPanel` and `SceneInspector` are excluded from the docs — they are too niche for the core developer documentation.
+
+---
+
+## D21: SceneInspector — Not Documented
+
+**Decision**: `SceneInspector` is not documented in v1. Its purpose and API are unclear from the available PRDs, and it appears to be a development/debugging tool with niche applicability.
+
+---
+
+## Remaining Open Items (Post-v1)
+
+These are not blockers for implementation but should be addressed in v2:
+
+1. **Search**: Algolia DocSearch for open source. Add after v1 content settles.
+2. **Versioned docs**: Evaluate at v1.0 release of `@brewsite/core`.
+3. **Playground**: Monaco editor + browser TypeScript for v3+.
+4. **Mobile optimization**: 3D demos don't work on mobile; consider a static screenshot fallback for mobile viewport widths.
+5. **Internationalization**: Not in scope for v1. English only.

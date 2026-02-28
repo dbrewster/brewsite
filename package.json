@@ -5,11 +5,13 @@
   "packageManager": "pnpm@10.23.0",
   "scripts": {
     "build": "turbo build",
+    "build:docs": "turbo build --filter=@brewsite/docs",
     "build:lib": "turbo build:lib",
     "typecheck": "turbo typecheck",
     "test": "turbo test",
     "coverage": "turbo coverage",
     "dev": "turbo dev --filter=@brewsite/examples",
+    "dev:docs": "turbo dev --filter=@brewsite/docs",
     "dev:server": "turbo dev:server --filter=@brewsite/lucid-server",
     "gen:scene-dsl": "turbo gen:scene-dsl --filter=@brewsite/examples",
     "sync:icons": "node scripts/sync-icons.mjs",
@@ -17,6 +19,9 @@
     "publish:core-diagram": "node scripts/publish-core-diagram.mjs"
   },
   "devDependencies": {
+    "@babel/parser": "^7.28.4",
+    "@gltf-transform/core": "^4.2.1",
+    "@gltf-transform/extensions": "^4.2.1",
     "adm-zip": "^0.5.16",
     "heroicons": "^2.2.0",
     "hjson": "^3.2.2",

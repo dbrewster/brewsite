@@ -1,0 +1,33 @@
+{
+  "name": "@brewsite/docs",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "prebuild": "node scripts/copy-demo-assets.mjs && pnpm gen:scene-dsl",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "gen:scene-dsl": "node ../../scripts/gen-scene-dsl.mjs --input siteResources.ts --out-dir src/generated --asset-root public --manifest-out public/scene-manifest.json"
+  },
+  "dependencies": {
+    "@brewsite/core": "workspace:*",
+    "@brewsite/diagram": "workspace:*",
+    "prism-react-renderer": "^2.4.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-router": "^7.13.0",
+    "three": "^0.183.1"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.183.1",
+    "@vitejs/plugin-react": "^4.7.0",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.9"
+  }
+}

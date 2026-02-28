@@ -18,8 +18,8 @@ export interface ScreenProps {
   /**
    * World-space rotation in radians [x, y, z].
    * Keep near [0, 0, 0] — the iframe is a flat DOM rect and cannot tilt.
-   * Values above ~0.1 rad will visibly misalign the iframe with the bezel.
-   * compile.ts emits console.warn if |rotation[i]| > 0.1.
+   * Values above ~0.15 rad will visibly misalign the iframe with the bezel.
+   * compile.ts emits console.warn if |rotation[i]| > 0.15.
    * Default: [0, 0, 0]
    */
   rotation?: [number, number, number];

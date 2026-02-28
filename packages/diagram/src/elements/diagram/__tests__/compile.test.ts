@@ -65,13 +65,13 @@ describe('routeEdges', () => {
     expect(points.get('a-a-0')).toEqual([]);
   });
 
-  it('handles missing node IDs gracefully: logs warning, returns straight line', () => {
+  it('handles missing node IDs gracefully: logs warning, returns empty control points', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const positions = new Map([['a', [0, 0, 0] as const]]);
     const sizes = new Map([['a', [4, 2, 1] as const]]);
     const points = routeEdges([makeEdge('a', 'b')], positions, sizes).get('a-b-0')!;
     expect(warnSpy).toHaveBeenCalled();
-    expect(points.length).toBe(2);
+    expect(points).toEqual([]);
     warnSpy.mockRestore();
   });
 });

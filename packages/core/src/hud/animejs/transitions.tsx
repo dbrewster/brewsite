@@ -37,6 +37,7 @@ export type TransitionProps = {
  * Fades from opacity 0 → 1 across the full sceneProgress range.
  * This is the only phase-aware preset: when rendered in an exit-phase HudItem,
  * it auto-reverses and fades 1 → 0.
+ * Default duration: 600ms.
  *
  * @example
  * <HudItem id="label"><Fade><span>Caption</span></Fade></HudItem>
@@ -74,6 +75,7 @@ export const Fade = ({
  * Fades in during the first half of sceneProgress, holds at full opacity for the second half.
  * Replicates the mid-fade behaviour from the legacy annotation system.
  * Enter-only preset: does not auto-reverse during exit phase.
+ * Default duration: 1000ms.
  *
  * @example
  * <HudItem id="title"><MidFade><h2>Heading</h2></MidFade></HudItem>
@@ -108,6 +110,7 @@ export const MidFade = ({
  * Slides up from below and fades in across the full sceneProgress range.
  * Use `delay` to stagger multiple items in a scene.
  * Enter-only preset: does not auto-reverse during exit phase.
+ * Default duration: 600ms.
  *
  * @example
  * <HudItem id="line-1"><SlideUp>First</SlideUp></HudItem>
@@ -139,6 +142,7 @@ export const SlideUp = ({
 /**
  * Slides down from above and fades in across the full sceneProgress range.
  * Enter-only preset: does not auto-reverse during exit phase.
+ * Default duration: 600ms.
  *
  * @example
  * <HudItem id="nav"><SlideDown><nav>Menu</nav></SlideDown></HudItem>
@@ -169,6 +173,7 @@ export const SlideDown = ({
  * Enters during the first 35% of sceneProgress, holds for the remainder.
  * Good for content that should be fully visible early and stay stable.
  * Enter-only preset: does not auto-reverse during exit phase.
+ * Default duration: 1000ms.
  *
  * @example
  * <HudItem id="stat"><ScrollOn><strong>247</strong> customers</ScrollOn></HudItem>
@@ -202,7 +207,10 @@ export const ScrollOn = ({
 /**
  * Holds visible until the final 35% of sceneProgress, then exits upward.
  * Good for content that should remain visible while the user is scrolling away.
- * Enter-only preset: does not auto-reverse during exit phase.
+ * Exit-phase preset: starts visible and animates out by construction.
+ * Does not check useHudPhase() — pair with an enter preset (ScrollOn, SlideUp, etc.)
+ * on the corresponding enter-phase HudItem.
+ * Default duration: 1000ms.
  *
  * @example
  * <HudItem id="cta"><ScrollOff><button>Learn more</button></ScrollOff></HudItem>
