@@ -119,6 +119,8 @@ export function compileEdge(
     controlPoints,
     opacity: dsl.opacity ?? ed.opacity,
     routing: dsl.routing ?? ed.routing,
+    fromPort: dsl.fromPort,
+    toPort: dsl.toPort,
     flow: dsl.flow ?? ed.flow,
     flowColor: dsl.flowColor ?? theme.edge.defaultFlowColor,
   };

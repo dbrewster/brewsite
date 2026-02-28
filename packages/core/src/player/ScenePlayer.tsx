@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { Children, isValidElement, useEffect, useMemo, useState } from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import type { SceneGroup } from '../compiler/sceneTypes';
+import { Scene } from '../compiler/sceneDslCompiler';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import { VariableStoreContext } from '../widget/VariableStoreContext';
 import { useSceneEngine } from './useSceneEngine';
@@ -15,13 +15,20 @@ import { clipMetaFromManifest, assertManifestValid } from '../elements/model/met
 import type { AssetManifest } from '../elements/model/metadata';
 import { clearCache } from '../compiler/sceneTrackCache';
 import { SceneMetaWidget } from './SceneMetaWidget';
-import { clearRegistry } from '../compiler/registry';
 import type { SceneNavInputMap } from '../input/types';
 import { TimelineWidget } from './TimelineWidget';
 import type { TimelineWidgetProps } from './TimelineWidgetTypes';
+import { serializeJsx } from './serializeJsx';
+import { setSceneRuntimeState, unregisterSceneRuntime } from './ScenePlayerRegistry';
+
+export type InternalSceneSpec = {
+  readonly sceneKey: string;
+  readonly contentKey: string;
+  readonly element: ReactElement;
+};
 
 export type ScenePlayerProps = {
-  sceneGroup: SceneGroup;
+  id?: string;
   manifestUrl: string;
   widgetSetup: (manifest: AssetManifest | null) => WidgetRegistry;
   className?: string;
@@ -32,7 +39,6 @@ export type ScenePlayerProps = {
   onError?: (error: Error) => void;
   onSceneChange?: (sceneId: string, sceneIndex: number) => void;
   placeholder?: ReactNode;
-  children?: ReactNode;
   /** Input configuration for scene navigation. */
   inputMap?: SceneNavInputMap;
   /**
@@ -40,35 +46,57 @@ export type ScenePlayerProps = {
    * Pass `true` for defaults, or a `TimelineWidgetProps` subset to configure it.
    */
   timeline?: boolean | Omit<TimelineWidgetProps, 'engine' | 'scenes'>;
+  /**
+   * Scene content. Each direct child must be a <Scene key="..."> element.
+   * The key prop is required per scene; a warning is emitted and index used as fallback
+   * if omitted.
+   */
+  children: ReactNode;
 };
 
 export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
   const [manifest, setManifest] = useState<AssetManifest | null>(null);
   const [loadError, setLoadError] = useState<Error | null>(null);
-  const [hmrVersion, setHmrVersion] = useState(0);
 
-  useEffect(() => {
-    const hot = (import.meta as ImportMeta & { hot?: { on?: (event: string, cb: () => void) => void; off?: (event: string, cb: () => void) => void } }).hot;
-    if (!hot) return undefined;
-    const handler = () => {
-      const debug = (window as unknown as { __robotRuntimeDebug?: { forceReloadOnHmr?: boolean } }).__robotRuntimeDebug;
-      if (debug?.forceReloadOnHmr) {
-        window.location.reload();
-        return;
-      }
-      clearRegistry();
-      clearCache();
-      setHmrVersion((version) => version + 1);
-    };
-    if (typeof hot.on === 'function') {
-      hot.on('vite:beforeUpdate', handler);
+  const allChildren = Children.toArray(props.children);
+  const rawSceneElements = allChildren.filter(
+    (c): c is ReactElement => isValidElement(c) && (c as ReactElement).type === Scene,
+  ) as ReactElement[];
+
+  const nonSceneCount = allChildren.length - rawSceneElements.length;
+  if (nonSceneCount > 0) {
+    console.warn(
+      `[ScenePlayer] ${nonSceneCount} non-<Scene> child(ren) were passed and will be ignored. ` +
+      'ScenePlayer only processes direct <Scene key="..."> children. ' +
+      'For overlay UI, use the HUD system or place content outside ScenePlayer.',
+    );
+  }
+
+  const rawSpecs: InternalSceneSpec[] = rawSceneElements.map((el, i) => {
+    const key = el.key;
+    const keyString = key === null ? null : String(key);
+    const hasExplicitKey = keyString !== null && keyString.startsWith('.$');
+    if (!hasExplicitKey) {
+      console.warn(
+        `[ScenePlayer] <Scene> at index ${i} has no key prop. ` +
+        'Assign key="..." to each <Scene> for stable identity. ' +
+        `Falling back to index "${i}".`,
+      );
     }
-    return () => {
-      if (typeof hot.off === 'function') {
-        hot.off('vite:beforeUpdate', handler);
-      }
+    return {
+      sceneKey: hasExplicitKey ? keyString.slice(2) : String(i),
+      contentKey: serializeJsx(el),
+      element: el,
     };
-  }, []);
+  });
+
+  const sceneContentKey = rawSpecs.map((s) => s.contentKey).join('|||');
+
+  const scenes = useMemo(
+    () => rawSpecs,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sceneContentKey],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -109,7 +137,7 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
   const clipMeta = useMemo(() => (manifest ? clipMetaFromManifest(manifest) : []), [manifest]);
 
   const engine = useSceneEngine({
-    sceneGroup: props.sceneGroup,
+    scenes,
     widgetRegistry,
     clipMeta,
     manifest,
@@ -122,6 +150,25 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
     inputMap: props.inputMap,
   });
 
+  const assetsReady = engine.debug?.assetsReady ?? false;
+  const viewport = engine.debug?.viewport ?? { width: 1, height: 1 };
+
+  useEffect(() => {
+    const playerId = props.id;
+    if (!playerId) return undefined;
+    setSceneRuntimeState(playerId, {
+      assetsReady,
+      viewport: {
+        width: viewport.width,
+        height: viewport.height,
+        aspectRatio: viewport.width / Math.max(1, viewport.height),
+      },
+      variables: engine.variableStore,
+      numScenes: scenes.length,
+    });
+    return () => unregisterSceneRuntime(playerId);
+  }, [props.id, assetsReady, viewport.width, viewport.height, engine.variableStore, scenes.length]);
+
   const engineState = useMemo(() => ({
     progress: engine.progress,
     sceneId: engine.frameState.sceneId,
@@ -131,9 +178,6 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
 
   const labels = engine.frameState.tick?.labelPrimitives ?? [];
   const showPlaceholder = props.placeholder && engine.frameState.tickIndex < 0;
-  const debugOverlayEnabled =
-    typeof window !== 'undefined' &&
-    (window as unknown as { __robotRuntimeDebug?: { overlay?: boolean } }).__robotRuntimeDebug?.overlay;
 
   if (!isBrowser) {
     return (props.placeholder ?? null) as ReactElement | null;
@@ -151,34 +195,7 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
                   {props.placeholder}
                 </div>
               )}
-              {debugOverlayEnabled && (
-                <div
-                  style={{
-                    position: 'absolute',
-                    right: 12,
-                    top: 12,
-                    background: 'rgba(0,0,0,0.7)',
-                    color: '#fff',
-                    fontSize: 12,
-                    padding: '8px 10px',
-                    borderRadius: 6,
-                    pointerEvents: 'none',
-                    zIndex: 5,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  <div>tickIndex: {engine.frameState.tickIndex}</div>
-                  <div>sceneId: {engine.frameState.sceneId || '(none)'}</div>
-                  <div>sceneIndex: {engine.frameState.sceneIndex}</div>
-                  <div>sceneProgress: {engine.frameState.sceneProgress.toFixed(3)}</div>
-                  <div>progress: {engine.progress.toFixed(3)}</div>
-                  <div>driverReady: {String(engine.debug?.driverReady)}</div>
-                  <div>assetsReady: {String(engine.debug?.assetsReady)}</div>
-                  <div>sceneTrackTicks: {engine.debug?.sceneTrackTicks ?? 0}</div>
-                  <div>viewport: {engine.debug?.viewport.width}×{engine.debug?.viewport.height}</div>
-                </div>
-              )}
-              <EngineInputRegion key={hmrVersion} engine={engine} inputMap={props.inputMap}>
+              <EngineInputRegion engine={engine} inputMap={props.inputMap}>
                 <>
                   <HudOverlay items={engine.frameState.tick?.hudPrimitives ?? []} />
                   {labels.map((label) => (
@@ -187,11 +204,10 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
                   {props.timeline && (
                     <TimelineWidget
                       engine={engine}
-                      scenes={props.sceneGroup.scenes}
+                      scenes={scenes.map((scene) => ({ id: scene.sceneKey }))}
                       {...(typeof props.timeline === 'object' ? props.timeline : {})}
                     />
                   )}
-                  {props.children}
                 </>
               </EngineInputRegion>
             </div>

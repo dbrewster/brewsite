@@ -8,7 +8,7 @@
 // The edge  filters → llm-conv  (instead of api → llm-conv) places llm-conv one
 // hierarchical level below the filters block so the three sections never share a row.
 
-import {Background, Environment, EnvironmentCube, Floor, FloorMirror, PinchMap, SceneDefinition} from '@brewsite/core';
+import {Background, Environment, EnvironmentCube, Floor, FloorMirror, PinchMap} from '@brewsite/core';
 import {Ambient, Camera, Directional, Lighting, Scene} from '@brewsite/core';
 import { Action, InputController, KeyMap, PointerMap, WheelMap } from '@brewsite/core';
 import {
@@ -100,11 +100,8 @@ const C_LLM    = '#0f221a';  // LLM main bar
 const S: [number, number] = [3.5, 1.3]; // standard node size
 const IS = 0.38;                         // icon scale for small nodes
 
-export const sceneLlmFilter: SceneDefinition = {
-  id: 'llm-filter',
-  index: 0,
-  getFrame: () => (
-    <Scene id="llm-filter">
+export const sceneLlmFilter= (
+    <Scene key="llm-filter">
       <Camera
         mode="world"
         fov={55}
@@ -319,7 +316,7 @@ export const sceneLlmFilter: SceneDefinition = {
 
           {/* api fans into both filter groups for edge visualisation */}
           <DiagramEdge from="api" to="input-filters"  flow="forward" color="#6a3a9a"/>
-          <DiagramEdge from="api" to="output-filters" flow="backward" color="#9a4a3a" toPort='top'/>
+          <DiagramEdge from="api" to="output-filters" flow="backward" color="#9a4a3a"/>
 
           {/* filters → llm-conv forces llm-conv one level below the filter block */}
           <DiagramEdge from="input-filters"  to="llm-conv" flow="forward" color="#2a5a88" />
@@ -329,8 +326,7 @@ export const sceneLlmFilter: SceneDefinition = {
         </Diagram>
       </DiagramCanvas>
     </Scene>
-  ),
-};
+);
 
 export interface LlmFilterHudContent {
   readonly tagline: string;
@@ -374,5 +370,5 @@ export const llmFilterGroupHudContent: Record<string, LlmFilterHudContent> = {
     tagline: 'Post-Inference Safeguards',
     title: 'Output Filter Enforcement',
     description: 'Output filters validate model responses before delivery to users or systems. They screen for hallucinations, sensitive leakage, policy violations, harmful content, and relevance issues, while enabling fact checks and access-control-aware release decisions. This final gate ensures responses remain safe, on-topic, and policy-compliant.',
-  },
+  }
 };

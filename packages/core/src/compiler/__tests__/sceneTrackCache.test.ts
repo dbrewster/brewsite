@@ -18,12 +18,12 @@ describe('sceneTrackCache', () => {
   it('buildSceneTrackKey includes scenes, blockSize, registry, and options', () => {
     const registry = new WidgetRegistry();
     const key = buildSceneTrackKey({
-      scenes: [{ id: 'a', index: 0, getFrame: () => ({ id: 'a', scrollProgress: 0, widgets: {} }) }],
+      scenes: [{ contentKey: 'scene-a' }],
       widgetRegistry: registry,
       blockSize: 4,
       prefersReducedMotion: true,
     });
-    expect(key).toContain('a');
+    expect(key).toContain('scene-a');
     expect(key).toContain('b:4');
     expect(key).toContain('rm:1');
   });

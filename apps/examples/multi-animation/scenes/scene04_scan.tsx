@@ -1,14 +1,11 @@
-import {Camera, FloorMirror, SceneDefinition} from '@brewsite/core';
+import {Camera, FloorMirror} from '@brewsite/core';
 import { Ambient, Background, Directional, Environment, Floor, Hud, HudItem, Lighting, Point, Scene, Spot } from '@brewsite/core';
 import { Fade } from '@brewsite/core/hud/animejs';
 import {Animation, Playback, Worker} from '../../generated/sceneDsl.generated';
 import { backgrounds, sceneLighting } from './sceneAssets';
 
-export const scene04Scan: SceneDefinition = {
-  id: 'complex-scan',
-  index: 4,
-  getFrame: () => (
-    <Scene id="complex-scan">
+export const scene04Scan= (
+    <Scene key="complex-scan">
       <Camera
         mode="fitFloorDepth"
         fov={60}
@@ -60,5 +57,4 @@ export const scene04Scan: SceneDefinition = {
         </HudItem>
       </Hud>
     </Scene>
-  ),
-};
+);

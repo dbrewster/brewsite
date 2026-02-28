@@ -28,9 +28,8 @@ const makeTestWidget = (id: string, spec: FunctionalTransitionSpec<TestState>, e
   compileExtra: extras?.compileExtra,
 });
 
-const makeScene = (id: string, index: number, widgetState?: TestState): SceneDefinition => ({
+const makeScene = (id: string, widgetState?: TestState): SceneDefinition => ({
   id,
-  index,
   getFrame: () => ({
     id,
     scrollProgress: 0,
@@ -45,8 +44,8 @@ describe('functional transitions', () => {
   it('transitionBlocks is present when functional spec is used', () => {
     const registry = new WidgetRegistry().register(makeTestWidget(widgetId, testFunctionalSpec));
     const scenes = [
-      makeScene('s1', 0, { value: 10, active: true }),
-      makeScene('s2', 1, { value: 20, active: true }),
+      makeScene('s1', { value: 10, active: true }),
+      makeScene('s2', { value: 20, active: true }),
     ];
     const track = compileTrack(scenes, registry);
     expect(track.transitionBlocks).toBeDefined();
@@ -68,8 +67,8 @@ describe('functional transitions', () => {
     };
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, { value: 1, active: true }),
-      makeScene('s2', 1, { value: 2, active: true }),
+      makeScene('s1', { value: 1, active: true }),
+      makeScene('s2', { value: 2, active: true }),
     ];
     const track = compileTrack(scenes, registry);
     expect(track.transitionBlocks).toBeUndefined();
@@ -78,8 +77,8 @@ describe('functional transitions', () => {
   it('functional closure evaluates correctly at t=0 (interpolate)', () => {
     const registry = new WidgetRegistry().register(makeTestWidget(widgetId, testFunctionalSpec));
     const scenes = [
-      makeScene('s1', 0, { value: 10, active: true }),
-      makeScene('s2', 1, { value: 20, active: true }),
+      makeScene('s1', { value: 10, active: true }),
+      makeScene('s2', { value: 20, active: true }),
     ];
     const track = compileTrack(scenes, registry);
     const fn = track.transitionBlocks?.[0]?.widgetFns[widgetId].fn;
@@ -89,8 +88,8 @@ describe('functional transitions', () => {
   it('functional closure evaluates correctly at t=1 (interpolate)', () => {
     const registry = new WidgetRegistry().register(makeTestWidget(widgetId, testFunctionalSpec));
     const scenes = [
-      makeScene('s1', 0, { value: 10, active: true }),
-      makeScene('s2', 1, { value: 20, active: true }),
+      makeScene('s1', { value: 10, active: true }),
+      makeScene('s2', { value: 20, active: true }),
     ];
     const track = compileTrack(scenes, registry);
     const fn = track.transitionBlocks?.[0]?.widgetFns[widgetId].fn;
@@ -100,8 +99,8 @@ describe('functional transitions', () => {
   it('functional closure evaluates correctly at midpoint (interpolate)', () => {
     const registry = new WidgetRegistry().register(makeTestWidget(widgetId, testFunctionalSpec));
     const scenes = [
-      makeScene('s1', 0, { value: 10, active: true }),
-      makeScene('s2', 1, { value: 20, active: true }),
+      makeScene('s1', { value: 10, active: true }),
+      makeScene('s2', { value: 20, active: true }),
     ];
     const track = compileTrack(scenes, registry);
     const fn = track.transitionBlocks?.[0]?.widgetFns[widgetId].fn;
@@ -111,8 +110,8 @@ describe('functional transitions', () => {
   it('exit closure: active in first half, absent state in second half', () => {
     const registry = new WidgetRegistry().register(makeTestWidget(widgetId, testFunctionalSpec));
     const scenes = [
-      makeScene('s1', 0, { value: 10, active: true }),
-      makeScene('s2', 1, undefined),
+      makeScene('s1', { value: 10, active: true }),
+      makeScene('s2', undefined),
     ];
     const track = compileTrack(scenes, registry);
     const fn = track.transitionBlocks?.[0]?.widgetFns[widgetId];
@@ -129,8 +128,8 @@ describe('functional transitions', () => {
   it('enter closure: absent state in first half, active in second half', () => {
     const registry = new WidgetRegistry().register(makeTestWidget(widgetId, testFunctionalSpec));
     const scenes = [
-      makeScene('s1', 0, undefined),
-      makeScene('s2', 1, { value: 10, active: true }),
+      makeScene('s1', undefined),
+      makeScene('s2', { value: 10, active: true }),
     ];
     const track = compileTrack(scenes, registry);
     const fn = track.transitionBlocks?.[0]?.widgetFns[widgetId];
@@ -144,8 +143,8 @@ describe('functional transitions', () => {
   it('absent from both scenes — no closure, frame state is defaultState', () => {
     const registry = new WidgetRegistry().register(makeTestWidget(widgetId, testFunctionalSpec));
     const scenes = [
-      makeScene('s1', 0, undefined),
-      makeScene('s2', 1, undefined),
+      makeScene('s1', undefined),
+      makeScene('s2', undefined),
     ];
     const track = compileTrack(scenes, registry);
     expect(track.transitionBlocks?.[0]?.widgetFns[widgetId]).toBeUndefined();
@@ -157,8 +156,8 @@ describe('functional transitions', () => {
       compileExtra: (state) => ({ summary: state.value }),
     }));
     const scenes = [
-      makeScene('s1', 0, { value: 10, active: true }),
-      makeScene('s2', 1, { value: 20, active: true }),
+      makeScene('s1', { value: 10, active: true }),
+      makeScene('s2', { value: 20, active: true }),
     ];
     const track = compileTrack(scenes, registry);
     const midTick = track.ticks[1];
@@ -193,7 +192,6 @@ describe('functional transitions', () => {
     const scenes: SceneDefinition[] = [
       {
         id: 's1',
-        index: 0,
         getFrame: () => ({
           id: 's1',
           scrollProgress: 0,
@@ -205,7 +203,6 @@ describe('functional transitions', () => {
       },
       {
         id: 's2',
-        index: 1,
         getFrame: () => ({
           id: 's2',
           scrollProgress: 0,
@@ -225,8 +222,8 @@ describe('functional transitions', () => {
   it('blockProgress boundary: terminal tick has no functional override', () => {
     const registry = new WidgetRegistry().register(makeTestWidget(widgetId, testFunctionalSpec));
     const scenes = [
-      makeScene('s1', 0, { value: 10, active: true }),
-      makeScene('s2', 1, { value: 20, active: true }),
+      makeScene('s1', { value: 10, active: true }),
+      makeScene('s2', { value: 20, active: true }),
     ];
     const track = compileTrack(scenes, registry);
     const terminalTick = track.ticks[track.ticks.length - 1];

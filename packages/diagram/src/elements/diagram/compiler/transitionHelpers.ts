@@ -73,6 +73,8 @@ export function rerouteLiveEdges(
     from: e.fromId,
     to: e.toId,
     routing: e.routing,
+    fromPort: e.fromPort,
+    toPort: e.toPort,
     thickness: e.thickness,
   }));
   const fadingEdgesForRouting = fromEdges
@@ -82,6 +84,8 @@ export function rerouteLiveEdges(
       from: e.fromId,
       to: e.toId,
       routing: e.routing,
+      fromPort: e.fromPort,
+      toPort: e.toPort,
       thickness: e.thickness,
     }));
   return routeEdges(

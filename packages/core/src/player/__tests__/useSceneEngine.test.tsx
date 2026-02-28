@@ -5,8 +5,8 @@ import { createRoot } from 'react-dom/client';
 import { act } from '@testing-library/react';
 import { useSceneEngine } from '../useSceneEngine';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
-import type { SceneGroup } from '../../compiler/sceneTypes';
 import { LabelPositioner } from '../LabelPositioner';
+import { Scene } from '../../compiler/sceneDslCompiler';
 
 vi.mock('../useEngineInput', () => {
   return {
@@ -33,13 +33,10 @@ vi.mock('../../compiler/sceneTrackCache', () => {
   };
 });
 
-const makeSceneGroup = (): SceneGroup => {
-  const scenes = [
-    { id: 's1', index: 0, getFrame: () => ({ id: 's1', scrollProgress: 0, widgets: {} }) },
-    { id: 's2', index: 1, getFrame: () => ({ id: 's2', scrollProgress: 1, widgets: {} }) },
-  ];
-  return { id: 'group', scenes };
-};
+const makeScenes = () => [
+  { sceneKey: 's1', contentKey: 'scene:s1', element: <Scene key="s1" /> },
+  { sceneKey: 's2', contentKey: 'scene:s2', element: <Scene key="s2" /> },
+];
 
 describe('useSceneEngine', () => {
   beforeEach(() => {
@@ -59,12 +56,12 @@ describe('useSceneEngine', () => {
 
   it('computes scroll region height based on scene count', () => {
     const registry = new WidgetRegistry();
-    const sceneGroup = makeSceneGroup();
+    const scenes = makeScenes();
     let height = 0;
 
     const Test = () => {
       const engine = useSceneEngine({
-        sceneGroup,
+        scenes,
         widgetRegistry: registry,
         clipMeta: [],
         pixelsPerScene: 500,
@@ -85,7 +82,7 @@ describe('useSceneEngine', () => {
 
   it('setViewportSize forwards to label positioner', () => {
     const registry = new WidgetRegistry();
-    const sceneGroup = makeSceneGroup();
+    const scenes = makeScenes();
     let size: { w: number; h: number } | null = null;
     const positioner = new LabelPositioner();
     positioner.setContainerSize = (w: number, h: number) => {
@@ -93,7 +90,7 @@ describe('useSceneEngine', () => {
     };
 
     const Test = () => {
-      const engine = useSceneEngine({ sceneGroup, widgetRegistry: registry, clipMeta: [], labelPositioner: positioner });
+      const engine = useSceneEngine({ scenes, widgetRegistry: registry, clipMeta: [], labelPositioner: positioner });
       useEffect(() => { engine.setViewportSize(320, 240); }, [engine]);
       return <div />;
     };
@@ -118,10 +115,10 @@ describe('useSceneEngine', () => {
     }));
 
     const registry = new WidgetRegistry();
-    const sceneGroup = makeSceneGroup();
+    const scenes = makeScenes();
 
     const Test = () => {
-      useSceneEngine({ sceneGroup, widgetRegistry: registry, clipMeta: [] });
+      useSceneEngine({ scenes, widgetRegistry: registry, clipMeta: [] });
       return <div />;
     };
 
@@ -142,10 +139,10 @@ describe('useSceneEngine', () => {
     (getCachedTrack as unknown as { mock: { returnValue: (v: unknown) => void } }).mock.returnValue({ ticks: [{}, {}] });
 
     const registry = new WidgetRegistry();
-    const sceneGroup = makeSceneGroup();
+    const scenes = makeScenes();
 
     const Test = () => {
-      useSceneEngine({ sceneGroup, widgetRegistry: registry, clipMeta: [] });
+      useSceneEngine({ scenes, widgetRegistry: registry, clipMeta: [] });
       return <div />;
     };
 
@@ -166,10 +163,10 @@ describe('useSceneEngine', () => {
     (getCachedTrack as unknown as { mock: { returnValue: (v: unknown) => void } }).mock.returnValue(null);
 
     const registry = new WidgetRegistry();
-    const sceneGroup = makeSceneGroup();
+    const scenes = makeScenes();
 
     const Test = () => {
-      useSceneEngine({ sceneGroup, widgetRegistry: registry, clipMeta: [] });
+      useSceneEngine({ scenes, widgetRegistry: registry, clipMeta: [] });
       return <div />;
     };
 
@@ -186,12 +183,12 @@ describe('useSceneEngine', () => {
 
   it('returns direct mode scroll height based on viewport size', () => {
     const registry = new WidgetRegistry();
-    const sceneGroup = makeSceneGroup();
+    const scenes = makeScenes();
     let height = 0;
 
     const Test = () => {
       const engine = useSceneEngine({
-        sceneGroup,
+        scenes,
         widgetRegistry: registry,
         clipMeta: [],
         inputMap: { mode: 'direct' },
@@ -222,11 +219,11 @@ describe('useSceneEngine', () => {
       DslComponent: () => null,
       isWheelClaimedByInteraction: () => true,
     });
-    const sceneGroup = makeSceneGroup();
+    const scenes = makeScenes();
 
     let wheelGuardResult = false;
     const Test = () => {
-      const engine = useSceneEngine({ sceneGroup, widgetRegistry: registry, clipMeta: [] });
+      const engine = useSceneEngine({ scenes, widgetRegistry: registry, clipMeta: [] });
       const { useEngineInput } = require('../useEngineInput');
       const args = (useEngineInput as unknown as { mock: { calls: unknown[][] } }).mock.calls.at(-1)?.[0] as { wheelGuard?: () => boolean };
       wheelGuardResult = args?.wheelGuard?.() ?? false;
@@ -246,10 +243,10 @@ describe('useSceneEngine', () => {
   it('skips scene track when manifest is null', async () => {
     const { compileSceneTrack } = await import('../../compiler/sceneTrackCompiler');
     const registry = new WidgetRegistry();
-    const sceneGroup = makeSceneGroup();
+    const scenes = makeScenes();
 
     const Test = () => {
-      useSceneEngine({ sceneGroup, widgetRegistry: registry, clipMeta: [], manifest: null });
+      useSceneEngine({ scenes, widgetRegistry: registry, clipMeta: [], manifest: null });
       return <div />;
     };
 

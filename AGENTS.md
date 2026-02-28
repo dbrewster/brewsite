@@ -171,8 +171,8 @@ Scripts in `scripts/` at repo root:
 
 ## Requirements and Documentation Policies
 
-- PRDs: `requirements/prd/**` (source of truth per feature area)
-- Plans: `requirements/plans/**` (authored by architect bot, archived when complete)
+- PRDs: `requirements/*/prd/**` (source of truth per feature area)
+- Plans: `requirements/*/plans/**` (authored by architect bot, archived when complete)
 - Naming: `prd_`, `plan_`, `idea_`, `note_`, `playbook_`, `AGENTS.md`, `README.md`
 - Front matter on all Markdown except AGENTS/README: `title`, `doc_type`, `owner`, `status`, `updated` (ISO date)
 - `requirements/**/archive/**` is read-only without explicit approval

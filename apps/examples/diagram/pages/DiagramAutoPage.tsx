@@ -17,10 +17,6 @@ export default function DiagramAutoPage(): JSX.Element {
   return (
     <div style={{ minHeight: '100vh', fontFamily: 'Roboto, sans-serif', fontSize: '.2rem' }}>
       <ScenePlayer
-        sceneGroup={{
-          id: 'diagram-auto',
-          scenes: [sceneArchAuto],
-        }}
         manifestUrl="/scene-manifest.json"
         widgetSetup={createAutoWidgetSetup}
         framesPerTick={80}
@@ -34,7 +30,9 @@ export default function DiagramAutoPage(): JSX.Element {
             </div>
           </div>
         )}
-      />
+      >
+        {sceneArchAuto}
+      </ScenePlayer>
     </div>
   );
 }

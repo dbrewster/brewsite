@@ -1,14 +1,10 @@
-import type { SceneDefinition } from '@brewsite/core';
 import { Ambient, Background, Directional, Environment, Floor, Hud, HudItem, Lighting, Point, Scene, Spot } from '@brewsite/core';
 import { Fade } from '@brewsite/core/hud/animejs';
 import { Animation, BodyParts, ContainedModel, ModelPart, Playback, Pose, Robot } from '../../generated/sceneDsl.generated';
 import { backgrounds, sceneLighting } from './sceneAssets';
 
-export const scene04Scan: SceneDefinition = {
-  id: 'complex-scan',
-  index: 3,
-  getFrame: () => (
-    <Scene id="complex-scan">
+export const scene04Scan= (
+    <Scene key="complex-scan">
       <Background imageUrl={backgrounds.scan} opacity={1} cssSize="cover" cssPosition="center" />
       <Lighting intensityScale={1}>
         <Ambient intensity={sceneLighting.scan.ambient} color="#bdf6ff" />
@@ -55,5 +51,4 @@ export const scene04Scan: SceneDefinition = {
         </HudItem>
       </Hud>
     </Scene>
-  ),
-};
+);

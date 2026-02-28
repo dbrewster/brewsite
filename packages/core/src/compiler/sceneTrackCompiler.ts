@@ -118,7 +118,9 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     }
     // Pre-compiled SceneFrame path
     if (isSceneFrame(raw)) return raw;
-    throw new Error(`Scene "${scene.id}" getFrame must return a JSX element or SceneFrame`);
+    throw new Error(
+      `Scene at index ${i} getFrame() must return a JSX element or SceneFrame (got: ${typeof raw})`,
+    );
   });
 
   const sceneElementWidgetIds = new Set(widgetRegistry.getSceneElements().map((w) => w.widgetId));
@@ -158,7 +160,7 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
       index: globalIdx,
       progress: totalFrames > 1 ? globalIdx / (totalFrames - 1) : 0,
       sceneId: scene.id,
-      sceneIndex: scene.index,
+      sceneIndex: blockIdx,
       blockProgress: bp,
       state: { id: scene.id, scrollProgress: bp, widgets: {} },
       deltaForward: {},
@@ -171,7 +173,7 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
   const lastScene = scenes[scenes.length - 1];
   if (lastTick && lastScene) {
     lastTick.sceneId = lastScene.id;
-    lastTick.sceneIndex = lastScene.index;
+    lastTick.sceneIndex = scenes.length - 1;
     lastTick.blockProgress = 0;
     lastTick.state.id = lastScene.id;
   }
@@ -361,7 +363,7 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
   // ── Assemble SceneWindows ────────────────────────────────────────────────────
   const sceneWindows: SceneWindow[] = scenes.map((scene, i) => ({
     id: scene.id,
-    index: scene.index,
+    index: i,
     start: totalFrames > 1 ? (i * blockSize) / (totalFrames - 1) : 0,
     end: totalFrames > 1
       ? Math.min(((i + 1) * blockSize) / (totalFrames - 1), 1)

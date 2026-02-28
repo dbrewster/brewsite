@@ -6,9 +6,8 @@ import { compileSceneTrack } from '../sceneTrackCompiler';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import type { FunctionalTransitionSpec } from '../transitions/transitionTypes';
 
-const makeScene = (id: string, index: number, widgetStates: Record<string, unknown>): SceneDefinition => ({
+const makeScene = (id: string, widgetStates: Record<string, unknown>): SceneDefinition => ({
   id,
-  index,
   getFrame: () => ({ id, scrollProgress: 0, widgets: widgetStates }),
 });
 
@@ -38,8 +37,8 @@ describe('compileSceneTrack', () => {
     });
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, { w: 1 }),
-      makeScene('s2', 1, { w: 2 }),
+      makeScene('s1', { w: 1 }),
+      makeScene('s2', { w: 2 }),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 4 });
     expect(track.subTickCount).toBe(5);
@@ -58,9 +57,9 @@ describe('compileSceneTrack', () => {
     });
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, { w: 1 }),
-      makeScene('s2', 1, { w: 2 }),
-      makeScene('s3', 2, { w: 3 }),
+      makeScene('s1', { w: 1 }),
+      makeScene('s2', { w: 2 }),
+      makeScene('s3', { w: 3 }),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 4 });
     expect(track.subTickCount).toBe(9);
@@ -83,8 +82,8 @@ describe('compileSceneTrack', () => {
     const widget = makeWidget({ widgetId: 'w', defaultState: 0, transitionSpec: spec });
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, { w: 0 }),
-      makeScene('s2', 1, { w: 10 }),
+      makeScene('s1', { w: 0 }),
+      makeScene('s2', { w: 10 }),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 4 });
     expect(interpolateLen).toBe(4);
@@ -107,8 +106,8 @@ describe('compileSceneTrack', () => {
     const widget = makeWidget({ widgetId: 'w', defaultState: 0, transitionSpec: spec });
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, { w: 10 }),
-      makeScene('s2', 1, {}),
+      makeScene('s1', { w: 10 }),
+      makeScene('s2', {}),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 4 });
     const block = track.ticks.slice(0, 4).map((tick) => tick.state.widgets['w'] as number);
@@ -129,8 +128,8 @@ describe('compileSceneTrack', () => {
     const widget = makeWidget({ widgetId: 'w', defaultState: 0, transitionSpec: spec });
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, {}),
-      makeScene('s2', 1, { w: 20 }),
+      makeScene('s1', {}),
+      makeScene('s2', { w: 20 }),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 4 });
     const block = track.ticks.slice(0, 4).map((tick) => tick.state.widgets['w'] as number);
@@ -150,8 +149,8 @@ describe('compileSceneTrack', () => {
     });
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, {}),
-      makeScene('s2', 1, {}),
+      makeScene('s1', {}),
+      makeScene('s2', {}),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 4 });
     const block = track.ticks.slice(0, 4).map((tick) => tick.state.widgets['w'] as number);
@@ -170,8 +169,8 @@ describe('compileSceneTrack', () => {
     });
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, { w: 1 }),
-      makeScene('s2', 1, { w: 9 }),
+      makeScene('s1', { w: 1 }),
+      makeScene('s2', { w: 9 }),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 4 });
     const terminal = track.ticks[track.ticks.length - 1]!.state.widgets['w'] as number;
@@ -190,8 +189,8 @@ describe('compileSceneTrack', () => {
     });
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, { w: 1 }),
-      makeScene('s2', 1, { w: 2 }),
+      makeScene('s1', { w: 1 }),
+      makeScene('s2', { w: 2 }),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 4 });
     expect(track.ticks[0]!.blockProgress).toBe(0);
@@ -217,8 +216,8 @@ describe('compileSceneTrack', () => {
     });
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, { w: 2 }),
-      makeScene('s2', 1, { w: 2 }),
+      makeScene('s1', { w: 2 }),
+      makeScene('s2', { w: 2 }),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
     expect(track.ticks[0]!.widgetExtras?.['w']).toEqual({ double: 4 });
@@ -249,14 +248,14 @@ describe('compileSceneTrack', () => {
     const registry = new WidgetRegistry().register(widget);
 
     const sameTrack = compileSceneTrack({
-      scenes: [makeScene('s1', 0, {}), makeScene('s2', 1, {})],
+      scenes: [makeScene('s1', {}), makeScene('s2', {})],
       widgetRegistry: registry,
       blockSize: 2,
     });
     expect(sameTrack.ticks[1]!.deltaForward.widgets).toBeUndefined();
 
     const changedTrack = compileSceneTrack({
-      scenes: [makeScene('s1', 0, { w: 0 }), makeScene('s2', 1, { w: 1 })],
+      scenes: [makeScene('s1', { w: 0 }), makeScene('s2', { w: 1 })],
       widgetRegistry: registry,
       blockSize: 2,
     });
@@ -278,8 +277,8 @@ describe('compileSceneTrack', () => {
     };
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, {}),
-      makeScene('s2', 1, {}),
+      makeScene('s1', {}),
+      makeScene('s2', {}),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
     const state = track.ticks[0]!.state.widgets['w'] as { enabled?: boolean };
@@ -300,8 +299,8 @@ describe('compileSceneTrack', () => {
     };
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, { w: 1 }),
-      makeScene('s2', 1, { w: 3 }),
+      makeScene('s1', { w: 1 }),
+      makeScene('s2', { w: 3 }),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 4 });
     expect(track.transitionBlocks?.[0]?.widgetFns['w']).toBeDefined();
@@ -322,8 +321,8 @@ describe('compileSceneTrack', () => {
     };
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, {}),
-      makeScene('s2', 1, {}),
+      makeScene('s1', {}),
+      makeScene('s2', {}),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
     expect(track.ticks[0]!.state.widgets['w']).toBe(5);
@@ -344,8 +343,8 @@ describe('compileSceneTrack', () => {
     };
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, { w: 1 }),
-      makeScene('s2', 1, { w: 3 }),
+      makeScene('s1', { w: 1 }),
+      makeScene('s2', { w: 3 }),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
     expect(track.ticks[0]!.widgetExtras?.['w']).toEqual({ value: 1 });
@@ -365,8 +364,8 @@ describe('compileSceneTrack', () => {
     };
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, { w: 1 }),
-      makeScene('s2', 1, { w: 2 }),
+      makeScene('s1', { w: 1 }),
+      makeScene('s2', { w: 2 }),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
     expect(track.ticks[0]!.state.widgets['w']).toBe(0);
@@ -383,8 +382,8 @@ describe('compileSceneTrack', () => {
     };
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, {}),
-      makeScene('s2', 1, {}),
+      makeScene('s1', {}),
+      makeScene('s2', {}),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
     const state = track.ticks[0]!.state.widgets['w'] as { enabled?: boolean; model?: { enabled?: boolean } };
@@ -400,8 +399,8 @@ describe('compileSceneTrack', () => {
     });
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, { w: { content: 'ignored', value: 1 }, a: { $$typeof: 'react' } }),
-      makeScene('s2', 1, { w: { content: 'ignored', value: 1 }, a: { $$typeof: 'react' } }),
+      makeScene('s1', { w: { content: 'ignored', value: 1 }, a: { $$typeof: 'react' } }),
+      makeScene('s2', { w: { content: 'ignored', value: 1 }, a: { $$typeof: 'react' } }),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
     expect(track.ticks[1]!.deltaForward.widgets).toBeUndefined();
@@ -418,8 +417,8 @@ describe('compileSceneTrack', () => {
     });
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, { w: circular }),
-      makeScene('s2', 1, { w: circular }),
+      makeScene('s1', { w: circular }),
+      makeScene('s2', { w: circular }),
     ];
     compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
     expect(warn).toHaveBeenCalledWith('[SceneTrack]', 'serialize.failed', expect.anything());
@@ -434,8 +433,8 @@ describe('compileSceneTrack', () => {
     });
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
-      makeScene('s1', 0, { w: 1 }),
-      makeScene('s2', 1, { w: 2 }),
+      makeScene('s1', { w: 1 }),
+      makeScene('s2', { w: 2 }),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 1 });
     expect(track.ticks[0]!.blockProgress).toBe(0);

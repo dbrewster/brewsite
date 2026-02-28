@@ -1,5 +1,4 @@
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
-import type { SceneDefinition } from './sceneTypes';
 import type { SceneTrack } from './sceneTrackTypes';
 
 const trackCache = new Map<string, SceneTrack>();
@@ -9,16 +8,16 @@ const trackCache = new Map<string, SceneTrack>();
  * Includes scene IDs, blockSize, widget registry state, and options.
  */
 export const buildSceneTrackKey = (options: {
-  scenes: SceneDefinition[];
+  scenes: ReadonlyArray<{ readonly contentKey: string }>;
   widgetRegistry: WidgetRegistry;
   blockSize: number;
   prefersReducedMotion: boolean;
 }): string => {
-  const sceneIds = options.scenes.map((s) => s.id).join('|');
+  const contentKeys = options.scenes.map((s) => s.contentKey).join('|');
   const blockKey = `b:${options.blockSize}`;
   const widgetKey = `w:${options.widgetRegistry.buildCacheKey()}`;
   const rmKey = `rm:${options.prefersReducedMotion ? 1 : 0}`;
-  return [sceneIds, blockKey, widgetKey, rmKey].join('::');
+  return [contentKeys, blockKey, widgetKey, rmKey].join('::');
 };
 
 /**

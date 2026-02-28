@@ -1,13 +1,10 @@
-import {Camera, SceneDefinition} from '@brewsite/core';
+import {Camera} from '@brewsite/core';
 import { Ambient, Background, Directional, Environment, EnvironmentCube, Floor, Lighting, Scene } from '@brewsite/core';
 import { backgrounds, makeCubeUrls, sceneLighting, skyEnvironment } from './sceneAssets';
 import {FloorMirror} from "@brewsite/core/elements/floor/dsl";
 
-export const scene01Intro: SceneDefinition = {
-  id: 'complex-intro',
-  index: 0,
-  getFrame: () => (
-    <Scene id="complex-intro">
+export const scene01Intro= (
+    <Scene key="complex-intro">
       <Camera
         mode="fitFloorDepth"
         fov={60}
@@ -36,5 +33,4 @@ export const scene01Intro: SceneDefinition = {
         />
       </Floor>
     </Scene>
-  ),
-};
+);

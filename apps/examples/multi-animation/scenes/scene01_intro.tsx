@@ -1,15 +1,12 @@
-import {Camera, SceneDefinition} from '@brewsite/core';
+import {Camera} from '@brewsite/core';
 import { Ambient, Background, Directional, Environment, EnvironmentCube, Floor, Hud, HudItem, Lighting, Scene } from '@brewsite/core';
 import { Fade } from '@brewsite/core/hud/animejs';
 import {FloorMirror} from "@brewsite/core";
 import {backgrounds, sceneLighting} from "./sceneAssets";
 import {makeCubeUrls, skyEnvironment} from "../../meeting/scenes/sceneAssets";
 
-export const scene01Intro: SceneDefinition = {
-  id: 'complex-intro',
-  index: 0,
-  getFrame: () => (
-    <Scene id="complex-intro">
+export const scene01Intro= (
+    <Scene key="complex-intro">
       <Camera
         mode="fitFloorDepth"
         fov={60}
@@ -52,5 +49,4 @@ export const scene01Intro: SceneDefinition = {
         </HudItem>
       </Hud>
     </Scene>
-  ),
-};
+);

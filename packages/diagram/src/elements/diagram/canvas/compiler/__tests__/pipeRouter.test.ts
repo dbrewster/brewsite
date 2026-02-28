@@ -57,9 +57,11 @@ describe('sideAttachmentPoint — full rotation fix', () => {
 });
 
 describe('routePipe — anti-parallel arc fix', () => {
-  it('anti-parallel normals → 3-point arc', () => {
+  it('anti-parallel normals keeps orthogonal endpoint stubs', () => {
     const pts = routePipe([0, 0, 0], [4, 0, 0], [-1, 0, 0], [1, 0, 0], 'curved');
-    expect(pts).toHaveLength(3);
+    expect(pts).toHaveLength(4);
+    expect(pts[1]?.[0]).toBeLessThan(pts[0]?.[0] ?? 0);
+    expect(pts[2]?.[0]).toBeGreaterThan(pts[3]?.[0] ?? 0);
   });
 
   it('straight routing → direct line', () => {

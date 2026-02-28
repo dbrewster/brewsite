@@ -42,10 +42,6 @@ export default function MeetingPage(): JSX.Element {
   return (
     <div style={{minHeight: '100vh'}}>
       <ScenePlayer
-        sceneGroup={{
-          id: 'complex',
-          scenes: [scene01Intro, scene02Arrival],
-        }}
         manifestUrl="/scene-manifest.json"
         widgetSetup={createWidgetSetup}
         framesPerTick={110}
@@ -60,8 +56,10 @@ export default function MeetingPage(): JSX.Element {
           </div>
         )}
       >
-        <DebugHud/>
+        {scene01Intro}
+        {scene02Arrival}
       </ScenePlayer>
+      <DebugHud/>
     </div>
   );
 }

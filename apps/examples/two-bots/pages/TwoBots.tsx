@@ -42,12 +42,6 @@ export default function TwoBots(): JSX.Element {
   return (
     <div style={{minHeight: '100vh'}}>
       <ScenePlayer
-        sceneGroup={
-          {
-            id: 'simple',
-            scenes: [scene01Move, scene02Move],
-          }
-        }
         manifestUrl="/scene-manifest.json"
         widgetSetup={createWidgetSetup}
         framesPerTick={100}
@@ -62,8 +56,10 @@ export default function TwoBots(): JSX.Element {
           </div>
         )}
       >
-        <DebugHud/>
+        {scene01Move}
+        {scene02Move}
       </ScenePlayer>
+      <DebugHud/>
     </div>
   );
 }

@@ -143,7 +143,14 @@ const sceneRootHandler: NodeHandler = (node, api, helpers) => {
     metalnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
     roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
   };
-  if (props.id) api.setSceneMeta({ id: props.id });
+  const sceneId = node.key ?? props.id ?? null;
+  if (sceneId === null) {
+    console.warn(
+      '[ScenePlayer] A <Scene> element has no key or id. ' +
+      'Assign key="..." for stable scene identity.',
+    );
+  }
+  if (sceneId) api.setSceneMeta({ id: String(sceneId) });
   if (props.meta) api.setSceneMeta({ meta: props.meta });
   if (props.metalnessMultiplier !== undefined) {
     api.state.materialMetalnessMultiplier = helpers.resolveValue(props.metalnessMultiplier, api.context);
@@ -180,7 +187,7 @@ export const resolveSceneFromDsl = (
   }
   handler(treeEl, api, helpers);
 
-  api.state.id = api.state.id ?? 'scene';
+  api.state.id = api.state.id || 'scene';
   api.state.scrollProgress = 0;
 
   return {

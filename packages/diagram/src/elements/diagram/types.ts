@@ -614,6 +614,12 @@ export interface DiagramEdgeState {
    * Stored on compiled state so transitions can re-route edges correctly.
    */
   readonly routing: EdgeRoutingAlgorithm;
+
+  /** Optional explicit source port from DSL; used to preserve live reroute intent. */
+  readonly fromPort?: DiagramEdgePort;
+
+  /** Optional explicit destination port from DSL; used to preserve live reroute intent. */
+  readonly toPort?: DiagramEdgePort;
 }
 
 // ─── Group ──────────────────────────────────────────────────────────────────

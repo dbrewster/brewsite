@@ -1,13 +1,10 @@
-import {Background, Environment, EnvironmentCube, Floor, FloorMirror, SceneDefinition} from '@brewsite/core';
+import {Background, Environment, EnvironmentCube, Floor, FloorMirror} from '@brewsite/core';
 import { Ambient, Camera, Directional, Lighting, Scene } from '@brewsite/core';
 import {DiagramCanvas, Diagram, DiagramEdge, DiagramGroup, DiagramNode, Exit, ManualLayout, darkGlassTheme} from '@brewsite/diagram';
 import {backgrounds, makeCubeUrls, skyEnvironment} from "./sceneAssets";
 
-export const sceneArchOverview: SceneDefinition = {
-  id: 'arch-overview',
-  index: 0,
-  getFrame: () => (
-    <Scene id="arch-overview">
+export const sceneArchOverview= (
+    <Scene key="arch-overview">
       <Environment enabled intensity={0.05}>
         <EnvironmentCube urls={makeCubeUrls(skyEnvironment)} />
       </Environment>
@@ -85,5 +82,4 @@ export const sceneArchOverview: SceneDefinition = {
         </Diagram>
       </DiagramCanvas>
     </Scene>
-  ),
-};
+);

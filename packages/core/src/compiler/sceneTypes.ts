@@ -17,14 +17,11 @@ export type SceneSnapshotContext = {
   viewport?: { width: number; height: number; aspectRatio: number };
 };
 
+/**
+ * @internal Constructed by ScenePlayer from <Scene> children.
+ */
 export type SceneDefinition = {
   id: string;
-  index: number;
   meta?: Record<string, JsonPrimitive>;
   getFrame: (context: SceneSnapshotContext) => ReactNode | SceneFrame;
-};
-
-export type SceneGroup = {
-  id: string;
-  scenes: SceneDefinition[];
 };

@@ -28,10 +28,6 @@ export default function DiagramPage(): JSX.Element {
   return (
     <div style={{ minHeight: '100vh' }}>
       <ScenePlayer
-        sceneGroup={{
-          id: 'diagram',
-          scenes: [sceneArchOverview, sceneArchEcsDetail],
-        }}
         manifestUrl="/scene-manifest.json"
         widgetSetup={createWidgetSetup}
         framesPerTick={80}
@@ -59,7 +55,10 @@ export default function DiagramPage(): JSX.Element {
             </div>
           </div>
         )}
-      />
+      >
+        {sceneArchOverview}
+        {sceneArchEcsDetail}
+      </ScenePlayer>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import {Ambient, Animation, Background, BodyPart, BodyParts, Directional, Hud, HudItem, Lighting, ModelRouter, Playback, Pose, Scene, SceneDefinition} from '@brewsite/core';
+import {Ambient, Animation, Background, BodyPart, BodyParts, Directional, Hud, HudItem, Lighting, ModelRouter, Playback, Pose, Scene} from '@brewsite/core';
 import {backgrounds, sceneLighting} from './sceneAssets';
 
 export interface BodyPartProp {
@@ -205,10 +205,7 @@ const buildActorProps = (
 };
 
 
-export const scene02Arrival: SceneDefinition = {
-  id: 'complex-arrival',
-  index: 1,
-  getFrame: () => {
+export const scene02Arrival = (() => {
     const pairCenters = generatePairCenters(PAIR_COUNT);
     const actors = pairCenters.flatMap((center, index) => {
       const leftActor = randomChoice(actorPool);
@@ -219,8 +216,8 @@ export const scene02Arrival: SceneDefinition = {
         buildActorProps(index, 'right', center, rightActor, yRotation),
       ];
     });
-    return (
-      <Scene id="complex-arrival">
+  return (
+    <Scene key="complex-arrival">
         <Background imageUrl={backgrounds.reveal} opacity={1} cssSize="cover" cssPosition="center"/>
         <Lighting intensityScale={1}>
           <Ambient intensity={sceneLighting.soft.ambient} color="#e6eeff"/>
@@ -267,7 +264,6 @@ export const scene02Arrival: SceneDefinition = {
         {actors.map((actor) => (
           <Actor key={actor.idBase} {...actor} />
         ))}
-      </Scene>
-    );
-  },
-};
+    </Scene>
+  );
+})();

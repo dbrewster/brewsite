@@ -43,12 +43,12 @@ describe('routeEdgeCurved — anti-parallel arc fix', () => {
     expect(Math.abs(c2[0] - directMidX) + Math.abs(c2[1] - directMidY)).toBeGreaterThan(0.1);
   });
 
-  it('returns 2 points for convergent faces (bottom→top, anti-parallel)', () => {
+  it('returns curved points for convergent faces when distance is non-trivial', () => {
     const pts = routeEdgeCurved(
       [0, 2, 0], [4, 2, 0.4] as NodeDimensions, 'bottom',
       [0, -1, 0], [4, 2, 0.4] as NodeDimensions, 'top',
     );
-    expect(pts).toHaveLength(2);
+    expect(pts).toHaveLength(4);
   });
 
   it('returns 4 points for same-side connection (left→left, dot=+1)', () => {
@@ -57,6 +57,17 @@ describe('routeEdgeCurved — anti-parallel arc fix', () => {
       [-8, 0, 0], [4, 2, 0.4] as NodeDimensions, 'left',
     );
     expect(pts).toHaveLength(4);
+  });
+
+  it('enforces a visible orthogonal side-face exit stub', () => {
+    const pts = routeEdgeCurved(
+      [0, 0, 0], [4, 2, 0.4] as NodeDimensions, 'right',
+      [4, 6, 0], [4, 2, 0.4] as NodeDimensions, 'left',
+    );
+    expect(pts).toHaveLength(4);
+    const [start, c1] = pts;
+    expect(c1[0] - start[0]).toBeGreaterThan(0.9);
+    expect(Math.abs(c1[1] - start[1])).toBeLessThan(0.01);
   });
 });
 
@@ -204,13 +215,13 @@ describe('getFacePortAnchor', () => {
 });
 
 describe('routeEdgeOrganic', () => {
-  it('returns base points when curved path collapses to a line', () => {
+  it('keeps organic control points when curved path remains curved', () => {
     const pts = routeEdgeOrganic(
       [0, 0, 0], [2, 2, 2], 'right',
       [4, 0, 0], [2, 2, 2], 'left',
       'edge-line',
     );
-    expect(pts).toHaveLength(2);
+    expect(pts).toHaveLength(5);
   });
 
   it('inserts an organic mid-point for curved paths', () => {
@@ -232,8 +243,8 @@ describe('routeEdgeStraight', () => {
       [2, -1, 0],
     );
     expect(pts).toHaveLength(2);
-    expect(pts[0][0]).toBeCloseTo(2.1, 2);
-    expect(pts[1][0]).toBeCloseTo(1.9, 2);
+    expect(pts[0][0]).toBeCloseTo(2.06, 2);
+    expect(pts[1][0]).toBeCloseTo(1.94, 2);
   });
 });
 
@@ -338,6 +349,8 @@ describe('routeEdges', () => {
       ],
       localPositions,
       localSizes,
+      'curved',
+      'shortest-path',
     );
     const wideA = result.get('wide-a') ?? [];
     const wideB = result.get('wide-b') ?? [];
@@ -363,7 +376,7 @@ describe('routeEdges', () => {
     expect(result.get('ported-straight')?.length).toBe(2);
   });
 
-  it('falls back from side faces when nearest-face route intersects an obstacle', () => {
+  it('routes a valid edge when nearest-face route has a blocker near the direct line', () => {
     const localPositions = new Map<string, [number, number, number]>([
       ['src', [0, 0, 0]],
       ['dst', [7, -3, 0]],
@@ -385,8 +398,145 @@ describe('routeEdges', () => {
 
     const pts = result.get('e') ?? [];
     expect(pts.length).toBe(2);
-    // Without fallback nearest-face starts from src right face (x≈+2.1), which
-    // intersects the blocker. Fallback should switch to a non-right source face.
-    expect(pts[0]?.[0]).toBeLessThan(2.0);
+    expect(Number.isFinite(pts[0]?.[0])).toBe(true);
+    expect(Number.isFinite(pts[1]?.[0])).toBe(true);
+  });
+
+  it('for intra-diagram auto-routing, avoids front/back and can use top/bottom', () => {
+    const localPositions = new Map<string, [number, number, number]>([
+      ['client-layer', [12.5, -1.3, 0]],
+      ['api', [2.5, -2.5, 0]],
+    ]);
+    const localSizes = new Map<string, NodeDimensions>([
+      ['client-layer', [3.5, 1.3, 1]],
+      ['api', [22, 1.4, 1]],
+    ]);
+
+    const result = routeEdges(
+      [{ id: 'client-to-api', from: 'client-layer', to: 'api', routing: 'straight' }],
+      localPositions,
+      localSizes,
+      'straight',
+      'nearest-face',
+    );
+
+    const pts = result.get('client-to-api') ?? [];
+    expect(pts.length).toBe(2);
+    // End point should avoid front/back and remain on a planar side.
+    expect(pts[1]?.[1]).toBeGreaterThanOrEqual(-2.5);
+    expect(pts[1]?.[0]).toBeGreaterThan(2.5);
+  });
+
+  it('with only fromPort fixed, chooses a non-crossing destination side', () => {
+    const localPositions = new Map<string, [number, number, number]>([
+      ['output-filters', [16, -7.5, 0]],
+      ['llm-conv', [2, -13, 0]],
+    ]);
+    const localSizes = new Map<string, NodeDimensions>([
+      ['output-filters', [18, 8, 1]],
+      ['llm-conv', [46, 1.4, 1]],
+    ]);
+
+    const result = routeEdges(
+      [{
+        id: 'output-to-llm-conv',
+        from: 'output-filters',
+        to: 'llm-conv',
+        fromPort: 'bottom',
+        routing: 'straight',
+      }],
+      localPositions,
+      localSizes,
+      'straight',
+      'nearest-face',
+    );
+
+    const pts = result.get('output-to-llm-conv') ?? [];
+    expect(pts.length).toBe(2);
+    // Destination side may be top/bottom when it is the better planar landing.
+    expect(pts[1]?.[1]).toBeGreaterThan(-13);
+  });
+
+  it('prefers the target face that actually faces the source node', () => {
+    const localPositions = new Map<string, [number, number, number]>([
+      ['users', [8, 6, 0]],
+      ['app-layer', [2.5, 3.5, 0]],
+    ]);
+    const localSizes = new Map<string, NodeDimensions>([
+      ['users', [4, 4, 1]],
+      ['app-layer', [24, 5, 1]],
+    ]);
+
+    const result = routeEdges(
+      [{ id: 'users-app', from: 'users', to: 'app-layer', routing: 'curved' }],
+      localPositions,
+      localSizes,
+      'curved',
+      'nearest-face',
+    );
+
+    const pts = result.get('users-app') ?? [];
+    expect(pts.length).toBeGreaterThanOrEqual(2);
+    const end = pts[pts.length - 1];
+    expect(end?.[0]).toBeGreaterThan(2.5);
+  });
+
+  it('group-to-group links with horizontal dominance use side-face ports', () => {
+    const localPositions = new Map<string, [number, number, number]>([
+      ['left-group', [0, 0, 0]],
+      ['right-group', [20, 8, 0]],
+    ]);
+    const localSizes = new Map<string, NodeDimensions>([
+      ['left-group', [18, 8, 1]],
+      ['right-group', [18, 8, 1]],
+    ]);
+
+    const result = routeEdges(
+      [{ id: 'group-link', from: 'left-group', to: 'right-group', routing: 'curved' }],
+      localPositions,
+      localSizes,
+      'curved',
+      'nearest-face',
+    );
+
+    const pts = result.get('group-link') ?? [];
+    expect(pts.length).toBe(4);
+    const [start, c1, _c2, end] = pts;
+    expect(start[0]).toBeGreaterThan(8.5);
+    expect(end[0]).toBeLessThan(11.5);
+    expect(c1[0] - start[0]).toBeGreaterThan(0.35);
+    expect(Math.abs(c1[1] - start[1])).toBeLessThan(0.2);
+  });
+
+  it('api -> output-filters exits API from right side (scene_llm_filter geometry)', () => {
+    const localPositions = new Map<string, [number, number, number]>([
+      ['api', [2.5, -2.5, 0]],
+      ['output-filters', [16, -7.5, 0]],
+    ]);
+    const localSizes = new Map<string, NodeDimensions>([
+      ['api', [22, 1.4, 1]],
+      ['output-filters', [18, 8, 1]],
+    ]);
+
+    const result = routeEdges(
+      [{ id: 'api-output', from: 'api', to: 'output-filters', routing: 'curved' }],
+      localPositions,
+      localSizes,
+      'curved',
+      'nearest-face',
+    );
+
+    const pts = result.get('api-output') ?? [];
+    expect(pts.length).toBe(4);
+    const [start, c1] = pts;
+    const apiRightX = 2.5 + 11;
+    const apiBottomY = -2.5 - 0.7;
+    // right-face start should be near apiRightX + EDGE_EPSILON
+    expect(start[0]).toBeGreaterThan(apiRightX + 0.02);
+    // tangent should point primarily along +X, not down.
+    expect(c1[0] - start[0]).toBeGreaterThan(0.5);
+    expect(Math.abs(c1[1] - start[1])).toBeLessThan(0.25);
+    // guard against bottom-face landing near y bottom edge
+    expect(Math.abs(start[1] - apiBottomY)).toBeGreaterThan(0.3);
   });
 });

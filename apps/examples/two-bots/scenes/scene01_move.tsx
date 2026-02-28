@@ -1,12 +1,9 @@
-import {BodyParts, SceneDefinition} from '@brewsite/core';
+import {BodyParts} from '@brewsite/core';
 import {Ambient, Directional, Lighting, Scene} from '@brewsite/core';
 import {Robot} from '../../generated/sceneDsl.generated';
 
-export const scene01Move: SceneDefinition = {
-  id: 'move-left',
-  index: 0,
-  getFrame: () => (
-    <Scene id="move-left">
+export const scene01Move= (
+    <Scene key="move-left">
       <Lighting intensityScale={1}>
         <Ambient intensity={2.2} color="#ffffff" />
         <Directional intensity={2} color="#ffffff" position={[20, 30, 40]} />
@@ -32,5 +29,4 @@ export const scene01Move: SceneDefinition = {
         roughness={.1}
       />
     </Scene>
-  ),
-};
+);

@@ -14,6 +14,8 @@ export { CameraInteractionInfoDialog } from './CameraInteractionInfoDialog';
 export { useEngineScrubber } from './useEngineScrubber';
 export { useSceneProgress } from './useSceneProgress';
 export { useCurrentScene } from './useCurrentScene';
+export { useSceneRuntime } from './useSceneRuntime';
+export type { SceneRuntimeState } from './ScenePlayerRegistry';
 export { useEngineState } from './EngineStateContext';
 export { EngineContext, useSceneEngineContext } from './EngineContext';
 export { createDefaultWidgetRegistry } from './defaultWidgets';

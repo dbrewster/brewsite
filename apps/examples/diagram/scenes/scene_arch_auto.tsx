@@ -1,4 +1,3 @@
-import type { SceneDefinition } from '@brewsite/core';
 import { Ambient, Directional, Lighting, Scene } from '@brewsite/core';
 import { DiagramCanvas, Diagram, DiagramEdge, DiagramNode, HierarchicalLayout } from '@brewsite/diagram';
 
@@ -13,11 +12,8 @@ import { DiagramCanvas, Diagram, DiagramEdge, DiagramNode, HierarchicalLayout } 
  *   'extruded' — all paths extruded to the same depth, lit by PBR side faces
  *   'embossed' — shallow extrusion with wide bevel, coin/medallion look
  */
-export const sceneArchAuto: SceneDefinition = {
-  id: 'arch-auto',
-  index: 0,
-  getFrame: () => (
-    <Scene id="arch-auto">
+export const sceneArchAuto= (
+    <Scene key="arch-auto">
       <Lighting intensityScale={1}>
         {/* Soft ambient so shadows on side faces are still readable */}
         <Ambient intensity={0.8} color="#ffffff" />
@@ -97,5 +93,4 @@ export const sceneArchAuto: SceneDefinition = {
         </Diagram>
       </DiagramCanvas>
     </Scene>
-  ),
-};
+);

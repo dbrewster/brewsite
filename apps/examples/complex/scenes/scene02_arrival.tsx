@@ -1,14 +1,10 @@
-import type { SceneDefinition } from '@brewsite/core';
 import { Ambient, Background, Directional, Environment, Floor, Hud, HudItem, Lighting, Scene } from '@brewsite/core';
 import { Fade } from '@brewsite/core/hud/animejs';
 import { Animation, BodyParts, Playback, Pose, Robot } from '../../generated/sceneDsl.generated';
 import { backgrounds, sceneLighting } from './sceneAssets';
 
-export const scene02Arrival: SceneDefinition = {
-  id: 'complex-arrival',
-  index: 1,
-  getFrame: () => (
-    <Scene id="complex-arrival">
+export const scene02Arrival= (
+    <Scene key="complex-arrival">
       <Background imageUrl={backgrounds.reveal} opacity={1} cssSize="cover" cssPosition="center" />
       <Lighting intensityScale={1}>
         <Ambient intensity={sceneLighting.soft.ambient} color="#e6eeff" />
@@ -55,5 +51,4 @@ export const scene02Arrival: SceneDefinition = {
         </HudItem>
       </Hud>
     </Scene>
-  ),
-};
+);

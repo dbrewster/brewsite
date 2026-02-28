@@ -1,14 +1,11 @@
-import {Animation, Camera, Floor, FloorMirror, Playback, SceneDefinition} from '@brewsite/core';
+import {Animation, Camera, Floor, FloorMirror, Playback} from '@brewsite/core';
 import {Ambient, Background, Directional, Hud, HudItem, Lighting, Point, Scene, Spot} from '@brewsite/core';
 import {Fade} from '@brewsite/core/hud/animejs';
 import {Worker} from '../../generated/sceneDsl.generated';
 import {backgrounds, sceneLighting} from './sceneAssets';
 
-export const scene03_05Reveal: SceneDefinition = {
-  id: 'complex-reveal',
-  index: 3,
-  getFrame: () => (
-    <Scene id="complex-reveal">
+export const scene03_05Reveal= (
+    <Scene key="complex-reveal">
       <Camera
         mode="fitFloorDepth"
         fov={60}
@@ -60,5 +57,4 @@ export const scene03_05Reveal: SceneDefinition = {
         </HudItem>
       </Hud>
     </Scene>
-  ),
-};
+);

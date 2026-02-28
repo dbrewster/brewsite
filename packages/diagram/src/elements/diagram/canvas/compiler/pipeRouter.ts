@@ -3,6 +3,7 @@
 
 import type { DiagramState } from '../../types';
 import type { DiagramPipeState, PipeRoutingAlgorithm, PipeLandingAlgorithm } from '../types';
+import { routeCurvedWithEndpointNormals } from '../../compiler/curveKernel';
 
 type Vec3 = readonly [number, number, number];
 
@@ -99,24 +100,16 @@ export function routePipe(
   const dist = Math.sqrt(
     (to[0] - from[0]) ** 2 + (to[1] - from[1]) ** 2 + (to[2] - from[2]) ** 2,
   );
-  const stub = Math.min(3.0, dist * 0.20);
 
   if (fromNormal && toNormal) {
-    const dotNormals = fromNormal[0]*toNormal[0] + fromNormal[1]*toNormal[1] + fromNormal[2]*toNormal[2];
-    if (dotNormals < -0.3) {
-      const midX = (from[0] + to[0]) / 2;
-      const midY = (from[1] + to[1]) / 2;
-      const edgeDx = to[0] - from[0];
-      const edgeDy = to[1] - from[1];
-      const edgeLen = Math.sqrt(edgeDx * edgeDx + edgeDy * edgeDy) || 1;
-      const perpX = -edgeDy / edgeLen;
-      const perpY = edgeDx / edgeLen;
-      const bow = Math.min(1.5, dist * 0.20);
-      return [from, [midX + perpX * bow, midY + perpY * bow, from[2]], to];
-    }
-    const g1: Vec3 = [from[0] + fromNormal[0] * stub, from[1] + fromNormal[1] * stub, from[2] + fromNormal[2] * stub];
-    const g2: Vec3 = [to[0]   + toNormal[0]   * stub, to[1]   + toNormal[1]   * stub, to[2]   + toNormal[2]   * stub];
-    return [from, g1, g2, to];
+    return routeCurvedWithEndpointNormals(from, to, fromNormal, toNormal, {
+      epsilon: 0,
+      handleMin: 0.05,
+      handleMax: 4,
+      handleFactor: 0.20,
+      antiParallelDotThreshold: -0.3,
+      antiParallelHandleBoost: 1.35,
+    });
   }
 
   const arcH = Math.max(0.5, dist * 0.15);

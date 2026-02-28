@@ -6,6 +6,7 @@ import type {
   EdgeLandingAlgorithm,
   EdgeRoutingAlgorithm,
 } from '../types';
+import { routeCurvedWithEndpointNormals } from './curveKernel';
 
 export type FaceId = 'left' | 'right' | 'top' | 'bottom' | 'front' | 'back';
 export type Vec3 = readonly [number, number, number];
@@ -21,11 +22,54 @@ type EdgeRoutingInput = {
   thickness?: number;
 };
 
-const EDGE_EPSILON = 0.1;
+const EDGE_EPSILON = 0.06;
 const MIN_PORT_PITCH = 0.35;
 const PORT_SPACING_FACTOR = 3.0;
 const PORT_MARGIN_FACTOR = 1.5;
 const OBSTACLE_PADDING = 0.2;
+const END_TOUCH_TOLERANCE_T = 0.03;
+
+type RoutingWeights = {
+  face: {
+    penetration: number;
+    obstacleHits: number;
+    alignment: number;
+    direction: number;
+    nearEdge: number;
+    nearEdgePower: number;
+    nearestFaceBias: number;
+    length: number;
+  };
+  port: {
+    target: number;
+    centerAttraction: number;
+    edgeRepulsion: number;
+    edgeRepulsionPower: number;
+    maxEdgeNormalized: number;
+    load: number;
+  };
+};
+
+const ROUTING_WEIGHTS: RoutingWeights = {
+  face: {
+    penetration: 10_000,
+    obstacleHits: 1_000,
+    alignment: 100,
+    direction: 400,
+    nearEdge: 320,
+    nearEdgePower: 3,
+    nearestFaceBias: 10,
+    length: 1,
+  },
+  port: {
+    target: 80,
+    centerAttraction: 120,
+    edgeRepulsion: 600,
+    edgeRepulsionPower: 8,
+    maxEdgeNormalized: 0.82,
+    load: 1_000,
+  },
+};
 const addVec = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const scaleVec = (v: Vec3, scalar: number): Vec3 => [v[0] * scalar, v[1] * scalar, v[2] * scalar];
 
@@ -71,28 +115,6 @@ const resolvePortCountForFace = (
   if (face === 'left' || face === 'right') return computePortCount(h, thickness);
   return 1;
 };
-
-
-
-const buildCenterOutOrder = (count: number): number[] => {
-  if (count <= 1) return [0];
-  const order: number[] = [];
-  const midRight = Math.floor(count / 2);
-  const midLeft = count % 2 === 0 ? midRight - 1 : midRight;
-  order.push(midLeft);
-  if (midRight !== midLeft) order.push(midRight);
-  let step = 1;
-  while (order.length < count) {
-    const left = midLeft - step;
-    const right = midRight + step;
-    if (left >= 0) order.push(left);
-    if (order.length >= count) break;
-    if (right < count) order.push(right);
-    step += 1;
-  }
-  return order;
-};
-
 export function getFacePortAnchor(
   pos: Vec3,
   size: NodeDimensions,
@@ -173,6 +195,37 @@ export function nearestFace(origin: Vec3, target: Vec3): FaceId {
   return dz >= 0 ? 'front' : 'back';
 }
 
+function nearestFaceForNode(origin: Vec3, target: Vec3, size: NodeDimensions): FaceId {
+  const dx = target[0] - origin[0];
+  const dy = target[1] - origin[1];
+  const dz = target[2] - origin[2];
+  const halfW = Math.max(0.001, size[0] * 0.5);
+  const halfH = Math.max(0.001, size[1] * 0.5);
+  const halfD = Math.max(0.001, size[2] * 0.5);
+
+  const nx = Math.abs(dx) / halfW;
+  const ny = Math.abs(dy) / halfH;
+  const nz = Math.abs(dz) / halfD;
+
+  if (ny >= nx && ny >= nz) return dy >= 0 ? 'top' : 'bottom';
+  if (nx >= nz) return dx >= 0 ? 'right' : 'left';
+  return dz >= 0 ? 'front' : 'back';
+}
+
+function nearestFaceForNodePair(
+  origin: Vec3,
+  target: Vec3,
+  originSize: NodeDimensions,
+  targetSize: NodeDimensions,
+): FaceId {
+  const face = nearestFaceForNode(origin, target, originSize);
+  if (face === 'front' || face === 'back') {
+    return target[0] >= origin[0] ? 'right' : 'left';
+  }
+  void targetSize;
+  return face;
+}
+
 /** shortest-path: enumerate all 36 face-pair combos, pick minimum distance. */
 function shortestPathFaces(
   srcPos: Vec3, srcSize: NodeDimensions,
@@ -205,15 +258,20 @@ export function resolveFaces(
     return { srcFace: portToFace(fromPort), dstFace: portToFace(toPort) };
   }
   if (fromPort || toPort) {
-    const sf = fromPort ? portToFace(fromPort) : nearestFace(srcPos, dstPos);
-    const df = toPort ? portToFace(toPort) : nearestFace(dstPos, srcPos);
+    const sf = fromPort ? portToFace(fromPort) : nearestFaceForNodePair(srcPos, dstPos, srcSize, dstSize);
+    const df = toPort ? portToFace(toPort) : nearestFaceForNodePair(dstPos, srcPos, dstSize, srcSize);
     return { srcFace: sf, dstFace: df };
   }
   if (landing === 'shortest-path') return shortestPathFaces(srcPos, srcSize, dstPos, dstSize);
-  if (landing === 'center') return { srcFace: nearestFace(srcPos, dstPos), dstFace: nearestFace(dstPos, srcPos) };
+  if (landing === 'center') {
+    return {
+      srcFace: nearestFaceForNodePair(srcPos, dstPos, srcSize, dstSize),
+      dstFace: nearestFaceForNodePair(dstPos, srcPos, dstSize, srcSize),
+    };
+  }
   return {
-    srcFace: nearestFace(srcPos, dstPos),
-    dstFace: nearestFace(dstPos, srcPos),
+    srcFace: nearestFaceForNodePair(srcPos, dstPos, srcSize, dstSize),
+    dstFace: nearestFaceForNodePair(dstPos, srcPos, dstSize, srcSize),
   };
 }
 
@@ -223,28 +281,53 @@ export function routeEdgeCurved(
   srcAnchor?: Vec3,
   dstAnchor?: Vec3,
 ): ReadonlyArray<Vec3> {
+  return routeEdgeCurvedProfile(
+    srcPos,
+    srcSize,
+    srcFace,
+    dstPos,
+    dstSize,
+    dstFace,
+    'render',
+    srcAnchor,
+    dstAnchor,
+  );
+}
+
+function routeEdgeCurvedProfile(
+  srcPos: Vec3,
+  srcSize: NodeDimensions,
+  srcFace: FaceId,
+  dstPos: Vec3,
+  dstSize: NodeDimensions,
+  dstFace: FaceId,
+  profile: 'render' | 'face-scoring',
+  srcAnchor?: Vec3,
+  dstAnchor?: Vec3,
+): ReadonlyArray<Vec3> {
   const srcCenter = srcAnchor ?? getFaceCenter(srcPos, srcSize, srcFace);
   const dstCenter = dstAnchor ?? getFaceCenter(dstPos, dstSize, dstFace);
   const srcNormal = getFaceNormal(srcFace);
   const dstNormal = getFaceNormal(dstFace);
-
-  const start = addVec(srcCenter, scaleVec(srcNormal, EDGE_EPSILON));
-  const end   = addVec(dstCenter, scaleVec(dstNormal, EDGE_EPSILON));
-
-  const dx = end[0] - start[0];
-  const dy = end[1] - start[1];
-  const dz = end[2] - start[2];
-  const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-  const dir: Vec3 = dist > 0 ? [dx / dist, dy / dist, dz / dist] : [1, 0, 0];
-  const srcAlign = srcNormal[0] * dir[0] + srcNormal[1] * dir[1] + srcNormal[2] * dir[2];
-  const dstAlign = dstNormal[0] * -dir[0] + dstNormal[1] * -dir[1] + dstNormal[2] * -dir[2];
-  if (dist < 6 && srcAlign > 0.85 && dstAlign > 0.85) {
-    return [start, end];
-  }
-  const handle = Math.max(0.6, Math.min(6, dist * 0.35));
-  const c1 = addVec(start, scaleVec(srcNormal, handle));
-  const c2 = addVec(end, scaleVec(dstNormal, handle));
-  return [start, c1, c2, end];
+  const srcIsSide = srcFace === 'left' || srcFace === 'right';
+  const dstIsSide = dstFace === 'left' || dstFace === 'right';
+  const renderProfile = profile === 'render';
+  return routeCurvedWithEndpointNormals(srcCenter, dstCenter, srcNormal, dstNormal, {
+    epsilon: EDGE_EPSILON,
+    handleMin: 0.35,
+    handleMax: 4,
+    handleFactor: 0.28,
+    allowDirectSegment: !srcIsSide && !dstIsSide,
+    directDistanceThreshold: 0.6,
+    directAlignmentThreshold: 0.97,
+    startPreferSide: renderProfile && srcIsSide,
+    endPreferSide: renderProfile && dstIsSide,
+    sideVerticalRatioThreshold: 0.3,
+    sideVerticalBase: 0.45,
+    sideVerticalFactor: 0.18,
+    sideVerticalMax: 3.2,
+    minSideHandle: renderProfile ? 0.95 : 0,
+  });
 }
 
 export function routeEdgeStraight(
@@ -375,10 +458,11 @@ function routeOneEdge(
   toPort?: DiagramEdgePort,
   fromAnchor?: Vec3,
   toAnchor?: Vec3,
+  resolvedFaces?: FacePair,
 ): ReadonlyArray<Vec3> {
   if (landing === 'center') {
-    const sn = getFaceNormal(nearestFace(fromPos, toPos));
-    const dn = getFaceNormal(nearestFace(toPos, fromPos));
+    const sn = getFaceNormal(nearestFaceForNode(fromPos, toPos, fromSize));
+    const dn = getFaceNormal(nearestFaceForNode(toPos, fromPos, toSize));
     const start = addVec(fromPos, scaleVec(sn, EDGE_EPSILON));
     const end   = addVec(toPos,   scaleVec(dn, EDGE_EPSILON));
     if (routing === 'straight') return [start, end];
@@ -387,7 +471,8 @@ function routeOneEdge(
     return [start, addVec(start, scaleVec(sn, stub)), addVec(end, scaleVec(dn, stub)), end];
   }
 
-  const { srcFace, dstFace } = resolveFaces(fromPos, fromSize, toPos, toSize, landing, fromPort, toPort);
+  const { srcFace, dstFace } = resolvedFaces
+    ?? resolveFaces(fromPos, fromSize, toPos, toSize, landing, fromPort, toPort);
 
   switch (routing) {
     case 'straight':    return routeEdgeStraight(fromPos, fromSize, srcFace, toPos, toSize, dstFace, fromAnchor, toAnchor);
@@ -410,16 +495,17 @@ function routeOneEdgeWithFaces(
   srcFace: FaceId,
   dstFace: FaceId,
 ): ReadonlyArray<Vec3> {
+  void edgeId;
   switch (routing) {
     case 'straight':
       return routeEdgeStraight(fromPos, fromSize, srcFace, toPos, toSize, dstFace);
     case 'orthogonal':
       return routeEdgeOrthogonal(fromPos, fromSize, srcFace, toPos, toSize, dstFace);
     case 'organic':
-      return routeEdgeOrganic(fromPos, fromSize, srcFace, toPos, toSize, dstFace, edgeId);
+      return routeEdgeCurvedProfile(fromPos, fromSize, srcFace, toPos, toSize, dstFace, 'face-scoring');
     case 'curved':
     default:
-      return routeEdgeCurved(fromPos, fromSize, srcFace, toPos, toSize, dstFace);
+      return routeEdgeCurvedProfile(fromPos, fromSize, srcFace, toPos, toSize, dstFace, 'face-scoring');
   }
 }
 
@@ -521,7 +607,128 @@ function polylineLength(points: ReadonlyArray<Vec3>): number {
   return len;
 }
 
-function resolveFacesWithObstacleFallback(
+function segmentClipRange2D(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  rect: ObstacleRect,
+): readonly [number, number] | null {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  let t0 = 0;
+  let t1 = 1;
+
+  const clip = (p: number, q: number): boolean => {
+    if (Math.abs(p) < 1e-9) return q >= 0;
+    const r = q / p;
+    if (p < 0) {
+      if (r > t1) return false;
+      if (r > t0) t0 = r;
+    } else {
+      if (r < t0) return false;
+      if (r < t1) t1 = r;
+    }
+    return true;
+  };
+
+  if (!clip(-dx, x1 - rect.left)) return null;
+  if (!clip(dx, rect.right - x1)) return null;
+  if (!clip(-dy, y1 - rect.bottom)) return null;
+  if (!clip(dy, rect.top - y1)) return null;
+  if (t0 > t1) return null;
+  return [t0, t1];
+}
+
+function polylineRectPenetration(
+  points: ReadonlyArray<Vec3>,
+  rect: ObstacleRect,
+  allowTouchAtStart: boolean,
+  allowTouchAtEnd: boolean,
+): number {
+  if (points.length < 2) return 0;
+  const lastSeg = points.length - 2;
+  let penetration = 0;
+  for (let i = 0; i <= lastSeg; i += 1) {
+    const a = points[i];
+    const b = points[i + 1];
+    if (!a || !b) continue;
+    const clipRange = segmentClipRange2D(a[0], a[1], b[0], b[1], rect);
+    if (!clipRange) continue;
+    let [t0, t1] = clipRange;
+    if (allowTouchAtStart && i === 0 && t0 <= END_TOUCH_TOLERANCE_T) {
+      t0 = Math.min(t1, END_TOUCH_TOLERANCE_T);
+    }
+    if (allowTouchAtEnd && i === lastSeg && t1 >= 1 - END_TOUCH_TOLERANCE_T) {
+      t1 = Math.max(t0, 1 - END_TOUCH_TOLERANCE_T);
+    }
+    if (t1 <= t0) continue;
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const dz = b[2] - a[2];
+    const segLen = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    penetration += segLen * (t1 - t0);
+  }
+  return penetration;
+}
+
+function endpointAlignmentPenalty(points: ReadonlyArray<Vec3>, srcFace: FaceId, dstFace: FaceId): number {
+  if (points.length < 2) return 2;
+  const start = points[0];
+  const next = points[1];
+  const prev = points[points.length - 2];
+  const end = points[points.length - 1];
+  if (!start || !next || !prev || !end) return 2;
+
+  const srcDirX = next[0] - start[0];
+  const srcDirY = next[1] - start[1];
+  const srcDirZ = next[2] - start[2];
+  const srcLen = Math.sqrt(srcDirX * srcDirX + srcDirY * srcDirY + srcDirZ * srcDirZ) || 1;
+  const srcDir: Vec3 = [srcDirX / srcLen, srcDirY / srcLen, srcDirZ / srcLen];
+
+  const dstInX = prev[0] - end[0];
+  const dstInY = prev[1] - end[1];
+  const dstInZ = prev[2] - end[2];
+  const dstLen = Math.sqrt(dstInX * dstInX + dstInY * dstInY + dstInZ * dstInZ) || 1;
+  const dstIn: Vec3 = [dstInX / dstLen, dstInY / dstLen, dstInZ / dstLen];
+
+  const srcNormal = getFaceNormal(srcFace);
+  const dstNormal = getFaceNormal(dstFace);
+  const srcAlign = Math.max(-1, Math.min(1, srcDir[0] * srcNormal[0] + srcDir[1] * srcNormal[1] + srcDir[2] * srcNormal[2]));
+  const dstAlign = Math.max(-1, Math.min(1, dstIn[0] * dstNormal[0] + dstIn[1] * dstNormal[1] + dstIn[2] * dstNormal[2]));
+  return (1 - srcAlign) + (1 - dstAlign);
+}
+
+function faceDirectionPenalty(fromPos: Vec3, toPos: Vec3, srcFace: FaceId, dstFace: FaceId): number {
+  const dx = toPos[0] - fromPos[0];
+  const dy = toPos[1] - fromPos[1];
+  const dz = toPos[2] - fromPos[2];
+  const len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+  const dir: Vec3 = [dx / len, dy / len, dz / len];
+  const srcNormal = getFaceNormal(srcFace);
+  const dstNormal = getFaceNormal(dstFace);
+  const srcToward = srcNormal[0] * dir[0] + srcNormal[1] * dir[1] + srcNormal[2] * dir[2];
+  const dstToward = dstNormal[0] * -dir[0] + dstNormal[1] * -dir[1] + dstNormal[2] * -dir[2];
+  // Penalize faces that point away from the opposite node.
+  const srcPenalty = 1 - Math.max(0, srcToward);
+  const dstPenalty = 1 - Math.max(0, dstToward);
+  return srcPenalty + dstPenalty;
+}
+
+function faceNearEdgePenalty(nodePos: Vec3, nodeSize: NodeDimensions, face: FaceId, targetPos: Vec3): number {
+  const span =
+    face === 'top' || face === 'bottom'
+      ? nodeSize[0]
+      : (face === 'left' || face === 'right' ? nodeSize[1] : 0);
+  if (span <= 0) return 0;
+  const center = face === 'top' || face === 'bottom' ? nodePos[0] : nodePos[1];
+  const target = face === 'top' || face === 'bottom' ? targetPos[0] : targetPos[1];
+  const halfSpan = Math.max(0.001, span * 0.5);
+  const normalized = Math.min(1, Math.abs(target - center) / halfSpan);
+  return Math.pow(normalized, ROUTING_WEIGHTS.face.nearEdgePower);
+}
+
+function resolveFacesByCost(
   edgeId: string,
   fromId: string,
   toId: string,
@@ -530,53 +737,68 @@ function resolveFacesWithObstacleFallback(
   toPos: Vec3,
   toSize: NodeDimensions,
   routing: EdgeRoutingAlgorithm,
+  lockedSrcFace: FaceId | undefined,
+  lockedDstFace: FaceId | undefined,
   positions: Map<string, Vec3>,
   sizes: Map<string, NodeDimensions>,
 ): FacePair {
-  const base = resolveFaces(fromPos, fromSize, toPos, toSize, 'nearest-face');
-  const isPlanarFace = (f: FaceId): boolean => f === 'left' || f === 'right' || f === 'top' || f === 'bottom';
-  if (!isPlanarFace(base.srcFace) || !isPlanarFace(base.dstFace)) {
-    return base;
-  }
-  const dx = toPos[0] - fromPos[0];
-  const dy = toPos[1] - fromPos[1];
-  const vertical: FacePair = {
-    srcFace: dy >= 0 ? 'top' : 'bottom',
-    dstFace: dy >= 0 ? 'bottom' : 'top',
-  };
-  const horizontal: FacePair = {
-    srcFace: dx >= 0 ? 'right' : 'left',
-    dstFace: dx >= 0 ? 'left' : 'right',
-  };
-  const shortest = resolveFaces(fromPos, fromSize, toPos, toSize, 'shortest-path');
-
+  const base = resolveFaces(fromPos, fromSize, toPos, toSize, 'nearest-face', lockedSrcFace, lockedDstFace);
+  const faces: readonly FaceId[] = ['left', 'right', 'top', 'bottom'];
+  const absDx = Math.abs(toPos[0] - fromPos[0]);
+  const absDy = Math.abs(toPos[1] - fromPos[1]);
+  const sourceDirectionalFaces: readonly FaceId[] =
+    absDx >= absDy * 1.15
+      ? ['left', 'right']
+      : (absDy >= absDx * 1.15 ? ['top', 'bottom'] : faces);
+  const srcCandidates = lockedSrcFace ? [lockedSrcFace] : [...sourceDirectionalFaces];
+  const dstCandidates = lockedDstFace ? [lockedDstFace] : [...faces];
   const candidates: FacePair[] = [];
-  const pushUnique = (pair: FacePair): void => {
-    if (candidates.some((c) => c.srcFace === pair.srcFace && c.dstFace === pair.dstFace)) return;
-    candidates.push(pair);
-  };
-  pushUnique(base);
-  pushUnique(vertical);
-  pushUnique(horizontal);
-  pushUnique(shortest);
+  for (const srcFace of srcCandidates) {
+    for (const dstFace of dstCandidates) {
+      candidates.push({ srcFace, dstFace });
+    }
+  }
 
   const obstacles = computeObstacleRects(positions, sizes, fromId, toId);
+  const fromRect: ObstacleRect = {
+    left: fromPos[0] - fromSize[0] / 2,
+    right: fromPos[0] + fromSize[0] / 2,
+    bottom: fromPos[1] - fromSize[1] / 2,
+    top: fromPos[1] + fromSize[1] / 2,
+  };
+  const toRect: ObstacleRect = {
+    left: toPos[0] - toSize[0] / 2,
+    right: toPos[0] + toSize[0] / 2,
+    bottom: toPos[1] - toSize[1] / 2,
+    top: toPos[1] + toSize[1] / 2,
+  };
   const scored = candidates.map((pair) => {
     const points = routeOneEdgeWithFaces(edgeId, fromPos, fromSize, toPos, toSize, routing, pair.srcFace, pair.dstFace);
+    const sourcePenetration = polylineRectPenetration(points, fromRect, true, false);
+    const targetPenetration = polylineRectPenetration(points, toRect, false, true);
+    const hits = polylineObstacleHits(points, obstacles);
+    const alignmentPenalty = endpointAlignmentPenalty(points, pair.srcFace, pair.dstFace);
+    const directionPenalty = faceDirectionPenalty(fromPos, toPos, pair.srcFace, pair.dstFace);
+    const nearEdgePenalty =
+      faceNearEdgePenalty(fromPos, fromSize, pair.srcFace, toPos) +
+      faceNearEdgePenalty(toPos, toSize, pair.dstFace, fromPos);
+    const baseBias = pair.srcFace === base.srcFace && pair.dstFace === base.dstFace ? 0 : 1;
+    const length = polylineLength(points);
+    const totalScore =
+      (sourcePenetration + targetPenetration) * ROUTING_WEIGHTS.face.penetration +
+      hits * ROUTING_WEIGHTS.face.obstacleHits +
+      alignmentPenalty * ROUTING_WEIGHTS.face.alignment +
+      directionPenalty * ROUTING_WEIGHTS.face.direction +
+      nearEdgePenalty * ROUTING_WEIGHTS.face.nearEdge +
+      baseBias * ROUTING_WEIGHTS.face.nearestFaceBias +
+      length * ROUTING_WEIGHTS.face.length;
     return {
       pair,
-      hits: polylineObstacleHits(points, obstacles),
-      length: polylineLength(points),
+      totalScore,
     };
   });
 
-  const baseScore = scored[0];
-  if (baseScore && baseScore.hits === 0) return baseScore.pair;
-
-  const best = [...scored].sort((a, b) => {
-    if (a.hits !== b.hits) return a.hits - b.hits;
-    return a.length - b.length;
-  })[0];
+  const best = [...scored].sort((a, b) => a.totalScore - b.totalScore)[0];
   return best?.pair ?? base;
 }
 
@@ -618,8 +840,13 @@ export function routeEdges(
     const landing = (edge.fromPort || edge.toPort) ? 'port' : defaultLanding;
     const routing = edge.routing ?? defaultRouting;
     let { srcFace, dstFace } = resolveFaces(fromPos, fromSize, toPos, toSize, landing, edge.fromPort, edge.toPort);
-    if (!edge.fromPort && !edge.toPort && landing === 'nearest-face') {
-      const selected = resolveFacesWithObstacleFallback(
+    const lockedSrcFace = edge.fromPort ? portToFace(edge.fromPort) : undefined;
+    const lockedDstFace = edge.toPort ? portToFace(edge.toPort) : undefined;
+    const shouldUseCostSelection =
+      (landing === 'nearest-face' && !edge.fromPort && !edge.toPort) ||
+      (landing === 'port' && (!!edge.fromPort !== !!edge.toPort));
+    if (shouldUseCostSelection) {
+      const selected = resolveFacesByCost(
         id,
         edge.from,
         edge.to,
@@ -628,6 +855,8 @@ export function routeEdges(
         toPos,
         toSize,
         routing,
+        lockedSrcFace,
+        lockedDstFace,
         positions,
         sizes,
       );
@@ -663,19 +892,57 @@ export function routeEdges(
     facePortCount.set(key, count);
 
     const axis = face === 'left' || face === 'right' ? 'y' : 'x';
-    const sorted = [...group].sort((a, b) => {
-      const targetA = a.from === nodeId ? positions.get(a.to) : positions.get(a.from);
-      const targetB = b.from === nodeId ? positions.get(b.to) : positions.get(b.from);
-      const va = (axis === 'x' ? targetA?.[0] : targetA?.[1]) ?? 0;
-      const vb = (axis === 'x' ? targetB?.[0] : targetB?.[1]) ?? 0;
-      return va - vb;
+    const span = axis === 'x' ? size[0] : size[1];
+    const step = count > 1 ? span / (count - 1) : 0;
+    const centerIndex = (count - 1) / 2;
+    const allIndices = [...Array(count).keys()];
+    const loads = new Array(count).fill(0);
+
+    const withIdeal = group.map((info) => {
+      const target = info.from === nodeId ? positions.get(info.to) : positions.get(info.from);
+      const targetAxis = axis === 'x' ? (target?.[0] ?? pos[0]) : (target?.[1] ?? pos[1]);
+      const centerAxis = axis === 'x' ? pos[0] : pos[1];
+      const offset = Math.max(-span / 2, Math.min(span / 2, targetAxis - centerAxis));
+      const idealIndex = count <= 1 ? 0 : (offset + span / 2) / step;
+      return { info, idealIndex };
+    }).sort((a, b) => {
+      const ac = Math.abs(a.idealIndex - centerIndex);
+      const bc = Math.abs(b.idealIndex - centerIndex);
+      if (ac !== bc) return ac - bc;
+      return a.idealIndex - b.idealIndex;
     });
 
-    const portOrder = buildCenterOutOrder(count);
-    sorted.forEach((info, index) => {
-      const portIndex = count <= 1 ? 0 : portOrder[Math.min(count - 1, index)] ?? 0;
+    withIdeal.forEach(({ info, idealIndex }) => {
+      const maxCenterDist = Math.max(1, centerIndex);
+      const candidateIndices = allIndices.filter((idx) => {
+        const normEdgeDist = Math.abs(idx - centerIndex) / maxCenterDist;
+        return normEdgeDist <= ROUTING_WEIGHTS.port.maxEdgeNormalized;
+      });
+      const indices = candidateIndices.length > 0 ? candidateIndices : allIndices;
+      const chosen = [...allIndices].sort((a, b) => {
+        const normEdgeDistA = Math.abs(a - centerIndex) / maxCenterDist;
+        const normEdgeDistB = Math.abs(b - centerIndex) / maxCenterDist;
+        const edgePenaltyA =
+          Math.pow(normEdgeDistA, ROUTING_WEIGHTS.port.edgeRepulsionPower) *
+          ROUTING_WEIGHTS.port.edgeRepulsion;
+        const edgePenaltyB =
+          Math.pow(normEdgeDistB, ROUTING_WEIGHTS.port.edgeRepulsionPower) *
+          ROUTING_WEIGHTS.port.edgeRepulsion;
+        const sa =
+          Math.abs(a - idealIndex) * ROUTING_WEIGHTS.port.target +
+          Math.abs(a - centerIndex) * ROUTING_WEIGHTS.port.centerAttraction +
+          edgePenaltyA +
+          loads[a] * ROUTING_WEIGHTS.port.load;
+        const sb =
+          Math.abs(b - idealIndex) * ROUTING_WEIGHTS.port.target +
+          Math.abs(b - centerIndex) * ROUTING_WEIGHTS.port.centerAttraction +
+          edgePenaltyB +
+          loads[b] * ROUTING_WEIGHTS.port.load;
+        return sa - sb;
+      }).find((idx) => indices.includes(idx)) ?? 0;
+      loads[chosen] += 1;
       const side = info.from === nodeId ? 'from' : 'to';
-      facePortIndex.set(`${info.id}:${nodeId}:${side}`, portIndex);
+      facePortIndex.set(`${info.id}:${nodeId}:${side}`, chosen);
     });
   });
 
@@ -719,7 +986,7 @@ export function routeEdges(
 
     result.set(id, routeOneEdge(
       id, fromPos, fromSize, toPos, toSize,
-      routing, landing, edge.fromPort, edge.toPort, fromAnchor, toAnchor,
+      routing, landing, edge.fromPort, edge.toPort, fromAnchor, toAnchor, { srcFace, dstFace },
     ));
   });
 

@@ -102,10 +102,6 @@ export default function ComplexPage(): JSX.Element {
         }
       `}</style>
       <ScenePlayer
-        sceneGroup={{
-          id: 'complex',
-          scenes: [scene01Intro, scene02Arrival, scene03Reveal, scene04Scan, scene05Outro],
-        }}
         manifestUrl="/scene-manifest.json"
         widgetSetup={createWidgetSetup}
         framesPerTick={110}
@@ -120,8 +116,13 @@ export default function ComplexPage(): JSX.Element {
           </div>
         )}
       >
-        <DebugHud />
+        {scene01Intro}
+        {scene02Arrival}
+        {scene03Reveal}
+        {scene04Scan}
+        {scene05Outro}
       </ScenePlayer>
+      <DebugHud />
     </div>
   );
 }

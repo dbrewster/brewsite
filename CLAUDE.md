@@ -180,15 +180,15 @@ Prefer these helpers over ad-hoc pipelines for any asset-processing work.
 ---
 
 ## Requirements and Documentation Policies
-- PRDs live under `requirements/prd/**` and are the source of truth; the structure has changed, so read the specific PRD for the area you touch.
+- PRDs live under `requirements/*/prd/**` and are the source of truth; the structure has changed, so read the specific PRD for the area you touch.
 - Naming: `prd_`, `plan_`, `idea_`, `note_`, `playbook_`, plus scaffolding files (`AGENTS.md`, `README.md`).
 - Front matter on every Markdown file except AGENTS/README: `title`, `doc_type`, `owner`, `status`, `updated` (ISO).
 - `requirements/**/archive/**` is read-only without explicit approval.
 - Keep requirements synchronized with behavior changes; PRDs stay present-tense with tidy version history; update link targets when files move.
 
 ## Plans
-- Plans live in `requirements/plans/**` and are authored by the PM/product architect bot. All plans must be created in this directory.
-- When a plan is complete, mark it complete and move it into `requirements/plans/archive/**`.
+- Plans live in `requirements/*/plans/**` and are authored by the PM/product architect bot. All plans must be created in this directory.
+- When a plan is complete, mark it complete and move it into `requirements/*/plans/archive/**`.
 - Once a plan is verified 100% complete, it can and should be moved into the archive.
 - When creating a plan, do not leave product design or architecture up to the implementing bot. Be complete and very detailed. This is VERY important.
 - Plans must include: explicit file paths, module boundaries, data types, API/native commands, UI layout structure, CSS/styling direction, state management, error handling, telemetry, and testing strategy.

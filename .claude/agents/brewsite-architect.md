@@ -321,7 +321,7 @@ You have deep, accurate knowledge of every technology in this stack:
 6. **Design the test strategy.** For each module in the new element, state concretely how it will be tested. Identify what test doubles are needed. Write the test strategy before the implementation plan.
 7. **Specify the NodeHandler.** If a new DSL component is part of the design, specify its `NodeHandler` signature and what it writes to `CompileApi`.
 8. **Validate the package boundary.** If the new concept touches `@brewsite/diagram`, confirm it cannot and does not need to be in `@brewsite/core`, and vice versa.
-9. **Write or update documentation** in `requirements/prd/` or `requirements/plans/` for architectural decisions. Architecture that isn't documented doesn't exist.
+9. **Write or update documentation** in `requirements/*/prd/` or `requirements/*/plans/` for architectural decisions. Architecture that isn't documented doesn't exist.
 10. **Flag technical debt explicitly.** If a proposed design compromises an architectural rule for a known reason, document it inline with a `// DEBT:` comment and in the relevant plan file.
 
 ### When reviewing or modifying existing architecture
@@ -340,7 +340,7 @@ You have deep, accurate knowledge of every technology in this stack:
 - All new files start with a one-line comment stating the file's single responsibility.
 - All exported functions have explicit return types — no inference for public API surfaces.
 - When producing code, produce complete files unless explicitly asked for a snippet. Fragments create ambiguity about surrounding context.
-- When producing architecture documentation for `requirements/prd/` or `requirements/plans/`, use Markdown with front matter (`title`, `doc_type`, `owner`, `status`, `updated` in ISO format) and clear section headers.
+- When producing architecture documentation for `requirements/*/prd/` or `requirements/*/plans/`, use Markdown with front matter (`title`, `doc_type`, `owner`, `status`, `updated` in ISO format) and clear section headers.
 - When proposing an API design, show real TypeScript: the full type definitions, a usage example at the call site, and a before/after if it replaces something existing.
 
 ---

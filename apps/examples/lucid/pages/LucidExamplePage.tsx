@@ -1,4 +1,4 @@
-import { CameraInteractionInfoDialog, ScenePlayer } from '@brewsite/core';
+import { ScenePlayer } from '@brewsite/core';
 import { useDiagramFocusRegion } from '@brewsite/diagram';
 import { useMemo } from 'react';
 import type { JSX } from 'react';
@@ -46,15 +46,15 @@ export default function LucidExamplePage(): JSX.Element {
   return (
     <div style={{ minHeight: '100vh' }}>
       <ScenePlayer
-        sceneGroup={{ id: 'llm-filter', scenes: [sceneLlmFilter] }}
         manifestUrl="/scene-manifest.json"
         widgetSetup={createLlmWidgetSetup}
         framesPerTick={80}
         pixelsPerScene={1200}
       >
-        {/*<CameraInteractionInfoDialog />*/}
-        <LlmFilterHud />
+        {sceneLlmFilter}
       </ScenePlayer>
+      {/*<CameraInteractionInfoDialog />*/}
+      <LlmFilterHud />
     </div>
   );
 }

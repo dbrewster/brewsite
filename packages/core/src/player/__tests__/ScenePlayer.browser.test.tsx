@@ -4,8 +4,8 @@ import React from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import { ScenePlayer } from '../ScenePlayer';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
-import type { SceneGroup } from '../../compiler/sceneTypes';
 import { SceneMetaWidget } from '../SceneMetaWidget';
+import { Scene } from '../../compiler/sceneDslCompiler';
 
 vi.mock('three', async () => {
   const actual = await vi.importActual<typeof import('three')>('three');
@@ -20,13 +20,7 @@ vi.mock('three', async () => {
   return { ...actual, WebGLRenderer: RendererStub };
 });
 
-const makeSceneGroup = (): SceneGroup => {
-  const scenes = [
-    { id: 's1', index: 0, getFrame: () => ({ id: 's1', scrollProgress: 0, widgets: {} }) },
-    { id: 's2', index: 1, getFrame: () => ({ id: 's2', scrollProgress: 1, widgets: {} }) },
-  ];
-  return { id: 'group', scenes };
-};
+const makeScenes = () => [<Scene key="s1" />, <Scene key="s2" />];
 
 const manifest = {
   version: 2,
@@ -66,11 +60,12 @@ describe('ScenePlayer (browser)', () => {
   it('shows placeholder until first tick', () => {
     render(
       <ScenePlayer
-        sceneGroup={makeSceneGroup()}
         manifestUrl={validManifestUrl}
         widgetSetup={() => new WidgetRegistry()}
         placeholder={<div>Loading...</div>}
-      />,
+      >
+        {makeScenes()}
+      </ScenePlayer>,
     );
     expect(screen.getByText('Loading...')).toBeDefined();
   });
@@ -78,10 +73,11 @@ describe('ScenePlayer (browser)', () => {
   it('surfaces manifest load errors', async () => {
     render(
       <ScenePlayer
-        sceneGroup={makeSceneGroup()}
         manifestUrl={invalidManifestUrl}
         widgetSetup={() => new WidgetRegistry()}
-      />,
+      >
+        {makeScenes()}
+      </ScenePlayer>,
     );
 
     await waitFor(() => {
@@ -106,11 +102,12 @@ describe('ScenePlayer (browser)', () => {
 
     render(
       <ScenePlayer
-        sceneGroup={makeSceneGroup()}
         manifestUrl={validManifestUrl}
         widgetSetup={widgetSetup}
         onSceneChange={() => {}}
-      />,
+      >
+        {makeScenes()}
+      </ScenePlayer>,
     );
 
     await waitFor(() => {
