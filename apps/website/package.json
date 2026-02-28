@@ -1,0 +1,31 @@
+{
+  "name": "@brewsite/examples",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --config vite.config.ts",
+    "preview": "vite preview",
+    "typecheck": "tsc -b tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "gen:scene-dsl": "node ../../scripts/gen-scene-dsl.mjs --input siteResources.ts --out-dir generated --asset-root public --manifest-out public/scene-manifest.json"
+  },
+  "dependencies": {
+    "@brewsite/core": "workspace:*",
+    "@brewsite/diagram": "workspace:*",
+    "fflate": "^0.8.2",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.169.0",
+    "@vitejs/plugin-react": "^4.7.0",
+    "vitest": "^2.1.9",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21"
+  }
+}

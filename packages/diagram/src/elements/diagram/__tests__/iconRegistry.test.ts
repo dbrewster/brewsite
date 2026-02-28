@@ -7,12 +7,12 @@ describe('resolveIconUrl', () => {
     expect(resolveIconUrl('aws:ec2')).toBe('/assets/shapes/aws/ec2.svg');
   });
 
-  it('returns correct path for flow:cloud', () => {
-    expect(resolveIconUrl('flow:cloud')).toBe('/assets/shapes/flow/cloud.svg');
+  it('returns correct path for flow:actor', () => {
+    expect(resolveIconUrl('flow:actor')).toBe('/assets/shapes/flow/actor.svg');
   });
 
-  it('returns undefined for flow:rect (geometry-only shape)', () => {
-    expect(resolveIconUrl('flow:rect')).toBeUndefined();
+  it('returns correct path for flow:queue', () => {
+    expect(resolveIconUrl('flow:queue')).toBe('/assets/shapes/flow/queue.svg');
   });
 
   it('returns a path for azure:app-service (closed union with explicit map)', () => {

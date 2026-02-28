@@ -25,6 +25,7 @@ const EDGE_EPSILON = 0.1;
 const MIN_PORT_PITCH = 0.35;
 const PORT_SPACING_FACTOR = 3.0;
 const PORT_MARGIN_FACTOR = 1.5;
+const OBSTACLE_PADDING = 0.2;
 const addVec = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const scaleVec = (v: Vec3, scalar: number): Vec3 => [v[0] * scalar, v[1] * scalar, v[2] * scalar];
 
@@ -397,6 +398,188 @@ function routeOneEdge(
   }
 }
 
+type FacePair = { srcFace: FaceId; dstFace: FaceId };
+
+function routeOneEdgeWithFaces(
+  edgeId: string,
+  fromPos: Vec3,
+  fromSize: NodeDimensions,
+  toPos: Vec3,
+  toSize: NodeDimensions,
+  routing: EdgeRoutingAlgorithm,
+  srcFace: FaceId,
+  dstFace: FaceId,
+): ReadonlyArray<Vec3> {
+  switch (routing) {
+    case 'straight':
+      return routeEdgeStraight(fromPos, fromSize, srcFace, toPos, toSize, dstFace);
+    case 'orthogonal':
+      return routeEdgeOrthogonal(fromPos, fromSize, srcFace, toPos, toSize, dstFace);
+    case 'organic':
+      return routeEdgeOrganic(fromPos, fromSize, srcFace, toPos, toSize, dstFace, edgeId);
+    case 'curved':
+    default:
+      return routeEdgeCurved(fromPos, fromSize, srcFace, toPos, toSize, dstFace);
+  }
+}
+
+type ObstacleRect = {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+};
+
+function computeObstacleRects(
+  positions: Map<string, Vec3>,
+  sizes: Map<string, NodeDimensions>,
+  fromId: string,
+  toId: string,
+): ObstacleRect[] {
+  const rects: ObstacleRect[] = [];
+  positions.forEach((pos, id) => {
+    if (id === fromId || id === toId) return;
+    const size = sizes.get(id);
+    if (!size) return;
+    const halfW = size[0] / 2 + OBSTACLE_PADDING;
+    const halfH = size[1] / 2 + OBSTACLE_PADDING;
+    rects.push({
+      left: pos[0] - halfW,
+      right: pos[0] + halfW,
+      bottom: pos[1] - halfH,
+      top: pos[1] + halfH,
+    });
+  });
+  return rects;
+}
+
+function segmentIntersectsRect2D(
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+  rect: ObstacleRect,
+): boolean {
+  const pointInside = (x: number, y: number): boolean =>
+    x >= rect.left && x <= rect.right && y >= rect.bottom && y <= rect.top;
+  if (pointInside(x1, y1) || pointInside(x2, y2)) return true;
+
+  const segMinX = Math.min(x1, x2);
+  const segMaxX = Math.max(x1, x2);
+  const segMinY = Math.min(y1, y2);
+  const segMaxY = Math.max(y1, y2);
+  if (segMaxX < rect.left || segMinX > rect.right || segMaxY < rect.bottom || segMinY > rect.top) return false;
+
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  let t0 = 0;
+  let t1 = 1;
+
+  const clip = (p: number, q: number): boolean => {
+    if (Math.abs(p) < 1e-9) return q >= 0;
+    const r = q / p;
+    if (p < 0) {
+      if (r > t1) return false;
+      if (r > t0) t0 = r;
+    } else {
+      if (r < t0) return false;
+      if (r < t1) t1 = r;
+    }
+    return true;
+  };
+
+  if (!clip(-dx, x1 - rect.left)) return false;
+  if (!clip(dx, rect.right - x1)) return false;
+  if (!clip(-dy, y1 - rect.bottom)) return false;
+  if (!clip(dy, rect.top - y1)) return false;
+  return t0 <= t1;
+}
+
+function polylineObstacleHits(points: ReadonlyArray<Vec3>, obstacles: ReadonlyArray<ObstacleRect>): number {
+  if (points.length < 2 || obstacles.length === 0) return 0;
+  let hits = 0;
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    for (const rect of obstacles) {
+      if (segmentIntersectsRect2D(p1[0], p1[1], p2[0], p2[1], rect)) hits += 1;
+    }
+  }
+  return hits;
+}
+
+function polylineLength(points: ReadonlyArray<Vec3>): number {
+  let len = 0;
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const a = points[i];
+    const b = points[i + 1];
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const dz = b[2] - a[2];
+    len += Math.sqrt(dx * dx + dy * dy + dz * dz);
+  }
+  return len;
+}
+
+function resolveFacesWithObstacleFallback(
+  edgeId: string,
+  fromId: string,
+  toId: string,
+  fromPos: Vec3,
+  fromSize: NodeDimensions,
+  toPos: Vec3,
+  toSize: NodeDimensions,
+  routing: EdgeRoutingAlgorithm,
+  positions: Map<string, Vec3>,
+  sizes: Map<string, NodeDimensions>,
+): FacePair {
+  const base = resolveFaces(fromPos, fromSize, toPos, toSize, 'nearest-face');
+  const isPlanarFace = (f: FaceId): boolean => f === 'left' || f === 'right' || f === 'top' || f === 'bottom';
+  if (!isPlanarFace(base.srcFace) || !isPlanarFace(base.dstFace)) {
+    return base;
+  }
+  const dx = toPos[0] - fromPos[0];
+  const dy = toPos[1] - fromPos[1];
+  const vertical: FacePair = {
+    srcFace: dy >= 0 ? 'top' : 'bottom',
+    dstFace: dy >= 0 ? 'bottom' : 'top',
+  };
+  const horizontal: FacePair = {
+    srcFace: dx >= 0 ? 'right' : 'left',
+    dstFace: dx >= 0 ? 'left' : 'right',
+  };
+  const shortest = resolveFaces(fromPos, fromSize, toPos, toSize, 'shortest-path');
+
+  const candidates: FacePair[] = [];
+  const pushUnique = (pair: FacePair): void => {
+    if (candidates.some((c) => c.srcFace === pair.srcFace && c.dstFace === pair.dstFace)) return;
+    candidates.push(pair);
+  };
+  pushUnique(base);
+  pushUnique(vertical);
+  pushUnique(horizontal);
+  pushUnique(shortest);
+
+  const obstacles = computeObstacleRects(positions, sizes, fromId, toId);
+  const scored = candidates.map((pair) => {
+    const points = routeOneEdgeWithFaces(edgeId, fromPos, fromSize, toPos, toSize, routing, pair.srcFace, pair.dstFace);
+    return {
+      pair,
+      hits: polylineObstacleHits(points, obstacles),
+      length: polylineLength(points),
+    };
+  });
+
+  const baseScore = scored[0];
+  if (baseScore && baseScore.hits === 0) return baseScore.pair;
+
+  const best = [...scored].sort((a, b) => {
+    if (a.hits !== b.hits) return a.hits - b.hits;
+    return a.length - b.length;
+  })[0];
+  return best?.pair ?? base;
+}
+
 export function routeEdges(
   edges: ReadonlyArray<EdgeRoutingInput>,
   positions: Map<string, Vec3>,
@@ -414,6 +597,7 @@ export function routeEdges(
   };
 
   const faceInfo: EdgeFaceInfo[] = [];
+  const faceInfoById = new Map<string, EdgeFaceInfo>();
   const faceGroups = new Map<string, EdgeFaceInfo[]>();
   const resolvedThickness = (edge: EdgeRoutingInput): number => edge.thickness ?? 0.06;
 
@@ -432,7 +616,24 @@ export function routeEdges(
     const toSize   = sizes.get(edge.to);
     if (!fromPos || !toPos || !fromSize || !toSize) return;
     const landing = (edge.fromPort || edge.toPort) ? 'port' : defaultLanding;
+    const routing = edge.routing ?? defaultRouting;
     let { srcFace, dstFace } = resolveFaces(fromPos, fromSize, toPos, toSize, landing, edge.fromPort, edge.toPort);
+    if (!edge.fromPort && !edge.toPort && landing === 'nearest-face') {
+      const selected = resolveFacesWithObstacleFallback(
+        id,
+        edge.from,
+        edge.to,
+        fromPos,
+        fromSize,
+        toPos,
+        toSize,
+        routing,
+        positions,
+        sizes,
+      );
+      srcFace = selected.srcFace;
+      dstFace = selected.dstFace;
+    }
     // Face switching is handled later using anchor intersections; no pre-swap here.
     const info: EdgeFaceInfo = {
       id,
@@ -443,6 +644,7 @@ export function routeEdges(
       thickness: resolvedThickness(edge),
     };
     faceInfo.push(info);
+    faceInfoById.set(id, info);
     if (!edge.fromPort) addToGroup(edge.from, srcFace, info);
     if (!edge.toPort) addToGroup(edge.to, dstFace, info);
   });
@@ -499,8 +701,9 @@ export function routeEdges(
 
     const routing = edge.routing ?? defaultRouting;
     const landing = (edge.fromPort || edge.toPort) ? 'port' : defaultLanding;
-
-    const { srcFace, dstFace } = resolveFaces(fromPos, fromSize, toPos, toSize, landing, edge.fromPort, edge.toPort);
+    const info = faceInfoById.get(id);
+    const srcFace = info?.srcFace ?? resolveFaces(fromPos, fromSize, toPos, toSize, landing, edge.fromPort, edge.toPort).srcFace;
+    const dstFace = info?.dstFace ?? resolveFaces(fromPos, fromSize, toPos, toSize, landing, edge.fromPort, edge.toPort).dstFace;
     const fromKey = `${edge.from}:${srcFace}`;
     const toKey = `${edge.to}:${dstFace}`;
     const fromPortCount = facePortCount.get(fromKey) ?? 1;

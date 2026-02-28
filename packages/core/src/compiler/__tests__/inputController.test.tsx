@@ -5,6 +5,7 @@ import {
   InputController,
   Action,
   PointerMap,
+  PinchMap,
 } from '../blocks/inputController';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import type { SceneInputControllerSpec } from '../../input/types';
@@ -37,6 +38,28 @@ describe('inputController compiler', () => {
       kind: 'pointer',
       event: 'click',
       button: 'left',
+    });
+  });
+
+  it('compiles an Action with a PinchMap child', () => {
+    const registry = new WidgetRegistry();
+    const tree = (
+      <Scene id="s1">
+        <InputController id="main" scope="canvas">
+          <Action id="pinch-dolly" type="camera.dolly" cameraId="camera">
+            <PinchMap direction="out" threshold={2} />
+          </Action>
+        </InputController>
+      </Scene>
+    );
+
+    const { frame } = resolveSceneFromDsl(tree, context, registry);
+    const spec = frame.widgets['__input_controller'] as SceneInputControllerSpec;
+    expect(spec.actions).toHaveLength(1);
+    expect(spec.actions[0]?.maps[0]).toMatchObject({
+      kind: 'pinch',
+      direction: 'out',
+      threshold: 2,
     });
   });
 });

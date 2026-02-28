@@ -18,6 +18,7 @@ export type {
   InputActionMap,
   InputPointerMap,
   InputWheelMap,
+  InputPinchMap,
   InputKeyMap,
 } from './types';
 

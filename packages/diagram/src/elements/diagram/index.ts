@@ -26,7 +26,20 @@ export type {
   LayoutAlignment,
   LayoutDisconnected,
 } from './types';
-export type { DiagramShapeVariant, FlowShape, AwsShape, GcpShape, AzureShape, NetworkShape } from './shapes/shapeVariants';
+export type {
+  DiagramNodeShape,
+  DiagramIconVariant,
+  FlowIconShape,
+  UiShape,
+  TechShape,
+  SecurityShape,
+  DataShape,
+  AwsShape,
+  GcpShape,
+  AzureShape,
+  NetworkShape,
+} from './shapes/shapeVariants';
+export { DEFAULT_NODE_SHAPE } from './shapes/shapeVariants';
 export {
   Diagram,
   DiagramNode,

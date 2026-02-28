@@ -1,62 +1,122 @@
 import { describe, it, expect } from 'vitest';
-import { shapeRequiresIcon } from '../shapes/shapeVariants';
+import { DEFAULT_NODE_SHAPE } from '../shapes/shapeVariants';
+import type { DiagramNodeShape } from '../shapes/shapeVariants';
+import { resolveIconUrl } from '../shapes/iconRegistry';
 
-describe('shapeRequiresIcon', () => {
-  // ─── Existing cloud/flow namespaces ──────────────────────────────────────
-  it('returns true for aws:ec2', () => {
-    expect(shapeRequiresIcon('aws:ec2')).toBe(true);
+// ─── DiagramNodeShape ─────────────────────────────────────────────────────────
+
+describe('DiagramNodeShape', () => {
+  it('DEFAULT_NODE_SHAPE is rectangle', () => {
+    expect(DEFAULT_NODE_SHAPE).toBe('rectangle');
   });
 
-  it('returns true for gcp:cloud-run', () => {
-    expect(shapeRequiresIcon('gcp:cloud-run')).toBe(true);
+  it('all 15 polygon and special shape values are valid DiagramNodeShape members', () => {
+    // Compile-time type check: this array must be assignable to DiagramNodeShape[]
+    const allShapes = [
+      'circle',
+      'triangle',
+      'square',
+      'rectangle',
+      'pentagon',
+      'hexagon',
+      'heptagon',
+      'octagon',
+      'nonagon',
+      'decagon',
+      'diamond',
+      'oval',
+      'cloud',
+      'document',
+      'parallelogram',
+    ] satisfies DiagramNodeShape[];
+
+    expect(allShapes).toHaveLength(15);
+  });
+});
+
+// ─── resolveIconUrl ───────────────────────────────────────────────────────────
+
+describe('resolveIconUrl', () => {
+  it('returns undefined for undefined input', () => {
+    expect(resolveIconUrl(undefined)).toBeUndefined();
   });
 
-  it('returns true for azure:app-service', () => {
-    expect(shapeRequiresIcon('azure:app-service')).toBe(true);
+  it('resolves ui: namespace to correct path', () => {
+    const url = resolveIconUrl('ui:server');
+    expect(url).toBeDefined();
+    expect(url).toContain('/ui/server.svg');
   });
 
-  it('returns true for flow:cloud', () => {
-    expect(shapeRequiresIcon('flow:cloud')).toBe(true);
+  it('resolves ui:wrench-screwdriver to correct path', () => {
+    const url = resolveIconUrl('ui:wrench-screwdriver');
+    expect(url).toBeDefined();
+    expect(url).toContain('/ui/wrench-screwdriver.svg');
   });
 
-  it('returns false for flow:rect', () => {
-    expect(shapeRequiresIcon('flow:rect')).toBe(false);
+  it('resolves aws: namespace to correct path', () => {
+    const url = resolveIconUrl('aws:lambda');
+    expect(url).toBeDefined();
+    expect(url).toContain('/aws/lambda.svg');
   });
 
-  it('returns false for flow:diamond', () => {
-    expect(shapeRequiresIcon('flow:diamond')).toBe(false);
+  it('resolves aws:cloudfront to correct path', () => {
+    const url = resolveIconUrl('aws:cloudfront');
+    expect(url).toBeDefined();
+    expect(url).toContain('/aws/cloudfront.svg');
   });
 
-  it('returns false for flow:cylinder', () => {
-    expect(shapeRequiresIcon('flow:cylinder')).toBe(false);
+  it('resolves gcp: namespace to correct path', () => {
+    const url = resolveIconUrl('gcp:bigquery');
+    expect(url).toBeDefined();
+    expect(url).toContain('/gcp/bigquery.svg');
   });
 
-  // ─── New namespaces ───────────────────────────────────────────────────────
-  it('returns true for ui:server', () => {
-    expect(shapeRequiresIcon('ui:server')).toBe(true);
+  it('resolves azure: namespace to correct path', () => {
+    const url = resolveIconUrl('azure:functions');
+    expect(url).toBeDefined();
+    expect(url).toContain('/azure/functions.svg');
   });
 
-  it('returns true for tech:docker', () => {
-    expect(shapeRequiresIcon('tech:docker')).toBe(true);
+  it('resolves tech: namespace to correct path', () => {
+    const url = resolveIconUrl('tech:docker');
+    expect(url).toBeDefined();
+    expect(url).toContain('/tech/docker.svg');
   });
 
-  it('returns true for security:shield', () => {
-    expect(shapeRequiresIcon('security:shield')).toBe(true);
+  it('resolves security: namespace to correct path', () => {
+    const url = resolveIconUrl('security:shield');
+    expect(url).toBeDefined();
+    expect(url).toContain('/security/shield.svg');
   });
 
-  it('returns true for data:pipeline', () => {
-    expect(shapeRequiresIcon('data:pipeline')).toBe(true);
+  it('resolves data: namespace to correct path', () => {
+    const url = resolveIconUrl('data:pipeline');
+    expect(url).toBeDefined();
+    expect(url).toContain('/data/pipeline.svg');
   });
 
-  it('returns true for net:router', () => {
-    expect(shapeRequiresIcon('net:router')).toBe(true);
+  it('resolves net: namespace to correct path', () => {
+    const url = resolveIconUrl('net:router');
+    expect(url).toBeDefined();
+    expect(url).toContain('/net/router.svg');
   });
 
-  it('returns false for flow:hexagon', () => {
-    expect(shapeRequiresIcon('flow:hexagon')).toBe(false);
+  it('resolves flow:actor to correct path', () => {
+    const url = resolveIconUrl('flow:actor');
+    expect(url).toBeDefined();
+    expect(url).toContain('/flow/actor.svg');
   });
 
-  it('returns false for flow:parallelogram', () => {
-    expect(shapeRequiresIcon('flow:parallelogram')).toBe(false);
+  it('resolves flow:queue to correct path', () => {
+    const url = resolveIconUrl('flow:queue');
+    expect(url).toBeDefined();
+    expect(url).toContain('/flow/queue.svg');
+  });
+
+  it('returns undefined for custom: variants with no registered asset', () => {
+    // custom: strings that don't match any namespace fall through to FLOW_ICON_MAP
+    // and return undefined since they're not listed there
+    const url = resolveIconUrl('custom:unknown-thing');
+    expect(url).toBeUndefined();
   });
 });

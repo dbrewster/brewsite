@@ -9,13 +9,14 @@ import type {
   DiagramTheme,
 } from '../types';
 import { resolveIconUrl } from '../shapes/iconRegistry';
+import { DEFAULT_NODE_SHAPE } from '../shapes/shapeVariants';
 import { deriveColor } from '../math/colorUtils';
 
 const edgeIdFor = (edge: DiagramEdgeDSL, index: number): string =>
   edge.id ?? `${edge.from}-${edge.to}-${index}`;
 
 export const buildNodeDefaults = (theme: DiagramTheme) => ({
-  shape:                'flow:rect' as const,
+  shape:                DEFAULT_NODE_SHAPE,
   size:                 [4, 2] as [number, number],
   depth:                theme.node.defaultDepth,
   color:                theme.node.defaultColor,
@@ -89,7 +90,7 @@ export function compileNode(
     opacity: dsl.opacity ?? nd.opacity,
     clickable: dsl.clickable ?? nd.clickable,
     enabled: dsl.enabled ?? nd.enabled,
-    iconUrl: resolveIconUrl(shape),
+    iconUrl: resolveIconUrl(dsl.icon),
     iconScale: dsl.iconScale ?? nd.iconScale,
     iconStyle: dsl.iconStyle ?? nd.iconStyle,
     iconDepth: dsl.iconDepth ?? nd.iconDepth,

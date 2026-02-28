@@ -41,7 +41,8 @@ export type {
   SvgIcon3DStyle,
 } from './elements/diagram/types';
 
-export type { DiagramShapeVariant } from './elements/diagram/shapes/shapeVariants';
+export type { DiagramNodeShape, DiagramIconVariant } from './elements/diagram/shapes/shapeVariants';
+export { DEFAULT_NODE_SHAPE } from './elements/diagram/shapes/shapeVariants';
 export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, Exit, Enter, GridLayout, HierarchicalLayout, ManualLayout } from './elements/diagram/dsl';
 export type { ExitProps, EnterProps, GridLayoutProps, HierarchicalLayoutProps, ManualLayoutProps } from './elements/diagram/dsl';
 export {
@@ -69,7 +70,7 @@ export type {
 export { useDiagramFocusRegion } from './elements/diagram/useDiagramFocusRegion';
 export type { UseDiagramFocusRegionOptions } from './elements/diagram/useDiagramFocusRegion';
 export type {
-  FlowShape,
+  FlowIconShape,
   AwsShape,
   GcpShape,
   AzureShape,

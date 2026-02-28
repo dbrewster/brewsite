@@ -362,4 +362,31 @@ describe('routeEdges', () => {
     );
     expect(result.get('ported-straight')?.length).toBe(2);
   });
+
+  it('falls back from side faces when nearest-face route intersects an obstacle', () => {
+    const localPositions = new Map<string, [number, number, number]>([
+      ['src', [0, 0, 0]],
+      ['dst', [7, -3, 0]],
+      ['blocker', [2.6, 0, 0]],
+    ]);
+    const localSizes = new Map<string, NodeDimensions>([
+      ['src', [4, 2, 1]],
+      ['dst', [6, 2, 1]],
+      ['blocker', [1, 2, 1]],
+    ]);
+
+    const result = routeEdges(
+      [{ id: 'e', from: 'src', to: 'dst', routing: 'straight' }],
+      localPositions,
+      localSizes,
+      'straight',
+      'nearest-face',
+    );
+
+    const pts = result.get('e') ?? [];
+    expect(pts.length).toBe(2);
+    // Without fallback nearest-face starts from src right face (x≈+2.1), which
+    // intersects the blocker. Fallback should switch to a non-right source face.
+    expect(pts[0]?.[0]).toBeLessThan(2.0);
+  });
 });

@@ -26,7 +26,7 @@ export const sceneArchEcsDetail: SceneDefinition = {
           <DiagramNode
             id="ecs"
             label="ECS Cluster"
-            shape="aws:ecs"
+            icon="aws:ecs"
             position={[-5, -8, -5]}
             depth={0.8}
             color="#1a3d5c"
@@ -36,7 +36,7 @@ export const sceneArchEcsDetail: SceneDefinition = {
           <DiagramNode
             id="svc-auth"
             label="Auth Service"
-            shape="flow:rounded"
+
             position={[-9, -6, 8]}
             color="#0d3d2b"
             size={[4, 2]}
@@ -44,7 +44,7 @@ export const sceneArchEcsDetail: SceneDefinition = {
           <DiagramNode
             id="svc-api"
             label="API Service"
-            shape="flow:rounded"
+
             position={[-5, -6, 8]}
             color="#0d3d2b"
             size={[4, 2]}
@@ -52,7 +52,7 @@ export const sceneArchEcsDetail: SceneDefinition = {
           <DiagramNode
             id="svc-worker"
             label="Worker"
-            shape="flow:rounded"
+
             position={[-1, -6, 8]}
             color="#0d3d2b"
             size={[4, 2]}

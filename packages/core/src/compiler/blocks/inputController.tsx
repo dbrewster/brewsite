@@ -8,6 +8,7 @@ import type {
   InputActionType,
   InputControllerScope,
   InputKeyMap,
+  InputPinchMap,
   InputPointerMap,
   InputWheelMap,
   ModifierKey,
@@ -40,11 +41,20 @@ export type PointerMapProps = {
   button?: MouseButton;
   modifiers?: ModifierKey[];
   axis?: 'x' | 'y' | 'xy';
+  lockAxis?: 'sticky' | 'free';
+  lockThreshold?: number;
 };
 
 export type WheelMapProps = {
   modifiers?: ModifierKey[];
   axis?: 'x' | 'y' | 'xy';
+  lockAxis?: 'sticky' | 'free';
+};
+
+export type PinchMapProps = {
+  direction?: 'in' | 'out' | 'both';
+  modifiers?: ModifierKey[];
+  threshold?: number;
 };
 
 export type KeyMapProps = {
@@ -65,6 +75,9 @@ PointerMap.displayName = 'PointerMap';
 export const WheelMap = (_props: WheelMapProps) => null;
 WheelMap.displayName = 'WheelMap';
 
+export const PinchMap = (_props: PinchMapProps) => null;
+PinchMap.displayName = 'PinchMap';
+
 export const KeyMap = (_props: KeyMapProps) => null;
 KeyMap.displayName = 'KeyMap';
 
@@ -78,6 +91,8 @@ const parseActionMap = (node: ReactElement, helpers: CompileHelpers, api: Compil
       button: props.button,
       modifiers: props.modifiers,
       axis: props.axis,
+      lockAxis: props.lockAxis,
+      lockThreshold: props.lockThreshold,
     };
     return map;
   }
@@ -88,6 +103,7 @@ const parseActionMap = (node: ReactElement, helpers: CompileHelpers, api: Compil
       kind: 'wheel',
       modifiers: props.modifiers,
       axis: props.axis,
+      lockAxis: props.lockAxis,
     };
     return map;
   }
@@ -112,6 +128,17 @@ const parseActionMap = (node: ReactElement, helpers: CompileHelpers, api: Compil
     return map;
   }
 
+  if (node.type === PinchMap) {
+    const props = helpers.resolveObjectValues(node.props as PinchMapProps & Record<string, unknown>, api.context);
+    const map: InputPinchMap = {
+      kind: 'pinch',
+      direction: props.direction ?? 'both',
+      modifiers: props.modifiers,
+      threshold: props.threshold,
+    };
+    return map;
+  }
+
   return null;
 };
 
@@ -131,7 +158,7 @@ const parseAction = (node: ReactElement, helpers: CompileHelpers, api: CompileAp
     if (map) maps.push(map);
   }
   if (maps.length === 0) {
-    throw new Error(`<Action id="${props.id}"> must include at least one mapping (<PointerMap>, <WheelMap>, or <KeyMap>).`);
+    throw new Error(`<Action id="${props.id}"> must include at least one mapping (<PointerMap>, <WheelMap>, <PinchMap>, or <KeyMap>).`);
   }
 
   return {
@@ -183,6 +210,7 @@ export const ensureInputControllerRegistry = (): void => {
   if (!getNodeHandler(Action)) registerNode(Action, childOnlyHandler('Action'));
   if (!getNodeHandler(PointerMap)) registerNode(PointerMap, childOnlyHandler('PointerMap'));
   if (!getNodeHandler(WheelMap)) registerNode(WheelMap, childOnlyHandler('WheelMap'));
+  if (!getNodeHandler(PinchMap)) registerNode(PinchMap, childOnlyHandler('PinchMap'));
   if (!getNodeHandler(KeyMap)) registerNode(KeyMap, childOnlyHandler('KeyMap'));
 };
 

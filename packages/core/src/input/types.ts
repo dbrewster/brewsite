@@ -161,12 +161,39 @@ export type InputPointerMap = {
   button?: MouseButton;
   modifiers?: ModifierKey[];
   axis?: 'x' | 'y' | 'xy';
+  /**
+   * Axis lock behavior for drag gestures.
+   * 'sticky' chooses the dominant axis early in the drag and locks to it
+   * until pointerup.
+   */
+  lockAxis?: 'sticky' | 'free';
+  /**
+   * Minimum movement in pixels before sticky axis lock is chosen.
+   * Default: 2.
+   */
+  lockThreshold?: number;
 };
 
 export type InputWheelMap = {
   kind: 'wheel';
   modifiers?: ModifierKey[];
   axis?: 'x' | 'y' | 'xy';
+  /**
+   * Axis lock behavior for wheel gestures.
+   * 'sticky' uses the dominant wheel delta axis for that event.
+   */
+  lockAxis?: 'sticky' | 'free';
+};
+
+export type InputPinchMap = {
+  kind: 'pinch';
+  direction?: 'in' | 'out' | 'both';
+  modifiers?: ModifierKey[];
+  /**
+   * Minimum pinch distance delta (pixels) needed to dispatch.
+   * Default: 1.
+   */
+  threshold?: number;
 };
 
 export type InputKeyMap = {
@@ -175,7 +202,7 @@ export type InputKeyMap = {
   modifiers?: ModifierKey[];
 };
 
-export type InputActionMap = InputPointerMap | InputWheelMap | InputKeyMap;
+export type InputActionMap = InputPointerMap | InputWheelMap | InputPinchMap | InputKeyMap;
 
 export type InputActionSpec = {
   id: string;

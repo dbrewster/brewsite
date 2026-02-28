@@ -37,8 +37,8 @@ export const sceneArchAuto: SceneDefinition = {
         <Diagram id="arch-auto" pivot="center">
           <HierarchicalLayout spacing={[3, 2]} />
 
-          {/* ── Tier 1: Client (no icon — flow:actor is geometry-only) ─── */}
-          <DiagramNode id="browser" label="Web Browser" shape="flow:actor" />
+          {/* ── Tier 1: Client ────────────────────────────────────────── */}
+          <DiagramNode id="browser" label="Web Browser" icon="ui:user" />
 
           {/* ── Tier 2: CDN / ALB — 'layered' ────────────────────────── */}
           {/*
@@ -46,15 +46,15 @@ export const sceneArchAuto: SceneDefinition = {
             path[1] (white icon symbol) = raised above it.
             AWS icons are designed exactly as two layers, so this maps perfectly.
           */}
-          <DiagramNode id="cdn"    label="CloudFront CDN"  shape="aws:cloudfront"
+          <DiagramNode id="cdn"    label="CloudFront CDN"  icon="aws:cloudfront"
             clickable metalness={0.25} roughness={0.35}
             iconStyle="layered" iconDepth={0.35} />
-          <DiagramNode id="alb"    label="Load Balancer"   shape="aws:alb"
+          <DiagramNode id="alb"    label="Load Balancer"   icon="aws:alb"
             clickable metalness={0.25} roughness={0.35}
             iconStyle="layered" iconDepth={0.35} />
 
           {/* ── Tier 3: API Gateway — 'layered' ──────────────────────── */}
-          <DiagramNode id="api"    label="API Gateway"     shape="aws:api-gateway"
+          <DiagramNode id="api"    label="API Gateway"     icon="aws:api-gateway"
             clickable metalness={0.25} roughness={0.35}
             iconStyle="layered" iconDepth={0.35} />
 
@@ -63,25 +63,25 @@ export const sceneArchAuto: SceneDefinition = {
             extruded: all paths at same depth, no Z separation.
             The PBR side faces catch the fill lights and make the shape readable.
           */}
-          <DiagramNode id="ecs"    label="ECS Cluster"     shape="aws:ecs"
+          <DiagramNode id="ecs"    label="ECS Cluster"     icon="aws:ecs"
             clickable metalness={0.25} roughness={0.35}
             iconStyle="extruded" iconDepth={0.35} />
           {/*
             embossed: shallow extrusion, wide chamfer rim.
             High metalness → strong specular on the bevel — coin / seal look.
           */}
-          <DiagramNode id="lambda" label="Lambda"          shape="aws:lambda"
+          <DiagramNode id="lambda" label="Lambda"          icon="aws:lambda"
             clickable color="#2a2d4e" metalness={0.55} roughness={0.25}
             iconStyle="embossed" iconDepth={0.32} />
 
           {/* ── Tier 5: Data — 'layered' ──────────────────────────────── */}
-          <DiagramNode id="rds"    label="RDS PostgreSQL"  shape="aws:rds"
+          <DiagramNode id="rds"    label="RDS PostgreSQL"  icon="aws:rds"
             metalness={0.25} roughness={0.35}
             iconStyle="layered" iconDepth={0.35} />
-          <DiagramNode id="cache"  label="ElastiCache"     shape="aws:elasticache"
+          <DiagramNode id="cache"  label="ElastiCache"     icon="aws:elasticache"
             metalness={0.25} roughness={0.35}
             iconStyle="layered" iconDepth={0.35} />
-          <DiagramNode id="s3"     label="S3 Assets"       shape="aws:s3"
+          <DiagramNode id="s3"     label="S3 Assets"       icon="aws:s3"
             metalness={0.25} roughness={0.35}
             iconStyle="layered" iconDepth={0.35} />
 

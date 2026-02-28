@@ -100,11 +100,11 @@ describe('compileDiagram', () => {
     expect(node.color).toBe(darkGlassTheme.node.defaultColor);
   });
 
-  it('resolves iconUrl from iconRegistry for aws:ec2 shape', () => {
+  it('resolves iconUrl from iconRegistry for aws:ec2 icon', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
       layout: { kind: 'grid' },
-      nodes: [makeNode('a', { shape: 'aws:ec2' })],
+      nodes: [makeNode('a', { icon: 'aws:ec2' })],
       edges: [],
       groups: [],
     };
@@ -112,11 +112,11 @@ describe('compileDiagram', () => {
     expect(state.nodes[0]!.iconUrl).toBe('/assets/shapes/aws/ec2.svg');
   });
 
-  it('does not set iconUrl for flow:rect shape', () => {
+  it('iconUrl is undefined when no icon is specified (geometry-only node)', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
       layout: { kind: 'grid' },
-      nodes: [makeNode('a', { shape: 'flow:rect' })],
+      nodes: [makeNode('a', { shape: 'hexagon' })],
       edges: [],
       groups: [],
     };

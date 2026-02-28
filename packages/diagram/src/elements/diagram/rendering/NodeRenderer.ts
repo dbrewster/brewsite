@@ -4,7 +4,7 @@ import type { DiagramNodeState, DiagramThemeRenderConfig } from '../types';
 import type { IIconLoader } from './IconLoader';
 import type { IInteractionRegistry } from './InteractionRegistry';
 import { ensureText } from './TextRenderer';
-import { createShapeGeometry, createRoundedBorderGeometry } from '../shapes/geometryFactory';
+import { createShapeGeometry, createShapeOutlineGeometry, isRectangularShape, getContentRect } from '../shapes/geometryFactory';
 import { createGlow, computeGlowScale, disposeGlowSprite } from '../../_shared/glowSprite';
 import { Text } from 'troika-three-text';
 
@@ -122,24 +122,27 @@ export class NodeRenderer {
     boxMesh.castShadow = true;
     boxMesh.receiveShadow = true;
 
+    // Use EdgesGeometry only for flat-cornered rectangle/square — it shows exactly
+    // the 12 box edges and is visually clean. For all other shapes (polygon prisms,
+    // special 2D shapes, or rounded rectangles) use a LineLoop with createShapeOutlineGeometry
+    // so the border traces the correct silhouette.
+    const useEdgesGeo = isRectangularShape(state.shape) && state.cornerRadius <= 0;
     const border = new THREE.LineSegments(
-      new THREE.EdgesGeometry(
-        state.cornerRadius > 0
-          ? new THREE.BoxGeometry(0, 0, 0)
-          : geometry,
-      ),
+      new THREE.EdgesGeometry(useEdgesGeo ? geometry : new THREE.BoxGeometry(0, 0, 0)),
       new THREE.LineBasicMaterial({
         color: state.borderColor,
         opacity: Math.min(1, state.opacity),
         transparent: true,
       }),
     );
-    border.visible = state.cornerRadius <= 0;
+    border.visible = useEdgesGeo;
 
     let roundedBorder: THREE.LineLoop | undefined;
-    if (state.cornerRadius > 0) {
+    if (!useEdgesGeo) {
       roundedBorder = new THREE.LineLoop(
-        createRoundedBorderGeometry(state.size[0], state.size[1], state.depth, state.cornerRadius),
+        createShapeOutlineGeometry(
+          state.shape, state.size[0], state.size[1], state.depth, state.cornerRadius,
+        ),
         new THREE.LineBasicMaterial({
           color: state.borderColor,
           opacity: Math.min(1, state.opacity),
@@ -178,9 +181,11 @@ export class NodeRenderer {
   ): void {
     const prev = entry.lastState;
 
-    const cornerRadiusWasRounded = (prev?.cornerRadius ?? 0) > 0;
-    const cornerRadiusIsRounded = state.cornerRadius > 0;
-    const cornerRadiusTypeChanged = cornerRadiusWasRounded !== cornerRadiusIsRounded;
+    // "using edges geo" means flat-cornered rectangle/square — the only case where
+    // the sharp LineSegments border (EdgesGeometry) is shown instead of the LineLoop outline.
+    const wasUsingEdgesGeo = isRectangularShape(prev?.shape ?? 'rectangle') && (prev?.cornerRadius ?? 0) <= 0;
+    const isUsingEdgesGeo = isRectangularShape(state.shape) && state.cornerRadius <= 0;
+    const borderTypeChanged = wasUsingEdgesGeo !== isUsingEdgesGeo;
 
     const geometryChanged =
       !prev ||
@@ -201,9 +206,11 @@ export class NodeRenderer {
       entry.boxMesh.geometry = geometry;
       entry.materialCount = newMaterialCount;
 
-      if (cornerRadiusTypeChanged || !cornerRadiusIsRounded) {
+      // Rebuild the EdgesGeometry border whenever we're staying in (or entering) the
+      // flat-rectangle case. When leaving the flat-rectangle case, swap it for an empty geo.
+      if (borderTypeChanged || isUsingEdgesGeo) {
         entry.border.geometry.dispose();
-        if (!cornerRadiusIsRounded) {
+        if (isUsingEdgesGeo) {
           entry.border.geometry = new THREE.EdgesGeometry(geometry);
           entry.border.visible = true;
         } else {
@@ -212,8 +219,10 @@ export class NodeRenderer {
         }
       }
 
-      if (cornerRadiusIsRounded) {
-        const newBorderGeo = createRoundedBorderGeometry(
+      // Rebuild the LineLoop outline border for all non-flat-rectangle cases.
+      if (!isUsingEdgesGeo) {
+        const newBorderGeo = createShapeOutlineGeometry(
+          state.shape,
           state.size[0],
           state.size[1],
           state.depth,
@@ -245,7 +254,7 @@ export class NodeRenderer {
       prev.metalness !== state.metalness ||
       prev.roughness !== state.roughness ||
       prev.emissiveIntensity !== state.emissiveIntensity ||
-      cornerRadiusTypeChanged;
+      borderTypeChanged;
 
     if (needsMaterialRebuild) {
       const oldMats = Array.isArray(entry.boxMesh.material)
@@ -285,7 +294,7 @@ export class NodeRenderer {
     }
 
     const activeBorderMat = (
-      cornerRadiusIsRounded && entry.roundedBorder
+      !isUsingEdgesGeo && entry.roundedBorder
         ? entry.roundedBorder.material
         : entry.border.material
     ) as THREE.LineBasicMaterial;
@@ -333,24 +342,29 @@ export class NodeRenderer {
       entry.glow = undefined;
     }
 
-    const labelFontSize = state.size[1] * 0.28;
-    const sublabelFontSize = state.size[1] * 0.18;
+    // For polygon shapes the usable face area is smaller than the bounding box.
+    // getContentRect returns the largest axis-aligned rectangle that fits inside
+    // the rendered shape, constraining icon and text to the visible interior.
+    const [contentW, contentH] = getContentRect(state.shape, state.size);
+
+    const labelFontSize = contentH * 0.28;
+    const sublabelFontSize = contentH * 0.18;
     const labelLine = labelFontSize * 1.1;
     const sublabelLine = sublabelFontSize * 1.1;
-    const lineGap = state.size[1] * 0.06;
+    const lineGap = contentH * 0.06;
     let labelY = 0;
-    let sublabelY = -state.size[1] * 0.22;
+    let sublabelY = -contentH * 0.22;
     if (state.iconUrl) {
-      const iconHeight = state.size[1] * state.iconScale;
-      const iconCenterY = state.size[1] * 0.2;
+      const iconHeight = contentH * state.iconScale;
+      const iconCenterY = contentH * 0.2;
       const iconBottomY = iconCenterY - iconHeight / 2;
-      const textTopY = iconBottomY - state.size[1] * 0.08;
+      const textTopY = iconBottomY - contentH * 0.08;
       labelY = textTopY - labelLine / 2;
       if (state.sublabel) {
         sublabelY = labelY - (labelLine / 2 + sublabelLine / 2 + lineGap);
       }
     } else if (state.sublabel) {
-      labelY = state.size[1] * 0.1;
+      labelY = contentH * 0.1;
       sublabelY = labelY - (labelLine / 2 + sublabelLine / 2 + lineGap);
     }
 
@@ -360,7 +374,7 @@ export class NodeRenderer {
       state.labelColor,
       labelFontSize,
       state.opacity,
-      state.size[0] * 0.85,
+      contentW * 0.85,
       true,
     );
     entry.label.position.set(0, labelY, state.depth / 2 + 0.02);
@@ -376,7 +390,7 @@ export class NodeRenderer {
         state.sublabelColor,
         sublabelFontSize,
         state.opacity,
-        state.size[0] * 0.85,
+        contentW * 0.85,
         true,
       );
       entry.sublabel.position.set(0, sublabelY, state.depth / 2 + 0.02);
@@ -408,8 +422,8 @@ export class NodeRenderer {
         holder.userData['iconDepth'] = state.iconDepth;
         entry.iconHolder = holder;
         entry.group.add(holder);
-        const iconWidth = state.size[0] * state.iconScale;
-        const iconHeight = state.size[1] * state.iconScale;
+        const iconWidth = contentW * state.iconScale;
+        const iconHeight = contentH * state.iconScale;
         this.iconLoader.load(
           state.iconUrl,
           iconWidth,
@@ -430,7 +444,7 @@ export class NodeRenderer {
         });
       }
       if (entry.iconHolder) {
-        entry.iconHolder.position.set(0, state.size[1] * 0.2, state.depth / 2 + 0.01);
+        entry.iconHolder.position.set(0, contentH * 0.2, state.depth / 2 + 0.01);
       }
     } else if (entry.iconHolder) {
       entry.group.remove(entry.iconHolder);

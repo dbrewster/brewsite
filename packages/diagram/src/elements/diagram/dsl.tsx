@@ -1,7 +1,7 @@
 // Declarative DSL surface for diagram authoring. No Three.js. No compiler internals.
 
 import React from 'react';
-import type { DiagramShapeVariant } from './shapes/shapeVariants';
+import type { DiagramNodeShape, DiagramIconVariant } from './shapes/shapeVariants';
 import type {
   DiagramEdgeStyle,
   DiagramArrowVariant,
@@ -34,10 +34,16 @@ export interface DiagramNodeProps {
   /** Secondary label text below primary */
   sublabel?: string;
   /**
-   * Shape variant. Determines both geometry type and icon asset.
-   * Defaults to 'flow:rect'.
+   * Geometry shape. Determines the 3D prism rendered for this node.
+   * Default: 'rectangle'. Combine with icon to overlay an SVG on the front face.
    */
-  shape?: DiagramShapeVariant;
+  shape?: DiagramNodeShape;
+  /**
+   * SVG icon overlaid on the node's front face.
+   * Accepts any DiagramIconVariant: ui:*, aws:*, gcp:*, azure:*, tech:*, etc.
+   * If omitted, no icon is rendered regardless of shape.
+   */
+  icon?: DiagramIconVariant;
   /**
    * World-space position [x, y, z].
    * z controls depth — use for drill-down animations.

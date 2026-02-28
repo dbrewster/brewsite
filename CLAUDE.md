@@ -4,79 +4,180 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
+### Root-level (via Turborepo)
 ```bash
-pnpm install          # install dependencies
-pnpm dev              # turbo dev --filter=@brewsite/examples
-pnpm build            # turbo build
-pnpm typecheck        # turbo typecheck
-pnpm test             # turbo test
-pnpm coverage         # turbo coverage
-pnpm --filter @brewsite/examples preview    # serve production build locally (examples app)
-pnpm --filter @brewsite/core test:watch     # Vitest in watch mode (core)
+pnpm install                      # install all workspace dependencies
+pnpm dev                          # turbo dev --filter=@brewsite/examples (Vite dev server)
+pnpm build                        # turbo build (all packages, dependency-ordered)
+pnpm build:lib                    # turbo build:lib (library tsc builds only, no Vite)
+pnpm typecheck                    # turbo typecheck
+pnpm test                         # turbo test (all packages)
+pnpm coverage                     # turbo coverage
+pnpm sync:icons                   # sync heroicons + simple-icons into diagram package assets
+pnpm publish:core-diagram         # publish @brewsite/core and @brewsite/diagram to npm
 ```
 
-To run a single test file:
+### Per-package
 ```bash
-pnpm --filter @brewsite/core vitest run src/robot/runtime/__tests__/someFile.test.ts
+pnpm --filter @brewsite/examples preview          # serve production build locally
+pnpm --filter @brewsite/examples gen:scene-dsl    # regenerate scene DSL types from siteResources.ts
+pnpm --filter @brewsite/core test:watch           # Vitest in watch mode (core)
+pnpm --filter @brewsite/diagram test:watch        # Vitest in watch mode (diagram)
+pnpm --filter @brewsite/diagram typecheck         # typecheck diagram package
+pnpm --filter @brewsite/diagram gen-envmap        # regenerate HDR environment map
 ```
+
+### Run a single test file
+```bash
+pnpm --filter @brewsite/core vitest run src/compiler/__tests__/someFile.test.ts
+pnpm --filter @brewsite/diagram vitest run src/elements/diagram/__tests__/compile.test.ts
+```
+
+## Workspace Structure
+
+This is a **pnpm + Turborepo monorepo** with three workspaces:
+
+| Package | Name | Role |
+|---|---|---|
+| `packages/core` | `@brewsite/core` | Animation engine library (published) |
+| `packages/diagram` | `@brewsite/diagram` | Diagram + screen element library (published) |
+| `apps/examples` | `@brewsite/examples` | Dev/demo app (private) |
+
+**Dependency rule:** `@brewsite/diagram` may import from `@brewsite/core`. `@brewsite/core` must never import from `@brewsite/diagram`. `apps/examples` may import from both.
+
+---
 
 ## Architecture Overview
 
-**BrewSite** is a TypeScript + React + Three.js app for authoring and playing back animated robot marketing scenes. The core lives entirely in `packages/core/src/robot/`.
+**BrewSite** is a TypeScript + React + Three.js framework for authoring and playing back animated 3D marketing scenes. The core engine lives in `packages/core/src/`; the diagram extension lives in `packages/diagram/src/`.
 
-### Layers (top-to-bottom)
+### `packages/core/src/` — Layer Map (top-to-bottom)
 
-1. **Engine** (`packages/core/src/robot/engine/`) — React hook layer. Exports `useSceneEngine`, `useEngineScroll`, `SceneCompiler`, `ModelResourceManager`, `EngineFrameDriver`, `EngineScrollRegion`. This is the public integration surface for pages/routes.
+1. **Player** (`player/`) — React integration surface. The public entry point for pages/routes.
+   - Exports: `ScenePlayer`, `useSceneEngine`, `useEngineScroll`, `useEngineInput`, `useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `EngineFrameDriver`, `EngineScrollRegion`, `EngineInputRegion`, `createDefaultWidgetRegistry`, `LabelPositioner`, `TimelineWidget`, `CameraControlPanel`.
+   - `createDefaultWidgetRegistry(manifest)` wires all built-in widgets (Model, Lighting, Background, Environment, Floor, Camera, SceneMeta).
 
-2. **Runtime** (`packages/core/src/robot/runtime/`) — Execution coordinator. `RuntimeDriverImpl` drives playback: it owns the `World`, `Model`, `MotionSystem`, `AnimationPlayer`, and `ModelRenderer`. It consumes the pre-compiled `SceneTrack` and applies element state each tick.
+2. **Runtime** (`runtime/`) — Generic widget-based execution coordinator.
+   - `RuntimeDriverImpl` drives the tick loop: it holds a `WidgetRegistry`, samples the `SceneTrack`, and dispatches state to each registered widget each frame.
+   - `RuntimeLoop` owns the `requestAnimationFrame` loop.
+   - Contract is expressed in `runtime/types.ts` (`RuntimeDriver` interface).
+   - Test doubles live in `runtime/mocks/`.
 
-3. **Compiler** (`packages/core/src/robot/runtime/compiler/`) — Pure compilation pipeline. Scene DSL (JSX) → `SceneFrame[]` → pre-baked `SceneTrack` (flat tick lookup). Three passes: base state → auto-entry transitions → tick baking. No Three.js allowed here. See `packages/core/src/robot/runtime/compiler/CLAUDE.md` for the full compiler contract.
+3. **Compiler** (`compiler/`) — Pure compilation pipeline. No Three.js, no React, no side effects.
+   - Scene DSL (JSX) → `SceneFrame[]` → pre-baked `SceneTrack` (flat tick array for O(1) sampling).
+   - Three internal passes: base-state collection → auto-entry transitions → tick baking.
+   - `compiler/index.ts` exports **only the DSL authoring surface** (`Scene`, `Hud`, `InputController`, `Action`, etc.). Infrastructure types (`SceneTrack`, `compileSceneTrack`, cache functions) are imported directly from their source files by the player layer — never re-exported through this index.
+   - Sub-directories:
+     - `blocks/` — DSL block components (`hudBlocks.tsx`, `inputController.tsx`)
+     - `transitions/` — Transition type system (`transitionTypes.ts`)
+     - `primitives/` — Primitive element compilers (Background, Camera, Environment, Floor, Lighting, Model)
 
-4. **Elements** (`packages/core/src/robot/elements/`) — One subdirectory per renderable concept (model, lighting, background, floor, environment, ribbon, annotations). Every element follows the **mandatory module pattern** with a hard dependency direction:
+4. **Elements** (`elements/`) — Core renderable concepts. Each element is a self-contained module:
+   - `model/` — GLTF model loading, animation playback
+   - `camera/` — Camera state and orbit controls
+   - `background/` — Scene background
+   - `lighting/` — Scene lighting
+   - `floor/` — Reflective floor plane
+   - `environment/` — HDR environment map
 
+   **Mandatory module pattern** with hard dependency direction:
    ```
-   types.ts → dsl.tsx → compile.ts → render.ts → index.ts
+   types.ts → dsl.tsx → compile.ts → render.ts → {Name}Widget.ts → index.ts
    ```
-   - `types.ts` — interface contracts only, no runtime imports
-   - `dsl.tsx` — React DSL components, no Three.js
-   - `compile.ts` — pure transformation functions, no React, no Three.js
-   - `render.ts` — Three.js application, no React, no compiler imports
-   - `index.ts` — public re-exports
+   - `types.ts` — interface contracts only; no runtime, Three.js, or React imports
+   - `dsl.tsx` — React DSL components; no Three.js
+   - `compile.ts` — pure transformation functions; no React, no Three.js
+   - `render.ts` — Three.js application layer; no React, no compiler imports
+   - `{Name}Widget.ts` — implements `IWidget` (and relevant sub-interfaces); bridges compiler state to render layer
+   - `index.ts` — public re-exports only
 
-5. **Scenes** (`packages/core/src/robot/scenes/`) — Declarative scene definitions using the DSL. No animation logic, no Three.js, no frame math allowed here.
+5. **Widget SDK** (`widget/`) — Plugin system for extending the runtime.
+   - `WidgetRegistry` — registers widgets and routes DSL nodes to widget handlers.
+   - `VariableStore` — reactive key-value store for cross-widget state sharing.
+   - Widget interfaces: `IWidget`, `ISceneElement`, `IRenderable`, `ILoadable`, `IDslComposite`, `IContainedModel`, `IAnimationController`, `IVariableProvider`.
+   - `CUSTOM_NODE_HANDLER` symbol — used to give a widget its own DSL node handler.
 
-6. **Timeline** (`packages/core/src/robot/robotTimeline.ts`, `robotTimelineMath.ts`) — Timeline algebra: stops, frame counts, tick steps, progress mapping.
+6. **HUD** (`hud/`) — Heads-up display overlay system.
+   - `HudOverlay`, `HudItem`, `HudPhaseContext`.
+   - Compiled via `compiler/hudCompiler.ts`; rendered as React in `player/`.
+
+7. **Labels** (`labels/`) — 3D-tracked label system.
+   - `LabelItem` (React component), `LabelPositioner` (3D → screen projection).
+   - Compiled via `compiler/labelCompiler.ts`.
+
+8. **Input** (`input/`) — Scene navigation and action-based input.
+   - `InputController` — scroll/direct-mode scene navigation controller.
+   - `ActionInputController` — action-mapped camera/canvas input (orbit, dolly, focus, etc.).
+   - Type contracts: `SceneNavInputMap`, `SceneInputControllerSpec`, `InputActionSpec`, `InputActionMap`.
+
+9. **Timeline** (`timeline/`) — Timeline algebra: stops, frame counts, tick steps, progress mapping.
+
+10. **Math** (`math/`) — General math utilities.
+
+### `packages/diagram/src/` — Layer Map
+
+The diagram package adds immersive 3D diagram, image-panel, and screen elements on top of core.
+
+- **`elements/diagram/`** — Full diagram element (nodes, edges, groups, animations):
+  - `types.ts`, `dsl.tsx`, `compile.ts`, `render.ts` — standard module pattern
+  - `compiler/` — Sub-compilers: `nodeCompiler`, `groupCompiler`, `layoutResolver`, `layoutAlgorithms`, `transitionHelpers`, `themeResolver`, `edgeRouter`
+  - `shapes/` — `geometryFactory`, `iconRegistry`, `shapeVariants`, `svgIcon3D`
+  - `themes/` — `darkGlass`, `enterprise`, `neonCyber`, `lightMinimal`
+  - `rendering/` — `NodeRenderer`, `EdgeRenderer`, `GroupRenderer`, `TextRenderer`, `IconLoader`, `EnvMapManager`, `InteractionRegistry`, `GroupInteractionRegistry`
+  - `canvas/` — `DiagramCanvas` element (orthographic 3D scene with camera orbit/dolly/focus)
+  - `focusRegion.ts`, `useDiagramFocusRegion.ts`, `widget.ts`
+- **`elements/image-panel/`** — 3D image-panel with bezel, gloss, and glow.
+- **`elements/screen/`** — 3D screen element.
+- **`elements/_shared/`** — Shared geometry helpers (`bezelGeometry`, `glowSprite`).
+- **`compiler/`** — `handlers.ts` — registers diagram DSL node handlers into the compiler registry.
+- **`lucid/`** — Lucid diagram import utilities.
+
+### `apps/examples/` — Demo App
+
+Example scenes demonstrating the full stack. Not part of any published package.
+
+- Scene directories: `diagram/`, `lucid/`, `complex/`, `simple/`, `meeting/`, `two-bots/`, `multi-animation/`
+- Each scene directory contains `scenes/` (declarative DSL), `widgetSetup.ts`, `autoWidgetSetup.ts`
+- `widgets/` — Custom widget examples: `brain-model/`, `logo-rotator/`, `ribbon/`
+- `siteResources.ts` — Asset manifest source; run `gen:scene-dsl` after changes
+- `generated/` — Auto-generated DSL types (do not edit by hand)
+
+---
 
 ### Key Design Rules
 
 - **Entry transitions belong to the incoming scene**, not the outgoing one.
 - **Three.js is confined to `render.ts` files** — nowhere else in the element stack.
-- **Scenes are purely declarative** — describe state, not how to animate.
+- **Scenes are purely declarative** — describe state only; no animation math, no Three.js, no frame logic.
 - The compiler output (`SceneTrack`) is a flat pre-baked array for O(1) sampling at playback time (`sceneTrackSampler.ts`).
+- **`compiler/index.ts` exports only DSL authoring surface.** Infrastructure types are imported from their source files directly.
+- **`@brewsite/diagram` may import from `@brewsite/core`, never vice-versa.**
+- **Widget classes are the runtime integration contract.** New renderable concepts implement `IWidget` and optionally `ISceneElement`, `IRenderable`, `ILoadable`.
 
 ### Testing
 
-Tests live in `__tests__/` directories co-located with code, named `*.test.ts` / `*.test.tsx`. The pattern is **interface-based stateful tests**: use real inputs, assert real outputs. For runtime tests, use interface-conforming doubles from `packages/core/src/robot/runtime/mocks/` rather than mocking internals. Coverage instrumentation targets `packages/core/src/robot/{model,scenes,runtime,elements}/**/*.ts` and excludes `render.ts` files and barrel exports.
+Tests live in `__tests__/` directories co-located with code, named `*.test.ts` / `*.test.tsx`. The pattern is **interface-based stateful tests**: use real inputs, assert real outputs. For runtime tests, use interface-conforming doubles from `packages/core/src/runtime/mocks/` rather than mocking internals.
+
+Coverage instrumentation targets:
+```
+packages/core/src/{compiler,elements,runtime,widget,player,hud,labels,input,timeline,math}/**/*.ts
+packages/diagram/src/**/*.ts
+```
+Excludes `render.ts` files and barrel exports.
 
 ### Asset Pipeline
 
-Model/animation changes go through `scripts/`:
+Model/animation changes go through `scripts/` at the repo root:
+- `gen-scene-dsl.mjs` — generate scene DSL types from `siteResources.ts` (run via `gen:scene-dsl`)
+- `sync-icons.mjs` — sync heroicons + simple-icons SVGs into diagram package assets
+- `gen-diagram-envmap.mjs` — generate HDR environment map for diagram rendering
 - `extract-model-metadata.mjs` — extract metadata from GLTF at build time
-- `gen-scene-dsl.mjs` — generate scene DSL types from resources
 - `prune-dist.mjs` — post-build artifact cleanup
+- `publish-core-diagram.mjs` — publish `@brewsite/core` and `@brewsite/diagram`
 
 Prefer these helpers over ad-hoc pipelines for any asset-processing work.
 
-## Workspace Filters
-
-```bash
-pnpm --filter @brewsite/core test:watch
-pnpm --filter @brewsite/diagram typecheck
-```
-
-## Package Dependency Rules
-
-- `@brewsite/diagram` may import from `@brewsite/core`, never vice-versa.
+---
 
 ## Requirements and Documentation Policies
 - PRDs live under `requirements/prd/**` and are the source of truth; the structure has changed, so read the specific PRD for the area you touch.

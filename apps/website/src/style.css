@@ -1,0 +1,13 @@
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: system-ui, -apple-system, sans-serif;
+  background: #0f0f14;
+  color: #f2f2f2;
+  overscroll-behavior: none
+}
+
+.app-shell {
+  min-height: 100%;
+}

@@ -743,6 +743,36 @@ describe('resolveLayoutWithGroups', () => {
     expect(yGroup).toBeLessThan(ySrc);
   });
 
+  it('refines ungrouped node cross-axis toward nested group-id connection targets', () => {
+    const nodes = [
+      makeNode('admin'),
+      makeNode('users'),
+      makeNode('con-a', { position: [-10, 0, 0] as [number, number, number] }),
+      makeNode('con-b', { position: [-6, 0, 0] as [number, number, number] }),
+      makeNode('in-a', { position: [6, 0, 0] as [number, number, number] }),
+      makeNode('in-b', { position: [10, 0, 0] as [number, number, number] }),
+    ];
+    const sizes = makeSize(nodes);
+    const groups = [
+      makeGroup('filters', [], { childGroupIds: ['console', 'input-filters'] }),
+      makeGroup('console', ['con-a', 'con-b'], { parentId: 'filters' }),
+      makeGroup('input-filters', ['in-a', 'in-b'], { parentId: 'filters' }),
+    ];
+    const edges = [
+      makeEdge('admin', 'console'),
+      makeEdge('users', 'input-filters'),
+    ];
+    const positions = resolveWithGroups(nodes, edges, groups, hierarchical(), sizes);
+
+    const adminX = positions.get('admin')![0];
+    const usersX = positions.get('users')![0];
+    const consoleCenterX = (positions.get('con-a')![0] + positions.get('con-b')![0]) / 2;
+    const inputCenterX = (positions.get('in-a')![0] + positions.get('in-b')![0]) / 2;
+
+    expect(Math.abs(adminX - consoleCenterX)).toBeLessThan(Math.abs(adminX - inputCenterX));
+    expect(Math.abs(usersX - inputCenterX)).toBeLessThan(Math.abs(usersX - consoleCenterX));
+  });
+
   it('chain of edges through group IDs produces correct hierarchical ordering', () => {
     // src → g1 → g2 → sink: groups should be placed in depth order.
     const nodes = [makeNode('src'), makeNode('sink'), makeNode('a'), makeNode('b'), makeNode('c'), makeNode('d')];

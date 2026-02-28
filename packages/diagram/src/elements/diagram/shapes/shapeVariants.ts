@@ -1,22 +1,48 @@
-// Exhaustive shape variant type for diagram nodes.
+// Geometry shape and icon variant types for diagram nodes.
+
+// ─── Geometry shapes ─────────────────────────────────────────────────────────
 
 /**
- * Generic flowchart shapes. Rendered as pure Three.js geometry — no external assets required.
- * These cover all standard ISO 5807 flowchart symbols.
+ * Controls the 3D geometry prism rendered for a diagram node.
+ * Polygon shapes are rendered as N-sided prisms using CylinderGeometry.
+ * Special shapes use custom ExtrudeGeometry paths.
+ * Default: 'rectangle'.
  */
-export type FlowShape =
-  | 'flow:rect'           // Process / component / service (BoxGeometry)
-  | 'flow:rounded'        // Modern service / API endpoint (BoxGeometry + rounded shader)
-  | 'flow:diamond'        // Decision / gateway / branch (rotated BoxGeometry)
-  | 'flow:cylinder'       // Database / data store (CylinderGeometry)
-  | 'flow:cylinder-stack' // Clustered databases / replicated store (stacked cylinders)
-  | 'flow:oval'           // Terminator: start / end / user / external system
-  | 'flow:cloud'          // External service / internet / third-party (SVG sprite)
-  | 'flow:actor'          // Person / user / operator (SVG person icon on plane)
-  | 'flow:document'       // Document / report / output artifact (SVG sprite)
-  | 'flow:queue'          // Message queue / broker (horizontal cylinder or parallelogram)
-  | 'flow:hexagon'        // Compute step / preprocessing (HexagonGeometry)
-  | 'flow:parallelogram'; // Data input / output (skewed BoxGeometry)
+export type DiagramNodeShape =
+  // Regular polygon prisms
+  | 'circle'        // 32-sided smooth prism
+  | 'triangle'      // 3-sided prism
+  | 'square'        // 4-sided equal-axis box (use equal size prop for true square)
+  | 'rectangle'     // 4-sided free-aspect box — DEFAULT
+  | 'pentagon'      // 5-sided prism
+  | 'hexagon'       // 6-sided prism (was flow:hexagon)
+  | 'heptagon'      // 7-sided prism
+  | 'octagon'       // 8-sided prism
+  | 'nonagon'       // 9-sided prism
+  | 'decagon'       // 10-sided prism
+  // Special 2D shapes (ExtrudeGeometry)
+  | 'diamond'       // rotated square (was flow:diamond)
+  | 'oval'          // elliptical prism (was flow:oval)
+  | 'cloud'         // cloud silhouette extruded shape (was flow:cloud — geometry only, no icon)
+  | 'document'      // page with folded corner (was flow:document — geometry only, no icon)
+  | 'parallelogram' // sheared rectangle (was flow:parallelogram);
+
+/** Default node shape applied when none is specified in the DSL. */
+export const DEFAULT_NODE_SHAPE: DiagramNodeShape = 'rectangle';
+
+// ─── Icon variants ────────────────────────────────────────────────────────────
+
+/**
+ * Legacy flow icon shapes — SVG overlays rendered on the node face.
+ * flow:actor: legacy stick-person icon; prefer ui:user for new scenes.
+ * flow:cylinder, flow:cylinder-stack, flow:queue: 3D shapes deferred to a future
+ *   geometry extension; kept here as icon-only overlays on rectangle bases.
+ */
+export type FlowIconShape =
+  | 'flow:actor'
+  | 'flow:cylinder'
+  | 'flow:cylinder-stack'
+  | 'flow:queue';
 
 /**
  * General-purpose UI icons from Heroicons 24/outline (MIT license).
@@ -561,12 +587,12 @@ export type NetworkShape =
   | 'net:tablet';
 
 /**
- * Full shape variant union.
- * `custom:${string}` is the escape hatch — unknown custom: shapes fall back to flow:rect
- * at render time with a console.warn. This prevents hard failures for one-off shapes.
+ * Full icon variant union — all valid SVG icon overlays for DiagramNode.
+ * Resolved to public asset URLs by resolveIconUrl() in iconRegistry.ts.
+ * `custom:${string}` is the escape hatch for one-off icons not in any namespace.
  */
-export type DiagramShapeVariant =
-  | FlowShape
+export type DiagramIconVariant =
+  | FlowIconShape
   | UiShape
   | TechShape
   | SecurityShape
@@ -576,21 +602,3 @@ export type DiagramShapeVariant =
   | AzureShape
   | NetworkShape
   | `custom:${string}`;
-
-/** Type guard — returns true for shapes that require an external icon asset */
-export function shapeRequiresIcon(shape: DiagramShapeVariant): boolean {
-  return (
-    shape.startsWith('aws:') ||
-    shape.startsWith('gcp:') ||
-    shape.startsWith('azure:') ||
-    shape.startsWith('ui:') ||
-    shape.startsWith('tech:') ||
-    shape.startsWith('security:') ||
-    shape.startsWith('data:') ||
-    shape.startsWith('net:') ||
-    shape === 'flow:cloud' ||
-    shape === 'flow:actor' ||
-    shape === 'flow:document' ||
-    shape === 'flow:queue'
-  );
-}

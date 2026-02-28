@@ -8,7 +8,7 @@
 // The edge  filters → llm-conv  (instead of api → llm-conv) places llm-conv one
 // hierarchical level below the filters block so the three sections never share a row.
 
-import {Background, Environment, EnvironmentCube, Floor, FloorMirror, SceneDefinition} from '@brewsite/core';
+import {Background, Environment, EnvironmentCube, Floor, FloorMirror, PinchMap, SceneDefinition} from '@brewsite/core';
 import {Ambient, Camera, Directional, Lighting, Scene} from '@brewsite/core';
 import { Action, InputController, KeyMap, PointerMap, WheelMap } from '@brewsite/core';
 import {
@@ -112,22 +112,30 @@ export const sceneLlmFilter: SceneDefinition = {
         target={[0, 0, 0]}
       />
       <InputController id="main" scope="canvas">
+        <Action id="pinch-out-zoom" type="camera.dolly" cameraId="camera" speed={1}>
+          <PinchMap direction="out" threshold={1} />
+        </Action>
+
+        <Action id="pinch-in-zoom" type="camera.dolly" cameraId="camera" speed={1}>
+          <PinchMap direction="in" threshold={1} />
+        </Action>
         <Action id="orbit-camera" type="camera.orbit" cameraId="camera" speed={1}>
-          <PointerMap drag button="left" modifiers={['ctrl']} axis="xy" />
-          <PointerMap drag button="left" modifiers={['meta']} axis="xy" />
+          <PointerMap drag button="left" modifiers={['ctrl', 'shift']} axis="xy" />
+          <PointerMap drag button="left" modifiers={['meta', 'shift']} axis="xy" />
+          <WheelMap modifiers={['meta', 'shift']} axis="xy" />
         </Action>
         <Action id="dolly-camera" type="camera.dolly" cameraId="camera" speed={1}>
           <PointerMap drag button="left" modifiers={['alt']} axis="y" />
           <WheelMap modifiers={['alt']} axis="y" />
         </Action>
         <Action id="move-canvas" type="diagram-canvas.move" canvasId="llm-canvas" speed={1}>
-          <PointerMap drag button="left" modifiers={['shift']} axis="xy" />
-          <WheelMap modifiers={['shift']} axis="xy" />
+          <PointerMap drag button="left" modifiers={['shift']} axis="xy" lockAxis="sticky" />
+          <WheelMap axis="xy" />
         </Action>
         <Action id="rotate-canvas" type="diagram-canvas.rotate" canvasId="llm-canvas" speed={1}>
-          <PointerMap drag button="left" modifiers={['ctrl', 'shift']} axis="xy" />
-          <PointerMap drag button="left" modifiers={['meta', 'shift']} axis="xy" />
-          <WheelMap modifiers={['meta']} axis="xy" />
+          <PointerMap drag button="left" modifiers={['ctrl']} axis="y" />
+          <PointerMap drag button="left" modifiers={['meta']} axis="y" />
+          <WheelMap modifiers={['meta']} axis="y" />
         </Action>
         <Action id="focus-canvas" type="diagram-canvas.focus" canvasId="llm-canvas">
           <PointerMap click button="left" modifiers={['meta']} />
@@ -171,55 +179,57 @@ export const sceneLlmFilter: SceneDefinition = {
         <Diagram id="llm-filter" pivot="center">
           <HierarchicalLayout spacing={[1, 1.5]} />
           {/* ── Top tier: explicit positions ─────────────────────────────── */}
-          <DiagramNode id="users" label="Users"
-                       shape="ui:users" iconScale={0.55}
-                       position={[8, 8.0, 0]}/>
           <DiagramNode id="admin" label="Admin"
-                       shape="ui:identification" iconScale={0.55}
-                       position={[-22, 0.5, 0]}/>
+                       icon="ui:identification"
+                       shape='circle' size={[4, 4]}
+          />
+          <DiagramNode id="users" label="Users"
+                       icon="ui:users" iconScale={.5}
+                       shape='octagon' size={[4,4]}
+                       />
 
           {/* app-layer — explicit; allExplicit=true pins the synthetic block */}
           <DiagramGroup id="app-layer" color={C_APP} variant="boundary">
             <DiagramNode id="enterprise" label="Enterprise Application"
-                         shape="ui:building-office-2" iconScale={IS}
+                         icon="ui:building-office-2" iconScale={IS}
                          color={C_APP} position={[-7.5, 3.5, 0]} size={S}/>
             <DiagramNode id="tool" label="Tool"
-                         shape="ui:wrench-screwdriver" iconScale={IS}
+                         icon="ui:wrench-screwdriver" iconScale={IS}
                          color={C_APP} position={[-2.5, 3.5, 0]} size={S}/>
             <DiagramNode id="llm-mid" label="LLM"
-                         shape="ui:cpu-chip" iconScale={IS}
+                         icon="ui:cpu-chip" iconScale={IS}
                          color={C_APP} position={[2.5, 3.5, 0]} size={S}/>
             <DiagramNode id="mcp" label="MCP Server"
-                         shape="ui:server" iconScale={IS}
+                         icon="ui:server" iconScale={IS}
                          color={C_APP} position={[7.5, 3.5, 0]} size={S}/>
             <DiagramNode id="agents" label="Agents"
-                         shape="ui:squares-2x2" iconScale={IS}
+                         icon="ui:squares-2x2" iconScale={IS}
                          color={C_APP} position={[12.5, 3.5, 0]} size={S}/>
           </DiagramGroup>
 
           {/* client-layer — explicit */}
           <DiagramGroup id="client-layer" variant="boundary">
             <DiagramNode id="witness" label="Witness Anywhere"
-                         shape="ui:eye" iconScale={IS}
+                         icon="ui:eye" iconScale={IS}
                          color={C_CLIENT} position={[-7.5, -1.3, 0]} size={S}/>
             <DiagramNode id="chat" label="Chat Client"
-                         shape="ui:chat-bubble-left-right" iconScale={IS}
+                         icon="ui:chat-bubble-left-right" iconScale={IS}
                          color={C_CLIENT} position={[-2.5, -1.3, 0]} size={S}/>
             <DiagramNode id="connector" label="Connector"
-                         shape="ui:arrows-right-left" iconScale={IS}
+                         icon="ui:arrows-right-left" iconScale={IS}
                          color={C_CLIENT} position={[2.5, -1.3, 0]} size={S}/>
             <DiagramNode id="endpoint-ag" label="Endpoint Agent"
-                         shape="ui:computer-desktop" iconScale={IS}
+                         icon="ui:computer-desktop" iconScale={IS}
                          color={C_CLIENT} position={[7.5, -1.3, 0]} size={S}/>
             <DiagramNode id="third-party" label="3rd party application"
-                         shape="ui:puzzle-piece" iconScale={IS}
+                         icon="ui:puzzle-piece" iconScale={IS}
                          color={C_CLIENT} position={[12.5, -1.3, 0]} size={S}/>
           </DiagramGroup>
 
           {/* ── Auto-placed: api → filters → llm-conv → llm-main ─────────── */}
 
           <DiagramNode id="api" label="API"
-                       shape="ui:code-bracket" iconScale={0.28}
+                       icon="ui:code-bracket" iconScale={0.28}
                        color={C_API} size={[22, 1.4]} depth={0.45}/>
 
           {/* filters container — arranges 3 child groups horizontally */}
@@ -229,74 +239,74 @@ export const sceneLlmFilter: SceneDefinition = {
             <DiagramGroup id="console" label="Console"
                           variant="boundary" color="#1a2832" borderColor="#2a5060">
               <GridLayout columns={4} />
-              <DiagramNode id="con-dashboard"  label="Dashboard"             shape="ui:presentation-chart-bar"  iconScale={IS} color={C_CON} size={S}/>
-              <DiagramNode id="con-policy"     label="Policy Engine"         shape="ui:document-text"           iconScale={IS} color={C_CON} size={S}/>
-              <DiagramNode id="con-observ"     label="Observability"         shape="ui:chart-bar"               iconScale={IS} color={C_CON} size={S}/>
-              <DiagramNode id="con-compliance" label="Compliance"            shape="ui:check-circle"            iconScale={IS} color={C_CON} size={S}/>
-              <DiagramNode id="con-audit"      label="Audit"                 shape="ui:clipboard"               iconScale={IS} color={C_CON} size={S}/>
-              <DiagramNode id="con-best-prac"  label="Best Practices"        shape="ui:academic-cap"            iconScale={IS} color={C_CON} size={S}/>
-              <DiagramNode id="con-logging"    label="Logging"               shape="ui:document-chart-bar"      iconScale={IS} color={C_CON} size={S}/>
-              <DiagramNode id="con-risk"       label="Risk Scoring"          shape="ui:exclamation-triangle"    iconScale={IS} color={C_CON} size={S}/>
-              <DiagramNode id="con-tracker"    label="3rd Party AI Tracker"  shape="ui:magnifying-glass"        iconScale={IS} color={C_CON} size={S}/>
-              <DiagramNode id="con-rec-eng"    label="Recommendation Engine" shape="ui:light-bulb"              iconScale={IS} color={C_CON} size={S}/>
-              <DiagramNode id="con-reporting"  label="Reporting"             shape="ui:presentation-chart-line" iconScale={IS} color={C_CON} size={S}/>
-              <DiagramNode id="con-alerting"   label="Alerting"              shape="ui:bell"                    iconScale={IS} color={C_CON} size={S}/>
+              <DiagramNode id="con-dashboard"  label="Dashboard"             icon="ui:presentation-chart-bar"  iconScale={IS} color={C_CON} size={S}/>
+              <DiagramNode id="con-policy"     label="Policy Engine"         icon="ui:document-text"           iconScale={IS} color={C_CON} size={S}/>
+              <DiagramNode id="con-observ"     label="Observability"         icon="ui:chart-bar"               iconScale={IS} color={C_CON} size={S}/>
+              <DiagramNode id="con-compliance" label="Compliance"            icon="ui:check-circle"            iconScale={IS} color={C_CON} size={S}/>
+              <DiagramNode id="con-audit"      label="Audit"                 icon="ui:clipboard"               iconScale={IS} color={C_CON} size={S}/>
+              <DiagramNode id="con-best-prac"  label="Best Practices"        icon="ui:academic-cap"            iconScale={IS} color={C_CON} size={S}/>
+              <DiagramNode id="con-logging"    label="Logging"               icon="ui:document-chart-bar"      iconScale={IS} color={C_CON} size={S}/>
+              <DiagramNode id="con-risk"       label="Risk Scoring"          icon="ui:exclamation-triangle"    iconScale={IS} color={C_CON} size={S}/>
+              <DiagramNode id="con-tracker"    label="3rd Party AI Tracker"  icon="ui:magnifying-glass"        iconScale={IS} color={C_CON} size={S}/>
+              <DiagramNode id="con-rec-eng"    label="Recommendation Engine" icon="ui:light-bulb"              iconScale={IS} color={C_CON} size={S}/>
+              <DiagramNode id="con-reporting"  label="Reporting"             icon="ui:presentation-chart-line" iconScale={IS} color={C_CON} size={S}/>
+              <DiagramNode id="con-alerting"   label="Alerting"              icon="ui:bell"                    iconScale={IS} color={C_CON} size={S}/>
             </DiagramGroup>
 
             {/* input-filters — grid layout */}
             <DiagramGroup id="input-filters" label="Input Filters"
                           variant="boundary" color="#2e1f3a" borderColor="#5a3a7a">
               <GridLayout columns={4}/>
-              <DiagramNode id="if-anon"        label="Anonymization"   shape="ui:eye-slash"              iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-p-inject"    label="Prompt Injection" shape="ui:bug-ant"               iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-halluc"      label="Hallucination"   shape="ui:exclamation-triangle"   iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-model-drift" label="Model Drift"     shape="ui:arrow-path"             iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-pii"         label="PII Leakage"     shape="ui:finger-print"           iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-sentiment"   label="Sentiment"       shape="ui:chart-bar-square"       iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-ban-topics"  label="Banned Topics"   shape="ui:x-circle"               iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-bias"        label="Bias"            shape="ui:adjustments-horizontal" iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-code"        label="Code"            shape="ui:code-bracket"           iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-toxicity"    label="Toxicity"        shape="ui:fire"                   iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-src-tag"     label="Source Tagging"  shape="ui:tag"                    iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-use-cases"   label="Use Cases"       shape="ui:bookmark"               iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-ban-str"     label="Banned Strings"  shape="ui:funnel"                 iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-tok-count"   label="Token Count"     shape="ui:chart-bar-square"       iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-encrypt"     label="Encryption"      shape="ui:lock-closed"            iconScale={IS} color={C_INF} size={S}/>
-              <DiagramNode id="if-observ"      label="Observability"   shape="ui:eye"                    iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-anon"        label="Anonymization"   icon="ui:eye-slash"              iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-p-inject"    label="Prompt Injection" icon="ui:bug-ant"               iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-halluc"      label="Hallucination"   icon="ui:exclamation-triangle"   iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-model-drift" label="Model Drift"     icon="ui:arrow-path"             iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-pii"         label="PII Leakage"     icon="ui:finger-print"           iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-sentiment"   label="Sentiment"       icon="ui:chart-bar-square"       iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-ban-topics"  label="Banned Topics"   icon="ui:x-circle"               iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-bias"        label="Bias"            icon="ui:adjustments-horizontal" iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-code"        label="Code"            icon="ui:code-bracket"           iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-toxicity"    label="Toxicity"        icon="ui:fire"                   iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-src-tag"     label="Source Tagging"  icon="ui:tag"                    iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-use-cases"   label="Use Cases"       icon="ui:bookmark"               iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-ban-str"     label="Banned Strings"  icon="ui:funnel"                 iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-tok-count"   label="Token Count"     icon="ui:chart-bar-square"       iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-encrypt"     label="Encryption"      icon="ui:lock-closed"            iconScale={IS} color={C_INF} size={S}/>
+              <DiagramNode id="if-observ"      label="Observability"   icon="ui:eye"                    iconScale={IS} color={C_INF} size={S}/>
             </DiagramGroup>
 
             {/* output-filters — grid layout */}
             <DiagramGroup id="output-filters" label="Output Filters"
                           variant="boundary" color="#2e1a18" borderColor="#7a3a30">
               <GridLayout  columns={5}/>
-              <DiagramNode id="of-deanon"      label="DeAnonymize"     shape="ui:eye"                        iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-p-inject"    label="Prompt Injection" shape="ui:bug-ant"                   iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-mal-urls"    label="Malicious URLs"  shape="ui:shield-exclamation"         iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-code"        label="Code"            shape="ui:code-bracket"               iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-model-drift" label="Model Drift"     shape="ui:arrow-path"                 iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-refutation"  label="Refutation"      shape="ui:x-circle"                   iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-ban-topics"  label="Banned Topics"   shape="ui:x-circle"                   iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-relevance"   label="Relevance"       shape="ui:magnifying-glass"           iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-ban-str"     label="Banned Strings"  shape="ui:funnel"                     iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-bias"        label="Bias"            shape="ui:adjustments-horizontal"     iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-halluc"      label="Hallucination"   shape="ui:exclamation-circle"         iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-sensitive"   label="Sensitive"       shape="ui:lock-closed"                iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-fact-check"  label="Fact Checking"   shape="ui:document-magnifying-glass"  iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-on-topic"    label="On Topic"        shape="ui:check-circle"               iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-toxicity"    label="Toxicity"        shape="ui:fire"                       iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-access-ctrl" label="Access Control"  shape="ui:key"                        iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-regex"       label="Regex"           shape="ui:code-bracket-square"        iconScale={IS} color={C_OUT} size={S}/>
-              <DiagramNode id="of-decrypt"     label="Decryption"      shape="ui:lock-open"                  iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-deanon"      label="DeAnonymize"     icon="ui:eye"                        iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-p-inject"    label="Prompt Injection" icon="ui:bug-ant"                   iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-mal-urls"    label="Malicious URLs"  icon="ui:shield-exclamation"         iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-code"        label="Code"            icon="ui:code-bracket"               iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-model-drift" label="Model Drift"     icon="ui:arrow-path"                 iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-refutation"  label="Refutation"      icon="ui:x-circle"                   iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-ban-topics"  label="Banned Topics"   icon="ui:x-circle"                   iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-relevance"   label="Relevance"       icon="ui:magnifying-glass"           iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-ban-str"     label="Banned Strings"  icon="ui:funnel"                     iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-bias"        label="Bias"            icon="ui:adjustments-horizontal"     iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-halluc"      label="Hallucination"   icon="ui:exclamation-circle"         iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-sensitive"   label="Sensitive"       icon="ui:lock-closed"                iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-fact-check"  label="Fact Checking"   icon="ui:document-magnifying-glass"  iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-on-topic"    label="On Topic"        icon="ui:check-circle"               iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-toxicity"    label="Toxicity"        icon="ui:fire"                       iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-access-ctrl" label="Access Control"  icon="ui:key"                        iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-regex"       label="Regex"           icon="ui:code-bracket-square"        iconScale={IS} color={C_OUT} size={S}/>
+              <DiagramNode id="of-decrypt"     label="Decryption"      icon="ui:lock-open"                  iconScale={IS} color={C_OUT} size={S}/>
             </DiagramGroup>
 
           </DiagramGroup>
 
           <DiagramNode id="llm-conv" label="LLM Converter"
-                       shape="data:transform" iconScale={0.28}
+                       icon="data:transform" iconScale={0.28}
                        color={C_CONV} size={[46, 1.4]} depth={0.45}/>
 
           <DiagramNode id="llm-main" label="LLM (public, private, etc.)"
-                       shape="ui:sparkles" iconScale={0.32}
+                       icon="ui:sparkles" iconScale={0.32}
                        color={C_LLM} size={[46, 2.2]} depth={0.6}/>
 
           {/* ── Edges ────────────────────────────────────────────────────── */}

@@ -1,6 +1,6 @@
 // Contract layer for the diagram element. No runtime imports, no Three.js, no React.
 
-import type { DiagramShapeVariant } from './shapes/shapeVariants';
+import type { DiagramNodeShape, DiagramIconVariant } from './shapes/shapeVariants';
 
 // ─── Theming ─────────────────────────────────────────────────────────────────
 
@@ -437,11 +437,11 @@ export interface DiagramNodeState {
   readonly sublabel: string | undefined;
 
   /**
-   * Shape variant determining geometry and icon.
-   * Geometry variants (flow:rect, flow:diamond, etc.) use pure Three.js geometry.
-   * Icon variants (aws:*, gcp:*, azure:*) overlay an SVG texture on the front face.
+   * Geometry shape variant — determines the 3D prism geometry for this node.
+   * Use polygon shapes (circle, triangle, hexagon, etc.) or special 2D shapes.
+   * Default: 'rectangle'. Set icon separately to overlay an SVG on the front face.
    */
-  readonly shape: DiagramShapeVariant;
+  readonly shape: DiagramNodeShape;
 
   /**
    * World-space position of the node center [x, y, z].
@@ -778,7 +778,17 @@ export interface DiagramNodeDSL {
    */
   readonly label?: string;
   readonly sublabel?: string;
-  readonly shape?: DiagramShapeVariant;
+  /**
+   * Geometry shape. Controls the 3D prism rendered for this node.
+   * Default: 'rectangle'. Use icon to overlay an SVG on the front face.
+   */
+  readonly shape?: DiagramNodeShape;
+  /**
+   * SVG icon overlaid on the node's front face.
+   * Accepts any DiagramIconVariant: ui:*, aws:*, gcp:*, azure:*, tech:*, etc.
+   * If omitted, no icon is rendered regardless of shape.
+   */
+  readonly icon?: DiagramIconVariant;
   /**
    * Diagram-LOCAL position [x, y, z] of the node center.
    * z=0 puts the node on the diagram's base plane; non-zero z creates depth layering.

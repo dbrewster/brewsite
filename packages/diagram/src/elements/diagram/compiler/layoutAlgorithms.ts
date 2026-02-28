@@ -735,23 +735,50 @@ export function resolveLayoutWithGroups(
     const isLR = (rootLayout as ResolvedHierarchicalLayout).direction === 'left-right';
     const affinityTargets = new Map<string, number[]>();
 
+    const getTopLevelGroupIdForEndpoint = (endpointId: string): string | null => {
+      const byNode = topLevelGroupByDescendant.get(endpointId);
+      if (byNode) return byNode;
+      const synthId = topLevelSynthIdForGroup.get(endpointId);
+      if (!synthId || !synthId.startsWith(GROUP_NODE_PREFIX)) return null;
+      return synthId.slice(GROUP_NODE_PREFIX.length);
+    };
+
+    const getEndpointLocalCrossAxis = (topLevelGroupId: string, endpointId: string): number | null => {
+      const groupInfo = groupInfoMap.get(topLevelGroupId);
+      if (!groupInfo) return null;
+
+      // Node endpoint: direct local lookup in top-level group space.
+      const nodeLocal = groupInfo.localPositions.get(endpointId);
+      if (nodeLocal) return isLR ? nodeLocal[1] : nodeLocal[0];
+
+      // Group endpoint: approximate by the mean local cross-axis of all descendant nodes.
+      const descendantNodeIds = descendantMemo.get(endpointId);
+      if (!descendantNodeIds || descendantNodeIds.size === 0) return 0;
+      let sum = 0;
+      let count = 0;
+      descendantNodeIds.forEach((nodeId) => {
+        const lp = groupInfo.localPositions.get(nodeId);
+        if (!lp) return;
+        sum += isLR ? lp[1] : lp[0];
+        count += 1;
+      });
+      if (count === 0) return 0;
+      return sum / count;
+    };
+
     edges.forEach((edge) => {
       if (topLevelGroupByDescendant.has(edge.from)) return;
       if (topLevelSynthIdForGroup.has(edge.from)) return;
 
-      const toGroupId = topLevelGroupByDescendant.get(edge.to);
+      const toGroupId = getTopLevelGroupIdForEndpoint(edge.to);
       if (!toGroupId) return;
-
-      const groupInfo = groupInfoMap.get(toGroupId);
-      if (!groupInfo) return;
 
       const groupBlockPos = topLevelPositions.get(groupNodeId(toGroupId));
       if (!groupBlockPos) return;
       const groupBlockCrossAxis = isLR ? groupBlockPos[1] : groupBlockPos[0];
 
-      const localPos = groupInfo.localPositions.get(edge.to);
-      if (!localPos) return;
-      const localCrossAxis = isLR ? localPos[1] : localPos[0];
+      const localCrossAxis = getEndpointLocalCrossAxis(toGroupId, edge.to);
+      if (localCrossAxis === null) return;
 
       const refinedCrossAxis = groupBlockCrossAxis + localCrossAxis;
 

@@ -1,6 +1,7 @@
-// Maps DiagramShapeVariant values to public asset URL paths.
+// Maps DiagramIconVariant values to public asset URL paths.
 
 import type {
+  DiagramIconVariant,
   AwsShape,
   AzureShape,
   DataShape,
@@ -44,13 +45,13 @@ const BASE = '/assets/shapes';
 // which TypeScript cannot enumerate as Record keys.
 // Use explicit known-key subset types instead.
 
-type KnownFlowIconShape = 'flow:cloud' | 'flow:actor' | 'flow:document' | 'flow:queue';
+// flow:cloud and flow:document moved to DiagramNodeShape (geometry-only).
+// flow:actor and flow:queue remain as icon overlays.
+type KnownFlowIconShape = 'flow:actor' | 'flow:queue';
 
 const FLOW_ICON_MAP: Record<KnownFlowIconShape, string> = {
-  'flow:cloud':    `${BASE}/flow/cloud.svg`,
-  'flow:actor':    `${BASE}/flow/actor.svg`,
-  'flow:document': `${BASE}/flow/document.svg`,
-  'flow:queue':    `${BASE}/flow/queue.svg`,
+  'flow:actor': `${BASE}/flow/actor.svg`,
+  'flow:queue': `${BASE}/flow/queue.svg`,
 };
 
 const AWS_ICON_MAP: Record<AwsShape, string> = {
@@ -307,22 +308,24 @@ function iconName(shape: string): string {
 }
 
 /**
- * Returns the public asset URL for a shape's icon, or undefined if the shape
- * is rendered as pure Three.js geometry (no external asset needed).
+ * Returns the public asset URL for an icon variant, or undefined if the variant
+ * has no known asset (e.g. custom: without a registered URL, or undefined input).
  */
-export function resolveIconUrl(shape: string): string | undefined {
+export function resolveIconUrl(icon: DiagramIconVariant | undefined): string | undefined {
+  if (icon === undefined) return undefined;
+
   // Heroicons-derived namespaces: name IS the filename
-  if (shape.startsWith('ui:'))       return namespaceUrl('ui',       iconName(shape));
-  if (shape.startsWith('tech:'))     return namespaceUrl('tech',     iconName(shape));
-  if (shape.startsWith('security:')) return namespaceUrl('security', iconName(shape));
-  if (shape.startsWith('data:'))     return namespaceUrl('data',     iconName(shape));
-  if (shape.startsWith('net:'))      return NET_ICON_MAP[shape as NetworkShape];
+  if (icon.startsWith('ui:'))       return namespaceUrl('ui',       iconName(icon));
+  if (icon.startsWith('tech:'))     return namespaceUrl('tech',     iconName(icon));
+  if (icon.startsWith('security:')) return namespaceUrl('security', iconName(icon));
+  if (icon.startsWith('data:'))     return namespaceUrl('data',     iconName(icon));
+  if (icon.startsWith('net:'))      return NET_ICON_MAP[icon as NetworkShape];
 
   // Cloud provider namespaces
-  if (shape.startsWith('aws:'))      return AWS_ICON_MAP[shape as AwsShape];
-  if (shape.startsWith('gcp:'))      return GCP_ICON_MAP[shape as GcpShape];
-  if (shape.startsWith('azure:'))    return AZURE_ICON_MAP[shape as AzureShape];
+  if (icon.startsWith('aws:'))      return AWS_ICON_MAP[icon as AwsShape];
+  if (icon.startsWith('gcp:'))      return GCP_ICON_MAP[icon as GcpShape];
+  if (icon.startsWith('azure:'))    return AZURE_ICON_MAP[icon as AzureShape];
 
-  // Flow SVG sprites
-  return FLOW_ICON_MAP[shape as KnownFlowIconShape];
+  // Flow SVG sprites (actor, queue)
+  return FLOW_ICON_MAP[icon as KnownFlowIconShape];
 }

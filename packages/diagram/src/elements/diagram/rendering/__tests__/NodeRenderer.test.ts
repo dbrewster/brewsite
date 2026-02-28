@@ -27,7 +27,7 @@ const makeNode = (overrides: Partial<DiagramNodeState> = {}): DiagramNodeState =
   id: 'n1',
   label: 'Node',
   sublabel: undefined,
-  shape: 'flow:rect',
+  shape: 'rectangle',
   position: [0, 0, 0],
   size: [4, 2],
   depth: 0.4,
@@ -92,7 +92,7 @@ describe('NodeRenderer', () => {
   it('shape change → boxMesh geometry rebuilt', () => {
     const entry = renderer.getOrCreate(makeNode(), 'd1', themeConfig, parent);
     const before = entry.boxMesh.geometry;
-    renderer.getOrCreate(makeNode({ shape: 'flow:rounded' }), 'd1', themeConfig, parent);
+    renderer.getOrCreate(makeNode({ shape: 'hexagon' }), 'd1', themeConfig, parent);
     expect(entry.boxMesh.geometry).not.toBe(before);
   });
 

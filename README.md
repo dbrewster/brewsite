@@ -1,109 +1,40 @@
 # BrewFlow Scene Toolkit
 
-The BrewFlow Scene Toolkit is an open source TypeScript + React + Three.js toolkit for building multi-scene, scroll-driven experiences that blend 3D content with React UI. Scene authors declare state in a typed JSX DSL; the compiler pre-bakes those declarations into a flat SceneTrack for O(1) runtime sampling and smooth playback. The core architecture is widget-based: built-in and custom elements both implement the same capability interfaces and are registered through a WidgetRegistry.
+**BrewFlow** is an open-source TypeScript + React + Three.js framework for building scroll-driven, multi-scene 3D experiences. Scene authors declare state in a typed JSX DSL; the compiler pre-bakes those declarations into a flat `SceneTrack` for O(1) runtime sampling and smooth playback. A widget-based runtime means custom elements plug in without modifying the engine.
 
-## Where to Find Things
+## Packages
 
-- `src/widget/` — Widget SDK interfaces, WidgetRegistry, VariableStore, `useVariable` hook.
-- `src/compiler/` — Scene DSL compiler and SceneTrack sampler (pure TypeScript, no Three.js).
-- `src/runtime/` — Runtime driver and tick loop (generic, no element knowledge).
-- `src/elements/` — First-party widgets (model, lighting, background, environment, floor).
-- `src/player/` — Public consumer API: `ScenePlayer`, hooks, engine lifecycle.
-- `src/annotations/` and `src/labels/` — Overlay systems for annotations and labels.
-- `src/timeline/` and `src/math/` — Pure utilities.
-- `examples/` — Example scenes and consumer widgets.
-- `scripts/` — Asset pipeline and build helpers (`gen-scene-dsl.mjs`, `extract-model-metadata.mjs`).
-- `requirements/prd/` — Product requirements and architecture references.
+| Package | Version | Description |
+|---|---|---|
+| [`@brewsite/core`](./packages/core) | 0.4.x | Animation engine: compiler, runtime, player, widget SDK |
+| [`@brewsite/diagram`](./packages/diagram) | 0.1.x | 3D diagram, canvas, image-panel, and screen elements |
 
-## How to Get Started (Run the Examples)
+Both packages are published to npm and can be used independently. `@brewsite/diagram` extends core with interactive architectural diagram rendering — nodes, edges, groups, animated transitions, and cloud provider icon support.
 
-1. Install dependencies:
+## Install
 
 ```bash
-pnpm install
+# Core engine only
+npm install @brewsite/core react react-dom three
+
+# With 3D diagram elements
+npm install @brewsite/core @brewsite/diagram react react-dom three
 ```
 
-2. Generate the example DSL and asset manifest:
+Peer dependencies: `react ^19`, `react-dom ^19`, `three ^0.183`.
 
-```bash
-pnpm gen:scene-dsl
-```
+## Quick Example
 
-3. Start the dev server (serves the examples app on port 5173):
-
-```bash
-pnpm dev
-```
-
-The examples app routes live in `examples/vite-app/App.tsx` and include:
-- `/simple` → `examples/simple/pages/SimplePage.tsx`
-- `/two-bots` → `examples/two-bots/pages/TwoBots.tsx`
-- `/complex` → `examples/complex/pages/ComplexPage.tsx`
-- `/meeting` → `examples/meeting/pages/MeetingPage.tsx`
-
-## Examples Directory Guide
-
-- `examples/simple/` — Minimal two-scene demo with labels and a basic widget registry.
-- `examples/two-bots/` — Variant of the simple scene setup with alternate scenes and assets.
-- `examples/complex/` — Multi-scene walkthrough with more states and transitions.
-- `examples/meeting/` — Two-scene meeting demo using the same engine surface.
-- `examples/widgets/` — Reference custom widgets: `brain-model`, `logo-rotator`, `ribbon`.
-- `examples/siteResources.ts` — Asset manifest input for the generator.
-- `examples/generated/` — Auto-generated types and DSL wrappers from the asset pipeline.
-- `examples/public/` — Generated `scene-manifest.json` and public assets for the example app.
-
-## Defining a Site With `siteResources.ts`
-
-`examples/siteResources.ts` is the source of truth for models, contained models, and animations. The generator reads this file and produces:
-- `examples/generated/sceneDsl.generated.ts` — typed unions and DSL components (e.g., `Robot`, `BrainSubparts`).
-- `examples/public/scene-manifest.json` — runtime manifest consumed by the engine.
-
-Minimal example:
-
-```ts
-// examples/siteResources.ts
-export const siteResources = {
-  models: [
-    {
-      type: 'Robot',
-      role: 'primary' as const,
-      path: '/assets/robot.no-normals.glb',
-      anchorKeys: ['Head', 'chest'],
-      footOffsetY: -130,
-    },
-  ],
-  containedModels: [
-    {
-      type: 'brain',
-      path: '/assets/brain_separated.glb',
-      target: 'Head',
-      scale: 0.53,
-      position: [0, -0.03, 0.12],
-      rotation: [-0.3, 0, 0],
-    },
-  ],
-  animations: [
-    { type: 'ChatRelaxF', path: '/assets/motion/chat-relax-f.glb' },
-  ],
-} as const;
-```
-
-## Generate Code and Use It
-
-1. Generate the DSL and manifest:
-
-```bash
-pnpm gen:scene-dsl
-```
-
-2. Import generated DSL components and types in your scenes:
+Declare scenes as typed JSX and hand them to `ScenePlayer`:
 
 ```tsx
-import { Scene, Lighting, Ambient, Directional } from '@brewsite/core';
-import type { SceneDefinition } from '@brewsite/core';
-import { Robot, BrainSubparts } from '../generated/sceneDsl.generated';
+import {
+  ScenePlayer, createDefaultWidgetRegistry,
+  Scene, Lighting, Ambient, Directional,
+} from '@brewsite/core';
+import type { SceneDefinition, AssetManifest } from '@brewsite/core';
 
-export const scene01: SceneDefinition = {
+const intro: SceneDefinition = {
   id: 'intro',
   index: 0,
   getFrame: () => (
@@ -112,34 +43,15 @@ export const scene01: SceneDefinition = {
         <Ambient intensity={2} color="#ffffff" />
         <Directional intensity={2} color="#ffffff" position={[20, 30, 40]} />
       </Lighting>
-      <Robot id="primary" position={[0, -30, 0]} scale={0.2}>
-        <Robot.Brain opacity={1}>
-          <BrainSubparts>
-            <BrainSubparts.MarkerFrontLeft />
-          </BrainSubparts>
-        </Robot.Brain>
-      </Robot>
     </Scene>
   ),
 };
-```
-
-3. Provide a widget registry and render `ScenePlayer`:
-
-```tsx
-import { ScenePlayer, createDefaultWidgetRegistry } from '@brewsite/core';
-import type { AssetManifest } from '@brewsite/core';
-import { scene01 } from './scenes/scene01';
-
-const createWidgetSetup = (manifest: AssetManifest | null) =>
-  createDefaultWidgetRegistry(manifest);
 
 export default function Page() {
   return (
     <ScenePlayer
-      sceneGroup={{ id: 'demo', scenes: [scene01] }}
-      manifestUrl="/scene-manifest.json"
-      widgetSetup={createWidgetSetup}
+      sceneGroup={{ id: 'demo', scenes: [intro] }}
+      widgetSetup={(manifest: AssetManifest | null) => createDefaultWidgetRegistry(manifest)}
       framesPerTick={100}
       pixelsPerScene={1600}
     />
@@ -147,11 +59,75 @@ export default function Page() {
 }
 ```
 
+For diagram usage, see the [`@brewsite/diagram` README](./packages/diagram/README.md).
+For the full core API, see the [`@brewsite/core` README](./packages/core/README.md).
+
+## Running the Examples
+
+The `apps/examples` directory contains a runnable dev app demonstrating core and diagram features.
+
+**Prerequisites:** [pnpm](https://pnpm.io) v10+
+
+```bash
+# 1. Install workspace dependencies
+pnpm install
+
+# 2. Generate DSL types from the asset manifest (required before first run)
+pnpm gen:scene-dsl
+
+# 3. Start the dev server (port 5173)
+pnpm dev
+```
+
+### Example Routes
+
+| Route | Description |
+|---|---|
+| `/` or `/simple` | Minimal two-scene demo with labels |
+| `/two-bots` | Alternate simple scenes with different assets |
+| `/complex` | Multi-scene walkthrough |
+| `/meeting` | Two-scene meeting demo |
+| `/anim` | Multiple simultaneous animation clips |
+| `/diagram` | Interactive 3D architecture diagram with orbit/dolly/focus |
+| `/diagram-auto` | Auto-layout diagram (hierarchical layout engine) |
+| `/diagram-example` | Lucid-imported diagram example |
+
+## Where to Find Things
+
+```
+packages/core/src/
+  player/       — ScenePlayer, hooks, engine lifecycle (React)
+  compiler/     — Scene DSL → SceneTrack compiler (pure TypeScript, no Three.js)
+  runtime/      — Widget-based execution coordinator
+  elements/     — Model, camera, lighting, background, environment, floor
+  widget/       — WidgetRegistry, VariableStore, widget interfaces
+  hud/          — HUD overlay system
+  labels/       — 3D-tracked label overlays
+  input/        — Scene navigation and action-based input
+
+packages/diagram/src/
+  elements/diagram/    — Diagram nodes, edges, groups, animations, canvas
+  elements/image-panel/ — 3D image panel with bezel and glow
+  elements/screen/     — 3D screen element
+
+apps/examples/         — Runnable example scenes (not published)
+scripts/               — Asset pipeline helpers
+requirements/prd/      — Product requirements and architecture docs
+```
+
 ## Common Commands
 
 ```bash
-pnpm dev        # Vite dev server (examples app)
-pnpm build      # generate DSL → typecheck → build
-pnpm test       # run Vitest suite once
-pnpm typecheck  # tsc --noEmit
+pnpm install                                # install all workspace dependencies
+pnpm dev                                    # Vite dev server (examples app, port 5173)
+pnpm build                                  # build all packages (turbo, dependency-ordered)
+pnpm typecheck                              # tsc --noEmit across all packages
+pnpm test                                   # Vitest suite across all packages
+pnpm sync:icons                             # sync heroicons + simple-icons into diagram assets
+pnpm --filter @brewsite/core test:watch     # Vitest watch mode (core)
+pnpm --filter @brewsite/diagram test:watch  # Vitest watch mode (diagram)
 ```
+
+## License
+
+See [LICENSE](./LICENSE).
