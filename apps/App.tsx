@@ -13,12 +13,7 @@ const DocsApp = lazy(async () => {
   await import('./docs/src/style/layout.css');
   await import('./docs/src/style/prism-theme.css');
   return import('./docs/src/App');
-});
-
-const ExamplesApp = lazy(async () => {
-  await import('./examples/style.css');
-  return import('./examples/App');
-});
+})
 
 type AppName = 'website' | 'docs' | 'examples';
 
@@ -50,16 +45,6 @@ export default function App(): JSX.Element {
       <BrowserRouter basename={basename}>
         <Suspense fallback={<Loading />}>
           <DocsApp />
-        </Suspense>
-      </BrowserRouter>
-    );
-  }
-
-  if (app === 'examples') {
-    return (
-      <BrowserRouter basename={basename}>
-        <Suspense fallback={<Loading />}>
-          <ExamplesApp />
         </Suspense>
       </BrowserRouter>
     );
