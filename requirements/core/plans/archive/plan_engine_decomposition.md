@@ -2,8 +2,8 @@
 title: "Engine Decomposition — EngineProvider, SceneCanvas, EngineOverlayHost"
 doc_type: plan
 owner: brewflow-architect
-status: active
-updated: 2026-02-28
+status: complete
+updated: 2026-03-01
 ---
 
 # Engine Decomposition — Implementation Plan

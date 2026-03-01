@@ -2,8 +2,8 @@
 title: "ProgressManager — Per-Scene Scroll Weighting and Input Curve"
 doc_type: plan
 owner: brewflow-architect
-status: active
-updated: 2026-02-28
+status: complete
+updated: 2026-03-01
 ---
 
 # ProgressManager — Implementation Plan
