@@ -178,6 +178,143 @@
   50%       { transform: rotate(45deg) translateY(3px);  opacity: 1; }
 }
 
+/* ─── Hero mobile-first adjustments ─────────────────────────────────────── */
+
+/* Bezel: percentage-based inset already adapts.
+   On very small phones (< 380px), tighten slightly. */
+@media (max-width: 380px) {
+  .hero-bezel {
+    inset: 12% 5%;
+  }
+}
+
+/* Package badges: wrap to 2×2 on narrow screens */
+.hero-packages {
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 400px;
+  gap: 10px;
+}
+
+/* ─── Hero Statement (Beat 2) ─────────────────────────────────────────────── */
+.hero-statement {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  z-index: 5;
+  pointer-events: none;
+  width: 90%;
+  max-width: 560px;
+}
+
+.hero-statement__eyebrow {
+  display: block;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(0, 245, 255, 0.65);
+  margin-bottom: 10px;
+}
+
+.hero-statement__headline {
+  font-size: clamp(36px, 9vw, 72px);
+  font-weight: 700;
+  line-height: 1.0;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #f0f6fc 20%, #00f5ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 14px;
+}
+
+.hero-statement__tagline {
+  display: block;
+  font-size: clamp(11px, 1.4vw, 14px);
+  font-family: var(--font-mono);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(240, 246, 252, 0.45);
+}
+
+/* ─── Chart badge "soon" indicator ──────────────────────────────────────── */
+.hero-package-badge--soon {
+  position: relative;
+  opacity: 0.7;
+}
+
+.hero-package-badge__soon-label {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: rgba(255, 170, 0, 0.85);
+  vertical-align: middle;
+}
+
+/* ─── Ecosystem scene cards ───────────────────────────────────────────────── */
+.ecosystem-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  width: 100%;
+  max-width: 520px;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+.ecosystem-card {
+  border: 1px solid rgba(0, 245, 255, 0.18);
+  background: rgba(0, 245, 255, 0.05);
+  border-radius: 8px;
+  padding: 16px 16px;
+}
+
+.ecosystem-card__name {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  color: var(--neon-cyan);
+  margin-bottom: 8px;
+}
+
+.ecosystem-card__headline {
+  font-size: clamp(14px, 2vw, 16px);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  line-height: 1.2;
+}
+
+.ecosystem-card__body {
+  font-size: clamp(12px, 1.4vw, 13px);
+  color: rgba(240, 246, 252, 0.5);
+  line-height: 1.55;
+}
+
+.ecosystem-card__soon {
+  margin-top: 10px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  letter-spacing: 0.1em;
+  color: rgba(255, 170, 0, 0.75);
+}
+
+@media (min-width: 768px) {
+  .ecosystem-grid {
+    gap: 16px;
+    max-width: 560px;
+    padding: 0;
+  }
+
+  .ecosystem-card {
+    padding: 18px 20px;
+  }
+}
+
 /* ─── Hamburger nav button ───────────────────────────────────────────────── */
 .nav-hamburger {
   position: fixed;

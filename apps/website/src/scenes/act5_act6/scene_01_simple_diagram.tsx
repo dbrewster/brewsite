@@ -2,6 +2,8 @@ import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
 import { DiagramCanvas, Diagram, DiagramNode, DiagramEdge, ManualLayout, neonCyberTheme } from '@brewsite/diagram';
 import { MidFade, SlideUp } from '@brewsite/core/hud/animejs';
+import { isMobile } from '../../utils/viewport';
+import type { Vec3 } from '@brewsite/core';
 
 export const scene01SimpleDiagram: JSX.Element = (
   <Scene id="website-diagram-simple">
@@ -9,7 +11,12 @@ export const scene01SimpleDiagram: JSX.Element = (
       scrollUnits={1800}
       autoAdvance={{ duration: 7, max: 0.85, pauseOnScroll: true }}
     />
-    <Camera mode="world" position={[0, 8, 40]} target={[0, 0, 0]} fov={55} />
+    <Camera
+      mode="world"
+      position={(isMobile ? [0, 10, 30] : [0, 8, 40]) as Vec3}
+      target={[0, 0, 0]}
+      fov={isMobile ? 65 : 55}
+    />
 
     <Lighting intensityScale={1}>
       <Ambient intensity={1.0} color="#ffffff" />
@@ -19,7 +26,7 @@ export const scene01SimpleDiagram: JSX.Element = (
     <DiagramCanvas
       id="simple-tech-stack"
       rotation={[-Math.PI / 12, 0, 0]}
-      scale={1.3}
+      scale={isMobile ? 1.0 : 1.3}
       theme={neonCyberTheme}
     >
       <Diagram id="tech-stack" pivot="center">
@@ -46,12 +53,12 @@ export const scene01SimpleDiagram: JSX.Element = (
         }}>
           @brewsite/diagram
         </div>
-        <div style={{ fontSize: 24, fontWeight: 600, color: '#f0f6fc', marginBottom: 12 }}>
-          From whiteboard<br />to 3D in JSX.
+        <div style={{ fontSize: 'clamp(20px, 3vw, 24px)', fontWeight: 600, color: '#f0f6fc', marginBottom: 12 }}>
+          From whiteboard<br />to 3D.
         </div>
       </MidFade>
       <SlideUp duration={900} delay={150}>
-        <div style={{ fontSize: 14, color: 'rgba(240,246,252,0.6)', lineHeight: 1.65 }}>
+        <div style={{ fontSize: 'clamp(13px, 1.6vw, 14px)', color: 'rgba(240,246,252,0.6)', lineHeight: 1.65 }}>
           Themes, icons, routed edges, groups. No Figma required.
         </div>
       </SlideUp>

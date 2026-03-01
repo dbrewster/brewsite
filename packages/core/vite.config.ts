@@ -11,13 +11,20 @@ export default defineConfig({
       fileName: 'index',
     },
     rollupOptions: {
-      external: ['react', 'react-dom', 'three', 'react-router', 'animejs'],
+      // Use a function so all subpaths of peer deps are marked external, not just the
+      // bare specifier. e.g. 'react-dom/client', 'three/examples/jsm/loaders/RGBELoader.js'.
+      external: (id: string) =>
+        id === 'three'         || id.startsWith('three/') ||
+        id === 'react'         || id.startsWith('react/') ||
+        id === 'react-dom'     || id.startsWith('react-dom/') ||
+        id === 'animejs'       || id.startsWith('animejs/') ||
+        id === 'camera-controls',
       output: {
         preserveModules: true,
         preserveModulesRoot: 'src',
       },
     },
-    sourcemap: true,
+    sourcemap: false,
     // Preserve tsc declaration output emitted to dist before Vite runs.
     emptyOutDir: false,
   },

@@ -2,6 +2,8 @@ import type { JSX } from 'react';
 import { Ambient, Camera, Directional, Lighting, ProgressManager, Scene } from '@brewsite/core';
 import { Animation, BodyPart, BodyParts, ModelRouter, Playback, Pose } from '@brewsite/model';
 import { MidFade } from '@brewsite/core/hud/animejs';
+import { isMobile } from '../../utils/viewport';
+import type { Vec3 } from '@brewsite/core';
 
 interface BodyPartProp {
   id: string;
@@ -55,6 +57,7 @@ const Actor = ({
     <ModelRouter
       type={type}
       id={idBase}
+      scale={6}
       position={[xPos, 0, zPos]}
       rotation={[0, yRot + animationBase[1], 0]}
       metalnessMultiplier={0.4}
@@ -144,11 +147,11 @@ function randomBetween(min: number, max: number): number {
 }
 
 // ── Pair layout ───────────────────────────────────────────────────────────────
-const PAIR_COUNT = 15;
-const PAIR_DISTANCE = 10;
-const PAIR_SPREAD_X = 80;
-const PAIR_SPREAD_Z = 70;
-const PAIR_MIN_SEPARATION = 20;
+const PAIR_COUNT = isMobile ? 4 : 15;
+const PAIR_DISTANCE = 4;
+const PAIR_SPREAD_X = 48;
+const PAIR_SPREAD_Z = 38;
+const PAIR_MIN_SEPARATION = 10;
 
 function generatePairCenters(count: number): Array<{ x: number; z: number }> {
   const centers: Array<{ x: number; z: number }> = [];
@@ -202,7 +205,12 @@ export const scene01Meeting: JSX.Element = (
       autoAdvance={{ duration: 8, max: 0.85, pauseOnScroll: true }}
       animationTimeScale={2}
     />
-    <Camera mode="world" position={[0, 34, 110]} target={[0, 0, 0]} fov={48} />
+    <Camera
+      mode="world"
+      position={(isMobile ? [0, 22, 70] : [0, 34, 110]) as Vec3}
+      target={[0, 0, 0]}
+      fov={isMobile ? 60 : 48}
+    />
 
     <Lighting intensityScale={1}>
       <Ambient intensity={0.5} color="#e6eeff" />
@@ -231,10 +239,10 @@ export const scene01Meeting: JSX.Element = (
           }}>
             Procedural Composition
           </div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: '#f0f6fc', marginBottom: 10 }}>
+          <div style={{ fontSize: 'clamp(20px, 3.5vw, 26px)', fontWeight: 700, color: '#f0f6fc', marginBottom: 10 }}>
             30 characters. 50 lines of JSX.
           </div>
-          <div style={{ fontSize: 16, color: 'rgba(240,246,252,0.65)', lineHeight: 1.6 }}>
+          <div style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', color: 'rgba(240,246,252,0.65)', lineHeight: 1.6 }}>
             Random placement, collision detection, animation assignment — all at
             author time. Runtime is just playback.
           </div>

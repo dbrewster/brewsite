@@ -6,6 +6,8 @@ import {
 import { ModelRouter } from '@brewsite/model';
 import { DiagramCanvas, Diagram, DiagramNode, DiagramEdge, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
 import { SlideUp } from '@brewsite/core/hud/animejs';
+import { isMobile } from '../../utils/viewport';
+import type { Vec3 } from '@brewsite/core';
 
 export const scene02Combined: JSX.Element = (
   <Scene id="website-full-02">
@@ -14,7 +16,12 @@ export const scene02Combined: JSX.Element = (
       autoAdvance={{ duration: 7, max: 0.85, pauseOnScroll: true }}
       animationTimeScale={2}
     />
-    <Camera mode="world" position={[-8, 14, 55]} target={[5, 3, -5]} fov={60} />
+    <Camera
+      mode="world"
+      position={(isMobile ? [0, 12, 45] : [-8, 14, 55]) as Vec3}
+      target={[5, 3, -5]}
+      fov={isMobile ? 65 : 60}
+    />
 
     <Floor enabled position={[0, 0, 0]}>
       <FloorMirror
@@ -71,7 +78,7 @@ export const scene02Combined: JSX.Element = (
         </div>
       </SlideUp>
       <SlideUp duration={1100} delay={120}>
-        <div style={{ fontSize: 26, fontWeight: 700, color: '#f0f6fc', lineHeight: 1.25 }}>
+        <div style={{ fontSize: 'clamp(20px, 3vw, 26px)', fontWeight: 700, color: '#f0f6fc', lineHeight: 1.25 }}>
           Web apps. Decks.<br />Pitches. Marketing sites.
         </div>
       </SlideUp>

@@ -1,6 +1,6 @@
 {
   "name": "@brewsite/core",
-  "version": "0.4.2",
+  "version": "0.5.1",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -28,13 +28,10 @@
     "coverage": "NODE_OPTIONS=--max-old-space-size=8192 vitest run --coverage",
     "dev": "vite build --watch"
   },
-  "dependencies": {
-    "camera-controls": "^3.1.2",
-    "meshoptimizer": "^0.23.0",
-    "react-router": "^7.13.0"
-  },
+  "dependencies": {},
   "peerDependencies": {
     "animejs": "^3.2.2",
+    "camera-controls": "^3.1.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "three": "^0.183.1"

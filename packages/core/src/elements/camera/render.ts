@@ -10,9 +10,9 @@ type SceneModelInstanceState = {
 };
 import type { SceneCamera, ICameraInteractionDriver, TrackpadCameraConfig, Vec3 } from './types';
 
-// Install camera-controls THREE subset (called once at module load)
 type CameraControlsThree = Parameters<typeof CameraControls.install>[0]['THREE'];
-CameraControls.install({ THREE: THREE as unknown as CameraControlsThree });
+/** Guard so CameraControls.install() runs exactly once, deferred until first interactive scene. */
+let ccInstalled = false;
 
 export type CameraRenderContext = {
   camera: THREE.PerspectiveCamera;
@@ -233,6 +233,10 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
   }
 
   attach(cameraObject: unknown, domElement: HTMLElement, config: TrackpadCameraConfig): void {
+    if (!ccInstalled) {
+      CameraControls.install({ THREE: THREE as unknown as CameraControlsThree });
+      ccInstalled = true;
+    }
     const camera = cameraObject as THREE.PerspectiveCamera;
     type CCCamera = ConstructorParameters<typeof CameraControls>[0];
     this.cc = new CameraControls(camera as unknown as CCCamera, domElement);

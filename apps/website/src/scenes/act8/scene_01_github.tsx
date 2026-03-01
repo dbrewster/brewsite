@@ -30,9 +30,9 @@ export const scene01Github: JSX.Element = (
           <div className="terminal-card__body">
             <div className="terminal-card__line">
               <span className="terminal-card__prompt">$</span>
-              <span className="terminal-card__command">{' '}pnpm add @brewsite/core @brewsite/diagram</span>
+              <span className="terminal-card__command">{' '}pnpm add @brewsite/core @brewsite/model @brewsite/diagram</span>
             </div>
-            <div className="terminal-card__output">added 2 packages in 0.9s</div>
+            <div className="terminal-card__output">added 3 packages in 1.2s</div>
             <div style={{ marginTop: 10 }} className="terminal-card__line">
               <span className="terminal-card__prompt">$</span>
               <span className="terminal-card__cursor" aria-hidden="true" />
@@ -43,8 +43,8 @@ export const scene01Github: JSX.Element = (
         <div className="github-cta-block">
           <h2 className="github-cta-block__headline">Open Source. Production Ready.</h2>
           <p className="github-cta-block__body">
-            Built for TypeScript. Designed for developers. Author scenes in JSX, ship immersive
-            3D experiences for the web, presentations, and marketing sites.
+            Built for TypeScript. Powered by React. Install the engine, then add only what
+            your story needs.
           </p>
           <a
             href={GITHUB_URL}

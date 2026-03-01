@@ -2,6 +2,8 @@ import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, Floor, FloorMirror, ProgressManager } from '@brewsite/core';
 import { DiagramCanvas, Diagram, DiagramEdge, DiagramGroup, DiagramNode, Exit, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
 import { MidFade, SlideUp } from '@brewsite/core/hud/animejs';
+import { isMobile } from '../../utils/viewport';
+import type { Vec3 } from '@brewsite/core';
 
 export const scene02ArchOverview: JSX.Element = (
   <Scene id="website-arch-overview">
@@ -9,7 +11,12 @@ export const scene02ArchOverview: JSX.Element = (
       scrollUnits={1800}
       autoAdvance={{ duration: 7, max: 0.85, pauseOnScroll: true }}
     />
-    <Camera mode="world" fov={55} position={[0, 10, 50]} target={[0, 0, 0]} />
+    <Camera
+      mode="world"
+      position={(isMobile ? [0, 8, 38] : [0, 10, 50]) as Vec3}
+      target={[0, 0, 0]}
+      fov={isMobile ? 65 : 55}
+    />
 
     <Floor enabled position={[0, -20, 0]}>
       <FloorMirror
@@ -24,7 +31,7 @@ export const scene02ArchOverview: JSX.Element = (
       <Directional intensity={0.5} color="#ffefef" position={[0, 30, 50]} />
       <Directional intensity={0.6} color="#aaccff" position={[-20, 10, 20]} />
     </Lighting>
-    <DiagramCanvas id="system-canvas" rotation={[-Math.PI / 8, 0, 0]} scale={1.4} theme={darkGlassTheme}>
+    <DiagramCanvas id="system-canvas" rotation={[-Math.PI / 8, 0, 0]} scale={isMobile ? 1.0 : 1.4} theme={darkGlassTheme}>
       <Diagram id="system-arch" pivot="center">
         <ManualLayout />
         <Exit to={[0, -60, 0]} fade easing="ease-out" />
@@ -72,14 +79,14 @@ export const scene02ArchOverview: JSX.Element = (
         }}>
           Production Architecture
         </div>
-        <div style={{ fontSize: 20, fontWeight: 600, color: '#f0f6fc' }}>
+        <div style={{ fontSize: 'clamp(16px, 2.2vw, 20px)', fontWeight: 600, color: '#f0f6fc' }}>
           16 nodes · 4 tiers · 8 edges
         </div>
       </MidFade>
     </div>
     <div style={{ position: 'absolute', bottom: '8%', left: '5%', maxWidth: 360 }}>
       <SlideUp duration={1000} delay={100}>
-        <div style={{ fontSize: 22, fontWeight: 600, color: '#f0f6fc' }}>
+        <div style={{ fontSize: 'clamp(18px, 2.5vw, 22px)', fontWeight: 600, color: '#f0f6fc' }}>
           Architecture diagrams.<br />Presentation-ready.
         </div>
       </SlideUp>

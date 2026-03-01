@@ -47,7 +47,7 @@ export const scene01CoreIntro: JSX.Element = (
             backgroundClip: 'text',
             margin: '0 0 20px',
           }}>
-            Scenes as JSX.<br />Rendered like film.
+            Scenes as React.<br />Rendered like film.
           </h2>
         </MidFade>
         <SlideUp duration={1000} delay={200}>

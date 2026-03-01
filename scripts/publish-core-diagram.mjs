@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+// Builds and publishes all four BrewSite library packages to npm.
+// Usage: node scripts/publish-core-diagram.mjs <dev|point|minor|major>
 
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -9,15 +11,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const repoRoot = path.resolve(__dirname, "..");
 
+// Publish order matters: core must build and publish before dependents.
 const packages = [
-  {
-    name: "@brewsite/core",
-    dir: path.join(repoRoot, "packages/core"),
-  },
-  {
-    name: "@brewsite/diagram",
-    dir: path.join(repoRoot, "packages/diagram"),
-  },
+  { name: "@brewsite/core",    dir: path.join(repoRoot, "packages/core") },
+  { name: "@brewsite/diagram", dir: path.join(repoRoot, "packages/diagram") },
+  { name: "@brewsite/model",   dir: path.join(repoRoot, "packages/model") },
+  { name: "@brewsite/charts",  dir: path.join(repoRoot, "packages/charts") },
 ];
 
 const usage = [
@@ -35,27 +34,12 @@ function run(command, args, options = {}) {
     stdio: "inherit",
     ...options,
   });
-
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
-  }
+  if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
 function runInDir(cwd, command, args) {
-  const result = spawnSync(command, args, {
-    cwd,
-    stdio: "inherit",
-  });
-
-  if (result.status !== 0) {
-    process.exit(result.status ?? 1);
-  }
-}
-
-function readVersion(pkgDir) {
-  const packageJsonPath = path.join(pkgDir, "package.json");
-  const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
-  return packageJson.version;
+  const result = spawnSync(command, args, { cwd, stdio: "inherit" });
+  if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
 function readPackageJson(pkgDir) {
@@ -67,6 +51,12 @@ function readPackageJson(pkgDir) {
 function writePackageJson(packageJsonPath, packageJson) {
   writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
 }
+
+function readVersion(pkgDir) {
+  return readPackageJson(pkgDir).packageJson.version;
+}
+
+// ─── Validate args ────────────────────────────────────────────────────────────
 
 const releaseType = process.argv[2];
 const validReleaseTypes = new Set(["dev", "point", "minor", "major"]);
@@ -80,50 +70,70 @@ if (!validReleaseTypes.has(releaseType)) {
 const versionArg = releaseType === "point" ? "patch" : releaseType;
 const isDevRelease = releaseType === "dev";
 
-console.log(`\nPublishing core + diagram as "${releaseType}" release...\n`);
+console.log(`\nPublishing all BrewSite packages as "${releaseType}" release...\n`);
+
+// ─── Step 1: Bump versions ────────────────────────────────────────────────────
 
 for (const pkg of packages) {
   const npmVersionArgs = ["version", versionArg, "--no-git-tag-version"];
-  if (isDevRelease) {
-    npmVersionArgs.push("--preid", "dev");
-  }
-
-  console.log(`\nBumping ${pkg.name}...`);
+  if (isDevRelease) npmVersionArgs.push("--preid", "dev");
+  console.log(`Bumping ${pkg.name}...`);
   runInDir(pkg.dir, "npm", npmVersionArgs);
 }
 
-const corePackage = packages.find((pkg) => pkg.name === "@brewsite/core");
-const diagramPackage = packages.find((pkg) => pkg.name === "@brewsite/diagram");
+// ─── Step 2: Pin @brewsite/core version in all dependents ────────────────────
+// workspace:* refs are not resolved by npm publish — replace with real version.
 
-if (!corePackage || !diagramPackage) {
-  console.error("Missing @brewsite/core or @brewsite/diagram package config.");
-  process.exit(1);
-}
+const coreVersion = readVersion(packages[0].dir);
+console.log(`\nPinning @brewsite/core@${coreVersion} in all dependents...`);
 
-const coreVersion = readVersion(corePackage.dir);
-const { packageJsonPath: diagramPackageJsonPath, packageJson: diagramPackageJson } = readPackageJson(
-  diagramPackage.dir,
-);
-diagramPackageJson.dependencies = diagramPackageJson.dependencies ?? {};
-diagramPackageJson.dependencies["@brewsite/core"] = coreVersion;
-writePackageJson(diagramPackageJsonPath, diagramPackageJson);
-console.log(`Pinned @brewsite/diagram dependency @brewsite/core -> ${coreVersion}`);
+// @brewsite/diagram — hard dependency (ships alongside core)
+const { packageJsonPath: diagramPath, packageJson: diagramJson } =
+  readPackageJson(packages[1].dir);
+diagramJson.dependencies = diagramJson.dependencies ?? {};
+diagramJson.dependencies["@brewsite/core"] = coreVersion;
+writePackageJson(diagramPath, diagramJson);
+console.log(`  @brewsite/diagram dependencies["@brewsite/core"] -> ${coreVersion}`);
 
+// @brewsite/model — peer dependency (caret range so consumers can control it)
+const { packageJsonPath: modelPath, packageJson: modelJson } =
+  readPackageJson(packages[2].dir);
+modelJson.peerDependencies = modelJson.peerDependencies ?? {};
+modelJson.peerDependencies["@brewsite/core"] = `^${coreVersion}`;
+writePackageJson(modelPath, modelJson);
+console.log(`  @brewsite/model peerDependencies["@brewsite/core"] -> ^${coreVersion}`);
+
+// @brewsite/charts — peer dependency
+const { packageJsonPath: chartsPath, packageJson: chartsJson } =
+  readPackageJson(packages[3].dir);
+chartsJson.peerDependencies = chartsJson.peerDependencies ?? {};
+chartsJson.peerDependencies["@brewsite/core"] = `^${coreVersion}`;
+writePackageJson(chartsPath, chartsJson);
+console.log(`  @brewsite/charts peerDependencies["@brewsite/core"] -> ^${coreVersion}`);
+
+// ─── Step 3: Confirm versions ─────────────────────────────────────────────────
+
+console.log("\nVersions:");
 for (const pkg of packages) {
-  const version = readVersion(pkg.dir);
-  console.log(`${pkg.name} -> ${version}`);
+  console.log(`  ${pkg.name} -> ${readVersion(pkg.dir)}`);
 }
+
+// ─── Step 4: Build all packages ───────────────────────────────────────────────
+// Core must build first (diagram, model, charts resolve its types from dist/).
+// The remaining three have no inter-dependencies and can run sequentially.
 
 console.log("\nBuilding packages...");
 run("pnpm", ["--filter", "@brewsite/core", "build"]);
 run("pnpm", ["--filter", "@brewsite/diagram", "build"]);
+run("pnpm", ["--filter", "@brewsite/model", "build"]);
+run("pnpm", ["--filter", "@brewsite/charts", "build"]);
+
+// ─── Step 5: Publish ──────────────────────────────────────────────────────────
 
 for (const pkg of packages) {
-  console.log(`\nPublishing ${pkg.name}...`);
+  console.log(`\nPublishing ${pkg.name}@${readVersion(pkg.dir)}...`);
   const publishArgs = ["publish", "--access", "public"];
-  if (isDevRelease) {
-    publishArgs.push("--tag", "dev");
-  }
+  if (isDevRelease) publishArgs.push("--tag", "dev");
   runInDir(pkg.dir, "npm", publishArgs);
 }
 

@@ -1,0 +1,36 @@
+{
+  "id": "sf-twilight",
+  "imageUrl": "/assets/SF-twilight.png",
+  "units": "feet",
+  "camera": {
+    "position": [0, 6, 20],
+    "target": [0, 4, -30],
+    "fov": 45
+  },
+  "floor": {
+    "enabled": true,
+    "nearZ": -5,
+    "farZ": -100,
+    "width": 120,
+    "offsetY": 0,
+    "tiltXDeg": 0,
+    "opacity": 0.25,
+    "hatchSpacing": 4,
+    "hatchAngleDeg": 35,
+    "hatchOpacity": 0.35,
+    "color": "#b9c6ff"
+  },
+  "ringLights": {
+    "enabled": true,
+    "center": [0, 18, -40],
+    "radiusX": 28,
+    "radiusZ": 46,
+    "tiltXDeg": 6,
+    "ringRotationDeg": 0,
+    "count": 30,
+    "ropeThickness": 0.12,
+    "intensity": 6,
+    "hueRotateSpeed": 0.05,
+    "colors": ["#00e5ff", "#6aff00", "#ff3bff", "#ffa500"]
+  }
+}

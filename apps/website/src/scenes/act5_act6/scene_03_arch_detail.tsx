@@ -2,6 +2,8 @@ import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
 import { DiagramCanvas, Diagram, DiagramEdge, DiagramNode, Enter, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
 import { SlideUp } from '@brewsite/core/hud/animejs';
+import { isMobile } from '../../utils/viewport';
+import type { Vec3 } from '@brewsite/core';
 
 export const scene03ArchDetail: JSX.Element = (
   <Scene id="website-arch-detail">
@@ -9,13 +11,18 @@ export const scene03ArchDetail: JSX.Element = (
       scrollUnits={1800}
       autoAdvance={{ duration: 7, max: 0.85, pauseOnScroll: true }}
     />
-    <Camera mode="world" fov={55} position={[0, 8, 45]} target={[0, -5, 0]} />
+    <Camera
+      mode="world"
+      position={(isMobile ? [0, 8, 35] : [0, 8, 45]) as Vec3}
+      target={[0, -5, 0]}
+      fov={isMobile ? 65 : 55}
+    />
 
     <Lighting intensityScale={1}>
       <Ambient intensity={1.0} color="#ffffff" />
       <Directional intensity={0.6} color="#aaccff" position={[-20, 10, 20]} />
     </Lighting>
-    <DiagramCanvas id="system-canvas" rotation={[-Math.PI / 12, 0, 0]} scale={1.4} theme={darkGlassTheme}>
+    <DiagramCanvas id="system-canvas" rotation={[-Math.PI / 12, 0, 0]} scale={isMobile ? 1.0 : 1.4} theme={darkGlassTheme}>
       <Diagram id="system-arch" pivot="center">
         <ManualLayout />
         <Enter from={[-60, 0, 0]} fade easing="ease-in" />
@@ -64,7 +71,7 @@ export const scene03ArchDetail: JSX.Element = (
         </div>
       </SlideUp>
       <SlideUp duration={1000} delay={100}>
-        <div style={{ fontSize: 18, fontWeight: 600, color: '#f0f6fc', lineHeight: 1.35 }}>
+        <div style={{ fontSize: 'clamp(15px, 2vw, 18px)', fontWeight: 600, color: '#f0f6fc', lineHeight: 1.35 }}>
           DiagramGroups · Focus Regions<br />· Theme System
         </div>
       </SlideUp>

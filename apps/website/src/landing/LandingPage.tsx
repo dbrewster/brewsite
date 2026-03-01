@@ -10,6 +10,7 @@ import {
 import { createWebsitePlugins } from '../widgetSetup';
 import { websiteFlowScenes } from '../scenes/websiteFlow';
 import { NavMenu } from './nav/NavMenu';
+import { isMobile } from '../utils/viewport';
 
 const MANIFEST_URL = '/scene-manifest.json';
 
@@ -63,11 +64,20 @@ export default function LandingPage(): JSX.Element {
       id="website-flow-player"
       manifestUrl={MANIFEST_URL}
       plugins={plugins}
-      quality="balanced"
+      quality={isMobile ? 'balanced' : 'high'}
       pixelsPerScene={1400}
       onError={(err) => {
         setLoadError(err);
-        console.error('[WebsiteFlow]', err);
+        console.error('[WebsiteFlow] Engine error:', err);
+      }}
+      onWidgetError={(widgetId, err) => {
+        console.error(`[WebsiteFlow] Widget "${widgetId}" error:`, err);
+      }}
+      onManifestError={(err) => {
+        console.error('[WebsiteFlow] Manifest load failed:', err);
+      }}
+      onCompileWarning={(warnings) => {
+        warnings.forEach((w) => console.warn('[WebsiteFlow] Compile warning:', w));
       }}
     >
       {websiteFlowScenes}

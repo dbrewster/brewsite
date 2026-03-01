@@ -4,6 +4,8 @@ import {
   Floor, FloorMirror, ProgressManager,
 } from '@brewsite/core';
 import { MidFade } from '@brewsite/core/hud/animejs';
+import { isMobile } from '../../utils/viewport';
+import type { Vec3 } from '@brewsite/core';
 
 export const scene01Foundation: JSX.Element = (
   <Scene id="website-full-01">
@@ -11,7 +13,12 @@ export const scene01Foundation: JSX.Element = (
       scrollUnits={1600}
       autoAdvance={{ duration: 6, max: 0.85, pauseOnScroll: true }}
     />
-    <Camera mode="world" position={[0, 12, 55]} target={[0, 4, 0]} fov={58} />
+    <Camera
+      mode="world"
+      position={(isMobile ? [0, 10, 40] : [0, 12, 55]) as Vec3}
+      target={[0, 4, 0]}
+      fov={isMobile ? 65 : 58}
+    />
 
     <Floor enabled position={[0, 0, 0]}>
       <FloorMirror
@@ -56,7 +63,7 @@ export const scene01Foundation: JSX.Element = (
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
           }}>
-            One framework.<br />Every medium.
+            One engine.<br />Infinite forms.
           </h2>
         </div>
       </MidFade>

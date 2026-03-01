@@ -444,9 +444,59 @@ code {
   background: var(--bg-void);
 }
 
-/* ─── Responsive ─────────────────────────────────────────────────────────── */
-@media (max-width: 768px) {
-  .act-header__watermark { display: none; }
-  .code-block { font-size: 12px; }
-  .act-header__title { font-size: clamp(24px, 6vw, 36px); }
+/* ─── Responsive (mobile-first) ──────────────────────────────────────────── */
+
+/* Base: designed for 375–430px portrait phones */
+.act-header__watermark { display: none; }
+
+.act-content-panel {
+  max-width: 100%;
+  padding: 24px;
+}
+
+.github-section {
+  padding: 60px 24px;
+  gap: 32px;
+}
+
+.terminal-card__body {
+  padding: 18px 20px;
+  font-size: 13px;
+}
+
+/* Touch target minimum for nav links */
+.nav-link {
+  padding: 14px 4px;
+  min-height: 44px;
+}
+
+/* Desktop overrides */
+@media (min-width: 768px) {
+  .act-header__watermark { display: block; }
+
+  .act-content-panel {
+    max-width: 460px;
+    padding: var(--section-pad-x);
+  }
+
+  .github-section {
+    padding: var(--section-pad-y) var(--section-pad-x);
+    gap: 48px;
+  }
+
+  .terminal-card__body {
+    padding: 24px 28px;
+    font-size: 14px;
+  }
+
+  .nav-link {
+    padding: 12px 4px;
+    min-height: auto;
+  }
+}
+
+/* ─── 100dvh fix (dynamic viewport height for mobile browser chrome) ──────── */
+.hero-section {
+  min-height: 100vh;
+  min-height: 100dvh;
 }

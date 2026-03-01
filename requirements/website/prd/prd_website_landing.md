@@ -3,401 +3,379 @@ title: "BrewSite Marketing Website — Landing Page"
 doc_type: prd
 status: approved
 owner: Toolkit Product
-last_updated: 2026-02-28
+last_updated: 2026-03-01
 change_history:
   - date: 2026-02-28
     author: "Toolkit PM"
-    summary: "Initial PRD created. Full scroll-driven landing page showcasing all toolkit capabilities across 8 acts. Makerspace/steampunk/nerd-cool aesthetic anchored by a neon sign hero. Approved for implementation."
+    summary: "Initial PRD created. Full scroll-driven landing page showcasing @brewsite/core and @brewsite/diagram across 8 acts. Makerspace/steampunk aesthetic anchored by a neon sign hero. Approved for implementation."
+  - date: 2026-03-01
+    author: "Toolkit PM"
+    summary: "Complete rewrite. Mobile-first design philosophy adopted — portrait 9:16 is the primary viewport target; desktop adapts. Updated positioning to 'The React toolkit for 3D storytelling.' Hero gains Beat 2 (positioning statement appears after sign reveal). Tagline updated to 'Scenes as React. Rendered like film.' Act 2 (Libraries/HUD internal) replaced with Ecosystem act introducing all four packages (@brewsite/core, @brewsite/model, @brewsite/diagram, @brewsite/chart). Models compressed from 2 scenes to 1. GitHub CTA updated for multi-package install. All cameras redesigned for portrait-first composition. 2024 phones (A17 Pro, Snapdragon 8 Gen 3) are the performance baseline."
 ---
 
 # BrewSite Marketing Website — Landing Page
 
 ## Overview
 
-The BrewSite marketing website (`apps/website`) is a long-scroll, single-page showcase for `@brewsite/core` and `@brewsite/diagram`. It is the product's primary public-facing presence for technical evaluators — developers and product managers who are deciding whether to adopt the toolkit. The site lives at the root of the `@brewsite/website` app in the monorepo.
+The BrewSite marketing website (`apps/website`) is a long-scroll, single-page showcase for the BrewSite ecosystem — `@brewsite/core`, `@brewsite/model`, `@brewsite/diagram`, and `@brewsite/chart`. It is the product's primary public-facing presence for technical evaluators: developers, technical PMs, and presentation authors who are deciding whether to adopt the toolkit.
 
-The page is itself a proof of concept: it demonstrates the toolkit's capabilities by using the toolkit to power its own animated sections. Every major feature — HUD overlays, declarative transitions, 3D models, animated crowds, immersive diagrams, and multi-layer compositions — appears in an authored scene, narrated by HUD content. The site argues for the toolkit by showing it working.
+The site is itself a proof of concept: it is built with the toolkit, demonstrating capabilities by using them. Every major feature — scroll-driven scenes, 3D models, animated crowds, immersive diagrams, and multi-layer compositions — appears as a real, rendered scene. The site argues for the toolkit by showing it working.
 
-The aesthetic is **steampunk makerspace meets high-tech**: industrial dark metal frames, riveted bezels, neon signs, warm amber + electric blue industrial lighting, and the satisfaction of a machine coming to life.
+The page is designed **mobile-first**. The primary viewport is a 2024 smartphone in portrait orientation (9:16, approximately 390×844px). Desktop browsers receive the same experience with adapted camera framing. All cameras, all typography, all HUD layouts are composed for portrait first.
 
-Target audience: TypeScript developers and PMs evaluating the toolkit for websites, slide decks, presentations, and marketing pages.
+The aesthetic remains **steampunk makerspace meets high-tech**: industrial dark metal frames, riveted bezels, neon signs, warm amber + electric blue industrial lighting.
+
+Target audience: TypeScript developers, technical PMs, and presentation authors evaluating the toolkit for marketing pages, slide decks, pitches, and product demos.
 
 ---
 
 ## Problem Statement
 
-`@brewsite/core` and `@brewsite/diagram` have no public-facing marketing presence. Engineers discovering the toolkit through GitHub have no demonstration of capability beyond reading source code and example pages that lack narrative context. The gap between "I found this repo" and "I understand what this does and want to use it" is too large.
+The toolkit has evolved significantly since the original website was designed. It is now a modular ecosystem of four packages, not a single library. The original messaging — "Author in JSX. Ship to any surface." — understates the product and misrepresents the authoring model (JSX is the syntax; React is the paradigm). The ecosystem story is invisible: visitors see two packages in the hero when four exist.
 
-The packages need a website that:
-1. Immediately establishes the aesthetic power of the toolkit through the hero experience
-2. Progressively demonstrates every major capability in context
-3. Speaks to the technical evaluator (developer + PM) without condescension
-4. Makes the toolkit feel ready, polished, and worth the learning investment
+Mobile usage dominates web browsing. A website that isn't designed for phones is not designed. The original site was desktop-first with three afterthought mobile rules in CSS. This is corrected by making portrait 9:16 the primary design target throughout.
+
+The product's core positioning — "The React toolkit for 3D storytelling" — is owned by no competitor in the animation/visualization library landscape. Theatre.js approaches it from the toolbox angle; Remotion approaches it from the video-output angle. BrewSite owns the intersection of React-native, scroll-driven, 3D, and storytelling. The website must claim this position explicitly.
 
 ---
 
 ## Goals & Success Metrics
 
 **Primary Goals:**
-- A visitor who lands on the page should understand what the toolkit does within 30 seconds (the hero section)
-- A visitor who scrolls the full page should be able to enumerate all major toolkit capabilities
-- The site should function as a live demo — every 3D section is a real ScenePlayer rendering real scenes
-- The TypeScript DSL code shown in sections should be real, copy-pasteable, and accurate
+- A visitor on a phone understands what BrewSite does within 30 seconds of reaching the hero
+- A visitor who scrolls the full page can enumerate all major ecosystem packages and their capabilities
+- Every 3D section is a real EngineProvider rendering real scenes — no static screenshots
+- The install command and GitHub link are reachable within 2 scrolls on any device
 
 **Success Metrics:**
-- Time-to-understand: Qualitative assessment — can a developer unfamiliar with the toolkit describe its core capability after seeing the hero?
-- Demo fidelity: All 5 ScenePlayer sections render correctly with no console errors on Chrome + Safari
-- Mobile graceful degradation: On screens < 768px, layout stacks vertically, ScenePlayers render at correct aspect ratio
-- Performance: First Contentful Paint < 2s; Hero section renders before any ScenePlayer assets load
+- Hero comprehension: A developer unfamiliar with BrewSite can describe its core capability after seeing the hero + Beat 2 reveal, without reading further
+- Mobile render: All scenes render at acceptable frame rate on an iPhone 15 and a Pixel 8 in Chrome
+- Mobile layout: No horizontal scroll, no clipped text, no illegible font sizes at 390px viewport width
+- Performance: Hero section displays before any GLTF assets load; First Contentful Paint < 2s on a fast mobile connection
+- Demo fidelity: All scene acts render with no console errors on Chrome (mobile + desktop) and Safari (iOS)
 
 **Guardrail Metrics:**
-- No changes to `@brewsite/core` or `@brewsite/diagram` package APIs
-- `apps/website` must remain a private app — not published to npm
-- No changes that would affect the `apps/examples` app
+- No changes to `@brewsite/core`, `@brewsite/model`, or `@brewsite/diagram` package APIs
+- `apps/website` remains a private app, not published to npm
+- No changes that affect `apps/examples`
 
 ---
 
 ## Non-Goals
 
-- Dark/light mode toggle — the site is dark only; this is a design decision, not a gap
+- Dark/light mode toggle — dark only
 - Internationalization — English only
-- CMS-driven content — all content is authored directly in React components
+- CMS-driven content — authored directly in React/TSX
 - A docs site — this is marketing, not reference documentation
 - Interactive editor or playground — future scope
-- Server-side rendering — this is a Vite SPA, not a Next.js/SSR app
-- Performance optimization for slow networks beyond basic lazy loading — target audience is on fast connections
+- Server-side rendering — this is a Vite SPA
+- Landscape-optimized mobile layouts — portrait is the target; landscape on mobile is acceptable but not optimized
+- Accessibility full compliance for WebGL content — best-effort `aria-hidden` on canvases; text content is accessible
 
 ---
 
 ## Consumer Stories
 
-*In this context, "consumer" = a visitor to the website.*
+*"Consumer" = a visitor to the website.*
 
-1. As a developer evaluating new tools, I want to understand what BrewSite does in under 30 seconds so that I can decide whether to read further.
-2. As a developer who builds marketing pages, I want to see code examples alongside live 3D output so that I can evaluate how much I'd need to learn.
-3. As a PM evaluating tools for a design team, I want to see real output quality (diagrams, animations, scenes) so that I can gauge production-readiness.
-4. As a developer unfamiliar with Three.js, I want to see that the DSL abstracts away the renderer so that I feel confident I can adopt it without graphics programming expertise.
-5. As a developer ready to try the toolkit, I want a clear install command and GitHub link so that I can get started immediately.
+1. As a developer on my phone, I want to understand what BrewSite is and why it matters within 30 seconds so I can decide whether to come back on a laptop.
+2. As a developer evaluating tools for a marketing project, I want to see the toolkit's output quality live in the browser so I can assess whether it matches what I'm imagining.
+3. As a PM evaluating tools for my team, I want to understand what each package does without reading documentation so I can communicate the value to engineering.
+4. As a developer unfamiliar with Three.js, I want to see that the DSL abstracts away graphics programming so I feel confident I can adopt it.
+5. As a developer ready to start, I want a clear install command for exactly the packages I need so I can get running immediately.
 
 ---
 
 ## Functional Requirements
 
-1. The site shall render in a single scroll on a desktop viewport (≥ 1024px wide).
-2. The hero section shall fill 100vh and display a cursive neon "BrewSite" sign in a Three.js metal room. The sign shall animate from off to fully lit on page load.
-3. A non-discrete hamburger menu shall be fixed to the top-right corner of the viewport at all times. Activating it shall reveal a slide-out navigation panel with anchor links to each section.
-4. A scroll indicator shall appear at the bottom of the hero section and animate to prompt the user to scroll down. It shall fade out once the user begins scrolling.
-5. Following the hero, eight content acts shall appear in sequence, each with its own visual identity and content narrative.
-6. Acts 1 through 7 shall each contain at least one live `ScenePlayer` rendering real toolkit scenes with the full runtime pipeline (compiler → track → runtime → Three.js).
-7. Each ScenePlayer section shall be scroll-driven: scrolling through the section advances the scene, as in the examples app.
-8. Act 8 (GitHub CTA) shall be a CSS-only section with an install command, terminal aesthetic, and a GitHub link.
-9. All code snippets shown on the page shall be real, valid DSL code that matches the scene being demonstrated.
-10. On mobile (< 768px), each act shall stack vertically: scene above, narrative text below (or scene only if text is embedded in HUD).
-11. The page shall load without errors on Chrome 120+ and Safari 17+.
-12. Public assets (model GLBs, animation GLBs) shall be served from `/public/assets/` matching the same paths as `apps/examples`.
+1. The site shall render in a single continuous scroll on any viewport from 375px to 2560px wide.
+2. The hero section shall fill 100dvh (dynamic viewport height, for mobile browser chrome) and display a cursive neon "BrewSite" sign in a Three.js metal room.
+3. The hero shall have two distinct visual beats: Beat 1 (sign reveal, 0–40% scene progress) and Beat 2 (positioning statement appears in upper bezel area, 42–58% scene progress).
+4. Beat 2 shall display: eyebrow "The React toolkit for" + display headline "3D storytelling." using gradient display typography, positioned in the upper portion of the bezel frame.
+5. The hero tagline shall read "Scenes as React. Rendered like film."
+6. The hero package badges shall show all four packages: `@brewsite/core`, `@brewsite/model`, `@brewsite/diagram`, `@brewsite/chart`. The chart badge shall carry a "soon" visual indicator.
+7. A fixed hamburger menu shall be accessible at all times and reveal a slide-out navigation panel with anchor links to each act.
+8. Eight acts shall appear in sequence following the hero, each with its own visual identity.
+9. Acts 1 through 7 shall use `EngineProvider` rendering real compiled scenes.
+10. Act 8 (GitHub CTA) shall be a CSS-only terminal section.
+11. On screens narrower than 768px, `EngineProvider` shall use `quality="balanced"`. On screens ≥ 768px it shall use `quality="high"`.
+12. Meeting scene (Act 4) shall render 8 characters (4 pairs) on screens narrower than 768px and 30 characters (15 pairs) on wider screens.
+13. Floor mirror resolution shall be 512px on screens narrower than 768px and 1024px on screens 768px and wider, for the hero scene only. All other mirror scenes use 512px universally.
+14. All scenes shall use camera positions and FOV designed for 9:16 portrait viewports, with desktop variants provided where the composition materially differs.
+15. All text in scene HUD overlays shall use `clamp()` font sizing — no hardcoded pixel values.
+16. The page shall load and render without errors on Chrome 120+ (Android and desktop) and Safari 17+ (iOS and macOS).
+17. The GitHub CTA terminal command shall install three packages: `@brewsite/core @brewsite/model @brewsite/diagram`.
 
 ---
 
-## Visual Design: The Aesthetic
+## Positioning & Messaging
+
+### Core Positioning Statement
+**"The React toolkit for 3D storytelling."**
+
+This statement appears in the hero Beat 2 and as the meta description. No competitor owns it. It names the technology (React, not JSX — React is the paradigm), the form (toolkit — modular packages, not a single library), the medium (3D), and the outcome (storytelling — the use case, not the mechanism).
+
+### Hero Tagline
+**"Scenes as React. Rendered like film."**
+
+Replaces "Author in JSX. Ship to any surface." The distinction: React is the paradigm developers already respect and understand. "Scenes as React" means the scene authoring model IS the React component model — not just syntax-compatible. "Rendered like film" carries over from the original; it communicates pre-baked, deliberate, cinematic output. The claim is structural: BrewSite compiles scenes like a film editor assembles frames, not like a keyframe animator writes curves.
+
+### Act Messaging Map
+
+| Act | Eyebrow | Headline | Body |
+|---|---|---|---|
+| 0 (Hero) | [neon sign reveal] | "3D storytelling." | "Scenes as React. Rendered like film." |
+| 1 (Engine) | @brewsite/core | "Scenes as React. Rendered like film." | "Declare states. Let the compiler handle transitions. No animation loops. No frame math." |
+| 2 (Ecosystem) | The Ecosystem | "One engine. Four packages." | "Install only what you need. All packages share the same declarative scene model." |
+| 3 (Models) | @brewsite/model | "Drop a GLTF. Animate the world." | "Metalness, roughness, normals — the renderer handles it. You handle the story." |
+| 4 (Meeting) | Procedural Composition | "30 characters. 50 lines of JSX." | "Random placement, collision detection, animation assignment — all at author time. Runtime is just playback." |
+| 5 (Diagrams) | @brewsite/diagram | "From whiteboard to 3D." | "Themes, icons, routed edges, groups. No Figma required." |
+| 6 (Architecture) | Production Architecture | "Architecture diagrams. Presentation-ready." | "Drill down. Stay in the scene." |
+| 7 (Full Stack) | Models + Diagrams + HUD + React | "One engine. Infinite forms." | "Web apps. Decks. Pitches. Marketing sites." |
+| 8 (GitHub) | Open Source. Production Ready. | [terminal install] | "Built for TypeScript. Powered by React. Install the engine, then add only what your story needs." |
+
+---
+
+## Visual Design
+
+### Mobile-First Layout Philosophy
+
+All scenes are composed for a 9:16 portrait viewport (390×844px reference). Desktop viewports receive the same scene with the camera pulled back or FOV narrowed slightly to handle the wider aspect ratio. Horizontal composition is avoided — subjects and diagrams are centered on the X axis, with vertical arrangement used to create depth.
+
+This inversion from the original design reflects a real behavioral reality: marketing websites are predominantly discovered and evaluated on phones. The site should be visceral and impressive on the device visitors actually hold.
 
 ### Hero Section
 
-The hero establishes the makerspace identity. It is a full-viewport dark room rendered in Three.js, with a physical metal-framed sign at the center. The room has:
+**Structure:** 100dvh. Three.js metal room (dark metallic back wall, reflective floor, warm + cool industrial lighting). CSS bezel frame over the canvas. Two-beat HTML overlay.
 
-**Three.js Background Scene:**
-- Dark metallic back wall: `MeshPhysicalMaterial`, `metalness: 0.85`, `roughness: 0.25`, color `#0f1018`
-- Reflective floor: `MeshPhysicalMaterial`, `metalness: 0.95`, `roughness: 0.06`, dark charcoal
-- Warm point light: amber `#ff8800`, intensity 3, positioned upper-left
-- Cool point light: electric blue `#0055ff`, intensity 2, positioned upper-right
-- Dim ambient: near-black blue `#0a0f1a`
-- Camera: very slow drift (sine-wave position offset, ~0.3 units amplitude, ~15s period)
-- Renderer: ACES filmic tone mapping, exposure 0.9
-- Post-effect approximation: Three.js `UnrealBloomPass` if available, otherwise use high emissive values
+**Beat 1 (0–40% scene progress):** Sign powers on. No HTML content visible. The neon "BrewSite" sign flickers to life in the dark room.
 
-**Sign Bezel (CSS overlay):**
-- Centered div, ~80% viewport width, ~35% viewport height
-- Multi-layer border creating physical depth illusion:
-  - Outer: 1px solid `rgba(255,255,255,0.05)` with outer box-shadow
-  - Inner: 4px inset dark shadow
-  - Fill: subtle diagonal gradient (lighter top-left, darker bottom-right)
-- Four L-bracket corner accents using CSS `::before`/`::after` — metallic gradient, 40px arm length
-- Rivet dots: 8px circles along top and bottom edges, 8 per edge, radial gradient (highlight at 35% 35%)
-- Side channel strips (top and bottom bar): 12px high, full width, metallic gradient
+**Beat 2 (42–58%):** Positioning statement fades in at the top of the bezel interior:
+- Eyebrow line: "The React toolkit for" — 11px mono, letter-spaced, muted cyan `rgba(0,245,255,0.65)`
+- Display headline: "3D storytelling." — `clamp(36px, 9vw, 72px)`, weight 700, gradient `#f0f6fc → #00f5ff`, letter-spacing `-0.03em`
 
-**Neon Sign (SVG + CSS):**
-- Font: Google Fonts "Dancing Script" weight 700, loaded via `<link>` in `index.html`
-- SVG `<text>` element with:
-  - `fontFamily: 'Dancing Script, cursive'`
-  - `fontSize: 88` (SVG units, viewBox 700x130)
-  - `textAnchor: middle`, centered
-  - `stroke: #00f5ff`, `strokeWidth: 2`
-  - `fill: #00f5ff`
-  - CSS `filter: drop-shadow(0 0 6px #00f5ff) drop-shadow(0 0 18px rgba(0,245,255,0.8))`
-- Second SVG layer (blurred glow): same text, `strokeWidth: 8`, opacity 0.4, `filter: blur(4px)`
-- Animation: `neon-power-on` keyframes trigger 0.8s after page load, ~2.5s duration
-  - Flicker pattern: off → brief flash → off → sustained dim → flicker → full brightness
-  - After power-on: continuous `neon-pulse` animation (subtle brightness oscillation, 4s period)
-- Color: primary cyan `#00f5ff` — neon cold-cathode look. The "B" and "S" capitals glow slightly more intensely (achieved by separate SVG elements with slightly higher opacity).
+**Beat 3 (52–65%):** Four package badges appear below the sign:
+```
+@brewsite/core    @brewsite/model
+@brewsite/diagram  @brewsite/chart ↗soon
+```
+Arranged in a 2×2 flex-wrap grid, centered. The `@brewsite/chart` badge carries a small "soon" amber label.
 
-**Hero Footer:**
-- Tagline below sign: `"Author in JSX. Ship to any surface."` — small caps, letter-spaced, muted white
-- Package badges below tagline: `@brewsite/core` and `@brewsite/diagram` pill chips in cyan border
-- Scroll indicator: centered at bottom, animated bouncing chevron arrows + "scroll to explore" label. Fades when `window.scrollY > 50`.
+**Beat 4 (63–75%):** Scroll indicator at bottom of viewport.
+
+**Tagline line** (always visible once Beat 2 appears, below the display headline): "Scenes as React. Rendered like film." — 11px mono, small-caps, muted white. This sits between the eyebrow/headline group and the sign.
+
+**Bezel:** Unchanged — CSS frame at `inset: 15% 8%` with L-bracket corners and rivet rows. On mobile portrait this frames ~70% of the viewport vertically. The positioning statement appears within the upper quarter of the bezel interior.
+
+**NeonSign widget:** Unchanged. Stays fully lit throughout scene_00. Transitions to opacity 0 in the next scene (handled by scene_01's NeonSign state).
+
+### Ecosystem Scene (Act 2)
+
+Pure HUD scene — dark background, no 3D objects beyond camera and lighting. Four package cards in a 2×2 grid (on all viewports — this layout is naturally mobile-friendly and works well on desktop too):
+
+```
+┌──────────────────────┐  ┌──────────────────────┐
+│  @brewsite/core      │  │  @brewsite/model      │
+│  The engine.         │  │  GLTF models.         │
+│  Declarative.        │  │  Characters.          │
+│  Pre-baked. O(1).    │  │  Animations.          │
+└──────────────────────┘  └──────────────────────┘
+┌──────────────────────┐  ┌──────────────────────┐
+│  @brewsite/diagram   │  │  @brewsite/chart      │
+│  3D diagrams.        │  │  Data stories.        │
+│  Architecture.       │  │  3D charts.           │
+│  No Figma needed.    │  │  ↗ COMING SOON        │
+└──────────────────────┘  └──────────────────────┘
+```
+
+Cards: `border: 1px solid rgba(0,245,255,0.18)`, `background: rgba(0,245,255,0.05)`, `border-radius: 8px`. Grid `gap: 16px`, `max-width: 520px`, centered. Package name in mono 10px cyan; headline in 600 weight; body in muted text.
+
+"Coming soon" badge on chart card: amber `rgba(255,170,0,0.7)`, 10px mono.
+
+Animation: MidFade on headline block, staggered SlideUp on each card (delay +100ms per card, starting 0ms).
 
 ### Section Design Language
 
-Between and around the ScenePlayer sections, CSS-only structural elements establish the makerspace context:
-
-**Section Headers (between acts):**
-- Act number: monospace, large (100–120px), 3% opacity — decorative watermark
-- Act label: small caps, letter-spaced, 12px, muted cyan
-- Title: 36–48px, bold, gradient from white to cyan-tinted
-- Description: 16px, 1.6 line-height, muted grey
-
-**Feature Tags:**
-- Pill badges: `border: 1px solid rgba(0,245,255,0.25)`, background `rgba(0,245,255,0.06)`, text cyan, 12px monospace, letter-spaced
-
-**Code Snippets:**
-- Dark panel: `background: #0d1117`, `border: 1px solid rgba(255,255,255,0.08)`, top bar showing filename
-- Syntax: React/JSX, no third-party highlighter needed — manual `<span>` coloring with classes
-- Colors: keywords blue `#ff7b72`, props teal `#79c0ff`, strings orange `#ffa657`, JSX brackets grey `#6e7681`
-
-**Interstitial Dividers:**
-- A horizontal rule with a central gem/diamond accent
-- The accent is a rotated square (45°) with neon fill — `background: #00f5ff`, 8px, `box-shadow: 0 0 8px #00f5ff`
+Unchanged from original PRD — act headers, feature tags, code snippets, section dividers, rivet aesthetic.
 
 ---
 
 ## The Eight Acts
 
-### Act 0: Hero — The Neon Sign (CSS + Three.js, no ScenePlayer)
+### Act 0: Hero — The Neon Sign
 
-**Narrative:** First impression. The room is dark. The sign flickers to life.
-
-**Visual:** Three.js metal room + CSS bezel + SVG neon sign + scroll indicator.
-
-**Message:** "BrewSite" — product name. Tagline below: `"Author in JSX. Ship to any surface."`
+**Scenes:** `scene_00_hero.tsx` (1 scene, auto-advance)
+**Narrative:** The room is dark. The sign flickers to life. Then the product declares itself.
+**Visual:** Three.js metal room, CSS bezel, NeonSign widget "BrewSite", two-beat HTML overlay.
+**Mobile camera:** `position={[0, 7, 17]}`, `target={[0, 1.4, 0]}`, `fov={52}` — no change needed, this composition works in portrait.
+**ProgressManager:** `scrollUnits={1800}`, `autoAdvance={{ duration: 3, max: 0.80, pauseOnScroll: true }}`, `animationTimeScale={3}`
 
 ---
 
-### Act 1: The Core — Scenes & HUD (ScenePlayer, 2 scenes)
+### Act 1: The Engine — Scenes & Core
 
-**Narrative:** The simplest possible thing. A dark background, a glowing HUD, text that fades in as you scroll.
+**Scenes:** `scene_01_core_intro.tsx` + `scene_02_core_baked.tsx` (2 scenes)
+**Narrative:** The engine itself. A dark background, a glowing HUD, text that explains the architectural innovation.
+**Scene 1 headline:** "Scenes as React. Rendered like film." (updated from "Scenes as JSX.")
+**Scene 2:** Pre-baked transitions, O(1) playback, feature tags: Declarative · Scroll-Driven · SSR-Safe · TypeScript-First · O(1) Sampling
+**Mobile:** No 3D geometry — same on all viewports. Camera `[0,0,10]`, fov 70 works fine in portrait.
 
-**Visual:** ScenePlayer with dark scene, HUD text centered in frame. Second scene shows feature tags and a code snippet (as part of the HUD). No 3D models — the emptiness is the point. Clean, minimal.
+---
 
-**Scene 1 HUD content:**
-- Eyebrow: `@brewsite/core`
-- Headline: `"Scenes as JSX. Rendered like film."`
-- Body: `"Declare 3D scene states. Let the compiler handle transitions. No animation loops. No frame math."`
-- Animation: `MidFade` on headline, `SlideUp` on body (delay 200ms)
+### Act 2: The Ecosystem — Four Packages
 
-**Scene 2 HUD content:**
-- Bottom-anchored panel
-- Headline: `"Pre-baked for O(1) sampling. Zero animation math at runtime."`
-- Tags: Declarative · Scroll-Driven · SSR-Safe · TypeScript-First
-- Animation: `Fade` on headline, `SlideUp` on tags (delay 150ms)
+**Scenes:** `scene_03_ecosystem.tsx` (1 new scene, replaces `scene_03_hud_is_react.tsx` and `scene_04_transitions.tsx`)
+**Narrative:** One engine, four packages. Install only what your story needs.
+**Visual:** Dark space, four package cards appear in staggered sequence.
+**Headline:** "One engine. Four packages."
+**Sub-copy:** "Install only what you need. All packages share the same declarative scene model."
+**Mobile:** 2×2 grid on all viewports. `max-width: 520px`, centered, padding `0 20px`.
 
-**Section text (CSS, right of player or below):**
+**Files to delete:** `apps/website/src/scenes/act1_act2/scene_03_hud_is_react.tsx`, `apps/website/src/scenes/act1_act2/scene_04_transitions.tsx`
+
+---
+
+### Act 3: Models — @brewsite/model
+
+**Scenes:** `scene_01_model_wide.tsx` (1 scene — the close-up scene is folded in via a HUD progression)
+**Narrative:** Drop any GLTF. The renderer handles materials. You handle the story.
+**Visual:** Worker character, floor mirror, industrial lighting. HUD has two phases: (1) "Drop a GLTF. Animate the world." then (2) "Physically Based. Floor-to-ceiling."
+**ProgressManager:** `scrollUnits={2400}` (longer to accommodate two HUD phases), `autoAdvance={{ duration: 9, max: 0.85 }}`, `animationTimeScale={2}`
+**Mobile camera:** `position={[0, 8, 28]}`, `target={[0, 5, 0]}`, `fov={65}`
+**Desktop camera:** `position={[0, 8, 38]}`, `target={[0, 5, 0]}`, `fov={55}`
+**Floor mirror:** `mirrorResolution={512}` (both viewports)
+**Eyebrow:** `@brewsite/model`
+
+**Files to delete:** `apps/website/src/scenes/act3/scene_02_model_close.tsx`
+
+---
+
+### Act 4: The Crowd — Procedural Composition
+
+**Scenes:** `scene_01_meeting.tsx` (unchanged content, adjusted for mobile)
+**Narrative:** 30 characters (desktop) / 8 characters (mobile), procedurally placed, all real animation clips. Authored in ~50 lines of JSX.
+**Mobile camera:** `position={[0, 22, 70]}`, `target={[0, 0, 0]}`, `fov={60}`
+**Desktop camera:** `position={[0, 34, 110]}`, `target={[0, 0, 0]}`, `fov={48}`
+**Mobile PAIR_COUNT:** 4 (8 characters)
+**Desktop PAIR_COUNT:** 15 (30 characters)
+**HUD copy preserved exactly:** "30 characters. 50 lines of JSX." — the "30" refers to the desktop experience; acceptable on mobile where the same visual impact is achieved with 8 characters at closer camera range.
+
+---
+
+### Act 5: Diagrams — Simple
+
+**Scenes:** `scene_01_simple_diagram.tsx`
+**Narrative:** From whiteboard to 3D. No Figma. No designer.
+**Visual:** 5-node tech stack, neonCyberTheme, tilted X-axis, glowing edges.
+**HUD copy:** "From whiteboard to 3D." (drop "in JSX.")
+**Mobile camera:** `position={[0, 10, 30]}`, `target={[0, 0, 0]}`, `fov={65}`
+**Desktop camera:** `position={[0, 8, 40]}`, `target={[0, 0, 0]}`, `fov={55}`
+**DiagramCanvas scale:** `scale={1.0}` on mobile, `scale={1.3}` on desktop
+
+---
+
+### Act 6: Architecture — Complex Diagrams
+
+**Scenes:** `scene_02_arch_overview.tsx` + `scene_03_arch_detail.tsx` (2 scenes)
+**Narrative:** Production-grade architecture diagrams. Drill down without leaving the scene.
+**Mobile camera (overview):** `position={[0, 8, 38]}`, `target={[0, 0, 0]}`, `fov={65}`
+**Desktop camera (overview):** `position={[0, 10, 50]}`, `target={[0, 0, 0]}`, `fov={55}`
+**Mobile camera (detail):** `position={[0, 8, 35]}`, `target={[0, -5, 0]}`, `fov={65}`
+**Desktop camera (detail):** `position={[0, 8, 45]}`, `target={[0, -5, 0]}`, `fov={55}`
+**DiagramCanvas scale:** `scale={1.0}` on mobile, `scale={1.4}` on desktop (both scenes)
+**HUD text:** All inline fontSize values updated to `clamp()` variants
+
+---
+
+### Act 7: Full Stack — Everything Together
+
+**Scenes:** `scene_01_foundation.tsx` + `scene_02_combined.tsx` (2 scenes)
+**Narrative:** One engine. All the packages. This is what a real project looks like.
+**Scene 1 headline:** "One engine. Infinite forms." (updated from "Every medium.")
+**Scene 2 sub-copy:** Updated from "Web apps. Decks. Pitches. Marketing sites." — keep this, it's good.
+**Mobile camera (foundation):** `position={[0, 10, 40]}`, `target={[0, 4, 0]}`, `fov={65}`
+**Desktop camera (foundation):** `position={[0, 12, 55]}`, `target={[0, 4, 0]}`, `fov={58}`
+**Mobile camera (combined):** `position={[0, 12, 45]}`, `target={[5, 3, -5]}`, `fov={65}` (more frontal, less offset than desktop which is `-8` x offset)
+**Desktop camera (combined):** `position={[-8, 14, 55]}`, `target={[5, 3, -5]}`, `fov={60}`
+
+---
+
+### Act 8: GitHub CTA
+
+**Scene:** `scene_01_github.tsx` (CSS-only)
+**Narrative:** You've seen what it can do. Here's where you start.
+**Terminal command:**
 ```
-// The DSL that drives Scene 1
-<Scene id="intro">
-  <Background enabled color="#04080f" />
-  <Camera mode="world" position={[0, 1, 8]} target={[0, 0, 0]} fov={70} />
-  <Hud>
-    <HudItem id="intro-hud">
-      <MidFade duration={1200}>
-        <h2>Scenes as JSX.</h2>
-      </MidFade>
-    </HudItem>
-  </Hud>
-</Scene>
+$ pnpm add @brewsite/core @brewsite/model @brewsite/diagram
+added 3 packages in 1.2s
 ```
-
----
-
-### Act 2: Libraries — Composability (ScenePlayer, 2 more scenes, combined with Act 1 player)
-
-**Narrative:** The HUD is just React. Any library works inside it. AnimeJS drives the transitions built into the framework.
-
-**Visual:** Same ScenePlayer continues from Act 1. Scenes 3–4 show anime.js transitions (`SlideUp`, `ScrollOn`, `ScrollOff`) in action, narrated by the HUD itself.
-
-**Scene 3 HUD:** Headline: `"The HUD is React."` Body: `"Every HudItem is a React subtree. Use any library, any component, any animation system."` Uses `ScrollOn` transition for dramatic entrance.
-
-**Scene 4 HUD:** Eyebrow: `"Built-in transitions"` → animated list of: `Fade` / `SlideUp` / `MidFade` / `ScrollOn` / `ScrollOff`. Each pill appears with a staggered `SlideUp` delay. Uses `ScrollOff` to exit cleanly.
-
-**Section text:** Short code example showing `import { SlideUp } from '@brewsite/core/hud/animejs'`
-
----
-
-### Act 3: Models — 3D Characters (ScenePlayer, 2 scenes)
-
-**Narrative:** Drop any GLTF model. Floor, lighting, camera — handled.
-
-**Visual:** Worker model appears in a wide, slightly misty industrial space with floor mirror. Camera starts at distance, second scene tightens to a close-up. Industrial lighting: warm key, cool fill.
-
-**Scene 1:** Wide shot. Worker model, full height visible. Floor mirror reflection.
-
-**Scene 2:** Camera moves in close (head/torso level). HUD bottom-right: `"Physically Based Materials"` + `"GLTF · Normals · Reflections"`. Light shifts to highlight the model's material quality.
-
-**Section text:** Code snippet showing `<ModelRouter type="Worker" .../>` + `<Floor>` + `<FloorMirror>` + `<Camera mode="world" .../>`.
-
----
-
-### Act 4: Animation — The Meeting (ScenePlayer, 1 scene)
-
-**Narrative:** 30 characters, procedurally placed, all looping real animation clips. Authored in 50 lines of JSX.
-
-**Visual:** The meeting crowd scene adapted from `apps/examples/meeting`. Procedural character placement with collision-aware distribution. Business characters + dummy avatars with varied animation clips. HUD panel at bottom with narrative text.
-
-**HUD content:**
-- Eyebrow: `"Procedural Composition"`
-- Headline: `"30 characters. 50 lines of JSX."`
-- Body: `"Random placement, collision detection, animation assignment — all at author time. Runtime is just playback."`
-
-**Section text:** Key excerpt from the scene DSL showing the `generatePairCenters` + `Actor` component pattern.
-
----
-
-### Act 5: Diagrams — Simple (ScenePlayer, 1 scene)
-
-**Narrative:** From whiteboard to 3D in JSX. No Figma. No designer needed.
-
-**Visual:** A compact 5-node tech stack diagram: React App → API Gateway → (Postgres | Redis). `neonCyberTheme`. Tilted ~15° on the X-axis. Glowing edges, emissive nodes.
-
-**HUD content:**
-- Bottom-left panel
-- Headline: `"@brewsite/diagram"`
-- Body: `"3D immersive diagrams in JSX. Themes, icons, routed edges, groups — out of the box."`
-
-**Section text:** Full scene DSL code for the 5-node diagram.
-
----
-
-### Act 6: Diagrams — Complex (ScenePlayer, 2 scenes)
-
-**Narrative:** Production-ready architecture diagrams. Presentation-grade.
-
-**Visual:** AWS architecture diagram from `apps/examples/diagram`: CDN → ALB → API → (ECS | Lambda) → (RDS | Cache | S3). `darkGlassTheme`. Second scene drills into ECS cluster detail.
-
-**HUD content Scene 1:**
-- Top-right badge: `"16 nodes · 4 tiers · 8 edges"`
-- Bottom: `"Architecture diagrams. Presentation-ready."`
-
-**HUD content Scene 2:**
-- `"Drill down. Stay in the scene."`
-- Feature: `"DiagramGroups · Focus Regions · Theme System"`
-
----
-
-### Act 7: The Full Stack — Everything Together (ScenePlayer, 2 scenes)
-
-**Narrative:** Models, diagrams, HUD, React — all in one scene. This is what a real presentation looks like.
-
-**Visual:** A business presenter model (left side), a floating 3D architecture diagram (right side, slightly angled), dramatic lighting, floor mirror. HUD content narrates. Second scene is a cinematic camera pull-back showing both the model and diagram in frame simultaneously.
-
-**Scene 1 HUD:** Center-top: `"BrewSite"`. Centered: `"One framework. Every medium."`
-
-**Scene 2 HUD:** Bottom-left: `"Models + Diagrams + HUD + React"`. Then: `"Web apps. Decks. Pitches. Marketing sites."`
-
----
-
-### Act 8: GitHub CTA (CSS only, no ScenePlayer)
-
-**Narrative:** You've seen what it can do. Here's how to start.
-
-**Visual:** Terminal-aesthetic dark section. macOS-style terminal chrome (dots, title bar), install command with animated cursor, GitHub link styled as a glowing CTA.
-
-**Content:**
-```
-$ npm install @brewsite/core @brewsite/diagram
-added 2 packages in 1.1s
-
-$ ▊
-```
-
-Below terminal: `"Open Source. Production Ready."` headline, body text about TypeScript-first design, link: `"★ Star on GitHub →"` (styled as a glowing neon button).
+**Headline:** "Open Source. Production Ready."
+**Body:** "Built for TypeScript. Powered by React. Install the engine, then add only what your story needs."
+**CTA:** "★ Star on GitHub →"
 
 ---
 
 ## Technical Considerations
 
-### Multiple ScenePlayers on One Page
+### Mobile-First Implementation Pattern
 
-The `useEngineScroll` hook computes progress relative to each ScenePlayer's own `scrollRegionRef` element position in the document:
+A single `isMobile` boolean is computed once at module load time and shared across all scene files:
 
 ```typescript
-const regionTop = scrollTop + rect.top;
-const progress = clamp01((scrollTop - regionTop) / maxScroll);
+// apps/website/src/utils/viewport.ts
+export const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
 ```
 
-This means multiple ScenePlayers placed in sequence in the document will each independently track their own scroll section. Acts 1+2 share a single ScenePlayer (4 scenes total); Acts 3, 4, 5+6, and 7 each have their own ScenePlayer. This is both valid and expected behavior.
+This is evaluated at page load (always in a browser SPA context — no SSR) and remains stable for the session. Scene files import this constant to branch on camera positions, PAIR_COUNT, mirror resolution, DiagramCanvas scale, and font sizes where clamp() is insufficient.
 
-### Vite Config — Root Directory Fix
+All inline `fontSize` values in scene HUD elements that are currently hardcoded px values must be converted to `clamp(mobilePx, vwValue, desktopPx)`.
 
-The current `apps/website/vite.config.ts` points to `root: resolve(__dirname, 'vite-app')` but all source files live in `src/`. This must be corrected to `root: resolve(__dirname, 'src')` before any development work begins.
+### Quality Setting
 
-### Public Assets
-
-All 3D models and animation GLBs must be available at `/assets/...` paths in `apps/website/public/`. The same paths are used as in `apps/examples/public/`. The implementing engineer must ensure these files are present (symlink or copy from examples/public).
-
-### Fonts
-
-Two custom fonts are required:
-- `Dancing Script` (Google Fonts, weight 700) — for the neon sign
-- `JetBrains Mono` (Google Fonts, weights 400 500) — for code snippets
-
-Both must be loaded via `<link rel="preconnect">` and `<link rel="stylesheet">` in `src/index.html` before any content renders.
-
-### Dependencies to Add
-
-The following packages must be added to `apps/website/package.json`:
-- `react-router` — already imported but not listed (use v7 pattern)
-- `animejs` — used by `@brewsite/core/hud/animejs` transitions (peer dep, but website should list it)
-
-### Three.js Neon Sign Renderer
-
-The hero section uses raw Three.js directly (not through ScenePlayer). This avoids bootstrapping the entire animation engine for a decorative background. The renderer disposes of itself on component unmount. It uses:
-- `THREE.WebGLRenderer` with `antialias: true`
-- `THREE.ACESFilmicToneMapping`
-- `THREE.MeshPhysicalMaterial` for metal surfaces
-- `requestAnimationFrame` loop with slow camera drift
-
-### Scene Manifest
-
-Each ScenePlayer loads `/scene-manifest.json` which is generated by `pnpm --filter @brewsite/website gen:scene-dsl`. This generates the manifest from `siteResources.ts`. The manifest must be generated before running the dev server.
-
-### HUD Transitions
-
-All HUD animations in website scenes use `@brewsite/core/hud/animejs` transitions (`Fade`, `MidFade`, `SlideUp`, `ScrollOn`, `ScrollOff`). These are the same transitions used throughout `apps/examples/complex`.
-
-### Widget Setup
-
-All ScenePlayers use the same `createWidgetSetup` function:
+`EngineProvider quality` is set based on viewport:
 ```typescript
-export const createWidgetSetup = (manifest: AssetManifest) =>
-  createDefaultWidgetRegistry(manifest);
+quality={isMobile ? "balanced" : "high"}
 ```
 
-This is identical to the examples app widget setup.
+2024 phones (A17 Pro, Snapdragon 8 Gen 3 and later) can handle "balanced" quality across all scenes. If testing reveals a specific scene is problematic, the quality prop can be lowered per-EngineProvider instance.
+
+### Height: 100dvh
+
+The hero section and all EngineProvider-driven scenes use `100dvh` (dynamic viewport height) rather than `100vh`. On mobile browsers with collapsing address bars, `100vh` produces overflow; `100dvh` tracks the actual visible area.
+
+### Multiple EngineProviders on One Page
+
+Each EngineProvider (one per scene group) independently tracks scroll against its own container element. This is unchanged from the original implementation. Acts 1+2 share one EngineProvider; Acts 3, 4, 5+6, and 7 each have their own. This is valid and expected.
+
+### Floor Mirror Resolution
+
+Hero scene: `mirrorResolution={isMobile ? 512 : 1024}`. All other scenes: `mirrorResolution={512}` unconditionally. 2024 phones handle 512px mirror renders without performance issues.
+
+### Touch Interaction
+
+The EngineProvider scroll region handles touch scroll events. The page uses passive event listeners and native scroll. The `overscroll-behavior: none` on `html` prevents pull-to-refresh from fighting with scene scroll. No changes needed to the interaction layer.
+
+### GitHub CTA Font Size
+
+The terminal card uses hardcoded 14px — acceptable as a code aesthetic where fixed-width readability matters. All non-terminal text in the GitHub section uses `clamp()`.
 
 ---
 
 ## Breaking Change Assessment
 
-**None.** `apps/website` is a private app. No published package APIs change. No `apps/examples` code changes.
+**None.** `apps/website` is a private app. No published package APIs change. No `apps/examples` code changes. The deleted scene files (`scene_03_hud_is_react.tsx`, `scene_04_transitions.tsx`, `scene_02_model_close.tsx`) exist only in `apps/website` and are not imported anywhere else.
 
 ---
 
 ## Dependencies
 
-- `@brewsite/core` workspace version — ScenePlayer, HUD, models, camera, lighting, floor
-- `@brewsite/diagram` workspace version — DiagramCanvas, Diagram, DiagramNode, DiagramEdge, DiagramGroup
-- `three` (peer dep, already installed) — for hero neon sign canvas
-- `react` + `react-dom` — already installed
-- `react-router` — must be added to package.json
-- `animejs` — must be added to package.json (already transitive via @brewsite/core)
-- Google Fonts CDN — Dancing Script, JetBrains Mono
+- `@brewsite/core` workspace version
+- `@brewsite/model` workspace version
+- `@brewsite/diagram` workspace version
+- `three` — for NeonSign widget
+- `react` + `react-dom`
+- `animejs` — for hud/animejs transitions
+- Google Fonts CDN — Dancing Script (neon sign), JetBrains Mono (code), Inter (body)
 
 ---
 
@@ -405,34 +383,37 @@ This is identical to the examples app widget setup.
 
 | Risk | Likelihood | Mitigation |
 |------|-----------|------------|
-| Public assets not present in website/public | High | Plan specifies exact asset paths; implementing engineer must populate from examples |
-| Multiple ScenePlayers cause memory issues | Medium | Each player disposes WebGL context on unmount; test on low-end GPU |
-| Neon sign font not available on load, causing FOUT | Medium | Use `font-display: block` for Dancing Script; neon animation only starts after 0.8s delay |
-| `DiagramCanvas` position prop not supported | Unknown | If position prop isn't in DiagramCanvas API, use CSS transform on wrapper div |
-| Meeting crowd scene is heavy (30 models × animations) | Medium | Lower `framesPerTick` to 40 for Act 4 to reduce compile time |
-| ScenePlayer fails silently when manifest missing | Medium | Website should show clear "run gen:scene-dsl first" error in dev mode |
+| Portrait camera framing looks wrong on specific scenes | Medium | Each scene specifies both mobile and desktop camera values; test on physical device or DevTools portrait mode during implementation |
+| 8-character meeting scene looks sparse on mobile | Low | Camera is significantly closer ([0,22,70] vs [0,34,110]) — 8 characters fill the tighter frame |
+| Architecture diagram nodes overlap or are unreadable at mobile scale | Medium | Scale reduced from 1.4 to 1.0 on mobile; camera pulled closer; font sizes in DiagramCanvas are diagram-internal and scale with the canvas |
+| Full stack combined scene (model + diagram side-by-side) loses impact on narrow mobile viewport | Medium | Mobile camera is frontal ([0,12,45]) rather than offset; both elements are in-frame at closer range |
+| `100dvh` not supported in all target browsers | Low | Fallback in CSS: `min-height: 100vh; min-height: 100dvh;` — the `dvh` override applies when supported |
+| @brewsite/chart package not yet shipped, badge misleads visitors | Low | "coming soon" amber label is explicit; no functionality implied |
 
 ---
 
 ## Open Questions
 
-1. Does `DiagramCanvas` support a `position` prop for 3D placement, or does it only accept rotation/scale? (Review `packages/diagram/src/elements/diagram/canvas/` DSL props.)
-2. Are the neonCyber and other themes exported as `neonCyberTheme` from `@brewsite/diagram`? (Review `packages/diagram/src/index.ts`.)
-3. Does the Worker model have a suitable idle animation in the current animation set, or does it only have character animation clips? (Worker appears in examples/simple but without animation.)
-4. Should the website have its own Google Analytics or tracking? (Out of scope for v1 — omit.)
-5. What is the GitHub URL for the BrewSite project? (Placeholder: `https://github.com/brewsite/brewsite` — confirm before launch.)
+1. Should the `@brewsite/chart` badge link to a roadmap page or issues list, or have no link? (Recommendation: no link in v1 — just the visual badge.)
+2. Is `quality="balanced"` the correct floor for 2024 phones, or should flagship 2024 devices (A17 Pro) get `quality="high"`? This can be determined by physical device testing during implementation.
+3. Should the crowd scene HUD copy read "8 characters" on mobile (honest) or "30 characters" (true of the desktop experience)? The recommendation is to keep "30 characters" since the line refers to the authoring capability, not the current render count.
+4. Does `EngineProvider` accept a `style` prop or `className` to set `height: 100dvh`? If not, a wrapper div must provide it.
 
 ---
 
 ## Launch Criteria
 
-- [ ] All 5 ScenePlayer sections render with no console errors in Chrome and Safari
-- [ ] Neon sign hero animation plays correctly on page load
-- [ ] Hamburger menu opens and closes with proper animation
-- [ ] Scroll indicator appears and fades when scrolling begins
-- [ ] All code snippets shown are valid, compilable DSL code
-- [ ] Page renders without errors when `/public/assets/` contains the required model files
-- [ ] All scene HUD text is readable against the 3D backgrounds
-- [ ] Act 8 GitHub CTA links to the correct repository URL
-- [ ] `gen:scene-dsl` script runs without errors and produces `/public/scene-manifest.json`
+- [ ] Hero Beat 1 and Beat 2 both play correctly on iPhone (Safari) and Android Chrome in portrait orientation
+- [ ] "3D storytelling." display headline is fully readable at 390px viewport width
+- [ ] All four package badges appear in the hero (including `@brewsite/chart` with "soon" label)
+- [ ] Ecosystem scene (Act 2) renders the 4-card grid legibly on a 390px screen
+- [ ] Meeting scene renders 8 characters on mobile, 30 on desktop
+- [ ] No horizontal overflow at any viewport from 375px to 2560px
+- [ ] All scene HUD text is readable on mobile (no font sizes below 13px in practice)
+- [ ] Camera framing verified on physical device or DevTools portrait mode for each scene
+- [ ] GitHub CTA terminal shows 3-package install command
+- [ ] All `console.error` output is clean on Chrome iOS, Chrome Android, Safari iOS, Chrome desktop
+- [ ] `gen:scene-dsl` runs without errors and produces `/public/scene-manifest.json`
 - [ ] TypeScript strict-mode build passes (`pnpm --filter @brewsite/website typecheck`)
+- [ ] The hamburger nav opens and navigates to each act correctly
+- [ ] `100dvh` hero height is correct on mobile (no overflow behind browser chrome)
