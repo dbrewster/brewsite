@@ -118,6 +118,57 @@
   background: rgba(77, 159, 255, 0.07);
 }
 
+/* ── Button variant of nav-item (continuous-scroll sidebar) ──────────────── */
+/* Resets browser button defaults so the button matches anchor-based nav-items */
+.nav-item--button {
+  width: 100%;
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
+  text-align: left;
+  font-family: var(--font-sans);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  padding: 5px 20px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.nav-item--button:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.nav-item--button.nav-item--active {
+  color: var(--accent-blue);
+  border-left-color: var(--accent-blue);
+  background: rgba(77, 159, 255, 0.07);
+}
+
+/* ── Continuous-scroll docs sidebar ──────────────────────────────────────── */
+.docs-sidebar {
+  position: sticky;
+  top: 0;
+  width: var(--sidebar-width);
+  height: 100vh;
+  flex-shrink: 0;
+  align-self: flex-start;
+  overflow-y: auto;
+  background: var(--bg-sidebar);
+  border-right: 1px solid var(--border-subtle);
+  z-index: 100;
+  padding: 16px 0;
+}
+
+.docs-sidebar__brand {
+  padding: 0 20px 20px;
+  border-bottom: 1px solid var(--border-subtle);
+  margin-bottom: 8px;
+  font-size: 16px;
+  font-weight: 700;
+  font-family: var(--font-sans);
+}
+
 .live-demo {
   border: 1px solid var(--border-default);
   border-radius: var(--radius-lg);

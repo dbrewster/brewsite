@@ -1,10 +1,14 @@
 import type { JSX } from 'react';
-import { Scene, Camera, Lighting, Ambient, Directional } from '@brewsite/core';
+import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
 import { MidFade, SlideUp } from '@brewsite/core/hud/animejs';
 import { NeonSign } from '../../widgets/neon-sign';
 
 export const scene01CoreIntro: JSX.Element = (
   <Scene id="website-core-01">
+    <ProgressManager
+      scrollUnits={1600}
+      autoAdvance={{ duration: 6, max: 0.85, pauseOnScroll: true }}
+    />
     <Camera mode="world" position={[0, 0, 10]} target={[0, 0, 0]} fov={70} />
 
     <Lighting intensityScale={1}>

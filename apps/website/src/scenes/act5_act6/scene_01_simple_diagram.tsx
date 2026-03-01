@@ -1,10 +1,14 @@
 import type { JSX } from 'react';
-import { Scene, Camera, Lighting, Ambient, Directional } from '@brewsite/core';
+import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
 import { DiagramCanvas, Diagram, DiagramNode, DiagramEdge, ManualLayout, neonCyberTheme } from '@brewsite/diagram';
 import { MidFade, SlideUp } from '@brewsite/core/hud/animejs';
 
 export const scene01SimpleDiagram: JSX.Element = (
   <Scene id="website-diagram-simple">
+    <ProgressManager
+      scrollUnits={1800}
+      autoAdvance={{ duration: 7, max: 0.85, pauseOnScroll: true }}
+    />
     <Camera mode="world" position={[0, 8, 40]} target={[0, 0, 0]} fov={55} />
 
     <Lighting intensityScale={1}>

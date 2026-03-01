@@ -1,12 +1,16 @@
 import type { JSX } from 'react';
 import {
-  Scene, Camera, Background, Lighting, Ambient, Directional,
-  Floor, FloorMirror,
+  Scene, Camera, Lighting, Ambient, Directional,
+  Floor, FloorMirror, ProgressManager,
 } from '@brewsite/core';
 import { MidFade } from '@brewsite/core/hud/animejs';
 
 export const scene01Foundation: JSX.Element = (
   <Scene id="website-full-01">
+    <ProgressManager
+      scrollUnits={1600}
+      autoAdvance={{ duration: 6, max: 0.85, pauseOnScroll: true }}
+    />
     <Camera mode="world" position={[0, 12, 55]} target={[0, 4, 0]} fov={58} />
 
     <Floor enabled position={[0, 0, 0]}>

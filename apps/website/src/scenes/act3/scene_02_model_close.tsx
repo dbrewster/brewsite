@@ -1,12 +1,18 @@
 import type { JSX } from 'react';
 import {
-  Scene, Camera, Background, Lighting, Ambient, Directional,
-  Floor, FloorMirror, ModelRouter,
+  Scene, Camera, Lighting, Ambient, Directional,
+  Floor, FloorMirror, ProgressManager,
 } from '@brewsite/core';
+import { ModelRouter } from '@brewsite/model';
 import { Fade, SlideUp } from '@brewsite/core/hud/animejs';
 
 export const scene02ModelClose: JSX.Element = (
   <Scene id="website-model-02">
+    <ProgressManager
+      scrollUnits={1800}
+      autoAdvance={{ duration: 7, max: 0.85, pauseOnScroll: true }}
+      animationTimeScale={2}
+    />
     <Camera mode="world" position={[3, 16, 20]} target={[0, 14, 0]} fov={45} />
 
     <Floor enabled position={[0, 0, 0]}>

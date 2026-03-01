@@ -1,108 +1,149 @@
 import { JSX } from 'react';
 import { Link } from 'react-router';
 import { CodeBlock } from '../../components/ui/CodeBlock';
-import { PropTable } from '../../components/ui/PropTable';
 import { Callout } from '../../components/ui/Callout';
 import { LiveDemo } from '../../components/demo/LiveDemo';
 import HudOverlayDemo, { CODE as HUD_CODE } from '../../demos/core/HudOverlayDemo.demo';
 
+const BASIC_OVERLAY_CODE = `// HTML children inside <Scene> become overlay content rendered by EngineOverlayHost.
+// Use position: absolute to place elements anywhere over the canvas.
+
+<Scene key="hero" id="hero">
+  <Camera mode="world" position={[0, 2, 8]} target={[0, 1, 0]} />
+
+  {/* These elements appear above the 3D canvas */}
+  <div style={{ position: 'absolute', bottom: '8%', left: '6%', color: '#fff', pointerEvents: 'none' }}>
+    <span style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.18em', opacity: 0.6 }}>
+      Introducing
+    </span>
+    <h1 style={{ fontSize: 42, fontWeight: 700, margin: '8px 0' }}>BrewSite</h1>
+    <p style={{ fontSize: 16, opacity: 0.8 }}>Built for the next generation of 3D experiences.</p>
+  </div>
+</Scene>`;
+
+const SCENE_SPECIFIC_CODE = `// Each scene has its own overlay children — they swap on scene transition.
+// Declare only what is visible in that scene. No shared wrapper needed.
+
+<Scene key="intro">
+  <Camera mode="world" position={[0, 2, 8]} target={[0, 1, 0]} />
+  <div style={{ position: 'absolute', top: 24, left: 24, color: '#fff', fontWeight: 700 }}>
+    Intro — no subtitle here
+  </div>
+</Scene>
+
+<Scene key="features">
+  {/* Camera and lighting carry forward from "intro" — only overlay changes */}
+  <div style={{ position: 'absolute', top: 24, left: 24, color: '#7bb3ff', fontWeight: 700 }}>
+    Features
+  </div>
+  <div style={{ position: 'absolute', top: 56, left: 24, color: '#aaaacc', fontSize: 14 }}>
+    Subtitle appears in this scene
+  </div>
+</Scene>`;
+
+const POINTER_EVENTS_CODE = `// Add pointer-events: none to prevent overlay blocking canvas interaction.
+// Re-enable on specific interactive elements.
+
+<Scene key="cta">
+  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div>
+      <h2 style={{ color: '#fff' }}>Ready to build?</h2>
+      {/* Re-enable for clickable elements */}
+      <a href="/docs" style={{ pointerEvents: 'auto', padding: '12px 28px', background: '#3b82f6', color: '#fff', borderRadius: 8, textDecoration: 'none' }}>
+        Get Started
+      </a>
+    </div>
+  </div>
+</Scene>`;
+
+const OVERLAY_HOST_CODE = `// ScenePlayer wires EngineOverlayHost automatically.
+// For EngineProvider composition, add it explicitly:
+
+import { EngineProvider, SceneCanvas, EngineOverlayHost } from '@brewsite/core';
+
+<EngineProvider manifestUrl="/manifest.json">
+  <Scene key="hero">
+    <Camera mode="world" position={[0, 2, 8]} target={[0, 1, 0]} />
+    <h1 style={{ position: 'absolute', top: 40, left: 40, color: '#fff' }}>Hello</h1>
+  </Scene>
+
+  <div style={{ position: 'relative', height: '100vh' }}>
+    <SceneCanvas style={{ width: '100%', height: '100%' }} />
+    {/* EngineOverlayHost renders all scene overlay children here */}
+    <EngineOverlayHost />
+  </div>
+</EngineProvider>`;
+
 export default function HudOverview(): JSX.Element {
   return (
     <section>
-      <h1>HUD System</h1>
+      <h1>Overlay Content</h1>
 
       <p>
-        The HUD (Heads-Up Display) renders React components as a 2D overlay on top of the Three.js
-        canvas. Text, icons, labels, and UI elements can appear and disappear on scene transitions.
+        Any HTML or React children placed inside a <code>{'<Scene>'}</code> become 2D overlay
+        content rendered above the Three.js canvas by <code>EngineOverlayHost</code>. This is how
+        you add text, UI panels, callouts, and interactive elements to your scenes — no special
+        wrapper component required.
       </p>
 
-      <LiveDemo title="HUD overlay appears on scene transition" code={HUD_CODE}>
+      <LiveDemo title="Overlay changes on scene transition" code={HUD_CODE}>
         <HudOverlayDemo />
       </LiveDemo>
 
-      <h2><code>{'<Hud>'}</code> Component</h2>
+      <h2>Basic Pattern</h2>
 
       <p>
-        Declare a HUD group inside a <code>{'<Scene>'}</code>. The <code>enabled</code> prop
-        controls whether the HUD is visible in this scene.
+        Place any JSX inside <code>{'<Scene>'}</code> alongside the DSL elements. The engine
+        collects these HTML children and renders them in <code>EngineOverlayHost</code>, which is
+        an <code>{'<div>'}</code> positioned absolutely over the canvas.
       </p>
 
-      <CodeBlock
-        language="tsx"
-        code={`<Scene id="intro" frames={120}>
-  <Camera position={[0, 1.5, 4]} target={[0, 1, 0]} />
-  <Hud enabled>
-    <HudItem id="title" style={{ position: 'absolute', top: 40, left: 60 }}>
-      <h2>Welcome</h2>
-    </HudItem>
-  </Hud>
-</Scene>`}
-      />
+      <CodeBlock language="tsx" code={BASIC_OVERLAY_CODE} />
 
-      <PropTable
-        rows={[
-          {
-            name: 'enabled',
-            type: 'boolean',
-            required: false,
-            defaultValue: 'true',
-            description: 'Whether this HUD group is visible in this scene',
-          },
-        ]}
-      />
-
-      <h2><code>{'<HudItem>'}</code> Component</h2>
-
-      <p>Each item is positioned absolutely over the canvas using standard CSS.</p>
-
-      <CodeBlock
-        language="tsx"
-        code={`<HudItem
-  id="subtitle"
-  style={{ position: 'absolute', bottom: 60, left: 60, color: '#ffffff' }}
->
-  <p>Scroll to explore</p>
-</HudItem>`}
-      />
-
-      <PropTable
-        rows={[
-          {
-            name: 'id',
-            type: 'string',
-            required: true,
-            description: 'Stable identifier for this HUD item across scenes',
-          },
-          {
-            name: 'style',
-            type: 'React.CSSProperties',
-            required: false,
-            defaultValue: '—',
-            description:
-              "CSS positioning and appearance. Use `position: 'absolute'` with `top/left/right/bottom`.",
-          },
-          {
-            name: 'children',
-            type: 'ReactNode',
-            required: false,
-            defaultValue: '—',
-            description: 'React content to render',
-          },
-        ]}
-      />
-
-      <h2>Baked Visibility</h2>
+      <h2>Scene-Specific Content</h2>
 
       <p>
-        The <code>enabled</code> prop is compiled into the SceneTrack. HUD items
-        appear/disappear at scene transitions, not on arbitrary frame updates.
+        Each <code>{'<Scene>'}</code> has its own overlay children. When the engine transitions
+        between scenes, the outgoing scene's overlay is swapped for the incoming scene's overlay.
+        Declare only what should be visible in that particular scene.
       </p>
+
+      <CodeBlock language="tsx" code={SCENE_SPECIFIC_CODE} />
 
       <Callout type="note">
-        HUD items always render at full opacity when enabled. For fade-in/fade-out effects, use
-        the Anime.js presets — see{' '}
-        <Link to="/core/hud-animejs">HUD Anime.js Presets</Link>.
+        3D DSL elements (<code>Camera</code>, <code>Lighting</code>, etc.) carry forward to
+        subsequent scenes when not re-declared. HTML overlay children do <em>not</em> carry
+        forward — each scene renders its own overlay from scratch.
       </Callout>
+
+      <h2>Pointer Events</h2>
+
+      <p>
+        By default the overlay container does not block pointer events from reaching the canvas.
+        When you need interactive overlay elements (buttons, links), use{' '}
+        <code>{'pointer-events: none'}</code> on the overlay wrapper and{' '}
+        <code>{'pointer-events: auto'}</code> on individual interactive children.
+      </p>
+
+      <CodeBlock language="tsx" code={POINTER_EVENTS_CODE} />
+
+      <h2>EngineOverlayHost</h2>
+
+      <p>
+        <code>ScenePlayer</code> renders an <code>EngineOverlayHost</code> automatically.
+        When using the <code>EngineProvider</code> composition pattern (custom layouts), add{' '}
+        <code>{'<EngineOverlayHost />'}</code> yourself alongside <code>{'<SceneCanvas />'}</code>:
+      </p>
+
+      <CodeBlock language="tsx" code={OVERLAY_HOST_CODE} />
+
+      <h2>Animation Presets</h2>
+
+      <p>
+        For smooth fade-in, slide-up, and scroll-driven entrance effects, wrap overlay content
+        in Anime.js preset components. See{' '}
+        <Link to="/core/hud-animejs">Overlay Anime.js Presets</Link>.
+      </p>
     </section>
   );
 }

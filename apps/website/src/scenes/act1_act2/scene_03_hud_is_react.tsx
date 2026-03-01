@@ -1,9 +1,13 @@
 import type { JSX } from 'react';
-import { Scene, Camera, Lighting, Ambient, Directional } from '@brewsite/core';
+import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
 import { ScrollOn } from '@brewsite/core/hud/animejs';
 
 export const scene03HudIsReact: JSX.Element = (
   <Scene id="website-libraries-01">
+    <ProgressManager
+      scrollUnits={1600}
+      autoAdvance={{ duration: 6, max: 0.85, pauseOnScroll: true }}
+    />
     <Camera mode="world" position={[0, 0, 10]} target={[0, 0, 0]} fov={70} />
 
     <Lighting intensityScale={1}>

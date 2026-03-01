@@ -10,3 +10,5 @@ export type { FunctionalTransitionSpec, ElementTransitionSpec } from './compiler
 export { blendNumber, blendOpacity, blendVec3, blendColor, transitionT } from './compiler/transitions/transitionTypes';
 export type { EasingName } from './compiler/transitions/easingFunctions';
 export { registerNode } from './compiler/registry';
+export { ensureText } from './text/TextRenderer';
+export type { TextWithLayout } from './text/types';

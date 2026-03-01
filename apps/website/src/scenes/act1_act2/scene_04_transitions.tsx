@@ -1,11 +1,15 @@
 import type { JSX } from 'react';
-import { Scene, Camera, Lighting, Ambient } from '@brewsite/core';
+import { Scene, Camera, Lighting, Ambient, ProgressManager } from '@brewsite/core';
 import { SlideUp, ScrollOff } from '@brewsite/core/hud/animejs';
 
 const transitionNames = ['Fade', 'MidFade', 'SlideUp', 'SlideDown', 'ScrollOn', 'ScrollOff'];
 
 export const scene04Transitions: JSX.Element = (
   <Scene id="website-libraries-02">
+    <ProgressManager
+      scrollUnits={1600}
+      autoAdvance={{ duration: 6, max: 0.85, pauseOnScroll: true }}
+    />
     <Camera mode="world" position={[0, 0, 10]} target={[0, 0, 0]} fov={70} />
 
     <Lighting intensityScale={1}>

@@ -6,35 +6,28 @@ import {
   Ambient,
   Floor,
   FloorPhysical,
-  Hud,
-  HudItem,
 } from '@brewsite/core';
 import { DemoScene } from '../shared/DemoScene';
 
 export const CODE = `
-// <Hud> wraps overlay content. Use enabled={false} on <HudItem> to hide items.
-// <HudItem> is a positioned overlay container rendered above the 3D canvas.
+// HTML children inside <Scene> become overlay content rendered above the 3D canvas.
+// Use position: absolute to place elements over the canvas area.
+// Each scene can have completely different overlay content.
 <Scene key="s1" id="s1">
   <Camera mode="world" position={[0, 2, 8]} target={[0, 0, 0]} />
-  <Hud>
-    <HudItem id="title" enabled={false}
-      style={{ position: 'absolute', top: 24, left: 24, color: '#ffffff', fontSize: 20, fontWeight: 700 }}>
-      Scene One
-    </HudItem>
-  </Hud>
+  <div style={{ position: 'absolute', top: 24, left: 24, color: '#ffffff', fontSize: 20, fontWeight: 700 }}>
+    Scene One
+  </div>
 </Scene>
 
 <Scene key="s2" id="s2">
-  <Hud>
-    <HudItem id="title"
-      style={{ position: 'absolute', top: 24, left: 24, color: '#7bb3ff', fontSize: 20, fontWeight: 700 }}>
-      Scene Two — HUD Active
-    </HudItem>
-    <HudItem id="subtitle"
-      style={{ position: 'absolute', top: 56, left: 24, color: '#aaaacc', fontSize: 14 }}>
-      Text overlays appear on scene transition
-    </HudItem>
-  </Hud>
+  {/* Different overlay content appears on scene transition */}
+  <div style={{ position: 'absolute', top: 24, left: 24, color: '#7bb3ff', fontSize: 20, fontWeight: 700 }}>
+    Scene Two — Overlay Active
+  </div>
+  <div style={{ position: 'absolute', top: 56, left: 24, color: '#aaaacc', fontSize: 14 }}>
+    Text overlays appear on scene transition
+  </div>
 </Scene>
 `.trim();
 
@@ -49,12 +42,10 @@ export default function HudOverlayDemo(): JSX.Element {
         <Floor enabled>
           <FloorPhysical opacity={0.5} metalness={0.4} roughness={0.6} />
         </Floor>
-        <Hud>
-          <HudItem id="title" enabled={false}
-            style={{ position: 'absolute', top: 24, left: 24, color: '#ffffff', fontSize: 20, fontWeight: 700 }}>
-            Scene One
-          </HudItem>
-        </Hud>
+        {/* Scene 1 overlay — no content, canvas is empty */}
+        <div style={{ position: 'absolute', top: 24, left: 24, color: '#ffffff', fontSize: 20, fontWeight: 700 }}>
+          Scene One
+        </div>
       </Scene>
 
       <Scene key="s2" id="s2">
@@ -65,16 +56,13 @@ export default function HudOverlayDemo(): JSX.Element {
         <Floor enabled>
           <FloorPhysical opacity={0.6} metalness={0.5} roughness={0.5} />
         </Floor>
-        <Hud>
-          <HudItem id="title"
-            style={{ position: 'absolute', top: 24, left: 24, color: '#7bb3ff', fontSize: 20, fontWeight: 700 }}>
-            Scene Two — HUD Active
-          </HudItem>
-          <HudItem id="subtitle"
-            style={{ position: 'absolute', top: 56, left: 24, color: '#aaaacc', fontSize: 14 }}>
-            Text overlays appear on scene transition
-          </HudItem>
-        </Hud>
+        {/* Scene 2 overlay — HTML children appear over the 3D canvas */}
+        <div style={{ position: 'absolute', top: 24, left: 24, color: '#7bb3ff', fontSize: 20, fontWeight: 700 }}>
+          Scene Two — Overlay Active
+        </div>
+        <div style={{ position: 'absolute', top: 56, left: 24, color: '#aaaacc', fontSize: 14 }}>
+          Text overlays appear on scene transition
+        </div>
       </Scene>
     </DemoScene>
   );

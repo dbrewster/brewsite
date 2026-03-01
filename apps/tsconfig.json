@@ -28,8 +28,6 @@
     "./docs/src/**/*.tsx",
     "./website/src/**/*.ts",
     "./website/src/**/*.tsx",
-    "./examples/**/*.ts",
-    "./examples/**/*.tsx"
   ],
   "exclude": [
     "node_modules",

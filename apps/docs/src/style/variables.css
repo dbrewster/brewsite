@@ -23,6 +23,7 @@
   --brand-gradient: linear-gradient(135deg, #c2410c 0%, #f97316 50%, #fb923c 100%);
 
   --sidebar-width: 260px;
+  --sidebar-clearance: 276px; /* sidebar-width + 16px gap */
   --header-height: 56px;
   --content-max-width: 820px;
 

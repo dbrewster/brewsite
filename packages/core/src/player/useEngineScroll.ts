@@ -48,7 +48,13 @@ export const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrol
   const [progress, setProgress] = useState(0);
   const progressRef = useRef(0);
   const rawProgressRef = useRef(0);
-  const isProgrammaticScrollRef = useRef(false);
+  // Counts window.scrollTo calls made by auto-advance that have not yet produced
+  // a scroll event. Each scrollToRawProgress increments this before calling
+  // window.scrollTo; each scroll event decrements it. When > 0 the scroll event
+  // is from us, not the user, so onUserScroll is suppressed.
+  // Counter-based (not boolean) because multiple programmatic scrolls can be
+  // in-flight before their events arrive. No timing dependency — purely event-driven.
+  const pendingProgrammaticScrollsRef = useRef(0);
 
   const computeProgress = useCallback((): { raw: number; mapped: number } => {
     if (typeof window === 'undefined') return { raw: 0, mapped: 0 };
@@ -77,8 +83,10 @@ export const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrol
     if (typeof window === 'undefined') return;
     update();
     const onScroll = () => {
-      // Only fire onUserScroll when the scroll is genuine (not from auto-advance).
-      if (!isProgrammaticScrollRef.current) {
+      // Consume one pending programmatic scroll if present; otherwise it's a user scroll.
+      if (pendingProgrammaticScrollsRef.current > 0) {
+        pendingProgrammaticScrollsRef.current--;
+      } else {
         options.onUserScroll?.();
       }
       update();
@@ -125,14 +133,14 @@ export const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrol
       const viewportHeight = window.innerHeight || 1;
       const maxScroll = Math.max(1, scrollRegionHeightPx - viewportHeight);
       const clamped = Math.max(0, Math.min(1, raw));
-      // Mark as programmatic BEFORE window.scrollTo so the scroll event
-      // handler sees the flag when it fires.
-      isProgrammaticScrollRef.current = true;
-      window.scrollTo({ top: regionTop + clamped * maxScroll });
-      // Clear the flag after the current microtask queue drains (after scroll event).
-      queueMicrotask(() => {
-        isProgrammaticScrollRef.current = false;
-      });
+      const target = regionTop + clamped * maxScroll;
+      const currentScrollY = window.scrollY || window.pageYOffset || 0;
+      // Only count if the scroll position will actually change. window.scrollTo to
+      // the same position fires no scroll event, so we must not increment the counter.
+      if (Math.abs(target - currentScrollY) >= 1) {
+        pendingProgrammaticScrollsRef.current++;
+      }
+      window.scrollTo({ top: target });
     },
     [scrollRegionHeightPx, scrollRegionRef],
   );

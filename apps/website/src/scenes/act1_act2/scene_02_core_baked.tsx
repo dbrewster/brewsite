@@ -1,11 +1,15 @@
 import type { JSX } from 'react';
-import { Scene, Camera, Lighting, Ambient, Directional } from '@brewsite/core';
+import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
 import { Fade, SlideUp } from '@brewsite/core/hud/animejs';
 
 const tags = ['Declarative', 'Scroll-Driven', 'SSR-Safe', 'TypeScript-First', 'O(1) Sampling'];
 
 export const scene02CoreBaked: JSX.Element = (
   <Scene id="website-core-02">
+    <ProgressManager
+      scrollUnits={1600}
+      autoAdvance={{ duration: 6, max: 0.85, pauseOnScroll: true }}
+    />
     <Camera mode="world" position={[0, 0, 10]} target={[0, 0.5, 0]} fov={65} />
 
     <Lighting intensityScale={1}>

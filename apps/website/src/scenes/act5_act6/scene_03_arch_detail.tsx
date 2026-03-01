@@ -1,10 +1,14 @@
 import type { JSX } from 'react';
-import { Scene, Camera, Lighting, Ambient, Directional } from '@brewsite/core';
+import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
 import { DiagramCanvas, Diagram, DiagramEdge, DiagramNode, Enter, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
 import { SlideUp } from '@brewsite/core/hud/animejs';
 
 export const scene03ArchDetail: JSX.Element = (
   <Scene id="website-arch-detail">
+    <ProgressManager
+      scrollUnits={1800}
+      autoAdvance={{ duration: 7, max: 0.85, pauseOnScroll: true }}
+    />
     <Camera mode="world" fov={55} position={[0, 8, 45]} target={[0, -5, 0]} />
 
     <Lighting intensityScale={1}>

@@ -1,8 +1,6 @@
 import type { JSX } from 'react';
-import {
-  Ambient, Animation, BodyPart, BodyParts, Camera, Directional,
-  Lighting, ModelRouter, Playback, Pose, Scene,
-} from '@brewsite/core';
+import { Ambient, Camera, Directional, Lighting, ProgressManager, Scene } from '@brewsite/core';
+import { Animation, BodyPart, BodyParts, ModelRouter, Playback, Pose } from '@brewsite/model';
 import { MidFade } from '@brewsite/core/hud/animejs';
 
 interface BodyPartProp {
@@ -199,6 +197,11 @@ const actorProps = pairCenters.flatMap((center, index) => {
 // ── Scene ─────────────────────────────────────────────────────────────────────
 export const scene01Meeting: JSX.Element = (
   <Scene id="website-meeting-01">
+    <ProgressManager
+      scrollUnits={2000}
+      autoAdvance={{ duration: 8, max: 0.85, pauseOnScroll: true }}
+      animationTimeScale={2}
+    />
     <Camera mode="world" position={[0, 34, 110]} target={[0, 0, 0]} fov={48} />
 
     <Lighting intensityScale={1}>

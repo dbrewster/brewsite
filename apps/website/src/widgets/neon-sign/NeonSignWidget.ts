@@ -1,19 +1,12 @@
-import { isValidElement } from 'react';
-import type { ReactElement } from 'react';
-import type { NodeHandler } from '@brewsite/core/compiler/sceneDslTypes';
-import type {
-  ISceneElement,
-  ILoadable,
-  IRenderable,
-  WidgetInitContext,
-  WidgetRenderContext,
-} from '@brewsite/core/widget/types';
-import { CUSTOM_NODE_HANDLER } from '@brewsite/core/widget/WidgetRegistry';
-import { DEFAULT_NEON_SIGN_STATE, neonSignTransitionSpec } from './compile';
-import { NeonSign } from './dsl';
-import type { NeonSignProps } from './dsl';
-import type { NeonSignState } from './types';
-import { NeonSignRenderer } from './render';
+import {isValidElement} from 'react';
+import type {NodeHandler} from '@brewsite/core/compiler/sceneDslTypes';
+import type {ILoadable, IRenderable, ISceneElement, WidgetInitContext, WidgetRenderContext,} from '@brewsite/core/widget/types';
+import {CUSTOM_NODE_HANDLER} from '@brewsite/core/widget/WidgetRegistry';
+import {DEFAULT_NEON_SIGN_STATE, neonSignTransitionSpec} from './compile';
+import type {NeonSignProps} from './dsl';
+import {NeonSign} from './dsl';
+import type {NeonSignState} from './types';
+import {NeonSignRenderer} from './render';
 
 export class NeonSignWidget
   implements
@@ -22,7 +15,6 @@ export class NeonSignWidget
     IRenderable<NeonSignState> {
   readonly widgetId = 'website-neon-sign';
   readonly defaultState: NeonSignState = DEFAULT_NEON_SIGN_STATE;
-  readonly useDefaultStateWhenAbsent = false;
   readonly transitionSpec = neonSignTransitionSpec;
   readonly DslComponent = NeonSign;
 
@@ -69,6 +61,19 @@ export class NeonSignWidget
 
   apply(state: NeonSignState, context: WidgetRenderContext): void {
     this.renderer?.update(state, context.clock.wallTimeSeconds);
+  }
+
+  mergeSnapshot(
+    prev: NeonSignState | undefined,
+    next: NeonSignState | undefined,
+  ): NeonSignState | undefined {
+    if (!prev && !next) return undefined;
+    // Widget absent from this scene — let exit transition animate it out.
+    if (!next) return undefined;
+    // Widget appearing for the first time — let enter transition animate it in.
+    if (!prev) return next;
+    // Both scenes declare the widget — next wins; prev fills any gaps.
+    return { ...prev, ...next };
   }
 
   dispose(): void {

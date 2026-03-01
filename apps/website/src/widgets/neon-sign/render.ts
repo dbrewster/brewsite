@@ -184,7 +184,7 @@ export class NeonSignRenderer {
     if (!this.root || !this.signGroup) return;
 
     const opacity = Math.max(0, Math.min(1, state.opacity));
-    this.root.visible = state.enabled || opacity > 0.001;
+    this.root.visible = state.enabled && opacity > 0.001;
     if (!this.root.visible) return;
 
     this.root.position.set(state.position[0], state.position[1], state.position[2]);

@@ -1,16 +1,12 @@
-import { useEffect, useState } from 'react';
 import type { JSX } from 'react';
+import { useEngineState } from '@brewsite/core';
 
 export function ScrollIndicator(): JSX.Element {
-  const [visible, setVisible] = useState(true);
-
-  useEffect(() => {
-    const onScroll = () => {
-      setVisible(window.scrollY < 60);
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  // sceneProgress is the local [0..1] progress within the current scene.
+  // Hide the indicator once the user has scrolled meaningfully past the prompt.
+  // autoAdvance max is 0.80, so this stays visible throughout idle auto-play.
+  const { sceneProgress } = useEngineState();
+  const visible = sceneProgress < 0.85;
 
   return (
     <div

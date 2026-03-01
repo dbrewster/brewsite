@@ -1,13 +1,19 @@
 import type { JSX } from 'react';
 import {
-  Scene, Camera, Background, Lighting, Ambient, Directional,
-  Floor, FloorMirror, ModelRouter,
+  Scene, Camera, Lighting, Ambient, Directional,
+  Floor, FloorMirror, ProgressManager,
 } from '@brewsite/core';
+import { ModelRouter } from '@brewsite/model';
 import { DiagramCanvas, Diagram, DiagramNode, DiagramEdge, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
 import { SlideUp } from '@brewsite/core/hud/animejs';
 
 export const scene02Combined: JSX.Element = (
   <Scene id="website-full-02">
+    <ProgressManager
+      scrollUnits={1800}
+      autoAdvance={{ duration: 7, max: 0.85, pauseOnScroll: true }}
+      animationTimeScale={2}
+    />
     <Camera mode="world" position={[-8, 14, 55]} target={[5, 3, -5]} fov={60} />
 
     <Floor enabled position={[0, 0, 0]}>

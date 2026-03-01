@@ -8,7 +8,7 @@ import {
   Floor,
   FloorMirror,
   ProgressManager,
-  useSceneProgress,
+  useEngineState,
 } from '@brewsite/core';
 import { NeonSign } from '../../widgets/neon-sign';
 import { HeroBezel } from '../../landing/hero/HeroBezel';
@@ -27,8 +27,10 @@ function HeroFade({
   start: number;
   end: number;
 }): JSX.Element {
-  const p = useSceneProgress();
-  const opacity = Math.max(0, Math.min(1, (p - start) / Math.max(end - start, 0.001)));
+  // sceneProgress is the local [0..1] progress within this scene only.
+  // (useSceneProgress() returns global progress — wrong for per-scene fades.)
+  const { sceneProgress } = useEngineState();
+  const opacity = Math.max(0, Math.min(1, (sceneProgress - start) / Math.max(end - start, 0.001)));
   return <div style={{ opacity }}>{children}</div>;
 }
 
@@ -36,7 +38,7 @@ export const scene00Hero: JSX.Element = (
   <Scene id="website-hero-00">
     <ProgressManager
       scrollUnits={1800}
-      autoAdvance={{ duration: 8, max: 0.80, pauseOnScroll: true }}
+      autoAdvance={{ duration: 3, max: 0.80, pauseOnScroll: true }}
       animationTimeScale={3}
     />
     <Camera mode="world" position={[0, 7, 17]} target={[0, 1.4, 0]} fov={52} />

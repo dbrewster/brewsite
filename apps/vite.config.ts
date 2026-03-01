@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { defineConfig, type ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
-import { brewsiteGenPlugin } from './examples/vite-gen-plugin.mjs';
+import { brewsiteGenPlugin } from './vite-gen-plugin.mjs';
 
 type AppName = 'website' | 'docs' | 'examples';
 
@@ -161,17 +161,7 @@ export default defineConfig({
     allowedHosts: ['localhost', '127.0.0.1', '192.168.1.221'],
     fs: {
       allow: [appsRoot, path.resolve(__dirname, '..')],
-    },
-    proxy: {
-      '/auth': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-      '/api/lucid': {
-        target: 'http://localhost:3001',
-        changeOrigin: true,
-      },
-    },
+    }
   },
   publicDir: false,
 });
