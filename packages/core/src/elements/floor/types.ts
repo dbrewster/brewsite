@@ -6,6 +6,11 @@ export type SceneFloor = {
   enabled: boolean;
   position?: [number, number, number];
   rotation?: [number, number, number];
+  /**
+   * Rotation offset applied relative to the floor baseline orientation.
+   * Baseline is [-Math.PI / 2, 0, 0] (horizontal plane).
+   */
+  rotationRelative?: [number, number, number];
   scale?: number;
   surface?: FloorSurface;
 };

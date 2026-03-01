@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@brewsite/core": ["../packages/core/src/index.ts"],
+      "@brewsite/core/*": ["../packages/core/src/*"],
+      "@brewsite/diagram": ["../packages/diagram/src/index.ts"],
+      "@brewsite/diagram/*": ["../packages/diagram/src/*"]
+    },
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true
+  },
+  "include": [
+    "./vite-env.d.ts",
+    "./App.tsx",
+    "./main.tsx",
+    "./docs/src/**/*.ts",
+    "./docs/src/**/*.tsx",
+    "./website/src/**/*.ts",
+    "./website/src/**/*.tsx",
+    "./examples/**/*.ts",
+    "./examples/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/dist/**",
+    "examples/generated/**",
+    "website/src/generated/**",
+    "docs/src/generated/**"
+  ]
+}

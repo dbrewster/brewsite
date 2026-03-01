@@ -35,6 +35,19 @@ export type UseSceneEngineOptions = {
   onCompileWarning?: (warnings: CompileWarning[]) => void;
   labelPositioner?: LabelPositioner;
   inputMap?: SceneNavInputMap;
+  /**
+   * When provided, bypasses scroll-driven progress calculation.
+   * The engine reads this value ([0, 1]) directly on every frame.
+   * Forces the engine into `'direct'` input mode — no scroll spacer,
+   * no `window.scrollTo` calls. The player container must supply an
+   * explicit CSS height so the canvas can fill it correctly.
+   */
+  controlledProgress?: number;
+  /**
+   * Called when the engine sets progress internally (e.g., prev/next controls).
+   * Wire to the same state setter that feeds `controlledProgress`.
+   */
+  onControlledProgressChange?: (p: number) => void;
 };
 
 export type UseSceneEngineResult = {
@@ -127,7 +140,9 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   const hasSceneInputController = frameState.tick
     ? ((frameState.tick.state.widgets[INPUT_CONTROLLER_WIDGET_ID] as SceneInputControllerSpec | undefined) ?? null) !== null
     : false;
-  const inputMode: 'scroll' | 'direct' = hasSceneInputController ? 'direct' : 'scroll';
+  // controlledProgress forces direct mode — no scroll spacer, no window.scrollY.
+  const inputMode: 'scroll' | 'direct' =
+    (options.controlledProgress !== undefined || hasSceneInputController) ? 'direct' : 'scroll';
 
   const scrollRegionHeightPx = useMemo(() => {
     if (inputMode === 'direct') return Math.max(1, viewportHeight);
@@ -286,6 +301,8 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     inputMap: options.inputMap,
     wheelGuard,
     inputControllerSpec,
+    controlledProgress: options.controlledProgress,
+    onControlledProgressChange: options.onControlledProgressChange,
     onCameraOrbit: handleCameraOrbit,
     onCameraDolly: handleCameraDolly,
     onCameraReset: handleCameraReset,

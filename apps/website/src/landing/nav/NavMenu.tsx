@@ -1,21 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { JSX } from 'react';
+import { useCurrentScene, useSceneEngineContext } from '@brewsite/core';
+import { websiteNavTargets } from '../../scenes/websiteFlow';
 import '../hero/hero.css';
-
-const NAV_LINKS = [
-  { num: '00', label: 'Hero',         anchor: '#hero' },
-  { num: '01', label: 'The Core',     anchor: '#act-core' },
-  { num: '02', label: 'Libraries',    anchor: '#act-libraries' },
-  { num: '03', label: 'Models',       anchor: '#act-models' },
-  { num: '04', label: 'The Meeting',  anchor: '#act-meeting' },
-  { num: '05', label: 'Diagrams',     anchor: '#act-diagrams' },
-  { num: '06', label: 'Architecture', anchor: '#act-arch' },
-  { num: '07', label: 'Full Stack',   anchor: '#act-fullstack' },
-  { num: '08', label: 'GitHub',       anchor: '#act-github' },
-] as const;
 
 export function NavMenu(): JSX.Element {
   const [open, setOpen] = useState(false);
+  const { id: currentSceneId } = useCurrentScene();
+  const engine = useSceneEngineContext();
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -28,14 +20,16 @@ export function NavMenu(): JSX.Element {
     return () => window.removeEventListener('keydown', onKey);
   }, [close]);
 
-  const handleNavClick = useCallback((anchor: string) => {
+  const handleNavClick = useCallback((sceneId: string) => {
     close();
-    const el = document.querySelector(anchor);
-    if (el) el.scrollIntoView({ behavior: 'smooth' });
-  }, [close]);
+    const index = websiteNavTargets.findIndex((target) => target.sceneId === sceneId);
+    if (index < 0) return;
+    const progress = index / Math.max(1, engine.sceneCount - 1);
+    engine.scrollToProgress(progress);
+  }, [close, engine]);
 
   return (
-    <>
+    <div style={{ pointerEvents: 'auto' }}>
       {/* Hamburger button */}
       <button
         className="nav-hamburger"
@@ -63,11 +57,12 @@ export function NavMenu(): JSX.Element {
             ×
           </button>
 
-          {NAV_LINKS.map(({ num, label, anchor }) => (
+          {websiteNavTargets.map(({ num, label, sceneId }) => (
             <button
-              key={anchor}
+              key={sceneId}
               className="nav-link"
-              onClick={() => handleNavClick(anchor)}
+              onClick={() => handleNavClick(sceneId)}
+              aria-current={sceneId === currentSceneId ? 'page' : undefined}
             >
               <span className="nav-link__num">{num}</span>
               {label}
@@ -75,6 +70,6 @@ export function NavMenu(): JSX.Element {
           ))}
         </nav>
       </div>
-    </>
+    </div>
   );
 }

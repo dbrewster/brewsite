@@ -1,22 +1,15 @@
 import type { JSX } from 'react';
-import { NeonSignCanvas } from './NeonSignCanvas';
-import { NeonSign } from './NeonSign';
 import { HeroBezel } from './HeroBezel';
 import { ScrollIndicator } from './ScrollIndicator';
 
 export function HeroSection(): JSX.Element {
   return (
-    <section className="hero-section" id="hero">
-      {/* Three.js metallic room — full bleed background */}
-      <NeonSignCanvas />
-
+    <section className="hero-section">
       {/* Bezel frame overlay */}
       <HeroBezel />
 
-      {/* Main content */}
-      <div className="hero-content">
-        <NeonSign />
-
+      {/* Tagline + package badges */}
+      <div className="hero-content hero-content--below-sign">
         <p className="hero-tagline">Author in JSX. Ship to any surface.</p>
 
         <div className="hero-packages">

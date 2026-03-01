@@ -27,6 +27,21 @@ export type UseEngineInputOptions = {
   wheelGuard?: () => boolean;
   /** Optional scene-authored action controller spec (from <InputController> DSL). */
   inputControllerSpec?: SceneInputControllerSpec | null;
+  /**
+   * When provided, bypasses scroll-derived progress entirely. The engine reads
+   * this value (clamped [0, 1]) directly on every Three.js frame without
+   * touching `window.scrollY` or `window.scrollTo`.
+   *
+   * Pair with `onControlledProgressChange` so that `engine.scrollToProgress()`
+   * propagates back to the owner's state setter, keeping UI controls in sync.
+   */
+  controlledProgress?: number;
+  /**
+   * Called synchronously when the engine sets progress via `scrollToProgress`.
+   * Wire to the same state setter that feeds `controlledProgress`.
+   * Stable identity (e.g. a `useState` setter) is strongly recommended.
+   */
+  onControlledProgressChange?: (p: number) => void;
   onCameraOrbit?: (cameraId: string, dx: number, dy: number, speed: number) => void;
   onCameraDolly?: (cameraId: string, delta: number, speed: number) => void;
   onCameraReset?: (cameraId: string) => void;
@@ -77,6 +92,30 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
   const [directProgress, setDirectProgress] = useState(0);
   const directProgressRef = useRef(0);
 
+  // ─── Controlled mode: owner provides progress via prop ────────────────
+  // Mutable ref so getGlobalProgress() always returns the latest prop value
+  // without a stale closure. Updated synchronously on every render.
+  const controlledProgressRef = useRef<number>(options.controlledProgress ?? 0);
+  if (options.controlledProgress !== undefined) {
+    controlledProgressRef.current = options.controlledProgress;
+  }
+  // Stable ref to the callback so scrollToControlledProgress never rebuilds.
+  const onControlledProgressChangeRef = useRef(options.onControlledProgressChange);
+  onControlledProgressChangeRef.current = options.onControlledProgressChange;
+
+  const getControlledProgress = useCallback(() => controlledProgressRef.current, []);
+
+  const scrollToControlledProgress = useCallback((next: number) => {
+    const clamped = clamp01(next);
+    // Update the ref synchronously so the Three.js loop sees it immediately,
+    // before the owner's state setter has triggered a re-render.
+    controlledProgressRef.current = clamped;
+    // Notify the owner to update controlledProgress prop (completes the loop).
+    // The resulting re-render propagates the new value back as options.controlledProgress,
+    // which is what engine.progress and state.progress report to UI components.
+    onControlledProgressChangeRef.current?.(clamped);
+  }, []);
+
   const setDirectProgressBoth = useCallback((next: number) => {
     const clamped = clamp01(next);
     directProgressRef.current = clamped;
@@ -91,6 +130,11 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
 
   // ─── InputController attachment ───────────────────────────────────────
   useEffect(() => {
+    // Controlled mode: the owner drives progress externally. Keyboard shortcuts
+    // are not attached because they would call window.scrollTo via the legacy
+    // scroll handler. The owner can wire its own keyboard handling if needed.
+    if (options.controlledProgress !== undefined) return;
+
     if (hasSceneController) {
       const attachTarget = (sceneControllerScope === 'window')
         ? window
@@ -175,6 +219,17 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
   ]);
 
   // ─── Return appropriate interface ─────────────────────────────────────
+
+  // Controlled mode: progress is entirely owned by the parent via prop.
+  // No window.scrollY reads, no window.scrollTo calls.
+  if (options.controlledProgress !== undefined) {
+    return {
+      progress: options.controlledProgress,
+      scrollToProgress: scrollToControlledProgress,
+      getGlobalProgress: getControlledProgress,
+    };
+  }
+
   if (hasSceneController) {
     return {
       progress: directProgress,

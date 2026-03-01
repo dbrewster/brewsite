@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@brewsite/core": ["../packages/core/src/index.ts"],
+      "@brewsite/core/*": ["../packages/core/src/*"],
+      "@brewsite/diagram": ["../packages/diagram/src/index.ts"],
+      "@brewsite/diagram/*": ["../packages/diagram/src/*"]
+    },
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "references": [
+    { "path": "../packages/core/tsconfig.build.json" },
+    { "path": "../packages/diagram/tsconfig.build.json" }
+  ],
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "vite.config.ts", "src/generated"]
+}

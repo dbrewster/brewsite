@@ -8,15 +8,28 @@ export type EngineInputRegionProps = {
   engine: UseSceneEngineResult;
   className?: string;
   children?: ReactNode;
+  /**
+   * When true, the region renders with `height: 100%` to fill its parent
+   * container rather than `100vh`. Use for embedded players (e.g. doc demos)
+   * where the parent element provides an explicit height constraint.
+   *
+   * Requires the parent chain to have an explicit CSS height so that
+   * `height: 100%` resolves correctly.
+   */
+  fillContainer?: boolean;
 };
 
 export const EngineInputRegion = ({
   engine,
   className,
   children,
+  fillContainer = false,
 }: EngineInputRegionProps): ReactElement => {
   const stickyRef = useRef<HTMLDivElement | null>(null);
   const mode = engine.inputMode;
+  // When filling a container, use 100% so the parent's explicit height
+  // constrains us. Otherwise fall back to 100vh for full-page layouts.
+  const viewportFill = fillContainer ? '100%' : '100vh';
 
   useEffect(() => {
     const el = stickyRef.current;
@@ -56,7 +69,7 @@ export const EngineInputRegion = ({
         position: mode === 'scroll' ? 'sticky' : 'relative',
         top: 0,
         width: '100%',
-        height: '100vh',
+        height: viewportFill,
         overflow: 'hidden',
         outline: 'none',
       }}
@@ -84,7 +97,7 @@ export const EngineInputRegion = ({
 
   if (mode === 'direct') {
     return (
-      <div ref={engine.scrollRegionRef} className={className} style={{ position: 'relative', height: '100vh' }}>
+      <div ref={engine.scrollRegionRef} className={className} style={{ position: 'relative', height: viewportFill }}>
         {innerContent}
       </div>
     );

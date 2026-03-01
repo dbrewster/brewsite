@@ -94,6 +94,25 @@ export type ScenePlayerProps = {
    */
   debug?: boolean;
   /**
+   * When provided, bypasses scroll-driven progress entirely. The engine reads
+   * this value ([0, 1]) on every frame without touching `window.scrollY` or
+   * `window.scrollTo`. Ideal for embedded players (e.g. inside a doc page)
+   * where you control progress via buttons, RAF timers, or external state.
+   *
+   * The player renders with `height: 100%` when this prop is set, so the
+   * containing element **must** have an explicit CSS height.
+   *
+   * Pair with `onControlledProgressChange` to keep UI controls in sync when
+   * they call `engine.scrollToProgress()` internally.
+   */
+  controlledProgress?: number;
+  /**
+   * Called when the engine sets progress via `scrollToProgress` while
+   * `controlledProgress` is active. Wire to the same state setter that feeds
+   * `controlledProgress` to complete the controlled-component loop.
+   */
+  onControlledProgressChange?: (p: number) => void;
+  /**
    * Scene content. Direct <Scene id="..."> elements and React components that
    * render <Scene> are both supported.
    */
@@ -200,6 +219,8 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
     onCompileWarning: props.onCompileWarning,
     labelPositioner,
     inputMap: props.inputMap,
+    controlledProgress: props.controlledProgress,
+    onControlledProgressChange: props.onControlledProgressChange,
   });
 
   const assetsReady = engine.debug?.assetsReady ?? false;
@@ -235,20 +256,28 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
     return (props.placeholder ?? null) as ReactElement | null;
   }
 
+  const isControlled = props.controlledProgress !== undefined;
+
   return (
     <SceneRegistrationContext.Provider value={registrationContextValue}>
       <VariableStoreContext.Provider value={engine.variableStore}>
         <LabelPositionerContext.Provider value={labelPositioner}>
           <EngineStateContext.Provider value={engineState}>
             <EngineContext.Provider value={engine}>
-              <div className={props.className} style={{ position: 'relative' }}>
+              {/* height: 100% in controlled mode so the canvas fills the parent
+                  container (e.g. a 420px DemoScene wrapper). In scroll mode the
+                  height is determined by the tall EngineInputRegion spacer. */}
+              <div
+                className={props.className}
+                style={{ position: 'relative', ...(isControlled ? { height: '100%' } : {}) }}
+              >
                 {loadError && <div role="alert">Scene engine error: {loadError.message}</div>}
                 {showPlaceholder && (
                   <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
                     {props.placeholder}
                   </div>
                 )}
-                <EngineInputRegion engine={engine}>
+                <EngineInputRegion engine={engine} fillContainer={isControlled}>
                   <>
                     {props.children}
                     <HudOverlay items={engine.frameState.tick?.hudPrimitives ?? []} />

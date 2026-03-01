@@ -4,9 +4,11 @@
 import { execSync } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const SOURCE_FILE = 'siteResources.ts';
-const GEN_SCRIPT = path.resolve('../../scripts/gen-scene-dsl.mjs');
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const GEN_SCRIPT = path.resolve(__dirname, '../../scripts/gen-scene-dsl.mjs');
 const OUT_DIR = 'generated';
 const MANIFEST_OUT = 'public/scene-manifest.json';
 
@@ -33,30 +35,30 @@ function runGenerator(root) {
   }
 }
 
-export function brewsiteGenPlugin() {
-  let viteRoot = process.cwd();
+export function brewsiteGenPlugin(options = {}) {
+  let projectRoot = options.projectRoot ?? process.cwd();
 
   return {
     name: 'brewsite-gen',
 
-    configResolved(config) {
-      viteRoot = config.root;
+    configResolved() {
+      projectRoot = path.resolve(projectRoot);
     },
 
     buildStart() {
       // In dev: only regenerate if stale. In prod: always regenerate.
-      if (this.meta?.watchMode && !isStale(viteRoot)) return;
+      if (this.meta?.watchMode && !isStale(projectRoot)) return;
       console.log('[brewsite-gen] Running gen:scene-dsl...');
-      runGenerator(viteRoot);
+      runGenerator(projectRoot);
     },
 
     configureServer(server) {
-      const sourceAbsPath = path.resolve(viteRoot, SOURCE_FILE);
+      const sourceAbsPath = path.resolve(projectRoot, SOURCE_FILE);
       server.watcher.add(sourceAbsPath);
       server.watcher.on('change', (file) => {
         if (path.normalize(file) !== path.normalize(sourceAbsPath)) return;
         console.log('[brewsite-gen] siteResources.ts changed — regenerating...');
-        runGenerator(viteRoot);
+        runGenerator(projectRoot);
         server.ws.send({ type: 'full-reload' });
       });
     },

@@ -32,6 +32,19 @@ type FloorInstance = {
 
 const FLOOR_KEY = '__brewsite_floor';
 const ENV_KEY = '__brewsite_environment';
+const FLOOR_BASE_ROTATION: [number, number, number] = [-Math.PI / 2, 0, 0];
+
+const resolveFloorRotation = (state: SceneFloor): [number, number, number] => {
+  if (state.rotationRelative) {
+    return [
+      FLOOR_BASE_ROTATION[0] + state.rotationRelative[0],
+      FLOOR_BASE_ROTATION[1] + state.rotationRelative[1],
+      FLOOR_BASE_ROTATION[2] + state.rotationRelative[2],
+    ];
+  }
+  if (state.rotation) return state.rotation;
+  return FLOOR_BASE_ROTATION;
+};
 
 const ensureMirrorOpacityShader = (material: THREE.Material): void => {
   const shader = material as THREE.ShaderMaterial;
@@ -132,7 +145,7 @@ const getOrCreateFloor = (
     });
     mesh = new THREE.Mesh(geometry, material);
   }
-  mesh.rotation.x = -Math.PI / 2;
+  mesh.rotation.x = FLOOR_BASE_ROTATION[0];
   mesh.position.y = 0;
   mesh.receiveShadow = true;
   mesh.castShadow = false;
@@ -229,9 +242,8 @@ export function applyFloor(state: SceneFloor, refs: FloorThreeRefs): void {
     if (state.position) {
       floor.mesh.position.set(state.position[0], state.position[1], state.position[2]);
     }
-    if (state.rotation) {
-      floor.mesh.rotation.set(state.rotation[0], state.rotation[1], state.rotation[2]);
-    }
+    const rotation = resolveFloorRotation(state);
+    floor.mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
     if (typeof state.scale === 'number') {
       floor.mesh.scale.set(state.scale, state.scale, state.scale);
     }
@@ -303,9 +315,8 @@ export function applyFloor(state: SceneFloor, refs: FloorThreeRefs): void {
   if (state.position) {
     floor.mesh.position.set(state.position[0], state.position[1], state.position[2]);
   }
-  if (state.rotation) {
-    floor.mesh.rotation.set(state.rotation[0], state.rotation[1], state.rotation[2]);
-  }
+  const rotation = resolveFloorRotation(state);
+  floor.mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
   if (typeof state.scale === 'number') {
     floor.mesh.scale.set(state.scale, state.scale, state.scale);
   }

@@ -55,6 +55,8 @@ export class FloorWidget
         enabled: helpers.resolveValue(props.enabled, api.context) ?? base.enabled,
         position: helpers.resolveValue(props.position, api.context) ?? base.position,
         rotation: helpers.resolveValue(props.rotation, api.context) ?? base.rotation,
+        rotationRelative:
+          helpers.resolveValue(props.rotationRelative, api.context) ?? base.rotationRelative,
         scale: helpers.resolveValue(props.scale, api.context) ?? base.scale,
         surface: surface ?? base.surface,
       };
@@ -80,6 +82,7 @@ export class FloorWidget
       ...base,
       ...next,
       surface: next.surface ?? base.surface,
+      rotationRelative: next.rotationRelative ?? base.rotationRelative,
     } as SceneFloor;
   }
 

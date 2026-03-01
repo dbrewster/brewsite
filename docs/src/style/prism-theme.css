@@ -1,0 +1,41 @@
+.token.keyword {
+  color: #ff79c6;
+}
+
+.token.string {
+  color: #f1fa8c;
+}
+
+.token.number,
+.token.boolean {
+  color: #bd93f9;
+}
+
+.token.comment {
+  color: #6272a4;
+  font-style: italic;
+}
+
+.token.function,
+.token.attr-name {
+  color: #50fa7b;
+}
+
+.token.class-name,
+.token.type-args {
+  color: #8be9fd;
+}
+
+.token.operator,
+.token.tag {
+  color: #ff79c6;
+}
+
+.token.punctuation,
+.token.variable {
+  color: #f8f8f2;
+}
+
+.token.attr-value {
+  color: #f1fa8c;
+}

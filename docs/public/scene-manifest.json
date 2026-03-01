@@ -1,0 +1,848 @@
+{
+  "version": 2,
+  "models": [
+    {
+      "type": "MaleDummy",
+      "glb": "/assets/motion-dummy_male.no-normals.glb",
+      "bones": [
+        "CC_Base_Head",
+        "CC_Base_Hip",
+        "CC_Base_JawRoot",
+        "CC_Base_L_BigToe1",
+        "CC_Base_L_Breast",
+        "CC_Base_L_CalfTwist01",
+        "CC_Base_L_CalfTwist02",
+        "CC_Base_L_Clavicle",
+        "CC_Base_L_ElbowShareBone",
+        "CC_Base_L_Foot",
+        "CC_Base_L_ForearmTwist01",
+        "CC_Base_L_ForearmTwist02",
+        "CC_Base_L_Hand",
+        "CC_Base_L_Index1",
+        "CC_Base_L_Index2",
+        "CC_Base_L_Index3",
+        "CC_Base_L_IndexToe1",
+        "CC_Base_L_KneeShareBone",
+        "CC_Base_L_Mid1",
+        "CC_Base_L_Mid2",
+        "CC_Base_L_Mid3",
+        "CC_Base_L_MidToe1",
+        "CC_Base_L_Pinky1",
+        "CC_Base_L_Pinky2",
+        "CC_Base_L_Pinky3",
+        "CC_Base_L_PinkyToe1",
+        "CC_Base_L_RibsTwist",
+        "CC_Base_L_Ring1",
+        "CC_Base_L_Ring2",
+        "CC_Base_L_Ring3",
+        "CC_Base_L_RingToe1",
+        "CC_Base_L_ThighTwist01",
+        "CC_Base_L_ThighTwist02",
+        "CC_Base_L_Thumb1",
+        "CC_Base_L_Thumb2",
+        "CC_Base_L_Thumb3",
+        "CC_Base_L_UpperarmTwist01",
+        "CC_Base_L_UpperarmTwist02",
+        "CC_Base_NeckTwist01",
+        "CC_Base_NeckTwist02",
+        "CC_Base_Pelvis",
+        "CC_Base_R_BigToe1",
+        "CC_Base_R_Breast",
+        "CC_Base_R_CalfTwist01",
+        "CC_Base_R_CalfTwist02",
+        "CC_Base_R_Clavicle",
+        "CC_Base_R_ElbowShareBone",
+        "CC_Base_R_Foot",
+        "CC_Base_R_ForearmTwist01",
+        "CC_Base_R_ForearmTwist02",
+        "CC_Base_R_Hand",
+        "CC_Base_R_Index1",
+        "CC_Base_R_Index2",
+        "CC_Base_R_Index3",
+        "CC_Base_R_IndexToe1",
+        "CC_Base_R_KneeShareBone",
+        "CC_Base_R_Mid1",
+        "CC_Base_R_Mid2",
+        "CC_Base_R_Mid3",
+        "CC_Base_R_MidToe1",
+        "CC_Base_R_Pinky1",
+        "CC_Base_R_Pinky2",
+        "CC_Base_R_Pinky3",
+        "CC_Base_R_PinkyToe1",
+        "CC_Base_R_RibsTwist",
+        "CC_Base_R_Ring1",
+        "CC_Base_R_Ring2",
+        "CC_Base_R_Ring3",
+        "CC_Base_R_RingToe1",
+        "CC_Base_R_ThighTwist01",
+        "CC_Base_R_ThighTwist02",
+        "CC_Base_R_Thumb1",
+        "CC_Base_R_Thumb2",
+        "CC_Base_R_Thumb3",
+        "CC_Base_R_UpperarmTwist01",
+        "CC_Base_R_UpperarmTwist02",
+        "CC_Base_Spine01",
+        "CC_Base_Spine02",
+        "CC_Base_Tongue01",
+        "CC_Base_Tongue02",
+        "CC_Base_Tongue03",
+        "CC_Base_Waist"
+      ],
+      "meshes": [
+        "CC_Base_Body",
+        "CC_Base_Tongue",
+        "Motion_Dummy_Male"
+      ],
+      "anchorTargets": {},
+      "bodyParts": [
+        "CC_Base_Body",
+        "CC_Base_Head",
+        "CC_Base_Hip",
+        "CC_Base_JawRoot",
+        "CC_Base_L_BigToe1",
+        "CC_Base_L_Breast",
+        "CC_Base_L_CalfTwist01",
+        "CC_Base_L_CalfTwist02",
+        "CC_Base_L_Clavicle",
+        "CC_Base_L_ElbowShareBone",
+        "CC_Base_L_Foot",
+        "CC_Base_L_ForearmTwist01",
+        "CC_Base_L_ForearmTwist02",
+        "CC_Base_L_Hand",
+        "CC_Base_L_Index1",
+        "CC_Base_L_Index2",
+        "CC_Base_L_Index3",
+        "CC_Base_L_IndexToe1",
+        "CC_Base_L_KneeShareBone",
+        "CC_Base_L_Mid1",
+        "CC_Base_L_Mid2",
+        "CC_Base_L_Mid3",
+        "CC_Base_L_MidToe1",
+        "CC_Base_L_Pinky1",
+        "CC_Base_L_Pinky2",
+        "CC_Base_L_Pinky3",
+        "CC_Base_L_PinkyToe1",
+        "CC_Base_L_RibsTwist",
+        "CC_Base_L_Ring1",
+        "CC_Base_L_Ring2",
+        "CC_Base_L_Ring3",
+        "CC_Base_L_RingToe1",
+        "CC_Base_L_ThighTwist01",
+        "CC_Base_L_ThighTwist02",
+        "CC_Base_L_Thumb1",
+        "CC_Base_L_Thumb2",
+        "CC_Base_L_Thumb3",
+        "CC_Base_L_UpperarmTwist01",
+        "CC_Base_L_UpperarmTwist02",
+        "CC_Base_NeckTwist01",
+        "CC_Base_NeckTwist02",
+        "CC_Base_Pelvis",
+        "CC_Base_R_BigToe1",
+        "CC_Base_R_Breast",
+        "CC_Base_R_CalfTwist01",
+        "CC_Base_R_CalfTwist02",
+        "CC_Base_R_Clavicle",
+        "CC_Base_R_ElbowShareBone",
+        "CC_Base_R_Foot",
+        "CC_Base_R_ForearmTwist01",
+        "CC_Base_R_ForearmTwist02",
+        "CC_Base_R_Hand",
+        "CC_Base_R_Index1",
+        "CC_Base_R_Index2",
+        "CC_Base_R_Index3",
+        "CC_Base_R_IndexToe1",
+        "CC_Base_R_KneeShareBone",
+        "CC_Base_R_Mid1",
+        "CC_Base_R_Mid2",
+        "CC_Base_R_Mid3",
+        "CC_Base_R_MidToe1",
+        "CC_Base_R_Pinky1",
+        "CC_Base_R_Pinky2",
+        "CC_Base_R_Pinky3",
+        "CC_Base_R_PinkyToe1",
+        "CC_Base_R_RibsTwist",
+        "CC_Base_R_Ring1",
+        "CC_Base_R_Ring2",
+        "CC_Base_R_Ring3",
+        "CC_Base_R_RingToe1",
+        "CC_Base_R_ThighTwist01",
+        "CC_Base_R_ThighTwist02",
+        "CC_Base_R_Thumb1",
+        "CC_Base_R_Thumb2",
+        "CC_Base_R_Thumb3",
+        "CC_Base_R_UpperarmTwist01",
+        "CC_Base_R_UpperarmTwist02",
+        "CC_Base_Spine01",
+        "CC_Base_Spine02",
+        "CC_Base_Tongue",
+        "CC_Base_Tongue01",
+        "CC_Base_Tongue02",
+        "CC_Base_Tongue03",
+        "CC_Base_Waist",
+        "Motion_Dummy_Male"
+      ],
+      "bodyPartGroups": [
+        {
+          "name": "Head",
+          "boneIds": [
+            "CC_Base_Head"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "Hip",
+          "boneIds": [
+            "CC_Base_Hip"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "JawRoot",
+          "boneIds": [
+            "CC_Base_JawRoot"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LBigToe1",
+          "boneIds": [
+            "CC_Base_L_BigToe1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LBreast",
+          "boneIds": [
+            "CC_Base_L_Breast"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LCalfTwist01",
+          "boneIds": [
+            "CC_Base_L_CalfTwist01"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LCalfTwist02",
+          "boneIds": [
+            "CC_Base_L_CalfTwist02"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LClavicle",
+          "boneIds": [
+            "CC_Base_L_Clavicle"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LElbowShareBone",
+          "boneIds": [
+            "CC_Base_L_ElbowShareBone"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LFoot",
+          "boneIds": [
+            "CC_Base_L_Foot"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LForearmTwist01",
+          "boneIds": [
+            "CC_Base_L_ForearmTwist01"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LForearmTwist02",
+          "boneIds": [
+            "CC_Base_L_ForearmTwist02"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LHand",
+          "boneIds": [
+            "CC_Base_L_Hand"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LIndex1",
+          "boneIds": [
+            "CC_Base_L_Index1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LIndex2",
+          "boneIds": [
+            "CC_Base_L_Index2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LIndex3",
+          "boneIds": [
+            "CC_Base_L_Index3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LIndexToe1",
+          "boneIds": [
+            "CC_Base_L_IndexToe1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LKneeShareBone",
+          "boneIds": [
+            "CC_Base_L_KneeShareBone"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LMid1",
+          "boneIds": [
+            "CC_Base_L_Mid1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LMid2",
+          "boneIds": [
+            "CC_Base_L_Mid2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LMid3",
+          "boneIds": [
+            "CC_Base_L_Mid3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LMidToe1",
+          "boneIds": [
+            "CC_Base_L_MidToe1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LPinky1",
+          "boneIds": [
+            "CC_Base_L_Pinky1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LPinky2",
+          "boneIds": [
+            "CC_Base_L_Pinky2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LPinky3",
+          "boneIds": [
+            "CC_Base_L_Pinky3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LPinkyToe1",
+          "boneIds": [
+            "CC_Base_L_PinkyToe1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LRibsTwist",
+          "boneIds": [
+            "CC_Base_L_RibsTwist"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LRing1",
+          "boneIds": [
+            "CC_Base_L_Ring1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LRing2",
+          "boneIds": [
+            "CC_Base_L_Ring2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LRing3",
+          "boneIds": [
+            "CC_Base_L_Ring3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LRingToe1",
+          "boneIds": [
+            "CC_Base_L_RingToe1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LThighTwist01",
+          "boneIds": [
+            "CC_Base_L_ThighTwist01"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LThighTwist02",
+          "boneIds": [
+            "CC_Base_L_ThighTwist02"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LThumb1",
+          "boneIds": [
+            "CC_Base_L_Thumb1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LThumb2",
+          "boneIds": [
+            "CC_Base_L_Thumb2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LThumb3",
+          "boneIds": [
+            "CC_Base_L_Thumb3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LUpperarmTwist01",
+          "boneIds": [
+            "CC_Base_L_UpperarmTwist01"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "LUpperarmTwist02",
+          "boneIds": [
+            "CC_Base_L_UpperarmTwist02"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "NeckTwist01",
+          "boneIds": [
+            "CC_Base_NeckTwist01"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "NeckTwist02",
+          "boneIds": [
+            "CC_Base_NeckTwist02"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "Pelvis",
+          "boneIds": [
+            "CC_Base_Pelvis"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RBigToe1",
+          "boneIds": [
+            "CC_Base_R_BigToe1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RBreast",
+          "boneIds": [
+            "CC_Base_R_Breast"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RCalfTwist01",
+          "boneIds": [
+            "CC_Base_R_CalfTwist01"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RCalfTwist02",
+          "boneIds": [
+            "CC_Base_R_CalfTwist02"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RClavicle",
+          "boneIds": [
+            "CC_Base_R_Clavicle"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RElbowShareBone",
+          "boneIds": [
+            "CC_Base_R_ElbowShareBone"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RFoot",
+          "boneIds": [
+            "CC_Base_R_Foot"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RForearmTwist01",
+          "boneIds": [
+            "CC_Base_R_ForearmTwist01"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RForearmTwist02",
+          "boneIds": [
+            "CC_Base_R_ForearmTwist02"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RHand",
+          "boneIds": [
+            "CC_Base_R_Hand"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RIndex1",
+          "boneIds": [
+            "CC_Base_R_Index1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RIndex2",
+          "boneIds": [
+            "CC_Base_R_Index2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RIndex3",
+          "boneIds": [
+            "CC_Base_R_Index3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RIndexToe1",
+          "boneIds": [
+            "CC_Base_R_IndexToe1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RKneeShareBone",
+          "boneIds": [
+            "CC_Base_R_KneeShareBone"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RMid1",
+          "boneIds": [
+            "CC_Base_R_Mid1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RMid2",
+          "boneIds": [
+            "CC_Base_R_Mid2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RMid3",
+          "boneIds": [
+            "CC_Base_R_Mid3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RMidToe1",
+          "boneIds": [
+            "CC_Base_R_MidToe1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RPinky1",
+          "boneIds": [
+            "CC_Base_R_Pinky1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RPinky2",
+          "boneIds": [
+            "CC_Base_R_Pinky2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RPinky3",
+          "boneIds": [
+            "CC_Base_R_Pinky3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RPinkyToe1",
+          "boneIds": [
+            "CC_Base_R_PinkyToe1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RRibsTwist",
+          "boneIds": [
+            "CC_Base_R_RibsTwist"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RRing1",
+          "boneIds": [
+            "CC_Base_R_Ring1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RRing2",
+          "boneIds": [
+            "CC_Base_R_Ring2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RRing3",
+          "boneIds": [
+            "CC_Base_R_Ring3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RRingToe1",
+          "boneIds": [
+            "CC_Base_R_RingToe1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RThighTwist01",
+          "boneIds": [
+            "CC_Base_R_ThighTwist01"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RThighTwist02",
+          "boneIds": [
+            "CC_Base_R_ThighTwist02"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RThumb1",
+          "boneIds": [
+            "CC_Base_R_Thumb1"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RThumb2",
+          "boneIds": [
+            "CC_Base_R_Thumb2"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RThumb3",
+          "boneIds": [
+            "CC_Base_R_Thumb3"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RUpperarmTwist01",
+          "boneIds": [
+            "CC_Base_R_UpperarmTwist01"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "RUpperarmTwist02",
+          "boneIds": [
+            "CC_Base_R_UpperarmTwist02"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "Spine01",
+          "boneIds": [
+            "CC_Base_Spine01"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "Spine02",
+          "boneIds": [
+            "CC_Base_Spine02"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "Tongue01",
+          "boneIds": [
+            "CC_Base_Tongue01"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "Tongue02",
+          "boneIds": [
+            "CC_Base_Tongue02"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "Tongue03",
+          "boneIds": [
+            "CC_Base_Tongue03"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "Waist",
+          "boneIds": [
+            "CC_Base_Waist"
+          ],
+          "meshIds": []
+        },
+        {
+          "name": "Body",
+          "boneIds": [],
+          "meshIds": [
+            "CC_Base_Body"
+          ]
+        },
+        {
+          "name": "Tongue",
+          "boneIds": [],
+          "meshIds": [
+            "CC_Base_Tongue"
+          ]
+        },
+        {
+          "name": "MotionDummyMale",
+          "boneIds": [],
+          "meshIds": [
+            "Motion_Dummy_Male"
+          ]
+        }
+      ],
+      "identity": {
+        "model": {
+          "scale": 30,
+          "position": [
+            0,
+            0,
+            0
+          ],
+          "rotation": [
+            0,
+            0,
+            0
+          ],
+          "enabled": true,
+          "bodyPartOverrides": {
+            "CC_Base_Body": {
+              "color": "#787878",
+              "metalness": 0.400000005960464,
+              "roughness": 0.301511347293854,
+              "targetKind": "mesh"
+            },
+            "CC_Base_Tongue": {
+              "color": "#a3a3a3",
+              "metalness": 0.400000005960464,
+              "roughness": 0.301511347293854,
+              "targetKind": "mesh"
+            },
+            "Motion_Dummy_Male": {
+              "color": "#ffffff",
+              "metalness": 0.400000005960464,
+              "roughness": 0.392232269048691,
+              "targetKind": "mesh"
+            }
+          }
+        },
+        "playback": {
+          "motion": {
+            "commands": [],
+            "scenes": [],
+            "customAnimations": []
+          },
+          "animation": {
+            "enabled": false
+          }
+        }
+      },
+      "footOffsetY": 0.06
+    }
+  ],
+  "animations": [
+    {
+      "type": "ChatRelaxM",
+      "glb": "/assets/motion/chat-relax-m.glb",
+      "clipName": "chat-relax-m",
+      "duration": 20.667,
+      "clipStart": 0.1,
+      "clipEnd": -0.8
+    },
+    {
+      "type": "StandingChatM",
+      "glb": "/assets/motion/standing_chat_m_270753.glb",
+      "clipName": "standing_chat_m_270753",
+      "duration": 10.533,
+      "clipStart": 0.1,
+      "clipEnd": -0.8
+    }
+  ]
+}

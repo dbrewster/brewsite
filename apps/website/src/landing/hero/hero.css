@@ -11,67 +11,6 @@
   justify-content: center;
 }
 
-/* ─── Neon Sign ──────────────────────────────────────────────────────────── */
-.neon-sign-wrapper {
-  position: relative;
-  width: clamp(320px, 70vw, 700px);
-  height: auto;
-}
-
-.neon-svg {
-  position: absolute;
-  top: 0; left: 0;
-  width: 100%;
-  height: auto;
-  opacity: 0;
-}
-
-/* Main text: sharp, bright */
-.neon-svg--main {
-  position: relative;
-  animation: neon-power-on 2.6s ease-out 0.9s forwards,
-             neon-pulse 3.8s ease-in-out 3.5s infinite;
-  filter: drop-shadow(0 0 4px #00f5ff);
-}
-
-/* Mid glow: medium spread */
-.neon-svg--glow-mid {
-  animation: neon-power-on 2.6s ease-out 0.9s forwards,
-             neon-pulse 3.8s ease-in-out 3.5s infinite;
-  filter: blur(2px);
-  opacity: 0;
-}
-
-/* Outer glow: wide diffuse halo */
-.neon-svg--glow-outer {
-  animation: neon-power-on 2.6s ease-out 0.9s forwards,
-             neon-pulse-outer 3.8s ease-in-out 3.5s infinite;
-  filter: blur(6px);
-  opacity: 0;
-}
-
-@keyframes neon-power-on {
-  0%   { opacity: 0; }
-  6%   { opacity: 0.55; }
-  10%  { opacity: 0.05; }  /* first flicker */
-  16%  { opacity: 0.80; }
-  20%  { opacity: 0.15; }  /* second flicker */
-  26%  { opacity: 0.90; }
-  30%  { opacity: 0.40; }  /* third flicker */
-  38%  { opacity: 1.0; }
-  100% { opacity: 1.0; }
-}
-
-@keyframes neon-pulse {
-  0%, 100% { opacity: 0.92; filter: drop-shadow(0 0 4px #00f5ff); }
-  50%       { opacity: 1.0;  filter: drop-shadow(0 0 8px #00f5ff) drop-shadow(0 0 20px rgba(0,245,255,0.5)); }
-}
-
-@keyframes neon-pulse-outer {
-  0%, 100% { opacity: 0.35; }
-  50%       { opacity: 0.55; }
-}
-
 /* ─── Bezel ──────────────────────────────────────────────────────────────── */
 .hero-bezel {
   position: absolute;
@@ -141,6 +80,19 @@
   align-items: center;
   gap: 28px;
   width: 100%;
+}
+
+/* Position tagline + badges in lower quarter beneath the in-scene neon sign */
+.hero-content--below-sign {
+  position: absolute;
+  bottom: 18%;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  z-index: 5;
 }
 
 .hero-tagline {

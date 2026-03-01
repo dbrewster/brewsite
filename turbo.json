@@ -31,8 +31,8 @@
       "persistent": true
     },
     "gen:scene-dsl": {
-      "inputs": ["siteResources.ts", "public/**"],
-      "outputs": ["generated/**", "public/scene-manifest.json"]
+      "inputs": ["siteResources.ts", "public/**", "examples/siteResources.ts", "examples/public/**"],
+      "outputs": ["generated/**", "public/scene-manifest.json", "examples/generated/**", "examples/public/scene-manifest.json"]
     }
   }
 }

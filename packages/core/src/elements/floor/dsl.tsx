@@ -7,7 +7,15 @@ import type * as React from 'react';
 export type FloorProps = {
   enabled?: boolean;
   position?: [number, number, number];
+  /**
+   * Absolute world rotation in radians.
+   */
   rotation?: [number, number, number];
+  /**
+   * Rotation offset in radians relative to floor baseline [-Math.PI / 2, 0, 0].
+   * Use this for subtle floor tilt without manually subtracting PI/2 on X.
+   */
+  rotationRelative?: [number, number, number];
   scale?: number;
   /**
    * Floor surface definition.

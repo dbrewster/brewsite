@@ -26,7 +26,7 @@ export const siteResources = {
       path: '/assets/uniform-m-0021.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .04,
-      scale: 30
+      scale: 3
     },
     {
       type: 'FemaleDummy',
@@ -34,7 +34,7 @@ export const siteResources = {
       path: '/assets/motion-dummy_female.no-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'MaleDummy',
@@ -42,7 +42,7 @@ export const siteResources = {
       path: '/assets/motion-dummy_male.no-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'businessF0057',
@@ -50,7 +50,7 @@ export const siteResources = {
       path: '/assets/business-f-0057.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'businessF0060',
@@ -58,7 +58,7 @@ export const siteResources = {
       path: '/assets/business-f-0060.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'businessF0061',
@@ -66,7 +66,7 @@ export const siteResources = {
       path: '/assets/business-f-0061.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'businessF0062',
@@ -74,7 +74,7 @@ export const siteResources = {
       path: '/assets/business-f-0062.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'businessF0063',
@@ -82,7 +82,7 @@ export const siteResources = {
       path: '/assets/business-f-0063.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'businessF0064',
@@ -90,7 +90,7 @@ export const siteResources = {
       path: '/assets/business-f-0064.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'businessF0065',
@@ -98,7 +98,7 @@ export const siteResources = {
       path: '/assets/business-f-0065.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'businessF0066',
@@ -106,7 +106,7 @@ export const siteResources = {
       path: '/assets/business-f-0066.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'businessM0079',
@@ -114,7 +114,7 @@ export const siteResources = {
       path: '/assets/business-m-0079.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'businessM0080',
@@ -122,7 +122,7 @@ export const siteResources = {
       path: '/assets/business-m-0080.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'businessM0081',
@@ -130,7 +130,7 @@ export const siteResources = {
       path: '/assets/business-m-0081.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'businessM0082',
@@ -138,7 +138,7 @@ export const siteResources = {
       path: '/assets/business-m-0082.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'businessM0083',
@@ -146,7 +146,7 @@ export const siteResources = {
       path: '/assets/business-m-0083.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'businessM0084',
@@ -154,7 +154,7 @@ export const siteResources = {
       path: '/assets/business-m-0084.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'businessM0085',
@@ -162,7 +162,7 @@ export const siteResources = {
       path: '/assets/business-m-0085.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'businessM0086',
@@ -170,7 +170,7 @@ export const siteResources = {
       path: '/assets/business-m-0086.with-normals.glb',
       // Delta applied on top of computed foot offset (model units, scale=1).
       footOffsetY: .06,
-      scale: 30
+      scale: 3
     },
     {
       type: 'brain',
