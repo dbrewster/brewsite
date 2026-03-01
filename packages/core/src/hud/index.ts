@@ -1,10 +1,7 @@
-// Public exports for the HUD module. Import HudItemDefinition/HudItemResolved for
-// type-level usage; import HudOverlay for rendering in ScenePlayer.
-// AnimeJS transition presets are available via the subpath export:
-// `@brewsite/core/hud/animejs`.
-
-export type { HudItemDefinition, HudItemResolved } from './types';
-export { HudItem } from './HudItem';
-export type { HudItemProps } from './HudItem';
-export { HudOverlay } from './HudOverlay';
-export type { HudOverlayProps } from './HudOverlay';
+// Public exports for the HUD module.
+// The compiled HUD pipeline (HudOverlay, HudItem, Hud DSL components) has been removed.
+// Scene overlay content is now expressed as natural React children of <Scene>,
+// rendered by EngineOverlayHost in the player layer.
+//
+// AnimeJS transition presets remain available for animating overlay content:
+// `@brewsite/core/hud/animejs`

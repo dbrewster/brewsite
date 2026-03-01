@@ -1,3 +1,4 @@
+import type { ReactElement } from 'react';
 import type { SceneTrackTick } from '../compiler/sceneTrackTypes';
 
 export type EngineFrameState = {
@@ -14,4 +15,14 @@ export type EngineState = {
   sceneId: string;
   sceneIndex: number;
   sceneProgress: number;
+};
+
+/**
+ * Internal scene spec linking a scene registration key to its compiled content.
+ * Shared between ScenePlayer, EngineProvider, and useSceneEngine.
+ */
+export type InternalSceneSpec = {
+  readonly sceneKey: string;
+  readonly contentKey: string;
+  readonly element: ReactElement;
 };

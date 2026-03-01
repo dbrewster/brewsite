@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { Scene, Camera, Lighting, Ambient, Directional, Hud, HudItem } from '@brewsite/core';
+import { Scene, Camera, Lighting, Ambient, Directional } from '@brewsite/core';
 import { DiagramCanvas, Diagram, DiagramEdge, DiagramNode, Enter, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
 import { SlideUp } from '@brewsite/core/hud/animejs';
 
@@ -46,28 +46,24 @@ export const scene03ArchDetail: JSX.Element = (
         <DiagramEdge from="svc-auth" to="cache"      flow="forward" />
       </Diagram>
     </DiagramCanvas>
-    <Hud>
-      <HudItem id="arch-detail-hud">
-        <div style={{ position: 'absolute', bottom: '8%', right: '5%', textAlign: 'right', maxWidth: 340 }}>
-          <SlideUp duration={1100}>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 10,
-              letterSpacing: '0.3em',
-              textTransform: 'uppercase',
-              color: 'rgba(0,245,255,0.55)',
-              marginBottom: 12,
-            }}>
-              Drill down. Stay in the scene.
-            </div>
-          </SlideUp>
-          <SlideUp duration={1000} delay={100}>
-            <div style={{ fontSize: 18, fontWeight: 600, color: '#f0f6fc', lineHeight: 1.35 }}>
-              DiagramGroups · Focus Regions<br />· Theme System
-            </div>
-          </SlideUp>
+    <div style={{ position: 'absolute', bottom: '8%', right: '5%', textAlign: 'right', maxWidth: 340 }}>
+      <SlideUp duration={1100}>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 10,
+          letterSpacing: '0.3em',
+          textTransform: 'uppercase',
+          color: 'rgba(0,245,255,0.55)',
+          marginBottom: 12,
+        }}>
+          Drill down. Stay in the scene.
         </div>
-      </HudItem>
-    </Hud>
+      </SlideUp>
+      <SlideUp duration={1000} delay={100}>
+        <div style={{ fontSize: 18, fontWeight: 600, color: '#f0f6fc', lineHeight: 1.35 }}>
+          DiagramGroups · Focus Regions<br />· Theme System
+        </div>
+      </SlideUp>
+    </div>
   </Scene>
 );

@@ -3,7 +3,7 @@ title: "BrewSite Core — Player & Runtime"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-02-28
+last_updated: 2026-03-01
 change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
@@ -14,6 +14,9 @@ change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "DX improvements batch implemented: (1) widgetSetup is now optional — when provided, receives guaranteed non-null AssetManifest; onManifestError prop added for fetch failures. (2) quality preset prop added: 'performance'=30, 'balanced'=60, 'high'=120 framesPerTick; explicit framesPerTick wins when both present. (3) onWidgetError prop added; RuntimeDriverImpl wraps apply/onTick/load in per-widget try/catch with erroredWidgets Set quarantine. (4) debug prop added; SceneInspector component conditionally rendered and exported. (5) useVariable and VariableStoreReader added to main @brewsite/core barrel export."
+  - date: 2026-03-01
+    author: "Toolkit Product"
+    summary: "Two features implemented. (1) Engine decomposition: EngineProvider, SceneCanvas, and EngineOverlayHost added as composable player primitives. ScenePlayer retained as thin composition of these primitives with identical public props. HudOverlay removed from internals; replaced by EngineOverlayHost. sceneOverlays: Map<string, ReactNode> and sceneIds: string[] added to UseSceneEngineResult. useSceneEngineState(id) hook added for reading engine state from outside the provider tree. (2) ProgressManager: SceneProgressMapper added to player layer; applied in scroll and direct modes. remap() and inverse() documented."
 ---
 
 # BrewSite Core — Player & Runtime
@@ -22,7 +25,7 @@ change_history:
 
 The Player layer is the React integration surface for `@brewsite/core`. `ScenePlayer` is the top-level component that a host application mounts to render an animated 3D scene. The Runtime layer is the frame-by-frame execution engine that drives widget ticking, scene track sampling, Three.js rendering, and state publishing. Together they form the complete playback stack: from JSX scene authoring through compilation, asset loading, frame scheduling, and reactive state propagation to host UI.
 
-This document covers `ScenePlayer` and all its props, the `useSceneEngine` hook and its options, `RuntimeDriverImpl` and the per-frame tick sequence, `RuntimeLoop` and the animation frame scheduler, `EngineFrameDriver` and the React state bridge, all consumer hooks (`useEngineScroll`, `useEngineInput`, `useEngineScrubber`, `useSceneProgress`, `useCurrentScene`), all context providers (`EngineStateContext`, `VariableStoreContext`, `LabelPositionerContext`, `EngineContext`), the `EngineScrollRegion` and `EngineInputRegion` DOM wrapper components, `LabelPositioner` for 3D-to-screen projection, `TimelineWidget` for interactive scrubbing, `CameraControlPanel`, `SceneMetaWidget`, the asset manifest pipeline, and the SSR safety contract.
+This document covers `ScenePlayer` (a thin composition of player primitives), the three composable player primitives (`EngineProvider`, `SceneCanvas`, `EngineOverlayHost`), the `useSceneEngine` hook and its options, `RuntimeDriverImpl` and the per-frame tick sequence, `RuntimeLoop` and the animation frame scheduler, `EngineFrameDriver` and the React state bridge, all consumer hooks (`useEngineScroll`, `useEngineInput`, `useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `useSceneEngineState`), all context providers (`EngineStateContext`, `VariableStoreContext`, `LabelPositionerContext`, `EngineContext`), the `EngineScrollRegion` and `EngineInputRegion` DOM wrapper components, `LabelPositioner` for 3D-to-screen projection, `TimelineWidget` for interactive scrubbing, `CameraControlPanel`, `SceneMetaWidget`, `SceneProgressMapper`, the asset manifest pipeline, and the SSR safety contract.
 
 Affects: `@brewsite/core`.
 
@@ -105,7 +108,9 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 
 ## 7. ScenePlayer Component
 
-`ScenePlayer` is the top-level React integration component. It manages manifest fetching, widget registry construction, engine initialization, and the full React context tree required by all player hooks.
+`ScenePlayer` is a thin composition of the three player primitives: `EngineProvider` + `EngineInputRegion` + `SceneCanvas` + `EngineOverlayHost`. Its public props contract is identical to `EngineProvider` props, augmented with layout and input props. It is the standard integration path for host applications that do not need custom canvas layout.
+
+Consumers who need a custom canvas layout (e.g., canvas inside a CSS grid cell, canvas with a custom z-index stacking context, canvas inside a portal) should compose `EngineProvider`, `SceneCanvas`, and `EngineOverlayHost` directly. See Section 7A for the composable primitives.
 
 ### 7.1 Props
 
@@ -220,13 +225,236 @@ const widgetSetup = useCallback(
 10. Wires `SceneMetaWidget.setOnSceneChange` to the `onSceneChange` prop.
 11. Renders the full context provider tree: `VariableStoreContext`, `LabelPositionerContext`, `EngineStateContext`, `EngineContext`.
 12. Renders `EngineInputRegion` as the primary viewport container.
-13. Renders `HudOverlay`, `LabelItem` elements, optional `TimelineWidget`, and overlay children inside the input region.
+13. Renders `SceneCanvas`, `EngineOverlayHost`, `LabelItem` elements, optional `TimelineWidget`, and overlay children inside the input region.
 
 **Runtime state publishing (when `id` prop is set):**
 14. A `useEffect` publishes `SceneRuntimeState` to `ScenePlayerRegistry` on every change to `assetsReady`, viewport dimensions, `variableStore`, or `scenes.length`. Consumers using `useSceneRuntime(id)` receive these updates reactively.
 15. On unmount, calls `unregisterSceneRuntime(id)` to clean up the registry entry.
 
 On server (SSR), `ScenePlayer` short-circuits at `typeof window === 'undefined'` and returns `placeholder ?? null`. No Three.js imports are invoked on the server code path.
+
+---
+
+## 7A. Composable Player Primitives
+
+The three composable player primitives allow host applications to construct custom canvas layouts without using `ScenePlayer`. Each primitive is independently exported from `@brewsite/core`.
+
+### 7A.1 EngineProvider
+
+`EngineProvider` creates the engine and establishes all React context providers. It renders no DOM elements itself — it is a pure context tree wrapper. Compose it with `SceneCanvas` and `EngineOverlayHost` to construct custom layouts.
+
+```typescript
+type EngineProviderProps = {
+  // Scene content — required
+  children: ReactNode;
+
+  // Player identity
+  id?: string;
+
+  // Required configuration
+  manifestUrl: string;
+
+  // Widget configuration
+  widgetSetup?: (manifest: AssetManifest) => WidgetRegistry;
+
+  // Engine configuration
+  fpsCap?: number;
+  pixelsPerScene?: number;
+  framesPerTick?: number;
+  quality?: 'performance' | 'balanced' | 'high';
+
+  // Input
+  inputMap?: SceneNavInputMap;
+
+  // Controlled progress mode
+  controlledProgress?: number;
+  onControlledProgressChange?: (progress: number) => void;
+
+  // Lifecycle callbacks
+  onReady?: () => void;
+  onError?: (error: Error) => void;
+  onManifestError?: (error: Error) => void;
+  onWidgetError?: (widgetId: string, error: Error) => void;
+  onCompileWarning?: (warning: CompileWarning) => void;
+  onSceneChange?: (sceneId: string, sceneIndex: number) => void;
+
+  // Widget defaults
+  defaultModelStates?: Record<string, unknown>;
+};
+```
+
+**When to use `EngineProvider` directly:**
+- Custom canvas layout (grid, flex, portal, absolute positioning outside the document flow)
+- Multiple canvases registered against a single engine
+- Overlay content hosted in a separate React subtree or DOM portal
+- Integration with a custom input region
+
+**Context tree established by `EngineProvider`:**
+```
+VariableStoreContext.Provider
+  LabelPositionerContext.Provider
+    EngineStateContext.Provider
+      EngineContext.Provider
+        {children}
+```
+
+All player hooks (`useCurrentScene`, `useSceneProgress`, `useVariable`, `useEngineState`, `useSceneEngineContext`) require an `EngineProvider` ancestor.
+
+### 7A.2 SceneCanvas
+
+`SceneCanvas` renders the `<canvas>` element and registers it with the engine via `EngineContext`. It owns the `ResizeObserver` that keeps `engine.setViewportSize` current. `SceneCanvas` must be rendered inside an `EngineProvider` tree.
+
+```typescript
+type SceneCanvasProps = React.CanvasHTMLAttributes<HTMLCanvasElement> & {
+  /**
+   * ReactElement rendered while the engine is initializing (tickIndex < 0).
+   * Overlaid absolutely over the canvas with pointer-events: none.
+   */
+  placeholder?: ReactElement;
+};
+
+const SceneCanvas = React.forwardRef<HTMLCanvasElement, SceneCanvasProps>(
+  (props, ref) => { ... }
+);
+```
+
+- `ref` forwards to the raw `HTMLCanvasElement`.
+- Any `CanvasHTMLAttributes` prop (`className`, `style`, `id`, `aria-*`) is passed through to the underlying `<canvas>`.
+- The `ResizeObserver` is attached to the canvas's parent container element. When the parent resizes, `engine.setViewportSize(width, height)` is called and the Three.js renderer is resized accordingly.
+
+### 7A.3 EngineOverlayHost
+
+`EngineOverlayHost` renders the current scene's overlay `ReactNode` (the non-DSL children collected from `<Scene>`) absolutely positioned inset:0 over the canvas. It must be rendered inside an `EngineProvider` tree.
+
+```typescript
+type EngineOverlayHostProps = {
+  /** Additional CSS class applied to the overlay container div. */
+  className?: string;
+  /**
+   * When true, the overlay container passes pointer events through to elements
+   * beneath it. Individual overlay children can still re-enable with
+   * style={{ pointerEvents: 'auto' }}.
+   * Default: false (overlay receives and absorbs pointer events).
+   */
+  passthroughPointerEvents?: boolean;
+};
+
+const EngineOverlayHost: React.FC<EngineOverlayHostProps>;
+```
+
+**Behavior:**
+- Reads `engine.frameState.sceneId` from `EngineContext`.
+- Reads `engine.sceneOverlays.get(sceneId)` to obtain the current scene's overlay ReactNode.
+- Renders the overlay inside a `div` with `position: absolute; inset: 0; overflow: hidden`.
+- Uses `key={sceneId}` on the inner overlay div to trigger a React remount on scene change, which applies a CSS fade-in transition.
+- When `passthroughPointerEvents` is false (default), the container div has `pointer-events: auto`. When true, `pointer-events: none`.
+
+**Scene change transition:**
+The overlay container uses a CSS fade-in on mount, keyed by `sceneId`. This gives a smooth crossfade effect when navigating between scenes that have overlay content.
+
+**Example: custom layout with all three primitives:**
+
+```tsx
+function CustomSceneLayout() {
+  return (
+    <EngineProvider
+      id="main"
+      manifestUrl="/manifest.json"
+      onSceneChange={(id) => console.log('scene:', id)}
+    >
+      {/* Scenes as children — collected as InternalSceneSpec[] */}
+      <Scene key="intro">
+        <Camera descriptor={{ mode: 'world', position: [0, 1, 5], target: [0, 0, 0] }} />
+        <div style={{ position: 'absolute', top: '10%', left: '50%' }}>
+          <h1>Hello World</h1>
+        </div>
+      </Scene>
+
+      {/* Canvas and overlay rendered in a custom layout container */}
+      <div className="canvas-container" style={{ position: 'relative', width: '100%', height: '600px' }}>
+        <SceneCanvas className="scene-canvas" />
+        <EngineOverlayHost passthroughPointerEvents={false} />
+      </div>
+    </EngineProvider>
+  );
+}
+```
+
+### 7A.4 useSceneEngineState
+
+`useSceneEngineState(id)` reads current engine state from `ScenePlayerRegistry` via `useSyncExternalStore`. It works from anywhere in the React tree — no `EngineProvider` ancestor is required. It returns `null` when no engine with the given `id` is registered.
+
+```typescript
+type SceneEngineSnapshot = {
+  sceneId: string;
+  sceneIndex: number;
+  sceneProgress: number;
+  progress: number;
+};
+
+const useSceneEngineState = (id: string): SceneEngineSnapshot | null;
+```
+
+**When to use:**
+- Reading engine progress from a component in a different React subtree (e.g., a navigation bar outside the canvas container)
+- Coordinating multiple engines on a page without prop-drilling
+- Reading scene state in a portal-rendered component
+
+**Update frequency:** Updates on every tick index change (same cadence as `EngineStateContext`). Does not update on every animation frame.
+
+**Null behavior:** Returns `null` when no `<ScenePlayer id={id}>` or `<EngineProvider id={id}>` has registered. Callers must handle the null case.
+
+**Example:**
+```typescript
+function NavBar() {
+  const state = useSceneEngineState('main-player');
+
+  if (!state) return null;
+
+  return (
+    <nav>
+      <span>Scene {state.sceneIndex + 1}</span>
+      <span>{Math.round(state.progress * 100)}%</span>
+    </nav>
+  );
+}
+```
+
+---
+
+## 7B. SceneProgressMapper
+
+`SceneProgressMapper` is a utility class in the player layer that applies per-scene `ProgressManagerSpec` pacing curves to raw input progress. It is constructed from `SceneTrack.progressProfile` and consulted by the progress tracking layer on every frame.
+
+```typescript
+// packages/core/src/player/SceneProgressMapper.ts
+
+class SceneProgressMapper {
+  constructor(profile: SceneProgressProfile);
+
+  /**
+   * Hot path — called every frame in scroll and direct modes.
+   * Maps raw input progress [0, 1] to engine progress [0, 1] by
+   * applying each scene's ProgressManagerSpec.fn pacing curve within
+   * its normalized segment boundary.
+   */
+  remap(rawProgress: number): number;
+
+  /**
+   * Cold path — called by scrollToProgress() only.
+   * Inverse of remap: maps engine progress [0, 1] back to raw input
+   * progress [0, 1]. Used to calculate the scroll position to jump to
+   * when the caller requests a specific engine progress value.
+   */
+  inverse(engineProgress: number): number;
+}
+```
+
+**When a mapper is active:** `SceneProgressMapper` is constructed when `SceneTrack.progressProfile` is present (i.e., at least one scene declared a `<ProgressManager>`). When `progressProfile` is absent (no `<ProgressManager>` in any scene), the identity mapping is used — no `SceneProgressMapper` is instantiated.
+
+**Mode scope:** `remap` is applied in scroll mode and direct mode. It is not applied when `controlledProgress` is set on `EngineProvider` (the caller provides engine progress directly).
+
+**`inverse` usage:** `scrollToProgress(engineProgress)` converts the requested engine progress through `mapper.inverse(engineProgress)` before setting scroll position or direct-mode progress state. This ensures that a call like `scrollToProgress(0.5)` jumps to the scroll position that produces engine progress 0.5, not raw progress 0.5.
 
 ---
 
@@ -271,6 +499,14 @@ type UseSceneEngineResult = {
   scrollToProgress: (next: number) => void;
   getGlobalProgress: () => number;
   sceneCount: number;
+  /** All scene IDs in playback order. Derived from InternalSceneSpec[]. */
+  sceneIds: string[];
+  /**
+   * Per-scene overlay ReactNodes collected from non-DSL children of <Scene>.
+   * Keyed by scene ID. Always present; empty map when no overlays are declared.
+   * Consumed by EngineOverlayHost to render the current scene's overlay.
+   */
+  sceneOverlays: Map<string, ReactNode>;
   variableStore: VariableStore;
   setCanvasRef: (canvas: HTMLCanvasElement | null) => void;
   setBackgroundRef: (element: HTMLDivElement | null) => void;
@@ -301,6 +537,10 @@ type UseSceneEngineResult = {
 **`getGlobalProgress()`** — Reads the current progress from a ref (not React state). Stable, synchronous, no re-render. Used by `RuntimeLoop` to read progress each frame without subscribing to state.
 
 **`sceneCount`** — Total number of scenes in the scene group. Used by `TimelineWidget` and input controllers for step calculations.
+
+**`sceneIds`** — Ordered array of all scene IDs. Derived from `InternalSceneSpec[]` in playback order. Stable reference as long as scene keys do not change. Used by `TimelineWidget` for scene label rendering.
+
+**`sceneOverlays`** — Map from scene ID to `ReactNode`. Populated from non-DSL children of `<Scene>` elements, collected by `compileChildrenSeparated`. Always present on the result. `EngineOverlayHost` reads `sceneOverlays.get(frameState.sceneId)` each render to display the current scene's overlay.
 
 **`variableStore`** — The `VariableStore` instance shared across all widgets and React components in this engine instance.
 
@@ -687,7 +927,7 @@ VariableStoreContext.Provider
     EngineStateContext.Provider
       EngineContext.Provider
         EngineInputRegion
-          [children, HudOverlay, LabelItems, TimelineWidget]
+          [SceneCanvas, EngineOverlayHost, LabelItems, TimelineWidget, children]
 ```
 
 ### 14.1 EngineStateContext
@@ -829,7 +1069,7 @@ The widget renders a track bar with a draggable handle. Major tick marks corresp
 
 Scrubbing is implemented via pointer capture (`setPointerCapture`) — the handle tracks the pointer even when it moves outside the track bounds. During scrub, `engine.scrollToProgress` is called on every pointer move. The `isScrubbing` flag suppresses the engine's own progress from overwriting the scrub handle position during the drag.
 
-The `pointerEvents: 'auto'` style is critical: `HudOverlay` sets `pointer-events: none` on its container. `TimelineWidget` re-enables pointer events on its own container to remain interactive.
+The `pointerEvents: 'auto'` style is critical: `EngineOverlayHost` sets `pointer-events: none` on its container by default when `passthroughPointerEvents` is true. `TimelineWidget` re-enables pointer events on its own container to remain interactive.
 
 ---
 
@@ -1000,8 +1240,10 @@ For hooks (`useSceneProgress`, `useCurrentScene`, `useEngineInput`), use React T
 
 - Should `EngineScrollRegion` be deprecated in favor of `EngineInputRegion`? Both serve the scroll-mode use case; `EngineInputRegion` is more general. Having two components for scroll-mode integration is confusing.
 - Should `useSceneProgress()` return the full `EngineState` instead of just `number`, to avoid consumers calling both `useSceneProgress` and `useCurrentScene`? A combined hook would reduce context reads.
-- Should `ScenePlayer` accept a `ref` forwarded to the canvas element for consumers who need direct canvas access (e.g., screenshot capture)? Currently achievable via `useSceneEngineContext().getRenderer()`, but less ergonomic.
+- Should `ScenePlayer` accept a `ref` forwarded to the canvas element for consumers who need direct canvas access (e.g., screenshot capture)? `SceneCanvas` already supports `forwardRef` — a `ScenePlayer`-level shortcut may be warranted.
 - Should `debug` information in `UseSceneEngineResult` be gated behind a `__DEV__` flag to prevent any dev-only overhead in production builds?
+- Should `EngineOverlayHost` expose a `transitionDurationMs` prop to control the CSS fade-in duration on scene change, or is a CSS class override sufficient?
+- Should `useSceneEngineState` be renamed to `useEngineSnapshot` to avoid confusion with `useSceneEngine`?
 
 ---
 
@@ -1009,13 +1251,17 @@ For hooks (`useSceneProgress`, `useCurrentScene`, `useEngineInput`), use React T
 
 For any release that modifies the Player or Runtime public API:
 
-- All `ScenePlayer` prop types compile with `strict: true` and no `any`.
+- All `ScenePlayer`, `EngineProvider`, `SceneCanvas`, and `EngineOverlayHost` prop types compile with `strict: true` and no `any`.
 - `useCurrentScene`, `useSceneProgress`, and `useVariable` pass integration tests inside a `<ScenePlayer>` wrapper.
+- `useSceneEngineState(id)` passes integration tests verifying: returns null before registration, returns correct snapshot after registration, returns null after unregister, updates on tick index change.
 - `RuntimeDriverImpl` unit tests cover the full tick sequence order (animation controllers before sampling before apply).
 - `RuntimeLoop` deterministic tests cover fpsCap throttling and delta clamping.
 - `EngineInputRegion` renders correctly in both `scroll` and `direct` modes.
 - `TimelineWidget` scrub interaction test confirms `scrollToProgress` is called on pointer drag.
+- `EngineOverlayHost` renders the current scene's overlay ReactNode and switches it on scene change.
+- `SceneProgressMapper.remap` unit tests cover: uniform segments (identity), single custom fn, multiple scenes with different scrollUnits, progress boundary conditions (0, 1).
+- `SceneProgressMapper.inverse` unit tests verify inverse maps engine progress back to raw progress correctly for both uniform and non-uniform profiles.
 - SSR render of `<ScenePlayer>` produces no Three.js errors and matches the placeholder output.
+- At least one example in `apps/examples/` demonstrates `EngineProvider` + `SceneCanvas` + `EngineOverlayHost` in a custom layout.
 - `CHANGELOG.md` in `packages/core` has an entry for every changed exported symbol.
-- `packages/core/README.md` reflects the current `ScenePlayerProps` interface.
-- At least one example in `apps/examples/` demonstrates the feature if it is new behavior.
+- `packages/core/README.md` reflects the current `ScenePlayerProps` interface and documents the composable primitives.

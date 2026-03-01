@@ -1,4 +1,4 @@
-import { Ambient, Background, Directional, Environment, Floor, Hud, HudItem, Lighting, Scene } from '@brewsite/core';
+import { Ambient, Background, Directional, Environment, Floor, Lighting, Scene } from '@brewsite/core';
 import { Fade } from '@brewsite/core/hud/animejs';
 import { Animation, BodyParts, Playback, Pose, Robot } from '../../generated/sceneDsl.generated';
 import { backgrounds, sceneLighting } from './sceneAssets';
@@ -36,19 +36,15 @@ export const scene02Arrival= (
           <Animation clipName="chat-relax-f" enabled weight={0.6} fadeInSeconds={0.4} />
         </Playback>
       </Robot>
-      <Hud>
-        <HudItem id="complex-hud">
-          <Fade duration={1200}>
-            <div className="complex-hud complex-hud--right">
-              <div className="complex-hud__eyebrow">Scene 2</div>
-              <h2 className="complex-hud__title">Arrival and first contact.</h2>
-              <div className="complex-hud__body">
-                The robot enters with softer lighting and a relaxed animation loop, establishing
-                scale before the reveal.
-              </div>
-            </div>
-          </Fade>
-        </HudItem>
-      </Hud>
+      <Fade duration={1200}>
+        <div className="complex-hud complex-hud--right">
+          <div className="complex-hud__eyebrow">Scene 2</div>
+          <h2 className="complex-hud__title">Arrival and first contact.</h2>
+          <div className="complex-hud__body">
+            The robot enters with softer lighting and a relaxed animation loop, establishing
+            scale before the reveal.
+          </div>
+        </div>
+      </Fade>
     </Scene>
 );

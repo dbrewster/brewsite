@@ -3,11 +3,10 @@
 import type { CSSProperties, ReactElement } from 'react';
 import { useEngineState } from './EngineStateContext';
 import { useSceneEngineContext } from './EngineContext';
-import type { InternalSceneSpec } from './ScenePlayer';
 
 export type SceneInspectorProps = {
-  /** Scenes passed directly from ScenePlayer — avoids adding a new context. */
-  scenes: InternalSceneSpec[];
+  /** Ordered list of scene IDs. */
+  sceneIds: string[];
 };
 
 const PANEL: CSSProperties = {
@@ -47,10 +46,10 @@ const SCENE_BTN_ACTIVE: CSSProperties = {
   color: '#a5b4fc',
 };
 
-export const SceneInspector = ({ scenes }: SceneInspectorProps): ReactElement => {
+export const SceneInspector = ({ sceneIds }: SceneInspectorProps): ReactElement => {
   const state = useEngineState();
   const engine = useSceneEngineContext();
-  const sceneCount = Math.max(1, scenes.length);
+  const sceneCount = Math.max(1, sceneIds.length);
 
   const jumpToScene = (index: number): void => {
     engine.scrollToProgress(index / Math.max(1, sceneCount - 1));
@@ -63,16 +62,16 @@ export const SceneInspector = ({ scenes }: SceneInspectorProps): ReactElement =>
       </div>
 
       <div style={{ marginBottom: 8 }}>
-        {scenes.map((scene, i) => {
-          const isActive = scene.sceneKey === state.sceneId;
+        {sceneIds.map((sceneKey, i) => {
+          const isActive = sceneKey === state.sceneId;
           return (
             <button
-              key={scene.sceneKey}
+              key={sceneKey}
               onClick={() => jumpToScene(i)}
               style={isActive ? SCENE_BTN_ACTIVE : SCENE_BTN_BASE}
             >
               {isActive ? '▶ ' : '  '}
-              {scene.sceneKey}
+              {sceneKey}
             </button>
           );
         })}

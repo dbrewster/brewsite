@@ -3,7 +3,7 @@ title: "BrewSite Core — Compiler Pipeline"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-02-28
+last_updated: 2026-03-01
 change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
@@ -11,6 +11,9 @@ change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Added CompileWarning type (MISSING_WIDGET, DUPLICATE_WIDGET_ID, UNRESOLVED_REFERENCE) and SceneTrack.warnings? field. Warnings accumulated during compilation are surfaced to the host via ScenePlayer.onCompileWarning after compilation completes."
+  - date: 2026-03-01
+    author: "Toolkit Product"
+    summary: "Two features implemented. (1) ProgressManager: ProgressManagerSpec, SceneProgressSegment, SceneProgressProfile types added to sceneTrackTypes.ts. SceneFrame gains progressManager?: ProgressManagerSpec. SceneTrack gains progressProfile?: SceneProgressProfile. CompileWarningCode gains PROGRESS_MANAGER. buildProgressProfile added as a new compiler pass (Step 8). (2) Engine decomposition: HUD pipeline removed. hudItems removed from SceneFrame. hudPrimitives removed from SceneTrackTick. hudItems removed from SceneFrameDelta. pushHudItem removed from CompileApi. compileChildrenSeparated added to CompileHelpers. SceneFrame gains sceneOverlay?: ReactNode. SceneTrack gains sceneOverlays: Map<string, ReactNode>. Step 6 (HUD and Label compilation) updated to cover label-only — HUD is no longer a compiler concern."
 ---
 
 # BrewSite Core — Compiler Pipeline
@@ -51,9 +54,9 @@ export type { SceneGroup, SceneDefinition, SceneSnapshotContext } from './sceneT
 // Compile API types (for widget implementers and external element authors)
 export type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
 
-// HUD overlay DSL components
-export { Hud, HudItem } from './blocks/hudBlocks';
-export type { HudProps, HudItemDslProps } from './blocks/hudBlocks';
+// ProgressManager DSL component
+export { ProgressManager } from './blocks/progressManager';
+export type { ProgressManagerProps } from './blocks/progressManager';
 
 // Input controller DSL components
 export { InputController, Action, PointerMap, WheelMap, PinchMap, KeyMap } from './blocks/inputController';
@@ -238,19 +241,14 @@ widget.compileExtra(state, context: CompileExtraContext): TExtra
 
 For functional-path widgets, the compiler evaluates the functional closure to obtain the frame's state before calling `compileExtra`, since `frame.state.widgets[widgetId]` is absent for frames within a functional transition block.
 
-### Step 6: HUD and Label Compilation
+### Step 6: Label Compilation
 
-**Input:** Filled `SceneTrackTick[]`, scene snapshots with `hudItems` and `labels`.
-**Output:** `SceneTrackTick.hudPrimitives` and `SceneTrackTick.labelPrimitives` populated per-frame.
-
-**HUD items** are scene-scoped, not interpolated. For each frame at block index `n`:
-- HUD items from `fromSnap` (scene `n`) are compiled with `phase: 'exit'`.
-- HUD items from `toSnap` (scene `n+1`) are compiled with `phase: 'enter'`.
-- Both sets are concatenated into `frame.hudPrimitives`.
-
-Items with `enabled === false` are filtered out by `compileHudItems`. The `phase` annotation enables the HUD overlay to apply enter/exit animations at scene boundaries.
+**Input:** Filled `SceneTrackTick[]`, scene snapshots with `labels`.
+**Output:** `SceneTrackTick.labelPrimitives` populated per-frame.
 
 **Labels** are interpolated across the transition block using `compileLabels(fromLabels, toLabels, { sceneProgress: frame.blockProgress })`. `labelPrimitives` is set on the frame only when at least one label definition is present in either snapshot.
+
+Scene overlay content (`SceneFrame.sceneOverlay`) is a ReactNode collected at DSL evaluation time by `compileChildrenSeparated`. It is not processed per-frame — it is extracted once per scene and stored in `SceneTrack.sceneOverlays` at the end of compilation.
 
 ### Step 7: Delta Computation
 
@@ -262,7 +260,6 @@ Deltas are sparse diffs between adjacent frames, serialized via `JSON.stringify`
 ```typescript
 type SceneFrameDelta = {
   widgets?: Record<string, unknown>;
-  hudItems?: HudItemDefinition[];
   labels?: SceneFrame['labels'];
 };
 ```
@@ -272,6 +269,27 @@ type SceneFrameDelta = {
 **Backward delta** (`deltaBackward`): what changed going from frame N+1 to frame N. This is what the runtime applies when scrubbing backward.
 
 The sparse delta model allows the runtime driver to skip widget updates on frames where the widget state did not change, reducing Three.js API call volume during static (non-transitioning) portions of the track.
+
+### Step 8: buildProgressProfile Pass
+
+**Input:** `SceneFrame[]` (snapshots with `progressManager` fields set), `numScenes`.
+**Output:** `SceneTrack.progressProfile?: SceneProgressProfile`.
+
+`buildProgressProfile` runs after delta computation. It reads `progressManager` from each `SceneFrame` (already carry-forward merged) and constructs a `SceneProgressProfile`.
+
+**Algorithm:**
+1. Collect `scrollUnits` from each scene's `progressManager` (default: 1). Sum all units.
+2. Normalize each scene's `rawStart`/`rawEnd` based on its cumulative proportional share of the total units.
+3. Assign `engineStart`/`engineEnd` uniformly (equal engine progress range per scene — the pacing curve only affects how raw input maps within the segment, not the engine segment boundaries).
+4. Store the `fn` from each scene's `ProgressManagerSpec`.
+5. Set `isUniform = true` when all scenes have `scrollUnits === 1` and `fn` is the identity function. When uniform, `SceneTrack.progressProfile` is still written but the player uses this flag to skip `SceneProgressMapper` construction.
+
+**Validation (emits PROGRESS_MANAGER warnings, does not throw):**
+- `scrollUnits <= 0` — warns, falls back to `1`.
+- `fn(0) !== 0` — warns, marks the profile's `isUniform = false`.
+- `fn(1) !== 1` — warns, marks the profile's `isUniform = false`.
+
+When all scenes have no `progressManager`, `progressProfile` is absent from `SceneTrack` entirely.
 
 ---
 
@@ -283,7 +301,8 @@ The sparse delta model allows the runtime driver to skip widget updates on frame
 export type CompileWarningCode =
   | 'MISSING_WIDGET'        // DSL element has no registered widget handler
   | 'DUPLICATE_WIDGET_ID'   // same widgetId registered twice
-  | 'UNRESOLVED_REFERENCE'; // e.g. targetId on Camera points to unknown widget
+  | 'UNRESOLVED_REFERENCE'  // e.g. targetId on Camera points to unknown widget
+  | 'PROGRESS_MANAGER';     // invalid ProgressManager props: fn(0)!==0, fn(1)!==1, scrollUnits<=0
 
 export type CompileWarning = {
   code: CompileWarningCode;
@@ -312,6 +331,18 @@ export type SceneTrack = {
    * Surfaced to the host via ScenePlayer's onCompileWarning prop after compilation.
    */
   warnings?: CompileWarning[];
+  /**
+   * Input pacing and scroll budget profile derived from ProgressManager declarations.
+   * Absent when no scene declares <ProgressManager>. When present, the player layer
+   * constructs a SceneProgressMapper from this profile.
+   */
+  progressProfile?: SceneProgressProfile;
+  /**
+   * Per-scene overlay ReactNodes collected from non-DSL children of <Scene>.
+   * Always present after compilation; empty map when no scenes declare overlay content.
+   * Keyed by scene ID. Consumed by EngineOverlayHost in the player layer.
+   */
+  sceneOverlays: Map<string, ReactNode>;
 };
 
 export type SceneWindow = {
@@ -336,8 +367,6 @@ export type SceneTrackTick = {
   blockProgress: number;
   /** Widget states for this tick. Filled by transition spec methods and terminal frame pass. */
   state: SceneFrame;
-  /** Resolved HUD overlay primitives for this tick. */
-  hudPrimitives?: HudItemResolved[];
   /** Resolved label primitives for this tick. */
   labelPrimitives?: LabelResolved[];
   /** Forward delta: what changed from tick N-1 → N. */
@@ -355,14 +384,80 @@ export type SceneFrame = {
   meta?: Record<string, JsonPrimitive>;
   materialMetalnessMultiplier?: number;
   materialRoughnessMultiplier?: number;
-  hudItems?: HudItemDefinition[];
   labels?: LabelResolved[];
+  /**
+   * Compiled ProgressManager spec for this scene.
+   * Absent when the scene (and all prior scenes via carry-forward) declare no ProgressManager.
+   */
+  progressManager?: ProgressManagerSpec;
+  /**
+   * Non-DSL HTML/React children of <Scene>, collected by compileChildrenSeparated.
+   * Absent when the scene declares no non-DSL children.
+   * Stored at the track level in SceneTrack.sceneOverlays for efficient lookup.
+   */
+  sceneOverlay?: ReactNode;
 };
 
 export type SceneFrameDelta = {
   widgets?: Record<string, unknown>;
-  hudItems?: HudItemDefinition[];
   labels?: SceneFrame['labels'];
+};
+```
+
+### ProgressManager Types
+
+```typescript
+// packages/core/src/compiler/sceneTrackTypes.ts
+
+/**
+ * Compiled form of a <ProgressManager> DSL element.
+ * Stored on SceneFrame.progressManager after carry-forward merge.
+ */
+export type ProgressManagerSpec = {
+  /**
+   * Proportional scroll budget for this scene's outgoing transition.
+   * The engine normalizes all scene budgets so the sum equals the total progress span.
+   * Default: 1.
+   */
+  scrollUnits: number;
+  /**
+   * Pure input pacing curve mapping local raw progress [0, 1] to local engine progress [0, 1].
+   * Constraints enforced at compile time (PROGRESS_MANAGER warning if violated):
+   * - fn(0) === 0
+   * - fn(1) === 1
+   * - Continuous and monotonically non-decreasing
+   * Default: identity (t => t).
+   */
+  fn: (localT: number) => number;
+};
+
+/**
+ * A single scene's contribution to the global progress profile.
+ * rawStart/rawEnd are the bounds of this scene's scroll segment in [0, 1] raw input space.
+ * engineStart/engineEnd are the corresponding bounds in engine progress space.
+ * fn maps local raw progress within this segment to local engine progress.
+ */
+export type SceneProgressSegment = {
+  sceneIndex: number;
+  rawStart: number;
+  rawEnd: number;
+  engineStart: number;
+  engineEnd: number;
+  fn: (localT: number) => number;
+};
+
+/**
+ * The compiled progress profile for all scenes.
+ * Built by the buildProgressProfile compiler pass from SceneFrame.progressManager values.
+ * Stored on SceneTrack.progressProfile.
+ */
+export type SceneProgressProfile = {
+  segments: SceneProgressSegment[];
+  /**
+   * True when all scenes have the same scrollUnits and identity fn.
+   * Allows the player to skip SceneProgressMapper construction.
+   */
+  isUniform: boolean;
 };
 ```
 
@@ -612,36 +707,35 @@ export const blendStyleValuesPartial = <T extends Record<string, StyleValue>>(
 
 ---
 
-## 9. HUD Compilation (`hudCompiler.ts`)
+## 9. Scene Overlay Collection (`compileChildrenSeparated`)
 
-HUD compilation converts `HudItemDefinition[]` from a `SceneFrame` into `HudItemResolved[]` for a tick.
+Scene overlay collection extracts non-DSL HTML/React children from `<Scene>` elements during DSL evaluation. It is implemented by the `compileChildrenSeparated` helper in `CompileHelpers`.
 
 ```typescript
-// packages/core/src/compiler/hudCompiler.ts
+// packages/core/src/compiler/sceneDslTypes.ts (part of CompileHelpers)
 
-export type CompileHudOptions = {
-  sceneId?: string;
-  phase?: HudPhase;  // 'enter' | 'exit' | undefined
-};
-
-export const compileHudItems = (
-  items: HudItemDefinition[] | undefined,
-  options?: CompileHudOptions,
-): HudItemResolved[];
+/**
+ * Separates DSL children from non-DSL children of a ReactElement node.
+ * DSL children (those with a registered node handler) are compiled normally.
+ * Non-DSL children (HTML elements, non-registered React components) are returned
+ * as a ReactNode[] for storage as SceneFrame.sceneOverlay.
+ *
+ * Called by the Scene root handler during DSL evaluation (Step 1).
+ */
+compileChildrenSeparated: (node: ReactElement, api: CompileApi) => ReactNode[];
 ```
 
-**Compilation behavior:**
-- Items with `enabled === false` are excluded.
-- Each remaining item receives `phase` from `options.phase` and `instanceId` constructed as `${sceneId}:${item.id}:${index}`.
-- `instanceId` is used by the HUD overlay for React keying — it must be stable within a scene but unique across scenes.
+**Classification:**
+- A child is a DSL child if its `type` has a registered handler in the node registry (`isPrimitiveComponent(child.type) === true`).
+- A child is an overlay child if its `type` is a string (HTML element, e.g., `'div'`, `'h1'`) or is a React component with no registered handler.
+- `null`, `undefined`, and boolean children are ignored (React standard behavior).
 
-**Phase semantics in the track:**
-- HUD items from the "from" scene (scene N) are compiled with `phase: 'exit'` — they are leaving.
-- HUD items from the "to" scene (scene N+1) are compiled with `phase: 'enter'` — they are arriving.
-- Both sets appear simultaneously in `hudPrimitives` for every frame in the transition block.
-- The HUD overlay component uses `phase` to drive CSS enter/exit animations independently.
+**Overlay storage:**
+- The returned `ReactNode[]` is wrapped with `React.createElement(React.Fragment, null, ...overlayNodes)` and stored as `SceneFrame.sceneOverlay`.
+- After all scenes are compiled, `sceneTrackCompiler.ts` collects `sceneOverlays` from all `SceneFrame` objects and builds `SceneTrack.sceneOverlays: Map<string, ReactNode>`, keyed by scene ID.
+- `SceneFrame.sceneOverlay` is absent (undefined) when a scene declares no non-DSL children.
 
-HUD items are not interpolated across scenes. An item present in scene A and scene B with the same `id` will appear in both the exit set (from A) and the enter set (from B). The HUD overlay is responsible for deduplicating or cross-fading if the same item ID spans scenes.
+**ReactNode stability:** Overlay ReactNodes are captured once at compile time. They are stable references for the lifetime of the compiled track. If a parent component re-renders and produces new JSX content, `serializeJsx` detects the change and triggers recompilation.
 
 ---
 
@@ -750,7 +844,7 @@ export const clearRegistry = (): void;
 
 **Dual index:** Handlers are indexed by both component reference (primary) and `displayName` string (secondary). The `displayName` fallback enables correct dispatch after Hot Module Replacement, where module re-evaluation creates a new function reference but preserves `displayName`. The secondary lookup uses `displayName ?? name` from the component function.
 
-**Registration timing:** Core DSL components (`Scene`, `Hud`, `HudItem`, `InputController`, and its children) register themselves at module import time as side effects. This is intentional — the DSL authoring surface must be ready before any `resolveSceneFromDsl` call. `ensureSceneRegistry()` and `ensureInputControllerRegistry()` guard against double-registration in environments where modules may be evaluated multiple times.
+**Registration timing:** Core DSL components (`Scene`, `ProgressManager`, `InputController`, and its children) register themselves at module import time as side effects. This is intentional — the DSL authoring surface must be ready before any `resolveSceneFromDsl` call. `ensureSceneRegistry()` and `ensureInputControllerRegistry()` guard against double-registration in environments where modules may be evaluated multiple times.
 
 **External element registration:** `@brewsite/diagram` elements register their handlers by importing `registerNode` from `@brewsite/core` and calling it from their element module's `dsl.tsx` or `compile.ts` at module load time. This means any application that imports `@brewsite/diagram` DSL components automatically populates the registry with diagram handlers.
 
@@ -764,7 +858,7 @@ export const clearRegistry = (): void;
 
 Hosts DSL block components that are not element-specific but still require handler registration.
 
-**`hudBlocks.tsx`:** `<Hud>` and `<HudItem>` DSL components. `Hud` handler calls `helpers.compileChildren`; `HudItem` handler converts props to `HudItemDefinition` and calls `api.pushHudItem`. Both register at module load.
+**`progressManager.tsx`:** `<ProgressManager>` DSL component. The handler reads `scrollUnits` and `fn` props, validates constraints (emitting `PROGRESS_MANAGER` warnings for violations), and writes a `ProgressManagerSpec` to `api.state.progressManager`. Carry-forward merge of `ProgressManagerSpec` across scenes happens in the Step 1.5 snapshot merging pass, using the same `mergeSnapshot` mechanism as other carry-forward widgets — the `ProgressManager` handler itself only writes to the current scene's snapshot.
 
 **`inputController.tsx`:** `<InputController>`, `<Action>`, `<PointerMap>`, `<WheelMap>`, `<PinchMap>`, `<KeyMap>`. The InputController handler parses the full action tree and writes a `SceneInputControllerSpec` to `api.setWidgetState('__input_controller', spec)`. Child components (`Action`, `*Map`) are registered with protective handlers that throw if used outside an `InputController`. `ensureInputControllerRegistry()` guards all registrations.
 
@@ -788,7 +882,7 @@ The only legitimate use of `clearRegistry()` outside tests is in HMR scenarios w
 
 ### Serialization and Delta Computation
 
-Delta computation uses `JSON.stringify` with a custom replacer to handle React elements and functions within widget state (functions are replaced with `'[function]'`, React elements with `'[react]'`). HudItem `children` (React elements) are excluded from serialization for delta comparison purposes via the `content` key stripping in the replacer. This means HUD item children changes do not produce deltas — HUD rendering is driven by `hudPrimitives` at the tick level, not widget state deltas.
+Delta computation uses `JSON.stringify` with a custom replacer to handle React elements and functions within widget state (functions are replaced with `'[function]'`, React elements with `'[react]'`). Scene overlay ReactNodes are not included in delta computation — they are static per-scene values stored on `SceneTrack.sceneOverlays`, not per-frame tick data. Only `widgets` and `labels` participate in the sparse delta diff.
 
 ### blockSize and Frame Count Arithmetic
 
@@ -834,6 +928,9 @@ Any future change to the following constitutes a breaking change requiring a maj
 - Changing the `SceneSnapshotContext` shape in a non-additive way.
 - Changing the `CompileApi` or `CompileHelpers` interface shapes.
 - Changing the `__input_controller` widget ID used to store `InputController` state.
+- Changing `ProgressManagerSpec`, `SceneProgressSegment`, or `SceneProgressProfile` shapes.
+- Changing the `buildProgressProfile` algorithm in a way that alters existing `SceneTrack.progressProfile` output for scenes without explicit `<ProgressManager>` declarations.
+- Changing the `compileChildrenSeparated` classification rules (what counts as a DSL child vs. an overlay child).
 
 ---
 
@@ -841,11 +938,11 @@ Any future change to the following constitutes a breaking change requiring a maj
 
 - `react` (peer) — `isValidElement`, `Children`, `Fragment`. No hooks, no reconciler.
 - `packages/core/src/widget/WidgetRegistry` — consumed by `compileSceneTrack` and `resolveSceneFromDsl`.
-- `packages/core/src/hud/types` — `HudItemDefinition`, `HudItemResolved`, `HudPhase`.
 - `packages/core/src/labels/types` — `LabelResolved`.
 - `packages/core/src/input/types` — `InputActionType`, `InputActionMap`, `SceneInputControllerSpec`, and related types.
 - `packages/core/src/widget/VariableStore` — `JsonPrimitive` type.
 - `packages/core/src/timeline/math` — `clamp01` utility used in the sampler.
+- No Three.js dependency. No external animation libraries. No HUD library dependencies.
 
 No Three.js dependency. No external animation libraries.
 
@@ -875,10 +972,13 @@ No Three.js dependency. No external animation libraries.
 
 ## 20. Launch Criteria
 
-- `compileSceneTrack` has unit test coverage for: single-scene track, two-scene interpolation, three-scene with enter/exit, functional transition path, `prefersReducedMotion` path, passthrough widget backfill, `compileExtra` pass, HUD compilation, label compilation, and delta computation.
+- `compileSceneTrack` has unit test coverage for: single-scene track, two-scene interpolation, three-scene with enter/exit, functional transition path, `prefersReducedMotion` path, passthrough widget backfill, `compileExtra` pass, label compilation, and delta computation.
+- `buildProgressProfile` has unit tests covering: all-default scenes (no ProgressManager → absent profile), single scene with custom scrollUnits, multiple scenes with varying scrollUnits, custom fn carry-forward, invalid fn(0)≠0 warning, invalid fn(1)≠1 warning, scrollUnits≤0 warning.
+- `compileChildrenSeparated` has unit tests covering: all DSL children, all overlay children, mixed DSL and overlay children, Fragment-wrapped overlay children, null/undefined/boolean children ignored.
 - `createSceneTrackSampler` has unit test coverage for boundary conditions: progress = 0, progress = 1, progress = 0.5, and floating-point values at half-step boundaries.
 - `sceneTrackCache.ts` has unit tests for key construction, cache hit, cache miss, and cache clear.
 - All blend helpers in `transitionTypes.ts` have unit tests covering undefined inputs, single-defined inputs, both defined, and edge cases (`blendColor` with invalid hex, `blendAxisRotation` near-parallel quaternions).
 - `apps/examples/` compiles with zero TypeScript errors under `pnpm typecheck`.
 - At least one example in `apps/examples/` demonstrates a `FunctionalTransitionSpec` widget.
+- At least one example in `apps/examples/` demonstrates `<ProgressManager>` with a non-trivial `fn` and multiple `scrollUnits`.
 - CHANGELOG entry written for the current release version documenting any API changes since the prior release.

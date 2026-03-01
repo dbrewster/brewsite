@@ -1,36 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ReactElement, ReactNode } from 'react';
-import { SceneRegistrationContext } from '../compiler/SceneRegistrationContext';
-import type { SceneRegistrationValue } from '../compiler/SceneRegistrationContext';
+// ScenePlayer — thin composition of EngineProvider + layout primitives.
+// For the common full-page scroll case. Props are unchanged from before decomposition.
+
+import { useCallback, useState, type ReactElement, type ReactNode } from 'react';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
-import { VariableStoreContext } from '../widget/VariableStoreContext';
-import { useSceneEngine } from './useSceneEngine';
+import { EngineProvider } from './EngineProvider';
 import { EngineInputRegion } from './EngineInputRegion';
-import { EngineStateContext } from './EngineStateContext';
-import { EngineContext } from './EngineContext';
-import { HudOverlay } from '../hud/HudOverlay';
-import { LabelPositioner } from './LabelPositioner';
-import { LabelPositionerContext } from './LabelPositionerContext';
+import { SceneCanvas } from './SceneCanvas';
+import { EngineOverlayHost } from './EngineOverlayHost';
+import { useSceneEngineContext } from './EngineContext';
 import { LabelItem } from '../labels/LabelItem';
-import { clipMetaFromManifest, assertManifestValid } from '../elements/model/metadata';
-import type { AssetManifest } from '../elements/model/metadata';
-import { clearCache } from '../compiler/sceneTrackCache';
-import { createDefaultWidgetRegistry } from './defaultWidgets';
-import { SceneMetaWidget } from './SceneMetaWidget';
-import type { SceneNavInputMap } from '../input/types';
 import { TimelineWidget } from './TimelineWidget';
 import type { TimelineWidgetProps } from './TimelineWidgetTypes';
-import { serializeJsx } from './serializeJsx';
-import { setSceneRuntimeState, unregisterSceneRuntime } from './ScenePlayerRegistry';
 import { SceneInspector } from './SceneInspector';
+import type { AssetManifest } from '../elements/model/metadata';
+import type { SceneNavInputMap } from '../input/types';
 import type { SceneModel } from '../elements/model/types';
 import type { CompileWarning } from '../compiler/sceneTrackTypes';
-
-export type InternalSceneSpec = {
-  readonly sceneKey: string;
-  readonly contentKey: string;
-  readonly element: ReactElement;
-};
 
 export type ScenePlayerProps = {
   id?: string;
@@ -119,188 +104,117 @@ export type ScenePlayerProps = {
   children: ReactNode;
 };
 
-const QUALITY_PRESET_FRAMES: Record<NonNullable<ScenePlayerProps['quality']>, number> = {
-  performance: 30,
-  balanced: 60,
-  high: 120,
-} as const;
+// ─── ScenePlayerInner ─────────────────────────────────────────────────────────
+// Internal component that reads engine context (must be a child of EngineProvider).
+
+type ScenePlayerInnerProps = {
+  loadError: Error | null;
+  placeholder?: ReactNode;
+  className?: string;
+  controlledProgress?: number;
+  timeline?: boolean | Omit<TimelineWidgetProps, 'engine' | 'scenes'>;
+  debug?: boolean;
+};
+
+const ScenePlayerInner = (props: ScenePlayerInnerProps): ReactElement => {
+  const engine = useSceneEngineContext();
+  const labels = engine.frameState.tick?.labelPrimitives ?? [];
+  const isControlled = props.controlledProgress !== undefined;
+  const isLoading = engine.frameState.tickIndex < 0;
+
+  return (
+    <div
+      className={props.className}
+      style={{ position: 'relative', ...(isControlled ? { height: '100%' } : {}) }}
+    >
+      {props.loadError && (
+        <div role="alert">Scene engine error: {props.loadError.message}</div>
+      )}
+      {isLoading && props.placeholder && (
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          {props.placeholder}
+        </div>
+      )}
+      <EngineInputRegion engine={engine} fillContainer={isControlled}>
+        {/* Canvas fills the EngineInputRegion viewport */}
+        <SceneCanvas
+          style={{ width: '100%', height: '100%' }}
+        />
+
+        {/* Scene overlay content — HTML children from <Scene> */}
+        <EngineOverlayHost passthroughPointerEvents={false} />
+
+        {/* 3D-tracked labels */}
+        {labels.map((label) => (
+          <LabelItem key={label.id} label={label} />
+        ))}
+
+        {/* Optional built-in timeline scrubber */}
+        {props.timeline && (
+          <TimelineWidget
+            engine={engine}
+            scenes={engine.sceneIds.map((id) => ({ id }))}
+            {...(typeof props.timeline === 'object' ? props.timeline : {})}
+          />
+        )}
+
+        {/* Dev-mode inspector */}
+        {props.debug && <SceneInspector sceneIds={engine.sceneIds} />}
+      </EngineInputRegion>
+    </div>
+  );
+};
+
+// ─── ScenePlayer ──────────────────────────────────────────────────────────────
 
 export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
-  const [manifest, setManifest] = useState<AssetManifest | null>(null);
   const [loadError, setLoadError] = useState<Error | null>(null);
 
-  const registrationsRef = useRef(new Map<string, ReactElement>());
-  const lastContentKeyRef = useRef('');
-  const [scenes, setScenes] = useState<InternalSceneSpec[]>([]);
+  const handleError = useCallback((err: Error) => {
+    setLoadError(err);
+    props.onError?.(err);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [props.onError]);
 
-  const register = useCallback((id: string, element: ReactElement) => {
-    registrationsRef.current.set(id, element);
-  }, []);
-
-  const unregister = useCallback((id: string) => {
-    registrationsRef.current.delete(id);
-  }, []);
-
-  const registrationContextValue = useMemo(
-    (): SceneRegistrationValue => ({ register, unregister }),
-    [register, unregister],
-  );
-
-  useEffect(() => {
-    const specs = Array.from(registrationsRef.current.entries()).map(
-      ([id, element]): InternalSceneSpec => ({
-        sceneKey: id,
-        contentKey: serializeJsx(element),
-        element,
-      }),
-    );
-    const contentKey = specs.map((spec) => spec.contentKey).join('|||');
-    if (contentKey === lastContentKeyRef.current) return;
-    lastContentKeyRef.current = contentKey;
-    setScenes(specs);
-  });
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(props.manifestUrl)
-      .then((r) => r.json())
-      .then((raw) => {
-        if (cancelled) return;
-        setManifest(assertManifestValid(raw));
-      })
-      .catch((e: unknown) => {
-        if (cancelled) return;
-        const err = e instanceof Error ? e : new Error(String(e));
-        setLoadError(err);
-        props.onError?.(err);
-        props.onManifestError?.(err);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [props.manifestUrl, props.onError]);
-
-  useEffect(() => () => clearCache(), []);
-
-  const isBrowser = typeof window !== 'undefined';
-
-  const widgetRegistry = useMemo(() => {
-    if (!manifest) return createDefaultWidgetRegistry(null, { defaultModelStates: props.defaultModelStates });
-    return props.widgetSetup
-      ? props.widgetSetup(manifest)
-      : createDefaultWidgetRegistry(manifest, { defaultModelStates: props.defaultModelStates });
-  }, [manifest, props.widgetSetup, props.defaultModelStates]);
-
-  useEffect(() => {
-    const metaWidget = widgetRegistry.get('__scene_meta__');
-    if (metaWidget && typeof (metaWidget as SceneMetaWidget).setOnSceneChange === 'function') {
-      (metaWidget as SceneMetaWidget).setOnSceneChange(props.onSceneChange);
-    }
-  }, [widgetRegistry, props.onSceneChange]);
-
-  const labelPositioner = useMemo(() => new LabelPositioner(), []);
-  const clipMeta = useMemo(() => (manifest ? clipMetaFromManifest(manifest) : []), [manifest]);
-
-  const resolvedFramesPerTick =
-    props.framesPerTick ??
-    (props.quality !== undefined ? QUALITY_PRESET_FRAMES[props.quality] : undefined);
-
-  const engine = useSceneEngine({
-    scenes,
-    widgetRegistry,
-    clipMeta,
-    manifest,
-    fpsCap: props.fpsCap,
-    pixelsPerScene: props.pixelsPerScene,
-    framesPerTick: resolvedFramesPerTick,
-    onReady: props.onReady,
-    onError: props.onError,
-    onWidgetError: props.onWidgetError,
-    onCompileWarning: props.onCompileWarning,
-    labelPositioner,
-    inputMap: props.inputMap,
-    controlledProgress: props.controlledProgress,
-    onControlledProgressChange: props.onControlledProgressChange,
-  });
-
-  const assetsReady = engine.debug?.assetsReady ?? false;
-  const viewport = engine.debug?.viewport ?? { width: 1, height: 1 };
-
-  useEffect(() => {
-    const playerId = props.id;
-    if (!playerId) return undefined;
-    setSceneRuntimeState(playerId, {
-      assetsReady,
-      viewport: {
-        width: viewport.width,
-        height: viewport.height,
-        aspectRatio: viewport.width / Math.max(1, viewport.height),
-      },
-      variables: engine.variableStore,
-      numScenes: scenes.length,
-    });
-    return () => unregisterSceneRuntime(playerId);
-  }, [props.id, assetsReady, viewport.width, viewport.height, engine.variableStore, scenes.length]);
-
-  const engineState = useMemo(() => ({
-    progress: engine.progress,
-    sceneId: engine.frameState.sceneId,
-    sceneIndex: engine.frameState.sceneIndex,
-    sceneProgress: engine.frameState.sceneProgress,
-  }), [engine.progress, engine.frameState]);
-
-  const labels = engine.frameState.tick?.labelPrimitives ?? [];
-  const showPlaceholder = props.placeholder && engine.frameState.tickIndex < 0;
-
-  if (!isBrowser) {
+  // Server-side rendering: return placeholder only.
+  // EngineProvider renders children on the server for SSR layout purposes.
+  // ScenePlayer uses a hard client-only guard since it owns the full layout.
+  if (typeof window === 'undefined') {
     return (props.placeholder ?? null) as ReactElement | null;
   }
 
-  const isControlled = props.controlledProgress !== undefined;
-
   return (
-    <SceneRegistrationContext.Provider value={registrationContextValue}>
-      <VariableStoreContext.Provider value={engine.variableStore}>
-        <LabelPositionerContext.Provider value={labelPositioner}>
-          <EngineStateContext.Provider value={engineState}>
-            <EngineContext.Provider value={engine}>
-              {/* height: 100% in controlled mode so the canvas fills the parent
-                  container (e.g. a 420px DemoScene wrapper). In scroll mode the
-                  height is determined by the tall EngineInputRegion spacer. */}
-              <div
-                className={props.className}
-                style={{ position: 'relative', ...(isControlled ? { height: '100%' } : {}) }}
-              >
-                {loadError && <div role="alert">Scene engine error: {loadError.message}</div>}
-                {showPlaceholder && (
-                  <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
-                    {props.placeholder}
-                  </div>
-                )}
-                <EngineInputRegion engine={engine} fillContainer={isControlled}>
-                  <>
-                    {props.children}
-                    <HudOverlay items={engine.frameState.tick?.hudPrimitives ?? []} />
-                    {labels.map((label) => (
-                      <LabelItem key={label.id} label={label} />
-                    ))}
-                    {props.timeline && (
-                      <TimelineWidget
-                        engine={engine}
-                        scenes={scenes.map((scene) => ({ id: scene.sceneKey }))}
-                        {...(typeof props.timeline === 'object' ? props.timeline : {})}
-                      />
-                    )}
-                    {props.debug && (
-                      <SceneInspector scenes={scenes} />
-                    )}
-                  </>
-                </EngineInputRegion>
-              </div>
-            </EngineContext.Provider>
-          </EngineStateContext.Provider>
-        </LabelPositionerContext.Provider>
-      </VariableStoreContext.Provider>
-    </SceneRegistrationContext.Provider>
+    <EngineProvider
+      id={props.id}
+      manifestUrl={props.manifestUrl}
+      widgetSetup={props.widgetSetup}
+      fpsCap={props.fpsCap}
+      pixelsPerScene={props.pixelsPerScene}
+      framesPerTick={props.framesPerTick}
+      quality={props.quality}
+      onReady={props.onReady}
+      onError={handleError}
+      onManifestError={props.onManifestError}
+      onWidgetError={props.onWidgetError}
+      onCompileWarning={props.onCompileWarning}
+      onSceneChange={props.onSceneChange}
+      defaultModelStates={props.defaultModelStates}
+      inputMap={props.inputMap}
+      controlledProgress={props.controlledProgress}
+      onControlledProgressChange={props.onControlledProgressChange}
+    >
+      {/* Scene declarations — <Scene> components register via SceneRegistrationContext */}
+      {props.children}
+
+      {/* Layout and rendering — reads EngineContext set by EngineProvider */}
+      <ScenePlayerInner
+        loadError={loadError}
+        placeholder={props.placeholder}
+        className={props.className}
+        controlledProgress={props.controlledProgress}
+        timeline={props.timeline}
+        debug={props.debug}
+      />
+    </EngineProvider>
   );
 };

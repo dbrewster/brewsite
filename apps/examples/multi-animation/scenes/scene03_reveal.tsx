@@ -1,5 +1,5 @@
 import {Animation, Camera, Floor, FloorMirror, Playback} from '@brewsite/core';
-import {Ambient, Background, Directional, Hud, HudItem, Lighting, Point, Scene, Spot} from '@brewsite/core';
+import {Ambient, Background, Directional, Lighting, Point, Scene, Spot} from '@brewsite/core';
 import {Fade} from '@brewsite/core/hud/animejs';
 import {Worker} from '../../generated/sceneDsl.generated';
 import {backgrounds, sceneLighting} from './sceneAssets';
@@ -42,19 +42,15 @@ export const scene03Reveal= (
           mirrorUseEnvironmentBackground
         />
       </Floor>
-      <Hud>
-        <HudItem id="complex-hud">
-          <Fade duration={1200}>
-            <div className="complex-hud complex-hud--right">
-              <div className="complex-hud__eyebrow">Scene 3</div>
-              <h2 className="complex-hud__title">Reveal with focal lighting.</h2>
-              <div className="complex-hud__body">
-                Key lights tighten the frame while the head-mounted model appears, pulling
-                attention to the hero detail.
-              </div>
-            </div>
-          </Fade>
-        </HudItem>
-      </Hud>
+      <Fade duration={1200}>
+        <div className="complex-hud complex-hud--right">
+          <div className="complex-hud__eyebrow">Scene 3</div>
+          <h2 className="complex-hud__title">Reveal with focal lighting.</h2>
+          <div className="complex-hud__body">
+            Key lights tighten the frame while the head-mounted model appears, pulling
+            attention to the hero detail.
+          </div>
+        </div>
+      </Fade>
     </Scene>
 );

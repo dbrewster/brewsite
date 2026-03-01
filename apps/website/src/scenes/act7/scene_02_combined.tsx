@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import {
   Scene, Camera, Background, Lighting, Ambient, Directional,
-  Floor, FloorMirror, ModelRouter, Hud, HudItem,
+  Floor, FloorMirror, ModelRouter,
 } from '@brewsite/core';
 import { DiagramCanvas, Diagram, DiagramNode, DiagramEdge, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
 import { SlideUp } from '@brewsite/core/hud/animejs';
@@ -51,28 +51,24 @@ export const scene02Combined: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    <Hud>
-      <HudItem id="full-combined-hud">
-        <div style={{ position: 'absolute', bottom: '8%', left: '5%', maxWidth: 380 }}>
-          <SlideUp duration={1100}>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 10,
-              letterSpacing: '0.3em',
-              textTransform: 'uppercase',
-              color: 'rgba(0,245,255,0.55)',
-              marginBottom: 12,
-            }}>
-              Models + Diagrams + HUD + React
-            </div>
-          </SlideUp>
-          <SlideUp duration={1100} delay={120}>
-            <div style={{ fontSize: 26, fontWeight: 700, color: '#f0f6fc', lineHeight: 1.25 }}>
-              Web apps. Decks.<br />Pitches. Marketing sites.
-            </div>
-          </SlideUp>
+    <div style={{ position: 'absolute', bottom: '8%', left: '5%', maxWidth: 380 }}>
+      <SlideUp duration={1100}>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 10,
+          letterSpacing: '0.3em',
+          textTransform: 'uppercase',
+          color: 'rgba(0,245,255,0.55)',
+          marginBottom: 12,
+        }}>
+          Models + Diagrams + HUD + React
         </div>
-      </HudItem>
-    </Hud>
+      </SlideUp>
+      <SlideUp duration={1100} delay={120}>
+        <div style={{ fontSize: 26, fontWeight: 700, color: '#f0f6fc', lineHeight: 1.25 }}>
+          Web apps. Decks.<br />Pitches. Marketing sites.
+        </div>
+      </SlideUp>
+    </div>
   </Scene>
 );

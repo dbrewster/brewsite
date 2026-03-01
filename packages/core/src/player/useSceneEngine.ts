@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import type { RefObject } from 'react';
+import type { RefObject, ReactNode } from 'react';
 import type { SceneDefinition } from '../compiler/sceneTypes';
 import { compileSceneTrack } from '../compiler/sceneTrackCompiler';
 import { buildSceneTrackKey, getCachedTrack, setCachedTrack } from '../compiler/sceneTrackCache';
@@ -11,14 +11,14 @@ import { RuntimeLoop } from '../runtime/RuntimeLoop';
 import { VariableStore } from '../widget/VariableStore';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import { EngineFrameDriver } from './EngineFrameDriver';
-import type { EngineFrameState } from './engineTypes';
+import type { EngineFrameState, InternalSceneSpec } from './engineTypes';
 import { useEngineInput } from './useEngineInput';
 import type { LabelPositioner } from './LabelPositioner';
 import type { AssetManifest } from '../elements/model/metadata';
 import type { SceneNavInputMap } from '../input/types';
 import type { CameraOverrideState } from '../elements/camera/types';
 import type { SceneInputControllerSpec } from '../input/types';
-import type { InternalSceneSpec } from './ScenePlayer';
+import { SceneProgressMapper } from './SceneProgressMapper';
 
 export type UseSceneEngineOptions = {
   scenes: InternalSceneSpec[];
@@ -55,11 +55,28 @@ export type UseSceneEngineResult = {
   scrollRegionRef: RefObject<HTMLDivElement | null>;
   scrollRegionHeightPx: number;
   inputMode: 'scroll' | 'direct';
+  /** Current input source. 'push' when ScrollCaptureSection is providing progress. */
+  inputSource: 'scroll' | 'push';
   progress: number;
   scrollToProgress: (next: number) => void;
   getGlobalProgress: () => number;
+  /**
+   * Push raw input progress [0..1] directly into the engine.
+   * Used by ScrollCaptureSection to feed scroll-captured progress.
+   * When called, switches inputSource to 'push' and bypasses the
+   * window scroll listener.
+   */
+  setRawProgress: (raw: number) => void;
   /** Total number of scenes. Used by TimelineWidget and useEngineInput. */
   sceneCount: number;
+  /** Ordered list of scene IDs from the registered scene specs. */
+  sceneIds: string[];
+  /**
+   * Map from sceneId to overlay ReactNode for scenes that contain non-DSL children.
+   * Populated from sceneTrack.sceneOverlays after compilation.
+   * Used by EngineOverlayHost to render active scene content.
+   */
+  sceneOverlays: Map<string, ReactNode>;
   variableStore: VariableStore;
   setCanvasRef: (canvas: HTMLCanvasElement | null) => void;
   setBackgroundRef: (element: HTMLDivElement | null) => void;
@@ -111,6 +128,16 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   const frameDriverRef = useRef<EngineFrameDriver | null>(null);
   const readyRef = useRef(false);
   const viewportRef = useRef({ width: 1, height: 1 });
+
+  // ─── Raw progress push (for ScrollCaptureSection) ────────────────────────────
+  const rawProgressPushRef = useRef<number | null>(null);
+  const [inputSource, setInputSource] = useState<'scroll' | 'push'>('scroll');
+
+  const setRawProgress = useCallback((raw: number) => {
+    rawProgressPushRef.current = Math.max(0, Math.min(1, raw));
+    // Switch to push mode on first call (state update — triggers once)
+    setInputSource((prev) => (prev === 'push' ? prev : 'push'));
+  }, []);
 
   const setCameraOverrideInternal = useCallback((next: CameraOverrideState | null) => {
     cameraOverrideRef.current = next;
@@ -293,7 +320,15 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     ? (frameState.tick.state.widgets[INPUT_CONTROLLER_WIDGET_ID] as SceneInputControllerSpec | undefined) ?? null
     : null;
 
-  const { progress, scrollToProgress, getGlobalProgress } = useEngineInput({
+  // ─── Progress mapper from ProgressManager profile ────────────────────────────
+  const progressMapper = useMemo<SceneProgressMapper | null>(() => {
+    if (!sceneTrack?.progressProfile || sceneTrack.progressProfile.isUniform) {
+      return null; // identity — no mapper needed
+    }
+    return new SceneProgressMapper(sceneTrack.progressProfile);
+  }, [sceneTrack]);
+
+  const { progress: inputProgress, scrollToProgress: inputScrollToProgress, getGlobalProgress: inputGetGlobalProgress } = useEngineInput({
     scrollRegionRef,
     scrollRegionHeightPx,
     sceneCount: options.scenes.length,
@@ -303,6 +338,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     inputControllerSpec,
     controlledProgress: options.controlledProgress,
     onControlledProgressChange: options.onControlledProgressChange,
+    progressMapper,
     onCameraOrbit: handleCameraOrbit,
     onCameraDolly: handleCameraDolly,
     onCameraReset: handleCameraReset,
@@ -311,6 +347,22 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     onDiagramCanvasReset: handleDiagramCanvasReset,
     onDiagramCanvasFocus: handleDiagramCanvasFocus,
   });
+
+  // ─── Wrap getGlobalProgress to check push override ───────────────────────────
+  // When ScrollCaptureSection is providing raw progress, bypass the scroll-derived value.
+  const getGlobalProgress = useCallback((): number => {
+    if (rawProgressPushRef.current !== null) {
+      const raw = rawProgressPushRef.current;
+      return progressMapper ? progressMapper.remap(raw) : raw;
+    }
+    return inputGetGlobalProgress();
+  }, [inputGetGlobalProgress, progressMapper]);
+
+  const progress = inputSource === 'push' && rawProgressPushRef.current !== null
+    ? (progressMapper ? progressMapper.remap(rawProgressPushRef.current) : rawProgressPushRef.current)
+    : inputProgress;
+
+  const scrollToProgress = inputScrollToProgress;
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('matchMedia' in window)) return;
@@ -547,10 +599,14 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     scrollRegionRef,
     scrollRegionHeightPx,
     inputMode,
+    inputSource,
     progress,
     scrollToProgress,
     getGlobalProgress,
+    setRawProgress,
     sceneCount: options.scenes.length,
+    sceneIds: options.scenes.map((s) => s.sceneKey),
+    sceneOverlays: sceneTrack?.sceneOverlays ?? new Map(),
     variableStore,
     setCanvasRef,
     setBackgroundRef,

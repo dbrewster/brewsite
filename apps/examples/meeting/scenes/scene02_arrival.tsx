@@ -1,4 +1,4 @@
-import {Ambient, Animation, Background, BodyPart, BodyParts, Directional, Hud, HudItem, Lighting, ModelRouter, Playback, Pose, Scene} from '@brewsite/core';
+import {Ambient, Animation, Background, BodyPart, BodyParts, Directional, Lighting, ModelRouter, Playback, Pose, Scene} from '@brewsite/core';
 import {backgrounds, sceneLighting} from './sceneAssets';
 
 export interface BodyPartProp {
@@ -223,44 +223,40 @@ export const scene02Arrival = (() => {
           <Ambient intensity={sceneLighting.soft.ambient} color="#e6eeff"/>
           <Directional intensity={sceneLighting.soft.directional} color="#ffffff" position={sceneLighting.soft.direction}/>
         </Lighting>
-        <Hud>
-          <HudItem id="meeting-hud">
-            <div
-              style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                bottom: 0,
-                height: '30%',
-                padding: '22px 40px',
-                boxSizing: 'border-box',
-                background: 'linear-gradient(180deg, rgba(4, 10, 18, 0.35) 0%, rgba(4, 10, 18, 0.92) 100%)',
-                color: '#eaf2ff',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-start',
-                textAlign: 'left',
-                letterSpacing: '0.01em',
-              }}
-            >
-              <div style={{width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'start'}}>
-                <div style={{maxWidth: '66%', marginTop: '4rem'}}>
-                  <div style={{fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.22em', opacity: 0.75, marginBottom: 10}}>
-                    Humans + Assistants
-                  </div>
-                  <div style={{fontSize: 24, fontWeight: 600, marginBottom: 8}}>
-                    Conversations that keep work moving
-                  </div>
-                  <div style={{fontSize: 16, lineHeight: 1.55, opacity: 0.9}}>
-                    Humans and assistants co-pilot the day: triaging bugs, converting assets, updating scene
-                    resources, refining placement math, and validating animation choices. Every exchange is
-                    explicit about the task, the next decision, and the handoff that keeps momentum.
-                  </div>
-                </div>
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: '30%',
+            padding: '22px 40px',
+            boxSizing: 'border-box',
+            background: 'linear-gradient(180deg, rgba(4, 10, 18, 0.35) 0%, rgba(4, 10, 18, 0.92) 100%)',
+            color: '#eaf2ff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-start',
+            textAlign: 'left',
+            letterSpacing: '0.01em',
+          }}
+        >
+          <div style={{width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'start'}}>
+            <div style={{maxWidth: '66%', marginTop: '4rem'}}>
+              <div style={{fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.22em', opacity: 0.75, marginBottom: 10}}>
+                Humans + Assistants
+              </div>
+              <div style={{fontSize: 24, fontWeight: 600, marginBottom: 8}}>
+                Conversations that keep work moving
+              </div>
+              <div style={{fontSize: 16, lineHeight: 1.55, opacity: 0.9}}>
+                Humans and assistants co-pilot the day: triaging bugs, converting assets, updating scene
+                resources, refining placement math, and validating animation choices. Every exchange is
+                explicit about the task, the next decision, and the handoff that keeps momentum.
               </div>
             </div>
-          </HudItem>
-        </Hud>
+          </div>
+        </div>
         {actors.map((actor) => (
           <Actor key={actor.idBase} {...actor} />
         ))}

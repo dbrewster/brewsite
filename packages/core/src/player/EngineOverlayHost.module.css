@@ -1,0 +1,6 @@
+/* CSS enter animation for scene overlay content. Injected via module to avoid
+   global style pollution. Uses @layer to prevent specificity conflicts. */
+@keyframes brewsite-overlay-enter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}

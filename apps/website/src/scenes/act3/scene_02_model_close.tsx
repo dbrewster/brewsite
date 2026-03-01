@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import {
   Scene, Camera, Background, Lighting, Ambient, Directional,
-  Floor, FloorMirror, ModelRouter, Hud, HudItem,
+  Floor, FloorMirror, ModelRouter,
 } from '@brewsite/core';
 import { Fade, SlideUp } from '@brewsite/core/hud/animejs';
 
@@ -29,40 +29,36 @@ export const scene02ModelClose: JSX.Element = (
       position={[0, 0, 0]}
       rotation={[0, 0.15, 0]}
     />
-    <Hud>
-      <HudItem id="model-close-hud">
+    <div style={{
+      position: 'absolute',
+      top: '8%',
+      right: '5%',
+      textAlign: 'right',
+      maxWidth: 320,
+    }}>
+      <Fade duration={900}>
         <div style={{
-          position: 'absolute',
-          top: '8%',
-          right: '5%',
-          textAlign: 'right',
-          maxWidth: 320,
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 10,
+          letterSpacing: '0.3em',
+          textTransform: 'uppercase',
+          color: 'rgba(255,102,0,0.7)',
+          marginBottom: 10,
         }}>
-          <Fade duration={900}>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 10,
-              letterSpacing: '0.3em',
-              textTransform: 'uppercase',
-              color: 'rgba(255,102,0,0.7)',
-              marginBottom: 10,
-            }}>
-              GLTF · PBR Materials
-            </div>
-          </Fade>
-          <SlideUp duration={1000} delay={80}>
-            <div style={{ fontSize: 22, fontWeight: 600, color: '#f0f6fc', lineHeight: 1.3, marginBottom: 10 }}>
-              Physically Based.<br />Floor-to-ceiling.
-            </div>
-          </SlideUp>
-          <SlideUp duration={900} delay={200}>
-            <div style={{ fontSize: 14, color: 'rgba(240,246,252,0.55)', lineHeight: 1.6 }}>
-              Metalness, roughness, normals — the renderer handles it.
-              You handle the story.
-            </div>
-          </SlideUp>
+          GLTF · PBR Materials
         </div>
-      </HudItem>
-    </Hud>
+      </Fade>
+      <SlideUp duration={1000} delay={80}>
+        <div style={{ fontSize: 22, fontWeight: 600, color: '#f0f6fc', lineHeight: 1.3, marginBottom: 10 }}>
+          Physically Based.<br />Floor-to-ceiling.
+        </div>
+      </SlideUp>
+      <SlideUp duration={900} delay={200}>
+        <div style={{ fontSize: 14, color: 'rgba(240,246,252,0.55)', lineHeight: 1.6 }}>
+          Metalness, roughness, normals — the renderer handles it.
+          You handle the story.
+        </div>
+      </SlideUp>
+    </div>
   </Scene>
 );

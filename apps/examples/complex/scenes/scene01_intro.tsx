@@ -1,5 +1,5 @@
 import {Camera} from '@brewsite/core';
-import { Ambient, Background, Directional, Environment, EnvironmentCube, Floor, Hud, HudItem, Lighting, Scene } from '@brewsite/core';
+import { Ambient, Background, Directional, Environment, EnvironmentCube, Floor, Lighting, Scene } from '@brewsite/core';
 import { Fade } from '@brewsite/core/hud/animejs';
 import {FloorMirror} from "@brewsite/core";
 import {backgrounds, sceneLighting} from "./sceneAssets";
@@ -34,19 +34,15 @@ export const scene01Intro= (
           mirrorUseEnvironmentBackground
         />
       </Floor>
-      <Hud>
-        <HudItem id="complex-hud">
-          <Fade duration={1200}>
-            <div className="complex-hud complex-hud--bottom">
-              <div className="complex-hud__eyebrow">Complex Example</div>
-              <h2 className="complex-hud__title">A cinematic, multi-scene robot showcase.</h2>
-              <div className="complex-hud__body">
-                This sequence highlights lighting shifts, motion accents, and camera framing across
-                a 5-scene arc. Follow the HUD as it moves to narrate the mid-sequence focus beats.
-              </div>
-            </div>
-          </Fade>
-        </HudItem>
-      </Hud>
+      <Fade duration={1200}>
+        <div className="complex-hud complex-hud--bottom">
+          <div className="complex-hud__eyebrow">Complex Example</div>
+          <h2 className="complex-hud__title">A cinematic, multi-scene robot showcase.</h2>
+          <div className="complex-hud__body">
+            This sequence highlights lighting shifts, motion accents, and camera framing across
+            a 5-scene arc. Follow the HUD as it moves to narrate the mid-sequence focus beats.
+          </div>
+        </div>
+      </Fade>
     </Scene>
 );

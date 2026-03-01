@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import {
   Ambient, Animation, BodyPart, BodyParts, Camera, Directional,
-  Hud, HudItem, Lighting, ModelRouter, Playback, Pose, Scene,
+  Lighting, ModelRouter, Playback, Pose, Scene,
 } from '@brewsite/core';
 import { MidFade } from '@brewsite/core/hud/animejs';
 
@@ -206,42 +206,38 @@ export const scene01Meeting: JSX.Element = (
       <Directional intensity={0.7} color="#ffffff" position={[0, 20, 20]} />
       <Directional intensity={0.25} color="#aaccff" position={[-10, 8, 5]} />
     </Lighting>
-    <Hud>
-      <HudItem id="website-meeting-hud">
-        <div style={{
-          position: 'absolute',
-          left: 0, right: 0, bottom: 0,
-          height: '28%',
-          padding: '20px 40px',
-          boxSizing: 'border-box',
-          background: 'linear-gradient(180deg, rgba(4,8,18,0.2) 0%, rgba(4,8,18,0.95) 100%)',
-          display: 'flex',
-          alignItems: 'center',
-        }}>
-          <div style={{ maxWidth: 560 }}>
-            <MidFade duration={1400}>
-              <div style={{
-                fontFamily: 'JetBrains Mono, monospace',
-                fontSize: 10,
-                letterSpacing: '0.3em',
-                textTransform: 'uppercase',
-                color: 'rgba(0,245,255,0.6)',
-                marginBottom: 10,
-              }}>
-                Procedural Composition
-              </div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: '#f0f6fc', marginBottom: 10 }}>
-                30 characters. 50 lines of JSX.
-              </div>
-              <div style={{ fontSize: 16, color: 'rgba(240,246,252,0.65)', lineHeight: 1.6 }}>
-                Random placement, collision detection, animation assignment — all at
-                author time. Runtime is just playback.
-              </div>
-            </MidFade>
+    <div style={{
+      position: 'absolute',
+      left: 0, right: 0, bottom: 0,
+      height: '28%',
+      padding: '20px 40px',
+      boxSizing: 'border-box',
+      background: 'linear-gradient(180deg, rgba(4,8,18,0.2) 0%, rgba(4,8,18,0.95) 100%)',
+      display: 'flex',
+      alignItems: 'center',
+    }}>
+      <div style={{ maxWidth: 560 }}>
+        <MidFade duration={1400}>
+          <div style={{
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: 10,
+            letterSpacing: '0.3em',
+            textTransform: 'uppercase',
+            color: 'rgba(0,245,255,0.6)',
+            marginBottom: 10,
+          }}>
+            Procedural Composition
           </div>
-        </div>
-      </HudItem>
-    </Hud>
+          <div style={{ fontSize: 26, fontWeight: 700, color: '#f0f6fc', marginBottom: 10 }}>
+            30 characters. 50 lines of JSX.
+          </div>
+          <div style={{ fontSize: 16, color: 'rgba(240,246,252,0.65)', lineHeight: 1.6 }}>
+            Random placement, collision detection, animation assignment — all at
+            author time. Runtime is just playback.
+          </div>
+        </MidFade>
+      </div>
+    </div>
     {actorProps.map((actor) => (
       <Actor key={actor.idBase} {...actor} />
     ))}

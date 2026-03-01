@@ -1,11 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
+import type { SceneProgressMapper } from './SceneProgressMapper';
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 
 export type UseEngineScrollOptions = {
   scrollRegionRef: RefObject<HTMLElement | null>;
   scrollRegionHeightPx: number;
+  /**
+   * Optional progress mapper. When provided, raw scroll progress is remapped
+   * to engine progress via the mapper's remap() method, and scrollToProgress()
+   * inverts through the mapper before setting the scroll position.
+   * Null means identity mapping (no remapping).
+   */
+  progressMapper?: SceneProgressMapper | null;
 };
 
 export type UseEngineScrollResult = {
@@ -15,7 +23,7 @@ export type UseEngineScrollResult = {
 };
 
 export const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrollResult => {
-  const { scrollRegionRef, scrollRegionHeightPx } = options;
+  const { scrollRegionRef, scrollRegionHeightPx, progressMapper } = options;
   const [progress, setProgress] = useState(0);
   const progressRef = useRef(0);
 
@@ -29,8 +37,9 @@ export const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrol
     const regionTop = scrollTop + rect.top;
     const viewportHeight = window.innerHeight || 1;
     const maxScroll = Math.max(1, scrollRegionHeightPx - viewportHeight);
-    return clamp01((scrollTop - regionTop) / maxScroll);
-  }, [scrollRegionHeightPx, scrollRegionRef]);
+    const rawProgress = clamp01((scrollTop - regionTop) / maxScroll);
+    return progressMapper ? progressMapper.remap(rawProgress) : rawProgress;
+  }, [scrollRegionHeightPx, scrollRegionRef, progressMapper]);
 
   const update = useCallback(() => {
     const next = computeProgress();
@@ -62,10 +71,14 @@ export const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrol
       const regionTop = scrollTop + rect.top;
       const viewportHeight = window.innerHeight || 1;
       const maxScroll = Math.max(1, scrollRegionHeightPx - viewportHeight);
-      const target = regionTop + clamp01(next) * maxScroll;
+      // Invert through mapper to convert engine progress back to raw scroll position
+      const rawTarget = progressMapper
+        ? progressMapper.inverse(clamp01(next))
+        : clamp01(next);
+      const target = regionTop + rawTarget * maxScroll;
       window.scrollTo({ top: target });
     },
-    [scrollRegionHeightPx, scrollRegionRef],
+    [scrollRegionHeightPx, scrollRegionRef, progressMapper],
   );
 
   const getGlobalProgress = useCallback(() => progressRef.current, []);

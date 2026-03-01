@@ -7,6 +7,7 @@ import { InputController } from '../input/InputController';
 import { ActionInputController } from '../input/ActionInputController';
 import type { SceneInputControllerSpec } from '../input/types';
 import { useEngineScroll } from './useEngineScroll';
+import type { SceneProgressMapper } from './SceneProgressMapper';
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 
@@ -42,6 +43,12 @@ export type UseEngineInputOptions = {
    * Stable identity (e.g. a `useState` setter) is strongly recommended.
    */
   onControlledProgressChange?: (p: number) => void;
+  /**
+   * Optional progress mapper. Applied in scroll mode and direct mode (wheel/drag).
+   * NOT applied in controlled-progress mode — the controlled-progress owner
+   * provides semantic engine progress directly.
+   */
+  progressMapper?: SceneProgressMapper | null;
   onCameraOrbit?: (cameraId: string, dx: number, dy: number, speed: number) => void;
   onCameraDolly?: (cameraId: string, delta: number, speed: number) => void;
   onCameraReset?: (cameraId: string) => void;
@@ -70,6 +77,7 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
     canvasRef,
     inputMap,
     inputControllerSpec,
+    progressMapper,
     onCameraOrbit,
     onCameraDolly,
     onCameraReset,
@@ -80,7 +88,12 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
   } = options;
 
   // ─── Scroll mode: delegate to useEngineScroll ─────────────────────────
-  const scrollResult = useEngineScroll({ scrollRegionRef, scrollRegionHeightPx });
+  // Pass progressMapper so scroll mode applies remap/inverse correctly.
+  const scrollResult = useEngineScroll({
+    scrollRegionRef,
+    scrollRegionHeightPx,
+    progressMapper,
+  });
 
   // Extract stable function references to avoid tearing down InputController
   // on every render. scrollResult object reference changes each render, but
@@ -221,7 +234,7 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
   // ─── Return appropriate interface ─────────────────────────────────────
 
   // Controlled mode: progress is entirely owned by the parent via prop.
-  // No window.scrollY reads, no window.scrollTo calls.
+  // No window.scrollY reads, no window.scrollTo calls. Mapper NOT applied.
   if (options.controlledProgress !== undefined) {
     return {
       progress: options.controlledProgress,
@@ -231,10 +244,25 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
   }
 
   if (hasSceneController) {
+    // Direct mode: apply mapper to wheel/drag progress.
+    const mappedDirectProgress = progressMapper
+      ? progressMapper.remap(directProgress)
+      : directProgress;
+
+    const scrollToDirectMapped = (target: number) => {
+      const raw = progressMapper ? progressMapper.inverse(clamp01(target)) : clamp01(target);
+      setDirectProgressBoth(raw);
+    };
+
+    const getDirectMapped = () => {
+      const raw = directProgressRef.current;
+      return progressMapper ? progressMapper.remap(raw) : raw;
+    };
+
     return {
-      progress: directProgress,
-      scrollToProgress: setDirectProgressBoth,
-      getGlobalProgress: getDirectProgress,
+      progress: mappedDirectProgress,
+      scrollToProgress: scrollToDirectMapped,
+      getGlobalProgress: getDirectMapped,
     };
   }
 

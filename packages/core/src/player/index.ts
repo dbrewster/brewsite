@@ -1,5 +1,15 @@
 export { ScenePlayer } from './ScenePlayer';
 export type { ScenePlayerProps } from './ScenePlayer';
+export { EngineProvider } from './EngineProvider';
+export type { EngineProviderProps } from './EngineProvider';
+export { SceneCanvas } from './SceneCanvas';
+export type { SceneCanvasProps } from './SceneCanvas';
+export { EngineOverlayHost } from './EngineOverlayHost';
+export type { EngineOverlayHostProps } from './EngineOverlayHost';
+export { ScrollCaptureSection } from './ScrollCaptureSection';
+export type { ScrollCaptureSectionProps } from './ScrollCaptureSection';
+export { useSceneEngineState } from './useSceneEngineState';
+export type { SceneEngineSnapshot } from './ScenePlayerRegistry';
 export { useSceneEngine } from './useSceneEngine';
 export { useEngineScroll } from './useEngineScroll';
 export { EngineScrollRegion } from './EngineScrollRegion';
@@ -24,3 +34,4 @@ export { LabelPositionerContext, useLabelPositioner } from './LabelPositionerCon
 export type { EngineFrameState, EngineState } from './engineTypes';
 export { SceneInspector } from './SceneInspector';
 export type { SceneInspectorProps } from './SceneInspector';
+export { SceneProgressMapper } from './SceneProgressMapper';

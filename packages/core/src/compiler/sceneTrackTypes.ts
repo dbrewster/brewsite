@@ -1,7 +1,7 @@
 // Core data contracts for the scene compilation pipeline.
 // Types here flow compiler → runtime → player with no circular dependencies.
 
-import type { HudItemDefinition, HudItemResolved } from '../hud/types';
+import type { ReactNode } from 'react';
 import type { LabelResolved } from '../labels/types';
 import type { JsonPrimitive } from '../widget/VariableStore';
 import type { EasingName } from './transitions/easingFunctions';
@@ -9,14 +9,14 @@ export type { EasingName } from './transitions/easingFunctions';
 
 // Re-export for consumers that import from here for convenience
 export type { LabelResolved } from '../labels/types';
-export type { HudItemResolved } from '../hud/types';
 
 // ─── CompileWarning ───────────────────────────────────────────────────────────
 
 export type CompileWarningCode =
   | 'MISSING_WIDGET'
   | 'DUPLICATE_WIDGET_ID'
-  | 'UNRESOLVED_REFERENCE';
+  | 'UNRESOLVED_REFERENCE'
+  | 'PROGRESS_MANAGER';
 
 export type CompileWarning = {
   code: CompileWarningCode;
@@ -33,6 +33,82 @@ export type ClipMeta = {
   duration: number;
   clipStart?: number;
   clipEnd?: number;
+};
+
+// ─── ProgressManager Types ────────────────────────────────────────────────────
+
+/**
+ * Per-scene scroll weight and input pacing curve.
+ * Declared via <ProgressManager> DSL component inside <Scene>.
+ * Stored on SceneFrame; consumed by the SceneProgressProfile aggregation pass.
+ */
+export type ProgressManagerSpec = {
+  /**
+   * Proportional scroll budget for this scene's outgoing transition.
+   * Unitless — normalized across all scenes. A scene with scrollUnits={2400}
+   * and a neighbor with scrollUnits={400} means the first transition window
+   * is 6× wider in raw input space.
+   * Must be > 0. Default: 1.
+   */
+  scrollUnits: number;
+
+  /**
+   * Pure curve function mapping raw local input progress [0..1] to
+   * engine progress [0..1] within this scene's window.
+   *
+   * Hard constraints (validated at compile time):
+   *   fn(0) === 0
+   *   fn(1) === 1
+   *   Monotonically non-decreasing (never goes backward)
+   *
+   * Default: t => t (identity / linear)
+   */
+  fn: (localT: number) => number;
+};
+
+/**
+ * One segment per outgoing transition (N-1 segments for N scenes).
+ * Segment i covers the transition from scene i to scene i+1.
+ */
+export type SceneProgressSegment = {
+  /** Source scene index (0-based). */
+  sceneIndex: number;
+
+  /** Start of this segment in normalized raw input space [0..1]. */
+  rawStart: number;
+
+  /** End of this segment in normalized raw input space [0..1]. */
+  rawEnd: number;
+
+  /** Start of this segment in normalized engine progress space [0..1]. */
+  engineStart: number;
+
+  /** End of this segment in normalized engine progress space [0..1]. */
+  engineEnd: number;
+
+  /**
+   * Input pacing curve for this segment.
+   * Input: localT in [0..1] (normalized position within rawStart..rawEnd).
+   * Output: local engine progress in [0..1] (normalized within engineStart..engineEnd).
+   */
+  fn: (localT: number) => number;
+};
+
+/**
+ * Aggregated scroll-weight profile for a compiled scene track.
+ * Attached to SceneTrack only when at least one scene declares a non-default
+ * <ProgressManager>. Absent when all scenes are uniform linear (zero overhead).
+ */
+export type SceneProgressProfile = {
+  segments: SceneProgressSegment[];
+
+  /**
+   * True when all scrollUnits are equal AND all fn are the identity function.
+   * When true, SceneProgressMapper is not instantiated — identity mapping applies.
+   * Set to true by the aggregation pass when no <ProgressManager> was declared,
+   * or when all declarations are equivalent to the default.
+   */
+  isUniform: boolean;
 };
 
 // ─── SceneFrame ───────────────────────────────────────────────────────────────
@@ -54,8 +130,6 @@ export type SceneFrame = {
    * Multiplier applied to base material roughness for all models in this scene.
    */
   materialRoughnessMultiplier?: number;
-  /** HUD overlay items authored for this scene. Compiled to hudPrimitives per tick. */
-  hudItems?: HudItemDefinition[];
   /** Label definitions authored for this scene. Compiled to labelPrimitives per tick. */
   labels?: LabelResolved[];
   /**
@@ -67,6 +141,20 @@ export type SceneFrame = {
    * those transitions are pre-baked at compile time.
    */
   transitionEasing?: EasingName;
+  /**
+   * Non-DSL React children collected from <Scene> during compilation.
+   * These are HTML elements and non-registered React components that the
+   * compiler passed over. They are NOT stored in the tick array — they are
+   * rendered by EngineOverlayHost in the player layer when this scene is active.
+   */
+  sceneOverlay?: ReactNode;
+  /**
+   * Per-scene scroll weight and pacing curve.
+   * Declared via <ProgressManager scrollUnits={N} fn={...} /> inside a <Scene>.
+   * Undefined means "not declared on this scene" — the carry-forward pass in
+   * buildProgressProfile resolves it.
+   */
+  progressManager?: ProgressManagerSpec;
 };
 
 // ─── SceneFrameDelta ──────────────────────────────────────────────────────────
@@ -77,7 +165,6 @@ export type SceneFrame = {
  */
 export type SceneFrameDelta = {
   widgets?: Record<string, unknown>;
-  hudItems?: HudItemDefinition[];
   labels?: SceneFrame['labels'];
 };
 
@@ -134,8 +221,6 @@ export type SceneTrackTick = {
   sceneIndex: number;
   blockProgress: number;
   state: SceneFrame;
-  /** Resolved HUD items for this tick. Rendered by HudOverlay in ScenePlayer. */
-  hudPrimitives?: HudItemResolved[];
   /** Resolved labels for this tick. Positioned by LabelPositioner in render loop. */
   labelPrimitives?: LabelResolved[];
   deltaForward: SceneFrameDelta;
@@ -166,4 +251,20 @@ export type SceneTrack = {
    * Warnings accumulated during compilation. Empty/undefined when no issues.
    */
   warnings?: CompileWarning[];
+  /**
+   * Map from sceneId to overlay ReactNode for all scenes that declared
+   * non-DSL React children. Built by sceneTrackCompiler from SceneFrame.sceneOverlay.
+   *
+   * Absent from the SceneTrack cache serialization concern because the cache
+   * is in-memory only — Map<string, ReactNode> is safe here.
+   *
+   * EngineOverlayHost reads this to render the active scene's content.
+   */
+  sceneOverlays: Map<string, ReactNode>;
+  /**
+   * Per-scene scroll weights and pacing curves.
+   * Undefined when no <ProgressManager> was declared (identity mapping applies,
+   * zero overhead). Never undefined when any scene declares a non-default spec.
+   */
+  progressProfile?: SceneProgressProfile;
 };

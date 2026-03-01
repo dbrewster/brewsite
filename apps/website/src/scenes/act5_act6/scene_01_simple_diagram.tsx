@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { Scene, Camera, Lighting, Ambient, Directional, Hud, HudItem } from '@brewsite/core';
+import { Scene, Camera, Lighting, Ambient, Directional } from '@brewsite/core';
 import { DiagramCanvas, Diagram, DiagramNode, DiagramEdge, ManualLayout, neonCyberTheme } from '@brewsite/diagram';
 import { MidFade, SlideUp } from '@brewsite/core/hud/animejs';
 
@@ -30,31 +30,27 @@ export const scene01SimpleDiagram: JSX.Element = (
         <DiagramEdge from="api"      to="cache" label="Cache" flow="forward" style="dashed" />
       </Diagram>
     </DiagramCanvas>
-    <Hud>
-      <HudItem id="simple-diagram-hud">
-        <div style={{ position: 'absolute', bottom: '10%', left: '5%', maxWidth: 360 }}>
-          <MidFade duration={1300}>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 10,
-              letterSpacing: '0.3em',
-              textTransform: 'uppercase',
-              color: 'rgba(0,245,255,0.6)',
-              marginBottom: 10,
-            }}>
-              @brewsite/diagram
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 600, color: '#f0f6fc', marginBottom: 12 }}>
-              From whiteboard<br />to 3D in JSX.
-            </div>
-          </MidFade>
-          <SlideUp duration={900} delay={150}>
-            <div style={{ fontSize: 14, color: 'rgba(240,246,252,0.6)', lineHeight: 1.65 }}>
-              Themes, icons, routed edges, groups. No Figma required.
-            </div>
-          </SlideUp>
+    <div style={{ position: 'absolute', bottom: '10%', left: '5%', maxWidth: 360 }}>
+      <MidFade duration={1300}>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 10,
+          letterSpacing: '0.3em',
+          textTransform: 'uppercase',
+          color: 'rgba(0,245,255,0.6)',
+          marginBottom: 10,
+        }}>
+          @brewsite/diagram
         </div>
-      </HudItem>
-    </Hud>
+        <div style={{ fontSize: 24, fontWeight: 600, color: '#f0f6fc', marginBottom: 12 }}>
+          From whiteboard<br />to 3D in JSX.
+        </div>
+      </MidFade>
+      <SlideUp duration={900} delay={150}>
+        <div style={{ fontSize: 14, color: 'rgba(240,246,252,0.6)', lineHeight: 1.65 }}>
+          Themes, icons, routed edges, groups. No Figma required.
+        </div>
+      </SlideUp>
+    </div>
   </Scene>
 );

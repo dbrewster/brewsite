@@ -130,9 +130,15 @@ export default function SceneDsl(): JSX.Element {
         </li>
         <li>
           <Link to="/core/hud">
-            <code>&lt;Hud&gt;</code>
+            Scene Overlay
           </Link>{' '}
-          — 2D overlay with scroll-driven transitions
+          — HTML children rendered as a 2D overlay via <code>EngineOverlayHost</code>
+        </li>
+        <li>
+          <Link to="/core/progress-manager">
+            <code>&lt;ProgressManager&gt;</code>
+          </Link>{' '}
+          — per-scene scroll weighting and pacing curve
         </li>
         <li>
           <Link to="/core/input-navigation">
@@ -141,6 +147,61 @@ export default function SceneDsl(): JSX.Element {
           — scroll/direct-mode scene navigation controller
         </li>
       </ul>
+
+      <h2>Overlay Content</h2>
+
+      <p>
+        Any non-element HTML or React children inside <code>{'<Scene>'}</code> are collected as
+        overlay content and rendered on top of the canvas by{' '}
+        <code>{'<EngineOverlayHost>'}</code>. Use <code>position: absolute</code> to place
+        elements over the canvas area.
+      </p>
+
+      <CodeBlock
+        language="tsx"
+        code={`<Scene key="hero">
+  <Camera type="world" position={[2, 1.5, 6]} />
+  <Background color="#0a0a0a" />
+
+  {/* This div becomes overlay content for this scene */}
+  <div style={{ position: 'absolute', top: '15%', left: '10%' }}>
+    <h1 style={{ color: '#ffffff' }}>Hello World</h1>
+  </div>
+</Scene>`}
+      />
+
+      <p>
+        See <Link to="/core/hud">Scene Overlay</Link> for the full guide including{' '}
+        <code>EngineOverlayHost</code> props, interactive element handling, and migration from the
+        old <code>{'<Hud>'}</code> pattern.
+      </p>
+
+      <h2>Scroll Weighting (<code>{'<ProgressManager>'}</code>)</h2>
+
+      <p>
+        By default every scene receives the same share of the scroll budget. Use{' '}
+        <code>{'<ProgressManager>'}</code> to give a scene more (or less) scroll real estate and
+        to apply a custom pacing curve for how the scene's internal progress advances.
+      </p>
+
+      <CodeBlock
+        language="tsx"
+        code={`<Scene key="installation">
+  {/*
+    This scene gets 2400 scroll units — 6× a scene with 400 units.
+    The fn pacing curve animates in the first 25% of scroll,
+    then holds the final pose for the remaining 75%.
+  */}
+  <ProgressManager scrollUnits={2400} fn={(t) => Math.min(1, t * 4)} />
+  <Camera type="world" position={[0, 2, 8]} />
+</Scene>`}
+      />
+
+      <p>
+        See <Link to="/core/progress-manager">ProgressManager</Link> for the full reference
+        including <code>scrollUnits</code>, <code>fn</code> constraints, and carry-forward
+        semantics.
+      </p>
 
       <h2>Scene Inheritance</h2>
 

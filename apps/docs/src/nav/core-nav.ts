@@ -16,6 +16,7 @@ export const coreNav: NavSection[] = [
       { label: 'Scene DSL', path: '/core/scene-dsl' },
       { label: 'Multi-Scene Sequences', path: '/core/multi-scene' },
       { label: 'Transitions & Easing', path: '/core/transitions' },
+      { label: 'ProgressManager', path: '/core/progress-manager' },
     ],
   },
   {
@@ -30,9 +31,9 @@ export const coreNav: NavSection[] = [
     ],
   },
   {
-    title: 'HUD System',
+    title: 'Overlay Content',
     items: [
-      { label: 'HUD Overlay', path: '/core/hud' },
+      { label: 'Scene Overlay', path: '/core/hud' },
       { label: 'Anime.js Presets', path: '/core/hud-animejs' },
     ],
   },
@@ -50,7 +51,7 @@ export const coreNav: NavSection[] = [
   {
     title: 'Player & Hooks',
     items: [
-      { label: 'ScenePlayer', path: '/core/player' },
+      { label: 'ScenePlayer & EngineProvider', path: '/core/player' },
       { label: 'Hooks Reference', path: '/core/hooks' },
     ],
   },

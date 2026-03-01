@@ -4,7 +4,6 @@ import React from 'react';
 import { render, cleanup } from '@testing-library/react';
 import { EngineStateContext } from '../../../player/EngineStateContext';
 import { Fade, MidFade, SlideUp, SlideDown, ScrollOn, ScrollOff } from '../transitions';
-import { HudPhaseContext } from '../../HudPhaseContext';
 
 vi.mock('animejs', () => ({
   default: {
@@ -16,9 +15,9 @@ vi.mock('animejs', () => ({
 }));
 
 const zeroState = { progress: 0, sceneId: 'test', sceneIndex: 0, sceneProgress: 0 };
-const wrap = (node: React.ReactElement, phase: 'enter' | 'exit' | null = null) => (
+const wrap = (node: React.ReactElement) => (
   <EngineStateContext.Provider value={zeroState}>
-    <HudPhaseContext.Provider value={phase}>{node}</HudPhaseContext.Provider>
+    {node}
   </EngineStateContext.Provider>
 );
 
@@ -74,9 +73,9 @@ describe('transition presets', () => {
     ).not.toThrow();
   });
 
-  it('Fade starts visible when phase is exit', () => {
-    const { container } = render(wrap(<Fade><span /></Fade>, 'exit'));
+  it('Fade always starts hidden (opacity: 0)', () => {
+    const { container } = render(wrap(<Fade><span /></Fade>));
     const div = container.firstElementChild as HTMLElement;
-    expect(div?.style.opacity).toBe('1');
+    expect(div?.style.opacity).toBe('0');
   });
 });

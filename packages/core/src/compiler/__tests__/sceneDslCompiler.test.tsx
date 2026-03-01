@@ -86,32 +86,23 @@ describe('sceneDslCompiler', () => {
     expect(frame.widgets['array']).toEqual({ values: [1, 2] });
   });
 
-  it('pushes HUD items and labels through handlers', () => {
+  it('pushes labels through handlers', () => {
     registerNode(Scene, (node, api, helpers) => {
       helpers.compileChildren(node, api);
     });
 
-    const Annot = () => null;
     const Label = () => null;
-    registerNode(Annot, (_node, api) => {
-      api.pushHudItem({
-        id: 'a1',
-        children: null,
-      });
-    });
     registerNode(Label, (_node, api) => {
       api.pushLabel({ id: 'l1', text: 'L', targetPartId: 'head' });
     });
 
     const tree = (
-      <Scene id="hud">
-        <Annot />
+      <Scene id="labels">
         <Label />
       </Scene>
     );
 
     const { frame } = resolveSceneFromDsl(tree, makeContext(), new WidgetRegistry());
-    expect(frame.hudItems?.[0].id).toBe('a1');
     expect(frame.labels?.[0].id).toBe('l1');
   });
 

@@ -5,8 +5,8 @@
 export { Scene, resolveSceneFromDsl } from './sceneDslCompiler';
 export type { SceneSnapshotContext } from './sceneTypes';
 export type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
-export { Hud, HudItem } from './blocks/hudBlocks';
-export type { HudProps, HudItemDslProps } from './blocks/hudBlocks';
+export { ProgressManager } from './primitives/progressManager';
+export type { ProgressManagerProps } from './primitives/progressManager';
 export { InputController, Action, PointerMap, WheelMap, PinchMap, KeyMap } from './blocks/inputController';
 export type {
   InputControllerProps,

@@ -14,6 +14,7 @@ const CoreConcepts = lazy(() => import('./pages/core/CoreConcepts'));
 const SceneDsl = lazy(() => import('./pages/core/SceneDsl'));
 const MultiScene = lazy(() => import('./pages/core/MultiScene'));
 const Transitions = lazy(() => import('./pages/core/Transitions'));
+const ProgressManager = lazy(() => import('./pages/core/ProgressManager'));
 
 // Elements
 const ModelElement = lazy(() => import('./pages/core/ModelElement'));
@@ -72,9 +73,10 @@ export default function App(): JSX.Element {
         <Route path="installation"    element={<Suspense fallback={<Fallback />}><Installation /></Suspense>} />
         <Route path="quick-start"     element={<Suspense fallback={<Fallback />}><QuickStart /></Suspense>} />
         <Route path="concepts"        element={<Suspense fallback={<Fallback />}><CoreConcepts /></Suspense>} />
-        <Route path="scene-dsl"       element={<Suspense fallback={<Fallback />}><SceneDsl /></Suspense>} />
-        <Route path="multi-scene"     element={<Suspense fallback={<Fallback />}><MultiScene /></Suspense>} />
-        <Route path="transitions"     element={<Suspense fallback={<Fallback />}><Transitions /></Suspense>} />
+        <Route path="scene-dsl"         element={<Suspense fallback={<Fallback />}><SceneDsl /></Suspense>} />
+        <Route path="multi-scene"       element={<Suspense fallback={<Fallback />}><MultiScene /></Suspense>} />
+        <Route path="transitions"       element={<Suspense fallback={<Fallback />}><Transitions /></Suspense>} />
+        <Route path="progress-manager"  element={<Suspense fallback={<Fallback />}><ProgressManager /></Suspense>} />
         <Route path="model"           element={<Suspense fallback={<Fallback />}><ModelElement /></Suspense>} />
         <Route path="camera"          element={<Suspense fallback={<Fallback />}><CameraElement /></Suspense>} />
         <Route path="lighting"        element={<Suspense fallback={<Fallback />}><LightingElement /></Suspense>} />

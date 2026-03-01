@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import {
   Scene, Camera, Background, Lighting, Ambient, Directional,
-  Floor, FloorMirror, ModelRouter, Hud, HudItem,
+  Floor, FloorMirror, ModelRouter,
 } from '@brewsite/core';
 import { MidFade } from '@brewsite/core/hud/animejs';
 
@@ -29,30 +29,26 @@ export const scene01ModelWide: JSX.Element = (
       position={[0, 0, 0]}
       rotation={[0, 0.2, 0]}
     />
-    <Hud>
-      <HudItem id="model-wide-hud">
+    <div style={{
+      position: 'absolute',
+      top: '8%',
+      left: '5%',
+    }}>
+      <MidFade duration={1200}>
         <div style={{
-          position: 'absolute',
-          top: '8%',
-          left: '5%',
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 10,
+          letterSpacing: '0.3em',
+          textTransform: 'uppercase',
+          color: 'rgba(240,246,252,0.4)',
+          marginBottom: 10,
         }}>
-          <MidFade duration={1200}>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 10,
-              letterSpacing: '0.3em',
-              textTransform: 'uppercase',
-              color: 'rgba(240,246,252,0.4)',
-              marginBottom: 10,
-            }}>
-              @brewsite/core · Model Element
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 600, color: '#f0f6fc' }}>
-              Drop a GLTF.<br />Get a scene.
-            </div>
-          </MidFade>
+          @brewsite/core · Model Element
         </div>
-      </HudItem>
-    </Hud>
+        <div style={{ fontSize: 24, fontWeight: 600, color: '#f0f6fc' }}>
+          Drop a GLTF.<br />Get a scene.
+        </div>
+      </MidFade>
+    </div>
   </Scene>
 );

@@ -1,4 +1,4 @@
-import { Ambient, Background, Directional, Environment, Floor, Hud, HudItem, Lighting, Point, Scene, Spot } from '@brewsite/core';
+import { Ambient, Background, Directional, Environment, Floor, Lighting, Point, Scene, Spot } from '@brewsite/core';
 import { Fade } from '@brewsite/core/hud/animejs';
 import { Animation, BodyParts, ContainedModel, ModelPart, Playback, Pose, Robot } from '../../generated/sceneDsl.generated';
 import { backgrounds, sceneLighting } from './sceneAssets';
@@ -36,19 +36,15 @@ export const scene04Scan= (
           </Robot.RForearm>
         </BodyParts>
       </Robot>
-      <Hud>
-        <HudItem id="complex-hud">
-          <Fade duration={1200}>
-            <div className="complex-hud complex-hud--right">
-              <div className="complex-hud__eyebrow">Scene 4</div>
-              <h2 className="complex-hud__title">Scan and analyze.</h2>
-              <div className="complex-hud__body">
-                Cooler hues and sharper highlights signal a diagnostic pass while the pose shifts
-                to emphasize precision.
-              </div>
-            </div>
-          </Fade>
-        </HudItem>
-      </Hud>
+      <Fade duration={1200}>
+        <div className="complex-hud complex-hud--right">
+          <div className="complex-hud__eyebrow">Scene 4</div>
+          <h2 className="complex-hud__title">Scan and analyze.</h2>
+          <div className="complex-hud__body">
+            Cooler hues and sharper highlights signal a diagnostic pass while the pose shifts
+            to emphasize precision.
+          </div>
+        </div>
+      </Fade>
     </Scene>
 );

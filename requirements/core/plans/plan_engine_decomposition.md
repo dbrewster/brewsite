@@ -244,20 +244,16 @@ export type SceneEngineSnapshot = {
 const engineSnapshots = new Map<string, SceneEngineSnapshot>();
 const engineSnapshotListeners = new Map<string, Set<() => void>>();
 
-const DEFAULT_SNAPSHOT: SceneEngineSnapshot = {
-  sceneId: '',
-  sceneIndex: 0,
-  sceneProgress: 0,
-  progress: 0,
-};
-
 export const setEngineSnapshot = (id: string, snapshot: SceneEngineSnapshot): void => {
   engineSnapshots.set(id, snapshot);
   engineSnapshotListeners.get(id)?.forEach((fn) => fn());
 };
 
-export const getEngineSnapshot = (id: string): SceneEngineSnapshot =>
-  engineSnapshots.get(id) ?? DEFAULT_SNAPSHOT;
+// Returns null (not a default snapshot) when the id is not registered.
+// This gives consumers a reliable "not mounted" signal distinct from a mounted engine
+// that happens to be at frame 0 with sceneId ''. The | null return type is honest.
+export const getEngineSnapshot = (id: string): SceneEngineSnapshot | null =>
+  engineSnapshots.get(id) ?? null;
 
 export const subscribeEngineSnapshot = (id: string, listener: () => void): (() => void) => {
   if (!engineSnapshotListeners.has(id)) engineSnapshotListeners.set(id, new Set());
@@ -317,6 +313,12 @@ compileChildrenSeparated: (node: ReactElement, api: CompileApi): ReactNode[] => 
     if (typeof childEl.type === 'function' && !isPrimitiveComponent(childEl.type)) {
       const expanded = expandNode(childEl);
       let anyCompiled = false;
+      // Collect HTML nodes found during expansion separately before committing them.
+      // This avoids the double-push bug: if a component renders only HTML (no DSL),
+      // anyCompiled stays false AND the individual HTML nodes would already be in
+      // overlayNodes — then the whole-component fallback would push childEl on top,
+      // rendering the content twice. Using pendingHtml as a staging area prevents this.
+      const pendingHtml: ReactNode[] = [];
       for (const next of expanded) {
         if (isValidElement(next)) {
           const nextEl = next as ReactElement;
@@ -325,13 +327,19 @@ compileChildrenSeparated: (node: ReactElement, api: CompileApi): ReactNode[] => 
             nextHandler(nextEl, api, helpers);
             anyCompiled = true;
           } else if (typeof nextEl.type === 'string') {
-            // HTML inside expanded component → overlay
-            overlayNodes.push(nextEl);
+            // HTML inside expanded component — stage, don't commit yet
+            pendingHtml.push(nextEl);
           }
         }
       }
-      if (!anyCompiled) {
-        // Component didn't expand to any DSL — treat whole element as overlay
+      if (anyCompiled) {
+        // Mixed component: DSL parts compiled, HTML parts become overlay
+        overlayNodes.push(...pendingHtml);
+      } else if (pendingHtml.length > 0) {
+        // HTML-only expansion: use the individual collected nodes (not the wrapper)
+        overlayNodes.push(...pendingHtml);
+      } else {
+        // No expansion yield at all: treat whole element as overlay
         overlayNodes.push(childEl);
       }
     }
@@ -611,7 +619,17 @@ export const EngineProvider = (props: EngineProviderProps): ReactElement | null 
     sceneProgress: engine.frameState.sceneProgress,
   }), [engine.progress, engine.frameState]);
 
-  if (typeof window === 'undefined') return null;
+  // SSR policy: always render children. Contexts provide meaningful empty/default
+  // values on the server so that layout, nav, and static content render correctly
+  // during SSR or static generation. Engine internals (Three.js, RuntimeLoop, manifest
+  // fetch) are guarded inside useSceneEngine with typeof window checks and return
+  // no-op values on the server. SceneCanvas renders null on the server. This means
+  // a docs page wrapping its sidebar and content column in EngineProvider gets a
+  // fully-rendered HTML shell on the server that hydrates correctly on the client.
+  //
+  // Consumers who need a hard client-only boundary should wrap EngineProvider in a
+  // Suspense boundary with a server-side fallback, or use React.lazy + dynamic import
+  // with ssr: false. EngineProvider itself does not impose a client-only constraint.
 
   return (
     <SceneRegistrationContext.Provider value={registrationContextValue}>
@@ -1052,11 +1070,15 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
 };
 ```
 
-**Implementation note on sceneIds/sceneSpecs in ScenePlayerInner:** The `TimelineWidget`
-and `SceneInspector` need the scenes list. The cleanest approach: expose `scenes` from
-`UseSceneEngineResult` (it is already available as `engine.sceneCount`) and extend it
-to include scene IDs for the timeline. Add `sceneIds: string[]` to
-`UseSceneEngineResult`, derived from `options.scenes.map((s) => s.sceneKey)`.
+**Resolution for `sceneIds`/`sceneSpecs` in ScenePlayerInner:** Add `sceneIds: string[]`
+to `UseSceneEngineResult` in `useSceneEngine.ts`, derived from
+`options.scenes.map((s) => s.sceneKey)`. `ScenePlayerInner` reads `engine.sceneIds`
+directly — no prop-drilling needed. `SceneInspector` receives `engine.sceneIds` mapped
+to `{ sceneKey: id, contentKey: '', element: null }` stubs (it only needs the ids for
+display). `TimelineWidget` receives `engine.sceneIds.map((id) => ({ id }))`. This field
+must be added to `UseSceneEngineResult` before `ScenePlayer.tsx` is refactored (step 10
+in the implementation sequence), so `ScenePlayerInner` can be written without
+placeholders from the start.
 
 ---
 
@@ -1094,16 +1116,15 @@ import {
  * }
  */
 export function useSceneEngineState(id: string): SceneEngineSnapshot | null {
-  const snapshot = useSyncExternalStore(
+  // getEngineSnapshot returns null when the id is not in the registry, so the
+  // | null return type is honest. Consumers can reliably write:
+  //   const state = useSceneEngineState('docs');
+  //   if (!state) return null; // engine not yet mounted
+  return useSyncExternalStore(
     (onStoreChange) => subscribeEngineSnapshot(id, onStoreChange),
-    () => getEngineSnapshot(id),
-    () => null,   // server snapshot — always null (no engine on server)
+    () => getEngineSnapshot(id),   // null when not mounted
+    () => null,                    // server: always null (no engine on server)
   );
-
-  // If the engine is not registered, getEngineSnapshot returns DEFAULT_SNAPSHOT
-  // with empty sceneId. Distinguish "not registered" from "registered but at frame 0"
-  // by checking the registry.
-  return snapshot;
 }
 ```
 
@@ -1405,7 +1426,7 @@ Location: `packages/core/src/player/__tests__/SceneCanvas.test.tsx`
 // Assert: getEngineSnapshot('test-id') returns current snapshot
 //
 // Test: registry is cleaned up on unmount
-// Assert: getEngineSnapshot('test-id') returns DEFAULT_SNAPSHOT after unmount
+// Assert: getEngineSnapshot('test-id') returns null after unmount
 ```
 
 ---

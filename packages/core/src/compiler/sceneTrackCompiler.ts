@@ -10,11 +10,14 @@ import type {
   SceneTrackTransitionBlock,
   EasingName,
   CompileWarning,
+  ProgressManagerSpec,
+  SceneProgressProfile,
+  SceneProgressSegment,
 } from './sceneTrackTypes';
 import { ensureSceneRegistry, resolveSceneFromDsl } from './sceneDslCompiler';
-import { compileHudItems } from './hudCompiler';
 import { compileLabels } from './labelCompiler';
 import { isFunctionalSpec } from './transitions/transitionTypes';
+import { IDENTITY_FN } from '../player/SceneProgressMapper';
 
 const INPUT_CONTROLLER_WIDGET_ID = '__input_controller';
 
@@ -68,7 +71,6 @@ const buildDelta = (prev: SceneFrame | undefined, next: SceneFrame): SceneFrameD
   if (!prev) {
     return {
       widgets: next.widgets,
-      hudItems: next.hudItems,
       labels: next.labels,
     };
   }
@@ -76,14 +78,150 @@ const buildDelta = (prev: SceneFrame | undefined, next: SceneFrame): SceneFrameD
   if (serialize(prev.widgets) !== serialize(next.widgets)) {
     delta.widgets = next.widgets;
   }
-  if (serialize(prev.hudItems) !== serialize(next.hudItems)) {
-    delta.hudItems = next.hudItems;
-  }
   if (serialize(prev.labels) !== serialize(next.labels)) {
     delta.labels = next.labels;
   }
   return delta;
 };
+
+// ─── ProgressManager Aggregation Pass ────────────────────────────────────────
+
+const DEFAULT_PM_SPEC: ProgressManagerSpec = {
+  scrollUnits: 1,
+  fn: IDENTITY_FN,  // canonical reference — enables reference-equality in isUniform check
+};
+
+/**
+ * Validates a ProgressManager fn at compile time.
+ * Returns an array of CompileWarning (empty if valid).
+ */
+function validateProgressFn(
+  fn: (t: number) => number,
+  sceneId: string,
+  sceneIndex: number,
+): CompileWarning[] {
+  const warnings: CompileWarning[] = [];
+  const tol = 0.001;
+
+  const v0 = fn(0);
+  if (Math.abs(v0) > tol) {
+    warnings.push({
+      code: 'PROGRESS_MANAGER',
+      message:
+        `ProgressManager fn on scene "${sceneId}" violates fn(0) === 0 ` +
+        `(got ${v0.toFixed(5)}). Scene boundaries will snap. ` +
+        `Ensure your curve starts at 0.`,
+      sceneIndex,
+    });
+  }
+
+  const v1 = fn(1);
+  if (Math.abs(v1 - 1) > tol) {
+    warnings.push({
+      code: 'PROGRESS_MANAGER',
+      message:
+        `ProgressManager fn on scene "${sceneId}" violates fn(1) === 1 ` +
+        `(got ${v1.toFixed(5)}). Scene boundaries will snap. ` +
+        `Ensure your curve ends at 1.`,
+      sceneIndex,
+    });
+  }
+
+  const s = [fn(0.25), fn(0.5), fn(0.75)];
+  if ((s[0] ?? 0) > (s[1] ?? 0) + tol || (s[1] ?? 0) > (s[2] ?? 0) + tol) {
+    warnings.push({
+      code: 'PROGRESS_MANAGER',
+      message:
+        `ProgressManager fn on scene "${sceneId}" is non-monotonic ` +
+        `(sampled values: ${s.map((v) => (v ?? 0).toFixed(4)).join(', ')}). ` +
+        `The animation will play backward. Ensure fn is non-decreasing across [0, 1].`,
+      sceneIndex,
+    });
+  }
+
+  return warnings;
+}
+
+/**
+ * Builds the SceneProgressProfile from compiled SceneFrames.
+ * Returns undefined when the feature is unused (all defaults) — zero overhead path.
+ * Emits compile warnings for last-scene declarations and invalid fn constraints.
+ */
+export function buildProgressProfile(
+  frames: SceneFrame[],
+  emitWarning: (w: CompileWarning) => void,
+): SceneProgressProfile | undefined {
+  const n = frames.length;
+  if (n < 2) return undefined;  // 0 or 1 scenes: no transitions, no profile needed
+
+  // Resolve each scene's spec via carry-forward
+  const resolved: ProgressManagerSpec[] = [];
+  let last = DEFAULT_PM_SPEC;
+  for (let i = 0; i < n; i++) {
+    const declared = frames[i]?.progressManager;
+    if (declared !== undefined) {
+      const sceneId = frames[i]?.id || `scene-${i}`;
+
+      // Validate fn constraints
+      const fnWarnings = validateProgressFn(declared.fn, sceneId ?? `scene-${i}`, i);
+      fnWarnings.forEach(emitWarning);
+
+      // Warn on last-scene declaration
+      if (i === n - 1) {
+        emitWarning({
+          code: 'PROGRESS_MANAGER',
+          message:
+            `ProgressManager declared on the last scene ("${sceneId}") has no effect. ` +
+            `The last scene has no outgoing transition, so scrollUnits and fn are unused. ` +
+            `Remove the <ProgressManager> from this scene, or declare it on the ` +
+            `second-to-last scene if you want to control that transition's weight.`,
+          sceneIndex: i,
+        });
+      }
+
+      last = declared;
+    }
+    resolved.push(last);
+  }
+
+  // Check if all specs are effectively uniform (skip mapper construction).
+  // IDENTITY_FN is the same reference used by the handler's default and DEFAULT_PM_SPEC,
+  // so this check is correct for both "no <ProgressManager> declared" and
+  // "<ProgressManager scrollUnits={N} />" (fn omitted → IDENTITY_FN assigned).
+  const firstUnit = resolved[0]?.scrollUnits ?? 1;
+  const isUniform = resolved.every(
+    (spec) => spec.scrollUnits === firstUnit && spec.fn === IDENTITY_FN,
+  );
+
+  if (isUniform) return undefined;  // identity mapping — no profile needed
+
+  // Build segments (N-1 segments for N scenes, one per outgoing transition)
+  const totalUnits = resolved
+    .slice(0, n - 1)
+    .reduce((sum, spec) => sum + spec.scrollUnits, 0);
+
+  const segments: SceneProgressSegment[] = [];
+  let rawCursor = 0;
+
+  for (let i = 0; i < n - 1; i++) {
+    const spec = resolved[i]!;
+    const normalizedWeight = spec.scrollUnits / totalUnits;
+    const rawStart = rawCursor;
+    const rawEnd = rawCursor + normalizedWeight;
+    rawCursor = rawEnd;
+
+    segments.push({
+      sceneIndex: i,
+      rawStart,
+      rawEnd,
+      engineStart: i / (n - 1),
+      engineEnd: (i + 1) / (n - 1),
+      fn: spec.fn,
+    });
+  }
+
+  return { segments, isUniform: false };
+}
 
 export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack => {
   ensureSceneRegistry();
@@ -169,6 +307,10 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
       Object.entries(snapshot.widgets).filter(([widgetId]) => !sceneElementWidgetIds.has(widgetId)),
     ),
   );
+
+  // ── Step 1.6: Build ProgressManager profile ──────────────────────────────────
+  // Must run after snapshot evaluation (progressManager is set during DSL compile).
+  const progressProfile = buildProgressProfile(snapshots, (w) => warnings.push(w));
 
   // ── Step 2: Allocate the flat frame array ────────────────────────────────────
   // Each frame starts with an empty widgets map. Widgets fill their own slots.
@@ -360,8 +502,7 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     if (Object.keys(extras).length > 0) frame.widgetExtras = extras;
   }
 
-  // ── Step 6: Compile HUD items and labels ─────────────────────────────────────
-  // HUD items come from the current scene snapshot (no interpolation across scenes).
+  // ── Step 6: Compile labels ────────────────────────────────────────────────────
   // Labels interpolate between fromSnap and toSnap using compileLabels().
   for (const frame of frames) {
     const isLast = frame.index === totalFrames - 1;
@@ -369,15 +510,6 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     const fromSnap = snapshots[blockIdx];
     const toSnap = snapshots[blockIdx + 1];
     if (!fromSnap) continue;
-    const fromHud = fromSnap.hudItems?.length
-      ? compileHudItems(fromSnap.hudItems, { sceneId: fromSnap.id || `scene-${blockIdx}`, phase: 'exit' })
-      : [];
-    const toHud = toSnap?.hudItems?.length
-      ? compileHudItems(toSnap.hudItems, { sceneId: toSnap.id || `scene-${blockIdx + 1}`, phase: 'enter' })
-      : [];
-    if (fromHud.length || toHud.length) {
-      frame.hudPrimitives = [...fromHud, ...toHud];
-    }
     if (fromSnap.labels?.length || toSnap?.labels?.length) {
       frame.labelPrimitives = compileLabels(fromSnap.labels, toSnap?.labels, { sceneProgress: frame.blockProgress });
     }
@@ -390,6 +522,15 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     const next = frames[i + 1];
     frame.deltaForward = buildDelta(prev?.state, frame.state);
     frame.deltaBackward = buildDelta(next?.state, frame.state);
+  }
+
+  // ── Step 8: Build sceneOverlays map ─────────────────────────────────────────
+  // Collect overlay ReactNode for each scene that declared non-DSL children.
+  const sceneOverlays = new Map<string, import('react').ReactNode>();
+  for (const frame of snapshots) {
+    if (frame.sceneOverlay !== undefined) {
+      sceneOverlays.set(frame.id, frame.sceneOverlay);
+    }
   }
 
   // ── Assemble SceneWindows ────────────────────────────────────────────────────
@@ -407,6 +548,8 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     tickStep,
     subTickCount: totalFrames,
     sceneWindows,
+    sceneOverlays,
+    ...(progressProfile !== undefined ? { progressProfile } : {}),
     ...(transitionBlocks.length > 0 ? { transitionBlocks } : {}),
     ...(Object.keys(transitionEasings).length > 0 ? { transitionEasings } : {}),
     ...(warnings.length > 0 ? { warnings } : {}),

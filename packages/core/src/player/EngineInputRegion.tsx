@@ -1,6 +1,7 @@
 // Viewport container for the scene engine. Supports scroll and direct input modes.
+// Canvas rendering and ResizeObserver have moved to SceneCanvas.
+// This component is the scroll-spacer + sticky container infrastructure only.
 
-import { useEffect, useRef } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import type { UseSceneEngineResult } from './useSceneEngine';
 
@@ -25,35 +26,13 @@ export const EngineInputRegion = ({
   children,
   fillContainer = false,
 }: EngineInputRegionProps): ReactElement => {
-  const stickyRef = useRef<HTMLDivElement | null>(null);
   const mode = engine.inputMode;
   // When filling a container, use 100% so the parent's explicit height
   // constrains us. Otherwise fall back to 100vh for full-page layouts.
   const viewportFill = fillContainer ? '100%' : '100vh';
 
-  useEffect(() => {
-    const el = stickyRef.current;
-    if (!el) return;
-    const update = () => {
-      const rect = el.getBoundingClientRect();
-      engine.setViewportSize(rect.width, rect.height);
-    };
-    update();
-    let observer: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== 'undefined') {
-      observer = new ResizeObserver(() => update());
-      observer.observe(el);
-    }
-    window.addEventListener('resize', update);
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener('resize', update);
-    };
-  }, [engine.setViewportSize]);
-
   const innerContent = (
     <div
-      ref={stickyRef}
       // tabIndex={-1}: makes the container programmatically focusable so that
       // keyboard events (including the camera reset shortcut 'r') can be
       // received when the element or canvas is clicked. Without this, keydown
@@ -74,6 +53,7 @@ export const EngineInputRegion = ({
         outline: 'none',
       }}
     >
+      {/* Background widget DOM element — positioned at z:0 */}
       <div
         ref={engine.setBackgroundRef}
         style={{
@@ -82,13 +62,9 @@ export const EngineInputRegion = ({
           backgroundRepeat: 'no-repeat', pointerEvents: 'none',
         }}
       />
-      <canvas
-        ref={engine.setCanvasRef}
-        tabIndex={-1}
-        style={{ width: '100%', height: '100%', display: 'block', position: 'relative', zIndex: 1 }}
-      />
+      {/* Children — SceneCanvas, EngineOverlayHost, LabelItems, etc. */}
       {children && (
-        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 2 }}>
+        <div style={{ position: 'absolute', inset: 0, zIndex: 1 }}>
           {children}
         </div>
       )}
@@ -97,7 +73,11 @@ export const EngineInputRegion = ({
 
   if (mode === 'direct') {
     return (
-      <div ref={engine.scrollRegionRef} className={className} style={{ position: 'relative', height: viewportFill }}>
+      <div
+        ref={engine.scrollRegionRef}
+        className={className}
+        style={{ position: 'relative', height: viewportFill }}
+      >
         {innerContent}
       </div>
     );

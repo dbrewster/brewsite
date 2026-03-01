@@ -5,8 +5,6 @@ import {
   Lighting,
   Ambient,
   Directional,
-  Hud,
-  HudItem,
   Floor,
   FloorMirror,
 } from '@brewsite/core';
@@ -41,17 +39,12 @@ export const scene00Hero: JSX.Element = (
       emissiveColor="#00d8ff"
       intensity={1}
     />
-    <Hud>
-      <HudItem
-        id="website-hero-hud"
-        style={{
-          position: 'absolute',
-          inset: 0,
-          pointerEvents: 'none',
-        }}
-      >
-        <HeroSection />
-      </HudItem>
-    </Hud>
+    <div style={{
+      position: 'absolute',
+      inset: 0,
+      pointerEvents: 'none',
+    }}>
+      <HeroSection />
+    </div>
   </Scene>
 );

@@ -3,7 +3,7 @@ title: "BrewSite Core — Scene Authoring DSL"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-02-28
+last_updated: 2026-03-01
 change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
@@ -14,6 +14,9 @@ change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "DX improvements: transition easing added to Scene DSL. <Scene transition={{ easing: '...' }}> declares the easing curve for the transition into that scene. EasingName type exported with 5 built-in curves. Easing stored in SceneTrack.transitionEasings and applied to blockProgress in RuntimeDriverImpl before widget apply."
+  - date: 2026-03-01
+    author: "Toolkit Product"
+    summary: "Two features implemented. (1) ProgressManager: <ProgressManager> added as a DSL child element inside <Scene>. Props: scrollUnits (proportional scroll budget) and fn (pure input pacing curve). Carry-forward merge semantics. Exported from compiler/index.ts. (2) Engine decomposition: <Hud> and <HudItem> removed from the DSL authoring surface. Non-DSL HTML children of <Scene> are collected by compileChildrenSeparated as overlay content rendered by EngineOverlayHost. Scene authoring section updated to replace Hud authoring pattern with HTML children pattern."
 ---
 
 # BrewSite Core — Scene Authoring DSL
@@ -92,8 +95,9 @@ Without a clear, stable, well-typed authoring surface, consumer adoption is bloc
 8. The compiler must register a node handler for each DSL component before any `resolveSceneFromDsl` call. The registration must be idempotent.
 9. The `resolveSceneFromDsl` function must throw a descriptive error if the root element is not handled by the `Scene` handler.
 10. Prop values on DSL elements may be static values or functions of `SceneSnapshotContext` — `(ctx: SceneSnapshotContext) => T`. Both forms must be resolved identically during compilation.
-11. The `<Hud>` and `<HudItem>` components must be usable anywhere within a `<Scene>` tree to declare overlay items for that scene.
-12. The `<InputController>` component must be usable within a `<Scene>` tree to declare input action mappings. Only one `<InputController>` is permitted per `<Scene>`.
+11. Non-DSL children of `<Scene>` (HTML elements, non-registered React components) must be collected by `compileChildrenSeparated` and stored as `sceneOverlay?: ReactNode` on `SceneFrame`. They are not compiled as part of the widget state tree.
+12. The `<ProgressManager>` component must be usable as a child of `<Scene>` to declare scroll budget and input pacing for that scene. Carry-forward merge semantics apply: a scene that omits `<ProgressManager>` inherits the prior scene's spec.
+13. The `<InputController>` component must be usable within a `<Scene>` tree to declare input action mappings. Only one `<InputController>` is permitted per `<Scene>`.
 13. Custom widgets implementing `IDslComposite` must be able to declare child DSL components that are protected from accidental top-level usage with a descriptive error.
 14. Widgets with the `CUSTOM_NODE_HANDLER` symbol set receive full control over DSL compilation, bypassing the default shallow-merge behavior.
 
@@ -206,6 +210,15 @@ export const Scene = (_props: {
    * Has no effect on the first scene (no incoming transition).
    */
   transition?: { easing?: EasingName };
+  /**
+   * Children may be any of:
+   * - Registered DSL elements (Model, Camera, Lighting, etc.) — compiled into widget state.
+   * - <ProgressManager> — compiled into SceneFrame.progressManager.
+   * - <InputController> — compiled into the __input_controller passthrough state.
+   * - HTML elements or non-registered React components — collected as sceneOverlay
+   *   by compileChildrenSeparated and stored as SceneFrame.sceneOverlay (ReactNode).
+   *   Rendered by EngineOverlayHost in the player layer.
+   */
   children?: React.ReactNode;
 }) => null;
 ```
@@ -260,8 +273,6 @@ export type CompileApi = {
   context: SceneSnapshotContext;
   /** The mutable SceneFrame being built. Handlers write into this directly. */
   state: SceneFrame;
-  /** Push a HUD item definition onto state.hudItems. */
-  pushHudItem: (item: HudItemDefinition) => void;
   /** Push a resolved label onto state.labels. */
   pushLabel: (label: LabelResolved) => void;
   /** Set the compiled state for a widget by its stable widgetId. */
@@ -273,6 +284,13 @@ export type CompileApi = {
 export type CompileHelpers = {
   /** Recurse into a node's children, dispatching each to its registered handler. */
   compileChildren: (node: ReactElement, api: CompileApi) => void;
+  /**
+   * Separate DSL children from non-DSL children (HTML elements and non-registered
+   * React components). DSL children are compiled normally via the node handler
+   * registry. Non-DSL children are returned as ReactNode[] for storage as
+   * SceneFrame.sceneOverlay. Used by the Scene root handler.
+   */
+  compileChildrenSeparated: (node: ReactElement, api: CompileApi) => ReactNode[];
   /** Resolve a value or context function to a concrete value. */
   resolveValue: <T>(
     value: T | ((context: SceneSnapshotContext) => T),
@@ -325,14 +343,10 @@ The following DSL components are built into `@brewsite/core`. Each is a null-ret
 - Props: `src` (HDR asset URL), `intensity`, `enabled`.
 - Transitions: interpolates intensity between scenes.
 
-**`<Hud>`** — HUD overlay item container. Compiles children as HUD primitives.
-- Props: `children` — accepts `<HudItem>` elements.
-- No direct output; delegates to child handlers.
-
-**`<HudItem>`** — Single HUD overlay item.
-- Required props: `id` (string, stable identifier).
-- Optional props: `enabled`, `className`, `style`, `children` (React content for the HUD DOM layer).
-- The `children` prop contains React content that renders in the HUD overlay — it is not compiled as a DSL tree.
+**`<ProgressManager>`** — Scroll budget and input pacing configuration for a scene.
+- Optional props: `scrollUnits` (number, default 1), `fn` (pure pacing curve function).
+- Carry-forward merge semantics: a scene that omits `<ProgressManager>` inherits the prior scene's spec.
+- See Section 7.8 for full type documentation.
 
 **`<InputController>`** — Input action mapping for a scene.
 - Props: `id` (optional, defaults to `'main'`), `scope` (`'canvas'` | `'window'`, defaults to `'canvas'`), `children`.
@@ -408,30 +422,62 @@ export type KeyMapProps = {
 };
 ```
 
-### 7.7 Hud DSL Types
+### 7.7 ProgressManager DSL Types
 
 ```typescript
-// packages/core/src/compiler/blocks/hudBlocks.tsx
+// packages/core/src/compiler/blocks/progressManager.tsx
 
-export type HudProps = {
-  children?: ReactNode;
-};
-
-export type HudItemDslProps = {
-  /** Stable identifier used for React keying and data-hud-id DOM attribute. */
-  id: string;
-  /** When false, item is excluded from compiled hudPrimitives. Defaults to true. */
-  enabled?: boolean;
-  /** Optional CSS class applied to the rendered HudItem container. */
-  className?: string;
-  /** Optional inline styles. Positioning is fully CSS-owned. */
-  style?: CSSProperties;
+export type ProgressManagerProps = {
   /**
-   * React content rendered in the HUD DOM layer.
-   * Not compiled as a DSL subtree.
+   * Proportional scroll budget for this scene's outgoing transition.
+   * The engine normalizes all scene scroll budgets so they sum to 1.
+   * Default: 1. A scene with scrollUnits=2 receives twice the scroll
+   * distance of a scene with scrollUnits=1.
    */
-  children?: ReactNode;
+  scrollUnits?: number;
+  /**
+   * Pure input pacing curve mapping local raw input progress [0..1]
+   * to local engine progress [0..1].
+   *
+   * Constraints (enforced at compile time):
+   * - fn(0) === 0
+   * - fn(1) === 1
+   * - Continuous and monotonically non-decreasing
+   *
+   * Default: identity (t => t).
+   *
+   * Example — ease-in-out curve:
+   * fn={(t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t}
+   */
+  fn?: (localT: number) => number;
 };
+
+export const ProgressManager: (_props: ProgressManagerProps) => null;
+ProgressManager.displayName = 'ProgressManager';
+```
+
+**Merge semantics:** `<ProgressManager>` uses carry-forward merging — identical to `<InputController>`. A scene that omits `<ProgressManager>` inherits the prior scene's `ProgressManagerSpec` unchanged. This ensures a pacing curve declared once applies to all subsequent scenes without repetition. To reset to the default (linear, `scrollUnits=1`), declare `<ProgressManager scrollUnits={1} />` with no `fn` prop.
+
+**Authoring examples:**
+
+```tsx
+// Give scene "features" twice the scroll travel of other scenes
+<Scene key="features">
+  <ProgressManager scrollUnits={2} />
+  <Model id="product" type="product-model" position={[0, 0, 0]} />
+</Scene>
+
+// Apply a quadratic ease-in pacing curve: slow start, fast finish
+<Scene key="reveal">
+  <ProgressManager fn={(t) => t * t} />
+  <Model id="hero" type="hero-model" position={[0, 0, 0]} />
+</Scene>
+
+// Combine: larger scroll budget + custom pacing
+<Scene key="deep-dive">
+  <ProgressManager scrollUnits={3} fn={(t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t} />
+  <Camera descriptor={{ mode: 'world', position: [0, 2, 8], target: [0, 0, 0] }} />
+</Scene>
 ```
 
 ---
@@ -591,25 +637,54 @@ export const sceneClose = (
 
 **The first scene has no incoming transition** — its `transition` prop has no effect.
 
-### 8.7 HUD Overlay
+### 8.7 Scene Overlay Content
+
+Non-DSL children of `<Scene>` — HTML elements and non-registered React components — are collected as overlay content and rendered by `EngineOverlayHost` over the canvas. They are not compiled as widget state.
 
 ```tsx
-<Scene id="features">
+<Scene key="features">
   <Model id="bot" type="mesh" position={[0, 0, 0]} />
-  <Hud>
-    <HudItem id="label-battery" style={{ position: 'absolute', top: '20%', left: '10%' }}>
-      <div className="feature-callout">Battery Life</div>
-    </HudItem>
-    <HudItem id="label-memory" style={{ position: 'absolute', top: '40%', left: '10%' }}>
-      <div className="feature-callout">Memory</div>
-    </HudItem>
-  </Hud>
+  <div style={{ position: 'absolute', top: '20%', left: '10%' }}>
+    <div className="feature-callout">Battery Life</div>
+  </div>
+  <div style={{ position: 'absolute', top: '40%', left: '10%' }}>
+    <div className="feature-callout">Memory</div>
+  </div>
 </Scene>
 ```
 
-HUD items are not animated by the compiler — they appear/disappear at scene boundaries. Motion within a HudItem's `children` is owned by the host application (e.g., via anime.js wrappers).
+`EngineOverlayHost` applies a CSS fade-in keyed on the scene ID when the scene changes. Overlay content per scene is a snapshot captured at compile time — it is a `ReactNode` stored on `SceneFrame.sceneOverlay`. The overlay renders with `pointer-events: none` by default; individual elements within can opt in with `style={{ pointerEvents: 'auto' }}`.
 
-### 8.8 Input Controller
+For overlay content that must persist across all scenes regardless of which is active (navigation arrows, progress dots), render those components as direct children of the page layout alongside `<ScenePlayer>`, not inside `<Scene>`.
+
+### 8.8 ProgressManager
+
+```tsx
+// Give "hero" a large scroll budget with an ease-in-out pacing curve
+export const sceneHero = (
+  <Scene key="hero">
+    <ProgressManager
+      scrollUnits={2}
+      fn={(t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t}
+    />
+    <Camera descriptor={{ mode: 'world', position: [0, 1.5, 8], target: [0, 0, 0] }} />
+    <Model id="product" type="product-model" position={[0, 0, 0]} />
+  </Scene>
+);
+
+// Subsequent scene inherits scroll budget and pacing via carry-forward.
+// Explicitly reset to uniform if needed:
+export const sceneDetail = (
+  <Scene key="detail">
+    <ProgressManager scrollUnits={1} />
+    <Camera descriptor={{ mode: 'world', position: [0, 1, 5], target: [0, 0, 0] }} />
+  </Scene>
+);
+```
+
+The `fn` prop applies only in scroll mode and direct mode. It does not apply when `controlledProgress` is set on `EngineProvider` (controlled-progress mode drives the engine directly).
+
+### 8.9 Input Controller
 
 ```tsx
 <Scene id="interactive">
@@ -632,7 +707,7 @@ HUD items are not animated by the compiler — they appear/disappear at scene bo
 </Scene>
 ```
 
-### 8.9 Scene Metadata
+### 8.10 Scene Metadata
 
 ```tsx
 <Scene
@@ -645,7 +720,7 @@ HUD items are not animated by the compiler — they appear/disappear at scene bo
 
 The `meta` map accepts `JsonPrimitive` values (`string | number | boolean | null`). It is available on `SceneFrame.meta` and surfaced to the host application via the player layer.
 
-### 8.10 Material Multipliers
+### 8.11 Material Multipliers
 
 Scene-level metalness and roughness multipliers apply uniformly to all materials rendered in that scene. Useful for adjusting material appearance per-scene without modifying model assets:
 
@@ -884,12 +959,14 @@ Tree-shaking: because each element's DSL component and handler live in the same 
 
 Any future change to the following constitutes a breaking change requiring a major semver bump:
 
-- Removing or renaming any prop on `Scene`, `Model`, `Camera`, `Lighting`, `Background`, `Floor`, `Environment`, `Hud`, `HudItem`, `InputController`, `Action`, or any `*Map` component.
+- Removing or renaming any prop on `Scene`, `Model`, `Camera`, `Lighting`, `Background`, `Floor`, `Environment`, `ProgressManager`, `InputController`, `Action`, or any `*Map` component.
 - Changing the signature of `resolveSceneFromDsl`.
 - Changing the shape of `SceneSnapshotContext` in a way that removes existing fields.
 - Removing `CUSTOM_NODE_HANDLER` or changing its contract.
 - Removing `registerNode` from the public exports of `compiler/index.ts`.
 - Removing `useSceneRuntime` or changing the shape of `SceneRuntimeState`.
+- Changing the `ProgressManagerSpec` type or the merge semantics of `<ProgressManager>`.
+- Removing the `compileChildrenSeparated` helper or changing its contract for separating DSL from overlay children.
 
 ---
 
@@ -898,9 +975,9 @@ Any future change to the following constitutes a breaking change requiring a maj
 - `react` (peer) — JSX evaluation and `isValidElement`. No rendering, no hooks.
 - `packages/core/src/widget/WidgetRegistry` — consumed by `resolveSceneFromDsl` for handler dispatch.
 - `packages/core/src/compiler/registry` — the node handler Map; no external dependencies.
-- `packages/core/src/hud/types` — `HudItemDefinition` type; no Three.js.
 - `packages/core/src/labels/types` — `LabelResolved` type; no Three.js.
 - `packages/core/src/input/types` — `InputActionType`, `InputActionMap`, and related types.
+- `packages/core/src/compiler/sceneTrackTypes` — `ProgressManagerSpec` type; no Three.js.
 
 ---
 
@@ -927,7 +1004,10 @@ Any future change to the following constitutes a breaking change requiring a maj
 ## 19. Launch Criteria
 
 - All existing scenes in `apps/examples/` compile without TypeScript errors under `pnpm typecheck`.
-- `resolveSceneFromDsl` has unit test coverage for: root element validation, Fragment expansion, context function resolution, `CUSTOM_NODE_HANDLER` dispatch, `IDslComposite` child protection, and `InputController` duplicate-action validation.
+- `resolveSceneFromDsl` has unit test coverage for: root element validation, Fragment expansion, context function resolution, `CUSTOM_NODE_HANDLER` dispatch, `IDslComposite` child protection, `InputController` duplicate-action validation, `ProgressManager` carry-forward merge semantics, and `compileChildrenSeparated` HTML overlay collection.
+- `ProgressManager` compile-time validation tests cover: `fn(0) !== 0` warning, `fn(1) !== 1` warning, and `scrollUnits <= 0` warning.
+- At least one example in `apps/examples/` demonstrates `<ProgressManager>` with a custom `scrollUnits` and `fn`.
+- At least one example in `apps/examples/` demonstrates HTML overlay children inside `<Scene>` rendered by `EngineOverlayHost`.
 - `README.md` for `@brewsite/core` includes a minimal scene example demonstrating `<Scene>`, `<Camera>`, `<Model>`, and `<Lighting>`.
 - Every exported symbol from `compiler/index.ts` is documented with a JSDoc comment.
 - CHANGELOG entry written for the current release version.

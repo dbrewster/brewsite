@@ -1,11 +1,10 @@
-// Scroll-driven transition wrappers for use as children of DSL <HudItem> elements.
-// Must be rendered inside <ScenePlayer> (EngineStateContext must be provided).
+// Scroll-driven transition wrappers for use as children of scene overlay content.
+// Must be rendered inside <EngineProvider> or <ScenePlayer> (EngineStateContext must be provided).
 
 import { useRef } from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import anime from 'animejs';
 import { useScrollTimeline } from './useScrollTimeline';
-import { useHudPhase } from '../HudPhaseContext';
 
 // ─── Shared prop type ─────────────────────────────────────────────────────────
 
@@ -49,24 +48,19 @@ export const Fade = ({
   easing = 'easeInOutSine',
 }: TransitionProps): ReactElement => {
   const ref = useRef<HTMLDivElement>(null);
-  const phase = useHudPhase() ?? 'enter';
   const half = duration * 0.5;
 
   useScrollTimeline(
     ref,
     (target) =>
-      phase === 'exit'
-        ? anime.timeline({ autoplay: false })
-          .add({ targets: target, opacity: [1, 0], duration: half, easing, delay })
-          .add({ targets: target, opacity: 0, duration: half })
-        : anime.timeline({ autoplay: false })
-          .add({ targets: target, opacity: 0, duration: half, delay })
-          .add({ targets: target, opacity: [0, 1], duration: half, easing }),
+      anime.timeline({ autoplay: false })
+        .add({ targets: target, opacity: 0, duration: half, delay })
+        .add({ targets: target, opacity: [0, 1], duration: half, easing }),
     duration + delay,
-    [duration, delay, easing, phase] as const,
+    [duration, delay, easing] as const,
   );
 
-  return <div ref={ref} style={{ opacity: phase === 'exit' ? 1 : 0 }}>{children}</div>;
+  return <div ref={ref} style={{ opacity: 0 }}>{children}</div>;
 };
 
 // ─── MidFade ─────────────────────────────────────────────────────────────────

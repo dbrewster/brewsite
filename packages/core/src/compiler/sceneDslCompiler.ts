@@ -124,6 +124,73 @@ const helpers: CompileHelpers = {
       }
     }
   },
+
+  compileChildrenSeparated: (node, api): ReactNode[] => {
+    const children = collectChildren(node);
+    const overlayNodes: ReactNode[] = [];
+
+    for (const child of children) {
+      if (!isValidElement(child)) {
+        // Text nodes, numbers, booleans — treat as overlay content
+        if (child !== null && child !== undefined && child !== false) {
+          overlayNodes.push(child as ReactNode);
+        }
+        continue;
+      }
+      const childEl = child as ReactElement;
+
+      // String type = native HTML element (div, h1, p, span, etc.) → overlay
+      if (typeof childEl.type === 'string') {
+        overlayNodes.push(childEl);
+        continue;
+      }
+
+      // Registered DSL component → compile as normal
+      const handler = getNodeHandler(childEl.type);
+      if (handler) {
+        handler(childEl, api, helpers);
+        continue;
+      }
+
+      // Non-registered function component → try expanding
+      if (typeof childEl.type === 'function' && !isPrimitiveComponent(childEl.type)) {
+        const expanded = expandNode(childEl);
+        let anyCompiled = false;
+        // Collect HTML nodes found during expansion separately before committing them.
+        // This avoids the double-push bug: if a component renders only HTML (no DSL),
+        // anyCompiled stays false AND the individual HTML nodes would already be in
+        // overlayNodes — then the whole-component fallback would push childEl on top,
+        // rendering the content twice. Using pendingHtml as a staging area prevents this.
+        const pendingHtml: ReactNode[] = [];
+        for (const next of expanded) {
+          if (isValidElement(next)) {
+            const nextEl = next as ReactElement;
+            const nextHandler = getNodeHandler(nextEl.type);
+            if (nextHandler) {
+              nextHandler(nextEl, api, helpers);
+              anyCompiled = true;
+            } else if (typeof nextEl.type === 'string') {
+              // HTML inside expanded component — stage, don't commit yet
+              pendingHtml.push(nextEl);
+            }
+          }
+        }
+        if (anyCompiled) {
+          // Mixed component: DSL parts compiled, HTML parts become overlay
+          overlayNodes.push(...pendingHtml);
+        } else if (pendingHtml.length > 0) {
+          // HTML-only expansion: use the individual collected nodes (not the wrapper)
+          overlayNodes.push(...pendingHtml);
+        } else {
+          // No expansion yield at all: treat whole element as overlay
+          overlayNodes.push(childEl);
+        }
+      }
+    }
+
+    return overlayNodes;
+  },
+
   resolveValue,
   resolveObjectValues,
   stripUndefinedDeep,
@@ -142,10 +209,6 @@ const createApi = (
   return {
     context,
     state,
-    pushHudItem: (item) => {
-      state.hudItems = state.hudItems ?? [];
-      state.hudItems.push(item);
-    },
     pushLabel: (label) => {
       state.labels = state.labels ?? [];
       state.labels.push(label);
@@ -229,7 +292,15 @@ const sceneRootHandler: NodeHandler = (node, api, helpers) => {
   if (props.transition?.easing) {
     api.state.transitionEasing = props.transition.easing;
   }
-  helpers.compileChildren(node, api);
+
+  // Separate DSL children (compiled into api.state) from non-DSL overlay children
+  const overlayNodes = helpers.compileChildrenSeparated(node, api);
+
+  if (overlayNodes.length > 0) {
+    api.state.sceneOverlay = overlayNodes.length === 1
+      ? overlayNodes[0]
+      : React.createElement(React.Fragment, null, ...overlayNodes);
+  }
 };
 
 export const ensureSceneRegistry = (): void => {

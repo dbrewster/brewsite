@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { Scene, Camera, Lighting, Ambient, Directional, Floor, FloorMirror, Hud, HudItem } from '@brewsite/core';
+import { Scene, Camera, Lighting, Ambient, Directional, Floor, FloorMirror } from '@brewsite/core';
 import { DiagramCanvas, Diagram, DiagramEdge, DiagramGroup, DiagramNode, Exit, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
 import { MidFade, SlideUp } from '@brewsite/core/hud/animejs';
 
@@ -56,33 +56,29 @@ export const scene02ArchOverview: JSX.Element = (
         <DiagramEdge from="ecs"     to="s3"     label="r/w"      style="dashed" flow="forward" />
       </Diagram>
     </DiagramCanvas>
-    <Hud>
-      <HudItem id="arch-overview-hud">
-        <div style={{ position: 'absolute', top: '6%', right: '5%', textAlign: 'right', maxWidth: 300 }}>
-          <MidFade duration={1200}>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 10,
-              letterSpacing: '0.3em',
-              textTransform: 'uppercase',
-              color: 'rgba(240,246,252,0.4)',
-              marginBottom: 8,
-            }}>
-              Production Architecture
-            </div>
-            <div style={{ fontSize: 20, fontWeight: 600, color: '#f0f6fc' }}>
-              16 nodes · 4 tiers · 8 edges
-            </div>
-          </MidFade>
+    <div style={{ position: 'absolute', top: '6%', right: '5%', textAlign: 'right', maxWidth: 300 }}>
+      <MidFade duration={1200}>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 10,
+          letterSpacing: '0.3em',
+          textTransform: 'uppercase',
+          color: 'rgba(240,246,252,0.4)',
+          marginBottom: 8,
+        }}>
+          Production Architecture
         </div>
-        <div style={{ position: 'absolute', bottom: '8%', left: '5%', maxWidth: 360 }}>
-          <SlideUp duration={1000} delay={100}>
-            <div style={{ fontSize: 22, fontWeight: 600, color: '#f0f6fc' }}>
-              Architecture diagrams.<br />Presentation-ready.
-            </div>
-          </SlideUp>
+        <div style={{ fontSize: 20, fontWeight: 600, color: '#f0f6fc' }}>
+          16 nodes · 4 tiers · 8 edges
         </div>
-      </HudItem>
-    </Hud>
+      </MidFade>
+    </div>
+    <div style={{ position: 'absolute', bottom: '8%', left: '5%', maxWidth: 360 }}>
+      <SlideUp duration={1000} delay={100}>
+        <div style={{ fontSize: 22, fontWeight: 600, color: '#f0f6fc' }}>
+          Architecture diagrams.<br />Presentation-ready.
+        </div>
+      </SlideUp>
+    </div>
   </Scene>
 );
