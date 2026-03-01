@@ -21,7 +21,7 @@ function InputActionsDemo(): JSX.Element {
     <InlineDemo controlledProgress={demoProgress} height={260}>
       <Scene key="ia-d1" id="ia-d1">
         <Camera mode="orbit" target={[0, 0, 0]} azimuth={0} polar={1.0} distance={8}
-          interaction={{ enabled: true, rotate: { key: 'none', sensitivity: 0.8 }, zoom: { key: 'none', sensitivity: 0.5 }, damping: 0.08 }}
+          interaction={{ enabled: true, rotate: { speed: 0.8 }, zoom: { speed: 0.5 }, damping: 0.08 }}
         />
         <Lighting><Ambient color="#22ff88" intensity={0.3} /><Directional color="#44ffaa" intensity={1.5} position={[5, 9, -3]} /></Lighting>
         <Background color="#0d1210" />

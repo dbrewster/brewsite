@@ -85,7 +85,7 @@ describe('rerouteLiveEdges', () => {
     expect(live.get('e1')).toEqual([]);
   });
 
-  it('returns fallback points for edges with missing nodes', () => {
+  it('returns empty control points for edges with missing nodes', () => {
     const { positions, sizes } = buildLiveNodeMaps([]);
     const live = rerouteLiveEdges(
       [makeEdge('e1', 'a', 'b')],
@@ -94,7 +94,7 @@ describe('rerouteLiveEdges', () => {
       positions,
       sizes,
     );
-    expect(live.get('e1')).toEqual([[0, 0, 0], [0, 0, 0]]);
+    expect(live.get('e1')).toEqual([]);
   });
 
   it('recomputes control points when node positions change', () => {

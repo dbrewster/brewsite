@@ -77,7 +77,6 @@ type ModelAuthoredFlags = {
 
 const hasProp = (props: Record<string, unknown>, key: string): boolean =>
   Object.prototype.hasOwnProperty.call(props, key);
-const addVec3 = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
 const isComponent = (el: ReactElement, component: React.ComponentType<any>): boolean => {
   if (el.type === component) return true;
   const a = el.type as { displayName?: string; name?: string };
@@ -395,8 +394,6 @@ export class ModelWidget
   readonly clipMeta: ClipMeta[];
   private loadedClipNames = new Set<string>();
   private warnedMissingClipNames = new Set<string>();
-  /** Current labels from the last apply() call. Used by contributeRenderData(). */
-  private currentLabels: LabelResolved[] = [];
 
   private config: ModelWidgetConfig;
   private renderer: ModelRenderer | null = null;
@@ -792,8 +789,6 @@ export class ModelWidget
         `Available clips: ${Array.from(this.loadedClipNames).join(', ')}`,
       );
     }
-    // Store current labels for contributeRenderData()
-    this.currentLabels = state.labels ?? [];
     const animation = context.extra as CompiledAnimation | undefined;
     this.renderer.apply(state, animation, context);
   }

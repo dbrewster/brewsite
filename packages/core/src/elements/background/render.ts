@@ -18,6 +18,13 @@ export type BackgroundDomRefs = {
 export function applyBackground(state: SceneBackground, refs: BackgroundDomRefs): void {
   const element = refs.element;
 
+  // Apply background color if provided
+  if (state.color) {
+    element.style.backgroundColor = state.color;
+  } else {
+    element.style.backgroundColor = '';
+  }
+
   // Apply background image
   if (state.imageUrl) {
     element.style.backgroundImage = `url('${state.imageUrl}')`;

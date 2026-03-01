@@ -48,13 +48,6 @@ export const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrol
   const [progress, setProgress] = useState(0);
   const progressRef = useRef(0);
   const rawProgressRef = useRef(0);
-  // Counts window.scrollTo calls made by auto-advance that have not yet produced
-  // a scroll event. Each scrollToRawProgress increments this before calling
-  // window.scrollTo; each scroll event decrements it. When > 0 the scroll event
-  // is from us, not the user, so onUserScroll is suppressed.
-  // Counter-based (not boolean) because multiple programmatic scrolls can be
-  // in-flight before their events arrive. No timing dependency — purely event-driven.
-  const pendingProgrammaticScrollsRef = useRef(0);
 
   const computeProgress = useCallback((): { raw: number; mapped: number } => {
     if (typeof window === 'undefined') return { raw: 0, mapped: 0 };
@@ -83,12 +76,10 @@ export const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrol
     if (typeof window === 'undefined') return;
     update();
     const onScroll = () => {
-      // Consume one pending programmatic scroll if present; otherwise it's a user scroll.
-      if (pendingProgrammaticScrollsRef.current > 0) {
-        pendingProgrammaticScrollsRef.current--;
-      } else {
-        options.onUserScroll?.();
-      }
+      // Every scroll event reaching this listener is a genuine user scroll.
+      // Auto-advance no longer calls window.scrollTo, so no programmatic events
+      // reach this handler. See autoAdvanceRawRef in useSceneEngine.
+      options.onUserScroll?.();
       update();
     };
     const onResize = () => update();
@@ -134,12 +125,6 @@ export const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrol
       const maxScroll = Math.max(1, scrollRegionHeightPx - viewportHeight);
       const clamped = Math.max(0, Math.min(1, raw));
       const target = regionTop + clamped * maxScroll;
-      const currentScrollY = window.scrollY || window.pageYOffset || 0;
-      // Only count if the scroll position will actually change. window.scrollTo to
-      // the same position fires no scroll event, so we must not increment the counter.
-      if (Math.abs(target - currentScrollY) >= 1) {
-        pendingProgrammaticScrollsRef.current++;
-      }
       window.scrollTo({ top: target });
     },
     [scrollRegionHeightPx, scrollRegionRef],

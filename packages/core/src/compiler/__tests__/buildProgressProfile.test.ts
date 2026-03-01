@@ -376,4 +376,88 @@ describe('buildProgressProfile', () => {
       expect(profile!.isUniform).toBe(false);
     });
   });
+
+  // ─── Carry-forward boundary: behavioral vs structural props ──────────────────
+
+  it('22. autoAdvance does NOT carry forward to subsequent scenes', () => {
+    // Scene 0 declares autoAdvance. Scenes 1 and 2 omit <ProgressManager>.
+    // Only segment 0 (a→b) should have autoAdvance; segment 1 (b→c) must not.
+    const frames = [
+      makeFrame('a', {
+        scrollUnits: 1,
+        fn: IDENTITY_FN,
+        autoAdvance: { duration: 5, max: 0.8, pauseOnScroll: true },
+      }),
+      makeFrame('b'),
+      makeFrame('c'),
+    ];
+    const { profile, warnings } = collectWarnings(frames);
+    expect(warnings).toHaveLength(0);
+    expect(profile).not.toBeUndefined();
+    expect(profile!.segments).toHaveLength(2);
+    // Segment 0: autoAdvance declared on scene 0
+    expect(profile!.segments[0]!.autoAdvance).not.toBeUndefined();
+    expect(profile!.segments[0]!.autoAdvance!.pauseOnScroll).toBe(true);
+    // Segment 1: NOT inherited — scene 1 did not declare autoAdvance
+    expect(profile!.segments[1]!.autoAdvance).toBeUndefined();
+  });
+
+  it('23. animationTimeScale does NOT carry forward to subsequent scenes', () => {
+    // Scene 0 declares animationTimeScale. Scene 1 omits <ProgressManager>.
+    const frames = [
+      makeFrame('a', { scrollUnits: 1, fn: IDENTITY_FN, animationTimeScale: 3 }),
+      makeFrame('b'),
+      makeFrame('c'),
+    ];
+    const { profile, warnings } = collectWarnings(frames);
+    expect(warnings).toHaveLength(0);
+    expect(profile).not.toBeUndefined();
+    // Segment 0: animationTimeScale from scene 0
+    expect(profile!.segments[0]!.animationTimeScale).toBe(3);
+    // Segment 1: NOT inherited
+    expect(profile!.segments[1]!.animationTimeScale).toBeUndefined();
+  });
+
+  it('24. scrollUnits and fn DO carry forward (structural pacing properties)', () => {
+    // Scene 0 declares scrollUnits=5 with a custom fn. Scenes 1 and 2 omit <ProgressManager>.
+    // Both outgoing segments should inherit scrollUnits=5 and the custom fn.
+    const customFn = (t: number): number => t * t;
+    const frames = [
+      makeFrame('a', { scrollUnits: 5, fn: customFn }),
+      makeFrame('b'),
+      makeFrame('c'),
+    ];
+    const { profile } = collectWarnings(frames);
+    expect(profile).not.toBeUndefined();
+    expect(profile!.segments).toHaveLength(2);
+    // fn carries forward to both segments
+    expect(profile!.segments[0]!.fn).toBe(customFn);
+    expect(profile!.segments[1]!.fn).toBe(customFn);
+    // Equal scrollUnits → equal raw widths (each 0.5 of total)
+    expect(profile!.segments[0]!.rawEnd).toBeCloseTo(0.5, 10);
+    expect(profile!.segments[1]!.rawEnd).toBeCloseTo(1.0, 10);
+  });
+
+  it('25. Second scene overrides autoAdvance; first scene still has its own', () => {
+    // Regression: explicit carry-forward must not bleed autoAdvance across scenes.
+    const frames = [
+      makeFrame('a', {
+        scrollUnits: 1,
+        fn: IDENTITY_FN,
+        autoAdvance: { duration: 3, max: 0.8, pauseOnScroll: true },
+      }),
+      makeFrame('b', {
+        scrollUnits: 1,
+        fn: IDENTITY_FN,
+        autoAdvance: { duration: 10, max: 0.5, pauseOnScroll: false },
+      }),
+      makeFrame('c'),
+    ];
+    const { profile, warnings } = collectWarnings(frames);
+    expect(warnings).toHaveLength(0);
+    expect(profile!.segments[0]!.autoAdvance!.rawRate).toBeCloseTo((0.8 * 0.5) / 3, 6);
+    expect(profile!.segments[1]!.autoAdvance!.rawRate).toBeCloseTo((0.5 * 0.5) / 10, 6);
+    // Segment 2 would be (c has no outgoing transition) — only 2 segments for 3 scenes
+    expect(profile!.segments).toHaveLength(2);
+  });
 });

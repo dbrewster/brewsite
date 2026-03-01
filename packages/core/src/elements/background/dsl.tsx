@@ -19,6 +19,7 @@ import type { Vec3 } from './types';
 export type BackgroundProps = {
   imageUrl?: string;
   opacity?: number;
+  color?: string;
   /** World-space offset for the 3D background plane mode. */
   position?: Vec3;
   /** CSS `background-position` for DOM fallback mode (for example `'center top'`). */

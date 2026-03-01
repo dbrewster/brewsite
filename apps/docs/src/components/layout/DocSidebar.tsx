@@ -13,13 +13,15 @@ export function DocSidebar({ nav }: DocSidebarProps): JSX.Element {
         <div key={section.title} className="nav-section">
           <div className="nav-section__title">{section.title}</div>
           {section.items.map((item) => (
-            <NavLink
-              key={item.path}
-              to={item.path}
-              className={({ isActive }) => `nav-item${isActive ? ' nav-item--active' : ''}`}
-            >
-              {item.label}
-            </NavLink>
+            item.path !== undefined && (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                className={({ isActive }) => `nav-item${isActive ? ' nav-item--active' : ''}`}
+              >
+                {item.label}
+              </NavLink>
+            )
           ))}
         </div>
       ))}

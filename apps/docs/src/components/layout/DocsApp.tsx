@@ -1,6 +1,6 @@
 import { JSX, useEffect } from 'react';
 import { ScenePlayer, createDefaultWidgetRegistry } from '@brewsite/core';
-import type { AssetManifest, WidgetRegistry } from '@brewsite/core';
+import type { WidgetRegistry } from '@brewsite/core';
 import { DocsSidebar } from './DocsSidebar';
 import { SCENE_SCROLL_OFFSETS } from '../../nav/docs-nav';
 import * as Scenes from '../../scenes/index';
@@ -8,8 +8,8 @@ import * as Scenes from '../../scenes/index';
 // Module-level stable widget setup.
 // MUST be module-level — if recreated on every render, ScenePlayer would
 // rebuild the entire Three.js driver, causing constant flicker.
-const widgetSetup = (manifest: AssetManifest): WidgetRegistry =>
-  createDefaultWidgetRegistry(manifest);
+const widgetSetup = (_manifest: unknown): WidgetRegistry =>
+  createDefaultWidgetRegistry(_manifest);
 
 /**
  * DocsApp — root component for the BrewSite continuous-scroll documentation.

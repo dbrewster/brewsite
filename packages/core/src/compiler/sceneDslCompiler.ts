@@ -317,7 +317,7 @@ export const ensureSceneRegistry = (): void => {
 export const resolveSceneFromDsl = (
   tree: unknown,
   context: SceneSnapshotContext,
-  widgetRegistry: WidgetRegistry,
+  _widgetRegistry: WidgetRegistry,
   pushWarning?: (warning: CompileWarning) => void,
 ): ResolvedScene => {
   // Ensure core handlers are registered before attempting DSL compilation.

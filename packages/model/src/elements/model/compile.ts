@@ -652,7 +652,7 @@ const cloneIdentityState = (state: SceneModelInstanceState): SceneModelInstanceS
 };
 
 export function createDefaultModelInstanceState(
-  modelId: string,
+  _modelId: string,
   identity: SceneModelInstanceState,
 ) {
   return cloneIdentityState(identity);

@@ -6,4 +6,8 @@ export interface FlatRoute {
 }
 
 export const flattenNav = (sections: NavSection[]): FlatRoute[] =>
-  sections.flatMap((section) => section.items.map((item) => ({ label: item.label, fullPath: item.path })));
+  sections.flatMap((section) =>
+    section.items.flatMap((item) =>
+      item.path !== undefined ? [{ label: item.label, fullPath: item.path }] : [],
+    ),
+  );

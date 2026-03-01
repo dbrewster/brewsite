@@ -147,9 +147,18 @@ export function buildProgressProfile(
   const n = frames.length;
   if (n < 2) return undefined;  // 0 or 1 scenes: no transitions, no profile needed
 
-  // Resolve each scene's spec via carry-forward
+  // Resolve each scene's spec via carry-forward.
+  // CARRY-FORWARD RULES:
+  //   scrollUnits and fn  → structural pacing properties, carry forward to the next
+  //                         scene if that scene omits <ProgressManager>.
+  //   autoAdvance         → per-scene behavioral property, does NOT carry forward.
+  //                         Declaring autoAdvance on scene N only affects scene N's
+  //                         outgoing transition. Scene N+1 starts without auto-advance
+  //                         unless it explicitly declares its own <ProgressManager>.
+  //   animationTimeScale  → same: per-scene declaration only, does NOT carry forward.
   const resolved: ProgressManagerSpec[] = [];
-  let last = DEFAULT_PM_SPEC;
+  let lastScrollUnits = DEFAULT_PM_SPEC.scrollUnits;
+  let lastFn = DEFAULT_PM_SPEC.fn;
   for (let i = 0; i < n; i++) {
     const declared = frames[i]?.progressManager;
     if (declared !== undefined) {
@@ -172,9 +181,14 @@ export function buildProgressProfile(
         });
       }
 
-      last = declared;
+      lastScrollUnits = declared.scrollUnits;
+      lastFn = declared.fn;
     }
-    resolved.push(last);
+    // Build resolved spec: structural props carry forward; behavioral props are per-scene only.
+    const resolvedSpec: ProgressManagerSpec = { scrollUnits: lastScrollUnits, fn: lastFn };
+    if (declared?.autoAdvance !== undefined) resolvedSpec.autoAdvance = declared.autoAdvance;
+    if (declared?.animationTimeScale !== undefined) resolvedSpec.animationTimeScale = declared.animationTimeScale;
+    resolved.push(resolvedSpec);
   }
 
   // Check if all specs are effectively uniform (skip mapper construction).

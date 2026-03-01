@@ -7,10 +7,8 @@ import {
   Directional,
   Floor,
   FloorPhysical,
-  Model,
-  Playback,
-  Animation,
 } from '@brewsite/core';
+import { Model, Playback, Animation } from '@brewsite/model';
 import { DemoScene } from '../shared/DemoScene';
 import { createModelDemoWidgetSetup } from '../shared/demoSetup';
 

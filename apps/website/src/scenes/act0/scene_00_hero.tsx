@@ -39,7 +39,7 @@ export const scene00Hero: JSX.Element = (
     <ProgressManager
       scrollUnits={1800}
       autoAdvance={{ duration: 3, max: 0.80, pauseOnScroll: true }}
-      animationTimeScale={3}
+      animationTimeScale={5}
     />
     <Camera mode="world" position={[0, 7, 17]} target={[0, 1.4, 0]} fov={52} />
 

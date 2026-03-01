@@ -921,7 +921,7 @@ const toRelative = (abs) => {
     return rel.startsWith('.') ? rel : `./${rel}`;
 };
 
-const modelDslImportPath = '@brewsite/core';
+const modelDslImportPath = '@brewsite/model';
 
 const modelBodyPartComponents = modelDefs.map((entry) => {
     const modelName = entry.type;

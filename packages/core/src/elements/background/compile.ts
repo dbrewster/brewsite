@@ -25,6 +25,7 @@ const selectImageUrl = (from: string | undefined, to: string | undefined, t: num
 export const DEFAULT_BACKGROUND: SceneBackground = {
   imageUrl: undefined,
   opacity: 1,
+  color: undefined,
   position: undefined,
   cssPosition: undefined,
   cssSize: undefined,
@@ -56,6 +57,7 @@ export const backgroundTransitionSpec: ElementTransitionSpec<SceneBackground> = 
       frames[i]!.state.widgets[widgetId] = {
         imageUrl: selectImageUrl(fromState.imageUrl, toState.imageUrl, t),
         opacity: crossFadeOpacity(fromState, toState, t),
+        color: t < 0.5 ? fromState.color : toState.color,
         position: blendVec3(fromState.position, toState.position, t),
         cssPosition: t < 0.5 ? fromState.cssPosition : toState.cssPosition,
         cssSize: t < 0.5 ? fromState.cssSize : toState.cssSize,
@@ -77,6 +79,7 @@ export const functionalBackgroundTransitionSpec: FunctionalTransitionSpec<SceneB
   interpolateFn: (from, to) => (t) => ({
     imageUrl: selectImageUrl(from.imageUrl, to.imageUrl, t),
     opacity: crossFadeOpacity(from, to, t),
+    color: t < 0.5 ? from.color : to.color,
     position: blendVec3(from.position, to.position, t),
     cssPosition: t < 0.5 ? from.cssPosition : to.cssPosition,
     cssSize: t < 0.5 ? from.cssSize : to.cssSize,

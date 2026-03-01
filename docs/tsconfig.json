@@ -5,7 +5,9 @@
       "@brewsite/core": ["../packages/core/src/index.ts"],
       "@brewsite/core/*": ["../packages/core/src/*"],
       "@brewsite/diagram": ["../packages/diagram/src/index.ts"],
-      "@brewsite/diagram/*": ["../packages/diagram/src/*"]
+      "@brewsite/diagram/*": ["../packages/diagram/src/*"],
+      "@brewsite/model": ["../packages/model/src/index.ts"],
+      "@brewsite/model/*": ["../packages/model/src/*"]
     },
     "target": "ES2022",
     "useDefineForClassFields": true,
@@ -24,10 +26,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "references": [
-    { "path": "../packages/core/tsconfig.build.json" },
-    { "path": "../packages/diagram/tsconfig.build.json" }
-  ],
-  "include": ["src"],
+  "include": ["src", "../packages/core/src/types/process.d.ts"],
   "exclude": ["node_modules", "dist", "vite.config.ts", "src/generated"]
 }

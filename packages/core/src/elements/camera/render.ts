@@ -205,7 +205,6 @@ export const applyCamera = (state: SceneCamera, ctx: CameraRenderContext): void 
 export class CameraControlsDriver implements ICameraInteractionDriver {
   private cc: CameraControls | null = null;
   private domElement: HTMLElement | null = null;
-  private camera: THREE.PerspectiveCamera | null = null;
   private config: TrackpadCameraConfig | null = null;
   private wheelRotateLockAxis: 'horizontal' | 'vertical' | null = null;
   private wheelRotateAccumX = 0;
@@ -238,7 +237,6 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
     type CCCamera = ConstructorParameters<typeof CameraControls>[0];
     this.cc = new CameraControls(camera as unknown as CCCamera, domElement);
     this.domElement = domElement;
-    this.camera = camera;
     this.config = config;
 
     // Disable ALL built-in camera-controls mouse/touch bindings.
@@ -299,7 +297,6 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
     this.cc?.dispose();
     this.cc = null;
     this.domElement = null;
-    this.camera = null;
     this.dragState = null;
     this.wheelRotateLockAxis = null;
     this.wheelRotateAccumX = 0;
@@ -520,43 +517,4 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
     void this.cc.dolly(delta, false);
   }
 
-  private setTargetFromPointer(e: PointerEvent): void {
-    const camera = this.camera;
-    const cc = this.cc;
-    const el = this.domElement;
-    if (!camera || !cc || !el) return;
-
-    const rect = el.getBoundingClientRect();
-    const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    const ny = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-
-    const raycaster = new THREE.Raycaster();
-    raycaster.setFromCamera(new THREE.Vector2(nx, ny), camera);
-
-    const target = new THREE.Vector3();
-    const getTarget = (cc as unknown as { getTarget?: (v: THREE.Vector3) => THREE.Vector3 }).getTarget;
-    if (getTarget) {
-      try {
-        getTarget(target);
-      } catch {
-        // Some camera-controls internals may be uninitialized; fall back to a forward target.
-        camera.getWorldDirection(target);
-        target.multiplyScalar(10).add(camera.position);
-      }
-    } else {
-      camera.getWorldDirection(target);
-      target.multiplyScalar(10).add(camera.position);
-    }
-
-    const normal = new THREE.Vector3();
-    camera.getWorldDirection(normal);
-    const plane = new THREE.Plane().setFromNormalAndCoplanarPoint(normal, target);
-
-    const hit = new THREE.Vector3();
-    const ok = raycaster.ray.intersectPlane(plane, hit);
-    if (!ok) return;
-
-    const pos = camera.position;
-    cc.setLookAt(pos.x, pos.y, pos.z, hit.x, hit.y, hit.z, false);
-  }
 }
