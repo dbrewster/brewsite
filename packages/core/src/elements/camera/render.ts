@@ -4,7 +4,10 @@
 import * as THREE from 'three';
 import CameraControls from 'camera-controls';
 import type { SceneTrackTick } from '../../compiler/sceneTrackTypes';
-import type { SceneModelInstanceState } from '../model/types';
+/** Minimal model state shape used for camera target resolution. Full type lives in @brewsite/model. */
+type SceneModelInstanceState = {
+  model: { position: [number, number, number]; scale?: number };
+};
 import type { SceneCamera, ICameraInteractionDriver, TrackpadCameraConfig, Vec3 } from './types';
 
 // Install camera-controls THREE subset (called once at module load)

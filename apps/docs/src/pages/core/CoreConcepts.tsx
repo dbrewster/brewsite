@@ -81,8 +81,10 @@ export default function CoreConcepts(): JSX.Element {
 
       <p>
         Every renderable concept in BrewSite is a <strong>widget</strong>. The{' '}
-        <code>Camera</code>, <code>Lighting</code>, <code>Background</code>, <code>Model</code>,
-        and <code>Floor</code> are all widgets. You can build your own using the Widget SDK.
+        <code>Camera</code>, <code>Lighting</code>, <code>Background</code>, and{' '}
+        <code>Floor</code> are all widgets. You can build your own using the Widget SDK. (
+        <code>Model</code> is provided by{' '}
+        <Link to="/model/introduction">@brewsite/model</Link>.)
       </p>
 
       <p>
@@ -152,7 +154,12 @@ interface ILoadable extends IWidget {
           <tr>
             <td>Elements</td>
             <td><code>@brewsite/core</code></td>
-            <td>Camera, Lighting, Model, and other built-in elements</td>
+            <td>
+              Camera, Lighting, Background, Floor, Environment, and other built-in elements. The{' '}
+              <code>model/</code> element module is being extracted to{' '}
+              <code>@brewsite/model</code>. See{' '}
+              <Link to="/model/model">@brewsite/model → Model</Link>.
+            </td>
           </tr>
           <tr>
             <td>Widget SDK</td>
@@ -166,6 +173,12 @@ interface ILoadable extends IWidget {
           </tr>
         </tbody>
       </table>
+
+      <Callout type="note">
+        <code>@brewsite/model</code> (GLTF loading, animation playback, bone-tracked labels) is a
+        separate companion package and is not bundled with <code>@brewsite/core</code>. See the{' '}
+        <Link to="/model/introduction">@brewsite/model docs</Link>.
+      </Callout>
 
       <h2>SSR Safety</h2>
 
@@ -184,6 +197,13 @@ interface ILoadable extends IWidget {
       <Callout type="note">
         The compiler can run on the server. Only <code>ScenePlayer</code> (and the Three.js render
         layer) requires a DOM environment.
+      </Callout>
+
+      <Callout type="tip">
+        <strong>Tip:</strong> <code>ScenePlayer</code> is a convenience wrapper. If your layout
+        needs the canvas in a specific position — sidebar layout, split panel, CSS Grid — use{' '}
+        <code>EngineProvider</code> directly and place <code>SceneCanvas</code> exactly where you
+        need it. See <Link to="/core/player">ScenePlayer &amp; EngineProvider</Link>.
       </Callout>
 
       <LiveDemo title="A minimal scene" code={BASIC_CODE}>

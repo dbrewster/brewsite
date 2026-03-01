@@ -4,8 +4,6 @@
 import {
   useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type ReactElement,
 } from 'react';
-import type { AssetManifest } from '../elements/model/metadata';
-import { clipMetaFromManifest, assertManifestValid } from '../elements/model/metadata';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import { WidgetRegistry as WidgetRegistryClass } from '../widget/WidgetRegistry';
 import { createDefaultWidgetRegistry } from './defaultWidgets';
@@ -14,8 +12,6 @@ import { useSceneEngine } from './useSceneEngine';
 import { EngineContext } from './EngineContext';
 import { EngineStateContext } from './EngineStateContext';
 import { VariableStoreContext } from '../widget/VariableStoreContext';
-import { LabelPositioner } from './LabelPositioner';
-import { LabelPositionerContext } from './LabelPositionerContext';
 import { SceneRegistrationContext } from '../compiler/SceneRegistrationContext';
 import type { SceneRegistrationValue } from '../compiler/SceneRegistrationContext';
 import { clearCache } from '../compiler/sceneTrackCache';
@@ -27,9 +23,11 @@ import {
 } from './ScenePlayerRegistry';
 import { SceneMetaWidget } from './SceneMetaWidget';
 import type { InternalSceneSpec } from './engineTypes';
-import type { SceneModel } from '../elements/model/types';
 import type { SceneNavInputMap } from '../input/types';
 import type { CompileWarning } from '../compiler/sceneTrackTypes';
+
+/** Minimal asset manifest type for backward compat. Full type lives in @brewsite/model. */
+type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
 
 export type EngineProviderProps = {
   /** When provided, registers engine state in the global registry for useSceneEngineState(id). */
@@ -61,7 +59,10 @@ export type EngineProviderProps = {
   onWidgetError?: (widgetId: string, error: Error) => void;
   onCompileWarning?: (warnings: CompileWarning[]) => void;
   onSceneChange?: (sceneId: string, sceneIndex: number) => void;
-  defaultModelStates?: Partial<Record<string, Partial<SceneModel>>>;
+  /**
+   * @deprecated Model states are now managed by modelPlugin({ defaultModelStates }) from @brewsite/model.
+   */
+  defaultModelStates?: Partial<Record<string, Partial<Record<string, unknown>>>>;
   inputMap?: SceneNavInputMap;
   controlledProgress?: number;
   onControlledProgressChange?: (p: number) => void;
@@ -118,7 +119,12 @@ export const EngineProvider = (props: EngineProviderProps): ReactElement => {
       .then((r) => r.json())
       .then((raw) => {
         if (cancelled) return;
-        setManifest(assertManifestValid(raw));
+        // Minimal manifest validation. Full validation lives in @brewsite/model.
+        const m = raw as Record<string, unknown>;
+        if (!Array.isArray(m['models']) || !Array.isArray(m['animations'])) {
+          throw new Error('[EngineProvider] Invalid manifest: missing models or animations array.');
+        }
+        setManifest(m as unknown as AssetManifest);
       })
       .catch((e: unknown) => {
         if (cancelled) return;
@@ -166,9 +172,6 @@ export const EngineProvider = (props: EngineProviderProps): ReactElement => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widgetRegistry, props.onSceneChange]);
 
-  const labelPositioner = useMemo(() => new LabelPositioner(), []);
-  const clipMeta = useMemo(() => (manifest ? clipMetaFromManifest(manifest) : []), [manifest]);
-
   const resolvedFramesPerTick =
     props.framesPerTick ??
     (props.quality !== undefined ? QUALITY_PRESET_FRAMES[props.quality] : undefined);
@@ -176,7 +179,6 @@ export const EngineProvider = (props: EngineProviderProps): ReactElement => {
   const engine = useSceneEngine({
     scenes,
     widgetRegistry,
-    clipMeta,
     manifest,
     fpsCap: props.fpsCap,
     pixelsPerScene: props.pixelsPerScene,
@@ -185,7 +187,6 @@ export const EngineProvider = (props: EngineProviderProps): ReactElement => {
     onError: props.onError,
     onWidgetError: props.onWidgetError,
     onCompileWarning: props.onCompileWarning,
-    labelPositioner,
     inputMap: props.inputMap,
     controlledProgress: props.controlledProgress,
     onControlledProgressChange: props.onControlledProgressChange,
@@ -263,9 +264,7 @@ export const EngineProvider = (props: EngineProviderProps): ReactElement => {
   return (
     <SceneRegistrationContext.Provider value={registrationContextValue}>
       <VariableStoreContext.Provider value={engine.variableStore}>
-        <LabelPositionerContext.Provider value={labelPositioner}>
-          {innerContent}
-        </LabelPositionerContext.Provider>
+        {innerContent}
       </VariableStoreContext.Provider>
     </SceneRegistrationContext.Provider>
   );

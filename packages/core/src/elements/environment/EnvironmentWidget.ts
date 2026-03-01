@@ -23,7 +23,8 @@ import {
   type EnvironmentProps,
 } from './dsl';
 import { applyEnvironment } from './render';
-import type { AssetManifest } from '../model/metadata';
+/** Minimal asset manifest type for ILoadable.load(). Full type lives in @brewsite/model. */
+type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
 import type * as React from 'react';
 import { isValidElement } from 'react';
 import { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';

@@ -3,6 +3,7 @@ import { Navigate, Route, Routes } from 'react-router';
 import { DocLayout } from './components/layout/DocLayout';
 import { coreNav } from './nav/core-nav';
 import { diagramNav } from './nav/diagram-nav';
+import { modelNav } from './nav/model-nav';
 
 // Getting Started
 const GettingStarted = lazy(() => import('./pages/core/GettingStarted'));
@@ -17,7 +18,7 @@ const Transitions = lazy(() => import('./pages/core/Transitions'));
 const ProgressManager = lazy(() => import('./pages/core/ProgressManager'));
 
 // Elements
-const ModelElement = lazy(() => import('./pages/core/ModelElement'));
+const ModelElement = lazy(() => import('./pages/model/ModelElement'));
 const CameraElement = lazy(() => import('./pages/core/CameraElement'));
 const LightingElement = lazy(() => import('./pages/core/LightingElement'));
 const BackgroundElement = lazy(() => import('./pages/core/BackgroundElement'));
@@ -27,7 +28,8 @@ const FloorElement = lazy(() => import('./pages/core/FloorElement'));
 // HUD & Labels
 const HudOverview = lazy(() => import('./pages/core/HudOverview'));
 const HudAnimejs = lazy(() => import('./pages/core/HudAnimejs'));
-const LabelSystem = lazy(() => import('./pages/core/LabelSystem'));
+const LabelSystem = lazy(() => import('./pages/model/LabelSystem'));
+const ModelIntroduction = lazy(() => import('./pages/model/Introduction'));
 
 // Input
 const Navigation = lazy(() => import('./pages/core/Navigation'));
@@ -77,7 +79,6 @@ export default function App(): JSX.Element {
         <Route path="multi-scene"       element={<Suspense fallback={<Fallback />}><MultiScene /></Suspense>} />
         <Route path="transitions"       element={<Suspense fallback={<Fallback />}><Transitions /></Suspense>} />
         <Route path="progress-manager"  element={<Suspense fallback={<Fallback />}><ProgressManager /></Suspense>} />
-        <Route path="model"           element={<Suspense fallback={<Fallback />}><ModelElement /></Suspense>} />
         <Route path="camera"          element={<Suspense fallback={<Fallback />}><CameraElement /></Suspense>} />
         <Route path="lighting"        element={<Suspense fallback={<Fallback />}><LightingElement /></Suspense>} />
         <Route path="background"      element={<Suspense fallback={<Fallback />}><BackgroundElement /></Suspense>} />
@@ -85,7 +86,6 @@ export default function App(): JSX.Element {
         <Route path="floor"           element={<Suspense fallback={<Fallback />}><FloorElement /></Suspense>} />
         <Route path="hud"             element={<Suspense fallback={<Fallback />}><HudOverview /></Suspense>} />
         <Route path="hud-animejs"     element={<Suspense fallback={<Fallback />}><HudAnimejs /></Suspense>} />
-        <Route path="labels"          element={<Suspense fallback={<Fallback />}><LabelSystem /></Suspense>} />
         <Route path="input-navigation" element={<Suspense fallback={<Fallback />}><Navigation /></Suspense>} />
         <Route path="input-actions"   element={<Suspense fallback={<Fallback />}><Actions /></Suspense>} />
         <Route path="player"          element={<Suspense fallback={<Fallback />}><ScenePlayerRef /></Suspense>} />
@@ -104,6 +104,14 @@ export default function App(): JSX.Element {
         <Route path="getting-started" element={<DiagramPlaceholder title="@brewsite/diagram Docs" />} />
         <Route path="*" element={<DiagramPlaceholder title="@brewsite/diagram Docs" />} />
         <Route index element={<Navigate to="getting-started" replace />} />
+      </Route>
+
+      {/* Model book */}
+      <Route path="/model/*" element={<DocLayout book="model" nav={modelNav} />}>
+        <Route path="introduction" element={<Suspense fallback={<Fallback />}><ModelIntroduction /></Suspense>} />
+        <Route path="model"        element={<Suspense fallback={<Fallback />}><ModelElement /></Suspense>} />
+        <Route path="labels"       element={<Suspense fallback={<Fallback />}><LabelSystem /></Suspense>} />
+        <Route index element={<Navigate to="introduction" replace />} />
       </Route>
     </Routes>
   );

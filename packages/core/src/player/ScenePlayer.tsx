@@ -8,14 +8,15 @@ import { EngineInputRegion } from './EngineInputRegion';
 import { SceneCanvas } from './SceneCanvas';
 import { EngineOverlayHost } from './EngineOverlayHost';
 import { useSceneEngineContext } from './EngineContext';
-import { LabelItem } from '../labels/LabelItem';
+// LabelItem moved to @brewsite/model in Phase 4 — labels rendered by modelPlugin
 import { TimelineWidget } from './TimelineWidget';
 import type { TimelineWidgetProps } from './TimelineWidgetTypes';
 import { SceneInspector } from './SceneInspector';
-import type { AssetManifest } from '../elements/model/metadata';
 import type { SceneNavInputMap } from '../input/types';
-import type { SceneModel } from '../elements/model/types';
 import type { CompileWarning } from '../compiler/sceneTrackTypes';
+
+/** Minimal asset manifest type for backward compat. Full type lives in @brewsite/model. */
+type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
 
 export type ScenePlayerProps = {
   id?: string;
@@ -61,8 +62,10 @@ export type ScenePlayerProps = {
   onWidgetError?: (widgetId: string, error: Error) => void;
   onCompileWarning?: (warnings: CompileWarning[]) => void;
   onSceneChange?: (sceneId: string, sceneIndex: number) => void;
-  /** Default model state overrides keyed by <Model id>. */
-  defaultModelStates?: Partial<Record<string, Partial<SceneModel>>>;
+  /**
+   * @deprecated Use modelPlugin({ defaultModelStates }) from @brewsite/model instead.
+   */
+  defaultModelStates?: Partial<Record<string, Partial<Record<string, unknown>>>>;
   placeholder?: ReactNode;
   /** Input configuration for scene navigation. */
   inputMap?: SceneNavInputMap;
@@ -118,7 +121,6 @@ type ScenePlayerInnerProps = {
 
 const ScenePlayerInner = (props: ScenePlayerInnerProps): ReactElement => {
   const engine = useSceneEngineContext();
-  const labels = engine.frameState.tick?.labelPrimitives ?? [];
   const isControlled = props.controlledProgress !== undefined;
   const isLoading = engine.frameState.tickIndex < 0;
 
@@ -143,11 +145,6 @@ const ScenePlayerInner = (props: ScenePlayerInnerProps): ReactElement => {
 
         {/* Scene overlay content — HTML children from <Scene> */}
         <EngineOverlayHost passthroughPointerEvents={false} />
-
-        {/* 3D-tracked labels */}
-        {labels.map((label) => (
-          <LabelItem key={label.id} label={label} />
-        ))}
 
         {/* Optional built-in timeline scrubber */}
         {props.timeline && (

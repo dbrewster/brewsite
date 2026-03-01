@@ -3,7 +3,7 @@ import { NavLink } from 'react-router';
 import { ThemeToggle } from '../ui/ThemeToggle';
 
 interface DocHeaderProps {
-  book: 'core' | 'diagram';
+  book: 'core' | 'diagram' | 'model';
 }
 
 export function DocHeader({ book }: DocHeaderProps): JSX.Element {
@@ -26,6 +26,12 @@ export function DocHeader({ book }: DocHeaderProps): JSX.Element {
           className={`nav-book-tab${book === 'diagram' ? ' nav-book-tab--active' : ''}`}
         >
           @brewsite/diagram
+        </NavLink>
+        <NavLink
+          to="/model/introduction"
+          className={`nav-book-tab${book === 'model' ? ' nav-book-tab--active' : ''}`}
+        >
+          @brewsite/model
         </NavLink>
       </nav>
 

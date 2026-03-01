@@ -2,7 +2,7 @@
 
 import type {
   IWidget, ISceneElement, IRenderable, ILoadable, IDslComposite,
-  IContainedModel, IAnimationController, IVariableProvider,
+  IAnimationController, IVariableProvider,
   IRendererLifecycle, IRenderContributor, IContainedRenderable, IAttachmentHost,
 } from './types';
 import type { WebGLRenderer } from 'three';
@@ -241,23 +241,8 @@ export class WidgetRegistry {
   }
 
   buildCacheKey(): string {
-    // DEBT: clipMeta duck-typing in buildCacheKey() is model-specific. Migrate to
-    // IRenderContributor.cacheKey() or model plugin cache contribution in Phase 4.
     return Array.from(this.widgets.values())
-      .map((w) => {
-        const extra =
-          'clipMeta' in w
-            ? (w as { clipMeta: Array<{ name: string; duration: number; clipStart?: number; clipEnd?: number }> })
-                .clipMeta
-                .map((c) => {
-                  const start = typeof c.clipStart === 'number' ? c.clipStart.toFixed(4) : '';
-                  const end = typeof c.clipEnd === 'number' ? c.clipEnd.toFixed(4) : '';
-                  return `${c.name}:${c.duration.toFixed(3)}:${start}:${end}`;
-                })
-                .join(',')
-            : '';
-        return `${w.widgetId}:${extra}`;
-      })
+      .map((w) => w.widgetId)
       .sort()
       .join('|');
   }
@@ -275,8 +260,6 @@ export const isAnimationController = (w: IWidget): w is IAnimationController =>
   'onTick' in w;
 export const isVariableProvider = (w: IWidget): w is IVariableProvider =>
   'variableNamespace' in w && 'variableKeys' in w;
-export const isContainedModel = (w: IWidget): w is IContainedModel<unknown> =>
-  isRenderable(w) && 'anchorModelId' in w && 'anchorKey' in w;
 export const isDslComposite = (w: IWidget): w is IDslComposite =>
   'childDslComponents' in w && Array.isArray((w as IDslComposite).childDslComponents);
 

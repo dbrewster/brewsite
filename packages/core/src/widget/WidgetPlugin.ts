@@ -3,8 +3,10 @@
 import type { ReactNode } from 'react';
 import type { IWidget } from './types';
 import type { WidgetRegistry } from './WidgetRegistry';
-import type { AssetManifest } from '../elements/model/metadata';
 import type * as THREE from 'three';
+
+/** Minimal asset manifest type for WidgetPlugin.configureRegistry. Full type lives in @brewsite/model. */
+type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
 
 /**
  * Contract for a composable widget package.

@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "composite": true,
+    "noEmit": false,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "outDir": "dist",
+    "rootDir": "src",
+    "paths": {
+      "@brewsite/core": ["../core/dist/index.d.ts"],
+      "@brewsite/core/compiler/registry": ["../core/dist/compiler/registry.d.ts"],
+      "@brewsite/core/compiler/sceneTypes": ["../core/dist/compiler/sceneTypes.d.ts"],
+      "@brewsite/core/compiler/transitions/transitionTypes": ["../core/dist/compiler/transitions/transitionTypes.d.ts"],
+      "@brewsite/core/runtime/types": ["../core/dist/runtime/types.d.ts"],
+      "@brewsite/core/widget/types": ["../core/dist/widget/types.d.ts"],
+      "@brewsite/core/widget/WidgetPlugin": ["../core/dist/widget/WidgetPlugin.d.ts"],
+      "@brewsite/core/widget/WidgetRegistry": ["../core/dist/widget/WidgetRegistry.d.ts"]
+    }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist", "**/__tests__/**", "**/*.test.*"]
+}

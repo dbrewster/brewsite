@@ -123,10 +123,11 @@ export default function SceneDsl(): JSX.Element {
           — HDR environment map
         </li>
         <li>
-          <Link to="/core/model">
+          <Link to="/model/model">
             <code>&lt;Model&gt;</code>
           </Link>{' '}
-          — GLTF model, position, and animation clip
+          — GLTF model, position, and animation clip (requires{' '}
+          <Link to="/model/introduction">@brewsite/model</Link>)
         </li>
         <li>
           <Link to="/core/hud">

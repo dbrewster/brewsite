@@ -1,4 +1,5 @@
 import { JSX } from 'react';
+import { Link } from 'react-router';
 import { CodeBlock } from '../../components/ui/CodeBlock';
 import { Callout } from '../../components/ui/Callout';
 import { LiveDemo } from '../../components/demo/LiveDemo';
@@ -206,7 +207,58 @@ function JumpButton() {
 }`}
       />
 
+      <h4><code>engine.setAutoAdvancePaused(paused: boolean)</code></h4>
+
+      <p>
+        Pause or resume idle auto-advance for this engine instance. Use this to freeze
+        auto-advance when a modal, overlay, or interaction takes focus — then resume it when
+        the user dismisses the overlay.
+      </p>
+
+      <CodeBlock
+        language="tsx"
+        code={`const engine = useSceneEngineContext();
+// Pause auto-advance when a modal is open
+useEffect(() => {
+  engine.setAutoAdvancePaused(isModalOpen);
+}, [isModalOpen, engine]);`}
+      />
+
+      <h3><code>useSceneEngineState(id: string)</code></h3>
+
+      <p>
+        Works anywhere in the React tree — no <code>EngineProvider</code> ancestor is required.
+        Returns <code>SceneEngineSnapshot | null</code> and updates on every frame tick. Use it
+        to read engine state from outside the engine's React subtree, for example in a sidebar,
+        header, or analytics component that is rendered above or alongside the player.
+      </p>
+
+      <CodeBlock
+        language="typescript"
+        code={`const snapshot = useSceneEngineState('my-engine');
+// snapshot?.progress  — [0,1] global progress
+// snapshot?.sceneId   — current scene key
+// null while the engine has not yet initialized`}
+      />
+
+      <CodeBlock
+        language="tsx"
+        code={`// Read progress from a sidebar component that is NOT inside EngineProvider
+function Sidebar() {
+  const state = useSceneEngineState('my-engine');
+  if (!state) return null;
+  return <div>Current scene: {state.sceneId}</div>;
+}`}
+      />
+
       <h3><code>useLabelPositioner()</code></h3>
+
+      <Callout type="note">
+        <strong>Note:</strong> <code>useLabelPositioner</code> is part of the{' '}
+        <code>@brewsite/model</code> package. It is currently re-exported from{' '}
+        <code>@brewsite/core</code> for backward compatibility but will move in a future major
+        release. See <Link to="/model/labels">Label System</Link>.
+      </Callout>
 
       <p>
         Returns the <code>LabelPositioner</code> instance. Use this when you need to imperatively

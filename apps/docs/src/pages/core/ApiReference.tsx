@@ -91,11 +91,11 @@ export default function ApiReference(): JSX.Element {
           </tr>
           <tr>
             <td><code>&lt;Model&gt;</code></td>
-            <td>@brewsite/core</td>
+            <td>@brewsite/core <em>(from @brewsite/model)</em></td>
             <td>
               GLTF model element with animation playback. Requires a <code>type</code> prop
               matching a registered model key. See{' '}
-              <Link to="/core/model">Model Element</Link>.
+              <Link to="/model/model">Model Element</Link>.
             </td>
           </tr>
           <tr>
@@ -202,8 +202,8 @@ export default function ApiReference(): JSX.Element {
             <td><code>LabelPositioner</code></td>
             <td><code>React.FC&lt;LabelPositionerProps&gt;</code></td>
             <td>
-              Projects a 3D world position to screen coordinates and renders children there.
-              See <Link to="/core/labels">Label System</Link>.
+              Projects a 3D world position to screen coordinates and renders children there.{' '}
+              <em>(from @brewsite/model)</em> See <Link to="/model/labels">Label System</Link>.
             </td>
           </tr>
           <tr>
@@ -257,7 +257,10 @@ export default function ApiReference(): JSX.Element {
           </tr>
           <tr>
             <td><code>IContainedModel</code></td>
-            <td>Attaches to a parent model's bone/socket. Requires <code>anchorModelId</code>, <code>anchorKey</code>.</td>
+            <td>
+              Attaches to a parent model's bone/socket. Requires <code>anchorModelId</code>,{' '}
+              <code>anchorKey</code>. <em>(moving to @brewsite/model)</em>
+            </td>
           </tr>
           <tr>
             <td><code>CUSTOM_NODE_HANDLER</code></td>

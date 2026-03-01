@@ -2,13 +2,9 @@
 // Types here flow compiler → runtime → player with no circular dependencies.
 
 import type { ReactNode } from 'react';
-import type { LabelResolved } from '../labels/types';
 import type { JsonPrimitive } from '../widget/VariableStore';
 import type { EasingName } from './transitions/easingFunctions';
 export type { EasingName } from './transitions/easingFunctions';
-
-// Re-export for consumers that import from here for convenience
-export type { LabelResolved } from '../labels/types';
 
 // ─── CompileWarning ───────────────────────────────────────────────────────────
 
@@ -23,16 +19,6 @@ export type CompileWarning = {
   message: string;
   widgetId?: string;
   sceneIndex?: number;
-};
-
-// ─── ClipMeta ─────────────────────────────────────────────────────────────────
-
-/** Metadata about a single animation clip, used in CompileExtraContext. */
-export type ClipMeta = {
-  name: string;
-  duration: number;
-  clipStart?: number;
-  clipEnd?: number;
 };
 
 // ─── ProgressManager Types ────────────────────────────────────────────────────
@@ -201,8 +187,6 @@ export type SceneFrame = {
    * Multiplier applied to base material roughness for all models in this scene.
    */
   materialRoughnessMultiplier?: number;
-  /** Label definitions authored for this scene. Compiled to labelPrimitives per tick. */
-  labels?: LabelResolved[];
   /**
    * Easing curve for the transition INTO this scene (from the preceding scene).
    * Declared via `transition={{ easing: '...' }}` on the `<Scene>` DSL element.
@@ -236,7 +220,6 @@ export type SceneFrame = {
  */
 export type SceneFrameDelta = {
   widgets?: Record<string, unknown>;
-  labels?: SceneFrame['labels'];
 };
 
 // ─── Functional Transition Types ──────────────────────────────────────────────
@@ -292,8 +275,6 @@ export type SceneTrackTick = {
   sceneIndex: number;
   blockProgress: number;
   state: SceneFrame;
-  /** Resolved labels for this tick. Positioned by LabelPositioner in render loop. */
-  labelPrimitives?: LabelResolved[];
   deltaForward: SceneFrameDelta;
   deltaBackward: SceneFrameDelta;
   widgetExtras?: Record<string, unknown>;

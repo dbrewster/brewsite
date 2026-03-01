@@ -3,7 +3,7 @@ title: "BrewSite Core — Widget SDK"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-02-28
+last_updated: 2026-03-01
 change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
@@ -11,6 +11,12 @@ change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "DX improvements: WidgetRegistry now accepts WidgetRegistryOptions { strict?: boolean } constructor option — throws on duplicate widgetId when strict=true, warns otherwise. createDefaultWidgetRegistry passes { strict: true } by convention. DslComponent remains ComponentType<any> with added JSDoc explaining the intentional choice. CompileWarning type added to sceneTrackTypes.ts; SceneTrack.warnings? field added; onCompileWarning? prop added to ScenePlayer. IDslComposite correction: DiagramWidget declares layout elements (GridLayout, HierarchicalLayout, ManualLayout, Enter, Exit) as childDslComponents with topLevelError: true — the correct ownership model."
+  - date: 2026-03-01
+    author: "Toolkit Product"
+    summary: "AnimationTickContext and WidgetRenderContext: replaced flat deltaSeconds/wallTimeSeconds with clock: RealtimeClock and effectiveDeltaSeconds. Added Widget Time Contract table (Section 12.6) and RealtimeClock type reference (Section 12.5) (plan_progress_driven_animation)."
+  - date: 2026-03-01
+    author: "Toolkit Product"
+    summary: "Annotated IContainedModel as model-specific, moving to @brewsite/model in Phase 4 per plan_core_modularization. IContainedRenderable and IAttachmentHost remain as generic core interfaces."
 ---
 
 # BrewSite Core — Widget SDK
@@ -82,7 +88,7 @@ The Widget SDK solves this by defining a stable, versioned interface set that wi
 3. `IRenderable<TState>` shall declare `initialize`, `apply`, and `dispose`. Widgets implementing `IRenderable` receive a `WidgetInitContext` once and a `WidgetRenderContext` on every frame.
 4. `ILoadable` shall declare `load(manifest)` and `readonly isLoaded`. The runtime shall call `load` on all loadable widgets in parallel before starting the tick loop.
 5. `IAnimationController` shall declare `onTick(context: AnimationTickContext)` and an optional `readonly tickPriority: number`. Controllers with lower priority values shall tick before those with higher values. The default priority when omitted is treated as `0`.
-6. `IContainedModel<TState>` shall extend `IRenderable<TState>` and add `readonly anchorModelId: string` and `readonly anchorKey: string`. The runtime shall attach the contained model to the anchor bone after initial loading completes.
+6. `IContainedModel<TState>` shall extend `IRenderable<TState>` and add `readonly anchorModelId: string` and `readonly anchorKey: string`. The runtime shall attach the contained model to the anchor bone after initial loading completes. (model-specific; see @brewsite/model)
 7. `IDslComposite` shall declare `readonly childDslComponents` as an array of component descriptors. The `WidgetRegistry` shall install protective top-level node handlers for each child component to produce meaningful error messages when they appear outside their parent.
 8. `IVariableProvider` shall declare `readonly variableNamespace: string` and `readonly variableKeys: readonly string[]`. The runtime uses this for introspection; actual variable publishing is done inside `onTick` via `AnimationTickContext.variables`.
 9. `WidgetRegistry.register(widget)` shall install a DSL node routing handler for the widget's `DslComponent` if one has not already been installed.
@@ -201,8 +207,8 @@ Widgets that need to run per-frame logic independent of scene-track state — sp
 `tickPriority` defaults to `0` when omitted. `SceneMetaWidget` uses `tickPriority = -1000` to ensure scene metadata is published to `VariableStore` before any consumer controllers tick. Camera interaction controllers typically use a high positive value to tick last.
 
 `onTick` receives `AnimationTickContext` which includes:
-- `deltaSeconds` — wall-clock time since last frame (clamped to prevent large spikes after tab switches)
-- `wallTimeSeconds` — absolute wall-clock seconds since page load
+- `clock` — a `RealtimeClock` with `wallTimeSeconds` (absolute, never backlogs) and `deltaSeconds` (real-time frame delta, clamped after tab switches)
+- `effectiveDeltaSeconds` — scroll-boosted delta for GLTF mixers and physics; equals `clock.deltaSeconds` during idle
 - `scene` — the live `THREE.Scene`
 - `variables` — the full read-write `VariableStore`
 - `tick` — the `SceneTrackTick` sampled during the previous frame (may be `null` on the first tick)
@@ -211,6 +217,10 @@ Widgets that need to run per-frame logic independent of scene-track state — sp
 ---
 
 ### 7.6 IContainedModel\<TState\>
+
+> **Note:** `IContainedModel` is a model-specific interface. It will be removed from
+> `@brewsite/core/widget/types` and relocated to `@brewsite/model` in plan_core_modularization
+> Phase 4. Current core consumers using `IContainedModel` directly should plan migration.
 
 ```typescript
 interface IContainedModel<TState> extends IRenderable<TState> {
@@ -310,6 +320,8 @@ The routing handler installed by `registerTypeFactory` requires both a `type` pr
 **`getAnimationControllers()`** — Returns all registered `IAnimationController` widgets sorted in ascending `tickPriority` order. This sorted collection is cached in `RuntimeDriverImpl` at construction time, not recomputed each frame.
 
 **`buildCacheKey()`** — Returns a stable string key representing the current registry contents. Used by the scene track cache to detect when a registry change (e.g., model metadata update) requires recompilation.
+
+> **Note:** `getContainedModels()` is model-specific and will be removed from `WidgetRegistry` in Phase 4 of plan_core_modularization when `IContainedModel` moves to `@brewsite/model`. The `attachContainedModels()` runtime step will move with it.
 
 ### Type Guards
 
@@ -514,23 +526,25 @@ Passed to `IRenderable.initialize`. Provides the live `THREE.Scene` for adding o
 
 ```typescript
 type WidgetRenderContext = {
-  deltaSeconds: number;
+  clock: RealtimeClock;          // synchronized real-time clock
+  effectiveDeltaSeconds: number; // scroll-boosted delta; equals clock.deltaSeconds when idle
   globalProgress: number;
-  wallTimeSeconds: number;
   variables: VariableStoreReader;
   extra: unknown;
   tick?: SceneTrackTick | null;
 };
 ```
 
-Passed to `IRenderable.apply` on every frame. `extra` is the value returned by `compileExtra` for this widget at this tick (or `undefined` if `compileExtra` is not implemented). `variables` is the read-only view of the `VariableStore`. `tick` is the current `SceneTrackTick` — useful for accessing HUD primitives, label primitives, or per-tick metadata.
+Passed to `IRenderable.apply` on every frame. `extra` is the value returned by `compileExtra` for this widget at this tick (or `undefined` if `compileExtra` is not implemented). `variables` is the read-only view of the `VariableStore`. `tick` is the current `SceneTrackTick` — useful for accessing label primitives or per-tick metadata.
+
+`clock.wallTimeSeconds` is the canonical source for time-based oscillations and ambient animations. `effectiveDeltaSeconds` is the correct delta to pass to GLTF `AnimationMixer` and camera controls damping — it is scroll-speed-boosted when `animationTimeScale` is declared on `<ProgressManager>`, and equals `clock.deltaSeconds` during idle. See Section 12.5 for the `RealtimeClock` type definition.
 
 ### 12.4 AnimationTickContext
 
 ```typescript
 type AnimationTickContext = {
-  deltaSeconds: number;
-  wallTimeSeconds: number;
+  clock: RealtimeClock;          // synchronized real-time clock
+  effectiveDeltaSeconds: number; // scroll-boosted delta; equals clock.deltaSeconds when idle
   scene: THREE.Scene;
   variables: VariableStore;
   tick: SceneTrackTick | null;
@@ -539,6 +553,38 @@ type AnimationTickContext = {
 ```
 
 Passed to `IAnimationController.onTick`. `variables` here is the full read-write `VariableStore`. `tick` is the `SceneTrackTick` from the previous frame (the scene track is sampled after animation controllers tick, so the current frame's tick is not yet available). `track` is the full `SceneTrack` for look-ahead queries — useful for prefetching or computing derived state from future ticks.
+
+`clock.wallTimeSeconds` is the canonical source for time-based oscillations. `effectiveDeltaSeconds` is the correct delta to pass to GLTF `AnimationMixer` and physics integrations — it accounts for scroll-speed boosting when `animationTimeScale` is declared on `<ProgressManager>`. See Section 12.5 for the `RealtimeClock` type definition and the Widget Time Contract table.
+
+---
+
+### 12.5 RealtimeClock Type
+
+```typescript
+type RealtimeClock = {
+  wallTimeSeconds: number;  // absolute time since page load (performance.now()/1000); never backlogs
+  deltaSeconds: number;     // real-time frame delta (~0.0167s at 60fps)
+};
+```
+
+`wallTimeSeconds` is derived from `performance.now() / 1000`. It is clamped and reset when a browser tab returns from the background, preventing the large delta spikes that would otherwise cause animation jumps. It is the correct source for any time-based oscillation formula.
+
+`deltaSeconds` is the actual elapsed time between the previous frame and the current frame. It is clamped by `RuntimeLoop` to prevent runaway physics integrations after tab switches.
+
+---
+
+## 12.6 Widget Time Contract
+
+| Animation type          | Use                      | Field                                                        |
+|-------------------------|--------------------------|--------------------------------------------------------------|
+| Ambient oscillation     | `clock.wallTimeSeconds`  | `Math.sin(clock.wallTimeSeconds * freq)`                     |
+| Physics / smooth incr.  | `clock.deltaSeconds`     | `this.vel += accel * clock.deltaSeconds`                     |
+| GLTF AnimationMixer     | `effectiveDeltaSeconds`  | `mixer.update(ctx.effectiveDeltaSeconds)`                    |
+| Camera controls damping | `effectiveDeltaSeconds`  | `cameraControls.update(ctx.effectiveDeltaSeconds)`           |
+
+> **WARNING: Never use `this.localTime += deltaSeconds`** as a widget-internal clock. It drifts between
+> widgets (different start times) and backlogs when a browser tab is hidden then shown.
+> `clock.wallTimeSeconds` is absolute and self-correcting.
 
 ---
 

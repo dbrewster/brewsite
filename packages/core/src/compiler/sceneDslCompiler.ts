@@ -211,10 +211,6 @@ const createApi = (
   return {
     context,
     state,
-    pushLabel: (label) => {
-      state.labels = state.labels ?? [];
-      state.labels.push(label);
-    },
     setWidgetState: (widgetId, widgetState) => {
       state.widgets[widgetId] = widgetState;
     },

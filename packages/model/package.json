@@ -1,0 +1,42 @@
+{
+  "name": "@brewsite/model",
+  "version": "1.0.0",
+  "private": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "LICENSE", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:lib": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
+  },
+  "peerDependencies": {
+    "@brewsite/core": "workspace:*",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "three": "^0.183.1"
+  },
+  "dependencies": {
+    "meshoptimizer": "^0.23.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.14",
+    "@types/three": "^0.183.1",
+    "@vitest/coverage-v8": "^2.1.9",
+    "@vitejs/plugin-react": "^4.4.1",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}

@@ -22,7 +22,6 @@ export const coreNav: NavSection[] = [
   {
     title: 'Elements',
     items: [
-      { label: 'Model', path: '/core/model' },
       { label: 'Camera', path: '/core/camera' },
       { label: 'Lighting', path: '/core/lighting' },
       { label: 'Background', path: '/core/background' },
@@ -36,10 +35,6 @@ export const coreNav: NavSection[] = [
       { label: 'Scene Overlay', path: '/core/hud' },
       { label: 'Anime.js Presets', path: '/core/hud-animejs' },
     ],
-  },
-  {
-    title: 'Labels',
-    items: [{ label: 'Label System', path: '/core/labels' }],
   },
   {
     title: 'Input',

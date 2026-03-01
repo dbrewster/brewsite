@@ -1,7 +1,7 @@
 import type { Object3D, Scene as ThreeScene, WebGLRenderer } from 'three';
 import type { VariableStoreReader, JsonPrimitive } from './VariableStore';
 import type { ElementTransitionSpec, FunctionalTransitionSpec } from '../compiler/transitions/transitionTypes';
-import type { ClipMeta, SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
+import type { SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
 import type { RealtimeClock } from '../runtime/types';
 
 type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
@@ -61,11 +61,6 @@ export interface IRenderable<TState> extends IWidget {
   initialize(context: WidgetInitContext): void;
   apply(state: TState, context: WidgetRenderContext): void;
   dispose(): void;
-}
-
-export interface IContainedModel<TState> extends IRenderable<TState> {
-  readonly anchorModelId: string;
-  readonly anchorKey: string;
 }
 
 export interface IAnimationController extends IWidget {
@@ -173,8 +168,8 @@ export interface IAttachmentHost extends IWidget {
 export type CompileExtraContext = {
   sceneProgress: number;
   globalProgress: number;
-  clipMeta: ClipMeta[];
   prefersReducedMotion: boolean;
+  // clipMeta removed — @brewsite/model manages its own clip metadata.
 };
 
 export type WidgetInitContext = {

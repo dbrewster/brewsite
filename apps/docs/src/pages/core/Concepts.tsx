@@ -60,7 +60,7 @@ export default function Concepts(): JSX.Element {
             <td><code>IAnimationController</code></td>
             <td>IWidget</td>
             <td>Per-frame animation updates</td>
-            <td><code>onTick(dt, variables)</code></td>
+            <td><code>onTick(ctx: AnimationTickContext)</code></td>
           </tr>
           <tr>
             <td><code>IVariableProvider</code></td>
@@ -77,7 +77,14 @@ export default function Concepts(): JSX.Element {
           <tr>
             <td><code>IContainedModel</code></td>
             <td>IWidget</td>
-            <td>Attaches to a parent model</td>
+            <td>
+              Attaches to a parent model{' '}
+              <em>
+                (<code>IContainedModel</code> is specific to <code>@brewsite/model</code> and will
+                be documented there. It extends <code>IRenderable</code> to support parenting to
+                bone attachment points.)
+              </em>
+            </td>
             <td><code>anchorModelId</code>, <code>anchorKey</code></td>
           </tr>
         </tbody>
@@ -109,8 +116,9 @@ export default function Concepts(): JSX.Element {
         </li>
         <li>
           <strong>Tick</strong> — If the widget implements <code>IAnimationController</code>,{' '}
-          <code>onTick(dt, variables)</code> is called every animation frame. Use this for physics
-          simulation, procedural motion, or publishing variable updates.
+          <code>onTick(ctx)</code> is called every animation frame with an{' '}
+          <code>AnimationTickContext</code>. Use this for physics simulation, procedural motion, or
+          publishing variable updates.
         </li>
         <li>
           <strong>Apply</strong> — If the widget implements <code>IRenderable</code>,{' '}
@@ -153,6 +161,88 @@ if (isSceneElement(widget)) {
         only need <code>IWidget</code> + <code>ISceneElement</code>. A fully animated model widget
         would implement <code>ISceneElement</code> + <code>IRenderable</code> +{' '}
         <code>ILoadable</code> + <code>IAnimationController</code>.
+      </Callout>
+
+      <h2>Context Types</h2>
+
+      <p>
+        The runtime passes context objects into your widget methods each frame. Two context shapes
+        appear across the widget interfaces: <code>AnimationTickContext</code> (received by{' '}
+        <code>IAnimationController.onTick()</code>) and <code>WidgetRenderContext</code> (received
+        by <code>IRenderable.apply()</code>).
+      </p>
+
+      <CodeBlock
+        language="typescript"
+        code={`// AnimationTickContext — received by IAnimationController.onTick()
+type AnimationTickContext = {
+  clock: RealtimeClock;          // real-time, synchronized, unaffected by scroll
+  effectiveDeltaSeconds: number; // scroll-boosted; use for AnimationMixer.update()
+  scene: ThreeScene;
+  variables: VariableStore;
+  tick: SceneTrackTick | null;
+  track: SceneTrack | null;
+};
+
+type RealtimeClock = {
+  wallTimeSeconds: number; // absolute time since page load; use for oscillations
+  deltaSeconds: number;    // real-time frame delta (~0.0167s at 60fps)
+};`}
+      />
+
+      <p>
+        <code>WidgetRenderContext</code> follows the same clock shape — the flat{' '}
+        <code>deltaSeconds</code> and <code>wallTimeSeconds</code> fields are replaced by a{' '}
+        <code>clock: RealtimeClock</code> sub-object alongside{' '}
+        <code>effectiveDeltaSeconds</code>.
+      </p>
+
+      <h3>Widget Time Contract</h3>
+
+      <p>
+        Both context types expose three time-related fields. Choose the right one for your use
+        case:
+      </p>
+
+      <table className="prop-table">
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>When to use</th>
+            <th>Example</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>clock.wallTimeSeconds</code></td>
+            <td>Ambient oscillations, procedural animations</td>
+            <td><code>{'Math.sin(clock.wallTimeSeconds * 2)'}</code></td>
+          </tr>
+          <tr>
+            <td><code>clock.deltaSeconds</code></td>
+            <td>Physics, smooth increments</td>
+            <td><code>{'velocity += force * clock.deltaSeconds'}</code></td>
+          </tr>
+          <tr>
+            <td><code>effectiveDeltaSeconds</code></td>
+            <td>GLTF AnimationMixer, camera controls</td>
+            <td><code>{'mixer.update(ctx.effectiveDeltaSeconds)'}</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <Callout type="warning">
+        Never use <code>{'this.localTime += deltaSeconds'}</code> in a widget. It drifts between
+        widgets (different start times) and backlogs when a browser tab is hidden then shown. Use{' '}
+        <code>clock.wallTimeSeconds</code> for phase-coherent oscillations — it is absolute and
+        always correct.
+      </Callout>
+
+      <Callout type="note">
+        <code>effectiveDeltaSeconds</code> equals <code>clock.deltaSeconds</code> when the user is
+        idle. When the scene has <code>animationTimeScale</code> declared and the user scrolls, it
+        increases proportionally — GLTF animations accelerate with scroll speed. At rest,
+        everything plays at real-time.
       </Callout>
 
       <p>

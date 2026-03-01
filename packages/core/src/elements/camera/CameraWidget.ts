@@ -16,7 +16,8 @@ import { applyCamera, CameraControlsDriver } from './render';
 import type { AnimationTickContext, IAnimationController, ISceneElement } from '../../widget/types';
 import { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
 import type { SceneTrackTick } from '../../compiler/sceneTrackTypes';
-import type { SceneModelInstanceState } from '../model/types';
+/** Minimal model state shape used for camera target resolution. Full type lives in @brewsite/model. */
+type ModelStateForCamera = { model?: { position?: [number, number, number] } };
 
 const CAMERA_KEY = '__brewsite_camera';
 const RENDERER_KEY = '__brewsite_renderer';
@@ -363,7 +364,7 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
     }
     if (d.mode === 'fitBotHeight') {
       if (!tick) return null;
-      const raw = tick.state.widgets[d.targetId] as SceneModelInstanceState | undefined;
+      const raw = tick.state.widgets[d.targetId] as ModelStateForCamera | undefined;
       const targetPos = raw?.model?.position;
       if (!targetPos) return null;
       return {

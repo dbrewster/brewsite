@@ -1,5 +1,5 @@
 export type {
-  IWidget, ISceneElement, IRenderable, IContainedModel, ILoadable,
+  IWidget, ISceneElement, IRenderable, ILoadable,
   IDslComposite, IAnimationController, IVariableProvider,
   IRendererLifecycle, IRenderContributor, RenderContribution,
   IContainedRenderable, IAttachmentHost,
@@ -8,7 +8,7 @@ export type {
 } from './types';
 export {
   WidgetRegistry,
-  isSceneElement, isRenderable, isLoadable, isContainedModel,
+  isSceneElement, isRenderable, isLoadable,
   isRendererLifecycle, isRenderContributor, isContainedRenderable, isAttachmentHost,
   isDslComposite, isAnimationController, isVariableProvider,
 } from './WidgetRegistry';

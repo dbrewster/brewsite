@@ -303,14 +303,11 @@ describe('WidgetRegistry', () => {
     expect(warnings[0]?.code).toBe('MISSING_WIDGET');
   });
 
-  it('buildCacheKey includes clipMeta entries', () => {
-    const widget = new TestWidget('with-clips');
-    (widget as unknown as { clipMeta: Array<{ name: string; duration: number; clipStart?: number; clipEnd?: number }> }).clipMeta = [
-      { name: 'clip', duration: 1.23456, clipStart: 0.1, clipEnd: 0.8 },
-    ];
+  it('buildCacheKey includes widget ID in cache key', () => {
+    const widget = new TestWidget('my-widget-id');
     registry.register(widget);
     const key = registry.buildCacheKey();
-    expect(key).toContain('clip:1.235:0.1000:0.8000');
+    expect(key).toContain('my-widget-id');
   });
 
   it('detects variable providers', () => {

@@ -1,7 +1,5 @@
 // Re-export all element types and components
-
-// Model
-export * from './model';
+// Note: Model element moved to @brewsite/model package
 
 // Lighting
 export type {

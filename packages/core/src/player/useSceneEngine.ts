@@ -4,7 +4,7 @@ import type { RefObject, ReactNode } from 'react';
 import type { SceneDefinition } from '../compiler/sceneTypes';
 import { compileSceneTrack } from '../compiler/sceneTrackCompiler';
 import { buildSceneTrackKey, getCachedTrack, setCachedTrack } from '../compiler/sceneTrackCache';
-import type { SceneTrack, ClipMeta, CompileWarning } from '../compiler/sceneTrackTypes';
+import type { SceneTrack, CompileWarning } from '../compiler/sceneTrackTypes';
 import { RuntimeDriverImpl } from '../runtime/RuntimeDriver';
 // ModelRenderer import removed in Phase 2 — renderer lifecycle managed via IRendererLifecycle
 import { RuntimeLoop } from '../runtime/RuntimeLoop';
@@ -13,8 +13,8 @@ import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import { EngineFrameDriver } from './EngineFrameDriver';
 import type { EngineFrameState, InternalSceneSpec } from './engineTypes';
 import { useEngineInput } from './useEngineInput';
-import type { LabelPositioner } from './LabelPositioner';
-import type { AssetManifest } from '../elements/model/metadata';
+/** Minimal asset manifest type for backward compat. Full type lives in @brewsite/model. */
+type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
 import type { SceneNavInputMap } from '../input/types';
 import type { CameraOverrideState } from '../elements/camera/types';
 import type { SceneInputControllerSpec } from '../input/types';
@@ -23,7 +23,6 @@ import { SceneProgressMapper } from './SceneProgressMapper';
 export type UseSceneEngineOptions = {
   scenes: InternalSceneSpec[];
   widgetRegistry: WidgetRegistry;
-  clipMeta: ClipMeta[];
   manifest?: AssetManifest | null;
   fpsCap?: number;
   pixelsPerScene?: number;
@@ -33,7 +32,6 @@ export type UseSceneEngineOptions = {
   onError?: (error: Error) => void;
   onWidgetError?: (widgetId: string, error: Error) => void;
   onCompileWarning?: (warnings: CompileWarning[]) => void;
-  labelPositioner?: LabelPositioner;
   inputMap?: SceneNavInputMap;
   /**
    * When provided, bypasses scroll-driven progress calculation.
@@ -438,10 +436,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       camera.aspect = width / Math.max(1, height);
       camera.updateProjectionMatrix();
     }
-    if (options.labelPositioner) {
-      options.labelPositioner.setContainerSize(width, height);
-    }
-  }, [options.labelPositioner]);
+  }, []);
 
   const setCameraOverride = setCameraOverrideInternal;
 
@@ -569,7 +564,6 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       scenes: sceneDefs,
       widgetRegistry: options.widgetRegistry,
       blockSize,
-      clipMeta: options.clipMeta,
       prefersReducedMotion,
     });
     if (compiled.warnings?.length && options.onCompileWarning) {
@@ -580,7 +574,6 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   }, [
     options.scenes,
     options.widgetRegistry,
-    options.clipMeta,
     options.manifest,
     blockSize,
     prefersReducedMotion,
@@ -604,16 +597,6 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       getGlobalProgress,
       render: () => {
         renderer.render(scene, camera);
-        const tick = driver.getCurrentTick();
-        if (options.labelPositioner && tick) {
-          const contributions = driver.collectRenderContributions();
-          options.labelPositioner.update(
-            tick.labelPrimitives ?? [],
-            camera,
-            contributions.namedPositions ?? new Map(),
-            contributions.targetColors,
-          );
-        }
       },
       onAfterTick: ({ deltaSeconds }) => {
         frameDriver.handleTick(driver.getCurrentTick());
@@ -659,7 +642,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     };
   // advanceToRawProgress and getRawProgress are stable callbacks; include them
   // for correctness but they don't change identity meaningfully.
-  }, [sceneTrack, getGlobalProgress, options.labelPositioner, options.fpsCap, options.onReady, driverReady, getRawProgress, advanceToRawProgress]);
+  }, [sceneTrack, getGlobalProgress, options.fpsCap, options.onReady, driverReady, getRawProgress, advanceToRawProgress]);
 
   return {
     frameState,

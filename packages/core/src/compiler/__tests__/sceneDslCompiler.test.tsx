@@ -86,26 +86,6 @@ describe('sceneDslCompiler', () => {
     expect(frame.widgets['array']).toEqual({ values: [1, 2] });
   });
 
-  it('pushes labels through handlers', () => {
-    registerNode(Scene, (node, api, helpers) => {
-      helpers.compileChildren(node, api);
-    });
-
-    const Label = () => null;
-    registerNode(Label, (_node, api) => {
-      api.pushLabel({ id: 'l1', text: 'L', targetPartId: 'head' });
-    });
-
-    const tree = (
-      <Scene id="labels">
-        <Label />
-      </Scene>
-    );
-
-    const { frame } = resolveSceneFromDsl(tree, makeContext(), new WidgetRegistry());
-    expect(frame.labels?.[0].id).toBe('l1');
-  });
-
   it('ignores function children that expand to non-elements', () => {
     registerNode(Scene, (node, api, helpers) => {
       helpers.compileChildren(node, api);

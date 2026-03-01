@@ -1,50 +1,39 @@
 import { WidgetRegistry } from '../widget/WidgetRegistry';
-import { ModelWidget } from '../elements/model/ModelWidget';
-import { ModelRouter } from '../elements/model/dsl';
 import { LightingWidget } from '../elements/lighting/LightingWidget';
 import { BackgroundWidget } from '../elements/background/BackgroundWidget';
 import { EnvironmentWidget } from '../elements/environment/EnvironmentWidget';
 import { FloorWidget } from '../elements/floor/FloorWidget';
 import { CameraWidget } from '../elements/camera/CameraWidget';
-import type { AssetManifest } from '../elements/model/metadata';
-import { clipMetaFromManifest } from '../elements/model/metadata';
 import { SceneMetaWidget } from './SceneMetaWidget';
-import type { SceneModel } from '../elements/model/types';
 
 export type DefaultWidgetRegistryOptions = {
   onSceneChange?: (sceneId: string, sceneIndex: number) => void;
   /**
-   * Override default state fields for specific model widget IDs.
-   * Key = widgetId used by <Model id="...">.
+   * @deprecated Model states are now managed by modelPlugin() from @brewsite/model.
+   * This option has no effect. Use modelPlugin({ defaultModelStates }) instead.
    */
-  defaultModelStates?: Partial<Record<string, Partial<SceneModel>>>;
+  defaultModelStates?: Partial<Record<string, Partial<Record<string, unknown>>>>;
 };
 
+/**
+ * @deprecated Use EngineProvider's `plugins` prop with corePlugin() and modelPlugin()
+ * from @brewsite/model instead. This function will be removed in a future major version.
+ *
+ * Kept for backward compatibility with existing widgetSetup-based integrations.
+ * Note: Model widget registration (ModelWidget, ModelRouter) is no longer included
+ * here. Use modelPlugin() from @brewsite/model for model and label support.
+ */
 export const createDefaultWidgetRegistry = (
-  manifest: AssetManifest | null,
+  _manifest: unknown,
   options?: DefaultWidgetRegistryOptions,
 ): WidgetRegistry => {
-  const registry = new WidgetRegistry({ strict: true });
-  const clipMeta = manifest ? clipMetaFromManifest(manifest) : [];
-
-  if (manifest) {
-    registry.registerTypeFactory(ModelRouter, (props) => {
-      const type = typeof props.type === 'string' ? props.type : null;
-      const id = typeof props.id === 'string' ? props.id : null;
-      if (!type || !id) {
-        throw new Error('[WidgetRegistry] Model factory requires string type and id.');
-      }
-      const modelMeta = manifest.models.find((m) => m.type === type);
-      if (!modelMeta) {
-        const available = manifest.models.map((m) => m.type).join(', ') || '(none)';
-        throw new Error(`[WidgetRegistry] Unknown model type "${type}". Available: ${available}`);
-      }
-      return new ModelWidget(
-        { modelMeta, clipMeta, widgetId: id },
-        options?.defaultModelStates?.[id],
-      );
-    });
+  if (process.env.NODE_ENV !== 'production') {
+    console.warn(
+      '[BrewSite] createDefaultWidgetRegistry() is deprecated. ' +
+      'Migrate to EngineProvider plugins={[corePlugin(), modelPlugin(...)]} instead.',
+    );
   }
+  const registry = new WidgetRegistry({ strict: true });
 
   registry
     .register(new LightingWidget())

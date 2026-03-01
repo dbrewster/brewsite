@@ -6,7 +6,6 @@ import type {
   SceneTrackTick,
   SceneWindow,
   SceneFrameDelta,
-  ClipMeta,
   SceneTrackTransitionBlock,
   EasingName,
   CompileWarning,
@@ -15,7 +14,6 @@ import type {
   SceneProgressSegment,
 } from './sceneTrackTypes';
 import { ensureSceneRegistry, resolveSceneFromDsl } from './sceneDslCompiler';
-import { compileLabels } from './labelCompiler';
 import { isFunctionalSpec } from './transitions/transitionTypes';
 import { IDENTITY_FN } from '../player/SceneProgressMapper';
 
@@ -29,7 +27,6 @@ export type CompileSceneTrackOptions = {
    * blockSize = numSubTicks * numFramesPerSubTick from the engine layer.
    */
   blockSize: number;
-  clipMeta?: ClipMeta[];
   prefersReducedMotion?: boolean;
 };
 
@@ -71,15 +68,11 @@ const buildDelta = (prev: SceneFrame | undefined, next: SceneFrame): SceneFrameD
   if (!prev) {
     return {
       widgets: next.widgets,
-      labels: next.labels,
     };
   }
   const delta: SceneFrameDelta = {};
   if (serialize(prev.widgets) !== serialize(next.widgets)) {
     delta.widgets = next.widgets;
-  }
-  if (serialize(prev.labels) !== serialize(next.labels)) {
-    delta.labels = next.labels;
   }
   return delta;
 };
@@ -555,27 +548,13 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
       extras[widget.widgetId] = widget.compileExtra(state as never, {
         sceneProgress: frame.blockProgress,
         globalProgress: frame.progress,
-        clipMeta: options.clipMeta ?? [],
         prefersReducedMotion: options.prefersReducedMotion ?? false,
       });
     }
     if (Object.keys(extras).length > 0) frame.widgetExtras = extras;
   }
 
-  // ── Step 6: Compile labels ────────────────────────────────────────────────────
-  // Labels interpolate between fromSnap and toSnap using compileLabels().
-  for (const frame of frames) {
-    const isLast = frame.index === totalFrames - 1;
-    const blockIdx = isLast ? snapshots.length - 1 : Math.min(Math.floor(frame.index / blockSize), numTransitions - 1);
-    const fromSnap = snapshots[blockIdx];
-    const toSnap = snapshots[blockIdx + 1];
-    if (!fromSnap) continue;
-    if (fromSnap.labels?.length || toSnap?.labels?.length) {
-      frame.labelPrimitives = compileLabels(fromSnap.labels, toSnap?.labels, { sceneProgress: frame.blockProgress });
-    }
-  }
-
-  // ── Step 7: Compute forward/backward deltas ──────────────────────────────────
+  // ── Step 6: Compute forward/backward deltas ──────────────────────────────────
   for (let i = 0; i < frames.length; i++) {
     const frame = frames[i]!;
     const prev = frames[i - 1];

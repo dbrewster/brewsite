@@ -5,7 +5,6 @@ import { createRoot } from 'react-dom/client';
 import { act } from '@testing-library/react';
 import { useSceneEngine } from '../useSceneEngine';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
-import { LabelPositioner } from '../LabelPositioner';
 import { Scene } from '../../compiler/sceneDslCompiler';
 
 vi.mock('../useEngineInput', () => {
@@ -63,7 +62,7 @@ describe('useSceneEngine', () => {
       const engine = useSceneEngine({
         scenes,
         widgetRegistry: registry,
-        clipMeta: [],
+        
         pixelsPerScene: 500,
       });
       useEffect(() => { height = engine.scrollRegionHeightPx; }, [engine.scrollRegionHeightPx]);
@@ -80,30 +79,6 @@ describe('useSceneEngine', () => {
     root.unmount();
   });
 
-  it('setViewportSize forwards to label positioner', () => {
-    const registry = new WidgetRegistry();
-    const scenes = makeScenes();
-    let size: { w: number; h: number } | null = null;
-    const positioner = new LabelPositioner();
-    positioner.setContainerSize = (w: number, h: number) => {
-      size = { w, h };
-    };
-
-    const Test = () => {
-      const engine = useSceneEngine({ scenes, widgetRegistry: registry, clipMeta: [], labelPositioner: positioner });
-      useEffect(() => { engine.setViewportSize(320, 240); }, [engine]);
-      return <div />;
-    };
-
-    const container = document.createElement('div');
-    const root = createRoot(container);
-    act(() => {
-      root.render(<Test />);
-    });
-
-    expect(size).toEqual({ w: 320, h: 240 });
-    root.unmount();
-  });
 
   it('uses legacy matchMedia listeners when addEventListener is missing', () => {
     const addListener = vi.fn();
@@ -118,7 +93,7 @@ describe('useSceneEngine', () => {
     const scenes = makeScenes();
 
     const Test = () => {
-      useSceneEngine({ scenes, widgetRegistry: registry, clipMeta: [] });
+      useSceneEngine({ scenes, widgetRegistry: registry });
       return <div />;
     };
 
@@ -142,7 +117,7 @@ describe('useSceneEngine', () => {
     const scenes = makeScenes();
 
     const Test = () => {
-      useSceneEngine({ scenes, widgetRegistry: registry, clipMeta: [] });
+      useSceneEngine({ scenes, widgetRegistry: registry });
       return <div />;
     };
 
@@ -166,7 +141,7 @@ describe('useSceneEngine', () => {
     const scenes = makeScenes();
 
     const Test = () => {
-      useSceneEngine({ scenes, widgetRegistry: registry, clipMeta: [] });
+      useSceneEngine({ scenes, widgetRegistry: registry });
       return <div />;
     };
 
@@ -190,7 +165,7 @@ describe('useSceneEngine', () => {
       const engine = useSceneEngine({
         scenes,
         widgetRegistry: registry,
-        clipMeta: [],
+        
         inputMap: { mode: 'direct' },
       });
       useEffect(() => {
@@ -222,7 +197,7 @@ describe('useSceneEngine', () => {
 
     let wheelGuardResult = false;
     const Test = () => {
-      const engine = useSceneEngine({ scenes, widgetRegistry: registry, clipMeta: [] });
+      const engine = useSceneEngine({ scenes, widgetRegistry: registry });
       const { useEngineInput } = require('../useEngineInput');
       const args = (useEngineInput as unknown as { mock: { calls: unknown[][] } }).mock.calls.at(-1)?.[0] as { wheelGuard?: () => boolean };
       wheelGuardResult = args?.wheelGuard?.() ?? false;
@@ -245,7 +220,7 @@ describe('useSceneEngine', () => {
     const scenes = makeScenes();
 
     const Test = () => {
-      useSceneEngine({ scenes, widgetRegistry: registry, clipMeta: [], manifest: null });
+      useSceneEngine({ scenes, widgetRegistry: registry,  manifest: null });
       return <div />;
     };
 

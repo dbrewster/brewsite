@@ -2,13 +2,11 @@ import type { ReactElement, ReactNode } from 'react';
 import type { SceneSnapshotContext } from './sceneTypes';
 import type { SceneFrame } from './sceneTrackTypes';
 import type { CompileWarning } from './sceneTrackTypes';
-import type { LabelResolved } from '../labels/types';
 import type { JsonPrimitive } from '../widget/VariableStore';
 
 export type CompileApi = {
   context: SceneSnapshotContext;
   state: SceneFrame;
-  pushLabel: (label: LabelResolved) => void;
   setWidgetState: (widgetId: string, state: unknown) => void;
   setSceneMeta: (meta: { id?: string; meta?: Record<string, JsonPrimitive> }) => void;
   pushWarning: (warning: CompileWarning) => void;

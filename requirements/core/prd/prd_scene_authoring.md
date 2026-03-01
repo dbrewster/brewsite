@@ -17,6 +17,12 @@ change_history:
   - date: 2026-03-01
     author: "Toolkit Product"
     summary: "Two features implemented. (1) ProgressManager: <ProgressManager> added as a DSL child element inside <Scene>. Props: scrollUnits (proportional scroll budget) and fn (pure input pacing curve). Carry-forward merge semantics. Exported from compiler/index.ts. (2) Engine decomposition: <Hud> and <HudItem> removed from the DSL authoring surface. Non-DSL HTML children of <Scene> are collected by compileChildrenSeparated as overlay content rendered by EngineOverlayHost. Scene authoring section updated to replace Hud authoring pattern with HTML children pattern."
+  - date: 2026-03-01
+    author: "Toolkit Product"
+    summary: "Added autoAdvance and animationTimeScale to ProgressManager DSL (plan_progress_driven_animation). Added setAutoAdvancePaused imperative API."
+  - date: 2026-03-01
+    author: "Toolkit Product"
+    summary: "Annotated <Model> DSL documentation as belonging to @brewsite/model per plan_core_modularization. Model remains listed for reference during transition."
 ---
 
 # BrewSite Core — Scene Authoring DSL
@@ -316,9 +322,18 @@ export type NodeHandler = (
 
 ### 7.5 Built-in DSL Elements
 
-The following DSL components are built into `@brewsite/core`. Each is a null-returning React component registered with the node handler system. Detailed prop contracts live in element-specific PRDs. This section documents the authoring surface available at the `<Scene>` level.
+The following DSL components are available at the `<Scene>` level. Each is a null-returning React component registered with the node handler system. Detailed prop contracts live in element-specific PRDs.
 
-**`<Model>`** — GLTF model with spatial transform and animation state.
+**Elements from `@brewsite/core`:** `<Camera>`, `<Lighting>`, `<Background>`, `<Floor>`, `<Environment>`, `<ProgressManager>`, `<InputController>`, `<Action>`, `<PointerMap>`, `<WheelMap>`, `<PinchMap>`, `<KeyMap>`.
+
+**Elements from companion packages:** `<Model>` (from `@brewsite/model`).
+
+**`<Model>`** (from @brewsite/model) — GLTF model with spatial transform and animation state.
+
+> **Note:** `<Model>` is provided by the `@brewsite/model` package, not `@brewsite/core`.
+> It is documented here for reference during the transition period. See the `@brewsite/model`
+> package documentation for the authoritative reference.
+
 - Required props: `id` (string), `type` (string — the model variant key registered with `WidgetRegistry.registerTypeFactory`).
 - Optional props: `position`, `rotation`, `scale`, `opacity`, `enabled`, `axisRotation`, `axisTranslation`, and animation-specific props.
 - Transitions: interpolates position/rotation/scale/opacity between scenes. Supports both `ElementTransitionSpec` (pre-baked) and `FunctionalTransitionSpec` (closure-based) depending on the model widget's configuration.
@@ -344,7 +359,7 @@ The following DSL components are built into `@brewsite/core`. Each is a null-ret
 - Transitions: interpolates intensity between scenes.
 
 **`<ProgressManager>`** — Scroll budget and input pacing configuration for a scene.
-- Optional props: `scrollUnits` (number, default 1), `fn` (pure pacing curve function).
+- Optional props: `scrollUnits` (number, default 1), `fn` (pure pacing curve function), `autoAdvance` (idle cinematic auto-play config), `animationTimeScale` (scroll-to-animation-time multiplier).
 - Carry-forward merge semantics: a scene that omits `<ProgressManager>` inherits the prior scene's spec.
 - See Section 7.8 for full type documentation.
 
@@ -450,6 +465,29 @@ export type ProgressManagerProps = {
    * fn={(t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t}
    */
   fn?: (localT: number) => number;
+  /**
+   * Cinematic idle auto-play configuration. When set, wall-clock time
+   * advances rawProgress at max/duration per second while the user is idle.
+   * The user's scroll always takes priority and resets the auto-advance clock.
+   * Must not be declared on the last scene (no outgoing transition).
+   */
+  autoAdvance?: {
+    /** Seconds to traverse 0 → max while the user is idle. */
+    duration: number;
+    /** Ceiling fraction of the scene window in (0, 1]. Default: 1.0. */
+    max?: number;
+    /** Pause auto-advance when the user scrolls. Default: true. */
+    pauseOnScroll?: boolean;
+  };
+  /**
+   * Total animation-seconds played when scrolling from 0 → 1 through this scene's window.
+   * Undefined means 1× speed always (animation time equals wall time).
+   *
+   * Example: animationTimeScale={6} plays 6 seconds of GLTF animation time regardless
+   * of how fast the user scrolls. At idle, animations always run at 1× real-time.
+   * Pair with autoAdvance for smooth cinematic idle after a scroll-driven intro.
+   */
+  animationTimeScale?: number;
 };
 
 export const ProgressManager: (_props: ProgressManagerProps) => null;
@@ -458,18 +496,22 @@ ProgressManager.displayName = 'ProgressManager';
 
 **Merge semantics:** `<ProgressManager>` uses carry-forward merging — identical to `<InputController>`. A scene that omits `<ProgressManager>` inherits the prior scene's `ProgressManagerSpec` unchanged. This ensures a pacing curve declared once applies to all subsequent scenes without repetition. To reset to the default (linear, `scrollUnits=1`), declare `<ProgressManager scrollUnits={1} />` with no `fn` prop.
 
+**`autoAdvance`** enables cinematic idle auto-play. When set, wall-clock time advances `rawProgress` at `max / duration` per second while the user is idle. The user's scroll always takes priority. Pair with `animationTimeScale` to boost GLTF animation speed during scroll. `animationTimeScale: 6` means scrolling through the scene window plays 6 seconds of animation time regardless of scroll speed; at idle, animations always run at 1× real-time.
+
 **Authoring examples:**
 
 ```tsx
 // Give scene "features" twice the scroll travel of other scenes
 <Scene key="features">
   <ProgressManager scrollUnits={2} />
+  {/* <Model> requires @brewsite/model */}
   <Model id="product" type="product-model" position={[0, 0, 0]} />
 </Scene>
 
 // Apply a quadratic ease-in pacing curve: slow start, fast finish
 <Scene key="reveal">
   <ProgressManager fn={(t) => t * t} />
+  {/* <Model> requires @brewsite/model */}
   <Model id="hero" type="hero-model" position={[0, 0, 0]} />
 </Scene>
 
@@ -477,6 +519,15 @@ ProgressManager.displayName = 'ProgressManager';
 <Scene key="deep-dive">
   <ProgressManager scrollUnits={3} fn={(t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t} />
   <Camera descriptor={{ mode: 'world', position: [0, 2, 8], target: [0, 0, 0] }} />
+</Scene>
+
+// Cinematic idle auto-play with scroll-boosted animation time
+<Scene id="hero">
+  <ProgressManager
+    scrollUnits={1800}
+    autoAdvance={{ duration: 8, max: 0.80, pauseOnScroll: true }}
+    animationTimeScale={3}
+  />
 </Scene>
 ```
 
@@ -495,6 +546,7 @@ import { Scene } from '@brewsite/core';
 export const scene01Intro = (
   <Scene key="intro">
     <Camera descriptor={{ mode: 'world', position: [0, 1, 5], target: [0, 0, 0] }} />
+    {/* <Model> requires @brewsite/model */}
     <Model id="bot" type="mesh" position={[0, 0, 0]} scale={[1, 1, 1]} />
     <Lighting ambient={{ intensity: 0.5, color: '#ffffff' }} />
   </Scene>
@@ -514,6 +566,7 @@ Declaring the same widget ID in adjacent scenes causes the compiler to generate 
 // sceneLeft.tsx
 export const sceneLeft = (
   <Scene key="left">
+    {/* <Model> requires @brewsite/model */}
     <Model id="bot" type="mesh" position={[-2, 0, 0]} scale={[1, 1, 1]} />
   </Scene>
 );
@@ -522,6 +575,7 @@ export const sceneLeft = (
 // Compiler produces: interpolate(botStateA, botStateB) across the transition block
 export const sceneRight = (
   <Scene key="right">
+    {/* <Model> requires @brewsite/model */}
     <Model id="bot" type="mesh" position={[2, 0, 0]} scale={[1, 1, 1]} />
   </Scene>
 );
@@ -540,6 +594,7 @@ An element present in scene B but absent from scene A triggers an enter transiti
 ```tsx
 export const sceneIntro = (
   <Scene key="intro">
+    {/* <Model> requires @brewsite/model */}
     <Model id="bot" type="mesh" position={[0, 0, 0]} />
   </Scene>
 );
@@ -547,6 +602,7 @@ export const sceneIntro = (
 // "badge" appears fresh in "detail" — enter transition fires
 export const sceneDetail = (
   <Scene key="detail">
+    {/* <Model> requires @brewsite/model */}
     <Model id="bot" type="mesh" position={[0, 0, 0]} />
     <Model id="badge" type="badge-model" position={[1, 0.5, 0]} opacity={0} />
   </Scene>
@@ -560,6 +616,7 @@ An element present in scene A but absent from scene B triggers an exit transitio
 ```tsx
 export const sceneDetail = (
   <Scene key="detail">
+    {/* <Model> requires @brewsite/model */}
     <Model id="tooltip" type="tooltip-mesh" position={[0, 1.5, 0]} />
   </Scene>
 );
@@ -567,6 +624,7 @@ export const sceneDetail = (
 // "tooltip" absent in "summary" — exit transition fires
 export const sceneSummary = (
   <Scene key="summary">
+    {/* <Model> requires @brewsite/model */}
     <Model id="bot" type="mesh" position={[0, 0, 0]} />
   </Scene>
 );
@@ -587,6 +645,7 @@ function DiagramPage() {
   return (
     <ScenePlayer id="my-player" manifestUrl="..." widgetSetup={...}>
       <Scene key="responsive">
+        {/* <Model> requires @brewsite/model */}
         <Model
           id="bot"
           type="mesh"
@@ -608,6 +667,7 @@ Individual DSL props also accept a context-function form that is evaluated once 
 ```tsx
 export const sceneAdaptive = (
   <Scene key="adaptive" roughnessMultiplier={(ctx) => ctx.sceneIndex === 0 ? 1.0 : 0.7}>
+    {/* <Model> requires @brewsite/model */}
     <Model id="bot" type="mesh" position={[0, 0, 0]} />
   </Scene>
 );
@@ -621,6 +681,7 @@ Declare a custom easing curve on the incoming scene's `transition` prop. Easing 
 export const sceneReveal = (
   // Transition INTO this scene uses easeOutExpo — snappy start, long gentle settle
   <Scene key="reveal" transition={{ easing: 'easeOutExpo' }}>
+    {/* <Model> requires @brewsite/model */}
     <Model id="product" type="product-model" position={[0, 0, 0]} />
   </Scene>
 );
@@ -628,6 +689,7 @@ export const sceneReveal = (
 export const sceneClose = (
   // Smooth symmetric S-curve for a more considered exit feel
   <Scene key="close" transition={{ easing: 'easeInOutCubic' }}>
+    {/* <Model> requires @brewsite/model */}
     <Model id="product" type="product-model" position={[0, -3, 0]} opacity={0} />
   </Scene>
 );
@@ -643,6 +705,7 @@ Non-DSL children of `<Scene>` — HTML elements and non-registered React compone
 
 ```tsx
 <Scene key="features">
+  {/* <Model> requires @brewsite/model */}
   <Model id="bot" type="mesh" position={[0, 0, 0]} />
   <div style={{ position: 'absolute', top: '20%', left: '10%' }}>
     <div className="feature-callout">Battery Life</div>
@@ -668,6 +731,7 @@ export const sceneHero = (
       fn={(t) => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t}
     />
     <Camera descriptor={{ mode: 'world', position: [0, 1.5, 8], target: [0, 0, 0] }} />
+    {/* <Model> requires @brewsite/model */}
     <Model id="product" type="product-model" position={[0, 0, 0]} />
   </Scene>
 );
@@ -684,11 +748,32 @@ export const sceneDetail = (
 
 The `fn` prop applies only in scroll mode and direct mode. It does not apply when `controlledProgress` is set on `EngineProvider` (controlled-progress mode drives the engine directly).
 
+`autoAdvance` and `animationTimeScale` apply independently of `fn`. `autoAdvance` drives `rawProgress` forward using wall-clock time while the user is idle; `animationTimeScale` scales the `effectiveDeltaSeconds` passed to GLTF `AnimationMixer` widgets during scroll.
+
+### 8.8.1 Imperative Auto-Advance Control
+
+`useSceneEngine` returns `setAutoAdvancePaused` for imperative control of auto-advance from host UI:
+
+```typescript
+const { setAutoAdvancePaused } = useSceneEngineContext();
+
+// Pause auto-advance while a modal is open
+setAutoAdvancePaused(true);
+
+// Resume auto-advance when the modal closes
+setAutoAdvancePaused(false);
+```
+
+`setAutoAdvancePaused(paused: boolean)` — Pauses or resumes idle auto-advance for all scenes in this engine instance. Instance-scoped: calling it on one engine does not affect other `<ScenePlayer>` instances on the same page. When `paused: true`, the auto-advance clock is frozen regardless of idle state. When `paused: false`, the clock resumes from where it stopped.
+
+Typical use cases: pausing when a modal or lightbox opens, pausing when a tooltip or hover overlay is active, pausing during video playback within overlay content.
+
 ### 8.9 Input Controller
 
 ```tsx
 <Scene id="interactive">
   <Camera descriptor={{ mode: 'world', position: [0, 2, 8], target: [0, 0, 0] }} />
+  {/* <Model> requires @brewsite/model */}
   <Model id="product" type="product-model" position={[0, 0, 0]} />
   <InputController id="main" scope="canvas">
     <Action id="orbit" type="camera-orbit" cameraId="main-camera">
@@ -726,6 +811,7 @@ Scene-level metalness and roughness multipliers apply uniformly to all materials
 
 ```tsx
 <Scene id="shiny-variant" metalnessMultiplier={1.5} roughnessMultiplier={0.6}>
+  {/* <Model> requires @brewsite/model */}
   <Model id="product" type="product-model" position={[0, 0, 0]} />
 </Scene>
 ```

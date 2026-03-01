@@ -7,4 +7,4 @@ export * from './Camera';
 export * from './Environment';
 export * from './Floor';
 export * from './Lighting';
-export * from './Model';
+// Model DSL components moved to @brewsite/model package

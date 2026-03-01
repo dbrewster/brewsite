@@ -17,6 +17,12 @@ change_history:
   - date: 2026-03-01
     author: "Toolkit Product"
     summary: "Two features implemented. (1) Engine decomposition: EngineProvider, SceneCanvas, and EngineOverlayHost added as composable player primitives. ScenePlayer retained as thin composition of these primitives with identical public props. HudOverlay removed from internals; replaced by EngineOverlayHost. sceneOverlays: Map<string, ReactNode> and sceneIds: string[] added to UseSceneEngineResult. useSceneEngineState(id) hook added for reading engine state from outside the provider tree. (2) ProgressManager: SceneProgressMapper added to player layer; applied in scroll and direct modes. remap() and inverse() documented."
+  - date: 2026-03-01
+    author: "Toolkit Product"
+    summary: "Added setAutoAdvancePaused to UseSceneEngineResult. Added RealtimeClock / effectiveDeltaSeconds documentation (Section 7C: Synchronized Real-Time Clock). AnimationTickContext and WidgetRenderContext context shape changes from plan_progress_driven_animation: replaced flat deltaSeconds/wallTimeSeconds with clock: RealtimeClock and effectiveDeltaSeconds."
+  - date: 2026-03-01
+    author: "Toolkit Product"
+    summary: "Annotated LabelPositioner and labelPrimitives as model-specific concepts moving to @brewsite/model per plan_core_modularization."
 ---
 
 # BrewSite Core — Player & Runtime
@@ -458,6 +464,36 @@ class SceneProgressMapper {
 
 ---
 
+## 7C. Synchronized Real-Time Clock
+
+The engine exposes a `RealtimeClock` on every tick context for widget authors.
+
+```typescript
+type RealtimeClock = {
+  wallTimeSeconds: number;  // absolute time from performance.now()/1000, never backlogs on tab hide/show
+  deltaSeconds: number;     // real-time frame delta, ~0.0167s at 60fps
+};
+```
+
+Additionally, tick contexts carry:
+
+```typescript
+effectiveDeltaSeconds: number
+```
+
+`effectiveDeltaSeconds` is the scroll-boosted delta for `IAnimationController.onTick()` and `IRenderable.apply()`. It equals `deltaSeconds` when the user is idle. When `animationTimeScale` is declared on `<ProgressManager>`, it increases proportionally with scroll speed so that GLTF animation mixers advance at the correct rate relative to scene progress.
+
+Widget authoring guidance:
+
+| Animation type          | Field                    | Example                                                      |
+|-------------------------|--------------------------|--------------------------------------------------------------|
+| Ambient oscillation     | `clock.wallTimeSeconds`  | `Math.sin(clock.wallTimeSeconds * freq)`                     |
+| Physics / smooth incr.  | `clock.deltaSeconds`     | `this.vel += accel * clock.deltaSeconds`                     |
+| GLTF AnimationMixer     | `effectiveDeltaSeconds`  | `mixer.update(ctx.effectiveDeltaSeconds)`                    |
+| Camera controls damping | `effectiveDeltaSeconds`  | `cameraControls.update(ctx.effectiveDeltaSeconds)`           |
+
+---
+
 ## 8. useSceneEngine Hook
 
 `useSceneEngine` is the stateful hook that owns the Three.js engine lifecycle. It is called by `ScenePlayer` internally and is not intended for direct use by host applications in the standard integration pattern. It is exported for advanced consumers who need to compose the engine with custom container components.
@@ -488,6 +524,10 @@ type UseSceneEngineOptions = {
 };
 ```
 
+> **Note:** `LabelPositioner` is part of `@brewsite/model` and will be removed from
+> `UseSceneEngineOptions` in the major version release that extracts `@brewsite/model`.
+> Current consumers can continue using it; migration guidance will accompany that release.
+
 ### 8.2 Return Type
 
 ```typescript
@@ -515,6 +555,14 @@ type UseSceneEngineResult = {
   getRenderer: () => THREE.WebGLRenderer | null;
   setCameraOverride: (next: CameraOverrideState | null) => void;
   getCameraOverride: () => CameraOverrideState | null;
+  /**
+   * Pauses or resumes idle auto-advance for all scenes in this engine instance.
+   * Instance-scoped: does not affect other ScenePlayer instances on the same page.
+   * When paused: true, the auto-advance clock is frozen regardless of idle state.
+   * When paused: false, the clock resumes from where it stopped.
+   * Typical use: pause when a modal opens, resume when it closes.
+   */
+  setAutoAdvancePaused: (paused: boolean) => void;
   debug?: {
     driverReady: boolean;
     assetsReady: boolean;
@@ -551,6 +599,8 @@ type UseSceneEngineResult = {
 **`setViewportSize(width, height)`** — Called by `EngineScrollRegion` / `EngineInputRegion` on mount and on resize. Updates renderer size, camera aspect ratio, and label positioner container size.
 
 **`setCameraOverride` / `getCameraOverride`** — Set and get a `CameraOverrideState` that is applied by `CameraWidget` each frame, overriding the compiled camera state. Used by camera orbit/dolly interaction handlers.
+
+**`setAutoAdvancePaused(paused)`** — Pauses or resumes idle auto-advance for all scenes in this engine instance. Instance-scoped: does not affect other `ScenePlayer` instances on the same page. When `paused: true`, the auto-advance clock is frozen regardless of idle state; when `paused: false`, the clock resumes from where it stopped. Use this to pause auto-advance while a modal or overlay is open, then resume when it closes.
 
 **`debug`** — Development diagnostic object. Contains `driverReady`, `assetsReady`, `sceneTrackTicks`, and viewport dimensions. Used internally by `ScenePlayer` to publish `SceneRuntimeState` to the `ScenePlayerRegistry`. Not intended for direct use by consumers.
 
@@ -626,12 +676,40 @@ At construction time, `RuntimeDriverImpl` reads the sorted widget collections fr
 
 ### 9.3 Per-Frame Tick Sequence
 
-`tick({ deltaSeconds, globalProgress, wallTimeSeconds })` executes in this order every animation frame:
+`tick({ deltaSeconds, globalProgress, wallTimeSeconds })` executes in this order every animation frame. The driver constructs a `RealtimeClock` from `wallTimeSeconds` and `deltaSeconds`, and computes `effectiveDeltaSeconds` from `deltaSeconds` and the current scene's `animationTimeScale` (if declared). Both are provided to all `AnimationTickContext` and `WidgetRenderContext` instances built this frame.
+
+The `AnimationTickContext` shape is:
+
+```typescript
+type AnimationTickContext = {
+  clock: RealtimeClock;           // synchronized real-time clock
+  effectiveDeltaSeconds: number;  // scroll-boosted delta; equals clock.deltaSeconds when idle
+  scene: THREE.Scene;
+  variables: VariableStore;
+  tick: SceneTrackTick | null;
+  track?: SceneTrack | null;
+};
+```
+
+The `WidgetRenderContext` shape is:
+
+```typescript
+type WidgetRenderContext = {
+  clock: RealtimeClock;           // synchronized real-time clock
+  effectiveDeltaSeconds: number;  // scroll-boosted delta; equals clock.deltaSeconds when idle
+  globalProgress: number;
+  variables: VariableStoreReader;
+  extra: unknown;
+  tick?: SceneTrackTick | null;
+};
+```
+
+See Section 7C for the `RealtimeClock` type definition and widget authoring guidance.
 
 ```
 1. For each IAnimationController (ascending tickPriority):
    — Skip if widgetId is in erroredWidgets
-   — try { controller.onTick(...) } catch → add to erroredWidgets, fire onWidgetError
+   — try { controller.onTick({ clock, effectiveDeltaSeconds, ... }) } catch → add to erroredWidgets, fire onWidgetError
 
 2. Sample SceneTrack:
    currentTick = sampler.sample(globalProgress)  // O(1) array index lookup
@@ -645,7 +723,7 @@ At construction time, `RuntimeDriverImpl` reads the sorted widget collections fr
       - If present: state = functionalBlock.widgetFns[widgetId].fn(bp)
    b. Else: state = tick.state.widgets[widgetId] ?? defaultState
    c. extra = tick.widgetExtras?.[widgetId]
-   — try { renderable.apply(state, { ..., tick }) } catch → add to erroredWidgets, fire onWidgetError
+   — try { renderable.apply(state, { clock, effectiveDeltaSeconds, ..., tick }) } catch → add to erroredWidgets, fire onWidgetError
 ```
 
 After the tick sequence, the `RuntimeLoop` calls `render()` (Three.js renderer draw call) and then `onAfterTick` (which routes to `EngineFrameDriver.handleTick`).
@@ -955,6 +1033,10 @@ Provides the `VariableStore` instance to all components in the tree. Consumed by
 
 ### 14.3 LabelPositionerContext
 
+> **Note:** `LabelPositioner` is a model-specific concept belonging to `@brewsite/model`.
+> `LabelPositionerContext` and `useLabelPositioner` will move to `@brewsite/model` in the
+> major version release that extracts that package.
+
 ```typescript
 const LabelPositionerContext = createContext<LabelPositioner | null>(null);
 
@@ -1012,6 +1094,10 @@ Both region components manage `ResizeObserver` and `window.resize` events to kee
 ---
 
 ## 16. LabelPositioner
+
+> **Note:** `LabelPositioner` is a model-specific concept belonging to `@brewsite/model`.
+> It is documented here for reference during the transition period. The authoritative
+> reference will move to the `@brewsite/model` package documentation.
 
 `LabelPositioner` manages DOM element registration and per-frame CSS transform positioning for label elements. It is the 3D-to-screen projection system for `LabelItem` components.
 

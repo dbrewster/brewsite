@@ -15,6 +15,190 @@ export default function ScenePlayerRef(): JSX.Element {
         <code>EngineProvider</code> + layout primitives for custom layouts.
       </p>
 
+      {/* ── Section 1: ScenePlayer is a convenience component ────────────── */}
+
+      <Callout type="tip">
+        <strong>ScenePlayer is a convenience component for the common case</strong> — full-page
+        scroll, canvas fills the viewport, one layout. It is composed of smaller, independently
+        usable primitives. For docs layouts, embedded players, split-panel views, or multi-engine
+        pages, compose those primitives directly using <code>EngineProvider</code>.
+      </Callout>
+
+      {/* ── Section 2: What ScenePlayer is made of ───────────────────────── */}
+
+      <h2>What ScenePlayer is made of</h2>
+
+      <p>
+        The internal <code>ScenePlayerInner</code> component is the entire layout surface of{' '}
+        <code>ScenePlayer</code>. Here it is, verbatim, with added inline comments:
+      </p>
+
+      <CodeBlock
+        language="tsx"
+        code={`const ScenePlayerInner = (props: ScenePlayerInnerProps): ReactElement => {
+  const engine = useSceneEngineContext();
+  const labels = engine.frameState.tick?.labelPrimitives ?? [];
+  const isControlled = props.controlledProgress !== undefined;
+  const isLoading = engine.frameState.tickIndex < 0;
+
+  return (
+    // ← THIS IS THE LAYOUT ROOT. When you want a split panel, a sidebar,
+    //   or anything other than full-page: replace this div with your own layout.
+    <div
+      className={props.className}
+      style={{ position: 'relative', ...(isControlled ? { height: '100%' } : {}) }}
+    >
+      {props.loadError && (
+        <div role="alert">Scene engine error: {props.loadError.message}</div>
+      )}
+      {isLoading && props.placeholder && (
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          {props.placeholder}
+        </div>
+      )}
+      {/* EngineInputRegion creates the scroll spacer + sticky container.
+          In custom layouts you often DON'T need this. */}
+      <EngineInputRegion engine={engine} fillContainer={isControlled}>
+        {/* SceneCanvas renders the <canvas> element, owns the ResizeObserver */}
+        <SceneCanvas style={{ width: '100%', height: '100%' }} />
+        {/* EngineOverlayHost renders HTML children from your <Scene> elements */}
+        <EngineOverlayHost passthroughPointerEvents={false} />
+        {labels.map((label) => (
+          <LabelItem key={label.id} label={label} />
+        ))}
+        {props.timeline && (
+          <TimelineWidget
+            engine={engine}
+            scenes={engine.sceneIds.map((id) => ({ id }))}
+            {...(typeof props.timeline === 'object' ? props.timeline : {})}
+          />
+        )}
+        {props.debug && <SceneInspector sceneIds={engine.sceneIds} />}
+      </EngineInputRegion>
+    </div>
+  );
+};`}
+      />
+
+      <p>
+        There is no magic in <code>ScenePlayer</code>. It is just these components composed
+        together. You can build the same thing — or something better for your layout.
+      </p>
+
+      {/* ── Section 3: The div that matters ──────────────────────────────── */}
+
+      <h2>The div that matters</h2>
+
+      <p>
+        The <code>{'<div style={{ position: \'relative\' }}>'}</code> at the top of{' '}
+        <code>ScenePlayerInner</code> is <code>ScenePlayer</code>'s layout root. If you've ever
+        found yourself fighting with the <code>className</code> prop or trying to position elements
+        relative to the canvas — that div is what you're working with.
+      </p>
+
+      <p>
+        When you decompose <code>ScenePlayer</code> into <code>EngineProvider</code>, you replace
+        that div with your own layout. You get a sidebar, a CSS Grid, a split panel, or whatever
+        your page needs — with the canvas in exactly the right place.
+      </p>
+
+      {/* ── Section 4: Docs-style layout example ─────────────────────────── */}
+
+      <h2>Docs-style layout example</h2>
+
+      <p>
+        Here is a complete custom layout using <code>EngineProvider</code> directly — sidebar,
+        canvas, and overlay host composed into a CSS Grid:
+      </p>
+
+      <CodeBlock
+        language="tsx"
+        code={`import {
+  EngineProvider, SceneCanvas, EngineOverlayHost,
+  useSceneEngineState
+} from '@brewsite/core';
+
+function Sidebar() {
+  // Works here because EngineProvider is above this in the tree.
+  const state = useSceneEngineState('docs-engine');
+  return <nav data-current={state?.sceneId}>...</nav>;
+}
+
+export default function DocsPage() {
+  return (
+    <EngineProvider id="docs-engine" manifestUrl="/assets/manifest.json" quality="balanced">
+      {/* Scene declarations */}
+      <Scene id="intro">...</Scene>
+      <Scene id="features">...</Scene>
+
+      {/* Layout — your structure, your CSS */}
+      <div style={{ display: 'grid', gridTemplateColumns: '240px 1fr', height: '100vh' }}>
+        <Sidebar />
+        <main style={{ position: 'relative' }}>
+          <SceneCanvas style={{ width: '100%', height: '100%' }} />
+          <EngineOverlayHost />
+        </main>
+      </div>
+    </EngineProvider>
+  );
+}`}
+      />
+
+      <Callout type="note">
+        <code>EngineInputRegion</code> is intentionally absent from the example above. When you
+        control layout yourself, you don't need the scroll spacer and sticky container
+        infrastructure. Use <code>ScrollCaptureSection</code> instead when you want scroll-driven
+        progress in an embedded canvas.
+      </Callout>
+
+      {/* ── Section 5: Scenes don't care where the canvas is ─────────────── */}
+
+      <h2>Scenes don't care where the canvas is</h2>
+
+      <p>
+        <code>{'<Scene>'}</code> elements register with <code>EngineProvider</code> via React
+        context, not by where they are in the DOM. They can be declared at the top level of{' '}
+        <code>EngineProvider</code>, in a separate component, or spread across imported files — it
+        doesn't matter. The canvas just needs to be a descendant of the same{' '}
+        <code>EngineProvider</code>.
+      </p>
+
+      {/* ── Section 6: Multiple ScenePlayers ─────────────────────────────── */}
+
+      <h2>Multiple ScenePlayers on one page</h2>
+
+      <p>
+        You're not limited to one <code>ScenePlayer</code> per page. Each{' '}
+        <code>EngineProvider</code> (or <code>ScenePlayer</code>) is fully independent — its own
+        Three.js scene, its own <code>RuntimeLoop</code>, its own progress state. Use the{' '}
+        <code>id</code> prop to identify engines and read state from outside via{' '}
+        <code>useSceneEngineState(id)</code>.
+      </p>
+
+      <CodeBlock
+        language="tsx"
+        code={`export default function ComparePage() {
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
+      {/* Each ScenePlayer is a fully isolated engine */}
+      <ScenePlayer id="left-engine" manifestUrl="/scenes/option-a.json" quality="balanced">
+        <Scene id="default">
+          <Camera type="world" position={[0, 2, 8]} />
+        </Scene>
+      </ScenePlayer>
+
+      <ScenePlayer id="right-engine" manifestUrl="/scenes/option-b.json" quality="balanced">
+        <Scene id="default">
+          <Camera type="world" position={[0, 2, 8]} />
+        </Scene>
+      </ScenePlayer>
+    </div>
+  );
+}`}
+      />
+
+      {/* ── Existing reference sections begin here ────────────────────────── */}
+
       <h2>ScenePlayer</h2>
 
       <p>

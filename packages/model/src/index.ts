@@ -1,0 +1,66 @@
+// @brewsite/model public API surface.
+
+// Plugin factory
+export { modelPlugin } from './plugin';
+export type { ModelPluginOptions } from './plugin';
+
+// Model element public surface
+export type {
+  SceneModel,
+  SceneModelInstanceState,
+  SceneAnimation,
+  ScenePlayback,
+  BodyPartOverride,
+  BodyPartOverrideMap,
+  ModelPartSpec,
+  ModelSubpartSpec,
+  MotionCommand,
+  MotionScene,
+  CustomAnimation,
+  Vec3,
+  ClipMeta,
+} from './elements/model/types';
+export { ModelWidget } from './elements/model/ModelWidget';
+export type { ModelWidgetConfig } from './elements/model/ModelWidget';
+export type { AssetManifest, ModelMeta, AnimationEntry } from './elements/model/metadata';
+export { clipMetaFromManifest, assertManifestValid, findModelMeta } from './elements/model/metadata';
+
+// Model DSL components
+export {
+  Model,
+  ModelRouter,
+  BodyParts,
+  BodyPart,
+  Pose,
+  ModelPart,
+  ContainedModel,
+  Subpart,
+  Playback,
+  Motion,
+  Animation,
+} from './elements/model/dsl';
+export type {
+  ModelProps,
+  BodyPartProps,
+  BodyPartByIdProps,
+  PoseProps,
+  ModelPartProps,
+  ContainedModelProps,
+  SubpartProps,
+  PlaybackProps,
+  MotionProps,
+  AnimationProps,
+} from './elements/model/dsl';
+
+// Label public surface
+export type { LabelDefinition, LabelResolved, LabelStyle } from './labels/types';
+export { Label } from './labels/dsl';
+export { LabelItem } from './labels/LabelItem';
+export { LabelPositioner } from './player/LabelPositioner';
+export { LabelPositionerContext, useLabelPositioner } from './player/LabelPositionerContext';
+
+// Widget contract extensions
+export type { IContainedModel } from './widget/types';
+
+// Handler registration
+export { registerModelHandlers } from './handlers';

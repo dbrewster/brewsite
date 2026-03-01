@@ -5,7 +5,7 @@ import { DocHeader } from './DocHeader';
 import { DocSidebar } from './DocSidebar';
 
 interface DocLayoutProps {
-  book: 'core' | 'diagram';
+  book: 'core' | 'diagram' | 'model';
   nav: NavSection[];
 }
 

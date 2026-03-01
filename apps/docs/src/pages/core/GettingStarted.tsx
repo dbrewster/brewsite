@@ -103,7 +103,10 @@ export default function GettingStarted(): JSX.Element {
           renderable concepts
         </li>
         <li>
-          <strong>Model loading</strong> — GLTF model loading and animation playback
+          <strong>Model loading</strong> — GLTF/GLB model loading and animation playback are
+          provided by the companion{' '}
+          <Link to="/model/introduction"><code>@brewsite/model</code></Link> package (not bundled
+          with <code>@brewsite/core</code>)
         </li>
       </ul>
 

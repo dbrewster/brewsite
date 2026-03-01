@@ -232,6 +232,177 @@ fn={(t) => t > 0 ? 1 : 0}
         <code>ScenePlayer</code> or <code>EngineProvider</code>. See{' '}
         <Link to="/core/player">ScenePlayer &amp; EngineProvider</Link> for details.
       </Callout>
+
+      <h2>
+        <code>autoAdvance</code> — Idle Auto-Advance
+      </h2>
+
+      <p>
+        When the user is idle (not scrolling), <code>autoAdvance</code> causes time to advance the
+        scene automatically at a configurable rate. The scene plays on its own when the page loads;
+        the user's scroll always takes over immediately.
+      </p>
+
+      <PropTable
+        rows={[
+          {
+            name: 'autoAdvance.duration',
+            type: 'number',
+            required: true,
+            defaultValue: '—',
+            description:
+              'Seconds for the scene window to fully traverse from 0 to max while idle. This is the primary knob: "play this scene in N seconds while idle."',
+          },
+          {
+            name: 'autoAdvance.max',
+            type: 'number',
+            required: false,
+            defaultValue: '1.0',
+            description:
+              'Optional ceiling — stop auto-advancing at this fraction of the scene window. Example: max: 0.80 shows the first 80% automatically; the user must scroll for the remaining 20%.',
+          },
+          {
+            name: 'autoAdvance.pauseOnScroll',
+            type: 'boolean',
+            required: false,
+            defaultValue: 'true',
+            description:
+              'Pauses auto-advance when the user scrolls; resumes after 200ms of scroll inactivity.',
+          },
+        ]}
+      />
+
+      <CodeBlock
+        language="tsx"
+        code={`// Hero scene: auto-plays through 80% in 8 seconds while idle.
+// User can scroll at any time to take over.
+<Scene id="hero">
+  <ProgressManager
+    scrollUnits={1800}
+    autoAdvance={{ duration: 8, max: 0.80, pauseOnScroll: true }}
+  />
+</Scene>`}
+      />
+
+      <Callout type="note">
+        Use <code>autoAdvance</code> to create cinematic idle sequences — the scene plays on its
+        own when the user loads the page, but the user's scroll always takes priority immediately.
+      </Callout>
+
+      <p>
+        The following configurations emit a <code>PROGRESS_MANAGER</code> compile warning via{' '}
+        <code>onCompileWarning</code>:
+      </p>
+
+      <ul>
+        <li>
+          <strong>
+            <code>autoAdvance.duration {'<='} 0</code>:
+          </strong>{' '}
+          a non-positive duration is meaningless and will be ignored.
+        </li>
+        <li>
+          <strong>
+            <code>max</code> outside <code>(0, 1]</code>:
+          </strong>{' '}
+          values at or below zero, or above one, are out of range.
+        </li>
+        <li>
+          <strong>
+            <code>autoAdvance</code> on the last scene:
+          </strong>{' '}
+          the last scene has no scroll space allocated after it, so auto-advance has no effect.
+        </li>
+      </ul>
+
+      <h2>
+        <code>animationTimeScale</code> — Animation Time Scale
+      </h2>
+
+      <p>
+        When progress moves (from scroll or auto-advance), GLTF animation mixers run faster
+        proportionally. At idle, animations always play at 1× real-time regardless of this setting.
+      </p>
+
+      <p>
+        The value represents total animation-seconds that play when scrolling through the scene's
+        full window. For example, <code>animationTimeScale={6}</code> means 6 seconds of animation
+        play across a full scene scroll.
+      </p>
+
+      <p>
+        The effective delta is computed as:
+      </p>
+
+      <CodeBlock
+        language="typescript"
+        code={`effectiveDelta = max(realTime, min(deltaProgress × scale, 0.2s cap))`}
+      />
+
+      <p>
+        This formula ensures animation never pauses — it runs at least at real-time speed even
+        when the user scrolls slowly. During fast scrolling, animation accelerates up to the cap.
+      </p>
+
+      <PropTable
+        rows={[
+          {
+            name: 'animationTimeScale',
+            type: 'number | undefined',
+            required: false,
+            defaultValue: 'undefined (1× always)',
+            description:
+              'Total animation-seconds that play when scrolling through the full scene window. When undefined, animations always run at 1× real-time. During auto-advance, deltaProgress is tiny so animation plays at approximately 1× real-time; during fast scroll, animation accelerates.',
+          },
+        ]}
+      />
+
+      <CodeBlock
+        language="tsx"
+        code={`<Scene id="features">
+  <ProgressManager
+    scrollUnits={2000}
+    animationTimeScale={6}
+    // At idle: animations play at 1× real-time
+    // During fast scroll: animations run up to 6× faster
+  />
+  <Robot id="hero-bot">
+    <Playback>
+      <Animation clipName="walk-cycle" enabled weight={1} />
+    </Playback>
+  </Robot>
+</Scene>`}
+      />
+
+      <h2>Combining autoAdvance + animationTimeScale</h2>
+
+      <p>
+        <code>autoAdvance</code> and <code>animationTimeScale</code> compose naturally. During
+        idle auto-advance, <code>deltaProgress</code> is tiny each frame, so the animation time
+        scale formula resolves to approximately 1× real-time. During fast scroll, the animation
+        accelerates. Both behaviors work together without any special configuration.
+      </p>
+
+      <CodeBlock
+        language="tsx"
+        code={`// Cinematic hero: auto-plays the animation at real-time while idle,
+// then responds to scroll with boosted animation speed.
+<Scene id="hero">
+  <ProgressManager
+    scrollUnits={1800}
+    autoAdvance={{ duration: 8, max: 0.80, pauseOnScroll: true }}
+    animationTimeScale={3}
+  />
+</Scene>`}
+      />
+
+      <Callout type="note">
+        Both <code>autoAdvance</code> and <code>animationTimeScale</code> are part of the{' '}
+        <code>ProgressManagerSpec</code> and carry forward together under the same carry-forward
+        semantics as <code>scrollUnits</code> and <code>fn</code>. To explicitly clear
+        auto-advance on a later scene, declare{' '}
+        <code>{'<ProgressManager autoAdvance={undefined} />'}</code>.
+      </Callout>
     </section>
   );
 }

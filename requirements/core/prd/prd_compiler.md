@@ -14,6 +14,12 @@ change_history:
   - date: 2026-03-01
     author: "Toolkit Product"
     summary: "Two features implemented. (1) ProgressManager: ProgressManagerSpec, SceneProgressSegment, SceneProgressProfile types added to sceneTrackTypes.ts. SceneFrame gains progressManager?: ProgressManagerSpec. SceneTrack gains progressProfile?: SceneProgressProfile. CompileWarningCode gains PROGRESS_MANAGER. buildProgressProfile added as a new compiler pass (Step 8). (2) Engine decomposition: HUD pipeline removed. hudItems removed from SceneFrame. hudPrimitives removed from SceneTrackTick. hudItems removed from SceneFrameDelta. pushHudItem removed from CompileApi. compileChildrenSeparated added to CompileHelpers. SceneFrame gains sceneOverlay?: ReactNode. SceneTrack gains sceneOverlays: Map<string, ReactNode>. Step 6 (HUD and Label compilation) updated to cover label-only — HUD is no longer a compiler concern."
+  - date: 2026-03-01
+    author: "Toolkit Product"
+    summary: "Added AutoAdvanceSpec type. Added autoAdvance and animationTimeScale to ProgressManagerSpec and SceneProgressSegment. Documented buildProgressProfile validation for autoAdvance fields (plan_progress_driven_animation)."
+  - date: 2026-03-01
+    author: "Toolkit Product"
+    summary: "Annotated label compilation pipeline (labelCompiler.ts, ClipMeta, labelPrimitives, CompileApi.pushLabel) as model-specific, moving to @brewsite/model in Phase 4 per plan_core_modularization."
 ---
 
 # BrewSite Core — Compiler Pipeline
@@ -288,6 +294,11 @@ The sparse delta model allows the runtime driver to skip widget updates on frame
 - `scrollUnits <= 0` — warns, falls back to `1`.
 - `fn(0) !== 0` — warns, marks the profile's `isUniform = false`.
 - `fn(1) !== 1` — warns, marks the profile's `isUniform = false`.
+- `autoAdvance.duration <= 0` — warns, the `autoAdvance` field is dropped from the compiled segment.
+- `autoAdvance.max` outside `(0, 1]` — warns, clamps to nearest valid value.
+- `autoAdvance` declared on the last scene — warns (no outgoing transition exists to advance into).
+
+**`isUniform` fast-path:** `isUniform` is `false` when any segment has `autoAdvance` or `animationTimeScale` declared (in addition to the existing non-identity `fn` and non-unit `scrollUnits` conditions). When `isUniform` is `false`, `SceneProgressMapper` is always constructed; the player cannot skip it.
 
 When all scenes have no `progressManager`, `progressProfile` is absent from `SceneTrack` entirely.
 
@@ -367,7 +378,7 @@ export type SceneTrackTick = {
   blockProgress: number;
   /** Widget states for this tick. Filled by transition spec methods and terminal frame pass. */
   state: SceneFrame;
-  /** Resolved label primitives for this tick. */
+  /** Resolved label primitives for this tick. model-specific field; will move to @brewsite/model in Phase 4 of plan_core_modularization. */
   labelPrimitives?: LabelResolved[];
   /** Forward delta: what changed from tick N-1 → N. */
   deltaForward: SceneFrameDelta;
@@ -410,6 +421,19 @@ export type SceneFrameDelta = {
 // packages/core/src/compiler/sceneTrackTypes.ts
 
 /**
+ * Compiled auto-advance configuration stored on ProgressManagerSpec.
+ * Constructed from <ProgressManager autoAdvance={{ ... }}> props.
+ */
+export type AutoAdvanceSpec = {
+  /** Seconds to traverse the scene window from 0 to max while the user is idle. */
+  duration: number;
+  /** Default 1.0; ceiling fraction of scene window in (0, 1]. */
+  max: number;
+  /** Default true; pauses auto-advance when the user scrolls. */
+  pauseOnScroll: boolean;
+};
+
+/**
  * Compiled form of a <ProgressManager> DSL element.
  * Stored on SceneFrame.progressManager after carry-forward merge.
  */
@@ -429,6 +453,16 @@ export type ProgressManagerSpec = {
    * Default: identity (t => t).
    */
   fn: (localT: number) => number;
+  /**
+   * Cinematic idle auto-play configuration. When set, wall-clock time advances rawProgress
+   * at max/duration per second while the user is idle. Must not appear on the last scene.
+   */
+  autoAdvance?: AutoAdvanceSpec;
+  /**
+   * Total animation-seconds played when scrolling 0 → 1 through this scene's window.
+   * Undefined means 1× speed always (animation time equals wall time).
+   */
+  animationTimeScale?: number;
 };
 
 /**
@@ -436,6 +470,7 @@ export type ProgressManagerSpec = {
  * rawStart/rawEnd are the bounds of this scene's scroll segment in [0, 1] raw input space.
  * engineStart/engineEnd are the corresponding bounds in engine progress space.
  * fn maps local raw progress within this segment to local engine progress.
+ * autoAdvance pre-computed fields avoid division in the RAF hot path.
  */
 export type SceneProgressSegment = {
   sceneIndex: number;
@@ -444,6 +479,24 @@ export type SceneProgressSegment = {
   engineStart: number;
   engineEnd: number;
   fn: (localT: number) => number;
+  /**
+   * Pre-computed auto-advance fields. Absent when autoAdvance is not declared.
+   * rawRate and maxRaw are computed at compile time to avoid division in the RAF hot path.
+   */
+  autoAdvance?: {
+    /**
+     * (max × segmentWidth) / duration — pre-computed to avoid division in RAF hot path.
+     * segmentWidth = rawEnd - rawStart.
+     */
+    rawRate: number;
+    /**
+     * rawStart + max × segmentWidth — pre-computed ceiling in raw progress space.
+     */
+    maxRaw: number;
+    pauseOnScroll: boolean;
+  };
+  /** Total animation-seconds played when scrolling 0 → 1 through this segment. */
+  animationTimeScale?: number;
 };
 
 /**
@@ -741,6 +794,10 @@ compileChildrenSeparated: (node: ReactElement, api: CompileApi) => ReactNode[];
 
 ## 10. Label Compilation (`labelCompiler.ts`)
 
+> **Note:** Label compilation (`labelCompiler.ts`, `CompileApi.pushLabel`, `SceneFrame.labels`)
+> is model-specific infrastructure. It will be removed from `@brewsite/core` and moved to
+> `@brewsite/model` in plan_core_modularization Phase 4.
+
 Label compilation produces per-frame `LabelResolved[]` from the label definitions in adjacent scene snapshots.
 
 ```typescript
@@ -779,6 +836,9 @@ export type CompileExtraContext = {
   prefersReducedMotion: boolean;
 };
 ```
+
+> **Note:** `ClipMeta` is model-specific and will be removed from `@brewsite/core` compiler
+> types when `@brewsite/model` is extracted (plan_core_modularization Phase 4).
 
 `ClipMeta` carries animation clip name, total duration in seconds, and optional trim boundaries (`clipStart`, `clipEnd`). Widget implementations use this at `compileExtra` time to pre-compute per-frame animation clock values (current time within clip, playback direction, loop count) rather than computing them on every render tick.
 
