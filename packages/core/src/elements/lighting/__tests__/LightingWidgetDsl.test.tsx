@@ -152,9 +152,9 @@ describe('LightingWidget lifecycle', () => {
       spots: [],
       panels: [],
     };
-    widget.apply(state, { deltaSeconds: 0, globalProgress: 0, wallTimeSeconds: 0, variables: {} as never, extra: undefined });
+    widget.apply(state, { clock: { wallTimeSeconds: 0, deltaSeconds: 0 }, effectiveDeltaSeconds: 0, globalProgress: 0, variables: {} as never, extra: undefined });
     expect(scene.children.length).toBeGreaterThan(0);
     widget.dispose();
-    expect(() => widget.apply(state, { deltaSeconds: 0, globalProgress: 0, wallTimeSeconds: 0, variables: {} as never, extra: undefined })).not.toThrow();
+    expect(() => widget.apply(state, { clock: { wallTimeSeconds: 0, deltaSeconds: 0 }, effectiveDeltaSeconds: 0, globalProgress: 0, variables: {} as never, extra: undefined })).not.toThrow();
   });
 });

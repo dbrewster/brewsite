@@ -979,7 +979,7 @@ export class ModelRenderer {
 
     const weight = state.playback.animation.weight ?? 1;
     action.setEffectiveWeight(weight);
-    const deltaSeconds = ctx?.deltaSeconds ?? 0;
+    const deltaSeconds = ctx?.effectiveDeltaSeconds ?? 0;
     this.mixer.update(deltaSeconds);
   }
 
@@ -1100,8 +1100,8 @@ export class ModelRenderer {
     if (!this.model) return;
     const base = this.capturePose();
     const context = {
-      tickTimeSeconds: ctx?.deltaSeconds ?? 0,
-      wallTimeSeconds: ctx?.wallTimeSeconds ?? 0,
+      tickTimeSeconds: ctx?.effectiveDeltaSeconds ?? 0,
+      wallTimeSeconds: ctx?.clock?.wallTimeSeconds ?? 0,
       sceneProgress: ctx?.globalProgress ?? 0,
       globalProgress: ctx?.globalProgress ?? 0,
       getBaseTransform: (name: string) => {

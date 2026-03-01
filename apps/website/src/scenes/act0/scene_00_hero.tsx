@@ -1,4 +1,4 @@
-import type { JSX } from 'react';
+import type { JSX, ReactNode } from 'react';
 import {
   Scene,
   Camera,
@@ -7,12 +7,38 @@ import {
   Directional,
   Floor,
   FloorMirror,
+  ProgressManager,
+  useSceneProgress,
 } from '@brewsite/core';
 import { NeonSign } from '../../widgets/neon-sign';
-import { HeroSection } from '../../landing/hero/HeroSection';
+import { HeroBezel } from '../../landing/hero/HeroBezel';
+import { ScrollIndicator } from '../../landing/hero/ScrollIndicator';
+
+/**
+ * Fades children in as blockProgress advances from `start` to `end`.
+ * Replaces CSS animation-delay-based reveal — driven by BrewSite progress instead.
+ */
+function HeroFade({
+  children,
+  start,
+  end,
+}: {
+  children: ReactNode;
+  start: number;
+  end: number;
+}): JSX.Element {
+  const p = useSceneProgress();
+  const opacity = Math.max(0, Math.min(1, (p - start) / Math.max(end - start, 0.001)));
+  return <div style={{ opacity }}>{children}</div>;
+}
 
 export const scene00Hero: JSX.Element = (
   <Scene id="website-hero-00">
+    <ProgressManager
+      scrollUnits={1800}
+      autoAdvance={{ duration: 8, max: 0.80, pauseOnScroll: true }}
+      animationTimeScale={3}
+    />
     <Camera mode="world" position={[0, 7, 17]} target={[0, 1.4, 0]} fov={52} />
 
     <Lighting intensityScale={1}>
@@ -44,7 +70,21 @@ export const scene00Hero: JSX.Element = (
       inset: 0,
       pointerEvents: 'none',
     }}>
-      <HeroSection />
+      <section className="hero-section">
+        <HeroBezel />
+        <HeroFade start={0.35} end={0.55}>
+          <div className="hero-content hero-content--below-sign">
+            <p className="hero-tagline">Author in JSX. Ship to any surface.</p>
+            <div className="hero-packages">
+              <span className="hero-package-badge">@brewsite/core</span>
+              <span className="hero-package-badge">@brewsite/diagram</span>
+            </div>
+          </div>
+        </HeroFade>
+        <HeroFade start={0.50} end={0.65}>
+          <ScrollIndicator />
+        </HeroFade>
+      </section>
     </div>
   </Scene>
 );

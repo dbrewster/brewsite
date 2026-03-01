@@ -3,7 +3,9 @@
 import type {
   IWidget, ISceneElement, IRenderable, ILoadable, IDslComposite,
   IContainedModel, IAnimationController, IVariableProvider,
+  IRendererLifecycle, IRenderContributor, IContainedRenderable, IAttachmentHost,
 } from './types';
+import type { WebGLRenderer } from 'three';
 import { registerNode, getNodeHandler } from '../compiler/registry';
 import type { NodeHandler } from '../compiler/sceneDslTypes';
 
@@ -206,10 +208,41 @@ export class WidgetRegistry {
       .sort((a, b) => (a.tickPriority ?? 0) - (b.tickPriority ?? 0));
   }
   getLoadables(): ILoadable[] { return this.getAll().filter(isLoadable); }
-  getContainedModels(): Array<IContainedModel<unknown>> { return this.getAll().filter(isContainedModel); }
   getDslComposites(): IDslComposite[] { return this.getAll().filter(isDslComposite); }
 
+  /** Returns all widgets that implement IContainedRenderable. */
+  getContainedRenderables(): IContainedRenderable[] {
+    return this.getAll().filter(isContainedRenderable);
+  }
+
+  /** Returns all widgets that implement IAttachmentHost. */
+  getAttachmentHosts(): IAttachmentHost[] {
+    return this.getAll().filter(isAttachmentHost);
+  }
+
+  /**
+   * Broadcasts onRendererCreated to all IRendererLifecycle widgets.
+   * Call from useSceneEngine.ts when the WebGLRenderer is constructed.
+   */
+  notifyRendererCreated(renderer: WebGLRenderer): void {
+    for (const widget of this.widgets.values()) {
+      if (isRendererLifecycle(widget)) widget.onRendererCreated(renderer);
+    }
+  }
+
+  /**
+   * Broadcasts onRendererDisposing to all IRendererLifecycle widgets.
+   * Call from useSceneEngine.ts cleanup effect, before renderer.dispose().
+   */
+  notifyRendererDisposing(renderer: WebGLRenderer): void {
+    for (const widget of this.widgets.values()) {
+      if (isRendererLifecycle(widget)) widget.onRendererDisposing(renderer);
+    }
+  }
+
   buildCacheKey(): string {
+    // DEBT: clipMeta duck-typing in buildCacheKey() is model-specific. Migrate to
+    // IRenderContributor.cacheKey() or model plugin cache contribution in Phase 4.
     return Array.from(this.widgets.values())
       .map((w) => {
         const extra =
@@ -246,3 +279,17 @@ export const isContainedModel = (w: IWidget): w is IContainedModel<unknown> =>
   isRenderable(w) && 'anchorModelId' in w && 'anchorKey' in w;
 export const isDslComposite = (w: IWidget): w is IDslComposite =>
   'childDslComponents' in w && Array.isArray((w as IDslComposite).childDslComponents);
+
+// ─── Phase 1 type guards ──────────────────────────────────────────────────────
+
+export const isRendererLifecycle = (w: IWidget): w is IRendererLifecycle =>
+  'onRendererCreated' in w && 'onRendererDisposing' in w;
+
+export const isRenderContributor = (w: IWidget): w is IRenderContributor =>
+  'contributeRenderData' in w && typeof (w as IRenderContributor).contributeRenderData === 'function';
+
+export const isContainedRenderable = (w: IWidget): w is IContainedRenderable =>
+  'anchorWidgetId' in w && 'anchorKey' in w && 'rootObject' in w;
+
+export const isAttachmentHost = (w: IWidget): w is IAttachmentHost =>
+  'getAttachmentPoint' in w && typeof (w as IAttachmentHost).getAttachmentPoint === 'function';

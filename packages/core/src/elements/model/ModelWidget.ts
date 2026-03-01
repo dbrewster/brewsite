@@ -12,7 +12,7 @@ import type * as React from 'react';
 import type {ReactElement} from 'react';
 import {isValidElement} from 'react';
 import type * as THREE from 'three';
-import type {CompileExtraContext, IDslComposite, ILoadable, IRenderable, ISceneElement, WidgetInitContext, WidgetRenderContext,} from '../../widget/types';
+import type {CompileExtraContext, IDslComposite, ILoadable, IRenderable, ISceneElement, IAttachmentHost, IRenderContributor, RenderContribution, WidgetInitContext, WidgetRenderContext,} from '../../widget/types';
 import {CUSTOM_NODE_HANDLER} from '../../widget/WidgetRegistry';
 import type {CompileHelpers, NodeHandler, SceneSnapshotContext} from '../../compiler/index';
 import type {
@@ -363,7 +363,9 @@ export class ModelWidget
     ISceneElement<SceneModelInstanceState, CompiledAnimation>,
     IRenderable<SceneModelInstanceState>,
     ILoadable,
-    IDslComposite {
+    IDslComposite,
+    IAttachmentHost,
+    IRenderContributor {
 
   readonly widgetId: string;
   readonly defaultState: SceneModelInstanceState;
@@ -808,5 +810,31 @@ export class ModelWidget
 
   getTargetColors(): Map<string, string> {
     return this.renderer?.getTargetColors() ?? new Map();
+  }
+
+  // ─── IAttachmentHost (Phase 2) ────────────────────────────────────────────
+
+  /**
+   * Returns the Three.js Object3D for the named attachment point.
+   * Resolves the bone name from anchorTargets and finds it in the model.
+   * Returns null if the key is not found or the model is not yet loaded.
+   */
+  getAttachmentPoint(key: string): THREE.Object3D | null {
+    const boneName = this.anchorTargets[key];
+    if (!boneName) return null;
+    return this.renderer?.findNodeByName(boneName) ?? null;
+  }
+
+  // ─── IRenderContributor (Phase 2) ────────────────────────────────────────
+
+  /**
+   * Contributes bone world positions and target colors to the render loop.
+   * Called once per frame after renderer.render() by RuntimeDriverImpl.collectRenderContributions().
+   */
+  contributeRenderData(): RenderContribution {
+    return {
+      namedPositions: this.renderer?.getBoneWorldPositions() ?? new Map(),
+      targetColors: this.renderer?.getTargetColors() ?? new Map(),
+    };
   }
 }

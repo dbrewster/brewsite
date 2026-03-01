@@ -31,8 +31,8 @@ export class LabelPositioner {
   update(
     labels: LabelResolved[],
     camera: Camera,
-    boneWorldPositions: Map<string, [number, number, number]>,
-    targetColors?: Map<string, string>,
+    namedPositions: ReadonlyMap<string, [number, number, number]>,
+    targetColors?: ReadonlyMap<string, string>,
   ): void {
     if (this.containerWidth <= 0 || this.containerHeight <= 0) return;
 
@@ -44,7 +44,7 @@ export class LabelPositioner {
         continue;
       }
       const targetId = label.targetPartId;
-      const bonePos = boneWorldPositions.get(targetId);
+      const bonePos = namedPositions.get(targetId);
       if (!bonePos) {
         if (!this.warnedMissingTargets.has(targetId)) {
           console.warn(`[LabelPositioner] missing target part "${targetId}" for label "${label.id}"`);

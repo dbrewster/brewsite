@@ -2,7 +2,6 @@
  * Labels element DSL components.
  */
 
-import { registerNode } from '../compiler/registry';
 import type { LabelDefinition } from './types';
 
 export type LabelProps = LabelDefinition & { children?: never };
@@ -20,11 +19,6 @@ Label.displayName = 'Label';
 export const Labels = (_props: { children?: React.ReactNode }) => null;
 Labels.displayName = 'Labels';
 
-// Register handlers
-registerNode(Label, () => {
-  throw new Error('<Label> must be nested under <BodyPart> or <Subpart>.');
-});
-
-registerNode(Labels, () => {
-  throw new Error('<Labels> is not supported. Use <Label> under <BodyPart> or <Subpart>.');
-});
+// NOTE: Handler registration for Label/Labels moved to registerCoreHandlers()
+// in packages/core/src/compiler/coreHandlers.ts (Phase 3, temporary).
+// In Phase 4, these handlers move to @brewsite/model's registerModelHandlers().

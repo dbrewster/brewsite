@@ -38,6 +38,35 @@ export type ClipMeta = {
 // ─── ProgressManager Types ────────────────────────────────────────────────────
 
 /**
+ * Per-scene auto-advance configuration. When set, wall-clock time advances
+ * rawProgress automatically while the user is idle.
+ *
+ * Carry-forward semantics: same as ProgressManagerSpec — the last declared
+ * spec carries forward to scenes that omit <ProgressManager>. Declare
+ * autoAdvance={undefined} to explicitly clear auto-advance.
+ */
+export type AutoAdvanceSpec = {
+  /**
+   * Seconds to traverse the scene window from rawStart to rawStart + (max × segmentWidth)
+   * while the user is idle. Must be > 0.
+   * This is the primary authoring knob: "play this scene in N seconds while idle."
+   */
+  duration: number;
+  /**
+   * Fraction of the scene's raw input window where auto-advance stops.
+   * Must be in (0, 1]. Default: 1.0 (play through the full window).
+   * Set to 0.80 to auto-advance through the first 80%, requiring the user to
+   * scroll for the final 20%.
+   */
+  max: number;
+  /**
+   * When true, auto-advance pauses while the user is scrolling and resumes
+   * after 200ms of scroll inactivity. Default: true.
+   */
+  pauseOnScroll: boolean;
+};
+
+/**
  * Per-scene scroll weight and input pacing curve.
  * Declared via <ProgressManager> DSL component inside <Scene>.
  * Stored on SceneFrame; consumed by the SceneProgressProfile aggregation pass.
@@ -64,6 +93,24 @@ export type ProgressManagerSpec = {
    * Default: t => t (identity / linear)
    */
   fn: (localT: number) => number;
+
+  /**
+   * Auto-advance config. Undefined = no auto-advance for this scene's window.
+   * Carry-forward: if a previous scene declared autoAdvance and this scene
+   * omits <ProgressManager>, the spec (including autoAdvance) carries forward.
+   * Use autoAdvance={undefined} to explicitly clear.
+   */
+  autoAdvance?: AutoAdvanceSpec;
+
+  /**
+   * Total animation-seconds that play when the user scrolls through this scene's
+   * full raw input window in one smooth pass. Undefined = no boost (1× real-time always).
+   * Recommended range: 2–12. Values > 20 may produce jarring jumps; the
+   * MAX_ANIM_BOOST_PER_FRAME cap (0.2s) mitigates programmatic navigation jumps.
+   *
+   * Formula: effectiveDelta = max(deltaSeconds, min(deltaProgress × animationTimeScale, 0.2))
+   */
+  animationTimeScale?: number;
 };
 
 /**
@@ -92,6 +139,30 @@ export type SceneProgressSegment = {
    * Output: local engine progress in [0..1] (normalized within engineStart..engineEnd).
    */
   fn: (localT: number) => number;
+
+  /**
+   * Pre-computed auto-advance values. Only present when the source scene
+   * declared autoAdvance. Pre-computing avoids division in the RAF hot path.
+   *
+   * rawRate  = (spec.max × segmentWidth) / spec.duration
+   * maxRaw   = rawStart + spec.max × segmentWidth
+   * segmentWidth = rawEnd - rawStart
+   */
+  autoAdvance?: {
+    /** Pre-computed advance rate in raw-progress per second. */
+    rawRate: number;
+    /** Pre-computed ceiling: auto-advance stops when getRawProgress() >= maxRaw. */
+    maxRaw: number;
+    pauseOnScroll: boolean;
+  };
+
+  /**
+   * Animation time scale factor for this scene.
+   * Passed to RuntimeDriverImpl.tick() to boost effectiveDeltaSeconds
+   * proportionally to deltaProgress.
+   * Undefined = no boost (always 1× real-time).
+   */
+  animationTimeScale?: number;
 };
 
 /**

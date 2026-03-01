@@ -101,15 +101,13 @@
   letter-spacing: 0.15em;
   text-transform: uppercase;
   color: var(--text-secondary);
-  opacity: 0;
-  animation: fade-up 0.8s ease-out 3.6s forwards;
+  /* opacity driven by HeroFade (blockProgress) — animation-delay removed */
 }
 
 .hero-packages {
   display: flex;
   gap: 12px;
-  opacity: 0;
-  animation: fade-up 0.8s ease-out 3.9s forwards;
+  /* opacity driven by HeroFade (blockProgress) — animation-delay removed */
 }
 
 .hero-package-badge {
@@ -123,10 +121,7 @@
   color: var(--neon-cyan);
 }
 
-@keyframes fade-up {
-  from { opacity: 0; transform: translateY(10px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
+/* fade-up keyframes removed — no longer used. arrow-bounce keyframes preserved below. */
 
 /* ─── Scroll Indicator ───────────────────────────────────────────────────── */
 .scroll-indicator {
@@ -138,11 +133,10 @@
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  opacity: 1;
   transition: opacity 0.4s ease;
   pointer-events: none;
   z-index: 10;
-  animation: fade-up 0.6s ease-out 4.2s both;
+  /* opacity driven by HeroFade (blockProgress) — animation-delay removed */
 }
 
 .scroll-indicator--hidden {

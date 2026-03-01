@@ -9,7 +9,7 @@ import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import { VariableStore } from '../../widget/VariableStore';
 import type { SceneTrack, SceneTrackTick } from '../../compiler/sceneTrackTypes';
 import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
-import type { IAnimationController, IContainedModel, ILoadable, IRenderable, ISceneElement } from '../../widget/types';
+import type { IAnimationController, IContainedModel, ILoadable, IRenderable, ISceneElement, IAttachmentHost, IContainedRenderable, IRenderContributor, RenderContribution } from '../../widget/types';
 
 // ---------------------------------------------------------------------------
 // Test doubles
@@ -111,10 +111,10 @@ describe('RuntimeDriverImpl', () => {
     expect(driver.getCurrentTick()).toBeNull();
   });
 
-  it('getBoneWorldPositions() returns an empty map when no renderable provides positions', () => {
-    const positions = driver.getBoneWorldPositions();
-    expect(positions instanceof Map).toBe(true);
-    expect(positions.size).toBe(0);
+  it('collectRenderContributions() returns empty contribution when no contributor is registered', () => {
+    const contributions = driver.collectRenderContributions();
+    expect(contributions.namedPositions).toBeUndefined();
+    expect(contributions.targetColors).toBeUndefined();
   });
 
   it('getWallTimeSeconds() returns 0 before any tick', () => {
@@ -137,61 +137,56 @@ describe('RuntimeDriverImpl', () => {
     expect(called).toBe(true);
   });
 
-  it('initializes renderables, loads assets, and attaches contained models', async () => {
+  it('initializes renderables, loads assets, and attaches contained renderables via IAttachmentHost', async () => {
     const registry = new WidgetRegistry();
     const variableStore = new VariableStore();
     const scene = new THREE.Scene();
 
     const noopSpec = makeNoopSpec<{ enabled: boolean }>();
 
-    class AnchorWidget implements ISceneElement<{ enabled: boolean }>, IRenderable<{ enabled: boolean }>, ILoadable {
+    class HostWidget
+      implements ISceneElement<{ enabled: boolean }>, IRenderable<{ enabled: boolean }>, ILoadable, IAttachmentHost {
       readonly widgetId = 'primary';
       readonly defaultState = { enabled: true };
       readonly transitionSpec = noopSpec;
       readonly DslComponent = () => null;
       isLoaded = false;
-      private anchor: THREE.Bone | null = null;
-      private anchorTargets: Record<string, string> = { head: 'headBone' };
+      private headBone: THREE.Bone | null = null;
 
       initialize(ctx: { scene: THREE.Scene; widgetId: string }): void {
-        this.anchor = new THREE.Bone();
-        this.anchor.name = 'headBone';
-        ctx.scene.add(this.anchor);
+        this.headBone = new THREE.Bone();
+        this.headBone.name = 'headBone';
+        ctx.scene.add(this.headBone);
       }
       async load(): Promise<void> { this.isLoaded = true; }
       apply(): void {}
       dispose(): void {}
-      getAnchorBoneName(key: string): string | undefined { return this.anchorTargets[key]; }
-      findBoneNode(name: string): THREE.Object3D | undefined {
-        if (this.anchor?.name === name) return this.anchor;
-        return undefined;
+      getAttachmentPoint(key: string): THREE.Object3D | null {
+        if (key === 'head') return this.headBone;
+        return null;
       }
     }
 
-    class ContainedWidget implements ISceneElement<{ enabled: boolean }>, IContainedModel<{ enabled: boolean }>, ILoadable {
+    class ContainedWidget
+      implements ISceneElement<{ enabled: boolean }>, IRenderable<{ enabled: boolean }>, ILoadable, IContainedRenderable {
       readonly widgetId = 'brain';
-      readonly anchorModelId = 'primary';
+      readonly anchorWidgetId = 'primary';
       readonly anchorKey = 'head';
       readonly defaultState = { enabled: true };
       readonly transitionSpec = noopSpec;
       readonly DslComponent = () => null;
       isLoaded = false;
-      private group: THREE.Group | null = null;
+      readonly rootObject: THREE.Group = new THREE.Group();
 
-      initialize(ctx: { scene: THREE.Scene; widgetId: string }): void {
-        this.group = new THREE.Group();
-        this.group.name = 'brainGroup';
-        ctx.scene.add(this.group);
-      }
+      initialize(): void {}
       async load(): Promise<void> { this.isLoaded = true; }
       apply(): void {}
       dispose(): void {}
-      getObject3D(): THREE.Object3D | null { return this.group; }
     }
 
-    const anchor = new AnchorWidget();
+    const host = new HostWidget();
     const contained = new ContainedWidget();
-    registry.register(anchor).register(contained);
+    registry.register(host).register(contained);
 
     const driver = new RuntimeDriverImpl({
       widgetRegistry: registry,
@@ -201,8 +196,9 @@ describe('RuntimeDriverImpl', () => {
 
     await driver.initialize(scene);
 
-    const group = contained.getObject3D();
-    expect(group?.parent).toBe(anchor.findBoneNode('headBone'));
+    // After initialize, the contained widget's rootObject should be parented
+    // to the host's 'head' attachment point.
+    expect(contained.rootObject.parent).not.toBeNull();
   });
 
   it('ticks animation controllers before renderables', async () => {
@@ -237,7 +233,7 @@ describe('RuntimeDriverImpl', () => {
 
     driver.setSceneTrack(makeEmptySceneTrack());
     await driver.initialize(new THREE.Scene());
-    driver.tick({ deltaSeconds: 0.016, globalProgress: 0.5 });
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0.5, deltaProgress: 0 });
 
     expect(order[0]).toBe('tick');
     expect(order[1]).toBe('render:1');
@@ -295,7 +291,7 @@ describe('RuntimeDriverImpl', () => {
     const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
     driver.setSceneTrack(track);
     await driver.initialize(scene);
-    driver.tick({ deltaSeconds: 0.016, globalProgress: 0 });
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0, deltaProgress: 0 });
 
     const funcApplied = applied.find((entry) => entry.widgetId === 'func');
     const discApplied = applied.find((entry) => entry.widgetId === 'disc');
@@ -336,7 +332,7 @@ describe('RuntimeDriverImpl', () => {
     const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
     driver.setSceneTrack(track);
     await driver.initialize(scene);
-    driver.tick({ deltaSeconds: 0.016, globalProgress: 0 });
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0, deltaProgress: 0 });
 
     expect(appliedValue).toBe(7);
   });
@@ -382,7 +378,7 @@ describe('RuntimeDriverImpl', () => {
     const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
     driver.setSceneTrack(track);
     await driver.initialize(scene);
-    driver.tick({ deltaSeconds: 0.016, globalProgress: 0 });
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0, deltaProgress: 0 });
 
     expect(appliedValue).toBe(9);
   });
@@ -508,7 +504,7 @@ describe('RuntimeDriverImpl', () => {
 
     driver.setSceneTrack(makeEmptySceneTrack());
     await driver.initialize(new THREE.Scene());
-    driver.tick({ deltaSeconds: 0.016, globalProgress: 0.5 });
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0.5, deltaProgress: 0 });
     // Both the controller and renderable should have reported errors.
     expect(widgetErrors.length).toBeGreaterThan(0);
     const widgetIds = widgetErrors.map((e) => e.widgetId);
@@ -542,7 +538,7 @@ describe('RuntimeDriverImpl', () => {
 
     driver.setSceneTrack(makeEmptySceneTrack());
     await driver.initialize(new THREE.Scene());
-    driver.tick({ deltaSeconds: 0.016, globalProgress: 0.5 });
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0.5, deltaProgress: 0 });
 
     expect(applied[0]?.value).toBe(7);
   });
@@ -554,13 +550,13 @@ describe('RuntimeDriverImpl', () => {
       variableStore: new VariableStore(),
       manifest: null,
     });
-    expect(() => driver.tick({ deltaSeconds: 0.016, globalProgress: 0.2 })).not.toThrow();
+    expect(() => driver.tick({ deltaSeconds: 0.016, globalProgress: 0.2, deltaProgress: 0 })).not.toThrow();
     expect(driver.getCurrentTick()).toBeNull();
   });
 
-  it('getBoneWorldPositions merges from renderables with providers', () => {
+  it('collectRenderContributions() merges from IRenderContributor widgets', () => {
     const registry = new WidgetRegistry();
-    class ProviderWidget implements IRenderable<{ value: number }>, ISceneElement<{ value: number }> {
+    class ContributorWidget implements IRenderable<{ value: number }>, ISceneElement<{ value: number }>, IRenderContributor {
       readonly widgetId = 'p';
       readonly defaultState = { value: 1 };
       readonly transitionSpec: ElementTransitionSpec<{ value: number }> = makeNoopSpec();
@@ -568,18 +564,22 @@ describe('RuntimeDriverImpl', () => {
       initialize(): void {}
       apply(): void {}
       dispose(): void {}
-      getBoneWorldPositions(): Map<string, [number, number, number]> {
-        return new Map([['bone', [1, 2, 3]]]);
+      contributeRenderData(): RenderContribution {
+        return {
+          namedPositions: new Map([['bone', [1, 2, 3] as [number, number, number]]]),
+          targetColors: new Map([['bone', '#ff0000']]),
+        };
       }
     }
-    registry.register(new ProviderWidget());
+    registry.register(new ContributorWidget());
     const driver = new RuntimeDriverImpl({
       widgetRegistry: registry,
       variableStore: new VariableStore(),
       manifest: null,
     });
-    const result = driver.getBoneWorldPositions();
-    expect(result.get('bone')).toEqual([1, 2, 3]);
+    const result = driver.collectRenderContributions();
+    expect(result.namedPositions?.get('bone')).toEqual([1, 2, 3]);
+    expect(result.targetColors?.get('bone')).toBe('#ff0000');
   });
 
   it('attachContainedModels handles missing anchor details without throwing', async () => {

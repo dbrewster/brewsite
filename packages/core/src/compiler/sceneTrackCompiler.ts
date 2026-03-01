@@ -185,15 +185,59 @@ export function buildProgressProfile(
   }
 
   // Check if all specs are effectively uniform (skip mapper construction).
+  // Must be false when ANY scene has autoAdvance or animationTimeScale — those features
+  // require the progressProfile to be present on SceneTrack at runtime.
   // IDENTITY_FN is the same reference used by the handler's default and DEFAULT_PM_SPEC,
   // so this check is correct for both "no <ProgressManager> declared" and
   // "<ProgressManager scrollUnits={N} />" (fn omitted → IDENTITY_FN assigned).
   const firstUnit = resolved[0]?.scrollUnits ?? 1;
   const isUniform = resolved.every(
-    (spec) => spec.scrollUnits === firstUnit && spec.fn === IDENTITY_FN,
+    (spec) =>
+      spec.scrollUnits === firstUnit &&
+      spec.fn === IDENTITY_FN &&
+      spec.autoAdvance === undefined &&
+      spec.animationTimeScale === undefined,
   );
 
   if (isUniform) return undefined;  // identity mapping — no profile needed
+
+  // Validate autoAdvance fields per scene (only when declared)
+  for (let i = 0; i < n; i++) {
+    const declared = frames[i]?.progressManager;
+    if (declared?.autoAdvance !== undefined) {
+      const sceneId = frames[i]?.id || `scene-${i}`;
+      if (declared.autoAdvance.duration <= 0) {
+        emitWarning({
+          code: 'PROGRESS_MANAGER',
+          message:
+            `ProgressManager autoAdvance.duration on scene "${sceneId}" must be > 0 ` +
+            `(got ${declared.autoAdvance.duration}). Auto-advance will not fire for this scene. ` +
+            `Use a positive value such as duration: 8.`,
+          sceneIndex: i,
+        });
+      }
+      const max = declared.autoAdvance.max;
+      if (max <= 0 || max > 1) {
+        emitWarning({
+          code: 'PROGRESS_MANAGER',
+          message:
+            `ProgressManager autoAdvance.max on scene "${sceneId}" must be in (0, 1] ` +
+            `(got ${max}). Use 0.8 to auto-advance through 80% of the scene window.`,
+          sceneIndex: i,
+        });
+      }
+      if (i === n - 1) {
+        emitWarning({
+          code: 'PROGRESS_MANAGER',
+          message:
+            `ProgressManager autoAdvance declared on the last scene ("${sceneId}") has no effect. ` +
+            `The last scene has no outgoing transition window. ` +
+            `Remove autoAdvance from this scene, or declare it on the second-to-last scene.`,
+          sceneIndex: i,
+        });
+      }
+    }
+  }
 
   // Build segments (N-1 segments for N scenes, one per outgoing transition)
   const totalUnits = resolved
@@ -209,15 +253,31 @@ export function buildProgressProfile(
     const rawStart = rawCursor;
     const rawEnd = rawCursor + normalizedWeight;
     rawCursor = rawEnd;
+    const segWidth = rawEnd - rawStart;
 
-    segments.push({
+    const seg: SceneProgressSegment = {
       sceneIndex: i,
       rawStart,
       rawEnd,
       engineStart: i / (n - 1),
       engineEnd: (i + 1) / (n - 1),
       fn: spec.fn,
-    });
+    };
+
+    if (spec.autoAdvance !== undefined) {
+      const max = spec.autoAdvance.max;
+      seg.autoAdvance = {
+        rawRate: (max * segWidth) / spec.autoAdvance.duration,
+        maxRaw: rawStart + max * segWidth,
+        pauseOnScroll: spec.autoAdvance.pauseOnScroll,
+      };
+    }
+
+    if (spec.animationTimeScale !== undefined) {
+      seg.animationTimeScale = spec.animationTimeScale;
+    }
+
+    segments.push(seg);
   }
 
   return { segments, isUniform: false };

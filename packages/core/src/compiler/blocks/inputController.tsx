@@ -244,4 +244,5 @@ export const ensureInputControllerRegistry = (): void => {
   if (!getNodeHandler(KeyMap)) registerNode(KeyMap, childOnlyHandler('KeyMap'));
 };
 
-ensureInputControllerRegistry();
+// NOTE: Module-scope auto-registration removed.
+// registerCoreHandlers() in coreHandlers.ts calls ensureInputControllerRegistry().

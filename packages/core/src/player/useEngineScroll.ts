@@ -14,44 +14,75 @@ export type UseEngineScrollOptions = {
    * Null means identity mapping (no remapping).
    */
   progressMapper?: SceneProgressMapper | null;
+  /**
+   * Called when a genuine user scroll event fires (NOT when auto-advance calls
+   * window.scrollTo). Used by useSceneEngine to update lastUserScrollTimeRef
+   * for the pauseOnScroll debounce.
+   */
+  onUserScroll?: () => void;
 };
 
 export type UseEngineScrollResult = {
   progress: number;
   scrollToProgress: (next: number) => void;
   getGlobalProgress: () => number;
+  /**
+   * Returns the pre-mapper raw scroll progress [0..1].
+   * Unlike getGlobalProgress() which returns the post-mapper (engine) progress,
+   * this returns the raw scroll fraction before the SceneProgressMapper is applied.
+   * Used by auto-advance to read and write in the correct space.
+   */
+  getRawProgress(): number;
+  /**
+   * Advances window.scrollY to the position corresponding to the given raw progress value.
+   * Bypasses the mapper entirely — raw input space, not engine progress space.
+   * Used by auto-advance to avoid the raw→engine→raw round-trip through the mapper.
+   *
+   * Marks the scroll as programmatic so onUserScroll is NOT fired for this event.
+   */
+  scrollToRawProgress(raw: number): void;
 };
 
 export const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrollResult => {
   const { scrollRegionRef, scrollRegionHeightPx, progressMapper } = options;
   const [progress, setProgress] = useState(0);
   const progressRef = useRef(0);
+  const rawProgressRef = useRef(0);
+  const isProgrammaticScrollRef = useRef(false);
 
-  const computeProgress = useCallback((): number => {
-    if (typeof window === 'undefined') return 0;
+  const computeProgress = useCallback((): { raw: number; mapped: number } => {
+    if (typeof window === 'undefined') return { raw: 0, mapped: 0 };
     const el = scrollRegionRef.current;
-    if (!el) return 0;
+    if (!el) return { raw: 0, mapped: 0 };
 
     const rect = el.getBoundingClientRect();
     const scrollTop = window.scrollY || window.pageYOffset || 0;
     const regionTop = scrollTop + rect.top;
     const viewportHeight = window.innerHeight || 1;
     const maxScroll = Math.max(1, scrollRegionHeightPx - viewportHeight);
-    const rawProgress = clamp01((scrollTop - regionTop) / maxScroll);
-    return progressMapper ? progressMapper.remap(rawProgress) : rawProgress;
+    const raw = clamp01((scrollTop - regionTop) / maxScroll);
+    const mapped = progressMapper ? progressMapper.remap(raw) : raw;
+    return { raw, mapped };
   }, [scrollRegionHeightPx, scrollRegionRef, progressMapper]);
 
   const update = useCallback(() => {
-    const next = computeProgress();
-    if (Math.abs(next - progressRef.current) < 1e-5) return;
-    progressRef.current = next;
-    setProgress(next);
+    const { raw, mapped } = computeProgress();
+    if (Math.abs(mapped - progressRef.current) < 1e-5) return;
+    rawProgressRef.current = raw;
+    progressRef.current = mapped;
+    setProgress(mapped);
   }, [computeProgress]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
     update();
-    const onScroll = () => update();
+    const onScroll = () => {
+      // Only fire onUserScroll when the scroll is genuine (not from auto-advance).
+      if (!isProgrammaticScrollRef.current) {
+        options.onUserScroll?.();
+      }
+      update();
+    };
     const onResize = () => update();
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onResize);
@@ -59,6 +90,8 @@ export const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrol
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', onResize);
     };
+  // options.onUserScroll is intentionally excluded from deps — it is a callback ref pattern.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [update]);
 
   const scrollToProgress = useCallback(
@@ -81,7 +114,31 @@ export const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrol
     [scrollRegionHeightPx, scrollRegionRef, progressMapper],
   );
 
-  const getGlobalProgress = useCallback(() => progressRef.current, []);
+  const scrollToRawProgress = useCallback(
+    (raw: number) => {
+      if (typeof window === 'undefined') return;
+      const el = scrollRegionRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const scrollTop = window.scrollY || window.pageYOffset || 0;
+      const regionTop = scrollTop + rect.top;
+      const viewportHeight = window.innerHeight || 1;
+      const maxScroll = Math.max(1, scrollRegionHeightPx - viewportHeight);
+      const clamped = Math.max(0, Math.min(1, raw));
+      // Mark as programmatic BEFORE window.scrollTo so the scroll event
+      // handler sees the flag when it fires.
+      isProgrammaticScrollRef.current = true;
+      window.scrollTo({ top: regionTop + clamped * maxScroll });
+      // Clear the flag after the current microtask queue drains (after scroll event).
+      queueMicrotask(() => {
+        isProgrammaticScrollRef.current = false;
+      });
+    },
+    [scrollRegionHeightPx, scrollRegionRef],
+  );
 
-  return { progress, scrollToProgress, getGlobalProgress };
+  const getGlobalProgress = useCallback(() => progressRef.current, []);
+  const getRawProgress = useCallback(() => rawProgressRef.current, []);
+
+  return { progress, scrollToProgress, getGlobalProgress, getRawProgress, scrollToRawProgress };
 };

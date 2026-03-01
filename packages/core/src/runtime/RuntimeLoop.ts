@@ -19,7 +19,7 @@ export type RuntimeLoopOptions = {
   driver: RuntimeDriver;
   getGlobalProgress: () => number;
   render?: () => void;
-  onAfterTick?: (frame: RuntimeFrame) => void;
+  onAfterTick?: (options: { deltaSeconds: number; globalProgress: number }) => void;
   fpsCap?: number;
   fixedDeltaSeconds?: number;
   clock?: RuntimeLoopClock;
@@ -50,11 +50,12 @@ export class RuntimeLoop {
   private driver: RuntimeDriver;
   private readonly getGlobalProgress: () => number;
   private readonly render?: () => void;
-  private readonly onAfterTick?: (frame: RuntimeFrame) => void;
+  private readonly onAfterTick?: (options: { deltaSeconds: number; globalProgress: number }) => void;
   private clock: RuntimeLoopClock;
   private lastMs: number | null = null;
   private wallTimeSeconds = 0;
   private wallTimeOverride: number | null = null;
+  private prevGlobalProgress: number = 0;
   private active = true;
   private running = false;
   private rafId: RuntimeLoopFrameHandle | null = null;
@@ -144,22 +145,24 @@ export class RuntimeLoop {
 
     const globalProgress = this.getGlobalProgress();
 
+    // Compute forward-only delta progress. Zero on first frame (no prevGlobalProgress yet).
+    // Zero on backward navigation (Math.max(0, ...)).
+    const deltaProgress = Math.max(0, globalProgress - this.prevGlobalProgress);
+    // Update prevGlobalProgress BEFORE tick() so that if tick() throws,
+    // prevGlobalProgress is still updated correctly for the next frame.
+    this.prevGlobalProgress = globalProgress;
+
     try {
       const perfEnabled =
         typeof window !== 'undefined' &&
         (window as unknown as { __robotRuntimeDebug?: { perf?: boolean } }).__robotRuntimeDebug?.perf;
       const perfStart = perfEnabled ? this.clock.now() : 0;
 
-      this.driver.tick({ deltaSeconds, globalProgress, wallTimeSeconds: this.wallTimeSeconds });
+      this.driver.tick({ deltaSeconds, globalProgress, deltaProgress, wallTimeSeconds: this.wallTimeSeconds });
 
       const afterTickStart = perfEnabled ? this.clock.now() : 0;
       if (this.onAfterTick) {
-        this.onAfterTick({
-          nowMs,
-          deltaSeconds,
-          wallTimeSeconds: this.wallTimeSeconds,
-          globalProgress,
-        });
+        this.onAfterTick({ deltaSeconds, globalProgress });
       }
 
       const renderStart = perfEnabled ? this.clock.now() : 0;

@@ -68,7 +68,7 @@ export class NeonSignWidget
   }
 
   apply(state: NeonSignState, context: WidgetRenderContext): void {
-    this.renderer?.update(state, context.wallTimeSeconds);
+    this.renderer?.update(state, context.clock.wallTimeSeconds);
   }
 
   dispose(): void {

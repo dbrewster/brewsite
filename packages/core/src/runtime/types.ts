@@ -2,6 +2,33 @@
 // Only types that are consumed outside the mocks/ directory live here.
 
 import type { SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
+import type { RenderContribution } from '../widget/types';
+
+// ─── RealtimeClock ────────────────────────────────────────────────────────────
+
+/**
+ * Synchronized real-time clock. Identical values reach every widget every frame.
+ * wallTimeSeconds is derived from performance.now() once per frame at the top of
+ * RuntimeLoop.runStep() — it never drifts or backlogs after tab hide/show.
+ *
+ * NEVER use a private `this.localTime += deltaSeconds` accumulator inside a widget.
+ * It drifts between widgets (different start times) and backlogs when a hidden tab
+ * becomes visible. Use clock.wallTimeSeconds for phase-coherent oscillations.
+ */
+export type RealtimeClock = {
+  /**
+   * Absolute seconds since page load (performance.now() / 1000).
+   * Use for: ambient oscillations, procedural animations, phase offsets.
+   * Example: Math.sin(clock.wallTimeSeconds * Math.PI * 2 * 0.5) → 0.5 Hz oscillation
+   */
+  wallTimeSeconds: number;
+  /**
+   * Real-time elapsed since last frame (~0.0167s at 60fps).
+   * Unaffected by scroll, effectiveDeltaSeconds, or animationTimeScale.
+   * Use for: physics integration, particle simulation, smooth increment-based effects.
+   */
+  deltaSeconds: number;
+};
 
 // ─── Vec3 ─────────────────────────────────────────────────────────────────────
 
@@ -55,7 +82,8 @@ export type AnimationTrack = {
 /**
  * Minimal contract for the generic, widget-based runtime driver.
  * Contains only the methods needed by the engine layer and RuntimeLoop.
- * Robot/model-specific concepts live inside widget implementations.
+ * Model-specific concepts live inside widget implementations (IAttachmentHost,
+ * IRenderContributor, etc.) — not on this interface.
  */
 export type RuntimeDriver = {
   /** True once all ILoadable widgets have resolved their load() promises. */
@@ -68,19 +96,24 @@ export type RuntimeDriver = {
   setSceneTrack(track: SceneTrack): void;
 
   /** Advance the runtime by one frame. */
-  tick(options: { deltaSeconds: number; globalProgress: number; wallTimeSeconds?: number }): void;
+  tick(options: {
+    deltaSeconds: number;
+    globalProgress: number;
+    /**
+     * Non-negative forward progress delta this frame.
+     * Computed by RuntimeLoop as Math.max(0, currentGlobalProgress - prevGlobalProgress).
+     * Zero on the first frame, zero on backward navigation.
+     * Used by RuntimeDriverImpl to compute effectiveDeltaSeconds via animationTimeScale.
+     */
+    deltaProgress: number;
+    wallTimeSeconds?: number;
+  }): void;
 
   /**
-   * Returns bone/node world positions contributed by IRenderable widgets.
-   * Used by the annotation positioner to project 3-D targets to screen space.
+   * Collects named world positions and target colors from all IRenderContributor
+   * widgets registered in this driver. Called once per render frame.
    */
-  getBoneWorldPositions(): Map<string, [number, number, number]>;
-
-  /**
-   * Returns color lookups for target ids (mesh/bone/subpart names).
-   * Used by label styling when target-color is requested.
-   */
-  getTargetColors(): Map<string, string>;
+  collectRenderContributions(): RenderContribution;
 
   /** Returns the SceneTrackTick sampled during the most recent tick(). */
   getCurrentTick(): SceneTrackTick | null;

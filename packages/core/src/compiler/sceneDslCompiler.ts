@@ -9,14 +9,16 @@ import React, {
   type ReactNode,
 } from 'react';
 import type { SceneSnapshotContext } from './sceneTypes';
-import { getNodeHandler, isPrimitiveComponent, registerNode } from './registry';
+import { getNodeHandler, isPrimitiveComponent } from './registry';
 import type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { JsonPrimitive } from '../widget/VariableStore';
 import type { CompileWarning, SceneFrame } from './sceneTrackTypes';
 import type { EasingName } from './transitions/easingFunctions';
-import { ensureInputControllerRegistry } from './blocks/inputController';
 import { SceneRegistrationContext } from './SceneRegistrationContext';
+// registerCoreHandlers is imported via circular reference (safe — only used inside functions,
+// not at module scope; see the comment above ensureSceneRegistry for details).
+import { registerCoreHandlers } from './coreHandlers';
 
 export type ResolvedScene = {
   frame: SceneFrame;
@@ -261,7 +263,7 @@ export const Scene = (props: {
 };
 Scene.displayName = 'Scene';
 
-const sceneRootHandler: NodeHandler = (node, api, helpers) => {
+export const sceneRootHandler: NodeHandler = (node, api, helpers) => {
   const props = node.props as {
     id?: string;
     meta?: Record<string, JsonPrimitive>;
@@ -303,15 +305,18 @@ const sceneRootHandler: NodeHandler = (node, api, helpers) => {
   }
 };
 
+// Keep ensureSceneRegistry for backward compatibility — delegates to registerCoreHandlers.
+// The circular import (sceneDslCompiler → coreHandlers → sceneDslCompiler) is safe because
+// coreHandlers.ts only accesses Scene and sceneRootHandler inside registerCoreHandlers(),
+// not at module scope. By the time any caller invokes ensureSceneRegistry(), both modules
+// are fully evaluated and all live bindings are resolved.
 export const ensureSceneRegistry = (): void => {
-  ensureInputControllerRegistry();
-  if (!getNodeHandler(Scene)) {
-    registerNode(Scene, sceneRootHandler);
-  }
+  registerCoreHandlers();
 };
 
-ensureInputControllerRegistry();
-registerNode(Scene, sceneRootHandler);
+// NOTE: Module-scope auto-registration removed.
+// registerCoreHandlers() in coreHandlers.ts handles all registrations.
+// Called by EngineProvider, ScenePlayer, or corePlugin().registerHandlers().
 
 export const resolveSceneFromDsl = (
   tree: unknown,
@@ -319,6 +324,12 @@ export const resolveSceneFromDsl = (
   widgetRegistry: WidgetRegistry,
   pushWarning?: (warning: CompileWarning) => void,
 ): ResolvedScene => {
+  // Ensure core handlers are registered before attempting DSL compilation.
+  // This is a backward-compat fallback for tests and direct callers that don't
+  // go through corePlugin().registerHandlers() or EngineProvider.
+  // In production, plugins register handlers explicitly before compilation.
+  ensureSceneRegistry();
+
   const describeValueType = (value: unknown): string => {
     if (value === null) return 'null';
     if (Array.isArray(value)) return 'array';

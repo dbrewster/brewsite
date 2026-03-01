@@ -6,7 +6,7 @@ import { compileSceneTrack } from '../compiler/sceneTrackCompiler';
 import { buildSceneTrackKey, getCachedTrack, setCachedTrack } from '../compiler/sceneTrackCache';
 import type { SceneTrack, ClipMeta, CompileWarning } from '../compiler/sceneTrackTypes';
 import { RuntimeDriverImpl } from '../runtime/RuntimeDriver';
-import { ModelRenderer } from '../elements/model/ModelRenderer';
+// ModelRenderer import removed in Phase 2 — renderer lifecycle managed via IRendererLifecycle
 import { RuntimeLoop } from '../runtime/RuntimeLoop';
 import { VariableStore } from '../widget/VariableStore';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
@@ -85,6 +85,17 @@ export type UseSceneEngineResult = {
   getRenderer: () => THREE.WebGLRenderer | null;
   setCameraOverride: (next: CameraOverrideState | null) => void;
   getCameraOverride: () => CameraOverrideState | null;
+  /**
+   * Pause or resume auto-advance for all scenes in this engine instance.
+   * Instance-scoped — does not affect other EngineProvider instances on the same page.
+   *
+   * Use case: pause when a modal, tooltip, or overlay is open.
+   * @example
+   * useEffect(() => {
+   *   engine.setAutoAdvancePaused(isModalOpen);
+   * }, [isModalOpen]);
+   */
+  setAutoAdvancePaused(paused: boolean): void;
   debug?: {
     driverReady: boolean;
     assetsReady: boolean;
@@ -137,6 +148,14 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     rawProgressPushRef.current = Math.max(0, Math.min(1, raw));
     // Switch to push mode on first call (state update — triggers once)
     setInputSource((prev) => (prev === 'push' ? prev : 'push'));
+  }, []);
+
+  // ─── Auto-advance state ───────────────────────────────────────────────────────
+  const autoAdvancePausedRef = useRef(false);
+  const lastUserScrollTimeRef = useRef(0);
+
+  const setAutoAdvancePaused = useCallback((paused: boolean) => {
+    autoAdvancePausedRef.current = paused;
   }, []);
 
   const setCameraOverrideInternal = useCallback((next: CameraOverrideState | null) => {
@@ -328,7 +347,17 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     return new SceneProgressMapper(sceneTrack.progressProfile);
   }, [sceneTrack]);
 
-  const { progress: inputProgress, scrollToProgress: inputScrollToProgress, getGlobalProgress: inputGetGlobalProgress } = useEngineInput({
+  const handleUserScroll = useCallback(() => {
+    lastUserScrollTimeRef.current = Date.now();
+  }, []);
+
+  const {
+    progress: inputProgress,
+    scrollToProgress: inputScrollToProgress,
+    getGlobalProgress: inputGetGlobalProgress,
+    getRawProgress,
+    scrollToRawProgress,
+  } = useEngineInput({
     scrollRegionRef,
     scrollRegionHeightPx,
     sceneCount: options.scenes.length,
@@ -346,6 +375,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     onDiagramCanvasRotate: handleDiagramCanvasRotate,
     onDiagramCanvasReset: handleDiagramCanvasReset,
     onDiagramCanvasFocus: handleDiagramCanvasFocus,
+    onUserScroll: handleUserScroll,
   });
 
   // ─── Wrap getGlobalProgress to check push override ───────────────────────────
@@ -363,6 +393,15 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     : inputProgress;
 
   const scrollToProgress = inputScrollToProgress;
+
+  // ─── Auto-advance: advance raw progress by input-mode-appropriate method ─────
+  const advanceToRawProgress = useCallback((raw: number) => {
+    if (inputSource === 'push') {
+      setRawProgress(raw);
+    } else {
+      scrollToRawProgress(raw);
+    }
+  }, [inputSource, setRawProgress, scrollToRawProgress]);
 
   useEffect(() => {
     if (typeof window === 'undefined' || !('matchMedia' in window)) return;
@@ -417,6 +456,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     }
     renderer.shadowMap.enabled = true;
     rendererRef.current = renderer;
+    options.widgetRegistry.notifyRendererCreated(renderer);
     if (sceneRef.current) {
       sceneRef.current.userData['__brewsite_renderer'] = renderer;
     }
@@ -432,7 +472,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     return () => {
       canvas.removeEventListener('webglcontextlost', onContextLost);
       canvas.removeEventListener('webglcontextrestored', onContextRestored);
-      ModelRenderer.disposeKtx2Loader(renderer);
+      options.widgetRegistry.notifyRendererDisposing(renderer);
       renderer.dispose();
       rendererRef.current = null;
       if (sceneRef.current) {
@@ -566,16 +606,41 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
         renderer.render(scene, camera);
         const tick = driver.getCurrentTick();
         if (options.labelPositioner && tick) {
+          const contributions = driver.collectRenderContributions();
           options.labelPositioner.update(
             tick.labelPrimitives ?? [],
             camera,
-            driver.getBoneWorldPositions(),
-            driver.getTargetColors(),
+            contributions.namedPositions ?? new Map(),
+            contributions.targetColors,
           );
         }
       },
-      onAfterTick: () => {
+      onAfterTick: ({ deltaSeconds }) => {
         frameDriver.handleTick(driver.getCurrentTick());
+
+        // ── Auto-advance state machine ──────────────────────────────────────
+        // Skip if paused externally or no progress profile available.
+        if (autoAdvancePausedRef.current) return;
+        const profile = sceneTrack?.progressProfile;
+        if (!profile) return;
+
+        const currentTick = driver.getCurrentTick();
+        if (!currentTick) return;
+
+        const segment = profile.segments[currentTick.sceneIndex];
+        if (!segment?.autoAdvance) return;
+
+        const { rawRate, maxRaw, pauseOnScroll } = segment.autoAdvance;
+
+        // Check pauseOnScroll: bail if user scrolled recently (within 200ms).
+        if (pauseOnScroll && Date.now() - lastUserScrollTimeRef.current < 200) return;
+
+        const currentRaw = getRawProgress();
+        if (currentRaw >= maxRaw) return;
+
+        const deltaRaw = deltaSeconds * rawRate;
+        const nextRaw = Math.min(currentRaw + deltaRaw, maxRaw);
+        advanceToRawProgress(nextRaw);
       },
       fpsCap: options.fpsCap,
     });
@@ -592,7 +657,9 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       loopRef.current = null;
       frameDriver.reset();
     };
-  }, [sceneTrack, getGlobalProgress, options.labelPositioner, options.fpsCap, options.onReady, driverReady]);
+  // advanceToRawProgress and getRawProgress are stable callbacks; include them
+  // for correctness but they don't change identity meaningfully.
+  }, [sceneTrack, getGlobalProgress, options.labelPositioner, options.fpsCap, options.onReady, driverReady, getRawProgress, advanceToRawProgress]);
 
   return {
     frameState,
@@ -615,6 +682,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     getRenderer: () => rendererRef.current,
     setCameraOverride,
     getCameraOverride,
+    setAutoAdvancePaused,
     debug: {
       driverReady,
       assetsReady,

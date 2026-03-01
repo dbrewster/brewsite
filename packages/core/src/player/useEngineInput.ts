@@ -61,12 +61,26 @@ export type UseEngineInputOptions = {
     clientY: number,
     focusCenter?: [number, number] | [number, number, number],
   ) => void;
+  /**
+   * Called when a genuine user scroll event fires (NOT when auto-advance calls
+   * window.scrollTo). Threaded directly to useEngineScroll's onUserScroll option.
+   */
+  onUserScroll?: () => void;
 };
 
 export type UseEngineInputResult = {
   progress: number;
   scrollToProgress: (next: number) => void;
   getGlobalProgress: () => number;
+  /** Returns the pre-mapper raw progress [0..1]. Used by auto-advance. */
+  getRawProgress(): number;
+  /**
+   * Advances progress to the given raw (pre-mapper) value.
+   * In scroll mode: advances window.scrollY without triggering onUserScroll.
+   * In direct mode: updates directProgressRef directly.
+   * In controlled mode: calls onControlledProgressChange with the raw value.
+   */
+  scrollToRawProgress(raw: number): void;
 };
 
 export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputResult => {
@@ -89,10 +103,12 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
 
   // ─── Scroll mode: delegate to useEngineScroll ─────────────────────────
   // Pass progressMapper so scroll mode applies remap/inverse correctly.
+  // Thread onUserScroll for auto-advance pauseOnScroll detection.
   const scrollResult = useEngineScroll({
     scrollRegionRef,
     scrollRegionHeightPx,
     progressMapper,
+    onUserScroll: options.onUserScroll,
   });
 
   // Extract stable function references to avoid tearing down InputController
@@ -240,6 +256,8 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
       progress: options.controlledProgress,
       scrollToProgress: scrollToControlledProgress,
       getGlobalProgress: getControlledProgress,
+      getRawProgress: getControlledProgress,
+      scrollToRawProgress: scrollToControlledProgress,
     };
   }
 
@@ -259,10 +277,16 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
       return progressMapper ? progressMapper.remap(raw) : raw;
     };
 
+    // In direct mode, raw = directProgressRef (no mapper involved at the raw level)
+    const getDirectRaw = () => directProgressRef.current;
+    const scrollToDirectRaw = (raw: number) => setDirectProgressBoth(clamp01(raw));
+
     return {
       progress: mappedDirectProgress,
       scrollToProgress: scrollToDirectMapped,
       getGlobalProgress: getDirectMapped,
+      getRawProgress: getDirectRaw,
+      scrollToRawProgress: scrollToDirectRaw,
     };
   }
 

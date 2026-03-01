@@ -245,7 +245,7 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
         }
       }
       this.lastSceneIndex = tick.sceneIndex;
-      this.driver.update(context.deltaSeconds);
+      this.driver.update(context.effectiveDeltaSeconds);
       return;
     }
 

@@ -295,9 +295,9 @@ describe('ModelRenderer', () => {
     const variables = new VariableStore();
 
     renderer.apply(state, animation, {
-      deltaSeconds: 0.016,
+      clock: { wallTimeSeconds: 0, deltaSeconds: 0.016 },
+      effectiveDeltaSeconds: 0.016,
       globalProgress: 0.6,
-      wallTimeSeconds: 0,
       variables,
       extra: undefined,
     });
@@ -308,9 +308,9 @@ describe('ModelRenderer', () => {
     const resetSpy = vi.spyOn(action, 'reset');
 
     renderer.apply(state, animation, {
-      deltaSeconds: 0.016,
+      clock: { wallTimeSeconds: 0, deltaSeconds: 0.016 },
+      effectiveDeltaSeconds: 0.016,
       globalProgress: 0.5,
-      wallTimeSeconds: 0,
       variables,
       extra: undefined,
     });
@@ -337,9 +337,9 @@ describe('ModelRenderer', () => {
     const variables = new VariableStore();
 
     renderer.apply(state, animation, {
-      deltaSeconds: 0.016,
+      clock: { wallTimeSeconds: 0, deltaSeconds: 0.016 },
+      effectiveDeltaSeconds: 0.016,
       globalProgress: 0.6,
-      wallTimeSeconds: 0,
       variables,
       extra: undefined,
     });
@@ -358,9 +358,9 @@ describe('ModelRenderer', () => {
     };
 
     renderer.apply(nextState, animation, {
-      deltaSeconds: 0.016,
+      clock: { wallTimeSeconds: 0, deltaSeconds: 0.016 },
+      effectiveDeltaSeconds: 0.016,
       globalProgress: 0.5,
-      wallTimeSeconds: 0,
       variables,
       extra: undefined,
     });

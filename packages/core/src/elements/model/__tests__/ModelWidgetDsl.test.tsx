@@ -303,7 +303,7 @@ describe('ModelWidget runtime helpers', () => {
       model: { scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true },
       playback: { motion: { commands: [], scenes: [] }, animation: { enabled: false } },
     };
-    widget.apply(state, { deltaSeconds: 0, globalProgress: 0, wallTimeSeconds: 0, variables: {} as never, extra: { enabled: false } });
+    widget.apply(state, { clock: { wallTimeSeconds: 0, deltaSeconds: 0 }, effectiveDeltaSeconds: 0, globalProgress: 0, variables: {} as never, extra: { enabled: false } });
     expect(renderer.apply).toHaveBeenCalledWith(state, { enabled: false }, expect.any(Object));
   });
 

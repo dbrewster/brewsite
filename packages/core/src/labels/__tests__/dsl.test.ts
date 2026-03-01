@@ -1,9 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { Label, Labels } from '../dsl';
 import { getNodeHandler } from '../../compiler/registry';
+import { registerCoreHandlers, resetCoreHandlerRegistrationForTesting } from '../../compiler/coreHandlers';
 
 describe('labels DSL handlers', () => {
   it('registers handlers that throw when used at top-level', () => {
+    // Handlers are now registered by registerCoreHandlers(), not by dsl.tsx module scope.
+    resetCoreHandlerRegistrationForTesting();
+    registerCoreHandlers();
     const labelHandler = getNodeHandler(Label);
     const labelsHandler = getNodeHandler(Labels);
     expect(labelHandler).toBeDefined();

@@ -22,7 +22,7 @@ export class LogoRotatorWidget implements IAnimationController, IVariableProvide
   }
 
   onTick(ctx: AnimationTickContext): void {
-    const state = this.rotator.tick(ctx.deltaSeconds * 1000);
+    const state = this.rotator.tick(ctx.clock.deltaSeconds * 1000);
     this.updateFromState(state);
 
     ctx.variables.set(this.variableNamespace, 'currentColor', this.currentColor);

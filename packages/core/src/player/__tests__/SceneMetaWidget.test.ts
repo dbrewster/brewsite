@@ -31,10 +31,11 @@ describe('SceneMetaWidget', () => {
     const widget = new SceneMetaWidget();
 
     widget.onTick({
-      deltaSeconds: 0,
-      wallTimeSeconds: 0,
+      clock: { wallTimeSeconds: 0, deltaSeconds: 0 },
+      effectiveDeltaSeconds: 0,
       scene: {} as never,
       variables: store,
+      track: null,
       tick: makeTick('intro', 0, 0.25),
     });
 
@@ -51,26 +52,29 @@ describe('SceneMetaWidget', () => {
     });
 
     widget.onTick({
-      deltaSeconds: 0,
-      wallTimeSeconds: 0,
+      clock: { wallTimeSeconds: 0, deltaSeconds: 0 },
+      effectiveDeltaSeconds: 0,
       scene: {} as never,
       variables: store,
+      track: null,
       tick: makeTick('intro', 0, 0.1),
     });
 
     widget.onTick({
-      deltaSeconds: 0,
-      wallTimeSeconds: 0,
+      clock: { wallTimeSeconds: 0, deltaSeconds: 0 },
+      effectiveDeltaSeconds: 0,
       scene: {} as never,
       variables: store,
+      track: null,
       tick: makeTick('intro', 0, 0.2),
     });
 
     widget.onTick({
-      deltaSeconds: 0,
-      wallTimeSeconds: 0,
+      clock: { wallTimeSeconds: 0, deltaSeconds: 0 },
+      effectiveDeltaSeconds: 0,
       scene: {} as never,
       variables: store,
+      track: null,
       tick: makeTick('model', 1, 0.1),
     });
 
@@ -85,20 +89,22 @@ describe('SceneMetaWidget', () => {
     const widget = new SceneMetaWidget();
 
     widget.onTick({
-      deltaSeconds: 0,
-      wallTimeSeconds: 0,
+      clock: { wallTimeSeconds: 0, deltaSeconds: 0 },
+      effectiveDeltaSeconds: 0,
       scene: {} as never,
       variables: store,
+      track: null,
       tick: makeTick('intro', 0, 0.1, { theme: 'light' }),
     });
 
     expect(store.get('scene', 'theme')).toBe('light');
 
     widget.onTick({
-      deltaSeconds: 0,
-      wallTimeSeconds: 0,
+      clock: { wallTimeSeconds: 0, deltaSeconds: 0 },
+      effectiveDeltaSeconds: 0,
       scene: {} as never,
       variables: store,
+      track: null,
       tick: makeTick('intro', 0, 0.2, { theme: 'dark', background: '#000' }),
     });
 
@@ -106,10 +112,11 @@ describe('SceneMetaWidget', () => {
     expect(store.get('scene', 'background')).toBe('#000');
 
     widget.onTick({
-      deltaSeconds: 0,
-      wallTimeSeconds: 0,
+      clock: { wallTimeSeconds: 0, deltaSeconds: 0 },
+      effectiveDeltaSeconds: 0,
       scene: {} as never,
       variables: store,
+      track: null,
       tick: makeTick('intro', 0, 0.3),
     });
 

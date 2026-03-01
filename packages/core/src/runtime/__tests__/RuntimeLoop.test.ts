@@ -9,8 +9,7 @@ const makeDriver = (): RuntimeDriver & { ticks: number } => ({
   setAssetsReady() {},
   setSceneTrack() {},
   tick() { this.ticks += 1; },
-  getBoneWorldPositions() { return new Map(); },
-  getTargetColors() { return new Map(); },
+  collectRenderContributions() { return {}; },
   getCurrentTick() { return null; },
   getWallTimeSeconds() { return 0; },
   dispose() {},
@@ -52,13 +51,18 @@ describe('RuntimeLoop', () => {
     expect(driver.ticks).toBe(1);
   });
 
-  it('honors wallTimeOverride and onAfterTick', () => {
+  it('honors wallTimeOverride and onAfterTick with deltaSeconds and globalProgress', () => {
     const driver = makeDriver();
-    let afterTickWallTime = 0;
+    let afterTickDelta = 0;
+    let afterTickProgress = 0;
     const loop = new RuntimeLoop({
       driver,
       getGlobalProgress: () => 0.2,
-      onAfterTick: (frame) => { afterTickWallTime = frame.wallTimeSeconds; },
+      onAfterTick: (opts) => {
+        afterTickDelta = opts.deltaSeconds;
+        afterTickProgress = opts.globalProgress;
+      },
+      fixedDeltaSeconds: 0.016,
       clock: {
         now: () => 0,
         requestFrame: () => 0,
@@ -67,7 +71,8 @@ describe('RuntimeLoop', () => {
     });
     loop.setWallTimeOverride(42);
     loop.stepImmediate(1000);
-    expect(afterTickWallTime).toBe(42);
+    expect(afterTickDelta).toBeCloseTo(0.016, 10);
+    expect(afterTickProgress).toBeCloseTo(0.2, 10);
   });
 
   it('start/stop manage the scheduled frame', () => {

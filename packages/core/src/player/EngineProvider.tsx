@@ -7,7 +7,9 @@ import {
 import type { AssetManifest } from '../elements/model/metadata';
 import { clipMetaFromManifest, assertManifestValid } from '../elements/model/metadata';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
+import { WidgetRegistry as WidgetRegistryClass } from '../widget/WidgetRegistry';
 import { createDefaultWidgetRegistry } from './defaultWidgets';
+import type { WidgetPlugin } from '../widget/WidgetPlugin';
 import { useSceneEngine } from './useSceneEngine';
 import { EngineContext } from './EngineContext';
 import { EngineStateContext } from './EngineStateContext';
@@ -33,6 +35,21 @@ export type EngineProviderProps = {
   /** When provided, registers engine state in the global registry for useSceneEngineState(id). */
   id?: string;
   manifestUrl: string;
+  /**
+   * Composable widget plugins. Each plugin contributes widgets and DSL handlers.
+   * Evaluated in array order. Use corePlugin() from @brewsite/core for built-in
+   * widgets, and modelPlugin() from @brewsite/model for model and label support.
+   *
+   * When provided, `widgetSetup` is ignored (plugins wins).
+   *
+   * @example
+   * plugins={[corePlugin(), modelPlugin({ manifestUrl: '/assets/manifest.json' })]}
+   */
+  plugins?: WidgetPlugin[];
+  /**
+   * @deprecated Use `plugins` instead. Will be removed in the next major version.
+   * Provides backward compatibility for existing widgetSetup-based integrations.
+   */
   widgetSetup?: (manifest: AssetManifest) => WidgetRegistry;
   fpsCap?: number;
   pixelsPerScene?: number;
@@ -117,12 +134,28 @@ export const EngineProvider = (props: EngineProviderProps): ReactElement => {
   useEffect(() => () => clearCache(), []);
 
   const widgetRegistry = useMemo(() => {
+    // Plugins path: register handlers, create registry, register widgets.
+    if (props.plugins && props.plugins.length > 0) {
+      for (const plugin of props.plugins) {
+        plugin.registerHandlers();
+      }
+      const reg = new WidgetRegistryClass({ strict: true });
+      for (const plugin of props.plugins) {
+        for (const widget of plugin.createWidgets()) {
+          reg.register(widget);
+        }
+        // Optional per-plugin registry configuration (type factories, manifest wiring, etc.)
+        plugin.configureRegistry?.(reg, manifest ?? null);
+      }
+      return reg;
+    }
+    // Legacy path: widgetSetup or createDefaultWidgetRegistry
     if (!manifest) return createDefaultWidgetRegistry(null, { defaultModelStates: props.defaultModelStates });
     return props.widgetSetup
       ? props.widgetSetup(manifest)
       : createDefaultWidgetRegistry(manifest, { defaultModelStates: props.defaultModelStates });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [manifest, props.widgetSetup, props.defaultModelStates]);
+  }, [manifest, props.plugins, props.widgetSetup, props.defaultModelStates]);
 
   // Wire onSceneChange to the SceneMetaWidget
   useEffect(() => {
@@ -210,15 +243,28 @@ export const EngineProvider = (props: EngineProviderProps): ReactElement => {
   // Suspense boundary with a server-side fallback, or use React.lazy + dynamic import
   // with ssr: false. EngineProvider itself does not impose a client-only constraint.
 
+  // Apply plugin wrapProvider chain (plugins in reverse order so first plugin is outermost)
+  let innerContent: ReactNode = (
+    <EngineStateContext.Provider value={engineState}>
+      <EngineContext.Provider value={engine}>
+        {props.children}
+      </EngineContext.Provider>
+    </EngineStateContext.Provider>
+  );
+  if (props.plugins) {
+    for (let i = props.plugins.length - 1; i >= 0; i--) {
+      const plugin = props.plugins[i]!;
+      if (plugin.wrapProvider) {
+        innerContent = plugin.wrapProvider(innerContent);
+      }
+    }
+  }
+
   return (
     <SceneRegistrationContext.Provider value={registrationContextValue}>
       <VariableStoreContext.Provider value={engine.variableStore}>
         <LabelPositionerContext.Provider value={labelPositioner}>
-          <EngineStateContext.Provider value={engineState}>
-            <EngineContext.Provider value={engine}>
-              {props.children}
-            </EngineContext.Provider>
-          </EngineStateContext.Provider>
+          {innerContent}
         </LabelPositionerContext.Provider>
       </VariableStoreContext.Provider>
     </SceneRegistrationContext.Provider>

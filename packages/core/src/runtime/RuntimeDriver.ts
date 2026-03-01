@@ -4,12 +4,22 @@ import type { VariableStore } from '../widget/VariableStore';
 import type { SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
 import { createSceneTrackSampler } from '../compiler/sceneTrackSampler';
 import { getEasingFn } from '../compiler/transitions/easingFunctions';
-import type { RuntimeDriver as IRuntimeDriver } from './types';
+import type { RuntimeDriver as IRuntimeDriver, RealtimeClock } from './types';
+import type { RenderContribution, AnimationTickContext, WidgetRenderContext } from '../widget/types';
+import { isAttachmentHost, isRenderContributor } from '../widget/WidgetRegistry';
 
 export type SceneTrackSampler = ReturnType<typeof createSceneTrackSampler>;
 
 // AssetManifest type is defined in widget/types.ts
 type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
+
+/**
+ * Maximum animation-seconds that can be added per frame from animationTimeScale.
+ * Caps the boost so that programmatic navigation jumps (e.g., NavMenu "Scene 5" from "Scene 1")
+ * do not produce multi-second animation jumps in a single frame.
+ * 0.2s = 12× real-time at 60fps.
+ */
+const MAX_ANIM_BOOST_PER_FRAME = 0.2;
 
 export type RuntimeConfig = {
   widgetRegistry: WidgetRegistry;
@@ -25,12 +35,11 @@ export type RuntimeConfig = {
  * Generic RuntimeDriver implementation using the widget-based architecture.
  *
  * Orchestrates:
- * 1. Animation controller tick loop (in priority order)
- * 2. Scene track sampling
- * 3. Renderable widget application
- * 4. Bone world position extraction for annotation positioner
- *
- * Phase 7: Generic RuntimeDriver
+ * 1. Scene track sampling (O(1))
+ * 2. effectiveDeltaSeconds computation from animationTimeScale
+ * 3. Animation controller tick loop (in priority order)
+ * 4. Renderable widget application
+ * 5. Render contribution collection (bone positions, target colors)
  */
 export class RuntimeDriverImpl implements IRuntimeDriver {
   private widgetRegistry: WidgetRegistry;
@@ -39,7 +48,6 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   private sceneElements: Array<import('../widget/types').ISceneElement<unknown>>;
   private renderables: Array<import('../widget/types').IRenderable<unknown>>;
   private animationControllers: Array<import('../widget/types').IAnimationController>;
-  private containedModels: Array<import('../widget/types').IContainedModel<unknown>>;
   private defaultStateById: Map<string, unknown>;
   private threeScene: ThreeScene | null = null;
   private sampler: SceneTrackSampler | null = null;
@@ -70,7 +78,6 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     this.sceneElements = this.widgetRegistry.getSceneElements();
     this.renderables = this.widgetRegistry.getRenderables();
     this.animationControllers = this.widgetRegistry.getAnimationControllers();
-    this.containedModels = this.widgetRegistry.getContainedModels();
     this.defaultStateById = new Map(
       this.sceneElements.map((el) => [el.widgetId, el.defaultState as unknown]),
     );
@@ -104,46 +111,31 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
         }),
       ),
     );
-    this.attachContainedModels();
+    this.attachContainedRenderables();
     this.assetsReady = true;
     this.onAssetsReady?.();
   }
 
-  private attachContainedModels(): void {
-    for (const widget of this.containedModels) {
-      const anchorModel = this.widgetRegistry.get(widget.anchorModelId);
-      if (!anchorModel) {
-        console.warn(`[RuntimeDriver] Anchor model "${widget.anchorModelId}" not found for "${widget.widgetId}"`);
+  private attachContainedRenderables(): void {
+    for (const widget of this.widgetRegistry.getContainedRenderables()) {
+      const host = this.widgetRegistry.get(widget.anchorWidgetId);
+      if (!host || !isAttachmentHost(host)) {
+        console.warn(
+          `[RuntimeDriver] No IAttachmentHost "${widget.anchorWidgetId}" ` +
+          `for contained renderable "${widget.widgetId}". ` +
+          `Ensure the host widget implements IAttachmentHost and is registered.`,
+        );
         continue;
       }
-
-      const anchorName =
-        (anchorModel as { getAnchorBoneName?: (key: string) => string | undefined })
-          .getAnchorBoneName?.(widget.anchorKey) ?? widget.anchorKey;
-      if (!anchorName) {
-        console.warn(`[RuntimeDriver] Anchor key "${widget.anchorKey}" not resolved for "${widget.widgetId}"`);
+      const point = host.getAttachmentPoint(widget.anchorKey);
+      if (!point) {
+        console.warn(
+          `[RuntimeDriver] Attachment point "${widget.anchorKey}" not found on ` +
+          `host "${widget.anchorWidgetId}" for widget "${widget.widgetId}".`,
+        );
         continue;
       }
-
-      const anchorNode =
-        (anchorModel as { findBoneNode?: (name: string) => unknown })
-          .findBoneNode?.(anchorName) as { add?: (obj: unknown) => void } | undefined;
-      if (!anchorNode || typeof anchorNode.add !== 'function') {
-        console.warn(`[RuntimeDriver] Anchor bone "${anchorName}" not found for "${widget.widgetId}"`);
-        continue;
-      }
-
-      const obj =
-        (widget as unknown as { getObject3D?: () => unknown; object3D?: unknown; group?: unknown })
-          .getObject3D?.() ??
-        (widget as unknown as { object3D?: unknown }).object3D ??
-        (widget as unknown as { group?: unknown }).group;
-      if (!obj) {
-        console.warn(`[RuntimeDriver] Contained model "${widget.widgetId}" has no Object3D to attach`);
-        continue;
-      }
-
-      anchorNode.add(obj);
+      point.add(widget.rootObject);
     }
   }
 
@@ -152,19 +144,46 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     this.track = track;
   }
 
-  tick(options: { deltaSeconds: number; globalProgress: number; wallTimeSeconds?: number }): void {
-    const { deltaSeconds, globalProgress, wallTimeSeconds = 0 } = options;
+  tick(options: {
+    deltaSeconds: number;
+    globalProgress: number;
+    deltaProgress: number;
+    wallTimeSeconds?: number;
+  }): void {
+    const { deltaSeconds, globalProgress, deltaProgress, wallTimeSeconds = 0 } = options;
     this.wallTimeSeconds = wallTimeSeconds;
 
     if (!this.threeScene || !this.sampler) return;
 
-    // Step 1: Tick all animation controllers in priority order
-    const animCtx = {
-      deltaSeconds,
-      wallTimeSeconds,
+    // ── Step 1: Sample SceneTrack ────────────────────────────────────────────
+    // O(1) lookup. Must run before animation controllers so they receive
+    // effectiveDeltaSeconds computed from the current scene's animationTimeScale.
+    const tick = this.sampler.sample(globalProgress);
+    this.currentTick = tick;
+
+    // ── Step 2: Compute effectiveDeltaSeconds ────────────────────────────────
+    // animationTimeScale is stored on the segment for the outgoing transition
+    // from the current scene. Zero when not declared (no boost).
+    const animationTimeScale =
+      this.track?.progressProfile?.segments[tick.sceneIndex]?.animationTimeScale ?? 0;
+    const rawBoost = deltaProgress * animationTimeScale;
+    const cappedBoost = Math.min(rawBoost, MAX_ANIM_BOOST_PER_FRAME);
+    // effectiveDeltaSeconds is always >= deltaSeconds: the floor ensures animation
+    // never drops below real-time even with animationTimeScale declared.
+    const effectiveDeltaSeconds = Math.max(deltaSeconds, cappedBoost);
+
+    // ── Step 3: Build synchronized clock ────────────────────────────────────
+    // wallTimeSeconds is from performance.now() / 1000, computed once per frame
+    // in RuntimeLoop.runStep(). All widgets receive the same value this frame.
+    const clock: RealtimeClock = { wallTimeSeconds, deltaSeconds };
+
+    // ── Step 4: Tick animation controllers ──────────────────────────────────
+    const animCtx: AnimationTickContext = {
+      clock,
+      effectiveDeltaSeconds,
       scene: this.threeScene,
       variables: this.variableStore,
-      tick: this.currentTick,
+      tick,
       track: this.track,
     };
     for (const controller of this.animationControllers) {
@@ -178,15 +197,11 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
       }
     }
 
-    // Step 2: Sample scene track
-    const tick = this.sampler.sample(globalProgress);
-    this.currentTick = tick;
-
-    // Step 3: Apply all renderable widgets
-    const renderCtx = {
-      deltaSeconds,
+    // ── Step 5: Apply renderable widgets ────────────────────────────────────
+    const renderCtx: WidgetRenderContext = {
+      clock,
+      effectiveDeltaSeconds,
       globalProgress,
-      wallTimeSeconds,
       variables: this.variableStore,
       extra: undefined as unknown,
       tick,
@@ -220,35 +235,26 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     }
   }
 
-  getBoneWorldPositions(): Map<string, [number, number, number]> {
-    const result = new Map<string, [number, number, number]>();
-    for (const renderable of this.renderables) {
-      // IRenderable may optionally expose getBoneWorldPositions (e.g. ModelWidget).
-      const provider = renderable as unknown as {
-        getBoneWorldPositions?: () => Map<string, [number, number, number]>;
-      };
-      if (typeof provider.getBoneWorldPositions === 'function') {
-        for (const [key, pos] of provider.getBoneWorldPositions()) {
-          result.set(key, pos);
-        }
-      }
+  /**
+   * Collects named world positions and target colors from all IRenderContributor
+   * widgets. Called once per frame from the render loop, after renderer.render().
+   *
+   * Merges contributions from all widgets — last-write-wins on key collision
+   * (contributors are processed in registration order).
+   */
+  collectRenderContributions(): RenderContribution {
+    const namedPositions = new Map<string, [number, number, number]>();
+    const targetColors = new Map<string, string>();
+    for (const widget of this.widgetRegistry.getAll()) {
+      if (!isRenderContributor(widget)) continue;
+      const data = widget.contributeRenderData();
+      data.namedPositions?.forEach((v, k) => namedPositions.set(k, v));
+      data.targetColors?.forEach((v, k) => targetColors.set(k, v));
     }
-    return result;
-  }
-
-  getTargetColors(): Map<string, string> {
-    const result = new Map<string, string>();
-    for (const renderable of this.renderables) {
-      const provider = renderable as unknown as {
-        getTargetColors?: () => Map<string, string>;
-      };
-      if (typeof provider.getTargetColors === 'function') {
-        for (const [key, color] of provider.getTargetColors()) {
-          result.set(key, color);
-        }
-      }
-    }
-    return result;
+    return {
+      namedPositions: namedPositions.size > 0 ? namedPositions : undefined,
+      targetColors: targetColors.size > 0 ? targetColors : undefined,
+    };
   }
 
   getCurrentTick(): SceneTrackTick | null {

@@ -83,9 +83,9 @@ const makeTickCtx = (
 ): AnimationTickContext => ({
   tick,
   scene,
-  track: undefined,
-  deltaSeconds: 0.016,
-  wallTimeSeconds: 0,
+  track: null,
+  clock: { wallTimeSeconds: 0, deltaSeconds: 0.016 },
+  effectiveDeltaSeconds: 0.016,
   variables: {} as never,
 });
 
