@@ -2,7 +2,7 @@
 title: "Core Modularization — @brewsite/model Package Extraction"
 doc_type: plan
 owner: brewsite-architect
-status: in_progress
+status: complete
 updated: 2026-03-01
 ---
 

@@ -14,9 +14,20 @@ import type {
   ISceneElement,
   IRenderable,
   IDslComposite,
+  IRendererLifecycle,
+  IRenderContributor,
+  IContainedRenderable,
+  IAttachmentHost,
   WidgetInitContext,
   WidgetRenderContext,
 } from '../types';
+import type { IWidget } from '../types';
+import {
+  isRendererLifecycle,
+  isRenderContributor,
+  isContainedRenderable,
+  isAttachmentHost,
+} from '../WidgetRegistry';
 import type { CompileApi } from '../../compiler/sceneDslTypes';
 import type { NodeHandler } from '../../compiler/sceneDslTypes';
 import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
@@ -75,7 +86,6 @@ const makeFakeApi = (): CompileApi & { widgetStates: Record<string, unknown> } =
     context: {} as CompileApi['context'],
     state: { id: '', scrollProgress: 0, widgets: widgetStates },
     pushHudItem: () => {},
-    pushLabel: () => {},
     setWidgetState: (id, s) => { widgetStates[id] = s; },
     setSceneMeta: () => {},
     pushWarning: () => {},
@@ -403,5 +413,102 @@ describe('WidgetRegistry', () => {
     const elements = registry.getSceneElements();
     const found = elements.find((e) => e.widgetId === 'model-b');
     expect(found?.widgetId).toBe('model-b');
+  });
+
+  // ─── Phase 1 type guards ─────────────────────────────────────────────────
+
+  it('isRendererLifecycle returns true only for widgets with both lifecycle methods', () => {
+    const plain: IWidget = { widgetId: 'plain' };
+    expect(isRendererLifecycle(plain)).toBe(false);
+
+    const lifecycle: IWidget & IRendererLifecycle = {
+      widgetId: 'lifecycle',
+      onRendererCreated: () => {},
+      onRendererDisposing: () => {},
+    };
+    expect(isRendererLifecycle(lifecycle)).toBe(true);
+    expect(isRendererLifecycle({ widgetId: 'x', onRendererCreated: () => {} } as IWidget)).toBe(false);
+  });
+
+  it('isRenderContributor returns true only for widgets with contributeRenderData method', () => {
+    const plain: IWidget = { widgetId: 'plain' };
+    expect(isRenderContributor(plain)).toBe(false);
+
+    const contributor: IWidget & IRenderContributor = {
+      widgetId: 'contributor',
+      contributeRenderData: () => ({ namedPositions: new Map(), targetColors: new Map() }),
+    };
+    expect(isRenderContributor(contributor)).toBe(true);
+  });
+
+  it('isContainedRenderable returns true only for widgets with anchorWidgetId, anchorKey, rootObject', () => {
+    const plain: IWidget = { widgetId: 'plain' };
+    expect(isContainedRenderable(plain)).toBe(false);
+
+    const THREE = { Group: class { name = '' } };
+    const contained: IWidget & IContainedRenderable = {
+      widgetId: 'contained',
+      anchorWidgetId: 'host',
+      anchorKey: 'head',
+      rootObject: {} as never,
+    };
+    expect(isContainedRenderable(contained)).toBe(true);
+    // Missing rootObject — should return false
+    expect(isContainedRenderable({ widgetId: 'x', anchorWidgetId: 'y', anchorKey: 'z' } as IWidget)).toBe(false);
+  });
+
+  it('isAttachmentHost returns true only for widgets with getAttachmentPoint method', () => {
+    const plain: IWidget = { widgetId: 'plain' };
+    expect(isAttachmentHost(plain)).toBe(false);
+
+    const host: IWidget & IAttachmentHost = {
+      widgetId: 'host',
+      getAttachmentPoint: (_key: string) => null,
+    };
+    expect(isAttachmentHost(host)).toBe(true);
+  });
+
+  it('getContainedRenderables() returns only IContainedRenderable widgets', () => {
+    const contained: IWidget & IContainedRenderable = {
+      widgetId: 'contained',
+      anchorWidgetId: 'host',
+      anchorKey: 'head',
+      rootObject: {} as never,
+    };
+    const plain = new TestWidget('plain');
+    registry.register(plain);
+    registry.register(contained);
+    const result = registry.getContainedRenderables();
+    expect(result).toHaveLength(1);
+    expect(result[0]!.widgetId).toBe('contained');
+  });
+
+  it('getAttachmentHosts() returns only IAttachmentHost widgets', () => {
+    const host: IWidget & IAttachmentHost = {
+      widgetId: 'host',
+      getAttachmentPoint: () => null,
+    };
+    const plain = new TestWidget('plain');
+    registry.register(plain);
+    registry.register(host);
+    const result = registry.getAttachmentHosts();
+    expect(result).toHaveLength(1);
+    expect(result[0]!.widgetId).toBe('host');
+  });
+
+  it('notifyRendererCreated broadcasts to all IRendererLifecycle widgets', () => {
+    const calls: string[] = [];
+    const lifecycle: IWidget & IRendererLifecycle = {
+      widgetId: 'lifecycle',
+      onRendererCreated: () => { calls.push('created'); },
+      onRendererDisposing: () => { calls.push('disposing'); },
+    };
+    const plain = new TestWidget('plain');
+    registry.register(plain);
+    registry.register(lifecycle);
+    registry.notifyRendererCreated({} as never);
+    expect(calls).toEqual(['created']);
+    registry.notifyRendererDisposing({} as never);
+    expect(calls).toEqual(['created', 'disposing']);
   });
 });

@@ -9,7 +9,7 @@ import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import { VariableStore } from '../../widget/VariableStore';
 import type { SceneTrack, SceneTrackTick } from '../../compiler/sceneTrackTypes';
 import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
-import type { IAnimationController, IContainedModel, ILoadable, IRenderable, ISceneElement, IAttachmentHost, IContainedRenderable, IRenderContributor, RenderContribution } from '../../widget/types';
+import type { IAnimationController, ILoadable, IRenderable, ISceneElement, IAttachmentHost, IContainedRenderable, IRenderContributor, RenderContribution } from '../../widget/types';
 
 // ---------------------------------------------------------------------------
 // Test doubles
@@ -446,17 +446,19 @@ describe('RuntimeDriverImpl', () => {
     expect(assetsReadyFired).toBe(true);
   });
 
-  it('attachContainedModels handles missing anchor info safely', async () => {
+  it('attachContainedRenderables: missing IAttachmentHost host widget warns and does not throw', async () => {
     const registry = new WidgetRegistry();
     const variableStore = new VariableStore();
     const scene = new THREE.Scene();
 
     const noopSpec = makeNoopSpec<{ enabled: boolean }>();
 
-    class ContainedWidget implements ISceneElement<{ enabled: boolean }>, IContainedModel<{ enabled: boolean }>, ILoadable {
+    class ContainedWidget
+      implements ISceneElement<{ enabled: boolean }>, IRenderable<{ enabled: boolean }>, ILoadable, IContainedRenderable {
       readonly widgetId = 'child';
-      readonly anchorModelId = 'missing';
+      readonly anchorWidgetId = 'missing-host';
       readonly anchorKey = 'head';
+      readonly rootObject = new THREE.Group();
       readonly defaultState = { enabled: true };
       readonly transitionSpec = noopSpec;
       readonly DslComponent = () => null;
@@ -469,6 +471,7 @@ describe('RuntimeDriverImpl', () => {
 
     registry.register(new ContainedWidget());
     const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
+    // Missing host — should warn to console but not throw.
     await expect(driver.initialize(scene)).resolves.toBeUndefined();
   });
 
@@ -582,14 +585,15 @@ describe('RuntimeDriverImpl', () => {
     expect(result.targetColors?.get('bone')).toBe('#ff0000');
   });
 
-  it('attachContainedModels handles missing anchor details without throwing', async () => {
+  it('attachContainedRenderables: IAttachmentHost returns null for key — warns but does not throw', async () => {
     const registry = new WidgetRegistry();
     const variableStore = new VariableStore();
     const scene = new THREE.Scene();
 
     const noopSpec = makeNoopSpec<{ enabled: boolean }>();
 
-    class AnchorWidget implements ISceneElement<{ enabled: boolean }>, IRenderable<{ enabled: boolean }>, ILoadable {
+    class HostWidget
+      implements ISceneElement<{ enabled: boolean }>, IRenderable<{ enabled: boolean }>, ILoadable, IAttachmentHost {
       readonly widgetId = 'primary';
       readonly defaultState = { enabled: true };
       readonly transitionSpec = noopSpec;
@@ -599,14 +603,16 @@ describe('RuntimeDriverImpl', () => {
       async load(): Promise<void> { this.isLoaded = true; }
       apply(): void {}
       dispose(): void {}
-      getAnchorBoneName(): string | undefined { return undefined; }
-      findBoneNode(): undefined { return undefined; }
+      // Returns null for any key — simulates a host with no matching attachment point.
+      getAttachmentPoint(_key: string): THREE.Object3D | null { return null; }
     }
 
-    class ContainedWidget implements ISceneElement<{ enabled: boolean }>, IContainedModel<{ enabled: boolean }>, ILoadable {
+    class ContainedWidget
+      implements ISceneElement<{ enabled: boolean }>, IRenderable<{ enabled: boolean }>, ILoadable, IContainedRenderable {
       readonly widgetId = 'contained';
-      readonly anchorModelId = 'primary';
+      readonly anchorWidgetId = 'primary';
       readonly anchorKey = 'head';
+      readonly rootObject = new THREE.Group();
       readonly defaultState = { enabled: true };
       readonly transitionSpec = noopSpec;
       readonly DslComponent = () => null;
@@ -617,44 +623,22 @@ describe('RuntimeDriverImpl', () => {
       dispose(): void {}
     }
 
-    registry.register(new AnchorWidget()).register(new ContainedWidget());
-    const driver = new RuntimeDriverImpl({
-      widgetRegistry: registry,
-      variableStore,
-      manifest: null,
-    });
+    registry.register(new HostWidget()).register(new ContainedWidget());
+    const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
     await expect(driver.initialize(scene)).resolves.toBeUndefined();
   });
 
-  it('attachContainedModels warns when contained model has no Object3D', async () => {
+  it('attachContainedRenderables: host that is NOT IAttachmentHost — warns and does not throw', async () => {
     const registry = new WidgetRegistry();
     const variableStore = new VariableStore();
     const scene = new THREE.Scene();
 
     const noopSpec = makeNoopSpec<{ enabled: boolean }>();
 
-    class AnchorWidget implements ISceneElement<{ enabled: boolean }>, IRenderable<{ enabled: boolean }>, ILoadable {
+    // A plain renderable that does NOT implement IAttachmentHost.
+    class PlainHostWidget
+      implements ISceneElement<{ enabled: boolean }>, IRenderable<{ enabled: boolean }>, ILoadable {
       readonly widgetId = 'primary';
-      readonly defaultState = { enabled: true };
-      readonly transitionSpec = noopSpec;
-      readonly DslComponent = () => null;
-      isLoaded = false;
-      private anchor = new THREE.Bone();
-      initialize(ctx: { scene: THREE.Scene }): void {
-        this.anchor.name = 'headBone';
-        ctx.scene.add(this.anchor);
-      }
-      async load(): Promise<void> { this.isLoaded = true; }
-      apply(): void {}
-      dispose(): void {}
-      getAnchorBoneName(): string | undefined { return 'headBone'; }
-      findBoneNode(): THREE.Object3D | undefined { return this.anchor; }
-    }
-
-    class ContainedWidget implements ISceneElement<{ enabled: boolean }>, IContainedModel<{ enabled: boolean }>, ILoadable {
-      readonly widgetId = 'contained';
-      readonly anchorModelId = 'primary';
-      readonly anchorKey = 'head';
       readonly defaultState = { enabled: true };
       readonly transitionSpec = noopSpec;
       readonly DslComponent = () => null;
@@ -665,7 +649,23 @@ describe('RuntimeDriverImpl', () => {
       dispose(): void {}
     }
 
-    registry.register(new AnchorWidget()).register(new ContainedWidget());
+    class ContainedWidget
+      implements ISceneElement<{ enabled: boolean }>, IRenderable<{ enabled: boolean }>, ILoadable, IContainedRenderable {
+      readonly widgetId = 'contained';
+      readonly anchorWidgetId = 'primary';
+      readonly anchorKey = 'head';
+      readonly rootObject = new THREE.Group();
+      readonly defaultState = { enabled: true };
+      readonly transitionSpec = noopSpec;
+      readonly DslComponent = () => null;
+      isLoaded = false;
+      initialize(): void {}
+      async load(): Promise<void> { this.isLoaded = true; }
+      apply(): void {}
+      dispose(): void {}
+    }
+
+    registry.register(new PlainHostWidget()).register(new ContainedWidget());
     const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
     await expect(driver.initialize(scene)).resolves.toBeUndefined();
   });

@@ -243,4 +243,137 @@ describe('buildProgressProfile', () => {
     expect(collectWarnings([]).profile).toBeUndefined();
     expect(collectWarnings([makeFrame('a')]).profile).toBeUndefined();
   });
+
+  // ─── autoAdvance validation ───────────────────────────────────────────────
+
+  describe('autoAdvance validation', () => {
+    it('13. autoAdvance with valid config → pre-computed segment fields populated', () => {
+      const frames = [
+        makeFrame('a', {
+          scrollUnits: 1,
+          fn: IDENTITY_FN,
+          autoAdvance: { duration: 8, max: 0.80, pauseOnScroll: true },
+        }),
+        makeFrame('b'),
+      ];
+      const { profile, warnings } = collectWarnings(frames);
+      expect(warnings).toHaveLength(0);
+      expect(profile).not.toBeUndefined();
+      const seg = profile!.segments[0]!;
+      expect(seg.autoAdvance).not.toBeUndefined();
+      // segWidth = 1.0 (2 scenes, 1 segment, full width)
+      // rawRate = (0.80 × 1.0) / 8 = 0.1
+      expect(seg.autoAdvance!.rawRate).toBeCloseTo(0.1, 6);
+      // maxRaw = 0 + 0.80 × 1.0 = 0.80
+      expect(seg.autoAdvance!.maxRaw).toBeCloseTo(0.80, 6);
+      expect(seg.autoAdvance!.pauseOnScroll).toBe(true);
+    });
+
+    it('14. autoAdvance.duration <= 0 → emits PROGRESS_MANAGER warning', () => {
+      const frames = [
+        makeFrame('a', {
+          scrollUnits: 1,
+          fn: IDENTITY_FN,
+          autoAdvance: { duration: 0, max: 0.8, pauseOnScroll: true },
+        }),
+        makeFrame('b'),
+      ];
+      const { warnings } = collectWarnings(frames);
+      const aa = warnings.filter((w) => w.code === 'PROGRESS_MANAGER' && w.message.includes('duration'));
+      expect(aa.length).toBeGreaterThanOrEqual(1);
+      expect(aa[0]!.message).toContain('duration');
+    });
+
+    it('15. autoAdvance.duration negative → emits PROGRESS_MANAGER warning', () => {
+      const frames = [
+        makeFrame('a', {
+          scrollUnits: 1,
+          fn: IDENTITY_FN,
+          autoAdvance: { duration: -5, max: 0.8, pauseOnScroll: true },
+        }),
+        makeFrame('b'),
+      ];
+      const { warnings } = collectWarnings(frames);
+      expect(warnings.some((w) => w.code === 'PROGRESS_MANAGER' && w.message.includes('duration'))).toBe(true);
+    });
+
+    it('16. autoAdvance.max out of range (> 1) → emits PROGRESS_MANAGER warning', () => {
+      const frames = [
+        makeFrame('a', {
+          scrollUnits: 1,
+          fn: IDENTITY_FN,
+          autoAdvance: { duration: 5, max: 1.5, pauseOnScroll: true },
+        }),
+        makeFrame('b'),
+      ];
+      const { warnings } = collectWarnings(frames);
+      expect(warnings.some((w) => w.code === 'PROGRESS_MANAGER' && w.message.includes('max'))).toBe(true);
+    });
+
+    it('17. autoAdvance.max out of range (<= 0) → emits PROGRESS_MANAGER warning', () => {
+      const frames = [
+        makeFrame('a', {
+          scrollUnits: 1,
+          fn: IDENTITY_FN,
+          autoAdvance: { duration: 5, max: 0, pauseOnScroll: true },
+        }),
+        makeFrame('b'),
+      ];
+      const { warnings } = collectWarnings(frames);
+      expect(warnings.some((w) => w.code === 'PROGRESS_MANAGER' && w.message.includes('max'))).toBe(true);
+    });
+
+    it('18. autoAdvance on last scene → emits PROGRESS_MANAGER warning', () => {
+      const frames = [
+        makeFrame('a'),
+        makeFrame('b', {
+          scrollUnits: 1,
+          fn: IDENTITY_FN,
+          autoAdvance: { duration: 5, max: 0.8, pauseOnScroll: true },
+        }),
+      ];
+      const { warnings } = collectWarnings(frames);
+      const lastScene = warnings.filter(
+        (w) => w.code === 'PROGRESS_MANAGER' && w.message.includes('last scene') && w.sceneIndex === 1,
+      );
+      expect(lastScene.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it('19. animationTimeScale populated on segment', () => {
+      const frames = [
+        makeFrame('a', { scrollUnits: 1, fn: IDENTITY_FN, animationTimeScale: 3 }),
+        makeFrame('b'),
+      ];
+      const { profile, warnings } = collectWarnings(frames);
+      expect(warnings).toHaveLength(0);
+      expect(profile!.segments[0]!.animationTimeScale).toBe(3);
+    });
+
+    it('20. animationTimeScale causes isUniform = false (profile present)', () => {
+      // All scrollUnits equal, fn is identity, but animationTimeScale is set.
+      // isUniform must be false so the profile is present at runtime for RuntimeDriverImpl.
+      const frames = [
+        makeFrame('a', { scrollUnits: 1, fn: IDENTITY_FN, animationTimeScale: 2 }),
+        makeFrame('b', { scrollUnits: 1, fn: IDENTITY_FN }),
+      ];
+      const { profile } = collectWarnings(frames);
+      expect(profile).not.toBeUndefined();
+      expect(profile!.isUniform).toBe(false);
+    });
+
+    it('21. autoAdvance causes isUniform = false (profile present)', () => {
+      // All scrollUnits equal, fn is identity, but autoAdvance is set.
+      const frames = [
+        makeFrame('a', {
+          scrollUnits: 1,
+          fn: IDENTITY_FN,
+          autoAdvance: { duration: 10, max: 1, pauseOnScroll: false },
+        }),
+        makeFrame('b'),
+      ];
+      const { profile } = collectWarnings(frames);
+      expect(profile).not.toBeUndefined();
+      expect(profile!.isUniform).toBe(false);
+    });
+  });
 });
