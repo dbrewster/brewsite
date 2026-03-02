@@ -685,13 +685,46 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
         //   • autoAdvanceRawRef           → null   (fresh start for the new scene)
         // This is how pauseOnScroll "resets" between scenes — not on a timer,
         // but on the structural event of entering a new scene.
+        //
+        // IMPORTANT: When auto-advance is active with a non-linear fn (e.g. dwellFn),
+        // the pacing curve can saturate at 1.0 well before rawEnd, pushing engine
+        // progress into the next block while aa is still within the current segment.
+        // Treating that early engine-sceneIndex jump as a real scene transition resets
+        // autoAdvanceRawRef → engine snaps back to scroll progress (≈0) → sceneIndex
+        // returns to 0 → auto-advance restarts from the beginning → infinite loop.
+        //
+        // Guard: a transition is spurious when auto-advance is active (aa !== null)
+        // AND aa is still before the current segment's rawEnd — fn compression caused
+        // the engine to display the next scene, but the raw position hasn't crossed over.
         if (currentTick.sceneIndex !== currentSceneIndexRef.current) {
-          currentSceneIndexRef.current = currentTick.sceneIndex;
-          userScrolledCurrentSceneRef.current = false;
-          autoAdvanceRawRef.current = null;
+          const aaForCheck = autoAdvanceRawRef.current;
+          const currentSeg = profile.segments[currentSceneIndexRef.current];
+          const isSpuriousTransition =
+            aaForCheck !== null && currentSeg !== undefined && aaForCheck < currentSeg.rawEnd;
+          if (!isSpuriousTransition) {
+            currentSceneIndexRef.current = currentTick.sceneIndex;
+            userScrolledCurrentSceneRef.current = false;
+            autoAdvanceRawRef.current = null;
+          }
         }
 
-        const segment = profile.segments[currentTick.sceneIndex];
+        // Find the segment that owns the current raw position.
+        // When auto-advance is active we look up by raw space — not by
+        // currentTick.sceneIndex — because fn compression can place the engine's
+        // displayed sceneIndex ahead of aa, pointing at a segment (or past all
+        // segments) that doesn't match the auto-advance's actual position.
+        const activeAa = autoAdvanceRawRef.current;
+        const currentRaw = activeAa ?? getRawProgress();
+        let segment = profile.segments[currentTick.sceneIndex];
+        if (activeAa !== null) {
+          for (let si = 0; si < profile.segments.length; si++) {
+            const s = profile.segments[si]!;
+            if (currentRaw >= s.rawStart && (currentRaw < s.rawEnd || si === profile.segments.length - 1)) {
+              segment = s;
+              break;
+            }
+          }
+        }
         if (!segment?.autoAdvance) return;
 
         const { rawRate, maxRaw, pauseOnScroll } = segment.autoAdvance;
@@ -700,10 +733,6 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
         // is permanently off for this scene. No debounce — it does not resume after
         // a timeout. It only re-enables when currentSceneIndexRef changes (above).
         if (pauseOnScroll && userScrolledCurrentSceneRef.current) return;
-
-        // Seed from internal tracker if already advancing; otherwise from the
-        // current scroll position so we start from where the user left off.
-        const currentRaw = autoAdvanceRawRef.current ?? getRawProgress();
 
         if (currentRaw >= maxRaw) {
           // Auto-advance reached its ceiling. Sync rawProgressRef to maxRaw so
@@ -717,7 +746,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
           // writes the value, it is safe to clear autoAdvanceRawRef immediately —
           // getGlobalProgress() will fall through to rawProgressRef (now = maxRaw),
           // not the stale pre-advance value that caused the snap to frame 0.
-          if (autoAdvanceRawRef.current !== null) {
+          if (activeAa !== null) {
             forceRawProgressRef.current?.(maxRaw);
             autoAdvanceRawRef.current = null;
           }

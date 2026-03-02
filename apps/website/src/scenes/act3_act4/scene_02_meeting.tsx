@@ -1,6 +1,8 @@
 import type { JSX } from 'react';
 import { Scene, ProgressManager } from '@brewsite/core';
 import { MidFade } from '@brewsite/core/hud/animejs';
+import {actorElements} from "./meetingCharacters";
+import { dwellFn } from '../../utils/pacing';
 
 // Camera, lighting, floor, and crowd actors all carry forward from scene01ModelWide.
 // Only the progress budget and overlay text change here.
@@ -8,6 +10,7 @@ export const scene02Meeting: JSX.Element = (
   <Scene id="website-meeting-01">
     <ProgressManager
       scrollUnits={2000}
+      fn={dwellFn}
       autoAdvance={{ duration: 8, max: 0.85, pauseOnScroll: true }}
       animationTimeScale={2}
     />
@@ -44,5 +47,7 @@ export const scene02Meeting: JSX.Element = (
         </MidFade>
       </div>
     </div>
+
+    {actorElements}
   </Scene>
 );

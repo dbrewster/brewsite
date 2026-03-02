@@ -1,6 +1,7 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
 import { MidFade, SlideUp } from '@brewsite/core/hud/animejs';
+import { dwellFn } from '../../utils/pacing';
 
 const PACKAGES = [
   {
@@ -33,6 +34,7 @@ export const scene03Ecosystem: JSX.Element = (
   <Scene id="website-ecosystem-01">
     <ProgressManager
       scrollUnits={2000}
+      fn={dwellFn}
       autoAdvance={{ duration: 8, max: 0.85, pauseOnScroll: true }}
     />
     <Camera mode="world" position={[0, 0, 10]} target={[0, 0, 0]} fov={70} />

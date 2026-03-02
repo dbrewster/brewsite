@@ -4,11 +4,13 @@ import { DiagramCanvas, Diagram, DiagramNode, DiagramEdge, ManualLayout, neonCyb
 import { MidFade, SlideUp } from '@brewsite/core/hud/animejs';
 import { isMobile } from '../../utils/viewport';
 import type { Vec3 } from '@brewsite/core';
+import { dwellFn } from '../../utils/pacing';
 
 export const scene01SimpleDiagram: JSX.Element = (
   <Scene id="website-diagram-simple">
     <ProgressManager
       scrollUnits={1800}
+      fn={dwellFn}
       autoAdvance={{ duration: 7, max: 0.85, pauseOnScroll: true }}
     />
     <Camera

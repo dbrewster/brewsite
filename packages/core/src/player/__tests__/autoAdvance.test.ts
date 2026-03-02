@@ -655,6 +655,213 @@ describe('Bug 2 (FIXED): user scroll during auto-advance — must not snap to 0'
   });
 });
 
+// ─── Bug 3: non-linear fn causes infinite auto-advance loop ──────────────────
+//
+// Root cause: a pacing fn (e.g. dwellFn) can saturate at 1.0 before rawEnd,
+// pushing engine progress into the next scene's block while aa is still in the
+// current segment. The old scene-transition detection saw sceneIndex change and
+// reset autoAdvanceRawRef → engine snapped to scroll progress (≈0) → sceneIndex
+// returned to 0 → auto-advance restarted → infinite loop.
+//
+// Fix: the transition detection checks whether aa < currentSeg.rawEnd. If it is,
+// the transition is "spurious" (fn compression artefact) and autoAdvanceRawRef
+// is NOT reset. The segment lookup also uses raw space when activeAa !== null.
+//
+// This harness mirrors the fixed state machine, simulating:
+//   - A SceneProgressMapper with a dwellFn (saturates at t=0.4)
+//   - Engine-sceneIndex read from the sampled tick (derived from engine progress)
+//   - The full scene-transition guard + raw-space segment lookup
+describe('Bug 3 (FIXED): non-linear fn must not cause auto-advance to loop', () => {
+  /**
+   * Simulates the fixed auto-advance state machine from useSceneEngine.ts
+   * for a 2-scene setup with dwellFn on scene 0.
+   *
+   * dwellFn = (t) => Math.min(1, t * 2.5) — saturates at 1.0 when t >= 0.4.
+   * With 2 scenes (1 segment covering [0,1] raw) and max=0.80:
+   *   - maxRaw = 0.80
+   *   - rawRate = (0.80 * 1.0) / 3 ≈ 0.267 (duration=3s)
+   * At aa=0.4: engineProgress = dwellFn(0.4) * 1.0 = 1.0 → sampler returns sceneIndex=1.
+   * Bug: old code resets autoAdvanceRawRef on that sceneIndex change → loop.
+   * Fix: guard check sees aa=0.4 < currentSeg.rawEnd=1.0 → spurious → no reset.
+   */
+  it('FIXED: auto-advance completes to maxRaw without looping when fn saturates early', () => {
+    const dwellFn = (t: number) => Math.min(1, t * 2.5);
+
+    // Segment: one transition covering [0, 1] raw space.
+    // engineStart=0, engineEnd=1 (2 scenes, so engine goes 0→1 across the single transition).
+    const segment = {
+      sceneIndex: 0,
+      rawStart: 0,
+      rawEnd: 1.0,
+      engineStart: 0,
+      engineEnd: 1.0,
+      fn: dwellFn,
+      autoAdvance: {
+        rawRate: (0.80 * 1.0) / 3,  // ≈ 0.267 raw/second
+        maxRaw: 0.80,
+        pauseOnScroll: true,
+      },
+    };
+
+    // Simulate the SceneProgressMapper.remap for this single segment.
+    function remap(raw: number): number {
+      const localT = Math.max(0, Math.min(1, (raw - segment.rawStart) / (segment.rawEnd - segment.rawStart)));
+      return segment.engineStart + segment.fn(localT) * (segment.engineEnd - segment.engineStart);
+    }
+
+    // Simulate the sceneTrackSampler: returns sceneIndex=0 for engineProgress<1.0,
+    // sceneIndex=1 for engineProgress>=1.0 (the terminal tick).
+    function getSceneIndex(engineProgress: number): number {
+      return engineProgress >= 1.0 ? 1 : 0;
+    }
+
+    // State machine refs (mirrors useSceneEngine.ts)
+    let autoAdvanceRawRef = null as number | null;
+    let currentSceneIndexRef = -1;
+    let userScrolledCurrentScene = false;
+    let rawProgressRef = 0;
+
+    function getRawProgress() { return rawProgressRef; }
+    function forceRawProgress(raw: number) { rawProgressRef = Math.max(0, Math.min(1, raw)); }
+
+    function getGlobalProgress(): number {
+      const aa = autoAdvanceRawRef;
+      if (aa !== null) return remap(aa);
+      return rawProgressRef;
+    }
+
+    // Run one tick of the FIXED auto-advance state machine.
+    function tickFixed(deltaSeconds: number): void {
+      const engineProgress = getGlobalProgress();
+      const displayedSceneIndex = getSceneIndex(engineProgress);
+
+      // ── Scene transition detection (FIXED) ──────────────────────────────
+      if (displayedSceneIndex !== currentSceneIndexRef) {
+        const aaForCheck = autoAdvanceRawRef;
+        // Use current segment's rawEnd — not the new segment's rawStart
+        const isSpuriousTransition =
+          aaForCheck !== null && aaForCheck < segment.rawEnd;
+        if (!isSpuriousTransition) {
+          currentSceneIndexRef = displayedSceneIndex;
+          userScrolledCurrentScene = false;
+          autoAdvanceRawRef = null;
+        }
+      }
+
+      // ── Segment lookup (FIXED: raw space when activeAa !== null) ────────
+      const activeAa = autoAdvanceRawRef;
+      const currentRaw = activeAa ?? getRawProgress();
+      // With one segment, lookup always returns segment 0.
+      if (!segment.autoAdvance) return;
+
+      const { rawRate, maxRaw, pauseOnScroll } = segment.autoAdvance;
+      if (pauseOnScroll && userScrolledCurrentScene) return;
+
+      if (currentRaw >= maxRaw) {
+        if (activeAa !== null) {
+          forceRawProgress(maxRaw);
+          autoAdvanceRawRef = null;
+        }
+        return;
+      }
+
+      autoAdvanceRawRef = Math.min(currentRaw + deltaSeconds * rawRate, maxRaw);
+    }
+
+    // Run the BUGGY machine (old code: no spurious-transition guard).
+    function tickBuggy(deltaSeconds: number): void {
+      const engineProgress = getGlobalProgress();
+      const displayedSceneIndex = getSceneIndex(engineProgress);
+
+      // OLD: reset unconditionally on any sceneIndex change
+      if (displayedSceneIndex !== currentSceneIndexRef) {
+        currentSceneIndexRef = displayedSceneIndex;
+        userScrolledCurrentScene = false;
+        autoAdvanceRawRef = null;   // ← resets even for spurious transitions
+      }
+
+      const currentRaw = autoAdvanceRawRef ?? getRawProgress();
+      if (!segment.autoAdvance) return;
+      const { rawRate, maxRaw, pauseOnScroll } = segment.autoAdvance;
+      if (pauseOnScroll && userScrolledCurrentScene) return;
+
+      if (currentRaw >= maxRaw) {
+        if (autoAdvanceRawRef !== null) {
+          forceRawProgress(maxRaw);
+          autoAdvanceRawRef = null;
+        }
+        return;
+      }
+      autoAdvanceRawRef = Math.min(currentRaw + deltaSeconds * rawRate, maxRaw);
+    }
+
+    // ── Prove the BUG: old machine loops forever ────────────────────────────
+    // Reset state
+    autoAdvanceRawRef = null;
+    currentSceneIndexRef = -1;
+    userScrolledCurrentScene = false;
+    rawProgressRef = 0;
+
+    // Run the buggy machine for many ticks at 16ms/tick.
+    // If it loops, autoAdvanceRawRef will never reach maxRaw.
+    const DELTA = 1 / 60;
+    let buggyReachedCeiling = false;
+    for (let i = 0; i < 600; i++) {   // 10 seconds of frames
+      tickBuggy(DELTA);
+      if (rawProgressRef >= 0.79) {
+        buggyReachedCeiling = true;
+        break;
+      }
+    }
+    // Bug confirmed: the old machine never advances rawProgressRef to maxRaw.
+    expect(buggyReachedCeiling).toBe(false);
+
+    // ── Prove the FIX: new machine reaches ceiling ──────────────────────────
+    autoAdvanceRawRef = null;
+    currentSceneIndexRef = -1;
+    userScrolledCurrentScene = false;
+    rawProgressRef = 0;
+
+    let fixedReachedCeiling = false;
+    for (let i = 0; i < 600; i++) {
+      tickFixed(DELTA);
+      // After ceiling, rawProgressRef is forced to maxRaw and autoAdvanceRawRef is cleared.
+      if (autoAdvanceRawRef === null && rawProgressRef >= 0.79) {
+        fixedReachedCeiling = true;
+        break;
+      }
+    }
+    expect(fixedReachedCeiling).toBe(true);
+    // rawProgressRef should be at maxRaw, not 0.
+    expect(rawProgressRef).toBeCloseTo(0.80, 5);
+    // autoAdvanceRawRef should be cleared (no loop — it completed properly).
+    expect(autoAdvanceRawRef).toBeNull();
+    // getGlobalProgress() falls through to rawProgressRef in this harness (no mapper).
+    // The important invariant: it returns maxRaw (0.80), not 0 (no snap/loop).
+    expect(getGlobalProgress()).toBeCloseTo(0.80, 5);
+  });
+
+  it('FIXED: spurious transition guard correctly identifies fn-compression vs real transition', () => {
+    // Verify the guard condition: aa < currentSeg.rawEnd → spurious (no reset).
+    // A real transition only fires when aa is null (auto-advance stopped) or aa >= rawEnd.
+    const rawEnd = 1.0;
+    const segment = { rawEnd };
+
+    function isSpuriousTransition(aa: number | null): boolean {
+      return aa !== null && aa < segment.rawEnd;
+    }
+
+    // aa=0.4, rawEnd=1.0: spurious (fn saturated early, raw hasn't crossed over)
+    expect(isSpuriousTransition(0.4)).toBe(true);
+    // aa=0.79, rawEnd=1.0: spurious (at maxRaw=0.80, still within raw window)
+    expect(isSpuriousTransition(0.79)).toBe(true);
+    // aa=null: not spurious (auto-advance is off; real transition from user scroll)
+    expect(isSpuriousTransition(null)).toBe(false);
+    // aa=1.0 (at rawEnd): not spurious (raw actually crossed the boundary)
+    expect(isSpuriousTransition(1.0)).toBe(false);
+  });
+});
+
 // ─── Bug 2 real-browser: physical scrollY must be synced on handoff ───────────
 describe('Bug 2 real browser: scrollY sync on auto-advance → user-scroll handoff', () => {
   it('FAILS without scrollToRawProgress: second scroll from physical 0 snaps to near 0', () => {

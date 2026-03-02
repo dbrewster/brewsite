@@ -6,11 +6,13 @@ import {
 import { MidFade } from '@brewsite/core/hud/animejs';
 import { isMobile } from '../../utils/viewport';
 import type { Vec3 } from '@brewsite/core';
+import { dwellFn } from '../../utils/pacing';
 
 export const scene01Foundation: JSX.Element = (
   <Scene id="website-full-01">
     <ProgressManager
       scrollUnits={1600}
+      fn={dwellFn}
       autoAdvance={{ duration: 6, max: 0.85, pauseOnScroll: true }}
     />
     <Camera

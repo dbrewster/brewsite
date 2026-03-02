@@ -4,6 +4,7 @@ import {NeonSign} from '../../widgets/neon-sign';
 import {HeroBezel} from '../../landing/hero/HeroBezel';
 import {ScrollIndicator} from '../../landing/hero/ScrollIndicator';
 import {isMobile} from '../../utils/viewport';
+import {dwellFn} from '../../utils/pacing';
 
 /**
  * Fades children in as sceneProgress advances from `start` to `end`.
@@ -27,9 +28,10 @@ const MIRROR_RES = isMobile ? 512 : 1024;
 export const scene00Hero = (
   <Scene id="website-hero-00">
     <ProgressManager
-      scrollUnits={1800}
+      scrollUnits={3600}
+      fn={dwellFn}
       autoAdvance={{ duration: 3, max: 0.80, pauseOnScroll: true }}
-      animationTimeScale={3}
+      animationTimeScale={6}
     />
     <Camera mode="world" position={[0, 7, 17]} target={[0, 1.4, 0]} fov={52} />
 
@@ -66,7 +68,7 @@ export const scene00Hero = (
         <HeroBezel />
 
         {/* Beat 2: Positioning statement — appears in upper bezel zone after sign is lit */}
-        <HeroFade start={0.42} end={0.58}>
+        <HeroFade start={0.42} end={0.68}>
           <div className="hero-statement">
             <span className="hero-statement__eyebrow">The React toolkit for</span>
             <h1 className="hero-statement__headline">3D storytelling.</h1>
@@ -75,7 +77,7 @@ export const scene00Hero = (
         </HeroFade>
 
         {/* Beat 3: Package badges */}
-        <HeroFade start={0.52} end={0.65}>
+        <HeroFade start={0.52} end={0.78}>
           <div className="hero-content hero-content--below-sign">
             <div className="hero-packages">
               <span className="hero-package-badge">@brewsite/core</span>
@@ -90,7 +92,7 @@ export const scene00Hero = (
         </HeroFade>
 
         {/* Beat 4: Scroll indicator */}
-        <HeroFade start={0.63} end={0.75}>
+        <HeroFade start={0.63} end={1}>
           <ScrollIndicator />
         </HeroFade>
       </section>

@@ -7,11 +7,13 @@ import type { Vec3 } from '@brewsite/core';
 import { MidFade, SlideUp, Fade } from '@brewsite/core/hud/animejs';
 import { isMobile } from '../../utils/viewport';
 import { actorElements } from './meetingCharacters';
+import { dwellFn } from '../../utils/pacing';
 
 export const scene01ModelWide: JSX.Element = (
   <Scene id="website-model-01">
     <ProgressManager
       scrollUnits={2400}
+      fn={dwellFn}
       autoAdvance={{ duration: 9, max: 0.85, pauseOnScroll: true }}
       animationTimeScale={2}
     />
