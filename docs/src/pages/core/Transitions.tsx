@@ -9,16 +9,17 @@ import TransitionEasingDemo, { CODE as EASING_CODE } from '../../demos/core/Tran
 export default function Transitions(): JSX.Element {
   return (
     <section>
-      <h1>Transitions &amp; Easing</h1>
+      <h1>Transitions</h1>
 
       <p>
-        Every scene-to-scene transition is driven by an easing curve. The easing is pre-baked into
-        the <code>SceneTrack</code> at compile time — there is no runtime interpolation cost. You
-        choose an easing curve once per scene entry, and the compiler samples it at every tick in
-        that scene's transition block.
+        Every scene-to-scene transition is controlled by a <code>TransitionWindow</code> — a pair of
+        sub-ranges within the block's <code>[0, 1]</code> progress that independently control when
+        the outgoing scene fades out (<code>exit</code>) and when the incoming scene fades in (
+        <code>enter</code>). Transition timing is pre-baked into the <code>SceneTrack</code> at
+        compile time — there is no runtime interpolation cost.
       </p>
 
-      <LiveDemo title="Easing variants" code={EASING_CODE}>
+      <LiveDemo title="Transition window variants" code={EASING_CODE}>
         <TransitionEasingDemo />
       </LiveDemo>
 
@@ -27,88 +28,95 @@ export default function Transitions(): JSX.Element {
       </h2>
 
       <p>
-        Pass a <code>transition</code> object to <code>&lt;Scene&gt;</code> to override the easing
-        for that scene's entry. Without it, the compiler uses the default easing curve
-        (<code>easeOutCubic</code>), which gives a natural deceleration into the target state.
+        Pass a <code>TransitionWindow</code> to <code>&lt;Scene&gt;</code> to override the transition
+        timing for that scene's entry. Without it, each widget's own <code>defaultWindow</code> (or
+        the system default crossfade) applies.
       </p>
 
       <CodeBlock
         language="tsx"
-        code={`<Scene key="s1">
+        code={`import { TRANSITION_SEQUENTIAL } from '@brewsite/core';
+
+<Scene key="s1">
   <Camera mode="world" position={[0, 2, 8]} target={[0, 0, 0]} />
 </Scene>
 
-{/* This scene's entry will use easeOutExpo — fast start, sharp snap to rest */}
-<Scene key="s2" transition={{ easing: 'easeOutExpo' }}>
+{/* Exit completes before the enter begins — sequential fade */}
+<Scene key="s2" transition={TRANSITION_SEQUENTIAL}>
   <Camera mode="world" position={[5, 3, 5]} target={[0, 0, 0]} />
 </Scene>`}
       />
 
-      <h2>Available Easing Names</h2>
+      <h2>Built-in Window Presets</h2>
 
       <PropTable
         rows={[
           {
-            name: 'linear',
-            type: 'EasingName',
-            description: 'Constant speed from start to end. Mechanical feel — best for data-driven transitions where smoothing would obscure the change.',
+            name: 'TRANSITION_CROSSFADE',
+            type: 'TransitionWindow',
+            defaultValue: 'system default',
+            description: 'Exit [0, 0.5], Enter [0.5, 1] — classic cross-fade. Outgoing and incoming scenes overlap at the midpoint.',
           },
           {
-            name: 'easeOutCubic',
-            type: 'EasingName',
-            defaultValue: 'default',
-            description: 'Decelerates to rest with a cubic curve. Natural and polished — the recommended default for most transitions.',
+            name: 'TRANSITION_SEQUENTIAL',
+            type: 'TransitionWindow',
+            description: 'Exit [0, 0.4], Enter [0.6, 1] — a small gap at the center. Outgoing finishes before incoming starts.',
           },
           {
-            name: 'easeOutExpo',
-            type: 'EasingName',
-            description: 'Very fast start, then sharp snap to the final state. Creates a high-energy, snappy feel. Good for dramatic camera moves.',
+            name: 'TRANSITION_EXIT_FIRST',
+            type: 'TransitionWindow',
+            description: 'Exit [0, 0.6], Enter [0.4, 1] — overlapping, but outgoing scene has more time before the incoming fully takes over.',
           },
           {
-            name: 'easeInOutSine',
-            type: 'EasingName',
-            description: 'Gentle symmetric ease — accelerates gradually, peaks at midpoint, then decelerates. Smooth and unobtrusive.',
+            name: 'TRANSITION_CUT',
+            type: 'TransitionWindow',
+            description: 'Instant cut — no blending. Exit collapses to bp=0, Enter to bp=1.',
           },
           {
-            name: 'easeInOutCubic',
-            type: 'EasingName',
-            description: 'Symmetric cubic ease — stronger acceleration and deceleration than easeInOutSine. More dramatic at higher speeds.',
+            name: 'TRANSITION_DEFAULT',
+            type: 'TransitionWindow',
+            description: 'Empty object — defers to each widget\'s own defaultWindow. Equivalent to omitting the transition prop.',
           },
         ]}
       />
 
       <Callout type="tip">
-        When in doubt, use <code>easeOutCubic</code> (the default). It works well for almost all
-        camera moves and color transitions. Use <code>easeOutExpo</code> for high-energy or reveal
-        moments where you want a sharp arrival.
+        You can also pass a custom <code>TransitionWindow</code> inline:{' '}
+        <code>{'transition={{ exit: [0, 0.3], enter: [0.7, 1] }}'}</code>. This gives the outgoing
+        scene 30 % of the block and the incoming scene the last 30 %, with a 40 % dead-zone between
+        them for a dramatic pause.
       </Callout>
 
-      <h2>How Transitions Are Baked</h2>
+      <h2>Per-Widget Easing via <code>&lt;Transition&gt;</code></h2>
 
       <p>
-        Transitions are computed once at compile time, not on every frame. The compiler determines
-        the transition block between each pair of adjacent scenes, applies the easing function to
-        sample a normalized progress value <code>t ∈ [0, 1]</code> at each tick, then stores the
-        resulting interpolated widget states in the flat <code>SceneTrack</code> array.
+        Easing functions are declared per-widget using the <code>&lt;Transition&gt;</code> DSL
+        component. Place it as a child of any renderable widget element. The parent widget's compile
+        handler collects <code>&lt;Transition&gt;</code> children and stores them as{' '}
+        <code>__transitionGroups</code> on the compiled state, where{' '}
+        <code>FunctionalTransitionSpec</code> closures read them via <code>makeResolver</code>.
       </p>
 
+      <CodeBlock
+        language="tsx"
+        code={`import { easeOutExpo, easeInOutCubic } from '@brewsite/core';
+
+<Scene key="s2" transition={TRANSITION_CROSSFADE}>
+  {/* Apply a custom ease to the model's transition */}
+  <Model id="hero" src="/hero.glb">
+    <Transition
+      exit={{ window: [0, 0.4], ease: easeOutExpo }}
+      enter={{ window: [0.6, 1], ease: easeInOutCubic }}
+    />
+  </Model>
+</Scene>`}
+      />
+
+      <h2>Entry vs. Exit Ownership</h2>
+
       <p>
-        At playback time, the runtime does no easing math whatsoever. It reads pre-computed state
-        directly from the track.
-      </p>
-
-      <Callout type="note">
-        Changing a scene's <code>transition</code> prop triggers SceneTrack recompilation. In
-        development this happens instantly. In production the track is cached by a hash of the
-        compiled DSL nodes — the cache is invalidated only when scene structure changes.
-      </Callout>
-
-      <h2>Entry vs. Exit Transitions</h2>
-
-      <p>
-        The <code>transition</code> prop applies to the <strong>incoming scene's entry</strong>,
-        not the outgoing scene's exit. This means the transition is always defined on the
-        destination scene, not the source scene.
+        The <code>transition</code> prop belongs to the <strong>incoming scene</strong>, not the
+        outgoing one. The transition from scene A to scene B is always declared on scene B.
       </p>
 
       <CodeBlock
@@ -118,18 +126,16 @@ export default function Transitions(): JSX.Element {
   <Camera mode="world" position={[0, 2, 8]} target={[0, 0, 0]} />
 </Scene>
 
-<Scene key="scene-b" transition={{ easing: 'easeOutExpo' }}>
+<Scene key="scene-b" transition={TRANSITION_SEQUENTIAL}>
   {/*
-    The easeOutExpo curve controls the A → B transition.
+    TRANSITION_SEQUENTIAL controls the A → B transition.
     "transition" on scene-b = how we arrive at scene-b from scene-a.
   */}
   <Camera mode="world" position={[5, 3, 5]} target={[0, 0, 0]} />
 </Scene>
 
-<Scene key="scene-c" transition={{ easing: 'easeInOutSine' }}>
-  {/*
-    The easeInOutSine curve controls the B → C transition.
-  */}
+<Scene key="scene-c" transition={TRANSITION_CROSSFADE}>
+  {/* TRANSITION_CROSSFADE controls the B → C transition. */}
   <Camera mode="world" position={[-3, 4, 6]} target={[0, 0, 0]} />
 </Scene>`}
       />
@@ -150,7 +156,9 @@ export default function Transitions(): JSX.Element {
         <li>
           <strong>FunctionalTransitionSpec</strong> — closure-based model. The compiler calls your
           factory once with endpoint states. It returns a pure function of{' '}
-          <code>t ∈ [0, 1]</code> that the runtime evaluates each frame.
+          <code>TransitionContext</code> that the runtime evaluates each frame. Use{' '}
+          <code>ctx.t</code> for default easing, or <code>ctx.channel('name')</code> for
+          per-property channel easing declared via <code>&lt;Transition&gt;</code> children.
         </li>
       </ul>
 
@@ -160,10 +168,10 @@ export default function Transitions(): JSX.Element {
 
 // Example: custom widget that fades its opacity value
 const myTransitionSpec: FunctionalTransitionSpec<{ opacity: number }> = {
-  exitFn: (fromState) => (t) => ({ opacity: fromState.opacity * (1 - t) }),
-  enterFn: (toState) => (t) => ({ opacity: toState.opacity * t }),
-  interpolateFn: (fromState, toState) => (t) => ({
-    opacity: fromState.opacity + (toState.opacity - fromState.opacity) * t,
+  exitFn: (fromState) => (ctx) => ({ opacity: fromState.opacity * (1 - ctx.t) }),
+  enterFn: (toState) => (ctx) => ({ opacity: toState.opacity * ctx.t }),
+  interpolateFn: (fromState, toState) => (ctx) => ({
+    opacity: fromState.opacity + (toState.opacity - fromState.opacity) * ctx.t,
   }),
 };`}
       />

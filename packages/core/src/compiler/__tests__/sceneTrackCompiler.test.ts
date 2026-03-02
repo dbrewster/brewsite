@@ -287,9 +287,9 @@ describe('compileSceneTrack', () => {
 
   it('captures functional transition spec in transitionBlocks', () => {
     const spec: FunctionalTransitionSpec<number> = {
-      exitFn: (from) => (t) => from + t,
-      enterFn: (to) => (t) => to + t,
-      interpolateFn: (from, to) => (t) => from + (to - from) * t,
+      exitFn: (from) => (ctx) => from + ctx.t,
+      enterFn: (to) => (ctx) => to + ctx.t,
+      interpolateFn: (from, to) => (ctx) => from + (to - from) * ctx.t,
     };
     const widget = {
       widgetId: 'w',
@@ -309,9 +309,9 @@ describe('compileSceneTrack', () => {
 
   it('fills defaults for functional spec when absent in both scenes', () => {
     const spec: FunctionalTransitionSpec<number> = {
-      exitFn: (from) => (t) => from + t,
-      enterFn: (to) => (t) => to + t,
-      interpolateFn: (from, to) => (t) => from + (to - from) * t,
+      exitFn: (from) => (ctx) => from + ctx.t,
+      enterFn: (to) => (ctx) => to + ctx.t,
+      interpolateFn: (from, to) => (ctx) => from + (to - from) * ctx.t,
     };
     const widget = {
       widgetId: 'w',
@@ -330,9 +330,9 @@ describe('compileSceneTrack', () => {
 
   it('compileExtra uses functional closure when state is undefined', () => {
     const spec: FunctionalTransitionSpec<number> = {
-      exitFn: (from) => (t) => from + t,
-      enterFn: (to) => (t) => to + t,
-      interpolateFn: (from, to) => (t) => from + (to - from) * t,
+      exitFn: (from) => (ctx) => from + ctx.t,
+      enterFn: (to) => (ctx) => to + ctx.t,
+      interpolateFn: (from, to) => (ctx) => from + (to - from) * ctx.t,
     };
     const widget = {
       widgetId: 'w',

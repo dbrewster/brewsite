@@ -70,32 +70,36 @@ export function compileChart(
  * - Chart transitions are mathematically clean closures (opacity fade, position blend)
  * - Runtime data-resolve cost means lazy evaluation is preferred over pre-baking
  * - Consistent with how @brewsite/diagram handles its element transitions
+ *
+ * Uses ctx.t for all channels (zero behavior change from old scalar-t path).
+ * Scene authors may add <Transition channels={['opacity']} ...> children to the
+ * <Chart> DSL element to activate per-channel window/ease control.
  */
 export const functionalChartTransitionSpec: FunctionalTransitionSpec<ChartState> = {
-  exitFn: (from: ChartState) => (t: number): ChartState => ({
+  exitFn: (from: ChartState) => (ctx): ChartState => ({
     ...from,
-    opacity: blendOpacity(from.opacity, 0, t) ?? 0,
+    opacity: blendOpacity(from.opacity, 0, ctx.t) ?? 0,
   }),
 
-  enterFn: (to: ChartState) => (t: number): ChartState => ({
+  enterFn: (to: ChartState) => (ctx): ChartState => ({
     ...to,
-    opacity: blendOpacity(0, to.opacity, t) ?? to.opacity,
+    opacity: blendOpacity(0, to.opacity, ctx.t) ?? to.opacity,
   }),
 
-  interpolateFn: (from: ChartState, to: ChartState) => (t: number): ChartState => ({
+  interpolateFn: (from: ChartState, to: ChartState) => (ctx): ChartState => ({
     ...to,
     position: (blendVec3(
       from.position as [number, number, number],
       to.position as [number, number, number],
-      t,
+      ctx.t,
     ) ?? to.position) as readonly [number, number, number],
     rotation: (blendVec3(
       from.rotation as [number, number, number],
       to.rotation as [number, number, number],
-      t,
+      ctx.t,
     ) ?? to.rotation) as readonly [number, number, number],
-    opacity: blendOpacity(from.opacity, to.opacity, t) ?? to.opacity,
+    opacity: blendOpacity(from.opacity, to.opacity, ctx.t) ?? to.opacity,
     // Discrete switch at midpoint: preserve from.type during first half, switch to to.type at 0.5
-    type: t < 0.5 ? from.type : to.type,
+    type: ctx.t < 0.5 ? from.type : to.type,
   }),
 };

@@ -61,28 +61,28 @@ export const floorTransitionSpec: ElementTransitionSpec<SceneFloor> = {
 };
 
 export const functionalFloorTransitionSpec: FunctionalTransitionSpec<SceneFloor> = {
-  exitFn: (from) => (t) => ({
+  exitFn: (from) => (ctx) => ({
     position: from.position,
     rotation: from.rotation,
     rotationRelative: from.rotationRelative,
     scale: from.scale,
     surface: from.surface,
-    enabled: from.enabled && t < 1,
+    enabled: from.enabled && ctx.t < 1,
   }),
-  enterFn: (to) => (t) => ({
+  enterFn: (to) => (ctx) => ({
     position: to.position,
     rotation: to.rotation,
     rotationRelative: to.rotationRelative,
     scale: to.scale,
     surface: to.surface,
-    enabled: to.enabled && t > 0,
+    enabled: to.enabled && ctx.t > 0,
   }),
-  interpolateFn: (from, to) => (t) => ({
-    position: t < 0.5 ? from.position : to.position,
-    rotation: t < 0.5 ? from.rotation : to.rotation,
-    rotationRelative: t < 0.5 ? from.rotationRelative : to.rotationRelative,
-    scale: t < 0.5 ? from.scale : to.scale,
-    surface: t < 0.5 ? from.surface : to.surface,
-    enabled: (from.enabled && t < 1) || (to.enabled && t > 0),
+  interpolateFn: (from, to) => (ctx) => ({
+    position: ctx.t < 0.5 ? from.position : to.position,
+    rotation: ctx.t < 0.5 ? from.rotation : to.rotation,
+    rotationRelative: ctx.t < 0.5 ? from.rotationRelative : to.rotationRelative,
+    scale: ctx.t < 0.5 ? from.scale : to.scale,
+    surface: ctx.t < 0.5 ? from.surface : to.surface,
+    enabled: (from.enabled && ctx.t < 1) || (to.enabled && ctx.t > 0),
   }),
 };

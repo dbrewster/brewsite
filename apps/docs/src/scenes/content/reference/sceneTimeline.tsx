@@ -25,13 +25,13 @@ function TimelineContent(): JSX.Element {
       <h2 style={{ fontSize: 'var(--font-size-2xl)', margin: '0 0 10px' }}>Easing functions</h2>
       <CodeBlock
         language="typescript"
-        code={`import type { EasingName } from '@brewsite/core';
+        code={`import { TRANSITION_CROSSFADE, TRANSITION_SEQUENTIAL, easeOutCubic } from '@brewsite/core';
 
-// Available easing names:
-// 'linear' | 'easeOutCubic' | 'easeOutExpo'
-// 'easeInOutSine' | 'easeInOutCubic'
+// Window presets: TRANSITION_CROSSFADE, TRANSITION_SEQUENTIAL,
+// TRANSITION_EXIT_FIRST, TRANSITION_CUT
 
-// Use on <Scene transition={{ easing: 'easeInOutCubic' }} />`}
+// Use on <Scene transition={TRANSITION_SEQUENTIAL} />
+// Or inline: <Scene transition={{ exit: [0, 0.4], enter: [0.6, 1] }} />`}
       />
 
       <h2 style={{ fontSize: 'var(--font-size-2xl)', margin: '20px 0 10px' }}>Blend utilities</h2>

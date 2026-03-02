@@ -3,7 +3,6 @@ import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { VariableStore } from '../widget/VariableStore';
 import type { SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
 import { createSceneTrackSampler } from '../compiler/sceneTrackSampler';
-import { getEasingFn } from '../compiler/transitions/easingFunctions';
 import type { RuntimeDriver as IRuntimeDriver, RealtimeClock } from './types';
 import type { RenderContribution, AnimationTickContext, WidgetRenderContext } from '../widget/types';
 import { isAttachmentHost, isRenderContributor } from '../widget/WidgetRegistry';
@@ -209,17 +208,15 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     for (const renderable of this.renderables) {
       if (this.erroredWidgets.has(renderable.widgetId)) continue;
       try {
-        // Functional transitions take priority: evaluate closure at (eased) blockProgress.
+        // Functional transitions take priority: evaluate closure at blockProgress.
+        // The closure itself handles window normalization and easing via makeResolver
+        // (baked into the closure at compile time). No additional transformation here.
         // Falls back to pre-baked discrete state, then widget defaultState.
         const functionalBlock = this.track?.transitionBlocks?.[tick.sceneIndex];
         const functionalWidget = functionalBlock?.widgetFns[renderable.widgetId];
         let state: unknown;
         if (functionalWidget) {
-          const easingName = this.track?.transitionEasings?.[tick.sceneIndex];
-          const bp = easingName
-            ? getEasingFn(easingName)(tick.blockProgress)
-            : tick.blockProgress;
-          state = functionalWidget.fn(bp);
+          state = functionalWidget.fn(tick.blockProgress);
         } else {
           state =
             tick.state.widgets[renderable.widgetId] ??

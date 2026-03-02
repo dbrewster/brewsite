@@ -6,12 +6,16 @@ import {
   Ambient,
   Floor,
   FloorPhysical,
-  type EasingName,
+  type TransitionWindow,
+  TRANSITION_CROSSFADE,
+  TRANSITION_SEQUENTIAL,
+  TRANSITION_EXIT_FIRST,
+  TRANSITION_CUT,
 } from '@brewsite/core';
 import { DemoScene } from '../shared/DemoScene';
 
 export const CODE = `
-// The transition prop on <Scene> controls the easing curve for the
+// The transition prop on <Scene> controls the timing windows for the
 // animated transition into that scene from the previous one.
 <Scene key="start" id="start">
   <Camera mode="world" position={[0, 2, 8]} target={[0, 0, 0]} />
@@ -23,7 +27,7 @@ export const CODE = `
   </Floor>
 </Scene>
 
-<Scene key="end" id="end" transition={{ easing: 'easeInOutCubic' }}>
+<Scene key="end" id="end" transition={TRANSITION_SEQUENTIAL}>
   <Camera mode="world" position={[3, 3, 6]} target={[0, 0, 0]} />
   <Lighting>
     <Ambient color="#8855ff" intensity={0.6} />
@@ -34,25 +38,29 @@ export const CODE = `
 </Scene>
 `.trim();
 
-const EASING_OPTIONS: EasingName[] = [
-  'linear',
-  'easeOutCubic',
-  'easeOutExpo',
-  'easeInOutSine',
-  'easeInOutCubic',
+type WindowOption = {
+  label: string;
+  value: TransitionWindow;
+};
+
+const WINDOW_OPTIONS: WindowOption[] = [
+  { label: 'crossfade', value: TRANSITION_CROSSFADE },
+  { label: 'sequential', value: TRANSITION_SEQUENTIAL },
+  { label: 'exit-first', value: TRANSITION_EXIT_FIRST },
+  { label: 'cut', value: TRANSITION_CUT },
 ];
 
 export default function TransitionEasingDemo(): JSX.Element {
-  const [selectedEasing, setSelectedEasing] = useState<EasingName>('easeInOutCubic');
+  const [selected, setSelected] = useState<WindowOption>(WINDOW_OPTIONS[0]!);
 
   return (
     <div>
       <div className="easing-tabs" style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-        {EASING_OPTIONS.map((easing) => (
+        {WINDOW_OPTIONS.map((opt) => (
           <button
-            key={easing}
+            key={opt.label}
             type="button"
-            onClick={() => setSelectedEasing(easing)}
+            onClick={() => setSelected(opt)}
             style={{
               padding: '4px 10px',
               fontSize: 12,
@@ -60,16 +68,16 @@ export default function TransitionEasingDemo(): JSX.Element {
               border: '1px solid',
               cursor: 'pointer',
               fontFamily: 'monospace',
-              background: selectedEasing === easing ? '#3b82f6' : 'transparent',
-              color: selectedEasing === easing ? '#ffffff' : '#94a3b8',
-              borderColor: selectedEasing === easing ? '#3b82f6' : '#334155',
+              background: selected.label === opt.label ? '#3b82f6' : 'transparent',
+              color: selected.label === opt.label ? '#ffffff' : '#94a3b8',
+              borderColor: selected.label === opt.label ? '#3b82f6' : '#334155',
             }}
           >
-            {easing}
+            {opt.label}
           </button>
         ))}
       </div>
-      <DemoScene key={selectedEasing} sceneCount={2}>
+      <DemoScene key={selected.label} sceneCount={2}>
         <Scene key="start" id="start">
           <Camera mode="world" position={[0, 2, 8]} target={[0, 0, 0]} />
           <Lighting>
@@ -79,7 +87,7 @@ export default function TransitionEasingDemo(): JSX.Element {
             <FloorPhysical opacity={0.6} metalness={0.4} roughness={0.6} />
           </Floor>
         </Scene>
-        <Scene key="end" id="end" transition={{ easing: selectedEasing }}>
+        <Scene key="end" id="end" transition={selected.value}>
           <Camera mode="world" position={[3, 3, 6]} target={[0, 0, 0]} />
           <Lighting>
             <Ambient color="#8855ff" intensity={0.6} />

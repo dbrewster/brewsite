@@ -5,6 +5,7 @@ import { registerNode, getNodeHandler } from './registry';
 import { Scene, sceneRootHandler } from './sceneDslCompiler';
 import { ensureInputControllerRegistry } from './blocks/inputController';
 import { ProgressManager, progressManagerHandler } from './primitives/progressManager';
+import { Transition } from './blocks/transition';
 
 let coreHandlersRegistered = false;
 
@@ -15,6 +16,9 @@ let coreHandlersRegistered = false;
  *
  * Note: Label/Labels guard handlers are now registered by @brewsite/model's
  * registerModelHandlers(), not here.
+ * Note: <Transition> is registered here as a no-op guard handler so it compiles
+ * without warnings when used as a direct child of <Scene>. Widget-level
+ * CUSTOM_NODE_HANDLERs collect and process <Transition> children themselves.
  */
 export function registerCoreHandlers(): void {
   if (coreHandlersRegistered) return;
@@ -26,6 +30,12 @@ export function registerCoreHandlers(): void {
   ensureInputControllerRegistry();
   if (!getNodeHandler(ProgressManager)) {
     registerNode(ProgressManager, progressManagerHandler);
+  }
+  if (!getNodeHandler(Transition)) {
+    // No-op: <Transition> children are consumed by parent widget CUSTOM_NODE_HANDLERs.
+    // This guard prevents "unregistered DSL component" warnings when Transition appears
+    // in unexpected positions.
+    registerNode(Transition, (_node, _api, _helpers) => {});
   }
 }
 

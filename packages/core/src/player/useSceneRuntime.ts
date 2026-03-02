@@ -8,9 +8,6 @@ import {
 
 export const useSceneRuntime = (playerId: string): SceneRuntimeState => {
   useEffect(() => {
-    // process.env.NODE_ENV is replaced at build time by bundlers (Vite, webpack),
-    // allowing this entire block to be dead-code-eliminated in production bundles.
-    if (process.env.NODE_ENV === 'production') return undefined;
     const timer = setTimeout(() => {
       if (!hasRegisteredPlayer(playerId)) {
         console.warn(

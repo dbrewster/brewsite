@@ -196,7 +196,19 @@ if (groups.length > 0) {
 }
 ```
 
-`__transitionGroups` is passed through all blend functions unchanged — it is config metadata, not blendable state.
+`__transitionGroups` is **stripped from the state returned by element apply functions** — set to `undefined` in the returned object. The groups are consumed by the compiler when building the resolver factory; the runtime states produced at closure-evaluation time must not carry functions. This keeps runtime widget states serialization-safe and free of `EaseFn` references.
+
+```typescript
+// Correct pattern in every apply* function:
+export const applyModelExit = (from: SceneModelInstanceState, ctx: TransitionContext): SceneModelInstanceState => ({
+  ...from,
+  __transitionGroups: undefined,  // Consumed at compile time. Strip here.
+  model: modelTransitionSpec.exit(from.model, ctx),
+  // ...
+});
+```
+
+The snapshot states (the `fromState` / `toState` the compiler reads from) still carry `__transitionGroups` at compile time — this is intentional. They are never `structuredClone`d during compilation (only read). `makeDisabledDefault` operates on `widget.defaultState` which is set at widget construction and never carries functions.
 
 ---
 
@@ -220,9 +232,11 @@ for (let i = 0; i < groups.length; i++) {
   for (const ch of g.channels) channelGroupIndex.set(ch, i);
 }
 
-// Resolve scene-level and spec-level fallback windows
-const sceneExit  = toSnap.transitionWindow?.exit  ?? transitionSpec.defaultWindow?.exit  ?? [0, 0.5]  as [number, number];
-const sceneEnter = toSnap.transitionWindow?.enter ?? transitionSpec.defaultWindow?.enter ?? [0.5, 1.0] as [number, number];
+// Resolve scene-level and spec-level fallback windows.
+// Exit window: read from fromSnap (the OUTGOING scene declares how it exits).
+// Enter window: read from toSnap (the INCOMING scene declares how it enters).
+const sceneExit  = fromSnap.transitionWindow?.exit  ?? transitionSpec.defaultWindow?.exit  ?? [0, 0.5]  as [number, number];
+const sceneEnter = toSnap.transitionWindow?.enter   ?? transitionSpec.defaultWindow?.enter ?? [0.5, 1.0] as [number, number];
 
 const makeExitResolver = (bp: number): TransitionContext => {
   // Compute default t first
@@ -389,8 +403,9 @@ This is the key insight: **the element decides which properties participate in b
 
 | File | Change |
 |---|---|
-| `compiler/transitions/transitionTypes.ts` | Add `EaseFn`, `TransitionContext`, `TransitionPhase`, `TransitionProps`, `CompiledTransitionGroup`, `WithTransitionConfig`. Update `FunctionalTransitionSpec` signatures. Add `TransitionWindow`. |
-| `compiler/transitions/transitionPresets.ts` | New — named window constants. |
+| `compiler/transitions/transitionTypes.ts` | Add `EaseFn`, `TransitionContext`, `TransitionPhase`, `TransitionProps`, `CompiledTransitionGroup`, `WithTransitionConfig`, `TransitionWindow`. Update `FunctionalTransitionSpec` signatures. **Pure types only — no runtime functions.** |
+| `compiler/transitions/transitionResolver.ts` | **New** — exports `makeResolver` runtime function. Imports types from `transitionTypes.ts`. Kept separate to preserve `transitionTypes.ts` as a pure-types file. |
+| `compiler/transitions/transitionPresets.ts` | New — named window constants and named `EaseFn` constants (replaces `easingFunctions.ts` string enum). |
 | `compiler/sceneTrackCompiler.ts` | Replace hardcoded `0.5` with cascade resolution + `makeResolver` factories. Remove `transitionEasings` collection (lines 431–434). |
 | `compiler/sceneTrackTypes.ts` | Remove `transitionEasings` from `SceneTrack`. |
 | `compiler/index.ts` | Export `Transition`, `TransitionProps`, `EaseFn`, presets. Remove `EasingName`. |

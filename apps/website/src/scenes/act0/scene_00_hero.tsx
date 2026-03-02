@@ -1,5 +1,5 @@
 import type {JSX, ReactNode} from 'react';
-import {Ambient, Camera, Directional, Floor, FloorMirror, Lighting, ProgressManager, Scene, useEngineState,} from '@brewsite/core';
+import {Ambient, Background, Camera, Directional, Floor, FloorMirror, Lighting, ProgressManager, Scene, useEngineState,} from '@brewsite/core';
 import {NeonSign} from '../../widgets/neon-sign';
 import {HeroBezel} from '../../landing/hero/HeroBezel';
 import {ScrollIndicator} from '../../landing/hero/ScrollIndicator';
@@ -33,13 +33,12 @@ export const scene00Hero = (
       autoAdvance={{ duration: 3, max: 0.80, pauseOnScroll: true }}
       animationTimeScale={6}
     />
-    <Camera mode="world" position={[0, 7, 17]} target={[0, 1.4, 0]} fov={52} />
+    <Camera mode="world" position={[0, 7, 17]} target={[0, 0, 0]} fov={52} />
 
     <Lighting intensityScale={1}>
-      <Ambient intensity={0.2} color="#09111f" />
-      <Directional intensity={0.4} color="#9ed7ff" position={[8, 12, 12]} />
-      <Directional intensity={0.3} color="#ffb366" position={[-12, 10, 6]} />
+      {/*<Ambient intensity={0.2} color="#09111f" />*/}
     </Lighting>
+    <Background color="#050910" opacity={1} cssSize="cover" cssPosition="center" />
     <Floor enabled position={[0, 1, 0]}>
       <FloorMirror
         mirrorColor="#050910"

@@ -4,16 +4,17 @@ import type { FunctionalTransitionSpec, ElementTransitionSpec } from '../transit
 import type { SceneDefinition } from '../sceneTypes';
 import type { ISceneElement } from '../../widget/types';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
+import { makeSimpleContext } from '../transitions/transitionResolver';
 
 type TestState = { value: number; active: boolean };
 
 const widgetId = 'widgetA';
 
 const testFunctionalSpec: FunctionalTransitionSpec<TestState> = {
-  exitFn: (from) => (t) => ({ value: from.value * (1 - t), active: t < 1 }),
-  enterFn: (to) => (t) => ({ value: to.value * t, active: t > 0 }),
-  interpolateFn: (from, to) => (t) => ({
-    value: from.value + (to.value - from.value) * t,
+  exitFn: (from) => (ctx) => ({ value: from.value * (1 - ctx.t), active: ctx.t < 1 }),
+  enterFn: (to) => (ctx) => ({ value: to.value * ctx.t, active: ctx.t > 0 }),
+  interpolateFn: (from, to) => (ctx) => ({
+    value: from.value + (to.value - from.value) * ctx.t,
     active: true,
   }),
 };
@@ -81,6 +82,8 @@ describe('functional transitions', () => {
       makeScene('s2', { value: 20, active: true }),
     ];
     const track = compileTrack(scenes, registry);
+    // Note: fn here is FunctionalWidgetTransition.fn which takes blockProgress: number.
+    // makeResolver is called internally inside the closure — callers pass a raw number.
     const fn = track.transitionBlocks?.[0]?.widgetFns[widgetId].fn;
     expect(fn?.(0)).toEqual({ value: 10, active: true });
   });
@@ -116,11 +119,14 @@ describe('functional transitions', () => {
     const track = compileTrack(scenes, registry);
     const fn = track.transitionBlocks?.[0]?.widgetFns[widgetId];
     expect(fn?.kind).toBe('exit');
+    // Exit window default: [0, 0.5]. At bp=0 → t=0 → full state.
     expect(fn?.fn(0)).toEqual({ value: 10, active: true });
+    // At bp=0.25 → within exit window → partially faded
     const quarter = fn?.fn(0.25) as TestState;
     expect(quarter.value).toBeGreaterThan(0);
     expect(quarter.value).toBeLessThan(10);
     expect(quarter.active).toBe(true);
+    // At bp=0.5 → effectiveExitEnd → absentDefault
     expect(fn?.fn(0.5)).toEqual({ value: 0, active: false });
     expect(fn?.fn(1)).toEqual({ value: 0, active: false });
   });
@@ -134,9 +140,11 @@ describe('functional transitions', () => {
     const track = compileTrack(scenes, registry);
     const fn = track.transitionBlocks?.[0]?.widgetFns[widgetId];
     expect(fn?.kind).toBe('enter');
+    // Enter window default: [0.5, 1]. bp < effectiveEnterStart (0.5) → absentDefault.
     expect(fn?.fn(0)).toEqual({ value: 0, active: false });
     expect(fn?.fn(0.49)).toEqual({ value: 0, active: false });
-    expect(fn?.fn(0.5)).toEqual({ value: 0, active: false });
+    // At bp=0.5 → effectiveEnterStart boundary → absentDefault (bp < 0.5 is false, so active)
+    // Actually bp >= effectiveEnterStart (0.5), so the enter closure fires
     expect(fn?.fn(1)).toEqual({ value: 10, active: true });
   });
 

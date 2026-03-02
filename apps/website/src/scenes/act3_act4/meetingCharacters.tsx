@@ -91,37 +91,39 @@ const Actor = ({
 
 // ── Animation pools ───────────────────────────────────────────────────────────
 const F_MOTIONS: [string, number][] = [
-  ['chat-listen-f', 0.0],
-  ['chat-relax-f', 0.0],
+  // ['chat-listen-f', 0.0],
+  // ['chat-relax-f', 0.0],
   ['chat-talkandlaugh-f', 0.0],
-  ['chat-response-f', 0.0],
-  ['discuss-respond-f', 0.0],
+  // ['chat-response-f', 0.0],
+  // ['discuss-respond-f', 0.0],
 ];
 
 const M_MOTIONS: [string, number][] = [
-  ['chat-relax-m', 0.0],
+  // ['chat-relax-m', 0.0],
   ['chat-talkandlaugh-m', 0.0],
-  ['discuss-query-m', 0.0],
-  ['discuss-whisper-m', 0.0],
-  ['standing_chat_m_270753', -Math.PI / 3],
-  ['standing_discuss_m_270744', 0.0],
+  // ['discuss-query-m', 0.0],
+  // ['discuss-whisper-m', 0.0],
+  // ['standing_chat_m_270753', -Math.PI / 3],
+  // ['standing_discuss_m_270744', 0.0],
 ];
 
 const ACTOR_POOL: ActorDefn[] = [
-  { type: 'businessF0057', gender: 'female', footRotation: -0.5 },
-  { type: 'businessF0060', gender: 'female' },
-  { type: 'businessF0061', gender: 'female', footRotation: -0.5 },
-  { type: 'businessF0062', gender: 'female', footRotation: -0.5 },
-  { type: 'businessF0063', gender: 'female', footRotation: -0.5 },
-  { type: 'businessF0064', gender: 'female', footRotation: -0.5 },
-  { type: 'businessF0065', gender: 'female' },
-  { type: 'businessM0079', gender: 'male' },
-  { type: 'businessM0080', gender: 'male' },
-  { type: 'businessM0081', gender: 'male' },
-  { type: 'businessM0082', gender: 'male' },
-  { type: 'businessM0083', gender: 'male' },
-  { type: 'businessM0084', gender: 'male' },
-  { type: 'businessM0085', gender: 'male' },
+  {type: 'FemaleDummy', gender: 'female'},
+  // { type: 'businessF0057', gender: 'female', footRotation: -0.5 },
+  // { type: 'businessF0060', gender: 'female' },
+  // { type: 'businessF0061', gender: 'female', footRotation: -0.5 },
+  // { type: 'businessF0062', gender: 'female', footRotation: -0.5 },
+  // { type: 'businessF0063', gender: 'female', footRotation: -0.5 },
+  // { type: 'businessF0064', gender: 'female', footRotation: -0.5 },
+  // { type: 'businessF0065', gender: 'female' },
+  { type: 'MaleDummy', gender: 'male' },
+  // { type: 'businessM0079', gender: 'male' },
+  // { type: 'businessM0080', gender: 'male' },
+  // { type: 'businessM0081', gender: 'male' },
+  // { type: 'businessM0082', gender: 'male' },
+  // { type: 'businessM0083', gender: 'male' },
+  // { type: 'businessM0084', gender: 'male' },
+  // { type: 'businessM0085', gender: 'male' },
 ];
 
 // ── Deterministic pseudo-random seeding ──────────────────────────────────────

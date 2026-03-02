@@ -24,7 +24,7 @@ function TransitionsDemo(): JSX.Element {
         <Lighting><Ambient color="#aabbff" intensity={0.5} /><Directional color="#ffffff" intensity={1.4} position={[5, 10, 5]} /></Lighting>
         <Background color="#0a0a1a" />
       </Scene>
-      <Scene key="tr-s2" id="tr-s2" transition={{ easing: 'easeInOutCubic' }}>
+      <Scene key="tr-s2" id="tr-s2" transition={{ exit: [0, 0.5], enter: [0.5, 1] }}>
         <Camera mode="world" position={[-4, 1, 5]} target={[0, 0, 0]} fov={40} />
         <Lighting><Ambient color="#ff8844" intensity={0.4} /><Directional color="#ffcc88" intensity={1.6} position={[-4, 6, 3]} /></Lighting>
         <Background color="#1a0a04" />
@@ -39,24 +39,26 @@ function TransitionsContent(): JSX.Element {
       <h1 style={{ fontSize: 'var(--font-size-3xl)', margin: '0 0 8px', fontWeight: 700 }}>Transitions &amp; Easing</h1>
       <p style={{ fontSize: 'var(--font-size-base)', lineHeight: 1.65, color: 'var(--text-secondary)', margin: '0 0 20px' }}>
         Transitions are configured on the <em>incoming</em> scene — the scene being transitioned
-        into. Set an easing curve with the <code>transition</code> prop on <code>&lt;Scene&gt;</code>.
+        into. Control the timing windows with the <code>transition</code> prop on <code>&lt;Scene&gt;</code>.
+        The <code>exit</code> window controls when the outgoing scene fades out;
+        the <code>enter</code> window controls when the incoming scene fades in.
       </p>
 
       <CodeBlock
         language="tsx"
-        code={`<Scene key="feature" transition={{ easing: 'easeInOutCubic' }}>
+        code={`// Control the entry window for this scene's transition:
+<Scene key="feature" transition={{ exit: [0, 0.4], enter: [0.6, 1] }}>
   <Camera mode="world" position={[...]} />
 </Scene>`}
       />
 
-      <h2 style={{ fontSize: 'var(--font-size-2xl)', margin: '20px 0 10px' }}>Available easing names</h2>
+      <h2 style={{ fontSize: 'var(--font-size-2xl)', margin: '20px 0 10px' }}>Preset windows</h2>
       <PropTable
         rows={[
-          { name: 'linear',         type: 'EasingName', description: 'Constant rate (default when unset)' },
-          { name: 'easeOutCubic',   type: 'EasingName', description: 'Fast start, smooth deceleration' },
-          { name: 'easeOutExpo',    type: 'EasingName', description: 'Very fast start, long gentle tail' },
-          { name: 'easeInOutSine',  type: 'EasingName', description: 'Smooth acceleration and deceleration' },
-          { name: 'easeInOutCubic', type: 'EasingName', description: 'Strong S-curve acceleration/deceleration' },
+          { name: 'TRANSITION_CROSSFADE',   type: 'TransitionWindow', description: 'Exit [0, 0.5] / Enter [0.5, 1] — the default overlap split' },
+          { name: 'TRANSITION_SEQUENTIAL',  type: 'TransitionWindow', description: 'Exit [0, 0.4] / Enter [0.6, 1] — gap between exit and enter' },
+          { name: 'TRANSITION_EXIT_FIRST',  type: 'TransitionWindow', description: 'Exit [0, 0.6] / Enter [0.4, 1] — outgoing finishes before entering' },
+          { name: 'TRANSITION_CUT',         type: 'TransitionWindow', description: 'Instant switch with no blending' },
         ]}
       />
 

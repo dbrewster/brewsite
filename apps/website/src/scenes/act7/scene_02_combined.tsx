@@ -39,14 +39,6 @@ export const scene02Combined: JSX.Element = (
       <Directional intensity={0.35} color="#0055ff" position={[-12, 10, 10]} />
     </Lighting>
 
-    {/* Presenter model — left side */}
-    <ModelRouter
-      type="businessM0079"
-      id="presenter"
-      position={[-18, 0, 5]}
-      rotation={[0, Math.PI / 5, 0]}
-    />
-
     {/* Architecture diagram — right, slightly elevated and angled */}
     <DiagramCanvas
       id="full-diagram"

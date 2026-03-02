@@ -717,9 +717,13 @@ export const instanceTransitionSpec: ElementTransitionSpec<SceneModelInstanceSta
  * Functional form of the model instance transition spec.
  * Preferred over instanceTransitionSpec for new scenes — evaluates at runtime for
  * infinite easing fidelity without oversampling.
+ *
+ * Uses ctx.t for all properties (zero behavior change from old scalar-t path).
+ * Scene authors may add <Transition channels={['opacity']} ...> children to the
+ * <Model> DSL element to activate per-channel window/ease control.
  */
 export const functionalInstanceTransitionSpec: FunctionalTransitionSpec<SceneModelInstanceState> = {
-  exitFn: (from) => (t) => applyModelExit(from, t),
-  enterFn: (to) => (t) => applyModelEnter(to, t),
-  interpolateFn: (from, to) => (t) => applyModelInterpolate(from, to, t),
+  exitFn: (from) => (ctx) => applyModelExit(from, ctx.t),
+  enterFn: (to) => (ctx) => applyModelEnter(to, ctx.t),
+  interpolateFn: (from, to) => (ctx) => applyModelInterpolate(from, to, ctx.t),
 };

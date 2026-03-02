@@ -27,12 +27,10 @@ export const createDefaultWidgetRegistry = (
   _manifest: unknown,
   options?: DefaultWidgetRegistryOptions,
 ): WidgetRegistry => {
-  if (process.env.NODE_ENV !== 'production') {
-    console.warn(
-      '[BrewSite] createDefaultWidgetRegistry() is deprecated. ' +
-      'Migrate to EngineProvider plugins={[corePlugin(), modelPlugin(...)]} instead.',
-    );
-  }
+  console.warn(
+    '[BrewSite] createDefaultWidgetRegistry() is deprecated. ' +
+    'Migrate to EngineProvider plugins={[corePlugin(), modelPlugin(...)]} instead.',
+  );
   const registry = new WidgetRegistry({ strict: true });
 
   registry

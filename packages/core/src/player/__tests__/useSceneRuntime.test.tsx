@@ -22,18 +22,6 @@ describe('useSceneRuntime', () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('missing-player'));
   });
 
-  it('does not warn in production', () => {
-    const originalNodeEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = 'production';
-    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    renderHook(() => useSceneRuntime('missing-player'));
-    vi.advanceTimersByTime(1001);
-    expect(warn).not.toHaveBeenCalled();
-
-    process.env.NODE_ENV = originalNodeEnv;
-  });
-
   it('returns published runtime state', () => {
     setSceneRuntimeState('present-player', {
       assetsReady: true,

@@ -9,6 +9,7 @@ import { LightingWidget } from '../LightingWidget';
 import type { SceneLighting } from '../types';
 import { Ambient, Directional, GlowPoint, Point, Spot, LightStrand, Wave, Panel, Lighting } from '../dsl';
 import { CUSTOM_NODE_HANDLER } from '../../../widget/WidgetRegistry';
+import { makeSimpleContext } from '../../../compiler/transitions/transitionResolver';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -48,7 +49,7 @@ describe('LightingWidget', () => {
     const from = makeLighting(2.0);
     const to = makeLighting(0.0);
     const fn = widget.transitionSpec.interpolateFn(from, to);
-    const result = fn(0);
+    const result = fn(makeSimpleContext(0));
     expect(result.ambient.intensity).toBeCloseTo(2.0);
   });
 
@@ -56,7 +57,7 @@ describe('LightingWidget', () => {
     const from = makeLighting(2.0);
     const to = makeLighting(0.0);
     const fn = widget.transitionSpec.interpolateFn(from, to);
-    const result = fn(1);
+    const result = fn(makeSimpleContext(1));
     expect(result.ambient.intensity).toBeCloseTo(0.0);
   });
 
@@ -64,7 +65,7 @@ describe('LightingWidget', () => {
     const from = makeLighting(2.0);
     const to = makeLighting(0.0);
     const fn = widget.transitionSpec.interpolateFn(from, to);
-    const result = fn(0.5);
+    const result = fn(makeSimpleContext(0.5));
     expect(result.ambient.intensity).toBeGreaterThan(0);
     expect(result.ambient.intensity).toBeLessThan(2.0);
   });
@@ -72,21 +73,21 @@ describe('LightingWidget', () => {
   it('transitionSpec.exit at t=1 fades ambient to 0', () => {
     const state = makeLighting(2.0);
     const fn = widget.transitionSpec.exitFn(state);
-    const result = fn(1);
+    const result = fn(makeSimpleContext(1));
     expect(result.ambient.intensity).toBeCloseTo(0);
   });
 
   it('transitionSpec.enter at t=0 has near-zero ambient intensity', () => {
     const state = makeLighting(2.0);
     const fn = widget.transitionSpec.enterFn(state);
-    const result = fn(0);
+    const result = fn(makeSimpleContext(0));
     expect(result.ambient.intensity).toBeCloseTo(0);
   });
 
   it('transitionSpec.enter at t=1 returns full ambient intensity', () => {
     const state = makeLighting(2.0);
     const fn = widget.transitionSpec.enterFn(state);
-    const result = fn(1);
+    const result = fn(makeSimpleContext(1));
     expect(result.ambient.intensity).toBeCloseTo(2.0);
   });
 

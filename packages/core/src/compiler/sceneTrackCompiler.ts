@@ -7,7 +7,6 @@ import type {
   SceneWindow,
   SceneFrameDelta,
   SceneTrackTransitionBlock,
-  EasingName,
   CompileWarning,
   ProgressManagerSpec,
   SceneProgressProfile,
@@ -15,6 +14,8 @@ import type {
 } from './sceneTrackTypes';
 import { ensureSceneRegistry, resolveSceneFromDsl } from './sceneDslCompiler';
 import { isFunctionalSpec } from './transitions/transitionTypes';
+import type { WithTransitionConfig } from './transitions/transitionTypes';
+import { makeResolver } from './transitions/transitionResolver';
 import { IDENTITY_FN } from '../player/SceneProgressMapper';
 
 const INPUT_CONTROLLER_WIDGET_ID = '__input_controller';
@@ -300,13 +301,18 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
 
   const makeDisabledDefault = <T>(state: T): T => {
     if (!state || typeof state !== 'object') return state;
-    const clone: any =
+    // Strip __transitionGroups before cloning: it contains EaseFn closures which
+    // are not structuredClone-safe. The absent/disabled default never needs them.
+    const stateObj = state as Record<string, unknown>;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { __transitionGroups: _tg, ...cloneable } = stateObj;
+    const clone: Record<string, unknown> =
       typeof structuredClone === 'function'
-        ? structuredClone(state as object)
-        : JSON.parse(JSON.stringify(state));
+        ? structuredClone(cloneable)
+        : JSON.parse(JSON.stringify(cloneable));
     if ('enabled' in clone) clone.enabled = false;
-    if (clone.model && typeof clone.model === 'object' && 'enabled' in clone.model) {
-      clone.model.enabled = false;
+    if (clone.model && typeof clone.model === 'object' && 'enabled' in (clone.model as object)) {
+      (clone.model as Record<string, unknown>).enabled = false;
     }
     return clone as T;
   };
@@ -413,10 +419,6 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
   // uses FunctionalTransitionSpec instead of filling discrete frames.
   const transitionBlocks: SceneTrackTransitionBlock[] = [];
 
-  // Accumulates per-block easing overrides. Key N = easing for scene N → scene N+1,
-  // sourced from scene N+1's transitionEasing field.
-  const transitionEasings: Partial<Record<number, EasingName>> = {};
-
   // ── Step 3: Fill each transition block via widget batch methods ──────────────
   for (let n = 0; n < numTransitions; n++) {
     const blockStart = n * blockSize;
@@ -426,12 +428,6 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     const toSnap = snapshots[n + 1];
 
     if (!fromSnap || !toSnap) continue;
-
-    // Capture easing from the incoming scene (scene n+1's transitionEasing prop).
-    const incomingEasing = toSnap.transitionEasing;
-    if (incomingEasing) {
-      transitionEasings[n] = incomingEasing;
-    }
 
     for (const widget of widgetRegistry.getSceneElements()) {
       const { widgetId, defaultState, transitionSpec } = widget;
@@ -445,8 +441,8 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
 
       // ── Functional path ─────────────────────────────────────────────────────────
       // Widget uses FunctionalTransitionSpec: capture a closure instead of filling frames.
-      // The closure wraps the author's t ∈ [0,1] function with half-block remapping so
-      // the runtime may call fn(tick.blockProgress) with no further transformation.
+      // The closure calls makeResolver(bp, groups, sceneWindow, phase) to build a
+      // TransitionContext, which the author's closure uses via ctx.t and ctx.channel().
       if (isFunctionalSpec(transitionSpec)) {
         if (!inFrom && !inTo) {
           // Absent from both scenes — no closure needed; fill frames discretely.
@@ -456,29 +452,52 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
           continue;
         }
 
+        // Resolve scene-level windows for this transition block.
+        // EXIT window: outgoing scene (fromSnap) controls when it fades out.
+        // ENTER window: incoming scene (toSnap) controls when it fades in.
+        // Each falls back to the widget spec's defaultWindow, then the system default [0,0.5]/[0.5,1].
+        const specDefault = transitionSpec.defaultWindow;
+        const sceneExit: [number, number] =
+          fromSnap.transitionWindow?.exit ?? specDefault?.exit ?? [0, 0.5];
+        const sceneEnter: [number, number] =
+          toSnap.transitionWindow?.enter ?? specDefault?.enter ?? [0.5, 1.0];
+
         // Ensure a block entry exists for index n
         const tBlock: SceneTrackTransitionBlock = transitionBlocks[n] ?? { blockIndex: n, widgetFns: {} };
         transitionBlocks[n] = tBlock;
 
         if (inFrom && inTo) {
+          // INTERPOLATE: groups come from toState (the incoming scene drives the spec).
+          const groups = (toState as WithTransitionConfig).__transitionGroups;
           const rawFn = transitionSpec.interpolateFn(fromState as never, toState as never);
           tBlock.widgetFns[widgetId] = {
-            fn: (bp: number) => rawFn(bp),
+            fn: (bp: number) => rawFn(makeResolver(bp, groups, [0, 1], 'interpolate')),
             kind: 'interpolate',
           };
         } else if (inFrom) {
+          // EXIT: groups come from fromState; active until effectiveExitEnd.
+          const groups = (fromState as WithTransitionConfig).__transitionGroups;
           const rawFn = transitionSpec.exitFn(fromState as never);
+          const defaultGroup = groups?.find((g) => !g.channels);
+          const effectiveExitEnd = defaultGroup?.exit?.window?.[1] ?? sceneExit[1];
           tBlock.widgetFns[widgetId] = {
-            // Active first half: blockProgress [0, 0.5) → t [0, 1). Second half → absentDefault.
-            fn: (bp: number) => (bp < 0.5 ? rawFn(bp * 2) : absentDefault),
+            fn: (bp: number) =>
+              bp >= effectiveExitEnd
+                ? absentDefault
+                : rawFn(makeResolver(bp, groups, sceneExit, 'exit')),
             kind: 'exit',
           };
         } else {
-          // inTo only
+          // ENTER: groups come from toState; active from effectiveEnterStart.
+          const groups = (toState as WithTransitionConfig).__transitionGroups;
           const rawFn = transitionSpec.enterFn(toState as never);
+          const defaultGroup = groups?.find((g) => !g.channels);
+          const effectiveEnterStart = defaultGroup?.enter?.window?.[0] ?? sceneEnter[0];
           tBlock.widgetFns[widgetId] = {
-            // Active second half: blockProgress [0.5, 1] → t [0, 1]. First half → absentDefault.
-            fn: (bp: number) => (bp >= 0.5 ? rawFn((bp - 0.5) * 2) : absentDefault),
+            fn: (bp: number) =>
+              bp < effectiveEnterStart
+                ? absentDefault
+                : rawFn(makeResolver(bp, groups, sceneEnter, 'enter')),
             kind: 'enter',
           };
         }
@@ -604,7 +623,6 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     sceneOverlays,
     ...(progressProfile !== undefined ? { progressProfile } : {}),
     ...(transitionBlocks.length > 0 ? { transitionBlocks } : {}),
-    ...(Object.keys(transitionEasings).length > 0 ? { transitionEasings } : {}),
     ...(warnings.length > 0 ? { warnings } : {}),
   };
 };

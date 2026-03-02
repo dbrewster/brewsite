@@ -326,10 +326,17 @@ export function applyDiagramEnter(diagram: DiagramState, t: number): DiagramStat
   return { ...diagram, position, scale, nodes, edges };
 }
 
+/**
+ * Functional transition spec for DiagramState.
+ * Uses ctx.t for all properties (zero behavior change from old scalar-t path).
+ * Scene authors may add <Transition channels={['opacity']} ...> children to the
+ * <Diagram> DSL element to activate per-channel window/ease control.
+ */
 export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramState> = {
-  exitFn: (from) => (t) => applyDiagramExit(from, t),
-  enterFn: (to) => (t) => applyDiagramEnter(to, t),
-  interpolateFn: (from, to) => (t) => {
+  exitFn: (from) => (ctx) => applyDiagramExit(from, ctx.t),
+  enterFn: (to) => (ctx) => applyDiagramEnter(to, ctx.t),
+  interpolateFn: (from, to) => (ctx) => {
+    const t = ctx.t;
     const { blended, fading } = blendDiagramNodes(from.nodes, to.nodes, t);
     const { positions, sizes } = buildLiveNodeMaps([...blended, ...fading]);
     const toEdgeIds = new Set(to.edges.map((e) => e.id));

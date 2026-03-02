@@ -3,8 +3,17 @@
 
 import type { ReactNode } from 'react';
 import type { JsonPrimitive } from '../widget/VariableStore';
-import type { EasingName } from './transitions/easingFunctions';
-export type { EasingName } from './transitions/easingFunctions';
+
+/**
+ * Per-scene transition window configuration.
+ * exit — sub-window within block progress [0,1] where the outgoing scene fades out.
+ * enter — sub-window within block progress [0,1] where the incoming scene fades in.
+ * When absent, each widget's defaultWindow (or the system default [0,0.5]/[0.5,1]) applies.
+ */
+export type TransitionWindow = {
+  exit?: [number, number];
+  enter?: [number, number];
+};
 
 // ─── CompileWarning ───────────────────────────────────────────────────────────
 
@@ -188,14 +197,16 @@ export type SceneFrame = {
    */
   materialRoughnessMultiplier?: number;
   /**
-   * Easing curve for the transition INTO this scene (from the preceding scene).
-   * Declared via `transition={{ easing: '...' }}` on the `<Scene>` DSL element.
+   * Transition window configuration for the transition INTO this scene (from the preceding scene).
+   * Declared via `transition={{ exit: [...], enter: [...] }}` on the `<Scene>` DSL element.
    *
-   * Scope limitation: this easing only applies to widgets that use
-   * FunctionalTransitionSpec. Widgets using ElementTransitionSpec do not read it -
-   * those transitions are pre-baked at compile time.
+   * exit — sub-window owned by the OUTGOING scene (fromSnap) controlling when it fades out.
+   * enter — sub-window owned by this INCOMING scene (toSnap) controlling when it fades in.
+   *
+   * Only affects widgets using FunctionalTransitionSpec. Widgets using ElementTransitionSpec
+   * are pre-baked at compile time and do not read this field.
    */
-  transitionEasing?: EasingName;
+  transitionWindow?: TransitionWindow;
   /**
    * Non-DSL React children collected from <Scene> during compilation.
    * These are HTML elements and non-registered React components that the
@@ -293,12 +304,6 @@ export type SceneTrack = {
    * Length ≤ numScenes - 1.
    */
   transitionBlocks?: SceneTrackTransitionBlock[];
-  /**
-   * Per-block easing overrides. Key N = easing name for the transition from
-   * scene N to scene N+1, sourced from scene N+1's `transition.easing` prop.
-   * Only present when at least one incoming scene declares a transition easing.
-   */
-  transitionEasings?: Partial<Record<number, EasingName>>;
   /**
    * Warnings accumulated during compilation. Empty/undefined when no issues.
    */

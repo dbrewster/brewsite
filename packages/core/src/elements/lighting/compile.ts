@@ -383,7 +383,7 @@ export const lightingTransitionSpec: ElementTransitionSpec<SceneLighting> = {
 };
 
 export const functionalLightingTransitionSpec: FunctionalTransitionSpec<SceneLighting> = {
-  exitFn: (from) => (t) => applyLightingExit(from, t),
-  enterFn: (to) => (t) => applyLightingEnter(to, t),
-  interpolateFn: (from, to) => (t) => applyLightingInterpolate(from, to, t),
+  exitFn: (from) => (ctx) => applyLightingExit(from, ctx.t),
+  enterFn: (to) => (ctx) => applyLightingEnter(to, ctx.t),
+  interpolateFn: (from, to) => (ctx) => applyLightingInterpolate(from, to, ctx.t),
 };

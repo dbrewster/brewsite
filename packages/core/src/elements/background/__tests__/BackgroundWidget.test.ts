@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { BackgroundWidget } from '../BackgroundWidget';
 import type { SceneBackground } from '../types';
 import { makeFakeDomElement, makeRenderContext } from '../../__tests__/elementTestMocks';
+import { makeSimpleContext } from '../../../compiler/transitions/transitionResolver';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -35,28 +36,28 @@ describe('BackgroundWidget', () => {
   it('transitionSpec.exit at t=1 fades opacity to 0', () => {
     const state: SceneBackground = { opacity: 1 };
     const fn = widget.transitionSpec.exitFn(state);
-    const result = fn(1);
+    const result = fn(makeSimpleContext(1));
     expect(result.opacity).toBeCloseTo(0);
   });
 
   it('transitionSpec.exit at t=0 preserves opacity', () => {
     const state: SceneBackground = { opacity: 0.8 };
     const fn = widget.transitionSpec.exitFn(state);
-    const result = fn(0);
+    const result = fn(makeSimpleContext(0));
     expect(result.opacity).toBeCloseTo(0.8);
   });
 
   it('transitionSpec.enter at t=0 has near-zero opacity', () => {
     const state: SceneBackground = { opacity: 1 };
     const fn = widget.transitionSpec.enterFn(state);
-    const result = fn(0);
+    const result = fn(makeSimpleContext(0));
     expect(result.opacity).toBeCloseTo(0);
   });
 
   it('transitionSpec.enter at t=1 returns full opacity', () => {
     const state: SceneBackground = { opacity: 0.6 };
     const fn = widget.transitionSpec.enterFn(state);
-    const result = fn(1);
+    const result = fn(makeSimpleContext(1));
     expect(result.opacity).toBeCloseTo(0.6);
   });
 
@@ -65,11 +66,11 @@ describe('BackgroundWidget', () => {
     const to: SceneBackground = { opacity: 1, imageUrl: '/b.jpg' };
     const fn = widget.transitionSpec.interpolateFn(from, to);
     // At t=0.25 (first half of cross-fade): fading out from image
-    const at25 = fn(0.25);
+    const at25 = fn(makeSimpleContext(0.25));
     expect(at25.opacity).toBeLessThan(1);
     expect(at25.imageUrl).toBe('/a.jpg');
     // At t=0.75 (second half): fading in to image
-    const at75 = fn(0.75);
+    const at75 = fn(makeSimpleContext(0.75));
     expect(at75.imageUrl).toBe('/b.jpg');
   });
 
@@ -77,7 +78,7 @@ describe('BackgroundWidget', () => {
     const from: SceneBackground = { opacity: 0, imageUrl: '/same.jpg' };
     const to: SceneBackground = { opacity: 1, imageUrl: '/same.jpg' };
     const fn = widget.transitionSpec.interpolateFn(from, to);
-    const result = fn(0.5);
+    const result = fn(makeSimpleContext(0.5));
     expect(result.opacity).toBeGreaterThan(0);
     expect(result.opacity).toBeLessThan(1);
     expect(result.imageUrl).toBe('/same.jpg');

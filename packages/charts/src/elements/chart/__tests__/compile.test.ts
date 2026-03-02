@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { makeSimpleContext } from '@brewsite/core';
 import { compileChart, functionalChartTransitionSpec } from '../compile';
 import { DEFAULT_CHART_STATE } from '../types';
 
@@ -112,28 +113,28 @@ describe('compileChart', () => {
 describe('functionalChartTransitionSpec', () => {
   it('exitFn fades opacity to 0 at t=1', () => {
     const fn = functionalChartTransitionSpec.exitFn({ ...DEFAULT_CHART_STATE, opacity: 1 });
-    expect(fn(1).opacity).toBeCloseTo(0);
-    expect(fn(0).opacity).toBeCloseTo(1);
+    expect(fn(makeSimpleContext(1)).opacity).toBeCloseTo(0);
+    expect(fn(makeSimpleContext(0)).opacity).toBeCloseTo(1);
   });
 
   it('exitFn preserves non-opacity fields', () => {
     const from = { ...DEFAULT_CHART_STATE, type: 'bar' as const, theme: 'darkGlass' as const };
     const fn = functionalChartTransitionSpec.exitFn(from);
-    expect(fn(0.5).type).toBe('bar');
-    expect(fn(0.5).theme).toBe('darkGlass');
+    expect(fn(makeSimpleContext(0.5)).type).toBe('bar');
+    expect(fn(makeSimpleContext(0.5)).theme).toBe('darkGlass');
   });
 
   it('enterFn fades opacity from 0 at t=0', () => {
     const fn = functionalChartTransitionSpec.enterFn({ ...DEFAULT_CHART_STATE, opacity: 1 });
-    expect(fn(0).opacity).toBeCloseTo(0);
-    expect(fn(1).opacity).toBeCloseTo(1);
+    expect(fn(makeSimpleContext(0)).opacity).toBeCloseTo(0);
+    expect(fn(makeSimpleContext(1)).opacity).toBeCloseTo(1);
   });
 
   it('interpolateFn blends opacity', () => {
     const from = { ...DEFAULT_CHART_STATE, opacity: 0.2 };
     const to = { ...DEFAULT_CHART_STATE, opacity: 0.8 };
     const fn = functionalChartTransitionSpec.interpolateFn(from, to);
-    const mid = fn(0.5);
+    const mid = fn(makeSimpleContext(0.5));
     expect(mid.opacity).toBeGreaterThan(0.2);
     expect(mid.opacity).toBeLessThan(0.8);
   });
@@ -142,15 +143,15 @@ describe('functionalChartTransitionSpec', () => {
     const from = { ...DEFAULT_CHART_STATE, type: 'bar' as const };
     const to = { ...DEFAULT_CHART_STATE, type: 'line' as const };
     const fn = functionalChartTransitionSpec.interpolateFn(from, to);
-    expect(fn(0.4).type).toBe('bar');
-    expect(fn(0.6).type).toBe('line');
+    expect(fn(makeSimpleContext(0.4)).type).toBe('bar');
+    expect(fn(makeSimpleContext(0.6)).type).toBe('line');
   });
 
   it('interpolateFn blends position', () => {
     const from = { ...DEFAULT_CHART_STATE, position: [0, 0, 0] as const };
     const to = { ...DEFAULT_CHART_STATE, position: [4, 0, 0] as const };
     const fn = functionalChartTransitionSpec.interpolateFn(from, to);
-    const mid = fn(0.5);
+    const mid = fn(makeSimpleContext(0.5));
     expect(mid.position[0]).toBeCloseTo(2);
   });
 });

@@ -52,17 +52,18 @@ export const environmentTransitionSpec: ElementTransitionSpec<SceneEnvironment> 
 };
 
 export const functionalEnvironmentTransitionSpec: FunctionalTransitionSpec<SceneEnvironment> = {
-  exitFn: (from) => (t) => ({
+  exitFn: (from) => (ctx) => ({
     ...from,
-    enabled: t < 1 && from.enabled,
-    intensity: blendNumber(from.intensity, 0, t) ?? 0,
+    enabled: ctx.t < 1 && from.enabled,
+    intensity: blendNumber(from.intensity, 0, ctx.t) ?? 0,
   }),
-  enterFn: (to) => (t) => ({
+  enterFn: (to) => (ctx) => ({
     ...to,
-    enabled: t > 0 && to.enabled,
-    intensity: blendNumber(0, to.intensity, t) ?? 0,
+    enabled: ctx.t > 0 && to.enabled,
+    intensity: blendNumber(0, to.intensity, ctx.t) ?? 0,
   }),
-  interpolateFn: (from, to) => (t) => {
+  interpolateFn: (from, to) => (ctx) => {
+    const t = ctx.t;
     const enabled = (from.enabled && to.enabled)
       ? true
       : (t > 0 && to.enabled) || (t < 1 && from.enabled);

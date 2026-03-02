@@ -4,6 +4,7 @@ import { DEFAULT_BACKGROUND, backgroundTransitionSpec, functionalBackgroundTrans
 import { applyBackground } from '../render';
 import type { SceneBackground } from '../types';
 import { makeFakeDomElement } from '../../__tests__/elementTestMocks';
+import { makeSimpleContext } from '../../../compiler/transitions/transitionResolver';
 
 describe('background compile + render', () => {
   it('defaults to opaque with no image', () => {
@@ -14,21 +15,21 @@ describe('background compile + render', () => {
   it('functional transitionSpec.exit fades opacity to 0', () => {
     const state: SceneBackground = { opacity: 1, imageUrl: '/a.jpg' };
     const fn = functionalBackgroundTransitionSpec.exitFn(state);
-    const result = fn(1);
+    const result = fn(makeSimpleContext(1));
     expect(result.opacity).toBeCloseTo(0);
   });
 
   it('functional transitionSpec.exit at t=0 preserves opacity', () => {
     const state: SceneBackground = { opacity: 0.4, imageUrl: '/a.jpg' };
     const fn = functionalBackgroundTransitionSpec.exitFn(state);
-    const result = fn(0);
+    const result = fn(makeSimpleContext(0));
     expect(result.opacity).toBeCloseTo(0.4);
   });
 
   it('functional transitionSpec.enter fades opacity in', () => {
     const state: SceneBackground = { opacity: 0.8 };
     const fn = functionalBackgroundTransitionSpec.enterFn(state);
-    const result = fn(0.5);
+    const result = fn(makeSimpleContext(0.5));
     expect(result.opacity).toBeGreaterThan(0);
     expect(result.opacity).toBeLessThan(0.8);
   });
@@ -36,7 +37,7 @@ describe('background compile + render', () => {
   it('functional transitionSpec.enter at t=1 returns full opacity', () => {
     const state: SceneBackground = { opacity: 0.8 };
     const fn = functionalBackgroundTransitionSpec.enterFn(state);
-    const result = fn(1);
+    const result = fn(makeSimpleContext(1));
     expect(result.opacity).toBeCloseTo(0.8);
   });
 
@@ -44,7 +45,7 @@ describe('background compile + render', () => {
     const from: SceneBackground = { opacity: 0.2, imageUrl: '/from.jpg' };
     const to: SceneBackground = { opacity: 0.9, imageUrl: '/to.jpg' };
     const fn = functionalBackgroundTransitionSpec.interpolateFn(from, to);
-    const result = fn(0);
+    const result = fn(makeSimpleContext(0));
     expect(result.imageUrl).toBe('/from.jpg');
     expect(result.opacity).toBeCloseTo(from.opacity ?? 0);
   });
@@ -53,7 +54,7 @@ describe('background compile + render', () => {
     const from: SceneBackground = { opacity: 0.2, imageUrl: '/from.jpg' };
     const to: SceneBackground = { opacity: 0.9, imageUrl: '/to.jpg' };
     const fn = functionalBackgroundTransitionSpec.interpolateFn(from, to);
-    const result = fn(1);
+    const result = fn(makeSimpleContext(1));
     expect(result.imageUrl).toBe('/to.jpg');
     expect(result.opacity).toBeCloseTo(to.opacity ?? 0);
   });
@@ -62,7 +63,7 @@ describe('background compile + render', () => {
     const from: SceneBackground = { opacity: 0, imageUrl: '/same.jpg' };
     const to: SceneBackground = { opacity: 1, imageUrl: '/same.jpg' };
     const fn = functionalBackgroundTransitionSpec.interpolateFn(from, to);
-    const result = fn(0.5);
+    const result = fn(makeSimpleContext(0.5));
     expect(result.opacity).toBeGreaterThan(0);
     expect(result.opacity).toBeLessThan(1);
   });
@@ -71,8 +72,8 @@ describe('background compile + render', () => {
     const from: SceneBackground = { opacity: 1, imageUrl: '/from.jpg' };
     const to: SceneBackground = { opacity: 1, imageUrl: '/to.jpg' };
     const fn = functionalBackgroundTransitionSpec.interpolateFn(from, to);
-    const at25 = fn(0.25);
-    const at75 = fn(0.75);
+    const at25 = fn(makeSimpleContext(0.25));
+    const at75 = fn(makeSimpleContext(0.75));
     expect(at25.imageUrl).toBe('/from.jpg');
     expect(at75.imageUrl).toBe('/to.jpg');
     expect(at25.opacity).toBeLessThan(1);

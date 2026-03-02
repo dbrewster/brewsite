@@ -1,8 +1,3 @@
-// Minimal process.env ambient declaration.
-// Provides process.env.NODE_ENV for build-time dead-code elimination by Vite and other bundlers.
-// Full @types/node is intentionally excluded — this library targets browsers only.
-declare const process: {
-  readonly env: {
-    readonly NODE_ENV: string;
-  };
-};
+// Placeholder — process.env.NODE_ENV and import.meta.env guards have been removed.
+// This library targets browsers only; use no Node.js or bundler-specific globals.
+export {};

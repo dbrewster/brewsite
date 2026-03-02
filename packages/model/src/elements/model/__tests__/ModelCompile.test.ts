@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { makeSimpleContext } from '@brewsite/core';
 import {
   resolveClipRangeSeconds,
   compileAnimation,
@@ -267,45 +268,45 @@ describe('functionalInstanceTransitionSpec', () => {
 
   it('exit at t=0 returns fromState (no change)', () => {
     const fn = functionalInstanceTransitionSpec.exitFn(baseState);
-    const result = fn(0);
+    const result = fn(makeSimpleContext(0));
     expect(result.model.opacity).toBe(baseState.model.opacity ?? 1);
     expect(result.enabled).toBe(baseState.enabled);
   });
 
   it('exit at t=1 returns fully disabled state', () => {
     const fn = functionalInstanceTransitionSpec.exitFn(baseState);
-    const result = fn(1);
+    const result = fn(makeSimpleContext(1));
     expect(result.model.opacity).toBeCloseTo(0);
     expect(result.enabled).toBe(false);
   });
 
   it('enter at t=0 returns invisible/disabled state', () => {
     const fn = functionalInstanceTransitionSpec.enterFn(baseState);
-    const result = fn(0);
+    const result = fn(makeSimpleContext(0));
     expect(result.model.opacity).toBeCloseTo(0);
   });
 
   it('enter at t=1 returns toState fully visible', () => {
     const fn = functionalInstanceTransitionSpec.enterFn(baseState);
-    const result = fn(1);
+    const result = fn(makeSimpleContext(1));
     expect(result.model.opacity).toBeCloseTo(baseState.model.opacity ?? 1);
   });
 
   it('interpolate at t=0 returns fromState values', () => {
     const fn = functionalInstanceTransitionSpec.interpolateFn(fromState, toState);
-    const result = fn(0);
+    const result = fn(makeSimpleContext(0));
     expect(result.model.position).toEqual(fromState.model.position);
   });
 
   it('interpolate at t=1 returns toState values', () => {
     const fn = functionalInstanceTransitionSpec.interpolateFn(fromState, toState);
-    const result = fn(1);
+    const result = fn(makeSimpleContext(1));
     expect(result.model.position).toEqual(toState.model.position);
   });
 
   it('interpolate at t=0.5 blends position midpoint', () => {
     const fn = functionalInstanceTransitionSpec.interpolateFn(fromState, toState);
-    const result = fn(0.5);
+    const result = fn(makeSimpleContext(0.5));
     const expectedX = (fromState.model.position[0] + toState.model.position[0]) / 2;
     expect(result.model.position[0]).toBeCloseTo(expectedX);
   });

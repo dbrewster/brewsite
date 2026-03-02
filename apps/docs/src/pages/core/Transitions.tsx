@@ -9,16 +9,16 @@ import TransitionEasingDemo, { CODE as EASING_CODE } from '../../demos/core/Tran
 export default function Transitions(): JSX.Element {
   return (
     <section>
-      <h1>Transitions &amp; Easing</h1>
+      <h1>Transitions</h1>
 
       <p>
-        Every scene-to-scene transition is driven by an easing curve. The easing is pre-baked into
-        the <code>SceneTrack</code> at compile time — there is no runtime interpolation cost. You
-        choose an easing curve once per scene entry, and the compiler samples it at every tick in
-        that scene's transition block.
+        Every scene-to-scene transition is driven by a configurable timing window. You control when
+        the outgoing scene fades out (<code>exit</code> window) and when the incoming scene fades in
+        (<code>enter</code> window). Both windows are specified as block-progress sub-ranges within{' '}
+        <code>[0, 1]</code>.
       </p>
 
-      <LiveDemo title="Easing variants" code={EASING_CODE}>
+      <LiveDemo title="Window variants" code={EASING_CODE}>
         <TransitionEasingDemo />
       </LiveDemo>
 
@@ -27,9 +27,9 @@ export default function Transitions(): JSX.Element {
       </h2>
 
       <p>
-        Pass a <code>transition</code> object to <code>&lt;Scene&gt;</code> to override the easing
-        for that scene's entry. Without it, the compiler uses the default easing curve
-        (<code>easeOutCubic</code>), which gives a natural deceleration into the target state.
+        Pass a <code>transition</code> object to <code>&lt;Scene&gt;</code> to control the timing
+        windows for that scene's entry. Without it, the system default crossfade
+        (<code>exit: [0, 0.5]</code> / <code>enter: [0.5, 1]</code>) applies.
       </p>
 
       <CodeBlock
@@ -38,101 +38,93 @@ export default function Transitions(): JSX.Element {
   <Camera mode="world" position={[0, 2, 8]} target={[0, 0, 0]} />
 </Scene>
 
-{/* This scene's entry will use easeOutExpo — fast start, sharp snap to rest */}
-<Scene key="s2" transition={{ easing: 'easeOutExpo' }}>
+{/* This scene fades in late — exit completes before enter starts */}
+<Scene key="s2" transition={{ exit: [0, 0.4], enter: [0.6, 1] }}>
   <Camera mode="world" position={[5, 3, 5]} target={[0, 0, 0]} />
 </Scene>`}
       />
 
-      <h2>Available Easing Names</h2>
+      <h2>Preset Windows</h2>
+
+      <p>
+        Import named presets from <code>@brewsite/core</code> for common timing patterns:
+      </p>
 
       <PropTable
         rows={[
           {
-            name: 'linear',
-            type: 'EasingName',
-            description: 'Constant speed from start to end. Mechanical feel — best for data-driven transitions where smoothing would obscure the change.',
+            name: 'TRANSITION_CROSSFADE',
+            type: 'TransitionWindow',
+            defaultValue: 'system default',
+            description: 'exit: [0, 0.5] / enter: [0.5, 1] — standard crossfade split.',
           },
           {
-            name: 'easeOutCubic',
-            type: 'EasingName',
-            defaultValue: 'default',
-            description: 'Decelerates to rest with a cubic curve. Natural and polished — the recommended default for most transitions.',
+            name: 'TRANSITION_SEQUENTIAL',
+            type: 'TransitionWindow',
+            description: 'exit: [0, 0.4] / enter: [0.6, 1] — brief pause between exit and enter.',
           },
           {
-            name: 'easeOutExpo',
-            type: 'EasingName',
-            description: 'Very fast start, then sharp snap to the final state. Creates a high-energy, snappy feel. Good for dramatic camera moves.',
+            name: 'TRANSITION_EXIT_FIRST',
+            type: 'TransitionWindow',
+            description: 'exit: [0, 0.6] / enter: [0.4, 1] — outgoing scene finishes slightly before entering.',
           },
           {
-            name: 'easeInOutSine',
-            type: 'EasingName',
-            description: 'Gentle symmetric ease — accelerates gradually, peaks at midpoint, then decelerates. Smooth and unobtrusive.',
-          },
-          {
-            name: 'easeInOutCubic',
-            type: 'EasingName',
-            description: 'Symmetric cubic ease — stronger acceleration and deceleration than easeInOutSine. More dramatic at higher speeds.',
+            name: 'TRANSITION_CUT',
+            type: 'TransitionWindow',
+            description: 'Instant switch with no blending.',
           },
         ]}
       />
 
+      <CodeBlock
+        language="tsx"
+        code={`import { TRANSITION_SEQUENTIAL } from '@brewsite/core';
+
+<Scene key="scene-b" transition={TRANSITION_SEQUENTIAL}>
+  <Camera mode="world" position={[5, 3, 5]} target={[0, 0, 0]} />
+</Scene>`}
+      />
+
       <Callout type="tip">
-        When in doubt, use <code>easeOutCubic</code> (the default). It works well for almost all
-        camera moves and color transitions. Use <code>easeOutExpo</code> for high-energy or reveal
-        moments where you want a sharp arrival.
+        When in doubt, omit the <code>transition</code> prop. The default crossfade split works well
+        for most camera moves and color transitions.
       </Callout>
 
-      <h2>How Transitions Are Baked</h2>
+      <h2>Entry vs. Exit Windows</h2>
 
       <p>
-        Transitions are computed once at compile time, not on every frame. The compiler determines
-        the transition block between each pair of adjacent scenes, applies the easing function to
-        sample a normalized progress value <code>t ∈ [0, 1]</code> at each tick, then stores the
-        resulting interpolated widget states in the flat <code>SceneTrack</code> array.
+        The <code>transition</code> prop is declared on the <strong>incoming scene</strong>. However,
+        the <code>exit</code> field controls the <em>outgoing</em> scene's fade-out timing, while
+        the <code>enter</code> field controls this scene's fade-in timing.
       </p>
 
-      <p>
-        At playback time, the runtime does no easing math whatsoever. It reads pre-computed state
-        directly from the track.
-      </p>
+      <CodeBlock
+        language="tsx"
+        code={`<Scene key="scene-a">
+  {/* No transition — starting state */}
+  <Camera mode="world" position={[0, 2, 8]} target={[0, 0, 0]} />
+</Scene>
+
+<Scene key="scene-b" transition={{ exit: [0, 0.4], enter: [0.5, 1] }}>
+  {/*
+    The exit window [0, 0.4] controls how scene-a fades out.
+    The enter window [0.5, 1] controls how scene-b fades in.
+    "transition" is always declared on the destination scene.
+  */}
+  <Camera mode="world" position={[5, 3, 5]} target={[0, 0, 0]} />
+</Scene>
+
+<Scene key="scene-c" transition={{ exit: [0, 0.5], enter: [0.5, 1] }}>
+  {/* Controls the B → C transition */}
+  <Camera mode="world" position={[-3, 4, 6]} target={[0, 0, 0]} />
+</Scene>`}
+      />
 
       <Callout type="note">
         Changing a scene's <code>transition</code> prop triggers SceneTrack recompilation. In
         development this happens instantly. In production the track is cached by a hash of the
         compiled DSL nodes — the cache is invalidated only when scene structure changes.
       </Callout>
-
-      <h2>Entry vs. Exit Transitions</h2>
-
-      <p>
-        The <code>transition</code> prop applies to the <strong>incoming scene's entry</strong>,
-        not the outgoing scene's exit. This means the transition is always defined on the
-        destination scene, not the source scene.
-      </p>
-
-      <CodeBlock
-        language="tsx"
-        code={`<Scene key="scene-a">
-  {/* No transition prop — this is the starting state */}
-  <Camera mode="world" position={[0, 2, 8]} target={[0, 0, 0]} />
-</Scene>
-
-<Scene key="scene-b" transition={{ easing: 'easeOutExpo' }}>
-  {/*
-    The easeOutExpo curve controls the A → B transition.
-    "transition" on scene-b = how we arrive at scene-b from scene-a.
-  */}
-  <Camera mode="world" position={[5, 3, 5]} target={[0, 0, 0]} />
-</Scene>
-
-<Scene key="scene-c" transition={{ easing: 'easeInOutSine' }}>
-  {/*
-    The easeInOutSine curve controls the B → C transition.
-  */}
-  <Camera mode="world" position={[-3, 4, 6]} target={[0, 0, 0]} />
-</Scene>`}
-      />
 
       <h2>Custom Transition Specs</h2>
 
@@ -149,8 +141,9 @@ export default function Transitions(): JSX.Element {
         </li>
         <li>
           <strong>FunctionalTransitionSpec</strong> — closure-based model. The compiler calls your
-          factory once with endpoint states. It returns a pure function of{' '}
-          <code>t ∈ [0, 1]</code> that the runtime evaluates each frame.
+          factory once with endpoint states. It returns a closure accepting a{' '}
+          <code>TransitionContext</code> (with <code>ctx.t</code> for the default normalized progress
+          and <code>ctx.channel(name)</code> for per-property control).
         </li>
       </ul>
 
@@ -160,10 +153,10 @@ export default function Transitions(): JSX.Element {
 
 // Example: custom widget that fades its opacity value
 const myTransitionSpec: FunctionalTransitionSpec<{ opacity: number }> = {
-  exitFn: (fromState) => (t) => ({ opacity: fromState.opacity * (1 - t) }),
-  enterFn: (toState) => (t) => ({ opacity: toState.opacity * t }),
-  interpolateFn: (fromState, toState) => (t) => ({
-    opacity: fromState.opacity + (toState.opacity - fromState.opacity) * t,
+  exitFn: (fromState) => (ctx) => ({ opacity: fromState.opacity * (1 - ctx.t) }),
+  enterFn: (toState) => (ctx) => ({ opacity: toState.opacity * ctx.t }),
+  interpolateFn: (fromState, toState) => (ctx) => ({
+    opacity: fromState.opacity + (toState.opacity - fromState.opacity) * ctx.t,
   }),
 };`}
       />

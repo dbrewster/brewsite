@@ -68,21 +68,21 @@ export const backgroundTransitionSpec: ElementTransitionSpec<SceneBackground> = 
 };
 
 export const functionalBackgroundTransitionSpec: FunctionalTransitionSpec<SceneBackground> = {
-  exitFn: (from) => (t) => ({
+  exitFn: (from) => (ctx) => ({
     ...from,
-    opacity: blendOpacity(from.opacity, 0, t) ?? 0,
+    opacity: blendOpacity(from.opacity, 0, ctx.t) ?? 0,
   }),
-  enterFn: (to) => (t) => ({
+  enterFn: (to) => (ctx) => ({
     ...to,
-    opacity: blendOpacity(0, to.opacity, t) ?? to.opacity ?? 0,
+    opacity: blendOpacity(0, to.opacity, ctx.t) ?? to.opacity ?? 0,
   }),
-  interpolateFn: (from, to) => (t) => ({
-    imageUrl: selectImageUrl(from.imageUrl, to.imageUrl, t),
-    opacity: crossFadeOpacity(from, to, t),
-    color: t < 0.5 ? from.color : to.color,
-    position: blendVec3(from.position, to.position, t),
-    cssPosition: t < 0.5 ? from.cssPosition : to.cssPosition,
-    cssSize: t < 0.5 ? from.cssSize : to.cssSize,
-    cssRepeat: t < 0.5 ? from.cssRepeat : to.cssRepeat,
+  interpolateFn: (from, to) => (ctx) => ({
+    imageUrl: selectImageUrl(from.imageUrl, to.imageUrl, ctx.t),
+    opacity: crossFadeOpacity(from, to, ctx.t),
+    color: ctx.t < 0.5 ? from.color : to.color,
+    position: blendVec3(from.position, to.position, ctx.t),
+    cssPosition: ctx.t < 0.5 ? from.cssPosition : to.cssPosition,
+    cssSize: ctx.t < 0.5 ? from.cssSize : to.cssSize,
+    cssRepeat: ctx.t < 0.5 ? from.cssRepeat : to.cssRepeat,
   }),
 };

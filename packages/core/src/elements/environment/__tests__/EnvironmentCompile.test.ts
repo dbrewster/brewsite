@@ -4,6 +4,7 @@ import { DEFAULT_ENVIRONMENT, environmentTransitionSpec, functionalEnvironmentTr
 import { applyEnvironment } from '../render';
 import type { SceneEnvironment } from '../types';
 import { makeInitContext } from '../../__tests__/elementTestMocks';
+import { makeSimpleContext } from '../../../compiler/transitions/transitionResolver';
 
 describe('environment compile + render', () => {
   it('defaults are disabled with intensity 1', () => {
@@ -18,7 +19,7 @@ describe('environment compile + render', () => {
       source: { type: 'hdr', url: '/env.hdr' },
     };
     const fn = functionalEnvironmentTransitionSpec.exitFn(state);
-    const result = fn(1);
+    const result = fn(makeSimpleContext(1));
     expect(result.enabled).toBe(false);
     expect(result.intensity).toBeCloseTo(0);
   });
@@ -26,7 +27,7 @@ describe('environment compile + render', () => {
   it('functional transitionSpec.exit at t=0 preserves intensity', () => {
     const state: SceneEnvironment = { enabled: true, intensity: 0.6 };
     const fn = functionalEnvironmentTransitionSpec.exitFn(state);
-    const result = fn(0);
+    const result = fn(makeSimpleContext(0));
     expect(result.enabled).toBe(true);
     expect(result.intensity).toBeCloseTo(0.6);
   });
@@ -34,7 +35,7 @@ describe('environment compile + render', () => {
   it('functional transitionSpec.enter enables and fades intensity in', () => {
     const state: SceneEnvironment = { enabled: true, intensity: 0.8 };
     const fn = functionalEnvironmentTransitionSpec.enterFn(state);
-    const result = fn(0.5);
+    const result = fn(makeSimpleContext(0.5));
     expect(result.enabled).toBe(true);
     expect(result.intensity).toBeGreaterThan(0);
   });
@@ -42,7 +43,7 @@ describe('environment compile + render', () => {
   it('functional transitionSpec.enter at t=1 returns full intensity', () => {
     const state: SceneEnvironment = { enabled: true, intensity: 0.8 };
     const fn = functionalEnvironmentTransitionSpec.enterFn(state);
-    const result = fn(1);
+    const result = fn(makeSimpleContext(1));
     expect(result.intensity).toBeCloseTo(0.8);
   });
 
@@ -50,7 +51,7 @@ describe('environment compile + render', () => {
     const from: SceneEnvironment = { enabled: true, intensity: 0.2, source: { type: 'hdr', url: '/from.hdr' } };
     const to: SceneEnvironment = { enabled: true, intensity: 0.8, source: { type: 'hdr', url: '/to.hdr' } };
     const fn = functionalEnvironmentTransitionSpec.interpolateFn(from, to);
-    const result = fn(0);
+    const result = fn(makeSimpleContext(0));
     expect(result.source && 'url' in result.source ? result.source.url : '').toBe('/from.hdr');
     expect(result.intensity).toBeCloseTo(0.2);
   });
@@ -59,7 +60,7 @@ describe('environment compile + render', () => {
     const from: SceneEnvironment = { enabled: true, intensity: 0.2, source: { type: 'hdr', url: '/from.hdr' } };
     const to: SceneEnvironment = { enabled: true, intensity: 0.8, source: { type: 'hdr', url: '/to.hdr' } };
     const fn = functionalEnvironmentTransitionSpec.interpolateFn(from, to);
-    const result = fn(1);
+    const result = fn(makeSimpleContext(1));
     expect(result.source && 'url' in result.source ? result.source.url : '').toBe('/to.hdr');
     expect(result.intensity).toBeCloseTo(0.8);
   });
@@ -68,7 +69,7 @@ describe('environment compile + render', () => {
     const from: SceneEnvironment = { enabled: true, intensity: 0.2 };
     const to: SceneEnvironment = { enabled: true, intensity: 0.8 };
     const fn = functionalEnvironmentTransitionSpec.interpolateFn(from, to);
-    const result = fn(0.5);
+    const result = fn(makeSimpleContext(0.5));
     expect(result.intensity).toBeGreaterThan(0.2);
     expect(result.intensity).toBeLessThan(0.8);
   });
@@ -85,8 +86,8 @@ describe('environment compile + render', () => {
       source: { type: 'hdr', url: '/to.hdr' },
     };
     const fn = functionalEnvironmentTransitionSpec.interpolateFn(from, to);
-    const at25 = fn(0.25);
-    const at75 = fn(0.75);
+    const at25 = fn(makeSimpleContext(0.25));
+    const at75 = fn(makeSimpleContext(0.75));
     expect(at25.source?.type).toBe('hdr');
     expect(at75.source?.type).toBe('hdr');
     expect(at25.source && 'url' in at25.source ? at25.source.url : '').toBe('/from.hdr');

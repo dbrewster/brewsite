@@ -19,9 +19,6 @@
     "strict": true,
     "noFallthroughCasesInSwitch": true
   },
-  "references": [
-    { "path": "../../packages/core/tsconfig.build.json" }
-  ],
   "include": ["src"],
   "exclude": ["node_modules", "dist", "**/__tests__/**", "**/*.test.*"]
 }

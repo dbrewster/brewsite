@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { makeSimpleContext } from '@brewsite/core';
 import { functionalDiagramTransitionSpec, applyDiagramEnter, applyDiagramExit } from '../compile';
 import type { DiagramNodeState, DiagramEdgeState, DiagramState } from '../types';
 
@@ -57,13 +58,13 @@ describe('functionalDiagramTransitionSpec', () => {
   describe('exitFn', () => {
     it('at t=0 returns fromState opacity unchanged', () => {
       const from = makeState([makeNode('a', 0, 0.8)], [], 0);
-      const result = functionalDiagramTransitionSpec.exitFn(from)(0);
+      const result = functionalDiagramTransitionSpec.exitFn(from)(makeSimpleContext(0));
       expect(result.nodes[0]!.opacity).toBeCloseTo(0.8);
     });
 
     it('at t=1 returns opacity 0 on all nodes', () => {
       const from = makeState([makeNode('a', 0, 0.8)], [], 0);
-      const result = functionalDiagramTransitionSpec.exitFn(from)(1);
+      const result = functionalDiagramTransitionSpec.exitFn(from)(makeSimpleContext(1));
       expect(result.nodes[0]!.opacity).toBeCloseTo(0);
     });
   });
@@ -71,13 +72,13 @@ describe('functionalDiagramTransitionSpec', () => {
   describe('enterFn', () => {
     it('at t=0 returns opacity 0 on all nodes', () => {
       const to = makeState([makeNode('a', 0, 0.8)], [], 0);
-      const result = functionalDiagramTransitionSpec.enterFn(to)(0);
+      const result = functionalDiagramTransitionSpec.enterFn(to)(makeSimpleContext(0));
       expect(result.nodes[0]!.opacity).toBeCloseTo(0);
     });
 
     it('at t=1 returns toState opacity unchanged', () => {
       const to = makeState([makeNode('a', 0, 0.8)], [], 0);
-      const result = functionalDiagramTransitionSpec.enterFn(to)(1);
+      const result = functionalDiagramTransitionSpec.enterFn(to)(makeSimpleContext(1));
       expect(result.nodes[0]!.opacity).toBeCloseTo(0.8);
     });
   });
@@ -86,29 +87,29 @@ describe('functionalDiagramTransitionSpec', () => {
     it('at t=0 node position matches fromState z=0', () => {
       const from = makeState([makeNode('a', 0)], [], 0);
       const to = makeState([makeNode('a', -50)], [], -50);
-      const result = functionalDiagramTransitionSpec.interpolateFn(from, to)(0);
+      const result = functionalDiagramTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0));
       expect(result.nodes.find((node) => node.id === 'a')!.position[2]).toBe(0);
     });
 
     it('at t=1 node position matches toState z=-50', () => {
       const from = makeState([makeNode('a', 0)], [], 0);
       const to = makeState([makeNode('a', -50)], [], -50);
-      const result = functionalDiagramTransitionSpec.interpolateFn(from, to)(1);
+      const result = functionalDiagramTransitionSpec.interpolateFn(from, to)(makeSimpleContext(1));
       expect(result.nodes.find((node) => node.id === 'a')!.position[2]).toBe(-50);
     });
 
     it('at t=0.5 node position is midpoint between from and to', () => {
       const from = makeState([makeNode('a', 0)], [], 0);
       const to = makeState([makeNode('a', -50)], [], -50);
-      const result = functionalDiagramTransitionSpec.interpolateFn(from, to)(0.5);
+      const result = functionalDiagramTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));
       expect(result.nodes.find((node) => node.id === 'a')!.position[2]).toBeCloseTo(-25);
     });
 
     it('node absent from fromState fades in (opacity 0 at t=0, full at t=1)', () => {
       const from = makeState([makeNode('a', 0)], [], 0);
       const to = makeState([makeNode('a', 0), makeNode('b', 0, 0.6)], [], 0);
-      const resultStart = functionalDiagramTransitionSpec.interpolateFn(from, to)(0);
-      const resultEnd = functionalDiagramTransitionSpec.interpolateFn(from, to)(1);
+      const resultStart = functionalDiagramTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0));
+      const resultEnd = functionalDiagramTransitionSpec.interpolateFn(from, to)(makeSimpleContext(1));
       expect(resultStart.nodes.find((node) => node.id === 'b')!.opacity).toBeCloseTo(0);
       expect(resultEnd.nodes.find((node) => node.id === 'b')!.opacity).toBeCloseTo(0.6);
     });
@@ -116,8 +117,8 @@ describe('functionalDiagramTransitionSpec', () => {
     it('node absent from toState fades out (full at t=0, opacity 0 at t=1)', () => {
       const from = makeState([makeNode('a', 0), makeNode('c', 0, 0.7)], [], 0);
       const to = makeState([makeNode('a', 0)], [], 0);
-      const resultStart = functionalDiagramTransitionSpec.interpolateFn(from, to)(0);
-      const resultEnd = functionalDiagramTransitionSpec.interpolateFn(from, to)(1);
+      const resultStart = functionalDiagramTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0));
+      const resultEnd = functionalDiagramTransitionSpec.interpolateFn(from, to)(makeSimpleContext(1));
       expect(resultStart.nodes.find((node) => node.id === 'c')!.opacity).toBeCloseTo(0.7);
       expect(resultEnd.nodes.find((node) => node.id === 'c')!.opacity).toBeCloseTo(0);
     });
@@ -133,7 +134,7 @@ describe('functionalDiagramTransitionSpec', () => {
       const from = makeState([nodeA, fromB], [edgeWithIds], 0);
       const to   = makeState([nodeA, toB],   [edgeWithIds], 0);
 
-      const resultMid = functionalDiagramTransitionSpec.interpolateFn(from, to)(0.5);
+      const resultMid = functionalDiagramTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));
       const pts = resultMid.edges[0]!.controlPoints;
 
       // Live routing should produce at least 2 control points.
@@ -202,14 +203,14 @@ describe('interpolateFn — diagram transform', () => {
   it('interpolates diagram position at t=0.5', () => {
     const from = makeState([makeNode('a', 0)], [], 0);
     const to = { ...makeState([makeNode('a', 0)], [], 0), position: [10, 0, 0] };
-    const result = functionalDiagramTransitionSpec.interpolateFn(from, to)(0.5);
+    const result = functionalDiagramTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));
     expect(result.position[0]).toBeCloseTo(5);
   });
 
   it('interpolates diagram scale at t=0.5', () => {
     const from = makeState([makeNode('a', 0)], [], 0);
     const to = { ...makeState([makeNode('a', 0)], [], 0), scale: 3 };
-    const result = functionalDiagramTransitionSpec.interpolateFn(from, to)(0.5);
+    const result = functionalDiagramTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));
     expect(result.scale).toBeCloseTo(2);
   });
 });

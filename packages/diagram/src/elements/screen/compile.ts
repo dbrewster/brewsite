@@ -57,31 +57,35 @@ export function compileScreen(dsl: ScreenDSL): ScreenState {
  * Functional transition spec for ScreenState.
  * Position, scale, and opacity are continuously interpolated (opacity drives both
  * the WebGL bezel and the iframe CSS opacity simultaneously).
- * src and bezel step at t=0.5 — URLs and variants cannot be interpolated.
+ * src and bezel step at the midpoint — URLs and variants cannot be interpolated.
  *
  * Note: height and width are not interpolated (no smooth resize of the iframe).
- * They step at t=0.5. To animate a resize, change only position/scale.
+ * They step at the midpoint. To animate a resize, change only position/scale.
+ *
+ * Uses ctx.t for all channels (zero behavior change from old scalar-t path).
+ * Scene authors may add <Transition channels={['opacity']} ...> children to the
+ * <Screen> DSL element to activate per-channel window/ease control.
  */
 export const functionalScreenTransitionSpec: FunctionalTransitionSpec<ScreenState> = {
-  exitFn: (from) => (t) => ({
+  exitFn: (from) => (ctx) => ({
     ...from,
-    opacity: blendOpacity(from.opacity, 0, t) ?? 0,
+    opacity: blendOpacity(from.opacity, 0, ctx.t) ?? 0,
   }),
-  enterFn: (to) => (t) => ({
+  enterFn: (to) => (ctx) => ({
     ...to,
-    opacity: blendOpacity(0, to.opacity, t) ?? to.opacity,
+    opacity: blendOpacity(0, to.opacity, ctx.t) ?? to.opacity,
   }),
-  interpolateFn: (from, to) => (t) => ({
+  interpolateFn: (from, to) => (ctx) => ({
     ...to,
-    position: blendVec3(toMutableVec3(from.position), toMutableVec3(to.position), t) ?? to.position,
-    rotation: blendVec3(toMutableVec3(from.rotation), toMutableVec3(to.rotation), t) ?? to.rotation,
-    scale: blendNumber(from.scale, to.scale, t) ?? to.scale,
-    opacity: blendOpacity(from.opacity, to.opacity, t) ?? to.opacity,
-    glowOpacity: blendNumber(from.glowOpacity, to.glowOpacity, t) ?? to.glowOpacity,
+    position: blendVec3(toMutableVec3(from.position), toMutableVec3(to.position), ctx.t) ?? to.position,
+    rotation: blendVec3(toMutableVec3(from.rotation), toMutableVec3(to.rotation), ctx.t) ?? to.rotation,
+    scale: blendNumber(from.scale, to.scale, ctx.t) ?? to.scale,
+    opacity: blendOpacity(from.opacity, to.opacity, ctx.t) ?? to.opacity,
+    glowOpacity: blendNumber(from.glowOpacity, to.glowOpacity, ctx.t) ?? to.glowOpacity,
     // Discrete properties: step at midpoint
-    src: t < 0.5 ? from.src : to.src,
-    bezel: t < 0.5 ? from.bezel : to.bezel,
-    width: t < 0.5 ? from.width : to.width,
-    height: t < 0.5 ? from.height : to.height,
+    src: ctx.t < 0.5 ? from.src : to.src,
+    bezel: ctx.t < 0.5 ? from.bezel : to.bezel,
+    width: ctx.t < 0.5 ? from.width : to.width,
+    height: ctx.t < 0.5 ? from.height : to.height,
   }),
 };

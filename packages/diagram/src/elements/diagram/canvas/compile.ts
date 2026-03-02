@@ -204,26 +204,33 @@ export function compileCanvas(
 const toMut = (v: readonly [number, number, number]): [number, number, number] =>
   [v[0], v[1], v[2]];
 
+/**
+ * Functional transition spec for DiagramCanvasState.
+ * Uses ctx.t for all properties (zero behavior change from old scalar-t path).
+ * Scene authors may add <Transition channels={['opacity']} ...> children to the
+ * <DiagramCanvas> DSL element to activate per-channel window/ease control.
+ */
 export const functionalDiagramCanvasTransitionSpec: FunctionalTransitionSpec<DiagramCanvasState> = {
-  exitFn: (from) => (t) => ({
+  exitFn: (from) => (ctx) => ({
     ...from,
-    diagrams: from.diagrams.map((d) => applyDiagramExit(d, t)),
+    diagrams: from.diagrams.map((d) => applyDiagramExit(d, ctx.t)),
     pipes: from.pipes.map((p) => ({
       ...p,
-      opacity: blendOpacity(p.opacity, 0, t) ?? 0,
+      opacity: blendOpacity(p.opacity, 0, ctx.t) ?? 0,
     })),
   }),
 
-  enterFn: (to) => (t) => ({
+  enterFn: (to) => (ctx) => ({
     ...to,
-    diagrams: to.diagrams.map((d) => applyDiagramEnter(d, t)),
+    diagrams: to.diagrams.map((d) => applyDiagramEnter(d, ctx.t)),
     pipes: to.pipes.map((p) => ({
       ...p,
-      opacity: blendOpacity(0, p.opacity, t) ?? p.opacity,
+      opacity: blendOpacity(0, p.opacity, ctx.t) ?? p.opacity,
     })),
   }),
 
-  interpolateFn: (from, to) => (t) => {
+  interpolateFn: (from, to) => (ctx) => {
+    const t = ctx.t;
     const fromDiagramMap = new Map(from.diagrams.map((d) => [d.id, d]));
     const fromPipeMap = new Map(from.pipes.map((p) => [p.id, p]));
     const toPipeIds = new Set(to.pipes.map((p) => p.id));

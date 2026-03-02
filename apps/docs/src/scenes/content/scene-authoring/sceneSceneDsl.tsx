@@ -56,7 +56,7 @@ function SceneDslContent(): JSX.Element {
       <CodeBlock
         language="tsx"
         code={`// Preferred — use the React key prop
-<Scene key="hero-intro" transition={{ easing: 'easeInOutCubic' }}>
+<Scene key="hero-intro" transition={{ exit: [0, 0.4], enter: [0.6, 1] }}>
   <Camera mode="world" position={[0, 2, 8]} target={[0, 1, 0]} fov={45} />
   <Lighting>
     <Ambient intensity={0.6} color="#ffffff" />

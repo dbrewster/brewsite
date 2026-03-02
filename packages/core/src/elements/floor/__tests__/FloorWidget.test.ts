@@ -9,6 +9,7 @@ import { makeInitContext, makeRenderContext } from '../../__tests__/elementTestM
 import { FloorPhysical, FloorMirror } from '../dsl';
 import { CUSTOM_NODE_HANDLER } from '../../../widget/WidgetRegistry';
 import React from 'react';
+import { makeSimpleContext } from '../../../compiler/transitions/transitionResolver';
 
 describe('FloorWidget', () => {
   let widget: FloorWidget;
@@ -31,28 +32,28 @@ describe('FloorWidget', () => {
   it('transitionSpec.exit disables when t=1', () => {
     const state: SceneFloor = { enabled: true, surface: { type: 'physical', textureUrl: '/floor.jpg' } };
     const fn = widget.transitionSpec.exitFn(state);
-    const result = fn(1);
+    const result = fn(makeSimpleContext(1));
     expect(result.enabled).toBe(false);
   });
 
   it('transitionSpec.exit preserves enabled when t=0', () => {
     const state: SceneFloor = { enabled: true };
     const fn = widget.transitionSpec.exitFn(state);
-    const result = fn(0);
+    const result = fn(makeSimpleContext(0));
     expect(result.enabled).toBe(true);
   });
 
   it('transitionSpec.enter enables when t>0', () => {
     const state: SceneFloor = { enabled: true };
     const fn = widget.transitionSpec.enterFn(state);
-    const result = fn(0.5);
+    const result = fn(makeSimpleContext(0.5));
     expect(result.enabled).toBe(true);
   });
 
   it('transitionSpec.enter stays disabled when t=0', () => {
     const state: SceneFloor = { enabled: true };
     const fn = widget.transitionSpec.enterFn(state);
-    const result = fn(0);
+    const result = fn(makeSimpleContext(0));
     expect(result.enabled).toBe(false);
   });
 
@@ -60,8 +61,8 @@ describe('FloorWidget', () => {
     const from: SceneFloor = { enabled: true, surface: { type: 'physical', textureUrl: '/from.jpg' } };
     const to: SceneFloor = { enabled: true, surface: { type: 'physical', textureUrl: '/to.jpg' } };
     const fn = widget.transitionSpec.interpolateFn(from, to);
-    const at25 = fn(0.25);
-    const at75 = fn(0.75);
+    const at25 = fn(makeSimpleContext(0.25));
+    const at75 = fn(makeSimpleContext(0.75));
     expect(at25.surface?.type).toBe('physical');
     expect((at25.surface as { textureUrl?: string })?.textureUrl).toBe('/from.jpg');
     expect(at75.surface?.type).toBe('physical');
@@ -72,8 +73,8 @@ describe('FloorWidget', () => {
     const from: SceneFloor = { enabled: true };
     const to: SceneFloor = { enabled: false };
     const fn = widget.transitionSpec.interpolateFn(from, to);
-    const at0 = fn(0);
-    const at1 = fn(1);
+    const at0 = fn(makeSimpleContext(0));
+    const at1 = fn(makeSimpleContext(1));
     expect(at0.enabled).toBe(true);
     expect(at1.enabled).toBe(false);
   });

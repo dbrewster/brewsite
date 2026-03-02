@@ -9,6 +9,7 @@ import { makeInitContext, makeRenderContext } from '../../__tests__/elementTestM
 import { EnvironmentHdri, EnvironmentCube } from '../dsl';
 import { CUSTOM_NODE_HANDLER } from '../../../widget/WidgetRegistry';
 import React from 'react';
+import { makeSimpleContext } from '../../../compiler/transitions/transitionResolver';
 
 describe('EnvironmentWidget', () => {
   let widget: EnvironmentWidget;
@@ -36,7 +37,7 @@ describe('EnvironmentWidget', () => {
       source: { type: 'hdr', url: '/env.hdr' },
     };
     const fn = widget.transitionSpec.exitFn(state);
-    const result = fn(1);
+    const result = fn(makeSimpleContext(1));
     expect(result.enabled).toBe(false);
     expect(result.intensity).toBeCloseTo(0);
   });
@@ -44,7 +45,7 @@ describe('EnvironmentWidget', () => {
   it('transitionSpec.enter enables when t>0 and fades intensity in', () => {
     const state: SceneEnvironment = { enabled: true, intensity: 0.8 };
     const fn = widget.transitionSpec.enterFn(state);
-    const result = fn(0.5);
+    const result = fn(makeSimpleContext(0.5));
     expect(result.enabled).toBe(true);
     expect(result.intensity).toBeGreaterThan(0);
   });
@@ -61,8 +62,8 @@ describe('EnvironmentWidget', () => {
       source: { type: 'hdr', url: '/to.hdr' },
     };
     const fn = widget.transitionSpec.interpolateFn(from, to);
-    const at25 = fn(0.25);
-    const at75 = fn(0.75);
+    const at25 = fn(makeSimpleContext(0.25));
+    const at75 = fn(makeSimpleContext(0.75));
     expect(at25.source && 'url' in at25.source ? at25.source.url : '').toBe('/from.hdr');
     expect(at75.source && 'url' in at75.source ? at75.source.url : '').toBe('/to.hdr');
     expect(at25.intensity).toBeGreaterThan(0.2);

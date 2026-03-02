@@ -13,8 +13,7 @@ import { getNodeHandler, isPrimitiveComponent } from './registry';
 import type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { JsonPrimitive } from '../widget/VariableStore';
-import type { CompileWarning, SceneFrame } from './sceneTrackTypes';
-import type { EasingName } from './transitions/easingFunctions';
+import type { CompileWarning, SceneFrame, TransitionWindow } from './sceneTrackTypes';
 import { SceneRegistrationContext } from './SceneRegistrationContext';
 // registerCoreHandlers is imported via circular reference (safe — only used inside functions,
 // not at module scope; see the comment above ensureSceneRegistry for details).
@@ -240,11 +239,12 @@ export const Scene = (props: {
    */
   roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
   /**
-   * Easing curve for the transition into this scene.
-   * Only affects widgets using FunctionalTransitionSpec. Widgets using
-   * ElementTransitionSpec use pre-baked transition interpolation.
+   * Transition window for the incoming transition into this scene.
+   * exit — sub-window within [0,1] where the outgoing scene fades out.
+   * enter — sub-window within [0,1] where this scene fades in.
+   * Only affects widgets using FunctionalTransitionSpec.
    */
-  transition?: { easing?: EasingName };
+  transition?: TransitionWindow;
   children?: React.ReactNode;
 }): null => {
   const registration = useContext(SceneRegistrationContext);
@@ -265,7 +265,7 @@ export const sceneRootHandler: NodeHandler = (node, api, helpers) => {
     meta?: Record<string, JsonPrimitive>;
     metalnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
     roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
-    transition?: { easing?: EasingName };
+    transition?: TransitionWindow;
   };
   // Children.toArray() prefixes keys with ".$" (e.g. "arch-auto" -> ".$arch-auto").
   // Strip the prefix defensively for any direct-element fallback path.
@@ -287,8 +287,8 @@ export const sceneRootHandler: NodeHandler = (node, api, helpers) => {
   if (props.roughnessMultiplier !== undefined) {
     api.state.materialRoughnessMultiplier = helpers.resolveValue(props.roughnessMultiplier, api.context);
   }
-  if (props.transition?.easing) {
-    api.state.transitionEasing = props.transition.easing;
+  if (props.transition) {
+    api.state.transitionWindow = props.transition;
   }
 
   // Separate DSL children (compiled into api.state) from non-DSL overlay children

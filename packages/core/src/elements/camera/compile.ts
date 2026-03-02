@@ -13,6 +13,7 @@ import type {
   FunctionalTransitionSpec,
 } from '../../compiler/transitions/transitionTypes';
 import { transitionT } from '../../compiler/transitions/transitionTypes';
+import { makeSimpleContext } from '../../compiler/transitions/transitionResolver';
 import { smoothstep } from '../../timeline/math';
 
 // ─── Defaults ─────────────────────────────────────────────────────────────
@@ -240,44 +241,46 @@ const interpolatePost = (
 // ─── Functional transition spec ───────────────────────────────────────────
 
 export const functionalCameraTransitionSpec: FunctionalTransitionSpec<SceneCamera> = {
-  exitFn: (from) => (t) => ({ ...from, enabled: from.enabled && t < 1 }),
+  exitFn: (from) => (ctx) => ({ ...from, enabled: from.enabled && ctx.t < 1 }),
 
-  enterFn: (to) => (t) => ({ ...to, enabled: to.enabled && t > 0 }),
+  enterFn: (to) => (ctx) => ({ ...to, enabled: to.enabled && ctx.t > 0 }),
 
-  interpolateFn: (from, to) => (t) => ({
-    enabled: (from.enabled && t < 1) || (to.enabled && t > 0),
-    descriptor: interpolateCameraDescriptor(from, to, t),
-    lens: interpolateLens(from, to, t),
-    post: interpolatePost(from, to, t),
+  interpolateFn: (from, to) => (ctx) => ({
+    enabled: (from.enabled && ctx.t < 1) || (to.enabled && ctx.t > 0),
+    descriptor: interpolateCameraDescriptor(from, to, ctx.t),
+    lens: interpolateLens(from, to, ctx.t),
+    post: interpolatePost(from, to, ctx.t),
     // Interaction follows the "from" scene in the first half, then the "to" scene.
     // This keeps interaction available on scene 0 even if scene 1 has no camera.
-    interaction: t < 0.5 ? from.interaction : to.interaction,
+    interaction: ctx.t < 0.5 ? from.interaction : to.interaction,
     transitionIn: to.transitionIn,
   }),
 };
 
 // ─── Discrete transition spec (compat) ─────────────────────────────────────
+// The discrete spec delegates to the functional spec using makeSimpleContext so
+// that both paths share the same interpolation logic.
 
 export const cameraTransitionSpec: ElementTransitionSpec<SceneCamera> = {
   exit: (frames, widgetId, fromState) => {
     const fn = functionalCameraTransitionSpec.exitFn(fromState);
     for (let i = 0; i < frames.length; i++) {
       const t = transitionT(i, frames.length);
-      frames[i]!.state.widgets[widgetId] = fn(t);
+      frames[i]!.state.widgets[widgetId] = fn(makeSimpleContext(t));
     }
   },
   enter: (frames, widgetId, toState) => {
     const fn = functionalCameraTransitionSpec.enterFn(toState);
     for (let i = 0; i < frames.length; i++) {
       const t = transitionT(i, frames.length);
-      frames[i]!.state.widgets[widgetId] = fn(t);
+      frames[i]!.state.widgets[widgetId] = fn(makeSimpleContext(t));
     }
   },
   interpolate: (frames, widgetId, fromState, toState) => {
     const fn = functionalCameraTransitionSpec.interpolateFn(fromState, toState);
     for (let i = 0; i < frames.length; i++) {
       const t = transitionT(i, frames.length);
-      frames[i]!.state.widgets[widgetId] = fn(t);
+      frames[i]!.state.widgets[widgetId] = fn(makeSimpleContext(t));
     }
   },
 };
