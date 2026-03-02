@@ -177,13 +177,15 @@ export function resolveLayout(
   edges.forEach((edge) => {
     const from = edge.from;
     const to = edge.to;
+    // Only include edges fully inside the current node set.
+    // External endpoints can otherwise inflate in-degree for reachable nodes and
+    // collapse level assignment into a flat level-0 fallback.
+    if (!inDegree.has(from) || !inDegree.has(to)) return;
     if (!adjacency.has(from)) {
       adjacency.set(from, []);
     }
     adjacency.get(from)!.push(to);
-    if (inDegree.has(to)) {
-      inDegree.set(to, (inDegree.get(to) ?? 0) + 1);
-    }
+    inDegree.set(to, (inDegree.get(to) ?? 0) + 1);
   });
 
   const connectedNodeIds = new Set<string>();

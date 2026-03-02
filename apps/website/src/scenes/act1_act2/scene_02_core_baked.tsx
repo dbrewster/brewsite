@@ -1,60 +1,114 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
 import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
+import { DiagramCanvas, Diagram, DiagramNode, DiagramEdge, DiagramGroup, HierarchicalLayout, Enter, neonCyberTheme } from '@brewsite/diagram';
 import { dwellFn } from '../../utils/pacing';
+import { isMobile } from '../../utils/viewport';
+import type { Vec3 } from '@brewsite/core';
 
-const LATE_FADE = { exit: [0.5, 1.0] as [number, number], enter: [0.5, 1.0] as [number, number] };
+const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
-const tags = ['Declarative', 'Scroll-Driven', 'SSR-Safe', 'TypeScript-First', 'O(1) Sampling'];
+const tags = ['Narrative First', 'Animate The Why', 'Decision Clarity', 'Technical Depth'];
 
 export const scene02CoreBaked: JSX.Element = (
-  <Scene id="website-core-02" transition={LATE_FADE}>
+  <Scene id="website-presentation-02" transition={LATE_FADE}>
     <ProgressManager
-      scrollUnits={1600}
+      scrollUnits={2000}
       fn={dwellFn}
-      autoAdvance={{ duration: 6, max: 0.85, pauseOnScroll: true }}
+      autoAdvance={{ duration: 8, max: 0.82, pauseOnScroll: true }}
     />
-    <Camera mode="world" position={[0, 0, 10]} target={[0, 0.5, 0]} fov={65} />
+    <Camera
+      mode="world"
+      position={(isMobile ? [0, 9, 34] : [0, 8, 45]) as Vec3}
+      target={[0, -3, 0]}
+      fov={isMobile ? 66 : 56}
+    />
 
     <Lighting intensityScale={1}>
-      <Ambient intensity={0.1} color="#000510" />
-      <Directional intensity={0.55} color="#0088ff" position={[4, 10, 6]} />
+      <Ambient intensity={0.9} color="#ffffff" />
+      <Directional intensity={0.45} color="#aaccff" position={[4, 14, 8]} />
+      <Directional intensity={0.3} color="#00aaff" position={[-10, 10, 8]} />
     </Lighting>
+
+    <DiagramCanvas
+      id="presentation-flow"
+      rotation={[-Math.PI / 12, 0, 0]}
+      scale={isMobile ? 1.0 : 1.35}
+      theme={neonCyberTheme}
+    >
+      <Diagram id="presentation-arc" pivot="center">
+        <HierarchicalLayout direction="top-down" spacing={[2.2, 2.3]} />
+        <Enter from={[-30, 0, 0]} fade easing="ease-out" />
+
+        <DiagramGroup id="context" label="Context" variant="boundary">
+          <DiagramNode id="audience" label="Audience" icon="ui:users" />
+          <DiagramNode id="constraints" label="Constraints" icon="ui:adjustments-horizontal" />
+        </DiagramGroup>
+
+        <DiagramGroup id="narrative" label="Narrative" variant="boundary">
+          <DiagramNode id="problem" label="Problem" icon="ui:exclamation-triangle" />
+          <DiagramNode id="tradeoffs" label="Tradeoffs" />
+          <DiagramNode id="proposal" label="Proposal" icon="ui:sparkles" />
+          <DiagramNode id="decision" label="Decision" icon="ui:check-circle" />
+        </DiagramGroup>
+
+        <DiagramGroup id="execution" label="Execution" variant="swimlane">
+          <DiagramNode id="risks" label="Risks" icon="ui:shield-exclamation" />
+          <DiagramNode id="owners" label="Owners" icon="ui:user-group" />
+        </DiagramGroup>
+
+        <DiagramEdge from="audience" to="problem" label="frame" flow="forward" />
+        <DiagramEdge from="constraints" to="tradeoffs" label="shape" flow="forward" />
+        <DiagramEdge from="problem" to="tradeoffs" label="analyze" flow="forward" />
+        <DiagramEdge from="tradeoffs" to="proposal" label="choose" flow="forward" />
+        <DiagramEdge from="proposal" to="decision" label="align" flow="forward" />
+        <DiagramEdge
+          from="decision"
+          to="risks"
+          fromPort="bottom"
+          toPort="top"
+          label="plan"
+          flow="forward"
+          style="dashed"
+        />
+        <DiagramEdge from="decision" to="owners" label="assign" flow="forward" style="dashed" />
+      </Diagram>
+    </DiagramCanvas>
+
     <div style={{
       position: 'absolute',
       bottom: '12%',
       left: '50%',
       transform: 'translateX(-50%)',
       width: '90%',
-      maxWidth: 680,
+      maxWidth: 820,
       textAlign: 'center',
     }}>
-      {/* MidFade: visible by bp=0.5, stays visible through bp=1 */}
-      <MidFade duration={800}>
+      <MidFade duration={700}>
         <div style={{
           fontFamily: 'JetBrains Mono, monospace',
           fontSize: 11,
           letterSpacing: '0.28em',
           textTransform: 'uppercase',
-          color: 'rgba(240,246,252,0.4)',
-          marginBottom: 14,
+          color: 'rgba(0,245,255,0.58)',
+          marginBottom: 12,
         }}>
-          Pre-baked. Zero runtime cost.
+          Slide Two: Build The Full Argument
         </div>
       </MidFade>
-      <ScrollOn duration={1000} delay={100}>
+      <ScrollOn duration={800} delay={80}>
         <p style={{
-          fontSize: 'clamp(20px, 2.5vw, 28px)',
+          fontSize: 'clamp(20px, 2.5vw, 30px)',
           fontWeight: 600,
           color: '#f0f6fc',
           lineHeight: 1.3,
-          marginBottom: 22,
+          marginBottom: 18,
         }}>
-          The compiler bakes every transition frame.<br />
-          Playback is O(1). Always.
+          Go from one idea to stakeholder-ready narrative<br />
+          without leaving the same scene system.
         </p>
       </ScrollOn>
-      <ScrollOn duration={900} delay={220}>
+      <ScrollOn duration={700} delay={170}>
         <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 10 }}>
           {tags.map((tag) => (
             <span key={tag} style={{

@@ -3,7 +3,7 @@ import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '
 import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
 import { dwellFn } from '../../utils/pacing';
 
-const LATE_FADE = { exit: [0.5, 1.0] as [number, number], enter: [0.5, 1.0] as [number, number] };
+const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
 const PACKAGES = [
   {

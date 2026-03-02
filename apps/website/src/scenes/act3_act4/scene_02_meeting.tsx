@@ -4,7 +4,7 @@ import { MidFade } from '@brewsite/core/hud/animejs';
 import {actorElements} from "./meetingCharacters";
 import { dwellFn } from '../../utils/pacing';
 
-const LATE_FADE = { exit: [0.5, 1.0] as [number, number], enter: [0.5, 1.0] as [number, number] };
+const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
 // Camera, lighting, floor, and crowd actors all carry forward from scene01ModelWide.
 // Only the progress budget and overlay text change here.

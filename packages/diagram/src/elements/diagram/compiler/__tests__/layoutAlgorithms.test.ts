@@ -433,6 +433,23 @@ describe('resolveLayout — hierarchical', () => {
     const narrowLeft = narrow[0] - 2;
     expect(narrowLeft - wideRight).toBeCloseTo(3);
   });
+
+  it('ignores edge with unknown source when assigning hierarchical levels', () => {
+    const nodes = [makeNode('a'), makeNode('b')];
+    const edges = [makeEdge('ghost', 'b')];
+    const positions = resolveLayout(nodes, edges, hierarchical({ direction: 'top-down' }));
+    // Unknown source should not push b into a non-reachable indegree state.
+    // Both nodes are treated as roots (same level) under next-to behavior.
+    expect(positions.get('a')![1]).toBeCloseTo(positions.get('b')![1]);
+  });
+
+  it('ignores edge with unknown target when assigning hierarchical levels', () => {
+    const nodes = [makeNode('a'), makeNode('b')];
+    const edges = [makeEdge('a', 'ghost')];
+    const positions = resolveLayout(nodes, edges, hierarchical({ direction: 'top-down' }));
+    // Unknown target should not affect levels of known nodes.
+    expect(positions.get('a')![1]).toBeCloseTo(positions.get('b')![1]);
+  });
 });
 
 const makeGroup = (id: string, nodeIds: string[], overrides: Partial<DiagramGroupDSL> = {}): DiagramGroupDSL => ({

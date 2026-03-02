@@ -9,7 +9,7 @@ import { isMobile } from '../../utils/viewport';
 import { actorElements } from './meetingCharacters';
 import { dwellFn } from '../../utils/pacing';
 
-const LATE_FADE = { exit: [0.5, 1.0] as [number, number], enter: [0.5, 1.0] as [number, number] };
+const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
 export const scene01ModelWide: JSX.Element = (
   <Scene id="website-model-01" transition={LATE_FADE}>

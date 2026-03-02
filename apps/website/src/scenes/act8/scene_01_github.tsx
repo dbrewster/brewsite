@@ -1,14 +1,12 @@
 import type { JSX } from 'react';
-import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
+import { Scene, Camera, Lighting, Ambient, Directional } from '@brewsite/core';
 
-const LATE_FADE = { exit: [0.5, 1.0] as [number, number], enter: [0.5, 1.0] as [number, number] };
+const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
 const GITHUB_URL = 'https://github.com/brewsite/brewsite';
 
 export const scene01Github: JSX.Element = (
   <Scene id="website-github-01" transition={LATE_FADE}>
-    {/* No autoAdvance — this is the terminal CTA scene. User must scroll to it. */}
-    <ProgressManager scrollUnits={1200} />
     <Camera mode="world" position={[0, 0, 10]} target={[0, 0, 0]} fov={70} />
 
     <Lighting intensityScale={1}>

@@ -23,6 +23,7 @@ export function createWebsitePlugins(manifestUrl: string): WidgetPlugin[] {
       createWidgets: () => [
         new NeonSignWidget(),
         // Diagram canvas widgets — one per unique DiagramCanvas id used across all website scenes.
+        makeCanvas('presentation-flow'),  // scene_01_core_intro + scene_02_core_baked
         makeCanvas('simple-tech-stack'),   // scene_01_simple_diagram
         makeCanvas('system-canvas'),       // scene_02_arch_overview + scene_03_arch_detail
         makeCanvas('full-diagram'),        // scene_02_combined

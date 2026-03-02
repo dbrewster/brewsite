@@ -1,36 +1,76 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
 import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
-import { NeonSign } from '../../widgets/neon-sign';
+import { DiagramCanvas, Diagram, DiagramNode, DiagramEdge, HierarchicalLayout, Enter, neonCyberTheme } from '@brewsite/diagram';
 import { dwellFn } from '../../utils/pacing';
+import { isMobile } from '../../utils/viewport';
+import type { Vec3 } from '@brewsite/core';
 
-// Late crossfade: outgoing content stays visible through bp=0→0.5,
-// then both outgoing and incoming cross-fade in the bp=0.5→1 window.
-const LATE_FADE = { exit: [0.5, 1.0] as [number, number], enter: [0.5, 1.0] as [number, number] };
+// Hard cut at transition boundary so each slide starts at its own 0.
+const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
 export const scene01CoreIntro: JSX.Element = (
-  <Scene id="website-core-01" transition={LATE_FADE}>
+  <Scene id="website-presentation-01" transition={LATE_FADE}>
     <ProgressManager
-      scrollUnits={1600}
+      scrollUnits={1800}
       fn={dwellFn}
-      autoAdvance={{ duration: 6, max: 0.85, pauseOnScroll: true }}
+      autoAdvance={{ duration: 8, max: 0.82, pauseOnScroll: true }}
     />
-    <Camera mode="world" position={[0, 0, 10]} target={[0, 0, 0]} fov={70} />
+    <Camera
+      mode="world"
+      position={(isMobile ? [0, 8, 34] : [0, 7, 42]) as Vec3}
+      target={[0, -1, 0]}
+      fov={isMobile ? 66 : 58}
+    />
 
     <Lighting intensityScale={1}>
-      <Ambient intensity={0.15} color="#000a20" />
-      <Directional intensity={0.5} color="#0066ff" position={[3, 8, 5]} />
-      <Directional intensity={0.25} color="#ff5500" position={[-5, 4, 3]} />
+      <Ambient intensity={0.5} color="#e6eeff" />
+      <Directional intensity={0.5} color="#aaccff" position={[0, 20, 26]} />
+      <Directional intensity={0.35} color="#00aaff" position={[-10, 8, 8]} />
     </Lighting>
-    <NeonSign enabled={false} opacity={1} intensity={.8} />
+
+    <DiagramCanvas
+      id="presentation-flow"
+      rotation={[-Math.PI / 11, 0, 0]}
+      scale={isMobile ? 1.0 : 1.25}
+      theme={neonCyberTheme}
+    >
+      <Diagram id="presentation-arc" pivot="center">
+        <HierarchicalLayout direction="top-down" spacing={[2.5, 2.4]} />
+        <Enter from={[-45, 0, 0]} fade easing="ease-out" />
+
+        <DiagramNode id="problem" label="Problem" icon="ui:exclamation-triangle" />
+        <DiagramNode id="insight" label="Insight" icon="ui:light-bulb" />
+        <DiagramNode id="decision" label="Decision" icon="ui:check-circle" />
+
+        <DiagramEdge
+          from="problem"
+          to="insight"
+          fromPort="bottom"
+          toPort="top"
+          label="frame"
+          flow="forward"
+        />
+        <DiagramEdge
+          from="insight"
+          to="decision"
+          fromPort="bottom"
+          toPort="top"
+          label="align"
+          flow="forward"
+        />
+      </Diagram>
+    </DiagramCanvas>
+
     <div style={{
       position: 'absolute',
       inset: 0,
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'center',
+      justifyContent: 'space-between',
+      padding: '8% 6%',
     }}>
-      <div style={{ textAlign: 'center', maxWidth: 620, padding: '0 24px' }}>
+      <div style={{ maxWidth: 420 }}>
         <MidFade duration={1400}>
           <div style={{
             fontFamily: 'JetBrains Mono, monospace',
@@ -38,12 +78,12 @@ export const scene01CoreIntro: JSX.Element = (
             letterSpacing: '0.3em',
             textTransform: 'uppercase',
             color: 'rgba(0,245,255,0.6)',
-            marginBottom: 18,
+            marginBottom: 14,
           }}>
-            @brewsite/core
+            Presentation Use Case
           </div>
           <h2 style={{
-            fontSize: 'clamp(36px, 5vw, 58px)',
+            fontSize: 'clamp(28px, 4.2vw, 54px)',
             fontWeight: 700,
             lineHeight: 1.1,
             letterSpacing: '-0.02em',
@@ -51,21 +91,20 @@ export const scene01CoreIntro: JSX.Element = (
             WebkitBackgroundClip: 'text',
             WebkitTextFillColor: 'transparent',
             backgroundClip: 'text',
-            margin: '0 0 20px',
+            margin: '0 0 16px',
           }}>
-            Scenes as React.<br />Rendered like film.
+            Start simple:<br />tell one clear story.
           </h2>
         </MidFade>
-        <ScrollOn duration={1000} delay={200}>
+        <ScrollOn duration={800} delay={120}>
           <p style={{
-            fontSize: 18,
-            lineHeight: 1.65,
+            fontSize: 'clamp(15px, 1.6vw, 18px)',
+            lineHeight: 1.6,
             color: 'rgba(240,246,252,0.6)',
-            maxWidth: 480,
-            margin: '0 auto',
+            maxWidth: 400,
           }}>
-            Declare 3D scene states. Let the compiler handle transitions.
-            No animation loops. No frame math. Just describe what you want.
+            For technical PMs and architects, this is the fastest way to explain
+            problem, context, and proposed direction in one visual pass.
           </p>
         </ScrollOn>
       </div>

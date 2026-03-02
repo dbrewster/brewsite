@@ -6,7 +6,7 @@ import { isMobile } from '../../utils/viewport';
 import type { Vec3 } from '@brewsite/core';
 import { dwellFn } from '../../utils/pacing';
 
-const LATE_FADE = { exit: [0.5, 1.0] as [number, number], enter: [0.5, 1.0] as [number, number] };
+const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
 export const scene02ArchOverview: JSX.Element = (
   <Scene id="website-arch-overview" transition={LATE_FADE}>
