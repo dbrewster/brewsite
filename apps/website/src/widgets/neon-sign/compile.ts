@@ -21,7 +21,7 @@ export const DEFAULT_NEON_SIGN_STATE: NeonSignState = {
 
 const applyExit = (from: NeonSignState, t: number): NeonSignState => ({
   ...from,
-  enabled: t < 1 && from.enabled,
+  enabled: t <= 1 && from.enabled,
   opacity: blendNumber(from.opacity, 0, t) ?? 0,
   intensity: blendNumber(from.intensity, 0, t) ?? 0,
 });
@@ -38,12 +38,12 @@ const applyInterpolate = (from: NeonSignState, to: NeonSignState, t: number): Ne
   ...to,
   // Boolean visibility should resolve to the incoming scene at midpoint.
   // This prevents "sticky" enabled state from persisting until the final frame.
-  enabled: t < 0.5 ? from.enabled : to.enabled,
-  text: t < 0.5 ? from.text : to.text,
-  fontUrl: t < 0.5 ? from.fontUrl : to.fontUrl,
-  color: t < 0.5 ? from.color : to.color,
-  emissiveColor: t < 0.5 ? from.emissiveColor : to.emissiveColor,
-  opacity: blendNumber(from.opacity, to.opacity, t) ?? to.opacity,
+  enabled: from.enabled,
+  text: from.text,
+  fontUrl: from.fontUrl,
+  color: from.color,
+  emissiveColor: from.emissiveColor,
+  opacity: t <=1 ? from.opacity : to.opacity,
   intensity: blendNumber(from.intensity, to.intensity, t) ?? to.intensity,
   position: blendVec3(from.position, to.position, t) ?? to.position,
   rotation: blendVec3(from.rotation, to.rotation, t) ?? to.rotation,

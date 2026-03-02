@@ -56,7 +56,7 @@ export const scene00Hero = (
       scale={1}
       color="#00f5ff"
       emissiveColor="#00d8ff"
-      intensity={1}
+      intensity={1.3}
     />
     <div style={{
       position: 'absolute',
@@ -91,7 +91,7 @@ export const scene00Hero = (
         </HeroFade>
 
         {/* Beat 4: Scroll indicator */}
-        <HeroFade start={0.63} end={1}>
+        <HeroFade start={0.43} end={1}>
           <ScrollIndicator />
         </HeroFade>
       </section>

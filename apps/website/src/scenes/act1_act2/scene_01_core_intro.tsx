@@ -22,7 +22,7 @@ export const scene01CoreIntro: JSX.Element = (
       <Directional intensity={0.5} color="#0066ff" position={[3, 8, 5]} />
       <Directional intensity={0.25} color="#ff5500" position={[-5, 4, 3]} />
     </Lighting>
-    <NeonSign enabled={false} opacity={0} intensity={0} />
+    <NeonSign enabled={false} opacity={1} intensity={.8} />
     <div style={{
       position: 'absolute',
       inset: 0,
