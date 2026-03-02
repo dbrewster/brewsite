@@ -12,12 +12,14 @@ export const buildSceneTrackKey = (options: {
   widgetRegistry: WidgetRegistry;
   blockSize: number;
   prefersReducedMotion: boolean;
+  invalidateCacheToken?: number | string;
 }): string => {
   const contentKeys = options.scenes.map((s) => s.contentKey).join('|');
   const blockKey = `b:${options.blockSize}`;
   const widgetKey = `w:${options.widgetRegistry.buildCacheKey()}`;
   const rmKey = `rm:${options.prefersReducedMotion ? 1 : 0}`;
-  return [contentKeys, blockKey, widgetKey, rmKey].join('::');
+  const tokenKey = `tok:${options.invalidateCacheToken ?? ''}`;
+  return [contentKeys, blockKey, widgetKey, rmKey, tokenKey].join('::');
 };
 
 /**

@@ -3,8 +3,11 @@ title: "BrewSite Core — Input System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-02-28
+last_updated: 2026-03-02
 change_history:
+  - date: 2026-03-02
+    author: "Toolkit Product"
+    summary: "Core customization unblocking implemented: inputModePolicy (auto/prefer-scroll/prefer-direct), ScrollSource (window or element ref), controlled-mode keyboard opt-in, ActionInputController idDefaults (primary camera/canvas), and deprecation warnings for legacy implicit IDs."
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents the full input system for @brewsite/core: SceneNavInputMap for scene navigation, InputController DSL for action-mapped input, ActionInputController runtime, useEngineInput hook, wheelGuard, keyboard defaults, and composability model."

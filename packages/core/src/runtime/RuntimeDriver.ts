@@ -12,18 +12,11 @@ export type SceneTrackSampler = ReturnType<typeof createSceneTrackSampler>;
 // AssetManifest type is defined in widget/types.ts
 type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
 
-/**
- * Maximum animation-seconds that can be added per frame from animationTimeScale.
- * Caps the boost so that programmatic navigation jumps (e.g., NavMenu "Scene 5" from "Scene 1")
- * do not produce multi-second animation jumps in a single frame.
- * 0.2s = 12× real-time at 60fps.
- */
-const MAX_ANIM_BOOST_PER_FRAME = 0.2;
-
 export type RuntimeConfig = {
   widgetRegistry: WidgetRegistry;
   variableStore: VariableStore;
   manifest: AssetManifest | null;
+  maxAnimBoostPerFrame?: number;
   onAssetsReady?: () => void;
   onError?: (error: Error) => void;
   /** Called when a single widget fails during load() or apply(). Engine continues. */
@@ -57,6 +50,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   private onError?: (error: Error) => void;
   private onWidgetError?: (widgetId: string, error: Error) => void;
   private erroredWidgets = new Set<string>();
+  private readonly maxAnimBoostPerFrame: number;
 
   assetsReady = false;
 
@@ -71,6 +65,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     this.widgetRegistry = config.widgetRegistry;
     this.variableStore = config.variableStore;
     this.manifest = config.manifest;
+    this.maxAnimBoostPerFrame = config.maxAnimBoostPerFrame ?? 0.2;
     this.onAssetsReady = config.onAssetsReady;
     this.onError = config.onError;
     this.onWidgetError = config.onWidgetError;
@@ -166,7 +161,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     const animationTimeScale =
       this.track?.progressProfile?.segments[tick.sceneIndex]?.animationTimeScale ?? 0;
     const rawBoost = deltaProgress * animationTimeScale;
-    const cappedBoost = Math.min(rawBoost, MAX_ANIM_BOOST_PER_FRAME);
+    const cappedBoost = Math.min(rawBoost, this.maxAnimBoostPerFrame);
     // effectiveDeltaSeconds is always >= deltaSeconds: the floor ensures animation
     // never drops below real-time even with animationTimeScale declared.
     const effectiveDeltaSeconds = Math.max(deltaSeconds, cappedBoost);

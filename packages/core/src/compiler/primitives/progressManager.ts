@@ -42,7 +42,7 @@ export interface ProgressManagerProps {
     duration: number;
     /** Fraction of scene window to auto-advance through. Default: 1.0. Must be in (0, 1]. */
     max?: number;
-    /** Pause while user scrolls; resume after 200ms idle. Default: true. */
+    /** Disable auto-advance for this scene after user scroll until scene transition. Default: true. */
     pauseOnScroll?: boolean;
   };
 

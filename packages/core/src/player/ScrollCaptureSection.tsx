@@ -36,6 +36,7 @@ export function ScrollCaptureSection({
   children,
 }: ScrollCaptureSectionProps) {
   const outerRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const engine = useSceneEngineContext();
   const { setRawProgress } = engine;
 
@@ -48,9 +49,10 @@ export function ScrollCaptureSection({
       // How far we've scrolled into the outer div (negative rect.top = scrolled past top)
       const scrolled = -rect.top;
       // Max scroll is outer height minus one stage height
-      const stageH = typeof stageHeight === 'number'
-        ? stageHeight
-        : window.innerHeight;  // treat '100vh' as window.innerHeight
+      const measuredStageHeight = stageRef.current?.getBoundingClientRect().height;
+      const stageH = measuredStageHeight && measuredStageHeight > 0
+        ? measuredStageHeight
+        : window.innerHeight;
       const maxScroll = outer.offsetHeight - stageH;
       if (maxScroll <= 0) return;  // outer not tall enough to scroll
       const raw = Math.max(0, Math.min(1, scrolled / maxScroll));
@@ -72,6 +74,7 @@ export function ScrollCaptureSection({
   return (
     <div ref={outerRef} style={{ height }} className={className}>
       <div
+        ref={stageRef}
         style={{
           position: 'sticky',
           top: 0,

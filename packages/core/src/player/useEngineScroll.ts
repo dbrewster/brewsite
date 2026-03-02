@@ -1,12 +1,21 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import type { SceneProgressMapper } from './SceneProgressMapper';
+import type { ScrollSource } from './engineTypes';
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
+
+type ScrollMetrics = {
+  sourceScrollTop: number;
+  viewportHeight: number;
+  regionTop: number;
+  maxScroll: number;
+};
 
 export type UseEngineScrollOptions = {
   scrollRegionRef: RefObject<HTMLElement | null>;
   scrollRegionHeightPx: number;
+  scrollSource?: ScrollSource;
   /**
    * Optional progress mapper. When provided, raw scroll progress is remapped
    * to engine progress via the mapper's remap() method, and scrollToProgress()
@@ -16,8 +25,7 @@ export type UseEngineScrollOptions = {
   progressMapper?: SceneProgressMapper | null;
   /**
    * Called when a genuine user scroll event fires (NOT when auto-advance calls
-   * window.scrollTo). Used by useSceneEngine to update lastUserScrollTimeRef
-   * for the pauseOnScroll debounce.
+   * scrollTo). Used by useSceneEngine to update per-scene pause-on-scroll state.
    */
   onUserScroll?: () => void;
 };
@@ -34,144 +42,161 @@ export type UseEngineScrollResult = {
    */
   getRawProgress(): number;
   /**
-   * Advances window.scrollY to the position corresponding to the given raw progress value.
+   * Advances scroll to the position corresponding to the given raw progress value.
    * Bypasses the mapper entirely — raw input space, not engine progress space.
    * Used by auto-advance to avoid the raw→engine→raw round-trip through the mapper.
-   *
-   * Marks the scroll as programmatic so onUserScroll is NOT fired for this event.
    */
   scrollToRawProgress(raw: number): void;
   /**
    * Directly writes the given raw progress value into rawProgressRef and
-   * progressRef WITHOUT calling window.scrollTo or firing any scroll event.
+   * progressRef WITHOUT calling scrollTo or firing any scroll event.
    *
    * Used by the auto-advance state machine to synchronize the scroll-derived
-   * refs when auto-advance stops. This avoids the suppress-scroll-event
-   * mechanism, which is unreliable because window.scrollTo may be a no-op in
-   * jsdom (and in real browsers when already at the target position).
-   *
-   * Calling this keeps rawProgressRef / progressRef in sync so that
-   * getGlobalProgress() returns the correct value the instant
-   * autoAdvanceRawRef is cleared, with no one-frame gap.
+   * refs when auto-advance stops.
    */
   forceRawProgress(raw: number): void;
 };
 
 export const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrollResult => {
   const { scrollRegionRef, scrollRegionHeightPx, progressMapper } = options;
+  const scrollSource = options.scrollSource ?? 'window';
   const [progress, setProgress] = useState(0);
   const progressRef = useRef(0);
   const rawProgressRef = useRef(0);
 
-  const computeProgress = useCallback((): { raw: number; mapped: number } => {
-    if (typeof window === 'undefined') return { raw: 0, mapped: 0 };
+  const resolveWindowMetrics = useCallback((): ScrollMetrics | null => {
+    if (typeof window === 'undefined') return null;
     const el = scrollRegionRef.current;
-    if (!el) return { raw: 0, mapped: 0 };
-
+    if (!el) return null;
     const rect = el.getBoundingClientRect();
     const scrollTop = window.scrollY || window.pageYOffset || 0;
     const regionTop = scrollTop + rect.top;
     const viewportHeight = window.innerHeight || 1;
     const maxScroll = Math.max(1, scrollRegionHeightPx - viewportHeight);
-    const raw = clamp01((scrollTop - regionTop) / maxScroll);
+    return { sourceScrollTop: scrollTop, viewportHeight, regionTop, maxScroll };
+  }, [scrollRegionHeightPx, scrollRegionRef]);
+
+  const resolveElementMetrics = useCallback((source: HTMLElement): ScrollMetrics | null => {
+    const region = scrollRegionRef.current;
+    if (!region) return null;
+    const sourceRect = source.getBoundingClientRect();
+    const regionRect = region.getBoundingClientRect();
+    const sourceScrollTop = source.scrollTop;
+    const regionTop = sourceScrollTop + (regionRect.top - sourceRect.top);
+    const viewportHeight = source.clientHeight || 1;
+    const maxScroll = Math.max(1, scrollRegionHeightPx - viewportHeight);
+    return { sourceScrollTop, viewportHeight, regionTop, maxScroll };
+  }, [scrollRegionHeightPx, scrollRegionRef]);
+
+  const resolveMetrics = useCallback((): ScrollMetrics | null => {
+    if (scrollSource === 'window') {
+      return resolveWindowMetrics();
+    }
+    const source = scrollSource.elementRef.current;
+    if (!source) return null;
+    return resolveElementMetrics(source);
+  }, [scrollSource, resolveWindowMetrics, resolveElementMetrics]);
+
+  const computeProgress = useCallback((): { raw: number; mapped: number } => {
+    const metrics = resolveMetrics();
+    if (!metrics) {
+      return { raw: rawProgressRef.current, mapped: progressRef.current };
+    }
+    const raw = clamp01((metrics.sourceScrollTop - metrics.regionTop) / metrics.maxScroll);
     const mapped = progressMapper ? progressMapper.remap(raw) : raw;
     return { raw, mapped };
-  }, [scrollRegionHeightPx, scrollRegionRef, progressMapper]);
+  }, [resolveMetrics, progressMapper]);
 
   const update = useCallback(() => {
     const { raw, mapped } = computeProgress();
-    if (Math.abs(mapped - progressRef.current) < 1e-5) return;
+    if (Math.abs(mapped - progressRef.current) < 1e-5 && Math.abs(raw - rawProgressRef.current) < 1e-5) return;
     rawProgressRef.current = raw;
     progressRef.current = mapped;
     setProgress(mapped);
   }, [computeProgress]);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    update();
-    const onScroll = () => {
-      // IMPORTANT: call update() BEFORE onUserScroll() so that rawProgressRef
-      // and progressRef reflect the new scroll position by the time
-      // handleUserScroll (in useSceneEngine) runs and potentially clears
-      // autoAdvanceRawRef. Without this ordering, getGlobalProgress() would
-      // fall through to a stale rawProgressRef value (typically 0) for one
-      // frame after autoAdvanceRawRef is cleared, causing a visible snap.
+    if (typeof window === 'undefined') return undefined;
+
+    let rafId = 0;
+    const refreshUntilSourceReady = () => {
+      if (scrollSource === 'window') return;
+      if (!scrollSource.elementRef.current) {
+        rafId = window.requestAnimationFrame(refreshUntilSourceReady);
+        return;
+      }
       update();
-      // Every scroll event reaching this listener is a genuine user scroll.
-      // Auto-advance does not call window.scrollTo for its internal progress
-      // tracking — it uses autoAdvanceRawRef and forceRawProgress() instead.
+    };
+
+    update();
+    refreshUntilSourceReady();
+
+    const onResize = () => update();
+    const onWindowScroll = () => {
+      update();
       options.onUserScroll?.();
     };
-    const onResize = () => update();
-    window.addEventListener('scroll', onScroll, { passive: true });
+    const onElementScroll = (event: Event) => {
+      if (scrollSource === 'window') return;
+      const source = scrollSource.elementRef.current;
+      if (!source || event.target !== source) return;
+      update();
+      options.onUserScroll?.();
+    };
+
+    if (scrollSource === 'window') {
+      window.addEventListener('scroll', onWindowScroll, { passive: true });
+    } else {
+      document.addEventListener('scroll', onElementScroll, { passive: true, capture: true });
+    }
     window.addEventListener('resize', onResize);
+
     return () => {
-      window.removeEventListener('scroll', onScroll);
+      if (rafId !== 0) {
+        window.cancelAnimationFrame(rafId);
+      }
+      if (scrollSource === 'window') {
+        window.removeEventListener('scroll', onWindowScroll);
+      } else {
+        document.removeEventListener('scroll', onElementScroll, true);
+      }
       window.removeEventListener('resize', onResize);
     };
-  // options.onUserScroll is intentionally excluded from deps — it is a callback ref pattern.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [update]);
+    // options.onUserScroll intentionally excluded: callback-ref pattern.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scrollSource, update]);
 
-  const scrollToProgress = useCallback(
-    (next: number) => {
-      if (typeof window === 'undefined') return;
-      const el = scrollRegionRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const scrollTop = window.scrollY || window.pageYOffset || 0;
-      const regionTop = scrollTop + rect.top;
-      const viewportHeight = window.innerHeight || 1;
-      const maxScroll = Math.max(1, scrollRegionHeightPx - viewportHeight);
-      // Invert through mapper to convert engine progress back to raw scroll position
-      const rawTarget = progressMapper
-        ? progressMapper.inverse(clamp01(next))
-        : clamp01(next);
-      const target = regionTop + rawTarget * maxScroll;
+  const scrollToWithRaw = useCallback((rawTarget: number) => {
+    const metrics = resolveMetrics();
+    if (!metrics) return;
+    const target = metrics.regionTop + clamp01(rawTarget) * metrics.maxScroll;
+    if (scrollSource === 'window') {
       window.scrollTo({ top: target });
-    },
-    [scrollRegionHeightPx, scrollRegionRef, progressMapper],
-  );
+      return;
+    }
+    const source = scrollSource.elementRef.current;
+    source?.scrollTo({ top: target });
+  }, [resolveMetrics, scrollSource]);
 
-  const scrollToRawProgress = useCallback(
-    (raw: number) => {
-      if (typeof window === 'undefined') return;
-      const el = scrollRegionRef.current;
-      if (!el) return;
-      const rect = el.getBoundingClientRect();
-      const scrollTop = window.scrollY || window.pageYOffset || 0;
-      const regionTop = scrollTop + rect.top;
-      const viewportHeight = window.innerHeight || 1;
-      const maxScroll = Math.max(1, scrollRegionHeightPx - viewportHeight);
-      const clamped = Math.max(0, Math.min(1, raw));
-      const target = regionTop + clamped * maxScroll;
-      window.scrollTo({ top: target });
-    },
-    [scrollRegionHeightPx, scrollRegionRef],
-  );
+  const scrollToProgress = useCallback((next: number) => {
+    const rawTarget = progressMapper ? progressMapper.inverse(clamp01(next)) : clamp01(next);
+    scrollToWithRaw(rawTarget);
+  }, [progressMapper, scrollToWithRaw]);
+
+  const scrollToRawProgress = useCallback((raw: number) => {
+    scrollToWithRaw(raw);
+  }, [scrollToWithRaw]);
 
   const getGlobalProgress = useCallback(() => progressRef.current, []);
   const getRawProgress = useCallback(() => rawProgressRef.current, []);
 
-  /**
-   * Directly write raw progress into refs without a scroll event.
-   * Safe to call from the RAF loop — does not trigger a React state update
-   * (setProgress is intentionally omitted here) so there is no extra render.
-   * The React-visible `progress` state is updated on the next genuine scroll
-   * or resize event. The Three.js loop reads via getGlobalProgress() which
-   * reads progressRef directly, so rendering stays correct immediately.
-   */
-  const forceRawProgress = useCallback(
-    (raw: number) => {
-      const clamped = Math.max(0, Math.min(1, raw));
-      rawProgressRef.current = clamped;
-      const mapped = progressMapper ? progressMapper.remap(clamped) : clamped;
-      progressRef.current = mapped;
-      // Update React state so UI components reading `progress` stay in sync.
-      setProgress(mapped);
-    },
-    [progressMapper],
-  );
+  const forceRawProgress = useCallback((raw: number) => {
+    const clamped = clamp01(raw);
+    rawProgressRef.current = clamped;
+    const mapped = progressMapper ? progressMapper.remap(clamped) : clamped;
+    progressRef.current = mapped;
+    setProgress(mapped);
+  }, [progressMapper]);
 
   return { progress, scrollToProgress, getGlobalProgress, getRawProgress, scrollToRawProgress, forceRawProgress };
 };

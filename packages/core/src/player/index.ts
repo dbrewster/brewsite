@@ -35,3 +35,4 @@ export type { EngineFrameState, EngineState } from './engineTypes';
 export { SceneInspector } from './SceneInspector';
 export type { SceneInspectorProps } from './SceneInspector';
 export { SceneProgressMapper } from './SceneProgressMapper';
+export { nextSceneTrackCacheToken } from './sceneTrackCacheToken';

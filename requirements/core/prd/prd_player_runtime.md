@@ -3,8 +3,11 @@ title: "BrewSite Core — Player & Runtime"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-01
+last_updated: 2026-03-02
 change_history:
+  - date: 2026-03-02
+    author: "Toolkit Product"
+    summary: "Core customization unblocking implemented: timingProfile API (blockSize/qualityPreset/fpsCap), maxAnimBoostPerFrame option, overlayTransition config, scrollHeightMode=scroll-units with pixelsPerScrollUnit, explicit invalidateCacheToken support, and nextSceneTrackCacheToken helper export."
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Initial PRD created. Comprehensive documentation of the Player and Runtime layers for @brewsite/core, covering ScenePlayer, useSceneEngine, RuntimeDriverImpl, RuntimeLoop, EngineFrameDriver, all consumer hooks, context providers, DOM region components, LabelPositioner, TimelineWidget, SceneMetaWidget, asset manifest, SSR safety contract, and test infrastructure. Reflects the production implementation as of 2026-02-28."

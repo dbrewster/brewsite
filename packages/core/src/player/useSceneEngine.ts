@@ -10,13 +10,22 @@ import { RuntimeDriverImpl } from '../runtime/RuntimeDriver';
 import { RuntimeLoop } from '../runtime/RuntimeLoop';
 import { VariableStore } from '../widget/VariableStore';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
+import { isCameraActionTarget } from '../widget/WidgetRegistry';
 import { EngineFrameDriver } from './EngineFrameDriver';
-import type { EngineFrameState, InternalSceneSpec } from './engineTypes';
+import type {
+  CameraInteractionDefaults,
+  EngineFrameState,
+  EngineTimingProfile,
+  InputModePolicy,
+  InternalSceneSpec,
+  ScrollSource,
+} from './engineTypes';
 import { useEngineInput } from './useEngineInput';
 /** Minimal asset manifest type for backward compat. Full type lives in @brewsite/model. */
 type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
 import type { SceneNavInputMap } from '../input/types';
 import type { CameraOverrideState } from '../elements/camera/types';
+import type { CameraWidget } from '../elements/camera/CameraWidget';
 import type { SceneInputControllerSpec } from '../input/types';
 import { SceneProgressMapper } from './SceneProgressMapper';
 
@@ -24,8 +33,21 @@ export type UseSceneEngineOptions = {
   scenes: InternalSceneSpec[];
   widgetRegistry: WidgetRegistry;
   manifest?: AssetManifest | null;
+  timingProfile?: EngineTimingProfile;
+  qualityPreset?: 'performance' | 'balanced' | 'high';
   fpsCap?: number;
   pixelsPerScene?: number;
+  pixelsPerScrollUnit?: number;
+  scrollHeightMode?: 'scene-count' | 'scroll-units';
+  scrollSource?: ScrollSource;
+  inputModePolicy?: InputModePolicy;
+  primaryCameraId?: string;
+  primaryCanvasActionTargetId?: string;
+  enableKeyboardInControlledMode?: boolean;
+  controlledInputMap?: SceneNavInputMap;
+  maxAnimBoostPerFrame?: number;
+  cameraInteractionDefaults?: CameraInteractionDefaults;
+  invalidateCacheToken?: number | string;
   /**
    * Exact scroll region height in pixels. When set, overrides all automatic
    * scroll-height calculations (`pixelsPerScene`, viewport-based defaults).
@@ -112,7 +134,21 @@ export type UseSceneEngineResult = {
 };
 
 const DEFAULT_BLOCK_SIZE = 10;
+const QUALITY_PRESET_BLOCK_SIZE: Record<NonNullable<EngineTimingProfile['qualityPreset']>, number> = {
+  performance: 30,
+  balanced: 60,
+  high: 120,
+} as const;
 const INPUT_CONTROLLER_WIDGET_ID = '__input_controller';
+const DEFAULT_CAMERA_INTERACTION_DEFAULTS = {
+  wheelLockIdleMs: 180,
+  wheelAxisDominance: 1.2,
+  wheelAxisActivationThreshold: 10,
+  orbitPolarMin: -1.4,
+  orbitPolarMax: 1.4,
+  dollyRadiusMin: 2,
+  dollyRadiusMax: 2000,
+} as const satisfies Required<CameraInteractionDefaults>;
 
 const makeInitialFrameState = (): EngineFrameState => ({
   tickIndex: -1,
@@ -181,6 +217,8 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   // Both are populated immediately after the useEngineInput call below.
   const forceRawProgressRef = useRef<((raw: number) => void) | null>(null);
   const scrollToRawProgressRef = useRef<((raw: number) => void) | null>(null);
+  const warnedMissingScrollUnitsRef = useRef(false);
+  const warnedCameraTargetsRef = useRef(new Set<string>());
 
   const setAutoAdvancePaused = useCallback((paused: boolean) => {
     autoAdvancePausedRef.current = paused;
@@ -197,10 +235,18 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     }
   }, []);
 
-  const blockSize = useMemo(
-    () => Math.max(1, Math.round(options.framesPerTick ?? options.blockSize ?? DEFAULT_BLOCK_SIZE)),
-    [options.framesPerTick, options.blockSize],
-  );
+  const blockSize = useMemo(() => {
+    const qualityPreset = options.timingProfile?.qualityPreset ?? options.qualityPreset;
+    const qualityBlockSize = qualityPreset ? QUALITY_PRESET_BLOCK_SIZE[qualityPreset] : undefined;
+    const resolved = options.timingProfile?.blockSize
+      ?? options.framesPerTick
+      ?? options.blockSize
+      ?? qualityBlockSize
+      ?? DEFAULT_BLOCK_SIZE;
+    return Math.max(1, Math.round(resolved));
+  }, [options.timingProfile, options.qualityPreset, options.framesPerTick, options.blockSize]);
+
+  const resolvedFpsCap = options.timingProfile?.fpsCap ?? options.fpsCap;
 
   const sceneDefs = useMemo(
     (): SceneDefinition[] =>
@@ -214,9 +260,31 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   const hasSceneInputController = frameState.tick
     ? ((frameState.tick.state.widgets[INPUT_CONTROLLER_WIDGET_ID] as SceneInputControllerSpec | undefined) ?? null) !== null
     : false;
-  // controlledProgress forces direct mode — no scroll spacer, no window.scrollY.
-  const inputMode: 'scroll' | 'direct' =
-    (options.controlledProgress !== undefined || hasSceneInputController) ? 'direct' : 'scroll';
+  const inputModePolicy = options.inputModePolicy ?? 'auto';
+  const primaryCameraId = options.primaryCameraId ?? 'camera';
+  const primaryCanvasActionTargetId = options.primaryCanvasActionTargetId ?? 'llm-canvas';
+  const scrollHeightMode = options.scrollHeightMode ?? 'scene-count';
+  const cameraInteractionDefaults = useMemo<Required<CameraInteractionDefaults>>(() => ({
+    wheelLockIdleMs: options.cameraInteractionDefaults?.wheelLockIdleMs ?? DEFAULT_CAMERA_INTERACTION_DEFAULTS.wheelLockIdleMs,
+    wheelAxisDominance:
+      options.cameraInteractionDefaults?.wheelAxisDominance ?? DEFAULT_CAMERA_INTERACTION_DEFAULTS.wheelAxisDominance,
+    wheelAxisActivationThreshold:
+      options.cameraInteractionDefaults?.wheelAxisActivationThreshold
+      ?? DEFAULT_CAMERA_INTERACTION_DEFAULTS.wheelAxisActivationThreshold,
+    orbitPolarMin: options.cameraInteractionDefaults?.orbitPolarMin ?? DEFAULT_CAMERA_INTERACTION_DEFAULTS.orbitPolarMin,
+    orbitPolarMax: options.cameraInteractionDefaults?.orbitPolarMax ?? DEFAULT_CAMERA_INTERACTION_DEFAULTS.orbitPolarMax,
+    dollyRadiusMin: options.cameraInteractionDefaults?.dollyRadiusMin ?? DEFAULT_CAMERA_INTERACTION_DEFAULTS.dollyRadiusMin,
+    dollyRadiusMax: options.cameraInteractionDefaults?.dollyRadiusMax ?? DEFAULT_CAMERA_INTERACTION_DEFAULTS.dollyRadiusMax,
+  }), [options.cameraInteractionDefaults]);
+
+  const inputMode: 'scroll' | 'direct' = useMemo(() => {
+    if (options.controlledProgress !== undefined) return 'direct';
+    if (inputModePolicy === 'prefer-scroll') return 'scroll';
+    if (inputModePolicy === 'prefer-direct') {
+      return hasSceneInputController ? 'direct' : 'scroll';
+    }
+    return hasSceneInputController ? 'direct' : 'scroll';
+  }, [options.controlledProgress, inputModePolicy, hasSceneInputController]);
 
   const scrollRegionHeightPx = useMemo(() => {
     if (inputMode === 'direct') return Math.max(1, viewportHeight);
@@ -229,12 +297,51 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     const sceneCount = Math.max(1, options.scenes.length);
     const numTransitions = Math.max(0, sceneCount - 1);
     const totalFrames = numTransitions * blockSize + 1;
+    const sceneCountHeight = options.pixelsPerScene !== undefined
+      ? Math.max(1, options.pixelsPerScene * sceneCount)
+      : sceneCount <= 1
+        ? Math.max(1, viewportHeight)
+        : Math.max(1, viewportHeight + totalFrames);
+
+    if (scrollHeightMode === 'scroll-units') {
+      const totalUnits = sceneTrack?.progressProfile?.totalScrollUnits;
+      if (typeof totalUnits === 'number' && Number.isFinite(totalUnits) && totalUnits > 0) {
+        const pixelsPerUnit = options.pixelsPerScrollUnit ?? 1;
+        return Math.max(1, totalUnits * pixelsPerUnit);
+      }
+      return sceneCountHeight;
+    }
+
     if (options.pixelsPerScene !== undefined) {
       return Math.max(1, options.pixelsPerScene * sceneCount);
     }
     if (sceneCount <= 1) return Math.max(1, viewportHeight);
     return Math.max(1, viewportHeight + totalFrames);
-  }, [inputMode, options.scrollHeightPx, options.pixelsPerScene, options.scenes.length, blockSize, viewportHeight]);
+  }, [
+    inputMode,
+    options.scrollHeightPx,
+    options.pixelsPerScene,
+    options.pixelsPerScrollUnit,
+    options.scenes.length,
+    blockSize,
+    viewportHeight,
+    scrollHeightMode,
+    sceneTrack,
+  ]);
+
+  useEffect(() => {
+    if (inputMode !== 'scroll') return;
+    if (options.scrollHeightPx !== undefined) return;
+    if (scrollHeightMode !== 'scroll-units') return;
+    if (!sceneTrack) return;
+    if (sceneTrack?.progressProfile?.totalScrollUnits !== undefined) return;
+    if (warnedMissingScrollUnitsRef.current) return;
+    warnedMissingScrollUnitsRef.current = true;
+    console.warn(
+      '[useSceneEngine] scrollHeightMode="scroll-units" requested but scene track has no progressProfile.totalScrollUnits. ' +
+      'Falling back to scene-count scroll height. Define <ProgressManager> or switch scrollHeightMode.',
+    );
+  }, [inputMode, options.scrollHeightPx, scrollHeightMode, sceneTrack]);
 
   // wheelGuard: reads isWheelClaimedByInteraction from CameraWidget if registered.
   // This prevents scene navigation advancing while camera dolly is active.
@@ -260,8 +367,25 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     return [0, 0, 0];
   }, []);
 
+  const warnInvalidCameraTarget = useCallback((cameraId: string) => {
+    if (warnedCameraTargetsRef.current.has(cameraId)) return;
+    warnedCameraTargetsRef.current.add(cameraId);
+    console.warn(
+      `[useSceneEngine] Action camera target "${cameraId}" is missing or does not implement ICameraActionTarget. ` +
+      'Register a widget implementing applyOrbit/applyDolly/applyReset, or use the configured primaryCameraId.',
+    );
+  }, []);
+
   const handleCameraOrbit = useCallback((cameraId: string, dx: number, dy: number, speed: number) => {
-    if (cameraId !== 'camera') return;
+    if (cameraId !== primaryCameraId) {
+      const target = options.widgetRegistry.get(cameraId);
+      if (!target || !isCameraActionTarget(target)) {
+        warnInvalidCameraTarget(cameraId);
+        return;
+      }
+      target.applyOrbit(dx, dy, speed);
+      return;
+    }
     const camera = cameraRef.current;
     if (!camera) return;
 
@@ -276,7 +400,10 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     const w = Math.max(1, viewportRef.current.width);
     const h = Math.max(1, viewportRef.current.height);
     const nextAz = azimuth - (dx / w) * Math.PI * 2 * speed;
-    const nextPol = Math.max(-1.4, Math.min(1.4, polar - (dy / h) * Math.PI * speed));
+    const nextPol = Math.max(
+      cameraInteractionDefaults.orbitPolarMin,
+      Math.min(cameraInteractionDefaults.orbitPolarMax, polar - (dy / h) * Math.PI * speed),
+    );
     const cosPol = Math.cos(nextPol);
     const next: CameraOverrideState = {
       enabled: true,
@@ -292,10 +419,26 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       far: camera.far,
     };
     setCameraOverrideInternal(next);
-  }, [resolveCurrentCameraTarget, setCameraOverrideInternal]);
+  }, [
+    primaryCameraId,
+    options.widgetRegistry,
+    warnInvalidCameraTarget,
+    resolveCurrentCameraTarget,
+    cameraInteractionDefaults.orbitPolarMin,
+    cameraInteractionDefaults.orbitPolarMax,
+    setCameraOverrideInternal,
+  ]);
 
   const handleCameraDolly = useCallback((cameraId: string, delta: number, speed: number) => {
-    if (cameraId !== 'camera') return;
+    if (cameraId !== primaryCameraId) {
+      const targetWidget = options.widgetRegistry.get(cameraId);
+      if (!targetWidget || !isCameraActionTarget(targetWidget)) {
+        warnInvalidCameraTarget(cameraId);
+        return;
+      }
+      targetWidget.applyDolly(delta, speed);
+      return;
+    }
     const camera = cameraRef.current;
     if (!camera) return;
     const target = resolveCurrentCameraTarget();
@@ -306,7 +449,10 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     const radius = Math.max(0.001, Math.sqrt(vx * vx + vy * vy + vz * vz));
     const unit = [vx / radius, vy / radius, vz / radius] as const;
     const scale = 1 + (delta / 300) * speed;
-    const nextRadius = Math.max(2, Math.min(2000, radius * scale));
+    const nextRadius = Math.max(
+      cameraInteractionDefaults.dollyRadiusMin,
+      Math.min(cameraInteractionDefaults.dollyRadiusMax, radius * scale),
+    );
     const next: CameraOverrideState = {
       enabled: true,
       target,
@@ -321,11 +467,28 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       far: camera.far,
     };
     setCameraOverrideInternal(next);
-  }, [resolveCurrentCameraTarget, setCameraOverrideInternal]);
+  }, [
+    primaryCameraId,
+    options.widgetRegistry,
+    warnInvalidCameraTarget,
+    resolveCurrentCameraTarget,
+    cameraInteractionDefaults.dollyRadiusMin,
+    cameraInteractionDefaults.dollyRadiusMax,
+    setCameraOverrideInternal,
+  ]);
 
-  const handleCameraReset = useCallback((_cameraId: string) => {
+  const handleCameraReset = useCallback((cameraId: string) => {
+    if (cameraId !== primaryCameraId) {
+      const targetWidget = options.widgetRegistry.get(cameraId);
+      if (!targetWidget || !isCameraActionTarget(targetWidget)) {
+        warnInvalidCameraTarget(cameraId);
+        return;
+      }
+      targetWidget.applyReset();
+      return;
+    }
     setCameraOverrideInternal(null);
-  }, [setCameraOverrideInternal]);
+  }, [primaryCameraId, options.widgetRegistry, warnInvalidCameraTarget, setCameraOverrideInternal]);
 
   const handleDiagramCanvasMove = useCallback((canvasId: string, dx: number, dy: number, speed: number) => {
     const widget = options.widgetRegistry.get(canvasId) as
@@ -432,14 +595,23 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   } = useEngineInput({
     scrollRegionRef,
     scrollRegionHeightPx,
+    scrollSource: options.scrollSource,
     sceneCount: options.scenes.length,
+    inputMode,
     canvasRef: canvasElementRef,
     inputMap: options.inputMap,
     wheelGuard,
     inputControllerSpec,
     controlledProgress: options.controlledProgress,
     onControlledProgressChange: options.onControlledProgressChange,
+    enableKeyboardInControlledMode: options.enableKeyboardInControlledMode,
+    controlledInputMap: options.controlledInputMap,
     progressMapper,
+    idDefaults: {
+      cameraId: primaryCameraId,
+      canvasId: primaryCanvasActionTargetId,
+    },
+    actionWheelLockIdleMs: cameraInteractionDefaults.wheelLockIdleMs,
     onCameraOrbit: handleCameraOrbit,
     onCameraDolly: handleCameraDolly,
     onCameraReset: handleCameraReset,
@@ -570,6 +742,13 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   }, [backgroundElement, options.widgetRegistry]);
 
   useEffect(() => {
+    const cameraWidget = options.widgetRegistry.get('camera') as (CameraWidget & {
+      setInteractionDefaults?: (defaults: CameraInteractionDefaults | null) => void;
+    }) | undefined;
+    cameraWidget?.setInteractionDefaults?.(cameraInteractionDefaults);
+  }, [options.widgetRegistry, cameraInteractionDefaults]);
+
+  useEffect(() => {
     if (typeof window === 'undefined' || !canvas) return;
     readyRef.current = false;
     setDriverReady(false);
@@ -595,6 +774,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       widgetRegistry: options.widgetRegistry,
       variableStore,
       manifest: options.manifest ?? null,
+      maxAnimBoostPerFrame: options.maxAnimBoostPerFrame,
       onAssetsReady: () => setAssetsReady(true),
       onError: options.onError,
       onWidgetError: options.onWidgetError,
@@ -626,7 +806,15 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       loopRef.current = null;
       frameDriverRef.current?.reset();
     };
-  }, [canvas, options.widgetRegistry, options.onError, options.manifest, variableStore, sceneTrack]);
+  }, [
+    canvas,
+    options.widgetRegistry,
+    options.onError,
+    options.manifest,
+    options.maxAnimBoostPerFrame,
+    variableStore,
+    sceneTrack,
+  ]);
 
   useEffect(() => {
     if (options.manifest === null) {
@@ -638,6 +826,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       widgetRegistry: options.widgetRegistry,
       blockSize,
       prefersReducedMotion,
+      invalidateCacheToken: options.invalidateCacheToken,
     });
     const cached = getCachedTrack(key);
     if (cached) {
@@ -662,6 +851,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     blockSize,
     prefersReducedMotion,
     sceneDefs,
+    options.invalidateCacheToken,
     options.onCompileWarning,
   ]);
 
@@ -774,7 +964,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
         // no race condition with pauseOnScroll detection.
         autoAdvanceRawRef.current = nextRaw;
       },
-      fpsCap: options.fpsCap,
+      fpsCap: resolvedFpsCap,
     });
 
     loopRef.current = loop;
@@ -790,7 +980,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       frameDriver.reset();
     };
   // getRawProgress is a stable useCallback from useEngineScroll; include for correctness.
-  }, [sceneTrack, getGlobalProgress, options.fpsCap, options.onReady, driverReady, getRawProgress]);
+  }, [sceneTrack, getGlobalProgress, resolvedFpsCap, options.onReady, driverReady, getRawProgress]);
 
   return {
     frameState,

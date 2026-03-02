@@ -192,6 +192,12 @@ export type TrackpadCameraConfig = {
    * Default: false.
    */
   wheelZoom?: boolean;
+  /** Wheel sticky-lock idle timeout in milliseconds. Default: 160. */
+  wheelLockIdleMs?: number;
+  /** Axis dominance ratio for sticky wheel locking. Default: 1.2. */
+  wheelAxisDominance?: number;
+  /** Total wheel delta threshold before locking axis. Default: 10. */
+  wheelAxisActivationThreshold?: number;
 
   /**
    * Inertia/damping in seconds. Applies to all axes.
@@ -221,6 +227,16 @@ export type TrackpadCameraConfig = {
    * scene index changes (user scrolls to a new scene). Default: true.
    */
   resetOnSceneChange?: boolean;
+};
+
+export type CameraInteractionDefaults = {
+  wheelLockIdleMs?: number;
+  wheelAxisDominance?: number;
+  wheelAxisActivationThreshold?: number;
+  orbitPolarMin?: number;
+  orbitPolarMax?: number;
+  dollyRadiusMin?: number;
+  dollyRadiusMax?: number;
 };
 
 /**

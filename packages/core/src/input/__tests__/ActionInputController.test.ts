@@ -618,4 +618,132 @@ describe('ActionInputController', () => {
     expect(onCameraDolly).toHaveBeenCalledTimes(0);
     expect(onDiagramCanvasMove).toHaveBeenCalledTimes(0);
   });
+
+  it('uses idDefaults when action IDs are omitted', () => {
+    const spec = makeSpec();
+    spec.actions.push({
+      id: 'reset-camera',
+      type: 'camera.reset',
+      maps: [{ kind: 'key', key: '1' }],
+    });
+    spec.actions.push({
+      id: 'reset-canvas',
+      type: 'diagram-canvas.reset',
+      maps: [{ kind: 'key', key: '2' }],
+    });
+
+    const onCameraReset = vi.fn();
+    const onDiagramCanvasReset = vi.fn();
+    const target = document.createElement('div');
+    const ctrl = new ActionInputController(
+      target,
+      () => spec,
+      {
+        getSceneCount: () => 2,
+        onSceneStep: () => {},
+        onCameraOrbit: () => {},
+        onCameraDolly: () => {},
+        onCameraReset,
+        onDiagramCanvasMove: () => {},
+        onDiagramCanvasRotate: () => {},
+        onDiagramCanvasReset,
+        onDiagramCanvasFocus: () => {},
+      },
+      target,
+      {
+        idDefaults: { cameraId: 'primary-camera', canvasId: 'primary-canvas' },
+      },
+    );
+
+    ctrl.attach();
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: '1', bubbles: true, cancelable: true }));
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: '2', bubbles: true, cancelable: true }));
+    ctrl.detach();
+
+    expect(onCameraReset).toHaveBeenCalledWith('primary-camera');
+    expect(onDiagramCanvasReset).toHaveBeenCalledWith('primary-canvas');
+  });
+
+  it('falls back to legacy implicit IDs with one-time warnings', () => {
+    const spec = makeSpec();
+    spec.actions.push({
+      id: 'reset-camera',
+      type: 'camera.reset',
+      maps: [{ kind: 'key', key: '1' }],
+    });
+
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const onCameraReset = vi.fn();
+    const target = document.createElement('div');
+    const ctrl = new ActionInputController(
+      target,
+      () => spec,
+      {
+        getSceneCount: () => 2,
+        onSceneStep: () => {},
+        onCameraOrbit: () => {},
+        onCameraDolly: () => {},
+        onCameraReset,
+        onDiagramCanvasMove: () => {},
+        onDiagramCanvasRotate: () => {},
+        onDiagramCanvasReset: () => {},
+        onDiagramCanvasFocus: () => {},
+      },
+      target,
+    );
+
+    ctrl.attach();
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: '1', bubbles: true, cancelable: true }));
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: '1', bubbles: true, cancelable: true }));
+    ctrl.detach();
+
+    expect(onCameraReset).toHaveBeenCalledTimes(2);
+    expect(onCameraReset).toHaveBeenNthCalledWith(1, 'camera');
+    expect(warn).toHaveBeenCalledTimes(1);
+    warn.mockRestore();
+  });
+
+  it('resets sticky wheel lock after configured idle timeout', () => {
+    const nowSpy = vi.spyOn(Date, 'now');
+    let now = 0;
+    nowSpy.mockImplementation(() => now);
+
+    const spec = makeSpec();
+    spec.actions.push({
+      id: 'move-canvas-wheel',
+      type: 'diagram-canvas.move',
+      canvasId: 'llm-canvas',
+      maps: [{ kind: 'wheel', modifiers: ['shift'], axis: 'xy', lockAxis: 'sticky' }],
+    });
+
+    const onDiagramCanvasMove = vi.fn();
+    const target = document.createElement('div');
+    const ctrl = new ActionInputController(
+      target,
+      () => spec,
+      {
+        getSceneCount: () => 2,
+        onSceneStep: () => {},
+        onCameraOrbit: () => {},
+        onCameraDolly: () => {},
+        onCameraReset: () => {},
+        onDiagramCanvasMove,
+        onDiagramCanvasRotate: () => {},
+        onDiagramCanvasReset: () => {},
+        onDiagramCanvasFocus: () => {},
+      },
+      target,
+      { wheelLockIdleMs: 5 },
+    );
+
+    ctrl.attach();
+    target.dispatchEvent(new WheelEvent('wheel', { deltaX: 20, deltaY: 2, shiftKey: true, bubbles: true, cancelable: true }));
+    now = 10;
+    target.dispatchEvent(new WheelEvent('wheel', { deltaX: 1, deltaY: 14, shiftKey: true, bubbles: true, cancelable: true }));
+    ctrl.detach();
+
+    expect(onDiagramCanvasMove).toHaveBeenNthCalledWith(1, 'llm-canvas', 20, 0, 1);
+    expect(onDiagramCanvasMove).toHaveBeenNthCalledWith(2, 'llm-canvas', 0, -14, 1);
+    nowSpy.mockRestore();
+  });
 });

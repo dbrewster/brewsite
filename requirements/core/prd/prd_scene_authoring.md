@@ -3,8 +3,11 @@ title: "BrewSite Core — Scene Authoring DSL"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-01
+last_updated: 2026-03-02
 change_history:
+  - date: 2026-03-02
+    author: "Toolkit Product"
+    summary: "ProgressManager autoAdvance semantics language aligned with runtime: pauseOnScroll disables auto-advance for the current scene until scene transition (no debounce-resume behavior). Cache invalidation guidance added for function-valued prop changes via invalidateCacheToken."
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents the full Scene Authoring DSL surface for @brewsite/core including SceneGroup, Scene, built-in DSL elements, authoring patterns, custom widget DSL extension, and snapshot context."

@@ -22,7 +22,7 @@ export function NavMenu(): JSX.Element {
 
   const handleNavClick = useCallback((sceneId: string) => {
     close();
-    const index = websiteNavTargets.findIndex((target) => target.sceneId === sceneId);
+    const index = engine.sceneIds.findIndex((id) => id === sceneId);
     if (index < 0) return;
     const progress = index / Math.max(1, engine.sceneCount - 1);
     engine.scrollToProgress(progress);

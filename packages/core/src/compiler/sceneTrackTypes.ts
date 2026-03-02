@@ -55,8 +55,9 @@ export type AutoAdvanceSpec = {
    */
   max: number;
   /**
-   * When true, auto-advance pauses while the user is scrolling and resumes
-   * after 200ms of scroll inactivity. Default: true.
+   * When true, any user scroll on the current scene permanently disables
+   * auto-advance for the remainder of that scene. It resets on scene transition.
+   * Default: true.
    */
   pauseOnScroll: boolean;
 };
@@ -101,9 +102,9 @@ export type ProgressManagerSpec = {
    * Total animation-seconds that play when the user scrolls through this scene's
    * full raw input window in one smooth pass. Undefined = no boost (1× real-time always).
    * Recommended range: 2–12. Values > 20 may produce jarring jumps; the
-   * MAX_ANIM_BOOST_PER_FRAME cap (0.2s) mitigates programmatic navigation jumps.
+   * runtime maxAnimBoostPerFrame cap (default 0.2s) mitigates large jumps.
    *
-   * Formula: effectiveDelta = max(deltaSeconds, min(deltaProgress × animationTimeScale, 0.2))
+   * Formula: effectiveDelta = max(deltaSeconds, min(deltaProgress × animationTimeScale, maxAnimBoostPerFrame))
    */
   animationTimeScale?: number;
 };

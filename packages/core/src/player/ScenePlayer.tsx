@@ -15,6 +15,13 @@ import type { TimelineWidgetProps } from './TimelineWidgetTypes';
 import { SceneInspector } from './SceneInspector';
 import type { SceneNavInputMap } from '../input/types';
 import type { CompileWarning } from '../compiler/sceneTrackTypes';
+import type {
+  CameraInteractionDefaults,
+  EngineTimingProfile,
+  InputModePolicy,
+  ScrollSource,
+} from './engineTypes';
+import type { EngineOverlayHostProps } from './EngineOverlayHost';
 
 /** Minimal asset manifest type for backward compat. Full type lives in @brewsite/model. */
 type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
@@ -44,6 +51,16 @@ export type ScenePlayerProps = {
    */
   widgetSetup?: (manifest: AssetManifest) => WidgetRegistry;
   className?: string;
+  timingProfile?: EngineTimingProfile;
+  inputModePolicy?: InputModePolicy;
+  primaryCameraId?: string;
+  primaryCanvasActionTargetId?: string;
+  scrollSource?: ScrollSource;
+  scrollHeightMode?: 'scene-count' | 'scroll-units';
+  pixelsPerScrollUnit?: number;
+  maxAnimBoostPerFrame?: number;
+  cameraInteractionDefaults?: CameraInteractionDefaults;
+  invalidateCacheToken?: number | string;
   fpsCap?: number;
   /**
    * Pixels of scroll allocated per scene. Also described as "scroll depth" in docs.
@@ -111,6 +128,9 @@ export type ScenePlayerProps = {
    * `controlledProgress` to complete the controlled-component loop.
    */
   onControlledProgressChange?: (p: number) => void;
+  enableKeyboardInControlledMode?: boolean;
+  controlledInputMap?: SceneNavInputMap;
+  overlayTransition?: EngineOverlayHostProps['overlayTransition'];
   /**
    * Scene content. Direct <Scene id="..."> elements and React components that
    * render <Scene> are both supported.
@@ -128,6 +148,7 @@ type ScenePlayerInnerProps = {
   controlledProgress?: number;
   timeline?: boolean | Omit<TimelineWidgetProps, 'engine' | 'scenes'>;
   debug?: boolean;
+  overlayTransition?: EngineOverlayHostProps['overlayTransition'];
 };
 
 const ScenePlayerInner = (props: ScenePlayerInnerProps): ReactElement => {
@@ -155,7 +176,10 @@ const ScenePlayerInner = (props: ScenePlayerInnerProps): ReactElement => {
         />
 
         {/* Scene overlay content — HTML children from <Scene> */}
-        <EngineOverlayHost passthroughPointerEvents={false} />
+        <EngineOverlayHost
+          passthroughPointerEvents={false}
+          overlayTransition={props.overlayTransition}
+        />
 
         {/* Optional built-in timeline scrubber */}
         {props.timeline && (
@@ -197,6 +221,16 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
       manifestUrl={props.manifestUrl}
       plugins={props.plugins}
       widgetSetup={props.widgetSetup}
+      timingProfile={props.timingProfile}
+      inputModePolicy={props.inputModePolicy}
+      primaryCameraId={props.primaryCameraId}
+      primaryCanvasActionTargetId={props.primaryCanvasActionTargetId}
+      scrollSource={props.scrollSource}
+      scrollHeightMode={props.scrollHeightMode}
+      pixelsPerScrollUnit={props.pixelsPerScrollUnit}
+      maxAnimBoostPerFrame={props.maxAnimBoostPerFrame}
+      cameraInteractionDefaults={props.cameraInteractionDefaults}
+      invalidateCacheToken={props.invalidateCacheToken}
       fpsCap={props.fpsCap}
       pixelsPerScene={props.pixelsPerScene}
       framesPerTick={props.framesPerTick}
@@ -211,6 +245,8 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
       inputMap={props.inputMap}
       controlledProgress={props.controlledProgress}
       onControlledProgressChange={props.onControlledProgressChange}
+      enableKeyboardInControlledMode={props.enableKeyboardInControlledMode}
+      controlledInputMap={props.controlledInputMap}
     >
       {/* Scene declarations — <Scene> components register via SceneRegistrationContext */}
       {props.children}
@@ -223,6 +259,7 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
         controlledProgress={props.controlledProgress}
         timeline={props.timeline}
         debug={props.debug}
+        overlayTransition={props.overlayTransition}
       />
     </EngineProvider>
   );

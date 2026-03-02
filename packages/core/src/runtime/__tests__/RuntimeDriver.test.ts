@@ -686,4 +686,50 @@ describe('RuntimeDriverImpl', () => {
     });
     expect(() => driver.dispose()).not.toThrow();
   });
+
+  it('honors configured maxAnimBoostPerFrame', async () => {
+    const registry = new WidgetRegistry();
+    const variableStore = new VariableStore();
+    const scene = new THREE.Scene();
+    let effectiveDelta = 0;
+
+    registry.register({
+      widgetId: 'anim',
+      onTick: (ctx) => {
+        effectiveDelta = ctx.effectiveDeltaSeconds;
+      },
+    } as IAnimationController);
+
+    const track: SceneTrack = {
+      ticks: [makeTick({ index: 0, progress: 0, sceneIndex: 0, blockProgress: 0, widgets: {} })],
+      tickStep: 1,
+      subTickCount: 1,
+      sceneWindows: [{ id: 'scene-0', index: 0, start: 0, end: 1 }],
+      progressProfile: {
+        isUniform: false,
+        totalScrollUnits: 1,
+        segments: [{
+          sceneIndex: 0,
+          rawStart: 0,
+          rawEnd: 1,
+          engineStart: 0,
+          engineEnd: 1,
+          fn: (t) => t,
+          animationTimeScale: 10,
+        }],
+      },
+    };
+
+    const driver = new RuntimeDriverImpl({
+      widgetRegistry: registry,
+      variableStore,
+      manifest: null,
+      maxAnimBoostPerFrame: 0.05,
+    });
+    driver.setSceneTrack(track);
+    await driver.initialize(scene);
+    driver.tick({ deltaSeconds: 0.016, globalProgress: 0, deltaProgress: 1 });
+
+    expect(effectiveDelta).toBeCloseTo(0.05, 6);
+  });
 });

@@ -67,7 +67,17 @@ type ActiveWheelLock = {
 
 type TouchPoint = { x: number; y: number };
 
-const WHEEL_LOCK_IDLE_MS = 180;
+export type ActionInputControllerOptions = {
+  idDefaults?: {
+    cameraId: string;
+    canvasId: string;
+  };
+  wheelLockIdleMs?: number;
+};
+
+const LEGACY_CAMERA_ID = 'camera';
+const LEGACY_CANVAS_ID = 'llm-canvas';
+const DEFAULT_WHEEL_LOCK_IDLE_MS = 180;
 
 export class ActionInputController {
   private activeDrag: ActiveDrag | null = null;
@@ -78,6 +88,10 @@ export class ActionInputController {
   private keyboardTarget: HTMLElement | Document | Window;
   private readonly getSpec: () => SceneInputControllerSpec | null;
   private readonly handler: ActionInputHandler;
+  private readonly idDefaults?: ActionInputControllerOptions['idDefaults'];
+  private readonly wheelLockIdleMs: number;
+  private warnedLegacyCameraId = false;
+  private warnedLegacyCanvasId = false;
 
   private readonly onPointerDown: (e: PointerEvent) => void;
   private readonly onPointerMove: (e: PointerEvent) => void;
@@ -91,11 +105,14 @@ export class ActionInputController {
     getSpec: () => SceneInputControllerSpec | null,
     handler: ActionInputHandler,
     keyboardTarget?: HTMLElement | Document | Window,
+    options?: ActionInputControllerOptions,
   ) {
     this.target = target;
     this.getSpec = getSpec;
     this.handler = handler;
     this.keyboardTarget = keyboardTarget ?? (target instanceof HTMLElement ? target : window);
+    this.idDefaults = options?.idDefaults;
+    this.wheelLockIdleMs = options?.wheelLockIdleMs ?? DEFAULT_WHEEL_LOCK_IDLE_MS;
     this.onPointerDown = this.handlePointerDown.bind(this);
     this.onPointerMove = this.handlePointerMove.bind(this);
     this.onPointerUp = this.handlePointerUp.bind(this);
@@ -229,9 +246,35 @@ export class ActionInputController {
     return Math.sqrt(dx * dx + dy * dy);
   }
 
+  private resolveCameraId(action: InputActionSpec): string {
+    if (action.cameraId) return action.cameraId;
+    if (this.idDefaults?.cameraId) return this.idDefaults.cameraId;
+    if (!this.warnedLegacyCameraId) {
+      this.warnedLegacyCameraId = true;
+      console.warn(
+        '[ActionInputController] cameraId defaulted to "camera". ' +
+        'Set `primaryCameraId` in engine options or author `cameraId` explicitly.',
+      );
+    }
+    return LEGACY_CAMERA_ID;
+  }
+
+  private resolveCanvasId(action: InputActionSpec): string {
+    if (action.canvasId) return action.canvasId;
+    if (this.idDefaults?.canvasId) return this.idDefaults.canvasId;
+    if (!this.warnedLegacyCanvasId) {
+      this.warnedLegacyCanvasId = true;
+      console.warn(
+        '[ActionInputController] canvasId defaulted to "llm-canvas". ' +
+        'Set `primaryCanvasActionTargetId` in engine options or author `canvasId` explicitly.',
+      );
+    }
+    return LEGACY_CANVAS_ID;
+  }
+
   private dispatchPinch(action: InputActionSpec, pinchDelta: number): void {
     const speed = this.actionSpeed(action);
-    const cameraId = action.cameraId ?? 'camera';
+    const cameraId = this.resolveCameraId(action);
     switch (action.type) {
       case 'camera.dolly':
         this.handler.onCameraDolly(cameraId, pinchDelta, speed);
@@ -293,23 +336,25 @@ export class ActionInputController {
     dy: number,
   ): void {
     const speed = this.actionSpeed(action);
-    const cameraId = action.cameraId ?? 'camera';
-    const canvasId = action.canvasId ?? 'llm-canvas';
     const filtered = this.applyAxisToDelta(mapAxis, lockAxis, dx, dy);
 
     switch (action.type) {
       case 'camera.orbit':
-        this.handler.onCameraOrbit(cameraId, filtered.dx, filtered.dy, speed);
+        this.handler.onCameraOrbit(this.resolveCameraId(action), filtered.dx, filtered.dy, speed);
         return;
       case 'camera.dolly':
-        this.handler.onCameraDolly(cameraId, this.pointerDelta(mapAxis, filtered.dx, filtered.dy), speed);
+        this.handler.onCameraDolly(
+          this.resolveCameraId(action),
+          this.pointerDelta(mapAxis, filtered.dx, filtered.dy),
+          speed,
+        );
         return;
       case 'canvas.pan':
       case 'diagram-canvas.move':
-        this.handler.onDiagramCanvasMove(canvasId, filtered.dx, filtered.dy, speed);
+        this.handler.onDiagramCanvasMove(this.resolveCanvasId(action), filtered.dx, filtered.dy, speed);
         return;
       case 'diagram-canvas.rotate':
-        this.handler.onDiagramCanvasRotate(canvasId, filtered.dx, filtered.dy, speed);
+        this.handler.onDiagramCanvasRotate(this.resolveCanvasId(action), filtered.dx, filtered.dy, speed);
         return;
       default:
         return;
@@ -323,8 +368,6 @@ export class ActionInputController {
     e: WheelEvent,
   ): void {
     const speed = this.actionSpeed(action);
-    const cameraId = action.cameraId ?? 'camera';
-    const canvasId = action.canvasId ?? 'llm-canvas';
     const rawDx = e.deltaX;
     // Keep wheel Y aligned with drag-style "positive is upward" interaction semantics.
     const rawDy = -e.deltaY;
@@ -333,23 +376,23 @@ export class ActionInputController {
 
     switch (action.type) {
       case 'camera.orbit':
-        this.handler.onCameraOrbit(cameraId, filtered.dx, filtered.dy, speed * 0.4);
+        this.handler.onCameraOrbit(this.resolveCameraId(action), filtered.dx, filtered.dy, speed * 0.4);
         return;
       case 'camera.dolly':
-        this.handler.onCameraDolly(cameraId, mainDelta, speed);
+        this.handler.onCameraDolly(this.resolveCameraId(action), mainDelta, speed);
         return;
       case 'camera.reset':
-        this.handler.onCameraReset(cameraId);
+        this.handler.onCameraReset(this.resolveCameraId(action));
         return;
       case 'canvas.pan':
       case 'diagram-canvas.move':
-        this.handler.onDiagramCanvasMove(canvasId, filtered.dx, filtered.dy, speed);
+        this.handler.onDiagramCanvasMove(this.resolveCanvasId(action), filtered.dx, filtered.dy, speed);
         return;
       case 'diagram-canvas.rotate':
-        this.handler.onDiagramCanvasRotate(canvasId, filtered.dx, filtered.dy, speed);
+        this.handler.onDiagramCanvasRotate(this.resolveCanvasId(action), filtered.dx, filtered.dy, speed);
         return;
       case 'diagram-canvas.reset':
-        this.handler.onDiagramCanvasReset(canvasId);
+        this.handler.onDiagramCanvasReset(this.resolveCanvasId(action));
         return;
       case 'scene.next':
         this.handler.onSceneStep(1, this.actionStepScenes(action));
@@ -363,14 +406,12 @@ export class ActionInputController {
   }
 
   private dispatchKey(action: InputActionSpec): void {
-    const cameraId = action.cameraId ?? 'camera';
-    const canvasId = action.canvasId ?? 'llm-canvas';
     switch (action.type) {
       case 'camera.reset':
-        this.handler.onCameraReset(cameraId);
+        this.handler.onCameraReset(this.resolveCameraId(action));
         return;
       case 'diagram-canvas.reset':
-        this.handler.onDiagramCanvasReset(canvasId);
+        this.handler.onDiagramCanvasReset(this.resolveCanvasId(action));
         return;
       case 'scene.next':
         this.handler.onSceneStep(1, this.actionStepScenes(action));
@@ -384,10 +425,9 @@ export class ActionInputController {
   }
 
   private dispatchClick(action: InputActionSpec, e: MouseEvent): void {
-    const canvasId = action.canvasId ?? 'llm-canvas';
     switch (action.type) {
       case 'diagram-canvas.focus':
-        this.handler.onDiagramCanvasFocus(canvasId, e.clientX, e.clientY, action.focusCenter);
+        this.handler.onDiagramCanvasFocus(this.resolveCanvasId(action), e.clientX, e.clientY, action.focusCenter);
         return;
       case 'scene.next':
         this.handler.onSceneStep(1, this.actionStepScenes(action));
@@ -559,7 +599,7 @@ export class ActionInputController {
         prevWheelLock &&
         prevWheelLock.actionId === best.action.id &&
         prevWheelLock.modifierSignature === modifierSignature &&
-        currentTs - prevWheelLock.lastEventTs <= WHEEL_LOCK_IDLE_MS;
+        currentTs - prevWheelLock.lastEventTs <= this.wheelLockIdleMs;
       if (reuse) {
         lockAxis = prevWheelLock.lockAxis;
       } else {

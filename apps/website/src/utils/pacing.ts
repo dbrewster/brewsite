@@ -7,9 +7,9 @@
  */
 
 /**
- * Standard dwell curve: animation completes in the first 40% of a scene's
- * scroll budget, then holds the final pose for the remaining 60%.
+ * Default per-scene pacing curve for ProgressManager.
  *
- * fn constraints satisfied: fn(0)=0, fn(1)=1, monotonically non-decreasing.
+ * Keep this identity by default so raw scroll and scene progression stay
+ * continuously aligned across the full segment (no plateau at the tail).
  */
-export const dwellFn = (t: number): number => Math.min(1, t * 2.5);
+export const dwellFn = (t: number): number => t;

@@ -1,6 +1,6 @@
 export type {
   IWidget, ISceneElement, IRenderable, ILoadable,
-  IDslComposite, IAnimationController, IVariableProvider,
+  IDslComposite, IAnimationController, ICameraActionTarget, IVariableProvider,
   IRendererLifecycle, IRenderContributor, RenderContribution,
   IContainedRenderable, IAttachmentHost,
   CompileExtraContext, WidgetInitContext, WidgetRenderContext, AnimationTickContext,
@@ -10,7 +10,7 @@ export {
   WidgetRegistry,
   isSceneElement, isRenderable, isLoadable,
   isRendererLifecycle, isRenderContributor, isContainedRenderable, isAttachmentHost,
-  isDslComposite, isAnimationController, isVariableProvider,
+  isDslComposite, isAnimationController, isCameraActionTarget, isVariableProvider,
 } from './WidgetRegistry';
 export { VariableStore } from './VariableStore';
 export type { JsonPrimitive } from './VariableStore';

@@ -8,14 +8,21 @@ import { ActionInputController } from '../input/ActionInputController';
 import type { SceneInputControllerSpec } from '../input/types';
 import { useEngineScroll } from './useEngineScroll';
 import type { SceneProgressMapper } from './SceneProgressMapper';
+import type { ScrollSource } from './engineTypes';
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 
 export type UseEngineInputOptions = {
   scrollRegionRef: RefObject<HTMLElement | null>;
   scrollRegionHeightPx: number;
+  scrollSource?: ScrollSource;
   /** Number of scenes, used for keyboard step calculation. */
   sceneCount: number;
+  /**
+   * Resolved input mode from useSceneEngine policy.
+   * Defaults to direct when scene controller exists, otherwise scroll.
+   */
+  inputMode?: 'scroll' | 'direct';
   /** Optional canvas element ref for direct-mode event attachment. */
   canvasRef?: RefObject<HTMLElement | null>;
   /** Input configuration. If omitted, behaves identically to useEngineScroll. */
@@ -31,10 +38,7 @@ export type UseEngineInputOptions = {
   /**
    * When provided, bypasses scroll-derived progress entirely. The engine reads
    * this value (clamped [0, 1]) directly on every Three.js frame without
-   * touching `window.scrollY` or `window.scrollTo`.
-   *
-   * Pair with `onControlledProgressChange` so that `engine.scrollToProgress()`
-   * propagates back to the owner's state setter, keeping UI controls in sync.
+   * touching scroll position.
    */
   controlledProgress?: number;
   /**
@@ -44,11 +48,32 @@ export type UseEngineInputOptions = {
    */
   onControlledProgressChange?: (p: number) => void;
   /**
+   * When true, enables built-in keyboard scene navigation in controlled mode.
+   * Keyboard-only: no wheel/pointer listeners are attached in controlled mode.
+   */
+  enableKeyboardInControlledMode?: boolean;
+  /**
+   * Optional keyboard mapping override used only when controlled mode keyboard
+   * support is enabled.
+   */
+  controlledInputMap?: SceneNavInputMap;
+  /**
    * Optional progress mapper. Applied in scroll mode and direct mode (wheel/drag).
    * NOT applied in controlled-progress mode — the controlled-progress owner
    * provides semantic engine progress directly.
    */
   progressMapper?: SceneProgressMapper | null;
+  /**
+   * Default action targets used when authored action maps omit cameraId/canvasId.
+   */
+  idDefaults?: {
+    cameraId: string;
+    canvasId: string;
+  };
+  /**
+   * Sticky wheel-lock idle timeout for action maps.
+   */
+  actionWheelLockIdleMs?: number;
   onCameraOrbit?: (cameraId: string, dx: number, dy: number, speed: number) => void;
   onCameraDolly?: (cameraId: string, delta: number, speed: number) => void;
   onCameraReset?: (cameraId: string) => void;
@@ -62,8 +87,7 @@ export type UseEngineInputOptions = {
     focusCenter?: [number, number] | [number, number, number],
   ) => void;
   /**
-   * Called when a genuine user scroll event fires (NOT when auto-advance calls
-   * window.scrollTo). Threaded directly to useEngineScroll's onUserScroll option.
+   * Called when a genuine user scroll event fires.
    */
   onUserScroll?: () => void;
 };
@@ -76,19 +100,10 @@ export type UseEngineInputResult = {
   getRawProgress(): number;
   /**
    * Advances progress to the given raw (pre-mapper) value.
-   * In scroll mode: advances window.scrollY without triggering onUserScroll.
-   * In direct mode: updates directProgressRef directly.
-   * In controlled mode: calls onControlledProgressChange with the raw value.
    */
   scrollToRawProgress(raw: number): void;
   /**
-   * Directly writes the given raw value into rawProgressRef / progressRef
-   * without calling window.scrollTo or firing a scroll event.
-   * Used by the auto-advance state machine to synchronize refs when
-   * auto-advance stops, replacing the unreliable suppress-scroll-event pattern.
-   * In scroll mode: delegates to useEngineScroll.forceRawProgress().
-   * In direct mode: delegates to setDirectProgressBoth().
-   * In controlled mode: calls onControlledProgressChange with the raw value.
+   * Directly writes the given raw value into refs without calling scrollTo.
    */
   forceRawProgress(raw: number): void;
 };
@@ -97,6 +112,7 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
   const {
     scrollRegionRef,
     scrollRegionHeightPx,
+    scrollSource,
     sceneCount,
     canvasRef,
     inputMap,
@@ -112,18 +128,15 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
   } = options;
 
   // ─── Scroll mode: delegate to useEngineScroll ─────────────────────────
-  // Pass progressMapper so scroll mode applies remap/inverse correctly.
-  // Thread onUserScroll for auto-advance pauseOnScroll detection.
   const scrollResult = useEngineScroll({
     scrollRegionRef,
     scrollRegionHeightPx,
+    scrollSource,
     progressMapper,
     onUserScroll: options.onUserScroll,
   });
 
-  // Extract stable function references to avoid tearing down InputController
-  // on every render. scrollResult object reference changes each render, but
-  // the functions it returns are stable useCallback instances.
+  // Stable function references from useEngineScroll.
   const scrollToProgressStable = scrollResult.scrollToProgress;
   const getGlobalProgressStable = scrollResult.getGlobalProgress;
 
@@ -132,13 +145,10 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
   const directProgressRef = useRef(0);
 
   // ─── Controlled mode: owner provides progress via prop ────────────────
-  // Mutable ref so getGlobalProgress() always returns the latest prop value
-  // without a stale closure. Updated synchronously on every render.
   const controlledProgressRef = useRef<number>(options.controlledProgress ?? 0);
   if (options.controlledProgress !== undefined) {
     controlledProgressRef.current = options.controlledProgress;
   }
-  // Stable ref to the callback so scrollToControlledProgress never rebuilds.
   const onControlledProgressChangeRef = useRef(options.onControlledProgressChange);
   onControlledProgressChangeRef.current = options.onControlledProgressChange;
 
@@ -146,12 +156,7 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
 
   const scrollToControlledProgress = useCallback((next: number) => {
     const clamped = clamp01(next);
-    // Update the ref synchronously so the Three.js loop sees it immediately,
-    // before the owner's state setter has triggered a re-render.
     controlledProgressRef.current = clamped;
-    // Notify the owner to update controlledProgress prop (completes the loop).
-    // The resulting re-render propagates the new value back as options.controlledProgress,
-    // which is what engine.progress and state.progress report to UI components.
     onControlledProgressChangeRef.current?.(clamped);
   }, []);
 
@@ -161,18 +166,44 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
     setDirectProgress(clamped);
   }, []);
 
-  const getDirectProgress = useCallback(() => directProgressRef.current, []);
   const specRef = useRef<SceneInputControllerSpec | null>(inputControllerSpec ?? null);
   specRef.current = inputControllerSpec ?? null;
   const hasSceneController = inputControllerSpec !== null && inputControllerSpec !== undefined;
   const sceneControllerScope = inputControllerSpec?.scope ?? 'canvas';
+  const resolvedInputMode = options.inputMode ?? (hasSceneController ? 'direct' : 'scroll');
 
   // ─── InputController attachment ───────────────────────────────────────
   useEffect(() => {
-    // Controlled mode: the owner drives progress externally. Keyboard shortcuts
-    // are not attached because they would call window.scrollTo via the legacy
-    // scroll handler. The owner can wire its own keyboard handling if needed.
-    if (options.controlledProgress !== undefined) return;
+    if (options.controlledProgress !== undefined) {
+      if (!options.enableKeyboardInControlledMode) return undefined;
+      const controlledKeys = options.controlledInputMap?.keys ?? inputMap?.keys;
+      if (controlledKeys === false) return undefined;
+
+      const ctrl = new InputController(
+        window,
+        {
+          mode: 'scroll',
+          wheel: false,
+          drag: false,
+          swipe: false,
+          click: false,
+          keys: controlledKeys,
+        },
+        {
+          onScroll: (delta) => {
+            scrollToControlledProgress(clamp01(getControlledProgress() + delta));
+          },
+          onJumpToScene: (index) => {
+            const progress = sceneCount > 1 ? index / (sceneCount - 1) : 0;
+            scrollToControlledProgress(progress);
+          },
+          getProgress: getControlledProgress,
+          getSceneCount: () => sceneCount,
+        },
+      );
+      ctrl.attach();
+      return () => ctrl.detach();
+    }
 
     if (hasSceneController) {
       const attachTarget = (sceneControllerScope === 'window')
@@ -187,6 +218,11 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
           getSceneCount: () => sceneCount,
           onSceneStep: (direction, stepScenes) => {
             const step = sceneCount > 1 ? stepScenes / (sceneCount - 1) : 1;
+            if (resolvedInputMode === 'scroll') {
+              const next = clamp01(getGlobalProgressStable() + direction * step);
+              scrollToProgressStable(next);
+              return;
+            }
             setDirectProgressBoth(clamp01(directProgressRef.current + direction * step));
           },
           onCameraOrbit: (cameraId, dx, dy, speed) => {
@@ -212,15 +248,17 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
           },
         },
         keyboardTarget,
+        {
+          idDefaults: options.idDefaults,
+          wheelLockIdleMs: options.actionWheelLockIdleMs,
+        },
       );
       ctrl.attach();
       return () => ctrl.detach();
     }
 
-    // Legacy fallback when no scene InputController is authored:
-    // preserve scroll-driven scene transitions and optional keyboard shortcuts.
-    // Wheel remains native browser scroll in this mode.
-    if (inputMap?.keys === false) return;
+    // Legacy fallback when no scene InputController is authored.
+    if (inputMap?.keys === false) return undefined;
 
     const handler = {
       onScroll: (delta: number) => {
@@ -243,24 +281,38 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
       keys: inputMap?.keys,
     };
 
-    const ctrl = new InputController(window, scrollModeMap, handler);
+    const ctrl = new InputController(window, scrollModeMap, handler, undefined, options.wheelGuard);
     ctrl.attach();
     return () => ctrl.detach();
   }, [
-    // Stable references only — no object literals that change every render
-    inputMap, sceneCount, canvasRef, canvasRef?.current, scrollRegionRef,
-    scrollToProgressStable, getGlobalProgressStable,
-    setDirectProgressBoth, getDirectProgress,
-    hasSceneController, sceneControllerScope,
-    onCameraOrbit, onCameraDolly, onCameraReset, onDiagramCanvasMove, onDiagramCanvasRotate,
+    inputMap,
+    sceneCount,
+    canvasRef,
+    canvasRef?.current,
+    scrollRegionRef,
+    scrollToProgressStable,
+    getGlobalProgressStable,
+    setDirectProgressBoth,
+    hasSceneController,
+    sceneControllerScope,
+    resolvedInputMode,
+    onCameraOrbit,
+    onCameraDolly,
+    onCameraReset,
+    onDiagramCanvasMove,
+    onDiagramCanvasRotate,
     onDiagramCanvasReset,
     onDiagramCanvasFocus,
+    options.controlledProgress,
+    options.enableKeyboardInControlledMode,
+    options.controlledInputMap,
+    options.idDefaults,
+    options.actionWheelLockIdleMs,
+    options.wheelGuard,
+    getControlledProgress,
+    scrollToControlledProgress,
   ]);
 
-  // ─── Return appropriate interface ─────────────────────────────────────
-
-  // Controlled mode: progress is entirely owned by the parent via prop.
-  // No window.scrollY reads, no window.scrollTo calls. Mapper NOT applied.
   if (options.controlledProgress !== undefined) {
     return {
       progress: options.controlledProgress,
@@ -272,8 +324,7 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
     };
   }
 
-  if (hasSceneController) {
-    // Direct mode: apply mapper to wheel/drag progress.
+  if (hasSceneController && resolvedInputMode === 'direct') {
     const mappedDirectProgress = progressMapper
       ? progressMapper.remap(directProgress)
       : directProgress;
@@ -288,7 +339,6 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
       return progressMapper ? progressMapper.remap(raw) : raw;
     };
 
-    // In direct mode, raw = directProgressRef (no mapper involved at the raw level)
     const getDirectRaw = () => directProgressRef.current;
     const scrollToDirectRaw = (raw: number) => setDirectProgressBoth(clamp01(raw));
 

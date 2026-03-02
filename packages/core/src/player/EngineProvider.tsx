@@ -22,7 +22,13 @@ import {
   unregisterSceneRuntime,
 } from './ScenePlayerRegistry';
 import { SceneMetaWidget } from './SceneMetaWidget';
-import type { InternalSceneSpec } from './engineTypes';
+import type {
+  CameraInteractionDefaults,
+  EngineTimingProfile,
+  InputModePolicy,
+  InternalSceneSpec,
+  ScrollSource,
+} from './engineTypes';
 import type { SceneNavInputMap } from '../input/types';
 import type { CompileWarning } from '../compiler/sceneTrackTypes';
 
@@ -49,6 +55,16 @@ export type EngineProviderProps = {
    * Provides backward compatibility for existing widgetSetup-based integrations.
    */
   widgetSetup?: (manifest: AssetManifest) => WidgetRegistry;
+  timingProfile?: EngineTimingProfile;
+  inputModePolicy?: InputModePolicy;
+  primaryCameraId?: string;
+  primaryCanvasActionTargetId?: string;
+  scrollSource?: ScrollSource;
+  scrollHeightMode?: 'scene-count' | 'scroll-units';
+  pixelsPerScrollUnit?: number;
+  maxAnimBoostPerFrame?: number;
+  cameraInteractionDefaults?: CameraInteractionDefaults;
+  invalidateCacheToken?: number | string;
   fpsCap?: number;
   pixelsPerScene?: number;
   /**
@@ -77,15 +93,11 @@ export type EngineProviderProps = {
   inputMap?: SceneNavInputMap;
   controlledProgress?: number;
   onControlledProgressChange?: (p: number) => void;
+  enableKeyboardInControlledMode?: boolean;
+  controlledInputMap?: SceneNavInputMap;
   /** All children — <Scene> declarations, layout, overlay hosts, siblings. */
   children: ReactNode;
 };
-
-const QUALITY_PRESET_FRAMES: Record<NonNullable<EngineProviderProps['quality']>, number> = {
-  performance: 30,
-  balanced: 60,
-  high: 120,
-} as const;
 
 export const EngineProvider = (props: EngineProviderProps): ReactElement => {
   const [manifest, setManifest] = useState<AssetManifest | null>(null);
@@ -183,18 +195,28 @@ export const EngineProvider = (props: EngineProviderProps): ReactElement => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widgetRegistry, props.onSceneChange]);
 
-  const resolvedFramesPerTick =
-    props.framesPerTick ??
-    (props.quality !== undefined ? QUALITY_PRESET_FRAMES[props.quality] : undefined);
+  const resolvedTimingProfile: EngineTimingProfile = {
+    fpsCap: props.timingProfile?.fpsCap ?? props.fpsCap,
+    blockSize: props.timingProfile?.blockSize ?? props.framesPerTick,
+    qualityPreset: props.timingProfile?.qualityPreset ?? props.quality,
+  };
 
   const engine = useSceneEngine({
     scenes,
     widgetRegistry,
     manifest,
-    fpsCap: props.fpsCap,
+    timingProfile: resolvedTimingProfile,
+    inputModePolicy: props.inputModePolicy,
+    primaryCameraId: props.primaryCameraId,
+    primaryCanvasActionTargetId: props.primaryCanvasActionTargetId,
+    scrollSource: props.scrollSource,
+    scrollHeightMode: props.scrollHeightMode,
+    pixelsPerScrollUnit: props.pixelsPerScrollUnit,
+    maxAnimBoostPerFrame: props.maxAnimBoostPerFrame,
+    cameraInteractionDefaults: props.cameraInteractionDefaults,
+    invalidateCacheToken: props.invalidateCacheToken,
     pixelsPerScene: props.pixelsPerScene,
     scrollHeightPx: props.scrollHeightPx,
-    framesPerTick: resolvedFramesPerTick,
     onReady: props.onReady,
     onError: props.onError,
     onWidgetError: props.onWidgetError,
@@ -202,6 +224,8 @@ export const EngineProvider = (props: EngineProviderProps): ReactElement => {
     inputMap: props.inputMap,
     controlledProgress: props.controlledProgress,
     onControlledProgressChange: props.onControlledProgressChange,
+    enableKeyboardInControlledMode: props.enableKeyboardInControlledMode,
+    controlledInputMap: props.controlledInputMap,
   });
 
   // Push runtime state to global registry every time relevant state changes

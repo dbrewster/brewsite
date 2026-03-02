@@ -28,6 +28,28 @@ describe('sceneTrackCache', () => {
     expect(key).toContain('rm:1');
   });
 
+  it('buildSceneTrackKey includes invalidateCacheToken', () => {
+    const registry = new WidgetRegistry();
+    const keyA = buildSceneTrackKey({
+      scenes: [{ contentKey: 'scene-a' }],
+      widgetRegistry: registry,
+      blockSize: 4,
+      prefersReducedMotion: false,
+      invalidateCacheToken: 'v1',
+    });
+    const keyB = buildSceneTrackKey({
+      scenes: [{ contentKey: 'scene-a' }],
+      widgetRegistry: registry,
+      blockSize: 4,
+      prefersReducedMotion: false,
+      invalidateCacheToken: 'v2',
+    });
+
+    expect(keyA).toContain('tok:v1');
+    expect(keyB).toContain('tok:v2');
+    expect(keyA).not.toBe(keyB);
+  });
+
   it('getCachedTrack returns undefined when cache is empty', () => {
     expect(getCachedTrack('missing')).toBeUndefined();
   });

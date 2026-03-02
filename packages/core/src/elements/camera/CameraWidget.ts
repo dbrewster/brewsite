@@ -7,6 +7,7 @@ import type {
   CameraOverrideState,
   ICameraInteractionDriver,
   CameraInteractionDriverFactory,
+  CameraInteractionDefaults,
 } from './types';
 import type * as THREE from 'three';
 import { DEFAULT_CAMERA, functionalCameraTransitionSpec, extractWorldPosFromDescriptor } from './compile';
@@ -59,6 +60,7 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
 
   // ─── Scene change tracking ───────────────────────────────────────────────
   private lastSceneIndex = -1;
+  private interactionDefaults: CameraInteractionDefaults | null = null;
 
   // ─── Camera reference for reset fallback ────────────────────────────────
   private cameraRef: THREE.PerspectiveCamera | null = null;
@@ -234,7 +236,8 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
 
     if (this.isInteractionActive && this.driver) {
       // Re-configure each tick so scene-state changes (speeds, constraints) propagate live
-      if (state.interaction) this.driver.configure(state.interaction);
+      const interaction = this.resolveInteractionConfig(state.interaction);
+      if (interaction) this.driver.configure(interaction);
 
       // Smooth reset when user navigates to a different scene
       if (tick.sceneIndex !== this.lastSceneIndex && this.lastSceneIndex !== -1) {
@@ -273,6 +276,10 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
     return this.driver.claimsWheel();
   }
 
+  setInteractionDefaults(defaults: CameraInteractionDefaults | null | undefined): void {
+    this.interactionDefaults = defaults ?? null;
+  }
+
   // ─── Interaction mode management ──────────────────────────────────────────
 
   private enterInteractionMode(
@@ -280,10 +287,11 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
     camera: THREE.PerspectiveCamera,
     tick: SceneTrackTick,
   ): void {
-    if (!this.domElement || !state.interaction) return;
+    const interaction = this.resolveInteractionConfig(state.interaction);
+    if (!this.domElement || !interaction) return;
 
     // Create and attach the driver
-    this.driver = this.driverFactory(camera, this.domElement, state.interaction);
+    this.driver = this.driverFactory(camera, this.domElement, interaction);
 
     // Sync driver's internal look-at to scene-defined position
     const pos = extractWorldPosFromDescriptor(state.descriptor)
@@ -302,7 +310,7 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
     this.domElement.style.pointerEvents = 'auto';
 
     // Keyboard reset shortcut
-    const resetCombo = state.interaction.reset;
+    const resetCombo = interaction.reset;
     if (resetCombo !== false) {
       const combo = resetCombo ?? { key: 'r' };
       this.resetKeyListener = (e: KeyboardEvent) => {
@@ -341,6 +349,23 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
     this.isInteractionActive = false;
     this.savedSceneState = null;
     this.lastSceneIndex = -1;
+  }
+
+  private resolveInteractionConfig(
+    interaction: SceneCamera['interaction'],
+  ): SceneCamera['interaction'] {
+    if (!interaction || !this.interactionDefaults) return interaction;
+    return {
+      ...interaction,
+      wheelLockIdleMs: interaction.wheelLockIdleMs ?? this.interactionDefaults.wheelLockIdleMs,
+      wheelAxisDominance: interaction.wheelAxisDominance ?? this.interactionDefaults.wheelAxisDominance,
+      wheelAxisActivationThreshold:
+        interaction.wheelAxisActivationThreshold ?? this.interactionDefaults.wheelAxisActivationThreshold,
+      minPolarAngle: interaction.minPolarAngle ?? this.interactionDefaults.orbitPolarMin,
+      maxPolarAngle: interaction.maxPolarAngle ?? this.interactionDefaults.orbitPolarMax,
+      minDistance: interaction.minDistance ?? this.interactionDefaults.dollyRadiusMin,
+      maxDistance: interaction.maxDistance ?? this.interactionDefaults.dollyRadiusMax,
+    };
   }
 
   /**

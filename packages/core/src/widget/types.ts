@@ -68,6 +68,12 @@ export interface IAnimationController extends IWidget {
   onTick(context: AnimationTickContext): void;
 }
 
+export interface ICameraActionTarget extends IWidget {
+  applyOrbit(dx: number, dy: number, speed: number): void;
+  applyDolly(delta: number, speed: number): void;
+  applyReset(): void;
+}
+
 export interface IVariableProvider extends IWidget {
   readonly variableNamespace: string;
   readonly variableKeys: readonly string[];

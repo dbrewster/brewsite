@@ -2,7 +2,7 @@
 
 import type {
   IWidget, ISceneElement, IRenderable, ILoadable, IDslComposite,
-  IAnimationController, IVariableProvider,
+  IAnimationController, IVariableProvider, ICameraActionTarget,
   IRendererLifecycle, IRenderContributor, IContainedRenderable, IAttachmentHost,
 } from './types';
 import type { WebGLRenderer } from 'three';
@@ -258,6 +258,8 @@ export const isLoadable = (w: IWidget): w is ILoadable =>
   'load' in w && 'isLoaded' in w;
 export const isAnimationController = (w: IWidget): w is IAnimationController =>
   'onTick' in w;
+export const isCameraActionTarget = (w: IWidget): w is ICameraActionTarget =>
+  'applyOrbit' in w && 'applyDolly' in w && 'applyReset' in w;
 export const isVariableProvider = (w: IWidget): w is IVariableProvider =>
   'variableNamespace' in w && 'variableKeys' in w;
 export const isDslComposite = (w: IWidget): w is IDslComposite =>

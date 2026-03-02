@@ -451,10 +451,13 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
       e.preventDefault();
       e.stopPropagation();
       const speed = (cfg.rotate && typeof cfg.rotate === 'object' ? cfg.rotate.speed : undefined) ?? 1;
+      const wheelLockIdleMs = cfg.wheelLockIdleMs ?? 160;
+      const wheelAxisDominance = cfg.wheelAxisDominance ?? 1.2;
+      const wheelAxisActivationThreshold = cfg.wheelAxisActivationThreshold ?? 10;
       // Cmd+Shift wheel: orbit with modifier-held axis lock.
       // Axis is chosen from accumulated movement and kept until one modifier is released.
       const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
-      if (this.wheelRotateLastTs > 0 && now - this.wheelRotateLastTs > 160) {
+      if (this.wheelRotateLastTs > 0 && now - this.wheelRotateLastTs > wheelLockIdleMs) {
         // New two-finger swipe gesture while keys are still held: allow re-lock.
         this.wheelRotateLockAxis = null;
         this.wheelRotateAccumX = 0;
@@ -465,11 +468,10 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
         this.wheelRotateAccumX += Math.abs(e.deltaX);
         this.wheelRotateAccumY += Math.abs(e.deltaY);
         const total = this.wheelRotateAccumX + this.wheelRotateAccumY;
-        const dominance = 1.2;
-        if (total >= 10) {
-          if (this.wheelRotateAccumX > this.wheelRotateAccumY * dominance) {
+        if (total >= wheelAxisActivationThreshold) {
+          if (this.wheelRotateAccumX > this.wheelRotateAccumY * wheelAxisDominance) {
             this.wheelRotateLockAxis = 'horizontal';
-          } else if (this.wheelRotateAccumY > this.wheelRotateAccumX * dominance) {
+          } else if (this.wheelRotateAccumY > this.wheelRotateAccumX * wheelAxisDominance) {
             this.wheelRotateLockAxis = 'vertical';
           }
         }

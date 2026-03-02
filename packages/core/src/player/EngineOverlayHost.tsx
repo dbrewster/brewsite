@@ -26,11 +26,17 @@ export interface EngineOverlayHostProps {
    * Default: false (overlay intercepts pointer events — use for interactive content).
    */
   passthroughPointerEvents?: boolean;
+  overlayTransition?: {
+    enabled?: boolean;
+    durationMs?: number;
+    easing?: string;
+  };
 }
 
 export const EngineOverlayHost = ({
   className,
   passthroughPointerEvents = false,
+  overlayTransition,
 }: EngineOverlayHostProps): ReactElement | null => {
   const { sceneId } = useEngineState();
   const engine = useSceneEngineContext();
@@ -43,6 +49,10 @@ export const EngineOverlayHost = ({
 
   if (!overlayContent) return null;
 
+  const transitionEnabled = overlayTransition?.enabled ?? true;
+  const transitionDurationMs = overlayTransition?.durationMs ?? 200;
+  const transitionEasing = overlayTransition?.easing ?? 'ease-out';
+
   return (
     <div
       key={sceneId}                   // unmount + remount on scene change → CSS enter animation
@@ -52,7 +62,9 @@ export const EngineOverlayHost = ({
         inset: 0,
         zIndex: 10,
         pointerEvents: passthroughPointerEvents ? 'none' : 'auto',
-        animation: 'brewsite-overlay-enter 200ms ease-out',
+        ...(transitionEnabled
+          ? { animation: `brewsite-overlay-enter ${transitionDurationMs}ms ${transitionEasing}` }
+          : {}),
       }}
     >
       {overlayContent}

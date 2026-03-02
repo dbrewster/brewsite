@@ -3,8 +3,11 @@ title: "BrewSite Core — Camera Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-02-28
+last_updated: 2026-03-02
 change_history:
+  - date: 2026-03-02
+    author: "Toolkit Product"
+    summary: "Core customization unblocking implemented: camera action routing supports non-primary camera targets via ICameraActionTarget, primaryCameraId defaults, configurable camera interaction tunables (wheel lock timing, axis dominance/threshold, orbit/dolly clamps), and one-time runtime warnings for invalid camera targets."
   - date: 2026-02-28
     author: brewsite-product-manager
     summary: "Initial PRD created. Full specification of the Camera element covering the four position descriptor modes, lens and post configuration, transition system, interactive trackpad controls, the ICameraInteractionDriver abstraction, camera override system, focus/frame actions, and the CameraWidget runtime contract."
