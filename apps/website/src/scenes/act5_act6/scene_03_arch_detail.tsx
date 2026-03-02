@@ -1,13 +1,15 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
 import { DiagramCanvas, Diagram, DiagramEdge, DiagramNode, Enter, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
-import { SlideUp } from '@brewsite/core/hud/animejs';
+import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
 import { isMobile } from '../../utils/viewport';
 import type { Vec3 } from '@brewsite/core';
 import { dwellFn } from '../../utils/pacing';
 
+const LATE_FADE = { exit: [0.5, 1.0] as [number, number], enter: [0.5, 1.0] as [number, number] };
+
 export const scene03ArchDetail: JSX.Element = (
-  <Scene id="website-arch-detail">
+  <Scene id="website-arch-detail" transition={LATE_FADE}>
     <ProgressManager
       scrollUnits={1800}
       fn={dwellFn}
@@ -29,7 +31,7 @@ export const scene03ArchDetail: JSX.Element = (
         <ManualLayout />
         <Enter from={[-60, 0, 0]} fade easing="ease-in" />
 
-        {/* Ghost nodes from previous scene */}
+        {/* Ghost nodes from previous scene — carry position/shape but fade to 30% */}
         <DiagramNode id="cdn"    position={[0, 2, -25]}   opacity={0.3} />
         <DiagramNode id="alb"    position={[0, -1, -25]}  opacity={0.3} />
         <DiagramNode id="api"    position={[0, -4, -25]}  opacity={0.3} />
@@ -60,7 +62,7 @@ export const scene03ArchDetail: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
     <div style={{ position: 'absolute', bottom: '8%', right: '5%', textAlign: 'right', maxWidth: 340 }}>
-      <SlideUp duration={1100}>
+      <MidFade duration={1000}>
         <div style={{
           fontFamily: 'JetBrains Mono, monospace',
           fontSize: 10,
@@ -71,12 +73,12 @@ export const scene03ArchDetail: JSX.Element = (
         }}>
           Drill down. Stay in the scene.
         </div>
-      </SlideUp>
-      <SlideUp duration={1000} delay={100}>
+      </MidFade>
+      <ScrollOn duration={1000} delay={100}>
         <div style={{ fontSize: 'clamp(15px, 2vw, 18px)', fontWeight: 600, color: '#f0f6fc', lineHeight: 1.35 }}>
           DiagramGroups · Focus Regions<br />· Theme System
         </div>
-      </SlideUp>
+      </ScrollOn>
     </div>
   </Scene>
 );

@@ -3,6 +3,7 @@
 
 import { useCallback, useState, type ReactElement, type ReactNode } from 'react';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
+import type { WidgetPlugin } from '../widget/WidgetPlugin';
 import { EngineProvider } from './EngineProvider';
 import { EngineInputRegion } from './EngineInputRegion';
 import { SceneCanvas } from './SceneCanvas';
@@ -22,14 +23,24 @@ export type ScenePlayerProps = {
   id?: string;
   manifestUrl: string;
   /**
+   * Composable widget plugins. Each plugin contributes widgets and DSL handlers.
+   * Use corePlugin() from @brewsite/core for built-in widgets, and modelPlugin()
+   * from @brewsite/model for model and label support.
+   *
+   * When provided, `widgetSetup` is ignored.
+   *
+   * @example
+   * plugins={[corePlugin(), modelPlugin({ manifestUrl: '/assets/manifest.json' })]}
+   */
+  plugins?: WidgetPlugin[];
+  /**
    * Optional widget registry factory.
    *
    * When omitted, `createDefaultWidgetRegistry(manifest)` is used automatically.
    * When provided, this function is called only after the manifest has loaded
    * successfully — the `manifest` argument is guaranteed non-null.
    *
-   * @deprecated If you previously typed this as `(manifest: AssetManifest | null)`
-   * the null case will never fire under this contract; update to `(manifest: AssetManifest)`.
+   * @deprecated Use `plugins` instead. Will be removed in the next major version.
    */
   widgetSetup?: (manifest: AssetManifest) => WidgetRegistry;
   className?: string;
@@ -184,6 +195,7 @@ export const ScenePlayer = (props: ScenePlayerProps): ReactElement | null => {
     <EngineProvider
       id={props.id}
       manifestUrl={props.manifestUrl}
+      plugins={props.plugins}
       widgetSetup={props.widgetSetup}
       fpsCap={props.fpsCap}
       pixelsPerScene={props.pixelsPerScene}

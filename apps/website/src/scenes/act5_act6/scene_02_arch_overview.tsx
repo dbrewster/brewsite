@@ -1,13 +1,15 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, Floor, FloorMirror, ProgressManager } from '@brewsite/core';
-import { DiagramCanvas, Diagram, DiagramEdge, DiagramGroup, DiagramNode, Exit, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
-import { MidFade, SlideUp } from '@brewsite/core/hud/animejs';
+import {DiagramCanvas, Diagram, DiagramEdge, DiagramGroup, DiagramNode, HierarchicalLayout, darkGlassTheme, GridLayout} from '@brewsite/diagram';
+import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
 import { isMobile } from '../../utils/viewport';
 import type { Vec3 } from '@brewsite/core';
 import { dwellFn } from '../../utils/pacing';
 
+const LATE_FADE = { exit: [0.5, 1.0] as [number, number], enter: [0.5, 1.0] as [number, number] };
+
 export const scene02ArchOverview: JSX.Element = (
-  <Scene id="website-arch-overview">
+  <Scene id="website-arch-overview" transition={LATE_FADE}>
     <ProgressManager
       scrollUnits={1800}
       fn={dwellFn}
@@ -35,28 +37,27 @@ export const scene02ArchOverview: JSX.Element = (
     </Lighting>
     <DiagramCanvas id="system-canvas" rotation={[-Math.PI / 8, 0, 0]} scale={isMobile ? 1.0 : 1.4} theme={darkGlassTheme}>
       <Diagram id="system-arch" pivot="center">
-        <ManualLayout />
-        <Exit to={[0, -60, 0]} fade easing="ease-out" />
+        <GridLayout />
 
         <DiagramGroup id="frontend" label="Client Tier" variant="swimlane">
-          <DiagramNode id="browser" label="Web Browser" icon="ui:user" position={[-6, 6, 0]} />
+          <DiagramNode id="browser" label="Web Browser" icon="ui:user" />
         </DiagramGroup>
 
         <DiagramGroup id="api-tier" label="API Tier" variant="boundary">
-          <DiagramNode id="cdn" label="CloudFront CDN"  icon="aws:cloudfront"   position={[0, 2, 0]} />
-          <DiagramNode id="alb" label="Load Balancer"   icon="aws:alb"          position={[0, -1, 0]} />
-          <DiagramNode id="api" label="API Gateway"     icon="aws:api-gateway"  position={[0, -4, 0]} />
+          <DiagramNode id="cdn" label="CloudFront CDN"  icon="aws:cloudfront" />
+          <DiagramNode id="alb" label="Load Balancer"   icon="aws:alb" />
+          <DiagramNode id="api" label="API Gateway"     icon="aws:api-gateway" />
         </DiagramGroup>
 
         <DiagramGroup id="compute" label="Compute Tier" variant="boundary">
-          <DiagramNode id="ecs"    label="ECS Cluster" icon="aws:ecs"    position={[-5, -8, 0]} />
-          <DiagramNode id="lambda" label="Lambda"      icon="aws:lambda" position={[5, -8, 0]} />
+          <DiagramNode id="ecs"    label="ECS Cluster" icon="aws:ecs" />
+          <DiagramNode id="lambda" label="Lambda"      icon="aws:lambda" />
         </DiagramGroup>
 
         <DiagramGroup id="data" label="Data Tier" variant="swimlane">
-          <DiagramNode id="rds"   label="RDS PostgreSQL" icon="aws:rds"         position={[-5, -13, 0]} />
-          <DiagramNode id="cache" label="ElastiCache"    icon="aws:elasticache" position={[0, -13, 0]} />
-          <DiagramNode id="s3"    label="S3 Assets"      icon="aws:s3"          position={[5, -13, 0]} />
+          <DiagramNode id="rds"   label="RDS PostgreSQL" icon="aws:rds" />
+          <DiagramNode id="cache" label="ElastiCache"    icon="aws:elasticache" />
+          <DiagramNode id="s3"    label="S3 Assets"      icon="aws:s3" />
         </DiagramGroup>
 
         <DiagramEdge from="browser" to="cdn"    label="HTTPS"    flow="forward" />
@@ -87,11 +88,11 @@ export const scene02ArchOverview: JSX.Element = (
       </MidFade>
     </div>
     <div style={{ position: 'absolute', bottom: '8%', left: '5%', maxWidth: 360 }}>
-      <SlideUp duration={1000} delay={100}>
+      <ScrollOn duration={1000} delay={100}>
         <div style={{ fontSize: 'clamp(18px, 2.5vw, 22px)', fontWeight: 600, color: '#f0f6fc' }}>
           Architecture diagrams.<br />Presentation-ready.
         </div>
-      </SlideUp>
+      </ScrollOn>
     </div>
   </Scene>
 );

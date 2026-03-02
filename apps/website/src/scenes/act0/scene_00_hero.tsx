@@ -31,7 +31,7 @@ export const scene00Hero = (
       scrollUnits={3600}
       fn={dwellFn}
       autoAdvance={{ duration: 3, max: 0.80, pauseOnScroll: true }}
-      animationTimeScale={6}
+      animationTimeScale={10}
     />
     <Camera mode="world" position={[0, 7, 17]} target={[0, 0, 0]} fov={52} />
 

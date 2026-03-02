@@ -8,8 +8,10 @@ import { isMobile } from '../../utils/viewport';
 import type { Vec3 } from '@brewsite/core';
 import { dwellFn } from '../../utils/pacing';
 
+const LATE_FADE = { exit: [0.5, 1.0] as [number, number], enter: [0.5, 1.0] as [number, number] };
+
 export const scene01Foundation: JSX.Element = (
-  <Scene id="website-full-01">
+  <Scene id="website-full-01" transition={LATE_FADE}>
     <ProgressManager
       scrollUnits={1600}
       fn={dwellFn}

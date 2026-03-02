@@ -248,9 +248,13 @@ export function buildProgressProfile(
   }
 
   // Build segments (N-1 segments for N scenes, one per outgoing transition)
+  // totalUnits: sum of first N-1 scenes — used for segment normalization (raw progress).
+  // totalScrollUnitsAllScenes: sum of all N scenes — used by the player for scrollRegionHeightPx,
+  // so that pixelsPerScene={1} means "one pixel per scrollUnit" including last-scene padding.
   const totalUnits = resolved
     .slice(0, n - 1)
     .reduce((sum, spec) => sum + spec.scrollUnits, 0);
+  const totalScrollUnitsAllScenes = resolved.reduce((sum, spec) => sum + spec.scrollUnits, 0);
 
   const segments: SceneProgressSegment[] = [];
   let rawCursor = 0;
@@ -288,7 +292,7 @@ export function buildProgressProfile(
     segments.push(seg);
   }
 
-  return { segments, isUniform: false };
+  return { segments, isUniform: false, totalScrollUnits: totalScrollUnitsAllScenes };
 }
 
 export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack => {

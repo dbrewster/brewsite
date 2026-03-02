@@ -5,13 +5,15 @@ import {
 } from '@brewsite/core';
 import { ModelRouter } from '@brewsite/model';
 import { DiagramCanvas, Diagram, DiagramNode, DiagramEdge, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
-import { SlideUp } from '@brewsite/core/hud/animejs';
+import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
 import { isMobile } from '../../utils/viewport';
 import type { Vec3 } from '@brewsite/core';
 import { dwellFn } from '../../utils/pacing';
 
+const LATE_FADE = { exit: [0.5, 1.0] as [number, number], enter: [0.5, 1.0] as [number, number] };
+
 export const scene02Combined: JSX.Element = (
-  <Scene id="website-full-02">
+  <Scene id="website-full-02" transition={LATE_FADE}>
     <ProgressManager
       scrollUnits={1800}
       fn={dwellFn}
@@ -59,7 +61,7 @@ export const scene02Combined: JSX.Element = (
     </DiagramCanvas>
 
     <div style={{ position: 'absolute', bottom: '8%', left: '5%', maxWidth: 380 }}>
-      <SlideUp duration={1100}>
+      <MidFade duration={1000}>
         <div style={{
           fontFamily: 'JetBrains Mono, monospace',
           fontSize: 10,
@@ -70,12 +72,12 @@ export const scene02Combined: JSX.Element = (
         }}>
           Models + Diagrams + HUD + React
         </div>
-      </SlideUp>
-      <SlideUp duration={1100} delay={120}>
+      </MidFade>
+      <ScrollOn duration={1100} delay={120}>
         <div style={{ fontSize: 'clamp(20px, 3vw, 26px)', fontWeight: 700, color: '#f0f6fc', lineHeight: 1.25 }}>
           Web apps. Decks.<br />Pitches. Marketing sites.
         </div>
-      </SlideUp>
+      </ScrollOn>
     </div>
   </Scene>
 );

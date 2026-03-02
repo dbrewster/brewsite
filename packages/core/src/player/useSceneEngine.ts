@@ -26,6 +26,15 @@ export type UseSceneEngineOptions = {
   manifest?: AssetManifest | null;
   fpsCap?: number;
   pixelsPerScene?: number;
+  /**
+   * Exact scroll region height in pixels. When set, overrides all automatic
+   * scroll-height calculations (`pixelsPerScene`, viewport-based defaults).
+   *
+   * Use this when the page has a precomputed offset system (e.g. a sidebar with
+   * `SCENE_SCROLL_OFFSETS` in absolute pixels) that must align with `window.scrollY`.
+   * The total height should equal the sum of all per-scene pixel budgets.
+   */
+  scrollHeightPx?: number;
   framesPerTick?: number;
   blockSize?: number;
   onReady?: () => void;
@@ -211,6 +220,12 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
 
   const scrollRegionHeightPx = useMemo(() => {
     if (inputMode === 'direct') return Math.max(1, viewportHeight);
+    // Explicit override — takes priority over all automatic formulas.
+    // Use this when the scroll region must match an externally-managed offset system
+    // (e.g. a docs nav with precomputed per-scene pixel offsets).
+    if (options.scrollHeightPx !== undefined) {
+      return Math.max(1, options.scrollHeightPx);
+    }
     const sceneCount = Math.max(1, options.scenes.length);
     const numTransitions = Math.max(0, sceneCount - 1);
     const totalFrames = numTransitions * blockSize + 1;
@@ -219,7 +234,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     }
     if (sceneCount <= 1) return Math.max(1, viewportHeight);
     return Math.max(1, viewportHeight + totalFrames);
-  }, [inputMode, options.pixelsPerScene, options.scenes.length, blockSize, viewportHeight]);
+  }, [inputMode, options.scrollHeightPx, options.pixelsPerScene, options.scenes.length, blockSize, viewportHeight]);
 
   // wheelGuard: reads isWheelClaimedByInteraction from CameraWidget if registered.
   // This prevents scene navigation advancing while camera dolly is active.

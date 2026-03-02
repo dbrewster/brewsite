@@ -1,12 +1,14 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
-import { Fade, SlideUp } from '@brewsite/core/hud/animejs';
+import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
 import { dwellFn } from '../../utils/pacing';
+
+const LATE_FADE = { exit: [0.5, 1.0] as [number, number], enter: [0.5, 1.0] as [number, number] };
 
 const tags = ['Declarative', 'Scroll-Driven', 'SSR-Safe', 'TypeScript-First', 'O(1) Sampling'];
 
 export const scene02CoreBaked: JSX.Element = (
-  <Scene id="website-core-02">
+  <Scene id="website-core-02" transition={LATE_FADE}>
     <ProgressManager
       scrollUnits={1600}
       fn={dwellFn}
@@ -27,7 +29,8 @@ export const scene02CoreBaked: JSX.Element = (
       maxWidth: 680,
       textAlign: 'center',
     }}>
-      <Fade duration={900}>
+      {/* MidFade: visible by bp=0.5, stays visible through bp=1 */}
+      <MidFade duration={800}>
         <div style={{
           fontFamily: 'JetBrains Mono, monospace',
           fontSize: 11,
@@ -38,8 +41,8 @@ export const scene02CoreBaked: JSX.Element = (
         }}>
           Pre-baked. Zero runtime cost.
         </div>
-      </Fade>
-      <SlideUp duration={1000} delay={100}>
+      </MidFade>
+      <ScrollOn duration={1000} delay={100}>
         <p style={{
           fontSize: 'clamp(20px, 2.5vw, 28px)',
           fontWeight: 600,
@@ -50,8 +53,8 @@ export const scene02CoreBaked: JSX.Element = (
           The compiler bakes every transition frame.<br />
           Playback is O(1). Always.
         </p>
-      </SlideUp>
-      <SlideUp duration={900} delay={220}>
+      </ScrollOn>
+      <ScrollOn duration={900} delay={220}>
         <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 10 }}>
           {tags.map((tag) => (
             <span key={tag} style={{
@@ -68,7 +71,7 @@ export const scene02CoreBaked: JSX.Element = (
             </span>
           ))}
         </div>
-      </SlideUp>
+      </ScrollOn>
     </div>
   </Scene>
 );

@@ -4,10 +4,12 @@ import { MidFade } from '@brewsite/core/hud/animejs';
 import {actorElements} from "./meetingCharacters";
 import { dwellFn } from '../../utils/pacing';
 
+const LATE_FADE = { exit: [0.5, 1.0] as [number, number], enter: [0.5, 1.0] as [number, number] };
+
 // Camera, lighting, floor, and crowd actors all carry forward from scene01ModelWide.
 // Only the progress budget and overlay text change here.
 export const scene02Meeting: JSX.Element = (
-  <Scene id="website-meeting-01">
+  <Scene id="website-meeting-01" transition={LATE_FADE}>
     <ProgressManager
       scrollUnits={2000}
       fn={dwellFn}

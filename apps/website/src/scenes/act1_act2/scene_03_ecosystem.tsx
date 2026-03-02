@@ -1,7 +1,9 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
-import { MidFade, SlideUp } from '@brewsite/core/hud/animejs';
+import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
 import { dwellFn } from '../../utils/pacing';
+
+const LATE_FADE = { exit: [0.5, 1.0] as [number, number], enter: [0.5, 1.0] as [number, number] };
 
 const PACKAGES = [
   {
@@ -31,7 +33,7 @@ const PACKAGES = [
 ] as const;
 
 export const scene03Ecosystem: JSX.Element = (
-  <Scene id="website-ecosystem-01">
+  <Scene id="website-ecosystem-01" transition={LATE_FADE}>
     <ProgressManager
       scrollUnits={2000}
       fn={dwellFn}
@@ -85,7 +87,7 @@ export const scene03Ecosystem: JSX.Element = (
 
       <div className="ecosystem-grid">
         {PACKAGES.map((pkg, i) => (
-          <SlideUp key={pkg.name} duration={800} delay={i * 110}>
+          <ScrollOn key={pkg.name} duration={800} delay={i * 110}>
             <div className="ecosystem-card">
               <div className="ecosystem-card__name">{pkg.name}</div>
               <div className="ecosystem-card__headline">{pkg.headline}</div>
@@ -94,11 +96,11 @@ export const scene03Ecosystem: JSX.Element = (
                 <div className="ecosystem-card__soon">↗ coming soon</div>
               )}
             </div>
-          </SlideUp>
+          </ScrollOn>
         ))}
       </div>
 
-      <SlideUp duration={900} delay={550}>
+      <ScrollOn duration={900} delay={550}>
         <p style={{
           marginTop: 28,
           fontSize: 'clamp(12px, 1.5vw, 14px)',
@@ -109,7 +111,7 @@ export const scene03Ecosystem: JSX.Element = (
         }}>
           Install only what you need. All packages share the same declarative scene model.
         </p>
-      </SlideUp>
+      </ScrollOn>
     </div>
   </Scene>
 );

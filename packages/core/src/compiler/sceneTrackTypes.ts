@@ -175,6 +175,20 @@ export type SceneProgressProfile = {
    * or when all declarations are equivalent to the default.
    */
   isUniform: boolean;
+
+  /**
+   * Sum of scrollUnits across all N scenes (including the last scene).
+   *
+   * Used by the player to compute `scrollRegionHeightPx` when `pixelsPerScene` is set:
+   *   scrollRegionHeightPx = pixelsPerScene × totalScrollUnits
+   *
+   * This makes `pixelsPerScene={1}` mean "one pixel per scrollUnit", so that
+   * SCENE_SCROLL_OFFSETS (cumulative scrollUnits per scene) align with pixel
+   * scroll positions. The last scene's scrollUnits are included to provide
+   * natural "scroll-through" space for the final scene even though it has no
+   * outgoing transition.
+   */
+  totalScrollUnits: number;
 };
 
 // ─── SceneFrame ───────────────────────────────────────────────────────────────

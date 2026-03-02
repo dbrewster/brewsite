@@ -4,13 +4,15 @@ import {
   Floor, FloorMirror, ProgressManager,
 } from '@brewsite/core';
 import type { Vec3 } from '@brewsite/core';
-import { MidFade, SlideUp, Fade } from '@brewsite/core/hud/animejs';
+import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
 import { isMobile } from '../../utils/viewport';
 import { actorElements } from './meetingCharacters';
 import { dwellFn } from '../../utils/pacing';
 
+const LATE_FADE = { exit: [0.5, 1.0] as [number, number], enter: [0.5, 1.0] as [number, number] };
+
 export const scene01ModelWide: JSX.Element = (
-  <Scene id="website-model-01">
+  <Scene id="website-model-01" transition={LATE_FADE}>
     <ProgressManager
       scrollUnits={2400}
       fn={dwellFn}
@@ -75,7 +77,7 @@ export const scene01ModelWide: JSX.Element = (
       textAlign: 'right' as const,
       maxWidth: 300,
     }}>
-      <Fade duration={900}>
+      <MidFade duration={900}>
         <div style={{
           fontFamily: 'JetBrains Mono, monospace',
           fontSize: 10,
@@ -86,8 +88,8 @@ export const scene01ModelWide: JSX.Element = (
         }}>
           GLTF · PBR Materials
         </div>
-      </Fade>
-      <SlideUp duration={1000} delay={80}>
+      </MidFade>
+      <ScrollOn duration={1000} delay={80}>
         <div style={{
           fontSize: 'clamp(18px, 2.5vw, 24px)',
           fontWeight: 600,
@@ -97,8 +99,8 @@ export const scene01ModelWide: JSX.Element = (
         }}>
           Physically Based.<br />Floor-to-ceiling.
         </div>
-      </SlideUp>
-      <SlideUp duration={900} delay={200}>
+      </ScrollOn>
+      <ScrollOn duration={900} delay={200}>
         <div style={{
           fontSize: 'clamp(13px, 1.5vw, 15px)',
           color: 'rgba(240,246,252,0.55)',
@@ -108,7 +110,7 @@ export const scene01ModelWide: JSX.Element = (
           the renderer handles it.<br />
           You handle the story.
         </div>
-      </SlideUp>
+      </ScrollOn>
     </div>
 
     {actorElements}

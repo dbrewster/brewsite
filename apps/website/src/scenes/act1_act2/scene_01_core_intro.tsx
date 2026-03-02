@@ -1,11 +1,15 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
-import { MidFade, SlideUp } from '@brewsite/core/hud/animejs';
+import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
 import { NeonSign } from '../../widgets/neon-sign';
 import { dwellFn } from '../../utils/pacing';
 
+// Late crossfade: outgoing content stays visible through bp=0→0.5,
+// then both outgoing and incoming cross-fade in the bp=0.5→1 window.
+const LATE_FADE = { exit: [0.5, 1.0] as [number, number], enter: [0.5, 1.0] as [number, number] };
+
 export const scene01CoreIntro: JSX.Element = (
-  <Scene id="website-core-01">
+  <Scene id="website-core-01" transition={LATE_FADE}>
     <ProgressManager
       scrollUnits={1600}
       fn={dwellFn}
@@ -52,7 +56,7 @@ export const scene01CoreIntro: JSX.Element = (
             Scenes as React.<br />Rendered like film.
           </h2>
         </MidFade>
-        <SlideUp duration={1000} delay={200}>
+        <ScrollOn duration={1000} delay={200}>
           <p style={{
             fontSize: 18,
             lineHeight: 1.65,
@@ -63,7 +67,7 @@ export const scene01CoreIntro: JSX.Element = (
             Declare 3D scene states. Let the compiler handle transitions.
             No animation loops. No frame math. Just describe what you want.
           </p>
-        </SlideUp>
+        </ScrollOn>
       </div>
     </div>
   </Scene>

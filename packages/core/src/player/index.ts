@@ -29,6 +29,8 @@ export type { SceneRuntimeState } from './ScenePlayerRegistry';
 export { useEngineState } from './EngineStateContext';
 export { EngineContext, useSceneEngineContext } from './EngineContext';
 export { createDefaultWidgetRegistry } from './defaultWidgets';
+export { corePlugin } from './plugins';
+export type { CorePluginOptions } from './plugins';
 export type { EngineFrameState, EngineState } from './engineTypes';
 export { SceneInspector } from './SceneInspector';
 export type { SceneInspectorProps } from './SceneInspector';

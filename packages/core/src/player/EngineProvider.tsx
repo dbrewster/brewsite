@@ -51,6 +51,17 @@ export type EngineProviderProps = {
   widgetSetup?: (manifest: AssetManifest) => WidgetRegistry;
   fpsCap?: number;
   pixelsPerScene?: number;
+  /**
+   * Exact scroll region height in pixels. Overrides the automatic `pixelsPerScene × sceneCount`
+   * calculation when set. Use this when the page has a precomputed per-scene offset system
+   * (e.g. a sidebar whose navigation targets are absolute pixel values derived from
+   * `scrollUnits` budgets) that must stay in sync with `window.scrollY`.
+   *
+   * @example
+   * // Docs site: totalScrollHeight = sum of all scene scrollUnits = 73 200px
+   * scrollHeightPx={TOTAL_SCROLL_HEIGHT}
+   */
+  scrollHeightPx?: number;
   framesPerTick?: number;
   quality?: 'performance' | 'balanced' | 'high';
   onReady?: () => void;
@@ -182,6 +193,7 @@ export const EngineProvider = (props: EngineProviderProps): ReactElement => {
     manifest,
     fpsCap: props.fpsCap,
     pixelsPerScene: props.pixelsPerScene,
+    scrollHeightPx: props.scrollHeightPx,
     framesPerTick: resolvedFramesPerTick,
     onReady: props.onReady,
     onError: props.onError,

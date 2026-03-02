@@ -91,7 +91,15 @@ const expandNode = (node: unknown): unknown[] => {
     return Children.toArray(props.children).flatMap(expandNode);
   }
   if (typeof element.type === 'function' && !isPrimitiveComponent(element.type)) {
-    const next = (element.type as (props: Record<string, unknown>) => unknown)(props);
+    let next: unknown;
+    try {
+      next = (element.type as (props: Record<string, unknown>) => unknown)(props);
+    } catch {
+      // Component cannot be called outside React render (e.g., it uses hooks, context,
+      // or other React-only APIs). Treat it as opaque overlay content — preserve the
+      // element as-is so EngineOverlayHost renders it correctly in the React tree.
+      return [node];
+    }
     return expandNode(next);
   }
   return [node];
