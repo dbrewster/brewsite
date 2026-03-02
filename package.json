@@ -19,6 +19,7 @@
     "publish:core-diagram": "node scripts/publish-core-diagram.mjs"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "@babel/parser": "^7.28.4",
     "@gltf-transform/core": "^4.2.1",
     "@gltf-transform/extensions": "^4.2.1",

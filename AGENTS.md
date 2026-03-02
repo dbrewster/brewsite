@@ -14,7 +14,7 @@ pnpm typecheck                    # turbo typecheck
 pnpm test                         # turbo test (all packages)
 pnpm coverage                     # turbo coverage
 pnpm sync:icons                   # sync heroicons + simple-icons into diagram assets
-pnpm publish:core-diagram         # publish @brewsite/core and @brewsite/diagram
+pnpm publish:core-diagram         # publish all four BrewSite library packages
 ```
 
 ### Per-package
@@ -43,14 +43,15 @@ This is a **pnpm + Turborepo monorepo**.
 brewsite/
 ├── packages/
 │   ├── core/        (@brewsite/core)     — published animation engine library
-│   └── diagram/     (@brewsite/diagram)  — published diagram/screen element library
-├── apps/
-│   └── examples/    (@brewsite/examples) — private dev/demo app
+│   ├── diagram/     (@brewsite/diagram)  — published diagram/screen element library
+│   ├── model/       (@brewsite/model)    — published GLTF model + label system
+│   └── charts/      (@brewsite/charts)   — published 3D chart element library
+├── apps/                                 — private dev/demo apps
 ├── scripts/                              — shared build/asset scripts
 └── requirements/                         — PRDs, plans, architecture docs
 ```
 
-**Dependency rule:** `@brewsite/diagram` → `@brewsite/core`. Never the reverse. `apps/examples` may import from both.
+**Dependency rule:** `@brewsite/diagram`, `@brewsite/model`, and `@brewsite/charts` may import from `@brewsite/core`. `@brewsite/core` must never import from any of them. Apps may import from all packages.
 
 ---
 
@@ -60,8 +61,8 @@ brewsite/
 
 1. **Player** (`player/`)
    - React integration surface. Public entry point for host applications.
-   - Exports: `ScenePlayer`, `useSceneEngine`, `useEngineScroll`, `useEngineInput`, `useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `EngineFrameDriver`, `EngineScrollRegion`, `EngineInputRegion`, `createDefaultWidgetRegistry`, `LabelPositioner`, `TimelineWidget`, `CameraControlPanel`.
-   - `createDefaultWidgetRegistry(manifest)` wires the built-in widget set (Model, Lighting, Background, Environment, Floor, Camera, SceneMeta).
+   - Exports: `ScenePlayer`, `useSceneEngine`, `useEngineScroll`, `useEngineInput`, `useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `EngineFrameDriver`, `EngineScrollRegion`, `EngineInputRegion`, `createDefaultWidgetRegistry`, `TimelineWidget`, `CameraControlPanel`.
+   - `createDefaultWidgetRegistry(manifest)` wires the built-in core widgets (Lighting, Background, Environment, Floor, Camera, SceneMeta). Model and label widgets are registered separately via `@brewsite/model`.
 
 2. **Runtime** (`runtime/`)
    - Generic widget-based execution coordinator.
@@ -76,7 +77,7 @@ brewsite/
    - Three passes: base-state collection → auto-entry transitions → tick baking.
    - `compiler/index.ts` exports **only the DSL authoring surface** (`Scene`, `Hud`, `InputController`, `Action`, `PointerMap`, `WheelMap`, `KeyMap`, `registerNode`, etc.).
    - Infrastructure types (`SceneTrack`, `compileSceneTrack`, cache fns) are imported from source files directly — never re-exported from `compiler/index.ts`.
-   - Sub-directories: `blocks/` (Hud, InputController DSL blocks), `transitions/` (transition type system), `primitives/` (per-element primitive compilers).
+   - Sub-directories: `blocks/` (Hud, InputController DSL blocks), `transitions/` (transition type system), `primitives/` (`progressManager.ts` only — Background/Camera/Environment/Floor/Lighting files are legacy dead code pending removal).
 
 4. **Elements** (`elements/`)
    - Core renderable concepts: `model/`, `camera/`, `background/`, `lighting/`, `floor/`, `environment/`.
@@ -98,7 +99,7 @@ brewsite/
 
 6. **HUD** (`hud/`) — `HudOverlay`, `HudItem`, `HudPhaseContext`. Compiled by `compiler/hudCompiler.ts`.
 
-7. **Labels** (`labels/`) — `LabelItem` (React), `LabelPositioner` (3D→screen). Compiled by `compiler/labelCompiler.ts`.
+7. **Labels** — Moved to `@brewsite/model`. `LabelItem`, `LabelPositioner`, and `compiler/labelCompiler.ts` live in `packages/model/src/`.
 
 8. **Input** (`input/`)
    - `InputController` — scroll/direct-mode scene navigation.
@@ -157,7 +158,7 @@ Example scenes — **not published**, used for development and demonstration.
 - **Interface-based stateful tests**: real inputs → real outputs. No spy-heavy mocking of internals.
 - Runtime test doubles: `packages/core/src/runtime/mocks/`.
 - `compile.ts` functions are pure — pass real inputs, assert real outputs. No mocks needed.
-- Coverage targets: `packages/core/src/{compiler,elements,runtime,widget,player,hud,labels,input,timeline,math}/**/*.ts` and `packages/diagram/src/**/*.ts`. Excludes `render.ts` and barrel exports.
+- Coverage targets: `packages/core/src/{compiler,elements,runtime,widget,player,hud,input,timeline,math}/**/*.ts`, `packages/diagram/src/**/*.ts`, `packages/model/src/**/*.ts`, `packages/charts/src/**/*.ts`. Excludes `render.ts` and barrel exports.
 
 ## Asset Pipeline
 
@@ -167,7 +168,7 @@ Scripts in `scripts/` at repo root:
 - `gen-diagram-envmap.mjs` — regenerate diagram HDR environment map
 - `extract-model-metadata.mjs` — extract metadata from GLTF
 - `prune-dist.mjs` — post-build artifact cleanup
-- `publish-core-diagram.mjs` — publish `@brewsite/core` and `@brewsite/diagram`
+- `publish-core-diagram.mjs` — publish all four BrewSite library packages (`core`, `diagram`, `model`, `charts`)
 
 ## Requirements and Documentation Policies
 

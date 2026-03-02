@@ -1,9 +1,6 @@
 import type { JSX } from 'react';
-import { Ambient, Camera, Directional, Lighting, ProgressManager, Scene } from '@brewsite/core';
 import { Animation, BodyPart, BodyParts, ModelRouter, Playback, Pose } from '@brewsite/model';
-import { MidFade } from '@brewsite/core/hud/animejs';
 import { isMobile } from '../../utils/viewport';
-import type { Vec3 } from '@brewsite/core';
 
 interface BodyPartProp {
   id: string;
@@ -92,7 +89,7 @@ const Actor = ({
   );
 };
 
-// ── Animation pools ──────────────────────────────────────────────────────────
+// ── Animation pools ───────────────────────────────────────────────────────────
 const F_MOTIONS: [string, number][] = [
   ['chat-listen-f', 0.0],
   ['chat-relax-f', 0.0],
@@ -147,11 +144,11 @@ function randomBetween(min: number, max: number): number {
 }
 
 // ── Pair layout ───────────────────────────────────────────────────────────────
-const PAIR_COUNT = isMobile ? 4 : 15;
-const PAIR_DISTANCE = 4;
+const PAIR_COUNT = isMobile ? 4 : 10;
+const PAIR_DISTANCE = 5;
 const PAIR_SPREAD_X = 48;
 const PAIR_SPREAD_Z = 38;
-const PAIR_MIN_SEPARATION = 10;
+const PAIR_MIN_SEPARATION = 16;
 
 function generatePairCenters(count: number): Array<{ x: number; z: number }> {
   const centers: Array<{ x: number; z: number }> = [];
@@ -183,7 +180,7 @@ const actorProps = pairCenters.flatMap((center, index) => {
     type: actor.type,
     xPosition: center.x,
     zPosition: center.z,
-    distance: randomBetween(PAIR_DISTANCE - 4, PAIR_DISTANCE + 2),
+    distance: randomBetween(PAIR_DISTANCE - 2, PAIR_DISTANCE + 2),
     yRotation,
     animationBase: actor.gender === 'female'
       ? randomChoice<[string, number]>(F_MOTIONS)
@@ -197,60 +194,6 @@ const actorProps = pairCenters.flatMap((center, index) => {
   return [makeProps(leftActor, 'left'), makeProps(rightActor, 'right')];
 });
 
-// ── Scene ─────────────────────────────────────────────────────────────────────
-export const scene01Meeting: JSX.Element = (
-  <Scene id="website-meeting-01">
-    <ProgressManager
-      scrollUnits={2000}
-      autoAdvance={{ duration: 8, max: 0.85, pauseOnScroll: true }}
-      animationTimeScale={2}
-    />
-    <Camera
-      mode="world"
-      position={(isMobile ? [0, 22, 70] : [0, 34, 110]) as Vec3}
-      target={[0, 0, 0]}
-      fov={isMobile ? 60 : 48}
-    />
-
-    <Lighting intensityScale={1}>
-      <Ambient intensity={0.5} color="#e6eeff" />
-      <Directional intensity={0.7} color="#ffffff" position={[0, 20, 20]} />
-      <Directional intensity={0.25} color="#aaccff" position={[-10, 8, 5]} />
-    </Lighting>
-    <div style={{
-      position: 'absolute',
-      left: 0, right: 0, bottom: 0,
-      height: '28%',
-      padding: '20px 40px',
-      boxSizing: 'border-box',
-      background: 'linear-gradient(180deg, rgba(4,8,18,0.2) 0%, rgba(4,8,18,0.95) 100%)',
-      display: 'flex',
-      alignItems: 'center',
-    }}>
-      <div style={{ maxWidth: 560 }}>
-        <MidFade duration={1400}>
-          <div style={{
-            fontFamily: 'JetBrains Mono, monospace',
-            fontSize: 10,
-            letterSpacing: '0.3em',
-            textTransform: 'uppercase',
-            color: 'rgba(0,245,255,0.6)',
-            marginBottom: 10,
-          }}>
-            Procedural Composition
-          </div>
-          <div style={{ fontSize: 'clamp(20px, 3.5vw, 26px)', fontWeight: 700, color: '#f0f6fc', marginBottom: 10 }}>
-            30 characters. 50 lines of JSX.
-          </div>
-          <div style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', color: 'rgba(240,246,252,0.65)', lineHeight: 1.6 }}>
-            Random placement, collision detection, animation assignment — all at
-            author time. Runtime is just playback.
-          </div>
-        </MidFade>
-      </div>
-    </div>
-    {actorProps.map((actor) => (
-      <Actor key={actor.idBase} {...actor} />
-    ))}
-  </Scene>
-);
+export const actorElements: JSX.Element[] = actorProps.map((actor) => (
+  <Actor key={actor.idBase} {...actor} />
+));

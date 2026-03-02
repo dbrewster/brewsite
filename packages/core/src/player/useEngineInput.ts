@@ -81,6 +81,16 @@ export type UseEngineInputResult = {
    * In controlled mode: calls onControlledProgressChange with the raw value.
    */
   scrollToRawProgress(raw: number): void;
+  /**
+   * Directly writes the given raw value into rawProgressRef / progressRef
+   * without calling window.scrollTo or firing a scroll event.
+   * Used by the auto-advance state machine to synchronize refs when
+   * auto-advance stops, replacing the unreliable suppress-scroll-event pattern.
+   * In scroll mode: delegates to useEngineScroll.forceRawProgress().
+   * In direct mode: delegates to setDirectProgressBoth().
+   * In controlled mode: calls onControlledProgressChange with the raw value.
+   */
+  forceRawProgress(raw: number): void;
 };
 
 export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputResult => {
@@ -258,6 +268,7 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
       getGlobalProgress: getControlledProgress,
       getRawProgress: getControlledProgress,
       scrollToRawProgress: scrollToControlledProgress,
+      forceRawProgress: scrollToControlledProgress,
     };
   }
 
@@ -287,6 +298,7 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
       getGlobalProgress: getDirectMapped,
       getRawProgress: getDirectRaw,
       scrollToRawProgress: scrollToDirectRaw,
+      forceRawProgress: scrollToDirectRaw,
     };
   }
 

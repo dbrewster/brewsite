@@ -1,19 +1,9 @@
-import type { JSX, ReactNode } from 'react';
-import {
-  Scene,
-  Camera,
-  Lighting,
-  Ambient,
-  Directional,
-  Floor,
-  FloorMirror,
-  ProgressManager,
-  useEngineState,
-} from '@brewsite/core';
-import { NeonSign } from '../../widgets/neon-sign';
-import { HeroBezel } from '../../landing/hero/HeroBezel';
-import { ScrollIndicator } from '../../landing/hero/ScrollIndicator';
-import { isMobile } from '../../utils/viewport';
+import type {JSX, ReactNode} from 'react';
+import {Ambient, Camera, Directional, Floor, FloorMirror, Lighting, ProgressManager, Scene, useEngineState,} from '@brewsite/core';
+import {NeonSign} from '../../widgets/neon-sign';
+import {HeroBezel} from '../../landing/hero/HeroBezel';
+import {ScrollIndicator} from '../../landing/hero/ScrollIndicator';
+import {isMobile} from '../../utils/viewport';
 
 /**
  * Fades children in as sceneProgress advances from `start` to `end`.
@@ -34,7 +24,7 @@ function HeroFade({
 
 const MIRROR_RES = isMobile ? 512 : 1024;
 
-export const scene00Hero: JSX.Element = (
+export const scene00Hero = (
   <Scene id="website-hero-00">
     <ProgressManager
       scrollUnits={1800}

@@ -41,6 +41,20 @@ export type UseEngineScrollResult = {
    * Marks the scroll as programmatic so onUserScroll is NOT fired for this event.
    */
   scrollToRawProgress(raw: number): void;
+  /**
+   * Directly writes the given raw progress value into rawProgressRef and
+   * progressRef WITHOUT calling window.scrollTo or firing any scroll event.
+   *
+   * Used by the auto-advance state machine to synchronize the scroll-derived
+   * refs when auto-advance stops. This avoids the suppress-scroll-event
+   * mechanism, which is unreliable because window.scrollTo may be a no-op in
+   * jsdom (and in real browsers when already at the target position).
+   *
+   * Calling this keeps rawProgressRef / progressRef in sync so that
+   * getGlobalProgress() returns the correct value the instant
+   * autoAdvanceRawRef is cleared, with no one-frame gap.
+   */
+  forceRawProgress(raw: number): void;
 };
 
 export const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrollResult => {
@@ -76,11 +90,17 @@ export const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrol
     if (typeof window === 'undefined') return;
     update();
     const onScroll = () => {
-      // Every scroll event reaching this listener is a genuine user scroll.
-      // Auto-advance no longer calls window.scrollTo, so no programmatic events
-      // reach this handler. See autoAdvanceRawRef in useSceneEngine.
-      options.onUserScroll?.();
+      // IMPORTANT: call update() BEFORE onUserScroll() so that rawProgressRef
+      // and progressRef reflect the new scroll position by the time
+      // handleUserScroll (in useSceneEngine) runs and potentially clears
+      // autoAdvanceRawRef. Without this ordering, getGlobalProgress() would
+      // fall through to a stale rawProgressRef value (typically 0) for one
+      // frame after autoAdvanceRawRef is cleared, causing a visible snap.
       update();
+      // Every scroll event reaching this listener is a genuine user scroll.
+      // Auto-advance does not call window.scrollTo for its internal progress
+      // tracking — it uses autoAdvanceRawRef and forceRawProgress() instead.
+      options.onUserScroll?.();
     };
     const onResize = () => update();
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -133,5 +153,25 @@ export const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrol
   const getGlobalProgress = useCallback(() => progressRef.current, []);
   const getRawProgress = useCallback(() => rawProgressRef.current, []);
 
-  return { progress, scrollToProgress, getGlobalProgress, getRawProgress, scrollToRawProgress };
+  /**
+   * Directly write raw progress into refs without a scroll event.
+   * Safe to call from the RAF loop — does not trigger a React state update
+   * (setProgress is intentionally omitted here) so there is no extra render.
+   * The React-visible `progress` state is updated on the next genuine scroll
+   * or resize event. The Three.js loop reads via getGlobalProgress() which
+   * reads progressRef directly, so rendering stays correct immediately.
+   */
+  const forceRawProgress = useCallback(
+    (raw: number) => {
+      const clamped = Math.max(0, Math.min(1, raw));
+      rawProgressRef.current = clamped;
+      const mapped = progressMapper ? progressMapper.remap(clamped) : clamped;
+      progressRef.current = mapped;
+      // Update React state so UI components reading `progress` stay in sync.
+      setProgress(mapped);
+    },
+    [progressMapper],
+  );
+
+  return { progress, scrollToProgress, getGlobalProgress, getRawProgress, scrollToRawProgress, forceRawProgress };
 };

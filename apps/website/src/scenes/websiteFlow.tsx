@@ -4,8 +4,8 @@ import { scene00Hero } from './act0/scene_00_hero';
 import { scene01CoreIntro } from './act1_act2/scene_01_core_intro';
 import { scene02CoreBaked } from './act1_act2/scene_02_core_baked';
 import { scene03Ecosystem } from './act1_act2/scene_03_ecosystem';
-import { scene01ModelWide } from './act3/scene_01_model_wide';
-import { scene01Meeting } from './act4/scene_01_meeting';
+import { scene01ModelWide } from './act3_act4/scene_01_model';
+import { scene02Meeting } from './act3_act4/scene_02_meeting';
 import { scene01SimpleDiagram } from './act5_act6/scene_01_simple_diagram';
 import { scene02ArchOverview } from './act5_act6/scene_02_arch_overview';
 import { scene03ArchDetail } from './act5_act6/scene_03_arch_detail';
@@ -25,7 +25,7 @@ export const websiteFlowScenes: JSX.Element[] = [
   <Fragment key="website-core-02">{scene02CoreBaked}</Fragment>,
   <Fragment key="website-ecosystem-01">{scene03Ecosystem}</Fragment>,
   <Fragment key="website-model-01">{scene01ModelWide}</Fragment>,
-  <Fragment key="website-meeting-01">{scene01Meeting}</Fragment>,
+  <Fragment key="website-meeting-01">{scene02Meeting}</Fragment>,
   <Fragment key="website-diagram-simple">{scene01SimpleDiagram}</Fragment>,
   <Fragment key="website-arch-overview">{scene02ArchOverview}</Fragment>,
   <Fragment key="website-arch-detail">{scene03ArchDetail}</Fragment>,

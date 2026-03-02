@@ -4,6 +4,7 @@
 
 import { spawnSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
+import { createInterface } from "node:readline";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -54,6 +55,23 @@ function writePackageJson(packageJsonPath, packageJson) {
 
 function readVersion(pkgDir) {
   return readPackageJson(pkgDir).packageJson.version;
+}
+
+function waitForEnter(message) {
+  return new Promise((resolve) => {
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(message, () => { rl.close(); resolve(); });
+  });
+}
+
+function getLatestTag() {
+  try {
+    return spawnSync("git", ["describe", "--tags", "--abbrev=0"], {
+      cwd: repoRoot, encoding: "utf8",
+    }).stdout.trim();
+  } catch {
+    return null;
+  }
 }
 
 // ─── Validate args ────────────────────────────────────────────────────────────
@@ -118,7 +136,23 @@ for (const pkg of packages) {
   console.log(`  ${pkg.name} -> ${readVersion(pkg.dir)}`);
 }
 
-// ─── Step 4: Build all packages ───────────────────────────────────────────────
+// ─── Step 4: Generate changelog ───────────────────────────────────────────────
+
+const prevTag = getLatestTag();
+if (!prevTag) {
+  console.warn("\nWarning: no previous git tag found — skipping changelog generation.");
+} else if (!process.env.ANTHROPIC_API_KEY) {
+  console.warn("\nWarning: ANTHROPIC_API_KEY not set — skipping changelog generation.");
+  console.warn("Set it to auto-generate a changelog draft.\n");
+} else {
+  console.log(`\nGenerating changelog draft (${prevTag} → v${coreVersion})...`);
+  run("node", ["scripts/gen-changelog.mjs", prevTag, coreVersion]);
+  await waitForEnter(
+    "\nReview CHANGELOG_DRAFT.md and edit CHANGELOG.md as needed.\nPress Enter when ready to build and publish... "
+  );
+}
+
+// ─── Step 5: Build all packages ───────────────────────────────────────────────
 // Core must build first (diagram, model, charts resolve its types from dist/).
 // The remaining three have no inter-dependencies and can run sequentially.
 
@@ -128,7 +162,7 @@ run("pnpm", ["--filter", "@brewsite/diagram", "build"]);
 run("pnpm", ["--filter", "@brewsite/model", "build"]);
 run("pnpm", ["--filter", "@brewsite/charts", "build"]);
 
-// ─── Step 5: Publish ──────────────────────────────────────────────────────────
+// ─── Step 6: Publish ──────────────────────────────────────────────────────────
 
 for (const pkg of packages) {
   console.log(`\nPublishing ${pkg.name}@${readVersion(pkg.dir)}...`);

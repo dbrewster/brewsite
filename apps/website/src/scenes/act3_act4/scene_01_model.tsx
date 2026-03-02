@@ -3,13 +3,10 @@ import {
   Scene, Camera, Lighting, Ambient, Directional,
   Floor, FloorMirror, ProgressManager,
 } from '@brewsite/core';
-import { ModelRouter } from '@brewsite/model';
+import type { Vec3 } from '@brewsite/core';
 import { MidFade, SlideUp, Fade } from '@brewsite/core/hud/animejs';
 import { isMobile } from '../../utils/viewport';
-import type { Vec3 } from '@brewsite/core';
-
-const CAM_POS: Vec3 = isMobile ? [0, 8, 28] : [0, 8, 38];
-const CAM_FOV = isMobile ? 65 : 55;
+import { actorElements } from './meetingCharacters';
 
 export const scene01ModelWide: JSX.Element = (
   <Scene id="website-model-01">
@@ -18,30 +15,29 @@ export const scene01ModelWide: JSX.Element = (
       autoAdvance={{ duration: 9, max: 0.85, pauseOnScroll: true }}
       animationTimeScale={2}
     />
-    <Camera mode="world" position={CAM_POS} target={[0, 5, 0]} fov={CAM_FOV} />
-
-    <Floor enabled position={[0, 0, 0]}>
+    <Camera
+      mode="world"
+      position={(isMobile ? [0, 22, 70] : [0, 34, 110]) as Vec3}
+      target={[0, 0, 0]}
+      fov={isMobile ? 60 : 48}
+    />
+    <Floor enabled position={[0, 0, -100]} rotation={[-Math.PI / 2, 0, 0]}>
       <FloorMirror
-        mirrorColor="#0a1428"
-        mirrorOpacity={0.38}
-        mirrorResolution={512}
+        mirrorColor="#ffe9c4"
+        mirrorOpacity={0.3}
+        mirrorResolution={1024}
         mirrorClipBias={0.003}
+        mirrorEnvironmentIntensity={0.7}
+        mirrorUseEnvironmentBackground
       />
     </Floor>
     <Lighting intensityScale={1}>
-      <Ambient intensity={0.4} color="#e0e8ff" />
-      <Directional intensity={0.9} color="#ffffff" position={[5, 20, 22]} />
-      <Directional intensity={0.4} color="#0066ff" position={[-8, 6, 10]} />
+      <Ambient intensity={0.5} color="#e6eeff" />
+      <Directional intensity={0.7} color="#ffffff" position={[0, 20, 20]} />
+      <Directional intensity={0.25} color="#aaccff" position={[-10, 8, 5]} />
     </Lighting>
-    <ModelRouter
-      type="Worker"
-      id="worker-wide"
-      scale={0.2}
-      position={[0, 0, 0]}
-      rotation={[0, 0.2, 0]}
-    />
 
-    {/* Phase 1: Drop a GLTF headline */}
+    {/* Top-left: @brewsite/model headline */}
     <div style={{
       position: 'absolute',
       top: '8%',
@@ -69,7 +65,7 @@ export const scene01ModelWide: JSX.Element = (
       </MidFade>
     </div>
 
-    {/* Phase 2: PBR materials detail */}
+    {/* Top-right: PBR materials detail */}
     <div style={{
       position: 'absolute',
       top: '8%',
@@ -112,5 +108,7 @@ export const scene01ModelWide: JSX.Element = (
         </div>
       </SlideUp>
     </div>
+
+    {actorElements}
   </Scene>
 );

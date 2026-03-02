@@ -52,3 +52,4 @@ coverage-tmp/
 # Per-package build outputs
 packages/*/dist/
 apps/*/dist/
+CHANGELOG_DRAFT.md
