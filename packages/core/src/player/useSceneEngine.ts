@@ -21,8 +21,7 @@ import type {
   ScrollSource,
 } from './engineTypes';
 import { useEngineInput } from './useEngineInput';
-/** Minimal asset manifest type for backward compat. Full type lives in @brewsite/model. */
-type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
+import type { AssetManifest } from '../widget/types';
 import type { SceneNavInputMap } from '../input/types';
 import type { CameraOverrideState } from '../elements/camera/types';
 import type { CameraWidget } from '../elements/camera/CameraWidget';

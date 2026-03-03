@@ -3,7 +3,7 @@ title: "BrewSite Core — Compiler Pipeline"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-01
+last_updated: 2026-03-03
 change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
@@ -20,6 +20,9 @@ change_history:
   - date: 2026-03-01
     author: "Toolkit Product"
     summary: "Annotated label compilation pipeline (labelCompiler.ts, ClipMeta, labelPrimitives, CompileApi.pushLabel) as model-specific, moving to @brewsite/model in Phase 4 per plan_core_modularization."
+  - date: 2026-03-03
+    author: "Toolkit Product"
+    summary: "API hardening updates: removed ScenePlayer.onCompileWarning prop reference from SceneTrack.warnings doc (warnings are now consumed internally by EngineProvider); updated cache scope description from ScenePlayer to EngineProvider instances; updated compiler/primitives/ section to reflect that Background, Camera, Environment, Floor, and Lighting primitive files are deleted — only progressManager.ts remains active."
 ---
 
 # BrewSite Core — Compiler Pipeline
@@ -339,7 +342,7 @@ export type SceneTrack = {
   transitionBlocks?: SceneTrackTransitionBlock[];
   /**
    * Warnings accumulated during compilation. Empty or absent when no issues.
-   * Surfaced to the host via ScenePlayer's onCompileWarning prop after compilation.
+   * Consumed internally by EngineProvider after compilation completes.
    */
   warnings?: CompileWarning[];
   /**
@@ -878,7 +881,7 @@ const key = [
 
 **Cache invalidation:** The cache is a module-level `Map<string, SceneTrack>`. It is never automatically invalidated — `clearCache()` must be called explicitly. The player layer calls `clearCache()` when the widget registry is rebuilt (e.g., after hot module replacement or viewport resize that forces registry recreation).
 
-**Cache scope:** The cache is process-scoped (same Map instance for all `ScenePlayer` instances in a single page). In practice this is safe because the cache key includes all variable inputs. Two players with the same scenes and registry will correctly share a cached track.
+**Cache scope:** The cache is process-scoped (same Map instance for all `EngineProvider` instances in a single page). In practice this is safe because the cache key includes all variable inputs. Two providers with the same scenes and registry will correctly share a cached track.
 
 ---
 
@@ -928,7 +931,7 @@ Hosts DSL block components that are not element-specific but still require handl
 
 ### `compiler/primitives/`
 
-Primitive element compilers for the built-in core elements: `Background`, `Camera`, `Environment`, `Floor`, `Lighting`, `Model`. Each file exports a `compile*Props` pure function and registers its element's DSL component. These functions transform authored DSL props into the typed state objects stored in `SceneFrame.widgets`.
+Only `progressManager.ts` remains active in this directory. It exports `compileProgressManager` and `buildProgressProfile`, which process `<ProgressManager>` DSL props into `SceneProgressProfile` entries on the `SceneTrack`. The `Background`, `Camera`, `Environment`, `Floor`, and `Lighting` primitive files previously located here have been deleted — those DSL handlers are now registered via `corePlugin().registerHandlers()` through `coreHandlers.ts`.
 
 ---
 

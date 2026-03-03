@@ -13,14 +13,16 @@ import type * as THREE from 'three';
 import { DEFAULT_CAMERA, functionalCameraTransitionSpec, extractWorldPosFromDescriptor } from './compile';
 import { Camera } from './dsl';
 import type { CameraProps } from './dsl';
-import { applyCamera, CameraControlsDriver } from './render';
+import { applyCamera } from './render';
+import { CameraControlsDriver } from './CameraControlsDriver';
 import type { AnimationTickContext, IAnimationController, ISceneElement } from '../../widget/types';
 import { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
 import type { SceneTrackTick } from '../../compiler/sceneTrackTypes';
+import { SCENE_CAMERA_KEY } from './cameraKeys';
 /** Minimal model state shape used for camera target resolution. Full type lives in @brewsite/model. */
 type ModelStateForCamera = { model?: { position?: [number, number, number] } };
 
-const CAMERA_KEY = '__brewsite_camera';
+const CAMERA_KEY = SCENE_CAMERA_KEY;
 const RENDERER_KEY = '__brewsite_renderer';
 const CAMERA_OVERRIDE_KEY = '__brewsite_camera_override';
 const CAMERA_FOCUS_KEY = '__brewsite_camera_focus';

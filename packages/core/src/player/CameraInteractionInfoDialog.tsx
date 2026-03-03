@@ -1,3 +1,7 @@
+/**
+ * @internal Development-only component. Not part of the stable public API.
+ * May change or be removed without a major version bump.
+ */
 import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties, ReactElement } from 'react';
 import { useSceneEngineContext } from './EngineContext';

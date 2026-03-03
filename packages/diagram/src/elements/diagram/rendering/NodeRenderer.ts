@@ -147,7 +147,7 @@ export class NodeRenderer {
     const { geometry, materialCount } = createShapeGeometry(
       state.shape,
       state.size,
-      state.depth,
+      state.thickness,
       state.cornerRadius,
     );
     const emissiveOverride = this.emissiveOverrides.get(this.key(diagramId, state.id));
@@ -176,7 +176,7 @@ export class NodeRenderer {
     if (!useEdgesGeo) {
       roundedBorder = new THREE.LineLoop(
         createShapeOutlineGeometry(
-          state.shape, state.size[0], state.size[1], state.depth, state.cornerRadius,
+          state.shape, state.size[0], state.size[1], state.thickness, state.cornerRadius,
         ),
         new THREE.LineBasicMaterial({
           color: state.borderColor,
@@ -227,14 +227,14 @@ export class NodeRenderer {
       prev.shape !== state.shape ||
       prev.size[0] !== state.size[0] ||
       prev.size[1] !== state.size[1] ||
-      prev.depth !== state.depth ||
+      prev.thickness !== state.thickness ||
       prev.cornerRadius !== state.cornerRadius;
 
     if (geometryChanged) {
       const { geometry, materialCount: newMaterialCount } = createShapeGeometry(
         state.shape,
         state.size,
-        state.depth,
+        state.thickness,
         state.cornerRadius,
       );
       entry.boxMesh.geometry.dispose();
@@ -260,7 +260,7 @@ export class NodeRenderer {
           state.shape,
           state.size[0],
           state.size[1],
-          state.depth,
+          state.thickness,
           state.cornerRadius,
         );
         if (entry.roundedBorder) {
@@ -413,14 +413,14 @@ export class NodeRenderer {
 
     ensureText(
       entry.label,
-      state.label,
+      state.label ?? '',
       state.labelColor,
       labelFontSize,
       state.opacity,
       contentW * 0.85,
       true,
     );
-    entry.label.position.set(0, labelY, state.depth / 2 + 0.02);
+    entry.label.position.set(0, labelY, state.thickness / 2 + 0.02);
 
     if (state.sublabel) {
       if (!entry.sublabel) {
@@ -436,7 +436,7 @@ export class NodeRenderer {
         contentW * 0.85,
         true,
       );
-      entry.sublabel.position.set(0, sublabelY, state.depth / 2 + 0.02);
+      entry.sublabel.position.set(0, sublabelY, state.thickness / 2 + 0.02);
     } else if (entry.sublabel) {
       entry.group.remove(entry.sublabel);
       entry.sublabel = undefined;
@@ -487,7 +487,7 @@ export class NodeRenderer {
         });
       }
       if (entry.iconHolder) {
-        entry.iconHolder.position.set(0, contentH * 0.2, state.depth / 2 + 0.01);
+        entry.iconHolder.position.set(0, contentH * 0.2, state.thickness / 2 + 0.01);
       }
     } else if (entry.iconHolder) {
       entry.group.remove(entry.iconHolder);

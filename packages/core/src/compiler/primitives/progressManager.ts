@@ -3,7 +3,7 @@
 // Renders null. Registered via NodeHandler; consumed by sceneTrackCompiler aggregation pass.
 
 import type { NodeHandler } from '../sceneDslTypes';
-import { IDENTITY_FN } from '../../player/SceneProgressMapper';
+import { IDENTITY_FN } from '../identityFn';
 import type { ProgressManagerSpec } from '../sceneTrackTypes';
 
 export interface ProgressManagerProps {

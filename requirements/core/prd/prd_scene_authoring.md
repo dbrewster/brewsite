@@ -3,7 +3,7 @@ title: "BrewSite Core — Scene Authoring DSL"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-02
+last_updated: 2026-03-03
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -26,6 +26,9 @@ change_history:
   - date: 2026-03-01
     author: "Toolkit Product"
     summary: "Annotated <Model> DSL documentation as belonging to @brewsite/model per plan_core_modularization. Model remains listed for reference during transition."
+  - date: 2026-03-03
+    author: "Toolkit Product"
+    summary: "API hardening update: replaced ScenePlayer as the mounting component in functional requirements and authoring pattern examples with EngineProvider."
 ---
 
 # BrewSite Core — Scene Authoring DSL
@@ -94,8 +97,8 @@ Without a clear, stable, well-typed authoring surface, consumer adoption is bloc
 
 ## 6. Functional Requirements
 
-1. Consumers must be able to define a collection of scenes by passing `<Scene key="...">` elements as direct children of `<ScenePlayer>`. No intermediate wrapper type or factory function is required.
-2. Each scene must be uniquely identified by its React `key` prop within a `<ScenePlayer>`. The `key` is read from `element.key` by the compiler's `sceneRootHandler`. The `id` prop is retained as a backward-compat fallback. Duplicate keys within the same player are a compiler warning.
+1. Consumers must be able to define a collection of scenes by passing `<Scene key="...">` elements as direct children of `<EngineProvider>`. No intermediate wrapper type or factory function is required.
+2. Each scene must be uniquely identified by its React `key` prop within an `<EngineProvider>`. The `key` is read from `element.key` by the compiler's `sceneRootHandler`. The `id` prop is retained as a backward-compat fallback. Duplicate keys within the same provider are a compiler warning.
 3. Scene order — the top-to-bottom order of `<Scene>` children — determines playback order. The first scene has no entry transition; the last scene has no exit transition.
 4. Scene JSX elements are authored as plain `ReactElement` values (exported from scene files as constants). They are not wrapped in a factory function for normal static authoring. Dynamic values (viewport dimensions, asset-ready state, runtime variables) flow into scene JSX via React state in the parent component, using `useSceneRuntime()` if engine-internal values are needed.
 5. The `<Scene>` DSL component must accept `key` (React standard), `id` (backward-compat fallback), `meta`, `metalnessMultiplier`, and `roughnessMultiplier` props.
@@ -556,9 +559,12 @@ export const scene01Intro = (
 );
 
 // page.tsx
-<ScenePlayer manifestUrl="/manifest.json" widgetSetup={createWidgetSetup}>
+<EngineProvider
+  manifestUrl="/manifest.json"
+  plugins={[corePlugin(), modelPlugin({ manifestUrl: '/manifest.json' })]}
+>
   {scene01Intro}
-</ScenePlayer>
+</EngineProvider>
 ```
 
 ### 8.2 Multi-Scene Interpolation
@@ -584,10 +590,10 @@ export const sceneRight = (
 );
 
 // page.tsx
-<ScenePlayer ...>
+<EngineProvider ...>
   {sceneLeft}
   {sceneRight}
-</ScenePlayer>
+</EngineProvider>
 ```
 
 ### 8.3 Enter Transition

@@ -60,6 +60,7 @@ export function compileChart(
     theme: dsl.theme ?? 'darkGlass',
     opacity: dsl.opacity ?? 1,
     interactive: dsl.interactive ?? false,
+    innerRadius: dsl.innerRadius ?? 0,
   };
 }
 

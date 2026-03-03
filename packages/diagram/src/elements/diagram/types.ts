@@ -36,8 +36,11 @@ export interface DiagramThemeNodeConfig {
   readonly defaultRoughness: number;
   /** Emissive intensity on the front face [0–1], tinted to node color */
   readonly defaultEmissiveIntensity: number;
-  /** Physical box depth in diagram units. 0.28 = card-like, 0.6 = block-like */
-  readonly defaultDepth: number;
+  /**
+   * Default physical thickness of node prism boxes in diagram units.
+   * 0.28 = card-like, 0.6 = block-like.
+   */
+  readonly defaultThickness: number;
   /**
    * Corner radius in diagram units for rect-like shapes.
    * 0 = sharp BoxGeometry (legacy); > 0 = rounded box geometry.
@@ -450,8 +453,13 @@ export interface DiagramNodeState {
   /** Unique node ID within this diagram */
   readonly id: string;
 
-  /** Primary display label */
-  readonly label: string;
+  /**
+   * Primary display label.
+   * `undefined` means this is a ghost node — it inherits its visual identity
+   * (label, sublabel, shape, icon, size) from the matching node in the previous scene.
+   * `''` (empty string) is a fully-declared node with an empty text label.
+   */
+  readonly label: string | undefined;
 
   /** Optional secondary label rendered below the primary label in smaller text */
   readonly sublabel: string | undefined;
@@ -474,11 +482,11 @@ export interface DiagramNodeState {
   readonly size: readonly [number, number];
 
   /**
-   * Physical box depth in diagram units.
-   * Recommended default: 0.4 for standard nodes, 0.8 for "hero" expanded nodes.
-   * Option B rendering: nodes are actual BoxGeometry objects, not flat planes.
+   * Physical thickness of the 3D prism box in diagram units — how far it protrudes
+   * toward the camera. NOT the same as z-axis depth layering (use `position[2]` for that).
+   * Recommended defaults: 0.4 for standard nodes, 0.8 for hero/expanded nodes.
    */
-  readonly depth: number;
+  readonly thickness: number;
 
   /** CSS hex color for the node box face (e.g., '#dae8fc') */
   readonly color: string;
@@ -830,6 +838,17 @@ export interface DiagramState {
 // ─── DSL input types (used by dsl.tsx and consumed by compile.ts) ────────────
 
 /**
+ * Node glow (emissive lighting) configuration for the DSL surface.
+ * The internal render state always uses the three-field emissive model.
+ */
+export type DiagramNodeGlowConfig = {
+  /** Emissive intensity [0–1]. Default: from theme. */
+  intensity?: number;
+  /** Emissive color (CSS hex). Default: node face color. */
+  color?: string;
+};
+
+/**
  * Raw DSL data extracted from a <DiagramNode> component by the compiler.
  * This is an intermediate type — not part of the public API.
  * All optional fields have defaults applied in compile.ts.
@@ -863,18 +882,20 @@ export interface DiagramNodeDSL {
    */
   readonly position?: readonly [number, number, number];
   readonly size?: readonly [number, number];
-  readonly depth?: number;
+  readonly thickness?: number;
   readonly color?: string;
   readonly sideColor?: string;
   readonly borderColor?: string;
   readonly metalness?: number;
   readonly roughness?: number;
-  /** Emissive intensity on the front face [0–1]. Overrides theme default. */
-  readonly emissiveIntensity?: number;
-  /** Enables/disables node emissive rendering. Defaults to true when intensity > 0. */
-  readonly emissive?: boolean;
-  /** Emissive color on the front face. Defaults to node color. */
-  readonly emissiveColor?: string;
+  /**
+   * Node glow (emissive) override.
+   * - Omit: use theme default (recommended for consistent branding)
+   * - `true`: enable glow with theme-default intensity and node face color
+   * - `false`: disable glow regardless of theme
+   * - object: full control — `{ intensity?: number; color?: string }`
+   */
+  readonly glow?: boolean | DiagramNodeGlowConfig;
   /** Corner radius in diagram units. Overrides theme default (theme.node.cornerRadius). */
   readonly cornerRadius?: number;
   readonly labelColor?: string;
@@ -1064,3 +1085,10 @@ export interface DiagramGroupHoverEvent extends DiagramHoverEventBase {
 
 export type DiagramNodeMouseHandler = (event: DiagramNodeHoverEvent) => void;
 export type DiagramGroupMouseHandler = (event: DiagramGroupHoverEvent) => void;
+
+/**
+ * Callback for compile-time warnings emitted by diagram compilation functions.
+ * handlers.ts adapts this into CompileApi.pushWarning().
+ * @internal — consumed by handlers.ts, not part of consumer-facing DSL.
+ */
+export type DiagramWarnFn = (code: string, message: string) => void;

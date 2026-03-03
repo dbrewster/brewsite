@@ -12,6 +12,20 @@ import type {
 
 type Row = Record<string, unknown>;
 
+function compareValues(a: unknown, b: unknown): number {
+  if (typeof a === 'number' && typeof b === 'number') {
+    return a - b;
+  }
+  // Attempt numeric coercion
+  const na = Number(a);
+  const nb = Number(b);
+  if (!isNaN(na) && !isNaN(nb)) {
+    return na - nb;
+  }
+  // String fallback
+  return String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0;
+}
+
 /**
  * Evaluates a single FilterOp against a field value and a comparison value.
  * Pure function — no closures, fully serializable.
@@ -26,22 +40,10 @@ export function evaluateFilterOp(
       return fieldValue === compareValue;
     case 'neq':
       return fieldValue !== compareValue;
-    case 'gt':
-      return typeof fieldValue === 'number' && typeof compareValue === 'number'
-        ? fieldValue > compareValue
-        : String(fieldValue) > String(compareValue);
-    case 'gte':
-      return typeof fieldValue === 'number' && typeof compareValue === 'number'
-        ? fieldValue >= compareValue
-        : String(fieldValue) >= String(compareValue);
-    case 'lt':
-      return typeof fieldValue === 'number' && typeof compareValue === 'number'
-        ? fieldValue < compareValue
-        : String(fieldValue) < String(compareValue);
-    case 'lte':
-      return typeof fieldValue === 'number' && typeof compareValue === 'number'
-        ? fieldValue <= compareValue
-        : String(fieldValue) <= String(compareValue);
+    case 'gt':  return compareValues(fieldValue, compareValue) > 0;
+    case 'gte': return compareValues(fieldValue, compareValue) >= 0;
+    case 'lt':  return compareValues(fieldValue, compareValue) < 0;
+    case 'lte': return compareValues(fieldValue, compareValue) <= 0;
     case 'in':
       return Array.isArray(compareValue) &&
         (compareValue as ReadonlyArray<unknown>).includes(fieldValue);

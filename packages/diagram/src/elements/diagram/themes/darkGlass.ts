@@ -14,7 +14,7 @@ export const darkGlassTheme: DiagramTheme = {
     defaultMetalness:          0.40,
     defaultRoughness:          0.30,
     defaultEmissiveIntensity:  0.10,
-    defaultDepth:              0.28,
+    defaultThickness:          0.28,
     cornerRadius:              0.06,
     glowIntensity:             0.15,
     defaultLabelColor:         '#e8eeff',

@@ -150,7 +150,7 @@ export function rerouteLivePipes(
       const fromAttach = sideAttachmentPoint(
         fromNode.position,
         fromNode.size,
-        fromNode.depth,
+        fromNode.thickness,
         fromDiagram.position,
         fromDiagram.scale,
         fromDiagram.rotation,
@@ -159,7 +159,7 @@ export function rerouteLivePipes(
       const toAttach = sideAttachmentPoint(
         toNode.position,
         toNode.size,
-        toNode.depth,
+        toNode.thickness,
         toDiagram.position,
         toDiagram.scale,
         toDiagram.rotation,

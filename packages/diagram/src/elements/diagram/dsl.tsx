@@ -20,6 +20,7 @@ import type {
   DiagramGroupEdgeLightsDSL,
   DiagramNodeMouseHandler,
   DiagramGroupMouseHandler,
+  DiagramNodeGlowConfig,
 } from './types';
 
 // ─── <DiagramNode> ────────────────────────────────────────────────────────────
@@ -53,15 +54,32 @@ export interface DiagramNodeProps {
    */
   icon?: DiagramIconVariant;
   /**
-   * World-space position [x, y, z].
-   * z controls depth — use for drill-down animations.
-   * If omitted, auto-layout assigns a position based on declaration order.
+   * Node position in diagram-local space [x, y, z].
+   * x and y are in layout units (same units as `size`).
+   * z creates depth layering: non-zero z values stack nodes at different depths
+   * relative to the camera. The flat view has all nodes at z=0; drill-down scenes
+   * use non-zero z to reveal the third dimension.
+   *
+   * When using `<GridLayout>` or `<HierarchicalLayout>`, omit this prop — the
+   * layout engine assigns positions automatically. Only specify `position`
+   * explicitly when using `<ManualLayout>`.
+   *
+   * Note: the parent `<Diagram pivot="...">` setting shifts the origin. With
+   * `pivot="center"`, the diagram's bounding-box center becomes [0, 0, 0], so
+   * all authored positions are relative to that center.
+   *
+   * If omitted and layout is manual, this is a ghost node (see `DiagramNode`
+   * component documentation for ghost node behavior).
    */
   position?: [number, number, number];
   /** Node width and height in diagram units. Default: [4, 2] */
   size?: [number, number];
-  /** Physical box depth. Default: 0.4 */
-  depth?: number;
+  /**
+   * Physical thickness of the 3D prism box in diagram units — how far it protrudes
+   * toward the camera. NOT z-axis depth layering (use `position[2]` for that).
+   * Default: from theme (darkGlass: 0.4).
+   */
+  thickness?: number;
   /** Face color (CSS hex). Default: '#2a2d3e' (dark slate) */
   color?: string;
   /** Side/edge color (CSS hex). Default: derives from color (darker) */
@@ -72,12 +90,18 @@ export interface DiagramNodeProps {
   metalness?: number;
   /** Surface roughness [0–1]. Default: from theme (darkGlass: 0.30) */
   roughness?: number;
-  /** Emissive intensity on front face [0–1]. Default: from theme (darkGlass: 0.10) */
-  emissiveIntensity?: number;
-  /** Enables/disables front-face emissive contribution. */
-  emissive?: boolean;
-  /** Emissive color (CSS hex). Default: node `color`. */
-  emissiveColor?: string;
+  /**
+   * Node glow (emissive) override.
+   * - Omit: inherit from theme (default)
+   * - `true`: enable with theme-default intensity and color
+   * - `false`: disable glow regardless of theme
+   * - object: `{ intensity?: number; color?: string }` for full control
+   *
+   * @example
+   * <DiagramNode id="api" glow={{ intensity: 0.4, color: '#00ffaa' }} />
+   * <DiagramNode id="db" glow={false} />  // suppress theme glow
+   */
+  glow?: boolean | DiagramNodeGlowConfig;
   /** Corner radius in diagram units for rect shapes. Default: from theme (darkGlass: 0.06) */
   cornerRadius?: number;
   /** Label text color (CSS hex). Default: from theme */
@@ -113,6 +137,31 @@ export interface DiagramNodeProps {
  * Declares a diagram node (shape with label).
  * Must be a direct or indirect child of <Diagram>.
  * Can be nested inside <DiagramGroup> to establish group membership.
+ *
+ * ### Ghost Nodes
+ *
+ * When `label` is omitted, this node is a **ghost node** — it inherits its
+ * visual identity (label, sublabel, shape, icon, size) from the matching node
+ * in the previous scene. Ghost nodes enable drill-down animations where a prior
+ * scene's diagram appears as faded context behind the new focal point.
+ *
+ * To make a node appear as a ghost:
+ * - Omit the `label` prop entirely (do NOT pass `label=""`).
+ * - Optionally set `opacity` to reduce visual weight (e.g., `opacity={0.3}`).
+ * - In a manual-layout diagram, also omit `position` — it will be inherited.
+ *
+ * @example
+ * // Scene 1: full diagram with named nodes
+ * <DiagramNode id="api" label="API Gateway" icon="aws:api-gateway" size={[4, 2]} />
+ *
+ * // Scene 2: api appears as ghost context (no label = inherit identity from Scene 1)
+ * <DiagramNode id="api" opacity={0.3} />
+ * // ↑ inherits label, icon, shape, size from Scene 1; only opacity changes
+ *
+ * Contrast with an intentionally labelless node (NOT a ghost):
+ * // This node has a label — it is an empty string, not absent.
+ * <DiagramNode id="cdn" label="" size={[3, 2]} color="#1a3d5c" />
+ * // ↑ fully-declared node, no inheritance from prior scenes
  */
 export function DiagramNode(_props: DiagramNodeProps): null {
   return null;
@@ -305,7 +354,12 @@ export function ManualLayout(_props: ManualLayoutProps): null {
 export interface DiagramProps {
   /** Unique diagram ID. Must be stable across scenes. */
   id: string;
-  /** World/parent-space position. Default: [0, 0, 0] */
+  /**
+   * Diagram origin position in parent space [x, y, z].
+   * When inside a `<DiagramCanvas>`, this is canvas-local space — coordinates
+   * relative to the canvas group origin. When used standalone, this is world space.
+   * Default: [0, 0, 0]
+   */
   position?: [number, number, number];
   /** World/parent-space Euler XYZ rotation in radians. Default: [0, 0, 0] */
   rotation?: [number, number, number];
@@ -315,8 +369,9 @@ export interface DiagramProps {
   pivot?: DiagramPivot;
   /**
    * Visual + behavioral theme for this diagram.
-   * Overrides the canvas-level theme (if inside a DiagramCanvas).
-   * Falls back to the package default (darkGlassTheme) when absent.
+   * Overrides the parent `<DiagramCanvas>` theme for this diagram only.
+   * If inside a DiagramCanvas and this prop is omitted, the canvas theme applies.
+   * Falls back to darkGlassTheme when no canvas theme is present.
    * Per-node / per-edge props take precedence over all theme values.
    *
    * @example
@@ -338,9 +393,9 @@ export function Diagram(_props: DiagramProps): null {
   return null;
 }
 
-// ─── <Exit> ───────────────────────────────────────────────────────────────────
+// ─── <DiagramExit> ────────────────────────────────────────────────────────────
 
-export interface ExitProps {
+export interface DiagramExitProps {
   /**
    * Target position in parent space (canvas-local or world) at the end of the exit.
    * If absent, the diagram does not translate during exit (scale/fade only).
@@ -365,16 +420,16 @@ export interface ExitProps {
 
 /**
  * Declares exit animation for the parent <Diagram>.
- * Must be a direct child of <Diagram>. At most one <Exit> per diagram.
- * Example: <Exit to={[0, -50, 0]} fade easing="ease-out" />
+ * Must be a direct child of <Diagram>. At most one <DiagramExit> per diagram.
+ * @example <DiagramExit to={[0, -50, 0]} fade easing="ease-out" />
  */
-export function Exit(_props: ExitProps): null {
+export function DiagramExit(_props: DiagramExitProps): null {
   return null;
 }
 
-// ─── <Enter> ──────────────────────────────────────────────────────────────────
+// ─── <DiagramEnter> ───────────────────────────────────────────────────────────
 
-export interface EnterProps {
+export interface DiagramEnterProps {
   /**
    * Source position in parent space at the start of the enter transition.
    * If absent, the diagram enters from its declared position (scale/fade only).
@@ -394,9 +449,9 @@ export interface EnterProps {
 
 /**
  * Declares enter animation for the parent <Diagram>.
- * Must be a direct child of <Diagram>. At most one <Enter> per diagram.
- * Example: <Enter from={[-50, 0, 0]} fade easing="spring" />
+ * Must be a direct child of <Diagram>. At most one <DiagramEnter> per diagram.
+ * @example <DiagramEnter from={[-50, 0, 0]} fade easing="spring" />
  */
-export function Enter(_props: EnterProps): null {
+export function DiagramEnter(_props: DiagramEnterProps): null {
   return null;
 }

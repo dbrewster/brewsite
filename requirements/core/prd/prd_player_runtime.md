@@ -3,8 +3,11 @@ title: "BrewSite Core — Player & Runtime"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-02
+last_updated: 2026-03-03
 change_history:
+  - date: 2026-03-03
+    author: "Toolkit Product"
+    summary: "API hardening updates: ScenePlayer removed; EngineProvider is now the primary integration component. EngineGate added as the loading gate (placeholder until first tick). EngineScrollRegion removed; EngineInputRegion is the sole input region (reads from context, no engine prop). createDefaultWidgetRegistry removed; replaced by corePlugin() + modelPlugin() plugin pattern. Section 3.1 Key Exports updated. Section 7 rewritten to document EngineProvider + EngineGate composable pattern; ScenePlayerProps type definition removed. Section 14.1 EngineScrollRegion documentation removed. SceneMetaWidget registration updated to corePlugin(). SSR section updated to reference EngineProvider and EngineGate. Open question about EngineScrollRegion deprecation removed (resolved)."
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Core customization unblocking implemented: timingProfile API (blockSize/qualityPreset/fpsCap), maxAnimBoostPerFrame option, overlayTransition config, scrollHeightMode=scroll-units with pixelsPerScrollUnit, explicit invalidateCacheToken support, and nextSceneTrackCacheToken helper export."
@@ -32,9 +35,9 @@ change_history:
 
 ## 1. Overview
 
-The Player layer is the React integration surface for `@brewsite/core`. `ScenePlayer` is the top-level component that a host application mounts to render an animated 3D scene. The Runtime layer is the frame-by-frame execution engine that drives widget ticking, scene track sampling, Three.js rendering, and state publishing. Together they form the complete playback stack: from JSX scene authoring through compilation, asset loading, frame scheduling, and reactive state propagation to host UI.
+The Player layer is the React integration surface for `@brewsite/core`. `EngineProvider` is the primary component that a host application mounts to render an animated 3D scene, composed with `EngineGate` (loading gate), `EngineInputRegion` (input capture), `SceneCanvas` (Three.js canvas), and `EngineOverlayHost` (overlay tier) to form the complete integration. The Runtime layer is the frame-by-frame execution engine that drives widget ticking, scene track sampling, Three.js rendering, and state publishing. Together they form the complete playback stack: from JSX scene authoring through compilation, asset loading, frame scheduling, and reactive state propagation to host UI.
 
-This document covers `ScenePlayer` (a thin composition of player primitives), the three composable player primitives (`EngineProvider`, `SceneCanvas`, `EngineOverlayHost`), the `useSceneEngine` hook and its options, `RuntimeDriverImpl` and the per-frame tick sequence, `RuntimeLoop` and the animation frame scheduler, `EngineFrameDriver` and the React state bridge, all consumer hooks (`useEngineScroll`, `useEngineInput`, `useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `useSceneEngineState`), all context providers (`EngineStateContext`, `VariableStoreContext`, `LabelPositionerContext`, `EngineContext`), the `EngineScrollRegion` and `EngineInputRegion` DOM wrapper components, `LabelPositioner` for 3D-to-screen projection, `TimelineWidget` for interactive scrubbing, `CameraControlPanel`, `SceneMetaWidget`, `SceneProgressMapper`, the asset manifest pipeline, and the SSR safety contract.
+This document covers `EngineProvider` and the composable player primitives (`EngineGate`, `EngineInputRegion`, `SceneCanvas`, `EngineOverlayHost`), the `useSceneEngine` hook and its options, `RuntimeDriverImpl` and the per-frame tick sequence, `RuntimeLoop` and the animation frame scheduler, `EngineFrameDriver` and the React state bridge, all consumer hooks (`useEngineScroll`, `useEngineInput`, `useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `useSceneEngineState`), all context providers (`EngineStateContext`, `VariableStoreContext`, `LabelPositionerContext`, `EngineContext`), the `EngineInputRegion` DOM input region, `LabelPositioner` for 3D-to-screen projection, `TimelineWidget` for interactive scrubbing, `CameraControlPanel`, `SceneMetaWidget`, `SceneProgressMapper`, the asset manifest pipeline, and the SSR safety contract.
 
 Affects: `@brewsite/core`.
 
@@ -44,7 +47,7 @@ Affects: `@brewsite/core`.
 
 Three.js scene toolkits typically expose imperative APIs: create a renderer, create a scene, load assets, call render in a loop. Integrating this into a React host application requires careful management of refs, effect cleanup, hydration safety, and progress synchronization.
 
-The BrewSite Player layer solves these integration problems once, providing a declarative `<ScenePlayer>` component that handles all imperative Three.js lifecycle internally. Host applications interact exclusively with props, hooks, and context — no direct Three.js API surface is exposed unless the consumer explicitly requests engine access via `useSceneEngineContext`.
+The BrewSite Player layer solves these integration problems once, providing a composable `<EngineProvider>` + `<EngineGate>` + `<SceneCanvas>` pattern that handles all imperative Three.js lifecycle internally. Host applications interact exclusively with props, hooks, and context — no direct Three.js API surface is exposed unless the consumer explicitly requests engine access via `useSceneEngineContext`.
 
 The Runtime layer solves the per-frame orchestration problem: widgets must tick in a defined order, scene track state must be sampled O(1), functional transitions must evaluate at blockProgress, and the output must be pushed to React state in a way that does not cause excessive re-renders.
 
@@ -54,18 +57,18 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 
 **Primary goals:**
 - A host application can integrate a fully animated 3D scene in under 30 lines of application code.
-- ScenePlayer is safe to render server-side — no crash, no hydration mismatch.
+- EngineProvider is safe to render server-side — no crash, no hydration mismatch.
 - Adding a new widget does not require changes to the Player or Runtime layers.
 - The frame loop runs at 60fps on target hardware with zero React state updates per frame during steady-state playback (state updates only on tick index change, not on every animation frame).
 
 **Success metrics:**
-- ScenePlayer mounts and begins rendering in under 500ms on a 100ms round-trip manifest fetch.
+- EngineProvider mounts and begins rendering in under 500ms on a 100ms round-trip manifest fetch.
 - Zero React re-renders per animation frame during steady-state playback with a static scene (no scene transitions).
-- TypeScript props for `ScenePlayer` produce compile errors for incorrect prop types with zero `any` escape hatches.
+- TypeScript props for `EngineProvider` produce compile errors for incorrect prop types with zero `any` escape hatches.
 - `useCurrentScene` does not re-render its consumer on every frame — it re-renders only when `sceneId` changes.
 
 **Guardrail metrics:**
-- No `ScenePlayerProps` fields may be removed or renamed in a minor version release.
+- No `EngineProviderProps` fields may be removed or renamed in a minor version release.
 - The `useSceneEngine` return shape must remain backward compatible across minor versions.
 
 ---
@@ -76,30 +79,30 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 - The Player layer does not expose a public Three.js `Scene` or `Camera` reference in the standard consumption pattern. Consumer access to engine internals is available via `useSceneEngineContext` for advanced use cases only, and is considered an escape hatch.
 - Audio synchronization is out of scope for the Player layer.
 - The Runtime layer does not implement physics, collision detection, or pathfinding. These belong in widget `IAnimationController` implementations.
-- The Player layer does not manage React Router integration. `onSceneChange` is the hook for host-level navigation reactions.
-- `ScenePlayer` does not manage full-page scroll position. `EngineScrollRegion` and `EngineInputRegion` are the tools for integrating scene progress with the document scroll.
+- The Player layer does not manage React Router integration. Scene change callbacks are wired through `corePlugin({ onSceneChange })` options.
+- `EngineProvider` does not manage full-page scroll position. `EngineInputRegion` is the component for integrating scene progress with document scroll or direct input.
 
 ---
 
 ## 5. Consumer Stories
 
-- As a toolkit consumer, I want to declare a scene in JSX and mount `<ScenePlayer>` so that my three.js scene renders without writing any imperative Three.js setup code.
+- As a toolkit consumer, I want to declare a scene in JSX and mount `<EngineProvider>` with composable layout primitives so that my three.js scene renders without writing any imperative Three.js setup code.
 - As a toolkit consumer, I want to use `useCurrentScene()` to reactively update a nav indicator so that my UI reflects the active scene without wiring custom event listeners.
 - As a toolkit consumer, I want `<EngineInputRegion>` to handle scroll, drag, wheel, and keyboard input so that my scene transitions as the user navigates.
 - As a toolkit consumer, I want `useVariable('scene', 'id')` inside any component nested under `<ScenePlayer>` so that I can build reactive overlays driven by scene metadata.
-- As a toolkit consumer, I want `timeline={true}` on `ScenePlayer` so that I get a scrubbing timeline for development and debugging without additional code.
-- As a server-side rendering host, I want `<ScenePlayer>` to render the `placeholder` prop during SSR and hydration so that my page has no layout shift and no hydration mismatch.
+- As a toolkit consumer, I want to mount `<TimelineWidget>` inside `<EngineProvider>` so that I get a scrubbing timeline for development and debugging without additional code.
+- As a server-side rendering host, I want `<EngineGate>` to render the `placeholder` prop during SSR and until the engine's first tick so that my page has no layout shift and no hydration mismatch.
 
 ---
 
 ## 6. Functional Requirements
 
-1. `ScenePlayer` shall accept `children: ReactNode`, `manifestUrl`, and `widgetSetup` as required props. `children` must consist of `<Scene key="...">` elements. All other props are optional. The `sceneGroup` prop has been removed.
-2. `ScenePlayer` shall fetch the manifest from `manifestUrl` and pass the parsed result to `widgetSetup(manifest)` to construct the `WidgetRegistry`.
-3. `ScenePlayer` shall render the `placeholder` prop while `frameState.tickIndex < 0` (before the first tick completes).
-4. `ScenePlayer` shall render a `role="alert"` error message if manifest fetching fails. This does not throw; the host can handle via `onError`.
-5. `ScenePlayer` shall call `onSceneChange(sceneId, sceneIndex)` when the active scene changes.
-6. `ScenePlayer` shall support Vite HMR automatically via content-hash compilation. When Vite HMR causes a parent component re-render, the `<Scene>` JSX elements are re-created. `serializeJsx` produces a new `contentKey` if any prop changed. If the `sceneContentKey` changes, `useMemo` fires and recompilation is triggered naturally. No manual `import.meta.hot` subscription, `hmrVersion` state counter, or `clearRegistry` call is needed or present.
+1. `EngineProvider` shall accept `children: ReactNode`, `manifestUrl`, and `plugins` as primary props. `children` must consist of `<Scene key="...">` elements plus layout primitives (`EngineGate`, `EngineInputRegion`, etc.). All other props are optional.
+2. `EngineProvider` shall fetch the manifest from `manifestUrl` and pass the parsed result to each plugin via `IWidgetPlugin.register(registry, manifest)` to construct the `WidgetRegistry`.
+3. `EngineGate` shall render the `placeholder` prop while `frameState.tickIndex < 0` (before the first tick completes), then render `children`.
+4. `EngineProvider` shall call `onManifestError` if manifest fetching fails. The engine continues operating with whatever plugins were already registered.
+5. Scene change callbacks shall be wired via `corePlugin({ onSceneChange })` options. `SceneMetaWidget` (registered by `corePlugin()`) fires the callback when the active scene changes.
+6. `EngineProvider` shall support Vite HMR automatically via content-hash compilation. When Vite HMR causes a parent component re-render, the `<Scene>` JSX elements are re-created. `serializeJsx` produces a new `contentKey` if any prop changed. If the `sceneContentKey` changes, `useMemo` fires and recompilation is triggered naturally. No manual `import.meta.hot` subscription, `hmrVersion` state counter, or `clearRegistry` call is needed or present.
 7. `useSceneEngine` shall create a `THREE.WebGLRenderer` once the canvas DOM element is available, and dispose it on unmount.
 8. `useSceneEngine` shall compile the `SceneTrack` via `compileSceneTrack` when `sceneGroup`, `widgetRegistry`, or `clipMeta` changes. Compiled tracks shall be cached by `buildSceneTrackKey` to avoid recompilation on unrelated re-renders.
 9. `RuntimeDriverImpl.tick` shall execute in this order per frame: (1) tick all `IAnimationController` widgets in priority order, (2) sample the scene track, (3) apply state to all `IRenderable` widgets.
@@ -110,92 +113,69 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 14. `useSceneProgress()` shall return the current `progress: number` ([0, 1] global progress) and update on every tick index change.
 15. `LabelPositioner.update` shall be called once per render, after `renderer.render(scene, camera)`, with the current label primitives and bone world positions from the runtime driver.
 16. `EngineInputRegion` shall support both `scroll` mode (tall spacer creates scrollable space) and `direct` mode (fixed-height viewport, pointer/wheel/keyboard events drive progress directly).
-17. `ScenePlayer` shall be SSR-safe: all Three.js and DOM initialization shall be deferred to `useEffect`. On the server, the component renders `placeholder` (if provided) or `null`.
-18. `createDefaultWidgetRegistry(manifest)` shall be accessible from `@brewsite/core` player exports without requiring a separate import path.
+17. `EngineProvider` shall be SSR-safe: all Three.js and DOM initialization shall be deferred to `useEffect`. On the server, `EngineGate` renders `placeholder` (if provided) or `null`.
+18. `corePlugin()` shall be accessible from `@brewsite/core` player exports. Pairing `corePlugin()` with `modelPlugin()` from `@brewsite/model` provides complete widget coverage for scenes with GLTF models.
 
 ---
 
-## 7. ScenePlayer Component
+## 7. EngineProvider: Primary Integration Component
 
-`ScenePlayer` is a thin composition of the three player primitives: `EngineProvider` + `EngineInputRegion` + `SceneCanvas` + `EngineOverlayHost`. Its public props contract is identical to `EngineProvider` props, augmented with layout and input props. It is the standard integration path for host applications that do not need custom canvas layout.
+`EngineProvider` is the primary component for integrating BrewSite scenes into a host application. It establishes the engine context tree and manages the Three.js engine lifecycle. Compose it with `EngineGate` (loading gate), `EngineInputRegion` (input capture), `SceneCanvas` (Three.js canvas), and `EngineOverlayHost` (overlay tier) to build the complete player integration.
 
-Consumers who need a custom canvas layout (e.g., canvas inside a CSS grid cell, canvas with a custom z-index stacking context, canvas inside a portal) should compose `EngineProvider`, `SceneCanvas`, and `EngineOverlayHost` directly. See Section 7A for the composable primitives.
+**Canonical integration pattern:**
 
-### 7.1 Props
+```tsx
+import {
+  EngineProvider, EngineGate, EngineInputRegion,
+  SceneCanvas, EngineOverlayHost, corePlugin,
+} from '@brewsite/core';
+import { modelPlugin } from '@brewsite/model';
+
+const PLUGINS = [
+  corePlugin({ onSceneChange: (id) => console.log('scene:', id) }),
+  modelPlugin(manifest),
+];
+
+export default function Page() {
+  return (
+    <EngineProvider
+      id="main"
+      manifestUrl="/manifest.json"
+      plugins={PLUGINS}
+      framesPerTick={100}
+      pixelsPerScene={1600}
+    >
+      <Scene key="intro">...</Scene>
+      <EngineGate placeholder={<Spinner />}>
+        <EngineInputRegion>
+          <SceneCanvas />
+          <EngineOverlayHost />
+        </EngineInputRegion>
+      </EngineGate>
+    </EngineProvider>
+  );
+}
+```
+
+Define `PLUGINS` at module scope (or via `useMemo`) to keep the array reference stable across renders and avoid restarting asset loading.
+
+Full `EngineProviderProps` documentation is in **Section 7A.1**. Full `EngineGateProps` documentation is below.
+
+### 7.1 EngineGate
+
+`EngineGate` renders its `placeholder` until the engine produces its first frame (`tickIndex >= 0`), then renders `children`. It is the standard loading gate for `EngineProvider` integrations and must be placed inside an `EngineProvider` tree.
 
 ```typescript
-type ScenePlayerProps = {
-  // Scene content — required
-  children: ReactNode;   // <Scene key="..."> elements
-
-  // Player identity (required for useSceneRuntime)
-  id?: string;
-
-  // Required configuration
-  manifestUrl: string;
-
-  // Widget configuration — optional. Receives guaranteed non-null manifest.
-  // When omitted, createDefaultWidgetRegistry(manifest) is used automatically.
-  widgetSetup?: (manifest: AssetManifest) => WidgetRegistry;
-
-  // Layout
-  className?: string;
-
-  // Engine configuration
-  fpsCap?: number;
-  pixelsPerScene?: number;
-  framesPerTick?: number;  // explicit override; wins over quality when both set
-
-  // Rendering quality preset (maps to framesPerTick: performance=30, balanced=60, high=120)
-  quality?: 'performance' | 'balanced' | 'high';
-
-  // Input
-  inputMap?: SceneNavInputMap;
-
-  // Timeline widget
-  timeline?: boolean | Omit<TimelineWidgetProps, 'engine' | 'scenes'>;
-
-  // Lifecycle callbacks
-  onReady?: () => void;
-  onError?: (error: Error) => void;
-  onSceneChange?: (sceneId: string, sceneIndex: number) => void;
-  onManifestError?: (error: Error) => void;   // manifest fetch failure (engine continues)
-  onWidgetError?: (widgetId: string, error: Error) => void;  // per-widget failure
-
-  // Loading UI
+type EngineGateProps = {
+  /** Rendered while the engine has not yet produced its first frame. Defaults to null. */
   placeholder?: ReactNode;
-
-  // Development
-  debug?: boolean;  // renders SceneInspector overlay; tree-shaken when false/absent
+  children: ReactNode;
 };
+
+const EngineGate: React.FC<EngineGateProps>;
 ```
 
-**`children`** — Required. Each direct child must be a `<Scene key="...">` React element. Non-`<Scene>` children are filtered out with a `console.warn`. Order determines playback sequence.
-
-**`id`** — Optional player identifier. Required if the parent component uses `useSceneRuntime(id)`. Must be unique across all `<ScenePlayer>` instances in the application.
-
-**`widgetSetup`** — Optional widget configuration factory. When omitted, `createDefaultWidgetRegistry(manifest)` is used automatically — no code needed for the common case. When provided, receives a **guaranteed non-null** `AssetManifest` (the manifest load must succeed before this function is called). On manifest fetch failure, `onManifestError` is called instead, and the engine falls back to default widgets with a null manifest.
-
-**`quality`** — Rendering quality preset controlling how many frames are pre-baked per transition block. Higher values produce smoother easing at the cost of more memory and compilation time. When both `quality` and `framesPerTick` are set, `framesPerTick` wins.
-
-**`onManifestError`** — Called when the manifest fetch fails. The engine continues operating with default widgets (no models). Separates fetch failures from widget/runtime errors.
-
-**`onWidgetError`** — Called when a single widget fails during `load()`, `onTick()`, or `apply()`. The failed widget is quarantined (skipped in subsequent frames) and other widgets continue rendering normally.
-
-**`debug`** — When `true`, renders a `<SceneInspector>` overlay with scene list, progress readouts, and click-to-jump navigation. Use `debug={process.env.NODE_ENV === 'development'}` for automatic removal in production builds.
-
-**`manifestUrl`** — URL to the asset manifest JSON file. The manifest is fetched on mount and on `manifestUrl` changes. It is passed to `widgetSetup` and to `ILoadable` widgets. The manifest JSON must conform to `AssetManifest` schema (see Section 14).
-
-**`widgetSetup`** — Called with the parsed `AssetManifest` (or `null` on fetch failure) after fetching completes. Returns a configured `WidgetRegistry`. Called inside `useMemo` — it must be a stable function reference or the engine will reinitialize on every render. The canonical pattern:
-
-```typescript
-const widgetSetup = useCallback(
-  (manifest: AssetManifest | null) => createDefaultWidgetRegistry(manifest),
-  [],
-);
-```
-
-**`fpsCap`** — Maximum frames per second. When set, the RuntimeLoop throttles frame dispatch to this rate. Useful for battery-conscious deployments or reducing CPU load on non-critical background tabs. Default: unlimited (native rAF rate).
+`EngineGate` reads `tickIndex` from `EngineStateContext`. Any component that needs the engine's first-frame guarantee (canvas sizing, overlay positioning, label registration) should be nested inside `EngineGate`.
 
 **`pixelsPerScene`** — Scroll height in pixels allocated per scene in scroll mode. When set, overrides the default height calculation. Only relevant in `scroll` input mode.
 
@@ -217,7 +197,7 @@ const widgetSetup = useCallback(
 
 ### 7.2 Internal Behavior
 
-`ScenePlayer` performs the following operations on each render:
+`EngineProvider` performs the following operations on each render:
 
 **Scene extraction and content hashing (every render, synchronous):**
 1. Calls `Children.toArray(props.children)` to collect all children.
@@ -240,7 +220,7 @@ const widgetSetup = useCallback(
 14. A `useEffect` publishes `SceneRuntimeState` to `ScenePlayerRegistry` on every change to `assetsReady`, viewport dimensions, `variableStore`, or `scenes.length`. Consumers using `useSceneRuntime(id)` receive these updates reactively.
 15. On unmount, calls `unregisterSceneRuntime(id)` to clean up the registry entry.
 
-On server (SSR), `ScenePlayer` short-circuits at `typeof window === 'undefined'` and returns `placeholder ?? null`. No Three.js imports are invoked on the server code path.
+On server (SSR), `EngineProvider` short-circuits at `typeof window === 'undefined'` and defers all engine initialization. `EngineGate` returns `placeholder ?? null` on the server code path. No Three.js imports are invoked.
 
 ---
 
@@ -667,7 +647,7 @@ class RuntimeDriverImpl implements RuntimeDriver {
 }
 ```
 
-At construction time, `RuntimeDriverImpl` reads the sorted widget collections from the registry once (`getSceneElements()`, `getRenderables()`, `getAnimationControllers()`, `getContainedModels()`) and stores them as private arrays. These collections do not change after construction — the registry is treated as immutable after `createDefaultWidgetRegistry` returns.
+At construction time, `RuntimeDriverImpl` reads the sorted widget collections from the registry once (`getSceneElements()`, `getRenderables()`, `getAnimationControllers()`, `getContainedModels()`) and stores them as private arrays. These collections do not change after construction — the registry is treated as immutable after plugins are registered.
 
 ### 9.2 Initialization
 
@@ -1000,7 +980,7 @@ Returns the full `EngineState` (`progress`, `sceneId`, `sceneIndex`, `sceneProgr
 
 ## 14. Context Providers
 
-All context providers are established by `ScenePlayer` in this nesting order (outer to inner):
+All context providers are established by `EngineProvider` in this nesting order (outer to inner):
 
 ```
 VariableStoreContext.Provider
@@ -1060,32 +1040,21 @@ Provides the full `UseSceneEngineResult` to advanced consumers. Used by `CameraC
 
 ---
 
-## 15. EngineScrollRegion and EngineInputRegion
+## 15. EngineInputRegion
 
-### 14.1 EngineScrollRegion
+`EngineInputRegion` is the canonical input capture region for `EngineProvider` integrations. It reads layout configuration and engine state directly from `EngineContext` — no `engine` prop is required. Mount `SceneCanvas` and `EngineOverlayHost` as children.
 
-```typescript
-type EngineScrollRegionProps = {
-  engine: UseSceneEngineResult;
-  className?: string;
-  children?: ReactNode;
-};
-```
-
-DOM wrapper for scroll-mode deployments. Renders a tall outer div (height = `engine.scrollRegionHeightPx`) with `engine.scrollRegionRef` attached. Inside, a sticky viewport div (height = `100vh`) contains a background div, the Three.js canvas, and an overlay div for children. Manages `ResizeObserver` to call `engine.setViewportSize` on container resize.
-
-### 14.2 EngineInputRegion
+> **Migration from `EngineScrollRegion`:** `EngineScrollRegion` has been removed. Replace any `<EngineScrollRegion engine={engine}>` usage with `<EngineInputRegion>` and add `<SceneCanvas />` as a child. `EngineInputRegion` reads `scrollRegionHeightPx` and `scrollRegionRef` directly from engine context.
 
 ```typescript
 type EngineInputRegionProps = {
-  engine: UseSceneEngineResult;
   inputMap?: SceneNavInputMap;
   className?: string;
   children?: ReactNode;
 };
 ```
 
-The component used inside `ScenePlayer` internally. Adapts layout based on `inputMap.mode`:
+Adapts layout based on `inputMap.mode`:
 
 - **Scroll mode:** Outer div has height = `scrollRegionHeightPx` and `overscrollBehavior: 'none'`. Inner viewport is `position: sticky`.
 - **Direct mode:** Outer div has height = `100vh`. Inner viewport is `position: relative`.
@@ -1133,7 +1102,7 @@ Labels for which `enabled === false` have `display: none` set without projection
 
 ## 17. TimelineWidget
 
-`TimelineWidget` is an interactive scrubbing UI component rendered inside `<ScenePlayer>` when `timeline` is set.
+`TimelineWidget` is an interactive scrubbing UI component rendered inside an `<EngineProvider>` tree.
 
 ```typescript
 type TimelineWidgetProps = {
@@ -1229,7 +1198,7 @@ On each tick, `SceneMetaWidget` publishes to the `'scene'` namespace:
 
 When the `sceneId` changes, `onSceneChange(sceneId, sceneIndex)` is fired. `ScenePlayer` wires this to the `onSceneChange` prop.
 
-`SceneMetaWidget` is registered by `createDefaultWidgetRegistry` with `widgetId = '__scene_meta__'`. It is always present in the default registry. Custom registries built without `createDefaultWidgetRegistry` must register it explicitly to enable `useCurrentScene`, `useSceneProgress`, and `useVariable('scene', ...)`.
+`SceneMetaWidget` is registered by `corePlugin()` with `widgetId = '__scene_meta__'`. It is always present when `corePlugin()` is used. Registries that do not use `corePlugin()` must register it explicitly to enable `useCurrentScene`, `useSceneProgress`, and `useVariable('scene', ...)`.
 
 ---
 
@@ -1267,13 +1236,13 @@ Validates the raw JSON fetched from `manifestUrl`. Throws if the manifest is not
 
 ## 22. SSR Safety Contract
 
-`ScenePlayer` must be safe to render server-side. The following constraints are enforced:
+`EngineProvider` must be safe to render server-side. The following constraints are enforced:
 
 1. **No Three.js code on the server code path.** All Three.js imports (`new THREE.WebGLRenderer(...)`, `new THREE.Scene()`, etc.) are inside `useEffect` callbacks. They are never called during `render()` or `renderToString()`.
 
-2. **Server render returns placeholder.** `ScenePlayer` checks `typeof window !== 'undefined'` at render time. On the server, it returns `placeholder ?? null`. This produces stable HTML for hydration.
+2. **Server render gates via EngineGate.** `EngineProvider` defers all engine initialization to client-side effects. `EngineGate` returns `placeholder ?? null` until the engine's first client-side tick, producing stable HTML for hydration.
 
-3. **No hydration mismatch.** The canvas, HUD overlay, and label elements are only rendered client-side (after `isBrowser` is `true`). The placeholder renders identically on server and client until the engine's first tick.
+3. **No hydration mismatch.** The canvas, HUD overlay, and label elements are only rendered client-side (after the engine's first tick via `EngineGate`). The placeholder renders identically on server and client until that point.
 
 4. **Vite-specific HMR code is guarded.** The `import.meta.hot` HMR handler is only registered if `import.meta.hot` exists. This guard prevents crashes in non-Vite build environments.
 
@@ -1311,15 +1280,15 @@ In tests, provide a deterministic clock that controls `now()` and manually dispa
 
 The testing pattern for the Runtime layer is interface-based stateful testing: construct a real `RuntimeDriverImpl` with mock widgets from `widgetMocks.ts`, call `tick` with known inputs, assert on `appliedStates[]`. Do not mock `RuntimeDriverImpl` internals.
 
-For hooks (`useSceneProgress`, `useCurrentScene`, `useEngineInput`), use React Testing Library with a minimal `ScenePlayer` wrapper providing a real engine context.
+For hooks (`useSceneProgress`, `useCurrentScene`, `useEngineInput`), use React Testing Library with a minimal `EngineProvider` wrapper providing a real engine context.
 
 ---
 
 ## 24. Breaking Change Assessment
 
-**Current semver status:** `ScenePlayerProps.widgetSetup` was changed from `(registry: WidgetRegistry) => void` to `(manifest: AssetManifest | null) => WidgetRegistry`. This was a major breaking change — existing consumers that mutated a registry passed to them now need to construct and return a registry from `widgetSetup`. New consumers use `createDefaultWidgetRegistry(manifest)` inside `widgetSetup`.
+**Current semver status:** `ScenePlayer` and `ScenePlayerProps` have been removed entirely (major breaking change). `EngineScrollRegion` and `EngineScrollRegionProps` have been removed. `createDefaultWidgetRegistry` and `DefaultWidgetRegistryOptions` have been removed. The canonical integration pattern is `EngineProvider` + `EngineGate` + `EngineInputRegion` + `SceneCanvas` + `EngineOverlayHost` with `corePlugin()` and `modelPlugin()`. Migration: replace `<ScenePlayer widgetSetup={...}>` with `<EngineProvider plugins={[corePlugin(), modelPlugin(manifest)]}>` wrapped layout primitives.
 
-**Guardrail:** `ScenePlayerProps` fields must not be removed or renamed in minor versions. New optional fields can be added freely.
+**Guardrail:** `EngineProviderProps` fields must not be removed or renamed in minor versions. New optional fields can be added freely.
 
 **Known future risk:** `useSceneEngineContext` returns `UseSceneEngineResult` which includes internal engine refs. Additions to this type are non-breaking; removals are major changes. The type should not be used as a stable public API surface for third-party libraries — prefer the narrow hook APIs.
 
@@ -1327,7 +1296,6 @@ For hooks (`useSceneProgress`, `useCurrentScene`, `useEngineInput`), use React T
 
 ## 25. Open Questions
 
-- Should `EngineScrollRegion` be deprecated in favor of `EngineInputRegion`? Both serve the scroll-mode use case; `EngineInputRegion` is more general. Having two components for scroll-mode integration is confusing.
 - Should `useSceneProgress()` return the full `EngineState` instead of just `number`, to avoid consumers calling both `useSceneProgress` and `useCurrentScene`? A combined hook would reduce context reads.
 - Should `ScenePlayer` accept a `ref` forwarded to the canvas element for consumers who need direct canvas access (e.g., screenshot capture)? `SceneCanvas` already supports `forwardRef` — a `ScenePlayer`-level shortcut may be warranted.
 - Should `debug` information in `UseSceneEngineResult` be gated behind a `__DEV__` flag to prevent any dev-only overhead in production builds?
@@ -1340,7 +1308,7 @@ For hooks (`useSceneProgress`, `useCurrentScene`, `useEngineInput`), use React T
 
 For any release that modifies the Player or Runtime public API:
 
-- All `ScenePlayer`, `EngineProvider`, `SceneCanvas`, and `EngineOverlayHost` prop types compile with `strict: true` and no `any`.
+- All `EngineProvider`, `EngineGate`, `SceneCanvas`, and `EngineOverlayHost` prop types compile with `strict: true` and no `any`.
 - `useCurrentScene`, `useSceneProgress`, and `useVariable` pass integration tests inside a `<ScenePlayer>` wrapper.
 - `useSceneEngineState(id)` passes integration tests verifying: returns null before registration, returns correct snapshot after registration, returns null after unregister, updates on tick index change.
 - `RuntimeDriverImpl` unit tests cover the full tick sequence order (animation controllers before sampling before apply).
@@ -1350,7 +1318,7 @@ For any release that modifies the Player or Runtime public API:
 - `EngineOverlayHost` renders the current scene's overlay ReactNode and switches it on scene change.
 - `SceneProgressMapper.remap` unit tests cover: uniform segments (identity), single custom fn, multiple scenes with different scrollUnits, progress boundary conditions (0, 1).
 - `SceneProgressMapper.inverse` unit tests verify inverse maps engine progress back to raw progress correctly for both uniform and non-uniform profiles.
-- SSR render of `<ScenePlayer>` produces no Three.js errors and matches the placeholder output.
+- SSR render of `<EngineProvider>` with `<EngineGate>` produces no Three.js errors and matches the placeholder output.
 - At least one example in `apps/examples/` demonstrates `EngineProvider` + `SceneCanvas` + `EngineOverlayHost` in a custom layout.
 - `CHANGELOG.md` in `packages/core` has an entry for every changed exported symbol.
-- `packages/core/README.md` reflects the current `ScenePlayerProps` interface and documents the composable primitives.
+- `packages/core/README.md` reflects the current `EngineProviderProps` interface and documents `EngineGate`, `EngineInputRegion`, `SceneCanvas`, and `EngineOverlayHost`.

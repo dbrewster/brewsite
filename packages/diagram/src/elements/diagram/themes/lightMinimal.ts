@@ -14,7 +14,7 @@ export const lightMinimalTheme: DiagramTheme = {
     defaultMetalness:          0.08,
     defaultRoughness:          0.60,
     defaultEmissiveIntensity:  0.0,
-    defaultDepth:              0.20,
+    defaultThickness:          0.20,
     cornerRadius:              0.08,
     glowIntensity:             0.0,
     defaultLabelColor:         '#1a2240',

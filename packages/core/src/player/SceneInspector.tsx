@@ -1,5 +1,9 @@
-// Debug overlay — renders only when debug={true} is passed to ScenePlayer.
-// Tree-shaken in production builds when the prop is omitted or statically false.
+// Debug overlay — renders only when included explicitly in the component tree.
+// Tree-shaken in production builds when the component is omitted.
+/**
+ * @internal Development-only component. Not part of the stable public API.
+ * May change or be removed without a major version bump.
+ */
 import type { CSSProperties, ReactElement } from 'react';
 import { useEngineState } from './EngineStateContext';
 import { useSceneEngineContext } from './EngineContext';

@@ -18,10 +18,13 @@ Scene authors declare state in a typed JSX DSL. The compiler pre-bakes those dec
 
 ```tsx
 import {
-  ScenePlayer, createDefaultWidgetRegistry,
+  EngineProvider, EngineGate, EngineInputRegion,
+  SceneCanvas, EngineOverlayHost, corePlugin,
   Scene, Lighting, Ambient, Directional,
 } from '@brewsite/core';
-import type { SceneDefinition, AssetManifest } from '@brewsite/core';
+import { modelPlugin } from '@brewsite/model';
+import type { SceneDefinition } from '@brewsite/core';
+import { useMemo } from 'react';
 
 const scene01: SceneDefinition = {
   id: 'intro',
@@ -36,18 +39,30 @@ const scene01: SceneDefinition = {
   ),
 };
 
+const PLUGINS = [corePlugin(), modelPlugin(null)];
+
 export default function Page() {
   return (
-    <ScenePlayer
+    <EngineProvider
+      id="demo"
       sceneGroup={{ id: 'demo', scenes: [scene01] }}
       manifestUrl="/scene-manifest.json"
-      widgetSetup={(manifest: AssetManifest | null) => createDefaultWidgetRegistry(manifest)}
+      plugins={PLUGINS}
       framesPerTick={100}
       pixelsPerScene={1600}
-    />
+    >
+      <EngineGate>
+        <EngineInputRegion>
+          <SceneCanvas />
+          <EngineOverlayHost />
+        </EngineInputRegion>
+      </EngineGate>
+    </EngineProvider>
   );
 }
 ```
+
+`EngineInputRegion` and `SceneCanvas` read engine state from context — no `engine` prop required. Define `PLUGINS` at module scope (or via `useMemo`) to keep the array reference stable across renders and avoid restarting asset loading.
 
 ## Key Exports
 
@@ -55,7 +70,12 @@ export default function Page() {
 
 | Export | Description |
 |---|---|
-| `ScenePlayer` | Top-level React component — renders the Three.js canvas, HUD, labels, scroll region |
+| `EngineProvider` | Root engine component — configures the scene group, plugins, timing, and quality |
+| `EngineGate` | Gates rendering until the engine produces its first frame; renders `placeholder` before that |
+| `EngineInputRegion` | Input capture region; reads from `EngineContext` — no props required for basic use |
+| `SceneCanvas` | Renders the Three.js canvas; reads from `EngineContext` |
+| `EngineOverlayHost` | Renders HUD and label overlays; reads from `EngineContext` |
+| `corePlugin` | Plugin factory that registers core widgets (Lighting, Background, Environment, Floor, Camera, SceneMeta) |
 | `useSceneEngine` | Low-level hook for custom player layouts |
 | `useEngineScroll` | Hook for scroll-progress binding |
 | `useEngineInput` | Hook for input binding |
@@ -64,14 +84,9 @@ export default function Page() {
 | `useCurrentScene` | Hook for current scene metadata |
 | `useEngineState` | Hook for full engine frame state |
 | `EngineContext` / `useSceneEngineContext` | Engine context for custom integrations |
-| `createDefaultWidgetRegistry` | Creates a pre-configured `WidgetRegistry` with core widgets (Model, Lighting, Background, Environment, Floor, Camera) |
-| `EngineScrollRegion` | Scroll spacer for scroll-mode navigation |
-| `EngineInputRegion` | Input capture region for direct-mode navigation |
-| `LabelPositioner` | 3D-to-screen projection for label overlays |
-| `LabelPositionerContext` / `useLabelPositioner` | Label positioner context for custom label components |
-| `TimelineWidget` | Debug timeline overlay |
-| `CameraControlPanel` | Camera orbit/dolly control UI |
-| `CameraInteractionInfoDialog` | Camera interaction help dialog |
+| `TimelineWidget` | Timeline overlay component |
+| `CameraControlPanel` | Camera orbit/dolly control UI *(dev tool — not stable public API)* |
+| `CameraInteractionInfoDialog` | Camera interaction help dialog *(dev tool — not stable public API)* |
 
 ### Compiler DSL (scene authoring)
 
@@ -90,6 +105,11 @@ export default function Page() {
 | `WidgetRegistry` | Plugin registry; maps DSL components to widget instances |
 | `VariableStore` | Reactive key-value store for cross-widget state |
 | `useVariable` | React hook for reading a `VariableStore` variable |
+| `CUSTOM_NODE_HANDLER` | Symbol for widgets that override default DSL node routing |
+| `IHasCustomDslHandler` | Interface for widgets with a custom DSL node handler |
+| `hasCustomDslHandler` | Type guard: returns true if the widget implements `IHasCustomDslHandler` |
+| `ISceneLifecycle` | Optional interface for widgets that need `onSceneEnter` / `onSceneExit` hooks |
+| `isSceneLifecycle` | Type guard for `ISceneLifecycle` |
 
 ### Core element DSL components
 
@@ -117,6 +137,18 @@ import type {
   InputActionSpec,
   FunctionalTransitionSpec,
   ElementTransitionSpec,
+  // Widget SDK interfaces
+  IWidget,
+  ISceneElement,
+  IRenderable,
+  ILoadable,
+  ISceneLifecycle,
+  IHasCustomDslHandler,
+  // Engine types
+  EngineState,
+  EngineFrameState,
+  CorePluginOptions,
+  EngineGateProps,
 } from '@brewsite/core';
 ```
 

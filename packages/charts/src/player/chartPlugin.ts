@@ -15,6 +15,18 @@ import type { ChartDSL, ChartDataDSL, ChartAxisDSL, ChartSeriesDSL, ChartLegendD
 export type ChartPluginInstance = WidgetPlugin & {
   /** The per-engine ChartDataStore owned by this plugin instance. */
   readonly store: ChartDataStore;
+  /**
+   * Retrieve a chart widget instance by chart ID to attach onHover/onSelect callbacks.
+   * Returns undefined if the chart has not yet been initialized or the id is unknown.
+   *
+   * @example
+   * const plugin = useMemo(() => chartPlugin(), []);
+   * useEffect(() => {
+   *   const widget = plugin.getWidget('revenue');
+   *   if (widget) widget.onHover = (info) => console.log(info);
+   * }, [plugin]);
+   */
+  getWidget(id: string): Pick<ChartWidget, 'onHover' | 'onSelect'> | undefined;
 };
 
 /**
@@ -34,9 +46,14 @@ export type ChartPluginInstance = WidgetPlugin & {
  */
 export function chartPlugin(): ChartPluginInstance {
   const store = new ChartDataStore();
+  const widgetMap = new Map<string, ChartWidget>();
 
   return {
     store,
+
+    getWidget(id: string) {
+      return widgetMap.get(id);
+    },
 
     createWidgets: () => {
       // ChartWidgets are created lazily via Chart NodeHandler on first DSL encounter.
@@ -48,8 +65,9 @@ export function chartPlugin(): ChartPluginInstance {
     },
 
     configureRegistry: (registry: WidgetRegistry) => {
-      // Install the Chart NodeHandler with registry access for auto-widget-creation.
-      // registerNode() is last-writer-wins — this overrides the guard installed by registerChartHandlers.
+      // Register the main Chart handler. This is the only handler for Chart — child
+      // component guards (ChartData, ChartAxis, etc.) are registered separately in
+      // registerHandlers() and are never invoked for children collected by this handler.
       registerNode(Chart, (node, api, helpers) => {
         const props = node.props as Record<string, unknown>;
         const chartId = typeof props['id'] === 'string' ? props['id'] : null;
@@ -57,7 +75,14 @@ export function chartPlugin(): ChartPluginInstance {
 
         // Auto-create and register ChartWidget on first encounter.
         if (!registry.get(chartId)) {
-          registry.register(new ChartWidget(chartId, store));
+          const widget = new ChartWidget(chartId, store);
+          widgetMap.set(chartId, widget);
+          const originalDispose = widget.dispose.bind(widget);
+          widget.dispose = () => {
+            widgetMap.delete(chartId);
+            originalDispose();
+          };
+          registry.register(widget);
         }
 
         // Extract and compile child DSL.
@@ -74,6 +99,13 @@ export function chartPlugin(): ChartPluginInstance {
           else if (el.type === ChartAxis)   axisDsls.push(el.props as ChartAxisDSL);
           else if (el.type === ChartSeries) seriesDsls.push(el.props as ChartSeriesDSL);
           else if (el.type === ChartLegend) legendDsl = el.props as ChartLegendDSL;
+        }
+
+        if (!dataDsl) {
+          throw new Error(
+            `<Chart id="${chartId}"> is missing a required <ChartData> child. ` +
+            `Add <ChartData source="your-source-name" /> as a direct child of <Chart>.`
+          );
         }
 
         const chartState = compileChart(props as ChartDSL, dataDsl, axisDsls, seriesDsls, legendDsl);

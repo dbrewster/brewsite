@@ -6,7 +6,7 @@ import type { DataTransform, ResolvedDataFrame } from './types';
 
 /**
  * Subscribes to a named data source from the nearest ChartDataStore.
- * Re-renders when filter group state changes (crossfilter linked-brush).
+ * Re-renders when filter group state changes (linked-brush filtering).
  *
  * @param sourceName - The data source name registered via ChartProvider.
  * @param transforms - Optional array of serializable data transforms to apply.
@@ -19,7 +19,7 @@ export function useChartData(
   const resolvedTransforms = transforms ?? [];
 
   return useSyncExternalStore(
-    (cb) => store.subscribeToFilterGroup(sourceName, cb),
+    (cb) => store.subscribeToSource(sourceName, cb),
     () => store.resolve(sourceName, resolvedTransforms),
     () => store.resolve(sourceName, resolvedTransforms),
   );

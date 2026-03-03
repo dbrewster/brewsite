@@ -25,4 +25,15 @@ export const darkGlassChartTheme: ChartTheme = {
     planeOpacity: 0.85,
     gridColor: '#1e293b',
   },
+  legend: {
+    textColor: '#d0e8ff',
+    fontSize: 0.09,
+    swatchSize: 0.08,
+    spacing: 0.14,
+  },
+  interaction: {
+    hoverColor: '#ffffff',
+    hoverEmissiveIntensity: 0.6,
+    selectedColor: '#ffdd00',
+  },
 };

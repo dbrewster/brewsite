@@ -55,7 +55,7 @@ function MultiSceneContent(): JSX.Element {
       <h1 style={{ fontSize: 'var(--font-size-3xl)', margin: '0 0 8px', fontWeight: 700 }}>Multi-Scene Sequences</h1>
       <p style={{ fontSize: 'var(--font-size-base)', lineHeight: 1.65, color: 'var(--text-secondary)', margin: '0 0 20px' }}>
         A sequence is a series of <code>&lt;Scene&gt;</code> elements passed as children to
-        <code>ScenePlayer</code>. The compiler generates a smooth animated transition between
+        <code>EngineProvider</code>. The compiler generates a smooth animated transition between
         every consecutive pair.
       </p>
 
@@ -77,12 +77,17 @@ const scene02 = (
   </Scene>
 );
 
+const PLUGINS = [corePlugin()];
+
 function MyPage() {
   return (
-    <ScenePlayer manifestUrl="/manifest.json" widgetSetup={setup}>
+    <EngineProvider manifestUrl="/manifest.json" plugins={PLUGINS}>
       {scene01}
       {scene02}
-    </ScenePlayer>
+      <EngineInputRegion>
+        <SceneCanvas />
+      </EngineInputRegion>
+    </EngineProvider>
   );
 }`}
       />

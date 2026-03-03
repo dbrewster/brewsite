@@ -192,22 +192,22 @@ export class DiagramCanvasWidget
 
       let diagramChanged = false;
       const mergedNodes = nextDiagram.nodes.map((node): DiagramNodeState => {
-        if (node.label !== '' && !node.positionInherited) return node;
+        if (node.label !== undefined && !node.positionInherited) return node;
         const prevNode = prevDiagram.nodes.find((p) => p.id === node.id);
         if (!prevNode) return node;
         diagramChanged = true;
         anyChanged = true;
         return {
           ...node,
-          label:        node.label !== '' ? node.label        : prevNode.label,
-          sublabel:     node.label !== '' ? node.sublabel     : prevNode.sublabel,
-          shape:        node.label !== '' ? node.shape        : prevNode.shape,
-          iconUrl:      node.label !== '' ? node.iconUrl      : prevNode.iconUrl,
-          iconScale:    node.label !== '' ? node.iconScale    : prevNode.iconScale,
-          sublabelColor: node.label !== '' ? node.sublabelColor : prevNode.sublabelColor,
-          position: node.positionInherited ? prevNode.position : node.position,
-          size:     node.positionInherited ? prevNode.size     : node.size,
-          depth:    node.positionInherited ? prevNode.depth    : node.depth,
+          label:         node.label !== undefined ? node.label         : prevNode.label,
+          sublabel:      node.label !== undefined ? node.sublabel      : prevNode.sublabel,
+          shape:         node.label !== undefined ? node.shape         : prevNode.shape,
+          iconUrl:       node.label !== undefined ? node.iconUrl       : prevNode.iconUrl,
+          iconScale:     node.label !== undefined ? node.iconScale     : prevNode.iconScale,
+          sublabelColor: node.label !== undefined ? node.sublabelColor : prevNode.sublabelColor,
+          position:  node.positionInherited ? prevNode.position  : node.position,
+          size:      node.positionInherited ? prevNode.size      : node.size,
+          thickness: node.positionInherited ? prevNode.thickness : node.thickness,
           positionInherited: undefined,
         };
       });

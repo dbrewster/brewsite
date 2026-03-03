@@ -1,5 +1,4 @@
 // @brewsite/charts — native 3D chart elements for BrewSite scenes.
-import './register';
 
 // ─── DSL authoring surface ────────────────────────────────────────────────────
 export { Chart, ChartData, ChartAxis, ChartSeries, ChartLegend } from './elements/chart/dsl';
@@ -26,10 +25,24 @@ export type {
 } from './elements/chart/types';
 export { DEFAULT_CHART_STATE } from './elements/chart/types';
 
-// ─── Widget + renderer ────────────────────────────────────────────────────────
-export { ChartWidget } from './elements/chart/ChartWidget';
+import type { ChartType } from './elements/chart/types';
+import type { FilterOp } from './data/types';
+
+/** All supported chart types. Useful for building type-selector dropdowns or tests. */
+export const CHART_TYPES = [
+  'bar', 'line', 'area', 'pie', 'scatter', 'heatmap',
+] as const satisfies readonly ChartType[];
+
+/** All supported filter operators. */
+export const FILTER_OPS = [
+  'eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in',
+] as const satisfies readonly FilterOp[];
+
+// ─── Compiler ────────────────────────────────────────────────────────────────
+export { compileChart, functionalChartTransitionSpec } from './elements/chart/compile';
+
+// ─── Widget ──────────────────────────────────────────────────────────────────
 export type { ChartHoverInfo } from './elements/chart/ChartWidget';
-export { ChartRenderer } from './elements/chart/render';
 
 // ─── Plugin ───────────────────────────────────────────────────────────────────
 export { chartPlugin } from './player/chartPlugin';
@@ -46,6 +59,8 @@ export { ChartDataStore } from './data/ChartDataStore';
 export { useChartData } from './data/useChartData';
 export { useChartFilter } from './data/useChartFilter';
 export { useChartStore, ChartStoreContext } from './data/ChartStoreContext';
+export type { IFilterEngine } from './data/IFilterEngine';
+export { SimpleFilterEngine } from './data/SimpleFilterEngine';
 export type {
   DataTransform,
   FilterTransform,
@@ -63,4 +78,12 @@ export { darkGlassChartTheme } from './themes/darkGlass';
 export { neonCyberChartTheme } from './themes/neonCyber';
 export { enterpriseChartTheme } from './themes/enterprise';
 export { lightMinimalChartTheme } from './themes/lightMinimal';
-export type { ChartTheme, ChartThemeName } from './themes/types';
+export { createChartTheme } from './themes/createChartTheme';
+export { CHART_THEMES } from './themes/index';
+export type { ChartThemeOverrides } from './themes/createChartTheme';
+export type {
+  ChartTheme,
+  ChartThemeName,
+  ChartLegendTokens,
+  ChartInteractionTokens,
+} from './themes/types';

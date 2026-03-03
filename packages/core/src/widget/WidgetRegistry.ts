@@ -4,6 +4,7 @@ import type {
   IWidget, ISceneElement, IRenderable, ILoadable, IDslComposite,
   IAnimationController, IVariableProvider, ICameraActionTarget,
   IRendererLifecycle, IRenderContributor, IContainedRenderable, IAttachmentHost,
+  ISceneLifecycle,
 } from './types';
 import type { WebGLRenderer } from 'three';
 import { registerNode, getNodeHandler } from '../compiler/registry';
@@ -24,6 +25,29 @@ export type WidgetRegistryOptions = {
  * DslComponent is encountered in a scene DSL tree.
  */
 export const CUSTOM_NODE_HANDLER = Symbol('customNodeHandler');
+
+/**
+ * Interface implemented by widgets that override the default DSL node routing.
+ * When a widget implements this interface, the WidgetRegistry invokes the widget's
+ * [CUSTOM_NODE_HANDLER] method instead of the default shallow-merge path.
+ *
+ * @example
+ * class CameraWidget implements ISceneElement<SceneCamera>, IHasCustomDslHandler {
+ *   readonly [CUSTOM_NODE_HANDLER] = (node, api, helpers) => {
+ *     // custom prop transformation logic
+ *   };
+ * }
+ */
+export interface IHasCustomDslHandler extends IWidget {
+  readonly [CUSTOM_NODE_HANDLER]: NodeHandler;
+}
+
+/**
+ * Type guard: returns true if the widget implements IHasCustomDslHandler.
+ * Use this instead of manual symbol casts to check for custom DSL handling.
+ */
+export const hasCustomDslHandler = (widget: IWidget): widget is IHasCustomDslHandler =>
+  CUSTOM_NODE_HANDLER in widget;
 
 export class WidgetRegistry {
   private widgets = new Map<string, IWidget>();
@@ -61,11 +85,8 @@ export class WidgetRegistry {
             `[WidgetRegistry] No widget found for DSL component with type="${targetType}" and id="${targetId}"`,
           );
         }
-        const customHandler = (target as unknown as Record<symbol, NodeHandler | undefined>)[
-          CUSTOM_NODE_HANDLER
-        ];
-        if (customHandler) {
-          customHandler(node, api, helpers);
+        if (hasCustomDslHandler(target)) {
+          target[CUSTOM_NODE_HANDLER](node, api, helpers);
         } else {
           api.setWidgetState(target.widgetId, {
             ...(target.defaultState as object),
@@ -102,6 +123,18 @@ export class WidgetRegistry {
           const targetId = typeof props['id'] === 'string' ? props['id'] : undefined;
           const factory = registry.typeFactories.get(widget.DslComponent);
 
+          // Validate requiresTypeProp (§7.3): widgets that require a type prop for routing
+          const sceneElement = widget as ISceneElement<unknown>;
+          const displayName = widget.DslComponent.displayName ?? widget.widgetId;
+          if (sceneElement.requiresTypeProp && !props['type']) {
+            console.error(
+              `[WidgetRegistry] DSL component <${displayName}> requires a "type" prop. ` +
+              `Found: <${displayName} id="${props['id'] ?? '?'}" /> without type. ` +
+              `Provide type="..." to identify the target widget instance.`,
+            );
+            return; // Skip compilation for this node
+          }
+
           if (factory) {
             if (!targetType) {
               throw new Error(
@@ -123,11 +156,8 @@ export class WidgetRegistry {
                 `[WidgetRegistry] No widget found for DSL component with type="${targetType}" and id="${targetId}"`,
               );
             }
-            const customHandler = (target as unknown as Record<symbol, NodeHandler | undefined>)[
-              CUSTOM_NODE_HANDLER
-            ];
-            if (customHandler) {
-              customHandler(node, api, helpers);
+            if (hasCustomDslHandler(target)) {
+              target[CUSTOM_NODE_HANDLER](node, api, helpers);
             } else {
               api.setWidgetState(target.widgetId, {
                 ...(target.defaultState as object),
@@ -159,11 +189,8 @@ export class WidgetRegistry {
           }
 
           // Prefer a CUSTOM_NODE_HANDLER registered on the widget for complex DSL
-          const customHandler = (target as unknown as Record<symbol, NodeHandler | undefined>)[
-            CUSTOM_NODE_HANDLER
-          ];
-          if (customHandler) {
-            customHandler(node, api, helpers);
+          if (hasCustomDslHandler(target)) {
+            target[CUSTOM_NODE_HANDLER](node, api, helpers);
           } else {
             // Default: shallow-merge defaultState with props, set widget state
             api.setWidgetState(target.widgetId, {
@@ -210,6 +237,11 @@ export class WidgetRegistry {
   getLoadables(): ILoadable[] { return this.getAll().filter(isLoadable); }
   getDslComposites(): IDslComposite[] { return this.getAll().filter(isDslComposite); }
 
+  /** Returns all widgets that implement ISceneLifecycle, in registration order. */
+  getSceneLifecycleWidgets(): ISceneLifecycle[] {
+    return this.getAll().filter(isSceneLifecycle);
+  }
+
   /** Returns all widgets that implement IContainedRenderable. */
   getContainedRenderables(): IContainedRenderable[] {
     return this.getAll().filter(isContainedRenderable);
@@ -252,7 +284,7 @@ export class WidgetRegistry {
 
 export const isSceneElement = (w: IWidget): w is ISceneElement<unknown> =>
   'defaultState' in w && 'transitionSpec' in w && 'DslComponent' in w;
-export const isRenderable = (w: IWidget): w is IRenderable<unknown> =>
+export const isRenderable = (w: IWidget): w is IRenderable<unknown, unknown> =>
   'initialize' in w && 'apply' in w && 'dispose' in w;
 export const isLoadable = (w: IWidget): w is ILoadable =>
   'load' in w && 'isLoaded' in w;
@@ -269,6 +301,12 @@ export const isDslComposite = (w: IWidget): w is IDslComposite =>
 
 export const isRendererLifecycle = (w: IWidget): w is IRendererLifecycle =>
   'onRendererCreated' in w && 'onRendererDisposing' in w;
+
+// ─── Phase 5 type guards ──────────────────────────────────────────────────────
+
+export const isSceneLifecycle = (widget: IWidget): widget is ISceneLifecycle =>
+  typeof (widget as ISceneLifecycle).onSceneEnter === 'function' &&
+  typeof (widget as ISceneLifecycle).onSceneExit === 'function';
 
 export const isRenderContributor = (w: IWidget): w is IRenderContributor =>
   'contributeRenderData' in w && typeof (w as IRenderContributor).contributeRenderData === 'function';

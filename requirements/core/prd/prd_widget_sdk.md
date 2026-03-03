@@ -3,7 +3,7 @@ title: "BrewSite Core — Widget SDK"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-01
+last_updated: 2026-03-03
 change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
@@ -17,6 +17,9 @@ change_history:
   - date: 2026-03-01
     author: "Toolkit Product"
     summary: "Annotated IContainedModel as model-specific, moving to @brewsite/model in Phase 4 per plan_core_modularization. IContainedRenderable and IAttachmentHost remain as generic core interfaces."
+  - date: 2026-03-03
+    author: "Toolkit Product"
+    summary: "API hardening update: replaced createDefaultWidgetRegistry() with the composable plugin model. Requirement #14 updated to document corePlugin() and modelPlugin(). Section 11 rewritten from createDefaultWidgetRegistry to document corePlugin() (from @brewsite/core) and modelPlugin() (from @brewsite/model) as the standard registration entry points. WidgetRegistry scope description updated from ScenePlayer to EngineProvider. useVariable context reference updated from ScenePlayer to EngineProvider. ScenePlayer.widgetSetup integration pattern references removed."
 ---
 
 # BrewSite Core — Widget SDK
@@ -25,7 +28,7 @@ change_history:
 
 The Widget SDK is the central extension mechanism for `@brewsite/core`. Every renderable concept in the toolkit — 3D models, cameras, lighting rigs, backgrounds, environment maps, reflective floors — is implemented as a widget. The SDK defines a set of TypeScript interfaces that a widget class implements to participate in the compilation pipeline, the runtime tick loop, and the asset loading lifecycle. External consumers can author and register entirely new 3D elements without modifying or forking the core library.
 
-This document covers the full public API of the Widget SDK: the interface hierarchy (`IWidget`, `ISceneElement`, `IRenderable`, `ILoadable`, `IAnimationController`, `IContainedModel`, `IDslComposite`, `IVariableProvider`), the `WidgetRegistry` and `CUSTOM_NODE_HANDLER` mechanism, the `VariableStore` reactive state system, the `createDefaultWidgetRegistry` factory, all context types used in callbacks, the widget lifecycle from registration through disposal, and the canonical implementation pattern for authoring a new widget.
+This document covers the full public API of the Widget SDK: the interface hierarchy (`IWidget`, `ISceneElement`, `IRenderable`, `ILoadable`, `IAnimationController`, `IContainedModel`, `IDslComposite`, `IVariableProvider`), the `WidgetRegistry` and `CUSTOM_NODE_HANDLER` mechanism, the `VariableStore` reactive state system, the `corePlugin()` and `modelPlugin()` built-in plugin factories, all context types used in callbacks, the widget lifecycle from registration through disposal, and the canonical implementation pattern for authoring a new widget.
 
 Affects: `@brewsite/core`.
 
@@ -96,7 +99,7 @@ The Widget SDK solves this by defining a stable, versioned interface set that wi
 11. `CUSTOM_NODE_HANDLER` shall be a `Symbol` that widgets set on themselves to provide their own DSL node compilation logic. When present, the routing handler installed by `WidgetRegistry` shall delegate to it instead of the default state-merge path.
 12. `VariableStore` shall be a reactive key-value store partitioned by namespace. Consumers may subscribe to individual keys (`namespace.key`) or an entire namespace.
 13. The `VariableStoreReader` read-only view shall be the only variable access surface provided to `IRenderable` widgets via `WidgetRenderContext`. Full read-write `VariableStore` access is provided to `IAnimationController` widgets via `AnimationTickContext`.
-14. `createDefaultWidgetRegistry(manifest)` shall register all built-in widgets (`ModelWidget`, `LightingWidget`, `BackgroundWidget`, `EnvironmentWidget`, `FloorWidget`, `CameraWidget`, `SceneMetaWidget`) and return a `WidgetRegistry` ready for use.
+14. `corePlugin()` shall provide the standard set of built-in core widgets (`LightingWidget`, `BackgroundWidget`, `EnvironmentWidget`, `FloorWidget`, `CameraWidget`, `SceneMetaWidget`) and register their DSL node handlers. `modelPlugin()` from `@brewsite/model` shall provide `ModelWidget` (via a type factory) and register model DSL handlers. Both are passed as entries in the `plugins` prop of `EngineProvider`.
 15. All type guard functions (`isSceneElement`, `isRenderable`, `isLoadable`, `isContainedModel`, `isDslComposite`, `isAnimationController`, `isVariableProvider`) shall be exported from the `widget` module for use by the runtime and by custom registry implementations.
 
 ---
@@ -278,7 +281,7 @@ type WidgetRegistryOptions = {
   /**
    * When true, registering a widget whose widgetId is already in the registry throws
    * instead of warning. Recommended: pass { strict: true } in all production-path
-   * registry construction. createDefaultWidgetRegistry uses strict: true by default.
+   * registry construction. corePlugin() uses strict: true by default.
    * @default false
    */
   strict?: boolean;
@@ -303,12 +306,12 @@ class WidgetRegistry {
 }
 ```
 
-`WidgetRegistry` is the central registry for all widgets in a scene. A registry is created per `ScenePlayer` instance; it is not a singleton. This allows multiple independent players on the same page with different widget configurations.
+`WidgetRegistry` is the central registry for all widgets in a scene. A registry is created per `EngineProvider` instance; it is not a singleton. This allows multiple independent providers on the same page with different widget configurations.
 
-**`constructor(options?)`** — Accepts `WidgetRegistryOptions`. The `strict` option controls duplicate-ID behavior (see `register()` below). Consumers building custom registries without `createDefaultWidgetRegistry` should pass `{ strict: true }` explicitly.
+**`constructor(options?)`** — Accepts `WidgetRegistryOptions`. The `strict` option controls duplicate-ID behavior (see `register()` below). Consumers building custom registries without `corePlugin()` should pass `{ strict: true }` explicitly.
 
 **`register(widget)`** — Installs the widget by `widgetId`. If a widget with the same `widgetId` is already registered:
-- When `strict: true`: throws `Error` with a message identifying the duplicate `widgetId`. This is the behavior when using `createDefaultWidgetRegistry`.
+- When `strict: true`: throws `Error` with a message identifying the duplicate `widgetId`. This is the behavior when using `corePlugin()`.
 - When `strict: false` (default): emits `console.warn` and the new widget overwrites the old one.
 
 For `ISceneElement` widgets, a routing handler for `widget.DslComponent` is installed in the compiler's node registry (if not already present). For `IDslComposite` widgets, protective handlers are installed for each `childDslComponent` entry — entries with `topLevelError: true` throw a descriptive error if used outside their parent widget's DSL context. Returns `this` for chaining.
@@ -431,12 +434,12 @@ const useVariable = <T extends JsonPrimitive = JsonPrimitive>(
 ): T | undefined
 ```
 
-React hook for consuming `VariableStore` values in components. Uses `useSyncExternalStore` for correct concurrent-mode subscription. Must be called inside `<ScenePlayer>` (reads from `VariableStoreContext`). Re-renders only when the specific `namespace.key` changes.
+React hook for consuming `VariableStore` values in components. Uses `useSyncExternalStore` for correct concurrent-mode subscription. Must be called inside `<EngineProvider>` (reads from `VariableStoreContext`). Re-renders only when the specific `namespace.key` changes.
 
 **Example:**
 
 ```typescript
-// In a custom overlay component inside ScenePlayer
+// In a custom overlay component inside EngineProvider
 const sceneId = useVariable<string>('scene', 'id');
 const sceneIndex = useVariable<number>('scene', 'index');
 ```
@@ -454,24 +457,38 @@ const sceneIndex = useVariable<number>('scene', 'index');
 
 ---
 
-## 11. createDefaultWidgetRegistry
+## 11. Built-In Plugins: corePlugin() and modelPlugin()
+
+Widget registration follows the composable plugin model. Plugins are passed as an array to the `plugins` prop of `EngineProvider`. Each plugin implements the `WidgetPlugin` interface:
 
 ```typescript
-const createDefaultWidgetRegistry = (
-  manifest: AssetManifest | null,
-  options?: {
-    onSceneChange?: (sceneId: string, sceneIndex: number) => void;
-  },
-): WidgetRegistry
+interface WidgetPlugin {
+  createWidgets(): IWidget[];
+  registerHandlers(): void;
+  configureRegistry?(registry: WidgetRegistry, manifest: AssetManifest | null): void;
+  wrapProvider?(children: ReactNode): ReactNode;
+  onRendererDisposing?(renderer: WebGLRenderer): void;
+}
 ```
 
-Convenience factory that creates and configures a `WidgetRegistry` with all built-in widgets pre-registered. This is the standard entry point for `ScenePlayer.widgetSetup`.
+### corePlugin()
 
-**Registered widgets (in order):**
+```typescript
+import { corePlugin } from '@brewsite/core';
+
+interface CorePluginOptions {
+  onSceneChange?: (sceneId: string, sceneIndex: number) => void;
+}
+
+function corePlugin(options?: CorePluginOptions): WidgetPlugin
+```
+
+The built-in `WidgetPlugin` for `@brewsite/core`. Provides all non-model core widgets and registers their DSL node handlers.
+
+**Widgets registered by corePlugin():**
 
 | Widget | widgetId | Interfaces |
 |--------|----------|------------|
-| `ModelWidget` (via type factory) | `<id prop>` (dynamic) | `ISceneElement`, `IRenderable`, `ILoadable`, `IAnimationController` |
 | `LightingWidget` | `'lighting'` | `ISceneElement`, `IRenderable` |
 | `BackgroundWidget` | `'background'` | `ISceneElement`, `IRenderable` |
 | `EnvironmentWidget` | `'environment'` | `ISceneElement`, `IRenderable`, `ILoadable` |
@@ -479,19 +496,69 @@ Convenience factory that creates and configures a `WidgetRegistry` with all buil
 | `CameraWidget` | `'camera'` | `ISceneElement`, `IRenderable`, `IAnimationController` |
 | `SceneMetaWidget` | `'__scene_meta__'` | `IAnimationController` |
 
-**Model type factory:** When `manifest` is not `null`, `registerTypeFactory(ModelRouter, factory)` is called. The factory looks up the model metadata from `manifest.models` by `type` prop, then constructs a `ModelWidget` with that metadata and the derived `clipMeta`. If `manifest` is `null`, no `ModelWidget` instances are registered — scenes without models work normally.
+`onSceneChange` wires a callback into `SceneMetaWidget` that fires on every scene transition with the new scene's `id` and zero-based index.
 
-**Extending the registry:**
+### modelPlugin()
 
 ```typescript
-const widgetSetup = (manifest: AssetManifest | null): WidgetRegistry => {
-  const registry = createDefaultWidgetRegistry(manifest);
-  registry.register(new MyCustomWidget());
-  return registry;
-};
+import { modelPlugin } from '@brewsite/model';
+
+interface ModelPluginOptions {
+  manifestUrl?: string;
+  manifest?: AssetManifest | null;
+  defaultModelStates?: Partial<Record<string, Partial<SceneModel>>>;
+}
+
+function modelPlugin(options?: ModelPluginOptions): WidgetPlugin & {
+  getManifest(): AssetManifest | null;
+  fetchManifest(): Promise<AssetManifest | null>;
+}
 ```
 
-The returned registry is passed to `ScenePlayer` via the `widgetSetup` prop. The player calls `widgetSetup(manifest)` once manifest loading completes, then passes the registry to `useSceneEngine`.
+The `WidgetPlugin` for `@brewsite/model`. Provides `ModelWidget` (via a type factory registered in `configureRegistry()`) and registers model DSL node handlers (`Label`, `Labels`). Manifest loading is handled asynchronously by `EngineProvider` — consumers pass either `manifestUrl` (fetched on mount) or a pre-loaded `manifest` object.
+
+**Model type factory:** When a manifest is available, `registerTypeFactory(ModelRouter, factory)` installs a lazy factory on the `WidgetRegistry`. On first encounter of a `<Model>` DSL node, the factory looks up model metadata from `manifest.models` by `type` prop and constructs a `ModelWidget` with that metadata and the derived `clipMeta`. If no manifest is provided, no `ModelWidget` instances are created — scenes without models work normally.
+
+### Standard Integration Pattern
+
+```typescript
+// page.tsx
+import { corePlugin } from '@brewsite/core';
+import { modelPlugin } from '@brewsite/model';
+
+<EngineProvider
+  manifestUrl="/assets/manifest.json"
+  plugins={[
+    corePlugin({ onSceneChange: (id, index) => console.log(id, index) }),
+    modelPlugin({ manifestUrl: '/assets/manifest.json' }),
+  ]}
+>
+  {scene01}
+  {scene02}
+</EngineProvider>
+```
+
+**Adding custom widgets:**
+
+```typescript
+import { corePlugin } from '@brewsite/core';
+import { modelPlugin } from '@brewsite/model';
+
+const myModelPlugin = modelPlugin({ manifestUrl: '/assets/manifest.json' });
+
+<EngineProvider
+  plugins={[
+    corePlugin(),
+    myModelPlugin,
+    {
+      createWidgets: () => [new MyCustomWidget()],
+      registerHandlers: () => {},
+    },
+  ]}
+>
+  {scene01}
+</EngineProvider>
+```
 
 ---
 
@@ -846,7 +913,7 @@ For any release that modifies the Widget SDK public API:
 
 - All existing `IWidget`, `ISceneElement`, `IRenderable`, `ILoadable`, `IAnimationController` tests pass with zero regressions.
 - TypeScript compilation with `strict: true` produces no errors for a widget implementing all interfaces.
-- `createDefaultWidgetRegistry` continues to produce a registry that renders a complete scene without errors.
+- `corePlugin()` and `modelPlugin()` together produce a registry that renders a complete scene without errors.
 - The `runtime/mocks/widgetMocks.ts` file is updated to reflect any new interface methods.
 - `CHANGELOG.md` in `packages/core` has an entry for every changed exported symbol.
 - At least one example in `apps/examples/` demonstrates any new Widget SDK capability.

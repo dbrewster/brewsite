@@ -14,7 +14,7 @@ export const neonCyberTheme: DiagramTheme = {
     defaultMetalness:          0.55,
     defaultRoughness:          0.20,
     defaultEmissiveIntensity:  0.22,
-    defaultDepth:              0.22,
+    defaultThickness:          0.22,
     cornerRadius:              0.04,
     glowIntensity:             0.55,
     defaultLabelColor:         '#00ffcc',

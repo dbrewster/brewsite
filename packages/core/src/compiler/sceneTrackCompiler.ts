@@ -16,7 +16,7 @@ import { ensureSceneRegistry, resolveSceneFromDsl } from './sceneDslCompiler';
 import { isFunctionalSpec } from './transitions/transitionTypes';
 import type { WithTransitionConfig } from './transitions/transitionTypes';
 import { makeResolver } from './transitions/transitionResolver';
-import { IDENTITY_FN } from '../player/SceneProgressMapper';
+import { IDENTITY_FN } from './identityFn';
 
 const INPUT_CONTROLLER_WIDGET_ID = '__input_controller';
 

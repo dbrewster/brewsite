@@ -1,7 +1,7 @@
 // Pure compilation pipeline for DiagramCanvas.
 // No Three.js. No React. No side effects.
 
-import type { DiagramState, DiagramEdgeStyle, DiagramArrowVariant } from '../types';
+import type { DiagramState, DiagramEdgeStyle, DiagramArrowVariant, DiagramWarnFn } from '../types';
 import type {
   DiagramCanvasDSL,
   DiagramCanvasState,
@@ -91,6 +91,7 @@ export function compilePipe(
   index: number,
   routing: PipeRoutingAlgorithm = DEFAULT_PIPE_ROUTING,
   landing: PipeLandingAlgorithm = DEFAULT_PIPE_LANDING,
+  onWarn?: DiagramWarnFn,
 ): DiagramPipeState {
   const autoId = `pipe-${dsl.from.replace('.', '-')}--${dsl.to.replace('.', '-')}-${index}`;
   const id = dsl.id ?? autoId;
@@ -101,9 +102,12 @@ export function compilePipe(
   let controlPoints: ReadonlyArray<Vec3> = [];
 
   if (!fromRef || !toRef) {
-    console.warn(
-      `DiagramCanvas compilePipe: invalid dot-notation reference in pipe "${id}". ` +
-        'Expected "diagramId.nodeId" format.',
+    const bad = !fromRef ? dsl.from : dsl.to;
+    onWarn?.(
+      'INVALID_PIPE_REF',
+      `<DiagramPipe id="${id}">: "${bad}" is not valid dot notation. ` +
+        `Expected "diagramId.nodeId" (e.g. "frontend.api"). ` +
+        `Both diagramId and nodeId must be non-empty.`,
     );
   } else {
     const fromDiagram = diagrams.find((d) => d.id === fromRef.diagramId);
@@ -112,12 +116,20 @@ export function compilePipe(
     const toNode = toDiagram?.nodes.find((n) => n.id === toRef.nodeId);
 
     if (!fromDiagram || !fromNode) {
-      console.warn(
-        `DiagramCanvas compilePipe: cannot resolve from="${dsl.from}" in pipe "${id}".`,
+      const missingPart = !fromDiagram ? `diagram "${fromRef.diagramId}"` : `node "${fromRef.nodeId}" in diagram "${fromRef.diagramId}"`;
+      onWarn?.(
+        'MISSING_PIPE_ENDPOINT',
+        `<DiagramPipe id="${id}"> from="${dsl.from}": could not resolve ${missingPart}. ` +
+          `Check that the diagram id and node id both exactly match a child <Diagram id="..."> ` +
+          `and its <DiagramNode id="...">.`,
       );
     } else if (!toDiagram || !toNode) {
-      console.warn(
-        `DiagramCanvas compilePipe: cannot resolve to="${dsl.to}" in pipe "${id}".`,
+      const missingPart = !toDiagram ? `diagram "${toRef.diagramId}"` : `node "${toRef.nodeId}" in diagram "${toRef.diagramId}"`;
+      onWarn?.(
+        'MISSING_PIPE_ENDPOINT',
+        `<DiagramPipe id="${id}"> to="${dsl.to}": could not resolve ${missingPart}. ` +
+          `Check that the diagram id and node id both exactly match a child <Diagram id="..."> ` +
+          `and its <DiagramNode id="...">.`,
       );
     } else {
       if (landing === 'sides') {
@@ -127,7 +139,7 @@ export function compilePipe(
         const fromAttach = sideAttachmentPoint(
           fromNode.position,
           fromNode.size,
-          fromNode.depth,
+          fromNode.thickness,
           fromDiagram.position,
           fromDiagram.scale,
           fromDiagram.rotation,
@@ -136,7 +148,7 @@ export function compilePipe(
         const toAttach = sideAttachmentPoint(
           toNode.position,
           toNode.size,
-          toNode.depth,
+          toNode.thickness,
           toDiagram.position,
           toDiagram.scale,
           toDiagram.rotation,
@@ -183,10 +195,11 @@ export function compileCanvas(
   dsl: DiagramCanvasDSL,
   diagrams: ReadonlyArray<DiagramState>,
   pipes: ReadonlyArray<DiagramPipeDSL>,
+  onWarn?: DiagramWarnFn,
 ): DiagramCanvasState {
   const pipeRouting = dsl.pipeRouting ?? DEFAULT_PIPE_ROUTING;
   const pipeLanding = dsl.pipeLanding ?? DEFAULT_PIPE_LANDING;
-  const compiledPipes = pipes.map((pipe, index) => compilePipe(pipe, diagrams, index, pipeRouting, pipeLanding));
+  const compiledPipes = pipes.map((pipe, index) => compilePipe(pipe, diagrams, index, pipeRouting, pipeLanding, onWarn));
 
   return {
     id: dsl.id,

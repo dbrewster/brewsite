@@ -13,6 +13,7 @@ import { ScatterRenderer } from '../../renderers/scatter/ScatterRenderer';
 import { HeatmapRenderer } from '../../renderers/heatmap/HeatmapRenderer';
 import type { IChartRenderer, ChartHitInfo } from '../../renderers/shared/IChartRenderer';
 import type { ChartDataStore } from '../../data/ChartDataStore';
+import type { ResolvedDataFrame } from '../../data/types';
 import type { ChartState, ChartType } from './types';
 import type { ChartTheme, ChartThemeName } from '../../themes/types';
 
@@ -34,6 +35,7 @@ export class ChartRenderer {
   private readonly legendGroup = new THREE.Group();
   private activeRenderer: IChartRenderer | null = null;
   private lastType: ChartType | null = null;
+  private lastData: ResolvedDataFrame = { rows: [], fields: [] };
 
   constructor(private readonly store: ChartDataStore) {
     this.chartGroup.add(this.seriesGroup, this.axesGroup, this.legendGroup);
@@ -60,8 +62,12 @@ export class ChartRenderer {
 
     // Resolve data from store
     const data = this.store.resolve(state.dataSource, state.transforms);
+    this.lastData = data;
 
-    const theme = THEME_MAP[state.theme] ?? darkGlassChartTheme;
+    const theme: ChartTheme =
+      typeof state.theme === 'string'
+        ? (THEME_MAP[state.theme as ChartThemeName] ?? darkGlassChartTheme)
+        : state.theme;
 
     this.activeRenderer.update({
       seriesGroup: this.seriesGroup,
@@ -74,6 +80,7 @@ export class ChartRenderer {
       bounds: state.bounds,
       theme,
       opacity: state.opacity,
+      innerRadius: state.innerRadius ?? 0,
     });
 
     // Update legend group visibility/position based on state
@@ -91,8 +98,7 @@ export class ChartRenderer {
 
   resolveHoverInfo(intersection: THREE.Intersection): ChartHitInfo | null {
     if (!this.activeRenderer || !this.lastType) return null;
-    const data = { rows: [], fields: [] };
-    return this.activeRenderer.resolveHoverInfo(intersection, data);
+    return this.activeRenderer.resolveHoverInfo(intersection, this.lastData);
   }
 
   dispose(scene: THREE.Scene): void {

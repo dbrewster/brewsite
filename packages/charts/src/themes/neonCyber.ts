@@ -25,4 +25,15 @@ export const neonCyberChartTheme: ChartTheme = {
     planeOpacity: 1.0,
     gridColor: '#0d0d1a',
   },
+  legend: {
+    textColor: '#00ff9d',
+    fontSize: 0.09,
+    swatchSize: 0.08,
+    spacing: 0.14,
+  },
+  interaction: {
+    hoverColor: '#ffffff',
+    hoverEmissiveIntensity: 1.2,
+    selectedColor: '#ff00ff',
+  },
 };

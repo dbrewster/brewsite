@@ -1,164 +1,182 @@
-// Per-engine ChartDataStore — one instance per chartPlugin() call. No global singleton.
-
-import crossfilter from 'crossfilter2';
-import type { Crossfilter, Dimension } from 'crossfilter2';
+import { SimpleFilterEngine } from './SimpleFilterEngine';
 import { applyTransforms } from './transforms';
+import type { IFilterEngine } from './IFilterEngine';
 import type { DataTransform, ResolvedDataFrame } from './types';
 
 type Row = Record<string, unknown>;
 
-type SourceEntry = {
-  rows: ReadonlyArray<Row>;
-  cf?: Crossfilter<Row>;
-  dimensions: Map<string, Dimension<Row, unknown>>;
-};
+const EMPTY_FRAME: ResolvedDataFrame = { rows: [], fields: [] };
+
+function buildCacheKey(
+  name: string,
+  filteredRowCount: number,
+  transforms: readonly DataTransform[],
+): string {
+  // Uses row count (not a content hash) for performance.
+  // Stale-read is prevented because register() calls unregister() first,
+  // which evicts the cache entry before new rows are stored.
+  // applyFilter/clearFilters invalidate via invalidateCacheForGroup().
+  return `${name}:${filteredRowCount}:${JSON.stringify(transforms)}`;
+}
 
 /**
  * Per-engine data registry for @brewsite/charts.
  *
- * Each chartPlugin() call creates exactly one ChartDataStore instance.
- * Injected into ChartWidgets via constructor and provided to React via
- * ChartStoreContext (wrapProvider).
+ * One ChartDataStore is created per chartPlugin() call. Never shared across engines.
  *
- * Isolation guarantee: two chartPlugin() instances never share data.
+ * Filtering is delegated to an IFilterEngine (default: SimpleFilterEngine).
+ * To use a high-performance engine (e.g. crossfilter2 for large datasets),
+ * construct ChartDataStore with a custom IFilterEngine instance.
+ *
+ * @example
+ * // Default (SimpleFilterEngine):
+ * const store = new ChartDataStore();
+ *
+ * // Custom engine:
+ * const store = new ChartDataStore(new CrossfilterFilterEngine());
  */
 export class ChartDataStore {
-  private readonly sources = new Map<string, SourceEntry>();
-  private readonly filterListeners = new Map<string, Set<() => void>>();
+  private readonly filterEngine: IFilterEngine;
+  // Tracks which sources are registered (separate from filterEngine for fast existence checks)
+  private readonly registeredSources = new Set<string>();
+  // Memoization cache: source name → { cacheKey, result }
+  private readonly resolveCache = new Map<string, { key: string; result: ResolvedDataFrame }>();
+
+  constructor(filterEngine: IFilterEngine = new SimpleFilterEngine()) {
+    this.filterEngine = filterEngine;
+  }
 
   /**
    * Register a data source by name.
-   * Replaces any existing registration with the same name.
+   * If filterGroupId is provided, applyFilter(groupId, ...) will affect this source.
+   *
+   * @param name         Unique source name referenced in <ChartData source="..." />.
+   * @param rows         Row data. Treated as immutable — do not mutate after registration.
+   * @param filterGroupId  Optional filter group. Sources in the same group share filters.
    */
-  register(name: string, rows: ReadonlyArray<Row>): void {
-    this.unregister(name);
-    this.sources.set(name, { rows, dimensions: new Map() });
-  }
-
-  /**
-   * Register a data source with crossfilter support for linked-brush filtering.
-   */
-  registerWithFilter(
+  register(
     name: string,
     rows: ReadonlyArray<Row>,
-    _groupId: string,
+    filterGroupId?: string,
   ): void {
-    this.unregister(name);
-    const cf = crossfilter(rows as Row[]);
-    this.sources.set(name, { rows, cf, dimensions: new Map() });
+    this.unregister(name); // Clean up previous registration if any
+    this.registeredSources.add(name);
+    this.filterEngine.register(name, rows, filterGroupId);
+    this.resolveCache.delete(name);
   }
 
-  /**
-   * Remove a source by name. Called by ChartProvider on cleanup.
-   */
+  /** Remove a source and clean up filter state. */
   unregister(name: string): void {
-    const entry = this.sources.get(name);
-    if (entry) {
-      for (const dim of entry.dimensions.values()) {
-        dim.dispose();
-      }
-      this.sources.delete(name);
-    }
+    this.registeredSources.delete(name);
+    this.filterEngine.unregister(name);
+    this.resolveCache.delete(name);
   }
 
   /**
-   * Resolve a data source, applying all transforms in order.
-   * Returns an empty frame (with a console.warn) for unknown sources.
+   * Resolve a data source, applying active group filters then serializable transforms.
+   * Results are memoized by (name, filtered-row-count, transforms-hash) and
+   * invalidated when filters change.
    */
   resolve(name: string, transforms: readonly DataTransform[]): ResolvedDataFrame {
-    const entry = this.sources.get(name);
-    if (!entry) {
-      console.warn(`[ChartDataStore] Unknown data source: "${name}". Did you register it via ChartProvider?`);
-      return { rows: [], fields: [] };
+    if (!this.registeredSources.has(name)) {
+      console.warn(
+        `[ChartDataStore] Unknown data source: "${name}". ` +
+        `Did you register it via <ChartProvider data={{ ${name}: rows }} />?`
+      );
+      return EMPTY_FRAME;
     }
 
-    // When crossfilter is active, use its filtered view; otherwise use raw rows.
-    const baseRows = entry.cf ? entry.cf.allFiltered() : (entry.rows as Row[]);
-    const rows = applyTransforms(baseRows, transforms);
-    const fields = rows.length > 0 ? Object.keys(rows[0]!) : Object.keys(entry.rows[0] ?? {});
-    return { rows, fields };
+    const filteredRows = this.filterEngine.getRows(name);
+    const cacheKey = buildCacheKey(name, filteredRows.length, transforms);
+    const cached = this.resolveCache.get(name);
+    if (cached?.key === cacheKey) return cached.result;
+
+    const transformed = applyTransforms(filteredRows as Row[], transforms);
+    const fields = transformed.length > 0
+      ? Object.keys(transformed[0]!)
+      : (filteredRows.length > 0 ? Object.keys(filteredRows[0]!) : []);
+    const result: ResolvedDataFrame = { rows: transformed, fields };
+    this.resolveCache.set(name, { key: cacheKey, result });
+    return result;
   }
 
   /**
-   * Get a time-slice of data by splitting on sliceIndex.
-   * Used by HeatmapRenderer for animated time series.
+   * Get a time-slice of data by time-field value index.
+   * Used by HeatmapRenderer for animated time-series animation.
    */
-  getTimeSlice(name: string, timeField: string, sliceIndex: number): ResolvedDataFrame {
-    const entry = this.sources.get(name);
-    if (!entry) {
-      return { rows: [], fields: [] };
-    }
-    const uniqueValues = [...new Set(entry.rows.map((r) => r[timeField]))];
+  getTimeSlice(
+    name: string,
+    timeField: string,
+    sliceIndex: number,
+  ): ResolvedDataFrame {
+    if (!this.registeredSources.has(name)) return EMPTY_FRAME;
+    const allRows = this.filterEngine.getRows(name);
+    const uniqueValues = [...new Set(allRows.map((r) => r[timeField]))];
     const sliceValue = uniqueValues[sliceIndex];
-    if (sliceValue === undefined) return { rows: [], fields: [] };
-    const rows = (entry.rows as Row[]).filter((r) => r[timeField] === sliceValue);
+    if (sliceValue === undefined) return EMPTY_FRAME;
+    const rows = (allRows as Row[]).filter((r) => r[timeField] === sliceValue);
     const fields = rows.length > 0 ? Object.keys(rows[0]!) : [];
     return { rows, fields };
   }
 
   /**
-   * Apply a filter on a crossfilter dimension within a group.
+   * Apply a value-set filter to all sources in a group.
+   * Triggers reactive updates in useChartData hooks for affected sources.
    */
   applyFilter(groupId: string, dimension: string, values: ReadonlyArray<unknown>): void {
-    for (const [name, entry] of this.sources.entries()) {
-      if (!entry.cf) continue;
-      let dim = entry.dimensions.get(dimension);
-      if (!dim) {
-        dim = entry.cf.dimension((row) => row[dimension]);
-        entry.dimensions.set(dimension, dim);
-      }
-      if (values.length === 0) {
-        dim.filterAll();
-      } else {
-        dim.filterFunction((v: unknown) => values.includes(v));
-      }
-      this._notifyFilterGroup(name);
-      this._notifyFilterGroup(groupId);
-    }
+    this.filterEngine.applyFilter(groupId, dimension, values);
+    this.invalidateCacheForGroup(groupId);
   }
 
-  /**
-   * Clear all dimension filters for a group.
-   */
+  /** Clear all filters for a group and trigger reactive updates. */
   clearFilters(groupId: string): void {
-    for (const [name, entry] of this.sources.entries()) {
-      if (!entry.cf) continue;
-      for (const dim of entry.dimensions.values()) {
-        dim.filterAll();
-      }
-      this._notifyFilterGroup(name);
-      this._notifyFilterGroup(groupId);
-    }
+    this.filterEngine.clearFilters(groupId);
+    this.invalidateCacheForGroup(groupId);
   }
 
   /**
-   * Subscribe to filter changes for a group.
-   * Returns an unsubscribe function.
+   * Subscribe to filter changes for a specific source.
+   * Automatically subscribes to the source's filter group if one is set,
+   * so linked-brush filter changes trigger re-renders in useChartData().
+   *
+   * Returns an unsubscribe function compatible with useSyncExternalStore.
    */
-  subscribeToFilterGroup(groupId: string, callback: () => void): () => void {
-    let listeners = this.filterListeners.get(groupId);
-    if (!listeners) {
-      listeners = new Set();
-      this.filterListeners.set(groupId, listeners);
-    }
-    listeners.add(callback);
-    return () => {
-      this.filterListeners.get(groupId)?.delete(callback);
-    };
+  subscribeToSource(name: string, listener: () => void): () => void {
+    const groupId = this.filterEngine.getFilterGroupForSource(name) ?? name;
+    return this.filterEngine.subscribe(groupId, listener);
   }
 
-  /** Release all sources and listeners. */
+  /**
+   * Return the current active filters for a group as a read-only map.
+   * Used by useChartFilter to expose reactive read access to current filter state.
+   */
+  getActiveFilters(groupId: string): ReadonlyMap<string, ReadonlySet<unknown>> {
+    return this.filterEngine.getActiveFilters(groupId);
+  }
+
+  /**
+   * Subscribe directly to a filter group by ID.
+   * Used by useChartFilter internally and advanced consumers.
+   */
+  subscribeToFilterGroup(groupId: string, listener: () => void): () => void {
+    return this.filterEngine.subscribe(groupId, listener);
+  }
+
+  /** Release all sources, filters, and listeners. */
   clear(): void {
-    for (const [name] of this.sources.entries()) {
+    for (const name of [...this.registeredSources]) {
       this.unregister(name);
     }
-    this.filterListeners.clear();
+    this.resolveCache.clear();
+    this.filterEngine.dispose();
   }
 
-  private _notifyFilterGroup(groupId: string): void {
-    const listeners = this.filterListeners.get(groupId);
-    if (listeners) {
-      for (const cb of listeners) cb();
+  private invalidateCacheForGroup(groupId: string): void {
+    // Evict cached results for any source in this group
+    for (const name of this.registeredSources) {
+      if (this.filterEngine.getFilterGroupForSource(name) === groupId) {
+        this.resolveCache.delete(name);
+      }
     }
   }
 }

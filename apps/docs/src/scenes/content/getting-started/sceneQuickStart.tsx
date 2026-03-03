@@ -91,31 +91,38 @@ const scene02 = (
 );`}
       />
 
-      <h2 style={{ fontSize: 'var(--font-size-2xl)', margin: '20px 0 10px' }}>3. Mount ScenePlayer</h2>
+      <h2 style={{ fontSize: 'var(--font-size-2xl)', margin: '20px 0 10px' }}>3. Mount the Engine</h2>
       <CodeBlock
         language="tsx"
-        code={`import { ScenePlayer, createDefaultWidgetRegistry } from '@brewsite/core';
+        code={`import {
+  EngineProvider, EngineInputRegion, SceneCanvas,
+  EngineOverlayHost, corePlugin,
+} from '@brewsite/core';
 
-// Module-level widget setup — never recreate on render
-const widgetSetup = () => createDefaultWidgetRegistry(null);
+// Module-level plugins — never recreate on render
+const PLUGINS = [corePlugin()];
 
 function App() {
   return (
-    <ScenePlayer
+    <EngineProvider
       manifestUrl="/scene-manifest.json"
-      widgetSetup={widgetSetup}
+      plugins={PLUGINS}
       quality="balanced"
     >
       {scene01}
       {scene02}
-    </ScenePlayer>
+      <EngineInputRegion>
+        <SceneCanvas />
+        <EngineOverlayHost />
+      </EngineInputRegion>
+    </EngineProvider>
   );
 }`}
       />
 
       <h2 style={{ fontSize: 'var(--font-size-2xl)', margin: '24px 0 10px' }}>Live Result</h2>
       <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--text-secondary)', margin: '0 0 4px' }}>
-        Three scenes, one ScenePlayer. Scroll drives progress — the demo below is driven by your
+        Three scenes, one EngineProvider. Scroll drives progress — the demo below is driven by your
         scroll position on this page.
       </p>
       <QuickStartDemo />

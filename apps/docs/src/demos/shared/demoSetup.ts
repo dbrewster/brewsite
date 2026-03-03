@@ -1,12 +1,12 @@
-import { createDefaultWidgetRegistry } from '@brewsite/core';
-import type { ScenePlayerProps } from '@brewsite/core';
+import { corePlugin } from '@brewsite/core';
+import type { WidgetPlugin } from '@brewsite/core';
 
-export type DemoWidgetSetup = NonNullable<ScenePlayerProps['widgetSetup']>;
-
-export function createDemoWidgetSetup(): DemoWidgetSetup {
-  return () => createDefaultWidgetRegistry(null);
+/** Returns the default WidgetPlugin array for standalone demos. */
+export function createDemoWidgetSetup(): WidgetPlugin[] {
+  return [corePlugin()];
 }
 
-export function createModelDemoWidgetSetup(): DemoWidgetSetup {
-  return (manifest) => createDefaultWidgetRegistry(manifest);
+/** Returns a WidgetPlugin array with model support for model demos. */
+export function createModelDemoWidgetSetup(): WidgetPlugin[] {
+  return [corePlugin()];
 }

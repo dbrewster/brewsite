@@ -3,6 +3,7 @@
 
 import type {
   DiagramEdgePort,
+  DiagramWarnFn,
   EdgeLandingAlgorithm,
   EdgeRoutingAlgorithm,
 } from '../types';
@@ -808,6 +809,7 @@ export function routeEdges(
   sizes: Map<string, NodeDimensions>,
   defaultRouting: EdgeRoutingAlgorithm = 'curved',
   defaultLanding: EdgeLandingAlgorithm = 'nearest-face',
+  onWarn?: DiagramWarnFn,
 ): Map<string, ReadonlyArray<Vec3>> {
   type EdgeFaceInfo = {
     id: string;
@@ -961,7 +963,13 @@ export function routeEdges(
     const toSize   = sizes.get(edge.to);
 
     if (!fromPos || !toPos || !fromSize || !toSize) {
-      console.warn(`Diagram routeEdges: missing node(s) for edge ${edge.from} -> ${edge.to}`);
+      const missingId = !fromPos || !fromSize ? edge.from : edge.to;
+      onWarn?.(
+        'MISSING_EDGE_ENDPOINT',
+        `<DiagramEdge from="${edge.from}" to="${edge.to}">: node "${missingId}" not found. ` +
+          `Check that "${missingId}" exactly matches a sibling <DiagramNode id="${missingId}"> ` +
+          `in the same <Diagram>.`,
+      );
       result.set(id, []);
       return;
     }

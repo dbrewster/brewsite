@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
-import { DiagramCanvas, Diagram, DiagramEdge, DiagramNode, Enter, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
+import { DiagramCanvas, Diagram, DiagramEdge, DiagramNode, DiagramEnter, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
 import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
 import { isMobile } from '../../utils/viewport';
 import type { Vec3 } from '@brewsite/core';
@@ -29,7 +29,7 @@ export const scene03ArchDetail: JSX.Element = (
     <DiagramCanvas id="system-canvas" rotation={[-Math.PI / 12, 0, 0]} scale={isMobile ? 1.0 : 1.4} theme={darkGlassTheme}>
       <Diagram id="system-arch" pivot="center">
         <ManualLayout />
-        <Enter from={[-60, 0, 0]} fade easing="ease-in" />
+        <DiagramEnter from={[-60, 0, 0]} fade easing="ease-in" />
 
         {/* Ghost nodes from previous scene — carry position/shape but fade to 30% */}
         <DiagramNode id="cdn"    position={[0, 2, -25]}   opacity={0.3} />
@@ -46,7 +46,7 @@ export const scene03ArchDetail: JSX.Element = (
           label="ECS Cluster"
           icon="aws:ecs"
           position={[-5, -8, -5]}
-          depth={0.8}
+          thickness={0.8}
           color="#1a3d5c"
           size={[6, 3]}
         />

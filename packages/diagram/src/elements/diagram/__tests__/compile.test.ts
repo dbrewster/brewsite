@@ -65,14 +65,13 @@ describe('routeEdges', () => {
     expect(points.get('a-a-0')).toEqual([]);
   });
 
-  it('handles missing node IDs gracefully: logs warning, returns empty control points', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  it('handles missing node IDs gracefully: calls onWarn, returns empty control points', () => {
+    const warns: Array<{ code: string }> = [];
     const positions = new Map([['a', [0, 0, 0] as const]]);
     const sizes = new Map([['a', [4, 2, 1] as const]]);
-    const points = routeEdges([makeEdge('a', 'b')], positions, sizes).get('a-b-0')!;
-    expect(warnSpy).toHaveBeenCalled();
+    const points = routeEdges([makeEdge('a', 'b')], positions, sizes, 'curved', 'nearest-face', (code) => warns.push({ code })).get('a-b-0')!;
+    expect(warns[0]!.code).toBe('MISSING_EDGE_ENDPOINT');
     expect(points).toEqual([]);
-    warnSpy.mockRestore();
   });
 });
 
@@ -96,16 +95,32 @@ describe('compileDiagram', () => {
     const state = compileDiagram(dsl);
     const node = state.nodes[0]!;
     expect(node.size).toEqual([4, 2]);
-    expect(node.depth).toBe(darkGlassTheme.node.defaultDepth);
+    expect(node.thickness).toBe(darkGlassTheme.node.defaultThickness);
     expect(node.color).toBe(darkGlassTheme.node.defaultColor);
   });
 
-  it('supports emissiveColor and emissive override on nodes', () => {
+  it('supports glow override on nodes (emissive disabled)', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
       layout: { kind: 'grid' },
       nodes: [
-        makeNode('a', { color: '#112233', emissiveColor: '#ff00cc', emissiveIntensity: 0.7, emissive: false }),
+        makeNode('a', { color: '#112233', glow: false }),
+      ],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    const node = state.nodes[0]!;
+    expect(node.emissive).toBe(false);
+    expect(node.emissiveIntensity).toBe(0);
+  });
+
+  it('supports glow object override on nodes (custom color and intensity)', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [
+        makeNode('a', { color: '#112233', glow: { intensity: 0.7, color: '#ff00cc' } }),
       ],
       edges: [],
       groups: [],
@@ -114,7 +129,7 @@ describe('compileDiagram', () => {
     const node = state.nodes[0]!;
     expect(node.emissiveColor).toBe('#ff00cc');
     expect(node.emissiveIntensity).toBeCloseTo(0.7);
-    expect(node.emissive).toBe(false);
+    expect(node.emissive).toBe(true);
   });
 
   it('resolves iconUrl from iconRegistry for aws:ec2 icon', () => {

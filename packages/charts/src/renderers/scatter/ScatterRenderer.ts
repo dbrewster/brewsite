@@ -19,14 +19,17 @@ export class ScatterRenderer implements IChartRenderer {
   private instancedMesh: THREE.InstancedMesh | null = null;
   private axesRenderer: AxesRenderer | null = null;
   private legendRenderer: LegendRenderer | null = null;
+  private seriesGroupRef: THREE.Group | null = null;
   private lastCount = -1;
   private readonly hitRows: Array<Record<string, unknown>> = [];
 
   update(ctx: ChartRenderContext): void {
     const { seriesGroup, axesGroup, legendGroup, data, xAxis, yAxis, series, bounds, theme, opacity } = ctx;
 
+    this.seriesGroupRef = seriesGroup;
+
     if (data.rows.length === 0) {
-      this.clearMesh(seriesGroup);
+      this.clearMesh();
       return;
     }
 
@@ -44,7 +47,7 @@ export class ScatterRenderer implements IChartRenderer {
     const count = data.rows.length;
 
     if (count !== this.lastCount) {
-      this.clearMesh(seriesGroup);
+      this.clearMesh();
       const geo = new THREE.SphereGeometry(0.08, 12, 12);
       const mat = new THREE.MeshPhysicalMaterial({
         vertexColors: true,
@@ -101,9 +104,10 @@ export class ScatterRenderer implements IChartRenderer {
     );
   }
 
-  private clearMesh(seriesGroup: THREE.Group): void {
+  private clearMesh(): void {
+    const group = this.seriesGroupRef;
     if (this.instancedMesh) {
-      seriesGroup.remove(this.instancedMesh);
+      group?.remove(this.instancedMesh);
       this.instancedMesh.geometry.dispose();
       (this.instancedMesh.material as THREE.Material).dispose();
       this.instancedMesh = null;
@@ -131,7 +135,7 @@ export class ScatterRenderer implements IChartRenderer {
   }
 
   dispose(): void {
-    this.clearMesh({ children: [] } as unknown as THREE.Group);
+    this.clearMesh();
     this.axesRenderer?.dispose();
     this.legendRenderer?.dispose();
     this.axesRenderer = null;

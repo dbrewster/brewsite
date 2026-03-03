@@ -18,7 +18,7 @@ const edgeIdFor = (edge: DiagramEdgeDSL, index: number): string =>
 export const buildNodeDefaults = (theme: DiagramTheme) => ({
   shape:                DEFAULT_NODE_SHAPE,
   size:                 [4, 2] as [number, number],
-  depth:                theme.node.defaultDepth,
+  thickness:            theme.node.defaultThickness,
   color:                theme.node.defaultColor,
   metalness:            theme.node.defaultMetalness,
   roughness:            theme.node.defaultRoughness,
@@ -71,18 +71,33 @@ export function compileNode(
   const color = dsl.color ?? nd.color;
   const sideColor = dsl.sideColor ?? deriveColor(color, -0.15);
   const borderColor = dsl.borderColor ?? deriveColor(color, 0.25);
-  const emissiveIntensity = dsl.emissiveIntensity ?? nd.emissiveIntensity;
-  const emissive = dsl.emissive ?? emissiveIntensity > 0;
-  const emissiveColor = dsl.emissiveColor ?? color;
+  const emissiveIntensity = (() => {
+    if (dsl.glow === false) return 0;
+    if (typeof dsl.glow === 'object' && dsl.glow !== null && dsl.glow.intensity !== undefined) {
+      return dsl.glow.intensity;
+    }
+    return nd.emissiveIntensity; // theme default
+  })();
+  const emissive = (() => {
+    if (dsl.glow === false) return false;
+    if (dsl.glow === true) return true;
+    return emissiveIntensity > 0;
+  })();
+  const emissiveColor = (() => {
+    if (typeof dsl.glow === 'object' && dsl.glow !== null && dsl.glow.color !== undefined) {
+      return dsl.glow.color;
+    }
+    return color; // default to node face color
+  })();
 
   return {
     id: dsl.id,
-    label: dsl.label ?? '',
+    label: dsl.label,
     sublabel: dsl.sublabel,
     shape,
     position,
     size: dsl.size ?? nd.size,
-    depth: dsl.depth ?? nd.depth,
+    thickness: dsl.thickness ?? nd.thickness,
     color,
     sideColor,
     borderColor,

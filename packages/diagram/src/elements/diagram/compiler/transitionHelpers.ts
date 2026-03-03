@@ -54,7 +54,7 @@ export function buildLiveNodeMaps(
   const sizes = new Map<string, NodeDimensions>();
   nodes.forEach((n) => {
     positions.set(n.id, n.position);
-    sizes.set(n.id, [n.size[0], n.size[1], n.depth]);
+    sizes.set(n.id, [n.size[0], n.size[1], n.thickness]);
   });
   return { positions, sizes };
 }

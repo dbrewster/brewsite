@@ -1,7 +1,7 @@
 // Chart element type contracts — no Three.js, no React.
 
 import type { DataTransform, FilterGroupId } from '../../data/types';
-import type { ChartThemeName } from '../../themes/types';
+import type { ChartThemeName, ChartTheme } from '../../themes/types';
 import type { ChartAxisState, ChartSeriesState } from '../../renderers/shared/IChartRenderer';
 
 export type { ChartAxisState, ChartSeriesState };
@@ -41,9 +41,11 @@ export type ChartState = {
    */
   readonly series: readonly ChartSeriesState[];
   readonly legend: ChartLegendState | null;
-  readonly theme: ChartThemeName;
+  readonly theme: ChartThemeName | ChartTheme;
   readonly opacity: number;
   readonly interactive: boolean;
+  /** Inner radius ratio for pie charts (0 = pie, 0.1–0.8 = donut). Default 0. */
+  readonly innerRadius?: number;
   /** For heatmap time-series animation — field name containing the time dimension. */
   readonly timeField?: string;
 };
@@ -75,9 +77,10 @@ export type ChartDSL = {
   readonly rotation?: readonly [number, number, number];
   readonly bounds?: { readonly width?: number; readonly height?: number; readonly depth?: number };
   readonly dataSource?: string;
-  readonly theme?: ChartThemeName;
+  readonly theme?: ChartThemeName | ChartTheme;
   readonly opacity?: number;
   readonly interactive?: boolean;
+  readonly innerRadius?: number;
 };
 
 /** Props for the <ChartData> DSL component. */

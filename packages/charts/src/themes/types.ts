@@ -41,14 +41,39 @@ export type ChartBackgroundTokens = {
   readonly gridColor: string | null;
 };
 
+/** Styling tokens for the chart legend. */
+export type ChartLegendTokens = {
+  /** Label text color. */
+  readonly textColor: string;
+  /** Font size for legend labels (world units). */
+  readonly fontSize: number;
+  /** Side length of each color swatch (world units). */
+  readonly swatchSize: number;
+  /** Vertical spacing between legend entries (world units). */
+  readonly spacing: number;
+};
+
+/** Tokens for interactive hover and selection feedback. */
+export type ChartInteractionTokens = {
+  /** Color applied to a hovered element (hex). */
+  readonly hoverColor: string;
+  /** Emissive intensity multiplier for hovered elements. */
+  readonly hoverEmissiveIntensity: number;
+  /** Color applied to a selected element (hex). */
+  readonly selectedColor: string;
+};
+
 /**
  * Complete chart theme — material tokens for up to 8 series, axis styling,
  * and background/floor styling.
  */
 export type ChartTheme = {
-  readonly name: ChartThemeName;
+  /** Name of this theme. String (not limited to ChartThemeName) to support custom themes. */
+  readonly name: string;
   /** Ordered series material tokens. Index wraps modulo series count. */
   readonly series: readonly ChartSeriesMaterialTokens[];
   readonly axis: ChartAxisTokens;
   readonly background: ChartBackgroundTokens;
+  readonly legend: ChartLegendTokens;
+  readonly interaction: ChartInteractionTokens;
 };

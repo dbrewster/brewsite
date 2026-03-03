@@ -21,6 +21,7 @@ export class PieRenderer implements IChartRenderer {
   private readonly materialFactory = new ChartMaterialFactory();
   private legendRenderer: LegendRenderer | null = null;
   private slices: SliceEntry[] = [];
+  private seriesGroupRef: THREE.Group | null = null;
   private lastDataLength = -1;
   private hoveredIndex = -1;
 
@@ -30,15 +31,17 @@ export class PieRenderer implements IChartRenderer {
     const valueField = series[0]?.field ?? yAxis?.field ?? data.fields[1] ?? data.fields[0] ?? 'value';
     const labelField = ctx.xAxis?.field ?? data.fields[0] ?? 'label';
 
+    this.seriesGroupRef = seriesGroup;
+
     if (data.rows.length === 0) {
-      this.clearSlices(seriesGroup);
+      this.clearSlices();
       return;
     }
 
     const needsRebuild = data.rows.length !== this.lastDataLength;
 
     if (needsRebuild) {
-      this.clearSlices(seriesGroup);
+      this.clearSlices();
       this.buildSlices(seriesGroup, data, valueField, labelField, bounds, theme, opacity);
       this.lastDataLength = data.rows.length;
     } else {
@@ -124,9 +127,10 @@ export class PieRenderer implements IChartRenderer {
     }
   }
 
-  private clearSlices(seriesGroup: THREE.Group): void {
+  private clearSlices(): void {
+    const group = this.seriesGroupRef;
     for (const s of this.slices) {
-      seriesGroup.remove(s.mesh);
+      group?.remove(s.mesh);
       s.mesh.geometry.dispose();
     }
     this.slices = [];
@@ -151,7 +155,7 @@ export class PieRenderer implements IChartRenderer {
   }
 
   dispose(): void {
-    this.clearSlices({ children: [] } as unknown as THREE.Group);
+    this.clearSlices();
     this.legendRenderer?.dispose();
     this.materialFactory.dispose();
     this.legendRenderer = null;

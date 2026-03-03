@@ -6,7 +6,7 @@ export const EngineStateContext = createContext<EngineState | null>(null);
 export const useEngineState = (): EngineState => {
   const state = useContext(EngineStateContext);
   if (!state) {
-    throw new Error('[useEngineState] must be used inside <ScenePlayer>');
+    throw new Error('[useEngineState] must be used inside <EngineProvider>');
   }
   return state;
 };

@@ -46,12 +46,13 @@ export type {
   EdgeLandingAlgorithm,
   DiagramEdgePort,
   SvgIcon3DStyle,
+  DiagramNodeGlowConfig,
 } from './elements/diagram/types';
 
 export type { DiagramNodeShape, DiagramIconVariant } from './elements/diagram/shapes/shapeVariants';
 export { DEFAULT_NODE_SHAPE } from './elements/diagram/shapes/shapeVariants';
-export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, Exit, Enter, GridLayout, HierarchicalLayout, ManualLayout } from './elements/diagram/dsl';
-export type { ExitProps, EnterProps, GridLayoutProps, HierarchicalLayoutProps, ManualLayoutProps } from './elements/diagram/dsl';
+export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, DiagramExit, DiagramEnter, GridLayout, HierarchicalLayout, ManualLayout } from './elements/diagram/dsl';
+export type { DiagramExitProps, DiagramEnterProps, GridLayoutProps, HierarchicalLayoutProps, ManualLayoutProps } from './elements/diagram/dsl';
 export {
   compileDiagram,
   resolveLayout,
@@ -64,7 +65,7 @@ export {
   functionalDiagramTransitionSpec,
 } from './elements/diagram/compile';
 export { DiagramRenderer } from './elements/diagram/render';
-export { DiagramWidget } from './elements/diagram/widget';
+export { diagramPlugin } from './player/diagramPlugin';
 export {
   DIAGRAM_FOCUS_REGION_EVENT,
   getDiagramFocusRegion,
@@ -108,6 +109,7 @@ export { ScreenWidget } from './elements/screen/widget';
 
 // ─── Theme presets ────────────────────────────────────────────────────────────
 export { darkGlassTheme, neonCyberTheme, enterpriseTheme, lightMinimalTheme } from './elements/diagram/themes';
+export { mergeTheme } from './elements/diagram/themes/mergeTheme';
 
 // ─── Compiler handler registration ──────────────────────────────────────────
 // registerDiagramHandlers is called automatically via ./register.ts at module-load time.

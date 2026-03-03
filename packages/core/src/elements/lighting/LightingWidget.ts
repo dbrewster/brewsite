@@ -39,10 +39,11 @@ import { applyLighting } from './render';
 import type * as React from 'react';
 import { isValidElement } from 'react';
 import { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
+import type { IHasCustomDslHandler } from '../../widget/WidgetRegistry';
 import type { NodeHandler } from '../../compiler/sceneDslTypes';
 
 export class LightingWidget
-  implements ISceneElement<SceneLighting>, IRenderable<SceneLighting>, IDslComposite
+  implements ISceneElement<SceneLighting>, IRenderable<SceneLighting>, IDslComposite, IHasCustomDslHandler
 {
   readonly widgetId = 'lighting';
   readonly defaultState: SceneLighting = DEFAULT_LIGHTING;
@@ -76,10 +77,8 @@ export class LightingWidget
 
   private threeScene: THREE.Scene | null = null;
 
-  constructor() {
-    // Register a custom node handler via the CUSTOM_NODE_HANDLER symbol.
-    // WidgetRegistry routing will call this when it encounters <Lighting> in a scene.
-    (this as unknown as Record<symbol, NodeHandler>)[CUSTOM_NODE_HANDLER] = (node, api, helpers) => {
+  // WidgetRegistry routing will call this when it encounters <Lighting> in a scene.
+  readonly [CUSTOM_NODE_HANDLER]: NodeHandler = (node, api, helpers) => {
       const props = node.props as LightingProps;
       const children = helpers.collectChildren(node);
       let ambientIndex = 0;
@@ -293,8 +292,7 @@ export class LightingWidget
         color: resolvedColor ?? base.color,
       };
       api.setWidgetState(this.widgetId, compiled);
-    };
-  }
+  };
 
   initialize({ scene }: WidgetInitContext): void {
     // Cast — IRenderable.initialize receives scene as ThreeScene via the context type

@@ -1,11 +1,13 @@
-import React, { JSX, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import React, { JSX, ReactNode, useEffect, useRef, useState } from 'react';
 import {
   InputController,
   Scene as SceneDsl,
-  ScenePlayer,
+  EngineProvider,
+  EngineInputRegion,
+  SceneCanvas,
   useEngineState,
   useSceneEngineContext,
-  type ScenePlayerProps,
+  type WidgetPlugin,
 } from '@brewsite/core';
 import { createDemoWidgetSetup } from './demoSetup';
 
@@ -15,7 +17,7 @@ interface DemoSceneProps {
   height?: number;
   sceneDuration?: number;
   manifestUrl?: string;
-  widgetSetup?: NonNullable<ScenePlayerProps['widgetSetup']>;
+  plugins?: WidgetPlugin[];
 }
 
 const prefersReducedMotion =
@@ -38,8 +40,8 @@ function DemoSceneControls({
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
 
-  const stepSize = useMemo(() => 1 / Math.max(1, sceneCount), [sceneCount]);
-  const totalDuration = useMemo(() => Math.max(1, sceneCount) * sceneDuration, [sceneCount, sceneDuration]);
+  const stepSize = 1 / Math.max(1, sceneCount);
+  const totalDuration = Math.max(1, sceneCount) * sceneDuration;
 
   useEffect(() => {
     if (!autoPlay) {
@@ -126,7 +128,7 @@ function DemoSceneControls({
 /**
  * Injects an empty <InputController> into the first <Scene> child.
  *
- * This forces ScenePlayer into "direct" input mode — engine progress is managed
+ * This forces EngineProvider into "direct" input mode — engine progress is managed
  * as React state rather than being mapped to window.scrollY. Without this, the
  * engine creates a tall scroll spacer and calls window.scrollTo() on every
  * progress update, which hijacks the page scroll.
@@ -157,7 +159,7 @@ export function DemoScene({
   height = 420,
   sceneDuration = 2500,
   manifestUrl = '/scene-manifest.json',
-  widgetSetup,
+  plugins,
 }: DemoSceneProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [autoPlay, setAutoPlay] = useState(false);
@@ -181,20 +183,26 @@ export function DemoScene({
   // Force direct mode so page scroll is never touched
   const directModeChildren = injectDirectMode(children);
 
+  // Use provided plugins or fall back to the default demo setup
+  const resolvedPlugins = plugins ?? createDemoWidgetSetup();
+
   return (
     <div className="demo-scene" ref={containerRef} style={{ height }}>
-      <ScenePlayer
+      <EngineProvider
         manifestUrl={manifestUrl}
-        widgetSetup={widgetSetup ?? createDemoWidgetSetup()}
+        plugins={resolvedPlugins}
       >
         {directModeChildren}
-        <DemoSceneControls
-          sceneCount={sceneCount}
-          sceneDuration={sceneDuration}
-          autoPlay={autoPlay}
-          setAutoPlay={setAutoPlay}
-        />
-      </ScenePlayer>
+        <EngineInputRegion fillContainer>
+          <SceneCanvas style={{ width: '100%', height: '100%' }} />
+          <DemoSceneControls
+            sceneCount={sceneCount}
+            sceneDuration={sceneDuration}
+            autoPlay={autoPlay}
+            setAutoPlay={setAutoPlay}
+          />
+        </EngineInputRegion>
+      </EngineProvider>
     </div>
   );
 }

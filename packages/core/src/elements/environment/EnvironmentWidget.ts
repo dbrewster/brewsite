@@ -7,6 +7,7 @@ import type {
   ISceneElement,
   IRenderable,
   ILoadable,
+  AssetManifest,
   WidgetInitContext,
   WidgetRenderContext,
 } from '../../widget/types';
@@ -23,15 +24,14 @@ import {
   type EnvironmentProps,
 } from './dsl';
 import { applyEnvironment } from './render';
-/** Minimal asset manifest type for ILoadable.load(). Full type lives in @brewsite/model. */
-type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
 import type * as React from 'react';
 import { isValidElement } from 'react';
 import { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
+import type { IHasCustomDslHandler } from '../../widget/WidgetRegistry';
 import type { NodeHandler } from '../../compiler/sceneDslTypes';
 
 export class EnvironmentWidget
-  implements ISceneElement<SceneEnvironment>, IRenderable<SceneEnvironment>, ILoadable, IDslComposite
+  implements ISceneElement<SceneEnvironment>, IRenderable<SceneEnvironment>, ILoadable, IDslComposite, IHasCustomDslHandler
 {
   readonly widgetId = 'environment';
   readonly defaultState: SceneEnvironment = DEFAULT_ENVIRONMENT;
@@ -44,49 +44,47 @@ export class EnvironmentWidget
     { component: EnvironmentCube as React.ComponentType<unknown>, displayName: 'EnvironmentCube', topLevelError: true },
   ];
 
-  constructor() {
-    (this as unknown as Record<symbol, NodeHandler>)[CUSTOM_NODE_HANDLER] = (node, api, helpers) => {
-      const props = node.props as EnvironmentProps;
-      const children = helpers.collectChildren(node);
+  readonly [CUSTOM_NODE_HANDLER]: NodeHandler = (node, api, helpers) => {
+    const props = node.props as EnvironmentProps;
+    const children = helpers.collectChildren(node);
 
-      let source: EnvironmentSource | undefined;
-      for (const child of children) {
-        if (!isValidElement(child)) continue;
-        const childEl = child as React.ReactElement;
-        if (childEl.type === EnvironmentHdri) {
-          const resolved = helpers.resolveObjectValues(childEl.props as EnvironmentHdriProps, api.context);
-          if (resolved.url) {
-            source = { type: 'hdr', ...resolved };
-          }
-        } else if (childEl.type === EnvironmentExr) {
-          const resolved = helpers.resolveObjectValues(childEl.props as EnvironmentExrProps, api.context);
-          if (resolved.url) {
-            source = { type: 'exr', ...resolved };
-          }
-        } else if (childEl.type === EnvironmentCube) {
-          const resolved = helpers.resolveObjectValues(childEl.props as EnvironmentCubeProps, api.context);
-          if (resolved.urls) {
-            source = { type: 'cube', ...resolved };
-          }
+    let source: EnvironmentSource | undefined;
+    for (const child of children) {
+      if (!isValidElement(child)) continue;
+      const childEl = child as React.ReactElement;
+      if (childEl.type === EnvironmentHdri) {
+        const resolved = helpers.resolveObjectValues(childEl.props as EnvironmentHdriProps, api.context);
+        if (resolved.url) {
+          source = { type: 'hdr', ...resolved };
+        }
+      } else if (childEl.type === EnvironmentExr) {
+        const resolved = helpers.resolveObjectValues(childEl.props as EnvironmentExrProps, api.context);
+        if (resolved.url) {
+          source = { type: 'exr', ...resolved };
+        }
+      } else if (childEl.type === EnvironmentCube) {
+        const resolved = helpers.resolveObjectValues(childEl.props as EnvironmentCubeProps, api.context);
+        if (resolved.urls) {
+          source = { type: 'cube', ...resolved };
         }
       }
+    }
 
-      const base = (api.state.widgets[this.widgetId] as SceneEnvironment | undefined) ?? DEFAULT_ENVIRONMENT;
-      const resolved: SceneEnvironment = {
-        ...base,
-        enabled: helpers.resolveValue(props.enabled, api.context) ?? base.enabled,
-        intensity: helpers.resolveValue(props.intensity, api.context) ?? base.intensity,
-        source: source ?? base.source,
-      };
-
-      if (resolved.enabled && !resolved.source) {
-        console.warn(
-          'EnvironmentWidget: <Environment enabled> requires an <EnvironmentHdri>, <EnvironmentExr>, or <EnvironmentCube> child.',
-        );
-      }
-      api.setWidgetState(this.widgetId, resolved);
+    const base = (api.state.widgets[this.widgetId] as SceneEnvironment | undefined) ?? DEFAULT_ENVIRONMENT;
+    const resolved: SceneEnvironment = {
+      ...base,
+      enabled: helpers.resolveValue(props.enabled, api.context) ?? base.enabled,
+      intensity: helpers.resolveValue(props.intensity, api.context) ?? base.intensity,
+      source: source ?? base.source,
     };
-  }
+
+    if (resolved.enabled && !resolved.source) {
+      console.warn(
+        'EnvironmentWidget: <Environment enabled> requires an <EnvironmentHdri>, <EnvironmentExr>, or <EnvironmentCube> child.',
+      );
+    }
+    api.setWidgetState(this.widgetId, resolved);
+  };
 
   mergeSnapshot(
     prev: SceneEnvironment | undefined,

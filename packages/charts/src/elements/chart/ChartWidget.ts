@@ -7,6 +7,9 @@ import { Chart, ChartData, ChartAxis, ChartSeries, ChartLegend } from './dsl';
 import type { ChartState } from './types';
 import { DEFAULT_CHART_STATE } from './types';
 import type { ChartDataStore } from '../../data/ChartDataStore';
+import {
+  SCENE_CAMERA_KEY,
+} from '@brewsite/core';
 import type {
   ISceneElement,
   IRenderable,
@@ -137,7 +140,7 @@ export class ChartWidget
     if (!this.scene) return null;
     if (!this.camera) {
       // Camera is stored on scene.userData by CameraWidget
-      const cam = (this.scene.userData as Record<string, unknown>)['__brewsite_camera'];
+      const cam = (this.scene.userData as Record<string, unknown>)[SCENE_CAMERA_KEY];
       if (cam instanceof THREE.Camera) this.camera = cam;
     }
     return this.camera;

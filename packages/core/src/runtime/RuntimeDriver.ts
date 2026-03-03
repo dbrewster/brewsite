@@ -4,13 +4,12 @@ import type { VariableStore } from '../widget/VariableStore';
 import type { SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
 import { createSceneTrackSampler } from '../compiler/sceneTrackSampler';
 import type { RuntimeDriver as IRuntimeDriver, RealtimeClock } from './types';
-import type { RenderContribution, AnimationTickContext, WidgetRenderContext } from '../widget/types';
+import type { RenderContribution, AnimationTickContext, WidgetRenderContext, ISceneLifecycle } from '../widget/types';
 import { isAttachmentHost, isRenderContributor } from '../widget/WidgetRegistry';
 
-export type SceneTrackSampler = ReturnType<typeof createSceneTrackSampler>;
+import type { AssetManifest } from '../widget/types';
 
-// AssetManifest type is defined in widget/types.ts
-type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
+export type SceneTrackSampler = ReturnType<typeof createSceneTrackSampler>;
 
 export type RuntimeConfig = {
   widgetRegistry: WidgetRegistry;
@@ -49,7 +48,11 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   private onAssetsReady?: () => void;
   private onError?: (error: Error) => void;
   private onWidgetError?: (widgetId: string, error: Error) => void;
-  private erroredWidgets = new Set<string>();
+  /** Widgets that failed during load() or initialize() — permanent for this session. */
+  private readonly loadErroredWidgets = new Set<string>();
+  /** Widgets that failed during apply() — cleared on scene change, allows recovery. */
+  private readonly applyErroredWidgets = new Set<string>();
+  private readonly sceneLifecycleWidgets: ISceneLifecycle[];
   private readonly maxAnimBoostPerFrame: number;
 
   assetsReady = false;
@@ -72,6 +75,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     this.sceneElements = this.widgetRegistry.getSceneElements();
     this.renderables = this.widgetRegistry.getRenderables();
     this.animationControllers = this.widgetRegistry.getAnimationControllers();
+    this.sceneLifecycleWidgets = this.widgetRegistry.getSceneLifecycleWidgets();
     this.defaultStateById = new Map(
       this.sceneElements.map((el) => [el.widgetId, el.defaultState as unknown]),
     );
@@ -100,7 +104,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
       loadables.map((w) =>
         w.load(this.manifest).catch((e: unknown) => {
           const err = e instanceof Error ? e : new Error(String(e));
-          this.erroredWidgets.add(w.widgetId);
+          this.loadErroredWidgets.add(w.widgetId);
           this.onWidgetError?.(w.widgetId, err);
         }),
       ),
@@ -153,6 +157,35 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     // O(1) lookup. Must run before animation controllers so they receive
     // effectiveDeltaSeconds computed from the current scene's animationTimeScale.
     const tick = this.sampler.sample(globalProgress);
+    if (this.currentTick && tick.sceneIndex !== this.currentTick.sceneIndex) {
+      const prevSceneId = this.currentTick.sceneId;
+      const prevSceneIndex = this.currentTick.sceneIndex;
+      const nextSceneId = tick.sceneId;
+      const nextSceneIndex = tick.sceneIndex;
+
+      // Fire onSceneExit for the departing scene
+      for (const widget of this.sceneLifecycleWidgets) {
+        try {
+          widget.onSceneExit(prevSceneId, prevSceneIndex);
+        } catch (e) {
+          const err = e instanceof Error ? e : new Error(String(e));
+          console.warn(`[RuntimeDriver] onSceneExit error in widget "${widget.widgetId}":`, err);
+        }
+      }
+
+      // Fire onSceneEnter for the arriving scene
+      for (const widget of this.sceneLifecycleWidgets) {
+        try {
+          widget.onSceneEnter(nextSceneId, nextSceneIndex);
+        } catch (e) {
+          const err = e instanceof Error ? e : new Error(String(e));
+          console.warn(`[RuntimeDriver] onSceneEnter error in widget "${widget.widgetId}":`, err);
+        }
+      }
+
+      // Reset apply-errors on scene change (added in 6.2)
+      this.applyErroredWidgets.clear();
+    }
     this.currentTick = tick;
 
     // ── Step 2: Compute effectiveDeltaSeconds ────────────────────────────────
@@ -181,12 +214,12 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
       track: this.track,
     };
     for (const controller of this.animationControllers) {
-      if (this.erroredWidgets.has(controller.widgetId)) continue;
+      if (this.loadErroredWidgets.has(controller.widgetId) || this.applyErroredWidgets.has(controller.widgetId)) continue;
       try {
         controller.onTick(animCtx);
       } catch (e) {
         const err = e instanceof Error ? e : new Error(String(e));
-        this.erroredWidgets.add(controller.widgetId);
+        this.applyErroredWidgets.add(controller.widgetId);
         this.onWidgetError?.(controller.widgetId, err);
       }
     }
@@ -201,7 +234,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
       tick,
     };
     for (const renderable of this.renderables) {
-      if (this.erroredWidgets.has(renderable.widgetId)) continue;
+      if (this.loadErroredWidgets.has(renderable.widgetId) || this.applyErroredWidgets.has(renderable.widgetId)) continue;
       try {
         // Functional transitions take priority: evaluate closure at blockProgress.
         // The closure itself handles window normalization and easing via makeResolver
@@ -220,7 +253,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
         const extra = tick.widgetExtras?.[renderable.widgetId];
         renderable.apply(state as never, { ...renderCtx, extra });
       } catch (e) {
-        this.erroredWidgets.add(renderable.widgetId);
+        this.applyErroredWidgets.add(renderable.widgetId);
         const err = e instanceof Error ? e : new Error(String(e));
         this.onWidgetError?.(renderable.widgetId, err);
       }
@@ -258,7 +291,8 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   }
 
   dispose(): void {
-    this.erroredWidgets.clear();
+    this.loadErroredWidgets.clear();
+    this.applyErroredWidgets.clear();
     for (const renderable of this.renderables) {
       try {
         renderable.dispose();

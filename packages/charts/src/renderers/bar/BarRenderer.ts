@@ -25,6 +25,7 @@ export class BarRenderer implements IChartRenderer {
   private legendRenderer: LegendRenderer | null = null;
   private readonly barMeshes: THREE.Mesh[] = [];
   private readonly hitMap = new Map<THREE.Mesh, BarHitEntry>();
+  private seriesGroupRef: THREE.Group | null = null;
   private lastDataLength = -1;
   private lastSeriesCount = -1;
 
@@ -35,8 +36,10 @@ export class BarRenderer implements IChartRenderer {
       ? [...series]
       : (yAxis ? [{ field: yAxis.field, label: yAxis.label }] : []);
 
+    this.seriesGroupRef = seriesGroup;
+
     if (effectiveSeries.length === 0 || data.rows.length === 0) {
-      this.clearBars(seriesGroup);
+      this.clearBars();
       return;
     }
 
@@ -46,7 +49,7 @@ export class BarRenderer implements IChartRenderer {
       effectiveSeries.length !== this.lastSeriesCount;
 
     if (needsRebuild) {
-      this.clearBars(seriesGroup);
+      this.clearBars();
       this.buildBars(seriesGroup, data, xField, effectiveSeries, bounds, theme, opacity);
       this.lastDataLength = data.rows.length;
       this.lastSeriesCount = effectiveSeries.length;
@@ -128,9 +131,10 @@ export class BarRenderer implements IChartRenderer {
     }
   }
 
-  private clearBars(seriesGroup: THREE.Group): void {
+  private clearBars(): void {
+    const group = this.seriesGroupRef;
     for (const mesh of this.barMeshes) {
-      seriesGroup.remove(mesh);
+      group?.remove(mesh);
       mesh.geometry.dispose();
     }
     this.barMeshes.length = 0;
@@ -155,7 +159,7 @@ export class BarRenderer implements IChartRenderer {
   }
 
   dispose(): void {
-    this.clearBars({ children: [] } as unknown as THREE.Group);
+    this.clearBars();
     this.axesRenderer?.dispose();
     this.legendRenderer?.dispose();
     this.materialFactory.dispose();

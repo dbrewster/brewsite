@@ -26,29 +26,26 @@ describe('compilePipe', () => {
 
   it('warns and returns empty controlPoints for invalid dot-notation', () => {
     const diagrams = [compileDiagram(makeDiagram('a', 'n1', [0, 0, 0]))];
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const pipe = compilePipe({ from: 'invalid', to: 'a.n1' }, diagrams, 0);
-    expect(warnSpy).toHaveBeenCalled();
+    const warns: Array<{ code: string }> = [];
+    const pipe = compilePipe({ from: 'invalid', to: 'a.n1' }, diagrams, 0, 'curved', 'sides', (code) => warns.push({ code }));
+    expect(warns[0]!.code).toBe('INVALID_PIPE_REF');
     expect(pipe.controlPoints).toEqual([]);
-    warnSpy.mockRestore();
   });
 
   it('warns and returns empty controlPoints for unresolvable diagramId', () => {
     const diagrams = [compileDiagram(makeDiagram('a', 'n1', [0, 0, 0]))];
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const pipe = compilePipe({ from: 'missing.n1', to: 'a.n1' }, diagrams, 0);
-    expect(warnSpy).toHaveBeenCalled();
+    const warns: Array<{ code: string }> = [];
+    const pipe = compilePipe({ from: 'missing.n1', to: 'a.n1' }, diagrams, 0, 'curved', 'sides', (code) => warns.push({ code }));
+    expect(warns[0]!.code).toBe('MISSING_PIPE_ENDPOINT');
     expect(pipe.controlPoints).toEqual([]);
-    warnSpy.mockRestore();
   });
 
   it('warns and returns empty controlPoints for unresolvable nodeId', () => {
     const diagrams = [compileDiagram(makeDiagram('a', 'n1', [0, 0, 0]))];
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const pipe = compilePipe({ from: 'a.missing', to: 'a.n1' }, diagrams, 0);
-    expect(warnSpy).toHaveBeenCalled();
+    const warns: Array<{ code: string }> = [];
+    const pipe = compilePipe({ from: 'a.missing', to: 'a.n1' }, diagrams, 0, 'curved', 'sides', (code) => warns.push({ code }));
+    expect(warns[0]!.code).toBe('MISSING_PIPE_ENDPOINT');
     expect(pipe.controlPoints).toEqual([]);
-    warnSpy.mockRestore();
   });
 
   it('transforms node centers by diagram scale + position for nearest-face landing', () => {

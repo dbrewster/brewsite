@@ -3,7 +3,7 @@ title: "BrewSite Core — Architecture Reference"
 doc_type: prd
 owner: brewsite-product-manager
 status: active
-updated: 2026-02-28
+updated: 2026-03-03
 change_history:
   - date: 2026-02-20
     author: brewflow-architect
@@ -20,6 +20,9 @@ change_history:
   - date: 2026-02-28
     author: brewsite-product-manager
     summary: "Comprehensive rewrite: corrected product name from BrewFlow to BrewSite, updated all type definitions against live source (SceneTrack, SceneTrackTick, SceneFrame, SceneFrameDelta, FunctionalTransitionSpec, RuntimeDriver, SceneTimeline, IWidget hierarchy), added FunctionalTransitionSpec and FunctionalWidgetTransition to transition spec section, added complete math module exports, added EngineState/EngineFrameState types, documented blend utility exports, clarified compiler registry pattern, added CUSTOM_NODE_HANDLER documentation."
+  - date: 2026-03-03
+    author: "Toolkit Product"
+    summary: "API hardening updates: ScenePlayer replaced by EngineProvider as primary component (ScenePlayer deleted). EngineScrollRegion removed from key exports (deleted; use EngineInputRegion). createDefaultWidgetRegistry removed from key exports (deleted; use corePlugin()). Added EngineGate to key exports. Updated context providers attribution to EngineProvider. Removed compiler/primitives/index.ts barrel reference (barrel deleted in hardening phase). Updated all ScenePlayer references to EngineProvider across HUD, compiler, and SSR sections."
 ---
 
 # BrewSite Core — Architecture Reference
@@ -92,17 +95,19 @@ math/        ← Pure math utilities (bottom)
 The React integration surface. The public entry point for pages and routes. Owns the WebGL renderer lifecycle, the React context tree, and all consumer-facing React components and hooks.
 
 **Key exports:**
-- `ScenePlayer` — primary component. Creates and manages the `WebGLRenderer`, drives the animation tick loop via `EngineFrameDriver`, and renders both the Three.js canvas and the React overlay layer.
+- `EngineProvider` — primary component. Establishes the engine context tree and manages the `WebGLRenderer` lifecycle. Compose with `EngineGate`, `EngineInputRegion`, `SceneCanvas`, and `EngineOverlayHost` for a complete integration.
+- `EngineGate` — loading gate component. Renders `placeholder` until the engine produces its first frame (`tickIndex >= 0`), then renders children.
 - `EngineFrameDriver` — the `requestAnimationFrame` driver. Converts frame timestamps to progress deltas and calls `RuntimeDriver.tick()`.
-- `EngineScrollRegion` — scroll-locked container. Converts browser scroll events to progress values and feeds them to the engine.
-- `EngineInputRegion` — pointer/touch input capture region. Routes pointer events to `SceneNavInputController` or `ActionInputController`.
+- `EngineInputRegion` — input capture region. Reads layout and engine state from `EngineContext` — no `engine` prop required. Routes pointer, scroll, and keyboard events to scene navigation controllers.
+- `SceneCanvas` — renders the Three.js `<canvas>` element and registers it with the engine via `EngineContext`.
+- `EngineOverlayHost` — renders HUD and label overlays positioned over the canvas. Reads the current scene overlay from `EngineContext`.
 - `LabelPositioner` — bridges the Three.js render loop with React label rendering. Reads bone world positions from `RuntimeDriver.getBoneWorldPositions()`, projects through camera matrix, updates CSS positions on `LabelItem` DOM nodes.
 - `TimelineWidget` — debug/dev overlay showing scene timeline, tick index, and progress scrubber.
 - `CameraControlPanel` — debug camera state inspector.
-- `SceneMetaWidget` — built-in widget that fires `onSceneChange` when the current scene index changes.
-- `createDefaultWidgetRegistry(manifest, options?)` — convenience factory that builds and populates a `WidgetRegistry` with all built-in widgets.
+- `SceneMetaWidget` — built-in widget that fires `onSceneChange` when the current scene index changes. Registered by `corePlugin()`.
+- `corePlugin(options?)` — plugin factory that registers core built-in widgets (Lighting, Background, Environment, Floor, Camera, SceneMeta) into the engine.
 
-**Context providers (all provided by `ScenePlayer`):**
+**Context providers (all established by `EngineProvider`):**
 - `EngineStateContext` — `EngineFrameState` updated on every animation frame. Consumed by hooks.
 - `VariableStoreContext` — stable `VariableStore` reference. Never recreated.
 - `LabelPositionerContext` — stable `LabelPositioner` instance.
@@ -180,8 +185,8 @@ Output: `SceneTrack` — a flat pre-baked array of `SceneTrackTick` values index
 export { Scene, SceneGroup } from './blocks/sceneDsl';
 export { Hud, HudItem } from './blocks/hudBlocks';
 export { InputController, Action } from './blocks/inputController';
-// Primitive elements (Background, Camera, Environment, Floor, Lighting, Model)
-// re-exported from elements/*/dsl.tsx via compiler/primitives/index.ts
+// Primitive element DSL components (Background, Camera, Environment, Floor, Lighting)
+// are exported directly from @brewsite/core — the compiler/primitives/ barrel was removed.
 ```
 
 Infrastructure types (`SceneTrack`, `compileSceneTrack`, `sceneTrackCache`, etc.) are **not** re-exported through `compiler/index.ts`. They are imported directly from their source files by the player layer:
@@ -334,7 +339,7 @@ The heads-up display overlay system. Renders React content synchronized to scene
 
 **`hudCompiler.ts`** — Pure compilation function. Called once per scene during track baking. Transforms `HudItemDefinition[]` into `HudItemResolved[]` for each tick. No Three.js or React.
 
-**`HudOverlay`** — React component rendered in the `ScenePlayer` overlay tier. Reads `hudPrimitives` from the current `EngineFrameState` tick and renders each `HudItemResolved` as a positioned React element with CSS-based styling and animation.
+**`HudOverlay`** — React component rendered in the `EngineOverlayHost` overlay tier. Reads `hudPrimitives` from the current `EngineFrameState` tick and renders each `HudItemResolved` as a positioned React element with CSS-based styling and animation.
 
 **`hud/animejs/`** — Optional sub-module providing anime.js-powered scroll-driven animation presets for HUD items. Exposes `useScrollTimeline` and preset factory functions. This sub-module has an optional peer dependency on `animejs`. Consumers who do not import from `hud/animejs/` do not incur the anime.js bundle cost.
 
@@ -479,7 +484,7 @@ Each entry in `widgets` is typed as `unknown` at the frame level because each wi
 
 ### 4.2 SceneFrameDelta
 
-A sparse diff between two `SceneFrame` states. Fields are only present when the value changed between the previous tick and this one. Used by `ScenePlayer` to skip unnecessary React re-renders.
+A sparse diff between two `SceneFrame` states. Fields are only present when the value changed between the previous tick and this one. Used by `EngineProvider` to skip unnecessary React re-renders.
 
 ```typescript
 type SceneFrameDelta = {
@@ -623,7 +628,7 @@ Each `ISceneElement` widget that implements `compileExtra(context: CompileExtraC
 
 ### 5.7 Step 7: Compute Forward and Backward Deltas
 
-For each tick, the compiler computes `deltaForward` (diff from the previous tick) and `deltaBackward` (diff from the next tick). Deltas are sparse: only widget IDs whose state changed from one tick to the next appear in the delta. These deltas allow `ScenePlayer` to skip `IRenderable.apply()` calls for widgets that did not change, and to skip React re-renders for HUD items that did not change.
+For each tick, the compiler computes `deltaForward` (diff from the previous tick) and `deltaBackward` (diff from the next tick). Deltas are sparse: only widget IDs whose state changed from one tick to the next appear in the delta. These deltas allow `EngineProvider` to skip `IRenderable.apply()` calls for widgets that did not change, and to skip React re-renders for HUD items that did not change.
 
 ---
 
@@ -798,7 +803,7 @@ All code in `@brewsite/core` satisfies the following invariants:
 
 2. **Three.js instantiation is deferred to mount.** `WebGLRenderer`, `Scene`, `PerspectiveCamera`, and all Three.js instances are created in `EngineFrameDriver` mount lifecycle, never at module import time.
 
-3. **ScenePlayer renders safely on the server.** The component detects SSR environment and renders the `placeholder` prop (or an empty container with matching dimensions) rather than attempting to create a WebGL context.
+3. **EngineProvider renders safely on the server.** The component defers all WebGL initialization to client-side effects. `EngineGate` renders the `placeholder` prop (or null) until the engine's first client-side frame rather than attempting to create a WebGL context.
 
 4. **Compiler is SSR-safe and build-time safe.** `compileSceneTrack()` is a pure function. It runs in Node.js, Vitest, or browser environments without modification.
 

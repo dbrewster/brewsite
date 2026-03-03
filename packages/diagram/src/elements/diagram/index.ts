@@ -36,6 +36,7 @@ export type {
   DiagramGroupEdgeLightState,
   DiagramGroupEdgeLightsState,
   DiagramGroupEdgeLightsDSL,
+  DiagramNodeGlowConfig,
 } from './types';
 export type {
   DiagramNodeShape,
@@ -59,12 +60,12 @@ export {
   GridLayout,
   HierarchicalLayout,
   ManualLayout,
-  Exit,
-  Enter,
+  DiagramExit,
+  DiagramEnter,
 } from './dsl';
 export type {
-  ExitProps,
-  EnterProps,
+  DiagramExitProps,
+  DiagramEnterProps,
   GridLayoutProps,
   HierarchicalLayoutProps,
   ManualLayoutProps,
@@ -84,8 +85,9 @@ export {
 export { DiagramRenderer } from './render';
 export { InteractionRegistry } from './rendering/InteractionRegistry';
 export type { IInteractionRegistry } from './rendering/InteractionRegistry';
-export { DiagramWidget } from './widget';
+// DiagramWidget is kept as an internal implementation detail but removed from public API.
 export { enterpriseTheme, darkGlassTheme, lightMinimalTheme, neonCyberTheme } from './themes';
+export { mergeTheme } from './themes/mergeTheme';
 export {
   DIAGRAM_FOCUS_REGION_EVENT,
   getDiagramFocusRegion,

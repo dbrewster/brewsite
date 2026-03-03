@@ -45,7 +45,7 @@ function WebsiteLayout({
           Loading BrewSite flow…
         </div>
       )}
-      <EngineInputRegion engine={engine}>
+      <EngineInputRegion>
         <SceneCanvas style={{ width: '100%', height: '100%' }} />
         <EngineOverlayHost />
       </EngineInputRegion>

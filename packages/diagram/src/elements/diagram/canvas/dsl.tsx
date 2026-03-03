@@ -6,8 +6,9 @@ import type { PipeRoutingAlgorithm, PipeLandingAlgorithm } from './types';
 
 export interface DiagramCanvasProps {
   /**
-   * Unique ID for this canvas. The DiagramCanvasWidget must be registered
-   * with this exact id in widgetSetup.ts.
+   * Unique ID for this canvas.
+   * When using `diagramPlugin()`, a `DiagramCanvasWidget` is automatically
+   * created for this ID during scene compilation.
    */
   id: string;
   /** World-space position of the canvas group origin. Default: [0, 0, 0] */
@@ -21,8 +22,8 @@ export interface DiagramCanvasProps {
    */
   scale?: number;
   /**
-   * Canvas-level theme. Acts as the default theme for all child <Diagram>
-   * elements. Each child can override with its own `theme` prop.
+   * Canvas-level theme. Acts as the fallback theme for all child `<Diagram>`
+   * elements that do not specify their own `theme` prop.
    * Falls back to darkGlassTheme when absent.
    *
    * @example

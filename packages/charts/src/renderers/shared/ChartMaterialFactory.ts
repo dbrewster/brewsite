@@ -11,14 +11,14 @@ type MaterialKey = string;
  * Dispose with dispose() when the chart widget is destroyed.
  */
 export class ChartMaterialFactory {
-  private readonly cache = new Map<MaterialKey, THREE.MeshPhysicalMaterial>();
+  private readonly cache = new Map<MaterialKey, THREE.Material>();
 
   /** Returns a cached (or new) material for the given series index. */
   getSeriesMaterial(theme: ChartTheme, seriesIndex: number): THREE.MeshPhysicalMaterial {
     const tokens = theme.series[seriesIndex % theme.series.length]!;
     const key = `${tokens.color}|${tokens.metalness}|${tokens.roughness}|${tokens.transmission}|${tokens.emissiveIntensity}`;
     const cached = this.cache.get(key);
-    if (cached) return cached;
+    if (cached instanceof THREE.MeshPhysicalMaterial) return cached;
 
     const color = new THREE.Color(tokens.color);
     const mat = new THREE.MeshPhysicalMaterial({
@@ -46,7 +46,7 @@ export class ChartMaterialFactory {
       transparent: true,
       opacity: 0.8,
     });
-    this.cache.set(key, mat as unknown as THREE.MeshPhysicalMaterial);
+    this.cache.set(key, mat);
     return mat;
   }
 
@@ -65,7 +65,7 @@ export class ChartMaterialFactory {
       metalness: 0,
       roughness: 0.9,
     });
-    this.cache.set(key, mat as unknown as THREE.MeshPhysicalMaterial);
+    this.cache.set(key, mat);
     return mat;
   }
 
@@ -73,7 +73,7 @@ export class ChartMaterialFactory {
   applyOpacity(opacity: number): void {
     for (const mat of this.cache.values()) {
       if (mat instanceof THREE.MeshPhysicalMaterial) {
-        mat.opacity = Math.min(opacity, mat.transmission > 0 ? 0.85 : 1.0) * opacity;
+        mat.opacity = Math.min(opacity, mat.transmission > 0 ? 0.85 : 1.0);
         mat.transparent = mat.transparent || opacity < 1;
       }
     }

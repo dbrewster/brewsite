@@ -14,6 +14,7 @@
     "gen:scene-dsl:website": "node ../scripts/gen-scene-dsl.mjs --input website/siteResources.ts --out-dir website/src/generated --asset-root website/public --manifest-out website/public/scene-manifest.json"
   },
   "dependencies": {
+    "@brewsite/charts": "workspace:*",
     "@brewsite/core": "workspace:*",
     "@brewsite/diagram": "workspace:*",
     "@brewsite/model": "workspace:*",

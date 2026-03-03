@@ -1,12 +1,12 @@
 // Viewport container for the scene engine. Supports scroll and direct input modes.
 // Canvas rendering and ResizeObserver have moved to SceneCanvas.
 // This component is the scroll-spacer + sticky container infrastructure only.
+// Reads engine state from EngineContext internally — no engine prop required.
 
 import type { ReactElement, ReactNode } from 'react';
-import type { UseSceneEngineResult } from './useSceneEngine';
+import { useSceneEngineContext } from './EngineContext';
 
 export type EngineInputRegionProps = {
-  engine: UseSceneEngineResult;
   className?: string;
   children?: ReactNode;
   /**
@@ -21,11 +21,11 @@ export type EngineInputRegionProps = {
 };
 
 export const EngineInputRegion = ({
-  engine,
   className,
   children,
   fillContainer = false,
 }: EngineInputRegionProps): ReactElement => {
+  const engine = useSceneEngineContext();
   const mode = engine.inputMode;
   // When filling a container, use 100% so the parent's explicit height
   // constrains us. Otherwise fall back to 100vh for full-page layouts.

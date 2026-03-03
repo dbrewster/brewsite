@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildProgressProfile } from '../sceneTrackCompiler';
-import { IDENTITY_FN } from '../../player/SceneProgressMapper';
+import { IDENTITY_FN } from '../../compiler/identityFn';
 import type { SceneFrame, CompileWarning } from '../sceneTrackTypes';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

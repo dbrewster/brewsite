@@ -17,8 +17,8 @@ import {
   DiagramNode,
   DiagramEdge,
   DiagramGroup,
-  Exit,
-  Enter,
+  DiagramExit,
+  DiagramEnter,
   GridLayout,
   HierarchicalLayout,
   ManualLayout,
@@ -54,8 +54,8 @@ export class DiagramWidget
     { component: DiagramNode as React.ComponentType<unknown>, displayName: 'DiagramNode', topLevelError: true },
     { component: DiagramEdge as React.ComponentType<unknown>, displayName: 'DiagramEdge', topLevelError: true },
     { component: DiagramGroup as React.ComponentType<unknown>, displayName: 'DiagramGroup', topLevelError: true },
-    { component: Exit as React.ComponentType<unknown>, displayName: 'Exit', topLevelError: true },
-    { component: Enter as React.ComponentType<unknown>, displayName: 'Enter', topLevelError: true },
+    { component: DiagramExit as React.ComponentType<unknown>, displayName: 'DiagramExit', topLevelError: true },
+    { component: DiagramEnter as React.ComponentType<unknown>, displayName: 'DiagramEnter', topLevelError: true },
     { component: GridLayout as React.ComponentType<unknown>, displayName: 'GridLayout', topLevelError: true },
     { component: HierarchicalLayout as React.ComponentType<unknown>, displayName: 'HierarchicalLayout', topLevelError: true },
     { component: ManualLayout as React.ComponentType<unknown>, displayName: 'ManualLayout', topLevelError: true },
@@ -209,7 +209,7 @@ export class DiagramWidget
     let anyChanged = false;
     const mergedNodes = next.nodes.map((node): DiagramNodeState => {
       // Fully-declared node: no merge needed.
-      if (node.label !== '' && !node.positionInherited) return node;
+      if (node.label !== undefined && !node.positionInherited) return node;
 
       const prevNode = prev.nodes.find((p) => p.id === node.id);
       if (!prevNode) return node;
@@ -217,17 +217,17 @@ export class DiagramWidget
       anyChanged = true;
       return {
         ...node,
-        // Visual identity (ghost nodes only — when label is empty).
-        label:        node.label !== '' ? node.label        : prevNode.label,
-        sublabel:     node.label !== '' ? node.sublabel     : prevNode.sublabel,
-        shape:        node.label !== '' ? node.shape        : prevNode.shape,
-        iconUrl:      node.label !== '' ? node.iconUrl      : prevNode.iconUrl,
-        iconScale:    node.label !== '' ? node.iconScale    : prevNode.iconScale,
-        sublabelColor: node.label !== '' ? node.sublabelColor : prevNode.sublabelColor,
+        // Visual identity (ghost nodes only — when label is undefined).
+        label:         node.label !== undefined ? node.label         : prevNode.label,
+        sublabel:      node.label !== undefined ? node.sublabel      : prevNode.sublabel,
+        shape:         node.label !== undefined ? node.shape         : prevNode.shape,
+        iconUrl:       node.label !== undefined ? node.iconUrl       : prevNode.iconUrl,
+        iconScale:     node.label !== undefined ? node.iconScale     : prevNode.iconScale,
+        sublabelColor: node.label !== undefined ? node.sublabelColor : prevNode.sublabelColor,
         // Layout geometry (only when DSL omitted position entirely).
-        position: node.positionInherited ? prevNode.position : node.position,
-        size:     node.positionInherited ? prevNode.size     : node.size,
-        depth:    node.positionInherited ? prevNode.depth    : node.depth,
+        position:  node.positionInherited ? prevNode.position  : node.position,
+        size:      node.positionInherited ? prevNode.size      : node.size,
+        thickness: node.positionInherited ? prevNode.thickness : node.thickness,
         // Clear the flag — the state is now fully resolved.
         positionInherited: undefined,
       };

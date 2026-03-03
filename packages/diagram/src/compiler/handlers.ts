@@ -19,18 +19,20 @@ import type {
   DiagramPivot,
   DiagramState,
   DiagramTheme,
+  DiagramWarnFn,
   LayoutDSL,
 } from '../elements/diagram/types';
 import type { DiagramCanvasDSL, DiagramPipeDSL, PipeRoutingAlgorithm, PipeLandingAlgorithm } from '../elements/diagram/canvas/types';
 import type { ImagePanelDSL } from '../elements/image-panel/types';
 import type { ScreenDSL } from '../elements/screen/types';
+import { DiagramCanvasWidget } from '../elements/diagram/canvas/widget';
 import {
   Diagram,
   DiagramNode,
   DiagramEdge,
   DiagramGroup,
-  Exit,
-  Enter,
+  DiagramExit,
+  DiagramEnter,
   GridLayout,
   HierarchicalLayout,
   ManualLayout,
@@ -38,7 +40,7 @@ import {
 import { ImagePanel } from '../elements/image-panel/dsl';
 import { Screen } from '../elements/screen/dsl';
 
-const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): DiagramDSL => {
+const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?: DiagramWarnFn): DiagramDSL => {
   const props = node.props as Record<string, unknown>;
   const nodes: DiagramNodeDSL[] = [];
   const edges: DiagramEdgeDSL[] = [];
@@ -66,7 +68,7 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
     ...(p.titleGap !== undefined && { titleGap: p.titleGap }),
   });
 
-  const collectGroup = (el: ReactElement, parentId?: string): string => {
+  const collectGroup = (el: ReactElement, parentId?: string, warnFn?: DiagramWarnFn): string => {
     const elProps = el.props as Record<string, unknown>;
     const groupId = String(elProps.id);
     const nodeIds: string[] = [];
@@ -82,7 +84,7 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
         groupedNodeIds.add(nodeId);
         nodes.push({ ...(gEl.props as DiagramNodeDSL), groupId });
       } else if (gEl.type === DiagramGroup) {
-        const childId = collectGroup(gEl, groupId);
+        const childId = collectGroup(gEl, groupId, warnFn);
         childGroupIds.push(childId);
       } else if (gEl.type === GridLayout) {
         const p = gEl.props as Record<string, unknown>;
@@ -102,6 +104,14 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
           console.warn(`Diagram collectGroup: multiple layout elements detected for group ${groupId}. Using the last one.`);
         }
         groupLayoutDSL = { kind: 'manual', ...extractManualLayoutProps(p) } as LayoutDSL;
+      } else if (gEl.type === DiagramEnter || gEl.type === DiagramExit) {
+        const componentName = gEl.type === DiagramEnter ? 'DiagramEnter' : 'DiagramExit';
+        warnFn?.(
+          'MISPLACED_DIAGRAM_TRANSITION',
+          `<${componentName}> found inside <DiagramGroup id="${groupId}">. ` +
+            `<${componentName}> must be a direct child of <Diagram>, not nested inside a group. ` +
+            `Move it to be a sibling of the top-level <DiagramNode> and <DiagramGroup> elements.`,
+        );
       }
     }
 
@@ -150,12 +160,18 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
         console.warn(`Diagram extractDiagramDSL: multiple layout elements detected for diagram ${String(props.id)}. Using the last one.`);
       }
       layoutDSL = { kind: 'manual', ...extractManualLayoutProps(p) } as LayoutDSL;
-    } else if (el.type === Exit) {
+    } else if (el.type === DiagramExit) {
+      if (exitDSL) {
+        warnFn?.('DUPLICATE_DIAGRAM_TRANSITION', `<Diagram id="${String(props.id)}">: multiple <DiagramExit> elements found. Only the last one is used.`);
+      }
       exitDSL = el.props as DiagramExitDSL;
-    } else if (el.type === Enter) {
+    } else if (el.type === DiagramEnter) {
+      if (enterDSL) {
+        warnFn?.('DUPLICATE_DIAGRAM_TRANSITION', `<Diagram id="${String(props.id)}">: multiple <DiagramEnter> elements found. Only the last one is used.`);
+      }
       enterDSL = el.props as DiagramEnterDSL;
     } else if (el.type === DiagramGroup) {
-      collectGroup(el);
+      collectGroup(el, undefined, warnFn);
     }
   }
 
@@ -196,53 +212,72 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers): Diagram
  * Test files that call clearRegistry() must import and re-call this directly.
  */
 export const registerDiagramHandlers = (registry?: WidgetRegistry): void => {
+  const makeWarnFn = (api: CompileApi): DiagramWarnFn => (code, message) => {
+    const warnApi = api as CompileApi & {
+      pushWarning?: (w: { code: string; message: string; sceneIndex?: number }) => void;
+    };
+    warnApi.pushWarning?.({ code, message, sceneIndex: api.context.sceneIndex });
+  };
+
   // Register child DSL components as primitives so collectChildren preserves them.
   registerNode(DiagramNode, () => {});
   registerNode(DiagramEdge, () => {});
   registerNode(DiagramGroup, () => {});
-  registerNode(Exit, () => {});
-  registerNode(Enter, () => {});
+  registerNode(DiagramExit, () => {});
+  registerNode(DiagramEnter, () => {});
   registerNode(DiagramPipe, () => {});
 
   registerNode(Diagram, (node: ReactElement, api: CompileApi, helpers: CompileHelpers) => {
-    const dsl = extractDiagramDSL(node, helpers);
-    const state = compileDiagram(dsl);
-    const widgetId = String((node.props as { id?: string }).id ?? dsl.id);
-    api.setWidgetState(widgetId, state);
+    const onWarn = makeWarnFn(api);
+    const dsl = extractDiagramDSL(node, helpers, onWarn);
+    const diagramState = compileDiagram(dsl, undefined, onWarn);
+    const canvasId = dsl.id;
+
+    // Auto-register a DiagramCanvasWidget when registry is available.
+    // This is the Finding 3 "Option A" collapse: standalone <Diagram> routes through
+    // DiagramCanvasWidget, unifying the runtime path.
+    if (registry && !registry.get(canvasId)) {
+      const initialState = compileCanvas({ id: canvasId }, [], []);
+      registry.register(new DiagramCanvasWidget(canvasId, initialState));
+    }
+
+    // Wrap the single diagram in a canvas state — DiagramCanvasWidget expects DiagramCanvasState.
+    const canvasState = compileCanvas(
+      {
+        id: canvasId,
+        position: dsl.position,
+        rotation: dsl.rotation,
+        scale: dsl.scale,
+      },
+      [diagramState],
+      [],
+      onWarn,
+    );
+
+    api.setWidgetState(canvasId, canvasState);
   });
 
   registerNode(DiagramCanvas, (node: ReactElement, api: CompileApi, helpers: CompileHelpers) => {
     const props = node.props as Record<string, unknown>;
     const canvasId = typeof props.id === 'string' ? props.id : undefined;
     if (canvasId && registry && !registry.get(canvasId)) {
-      const warnApi = api as CompileApi & {
-        pushWarning?: (warning: {
-          code: string;
-          message: string;
-          widgetId?: string;
-          sceneIndex?: number;
-        }) => void;
-      };
-      warnApi.pushWarning?.({
-        code: 'MISSING_WIDGET',
-        message:
-          `<DiagramCanvas id="${canvasId}"> has no corresponding DiagramCanvasWidget registered. ` +
-          `Register a DiagramCanvasWidget with widgetId="${canvasId}" in widgetSetup.ts.`,
-        widgetId: canvasId,
-        sceneIndex: api.context.sceneIndex,
-      });
+      // Auto-register a DiagramCanvasWidget with a minimal empty default state.
+      // The runtime will replace this with the compiled state from the SceneTrack on the first tick.
+      const initialState = compileCanvas({ id: canvasId }, [], []);
+      registry.register(new DiagramCanvasWidget(canvasId, initialState));
     }
     const allChildren = helpers.collectChildren(node);
     const canvasTheme = props.theme as DiagramTheme | undefined;
+    const onWarn = makeWarnFn(api);
 
     const diagramStates: DiagramState[] = [];
     for (const child of allChildren) {
       if (!child || typeof child !== 'object' || !('type' in (child as object))) continue;
       const el = child as ReactElement;
       if (el.type !== Diagram) continue;
-      const dsl = extractDiagramDSL(el, helpers);
+      const dsl = extractDiagramDSL(el, helpers, onWarn);
       // Pass canvas theme as fallback; diagram's own theme (if any) overrides inside compileDiagram
-      diagramStates.push(compileDiagram(dsl, canvasTheme));
+      diagramStates.push(compileDiagram(dsl, canvasTheme, onWarn));
     }
 
     const pipeDSLs: DiagramPipeDSL[] = [];
@@ -263,7 +298,7 @@ export const registerDiagramHandlers = (registry?: WidgetRegistry): void => {
       pipeLanding: props.pipeLanding as PipeLandingAlgorithm | undefined,
     };
 
-    const canvasState = compileCanvas(canvasDSL, diagramStates, pipeDSLs);
+    const canvasState = compileCanvas(canvasDSL, diagramStates, pipeDSLs, onWarn);
     api.setWidgetState(String(props.id), canvasState);
   });
 

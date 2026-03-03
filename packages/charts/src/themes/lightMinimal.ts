@@ -25,4 +25,15 @@ export const lightMinimalChartTheme: ChartTheme = {
     planeOpacity: 1.0,
     gridColor: '#f1f5f9',
   },
+  legend: {
+    textColor: '#333344',
+    fontSize: 0.09,
+    swatchSize: 0.08,
+    spacing: 0.14,
+  },
+  interaction: {
+    hoverColor: '#1144ee',
+    hoverEmissiveIntensity: 0.2,
+    selectedColor: '#ee4400',
+  },
 };

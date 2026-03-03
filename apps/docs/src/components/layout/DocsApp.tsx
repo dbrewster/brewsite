@@ -1,30 +1,23 @@
-import { JSX, useEffect } from 'react';
+import { JSX, useCallback, useEffect, useMemo } from 'react';
 import {
   corePlugin,
   EngineProvider,
   EngineInputRegion,
   SceneCanvas,
   EngineOverlayHost,
-  useSceneEngineContext,
 } from '@brewsite/core';
 import { DocsSidebar } from './DocsSidebar';
 import { SCENE_SCROLL_OFFSETS, TOTAL_SCROLL_HEIGHT } from '../../nav/docs-nav';
 import * as Scenes from '../../scenes/index';
-
-// Module-level stable plugin list.
-// MUST be module-level — if recreated on every render, EngineProvider would
-// rebuild the entire Three.js driver, causing constant flicker.
-const PLUGINS = [corePlugin()];
 
 /**
  * DocsLayout — renders the two-column docs UI inside EngineProvider context.
  *
  * Must be a child of EngineProvider so useSceneEngineContext() resolves.
  * The sidebar and canvas are siblings here, both inside the engine tree.
+ * EngineInputRegion reads engine state from context — no engine prop needed.
  */
 const DocsLayout = (): JSX.Element => {
-  const engine = useSceneEngineContext();
-
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       {/* Sidebar: sits inside EngineProvider — can use context hooks directly */}
@@ -32,7 +25,7 @@ const DocsLayout = (): JSX.Element => {
 
       {/* Canvas column fills remaining horizontal space */}
       <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
-        <EngineInputRegion engine={engine}>
+        <EngineInputRegion>
           <SceneCanvas style={{ width: '100%', height: '100%' }} />
           <EngineOverlayHost passthroughPointerEvents={false} />
         </EngineInputRegion>
@@ -69,16 +62,26 @@ export function DocsApp(): JSX.Element {
     }
   }, []);
 
+  // onSceneChange must be stable — wrap in useCallback so plugins reference
+  // doesn't change on every render and trigger registry rebuilds.
+  const handleSceneChange = useCallback((sceneId: string) => {
+    history.replaceState(null, '', `#${sceneId}`);
+  }, []);
+
+  // Module-level stable plugin list would be ideal, but onSceneChange depends
+  // on a stable callback, so useMemo with [handleSceneChange] is the right pattern.
+  const plugins = useMemo(
+    () => [corePlugin({ onSceneChange: handleSceneChange })],
+    [handleSceneChange],
+  );
+
   return (
     <EngineProvider
       id="docs"
       manifestUrl="/scene-manifest.json"
-      plugins={PLUGINS}
+      plugins={plugins}
       quality="balanced"
       scrollHeightPx={TOTAL_SCROLL_HEIGHT}
-      onSceneChange={(sceneId) => {
-        history.replaceState(null, '', `#${sceneId}`);
-      }}
       onError={(err) => console.error('[BrewSite docs]', err)}
     >
       {/* ── Scene declarations ─────────────────────────────────────────────────

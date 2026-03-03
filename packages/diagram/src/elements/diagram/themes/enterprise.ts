@@ -13,7 +13,7 @@ export const enterpriseTheme: DiagramTheme = {
     defaultMetalness:          0.25,
     defaultRoughness:          0.45,
     defaultEmissiveIntensity:  0.06,
-    defaultDepth:              0.32,
+    defaultThickness:          0.32,
     cornerRadius:              0.05,
     glowIntensity:             0.0,
     defaultLabelColor:         '#ffffff',

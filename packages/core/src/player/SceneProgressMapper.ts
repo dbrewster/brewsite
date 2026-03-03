@@ -3,15 +3,8 @@
 // Called every frame via getGlobalProgress() (remap) and on user navigation (inverse).
 
 import type { SceneProgressProfile, SceneProgressSegment } from '../compiler/sceneTrackTypes';
-
-/**
- * Canonical identity function. Exported as a named const so that progressManager.ts
- * and sceneTrackCompiler.ts can import and share the exact same reference.
- * This makes the isUniform reference-equality check in buildProgressProfile correct:
- * a <ProgressManager scrollUnits={N} /> without a fn prop assigns IDENTITY_FN,
- * and the check spec.fn === IDENTITY_FN correctly identifies it as uniform.
- */
-export const IDENTITY_FN = (t: number): number => t;
+import { IDENTITY_FN } from '../compiler/identityFn';
+export { IDENTITY_FN };
 
 export class SceneProgressMapper {
   private readonly segments: readonly SceneProgressSegment[];

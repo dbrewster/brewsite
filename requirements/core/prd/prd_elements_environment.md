@@ -3,11 +3,14 @@ title: "BrewSite Core — Environment Elements"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-02-28
+last_updated: 2026-03-03
 change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents the full authoring surface, compiled state types, widget contracts, and transition behavior for Background, Lighting, Floor, and Environment (HDR) elements in @brewsite/core."
+  - date: 2026-03-03
+    author: "Toolkit Product"
+    summary: "API hardening update: replaced createDefaultWidgetRegistry() references with corePlugin() to reflect the plugin-based registration model."
 ---
 
 # BrewSite Core — Environment Elements
@@ -16,7 +19,7 @@ change_history:
 
 The environment elements — Background, Lighting, Floor, and Environment (HDR) — control the visual context of every scene in a BrewSite composition. Together they establish the atmosphere, material fidelity, and spatial grounding of the 3D canvas. Each element follows the mandatory module pattern (`types.ts → dsl.tsx → compile.ts → render.ts → {Name}Widget.ts → index.ts`) and integrates with the compiler pipeline as a registered node handler producing per-frame state entries inside `SceneTrack`.
 
-All four elements are first-party widget implementations registered by `createDefaultWidgetRegistry()`. They are distinct concerns and are individually tree-shakeable: consuming only `<Background>` does not pull in Lighting or Environment code.
+All four elements are first-party widget implementations registered by `corePlugin()`. They are distinct concerns and are individually tree-shakeable: consuming only `<Background>` does not pull in Lighting or Environment code.
 
 Affects: `@brewsite/core`.
 
@@ -344,7 +347,7 @@ The background plane is positioned at `position.z` from the DSL prop, defaulting
 
 ### 8.5 Tree-Shaking
 
-All four elements are registered individually by `createDefaultWidgetRegistry()`. A consumer who excludes an element from registration does not pay its bundle cost. DSL components are zero-weight stubs (null-returning React functions) — they contribute no bundle weight at the DSL authoring layer. All Three.js and loader code is contained in `render.ts` and `{Name}Widget.ts`.
+All four elements are registered individually by `corePlugin()`. A consumer who excludes an element from registration does not pay its bundle cost. DSL components are zero-weight stubs (null-returning React functions) — they contribute no bundle weight at the DSL authoring layer. All Three.js and loader code is contained in `render.ts` and `{Name}Widget.ts`.
 
 ### 8.6 Three.js Version Coupling
 

@@ -22,3 +22,4 @@ export { Camera } from './dsl';
 export { DEFAULT_CAMERA, DEFAULT_CAMERA_DESCRIPTOR, cameraTransitionSpec, functionalCameraTransitionSpec } from './compile';
 export { applyCamera } from './render';
 export { CameraWidget, CUSTOM_NODE_HANDLER } from './CameraWidget';
+export { SCENE_CAMERA_KEY } from './cameraKeys';

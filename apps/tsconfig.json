@@ -6,7 +6,9 @@
       "@brewsite/core/*": ["../packages/core/src/*"],
       "@brewsite/model": ["../packages/model/src/index.ts"],
       "@brewsite/diagram": ["../packages/diagram/src/index.ts"],
-      "@brewsite/diagram/*": ["../packages/diagram/src/*"]
+      "@brewsite/diagram/*": ["../packages/diagram/src/*"],
+      "@brewsite/charts": ["../packages/charts/src/index.ts"],
+      "@brewsite/charts/*": ["../packages/charts/src/*"]
     },
     "target": "ES2020",
     "useDefineForClassFields": true,

@@ -9,6 +9,7 @@ import type {
   DiagramPivot,
   DiagramEasing,
   DiagramTheme,
+  DiagramWarnFn,
 } from './types';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
 import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
@@ -90,6 +91,7 @@ function compilePivotOffset(
 export function compileDiagram(
   dsl: DiagramDSL,
   fallbackTheme: DiagramTheme = darkGlassTheme,
+  onWarn?: DiagramWarnFn,
 ): DiagramState {
   const theme: DiagramTheme = dsl.theme ?? fallbackTheme;
 
@@ -101,7 +103,10 @@ export function compileDiagram(
   dsl.groups.forEach((group) => {
     group.nodeIds.forEach((nodeId) => {
       if (groupMap.has(nodeId) && groupMap.get(nodeId) !== group.id) {
-        console.warn(`Diagram compileDiagram: node ${nodeId} assigned to multiple groups.`);
+        onWarn?.(
+          'DUPLICATE_GROUP_MEMBERSHIP',
+          `Diagram "${dsl.id}": node "${nodeId}" assigned to multiple groups. Only the last assignment applies.`,
+        );
       }
       groupMap.set(nodeId, group.id);
     });
@@ -112,9 +117,9 @@ export function compileDiagram(
   const sizeWithDepthMap = new Map<string, readonly [number, number, number]>();
   dsl.nodes.forEach((node) => {
     const size = node.size ?? nd.size;
-    const depth = node.depth ?? nd.depth;
+    const thickness = node.thickness ?? nd.thickness;
     sizeMap.set(node.id, size);
-    sizeWithDepthMap.set(node.id, [size[0], size[1], depth]);
+    sizeWithDepthMap.set(node.id, [size[0], size[1], thickness]);
   });
 
   const positions = resolveLayoutWithGroups(
@@ -124,6 +129,7 @@ export function compileDiagram(
     rootLayout,
     groupLayouts,
     sizeWithDepthMap,
+    onWarn,
   );
 
   const pivot: DiagramPivot = dsl.pivot ?? 'center';
@@ -180,6 +186,7 @@ export function compileDiagram(
     sizeWithDepthMap,
     theme.edge.routing,
     theme.edge.landing,
+    onWarn,
   );
 
   const nodes = dsl.nodes

@@ -1,8 +1,10 @@
 import {
-  ScenePlayer,
+  EngineProvider,
+  EngineInputRegion,
+  SceneCanvas,
   useEngineState,
   useSceneEngineContext,
-  type ScenePlayerProps,
+  type WidgetPlugin,
 } from '@brewsite/core';
 import { JSX, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import { createDemoWidgetSetup } from './demoSetup';
@@ -13,7 +15,7 @@ interface DemoSceneProps {
   height?: number;
   sceneDuration?: number;
   manifestUrl?: string;
-  widgetSetup?: NonNullable<ScenePlayerProps['widgetSetup']>;
+  plugins?: WidgetPlugin[];
 }
 
 const prefersReducedMotion =
@@ -134,7 +136,7 @@ export function DemoScene({
   height = 420,
   sceneDuration = 2500,
   manifestUrl = '/scene-manifest.json',
-  widgetSetup,
+  plugins,
 }: DemoSceneProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [autoPlay, setAutoPlay] = useState(false);
@@ -142,16 +144,16 @@ export function DemoScene({
   // window.scrollY or window.scrollTo, so the page can scroll freely.
   const [progress, setProgress] = useState(0);
 
-  // IMPORTANT: widgetSetup must be a stable reference. DemoScene re-renders
+  // IMPORTANT: resolvedPlugins must be a stable reference. DemoScene re-renders
   // on every progress tick (setProgress is called each RAF frame). If
-  // widgetSetup were recreated inline, ScenePlayer's widgetRegistry useMemo
+  // plugins were recreated inline, EngineProvider's widgetRegistry useMemo
   // would fire every frame, disposing and recreating the Three.js driver 60×/s.
-  const stableWidgetSetup = useMemo(
-    () => widgetSetup ?? createDemoWidgetSetup(),
-    // widgetSetup is expected to be stable at the call site; createDemoWidgetSetup
+  const resolvedPlugins = useMemo(
+    () => plugins ?? createDemoWidgetSetup(),
+    // plugins is expected to be stable at the call site; createDemoWidgetSetup
     // has no args so calling it once is safe. Re-memoize only if the prop changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [widgetSetup],
+    [plugins],
   );
 
   useEffect(() => {
@@ -175,20 +177,23 @@ export function DemoScene({
     // overflow: hidden keeps the player canvas clipped to the declared
     // height even during brief layout transitions.
     <div className="demo-scene" ref={containerRef} style={{ height, overflow: 'hidden' }}>
-      <ScenePlayer
+      <EngineProvider
         manifestUrl={manifestUrl}
-        widgetSetup={stableWidgetSetup}
+        plugins={resolvedPlugins}
         controlledProgress={progress}
         onControlledProgressChange={setProgress}
       >
         {children}
-        <DemoSceneControls
-          sceneCount={sceneCount}
-          sceneDuration={sceneDuration}
-          autoPlay={autoPlay}
-          setAutoPlay={setAutoPlay}
-        />
-      </ScenePlayer>
+        <EngineInputRegion fillContainer>
+          <SceneCanvas style={{ width: '100%', height: '100%' }} />
+          <DemoSceneControls
+            sceneCount={sceneCount}
+            sceneDuration={sceneDuration}
+            autoPlay={autoPlay}
+            setAutoPlay={setAutoPlay}
+          />
+        </EngineInputRegion>
+      </EngineProvider>
     </div>
   );
 }

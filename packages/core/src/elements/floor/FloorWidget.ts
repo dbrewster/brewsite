@@ -16,10 +16,11 @@ import { applyFloor, disposeFloor } from './render';
 import type * as React from 'react';
 import { isValidElement } from 'react';
 import { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
+import type { IHasCustomDslHandler } from '../../widget/WidgetRegistry';
 import type { NodeHandler } from '../../compiler/sceneDslTypes';
 
 export class FloorWidget
-  implements ISceneElement<SceneFloor>, IRenderable<SceneFloor>, IDslComposite
+  implements ISceneElement<SceneFloor>, IRenderable<SceneFloor>, IDslComposite, IHasCustomDslHandler
 {
   readonly widgetId = 'floor';
   readonly defaultState: SceneFloor = DEFAULT_FLOOR;
@@ -31,8 +32,7 @@ export class FloorWidget
     { component: FloorMirror as React.ComponentType<unknown>, displayName: 'FloorMirror', topLevelError: true },
   ];
 
-  constructor() {
-    (this as unknown as Record<symbol, NodeHandler>)[CUSTOM_NODE_HANDLER] = (node, api, helpers) => {
+  readonly [CUSTOM_NODE_HANDLER]: NodeHandler = (node, api, helpers) => {
       const props = node.props as FloorProps;
       const children = helpers.collectChildren(node);
       let surface: FloorSurface | undefined;
@@ -68,8 +68,7 @@ export class FloorWidget
       }
 
       api.setWidgetState(this.widgetId, resolved);
-    };
-  }
+  };
 
   mergeSnapshot(
     prev: SceneFloor | undefined,

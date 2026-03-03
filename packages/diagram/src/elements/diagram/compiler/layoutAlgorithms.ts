@@ -1,7 +1,7 @@
 // Layout algorithms extracted from compile.ts.
 // Pure functions only — no Three.js, no React.
 
-import type { DiagramNodeDSL, DiagramEdgeDSL, DiagramGroupDSL } from '../types';
+import type { DiagramNodeDSL, DiagramEdgeDSL, DiagramGroupDSL, DiagramWarnFn } from '../types';
 import {
   DEFAULT_RESOLVED_GRID,
 } from './layoutResolver';
@@ -18,11 +18,12 @@ export function resolveLayout(
   nodes: ReadonlyArray<DiagramNodeDSL>,
   edges: ReadonlyArray<DiagramEdgeDSL>,
   layout: ResolvedLayout,
+  onWarn?: DiagramWarnFn,
 ): Map<string, readonly [number, number, number]> {
   const layoutKind = (layout as { kind?: string }).kind;
   if (layoutKind !== 'manual' && layoutKind !== 'grid' && layoutKind !== 'hierarchical') {
     console.warn(`Diagram resolveLayout: unknown layout kind "${String(layoutKind)}". Falling back to default grid.`);
-    return resolveLayout(nodes, edges, DEFAULT_RESOLVED_GRID);
+    return resolveLayout(nodes, edges, DEFAULT_RESOLVED_GRID, onWarn);
   }
 
   const isFiniteNumber = (value: number): boolean => Number.isFinite(value);
@@ -45,11 +46,14 @@ export function resolveLayout(
   });
 
   if (layout.kind === 'manual') {
-    const nonGhostMissing = missing.filter((n) => !!n.label);
+    const nonGhostMissing = missing.filter((n) => n.label !== undefined);
     if (nonGhostMissing.length > 0) {
-      throw new Error(
-        'Diagram layout is manual but one or more non-ghost nodes are missing positions. ' +
-          'Ghost nodes (no label prop) may omit position — it will be inherited from the previous scene.',
+      const ids = nonGhostMissing.map((n) => `"${n.id}"`).join(', ');
+      onWarn?.(
+        'MISSING_LAYOUT_POSITION',
+        `ManualLayout: ${nonGhostMissing.length} non-ghost node(s) have no explicit position: ${ids}. ` +
+          `Add position={[x, y, z]} to each, or switch to <GridLayout> / <HierarchicalLayout> ` +
+          `to auto-compute positions. Ghost nodes (label prop absent) may omit position safely.`,
       );
     }
     return positions;
@@ -493,9 +497,10 @@ export function resolveLayoutWithGroups(
   rootLayout: ResolvedLayout,
   groupLayouts: Map<string, ResolvedLayout>,
   sizes: Map<string, readonly [number, number] | readonly [number, number, number]>,
+  onWarn?: DiagramWarnFn,
 ): Map<string, readonly [number, number, number]> {
   if (rootLayout.kind === 'manual' || groups.length === 0) {
-    return resolveLayout(nodes, edges, rootLayout);
+    return resolveLayout(nodes, edges, rootLayout, onWarn);
   }
 
   const groupById = new Map(groups.map((g) => [g.id, g]));
@@ -604,7 +609,7 @@ export function resolveLayoutWithGroups(
       }
 
       // Run layout on virtual nodes.
-      const rawLocalPositions = resolveLayout(virtualNodes, virtualEdges, groupLayout);
+      const rawLocalPositions = resolveLayout(virtualNodes, virtualEdges, groupLayout, onWarn);
 
       // Expand: translate synthetic child-group positions into actual descendant node positions.
       expandedPositions = new Map();
@@ -730,7 +735,7 @@ export function resolveLayoutWithGroups(
     topLevelEdges.push({ from: fromId, to: toId });
   });
 
-  const topLevelPositions = resolveLayout(topLevelLayoutNodes, topLevelEdges, rootLayout);
+  const topLevelPositions = resolveLayout(topLevelLayoutNodes, topLevelEdges, rootLayout, onWarn);
 
   // ─── Connection affinity refinement (hierarchical only) ──────────────────────
   if (rootLayout.kind === 'hierarchical') {

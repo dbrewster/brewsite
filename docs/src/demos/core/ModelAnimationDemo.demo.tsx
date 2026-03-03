@@ -8,7 +8,7 @@ import {
   Floor,
   FloorPhysical,
 } from '@brewsite/core';
-import { Model, Playback, Animation } from '../../generated/sceneDsl.generated';
+import { Model, Playback, Animation } from '@brewsite/model';
 import { DemoScene } from '../shared/DemoScene';
 import { createModelDemoWidgetSetup } from '../shared/demoSetup';
 
@@ -40,7 +40,7 @@ export default function ModelAnimationDemo(): JSX.Element {
       sceneCount={2}
       sceneDuration={3000}
       manifestUrl="/scene-manifest.json"
-      widgetSetup={createModelDemoWidgetSetup()}
+      plugins={createModelDemoWidgetSetup()}
     >
       <Scene key="relaxed" id="relaxed" >
         <Camera mode="world" position={[0, 1.5, 4]} target={[0, 0.9, 0]} />

@@ -14,6 +14,7 @@ import {isValidElement} from 'react';
 import type * as THREE from 'three';
 import type {CompileExtraContext, IDslComposite, ILoadable, IRenderable, ISceneElement, IAttachmentHost, IRenderContributor, RenderContribution, WidgetInitContext, WidgetRenderContext,} from '@brewsite/core';
 import {CUSTOM_NODE_HANDLER} from '@brewsite/core/widget/WidgetRegistry';
+import type {IHasCustomDslHandler} from '@brewsite/core/widget/WidgetRegistry';
 import type {CompileHelpers, NodeHandler, SceneSnapshotContext} from '@brewsite/core';
 import type {
   AxisRotation,
@@ -365,7 +366,8 @@ export class ModelWidget
     ILoadable,
     IDslComposite,
     IAttachmentHost,
-    IRenderContributor {
+    IRenderContributor,
+    IHasCustomDslHandler {
 
   readonly widgetId: string;
   readonly defaultState: SceneModelInstanceState;
@@ -389,6 +391,9 @@ export class ModelWidget
     { component: Motion as React.ComponentType<unknown>, displayName: 'Motion', topLevelError: true },
     { component: Animation as React.ComponentType<unknown>, displayName: 'Animation', topLevelError: true },
   ];
+
+  /** Satisfies IHasCustomDslHandler. Assigned in constructor after instance properties are initialized. */
+  readonly [CUSTOM_NODE_HANDLER]!: NodeHandler;
 
   isLoaded = false;
   readonly clipMeta: ClipMeta[];

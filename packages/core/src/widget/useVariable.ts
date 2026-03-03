@@ -7,7 +7,7 @@ import type { JsonPrimitive } from './VariableStore';
  * React hook for reading a reactive variable from the VariableStore.
  * Re-renders the consuming component whenever the named variable changes.
  *
- * Must be used inside a `<ScenePlayer>` tree (which provides `VariableStoreContext`).
+ * Must be used inside a `<EngineProvider>` tree (which provides `VariableStoreContext`).
  *
  * @example
  * // Read the current scene title published by SceneMetaWidget:
@@ -20,7 +20,7 @@ export const useVariable = <T extends JsonPrimitive = JsonPrimitive>(
   namespace: string, key: string,
 ): T | undefined => {
   const store = useContext(VariableStoreContext);
-  if (!store) throw new Error('[useVariable] must be used inside <ScenePlayer>');
+  if (!store) throw new Error('[useVariable] must be used inside <EngineProvider>');
 
   const subscribe = useCallback(
     (callback: () => void) => store.subscribe(`${namespace}.${key}`, callback),

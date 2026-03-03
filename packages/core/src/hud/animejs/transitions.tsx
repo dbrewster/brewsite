@@ -1,5 +1,5 @@
 // Scroll-driven transition wrappers for use as children of scene overlay content.
-// Must be rendered inside <EngineProvider> or <ScenePlayer> (EngineStateContext must be provided).
+// Must be rendered inside <EngineProvider> (EngineStateContext must be provided).
 
 import { useRef } from 'react';
 import type { ReactElement, ReactNode } from 'react';

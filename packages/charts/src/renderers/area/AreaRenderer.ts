@@ -10,6 +10,8 @@ import { ChartMaterialFactory } from '../shared/ChartMaterialFactory';
 import type { IChartRenderer, ChartRenderContext, ChartHitInfo } from '../shared/IChartRenderer';
 import type { ResolvedDataFrame } from '../../data/types';
 
+const AREA_OPACITY_FACTOR = 0.65;
+
 /**
  * Renders area charts as extruded Three.js shapes.
  * Multi-series areas are slightly offset along Z for depth.
@@ -19,6 +21,8 @@ export class AreaRenderer implements IChartRenderer {
   private axesRenderer: AxesRenderer | null = null;
   private legendRenderer: LegendRenderer | null = null;
   private readonly areaMeshes: THREE.Mesh[] = [];
+  private seriesGroupRef: THREE.Group | null = null;
+  private lastBoundsWidth = 1;
   private lastDataLength = -1;
   private lastSeriesCount = -1;
 
@@ -29,8 +33,10 @@ export class AreaRenderer implements IChartRenderer {
       ? [...series]
       : (yAxis ? [{ field: yAxis.field, label: yAxis.label }] : []);
 
+    this.seriesGroupRef = seriesGroup;
+
     if (effectiveSeries.length === 0 || data.rows.length < 2) {
-      this.clearAreas(seriesGroup);
+      this.clearAreas();
       return;
     }
 
@@ -40,14 +46,14 @@ export class AreaRenderer implements IChartRenderer {
       effectiveSeries.length !== this.lastSeriesCount;
 
     if (needsRebuild) {
-      this.clearAreas(seriesGroup);
+      this.clearAreas();
       this.buildAreas(seriesGroup, data, xField, effectiveSeries, bounds, theme, opacity);
       this.lastDataLength = data.rows.length;
       this.lastSeriesCount = effectiveSeries.length;
     } else {
       for (const mesh of this.areaMeshes) {
         const mat = mesh.material as THREE.MeshPhysicalMaterial;
-        mat.opacity = opacity * 0.65;
+        mat.opacity = opacity * AREA_OPACITY_FACTOR;
         mat.transparent = true;
       }
     }
@@ -80,6 +86,8 @@ export class AreaRenderer implements IChartRenderer {
     theme: ChartRenderContext['theme'],
     opacity: number,
   ): void {
+    this.lastBoundsWidth = bounds.width;
+
     const allValues = data.rows.flatMap((r) =>
       series.map((s) => Number(r[s.field]) || 0),
     );
@@ -112,7 +120,7 @@ export class AreaRenderer implements IChartRenderer {
         bevelEnabled: false,
       });
       const mat = this.materialFactory.getSeriesMaterial(theme, si);
-      mat.opacity = opacity * 0.65;
+      mat.opacity = opacity * AREA_OPACITY_FACTOR;
       mat.transparent = true;
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.z = zOffset;
@@ -121,9 +129,10 @@ export class AreaRenderer implements IChartRenderer {
     }
   }
 
-  private clearAreas(seriesGroup: THREE.Group): void {
+  private clearAreas(): void {
+    const group = this.seriesGroupRef;
     for (const mesh of this.areaMeshes) {
-      seriesGroup.remove(mesh);
+      group?.remove(mesh);
       mesh.geometry.dispose();
     }
     this.areaMeshes.length = 0;
@@ -136,17 +145,25 @@ export class AreaRenderer implements IChartRenderer {
   resolveHoverInfo(intersection: THREE.Intersection, data: ResolvedDataFrame): ChartHitInfo | null {
     const meshIndex = this.areaMeshes.indexOf(intersection.object as THREE.Mesh);
     if (meshIndex < 0) return null;
+    if (data.rows.length === 0) return null;
+
+    // X coordinate maps linearly to data index
+    const normalizedX = intersection.point.x / this.lastBoundsWidth;
+    const datumIndex = Math.round(
+      Math.max(0, Math.min(1, normalizedX)) * (data.rows.length - 1)
+    );
+    const row = (data.rows[datumIndex] ?? {}) as Record<string, unknown>;
     const p = intersection.point;
     return {
       seriesIndex: meshIndex,
-      datumIndex: 0,
-      row: (data.rows[0] ?? {}) as Record<string, unknown>,
+      datumIndex,
+      row,
       point: [p.x, p.y, p.z],
     };
   }
 
   dispose(): void {
-    this.clearAreas({ children: [] } as unknown as THREE.Group);
+    this.clearAreas();
     this.axesRenderer?.dispose();
     this.legendRenderer?.dispose();
     this.materialFactory.dispose();

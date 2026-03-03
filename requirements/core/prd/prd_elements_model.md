@@ -3,11 +3,14 @@ title: "BrewSite Core — Model Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-02-28
+last_updated: 2026-03-03
 change_history:
   - date: 2026-02-28
     author: brewsite-product-manager
     summary: "Initial PRD created. Comprehensive specification of the Model element covering state types, DSL surface, transition system, animation and motion systems, part overrides, widget interfaces, and asset manifest integration."
+  - date: 2026-03-03
+    author: "Toolkit Product"
+    summary: "API hardening update: replaced createDefaultWidgetRegistry() references with corePlugin() + modelPlugin() to reflect the plugin-based registration model."
 ---
 
 # BrewSite Core — Model Element
@@ -40,7 +43,7 @@ Evidence for priority: Model is used in every example scene in `apps/examples/`.
 
 **Guardrail metrics:**
 - No regression to existing consumers using the `<Model>` DSL component or `SceneModelInstanceState` type.
-- No increase in widget registration boilerplate compared to the current `createDefaultWidgetRegistry` pattern.
+- No increase in widget registration boilerplate compared to the current `corePlugin()` + `modelPlugin()` pattern.
 - Model element tree-shakes cleanly — importing `<Camera>` alone does not pull in the GLTF loader.
 
 ---
@@ -379,7 +382,7 @@ The attachment is a One-time operation after load. It does not rerun on scene ch
 
 ### 8.7 Tree-shaking
 
-`@brewsite/core` must tree-shake such that importing only `<Camera>` does not pull in the GLTF loader or AnimationMixer. This requires that `ModelWidget` is not imported by any shared module. The widget is registered only by `createDefaultWidgetRegistry`, which is explicitly called by the consumer. Consumers who omit `ModelWidget` from their registry get no GLTF loader in their bundle.
+`@brewsite/core` must tree-shake such that importing only `<Camera>` does not pull in the GLTF loader or AnimationMixer. This requires that `ModelWidget` is not imported by any shared module. The widget is registered only by `modelPlugin()` from `@brewsite/model`, which is explicitly included by the consumer. Consumers who omit `modelPlugin()` from their `plugins` array get no GLTF loader in their bundle.
 
 Named exports in `index.ts` must not re-export Three.js classes. Only value-level types (interfaces, type aliases) and the DSL component (which returns `null`) are safe to re-export from the barrel.
 
@@ -418,7 +421,7 @@ If the `MotionCommand` discriminated union gains new members in a future release
 
 **API regret — `parts` vs `overrides` duality:** Two mechanisms (`parts: ModelPartSpec[]` and `overrides: BodyPartOverrideMap`) achieve the same goal. This duality exists for historical reasons. Risk: confusion about which to use. Mitigation: document that `parts` is preferred for new code; `overrides` is retained for backward compatibility. In a future major version, deprecate `overrides`.
 
-**Bundle bloat from GLTF Loader:** `THREE.GLTFLoader` and its dependencies (Draco decoder, KTX2 loader) are large. Consumers who do not use models should not pay this cost. Mitigation: GLTFLoader is instantiated only inside `ModelWidget`, which is only registered when the consumer calls `createDefaultWidgetRegistry`. Tree-shaking must be verified with bundle analysis on every release.
+**Bundle bloat from GLTF Loader:** `THREE.GLTFLoader` and its dependencies (Draco decoder, KTX2 loader) are large. Consumers who do not use models should not pay this cost. Mitigation: GLTFLoader is instantiated only inside `ModelWidget`, which is only registered when the consumer includes `modelPlugin()` in their `EngineProvider` plugins. Tree-shaking must be verified with bundle analysis on every release.
 
 **AnimationMixer memory leaks:** If `ModelWidget.dispose()` is not called correctly, AnimationMixer instances leak. Mitigation: dispose test in the test suite that verifies the mixer is stopped and all actions are removed.
 

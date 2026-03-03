@@ -7,30 +7,22 @@ import { DiagramCanvas } from '../../elements/diagram/canvas/dsl';
 import { ImagePanel } from '../../elements/image-panel/dsl';
 import { Screen } from '../../elements/screen/dsl';
 import { registerDiagramHandlers } from '../handlers';
-import type { DiagramState } from '../../elements/diagram/types';
+import type { DiagramCanvasState } from '../../elements/diagram/canvas/types';
 import type { ImagePanelState } from '../../elements/image-panel/types';
 import type { ScreenState } from '../../elements/screen/types';
-import { DiagramWidget } from '../../elements/diagram/widget';
-import { compileDiagram } from '../../elements/diagram/compile';
+import { DiagramCanvasWidget } from '../../elements/diagram/canvas/widget';
 import { compileSceneTrack } from '../../../../core/src/compiler/sceneTrackCompiler';
 import type { SceneDefinition } from '../../../../core/src/compiler/sceneTypes';
 
 const makeContext = () => ({
-  sceneProgress: 0,
-  globalProgress: 0,
-  clipMeta: [],
-  prefersReducedMotion: false,
+  sceneIndex: 0,
+  numScenes: 1,
+  assetsReady: false,
 });
 
 describe('registerDiagramHandlers', () => {
   it('compiles diagram/image-panel/screen widgets into frame state', () => {
     const registry = new WidgetRegistry();
-    registry.register(new DiagramWidget('diagram-basic', compileDiagram({
-      id: 'diagram-basic',
-      nodes: [],
-      edges: [],
-      groups: [],
-    })));
     registerDiagramHandlers(registry);
 
     const tree = (
@@ -51,7 +43,8 @@ describe('registerDiagramHandlers', () => {
 
     const { frame } = resolveSceneFromDsl(tree, makeContext(), registry);
 
-    const diagram = frame.widgets['diagram-basic'] as DiagramState;
+    const canvasState = frame.widgets['diagram-basic'] as DiagramCanvasState;
+    const diagram = canvasState.diagrams[0]!;
     const panel = frame.widgets['panel-1'] as ImagePanelState;
     const screen = frame.widgets['screen-1'] as ScreenState;
 
@@ -65,12 +58,6 @@ describe('registerDiagramHandlers', () => {
 
   it('captures nested groups with parentId and node membership', () => {
     const registry = new WidgetRegistry();
-    registry.register(new DiagramWidget('diagram-nested', compileDiagram({
-      id: 'diagram-nested',
-      nodes: [],
-      edges: [],
-      groups: [],
-    })));
     registerDiagramHandlers(registry);
 
     const tree = (
@@ -87,7 +74,8 @@ describe('registerDiagramHandlers', () => {
     );
 
     const { frame } = resolveSceneFromDsl(tree, makeContext(), registry);
-    const diagram = frame.widgets['diagram-nested'] as DiagramState;
+    const canvasState = frame.widgets['diagram-nested'] as DiagramCanvasState;
+    const diagram = canvasState.diagrams[0]!;
     const inner = diagram.groups.find((g) => g.id === 'inner');
     const outer = diagram.groups.find((g) => g.id === 'outer');
 
@@ -96,14 +84,8 @@ describe('registerDiagramHandlers', () => {
     expect(diagram.nodes.find((n) => n.id === 'n1')?.groupId).toBe('inner');
   });
 
-  it('throws when GridLayout appears at scene top-level', () => {
+  it('ignores GridLayout that appears at scene top-level (no-op handler)', () => {
     const registry = new WidgetRegistry();
-    registry.register(new DiagramWidget('diagram', compileDiagram({
-      id: 'diagram',
-      nodes: [],
-      edges: [],
-      groups: [],
-    })));
     registerDiagramHandlers(registry);
 
     const tree = (
@@ -112,10 +94,11 @@ describe('registerDiagramHandlers', () => {
       </Scene>
     );
 
-    expect(() => resolveSceneFromDsl(tree, makeContext(), registry)).toThrow('GridLayout');
+    // GridLayout outside a <Diagram> is silently ignored — the handler is a no-op.
+    expect(() => resolveSceneFromDsl(tree, makeContext(), registry)).not.toThrow();
   });
 
-  it('pushes MISSING_WIDGET warning when DiagramCanvas id is not registered', () => {
+  it('auto-registers DiagramCanvasWidget when DiagramCanvas id is not in registry', () => {
     const registry = new WidgetRegistry();
     registerDiagramHandlers(registry);
 
@@ -124,7 +107,7 @@ describe('registerDiagramHandlers', () => {
         id: 's1',
         getFrame: () => (
           <Scene id="s1">
-            <DiagramCanvas id="missing-canvas">
+            <DiagramCanvas id="auto-canvas">
               <Diagram id="inner">
                 <DiagramNode id="n1" label="Node 1" position={[0, 0, 0]} />
               </Diagram>
@@ -134,13 +117,15 @@ describe('registerDiagramHandlers', () => {
       },
     ];
 
-    const track = compileSceneTrack({
+    compileSceneTrack({
       scenes,
       widgetRegistry: registry,
       blockSize: 10,
     });
 
-    expect(track.warnings?.some((warning) =>
-      warning.code === 'MISSING_WIDGET' && warning.widgetId === 'missing-canvas')).toBe(true);
+    const widget = registry.get('auto-canvas');
+    expect(widget).toBeDefined();
+    expect(widget).toBeInstanceOf(DiagramCanvasWidget);
+    expect(widget?.widgetId).toBe('auto-canvas');
   });
 });

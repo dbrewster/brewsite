@@ -11,6 +11,8 @@ export type EngineFrameState = {
 };
 
 export type EngineState = {
+  /** Index of the last rendered tick. -1 before the engine's first frame. */
+  tickIndex: number;
   progress: number;
   sceneId: string;
   sceneIndex: number;

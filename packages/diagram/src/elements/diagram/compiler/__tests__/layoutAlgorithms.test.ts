@@ -206,9 +206,11 @@ describe('resolveLayout', () => {
     expect(yC).toBeLessThan(yB);
   });
 
-  it('manual: throws when non-ghost nodes missing positions', () => {
+  it('manual: emits MISSING_LAYOUT_POSITION warning for non-ghost nodes missing positions', () => {
     const nodes = [makeNode('a')];
-    expect(() => resolveLayout(nodes, [], manual())).toThrow();
+    const warns: Array<{ code: string }> = [];
+    expect(() => resolveLayout(nodes, [], manual(), (code) => warns.push({ code }))).not.toThrow();
+    expect(warns[0]!.code).toBe('MISSING_LAYOUT_POSITION');
   });
 
   it('manual: allows ghost nodes without positions', () => {

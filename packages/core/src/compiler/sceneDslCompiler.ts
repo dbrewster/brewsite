@@ -283,7 +283,7 @@ export const sceneRootHandler: NodeHandler = (node, api, helpers) => {
   const sceneId = props.id ?? rawKey ?? null;
   if (sceneId === null) {
     console.warn(
-      '[ScenePlayer] A <Scene> element has no id. ' +
+      '[EngineProvider] A <Scene> element has no id. ' +
       'Assign id="..." to every <Scene> for stable scene identity.',
     );
   }

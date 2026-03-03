@@ -1,6 +1,6 @@
 # @brewsite/diagram
 
-3D immersive diagram, canvas, image-panel, and screen elements for the BrewFlow Scene Toolkit. Built on top of `@brewsite/core`, this package adds interactive architectural diagram rendering with node/edge/group layouts, animated transitions, cloud provider icon support, and multiple visual themes.
+3D immersive diagram, canvas, image-panel, and screen elements for the BrewSite Scene Toolkit. Built on top of `@brewsite/core`, this package adds interactive architectural diagram rendering with node/edge/group layouts, animated transitions, cloud provider icon support, and multiple visual themes.
 
 ## Installation
 
@@ -48,63 +48,21 @@ export const myScene: SceneDefinition = {
 };
 ```
 
-**2. Create the widget setup** (compile initial state and register widgets):
-
-```ts
-// widgetSetup.ts
-import { createDefaultWidgetRegistry } from '@brewsite/core';
-import type { AssetManifest } from '@brewsite/core';
-import {
-  DiagramCanvasWidget,
-  compileCanvas,
-  compileDiagram,
-  registerDiagramHandlers,
-} from '@brewsite/diagram';
-
-export const createWidgetSetup = (manifest: AssetManifest | null) => {
-  registerDiagramHandlers();
-
-  const registry = createDefaultWidgetRegistry(manifest);
-
-  const canvasDefault = compileCanvas(
-    { id: 'main-canvas' },
-    [
-      compileDiagram({
-        id: 'arch-diagram',
-        layout: { kind: 'hierarchical', spacing: [3, 2] },
-        pivot: 'center',
-        nodes: [
-          { id: 'api', label: 'API Gateway', icon: 'aws:api-gateway' },
-          { id: 'svc', label: 'Service',     icon: 'aws:ecs' },
-          { id: 'db',  label: 'Database',    icon: 'aws:rds' },
-        ],
-        edges: [
-          { from: 'api', to: 'svc' },
-          { from: 'svc', to: 'db' },
-        ],
-        groups: [],
-      }),
-    ],
-    [],
-  );
-
-  registry.register(new DiagramCanvasWidget('main-canvas', canvasDefault));
-  return registry;
-};
-```
-
-**3. Render** with `ScenePlayer`:
+**2. Register the plugin** (replaces manual widget setup):
 
 ```tsx
-import { ScenePlayer } from '@brewsite/core';
+// App.tsx
+import { useMemo } from 'react';
+import { ScenePlayer, corePlugin } from '@brewsite/core';
+import { diagramPlugin } from '@brewsite/diagram';
 import { myScene } from './scenes/myScene';
-import { createWidgetSetup } from './widgetSetup';
 
 export default function Page() {
+  const diagPlugin = useMemo(() => diagramPlugin(), []);
   return (
     <ScenePlayer
       sceneGroup={{ id: 'demo', scenes: [myScene] }}
-      widgetSetup={createWidgetSetup}
+      plugins={[corePlugin(), diagPlugin]}
       framesPerTick={100}
       pixelsPerScene={1600}
     />
@@ -112,7 +70,7 @@ export default function Page() {
 }
 ```
 
-> **Note:** `registerDiagramHandlers()` must be called before the first `ScenePlayer` render. Calling it inside `widgetSetup` (as above) is the recommended pattern.
+`diagramPlugin()` automatically registers `DiagramCanvasWidget` instances at compile time — no separate `widgetSetup.ts` file required for diagram canvases.
 
 ## Key Exports
 
@@ -124,7 +82,7 @@ export default function Page() {
 | `DiagramNode` | A single node in the diagram |
 | `DiagramEdge` | A directed edge between nodes |
 | `DiagramGroup` | A group container for nodes |
-| `Exit` / `Enter` | Per-element animated enter/exit transitions |
+| `DiagramEnter` / `DiagramExit` | Per-diagram animated enter/exit transitions |
 | `GridLayout` / `HierarchicalLayout` / `ManualLayout` | Layout DSL wrappers |
 | `DiagramCanvas` | Orthographic 3D scene with camera orbit/dolly/focus |
 | `DiagramPipe` | 3D pipe connection between canvas diagram positions |
@@ -142,31 +100,41 @@ export default function Page() {
 | `resolveLayout` | Resolve node positions from a layout DSL |
 | `routeEdges` | Route edges between positioned nodes |
 
+### Plugin Factory
+
+```ts
+import { diagramPlugin } from '@brewsite/diagram';
+
+// Pass to EngineProvider or ScenePlayer plugins prop
+const plugin = diagramPlugin();
+```
+
+`diagramPlugin()` handles compiler handler registration and auto-creates `DiagramCanvasWidget` instances on first DSL encounter. Use it instead of calling `registerDiagramHandlers()` manually.
+
 ### Widget Classes
 
 | Export | Description |
 |---|---|
 | `DiagramCanvasWidget` | Runtime widget for `DiagramCanvas` elements |
-| `DiagramWidget` | Runtime widget for standalone `Diagram` elements |
 | `ImagePanelWidget` | Runtime widget for `ImagePanel` elements |
 | `ScreenWidget` | Runtime widget for `Screen` elements |
 
-### Registration
+> **Note:** `DiagramWidget` is an internal implementation class and is not part of the public API. Use `DiagramCanvasWidget` (via `diagramPlugin()`) for all diagram rendering.
 
-```ts
-import { registerDiagramHandlers } from '@brewsite/diagram';
-
-// Call once, before the first ScenePlayer render
-registerDiagramHandlers();
-```
-
-### Themes
+### Theme Helpers
 
 ```ts
 import { darkGlassTheme, neonCyberTheme, enterpriseTheme, lightMinimalTheme } from '@brewsite/diagram';
+import { mergeTheme } from '@brewsite/diagram';
+
+// Custom theme from preset — override just the parts you need
+const brandTheme = mergeTheme(darkGlassTheme, {
+  node: { defaultColor: '#2a1a40' },
+  edge: { routing: 'orthogonal', defaultColor: '#ff6b35' },
+});
 ```
 
-Pass a theme to the `Diagram` DSL component via the `theme` prop.
+Pass a theme to `<Diagram theme={...}>` or to `<DiagramCanvas theme={...}>` (canvas theme acts as fallback for all child diagrams).
 
 ### Focus Region
 
@@ -185,6 +153,31 @@ Used to programmatically focus the camera on a specific node or region within a 
 | `enterpriseTheme` | Clean enterprise / corporate look |
 | `lightMinimalTheme` | Light minimal style |
 
+## Key Node Props
+
+| Prop | Type | Description |
+|---|---|---|
+| `id` | `string` | Unique ID within the diagram (required) |
+| `label` | `string \| undefined` | Primary label text. **Omit entirely** (not `label=""`) to declare a ghost node that inherits from the prior scene. |
+| `thickness` | `number` | Physical prism depth in diagram units. Default: from theme. |
+| `glow` | `boolean \| { intensity?, color? }` | Emissive glow override. Omit to inherit from theme. |
+| `icon` | `DiagramIconVariant` | SVG icon on the front face (e.g. `"aws:s3"`, `"ui:user"`) |
+| `shape` | `DiagramNodeShape` | Geometry shape. Default: `'rectangle'` |
+
+## Ghost Nodes
+
+A ghost node is a `<DiagramNode>` whose `label` prop is absent (not provided). It inherits its label, shape, icon, size, and thickness from the matching node in the previous scene, enabling drill-down animations.
+
+```tsx
+// Scene 1: full diagram
+<DiagramNode id="api" label="API Gateway" icon="aws:api-gateway" size={[4, 2]} />
+
+// Scene 2: spotlight a different node; keep API Gateway as faded context
+<DiagramNode id="api" opacity={0.2} />  // ← ghost: label absent, inherits from Scene 1
+```
+
+Setting `label=""` (explicit empty string) is **not** a ghost node. It declares a blank-label node and keeps all other props as authored.
+
 ## Icon Support
 
 Node icons are referenced via `icon` strings in the format `"provider:name"`:
@@ -192,8 +185,11 @@ Node icons are referenced via `icon` strings in the format `"provider:name"`:
 - `aws:*` — AWS service icons (e.g., `aws:s3`, `aws:rds`, `aws:ecs`, `aws:lambda`)
 - `gcp:*` — Google Cloud icons
 - `azure:*` — Azure icons
-- `network:*` — Network/infrastructure icons
+- `net:*` — Network/infrastructure icons
 - `ui:*` — Generic UI icons (e.g., `ui:user`, `ui:server`)
+- `tech:*` — Technology icons (e.g., `tech:react`, `tech:postgresql`)
+- `security:*` — Security icons
+- `data:*` — Data/analytics icons
 
 Icons are synced from [simple-icons](https://simpleicons.org) and [heroicons](https://heroicons.com) via `pnpm sync:icons` in the monorepo.
 

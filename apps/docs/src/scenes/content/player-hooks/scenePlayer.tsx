@@ -17,34 +17,41 @@ import { Callout } from '../../../components/ui/Callout';
 function ScenePlayerContent(): JSX.Element {
   return (
     <DocPanel slideInBy={0.3}>
-      <h1 style={{ fontSize: 'var(--font-size-3xl)', margin: '0 0 8px', fontWeight: 700 }}>ScenePlayer &amp; EngineProvider</h1>
+      <h1 style={{ fontSize: 'var(--font-size-3xl)', margin: '0 0 8px', fontWeight: 700 }}>EngineProvider</h1>
       <p style={{ fontSize: 'var(--font-size-base)', lineHeight: 1.65, color: 'var(--text-secondary)', margin: '0 0 20px' }}>
-        <code>ScenePlayer</code> is the full-page scroll entry point. It creates a sticky canvas,
-        wires scroll-driven progress, and renders overlay content. For custom layouts, use{' '}
-        <code>EngineProvider</code> + <code>SceneCanvas</code> + <code>EngineOverlayHost</code>.
+        <code>EngineProvider</code> is the composable engine entry point. It creates the Three.js
+        engine, wires scroll-driven progress, and provides engine context to all children. Compose
+        it with <code>EngineInputRegion</code>, <code>SceneCanvas</code>, and{' '}
+        <code>EngineOverlayHost</code> for full-page or custom-layout scenes.
       </p>
 
-      <h2 style={{ fontSize: 'var(--font-size-2xl)', margin: '0 0 10px' }}>ScenePlayer</h2>
+      <h2 style={{ fontSize: 'var(--font-size-2xl)', margin: '0 0 10px' }}>Basic usage</h2>
       <CodeBlock
         language="tsx"
-        code={`import { ScenePlayer, createDefaultWidgetRegistry } from '@brewsite/core';
+        code={`import {
+  EngineProvider, EngineInputRegion, SceneCanvas,
+  EngineOverlayHost, corePlugin,
+} from '@brewsite/core';
 
-// Module-level — never inline
-const widgetSetup = () => createDefaultWidgetRegistry(null);
+// Module-level — never inline inside the component
+const PLUGINS = [corePlugin({ onSceneChange: (id) => console.log(id) })];
 
 export default function MyPage() {
   return (
-    <ScenePlayer
+    <EngineProvider
       id="my-player"
       manifestUrl="/scene-manifest.json"
-      widgetSetup={widgetSetup}
+      plugins={PLUGINS}
       quality="balanced"
       pixelsPerScene={800}
-      onSceneChange={(sceneId) => console.log(sceneId)}
     >
       {scene01}
       {scene02}
-    </ScenePlayer>
+      <EngineInputRegion>
+        <SceneCanvas />
+        <EngineOverlayHost />
+      </EngineInputRegion>
+    </EngineProvider>
   );
 }`}
       />
@@ -53,23 +60,22 @@ export default function MyPage() {
       <PropTable
         rows={[
           { name: 'manifestUrl',    type: 'string', required: true, description: 'Path to asset manifest JSON' },
-          { name: 'id',             type: 'string', description: 'Player ID — required for useSceneEngineState(id)' },
+          { name: 'plugins',        type: 'WidgetPlugin[]', required: true, description: 'Widget plugins — use corePlugin() for built-in widgets' },
+          { name: 'id',             type: 'string', description: 'Engine ID — required for useSceneEngineState(id)' },
           { name: 'quality',        type: "'performance' | 'balanced' | 'high'", defaultValue: "'balanced'", description: '30 / 60 / 120 framesPerTick' },
           { name: 'pixelsPerScene', type: 'number', defaultValue: '800', description: 'Scroll pixels per scene transition' },
-          { name: 'widgetSetup',    type: 'function', description: 'Widget registry factory; defaults to createDefaultWidgetRegistry' },
-          { name: 'onSceneChange',  type: '(id, index) => void', description: 'Fires on scene transition' },
           { name: 'controlledProgress', type: 'number', description: 'External progress [0..1] override (disables scroll)' },
         ]}
       />
 
-      <h2 style={{ fontSize: 'var(--font-size-2xl)', margin: '20px 0 10px' }}>EngineProvider (custom layout)</h2>
+      <h2 style={{ fontSize: 'var(--font-size-2xl)', margin: '20px 0 10px' }}>Custom layout</h2>
       <CodeBlock
         language="tsx"
         code={`import { EngineProvider, SceneCanvas, EngineOverlayHost } from '@brewsite/core';
 
 function DocsPage() {
   return (
-    <EngineProvider id="docs" manifestUrl="/manifest.json" quality="balanced">
+    <EngineProvider id="docs" manifestUrl="/manifest.json" quality="balanced" plugins={PLUGINS}>
       <Scene key="intro">...</Scene>
       <Scene key="detail">...</Scene>
 

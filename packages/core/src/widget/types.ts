@@ -4,7 +4,15 @@ import type { ElementTransitionSpec, FunctionalTransitionSpec } from '../compile
 import type { SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
 import type { RealtimeClock } from '../runtime/types';
 
-type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
+/**
+ * Minimal asset manifest type. Extended by @brewsite/model with model-specific fields.
+ * Passed to ILoadable.load() when the manifest has been fetched.
+ */
+export type AssetManifest = {
+  readonly version: number;
+  readonly models: unknown[];
+  readonly animations: unknown[];
+};
 
 export interface IWidget {
   readonly widgetId: string;
@@ -25,13 +33,15 @@ export interface ISceneElement<TState, TExtra = void> extends IWidget {
    */
   readonly transitionSpec: ElementTransitionSpec<TState> | FunctionalTransitionSpec<TState>;
   /**
-   * The DSL React component for this widget.
+   * The React DSL component for this widget.
    *
-   * Typed as ComponentType<any> because the registry is intentionally heterogeneous -
-   * each registered widget has a different prop type for its DSL component.
-   * DSL prop safety is enforced at each component's own props type.
+   * Typed as `ComponentType<any>` because the registry is intentionally heterogeneous —
+   * each registered widget provides a different component with different prop types.
+   * Prop safety is enforced at each component's own type definition (CameraProps,
+   * LightingProps, etc.), not here. Narrowing this type with a generic would propagate
+   * a TProps type parameter through the entire registry without adding safety.
    */
-  readonly DslComponent: React.ComponentType<any>;
+  readonly DslComponent: React.ComponentType<any>; // intentional: see JSDoc
   compileExtra?(state: TState, context: CompileExtraContext): TExtra;
   /**
    * When true, the DSL component requires a string "type" prop to route.
@@ -57,15 +67,61 @@ export interface ILoadable extends IWidget {
   readonly isLoaded: boolean;
 }
 
-export interface IRenderable<TState> extends IWidget {
+export interface IRenderable<TState, TExtra = unknown> extends IWidget {
   initialize(context: WidgetInitContext): void;
-  apply(state: TState, context: WidgetRenderContext): void;
+  apply(state: TState, context: WidgetRenderContext<TExtra>): void;
   dispose(): void;
 }
 
+/**
+ * Opts a widget into the per-frame tick loop. Called once per rendered frame
+ * during the animation phase, before IRenderable.apply().
+ *
+ * Use cases include (but are not limited to):
+ * - Advancing AnimationMixer for GLTF animations
+ * - Physics simulation steps
+ * - Procedural motion (oscillation, spring physics)
+ * - Publishing derived state to the VariableStore
+ * - Per-frame input processing
+ *
+ * Despite the name, this interface is not limited to animation. It is the
+ * general-purpose per-frame side-effect hook.
+ */
 export interface IAnimationController extends IWidget {
   readonly tickPriority?: number;
   onTick(context: AnimationTickContext): void;
+}
+
+/**
+ * Optional lifecycle interface for widgets that need to respond to scene transitions
+ * at runtime. Implement this to reset per-scene state, restart animations, or clean
+ * up Three.js objects that should not carry between scenes.
+ *
+ * Both methods are called synchronously during the tick loop when the scene index changes.
+ * Do not perform heavy work here — defer to the next apply() call if needed.
+ *
+ * @example
+ * class ParticleWidget implements IRenderable<ParticleState>, ISceneLifecycle {
+ *   onSceneExit(sceneId: string, sceneIndex: number): void {
+ *     this.particleSystem.reset();
+ *   }
+ *   onSceneEnter(sceneId: string, sceneIndex: number): void {
+ *     this.accumulator = 0;
+ *   }
+ * }
+ */
+export interface ISceneLifecycle extends IWidget {
+  /**
+   * Called when the engine transitions away from the scene with the given id.
+   * Fires before onSceneEnter for the next scene.
+   */
+  onSceneExit(sceneId: string, sceneIndex: number): void;
+
+  /**
+   * Called when the engine transitions into the scene with the given id.
+   * Fires after onSceneExit for the previous scene.
+   */
+  onSceneEnter(sceneId: string, sceneIndex: number): void;
 }
 
 export interface ICameraActionTarget extends IWidget {
@@ -184,7 +240,7 @@ export type WidgetInitContext = {
   renderer?: WebGLRenderer;
 };
 
-export type WidgetRenderContext = {
+export type WidgetRenderContext<TExtra = unknown> = {
   /**
    * Synchronized real-time clock. Same values every widget sees every frame.
    * Use clock.wallTimeSeconds for ambient oscillations.
@@ -198,7 +254,12 @@ export type WidgetRenderContext = {
   effectiveDeltaSeconds: number;
   globalProgress: number;
   variables: VariableStoreReader;
-  extra: unknown;
+  /**
+   * Compiled extra data from ISceneElement.compileExtra().
+   * Typed as TExtra when the widget implements ISceneElement<TState, TExtra>.
+   * Unknown when consumed from a generic context.
+   */
+  extra: TExtra;
   /** Current tick snapshot (if available). */
   tick?: SceneTrackTick | null;
   // REMOVED: deltaSeconds — use clock.deltaSeconds or effectiveDeltaSeconds

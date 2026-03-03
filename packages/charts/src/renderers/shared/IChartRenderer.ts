@@ -40,6 +40,7 @@ export type ChartRenderContext = {
   readonly bounds: { readonly width: number; readonly height: number; readonly depth: number };
   readonly theme: ChartTheme;
   readonly opacity: number;
+  readonly innerRadius: number;
 };
 
 /**

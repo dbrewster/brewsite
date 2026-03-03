@@ -4,9 +4,7 @@
 import {
   useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type ReactElement,
 } from 'react';
-import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import { WidgetRegistry as WidgetRegistryClass } from '../widget/WidgetRegistry';
-import { createDefaultWidgetRegistry } from './defaultWidgets';
 import type { WidgetPlugin } from '../widget/WidgetPlugin';
 import { useSceneEngine } from './useSceneEngine';
 import { EngineContext } from './EngineContext';
@@ -14,14 +12,12 @@ import { EngineStateContext } from './EngineStateContext';
 import { VariableStoreContext } from '../widget/VariableStoreContext';
 import { SceneRegistrationContext } from '../compiler/SceneRegistrationContext';
 import type { SceneRegistrationValue } from '../compiler/SceneRegistrationContext';
-import { clearCache } from '../compiler/sceneTrackCache';
 import { serializeJsx } from './serializeJsx';
 import {
   setSceneRuntimeState,
   setEngineSnapshot,
   unregisterSceneRuntime,
 } from './ScenePlayerRegistry';
-import { SceneMetaWidget } from './SceneMetaWidget';
 import type {
   CameraInteractionDefaults,
   EngineTimingProfile,
@@ -31,9 +27,7 @@ import type {
 } from './engineTypes';
 import type { SceneNavInputMap } from '../input/types';
 import type { CompileWarning } from '../compiler/sceneTrackTypes';
-
-/** Minimal asset manifest type for backward compat. Full type lives in @brewsite/model. */
-type AssetManifest = { version: number; models: unknown[]; animations: unknown[] };
+import type { AssetManifest } from '../widget/types';
 
 export type EngineProviderProps = {
   /** When provided, registers engine state in the global registry for useSceneEngineState(id). */
@@ -44,17 +38,10 @@ export type EngineProviderProps = {
    * Evaluated in array order. Use corePlugin() from @brewsite/core for built-in
    * widgets, and modelPlugin() from @brewsite/model for model and label support.
    *
-   * When provided, `widgetSetup` is ignored (plugins wins).
-   *
    * @example
    * plugins={[corePlugin(), modelPlugin({ manifestUrl: '/assets/manifest.json' })]}
    */
   plugins?: WidgetPlugin[];
-  /**
-   * @deprecated Use `plugins` instead. Will be removed in the next major version.
-   * Provides backward compatibility for existing widgetSetup-based integrations.
-   */
-  widgetSetup?: (manifest: AssetManifest) => WidgetRegistry;
   timingProfile?: EngineTimingProfile;
   inputModePolicy?: InputModePolicy;
   primaryCameraId?: string;
@@ -85,11 +72,6 @@ export type EngineProviderProps = {
   onManifestError?: (error: Error) => void;
   onWidgetError?: (widgetId: string, error: Error) => void;
   onCompileWarning?: (warnings: CompileWarning[]) => void;
-  onSceneChange?: (sceneId: string, sceneIndex: number) => void;
-  /**
-   * @deprecated Model states are now managed by modelPlugin({ defaultModelStates }) from @brewsite/model.
-   */
-  defaultModelStates?: Partial<Record<string, Partial<Record<string, unknown>>>>;
   inputMap?: SceneNavInputMap;
   controlledProgress?: number;
   onControlledProgressChange?: (p: number) => void;
@@ -159,16 +141,21 @@ export const EngineProvider = (props: EngineProviderProps): ReactElement => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.manifestUrl]);
 
-  // Cache cleanup on unmount
-  useEffect(() => () => clearCache(), []);
-
   const widgetRegistry = useMemo(() => {
-    // Plugins path: register handlers, create registry, register widgets.
-    if (props.plugins && props.plugins.length > 0) {
+    if (!props.plugins || props.plugins.length === 0) {
+      console.error(
+        '[BrewSite] EngineProvider requires a `plugins` prop. ' +
+        'Pass plugins={[corePlugin(), ...]} to configure the engine.',
+      );
+    }
+    // Register handlers, create registry, register widgets.
+    if (props.plugins) {
       for (const plugin of props.plugins) {
         plugin.registerHandlers();
       }
-      const reg = new WidgetRegistryClass({ strict: true });
+    }
+    const reg = new WidgetRegistryClass({ strict: true });
+    if (props.plugins) {
       for (const plugin of props.plugins) {
         for (const widget of plugin.createWidgets()) {
           reg.register(widget);
@@ -176,24 +163,13 @@ export const EngineProvider = (props: EngineProviderProps): ReactElement => {
         // Optional per-plugin registry configuration (type factories, manifest wiring, etc.)
         plugin.configureRegistry?.(reg, manifest ?? null);
       }
-      return reg;
     }
-    // Legacy path: widgetSetup or createDefaultWidgetRegistry
-    if (!manifest) return createDefaultWidgetRegistry(null, { defaultModelStates: props.defaultModelStates });
-    return props.widgetSetup
-      ? props.widgetSetup(manifest)
-      : createDefaultWidgetRegistry(manifest, { defaultModelStates: props.defaultModelStates });
+    return reg;
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [manifest, props.plugins, props.widgetSetup, props.defaultModelStates]);
+  }, [manifest, props.plugins]);
 
-  // Wire onSceneChange to the SceneMetaWidget
-  useEffect(() => {
-    const metaWidget = widgetRegistry.get('__scene_meta__');
-    if (metaWidget && typeof (metaWidget as SceneMetaWidget).setOnSceneChange === 'function') {
-      (metaWidget as SceneMetaWidget).setOnSceneChange(props.onSceneChange);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [widgetRegistry, props.onSceneChange]);
+  // onSceneChange must be wired via corePlugin({ onSceneChange }) — not directly on EngineProvider.
+  // This keeps SceneMetaWidget internal to the corePlugin and out of the provider's concerns.
 
   const resolvedTimingProfile: EngineTimingProfile = {
     fpsCap: props.timingProfile?.fpsCap ?? props.fpsCap,
@@ -262,6 +238,7 @@ export const EngineProvider = (props: EngineProviderProps): ReactElement => {
   }, [id, engine.frameState, engine.progress]);
 
   const engineState = useMemo(() => ({
+    tickIndex: engine.frameState.tickIndex,
     progress: engine.progress,
     sceneId: engine.frameState.sceneId,
     sceneIndex: engine.frameState.sceneIndex,

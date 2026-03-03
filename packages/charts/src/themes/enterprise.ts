@@ -25,4 +25,15 @@ export const enterpriseChartTheme: ChartTheme = {
     planeOpacity: 1.0,
     gridColor: '#e2e8f0',
   },
+  legend: {
+    textColor: '#444466',
+    fontSize: 0.09,
+    swatchSize: 0.08,
+    spacing: 0.14,
+  },
+  interaction: {
+    hoverColor: '#2255cc',
+    hoverEmissiveIntensity: 0.3,
+    selectedColor: '#ff6600',
+  },
 };
