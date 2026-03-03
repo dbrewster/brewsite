@@ -8,7 +8,14 @@ import type { Vec3 } from '@brewsite/core';
 
 const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
-const tags = ['Narrative First', 'Animate The Why', 'Decision Clarity', 'Technical Depth'];
+const tags = ['Declarative', 'Scroll-Driven', 'TypeScript-First', 'SSR-Safe', 'Mobile-Ready'];
+
+const snippetCode = `// before
+<DiagramNode id="api" label="API Gateway" position={[0, 0, 0]} />
+
+// after
+<DiagramNode id="api" label="API Gateway" position={[0, 6, 0]} />
+<DiagramEdge from="api" to="db" flow="forward" />`;
 
 export const scene02CoreBaked: JSX.Element = (
   <Scene id="website-presentation-02" transition={LATE_FADE}>
@@ -93,7 +100,7 @@ export const scene02CoreBaked: JSX.Element = (
           color: 'rgba(0,245,255,0.58)',
           marginBottom: 12,
         }}>
-          Slide Two: Build The Full Argument
+          @brewsite/core
         </div>
       </MidFade>
       <ScrollOn duration={800} delay={80}>
@@ -102,13 +109,41 @@ export const scene02CoreBaked: JSX.Element = (
           fontWeight: 600,
           color: '#f0f6fc',
           lineHeight: 1.3,
-          marginBottom: 18,
+          marginBottom: 12,
         }}>
-          Go from one idea to stakeholder-ready narrative<br />
-          without leaving the same scene system.
+          Describe the state.<br />Ship the transition.
+        </p>
+      </ScrollOn>
+      <ScrollOn duration={700} delay={130}>
+        <p style={{
+          fontSize: 'clamp(14px, 1.6vw, 16px)',
+          color: 'rgba(240,246,252,0.6)',
+          lineHeight: 1.6,
+          marginBottom: 16,
+        }}>
+          Author each scene as a JSX snapshot.<br />
+          BrewSite animates everything between them.
         </p>
       </ScrollOn>
       <ScrollOn duration={700} delay={170}>
+        <pre style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 'clamp(11px, 1.2vw, 13px)',
+          lineHeight: 1.7,
+          color: '#00f5ff',
+          background: 'rgba(0,245,255,0.04)',
+          border: '1px solid rgba(0,245,255,0.15)',
+          borderRadius: 6,
+          padding: 16,
+          maxWidth: 400,
+          margin: '0 auto 16px',
+          textAlign: 'left',
+          whiteSpace: 'pre-wrap',
+        }}>
+          {snippetCode}
+        </pre>
+      </ScrollOn>
+      <ScrollOn duration={700} delay={220}>
         <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 10 }}>
           {tags.map((tag) => (
             <span key={tag} style={{

@@ -11,6 +11,12 @@ import { dwellFn } from '../../utils/pacing';
 
 const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
+const snippetCode = `<ModelRouter type="Worker" id="worker" scale={6}>
+  <Playback>
+    <Animation clipName="idle" weight={1} />
+  </Playback>
+</ModelRouter>`;
+
 export const scene01ModelWide: JSX.Element = (
   <Scene id="website-model-01" transition={LATE_FADE}>
     <ProgressManager
@@ -41,20 +47,15 @@ export const scene01ModelWide: JSX.Element = (
       <Directional intensity={0.25} color="#aaccff" position={[-10, 8, 5]} />
     </Lighting>
 
-    {/* Top-left: @brewsite/model headline */}
-    <div style={{
-      position: 'absolute',
-      top: '8%',
-      left: '5%',
-    }}>
+    <div style={{ position: 'absolute', bottom: '8%', left: '5%', maxWidth: 420 }}>
       <MidFade duration={1200}>
         <div style={{
           fontFamily: 'JetBrains Mono, monospace',
           fontSize: 10,
           letterSpacing: '0.3em',
           textTransform: 'uppercase' as const,
-          color: 'rgba(240,246,252,0.4)',
-          marginBottom: 10,
+          color: 'rgba(0,245,255,0.6)',
+          marginBottom: 12,
         }}>
           @brewsite/model
         </div>
@@ -63,52 +64,36 @@ export const scene01ModelWide: JSX.Element = (
           fontWeight: 600,
           color: '#f0f6fc',
           lineHeight: 1.25,
+          marginBottom: 16,
         }}>
-          Drop a GLTF.<br />Animate the world.
+          One tag.<br />One fully lit character.
         </div>
       </MidFade>
-    </div>
-
-    {/* Top-right: PBR materials detail */}
-    <div style={{
-      position: 'absolute',
-      top: '8%',
-      right: '5%',
-      textAlign: 'right' as const,
-      maxWidth: 300,
-    }}>
-      <MidFade duration={900}>
-        <div style={{
+      <ScrollOn duration={700} delay={100}>
+        <pre style={{
           fontFamily: 'JetBrains Mono, monospace',
-          fontSize: 10,
-          letterSpacing: '0.3em',
-          textTransform: 'uppercase' as const,
-          color: 'rgba(255,102,0,0.7)',
-          marginBottom: 10,
+          fontSize: 'clamp(11px, 1.2vw, 13px)',
+          lineHeight: 1.7,
+          color: '#00f5ff',
+          background: 'rgba(0,245,255,0.04)',
+          border: '1px solid rgba(0,245,255,0.15)',
+          borderRadius: 6,
+          padding: 16,
+          maxWidth: 400,
+          margin: '0 0 16px',
+          whiteSpace: 'pre-wrap',
         }}>
-          GLTF · PBR Materials
-        </div>
-      </MidFade>
-      <ScrollOn duration={1000} delay={80}>
-        <div style={{
-          fontSize: 'clamp(18px, 2.5vw, 24px)',
-          fontWeight: 600,
-          color: '#f0f6fc',
-          lineHeight: 1.3,
-          marginBottom: 8,
-        }}>
-          Physically Based.<br />Floor-to-ceiling.
-        </div>
+          {snippetCode}
+        </pre>
       </ScrollOn>
       <ScrollOn duration={900} delay={200}>
         <div style={{
           fontSize: 'clamp(13px, 1.5vw, 15px)',
-          color: 'rgba(240,246,252,0.55)',
+          color: 'rgba(240,246,252,0.6)',
           lineHeight: 1.6,
         }}>
-          Metalness, roughness, normals —<br />
-          the renderer handles it.<br />
-          You handle the story.
+          Materials, shadows, environment — the renderer handles all of it.<br />
+          Drop any GLTF. Animate the world.
         </div>
       </ScrollOn>
     </div>

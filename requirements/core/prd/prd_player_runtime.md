@@ -75,7 +75,7 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 
 ## 4. Non-Goals
 
-- `ScenePlayer` does not manage routing, page layout, or CSS beyond what is needed for Three.js canvas sizing.
+- `EngineProvider` does not manage routing, page layout, or CSS beyond what is needed for Three.js canvas sizing.
 - The Player layer does not expose a public Three.js `Scene` or `Camera` reference in the standard consumption pattern. Consumer access to engine internals is available via `useSceneEngineContext` for advanced use cases only, and is considered an escape hatch.
 - Audio synchronization is out of scope for the Player layer.
 - The Runtime layer does not implement physics, collision detection, or pathfinding. These belong in widget `IAnimationController` implementations.
@@ -89,7 +89,7 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 - As a toolkit consumer, I want to declare a scene in JSX and mount `<EngineProvider>` with composable layout primitives so that my three.js scene renders without writing any imperative Three.js setup code.
 - As a toolkit consumer, I want to use `useCurrentScene()` to reactively update a nav indicator so that my UI reflects the active scene without wiring custom event listeners.
 - As a toolkit consumer, I want `<EngineInputRegion>` to handle scroll, drag, wheel, and keyboard input so that my scene transitions as the user navigates.
-- As a toolkit consumer, I want `useVariable('scene', 'id')` inside any component nested under `<ScenePlayer>` so that I can build reactive overlays driven by scene metadata.
+- As a toolkit consumer, I want `useVariable('scene', 'id')` inside any component nested under `<EngineProvider>` so that I can build reactive overlays driven by scene metadata.
 - As a toolkit consumer, I want to mount `<TimelineWidget>` inside `<EngineProvider>` so that I get a scrubbing timeline for development and debugging without additional code.
 - As a server-side rendering host, I want `<EngineGate>` to render the `placeholder` prop during SSR and until the engine's first tick so that my page has no layout shift and no hydration mismatch.
 
@@ -208,10 +208,10 @@ const EngineGate: React.FC<EngineGateProps>;
 
 **On mount:**
 6. Starts manifest fetch from `manifestUrl`. On success, calls `assertManifestValid(raw)` and stores the result.
-7. Constructs `WidgetRegistry` via `widgetSetup(manifest)` inside `useMemo`.
+7. Constructs `WidgetRegistry` by invoking each plugin via `IWidgetPlugin.register(registry, manifest)` inside `useMemo`.
 8. Constructs a `LabelPositioner` instance and a `VariableStore` instance (both stable across re-renders).
 9. Calls `useSceneEngine` with the registry, manifest, clip metadata, `scenes`, and configuration options.
-10. Wires `SceneMetaWidget.setOnSceneChange` to the `onSceneChange` prop.
+10. `SceneMetaWidget` (registered by `corePlugin()`) fires scene change callbacks via its own internal wiring.
 11. Renders the full context provider tree: `VariableStoreContext`, `LabelPositionerContext`, `EngineStateContext`, `EngineContext`.
 12. Renders `EngineInputRegion` as the primary viewport container.
 13. Renders `SceneCanvas`, `EngineOverlayHost`, `LabelItem` elements, optional `TimelineWidget`, and overlay children inside the input region.
@@ -226,7 +226,7 @@ On server (SSR), `EngineProvider` short-circuits at `typeof window === 'undefine
 
 ## 7A. Composable Player Primitives
 
-The three composable player primitives allow host applications to construct custom canvas layouts without using `ScenePlayer`. Each primitive is independently exported from `@brewsite/core`.
+The composable player primitives allow host applications to construct custom canvas layouts. Each primitive is independently exported from `@brewsite/core`.
 
 ### 7A.1 EngineProvider
 
@@ -391,7 +391,7 @@ const useSceneEngineState = (id: string): SceneEngineSnapshot | null;
 
 **Update frequency:** Updates on every tick index change (same cadence as `EngineStateContext`). Does not update on every animation frame.
 
-**Null behavior:** Returns `null` when no `<ScenePlayer id={id}>` or `<EngineProvider id={id}>` has registered. Callers must handle the null case.
+**Null behavior:** Returns `null` when no `<EngineProvider id={id}>` has registered. Callers must handle the null case.
 
 **Example:**
 ```typescript
@@ -479,7 +479,7 @@ Widget authoring guidance:
 
 ## 8. useSceneEngine Hook
 
-`useSceneEngine` is the stateful hook that owns the Three.js engine lifecycle. It is called by `ScenePlayer` internally and is not intended for direct use by host applications in the standard integration pattern. It is exported for advanced consumers who need to compose the engine with custom container components.
+`useSceneEngine` is the stateful hook that owns the Three.js engine lifecycle. It is called by `EngineProvider` internally and is not intended for direct use by host applications in the standard integration pattern. It is exported for advanced consumers who need to compose the engine with custom container components.
 
 ### 8.1 Options
 
@@ -540,7 +540,7 @@ type UseSceneEngineResult = {
   getCameraOverride: () => CameraOverrideState | null;
   /**
    * Pauses or resumes idle auto-advance for all scenes in this engine instance.
-   * Instance-scoped: does not affect other ScenePlayer instances on the same page.
+   * Instance-scoped: does not affect other EngineProvider instances on the same page.
    * When paused: true, the auto-advance clock is frozen regardless of idle state.
    * When paused: false, the clock resumes from where it stopped.
    * Typical use: pause when a modal opens, resume when it closes.
@@ -579,13 +579,13 @@ type UseSceneEngineResult = {
 
 **`setBackgroundRef`** — Callback ref for the background div element. Wired to `BackgroundWidget` if registered, enabling DOM-level background color/image transitions.
 
-**`setViewportSize(width, height)`** — Called by `EngineScrollRegion` / `EngineInputRegion` on mount and on resize. Updates renderer size, camera aspect ratio, and label positioner container size.
+**`setViewportSize(width, height)`** — Called by `EngineInputRegion` on mount and on resize. Updates renderer size, camera aspect ratio, and label positioner container size.
 
 **`setCameraOverride` / `getCameraOverride`** — Set and get a `CameraOverrideState` that is applied by `CameraWidget` each frame, overriding the compiled camera state. Used by camera orbit/dolly interaction handlers.
 
-**`setAutoAdvancePaused(paused)`** — Pauses or resumes idle auto-advance for all scenes in this engine instance. Instance-scoped: does not affect other `ScenePlayer` instances on the same page. When `paused: true`, the auto-advance clock is frozen regardless of idle state; when `paused: false`, the clock resumes from where it stopped. Use this to pause auto-advance while a modal or overlay is open, then resume when it closes.
+**`setAutoAdvancePaused(paused)`** — Pauses or resumes idle auto-advance for all scenes in this engine instance. Instance-scoped: does not affect other `EngineProvider` instances on the same page. When `paused: true`, the auto-advance clock is frozen regardless of idle state; when `paused: false`, the clock resumes from where it stopped. Use this to pause auto-advance while a modal or overlay is open, then resume when it closes.
 
-**`debug`** — Development diagnostic object. Contains `driverReady`, `assetsReady`, `sceneTrackTicks`, and viewport dimensions. Used internally by `ScenePlayer` to publish `SceneRuntimeState` to the `ScenePlayerRegistry`. Not intended for direct use by consumers.
+**`debug`** — Development diagnostic object. Contains `driverReady`, `assetsReady`, `sceneTrackTicks`, and viewport dimensions. Used internally by `EngineProvider` to publish `SceneRuntimeState` to the `ScenePlayerRegistry`. Not intended for direct use by consumers.
 
 ### 8.3 EngineFrameState
 
@@ -787,7 +787,7 @@ This design ensures React re-renders from the animation loop are proportional to
 
 ### 12.1 serializeJsx
 
-`serializeJsx` is an internal utility used by `ScenePlayer` to detect scene content changes between renders. It is not exported from the player public API.
+`serializeJsx` is an internal utility used by `EngineProvider` to detect scene content changes between renders. It is not exported from the player public API.
 
 ```typescript
 // packages/core/src/player/serializeJsx.ts — internal
@@ -809,7 +809,7 @@ Converts a JSX element tree to a stable, deterministic string for cache key comp
 
 ### 12.2 ScenePlayerRegistry
 
-`ScenePlayerRegistry` is a module-level registry that enables `useSceneRuntime()` to read engine-internal state from outside the `<ScenePlayer>` React subtree. It is not exported from the player public API.
+`ScenePlayerRegistry` is a module-level registry that enables `useSceneRuntime()` to read engine-internal state from outside the `<EngineProvider>` React subtree. It is not exported from the player public API.
 
 ```typescript
 // packages/core/src/player/ScenePlayerRegistry.ts — internal
@@ -825,12 +825,12 @@ export type SceneRuntimeState = {
   readonly numScenes: number;
 };
 
-// Published by ScenePlayer when id prop is set
+// Published by EngineProvider when id prop is set
 export const setSceneRuntimeState: (id: string, state: SceneRuntimeState) => void;
 export const getSceneRuntimeState: (id: string) => SceneRuntimeState;
 export const subscribeSceneRuntime: (id: string, listener: () => void) => () => void;
 export const unregisterSceneRuntime: (id: string) => void;
-// Dev-mode check: returns true if a ScenePlayer with this id has registered
+// Dev-mode check: returns true if an EngineProvider with this id has registered
 export const hasRegisteredPlayer: (id: string) => boolean;
 ```
 
@@ -842,17 +842,17 @@ export const hasRegisteredPlayer: (id: string) => boolean;
 export const useSceneRuntime = (playerId: string): SceneRuntimeState;
 ```
 
-Reads reactive runtime state published by `<ScenePlayer id={playerId}>`. Uses `useSyncExternalStore` for concurrent-mode safety. When `assetsReady`, viewport, `variables`, or `numScenes` change, subscribers re-render automatically.
+Reads reactive runtime state published by `<EngineProvider id={playerId}>`. Uses `useSyncExternalStore` for concurrent-mode safety. When `assetsReady`, viewport, `variables`, or `numScenes` change, subscribers re-render automatically.
 
 **Recompile flow:**
 1. Assets finish loading → `engine.debug.assetsReady` → `true`
-2. ScenePlayer's publish effect fires → `setSceneRuntimeState` → notifies listeners
+2. EngineProvider's publish effect fires → `setSceneRuntimeState` → notifies listeners
 3. Parent component re-renders via `useSceneRuntime`
 4. New JSX produces different `contentKey` via `serializeJsx`
 5. `sceneContentKey` changes → `useMemo` fires → new `scenes` reference
 6. Compilation effect fires → cache miss → `compileSceneTrack` → new `SceneTrack`
 
-**Dev-mode footgun warning:** If `useSceneRuntime(id)` is called but no `<ScenePlayer id={id}>` registers within 1000ms, a `console.warn` is emitted. Gated on `process.env.NODE_ENV !== 'production'`.
+**Dev-mode footgun warning:** If `useSceneRuntime(id)` is called but no `<EngineProvider id={id}>` registers within 1000ms, a `console.warn` is emitted. Gated on `process.env.NODE_ENV !== 'production'`.
 
 ## 13. Consumer Hooks
 
@@ -974,7 +974,7 @@ return (
 const useEngineState = (): EngineState
 ```
 
-Returns the full `EngineState` (`progress`, `sceneId`, `sceneIndex`, `sceneProgress`) from `EngineStateContext`. Throws if called outside `<ScenePlayer>`. Used internally by `useSceneProgress` and `useCurrentScene`. Direct use is appropriate for custom overlays that need multiple state values.
+Returns the full `EngineState` (`progress`, `sceneId`, `sceneIndex`, `sceneProgress`) from `EngineStateContext`. Throws if called outside `<EngineProvider>`. Used internally by `useSceneProgress` and `useCurrentScene`. Direct use is appropriate for custom overlays that need multiple state values.
 
 ---
 
@@ -1004,7 +1004,7 @@ type EngineState = {
 };
 ```
 
-Updated by `ScenePlayer` via `useMemo` from `engine.progress` and `engine.frameState`. Consumed by `useEngineState`, `useSceneProgress`, and `useCurrentScene`. The context value is a new object reference on every tick index change — memo comparisons on this context value must compare individual fields, not the object reference.
+Updated by `EngineProvider` via `useMemo` from `engine.progress` and `engine.frameState`. Consumed by `useEngineState`, `useSceneProgress`, and `useCurrentScene`. The context value is a new object reference on every tick index change — memo comparisons on this context value must compare individual fields, not the object reference.
 
 ### 14.2 VariableStoreContext
 
@@ -1023,7 +1023,7 @@ Provides the `VariableStore` instance to all components in the tree. Consumed by
 ```typescript
 const LabelPositionerContext = createContext<LabelPositioner | null>(null);
 
-const useLabelPositioner = (): LabelPositioner  // throws if outside ScenePlayer
+const useLabelPositioner = (): LabelPositioner  // throws if outside EngineProvider
 ```
 
 Provides the `LabelPositioner` instance to `LabelItem` components. The positioner is stable for the engine lifetime. `LabelItem` components call `positioner.registerElement(id, el)` on mount/unmount to register their DOM elements for per-frame positioning updates.
@@ -1033,7 +1033,7 @@ Provides the `LabelPositioner` instance to `LabelItem` components. The positione
 ```typescript
 const EngineContext = createContext<UseSceneEngineResult | null>(null);
 
-const useSceneEngineContext = (): UseSceneEngineResult  // throws if outside ScenePlayer
+const useSceneEngineContext = (): UseSceneEngineResult  // throws if outside EngineProvider
 ```
 
 Provides the full `UseSceneEngineResult` to advanced consumers. Used by `CameraControlPanel` (needs `getCamera()`, `setCameraOverride()`). Not intended for standard host application use — it exposes the engine's internals. Prefer `useCurrentScene`, `useSceneProgress`, and `useVariable` for normal UI integration.
@@ -1148,7 +1148,7 @@ It reads `getCamera()` and `setCameraOverride()` from `useSceneEngineContext`. T
 
 ## 19. SceneInspector
 
-`SceneInspector` is a development-only overlay component that provides scene navigation and progress visibility directly in the browser. It is conditionally rendered by `ScenePlayer` when the `debug` prop is `true`.
+`SceneInspector` is a development-only overlay component that provides scene navigation and progress visibility directly in the browser. Mount it inside `<EngineProvider>` for debug builds.
 
 ```typescript
 // Exported from @brewsite/core/player
@@ -1162,12 +1162,12 @@ export type { SceneInspectorProps } from './SceneInspector';
 
 **Integration:**
 ```tsx
-<ScenePlayer debug={process.env.NODE_ENV === 'development'} ...>
+<EngineProvider manifestUrl="/manifest.json" plugins={PLUGINS} ...>
+  {process.env.NODE_ENV === 'development' && <SceneInspector />}
   ...
-</ScenePlayer>
 ```
 
-`SceneInspector` reads from `EngineStateContext` (same source as `useCurrentScene`, `useSceneProgress`). It receives the `scenes: InternalSceneSpec[]` array from `ScenePlayer` to render the scene key list.
+`SceneInspector` reads from `EngineStateContext` (same source as `useCurrentScene`, `useSceneProgress`). It reads the `scenes: InternalSceneSpec[]` array via `EngineContext` to render the scene key list.
 
 **Tree-shaking:** When `debug` is statically `false` or absent, bundlers eliminate the import. No SceneInspector code reaches production bundles in a properly tree-shaken build.
 
@@ -1196,7 +1196,7 @@ On each tick, `SceneMetaWidget` publishes to the `'scene'` namespace:
 - `scene.progress` — `tick.blockProgress`
 - Any keys present in `tick.state.meta` (dynamic scene metadata authored via `<Scene meta={{ ... }}>`)
 
-When the `sceneId` changes, `onSceneChange(sceneId, sceneIndex)` is fired. `ScenePlayer` wires this to the `onSceneChange` prop.
+When the `sceneId` changes, `onSceneChange(sceneId, sceneIndex)` is fired. This callback is registered via `corePlugin({ onSceneChange })` options.
 
 `SceneMetaWidget` is registered by `corePlugin()` with `widgetId = '__scene_meta__'`. It is always present when `corePlugin()` is used. Registries that do not use `corePlugin()` must register it explicitly to enable `useCurrentScene`, `useSceneProgress`, and `useVariable('scene', ...)`.
 
@@ -1230,7 +1230,7 @@ Extracts `ClipMeta[]` from the manifest for use by the compiler. Each `ClipMeta`
 const assertManifestValid = (raw: unknown): AssetManifest
 ```
 
-Validates the raw JSON fetched from `manifestUrl`. Throws if the manifest is not an object with a `version` field, or if `models` / `animations` are not arrays. Used by `ScenePlayer` before storing the manifest in state.
+Validates the raw JSON fetched from `manifestUrl`. Throws if the manifest is not an object with a `version` field, or if `models` / `animations` are not arrays. Used by `EngineProvider` before storing the manifest in state.
 
 ---
 
@@ -1297,7 +1297,7 @@ For hooks (`useSceneProgress`, `useCurrentScene`, `useEngineInput`), use React T
 ## 25. Open Questions
 
 - Should `useSceneProgress()` return the full `EngineState` instead of just `number`, to avoid consumers calling both `useSceneProgress` and `useCurrentScene`? A combined hook would reduce context reads.
-- Should `ScenePlayer` accept a `ref` forwarded to the canvas element for consumers who need direct canvas access (e.g., screenshot capture)? `SceneCanvas` already supports `forwardRef` — a `ScenePlayer`-level shortcut may be warranted.
+- Should `EngineProvider` expose a way to forward a `ref` to the canvas element for consumers who need direct canvas access (e.g., screenshot capture)? `SceneCanvas` already supports `forwardRef` — a convenience shortcut may be warranted.
 - Should `debug` information in `UseSceneEngineResult` be gated behind a `__DEV__` flag to prevent any dev-only overhead in production builds?
 - Should `EngineOverlayHost` expose a `transitionDurationMs` prop to control the CSS fade-in duration on scene change, or is a CSS class override sufficient?
 - Should `useSceneEngineState` be renamed to `useEngineSnapshot` to avoid confusion with `useSceneEngine`?
@@ -1309,7 +1309,7 @@ For hooks (`useSceneProgress`, `useCurrentScene`, `useEngineInput`), use React T
 For any release that modifies the Player or Runtime public API:
 
 - All `EngineProvider`, `EngineGate`, `SceneCanvas`, and `EngineOverlayHost` prop types compile with `strict: true` and no `any`.
-- `useCurrentScene`, `useSceneProgress`, and `useVariable` pass integration tests inside a `<ScenePlayer>` wrapper.
+- `useCurrentScene`, `useSceneProgress`, and `useVariable` pass integration tests inside an `<EngineProvider>` wrapper.
 - `useSceneEngineState(id)` passes integration tests verifying: returns null before registration, returns correct snapshot after registration, returns null after unregister, updates on tick index change.
 - `RuntimeDriverImpl` unit tests cover the full tick sequence order (animation controllers before sampling before apply).
 - `RuntimeLoop` deterministic tests cover fpsCap throttling and delta clamping.

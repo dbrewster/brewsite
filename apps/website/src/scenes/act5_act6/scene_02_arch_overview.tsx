@@ -8,6 +8,15 @@ import { dwellFn } from '../../utils/pacing';
 
 const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
+const snippetCode = `<DiagramGroup id="api-tier" label="API Tier" variant="boundary">
+  <DiagramNode id="cdn" label="CloudFront" icon="aws:cloudfront" />
+  <DiagramNode id="api" label="API Gateway" icon="aws:api-gateway" />
+</DiagramGroup>
+<DiagramGroup id="compute" label="Compute" variant="boundary">
+  <DiagramNode id="ecs"    label="ECS"    icon="aws:ecs" />
+  <DiagramNode id="lambda" label="Lambda" icon="aws:lambda" />
+</DiagramGroup>`;
+
 export const scene02ArchOverview: JSX.Element = (
   <Scene id="website-arch-overview" transition={LATE_FADE}>
     <ProgressManager
@@ -70,27 +79,44 @@ export const scene02ArchOverview: JSX.Element = (
         <DiagramEdge from="ecs"     to="s3"     label="r/w"      style="dashed" flow="forward" />
       </Diagram>
     </DiagramCanvas>
+
+    {/* Top-right: stat only — no eyebrow label */}
     <div style={{ position: 'absolute', top: '6%', right: '5%', textAlign: 'right', maxWidth: 300 }}>
       <MidFade duration={1200}>
-        <div style={{
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: 10,
-          letterSpacing: '0.3em',
-          textTransform: 'uppercase',
-          color: 'rgba(240,246,252,0.4)',
-          marginBottom: 8,
-        }}>
-          Production Architecture
-        </div>
         <div style={{ fontSize: 'clamp(16px, 2.2vw, 20px)', fontWeight: 600, color: '#f0f6fc' }}>
           16 nodes · 4 tiers · 8 edges
         </div>
       </MidFade>
     </div>
-    <div style={{ position: 'absolute', bottom: '8%', left: '5%', maxWidth: 360 }}>
+
+    {/* Bottom-left: headline + code snippet + body */}
+    <div style={{ position: 'absolute', bottom: '8%', left: '5%', maxWidth: 420 }}>
       <ScrollOn duration={1000} delay={100}>
-        <div style={{ fontSize: 'clamp(18px, 2.5vw, 22px)', fontWeight: 600, color: '#f0f6fc' }}>
-          Architecture diagrams.<br />Presentation-ready.
+        <div style={{ fontSize: 'clamp(18px, 2.5vw, 22px)', fontWeight: 600, color: '#f0f6fc', lineHeight: 1.3, marginBottom: 16 }}>
+          Your production<br />architecture,<br />in a scene.
+        </div>
+      </ScrollOn>
+      <ScrollOn duration={700} delay={160}>
+        <pre style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 'clamp(11px, 1.2vw, 13px)',
+          lineHeight: 1.7,
+          color: '#00f5ff',
+          background: 'rgba(0,245,255,0.04)',
+          border: '1px solid rgba(0,245,255,0.15)',
+          borderRadius: 6,
+          padding: 16,
+          maxWidth: 400,
+          margin: '0 0 14px',
+          whiteSpace: 'pre-wrap',
+        }}>
+          {snippetCode}
+        </pre>
+      </ScrollOn>
+      <ScrollOn duration={800} delay={220}>
+        <div style={{ fontSize: 'clamp(13px, 1.5vw, 15px)', color: 'rgba(240,246,252,0.6)', lineHeight: 1.6 }}>
+          Groups, swimlanes, nested tiers — all declared.<br />
+          Ready for your next deck, demo, or keynote.
         </div>
       </ScrollOn>
     </div>

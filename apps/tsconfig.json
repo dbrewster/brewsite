@@ -31,6 +31,8 @@
     "./docs/src/**/*.tsx",
     "./website/src/**/*.ts",
     "./website/src/**/*.tsx",
+    "./examples/src/**/*.ts",
+    "./examples/src/**/*.tsx",
   ],
   "exclude": [
     "node_modules",

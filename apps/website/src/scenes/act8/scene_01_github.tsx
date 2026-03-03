@@ -45,8 +45,8 @@ export const scene01Github: JSX.Element = (
         <div className="github-cta-block">
           <h2 className="github-cta-block__headline">Open Source. Production Ready.</h2>
           <p className="github-cta-block__body">
-            Built for TypeScript. Powered by React. Install the engine, then add only what
-            your story needs.
+            Built for TypeScript. Powered by React.<br />
+            The engine is @brewsite/core. The rest is what your story needs.
           </p>
           <a
             href={GITHUB_URL}

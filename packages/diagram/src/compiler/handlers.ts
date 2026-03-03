@@ -3,7 +3,6 @@
 import type { ReactElement } from 'react';
 import { registerNode } from '@brewsite/core';
 import type { CompileApi, CompileHelpers } from '@brewsite/core';
-import type { WidgetRegistry } from '@brewsite/core';
 import { compileDiagram } from '../elements/diagram/compile';
 import { DiagramCanvas, DiagramPipe } from '../elements/diagram/canvas/dsl';
 import { compileCanvas } from '../elements/diagram/canvas/compile';
@@ -25,7 +24,6 @@ import type {
 import type { DiagramCanvasDSL, DiagramPipeDSL, PipeRoutingAlgorithm, PipeLandingAlgorithm } from '../elements/diagram/canvas/types';
 import type { ImagePanelDSL } from '../elements/image-panel/types';
 import type { ScreenDSL } from '../elements/screen/types';
-import { DiagramCanvasWidget } from '../elements/diagram/canvas/widget';
 import {
   Diagram,
   DiagramNode,
@@ -211,7 +209,7 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?:
  * Not part of the public @brewsite/diagram API.
  * Test files that call clearRegistry() must import and re-call this directly.
  */
-export const registerDiagramHandlers = (registry?: WidgetRegistry): void => {
+export const registerDiagramHandlers = (): void => {
   const makeWarnFn = (api: CompileApi): DiagramWarnFn => (code, message) => {
     const warnApi = api as CompileApi & {
       pushWarning?: (w: { code: string; message: string; sceneIndex?: number }) => void;
@@ -233,14 +231,6 @@ export const registerDiagramHandlers = (registry?: WidgetRegistry): void => {
     const diagramState = compileDiagram(dsl, undefined, onWarn);
     const canvasId = dsl.id;
 
-    // Auto-register a DiagramCanvasWidget when registry is available.
-    // This is the Finding 3 "Option A" collapse: standalone <Diagram> routes through
-    // DiagramCanvasWidget, unifying the runtime path.
-    if (registry && !registry.get(canvasId)) {
-      const initialState = compileCanvas({ id: canvasId }, [], []);
-      registry.register(new DiagramCanvasWidget(canvasId, initialState));
-    }
-
     // Wrap the single diagram in a canvas state — DiagramCanvasWidget expects DiagramCanvasState.
     const canvasState = compileCanvas(
       {
@@ -259,13 +249,6 @@ export const registerDiagramHandlers = (registry?: WidgetRegistry): void => {
 
   registerNode(DiagramCanvas, (node: ReactElement, api: CompileApi, helpers: CompileHelpers) => {
     const props = node.props as Record<string, unknown>;
-    const canvasId = typeof props.id === 'string' ? props.id : undefined;
-    if (canvasId && registry && !registry.get(canvasId)) {
-      // Auto-register a DiagramCanvasWidget with a minimal empty default state.
-      // The runtime will replace this with the compiled state from the SceneTrack on the first tick.
-      const initialState = compileCanvas({ id: canvasId }, [], []);
-      registry.register(new DiagramCanvasWidget(canvasId, initialState));
-    }
     const allChildren = helpers.collectChildren(node);
     const canvasTheme = props.theme as DiagramTheme | undefined;
     const onWarn = makeWarnFn(api);

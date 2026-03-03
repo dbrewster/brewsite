@@ -41,6 +41,9 @@ importers:
 
   apps:
     dependencies:
+      '@brewsite/charts':
+        specifier: workspace:*
+        version: link:../packages/charts
       '@brewsite/core':
         specifier: workspace:*
         version: link:../packages/core
@@ -151,9 +154,6 @@ importers:
       '@brewsite/core':
         specifier: workspace:*
         version: link:../core
-      crossfilter2:
-        specifier: ^1.5.4
-        version: 1.5.4
       d3-array:
         specifier: ^3.2.4
         version: 3.2.4
@@ -837,9 +837,6 @@ packages:
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
     engines: {node: '>=14'}
 
-  '@ranfdev/deepobj@1.0.2':
-    resolution: {integrity: sha512-FM3y6kfJaj5MCoAjdv24EDCTDbuFz+4+pgAunbjYfugwIE4O/xx8mPNji1n/ouG8pHCntSnBr1xwTOensF23Gg==}
-
   '@rolldown/pluginutils@1.0.0-beta.27':
     resolution: {integrity: sha512-+d0F4MKMCbeVUJwG96uQ4SgAznZNSq93I3V+9NHA4OpvqG8mRCpGdKmK8l/dl02h2CCDHwW2FqilnTyDcAnqjA==}
 
@@ -1325,9 +1322,6 @@ packages:
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
     engines: {node: '>= 8'}
-
-  crossfilter2@1.5.4:
-    resolution: {integrity: sha512-oOGqOM0RocwQFOXJnEaUKqYV6Mc1TNCRv3LrNUa0QlofQTutGAXyQaLW1aGKLls2sfnbwBEtsa6tPD3jY+ycqQ==}
 
   cssstyle@4.6.0:
     resolution: {integrity: sha512-2z+rWdzbbSZv6/rhtvzvqeZQHrBaqgogqt85sqFNbabZOuFbCVFb8kPeEtZjiKkbrm395irpNKiYeFeLiQnFPg==}
@@ -2805,8 +2799,6 @@ snapshots:
   '@pkgjs/parseargs@0.11.0':
     optional: true
 
-  '@ranfdev/deepobj@1.0.2': {}
-
   '@rolldown/pluginutils@1.0.0-beta.27': {}
 
   '@rollup/rollup-android-arm-eabi@4.59.0':
@@ -3256,10 +3248,6 @@ snapshots:
       path-key: 3.1.1
       shebang-command: 2.0.0
       which: 2.0.2
-
-  crossfilter2@1.5.4:
-    dependencies:
-      '@ranfdev/deepobj': 1.0.2
 
   cssstyle@4.6.0:
     dependencies:

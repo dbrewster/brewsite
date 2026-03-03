@@ -1,16 +1,21 @@
-import { useMemo } from 'react';
+// Chart demo page — showcases bar, line, pie, and scatter chart types.
+import { useMemo, Fragment } from 'react';
 import type { JSX } from 'react';
 import {
   EngineProvider,
   EngineInputRegion,
+  EngineOverlayHost,
   SceneCanvas,
 } from '@brewsite/core';
 import { ChartProvider } from '@brewsite/charts';
 import { createChartDemoPlugins } from './widgetSetup';
 import {
-  sampleSalesData,
+  monthlySaasData,
+  productRevenueData,
+  teamPerformanceData,
   chartDemoBar,
   chartDemoLine,
+  chartDemoPie,
   chartDemoScatter,
 } from './scenes/chartDemo';
 
@@ -20,15 +25,29 @@ export default function ChartDemoPage(): JSX.Element {
   const { plugins } = useMemo(() => createChartDemoPlugins(), []);
 
   return (
-    <EngineProvider manifestUrl={MANIFEST_URL} plugins={plugins}>
-      <ChartProvider data={{ sales: sampleSalesData }}>
-        {chartDemoBar}
-        {chartDemoLine}
-        {chartDemoScatter}
-      </ChartProvider>
-      <EngineInputRegion>
-        <SceneCanvas />
-      </EngineInputRegion>
-    </EngineProvider>
+    <div style={{ background: '#020812', minHeight: '100vh' }}>
+      <EngineProvider
+        manifestUrl={MANIFEST_URL}
+        plugins={plugins}
+        pixelsPerScene={1400}
+      >
+        <ChartProvider
+          data={{
+            monthly:  monthlySaasData,
+            products: productRevenueData,
+            teams:    teamPerformanceData,
+          }}
+        >
+          <Fragment key="chart-bar">{chartDemoBar}</Fragment>
+          <Fragment key="chart-line">{chartDemoLine}</Fragment>
+          <Fragment key="chart-pie">{chartDemoPie}</Fragment>
+          <Fragment key="chart-scatter">{chartDemoScatter}</Fragment>
+        </ChartProvider>
+        <EngineInputRegion>
+          <SceneCanvas />
+          <EngineOverlayHost />
+        </EngineInputRegion>
+      </EngineProvider>
+    </div>
   );
 }

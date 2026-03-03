@@ -200,7 +200,7 @@ import { getSceneTrackCache, setSceneTrackCache } from '../compiler/sceneTrackCa
 **Compiler sub-directories:**
 - `blocks/` — DSL block components: `hudBlocks.tsx` (Hud, HudItem), `inputController.tsx` (InputController, Action), `sceneDsl.tsx` (Scene, SceneGroup).
 - `transitions/` — Transition type system: `transitionTypes.ts` defines `ElementTransitionSpec<T>`, `FunctionalTransitionSpec<T>`, `isFunctionalSpec()`, and the full set of blend/math utilities.
-- `primitives/` — Primitive element compilers. Each primitive element's `compile.ts` registers a node handler and `primitives/index.ts` re-exports them.
+- `primitives/` — Contains only `progressManager.ts`. The `compiler/primitives/` barrel (`primitives/index.ts`) has been removed; element DSL components are exported directly from `@brewsite/core`.
 - `registry.ts` — The global node handler registry (`registerNode`, `getNodeHandler`, `isPrimitiveComponent`, `clearRegistry`).
 - `sceneTrackTypes.ts` — Core data contracts: `SceneFrame`, `SceneFrameDelta`, `SceneTrackTick`, `SceneTrack`, `SceneWindow`, `FunctionalWidgetTransition`, `SceneTrackTransitionBlock`.
 - `sceneTrackCompiler.ts` — The main `compileSceneTrack()` function. Seven-step algorithm described in Section 5.

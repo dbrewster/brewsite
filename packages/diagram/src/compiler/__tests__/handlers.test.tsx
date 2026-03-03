@@ -10,9 +10,6 @@ import { registerDiagramHandlers } from '../handlers';
 import type { DiagramCanvasState } from '../../elements/diagram/canvas/types';
 import type { ImagePanelState } from '../../elements/image-panel/types';
 import type { ScreenState } from '../../elements/screen/types';
-import { DiagramCanvasWidget } from '../../elements/diagram/canvas/widget';
-import { compileSceneTrack } from '../../../../core/src/compiler/sceneTrackCompiler';
-import type { SceneDefinition } from '../../../../core/src/compiler/sceneTypes';
 
 const makeContext = () => ({
   sceneIndex: 0,
@@ -23,7 +20,7 @@ const makeContext = () => ({
 describe('registerDiagramHandlers', () => {
   it('compiles diagram/image-panel/screen widgets into frame state', () => {
     const registry = new WidgetRegistry();
-    registerDiagramHandlers(registry);
+    registerDiagramHandlers();
 
     const tree = (
       <Scene id="diagram-test">
@@ -58,7 +55,7 @@ describe('registerDiagramHandlers', () => {
 
   it('captures nested groups with parentId and node membership', () => {
     const registry = new WidgetRegistry();
-    registerDiagramHandlers(registry);
+    registerDiagramHandlers();
 
     const tree = (
       <Scene id="diagram-nested">
@@ -86,7 +83,7 @@ describe('registerDiagramHandlers', () => {
 
   it('ignores GridLayout that appears at scene top-level (no-op handler)', () => {
     const registry = new WidgetRegistry();
-    registerDiagramHandlers(registry);
+    registerDiagramHandlers();
 
     const tree = (
       <Scene id="top-level-layout">
@@ -96,36 +93,5 @@ describe('registerDiagramHandlers', () => {
 
     // GridLayout outside a <Diagram> is silently ignored — the handler is a no-op.
     expect(() => resolveSceneFromDsl(tree, makeContext(), registry)).not.toThrow();
-  });
-
-  it('auto-registers DiagramCanvasWidget when DiagramCanvas id is not in registry', () => {
-    const registry = new WidgetRegistry();
-    registerDiagramHandlers(registry);
-
-    const scenes: SceneDefinition[] = [
-      {
-        id: 's1',
-        getFrame: () => (
-          <Scene id="s1">
-            <DiagramCanvas id="auto-canvas">
-              <Diagram id="inner">
-                <DiagramNode id="n1" label="Node 1" position={[0, 0, 0]} />
-              </Diagram>
-            </DiagramCanvas>
-          </Scene>
-        ),
-      },
-    ];
-
-    compileSceneTrack({
-      scenes,
-      widgetRegistry: registry,
-      blockSize: 10,
-    });
-
-    const widget = registry.get('auto-canvas');
-    expect(widget).toBeDefined();
-    expect(widget).toBeInstanceOf(DiagramCanvasWidget);
-    expect(widget?.widgetId).toBe('auto-canvas');
   });
 });

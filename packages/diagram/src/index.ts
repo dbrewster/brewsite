@@ -66,6 +66,7 @@ export {
 } from './elements/diagram/compile';
 export { DiagramRenderer } from './elements/diagram/render';
 export { diagramPlugin } from './player/diagramPlugin';
+export type { DiagramPluginOptions } from './player/diagramPlugin';
 export {
   DIAGRAM_FOCUS_REGION_EVENT,
   getDiagramFocusRegion,

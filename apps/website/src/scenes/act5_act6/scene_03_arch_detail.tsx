@@ -8,6 +8,14 @@ import { dwellFn } from '../../utils/pacing';
 
 const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
+const snippetCode = `// before
+<DiagramNode id="cdn" position={[0,  2, -25]} opacity={0.3} />
+<DiagramNode id="api" position={[0, -4, -25]} opacity={0.3} />
+
+// after
+<DiagramNode id="ecs"     label="ECS Cluster" position={[-5, -8, -5]} />
+<DiagramNode id="svc-api" label="API Service" position={[-5, -6,  8]} />`;
+
 export const scene03ArchDetail: JSX.Element = (
   <Scene id="website-arch-detail" transition={LATE_FADE}>
     <ProgressManager
@@ -61,6 +69,8 @@ export const scene03ArchDetail: JSX.Element = (
         <DiagramEdge from="svc-auth" to="cache"      flow="forward" />
       </Diagram>
     </DiagramCanvas>
+
+    {/* Right-aligned overlay: eyebrow + headline + snippet + body */}
     <div style={{ position: 'absolute', bottom: '8%', right: '5%', textAlign: 'right', maxWidth: 340 }}>
       <MidFade duration={1000}>
         <div style={{
@@ -74,9 +84,39 @@ export const scene03ArchDetail: JSX.Element = (
           Drill down. Stay in the scene.
         </div>
       </MidFade>
-      <ScrollOn duration={1000} delay={100}>
-        <div style={{ fontSize: 'clamp(15px, 2vw, 18px)', fontWeight: 600, color: '#f0f6fc', lineHeight: 1.35 }}>
-          DiagramGroups · Focus Regions<br />· Theme System
+      <ScrollOn duration={800} delay={80}>
+        <div style={{
+          fontSize: 'clamp(18px, 2.5vw, 22px)',
+          fontWeight: 600,
+          color: '#f0f6fc',
+          lineHeight: 1.35,
+          marginBottom: 16,
+        }}>
+          Click a group.<br />Zoom to the detail.<br />Ghost the rest.
+        </div>
+      </ScrollOn>
+      <ScrollOn duration={700} delay={140}>
+        <pre style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 'clamp(11px, 1.2vw, 13px)',
+          lineHeight: 1.7,
+          color: '#00f5ff',
+          background: 'rgba(0,245,255,0.04)',
+          border: '1px solid rgba(0,245,255,0.15)',
+          borderRadius: 6,
+          padding: 16,
+          maxWidth: 340,
+          margin: '0 0 14px',
+          textAlign: 'left',
+          whiteSpace: 'pre-wrap',
+        }}>
+          {snippetCode}
+        </pre>
+      </ScrollOn>
+      <ScrollOn duration={800} delay={200}>
+        <div style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', color: 'rgba(240,246,252,0.65)', lineHeight: 1.6 }}>
+          The context stays visible. The focus shifts.<br />
+          One scene system. Infinite depth.
         </div>
       </ScrollOn>
     </div>

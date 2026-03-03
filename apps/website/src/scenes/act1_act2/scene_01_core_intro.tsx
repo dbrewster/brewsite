@@ -18,6 +18,17 @@ import {NeonSign} from "../../widgets/neon-sign";
 // Hard cut at transition boundary so each slide starts at its own 0.
 const LATE_FADE = {exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number]};
 
+const snippetCode = `<DiagramCanvas theme={neonCyberTheme}>
+  <Diagram id="presentation">
+    <HierarchicalLayout direction="top-down" />
+    <DiagramNode id="problem"  label="Problem"  icon="ui:exclamation-triangle" />
+    <DiagramNode id="insight"  label="Insight"  icon="ui:light-bulb" />
+    <DiagramNode id="decision" label="Decision" icon="ui:check-circle" />
+    <DiagramEdge from="problem"  to="insight"  flow="forward" />
+    <DiagramEdge from="insight"  to="decision" flow="forward" />
+  </Diagram>
+</DiagramCanvas>`;
+
 export const scene01CoreIntro: JSX.Element = (
     <Scene id="website-presentation-01" transition={LATE_FADE}>
         <ProgressManager
@@ -25,12 +36,6 @@ export const scene01CoreIntro: JSX.Element = (
             fn={dwellFn}
             autoAdvance={{duration: 8, max: 0.82, pauseOnScroll: true}}
         />
-        {/*<Camera*/}
-        {/*    mode="world"*/}
-        {/*    position={(isMobile ? [0, 8, 34] : [0, 7, 42]) as Vec3}*/}
-        {/*    target={[0, -1, 0]}*/}
-        {/*    fov={isMobile ? 66 : 58}*/}
-        {/*/>*/}
         <Camera mode="world" position={[0, 0, 10]} target={[0, 0, 0]} fov={70} />
         <Lighting intensityScale={1}>
             <Ambient intensity={0.5} color="#e6eeff"/>
@@ -91,7 +96,7 @@ export const scene01CoreIntro: JSX.Element = (
                         color: 'rgba(0,245,255,0.6)',
                         marginBottom: 14,
                     }}>
-                        Presentation Use Case
+                        @brewsite/core
                     </div>
                     <h2 style={{
                         fontSize: 'clamp(28px, 4.2vw, 54px)',
@@ -104,18 +109,36 @@ export const scene01CoreIntro: JSX.Element = (
                         backgroundClip: 'text',
                         margin: '0 0 16px',
                     }}>
-                        Start simple:<br/>tell one clear story.
+                        Write the scenes.<br/>The compiler renders the film.
                     </h2>
                 </MidFade>
-                <ScrollOn duration={800} delay={120}>
+                <ScrollOn duration={700} delay={100}>
+                    <pre style={{
+                        fontFamily: 'JetBrains Mono, monospace',
+                        fontSize: 'clamp(11px, 1.2vw, 13px)',
+                        lineHeight: 1.7,
+                        color: '#00f5ff',
+                        background: 'rgba(0,245,255,0.04)',
+                        border: '1px solid rgba(0,245,255,0.15)',
+                        borderRadius: 6,
+                        padding: 16,
+                        maxWidth: 400,
+                        margin: '0 0 16px',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                    }}>
+                        {snippetCode}
+                    </pre>
+                </ScrollOn>
+                <ScrollOn duration={800} delay={200}>
                     <p style={{
                         fontSize: 'clamp(15px, 1.6vw, 18px)',
                         lineHeight: 1.6,
                         color: 'rgba(240,246,252,0.6)',
                         maxWidth: 400,
                     }}>
-                        For technical PMs and architects, this is the fastest way to explain
-                        problem, context, and proposed direction in one visual pass.
+                        Conference talk. Investor deck. Product demo.<br/>
+                        You write the story. BrewSite makes it move.
                     </p>
                 </ScrollOn>
             </div>

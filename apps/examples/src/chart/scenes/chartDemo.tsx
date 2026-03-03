@@ -1,54 +1,178 @@
+// Chart demo scenes — bar, line, pie, and scatter examples with real business data.
 import type { JSX } from 'react';
-import { Scene } from '@brewsite/core';
+import {
+  Scene,
+  Camera,
+  Lighting,
+  Ambient,
+  Directional,
+  Background,
+  ProgressManager,
+} from '@brewsite/core';
 import {
   Chart, ChartData, ChartAxis, ChartSeries, ChartLegend,
 } from '@brewsite/charts';
 
-export const sampleSalesData = [
-  { month: 'Jan', revenue: 120, costs: 85, units: 45 },
-  { month: 'Feb', revenue: 140, costs: 92, units: 52 },
-  { month: 'Mar', revenue: 110, costs: 78, units: 38 },
-  { month: 'Apr', revenue: 165, costs: 105, units: 61 },
-  { month: 'May', revenue: 190, costs: 118, units: 72 },
-  { month: 'Jun', revenue: 175, costs: 110, units: 65 },
+// ─── Sample data ─────────────────────────────────────────────────────────────
+
+/** Monthly SaaS metrics — used by bar + line scenes. */
+export const monthlySaasData = [
+  { month: 'Jan', revenue: 128, costs: 87,  arr: 1536 },
+  { month: 'Feb', revenue: 145, costs: 94,  arr: 1740 },
+  { month: 'Mar', revenue: 132, costs: 88,  arr: 1584 },
+  { month: 'Apr', revenue: 168, costs: 107, arr: 2016 },
+  { month: 'May', revenue: 195, costs: 121, arr: 2340 },
+  { month: 'Jun', revenue: 184, costs: 115, arr: 2208 },
+  { month: 'Jul', revenue: 212, costs: 130, arr: 2544 },
+  { month: 'Aug', revenue: 231, costs: 142, arr: 2772 },
+  { month: 'Sep', revenue: 248, costs: 149, arr: 2976 },
+  { month: 'Oct', revenue: 267, costs: 161, arr: 3204 },
+  { month: 'Nov', revenue: 289, costs: 174, arr: 3468 },
+  { month: 'Dec', revenue: 314, costs: 188, arr: 3768 },
 ];
 
-/** Bar chart — multi-series sales by month. */
+/** Product revenue breakdown — used by the pie scene. */
+export const productRevenueData = [
+  { product: 'Core Platform', revenue: 520 },
+  { product: 'Diagram SDK',   revenue: 285 },
+  { product: 'Charts SDK',    revenue: 198 },
+  { product: 'Model SDK',     revenue: 162 },
+  { product: 'Services',      revenue:  92 },
+];
+
+/** Team performance data — used by the scatter scene. */
+export const teamPerformanceData = [
+  { teamSize:  3, quarterlyRev: 142 },
+  { teamSize:  5, quarterlyRev: 228 },
+  { teamSize:  4, quarterlyRev: 185 },
+  { teamSize:  8, quarterlyRev: 378 },
+  { teamSize:  6, quarterlyRev: 292 },
+  { teamSize: 12, quarterlyRev: 541 },
+  { teamSize:  7, quarterlyRev: 335 },
+  { teamSize: 10, quarterlyRev: 462 },
+  { teamSize:  9, quarterlyRev: 415 },
+  { teamSize: 15, quarterlyRev: 698 },
+];
+
+// ─── Shared scene config ──────────────────────────────────────────────────────
+
+/** Camera centered on a 4×3 chart placed at [0,0,0]. */
+const CHART_CAM_POS: [number, number, number] = [2, 1.5, 8];
+const CHART_CAM_TGT: [number, number, number] = [2, 1.5, 0];
+
+/** Fade-in on enter, instant cut on exit. */
+const FADE = {
+  exit:  [1.0, 1.0] as [number, number],
+  enter: [0.0, 0.3] as [number, number],
+};
+
+const SceneLighting = (): JSX.Element => (
+  <Lighting intensityScale={1.2}>
+    <Ambient intensity={0.8} color="#c4d4ff" />
+    <Directional intensity={0.9} color="#99bbff" position={[-4, 10, 7]} />
+    <Directional intensity={0.5} color="#ff9955" position={[8, 3, 5]} />
+  </Lighting>
+);
+
+// ─── Scene 1: Bar — monthly revenue vs. costs ─────────────────────────────────
+
 export const chartDemoBar: JSX.Element = (
-  <Scene id="chart-demo-bar">
-    <Chart id="sales-bar" type="bar" position={[0, 0, 0]} theme="darkGlass">
-      <ChartData source="sales" />
+  <Scene id="chart-demo-bar" transition={FADE}>
+    <ProgressManager scrollUnits={1200} />
+    <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={55} />
+    <SceneLighting />
+    <Background color="#020812" />
+
+    <Chart
+      id="bar-revenue"
+      type="bar"
+      position={[0, 0, 0]}
+      theme="darkGlass"
+      bounds={{ width: 4, height: 3, depth: 0.45 }}
+    >
+      <ChartData source="monthly" />
       <ChartAxis axis="x" field="month" label="Month" />
-      <ChartAxis axis="y" field="revenue" label="Amount ($)" format="$,.0f" />
+      <ChartAxis axis="y" field="revenue" label="Revenue ($k)" />
       <ChartSeries field="revenue" label="Revenue" />
-      <ChartSeries field="costs" label="Costs" />
+      <ChartSeries field="costs"   label="Costs" />
       <ChartLegend visible position="right" />
     </Chart>
   </Scene>
 );
 
-/** Line chart — revenue & costs trend over 6 months. */
+// ─── Scene 2: Line — ARR growth trend ────────────────────────────────────────
+
 export const chartDemoLine: JSX.Element = (
-  <Scene id="chart-demo-line">
-    <Chart id="sales-line" type="line" position={[0, 0, 0]} theme="darkGlass">
-      <ChartData source="sales" />
+  <Scene id="chart-demo-line" transition={FADE}>
+    <ProgressManager scrollUnits={1200} />
+    <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={55} />
+    <SceneLighting />
+    <Background color="#020812" />
+
+    <Chart
+      id="line-arr"
+      type="line"
+      position={[0, 0, 0]}
+      theme="darkGlass"
+      bounds={{ width: 4, height: 3, depth: 0.3 }}
+    >
+      <ChartData source="monthly" />
       <ChartAxis axis="x" field="month" label="Month" />
-      <ChartAxis axis="y" field="revenue" label="Amount ($)" format="$,.0f" />
-      <ChartSeries field="revenue" label="Revenue" />
-      <ChartSeries field="costs" label="Costs" />
+      <ChartAxis axis="y" field="arr"   label="ARR ($k)" />
+      <ChartSeries field="arr" label="Annual Recurring Revenue" />
       <ChartLegend visible position="right" />
     </Chart>
   </Scene>
 );
 
-/** Scatter chart — units vs. revenue. */
+// ─── Scene 3: Pie — revenue by product ───────────────────────────────────────
+
+/** Pie is centered at (0,0,0); use a camera looking directly at it. */
+const PIE_CAM_POS: [number, number, number] = [0, 0, 7];
+const PIE_CAM_TGT: [number, number, number] = [0, 0, 0];
+
+export const chartDemoPie: JSX.Element = (
+  <Scene id="chart-demo-pie" transition={FADE}>
+    <ProgressManager scrollUnits={1200} />
+    <Camera mode="world" position={PIE_CAM_POS} target={PIE_CAM_TGT} fov={50} />
+    <SceneLighting />
+    <Background color="#020812" />
+
+    <Chart
+      id="pie-products"
+      type="pie"
+      position={[0, 0, 0]}
+      theme="darkGlass"
+      bounds={{ width: 4, height: 4, depth: 0.5 }}
+    >
+      <ChartData source="products" />
+      <ChartAxis axis="x" field="product" label="Product" />
+      <ChartAxis axis="y" field="revenue" label="Revenue ($k)" />
+      <ChartSeries field="revenue" label="Revenue" />
+    </Chart>
+  </Scene>
+);
+
+// ─── Scene 4: Scatter — team size vs. quarterly revenue ──────────────────────
+
 export const chartDemoScatter: JSX.Element = (
-  <Scene id="chart-demo-scatter">
-    <Chart id="sales-scatter" type="scatter" position={[0, 0, 0]} theme="darkGlass">
-      <ChartData source="sales" />
-      <ChartAxis axis="x" field="units" label="Units Sold" />
-      <ChartAxis axis="y" field="revenue" label="Revenue ($)" format="$,.0f" />
-      <ChartSeries field="revenue" label="Revenue vs Units" />
+  <Scene id="chart-demo-scatter" transition={FADE}>
+    <ProgressManager scrollUnits={1200} />
+    <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={55} />
+    <SceneLighting />
+    <Background color="#020812" />
+
+    <Chart
+      id="scatter-teams"
+      type="scatter"
+      position={[0, 0, 0]}
+      theme="darkGlass"
+      bounds={{ width: 4, height: 3, depth: 0.3 }}
+    >
+      <ChartData source="teams" />
+      <ChartAxis axis="x" field="teamSize"     label="Team Size" />
+      <ChartAxis axis="y" field="quarterlyRev" label="Quarterly Revenue ($k)" />
+      <ChartSeries field="quarterlyRev" label="Revenue" />
       <ChartLegend visible position="right" />
     </Chart>
   </Scene>
