@@ -35,6 +35,7 @@ import {
   GridLayout,
   HierarchicalLayout,
   ManualLayout,
+  FlowLayout,
 } from '../elements/diagram/dsl';
 import { ImagePanel } from '../elements/image-panel/dsl';
 import { Screen } from '../elements/screen/dsl';
@@ -66,12 +67,19 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?:
     ...(p.groupPadding !== undefined && { groupPadding: p.groupPadding }),
     ...(p.titleGap !== undefined && { titleGap: p.titleGap }),
   });
+  const extractFlowLayoutProps = (p: Record<string, unknown>) => ({
+    ...(p.gap !== undefined && { gap: p.gap }),
+    ...(p.direction !== undefined && { direction: p.direction }),
+    ...(p.groupPadding !== undefined && { groupPadding: p.groupPadding }),
+    ...(p.titleGap !== undefined && { titleGap: p.titleGap }),
+  });
 
   const collectGroup = (el: ReactElement, parentId?: string, warnFn?: DiagramWarnFn): string => {
     const elProps = el.props as Record<string, unknown>;
     const groupId = String(elProps.id);
     const nodeIds: string[] = [];
     const childGroupIds: string[] = [];
+    const childrenOrder: string[] = [];
     let groupLayoutDSL: LayoutDSL | undefined;
     const groupChildren = helpers.collectChildren(el);
     for (const gc of groupChildren) {
@@ -80,11 +88,13 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?:
       if (gEl.type === DiagramNode) {
         const nodeId = String((gEl.props as Record<string, unknown>).id);
         nodeIds.push(nodeId);
+        childrenOrder.push(nodeId);
         groupedNodeIds.add(nodeId);
         nodes.push({ ...(gEl.props as DiagramNodeDSL), groupId });
       } else if (gEl.type === DiagramGroup) {
         const childId = collectGroup(gEl, groupId, warnFn);
         childGroupIds.push(childId);
+        childrenOrder.push(childId);
       } else if (gEl.type === GridLayout) {
         const p = gEl.props as Record<string, unknown>;
         if (groupLayoutDSL) {
@@ -103,6 +113,12 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?:
           console.warn(`Diagram collectGroup: multiple layout elements detected for group ${groupId}. Using the last one.`);
         }
         groupLayoutDSL = { kind: 'manual', ...extractManualLayoutProps(p) } as LayoutDSL;
+      } else if (gEl.type === FlowLayout) {
+        const p = gEl.props as Record<string, unknown>;
+        if (groupLayoutDSL) {
+          console.warn(`Diagram collectGroup: multiple layout elements detected for group ${groupId}. Using the last one.`);
+        }
+        groupLayoutDSL = { kind: 'flow', ...extractFlowLayoutProps(p) } as LayoutDSL;
       } else if (gEl.type === DiagramEnter || gEl.type === DiagramExit) {
         const componentName = gEl.type === DiagramEnter ? 'DiagramEnter' : 'DiagramExit';
         warnFn?.(
@@ -131,12 +147,24 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?:
       edgeLights: elProps.edgeLights as DiagramGroupDSL['edgeLights'],
       nodeIds,
       childGroupIds: childGroupIds.length > 0 ? childGroupIds : undefined,
+      childrenOrder,
       parentId,
       layout: groupLayoutDSL,
     });
 
     return groupId;
   };
+
+  const childrenOrder: string[] = [];
+  for (const child of allChildren) {
+    if (!child || typeof child !== 'object' || !('type' in (child as object))) continue;
+    const el = child as ReactElement;
+    if (el.type === DiagramNode) {
+      childrenOrder.push(String((el.props as Record<string, unknown>).id));
+    } else if (el.type === DiagramGroup) {
+      childrenOrder.push(String((el.props as Record<string, unknown>).id));
+    }
+  }
 
   for (const child of allChildren) {
     if (!child || typeof child !== 'object' || !('type' in (child as object))) continue;
@@ -159,6 +187,12 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?:
         console.warn(`Diagram extractDiagramDSL: multiple layout elements detected for diagram ${String(props.id)}. Using the last one.`);
       }
       layoutDSL = { kind: 'manual', ...extractManualLayoutProps(p) } as LayoutDSL;
+    } else if (el.type === FlowLayout) {
+      const p = el.props as Record<string, unknown>;
+      if (layoutDSL) {
+        console.warn(`Diagram extractDiagramDSL: multiple layout elements detected for diagram ${String(props.id)}. Using the last one.`);
+      }
+      layoutDSL = { kind: 'flow', ...extractFlowLayoutProps(p) } as LayoutDSL;
     } else if (el.type === DiagramExit) {
       if (exitDSL) {
         warnFn?.('DUPLICATE_DIAGRAM_TRANSITION', `<Diagram id="${String(props.id)}">: multiple <DiagramExit> elements found. Only the last one is used.`);
@@ -193,6 +227,7 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?:
     nodes,
     edges,
     groups,
+    childrenOrder,
     position: props.position as readonly [number, number, number] | undefined,
     rotation: props.rotation as readonly [number, number, number] | undefined,
     scale: props.scale as number | undefined,

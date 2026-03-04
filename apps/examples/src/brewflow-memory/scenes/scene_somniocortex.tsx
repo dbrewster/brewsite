@@ -14,16 +14,17 @@ import {
     Diagram,
     DiagramCanvas,
     DiagramEdge,
+    DiagramGroup,
     DiagramNode,
-    ManualLayout,
+    FlowLayout,
+    GridLayout,
+    HierarchicalLayout,
 } from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-// Horizontal pipeline: 9 nodes spaced 7 units apart, centered at x=0
-// Positions: -28, -21, -14, -7, 0, 7, 14, 21, 28
 export const sceneSomniocortex: JSX.Element = (
     <Scene key="bfm-somniocortex" id="bfm-somniocortex">
         <ProgressManager scrollUnits={3200} fn={DWELL_FN}/>
@@ -43,40 +44,45 @@ export const sceneSomniocortex: JSX.Element = (
             </Action>
         </InputController>
 
-        <DiagramCanvas id="bfm-somno-canvas"  rotation={[config.diagramRotationX, 0, 0]} scale={.7}
+        <DiagramCanvas id="bfm-somno-canvas" rotation={[config.diagramRotationX, 0, 0]} scale={.7}
+                       position={[0, config.diagramTop, 0]}
                        theme={brewflowTheme}>
             <Diagram id="somno-diagram" pivot="center">
-                <ManualLayout/>
-                <DiagramNode id="in-episodic" label="EpisodicStore" sublabel="raw episodes" size={[7, 2.8]}
-                             position={[0, 10, 0]} color="#101828"/>
+                <FlowLayout direction="top-down" />
 
-                <DiagramNode id="s1" label="1. Select" sublabel="salience · recency · triggers" size={[5, 2.8]}
-                             position={[-16.5, 0, 0]} color="#121a30"/>
-                <DiagramNode id="s2" label="2. Extract" sublabel="LLM-assisted · candidates only · prompt editable"
-                             size={[5, 2.8]} position={[-11, 0, 0]} color="#121a30"/>
-                <DiagramNode id="s3" label="3. Cluster" sublabel="cross-episode grouping · prevents overfitting"
-                             size={[5, 2.8]} position={[-5.5, 0, 0]} color="#121a30"/>
-                <DiagramNode id="s4" label="4. Propose" sublabel="typed structured records · full provenance"
-                             size={[5, 2.8]} position={[0, 0, 0]} color="#141c35"/>
-                <DiagramNode id="s5" label="5. Validate"
-                             sublabel="deterministic validators only · LLM role ends here" size={[5, 2.8]}
-                             position={[5.5, 0, 0]} color="#141c35" glow={{intensity: 0.1}}/>
-                <DiagramNode id="s6" label="6. Decide" sublabel="evidence-weighted · contradictions → review"
-                             size={[5, 2.8]} position={[11, 0, 0]} color="#141c35"/>
-                <DiagramNode id="s7" label="7. Publish" sublabel="versioned delta → Neocortex · audit record"
-                             size={[5, 2.8]} position={[16.5, 0, 0]} color="#151e38" glow={{intensity: 0.15}}/>
+                <DiagramNode id="in-episodic" label="EpisodicStore" sublabel="raw episodes"
+                             size={[7, 2.8]} color="#101828" />
 
-                <DiagramNode id="out-neo" label="Neocortex" sublabel="validated cards" size={[7, 2.8]}
-                             position={[0, -10, 0]} color="#101828" glow={{intensity: 0.12}}/>
+                <DiagramGroup id="pipeline-stages">
+                    <GridLayout columns={4} spacing={[1.5, 2]} />
+                    <DiagramNode id="s1" label="1. Select" sublabel="salience · recency · triggers"
+                                 size={[5, 2.8]} color="#121a30" />
+                    <DiagramNode id="s2" label="2. Extract" sublabel="LLM-assisted · candidates only · prompt editable"
+                                 size={[5, 2.8]} color="#121a30" />
+                    <DiagramNode id="s3" label="3. Cluster" sublabel="cross-episode grouping · prevents overfitting"
+                                 size={[5, 2.8]} color="#121a30" />
+                    <DiagramNode id="s4" label="4. Propose" sublabel="typed structured records · full provenance"
+                                 size={[5, 2.8]} color="#141c35" />
+                    <DiagramNode id="s5" label="5. Validate" sublabel="deterministic validators only · LLM role ends here"
+                                 size={[5, 2.8]} color="#141c35" glow={{intensity: 0.1}} />
+                    <DiagramNode id="s6" label="6. Decide" sublabel="evidence-weighted · contradictions → review"
+                                 size={[5, 2.8]} color="#141c35" />
+                    <DiagramNode id="s7" label="7. Publish" sublabel="versioned delta → Neocortex · audit record"
+                                 size={[5, 2.8]} color="#151e38" glow={{intensity: 0.15}} />
+                </DiagramGroup>
 
-                <DiagramEdge from="in-episodic" to="s1" flow="forward" color="#5070b0"/>
-                <DiagramEdge from="s1" to="s2" flow="forward" color="#5070b0"/>
-                <DiagramEdge from="s2" to="s3" flow="forward" color="#5070b0"/>
-                <DiagramEdge from="s3" to="s4" flow="forward" color="#5070b0"/>
-                <DiagramEdge from="s4" to="s5" flow="forward" color="#5070b0"/>
-                <DiagramEdge from="s5" to="s6" flow="forward" color="#5070b0"/>
-                <DiagramEdge from="s6" to="s7" flow="forward" color="#5070b0"/>
-                <DiagramEdge from="s7" to="out-neo" flow="forward" color="#5070b0"/>
+                <DiagramNode id="out-neo" label="Neocortex" sublabel="validated cards"
+                             size={[7, 2.8]} color="#101828" glow={{intensity: 0.12}} />
+
+                {/* Cross-group edges — used for visual edge routing only with FlowLayout */}
+                <DiagramEdge from="in-episodic" to="s1"      flow="forward" color="#5070b0" />
+                <DiagramEdge from="s1" to="s2"               flow="forward" color="#5070b0" />
+                <DiagramEdge from="s2" to="s3"               flow="forward" color="#5070b0" />
+                <DiagramEdge from="s3" to="s4"               flow="forward" color="#5070b0" />
+                <DiagramEdge from="s4" to="s5"               flow="forward" color="#5070b0" />
+                <DiagramEdge from="s5" to="s6"               flow="forward" color="#5070b0" />
+                <DiagramEdge from="s6" to="s7"               flow="forward" color="#5070b0" />
+                <DiagramEdge from="s7" to="out-neo"          flow="forward" color="#5070b0" />
             </Diagram>
         </DiagramCanvas>
 

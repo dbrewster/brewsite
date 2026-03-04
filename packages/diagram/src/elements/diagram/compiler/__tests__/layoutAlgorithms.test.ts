@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { resolveLayout, resolveLayoutWithGroups, computeBounds } from '../layoutAlgorithms';
+import { resolveLayout, resolveLayoutWithGroups, computeBounds, resolveFlowLayout } from '../layoutAlgorithms';
 import {
   DEFAULT_RESOLVED_GRID,
   DEFAULT_RESOLVED_HIERARCHICAL,
   DEFAULT_RESOLVED_MANUAL,
+  DEFAULT_RESOLVED_FLOW,
   resolveEffectiveLayout,
   resolveGroupLayouts,
   resolveThemeLayoutDefaults,
@@ -12,6 +13,7 @@ import type {
   ResolvedGridLayout,
   ResolvedHierarchicalLayout,
   ResolvedManualLayout,
+  ResolvedFlowLayout,
 } from '../layoutResolver';
 import type { DiagramNodeDSL, DiagramEdgeDSL, DiagramGroupDSL } from '../../types';
 import type { DiagramThemeLayoutConfig } from '../../types';
@@ -884,7 +886,9 @@ describe('resolveGroupBoundsMap', () => {
 });
 
 describe('resolveLayoutWithGroups — connection affinity', () => {
-  it('ungrouped node A connecting to sub-nodes B+C inside group G is centered over B+C centroid, not G center', () => {
+  it('ungrouped node A connecting to sub-nodes B+C inside group G aligns to the closer endpoint, not G center', () => {
+    // a connects to both b (further from a's natural X=0) and c (closer).
+    // Closest-edge-wins: a aligns to c, not the mean of b and c, and not the group center.
     const nodes = [
       makeNode('a'),
       makeNode('b', { position: [0, 0, 0] as [number, number, number] }),
@@ -898,10 +902,181 @@ describe('resolveLayoutWithGroups — connection affinity', () => {
     const positions = resolveWithGroups(nodes, edges, groups, hierarchical(), sizes);
     const groupBounds = computeBounds(['b', 'c', 'd'], positions, sizes);
     const groupCenterX = groupBounds.x + groupBounds.w / 2;
-    const expected = (positions.get('b')![0] + positions.get('c')![0]) / 2;
 
-    expect(positions.get('a')![0]).toBeCloseTo(expected);
+    // Closest-edge-wins: a should align to c (the closer connection endpoint).
+    expect(positions.get('a')![0]).toBeCloseTo(positions.get('c')![0]);
     expect(positions.get('a')![0]).not.toBeCloseTo(groupCenterX);
+  });
+});
+
+describe('resolveLayoutWithGroups — HierarchicalLayout top-down + DiagramGroup', () => {
+  it('top-down: in-episodic above group, group above out-neo with cross-group edges', () => {
+    // in-episodic → s1 (inside group) → ... → s7 (inside group) → out-neo
+    // Root: hierarchical top-down. Group: GridLayout (columns=4).
+    // All nodes have no explicit positions.
+    const nodes = [
+      makeNode('in-episodic', { size: [7, 2.8] }),
+      makeNode('s1', { size: [5, 2.8] }),
+      makeNode('s2', { size: [5, 2.8] }),
+      makeNode('s3', { size: [5, 2.8] }),
+      makeNode('s4', { size: [5, 2.8] }),
+      makeNode('s5', { size: [5, 2.8] }),
+      makeNode('s6', { size: [5, 2.8] }),
+      makeNode('s7', { size: [5, 2.8] }),
+      makeNode('out-neo', { size: [7, 2.8] }),
+    ];
+    const groups = [
+      makeGroup('g1', ['s1', 's2', 's3', 's4', 's5', 's6', 's7'], {
+        layout: { kind: 'grid', columns: 4 },
+      }),
+    ];
+    const edges = [
+      makeEdge('in-episodic', 's1'),
+      makeEdge('s1', 's2'), makeEdge('s2', 's3'), makeEdge('s3', 's4'),
+      makeEdge('s4', 's5'), makeEdge('s5', 's6'), makeEdge('s6', 's7'),
+      makeEdge('s7', 'out-neo'),
+    ];
+    const sizes = new Map(nodes.map((n) => [n.id, n.size ?? [4, 2]] as [string, [number, number]]));
+    const groupLayouts = resolveGroupLayouts(groups, hierarchical());
+    const positions = resolveLayoutWithGroups(nodes, edges, groups, hierarchical(), groupLayouts, sizes);
+
+    const yIn = positions.get('in-episodic')![1];
+    const yOut = positions.get('out-neo')![1];
+    // Group center Y = mean of all group member Y values.
+    const groupMemberYs = ['s1','s2','s3','s4','s5','s6','s7'].map((id) => positions.get(id)![1]);
+    const yGroup = groupMemberYs.reduce((s, v) => s + v, 0) / groupMemberYs.length;
+
+    // Primary assertion: top-down ordering is preserved.
+    expect(yIn).toBeGreaterThan(yGroup);
+    expect(yGroup).toBeGreaterThan(yOut);
+  });
+
+  it('top-down: sole entry/exit nodes stay centered — no affinity when single edge + lone at level', () => {
+    // Bug scenario: in-episodic (sole standalone at its level) has exactly ONE edge into the
+    // group (to s1, which is the far-left node of a 7-node 4-column grid). Without the guard,
+    // affinity blindly pulls in-episodic to s1.X ≈ -9.75, producing a diagonal left-to-right
+    // visual even though direction="top-down". Same for out-neo pulled to s7.X.
+    // Fix: affinity must be skipped when candidates.length === 1 AND the node is alone at
+    // its hierarchical level. Both nodes must stay near X=0 (group center).
+    const nodes = [
+      makeNode('in-episodic', { size: [7, 2.8] }),
+      makeNode('s1', { size: [5, 2.8] }),
+      makeNode('s2', { size: [5, 2.8] }),
+      makeNode('s3', { size: [5, 2.8] }),
+      makeNode('s4', { size: [5, 2.8] }),
+      makeNode('s5', { size: [5, 2.8] }),
+      makeNode('s6', { size: [5, 2.8] }),
+      makeNode('s7', { size: [5, 2.8] }),
+      makeNode('out-neo', { size: [7, 2.8] }),
+    ];
+    const groups = [
+      makeGroup('g1', ['s1', 's2', 's3', 's4', 's5', 's6', 's7'], {
+        layout: { kind: 'grid', columns: 4 },
+      }),
+    ];
+    const edges = [
+      makeEdge('in-episodic', 's1'),
+      makeEdge('s1', 's2'), makeEdge('s2', 's3'), makeEdge('s3', 's4'),
+      makeEdge('s4', 's5'), makeEdge('s5', 's6'), makeEdge('s6', 's7'),
+      makeEdge('s7', 'out-neo'),
+    ];
+    const sizes = new Map(nodes.map((n) => [n.id, n.size ?? [4, 2]] as [string, [number, number]]));
+    const groupLayouts = resolveGroupLayouts(groups, hierarchical());
+    const positions = resolveLayoutWithGroups(nodes, edges, groups, hierarchical(), groupLayouts, sizes);
+
+    const xIn  = positions.get('in-episodic')![0];
+    const xOut = positions.get('out-neo')![0];
+    // Both nodes are the sole standalone at their level with one cross-group edge.
+    // Affinity must not displace them — they should remain near X=0 (group center).
+    expect(Math.abs(xIn)).toBeLessThan(1.0);
+    expect(Math.abs(xOut)).toBeLessThan(1.0);
+  });
+
+  it('top-down: sole entry/exit nodes with one cross-group edge each stay centered (Direction B no-op)', () => {
+    // entry is the sole standalone node at its level with ONE edge into the group (to 'a').
+    // exit is the sole standalone node at its level with ONE edge from the group (from 'c').
+    // Neither has multiple cross-group edges and neither shares its level with another node,
+    // so affinity is a no-op: both remain near X=0 (group center). Primary Y ordering still holds.
+    const nodes = [
+      makeNode('entry'),
+      makeNode('a', { size: [4, 2] }),
+      makeNode('b', { size: [4, 2] }),
+      makeNode('c', { size: [4, 2] }),
+      makeNode('exit'),
+    ];
+    const groups = [makeGroup('g1', ['a', 'b', 'c'], { layout: { kind: 'grid', columns: 3 } })];
+    const edges = [
+      makeEdge('entry', 'a'),  // sole edge from entry into group
+      makeEdge('c', 'exit'),   // sole edge from group to exit
+    ];
+    const sizes = new Map(nodes.map((n) => [n.id, n.size ?? [4, 2]] as [string, [number, number]]));
+    const groupLayouts = resolveGroupLayouts(groups, hierarchical());
+    const positions = resolveLayoutWithGroups(nodes, edges, groups, hierarchical(), groupLayouts, sizes);
+
+    const entryX = positions.get('entry')![0];
+    const exitX  = positions.get('exit')![0];
+
+    // Sole-level, single-edge nodes: no affinity displacement — stay near group center (X≈0).
+    expect(Math.abs(entryX)).toBeLessThan(1.0);
+    expect(Math.abs(exitX)).toBeLessThan(1.0);
+
+    // Primary ordering preserved.
+    expect(positions.get('entry')![1]).toBeGreaterThan(positions.get('exit')![1]);
+  });
+
+  it('closest-edge-wins: when two edges enter a group at different X, uses the closer one', () => {
+    // node 'src' connects to 'left' (far left of group) AND 'mid' (center of group).
+    // 'src' natural X = 0. 'left' absolute X is further away than 'mid' absolute X.
+    // → closest wins = mid. src should be near mid's X, not left's X, and not the mean.
+    const nodes = [
+      makeNode('src'),
+      makeNode('left', { size: [4, 2] }),
+      makeNode('mid',  { size: [4, 2] }),
+      makeNode('right', { size: [4, 2] }),
+    ];
+    const groups = [makeGroup('g1', ['left', 'mid', 'right'], { layout: { kind: 'grid', columns: 3 } })];
+    const edges = [
+      makeEdge('src', 'left'),   // edgeIndex 0 — far left of group
+      makeEdge('src', 'mid'),    // edgeIndex 1 — center of group (closer to src natural X=0)
+    ];
+    const sizes = new Map(nodes.map((n) => [n.id, n.size ?? [4, 2]] as [string, [number, number]]));
+    const groupLayouts = resolveGroupLayouts(groups, hierarchical());
+    const positions = resolveLayoutWithGroups(nodes, edges, groups, hierarchical(), groupLayouts, sizes);
+
+    const srcX  = positions.get('src')![0];
+    const midX  = positions.get('mid')![0];
+    const leftX = positions.get('left')![0];
+
+    // 'closest wins': src should be closer to mid than to left.
+    expect(Math.abs(srcX - midX)).toBeLessThan(Math.abs(srcX - leftX));
+  });
+
+  it('DSL order tiebreaker: when two candidates are equidistant, uses the first-declared edge', () => {
+    // Group has two nodes symmetrically placed at ±offset from center.
+    // src connects to both. Both are equidistant from src's natural X=0.
+    // DSL order: left-node edge first, right-node edge second.
+    // Expected: src aligns with left-node (earlier in DSL).
+    const leftOffset  = -5;
+    const rightOffset =  5;
+    const nodes = [
+      makeNode('src'),
+      makeNode('left-node',  { position: [leftOffset,  0, 0] as [number, number, number] }),
+      makeNode('right-node', { position: [rightOffset, 0, 0] as [number, number, number] }),
+    ];
+    const groups = [makeGroup('g1', ['left-node', 'right-node'])];
+    const edges = [
+      makeEdge('src', 'left-node'),   // edgeIndex 0 (DSL-first)
+      makeEdge('src', 'right-node'),  // edgeIndex 1 (DSL-second)
+    ];
+    const sizes = new Map(nodes.map((n) => [n.id, n.size ?? [4, 2]] as [string, [number, number]]));
+    const groupLayouts = resolveGroupLayouts(groups, hierarchical());
+    const positions = resolveLayoutWithGroups(nodes, edges, groups, hierarchical(), groupLayouts, sizes);
+
+    const srcX      = positions.get('src')![0];
+    const leftNodeX = positions.get('left-node')![0];
+
+    // Should align with the DSL-first edge endpoint (left-node).
+    expect(Math.abs(srcX - leftNodeX)).toBeLessThan(0.5);
   });
 });
 
@@ -954,5 +1129,126 @@ describe('computeBounds', () => {
     const bounds = computeBounds(['a'], positions, sizes);
     expect(bounds.minZ).toBeCloseTo(-0.5);
     expect(bounds.maxZ).toBeCloseTo(0.5);
+  });
+});
+
+// ─── resolveFlowLayout ───────────────────────────────────────────────────────
+// Tests are written TDD-style. resolveFlowLayout does not exist yet (Stream D).
+// These tests will fail until Stream D is implemented.
+
+const flow = (overrides: Partial<ResolvedFlowLayout> = {}): ResolvedFlowLayout =>
+  ({ ...DEFAULT_RESOLVED_FLOW, ...overrides });
+
+describe('resolveFlowLayout', () => {
+  it('top-down: mixed heights maintain correct edge-to-edge gap', () => {
+    const nodes = [makeNode('a', { size: [4, 2] }), makeNode('b', { size: [4, 4] }), makeNode('c', { size: [4, 2] })];
+    const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 2 }), ['a', 'b', 'c']);
+    // a: center=0, half=1, trailing=-1
+    // b: center=-1-2-2=-5, half=2, trailing=-7
+    // c: center=-7-2-1=-10
+    expect(result.get('a')).toEqual([0, 0, 0]);
+    expect(result.get('b')).toEqual([0, -5, 0]);
+    expect(result.get('c')).toEqual([0, -10, 0]);
+    // Verify edge-to-edge gaps: a bottom=-1, b top=-5+2=-3, gap=|-3-(-1)|=2 ✓
+    // b bottom=-7, c top=-10+1=-9, gap=|-9-(-7)|=2 ✓
+  });
+
+  it('left-right: mixed widths maintain correct edge-to-edge gap', () => {
+    const nodes = [makeNode('a', { size: [4, 2] }), makeNode('b', { size: [6, 2] }), makeNode('c', { size: [2, 2] })];
+    const result = resolveFlowLayout(nodes, flow({ direction: 'left-right', gap: 1 }), ['a', 'b', 'c']);
+    // a: center=0, half=2, trailing=2
+    // b: center=2+1+3=6, half=3, trailing=9
+    // c: center=9+1+1=11
+    expect(result.get('a')).toEqual([0, 0, 0]);
+    expect(result.get('b')).toEqual([6, 0, 0]);
+    expect(result.get('c')).toEqual([11, 0, 0]);
+    // Verify edge-to-edge gaps: a right=2, b left=6-3=3, gap=3-2=1 ✓
+    // b right=9, c left=11-1=10, gap=10-9=1 ✓
+  });
+
+  it('synthetic group block (__group__::id) is treated as a regular node by size', () => {
+    // Flow layout receives synthetic nodes for child groups with their padded sizes.
+    const nodes = [
+      makeNode('a', { size: [4, 2] }),
+      makeNode('__group__::grp', { size: [8, 6], label: '__group__::grp' }),
+      makeNode('b', { size: [4, 2] }),
+    ];
+    const result = resolveFlowLayout(
+      nodes,
+      flow({ direction: 'top-down', gap: 2 }),
+      ['a', '__group__::grp', 'b'],
+    );
+    expect(result.get('a')).toEqual([0, 0, 0]);
+    // a: center=0, half=1, trailing=-1; grp: center=-1-2-3=-6, half=3, trailing=-9
+    expect(result.get('__group__::grp')).toEqual([0, -6, 0]);
+    // grp trailing=-9; b: center=-9-2-1=-12
+    expect(result.get('b')).toEqual([0, -12, 0]);
+  });
+
+  it('gap=0: items placed immediately adjacent (no space between)', () => {
+    const nodes = [makeNode('a', { size: [4, 2] }), makeNode('b', { size: [4, 2] })];
+    const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 0 }), ['a', 'b']);
+    expect(result.get('a')).toEqual([0, 0, 0]);
+    // a: center=0, half=1, trailing=-1; b: center=-1-0-1=-2
+    expect(result.get('b')).toEqual([0, -2, 0]);
+  });
+
+  it('single item: placed at primary axis origin', () => {
+    const nodes = [makeNode('solo', { size: [6, 3] })];
+    const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 2 }), ['solo']);
+    expect(result.get('solo')).toEqual([0, 0, 0]);
+  });
+
+  it('childrenOrder determines placement sequence regardless of nodes array order', () => {
+    const nodes = [makeNode('c'), makeNode('a'), makeNode('b')];
+    const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 1 }), ['a', 'b', 'c']);
+    // a placed first (center=0), b second, c third
+    const aY = result.get('a')![1];
+    const bY = result.get('b')![1];
+    const cY = result.get('c')![1];
+    expect(aY).toBeGreaterThan(bY!); // a is above b (higher Y = more positive)
+    expect(bY).toBeGreaterThan(cY!); // b is above c
+  });
+
+  it('empty nodes array returns empty positions map', () => {
+    const result = resolveFlowLayout([], flow({ direction: 'top-down', gap: 2 }), []);
+    expect(result.size).toBe(0);
+  });
+
+  it('childrenOrder entries not present in nodes are silently dropped', () => {
+    const nodes = [makeNode('a', { size: [4, 2] }), makeNode('b', { size: [4, 2] })];
+    const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 1 }), ['a', 'phantom', 'b']);
+    // a above b; phantom not in result
+    expect(result.get('a')![1]).toBeGreaterThan(result.get('b')![1]);
+    expect(result.has('phantom')).toBe(false);
+    expect(result.size).toBe(2);
+  });
+
+  it('resolveLayoutWithGroups: FlowLayout sequences node, group, node in childrenOrder', () => {
+    // Root: FlowLayout top-down — items: nodeA, group g1 (containing x,y), nodeB
+    // childrenOrder: a, g1, b — group is between the two nodes
+    const nodes = [
+      makeNode('a', { size: [4, 2] }),
+      makeNode('b', { size: [4, 2] }),
+      makeNode('x', { size: [4, 2] }),
+      makeNode('y', { size: [4, 2] }),
+    ];
+    const groups = [makeGroup('g1', ['x', 'y'])];
+    const sizes = makeSize(nodes);
+    const rootLayout = DEFAULT_RESOLVED_FLOW;
+    const groupLayouts = resolveGroupLayouts(groups, rootLayout);
+    // @ts-expect-error — rootChildrenOrder and groupChildrenOrders params added by Stream D
+    const positions = resolveLayoutWithGroups(
+      nodes, [], groups, rootLayout, groupLayouts, sizes,
+      undefined,
+      ['a', 'g1', 'b'],                          // rootChildrenOrder
+      new Map([['g1', ['x', 'y']]]),              // groupChildrenOrders
+    );
+    const aY = positions.get('a')![1];
+    const bY = positions.get('b')![1];
+    // Group center is between a and b on Y axis
+    const gCenter = (positions.get('x')![1] + positions.get('y')![1]) / 2;
+    expect(aY).toBeGreaterThan(gCenter); // a is above group
+    expect(gCenter).toBeGreaterThan(bY); // group is above b
   });
 });

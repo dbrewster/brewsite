@@ -349,6 +349,48 @@ export function ManualLayout(_props: ManualLayoutProps): null {
   return null;
 }
 
+// ─── <FlowLayout> ─────────────────────────────────────────────────────────────
+
+export interface FlowLayoutProps {
+  /**
+   * Primary layout axis direction.
+   * 'top-down'   — items stacked vertically (decreasing Y). Default.
+   * 'left-right' — items stacked horizontally (increasing X).
+   */
+  direction?: 'top-down' | 'left-right';
+  /**
+   * Edge-to-edge gap between adjacent items in diagram units. Default: 2.
+   */
+  gap?: number;
+  /** Padding inside group boundary boxes. Default: 1.5 (all sides) */
+  groupPadding?: LayoutPadding;
+  /** Gap between group title and content area. Default: 1 */
+  titleGap?: number;
+}
+
+/**
+ * Declares a sequential flow auto-layout for the parent <Diagram> or <DiagramGroup>.
+ * Places all direct children in a single line in their JSX declaration order.
+ * Items are positioned along the direction axis with edge-to-edge gap spacing.
+ * Secondary axis (cross-axis) position is always 0 — items are center-aligned.
+ * Must be a direct child of <Diagram> or <DiagramGroup>. At most one layout
+ * element per container. Cascades with parent layouts of the same kind.
+ *
+ * @example
+ * <Diagram id="pipeline">
+ *   <FlowLayout direction="top-down" gap={2} />
+ *   <DiagramNode id="input" label="Input" />
+ *   <DiagramGroup id="processing">
+ *     <GridLayout columns={3} />
+ *     <DiagramNode id="p1" label="Step 1" />
+ *   </DiagramGroup>
+ *   <DiagramNode id="output" label="Output" />
+ * </Diagram>
+ */
+export function FlowLayout(_props: FlowLayoutProps): null {
+  return null;
+}
+
 // ─── <Diagram> ────────────────────────────────────────────────────────────────
 
 export interface DiagramProps {

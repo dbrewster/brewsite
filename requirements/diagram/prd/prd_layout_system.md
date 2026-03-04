@@ -3,28 +3,31 @@ title: "BrewSite Diagram — Layout System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-02
+last_updated: 2026-03-04
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Initial PRD created. Comprehensive documentation of the @brewsite/diagram layout system — three layout strategies, cascade model, resolved types, pivot offset, and functional requirements — as implemented."
+  - date: 2026-03-04
+    author: "Toolkit Product"
+    summary: "Added FlowLayout as the fourth first-class layout strategy. Documents FlowLayoutDSL, ResolvedFlowLayout, DEFAULT_RESOLVED_FLOW, childrenOrder field on DiagramDSL and DiagramGroupDSL, theme defaultKind extension to include 'flow', cascade behavior, and authoring example. Updated Overview, Problem Statement, Consumer Stories, Functional Requirements, Theme Layout Defaults, Dependencies, and Risks sections accordingly."
 ---
 
 # BrewSite Diagram — Layout System
 
 ## Overview
 
-The layout system in `@brewsite/diagram` resolves world-space positions for `DiagramNode` elements that do not have an explicit `position` prop. It runs entirely at compile time inside `compileDiagram()`, before edge routing and node compilation. Three first-class layout strategies are available as DSL components: `ManualLayout`, `GridLayout`, and `HierarchicalLayout`. A fourth implicit path exists — when no layout child is declared, the theme's `defaultKind` is used (defaulting to `'grid'`). Layouts cascade from parent `<DiagramGroup>` to child groups, enabling different layout strategies at different nesting levels. Affected package: `@brewsite/diagram`.
+The layout system in `@brewsite/diagram` resolves world-space positions for `DiagramNode` elements that do not have an explicit `position` prop. It runs entirely at compile time inside `compileDiagram()`, before edge routing and node compilation. Four first-class layout strategies are available as DSL components: `ManualLayout`, `GridLayout`, `HierarchicalLayout`, and `FlowLayout`. An implicit path also exists — when no layout child is declared, the theme's `defaultKind` is used (defaulting to `'grid'`). Layouts cascade from parent `<DiagramGroup>` to child groups, enabling different layout strategies at different nesting levels. Affected package: `@brewsite/diagram`.
 
 ## Problem Statement
 
-Complex diagrams contain dozens of nodes. Requiring every node to specify an explicit position is verbose, fragile when nodes are added or removed, and forces consumers to do visual math by hand. Equally, a single layout algorithm does not suit all use cases — flow diagrams want hierarchical depth ordering, infrastructure overviews want grid organization, and precisely authored diagrams need manual control. The layout system solves this by providing three discrete algorithms with clean DSL configuration, a theme-level defaults layer, and a group-cascade model that lets inner groups use different strategies than their container.
+Complex diagrams contain dozens of nodes. Requiring every node to specify an explicit position is verbose, fragile when nodes are added or removed, and forces consumers to do visual math by hand. Equally, a single layout algorithm does not suit all use cases — flow diagrams want hierarchical depth ordering, infrastructure overviews want grid organization, ordered lists of pipeline stages want sequential placement in declaration order, and precisely authored diagrams need manual control. The layout system solves this by providing four discrete algorithms with clean DSL configuration, a theme-level defaults layer, and a group-cascade model that lets inner groups use different strategies than their container.
 
 ## Goals & Success Metrics
 
 **Primary metrics:**
 - Consumers can declare a 10-node diagram with no explicit positions and receive a visually correct grid layout with zero manual coordinate work.
-- `resolveLayout` and `resolveLayoutWithGroups` achieve 100% test coverage on all algorithmic branches in `layoutAlgorithms.ts` and `layoutResolver.ts`.
+- `resolveLayout`, `resolveLayoutWithGroups`, and `resolveFlowLayout` achieve 100% test coverage on all algorithmic branches in `layoutAlgorithms.ts` and `layoutResolver.ts`.
 - Hierarchical layout correctly handles directed cycles without throwing or producing degenerate output.
 - Layout cascade correctly propagates from root diagram through arbitrarily nested groups.
 
@@ -46,6 +49,7 @@ Complex diagrams contain dozens of nodes. Requiring every node to specify an exp
 - As a toolkit consumer, I want to declare nodes without positions and have them arranged automatically in a left-to-right grid so that I can add or remove nodes without updating coordinates.
 - As a toolkit consumer, I want nodes connected by edges to be arranged in a topological hierarchy so that the diagram's data flow reads naturally top-to-bottom or left-to-right.
 - As a toolkit consumer, I want full control over every node position so that I can author precisely composed diagrams that match a design mockup.
+- As a toolkit consumer, I want to declare "arrange these items sequentially in the order I wrote them" without providing manual coordinates or adding dummy edges, so that I can author vertical stacks, horizontal rows, and pipeline phase sequences with a single clean primitive.
 - As a toolkit consumer, I want groups to use a different layout than the root diagram so that swimlanes can have a vertical grid while the root uses hierarchical ordering.
 - As a toolkit consumer, I want to configure spacing, padding, and alignment through the theme so that all diagrams in my scene share consistent visual rhythm without per-diagram configuration.
 
@@ -61,6 +65,11 @@ Complex diagrams contain dozens of nodes. Requiring every node to specify an exp
 8. When no layout child is declared on a `<Diagram>` or `<DiagramGroup>`, the effective layout shall be the resolved default from the theme, falling back to the package-level grid default.
 9. The `pivot` prop on `<Diagram>` shall shift all compiled positions so the specified pivot point maps to diagram-local `[0, 0, 0]`. Edge routing, group bounds, and the final `DiagramState.bounds` all use pivoted positions.
 10. The `alignment: 'fill'` option shall distribute node centers evenly across the reference width of the widest row (grid) or widest level (hierarchical), treating single-node rows/levels as centered.
+11. `FlowLayout` shall place all items at the current container level in their JSX declaration order along the primary axis, with edge-to-edge gap between adjacent items.
+12. `FlowLayout` shall center all items on the secondary (cross) axis at coordinate 0. No secondary-axis alignment prop is provided in v1.
+13. `FlowLayout` shall honor explicit `position` props: explicitly positioned nodes are preserved in-place; the placement cursor advances past their footprint so subsequent auto-placed items are correctly spaced.
+14. Both `DiagramDSL` and `DiagramGroupDSL` shall carry a `childrenOrder: ReadonlyArray<string>` field populated by the compiler from the interleaved JSX declaration order of child nodes and groups. `FlowLayout` uses this field to determine placement sequence.
+15. The theme's `DiagramThemeLayoutConfig.defaultKind` shall accept `'flow'` as a valid value, enabling a theme to default all diagrams to flow layout when no layout child is declared.
 
 ## Three Layout Strategies
 
@@ -288,6 +297,91 @@ export const DEFAULT_RESOLVED_HIERARCHICAL: ResolvedHierarchicalLayout = {
 9. **Connection affinity refinement** (hierarchical root layout only, not per-group): for ungrouped nodes that connect into a group, the node's secondary-axis position is refined toward the mean secondary position of the group member(s) it connects to, weighted equally across all such connections. This prevents wires from crossing unnecessarily when an outside node connects into the interior of a group.
 10. Set `z = node.position?.[2] ?? 0`.
 
+### 4. `FlowLayout`
+
+Nodes and groups at the current container level are placed sequentially along a single axis in their JSX declaration order. Unlike `GridLayout` (which wraps into rows) and `HierarchicalLayout` (which sorts by edge topology), `FlowLayout` is a direct-intent primitive: "lay my items out in the order I wrote them, with this gap between them."
+
+**DSL type (from `types.ts`):**
+
+```typescript
+export interface FlowLayoutDSL {
+  readonly kind: 'flow';
+  /** Primary layout axis. 'top-down' (default) stacks items vertically; 'left-right' stacks them horizontally. */
+  readonly direction?: 'top-down' | 'left-right';
+  /** Edge-to-edge distance between adjacent item footprints in diagram units. Default: 2 */
+  readonly gap?: number;
+  /** Padding inside group boundary boxes in diagram units (CSS shorthand). Default: 1.5 */
+  readonly groupPadding?: LayoutPadding;
+  /** Gap between group title label and content area. Default: 1 */
+  readonly titleGap?: number;
+}
+```
+
+**DSL component (from `dsl.tsx`):**
+
+```typescript
+export interface FlowLayoutProps {
+  direction?: 'top-down' | 'left-right';
+  gap?: number;
+  groupPadding?: LayoutPadding;
+  titleGap?: number;
+}
+
+export function FlowLayout(_props: FlowLayoutProps): null { return null; }
+```
+
+**Resolved type (from `layoutResolver.ts`):**
+
+```typescript
+export interface ResolvedFlowLayout {
+  readonly kind: 'flow';
+  readonly direction: 'top-down' | 'left-right';
+  readonly gap: number;
+  readonly groupPadding: readonly [number, number, number, number]; // always normalized
+  readonly titleGap: number;
+}
+
+// Package-level defaults:
+export const DEFAULT_RESOLVED_FLOW: ResolvedFlowLayout = {
+  kind: 'flow',
+  direction: 'top-down',
+  gap: 2,
+  groupPadding: [1.5, 1.5, 1.5, 1.5],
+  titleGap: 1,
+};
+```
+
+Note: `FlowLayout` does **not** extend `BaseLayoutDSL`. It does not have `spacing`, `margin`, `alignment`, or `disconnected` props. Those concepts apply to 2D grid and topological layouts; flow layout reduces to a single `gap` value for edge-to-edge spacing on the primary axis.
+
+**`childrenOrder` field:**
+
+Both `DiagramDSL` and `DiagramGroupDSL` carry a `childrenOrder: ReadonlyArray<string>` field. The compiler populates this from the interleaved JSX declaration order of direct child nodes and groups (in the order they appear in source). This field is always populated — not conditionally on `FlowLayout` being present — because the cost is negligible and it future-proofs the compiled representation.
+
+```typescript
+// In DiagramGroupDSL and DiagramDSL:
+readonly childrenOrder: ReadonlyArray<string>;
+```
+
+**Algorithm detail:**
+
+1. Sort items by `childrenOrder`. Items in `nodes` but absent from `childrenOrder` are appended in node-array order (defensive fallback).
+2. Separate items with explicit positions (preserved in-place) from auto-placed items.
+3. Iterate in order. Maintain a `cursor` tracking the leading edge on the primary axis.
+4. For each item: compute `halfPrimary = primarySize / 2`. If the item has an explicit position, advance `cursor` past its footprint without overwriting its position.
+5. For auto-placed items: `centerPrimary = -(cursor + halfPrimary)` (top-down; Y decreases downward). For `left-right`: `centerPrimary = cursor + halfPrimary` (X increases rightward). Set secondary coordinate to `0`. Advance `cursor += primarySize + gap`.
+6. `z = node.position?.[2] ?? 0` — Z is always taken from the explicit prop.
+
+**Direction and sign conventions:**
+- `'top-down'`: Y is the primary axis, decreasing downward. First item center at `y = -(h/2)`, subsequent items at more-negative Y values — consistent with `GridLayout` and `HierarchicalLayout` top-down conventions.
+- `'left-right'`: X is the primary axis, increasing rightward. First item center at `x = w/2`, subsequent items at increasing X values.
+- Secondary axis is always `0` (centered).
+
+**When to use FlowLayout:**
+- Vertical stacks of pipeline phases, process steps, or bullet-list-style nodes where declaration order is the intended visual order.
+- Horizontal sequences of icons or stages where left-to-right reading order matches declaration order.
+- Groups acting as swimlane rows or columns where a simple directional arrangement is needed without edge-connectivity analysis.
+- Any container where `GridLayout columns={1}` would be a semantic workaround and the intent is "a single ordered line."
+
 ## Layout Cascade
 
 Layouts cascade from the root `<Diagram>` element through the group tree. The cascade model has three rules:
@@ -324,10 +418,13 @@ Root Diagram: <HierarchicalLayout direction="top-down" spacing={[3, 4]} />
 ├── Group B: <GridLayout columns={2} /> → DIFFERENT KIND → replaces with GridLayout defaults
 │   spacing=[2,2], margin=[0,0], alignment='left', columns=2
 │
-└── Group C: <HierarchicalLayout spacing={[1.5, 2]} />  → SAME KIND → merges
-    direction=top-down (from root), spacing=[1.5, 2] (overrides root)
-    │
-    └── Group C1 (no layout) → inherits Group C's layout: HierarchicalLayout[spacing=[1.5,2]]
+├── Group C: <HierarchicalLayout spacing={[1.5, 2]} />  → SAME KIND → merges
+│   direction=top-down (from root), spacing=[1.5, 2] (overrides root)
+│   │
+│   └── Group C1 (no layout) → inherits Group C's layout: HierarchicalLayout[spacing=[1.5,2]]
+│
+└── Group D: <FlowLayout direction="top-down" gap={3} /> → DIFFERENT KIND → replaces with FlowLayout defaults + direction + gap
+    direction='top-down', gap=3, groupPadding=[1.5,1.5,1.5,1.5], titleGap=1
 ```
 
 `resolveGroupLayouts(groups, rootLayout, defaults)` builds the full cascade map in one DFS pass, memoizing each group's resolved layout.
@@ -372,7 +469,7 @@ export interface DiagramThemeLayoutConfig {
    * Root layout kind used when no layout child is declared on <Diagram>.
    * Default: 'grid'.
    */
-  readonly defaultKind?: 'grid' | 'hierarchical' | 'manual';
+  readonly defaultKind?: 'grid' | 'hierarchical' | 'manual' | 'flow';
   /** Defaults applied when resolving a grid layout. */
   readonly grid?: {
     readonly columns?: number | 'auto';
@@ -398,6 +495,13 @@ export interface DiagramThemeLayoutConfig {
     readonly groupPadding?: LayoutPadding;
     readonly titleGap?: number;
   };
+  /** Defaults applied when resolving a flow layout. */
+  readonly flow?: {
+    readonly direction?: 'top-down' | 'left-right';
+    readonly gap?: number;
+    readonly groupPadding?: LayoutPadding;
+    readonly titleGap?: number;
+  };
 }
 ```
 
@@ -409,6 +513,7 @@ export interface ResolvedLayoutDefaults {
   readonly grid: ResolvedGridLayout;
   readonly hierarchical: ResolvedHierarchicalLayout;
   readonly manual: ResolvedManualLayout;
+  readonly flow: ResolvedFlowLayout;
 }
 ```
 
@@ -570,7 +675,41 @@ The root diagram uses hierarchical layout. The inner `backend` group uses grid l
 </Diagram>
 ```
 
-### Example 5: Theme-Level Layout Defaults
+### Example 5: `FlowLayout` — Sequential Pipeline
+
+A root diagram uses FlowLayout top-down. The inner `processing` group uses GridLayout for its three nodes (different kind → replaces). FlowLayout places the root-level items in declaration order: `input` → `processing` group block → `output`.
+
+```tsx
+<Diagram id="pipeline" pivot="center">
+  <FlowLayout direction="top-down" gap={2} />
+  <DiagramNode id="input" label="Input" icon="tech:arrow-down" />
+  <DiagramGroup id="processing" label="Processing">
+    <GridLayout columns={3} spacing={[2, 1.5]} />
+    <DiagramNode id="p1" label="Step 1" />
+    <DiagramNode id="p2" label="Step 2" />
+    <DiagramNode id="p3" label="Step 3" />
+  </DiagramGroup>
+  <DiagramNode id="output" label="Output" icon="tech:arrow-down" />
+</Diagram>
+```
+
+Result: `input` is placed at the top; the `processing` group occupies the next slot (its internal `[p1, p2, p3]` are arranged in a 3-column grid); `output` is placed below the group. All three root-level items are center-aligned on the X axis (`x = 0`).
+
+### Example 6: `FlowLayout` Left-Right — Horizontal Stage Row
+
+```tsx
+<Diagram id="stages" pivot="center">
+  <FlowLayout direction="left-right" gap={3} />
+  <DiagramNode id="plan" label="Plan" />
+  <DiagramNode id="build" label="Build" />
+  <DiagramNode id="test" label="Test" />
+  <DiagramNode id="deploy" label="Deploy" />
+</Diagram>
+```
+
+Result: four nodes arranged left to right in declaration order with 3-unit edge-to-edge gaps between them. All center-aligned on the Y axis (`y = 0`).
+
+### Example 7: Theme-Level Layout Defaults
 
 Configure the enterprise theme to default to hierarchical layout for all diagrams that do not declare a layout child.
 
@@ -603,6 +742,8 @@ const customEnterprise: DiagramTheme = {
 - **`resolveLayoutWithGroups` is the primary entry point.** Direct use of `resolveLayout` is appropriate only when no groups are present, or in unit tests for the flat layout algorithms.
 - **Explicit positions are always preserved.** `resolveLayout` only populates positions for nodes absent from the positions map at the start of the call. It never overwrites an existing entry.
 - **Synthetic `__group__::id` nodes are internal.** They appear in the positions map during the group-aware layout pass but are filtered out before the final positions map is returned. Consumers never see these IDs.
+- **`childrenOrder` is always populated.** The compiler handler populates `childrenOrder` on both `DiagramDSL` and `DiagramGroupDSL` regardless of which layout kind is active. `resolveLayout` accepts `childrenOrder` as an optional parameter and passes it to `resolveFlowLayout` when `kind === 'flow'`.
+- **`FlowLayout` does not participate in connection affinity refinement.** The affinity refinement step (Phase 4 of `resolveLayoutWithGroups`) applies only to hierarchical root layouts. FlowLayout items are placed in declaration order; edge topology is not consulted.
 - **Group bounds include padding.** `resolveGroupBoundsMap` (called after `resolveLayoutWithGroups`) computes the padded bounding box for each group. The resulting `DiagramGroupState.bounds` includes the padding; the `bounds.padding` field stores the resolved `[top, right, bottom, left]` values for renderer reference.
 - **Thread safety.** All layout functions are pure and stateless. They may be called from any thread in a worker-based build pipeline.
 - **Performance.** For diagrams with O(n) nodes and O(m) edges, layout resolution is O(n + m). The topological sort is Kahn's algorithm at O(n + m). Group-aware layout adds a constant factor per nesting level. No layout algorithm is quadratic or worse.
@@ -613,9 +754,11 @@ Semver impact: **none** (documentation of implemented behavior).
 
 ## Dependencies
 
-- `packages/diagram/src/elements/diagram/types.ts` — `LayoutDSL`, `LayoutPadding`, `LayoutAlignment`, `LayoutDisconnected`, `DiagramThemeLayoutConfig`, `BaseLayoutDSL`, `GridLayoutDSL`, `HierarchicalLayoutDSL`, `ManualLayoutDSL`
-- `packages/diagram/src/elements/diagram/compiler/layoutAlgorithms.ts` — `resolveLayout`, `resolveLayoutWithGroups`, `computeBounds`
-- `packages/diagram/src/elements/diagram/compiler/layoutResolver.ts` — `resolveEffectiveLayout`, `resolveGroupLayouts`, `resolveThemeLayoutDefaults`, all resolved types and defaults
+- `packages/diagram/src/elements/diagram/types.ts` — `LayoutDSL`, `LayoutPadding`, `LayoutAlignment`, `LayoutDisconnected`, `DiagramThemeLayoutConfig`, `BaseLayoutDSL`, `GridLayoutDSL`, `HierarchicalLayoutDSL`, `ManualLayoutDSL`, `FlowLayoutDSL`
+- `packages/diagram/src/elements/diagram/dsl.tsx` — `FlowLayout`, `FlowLayoutProps`
+- `packages/diagram/src/elements/diagram/compiler/layoutAlgorithms.ts` — `resolveLayout`, `resolveLayoutWithGroups`, `resolveFlowLayout`, `computeBounds`
+- `packages/diagram/src/elements/diagram/compiler/layoutResolver.ts` — `resolveEffectiveLayout`, `resolveGroupLayouts`, `resolveThemeLayoutDefaults`, all resolved types and defaults including `ResolvedFlowLayout`, `DEFAULT_RESOLVED_FLOW`
+- `packages/diagram/src/compiler/handlers.ts` — `childrenOrder` population in `extractDiagramDSL` and `collectGroup`
 
 ## Risks & Mitigations
 
@@ -625,6 +768,8 @@ Semver impact: **none** (documentation of implemented behavior).
 | Hierarchical layout cycles producing degenerate output (all nodes at level 0) | Kahn's algorithm degrades to level 0 for cyclic participants; documented behavior, not a throw; tested with explicit cyclic fixture |
 | `'fill'` alignment producing overlapping nodes when rows contain very wide nodes | By design: `fill` distributes centers, not edges; consumers should use `'left'` or `'center'` when node sizes vary significantly |
 | Performance regression from group-aware bottom-up pass on large diagrams | O(n + m) complexity; `collectAllDescendantNodeIds` is memoized; benchmarked for 100-node, 10-group diagrams |
+| `FlowLayout` `childrenOrder` mismatch when items are present in `nodes` but absent from `childrenOrder` | Defensive fallback in `resolveFlowLayout` appends missing IDs in node-array order; logged at warn level so authors can identify stale compiled data |
+| Confusion between `FlowLayout gap` and `GridLayout spacing` semantics | `gap` is edge-to-edge (simpler); `spacing` is footprint-to-footprint after margin expansion. Documented clearly; the different field names make them non-substitutable at the type level |
 
 ## Open Questions
 
@@ -637,4 +782,4 @@ This is a documentation PRD for an implemented system. The criteria for keeping 
 - Updated within one sprint of any change to `layoutAlgorithms.ts`, `layoutResolver.ts`, `types.ts` layout interfaces, or any DSL layout component props.
 - All DSL types and resolved types referenced in this document remain in sync with the source of truth in `packages/diagram/src/elements/diagram/`.
 - Authoring examples compile without TypeScript errors against the current package.
-- `resolveLayout` and `resolveLayoutWithGroups` maintain >= 95% branch coverage in Vitest.
+- `resolveLayout`, `resolveLayoutWithGroups`, and `resolveFlowLayout` maintain >= 95% branch coverage in Vitest.

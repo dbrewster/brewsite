@@ -98,6 +98,10 @@ export function compileDiagram(
   const layoutDefaults = resolveThemeLayoutDefaults(theme.layout);
   const rootLayout: ResolvedLayout = resolveEffectiveLayout(dsl.layout, undefined, layoutDefaults);
   const groupLayouts = resolveGroupLayouts(dsl.groups, rootLayout, layoutDefaults);
+  // childrenOrder is optional on DiagramGroupDSL — use nullish fallback for absent field.
+  const groupChildrenOrders = new Map<string, ReadonlyArray<string>>(
+    dsl.groups.map((g) => [g.id, g.childrenOrder ?? []]),
+  );
 
   const groupMap = new Map<string, string>();
   dsl.groups.forEach((group) => {
@@ -130,6 +134,8 @@ export function compileDiagram(
     groupLayouts,
     sizeWithDepthMap,
     onWarn,
+    dsl.childrenOrder ?? [],       // childrenOrder is optional; empty array triggers defensive fallback
+    groupChildrenOrders,
   );
 
   const pivot: DiagramPivot = dsl.pivot ?? 'center';

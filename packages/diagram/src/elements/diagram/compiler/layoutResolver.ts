@@ -28,13 +28,27 @@ export interface ResolvedManualLayout {
   readonly titleGap: number;
 }
 
-export type ResolvedLayout = ResolvedGridLayout | ResolvedHierarchicalLayout | ResolvedManualLayout;
+/** Fully resolved layout config for FlowLayout — all fields required. */
+export interface ResolvedFlowLayout {
+  readonly kind: 'flow';
+  /** Primary layout axis. Default: 'top-down'. */
+  readonly direction: 'top-down' | 'left-right';
+  /** Edge-to-edge gap between adjacent items in diagram units. Default: 2. */
+  readonly gap: number;
+  /** Normalized group padding [top, right, bottom, left]. Default: [1.5, 1.5, 1.5, 1.5]. */
+  readonly groupPadding: readonly [number, number, number, number];
+  /** Gap between group title and content area in diagram units. Default: 1. */
+  readonly titleGap: number;
+}
+
+export type ResolvedLayout = ResolvedGridLayout | ResolvedHierarchicalLayout | ResolvedManualLayout | ResolvedFlowLayout;
 
 export interface ResolvedLayoutDefaults {
   readonly root: ResolvedLayout;
   readonly grid: ResolvedGridLayout;
   readonly hierarchical: ResolvedHierarchicalLayout;
   readonly manual: ResolvedManualLayout;
+  readonly flow: ResolvedFlowLayout;
 }
 
 /**
@@ -99,11 +113,20 @@ export const DEFAULT_RESOLVED_MANUAL: ResolvedManualLayout = {
   titleGap: DEFAULT_TITLE_GAP,
 };
 
+export const DEFAULT_RESOLVED_FLOW: ResolvedFlowLayout = {
+  kind: 'flow',
+  direction: 'top-down',
+  gap: 2,
+  groupPadding: DEFAULT_GROUP_PADDING_NORMALIZED,
+  titleGap: DEFAULT_TITLE_GAP,
+};
+
 const BASE_RESOLVED_LAYOUT_DEFAULTS: ResolvedLayoutDefaults = {
   root: DEFAULT_RESOLVED_GRID,
   grid: DEFAULT_RESOLVED_GRID,
   hierarchical: DEFAULT_RESOLVED_HIERARCHICAL,
   manual: DEFAULT_RESOLVED_MANUAL,
+  flow: DEFAULT_RESOLVED_FLOW,
 };
 
 export function resolveThemeLayoutDefaults(
@@ -137,17 +160,28 @@ export function resolveThemeLayoutDefaults(
     ...(themeLayout?.manual?.titleGap !== undefined && { titleGap: themeLayout.manual.titleGap }),
   };
 
+  const flowDefaults: ResolvedFlowLayout = {
+    ...DEFAULT_RESOLVED_FLOW,
+    ...(themeLayout?.flow?.direction !== undefined && { direction: themeLayout.flow.direction }),
+    ...(themeLayout?.flow?.gap !== undefined && { gap: themeLayout.flow.gap }),
+    ...(themeLayout?.flow?.groupPadding !== undefined && { groupPadding: normalizeGroupPadding(themeLayout.flow.groupPadding) }),
+    ...(themeLayout?.flow?.titleGap !== undefined && { titleGap: themeLayout.flow.titleGap }),
+  };
+
   const root: ResolvedLayout = themeLayout?.defaultKind === 'hierarchical'
     ? hierarchicalDefaults
     : themeLayout?.defaultKind === 'manual'
       ? manualDefaults
-      : gridDefaults;
+      : themeLayout?.defaultKind === 'flow'
+        ? flowDefaults
+        : gridDefaults;
 
   return {
     root,
     grid: gridDefaults,
     hierarchical: hierarchicalDefaults,
     manual: manualDefaults,
+    flow: flowDefaults,
   };
 }
 
@@ -170,6 +204,15 @@ export function applyLayoutDefaultsWithTheme(
         ? normalizeGroupPadding(own.groupPadding)
         : defaults.manual.groupPadding,
       titleGap: own.titleGap ?? defaults.manual.titleGap,
+    };
+  }
+  if (own.kind === 'flow') {
+    return {
+      ...defaults.flow,
+      ...(own.direction !== undefined && { direction: own.direction }),
+      ...(own.gap !== undefined && { gap: own.gap }),
+      ...(own.groupPadding !== undefined && { groupPadding: normalizeGroupPadding(own.groupPadding) }),
+      ...(own.titleGap !== undefined && { titleGap: own.titleGap }),
     };
   }
   const base = own.kind === 'grid' ? defaults.grid : defaults.hierarchical;
@@ -197,6 +240,13 @@ export function mergeResolvedLayouts(
 ): ResolvedLayout {
   const result = { ...parent } as Record<string, unknown>;
   if (child.kind === 'manual') {
+    if (child.groupPadding !== undefined) result['groupPadding'] = normalizeGroupPadding(child.groupPadding);
+    if (child.titleGap !== undefined) result['titleGap'] = child.titleGap;
+    return result as unknown as ResolvedLayout;
+  }
+  if (child.kind === 'flow') {
+    if (child.gap !== undefined) result['gap'] = child.gap;
+    if (child.direction !== undefined) result['direction'] = child.direction;
     if (child.groupPadding !== undefined) result['groupPadding'] = normalizeGroupPadding(child.groupPadding);
     if (child.titleGap !== undefined) result['titleGap'] = child.titleGap;
     return result as unknown as ResolvedLayout;

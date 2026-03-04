@@ -5,13 +5,102 @@ import type { DiagramNodeDSL, DiagramEdgeDSL, DiagramGroupDSL, DiagramWarnFn } f
 import {
   DEFAULT_RESOLVED_GRID,
 } from './layoutResolver';
-import type { ResolvedLayout, ResolvedGridLayout, ResolvedHierarchicalLayout } from './layoutResolver';
+import type { ResolvedLayout, ResolvedGridLayout, ResolvedHierarchicalLayout, ResolvedFlowLayout } from './layoutResolver';
+
+/**
+ * Assigns [x, y, z] positions to all items in declaration order along a single axis.
+ * Items are placed edge-to-edge with `layout.gap` empty space between adjacent footprints.
+ * Secondary axis is always 0 (center-aligned).
+ *
+ * Items with explicit positions are preserved. The cursor advances past their footprint
+ * so that subsequent auto-placed items maintain correct edge-to-edge spacing.
+ *
+ * Items present in `nodes` but absent from `childrenOrder` are appended defensively
+ * in node-array order (handles old compiled data without childrenOrder).
+ */
+export function resolveFlowLayout(
+  nodes: ReadonlyArray<DiagramNodeDSL>,
+  layout: ResolvedFlowLayout,
+  childrenOrder: ReadonlyArray<string>,
+): Map<string, readonly [number, number, number]> {
+  const positions = new Map<string, readonly [number, number, number]>();
+  const DEFAULT_NODE_SIZE: readonly [number, number] = [4, 2];
+  const isTopDown = layout.direction !== 'left-right';
+  const gap = layout.gap;
+
+  const nodeById = new Map<string, DiagramNodeDSL>(nodes.map((n) => [n.id, n]));
+
+  // Seed explicit positions.
+  for (const n of nodes) {
+    if (n.position) positions.set(n.id, n.position);
+  }
+
+  // Build ordered list: childrenOrder filtered to ids present in this level, then append any missing.
+  const nodeIdSet = new Set<string>(nodes.map((n) => n.id));
+  const orderedIds: string[] = childrenOrder.filter((id) => nodeIdSet.has(id));
+  // Defensive: append any ids present in nodes but absent from childrenOrder (O(n), not O(n²)).
+  const orderedIdSet = new Set<string>(orderedIds);
+  for (const n of nodes) {
+    if (!orderedIdSet.has(n.id)) {
+      orderedIds.push(n.id);
+      orderedIdSet.add(n.id);
+    }
+  }
+
+  // Place items sequentially.
+  // trailingEdge = the primary-axis coordinate of the TRAILING edge of the last auto-placed item.
+  // top-down: trailing edge is the bottom edge (most negative Y value reached).
+  // left-right: trailing edge is the right edge (most positive X value reached).
+  let trailingEdge = 0;
+  let firstAutoItem = true;
+
+  for (const id of orderedIds) {
+    const node = nodeById.get(id);
+    if (!node) continue;
+
+    const [w, h] = node.size ?? DEFAULT_NODE_SIZE;
+    const primarySize = isTopDown ? h : w;
+    const halfPrimary = primarySize / 2;
+
+    if (node.position) {
+      // Explicit position: preserve it and skip auto-placement.
+      // Do not update trailingEdge; explicit items are assumed placed by the author.
+      continue;
+    }
+
+    let center: number;
+    if (firstAutoItem) {
+      // First auto-placed item is centered at the primary-axis origin.
+      center = 0;
+      firstAutoItem = false;
+    } else {
+      // Subsequent items: leading edge = trailingEdge ± gap, center = leading ± half.
+      if (isTopDown) {
+        center = trailingEdge - gap - halfPrimary;
+      } else {
+        center = trailingEdge + gap + halfPrimary;
+      }
+    }
+
+    // Update trailing edge for the next item.
+    trailingEdge = isTopDown
+      ? center - halfPrimary   // bottom edge (most negative Y)
+      : center + halfPrimary;  // right edge (most positive X)
+
+    const x = isTopDown ? 0 : center;
+    const y = isTopDown ? center : 0;
+    positions.set(id, [x, y, 0]);
+  }
+
+  return positions;
+}
 
 /**
  * Assigns [x, y, z] positions to nodes that have no explicit position.
  * For the 'grid' layout, places nodes left-to-right in rows of ~4 nodes.
  * For the 'hierarchical' layout, performs a topological sort on edges and assigns
  * depth levels as Y-axis bands.
+ * For 'flow', places items in declaration order along a single axis with edge-to-edge gap.
  * For 'manual', all nodes must have explicit positions — throws on missing position.
  */
 export function resolveLayout(
@@ -19,11 +108,16 @@ export function resolveLayout(
   edges: ReadonlyArray<DiagramEdgeDSL>,
   layout: ResolvedLayout,
   onWarn?: DiagramWarnFn,
+  childrenOrder?: ReadonlyArray<string>,
 ): Map<string, readonly [number, number, number]> {
   const layoutKind = (layout as { kind?: string }).kind;
-  if (layoutKind !== 'manual' && layoutKind !== 'grid' && layoutKind !== 'hierarchical') {
+  if (layoutKind !== 'manual' && layoutKind !== 'grid' && layoutKind !== 'hierarchical' && layoutKind !== 'flow') {
     console.warn(`Diagram resolveLayout: unknown layout kind "${String(layoutKind)}". Falling back to default grid.`);
     return resolveLayout(nodes, edges, DEFAULT_RESOLVED_GRID, onWarn);
+  }
+
+  if (layout.kind === 'flow') {
+    return resolveFlowLayout(nodes, layout as ResolvedFlowLayout, childrenOrder ?? nodes.map((n) => n.id));
   }
 
   const isFiniteNumber = (value: number): boolean => Number.isFinite(value);
@@ -407,6 +501,17 @@ type GroupInfo = {
 };
 
 /**
+ * A secondary-axis alignment candidate for a standalone node.
+ * Produced from cross-group edges in both directions during affinity refinement.
+ */
+type AffinityCandidate = {
+  /** Absolute secondary-axis position of the group endpoint this edge connects to. */
+  readonly refinedCrossAxis: number;
+  /** Index of the originating edge in the original dsl.edges array — used as DSL-order tiebreaker. */
+  readonly edgeIndex: number;
+};
+
+/**
  * Returns all node ids belonging to the given group or any of its nested descendants,
  * using a memoised DFS.
  */
@@ -498,9 +603,11 @@ export function resolveLayoutWithGroups(
   groupLayouts: Map<string, ResolvedLayout>,
   sizes: Map<string, readonly [number, number] | readonly [number, number, number]>,
   onWarn?: DiagramWarnFn,
+  rootChildrenOrder?: ReadonlyArray<string>,
+  groupChildrenOrders?: Map<string, ReadonlyArray<string>>,
 ): Map<string, readonly [number, number, number]> {
   if (rootLayout.kind === 'manual' || groups.length === 0) {
-    return resolveLayout(nodes, edges, rootLayout, onWarn);
+    return resolveLayout(nodes, edges, rootLayout, onWarn, rootChildrenOrder);
   }
 
   const groupById = new Map(groups.map((g) => [g.id, g]));
@@ -609,7 +716,11 @@ export function resolveLayoutWithGroups(
       }
 
       // Run layout on virtual nodes.
-      const rawLocalPositions = resolveLayout(virtualNodes, virtualEdges, groupLayout, onWarn);
+      const groupOrder = groupChildrenOrders?.get(group.id);
+      const remappedGroupOrder = groupOrder?.map((id) =>
+        childGroupIdSet.has(id) ? groupNodeId(id) : id,
+      );
+      const rawLocalPositions = resolveLayout(virtualNodes, virtualEdges, groupLayout, onWarn, remappedGroupOrder);
 
       // Expand: translate synthetic child-group positions into actual descendant node positions.
       expandedPositions = new Map();
@@ -735,12 +846,28 @@ export function resolveLayoutWithGroups(
     topLevelEdges.push({ from: fromId, to: toId });
   });
 
-  const topLevelPositions = resolveLayout(topLevelLayoutNodes, topLevelEdges, rootLayout, onWarn);
+  const remappedRootOrder = rootChildrenOrder?.map((id) =>
+    topLevelGroups.some((g) => g.id === id) ? groupNodeId(id) : id,
+  );
+  const topLevelPositions = resolveLayout(topLevelLayoutNodes, topLevelEdges, rootLayout, onWarn, remappedRootOrder);
 
   // ─── Connection affinity refinement (hierarchical only) ──────────────────────
+  // Adjusts standalone node secondary-axis positions so they align with their
+  // actual connection points inside groups, rather than the group center.
+  //
+  // Design rules:
+  //   a) Closest edge wins — among all edges connecting a standalone node to/from
+  //      a group, use the endpoint whose absolute secondary position is closest
+  //      to the standalone node's current (pre-affinity) secondary position.
+  //   b) DSL order tiebreaker — when two candidates are equidistant, prefer the
+  //      edge that was declared first in the DSL (lower edgeIndex).
+  //
+  // Both directions are handled:
+  //   - ungrouped → group (e.g. in-episodic → s1 inside g1)
+  //   - group → ungrouped (e.g. s7 inside g1 → out-neo)
   if (rootLayout.kind === 'hierarchical') {
     const isLR = (rootLayout as ResolvedHierarchicalLayout).direction === 'left-right';
-    const affinityTargets = new Map<string, number[]>();
+    const affinityTargets = new Map<string, AffinityCandidate[]>();
 
     const getTopLevelGroupIdForEndpoint = (endpointId: string): string | null => {
       const byNode = topLevelGroupByDescendant.get(endpointId);
@@ -754,11 +881,11 @@ export function resolveLayoutWithGroups(
       const groupInfo = groupInfoMap.get(topLevelGroupId);
       if (!groupInfo) return null;
 
-      // Node endpoint: direct local lookup in top-level group space.
+      // Direct node endpoint: read its local cross-axis position within the group.
       const nodeLocal = groupInfo.localPositions.get(endpointId);
       if (nodeLocal) return isLR ? nodeLocal[1] : nodeLocal[0];
 
-      // Group endpoint: approximate by the mean local cross-axis of all descendant nodes.
+      // Group-id endpoint: approximate by mean cross-axis of all descendant nodes.
       const descendantNodeIds = descendantMemo.get(endpointId);
       if (!descendantNodeIds || descendantNodeIds.size === 0) return 0;
       let sum = 0;
@@ -773,32 +900,97 @@ export function resolveLayoutWithGroups(
       return sum / count;
     };
 
-    edges.forEach((edge) => {
-      if (topLevelGroupByDescendant.has(edge.from)) return;
-      if (topLevelSynthIdForGroup.has(edge.from)) return;
-
-      const toGroupId = getTopLevelGroupIdForEndpoint(edge.to);
-      if (!toGroupId) return;
-
-      const groupBlockPos = topLevelPositions.get(groupNodeId(toGroupId));
+    const addAffinityCandidate = (
+      standaloneNodeId: string,
+      groupId: string,
+      groupEndpointId: string,
+      edgeIndex: number,
+    ): void => {
+      const groupBlockPos = topLevelPositions.get(groupNodeId(groupId));
       if (!groupBlockPos) return;
       const groupBlockCrossAxis = isLR ? groupBlockPos[1] : groupBlockPos[0];
-
-      const localCrossAxis = getEndpointLocalCrossAxis(toGroupId, edge.to);
+      const localCrossAxis = getEndpointLocalCrossAxis(groupId, groupEndpointId);
       if (localCrossAxis === null) return;
-
       const refinedCrossAxis = groupBlockCrossAxis + localCrossAxis;
+      if (!affinityTargets.has(standaloneNodeId)) affinityTargets.set(standaloneNodeId, []);
+      affinityTargets.get(standaloneNodeId)!.push({ refinedCrossAxis, edgeIndex });
+    };
 
-      if (!affinityTargets.has(edge.from)) affinityTargets.set(edge.from, []);
-      affinityTargets.get(edge.from)!.push(refinedCrossAxis);
+    edges.forEach((edge, edgeIndex) => {
+      const fromIsGrouped =
+        topLevelGroupByDescendant.has(edge.from) ||
+        topLevelSynthIdForGroup.has(edge.from);
+      const toIsGrouped =
+        topLevelGroupByDescendant.has(edge.to) ||
+        topLevelSynthIdForGroup.has(edge.to);
+
+      // Direction A: standalone node → group node/id
+      if (!fromIsGrouped && toIsGrouped) {
+        const toGroupId = getTopLevelGroupIdForEndpoint(edge.to);
+        if (toGroupId && topLevelPositions.has(edge.from)) {
+          addAffinityCandidate(edge.from, toGroupId, edge.to, edgeIndex);
+        }
+      }
+
+      // Direction B: group node/id → standalone node
+      if (fromIsGrouped && !toIsGrouped) {
+        const fromGroupId = getTopLevelGroupIdForEndpoint(edge.from);
+        if (fromGroupId && topLevelPositions.has(edge.to)) {
+          addAffinityCandidate(edge.to, fromGroupId, edge.from, edgeIndex);
+        }
+      }
     });
 
-    affinityTargets.forEach((refinedValues, nodeId) => {
+    // Build primary-axis buckets: map each primary-axis value to the standalone node IDs
+    // that sit at that hierarchical level. Used to detect sole-node levels below.
+    const standaloneNodesByPrimaryLevel = new Map<number, string[]>();
+    topLevelPositions.forEach((pos, id) => {
+      if (id.startsWith(GROUP_NODE_PREFIX)) return;
+      // Round to 2 decimal places to tolerate floating-point imprecision in level values.
+      const primaryVal = Math.round((isLR ? pos[0] : pos[1]) * 100) / 100;
+      if (!standaloneNodesByPrimaryLevel.has(primaryVal)) {
+        standaloneNodesByPrimaryLevel.set(primaryVal, []);
+      }
+      standaloneNodesByPrimaryLevel.get(primaryVal)!.push(id);
+    });
+
+    // Apply closest-edge-wins with DSL-order tiebreaker.
+    // Guard: skip affinity when the node is alone at its hierarchical level AND has only
+    // one cross-group edge. A lone node with a single connection naturally centers over
+    // the group; forcing it to align to that specific group endpoint (which may be at the
+    // far edge of a wide group) creates diagonal left-to-right visual artifacts even when
+    // direction="top-down". Affinity is still applied when:
+    //   (a) candidates.length > 1 — node has multiple edges into the group, or
+    //   (b) peersAtLevel.length > 1 — multiple standalone nodes share this level and need
+    //       to be spatially differentiated from each other.
+    affinityTargets.forEach((candidates, nodeId) => {
       const pos = topLevelPositions.get(nodeId);
-      if (!pos) return;
-      const meanRefined = refinedValues.reduce((s, v) => s + v, 0) / refinedValues.length;
+      if (!pos || candidates.length === 0) return;
+
+      const primaryVal = Math.round((isLR ? pos[0] : pos[1]) * 100) / 100;
+      const peersAtLevel = standaloneNodesByPrimaryLevel.get(primaryVal) ?? [];
+      if (candidates.length <= 1 && peersAtLevel.length <= 1) return;
+
+      const currentCrossAxis = isLR ? pos[1] : pos[0];
+
+      // Find the candidate whose absolute secondary position is closest to the
+      // node's current (pre-affinity) secondary position.
+      // On equal distance, prefer the candidate with the lower edgeIndex (DSL order).
+      let best = candidates[0]!;
+      for (let i = 1; i < candidates.length; i++) {
+        const cand = candidates[i]!;
+        const bestDist = Math.abs(best.refinedCrossAxis - currentCrossAxis);
+        const candDist = Math.abs(cand.refinedCrossAxis - currentCrossAxis);
+        if (
+          candDist < bestDist ||
+          (candDist === bestDist && cand.edgeIndex < best.edgeIndex)
+        ) {
+          best = cand;
+        }
+      }
+
       const [x, y, z] = pos;
-      topLevelPositions.set(nodeId, isLR ? [x, meanRefined, z] : [meanRefined, y, z]);
+      topLevelPositions.set(nodeId, isLR ? [x, best.refinedCrossAxis, z] : [best.refinedCrossAxis, y, z]);
     });
   }
 

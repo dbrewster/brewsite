@@ -52,8 +52,8 @@ export type {
 
 export type { DiagramNodeShape, DiagramIconVariant } from './elements/diagram/shapes/shapeVariants';
 export { DEFAULT_NODE_SHAPE } from './elements/diagram/shapes/shapeVariants';
-export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, DiagramExit, DiagramEnter, GridLayout, HierarchicalLayout, ManualLayout } from './elements/diagram/dsl';
-export type { DiagramExitProps, DiagramEnterProps, GridLayoutProps, HierarchicalLayoutProps, ManualLayoutProps } from './elements/diagram/dsl';
+export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, DiagramExit, DiagramEnter, GridLayout, HierarchicalLayout, ManualLayout, FlowLayout } from './elements/diagram/dsl';
+export type { DiagramExitProps, DiagramEnterProps, GridLayoutProps, HierarchicalLayoutProps, ManualLayoutProps, FlowLayoutProps } from './elements/diagram/dsl';
 export {
   compileDiagram,
   resolveLayout,

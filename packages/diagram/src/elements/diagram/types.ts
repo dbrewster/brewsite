@@ -137,13 +137,13 @@ export interface DiagramThemeEnvironmentConfig {
   readonly horizonColor: string;
 }
 
-/** Layout defaults in a theme for grid/hierarchical/manual compilation. */
+/** Layout defaults in a theme for grid/hierarchical/manual/flow compilation. */
 export interface DiagramThemeLayoutConfig {
   /**
-   * Root layout kind when no <GridLayout>/<HierarchicalLayout>/<ManualLayout>
+   * Root layout kind when no <GridLayout>/<HierarchicalLayout>/<ManualLayout>/<FlowLayout>
    * child is declared on <Diagram>. Default: 'grid'.
    */
-  readonly defaultKind?: 'grid' | 'hierarchical' | 'manual';
+  readonly defaultKind?: 'grid' | 'hierarchical' | 'manual' | 'flow';
   /** Defaults applied when resolving a grid layout. */
   readonly grid?: {
     readonly columns?: number | 'auto';
@@ -166,6 +166,13 @@ export interface DiagramThemeLayoutConfig {
   };
   /** Defaults applied when resolving a manual layout. */
   readonly manual?: {
+    readonly groupPadding?: LayoutPadding;
+    readonly titleGap?: number;
+  };
+  /** Defaults applied when resolving a flow layout. */
+  readonly flow?: {
+    readonly direction?: 'top-down' | 'left-right';
+    readonly gap?: number;
     readonly groupPadding?: LayoutPadding;
     readonly titleGap?: number;
   };
@@ -412,8 +419,40 @@ export interface ManualLayoutDSL {
   readonly titleGap?: number;
 }
 
+/**
+ * DSL props for <FlowLayout>.
+ * Arranges all items at this container level in a single sequential line,
+ * in their JSX declaration order, along the specified direction axis.
+ * Does not extend BaseLayoutDSL — it uses a single `gap` instead of `spacing`/`margin`.
+ */
+export interface FlowLayoutDSL {
+  readonly kind: 'flow';
+  /**
+   * Primary layout axis direction.
+   * 'top-down'   — items stacked vertically; first item at top (y = 0), subsequent items at decreasing Y.
+   * 'left-right' — items stacked horizontally; first item at x = 0, subsequent items at increasing X.
+   * Default: 'top-down'
+   */
+  readonly direction?: 'top-down' | 'left-right';
+  /**
+   * Edge-to-edge gap between adjacent item footprints in diagram units.
+   * Not center-to-center. Default: 2.
+   */
+  readonly gap?: number;
+  /**
+   * Padding inside group boundary boxes in diagram units (CSS shorthand).
+   * Default: 1.5 (all sides)
+   */
+  readonly groupPadding?: LayoutPadding;
+  /**
+   * Gap between group title label and group content area in diagram units.
+   * Default: 1
+   */
+  readonly titleGap?: number;
+}
+
 /** Discriminated union of all layout DSL types. */
-export type LayoutDSL = GridLayoutDSL | HierarchicalLayoutDSL | ManualLayoutDSL;
+export type LayoutDSL = GridLayoutDSL | HierarchicalLayoutDSL | ManualLayoutDSL | FlowLayoutDSL;
 /**
  * Compiled exit behaviour for a diagram. Produced from <Exit> DSL child.
  * Applied by exitFn in functionalDiagramTransitionSpec.
@@ -988,6 +1027,15 @@ export interface DiagramGroupDSL {
   readonly edgeLights?: DiagramGroupEdgeLightsDSL;
   readonly nodeIds: ReadonlyArray<string>;
   readonly childGroupIds?: ReadonlyArray<string>;
+  /**
+   * Interleaved declaration order of direct children (node IDs and group IDs).
+   * Populated by handlers.ts during DSL extraction.
+   * Optional for backward compatibility — test helpers that construct DiagramGroupDSL
+   * directly (e.g. makeGroup) do not need to supply this field.
+   * resolveFlowLayout falls back to node-array order when absent.
+   * Used by resolveFlowLayout to sequence items in JSX declaration order.
+   */
+  readonly childrenOrder?: ReadonlyArray<string>;
   readonly parentId?: string;
   /**
    * Layout configuration extracted from a layout child element of this group.
@@ -1030,6 +1078,14 @@ export interface DiagramDSL {
   readonly nodes: ReadonlyArray<DiagramNodeDSL>;
   readonly edges: ReadonlyArray<DiagramEdgeDSL>;
   readonly groups: ReadonlyArray<DiagramGroupDSL>;
+  /**
+   * Interleaved declaration order of direct top-level children (node IDs and group IDs).
+   * Populated by handlers.ts during DSL extraction.
+   * Optional for backward compatibility — see DiagramGroupDSL.childrenOrder.
+   * resolveFlowLayout falls back to node-array order when absent.
+   * Used by resolveFlowLayout to sequence root-level items in JSX declaration order.
+   */
+  readonly childrenOrder?: ReadonlyArray<string>;
   /**
    * World/parent-space position of the diagram group origin. Default: [0, 0, 0].
    * In a DiagramCanvas, this is canvas-local space.
