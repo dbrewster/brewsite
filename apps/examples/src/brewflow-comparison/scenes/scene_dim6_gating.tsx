@@ -13,7 +13,7 @@ import {
     Scene,
     WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, GridLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -41,22 +41,22 @@ export const sceneDim6Gating: JSX.Element = (
 
     <DiagramCanvas id="bfc-gate-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="gate-diagram" pivot="center">
-        <ManualLayout />
+        <GridLayout columns={2} spacing={[3, 2]} />
 
         {/* Left — claude-flow consensus votes */}
-        <DiagramNode id="gate-cf-a1" label="Agent vote: accept" size={[5.5, 2.2]} position={[-8, 3, 0]} color="#1a1520" />
-        <DiagramNode id="gate-cf-a2" label="Agent vote: accept" size={[5.5, 2.2]} position={[-8, 0, 0]} color="#1a1520" />
-        <DiagramNode id="gate-cf-q" label="Quorum ≥2 → proceed" sublabel="LLM agreement · can all be wrong" size={[5.5, 2.4]} position={[-8, -3.5, 0]} color="#1a1020" />
+        <DiagramNode id="gate-cf-a1" label="Agent vote: accept" size={[5.5, 2.2]} color="#1a1520" />
+        <DiagramNode id="gate-cf-a2" label="Agent vote: accept" size={[5.5, 2.2]} color="#1a1520" />
+        <DiagramNode id="gate-cf-q" label="Quorum ≥2 → proceed" sublabel="LLM agreement · can all be wrong" size={[5.5, 2.4]} color="#1a1020" />
 
         <DiagramEdge from="gate-cf-a1" to="gate-cf-q" flow="forward" color="#5050a0" />
         <DiagramEdge from="gate-cf-a2" to="gate-cf-q" flow="forward" color="#5050a0" />
 
         {/* Right — BrewFlow evidence gates */}
-        <DiagramNode id="gate-bf-tests" label="Automated tests" sublabel="pass/fail · coverage · regressions" size={[5.5, 2.2]} position={[8, 5, 0]} color="#141830" />
-        <DiagramNode id="gate-bf-checks" label="Reconciliation checks" sublabel="expected vs actual · invariants" size={[5.5, 2.2]} position={[8, 2, 0]} color="#141830" />
-        <DiagramNode id="gate-bf-sandbox" label="Sandbox execution" sublabel="safe environment replay" size={[5.5, 2.2]} position={[8, -1, 0]} color="#141830" />
-        <DiagramNode id="gate-bf-human" label="Human approval" sublabel="high-risk · ambiguous decisions" size={[5.5, 2.2]} position={[8, -4, 0]} color="#141830" />
-        <DiagramNode id="gate-bf-gate" label="Evidence gate" sublabel="proof required · not agreement" size={[5.5, 2.8]} position={[8, -7, 0]} color="#141e35" glow={{ intensity: 0.15 }} />
+        <DiagramNode id="gate-bf-tests" label="Automated tests" sublabel="pass/fail · coverage · regressions" size={[5.5, 2.2]} color="#141830" />
+        <DiagramNode id="gate-bf-checks" label="Reconciliation checks" sublabel="expected vs actual · invariants" size={[5.5, 2.2]} color="#141830" />
+        <DiagramNode id="gate-bf-sandbox" label="Sandbox execution" sublabel="safe environment replay" size={[5.5, 2.2]} color="#141830" />
+        <DiagramNode id="gate-bf-human" label="Human approval" sublabel="high-risk · ambiguous decisions" size={[5.5, 2.2]} color="#141830" />
+        <DiagramNode id="gate-bf-gate" label="Evidence gate" sublabel="proof required · not agreement" size={[5.5, 2.8]} color="#141e35" glow={{ intensity: 0.15 }} />
 
         <DiagramEdge from="gate-bf-tests" to="gate-bf-gate" flow="forward" color="#5070b0" />
         <DiagramEdge from="gate-bf-checks" to="gate-bf-gate" flow="forward" color="#5070b0" />

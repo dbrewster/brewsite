@@ -13,7 +13,7 @@ import {
     Scene,
     WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, GridLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -41,23 +41,23 @@ export const sceneDim8Maturity: JSX.Element = (
 
     <DiagramCanvas id="bfc-mature-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="mature-diagram" pivot="center">
-        <ManualLayout />
+        <GridLayout columns={2} spacing={[3, 2]} />
 
         {/* Left column — claude-flow maturation */}
-        <DiagramNode id="mat-cf-s1" label="Session 1" sublabel="patterns: 0" size={[5.5, 2.2]} position={[-8, 6, 0]} color="#1a1520" />
-        <DiagramNode id="mat-cf-s20" label="Session 20" sublabel="patterns: accumulating · unvalidated" size={[5.5, 2.2]} position={[-8, 2, 0]} color="#1a1520" />
-        <DiagramNode id="mat-cf-s50" label="Session 50" sublabel="more patterns · same quality problem" size={[5.5, 2.2]} position={[-8, -2, 0]} color="#1a1520" />
-        <DiagramNode id="mat-cf-s100" label="Session 100" sublabel="flat curve · operator-maintained quality" size={[5.5, 2.2]} position={[-8, -6, 0]} color="#1a1020" />
+        <DiagramNode id="mat-cf-s1" label="Session 1" sublabel="patterns: 0" size={[5.5, 2.2]} color="#1a1520" />
+        <DiagramNode id="mat-cf-s20" label="Session 20" sublabel="patterns: accumulating · unvalidated" size={[5.5, 2.2]} color="#1a1520" />
+        <DiagramNode id="mat-cf-s50" label="Session 50" sublabel="more patterns · same quality problem" size={[5.5, 2.2]} color="#1a1520" />
+        <DiagramNode id="mat-cf-s100" label="Session 100" sublabel="flat curve · operator-maintained quality" size={[5.5, 2.2]} color="#1a1020" />
 
         <DiagramEdge from="mat-cf-s1" to="mat-cf-s20" color="#605050" />
         <DiagramEdge from="mat-cf-s20" to="mat-cf-s50" color="#605050" />
         <DiagramEdge from="mat-cf-s50" to="mat-cf-s100" color="#605050" />
 
         {/* Right column — BrewFlow maturation */}
-        <DiagramNode id="mat-bf-s1" label="Sessions 1–5" sublabel="observation · EpisodicStore fills · Neocortex lean" size={[6.5, 2.2]} position={[9, 6, 0]} color="#141830" />
-        <DiagramNode id="mat-bf-s20" label="Sessions 5–20" sublabel="first constraints · pitfalls · procedure drafts promoted" size={[6.5, 2.2]} position={[9, 2, 0]} color="#141830" glow={{ intensity: 0.1 }} />
-        <DiagramNode id="mat-bf-s50" label="Sessions 20–50" sublabel="verified cards · richer packs · fewer clarification turns" size={[6.5, 2.2]} position={[9, -2, 0]} color="#141830" glow={{ intensity: 0.13 }} />
-        <DiagramNode id="mat-bf-s100" label="Sessions 50+" sublabel="refinement · pruning deprecated · maintenance mode" size={[6.5, 2.2]} position={[9, -6, 0]} color="#141e35" glow={{ intensity: 0.16 }} />
+        <DiagramNode id="mat-bf-s1" label="Sessions 1–5" sublabel="observation · EpisodicStore fills · Neocortex lean" size={[6.5, 2.2]} color="#141830" />
+        <DiagramNode id="mat-bf-s20" label="Sessions 5–20" sublabel="first constraints · pitfalls · procedure drafts promoted" size={[6.5, 2.2]} color="#141830" glow={{ intensity: 0.1 }} />
+        <DiagramNode id="mat-bf-s50" label="Sessions 20–50" sublabel="verified cards · richer packs · fewer clarification turns" size={[6.5, 2.2]} color="#141830" glow={{ intensity: 0.13 }} />
+        <DiagramNode id="mat-bf-s100" label="Sessions 50+" sublabel="refinement · pruning deprecated · maintenance mode" size={[6.5, 2.2]} color="#141e35" glow={{ intensity: 0.16 }} />
 
         <DiagramEdge from="mat-bf-s1" to="mat-bf-s20" flow="forward" color="#5070b0" />
         <DiagramEdge from="mat-bf-s20" to="mat-bf-s50" flow="forward" color="#5070b0" />

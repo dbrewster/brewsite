@@ -13,7 +13,7 @@ import {
     Scene,
     WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, GridLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -41,20 +41,20 @@ export const sceneDim4Coordination: JSX.Element = (
 
     <DiagramCanvas id="bfc-coord-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="coord-diagram" pivot="center">
-        <ManualLayout />
+        <GridLayout columns={2} spacing={[3, 2]} />
 
         {/* Left — claude-flow shared_state */}
-        <DiagramNode id="coord-cf-a1" label="Agent A" size={[5.5, 2.4]} position={[-9, 4, 0]} color="#1a1520" />
-        <DiagramNode id="coord-cf-bb" label="shared_state table" sublabel="versioned key-value · what · who · when" size={[5.5, 2.4]} position={[-9, 0, 0]} color="#1a1020" />
-        <DiagramNode id="coord-cf-a2" label="Agent B" size={[5.5, 2.4]} position={[-9, -4, 0]} color="#1a1520" />
+        <DiagramNode id="coord-cf-a1" label="Agent A" size={[5.5, 2.4]} color="#1a1520" />
+        <DiagramNode id="coord-cf-bb" label="shared_state table" sublabel="versioned key-value · what · who · when" size={[5.5, 2.4]} color="#1a1020" />
+        <DiagramNode id="coord-cf-a2" label="Agent B" size={[5.5, 2.4]} color="#1a1520" />
 
         <DiagramEdge from="coord-cf-a1" to="coord-cf-bb" label="writes value" color="#5050a0" />
         <DiagramEdge from="coord-cf-bb" to="coord-cf-a2" label="reads value" color="#5050a0" />
 
         {/* Right — BrewFlow synaptic_event */}
-        <DiagramNode id="coord-bf-a1" label="Agent A" size={[5.5, 2.4]} position={[9, 4, 0]} color="#141830" glow={{ intensity: 0.1 }} />
-        <DiagramNode id="coord-bf-ep" label="synaptic_event" sublabel="typed · globalEventSeq · full lineage · replayable" size={[5.5, 2.4]} position={[9, 0, 0]} color="#141830" glow={{ intensity: 0.14 }} />
-        <DiagramNode id="coord-bf-a2" label="Agent B" size={[5.5, 2.4]} position={[9, -4, 0]} color="#141830" glow={{ intensity: 0.1 }} />
+        <DiagramNode id="coord-bf-a1" label="Agent A" size={[5.5, 2.4]} color="#141830" glow={{ intensity: 0.1 }} />
+        <DiagramNode id="coord-bf-ep" label="synaptic_event" sublabel="typed · globalEventSeq · full lineage · replayable" size={[5.5, 2.4]} color="#141830" glow={{ intensity: 0.14 }} />
+        <DiagramNode id="coord-bf-a2" label="Agent B" size={[5.5, 2.4]} color="#141830" glow={{ intensity: 0.1 }} />
 
         <DiagramEdge from="coord-bf-a1" to="coord-bf-ep" label="emits event" flow="forward" color="#5070b0" />
         <DiagramEdge from="coord-bf-ep" to="coord-bf-a2" label="causally traceable" flow="forward" color="#5070b0" />

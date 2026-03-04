@@ -13,7 +13,7 @@ import {
     Scene,
     WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, GridLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -41,22 +41,22 @@ export const sceneDim5Restart: JSX.Element = (
 
     <DiagramCanvas id="bfc-restart-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="restart-diagram" pivot="center">
-        <ManualLayout />
+        <GridLayout columns={2} spacing={[3, 2]} />
 
         {/* Left — claude-flow process recovery */}
-        <DiagramNode id="rs-cf-crash" label="Process crash" size={[6, 2.4]} position={[-9, 4, 0]} color="#2a1010" />
-        <DiagramNode id="rs-cf-snap" label="workflow_state snapshot" sublabel="where was execution?" size={[6, 2.4]} position={[-9, 0, 0]} color="#1a1520" />
-        <DiagramNode id="rs-cf-resume" label="Resumed agent" sublabel="inherits context drift from prior session" size={[6, 2.4]} position={[-9, -4, 0]} color="#1a1520" />
+        <DiagramNode id="rs-cf-crash" label="Process crash" size={[6, 2.4]} color="#2a1010" />
+        <DiagramNode id="rs-cf-snap" label="workflow_state snapshot" sublabel="where was execution?" size={[6, 2.4]} color="#1a1520" />
+        <DiagramNode id="rs-cf-resume" label="Resumed agent" sublabel="inherits context drift from prior session" size={[6, 2.4]} color="#1a1520" />
 
         <DiagramEdge from="rs-cf-crash" to="rs-cf-snap" flow="forward" color="#805050" />
         <DiagramEdge from="rs-cf-snap" to="rs-cf-resume" flow="forward" color="#805050" />
 
         {/* Right — BrewFlow checkpoint-restart */}
-        <DiagramNode id="rs-bf-fail" label="Workstream interrupted" size={[6, 2.4]} position={[9, 6, 0]} color="#2a1010" />
-        <DiagramNode id="rs-bf-episodic" label="EpisodicStore" sublabel="what was attempted · what changed · what failed" size={[6, 2.2]} position={[9, 3, 0]} color="#141830" />
-        <DiagramNode id="rs-bf-neo" label="Neocortex" sublabel="relevant constraints + procedures" size={[6, 2.2]} position={[9, 0, 0]} color="#141830" glow={{ intensity: 0.12 }} />
-        <DiagramNode id="rs-bf-schema" label="Memory Schematic" sublabel="bounded · proof status · lane boundaries · artifacts" size={[6, 2.4]} position={[9, -3, 0]} color="#141e35" glow={{ intensity: 0.15 }} />
-        <DiagramNode id="rs-bf-fresh" label="Fresh agent" sublabel="clean context · no drift · full epistemic context" size={[6, 2.4]} position={[9, -6, 0]} color="#0f2030" glow={{ intensity: 0.1 }} />
+        <DiagramNode id="rs-bf-fail" label="Workstream interrupted" size={[6, 2.4]} color="#2a1010" />
+        <DiagramNode id="rs-bf-episodic" label="EpisodicStore" sublabel="what was attempted · what changed · what failed" size={[6, 2.2]} color="#141830" />
+        <DiagramNode id="rs-bf-neo" label="Neocortex" sublabel="relevant constraints + procedures" size={[6, 2.2]} color="#141830" glow={{ intensity: 0.12 }} />
+        <DiagramNode id="rs-bf-schema" label="Memory Schematic" sublabel="bounded · proof status · lane boundaries · artifacts" size={[6, 2.4]} color="#141e35" glow={{ intensity: 0.15 }} />
+        <DiagramNode id="rs-bf-fresh" label="Fresh agent" sublabel="clean context · no drift · full epistemic context" size={[6, 2.4]} color="#0f2030" glow={{ intensity: 0.1 }} />
 
         <DiagramEdge from="rs-bf-fail" to="rs-bf-episodic" flow="forward" color="#5070b0" />
         <DiagramEdge from="rs-bf-fail" to="rs-bf-neo" style="dashed" color="#5070b0" />

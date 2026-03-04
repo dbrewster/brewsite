@@ -13,7 +13,7 @@ import {
     Scene,
     WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, GridLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -41,22 +41,22 @@ export const sceneDim3Context: JSX.Element = (
 
     <DiagramCanvas id="bfc-ctx-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="ctx-diagram" pivot="center">
-        <ManualLayout />
+        <GridLayout columns={2} spacing={[3, 2]} />
 
         {/* Left — claude-flow */}
-        <DiagramNode id="ctx-cf-human" label="Human writes system prompt" sublabel="manual template · static" size={[7, 2.4]} position={[-9, 4, 0]} color="#1a1520" />
-        <DiagramNode id="ctx-cf-queen" label="Queen assembles task description" sublabel="knows what context to include (or doesn't)" size={[7, 2.4]} position={[-9, 0, 0]} color="#1a1520" />
-        <DiagramNode id="ctx-cf-agent" label="Agent" sublabel="session 1 = session 100" size={[7, 2.4]} position={[-9, -4, 0]} color="#1a1520" />
+        <DiagramNode id="ctx-cf-human" label="Human writes system prompt" sublabel="manual template · static" size={[7, 2.4]} color="#1a1520" />
+        <DiagramNode id="ctx-cf-queen" label="Queen assembles task description" sublabel="knows what context to include (or doesn't)" size={[7, 2.4]} color="#1a1520" />
+        <DiagramNode id="ctx-cf-agent" label="Agent" sublabel="session 1 = session 100" size={[7, 2.4]} color="#1a1520" />
 
         <DiagramEdge from="ctx-cf-human" to="ctx-cf-queen" flow="forward" color="#5050a0" />
         <DiagramEdge from="ctx-cf-queen" to="ctx-cf-agent" flow="forward" color="#5050a0" />
 
         {/* Right — BrewFlow InjectorCortex */}
-        <DiagramNode id="ctx-bf-scope" label="scope + intent + budget" sublabel="input to InjectorCortex" size={[7, 2.4]} position={[9, 6, 0]} color="#121830" />
-        <DiagramNode id="ctx-bf-filter" label="Hard filters" sublabel="scope · status:verified · validity window" size={[7, 2.2]} position={[9, 3, 0]} color="#121830" />
-        <DiagramNode id="ctx-bf-recall" label="Hybrid recall" sublabel="lexical FTS + semantic embedding" size={[7, 2.2]} position={[9, 0, 0]} color="#131930" />
-        <DiagramNode id="ctx-bf-rank" label="Rerank + adjacency" sublabel="anchor overlap · provenance · neighboring constraints" size={[7, 2.2]} position={[9, -3, 0]} color="#141a35" />
-        <DiagramNode id="ctx-bf-pack" label="Bounded packet" sublabel="constraints→disambiguation→procedures→pitfalls · reproducible" size={[7, 2.4]} position={[9, -6, 0]} color="#151e38" glow={{ intensity: 0.12 }} />
+        <DiagramNode id="ctx-bf-scope" label="scope + intent + budget" sublabel="input to InjectorCortex" size={[7, 2.4]} color="#121830" />
+        <DiagramNode id="ctx-bf-filter" label="Hard filters" sublabel="scope · status:verified · validity window" size={[7, 2.2]} color="#121830" />
+        <DiagramNode id="ctx-bf-recall" label="Hybrid recall" sublabel="lexical FTS + semantic embedding" size={[7, 2.2]} color="#131930" />
+        <DiagramNode id="ctx-bf-rank" label="Rerank + adjacency" sublabel="anchor overlap · provenance · neighboring constraints" size={[7, 2.2]} color="#141a35" />
+        <DiagramNode id="ctx-bf-pack" label="Bounded packet" sublabel="constraints→disambiguation→procedures→pitfalls · reproducible" size={[7, 2.4]} color="#151e38" glow={{ intensity: 0.12 }} />
 
         <DiagramEdge from="ctx-bf-scope" to="ctx-bf-filter" flow="forward" color="#5070b0" />
         <DiagramEdge from="ctx-bf-filter" to="ctx-bf-recall" flow="forward" color="#5070b0" />

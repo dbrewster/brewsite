@@ -13,7 +13,7 @@ import {
     Scene,
     WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, GridLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -41,24 +41,24 @@ export const sceneDim2Learning: JSX.Element = (
 
     <DiagramCanvas id="bfc-learn-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="learn-diagram" pivot="center">
-        <ManualLayout />
+        <GridLayout columns={2} spacing={[3, 2]} />
 
         {/* Left — claude-flow patterns */}
-        <DiagramNode id="cf-pat-input" label="Agent output" sublabel="LLM-generated pattern" size={[6, 2.4]} position={[-10, 4, 0]} color="#1a1520" />
-        <DiagramNode id="cf-pat-store" label="patterns table" sublabel="usage_count + confidence · no provenance · no validation" size={[6, 2.8]} position={[-10, 0, 0]} color="#1a1020" />
-        <DiagramNode id="cf-pat-use" label="Applied to agents" sublabel="direct · no lifecycle · no stale detection" size={[6, 2.4]} position={[-10, -4, 0]} color="#1a1520" />
+        <DiagramNode id="cf-pat-input" label="Agent output" sublabel="LLM-generated pattern" size={[6, 2.4]} color="#1a1520" />
+        <DiagramNode id="cf-pat-store" label="patterns table" sublabel="usage_count + confidence · no provenance · no validation" size={[6, 2.8]} color="#1a1020" />
+        <DiagramNode id="cf-pat-use" label="Applied to agents" sublabel="direct · no lifecycle · no stale detection" size={[6, 2.4]} color="#1a1520" />
 
         <DiagramEdge from="cf-pat-input" to="cf-pat-store" flow="forward" color="#5050a0" />
         <DiagramEdge from="cf-pat-store" to="cf-pat-use" flow="forward" color="#5050a0" />
 
         {/* Right — BrewFlow 7 stages */}
-        <DiagramNode id="bf-s1" label="1. Select" sublabel="salience · triggers" size={[6, 2.0]} position={[9, 8, 0]} color="#121830" />
-        <DiagramNode id="bf-s2" label="2. Extract (LLM)" sublabel="candidates only · hypotheses" size={[6, 2.0]} position={[9, 5.5, 0]} color="#121830" />
-        <DiagramNode id="bf-s3" label="3. Cluster" sublabel="N independent episodes required" size={[6, 2.0]} position={[9, 3, 0]} color="#121830" />
-        <DiagramNode id="bf-s4" label="4. Propose" sublabel="typed cards + full provenance" size={[6, 2.0]} position={[9, 0.5, 0]} color="#131930" />
-        <DiagramNode id="bf-s5" label="5. Validate" sublabel="deterministic only · LLM role ends" size={[6, 2.0]} position={[9, -2, 0]} color="#141a35" glow={{ intensity: 0.1 }} />
-        <DiagramNode id="bf-s6" label="6. Decide" sublabel="evidence-weighted · contradictions → review" size={[6, 2.0]} position={[9, -4.5, 0]} color="#141a35" />
-        <DiagramNode id="bf-s7" label="7. Publish" sublabel="versioned · audit record · old versions kept" size={[6, 2.0]} position={[9, -7, 0]} color="#151e38" glow={{ intensity: 0.12 }} />
+        <DiagramNode id="bf-s1" label="1. Select" sublabel="salience · triggers" size={[6, 2.0]} color="#121830" />
+        <DiagramNode id="bf-s2" label="2. Extract (LLM)" sublabel="candidates only · hypotheses" size={[6, 2.0]} color="#121830" />
+        <DiagramNode id="bf-s3" label="3. Cluster" sublabel="N independent episodes required" size={[6, 2.0]} color="#121830" />
+        <DiagramNode id="bf-s4" label="4. Propose" sublabel="typed cards + full provenance" size={[6, 2.0]} color="#131930" />
+        <DiagramNode id="bf-s5" label="5. Validate" sublabel="deterministic only · LLM role ends" size={[6, 2.0]} color="#141a35" glow={{ intensity: 0.1 }} />
+        <DiagramNode id="bf-s6" label="6. Decide" sublabel="evidence-weighted · contradictions → review" size={[6, 2.0]} color="#141a35" />
+        <DiagramNode id="bf-s7" label="7. Publish" sublabel="versioned · audit record · old versions kept" size={[6, 2.0]} color="#151e38" glow={{ intensity: 0.12 }} />
 
         <DiagramEdge from="bf-s1" to="bf-s2" flow="forward" color="#5070b0" />
         <DiagramEdge from="bf-s2" to="bf-s3" flow="forward" color="#5070b0" />

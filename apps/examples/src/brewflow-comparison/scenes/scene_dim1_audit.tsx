@@ -13,7 +13,7 @@ import {
     Scene,
     WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramNode, GridLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -42,16 +42,16 @@ export const sceneDim1Audit: JSX.Element = (
     <DiagramCanvas id="bfc-audit-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       {/* Left side — claude-flow */}
       <Diagram id="audit-cf" pivot="center">
-        <ManualLayout />
+        <GridLayout columns={2} spacing={[3, 2]} />
 
-        <DiagramNode id="cf-events-node" label="events table" sublabel="generic rows · timestamp · label · no global order · no lineage" size={[7, 2.8]} position={[-9, 2, 0]} color="#1a1520" />
-        <DiagramNode id="cf-audit-q1" label="What was logged?" sublabel="✓ answerable" size={[6, 2.2]} position={[-9, -2, 0]} color="#102015" />
-        <DiagramNode id="cf-audit-q2" label="Why did this happen?" sublabel="✗ not answerable without manual joins" size={[6, 2.2]} position={[-9, -5.5, 0]} color="#201010" />
+        <DiagramNode id="cf-events-node" label="events table" sublabel="generic rows · timestamp · label · no global order · no lineage" size={[7, 2.8]} color="#1a1520" />
+        <DiagramNode id="cf-audit-q1" label="What was logged?" sublabel="✓ answerable" size={[6, 2.2]} color="#102015" />
+        <DiagramNode id="cf-audit-q2" label="Why did this happen?" sublabel="✗ not answerable without manual joins" size={[6, 2.2]} color="#201010" />
 
         {/* Right side — BrewFlow */}
-        <DiagramNode id="bf-episodic-node" label="EpisodicStore" sublabel="typed records · globalEventSeq · lineage closure at query time" size={[7, 2.8]} position={[9, 2, 0]} color="#141830" glow={{ intensity: 0.15 }} />
-        <DiagramNode id="bf-audit-q1" label="What happened?" sublabel="✓ typed, ordered, reproducible" size={[6, 2.2]} position={[9, -2, 0]} color="#102015" />
-        <DiagramNode id="bf-audit-q2" label="Why did this happen?" sublabel="✓ lineage closure: session→plan→thread→turn" size={[6, 2.2]} position={[9, -5.5, 0]} color="#0f2015" />
+        <DiagramNode id="bf-episodic-node" label="EpisodicStore" sublabel="typed records · globalEventSeq · lineage closure at query time" size={[7, 2.8]} color="#141830" glow={{ intensity: 0.15 }} />
+        <DiagramNode id="bf-audit-q1" label="What happened?" sublabel="✓ typed, ordered, reproducible" size={[6, 2.2]} color="#102015" />
+        <DiagramNode id="bf-audit-q2" label="Why did this happen?" sublabel="✓ lineage closure: session→plan→thread→turn" size={[6, 2.2]} color="#0f2015" />
       </Diagram>
     </DiagramCanvas>
 

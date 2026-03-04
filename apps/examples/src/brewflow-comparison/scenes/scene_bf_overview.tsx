@@ -13,7 +13,7 @@ import {
     Scene,
     WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, FlowLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -41,14 +41,14 @@ export const sceneBfOverview: JSX.Element = (
 
     <DiagramCanvas id="bfc-bf-canvas" position={[0, config.diagramTop+1, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale*.7} theme={brewflowTheme}>
       <Diagram id="bf-overview" pivot="center">
-        <ManualLayout />
+        <FlowLayout direction="top-down" gap={2} />
         <DiagramEnter fade scaleFrom={0.85} />
 
-        <DiagramNode id="bf-episodic" label="EpisodicStore" sublabel="append-only JSONL · globalEventSeq · lineage refs · single-writer" size={[10, 2.8]} position={[0, 7.5, 0]} color="#141830" glow={{ intensity: 0.1 }} />
-        <DiagramNode id="bf-somno" label="Somniocortex" sublabel="7-stage consolidation · LLM proposes · deterministic validators accept" size={[10, 2.8]} position={[0, 3.5, 0]} color="#141830" glow={{ intensity: 0.12 }} />
-        <DiagramNode id="bf-neo" label="Neocortex" sublabel="typed versioned cards · procedure · constraint · pitfall · provenance-backed" size={[10, 2.8]} position={[0, -0.5, 0]} color="#141830" glow={{ intensity: 0.14 }} />
-        <DiagramNode id="bf-inject" label="InjectorCortex" sublabel="token-budget bounded · ordered · reproducible context packs · memory schematic" size={[10, 2.8]} position={[0, -4.5, 0]} color="#141830" glow={{ intensity: 0.12 }} />
-        <DiagramNode id="bf-guard" label="Sensitive Data Guard" sublabel="every write boundary · allow_store · store_redacted · store_sealed · no_store" size={[10, 2.4]} position={[0, -8.0, 0]} color="#1a0f20" glow={{ intensity: 0.08 }} />
+        <DiagramNode id="bf-episodic" label="EpisodicStore" sublabel="append-only JSONL · globalEventSeq · lineage refs · single-writer" size={[10, 2.8]} color="#141830" glow={{ intensity: 0.1 }} />
+        <DiagramNode id="bf-somno" label="Somniocortex" sublabel="7-stage consolidation · LLM proposes · deterministic validators accept" size={[10, 2.8]} color="#141830" glow={{ intensity: 0.12 }} />
+        <DiagramNode id="bf-neo" label="Neocortex" sublabel="typed versioned cards · procedure · constraint · pitfall · provenance-backed" size={[10, 2.8]} color="#141830" glow={{ intensity: 0.14 }} />
+        <DiagramNode id="bf-inject" label="InjectorCortex" sublabel="token-budget bounded · ordered · reproducible context packs · memory schematic" size={[10, 2.8]} color="#141830" glow={{ intensity: 0.12 }} />
+        <DiagramNode id="bf-guard" label="Sensitive Data Guard" sublabel="every write boundary · allow_store · store_redacted · store_sealed · no_store" size={[10, 2.4]} color="#1a0f20" glow={{ intensity: 0.08 }} />
 
         <DiagramEdge from="bf-episodic" to="bf-somno" flow="forward" color="#5070b0" />
         <DiagramEdge from="bf-somno" to="bf-neo" flow="forward" color="#5070b0" />
