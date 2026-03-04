@@ -30,7 +30,7 @@ export class BarRenderer implements IChartRenderer {
   private lastSeriesCount = -1;
 
   update(ctx: ChartRenderContext): void {
-    const { seriesGroup, axesGroup, legendGroup, data, xAxis, yAxis, series, bounds, theme, opacity } = ctx;
+    const { seriesGroup, axesGroup, legendGroup, data, xAxis, yAxis, series, bounds, theme, opacity, fontUrl } = ctx;
 
     const effectiveSeries: Array<{ field: string; label?: string; color?: string }> = series.length > 0
       ? [...series]
@@ -81,11 +81,11 @@ export class BarRenderer implements IChartRenderer {
       value: Math.round((maxY * 1.1 * i) / yTickCount),
       position: i / yTickCount,
     }));
-    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis });
+    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl });
 
     // Legend
     if (!this.legendRenderer) this.legendRenderer = new LegendRenderer(legendGroup);
-    this.legendRenderer.update(effectiveSeries, theme, opacity);
+    this.legendRenderer.update(effectiveSeries, theme, opacity, fontUrl);
   }
 
   private buildBars(

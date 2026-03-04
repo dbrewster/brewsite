@@ -20,6 +20,7 @@ type AxisRenderState = {
   opacity: number;
   xAxis: ChartAxisState | null;
   yAxis: ChartAxisState | null;
+  fontUrl?: string;
 };
 
 /**
@@ -37,7 +38,7 @@ export class AxesRenderer {
   constructor(private readonly axesGroup: THREE.Group) {}
 
   update(state: AxisRenderState): void {
-    const { xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis } = state;
+    const { xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl } = state;
     const { width, height } = bounds;
 
     // Floor plane
@@ -47,7 +48,7 @@ export class AxesRenderer {
     this.updateAxisLines(width, height, theme, opacity);
 
     // Ticks + labels
-    this.updateTicks(xTicks, yTicks, width, height, theme, opacity, xAxis, yAxis);
+    this.updateTicks(xTicks, yTicks, width, height, theme, opacity, xAxis, yAxis, fontUrl);
   }
 
   private updateFloor(
@@ -116,6 +117,7 @@ export class AxesRenderer {
     opacity: number,
     xAxis: ChartAxisState | null,
     yAxis: ChartAxisState | null,
+    fontUrl?: string,
   ): void {
     // Remove old tick objects
     for (const obj of this.tickObjects) {
@@ -159,7 +161,7 @@ export class AxesRenderer {
         opacity,
         undefined,
         false,
-        { anchorX: 'center', anchorY: 'top' },
+        { anchorX: 'center', anchorY: 'top', fontUrl },
       );
       this.axesGroup.add(label as unknown as THREE.Object3D);
       this.labelObjects.push(label);
@@ -189,7 +191,7 @@ export class AxesRenderer {
         opacity,
         undefined,
         false,
-        { anchorX: 'right', anchorY: 'middle' },
+        { anchorX: 'right', anchorY: 'middle', fontUrl },
       );
       this.axesGroup.add(label as unknown as THREE.Object3D);
       this.labelObjects.push(label);
@@ -203,6 +205,7 @@ export class AxesRenderer {
       ensureText(titleLabel, xAxis.label, labelColor, fontSize * 1.1, opacity, undefined, false, {
         anchorX: 'center',
         anchorY: 'top',
+        fontUrl,
       });
       this.axesGroup.add(titleLabel as unknown as THREE.Object3D);
       this.labelObjects.push(titleLabel);
@@ -217,6 +220,7 @@ export class AxesRenderer {
       ensureText(titleLabel, yAxis.label, labelColor, fontSize * 1.1, opacity, undefined, false, {
         anchorX: 'center',
         anchorY: 'bottom',
+        fontUrl,
       });
       this.axesGroup.add(obj);
       this.labelObjects.push(titleLabel);

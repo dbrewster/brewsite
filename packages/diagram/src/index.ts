@@ -111,7 +111,7 @@ export { ScreenWidget } from './elements/screen/widget';
 
 // ─── Theme presets ────────────────────────────────────────────────────────────
 export { darkGlassTheme, neonCyberTheme, enterpriseTheme, lightMinimalTheme } from './elements/diagram/themes';
-export { mergeTheme } from './elements/diagram/themes/mergeTheme';
+export { mergeTheme, withColorMode } from './elements/diagram/themes/mergeTheme';
 export { defaultDiagramCanvasInputActions } from './elements/diagram/canvas/defaultInputActions';
 
 // ─── Compiler handler registration ──────────────────────────────────────────

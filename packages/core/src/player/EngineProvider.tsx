@@ -12,6 +12,8 @@ import { EngineStateContext } from './EngineStateContext';
 import { VariableStoreContext } from '../widget/VariableStoreContext';
 import { SceneRegistrationContext } from '../compiler/SceneRegistrationContext';
 import type { SceneRegistrationValue } from '../compiler/SceneRegistrationContext';
+import { ThemeContext } from '../theme/ThemeContext';
+import type { SceneTheme } from '../theme/types';
 import { serializeJsx } from './serializeJsx';
 import {
   setSceneRuntimeState,
@@ -77,6 +79,20 @@ export type EngineProviderProps = {
   onControlledProgressChange?: (p: number) => void;
   enableKeyboardInControlledMode?: boolean;
   controlledInputMap?: SceneNavInputMap;
+  /**
+   * Optional scene theme token set for cross-package visual styling.
+   *
+   * When provided:
+   * - CSS variables (font family, font sizes, color mode) are injected by
+   *   EngineOverlayHost via ThemeContext. This affects all HTML overlay content.
+   * - CSS variable values are static for the player lifetime — they do not
+   *   change per scene. For per-scene background changes, use <Background theme={...}/>.
+   *
+   * WebGL font URL (sceneTheme.font.webglFontUrl) must be passed explicitly to
+   * DiagramTheme.sceneTheme or ChartTheme.sceneTheme (or ChartDSL.sceneTheme) —
+   * it is not automatically plumbed from EngineProvider to WebGL renderers.
+   */
+  sceneTheme?: SceneTheme;
   /** All children — <Scene> declarations, layout, overlay hosts, siblings. */
   children: ReactNode;
 };
@@ -275,10 +291,12 @@ export const EngineProvider = (props: EngineProviderProps): ReactElement => {
   }
 
   return (
-    <SceneRegistrationContext.Provider value={registrationContextValue}>
-      <VariableStoreContext.Provider value={engine.variableStore}>
-        {innerContent}
-      </VariableStoreContext.Provider>
-    </SceneRegistrationContext.Provider>
+    <ThemeContext.Provider value={props.sceneTheme ?? null}>
+      <SceneRegistrationContext.Provider value={registrationContextValue}>
+        <VariableStoreContext.Provider value={engine.variableStore}>
+          {innerContent}
+        </VariableStoreContext.Provider>
+      </SceneRegistrationContext.Provider>
+    </ThemeContext.Provider>
   );
 };

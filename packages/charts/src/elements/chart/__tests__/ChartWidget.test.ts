@@ -225,4 +225,8 @@ describe('ChartWidget', () => {
   it('defaultState is DEFAULT_CHART_STATE', () => {
     expect(widget.defaultState).toEqual(DEFAULT_CHART_STATE);
   });
+
+  it('defaultState.sceneTheme is undefined', () => {
+    expect(widget.defaultState.sceneTheme).toBeUndefined();
+  });
 });

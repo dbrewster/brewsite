@@ -9,6 +9,12 @@ type TextLayoutOptions = {
   overflowWrap?: 'normal' | 'break-word';
   whiteSpace?: 'normal' | 'nowrap' | 'pre' | 'pre-line' | 'pre-wrap';
   lineHeight?: number;
+  /**
+   * URL to an MSDF-encoded font for troika-three-text.
+   * When changed, triggers a layout re-sync. When absent or undefined,
+   * troika retains its current font (built-in default on first use).
+   */
+  fontUrl?: string;
 };
 
 export function ensureText(
@@ -53,9 +59,14 @@ export function ensureText(
     text.lineHeight !== nextLineHeight ||
     baseChanged ||
     userData.maxWidth !== maxWidth ||
-    userData.shrinkToFit !== shrinkToFit;
+    userData.shrinkToFit !== shrinkToFit ||
+    text.font !== (layout.fontUrl ?? text.font);  // font change triggers re-sync
 
   if (layoutChanged) {
+    // Set font URL before sync — must happen before text.sync() call
+    if (layout.fontUrl !== undefined && text.font !== layout.fontUrl) {
+      text.font = layout.fontUrl;
+    }
     text.text = value;
     text.color = color;
     if (baseChanged) {

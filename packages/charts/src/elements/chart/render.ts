@@ -72,6 +72,12 @@ export class ChartRenderer {
         ? (THEME_MAP[state.theme as ChartThemeName] ?? darkGlassChartTheme)
         : state.theme;
 
+    // Resolve sceneTheme: state.sceneTheme (DSL prop) takes precedence over theme.sceneTheme
+    const resolvedSceneTheme = state.sceneTheme ?? theme.sceneTheme;
+
+    // Derive font URL from sceneTheme
+    const fontUrl = resolvedSceneTheme?.font.webglFontUrl;
+
     this.activeRenderer.update({
       seriesGroup: this.seriesGroup,
       axesGroup: this.axesGroup,
@@ -84,6 +90,7 @@ export class ChartRenderer {
       theme,
       opacity: state.opacity,
       innerRadius: state.innerRadius ?? 0,
+      fontUrl,
     });
 
     // Update legend group visibility/position based on state

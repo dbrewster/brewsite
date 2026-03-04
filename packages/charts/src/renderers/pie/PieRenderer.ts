@@ -26,7 +26,7 @@ export class PieRenderer implements IChartRenderer {
   private hoveredIndex = -1;
 
   update(ctx: ChartRenderContext): void {
-    const { seriesGroup, legendGroup, data, yAxis, series, bounds, theme, opacity } = ctx;
+    const { seriesGroup, legendGroup, data, yAxis, series, bounds, theme, opacity, fontUrl } = ctx;
 
     const valueField = series[0]?.field ?? yAxis?.field ?? data.fields[1] ?? data.fields[0] ?? 'value';
     const labelField = ctx.xAxis?.field ?? data.fields[0] ?? 'label';
@@ -57,7 +57,7 @@ export class PieRenderer implements IChartRenderer {
       field: String(r[labelField] ?? i),
       label: String(r[labelField] ?? i),
     }));
-    this.legendRenderer.update(legendSeries, theme, opacity);
+    this.legendRenderer.update(legendSeries, theme, opacity, fontUrl);
   }
 
   private buildSlices(

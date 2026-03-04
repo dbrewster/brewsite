@@ -27,7 +27,7 @@ export class AreaRenderer implements IChartRenderer {
   private lastSeriesCount = -1;
 
   update(ctx: ChartRenderContext): void {
-    const { seriesGroup, axesGroup, legendGroup, data, xAxis, yAxis, series, bounds, theme, opacity } = ctx;
+    const { seriesGroup, axesGroup, legendGroup, data, xAxis, yAxis, series, bounds, theme, opacity, fontUrl } = ctx;
 
     const effectiveSeries: Array<{ field: string; label?: string; color?: string }> = series.length > 0
       ? [...series]
@@ -71,10 +71,10 @@ export class AreaRenderer implements IChartRenderer {
       value: Math.round((yMax * i) / 5),
       position: i / 5,
     }));
-    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis });
+    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl });
 
     if (!this.legendRenderer) this.legendRenderer = new LegendRenderer(legendGroup);
-    this.legendRenderer.update(effectiveSeries, theme, opacity);
+    this.legendRenderer.update(effectiveSeries, theme, opacity, fontUrl);
   }
 
   private buildAreas(

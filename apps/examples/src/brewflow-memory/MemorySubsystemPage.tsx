@@ -30,7 +30,7 @@ export default function MemorySubsystemPage(): JSX.Element {
   const { plugins } = useMemo(() => createMemoryPlugins(), []);
 
   return (
-    <div style={{ background: '#080b14', minHeight: '100vh', fontSize: '20px' }}>
+    <div style={{ background: '#eeeeee', minHeight: '100vh', fontSize: '20px' }}>
       <EngineProvider
         manifestUrl="/scene-manifest.json"
         plugins={plugins}
@@ -47,7 +47,7 @@ export default function MemorySubsystemPage(): JSX.Element {
         {sceneSensitiveDataGuard}
         {sceneSummary}
         <EngineInputRegion>
-          <SceneCanvas />
+          <SceneCanvas style={{background: '#444444'}}/>
           <EngineOverlayHost />
         </EngineInputRegion>
       </EngineProvider>

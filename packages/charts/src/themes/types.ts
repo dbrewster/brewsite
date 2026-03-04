@@ -1,5 +1,7 @@
 // Chart theme type contracts — no Three.js, no React.
 
+import type { SceneTheme } from '@brewsite/core';
+
 /** Supported chart theme preset names. */
 export type ChartThemeName = 'darkGlass' | 'neonCyber' | 'enterprise' | 'lightMinimal';
 
@@ -76,4 +78,18 @@ export type ChartTheme = {
   readonly background: ChartBackgroundTokens;
   readonly legend: ChartLegendTokens;
   readonly interaction: ChartInteractionTokens;
+  /**
+   * Optional cross-package scene theme context.
+   *
+   * When present, ChartRenderer derives:
+   * - WebGL font URL from sceneTheme.font.webglFontUrl (first-ever font customization for charts)
+   * - Axis/legend label color override from sceneTheme.colorMode when not set by the chart theme
+   *
+   * Priority: explicit ChartTheme axis.labelColor and legend.textColor take precedence.
+   * sceneTheme provides DEFAULT fallbacks only.
+   *
+   * Note: four built-in chart themes have explicit labelColor/textColor values.
+   * sceneTheme.colorMode has no effect when using them without a custom override.
+   */
+  readonly sceneTheme?: SceneTheme;
 };

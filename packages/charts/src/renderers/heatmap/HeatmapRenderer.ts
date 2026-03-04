@@ -22,7 +22,7 @@ export class HeatmapRenderer implements IChartRenderer {
   private readonly hitMap = new Map<number, { row: Record<string, unknown>; xi: number; yi: number }>();
 
   update(ctx: ChartRenderContext): void {
-    const { seriesGroup, axesGroup, data, xAxis, yAxis, series, bounds, theme, opacity } = ctx;
+    const { seriesGroup, axesGroup, data, xAxis, yAxis, series, bounds, theme, opacity, fontUrl } = ctx;
 
     if (data.rows.length === 0) {
       this.clearMesh(seriesGroup);
@@ -116,7 +116,7 @@ export class HeatmapRenderer implements IChartRenderer {
     if (!this.axesRenderer) this.axesRenderer = new AxesRenderer(axesGroup);
     const xTicks = xCategories.map((cat, i) => ({ value: cat, position: (i + 0.5) / xCount }));
     const yTicks = yCategories.map((cat, i) => ({ value: cat, position: (i + 0.5) / yCount }));
-    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis });
+    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl });
   }
 
   private clearMesh(seriesGroup: THREE.Group): void {

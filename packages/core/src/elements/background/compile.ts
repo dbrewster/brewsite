@@ -9,7 +9,7 @@ import type {
 } from '../../compiler/transitions/transitionTypes';
 import { blendOpacity, blendVec3, transitionT } from '../../compiler/transitions/transitionTypes';
 
-const crossFadeOpacity = (from: SceneBackground, to: SceneBackground, t: number) => {
+const crossFadeOpacity = (from: SceneBackground, to: SceneBackground, t: number): number => {
   if (from.imageUrl === to.imageUrl) {
     return blendOpacity(from.opacity, to.opacity, t) ?? to.opacity;
   }
@@ -19,19 +19,28 @@ const crossFadeOpacity = (from: SceneBackground, to: SceneBackground, t: number)
   return blendOpacity(0, to.opacity, (t - 0.5) * 2) ?? to.opacity;
 };
 
-const selectImageUrl = (from: string | undefined, to: string | undefined, t: number) =>
+const selectImageUrl = (from: string | undefined, to: string | undefined, t: number): string | undefined =>
   from === to ? to : t < 0.5 ? from : to;
+
+/** Discrete midpoint selection for string fields that cannot be interpolated. */
+const selectStr = (from: string | undefined, to: string | undefined, t: number): string | undefined =>
+  t < 0.5 ? from : to;
 
 export const DEFAULT_BACKGROUND: SceneBackground = {
   imageUrl: undefined,
   opacity: 1,
   color: undefined,
+  gradient: undefined,
   position: undefined,
   cssPosition: undefined,
   cssSize: undefined,
   cssRepeat: undefined,
+  cssFilter: undefined,
+  overlayGradient: undefined,
+  backdropFilter: undefined,
 };
 
+/** ElementTransitionSpec — batch-fill model for background state. */
 export const backgroundTransitionSpec: ElementTransitionSpec<SceneBackground> = {
   exit: (frames, widgetId, fromState) => {
     for (let i = 0; i < frames.length; i++) {
@@ -55,18 +64,23 @@ export const backgroundTransitionSpec: ElementTransitionSpec<SceneBackground> = 
     for (let i = 0; i < frames.length; i++) {
       const t = transitionT(i, frames.length);
       frames[i]!.state.widgets[widgetId] = {
-        imageUrl: selectImageUrl(fromState.imageUrl, toState.imageUrl, t),
-        opacity: crossFadeOpacity(fromState, toState, t),
-        color: t < 0.5 ? fromState.color : toState.color,
-        position: blendVec3(fromState.position, toState.position, t),
-        cssPosition: t < 0.5 ? fromState.cssPosition : toState.cssPosition,
-        cssSize: t < 0.5 ? fromState.cssSize : toState.cssSize,
-        cssRepeat: t < 0.5 ? fromState.cssRepeat : toState.cssRepeat,
+        imageUrl:        selectImageUrl(fromState.imageUrl, toState.imageUrl, t),
+        opacity:         crossFadeOpacity(fromState, toState, t),
+        color:           selectStr(fromState.color, toState.color, t),
+        gradient:        selectStr(fromState.gradient, toState.gradient, t),
+        position:        blendVec3(fromState.position, toState.position, t),
+        cssPosition:     selectStr(fromState.cssPosition, toState.cssPosition, t),
+        cssSize:         selectStr(fromState.cssSize, toState.cssSize, t),
+        cssRepeat:       selectStr(fromState.cssRepeat, toState.cssRepeat, t),
+        cssFilter:       selectStr(fromState.cssFilter, toState.cssFilter, t),
+        overlayGradient: selectStr(fromState.overlayGradient, toState.overlayGradient, t),
+        backdropFilter:  selectStr(fromState.backdropFilter, toState.backdropFilter, t),
       };
     }
   },
 };
 
+/** FunctionalTransitionSpec — closure model for background state. */
 export const functionalBackgroundTransitionSpec: FunctionalTransitionSpec<SceneBackground> = {
   exitFn: (from) => (ctx) => ({
     ...from,
@@ -77,12 +91,16 @@ export const functionalBackgroundTransitionSpec: FunctionalTransitionSpec<SceneB
     opacity: blendOpacity(0, to.opacity, ctx.t) ?? to.opacity ?? 0,
   }),
   interpolateFn: (from, to) => (ctx) => ({
-    imageUrl: selectImageUrl(from.imageUrl, to.imageUrl, ctx.t),
-    opacity: crossFadeOpacity(from, to, ctx.t),
-    color: ctx.t < 0.5 ? from.color : to.color,
-    position: blendVec3(from.position, to.position, ctx.t),
-    cssPosition: ctx.t < 0.5 ? from.cssPosition : to.cssPosition,
-    cssSize: ctx.t < 0.5 ? from.cssSize : to.cssSize,
-    cssRepeat: ctx.t < 0.5 ? from.cssRepeat : to.cssRepeat,
+    imageUrl:        selectImageUrl(from.imageUrl, to.imageUrl, ctx.t),
+    opacity:         crossFadeOpacity(from, to, ctx.t),
+    color:           selectStr(from.color, to.color, ctx.t),
+    gradient:        selectStr(from.gradient, to.gradient, ctx.t),
+    position:        blendVec3(from.position, to.position, ctx.t),
+    cssPosition:     selectStr(from.cssPosition, to.cssPosition, ctx.t),
+    cssSize:         selectStr(from.cssSize, to.cssSize, ctx.t),
+    cssRepeat:       selectStr(from.cssRepeat, to.cssRepeat, ctx.t),
+    cssFilter:       selectStr(from.cssFilter, to.cssFilter, ctx.t),
+    overlayGradient: selectStr(from.overlayGradient, to.overlayGradient, ctx.t),
+    backdropFilter:  selectStr(from.backdropFilter, to.backdropFilter, ctx.t),
   }),
 };

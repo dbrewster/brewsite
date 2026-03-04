@@ -1,7 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import { makeSimpleContext } from '@brewsite/core';
+import type { SceneTheme } from '@brewsite/core';
 import { compileChart, functionalChartTransitionSpec } from '../compile';
 import { DEFAULT_CHART_STATE } from '../types';
+
+const mockSceneTheme: SceneTheme = {
+  colorMode: 'dark',
+  font: { htmlFamily: 'Inter, sans-serif', webglFontUrl: 'https://cdn.example.com/inter-msdf.ttf' },
+  fontSize: { heading: 1.5, body: 1.0, label: 0.85, caption: 0.7, annotation: 0.6 },
+};
 
 describe('compileChart', () => {
   it('defaults type from DSL prop', () => {
@@ -108,6 +115,16 @@ describe('compileChart', () => {
     const state = compileChart({ id: 'c', type: 'bar' }, null, [], [], null);
     expect(state.series).toHaveLength(0);
   });
+
+  it('passes sceneTheme through when provided', () => {
+    const state = compileChart({ id: 'c', type: 'bar', sceneTheme: mockSceneTheme }, null, [], [], null);
+    expect(state.sceneTheme).toBe(mockSceneTheme);
+  });
+
+  it('produces undefined sceneTheme when not specified', () => {
+    const state = compileChart({ id: 'c', type: 'bar' }, null, [], [], null);
+    expect(state.sceneTheme).toBeUndefined();
+  });
 });
 
 describe('functionalChartTransitionSpec', () => {
@@ -153,5 +170,25 @@ describe('functionalChartTransitionSpec', () => {
     const fn = functionalChartTransitionSpec.interpolateFn(from, to);
     const mid = fn(makeSimpleContext(0.5));
     expect(mid.position[0]).toBeCloseTo(2);
+  });
+
+  it('interpolateFn carries from.sceneTheme at t < 0.5', () => {
+    const fromTheme: SceneTheme = { ...mockSceneTheme, colorMode: 'dark' };
+    const toTheme: SceneTheme = { ...mockSceneTheme, colorMode: 'light' };
+    const from = { ...DEFAULT_CHART_STATE, sceneTheme: fromTheme };
+    const to = { ...DEFAULT_CHART_STATE, sceneTheme: toTheme };
+    const fn = functionalChartTransitionSpec.interpolateFn(from, to);
+    expect(fn(makeSimpleContext(0)).sceneTheme).toBe(fromTheme);
+    expect(fn(makeSimpleContext(0.4)).sceneTheme).toBe(fromTheme);
+  });
+
+  it('interpolateFn switches to to.sceneTheme at t >= 0.5', () => {
+    const fromTheme: SceneTheme = { ...mockSceneTheme, colorMode: 'dark' };
+    const toTheme: SceneTheme = { ...mockSceneTheme, colorMode: 'light' };
+    const from = { ...DEFAULT_CHART_STATE, sceneTheme: fromTheme };
+    const to = { ...DEFAULT_CHART_STATE, sceneTheme: toTheme };
+    const fn = functionalChartTransitionSpec.interpolateFn(from, to);
+    expect(fn(makeSimpleContext(0.5)).sceneTheme).toBe(toTheme);
+    expect(fn(makeSimpleContext(1)).sceneTheme).toBe(toTheme);
   });
 });

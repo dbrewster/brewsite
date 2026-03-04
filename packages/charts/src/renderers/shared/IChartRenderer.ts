@@ -41,6 +41,13 @@ export type ChartRenderContext = {
   readonly theme: ChartTheme;
   readonly opacity: number;
   readonly innerRadius: number;
+  /**
+   * Optional MSDF font URL for troika-three-text label rendering.
+   * Derived by ChartRenderer from state.sceneTheme.font.webglFontUrl
+   * and theme.sceneTheme.font.webglFontUrl (state sceneTheme takes precedence).
+   * When absent, each renderer falls back to the troika built-in font.
+   */
+  readonly fontUrl?: string;
 };
 
 /**

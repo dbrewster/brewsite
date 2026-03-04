@@ -21,6 +21,16 @@ export type LabelStyle = {
   lineOpacity?: number;
   labelOpacity?: number;
   lineThickness?: number;
+  /**
+   * CSS font-family override for this label.
+   * When absent, the label inherits font-family from its DOM ancestor.
+   * If EngineOverlayHost injects --brewsite-font-family via SceneTheme,
+   * labels will inherit it automatically via CSS cascade (fontFamily is
+   * a CSS inherited property) without needing this field.
+   *
+   * Use this field for per-label font overrides only.
+   */
+  fontFamily?: string;
 };
 
 export type LabelDefinition = {

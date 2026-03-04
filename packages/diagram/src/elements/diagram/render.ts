@@ -74,7 +74,7 @@ export class DiagramRenderer {
       }
     }
     for (const groupState of state.groups) {
-      this.groupRenderer!.getOrCreate(groupState, state.id, root);
+      this.groupRenderer!.getOrCreate(groupState, state.id, root, tc);
     }
 
     const activeEdgeIds = new Set(state.edges.map((e) => `${state.id}::${e.id}`));

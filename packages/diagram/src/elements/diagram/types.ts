@@ -1,7 +1,7 @@
 // Contract layer for the diagram element. No runtime imports, no Three.js, no React.
 
 import type { DiagramNodeShape, DiagramIconVariant } from './shapes/shapeVariants';
-import type { InputActionSpec } from '@brewsite/core';
+import type { InputActionSpec, SceneTheme } from '@brewsite/core';
 
 // ─── Theming ─────────────────────────────────────────────────────────────────
 
@@ -58,6 +58,12 @@ export interface DiagramThemeNodeConfig {
    * Optional troika-three-text fontUrl override.
    * Must be a URL to an MSDF-encoded .ttf or .woff font.
    * If absent, troika uses its built-in font.
+   *
+   * This field is diagram-wide despite its placement on the `node` sub-config.
+   * `themeResolver.ts` extracts it to `DiagramThemeRenderConfig.fontUrl` and applies
+   * it to all troika text (both node labels and group title labels).
+   * Promotion to `DiagramTheme` root level is planned for v2.
+   * Fallback chain: `theme.node.fontUrl ?? theme.sceneTheme?.font.webglFontUrl`.
    */
   readonly fontUrl?: string;
   /** Label font size multiplier relative to the default (node height × 0.28). Default: 1 */
@@ -217,6 +223,19 @@ export interface DiagramTheme {
    * Ignored (with a compile-time warning) when placed on a child <Diagram>.
    */
   readonly input?: DiagramCanvasInputConfig;
+  /**
+   * Optional cross-package scene theme context.
+   *
+   * When present, `themeResolver.ts` derives:
+   * - `fontUrl`: `theme.node.fontUrl ?? sceneTheme.font.webglFontUrl` (node.fontUrl wins)
+   * - `effectiveLabelSizeFactor`: `theme.node.labelSizeFactor * sceneTheme.fontSize.label`
+   *
+   * For label color polarity (colorMode → label colors): built-in presets all have
+   * explicit `defaultLabelColor` values, so `sceneTheme.colorMode` has NO effect on
+   * label colors when using a preset directly. Use `withColorMode(preset, colorMode)`
+   * from the themes package to create a preset with colorMode-derived label colors.
+   */
+  readonly sceneTheme?: SceneTheme;
 }
 
 /**
@@ -251,6 +270,18 @@ export interface DiagramThemeRenderConfig {
   readonly edgeFlowWidth: number;
   /** Optional troika fontUrl override */
   readonly fontUrl: string | undefined;
+  /**
+   * Effective label size factor after applying SceneTheme fontSize.label scale.
+   * = theme.node.labelSizeFactor * (theme.sceneTheme?.fontSize.label ?? 1.0)
+   * Optional — defaults to 1.0 when absent (identity, no size change).
+   */
+  readonly effectiveLabelSizeFactor?: number;
+  /**
+   * Effective sublabel size factor after applying SceneTheme fontSize.caption scale.
+   * = theme.node.sublabelSizeFactor * (theme.sceneTheme?.fontSize.caption ?? 1.0)
+   * Optional — defaults to 1.0 when absent (identity, no size change).
+   */
+  readonly effectiveSublabelSizeFactor?: number;
 }
 
 // ─── Node ───────────────────────────────────────────────────────────────────

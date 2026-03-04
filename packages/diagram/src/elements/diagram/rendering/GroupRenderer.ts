@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { GroupRenderEntry, TextWithLayout } from './types';
-import type { DiagramGroupState } from '../types';
+import type { DiagramGroupState, DiagramThemeRenderConfig } from '../types';
 import { ensureText } from './TextRenderer';
 import { Text } from 'troika-three-text';
 import type { IGroupInteractionRegistry } from './GroupInteractionRegistry';
@@ -19,11 +19,16 @@ export class GroupRenderer {
     return `${diagramId}::${groupId}`;
   }
 
-  getOrCreate(state: DiagramGroupState, diagramId: string, parent: THREE.Object3D): GroupRenderEntry {
+  getOrCreate(
+    state: DiagramGroupState,
+    diagramId: string,
+    parent: THREE.Object3D,
+    themeConfig?: DiagramThemeRenderConfig,
+  ): GroupRenderEntry {
     const key = this.key(diagramId, state.id);
     const existing = this.entries.get(key);
     if (existing) {
-      this.updateGroup(existing, state);
+      this.updateGroup(existing, state, themeConfig);
       return existing;
     }
     const entry = this.createGroup(state, diagramId);
@@ -128,7 +133,11 @@ export class GroupRenderer {
     return true;
   }
 
-  private updateGroup(entry: GroupRenderEntry, state: DiagramGroupState): void {
+  private updateGroup(
+    entry: GroupRenderEntry,
+    state: DiagramGroupState,
+    themeConfig?: DiagramThemeRenderConfig,
+  ): void {
     if (!Number.isFinite(state.bounds.w) || !Number.isFinite(state.bounds.h)) {
       entry.group.visible = false;
       return;
@@ -227,7 +236,7 @@ export class GroupRenderer {
     const labelFontSize = Math.max(
       0.35,
       Math.min(state.bounds.h * 0.08, availableHalfBand * 1.6),
-    );
+    ) * (themeConfig?.effectiveLabelSizeFactor ?? 1.0);
     const labelInsetX = 0.7;
     if (state.label) {
       ensureText(
@@ -238,7 +247,7 @@ export class GroupRenderer {
         1,
         state.bounds.w - labelInsetX * 2,
         true,
-        { anchorX: 'left', anchorY: 'middle', textAlign: 'left' },
+        { anchorX: 'left', anchorY: 'middle', textAlign: 'left', fontUrl: themeConfig?.fontUrl },
       );
       // Position title text inside the top padding band so it never overlaps node content.
       const titleY = state.bounds.h / 2 - topPadding + titleInset;

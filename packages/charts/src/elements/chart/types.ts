@@ -1,5 +1,6 @@
 // Chart element type contracts — no Three.js, no React.
 
+import type { SceneTheme } from '@brewsite/core';
 import type { DataTransform, FilterGroupId } from '../../data/types';
 import type { ChartThemeName, ChartTheme } from '../../themes/types';
 import type { ChartAxisState, ChartSeriesState } from '../../renderers/shared/IChartRenderer';
@@ -48,6 +49,12 @@ export type ChartState = {
   readonly innerRadius?: number;
   /** For heatmap time-series animation — field name containing the time dimension. */
   readonly timeField?: string;
+  /**
+   * Scene theme for cross-package theming.
+   * Resolved at compile time from the DSL sceneTheme prop.
+   * Takes precedence over ChartTheme.sceneTheme when set.
+   */
+  readonly sceneTheme?: SceneTheme;
 };
 
 /** Default compiled state. opacity = 1 so charts are visible by default. */
@@ -65,6 +72,7 @@ export const DEFAULT_CHART_STATE: ChartState = {
   theme: 'darkGlass',
   opacity: 1,
   interactive: false,
+  sceneTheme: undefined,
 };
 
 // ─── DSL prop types ─────────────────────────────────────────────────────────
@@ -81,6 +89,16 @@ export type ChartDSL = {
   readonly opacity?: number;
   readonly interactive?: boolean;
   readonly innerRadius?: number;
+  /**
+   * Optional scene theme for cross-package theming.
+   * When set, overrides ChartTheme.sceneTheme for this element.
+   * Enables using a named theme (e.g. 'darkGlass') with a custom sceneTheme
+   * without constructing a full ChartTheme object.
+   *
+   * @example
+   * <Chart theme="darkGlass" sceneTheme={mySceneTheme} />
+   */
+  readonly sceneTheme?: SceneTheme;
 };
 
 /** Props for the <ChartData> DSL component. */

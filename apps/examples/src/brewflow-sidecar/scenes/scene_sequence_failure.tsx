@@ -13,6 +13,7 @@ import {
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
+import {FlowLayout} from "@brewsite/diagram/elements/diagram/dsl";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
@@ -36,17 +37,17 @@ export const sceneSequenceFailure: JSX.Element = (
 
     <DiagramCanvas id="bf-seq-fail" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="seq-fail" pivot="center">
-        <HierarchicalLayout direction="left-right" spacing={[3, 3]} />
+        <FlowLayout direction="top-down" gap={3} />
 
         <DiagramNode
-          id="f-queen"
+          id="actor-queen"
           label="Queen"
           sublabel="orchestrator"
           size={[5, 2.8]}
           color="#1a2550"
         />
         <DiagramNode
-          id="f-mcp"
+          id="actor-mcp"
           label="BrewFlow MCP"
           sublabel="recall · store · checkpoint"
           size={[5, 2.8]}
@@ -54,14 +55,14 @@ export const sceneSequenceFailure: JSX.Element = (
           glow={{ intensity: 0.12 }}
         />
         <DiagramNode
-          id="f-worker-old"
+          id="actorworker-old"
           label="Worker (failed)"
           sublabel="task incomplete"
           size={[5, 2.8]}
           color="#3a1520"
         />
         <DiagramNode
-          id="f-worker-new"
+          id="actor-worker-new"
           label="New Worker"
           sublabel="starts from checkpoint"
           size={[5, 2.8]}
@@ -69,10 +70,10 @@ export const sceneSequenceFailure: JSX.Element = (
           glow={{ intensity: 0.1 }}
         />
 
-        <DiagramEdge from="f-worker-old" to="f-queen" label="task failed" color="#c04040" arrowEnd="filled" />
-        <DiagramEdge from="f-queen" to="f-mcp" label="checkpoint(agent, task, 'failure')" color="#6080c0" />
-        <DiagramEdge from="f-mcp" to="f-queen" label="memory schematic" style="dashed" color="#4060a0" />
-        <DiagramEdge from="f-queen" to="f-worker-new" label="spawn + instructions + schematic" flow="forward" color="#6080c0" />
+        <DiagramEdge from="actor-worker-old" to="actor-queen" label="task failed" color="#c04040" arrowEnd="filled" />
+        <DiagramEdge from="actor-queen" to="actor-mcp" label="checkpoint(agent, task, 'failure')" color="#6080c0" />
+        <DiagramEdge from="actor-mcp" to="actor-queen" label="memory schematic" style="dashed" color="#4060a0" />
+        <DiagramEdge from="actor-queen" to="actor-worker-new" label="spawn + instructions + schematic" flow="forward" color="#6080c0" />
       </Diagram>
     </DiagramCanvas>
 

@@ -3,11 +3,14 @@ title: "BrewSite Core — 3D Label System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-02-28
+last_updated: 2026-03-04
 change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents the full 3D label system for @brewsite/core: DSL authoring surface, compiled primitives, LabelPositioner screen projection pipeline, LabelItem renderer, LabelPositionerContext, and transition behavior."
+  - date: 2026-03-04
+    author: "Toolkit Product"
+    summary: "Added LabelStyle.fontFamily optional field for per-label font override. Documented CSS variable inheritance path from EngineOverlayHost --brewsite-font-family for the common case (no per-label override needed)."
 ---
 
 # BrewSite Core — 3D Label System
@@ -148,6 +151,15 @@ export interface LabelStyle {
   labelOpacity?: number;      // label text opacity [0, 1]; default 1
   lineThickness?: number;     // connector line width in px; default 1
   lineLength?: number;        // connector line length in px; default 32
+  /**
+   * CSS font-family override for this label.
+   * When absent, the label inherits font-family from its DOM ancestor.
+   * If EngineOverlayHost injects --brewsite-font-family via SceneTheme,
+   * labels inherit it automatically via CSS cascade — this field is not
+   * needed for the common "apply theme font to all labels" case.
+   * Use this field for per-label font overrides only.
+   */
+  fontFamily?: string;
 }
 
 export interface LabelDefinition {

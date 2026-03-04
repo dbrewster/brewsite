@@ -26,6 +26,8 @@ export const LabelItem = ({ label }: { label: LabelResolved }): ReactElement => 
     color: `var(--label-color, ${resolvedLabelColor})`,
     fontSize: label.style?.fontSize ?? 12,
     opacity: label.style?.labelOpacity ?? 1,
+    // fontFamily: per-label override. When absent, CSS cascade from EngineOverlayHost applies.
+    ...(label.style?.fontFamily ? { fontFamily: label.style.fontFamily } : {}),
   }), [label.style, resolvedLabelColor]);
 
   const lineStyle = useMemo<CSSProperties>(() => ({

@@ -24,7 +24,7 @@ export class ScatterRenderer implements IChartRenderer {
   private readonly hitRows: Array<Record<string, unknown>> = [];
 
   update(ctx: ChartRenderContext): void {
-    const { seriesGroup, axesGroup, legendGroup, data, xAxis, yAxis, series, bounds, theme, opacity } = ctx;
+    const { seriesGroup, axesGroup, legendGroup, data, xAxis, yAxis, series, bounds, theme, opacity, fontUrl } = ctx;
 
     this.seriesGroupRef = seriesGroup;
 
@@ -94,13 +94,14 @@ export class ScatterRenderer implements IChartRenderer {
       value: Math.round(yMin + ((yMax - yMin) * i) / 5),
       position: i / 5,
     }));
-    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis });
+    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl });
 
     if (!this.legendRenderer) this.legendRenderer = new LegendRenderer(legendGroup);
     this.legendRenderer.update(
       series.length > 0 ? series : [{ field: yField }],
       theme,
       opacity,
+      fontUrl,
     );
   }
 

@@ -390,8 +390,8 @@ export class NodeRenderer {
     // the rendered shape, constraining icon and text to the visible interior.
     const [contentW, contentH] = getContentRect(state.shape, state.size);
 
-    const labelFontSize = contentH * 0.28;
-    const sublabelFontSize = contentH * 0.18;
+    const labelFontSize = contentH * 0.28 * (themeConfig.effectiveLabelSizeFactor ?? 1.0);
+    const sublabelFontSize = contentH * 0.18 * (themeConfig.effectiveSublabelSizeFactor ?? 1.0);
     const labelLine = labelFontSize * 1.1;
     const sublabelLine = sublabelFontSize * 1.1;
     const lineGap = contentH * 0.06;
@@ -419,6 +419,7 @@ export class NodeRenderer {
       state.opacity,
       contentW * 0.85,
       true,
+      { fontUrl: themeConfig.fontUrl },
     );
     entry.label.position.set(0, labelY, state.thickness / 2 + 0.02);
 
@@ -435,6 +436,7 @@ export class NodeRenderer {
         state.opacity,
         contentW * 0.85,
         true,
+        { fontUrl: themeConfig.fontUrl },
       );
       entry.sublabel.position.set(0, sublabelY, state.thickness / 2 + 0.02);
     } else if (entry.sublabel) {

@@ -1,6 +1,7 @@
-// Pure helper for deep-partial theme overrides.
+// Pure helpers for DiagramTheme composition: deep-partial merging and colorMode overrides.
 
 import type { DiagramTheme } from '../types';
+import type { SceneColorMode } from '@brewsite/core';
 
 /**
  * Utility type for deep-partial objects.
@@ -52,4 +53,40 @@ function deepMerge<T extends object>(base: T, overrides: DeepPartial<T>): T {
     }
   }
   return result as T;
+}
+
+/**
+ * Creates a new DiagramTheme by overriding `node.defaultLabelColor` and
+ * `node.defaultSublabelColor` with colorMode-appropriate defaults.
+ *
+ * Use this when you want `sceneTheme.colorMode` to drive diagram label colors
+ * while using a built-in preset. All four built-in presets (darkGlass, enterprise,
+ * neonCyber, lightMinimal) have explicit label colors, so sceneTheme.colorMode
+ * alone has no effect on label colors when using a preset directly.
+ *
+ * This function does NOT set `sceneTheme` — consumers who also need webglFontUrl
+ * inheritance must set `theme.sceneTheme` separately.
+ *
+ * @param base - The base DiagramTheme (typically a preset).
+ * @param colorMode - The scene color mode that should drive label colors.
+ * @returns A new DiagramTheme with colorMode-derived label colors. Does not mutate `base`.
+ *
+ * @example
+ * const myTheme = withColorMode(darkGlassTheme, 'dark');
+ * // myTheme.node.defaultLabelColor === '#e8eeff' (light text on dark background)
+ *
+ * @example
+ * const myTheme = withColorMode(lightMinimalTheme, 'light');
+ * // myTheme.node.defaultLabelColor === '#1a1a2e' (dark text on light background)
+ */
+export function withColorMode(base: DiagramTheme, colorMode: SceneColorMode): DiagramTheme {
+  const isDark = colorMode === 'dark';
+  return {
+    ...base,
+    node: {
+      ...base.node,
+      defaultLabelColor:    isDark ? '#e8eeff' : '#1a1a2e',
+      defaultSublabelColor: isDark ? '#b8c0e0' : '#4a4a6e',
+    },
+  };
 }

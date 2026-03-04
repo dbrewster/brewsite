@@ -11,6 +11,9 @@ import type {
 } from '../types';
 
 export function buildThemeRenderConfig(theme: DiagramTheme): DiagramThemeRenderConfig {
+  const labelScale   = theme.sceneTheme?.fontSize.label   ?? 1.0;
+  const captionScale = theme.sceneTheme?.fontSize.caption ?? 1.0;
+
   return {
     envMapUrl:        theme.environment.envMapUrl,
     envMapIntensity:  theme.environment.envMapIntensity,
@@ -24,7 +27,11 @@ export function buildThemeRenderConfig(theme: DiagramTheme): DiagramThemeRenderC
     edgeRoughness:     theme.edge.defaultRoughness,
     edgeFlowSpeed:     theme.edge.defaultFlowSpeed,
     edgeFlowWidth:     theme.edge.defaultFlowWidth,
-    fontUrl:           theme.node.fontUrl,
+    // Font URL: explicit node.fontUrl takes precedence over sceneTheme fallback.
+    fontUrl:           theme.node.fontUrl ?? theme.sceneTheme?.font.webglFontUrl,
+    // Size factors composed with SceneTheme font size scale:
+    effectiveLabelSizeFactor:    theme.node.labelSizeFactor * labelScale,
+    effectiveSublabelSizeFactor: theme.node.sublabelSizeFactor * captionScale,
   };
 }
 

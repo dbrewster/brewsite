@@ -25,6 +25,7 @@ export class LegendRenderer {
     series: readonly ChartSeriesState[],
     theme: ChartTheme,
     opacity: number,
+    fontUrl?: string,
   ): void {
     // Remove excess entries
     while (this.entries.length > series.length) {
@@ -83,7 +84,7 @@ export class LegendRenderer {
         opacity,
         undefined,
         false,
-        { anchorX: 'left', anchorY: 'middle' },
+        { anchorX: 'left', anchorY: 'middle', fontUrl },
       );
     }
   }

@@ -1,4 +1,5 @@
 export * from './player';
+export * from './theme';
 export * from './compiler';
 export * from './timeline';
 export * from './widget';

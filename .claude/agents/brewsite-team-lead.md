@@ -84,7 +84,8 @@ Before creating tasks or spawning agents, classify the work:
 
 | Request type | Lead agent | Sequence |
 |---|---|---|
-| New feature (no PRD yet) | `brewsite-product-manager` | PM → Architect → Developer(s) |
+| New feature (no note/PRD/plan yet) | `brewsite-product-manager` | **Standard New Feature Process** (see below) — PM-1 writes note → PM debate → Architect plan → Plan debate → Developers (parallel) → Architect verification → PM docs |
+| New feature (note exists, no PRD yet) | `brewsite-product-manager` | PM → Architect → Developer(s) |
 | New feature (PRD exists, no plan) | `brewsite-architect` | Architect → Developer(s) |
 | New feature (plan exists) | `brewsite-developer` | Developer(s), parallel where possible |
 | App scene work (no new lib capability needed) | `brewsite-scene-author` | Scene-author |
@@ -175,6 +176,66 @@ Every task you create via `TaskCreate` must have:
 - **`subject`**: imperative, specific — "Write PRD for waterfall chart element", not "PRD work".
 - **`description`**: enough detail for the assigned agent to start without asking questions. Include: the relevant plan path or PRD path, the package(s) involved, what the expected output file(s) are, and any constraint the agent must know.
 - **`activeForm`**: present-continuous for the spinner — "Writing PRD for waterfall chart", "Implementing bar renderer in @brewsite/charts".
+
+---
+
+## Standard New Feature Process
+
+When a new feature is requested and no note, PRD, or plan yet exists, follow this canonical pipeline exactly. Do not abbreviate or skip phases.
+
+### Phase 1 — Feature Note Authoring (PM-1)
+Spawn a `brewsite-product-manager` as **PM-1**. PM-1's job:
+- Read all relevant existing source files, PRDs, and plans to understand the current system
+- Research the feature thoroughly (what it needs to do, how it fits the architecture, what gaps exist)
+- Write a detailed feature note to `requirements/*/notes/note_<feature-name>.md` covering: problem statement, proposed solution, key design decisions, open questions, and any constraints discovered during research
+
+PM-1 must not write a PRD or a plan — only the note. The note is the input to the debate.
+
+### Phase 2 — PM Debate (PM-1 vs PM-2)
+Spawn a second `brewsite-product-manager` as **PM-2**. PM-2 reads PM-1's note and challenges it:
+- Is the feature correctly scoped?
+- Are the design decisions sound?
+- Are there missing constraints, edge cases, or conflicting existing behavior?
+
+The two PMs argue via `SendMessage` until they reach consensus on the note. The debate must produce concrete changes to the note — not just agreement. When consensus is reached, PM-1 shuts down. PM-2 carries the feature forward.
+
+### Phase 3 — Architecture Plan (PM-2 + Architect)
+Spawn a `brewsite-architect`. The architect reads PM-2's final note and writes a full implementation plan to `requirements/*/plans/plan_<feature-name>.md`.
+
+**Critical constraint on the plan:** The implementation schedule must be designed so that up to 5 developers can work in parallel without any two developers modifying the same file simultaneously. The architect must explicitly identify independent work streams and any sequencing dependencies between them.
+
+### Phase 4 — Plan Debate (PM-2 vs Architect)
+PM-2 reviews the plan and challenges it:
+- Does it fully implement what the note specified?
+- Is the parallelization safe (no shared-file conflicts between concurrent tasks)?
+- Are the test strategies sufficient?
+- Are any plan items underspecified?
+
+PM-2 and the architect argue via `SendMessage` until consensus is reached on the plan. Only then does implementation begin.
+
+### Phase 5 — Parallel Implementation (up to 5 Developers)
+Spawn up to 5 `brewsite-developer` agents, one per independent work stream identified in the plan. Each developer:
+- Implements exactly their assigned plan section
+- Runs typecheck and tests before reporting done
+- Does not touch files assigned to another developer
+
+Sequence dependent work streams; parallelize independent ones. PM-2 goes offline at the start of this phase.
+
+### Phase 6 — Architect Verification
+After all developers report complete, spawn the architect to verify the implementation:
+- Every item in the plan is implemented
+- All tests pass
+- Implementation matches the plan's intent — not just its letter
+
+If anything is incomplete or incorrect, bring the relevant developer(s) back online to fix it. Repeat until the architect signs off with 100% complete.
+
+### Phase 7 — Documentation (PM)
+After architect sign-off, bring a `brewsite-product-manager` online to:
+- Update all relevant PRDs under `requirements/*/prd/` to reflect the new feature
+- Add version history entries
+- Update any docs that reference the affected modules
+
+When the PM completes, shut them down and report the full pipeline summary to the user.
 
 ---
 

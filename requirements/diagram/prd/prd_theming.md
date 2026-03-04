@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-03
+last_updated: 2026-03-04
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -14,11 +14,14 @@ change_history:
   - date: 2026-03-03
     author: "Toolkit Product"
     summary: "Added theme-level default input handler support: DiagramTheme.input? field, DiagramCanvasInputConfig type, IGNORED_INPUT_CONFIG compiler warning, and defaultDiagramCanvasInputActions convenience export."
+  - date: 2026-03-04
+    author: "Toolkit Product"
+    summary: "Cross-package theming integration: added DiagramTheme.sceneTheme optional field; documented themeResolver fallback chain for fontUrl and effectiveLabelSizeFactor/effectiveSublabelSizeFactor on DiagramThemeRenderConfig; added withColorMode() utility; documented known limitation that sceneTheme.colorMode has no effect on built-in preset label colors without withColorMode(); updated buildThemeRenderConfig signature."
 ---
 
 ## Overview
 
-The theming system in `@brewsite/diagram` provides the complete design language for diagram visualization. A `DiagramTheme` is a plain TypeScript object — no React, no Three.js — that configures default colors, PBR material properties, layout behavior, edge routing algorithms, and environment map for all elements within a diagram. Four preset themes ship with the package. Consumers create custom themes by composing the full `DiagramTheme` struct, typically by spreading an existing preset and overriding specific sub-configs. The system affects `@brewsite/diagram` exclusively.
+The theming system in `@brewsite/diagram` provides the complete design language for diagram visualization. A `DiagramTheme` is a plain TypeScript object — no React, no Three.js — that configures default colors, PBR material properties, layout behavior, edge routing algorithms, environment map, and optional cross-package scene theme integration for all elements within a diagram. Four preset themes ship with the package. Consumers create custom themes by composing the full `DiagramTheme` struct, typically by spreading an existing preset and overriding specific sub-configs. The `withColorMode()` utility creates a theme variant with colorMode-derived label colors. The system affects `@brewsite/diagram`.
 
 ## Problem Statement
 
@@ -88,6 +91,21 @@ export interface DiagramTheme {
    * Ignored (with a compile-time warning) when placed on a child <Diagram>.
    */
   readonly input?: DiagramCanvasInputConfig;
+  /**
+   * Optional cross-package scene theme for font URL and colorMode defaults.
+   *
+   * When present, themeResolver.ts derives:
+   * - fontUrl: theme.node.fontUrl ?? sceneTheme.font.webglFontUrl
+   * - effectiveLabelSizeFactor: theme.node.labelSizeFactor * sceneTheme.fontSize.label
+   * - effectiveSublabelSizeFactor: theme.node.sublabelSizeFactor * sceneTheme.fontSize.caption
+   *
+   * colorMode label color derivation: only fires when defaultLabelColor is absent.
+   * All four built-in presets have explicit defaultLabelColor values, so
+   * sceneTheme.colorMode has NO effect on label colors when using a preset directly.
+   * Use withColorMode(preset, colorMode) to create a preset with colorMode-derived
+   * label colors.
+   */
+  readonly sceneTheme?: SceneTheme;
 }
 ```
 
@@ -207,7 +225,21 @@ export interface DiagramThemeRenderConfig {
   readonly edgeRoughness: number;
   readonly edgeFlowSpeed: number;
   readonly edgeFlowWidth: number;
+  /**
+   * Resolved font URL for troika-three-text. Applies to all diagram text:
+   * node labels, node sublabels, and group title labels.
+   * Fallback chain: theme.node.fontUrl ?? theme.sceneTheme?.font.webglFontUrl.
+   */
   readonly fontUrl: string | undefined;
+  /**
+   * Effective label size factor = theme.node.labelSizeFactor × (sceneTheme?.fontSize.label ?? 1.0).
+   * Passed to NodeRenderer and GroupRenderer for troika text sizing.
+   */
+  readonly effectiveLabelSizeFactor?: number;
+  /**
+   * Effective sublabel size factor = theme.node.sublabelSizeFactor × (sceneTheme?.fontSize.caption ?? 1.0).
+   */
+  readonly effectiveSublabelSizeFactor?: number;
 }
 ```
 
@@ -218,6 +250,40 @@ export function buildThemeRenderConfig(theme: DiagramTheme): DiagramThemeRenderC
 export function compileExitConfig(dsl: DiagramExitDSL | undefined): DiagramExitConfig | null;
 export function compileEnterConfig(dsl: DiagramEnterDSL | undefined): DiagramEnterConfig | null;
 ```
+
+### SceneTheme integration utilities
+
+```typescript
+// packages/diagram/src/elements/diagram/themes/mergeTheme.ts
+
+/**
+ * Creates a DiagramTheme by spreading overrides onto a base theme.
+ * Use for deep partial overrides without constructing the full theme object.
+ */
+export function mergeTheme(base: DiagramTheme, overrides: DeepPartial<DiagramTheme>): DiagramTheme;
+
+/**
+ * Creates a DiagramTheme with colorMode-derived label colors applied.
+ *
+ * All four built-in presets have explicit defaultLabelColor values, so
+ * DiagramTheme.sceneTheme.colorMode has NO effect on label colors when
+ * using a preset directly. This utility creates a new theme where
+ * node.defaultLabelColor and node.defaultSublabelColor are set to
+ * colorMode-appropriate defaults:
+ *   'dark'  → '#e8eeff' (light label on dark background)
+ *   'light' → '#1a1a2e' (dark label on light background)
+ *
+ * @example
+ * const myTheme = withColorMode(darkGlassTheme, 'dark');
+ * // myTheme.node.defaultLabelColor === '#e8eeff'
+ *
+ * // To also inherit font URL:
+ * const myTheme2 = { ...withColorMode(darkGlassTheme, mySceneTheme.colorMode), sceneTheme: mySceneTheme };
+ */
+export function withColorMode(base: DiagramTheme, colorMode: SceneColorMode): DiagramTheme;
+```
+
+`withColorMode()` is exported from `@brewsite/diagram`.
 
 ### Custom theme authoring pattern
 
@@ -295,6 +361,65 @@ Each preset theme is in its own file (`themes/darkGlass.ts`, `themes/neonCyber.t
 - A standalone `<Diagram>` (not wrapped in `<DiagramCanvas>`) has `theme.input` — ignored; only a canvas can dispatch default input actions.
 
 The `IGNORED_INPUT_CONFIG` warning is surfaced via `SceneTrack.warnings` and forwarded to any `onCompileWarning` handler registered on `ScenePlayer`.
+
+## SceneTheme Integration
+
+### fontUrl fallback chain
+
+`buildThemeRenderConfig(theme)` resolves font URL as:
+```
+theme.node.fontUrl ?? theme.sceneTheme?.font.webglFontUrl → undefined
+```
+
+`theme.node.fontUrl` takes precedence — the `sceneTheme` field provides a fallback, not an override. The resolved `fontUrl` applies to all troika-rendered text in the diagram: node labels, node sublabels, and group title labels.
+
+**Note on fontUrl placement:** `fontUrl` lives on `DiagramThemeNodeConfig.node` for historical reasons but is diagram-global — `themeResolver.ts` extracts it to `DiagramThemeRenderConfig.fontUrl` and both `NodeRenderer` and `GroupRenderer` consume it. Promotion to `DiagramTheme` root level is planned for v2.
+
+### Font size scale composition
+
+When `theme.sceneTheme` is set, `buildThemeRenderConfig` computes:
+- `effectiveLabelSizeFactor = theme.node.labelSizeFactor × (sceneTheme.fontSize.label ?? 1.0)`
+- `effectiveSublabelSizeFactor = theme.node.sublabelSizeFactor × (sceneTheme.fontSize.caption ?? 1.0)`
+
+`NodeRenderer` and `GroupRenderer` use these effective values instead of the raw `labelSizeFactor` fields when they are present.
+
+### colorMode and label colors — the `withColorMode()` escape hatch
+
+`sceneTheme.colorMode` drives label color defaults **only** when `DiagramThemeNodeConfig.defaultLabelColor` is absent. All four built-in presets have explicit values, so colorMode has no effect on them directly.
+
+To create a preset-derived theme with colorMode-driven label colors, use `withColorMode()`:
+
+```typescript
+import { darkGlassTheme, withColorMode } from '@brewsite/diagram';
+import { darkSceneTheme } from '@brewsite/core';
+
+// colorMode-derived label colors + font URL from sceneTheme:
+const myTheme = {
+  ...withColorMode(darkGlassTheme, 'dark'),
+  sceneTheme: darkSceneTheme,
+};
+```
+
+### DiagramTheme.background — deferred to v2
+
+`DiagramTheme` does not have a `background` field in v1. A `DiagramTheme` cannot drive the scene's DOM `<Background>` element in this release. Pair `<Background>` and `<DiagramCanvas>` manually:
+
+```tsx
+<Scene key="diagram-scene">
+  <Background theme={darkSceneTheme} />
+  <DiagramCanvas theme={{ ...darkGlassTheme, sceneTheme: darkSceneTheme }} />
+</Scene>
+```
+
+## Known Limitations
+
+1. **`sceneTheme.colorMode` has no effect on built-in preset label colors without `withColorMode()`.** All four built-in DiagramTheme presets have explicit `defaultLabelColor` and `defaultSublabelColor` values. Use `withColorMode(preset, colorMode)` to create a preset with colorMode-derived label colors.
+
+2. **`fontUrl` on `DiagramThemeNodeConfig` is diagram-global despite its placement.** The field name and location are historical. `themeResolver.ts` extracts it to `DiagramThemeRenderConfig.fontUrl` which applies to all troika text (nodes and groups). Promotion to `DiagramTheme` root level is deferred to v2.
+
+3. **WebGL font URL must be MSDF-encoded.** Standard web font URLs will not render correctly in troika-three-text.
+
+4. **`DiagramTheme.background` field is deferred to v2.** The scene background must be configured separately via `<Background>`.
 
 ## Breaking Change Assessment
 

@@ -64,4 +64,43 @@ describe('LabelItem', () => {
     expect(div.style.fontSize).toBe('20px');
     expect(div.style.opacity).toBe('0.5');
   });
+
+  it('does not set fontFamily style when label.style.fontFamily is absent', () => {
+    const positioner = new TrackingPositioner();
+    const label: LabelResolved = {
+      id: 'l3',
+      text: 'NoFont',
+      targetPartId: 'head',
+    };
+
+    const container = document.createElement('div');
+    render(
+      <LabelPositionerContext.Provider value={positioner as never}>
+        <LabelItem label={label} />
+      </LabelPositionerContext.Provider>,
+      { container },
+    );
+    const div = within(container).getByText('NoFont') as HTMLDivElement;
+    expect(div.style.fontFamily).toBe('');
+  });
+
+  it('sets fontFamily style when label.style.fontFamily is provided', () => {
+    const positioner = new TrackingPositioner();
+    const label: LabelResolved = {
+      id: 'l4',
+      text: 'WithFont',
+      targetPartId: 'head',
+      style: { fontFamily: 'Inter, sans-serif' },
+    };
+
+    const container = document.createElement('div');
+    render(
+      <LabelPositionerContext.Provider value={positioner as never}>
+        <LabelItem label={label} />
+      </LabelPositionerContext.Provider>,
+      { container },
+    );
+    const div = within(container).getByText('WithFont') as HTMLDivElement;
+    expect(div.style.fontFamily).toBe('Inter, sans-serif');
+  });
 });

@@ -3,8 +3,11 @@ title: "BrewSite Core — Player & Runtime"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-03
+last_updated: 2026-03-04
 change_history:
+  - date: 2026-03-04
+    author: "Toolkit Product"
+    summary: "Cross-package theming: added EngineProvider.sceneTheme optional prop. ThemeContext documented. EngineOverlayHost CSS variable injection documented. See prd_theming.md for full SceneTheme system documentation."
   - date: 2026-03-03
     author: "Toolkit Product"
     summary: "API hardening updates: ScenePlayer removed; EngineProvider is now the primary integration component. EngineGate added as the loading gate (placeholder until first tick). EngineScrollRegion removed; EngineInputRegion is the sole input region (reads from context, no engine prop). createDefaultWidgetRegistry removed; replaced by corePlugin() + modelPlugin() plugin pattern. Section 3.1 Key Exports updated. Section 7 rewritten to document EngineProvider + EngineGate composable pattern; ScenePlayerProps type definition removed. Section 14.1 EngineScrollRegion documentation removed. SceneMetaWidget registration updated to corePlugin(). SSR section updated to reference EngineProvider and EngineGate. Open question about EngineScrollRegion deprecation removed (resolved)."
@@ -269,6 +272,27 @@ type EngineProviderProps = {
 
   // Widget defaults
   defaultModelStates?: Record<string, unknown>;
+
+  /**
+   * Optional scene theme token set for cross-package visual styling.
+   *
+   * When provided: EngineOverlayHost reads the theme via ThemeContext and injects
+   * CSS custom properties on its overlay container, making font family, font sizes,
+   * color mode, and text colors available to all overlay content.
+   *
+   * CSS variables injected: --brewsite-font-family, --brewsite-font-size-{heading,body,
+   * label,caption,annotation}, --brewsite-color-mode, --brewsite-text-primary,
+   * --brewsite-text-secondary, --brewsite-accent-color (conditional).
+   *
+   * Static for the player lifetime — does not change per scene. For per-scene background
+   * changes, use <Background theme={...} /> in each scene.
+   *
+   * The webglFontUrl token is NOT auto-plumbed to WebGL renderers — pass the sceneTheme
+   * explicitly to DiagramTheme.sceneTheme or ChartTheme.sceneTheme / ChartDSL.sceneTheme.
+   *
+   * See requirements/core/prd/prd_theming.md for full documentation.
+   */
+  sceneTheme?: SceneTheme;
 };
 ```
 
@@ -334,9 +358,31 @@ const EngineOverlayHost: React.FC<EngineOverlayHostProps>;
 **Behavior:**
 - Reads `engine.frameState.sceneId` from `EngineContext`.
 - Reads `engine.sceneOverlays.get(sceneId)` to obtain the current scene's overlay ReactNode.
+- Reads `ThemeContext` (provided by `EngineProvider`) and — when a `SceneTheme` is present — injects CSS custom properties on the overlay container div.
 - Renders the overlay inside a `div` with `position: absolute; inset: 0; overflow: hidden`.
 - Uses `key={sceneId}` on the inner overlay div to trigger a React remount on scene change, which applies a CSS fade-in transition.
 - When `passthroughPointerEvents` is false (default), the container div has `pointer-events: auto`. When true, `pointer-events: none`.
+
+**CSS variable injection (when `EngineProvider.sceneTheme` is set):**
+
+`EngineOverlayHost` reads `ThemeContext` and injects these CSS custom properties on its root container:
+
+| CSS Variable | Derived From |
+|---|---|
+| `--brewsite-font-family` | `theme.font.htmlFamily` |
+| `--brewsite-font-size-heading` | `calc(1rem * theme.fontSize.heading)` |
+| `--brewsite-font-size-body` | `calc(1rem * theme.fontSize.body)` |
+| `--brewsite-font-size-label` | `calc(1rem * theme.fontSize.label)` |
+| `--brewsite-font-size-caption` | `calc(1rem * theme.fontSize.caption)` |
+| `--brewsite-font-size-annotation` | `calc(1rem * theme.fontSize.annotation)` |
+| `--brewsite-color-mode` | `'dark'` or `'light'` |
+| `--brewsite-text-primary` | `#ffffff` (dark) / `#111111` (light) |
+| `--brewsite-text-secondary` | `rgba(255,255,255,0.6)` (dark) / `rgba(0,0,0,0.6)` (light) |
+| `--brewsite-accent-color` | `theme.accentColor` — only set when present |
+
+`fontFamily: 'var(--brewsite-font-family)'` is also set as an inline style on the container so that CSS inheritance propagates the font to all overlay children and DOM labels automatically.
+
+When no `sceneTheme` is provided, no CSS variables are injected and overlay behavior is unchanged.
 
 **Scene change transition:**
 The overlay container uses a CSS fade-in on mount, keyed by `sceneId`. This gives a smooth crossfade effect when navigating between scenes that have overlay content.

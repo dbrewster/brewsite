@@ -61,6 +61,7 @@ export function compileChart(
     opacity: dsl.opacity ?? 1,
     interactive: dsl.interactive ?? false,
     innerRadius: dsl.innerRadius ?? 0,
+    sceneTheme: dsl.sceneTheme,  // pass through from DSL
   };
 }
 
@@ -102,5 +103,7 @@ export const functionalChartTransitionSpec: FunctionalTransitionSpec<ChartState>
     opacity: blendOpacity(from.opacity, to.opacity, ctx.t) ?? to.opacity,
     // Discrete switch at midpoint: preserve from.type during first half, switch to to.type at 0.5
     type: ctx.t < 0.5 ? from.type : to.type,
+    // Discrete switch at midpoint: font transitions don't benefit from interpolation
+    sceneTheme: ctx.t < 0.5 ? from.sceneTheme : to.sceneTheme,
   }),
 };

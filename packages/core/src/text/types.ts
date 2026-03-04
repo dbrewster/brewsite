@@ -10,6 +10,12 @@ export type TextWithLayout = {
   text: string;
   color: string | number;
   fontSize: number;
+  /**
+   * URL to an MSDF-encoded font file for troika-three-text.
+   * When set, troika uses this font instead of its built-in default.
+   * Corresponds to troika Text object's .font property.
+   */
+  font?: string;
   anchorX?: string | number;
   anchorY?: string | number;
   textAlign?: string;
