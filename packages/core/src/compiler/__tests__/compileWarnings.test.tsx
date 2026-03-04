@@ -83,4 +83,73 @@ describe('compile warnings', () => {
     expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('already registered'));
     warnSpy.mockRestore();
   });
+
+  it('emits TRANSITION_TIMING warning when exitStart is on the last scene', () => {
+    const registry = new WidgetRegistry();
+    registry.register(new BoxWidget('w1'));
+
+    const scenes: SceneDefinition[] = [
+      {
+        id: 'first',
+        getFrame: () => (
+          <Scene id="first">
+            <Box id="w1" />
+          </Scene>
+        ),
+      },
+      {
+        id: 'last',
+        getFrame: () => (
+          <Scene id="last" exitStart={0.9}>
+            <Box id="w1" />
+          </Scene>
+        ),
+      },
+    ];
+
+    const track = compileSceneTrack({
+      scenes,
+      widgetRegistry: registry,
+      blockSize: 4,
+    });
+
+    const timingWarnings = track.warnings?.filter((w) => w.code === 'TRANSITION_TIMING') ?? [];
+    expect(timingWarnings).toHaveLength(1);
+    expect(timingWarnings[0]?.message).toContain('exitStart');
+    expect(timingWarnings[0]?.message).toContain('last');
+    expect(timingWarnings[0]?.sceneIndex).toBe(1);
+  });
+
+  it('does not emit TRANSITION_TIMING warning when exitStart is on a non-last scene', () => {
+    const registry = new WidgetRegistry();
+    registry.register(new BoxWidget('w1'));
+
+    const scenes: SceneDefinition[] = [
+      {
+        id: 'first',
+        getFrame: () => (
+          <Scene id="first" exitStart={0.9}>
+            <Box id="w1" />
+          </Scene>
+        ),
+      },
+      {
+        id: 'last',
+        getFrame: () => (
+          <Scene id="last">
+            <Box id="w1" />
+          </Scene>
+        ),
+      },
+    ];
+
+    const track = compileSceneTrack({
+      scenes,
+      widgetRegistry: registry,
+      blockSize: 4,
+    });
+
+    const timingWarnings = track.warnings?.filter((w) => w.code === 'TRANSITION_TIMING') ?? [];
+    expect(timingWarnings).toHaveLength(0);
+  });
 });

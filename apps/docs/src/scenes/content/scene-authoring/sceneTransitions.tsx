@@ -24,7 +24,7 @@ function TransitionsDemo(): JSX.Element {
         <Lighting><Ambient color="#aabbff" intensity={0.5} /><Directional color="#ffffff" intensity={1.4} position={[5, 10, 5]} /></Lighting>
         <Background color="#0a0a1a" />
       </Scene>
-      <Scene key="tr-s2" id="tr-s2" transition={{ exit: [0, 0.5], enter: [0.5, 1] }}>
+      <Scene key="tr-s2" id="tr-s2" exitStart={0.6}>
         <Camera mode="world" position={[-4, 1, 5]} target={[0, 0, 0]} fov={40} />
         <Lighting><Ambient color="#ff8844" intensity={0.4} /><Directional color="#ffcc88" intensity={1.6} position={[-4, 6, 3]} /></Lighting>
         <Background color="#1a0a04" />
@@ -36,29 +36,46 @@ function TransitionsDemo(): JSX.Element {
 function TransitionsContent(): JSX.Element {
   return (
     <DocPanel slideInBy={0.25}>
-      <h1 style={{ fontSize: 'var(--font-size-3xl)', margin: '0 0 8px', fontWeight: 700 }}>Transitions &amp; Easing</h1>
+      <h1 style={{ fontSize: 'var(--font-size-3xl)', margin: '0 0 8px', fontWeight: 700 }}>Transitions</h1>
       <p style={{ fontSize: 'var(--font-size-base)', lineHeight: 1.65, color: 'var(--text-secondary)', margin: '0 0 20px' }}>
-        Transitions are configured on the <em>incoming</em> scene — the scene being transitioned
-        into. Control the timing windows with the <code>transition</code> prop on <code>&lt;Scene&gt;</code>.
-        The <code>exit</code> window controls when the outgoing scene fades out;
-        the <code>enter</code> window controls when the incoming scene fades in.
+        The default transition is dissolve-through-black: the scene holds at full opacity until
+        80% of the block, then fades out quickly. No <code>transition</code> prop needed for the
+        common case. Use <code>exitStart</code> to control how long the scene stays visible before
+        fading, or <code>transition="crossfade"</code> for a simultaneous equal-blend.
       </p>
 
       <CodeBlock
         language="tsx"
-        code={`// Control the entry window for this scene's transition:
-<Scene key="feature" transition={{ exit: [0, 0.4], enter: [0.6, 1] }}>
+        code={`// Default: dissolve-through-black at exitStart=0.8
+<Scene key="hero">
+  <Camera mode="world" position={[0, 2, 8]} target={[0, 0, 0]} fov={45} />
+</Scene>
+
+// Hold scene longer before fading
+<Scene key="feature" exitStart={0.9}>
+  <Camera mode="world" position={[...]} />
+</Scene>
+
+// Crossfade: both scenes simultaneously visible throughout
+<Scene key="detail" transition="crossfade">
   <Camera mode="world" position={[...]} />
 </Scene>`}
       />
 
-      <h2 style={{ fontSize: 'var(--font-size-2xl)', margin: '20px 0 10px' }}>Preset windows</h2>
+      <h2 style={{ fontSize: 'var(--font-size-2xl)', margin: '20px 0 10px' }}>Named transitions</h2>
       <PropTable
         rows={[
-          { name: 'TRANSITION_CROSSFADE',   type: 'TransitionWindow', description: 'Exit [0, 0.5] / Enter [0.5, 1] — the default overlap split' },
-          { name: 'TRANSITION_SEQUENTIAL',  type: 'TransitionWindow', description: 'Exit [0, 0.4] / Enter [0.6, 1] — gap between exit and enter' },
-          { name: 'TRANSITION_EXIT_FIRST',  type: 'TransitionWindow', description: 'Exit [0, 0.6] / Enter [0.4, 1] — outgoing finishes before entering' },
-          { name: 'TRANSITION_CUT',         type: 'TransitionWindow', description: 'Instant switch with no blending' },
+          {
+            name: '"dissolve"',
+            type: 'TransitionName',
+            defaultValue: 'system default',
+            description: 'Through-black. Outgoing holds until exitStart, fades to nothing. Incoming fades in symmetrically. exitStart defaults to 0.8.',
+          },
+          {
+            name: '"crossfade"',
+            type: 'TransitionName',
+            description: 'Equal-blend. Both scenes visible simultaneously. Opacity sums to 1 at every frame. exitStart is not applicable.',
+          },
         ]}
       />
 

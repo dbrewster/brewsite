@@ -1,37 +1,254 @@
-import type { JSX } from 'react';
+import type {JSX} from 'react';
 import {
-  Scene,
-  Camera,
-  Lighting,
-  Ambient,
-  Directional,
-  ProgressManager,
+    Action,
+    Ambient,
+    Camera,
+    Directional,
+    InputController,
+    KeyMap,
+    Lighting,
+    PointerMap,
+    ProgressManager,
+    Scene,
 } from '@brewsite/core';
 import {
-  DiagramCanvas,
-  Diagram,
-  DiagramNode,
-  DiagramEdge,
-  DiagramGroup,
-  ManualLayout,
-  darkGlassTheme,
+    darkGlassTheme,
+    Diagram,
+    DiagramCanvas,
+    DiagramEdge,
+    DiagramGroup,
+    DiagramNode,
+    ManualLayout,
 } from '@brewsite/diagram';
-import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
+import {MidFade, ScrollOn} from '@brewsite/core/hud/animejs';
 
-const LATE_FADE = {
-  exit: [1.0, 1.0] as [number, number],
-  enter: [1.0, 1.0] as [number, number],
-};
+const angledFn = (t: number): number => (t < 0.5 ? 0 : (t - 0.5) / 0.5);
 
-export const sceneChartsArch: JSX.Element = (
-  <Scene id="arch-charts" transition={LATE_FADE}>
-    <ProgressManager
-      scrollUnits={3000}
-      autoAdvance={{ duration: 10, max: 0.88, pauseOnScroll: true }}
-    />
+function makeChartsCanvasDiagram(): JSX.Element {
+  return (
+    <Diagram id="arch-content" pivot="center">
+      <ManualLayout />
+
+      {/* ── COLUMN 1: Author (DSL) ── */}
+      <DiagramGroup id="dsl-group" label="Author (DSL) · chart declarations + data binding" variant="boundary">
+        <DiagramNode
+          id="dsl-provider"
+          label="<ChartProvider>"
+          sublabel="React context root · wires IFilterEngine + data source"
+          sublabelColor="#b8c8e8"
+          icon="ui:server"
+          position={[-18, 7, 0]}
+          size={[7, 3.2]}
+        />
+        <DiagramNode
+          id="dsl-chart"
+          label={'<Chart chartType="bar">'}
+          sublabel="type · data array · series config · axis config"
+          sublabelColor="#b8c8e8"
+          icon="ui:chart-bar"
+          position={[-18, 2, 0]}
+          size={[7, 3.2]}
+        />
+        <DiagramNode
+          id="dsl-sources"
+          label="named data sources"
+          sublabel="source id · filter · group · sort pipeline config"
+          sublabelColor="#b8c8e8"
+          icon="ui:circle-stack"
+          position={[-18, -3, 0]}
+          size={[7, 3.2]}
+        />
+        <DiagramNode
+          id="dsl-crossfilter"
+          label="cross-filter"
+          sublabel="brush selection → re-filters all linked chart compilations"
+          sublabelColor="#b8c8e8"
+          icon="ui:funnel"
+          position={[-18, -8, 0]}
+          size={[7, 3.2]}
+        />
+      </DiagramGroup>
+
+      {/* ── COLUMN 2: Compile (compiler/) ── */}
+      <DiagramGroup id="compile-group" label="Compile (compiler/) · pure data transforms, no render loop" variant="swimlane">
+        <DiagramNode
+          id="cmp-compile"
+          label="compile.ts"
+          sublabel="pure: Chart props + filtered dataset → ChartState (SeriesPoint[])"
+          sublabelColor="#b8c8e8"
+          icon="ui:code-bracket-square"
+          position={[-6, 7.5, 0]}
+          size={[7.5, 3.2]}
+        />
+        <DiagramNode
+          id="cmp-transforms"
+          label="transforms.ts"
+          sublabel="filter → aggregate → sort → group pipeline · runs before snapshot"
+          sublabelColor="#b8c8e8"
+          icon="ui:arrows-right-left"
+          position={[-6, 2.5, 0]}
+          size={[7.5, 3.2]}
+        />
+        <DiagramNode
+          id="cmp-filter"
+          label="IFilterEngine"
+          sublabel="cross-filter contract · brush/link interface"
+          sublabelColor="#b8c8e8"
+          icon="ui:funnel"
+          position={[-6, -2.5, 0]}
+          size={[7.5, 3.2]}
+        />
+        <DiagramNode
+          id="cmp-simple-filter"
+          label="SimpleFilterEngine"
+          sublabel="default impl · brush ranges + linked chart update propagation"
+          sublabelColor="#b8c8e8"
+          icon="ui:adjustments-horizontal"
+          position={[-6, -7.5, 0]}
+          size={[7.5, 3.2]}
+        />
+      </DiagramGroup>
+
+      {/* ── COLUMN 3: Renderers (renderers/) ── */}
+      <DiagramGroup id="renderers-group" label="Renderers (renderers/) · IChartRenderer · dispatched by chartType" variant="cluster">
+        <DiagramNode
+          id="rnd-bar"
+          label="BarRenderer"
+          sublabel="InstancedMesh of BoxGeometry · shadow cast · per-bar color"
+          sublabelColor="#b8c8e8"
+          icon="ui:chart-bar"
+          position={[6, 12.5, 0]}
+          size={[7.5, 3.2]}
+        />
+        <DiagramNode
+          id="rnd-line"
+          label="LineRenderer"
+          sublabel="CatmullRomCurve3 → TubeGeometry · configurable tension"
+          sublabelColor="#b8c8e8"
+          icon="ui:presentation-chart-line"
+          position={[6, 7.5, 0]}
+          size={[7.5, 3.2]}
+        />
+        <DiagramNode
+          id="rnd-area"
+          label="AreaRenderer"
+          sublabel="filled ribbon mesh · translucent PBR material"
+          sublabelColor="#b8c8e8"
+          icon="ui:presentation-chart-bar"
+          position={[6, 2.5, 0]}
+          size={[7.5, 3.2]}
+        />
+        <DiagramNode
+          id="rnd-pie"
+          label="PieRenderer"
+          sublabel="LatheGeometry per slice · IBL env reflection"
+          sublabelColor="#b8c8e8"
+          icon="ui:chart-pie"
+          position={[6, -2.5, 0]}
+          size={[7.5, 3.2]}
+        />
+        <DiagramNode
+          id="rnd-scatter"
+          label="ScatterRenderer"
+          sublabel="InstancedMesh of SphereGeometry · color per data point"
+          sublabelColor="#b8c8e8"
+          icon="ui:adjustments-horizontal"
+          position={[6, -7.5, 0]}
+          size={[7.5, 3.2]}
+        />
+        <DiagramNode
+          id="rnd-heatmap"
+          label="HeatmapRenderer"
+          sublabel="PlaneGeometry · vertex color + height map"
+          sublabelColor="#b8c8e8"
+          icon="ui:squares-2x2"
+          position={[6, -12.5, 0]}
+          size={[7.5, 3.2]}
+        />
+      </DiagramGroup>
+
+      {/* ── COLUMN 4: Output ── */}
+      <DiagramGroup id="output-group" label="Output (ChartWidget) · ISceneElement + IRenderable" variant="boundary">
+        <DiagramNode
+          id="out-widget"
+          label="ChartWidget"
+          sublabel="dispatches to IChartRenderer by chartType · apply() per frame"
+          sublabelColor="#b8c8e8"
+          icon="ui:puzzle-piece"
+          position={[18, 7, 0]}
+          size={[7, 3.2]}
+          color="#1a3060"
+          glow={{ intensity: 0.2 }}
+        />
+        <DiagramNode
+          id="out-axes"
+          label="AxesRenderer"
+          sublabel="shared tick geometry · axis labels · linear/log scale"
+          sublabelColor="#b8c8e8"
+          icon="ui:chart-bar-square"
+          position={[18, 2, 0]}
+          size={[7, 3.2]}
+        />
+        <DiagramNode
+          id="out-tooltip"
+          label="ChartTooltipOverlay"
+          sublabel="Three.js raycasting → React DOM tooltip via EngineOverlayHost"
+          sublabelColor="#b8c8e8"
+          icon="ui:magnifying-glass"
+          position={[18, -3, 0]}
+          size={[7, 3.2]}
+        />
+        <DiagramNode
+          id="out-material"
+          label="ChartMaterialFactory"
+          sublabel="PBR materials · shared theme palette · metalness/roughness"
+          sublabelColor="#b8c8e8"
+          icon="ui:swatch"
+          position={[18, -8, 0]}
+          size={[7, 3.2]}
+        />
+      </DiagramGroup>
+
+      {/* ── Spine: DSL → compiled → widget → renderers → output ── */}
+      <DiagramEdge from="dsl-chart" to="cmp-compile" label="props + data" flow="forward" />
+      <DiagramEdge from="cmp-transforms" to="cmp-compile" label="filtered + aggregated" style="dashed" />
+      <DiagramEdge from="cmp-compile" to="out-widget" label="ChartState" flow="forward" />
+      <DiagramEdge from="out-widget" to="rnd-bar" label="dispatch by chartType" flow="forward" />
+      <DiagramEdge from="out-widget" to="rnd-pie" flow="forward" />
+      <DiagramEdge from="out-widget" to="rnd-scatter" flow="forward" />
+
+      {/* ── Supporting edges ── */}
+      <DiagramEdge from="dsl-provider" to="cmp-filter" label="React context" style="dashed" />
+      <DiagramEdge from="dsl-sources" to="cmp-transforms" label="source config" style="dashed" />
+      <DiagramEdge from="dsl-crossfilter" to="cmp-filter" flow="forward" />
+      <DiagramEdge from="cmp-filter" to="cmp-simple-filter" label="implements" style="dashed" />
+      <DiagramEdge from="cmp-filter" to="cmp-transforms" label="active filters" flow="forward" />
+      <DiagramEdge from="out-axes" to="rnd-bar" label="shared" style="dashed" arrowEnd="open" />
+      <DiagramEdge from="out-axes" to="rnd-line" style="dashed" arrowEnd="open" />
+      <DiagramEdge from="out-material" to="rnd-bar" label="PBR params" style="dashed" arrowEnd="open" />
+    </Diagram>
+  );
+}
+
+// ── Scene 1 of 2: Angled view ──────────────────────────────────────────────
+export const sceneChartsAngledArch: JSX.Element = (
+  <Scene id="arch-charts-angled">
+    <ProgressManager scrollUnits={2000} fn={angledFn} />
+    {/* Camera controls: Cmd+drag to orbit, Shift+drag to pan, R to reset */}
+    <InputController scope="canvas">
+      <Action id="rotate" type="diagram-canvas.rotate" canvasId="arch-charts-canvas">
+        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
+      </Action>
+      <Action id="pan" type="diagram-canvas.move" canvasId="arch-charts-canvas">
+        <PointerMap event="drag" button="left" modifiers={['shift']} axis="xy" />
+      </Action>
+      <Action id="reset" type="diagram-canvas.reset" canvasId="arch-charts-canvas">
+        <KeyMap keyName="r" />
+      </Action>
+    </InputController>
     <Camera
       mode="world"
-      position={[0, 4, 60]}
+      position={[0, 35, 45]}
       target={[0, 0, 0]}
       fov={54}
     />
@@ -40,204 +257,44 @@ export const sceneChartsArch: JSX.Element = (
       <Directional intensity={0.6} color="#aaccff" position={[0, 20, 30]} />
       <Directional intensity={0.35} color="#ff9944" position={[20, 5, 15]} />
     </Lighting>
-
     <DiagramCanvas
       id="arch-charts-canvas"
+      position={[0, 15, 0]}
+      rotation={[-Math.PI / 4, 0, 0]}
+      scale={1.05}
+      theme={darkGlassTheme}
+    >
+      {makeChartsCanvasDiagram()}
+    </DiagramCanvas>
+  </Scene>
+);
+
+// ── Scene 2 of 2: Head-on view with teaching overlay ──────────────────────
+export const sceneChartsArch: JSX.Element = (
+  <Scene id="arch-charts" exitStart={0.9}>
+    <ProgressManager scrollUnits={3000} />
+    <Camera
+      mode="world"
+      position={[0, 4, 60]}
+      target={[0, 0, 0]}
+      fov={54}
+    />
+    <DiagramCanvas
+      id="arch-charts-canvas"
+      position={[0, 15, 0]}
       rotation={[-Math.PI / 10, 0, 0]}
       scale={1.05}
       theme={darkGlassTheme}
     >
-      <Diagram id="charts-arch" pivot="center">
-        <ManualLayout />
-
-        {/* ── COLUMN 1: Author (DSL) ── */}
-        <DiagramGroup id="dsl-group" label="Author (DSL)" variant="boundary">
-          <DiagramNode
-            id="dsl-provider"
-            label="<ChartProvider>"
-            sublabel="wraps app · wires data context"
-            icon="ui:server"
-            position={[-13, 5.5, 0]}
-            size={[5.2, 2]}
-          />
-          <DiagramNode
-            id="dsl-chart"
-            label={'<Chart chartType="bar">'}
-            sublabel="type · data · series"
-            icon="ui:chart-bar"
-            position={[-13, 1.5, 0]}
-            size={[5.2, 2]}
-          />
-          <DiagramNode
-            id="dsl-sources"
-            label="named sources"
-            sublabel="filter · group · sort config"
-            icon="ui:circle-stack"
-            position={[-13, -2.5, 0]}
-            size={[5.2, 2]}
-          />
-          <DiagramNode
-            id="dsl-crossfilter"
-            label="cross-filter"
-            sublabel="brush link across charts"
-            icon="ui:funnel"
-            position={[-13, -6.5, 0]}
-            size={[5.2, 2]}
-          />
-        </DiagramGroup>
-
-        {/* ── COLUMN 2: Compile (compiler/) ── */}
-        <DiagramGroup id="compile-group" label="Compile (compiler/)" variant="swimlane">
-          <DiagramNode
-            id="cmp-compile"
-            label="compile.ts"
-            sublabel="pure: props + data → ChartState"
-            icon="ui:code-bracket-square"
-            position={[-4.5, 6, 0]}
-            size={[5.5, 2]}
-          />
-          <DiagramNode
-            id="cmp-transforms"
-            label="transforms.ts"
-            sublabel="filter · aggregate · sort · group"
-            icon="ui:arrows-right-left"
-            position={[-4.5, 2, 0]}
-            size={[5.5, 2]}
-          />
-          <DiagramNode
-            id="cmp-filter"
-            label="IFilterEngine"
-            sublabel="cross-filter contract"
-            icon="ui:funnel"
-            position={[-4.5, -2, 0]}
-            size={[5.5, 2]}
-          />
-          <DiagramNode
-            id="cmp-simple-filter"
-            label="SimpleFilterEngine"
-            sublabel="default brush / link impl"
-            icon="ui:adjustments-horizontal"
-            position={[-4.5, -6, 0]}
-            size={[5.5, 2]}
-          />
-        </DiagramGroup>
-
-        {/* ── COLUMN 3: Renderers (renderers/) ── */}
-        <DiagramGroup id="renderers-group" label="Renderers (renderers/)" variant="cluster">
-          <DiagramNode
-            id="rnd-bar"
-            label="BarRenderer"
-            sublabel="instanced box geometry · shadow"
-            icon="ui:chart-bar"
-            position={[4.5, 8, 0]}
-            size={[5.5, 2]}
-          />
-          <DiagramNode
-            id="rnd-line"
-            label="LineRenderer"
-            sublabel="CatmullRom tube geometry"
-            icon="ui:presentation-chart-line"
-            position={[4.5, 5, 0]}
-            size={[5.5, 2]}
-          />
-          <DiagramNode
-            id="rnd-area"
-            label="AreaRenderer"
-            sublabel="translucent ribbon mesh"
-            icon="ui:presentation-chart-bar"
-            position={[4.5, 2, 0]}
-            size={[5.5, 2]}
-          />
-          <DiagramNode
-            id="rnd-pie"
-            label="PieRenderer"
-            sublabel="lathe geometry · env reflection"
-            icon="ui:chart-pie"
-            position={[4.5, -1, 0]}
-            size={[5.5, 2]}
-          />
-          <DiagramNode
-            id="rnd-scatter"
-            label="ScatterRenderer"
-            sublabel="instanced sphere cloud"
-            icon="ui:adjustments-horizontal"
-            position={[4.5, -4, 0]}
-            size={[5.5, 2]}
-          />
-          <DiagramNode
-            id="rnd-heatmap"
-            label="HeatmapRenderer"
-            sublabel="height + color grid"
-            icon="ui:squares-2x2"
-            position={[4.5, -7, 0]}
-            size={[5.5, 2]}
-          />
-        </DiagramGroup>
-
-        {/* ── COLUMN 4: Output ── */}
-        <DiagramGroup id="output-group" label="Output" variant="boundary">
-          <DiagramNode
-            id="out-widget"
-            label="ChartWidget"
-            sublabel="ISceneElement + IRenderable"
-            icon="ui:puzzle-piece"
-            position={[13, 5.5, 0]}
-            size={[5, 2]}
-            color="#1a3060"
-            glow={{ intensity: 0.2 }}
-          />
-          <DiagramNode
-            id="out-axes"
-            label="AxesRenderer"
-            sublabel="shared tick + label geometry"
-            icon="ui:chart-bar-square"
-            position={[13, 1.5, 0]}
-            size={[5, 2]}
-          />
-          <DiagramNode
-            id="out-tooltip"
-            label="ChartTooltipOverlay"
-            sublabel="React hover via EngineOverlayHost"
-            icon="ui:magnifying-glass"
-            position={[13, -2.5, 0]}
-            size={[5, 2]}
-          />
-          <DiagramNode
-            id="out-material"
-            label="ChartMaterialFactory"
-            sublabel="PBR materials · themes"
-            icon="ui:swatch"
-            position={[13, -6.5, 0]}
-            size={[5, 2]}
-          />
-        </DiagramGroup>
-
-        {/* ── Spine: DSL → compiled → widget → renderers → output ── */}
-        <DiagramEdge from="dsl-chart" to="cmp-compile" label="props + data" flow="forward" />
-        <DiagramEdge from="cmp-transforms" to="cmp-compile" label="filtered + aggregated" style="dashed" />
-        <DiagramEdge from="cmp-compile" to="out-widget" label="ChartState" flow="forward" />
-        <DiagramEdge from="out-widget" to="rnd-bar" label="dispatch by chartType" flow="forward" />
-        <DiagramEdge from="out-widget" to="rnd-pie" flow="forward" />
-        <DiagramEdge from="out-widget" to="rnd-scatter" flow="forward" />
-
-        {/* ── Supporting edges ── */}
-        <DiagramEdge from="dsl-provider" to="cmp-filter" label="React context" style="dashed" />
-        <DiagramEdge from="dsl-sources" to="cmp-transforms" label="source config" style="dashed" />
-        <DiagramEdge from="dsl-crossfilter" to="cmp-filter" flow="forward" />
-        <DiagramEdge from="cmp-filter" to="cmp-simple-filter" label="implements" style="dashed" />
-        <DiagramEdge from="cmp-filter" to="cmp-transforms" label="active filters" flow="forward" />
-        <DiagramEdge from="out-axes" to="rnd-bar" label="shared" style="dashed" arrowEnd="open" />
-        <DiagramEdge from="out-axes" to="rnd-line" style="dashed" arrowEnd="open" />
-        <DiagramEdge from="out-material" to="rnd-bar" label="PBR params" style="dashed" arrowEnd="open" />
-      </Diagram>
+      {makeChartsCanvasDiagram()}
     </DiagramCanvas>
 
-    {/* Overlay */}
+    {/* Teaching overlay */}
     <div style={{
       position: 'absolute',
-      bottom: '10%',
-      right: '5%',
-      maxWidth: 400,
+      bottom: '3%',
+      right: '3%',
+      maxWidth: 540,
       textAlign: 'right',
     }}>
       <MidFade duration={1200}>
@@ -252,24 +309,109 @@ export const sceneChartsArch: JSX.Element = (
           @brewsite/charts
         </div>
         <div style={{
-          fontSize: 'clamp(20px, 3vw, 26px)',
+          fontSize: 'clamp(18px, 2.6vw, 24px)',
           fontWeight: 600,
           color: '#f0f6fc',
           lineHeight: 1.2,
-          marginBottom: 14,
+          marginBottom: 16,
         }}>
           Data transforms at compile time.<br />Renderers receive pre-aggregated state.
         </div>
       </MidFade>
       <ScrollOn duration={900} delay={150}>
         <div style={{
-          fontSize: 'clamp(13px, 1.6vw, 14px)',
-          color: 'rgba(240, 246, 252, 0.6)',
-          lineHeight: 1.65,
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '10px 18px',
+          marginBottom: 14,
         }}>
-          No data processing in the render loop.
-          ChartWidget dispatches to IChartRenderer by chartType.
-          Cross-filter brushing links charts through IFilterEngine.
+          <div style={{ textAlign: 'left' }}>
+            <div style={{
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 9,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase' as const,
+              color: 'rgba(130, 100, 255, 0.7)',
+              marginBottom: 5,
+            }}>
+              Author / DSL
+            </div>
+            <div style={{
+              fontSize: 'clamp(11px, 1.3vw, 12px)',
+              color: 'rgba(240, 246, 252, 0.6)',
+              lineHeight: 1.6,
+            }}>
+              {'<ChartProvider> wraps the app and wires the data context via React. <Chart chartType="bar"> declares a chart with its type, data, and series config. Named sources declare filter, group, and sort rules. Cross-filter declarations link brushing so a selection in one chart re-filters all linked charts.'}
+            </div>
+          </div>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 9,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase' as const,
+              color: 'rgba(100, 160, 255, 0.7)',
+              marginBottom: 5,
+            }}>
+              Compile
+            </div>
+            <div style={{
+              fontSize: 'clamp(11px, 1.3vw, 12px)',
+              color: 'rgba(240, 246, 252, 0.6)',
+              lineHeight: 1.6,
+            }}>
+              compile.ts is pure: Chart props + current filtered dataset → ChartState with fully pre-aggregated series data. transforms.ts runs filter, aggregate, sort, and group operations before the snapshot. IFilterEngine is the cross-filter contract; SimpleFilterEngine is the default. All data processing happens here — zero transforms in the render loop.
+            </div>
+          </div>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 9,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase' as const,
+              color: 'rgba(100, 200, 160, 0.7)',
+              marginBottom: 5,
+            }}>
+              Renderers
+            </div>
+            <div style={{
+              fontSize: 'clamp(11px, 1.3vw, 12px)',
+              color: 'rgba(240, 246, 252, 0.6)',
+              lineHeight: 1.6,
+            }}>
+              ChartWidget dispatches to a specific IChartRenderer based on chartType. Each renderer builds Three.js geometry from pre-aggregated ChartState: BarRenderer uses instanced box geometry; LineRenderer uses CatmullRom tube geometry; PieRenderer uses lathe geometry. AxesRenderer is shared — it generates tick geometry independently of chart type.
+            </div>
+          </div>
+          <div style={{ textAlign: 'left' }}>
+            <div style={{
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 9,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase' as const,
+              color: 'rgba(130, 100, 255, 0.7)',
+              marginBottom: 5,
+            }}>
+              Output
+            </div>
+            <div style={{
+              fontSize: 'clamp(11px, 1.3vw, 12px)',
+              color: 'rgba(240, 246, 252, 0.6)',
+              lineHeight: 1.6,
+            }}>
+              ChartWidget implements ISceneElement + IRenderable. ChartMaterialFactory produces PBR materials from a shared theme spec. ChartTooltipOverlay is a React component via EngineOverlayHost — hit detection runs in Three.js, the tooltip HTML is plain React. Cross-filter brushing updates IFilterEngine, triggering recompilation of dependent ChartState objects.
+            </div>
+          </div>
+        </div>
+        <div style={{
+          borderRight: '2px solid rgba(130, 100, 255, 0.5)',
+          paddingRight: 12,
+          fontSize: 'clamp(11px, 1.3vw, 12px)',
+          color: 'rgba(240, 246, 252, 0.85)',
+          lineHeight: 1.6,
+          fontStyle: 'italic',
+          textAlign: 'right',
+        }}>
+          <strong>Key insight:</strong> All data aggregation runs at compile time. Renderers receive flat SeriesPoint[] arrays — they never filter, sort, or group data during the frame loop.
         </div>
       </ScrollOn>
     </div>

@@ -84,7 +84,10 @@ export class ChartWidget
 
   apply(state: ChartState, _ctx: WidgetRenderContext): void {
     this.lastState = state;
-    if (!this.scene) return;
+    if (!this.scene) {
+      console.error(`[ChartWidget] apply() called but scene is null for id="${this.widgetId}" — widget not initialized`);
+      return;
+    }
 
     this.chartRenderer.update(state, this.widgetId);
 

@@ -12,7 +12,7 @@ export type LightingThreeRefs = {
 
 type LightingCache = {
   ambient?: THREE.AmbientLight;
-  directional?: THREE.DirectionalLight;
+  directionals: Map<string, THREE.DirectionalLight>;
   glowPoint?: THREE.PointLight;
   strands: Map<string, THREE.PointLight[]>;
   points: Map<string, THREE.PointLight>;
@@ -30,6 +30,7 @@ const getCache = (scene: THREE.Scene): LightingCache => {
   const existing = scene.userData[LIGHTING_KEY] as LightingCache | undefined;
   if (existing) return existing;
   const created: LightingCache = {
+    directionals: new Map(),
     strands: new Map(),
     points: new Map(),
     spots: new Map(),
@@ -77,30 +78,47 @@ export function applyLighting(state: SceneLighting, refs: LightingThreeRefs): vo
   cache.ambient.color.set(state.ambient.color);
   cache.ambient.intensity = (ambientEnabled ? state.ambient.intensity : 0) * intensityScale;
 
-  // Apply directional light
-  if (!cache.directional) {
-    cache.directional = new THREE.DirectionalLight();
-    cache.directional.castShadow = true;
-    cache.directional.shadow.mapSize.set(1024, 1024);
-    scene.add(cache.directional);
-  }
-  const directionalLight = cache.directional;
-  const directionalEnabled = isLightEnabled(cache, state.directional.id ?? 'directional-0');
-  directionalLight.color.set(state.directional.color);
-  directionalLight.intensity = (directionalEnabled ? state.directional.intensity : 0) * intensityScale;
-  directionalLight.position.set(
-    state.directional.position[0],
-    state.directional.position[1],
-    state.directional.position[2]
+  // Apply directional lights — keyed by id.
+  // Index 0 is the primary (shadow-casting) light; subsequent lights are fill lights only.
+  const directionalSpecs = state.directionals;
+  const activeDirectionalIds = new Set(
+    directionalSpecs.map((d, i) => d.id ?? `directional-${i}`),
   );
-  const dirCam = directionalLight.shadow.camera as THREE.OrthographicCamera;
-  // Wider bounds reduce shadow pop/disappear when camera pans across large scenes.
-  dirCam.near = DIRECTIONAL_SHADOW_NEAR;
-  dirCam.far = DIRECTIONAL_SHADOW_FAR;
-  dirCam.left = -DIRECTIONAL_SHADOW_RANGE;
-  dirCam.right = DIRECTIONAL_SHADOW_RANGE;
-  dirCam.top = DIRECTIONAL_SHADOW_RANGE;
-  dirCam.bottom = -DIRECTIONAL_SHADOW_RANGE;
+  for (const [id, light] of cache.directionals.entries()) {
+    if (activeDirectionalIds.has(id)) continue;
+    scene.remove(light);
+    cache.directionals.delete(id);
+  }
+  for (let i = 0; i < directionalSpecs.length; i += 1) {
+    const spec = directionalSpecs[i]!;
+    const directionalId = spec.id ?? `directional-${i}`;
+    const directionalEnabled = isLightEnabled(cache, directionalId);
+    let light = cache.directionals.get(directionalId);
+    if (!light) {
+      light = new THREE.DirectionalLight();
+      const isPrimary = i === 0;
+      light.castShadow = isPrimary;
+      if (isPrimary) {
+        light.shadow.mapSize.set(1024, 1024);
+      }
+      cache.directionals.set(directionalId, light);
+      scene.add(light);
+    }
+    light.color.set(spec.color);
+    light.intensity = (directionalEnabled ? spec.intensity : 0) * intensityScale;
+    light.position.set(spec.position[0], spec.position[1], spec.position[2]);
+    // Only update shadow camera for the primary (index 0) light.
+    if (i === 0 && light.castShadow) {
+      const dirCam = light.shadow.camera as THREE.OrthographicCamera;
+      // Wider bounds reduce shadow pop/disappear when camera pans across large scenes.
+      dirCam.near = DIRECTIONAL_SHADOW_NEAR;
+      dirCam.far = DIRECTIONAL_SHADOW_FAR;
+      dirCam.left = -DIRECTIONAL_SHADOW_RANGE;
+      dirCam.right = DIRECTIONAL_SHADOW_RANGE;
+      dirCam.top = DIRECTIONAL_SHADOW_RANGE;
+      dirCam.bottom = -DIRECTIONAL_SHADOW_RANGE;
+    }
+  }
 
   // Apply single glow point light (non-shadow-casting fill light).
   if (state.glowPoint) {

@@ -21,7 +21,8 @@ export type CompileWarningCode =
   | 'MISSING_WIDGET'
   | 'DUPLICATE_WIDGET_ID'
   | 'UNRESOLVED_REFERENCE'
-  | 'PROGRESS_MANAGER';
+  | 'PROGRESS_MANAGER'
+  | 'TRANSITION_TIMING';
 
 export type CompileWarning = {
   code: CompileWarningCode;
@@ -212,14 +213,23 @@ export type SceneFrame = {
    */
   materialRoughnessMultiplier?: number;
   /**
-   * Transition window configuration for the transition INTO this scene (from the preceding scene).
-   * Declared via `transition={{ exit: [...], enter: [...] }}` on the `<Scene>` DSL element.
+   * Transition window configuration governing THIS scene's fade behavior in both directions.
+   * Set by the <Scene> node handler via resolveSceneTransition(props.transition, props.exitStart).
+   * Always a concrete TransitionWindow by the time it reaches SceneFrame — string names are
+   * resolved at compile time; the runtime never sees TransitionName values.
    *
-   * exit — sub-window owned by the OUTGOING scene (fromSnap) controlling when it fades out.
-   * enter — sub-window owned by this INCOMING scene (toSnap) controlling when it fades in.
+   * exit  — controls when THIS scene fades out (when it is the departing scene in block N→N+1).
+   *         Read as fromSnap.transitionWindow.exit during transition block N.
+   * enter — controls when THIS scene fades in (when it is the arriving scene in block N-1→N).
+   *         Read as toSnap.transitionWindow.enter during transition block N-1.
    *
-   * Only affects widgets using FunctionalTransitionSpec. Widgets using ElementTransitionSpec
-   * are pre-baked at compile time and do not read this field.
+   * Both fields are set from a single resolveSceneTransition() call on this scene's <Scene> node.
+   * For 'dissolve' (the default), the windows are symmetric: exit:[exitStart, mid], enter:[mid, 1.0].
+   *
+   * IMPORTANT LIMITATION: Only affects widgets using FunctionalTransitionSpec.
+   * Widgets using ElementTransitionSpec are pre-baked at compile time using a hardcoded
+   * mid = Math.floor(blockSize / 2) split and do NOT read this field.
+   * All new renderable elements should use FunctionalTransitionSpec.
    */
   transitionWindow?: TransitionWindow;
   /**

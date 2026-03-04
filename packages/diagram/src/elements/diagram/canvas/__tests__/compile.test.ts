@@ -1,8 +1,9 @@
 import { describe, it, expect, vi } from 'vitest';
 import { compileCanvas, compilePipe } from '../compile';
 import { compileDiagram } from '../../compile';
-import type { DiagramPipeDSL } from '../types';
+import type { DiagramPipeDSL, DiagramCanvasDSL } from '../types';
 import type { DiagramDSL } from '../../types';
+import type { InputActionSpec } from '@brewsite/core';
 
 const makeDiagram = (id: string, nodeId: string, position: [number, number, number]): DiagramDSL => ({
   id,
@@ -99,5 +100,33 @@ describe('compileCanvas', () => {
     const diagram = compileDiagram(makeDiagram('a', 'n1', [0, 0, 0]));
     const canvas = compileCanvas({ id: 'canvas' }, [diagram], []);
     expect(canvas.pipes).toEqual([]);
+  });
+});
+
+describe('compileCanvas — defaultInputActions', () => {
+  const baseDSL: DiagramCanvasDSL = { id: 'canvas-1' };
+  const sampleActions: InputActionSpec[] = [
+    {
+      id: 'move',
+      type: 'diagram-canvas.move',
+      canvasId: 'canvas-1',
+      speed: 1,
+      maps: [{ kind: 'pointer', event: 'drag', button: 'left', axis: 'xy' }],
+    },
+  ];
+
+  it('includes defaultInputActions when provided', () => {
+    const state = compileCanvas(baseDSL, [], [], undefined, sampleActions);
+    expect(state.defaultInputActions).toEqual(sampleActions);
+  });
+
+  it('has undefined defaultInputActions when not provided', () => {
+    const state = compileCanvas(baseDSL, [], []);
+    expect(state.defaultInputActions).toBeUndefined();
+  });
+
+  it('passes defaultInputActions through to state without transformation', () => {
+    const state = compileCanvas(baseDSL, [], [], undefined, sampleActions);
+    expect(state.defaultInputActions).toBe(sampleActions); // reference equality
   });
 });

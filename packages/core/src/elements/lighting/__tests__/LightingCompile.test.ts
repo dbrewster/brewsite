@@ -32,7 +32,7 @@ const makeLighting = (overrides: Partial<SceneLighting> = {}): SceneLighting => 
 describe('lighting compile + render', () => {
   it('defaults include ambient and directional', () => {
     expect(DEFAULT_LIGHTING.ambient.intensity).toBeGreaterThan(0);
-    expect(DEFAULT_LIGHTING.directional.position).toHaveLength(3);
+    expect(DEFAULT_LIGHTING.directionals[0]!.position).toHaveLength(3);
   });
 
   it('transitionSpec.interpolate blends ambient intensity', () => {
@@ -141,14 +141,14 @@ describe('lighting compile + render', () => {
 
   it('transitionSpec.interpolate blends directional color and position', () => {
     const from = makeLighting({
-      directional: { intensity: 1, color: '#ff0000', position: [0, 0, 0] },
+      directionals: [{ intensity: 1, color: '#ff0000', position: [0, 0, 0] }],
     });
     const to = makeLighting({
-      directional: { intensity: 1, color: '#00ff00', position: [2, 2, 2] },
+      directionals: [{ intensity: 1, color: '#00ff00', position: [2, 2, 2] }],
     });
     const result = applyLightingInterpolate(from, to, 0.5);
-    expect(result.directional.color).toBe('#808000');
-    expect(result.directional.position).toEqual([1, 1, 1]);
+    expect(result.directionals[0]!.color).toBe('#808000');
+    expect(result.directionals[0]!.position).toEqual([1, 1, 1]);
   });
 
   it('transitionSpec.interpolate blends glowPoint', () => {
@@ -380,7 +380,7 @@ describe('lighting compile + render', () => {
     const scene = new THREE.Scene();
     const state: SceneLighting = makeLighting({
       ambient: { intensity: 1, color: '#ffffff' },
-      directional: { intensity: 1, color: '#ffffff', position: [1, 2, 3] },
+      directionals: [{ intensity: 1, color: '#ffffff', position: [1, 2, 3] }],
       glowPoint: { intensity: 1, color: '#ffaa33', position: [3, 4, 5], distance: 12, decay: 1.25 },
       lightStrands: [{
         id: 'strand',
@@ -480,6 +480,100 @@ describe('lighting compile + render', () => {
 
     clearSceneLightOverrides(scene);
     expect(isSceneLightEnabled(scene, 'key-fill')).toBe(true);
+  });
+
+  describe('applyLightingExit — directionals array', () => {
+    it('fades all directional lights to intensity 0', () => {
+      const state: SceneLighting = {
+        ...DEFAULT_LIGHTING,
+        directionals: [
+          { id: 'd-0', intensity: 1.0, color: '#ffffff', position: [10, 10, 10] },
+          { id: 'd-1', intensity: 0.5, color: '#ff0000', position: [-5, 5, 5] },
+        ],
+      };
+      const result = applyLightingExit(state, 1.0);
+      expect(result.directionals[0]!.intensity).toBe(0);
+      expect(result.directionals[1]!.intensity).toBe(0);
+    });
+
+    it('preserves directional count and ids', () => {
+      const state: SceneLighting = {
+        ...DEFAULT_LIGHTING,
+        directionals: [
+          { id: 'd-0', intensity: 1.0, color: '#ffffff', position: [10, 10, 10] },
+          { id: 'd-1', intensity: 0.5, color: '#ff0000', position: [-5, 5, 5] },
+        ],
+      };
+      const result = applyLightingExit(state, 0.5);
+      expect(result.directionals).toHaveLength(2);
+      expect(result.directionals[0]!.id).toBe('d-0');
+      expect(result.directionals[1]!.id).toBe('d-1');
+    });
+  });
+
+  describe('applyLightingEnter — directionals array', () => {
+    it('fades in all directional lights from intensity 0', () => {
+      const state: SceneLighting = {
+        ...DEFAULT_LIGHTING,
+        directionals: [
+          { id: 'd-0', intensity: 1.0, color: '#ffffff', position: [10, 10, 10] },
+          { id: 'd-1', intensity: 0.5, color: '#ff0000', position: [-5, 5, 5] },
+        ],
+      };
+      const result = applyLightingEnter(state, 1.0);
+      expect(result.directionals[0]!.intensity).toBeCloseTo(1.0);
+      expect(result.directionals[1]!.intensity).toBeCloseTo(0.5);
+    });
+
+    it('is at near-zero intensity at t=0', () => {
+      const state: SceneLighting = {
+        ...DEFAULT_LIGHTING,
+        directionals: [
+          { id: 'd-0', intensity: 1.0, color: '#ffffff', position: [10, 10, 10] },
+        ],
+      };
+      const result = applyLightingEnter(state, 0);
+      expect(result.directionals[0]!.intensity).toBe(0);
+    });
+  });
+
+  describe('applyLightingInterpolate — directionals array', () => {
+    it('interpolates matched directionals by id', () => {
+      const from: SceneLighting = {
+        ...DEFAULT_LIGHTING,
+        directionals: [
+          { id: 'd-0', intensity: 0.0, color: '#000000', position: [0, 0, 0] },
+        ],
+      };
+      const to: SceneLighting = {
+        ...DEFAULT_LIGHTING,
+        directionals: [
+          { id: 'd-0', intensity: 1.0, color: '#ffffff', position: [10, 10, 10] },
+        ],
+      };
+      const result = applyLightingInterpolate(from, to, 0.5);
+      expect(result.directionals[0]!.intensity).toBeCloseTo(0.5);
+    });
+
+    it('fades out a directional not in the target scene', () => {
+      const from: SceneLighting = {
+        ...DEFAULT_LIGHTING,
+        directionals: [
+          { id: 'd-0', intensity: 1.0, color: '#ffffff', position: [10, 10, 10] },
+          { id: 'd-extra', intensity: 0.8, color: '#ffff00', position: [5, 5, 5] },
+        ],
+      };
+      const to: SceneLighting = {
+        ...DEFAULT_LIGHTING,
+        directionals: [
+          { id: 'd-0', intensity: 1.0, color: '#ffffff', position: [10, 10, 10] },
+        ],
+      };
+      const result = applyLightingInterpolate(from, to, 1.0);
+      const extra = result.directionals.find((d) => d.id === 'd-extra');
+      expect(extra).toBeDefined();
+      expect(extra!.intensity).toBe(0);
+    });
   });
 
   it('Lighting DSL components render null and have displayName', () => {

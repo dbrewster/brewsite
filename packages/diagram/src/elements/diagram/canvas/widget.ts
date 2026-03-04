@@ -3,9 +3,11 @@
 import * as THREE from 'three';
 import type {
   IAnimationController,
+  IInputDefaultProvider,
   IRenderable,
   ISceneElement,
   AnimationTickContext,
+  InputActionSpec,
   WidgetInitContext,
   WidgetRenderContext,
 } from '@brewsite/core';
@@ -41,7 +43,8 @@ export class DiagramCanvasWidget
   implements
     ISceneElement<DiagramCanvasState>,
     IRenderable<DiagramCanvasState>,
-    IAnimationController
+    IAnimationController,
+    IInputDefaultProvider
 {
   readonly widgetId: string;
   readonly defaultState: DiagramCanvasState;
@@ -67,6 +70,11 @@ export class DiagramCanvasWidget
   private readonly ndc = new THREE.Vector2();
   private inputTranslation: [number, number, number] = [0, 0, 0];
   private inputRotation: [number, number, number] = [0, 0, 0];
+  /**
+   * Current default input actions derived from the most recently applied
+   * DiagramCanvasState. Updated in apply(); never reads from defaultState.
+   */
+  private currentInputActions: ReadonlyArray<InputActionSpec> | undefined = undefined;
 
   constructor(widgetId: string, defaultState: DiagramCanvasState) {
     this.widgetId = widgetId;
@@ -157,6 +165,9 @@ export class DiagramCanvasWidget
   }
 
   apply(state: DiagramCanvasState, _ctx: WidgetRenderContext): void {
+    // Update currentInputActions so getDefaultInputActions() reflects current scene.
+    this.currentInputActions = state.defaultInputActions;
+
     if (!this.scene) return;
     const effectiveState: DiagramCanvasState = {
       ...state,
@@ -173,6 +184,15 @@ export class DiagramCanvasWidget
     };
     this.lastState = effectiveState;
     this.renderer.update(effectiveState, this.scene);
+  }
+
+  /**
+   * Returns the current scene's default input actions.
+   * Returns this.currentInputActions (updated each frame in apply()), NOT defaultState.
+   * Returns an empty array when no defaultInputActions are configured.
+   */
+  getDefaultInputActions(): InputActionSpec[] {
+    return this.currentInputActions ? [...this.currentInputActions] : [];
   }
 
   /**
@@ -235,6 +255,7 @@ export class DiagramCanvasWidget
     this.inputTranslation = [0, 0, 0];
     this.inputRotation = [0, 0, 0];
     clearDiagramFocusRegion(this.widgetId);
+    this.currentInputActions = undefined;
   }
 
   applyInputMove(dx: number, dy: number, dz: number = 0): void {

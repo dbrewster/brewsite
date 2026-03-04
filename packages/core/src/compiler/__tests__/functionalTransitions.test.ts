@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { compileSceneTrack } from '../sceneTrackCompiler';
 import type { FunctionalTransitionSpec, ElementTransitionSpec } from '../transitions/transitionTypes';
 import type { SceneDefinition } from '../sceneTypes';
+import type { SceneFrame } from '../sceneTrackTypes';
 import type { ISceneElement } from '../../widget/types';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import { makeSimpleContext } from '../transitions/transitionResolver';
@@ -110,41 +111,59 @@ describe('functional transitions', () => {
     expect(fn?.(0.5)).toEqual({ value: 15, active: true });
   });
 
-  it('exit closure: active in first half, absent state in second half', () => {
+  it('exit closure with explicit window [0,0.5]: active until window end, absent after', () => {
     const registry = new WidgetRegistry().register(makeTestWidget(widgetId, testFunctionalSpec));
-    const scenes = [
-      makeScene('s1', { value: 10, active: true }),
+    // Inject explicit transitionWindow into s1's frame to decouple test from system defaults.
+    const scenes: SceneDefinition[] = [
+      {
+        id: 's1',
+        getFrame: (): SceneFrame => ({
+          id: 's1',
+          scrollProgress: 0,
+          widgets: { [widgetId]: { value: 10, active: true } },
+          transitionWindow: { exit: [0, 0.5] },
+        }),
+      },
       makeScene('s2', undefined),
     ];
     const track = compileTrack(scenes, registry);
     const fn = track.transitionBlocks?.[0]?.widgetFns[widgetId];
     expect(fn?.kind).toBe('exit');
-    // Exit window default: [0, 0.5]. At bp=0 → t=0 → full state.
+    // Exit window [0, 0.5]. At bp=0 → t=0 → full state (value=10, active=true).
     expect(fn?.fn(0)).toEqual({ value: 10, active: true });
-    // At bp=0.25 → within exit window → partially faded
+    // At bp=0.25 → within exit window → t=0.5 → partially faded (0 < value < 10).
     const quarter = fn?.fn(0.25) as TestState;
     expect(quarter.value).toBeGreaterThan(0);
     expect(quarter.value).toBeLessThan(10);
     expect(quarter.active).toBe(true);
-    // At bp=0.5 → effectiveExitEnd → absentDefault
+    // At bp=0.5 → effectiveExitEnd=0.5 → absentDefault.
     expect(fn?.fn(0.5)).toEqual({ value: 0, active: false });
+    // At bp=1 → still absentDefault.
     expect(fn?.fn(1)).toEqual({ value: 0, active: false });
   });
 
-  it('enter closure: absent state in first half, active in second half', () => {
+  it('enter closure with explicit window [0.5,1]: absent before window, active at end', () => {
     const registry = new WidgetRegistry().register(makeTestWidget(widgetId, testFunctionalSpec));
-    const scenes = [
+    // Inject explicit transitionWindow into s2's frame to decouple test from system defaults.
+    const scenes: SceneDefinition[] = [
       makeScene('s1', undefined),
-      makeScene('s2', { value: 10, active: true }),
+      {
+        id: 's2',
+        getFrame: (): SceneFrame => ({
+          id: 's2',
+          scrollProgress: 0,
+          widgets: { [widgetId]: { value: 10, active: true } },
+          transitionWindow: { enter: [0.5, 1] },
+        }),
+      },
     ];
     const track = compileTrack(scenes, registry);
     const fn = track.transitionBlocks?.[0]?.widgetFns[widgetId];
     expect(fn?.kind).toBe('enter');
-    // Enter window default: [0.5, 1]. bp < effectiveEnterStart (0.5) → absentDefault.
+    // Enter window [0.5, 1]. bp < effectiveEnterStart (0.5) → absentDefault.
     expect(fn?.fn(0)).toEqual({ value: 0, active: false });
     expect(fn?.fn(0.49)).toEqual({ value: 0, active: false });
-    // At bp=0.5 → effectiveEnterStart boundary → absentDefault (bp < 0.5 is false, so active)
-    // Actually bp >= effectiveEnterStart (0.5), so the enter closure fires
+    // At bp=1 → t=1 → full toState.
     expect(fn?.fn(1)).toEqual({ value: 10, active: true });
   });
 

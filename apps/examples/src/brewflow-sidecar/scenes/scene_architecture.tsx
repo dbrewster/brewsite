@@ -1,0 +1,167 @@
+import type {JSX} from 'react';
+import {
+  Action,
+  Background,
+  Camera,
+  InputController,
+  KeyMap,
+  PointerMap,
+  ProgressManager,
+  Scene,
+  WheelMap
+} from '@brewsite/core';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramGroup, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {brewflowTheme} from '../theme';
+import {config} from "../../settings";
+
+const DWELL_FN = (t: number): number => Math.min(1, t * 4);
+
+export const sceneArchitecture: JSX.Element = (
+  <Scene key="bf-architecture" id="bf-architecture">
+    <ProgressManager scrollUnits={3200} fn={DWELL_FN} />
+    <InputController scope="canvas">
+      <Action id="pan" type="diagram-canvas.move" canvasId="bf-arch">
+        <PointerMap event="drag" axis="xy" />
+        <WheelMap axis="xy" />
+      </Action>
+      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bf-arch">
+        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
+      </Action>
+      <Action id="reset" type="diagram-canvas.reset" canvasId="bf-arch">
+        <KeyMap keyName="r" />
+      </Action>
+    </InputController>
+    <Camera mode="world" position={[0, 8, 32]} target={[0, 0, 0]} fov={54} />
+    <Background color="#080b14" />
+
+    <DiagramCanvas id="bf-arch" position={[0, config.diagramTop, 0]} rotation={[-0.12, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
+      {/* claude-flow block */}
+      <Diagram id="bf-arch-cf" pivot="center" position={[0, 6, 0]}>
+        <ManualLayout />
+        <DiagramGroup id="cf-group" label="claude-flow" variant="boundary" color="#0d1525" borderColor="#2a3a60">
+          <DiagramNode
+            id="cf-db"
+            label=".swarm/memory.db"
+            sublabel="events · shared_state · patterns · tasks · sessions"
+            size={[9, 2.8]}
+            position={[-4, 0, 0]}
+          />
+          <DiagramNode
+            id="cf-yaml"
+            label="agent-template.yaml"
+            sublabel="pre/post/session-end hooks → npx brewflow ..."
+            size={[9, 2.8]}
+            position={[6, 0, 0]}
+          />
+        </DiagramGroup>
+      </Diagram>
+
+      {/* sidecar block */}
+      <Diagram id="bf-arch-sidecar" pivot="center" position={[0, -5, 0]}>
+        <ManualLayout />
+        <DiagramGroup id="sidecar-group" label="BrewFlow Memory Sidecar" variant="boundary" color="#0d0f1e" borderColor="#3a4080">
+          <DiagramNode
+            id="proc-bridge"
+            label="brewflow-bridge"
+            sublabel="Polls .swarm/memory.db (read-only) · rowid cursors · EpisodicStore writes"
+            size={[8, 2.8]}
+            position={[-9, 0, 0]}
+            color="#141830"
+          />
+          <DiagramNode
+            id="proc-mcp"
+            label="brewflow-mcp-server"
+            sublabel="mcp__brewflow__* tools · recall · store · checkpoint · trigger_dream"
+            size={[8, 2.8]}
+            position={[0, 0, 0]}
+            color="#141830"
+            glow={{ intensity: 0.12 }}
+          />
+          <DiagramNode
+            id="proc-dreamer"
+            label="brewflow-dreamer"
+            sublabel="7-stage consolidation · LLM extract → Neocortex promotion"
+            size={[8, 2.8]}
+            position={[9, 0, 0]}
+            color="#141830"
+          />
+          <DiagramNode
+            id="store-episodic"
+            label=".brewflow/episodic/"
+            sublabel="JSONL segments · EpisodicStore"
+            size={[5.5, 2.2]}
+            position={[-5, -5, 0]}
+            color="#0f1525"
+          />
+          <DiagramNode
+            id="store-neocortex"
+            label=".brewflow/neocortex/"
+            sublabel="typed JSON cards · verified knowledge"
+            size={[5.5, 2.2]}
+            position={[5, -5, 0]}
+            color="#0f1525"
+          />
+        </DiagramGroup>
+
+        {/* Intra-sidecar edges */}
+        <DiagramEdge from="proc-bridge" to="store-episodic" flow="forward" color="#5080c0" />
+        <DiagramEdge from="proc-mcp" to="store-episodic" color="#5080c0" />
+        <DiagramEdge from="proc-dreamer" to="store-neocortex" flow="forward" color="#5080c0" />
+        <DiagramEdge from="store-episodic" to="proc-dreamer" style="dashed" color="#4060a0" />
+        <DiagramEdge from="store-neocortex" to="proc-mcp" style="dashed" color="#4060a0" />
+      </Diagram>
+
+      {/* Cross-diagram connections via DiagramPipe would require DiagramPipe DSL.
+          For now we show the connections with an annotation in the prose. */}
+    </DiagramCanvas>
+
+    {/* Prose panel */}
+    <div style={{
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      padding: '40px 64px 48px',
+      background: 'rgba(8, 11, 20, 0.88)',
+      backdropFilter: 'blur(16px)',
+      borderTop: '1px solid rgba(255,255,255,0.08)',
+      maxHeight: '50vh',
+      overflowY: 'auto',
+      pointerEvents: 'auto',
+    }}>
+      <div style={{
+        fontFamily: 'JetBrains Mono, monospace',
+        fontSize: '0.67rem',
+        letterSpacing: '0.25em',
+        textTransform: 'uppercase' as const,
+        color: 'rgba(100, 140, 220, 0.7)',
+        marginBottom: 16,
+      }}>
+        FULL ARCHITECTURE
+      </div>
+      <ul style={{
+        margin: 0,
+        padding: '0 0 0 20px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 14,
+      }}>
+        <li style={{ fontSize: '0.94rem', color: 'rgba(180, 200, 240, 0.8)', lineHeight: 1.6 }}>
+          <strong style={{ color: '#c8d8f0' }}>brewflow-bridge</strong> — A lightweight process
+          that watches .swarm/memory.db via read-only SQLite polling. It tracks row cursors per table,
+          transforms new rows into EpisodicStore entries, and never writes to claude-flow's database.
+        </li>
+        <li style={{ fontSize: '0.94rem', color: 'rgba(180, 200, 240, 0.8)', lineHeight: 1.6 }}>
+          <strong style={{ color: '#c8d8f0' }}>brewflow-mcp-server</strong> — A Node.js MCP server
+          registered in .mcp.json. Exposes recall(), store(), get_procedures(), checkpoint(),
+          log_outcome(), and trigger_dream() to all agents in the swarm.
+        </li>
+        <li style={{ fontSize: '0.94rem', color: 'rgba(180, 200, 240, 0.8)', lineHeight: 1.6 }}>
+          <strong style={{ color: '#c8d8f0' }}>brewflow-dreamer</strong> — Triggered by the
+          session-end hook as a non-blocking background process. Runs a 7-stage consolidation
+          pipeline that promotes high-salience episodic content into typed Neocortex cards.
+        </li>
+      </ul>
+    </div>
+  </Scene>
+);

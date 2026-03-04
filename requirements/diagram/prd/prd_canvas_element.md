@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Canvas Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-02
+last_updated: 2026-03-03
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -11,6 +11,9 @@ change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Breaking DX improvements: diagramPlugin() eliminates manual DiagramCanvasWidget pre-registration (FR 1 updated); ghost node trigger changed from label==='' to label===undefined (mergeSnapshot section updated); depth renamed to thickness in mergeSnapshot carry-forward list; Widget Registration Pattern replaced with diagramPlugin() pattern."
+  - date: 2026-03-03
+    author: "Toolkit Product"
+    summary: "Added theme-level default input handler support: DiagramCanvasState.defaultInputActions field, DiagramCanvasWidget implements IInputDefaultProvider, defaultDiagramCanvasInputActions convenience export, IGNORED_INPUT_CONFIG warning documented."
 ---
 
 # BrewSite Diagram — Canvas Element
@@ -212,6 +215,13 @@ export interface DiagramCanvasState {
   readonly diagrams: ReadonlyArray<DiagramState>;
   /** All cross-diagram pipe states. */
   readonly pipes: ReadonlyArray<DiagramPipeState>;
+  /**
+   * Default input actions derived from theme.input at compile time.
+   * canvasId has been injected by the compiler from the <DiagramCanvas id="...">.
+   * Undefined when no theme.input is configured on the canvas.
+   * Consumed by DiagramCanvasWidget.getDefaultInputActions() at runtime.
+   */
+  readonly defaultInputActions?: ReadonlyArray<InputActionSpec>;
 }
 
 /** Raw DSL props for <DiagramCanvas> before compile.ts applies defaults. */
@@ -273,11 +283,17 @@ export function compilePipe(
  *
  * Called by the DiagramCanvas compiler handler in handlers.ts after it has
  * compiled all child Diagram elements via compileDiagram().
+ *
+ * The optional defaultInputActions parameter carries pre-processed input actions
+ * (with canvasId already injected) from theme.input. When absent, the returned
+ * DiagramCanvasState has no defaultInputActions field.
  */
 export function compileCanvas(
   dsl: DiagramCanvasDSL,
   diagrams: ReadonlyArray<DiagramState>,
   pipes: ReadonlyArray<DiagramPipeDSL>,
+  onWarn?: DiagramWarnFn,
+  defaultInputActions?: ReadonlyArray<InputActionSpec>,
 ): DiagramCanvasState;
 
 /**
@@ -301,7 +317,8 @@ export class DiagramCanvasWidget
   implements
     ISceneElement<DiagramCanvasState>,
     IRenderable<DiagramCanvasState>,
-    IAnimationController
+    IAnimationController,
+    IInputDefaultProvider
 {
   readonly widgetId: string;
   readonly defaultState: DiagramCanvasState;
@@ -329,9 +346,18 @@ export class DiagramCanvasWidget
   /**
    * Applies canvas state to Three.js scene via DiagramCanvasRenderer.
    * Merges inputTranslation and inputRotation offsets from ActionInputController
-   * before passing state to the renderer.
+   * before passing state to the renderer. Also updates currentInputActions from
+   * state.defaultInputActions so getDefaultInputActions() reflects the current scene.
    */
   apply(state: DiagramCanvasState, context: WidgetRenderContext): void;
+
+  /**
+   * Returns the current scene's default input actions.
+   * Returns the value updated by the most recent apply() call — never defaultState.
+   * Returns an empty array when no defaultInputActions are configured in the theme.
+   * Implements IInputDefaultProvider from @brewsite/core.
+   */
+  getDefaultInputActions(): InputActionSpec[];
 
   /**
    * Ghost-node merge: carries forward label/shape/iconUrl for empty-label
@@ -514,5 +540,7 @@ None. The canvas element is fully implemented and all design decisions are resol
 - `DiagramCanvasWidget` has integration tests verifying ghost-node `mergeSnapshot` behavior.
 - `prd_canvas_element.md` is published to `requirements/diagram/prd/`.
 - At least one example scene in `apps/examples/` demonstrates a two-diagram canvas with a `DiagramPipe`.
-- All exported types (`DiagramCanvasState`, `DiagramPipeState`, `DiagramCanvasWidget`, `compileCanvas`, `compilePipe`, `PipeRoutingAlgorithm`, `PipeLandingAlgorithm`) are present in `packages/diagram/src/index.ts`.
+- All exported types (`DiagramCanvasState`, `DiagramPipeState`, `DiagramCanvasWidget`, `compileCanvas`, `compilePipe`, `PipeRoutingAlgorithm`, `PipeLandingAlgorithm`, `DiagramCanvasInputConfig`) are present in `packages/diagram/src/index.ts`.
+- `defaultDiagramCanvasInputActions` constant is exported from `packages/diagram/src/index.ts`.
+- `IInputDefaultProvider` interface and `isInputDefaultProvider` type guard are exported from `packages/core/src/index.ts`.
 - CHANGELOG entry written for `@brewsite/diagram`.

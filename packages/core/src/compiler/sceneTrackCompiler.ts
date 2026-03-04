@@ -459,12 +459,17 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
         // Resolve scene-level windows for this transition block.
         // EXIT window: outgoing scene (fromSnap) controls when it fades out.
         // ENTER window: incoming scene (toSnap) controls when it fades in.
-        // Each falls back to the widget spec's defaultWindow, then the system default [0,0.5]/[0.5,1].
+        // Each falls back to the widget spec's defaultWindow, then the system default.
+        // Fallback matches resolveSceneTransition('dissolve', 0.8):
+        //   eos=0.8, mid=(0.8+1.0)/2=0.9 → exit:[0.8,0.9], enter:[0.9,1.0]
+        // This path only fires for FunctionalTransitionSpec widgets with no scene-level
+        // transitionWindow AND no defaultWindow on their spec. After the DSL-layer change,
+        // most scenes resolve and store a transitionWindow at compile time.
         const specDefault = transitionSpec.defaultWindow;
         const sceneExit: [number, number] =
-          fromSnap.transitionWindow?.exit ?? specDefault?.exit ?? [0, 0.5];
+          fromSnap.transitionWindow?.exit ?? specDefault?.exit ?? [0.8, 0.9];
         const sceneEnter: [number, number] =
-          toSnap.transitionWindow?.enter ?? specDefault?.enter ?? [0.5, 1.0];
+          toSnap.transitionWindow?.enter ?? specDefault?.enter ?? [0.9, 1.0];
 
         // Ensure a block entry exists for index n
         const tBlock: SceneTrackTransitionBlock = transitionBlocks[n] ?? { blockIndex: n, widgetFns: {} };

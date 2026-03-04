@@ -1,0 +1,125 @@
+import type {JSX} from 'react';
+import {
+    Action,
+    Ambient,
+    Background,
+    Camera,
+    Directional,
+    InputController,
+    KeyMap,
+    Lighting,
+    PointerMap,
+    ProgressManager,
+    Scene,
+    WheelMap,
+} from '@brewsite/core';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {brewflowTheme} from '../../brewflow-sidecar/theme';
+import {config} from "../../settings";
+
+const DWELL_FN = (t: number): number => Math.min(1, t * 4);
+
+export const sceneDim7Safety: JSX.Element = (
+  <Scene key="bfc-dim7-safety" id="bfc-dim7-safety">
+    <ProgressManager scrollUnits={2400} fn={DWELL_FN} />
+
+    <Camera mode="world" position={[0, 4, 22]} target={[0, 0, 0]} fov={52} />
+    <Background color="#080b14" />
+
+    <InputController scope="canvas">
+      <Action id="pan" type="diagram-canvas.move" canvasId="bfc-safety-canvas">
+        <PointerMap event="drag" axis="xy" />
+        <WheelMap axis="xy" />
+      </Action>
+      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bfc-safety-canvas">
+        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
+      </Action>
+      <Action id="reset" type="diagram-canvas.reset" canvasId="bfc-safety-canvas">
+        <KeyMap keyName="r" />
+      </Action>
+    </InputController>
+
+    <DiagramCanvas id="bfc-safety-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
+      <Diagram id="safety-diagram" pivot="center">
+        <ManualLayout />
+
+        {/* Left — claude-flow TTL credentials */}
+        <DiagramNode id="safe-cf-creds" label="credentials namespace" sublabel="1-hour TTL · agent-responsible" size={[6.5, 2.4]} position={[-8, 0, 0]} color="#1a1020" />
+        <DiagramNode id="safe-cf-gap" label="No classification pipeline" sublabel="no redaction · no sealed store · no read-time enforcement" size={[6.5, 2.2]} position={[-8, -4, 0]} color="#201010" />
+
+        {/* Right — BrewFlow Sensitive Data Guard */}
+        <DiagramNode id="safe-bf-write" label="Every write boundary" sublabel="ingestion · consolidation · promotion · context assembly" size={[6.5, 2.4]} position={[8, 4, 0]} color="#141830" />
+        <DiagramNode id="safe-bf-d1" label="allow_store" sublabel="safe as-is" size={[5.5, 2.0]} position={[5, 0, 0]} color="#0f2015" />
+        <DiagramNode id="safe-bf-d2" label="store_redacted" sublabel="placeholders replace content" size={[5.5, 2.0]} position={[11, 0, 0]} color="#1a1810" />
+        <DiagramNode id="safe-bf-d3" label="store_sealed" sublabel="audited vault · PHI default" size={[5.5, 2.0]} position={[5, -3.5, 0]} color="#1a1015" />
+        <DiagramNode id="safe-bf-d4" label="no_store" sublabel="event logged · content withheld" size={[5.5, 2.0]} position={[11, -3.5, 0]} color="#1a0f0f" />
+        <DiagramNode id="safe-bf-read" label="CensorCortex" sublabel="minimum-necessary · lane-scoped · audited seal reads" size={[6.5, 2.2]} position={[8, -7, 0]} color="#1a1025" glow={{ intensity: 0.1 }} />
+
+        <DiagramEdge from="safe-bf-write" to="safe-bf-d1" color="#6050a0" />
+        <DiagramEdge from="safe-bf-write" to="safe-bf-d2" color="#6050a0" />
+        <DiagramEdge from="safe-bf-write" to="safe-bf-d3" color="#6050a0" />
+        <DiagramEdge from="safe-bf-write" to="safe-bf-d4" color="#6050a0" />
+        <DiagramEdge from="safe-bf-d3" to="safe-bf-read" style="dashed" color="#6050a0" />
+      </Diagram>
+    </DiagramCanvas>
+
+    {/* Prose panel */}
+    <div style={{
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      padding: '40px 64px 48px',
+      background: 'rgba(8, 11, 20, 0.88)',
+      backdropFilter: 'blur(16px)',
+      borderTop: '1px solid rgba(255,255,255,0.08)',
+      maxHeight: '55vh',
+      overflowY: 'auto',
+      pointerEvents: 'auto',
+    }}>
+      <div style={{
+        fontFamily: 'JetBrains Mono, monospace',
+        fontSize: '0.67rem',
+        letterSpacing: '0.25em',
+        textTransform: 'uppercase' as const,
+        color: 'rgba(100, 140, 220, 0.7)',
+        marginBottom: 16,
+      }}>
+        DIMENSION 7: SENSITIVE DATA
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+        <div>
+          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+            claude-flow: TTL credentials namespace
+          </h3>
+          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+            claude-flow provides a credentials namespace with 1-hour TTL for storing
+            sensitive values. The TTL limits exposure window if credentials leak. Beyond
+            this, there is no classification pipeline: no automated redaction, no sealed
+            store for PHI/PII, and no read-time enforcement preventing an agent from
+            accessing data outside its scope. The agent is responsible for not misusing
+            what it can access.
+          </p>
+        </div>
+        <div>
+          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+            BrewFlow: guard at every boundary
+          </h3>
+          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+            BrewFlow's Sensitive Data Guard runs at every write boundary. Data is classified
+            into one of four directives: allow_store (safe as-is), store_redacted
+            (placeholders replace sensitive content), store_sealed (sealed vault, audited
+            access, PHI/HIPAA default), or no_store (event logged, content withheld). At
+            read time, CensorCortex enforces lane-scoped minimum-necessary access.
+            Sealed vault reads require an audited access token.
+          </p>
+          <p style={{ fontSize: '0.89rem', color: 'rgba(160, 180, 220, 0.65)', lineHeight: 1.7, fontStyle: 'italic', margin: 0 }}>
+            This is not relevant for most use cases. It becomes essential in regulated
+            environments (healthcare, finance, legal) where audit trails for data access
+            are required and unauthorized cross-lane access is a compliance violation.
+          </p>
+        </div>
+      </div>
+    </div>
+  </Scene>
+);

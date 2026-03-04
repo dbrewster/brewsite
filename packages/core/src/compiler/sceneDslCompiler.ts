@@ -14,6 +14,8 @@ import type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { JsonPrimitive } from '../widget/VariableStore';
 import type { CompileWarning, SceneFrame, TransitionWindow } from './sceneTrackTypes';
+import { resolveSceneTransition } from './transitions/transitionPresets';
+import type { SceneTransitionProp } from './transitions/transitionPresets';
 import { SceneRegistrationContext } from './SceneRegistrationContext';
 // registerCoreHandlers is imported via circular reference (safe — only used inside functions,
 // not at module scope; see the comment above ensureSceneRegistry for details).
@@ -231,6 +233,30 @@ const createApi = (
   };
 };
 
+/**
+ * Discriminated union for <Scene> transition control props.
+ *
+ * Branch 1 (dissolve/default):
+ *   transition?: 'dissolve'  — can be omitted; both resolve to dissolve-through-black.
+ *   exitStart?: number       — blockProgress where the scene starts fading. Default: 0.8.
+ *                              Higher = scene stays opaque longer. Range: [0, 0.99].
+ *
+ * Branch 2 (crossfade or raw window):
+ *   transition: 'crossfade' | TransitionWindow  — required in this branch.
+ *   exitStart?: never        — TypeScript compile error if exitStart is provided here.
+ *                              exitStart is meaningless for crossfade and raw windows.
+ *
+ * Examples:
+ *   <Scene id="s1" />                                       // dissolve, exitStart=0.8
+ *   <Scene id="s1" exitStart={0.9} />                       // dissolve, exitStart=0.9
+ *   <Scene id="s1" transition="dissolve" exitStart={0.7} /> // explicit dissolve
+ *   <Scene id="s1" transition="crossfade" />                // crossfade
+ *   <Scene id="s1" transition={{ exit:[0.7,1.0], enter:[0.0,0.3] }} />  // raw escape hatch
+ */
+type SceneTransitionProps =
+  | { transition?: 'dissolve'; exitStart?: number }
+  | { transition: 'crossfade' | TransitionWindow; exitStart?: never };
+
 // Register Scene root handler
 const useIsomorphicLayoutEffect =
   typeof window !== 'undefined' ? useLayoutEffect : useEffect;
@@ -246,15 +272,8 @@ export const Scene = (props: {
    * Multiplier applied to base roughness for all model materials in this scene.
    */
   roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
-  /**
-   * Transition window for the incoming transition into this scene.
-   * exit — sub-window within [0,1] where the outgoing scene fades out.
-   * enter — sub-window within [0,1] where this scene fades in.
-   * Only affects widgets using FunctionalTransitionSpec.
-   */
-  transition?: TransitionWindow;
   children?: React.ReactNode;
-}): null => {
+} & SceneTransitionProps): null => {
   const registration = useContext(SceneRegistrationContext);
   const element = React.createElement(Scene, props);
 
@@ -273,7 +292,8 @@ export const sceneRootHandler: NodeHandler = (node, api, helpers) => {
     meta?: Record<string, JsonPrimitive>;
     metalnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
     roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
-    transition?: TransitionWindow;
+    transition?: SceneTransitionProp;
+    exitStart?: number;
   };
   // Children.toArray() prefixes keys with ".$" (e.g. "arch-auto" -> ".$arch-auto").
   // Strip the prefix defensively for any direct-element fallback path.
@@ -295,8 +315,21 @@ export const sceneRootHandler: NodeHandler = (node, api, helpers) => {
   if (props.roughnessMultiplier !== undefined) {
     api.state.materialRoughnessMultiplier = helpers.resolveValue(props.roughnessMultiplier, api.context);
   }
-  if (props.transition) {
-    api.state.transitionWindow = props.transition;
+  if (props.transition !== undefined || props.exitStart !== undefined) {
+    api.state.transitionWindow = resolveSceneTransition(props.transition, props.exitStart);
+  }
+
+  // Warn when exitStart is declared on the last scene — it has no effect because there
+  // is no outgoing transition block from the final scene.
+  if (props.exitStart !== undefined && api.context.sceneIndex === api.context.numScenes - 1) {
+    const lastSceneId = String(sceneId ?? 'unknown');
+    api.pushWarning({
+      code: 'TRANSITION_TIMING',
+      message:
+        `exitStart on the last scene ("${lastSceneId}") has no effect. ` +
+        'There is no outgoing transition from the final scene.',
+      sceneIndex: api.context.sceneIndex,
+    });
   }
 
   // Separate DSL children (compiled into api.state) from non-DSL overlay children

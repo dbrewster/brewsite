@@ -3,6 +3,7 @@ import type { VariableStoreReader, JsonPrimitive } from './VariableStore';
 import type { ElementTransitionSpec, FunctionalTransitionSpec } from '../compiler/transitions/transitionTypes';
 import type { SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
 import type { RealtimeClock } from '../runtime/types';
+import type { InputActionSpec } from '../input/types';
 
 /**
  * Minimal asset manifest type. Extended by @brewsite/model with model-specific fields.
@@ -225,6 +226,21 @@ export interface IAttachmentHost extends IWidget {
    * resolve, from RuntimeDriverImpl.attachContainedRenderables().
    */
   getAttachmentPoint(key: string): Object3D | null;
+}
+
+/**
+ * Widget that exposes default input actions to the player layer.
+ *
+ * Implemented by widgets (e.g. DiagramCanvasWidget) that carry input configuration
+ * in their compiled state. The player calls getDefaultInputActions() each frame
+ * after widget.apply() has been called to read the current scene's actions.
+ *
+ * CRITICAL: getDefaultInputActions() MUST return this.currentInputActions (a field
+ * updated inside apply()), NOT a value derived from defaultState. defaultState is
+ * constant after construction; currentInputActions reflects the live compiled state.
+ */
+export interface IInputDefaultProvider extends IWidget {
+  getDefaultInputActions(): InputActionSpec[];
 }
 
 export type CompileExtraContext = {

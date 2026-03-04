@@ -21,6 +21,7 @@ import type {
   DiagramWarnFn,
   LayoutDSL,
 } from '../elements/diagram/types';
+import type { InputActionSpec } from '@brewsite/core';
 import type { DiagramCanvasDSL, DiagramPipeDSL, PipeRoutingAlgorithm, PipeLandingAlgorithm } from '../elements/diagram/canvas/types';
 import type { ImagePanelDSL } from '../elements/image-panel/types';
 import type { ScreenDSL } from '../elements/screen/types';
@@ -228,6 +229,18 @@ export const registerDiagramHandlers = (): void => {
   registerNode(Diagram, (node: ReactElement, api: CompileApi, helpers: CompileHelpers) => {
     const onWarn = makeWarnFn(api);
     const dsl = extractDiagramDSL(node, helpers, onWarn);
+
+    // Warn if standalone <Diagram> theme has input — this is the wrong authoring level.
+    // theme.input is only effective on <DiagramCanvas>, not on a bare <Diagram>.
+    if (dsl.theme?.input !== undefined) {
+      onWarn(
+        'IGNORED_INPUT_CONFIG',
+        `<Diagram id="${dsl.id}"> has a theme with an "input" section. ` +
+          `theme.input is only effective on <DiagramCanvas>. ` +
+          `Wrap this diagram in a <DiagramCanvas theme={...}> to use input defaults.`,
+      );
+    }
+
     const diagramState = compileDiagram(dsl, undefined, onWarn);
     const canvasId = dsl.id;
 
@@ -251,6 +264,7 @@ export const registerDiagramHandlers = (): void => {
     const props = node.props as Record<string, unknown>;
     const allChildren = helpers.collectChildren(node);
     const canvasTheme = props.theme as DiagramTheme | undefined;
+    const canvasId = String(props.id);
     const onWarn = makeWarnFn(api);
 
     const diagramStates: DiagramState[] = [];
@@ -259,6 +273,18 @@ export const registerDiagramHandlers = (): void => {
       const el = child as ReactElement;
       if (el.type !== Diagram) continue;
       const dsl = extractDiagramDSL(el, helpers, onWarn);
+
+      // Warn if a child <Diagram> has theme.input — this is the wrong authoring level.
+      // theme.input is only effective on <DiagramCanvas>, not on its <Diagram> children.
+      if (dsl.theme?.input !== undefined) {
+        onWarn(
+          'IGNORED_INPUT_CONFIG',
+          `<Diagram id="${dsl.id}"> inside <DiagramCanvas id="${canvasId}">: ` +
+            `theme.input is ignored on child <Diagram> elements. ` +
+            `Move theme.input to the <DiagramCanvas theme={...}> instead.`,
+        );
+      }
+
       // Pass canvas theme as fallback; diagram's own theme (if any) overrides inside compileDiagram
       diagramStates.push(compileDiagram(dsl, canvasTheme, onWarn));
     }
@@ -271,18 +297,28 @@ export const registerDiagramHandlers = (): void => {
       pipeDSLs.push(el.props as DiagramPipeDSL);
     }
 
+    // Compile default input actions from theme.input, injecting canvasId into each action.
+    let defaultInputActions: ReadonlyArray<InputActionSpec> | undefined;
+    if (canvasTheme?.input?.defaultActions && canvasTheme.input.defaultActions.length > 0) {
+      defaultInputActions = canvasTheme.input.defaultActions.map((action) => ({
+        ...action,
+        canvasId,
+      }));
+    }
+
     const canvasDSL: DiagramCanvasDSL = {
-      id: String(props.id),
+      id: canvasId,
       position: props.position as readonly [number, number, number] | undefined,
       rotation: props.rotation as readonly [number, number, number] | undefined,
       scale: props.scale as number | undefined,
       theme: canvasTheme,
       pipeRouting: props.pipeRouting as PipeRoutingAlgorithm | undefined,
       pipeLanding: props.pipeLanding as PipeLandingAlgorithm | undefined,
+      focusCenter: props.focusCenter as readonly [number, number] | readonly [number, number, number] | undefined,
     };
 
-    const canvasState = compileCanvas(canvasDSL, diagramStates, pipeDSLs, onWarn);
-    api.setWidgetState(String(props.id), canvasState);
+    const canvasState = compileCanvas(canvasDSL, diagramStates, pipeDSLs, onWarn, defaultInputActions);
+    api.setWidgetState(canvasId, canvasState);
   });
 
   registerNode(ImagePanel, (node: ReactElement, api: CompileApi, _helpers: CompileHelpers) => {

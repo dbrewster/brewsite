@@ -1,6 +1,7 @@
 // Contract layer for the diagram element. No runtime imports, no Three.js, no React.
 
 import type { DiagramNodeShape, DiagramIconVariant } from './shapes/shapeVariants';
+import type { InputActionSpec } from '@brewsite/core';
 
 // ─── Theming ─────────────────────────────────────────────────────────────────
 
@@ -175,6 +176,22 @@ export interface DiagramThemeLayoutConfig {
  * Pass to <Diagram theme={...}> or <DiagramCanvas theme={...}> to apply.
  * Per-node / per-edge props still take precedence over theme defaults.
  */
+/**
+ * Input handler configuration for a DiagramCanvas, defined in the theme.
+ * Allows a single authoring location for per-canvas input defaults instead of
+ * repeating <InputController> blocks in every scene.
+ *
+ * `canvasId` is intentionally absent from each action spec: the compiler
+ * auto-injects it from the parent <DiagramCanvas id="..."> at compile time.
+ */
+export interface DiagramCanvasInputConfig {
+  /**
+   * Default input actions for the canvas. Omit `canvasId` on each action —
+   * the compiler injects it automatically from the <DiagramCanvas id="...">.
+   */
+  readonly defaultActions: ReadonlyArray<Omit<InputActionSpec, 'canvasId'>>;
+}
+
 export interface DiagramTheme {
   readonly node: DiagramThemeNodeConfig;
   readonly edge: DiagramThemeEdgeConfig;
@@ -187,6 +204,12 @@ export interface DiagramTheme {
    * explicit color. Colors are assigned round-robin by declaration order.
    */
   readonly palette?: readonly string[];
+  /**
+   * Optional default input handler configuration for DiagramCanvas.
+   * Only effective when applied to a <DiagramCanvas theme={...}>.
+   * Ignored (with a compile-time warning) when placed on a child <Diagram>.
+   */
+  readonly input?: DiagramCanvasInputConfig;
 }
 
 /**

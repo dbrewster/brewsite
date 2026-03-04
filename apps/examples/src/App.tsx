@@ -1,9 +1,13 @@
-import type { JSX } from 'react';
-import { lazy, Suspense } from 'react';
-import { Route, Routes } from 'react-router';
+import type {JSX} from 'react';
+import {lazy, Suspense} from 'react';
+import {Route, Routes} from 'react-router';
 
 const ChartDemoPage = lazy(() => import('./chart/ChartDemoPage'));
 const ArchitecturePage = lazy(() => import('./architecture/ArchitecturePage'));
+const SidecarNotePage = lazy(() => import('./brewflow-sidecar/SidecarNotePage'));
+const MemorySubsystemPage = lazy(() => import('./brewflow-memory/MemorySubsystemPage'));
+const ComparisonPage = lazy(() => import('./brewflow-comparison/ComparisonPage'));
+const MultiUserPage = lazy(() => import('./brewflow-multiuser/MultiUserPage'));
 
 function Loading(): JSX.Element {
   return <div style={{ padding: '2rem' }}>Loading example...</div>;
@@ -15,6 +19,10 @@ export default function ExamplesApp(): JSX.Element {
       <Routes>
         <Route path="/chart" element={<ChartDemoPage />} />
         <Route path="/architecture" element={<ArchitecturePage />} />
+        <Route path="/brewflow-sidecar" element={<SidecarNotePage />} />
+        <Route path="/brewflow-memory" element={<MemorySubsystemPage />} />
+        <Route path="/brewflow-comparison" element={<ComparisonPage />} />
+        <Route path="/brewflow-multiuser" element={<MultiUserPage />} />
         <Route
           path="/"
           element={
@@ -23,6 +31,10 @@ export default function ExamplesApp(): JSX.Element {
               <ul>
                 <li><a href="/examples/chart">Chart Demo</a></li>
                 <li><a href="/examples/architecture">Package Architecture</a></li>
+                <li><a href="/examples/brewflow-memory">BrewFlow Memory Subsystem</a></li>
+                <li><a href="/examples/brewflow-comparison">Memory Systems Compared: claude-flow vs BrewFlow</a></li>
+                <li><a href="/examples/brewflow-sidecar">BrewFlow Memory Sidecar</a></li>
+                <li><a href="/examples/brewflow-multiuser">BrewFlow Memory at Scale: Multi-User Cloud Architecture</a></li>
               </ul>
             </div>
           }

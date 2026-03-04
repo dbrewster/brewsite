@@ -1,6 +1,6 @@
-import { corePlugin } from '@brewsite/core';
-import { diagramPlugin } from '@brewsite/diagram';
-import type { WidgetPlugin } from '@brewsite/core';
+import type {WidgetPlugin} from '@brewsite/core';
+import {corePlugin} from '@brewsite/core';
+import {diagramPlugin} from '@brewsite/diagram';
 
 /**
  * Creates the WidgetPlugin array for the architecture diagram scenes.
@@ -11,12 +11,7 @@ export function createArchitecturePlugins(): { plugins: WidgetPlugin[] } {
     plugins: [
       corePlugin(),
       diagramPlugin({
-        canvases: [
-          'arch-core-canvas',
-          'arch-diagram-canvas',
-          'arch-model-canvas',
-          'arch-charts-canvas',
-        ],
+        canvases: ['arch-core-canvas', 'arch-diagram-canvas', 'arch-model-canvas', 'arch-charts-canvas'],
       }),
     ],
   };

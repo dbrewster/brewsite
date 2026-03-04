@@ -1,37 +1,240 @@
-import type { JSX } from 'react';
+import type {JSX} from 'react';
 import {
-  Scene,
-  Camera,
-  Lighting,
-  Ambient,
-  Directional,
-  ProgressManager,
+    Action,
+    Ambient,
+    Camera,
+    Directional,
+    InputController,
+    KeyMap,
+    Lighting,
+    PointerMap,
+    ProgressManager,
+    Scene,
 } from '@brewsite/core';
 import {
-  DiagramCanvas,
-  Diagram,
-  DiagramNode,
-  DiagramEdge,
-  DiagramGroup,
-  ManualLayout,
-  darkGlassTheme,
+    darkGlassTheme,
+    Diagram,
+    DiagramCanvas,
+    DiagramEdge,
+    DiagramGroup,
+    DiagramNode,
+    ManualLayout,
 } from '@brewsite/diagram';
-import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
+import {MidFade, ScrollOn} from '@brewsite/core/hud/animejs';
 
-const LATE_FADE = {
-  exit: [1.0, 1.0] as [number, number],
-  enter: [1.0, 1.0] as [number, number],
-};
+// Holds blockProgress=0 for first 50% of scroll, then ramps 0→1 in the second 50%.
+// This keeps the camera static at the angled position while the user starts scrolling,
+// then animates to the head-on position as they continue.
+const angledFn = (t: number): number => (t < 0.5 ? 0 : (t - 0.5) / 0.5);
 
-export const sceneCoreArch: JSX.Element = (
-  <Scene id="arch-core" transition={LATE_FADE}>
-    <ProgressManager
-      scrollUnits={3000}
-      autoAdvance={{ duration: 10, max: 0.88, pauseOnScroll: true }}
-    />
+function makeCoreCanvasDiagram(): JSX.Element {
+  return (
+    <Diagram id="arch-content" pivot="center">
+      <ManualLayout />
+
+      {/* ── COLUMN 1: Author (DSL) ── */}
+      <DiagramGroup id="dsl-group" label="Author (DSL) · pure JSX, no Three.js" variant="boundary">
+        <DiagramNode
+          id="dsl-scene"
+          label="<Scene>"
+          sublabel="key/id identity · easing · HTML overlay children"
+          sublabelColor="#b8c8e8"
+          icon="ui:document-text"
+          position={[-18, 10, 0]}
+          size={[7, 3.2]}
+        />
+        <DiagramNode
+          id="dsl-camera"
+          label="<Camera>"
+          sublabel="world | orbit | fitBotHeight modes · fov · exposure"
+          sublabelColor="#b8c8e8"
+          icon="ui:photo"
+          position={[-18, 5, 0]}
+          size={[7, 3.2]}
+        />
+        <DiagramNode
+          id="dsl-lighting"
+          label="<Lighting>"
+          sublabel="Ambient | Directional | Point | Spot | GlowPoint"
+          sublabelColor="#b8c8e8"
+          icon="ui:bolt"
+          position={[-18, 0, 0]}
+          size={[7, 3.2]}
+        />
+        <DiagramNode
+          id="dsl-background"
+          label="<Background>"
+          sublabel="color | gradient | imageUrl · CSS sizing"
+          sublabelColor="#b8c8e8"
+          icon="ui:swatch"
+          position={[-18, -5, 0]}
+          size={[7, 3.2]}
+        />
+        <DiagramNode
+          id="dsl-progress"
+          label="<ProgressManager>"
+          sublabel="scrollUnits · fn(t) pacing curve · autoAdvance"
+          sublabelColor="#b8c8e8"
+          icon="ui:adjustments-horizontal"
+          position={[-18, -10, 0]}
+          size={[7, 3.2]}
+        />
+      </DiagramGroup>
+
+      {/* ── COLUMN 2: Compile (compiler/) ── */}
+      <DiagramGroup id="compile-group" label="Compile (compiler/) · pure functions, zero Three.js" variant="swimlane">
+        <DiagramNode
+          id="comp-dsl"
+          label="sceneDslCompiler"
+          sublabel="walks JSX tree · ReactElement.type → NodeHandler dispatch"
+          sublabelColor="#b8c8e8"
+          icon="ui:code-bracket-square"
+          position={[-6, 7.5, 0]}
+          size={[7.5, 3.2]}
+        />
+        <DiagramNode
+          id="comp-handler"
+          label="NodeHandler registry"
+          sublabel="component type → (node, ctx) → SceneState"
+          sublabelColor="#b8c8e8"
+          icon="ui:squares-plus"
+          position={[-6, 2.5, 0]}
+          size={[7.5, 3.2]}
+        />
+        <DiagramNode
+          id="comp-track"
+          label="sceneTrackCompiler"
+          sublabel="SceneFrame[] → flat pre-baked tick[] · interpolation baked"
+          sublabelColor="#b8c8e8"
+          icon="ui:arrows-right-left"
+          position={[-6, -2.5, 0]}
+          size={[7.5, 3.2]}
+        />
+        <DiagramNode
+          id="comp-scenetrack"
+          label="SceneTrack"
+          sublabel="flat tick[] · O(1) lookup · compiled once at mount"
+          sublabelColor="#b8c8e8"
+          icon="ui:circle-stack"
+          position={[-6, -7.5, 0]}
+          size={[7.5, 3.2]}
+          color="#1a3060"
+          glow={{ intensity: 0.2 }}
+        />
+      </DiagramGroup>
+
+      {/* ── COLUMN 3: Execute (runtime/) ── */}
+      <DiagramGroup id="runtime-group" label="Execute (runtime/) · rAF loop, O(1) sampling per frame" variant="cluster">
+        <DiagramNode
+          id="rt-loop"
+          label="RuntimeLoop"
+          sublabel="requestAnimationFrame driver · fpsCap · delta time"
+          sublabelColor="#b8c8e8"
+          icon="ui:arrow-path"
+          position={[6, 7.5, 0]}
+          size={[7.5, 3.2]}
+        />
+        <DiagramNode
+          id="rt-driver"
+          label="RuntimeDriverImpl"
+          sublabel="sample SceneTrack per frame → WidgetState dispatch"
+          sublabelColor="#b8c8e8"
+          icon="ui:cpu-chip"
+          position={[6, 2.5, 0]}
+          size={[7.5, 3.2]}
+        />
+        <DiagramNode
+          id="rt-sampler"
+          label="sceneTrackSampler"
+          sublabel="progress [0..1] → WidgetState[] · O(1), no diffing"
+          sublabelColor="#b8c8e8"
+          icon="ui:funnel"
+          position={[6, -2.5, 0]}
+          size={[7.5, 3.2]}
+        />
+        <DiagramNode
+          id="rt-registry"
+          label="WidgetRegistry"
+          sublabel="routes WidgetState by id → IWidget.apply()"
+          sublabelColor="#b8c8e8"
+          icon="ui:puzzle-piece"
+          position={[6, -7.5, 0]}
+          size={[7.5, 3.2]}
+        />
+      </DiagramGroup>
+
+      {/* ── COLUMN 4: Output (player/) ── */}
+      <DiagramGroup id="output-group" label="Output (player/) · React integration surface" variant="boundary">
+        <DiagramNode
+          id="out-canvas"
+          label="SceneCanvas"
+          sublabel="WebGLRenderer · tone-mapping · Three.js scene root"
+          sublabelColor="#b8c8e8"
+          icon="ui:photo"
+          position={[18, 5, 0]}
+          size={[7, 3.2]}
+        />
+        <DiagramNode
+          id="out-overlay"
+          label="EngineOverlayHost"
+          sublabel="absolute React tree over canvas · pointer-events passthrough"
+          sublabelColor="#b8c8e8"
+          icon="ui:chat-bubble-left-right"
+          position={[18, 0, 0]}
+          size={[7, 3.2]}
+        />
+        <DiagramNode
+          id="out-input"
+          label="EngineInputRegion"
+          sublabel="scroll spacer · sticky viewport · progress [0..1]"
+          sublabelColor="#b8c8e8"
+          icon="ui:arrows-pointing-out"
+          position={[18, -5, 0]}
+          size={[7, 3.2]}
+        />
+      </DiagramGroup>
+
+      {/* ── Spine: main signal path left → right ── */}
+      <DiagramEdge from="dsl-scene" to="comp-dsl" label="JSX tree" flow="forward" />
+      <DiagramEdge from="dsl-camera" to="comp-dsl" flow="forward" />
+      <DiagramEdge from="dsl-lighting" to="comp-dsl" flow="forward" />
+      <DiagramEdge from="comp-track" to="comp-scenetrack" label="baked tick[]" flow="forward" />
+      <DiagramEdge from="comp-scenetrack" to="rt-driver" label="sampled each frame" flow="forward" />
+      <DiagramEdge from="rt-registry" to="out-canvas" label="IRenderable.apply()" flow="forward" />
+
+      {/* ── Supporting edges ── */}
+      <DiagramEdge from="comp-dsl" to="comp-handler" label="per-node dispatch" style="dashed" />
+      <DiagramEdge from="comp-handler" to="comp-track" style="dashed" />
+      <DiagramEdge from="rt-loop" to="rt-driver" label="rAF tick" flow="forward" />
+      <DiagramEdge from="rt-driver" to="rt-sampler" label="progress" style="dashed" />
+      <DiagramEdge from="rt-driver" to="rt-registry" label="dispatch widgetState" flow="forward" />
+      <DiagramEdge from="rt-registry" to="out-overlay" label="HUD ReactNode" style="dashed" arrowEnd="open" />
+    </Diagram>
+  );
+}
+
+// ── Scene 1 of 2: Angled view ──────────────────────────────────────────────
+// Camera starts elevated at 45°. ProgressManager.fn holds the transition at
+// blockProgress=0 for the first half of scroll (static angled view), then
+// animates camera + diagram rotation to head-on in the second half.
+export const sceneCoreAngledArch: JSX.Element = (
+  <Scene id="arch-core-angled">
+    <ProgressManager scrollUnits={2000} fn={angledFn} />
+    {/* Camera controls: Cmd+drag to orbit, Shift+drag to pan, R to reset */}
+    <InputController scope="canvas">
+      <Action id="rotate" type="diagram-canvas.rotate" canvasId="arch-core-canvas">
+        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
+      </Action>
+      <Action id="pan" type="diagram-canvas.move" canvasId="arch-core-canvas">
+        <PointerMap event="drag" button="left" modifiers={['shift']} axis="xy" />
+      </Action>
+      <Action id="reset" type="diagram-canvas.reset" canvasId="arch-core-canvas">
+        <KeyMap keyName="r" />
+      </Action>
+    </InputController>
     <Camera
       mode="world"
-      position={[0, 4, 56]}
+      position={[0, 35, 45]}
       target={[0, 0, 0]}
       fov={54}
     />
@@ -40,186 +243,46 @@ export const sceneCoreArch: JSX.Element = (
       <Directional intensity={0.6} color="#aaccff" position={[0, 20, 30]} />
       <Directional intensity={0.3} color="#6677ff" position={[-15, 5, 10]} />
     </Lighting>
-
     <DiagramCanvas
       id="arch-core-canvas"
+      position={[0, 15, 0]}
+      rotation={[-Math.PI / 4, 0, 0]}
+      scale={1.1}
+      theme={darkGlassTheme}
+    >
+      {makeCoreCanvasDiagram()}
+    </DiagramCanvas>
+  </Scene>
+);
+
+// ── Scene 2 of 2: Head-on view with teaching overlay ──────────────────────
+// Camera is at the head-on position. Text fades in as this scene becomes active.
+// Dissolve-to-black transitions out to the next package's angled scene.
+export const sceneCoreArch: JSX.Element = (
+  <Scene id="arch-core" exitStart={0.9}>
+    <ProgressManager scrollUnits={3000} />
+    <Camera
+      mode="world"
+      position={[0, 4, 56]}
+      target={[0, 0, 0]}
+      fov={54}
+    />
+    <DiagramCanvas
+      id="arch-core-canvas"
+      position={[0, 15, 0]}
       rotation={[-Math.PI / 10, 0, 0]}
       scale={1.1}
       theme={darkGlassTheme}
     >
-      <Diagram id="core-arch" pivot="center">
-        <ManualLayout />
-
-        {/* ── COLUMN 1: Author (DSL) ── */}
-        <DiagramGroup id="dsl-group" label="Author (DSL)" variant="boundary">
-          <DiagramNode
-            id="dsl-scene"
-            label="<Scene>"
-            sublabel="transition spec · scene id"
-            icon="ui:document-text"
-            position={[-13, 7, 0]}
-            size={[5, 2]}
-          />
-          <DiagramNode
-            id="dsl-camera"
-            label="<Camera>"
-            sublabel="position · fov · orbit mode"
-            icon="ui:photo"
-            position={[-13, 3.5, 0]}
-            size={[5, 2]}
-          />
-          <DiagramNode
-            id="dsl-lighting"
-            label="<Lighting>"
-            sublabel="ambient · directional lights"
-            icon="ui:bolt"
-            position={[-13, 0, 0]}
-            size={[5, 2]}
-          />
-          <DiagramNode
-            id="dsl-background"
-            label="<Background>"
-            sublabel="color · gradient · CSS"
-            icon="ui:swatch"
-            position={[-13, -3.5, 0]}
-            size={[5, 2]}
-          />
-          <DiagramNode
-            id="dsl-progress"
-            label="<ProgressManager>"
-            sublabel="scroll units · auto-advance"
-            icon="ui:adjustments-horizontal"
-            position={[-13, -7, 0]}
-            size={[5, 2]}
-          />
-        </DiagramGroup>
-
-        {/* ── COLUMN 2: Compile (compiler/) ── */}
-        <DiagramGroup id="compile-group" label="Compile (compiler/)" variant="swimlane">
-          <DiagramNode
-            id="comp-dsl"
-            label="sceneDslCompiler"
-            sublabel="JSX tree → SceneFrame[]"
-            icon="ui:code-bracket-square"
-            position={[-4.5, 5.5, 0]}
-            size={[5.5, 2]}
-          />
-          <DiagramNode
-            id="comp-handler"
-            label="NodeHandler registry"
-            sublabel="component → compile fn"
-            icon="ui:squares-plus"
-            position={[-4.5, 1.5, 0]}
-            size={[5.5, 2]}
-          />
-          <DiagramNode
-            id="comp-track"
-            label="sceneTrackCompiler"
-            sublabel="SceneFrame[] → SceneTrack"
-            icon="ui:arrows-right-left"
-            position={[-4.5, -2, 0]}
-            size={[5.5, 2]}
-          />
-          <DiagramNode
-            id="comp-scenetrack"
-            label="SceneTrack"
-            sublabel="pre-baked tick[] · O(1) sample"
-            icon="ui:circle-stack"
-            position={[-4.5, -5.5, 0]}
-            size={[5.5, 2]}
-            color="#1a3060"
-            glow={{ intensity: 0.2 }}
-          />
-        </DiagramGroup>
-
-        {/* ── COLUMN 3: Execute (runtime/) ── */}
-        <DiagramGroup id="runtime-group" label="Execute (runtime/)" variant="cluster">
-          <DiagramNode
-            id="rt-loop"
-            label="RuntimeLoop"
-            sublabel="requestAnimationFrame driver"
-            icon="ui:arrow-path"
-            position={[4.5, 5.5, 0]}
-            size={[5.5, 2]}
-          />
-          <DiagramNode
-            id="rt-driver"
-            label="RuntimeDriverImpl"
-            sublabel="samples SceneTrack each frame"
-            icon="ui:cpu-chip"
-            position={[4.5, 1.5, 0]}
-            size={[5.5, 2]}
-          />
-          <DiagramNode
-            id="rt-sampler"
-            label="sceneTrackSampler"
-            sublabel="progress → WidgetState"
-            icon="ui:funnel"
-            position={[4.5, -2, 0]}
-            size={[5.5, 2]}
-          />
-          <DiagramNode
-            id="rt-registry"
-            label="WidgetRegistry"
-            sublabel="widgetId → IWidget.apply()"
-            icon="ui:puzzle-piece"
-            position={[4.5, -5.5, 0]}
-            size={[5.5, 2]}
-          />
-        </DiagramGroup>
-
-        {/* ── COLUMN 4: Output (player/) ── */}
-        <DiagramGroup id="output-group" label="Output (player/)" variant="boundary">
-          <DiagramNode
-            id="out-canvas"
-            label="SceneCanvas"
-            sublabel="WebGL · Three.js renderer"
-            icon="ui:photo"
-            position={[13, 4, 0]}
-            size={[5, 2]}
-          />
-          <DiagramNode
-            id="out-overlay"
-            label="EngineOverlayHost"
-            sublabel="React HUD tree over canvas"
-            icon="ui:chat-bubble-left-right"
-            position={[13, 0, 0]}
-            size={[5, 2]}
-          />
-          <DiagramNode
-            id="out-input"
-            label="EngineInputRegion"
-            sublabel="scroll spacer · sticky view"
-            icon="ui:arrows-pointing-out"
-            position={[13, -4, 0]}
-            size={[5, 2]}
-          />
-        </DiagramGroup>
-
-        {/* ── Spine: main signal path left → right ── */}
-        <DiagramEdge from="dsl-scene" to="comp-dsl" label="JSX tree" flow="forward" />
-        <DiagramEdge from="dsl-camera" to="comp-dsl" flow="forward" />
-        <DiagramEdge from="dsl-lighting" to="comp-dsl" flow="forward" />
-        <DiagramEdge from="comp-track" to="comp-scenetrack" label="baked tick[]" flow="forward" />
-        <DiagramEdge from="comp-scenetrack" to="rt-driver" label="sampled each frame" flow="forward" />
-        <DiagramEdge from="rt-registry" to="out-canvas" label="IRenderable.apply()" flow="forward" />
-
-        {/* ── Supporting edges ── */}
-        <DiagramEdge from="comp-dsl" to="comp-handler" label="per-node dispatch" style="dashed" />
-        <DiagramEdge from="comp-handler" to="comp-track" style="dashed" />
-        <DiagramEdge from="rt-loop" to="rt-driver" label="rAF tick" flow="forward" />
-        <DiagramEdge from="rt-driver" to="rt-sampler" label="progress" style="dashed" />
-        <DiagramEdge from="rt-driver" to="rt-registry" label="dispatch widgetState" flow="forward" />
-        <DiagramEdge from="rt-registry" to="out-overlay" label="HUD ReactNode" style="dashed" arrowEnd="open" />
-      </Diagram>
+      {makeCoreCanvasDiagram()}
     </DiagramCanvas>
 
-    {/* Overlay */}
+    {/* Teaching overlay */}
     <div style={{
       position: 'absolute',
-      bottom: '10%',
-      left: '5%',
-      maxWidth: 400,
+      bottom: '3%',
+      left: '3%',
+      maxWidth: 540,
     }}>
       <MidFade duration={1200}>
         <div style={{
@@ -233,24 +296,108 @@ export const sceneCoreArch: JSX.Element = (
           @brewsite/core
         </div>
         <div style={{
-          fontSize: 'clamp(20px, 3vw, 26px)',
+          fontSize: 'clamp(18px, 2.6vw, 24px)',
           fontWeight: 600,
           color: '#f0f6fc',
           lineHeight: 1.2,
-          marginBottom: 14,
+          marginBottom: 16,
         }}>
-          JSX in.<br />Rendered frame out.
+          JSX in. Rendered frame out.
         </div>
       </MidFade>
       <ScrollOn duration={900} delay={150}>
         <div style={{
-          fontSize: 'clamp(13px, 1.6vw, 14px)',
-          color: 'rgba(240, 246, 252, 0.6)',
-          lineHeight: 1.65,
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '10px 18px',
+          marginBottom: 14,
         }}>
-          Scenes compile once to a flat tick array.
-          The runtime samples in O(1) per frame —
-          no diffing, no reconciliation.
+          <div>
+            <div style={{
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 9,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase' as const,
+              color: 'rgba(130, 100, 255, 0.7)',
+              marginBottom: 5,
+            }}>
+              Author / DSL
+            </div>
+            <div style={{
+              fontSize: 'clamp(11px, 1.3vw, 12px)',
+              color: 'rgba(240, 246, 252, 0.6)',
+              lineHeight: 1.6,
+            }}>
+              {'Scene files are pure JSX: <Scene>, <Camera>, <Lighting>, <Background>, <ProgressManager>. Each component maps to a registered widget via a NodeHandler. No Three.js, no animation math — describe what you want, not how to render it.'}
+            </div>
+          </div>
+          <div>
+            <div style={{
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 9,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase' as const,
+              color: 'rgba(100, 160, 255, 0.7)',
+              marginBottom: 5,
+            }}>
+              Compile
+            </div>
+            <div style={{
+              fontSize: 'clamp(11px, 1.3vw, 12px)',
+              color: 'rgba(240, 246, 252, 0.6)',
+              lineHeight: 1.6,
+            }}>
+              sceneDslCompiler walks the JSX tree and calls each NodeHandler, accumulating SceneFrame[] — one per scene. sceneTrackCompiler bakes those into a pre-allocated SceneTrack: a flat tick array with transitions pre-interpolated. The compiler is pure — no Three.js, no React, no side effects.
+            </div>
+          </div>
+          <div>
+            <div style={{
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 9,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase' as const,
+              color: 'rgba(100, 200, 160, 0.7)',
+              marginBottom: 5,
+            }}>
+              Execute
+            </div>
+            <div style={{
+              fontSize: 'clamp(11px, 1.3vw, 12px)',
+              color: 'rgba(240, 246, 252, 0.6)',
+              lineHeight: 1.6,
+            }}>
+              RuntimeLoop drives the requestAnimationFrame loop. Each tick, RuntimeDriverImpl calls sceneTrackSampler with the current scroll progress — O(1) lookup into the pre-baked array. WidgetRegistry routes each WidgetState to its IWidget.apply(), where Three.js mutations happen.
+            </div>
+          </div>
+          <div>
+            <div style={{
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: 9,
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase' as const,
+              color: 'rgba(130, 100, 255, 0.7)',
+              marginBottom: 5,
+            }}>
+              Output
+            </div>
+            <div style={{
+              fontSize: 'clamp(11px, 1.3vw, 12px)',
+              color: 'rgba(240, 246, 252, 0.6)',
+              lineHeight: 1.6,
+            }}>
+              SceneCanvas owns the WebGLRenderer. EngineOverlayHost layers React HUD nodes over the canvas. EngineInputRegion creates the scroll spacer that converts viewport scroll into scene progress. All three compose inside ScenePlayer — the only integration surface a page author needs.
+            </div>
+          </div>
+        </div>
+        <div style={{
+          borderLeft: '2px solid rgba(130, 100, 255, 0.5)',
+          paddingLeft: 12,
+          fontSize: 'clamp(11px, 1.3vw, 12px)',
+          color: 'rgba(240, 246, 252, 0.85)',
+          lineHeight: 1.6,
+          fontStyle: 'italic',
+        }}>
+          <strong>Key insight:</strong> Scenes compile once at mount. The runtime never re-derives state from JSX — it samples a pre-baked array at O(1) per frame, with no diffing, no reconciliation.
         </div>
       </ScrollOn>
     </div>

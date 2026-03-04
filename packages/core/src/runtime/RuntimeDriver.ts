@@ -52,7 +52,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   private readonly loadErroredWidgets = new Set<string>();
   /** Widgets that failed during apply() — cleared on scene change, allows recovery. */
   private readonly applyErroredWidgets = new Set<string>();
-  private readonly sceneLifecycleWidgets: ISceneLifecycle[];
+  private sceneLifecycleWidgets: ISceneLifecycle[];
   private readonly maxAnimBoostPerFrame: number;
 
   assetsReady = false;
@@ -83,6 +83,18 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
 
   async initialize(threeScene: ThreeScene, renderer?: WebGLRenderer): Promise<void> {
     this.threeScene = threeScene;
+
+    // Re-read widget lists so lazily-registered widgets (e.g. ChartWidgets registered during
+    // scene compilation, after this driver was constructed) are included. The constructor
+    // snapshot is taken before compileSceneTrack runs, so it misses any widgets that
+    // chartPlugin / diagramPlugin register inside their DSL node handlers.
+    this.sceneElements = this.widgetRegistry.getSceneElements();
+    this.renderables = this.widgetRegistry.getRenderables();
+    this.animationControllers = this.widgetRegistry.getAnimationControllers();
+    this.sceneLifecycleWidgets = this.widgetRegistry.getSceneLifecycleWidgets();
+    this.defaultStateById = new Map(
+      this.sceneElements.map((el) => [el.widgetId, el.defaultState as unknown]),
+    );
 
     // Step 1: Initialize all renderable widgets (sync)
     // initialize() failures are fatal — a widget that fails to initialize the Three.js

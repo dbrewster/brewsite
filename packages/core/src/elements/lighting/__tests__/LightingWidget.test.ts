@@ -15,7 +15,7 @@ import { makeSimpleContext } from '../../../compiler/transitions/transitionResol
 
 const makeLighting = (intensity: number, color = '#ffffff'): SceneLighting => ({
   ambient: { intensity, color },
-  directional: { intensity, color, position: [0, 1, 0] },
+  directionals: [{ intensity, color, position: [0, 1, 0] }],
   intensityScale: 1,
   color,
 });
@@ -35,7 +35,7 @@ describe('LightingWidget', () => {
 
   it('defaultState has finite ambient and directional intensities', () => {
     expect(typeof widget.defaultState.ambient.intensity).toBe('number');
-    expect(typeof widget.defaultState.directional.intensity).toBe('number');
+    expect(typeof widget.defaultState.directionals[0]!.intensity).toBe('number');
     expect(isFinite(widget.defaultState.ambient.intensity)).toBe(true);
   });
 
@@ -167,7 +167,7 @@ describe('LightingWidget', () => {
       },
     );
     expect(captured?.ambient.intensity).toBe(0.2);
-    expect(captured?.directional.position).toEqual([1, 2, 3]);
+    expect(captured?.directionals[0]?.position).toEqual([1, 2, 3]);
     expect(captured?.glowPoint).toMatchObject({ intensity: 0.5, color: '#ffaa33', position: [2, 3, 4], distance: 14, decay: 1.1 });
     expect(captured?.lightStrands?.[0]?.id).toBe('strand-a');
     expect(captured?.lightStrands?.[0]?.count).toBe(3);
@@ -179,5 +179,95 @@ describe('LightingWidget', () => {
     expect(captured?.intensityScale).toBe(0.5);
     expect(captured?.color).toBe('#ff00ff');
     expect(Lighting({})).toBeNull();
+  });
+
+  describe('LightingWidget — multiple <Directional> children', () => {
+    it('includes all <Directional> children in compiled directionals', () => {
+      const handler = (widget as unknown as Record<symbol, unknown>)[CUSTOM_NODE_HANDLER] as
+        | ((node: { props: unknown }, api: { setWidgetState: (id: string, state: SceneLighting) => void; state: { widgets: Record<string, unknown> }; context: unknown }, helpers: {
+          collectChildren: (n: { props: unknown }) => React.ReactNode[];
+          resolveObjectValues: (v: unknown) => unknown;
+          resolveValue: (v: unknown) => unknown;
+        }) => void)
+        | undefined;
+      expect(handler).toBeDefined();
+      let captured: SceneLighting | undefined;
+      const node = {
+        props: {
+          children: [
+            React.createElement(Directional, { intensity: 1, color: '#ff0000', position: [1, 0, 0] as [number, number, number] }),
+            React.createElement(Directional, { intensity: 2, color: '#00ff00', position: [0, 1, 0] as [number, number, number] }),
+            React.createElement(Directional, { intensity: 3, color: '#0000ff', position: [0, 0, 1] as [number, number, number] }),
+          ],
+        },
+      };
+      handler?.(
+        node,
+        { setWidgetState: (_id, s) => { captured = s; }, state: { widgets: {} }, context: {} } as never,
+        {
+          collectChildren: (n) => {
+            const c = (n.props as { children?: React.ReactNode }).children;
+            return Array.isArray(c) ? c : (c ? [c] : []);
+          },
+          resolveObjectValues: (v) => v,
+          resolveValue: (v) => v,
+        },
+      );
+      expect(captured?.directionals).toHaveLength(3);
+      expect(captured?.directionals[0]?.position).toEqual([1, 0, 0]);
+      expect(captured?.directionals[1]?.position).toEqual([0, 1, 0]);
+      expect(captured?.directionals[2]?.position).toEqual([0, 0, 1]);
+    });
+
+    it('falls back to base.directionals when no <Directional> children', () => {
+      const handler = (widget as unknown as Record<symbol, unknown>)[CUSTOM_NODE_HANDLER] as
+        | ((node: { props: unknown }, api: { setWidgetState: (id: string, state: SceneLighting) => void; state: { widgets: Record<string, unknown> }; context: unknown }, helpers: {
+          collectChildren: (n: { props: unknown }) => React.ReactNode[];
+          resolveObjectValues: (v: unknown) => unknown;
+          resolveValue: (v: unknown) => unknown;
+        }) => void)
+        | undefined;
+      let captured: SceneLighting | undefined;
+      const node = { props: { children: [] } };
+      handler?.(
+        node,
+        { setWidgetState: (_id, s) => { captured = s; }, state: { widgets: {} }, context: {} } as never,
+        { collectChildren: () => [], resolveObjectValues: (v) => v, resolveValue: (v) => v },
+      );
+      expect(captured?.directionals).toEqual(widget.defaultState.directionals);
+    });
+
+    it('assigns auto-ids when <Directional> has no id prop', () => {
+      const handler = (widget as unknown as Record<symbol, unknown>)[CUSTOM_NODE_HANDLER] as
+        | ((node: { props: unknown }, api: { setWidgetState: (id: string, state: SceneLighting) => void; state: { widgets: Record<string, unknown> }; context: unknown }, helpers: {
+          collectChildren: (n: { props: unknown }) => React.ReactNode[];
+          resolveObjectValues: (v: unknown) => unknown;
+          resolveValue: (v: unknown) => unknown;
+        }) => void)
+        | undefined;
+      let captured: SceneLighting | undefined;
+      const node = {
+        props: {
+          children: [
+            React.createElement(Directional, { intensity: 1, color: '#ffffff', position: [0, 0, 0] as [number, number, number] }),
+            React.createElement(Directional, { id: 'named', intensity: 1, color: '#ffffff', position: [1, 0, 0] as [number, number, number] }),
+          ],
+        },
+      };
+      handler?.(
+        node,
+        { setWidgetState: (_id, s) => { captured = s; }, state: { widgets: {} }, context: {} } as never,
+        {
+          collectChildren: (n) => {
+            const c = (n.props as { children?: React.ReactNode }).children;
+            return Array.isArray(c) ? c : (c ? [c] : []);
+          },
+          resolveObjectValues: (v) => v,
+          resolveValue: (v) => v,
+        },
+      );
+      expect(captured?.directionals[0]?.id).toBe('directional-0');
+      expect(captured?.directionals[1]?.id).toBe('named');
+    });
   });
 });

@@ -25,13 +25,11 @@ function TimelineContent(): JSX.Element {
       <h2 style={{ fontSize: 'var(--font-size-2xl)', margin: '0 0 10px' }}>Easing functions</h2>
       <CodeBlock
         language="typescript"
-        code={`import { TRANSITION_CROSSFADE, TRANSITION_SEQUENTIAL, easeOutCubic } from '@brewsite/core';
+        code={`import { easeOutCubic, easeOutExpo, easeInOutSine } from '@brewsite/core';
 
-// Window presets: TRANSITION_CROSSFADE, TRANSITION_SEQUENTIAL,
-// TRANSITION_EXIT_FIRST, TRANSITION_CUT
-
-// Use on <Scene transition={TRANSITION_SEQUENTIAL} />
-// Or inline: <Scene transition={{ exit: [0, 0.4], enter: [0.6, 1] }} />`}
+// Easing functions are used inside FunctionalTransitionSpec closures
+// and per-widget <Transition> channel groups — not on <Scene> directly.
+// See the Widget SDK docs for full usage.`}
       />
 
       <h2 style={{ fontSize: 'var(--font-size-2xl)', margin: '20px 0 10px' }}>Blend utilities</h2>

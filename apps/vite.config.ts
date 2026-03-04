@@ -97,7 +97,7 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    allowedHosts: ['localhost', '127.0.0.1', '192.168.1.221'],
+    allowedHosts: ['localhost', '127.0.0.1', '192.168.1.221', '10.20.10.83'],
     fs: {
       allow: [appsRoot, path.resolve(__dirname, '..')],
     },

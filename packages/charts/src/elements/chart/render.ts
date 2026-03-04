@@ -45,7 +45,7 @@ export class ChartRenderer {
     scene.add(this.chartGroup);
   }
 
-  update(state: ChartState, _widgetId: string): void {
+  update(state: ChartState, widgetId: string): void {
     // Position and rotation
     this.chartGroup.position.set(...state.position as [number, number, number]);
     this.chartGroup.rotation.set(...state.rotation as [number, number, number]);
@@ -62,6 +62,9 @@ export class ChartRenderer {
 
     // Resolve data from store
     const data = this.store.resolve(state.dataSource, state.transforms);
+    if (data.rows.length === 0) {
+      console.warn(`[ChartRenderer] No data for source "${state.dataSource}" in widget "${widgetId}" — chart will be empty`);
+    }
     this.lastData = data;
 
     const theme: ChartTheme =

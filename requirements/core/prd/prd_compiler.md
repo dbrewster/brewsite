@@ -11,6 +11,9 @@ change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Added CompileWarning type (MISSING_WIDGET, DUPLICATE_WIDGET_ID, UNRESOLVED_REFERENCE) and SceneTrack.warnings? field. Warnings accumulated during compilation are surfaced to the host via ScenePlayer.onCompileWarning after compilation completes."
+  - date: 2026-03-03
+    author: "Toolkit Product"
+    summary: "Transition timing redesign. Added TRANSITION_TIMING to CompileWarningCode. Updated FunctionalTransitionSpec closure path description: exit/enter boundaries are now determined by SceneFrame.transitionWindow (resolved via resolveSceneTransition) rather than the hardcoded 0.5 split. Updated system fallback defaults from [0,0.5]/[0.5,1.0] to [0.8,0.9]/[0.9,1.0]."
   - date: 2026-03-01
     author: "Toolkit Product"
     summary: "Two features implemented. (1) ProgressManager: ProgressManagerSpec, SceneProgressSegment, SceneProgressProfile types added to sceneTrackTypes.ts. SceneFrame gains progressManager?: ProgressManagerSpec. SceneTrack gains progressProfile?: SceneProgressProfile. CompileWarningCode gains PROGRESS_MANAGER. buildProgressProfile added as a new compiler pass (Step 8). (2) Engine decomposition: HUD pipeline removed. hudItems removed from SceneFrame. hudPrimitives removed from SceneTrackTick. hudItems removed from SceneFrameDelta. pushHudItem removed from CompileApi. compileChildrenSeparated added to CompileHelpers. SceneFrame gains sceneOverlay?: ReactNode. SceneTrack gains sceneOverlays: Map<string, ReactNode>. Step 6 (HUD and Label compilation) updated to cover label-only — HUD is no longer a compiler concern."
@@ -206,13 +209,17 @@ When `isFunctionalSpec(transitionSpec)` returns true, the compiler does not fill
 | Scenario | Closure Behavior |
 |----------|------------------|
 | Widget in both scenes | `rawFn = transitionSpec.interpolateFn(fromState, toState)`. Store `fn = (bp) => rawFn(bp)`, `kind: 'interpolate'`. |
-| Widget in `fromSnap` only (exit) | `rawFn = transitionSpec.exitFn(fromState)`. Store `fn = (bp) => bp < 0.5 ? rawFn(bp * 2) : absentDefault`, `kind: 'exit'`. Active over first half only. |
-| Widget in `toSnap` only (enter) | `rawFn = transitionSpec.enterFn(toState)`. Store `fn = (bp) => bp >= 0.5 ? rawFn((bp - 0.5) * 2) : absentDefault`, `kind: 'enter'`. Active over second half only. |
+| Widget in `fromSnap` only (exit) | `rawFn = transitionSpec.exitFn(fromState)`. The compiler resolves `sceneExit = fromSnap.transitionWindow?.exit ?? [0.8, 0.9]` via `makeResolver`. The stored closure returns `absentDefault` when `bp < effectiveExitStart` and after `effectiveExitEnd`, and normalizes `bp` to `[0, 1]` within the exit window for the raw closure. `kind: 'exit'`. |
+| Widget in `toSnap` only (enter) | `rawFn = transitionSpec.enterFn(toState)`. The compiler resolves `sceneEnter = toSnap.transitionWindow?.enter ?? [0.9, 1.0]` via `makeResolver`. The stored closure returns `absentDefault` before `effectiveEnterStart`, and normalizes `bp` to `[0, 1]` within the enter window. `kind: 'enter'`. |
 | Widget absent from both | Fall through to discrete fill — no closure needed. |
 
 Closures are stored in `transitionBlocks[n].widgetFns[widgetId]`. The runtime evaluates these at playback time by calling `fn(tick.blockProgress)`.
 
-**Half-block remapping** is fully encapsulated within the stored closure. The runtime passes `tick.blockProgress` directly — no additional transformation is applied by the runtime driver.
+**Window-based remapping** is fully encapsulated within the stored closure via `makeResolver`. The exact exit/enter windows are read from:
+- `fromSnap.transitionWindow?.exit ?? specDefault?.exit ?? [0.8, 0.9]`
+- `toSnap.transitionWindow?.enter ?? specDefault?.enter ?? [0.9, 1.0]`
+
+`transitionWindow` on a `SceneFrame` is set by the `<Scene>` node handler via `resolveSceneTransition(props.transition, props.exitStart)`. Both `.exit` and `.enter` on a given frame govern that scene's behavior in two different blocks: `.exit` when the scene is departing, `.enter` when it is arriving. The runtime passes `tick.blockProgress` directly — no transformation is applied by the runtime driver.
 
 ### Step 4: Terminal Frame Fill
 
@@ -316,7 +323,8 @@ export type CompileWarningCode =
   | 'MISSING_WIDGET'        // DSL element has no registered widget handler
   | 'DUPLICATE_WIDGET_ID'   // same widgetId registered twice
   | 'UNRESOLVED_REFERENCE'  // e.g. targetId on Camera points to unknown widget
-  | 'PROGRESS_MANAGER';     // invalid ProgressManager props: fn(0)!==0, fn(1)!==1, scrollUnits<=0
+  | 'PROGRESS_MANAGER'      // invalid ProgressManager props: fn(0)!==0, fn(1)!==1, scrollUnits<=0
+  | 'TRANSITION_TIMING';    // exitStart on the last scene — no outgoing transition exists
 
 export type CompileWarning = {
   code: CompileWarningCode;

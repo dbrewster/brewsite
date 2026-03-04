@@ -27,6 +27,7 @@ import type { CameraOverrideState } from '../elements/camera/types';
 import type { CameraWidget } from '../elements/camera/CameraWidget';
 import type { SceneInputControllerSpec } from '../input/types';
 import { SceneProgressMapper } from './SceneProgressMapper';
+import { buildEffectiveInputSpec } from './effectiveInputSpec';
 
 export type UseSceneEngineOptions = {
   scenes: InternalSceneSpec[];
@@ -531,9 +532,14 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     widget?.applyInputFocus?.(clientX, clientY, focusCenter);
   }, [options.widgetRegistry]);
 
-  const inputControllerSpec = frameState.tick
+  const tickInputSpec = frameState.tick
     ? (frameState.tick.state.widgets[INPUT_CONTROLLER_WIDGET_ID] as SceneInputControllerSpec | undefined) ?? null
     : null;
+
+  const inputControllerSpec = buildEffectiveInputSpec(
+    tickInputSpec,
+    options.widgetRegistry.getInputDefaultProviders(),
+  );
 
   // ─── Progress mapper from ProgressManager profile ────────────────────────────
   const progressMapper = useMemo<SceneProgressMapper | null>(() => {

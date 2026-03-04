@@ -1,0 +1,128 @@
+import type {JSX} from 'react';
+import {
+    Action,
+    Ambient,
+    Background,
+    Camera,
+    Directional,
+    InputController,
+    KeyMap,
+    Lighting,
+    PointerMap,
+    ProgressManager,
+    Scene,
+    WheelMap,
+} from '@brewsite/core';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {brewflowTheme} from '../../brewflow-sidecar/theme';
+import {config} from "../../settings";
+
+const DWELL_FN = (t: number): number => Math.min(1, t * 4);
+
+export const sceneDim2Learning: JSX.Element = (
+  <Scene key="bfc-dim2-learn" id="bfc-dim2-learn">
+    <ProgressManager scrollUnits={3000} fn={DWELL_FN} />
+
+    <Camera mode="world" position={[0, 5, 28]} target={[0, 0, 0]} fov={52} />
+    <Background color="#080b14" />
+
+    <InputController scope="canvas">
+      <Action id="pan" type="diagram-canvas.move" canvasId="bfc-learn-canvas">
+        <PointerMap event="drag" axis="xy" />
+        <WheelMap axis="xy" />
+      </Action>
+      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bfc-learn-canvas">
+        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
+      </Action>
+      <Action id="reset" type="diagram-canvas.reset" canvasId="bfc-learn-canvas">
+        <KeyMap keyName="r" />
+      </Action>
+    </InputController>
+
+    <DiagramCanvas id="bfc-learn-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
+      <Diagram id="learn-diagram" pivot="center">
+        <ManualLayout />
+
+        {/* Left — claude-flow patterns */}
+        <DiagramNode id="cf-pat-input" label="Agent output" sublabel="LLM-generated pattern" size={[6, 2.4]} position={[-10, 4, 0]} color="#1a1520" />
+        <DiagramNode id="cf-pat-store" label="patterns table" sublabel="usage_count + confidence · no provenance · no validation" size={[6, 2.8]} position={[-10, 0, 0]} color="#1a1020" />
+        <DiagramNode id="cf-pat-use" label="Applied to agents" sublabel="direct · no lifecycle · no stale detection" size={[6, 2.4]} position={[-10, -4, 0]} color="#1a1520" />
+
+        <DiagramEdge from="cf-pat-input" to="cf-pat-store" flow="forward" color="#5050a0" />
+        <DiagramEdge from="cf-pat-store" to="cf-pat-use" flow="forward" color="#5050a0" />
+
+        {/* Right — BrewFlow 7 stages */}
+        <DiagramNode id="bf-s1" label="1. Select" sublabel="salience · triggers" size={[6, 2.0]} position={[9, 8, 0]} color="#121830" />
+        <DiagramNode id="bf-s2" label="2. Extract (LLM)" sublabel="candidates only · hypotheses" size={[6, 2.0]} position={[9, 5.5, 0]} color="#121830" />
+        <DiagramNode id="bf-s3" label="3. Cluster" sublabel="N independent episodes required" size={[6, 2.0]} position={[9, 3, 0]} color="#121830" />
+        <DiagramNode id="bf-s4" label="4. Propose" sublabel="typed cards + full provenance" size={[6, 2.0]} position={[9, 0.5, 0]} color="#131930" />
+        <DiagramNode id="bf-s5" label="5. Validate" sublabel="deterministic only · LLM role ends" size={[6, 2.0]} position={[9, -2, 0]} color="#141a35" glow={{ intensity: 0.1 }} />
+        <DiagramNode id="bf-s6" label="6. Decide" sublabel="evidence-weighted · contradictions → review" size={[6, 2.0]} position={[9, -4.5, 0]} color="#141a35" />
+        <DiagramNode id="bf-s7" label="7. Publish" sublabel="versioned · audit record · old versions kept" size={[6, 2.0]} position={[9, -7, 0]} color="#151e38" glow={{ intensity: 0.12 }} />
+
+        <DiagramEdge from="bf-s1" to="bf-s2" flow="forward" color="#5070b0" />
+        <DiagramEdge from="bf-s2" to="bf-s3" flow="forward" color="#5070b0" />
+        <DiagramEdge from="bf-s3" to="bf-s4" flow="forward" color="#5070b0" />
+        <DiagramEdge from="bf-s4" to="bf-s5" flow="forward" color="#5070b0" />
+        <DiagramEdge from="bf-s5" to="bf-s6" flow="forward" color="#5070b0" />
+        <DiagramEdge from="bf-s6" to="bf-s7" flow="forward" color="#5070b0" />
+      </Diagram>
+    </DiagramCanvas>
+
+    {/* Prose panel */}
+    <div style={{
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      padding: '40px 64px 48px',
+      background: 'rgba(8, 11, 20, 0.88)',
+      backdropFilter: 'blur(16px)',
+      borderTop: '1px solid rgba(255,255,255,0.08)',
+      maxHeight: '55vh',
+      overflowY: 'auto',
+      pointerEvents: 'auto',
+    }}>
+      <div style={{
+        fontFamily: 'JetBrains Mono, monospace',
+        fontSize: '0.67rem',
+        letterSpacing: '0.25em',
+        textTransform: 'uppercase' as const,
+        color: 'rgba(100, 140, 220, 0.7)',
+        marginBottom: 16,
+      }}>
+        DIMENSION 2: LEARNING OVER TIME
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+        <div>
+          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+            claude-flow: frequency + outcome counting
+          </h3>
+          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+            claude-flow's patterns table accumulates observations across sessions. LLM-generated
+            patterns are stored directly with usage_count and confidence scores. There is no
+            pipeline that separates hypotheses from validated facts — a pattern generated by a
+            hallucinating LLM and a pattern confirmed across 50 independent episodes look
+            identical in the table. No stale detection, no lifecycle management.
+          </p>
+        </div>
+        <div>
+          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+            BrewFlow: epistemic separation across 7 stages
+          </h3>
+          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+            The critical architectural difference: the LLM's role ends at stage 4. It can
+            propose, it cannot decide. Stage 5 runs deterministic validators — schema checks,
+            provenance requirements, contradiction detection — without LLM involvement.
+            A hallucination cannot pass stage 5. Stage 3 requires N independent episodes
+            before a pattern can even be proposed, preventing single-instance overfitting.
+          </p>
+          <p style={{ fontSize: '0.89rem', color: 'rgba(160, 180, 220, 0.65)', lineHeight: 1.7, fontStyle: 'italic', margin: 0 }}>
+            Versioning with kept old versions means you can see how knowledge evolved —
+            and roll back if a promoted card turns out to be wrong.
+          </p>
+        </div>
+      </div>
+    </div>
+  </Scene>
+);

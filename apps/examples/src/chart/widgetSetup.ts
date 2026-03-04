@@ -1,7 +1,7 @@
-import { corePlugin } from '@brewsite/core';
-import { chartPlugin } from '@brewsite/charts';
-import type { WidgetPlugin } from '@brewsite/core';
-import type { ChartPluginInstance } from '@brewsite/charts';
+import type {WidgetPlugin} from '@brewsite/core';
+import {corePlugin} from '@brewsite/core';
+import type {ChartPluginInstance} from '@brewsite/charts';
+import {chartPlugin} from '@brewsite/charts';
 
 /**
  * Creates the WidgetPlugin array for the chart demo.

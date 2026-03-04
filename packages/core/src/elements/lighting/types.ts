@@ -112,7 +112,7 @@ export type SceneLightPanel = {
 
 export type SceneLighting = {
   ambient: SceneLightAmbient;
-  directional: SceneLightDirectional;
+  directionals: SceneLightDirectional[];
   glowPoint?: SceneLightGlowPoint;
   lightStrands?: SceneLightStrand[];
   points?: SceneLightPoint[];

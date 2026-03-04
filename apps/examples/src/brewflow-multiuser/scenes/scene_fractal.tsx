@@ -1,0 +1,151 @@
+import type {JSX} from 'react';
+import {
+  Action,
+  Background,
+  Camera,
+  InputController,
+  KeyMap,
+  PointerMap,
+  ProgressManager,
+  Scene,
+  WheelMap
+} from '@brewsite/core';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {brewflowTheme} from '../../brewflow-sidecar/theme';
+import {config} from "../../settings";
+
+const DWELL_FN = (t: number): number => Math.min(1, t * 4);
+
+export const sceneFractal: JSX.Element = (
+  <Scene key="bfmu-fractal" id="bfmu-fractal">
+    <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
+    <InputController scope="canvas">
+      <Action id="pan" type="diagram-canvas.move" canvasId="bfmu-frac-canvas">
+        <PointerMap event="drag" axis="xy" />
+        <WheelMap axis="xy" />
+      </Action>
+      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bfmu-frac-canvas">
+        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
+      </Action>
+      <Action id="reset" type="diagram-canvas.reset" canvasId="bfmu-frac-canvas">
+        <KeyMap keyName="r" />
+      </Action>
+    </InputController>
+    <Camera mode="world" position={[0, 5, 22]} target={[0, 0, 0]} fov={52} />
+    <Background color="#080b14" />
+
+    <DiagramCanvas id="bfmu-frac-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
+      <Diagram id="frac-diagram" pivot="center">
+        <ManualLayout />
+        <DiagramEnter fade scaleFrom={0.85} />
+
+        <DiagramNode
+          id="sc0"
+          label="Scale 0 — Within one expert's CoT"
+          sublabel="expert argues with themselves · Step 4 (CHALLENGE) = internal adversarial pressure"
+          shape="rectangle"
+          size={[12, 2.4]}
+          position={[0, 8, 0]}
+          color="#141828"
+        />
+        <DiagramNode
+          id="sc1"
+          label="Scale 1 — Expert debate round"
+          sublabel="5 specialists argue across rounds · tested pressured agreement · not counting"
+          shape="rectangle"
+          size={[12, 2.4]}
+          position={[0, 4.5, 0]}
+          color="#141830"
+          glow={{ intensity: 0.1 }}
+        />
+        <DiagramNode
+          id="sc2"
+          label="Scale 2 — Across sessions (per user)"
+          sublabel="multiple sessions cluster into stronger proposals · seen once = hypothesis · seen 5× = candidate"
+          shape="rectangle"
+          size={[12, 2.4]}
+          position={[0, 1, 0]}
+          color="#141830"
+          glow={{ intensity: 0.12 }}
+        />
+        <DiagramNode
+          id="sc3"
+          label="Scale 3 — Across users (project scope)"
+          sublabel="multiple independent users converge · cross-user corroboration → project-Neocortex"
+          shape="rectangle"
+          size={[12, 2.4]}
+          position={[0, -2.5, 0]}
+          color="#141e35"
+          glow={{ intensity: 0.14 }}
+        />
+        <DiagramNode
+          id="sc4"
+          label="Scale 4 — Across time (verified use)"
+          sublabel="Neocortex items accumulate confirmations or contradictions · repeated use strengthens · failures demote"
+          shape="rectangle"
+          size={[12, 2.4]}
+          position={[0, -6, 0]}
+          color="#151e38"
+          glow={{ intensity: 0.16 }}
+        />
+
+        <DiagramEdge from="sc0" to="sc1" flow="forward" color="#5070b0" />
+        <DiagramEdge from="sc1" to="sc2" flow="forward" color="#5070b0" />
+        <DiagramEdge from="sc2" to="sc3" flow="forward" color="#5070b0" />
+        <DiagramEdge from="sc3" to="sc4" flow="forward" color="#5070b0" />
+      </Diagram>
+    </DiagramCanvas>
+
+    <div style={{
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      padding: '40px 64px 48px',
+      background: 'rgba(8, 11, 20, 0.88)',
+      backdropFilter: 'blur(16px)',
+      borderTop: '1px solid rgba(255,255,255,0.08)',
+      maxHeight: '50vh',
+      overflowY: 'auto',
+      pointerEvents: 'auto',
+    }}>
+      <div style={{
+        fontFamily: 'JetBrains Mono, monospace',
+        fontSize: '0.67rem',
+        letterSpacing: '0.25em',
+        textTransform: 'uppercase' as const,
+        color: 'rgba(100, 140, 220, 0.7)',
+        marginBottom: 16,
+      }}>
+        THE FRACTAL EVIDENCE MODEL
+      </div>
+      <p style={{ fontSize: '0.94rem', fontWeight: 600, color: '#c8d8f0', margin: '0 0 16px' }}>
+        The same principle at every scale: multiple independent sources arguing until they agree.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+        <div>
+          <p style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.7, margin: 0 }}>
+            At Scale 0, a single expert's internal Step 4 (CHALLENGE) asks "where does this break?"
+            before proposing. At Scale 1, five specialists argue the same episode from different lenses.
+            At Scale 2, the same expert's observations across multiple sessions cluster into stronger
+            evidence. At Scale 3, independent users converging on the same conclusion crosses the
+            project-scope threshold. At Scale 4, real-world use over time either confirms or demotes.
+          </p>
+        </div>
+        <div>
+          <p style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.7, margin: 0 }}>
+            The debate model adds Scale 1 rigor. Without it, Scale 2 inherits unexamined assumptions
+            from a single LLM pass — a confident wrong conclusion clusters just as readily as a confident
+            right one. With Scale 1, only claims that survived inter-expert challenge reach Scale 2
+            accumulation. The evidence pyramid is stronger at every level above it.
+          </p>
+          <p style={{ fontSize: '0.78rem', color: 'rgba(160, 180, 220, 0.55)', lineHeight: 1.6, margin: '12px 0 0', fontStyle: 'italic' }}>
+            Note: none of these scales replace each other. A claim that is pre-converged at Scale 1
+            still needs Scale 2 corroboration before reaching project scope. The scales are cumulative,
+            not substitutable.
+          </p>
+        </div>
+      </div>
+    </div>
+  </Scene>
+);

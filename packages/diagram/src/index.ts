@@ -36,6 +36,7 @@ export type {
   LayoutDisconnected,
   // Theming
   DiagramTheme,
+  DiagramCanvasInputConfig,
   DiagramThemeRenderConfig,
   DiagramThemeNodeConfig,
   DiagramThemeEdgeConfig,
@@ -111,6 +112,7 @@ export { ScreenWidget } from './elements/screen/widget';
 // ─── Theme presets ────────────────────────────────────────────────────────────
 export { darkGlassTheme, neonCyberTheme, enterpriseTheme, lightMinimalTheme } from './elements/diagram/themes';
 export { mergeTheme } from './elements/diagram/themes/mergeTheme';
+export { defaultDiagramCanvasInputActions } from './elements/diagram/canvas/defaultInputActions';
 
 // ─── Compiler handler registration ──────────────────────────────────────────
 // registerDiagramHandlers is called automatically via ./register.ts at module-load time.

@@ -4,7 +4,7 @@ import type {
   IWidget, ISceneElement, IRenderable, ILoadable, IDslComposite,
   IAnimationController, IVariableProvider, ICameraActionTarget,
   IRendererLifecycle, IRenderContributor, IContainedRenderable, IAttachmentHost,
-  ISceneLifecycle,
+  ISceneLifecycle, IInputDefaultProvider,
 } from './types';
 import type { WebGLRenderer } from 'three';
 import { registerNode, getNodeHandler } from '../compiler/registry';
@@ -252,6 +252,11 @@ export class WidgetRegistry {
     return this.getAll().filter(isAttachmentHost);
   }
 
+  /** Returns all widgets that implement IInputDefaultProvider, in registration order. */
+  getInputDefaultProviders(): IInputDefaultProvider[] {
+    return this.getAll().filter(isInputDefaultProvider);
+  }
+
   /**
    * Broadcasts onRendererCreated to all IRendererLifecycle widgets.
    * Call from useSceneEngine.ts when the WebGLRenderer is constructed.
@@ -316,3 +321,7 @@ export const isContainedRenderable = (w: IWidget): w is IContainedRenderable =>
 
 export const isAttachmentHost = (w: IWidget): w is IAttachmentHost =>
   'getAttachmentPoint' in w && typeof (w as IAttachmentHost).getAttachmentPoint === 'function';
+
+export const isInputDefaultProvider = (w: IWidget): w is IInputDefaultProvider =>
+  'getDefaultInputActions' in w &&
+  typeof (w as IInputDefaultProvider).getDefaultInputActions === 'function';

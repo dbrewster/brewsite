@@ -10,6 +10,7 @@ import type {
   PipeRoutingAlgorithm,
   PipeLandingAlgorithm,
 } from './types';
+import type { InputActionSpec } from '@brewsite/core';
 import { DIAGRAM_PIPE_DEFAULT_COLOR } from './types';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
 import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
@@ -196,6 +197,7 @@ export function compileCanvas(
   diagrams: ReadonlyArray<DiagramState>,
   pipes: ReadonlyArray<DiagramPipeDSL>,
   onWarn?: DiagramWarnFn,
+  defaultInputActions?: ReadonlyArray<InputActionSpec>,
 ): DiagramCanvasState {
   const pipeRouting = dsl.pipeRouting ?? DEFAULT_PIPE_ROUTING;
   const pipeLanding = dsl.pipeLanding ?? DEFAULT_PIPE_LANDING;
@@ -209,6 +211,7 @@ export function compileCanvas(
     focusCenter: dsl.focusCenter,
     diagrams,
     pipes: compiledPipes,
+    defaultInputActions,
   };
 }
 

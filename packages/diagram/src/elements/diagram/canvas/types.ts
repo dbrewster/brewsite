@@ -2,6 +2,7 @@
 // No runtime imports, no Three.js, no React.
 
 import type { DiagramState, DiagramEdgeStyle, DiagramArrowVariant, DiagramTheme } from '../types';
+import type { InputActionSpec } from '@brewsite/core';
 
 /** Default pipe color used by compile.ts and documented on the DSL. */
 export const DIAGRAM_PIPE_DEFAULT_COLOR = '#3d5a9a';
@@ -54,6 +55,13 @@ export interface DiagramCanvasState {
   readonly diagrams: ReadonlyArray<DiagramState>;
   /** All cross-diagram pipe states. */
   readonly pipes: ReadonlyArray<DiagramPipeState>;
+  /**
+   * Default input actions derived from theme.input at compile time.
+   * canvasId has been injected by the compiler from the <DiagramCanvas id="...">.
+   * Undefined when no theme.input is configured on the canvas.
+   * Consumed by DiagramCanvasWidget.getDefaultInputActions() at runtime.
+   */
+  readonly defaultInputActions?: ReadonlyArray<InputActionSpec>;
 }
 
 /** Raw DSL props from <DiagramPipe> before compile.ts applies defaults. */

@@ -72,7 +72,7 @@ describe('LightingWidget DSL handler', () => {
     const state = frame.widgets['lighting'] as SceneLighting;
 
     expect(state.ambient.intensity).toBeCloseTo(1.5);
-    expect(state.directional.position).toEqual([1, 2, 3]);
+    expect(state.directionals[0]?.position).toEqual([1, 2, 3]);
     expect(state.lightStrands).toHaveLength(1);
     expect(state.lightStrands?.[0]?.id).toBe('strand-main');
     expect(state.lightStrands?.[0]?.position).toEqual([5, 6, 7]);
@@ -84,25 +84,6 @@ describe('LightingWidget DSL handler', () => {
     expect(state.panels).toHaveLength(1);
     expect(state.intensityScale).toBeCloseTo(0.8);
     expect(state.color).toBe('#ff00ff');
-  });
-
-  it('prefers first ambient/directional', () => {
-    const widget = new LightingWidget();
-    const registry = new WidgetRegistry().register(widget);
-    const tree = (
-      <Scene id="scene">
-        <Lighting>
-          <Ambient intensity={0.2} color="#000000" />
-          <Ambient intensity={0.9} color="#ffffff" />
-          <Directional intensity={0.1} color="#ff0000" position={[1, 1, 1]} />
-          <Directional intensity={0.9} color="#00ff00" position={[2, 2, 2]} />
-        </Lighting>
-      </Scene>
-    );
-    const { frame } = resolveSceneFromDsl(tree, makeContext(), registry);
-    const state = frame.widgets['lighting'] as SceneLighting;
-    expect(state.ambient.intensity).toBeCloseTo(0.2);
-    expect(state.directional.position).toEqual([1, 1, 1]);
   });
 
   it('warns when multiple Ambient elements are declared', () => {
@@ -147,7 +128,7 @@ describe('LightingWidget lifecycle', () => {
     const state: SceneLighting = {
       ...widget.defaultState,
       ambient: { intensity: 1, color: '#ffffff' },
-      directional: { intensity: 1, color: '#ffffff', position: [1, 2, 3] },
+      directionals: [{ intensity: 1, color: '#ffffff', position: [1, 2, 3] }],
       points: [],
       spots: [],
       panels: [],

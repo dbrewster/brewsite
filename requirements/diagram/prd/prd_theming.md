@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-02
+last_updated: 2026-03-03
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -11,6 +11,9 @@ change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Breaking: renamed DiagramThemeNodeConfig.defaultDepth to defaultThickness to align with DiagramNodeProps.thickness rename. No other theme API changes."
+  - date: 2026-03-03
+    author: "Toolkit Product"
+    summary: "Added theme-level default input handler support: DiagramTheme.input? field, DiagramCanvasInputConfig type, IGNORED_INPUT_CONFIG compiler warning, and defaultDiagramCanvasInputActions convenience export."
 ---
 
 ## Overview
@@ -79,8 +82,36 @@ export interface DiagramTheme {
   readonly environment: DiagramThemeEnvironmentConfig;
   readonly layout?: DiagramThemeLayoutConfig;
   readonly palette?: readonly string[];
+  /**
+   * Optional default input handler configuration for DiagramCanvas.
+   * Only effective when applied to a <DiagramCanvas theme={...}>.
+   * Ignored (with a compile-time warning) when placed on a child <Diagram>.
+   */
+  readonly input?: DiagramCanvasInputConfig;
 }
 ```
+
+### DiagramCanvasInputConfig
+
+```typescript
+/**
+ * Input handler configuration for a DiagramCanvas, defined in the theme.
+ * Allows a single authoring location for per-canvas input defaults instead of
+ * repeating <InputController> blocks in every scene.
+ *
+ * canvasId is intentionally absent from each action spec: the compiler
+ * auto-injects it from the parent <DiagramCanvas id="..."> at compile time.
+ */
+export interface DiagramCanvasInputConfig {
+  /**
+   * Default input actions for the canvas. Omit canvasId on each action —
+   * the compiler injects it automatically from the <DiagramCanvas id="...">.
+   */
+  readonly defaultActions: ReadonlyArray<Omit<InputActionSpec, 'canvasId'>>;
+}
+```
+
+The `defaultDiagramCanvasInputActions` constant exported from `@brewsite/diagram` provides the canonical reference action set (pointer-based pan/rotate, reset, and focus) ready for use as `theme.input.defaultActions`.
 
 ### Sub-config types
 
@@ -253,6 +284,17 @@ Each preset theme is in its own file (`themes/darkGlass.ts`, `themes/neonCyber.t
 ### Layout defaults in theme
 
 `DiagramThemeLayoutConfig` provides fallback values for grid, hierarchical, and manual layout when the `<Diagram>` DSL does not specify a layout child. `layoutResolver.ts` merges theme layout defaults with DSL-declared layout props, with DSL values taking precedence. This allows the theme to establish sensible spacing and padding defaults without requiring every diagram DSL to be verbose.
+
+### Input defaults in theme
+
+`DiagramTheme.input` carries default input action configuration for a `<DiagramCanvas>`. At compile time, the `DiagramCanvas` compiler handler reads `theme.input.defaultActions`, injects `canvasId` (from the `<DiagramCanvas id="...">` prop) into each action spec, and stores the result as `DiagramCanvasState.defaultInputActions`. This compiled value is consumed at runtime by `DiagramCanvasWidget`, which implements `IInputDefaultProvider` from `@brewsite/core`. The player layer reads all `IInputDefaultProvider` widgets each frame via `WidgetRegistry.getInputDefaultProviders()` and applies their actions when no explicit `<InputController>` is present in the current scene.
+
+**Scope constraint:** `input` is only effective on a `<DiagramCanvas theme={...}>` — not on a child `<Diagram>` or a standalone `<Diagram>`. The compiler emits a `IGNORED_INPUT_CONFIG` warning in both invalid cases:
+
+- `<Diagram id="...">` nested inside a `<DiagramCanvas>` has `theme.input` — the diagram-level input is ignored; move it to the `<DiagramCanvas theme={...}>`.
+- A standalone `<Diagram>` (not wrapped in `<DiagramCanvas>`) has `theme.input` — ignored; only a canvas can dispatch default input actions.
+
+The `IGNORED_INPUT_CONFIG` warning is surfaced via `SceneTrack.warnings` and forwarded to any `onCompileWarning` handler registered on `ScenePlayer`.
 
 ## Breaking Change Assessment
 

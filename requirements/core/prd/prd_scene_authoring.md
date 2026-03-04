@@ -29,6 +29,9 @@ change_history:
   - date: 2026-03-03
     author: "Toolkit Product"
     summary: "API hardening update: replaced ScenePlayer as the mounting component in functional requirements and authoring pattern examples with EngineProvider."
+  - date: 2026-03-03
+    author: "Toolkit Product"
+    summary: "Transition timing redesign (major version bump). Replaced transition?: { easing?: EasingName } with SceneTransitionProps discriminated union (exitStart + transition string/window). Added exitStart prop, TransitionName type ('dissolve'|'crossfade'), and resolveSceneTransition(). Removed five TRANSITION_* constant exports. Default changed from [0,0.5]/[0.5,1.0] to dissolve-through-black (exitStart=0.8). Updated Scene component signature, handler description, and section 8.6."
 ---
 
 # BrewSite Core — Scene Authoring DSL
@@ -101,7 +104,7 @@ Without a clear, stable, well-typed authoring surface, consumer adoption is bloc
 2. Each scene must be uniquely identified by its React `key` prop within an `<EngineProvider>`. The `key` is read from `element.key` by the compiler's `sceneRootHandler`. The `id` prop is retained as a backward-compat fallback. Duplicate keys within the same provider are a compiler warning.
 3. Scene order — the top-to-bottom order of `<Scene>` children — determines playback order. The first scene has no entry transition; the last scene has no exit transition.
 4. Scene JSX elements are authored as plain `ReactElement` values (exported from scene files as constants). They are not wrapped in a factory function for normal static authoring. Dynamic values (viewport dimensions, asset-ready state, runtime variables) flow into scene JSX via React state in the parent component, using `useSceneRuntime()` if engine-internal values are needed.
-5. The `<Scene>` DSL component must accept `key` (React standard), `id` (backward-compat fallback), `meta`, `metalnessMultiplier`, and `roughnessMultiplier` props.
+5. The `<Scene>` DSL component must accept `key` (React standard), `id` (backward-compat fallback), `meta`, `metalnessMultiplier`, `roughnessMultiplier`, and the `SceneTransitionProps` discriminated union (`exitStart` + `transition`). `exitStart` is only valid when `transition` is absent or `"dissolve"` — TypeScript enforces this at authoring time.
 6. The `<Scene>` root must delegate compilation of its children to registered DSL node handlers via `compileChildren`.
 7. All DSL element components (`Model`, `Camera`, `Lighting`, etc.) must be null-returning React components with a `displayName` set, so they carry no runtime weight.
 8. The compiler must register a node handler for each DSL component before any `resolveSceneFromDsl` call. The registration must be idempotent.
@@ -208,20 +211,19 @@ export const Scene = (_props: {
 Scene.displayName = 'Scene';
 ```
 
-The updated `Scene` component signature with all current props:
+The current `Scene` component signature with all props:
 
 ```typescript
+// Discriminated union enforces exitStart is only valid with dissolve transitions.
+type SceneTransitionProps =
+  | { transition?: 'dissolve'; exitStart?: number }
+  | { transition: 'crossfade' | TransitionWindow; exitStart?: never };
+
 export const Scene = (_props: {
   id?: string;         // backward-compat; prefer React key prop
   meta?: Record<string, JsonPrimitive>;
   metalnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
   roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
-  /**
-   * Easing curve applied to blockProgress for the transition INTO this scene.
-   * Declared on the incoming scene (the one being transitioned to).
-   * Has no effect on the first scene (no incoming transition).
-   */
-  transition?: { easing?: EasingName };
   /**
    * Children may be any of:
    * - Registered DSL elements (Model, Camera, Lighting, etc.) — compiled into widget state.
@@ -232,21 +234,17 @@ export const Scene = (_props: {
    *   Rendered by EngineOverlayHost in the player layer.
    */
   children?: React.ReactNode;
-}) => null;
+} & SceneTransitionProps) => null;
 ```
 
-Available easing curves (`EasingName`):
-- `'linear'` — constant rate (default when unset)
-- `'easeOutCubic'` — fast start, smooth deceleration
-- `'easeOutExpo'` — very fast start, long gentle tail
-- `'easeInOutSine'` — smooth acceleration and deceleration
-- `'easeInOutCubic'` — stronger S-curve acceleration/deceleration
+`exitStart` (range: `[0, 0.99]`, default: `0.8`) declares the `blockProgress` value at which the outgoing scene begins fading. `transition` accepts `'dissolve'` (default), `'crossfade'`, or a raw `TransitionWindow` escape hatch.
 
 The `Scene` component handler:
-1. Reads `id`, `meta`, `metalnessMultiplier`, `roughnessMultiplier`, and `transition.easing` from props.
-2. Stores `transitionEasing` on the `SceneFrame` if set.
-3. Calls `helpers.compileChildren(node, api)` to recurse into child DSL elements.
-4. Sets scene-level metadata via `api.setSceneMeta`.
+1. Reads `id`, `meta`, `metalnessMultiplier`, `roughnessMultiplier`, `transition`, and `exitStart` from props.
+2. Calls `resolveSceneTransition(props.transition, props.exitStart)` → stores the resulting `TransitionWindow` on `SceneFrame.transitionWindow`.
+3. Emits a `TRANSITION_TIMING` compile warning if `exitStart` is declared on the last scene (no outgoing transition exists).
+4. Calls `helpers.compileChildren(node, api)` to recurse into child DSL elements.
+5. Sets scene-level metadata via `api.setSceneMeta`.
 
 ### 7.3 resolveSceneFromDsl
 
@@ -682,31 +680,44 @@ export const sceneAdaptive = (
 );
 ```
 
-### 8.6 Transition Easing
+### 8.6 Transition Timing
 
-Declare a custom easing curve on the incoming scene's `transition` prop. Easing affects how `blockProgress` advances through the transition — it controls the pacing of every widget's enter/exit/interpolate animation for that transition.
+Control how long a scene stays visible before fading with the `exitStart` prop. The `transition` prop selects the named transition type.
 
 ```tsx
-export const sceneReveal = (
-  // Transition INTO this scene uses easeOutExpo — snappy start, long gentle settle
-  <Scene key="reveal" transition={{ easing: 'easeOutExpo' }}>
+// Default: dissolve-through-black, exitStart=0.8
+// Scene holds at full opacity until 80% of the block, then fades quickly.
+export const sceneHero = (
+  <Scene key="hero">
     {/* <Model> requires @brewsite/model */}
     <Model id="product" type="product-model" position={[0, 0, 0]} />
   </Scene>
 );
 
-export const sceneClose = (
-  // Smooth symmetric S-curve for a more considered exit feel
-  <Scene key="close" transition={{ easing: 'easeInOutCubic' }}>
+// Hold longer: scene stays opaque until 90% — tighter, faster fade.
+// Equivalent to the old DISSOLVE_TO_BLACK = { exit: [0.9,0.95], enter: [0.95,1.0] } pattern.
+export const sceneFeatures = (
+  <Scene key="features" exitStart={0.9}>
     {/* <Model> requires @brewsite/model */}
-    <Model id="product" type="product-model" position={[0, -3, 0]} opacity={0} />
+    <Model id="product" type="product-model" position={[0, 0.5, 0]} />
+  </Scene>
+);
+
+// Crossfade: both scenes simultaneously visible across the full block.
+// Useful when scenes share world-space assets and a smooth visual blend is preferred.
+export const sceneDetail = (
+  <Scene key="detail" transition="crossfade">
+    {/* <Model> requires @brewsite/model */}
+    <Model id="product" type="product-model" position={[1, 0, 0]} />
   </Scene>
 );
 ```
 
-**Easing applies to all widgets in the transition.** It is a scene-level property, not per-element. A widget's `transitionSpec` still controls the shape of the animation (e.g., fade vs slide); easing controls its tempo.
+**`exitStart` is only valid for `"dissolve"` transitions.** Using `exitStart` with `transition="crossfade"` or a raw `TransitionWindow` is a TypeScript compile error (enforced via the `SceneTransitionProps` discriminated union).
 
-**The first scene has no incoming transition** — its `transition` prop has no effect.
+**`exitStart` on the last scene emits a compile warning** (`TRANSITION_TIMING`). There is no outgoing transition from the final scene, so the prop has no effect.
+
+**For per-widget easing curves** — use the `<Transition>` DSL component inside element declarations with the `ease` prop on each channel group. Easing functions (`easeOutCubic`, `easeOutExpo`, etc.) are exported from `@brewsite/core` for use inside `FunctionalTransitionSpec` closures and `<Transition>` channel groups.
 
 ### 8.7 Scene Overlay Content
 

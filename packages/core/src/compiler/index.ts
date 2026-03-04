@@ -37,13 +37,10 @@ export type { TransitionWindow } from './sceneTrackTypes';
 // makeSimpleContext: minimal context from scalar t (for ElementTransitionSpec delegates).
 export { makeResolver, makeSimpleContext } from './transitions/transitionResolver';
 
-// Transition window presets and named easing functions for scene authoring.
+// Named transition types, resolver function, and easing functions for scene authoring.
+export type { TransitionName, SceneTransitionProp } from './transitions/transitionPresets';
+export { resolveSceneTransition } from './transitions/transitionPresets';
 export {
-  TRANSITION_DEFAULT,
-  TRANSITION_CROSSFADE,
-  TRANSITION_SEQUENTIAL,
-  TRANSITION_EXIT_FIRST,
-  TRANSITION_CUT,
   easeLinear,
   easeOutCubic,
   easeOutExpo,

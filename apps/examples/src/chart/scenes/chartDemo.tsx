@@ -1,17 +1,7 @@
 // Chart demo scenes — bar, line, pie, and scatter examples with real business data.
-import type { JSX } from 'react';
-import {
-  Scene,
-  Camera,
-  Lighting,
-  Ambient,
-  Directional,
-  Background,
-  ProgressManager,
-} from '@brewsite/core';
-import {
-  Chart, ChartData, ChartAxis, ChartSeries, ChartLegend,
-} from '@brewsite/charts';
+import type {JSX} from 'react';
+import {Ambient, Background, Camera, Directional, Lighting, ProgressManager, Scene,} from '@brewsite/core';
+import {Chart, ChartAxis, ChartData, ChartLegend, ChartSeries,} from '@brewsite/charts';
 
 // ─── Sample data ─────────────────────────────────────────────────────────────
 
@@ -60,12 +50,6 @@ export const teamPerformanceData = [
 const CHART_CAM_POS: [number, number, number] = [2, 1.5, 8];
 const CHART_CAM_TGT: [number, number, number] = [2, 1.5, 0];
 
-/** Fade-in on enter, instant cut on exit. */
-const FADE = {
-  exit:  [1.0, 1.0] as [number, number],
-  enter: [0.0, 0.3] as [number, number],
-};
-
 const SceneLighting = (): JSX.Element => (
   <Lighting intensityScale={1.2}>
     <Ambient intensity={0.8} color="#c4d4ff" />
@@ -77,7 +61,7 @@ const SceneLighting = (): JSX.Element => (
 // ─── Scene 1: Bar — monthly revenue vs. costs ─────────────────────────────────
 
 export const chartDemoBar: JSX.Element = (
-  <Scene id="chart-demo-bar" transition={FADE}>
+  <Scene id="chart-demo-bar" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.3] }}>
     <ProgressManager scrollUnits={1200} />
     <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={55} />
     <SceneLighting />
@@ -103,7 +87,7 @@ export const chartDemoBar: JSX.Element = (
 // ─── Scene 2: Line — ARR growth trend ────────────────────────────────────────
 
 export const chartDemoLine: JSX.Element = (
-  <Scene id="chart-demo-line" transition={FADE}>
+  <Scene id="chart-demo-line" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.3] }}>
     <ProgressManager scrollUnits={1200} />
     <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={55} />
     <SceneLighting />
@@ -132,7 +116,7 @@ const PIE_CAM_POS: [number, number, number] = [0, 0, 7];
 const PIE_CAM_TGT: [number, number, number] = [0, 0, 0];
 
 export const chartDemoPie: JSX.Element = (
-  <Scene id="chart-demo-pie" transition={FADE}>
+  <Scene id="chart-demo-pie" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.3] }}>
     <ProgressManager scrollUnits={1200} />
     <Camera mode="world" position={PIE_CAM_POS} target={PIE_CAM_TGT} fov={50} />
     <SceneLighting />
@@ -156,7 +140,7 @@ export const chartDemoPie: JSX.Element = (
 // ─── Scene 4: Scatter — team size vs. quarterly revenue ──────────────────────
 
 export const chartDemoScatter: JSX.Element = (
-  <Scene id="chart-demo-scatter" transition={FADE}>
+  <Scene id="chart-demo-scatter" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.3] }}>
     <ProgressManager scrollUnits={1200} />
     <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={55} />
     <SceneLighting />

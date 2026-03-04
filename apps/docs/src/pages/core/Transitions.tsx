@@ -12,118 +12,133 @@ export default function Transitions(): JSX.Element {
       <h1>Transitions</h1>
 
       <p>
-        Every scene-to-scene transition is driven by a configurable timing window. You control when
-        the outgoing scene fades out (<code>exit</code> window) and when the incoming scene fades in
-        (<code>enter</code> window). Both windows are specified as block-progress sub-ranges within{' '}
-        <code>[0, 1]</code>.
+        Every scene-to-scene transition is driven by timing windows that control when the outgoing
+        scene fades out and when the incoming scene fades in. Both windows are sub-ranges of{' '}
+        <code>blockProgress [0, 1]</code>, which runs from 0 to 1 across each transition block.
       </p>
 
-      <LiveDemo title="Window variants" code={EASING_CODE}>
+      <p>
+        The default transition is <strong>dissolve-through-black</strong>: the outgoing scene holds
+        at full opacity until 80% of the block, then fades out quickly. The incoming scene fades in
+        symmetrically. In most marketing scenes no <code>transition</code> prop is needed at all.
+      </p>
+
+      <LiveDemo title="Transition variants" code={EASING_CODE}>
         <TransitionEasingDemo />
       </LiveDemo>
 
       <h2>
-        The <code>transition</code> Prop
+        The <code>exitStart</code> Prop
       </h2>
 
       <p>
-        Pass a <code>transition</code> object to <code>&lt;Scene&gt;</code> to control the timing
-        windows for that scene's entry. Without it, the system default crossfade
-        (<code>exit: [0, 0.5]</code> / <code>enter: [0.5, 1]</code>) applies.
+        <code>exitStart</code> is the primary authoring control. It is a normalized{' '}
+        <code>blockProgress</code> value (0–1) declaring when the outgoing scene begins fading.
+        Higher values hold the scene opaque longer before the transition.
       </p>
 
       <CodeBlock
         language="tsx"
-        code={`<Scene key="s1">
-  <Camera mode="world" position={[0, 2, 8]} target={[0, 0, 0]} />
-</Scene>
+        code={`// Default: exitStart=0.8 → scene opaque until 80%, then fast dissolve-through-black
+<Scene id="hero" />
 
-{/* This scene fades in late — exit completes before enter starts */}
-<Scene key="s2" transition={{ exit: [0, 0.4], enter: [0.6, 1] }}>
-  <Camera mode="world" position={[5, 3, 5]} target={[0, 0, 0]} />
-</Scene>`}
+// Hold scene longer before fading — matches the common "DISSOLVE_TO_BLACK" pattern
+<Scene id="features" exitStart={0.9} />
+
+// Faster handoff — scene starts fading at 60%
+<Scene id="callout" exitStart={0.6} />`}
       />
 
-      <h2>Preset Windows</h2>
+      <Callout type="tip">
+        Omit the <code>transition</code> prop entirely for the standard dissolve. Use{' '}
+        <code>exitStart</code> only when you need to tune how long the scene stays visible before
+        fading.
+      </Callout>
+
+      <h2>Named Transitions</h2>
 
       <p>
-        Import named presets from <code>@brewsite/core</code> for common timing patterns:
+        The <code>transition</code> prop accepts a string name for common transition types:
       </p>
 
       <PropTable
         rows={[
           {
-            name: 'TRANSITION_CROSSFADE',
-            type: 'TransitionWindow',
+            name: '"dissolve"',
+            type: 'TransitionName',
             defaultValue: 'system default',
-            description: 'exit: [0, 0.5] / enter: [0.5, 1] — standard crossfade split.',
+            description:
+              'Through-black. Scene holds at full opacity until exitStart, then fades to nothing. Incoming fades in symmetrically. exitStart defaults to 0.8.',
           },
           {
-            name: 'TRANSITION_SEQUENTIAL',
-            type: 'TransitionWindow',
-            description: 'exit: [0, 0.4] / enter: [0.6, 1] — brief pause between exit and enter.',
-          },
-          {
-            name: 'TRANSITION_EXIT_FIRST',
-            type: 'TransitionWindow',
-            description: 'exit: [0, 0.6] / enter: [0.4, 1] — outgoing scene finishes slightly before entering.',
-          },
-          {
-            name: 'TRANSITION_CUT',
-            type: 'TransitionWindow',
-            description: 'Instant switch with no blending.',
+            name: '"crossfade"',
+            type: 'TransitionName',
+            description:
+              'Equal-blend. Both scenes visible simultaneously across the full block. Outgoing opacity 1→0, incoming 0→1. Opacity sums to 1 at every frame. exitStart is not applicable.',
           },
         ]}
       />
 
       <CodeBlock
         language="tsx"
-        code={`import { TRANSITION_SEQUENTIAL } from '@brewsite/core';
+        code={`// Explicit dissolve (same as default)
+<Scene id="s1" transition="dissolve" exitStart={0.8} />
 
-<Scene key="scene-b" transition={TRANSITION_SEQUENTIAL}>
-  <Camera mode="world" position={[5, 3, 5]} target={[0, 0, 0]} />
-</Scene>`}
+// Crossfade — both scenes visible throughout the transition
+// exitStart is a TypeScript error with crossfade
+<Scene id="s2" transition="crossfade" />`}
       />
 
-      <Callout type="tip">
-        When in doubt, omit the <code>transition</code> prop. The default crossfade split works well
-        for most camera moves and color transitions.
-      </Callout>
-
-      <h2>Entry vs. Exit Windows</h2>
+      <h2>Raw Escape Hatch</h2>
 
       <p>
-        The <code>transition</code> prop is declared on the <strong>incoming scene</strong>. However,
-        the <code>exit</code> field controls the <em>outgoing</em> scene's fade-out timing, while
-        the <code>enter</code> field controls this scene's fade-in timing.
+        Pass a <code>TransitionWindow</code> object directly for custom timing that named transitions
+        cannot express. This is an advanced escape hatch — prefer <code>exitStart</code> for
+        dissolve-through-black variants.
       </p>
 
       <CodeBlock
         language="tsx"
-        code={`<Scene key="scene-a">
-  {/* No transition — starting state */}
-  <Camera mode="world" position={[0, 2, 8]} target={[0, 0, 0]} />
-</Scene>
-
-<Scene key="scene-b" transition={{ exit: [0, 0.4], enter: [0.5, 1] }}>
-  {/*
-    The exit window [0, 0.4] controls how scene-a fades out.
-    The enter window [0.5, 1] controls how scene-b fades in.
-    "transition" is always declared on the destination scene.
-  */}
-  <Camera mode="world" position={[5, 3, 5]} target={[0, 0, 0]} />
-</Scene>
-
-<Scene key="scene-c" transition={{ exit: [0, 0.5], enter: [0.5, 1] }}>
-  {/* Controls the B → C transition */}
-  <Camera mode="world" position={[-3, 4, 6]} target={[0, 0, 0]} />
-</Scene>`}
+        code={`// Custom overlap: both scenes briefly at full opacity (intentional double-exposure)
+<Scene id="chart-b" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.3] }} />`}
       />
 
       <Callout type="note">
-        Changing a scene's <code>transition</code> prop triggers SceneTrack recompilation. In
-        development this happens instantly. In production the track is cached by a hash of the
-        compiled DSL nodes — the cache is invalidated only when scene structure changes.
+        <code>exitStart</code> is a TypeScript error when <code>transition</code> is a raw{' '}
+        <code>TransitionWindow</code> or <code>"crossfade"</code>. The TypeScript discriminated
+        union enforces this at authoring time.
+      </Callout>
+
+      <h2>How the Windows Work</h2>
+
+      <p>
+        Each <code>SceneFrame</code> stores a <code>transitionWindow</code> governing that scene's
+        fade in both directions:
+      </p>
+
+      <ul>
+        <li>
+          <code>exit</code> — controls when <em>this scene</em> fades out (when it is the departing
+          scene in block N→N+1).
+        </li>
+        <li>
+          <code>enter</code> — controls when <em>this scene</em> fades in (when it is the arriving
+          scene in block N-1→N).
+        </li>
+      </ul>
+
+      <p>
+        For <code>"dissolve"</code> with <code>exitStart=0.8</code>: the resolver computes{' '}
+        <code>mid = (0.8 + 1.0) / 2 = 0.9</code> and returns{' '}
+        <code>{'{ exit: [0.8, 0.9], enter: [0.9, 1.0] }'}</code>. Both fields are set symmetrically
+        from a single <code>exitStart</code> value.
+      </p>
+
+      <Callout type="note">
+        <strong>Limitation:</strong> transition windows only affect widgets using{' '}
+        <code>FunctionalTransitionSpec</code>. Widgets using the older{' '}
+        <code>ElementTransitionSpec</code> are pre-baked at compile time with a fixed midpoint and
+        do not read <code>transitionWindow</code>.
       </Callout>
 
       <h2>Custom Transition Specs</h2>
@@ -143,7 +158,8 @@ export default function Transitions(): JSX.Element {
           <strong>FunctionalTransitionSpec</strong> — closure-based model. The compiler calls your
           factory once with endpoint states. It returns a closure accepting a{' '}
           <code>TransitionContext</code> (with <code>ctx.t</code> for the default normalized progress
-          and <code>ctx.channel(name)</code> for per-property control).
+          and <code>ctx.channel(name)</code> for per-property control). Respects{' '}
+          <code>transitionWindow</code> at runtime.
         </li>
       </ul>
 

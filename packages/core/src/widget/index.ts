@@ -4,6 +4,7 @@ export type {
   IRendererLifecycle, IRenderContributor, RenderContribution,
   IContainedRenderable, IAttachmentHost,
   ISceneLifecycle,
+  IInputDefaultProvider,
   CompileExtraContext, WidgetInitContext, WidgetRenderContext, AnimationTickContext,
   VariableStoreReader, AssetManifest,
 } from './types';
@@ -14,6 +15,7 @@ export {
   isRendererLifecycle, isRenderContributor, isContainedRenderable, isAttachmentHost,
   isDslComposite, isAnimationController, isCameraActionTarget, isVariableProvider,
   isSceneLifecycle,
+  isInputDefaultProvider,
 } from './WidgetRegistry';
 export type { IHasCustomDslHandler } from './WidgetRegistry';
 export { VariableStore } from './VariableStore';

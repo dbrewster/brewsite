@@ -9,7 +9,7 @@ import type {
   WidgetInitContext,
   WidgetRenderContext,
 } from '../../widget/types';
-import type { SceneLighting } from './types';
+import type { SceneLighting, SceneLightDirectional } from './types';
 import { DEFAULT_LIGHTING, functionalLightingTransitionSpec } from './compile';
 import {
   Lighting,
@@ -88,7 +88,7 @@ export class LightingWidget
       let spotIndex = 0;
 
       const ambients: SceneLighting['ambient'][] = [];
-      const directionals: SceneLighting['directional'][] = [];
+      const directionals: SceneLightDirectional[] = [];
       const glowPoints: NonNullable<SceneLighting['glowPoint']>[] = [];
       const points: NonNullable<SceneLighting['points']> = [];
       const spots: NonNullable<SceneLighting['spots']> = [];
@@ -112,7 +112,7 @@ export class LightingWidget
           const resolved = helpers.resolveObjectValues(
             childEl.props as DirectionalProps,
             api.context,
-          ) as SceneLighting['directional'];
+          ) as SceneLightDirectional;
           directionals.push({
             ...resolved,
             id: resolved.id ?? `directional-${directionalIndex}`,
@@ -282,7 +282,7 @@ export class LightingWidget
       const compiled: SceneLighting = {
         ...base,
         ambient: ambients[0] ?? base.ambient,
-        directional: directionals[0] ?? base.directional,
+        directionals: directionals.length > 0 ? directionals : base.directionals,
         glowPoint: glowPoints[0] ?? undefined,
         lightStrands: lightStrands.length > 0 ? lightStrands : [],
         points: points.length > 0 ? points : [],

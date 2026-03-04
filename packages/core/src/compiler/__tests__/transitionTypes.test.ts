@@ -13,6 +13,8 @@ import {
   resolveTransitionOpacity,
   resolveEnabledByOpacity,
 } from '../transitions/transitionTypes';
+import { resolveSceneTransition } from '../transitions/transitionPresets';
+import type { TransitionWindow } from '../sceneTrackTypes';
 
 describe('transitionTypes blend helpers', () => {
   it('blendNumber handles undefined inputs and interpolation', () => {
@@ -91,5 +93,105 @@ describe('transitionTypes blend helpers', () => {
     expect(resolveEnabledByOpacity(0)).toBe(false);
     expect(resolveEnabledByOpacity(0.1)).toBe(true);
     expect(resolveEnabledByOpacity(undefined, false)).toBe(false);
+  });
+});
+
+describe('resolveSceneTransition', () => {
+  describe('dissolve (default)', () => {
+    it('undefined prop + undefined exitStart → exit:[0.8,0.9] enter:[0.9,1.0]', () => {
+      const result = resolveSceneTransition(undefined, undefined);
+      expect(result).toEqual({ exit: [0.8, 0.9], enter: [0.9, 1.0] });
+    });
+
+    it("explicit 'dissolve' + no exitStart → same as undefined", () => {
+      expect(resolveSceneTransition('dissolve', undefined)).toEqual({ exit: [0.8, 0.9], enter: [0.9, 1.0] });
+    });
+
+    it('exitStart=0.6 → mid=0.8, exit:[0.6,0.8] enter:[0.8,1.0]', () => {
+      const result = resolveSceneTransition(undefined, 0.6);
+      expect(result.exit?.[0]).toBeCloseTo(0.6);
+      expect(result.exit?.[1]).toBeCloseTo(0.8);
+      expect(result.enter?.[0]).toBeCloseTo(0.8);
+      expect(result.enter?.[1]).toBeCloseTo(1.0);
+    });
+
+    it('exitStart=0.8 (default) → mid=0.9, exit:[0.8,0.9] enter:[0.9,1.0]', () => {
+      const result = resolveSceneTransition(undefined, 0.8);
+      expect(result.exit?.[0]).toBeCloseTo(0.8);
+      expect(result.exit?.[1]).toBeCloseTo(0.9);
+      expect(result.enter?.[0]).toBeCloseTo(0.9);
+      expect(result.enter?.[1]).toBeCloseTo(1.0);
+    });
+
+    it('exitStart=0.9 → mid=0.95, exit:[0.9,0.95] enter:[0.95,1.0] — matches old DISSOLVE_TO_BLACK', () => {
+      const result = resolveSceneTransition('dissolve', 0.9);
+      expect(result.exit?.[0]).toBeCloseTo(0.9);
+      expect(result.exit?.[1]).toBeCloseTo(0.95);
+      expect(result.enter?.[0]).toBeCloseTo(0.95);
+      expect(result.enter?.[1]).toBeCloseTo(1.0);
+    });
+
+    it('exitStart=0 → exit:[0,0.5] enter:[0.5,1.0] — lower bound is 0, not clamped', () => {
+      const result = resolveSceneTransition(undefined, 0);
+      expect(result.exit?.[0]).toBeCloseTo(0);
+      expect(result.exit?.[1]).toBeCloseTo(0.5);
+      expect(result.enter?.[0]).toBeCloseTo(0.5);
+      expect(result.enter?.[1]).toBeCloseTo(1.0);
+    });
+
+    it('exitStart=1.0 → clamped to 0.99, mid=0.995', () => {
+      const result = resolveSceneTransition(undefined, 1.0);
+      expect(result.exit?.[0]).toBeCloseTo(0.99);
+      expect(result.exit?.[1]).toBeCloseTo(0.995);
+      expect(result.enter?.[0]).toBeCloseTo(0.995);
+      expect(result.enter?.[1]).toBeCloseTo(1.0);
+    });
+
+    it('exitStart=-0.1 → clamped to 0', () => {
+      const result = resolveSceneTransition(undefined, -0.1);
+      expect(result.exit?.[0]).toBeCloseTo(0);
+    });
+
+    it('exitStart=1.5 → clamped to 0.99', () => {
+      const result = resolveSceneTransition(undefined, 1.5);
+      expect(result.exit?.[0]).toBeCloseTo(0.99);
+    });
+
+    it('default exitStart=0.8 when not provided', () => {
+      const withDefault = resolveSceneTransition(undefined, undefined);
+      const explicit = resolveSceneTransition(undefined, 0.8);
+      expect(withDefault).toEqual(explicit);
+    });
+  });
+
+  describe('crossfade', () => {
+    it("'crossfade' → exit:[0,1] enter:[0,1]", () => {
+      expect(resolveSceneTransition('crossfade', undefined)).toEqual({ exit: [0, 1], enter: [0, 1] });
+    });
+
+    it('crossfade ignores exitStart — always full-block windows', () => {
+      // exitStart would be a TypeScript error in normal usage; test runtime behavior for safety
+      // @ts-expect-error — testing runtime behavior with invalid prop combination
+      const result = resolveSceneTransition('crossfade', 0.7);
+      expect(result).toEqual({ exit: [0, 1], enter: [0, 1] });
+    });
+  });
+
+  describe('raw TransitionWindow escape hatch', () => {
+    it('raw window passes through by reference', () => {
+      const raw: TransitionWindow = { exit: [0.7, 1.0], enter: [0.0, 0.3] };
+      const result = resolveSceneTransition(raw, undefined);
+      expect(result).toBe(raw); // strict referential identity — no copy
+    });
+
+    it('raw window with only exit defined passes through', () => {
+      const raw: TransitionWindow = { exit: [0.5, 0.8] };
+      expect(resolveSceneTransition(raw, undefined)).toBe(raw);
+    });
+
+    it('raw empty window passes through', () => {
+      const raw: TransitionWindow = {};
+      expect(resolveSceneTransition(raw, undefined)).toBe(raw);
+    });
   });
 });

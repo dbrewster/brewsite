@@ -8,6 +8,66 @@ This release completes the API surface cleanup required before `@brewsite/core` 
 
 ### Breaking Changes
 
+#### 9. Five `TRANSITION_*` constant exports removed; `exitStart` and named transitions added
+
+Five named transition window constants have been removed from `@brewsite/core`. They were unused in the known codebase but are breaking changes by semver definition. The `<Scene>` transition API has been redesigned with a simpler, author-friendly model.
+
+**Removed exports:**
+- `TRANSITION_DEFAULT`
+- `TRANSITION_CROSSFADE`
+- `TRANSITION_SEQUENTIAL`
+- `TRANSITION_EXIT_FIRST`
+- `TRANSITION_CUT`
+
+**Added exports:**
+- `TransitionName` — `'dissolve' | 'crossfade'`
+- `SceneTransitionProp` — `TransitionName | TransitionWindow`
+- `resolveSceneTransition(prop, exitStart?)` — pure resolver function
+
+**`<Scene>` prop changes:**
+
+The `transition` prop now accepts a `TransitionName` string or raw `TransitionWindow`. A new `exitStart` scalar prop controls the through-black timing for dissolve transitions. A TypeScript discriminated union enforces that `exitStart` is only valid with `"dissolve"` (or when `transition` is absent).
+
+```tsx
+// Before — old raw window pattern required internal coordinate knowledge
+const DISSOLVE_TO_BLACK = { exit: [0.9, 0.95] as [number, number], enter: [0.95, 1.0] as [number, number] };
+<Scene id="hero" transition={DISSOLVE_TO_BLACK} />
+
+// After — express the same timing with a single scalar
+<Scene id="hero" exitStart={0.9} />
+
+// Crossfade: both scenes simultaneously visible across the full transition block
+<Scene id="features" transition="crossfade" />
+
+// Raw escape hatch still available for custom overlap behavior
+<Scene id="charts" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.3] }} />
+```
+
+**Default behavior change:** Scenes with no `transition` prop previously used `exit: [0, 0.5] / enter: [0.5, 1.0]` — which fades the outgoing scene from the very first frame. The new default is `"dissolve"` with `exitStart=0.8`, producing `exit: [0.8, 0.9] / enter: [0.9, 1.0]`. Scene content is now visible for 80% of the transition block before fading. This is a visual improvement but is an observable breaking change.
+
+**Migration guide:**
+
+| Old pattern | New pattern |
+|---|---|
+| `transition={TRANSITION_DEFAULT}` or no `transition` | Remove the prop (new default is visually improved dissolve) |
+| `transition={TRANSITION_CROSSFADE}` | `transition="crossfade"` |
+| `transition={TRANSITION_SEQUENTIAL}` | `transition={{ exit: [0, 0.4], enter: [0.6, 1] }}` (raw window) |
+| `transition={TRANSITION_EXIT_FIRST}` | `transition={{ exit: [0, 0.6], enter: [0.4, 1] }}` (raw window) |
+| `transition={TRANSITION_CUT}` | `<ProgressManager scrollUnits={50} />` for near-instant transitions |
+| Local `DISSOLVE_TO_BLACK = { exit: [0.9, 0.95], enter: [0.95, 1.0] }` | `exitStart={0.9}` |
+
+**`resolveSceneTransition` math reference:**
+```typescript
+// 'dissolve' with exitStart=0.9:
+// eos=0.9, mid=(0.9+1.0)/2=0.95
+// → { exit: [0.9, 0.95], enter: [0.95, 1.0] }
+
+// 'crossfade' (equal-blend, opacity sums to 1 at every frame):
+// → { exit: [0, 1], enter: [0, 1] }
+```
+
+---
+
 #### 1. `ScenePlayer` removed
 
 `ScenePlayer` and `ScenePlayerProps` have been deleted. The component conflated engine configuration, page layout decisions, and dev tooling into a single prop surface, making it impossible to support non-trivial layouts without forking or re-implementing.

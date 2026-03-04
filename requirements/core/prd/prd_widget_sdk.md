@@ -20,6 +20,9 @@ change_history:
   - date: 2026-03-03
     author: "Toolkit Product"
     summary: "API hardening update: replaced createDefaultWidgetRegistry() with the composable plugin model. Requirement #14 updated to document corePlugin() and modelPlugin(). Section 11 rewritten from createDefaultWidgetRegistry to document corePlugin() (from @brewsite/core) and modelPlugin() (from @brewsite/model) as the standard registration entry points. WidgetRegistry scope description updated from ScenePlayer to EngineProvider. useVariable context reference updated from ScenePlayer to EngineProvider. ScenePlayer.widgetSetup integration pattern references removed."
+  - date: 2026-03-03
+    author: "Toolkit Product"
+    summary: "Added IInputDefaultProvider interface (widget/types.ts), isInputDefaultProvider type guard, and WidgetRegistry.getInputDefaultProviders() method. The player layer uses these to supply default input actions from DiagramCanvasWidget when no explicit <InputController> is authored for the current scene."
 ---
 
 # BrewSite Core — Widget SDK
@@ -94,6 +97,7 @@ The Widget SDK solves this by defining a stable, versioned interface set that wi
 6. `IContainedModel<TState>` shall extend `IRenderable<TState>` and add `readonly anchorModelId: string` and `readonly anchorKey: string`. The runtime shall attach the contained model to the anchor bone after initial loading completes. (model-specific; see @brewsite/model)
 7. `IDslComposite` shall declare `readonly childDslComponents` as an array of component descriptors. The `WidgetRegistry` shall install protective top-level node handlers for each child component to produce meaningful error messages when they appear outside their parent.
 8. `IVariableProvider` shall declare `readonly variableNamespace: string` and `readonly variableKeys: readonly string[]`. The runtime uses this for introspection; actual variable publishing is done inside `onTick` via `AnimationTickContext.variables`.
+8a. `IInputDefaultProvider` shall declare `getDefaultInputActions(): InputActionSpec[]`. Widgets that carry per-canvas default input actions in their compiled state implement this interface. The player layer calls `WidgetRegistry.getInputDefaultProviders()` each frame to aggregate default actions for the current scene when no explicit `<InputController>` is authored.
 9. `WidgetRegistry.register(widget)` shall install a DSL node routing handler for the widget's `DslComponent` if one has not already been installed.
 10. `WidgetRegistry.registerTypeFactory(component, factory)` shall install a type-routed handler that calls `factory(props)` on first encounter of a given `type` prop value, then registers and dispatches to the produced widget.
 11. `CUSTOM_NODE_HANDLER` shall be a `Symbol` that widgets set on themselves to provide their own DSL node compilation logic. When present, the routing handler installed by `WidgetRegistry` shall delegate to it instead of the default state-merge path.
@@ -274,6 +278,33 @@ Widgets that publish state to `VariableStore` declare themselves via `IVariableP
 
 ---
 
+### 7.9 IInputDefaultProvider
+
+```typescript
+/**
+ * Widget that exposes default input actions to the player layer.
+ *
+ * Implemented by widgets (e.g. DiagramCanvasWidget) that carry input configuration
+ * in their compiled state. The player calls getDefaultInputActions() each frame
+ * after widget.apply() has been called to read the current scene's actions.
+ *
+ * CRITICAL: getDefaultInputActions() MUST return this.currentInputActions (a field
+ * updated inside apply()), NOT a value derived from defaultState. defaultState is
+ * constant after construction; currentInputActions reflects the live compiled state.
+ */
+interface IInputDefaultProvider extends IWidget {
+  getDefaultInputActions(): InputActionSpec[];
+}
+```
+
+Widgets that carry input action configuration in their compiled state implement `IInputDefaultProvider`. The player layer calls `WidgetRegistry.getInputDefaultProviders()` each frame. If no explicit `<InputController>` spec is present in the current tick, the player calls `buildEffectiveInputSpec(null, providers)` to assemble a `SceneInputControllerSpec` from the aggregated default actions.
+
+`getDefaultInputActions()` must return the widget's live current actions — the value updated each frame by `apply()` — never a fixed value from `defaultState`. This distinction is critical: `defaultState` is constant after construction, while the actual input actions vary per scene in the compiled `SceneTrack`.
+
+`IInputDefaultProvider` is defined in `@brewsite/core/widget/types.ts` so that the core player layer can call `getInputDefaultProviders()` without any `@brewsite/diagram` dependency. `DiagramCanvasWidget` in `@brewsite/diagram` implements the interface through the correct package dependency direction.
+
+---
+
 ## 8. WidgetRegistry
 
 ```typescript
@@ -302,6 +333,8 @@ class WidgetRegistry {
   getLoadables(): ILoadable[];
   getContainedModels(): Array<IContainedModel<unknown>>;
   getDslComposites(): IDslComposite[];
+  /** Returns all widgets that implement IInputDefaultProvider, in registration order. */
+  getInputDefaultProviders(): IInputDefaultProvider[];
   buildCacheKey(): string;
 }
 ```
@@ -338,6 +371,7 @@ const isAnimationController = (w: IWidget): w is IAnimationController
 const isVariableProvider = (w: IWidget): w is IVariableProvider
 const isContainedModel = (w: IWidget): w is IContainedModel<unknown>
 const isDslComposite = (w: IWidget): w is IDslComposite
+const isInputDefaultProvider = (w: IWidget): w is IInputDefaultProvider
 ```
 
 These are structural type guards (duck-typed on the expected property names) rather than `instanceof` checks. This allows widgets to pass interface compliance without extending a base class.

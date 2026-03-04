@@ -6,9 +6,6 @@ import {
   Ambient,
   Floor,
   FloorPhysical,
-  TRANSITION_CROSSFADE,
-  TRANSITION_SEQUENTIAL,
-  TRANSITION_EXIT_FIRST,
   type TransitionWindow,
 } from '@brewsite/core';
 import { DemoScene } from '../shared/DemoScene';
@@ -36,9 +33,9 @@ export const CODE = `
 type WindowOption = { label: string; value: TransitionWindow };
 
 const WINDOW_OPTIONS: WindowOption[] = [
-  { label: 'crossfade',    value: TRANSITION_CROSSFADE },
-  { label: 'sequential',   value: TRANSITION_SEQUENTIAL },
-  { label: 'exit-first',   value: TRANSITION_EXIT_FIRST },
+  { label: 'crossfade',    value: { exit: [0, 0.5], enter: [0.5, 1] } },
+  { label: 'sequential',   value: { exit: [0, 0.4], enter: [0.6, 1] } },
+  { label: 'exit-first',   value: { exit: [0, 0.6], enter: [0.4, 1] } },
   { label: 'custom fast enter', value: { exit: [0, 0.4], enter: [0.3, 0.8] } },
 ];
 
