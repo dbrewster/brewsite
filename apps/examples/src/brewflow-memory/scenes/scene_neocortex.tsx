@@ -49,7 +49,7 @@ export const sceneNeocortex: JSX.Element = (
 
             {/* Left tree: Card Types — what kinds of knowledge Neocortex stores */}
             <Diagram id="neo-types" pivot="center" position={[-10, 0, 0]}>
-                <HierarchicalLayout direction="left-right" spacing={[3, 2]}/>
+                <HierarchicalLayout direction="top-down" spacing={[3, 2]}/>
 
                 <DiagramNode id="neo-core" label="Neocortex" sublabel="typed · versioned · provenance-backed"
                              size={[6, 2.8]} color="#141830" glow={{intensity: 0.15}}/>
@@ -76,7 +76,7 @@ export const sceneNeocortex: JSX.Element = (
 
             {/* Right tree: Lifecycle — how a memory card moves from proposal to terminal state */}
             <Diagram id="neo-lifecycle" pivot="center" position={[10, 0, 0]}>
-                <HierarchicalLayout direction="left-right" spacing={[3, 2]}/>
+                <HierarchicalLayout direction="top-down" spacing={[3, 2]}/>
 
                 <DiagramNode id="lc-candidate" label="candidate" sublabel="LLM proposed · unvalidated"
                              size={[4.5, 2.4]} color="#1a1020"/>
