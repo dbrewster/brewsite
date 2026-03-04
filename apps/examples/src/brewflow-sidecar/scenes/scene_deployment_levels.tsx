@@ -10,7 +10,7 @@ import {
   Scene,
   WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, FlowLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
 
@@ -36,14 +36,13 @@ export const sceneDeploymentLevels: JSX.Element = (
 
     <DiagramCanvas id="bf-levels" position={[0, 2, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={.7} theme={brewflowTheme}>
       <Diagram id="levels-diagram" pivot="center">
-        <ManualLayout />
+        <FlowLayout direction="top-down" gap={2} />
 
         <DiagramNode
           id="lvl-0"
           label="Level 0 — Passive"
           sublabel="Run brewflow-bridge · full episodic audit trail · zero agent behavior change"
           size={[14, 2.8]}
-          position={[0, 12.5, 0]}
           color="#0f1820"
         />
         <DiagramNode
@@ -51,7 +50,6 @@ export const sceneDeploymentLevels: JSX.Element = (
           label="Level 1 — Learning"
           sublabel="+ Run brewflow-dreamer · Neocortex accumulates silently · still no agent behavior change"
           size={[14, 2.8]}
-          position={[0, 8.5, 0]}
           color="#101a25"
         />
         <DiagramNode
@@ -59,7 +57,6 @@ export const sceneDeploymentLevels: JSX.Element = (
           label="Level 2 — Injection"
           sublabel="+ pre-task hook · agents start with constraints, procedures, pitfalls · first behavior change"
           size={[14, 2.8]}
-          position={[0, 4.5, 0]}
           color="#111d2a"
           glow={{ intensity: 0.08 }}
         />
@@ -68,7 +65,6 @@ export const sceneDeploymentLevels: JSX.Element = (
           label="Level 3 — Recording"
           sublabel="+ post-task + session-end hooks · evidence accumulates · Neocortex improves continuously"
           size={[14, 2.8]}
-          position={[0, 0.5, 0]}
           color="#121f2e"
         />
         <DiagramNode
@@ -76,7 +72,6 @@ export const sceneDeploymentLevels: JSX.Element = (
           label="Level 4 — Recall"
           sublabel="+ MCP server + queen recall() · queen passes Neocortex context to workers in task instructions"
           size={[14, 2.8]}
-          position={[0, -3.5, 0]}
           color="#132232"
           glow={{ intensity: 0.1 }}
         />
@@ -85,7 +80,6 @@ export const sceneDeploymentLevels: JSX.Element = (
           label="Level 5 — Full Loop"
           sublabel="+ agents use store/log_outcome/checkpoint · agents explicitly contribute to and consume memory"
           size={[14, 2.8]}
-          position={[0, -7.5, 0]}
           color="#14253a"
           glow={{ intensity: 0.14 }}
         />

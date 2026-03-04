@@ -10,7 +10,7 @@ import {
   Scene,
   WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
 
@@ -36,7 +36,7 @@ export const sceneMcp: JSX.Element = (
 
     <DiagramCanvas id="bf-mcp-tools" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="mcp-tools" pivot="center">
-        <ManualLayout />
+        <HierarchicalLayout direction="left-right" spacing={[3, 2]} />
 
         <DiagramNode
           id="mcp-server"
@@ -44,7 +44,6 @@ export const sceneMcp: JSX.Element = (
           sublabel="Node.js · MCP SDK · async queue"
           shape="rectangle"
           size={[8, 2.8]}
-          position={[0, 5, 0]}
           color="#162050"
           glow={{ intensity: 0.15 }}
         />
@@ -53,7 +52,6 @@ export const sceneMcp: JSX.Element = (
           label="recall()"
           sublabel="Neocortex context pack · constraints · procedures · pitfalls"
           size={[6.5, 2.4]}
-          position={[-13, 0, 0]}
           color="#1a2545"
         />
         <DiagramNode
@@ -61,7 +59,6 @@ export const sceneMcp: JSX.Element = (
           label="store()"
           sublabel="Persist fact/rule → EpisodicStore candidate"
           size={[6.5, 2.4]}
-          position={[-6.5, 0, 0]}
           color="#1a2545"
         />
         <DiagramNode
@@ -69,7 +66,6 @@ export const sceneMcp: JSX.Element = (
           label="get_procedures()"
           sublabel="Focused procedure retrieval by intent"
           size={[6.5, 2.4]}
-          position={[0, 0, 0]}
           color="#1a2545"
         />
         <DiagramNode
@@ -77,7 +73,6 @@ export const sceneMcp: JSX.Element = (
           label="checkpoint()"
           sublabel="Memory schematic · restart packet · failure context"
           size={[6.5, 2.4]}
-          position={[6.5, 0, 0]}
           color="#1a2545"
         />
         <DiagramNode
@@ -85,7 +80,6 @@ export const sceneMcp: JSX.Element = (
           label="log_outcome()"
           sublabel="Verified outcome signal → dreamer evidence scoring"
           size={[6.5, 2.4]}
-          position={[13, 0, 0]}
           color="#1a2545"
         />
         <DiagramNode
@@ -93,7 +87,6 @@ export const sceneMcp: JSX.Element = (
           label="trigger_dream()"
           sublabel="Kick off consolidation pipeline · background process"
           size={[6.5, 2.4]}
-          position={[0, -5, 0]}
           color="#1a2545"
         />
 

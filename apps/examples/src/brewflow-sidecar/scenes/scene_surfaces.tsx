@@ -10,7 +10,7 @@ import {
   Scene,
   WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
 
@@ -36,7 +36,7 @@ export const sceneSurfaces: JSX.Element = (
 
     <DiagramCanvas id="bf-surfaces" position={[0, 2, 0]} rotation={[-0.15, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="surfaces-diagram" pivot="center">
-        <ManualLayout />
+        <HierarchicalLayout direction="top-down" spacing={[2, 2]} />
         <DiagramEnter fade scaleFrom={0.85} />
 
         <DiagramNode
@@ -45,7 +45,6 @@ export const sceneSurfaces: JSX.Element = (
           sublabel=".swarm/memory.db · agent YAML · .mcp.json"
           shape="rectangle"
           size={[8, 3]}
-          position={[0, 6, 0]}
           color="#1a2540"
         />
         <DiagramNode
@@ -54,7 +53,6 @@ export const sceneSurfaces: JSX.Element = (
           sublabel="Bridge · MCP Server · Dreamer"
           shape="rectangle"
           size={[8, 3]}
-          position={[0, -4, 0]}
           color="#1a1d35"
           glow={{ intensity: 0.15 }}
         />
@@ -64,7 +62,6 @@ export const sceneSurfaces: JSX.Element = (
           sublabel="pre-task · post-task · session-end · CLI commands"
           shape="rectangle"
           size={[6, 2.4]}
-          position={[-8, 1, 0]}
           color="#162050"
         />
         <DiagramNode
@@ -73,7 +70,6 @@ export const sceneSurfaces: JSX.Element = (
           sublabel="mcp__brewflow__* tools · .mcp.json registration"
           shape="rectangle"
           size={[6, 2.4]}
-          position={[0, 1, 0]}
           color="#162050"
         />
         <DiagramNode
@@ -82,7 +78,6 @@ export const sceneSurfaces: JSX.Element = (
           sublabel=".swarm/memory.db · read-only polling · 500ms"
           shape="rectangle"
           size={[6, 2.4]}
-          position={[8, 1, 0]}
           color="#162050"
         />
 
