@@ -22,6 +22,7 @@ import {
   GridLayout,
   HierarchicalLayout,
   ManualLayout,
+  FlowLayout,
 } from './dsl';
 import { functionalDiagramTransitionSpec } from './compile';
 import { DiagramRenderer } from './render';
@@ -59,6 +60,7 @@ export class DiagramWidget
     { component: GridLayout as React.ComponentType<unknown>, displayName: 'GridLayout', topLevelError: true },
     { component: HierarchicalLayout as React.ComponentType<unknown>, displayName: 'HierarchicalLayout', topLevelError: true },
     { component: ManualLayout as React.ComponentType<unknown>, displayName: 'ManualLayout', topLevelError: true },
+    { component: FlowLayout as React.ComponentType<unknown>, displayName: 'FlowLayout', topLevelError: true },
   ];
 
   /**
