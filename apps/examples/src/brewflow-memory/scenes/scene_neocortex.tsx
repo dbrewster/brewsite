@@ -10,7 +10,7 @@ import {
   Scene,
   WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, FlowLayout, HierarchicalLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -41,15 +41,15 @@ export const sceneNeocortex: JSX.Element = (
     <DiagramCanvas id="bfm-neo-canvas" position={[0, config.diagramTop+2, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       {/* Diagram 1: 6 card types around a center node */}
       <Diagram id="neo-types" pivot="center" position={[0, -5, 0]}>
-        <ManualLayout />
+        <HierarchicalLayout direction="left-right" spacing={[2, 2]} />
 
-        <DiagramNode id="neo-core" label="Neocortex" sublabel="typed · versioned · provenance-backed" size={[6, 2.8]} position={[0, 0, 0]} color="#141830" glow={{ intensity: 0.15 }} />
-        <DiagramNode id="card-procedure" label="procedure" sublabel="executable multi-step plans" size={[5.5, 2.4]} position={[-9, 5, 0]} color="#101828" />
-        <DiagramNode id="card-constraint" label="constraint" sublabel="hard rules · invariants" size={[5.5, 2.4]} position={[9, 5, 0]} color="#101828" />
-        <DiagramNode id="card-disambiguation" label="disambiguation" sublabel="ambiguous terms · decision rules" size={[5.5, 2.4]} position={[-9, 0, 0]} color="#101828" />
-        <DiagramNode id="card-checklist" label="checklist" sublabel="validation before ship" size={[5.5, 2.4]} position={[9, 0, 0]} color="#101828" />
-        <DiagramNode id="card-pitfall" label="pitfall" sublabel="documented failure modes · corrections" size={[5.5, 2.4]} position={[-9, -5, 0]} color="#101828" />
-        <DiagramNode id="card-concept" label="concept" sublabel="canonical domain definitions" size={[5.5, 2.4]} position={[9, -5, 0]} color="#101828" />
+        <DiagramNode id="neo-core" label="Neocortex" sublabel="typed · versioned · provenance-backed" size={[6, 2.8]} color="#141830" glow={{ intensity: 0.15 }} />
+        <DiagramNode id="card-procedure" label="procedure" sublabel="executable multi-step plans" size={[5.5, 2.4]} color="#101828" />
+        <DiagramNode id="card-constraint" label="constraint" sublabel="hard rules · invariants" size={[5.5, 2.4]} color="#101828" />
+        <DiagramNode id="card-disambiguation" label="disambiguation" sublabel="ambiguous terms · decision rules" size={[5.5, 2.4]} color="#101828" />
+        <DiagramNode id="card-checklist" label="checklist" sublabel="validation before ship" size={[5.5, 2.4]} color="#101828" />
+        <DiagramNode id="card-pitfall" label="pitfall" sublabel="documented failure modes · corrections" size={[5.5, 2.4]} color="#101828" />
+        <DiagramNode id="card-concept" label="concept" sublabel="canonical domain definitions" size={[5.5, 2.4]} color="#101828" />
 
         <DiagramEdge from="neo-core" to="card-procedure" color="#4060a0" />
         <DiagramEdge from="neo-core" to="card-constraint" color="#4060a0" />
@@ -61,13 +61,13 @@ export const sceneNeocortex: JSX.Element = (
 
       {/* Diagram 2: Horizontal lifecycle chain, positioned below types diagram */}
       <Diagram id="neo-lifecycle" pivot="center" position={[0, 5, 0]}>
-        <ManualLayout />
+        <FlowLayout direction="left-right" gap={2} />
 
-        <DiagramNode id="lc-candidate" label="candidate" sublabel="LLM proposed · unvalidated" size={[4.5, 2.4]} position={[-12, -11, 0]} color="#1a1020" />
-        <DiagramNode id="lc-reviewed" label="reviewed" sublabel="passed deterministic validators" size={[4.5, 2.4]} position={[-6, -11, 0]} color="#141828" />
-        <DiagramNode id="lc-verified" label="verified" sublabel="execution-validated · human approved (high-risk)" size={[4.5, 2.4]} position={[0, -11, 0]} color="#141e30" glow={{ intensity: 0.12 }} />
-        <DiagramNode id="lc-deprecated" label="deprecated" sublabel="queryable for backtrace · not injected" size={[4.5, 2.4]} position={[7, -11, 0]} color="#1a1010" />
-        <DiagramNode id="lc-disputed" label="disputed" sublabel="contradicting evidence · needs human resolution" size={[4.5, 2.4]} position={[7, -14, 0]} color="#1a1215" />
+        <DiagramNode id="lc-candidate" label="candidate" sublabel="LLM proposed · unvalidated" size={[4.5, 2.4]} color="#1a1020" />
+        <DiagramNode id="lc-reviewed" label="reviewed" sublabel="passed deterministic validators" size={[4.5, 2.4]} color="#141828" />
+        <DiagramNode id="lc-verified" label="verified" sublabel="execution-validated · human approved (high-risk)" size={[4.5, 2.4]} color="#141e30" glow={{ intensity: 0.12 }} />
+        <DiagramNode id="lc-deprecated" label="deprecated" sublabel="queryable for backtrace · not injected" size={[4.5, 2.4]} color="#1a1010" />
+        <DiagramNode id="lc-disputed" label="disputed" sublabel="contradicting evidence · needs human resolution" size={[4.5, 2.4]} color="#1a1215" />
 
         <DiagramEdge from="lc-candidate" to="lc-reviewed" style="solid" flow="forward" color="#5070b0" />
         <DiagramEdge from="lc-reviewed" to="lc-verified" style="solid" flow="forward" color="#5070b0" />

@@ -10,7 +10,7 @@ import {
   Scene,
   WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -37,17 +37,17 @@ export const sceneEpisodicStore: JSX.Element = (
 
     <DiagramCanvas id="bfm-episodic-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="episodic-diagram" pivot="center">
-        <ManualLayout />
+        <HierarchicalLayout direction="left-right" spacing={[2, 2]} />
 
         {/* Hub */}
-        <DiagramNode id="es-core" label="EpisodicStore" sublabel=".brewflow/episodic/ · JSONL · globalEventSeq" size={[7, 2.8]} position={[0, 0, 0]} color="#141830" glow={{ intensity: 0.18 }} />
+        <DiagramNode id="es-core" label="EpisodicStore" sublabel=".brewflow/episodic/ · JSONL · globalEventSeq" size={[7, 2.8]} color="#141830" glow={{ intensity: 0.18 }} />
 
         {/* 5 record kinds */}
-        <DiagramNode id="es-runtime" label="runtime_event" sublabel="tool calls · results · agent output · token usage" size={[6.5, 2.4]} position={[-10, 6, 0]} color="#101828" />
-        <DiagramNode id="es-turns" label="turns_status" sublabel="turn lifecycle · started · completed · failed · interrupted" size={[6.5, 2.4]} position={[10, 6, 0]} color="#101828" />
-        <DiagramNode id="es-summary" label="thread_summary" sublabel="compact end-of-thread summaries · consolidation input" size={[6.5, 2.4]} position={[-10, -6, 0]} color="#101828" />
-        <DiagramNode id="es-synaptic" label="synaptic_event" sublabel="cross-agent signals · specialist coordination" size={[6.5, 2.4]} position={[10, -6, 0]} color="#101828" />
-        <DiagramNode id="es-lineage" label="lineage_update" sublabel="session → plan → thread → turn trace mappings" size={[6.5, 2.4]} position={[0, -9, 0]} color="#101828" />
+        <DiagramNode id="es-runtime" label="runtime_event" sublabel="tool calls · results · agent output · token usage" size={[6.5, 2.4]} color="#101828" />
+        <DiagramNode id="es-turns" label="turns_status" sublabel="turn lifecycle · started · completed · failed · interrupted" size={[6.5, 2.4]} color="#101828" />
+        <DiagramNode id="es-summary" label="thread_summary" sublabel="compact end-of-thread summaries · consolidation input" size={[6.5, 2.4]} color="#101828" />
+        <DiagramNode id="es-synaptic" label="synaptic_event" sublabel="cross-agent signals · specialist coordination" size={[6.5, 2.4]} color="#101828" />
+        <DiagramNode id="es-lineage" label="lineage_update" sublabel="session → plan → thread → turn trace mappings" size={[6.5, 2.4]} color="#101828" />
 
         {/* Spoke edges */}
         <DiagramEdge from="es-core" to="es-runtime" color="#4060a0" />

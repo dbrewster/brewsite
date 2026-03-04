@@ -10,7 +10,7 @@ import {
   Scene,
   WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -37,14 +37,14 @@ export const sceneSensitiveDataGuard: JSX.Element = (
 
     <DiagramCanvas id="bfm-guard-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="guard-diagram" pivot="center">
-        <ManualLayout />
+        <HierarchicalLayout direction="left-right" spacing={[3, 2]} />
 
         {/* Guard hub + 4 directives */}
-        <DiagramNode id="guard-core" label="Sensitive Data Guard" sublabel="every write boundary · ingestion · consolidation · promotion" size={[8, 2.8]} position={[0, 4, 0]} color="#1a1020" glow={{ intensity: 0.12 }} />
-        <DiagramNode id="dir-allow" label="allow_store" sublabel="safe to store as-is" size={[6, 2.4]} position={[-9, 0, 0]} color="#102018" />
-        <DiagramNode id="dir-redact" label="store_redacted" sublabel="sanitized version · placeholders replace content" size={[6, 2.4]} position={[-3, 0, 0]} color="#1a1810" />
-        <DiagramNode id="dir-sealed" label="store_sealed" sublabel="sealed vault · audited access · PHI/HIPAA default" size={[6, 2.4]} position={[3, 0, 0]} color="#1a1015" />
-        <DiagramNode id="dir-no" label="no_store" sublabel="do not store · event logged as 'content withheld'" size={[6, 2.4]} position={[9, 0, 0]} color="#1a0f0f" />
+        <DiagramNode id="guard-core" label="Sensitive Data Guard" sublabel="every write boundary · ingestion · consolidation · promotion" size={[8, 2.8]} color="#1a1020" glow={{ intensity: 0.12 }} />
+        <DiagramNode id="dir-allow" label="allow_store" sublabel="safe to store as-is" size={[6, 2.4]} color="#102018" />
+        <DiagramNode id="dir-redact" label="store_redacted" sublabel="sanitized version · placeholders replace content" size={[6, 2.4]} color="#1a1810" />
+        <DiagramNode id="dir-sealed" label="store_sealed" sublabel="sealed vault · audited access · PHI/HIPAA default" size={[6, 2.4]} color="#1a1015" />
+        <DiagramNode id="dir-no" label="no_store" sublabel="do not store · event logged as 'content withheld'" size={[6, 2.4]} color="#1a0f0f" />
 
         <DiagramEdge from="guard-core" to="dir-allow" arrowEnd="open" color="#6050a0" />
         <DiagramEdge from="guard-core" to="dir-redact" arrowEnd="open" color="#6050a0" />

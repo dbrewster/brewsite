@@ -10,7 +10,7 @@ import {
   Scene,
   WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, FlowLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -37,25 +37,25 @@ export const sceneInjector: JSX.Element = (
 
     <DiagramCanvas id="bfm-inject-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="inject-diagram" pivot="center">
-        <ManualLayout />
+        <FlowLayout direction="top-down" gap={2} />
 
         {/* Core + serving modes */}
-        <DiagramNode id="inj-core" label="InjectorCortex" sublabel="bounded · ordered · reproducible" size={[7, 2.8]} position={[0, 4, 0]} color="#141830" glow={{ intensity: 0.15 }} />
-        <DiagramNode id="mode-initial" label="Mode 1: Initial Pack" sublabel="agent spawn · pre-task hook · scope + intent + budget" size={[7, 2.4]} position={[-8, 0, 0]} color="#101828" />
-        <DiagramNode id="mode-midsession" label="Mode 2: Mid-Session" sublabel="mcp__brewflow__recall · fresh bounded packet" size={[7, 2.4]} position={[8, 0, 0]} color="#101828" />
-        <DiagramNode id="mode-schematic" label="Memory Schematic" sublabel="workstream restart packet · proven state + constraints + next steps" size={[7, 2.4]} position={[0, -4, 0]} color="#141830" glow={{ intensity: 0.1 }} />
+        <DiagramNode id="inj-core" label="InjectorCortex" sublabel="bounded · ordered · reproducible" size={[7, 2.8]} color="#141830" glow={{ intensity: 0.15 }} />
+        <DiagramNode id="mode-initial" label="Mode 1: Initial Pack" sublabel="agent spawn · pre-task hook · scope + intent + budget" size={[7, 2.4]} color="#101828" />
+        <DiagramNode id="mode-midsession" label="Mode 2: Mid-Session" sublabel="mcp__brewflow__recall · fresh bounded packet" size={[7, 2.4]} color="#101828" />
+        <DiagramNode id="mode-schematic" label="Memory Schematic" sublabel="workstream restart packet · proven state + constraints + next steps" size={[7, 2.4]} color="#141830" glow={{ intensity: 0.1 }} />
 
         <DiagramEdge from="inj-core" to="mode-initial" arrowEnd="open" color="#5070b0" />
         <DiagramEdge from="inj-core" to="mode-midsession" arrowEnd="open" color="#5070b0" />
         <DiagramEdge from="inj-core" to="mode-schematic" arrowEnd="open" color="#6080c0" />
 
         {/* Injection order column (right side) */}
-        <DiagramNode id="ord-1" label="1. Constraints" sublabel="must not do" size={[5.5, 2.0]} position={[16, 6, 0]} color="#1a1020" />
-        <DiagramNode id="ord-2" label="2. Disambiguation" sublabel="interpret ambiguity" size={[5.5, 2.0]} position={[16, 3.5, 0]} color="#101828" />
-        <DiagramNode id="ord-3" label="3. Procedures" sublabel="how to do it" size={[5.5, 2.0]} position={[16, 1, 0]} color="#101828" />
-        <DiagramNode id="ord-4" label="4. Checklists" sublabel="verify before ship" size={[5.5, 2.0]} position={[16, -1.5, 0]} color="#101828" />
-        <DiagramNode id="ord-5" label="5. Pitfalls" sublabel="known failures" size={[5.5, 2.0]} position={[16, -4, 0]} color="#101828" />
-        <DiagramNode id="ord-6" label="6. Concepts" sublabel="vocabulary" size={[5.5, 2.0]} position={[16, -6.5, 0]} color="#101828" />
+        <DiagramNode id="ord-1" label="1. Constraints" sublabel="must not do" size={[5.5, 2.0]} color="#1a1020" />
+        <DiagramNode id="ord-2" label="2. Disambiguation" sublabel="interpret ambiguity" size={[5.5, 2.0]} color="#101828" />
+        <DiagramNode id="ord-3" label="3. Procedures" sublabel="how to do it" size={[5.5, 2.0]} color="#101828" />
+        <DiagramNode id="ord-4" label="4. Checklists" sublabel="verify before ship" size={[5.5, 2.0]} color="#101828" />
+        <DiagramNode id="ord-5" label="5. Pitfalls" sublabel="known failures" size={[5.5, 2.0]} color="#101828" />
+        <DiagramNode id="ord-6" label="6. Concepts" sublabel="vocabulary" size={[5.5, 2.0]} color="#101828" />
 
         <DiagramEdge from="ord-1" to="ord-2" flow="forward" color="#4060a0" />
         <DiagramEdge from="ord-2" to="ord-3" flow="forward" color="#4060a0" />
