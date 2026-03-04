@@ -260,6 +260,10 @@ export const registerDiagramHandlers = (): void => {
   registerNode(DiagramExit, () => {});
   registerNode(DiagramEnter, () => {});
   registerNode(DiagramPipe, () => {});
+  registerNode(GridLayout, () => {});
+  registerNode(HierarchicalLayout, () => {});
+  registerNode(ManualLayout, () => {});
+  registerNode(FlowLayout, () => {});
 
   registerNode(Diagram, (node: ReactElement, api: CompileApi, helpers: CompileHelpers) => {
     const onWarn = makeWarnFn(api);
