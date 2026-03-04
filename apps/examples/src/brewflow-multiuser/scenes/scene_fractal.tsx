@@ -10,7 +10,7 @@ import {
   Scene,
   WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, FlowLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -36,7 +36,7 @@ export const sceneFractal: JSX.Element = (
 
     <DiagramCanvas id="bfmu-frac-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="frac-diagram" pivot="center">
-        <ManualLayout />
+        <FlowLayout direction="top-down" gap={2} />
         <DiagramEnter fade scaleFrom={0.85} />
 
         <DiagramNode
@@ -45,7 +45,6 @@ export const sceneFractal: JSX.Element = (
           sublabel="expert argues with themselves · Step 4 (CHALLENGE) = internal adversarial pressure"
           shape="rectangle"
           size={[12, 2.4]}
-          position={[0, 8, 0]}
           color="#141828"
         />
         <DiagramNode
@@ -54,7 +53,6 @@ export const sceneFractal: JSX.Element = (
           sublabel="5 specialists argue across rounds · tested pressured agreement · not counting"
           shape="rectangle"
           size={[12, 2.4]}
-          position={[0, 4.5, 0]}
           color="#141830"
           glow={{ intensity: 0.1 }}
         />
@@ -64,7 +62,6 @@ export const sceneFractal: JSX.Element = (
           sublabel="multiple sessions cluster into stronger proposals · seen once = hypothesis · seen 5× = candidate"
           shape="rectangle"
           size={[12, 2.4]}
-          position={[0, 1, 0]}
           color="#141830"
           glow={{ intensity: 0.12 }}
         />
@@ -74,7 +71,6 @@ export const sceneFractal: JSX.Element = (
           sublabel="multiple independent users converge · cross-user corroboration → project-Neocortex"
           shape="rectangle"
           size={[12, 2.4]}
-          position={[0, -2.5, 0]}
           color="#141e35"
           glow={{ intensity: 0.14 }}
         />
@@ -84,7 +80,6 @@ export const sceneFractal: JSX.Element = (
           sublabel="Neocortex items accumulate confirmations or contradictions · repeated use strengthens · failures demote"
           shape="rectangle"
           size={[12, 2.4]}
-          position={[0, -6, 0]}
           color="#151e38"
           glow={{ intensity: 0.16 }}
         />

@@ -10,7 +10,7 @@ import {
     Scene,
     WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -36,7 +36,7 @@ export const sceneSessionHierarchy: JSX.Element = (
 
     <DiagramCanvas id="bfmu-sess-canvas" position={[0, 2, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="sess-diagram" pivot="center">
-        <ManualLayout />
+        <HierarchicalLayout direction="top-down" spacing={[2, 2]} />
         <DiagramEnter fade scaleFrom={0.85} />
 
         <DiagramNode
@@ -45,7 +45,6 @@ export const sceneSessionHierarchy: JSX.Element = (
           sublabel="hard isolation boundary · org/team"
           shape="rectangle"
           size={[14, 2.4]}
-          position={[0, 8, 0]}
           color="#141830"
         />
         <DiagramNode
@@ -54,7 +53,6 @@ export const sceneSessionHierarchy: JSX.Element = (
           sublabel="repository / product area · default Neocortex scope"
           shape="rectangle"
           size={[12, 2.4]}
-          position={[0, 4.5, 0]}
           color="#141830"
           glow={{ intensity: 0.1 }}
         />
@@ -64,7 +62,6 @@ export const sceneSessionHierarchy: JSX.Element = (
           sublabel="one claude-flow queen invocation · bounded start/end/status"
           shape="rectangle"
           size={[10, 2.4]}
-          position={[0, 1, 0]}
           color="#141830"
           glow={{ intensity: 0.12 }}
         />
@@ -74,7 +71,6 @@ export const sceneSessionHierarchy: JSX.Element = (
           sublabel="queen + each worker · stable agentId per session"
           shape="rectangle"
           size={[8, 2.4]}
-          position={[0, -2.5, 0]}
           color="#131a30"
           glow={{ intensity: 0.1 }}
         />
@@ -84,7 +80,6 @@ export const sceneSessionHierarchy: JSX.Element = (
           sublabel="one task · leaf-level EpisodicStore partition"
           shape="rectangle"
           size={[6, 2.4]}
-          position={[0, -6, 0]}
           color="#121830"
         />
 

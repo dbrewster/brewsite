@@ -10,7 +10,7 @@ import {
   Scene,
   WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, FlowLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -36,7 +36,7 @@ export const sceneDebateRounds: JSX.Element = (
 
     <DiagramCanvas id="bfmu-deb-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale*.8} theme={brewflowTheme}>
       <Diagram id="deb-diagram" pivot="center">
-        <ManualLayout />
+        <FlowLayout direction="top-down" gap={2} />
         <DiagramEnter fade scaleFrom={0.85} />
 
         <DiagramNode
@@ -45,7 +45,6 @@ export const sceneDebateRounds: JSX.Element = (
           sublabel="5 experts · parallel · no coordination · full CoT analysis"
           shape="rectangle"
           size={[10, 2.8]}
-          position={[0, 9, 0]}
           color="#141830"
         />
         <DiagramNode
@@ -54,7 +53,6 @@ export const sceneDebateRounds: JSX.Element = (
           sublabel="pre-converged → set aside · contested claims → targeted questions · unification question"
           shape="rectangle"
           size={[10, 2.8]}
-          position={[0, 5, 0]}
           color="#141e35"
           glow={{ intensity: 0.12 }}
         />
@@ -64,7 +62,6 @@ export const sceneDebateRounds: JSX.Element = (
           sublabel="MAINTAINED · UPDATED · CHALLENGED · ACCEPTED · WITHDRAWN"
           shape="rectangle"
           size={[10, 2.8]}
-          position={[0, 1, 0]}
           color="#141830"
         />
         <DiagramNode
@@ -73,7 +70,6 @@ export const sceneDebateRounds: JSX.Element = (
           sublabel="converged? refined? stalemate? another round needed?"
           shape="rectangle"
           size={[10, 2.4]}
-          position={[0, -2.5, 0]}
           color="#131830"
         />
         <DiagramNode
@@ -82,7 +78,6 @@ export const sceneDebateRounds: JSX.Element = (
           sublabel="remaining contested claims only · final positions"
           shape="rectangle"
           size={[10, 2.4]}
-          position={[0, -5.5, 0]}
           color="#141830"
         />
         <DiagramNode
@@ -91,7 +86,6 @@ export const sceneDebateRounds: JSX.Element = (
           sublabel="MemoryProposalSet · confidence from convergence path · full reasoning chain as provenance"
           shape="rectangle"
           size={[10, 2.8]}
-          position={[0, -9, 0]}
           color="#151e38"
           glow={{ intensity: 0.15 }}
         />
