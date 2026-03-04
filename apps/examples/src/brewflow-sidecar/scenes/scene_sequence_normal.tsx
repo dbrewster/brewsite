@@ -10,10 +10,9 @@ import {
   Scene,
   WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, FlowLayout, HierarchicalLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
-import {FlowLayout} from "@brewsite/diagram/elements/diagram/dsl";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
