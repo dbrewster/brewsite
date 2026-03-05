@@ -1,12 +1,10 @@
-import { JSX } from 'react';
-import { CodeBlock } from '../../components/ui/CodeBlock';
-import { Callout } from '../../components/ui/Callout';
+import type { ReactElement } from 'react';
+import { Section, CodeBlock, Callout } from '@brewsite/docs';
+import type { SectionId } from '../../docs-nav';
 
-export default function HudAnimejs(): JSX.Element {
+export function HudAnimeJsPage(): ReactElement {
   return (
-    <section>
-      <h1>HUD Anime.js Presets</h1>
-
+    <Section<SectionId> id="hud-animejs" title="HUD Anime.js Presets">
       <p>
         The <code>hud/animejs/</code> sub-module provides ready-made entrance animations for HUD
         items using anime.js. These are applied via the <code>animations</code> prop on{' '}
@@ -29,12 +27,7 @@ export default function HudAnimejs(): JSX.Element {
       />
 
       <h2>fadeIn</h2>
-
-      <p>
-        Animates opacity from 0 to 1 when the HUD item becomes visible. Accepts an options object
-        to control timing.
-      </p>
-
+      <p>Animates opacity from 0 to 1 when the HUD item becomes visible.</p>
       <CodeBlock
         language="tsx"
         code={`import { fadeIn } from '@brewsite/core/hud/animejs';
@@ -44,8 +37,8 @@ export default function HudAnimejs(): JSX.Element {
   style={{ position: 'absolute', top: 40, left: 60 }}
   animations={[
     fadeIn({
-      duration: 500,   // ms
-      delay: 150,      // ms before animation starts
+      duration: 500,
+      delay: 150,
       easing: 'easeOutQuad',
     }),
   ]}
@@ -55,12 +48,7 @@ export default function HudAnimejs(): JSX.Element {
       />
 
       <h2>slideUp</h2>
-
-      <p>
-        Translates the element upward from an offset position while fading in. Use <code>distance</code>{' '}
-        to control how far it travels.
-      </p>
-
+      <p>Translates the element upward from an offset position while fading in.</p>
       <CodeBlock
         language="tsx"
         code={`import { slideUp } from '@brewsite/core/hud/animejs';
@@ -70,7 +58,7 @@ export default function HudAnimejs(): JSX.Element {
   style={{ position: 'absolute', bottom: 80, left: 60 }}
   animations={[
     slideUp({
-      distance: 24,   // px to travel upward
+      distance: 24,
       duration: 400,
     }),
   ]}
@@ -80,12 +68,7 @@ export default function HudAnimejs(): JSX.Element {
       />
 
       <h2>stagger</h2>
-
-      <p>
-        Apply a staggered delay across multiple sibling HUD items so they animate in sequence
-        rather than all at once.
-      </p>
-
+      <p>Apply a staggered delay across multiple sibling HUD items.</p>
       <CodeBlock
         language="tsx"
         code={`import { fadeIn, stagger } from '@brewsite/core/hud/animejs';
@@ -112,6 +95,6 @@ export default function HudAnimejs(): JSX.Element {
       <Callout type="tip">
         Combine <code>slideUp</code> + <code>fadeIn</code> for a polished entrance effect.
       </Callout>
-    </section>
+    </Section>
   );
 }

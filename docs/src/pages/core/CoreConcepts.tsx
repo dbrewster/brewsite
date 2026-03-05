@@ -176,7 +176,7 @@ interface ILoadable extends IWidget {
         layer) requires a DOM environment.
       </Callout>
 
-      <DocsDemo title="A minimal scene" scrollUnits={2400} height={480}>
+      <DocsDemo title="A minimal scene" height={480}>
         <BasicSceneDemo />
       </DocsDemo>
     </Section>

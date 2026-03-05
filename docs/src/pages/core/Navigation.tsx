@@ -1,27 +1,20 @@
-import { JSX } from 'react';
-import { Link } from 'react-router';
-import { CodeBlock } from '../../components/ui/CodeBlock';
-import { PropTable } from '../../components/ui/PropTable';
-import { Callout } from '../../components/ui/Callout';
+import type { ReactElement } from 'react';
+import { Section, CodeBlock, PropTable, Callout } from '@brewsite/docs';
+import type { SectionId } from '../../docs-nav';
 
-export default function Navigation(): JSX.Element {
+export function NavigationPage(): ReactElement {
   return (
-    <section>
-      <h1>Scene Navigation</h1>
-
+    <Section<SectionId> id="input-navigation" title="Scene Navigation">
       <p>
         BrewSite supports two navigation modes: scroll-driven (the page scrolls to advance scenes)
         and direct mode (you control progress programmatically or via input events).
       </p>
 
       <h2>Scroll Mode (default)</h2>
-
       <p>
         Wrap <code>{'<ScenePlayer>'}</code> in <code>{'<EngineScrollRegion>'}</code> to enable
-        scroll-driven navigation. The scroll position is mapped to [0,1] progress across all
-        scenes.
+        scroll-driven navigation.
       </p>
-
       <CodeBlock
         language="tsx"
         code={`import { EngineScrollRegion, ScenePlayer } from '@brewsite/core';
@@ -41,23 +34,15 @@ export default function Page() {
 
       <PropTable
         rows={[
-          {
-            name: 'pixelsPerScene',
-            type: 'number',
-            required: false,
-            defaultValue: '800',
-            description: 'Scroll depth in pixels to advance one scene',
-          },
+          { name: 'pixelsPerScene', type: 'number', required: false, defaultValue: '800', description: 'Scroll depth in pixels to advance one scene' },
         ]}
       />
 
       <h2>Direct Mode</h2>
-
       <p>
         Use <code>useEngineScrubber()</code> or <code>engine.scrollToProgress()</code> to drive
         progress directly without scroll:
       </p>
-
       <CodeBlock
         language="tsx"
         code={`import { useEngineScrubber } from '@brewsite/core';
@@ -79,17 +64,14 @@ function Controls() {
 
       <Callout type="note">
         <code>useEngineScrubber</code> must be rendered inside a <code>{'<ScenePlayer>'}</code>{' '}
-        subtree. See <Link to="/core/hooks">Hooks Reference</Link> for the full API.
+        subtree. See <a href="#hooks">Hooks Reference</a> for the full API.
       </Callout>
 
       <h2>Keyboard Navigation</h2>
-
       <p>
-        ScenePlayer responds to <kbd>ArrowRight</kbd>/<kbd>ArrowLeft</kbd> (advance/retreat one
-        scene) and <kbd>Home</kbd>/<kbd>End</kbd> by default when <code>keyboard: true</code> is
-        set.
+        ScenePlayer responds to <kbd>ArrowRight</kbd>/<kbd>ArrowLeft</kbd> by default when{' '}
+        <code>keyboard: true</code> is set.
       </p>
-
       <CodeBlock
         language="tsx"
         code={`<ScenePlayer
@@ -101,39 +83,14 @@ function Controls() {
       />
 
       <h2><code>SceneNavInputMap</code> Options</h2>
-
       <PropTable
         rows={[
-          {
-            name: 'mode',
-            type: "'scroll' | 'direct'",
-            required: false,
-            defaultValue: 'scroll',
-            description: 'Navigation mode',
-          },
-          {
-            name: 'wheel.enabled',
-            type: 'boolean',
-            required: false,
-            defaultValue: 'true',
-            description: 'Whether mouse wheel advances scenes',
-          },
-          {
-            name: 'drag.enabled',
-            type: 'boolean',
-            required: false,
-            defaultValue: 'false',
-            description: 'Whether drag gesture advances scenes',
-          },
-          {
-            name: 'pixelsPerScene',
-            type: 'number',
-            required: false,
-            defaultValue: '800',
-            description: 'Scroll/drag pixels per scene advance',
-          },
+          { name: 'mode', type: "'scroll' | 'direct'", required: false, defaultValue: 'scroll', description: 'Navigation mode' },
+          { name: 'wheel.enabled', type: 'boolean', required: false, defaultValue: 'true', description: 'Whether mouse wheel advances scenes' },
+          { name: 'drag.enabled', type: 'boolean', required: false, defaultValue: 'false', description: 'Whether drag gesture advances scenes' },
+          { name: 'pixelsPerScene', type: 'number', required: false, defaultValue: '800', description: 'Scroll/drag pixels per scene advance' },
         ]}
       />
-    </section>
+    </Section>
   );
 }

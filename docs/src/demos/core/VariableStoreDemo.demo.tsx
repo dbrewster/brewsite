@@ -1,18 +1,13 @@
-import { JSX } from 'react';
+// VariableStoreDemo: reads scene state via useCurrentScene using the ancestor EngineProvider.
+import type { ReactElement } from 'react';
 import {
-  Scene,
-  Camera,
-  Lighting,
-  Ambient,
-  Floor,
-  FloorPhysical,
   useCurrentScene,
+  SceneCanvas,
+  EngineOverlayHost,
 } from '@brewsite/core';
-import { DemoScene } from '../shared/DemoScene';
 
 export const CODE = `
 // useCurrentScene() reads the active scene id and index from the engine state.
-// It must be called inside a component rendered within <ScenePlayer>.
 function SceneInfoOverlay(): JSX.Element {
   const { id, index } = useCurrentScene();
   return (
@@ -25,16 +20,9 @@ function SceneInfoOverlay(): JSX.Element {
     </div>
   );
 }
-
-// Render the overlay as a sibling to Scene elements inside DemoScene:
-<DemoScene sceneCount={2}>
-  <Scene key="intro" id="intro"> ... </Scene>
-  <Scene key="detail" id="detail"> ... </Scene>
-  <SceneInfoOverlay />
-</DemoScene>
 `.trim();
 
-function SceneInfoOverlay(): JSX.Element {
+function SceneInfoOverlay(): ReactElement {
   const { id, index } = useCurrentScene();
   return (
     <div style={{
@@ -53,30 +41,14 @@ function SceneInfoOverlay(): JSX.Element {
   );
 }
 
-export default function VariableStoreDemo(): JSX.Element {
+// No DemoEngine wrapper — the engine is provided at DocsApp level.
+// SceneCanvas reads from the ancestor EngineProvider via EngineContext.
+export function VariableStoreDemo(): ReactElement {
   return (
-    <DemoScene sceneCount={2}>
-      <Scene key="intro" id="intro">
-        <Camera mode="world" position={[0, 2, 8]} target={[0, 0, 0]} />
-        <Lighting>
-          <Ambient color="#ffffff" intensity={0.4} />
-        </Lighting>
-        <Floor enabled>
-          <FloorPhysical opacity={0.5} metalness={0.4} roughness={0.6} />
-        </Floor>
-      </Scene>
-
-      <Scene key="detail" id="detail">
-        <Camera mode="orbit" target={[0, 0, 0]} azimuth={1.2} polar={1.1} distance={6} />
-        <Lighting>
-          <Ambient color="#4488ff" intensity={0.5} />
-        </Lighting>
-        <Floor enabled>
-          <FloorPhysical opacity={0.6} metalness={0.5} roughness={0.5} />
-        </Floor>
-      </Scene>
-
+    <>
+      <SceneCanvas style={{ width: '100%', height: '100%' }} />
+      <EngineOverlayHost />
       <SceneInfoOverlay />
-    </DemoScene>
+    </>
   );
 }

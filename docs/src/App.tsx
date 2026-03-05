@@ -1,7 +1,10 @@
 // docs/src/App.tsx
 import type { ReactElement } from 'react';
+import { corePlugin } from '@brewsite/core';
+import { modelPlugin } from '@brewsite/model';
 import { DocsApp } from '@brewsite/docs';
 import { docsNav } from './docs-nav';
+import { DOCS_SCENES, TOTAL_SCROLL_PX } from './docs-scenes';
 
 // Core pages — all mount eagerly (no React.lazy — continuous-scroll model)
 import { GettingStartedPage } from './pages/core/GettingStarted';
@@ -31,9 +34,23 @@ import { RegistryPage } from './pages/core/Registry';
 import { ApiReferencePage } from './pages/core/ApiReference';
 import { TimelinePage } from './pages/core/TimelineApi';
 
+const DOCS_PLUGINS = [
+  corePlugin(),
+  modelPlugin({ manifestUrl: '/scene-manifest.json' }),
+];
+
 export default function App(): ReactElement {
   return (
-    <DocsApp nav={docsNav}>
+    <DocsApp
+      nav={docsNav}
+      engineConfig={{
+        plugins: DOCS_PLUGINS,
+        manifestUrl: '/scene-manifest.json',
+        scrollHeightPx: TOTAL_SCROLL_PX,
+        scenes: DOCS_SCENES,
+        quality: 'balanced',
+      }}
+    >
       <GettingStartedPage />
       <InstallationPage />
       <QuickStartPage />

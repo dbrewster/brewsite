@@ -1,13 +1,10 @@
-import { JSX } from 'react';
-import { CodeBlock } from '../../components/ui/CodeBlock';
-import { PropTable } from '../../components/ui/PropTable';
-import { Callout } from '../../components/ui/Callout';
+import type { ReactElement } from 'react';
+import { Section, CodeBlock, PropTable, Callout } from '@brewsite/docs';
+import type { SectionId } from '../../docs-nav';
 
-export default function LabelSystem(): JSX.Element {
+export function LabelSystemPage(): ReactElement {
   return (
-    <section>
-      <h1>3D Label System</h1>
-
+    <Section<SectionId> id="labels" title="3D Label System">
       <p>
         Labels attach to 3D positions (model bones or world coordinates) and project to screen
         space. They stay positioned relative to the 3D content as the camera moves.
@@ -32,11 +29,7 @@ export default function LabelSystem(): JSX.Element {
       </Callout>
 
       <h2><code>{'<Label>'}</code> DSL</h2>
-
-      <p>
-        Labels are declared as children of <code>{'<Model>'}</code>:
-      </p>
-
+      <p>Labels are declared as children of <code>{'<Model>'}</code>:</p>
       <CodeBlock
         language="tsx"
         code={`<Model type="MaleDummy" id="character" position={[0, 0, 0]}>
@@ -52,57 +45,16 @@ export default function LabelSystem(): JSX.Element {
 
       <PropTable
         rows={[
-          {
-            name: 'id',
-            type: 'string',
-            required: true,
-            description: 'Stable identifier for this label',
-          },
-          {
-            name: 'boneKey',
-            type: 'string',
-            required: false,
-            defaultValue: '—',
-            description: 'Bone name to track. Leave unset for a world-position label',
-          },
-          {
-            name: 'text',
-            type: 'string',
-            required: false,
-            defaultValue: '—',
-            description: 'Label text content',
-          },
-          {
-            name: 'labelOffset',
-            type: '[number, number, number]',
-            required: false,
-            defaultValue: '[0,0,0]',
-            description: 'World-space offset from the tracked position',
-          },
-          {
-            name: 'enabled',
-            type: 'boolean',
-            required: false,
-            defaultValue: 'true',
-            description: 'Whether this label renders',
-          },
-          {
-            name: 'style',
-            type: 'LabelStyle',
-            required: false,
-            defaultValue: '—',
-            description: 'Visual style configuration',
-          },
+          { name: 'id', type: 'string', required: true, description: 'Stable identifier for this label' },
+          { name: 'boneKey', type: 'string', required: false, defaultValue: '—', description: 'Bone name to track. Leave unset for a world-position label' },
+          { name: 'text', type: 'string', required: false, defaultValue: '—', description: 'Label text content' },
+          { name: 'labelOffset', type: '[number, number, number]', required: false, defaultValue: '[0,0,0]', description: 'World-space offset from the tracked position' },
+          { name: 'enabled', type: 'boolean', required: false, defaultValue: 'true', description: 'Whether this label renders' },
+          { name: 'style', type: 'LabelStyle', required: false, defaultValue: '—', description: 'Visual style configuration' },
         ]}
       />
 
       <h2><code>LabelPositioner</code></h2>
-
-      <p>
-        The <code>LabelPositioner</code> is a React component that reads 3D positions and updates
-        the DOM:
-      </p>
-
       <CodeBlock
         language="tsx"
         code={`import { LabelPositioner } from '@brewsite/core';
@@ -118,67 +70,18 @@ function MyScene() {
       />
 
       <h2><code>LabelStyle</code> Reference</h2>
-
       <PropTable
         rows={[
-          {
-            name: 'color',
-            type: 'string',
-            required: false,
-            defaultValue: '—',
-            description: 'CSS color for the label text',
-          },
-          {
-            name: 'lineColor',
-            type: 'string',
-            required: false,
-            defaultValue: '—',
-            description: 'CSS color for the connector line drawn from label to bone',
-          },
-          {
-            name: 'fontSize',
-            type: 'number',
-            required: false,
-            defaultValue: '—',
-            description: 'Font size in pixels',
-          },
-          {
-            name: 'fontWeight',
-            type: 'number | string',
-            required: false,
-            defaultValue: '—',
-            description: 'CSS font-weight value',
-          },
-          {
-            name: 'lineOpacity',
-            type: 'number',
-            required: false,
-            defaultValue: '—',
-            description: 'Opacity of the connector line (0–1)',
-          },
-          {
-            name: 'labelOpacity',
-            type: 'number',
-            required: false,
-            defaultValue: '—',
-            description: 'Opacity of the label text (0–1)',
-          },
-          {
-            name: 'lineThickness',
-            type: 'number',
-            required: false,
-            defaultValue: '—',
-            description: 'Stroke width of the connector line in pixels',
-          },
-          {
-            name: 'lineLength',
-            type: 'number',
-            required: false,
-            defaultValue: '—',
-            description: 'Length of the connector line in pixels',
-          },
+          { name: 'color', type: 'string', required: false, defaultValue: '—', description: 'CSS color for the label text' },
+          { name: 'lineColor', type: 'string', required: false, defaultValue: '—', description: 'CSS color for the connector line' },
+          { name: 'fontSize', type: 'number', required: false, defaultValue: '—', description: 'Font size in pixels' },
+          { name: 'fontWeight', type: 'number | string', required: false, defaultValue: '—', description: 'CSS font-weight value' },
+          { name: 'lineOpacity', type: 'number', required: false, defaultValue: '—', description: 'Opacity of the connector line (0–1)' },
+          { name: 'labelOpacity', type: 'number', required: false, defaultValue: '—', description: 'Opacity of the label text (0–1)' },
+          { name: 'lineThickness', type: 'number', required: false, defaultValue: '—', description: 'Stroke width of the connector line in pixels' },
+          { name: 'lineLength', type: 'number', required: false, defaultValue: '—', description: 'Length of the connector line in pixels' },
         ]}
       />
-    </section>
+    </Section>
   );
 }

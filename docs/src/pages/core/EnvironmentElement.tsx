@@ -42,7 +42,7 @@ export function EnvironmentPage(): ReactElement {
         what separates a convincing render from a flat one.
       </p>
 
-      <DocsDemo title="HDR environment reflections vs. direct lighting only" scrollUnits={2400} height={480}>
+      <DocsDemo title="HDR environment reflections vs. direct lighting only" height={480}>
         <EnvironmentDemo />
       </DocsDemo>
 

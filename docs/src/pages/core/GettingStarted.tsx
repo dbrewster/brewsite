@@ -1,15 +1,11 @@
-import { JSX } from 'react';
-import { Link } from 'react-router';
-import { CodeBlock } from '../../components/ui/CodeBlock';
-import { Callout } from '../../components/ui/Callout';
-import { LiveDemo } from '../../components/demo/LiveDemo';
-import MultiSceneDemo, { CODE as MULTI_SCENE_CODE } from '../../demos/core/MultiSceneDemo.demo';
+import type { ReactElement } from 'react';
+import { Section, DocsDemo, CodeBlock, Callout } from '@brewsite/docs';
+import type { SectionId } from '../../docs-nav';
+import { MultiSceneDemo } from '../../demos/core/MultiSceneDemo.demo';
 
-export default function GettingStarted(): JSX.Element {
+export function GettingStartedPage(): ReactElement {
   return (
-    <section>
-      <h1>What is BrewSite Core?</h1>
-
+    <Section<SectionId> id="getting-started" title="What is BrewSite Core?">
       <p className="lead">
         <strong>@brewsite/core</strong> is a TypeScript + React + Three.js framework for building
         animated 3D marketing scenes. You describe scenes declaratively using a JSX DSL — the
@@ -44,19 +40,19 @@ export default function GettingStarted(): JSX.Element {
         </li>
       </ul>
 
-      <LiveDemo title="Three scenes, one ScenePlayer" code={MULTI_SCENE_CODE}>
+      <DocsDemo title="Three scenes, one ScenePlayer" height={480}>
         <MultiSceneDemo />
-      </LiveDemo>
+      </DocsDemo>
 
       <p>
-        <Link to="/core/installation" className="btn btn--primary">
+        <a href="#quick-start" className="btn btn--primary">
           Get Started →
-        </Link>
+        </a>
       </p>
 
       <Callout type="tip">
         You'll have a running 3D animation scene in about 15 minutes. Start with{' '}
-        <Link to="/core/quick-start">Quick Start</Link>.
+        <a href="#quick-start">Quick Start</a>.
       </Callout>
 
       <h2>How it works</h2>
@@ -111,6 +107,6 @@ export default function GettingStarted(): JSX.Element {
         language="bash"
         code="npm install @brewsite/core three react react-dom"
       />
-    </section>
+    </Section>
   );
 }

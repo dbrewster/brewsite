@@ -57,7 +57,7 @@ export function CameraPage(): ReactElement {
         point the camera looks at. This is the most direct way to frame a specific area of your scene,
         and makes camera intent obvious when reading a scene file.
       </p>
-      <DocsDemo title="World-space camera across three scenes" scrollUnits={2400} height={480}>
+      <DocsDemo title="World-space camera across three scenes" height={480}>
         <CameraWorldDemo />
       </DocsDemo>
       <CodeBlock code={WORLD_SNIPPET} language="tsx" />
@@ -68,7 +68,7 @@ export function CameraPage(): ReactElement {
         It is ideal for turntable animations and cinematic fly-arounds where you want smooth angular
         control without manually computing Cartesian coordinates.
       </p>
-      <DocsDemo title="Orbital camera sweep" scrollUnits={2400} height={480}>
+      <DocsDemo title="Orbital camera sweep" height={480}>
         <CameraOrbitDemo />
       </DocsDemo>
       <CodeBlock code={ORBIT_SNIPPET} language="tsx" />

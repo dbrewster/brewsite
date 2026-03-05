@@ -11,7 +11,7 @@ export function ActionsPage(): ReactElement {
         semantic actions. Built-in actions include camera orbit, dolly (zoom), pan, and reset.
       </p>
 
-      <DocsDemo title="Orbit and dolly on the demo canvas" scrollUnits={2400} height={480}>
+      <DocsDemo title="Orbit and dolly on the demo canvas" height={480}>
         <InputActionsDemo />
       </DocsDemo>
 

@@ -1,4 +1,4 @@
-// Root layout: sidebar + scroll content region + IntersectionObserver coordination.
+// Root layout: sidebar + window-scroll content column + IntersectionObserver coordination.
 
 import {
   createContext,
@@ -10,9 +10,16 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
+import {
+  EngineProvider,
+  SceneCanvas,
+  EngineOverlayHost,
+  ScrollCaptureSection,
+  type WidgetPlugin,
+} from '@brewsite/core';
 import type { DocsNav } from '../nav/types';
 import { DocsSidebar } from './DocsSidebar';
-import { DocsScrollRegion } from './DocsScrollRegion';
+import { DocsMainColumn } from './DocsMainColumn';
 
 /** Context provided to all descendants — allows reading the active section id. */
 interface DocsAppContextValue {
@@ -29,6 +36,27 @@ export interface DocsAppProps {
    */
   nav: DocsNav<string>;
   /**
+   * Optional engine configuration. When provided, DocsApp wraps the content
+   * column in an EngineProvider and mounts a sticky SceneCanvas driven by
+   * window scroll. When omitted, DocsApp renders a pure documentation layout
+   * with no 3D canvas.
+   */
+  engineConfig?: {
+    plugins: WidgetPlugin[];
+    manifestUrl: string;
+    /**
+     * Total scroll height in pixels. Sum of all scene scrollUnits.
+     * Passed to <ScrollCaptureSection height={...}> only.
+     * NOT forwarded to EngineProvider.scrollHeightPx — ScrollCaptureSection
+     * drives progress via setRawProgress() and does not use the engine's
+     * internal scroll-height calculation.
+     */
+    scrollHeightPx: number;
+    /** Scene DSL children (Scene elements with their DSL props). */
+    scenes: ReactNode;
+    quality?: 'performance' | 'balanced' | 'high';
+  };
+  /**
    * All page content as children. Must contain <Section> elements
    * (or components that render them). Mounts eagerly in a single
    * scrollable div — no lazy loading.
@@ -39,34 +67,33 @@ export interface DocsAppProps {
 /**
  * Root docs layout component.
  *
- * Layout: CSS Grid with a fixed-width sidebar column and a scroll content column.
- * The scroll region fills the remaining width and has `overflow-y: auto`.
+ * Layout: CSS Grid with a fixed-width sidebar column and a content column.
+ * The content column has NO overflow-y: auto — the window is the scroll source.
+ * The sidebar is sticky at height: 100vh.
+ *
+ * When engineConfig is provided, the content column is wrapped in an EngineProvider
+ * with a sticky SceneCanvas driven by window scroll via ScrollCaptureSection.
  *
  * Active section tracking:
  * - Mounts one IntersectionObserver watching all [data-section-id] elements.
+ * - root: null → uses the window viewport as the intersection root.
  * - rootMargin: '-10% 0px -80% 0px' approximates "section is at top of viewport".
- * - The last intersecting section becomes activeId.
  *
- * Hash navigation on initial load:
+ * Hash navigation:
  * - Reads window.location.hash on mount.
- * - setTimeout(0) defers scroll until after first paint.
- * - scrollIntoView({ behavior: 'instant' }) lands at the element.
- * - Works correctly because all Section elements and DocsDemo placeholder divs
- *   mount eagerly with stable heights.
+ * - scrollIntoView works against window scroll (no nested scroll container).
  *
- * URL hash update:
- * - Updates window.location.hash whenever activeId changes (via replaceState).
+ * URL hash sync:
+ * - Updates window.location.hash via replaceState on activeId change.
  */
-export function DocsApp({ nav, children }: DocsAppProps): ReactElement {
+export function DocsApp({ nav, engineConfig, children }: DocsAppProps): ReactElement {
   const [activeId, setActiveId] = useState<string>('');
-  const scrollRegionRef = useRef<HTMLDivElement>(null);
+  // columnRef is kept for future use (e.g., injecting EngineProvider context)
+  // but is NOT passed as the IntersectionObserver root.
+  const columnRef = useRef<HTMLDivElement>(null);
 
-  // ── IntersectionObserver for active section ────────────────────────────────
+  // IntersectionObserver: root: null → window viewport
   useEffect(() => {
-    const scrollEl = scrollRegionRef.current;
-    if (!scrollEl) return;
-
-    // Observe all [data-section-id] elements within the scroll region.
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -77,16 +104,22 @@ export function DocsApp({ nav, children }: DocsAppProps): ReactElement {
         }
       },
       {
-        root: scrollEl,
+        root: null, // <-- window viewport, not a scroll div
         rootMargin: '-10% 0px -80% 0px',
         threshold: 0,
       },
     );
 
-    const targets = scrollEl.querySelectorAll('[data-section-id]');
-    targets.forEach((el) => observer.observe(el));
+    // Observe after a tick so that Section elements are mounted.
+    const timer = setTimeout(() => {
+      const targets = document.querySelectorAll('[data-section-id]');
+      targets.forEach((el) => observer.observe(el));
+    }, 0);
 
-    return () => observer.disconnect();
+    return () => {
+      clearTimeout(timer);
+      observer.disconnect();
+    };
     // Re-register if nav changes (nav is static in practice, but defensive).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nav]);
@@ -109,6 +142,7 @@ export function DocsApp({ nav, children }: DocsAppProps): ReactElement {
   }, [activeId]);
 
   // ── Sidebar scroll-to handler ──────────────────────────────────────────────
+  // Sidebar scroll-to handler — uses window scroll (scrollIntoView default)
   const scrollToSection = useCallback((id: string) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   }, []);
@@ -118,7 +152,47 @@ export function DocsApp({ nav, children }: DocsAppProps): ReactElement {
     gridTemplateColumns: 'var(--sidebar-width, 260px) 1fr',
     minHeight: '100vh',
     background: 'var(--bg-page, #0d0d12)',
+    alignItems: 'start', // <-- prevent grid stretching main column
   };
+
+  // The content column: either a plain docs column or an engine-driven column.
+  // When engineConfig is provided, EngineProvider wraps the content. Since
+  // EngineProvider has no DOM output (context only), ScrollCaptureSection and
+  // DocsMainColumn would both become direct grid children. A wrapper div
+  // keeps them in a single second-column block.
+  const contentColumn: ReactNode = engineConfig ? (
+    <EngineProvider
+      plugins={engineConfig.plugins}
+      manifestUrl={engineConfig.manifestUrl}
+      quality={engineConfig.quality}
+      // NOTE: scrollHeightPx is intentionally NOT passed to EngineProvider here.
+      // ScrollCaptureSection drives progress via direct setRawProgress() calls,
+      // computing normalized [0,1] progress from its own outer div geometry.
+      // EngineProvider.scrollHeightPx only affects the engine's internal scroll-
+      // height calculation (used by EngineScrollRegion), which is bypassed
+      // entirely when ScrollCaptureSection is the scroll driver.
+    >
+      {/* Scene declarations — compile to SceneTrack, no DOM output */}
+      {engineConfig.scenes}
+      {/* Wrapper div ensures ScrollCaptureSection + DocsMainColumn occupy the
+          same second grid column rather than splitting across grid rows. */}
+      <div>
+        {/* Sticky canvas driven by window scroll */}
+        <ScrollCaptureSection height={engineConfig.scrollHeightPx} stageHeight="100vh">
+          <SceneCanvas style={{ width: '100%', height: '100%' }} />
+          <EngineOverlayHost />
+        </ScrollCaptureSection>
+        {/* Documentation content flows after the scroll region */}
+        <DocsMainColumn ref={columnRef}>
+          {children}
+        </DocsMainColumn>
+      </div>
+    </EngineProvider>
+  ) : (
+    <DocsMainColumn ref={columnRef}>
+      {children}
+    </DocsMainColumn>
+  );
 
   return (
     <DocsAppContext.Provider value={{ activeId }}>
@@ -128,11 +202,8 @@ export function DocsApp({ nav, children }: DocsAppProps): ReactElement {
           activeId={activeId}
           onSectionClick={scrollToSection}
         />
-        <DocsScrollRegion ref={scrollRegionRef}>
-          {children}
-        </DocsScrollRegion>
+        {contentColumn}
       </div>
     </DocsAppContext.Provider>
   );
 }
-

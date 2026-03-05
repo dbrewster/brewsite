@@ -1,14 +1,11 @@
-import { JSX } from 'react';
-import { CodeBlock } from '../../components/ui/CodeBlock';
-import { Callout } from '../../components/ui/Callout';
-import { LiveDemo } from '../../components/demo/LiveDemo';
-import MultiSceneDemo, { CODE as MULTI_CODE } from '../../demos/core/MultiSceneDemo.demo';
+import type { ReactElement } from 'react';
+import { Section, DocsDemo, CodeBlock, Callout } from '@brewsite/docs';
+import type { SectionId } from '../../docs-nav';
+import { MultiSceneDemo } from '../../demos/core/MultiSceneDemo.demo';
 
-export default function MultiScene(): JSX.Element {
+export function MultiScenePage(): ReactElement {
   return (
-    <section>
-      <h1>Multi-Scene Sequences</h1>
-
+    <Section<SectionId> id="multi-scene" title="Multi-Scene Sequences">
       <p>
         BrewSite scenes are a sequence of keyframes. The <code>ScenePlayer</code> interpolates
         smoothly between them as the user scrolls (or as you drive progress programmatically). Each
@@ -16,19 +13,15 @@ export default function MultiScene(): JSX.Element {
         from the previous scene are animated.
       </p>
 
-      <LiveDemo title="3-scene sequence" code={MULTI_CODE}>
+      <DocsDemo title="3-scene sequence" height={480}>
         <MultiSceneDemo />
-      </LiveDemo>
+      </DocsDemo>
 
       <h2>Ordering Scenes</h2>
-
       <p>
         Place <code>&lt;Scene&gt;</code> elements as children of <code>ScenePlayer</code> in order.
         The first scene is at progress <code>0</code>, the last is at progress <code>1</code>.
-        Scenes are compiled in the order they appear — their position in the JSX tree is their
-        position in the timeline.
       </p>
-
       <CodeBlock
         language="tsx"
         code={`<ScenePlayer manifestUrl="/manifest.json" widgetSetup={() => registry}>
@@ -56,12 +49,6 @@ export default function MultiScene(): JSX.Element {
       />
 
       <h2>How Progress Works</h2>
-
-      <p>
-        Progress is a normalized value in <code>[0, 1]</code> that spans the entire scene
-        sequence. Each scene occupies an equal share of that range:
-      </p>
-
       <CodeBlock
         language="typescript"
         code={`// Given N scenes, each scene spans 1/N of the progress range:
@@ -72,22 +59,7 @@ export default function MultiScene(): JSX.Element {
 const sceneIndex = Math.floor(progress * sceneCount);`}
       />
 
-      <p>
-        Within each scene's progress range, the value drives the transition easing from the
-        previous scene's state to this scene's state. At <code>progress === 0</code> within a
-        scene, the interpolated state matches the previous scene exactly. At{' '}
-        <code>progress === 1</code>, it matches this scene's declared state.
-      </p>
-
       <h2>Scene Count and Frame Resolution</h2>
-
-      <p>
-        The <code>SceneTrack</code> is pre-baked with a fixed number of ticks per scene. By
-        default, the compiler uses a balanced tick count appropriate for most scenes. You can tune
-        this with the <code>quality</code> prop on <code>ScenePlayer</code> for smoother or faster
-        compilation:
-      </p>
-
       <CodeBlock
         language="tsx"
         code={`{/* Default — good balance for most scenes */}
@@ -107,23 +79,16 @@ const sceneIndex = Math.floor(progress * sceneCount);`}
       </Callout>
 
       <h2>Scene Inheritance</h2>
-
       <p>
         Only props that differ from the previous scene are animated. Unchanged props hold their
-        value with no re-declaration needed. The compiler detects which widget states are identical
-        between scenes and skips their interpolation entirely.
+        value with no re-declaration needed.
       </p>
-
       <Callout type="tip">
         Only declare what changes. This makes scenes concise and the SceneTrack cache efficient.
-        The compiler is fast enough that a large scene with dozens of widgets still compiles in
-        milliseconds.
       </Callout>
-
       <CodeBlock
         language="tsx"
         code={`<Scene key="s1">
-  {/* Everything declared here */}
   <Camera mode="world" position={[0, 2, 8]} target={[0, 0, 0]} />
   <Lighting>
     <Ambient color="#ffffff" intensity={0.4} />
@@ -137,16 +102,8 @@ const sceneIndex = Math.floor(progress * sceneCount);`}
 <Scene key="s2">
   {/* Only camera changes — Lighting and Floor hold their s1 values */}
   <Camera mode="world" position={[5, 4, 5]} target={[0, 0, 0]} />
-</Scene>
-
-<Scene key="s3">
-  {/* Camera and ambient light change — Floor still holds s1 values */}
-  <Camera mode="orbit" target={[0, 0, 0]} azimuth={0.5} polar={1.0} distance={7} />
-  <Lighting>
-    <Ambient color="#4466ff" intensity={0.6} />
-  </Lighting>
 </Scene>`}
       />
-    </section>
+    </Section>
   );
 }

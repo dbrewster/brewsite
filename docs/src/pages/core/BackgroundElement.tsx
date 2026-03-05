@@ -37,7 +37,7 @@ export function BackgroundPage(): ReactElement {
         background properties are interpolated during scene transitions.
       </p>
 
-      <DocsDemo title="Background color transitions via ambient lighting" scrollUnits={2400} height={480}>
+      <DocsDemo title="Background color transitions via ambient lighting" height={480}>
         <BackgroundDemo />
       </DocsDemo>
 

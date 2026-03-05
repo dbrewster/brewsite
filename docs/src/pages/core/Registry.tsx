@@ -1,45 +1,23 @@
-import { JSX } from 'react';
-import { Link } from 'react-router';
-import { CodeBlock } from '../../components/ui/CodeBlock';
-import { Callout } from '../../components/ui/Callout';
+import type { ReactElement } from 'react';
+import { Section, CodeBlock, Callout } from '@brewsite/docs';
+import type { SectionId } from '../../docs-nav';
 
-export default function Registry(): JSX.Element {
+export function RegistryPage(): ReactElement {
   return (
-    <section>
-      <h1>WidgetRegistry</h1>
-
+    <Section<SectionId> id="widget-registry" title="WidgetRegistry">
       <p>
         The <code>WidgetRegistry</code> maps DSL component names to widget instances. You create
         a registry once per <code>ScenePlayer</code> instance and pass it in via the{' '}
-        <code>widgetSetup</code> prop. The registry routes each compiled DSL node to the correct
-        widget handler during compilation and connects widgets to the runtime engine.
+        <code>widgetSetup</code> prop.
       </p>
 
       <h2><code>register(widget)</code></h2>
-
-      <p>
-        Register a single widget instance. The widget's <code>widgetId</code> becomes the key
-        that maps it to matching DSL node names:
-      </p>
-
       <CodeBlock
         language="typescript"
         code={`registry.register(new MyElementWidget());`}
       />
 
-      <p>
-        After registration, any <code>&lt;MyElement&gt;</code> node in the scene JSX will be
-        compiled and dispatched to this widget instance.
-      </p>
-
       <h2><code>registerTypeFactory(component, factory)</code></h2>
-
-      <p>
-        For polymorphic widgets keyed by a <code>type</code> prop, register a factory function
-        instead of a single instance. The registry calls the factory the first time it encounters
-        each unique type value and caches the result:
-      </p>
-
       <CodeBlock
         language="typescript"
         code={`registry.registerTypeFactory('Model', (type: string) => {
@@ -54,12 +32,6 @@ export default function Registry(): JSX.Element {
       />
 
       <h2><code>createDefaultWidgetRegistry(manifest)</code></h2>
-
-      <p>
-        Creates a pre-configured registry with all built-in widgets registered. Pass the asset
-        manifest (from <code>siteResources.ts</code>) to wire up model loading. Pass{' '}
-        <code>null</code> if you're not loading models:
-      </p>
 
       <table className="prop-table">
         <thead>
@@ -105,16 +77,6 @@ export default function Registry(): JSX.Element {
             <td>internal</td>
             <td>Publishes scene id, index, and progress to VariableStore</td>
           </tr>
-          <tr>
-            <td>HUD system</td>
-            <td><code>&lt;Hud&gt;</code>, <code>&lt;HudItem&gt;</code></td>
-            <td>Overlay system with Anime.js-driven transitions</td>
-          </tr>
-          <tr>
-            <td>Input system</td>
-            <td><code>&lt;InputController&gt;</code>, <code>&lt;Action&gt;</code></td>
-            <td>Action-mapped scene navigation and camera input</td>
-          </tr>
         </tbody>
       </table>
 
@@ -127,37 +89,27 @@ const registry = createDefaultWidgetRegistry(manifest);`}
       />
 
       <h2>Extending the Default Registry</h2>
-
-      <p>
-        The most common pattern: start with the default registry and add your own widgets on top.
-        Call <code>register</code> or <code>registerTypeFactory</code> on the returned registry
-        before returning it from <code>widgetSetup</code>:
-      </p>
-
       <CodeBlock
         language="typescript"
         code={`import { createDefaultWidgetRegistry } from '@brewsite/core';
 import { MyElementWidget } from './my-element/MyElementWidget';
-import { ParticleWidget } from './particles/ParticleWidget';
 
 function setupWidgets(manifest) {
   const registry = createDefaultWidgetRegistry(manifest);
   registry.register(new MyElementWidget());
-  registry.register(new ParticleWidget());
   return registry;
 }`}
       />
 
       <Callout type="note">
         The registry is created once per player instance. Pass it as the return value of the{' '}
-        <code>widgetSetup</code> function prop on <code>ScenePlayer</code>. The function receives
-        the manifest as its argument, so you can use it for model setup.
+        <code>widgetSetup</code> function prop on <code>ScenePlayer</code>.
       </Callout>
 
       <p>
         For a step-by-step walkthrough of building a widget to register, see{' '}
-        <Link to="/core/custom-widget">Creating a Custom Widget</Link>.
+        <a href="#custom-widget">Creating a Custom Widget</a>.
       </p>
-    </section>
+    </Section>
   );
 }

@@ -38,6 +38,14 @@ export default defineConfig({
         find: '@brewsite/diagram',
         replacement: resolve(__dirname, '../packages/diagram/src/index.ts'),
       },
+      {
+        find: '@brewsite/model',
+        replacement: resolve(__dirname, '../packages/model/src/index.ts'),
+      },
+      {
+        find: '@brewsite/docs',
+        replacement: resolve(__dirname, '../packages/docs/src/index.ts'),
+      },
     ],
   },
   server: {
@@ -55,7 +63,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           three: ['three'],
-          'react-vendor': ['react', 'react-dom', 'react-router'],
+          'react-vendor': ['react', 'react-dom'],
         },
       },
     },

@@ -7,7 +7,9 @@
       "@brewsite/diagram": ["../packages/diagram/src/index.ts"],
       "@brewsite/diagram/*": ["../packages/diagram/src/*"],
       "@brewsite/model": ["../packages/model/src/index.ts"],
-      "@brewsite/model/*": ["../packages/model/src/*"]
+      "@brewsite/model/*": ["../packages/model/src/*"],
+      "@brewsite/docs": ["../packages/docs/src/index.ts"],
+      "@brewsite/docs/*": ["../packages/docs/src/*"]
     },
     "target": "ES2022",
     "useDefineForClassFields": true,

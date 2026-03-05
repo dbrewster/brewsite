@@ -8,6 +8,8 @@ export type { DocsNav, DocsNavGroup, DocsNavSection } from './nav/types';
 // ── Layout ────────────────────────────────────────────────────────────────────
 export { DocsApp } from './layout/DocsApp';
 export type { DocsAppProps } from './layout/DocsApp';
+export { DocsMainColumn } from './layout/DocsMainColumn';
+export type { DocsMainColumnProps } from './layout/DocsMainColumn';
 
 // ── Section ───────────────────────────────────────────────────────────────────
 export { Section } from './section/Section';
@@ -16,9 +18,6 @@ export type { SectionProps } from './section/Section';
 // ── Demo ──────────────────────────────────────────────────────────────────────
 export { DocsDemo } from './demo/DocsDemo';
 export type { DocsDemoProps } from './demo/DocsDemo';
-export { DemoEngine } from './demo/DemoEngine';
-export type { DemoEngineProps } from './demo/DemoEngine';
-
 // ── Content primitives ────────────────────────────────────────────────────────
 export { CodeBlock } from './ui/CodeBlock';
 export type { CodeBlockProps, CodeLanguage } from './ui/CodeBlock';
