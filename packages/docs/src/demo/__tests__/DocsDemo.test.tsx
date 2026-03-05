@@ -1,53 +1,44 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render } from '@testing-library/react';
 import { DocsDemo } from '../DocsDemo';
 
-// jsdom does not implement IntersectionObserver — provide a mock.
-// Mocks are created fresh in beforeEach because vi.restoreAllMocks() in afterEach
-// resets vi.fn() implementations; recreating avoids stale-implementation failures.
-let mockObserve: ReturnType<typeof vi.fn>;
-let mockDisconnect: ReturnType<typeof vi.fn>;
-
-beforeEach(() => {
-  mockObserve = vi.fn();
-  mockDisconnect = vi.fn();
-  vi.stubGlobal(
-    'IntersectionObserver',
-    vi.fn().mockImplementation(() => ({
-      observe: mockObserve,
-      disconnect: mockDisconnect,
-    })),
-  );
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
 describe('DocsDemo', () => {
-  it('renders placeholder (not children) before mount trigger', () => {
-    const { queryByTestId } = render(
-      <DocsDemo scrollUnits={2400} height={480}>
+  it('renders children immediately without IntersectionObserver trigger', () => {
+    const { getByTestId } = render(
+      <DocsDemo height={480}>
         <div data-testid="demo-content">Demo Content</div>
       </DocsDemo>
     );
-    // Before IntersectionObserver fires, content should not be mounted.
-    expect(queryByTestId('demo-content')).toBeNull();
+    expect(getByTestId('demo-content')).not.toBeNull();
   });
 
-  it('placeholder div has the same height as the mounted container (number)', () => {
+  it('container does not have overflow: hidden', () => {
     const { container } = render(
-      <DocsDemo scrollUnits={2400} height={480}><div>content</div></DocsDemo>
+      <DocsDemo height={480}><div>content</div></DocsDemo>
     );
-    const placeholder = container.querySelector('[aria-hidden="true"]') as HTMLElement;
-    expect(placeholder?.style.height).toBe('480px');
+    const innerContainer = container.querySelector('[style*="height: 480px"]') as HTMLElement;
+    expect(innerContainer?.style.overflow).not.toBe('hidden');
   });
 
-  it('placeholder div has the same height as the mounted container (string)', () => {
+  it('placeholder div has height as number', () => {
     const { container } = render(
-      <DocsDemo scrollUnits={2400} height="100vh"><div>content</div></DocsDemo>
+      <DocsDemo height={480}><div>content</div></DocsDemo>
     );
-    const placeholder = container.querySelector('[aria-hidden="true"]') as HTMLElement;
-    expect(placeholder?.style.height).toBe('100vh');
+    const inner = container.querySelector('[style*="height"]') as HTMLElement;
+    expect(inner?.style.height).toBe('480px');
+  });
+
+  it('placeholder div has height as string', () => {
+    const { container } = render(
+      <DocsDemo height="100vh"><div>content</div></DocsDemo>
+    );
+    const inner = container.querySelector('[style*="height"]') as HTMLElement;
+    expect(inner?.style.height).toBe('100vh');
+  });
+
+  it('deprecated scrollUnits prop is silently ignored', () => {
+    expect(() => {
+      render(<DocsDemo height={480} scrollUnits={2400}><div>content</div></DocsDemo>);
+    }).not.toThrow();
   });
 });
