@@ -1,11 +1,5 @@
-// TransitionEasingDemo: transition window selector using the ancestor EngineProvider.
-import { useState, type ReactElement } from 'react';
-import {
-  type TransitionWindow,
-  type SceneTransitionProp,
-  SceneCanvas,
-  EngineOverlayHost,
-} from '@brewsite/core';
+// TransitionEasingDemo: the global SceneCanvas in ScrollCaptureSection provides rendering.
+// The transition-easing scene is defined in docs-scenes.tsx (transition-start / transition-end).
 
 export const CODE = `
 // The transition prop on <Scene> controls the timing of the animated transition.
@@ -28,51 +22,7 @@ export const CODE = `
 </Scene>
 `.trim();
 
-type WindowOption = {
-  label: string;
-  value: SceneTransitionProp;
-};
-
-const WINDOW_OPTIONS: WindowOption[] = [
-  { label: 'dissolve', value: 'dissolve' },
-  { label: 'crossfade', value: 'crossfade' },
-  { label: 'exit-first', value: { exit: [0, 0.6], enter: [0.4, 1] } as TransitionWindow },
-  { label: 'sequential', value: { exit: [0, 0.4], enter: [0.6, 1] } as TransitionWindow },
-];
-
-// No DemoEngine wrapper — the engine is provided at DocsApp level.
-// SceneCanvas reads from the ancestor EngineProvider via EngineContext.
-export function TransitionEasingDemo(): ReactElement {
-  const [selected, setSelected] = useState<WindowOption>(WINDOW_OPTIONS[0]!);
-
-  return (
-    <div>
-      <div className="easing-tabs" style={{ display: 'flex', gap: 6, marginBottom: 8, flexWrap: 'wrap' }}>
-        {WINDOW_OPTIONS.map((opt) => (
-          <button
-            key={opt.label}
-            type="button"
-            onClick={() => setSelected(opt)}
-            style={{
-              padding: '4px 10px',
-              fontSize: 12,
-              borderRadius: 4,
-              border: '1px solid',
-              cursor: 'pointer',
-              fontFamily: 'monospace',
-              background: selected.label === opt.label ? '#3b82f6' : 'transparent',
-              color: selected.label === opt.label ? '#ffffff' : '#94a3b8',
-              borderColor: selected.label === opt.label ? '#3b82f6' : '#334155',
-            }}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
-      <div style={{ height: 360, position: 'relative' }}>
-        <SceneCanvas style={{ width: '100%', height: '100%' }} />
-        <EngineOverlayHost />
-      </div>
-    </div>
-  );
+// No SceneCanvas — the global SceneCanvas in ScrollCaptureSection provides rendering.
+export function TransitionEasingDemo(): null {
+  return null;
 }

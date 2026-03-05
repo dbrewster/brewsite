@@ -14,10 +14,6 @@ import {
   FloorMirror,
   Environment,
   EnvironmentHdri,
-  InputController,
-  Action,
-  PointerMap,
-  WheelMap,
   ProgressManager,
 } from '@brewsite/core';
 import { Model, Playback, Animation } from '@brewsite/model';
@@ -453,7 +449,6 @@ export const DOCS_SCENES: ReactNode = (
         azimuth={0}
         polar={1.2}
         distance={6}
-        interaction={{ enabled: true }}
       />
       <Lighting>
         <Ambient color="#ffffff" intensity={0.5} />
@@ -462,17 +457,6 @@ export const DOCS_SCENES: ReactNode = (
       <Floor enabled>
         <FloorPhysical opacity={0.5} metalness={0.4} roughness={0.6} />
       </Floor>
-      <InputController>
-        <Action id="orbit" type="camera.orbit">
-          <PointerMap event="drag" button="left" />
-        </Action>
-        <Action id="dolly" type="camera.dolly">
-          <WheelMap />
-        </Action>
-        <Action id="reset" type="camera.reset">
-          <PointerMap event="click" button="right" />
-        </Action>
-      </InputController>
     </Scene>
 
     {/* ── Variable Store (Hooks / Variable Store) ───────────────────────────── */}

@@ -1,6 +1,4 @@
-// HudOverlayDemo: HTML overlay content in scene transitions using the ancestor EngineProvider.
-import type { ReactElement } from 'react';
-import { SceneCanvas, EngineOverlayHost } from '@brewsite/core';
+// HudOverlayDemo: scene defined in docs-scenes.tsx; global SceneCanvas provides rendering.
 
 export const CODE = `
 // HTML children inside <Scene> become overlay content rendered above the 3D canvas.
@@ -21,13 +19,7 @@ export const CODE = `
 </Scene>
 `.trim();
 
-// No DemoEngine wrapper — the engine is provided at DocsApp level.
-// SceneCanvas reads from the ancestor EngineProvider via EngineContext.
-export function HudOverlayDemo(): ReactElement {
-  return (
-    <>
-      <SceneCanvas style={{ width: '100%', height: '100%' }} />
-      <EngineOverlayHost />
-    </>
-  );
+// No SceneCanvas — the global SceneCanvas in ScrollCaptureSection provides rendering.
+export function HudOverlayDemo(): null {
+  return null;
 }

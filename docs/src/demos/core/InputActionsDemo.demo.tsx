@@ -1,6 +1,4 @@
-// InputActionsDemo: action-mapped camera interaction using the ancestor EngineProvider.
-import type { ReactElement } from 'react';
-import { SceneCanvas, EngineOverlayHost } from '@brewsite/core';
+// InputActionsDemo: scene defined in docs-scenes.tsx; global SceneCanvas provides rendering.
 
 export const CODE = `
 // <InputController> wires up action-mapped camera interactions for a scene.
@@ -27,13 +25,7 @@ export const CODE = `
 </Scene>
 `.trim();
 
-// No DemoEngine wrapper — the engine is provided at DocsApp level.
-// SceneCanvas reads from the ancestor EngineProvider via EngineContext.
-export function InputActionsDemo(): ReactElement {
-  return (
-    <>
-      <SceneCanvas style={{ width: '100%', height: '100%' }} />
-      <EngineOverlayHost />
-    </>
-  );
+// No SceneCanvas — the global SceneCanvas in ScrollCaptureSection provides rendering.
+export function InputActionsDemo(): null {
+  return null;
 }

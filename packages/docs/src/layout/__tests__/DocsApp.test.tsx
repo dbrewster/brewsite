@@ -87,4 +87,21 @@ describe('DocsApp', () => {
     );
     expect(quickStartBtn?.getAttribute('aria-current')).toBeNull();
   });
+
+  it('constructs IntersectionObserver with root: null', () => {
+    render(<DocsApp nav={docsNav}><div /></DocsApp>);
+    expect(IntersectionObserver).toHaveBeenCalledWith(
+      expect.any(Function),
+      expect.objectContaining({ root: null }),
+    );
+  });
+
+  it('does not render a div with overflow-y: auto as the content column', () => {
+    const { container } = render(<DocsApp nav={docsNav}><div>content</div></DocsApp>);
+    const allDivs = Array.from(container.querySelectorAll('div'));
+    const overflowDivs = allDivs.filter(
+      (d) => d.style.overflowY === 'auto' || d.style.overflowY === 'scroll',
+    );
+    expect(overflowDivs).toHaveLength(0);
+  });
 });
