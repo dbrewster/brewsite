@@ -8,6 +8,7 @@ import {
     PointerMap,
     ProgressManager,
     Scene,
+    TextBox,
     WheelMap,
 } from '@brewsite/core';
 import {
@@ -99,85 +100,83 @@ export const sceneNeocortex: JSX.Element = (
 
         </DiagramCanvas>
 
-        {/* Prose panel */}
-        <div style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            padding: '40px 64px 48px',
-            background: 'rgba(8, 11, 20, 0.88)',
-            backdropFilter: 'blur(16px)',
-            borderTop: '1px solid rgba(255,255,255,0.08)',
-            maxHeight: '50vh',
-            overflowY: 'auto',
-            pointerEvents: 'auto',
-        }}>
+        <TextBox id="bfm-neo-prose" x={0} y={0.58} w={1} h={0.42}>
             <div style={{
-                fontFamily: 'JetBrains Mono, monospace',
-                fontSize: '0.67rem',
-                letterSpacing: '0.25em',
-                textTransform: 'uppercase' as const,
-                color: 'rgba(100, 140, 220, 0.7)',
-                marginBottom: 16,
+                padding: '40px 64px 48px',
+                background: 'rgba(8, 11, 20, 0.88)',
+                backdropFilter: 'blur(16px)',
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+                height: '100%',
+                overflowY: 'auto',
+                pointerEvents: 'auto',
+                boxSizing: 'border-box',
             }}>
-                NEOCORTEX — WHAT WE KNOW
+                <div style={{
+                    fontFamily: 'JetBrains Mono, monospace',
+                    fontSize: '13px',
+                    letterSpacing: '0.25em',
+                    textTransform: 'uppercase' as const,
+                    color: 'rgba(100, 140, 220, 0.7)',
+                    marginBottom: 16,
+                }}>
+                    NEOCORTEX — WHAT WE KNOW
+                </div>
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '28px'}}>
+                    <div>
+                        <h3 style={{fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600}}>
+                            Schematic memory
+                        </h3>
+                        <p style={{fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0}}>
+                            Neocortex stores typed memory cards — validated, versioned knowledge that survives
+                            across sessions. Every card carries full provenance: which episodes it was extracted
+                            from, which dreamer run proposed it, and who or what validated it.
+                        </p>
+                    </div>
+                    <div>
+                        <h3 style={{fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600}}>
+                            6 card types
+                        </h3>
+                        <ul style={{
+                            fontSize: '15px',
+                            color: 'rgba(180, 200, 240, 0.75)',
+                            lineHeight: 1.8,
+                            margin: 0,
+                            padding: 0,
+                            listStyle: 'none'
+                        }}>
+                            <li><span style={{color: 'rgba(160, 180, 240, 0.5)'}}>procedure</span> — multi-step executable
+                                plans
+                            </li>
+                            <li><span style={{color: 'rgba(160, 180, 240, 0.5)'}}>constraint</span> — hard rules and
+                                invariants
+                            </li>
+                            <li><span style={{color: 'rgba(160, 180, 240, 0.5)'}}>disambiguation</span> — term resolution
+                            </li>
+                            <li><span style={{color: 'rgba(160, 180, 240, 0.5)'}}>checklist</span> — pre-ship validation
+                            </li>
+                            <li><span style={{color: 'rgba(160, 180, 240, 0.5)'}}>pitfall</span> — documented failures</li>
+                            <li><span style={{color: 'rgba(160, 180, 240, 0.5)'}}>concept</span> — canonical definitions
+                            </li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h3 style={{fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600}}>
+                            Retrieval pipeline (5 stages)
+                        </h3>
+                        <p style={{
+                            fontSize: '15px',
+                            color: 'rgba(180, 200, 240, 0.75)',
+                            lineHeight: 1.7,
+                            margin: '0 0 12px'
+                        }}>
+                            Query → scope filter → relevance score → lifecycle filter (verified only) →
+                            token budget trim → ordered pack. Only "verified" cards are injected; "reviewed"
+                            cards are queryable but not auto-injected. Deprecated cards remain queryable
+                            for backtrace but never appear in context packs.
+                        </p>
+                    </div>
+                </div>
             </div>
-            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '28px'}}>
-                <div>
-                    <h3 style={{fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600}}>
-                        Schematic memory
-                    </h3>
-                    <p style={{fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0}}>
-                        Neocortex stores typed memory cards — validated, versioned knowledge that survives
-                        across sessions. Every card carries full provenance: which episodes it was extracted
-                        from, which dreamer run proposed it, and who or what validated it.
-                    </p>
-                </div>
-                <div>
-                    <h3 style={{fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600}}>
-                        6 card types
-                    </h3>
-                    <ul style={{
-                        fontSize: '0.89rem',
-                        color: 'rgba(180, 200, 240, 0.75)',
-                        lineHeight: 1.8,
-                        margin: 0,
-                        padding: 0,
-                        listStyle: 'none'
-                    }}>
-                        <li><span style={{color: 'rgba(160, 180, 240, 0.5)'}}>procedure</span> — multi-step executable
-                            plans
-                        </li>
-                        <li><span style={{color: 'rgba(160, 180, 240, 0.5)'}}>constraint</span> — hard rules and
-                            invariants
-                        </li>
-                        <li><span style={{color: 'rgba(160, 180, 240, 0.5)'}}>disambiguation</span> — term resolution
-                        </li>
-                        <li><span style={{color: 'rgba(160, 180, 240, 0.5)'}}>checklist</span> — pre-ship validation
-                        </li>
-                        <li><span style={{color: 'rgba(160, 180, 240, 0.5)'}}>pitfall</span> — documented failures</li>
-                        <li><span style={{color: 'rgba(160, 180, 240, 0.5)'}}>concept</span> — canonical definitions
-                        </li>
-                    </ul>
-                </div>
-                <div>
-                    <h3 style={{fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600}}>
-                        Retrieval pipeline (5 stages)
-                    </h3>
-                    <p style={{
-                        fontSize: '0.89rem',
-                        color: 'rgba(180, 200, 240, 0.75)',
-                        lineHeight: 1.7,
-                        margin: '0 0 12px'
-                    }}>
-                        Query → scope filter → relevance score → lifecycle filter (verified only) →
-                        token budget trim → ordered pack. Only "verified" cards are injected; "reviewed"
-                        cards are queryable but not auto-injected. Deprecated cards remain queryable
-                        for backtrace but never appear in context packs.
-                    </p>
-                </div>
-            </div>
-        </div>
+        </TextBox>
     </Scene>
 );

@@ -10,6 +10,12 @@ const mockSceneTheme: SceneTheme = {
   fontSize: { heading: 1.5, body: 1.0, label: 0.85, caption: 0.7, annotation: 0.6 },
 };
 
+describe('DEFAULT_CHART_STATE', () => {
+  it('has fullscreen nvsBounds', () => {
+    expect(DEFAULT_CHART_STATE.nvsBounds).toEqual({ x: 0, y: 0, w: 1, h: 1 });
+  });
+});
+
 describe('compileChart', () => {
   it('defaults type from DSL prop', () => {
     const state = compileChart({ id: 'c', type: 'bar' }, null, [], [], null);
@@ -124,6 +130,27 @@ describe('compileChart', () => {
   it('produces undefined sceneTheme when not specified', () => {
     const state = compileChart({ id: 'c', type: 'bar' }, null, [], [], null);
     expect(state.sceneTheme).toBeUndefined();
+  });
+
+  it('maps x/y/w/h DSL props to nvsBounds', () => {
+    const state = compileChart(
+      { id: 'c', type: 'bar', x: 0.1, y: 0.2, w: 0.5, h: 0.6 },
+      null,
+      [],
+      [],
+      null,
+    );
+    expect(state.nvsBounds).toEqual({ x: 0.1, y: 0.2, w: 0.5, h: 0.6 });
+  });
+
+  it('defaults nvsBounds to fullscreen when no NVS props provided', () => {
+    const state = compileChart({ id: 'c', type: 'bar' }, null, [], [], null);
+    expect(state.nvsBounds).toEqual({ x: 0, y: 0, w: 1, h: 1 });
+  });
+
+  it('defaults partial NVS props — only w provided, others default', () => {
+    const state = compileChart({ id: 'c', type: 'bar', w: 0.5 }, null, [], [], null);
+    expect(state.nvsBounds).toEqual({ x: 0, y: 0, w: 0.5, h: 1 });
   });
 });
 

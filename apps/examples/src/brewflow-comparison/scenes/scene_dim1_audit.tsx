@@ -1,16 +1,14 @@
 import type {JSX} from 'react';
 import {
     Action,
-    Ambient,
     Background,
     Camera,
-    Directional,
     InputController,
     KeyMap,
-    Lighting,
     PointerMap,
     ProgressManager,
     Scene,
+    TextBox,
     WheelMap,
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramNode, GridLayout,} from '@brewsite/diagram';
@@ -55,65 +53,62 @@ export const sceneDim1Audit: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    {/* Prose panel */}
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '55vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="dim1-prose" x={0} y={0.56} w={1} h={0.44}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8, 11, 20, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        height: '100%',
+        overflowY: 'auto',
+        boxSizing: 'border-box',
       }}>
-        DIMENSION 1: THE AUDIT TRAIL
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            claude-flow: events table
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
-            The events table records what happened — agent actions, task transitions, system
-            events. Each row has a timestamp, a label, and an optional payload. For answering
-            "what was logged?" it works. For answering "why did agent B make this decision?"
-            you need manual SQL joins across sessions, tasks, and shared_state, with no
-            guarantee the causal chain is reconstructable.
-          </p>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(160, 180, 220, 0.6)', lineHeight: 1.7, fontStyle: 'italic', margin: 0 }}>
-            There is no global event ordering and no lineage tracking across the 12 tables.
-            Post-incident investigation is limited to what you can manually correlate.
-          </p>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 13,
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          DIMENSION 1: THE AUDIT TRAIL
         </div>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            BrewFlow: EpisodicStore globalEventSeq + lineage
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
-            Every event written to EpisodicStore receives a monotonically increasing
-            globalEventSeq. Events carry typed schemas and explicit lineage references:
-            session, plan, thread, and turn. At query time, lineage closure reconstructs
-            the complete causal chain for any event — session to plan to thread to the
-            specific turn that caused the outcome.
-          </p>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
-            The practical difference: a post-incident investigation that takes hours with
-            claude-flow (or is simply impossible) takes minutes with BrewFlow — you query
-            the event, follow the lineage closure, and read the full context.
-          </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          <div>
+            <h3 style={{ fontSize: 26, color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              claude-flow: events table
+            </h3>
+            <p style={{ fontSize: 18, color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+              The events table records what happened — agent actions, task transitions, system
+              events. Each row has a timestamp, a label, and an optional payload. For answering
+              "what was logged?" it works. For answering "why did agent B make this decision?"
+              you need manual SQL joins across sessions, tasks, and shared_state, with no
+              guarantee the causal chain is reconstructable.
+            </p>
+            <p style={{ fontSize: 15, color: 'rgba(160, 180, 220, 0.6)', lineHeight: 1.7, fontStyle: 'italic', margin: 0 }}>
+              There is no global event ordering and no lineage tracking across the 12 tables.
+              Post-incident investigation is limited to what you can manually correlate.
+            </p>
+          </div>
+          <div>
+            <h3 style={{ fontSize: 26, color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              BrewFlow: EpisodicStore globalEventSeq + lineage
+            </h3>
+            <p style={{ fontSize: 18, color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+              Every event written to EpisodicStore receives a monotonically increasing
+              globalEventSeq. Events carry typed schemas and explicit lineage references:
+              session, plan, thread, and turn. At query time, lineage closure reconstructs
+              the complete causal chain for any event — session to plan to thread to the
+              specific turn that caused the outcome.
+            </p>
+            <p style={{ fontSize: 18, color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
+              The practical difference: a post-incident investigation that takes hours with
+              claude-flow (or is simply impossible) takes minutes with BrewFlow — you query
+              the event, follow the lineage closure, and read the full context.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

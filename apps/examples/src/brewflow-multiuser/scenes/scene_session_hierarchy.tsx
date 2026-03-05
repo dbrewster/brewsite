@@ -8,6 +8,7 @@ import {
     PointerMap,
     ProgressManager,
     Scene,
+    TextBox,
     WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
@@ -90,58 +91,57 @@ export const sceneSessionHierarchy: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '50vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="sessions-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8,11,20,0.88)',
+        backdropFilter: 'blur(16px)',
+        height: '100%',
+        boxSizing: 'border-box',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        overflowY: 'auto',
+        pointerEvents: 'auto',
       }}>
-        THE SESSION HIERARCHY
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        <div>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.8)', lineHeight: 1.7, margin: 0 }}>
-            Every partition key in the system is derived from this five-level hierarchy. The
-            <strong style={{ color: '#c8d8f0' }}> User Session</strong> is the primary partition
-            key — a stable UUID generated at <code style={{ fontSize: '0.78rem', color: 'rgba(120,160,240,0.8)' }}>session_start</code> and
-            written into every event, episodic entry, and dreamer run that belongs to it.
-          </p>
-          <p style={{ fontSize: '0.83rem', color: 'rgba(160, 180, 220, 0.65)', lineHeight: 1.7, marginTop: 12 }}>
-            Session record schema: <code style={{ fontSize: '0.78rem', color: 'rgba(120,160,240,0.8)' }}>
-              &#123; sessionId, tenantId, projectId, userId, agentId, startedAt, endedAt, status &#125;
-            </code>
-          </p>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          THE SESSION HIERARCHY
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {[
-            { level: 'Tenant', note: 'Hard isolation — two tenants never share any data path' },
-            { level: 'Project', note: 'The default scope for Neocortex promotions — "what the team knows"' },
-            { level: 'User Session', note: 'Primary partition key — all events are session-scoped' },
-            { level: 'Agent', note: 'Stable agentId lets per-agent sequence numbers stay low-contention' },
-            { level: 'Thread', note: 'Leaf partition — one task, one write path, no coordination' },
-          ].map(({ level, note }) => (
-            <div key={level}>
-              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.72rem', color: 'rgba(100, 140, 220, 0.7)', marginBottom: 3 }}>{level}</div>
-              <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.5 }}>{note}</div>
-            </div>
-          ))}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+          <div>
+            <p style={{ fontSize: '18px', color: 'rgba(180, 200, 240, 0.8)', lineHeight: 1.7, margin: 0 }}>
+              Every partition key in the system is derived from this five-level hierarchy. The
+              <strong style={{ color: '#c8d8f0' }}> User Session</strong> is the primary partition
+              key — a stable UUID generated at <code style={{ fontSize: '15px', color: 'rgba(120,160,240,0.8)' }}>session_start</code> and
+              written into every event, episodic entry, and dreamer run that belongs to it.
+            </p>
+            <p style={{ fontSize: '15px', color: 'rgba(160, 180, 220, 0.65)', lineHeight: 1.7, marginTop: 12 }}>
+              Session record schema: <code style={{ fontSize: '14px', color: 'rgba(120,160,240,0.8)' }}>
+                &#123; sessionId, tenantId, projectId, userId, agentId, startedAt, endedAt, status &#125;
+              </code>
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {[
+              { level: 'Tenant', note: 'Hard isolation — two tenants never share any data path' },
+              { level: 'Project', note: 'The default scope for Neocortex promotions — "what the team knows"' },
+              { level: 'User Session', note: 'Primary partition key — all events are session-scoped' },
+              { level: 'Agent', note: 'Stable agentId lets per-agent sequence numbers stay low-contention' },
+              { level: 'Thread', note: 'Leaf partition — one task, one write path, no coordination' },
+            ].map(({ level, note }) => (
+              <div key={level}>
+                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '13px', color: 'rgba(100, 140, 220, 0.7)', marginBottom: 3 }}>{level}</div>
+                <div style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.5 }}>{note}</div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

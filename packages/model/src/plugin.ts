@@ -1,9 +1,10 @@
 // modelPlugin factory — composable WidgetPlugin for @brewsite/model.
 
-import { createElement } from 'react';
-import type { ReactNode } from 'react';
+import { createElement, useContext, useEffect } from 'react';
+import type { ReactNode, ReactElement } from 'react';
 import type { WebGLRenderer } from 'three';
 import type { WidgetPlugin, WidgetRegistry } from '@brewsite/core';
+import { EngineARContainerContext } from '@brewsite/core';
 import type { AssetManifest } from './elements/model/metadata';
 import type { SceneModel } from './elements/model/types';
 import { clipMetaFromManifest, assertManifestValid } from './elements/model/metadata';
@@ -66,6 +67,27 @@ export function modelPlugin(options: ModelPluginOptions = {}): WidgetPlugin & {
   let resolvedManifest: AssetManifest | null = options.manifest ?? null;
   const labelPositioner = new LabelPositioner();
 
+  /**
+   * Tracks all ModelWidget instances created by the type factory.
+   * Used by LabelPositionerSyncer to read nvsBounds from the active widget.
+   */
+  const modelWidgets: ModelWidget[] = [];
+
+  /**
+   * Reads the AR-container dimensions from EngineARContainerContext and forwards
+   * them to labelPositioner.setContainerSize() on every resize. Defined once per
+   * modelPlugin() call so the component type is stable across renders.
+   */
+  const LabelPositionerSyncer = (): ReactElement | null => {
+    const { containerWidth, containerHeight } = useContext(EngineARContainerContext);
+    useEffect(() => {
+      const widget = modelWidgets[0];
+      const nvsBounds = widget?.nvsBounds ?? undefined;
+      labelPositioner.setContainerSize(containerWidth, containerHeight, nvsBounds);
+    }, [containerWidth, containerHeight]);
+    return null;
+  };
+
   const fetchManifest = async (): Promise<AssetManifest | null> => {
     if (resolvedManifest !== null) return resolvedManifest;
     if (!options.manifestUrl) return null;
@@ -107,10 +129,12 @@ export function modelPlugin(options: ModelPluginOptions = {}): WidgetPlugin & {
           const available = manifest.models.map((m) => m.type).join(', ') || '(none)';
           throw new Error(`[modelPlugin] Unknown model type "${type}". Available: ${available}`);
         }
-        return new ModelWidget(
+        const widget = new ModelWidget(
           { modelMeta, clipMeta, widgetId: id },
           options.defaultModelStates?.[id],
         );
+        modelWidgets.push(widget);
+        return widget;
       });
     },
 
@@ -122,6 +146,7 @@ export function modelPlugin(options: ModelPluginOptions = {}): WidgetPlugin & {
       createElement(
         LabelPositionerContext.Provider,
         { value: labelPositioner },
+        createElement(LabelPositionerSyncer, null),
         children,
       ),
   };

@@ -10,6 +10,7 @@ import {
     PointerMap,
     ProgressManager,
     Scene,
+    TextBox,
 } from '@brewsite/core';
 import {
     darkGlassTheme,
@@ -289,130 +290,125 @@ export const sceneDiagramArch: JSX.Element = (
     </DiagramCanvas>
 
     {/* Teaching overlay */}
-    <div style={{
-      position: 'absolute',
-      bottom: '3%',
-      right: '3%',
-      maxWidth: 540,
-      textAlign: 'right',
-    }}>
-      <MidFade duration={1200}>
-        <div style={{
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: 10,
-          letterSpacing: '0.3em',
-          textTransform: 'uppercase' as const,
-          color: 'rgba(130, 100, 255, 0.8)',
-          marginBottom: 10,
-        }}>
-          @brewsite/diagram
-        </div>
-        <div style={{
-          fontSize: 'clamp(18px, 2.6vw, 24px)',
-          fontWeight: 600,
-          color: '#f0f6fc',
-          lineHeight: 1.2,
-          marginBottom: 16,
-        }}>
-          DSL props → pure compile<br />→ Three.js renderers.
-        </div>
-      </MidFade>
-      <ScrollOn duration={900} delay={150}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '10px 18px',
-          marginBottom: 14,
-        }}>
-          <div style={{ textAlign: 'left' }}>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase' as const,
-              color: 'rgba(130, 100, 255, 0.7)',
-              marginBottom: 5,
-            }}>
-              Author / DSL
+    <TextBox id="diagram-teaching" x={0.53} y={0.52} w={0.44} h={0.45}>
+      <div style={{
+        padding: '32px 40px',
+        background: 'rgba(3,5,8,0.85)',
+        backdropFilter: 'blur(20px)',
+        borderRadius: '4px',
+        height: '100%',
+        textAlign: 'right',
+      }}>
+        <MidFade duration={1200}>
+          <div style={{
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: '12px',
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase' as const,
+            color: 'rgba(130, 100, 255, 0.8)',
+            marginBottom: 10,
+          }}>
+            @brewsite/diagram
+          </div>
+          <h1 style={{
+            fontSize: '48px',
+            fontWeight: 600,
+            color: '#f0f6fc',
+            lineHeight: 1.2,
+            margin: '0 0 16px',
+          }}>
+            DSL props → pure compile<br />→ Three.js renderers.
+          </h1>
+        </MidFade>
+        <ScrollOn duration={900} delay={150}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '10px 18px',
+            marginBottom: 14,
+          }}>
+            <div style={{ textAlign: 'left' }}>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'rgba(130, 100, 255, 0.7)',
+                marginBottom: 5,
+              }}>
+                Author / DSL
+              </div>
+              <div style={{
+                fontSize: '15px',
+                color: 'rgba(240, 246, 252, 0.6)',
+                lineHeight: 1.6,
+              }}>
+                {'Authors declare nodes, edges, and groups as JSX. <DiagramCanvas> owns the orthographic scene and theme. <DiagramNode> and <DiagramEdge> are pure prop declarations — no positional math needed when using auto-layout algorithms. ManualLayout lets you place nodes with explicit world-space coordinates.'}
+              </div>
             </div>
-            <div style={{
-              fontSize: 'clamp(11px, 1.3vw, 12px)',
-              color: 'rgba(240, 246, 252, 0.6)',
-              lineHeight: 1.6,
-            }}>
-              {'Authors declare nodes, edges, and groups as JSX. <DiagramCanvas> owns the orthographic scene and theme. <DiagramNode> and <DiagramEdge> are pure prop declarations — no positional math needed when using auto-layout algorithms. ManualLayout lets you place nodes with explicit world-space coordinates.'}
+            <div style={{ textAlign: 'left' }}>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'rgba(100, 160, 255, 0.7)',
+                marginBottom: 5,
+              }}>
+                Compile
+              </div>
+              <div style={{
+                fontSize: '15px',
+                color: 'rgba(240, 246, 252, 0.6)',
+                lineHeight: 1.6,
+              }}>
+                nodeCompiler resolves positions; layoutResolver dispatches the layout algorithm; edgeRouter computes curve control points; themeResolver produces per-node PBR params; transitionHelpers builds FunctionalTransitionSpec closures capturing enter/exit state. All five compilers are pure functions — zero Three.js, zero mutations.
+              </div>
+            </div>
+            <div style={{ textAlign: 'left' }}>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'rgba(100, 200, 160, 0.7)',
+                marginBottom: 5,
+              }}>
+                Renderers
+              </div>
+              <div style={{
+                fontSize: '15px',
+                color: 'rgba(240, 246, 252, 0.6)',
+                lineHeight: 1.6,
+              }}>
+                DiagramWidget.apply() distributes compiled state to specialized renderers each frame. NodeRenderer builds PBR rounded-corner meshes with optional glow. EdgeRenderer generates tube geometry with animated flow-dash offsets. TextRenderer uses troika-three-text for GPU-accelerated SDF labels. Each renderer owns its Three.js objects and lifecycle.
+              </div>
+            </div>
+            <div style={{ textAlign: 'left' }}>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'rgba(130, 100, 255, 0.7)',
+                marginBottom: 5,
+              }}>
+                Output
+              </div>
+              <div style={{
+                fontSize: '15px',
+                color: 'rgba(240, 246, 252, 0.6)',
+                lineHeight: 1.6,
+              }}>
+                DiagramWidget implements ISceneElement + IRenderable + ILoadable. It owns the Three.js Object3D tree and the DiagramCanvas's OrthographicCamera — isolated from the main scene camera. EnvMapManager provides the HDR environment map for PBR reflections on all nodes and edges.
+              </div>
             </div>
           </div>
-          <div style={{ textAlign: 'left' }}>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase' as const,
-              color: 'rgba(100, 160, 255, 0.7)',
-              marginBottom: 5,
-            }}>
-              Compile
-            </div>
-            <div style={{
-              fontSize: 'clamp(11px, 1.3vw, 12px)',
-              color: 'rgba(240, 246, 252, 0.6)',
-              lineHeight: 1.6,
-            }}>
-              nodeCompiler resolves positions; layoutResolver dispatches the layout algorithm; edgeRouter computes curve control points; themeResolver produces per-node PBR params; transitionHelpers builds FunctionalTransitionSpec closures capturing enter/exit state. All five compilers are pure functions — zero Three.js, zero mutations.
-            </div>
+          <div style={{
+            borderRight: '2px solid rgba(130, 100, 255, 0.5)',
+            paddingRight: 12,
+            fontSize: '14px',
+            color: 'rgba(240, 246, 252, 0.85)',
+            lineHeight: 1.6,
+            fontStyle: 'italic',
+            textAlign: 'right',
+          }}>
+            <strong>Key insight:</strong> @brewsite/diagram extends core purely through NodeHandler registration and a new IWidget. Core never imports diagram — the dependency is strictly one-way.
           </div>
-          <div style={{ textAlign: 'left' }}>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase' as const,
-              color: 'rgba(100, 200, 160, 0.7)',
-              marginBottom: 5,
-            }}>
-              Renderers
-            </div>
-            <div style={{
-              fontSize: 'clamp(11px, 1.3vw, 12px)',
-              color: 'rgba(240, 246, 252, 0.6)',
-              lineHeight: 1.6,
-            }}>
-              DiagramWidget.apply() distributes compiled state to specialized renderers each frame. NodeRenderer builds PBR rounded-corner meshes with optional glow. EdgeRenderer generates tube geometry with animated flow-dash offsets. TextRenderer uses troika-three-text for GPU-accelerated SDF labels. Each renderer owns its Three.js objects and lifecycle.
-            </div>
-          </div>
-          <div style={{ textAlign: 'left' }}>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase' as const,
-              color: 'rgba(130, 100, 255, 0.7)',
-              marginBottom: 5,
-            }}>
-              Output
-            </div>
-            <div style={{
-              fontSize: 'clamp(11px, 1.3vw, 12px)',
-              color: 'rgba(240, 246, 252, 0.6)',
-              lineHeight: 1.6,
-            }}>
-              DiagramWidget implements ISceneElement + IRenderable + ILoadable. It owns the Three.js Object3D tree and the DiagramCanvas's OrthographicCamera — isolated from the main scene camera. EnvMapManager provides the HDR environment map for PBR reflections on all nodes and edges.
-            </div>
-          </div>
-        </div>
-        <div style={{
-          borderRight: '2px solid rgba(130, 100, 255, 0.5)',
-          paddingRight: 12,
-          fontSize: 'clamp(11px, 1.3vw, 12px)',
-          color: 'rgba(240, 246, 252, 0.85)',
-          lineHeight: 1.6,
-          fontStyle: 'italic',
-          textAlign: 'right',
-        }}>
-          <strong>Key insight:</strong> @brewsite/diagram extends core purely through NodeHandler registration and a new IWidget. Core never imports diagram — the dependency is strictly one-way.
-        </div>
-      </ScrollOn>
-    </div>
+        </ScrollOn>
+      </div>
+    </TextBox>
   </Scene>
 );

@@ -1,13 +1,10 @@
-import { JSX } from 'react';
-import { Link } from 'react-router';
-import { CodeBlock } from '../../components/ui/CodeBlock';
-import { Callout } from '../../components/ui/Callout';
+import type { ReactElement } from 'react';
+import { Section, CodeBlock, Callout } from '@brewsite/docs';
+import type { SectionId } from '../../docs-nav';
 
-export default function Concepts(): JSX.Element {
+export function WidgetSdkPage(): ReactElement {
   return (
-    <section>
-      <h1>Widget SDK</h1>
-
+    <Section<SectionId> id="widget-sdk" title="Widget SDK">
       <p>
         Every renderable concept in BrewSite is a widget. The <code>Camera</code>,{' '}
         <code>Lighting</code>, <code>Background</code>, <code>Model</code>, and <code>Floor</code>{' '}
@@ -157,10 +154,10 @@ if (isSceneElement(widget)) {
 
       <p>
         Ready to build? See{' '}
-        <Link to="/core/custom-widget">Creating a Custom Widget</Link> for a complete step-by-step
+        <a href="#custom-widget">Creating a Custom Widget</a> for a complete step-by-step
         walkthrough, or read about the{' '}
-        <Link to="/core/variable-store">VariableStore</Link> for cross-widget state sharing.
+        <a href="#variable-store">VariableStore</a> for cross-widget state sharing.
       </p>
-    </section>
+    </Section>
   );
 }

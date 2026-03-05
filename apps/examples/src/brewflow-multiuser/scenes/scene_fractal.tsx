@@ -8,6 +8,7 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
+  TextBox,
   WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, FlowLayout,} from '@brewsite/diagram';
@@ -91,56 +92,55 @@ export const sceneFractal: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '50vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="fractal-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8,11,20,0.88)',
+        backdropFilter: 'blur(16px)',
+        height: '100%',
+        boxSizing: 'border-box',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        overflowY: 'auto',
+        pointerEvents: 'auto',
       }}>
-        THE FRACTAL EVIDENCE MODEL
-      </div>
-      <p style={{ fontSize: '0.94rem', fontWeight: 600, color: '#c8d8f0', margin: '0 0 16px' }}>
-        The same principle at every scale: multiple independent sources arguing until they agree.
-      </p>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        <div>
-          <p style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.7, margin: 0 }}>
-            At Scale 0, a single expert's internal Step 4 (CHALLENGE) asks "where does this break?"
-            before proposing. At Scale 1, five specialists argue the same episode from different lenses.
-            At Scale 2, the same expert's observations across multiple sessions cluster into stronger
-            evidence. At Scale 3, independent users converging on the same conclusion crosses the
-            project-scope threshold. At Scale 4, real-world use over time either confirms or demotes.
-          </p>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          THE FRACTAL EVIDENCE MODEL
         </div>
-        <div>
-          <p style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.7, margin: 0 }}>
-            The debate model adds Scale 1 rigor. Without it, Scale 2 inherits unexamined assumptions
-            from a single LLM pass — a confident wrong conclusion clusters just as readily as a confident
-            right one. With Scale 1, only claims that survived inter-expert challenge reach Scale 2
-            accumulation. The evidence pyramid is stronger at every level above it.
-          </p>
-          <p style={{ fontSize: '0.78rem', color: 'rgba(160, 180, 220, 0.55)', lineHeight: 1.6, margin: '12px 0 0', fontStyle: 'italic' }}>
-            Note: none of these scales replace each other. A claim that is pre-converged at Scale 1
-            still needs Scale 2 corroboration before reaching project scope. The scales are cumulative,
-            not substitutable.
-          </p>
+        <p style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', margin: '0 0 16px' }}>
+          The same principle at every scale: multiple independent sources arguing until they agree.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+          <div>
+            <p style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.7, margin: 0 }}>
+              At Scale 0, a single expert's internal Step 4 (CHALLENGE) asks "where does this break?"
+              before proposing. At Scale 1, five specialists argue the same episode from different lenses.
+              At Scale 2, the same expert's observations across multiple sessions cluster into stronger
+              evidence. At Scale 3, independent users converging on the same conclusion crosses the
+              project-scope threshold. At Scale 4, real-world use over time either confirms or demotes.
+            </p>
+          </div>
+          <div>
+            <p style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.7, margin: 0 }}>
+              The debate model adds Scale 1 rigor. Without it, Scale 2 inherits unexamined assumptions
+              from a single LLM pass — a confident wrong conclusion clusters just as readily as a confident
+              right one. With Scale 1, only claims that survived inter-expert challenge reach Scale 2
+              accumulation. The evidence pyramid is stronger at every level above it.
+            </p>
+            <p style={{ fontSize: '14px', color: 'rgba(160, 180, 220, 0.55)', lineHeight: 1.6, margin: '12px 0 0', fontStyle: 'italic' }}>
+              Note: none of these scales replace each other. A claim that is pre-converged at Scale 1
+              still needs Scale 2 corroboration before reaching project scope. The scales are cumulative,
+              not substitutable.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

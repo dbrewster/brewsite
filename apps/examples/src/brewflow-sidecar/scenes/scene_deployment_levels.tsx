@@ -8,6 +8,7 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
+  TextBox,
   WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, FlowLayout,} from '@brewsite/diagram';
@@ -92,42 +93,39 @@ export const sceneDeploymentLevels: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    {/* Prose panel */}
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '45vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="levels-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8, 11, 20, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        height: '100%',
+        boxSizing: 'border-box',
+        overflowY: 'auto',
       }}>
-        THE ADDITIVE GRADIENT
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          THE ADDITIVE GRADIENT
+        </div>
+        <p style={{ fontSize: '18px', color: 'rgba(180, 200, 240, 0.8)', lineHeight: 1.7, margin: '0 0 16px', maxWidth: 800 }}>
+          Each level adds capability without breaking the levels below. Start at Level 0 with a single
+          process and zero configuration changes to agents. Add levels incrementally as confidence grows.
+        </p>
+        <p style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', margin: '0 0 8px' }}>
+          Nothing breaks at any level if a higher level is absent.
+        </p>
+        <p style={{ fontSize: '15px', color: 'rgba(160, 180, 220, 0.65)', lineHeight: 1.6, margin: 0 }}>
+          A Level 3 deployment with the MCP server down degrades gracefully to Level 2 behavior —
+          agents still receive context from the pre-task hook. A Level 5 deployment with dreamer
+          disabled retains all episodic captures and can be back-filled later.
+        </p>
       </div>
-      <p style={{ fontSize: '0.94rem', color: 'rgba(180, 200, 240, 0.8)', lineHeight: 1.7, margin: '0 0 16px', maxWidth: 800 }}>
-        Each level adds capability without breaking the levels below. Start at Level 0 with a single
-        process and zero configuration changes to agents. Add levels incrementally as confidence grows.
-      </p>
-      <p style={{ fontSize: '0.94rem', fontWeight: 600, color: '#c8d8f0', margin: '0 0 8px' }}>
-        Nothing breaks at any level if a higher level is absent.
-      </p>
-      <p style={{ fontSize: '0.89rem', color: 'rgba(160, 180, 220, 0.65)', lineHeight: 1.6, margin: 0 }}>
-        A Level 3 deployment with the MCP server down degrades gracefully to Level 2 behavior —
-        agents still receive context from the pre-task hook. A Level 5 deployment with dreamer
-        disabled retains all episodic captures and can be back-filled later.
-      </p>
-    </div>
+    </TextBox>
   </Scene>
 );

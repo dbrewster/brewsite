@@ -8,6 +8,7 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
+  TextBox,
   WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
@@ -99,57 +100,54 @@ export const sceneMcp: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    {/* Prose panel */}
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '55vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="mcp-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8, 11, 20, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        height: '100%',
+        boxSizing: 'border-box',
+        overflowY: 'auto',
       }}>
-        COMPONENT 2: THE MCP SERVER
-      </div>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          COMPONENT 2: THE MCP SERVER
+        </div>
 
-      <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6, margin: '0 0 16px' }}>
-        One entry in .mcp.json registers the server for all agents:{' '}
-        <code style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.72rem', color: '#8ab4f8', background: 'rgba(100, 140, 220, 0.1)', padding: '1px 5px', borderRadius: 3 }}>
-          npx @brewflow/mcp-server
-        </code>
-      </p>
+        <p style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6, margin: '0 0 16px' }}>
+          One entry in .mcp.json registers the server for all agents:{' '}
+          <code style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '13px', color: '#8ab4f8', background: 'rgba(100, 140, 220, 0.1)', padding: '1px 5px', borderRadius: 3 }}>
+            npx @brewflow/mcp-server
+          </code>
+        </p>
 
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr 1fr',
-        gap: '16px',
-      }}>
-        {[
-          { name: 'recall(intent)', desc: 'Returns a Neocortex context pack: constraints, procedures, and known pitfalls relevant to the given intent string.' },
-          { name: 'store(fact)', desc: 'Persists a discovered fact or rule as an EpisodicStore candidate. Feeds the evidence pool for dreamer consolidation.' },
-          { name: 'get_procedures(intent)', desc: 'Focused retrieval of step-by-step procedures matching the given intent. Lower latency than full recall().' },
-          { name: 'checkpoint(agent, task, ctx)', desc: 'Assembles a memory schematic: prior attempts, known pitfalls, partial progress. Critical for failure recovery.' },
-          { name: 'log_outcome(task, success)', desc: 'Records a verified outcome signal. High-quality evidence for dreamer promotion decisions.' },
-          { name: 'trigger_dream(session_id)', desc: 'Kicks off the 7-stage consolidation pipeline as a background process. Called by session-end hook.' },
-        ].map((tool) => (
-          <div key={tool.name} style={{ padding: '12px 16px', background: 'rgba(20, 28, 60, 0.5)', borderRadius: 6, border: '1px solid rgba(100, 140, 220, 0.12)' }}>
-            <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.72rem', color: '#8ab4f8', marginBottom: 8 }}>{tool.name}</div>
-            <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>{tool.desc}</div>
-          </div>
-        ))}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 1fr',
+          gap: '16px',
+        }}>
+          {[
+            { name: 'recall(intent)', desc: 'Returns a Neocortex context pack: constraints, procedures, and known pitfalls relevant to the given intent string.' },
+            { name: 'store(fact)', desc: 'Persists a discovered fact or rule as an EpisodicStore candidate. Feeds the evidence pool for dreamer consolidation.' },
+            { name: 'get_procedures(intent)', desc: 'Focused retrieval of step-by-step procedures matching the given intent. Lower latency than full recall().' },
+            { name: 'checkpoint(agent, task, ctx)', desc: 'Assembles a memory schematic: prior attempts, known pitfalls, partial progress. Critical for failure recovery.' },
+            { name: 'log_outcome(task, success)', desc: 'Records a verified outcome signal. High-quality evidence for dreamer promotion decisions.' },
+            { name: 'trigger_dream(session_id)', desc: 'Kicks off the 7-stage consolidation pipeline as a background process. Called by session-end hook.' },
+          ].map((tool) => (
+            <div key={tool.name} style={{ padding: '12px 16px', background: 'rgba(20, 28, 60, 0.5)', borderRadius: 6, border: '1px solid rgba(100, 140, 220, 0.12)' }}>
+              <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '13px', color: '#8ab4f8', marginBottom: 8 }}>{tool.name}</div>
+              <div style={{ fontSize: '13px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>{tool.desc}</div>
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

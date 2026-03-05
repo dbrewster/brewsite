@@ -8,6 +8,7 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
+  TextBox,
   WheelMap,
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
@@ -53,78 +54,76 @@ export const sceneSensitiveDataGuard: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    {/* Prose panel */}
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '55vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="bfm-guard-prose" x={0} y={0.52} w={1} h={0.48}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '40px 64px 48px',
+        background: 'rgba(8, 11, 20, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        height: '100%',
+        overflowY: 'auto',
+        pointerEvents: 'auto',
+        boxSizing: 'border-box',
       }}>
-        THE SENSITIVE DATA GUARD
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            4 storage directives
-          </h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem', marginBottom: 16 }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', color: 'rgba(100, 140, 220, 0.7)', padding: '4px 8px 8px 0', fontWeight: 500 }}>Directive</th>
-                <th style={{ textAlign: 'left', color: 'rgba(100, 140, 220, 0.7)', padding: '4px 0 8px', fontWeight: 500 }}>Behaviour</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                ['allow_store', 'Safe to store as-is — no transformation'],
-                ['store_redacted', 'Sanitized version stored; placeholders replace sensitive content'],
-                ['store_sealed', 'Stored in sealed vault; audited access only; default for PHI/HIPAA'],
-                ['no_store', "Do not store; event is logged as 'content withheld'"],
-              ].map(([directive, desc]) => (
-                <tr key={directive} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  <td style={{ padding: '6px 8px 6px 0', color: 'rgba(200, 220, 255, 0.6)', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.72rem' }}>{directive}</td>
-                  <td style={{ padding: '6px 0', color: 'rgba(180, 200, 240, 0.75)', fontSize: '0.83rem' }}>{desc}</td>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          THE SENSITIVE DATA GUARD
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          <div>
+            <h3 style={{ fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              4 storage directives
+            </h3>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', marginBottom: 16 }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'left', color: 'rgba(100, 140, 220, 0.7)', padding: '4px 8px 8px 0', fontWeight: 500 }}>Directive</th>
+                  <th style={{ textAlign: 'left', color: 'rgba(100, 140, 220, 0.7)', padding: '4px 0 8px', fontWeight: 500 }}>Behaviour</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            Where it runs
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
-            The guard runs at every write boundary — EpisodicStore ingestion, Somniocortex
-            consolidation, and Neocortex promotion. It is not limited to tool call boundaries.
-            Any data path that writes to persistent storage passes through the guard.
-          </p>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            CensorCortex at read time
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
-            At read time, CensorCortex enforces lane-scoped access. Sealed vault contents
-            require an audited access token. Redacted content shows placeholders unless
-            the requesting lane has explicit clearance. The guard at write time and
-            CensorCortex at read time form a complete data protection boundary around
-            the memory subsystem.
-          </p>
+              </thead>
+              <tbody>
+                {[
+                  ['allow_store', 'Safe to store as-is — no transformation'],
+                  ['store_redacted', 'Sanitized version stored; placeholders replace sensitive content'],
+                  ['store_sealed', 'Stored in sealed vault; audited access only; default for PHI/HIPAA'],
+                  ['no_store', "Do not store; event is logged as 'content withheld'"],
+                ].map(([directive, desc]) => (
+                  <tr key={directive} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                    <td style={{ padding: '6px 8px 6px 0', color: 'rgba(200, 220, 255, 0.6)', fontFamily: 'JetBrains Mono, monospace', fontSize: '13px' }}>{directive}</td>
+                    <td style={{ padding: '6px 0', color: 'rgba(180, 200, 240, 0.75)', fontSize: '14px' }}>{desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div>
+            <h3 style={{ fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              Where it runs
+            </h3>
+            <p style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+              The guard runs at every write boundary — EpisodicStore ingestion, Somniocortex
+              consolidation, and Neocortex promotion. It is not limited to tool call boundaries.
+              Any data path that writes to persistent storage passes through the guard.
+            </p>
+            <h3 style={{ fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              CensorCortex at read time
+            </h3>
+            <p style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
+              At read time, CensorCortex enforces lane-scoped access. Sealed vault contents
+              require an audited access token. Redacted content shows placeholders unless
+              the requesting lane has explicit clearance. The guard at write time and
+              CensorCortex at read time form a complete data protection boundary around
+              the memory subsystem.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

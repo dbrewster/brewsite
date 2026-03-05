@@ -7,6 +7,9 @@ last_updated: 2026-03-04
 change_history:
   - date: 2026-03-04
     author: "Toolkit Product"
+    summary: "NVS system: added EngineARContainer component (aspect-ratio-locked container with four scale modes, --scene-scale CSS variable). EngineOverlayHost updated to render TextBox content from VariableStore in addition to raw scene overlay ReactNodes. sceneOverlays raw JSX children pattern removed from SceneFrame — that field no longer exists. EngineARContainer exports documented in Section 7A.4. NVS package ownership table added to Section 17."
+  - date: 2026-03-04
+    author: "Toolkit Product"
     summary: "Cross-package theming: added EngineProvider.sceneTheme optional prop. ThemeContext documented. EngineOverlayHost CSS variable injection documented. See prd_theming.md for full SceneTheme system documentation."
   - date: 2026-03-03
     author: "Toolkit Product"
@@ -38,9 +41,9 @@ change_history:
 
 ## 1. Overview
 
-The Player layer is the React integration surface for `@brewsite/core`. `EngineProvider` is the primary component that a host application mounts to render an animated 3D scene, composed with `EngineGate` (loading gate), `EngineInputRegion` (input capture), `SceneCanvas` (Three.js canvas), and `EngineOverlayHost` (overlay tier) to form the complete integration. The Runtime layer is the frame-by-frame execution engine that drives widget ticking, scene track sampling, Three.js rendering, and state publishing. Together they form the complete playback stack: from JSX scene authoring through compilation, asset loading, frame scheduling, and reactive state propagation to host UI.
+The Player layer is the React integration surface for `@brewsite/core`. `EngineProvider` is the primary component that a host application mounts to render an animated 3D scene, composed with `EngineARContainer` (aspect-ratio-locked container), `EngineGate` (loading gate), `EngineInputRegion` (input capture), `SceneCanvas` (Three.js canvas), and `EngineOverlayHost` (overlay tier) to form the complete integration. The Runtime layer is the frame-by-frame execution engine that drives widget ticking, scene track sampling, Three.js rendering, and state publishing. Together they form the complete playback stack: from JSX scene authoring through compilation, asset loading, frame scheduling, and reactive state propagation to host UI.
 
-This document covers `EngineProvider` and the composable player primitives (`EngineGate`, `EngineInputRegion`, `SceneCanvas`, `EngineOverlayHost`), the `useSceneEngine` hook and its options, `RuntimeDriverImpl` and the per-frame tick sequence, `RuntimeLoop` and the animation frame scheduler, `EngineFrameDriver` and the React state bridge, all consumer hooks (`useEngineScroll`, `useEngineInput`, `useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `useSceneEngineState`), all context providers (`EngineStateContext`, `VariableStoreContext`, `LabelPositionerContext`, `EngineContext`), the `EngineInputRegion` DOM input region, `LabelPositioner` for 3D-to-screen projection, `TimelineWidget` for interactive scrubbing, `CameraControlPanel`, `SceneMetaWidget`, `SceneProgressMapper`, the asset manifest pipeline, and the SSR safety contract.
+This document covers `EngineProvider` and the composable player primitives (`EngineARContainer`, `EngineGate`, `EngineInputRegion`, `SceneCanvas`, `EngineOverlayHost`), the `useSceneEngine` hook and its options, `RuntimeDriverImpl` and the per-frame tick sequence, `RuntimeLoop` and the animation frame scheduler, `EngineFrameDriver` and the React state bridge, all consumer hooks (`useEngineScroll`, `useEngineInput`, `useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `useSceneEngineState`), all context providers (`EngineStateContext`, `VariableStoreContext`, `LabelPositionerContext`, `EngineContext`, `EngineARContainerContext`), the `EngineInputRegion` DOM input region, `LabelPositioner` for 3D-to-screen projection, `TimelineWidget` for interactive scrubbing, `CameraControlPanel`, `SceneMetaWidget`, `SceneProgressMapper`, the asset manifest pipeline, the Normalized Viewport Space (NVS) layout system, and the SSR safety contract.
 
 Affects: `@brewsite/core`.
 
@@ -337,7 +340,7 @@ const SceneCanvas = React.forwardRef<HTMLCanvasElement, SceneCanvasProps>(
 
 ### 7A.3 EngineOverlayHost
 
-`EngineOverlayHost` renders the current scene's overlay `ReactNode` (the non-DSL children collected from `<Scene>`) absolutely positioned inset:0 over the canvas. It must be rendered inside an `EngineProvider` tree.
+`EngineOverlayHost` renders the compiled `TextBox` overlay content for the current scene, positioned in NVS coordinates over the canvas. It must be rendered inside an `EngineProvider` tree, and it must be rendered inside an `EngineARContainer` so that NVS coordinates resolve correctly against the AR-locked viewport.
 
 ```typescript
 type EngineOverlayHostProps = {
@@ -357,11 +360,14 @@ const EngineOverlayHost: React.FC<EngineOverlayHostProps>;
 
 **Behavior:**
 - Reads `engine.frameState.sceneId` from `EngineContext`.
-- Reads `engine.sceneOverlays.get(sceneId)` to obtain the current scene's overlay ReactNode.
+- Reads all `TextBoxState` entries keyed under `"textbox:{id}"` from the `VariableStore` for the current scene. These are written by the `TextBoxWidget` during `onTick`.
 - Reads `ThemeContext` (provided by `EngineProvider`) and — when a `SceneTheme` is present — injects CSS custom properties on the overlay container div.
+- Renders each `TextBoxState` as an absolutely positioned `div` whose `left`, `top`, `width`, and `height` are derived from the `TextBoxState.nvsBounds` NVS rectangle, converted to percentage values against the container (which is AR-locked by `EngineARContainer`).
 - Renders the overlay inside a `div` with `position: absolute; inset: 0; overflow: hidden`.
 - Uses `key={sceneId}` on the inner overlay div to trigger a React remount on scene change, which applies a CSS fade-in transition.
 - When `passthroughPointerEvents` is false (default), the container div has `pointer-events: auto`. When true, `pointer-events: none`.
+
+**Removed:** `sceneOverlays` — the previous pattern of authoring raw HTML children directly inside `<Scene>` (collected as `SceneFrame.sceneOverlay: ReactNode`) has been removed. `SceneFrame` no longer has a `sceneOverlay` field. All overlay content is now authored via the `<TextBox>` DSL element.
 
 **CSS variable injection (when `EngineProvider.sceneTheme` is set):**
 
@@ -387,35 +393,119 @@ When no `sceneTheme` is provided, no CSS variables are injected and overlay beha
 **Scene change transition:**
 The overlay container uses a CSS fade-in on mount, keyed by `sceneId`. This gives a smooth crossfade effect when navigating between scenes that have overlay content.
 
-**Example: custom layout with all three primitives:**
+**Example: canonical layout with EngineARContainer:**
 
 ```tsx
-function CustomSceneLayout() {
+import {
+  EngineProvider, EngineARContainer, EngineGate, EngineInputRegion,
+  SceneCanvas, EngineOverlayHost, corePlugin,
+} from '@brewsite/core';
+
+function App() {
   return (
     <EngineProvider
       id="main"
       manifestUrl="/manifest.json"
-      onSceneChange={(id) => console.log('scene:', id)}
+      plugins={[corePlugin()]}
     >
-      {/* Scenes as children — collected as InternalSceneSpec[] */}
       <Scene key="intro">
         <Camera descriptor={{ mode: 'world', position: [0, 1, 5], target: [0, 0, 0] }} />
-        <div style={{ position: 'absolute', top: '10%', left: '50%' }}>
+        <TextBox id="headline" x={0.1} y={0.1} w={0.4} h={0.2}>
           <h1>Hello World</h1>
-        </div>
+        </TextBox>
       </Scene>
 
-      {/* Canvas and overlay rendered in a custom layout container */}
-      <div className="canvas-container" style={{ position: 'relative', width: '100%', height: '600px' }}>
-        <SceneCanvas className="scene-canvas" />
-        <EngineOverlayHost passthroughPointerEvents={false} />
-      </div>
+      <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width">
+        <EngineGate placeholder={<Spinner />}>
+          <EngineInputRegion>
+            <SceneCanvas />
+            <EngineOverlayHost />
+          </EngineInputRegion>
+        </EngineGate>
+      </EngineARContainer>
     </EngineProvider>
   );
 }
 ```
 
-### 7A.4 useSceneEngineState
+### 7A.4 EngineARContainer
+
+`EngineARContainer` maintains a fixed aspect ratio for the engine viewport. It wraps `SceneCanvas`, `EngineOverlayHost`, and `EngineInputRegion` to form the AR-locked spatial frame against which all NVS coordinates are resolved. `EngineARContainer` is required when using `<TextBox>` elements or any widget that implements `INVSBounded`.
+
+```typescript
+export type ScaleMode = 'fit-width' | 'fit-height' | 'contain' | 'cover';
+
+export type EngineARContainerProps = {
+  /**
+   * Fixed aspect ratio for the engine container.
+   * All 3D content and NVS-positioned elements are authored for this AR.
+   * Default: 16 / 9
+   */
+  aspectRatio?: number;
+
+  /**
+   * The pixel width at which --scene-scale = 1.0.
+   * TextBox content authored in reference-resolution pixels scales proportionally
+   * from this baseline. Default: 1920
+   */
+  referenceWidth?: number;
+
+  /**
+   * How the fixed-AR container fits inside the available parent space.
+   *
+   * 'fit-width'  — Width fills the parent; height is derived from AR. Default.
+   * 'fit-height' — Height fills the parent; width is derived from AR.
+   * 'contain'    — Both dimensions fit; the shorter axis letterboxes.
+   * 'cover'      — Both dimensions fill; content that exceeds bounds is clipped.
+   */
+  scaleMode?: ScaleMode;
+
+  /** className applied to the AR-locked container div. */
+  className?: string;
+
+  /**
+   * style applied to the outer wrapper div (not the AR container).
+   * Use to set the background color of letterbox areas.
+   */
+  style?: React.CSSProperties;
+
+  /** All children — SceneCanvas, EngineOverlayHost, EngineInputRegion, etc. */
+  children: React.ReactNode;
+};
+
+export const EngineARContainer: React.FC<EngineARContainerProps>;
+```
+
+**`--scene-scale` CSS variable:**
+
+`EngineARContainer` measures its rendered pixel dimensions via `ResizeObserver` and injects a `--scene-scale` CSS custom property on the container element on every resize. The value is computed as `containerWidth / referenceWidth`. All `TextBox` content uses `calc(Xpx * var(--scene-scale))` for sizing, which causes authored-at-reference-resolution pixel values to scale proportionally across any viewport.
+
+**Context:**
+
+`EngineARContainer` provides `EngineARContainerContext` to its children. Use this context when a child component needs the current container dimensions.
+
+```typescript
+export type EngineARContainerContextValue = {
+  containerWidth: number;
+  containerHeight: number;
+  referenceWidth: number;
+  scaleMode: ScaleMode;
+};
+
+export const EngineARContainerContext =
+  React.createContext<EngineARContainerContextValue>({
+    containerWidth: 0,
+    containerHeight: 0,
+    referenceWidth: 1920,
+    scaleMode: 'fit-width',
+  });
+```
+
+**SSR safety:** `EngineARContainer` defers `ResizeObserver` setup to `useEffect`, so it renders safely on the server with `containerWidth: 0, containerHeight: 0`.
+
+**Source:** `packages/core/src/player/EngineARContainer.tsx`
+
+### 7A.5 useSceneEngineState
 
 `useSceneEngineState(id)` reads current engine state from `ScenePlayerRegistry` via `useSyncExternalStore`. It works from anywhere in the React tree — no `EngineProvider` ancestor is required. It returns `null` when no engine with the given `id` is registered.
 
@@ -570,12 +660,6 @@ type UseSceneEngineResult = {
   sceneCount: number;
   /** All scene IDs in playback order. Derived from InternalSceneSpec[]. */
   sceneIds: string[];
-  /**
-   * Per-scene overlay ReactNodes collected from non-DSL children of <Scene>.
-   * Keyed by scene ID. Always present; empty map when no overlays are declared.
-   * Consumed by EngineOverlayHost to render the current scene's overlay.
-   */
-  sceneOverlays: Map<string, ReactNode>;
   variableStore: VariableStore;
   setCanvasRef: (canvas: HTMLCanvasElement | null) => void;
   setBackgroundRef: (element: HTMLDivElement | null) => void;
@@ -1340,7 +1424,33 @@ For hooks (`useSceneProgress`, `useCurrentScene`, `useEngineInput`), use React T
 
 ---
 
-## 25. Open Questions
+## 25. Normalized Viewport Space (NVS) — Package Ownership
+
+The NVS system is a cross-package spatial contract. The authoritative reference for which package owns each concept is the table below. See `requirements/core/notes/note_normalized-viewport-layout.md` for the full design rationale and `requirements/core/notes/note_nvs-known-limitations.md` for known implementation limitations.
+
+| Concept | Package | Source File |
+|---|---|---|
+| `NVSRect`, `NVSPosition`, `INVSBounded` | `@brewsite/core` | `src/layout/types.ts` |
+| `EngineARContainer` | `@brewsite/core` | `src/player/EngineARContainer.tsx` |
+| `TextBox` DSL element | `@brewsite/core` | `src/elements/text-box/` |
+| `--scene-scale` CSS variable | `@brewsite/core` | injected by `EngineARContainer` |
+| `DiagramCanvas` NVS bounds (`x`, `y`, `w`, `h` props) | `@brewsite/diagram` | `src/elements/diagram/canvas/` |
+| `Chart` NVS bounds (`x`, `y`, `w`, `h` props) | `@brewsite/charts` | `src/elements/chart/` |
+| `Model` NVS bounds (`x`, `y`, `w`, `h` props) | `@brewsite/model` | `src/elements/model/` |
+| `LabelPositioner` NVS sub-region | `@brewsite/model` | `src/player/LabelPositioner.ts` |
+| `ChartTooltipOverlay` NVS bounds | `@brewsite/charts` | `src/elements/chart/ChartTooltipOverlay.tsx` |
+
+**Core NVS types are exported from `@brewsite/core`:**
+
+```typescript
+import type { NVSRect, NVSPosition, INVSBounded } from '@brewsite/core';
+```
+
+All downstream packages (`@brewsite/diagram`, `@brewsite/charts`, `@brewsite/model`) import `NVSRect` and `INVSBounded` from `@brewsite/core`. The core package must never import from them.
+
+---
+
+## 26. Open Questions
 
 - Should `useSceneProgress()` return the full `EngineState` instead of just `number`, to avoid consumers calling both `useSceneProgress` and `useCurrentScene`? A combined hook would reduce context reads.
 - Should `EngineProvider` expose a way to forward a `ref` to the canvas element for consumers who need direct canvas access (e.g., screenshot capture)? `SceneCanvas` already supports `forwardRef` — a convenience shortcut may be warranted.
@@ -1350,21 +1460,22 @@ For hooks (`useSceneProgress`, `useCurrentScene`, `useEngineInput`), use React T
 
 ---
 
-## 26. Launch Criteria
+## 27. Launch Criteria
 
 For any release that modifies the Player or Runtime public API:
 
-- All `EngineProvider`, `EngineGate`, `SceneCanvas`, and `EngineOverlayHost` prop types compile with `strict: true` and no `any`.
+- All `EngineProvider`, `EngineGate`, `SceneCanvas`, `EngineOverlayHost`, and `EngineARContainer` prop types compile with `strict: true` and no `any`.
 - `useCurrentScene`, `useSceneProgress`, and `useVariable` pass integration tests inside an `<EngineProvider>` wrapper.
 - `useSceneEngineState(id)` passes integration tests verifying: returns null before registration, returns correct snapshot after registration, returns null after unregister, updates on tick index change.
 - `RuntimeDriverImpl` unit tests cover the full tick sequence order (animation controllers before sampling before apply).
 - `RuntimeLoop` deterministic tests cover fpsCap throttling and delta clamping.
 - `EngineInputRegion` renders correctly in both `scroll` and `direct` modes.
 - `TimelineWidget` scrub interaction test confirms `scrollToProgress` is called on pointer drag.
-- `EngineOverlayHost` renders the current scene's overlay ReactNode and switches it on scene change.
+- `EngineOverlayHost` renders `TextBox` overlay content from VariableStore and switches it on scene change.
+- `EngineARContainer` injects `--scene-scale` correctly for all four `scaleMode` values; unit test verifies computed scale for known parent dimensions.
 - `SceneProgressMapper.remap` unit tests cover: uniform segments (identity), single custom fn, multiple scenes with different scrollUnits, progress boundary conditions (0, 1).
 - `SceneProgressMapper.inverse` unit tests verify inverse maps engine progress back to raw progress correctly for both uniform and non-uniform profiles.
 - SSR render of `<EngineProvider>` with `<EngineGate>` produces no Three.js errors and matches the placeholder output.
-- At least one example in `apps/examples/` demonstrates `EngineProvider` + `SceneCanvas` + `EngineOverlayHost` in a custom layout.
+- At least one example in `apps/examples/` demonstrates `EngineProvider` + `EngineARContainer` + `SceneCanvas` + `EngineOverlayHost` with a `TextBox` overlay element.
 - `CHANGELOG.md` in `packages/core` has an entry for every changed exported symbol.
-- `packages/core/README.md` reflects the current `EngineProviderProps` interface and documents `EngineGate`, `EngineInputRegion`, `SceneCanvas`, and `EngineOverlayHost`.
+- `packages/core/README.md` reflects the current `EngineProviderProps` interface and documents `EngineARContainer`, `EngineGate`, `EngineInputRegion`, `SceneCanvas`, and `EngineOverlayHost`.

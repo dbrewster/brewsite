@@ -15,6 +15,8 @@ import type {
   IRenderable,
   IAnimationController,
   IDslComposite,
+  INVSBounded,
+  NVSRect,
   WidgetInitContext,
   WidgetRenderContext,
   AnimationTickContext,
@@ -38,13 +40,22 @@ export class ChartWidget
     ISceneElement<ChartState>,
     IRenderable<ChartState>,
     IAnimationController,
-    IDslComposite
+    IDslComposite,
+    INVSBounded
 {
   readonly widgetId: string;
   readonly defaultState: ChartState = DEFAULT_CHART_STATE;
   readonly transitionSpec = functionalChartTransitionSpec;
   readonly DslComponent = Chart;
   readonly tickPriority = 2; // after CameraWidget(0) and DiagramWidget(1)
+
+  /**
+   * Returns the NVS bounds of the chart within the AR-locked container.
+   * Returns the fullscreen default { x: 0, y: 0, w: 1, h: 1 } until the first apply().
+   */
+  get nvsBounds(): NVSRect {
+    return this.lastState?.nvsBounds ?? DEFAULT_CHART_STATE.nvsBounds;
+  }
 
   readonly childDslComponents: IDslComposite['childDslComponents'] = [
     { component: ChartData as React.ComponentType<unknown>,   displayName: 'ChartData' },
@@ -139,7 +150,11 @@ export class ChartWidget
     this.clickListener = null;
   }
 
-  private getCamera(): THREE.Camera | null {
+  /**
+   * Returns the Three.js camera used for chart rendering.
+   * Returns null if the widget has not been initialized or the camera is unavailable.
+   */
+  public getCamera(): THREE.Camera | null {
     if (!this.scene) return null;
     if (!this.camera) {
       // Camera is stored on scene.userData by CameraWidget
@@ -149,12 +164,36 @@ export class ChartWidget
     return this.camera;
   }
 
+  /**
+   * Returns the pixel dimensions of the renderer's DOM element.
+   * Used by ChartTooltipOverlay to project NDC to pixel offsets within
+   * the AR-locked container.
+   * Returns null if the widget has not been initialized.
+   */
+  public getContainerSize(): { width: number; height: number } | null {
+    if (!this.rendererDom) return null;
+    return {
+      width: this.rendererDom.offsetWidth,
+      height: this.rendererDom.offsetHeight,
+    };
+  }
+
   private getNdc(e: MouseEvent, dom: HTMLElement): THREE.Vector2 | null {
     const rect = dom.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return null;
+    const nvsBounds = this.nvsBounds;
+    const pointerX = e.clientX - rect.left;
+    const pointerY = e.clientY - rect.top;
+    const regionLeft   = nvsBounds.x * rect.width;
+    const regionTop    = nvsBounds.y * rect.height;
+    const regionWidth  = nvsBounds.w * rect.width;
+    const regionHeight = nvsBounds.h * rect.height;
+    if (regionWidth <= 0 || regionHeight <= 0) return null;
+    const subX = pointerX - regionLeft;
+    const subY = pointerY - regionTop;
     return new THREE.Vector2(
-      ((e.clientX - rect.left) / rect.width) * 2 - 1,
-      -((e.clientY - rect.top) / rect.height) * 2 + 1,
+      (subX / regionWidth) * 2 - 1,
+      -(subY / regionHeight) * 2 + 1,
     );
   }
 

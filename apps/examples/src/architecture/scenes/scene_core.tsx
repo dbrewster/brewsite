@@ -10,6 +10,7 @@ import {
     PointerMap,
     ProgressManager,
     Scene,
+    TextBox,
 } from '@brewsite/core';
 import {
     darkGlassTheme,
@@ -278,128 +279,124 @@ export const sceneCoreArch: JSX.Element = (
     </DiagramCanvas>
 
     {/* Teaching overlay */}
-    <div style={{
-      position: 'absolute',
-      bottom: '3%',
-      left: '3%',
-      maxWidth: 540,
-    }}>
-      <MidFade duration={1200}>
-        <div style={{
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: 10,
-          letterSpacing: '0.3em',
-          textTransform: 'uppercase' as const,
-          color: 'rgba(130, 100, 255, 0.8)',
-          marginBottom: 10,
-        }}>
-          @brewsite/core
-        </div>
-        <div style={{
-          fontSize: 'clamp(18px, 2.6vw, 24px)',
-          fontWeight: 600,
-          color: '#f0f6fc',
-          lineHeight: 1.2,
-          marginBottom: 16,
-        }}>
-          JSX in. Rendered frame out.
-        </div>
-      </MidFade>
-      <ScrollOn duration={900} delay={150}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '10px 18px',
-          marginBottom: 14,
-        }}>
-          <div>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase' as const,
-              color: 'rgba(130, 100, 255, 0.7)',
-              marginBottom: 5,
-            }}>
-              Author / DSL
+    <TextBox id="core-teaching" x={0.03} y={0.52} w={0.44} h={0.45}>
+      <div style={{
+        padding: '32px 40px',
+        background: 'rgba(3,5,8,0.85)',
+        backdropFilter: 'blur(20px)',
+        borderRadius: '4px',
+        height: '100%',
+      }}>
+        <MidFade duration={1200}>
+          <div style={{
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: '12px',
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase' as const,
+            color: 'rgba(130, 100, 255, 0.8)',
+            marginBottom: 10,
+          }}>
+            @brewsite/core
+          </div>
+          <h1 style={{
+            fontSize: '48px',
+            fontWeight: 600,
+            color: '#f0f6fc',
+            lineHeight: 1.2,
+            marginBottom: 16,
+            margin: '0 0 16px',
+          }}>
+            JSX in. Rendered frame out.
+          </h1>
+        </MidFade>
+        <ScrollOn duration={900} delay={150}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '10px 18px',
+            marginBottom: 14,
+          }}>
+            <div>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'rgba(130, 100, 255, 0.7)',
+                marginBottom: 5,
+              }}>
+                Author / DSL
+              </div>
+              <div style={{
+                fontSize: '15px',
+                color: 'rgba(240, 246, 252, 0.6)',
+                lineHeight: 1.6,
+              }}>
+                {'Scene files are pure JSX: <Scene>, <Camera>, <Lighting>, <Background>, <ProgressManager>. Each component maps to a registered widget via a NodeHandler. No Three.js, no animation math — describe what you want, not how to render it.'}
+              </div>
             </div>
-            <div style={{
-              fontSize: 'clamp(11px, 1.3vw, 12px)',
-              color: 'rgba(240, 246, 252, 0.6)',
-              lineHeight: 1.6,
-            }}>
-              {'Scene files are pure JSX: <Scene>, <Camera>, <Lighting>, <Background>, <ProgressManager>. Each component maps to a registered widget via a NodeHandler. No Three.js, no animation math — describe what you want, not how to render it.'}
+            <div>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'rgba(100, 160, 255, 0.7)',
+                marginBottom: 5,
+              }}>
+                Compile
+              </div>
+              <div style={{
+                fontSize: '15px',
+                color: 'rgba(240, 246, 252, 0.6)',
+                lineHeight: 1.6,
+              }}>
+                sceneDslCompiler walks the JSX tree and calls each NodeHandler, accumulating SceneFrame[] — one per scene. sceneTrackCompiler bakes those into a pre-allocated SceneTrack: a flat tick array with transitions pre-interpolated. The compiler is pure — no Three.js, no React, no side effects.
+              </div>
+            </div>
+            <div>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'rgba(100, 200, 160, 0.7)',
+                marginBottom: 5,
+              }}>
+                Execute
+              </div>
+              <div style={{
+                fontSize: '15px',
+                color: 'rgba(240, 246, 252, 0.6)',
+                lineHeight: 1.6,
+              }}>
+                RuntimeLoop drives the requestAnimationFrame loop. Each tick, RuntimeDriverImpl calls sceneTrackSampler with the current scroll progress — O(1) lookup into the pre-baked array. WidgetRegistry routes each WidgetState to its IWidget.apply(), where Three.js mutations happen.
+              </div>
+            </div>
+            <div>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'rgba(130, 100, 255, 0.7)',
+                marginBottom: 5,
+              }}>
+                Output
+              </div>
+              <div style={{
+                fontSize: '15px',
+                color: 'rgba(240, 246, 252, 0.6)',
+                lineHeight: 1.6,
+              }}>
+                SceneCanvas owns the WebGLRenderer. EngineOverlayHost layers React HUD nodes over the canvas. EngineInputRegion creates the scroll spacer that converts viewport scroll into scene progress. All three compose inside ScenePlayer — the only integration surface a page author needs.
+              </div>
             </div>
           </div>
-          <div>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase' as const,
-              color: 'rgba(100, 160, 255, 0.7)',
-              marginBottom: 5,
-            }}>
-              Compile
-            </div>
-            <div style={{
-              fontSize: 'clamp(11px, 1.3vw, 12px)',
-              color: 'rgba(240, 246, 252, 0.6)',
-              lineHeight: 1.6,
-            }}>
-              sceneDslCompiler walks the JSX tree and calls each NodeHandler, accumulating SceneFrame[] — one per scene. sceneTrackCompiler bakes those into a pre-allocated SceneTrack: a flat tick array with transitions pre-interpolated. The compiler is pure — no Three.js, no React, no side effects.
-            </div>
+          <div style={{
+            borderLeft: '2px solid rgba(130, 100, 255, 0.5)',
+            paddingLeft: 12,
+            fontSize: '14px',
+            color: 'rgba(240, 246, 252, 0.85)',
+            lineHeight: 1.6,
+            fontStyle: 'italic',
+          }}>
+            <strong>Key insight:</strong> Scenes compile once at mount. The runtime never re-derives state from JSX — it samples a pre-baked array at O(1) per frame, with no diffing, no reconciliation.
           </div>
-          <div>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase' as const,
-              color: 'rgba(100, 200, 160, 0.7)',
-              marginBottom: 5,
-            }}>
-              Execute
-            </div>
-            <div style={{
-              fontSize: 'clamp(11px, 1.3vw, 12px)',
-              color: 'rgba(240, 246, 252, 0.6)',
-              lineHeight: 1.6,
-            }}>
-              RuntimeLoop drives the requestAnimationFrame loop. Each tick, RuntimeDriverImpl calls sceneTrackSampler with the current scroll progress — O(1) lookup into the pre-baked array. WidgetRegistry routes each WidgetState to its IWidget.apply(), where Three.js mutations happen.
-            </div>
-          </div>
-          <div>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase' as const,
-              color: 'rgba(130, 100, 255, 0.7)',
-              marginBottom: 5,
-            }}>
-              Output
-            </div>
-            <div style={{
-              fontSize: 'clamp(11px, 1.3vw, 12px)',
-              color: 'rgba(240, 246, 252, 0.6)',
-              lineHeight: 1.6,
-            }}>
-              SceneCanvas owns the WebGLRenderer. EngineOverlayHost layers React HUD nodes over the canvas. EngineInputRegion creates the scroll spacer that converts viewport scroll into scene progress. All three compose inside ScenePlayer — the only integration surface a page author needs.
-            </div>
-          </div>
-        </div>
-        <div style={{
-          borderLeft: '2px solid rgba(130, 100, 255, 0.5)',
-          paddingLeft: 12,
-          fontSize: 'clamp(11px, 1.3vw, 12px)',
-          color: 'rgba(240, 246, 252, 0.85)',
-          lineHeight: 1.6,
-          fontStyle: 'italic',
-        }}>
-          <strong>Key insight:</strong> Scenes compile once at mount. The runtime never re-derives state from JSX — it samples a pre-baked array at O(1) per frame, with no diffing, no reconciliation.
-        </div>
-      </ScrollOn>
-    </div>
+        </ScrollOn>
+      </div>
+    </TextBox>
   </Scene>
 );

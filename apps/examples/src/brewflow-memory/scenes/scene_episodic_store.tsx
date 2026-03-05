@@ -8,6 +8,7 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
+  TextBox,
   WheelMap,
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
@@ -58,77 +59,75 @@ export const sceneEpisodicStore: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    {/* Prose panel */}
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '50vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="bfm-episodic-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '40px 64px 48px',
+        background: 'rgba(8, 11, 20, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        height: '100%',
+        overflowY: 'auto',
+        pointerEvents: 'auto',
+        boxSizing: 'border-box',
       }}>
-        EPISODIC STORE — WHAT HAPPENED
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            Append-only event log
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
-            EpisodicStore is a strictly append-only log of everything that happened across
-            all sessions. Records are never modified or deleted — only appended. Each JSONL
-            segment file covers a bounded time window and is sealed when closed.
-          </p>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            Safety properties
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
-            Single-writer per segment enforced by an exclusive lock. Path safety validated
-            before every write. Immutability guaranteed — sealed segments are never reopened.
-            Resumability contract: any crashed session can be reconstructed from the log alone.
-          </p>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          EPISODIC STORE — WHAT HAPPENED
         </div>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            Five record kinds
-          </h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: 'left', color: 'rgba(100, 140, 220, 0.7)', padding: '4px 8px 8px 0', fontWeight: 500 }}>Kind</th>
-                <th style={{ textAlign: 'left', color: 'rgba(100, 140, 220, 0.7)', padding: '4px 0 8px', fontWeight: 500 }}>What it captures</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                ['runtime_event', 'Tool calls, results, agent output, token usage'],
-                ['turns_status', 'Turn lifecycle: started · completed · failed · interrupted'],
-                ['thread_summary', 'Compact end-of-thread summaries — consolidation input'],
-                ['synaptic_event', 'Cross-agent signals and specialist coordination'],
-                ['lineage_update', 'Session → plan → thread → turn trace mappings'],
-              ].map(([kind, desc]) => (
-                <tr key={kind} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                  <td style={{ padding: '6px 8px 6px 0', color: 'rgba(200, 220, 255, 0.6)', fontFamily: 'JetBrains Mono, monospace', fontSize: '0.72rem' }}>{kind}</td>
-                  <td style={{ padding: '6px 0', color: 'rgba(180, 200, 240, 0.75)', fontSize: '0.83rem' }}>{desc}</td>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          <div>
+            <h3 style={{ fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              Append-only event log
+            </h3>
+            <p style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+              EpisodicStore is a strictly append-only log of everything that happened across
+              all sessions. Records are never modified or deleted — only appended. Each JSONL
+              segment file covers a bounded time window and is sealed when closed.
+            </p>
+            <h3 style={{ fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              Safety properties
+            </h3>
+            <p style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
+              Single-writer per segment enforced by an exclusive lock. Path safety validated
+              before every write. Immutability guaranteed — sealed segments are never reopened.
+              Resumability contract: any crashed session can be reconstructed from the log alone.
+            </p>
+          </div>
+          <div>
+            <h3 style={{ fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              Five record kinds
+            </h3>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+              <thead>
+                <tr>
+                  <th style={{ textAlign: 'left', color: 'rgba(100, 140, 220, 0.7)', padding: '4px 8px 8px 0', fontWeight: 500 }}>Kind</th>
+                  <th style={{ textAlign: 'left', color: 'rgba(100, 140, 220, 0.7)', padding: '4px 0 8px', fontWeight: 500 }}>What it captures</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {[
+                  ['runtime_event', 'Tool calls, results, agent output, token usage'],
+                  ['turns_status', 'Turn lifecycle: started · completed · failed · interrupted'],
+                  ['thread_summary', 'Compact end-of-thread summaries — consolidation input'],
+                  ['synaptic_event', 'Cross-agent signals and specialist coordination'],
+                  ['lineage_update', 'Session → plan → thread → turn trace mappings'],
+                ].map(([kind, desc]) => (
+                  <tr key={kind} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                    <td style={{ padding: '6px 8px 6px 0', color: 'rgba(200, 220, 255, 0.6)', fontFamily: 'JetBrains Mono, monospace', fontSize: '13px' }}>{kind}</td>
+                    <td style={{ padding: '6px 0', color: 'rgba(180, 200, 240, 0.75)', fontSize: '14px' }}>{desc}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

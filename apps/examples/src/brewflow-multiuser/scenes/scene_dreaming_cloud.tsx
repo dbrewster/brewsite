@@ -8,6 +8,7 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
+  TextBox,
   WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
@@ -135,52 +136,51 @@ export const sceneDreamingCloud: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '50vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="dreaming-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8,11,20,0.88)',
+        backdropFilter: 'blur(16px)',
+        height: '100%',
+        boxSizing: 'border-box',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        overflowY: 'auto',
+        pointerEvents: 'auto',
       }}>
-        DREAMING AT SCALE
-      </div>
-      <p style={{ fontSize: '0.94rem', fontWeight: 600, color: '#c8d8f0', margin: '0 0 16px' }}>
-        Concurrent extraction, serialized promotion.
-      </p>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        <div>
-          <div style={{ fontSize: '0.89rem', fontWeight: 600, color: '#c8d8f0', marginBottom: 6 }}>Phase A — Slice-based (concurrent)</div>
-          <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
-            Stages 1–4 run independently per user. Each dreamer processes only its own episodic
-            slice — the events belonging to one user's sessions. No coordination needed. User A's
-            dreamer and User B's dreamer run in parallel, producing independent
-            <code style={{ fontSize: '0.78rem', color: 'rgba(120,160,240,0.8)' }}> MemoryProposalSet</code> objects.
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          DREAMING AT SCALE
+        </div>
+        <p style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', margin: '0 0 16px' }}>
+          Concurrent extraction, serialized promotion.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', marginBottom: 6 }}>Phase A — Slice-based (concurrent)</div>
+            <div style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
+              Stages 1–4 run independently per user. Each dreamer processes only its own episodic
+              slice — the events belonging to one user's sessions. No coordination needed. User A's
+              dreamer and User B's dreamer run in parallel, producing independent
+              <code style={{ fontSize: '14px', color: 'rgba(120,160,240,0.8)' }}> MemoryProposalSet</code> objects.
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', marginBottom: 6 }}>Phase B — Queue-based (serialized)</div>
+            <div style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
+              Stages 5–7 run through a shared promotion queue. One worker processes proposals in
+              order, validating against existing Neocortex content, resolving conflicts, and writing
+              to the appropriate plane. Serialization ensures no two proposals race to modify the
+              same Neocortex document simultaneously.
+            </div>
           </div>
         </div>
-        <div>
-          <div style={{ fontSize: '0.89rem', fontWeight: 600, color: '#c8d8f0', marginBottom: 6 }}>Phase B — Queue-based (serialized)</div>
-          <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
-            Stages 5–7 run through a shared promotion queue. One worker processes proposals in
-            order, validating against existing Neocortex content, resolving conflicts, and writing
-            to the appropriate plane. Serialization ensures no two proposals race to modify the
-            same Neocortex document simultaneously.
-          </div>
-        </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

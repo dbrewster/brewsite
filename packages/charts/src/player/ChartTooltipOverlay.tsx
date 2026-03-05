@@ -1,17 +1,21 @@
-// ChartTooltipOverlay — projects ChartHoverInfo to screen and renders a tooltip div.
+// ChartTooltipOverlay — projects ChartHoverInfo to NVS sub-region pixel coordinates and renders a tooltip div.
 
 import React, { useState, useEffect, useCallback } from 'react';
 import * as THREE from 'three';
+import type { NVSRect } from '@brewsite/core';
 import type { ChartHoverInfo } from '../elements/chart/ChartWidget';
 import type { ChartWidget } from '../elements/chart/ChartWidget';
 
 export type ChartTooltipOverlayProps = {
   /** The ChartWidget instance to subscribe to hover events on. */
   widget: ChartWidget;
-  /** The Three.js camera used for world→screen projection. */
-  camera?: THREE.Camera;
-  /** The renderer's DOM element (used for bounding rect). */
-  domElement?: HTMLElement;
+  /**
+   * NVS bounds of the chart within the AR-locked container.
+   * Must match the nvsBounds declared in the Chart DSL.
+   * Used to project the 3D hit point to absolute pixel offsets
+   * within EngineOverlayHost.
+   */
+  nvsBounds: NVSRect;
   /** Custom render function for the tooltip content. */
   renderContent?: (info: ChartHoverInfo) => React.ReactNode;
   /** Extra CSS class name applied to the tooltip container. */
@@ -23,6 +27,36 @@ type TooltipState = {
   x: number;
   y: number;
 };
+
+/**
+ * Projects NDC coordinates to pixel offsets within the NVS sub-region of
+ * the AR-locked container.
+ *
+ * @param ndcX - Normalized device coordinate X in [-1, 1].
+ * @param ndcY - Normalized device coordinate Y in [-1, 1].
+ * @param containerW - Full AR-locked container width in pixels.
+ * @param containerH - Full AR-locked container height in pixels.
+ * @param nvsBounds - The NVS sub-region the chart occupies.
+ * @returns Pixel position relative to the AR container top-left.
+ */
+export function projectNdcToNvsPixels(
+  ndcX: number,
+  ndcY: number,
+  containerW: number,
+  containerH: number,
+  nvsBounds: NVSRect,
+): { x: number; y: number } {
+  const regionX = nvsBounds.x * containerW;
+  const regionY = nvsBounds.y * containerH;
+  const regionW = nvsBounds.w * containerW;
+  const regionH = nvsBounds.h * containerH;
+
+  // NDC (-1 to 1) → sub-region pixel position relative to AR container origin.
+  const x = regionX + ((ndcX + 1) / 2) * regionW;
+  const y = regionY + ((-ndcY + 1) / 2) * regionH;
+
+  return { x, y };
+}
 
 function defaultRenderContent(info: ChartHoverInfo): React.ReactNode {
   const entries = Object.entries(info.row).slice(0, 4);
@@ -39,15 +73,15 @@ function defaultRenderContent(info: ChartHoverInfo): React.ReactNode {
 }
 
 /**
- * Renders a floating tooltip over the canvas when a chart element is hovered.
- * Projects the 3D hit point to 2D screen coordinates using the Three.js camera.
+ * Renders a floating tooltip inside EngineOverlayHost when a chart element is hovered.
+ * Projects the 3D hit point to 2D pixel coordinates within the NVS sub-region
+ * using the widget's camera and container size.
  *
- * Usage: place inside the same React tree as the EngineProvider.
+ * Usage: place inside EngineOverlayHost in the same React tree as EngineProvider.
  */
 export function ChartTooltipOverlay({
   widget,
-  camera,
-  domElement,
+  nvsBounds,
   renderContent = defaultRenderContent,
   className,
 }: ChartTooltipOverlayProps): React.ReactElement | null {
@@ -55,21 +89,27 @@ export function ChartTooltipOverlay({
 
   const project = useCallback(
     (info: ChartHoverInfo | null): void => {
-      if (!info || !camera || !domElement) {
-        setTooltip(null);
-        return;
-      }
+      if (!info) { setTooltip(null); return; }
+      const camera = widget.getCamera();
+      const containerSize = widget.getContainerSize();
+      if (!camera || !containerSize) { setTooltip(null); return; }
 
-      const rect = domElement.getBoundingClientRect();
+      // Project 3D world position to NDC.
       const point = new THREE.Vector3(info.point[0], info.point[1], info.point[2]);
-      point.project(camera);
+      point.project(camera); // NDC in [-1, 1] x [-1, 1]
 
-      const x = ((point.x + 1) / 2) * rect.width + rect.left;
-      const y = ((-point.y + 1) / 2) * rect.height + rect.top;
+      // Map NDC into the NVS sub-region pixel footprint within the AR container.
+      const { x, y } = projectNdcToNvsPixels(
+        point.x,
+        point.y,
+        containerSize.width,
+        containerSize.height,
+        nvsBounds,
+      );
 
       setTooltip({ info, x, y });
     },
-    [camera, domElement],
+    [widget, nvsBounds],
   );
 
   useEffect(() => {
@@ -85,7 +125,7 @@ export function ChartTooltipOverlay({
     <div
       className={className}
       style={{
-        position: 'fixed',
+        position: 'absolute',
         left: tooltip.x + 12,
         top: tooltip.y - 12,
         background: 'rgba(15, 23, 42, 0.92)',

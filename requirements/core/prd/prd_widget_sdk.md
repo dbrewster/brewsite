@@ -3,7 +3,7 @@ title: "BrewSite Core — Widget SDK"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-03
+last_updated: 2026-03-04
 change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
@@ -20,6 +20,9 @@ change_history:
   - date: 2026-03-03
     author: "Toolkit Product"
     summary: "API hardening update: replaced createDefaultWidgetRegistry() with the composable plugin model. Requirement #14 updated to document corePlugin() and modelPlugin(). Section 11 rewritten from createDefaultWidgetRegistry to document corePlugin() (from @brewsite/core) and modelPlugin() (from @brewsite/model) as the standard registration entry points. WidgetRegistry scope description updated from ScenePlayer to EngineProvider. useVariable context reference updated from ScenePlayer to EngineProvider. ScenePlayer.widgetSetup integration pattern references removed."
+  - date: 2026-03-04
+    author: "Toolkit Product"
+    summary: "NVS system: added INVSBounded interface to Widget SDK (layout/types.ts). DiagramCanvasWidget, ChartWidget, and ModelWidget all implement INVSBounded. Interface documented in Section 6 (requirement 8b) and Section 8 (interface hierarchy). WidgetRegistry.getNVSBoundedWidgets() method added to Section 11."
   - date: 2026-03-03
     author: "Toolkit Product"
     summary: "Added IInputDefaultProvider interface (widget/types.ts), isInputDefaultProvider type guard, and WidgetRegistry.getInputDefaultProviders() method. The player layer uses these to supply default input actions from DiagramCanvasWidget when no explicit <InputController> is authored for the current scene."
@@ -98,6 +101,7 @@ The Widget SDK solves this by defining a stable, versioned interface set that wi
 7. `IDslComposite` shall declare `readonly childDslComponents` as an array of component descriptors. The `WidgetRegistry` shall install protective top-level node handlers for each child component to produce meaningful error messages when they appear outside their parent.
 8. `IVariableProvider` shall declare `readonly variableNamespace: string` and `readonly variableKeys: readonly string[]`. The runtime uses this for introspection; actual variable publishing is done inside `onTick` via `AnimationTickContext.variables`.
 8a. `IInputDefaultProvider` shall declare `getDefaultInputActions(): InputActionSpec[]`. Widgets that carry per-canvas default input actions in their compiled state implement this interface. The player layer calls `WidgetRegistry.getInputDefaultProviders()` each frame to aggregate default actions for the current scene when no explicit `<InputController>` is authored.
+8b. `INVSBounded` shall declare `readonly nvsBounds: NVSRect`. Widgets that occupy a declared sub-region of the AR-locked viewport implement this interface. `nvsBounds` returns the current NVS rectangle from the widget's most recently applied state; before any state has been applied, it returns the fullscreen default `{ x: 0, y: 0, w: 1, h: 1 }`. The interface is defined in `packages/core/src/layout/types.ts` and exported from `@brewsite/core`. `DiagramCanvasWidget`, `ChartWidget`, and `ModelWidget` all implement `INVSBounded`.
 9. `WidgetRegistry.register(widget)` shall install a DSL node routing handler for the widget's `DslComponent` if one has not already been installed.
 10. `WidgetRegistry.registerTypeFactory(component, factory)` shall install a type-routed handler that calls `factory(props)` on first encounter of a given `type` prop value, then registers and dispatches to the produced widget.
 11. `CUSTOM_NODE_HANDLER` shall be a `Symbol` that widgets set on themselves to provide their own DSL node compilation logic. When present, the routing handler installed by `WidgetRegistry` shall delegate to it instead of the default state-merge path.
@@ -303,6 +307,35 @@ Widgets that carry input action configuration in their compiled state implement 
 
 `IInputDefaultProvider` is defined in `@brewsite/core/widget/types.ts` so that the core player layer can call `getInputDefaultProviders()` without any `@brewsite/diagram` dependency. `DiagramCanvasWidget` in `@brewsite/diagram` implements the interface through the correct package dependency direction.
 
+### 7.10 INVSBounded
+
+```typescript
+/**
+ * Widget that occupies a declared sub-region of the AR-locked viewport.
+ *
+ * The NVS rectangle is a [0, 1] normalized ratio over the EngineARContainer
+ * dimensions. x=0 is the left edge, y=0 is the top edge.
+ *
+ * Implemented by DiagramCanvasWidget, ChartWidget, and ModelWidget.
+ *
+ * nvsBounds must return a non-nullable NVSRect. Before any compiled state
+ * has been applied (e.g. immediately after construction), return the
+ * fullscreen default: { x: 0, y: 0, w: 1, h: 1 }.
+ *
+ * The interface is defined in packages/core/src/layout/types.ts and
+ * exported from @brewsite/core. It must not be duplicated in downstream packages.
+ */
+interface INVSBounded {
+  readonly nvsBounds: NVSRect;
+}
+```
+
+`INVSBounded` is used by the `EngineARContainer` to auto-frame Three.js cameras to the widget's declared NVS region, and by authoring tools to query spatial occupancy. It is a read-only contract — the widget owns its NVS bounds and updates them on `apply()`.
+
+`INVSBounded` does not extend `IWidget`. It is a capability interface that may be implemented independently. In practice, the three widgets that implement it — `DiagramCanvasWidget`, `ChartWidget`, and `ModelWidget` — also implement `ISceneElement` and `IRenderable`.
+
+`WidgetRegistry.getNVSBoundedWidgets()` returns all registered widgets that implement `INVSBounded`. This method is used by the camera auto-framing system when a widget is first introduced into a scene with a non-fullscreen NVS region.
+
 ---
 
 ## 8. WidgetRegistry
@@ -335,6 +368,8 @@ class WidgetRegistry {
   getDslComposites(): IDslComposite[];
   /** Returns all widgets that implement IInputDefaultProvider, in registration order. */
   getInputDefaultProviders(): IInputDefaultProvider[];
+  /** Returns all widgets that implement INVSBounded, in registration order. */
+  getNVSBoundedWidgets(): INVSBounded[];
   buildCacheKey(): string;
 }
 ```

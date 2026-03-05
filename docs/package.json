@@ -1,5 +1,5 @@
 {
-  "name": "@brewsite/docs",
+  "name": "@brewsite/docs-app",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -14,11 +14,9 @@
   },
   "dependencies": {
     "@brewsite/core": "workspace:*",
-    "@brewsite/diagram": "workspace:*",
-    "prism-react-renderer": "^2.4.1",
+    "@brewsite/docs": "workspace:*",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-router": "^7.13.0",
     "three": "^0.183.1"
   },
   "devDependencies": {

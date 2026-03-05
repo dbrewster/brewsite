@@ -44,6 +44,14 @@ export interface DiagramCanvasProps {
    * canvas (for example Cmd+click empty area).
    */
   focusCenter?: [number, number] | [number, number, number];
+  /** NVS x-coordinate of the canvas left edge [0, 1]. Default: 0 */
+  x?: number;
+  /** NVS y-coordinate of the canvas top edge [0, 1]. Default: 0 */
+  y?: number;
+  /** NVS width of the canvas [0, 1]. Default: 1 */
+  w?: number;
+  /** NVS height of the canvas [0, 1]. Default: 1 */
+  h?: number;
   children?: React.ReactNode;
 }
 

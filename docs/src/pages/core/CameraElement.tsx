@@ -1,11 +1,8 @@
-import { JSX } from 'react';
-import { Link } from 'react-router';
-import { CodeBlock } from '../../components/ui/CodeBlock';
-import { PropTable } from '../../components/ui/PropTable';
-import { Callout } from '../../components/ui/Callout';
-import { LiveDemo } from '../../components/demo/LiveDemo';
-import CameraWorldDemo, { CODE as WORLD_CODE } from '../../demos/core/CameraWorldDemo.demo';
-import CameraOrbitDemo, { CODE as ORBIT_CODE } from '../../demos/core/CameraOrbitDemo.demo';
+import type { ReactElement } from 'react';
+import { Section, DocsDemo, CodeBlock, PropTable, Callout } from '@brewsite/docs';
+import type { SectionId } from '../../docs-nav';
+import { CameraWorldDemo } from '../../demos/core/CameraWorldDemo.demo';
+import { CameraOrbitDemo } from '../../demos/core/CameraOrbitDemo.demo';
 
 const WORLD_SNIPPET = `<Camera mode="world" position={[0, 2, 8]} target={[0, 0, 0]} />`;
 
@@ -45,10 +42,9 @@ const INTERACTION_CODE = `<Camera
   }}
 />`;
 
-export default function CameraElement(): JSX.Element {
+export function CameraPage(): ReactElement {
   return (
-    <section>
-      <h1>Camera Element</h1>
+    <Section<SectionId> id="camera" title="Camera">
       <p>
         The <code>&lt;Camera&gt;</code> element controls the Three.js perspective camera. It supports
         world-space positioning, orbit mode, and automatic model-framing modes. Every scene can declare
@@ -61,9 +57,9 @@ export default function CameraElement(): JSX.Element {
         point the camera looks at. This is the most direct way to frame a specific area of your scene,
         and makes camera intent obvious when reading a scene file.
       </p>
-      <LiveDemo title="World-space camera across three scenes" code={WORLD_CODE}>
+      <DocsDemo title="World-space camera across three scenes" scrollUnits={2400} height={480}>
         <CameraWorldDemo />
-      </LiveDemo>
+      </DocsDemo>
       <CodeBlock code={WORLD_SNIPPET} language="tsx" />
 
       <h2>Orbit Mode</h2>
@@ -72,9 +68,9 @@ export default function CameraElement(): JSX.Element {
         It is ideal for turntable animations and cinematic fly-arounds where you want smooth angular
         control without manually computing Cartesian coordinates.
       </p>
-      <LiveDemo title="Orbital camera sweep" code={ORBIT_CODE}>
+      <DocsDemo title="Orbital camera sweep" scrollUnits={2400} height={480}>
         <CameraOrbitDemo />
-      </LiveDemo>
+      </DocsDemo>
       <CodeBlock code={ORBIT_SNIPPET} language="tsx" />
       <Callout type="note">
         Azimuth and polar are in radians. Azimuth <code>0</code> = positive Z axis; it increases
@@ -112,35 +108,11 @@ export default function CameraElement(): JSX.Element {
       </p>
       <PropTable
         rows={[
-          {
-            name: 'fov',
-            type: 'number',
-            defaultValue: '50',
-            description: 'Field of view in degrees.',
-          },
-          {
-            name: 'focalLength',
-            type: 'number',
-            description: 'Focal length in mm. Overrides fov when set.',
-          },
-          {
-            name: 'filmGauge',
-            type: 'number',
-            defaultValue: '35',
-            description: 'Film gauge in mm. Used together with focalLength to compute fov.',
-          },
-          {
-            name: 'near',
-            type: 'number',
-            defaultValue: '0.1',
-            description: 'Near clip plane distance.',
-          },
-          {
-            name: 'far',
-            type: 'number',
-            defaultValue: '1000',
-            description: 'Far clip plane distance.',
-          },
+          { name: 'fov', type: 'number', defaultValue: '50', description: 'Field of view in degrees.' },
+          { name: 'focalLength', type: 'number', description: 'Focal length in mm. Overrides fov when set.' },
+          { name: 'filmGauge', type: 'number', defaultValue: '35', description: 'Film gauge in mm. Used together with focalLength to compute fov.' },
+          { name: 'near', type: 'number', defaultValue: '0.1', description: 'Near clip plane distance.' },
+          { name: 'far', type: 'number', defaultValue: '1000', description: 'Far clip plane distance.' },
         ]}
       />
 
@@ -152,12 +124,7 @@ export default function CameraElement(): JSX.Element {
       </p>
       <PropTable
         rows={[
-          {
-            name: 'exposure',
-            type: 'number',
-            defaultValue: '1.0',
-            description: 'Renderer tone mapping exposure. Values above 1 brighten; below 1 darken.',
-          },
+          { name: 'exposure', type: 'number', defaultValue: '1.0', description: 'Renderer tone mapping exposure. Values above 1 brighten; below 1 darken.' },
         ]}
       />
 
@@ -174,8 +141,8 @@ export default function CameraElement(): JSX.Element {
       </Callout>
       <p>
         For full action-mapped input (keyboard shortcuts, focus-on-click, custom orbit limits), see{' '}
-        <Link to="/core/input-actions">ActionInputController</Link>.
+        <a href="#input-actions">ActionInputController</a>.
       </p>
-    </section>
+    </Section>
   );
 }

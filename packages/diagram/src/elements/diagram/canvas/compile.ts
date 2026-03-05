@@ -10,7 +10,7 @@ import type {
   PipeRoutingAlgorithm,
   PipeLandingAlgorithm,
 } from './types';
-import type { InputActionSpec } from '@brewsite/core';
+import type { InputActionSpec, NVSRect } from '@brewsite/core';
 import { DIAGRAM_PIPE_DEFAULT_COLOR } from './types';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
 import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
@@ -203,6 +203,13 @@ export function compileCanvas(
   const pipeLanding = dsl.pipeLanding ?? DEFAULT_PIPE_LANDING;
   const compiledPipes = pipes.map((pipe, index) => compilePipe(pipe, diagrams, index, pipeRouting, pipeLanding, onWarn));
 
+  const nvsBounds: NVSRect = {
+    x: dsl.x ?? 0,
+    y: dsl.y ?? 0,
+    w: dsl.w ?? 1,
+    h: dsl.h ?? 1,
+  };
+
   return {
     id: dsl.id,
     position: dsl.position ?? [0, 0, 0],
@@ -212,6 +219,7 @@ export function compileCanvas(
     diagrams,
     pipes: compiledPipes,
     defaultInputActions,
+    nvsBounds,
   };
 }
 

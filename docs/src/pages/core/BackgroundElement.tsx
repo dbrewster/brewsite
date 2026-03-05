@@ -1,9 +1,7 @@
-import { JSX } from 'react';
-import { CodeBlock } from '../../components/ui/CodeBlock';
-import { PropTable } from '../../components/ui/PropTable';
-import { Callout } from '../../components/ui/Callout';
-import { LiveDemo } from '../../components/demo/LiveDemo';
-import BackgroundDemo, { CODE as BG_CODE } from '../../demos/core/BackgroundDemo.demo';
+import type { ReactElement } from 'react';
+import { Section, DocsDemo, CodeBlock, PropTable, Callout } from '@brewsite/docs';
+import type { SectionId } from '../../docs-nav';
+import { BackgroundDemo } from '../../demos/core/BackgroundDemo.demo';
 
 const COLOR_CODE = `// Solid color background — the ambient light color strongly influences
 // the visual tone of the scene even without an imageUrl.
@@ -29,10 +27,9 @@ const IMAGE_CODE = `// Image-based background using a 3D plane in world space.
   cssRepeat="no-repeat"
 />`;
 
-export default function BackgroundElement(): JSX.Element {
+export function BackgroundPage(): ReactElement {
   return (
-    <section>
-      <h1>Background Element</h1>
+    <Section<SectionId> id="background" title="Background Element">
       <p>
         The <code>&lt;Background&gt;</code> element controls what appears behind your 3D scene. It
         supports image-based backgrounds rendered on a 3D plane in world space, as well as a DOM
@@ -40,9 +37,9 @@ export default function BackgroundElement(): JSX.Element {
         background properties are interpolated during scene transitions.
       </p>
 
-      <LiveDemo title="Background color transitions via ambient lighting" code={BG_CODE}>
+      <DocsDemo title="Background color transitions via ambient lighting" scrollUnits={2400} height={480}>
         <BackgroundDemo />
-      </LiveDemo>
+      </DocsDemo>
 
       <h2>Color Backgrounds</h2>
       <p>
@@ -109,6 +106,6 @@ export default function BackgroundElement(): JSX.Element {
         desaturated colors and controlled ambient intensity for a cinematic look — overly bright or
         saturated backgrounds compete with the 3D content for visual attention.
       </Callout>
-    </section>
+    </Section>
   );
 }

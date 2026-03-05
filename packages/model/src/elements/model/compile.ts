@@ -16,6 +16,7 @@ import type {
   ClipMeta,
   SceneModelInstanceState,
 } from './types';
+import type { NVSRect } from '@brewsite/core';
 import type { ElementTransitionSpec, FunctionalTransitionSpec } from '@brewsite/core/compiler/transitions/transitionTypes';
 import {
   blendAxisRotation,
@@ -644,6 +645,9 @@ export const compileAnimation = (
 
 // ─── Default state factory ──────────────────────────────────────────────────
 
+/** Fullscreen NVS bounds — the default when no region is specified. */
+const FULLSCREEN_NVS_BOUNDS: NVSRect = { x: 0, y: 0, w: 1, h: 1 };
+
 const cloneIdentityState = (state: SceneModelInstanceState): SceneModelInstanceState => {
   if (typeof structuredClone === 'function') {
     return structuredClone(state) as SceneModelInstanceState;
@@ -654,8 +658,13 @@ const cloneIdentityState = (state: SceneModelInstanceState): SceneModelInstanceS
 export function createDefaultModelInstanceState(
   _modelId: string,
   identity: SceneModelInstanceState,
-) {
-  return cloneIdentityState(identity);
+): SceneModelInstanceState {
+  const cloned = cloneIdentityState(identity);
+  // Ensure nvsBounds is always present — older identities (from JSON manifests) may omit it.
+  if (!cloned.nvsBounds) {
+    cloned.nvsBounds = { ...FULLSCREEN_NVS_BOUNDS };
+  }
+  return cloned;
 }
 
 // ─── Instance state transition spec (wraps model and playback) ─────────────

@@ -8,6 +8,7 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
+  TextBox,
   WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEnter, DiagramNode, GridLayout,} from '@brewsite/diagram';
@@ -74,66 +75,65 @@ export const sceneProblems: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '55vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="problems-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8,11,20,0.88)',
+        backdropFilter: 'blur(16px)',
+        height: '100%',
+        boxSizing: 'border-box',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        overflowY: 'auto',
+        pointerEvents: 'auto',
       }}>
-        THE NEW PROBLEMS
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          THE NEW PROBLEMS
+        </div>
+        <p style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', margin: '0 0 16px' }}>
+          Add a second user and the entire model breaks.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: '#e87a7a', marginBottom: 6 }}>Episodic stomping</div>
+            <div style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
+              Each user's event log uses sequence numbers for ordering. Two users sharing one store
+              write to the same sequence namespace. Events interleave, lineage pointers point at the
+              wrong user's events, and the episodic record becomes unreadable.
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: '#e87a7a', marginBottom: 6 }}>Session confusion</div>
+            <div style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
+              Two concurrent sessions have no stable identity boundary. Events captured during user A's
+              session may be attributed to user B's concurrently-running session, especially during
+              overlapping dreamer runs.
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: '#e87a7a', marginBottom: 6 }}>Dreaming conflicts</div>
+            <div style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
+              Two dreamers triggered by two separate session-ends race to update the same Neocortex
+              document. No locking means last writer wins. One dreamer's promotions silently overwrite
+              the other's, with no record of what was lost.
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: '#e87a7a', marginBottom: 6 }}>Neocortex ownership</div>
+            <div style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
+              Without an ownership model, any session can write any constraint into the shared
+              Neocortex. One bad session — confused agent, bad LLM output, hallucinated conclusion —
+              can poison the shared knowledge that every future user relies on.
+            </div>
+          </div>
+        </div>
       </div>
-      <p style={{ fontSize: '0.94rem', fontWeight: 600, color: '#c8d8f0', margin: '0 0 16px' }}>
-        Add a second user and the entire model breaks.
-      </p>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        <div>
-          <div style={{ fontSize: '0.89rem', fontWeight: 600, color: '#e87a7a', marginBottom: 6 }}>Episodic stomping</div>
-          <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
-            Each user's event log uses sequence numbers for ordering. Two users sharing one store
-            write to the same sequence namespace. Events interleave, lineage pointers point at the
-            wrong user's events, and the episodic record becomes unreadable.
-          </div>
-        </div>
-        <div>
-          <div style={{ fontSize: '0.89rem', fontWeight: 600, color: '#e87a7a', marginBottom: 6 }}>Session confusion</div>
-          <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
-            Two concurrent sessions have no stable identity boundary. Events captured during user A's
-            session may be attributed to user B's concurrently-running session, especially during
-            overlapping dreamer runs.
-          </div>
-        </div>
-        <div>
-          <div style={{ fontSize: '0.89rem', fontWeight: 600, color: '#e87a7a', marginBottom: 6 }}>Dreaming conflicts</div>
-          <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
-            Two dreamers triggered by two separate session-ends race to update the same Neocortex
-            document. No locking means last writer wins. One dreamer's promotions silently overwrite
-            the other's, with no record of what was lost.
-          </div>
-        </div>
-        <div>
-          <div style={{ fontSize: '0.89rem', fontWeight: 600, color: '#e87a7a', marginBottom: 6 }}>Neocortex ownership</div>
-          <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
-            Without an ownership model, any session can write any constraint into the shared
-            Neocortex. One bad session — confused agent, bad LLM output, hallucinated conclusion —
-            can poison the shared knowledge that every future user relies on.
-          </div>
-        </div>
-      </div>
-    </div>
+    </TextBox>
   </Scene>
 );

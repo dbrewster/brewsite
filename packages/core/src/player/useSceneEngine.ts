@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import type { RefObject, ReactNode } from 'react';
+import type { RefObject } from 'react';
 import type { SceneDefinition } from '../compiler/sceneTypes';
 import { compileSceneTrack } from '../compiler/sceneTrackCompiler';
 import { buildSceneTrackKey, getCachedTrack, setCachedTrack } from '../compiler/sceneTrackCache';
@@ -100,12 +100,6 @@ export type UseSceneEngineResult = {
   sceneCount: number;
   /** Ordered list of scene IDs from the registered scene specs. */
   sceneIds: string[];
-  /**
-   * Map from sceneId to overlay ReactNode for scenes that contain non-DSL children.
-   * Populated from sceneTrack.sceneOverlays after compilation.
-   * Used by EngineOverlayHost to render active scene content.
-   */
-  sceneOverlays: Map<string, ReactNode>;
   variableStore: VariableStore;
   setCanvasRef: (canvas: HTMLCanvasElement | null) => void;
   setBackgroundRef: (element: HTMLDivElement | null) => void;
@@ -150,10 +144,10 @@ const DEFAULT_CAMERA_INTERACTION_DEFAULTS = {
   dollyRadiusMax: 2000,
 } as const satisfies Required<CameraInteractionDefaults>;
 
-const makeInitialFrameState = (): EngineFrameState => ({
+const makeInitialFrameState = (firstSceneId = ''): EngineFrameState => ({
   tickIndex: -1,
   progress: 0,
-  sceneId: '',
+  sceneId: firstSceneId,
   sceneIndex: 0,
   sceneProgress: 0,
   tick: null,
@@ -162,7 +156,9 @@ const makeInitialFrameState = (): EngineFrameState => ({
 export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineResult => {
   const scrollRegionRef = useRef<HTMLDivElement | null>(null);
   const variableStore = useMemo(() => new VariableStore(), []);
-  const [frameState, setFrameState] = useState<EngineFrameState>(makeInitialFrameState);
+  const [frameState, setFrameState] = useState<EngineFrameState>(
+    () => makeInitialFrameState(options.scenes[0]?.sceneKey ?? ''),
+  );
   const [assetsReady, setAssetsReady] = useState(false);
   const [driverReady, setDriverReady] = useState(false);
   const [sceneTrack, setSceneTrack] = useState<SceneTrack | null>(null);
@@ -999,7 +995,6 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     setRawProgress,
     sceneCount: options.scenes.length,
     sceneIds: options.scenes.map((s) => s.sceneKey),
-    sceneOverlays: sceneTrack?.sceneOverlays ?? new Map(),
     variableStore,
     setCanvasRef,
     setBackgroundRef,

@@ -55,7 +55,6 @@ const makeTwoSceneTrack = (): SceneTrack => ({
     { id: 'scene-0', index: 0, start: 0, end: 0.5 },
     { id: 'scene-1', index: 1, start: 0.5, end: 1 },
   ],
-  sceneOverlays: new Map(),
 });
 
 type TestState = { value: number };

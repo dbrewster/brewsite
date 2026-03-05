@@ -8,6 +8,7 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
+  TextBox,
   WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
@@ -18,7 +19,7 @@ const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
 export const sceneSurfaces: JSX.Element = (
   <Scene key="bf-surfaces" id="bf-surfaces">
-    <ProgressManager scrollUnits={2800} fn={DWELL_FN} />
+    <ProgressManager scrollUnits={3200} fn={DWELL_FN} />
     <InputController scope="canvas">
       <Action id="pan" type="diagram-canvas.move" canvasId="bf-surfaces">
         <PointerMap event="drag" axis="xy" />
@@ -34,10 +35,9 @@ export const sceneSurfaces: JSX.Element = (
     <Camera mode="world" position={[0, 6, 22]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bf-surfaces" position={[0, 2, 0]} rotation={[-0.15, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
+    <DiagramCanvas id="bf-surfaces" position={[0, config.diagramTop, 0]} rotation={[-0.15, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="surfaces-diagram" pivot="center">
         <HierarchicalLayout direction="top-down" spacing={[2, 2]} />
-        <DiagramEnter fade scaleFrom={0.85} />
 
         <DiagramNode
           id="cf-box"
@@ -90,67 +90,64 @@ export const sceneSurfaces: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    {/* Prose panel */}
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '55vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="surfaces-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8, 11, 20, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        height: '100%',
+        boxSizing: 'border-box',
+        overflowY: 'auto',
       }}>
-        THE THREE ATTACHMENT SURFACES
-      </div>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr 1fr',
-        gap: '24px',
-        marginBottom: 20,
-      }}>
-        <div>
-          <div style={{ fontSize: '0.94rem', fontWeight: 600, color: '#c8d8f0', marginBottom: 8 }}>Hooks</div>
-          <div style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
-            pre-task/post-task/session-end run arbitrary CLI. Context injection + outcome recording.
-            Zero changes to claude-flow source.
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          THE THREE ATTACHMENT SURFACES
+        </div>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr 1fr',
+          gap: '24px',
+          marginBottom: 20,
+        }}>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', marginBottom: 8 }}>Hooks</div>
+            <div style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
+              pre-task/post-task/session-end run arbitrary CLI. Context injection + outcome recording.
+              Zero changes to claude-flow source.
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', marginBottom: 8 }}>MCP namespace</div>
+            <div style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
+              Any MCP server in .mcp.json adds tools all agents can call.
+              Memory recall, store, checkpoint, trigger_dream.
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', marginBottom: 8 }}>SQLite CDC</div>
+            <div style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
+              .swarm/memory.db is a plain SQLite file — read-only polling at 500ms.
+              Passive ingestion of all swarm activity without write access.
+            </div>
           </div>
         </div>
-        <div>
-          <div style={{ fontSize: '0.94rem', fontWeight: 600, color: '#c8d8f0', marginBottom: 8 }}>MCP namespace</div>
-          <div style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
-            Any MCP server in .mcp.json adds tools all agents can call.
-            Memory recall, store, checkpoint, trigger_dream.
-          </div>
-        </div>
-        <div>
-          <div style={{ fontSize: '0.94rem', fontWeight: 600, color: '#c8d8f0', marginBottom: 8 }}>SQLite CDC</div>
-          <div style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
-            .swarm/memory.db is a plain SQLite file — read-only polling at 500ms.
-            Passive ingestion of all swarm activity without write access.
-          </div>
+        <div style={{
+          fontSize: '15px',
+          color: 'rgba(160, 180, 220, 0.65)',
+          fontStyle: 'italic',
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          paddingTop: 16,
+        }}>
+          None of these require touching claude-flow's source.
         </div>
       </div>
-      <div style={{
-        fontSize: '0.89rem',
-        color: 'rgba(160, 180, 220, 0.65)',
-        fontStyle: 'italic',
-        borderTop: '1px solid rgba(255,255,255,0.06)',
-        paddingTop: 16,
-      }}>
-        None of these require touching claude-flow's source.
-      </div>
-    </div>
+    </TextBox>
   </Scene>
 );

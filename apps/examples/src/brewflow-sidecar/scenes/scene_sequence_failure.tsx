@@ -8,9 +8,10 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
+  TextBox,
   WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, FlowLayout, HierarchicalLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, FlowLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
 
@@ -76,59 +77,56 @@ export const sceneSequenceFailure: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    {/* Prose panel */}
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '52vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="seq-failure-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8, 11, 20, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        height: '100%',
+        boxSizing: 'border-box',
+        overflowY: 'auto',
       }}>
-        FAILED WORKER → CHECKPOINT RESTART
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-        <div>
-          <h3 style={{ fontSize: '0.94rem', fontWeight: 600, color: '#c8d8f0', margin: '0 0 12px' }}>What the memory schematic contains</h3>
-          <ul style={{ margin: 0, padding: '0 0 0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[
-              'The partial work completed before failure (from CDC bridge captures)',
-              'Known pitfalls that were hit during the failed attempt',
-              'Neocortex constraints relevant to this task type',
-              'Prior successful patterns for similar tasks',
-              'The exact failure context: error message, last state, attempted approach',
-            ].map((item, i) => (
-              <li key={i} style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.8)', lineHeight: 1.6 }}>{item}</li>
-            ))}
-          </ul>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          FAILED WORKER → CHECKPOINT RESTART
         </div>
-        <div>
-          <h3 style={{ fontSize: '0.94rem', fontWeight: 600, color: '#c8d8f0', margin: '0 0 12px' }}>Why it matters</h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 12px' }}>
-            Without a checkpoint restart packet, the new worker has to re-discover everything
-            the failed worker learned. In a complex task this means re-hitting the same pitfalls,
-            re-doing completed sub-tasks, and starting from zero context.
-          </p>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
-            With checkpoint(), the Queen assembles a memory schematic before spawning the replacement.
-            The new worker knows what was tried, what failed, what succeeded, and where to resume.
-            Each failed attempt makes the next attempt cheaper.
-          </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          <div>
+            <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', margin: '0 0 12px' }}>What the memory schematic contains</h3>
+            <ul style={{ margin: 0, padding: '0 0 0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                'The partial work completed before failure (from CDC bridge captures)',
+                'Known pitfalls that were hit during the failed attempt',
+                'Neocortex constraints relevant to this task type',
+                'Prior successful patterns for similar tasks',
+                'The exact failure context: error message, last state, attempted approach',
+              ].map((item, i) => (
+                <li key={i} style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.8)', lineHeight: 1.6 }}>{item}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', margin: '0 0 12px' }}>Why it matters</h3>
+            <p style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 12px' }}>
+              Without a checkpoint restart packet, the new worker has to re-discover everything
+              the failed worker learned. In a complex task this means re-hitting the same pitfalls,
+              re-doing completed sub-tasks, and starting from zero context.
+            </p>
+            <p style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
+              With checkpoint(), the Queen assembles a memory schematic before spawning the replacement.
+              The new worker knows what was tried, what failed, what succeeded, and where to resume.
+              Each failed attempt makes the next attempt cheaper.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

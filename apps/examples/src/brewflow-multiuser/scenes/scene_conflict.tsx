@@ -8,6 +8,7 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
+  TextBox,
   WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
@@ -94,49 +95,47 @@ export const sceneConflict: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '55vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="conflict-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8,11,20,0.88)',
+        backdropFilter: 'blur(16px)',
+        height: '100%',
+        boxSizing: 'border-box',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        overflowY: 'auto',
+        pointerEvents: 'auto',
       }}>
-        CONFLICTS SURFACE, NOT MERGE
-      </div>
-      <p style={{ fontSize: '0.94rem', fontWeight: 600, color: '#c8d8f0', margin: '0 0 16px' }}>
-        The system never auto-merges contradictory claims regardless of confidence scores.
-      </p>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        <div>
-          <div style={{ fontSize: '0.89rem', fontWeight: 600, color: '#c8d8f0', marginBottom: 8 }}>Conflict record schema</div>
-          <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
-            When the promotion worker detects a contradiction, it creates a conflict record:
-          </div>
-          <pre style={{
-            fontFamily: 'JetBrains Mono, monospace',
-            fontSize: '0.72rem',
-            color: 'rgba(120, 160, 240, 0.8)',
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.06)',
-            borderRadius: 4,
-            padding: '10px 12px',
-            marginTop: 10,
-            overflow: 'auto',
-          }}>{`{
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          CONFLICTS SURFACE, NOT MERGE
+        </div>
+        <p style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', margin: '0 0 16px' }}>
+          The system never auto-merges contradictory claims regardless of confidence scores.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', marginBottom: 8 }}>Conflict record schema</div>
+            <div style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
+              When the promotion worker detects a contradiction, it creates a conflict record:
+            </div>
+            <pre style={{
+              fontFamily: 'JetBrains Mono, monospace',
+              fontSize: '13px',
+              color: 'rgba(120, 160, 240, 0.8)',
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.06)',
+              borderRadius: 4,
+              padding: '10px 12px',
+              marginTop: 10,
+              overflow: 'auto',
+            }}>{`{
   conflictId,
   type: 'contradictory_claim',
   proposalId,          // incoming
@@ -145,24 +144,25 @@ export const sceneConflict: JSX.Element = (
   status: 'pending_review',
   resolution: null,
 }`}</pre>
-        </div>
-        <div>
-          <div style={{ fontSize: '0.89rem', fontWeight: 600, color: '#c8d8f0', marginBottom: 8 }}>4 resolution outcomes</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {[
-              { outcome: 'New proposal wins', desc: 'Existing constraint is outdated. Existing demoted; new promoted. Version history preserved.' },
-              { outcome: 'Existing constraint wins', desc: 'Incoming proposal is rejected. Logged with reason. Alice notified if notification configured.' },
-              { outcome: 'Exception documented', desc: 'Both are true in different contexts. New item: "Exception to constraint X under conditions Y." Both remain active.' },
-              { outcome: 'Both withdrawn', desc: 'The domain is genuinely ambiguous. Both items flagged as [needs clarification]. Human writes authoritative definition.' },
-            ].map(({ outcome, desc }) => (
-              <div key={outcome}>
-                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.72rem', color: 'rgba(100, 140, 220, 0.7)', marginBottom: 2 }}>{outcome}</div>
-                <div style={{ fontSize: '0.78rem', color: 'rgba(180, 200, 240, 0.65)', lineHeight: 1.5 }}>{desc}</div>
-              </div>
-            ))}
+          </div>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', marginBottom: 8 }}>4 resolution outcomes</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {[
+                { outcome: 'New proposal wins', desc: 'Existing constraint is outdated. Existing demoted; new promoted. Version history preserved.' },
+                { outcome: 'Existing constraint wins', desc: 'Incoming proposal is rejected. Logged with reason. Alice notified if notification configured.' },
+                { outcome: 'Exception documented', desc: 'Both are true in different contexts. New item: "Exception to constraint X under conditions Y." Both remain active.' },
+                { outcome: 'Both withdrawn', desc: 'The domain is genuinely ambiguous. Both items flagged as [needs clarification]. Human writes authoritative definition.' },
+              ].map(({ outcome, desc }) => (
+                <div key={outcome}>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '13px', color: 'rgba(100, 140, 220, 0.7)', marginBottom: 2 }}>{outcome}</div>
+                  <div style={{ fontSize: '14px', color: 'rgba(180, 200, 240, 0.65)', lineHeight: 1.5 }}>{desc}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

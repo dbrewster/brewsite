@@ -1,7 +1,7 @@
 // Chart demo page — showcases bar, line, pie, and scatter chart types.
 import type {JSX} from 'react';
 import {Fragment, useMemo} from 'react';
-import {EngineInputRegion, EngineOverlayHost, EngineProvider, SceneCanvas,} from '@brewsite/core';
+import {EngineARContainer, EngineInputRegion, EngineOverlayHost, EngineProvider, SceneCanvas,} from '@brewsite/core';
 import {ChartProvider} from '@brewsite/charts';
 import {createChartDemoPlugins} from './widgetSetup';
 import {
@@ -38,10 +38,12 @@ export default function ChartDemoPage(): JSX.Element {
           <Fragment key="chart-pie">{chartDemoPie}</Fragment>
           <Fragment key="chart-scatter">{chartDemoScatter}</Fragment>
         </ChartProvider>
-        <EngineInputRegion>
-          <SceneCanvas />
-          <EngineOverlayHost />
-        </EngineInputRegion>
+        <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width" referenceWidth={1920}>
+          <EngineInputRegion>
+            <SceneCanvas />
+            <EngineOverlayHost />
+          </EngineInputRegion>
+        </EngineARContainer>
       </EngineProvider>
     </div>
   );

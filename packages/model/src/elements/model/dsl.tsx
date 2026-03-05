@@ -40,6 +40,14 @@ export type ModelProps = {
    * Also used as the targetId in camera descriptors (e.g., <Camera targetId="bot">).
    */
   id: string;
+  /** NVS x-coordinate of the model's viewport region [0, 1]. Default: 0 */
+  x?: number;
+  /** NVS y-coordinate of the model's viewport region [0, 1]. Default: 0 */
+  y?: number;
+  /** NVS width of the model's viewport region [0, 1]. Default: 1 */
+  w?: number;
+  /** NVS height of the model's viewport region [0, 1]. Default: 1 */
+  h?: number;
   children?: ReactNode;
 };
 

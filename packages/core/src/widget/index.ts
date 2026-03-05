@@ -24,3 +24,4 @@ export { useVariable } from './useVariable';
 export type { WidgetPlugin } from './WidgetPlugin';
 export { corePlugin } from '../player/plugins';
 export type { CorePluginOptions } from '../player/plugins';
+export type { INVSBounded, NVSRect, NVSPosition } from '../layout/types';

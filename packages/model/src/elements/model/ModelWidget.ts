@@ -12,7 +12,7 @@ import type * as React from 'react';
 import type {ReactElement} from 'react';
 import {isValidElement} from 'react';
 import type * as THREE from 'three';
-import type {CompileExtraContext, IDslComposite, ILoadable, IRenderable, ISceneElement, IAttachmentHost, IRenderContributor, RenderContribution, WidgetInitContext, WidgetRenderContext,} from '@brewsite/core';
+import type {CompileExtraContext, IDslComposite, ILoadable, IRenderable, ISceneElement, IAttachmentHost, IRenderContributor, RenderContribution, WidgetInitContext, WidgetRenderContext, INVSBounded, NVSRect,} from '@brewsite/core';
 import {CUSTOM_NODE_HANDLER} from '@brewsite/core/widget/WidgetRegistry';
 import type {IHasCustomDslHandler} from '@brewsite/core/widget/WidgetRegistry';
 import type {CompileHelpers, NodeHandler, SceneSnapshotContext} from '@brewsite/core';
@@ -367,7 +367,8 @@ export class ModelWidget
     IDslComposite,
     IAttachmentHost,
     IRenderContributor,
-    IHasCustomDslHandler {
+    IHasCustomDslHandler,
+    INVSBounded {
 
   readonly widgetId: string;
   readonly defaultState: SceneModelInstanceState;
@@ -395,6 +396,15 @@ export class ModelWidget
   /** Satisfies IHasCustomDslHandler. Assigned in constructor after instance properties are initialized. */
   readonly [CUSTOM_NODE_HANDLER]!: NodeHandler;
 
+  /**
+   * Returns the NVS bounds last applied to this widget.
+   * Returns fullscreen { x:0, y:0, w:1, h:1 } before the first apply() call.
+   * Satisfies INVSBounded.
+   */
+  get nvsBounds(): NVSRect {
+    return this.lastAppliedState?.nvsBounds ?? { x: 0, y: 0, w: 1, h: 1 };
+  }
+
   isLoaded = false;
   readonly clipMeta: ClipMeta[];
   private loadedClipNames = new Set<string>();
@@ -404,6 +414,7 @@ export class ModelWidget
   private renderer: ModelRenderer | null = null;
   private readonly modelType: string;
   private readonly baseRotation: Vec3 | null;
+  private lastAppliedState: SceneModelInstanceState | null = null;
 
   constructor(
     config: ModelWidgetConfig,
@@ -620,6 +631,12 @@ export class ModelWidget
         },
         ...(props.enabled !== undefined ? { enabled: props.enabled as boolean } : {}),
         ...(collectedLabels.length > 0 ? { labels: collectedLabels } : {}),
+        nvsBounds: {
+          x: props.x !== undefined ? (props.x as number) : 0,
+          y: props.y !== undefined ? (props.y as number) : 0,
+          w: props.w !== undefined ? (props.w as number) : 1,
+          h: props.h !== undefined ? (props.h as number) : 1,
+        },
       };
 
       (state as SceneModelInstanceState & { __authored?: ModelAuthoredFlags }).__authored = authored;
@@ -714,6 +731,7 @@ export class ModelWidget
         animation: mergedAnimation,
       },
       enabled: authored?.enabled ? next.enabled : base.enabled,
+      nvsBounds: next.nvsBounds ?? base.nvsBounds ?? { x: 0, y: 0, w: 1, h: 1 },
     };
 
     delete (merged as SceneModelInstanceState & { __authored?: ModelAuthoredFlags }).__authored;
@@ -779,6 +797,7 @@ export class ModelWidget
    * Apply state each frame.
    */
   apply(state: SceneModelInstanceState, context: WidgetRenderContext): void {
+    this.lastAppliedState = state;
     if (!this.renderer) return;
     const clipName = state.playback.animation.clipName;
     if (

@@ -1,6 +1,6 @@
 import type {JSX} from 'react';
 import {useMemo} from 'react';
-import {EngineInputRegion, EngineOverlayHost, EngineProvider, SceneCanvas,} from '@brewsite/core';
+import {EngineARContainer, EngineInputRegion, EngineOverlayHost, EngineProvider, SceneCanvas,} from '@brewsite/core';
 import {createMultiUserPlugins} from './widgetSetup';
 import {sceneHero} from './scenes/scene_hero';
 import {sceneProblems} from './scenes/scene_problems';
@@ -58,10 +58,12 @@ export default function MultiUserPage(): JSX.Element {
         {sceneCrossUserFlow}
         {sceneConflict}
         {sceneSummary}
-        <EngineInputRegion>
-          <SceneCanvas />
-          <EngineOverlayHost />
-        </EngineInputRegion>
+        <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width" referenceWidth={1920}>
+          <EngineInputRegion>
+            <SceneCanvas />
+            <EngineOverlayHost />
+          </EngineInputRegion>
+        </EngineARContainer>
       </EngineProvider>
     </div>
   );

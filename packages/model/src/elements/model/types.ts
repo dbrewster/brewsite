@@ -5,8 +5,9 @@
  * No React, no Three.js, no runtime logic.
  */
 
-import type { Vec3 } from '@brewsite/core';
+import type { Vec3, NVSRect } from '@brewsite/core';
 export type { Vec3 } from '@brewsite/core';
+export type { NVSRect } from '@brewsite/core';
 
 // ─── ClipMeta — defined locally in @brewsite/model (moved from @brewsite/core Phase 4) ──
 
@@ -218,4 +219,9 @@ export type SceneModelInstanceState = {
   enabled?: boolean;
   /** Label definitions authored for this model instance. Compiled per scene. */
   labels?: import('../../labels/types').LabelResolved[];
+  /**
+   * NVS bounds declaring what region of the AR-locked container this model occupies.
+   * Fullscreen is { x: 0, y: 0, w: 1, h: 1 }. Required — always filled by compile step.
+   */
+  nvsBounds: NVSRect;
 };

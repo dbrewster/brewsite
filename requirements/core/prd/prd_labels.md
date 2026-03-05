@@ -11,6 +11,9 @@ change_history:
   - date: 2026-03-04
     author: "Toolkit Product"
     summary: "Added LabelStyle.fontFamily optional field for per-label font override. Documented CSS variable inheritance path from EngineOverlayHost --brewsite-font-family for the common case (no per-label override needed)."
+  - date: 2026-03-04
+    author: "Toolkit Product"
+    summary: "NVS system: LabelPositioner.setContainerSize gains optional third parameter nvsBounds?: NVSRect. When provided, label screen-coordinate projection is restricted to the NVS sub-region of the container. ModelWidget implements INVSBounded. Known limitation documented: LabelPositionerSyncer does not re-fire when nvsBounds changes across scenes without a concurrent container resize. See requirements/core/notes/note_nvs-known-limitations.md."
 ---
 
 # BrewSite Core — 3D Label System
@@ -229,10 +232,25 @@ export function LabelPositioner(props: LabelPositionerProps): React.ReactElement
 2. Calls `ModelWidget.getBoneWorldPosition(labelId)` via the `RuntimeDriver` for each active label.
 3. Applies the label's `labelOffset` as a `Vector3.add()` in world space.
 4. Projects the world position using `camera.project(worldPosition)`.
-5. Converts NDC `[-1, 1]` to canvas pixel coordinates.
+5. Converts NDC `[-1, 1]` to canvas pixel coordinates, restricted to the model's NVS sub-region when `nvsBounds` is present.
 6. Calls `subscribers[labelId](screenPosition)` for each label, notifying `LabelItem` instances.
 
 The component renders its `children` directly; it contributes no DOM structure of its own. The `LabelPositioner` should wrap both the canvas and the label overlay so that both live in the same coordinate context.
+
+**`setContainerSize(width, height, nvsBounds?)`:**
+
+`LabelPositioner` exposes an imperative `setContainerSize` method for the `LabelPositionerSyncer` in `packages/model/src/plugin.ts` to call on `ResizeObserver` events. The optional third parameter `nvsBounds?: NVSRect` restricts label projection to a sub-region of the container. When provided, pixel coordinates are remapped so that the NVS origin maps to the container pixel origin and the NVS extent maps to the container pixel extent — labels appear correctly positioned within the declared model viewport region.
+
+```typescript
+// LabelPositioner internal API (called by LabelPositionerSyncer)
+setContainerSize(
+  width: number,
+  height: number,
+  nvsBounds?: NVSRect,  // optional third parameter added in NVS system
+): void;
+```
+
+When `nvsBounds` is absent, projection spans the full container as before. See `requirements/core/notes/note_nvs-known-limitations.md` for the known limitation regarding `nvsBounds` changes across scenes without a concurrent resize event.
 
 Integration pattern in the player:
 
@@ -273,6 +291,23 @@ export interface IBonePositionProvider {
 ```
 
 `ModelWidget` implements `IBonePositionProvider`. The `LabelPositioner` queries the `WidgetRegistry` for widgets that implement `IBonePositionProvider` and collects bone positions from them. This decouples the `LabelPositioner` from the concrete `ModelWidget` class.
+
+**ModelWidget and INVSBounded:**
+
+`ModelWidget` also implements `INVSBounded` (from `@brewsite/core`). When the `<Model>` DSL declares `x`, `y`, `w`, `h` props, those values are compiled into `ModelState.nvsBounds` and reflected by `ModelWidget.nvsBounds`. The `LabelPositionerSyncer` reads `modelWidgets[0].nvsBounds` (first registered `ModelWidget`) and passes it as the `nvsBounds` argument to `setContainerSize`. This restricts label projections to the model's declared viewport sub-region.
+
+```typescript
+// Model DSL props added for NVS sub-region (all optional, default: fullscreen)
+export interface ModelProps {
+  // ... existing props ...
+  x?: number;  // NVS left edge [0, 1]
+  y?: number;  // NVS top edge [0, 1]
+  w?: number;  // NVS width [0, 1]
+  h?: number;  // NVS height [0, 1]
+}
+```
+
+See `requirements/core/notes/note_nvs-known-limitations.md` for the known limitation affecting multiple simultaneous models in distinct NVS sub-regions.
 
 ---
 

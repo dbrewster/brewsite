@@ -2,7 +2,7 @@
 // No runtime imports, no Three.js, no React.
 
 import type { DiagramState, DiagramEdgeStyle, DiagramArrowVariant, DiagramTheme } from '../types';
-import type { InputActionSpec } from '@brewsite/core';
+import type { InputActionSpec, NVSRect } from '@brewsite/core';
 
 /** Default pipe color used by compile.ts and documented on the DSL. */
 export const DIAGRAM_PIPE_DEFAULT_COLOR = '#3d5a9a';
@@ -62,6 +62,11 @@ export interface DiagramCanvasState {
    * Consumed by DiagramCanvasWidget.getDefaultInputActions() at runtime.
    */
   readonly defaultInputActions?: ReadonlyArray<InputActionSpec>;
+  /**
+   * NVS bounds declaring what region of the AR-locked container this canvas occupies.
+   * Fullscreen is { x: 0, y: 0, w: 1, h: 1 }. Required — always filled by compile step.
+   */
+  readonly nvsBounds: NVSRect;
 }
 
 /** Raw DSL props from <DiagramPipe> before compile.ts applies defaults. */
@@ -124,4 +129,12 @@ export interface DiagramCanvasDSL {
   readonly pipeLanding?: PipeLandingAlgorithm;
   /** Optional default focus center (XY). Z is ignored for canvas-wide focus actions. */
   readonly focusCenter?: readonly [number, number] | readonly [number, number, number];
+  /** NVS x-coordinate of the canvas left edge [0, 1]. Default: 0 */
+  readonly x?: number;
+  /** NVS y-coordinate of the canvas top edge [0, 1]. Default: 0 */
+  readonly y?: number;
+  /** NVS width of the canvas [0, 1]. Default: 1 */
+  readonly w?: number;
+  /** NVS height of the canvas [0, 1]. Default: 1 */
+  readonly h?: number;
 }

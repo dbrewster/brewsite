@@ -1,6 +1,6 @@
 import type {JSX} from 'react';
 import {useMemo} from 'react';
-import {EngineInputRegion, EngineOverlayHost, EngineProvider, SceneCanvas,} from '@brewsite/core';
+import {EngineARContainer, EngineInputRegion, EngineOverlayHost, EngineProvider, SceneCanvas,} from '@brewsite/core';
 import {createComparisonPlugins} from './widgetSetup';
 import {sceneHero} from './scenes/scene_hero';
 import {sceneCfOverview} from './scenes/scene_cf_overview';
@@ -55,10 +55,12 @@ export default function ComparisonPage(): JSX.Element {
         {sceneDim7Safety}
         {sceneDim8Maturity}
         {sceneSummary}
-        <EngineInputRegion>
-          <SceneCanvas />
-          <EngineOverlayHost />
-        </EngineInputRegion>
+        <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width" referenceWidth={1920}>
+          <EngineInputRegion>
+            <SceneCanvas />
+            <EngineOverlayHost />
+          </EngineInputRegion>
+        </EngineARContainer>
       </EngineProvider>
     </div>
   );

@@ -605,15 +605,6 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     frame.deltaBackward = buildDelta(next?.state, frame.state);
   }
 
-  // ── Step 8: Build sceneOverlays map ─────────────────────────────────────────
-  // Collect overlay ReactNode for each scene that declared non-DSL children.
-  const sceneOverlays = new Map<string, import('react').ReactNode>();
-  for (const frame of snapshots) {
-    if (frame.sceneOverlay !== undefined) {
-      sceneOverlays.set(frame.id, frame.sceneOverlay);
-    }
-  }
-
   // ── Assemble SceneWindows ────────────────────────────────────────────────────
   const sceneWindows: SceneWindow[] = scenes.map((scene, i) => ({
     id: scene.id,
@@ -629,7 +620,6 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     tickStep,
     subTickCount: totalFrames,
     sceneWindows,
-    sceneOverlays,
     ...(progressProfile !== undefined ? { progressProfile } : {}),
     ...(transitionBlocks.length > 0 ? { transitionBlocks } : {}),
     ...(warnings.length > 0 ? { warnings } : {}),

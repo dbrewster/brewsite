@@ -332,14 +332,9 @@ export const sceneRootHandler: NodeHandler = (node, api, helpers) => {
     });
   }
 
-  // Separate DSL children (compiled into api.state) from non-DSL overlay children
-  const overlayNodes = helpers.compileChildrenSeparated(node, api);
-
-  if (overlayNodes.length > 0) {
-    api.state.sceneOverlay = overlayNodes.length === 1
-      ? overlayNodes[0]
-      : React.createElement(React.Fragment, null, ...overlayNodes);
-  }
+  // Compile DSL children into api.state. Non-DSL children (HTML elements,
+  // non-registered components) are silently ignored — use <TextBox> for overlay content.
+  helpers.compileChildren(node, api);
 };
 
 // Keep ensureSceneRegistry for backward compatibility — delegates to registerCoreHandlers.

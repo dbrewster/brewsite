@@ -8,6 +8,7 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
+  TextBox,
   WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramGroup, DiagramNode, ManualLayout,} from '@brewsite/diagram';
@@ -115,53 +116,50 @@ export const sceneArchitecture: JSX.Element = (
           For now we show the connections with an annotation in the prose. */}
     </DiagramCanvas>
 
-    {/* Prose panel */}
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '50vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="architecture-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8, 11, 20, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        height: '100%',
+        boxSizing: 'border-box',
+        overflowY: 'auto',
       }}>
-        FULL ARCHITECTURE
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          FULL ARCHITECTURE
+        </div>
+        <ul style={{
+          margin: 0,
+          padding: '0 0 0 20px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 14,
+        }}>
+          <li style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.8)', lineHeight: 1.6 }}>
+            <strong style={{ color: '#c8d8f0' }}>brewflow-bridge</strong> — A lightweight process
+            that watches .swarm/memory.db via read-only SQLite polling. It tracks row cursors per table,
+            transforms new rows into EpisodicStore entries, and never writes to claude-flow's database.
+          </li>
+          <li style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.8)', lineHeight: 1.6 }}>
+            <strong style={{ color: '#c8d8f0' }}>brewflow-mcp-server</strong> — A Node.js MCP server
+            registered in .mcp.json. Exposes recall(), store(), get_procedures(), checkpoint(),
+            log_outcome(), and trigger_dream() to all agents in the swarm.
+          </li>
+          <li style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.8)', lineHeight: 1.6 }}>
+            <strong style={{ color: '#c8d8f0' }}>brewflow-dreamer</strong> — Triggered by the
+            session-end hook as a non-blocking background process. Runs a 7-stage consolidation
+            pipeline that promotes high-salience episodic content into typed Neocortex cards.
+          </li>
+        </ul>
       </div>
-      <ul style={{
-        margin: 0,
-        padding: '0 0 0 20px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 14,
-      }}>
-        <li style={{ fontSize: '0.94rem', color: 'rgba(180, 200, 240, 0.8)', lineHeight: 1.6 }}>
-          <strong style={{ color: '#c8d8f0' }}>brewflow-bridge</strong> — A lightweight process
-          that watches .swarm/memory.db via read-only SQLite polling. It tracks row cursors per table,
-          transforms new rows into EpisodicStore entries, and never writes to claude-flow's database.
-        </li>
-        <li style={{ fontSize: '0.94rem', color: 'rgba(180, 200, 240, 0.8)', lineHeight: 1.6 }}>
-          <strong style={{ color: '#c8d8f0' }}>brewflow-mcp-server</strong> — A Node.js MCP server
-          registered in .mcp.json. Exposes recall(), store(), get_procedures(), checkpoint(),
-          log_outcome(), and trigger_dream() to all agents in the swarm.
-        </li>
-        <li style={{ fontSize: '0.94rem', color: 'rgba(180, 200, 240, 0.8)', lineHeight: 1.6 }}>
-          <strong style={{ color: '#c8d8f0' }}>brewflow-dreamer</strong> — Triggered by the
-          session-end hook as a non-blocking background process. Runs a 7-stage consolidation
-          pipeline that promotes high-salience episodic content into typed Neocortex cards.
-        </li>
-      </ul>
-    </div>
+    </TextBox>
   </Scene>
 );

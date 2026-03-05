@@ -10,6 +10,7 @@ import {
     PointerMap,
     ProgressManager,
     Scene,
+    TextBox,
 } from '@brewsite/core';
 import {
     darkGlassTheme,
@@ -252,128 +253,123 @@ export const sceneModelArch: JSX.Element = (
     </DiagramCanvas>
 
     {/* Teaching overlay */}
-    <div style={{
-      position: 'absolute',
-      bottom: '3%',
-      left: '3%',
-      maxWidth: 540,
-    }}>
-      <MidFade duration={1200}>
-        <div style={{
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: 10,
-          letterSpacing: '0.3em',
-          textTransform: 'uppercase' as const,
-          color: 'rgba(130, 100, 255, 0.8)',
-          marginBottom: 10,
-        }}>
-          @brewsite/model
-        </div>
-        <div style={{
-          fontSize: 'clamp(18px, 2.6vw, 24px)',
-          fontWeight: 600,
-          color: '#f0f6fc',
-          lineHeight: 1.2,
-          marginBottom: 16,
-        }}>
-          GLTF loads once.<br />Bones animate per frame.
-        </div>
-      </MidFade>
-      <ScrollOn duration={900} delay={150}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '10px 18px',
-          marginBottom: 14,
-        }}>
-          <div>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase' as const,
-              color: 'rgba(130, 100, 255, 0.7)',
-              marginBottom: 5,
-            }}>
-              Author / DSL
+    <TextBox id="model-teaching" x={0.03} y={0.52} w={0.44} h={0.45}>
+      <div style={{
+        padding: '32px 40px',
+        background: 'rgba(3,5,8,0.85)',
+        backdropFilter: 'blur(20px)',
+        borderRadius: '4px',
+        height: '100%',
+      }}>
+        <MidFade duration={1200}>
+          <div style={{
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: '12px',
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase' as const,
+            color: 'rgba(130, 100, 255, 0.8)',
+            marginBottom: 10,
+          }}>
+            @brewsite/model
+          </div>
+          <h1 style={{
+            fontSize: '48px',
+            fontWeight: 600,
+            color: '#f0f6fc',
+            lineHeight: 1.2,
+            margin: '0 0 16px',
+          }}>
+            GLTF loads once.<br />Bones animate per frame.
+          </h1>
+        </MidFade>
+        <ScrollOn duration={900} delay={150}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '10px 18px',
+            marginBottom: 14,
+          }}>
+            <div>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'rgba(130, 100, 255, 0.7)',
+                marginBottom: 5,
+              }}>
+                Author / DSL
+              </div>
+              <div style={{
+                fontSize: '15px',
+                color: 'rgba(240, 246, 252, 0.6)',
+                lineHeight: 1.6,
+              }}>
+                {'<Model id src clipName> declares a GLTF model per scene. id links the DSL to the loaded widget; clipName selects which animation clip plays — different scenes can play different clips on the same loaded model. parts[] allows per-mesh material overrides. <Label text boneId> anchors a text overlay to a named bone.'}
+              </div>
             </div>
-            <div style={{
-              fontSize: 'clamp(11px, 1.3vw, 12px)',
-              color: 'rgba(240, 246, 252, 0.6)',
-              lineHeight: 1.6,
-            }}>
-              {'<Model id src clipName> declares a GLTF model per scene. id links the DSL to the loaded widget; clipName selects which animation clip plays — different scenes can play different clips on the same loaded model. parts[] allows per-mesh material overrides. <Label text boneId> anchors a text overlay to a named bone.'}
+            <div>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'rgba(100, 160, 255, 0.7)',
+                marginBottom: 5,
+              }}>
+                Compile
+              </div>
+              <div style={{
+                fontSize: '15px',
+                color: 'rgba(240, 246, 252, 0.6)',
+                lineHeight: 1.6,
+              }}>
+                {'compile.ts is pure: model props → ModelState per scene, capturing position, rotation, scale, clip name, and playback rate. labelCompiler converts <Label> props to LabelResolved descriptors. modelPlugin supplies the asset manifest mapping model IDs to GLTF URLs. The compiler never loads or parses any 3D asset.'}
+              </div>
+            </div>
+            <div>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'rgba(100, 200, 160, 0.7)',
+                marginBottom: 5,
+              }}>
+                Runtime
+              </div>
+              <div style={{
+                fontSize: '15px',
+                color: 'rgba(240, 246, 252, 0.6)',
+                lineHeight: 1.6,
+              }}>
+                ModelWidget.load() fetches the GLTF once and decodes with meshoptimizer. onTick() advances the AnimationMixer before apply() runs — ordering matters: bone transforms must update before LabelPositioner projects them to screen. apply() receives ModelState and sets position, rotation, scale, and clip weights.
+              </div>
+            </div>
+            <div>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'rgba(130, 100, 255, 0.7)',
+                marginBottom: 5,
+              }}>
+                Output
+              </div>
+              <div style={{
+                fontSize: '15px',
+                color: 'rgba(240, 246, 252, 0.6)',
+                lineHeight: 1.6,
+              }}>
+                The parsed GLTF becomes an Object3D in the Three.js scene graph. AnimationMixer blends clips and drives bone transforms each tick. LabelItem is a React DOM element positioned absolutely over the canvas — LabelPositioner projects bone world coordinates through the camera matrix to screen space; no WebGL needed for the HTML text.
+              </div>
             </div>
           </div>
-          <div>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase' as const,
-              color: 'rgba(100, 160, 255, 0.7)',
-              marginBottom: 5,
-            }}>
-              Compile
-            </div>
-            <div style={{
-              fontSize: 'clamp(11px, 1.3vw, 12px)',
-              color: 'rgba(240, 246, 252, 0.6)',
-              lineHeight: 1.6,
-            }}>
-              {'compile.ts is pure: model props → ModelState per scene, capturing position, rotation, scale, clip name, and playback rate. labelCompiler converts <Label> props to LabelResolved descriptors. modelPlugin supplies the asset manifest mapping model IDs to GLTF URLs. The compiler never loads or parses any 3D asset.'}
-            </div>
+          <div style={{
+            borderLeft: '2px solid rgba(130, 100, 255, 0.5)',
+            paddingLeft: 12,
+            fontSize: '14px',
+            color: 'rgba(240, 246, 252, 0.85)',
+            lineHeight: 1.6,
+            fontStyle: 'italic',
+          }}>
+            <strong>Key insight:</strong> The GLTF loads once and never reloads between scenes. Switching scenes only changes the compiled ModelState — the runtime smoothly blends to the new clip and pose.
           </div>
-          <div>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase' as const,
-              color: 'rgba(100, 200, 160, 0.7)',
-              marginBottom: 5,
-            }}>
-              Runtime
-            </div>
-            <div style={{
-              fontSize: 'clamp(11px, 1.3vw, 12px)',
-              color: 'rgba(240, 246, 252, 0.6)',
-              lineHeight: 1.6,
-            }}>
-              ModelWidget.load() fetches the GLTF once and decodes with meshoptimizer. onTick() advances the AnimationMixer before apply() runs — ordering matters: bone transforms must update before LabelPositioner projects them to screen. apply() receives ModelState and sets position, rotation, scale, and clip weights.
-            </div>
-          </div>
-          <div>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase' as const,
-              color: 'rgba(130, 100, 255, 0.7)',
-              marginBottom: 5,
-            }}>
-              Output
-            </div>
-            <div style={{
-              fontSize: 'clamp(11px, 1.3vw, 12px)',
-              color: 'rgba(240, 246, 252, 0.6)',
-              lineHeight: 1.6,
-            }}>
-              The parsed GLTF becomes an Object3D in the Three.js scene graph. AnimationMixer blends clips and drives bone transforms each tick. LabelItem is a React DOM element positioned absolutely over the canvas — LabelPositioner projects bone world coordinates through the camera matrix to screen space; no WebGL needed for the HTML text.
-            </div>
-          </div>
-        </div>
-        <div style={{
-          borderLeft: '2px solid rgba(130, 100, 255, 0.5)',
-          paddingLeft: 12,
-          fontSize: 'clamp(11px, 1.3vw, 12px)',
-          color: 'rgba(240, 246, 252, 0.85)',
-          lineHeight: 1.6,
-          fontStyle: 'italic',
-        }}>
-          <strong>Key insight:</strong> The GLTF loads once and never reloads between scenes. Switching scenes only changes the compiled ModelState — the runtime smoothly blends to the new clip and pose.
-        </div>
-      </ScrollOn>
-    </div>
+        </ScrollOn>
+      </div>
+    </TextBox>
   </Scene>
 );

@@ -1,13 +1,10 @@
-import { JSX } from 'react';
-import { Link } from 'react-router';
-import { CodeBlock } from '../../components/ui/CodeBlock';
-import { Callout } from '../../components/ui/Callout';
+import type { ReactElement } from 'react';
+import { Section, CodeBlock, Callout } from '@brewsite/docs';
+import type { SectionId } from '../../docs-nav';
 
-export default function CustomWidget(): JSX.Element {
+export function CustomWidgetPage(): ReactElement {
   return (
-    <section>
-      <h1>Creating a Custom Widget</h1>
-
+    <Section<SectionId> id="custom-widget" title="Creating a Custom Widget">
       <Callout type="tip">
         Custom widgets are the primary extension point in BrewSite. The toolkit's own built-in
         elements — <code>Camera</code>, <code>Lighting</code>, <code>Background</code>,{' '}
@@ -63,18 +60,7 @@ export const DEFAULT_MY_ELEMENT: MyElementState = {
 };`}
       />
 
-      <p>
-        The <code>DEFAULT_MY_ELEMENT</code> constant provides the fallback values used by the
-        compiler when a scene doesn't specify all props. Always define it next to the interface.
-      </p>
-
       <h2>Step 2: Define the DSL Component (<code>dsl.tsx</code>)</h2>
-
-      <p>
-        The DSL file exposes a React component that authors use in their scene JSX. The component
-        doesn't render anything — it calls <code>registerNode</code> to declare its presence to
-        the compiler, then returns <code>null</code>. No Three.js imports are allowed here.
-      </p>
 
       <CodeBlock
         language="tsx"
@@ -96,12 +82,6 @@ export function MyElement(props: MyElementProps): null {
       </Callout>
 
       <h2>Step 3: Define the Transition Spec (<code>compile.ts</code>)</h2>
-
-      <p>
-        The transition spec tells the compiler how to interpolate between two states for each
-        property. You pick a blend function from the core math helpers for each field. This file
-        must be pure — no React, no Three.js.
-      </p>
 
       <CodeBlock
         language="typescript"
@@ -127,18 +107,8 @@ export const myElementTransitionSpec: ElementTransitionSpec<MyElementState> = {
         <li><code>blendOpacity(a, b, t)</code> — opacity interpolation, clamped 0–1</li>
         <li><code>blendVec3(a, b, t)</code> — Three.js Vector3 interpolation</li>
       </ul>
-      <p>
-        For discrete values like <code>boolean</code> or enum strings, use a step function
-        (switch at <code>t = 0.5</code> as shown above).
-      </p>
 
       <h2>Step 4: Implement the Widget (<code>MyElementWidget.ts</code>)</h2>
-
-      <p>
-        The widget class is the runtime integration layer. It implements <code>ISceneElement</code>{' '}
-        to connect to the compiler, <code>IRenderable</code> to apply state to Three.js objects,
-        and any other interfaces it needs. This is the only file where Three.js code lives.
-      </p>
 
       <CodeBlock
         language="typescript"
@@ -186,19 +156,7 @@ export class MyElementWidget implements ISceneElement, IRenderable {
 }`}
       />
 
-      <Callout type="note">
-        <code>widgetId</code> must exactly match the string passed to <code>registerNode</code>{' '}
-        in <code>dsl.tsx</code>. The registry uses this string to route compiled DSL nodes to
-        the correct widget instance.
-      </Callout>
-
       <h2>Step 5: Register the Widget</h2>
-
-      <p>
-        Widgets are registered in the <code>widgetSetup</code> function you pass to{' '}
-        <code>ScenePlayer</code>. Start with <code>createDefaultWidgetRegistry</code> (which
-        registers all built-in widgets), then add your custom widget:
-      </p>
 
       <CodeBlock
         language="typescript"
@@ -208,10 +166,6 @@ import { MyElementWidget } from './my-element/MyElementWidget';
 const registry = createDefaultWidgetRegistry(null);
 registry.register(new MyElementWidget());`}
       />
-
-      <p>
-        Pass the registry to <code>ScenePlayer</code> via the <code>widgetSetup</code> prop:
-      </p>
 
       <CodeBlock
         language="tsx"
@@ -226,11 +180,6 @@ registry.register(new MyElementWidget());`}
 
       <h2>Step 6: Use It in a Scene</h2>
 
-      <p>
-        Once registered, the DSL component is available in any scene. Props left unspecified fall
-        back to the defaults from <code>DEFAULT_MY_ELEMENT</code>:
-      </p>
-
       <CodeBlock
         language="tsx"
         code={`<Scene key="s1">
@@ -242,19 +191,7 @@ registry.register(new MyElementWidget());`}
 </Scene>`}
       />
 
-      <p>
-        The compiler will automatically interpolate <code>color</code>, <code>opacity</code>, and{' '}
-        <code>visible</code> between scenes using the blend functions you defined in{' '}
-        <code>compile.ts</code>.
-      </p>
-
       <h2>Type-Factory Pattern (Polymorphic Widgets)</h2>
-
-      <p>
-        For widgets with multiple sub-types keyed by a <code>type</code> prop — like{' '}
-        <code>&lt;Model type="MaleDummy" /&gt;</code> — use <code>registerTypeFactory</code>. The
-        factory is called with the <code>type</code> string and returns the correct widget instance:
-      </p>
 
       <CodeBlock
         language="typescript"
@@ -274,18 +211,7 @@ registry.registerTypeFactory('MyElement', (type: string) => {
 });`}
       />
 
-      <p>
-        The DSL component passes <code>type</code> as a prop, and the registry calls your factory
-        on first encounter of each unique type value.
-      </p>
-
       <h2><code>CUSTOM_NODE_HANDLER</code></h2>
-
-      <p>
-        For widgets that need to handle nested JSX — like the <code>Diagram</code> element which
-        contains child <code>Node</code>, <code>Edge</code>, and <code>Group</code> components —
-        use the <code>CUSTOM_NODE_HANDLER</code> symbol to register a bespoke DSL node handler:
-      </p>
 
       <CodeBlock
         language="typescript"
@@ -295,11 +221,8 @@ import type { IDslComposite, WidgetRegistry } from '@brewsite/core';
 export class DiagramWidget implements IDslComposite {
   readonly widgetId = 'Diagram';
 
-  // The registry calls [CUSTOM_NODE_HANDLER](registry, nodeTree)
-  // when it encounters a <Diagram> node with children.
   [CUSTOM_NODE_HANDLER](registry: WidgetRegistry, nodeTree: unknown): void {
     // Walk nodeTree and register sub-nodes (Node, Edge, Group) yourself.
-    // This gives you full control over nested DSL compilation.
   }
 }`}
       />
@@ -312,9 +235,9 @@ export class DiagramWidget implements IDslComposite {
 
       <p>
         For more on sharing state between widgets and React components, see{' '}
-        <Link to="/core/variable-store">VariableStore</Link>. For the registry API, see{' '}
-        <Link to="/core/widget-registry">WidgetRegistry</Link>.
+        <a href="#variable-store">VariableStore</a>. For the registry API, see{' '}
+        <a href="#widget-registry">WidgetRegistry</a>.
       </p>
-    </section>
+    </Section>
   );
 }

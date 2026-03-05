@@ -8,6 +8,7 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
+  TextBox,
   WheelMap,
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
@@ -60,61 +61,59 @@ export const sceneClsTheory: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    {/* Prose panel */}
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '45vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="bfm-cls-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '40px 64px 48px',
+        background: 'rgba(8, 11, 20, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        height: '100%',
+        overflowY: 'auto',
+        pointerEvents: 'auto',
+        boxSizing: 'border-box',
       }}>
-        THE COGNITIVE SCIENCE FOUNDATION
-      </div>
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '32px',
-      }}>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            Complementary Learning Systems theory
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
-            CLS theory proposes that durable long-term memory requires two cooperating systems:
-            a fast hippocampal store for high-fidelity episodic capture, and a slow neocortical
-            system that consolidates patterns during offline periods. Neither system alone is
-            sufficient — the hippocampus catastrophically forgets without consolidation; the
-            neocortex cannot learn quickly without damaging existing knowledge.
-          </p>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          THE COGNITIVE SCIENCE FOUNDATION
         </div>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            Why two systems — incompatible optimization targets
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
-            Fast learning (hippocampus) requires high plasticity and specific encoding — optimized
-            for exact recall. Slow learning (neocortex) requires low plasticity and distributed
-            encoding — optimized for generalization. These are incompatible: a single system
-            cannot be both plastic enough for fast capture and stable enough for long-term storage.
-            BrewFlow maps EpisodicStore to the hippocampus, Somniocortex to consolidation sleep,
-            and Neocortex Store to durable schematic memory.
-          </p>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '32px',
+        }}>
+          <div>
+            <h3 style={{ fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              Complementary Learning Systems theory
+            </h3>
+            <p style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
+              CLS theory proposes that durable long-term memory requires two cooperating systems:
+              a fast hippocampal store for high-fidelity episodic capture, and a slow neocortical
+              system that consolidates patterns during offline periods. Neither system alone is
+              sufficient — the hippocampus catastrophically forgets without consolidation; the
+              neocortex cannot learn quickly without damaging existing knowledge.
+            </p>
+          </div>
+          <div>
+            <h3 style={{ fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              Why two systems — incompatible optimization targets
+            </h3>
+            <p style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
+              Fast learning (hippocampus) requires high plasticity and specific encoding — optimized
+              for exact recall. Slow learning (neocortex) requires low plasticity and distributed
+              encoding — optimized for generalization. These are incompatible: a single system
+              cannot be both plastic enough for fast capture and stable enough for long-term storage.
+              BrewFlow maps EpisodicStore to the hippocampus, Somniocortex to consolidation sleep,
+              and Neocortex Store to durable schematic memory.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

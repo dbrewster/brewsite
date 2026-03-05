@@ -4,10 +4,12 @@ import * as THREE from 'three';
 import type {
   IAnimationController,
   IInputDefaultProvider,
+  INVSBounded,
   IRenderable,
   ISceneElement,
   AnimationTickContext,
   InputActionSpec,
+  NVSRect,
   WidgetInitContext,
   WidgetRenderContext,
 } from '@brewsite/core';
@@ -32,6 +34,36 @@ import {
 
 const CAMERA_KEY = '__brewsite_camera';
 const CAMERA_FOCUS_KEY = '__brewsite_camera_focus';
+
+/**
+ * Pure helper: computes NDC coordinates for a pointer event scoped to an NVS sub-region.
+ *
+ * @param pointerLocalX - Pointer X offset from the canvas element left edge (pixels).
+ * @param pointerLocalY - Pointer Y offset from the canvas element top edge (pixels).
+ * @param canvasWidth   - Full canvas element width in pixels.
+ * @param canvasHeight  - Full canvas element height in pixels.
+ * @param nvsBounds     - NVS sub-region this canvas occupies.
+ * @returns NDC coordinates as { x: [-1, 1], y: [-1, 1] }.
+ */
+export function computeNdcForNvs(
+  pointerLocalX: number,
+  pointerLocalY: number,
+  canvasWidth: number,
+  canvasHeight: number,
+  nvsBounds: NVSRect,
+): { x: number; y: number } {
+  const regionLeft   = nvsBounds.x * canvasWidth;
+  const regionTop    = nvsBounds.y * canvasHeight;
+  const regionWidth  = nvsBounds.w * canvasWidth;
+  const regionHeight = nvsBounds.h * canvasHeight;
+  const subX = pointerLocalX - regionLeft;
+  const subY = pointerLocalY - regionTop;
+  return {
+    x: (subX / regionWidth) * 2 - 1,
+    y: -(subY / regionHeight) * 2 + 1,
+  };
+}
+
 type HoverTarget = {
   diagramId: string;
   groupPath: string[];
@@ -44,13 +76,23 @@ export class DiagramCanvasWidget
     ISceneElement<DiagramCanvasState>,
     IRenderable<DiagramCanvasState>,
     IAnimationController,
-    IInputDefaultProvider
+    IInputDefaultProvider,
+    INVSBounded
 {
   readonly widgetId: string;
   readonly defaultState: DiagramCanvasState;
   readonly transitionSpec = functionalDiagramCanvasTransitionSpec;
   readonly DslComponent = DiagramCanvas;
   readonly tickPriority = 1;
+
+  /**
+   * Returns the NVS bounds from the last applied DiagramCanvasState.
+   * Falls back to the fullscreen default { x: 0, y: 0, w: 1, h: 1 } before
+   * the first apply() call.
+   */
+  get nvsBounds(): NVSRect {
+    return this.lastState?.nvsBounds ?? this.defaultState.nvsBounds;
+  }
 
   /**
    * Optional callback fired when a clickable node inside any child diagram
@@ -293,11 +335,7 @@ export class DiagramCanvasWidget
       return;
     }
 
-    const rect = this.canvasElement.getBoundingClientRect();
-    this.ndc.set(
-      ((clientX - rect.left) / rect.width) * 2 - 1,
-      -((clientY - rect.top) / rect.height) * 2 + 1,
-    );
+    this.computeNdc(clientX, clientY);
     const cam = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
     if (!cam) return;
     this.raycaster.setFromCamera(this.ndc, cam);
@@ -331,13 +369,25 @@ export class DiagramCanvasWidget
     this.focusAll(cam, focusCenter);
   }
 
+  /**
+   * Computes NDC coordinates for a pointer event, scoped to the NVS sub-region
+   * this canvas occupies within the full renderer viewport.
+   *
+   * Delegates to the exported pure function `computeNdcForNvs` using the
+   * canvas element's bounding rect and the current nvsBounds.
+   */
+  private computeNdc(clientX: number, clientY: number): void {
+    if (!this.canvasElement) return;
+    const rect = this.canvasElement.getBoundingClientRect();
+    const pointerX = clientX - rect.left;
+    const pointerY = clientY - rect.top;
+    const { x, y } = computeNdcForNvs(pointerX, pointerY, rect.width, rect.height, this.nvsBounds);
+    this.ndc.set(x, y);
+  }
+
   private handleClick(event: MouseEvent): void {
     if (!this.scene || !this.canvasElement) return;
-    const rect = this.canvasElement.getBoundingClientRect();
-    this.ndc.set(
-      ((event.clientX - rect.left) / rect.width) * 2 - 1,
-      -((event.clientY - rect.top) / rect.height) * 2 + 1,
-    );
+    this.computeNdc(event.clientX, event.clientY);
     const cam = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
     if (!cam) return;
     this.raycaster.setFromCamera(this.ndc, cam);
@@ -365,11 +415,7 @@ export class DiagramCanvasWidget
 
   private handleMouseMove(event: MouseEvent): void {
     if (!this.scene || !this.canvasElement || !this.lastState) return;
-    const rect = this.canvasElement.getBoundingClientRect();
-    this.ndc.set(
-      ((event.clientX - rect.left) / rect.width) * 2 - 1,
-      -((event.clientY - rect.top) / rect.height) * 2 + 1,
-    );
+    this.computeNdc(event.clientX, event.clientY);
     const cam = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
     if (!cam) return;
     this.raycaster.setFromCamera(this.ndc, cam);

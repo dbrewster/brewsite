@@ -1,6 +1,6 @@
 // Chart element type contracts — no Three.js, no React.
 
-import type { SceneTheme } from '@brewsite/core';
+import type { SceneTheme, NVSRect } from '@brewsite/core';
 import type { DataTransform, FilterGroupId } from '../../data/types';
 import type { ChartThemeName, ChartTheme } from '../../themes/types';
 import type { ChartAxisState, ChartSeriesState } from '../../renderers/shared/IChartRenderer';
@@ -55,6 +55,11 @@ export type ChartState = {
    * Takes precedence over ChartTheme.sceneTheme when set.
    */
   readonly sceneTheme?: SceneTheme;
+  /**
+   * NVS bounds declaring what region of the AR-locked container this chart occupies.
+   * Fullscreen is { x: 0, y: 0, w: 1, h: 1 }. Required — always filled by compile step.
+   */
+  readonly nvsBounds: NVSRect;
 };
 
 /** Default compiled state. opacity = 1 so charts are visible by default. */
@@ -73,6 +78,7 @@ export const DEFAULT_CHART_STATE: ChartState = {
   opacity: 1,
   interactive: false,
   sceneTheme: undefined,
+  nvsBounds: { x: 0, y: 0, w: 1, h: 1 },
 };
 
 // ─── DSL prop types ─────────────────────────────────────────────────────────
@@ -99,6 +105,14 @@ export type ChartDSL = {
    * <Chart theme="darkGlass" sceneTheme={mySceneTheme} />
    */
   readonly sceneTheme?: SceneTheme;
+  /** NVS x-coordinate of the chart left edge [0, 1]. Default: 0 */
+  readonly x?: number;
+  /** NVS y-coordinate of the chart top edge [0, 1]. Default: 0 */
+  readonly y?: number;
+  /** NVS width of the chart [0, 1]. Default: 1 */
+  readonly w?: number;
+  /** NVS height of the chart [0, 1]. Default: 1 */
+  readonly h?: number;
 };
 
 /** Props for the <ChartData> DSL component. */

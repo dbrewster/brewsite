@@ -1,16 +1,14 @@
 import type {JSX} from 'react';
 import {
     Action,
-    Ambient,
     Background,
     Camera,
-    Directional,
     InputController,
     KeyMap,
-    Lighting,
     PointerMap,
     ProgressManager,
     Scene,
+    TextBox,
     WheelMap,
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, GridLayout,} from '@brewsite/diagram';
@@ -61,67 +59,64 @@ export const sceneDim4Coordination: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    {/* Prose panel */}
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '55vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="dim4-prose" x={0} y={0.56} w={1} h={0.44}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8, 11, 20, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        height: '100%',
+        overflowY: 'auto',
+        boxSizing: 'border-box',
       }}>
-        DIMENSION 4: CROSS-AGENT COORDINATION
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            claude-flow: structural blackboard
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
-            The shared_state table is claude-flow's primary coordination mechanism. Agents
-            write versioned key-value pairs: what the value is, who wrote it, when. This
-            answers structural questions well — what did agent A write? What is the current
-            value of key X? The versioning means you can see the history of a value.
-          </p>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(160, 180, 220, 0.6)', lineHeight: 1.7, fontStyle: 'italic', margin: 0 }}>
-            What it cannot answer: why did agent A write that value? What led to this
-            decision? What caused agent B's subsequent action?
-          </p>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 13,
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          DIMENSION 4: CROSS-AGENT COORDINATION
         </div>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            BrewFlow: causal event chain
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
-            BrewFlow records coordination events as synaptic_event typed records in the
-            EpisodicStore. Each event carries its globalEventSeq, full lineage references,
-            and enough typed schema to reconstruct the causal chain. When agent B makes a
-            decision because of something agent A communicated, both the communication and
-            the decision are causally linked in the event stream.
-          </p>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
-            The practical difference shows up in incident investigation. With BrewFlow you
-            can trace: agent B made this decision → because of this synaptic_event → which
-            agent A emitted → in this context → because of these prior events. With
-            claude-flow you see agent A wrote value X and agent B later read value X, but
-            the causal connection between B's action and the specific context that prompted A
-            requires manual reconstruction.
-          </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          <div>
+            <h3 style={{ fontSize: 26, color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              claude-flow: structural blackboard
+            </h3>
+            <p style={{ fontSize: 18, color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+              The shared_state table is claude-flow's primary coordination mechanism. Agents
+              write versioned key-value pairs: what the value is, who wrote it, when. This
+              answers structural questions well — what did agent A write? What is the current
+              value of key X? The versioning means you can see the history of a value.
+            </p>
+            <p style={{ fontSize: 15, color: 'rgba(160, 180, 220, 0.6)', lineHeight: 1.7, fontStyle: 'italic', margin: 0 }}>
+              What it cannot answer: why did agent A write that value? What led to this
+              decision? What caused agent B's subsequent action?
+            </p>
+          </div>
+          <div>
+            <h3 style={{ fontSize: 26, color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              BrewFlow: causal event chain
+            </h3>
+            <p style={{ fontSize: 18, color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+              BrewFlow records coordination events as synaptic_event typed records in the
+              EpisodicStore. Each event carries its globalEventSeq, full lineage references,
+              and enough typed schema to reconstruct the causal chain. When agent B makes a
+              decision because of something agent A communicated, both the communication and
+              the decision are causally linked in the event stream.
+            </p>
+            <p style={{ fontSize: 18, color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
+              The practical difference shows up in incident investigation. With BrewFlow you
+              can trace: agent B made this decision → because of this synaptic_event → which
+              agent A emitted → in this context → because of these prior events. With
+              claude-flow you see agent A wrote value X and agent B later read value X, but
+              the causal connection between B's action and the specific context that prompted A
+              requires manual reconstruction.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

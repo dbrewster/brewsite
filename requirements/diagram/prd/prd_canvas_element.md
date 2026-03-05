@@ -3,8 +3,11 @@ title: "BrewSite Diagram — Canvas Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-03
+last_updated: 2026-03-04
 change_history:
+  - date: 2026-03-04
+    author: "Toolkit Product"
+    summary: "NVS system: DiagramCanvasWidget implements INVSBounded. DiagramCanvasProps gains optional x?, y?, w?, h? NVS props (default fullscreen). DiagramCanvasState gains optional nvsBounds field. API Design and Technical Considerations sections updated. Non-Goals updated."
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Initial PRD created. Comprehensive documentation of the @brewsite/diagram DiagramCanvas element as implemented."
@@ -110,6 +113,20 @@ export interface DiagramCanvasProps {
    * full canvas (e.g. Cmd+click on empty canvas area).
    */
   focusCenter?: [number, number] | [number, number, number];
+
+  /**
+   * NVS sub-region occupied by this canvas in the EngineARContainer.
+   * All values are ratios in [0, 1] relative to the AR-locked container.
+   * When absent, the canvas is fullscreen: x=0, y=0, w=1, h=1.
+   *
+   * DiagramCanvasWidget implements INVSBounded. The raycaster uses these
+   * bounds to restrict hit-testing to the canvas's declared viewport region.
+   */
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+
   children?: React.ReactNode;
 }
 
@@ -222,6 +239,13 @@ export interface DiagramCanvasState {
    * Consumed by DiagramCanvasWidget.getDefaultInputActions() at runtime.
    */
   readonly defaultInputActions?: ReadonlyArray<InputActionSpec>;
+
+  /**
+   * NVS bounds for this canvas. Derived from the x, y, w, h DSL props at compile time.
+   * Defaults to { x: 0, y: 0, w: 1, h: 1 } (fullscreen) when no NVS props are declared.
+   * Read by DiagramCanvasWidget.nvsBounds to implement INVSBounded.
+   */
+  readonly nvsBounds: NVSRect;
 }
 
 /** Raw DSL props for <DiagramCanvas> before compile.ts applies defaults. */
@@ -318,7 +342,8 @@ export class DiagramCanvasWidget
     ISceneElement<DiagramCanvasState>,
     IRenderable<DiagramCanvasState>,
     IAnimationController,
-    IInputDefaultProvider
+    IInputDefaultProvider,
+    INVSBounded
 {
   readonly widgetId: string;
   readonly defaultState: DiagramCanvasState;
@@ -331,6 +356,17 @@ export class DiagramCanvasWidget
    * Assign after construction in widgetSetup.ts.
    */
   public onInteraction: ((event: DiagramInteractionEvent) => void) | undefined;
+
+  /**
+   * Implements INVSBounded. Returns the NVS bounds from the most recently
+   * applied DiagramCanvasState. Before any state has been applied, returns
+   * { x: 0, y: 0, w: 1, h: 1 } (fullscreen default).
+   *
+   * The raycaster uses these bounds to restrict hit-testing to the sub-region
+   * of the viewport this canvas occupies. The EngineARContainer uses these
+   * bounds to auto-frame the camera to the declared region.
+   */
+  readonly nvsBounds: NVSRect;
 
   constructor(widgetId: string, defaultState: DiagramCanvasState);
 
@@ -503,9 +539,13 @@ This runs every tick when the Camera widget is inactive, giving a stable framing
 
 ## Breaking Change Assessment
 
-**Semver impact: minor** (new feature, no existing public API modified).
+**Semver impact: minor** (new optional NVS props on `DiagramCanvasProps` and `DiagramCanvasState`).
 
-This is the initial implementation. There are no breaking changes to `@brewsite/core` or any previously published `@brewsite/diagram` surface. Consumers adding `DiagramCanvasWidget` to an existing project must:
+The `x`, `y`, `w`, `h` props on `DiagramCanvas` are fully optional with fullscreen defaults. Existing scenes that do not declare NVS props compile and render identically to before. The addition of `nvsBounds` to `DiagramCanvasState` is a new field with a defined default (`{ x: 0, y: 0, w: 1, h: 1 }`) — consumers who snapshot or serialize `DiagramCanvasState` directly will now receive an additional field, which may require test updates.
+
+The `INVSBounded` interface addition to `DiagramCanvasWidget` is purely additive.
+
+Consumers adding `DiagramCanvasWidget` to an existing project must:
 
 1. Import `DiagramCanvasWidget` and `compileCanvas` from `@brewsite/diagram`.
 2. Register one `DiagramCanvasWidget` instance per `DiagramCanvas` id before `ScenePlayer` mounts.
@@ -513,7 +553,7 @@ This is the initial implementation. There are no breaking changes to `@brewsite/
 
 ## Dependencies
 
-- `@brewsite/core`: `FunctionalTransitionSpec`, `ISceneElement`, `IRenderable`, `IAnimationController`, `blendNumber`, `blendVec3`, `blendOpacity`, `setSceneLightEnabled`, `WidgetRegistry`, `WidgetInitContext`, `WidgetRenderContext`, `AnimationTickContext`.
+- `@brewsite/core`: `FunctionalTransitionSpec`, `ISceneElement`, `IRenderable`, `IAnimationController`, `INVSBounded`, `NVSRect`, `blendNumber`, `blendVec3`, `blendOpacity`, `setSceneLightEnabled`, `WidgetRegistry`, `WidgetInitContext`, `WidgetRenderContext`, `AnimationTickContext`.
 - `packages/diagram/src/elements/diagram/compile.ts`: `compileDiagram`, `applyDiagramEnter`, `applyDiagramExit`.
 - `packages/diagram/src/elements/diagram/compiler/transitionHelpers.ts`: `blendDiagramNodes`, `buildLiveNodeMaps`, `rerouteLiveEdges`, `blendDiagramEdges`.
 - `packages/diagram/src/elements/diagram/canvas/compiler/pipeRouter.ts`: `sideAttachmentPoint`, `routePipe`, `rerouteLivePipes`, `rotateXYZ`.

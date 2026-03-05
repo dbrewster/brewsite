@@ -1,6 +1,6 @@
 import type {JSX} from 'react';
 import {useMemo} from 'react';
-import {EngineInputRegion, EngineOverlayHost, EngineProvider, SceneCanvas,} from '@brewsite/core';
+import {EngineARContainer, EngineInputRegion, EngineOverlayHost, EngineProvider, SceneCanvas,} from '@brewsite/core';
 import {createSidecarPlugins} from './widgetSetup';
 import {sceneHero} from './scenes/scene_hero';
 import {sceneSurfaces} from './scenes/scene_surfaces';
@@ -16,7 +16,7 @@ import {sceneTradeoffs} from './scenes/scene_tradeoffs';
 
 const SCENE_SCROLL_REGISTRY = [
   { sceneId: 'bf-hero',         scrollUnits: 800  },
-  { sceneId: 'bf-surfaces',     scrollUnits: 2800 },
+  { sceneId: 'bf-surfaces',     scrollUnits: 3200 },
   { sceneId: 'bf-architecture', scrollUnits: 3200 },
   { sceneId: 'bf-bridge',       scrollUnits: 2400 },
   { sceneId: 'bf-mcp',          scrollUnits: 3200 },
@@ -52,10 +52,12 @@ export default function SidecarNotePage(): JSX.Element {
         {sceneDreamer}
         {sceneDeploymentLevels}
         {sceneTradeoffs}
-        <EngineInputRegion>
-          <SceneCanvas />
-          <EngineOverlayHost />
-        </EngineInputRegion>
+        <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width" referenceWidth={1920}>
+          <EngineInputRegion>
+            <SceneCanvas />
+            <EngineOverlayHost />
+          </EngineInputRegion>
+        </EngineARContainer>
       </EngineProvider>
     </div>
   );

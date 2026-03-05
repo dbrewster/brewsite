@@ -69,6 +69,7 @@ const makeCanvas = (overrides: Partial<DiagramCanvasState> = {}): DiagramCanvasS
       ],
     },
   ],
+  nvsBounds: { x: 0, y: 0, w: 1, h: 1 },
   ...overrides,
 });
 

@@ -8,6 +8,7 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
+  TextBox,
   WheelMap,
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, FlowLayout,} from '@brewsite/diagram';
@@ -65,70 +66,68 @@ export const sceneInjector: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    {/* Prose panel */}
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '50vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="bfm-inject-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '40px 64px 48px',
+        background: 'rgba(8, 11, 20, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        height: '100%',
+        overflowY: 'auto',
+        pointerEvents: 'auto',
+        boxSizing: 'border-box',
       }}>
-        INJECTOR CORTEX — WHAT YOU GET
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            Bounded context packs
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
-            InjectorCortex assembles memory packs that fit within a declared token budget.
-            The pack is ordered, deterministic, and reproducible — given the same Neocortex
-            state and the same query, the same pack is produced. This makes context injection
-            auditable and debuggable.
-          </p>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            Memory schematic for restart
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
-            For workstream restart, InjectorCortex produces a "memory schematic" — a
-            structured packet summarizing proven state, active constraints, current next
-            steps, and known pitfalls. A new agent starting a resumed workstream receives
-            this schematic and can continue where the previous agent left off without
-            re-reading the full episode log.
-          </p>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          INJECTOR CORTEX — WHAT YOU GET
         </div>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            Injection order rationale
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 12px' }}>
-            The canonical injection order reflects cognitive priority for safe task execution.
-            Constraints come first because an agent that violates a hard rule before reading
-            its procedures is already compromised. Disambiguation comes second because
-            misinterpreted terms corrupt everything downstream. Procedures and checklists
-            follow as operational knowledge. Pitfalls and concepts close out the pack as
-            reference material.
-          </p>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(160, 180, 220, 0.65)', lineHeight: 1.7, margin: 0, fontStyle: 'italic' }}>
-            Token budget is enforced by truncating at the end of the ordered list — so
-            concepts and pitfalls are dropped before constraints are ever cut.
-          </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          <div>
+            <h3 style={{ fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              Bounded context packs
+            </h3>
+            <p style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+              InjectorCortex assembles memory packs that fit within a declared token budget.
+              The pack is ordered, deterministic, and reproducible — given the same Neocortex
+              state and the same query, the same pack is produced. This makes context injection
+              auditable and debuggable.
+            </p>
+            <h3 style={{ fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              Memory schematic for restart
+            </h3>
+            <p style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
+              For workstream restart, InjectorCortex produces a "memory schematic" — a
+              structured packet summarizing proven state, active constraints, current next
+              steps, and known pitfalls. A new agent starting a resumed workstream receives
+              this schematic and can continue where the previous agent left off without
+              re-reading the full episode log.
+            </p>
+          </div>
+          <div>
+            <h3 style={{ fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              Injection order rationale
+            </h3>
+            <p style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 12px' }}>
+              The canonical injection order reflects cognitive priority for safe task execution.
+              Constraints come first because an agent that violates a hard rule before reading
+              its procedures is already compromised. Disambiguation comes second because
+              misinterpreted terms corrupt everything downstream. Procedures and checklists
+              follow as operational knowledge. Pitfalls and concepts close out the pack as
+              reference material.
+            </p>
+            <p style={{ fontSize: '15px', color: 'rgba(160, 180, 220, 0.65)', lineHeight: 1.7, margin: 0, fontStyle: 'italic' }}>
+              Token budget is enforced by truncating at the end of the ordered list — so
+              concepts and pitfalls are dropped before constraints are ever cut.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

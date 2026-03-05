@@ -1,9 +1,7 @@
-import { JSX } from 'react';
-import { CodeBlock } from '../../components/ui/CodeBlock';
-import { PropTable } from '../../components/ui/PropTable';
-import { Callout } from '../../components/ui/Callout';
-import { LiveDemo } from '../../components/demo/LiveDemo';
-import EnvironmentDemo, { CODE as ENV_CODE } from '../../demos/core/EnvironmentDemo.demo';
+import type { ReactElement } from 'react';
+import { Section, DocsDemo, CodeBlock, PropTable, Callout } from '@brewsite/docs';
+import type { SectionId } from '../../docs-nav';
+import { EnvironmentDemo } from '../../demos/core/EnvironmentDemo.demo';
 
 const HDRI_CODE = `<Environment enabled intensity={1.0}>
   <EnvironmentHdri url="/assets/envmaps/studio.hdr" />
@@ -33,10 +31,9 @@ const CUBE_CODE = `<Environment enabled intensity={1.0}>
 
 const GEN_ENVMAP_CODE = `pnpm --filter @brewsite/diagram gen-envmap`;
 
-export default function EnvironmentElement(): JSX.Element {
+export function EnvironmentPage(): ReactElement {
   return (
-    <section>
-      <h1>Environment Element</h1>
+    <Section<SectionId> id="environment" title="Environment Element">
       <p>
         The <code>&lt;Environment&gt;</code> element loads an HDR or EXR environment map and applies
         it as the scene's image-based lighting (IBL). This produces physically-based reflections and
@@ -45,9 +42,9 @@ export default function EnvironmentElement(): JSX.Element {
         what separates a convincing render from a flat one.
       </p>
 
-      <LiveDemo title="HDR environment reflections vs. direct lighting only" code={ENV_CODE}>
+      <DocsDemo title="HDR environment reflections vs. direct lighting only" scrollUnits={2400} height={480}>
         <EnvironmentDemo />
-      </LiveDemo>
+      </DocsDemo>
 
       <h2>HDR Environment Maps</h2>
       <p>
@@ -116,10 +113,6 @@ export default function EnvironmentElement(): JSX.Element {
       />
 
       <h2>Source Child Props</h2>
-      <p>
-        The source child (<code>&lt;EnvironmentHdri&gt;</code>, <code>&lt;EnvironmentExr&gt;</code>, or{' '}
-        <code>&lt;EnvironmentCube&gt;</code>) configures where the environment image comes from.
-      </p>
       <PropTable
         rows={[
           {
@@ -145,6 +138,6 @@ export default function EnvironmentElement(): JSX.Element {
           },
         ]}
       />
-    </section>
+    </Section>
   );
 }

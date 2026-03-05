@@ -1,16 +1,14 @@
 import type {JSX} from 'react';
 import {
     Action,
-    Ambient,
     Background,
     Camera,
-    Directional,
     InputController,
     KeyMap,
-    Lighting,
     PointerMap,
     ProgressManager,
     Scene,
+    TextBox,
     WheelMap,
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, GridLayout,} from '@brewsite/diagram';
@@ -65,63 +63,60 @@ export const sceneDim8Maturity: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    {/* Prose panel */}
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '55vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="dim8-prose" x={0} y={0.56} w={1} h={0.44}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8, 11, 20, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        height: '100%',
+        overflowY: 'auto',
+        boxSizing: 'border-box',
       }}>
-        DIMENSION 8: MATURATION
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            claude-flow: flat curve
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
-            claude-flow accumulates patterns across sessions, but the quality of those
-            patterns depends entirely on LLM output quality and operator maintenance.
-            Session 100 has more patterns than session 1, but not necessarily better ones —
-            there is no structural mechanism that ensures accumulated patterns improve over
-            time. Whether session 100 produces better outcomes than session 1 depends almost
-            entirely on how well the human operator maintained configurations.
-          </p>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 13,
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          DIMENSION 8: MATURATION
         </div>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            BrewFlow: compounding curve
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
-            BrewFlow's maturation curve is structurally compounding. Sessions 1–5 fill the
-            EpisodicStore with observations. Sessions 5–20 see the first validated constraints
-            and pitfalls promoted to Neocortex. Sessions 20–50 build richer context packs
-            that reduce clarification turns. Sessions 50+ enter maintenance mode — refining
-            and pruning deprecated cards. Each phase improves the next because validated
-            knowledge accumulates in a structure designed for retrieval.
-          </p>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(160, 180, 220, 0.65)', lineHeight: 1.7, fontStyle: 'italic', margin: 0 }}>
-            The investment crossover point is approximately sessions 10–20. Before that,
-            claude-flow's simpler model may produce comparable results. After that,
-            BrewFlow's compounding advantage becomes significant for similar tasks.
-          </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          <div>
+            <h3 style={{ fontSize: 26, color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              claude-flow: flat curve
+            </h3>
+            <p style={{ fontSize: 18, color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+              claude-flow accumulates patterns across sessions, but the quality of those
+              patterns depends entirely on LLM output quality and operator maintenance.
+              Session 100 has more patterns than session 1, but not necessarily better ones —
+              there is no structural mechanism that ensures accumulated patterns improve over
+              time. Whether session 100 produces better outcomes than session 1 depends almost
+              entirely on how well the human operator maintained configurations.
+            </p>
+          </div>
+          <div>
+            <h3 style={{ fontSize: 26, color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              BrewFlow: compounding curve
+            </h3>
+            <p style={{ fontSize: 18, color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+              BrewFlow's maturation curve is structurally compounding. Sessions 1–5 fill the
+              EpisodicStore with observations. Sessions 5–20 see the first validated constraints
+              and pitfalls promoted to Neocortex. Sessions 20–50 build richer context packs
+              that reduce clarification turns. Sessions 50+ enter maintenance mode — refining
+              and pruning deprecated cards. Each phase improves the next because validated
+              knowledge accumulates in a structure designed for retrieval.
+            </p>
+            <p style={{ fontSize: 15, color: 'rgba(160, 180, 220, 0.65)', lineHeight: 1.7, fontStyle: 'italic', margin: 0 }}>
+              The investment crossover point is approximately sessions 10–20. Before that,
+              claude-flow's simpler model may produce comparable results. After that,
+              BrewFlow's compounding advantage becomes significant for similar tasks.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

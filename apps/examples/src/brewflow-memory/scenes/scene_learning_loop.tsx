@@ -8,6 +8,7 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
+  TextBox,
   WheelMap,
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
@@ -56,78 +57,76 @@ export const sceneLearningLoop: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    {/* Prose panel */}
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '50vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="bfm-loop-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '40px 64px 48px',
+        background: 'rgba(8, 11, 20, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        height: '100%',
+        overflowY: 'auto',
+        pointerEvents: 'auto',
+        boxSizing: 'border-box',
       }}>
-        THE LEARNING LOOP
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          THE LEARNING LOOP
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '28px' }}>
+          <div>
+            <h3 style={{ fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              Asymmetric by design
+            </h3>
+            <p style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
+              The loop has three distinct tempos. Recording is continuous and automatic — every
+              event is appended to EpisodicStore in real time with no agent decision required.
+              Consolidation is slow and batch — Somniocortex runs out-of-band and only when
+              triggered. Retrieval is fast and on-demand — InjectorCortex assembles context
+              packs synchronously at agent spawn time.
+            </p>
+          </div>
+          <div>
+            <h3 style={{ fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              Three key asymmetries
+            </h3>
+            <ul style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.8, margin: 0, padding: 0, listStyle: 'none' }}>
+              <li style={{ marginBottom: 8 }}>
+                <span style={{ color: '#c8d8f0', fontWeight: 600 }}>Slow batch vs fast on-demand.</span>{' '}
+                Consolidation cannot be in the critical path — it takes seconds to minutes.
+                Retrieval must complete in milliseconds.
+              </li>
+              <li style={{ marginBottom: 8 }}>
+                <span style={{ color: '#c8d8f0', fontWeight: 600 }}>Not every episode becomes a card.</span>{' '}
+                Somniocortex selects, clusters, and filters. Most episodes are never consolidated —
+                only recurring patterns with sufficient evidence.
+              </li>
+              <li>
+                <span style={{ color: '#c8d8f0', fontWeight: 600 }}>Cards outlive sessions.</span>{' '}
+                A card promoted to "verified" in Neocortex persists until explicitly deprecated.
+                The loop compounds — each session adds to a growing library of validated knowledge.
+              </li>
+            </ul>
+          </div>
+          <div>
+            <h3 style={{ fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              Getting smarter over time
+            </h3>
+            <p style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
+              After 10 sessions, the Neocortex library contains constraints, procedures, and
+              pitfalls extracted from 10 rounds of real work. The 11th session agent starts
+              with a context pack built from that library — it knows what the previous 10
+              agents learned. Each iteration of the loop makes the next iteration better.
+              This is the compounding property.
+            </p>
+          </div>
+        </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '28px' }}>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            Asymmetric by design
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
-            The loop has three distinct tempos. Recording is continuous and automatic — every
-            event is appended to EpisodicStore in real time with no agent decision required.
-            Consolidation is slow and batch — Somniocortex runs out-of-band and only when
-            triggered. Retrieval is fast and on-demand — InjectorCortex assembles context
-            packs synchronously at agent spawn time.
-          </p>
-        </div>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            Three key asymmetries
-          </h3>
-          <ul style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.8, margin: 0, padding: 0, listStyle: 'none' }}>
-            <li style={{ marginBottom: 8 }}>
-              <span style={{ color: '#c8d8f0', fontWeight: 600 }}>Slow batch vs fast on-demand.</span>{' '}
-              Consolidation cannot be in the critical path — it takes seconds to minutes.
-              Retrieval must complete in milliseconds.
-            </li>
-            <li style={{ marginBottom: 8 }}>
-              <span style={{ color: '#c8d8f0', fontWeight: 600 }}>Not every episode becomes a card.</span>{' '}
-              Somniocortex selects, clusters, and filters. Most episodes are never consolidated —
-              only recurring patterns with sufficient evidence.
-            </li>
-            <li>
-              <span style={{ color: '#c8d8f0', fontWeight: 600 }}>Cards outlive sessions.</span>{' '}
-              A card promoted to "verified" in Neocortex persists until explicitly deprecated.
-              The loop compounds — each session adds to a growing library of validated knowledge.
-            </li>
-          </ul>
-        </div>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            Getting smarter over time
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0 }}>
-            After 10 sessions, the Neocortex library contains constraints, procedures, and
-            pitfalls extracted from 10 rounds of real work. The 11th session agent starts
-            with a context pack built from that library — it knows what the previous 10
-            agents learned. Each iteration of the loop makes the next iteration better.
-            This is the compounding property.
-          </p>
-        </div>
-      </div>
-    </div>
+    </TextBox>
   </Scene>
 );

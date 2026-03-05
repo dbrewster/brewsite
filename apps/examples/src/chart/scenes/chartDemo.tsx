@@ -1,6 +1,6 @@
 // Chart demo scenes — bar, line, pie, and scatter examples with real business data.
 import type {JSX} from 'react';
-import {Ambient, Background, Camera, Directional, Lighting, ProgressManager, Scene,} from '@brewsite/core';
+import {Ambient, Background, Camera, Directional, Lighting, ProgressManager, Scene, TextBox,} from '@brewsite/core';
 import {Chart, ChartAxis, ChartData, ChartLegend, ChartSeries,} from '@brewsite/charts';
 
 // ─── Sample data ─────────────────────────────────────────────────────────────
@@ -81,6 +81,17 @@ export const chartDemoBar: JSX.Element = (
       <ChartSeries field="costs"   label="Costs" />
       <ChartLegend visible position="right" />
     </Chart>
+
+    <TextBox id="bar-title" x={0.04} y={0.04} w={0.5} h={0.12}>
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
+        <span style={{ fontSize: '11px', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase' }}>
+          Chart Demo
+        </span>
+        <h2 style={{ fontSize: '24px', color: '#fff', margin: '4px 0 0' }}>
+          Monthly Revenue vs. Costs
+        </h2>
+      </div>
+    </TextBox>
   </Scene>
 );
 
@@ -106,6 +117,17 @@ export const chartDemoLine: JSX.Element = (
       <ChartSeries field="arr" label="Annual Recurring Revenue" />
       <ChartLegend visible position="right" />
     </Chart>
+
+    <TextBox id="line-title" x={0.04} y={0.04} w={0.5} h={0.12}>
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
+        <span style={{ fontSize: '11px', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase' }}>
+          Chart Demo
+        </span>
+        <h2 style={{ fontSize: '24px', color: '#fff', margin: '4px 0 0' }}>
+          ARR Growth Trend
+        </h2>
+      </div>
+    </TextBox>
   </Scene>
 );
 
@@ -134,6 +156,17 @@ export const chartDemoPie: JSX.Element = (
       <ChartAxis axis="y" field="revenue" label="Revenue ($k)" />
       <ChartSeries field="revenue" label="Revenue" />
     </Chart>
+
+    <TextBox id="pie-title" x={0.04} y={0.04} w={0.5} h={0.12}>
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
+        <span style={{ fontSize: '11px', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase' }}>
+          Chart Demo
+        </span>
+        <h2 style={{ fontSize: '24px', color: '#fff', margin: '4px 0 0' }}>
+          Revenue by Product
+        </h2>
+      </div>
+    </TextBox>
   </Scene>
 );
 
@@ -159,5 +192,16 @@ export const chartDemoScatter: JSX.Element = (
       <ChartSeries field="quarterlyRev" label="Revenue" />
       <ChartLegend visible position="right" />
     </Chart>
+
+    <TextBox id="scatter-title" x={0.04} y={0.04} w={0.5} h={0.12}>
+      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', height: '100%' }}>
+        <span style={{ fontSize: '11px', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase' }}>
+          Chart Demo
+        </span>
+        <h2 style={{ fontSize: '24px', color: '#fff', margin: '4px 0 0' }}>
+          Team Size vs. Quarterly Revenue
+        </h2>
+      </div>
+    </TextBox>
   </Scene>
 );

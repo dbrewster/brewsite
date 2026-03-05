@@ -3,8 +3,9 @@
 // This component is the scroll-spacer + sticky container infrastructure only.
 // Reads engine state from EngineContext internally — no engine prop required.
 
-import type { ReactElement, ReactNode } from 'react';
+import { useContext, type ReactElement, type ReactNode } from 'react';
 import { useSceneEngineContext } from './EngineContext';
+import { EngineARContainerContext } from './EngineARContainer';
 
 export type EngineInputRegionProps = {
   className?: string;
@@ -27,9 +28,15 @@ export const EngineInputRegion = ({
 }: EngineInputRegionProps): ReactElement => {
   const engine = useSceneEngineContext();
   const mode = engine.inputMode;
-  // When filling a container, use 100% so the parent's explicit height
-  // constrains us. Otherwise fall back to 100vh for full-page layouts.
-  const viewportFill = fillContainer ? '100%' : '100vh';
+  const arCtx = useContext(EngineARContainerContext);
+  // When inside EngineARContainer, use computedArHeight (AR-derived from width)
+  // rather than containerHeight (the outer div's observed height, which is
+  // inflated by the scroll spacer on first render). Falls back to 100%
+  // (fillContainer) or 100vh when not inside EngineARContainer or before the
+  // outer div has a valid width measurement.
+  const stickyHeight = arCtx.computedArHeight > 0
+    ? `${arCtx.computedArHeight}px`
+    : fillContainer ? '100%' : '100vh';
 
   const innerContent = (
     <div
@@ -48,7 +55,7 @@ export const EngineInputRegion = ({
         position: mode === 'scroll' ? 'sticky' : 'relative',
         top: 0,
         width: '100%',
-        height: viewportFill,
+        height: stickyHeight,
         overflow: 'hidden',
         outline: 'none',
       }}
@@ -76,7 +83,7 @@ export const EngineInputRegion = ({
       <div
         ref={engine.scrollRegionRef}
         className={className}
-        style={{ position: 'relative', height: viewportFill }}
+        style={{ position: 'relative', height: stickyHeight }}
       >
         {innerContent}
       </div>

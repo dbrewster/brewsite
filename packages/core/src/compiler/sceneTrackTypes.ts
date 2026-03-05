@@ -1,7 +1,6 @@
 // Core data contracts for the scene compilation pipeline.
 // Types here flow compiler → runtime → player with no circular dependencies.
 
-import type { ReactNode } from 'react';
 import type { JsonPrimitive } from '../widget/VariableStore';
 
 /**
@@ -233,13 +232,6 @@ export type SceneFrame = {
    */
   transitionWindow?: TransitionWindow;
   /**
-   * Non-DSL React children collected from <Scene> during compilation.
-   * These are HTML elements and non-registered React components that the
-   * compiler passed over. They are NOT stored in the tick array — they are
-   * rendered by EngineOverlayHost in the player layer when this scene is active.
-   */
-  sceneOverlay?: ReactNode;
-  /**
    * Per-scene scroll weight and pacing curve.
    * Declared via <ProgressManager scrollUnits={N} fn={...} /> inside a <Scene>.
    * Undefined means "not declared on this scene" — the carry-forward pass in
@@ -333,16 +325,6 @@ export type SceneTrack = {
    * Warnings accumulated during compilation. Empty/undefined when no issues.
    */
   warnings?: CompileWarning[];
-  /**
-   * Map from sceneId to overlay ReactNode for all scenes that declared
-   * non-DSL React children. Built by sceneTrackCompiler from SceneFrame.sceneOverlay.
-   *
-   * Absent from the SceneTrack cache serialization concern because the cache
-   * is in-memory only — Map<string, ReactNode> is safe here.
-   *
-   * EngineOverlayHost reads this to render the active scene's content.
-   */
-  sceneOverlays: Map<string, ReactNode>;
   /**
    * Per-scene scroll weights and pacing curves.
    * Undefined when no <ProgressManager> was declared (identity mapping applies,

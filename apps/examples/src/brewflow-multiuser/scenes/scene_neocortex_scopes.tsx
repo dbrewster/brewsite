@@ -8,6 +8,7 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
+  TextBox,
   WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
@@ -119,66 +120,65 @@ export const sceneNeocortexScopes: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '50vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="neocortex-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8,11,20,0.88)',
+        backdropFilter: 'blur(16px)',
+        height: '100%',
+        boxSizing: 'border-box',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        overflowY: 'auto',
+        pointerEvents: 'auto',
       }}>
-        THREE NEOCORTEX PLANES
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
-        <div>
-          <div style={{ fontSize: '0.89rem', fontWeight: 600, color: '#c8a0e8', marginBottom: 6 }}>User-Neocortex</div>
-          <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
-            Personal workflow patterns: preferred commands, personal pitfalls, naming conventions.
-            Partition key: <code style={{ fontSize: '0.78rem' }}>tenantId+projectId+userId</code>.
-            Auto-verify is permitted here — one user's session is sufficient evidence.
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          THREE NEOCORTEX PLANES
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '24px' }}>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: '#c8a0e8', marginBottom: 6 }}>User-Neocortex</div>
+            <div style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
+              Personal workflow patterns: preferred commands, personal pitfalls, naming conventions.
+              Partition key: <code style={{ fontSize: '14px' }}>tenantId+projectId+userId</code>.
+              Auto-verify is permitted here — one user's session is sufficient evidence.
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: '#80a8e8', marginBottom: 6 }}>Project-Neocortex</div>
+            <div style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
+              Shared engineering knowledge: deployment procedures, architectural constraints, known
+              pitfalls. Requires ≥2 independent user sessions to corroborate before promotion.
+              Conflicts are surfaced for human resolution.
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: '#6070c0', marginBottom: 6 }}>Org-Neocortex</div>
+            <div style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
+              Org-wide invariants: security constraints, compliance requirements, never-do-X rules.
+              Human approval is always required, no exceptions. Context packs always inject org
+              constraints first — they cannot be overridden by project or user knowledge.
+            </div>
           </div>
         </div>
-        <div>
-          <div style={{ fontSize: '0.89rem', fontWeight: 600, color: '#80a8e8', marginBottom: 6 }}>Project-Neocortex</div>
-          <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
-            Shared engineering knowledge: deployment procedures, architectural constraints, known
-            pitfalls. Requires ≥2 independent user sessions to corroborate before promotion.
-            Conflicts are surfaced for human resolution.
-          </div>
-        </div>
-        <div>
-          <div style={{ fontSize: '0.89rem', fontWeight: 600, color: '#6070c0', marginBottom: 6 }}>Org-Neocortex</div>
-          <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>
-            Org-wide invariants: security constraints, compliance requirements, never-do-X rules.
-            Human approval is always required, no exceptions. Context packs always inject org
-            constraints first — they cannot be overridden by project or user knowledge.
-          </div>
+        <div style={{
+          marginTop: 20,
+          fontSize: '15px',
+          color: 'rgba(160, 180, 220, 0.65)',
+          fontStyle: 'italic',
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          paddingTop: 16,
+        }}>
+          Context pack assembly order ensures that a user's personal preference can never shadow an org-level constraint.
+          When planes conflict, the higher-authority plane wins and the conflict is logged.
         </div>
       </div>
-      <div style={{
-        marginTop: 20,
-        fontSize: '0.83rem',
-        color: 'rgba(160, 180, 220, 0.65)',
-        fontStyle: 'italic',
-        borderTop: '1px solid rgba(255,255,255,0.06)',
-        paddingTop: 16,
-      }}>
-        Context pack assembly order ensures that a user's personal preference can never shadow an org-level constraint.
-        When planes conflict, the higher-authority plane wins and the conflict is logged.
-      </div>
-    </div>
+    </TextBox>
   </Scene>
 );

@@ -8,6 +8,7 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
+  TextBox,
   WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
@@ -76,70 +77,67 @@ export const sceneDreamer: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    {/* Prose panel */}
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '55vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="dreamer-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8, 11, 20, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        height: '100%',
+        boxSizing: 'border-box',
+        overflowY: 'auto',
       }}>
-        THE DREAMING PIPELINE
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-        <div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[
-              { stage: 'Stage 1', title: 'Select high-salience episodes', desc: 'Filter EpisodicStore for episodes with high evidence density: multiple agents, explicit store() calls, successful outcomes.' },
-              { stage: 'Stage 2', title: 'Extract (LLM)', desc: 'LLM extracts structured facts, rules, constraints, and procedures from episode bundles. Model: claude-haiku-4-5 for throughput.' },
-              { stage: 'Stage 3', title: 'Cluster', desc: 'Groups semantically similar extractions. Identifies contradictions and near-duplicates.' },
-              { stage: 'Stage 4', title: 'Propose cards (LLM)', desc: 'Drafts typed Neocortex card candidates: constraint, procedure, pitfall, or context. Model: claude-haiku-4-5.' },
-            ].map((s) => (
-              <div key={s.stage} style={{ padding: '10px 14px', background: 'rgba(20, 28, 60, 0.4)', borderRadius: 5, border: '1px solid rgba(100, 140, 220, 0.1)' }}>
-                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.67rem', color: 'rgba(100, 140, 220, 0.6)', marginBottom: 4 }}>{s.stage}</div>
-                <div style={{ fontSize: '0.89rem', fontWeight: 600, color: '#c8d8f0', marginBottom: 4 }}>{s.title}</div>
-                <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.65)', lineHeight: 1.5 }}>{s.desc}</div>
-              </div>
-            ))}
-          </div>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          THE DREAMING PIPELINE
         </div>
-        <div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[
-              { stage: 'Stage 5', title: 'Validate', desc: 'Checks proposed cards against existing Neocortex content. Detects conflicts. Filters low-confidence extractions.' },
-              { stage: 'Stage 6', title: 'Decide (LLM)', desc: 'Final promotion decision: promote, reject, or merge with existing card. Model: claude-sonnet-4-6 for complex merges.' },
-              { stage: 'Stage 7', title: 'Publish cards', desc: 'Writes approved cards to .brewflow/neocortex/ as typed JSON files. Each card has a stable ID and version history.' },
-            ].map((s) => (
-              <div key={s.stage} style={{ padding: '10px 14px', background: 'rgba(20, 28, 60, 0.4)', borderRadius: 5, border: '1px solid rgba(100, 140, 220, 0.1)' }}>
-                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.67rem', color: 'rgba(100, 140, 220, 0.6)', marginBottom: 4 }}>{s.stage}</div>
-                <div style={{ fontSize: '0.89rem', fontWeight: 600, color: '#c8d8f0', marginBottom: 4 }}>{s.title}</div>
-                <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.65)', lineHeight: 1.5 }}>{s.desc}</div>
-              </div>
-            ))}
-            <div style={{ padding: '10px 14px', background: 'rgba(20, 28, 60, 0.25)', borderRadius: 5, borderLeft: '3px solid rgba(100, 140, 220, 0.3)' }}>
-              <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.65)', lineHeight: 1.6 }}>
-                <strong style={{ color: '#a0b8e0' }}>Models used:</strong> claude-haiku-4-5 for
-                extract/propose (high throughput, low cost). claude-sonnet-4-6 for complex promotion
-                decisions requiring nuanced judgment.
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          <div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                { stage: 'Stage 1', title: 'Select high-salience episodes', desc: 'Filter EpisodicStore for episodes with high evidence density: multiple agents, explicit store() calls, successful outcomes.' },
+                { stage: 'Stage 2', title: 'Extract (LLM)', desc: 'LLM extracts structured facts, rules, constraints, and procedures from episode bundles. Model: claude-haiku-4-5 for throughput.' },
+                { stage: 'Stage 3', title: 'Cluster', desc: 'Groups semantically similar extractions. Identifies contradictions and near-duplicates.' },
+                { stage: 'Stage 4', title: 'Propose cards (LLM)', desc: 'Drafts typed Neocortex card candidates: constraint, procedure, pitfall, or context. Model: claude-haiku-4-5.' },
+              ].map((s) => (
+                <div key={s.stage} style={{ padding: '10px 14px', background: 'rgba(20, 28, 60, 0.4)', borderRadius: 5, border: '1px solid rgba(100, 140, 220, 0.1)' }}>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '13px', color: 'rgba(100, 140, 220, 0.6)', marginBottom: 4 }}>{s.stage}</div>
+                  <div style={{ fontSize: '15px', fontWeight: 600, color: '#c8d8f0', marginBottom: 4 }}>{s.title}</div>
+                  <div style={{ fontSize: '13px', color: 'rgba(180, 200, 240, 0.65)', lineHeight: 1.5 }}>{s.desc}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                { stage: 'Stage 5', title: 'Validate', desc: 'Checks proposed cards against existing Neocortex content. Detects conflicts. Filters low-confidence extractions.' },
+                { stage: 'Stage 6', title: 'Decide (LLM)', desc: 'Final promotion decision: promote, reject, or merge with existing card. Model: claude-sonnet-4-6 for complex merges.' },
+                { stage: 'Stage 7', title: 'Publish cards', desc: 'Writes approved cards to .brewflow/neocortex/ as typed JSON files. Each card has a stable ID and version history.' },
+              ].map((s) => (
+                <div key={s.stage} style={{ padding: '10px 14px', background: 'rgba(20, 28, 60, 0.4)', borderRadius: 5, border: '1px solid rgba(100, 140, 220, 0.1)' }}>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '13px', color: 'rgba(100, 140, 220, 0.6)', marginBottom: 4 }}>{s.stage}</div>
+                  <div style={{ fontSize: '15px', fontWeight: 600, color: '#c8d8f0', marginBottom: 4 }}>{s.title}</div>
+                  <div style={{ fontSize: '13px', color: 'rgba(180, 200, 240, 0.65)', lineHeight: 1.5 }}>{s.desc}</div>
+                </div>
+              ))}
+              <div style={{ padding: '10px 14px', background: 'rgba(20, 28, 60, 0.25)', borderRadius: 5, borderLeft: '3px solid rgba(100, 140, 220, 0.3)' }}>
+                <div style={{ fontSize: '13px', color: 'rgba(180, 200, 240, 0.65)', lineHeight: 1.6 }}>
+                  <strong style={{ color: '#a0b8e0' }}>Models used:</strong> claude-haiku-4-5 for
+                  extract/propose (high throughput, low cost). claude-sonnet-4-6 for complex promotion
+                  decisions requiring nuanced judgment.
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

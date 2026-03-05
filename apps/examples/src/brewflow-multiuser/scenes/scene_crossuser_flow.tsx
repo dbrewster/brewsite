@@ -8,6 +8,7 @@ import {
     PointerMap,
     ProgressManager,
     Scene,
+    TextBox,
     WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
@@ -99,62 +100,61 @@ export const sceneCrossUserFlow: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '50vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="crossuser-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8,11,20,0.88)',
+        backdropFilter: 'blur(16px)',
+        height: '100%',
+        boxSizing: 'border-box',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        overflowY: 'auto',
+        pointerEvents: 'auto',
       }}>
-        CROSS-USER LEARNING FLOW
-      </div>
-      <p style={{ fontSize: '0.94rem', fontWeight: 600, color: '#c8d8f0', margin: '0 0 16px' }}>
-        Dave's agent never hit this problem. But it knows not to.
-      </p>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-        <div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {[
-              { step: "Alice's session", detail: "Alice triggers a git operation with --force and causes a problem. Her dreamer extracts a pitfall: \"git push --force on shared branches corrupts review history.\" Confidence 0.7 — one episode, user-scope only." },
-              { step: "Alice's Neocortex", detail: "The pitfall is promoted to Alice's User-Neocortex. It will appear in Alice's future context packs. Not yet visible to the team." },
-              { step: "Bob's session (two weeks later)", detail: "Bob independently hits the same issue. His dreamer extracts the same pitfall. Now there are 2 independent user-scope episodes — the cluster threshold for project promotion is met." },
-            ].map(({ step, detail }) => (
-              <div key={step}>
-                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.72rem', color: 'rgba(100, 140, 220, 0.7)', marginBottom: 3 }}>{step}</div>
-                <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>{detail}</div>
-              </div>
-            ))}
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          CROSS-USER LEARNING FLOW
+        </div>
+        <p style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', margin: '0 0 16px' }}>
+          Dave's agent never hit this problem. But it knows not to.
+        </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+          <div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[
+                { step: "Alice's session", detail: "Alice triggers a git operation with --force and causes a problem. Her dreamer extracts a pitfall: \"git push --force on shared branches corrupts review history.\" Confidence 0.7 — one episode, user-scope only." },
+                { step: "Alice's Neocortex", detail: "The pitfall is promoted to Alice's User-Neocortex. It will appear in Alice's future context packs. Not yet visible to the team." },
+                { step: "Bob's session (two weeks later)", detail: "Bob independently hits the same issue. His dreamer extracts the same pitfall. Now there are 2 independent user-scope episodes — the cluster threshold for project promotion is met." },
+              ].map(({ step, detail }) => (
+                <div key={step}>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '13px', color: 'rgba(100, 140, 220, 0.7)', marginBottom: 3 }}>{step}</div>
+                  <div style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>{detail}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {[
+                { step: 'Project promotion queue', detail: 'The promotion worker picks up both proposals, validates them against existing Project-Neocortex content, finds no conflict. Confidence now 0.85. Queued for human review.' },
+                { step: 'Project-Neocortex', detail: 'After human approval: pitfall card v1 — "Never use git push --force on shared branches. Use --force-with-lease if you must override." Promoted to project scope.' },
+                { step: "Dave's session", detail: "InjectorCortex includes the pitfall in Dave's context pack before his session starts. Dave's agent has the constraint in context. The mistake is never made." },
+              ].map(({ step, detail }) => (
+                <div key={step}>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '13px', color: 'rgba(100, 140, 220, 0.7)', marginBottom: 3 }}>{step}</div>
+                  <div style={{ fontSize: '15px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>{detail}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
-        <div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {[
-              { step: 'Project promotion queue', detail: 'The promotion worker picks up both proposals, validates them against existing Project-Neocortex content, finds no conflict. Confidence now 0.85. Queued for human review.' },
-              { step: 'Project-Neocortex', detail: 'After human approval: pitfall card v1 — "Never use git push --force on shared branches. Use --force-with-lease if you must override." Promoted to project scope.' },
-              { step: "Dave's session", detail: "InjectorCortex includes the pitfall in Dave's context pack before his session starts. Dave's agent has the constraint in context. The mistake is never made." },
-            ].map(({ step, detail }) => (
-              <div key={step}>
-                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.72rem', color: 'rgba(100, 140, 220, 0.7)', marginBottom: 3 }}>{step}</div>
-                <div style={{ fontSize: '0.83rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.6 }}>{detail}</div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

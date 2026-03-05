@@ -52,6 +52,7 @@ const makeIdentity = (): SceneModelInstanceState => ({
     motion: { commands: [], scenes: [], customAnimations: [] },
     animation: { enabled: false },
   },
+  nvsBounds: { x: 0, y: 0, w: 1, h: 1 },
 });
 
 const makeModelMeta = (type: string): ModelMeta => ({

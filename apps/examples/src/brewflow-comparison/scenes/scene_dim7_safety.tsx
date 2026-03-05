@@ -1,16 +1,14 @@
 import type {JSX} from 'react';
 import {
     Action,
-    Ambient,
     Background,
     Camera,
-    Directional,
     InputController,
     KeyMap,
-    Lighting,
     PointerMap,
     ProgressManager,
     Scene,
+    TextBox,
     WheelMap,
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, ManualLayout,} from '@brewsite/diagram';
@@ -63,63 +61,60 @@ export const sceneDim7Safety: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    {/* Prose panel */}
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '55vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="dim7-prose" x={0} y={0.56} w={1} h={0.44}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8, 11, 20, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        height: '100%',
+        overflowY: 'auto',
+        boxSizing: 'border-box',
       }}>
-        DIMENSION 7: SENSITIVE DATA
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            claude-flow: TTL credentials namespace
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
-            claude-flow provides a credentials namespace with 1-hour TTL for storing
-            sensitive values. The TTL limits exposure window if credentials leak. Beyond
-            this, there is no classification pipeline: no automated redaction, no sealed
-            store for PHI/PII, and no read-time enforcement preventing an agent from
-            accessing data outside its scope. The agent is responsible for not misusing
-            what it can access.
-          </p>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 13,
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          DIMENSION 7: SENSITIVE DATA
         </div>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            BrewFlow: guard at every boundary
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
-            BrewFlow's Sensitive Data Guard runs at every write boundary. Data is classified
-            into one of four directives: allow_store (safe as-is), store_redacted
-            (placeholders replace sensitive content), store_sealed (sealed vault, audited
-            access, PHI/HIPAA default), or no_store (event logged, content withheld). At
-            read time, CensorCortex enforces lane-scoped minimum-necessary access.
-            Sealed vault reads require an audited access token.
-          </p>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(160, 180, 220, 0.65)', lineHeight: 1.7, fontStyle: 'italic', margin: 0 }}>
-            This is not relevant for most use cases. It becomes essential in regulated
-            environments (healthcare, finance, legal) where audit trails for data access
-            are required and unauthorized cross-lane access is a compliance violation.
-          </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          <div>
+            <h3 style={{ fontSize: 26, color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              claude-flow: TTL credentials namespace
+            </h3>
+            <p style={{ fontSize: 18, color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+              claude-flow provides a credentials namespace with 1-hour TTL for storing
+              sensitive values. The TTL limits exposure window if credentials leak. Beyond
+              this, there is no classification pipeline: no automated redaction, no sealed
+              store for PHI/PII, and no read-time enforcement preventing an agent from
+              accessing data outside its scope. The agent is responsible for not misusing
+              what it can access.
+            </p>
+          </div>
+          <div>
+            <h3 style={{ fontSize: 26, color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              BrewFlow: guard at every boundary
+            </h3>
+            <p style={{ fontSize: 18, color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+              BrewFlow's Sensitive Data Guard runs at every write boundary. Data is classified
+              into one of four directives: allow_store (safe as-is), store_redacted
+              (placeholders replace sensitive content), store_sealed (sealed vault, audited
+              access, PHI/HIPAA default), or no_store (event logged, content withheld). At
+              read time, CensorCortex enforces lane-scoped minimum-necessary access.
+              Sealed vault reads require an audited access token.
+            </p>
+            <p style={{ fontSize: 15, color: 'rgba(160, 180, 220, 0.65)', lineHeight: 1.7, fontStyle: 'italic', margin: 0 }}>
+              This is not relevant for most use cases. It becomes essential in regulated
+              environments (healthcare, finance, legal) where audit trails for data access
+              are required and unauthorized cross-lane access is a compliance violation.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

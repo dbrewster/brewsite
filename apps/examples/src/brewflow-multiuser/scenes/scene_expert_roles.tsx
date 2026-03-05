@@ -8,6 +8,7 @@ import {
     PointerMap,
     ProgressManager,
     Scene,
+    TextBox,
     WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
@@ -129,61 +130,60 @@ export const sceneExpertRoles: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '55vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="experts-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8,11,20,0.88)',
+        backdropFilter: 'blur(16px)',
+        height: '100%',
+        boxSizing: 'border-box',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        overflowY: 'auto',
+        pointerEvents: 'auto',
       }}>
-        THE FIVE EXPERT ROLES
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: 20 }}>
-        <div>
-          <div style={{ fontSize: '0.89rem', fontWeight: 600, color: '#c8d8f0', marginBottom: 8 }}>Why single-LLM extraction fails</div>
-          <ul style={{ margin: 0, padding: '0 0 0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[
-              'Confidentiality blindness — misses security implications without specialist focus',
-              'Recency bias — over-weights the last tool call; misses patterns across a session',
-              'False generalization — promotes one successful trick to universal rule prematurely',
-              'Terminological drift — ambiguous variable names produce contradictory memory cards',
-            ].map((item, i) => (
-              <li key={i} style={{ fontSize: '0.83rem', color: 'rgba(200, 180, 180, 0.8)', lineHeight: 1.6 }}>{item}</li>
-            ))}
-          </ul>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: '13px',
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          THE FIVE EXPERT ROLES
         </div>
-        <div>
-          <div style={{ fontSize: '0.89rem', fontWeight: 600, color: '#c8d8f0', marginBottom: 8 }}>Chain of Thought — 5 steps per expert</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {[
-              { step: '1. Observe', desc: 'What literally happened — tool calls, inputs, outputs, errors' },
-              { step: '2. Interpret', desc: 'What it means — success/failure cause, implications for future work' },
-              { step: '3. Generalize', desc: 'What principle this suggests — constrained to the expert\'s domain' },
-              { step: '4. Challenge', desc: 'Internal adversarial pressure — where does this principle break?' },
-              { step: '5. Propose', desc: 'A structured MemoryProposal — title, body, confidence, scope, type' },
-            ].map(({ step, desc }) => (
-              <div key={step}>
-                <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '0.72rem', color: 'rgba(100, 140, 220, 0.7)' }}>{step}</div>
-                <div style={{ fontSize: '0.78rem', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.5 }}>{desc}</div>
-              </div>
-            ))}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', marginBottom: 8 }}>Why single-LLM extraction fails</div>
+            <ul style={{ margin: 0, padding: '0 0 0 16px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                'Confidentiality blindness — misses security implications without specialist focus',
+                'Recency bias — over-weights the last tool call; misses patterns across a session',
+                'False generalization — promotes one successful trick to universal rule prematurely',
+                'Terminological drift — ambiguous variable names produce contradictory memory cards',
+              ].map((item, i) => (
+                <li key={i} style={{ fontSize: '15px', color: 'rgba(200, 180, 180, 0.8)', lineHeight: 1.6 }}>{item}</li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 600, color: '#c8d8f0', marginBottom: 8 }}>Chain of Thought — 5 steps per expert</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {[
+                { step: '1. Observe', desc: 'What literally happened — tool calls, inputs, outputs, errors' },
+                { step: '2. Interpret', desc: 'What it means — success/failure cause, implications for future work' },
+                { step: '3. Generalize', desc: 'What principle this suggests — constrained to the expert\'s domain' },
+                { step: '4. Challenge', desc: 'Internal adversarial pressure — where does this principle break?' },
+                { step: '5. Propose', desc: 'A structured MemoryProposal — title, body, confidence, scope, type' },
+              ].map(({ step, desc }) => (
+                <div key={step}>
+                  <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: '13px', color: 'rgba(100, 140, 220, 0.7)' }}>{step}</div>
+                  <div style={{ fontSize: '14px', color: 'rgba(180, 200, 240, 0.7)', lineHeight: 1.5 }}>{desc}</div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

@@ -52,6 +52,12 @@ export { Floor, FloorPhysical, FloorMirror } from './floor';
 export { DEFAULT_FLOOR, floorTransitionSpec } from './floor';
 export { applyFloor, type FloorThreeRefs } from './floor';
 
+// TextBox overlay element
+export { TextBox } from './text-box';
+export type { TextBoxProps, TextBoxState, TextBoxAnchorMode, TextBoxEdge } from './text-box';
+export { TextBoxWidget, functionalTextBoxTransitionSpec } from './text-box';
+export { compileTextBox } from './text-box';
+
 // Camera
 export type {
   SceneCamera,

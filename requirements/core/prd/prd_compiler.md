@@ -3,7 +3,7 @@ title: "BrewSite Core — Compiler Pipeline"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-03
+last_updated: 2026-03-04
 change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
@@ -11,6 +11,9 @@ change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Added CompileWarning type (MISSING_WIDGET, DUPLICATE_WIDGET_ID, UNRESOLVED_REFERENCE) and SceneTrack.warnings? field. Warnings accumulated during compilation are surfaced to the host via ScenePlayer.onCompileWarning after compilation completes."
+  - date: 2026-03-04
+    author: "Toolkit Product"
+    summary: "NVS system: SceneFrame.sceneOverlay removed. SceneTrack.sceneOverlays removed. compileChildrenSeparated now emits a compiler warning for non-DSL children and returns an empty array (not an overlay ReactNode). The overlay pipeline is replaced by TextBoxWidget writing TextBoxState to VariableStore. SceneTrack type and Step 6 updated."
   - date: 2026-03-03
     author: "Toolkit Product"
     summary: "Transition timing redesign. Added TRANSITION_TIMING to CompileWarningCode. Updated FunctionalTransitionSpec closure path description: exit/enter boundaries are now determined by SceneFrame.transitionWindow (resolved via resolveSceneTransition) rather than the hardcoded 0.5 split. Updated system fallback defaults from [0,0.5]/[0.5,1.0] to [0.8,0.9]/[0.9,1.0]."
@@ -264,7 +267,7 @@ For functional-path widgets, the compiler evaluates the functional closure to ob
 
 **Labels** are interpolated across the transition block using `compileLabels(fromLabels, toLabels, { sceneProgress: frame.blockProgress })`. `labelPrimitives` is set on the frame only when at least one label definition is present in either snapshot.
 
-Scene overlay content (`SceneFrame.sceneOverlay`) is a ReactNode collected at DSL evaluation time by `compileChildrenSeparated`. It is not processed per-frame — it is extracted once per scene and stored in `SceneTrack.sceneOverlays` at the end of compilation.
+Scene overlay content is no longer stored on `SceneFrame` or `SceneTrack`. DOM overlay content is authored via `<TextBox>` DSL elements, which are compiled into widget state and written to the VariableStore by `TextBoxWidget` at tick time. `compileChildrenSeparated` emits a compiler warning for any non-DSL children it encounters and returns an empty array.
 
 ### Step 7: Delta Computation
 
@@ -359,12 +362,6 @@ export type SceneTrack = {
    * constructs a SceneProgressMapper from this profile.
    */
   progressProfile?: SceneProgressProfile;
-  /**
-   * Per-scene overlay ReactNodes collected from non-DSL children of <Scene>.
-   * Always present after compilation; empty map when no scenes declare overlay content.
-   * Keyed by scene ID. Consumed by EngineOverlayHost in the player layer.
-   */
-  sceneOverlays: Map<string, ReactNode>;
 };
 
 export type SceneWindow = {
@@ -412,12 +409,6 @@ export type SceneFrame = {
    * Absent when the scene (and all prior scenes via carry-forward) declare no ProgressManager.
    */
   progressManager?: ProgressManagerSpec;
-  /**
-   * Non-DSL HTML/React children of <Scene>, collected by compileChildrenSeparated.
-   * Absent when the scene declares no non-DSL children.
-   * Stored at the track level in SceneTrack.sceneOverlays for efficient lookup.
-   */
-  sceneOverlay?: ReactNode;
 };
 
 export type SceneFrameDelta = {
@@ -781,8 +772,9 @@ Scene overlay collection extracts non-DSL HTML/React children from `<Scene>` ele
 /**
  * Separates DSL children from non-DSL children of a ReactElement node.
  * DSL children (those with a registered node handler) are compiled normally.
- * Non-DSL children (HTML elements, non-registered React components) are returned
- * as a ReactNode[] for storage as SceneFrame.sceneOverlay.
+ * Non-DSL children (HTML elements, non-registered React components) are not
+ * valid <Scene> children — they produce a UNSUPPORTED_OVERLAY_CHILD compiler
+ * warning and are discarded. DOM overlay content must be authored via <TextBox>.
  *
  * Called by the Scene root handler during DSL evaluation (Step 1).
  */
@@ -791,15 +783,10 @@ compileChildrenSeparated: (node: ReactElement, api: CompileApi) => ReactNode[];
 
 **Classification:**
 - A child is a DSL child if its `type` has a registered handler in the node registry (`isPrimitiveComponent(child.type) === true`).
-- A child is an overlay child if its `type` is a string (HTML element, e.g., `'div'`, `'h1'`) or is a React component with no registered handler.
+- A child is a non-DSL child if its `type` is a string (HTML element, e.g., `'div'`, `'h1'`) or is a React component with no registered handler.
 - `null`, `undefined`, and boolean children are ignored (React standard behavior).
 
-**Overlay storage:**
-- The returned `ReactNode[]` is wrapped with `React.createElement(React.Fragment, null, ...overlayNodes)` and stored as `SceneFrame.sceneOverlay`.
-- After all scenes are compiled, `sceneTrackCompiler.ts` collects `sceneOverlays` from all `SceneFrame` objects and builds `SceneTrack.sceneOverlays: Map<string, ReactNode>`, keyed by scene ID.
-- `SceneFrame.sceneOverlay` is absent (undefined) when a scene declares no non-DSL children.
-
-**ReactNode stability:** Overlay ReactNodes are captured once at compile time. They are stable references for the lifetime of the compiled track. If a parent component re-renders and produces new JSX content, `serializeJsx` detects the change and triggers recompilation.
+**Non-DSL children:** Non-DSL children emit a `CompileWarning` with code `UNSUPPORTED_OVERLAY_CHILD` and are discarded. The returned `ReactNode[]` is always empty. There is no `SceneFrame.sceneOverlay` field and no `SceneTrack.sceneOverlays` map. Use `<TextBox>` for all DOM overlay content.
 
 ---
 
@@ -953,7 +940,7 @@ The only legitimate use of `clearRegistry()` outside tests is in HMR scenarios w
 
 ### Serialization and Delta Computation
 
-Delta computation uses `JSON.stringify` with a custom replacer to handle React elements and functions within widget state (functions are replaced with `'[function]'`, React elements with `'[react]'`). Scene overlay ReactNodes are not included in delta computation — they are static per-scene values stored on `SceneTrack.sceneOverlays`, not per-frame tick data. Only `widgets` and `labels` participate in the sparse delta diff.
+Delta computation uses `JSON.stringify` with a custom replacer to handle functions within widget state (functions are replaced with `'[function]'`). Only `widgets` and `labels` participate in the sparse delta diff. `TextBox` state is written to the VariableStore by `TextBoxWidget.onTick` — it is not part of the delta pipeline.
 
 ### blockSize and Frame Count Arithmetic
 

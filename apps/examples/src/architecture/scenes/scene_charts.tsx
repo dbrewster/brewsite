@@ -10,6 +10,7 @@ import {
     PointerMap,
     ProgressManager,
     Scene,
+    TextBox,
 } from '@brewsite/core';
 import {
     darkGlassTheme,
@@ -290,130 +291,125 @@ export const sceneChartsArch: JSX.Element = (
     </DiagramCanvas>
 
     {/* Teaching overlay */}
-    <div style={{
-      position: 'absolute',
-      bottom: '3%',
-      right: '3%',
-      maxWidth: 540,
-      textAlign: 'right',
-    }}>
-      <MidFade duration={1200}>
-        <div style={{
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: 10,
-          letterSpacing: '0.3em',
-          textTransform: 'uppercase' as const,
-          color: 'rgba(130, 100, 255, 0.8)',
-          marginBottom: 10,
-        }}>
-          @brewsite/charts
-        </div>
-        <div style={{
-          fontSize: 'clamp(18px, 2.6vw, 24px)',
-          fontWeight: 600,
-          color: '#f0f6fc',
-          lineHeight: 1.2,
-          marginBottom: 16,
-        }}>
-          Data transforms at compile time.<br />Renderers receive pre-aggregated state.
-        </div>
-      </MidFade>
-      <ScrollOn duration={900} delay={150}>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: '10px 18px',
-          marginBottom: 14,
-        }}>
-          <div style={{ textAlign: 'left' }}>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase' as const,
-              color: 'rgba(130, 100, 255, 0.7)',
-              marginBottom: 5,
-            }}>
-              Author / DSL
+    <TextBox id="charts-teaching" x={0.53} y={0.52} w={0.44} h={0.45}>
+      <div style={{
+        padding: '32px 40px',
+        background: 'rgba(3,5,8,0.85)',
+        backdropFilter: 'blur(20px)',
+        borderRadius: '4px',
+        height: '100%',
+        textAlign: 'right',
+      }}>
+        <MidFade duration={1200}>
+          <div style={{
+            fontFamily: 'JetBrains Mono, monospace',
+            fontSize: '12px',
+            letterSpacing: '0.1em',
+            textTransform: 'uppercase' as const,
+            color: 'rgba(130, 100, 255, 0.8)',
+            marginBottom: 10,
+          }}>
+            @brewsite/charts
+          </div>
+          <h1 style={{
+            fontSize: '48px',
+            fontWeight: 600,
+            color: '#f0f6fc',
+            lineHeight: 1.2,
+            margin: '0 0 16px',
+          }}>
+            Data transforms at compile time.<br />Renderers receive pre-aggregated state.
+          </h1>
+        </MidFade>
+        <ScrollOn duration={900} delay={150}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: '10px 18px',
+            marginBottom: 14,
+          }}>
+            <div style={{ textAlign: 'left' }}>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'rgba(130, 100, 255, 0.7)',
+                marginBottom: 5,
+              }}>
+                Author / DSL
+              </div>
+              <div style={{
+                fontSize: '15px',
+                color: 'rgba(240, 246, 252, 0.6)',
+                lineHeight: 1.6,
+              }}>
+                {'<ChartProvider> wraps the app and wires the data context via React. <Chart chartType="bar"> declares a chart with its type, data, and series config. Named sources declare filter, group, and sort rules. Cross-filter declarations link brushing so a selection in one chart re-filters all linked charts.'}
+              </div>
             </div>
-            <div style={{
-              fontSize: 'clamp(11px, 1.3vw, 12px)',
-              color: 'rgba(240, 246, 252, 0.6)',
-              lineHeight: 1.6,
-            }}>
-              {'<ChartProvider> wraps the app and wires the data context via React. <Chart chartType="bar"> declares a chart with its type, data, and series config. Named sources declare filter, group, and sort rules. Cross-filter declarations link brushing so a selection in one chart re-filters all linked charts.'}
+            <div style={{ textAlign: 'left' }}>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'rgba(100, 160, 255, 0.7)',
+                marginBottom: 5,
+              }}>
+                Compile
+              </div>
+              <div style={{
+                fontSize: '15px',
+                color: 'rgba(240, 246, 252, 0.6)',
+                lineHeight: 1.6,
+              }}>
+                compile.ts is pure: Chart props + current filtered dataset → ChartState with fully pre-aggregated series data. transforms.ts runs filter, aggregate, sort, and group operations before the snapshot. IFilterEngine is the cross-filter contract; SimpleFilterEngine is the default. All data processing happens here — zero transforms in the render loop.
+              </div>
+            </div>
+            <div style={{ textAlign: 'left' }}>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'rgba(100, 200, 160, 0.7)',
+                marginBottom: 5,
+              }}>
+                Renderers
+              </div>
+              <div style={{
+                fontSize: '15px',
+                color: 'rgba(240, 246, 252, 0.6)',
+                lineHeight: 1.6,
+              }}>
+                ChartWidget dispatches to a specific IChartRenderer based on chartType. Each renderer builds Three.js geometry from pre-aggregated ChartState: BarRenderer uses instanced box geometry; LineRenderer uses CatmullRom tube geometry; PieRenderer uses lathe geometry. AxesRenderer is shared — it generates tick geometry independently of chart type.
+              </div>
+            </div>
+            <div style={{ textAlign: 'left' }}>
+              <div style={{
+                fontSize: '16px',
+                fontWeight: 700,
+                color: 'rgba(130, 100, 255, 0.7)',
+                marginBottom: 5,
+              }}>
+                Output
+              </div>
+              <div style={{
+                fontSize: '15px',
+                color: 'rgba(240, 246, 252, 0.6)',
+                lineHeight: 1.6,
+              }}>
+                ChartWidget implements ISceneElement + IRenderable. ChartMaterialFactory produces PBR materials from a shared theme spec. ChartTooltipOverlay is a React component via EngineOverlayHost — hit detection runs in Three.js, the tooltip HTML is plain React. Cross-filter brushing updates IFilterEngine, triggering recompilation of dependent ChartState objects.
+              </div>
             </div>
           </div>
-          <div style={{ textAlign: 'left' }}>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase' as const,
-              color: 'rgba(100, 160, 255, 0.7)',
-              marginBottom: 5,
-            }}>
-              Compile
-            </div>
-            <div style={{
-              fontSize: 'clamp(11px, 1.3vw, 12px)',
-              color: 'rgba(240, 246, 252, 0.6)',
-              lineHeight: 1.6,
-            }}>
-              compile.ts is pure: Chart props + current filtered dataset → ChartState with fully pre-aggregated series data. transforms.ts runs filter, aggregate, sort, and group operations before the snapshot. IFilterEngine is the cross-filter contract; SimpleFilterEngine is the default. All data processing happens here — zero transforms in the render loop.
-            </div>
+          <div style={{
+            borderRight: '2px solid rgba(130, 100, 255, 0.5)',
+            paddingRight: 12,
+            fontSize: '14px',
+            color: 'rgba(240, 246, 252, 0.85)',
+            lineHeight: 1.6,
+            fontStyle: 'italic',
+            textAlign: 'right',
+          }}>
+            <strong>Key insight:</strong> All data aggregation runs at compile time. Renderers receive flat SeriesPoint[] arrays — they never filter, sort, or group data during the frame loop.
           </div>
-          <div style={{ textAlign: 'left' }}>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase' as const,
-              color: 'rgba(100, 200, 160, 0.7)',
-              marginBottom: 5,
-            }}>
-              Renderers
-            </div>
-            <div style={{
-              fontSize: 'clamp(11px, 1.3vw, 12px)',
-              color: 'rgba(240, 246, 252, 0.6)',
-              lineHeight: 1.6,
-            }}>
-              ChartWidget dispatches to a specific IChartRenderer based on chartType. Each renderer builds Three.js geometry from pre-aggregated ChartState: BarRenderer uses instanced box geometry; LineRenderer uses CatmullRom tube geometry; PieRenderer uses lathe geometry. AxesRenderer is shared — it generates tick geometry independently of chart type.
-            </div>
-          </div>
-          <div style={{ textAlign: 'left' }}>
-            <div style={{
-              fontFamily: 'JetBrains Mono, monospace',
-              fontSize: 9,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase' as const,
-              color: 'rgba(130, 100, 255, 0.7)',
-              marginBottom: 5,
-            }}>
-              Output
-            </div>
-            <div style={{
-              fontSize: 'clamp(11px, 1.3vw, 12px)',
-              color: 'rgba(240, 246, 252, 0.6)',
-              lineHeight: 1.6,
-            }}>
-              ChartWidget implements ISceneElement + IRenderable. ChartMaterialFactory produces PBR materials from a shared theme spec. ChartTooltipOverlay is a React component via EngineOverlayHost — hit detection runs in Three.js, the tooltip HTML is plain React. Cross-filter brushing updates IFilterEngine, triggering recompilation of dependent ChartState objects.
-            </div>
-          </div>
-        </div>
-        <div style={{
-          borderRight: '2px solid rgba(130, 100, 255, 0.5)',
-          paddingRight: 12,
-          fontSize: 'clamp(11px, 1.3vw, 12px)',
-          color: 'rgba(240, 246, 252, 0.85)',
-          lineHeight: 1.6,
-          fontStyle: 'italic',
-          textAlign: 'right',
-        }}>
-          <strong>Key insight:</strong> All data aggregation runs at compile time. Renderers receive flat SeriesPoint[] arrays — they never filter, sort, or group data during the frame loop.
-        </div>
-      </ScrollOn>
-    </div>
+        </ScrollOn>
+      </div>
+    </TextBox>
   </Scene>
 );

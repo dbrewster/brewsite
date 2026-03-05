@@ -3,8 +3,11 @@ title: "BrewSite Core — Scene Authoring DSL"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-03
+last_updated: 2026-03-04
 change_history:
+  - date: 2026-03-04
+    author: "Toolkit Product"
+    summary: "NVS system: raw JSX children pattern removed from <Scene>. SceneFrame.sceneOverlay field removed. Overlay content is now authored exclusively via the <TextBox> DSL element. Scene component signature updated: children no longer accepts HTML elements or non-registered React components. TextBox DSL element added to Section 7.5 Built-in DSL Elements. Functional requirement 11 updated to reflect removal. Section 7.2 Scene DSL Component comment updated."
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "ProgressManager autoAdvance semantics language aligned with runtime: pauseOnScroll disables auto-advance for the current scene until scene transition (no debounce-resume behavior). Cache invalidation guidance added for function-valued prop changes via invalidateCacheToken."
@@ -110,7 +113,7 @@ Without a clear, stable, well-typed authoring surface, consumer adoption is bloc
 8. The compiler must register a node handler for each DSL component before any `resolveSceneFromDsl` call. The registration must be idempotent.
 9. The `resolveSceneFromDsl` function must throw a descriptive error if the root element is not handled by the `Scene` handler.
 10. Prop values on DSL elements may be static values or functions of `SceneSnapshotContext` — `(ctx: SceneSnapshotContext) => T`. Both forms must be resolved identically during compilation.
-11. Non-DSL children of `<Scene>` (HTML elements, non-registered React components) must be collected by `compileChildrenSeparated` and stored as `sceneOverlay?: ReactNode` on `SceneFrame`. They are not compiled as part of the widget state tree.
+11. `<Scene>` children must consist exclusively of registered DSL components (`<Camera>`, `<Lighting>`, `<TextBox>`, etc.), `<ProgressManager>`, and `<InputController>`. Raw HTML elements and non-registered React components are not valid children of `<Scene>` and will be ignored by the compiler with a warning. Overlay content must be authored via the `<TextBox>` DSL element, which is compiled into widget state and rendered by `EngineOverlayHost` via the VariableStore. `SceneFrame` has no `sceneOverlay` field.
 12. The `<ProgressManager>` component must be usable as a child of `<Scene>` to declare scroll budget and input pacing for that scene. Carry-forward merge semantics apply: a scene that omits `<ProgressManager>` inherits the prior scene's spec.
 13. The `<InputController>` component must be usable within a `<Scene>` tree to declare input action mappings. Only one `<InputController>` is permitted per `<Scene>`.
 13. Custom widgets implementing `IDslComposite` must be able to declare child DSL components that are protected from accidental top-level usage with a descriptive error.
@@ -225,13 +228,13 @@ export const Scene = (_props: {
   metalnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
   roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
   /**
-   * Children may be any of:
-   * - Registered DSL elements (Model, Camera, Lighting, etc.) — compiled into widget state.
+   * Children must be registered DSL elements only:
+   * - Registered DSL elements (Model, Camera, Lighting, TextBox, etc.) — compiled into widget state.
    * - <ProgressManager> — compiled into SceneFrame.progressManager.
    * - <InputController> — compiled into the __input_controller passthrough state.
-   * - HTML elements or non-registered React components — collected as sceneOverlay
-   *   by compileChildrenSeparated and stored as SceneFrame.sceneOverlay (ReactNode).
-   *   Rendered by EngineOverlayHost in the player layer.
+   *
+   * Raw HTML elements and non-registered React components are NOT valid children.
+   * DOM overlay content must be authored via <TextBox> (from @brewsite/core).
    */
   children?: React.ReactNode;
 } & SceneTransitionProps) => null;
@@ -297,8 +300,9 @@ export type CompileHelpers = {
   /**
    * Separate DSL children from non-DSL children (HTML elements and non-registered
    * React components). DSL children are compiled normally via the node handler
-   * registry. Non-DSL children are returned as ReactNode[] for storage as
-   * SceneFrame.sceneOverlay. Used by the Scene root handler.
+   * registry. Non-DSL children are returned as ReactNode[] with a compiler warning.
+   * Raw HTML children on <Scene> are not a supported authoring pattern — use
+   * <TextBox> for DOM overlay content. Used by the Scene root handler.
    */
   compileChildrenSeparated: (node: ReactElement, api: CompileApi) => ReactNode[];
   /** Resolve a value or context function to a concrete value. */
@@ -328,9 +332,9 @@ export type NodeHandler = (
 
 The following DSL components are available at the `<Scene>` level. Each is a null-returning React component registered with the node handler system. Detailed prop contracts live in element-specific PRDs.
 
-**Elements from `@brewsite/core`:** `<Camera>`, `<Lighting>`, `<Background>`, `<Floor>`, `<Environment>`, `<ProgressManager>`, `<InputController>`, `<Action>`, `<PointerMap>`, `<WheelMap>`, `<PinchMap>`, `<KeyMap>`.
+**Elements from `@brewsite/core`:** `<Camera>`, `<Lighting>`, `<Background>`, `<Floor>`, `<Environment>`, `<TextBox>`, `<ProgressManager>`, `<InputController>`, `<Action>`, `<PointerMap>`, `<WheelMap>`, `<PinchMap>`, `<KeyMap>`.
 
-**Elements from companion packages:** `<Model>` (from `@brewsite/model`).
+**Elements from companion packages:** `<Model>` (from `@brewsite/model`), `<DiagramCanvas>` (from `@brewsite/diagram`), `<Chart>` (from `@brewsite/charts`).
 
 **`<Model>`** (from @brewsite/model) — GLTF model with spatial transform and animation state.
 
@@ -361,6 +365,25 @@ The following DSL components are available at the `<Scene>` level. Each is a nul
 **`<Environment>`** — HDR environment map.
 - Props: `src` (HDR asset URL), `intensity`, `enabled`.
 - Transitions: interpolates intensity between scenes.
+
+**`<TextBox>`** — DOM overlay content panel positioned in Normalized Viewport Space (NVS).
+- Required props: `id` (string), `x` (number, 0–1 left edge), `y` (number, 0–1 top edge), `w` (number, 0–1 width), `h` (number, 0–1 height), `children` (React.ReactNode — the HTML overlay content).
+- Optional props: `opacity` (number, 0–1, default 1), `enabled` (boolean, default true).
+- Compiled into `TextBoxState` and written to the `VariableStore` each tick under the key `"textbox:{id}"`. Rendered by `EngineOverlayHost` as an absolutely positioned div whose dimensions are derived from NVS coordinates resolved against the `EngineARContainer`.
+- `opacity` interpolates between scenes. `x`, `y`, `w`, `h` do not interpolate — they are resolved per-scene.
+- This is the only mechanism for DOM overlay content in scenes. Raw HTML children on `<Scene>` are not supported.
+- Source: `packages/core/src/elements/text-box/`
+
+```typescript
+// Authoring example:
+<Scene key="features">
+  <Camera descriptor={{ mode: 'world', position: [0, 1, 5], target: [0, 0, 0] }} />
+  <TextBox id="callout" x={0.55} y={0.1} w={0.38} h={0.35}>
+    <h2 className="callout-heading">Key Feature</h2>
+    <p className="callout-body">Description text here.</p>
+  </TextBox>
+</Scene>
+```
 
 **`<ProgressManager>`** — Scroll budget and input pacing configuration for a scene.
 - Optional props: `scrollUnits` (number, default 1), `fn` (pure pacing curve function), `autoAdvance` (idle cinematic auto-play config), `animationTimeScale` (scroll-to-animation-time multiplier).
@@ -721,24 +744,30 @@ export const sceneDetail = (
 
 ### 8.7 Scene Overlay Content
 
-Non-DSL children of `<Scene>` — HTML elements and non-registered React components — are collected as overlay content and rendered by `EngineOverlayHost` over the canvas. They are not compiled as widget state.
+DOM overlay content is authored via the `<TextBox>` DSL element, positioned in Normalized Viewport Space (NVS) coordinates. `<TextBox>` is compiled into widget state and rendered by `EngineOverlayHost` over the canvas. Raw HTML children on `<Scene>` are not supported.
 
 ```tsx
 <Scene key="features">
   {/* <Model> requires @brewsite/model */}
   <Model id="bot" type="mesh" position={[0, 0, 0]} />
-  <div style={{ position: 'absolute', top: '20%', left: '10%' }}>
+  {/*
+    DOM overlay content via <TextBox>:
+    x, y, w, h are NVS ratios (0–1) relative to the EngineARContainer.
+  */}
+  <TextBox id="callout-battery" x={0.1} y={0.2} w={0.35} h={0.12}>
     <div className="feature-callout">Battery Life</div>
-  </div>
-  <div style={{ position: 'absolute', top: '40%', left: '10%' }}>
+  </TextBox>
+  <TextBox id="callout-memory" x={0.1} y={0.4} w={0.35} h={0.12}>
     <div className="feature-callout">Memory</div>
-  </div>
+  </TextBox>
 </Scene>
 ```
 
-`EngineOverlayHost` applies a CSS fade-in keyed on the scene ID when the scene changes. Overlay content per scene is a snapshot captured at compile time — it is a `ReactNode` stored on `SceneFrame.sceneOverlay`. The overlay renders with `pointer-events: none` by default; individual elements within can opt in with `style={{ pointerEvents: 'auto' }}`.
+`EngineOverlayHost` renders `TextBox` content from the VariableStore for the current scene and applies a CSS fade-in keyed on the scene ID when the scene changes. `<TextBox>` content renders with `pointer-events: none` on the overlay container by default; individual elements within can opt in with `style={{ pointerEvents: 'auto' }}`.
 
-For overlay content that must persist across all scenes regardless of which is active (navigation arrows, progress dots), render those components as direct children of the page layout alongside `<ScenePlayer>`, not inside `<Scene>`.
+`<TextBox>` requires `EngineARContainer` to be present in the layout so that NVS coordinates resolve correctly.
+
+For overlay content that must persist across all scenes regardless of which is active (navigation arrows, progress dots), render those components as siblings of `EngineOverlayHost` in the page layout, not inside `<Scene>` or `<TextBox>`.
 
 ### 8.8 ProgressManager
 
@@ -1072,7 +1101,7 @@ Any future change to the following constitutes a breaking change requiring a maj
 - Removing `registerNode` from the public exports of `compiler/index.ts`.
 - Removing `useSceneRuntime` or changing the shape of `SceneRuntimeState`.
 - Changing the `ProgressManagerSpec` type or the merge semantics of `<ProgressManager>`.
-- Removing the `compileChildrenSeparated` helper or changing its contract for separating DSL from overlay children.
+- Removing the `compileChildrenSeparated` helper or changing its contract. (Note: the helper's behavior for non-DSL children is now a warning-only path; `TextBox` is the supported overlay authoring pattern.)
 
 ---
 
@@ -1110,10 +1139,10 @@ Any future change to the following constitutes a breaking change requiring a maj
 ## 19. Launch Criteria
 
 - All existing scenes in `apps/examples/` compile without TypeScript errors under `pnpm typecheck`.
-- `resolveSceneFromDsl` has unit test coverage for: root element validation, Fragment expansion, context function resolution, `CUSTOM_NODE_HANDLER` dispatch, `IDslComposite` child protection, `InputController` duplicate-action validation, `ProgressManager` carry-forward merge semantics, and `compileChildrenSeparated` HTML overlay collection.
+- `resolveSceneFromDsl` has unit test coverage for: root element validation, Fragment expansion, context function resolution, `CUSTOM_NODE_HANDLER` dispatch, `IDslComposite` child protection, `InputController` duplicate-action validation, `ProgressManager` carry-forward merge semantics, and non-DSL child warning behavior.
 - `ProgressManager` compile-time validation tests cover: `fn(0) !== 0` warning, `fn(1) !== 1` warning, and `scrollUnits <= 0` warning.
 - At least one example in `apps/examples/` demonstrates `<ProgressManager>` with a custom `scrollUnits` and `fn`.
-- At least one example in `apps/examples/` demonstrates HTML overlay children inside `<Scene>` rendered by `EngineOverlayHost`.
+- At least one example in `apps/examples/` demonstrates `<TextBox>` overlay content inside `<Scene>` rendered by `EngineOverlayHost` with an `EngineARContainer` layout.
 - `README.md` for `@brewsite/core` includes a minimal scene example demonstrating `<Scene>`, `<Camera>`, `<Model>`, and `<Lighting>`.
 - Every exported symbol from `compiler/index.ts` is documented with a JSDoc comment.
 - CHANGELOG entry written for the current release version.

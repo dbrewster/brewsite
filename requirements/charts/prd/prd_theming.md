@@ -7,6 +7,9 @@ last_updated: 2026-03-04
 change_history:
   - date: 2026-03-04
     author: "Toolkit Product"
+    summary: "NVS system: Chart DSL gains optional x?, y?, w?, h? NVS props. ChartWidget implements INVSBounded. ChartTooltipOverlay breaking change: camera and domElement props removed; nvsBounds: NVSRect is now required. Documented in Section 8 (new NVS subsection) and Section 10 (Breaking Change Assessment updated)."
+  - date: 2026-03-04
+    author: "Toolkit Product"
     summary: "Initial PRD created. Documents the ChartTheme system as implemented: ChartTheme type, four preset themes, sceneTheme integration for cross-package font and color-mode defaults, and ChartDSL.sceneTheme element-level override."
 ---
 
@@ -228,6 +231,60 @@ const mySceneTheme = { ...darkSceneTheme, font: { ...darkSceneTheme.font, webglF
 
 ## 8. Technical Considerations
 
+### NVS Sub-Region Support
+
+`Chart` elements participate in the Normalized Viewport Space (NVS) system. `ChartWidget` implements `INVSBounded` (from `@brewsite/core`). When a chart is placed in a sub-region of the AR-locked container, its camera projection and tooltip DOM projection are both restricted to that region.
+
+**Chart DSL NVS props (all optional, default: fullscreen):**
+
+```typescript
+export type ChartDSL = {
+  readonly id: string;
+  readonly type: ChartType;
+  readonly theme?: ChartThemeName | ChartTheme;
+  readonly sceneTheme?: SceneTheme;
+
+  // NVS sub-region props — new in NVS system
+  readonly x?: number;  // NVS left edge [0, 1]. Default: 0
+  readonly y?: number;  // NVS top edge [0, 1]. Default: 0
+  readonly w?: number;  // NVS width [0, 1]. Default: 1
+  readonly h?: number;  // NVS height [0, 1]. Default: 1
+
+  // ... other props
+};
+```
+
+`x`, `y`, `w`, `h` are compiled into `ChartState.nvsBounds` and reflected by `ChartWidget.nvsBounds`. This controls camera framing and tooltip projection.
+
+**`ChartTooltipOverlay` — Breaking change:**
+
+The `camera` and `domElement` props on `ChartTooltipOverlay` have been **removed**. The `nvsBounds: NVSRect` prop is now **required**. `ChartTooltipOverlay` derives viewport offset from the NVS bounds against the `EngineARContainer` dimensions, rather than performing its own DOM element coordinate query.
+
+```typescript
+// REMOVED props:
+// camera: THREE.Camera
+// domElement: HTMLElement
+
+// REQUIRED prop added:
+// nvsBounds: NVSRect
+
+// Current ChartTooltipOverlay props:
+export type ChartTooltipOverlayProps = {
+  nvsBounds: NVSRect;        // required — replaces camera + domElement
+  className?: string;
+};
+```
+
+**Migration:** Remove `camera` and `domElement` props from `ChartTooltipOverlay` usages. Add `nvsBounds` — pass the value from `ChartWidget.nvsBounds` or construct a fullscreen rect `{ x: 0, y: 0, w: 1, h: 1 }` for charts that fill the viewport.
+
+```tsx
+// Before (removed):
+<ChartTooltipOverlay camera={engine.camera} domElement={canvas} />
+
+// After (current):
+<ChartTooltipOverlay nvsBounds={chartWidget.nvsBounds} />
+```
+
 ### FontUrl propagation path
 
 `fontUrl` is resolved from `ChartState.sceneTheme` (element-level) or `ChartTheme.sceneTheme` (theme-level) and stored in `ChartRenderContext`. From there it flows to:
@@ -261,13 +318,27 @@ These fallbacks are only used when the resolved `ChartTheme` has no explicit `ax
 
 ## 10. Breaking Change Assessment
 
-**Semver impact: minor.** `ChartTheme.sceneTheme` and `ChartDSL.sceneTheme` are optional additions. All four preset themes remain valid without modification. No existing `ChartTheme` fields are changed.
+**Theme system (this PRD's original scope): Semver impact: minor.** `ChartTheme.sceneTheme` and `ChartDSL.sceneTheme` are optional additions. All four preset themes remain valid without modification. No existing `ChartTheme` fields are changed.
+
+**NVS system (breaking change — major semver impact on `@brewsite/charts`):**
+
+`ChartTooltipOverlay` breaking change:
+
+| Symbol | Change |
+|---|---|
+| `ChartTooltipOverlayProps.camera` | **Removed.** Was `THREE.Camera`. |
+| `ChartTooltipOverlayProps.domElement` | **Removed.** Was `HTMLElement`. |
+| `ChartTooltipOverlayProps.nvsBounds` | **Added, required.** Type: `NVSRect` from `@brewsite/core`. |
+
+Any consumer code that passes `camera` or `domElement` to `ChartTooltipOverlay` will receive a TypeScript error. Migration: remove those props and add `nvsBounds`. If the chart fills the full viewport, pass `{ x: 0, y: 0, w: 1, h: 1 }`.
+
+`ChartDSL.x`, `y`, `w`, `h` props and `ChartState.nvsBounds` are additive (minor) and require no migration.
 
 ---
 
 ## 11. Dependencies
 
-- `@brewsite/core` — `SceneTheme` type import
+- `@brewsite/core` — `SceneTheme`, `NVSRect`, `INVSBounded` type imports
 - `troika-three-text` — WebGL text rendering (peer dependency via Three.js ecosystem)
 - No new external npm packages
 

@@ -128,6 +128,7 @@ describe('model compile helpers', () => {
         motion: { commands: [], scenes: [], customAnimations: [] },
         animation: { enabled: false },
       },
+      nvsBounds: { x: 0, y: 0, w: 1, h: 1 },
     };
     const state = createDefaultModelInstanceState('bot', identity);
     expect(state.model.enabled).toBe(true);
@@ -255,6 +256,7 @@ describe('functionalInstanceTransitionSpec', () => {
       animation: { enabled: false },
     },
     enabled: true,
+    nvsBounds: { x: 0, y: 0, w: 1, h: 1 },
   };
 
   const fromState: SceneModelInstanceState = {

@@ -8,6 +8,7 @@ import {
     PointerMap,
     ProgressManager,
     Scene,
+    TextBox,
     WheelMap,
 } from '@brewsite/core';
 import {
@@ -86,84 +87,82 @@ export const sceneSomniocortex: JSX.Element = (
             </Diagram>
         </DiagramCanvas>
 
-        {/* Prose panel */}
-        <div style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            padding: '40px 64px 48px',
-            background: 'rgba(8, 11, 20, 0.88)',
-            backdropFilter: 'blur(16px)',
-            borderTop: '1px solid rgba(255,255,255,0.08)',
-            maxHeight: '50vh',
-            overflowY: 'auto',
-            pointerEvents: 'auto',
-        }}>
+        <TextBox id="bfm-somno-prose" x={0} y={0.58} w={1} h={0.42}>
             <div style={{
-                fontFamily: 'JetBrains Mono, monospace',
-                fontSize: '0.67rem',
-                letterSpacing: '0.25em',
-                textTransform: 'uppercase' as const,
-                color: 'rgba(100, 140, 220, 0.7)',
-                marginBottom: 16,
+                padding: '40px 64px 48px',
+                background: 'rgba(8, 11, 20, 0.88)',
+                backdropFilter: 'blur(16px)',
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+                height: '100%',
+                overflowY: 'auto',
+                pointerEvents: 'auto',
+                boxSizing: 'border-box',
             }}>
-                SOMNIOCORTEX — WHAT IT MEANS
-            </div>
-            <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px'}}>
-                <div>
-                    <h3 style={{fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600}}>
-                        The dreaming pipeline
-                    </h3>
-                    <p style={{
-                        fontSize: '0.89rem',
-                        color: 'rgba(180, 200, 240, 0.75)',
-                        lineHeight: 1.7,
-                        margin: '0 0 16px'
-                    }}>
-                        Somniocortex runs out-of-band — triggered by session end, time schedule, or
-                        explicit request. It is never in the critical path of an active agent. The pipeline
-                        reads from EpisodicStore, runs 7 stages, and writes validated proposals to the
-                        Neocortex Store. The dreamer can be re-run as many times as needed; each run
-                        is idempotent given the same episode window.
-                    </p>
-                    <h3 style={{fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600}}>
-                        Why LLM role ends at stage 5
-                    </h3>
-                    <p style={{fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0}}>
-                        The LLM's role is to propose, not to decide. Stages 1–4 use LLM reasoning to
-                        select relevant episodes, extract candidates, cluster cross-episode patterns,
-                        and propose typed structured records. Stage 5 runs deterministic validators —
-                        schema, provenance, format, contradiction checks — without LLM involvement.
-                        The LLM cannot hallucinate its way past stage 5.
-                    </p>
+                <div style={{
+                    fontFamily: 'JetBrains Mono, monospace',
+                    fontSize: '13px',
+                    letterSpacing: '0.25em',
+                    textTransform: 'uppercase' as const,
+                    color: 'rgba(100, 140, 220, 0.7)',
+                    marginBottom: 16,
+                }}>
+                    SOMNIOCORTEX — WHAT IT MEANS
                 </div>
-                <div>
-                    <h3 style={{fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600}}>
-                        What happens if the dreamer fails
-                    </h3>
-                    <p style={{
-                        fontSize: '0.89rem',
-                        color: 'rgba(180, 200, 240, 0.75)',
-                        lineHeight: 1.7,
-                        margin: '0 0 16px'
-                    }}>
-                        A dreamer failure never corrupts existing memory. If the pipeline crashes at
-                        any stage, the in-progress proposals are discarded — nothing is published to
-                        Neocortex. The EpisodicStore is untouched. The next scheduled run will pick
-                        up where the episode window left off.
-                    </p>
-                    <h3 style={{fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600}}>
-                        Stage 6 decision logic
-                    </h3>
-                    <p style={{fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0}}>
-                        Stage 6 compares the proposal against existing Neocortex cards. Contradictions
-                        are not silently overwritten — they are routed to a "disputed" lifecycle state
-                        and queued for human review. Evidence-weighted conflict resolution is used
-                        when the contradiction is minor; strong conflicts always require human sign-off.
-                    </p>
+                <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px'}}>
+                    <div>
+                        <h3 style={{fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600}}>
+                            The dreaming pipeline
+                        </h3>
+                        <p style={{
+                            fontSize: '15px',
+                            color: 'rgba(180, 200, 240, 0.75)',
+                            lineHeight: 1.7,
+                            margin: '0 0 16px'
+                        }}>
+                            Somniocortex runs out-of-band — triggered by session end, time schedule, or
+                            explicit request. It is never in the critical path of an active agent. The pipeline
+                            reads from EpisodicStore, runs 7 stages, and writes validated proposals to the
+                            Neocortex Store. The dreamer can be re-run as many times as needed; each run
+                            is idempotent given the same episode window.
+                        </p>
+                        <h3 style={{fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600}}>
+                            Why LLM role ends at stage 5
+                        </h3>
+                        <p style={{fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0}}>
+                            The LLM's role is to propose, not to decide. Stages 1–4 use LLM reasoning to
+                            select relevant episodes, extract candidates, cluster cross-episode patterns,
+                            and propose typed structured records. Stage 5 runs deterministic validators —
+                            schema, provenance, format, contradiction checks — without LLM involvement.
+                            The LLM cannot hallucinate its way past stage 5.
+                        </p>
+                    </div>
+                    <div>
+                        <h3 style={{fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600}}>
+                            What happens if the dreamer fails
+                        </h3>
+                        <p style={{
+                            fontSize: '15px',
+                            color: 'rgba(180, 200, 240, 0.75)',
+                            lineHeight: 1.7,
+                            margin: '0 0 16px'
+                        }}>
+                            A dreamer failure never corrupts existing memory. If the pipeline crashes at
+                            any stage, the in-progress proposals are discarded — nothing is published to
+                            Neocortex. The EpisodicStore is untouched. The next scheduled run will pick
+                            up where the episode window left off.
+                        </p>
+                        <h3 style={{fontSize: '18px', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600}}>
+                            Stage 6 decision logic
+                        </h3>
+                        <p style={{fontSize: '15px', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: 0}}>
+                            Stage 6 compares the proposal against existing Neocortex cards. Contradictions
+                            are not silently overwritten — they are routed to a "disputed" lifecycle state
+                            and queued for human review. Evidence-weighted conflict resolution is used
+                            when the contradiction is minor; strong conflicts always require human sign-off.
+                        </p>
+                    </div>
                 </div>
             </div>
-        </div>
+        </TextBox>
     </Scene>
 );

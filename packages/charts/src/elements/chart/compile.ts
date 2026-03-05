@@ -1,7 +1,7 @@
 // Pure compilation functions for the chart element — no Three.js, no React render.
 
 import { blendOpacity, blendVec3 } from '@brewsite/core';
-import type { FunctionalTransitionSpec } from '@brewsite/core';
+import type { FunctionalTransitionSpec, NVSRect } from '@brewsite/core';
 import type {
   ChartState,
   ChartDSL,
@@ -62,6 +62,12 @@ export function compileChart(
     interactive: dsl.interactive ?? false,
     innerRadius: dsl.innerRadius ?? 0,
     sceneTheme: dsl.sceneTheme,  // pass through from DSL
+    nvsBounds: {
+      x: dsl.x ?? 0,
+      y: dsl.y ?? 0,
+      w: dsl.w ?? 1,
+      h: dsl.h ?? 1,
+    } satisfies NVSRect,
   };
 }
 

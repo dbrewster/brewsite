@@ -1,16 +1,14 @@
 import type {JSX} from 'react';
 import {
     Action,
-    Ambient,
     Background,
     Camera,
-    Directional,
     InputController,
     KeyMap,
-    Lighting,
     PointerMap,
     ProgressManager,
     Scene,
+    TextBox,
     WheelMap,
 } from '@brewsite/core';
 import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, GridLayout,} from '@brewsite/diagram';
@@ -65,64 +63,61 @@ export const sceneDim6Gating: JSX.Element = (
       </Diagram>
     </DiagramCanvas>
 
-    {/* Prose panel */}
-    <div style={{
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: '40px 64px 48px',
-      background: 'rgba(8, 11, 20, 0.88)',
-      backdropFilter: 'blur(16px)',
-      borderTop: '1px solid rgba(255,255,255,0.08)',
-      maxHeight: '55vh',
-      overflowY: 'auto',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox id="dim6-prose" x={0} y={0.56} w={1} h={0.44}>
       <div style={{
-        fontFamily: 'JetBrains Mono, monospace',
-        fontSize: '0.67rem',
-        letterSpacing: '0.25em',
-        textTransform: 'uppercase' as const,
-        color: 'rgba(100, 140, 220, 0.7)',
-        marginBottom: 16,
+        padding: '36px 60px 44px',
+        background: 'rgba(8, 11, 20, 0.88)',
+        backdropFilter: 'blur(16px)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        height: '100%',
+        overflowY: 'auto',
+        boxSizing: 'border-box',
       }}>
-        DIMENSION 6: GATING AND EVIDENCE
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            claude-flow: did enough agents agree?
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
-            claude-flow's consensus_state table implements quorum voting — a decision
-            proceeds when ≥2 acceptors agree. This is a reasonable coordination primitive
-            for distributed task assignment and conflict resolution. For verifying whether
-            a proposed action is correct, it has a fundamental limitation: three LLMs can
-            all be wrong in exactly the same direction. Consensus measures agreement, not
-            correctness.
-          </p>
+        <div style={{
+          fontFamily: 'JetBrains Mono, monospace',
+          fontSize: 13,
+          letterSpacing: '0.25em',
+          textTransform: 'uppercase' as const,
+          color: 'rgba(100, 140, 220, 0.7)',
+          marginBottom: 16,
+        }}>
+          DIMENSION 6: GATING AND EVIDENCE
         </div>
-        <div>
-          <h3 style={{ fontSize: '1rem', color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
-            BrewFlow: is there proof?
-          </h3>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
-            BrewFlow's evidence gates require proof, not agreement. Automated tests must
-            pass. Reconciliation checks must confirm expected vs actual invariants. Sandbox
-            execution must succeed in a safe environment. Human approval is required for
-            high-risk or ambiguous decisions. Only when all applicable gates clear does
-            the evidence gate open.
-          </p>
-          <p style={{ fontSize: '0.89rem', color: 'rgba(160, 180, 220, 0.65)', lineHeight: 1.7, fontStyle: 'italic', margin: 0 }}>
-            The practical implication: BrewFlow gates are expensive and slow compared to
-            quorum voting. For bounded tasks where speed matters more than correctness
-            guarantees, claude-flow's consensus model is appropriate. For long workstreams
-            where a wrong decision compounds over many sessions, evidence gates are worth
-            the cost.
-          </p>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+          <div>
+            <h3 style={{ fontSize: 26, color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              claude-flow: did enough agents agree?
+            </h3>
+            <p style={{ fontSize: 18, color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+              claude-flow's consensus_state table implements quorum voting — a decision
+              proceeds when ≥2 acceptors agree. This is a reasonable coordination primitive
+              for distributed task assignment and conflict resolution. For verifying whether
+              a proposed action is correct, it has a fundamental limitation: three LLMs can
+              all be wrong in exactly the same direction. Consensus measures agreement, not
+              correctness.
+            </p>
+          </div>
+          <div>
+            <h3 style={{ fontSize: 26, color: '#c8d8f0', margin: '0 0 12px', fontWeight: 600 }}>
+              BrewFlow: is there proof?
+            </h3>
+            <p style={{ fontSize: 18, color: 'rgba(180, 200, 240, 0.75)', lineHeight: 1.7, margin: '0 0 16px' }}>
+              BrewFlow's evidence gates require proof, not agreement. Automated tests must
+              pass. Reconciliation checks must confirm expected vs actual invariants. Sandbox
+              execution must succeed in a safe environment. Human approval is required for
+              high-risk or ambiguous decisions. Only when all applicable gates clear does
+              the evidence gate open.
+            </p>
+            <p style={{ fontSize: 15, color: 'rgba(160, 180, 220, 0.65)', lineHeight: 1.7, fontStyle: 'italic', margin: 0 }}>
+              The practical implication: BrewFlow gates are expensive and slow compared to
+              quorum voting. For bounded tasks where speed matters more than correctness
+              guarantees, claude-flow's consensus model is appropriate. For long workstreams
+              where a wrong decision compounds over many sessions, evidence gates are worth
+              the cost.
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

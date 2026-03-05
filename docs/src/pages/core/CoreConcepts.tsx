@@ -1,15 +1,11 @@
-import { JSX } from 'react';
-import { Link } from 'react-router';
-import { CodeBlock } from '../../components/ui/CodeBlock';
-import { Callout } from '../../components/ui/Callout';
-import { LiveDemo } from '../../components/demo/LiveDemo';
-import BasicSceneDemo, { CODE as BASIC_CODE } from '../../demos/core/BasicSceneDemo.demo';
+import type { ReactElement } from 'react';
+import { Section, DocsDemo, CodeBlock, Callout } from '@brewsite/docs';
+import type { SectionId } from '../../docs-nav';
+import { BasicSceneDemo } from '../../demos/core/BasicSceneDemo.demo';
 
-export default function CoreConcepts(): JSX.Element {
+export function CoreConceptsPage(): ReactElement {
   return (
-    <section>
-      <h1>Core Concepts</h1>
-
+    <Section<SectionId> id="concepts" title="Core Concepts">
       <h2>Declarative Scene Snapshots</h2>
 
       <p>
@@ -114,7 +110,7 @@ interface ILoadable extends IWidget {
       />
 
       <p>
-        <Link to="/core/widget-sdk">Read the Widget SDK docs →</Link>
+        <a href="#widget-sdk">Read the Widget SDK docs →</a>
       </p>
 
       <h2>Layer Architecture</h2>
@@ -175,20 +171,14 @@ interface ILoadable extends IWidget {
         dependencies.
       </p>
 
-      <p>
-        This means you can safely import and run the compiler in a Node.js server environment —
-        useful for generating static scene metadata at build time or for server-side rendering
-        pipelines that need to inspect scene structure without spinning up a browser.
-      </p>
-
       <Callout type="note">
         The compiler can run on the server. Only <code>ScenePlayer</code> (and the Three.js render
         layer) requires a DOM environment.
       </Callout>
 
-      <LiveDemo title="A minimal scene" code={BASIC_CODE}>
+      <DocsDemo title="A minimal scene" scrollUnits={2400} height={480}>
         <BasicSceneDemo />
-      </LiveDemo>
-    </section>
+      </DocsDemo>
+    </Section>
   );
 }

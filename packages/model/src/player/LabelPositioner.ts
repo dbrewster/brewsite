@@ -3,6 +3,7 @@
 
 import { Vector3 } from 'three';
 import type { Camera } from 'three';
+import type { NVSRect } from '@brewsite/core';
 import type { LabelResolved } from '../labels/types';
 
 /**
@@ -14,6 +15,7 @@ export class LabelPositioner {
   private containerWidth = 0;
   private containerHeight = 0;
   private warnedMissingTargets = new Set<string>();
+  private nvsBounds: NVSRect = { x: 0, y: 0, w: 1, h: 1 };
 
   registerElement(id: string, el: HTMLElement | null): void {
     if (el) {
@@ -23,9 +25,14 @@ export class LabelPositioner {
     }
   }
 
-  setContainerSize(width: number, height: number): void {
+  /**
+   * Updates the container dimensions and optional NVS sub-region bounds.
+   * When `nvsBounds` is omitted, defaults to the fullscreen rect { x:0, y:0, w:1, h:1 }.
+   */
+  setContainerSize(width: number, height: number, nvsBounds?: NVSRect): void {
     this.containerWidth = width;
     this.containerHeight = height;
+    this.nvsBounds = nvsBounds ?? { x: 0, y: 0, w: 1, h: 1 };
   }
 
   update(
@@ -59,12 +66,14 @@ export class LabelPositioner {
         camera,
         this.containerWidth,
         this.containerHeight,
+        this.nvsBounds,
       );
       const labelScreen = projectToScreen(
         [bonePos[0] + offset[0], bonePos[1] + offset[1], bonePos[2] + offset[2]],
         camera,
         this.containerWidth,
         this.containerHeight,
+        this.nvsBounds,
       );
       const width = el.offsetWidth || 0;
       const height = el.offsetHeight || 0;
@@ -94,15 +103,38 @@ export class LabelPositioner {
   }
 }
 
+/**
+ * Projects a 3D world position to 2D pixel coordinates within the AR-locked container,
+ * scoped to the NVS sub-region the model occupies.
+ *
+ * Steps:
+ * 1. vec.project(camera) → NDC in [-1, 1]
+ * 2. Compute the sub-region's pixel footprint within the container:
+ *      regionLeft   = nvsBounds.x * containerWidth
+ *      regionTop    = nvsBounds.y * containerHeight
+ *      regionWidth  = nvsBounds.w * containerWidth
+ *      regionHeight = nvsBounds.h * containerHeight
+ * 3. Map NDC to pixel offset within that footprint:
+ *      x = regionLeft + (ndcX * 0.5 + 0.5) * regionWidth
+ *      y = regionTop  + (-ndcY * 0.5 + 0.5) * regionHeight
+ *
+ * The returned (x, y) are in the same coordinate space as the EngineOverlayHost div
+ * (absolute pixels from the AR container top-left).
+ */
 const projectToScreen = (
   worldPos: [number, number, number],
   camera: Camera,
-  width: number,
-  height: number,
+  containerWidth: number,
+  containerHeight: number,
+  nvsBounds: NVSRect,
 ): { x: number; y: number } => {
   const vec = new Vector3(worldPos[0], worldPos[1], worldPos[2]);
   vec.project(camera);
-  const x = (vec.x * 0.5 + 0.5) * width;
-  const y = (-vec.y * 0.5 + 0.5) * height;
+  const regionLeft   = nvsBounds.x * containerWidth;
+  const regionTop    = nvsBounds.y * containerHeight;
+  const regionWidth  = nvsBounds.w * containerWidth;
+  const regionHeight = nvsBounds.h * containerHeight;
+  const x = regionLeft   + (vec.x * 0.5 + 0.5) * regionWidth;
+  const y = regionTop    + (-vec.y * 0.5 + 0.5) * regionHeight;
   return { x, y };
 };

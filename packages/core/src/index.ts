@@ -4,6 +4,7 @@ export * from './compiler';
 export * from './timeline';
 export * from './widget';
 export * from './elements';
+export * from './layout';
 export * from './math';
 export * from './runtime';
 export * from './input';
@@ -20,3 +21,5 @@ export { hasCustomDslHandler, CUSTOM_NODE_HANDLER } from './widget/WidgetRegistr
 export type { IHasCustomDslHandler } from './widget/WidgetRegistry';
 export type { ISceneLifecycle } from './widget/types';
 export { isSceneLifecycle } from './widget/WidgetRegistry';
+
+export {TextBox} from './elements/text-box'

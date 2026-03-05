@@ -229,4 +229,49 @@ describe('ChartWidget', () => {
   it('defaultState.sceneTheme is undefined', () => {
     expect(widget.defaultState.sceneTheme).toBeUndefined();
   });
+
+  it('nvsBounds returns fullscreen default before first apply()', () => {
+    expect(widget.nvsBounds).toEqual({ x: 0, y: 0, w: 1, h: 1 });
+  });
+
+  it('nvsBounds returns last applied state nvsBounds', () => {
+    widget.initialize(makeInitCtx());
+    const state = makeState({ nvsBounds: { x: 0.5, y: 0, w: 0.5, h: 1 } });
+    widget.apply(state, makeRenderCtx());
+    expect(widget.nvsBounds).toEqual({ x: 0.5, y: 0, w: 0.5, h: 1 });
+  });
+
+  it('nvsBounds updates when apply() is called with new nvsBounds', () => {
+    widget.initialize(makeInitCtx());
+    widget.apply(makeState({ nvsBounds: { x: 0, y: 0.5, w: 1, h: 0.5 } }), makeRenderCtx());
+    expect(widget.nvsBounds).toEqual({ x: 0, y: 0.5, w: 1, h: 0.5 });
+  });
+
+  it('getCamera returns null before initialize', () => {
+    expect(widget.getCamera()).toBeNull();
+  });
+
+  it('getContainerSize returns null before initialize', () => {
+    expect(widget.getContainerSize()).toBeNull();
+  });
+
+  it('getContainerSize returns offsetWidth/offsetHeight from renderer DOM after initialize', () => {
+    const scene = new THREE.Scene();
+    const mockDom = {
+      ...createMockDomElement(),
+      offsetWidth: 1920,
+      offsetHeight: 1080,
+    } as unknown as HTMLElement;
+
+    widget.initialize({
+      scene,
+      renderer: { domElement: mockDom } as unknown as THREE.WebGLRenderer,
+      camera: new THREE.PerspectiveCamera(),
+    } as unknown as WidgetInitContext);
+
+    const size = widget.getContainerSize();
+    expect(size).not.toBeNull();
+    expect(size?.width).toBe(1920);
+    expect(size?.height).toBe(1080);
+  });
 });

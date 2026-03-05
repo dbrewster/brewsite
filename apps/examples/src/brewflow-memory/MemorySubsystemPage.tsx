@@ -1,6 +1,6 @@
 import type {JSX} from 'react';
 import {useMemo} from 'react';
-import {EngineInputRegion, EngineOverlayHost, EngineProvider, SceneCanvas,} from '@brewsite/core';
+import {EngineARContainer, EngineInputRegion, EngineOverlayHost, EngineProvider, SceneCanvas,} from '@brewsite/core';
 import {createMemoryPlugins} from './widgetSetup';
 import {sceneHero} from './scenes/scene_hero';
 import {sceneClsTheory} from './scenes/scene_cls_theory';
@@ -46,10 +46,12 @@ export default function MemorySubsystemPage(): JSX.Element {
         {sceneLearningLoop}
         {sceneSensitiveDataGuard}
         {sceneSummary}
-        <EngineInputRegion>
-          <SceneCanvas style={{background: '#444444'}}/>
-          <EngineOverlayHost />
-        </EngineInputRegion>
+        <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width" referenceWidth={1920}>
+          <EngineInputRegion>
+            <SceneCanvas style={{background: '#444444'}}/>
+            <EngineOverlayHost />
+          </EngineInputRegion>
+        </EngineARContainer>
       </EngineProvider>
     </div>
   );

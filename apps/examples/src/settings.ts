@@ -4,5 +4,5 @@ export const config = {
     lightColor: '#bb88aa',
     diagramScale: .7,
     diagramRotationX: -.3,
-    diagramTop: 4
+    diagramTop: .2
 }
