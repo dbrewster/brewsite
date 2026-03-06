@@ -28,8 +28,23 @@ export interface ScreenState {
    */
   readonly src: string;
 
-  /** World-space position of the screen center [x, y, z]. Default: [0, 0, 0] */
-  readonly position: readonly [number, number, number];
+  /**
+   * NVS horizontal center position [0..1]. 0 = left edge, 1 = right edge.
+   * Converted to world-space X at render time using the active camera.
+   */
+  readonly nvsX: number;
+
+  /**
+   * NVS vertical center position [0..1]. 0 = top edge, 1 = bottom edge.
+   * Converted to world-space Y at render time (Y-flip applied in widget layer).
+   */
+  readonly nvsY: number;
+
+  /**
+   * World-space depth (Z) of the screen center. Default: 0.
+   * Kept as world-space because it controls the 3D depth position.
+   */
+  readonly z: number;
 
   /**
    * World-space rotation in radians [x, y, z].
@@ -45,18 +60,16 @@ export interface ScreenState {
   readonly scale: number;
 
   /**
-   * Screen content width in world units.
-   * The iframe CSS width is derived from this via the camera projection.
-   * Default: 12
+   * NVS width fraction [0..1] — fraction of the AR container width.
+   * Converted to world-space width at render time. Default: 0.625
    */
-  readonly width: number;
+  readonly nvsWidth: number;
 
   /**
-   * Screen content height in world units.
-   * The iframe CSS height is derived from this via the camera projection.
-   * Default: 7.5 (16:9 aspect ratio at default width of 12)
+   * NVS height fraction [0..1] — fraction of the AR container height.
+   * Converted to world-space height at render time. Default: undefined (derive from 16:9)
    */
-  readonly height: number;
+  readonly nvsHeight: number | undefined;
 
   /** Bezel frame visual style. Default: 'dark' */
   readonly bezel: ScreenBezelVariant;
@@ -103,11 +116,18 @@ export interface ScreenState {
 export interface ScreenDSL {
   readonly id: string;
   readonly src: string;
-  readonly position?: readonly [number, number, number];
+  /** NVS center X [0..1]. Default: 0.5 */
+  readonly x?: number;
+  /** NVS center Y [0..1]. Default: 0.5 */
+  readonly y?: number;
+  /** World-space depth (Z). Default: 0 */
+  readonly z?: number;
+  /** NVS width fraction [0..1]. Default: 0.625 */
+  readonly width?: number;
+  /** NVS height fraction [0..1]. Derived from 16:9 if omitted. */
+  readonly height?: number;
   readonly rotation?: readonly [number, number, number];
   readonly scale?: number;
-  readonly width?: number;
-  readonly height?: number;
   readonly bezel?: ScreenBezelVariant;
   readonly bezelThickness?: number;
   readonly opacity?: number;

@@ -8,23 +8,26 @@ import {
 import type { DiagramPipeState } from '../../types';
 import type { DiagramState } from '../../../types';
 
+const FULL_VIEWPORT = { x: 0, y: 0, w: 1, h: 1 };
+const NO_TILT: readonly [number, number, number] = [0, 0, 0];
+
 describe('sideAttachmentPoint — full rotation fix', () => {
   it('zero rotation → canonical right face point', () => {
+    // Node at NVS center [0.5, 0.5] → canvas local [0, 0].
+    // Size [0.2, 0.1] → halfW = 0.2*1*1/2 = 0.1. Target far right.
     const result = sideAttachmentPoint(
-      [0, 0, 0], [4, 2], 0.4,
-      [0, 0, 0], 1,
-      [0, 0, 0],
+      [0.5, 0.5, 0], [0.2, 0.1], 0.4,
+      FULL_VIEWPORT, NO_TILT, 1,
       [10, 0, 0],
     );
-    expect(result.point[0]).toBeCloseTo(2);
+    expect(result.point[0]).toBeCloseTo(0.1);
     expect(result.normal[0]).toBeCloseTo(1);
   });
 
   it('Y rotation of 45° tilts X axis into -Z', () => {
     const result = sideAttachmentPoint(
-      [0, 0, 0], [4, 2], 0.4,
-      [0, 0, 0], 1,
-      [0, Math.PI / 4, 0],
+      [0.5, 0.5, 0], [0.2, 0.1], 0.4,
+      FULL_VIEWPORT, [0, Math.PI / 4, 0], 1,
       [10, 0, 0],
     );
     expect(result.normal[0]).toBeCloseTo(Math.cos(Math.PI / 4));
@@ -39,20 +42,19 @@ describe('sideAttachmentPoint — full rotation fix', () => {
   });
 
   it('uses target-node direction to offset attachment on node Y axis', () => {
+    // Node at NVS center [0.5, 0.5] → canvas [0, 0]. halfH = 0.1*1/2 = 0.05.
     const upper = sideAttachmentPoint(
-      [0, 0, 0], [4, 2], 0.4,
-      [0, 0, 0], 1,
-      [0, 0, 0],
+      [0.5, 0.5, 0], [0.2, 0.1], 0.4,
+      FULL_VIEWPORT, NO_TILT, 1,
       [10, 10, 0],
     );
     const lower = sideAttachmentPoint(
-      [0, 0, 0], [4, 2], 0.4,
-      [0, 0, 0], 1,
-      [0, 0, 0],
+      [0.5, 0.5, 0], [0.2, 0.1], 0.4,
+      FULL_VIEWPORT, NO_TILT, 1,
       [10, -10, 0],
     );
-    expect(upper.point[1]).toBeGreaterThan(0.5);
-    expect(lower.point[1]).toBeLessThan(-0.5);
+    expect(upper.point[1]).toBeGreaterThan(0);
+    expect(lower.point[1]).toBeLessThan(0);
   });
 });
 
@@ -76,34 +78,35 @@ describe('routePipe — anti-parallel arc fix', () => {
 });
 
 describe('rerouteLivePipes', () => {
-  const diagram = (id: string, pos: [number, number, number]): DiagramState => ({
+  // Two diagrams side-by-side: 'a' occupies left half of viewport, 'b' right half.
+  const diagram = (id: string, vpX: number): DiagramState => ({
     id,
-    position: pos,
-    rotation: [0, 0, 0],
-    scale: 1,
-    pivot: 'center',
+    viewportBounds: { x: vpX, y: 0, w: 0.5, h: 1 },
+    tiltRotation: [0, 0, 0],
     nodes: [
       {
         id: 'n1',
         label: 'n1',
         sublabel: undefined,
         shape: 'flow:rect',
-        position: [0, 0, 0],
-        size: [4, 2],
-        depth: 0.4,
+        position: [0.5, 0.5, 0],
+        size: [0.2, 0.1],
+        thickness: 0.4,
         color: '#fff',
         sideColor: '#fff',
         borderColor: '#000',
         metalness: 0,
         roughness: 1,
         emissiveIntensity: 0,
+        emissive: false,
+        emissiveColor: '#fff',
         cornerRadius: 0,
         labelColor: '#000',
         sublabelColor: '#000',
         opacity: 1,
         clickable: false,
         enabled: true,
-        iconUrl: '',
+        iconUrl: undefined,
         iconScale: 0.6,
         iconStyle: 'flat',
         iconDepth: 0.1,
@@ -113,7 +116,6 @@ describe('rerouteLivePipes', () => {
     ],
     edges: [],
     groups: [],
-    bounds: { x: 0, y: 0, w: 1, h: 1, minZ: 0, maxZ: 0 },
     themeConfig: {
       envMapUrl: null,
       envMapIntensity: 1,
@@ -125,10 +127,12 @@ describe('rerouteLivePipes', () => {
       edgeSmoothness: 0.5,
       edgeMetalness: 0,
       edgeRoughness: 1,
-      fontUrl: '',
+      edgeFlowSpeed: 0,
+      edgeFlowWidth: 0.2,
+      fontUrl: undefined,
     },
-    exit: null,
-    enter: null,
+    exit: undefined,
+    enter: undefined,
   });
 
   it('pipe with valid from/to nodes → computes control points', () => {
@@ -147,7 +151,7 @@ describe('rerouteLivePipes', () => {
       opacity: 1,
       controlPoints: [],
     };
-    const points = rerouteLivePipes([pipe], [diagram('a', [0, 0, 0]), diagram('b', [10, 0, 0])], 'curved', 'sides');
+    const points = rerouteLivePipes([pipe], [diagram('a', 0), diagram('b', 0.5)], 'curved', 'sides');
     expect(points.get('p1')?.length).toBeGreaterThan(1);
   });
 
@@ -167,7 +171,7 @@ describe('rerouteLivePipes', () => {
       opacity: 1,
       controlPoints: [],
     };
-    const points = rerouteLivePipes([pipe], [diagram('a', [0, 0, 0]), diagram('b', [10, 0, 0])], 'curved', 'sides');
+    const points = rerouteLivePipes([pipe], [diagram('a', 0), diagram('b', 0.5)], 'curved', 'sides');
     expect(points.get('p1')).toEqual([]);
   });
 
@@ -187,7 +191,7 @@ describe('rerouteLivePipes', () => {
       opacity: 1,
       controlPoints: [],
     };
-    const points = rerouteLivePipes([pipe], [diagram('a', [0, 0, 0]), diagram('b', [10, 0, 0])], 'curved', 'sides');
+    const points = rerouteLivePipes([pipe], [diagram('a', 0), diagram('b', 0.5)], 'curved', 'sides');
     expect(points.size).toBe(1);
   });
 });

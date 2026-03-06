@@ -3,8 +3,17 @@ title: "BrewSite Core — Player & Runtime"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-04
+last_updated: 2026-03-05
 change_history:
+  - date: 2026-03-05
+    author: "Toolkit Product"
+    summary: "@brewsite/slides integration: documented that @brewsite/slides is a first-class EngineProvider consumer. SlidePlayer owns its own EngineProvider internally (inputModePolicy='prefer-direct', pixelsPerScene=600) and uses the plugin system exclusively — no widgetRegistry prop is exposed. SlidePlayer passes an EMPTY_MANIFEST_URL data-URL to EngineProvider when no GLTF assets are used, as a workaround for manifestUrl being required. This pattern is documented as a known DX gap."
+  - date: 2026-03-05
+    author: "Toolkit Product"
+    summary: "Embedded demo integration: documented inputModePolicy, scrollHeightPx, and setRawProgress as the three EngineProvider API points consumed by @brewsite/docs DemoEngine. Added Section 7A.6 with the full embedded-direct-mode pattern: inputModePolicy='prefer-direct' + empty InputController injection + scrollHeightPx=0 + setRawProgress via DemoCaptureContext. Clarified that prefer-direct alone does not activate direct mode without an InputController in the scene tree. Added explicit note that DemoEngine from @brewsite/docs intentionally excludes scrollHeightPx and id from its prop surface — both are hardcoded internal decisions."
+  - date: 2026-03-05
+    author: "Toolkit Product"
+    summary: "Unified-scroll docs architecture: Section 7A.6 updated to reflect that @brewsite/docs no longer uses the per-demo DemoEngine/DemoCaptureContext pattern. The embedded direct-mode pattern remains documented as a valid EngineProvider integration technique, but the @brewsite/docs implementation now uses a single app-level EngineProvider driven by ScrollCaptureSection (window scroll) with all demo scenes authored in a global docs-scenes.tsx. DemoEngine and DemoCaptureContext are deleted from @brewsite/docs. setRawProgress primary-consumer note updated accordingly."
   - date: 2026-03-04
     author: "Toolkit Product"
     summary: "NVS system: added EngineARContainer component (aspect-ratio-locked container with four scale modes, --scene-scale CSS variable). EngineOverlayHost updated to render TextBox content from VariableStore in addition to raw scene overlay ReactNodes. sceneOverlays raw JSX children pattern removed from SceneFrame — that field no longer exists. EngineARContainer exports documented in Section 7A.4. NVS package ownership table added to Section 17."
@@ -260,6 +269,28 @@ type EngineProviderProps = {
 
   // Input
   inputMap?: SceneNavInputMap;
+  /**
+   * Controls whether the engine derives input mode from scene content (`'auto'`),
+   * prefers scroll mode (`'prefer-scroll'`), or prefers direct mode (`'prefer-direct'`).
+   *
+   * `'prefer-direct'` activates direct mode ONLY when at least one `<Scene>` child
+   * contains an `<InputController>`. Without an `<InputController>`, it falls back to scroll
+   * mode regardless of this setting. `DemoEngine` from `@brewsite/docs` combines
+   * `inputModePolicy="prefer-direct"` with automatic `<InputController>` injection to
+   * prevent scroll spacer creation while keeping the engine in direct mode.
+   *
+   * Defaults to `'auto'`.
+   */
+  inputModePolicy?: InputModePolicy;
+  /**
+   * Fixed height in pixels for the scroll spacer element. When provided, overrides the
+   * default `pixelsPerScene * sceneCount` calculation. `DemoEngine` from `@brewsite/docs`
+   * passes `scrollHeightPx={0}` to suppress the scroll spacer entirely — the demo is
+   * driven by direct `setRawProgress` calls from wheel event interception, not by
+   * `window.scrollY`. Only meaningful in scroll mode; ignored when the engine resolves
+   * to direct mode.
+   */
+  scrollHeightPx?: number;
 
   // Controlled progress mode
   controlledProgress?: number;
@@ -545,6 +576,44 @@ function NavBar() {
 }
 ```
 
+### 7A.6 Embedded Direct-Mode Integration Pattern
+
+`EngineProvider` supports an **embedded direct-mode** configuration for use inside host pages where the engine must not create a scroll spacer, must not read `window.scrollY`, and must instead be driven imperatively via `setRawProgress`. This is a general-purpose pattern available to any host application.
+
+**Requirements for embedded direct-mode operation:**
+
+1. **`inputModePolicy="prefer-direct"`** — Requests direct mode. Alone, this does _not_ activate direct mode — the engine falls back to scroll if no `<InputController>` is present in any scene.
+
+2. **Empty `<InputController>` in the scene tree** — The scene DSL must include at least one `<InputController>` (with no `<Action>` children) inside a `<Scene>`. This is the condition that `inputModePolicy="prefer-direct"` checks before switching to direct mode. A host may inject this automatically or require the scene author to include it explicitly.
+
+3. **`scrollHeightPx={0}`** — Suppresses the scroll spacer element. Even in direct mode, the engine renders a spacer defaulting to viewport height. Pass `scrollHeightPx={0}` to eliminate it when the engine is embedded inside a host that manages its own scroll.
+
+4. **`setRawProgress`** — Call `setRawProgress(value)` (obtained from `useSceneEngine`) to imperatively push progress into the engine. The engine enters "push" mode on first call; subsequent `window.scrollY` reads are ignored until `scrollToProgress` relinquishes control.
+
+**Minimal example:**
+```tsx
+<EngineProvider
+  manifestUrl={manifestUrl}
+  plugins={plugins}
+  inputModePolicy="prefer-direct"
+  scrollHeightPx={0}
+>
+  <Scene id="my-scene">
+    <InputController /> {/* empty — satisfies hasSceneInputController */}
+    {/* scene content */}
+  </Scene>
+  <SceneCanvas />
+  <EngineARContainer>
+    <EngineOverlayHost />
+    <EngineInputRegion />
+  </EngineARContainer>
+</EngineProvider>
+```
+
+**Do not** render `<EngineInputRegion>` outside the `<EngineARContainer>` in an embedded configuration — it would register pointer/wheel handlers against the wrong viewport bounds and interfere with the host page's own scroll.
+
+**Note on `@brewsite/docs`:** The docs application no longer uses the embedded direct-mode pattern per demo section. As of 2026-03-05, `@brewsite/docs` uses a single app-level `EngineProvider` in standard scroll mode, driven by `ScrollCaptureSection` reading `window.scrollY`. All 34 demo scenes are authored in a single global `docs-scenes.tsx`. The per-demo `DemoEngine` and `DemoCaptureContext` components have been deleted.
+
 ---
 
 ## 7B. SceneProgressMapper
@@ -676,6 +745,18 @@ type UseSceneEngineResult = {
    * Typical use: pause when a modal opens, resume when it closes.
    */
   setAutoAdvancePaused: (paused: boolean) => void;
+  /**
+   * Imperatively pushes a raw progress value [0, 1] into the engine, bypassing
+   * `window.scrollY`. Switches the engine to "push" mode on first call. Subsequent
+   * scroll events are ignored until `scrollToProgress` is called to relinquish control.
+   *
+   * Reference is stable across renders (wrapped in `useCallback([])`). Safe to store
+   * in a ref or pass to a non-React callback without risk of stale closure.
+   *
+   * Useful for any host that drives engine progress imperatively (e.g., a slide player,
+   * an embedded demo, or a custom scroll driver). See Section 7A.6.
+   */
+  setRawProgress: (raw: number) => void;
   debug?: {
     driverReady: boolean;
     assetsReady: boolean;
@@ -714,6 +795,8 @@ type UseSceneEngineResult = {
 **`setCameraOverride` / `getCameraOverride`** — Set and get a `CameraOverrideState` that is applied by `CameraWidget` each frame, overriding the compiled camera state. Used by camera orbit/dolly interaction handlers.
 
 **`setAutoAdvancePaused(paused)`** — Pauses or resumes idle auto-advance for all scenes in this engine instance. Instance-scoped: does not affect other `EngineProvider` instances on the same page. When `paused: true`, the auto-advance clock is frozen regardless of idle state; when `paused: false`, the clock resumes from where it stopped. Use this to pause auto-advance while a modal or overlay is open, then resume when it closes.
+
+**`setRawProgress(raw)`** — Imperatively pushes a raw progress value `[0, 1]` into the engine, bypassing `window.scrollY`. Puts the engine in "push" mode on first call; subsequent scroll events are ignored until `scrollToProgress` is called to relinquish control. The reference is stable across renders — it is safe to capture once and call from a non-React callback. The primary consumer is `DemoCaptureContext` in `@brewsite/docs`, which registers this function during `DocsDemo` mount and calls it with normalized wheel deltas to drive the embedded `DemoEngine` from scroll gestures captured inside the demo viewport.
 
 **`debug`** — Development diagnostic object. Contains `driverReady`, `assetsReady`, `sceneTrackTicks`, and viewport dimensions. Used internally by `EngineProvider` to publish `SceneRuntimeState` to the `ScenePlayerRegistry`. Not intended for direct use by consumers.
 

@@ -85,7 +85,6 @@ export class BackgroundWidget
     }
     if (props.imageUrl !== undefined)        state.imageUrl = props.imageUrl;
     if (props.opacity !== undefined)         state.opacity = props.opacity;
-    if (props.position !== undefined)        state.position = props.position;
     if (props.cssPosition !== undefined)     state.cssPosition = String(props.cssPosition);
     if (props.cssSize !== undefined)         state.cssSize = String(props.cssSize);
     if (props.cssRepeat !== undefined)       state.cssRepeat = props.cssRepeat;

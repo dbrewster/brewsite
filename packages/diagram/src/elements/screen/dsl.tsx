@@ -13,8 +13,31 @@ export interface ScreenProps {
    * Best for your own apps, localhost, or iframe-friendly sites.
    */
   src: string;
-  /** World-space position [x, y, z]. Default: [0, 0, 0] */
-  position?: [number, number, number];
+  /**
+   * NVS horizontal center position [0..1]. 0 = left edge, 1 = right edge.
+   * Default: 0.5 (horizontally centered).
+   */
+  x?: number;
+  /**
+   * NVS vertical center position [0..1]. 0 = top edge, 1 = bottom edge.
+   * Default: 0.5 (vertically centered).
+   */
+  y?: number;
+  /**
+   * World-space depth (Z) of the screen center.
+   * Default: 0
+   */
+  z?: number;
+  /**
+   * NVS width fraction [0..1] — fraction of the AR container width.
+   * Default: 0.625 (approximately 12/19.2 of typical viewport width).
+   */
+  width?: number;
+  /**
+   * NVS height fraction [0..1] — fraction of the AR container height.
+   * Defaults to derive from width × 9/16 (16:9 aspect ratio).
+   */
+  height?: number;
   /**
    * World-space rotation in radians [x, y, z].
    * Keep near [0, 0, 0] — the iframe is a flat DOM rect and cannot tilt.
@@ -25,10 +48,6 @@ export interface ScreenProps {
   rotation?: [number, number, number];
   /** Uniform scale. Default: 1 */
   scale?: number;
-  /** Screen content width in world units. Default: 12 */
-  width?: number;
-  /** Screen content height in world units. Default: 7.5 (16:9 at width 12) */
-  height?: number;
   /** Bezel frame style. Default: 'dark' */
   bezel?: ScreenBezelVariant;
   /** Bezel thickness in world units. Default: 0.3 */

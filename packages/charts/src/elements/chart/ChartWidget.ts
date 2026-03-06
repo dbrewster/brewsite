@@ -9,6 +9,8 @@ import { DEFAULT_CHART_STATE } from './types';
 import type { ChartDataStore } from '../../data/ChartDataStore';
 import {
   SCENE_CAMERA_KEY,
+  nvsToWorldWithCamera,
+  nvsToWorldAnalytic,
 } from '@brewsite/core';
 import type {
   ISceneElement,
@@ -100,7 +102,14 @@ export class ChartWidget
       return;
     }
 
-    this.chartRenderer.update(state, this.widgetId);
+    // Convert NVS position to world-space using the live camera when available.
+    const cam = (this.scene.userData as Record<string, unknown>)[SCENE_CAMERA_KEY];
+    const isPerspCam = cam && typeof (cam as { fov?: unknown }).fov === 'number';
+    const worldPos = isPerspCam
+      ? nvsToWorldWithCamera(state.nvsX, state.nvsY, cam as { fov: number; aspect: number; position: { x: number; y: number; z: number } }, state.z)
+      : nvsToWorldAnalytic(state.nvsX, state.nvsY, 0, 0, 12.07, 45, 16 / 9, state.z);
+
+    this.chartRenderer.update({ ...state, position: worldPos }, this.widgetId);
 
     // Attach or detach DOM listeners based on interactive flag
     if (state.interactive && !this.mousemoveListener && this.rendererDom) {

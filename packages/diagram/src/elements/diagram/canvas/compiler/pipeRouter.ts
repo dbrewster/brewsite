@@ -2,12 +2,16 @@
 // Pure functions only — no Three.js, no React.
 
 import type { DiagramState } from '../../types';
+import type { NVSRect } from '@brewsite/core';
 import type { DiagramPipeState, PipeRoutingAlgorithm, PipeLandingAlgorithm } from '../types';
 import { routeCurvedWithEndpointNormals } from '../../compiler/curveKernel';
 
 type Vec3 = readonly [number, number, number];
 
-function rotateXYZ(v: Vec3, rx: number, ry: number, rz: number): Vec3 {
+/** Default canvas aspect ratio used at compile time (no camera available). */
+export const DEFAULT_CANVAS_ASPECT = 16 / 9;
+
+export function rotateXYZ(v: Vec3, rx: number, ry: number, rz: number): Vec3 {
   const cx = Math.cos(rx), sx = Math.sin(rx);
   const cy = Math.cos(ry), sy = Math.sin(ry);
   const cz = Math.cos(rz), sz = Math.sin(rz);
@@ -18,37 +22,50 @@ function rotateXYZ(v: Vec3, rx: number, ry: number, rz: number): Vec3 {
   ];
 }
 
-function nodeToCanvasSpace(
-  nodeLocalPos: Vec3,
-  diagramPos: Vec3,
-  diagramScale: number,
-  diagramRotation: Vec3,
+/**
+ * Converts a node's [0..1] NVS position within a diagram to canvas-local space.
+ * Applies the viewport-to-canvas mapping and tilt rotation.
+ *
+ * Canvas-local convention: center-origin, Y-up, X scaled by canvasAspect.
+ *
+ * @param nodeNvsPos   Node position in [0..1] diagram NVS
+ * @param viewportBounds  Diagram's viewport bounds within the canvas [0..1]
+ * @param tiltRotation Euler XYZ rotation for the diagram tilt effect
+ * @param canvasAspect Canvas aspect ratio (width / height in canvas units)
+ */
+export function nodeNvsToCanvasLocal(
+  nodeNvsPos: Vec3,
+  viewportBounds: NVSRect,
+  tiltRotation: Vec3,
+  canvasAspect: number,
 ): Vec3 {
-  const scaled: Vec3 = [
-    nodeLocalPos[0] * diagramScale,
-    nodeLocalPos[1] * diagramScale,
-    nodeLocalPos[2] * diagramScale,
-  ];
-  const rotated = rotateXYZ(scaled, diagramRotation[0], diagramRotation[1], diagramRotation[2]);
-  return [
-    rotated[0] + diagramPos[0],
-    rotated[1] + diagramPos[1],
-    rotated[2] + diagramPos[2],
-  ];
+  const vpX = viewportBounds.x + viewportBounds.w * nodeNvsPos[0];
+  const vpY = viewportBounds.y + viewportBounds.h * nodeNvsPos[1];
+  const localX = (vpX - 0.5) * canvasAspect;
+  const localY = -(vpY - 0.5);  // Y-flip: NVS y=0 top → canvas +Y
+  const localZ = nodeNvsPos[2];
+  return rotateXYZ([localX, localY, localZ], tiltRotation[0], tiltRotation[1], tiltRotation[2]);
 }
 
+/**
+ * Computes the side attachment point and outward normal for a node face,
+ * given the target position. Used to route pipe endpoints to the left/right
+ * face of each node rather than through the front-face icons and labels.
+ *
+ * All coordinates are in canvas-local space (center-origin, Y-up).
+ */
 export function sideAttachmentPoint(
-  nodeLocalPos: Vec3,
+  nodeNvsPos: Vec3,
   nodeSize: readonly [number, number],
   nodeDepth: number,
-  diagramPos: Vec3,
-  diagramScale: number,
-  diagramRotation: Vec3,
+  viewportBounds: NVSRect,
+  tiltRotation: Vec3,
+  canvasAspect: number,
   targetPos: Vec3,
 ): { point: Vec3; normal: Vec3 } {
-  const [cx, cy, cz] = nodeToCanvasSpace(nodeLocalPos, diagramPos, diagramScale, diagramRotation);
+  const [cx, cy, cz] = nodeNvsToCanvasLocal(nodeNvsPos, viewportBounds, tiltRotation, canvasAspect);
 
-  const [rx, ry, rz] = diagramRotation;
+  const [rx, ry, rz] = tiltRotation;
   const localXinCanvas = rotateXYZ([1, 0, 0], rx, ry, rz);
   const localYinCanvas = rotateXYZ([0, 1, 0], rx, ry, rz);
   const localZinCanvas = rotateXYZ([0, 0, 1], rx, ry, rz);
@@ -59,9 +76,11 @@ export function sideAttachmentPoint(
   const localDz = delta[0] * localZinCanvas[0] + delta[1] * localZinCanvas[1] + delta[2] * localZinCanvas[2];
   const side = localDx >= 0 ? 1 : -1;
 
-  const halfW = (nodeSize[0] / 2) * diagramScale;
-  const halfH = (nodeSize[1] / 2) * diagramScale;
-  const halfD = (nodeDepth / 2) * diagramScale;
+  // Canvas-local half-extents derived from NVS size fractions + viewport bounds
+  const halfW = nodeSize[0] * viewportBounds.w * canvasAspect / 2;
+  const halfH = nodeSize[1] * viewportBounds.h / 2;
+  const halfD = nodeDepth / 2;
+
   const absDx = Math.max(Math.abs(localDx), 1e-6);
   const rayScale = halfW / absDx;
   const localYOnFace = Math.max(-halfH, Math.min(halfH, localDy * rayScale));
@@ -151,29 +170,27 @@ export function rerouteLivePipes(
         fromNode.position,
         fromNode.size,
         fromNode.thickness,
-        fromDiagram.position,
-        fromDiagram.scale,
-        fromDiagram.rotation,
-        nodeToCanvasSpace(toNode.position, toDiagram.position, toDiagram.scale, toDiagram.rotation),
+        fromDiagram.viewportBounds,
+        fromDiagram.tiltRotation,
+        DEFAULT_CANVAS_ASPECT,
+        nodeNvsToCanvasLocal(toNode.position, toDiagram.viewportBounds, toDiagram.tiltRotation, DEFAULT_CANVAS_ASPECT),
       );
       const toAttach = sideAttachmentPoint(
         toNode.position,
         toNode.size,
         toNode.thickness,
-        toDiagram.position,
-        toDiagram.scale,
-        toDiagram.rotation,
-        nodeToCanvasSpace(fromNode.position, fromDiagram.position, fromDiagram.scale, fromDiagram.rotation),
+        toDiagram.viewportBounds,
+        toDiagram.tiltRotation,
+        DEFAULT_CANVAS_ASPECT,
+        nodeNvsToCanvasLocal(fromNode.position, fromDiagram.viewportBounds, fromDiagram.tiltRotation, DEFAULT_CANVAS_ASPECT),
       );
       result.set(pipe.id, routePipe(fromAttach.point, toAttach.point, fromAttach.normal, toAttach.normal, routing));
     } else {
-      const fromWorld = nodeToCanvasSpace(fromNode.position, fromDiagram.position, fromDiagram.scale, fromDiagram.rotation);
-      const toWorld = nodeToCanvasSpace(toNode.position, toDiagram.position, toDiagram.scale, toDiagram.rotation);
+      const fromWorld = nodeNvsToCanvasLocal(fromNode.position, fromDiagram.viewportBounds, fromDiagram.tiltRotation, DEFAULT_CANVAS_ASPECT);
+      const toWorld = nodeNvsToCanvasLocal(toNode.position, toDiagram.viewportBounds, toDiagram.tiltRotation, DEFAULT_CANVAS_ASPECT);
       result.set(pipe.id, routePipe(fromWorld, toWorld, undefined, undefined, routing));
     }
   }
 
   return result;
 }
-
-export { rotateXYZ };

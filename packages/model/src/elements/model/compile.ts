@@ -316,7 +316,9 @@ const blendParts = (
 export const modelTransitionSpec = {
   exit: (from: SceneModel, t: number): SceneModel => ({
     ...from,
-    position: from.position,
+    nvsX: from.nvsX,
+    nvsY: from.nvsY,
+    z: from.z,
     rotation: from.rotation,
     scale: from.scale,
     opacity: blendOpacity(from.opacity ?? 1, 0, t),
@@ -339,7 +341,9 @@ export const modelTransitionSpec = {
   interpolate: (from: SceneModel, to: SceneModel, t: number): SceneModel => ({
     ...from,
     ...to,
-    position: blendVec3(from.position, to.position, t) ?? to.position ?? from.position,
+    nvsX: blendNumber(from.nvsX, to.nvsX, t) ?? to.nvsX ?? from.nvsX,
+    nvsY: blendNumber(from.nvsY, to.nvsY, t) ?? to.nvsY ?? from.nvsY,
+    z: blendNumber(from.z, to.z, t) ?? to.z ?? from.z,
     rotation: blendVec3(from.rotation, to.rotation, t) ?? to.rotation ?? from.rotation,
     scale: blendNumber(from.scale, to.scale, t) ?? to.scale ?? from.scale,
     opacity: blendOpacity(from.opacity ?? 1, to.opacity ?? 1, t),

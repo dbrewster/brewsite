@@ -1,13 +1,16 @@
 // ScreenWidget — implements ISceneElement<ScreenState> + IRenderable.
+// Converts NVS position (nvsX, nvsY, z) to world-space before passing to ScreenRenderer.
 
-import type * as THREE from 'three';
+import * as THREE from 'three';
 import type { IRenderable, ISceneElement, WidgetInitContext, WidgetRenderContext } from '@brewsite/core';
+import { nvsToWorldWithCamera, computeWorldDimensionsFromCamera } from '@brewsite/core';
 import { Screen } from './dsl';
 import { functionalScreenTransitionSpec } from './compile';
 import { ScreenRenderer } from './render';
 import type { ScreenState } from './types';
 
 const OVERLAY_ATTR = 'data-brewsite-screen-overlay';
+const CAMERA_KEY = '__brewsite_camera';
 
 export class ScreenWidget implements ISceneElement<ScreenState>, IRenderable<ScreenState> {
   readonly widgetId: string;
@@ -33,14 +36,31 @@ export class ScreenWidget implements ISceneElement<ScreenState>, IRenderable<Scr
 
   apply(state: ScreenState, _ctx: WidgetRenderContext): void {
     if (!this.scene || !this.renderer) return;
-    const camera = this.scene.userData['__brewsite_camera'] as THREE.Camera | undefined;
+    const camera = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
     const canvas = this.webglRenderer?.domElement ?? null;
     if (!camera || !canvas) {
       console.warn(`ScreenWidget(${this.widgetId}): missing camera or canvas for iframe projection.`);
       return;
     }
+
+    // Convert NVS position to world-space.
+    const worldPos = nvsToWorldWithCamera(state.nvsX, state.nvsY, camera, state.z);
+
+    // Convert NVS width/height fractions to world units.
+    const { worldWidth: ww, worldHeight: wh } = computeWorldDimensionsFromCamera(camera, state.z);
+    const worldWidth = state.nvsWidth * ww;
+    // For height: if nvsHeight is provided use it; otherwise derive from 16:9.
+    const worldHeight = state.nvsHeight !== undefined
+      ? state.nvsHeight * wh
+      : worldWidth * (9 / 16);
+
     const rect = canvas.getBoundingClientRect();
-    this.renderer.update(state, this.scene, camera, rect);
+    this.renderer.update({
+      ...state,
+      position: worldPos,
+      width: worldWidth,
+      height: worldHeight,
+    }, this.scene, camera, rect);
   }
 
   dispose(): void {
@@ -71,3 +91,4 @@ export class ScreenWidget implements ISceneElement<ScreenState>, IRenderable<Scr
     return overlay;
   }
 }
+

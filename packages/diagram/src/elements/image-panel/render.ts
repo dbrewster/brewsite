@@ -1,17 +1,32 @@
 // Three.js rendering for ImagePanelState.
 // WebGL only — no React.
+// Accepts ImagePanelRenderInput (world-space position + dimensions) computed by the widget layer.
 
 import * as THREE from 'three';
 import type { ImagePanelState } from './types';
 import { createBezel, disposeBezel } from '../_shared/bezelGeometry';
 import { createGlow, disposeGlowSprite } from '../_shared/glowSprite';
 
+/**
+ * World-space render input for ImagePanelRenderer.
+ * Produced by ImagePanelWidget.apply() by converting NVS fields to world-space.
+ * Never exported — internal to the image-panel element.
+ */
+export type ImagePanelRenderInput = Omit<ImagePanelState, 'nvsX' | 'nvsY' | 'z' | 'nvsWidth' | 'nvsHeight'> & {
+  /** World-space position of the panel center [x, y, z]. */
+  readonly position: readonly [number, number, number];
+  /** Panel display width in world units. */
+  readonly width: number;
+  /** Panel height in world units. Undefined = compute from image aspect ratio. */
+  readonly height: number | undefined;
+};
+
 type PanelEntry = {
   group: THREE.Group;
   imageMesh: THREE.Mesh;
   bezelGroup: THREE.Group;
   glowSprite?: THREE.Sprite;
-  lastState?: ImagePanelState;
+  lastState?: ImagePanelRenderInput;
 };
 
 const textureLoader = new THREE.TextureLoader();
@@ -30,9 +45,9 @@ const loadTexture = (src: string, onLoad: (texture: THREE.Texture) => void): voi
 
 export class ImagePanelRenderer {
   private panels = new Map<string, PanelEntry>();
-  private lastState = new Map<string, ImagePanelState>();
+  private lastState = new Map<string, ImagePanelRenderInput>();
 
-  update(state: ImagePanelState, scene: THREE.Scene): void {
+  update(state: ImagePanelRenderInput, scene: THREE.Scene): void {
     const prev = this.lastState.get(state.id);
     let entry = this.panels.get(state.id);
     if (!entry) {
@@ -74,8 +89,6 @@ export class ImagePanelRenderer {
           const height = state.width / Math.max(0.0001, aspect);
           this.updateGeometry(entry!, state.width, height);
           // Rebuild bezel to match the texture's natural aspect ratio.
-          // The synchronous update() path used a guess (state.width/1.6) as
-          // fallbackHeight; now that we know the real height, we correct it.
           disposeBezel(entry!.bezelGroup);
           entry!.group.remove(entry!.bezelGroup);
           entry!.bezelGroup = createBezel(state.bezel, state.width, height, state.bezelThickness);
@@ -139,7 +152,7 @@ export class ImagePanelRenderer {
     this.lastState.delete(panelId);
   }
 
-  private createPanel(state: ImagePanelState): PanelEntry {
+  private createPanel(state: ImagePanelRenderInput): PanelEntry {
     const geometry = new THREE.PlaneGeometry(state.width, state.height ?? state.width / 1.6);
     const material = new THREE.MeshPhysicalMaterial({
       color: 0x1a1a1a,

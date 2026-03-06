@@ -3,8 +3,14 @@ title: "BrewSite Core — Scene Authoring DSL"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-04
+last_updated: 2026-03-05
 change_history:
+  - date: 2026-03-05
+    author: "Toolkit Product"
+    summary: "Embedded demo integration: documented the empty <InputController> behavior in Section 7.5. Clarified that an empty <InputController> (no <Action> children) is valid and sets hasSceneInputController=true, which is the condition inputModePolicy='prefer-direct' checks before activating direct mode. This is the mechanism DemoEngine from @brewsite/docs uses to prevent its embedded engine from creating a scroll spacer."
+  - date: 2026-03-05
+    author: "Toolkit Product"
+    summary: "Updated empty <InputController> description in Section 7.5: removed reference to DemoEngine (deleted in unified-scroll refactor). The mechanism is unchanged — empty <InputController> sets hasSceneInputController=true enabling inputModePolicy='prefer-direct'. Reference updated to be general (any host using prefer-direct) rather than specific to the deleted DemoEngine component."
   - date: 2026-03-04
     author: "Toolkit Product"
     summary: "NVS system: raw JSX children pattern removed from <Scene>. SceneFrame.sceneOverlay field removed. Overlay content is now authored exclusively via the <TextBox> DSL element. Scene component signature updated: children no longer accepts HTML elements or non-registered React components. TextBox DSL element added to Section 7.5 Built-in DSL Elements. Functional requirement 11 updated to reflect removal. Section 7.2 Scene DSL Component comment updated."
@@ -394,6 +400,7 @@ The following DSL components are available at the `<Scene>` level. Each is a nul
 - Props: `id` (optional, defaults to `'main'`), `scope` (`'canvas'` | `'window'`, defaults to `'canvas'`), `children`.
 - Only one `<InputController>` per `<Scene>` is permitted. A duplicate throws at compile time.
 - Children must be `<Action>` elements.
+- An **empty `<InputController>`** (no `<Action>` children) is valid and has a critical runtime effect: it signals `hasSceneInputController = true`, which is the condition `EngineProvider`'s `inputModePolicy="prefer-direct"` checks before switching to direct mode. Without this signal, `prefer-direct` falls back to scroll mode regardless of the prop value. Any host using the embedded direct-mode pattern (see `prd_player_runtime.md` Section 7A.6) must ensure an empty `<InputController>` is present in at least one scene.
 
 **`<Action>`** — A single named input action within `<InputController>`.
 - Required props: `id` (string), `type` (string — one of the `InputActionType` values).

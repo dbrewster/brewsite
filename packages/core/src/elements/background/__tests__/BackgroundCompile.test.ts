@@ -177,7 +177,6 @@ describe('background compile + render', () => {
       cssPosition: 'center',
       cssSize: 'cover',
       cssRepeat: 'no-repeat',
-      position: [1, 2, 3],
     };
     applyBackground(state, refs);
     const styles = refs.element.style as unknown as Record<string, string>;
@@ -186,7 +185,6 @@ describe('background compile + render', () => {
     expect(styles.backgroundPosition).toBe('center');
     expect(styles.backgroundSize).toBe('cover');
     expect(styles.backgroundRepeat).toBe('no-repeat');
-    expect(styles.transform).toContain('translate3d(1px, 2px, 3px)');
   });
 
   it('applyBackground sets element.style.background when gradient is set', () => {

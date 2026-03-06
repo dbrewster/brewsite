@@ -9,8 +9,31 @@ export interface ImagePanelProps {
   id: string;
   /** Public asset URL for the image. E.g. '/screenshots/homepage.png' */
   src: string;
-  /** World-space position [x, y, z]. Default: [0, 0, 0] */
-  position?: [number, number, number];
+  /**
+   * NVS horizontal center position [0..1]. 0 = left edge, 1 = right edge.
+   * Default: 0.5 (horizontally centered).
+   */
+  x?: number;
+  /**
+   * NVS vertical center position [0..1]. 0 = top edge, 1 = bottom edge.
+   * Default: 0.5 (vertically centered).
+   */
+  y?: number;
+  /**
+   * World-space depth (Z) of the panel center.
+   * Default: 0
+   */
+  z?: number;
+  /**
+   * NVS width fraction [0..1] — fraction of the AR container width.
+   * Default: 0.6 (60% of viewport width).
+   */
+  width?: number;
+  /**
+   * NVS height fraction [0..1] — fraction of the AR container height.
+   * Computed from image aspect ratio if omitted.
+   */
+  height?: number;
   /**
    * World-space rotation in radians [x, y, z].
    * Fully supported — this is pure WebGL. Tilt freely.
@@ -19,10 +42,6 @@ export interface ImagePanelProps {
   rotation?: [number, number, number];
   /** Uniform scale. Default: 1 */
   scale?: number;
-  /** Panel width in world units. Default: 12 */
-  width?: number;
-  /** Panel height in world units. Computed from image aspect ratio if omitted. */
-  height?: number;
   /** Bezel frame style. Default: 'dark' */
   bezel?: ImagePanelBezelVariant;
   /** Bezel thickness in world units. Default: 0.3 */

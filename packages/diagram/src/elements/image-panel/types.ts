@@ -26,8 +26,23 @@ export interface ImagePanelState {
    */
   readonly src: string;
 
-  /** World-space position of the panel center [x, y, z] */
-  readonly position: readonly [number, number, number];
+  /**
+   * NVS horizontal center position [0..1]. 0 = left edge, 1 = right edge.
+   * Converted to world-space X at render time using the active camera.
+   */
+  readonly nvsX: number;
+
+  /**
+   * NVS vertical center position [0..1]. 0 = top edge, 1 = bottom edge.
+   * Converted to world-space Y at render time (Y-flip applied in widget layer).
+   */
+  readonly nvsY: number;
+
+  /**
+   * World-space depth (Z) of the panel center. Default: 0.
+   * Kept as world-space because it controls the 3D depth position.
+   */
+  readonly z: number;
 
   /**
    * World-space rotation in radians [x, y, z] (Euler XYZ order).
@@ -40,17 +55,16 @@ export interface ImagePanelState {
   readonly scale: number;
 
   /**
-   * Panel display width in world units. Default: 12
-   * Height is derived from the image's aspect ratio unless `height` is also provided.
+   * NVS width fraction [0..1] — fraction of the AR container width.
+   * Converted to world-space width at render time. Default: 0.6
    */
-  readonly width: number;
+  readonly nvsWidth: number;
 
   /**
-   * Explicit panel height override in world units.
-   * If undefined, height = width / imageAspectRatio (computed after texture loads).
-   * Provide this when the aspect ratio is known at author time to avoid layout shift.
+   * NVS height fraction [0..1] — fraction of the AR container height.
+   * If undefined, derived from nvsWidth × image aspect ratio at texture load time.
    */
-  readonly height: number | undefined;
+  readonly nvsHeight: number | undefined;
 
   /** Bezel frame visual style. Default: 'dark' */
   readonly bezel: ImagePanelBezelVariant;
@@ -112,11 +126,18 @@ export interface ImagePanelState {
 export interface ImagePanelDSL {
   readonly id: string;
   readonly src: string;
-  readonly position?: readonly [number, number, number];
+  /** NVS center X [0..1]. Default: 0.5 */
+  readonly x?: number;
+  /** NVS center Y [0..1]. Default: 0.5 */
+  readonly y?: number;
+  /** World-space depth (Z). Default: 0 */
+  readonly z?: number;
+  /** NVS width fraction [0..1]. Default: 0.6 */
+  readonly width?: number;
+  /** NVS height fraction [0..1]. Derived from aspect ratio if omitted. */
+  readonly height?: number;
   readonly rotation?: readonly [number, number, number];
   readonly scale?: number;
-  readonly width?: number;
-  readonly height?: number;
   readonly bezel?: ImagePanelBezelVariant;
   readonly bezelThickness?: number;
   readonly opacity?: number;

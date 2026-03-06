@@ -1,13 +1,9 @@
-// Renders TextBox overlays above the canvas, sourced from VariableStore and the
-// shared TextBox children map. Position as a sibling of SceneCanvas inside a
-// position:relative container.
+// Renders scene overlay content above the canvas, sourced from compiled sceneOverlays.
+// Position as a sibling of SceneCanvas inside a position:relative container.
 
-import { useContext, useEffect, type CSSProperties, type ReactElement } from 'react';
-import { useEngineState } from './EngineStateContext';
+import { useEffect, type CSSProperties, type ReactElement } from 'react';
 import { useTheme } from '../theme/ThemeContext';
-import { VariableStoreContext } from '../widget/VariableStoreContext';
-import { useTextBoxChildren } from './TextBoxChildrenContext';
-import { TEXTBOX_NAMESPACE } from '../elements/text-box';
+import { useSceneEngineContext } from './EngineContext';
 
 // Inject the entry animation keyframe once per document (global scope, runs once on load).
 // This is the standard library pattern for component-scoped global animations.
@@ -36,85 +32,20 @@ export interface EngineOverlayHostProps {
   };
 }
 
-/**
- * Computes CSS style for a TextBox with anchor='viewport'.
- * Uses position:fixed to escape the AR container and pin to a viewport edge.
- */
-function computeViewportAnchorStyle(
-  edge: string | undefined,
-  inset: number,
-  opacity: number,
-  layer: number,
-  overflow: string,
-): CSSProperties {
-  const insetPercent = `${inset * 100}%`;
-  switch (edge) {
-    case 'top':
-      return {
-        position: 'fixed',
-        top: insetPercent,
-        left: 0,
-        right: 0,
-        opacity,
-        overflow: overflow as 'hidden' | 'visible',
-        zIndex: layer,
-      };
-    case 'bottom':
-      return {
-        position: 'fixed',
-        bottom: insetPercent,
-        left: 0,
-        right: 0,
-        opacity,
-        overflow: overflow as 'hidden' | 'visible',
-        zIndex: layer,
-      };
-    case 'left':
-      return {
-        position: 'fixed',
-        left: insetPercent,
-        top: 0,
-        bottom: 0,
-        opacity,
-        overflow: overflow as 'hidden' | 'visible',
-        zIndex: layer,
-      };
-    case 'right':
-      return {
-        position: 'fixed',
-        right: insetPercent,
-        top: 0,
-        bottom: 0,
-        opacity,
-        overflow: overflow as 'hidden' | 'visible',
-        zIndex: layer,
-      };
-    default:
-      return {
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        opacity,
-        overflow: overflow as 'hidden' | 'visible',
-        zIndex: layer,
-      };
-  }
-}
-
 export const EngineOverlayHost = ({
   className,
   passthroughPointerEvents = false,
   overlayTransition,
 }: EngineOverlayHostProps): ReactElement | null => {
-  const { sceneId } = useEngineState();
+  const engine = useSceneEngineContext();
   const theme = useTheme();
-  const variableStore = useContext(VariableStoreContext);
-  const childrenMap = useTextBoxChildren();
 
   useEffect(() => {
     injectOverlayAnimation();
   }, []);
+
+  const sceneId = engine.frameState.sceneId;
+  const overlay = engine.sceneOverlays?.get(sceneId);
 
   const transitionEnabled = overlayTransition?.enabled ?? true;
   const transitionDurationMs = overlayTransition?.durationMs ?? 200;
@@ -142,64 +73,6 @@ export const EngineOverlayHost = ({
     ...(theme.accentColor ? { '--brewsite-accent-color': theme.accentColor } : {}),
   } as CSSProperties) : {};
 
-  // Collect all TextBox widget IDs currently registered in the VariableStore.
-  // Pattern: namespace '__textbox', keys like 'widgetId.x', 'widgetId.y', etc.
-  // We collect distinct widgetIds by splitting each key on the first '.'.
-  const nsEntries = variableStore?.getNamespace(TEXTBOX_NAMESPACE) ?? {};
-  const widgetIds = new Set<string>();
-  for (const key of Object.keys(nsEntries)) {
-    const dotIdx = key.indexOf('.');
-    if (dotIdx > 0) widgetIds.add(key.slice(0, dotIdx));
-  }
-
-  // Render each TextBox as a positioned div inside the overlay container.
-  const textBoxElements = Array.from(widgetIds).map((widgetId) => {
-    const get = (k: string) => nsEntries[`${widgetId}.${k}`];
-    const anchor = (get('anchor') as string | null | undefined) ?? 'scene';
-    const opacity = Number(get('opacity') ?? 1);
-    const layer = Number(get('layer') ?? 0);
-    const overflow = (get('overflow') as string | null | undefined) ?? 'hidden';
-    const children = childrenMap.get(widgetId);
-
-    if (anchor === 'viewport') {
-      const edge = get('edge') as string | null | undefined;
-      const inset = Number(get('inset') ?? 0);
-      const viewportStyle = computeViewportAnchorStyle(
-        edge ?? undefined,
-        inset,
-        opacity,
-        layer,
-        overflow,
-      );
-      return (
-        <div key={widgetId} style={viewportStyle}>
-          {children}
-        </div>
-      );
-    }
-
-    // anchor === 'scene' — NVS percentage positioning relative to the AR container
-    const x = Number(get('x') ?? 0);
-    const y = Number(get('y') ?? 0);
-    const w = Number(get('w') ?? 1);
-    const h = Number(get('h') ?? 1);
-    const sceneStyle: CSSProperties = {
-      position: 'absolute',
-      left: `${x * 100}%`,
-      top: `${y * 100}%`,
-      width: `${w * 100}%`,
-      height: `${h * 100}%`,
-      opacity,
-      overflow: overflow as 'hidden' | 'visible',
-      zIndex: layer,
-    };
-    return (
-      <div key={widgetId} style={sceneStyle}>
-        {children}
-      </div>
-    );
-  });
-
   return (
     <div
       key={sceneId}                   // unmount + remount on scene change → CSS enter animation
@@ -215,7 +88,7 @@ export const EngineOverlayHost = ({
         ...themeStyles,
       }}
     >
-      {textBoxElements}
+      {overlay}
     </div>
   );
 };

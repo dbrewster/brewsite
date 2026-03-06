@@ -43,7 +43,9 @@ vi.mock('../ModelRenderer', () => {
 const makeIdentity = (): SceneModelInstanceState => ({
   model: {
     scale: 0.1,
-    position: [0, 0, 0],
+    nvsX: 0.5,
+    nvsY: 0.5,
+    z: 0,
     rotation: [0, 0, 0],
     enabled: true,
     bodyPartOverrides: {},
@@ -313,7 +315,7 @@ describe('ModelWidget', () => {
     const widget = new ModelWidget(makeConfig('bot'));
     const prev = {
       ...widget.defaultState,
-      model: { ...widget.defaultState.model, scale: 2, position: [1, 0, 0] },
+      model: { ...widget.defaultState.model, scale: 2, nvsX: 0.2 },
       playback: {
         ...widget.defaultState.playback,
         animation: { ...widget.defaultState.playback.animation, clipName: 'idle', enabled: true },
@@ -322,7 +324,8 @@ describe('ModelWidget', () => {
     };
     const next: SceneModelInstanceState & { __authored?: unknown } = {
       ...widget.defaultState,
-      model: { ...widget.defaultState.model, reset: true, scale: 3, position: [9, 0, 0] },
+      model: { ...widget.defaultState.model, reset: true, scale: 3 },
+      nvsBounds: { x: 0.3, y: 0.1, w: 0.4, h: 0.8 },
       playback: {
         ...widget.defaultState.playback,
         animation: { ...widget.defaultState.playback.animation, clipName: 'run', enabled: false, reset: true },
@@ -330,14 +333,16 @@ describe('ModelWidget', () => {
       },
       enabled: true,
       __authored: {
-        model: { reset: true, scale: true, position: true },
+        model: { reset: true, scale: true },
         playback: { reset: true, animation: { reset: true, clipName: true, enabled: true } },
         enabled: true,
       },
     };
     const merged = widget.mergeSnapshot(prev, next) as SceneModelInstanceState;
     expect(merged.model.scale).toBe(3);
-    expect(merged.model.position).toEqual([9, 0, 0]);
+    // nvsX/nvsY derived from merged nvsBounds: x=0.3 + w=0.4/2 = 0.5, y=0.1 + h=0.8/2 = 0.5
+    expect(merged.model.nvsX).toBeCloseTo(0.5, 5);
+    expect(merged.model.nvsY).toBeCloseTo(0.5, 5);
     expect(merged.playback.animation.clipName).toBe('run');
     expect(merged.enabled).toBe(true);
   });

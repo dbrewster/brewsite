@@ -8,6 +8,8 @@ const SidecarNotePage = lazy(() => import('./brewflow-sidecar/SidecarNotePage'))
 const MemorySubsystemPage = lazy(() => import('./brewflow-memory/MemorySubsystemPage'));
 const ComparisonPage = lazy(() => import('./brewflow-comparison/ComparisonPage'));
 const MultiUserPage = lazy(() => import('./brewflow-multiuser/MultiUserPage'));
+const SlidesDemoPage = lazy(() => import('./slides-demo/SlidesDemoPage'));
+const WhiteboardArchPage = lazy(() => import('./whiteboard-arch/WhiteboardArchPage'));
 
 function Loading(): JSX.Element {
   return <div style={{ padding: '2rem' }}>Loading example...</div>;
@@ -23,6 +25,8 @@ export default function ExamplesApp(): JSX.Element {
         <Route path="/brewflow-memory" element={<MemorySubsystemPage />} />
         <Route path="/brewflow-comparison" element={<ComparisonPage />} />
         <Route path="/brewflow-multiuser" element={<MultiUserPage />} />
+        <Route path="/slides-demo" element={<SlidesDemoPage />} />
+        <Route path="/whiteboard-arch" element={<WhiteboardArchPage />} />
         <Route
           path="/"
           element={
@@ -35,6 +39,8 @@ export default function ExamplesApp(): JSX.Element {
                 <li><a href="/examples/brewflow-comparison">Memory Systems Compared: claude-flow vs BrewFlow</a></li>
                 <li><a href="/examples/brewflow-sidecar">BrewFlow Memory Sidecar</a></li>
                 <li><a href="/examples/brewflow-multiuser">BrewFlow Memory at Scale: Multi-User Cloud Architecture</a></li>
+                <li><a href="/examples/slides-demo">Slides Demo — @brewsite/slides</a></li>
+                <li><a href="/examples/whiteboard-arch">Whiteboard Architecture</a></li>
               </ul>
             </div>
           }

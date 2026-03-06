@@ -19,6 +19,6 @@
     "strict": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
+  "include": ["src", "../../packages/core/src/types/process.d.ts"],
   "exclude": ["node_modules", "dist", "**/__tests__/**", "**/*.test.*"]
 }

@@ -3,8 +3,11 @@ title: "BrewSite Core — Compiler Pipeline"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-04
+last_updated: 2026-03-05
 change_history:
+  - date: 2026-03-05
+    author: "Toolkit Product"
+    summary: "@brewsite/slides integration: added sceneProgress?: number as an optional field to SceneTrackTick (sceneTrackTypes.ts). Semantics: equals blockProgress for all non-terminal ticks; equals 1 for the terminal tick of the final scene (correct within-scene progress coordinate). Populated by sceneTrackCompiler.ts during the frame-allocation pass. The field is optional and backward-compatible — consumers that read it default to blockProgress when absent. Used by SlideMetaWidget (in @brewsite/slides) to compute visibleBullets for animated bullet reveals without inflating scene count. No change to SceneTrack structure or any other compiler types."
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents the full compiler pipeline for @brewsite/core including DSL evaluation, SceneTrack baking, transition specs (discrete and functional), HUD/label compilation, delta computation, caching, and the sampler."

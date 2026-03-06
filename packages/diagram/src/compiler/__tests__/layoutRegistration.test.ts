@@ -81,9 +81,9 @@ describe('Diagram layout DSL component registration — behavioral regression', 
     expect(nodeA).toBeDefined();
     expect(nodeC).toBeDefined();
 
-    // columns=2: a,b in row 0; c,d in row 1 → c.y < a.y
+    // columns=2: a,b in row 0 (NVS top); c,d in row 1 → c.y > a.y (NVS Y-down)
     // columns=4 (dropped fallback): a,b,c,d all in row 0 → c.y == a.y
-    expect(nodeC.position[1]).toBeLessThan(nodeA.position[1]);
+    expect(nodeC.position[1]).toBeGreaterThan(nodeA.position[1]);
   });
 
   // ─── Test 2: FlowLayout ────────────────────────────────────────────────────
@@ -118,9 +118,9 @@ describe('Diagram layout DSL component registration — behavioral regression', 
     expect(nodeA.position[0]).toBeCloseTo(nodeB.position[0]);
     expect(nodeA.position[0]).toBeCloseTo(nodeC.position[0]);
 
-    // Also verify y decreases (nodes stack downward in top-down flow)
-    expect(nodeB.position[1]).toBeLessThan(nodeA.position[1]);
-    expect(nodeC.position[1]).toBeLessThan(nodeB.position[1]);
+    // Also verify y increases (NVS Y-down: lower on screen = higher y value)
+    expect(nodeB.position[1]).toBeGreaterThan(nodeA.position[1]);
+    expect(nodeC.position[1]).toBeGreaterThan(nodeB.position[1]);
   });
 
   // ─── Test 3: HierarchicalLayout ────────────────────────────────────────────
@@ -148,9 +148,9 @@ describe('Diagram layout DSL component registration — behavioral regression', 
     expect(nodeA).toBeDefined();
     expect(nodeB).toBeDefined();
 
-    // HierarchicalLayout top-down: b is child of a → b.y < a.y
+    // HierarchicalLayout top-down: b is child of a → b.y > a.y (NVS Y-down: child lower on screen)
     // Grid fallback: a and b share row 0 → a.y == b.y
-    expect(nodeB.position[1]).toBeLessThan(nodeA.position[1]);
+    expect(nodeB.position[1]).toBeGreaterThan(nodeA.position[1]);
   });
 
   // ─── Test 4: ManualLayout ──────────────────────────────────────────────────
@@ -215,7 +215,7 @@ describe('Diagram layout DSL component registration — behavioral regression', 
 
     // Default grid (4 columns): a,b,c,d all in row 0 → same y
     expect(nodeA.position[1]).toBeCloseTo(nodeC.position[1]);
-    // e overflows into row 1 → lower y
-    expect(nodeE.position[1]).toBeLessThan(nodeA.position[1]);
+    // e overflows into row 1 → higher NVS y (lower on screen)
+    expect(nodeE.position[1]).toBeGreaterThan(nodeA.position[1]);
   });
 });

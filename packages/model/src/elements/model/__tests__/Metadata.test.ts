@@ -28,7 +28,9 @@ const makeManifest = (): AssetManifest => ({
     identity: {
       model: {
         scale: 0.1,
-        position: [0, 0, 0],
+        nvsX: 0.5,
+        nvsY: 0.5,
+        z: 0,
         rotation: [0, 0, 0],
         enabled: true,
         bodyPartOverrides: {},
@@ -114,7 +116,7 @@ describe('BodyPartGroup manifest round-trip', () => {
         anchorTargets: {},
         // bodyPartGroups intentionally omitted
         identity: {
-          model: { scale: 0.1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true, bodyPartOverrides: {} },
+          model: { scale: 0.1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true, bodyPartOverrides: {} },
           playback: { motion: { commands: [], scenes: [], customAnimations: [] }, animation: { enabled: false } },
         },
       }],

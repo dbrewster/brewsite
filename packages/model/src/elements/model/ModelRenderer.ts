@@ -13,7 +13,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { MeshoptDecoder } from 'meshoptimizer';
-import type { SceneModelInstanceState, Vec3, ModelPartSpec, ModelSubpartSpec, CustomAnimation, CustomAnimationOp } from './types';
+import type { Vec3, ModelPartSpec, ModelSubpartSpec, CustomAnimation, CustomAnimationOp } from './types';
+import type { ModelRenderInstanceState } from './_renderTypes';
 import type { CompiledAnimation } from './compile';
 import type { WidgetRenderContext } from '@brewsite/core';
 import { applyModelTransform } from './render';
@@ -141,9 +142,10 @@ export class ModelRenderer {
 
   /**
    * Apply model state to the Three.js scene.
+   * state.model must be a ModelRenderInput (world-space position already resolved by ModelWidget).
    */
   apply(
-    state: SceneModelInstanceState,
+    state: ModelRenderInstanceState,
     animation?: CompiledAnimation,
     ctx?: WidgetRenderContext,
   ): void {
@@ -435,7 +437,7 @@ export class ModelRenderer {
   }
 
   private applyBodyPartOverrides(
-    state: SceneModelInstanceState,
+    state: ModelRenderInstanceState,
     modelOpacityOverride?: number,
   ): void {
     if (!this.model) return;
@@ -555,7 +557,7 @@ export class ModelRenderer {
     return result;
   }
 
-  private applyBodyPartPoseOverrides(state: SceneModelInstanceState): void {
+  private applyBodyPartPoseOverrides(state: ModelRenderInstanceState): void {
     if (!this.model) return;
     const overrides = state.model.bodyPartOverrides ?? {};
     const basePose = this.capturePose();
@@ -936,7 +938,7 @@ export class ModelRenderer {
   }
 
   private applyAnimation(
-    state: SceneModelInstanceState,
+    state: ModelRenderInstanceState,
     animation: CompiledAnimation,
     ctx?: WidgetRenderContext,
     resetDueToProgress = false,
@@ -1004,7 +1006,7 @@ export class ModelRenderer {
   }
 
   private getAnimationSignature(
-    state: SceneModelInstanceState,
+    state: ModelRenderInstanceState,
     animation?: CompiledAnimation,
   ): string | null {
     if (!animation?.enabled || !animation.clipName) return null;
@@ -1020,7 +1022,7 @@ export class ModelRenderer {
 
   private getInitialStartOffset(
     clip: THREE.AnimationClip,
-    state: SceneModelInstanceState,
+    state: ModelRenderInstanceState,
   ): number {
     const specifiedOffset = state.playback.animation.clipStartOnce;
     if (typeof specifiedOffset !== 'number') return 0;

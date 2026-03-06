@@ -14,7 +14,9 @@ import { CUSTOM_NODE_HANDLER } from '@brewsite/core/widget/WidgetRegistry';
 const makeIdentity = (): SceneModelInstanceState => ({
   model: {
     scale: 0.1,
-    position: [0, 0, 0],
+    nvsX: 0.5,
+    nvsY: 0.5,
+    z: 0,
     rotation: [0, 0, 0],
     enabled: true,
     bodyPartOverrides: {},

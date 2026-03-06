@@ -17,6 +17,16 @@ import type { ResolvedDataFrame } from '../../data/types';
 import type { ChartState, ChartType } from './types';
 import type { ChartTheme, ChartThemeName } from '../../themes/types';
 
+/**
+ * World-space render input for ChartRenderer.
+ * Produced by ChartWidget.apply() by converting NVS position fields to world-space.
+ * Never exported — internal to the chart element.
+ */
+export type ChartRenderInput = Omit<ChartState, 'nvsX' | 'nvsY' | 'z'> & {
+  /** World-space position of the chart center [x, y, z]. */
+  readonly position: readonly [number, number, number];
+};
+
 const THEME_MAP: Record<ChartThemeName, ChartTheme> = {
   darkGlass: darkGlassChartTheme,
   neonCyber: neonCyberChartTheme,
@@ -45,8 +55,8 @@ export class ChartRenderer {
     scene.add(this.chartGroup);
   }
 
-  update(state: ChartState, widgetId: string): void {
-    // Position and rotation
+  update(state: ChartRenderInput, widgetId: string): void {
+    // Position and rotation (position is in world-space, pre-converted by ChartWidget)
     this.chartGroup.position.set(...state.position as [number, number, number]);
     this.chartGroup.rotation.set(...state.rotation as [number, number, number]);
 

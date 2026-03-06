@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { SceneDefinition } from './sceneTypes';
 import type {
@@ -403,6 +404,7 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
       sceneId: scene.id,
       sceneIndex: blockIdx,
       blockProgress: bp,
+      sceneProgress: bp,
       state: { id: scene.id, scrollProgress: bp, widgets: {} },
       deltaForward: {},
       deltaBackward: {},
@@ -416,6 +418,7 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     lastTick.sceneId = lastScene.id;
     lastTick.sceneIndex = scenes.length - 1;
     lastTick.blockProgress = 0;
+    lastTick.sceneProgress = 1;
     lastTick.state.id = lastScene.id;
   }
 
@@ -615,6 +618,14 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
       : 1,
   }));
 
+  // ── Build sceneOverlays map from SceneFrame.sceneOverlay fields ─────────────
+  const sceneOverlays = new Map<string, ReactNode>();
+  for (const snapshot of snapshots) {
+    if (snapshot.id && snapshot.sceneOverlay !== undefined) {
+      sceneOverlays.set(snapshot.id, snapshot.sceneOverlay);
+    }
+  }
+
   return {
     ticks: frames,
     tickStep,
@@ -623,5 +634,6 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     ...(progressProfile !== undefined ? { progressProfile } : {}),
     ...(transitionBlocks.length > 0 ? { transitionBlocks } : {}),
     ...(warnings.length > 0 ? { warnings } : {}),
+    ...(sceneOverlays.size > 0 ? { sceneOverlays } : {}),
   };
 };

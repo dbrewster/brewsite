@@ -3,8 +3,11 @@ title: "BrewSite Core — Widget SDK"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-04
+last_updated: 2026-03-05
 change_history:
+  - date: 2026-03-05
+    author: "Toolkit Product"
+    summary: "@brewsite/slides integration: slidesPlugin() is now a published example of the WidgetPlugin pattern. It registers SlideMetaWidget (IWidget + CUSTOM_NODE_HANDLER via registerNode) and SlideNavWidget (plain IWidget registry anchor). SlideMetaWidget reads SceneTrackTick.sceneProgress and publishes per-slide metadata to VariableStore. This demonstrates: (1) a plugin that registers custom DSL node handlers without forking core; (2) VariableStore as the cross-widget reactive state bus; (3) plain IWidget as a registry anchor with no compile/render participation."
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Initial PRD created. Comprehensive documentation of the Widget SDK as the central extension mechanism for @brewsite/core, covering all interfaces, WidgetRegistry, VariableStore, CUSTOM_NODE_HANDLER, lifecycle phases, implementation patterns, and test infrastructure. Reflects the production implementation as of 2026-02-28."

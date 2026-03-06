@@ -237,14 +237,13 @@ describe('BackgroundWidget', () => {
     expect((api.capturedState as SceneBackground).cssFilter).toBe('brightness(0.5)');
   });
 
-  it('regression: handler with legacy props and no theme produces correct SceneBackground', () => {
+  it('regression: handler with multiple explicit props and no theme produces correct SceneBackground', () => {
     const api = makeCompileApi();
     widget[CUSTOM_NODE_HANDLER](
       makeNode({
         color: '#123456',
         imageUrl: '/bg.jpg',
         opacity: 0.8,
-        position: [1, 2, 3],
         cssPosition: 'center',
         cssSize: 'cover',
         cssRepeat: 'no-repeat',
@@ -258,7 +257,6 @@ describe('BackgroundWidget', () => {
     // color is set by the prop but gradient is not set, so color should be '#123456'
     expect(state.color).toBe('#123456');
     expect(state.opacity).toBe(0.8);
-    expect(state.position).toEqual([1, 2, 3]);
     expect(state.cssPosition).toBe('center');
     expect(state.cssSize).toBe('cover');
     expect(state.cssRepeat).toBe('no-repeat');

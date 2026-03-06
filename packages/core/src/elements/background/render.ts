@@ -61,12 +61,6 @@ export function applyBackground(state: SceneBackground, refs: BackgroundDomRefs)
   if (state.cssPosition) { element.style.backgroundPosition = state.cssPosition; }
   if (state.cssSize)     { element.style.backgroundSize = state.cssSize; }
   if (state.cssRepeat)   { element.style.backgroundRepeat = state.cssRepeat; }
-  if (state.position) {
-    const [x, y, z] = state.position;
-    element.style.transform = `translate3d(${x}px, ${y}px, ${z}px)`;
-  } else {
-    element.style.transform = '';
-  }
 
   // Overlay element: overlayGradient + backdropFilter
   const overlay = refs.overlayElement;

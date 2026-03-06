@@ -30,11 +30,11 @@ export function DocPanel({ slideInBy = 0.25, children }: DocPanelProps): JSX.Ele
 
   const style: CSSProperties = {
     position: 'absolute',
+    top: 0,
     bottom: 0,
     left: 276,   // sidebar clearance: 260px sidebar + 16px gap
     right: 0,
-    maxHeight: '90vh',
-    overflowY: 'auto',
+    overflowY: 'hidden',
     transform: `translateY(${translateY}vh)`,
     padding: '32px 48px 48px',
     background: 'rgba(10, 12, 22, 0.90)',

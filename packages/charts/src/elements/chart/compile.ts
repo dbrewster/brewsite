@@ -1,6 +1,6 @@
 // Pure compilation functions for the chart element — no Three.js, no React render.
 
-import { blendOpacity, blendVec3 } from '@brewsite/core';
+import { blendNumber, blendOpacity } from '@brewsite/core';
 import type { FunctionalTransitionSpec, NVSRect } from '@brewsite/core';
 import type {
   ChartState,
@@ -16,6 +16,9 @@ import { DEFAULT_CHART_STATE } from './types';
 /**
  * Compiles ChartState from DSL components.
  * Pure function — no side effects, no Three.js.
+ *
+ * nvsX and nvsY are derived from nvsBounds center (x + w/2, y + h/2).
+ * World-space position is computed at render time in ChartWidget.apply().
  */
 export function compileChart(
   dsl: Partial<ChartDSL>,
@@ -27,9 +30,16 @@ export function compileChart(
   const xAxisDsl = axisDsls.find((a) => a.axis === 'x') ?? null;
   const yAxisDsl = axisDsls.find((a) => a.axis === 'y') ?? null;
 
+  const x = dsl.x ?? 0;
+  const y = dsl.y ?? 0;
+  const w = dsl.w ?? 1;
+  const h = dsl.h ?? 1;
+
   return {
     type: dsl.type ?? DEFAULT_CHART_STATE.type,
-    position: dsl.position ?? DEFAULT_CHART_STATE.position,
+    nvsX: x + w / 2,
+    nvsY: y + h / 2,
+    z: dsl.z ?? 0,
     rotation: dsl.rotation ?? DEFAULT_CHART_STATE.rotation,
     bounds: {
       width: dsl.bounds?.width ?? DEFAULT_CHART_STATE.bounds.width,
@@ -61,12 +71,12 @@ export function compileChart(
     opacity: dsl.opacity ?? 1,
     interactive: dsl.interactive ?? false,
     innerRadius: dsl.innerRadius ?? 0,
-    sceneTheme: dsl.sceneTheme,  // pass through from DSL
+    sceneTheme: dsl.sceneTheme,
     nvsBounds: {
-      x: dsl.x ?? 0,
-      y: dsl.y ?? 0,
-      w: dsl.w ?? 1,
-      h: dsl.h ?? 1,
+      x,
+      y,
+      w,
+      h,
     } satisfies NVSRect,
   };
 }
@@ -78,10 +88,6 @@ export function compileChart(
  * - Chart transitions are mathematically clean closures (opacity fade, position blend)
  * - Runtime data-resolve cost means lazy evaluation is preferred over pre-baking
  * - Consistent with how @brewsite/diagram handles its element transitions
- *
- * Uses ctx.t for all channels (zero behavior change from old scalar-t path).
- * Scene authors may add <Transition channels={['opacity']} ...> children to the
- * <Chart> DSL element to activate per-channel window/ease control.
  */
 export const functionalChartTransitionSpec: FunctionalTransitionSpec<ChartState> = {
   exitFn: (from: ChartState) => (ctx): ChartState => ({
@@ -96,16 +102,9 @@ export const functionalChartTransitionSpec: FunctionalTransitionSpec<ChartState>
 
   interpolateFn: (from: ChartState, to: ChartState) => (ctx): ChartState => ({
     ...to,
-    position: (blendVec3(
-      from.position as [number, number, number],
-      to.position as [number, number, number],
-      ctx.t,
-    ) ?? to.position) as readonly [number, number, number],
-    rotation: (blendVec3(
-      from.rotation as [number, number, number],
-      to.rotation as [number, number, number],
-      ctx.t,
-    ) ?? to.rotation) as readonly [number, number, number],
+    nvsX: blendNumber(from.nvsX, to.nvsX, ctx.t) ?? to.nvsX,
+    nvsY: blendNumber(from.nvsY, to.nvsY, ctx.t) ?? to.nvsY,
+    z: blendNumber(from.z, to.z, ctx.t) ?? to.z,
     opacity: blendOpacity(from.opacity, to.opacity, ctx.t) ?? to.opacity,
     // Discrete switch at midpoint: preserve from.type during first half, switch to to.type at 0.5
     type: ctx.t < 0.5 ? from.type : to.type,

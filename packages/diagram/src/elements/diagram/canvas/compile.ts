@@ -16,7 +16,9 @@ import type { FunctionalTransitionSpec } from '@brewsite/core';
 import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
 import { applyDiagramEnter, applyDiagramExit } from '../compile';
 import { blendDiagramNodes, buildLiveNodeMaps, rerouteLiveEdges, blendDiagramEdges } from '../compiler/transitionHelpers';
-import { sideAttachmentPoint, routePipe, rerouteLivePipes, rotateXYZ } from './compiler/pipeRouter';
+import { sideAttachmentPoint, routePipe, rerouteLivePipes, nodeNvsToCanvasLocal, DEFAULT_CANVAS_ASPECT } from './compiler/pipeRouter';
+
+const lerpNum = (a: number, b: number, t: number): number => a + (b - a) * t;
 
 // ─── Defaults ────────────────────────────────────────────────────────────────
 
@@ -36,31 +38,7 @@ const DEFAULT_PIPE_LANDING: PipeLandingAlgorithm = 'sides';
 
 type Vec3 = readonly [number, number, number];
 
-/**
- * Transforms a node's diagram-local position to canvas-local space.
- * Applies diagram scale + rotation + position.
- */
-function nodeToCanvasSpace(
-  nodeLocalPos: Vec3,
-  diagramPos: Vec3,
-  diagramScale: number,
-  diagramRotation: Vec3,
-): Vec3 {
-  const [rx, ry, rz] = diagramRotation;
-  const scaled: Vec3 = [
-    nodeLocalPos[0] * diagramScale,
-    nodeLocalPos[1] * diagramScale,
-    nodeLocalPos[2] * diagramScale,
-  ];
-  const rotated = rotateXYZ(scaled, rx, ry, rz);
-  return [
-    rotated[0] + diagramPos[0],
-    rotated[1] + diagramPos[1],
-    rotated[2] + diagramPos[2],
-  ];
-}
-
-// sideAttachmentPoint and routePipe live in canvas/compiler/pipeRouter.ts
+// nodeNvsToCanvasLocal, sideAttachmentPoint, routePipe, DEFAULT_CANVAS_ASPECT live in canvas/compiler/pipeRouter.ts
 
 /**
  * Parses a dot-notation reference "diagramId.nodeId" into its components.
@@ -141,25 +119,25 @@ export function compilePipe(
           fromNode.position,
           fromNode.size,
           fromNode.thickness,
-          fromDiagram.position,
-          fromDiagram.scale,
-          fromDiagram.rotation,
-          nodeToCanvasSpace(toNode.position, toDiagram.position, toDiagram.scale, toDiagram.rotation),
+          fromDiagram.viewportBounds,
+          fromDiagram.tiltRotation,
+          DEFAULT_CANVAS_ASPECT,
+          nodeNvsToCanvasLocal(toNode.position, toDiagram.viewportBounds, toDiagram.tiltRotation, DEFAULT_CANVAS_ASPECT),
         );
         const toAttach = sideAttachmentPoint(
           toNode.position,
           toNode.size,
           toNode.thickness,
-          toDiagram.position,
-          toDiagram.scale,
-          toDiagram.rotation,
-          nodeToCanvasSpace(fromNode.position, fromDiagram.position, fromDiagram.scale, fromDiagram.rotation),
+          toDiagram.viewportBounds,
+          toDiagram.tiltRotation,
+          DEFAULT_CANVAS_ASPECT,
+          nodeNvsToCanvasLocal(fromNode.position, fromDiagram.viewportBounds, fromDiagram.tiltRotation, DEFAULT_CANVAS_ASPECT),
         );
         controlPoints = routePipe(fromAttach.point, toAttach.point, fromAttach.normal, toAttach.normal, routing);
       } else {
         // 'nearest-face': use node centers (legacy behaviour)
-        const fromWorld = nodeToCanvasSpace(fromNode.position, fromDiagram.position, fromDiagram.scale, fromDiagram.rotation);
-        const toWorld   = nodeToCanvasSpace(toNode.position,   toDiagram.position,   toDiagram.scale,   toDiagram.rotation);
+        const fromWorld = nodeNvsToCanvasLocal(fromNode.position, fromDiagram.viewportBounds, fromDiagram.tiltRotation, DEFAULT_CANVAS_ASPECT);
+        const toWorld   = nodeNvsToCanvasLocal(toNode.position,   toDiagram.viewportBounds,   toDiagram.tiltRotation,   DEFAULT_CANVAS_ASPECT);
         controlPoints = routePipe(fromWorld, toWorld, undefined, undefined, routing);
       }
     }
@@ -277,9 +255,13 @@ export const functionalDiagramCanvasTransitionSpec: FunctionalTransitionSpec<Dia
 
       return {
         ...toDiagram,
-        position: blendVec3(toMut(fromDiagram.position), toMut(toDiagram.position), t) ?? toDiagram.position,
-        rotation: blendVec3(toMut(fromDiagram.rotation), toMut(toDiagram.rotation), t) ?? toDiagram.rotation,
-        scale: blendNumber(fromDiagram.scale, toDiagram.scale, t) ?? toDiagram.scale,
+        viewportBounds: {
+          x: lerpNum(fromDiagram.viewportBounds.x, toDiagram.viewportBounds.x, t),
+          y: lerpNum(fromDiagram.viewportBounds.y, toDiagram.viewportBounds.y, t),
+          w: lerpNum(fromDiagram.viewportBounds.w, toDiagram.viewportBounds.w, t),
+          h: lerpNum(fromDiagram.viewportBounds.h, toDiagram.viewportBounds.h, t),
+        },
+        tiltRotation: blendVec3(toMut(fromDiagram.tiltRotation), toMut(toDiagram.tiltRotation), t) ?? toDiagram.tiltRotation,
         nodes: [...blended, ...fading],
         edges: [...blendedEdges, ...fadingEdges],
       };

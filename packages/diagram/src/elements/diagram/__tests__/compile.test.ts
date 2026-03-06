@@ -94,7 +94,9 @@ describe('compileDiagram', () => {
     };
     const state = compileDiagram(dsl);
     const node = state.nodes[0]!;
-    expect(node.size).toEqual([4, 2]);
+    // After normalization, size is a fraction [0..1], not diagram units.
+    expect(node.size[0]).toBeGreaterThan(0);
+    expect(node.size[1]).toBeGreaterThan(0);
     expect(node.thickness).toBe(darkGlassTheme.node.defaultThickness);
     expect(node.color).toBe(darkGlassTheme.node.defaultColor);
   });
@@ -188,7 +190,8 @@ describe('compileDiagram', () => {
     const state = compileDiagram(dsl, theme);
     const posA = state.nodes.find((n) => n.id === 'a')!.position;
     const posB = state.nodes.find((n) => n.id === 'b')!.position;
-    expect(posB[1]).toBeLessThan(posA[1]);
+    // After Y-flip normalization: child B (below parent A in Cartesian) has higher NVS y.
+    expect(posB[1]).toBeGreaterThan(posA[1]);
   });
 
   it('groups have computed bounds that contain all member nodes', () => {
@@ -210,7 +213,8 @@ describe('compileDiagram', () => {
     };
     const state = compileDiagram(dsl);
     const group = state.groups[0]!;
-    expect(group.bounds.w).toBeGreaterThan(4);
+    // After normalization, group bounds are [0..1] NVS fractions.
+    expect(group.bounds.w).toBeGreaterThan(0);
     expect(group.bounds.h).toBeGreaterThan(0);
   });
 
@@ -355,61 +359,8 @@ describe('compileDiagram', () => {
   });
 });
 
-describe('pivot offset', () => {
-  it("'center' pivot: bounds center maps to [0, 0]", () => {
-    const dsl: DiagramDSL = {
-      id: 'diagram',
-      layout: { kind: 'manual' },
-      pivot: 'center',
-      nodes: [
-        makeNode('a', { position: [0, 0, 0] }),
-        makeNode('b', { position: [10, 0, 0] }),
-      ],
-      edges: [],
-      groups: [],
-    };
-    const state = compileDiagram(dsl);
-    expect(state.bounds.x + state.bounds.w / 2).toBeCloseTo(0);
-    expect(state.bounds.y + state.bounds.h / 2).toBeCloseTo(0);
-  });
-
-  it("'top-left' pivot: top-left corner maps to [0, 0]", () => {
-    const dsl: DiagramDSL = {
-      id: 'diagram',
-      layout: { kind: 'manual' },
-      pivot: 'top-left',
-      nodes: [
-        makeNode('a', { position: [0, 0, 0] }),
-        makeNode('b', { position: [10, -10, 0] }),
-      ],
-      edges: [],
-      groups: [],
-    };
-    const state = compileDiagram(dsl);
-    expect(state.bounds.x).toBeCloseTo(0);
-    expect(state.bounds.y + state.bounds.h).toBeCloseTo(0);
-  });
-
-  it('pivot offset is applied before edge routing', () => {
-    const dsl: DiagramDSL = {
-      id: 'diagram',
-      layout: { kind: 'manual' },
-      pivot: 'center',
-      nodes: [
-        makeNode('a', { position: [0, 0, 0] }),
-        makeNode('b', { position: [10, 0, 0] }),
-      ],
-      edges: [makeEdge('a', 'b')],
-      groups: [],
-    };
-    const state = compileDiagram(dsl);
-    const startX = state.edges[0]!.controlPoints[0]![0];
-    expect(startX).toBeCloseTo(-2.94, 2);
-  });
-});
-
-describe('exit / enter config compilation', () => {
-  it('compileExitConfig returns null when no <Exit> in DSL', () => {
+describe('viewportBounds', () => {
+  it('defaults to full-canvas { x:0, y:0, w:1, h:1 } when not provided', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
       layout: { kind: 'grid' },
@@ -418,7 +369,46 @@ describe('exit / enter config compilation', () => {
       groups: [],
     };
     const state = compileDiagram(dsl);
-    expect(state.exit).toBeNull();
+    expect(state.viewportBounds).toEqual({ x: 0, y: 0, w: 1, h: 1 });
+  });
+
+  it('passes through an explicitly-provided viewportBounds', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'manual' },
+      viewportBounds: { x: 0.1, y: 0.2, w: 0.5, h: 0.4 },
+      nodes: [makeNode('a', { position: [0.5, 0.5, 0] })],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    expect(state.viewportBounds).toEqual({ x: 0.1, y: 0.2, w: 0.5, h: 0.4 });
+  });
+
+  it('tiltRotation defaults to [0,0,0] when tilt is not provided', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    expect(state.tiltRotation).toEqual([0, 0, 0]);
+  });
+});
+
+describe('exit / enter config compilation', () => {
+  it('compileExitConfig returns undefined when no <Exit> in DSL', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    expect(state.exit).toBeUndefined();
   });
 
   it('compileExitConfig applies defaults (fade=true, easing=ease)', () => {
@@ -450,8 +440,8 @@ describe('exit / enter config compilation', () => {
   });
 });
 
-describe('DiagramState transform fields', () => {
-  it('position defaults to [0,0,0]', () => {
+describe('DiagramState NVS fields', () => {
+  it('has viewportBounds and tiltRotation, not position/rotation/scale', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
       layout: { kind: 'grid' },
@@ -460,35 +450,23 @@ describe('DiagramState transform fields', () => {
       groups: [],
     };
     const state = compileDiagram(dsl);
-    expect(state.position).toEqual([0, 0, 0]);
+    expect(state).toHaveProperty('viewportBounds');
+    expect(state).toHaveProperty('tiltRotation');
+    expect(state).not.toHaveProperty('position');
+    expect(state).not.toHaveProperty('scale');
+    expect(state).not.toHaveProperty('rotation');
   });
 
-  it('scale defaults to 1', () => {
+  it('tilt from DSL is passed through as tiltRotation', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
-      layout: { kind: 'grid' },
-      nodes: [makeNode('a')],
+      layout: { kind: 'manual' },
+      tilt: [0.1, 0.2, 0.3],
+      nodes: [makeNode('a', { position: [0.5, 0.5, 0] })],
       edges: [],
       groups: [],
     };
     const state = compileDiagram(dsl);
-    expect(state.scale).toBe(1);
-  });
-
-  it('position/rotation/scale from DSL are passed through unchanged', () => {
-    const dsl: DiagramDSL = {
-      id: 'diagram',
-      layout: { kind: 'grid' },
-      position: [1, 2, 3],
-      rotation: [0.1, 0.2, 0.3],
-      scale: 2,
-      nodes: [makeNode('a')],
-      edges: [],
-      groups: [],
-    };
-    const state = compileDiagram(dsl);
-    expect(state.position).toEqual([1, 2, 3]);
-    expect(state.rotation).toEqual([0.1, 0.2, 0.3]);
-    expect(state.scale).toBe(2);
+    expect(state.tiltRotation).toEqual([0.1, 0.2, 0.3]);
   });
 });

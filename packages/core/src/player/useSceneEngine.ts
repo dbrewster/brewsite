@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import * as THREE from 'three';
 import type { RefObject } from 'react';
 import type { SceneDefinition } from '../compiler/sceneTypes';
@@ -28,6 +29,7 @@ import type { CameraWidget } from '../elements/camera/CameraWidget';
 import type { SceneInputControllerSpec } from '../input/types';
 import { SceneProgressMapper } from './SceneProgressMapper';
 import { buildEffectiveInputSpec } from './effectiveInputSpec';
+import { formatBreadcrumbChain } from '../compiler/dslSourceInfo';
 
 export type UseSceneEngineOptions = {
   scenes: InternalSceneSpec[];
@@ -119,6 +121,12 @@ export type UseSceneEngineResult = {
    * }, [isModalOpen]);
    */
   setAutoAdvancePaused(paused: boolean): void;
+  /**
+   * Per-scene overlay content extracted from Scene DSL at compile time.
+   * Keyed by scene id. Used by EngineOverlayHost to render non-DSL JSX
+   * children (e.g. <TextBox>) above the canvas for the active scene.
+   */
+  sceneOverlays: Map<string, ReactNode>;
   debug?: {
     driverReady: boolean;
     assetsReady: boolean;
@@ -840,8 +848,19 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       blockSize,
       prefersReducedMotion,
     });
-    if (compiled.warnings?.length && options.onCompileWarning) {
-      options.onCompileWarning(compiled.warnings);
+    if (compiled.warnings?.length) {
+      for (const warning of compiled.warnings) {
+        if (warning.elementAncestry && warning.elementAncestry.length > 0) {
+          console.warn(
+            `[BrewSite] ${warning.message}\n  DSL ancestry: ${formatBreadcrumbChain(warning.elementAncestry)}`,
+          );
+        } else {
+          console.warn(`[BrewSite] ${warning.message}`);
+        }
+      }
+      if (options.onCompileWarning) {
+        options.onCompileWarning(compiled.warnings);
+      }
     }
     setCachedTrack(key, compiled);
     setSceneTrack(compiled);
@@ -1004,6 +1023,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     setCameraOverride,
     getCameraOverride,
     setAutoAdvancePaused,
+    sceneOverlays: sceneTrack?.sceneOverlays ?? new Map(),
     debug: {
       driverReady,
       assetsReady,

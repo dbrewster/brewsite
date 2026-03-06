@@ -119,7 +119,9 @@ describe('model compile helpers', () => {
     const identity: SceneModelInstanceState = {
       model: {
         scale: 0.1,
-        position: [0, 0, 0],
+        nvsX: 0.5,
+        nvsY: 0.5,
+        z: 0,
         rotation: [0, 0, 0],
         enabled: true,
         bodyPartOverrides: {},
@@ -168,7 +170,7 @@ describe('blendBodyOverrides preserves boneId/meshId routing metadata', () => {
   it('interpolate preserves boneId and meshId on matched keys', () => {
     // blendBodyOverrides is exercised through modelTransitionSpec.interpolate
     const from: SceneModel = {
-      scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true,
+      scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true,
       bodyPartOverrides: {
         RightForeArm: {
           color: '#ff0000',
@@ -179,7 +181,7 @@ describe('blendBodyOverrides preserves boneId/meshId routing metadata', () => {
       },
     };
     const to: SceneModel = {
-      scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true,
+      scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true,
       bodyPartOverrides: {
         RightForeArm: {
           color: '#0000ff',
@@ -199,7 +201,7 @@ describe('blendBodyOverrides preserves boneId/meshId routing metadata', () => {
 
   it('enter (prev-only) preserves boneId and meshId during exit', () => {
     const from: SceneModel = {
-      scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true,
+      scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true,
       bodyPartOverrides: {
         RightForeArm: {
           opacity: 1,
@@ -209,7 +211,7 @@ describe('blendBodyOverrides preserves boneId/meshId routing metadata', () => {
       },
     };
     const to: SceneModel = {
-      scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true,
+      scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true,
       bodyPartOverrides: {},
     };
     const result = modelTransitionSpec.interpolate(from, to, makeT({ tExit: 0.5 }));
@@ -221,11 +223,11 @@ describe('blendBodyOverrides preserves boneId/meshId routing metadata', () => {
 
   it('enter (next-only) preserves boneId and meshId on enter', () => {
     const from: SceneModel = {
-      scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true,
+      scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true,
       bodyPartOverrides: {},
     };
     const to: SceneModel = {
-      scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true,
+      scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true,
       bodyPartOverrides: {
         RightForeArm: {
           opacity: 1,
@@ -245,7 +247,9 @@ describe('functionalInstanceTransitionSpec', () => {
   const baseState: SceneModelInstanceState = {
     model: {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
       opacity: 1,
@@ -261,11 +265,11 @@ describe('functionalInstanceTransitionSpec', () => {
 
   const fromState: SceneModelInstanceState = {
     ...baseState,
-    model: { ...baseState.model, position: [0, 0, 0] },
+    model: { ...baseState.model, nvsX: 0.2, nvsY: 0.3, z: 0 },
   };
   const toState: SceneModelInstanceState = {
     ...baseState,
-    model: { ...baseState.model, position: [10, 0, 0] },
+    model: { ...baseState.model, nvsX: 0.8, nvsY: 0.7, z: 1 },
   };
 
   it('exit at t=0 returns fromState (no change)', () => {
@@ -294,23 +298,28 @@ describe('functionalInstanceTransitionSpec', () => {
     expect(result.model.opacity).toBeCloseTo(baseState.model.opacity ?? 1);
   });
 
-  it('interpolate at t=0 returns fromState values', () => {
+  it('interpolate at t=0 returns fromState nvsX/nvsY/z', () => {
     const fn = functionalInstanceTransitionSpec.interpolateFn(fromState, toState);
     const result = fn(makeSimpleContext(0));
-    expect(result.model.position).toEqual(fromState.model.position);
+    expect(result.model.nvsX).toBeCloseTo(fromState.model.nvsX);
+    expect(result.model.nvsY).toBeCloseTo(fromState.model.nvsY);
+    expect(result.model.z).toBeCloseTo(fromState.model.z);
   });
 
-  it('interpolate at t=1 returns toState values', () => {
+  it('interpolate at t=1 returns toState nvsX/nvsY/z', () => {
     const fn = functionalInstanceTransitionSpec.interpolateFn(fromState, toState);
     const result = fn(makeSimpleContext(1));
-    expect(result.model.position).toEqual(toState.model.position);
+    expect(result.model.nvsX).toBeCloseTo(toState.model.nvsX);
+    expect(result.model.nvsY).toBeCloseTo(toState.model.nvsY);
+    expect(result.model.z).toBeCloseTo(toState.model.z);
   });
 
-  it('interpolate at t=0.5 blends position midpoint', () => {
+  it('interpolate at t=0.5 blends nvsX/nvsY/z midpoints', () => {
     const fn = functionalInstanceTransitionSpec.interpolateFn(fromState, toState);
     const result = fn(makeSimpleContext(0.5));
-    const expectedX = (fromState.model.position[0] + toState.model.position[0]) / 2;
-    expect(result.model.position[0]).toBeCloseTo(expectedX);
+    expect(result.model.nvsX).toBeCloseTo((fromState.model.nvsX + toState.model.nvsX) / 2);
+    expect(result.model.nvsY).toBeCloseTo((fromState.model.nvsY + toState.model.nvsY) / 2);
+    expect(result.model.z).toBeCloseTo((fromState.model.z + toState.model.z) / 2);
   });
 });
 
@@ -318,7 +327,9 @@ describe('model transition specs', () => {
   it('modelTransitionSpec.exit hides model at end of exit', () => {
     const model: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
     };
@@ -331,7 +342,9 @@ describe('model transition specs', () => {
   it('modelTransitionSpec.interpolate blends parts and subparts', () => {
     const from: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
       parts: {
@@ -349,7 +362,9 @@ describe('model transition specs', () => {
     };
     const to: SceneModel = {
       scale: 1,
-      position: [1, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
       parts: {
@@ -376,7 +391,9 @@ describe('model transition specs', () => {
   it('modelTransitionSpec.exit handles bodyPartOverrides and parts removal', () => {
     const from: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
       bodyPartOverrides: { Head: { opacity: 1, color: '#ffffff' } },
@@ -400,13 +417,17 @@ describe('model transition specs', () => {
   it('modelTransitionSpec.interpolate returns undefined parts/body overrides when none provided', () => {
     const from: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
     };
     const to: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
     };
@@ -418,7 +439,9 @@ describe('model transition specs', () => {
   it('modelTransitionSpec.enter applies next-only parts and subparts', () => {
     const to: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
       parts: {
@@ -442,7 +465,9 @@ describe('model transition specs', () => {
   it('modelTransitionSpec.enter applies next-only bodyPartOverrides', () => {
     const to: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
       bodyPartOverrides: {
@@ -457,7 +482,9 @@ describe('model transition specs', () => {
   it('modelTransitionSpec.interpolate fades prev-only subparts', () => {
     const from: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
       parts: {
@@ -477,7 +504,9 @@ describe('model transition specs', () => {
     };
     const to: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
       parts: {
@@ -501,7 +530,9 @@ describe('model transition specs', () => {
   it('modelTransitionSpec.interpolate fades next-only subparts in', () => {
     const from: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
       parts: {
@@ -519,7 +550,9 @@ describe('model transition specs', () => {
     };
     const to: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
       parts: {
@@ -544,7 +577,9 @@ describe('model transition specs', () => {
   it('modelTransitionSpec.enter handles next-only subparts with disabled base', () => {
     const to: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
       parts: {
@@ -568,7 +603,9 @@ describe('model transition specs', () => {
   it('modelTransitionSpec.interpolate keeps disabled overrides disabled', () => {
     const from: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
       bodyPartOverrides: { Hand: { opacity: 1, color: '#ffffff' } },
@@ -586,7 +623,9 @@ describe('model transition specs', () => {
     };
     const to: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
       bodyPartOverrides: { Hand: { opacity: 1, color: '#000000' } },
@@ -609,7 +648,9 @@ describe('model transition specs', () => {
   it('modelTransitionSpec.interpolate uses defaults for missing part transforms', () => {
     const from: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
       parts: {
@@ -625,7 +666,9 @@ describe('model transition specs', () => {
     };
     const to: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: true,
       parts: {
@@ -648,7 +691,9 @@ describe('model transition specs', () => {
   it('modelTransitionSpec.enter respects target enabled state', () => {
     const model: SceneModel = {
       scale: 1,
-      position: [0, 0, 0],
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
       rotation: [0, 0, 0],
       enabled: false,
     };
@@ -1331,7 +1376,7 @@ describe('model transition specs', () => {
 
   it('applyModelExit disables at t=1', () => {
     const from: SceneModelInstanceState = {
-      model: { scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true },
+      model: { scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true },
       playback: { motion: { commands: [], scenes: [] }, animation: { enabled: false } },
       enabled: true,
     };
@@ -1341,7 +1386,7 @@ describe('model transition specs', () => {
 
   it('applyModelEnter enables when t>0', () => {
     const to: SceneModelInstanceState = {
-      model: { scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true },
+      model: { scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true },
       playback: { motion: { commands: [], scenes: [] }, animation: { enabled: false } },
       enabled: undefined,
     };
@@ -1351,16 +1396,63 @@ describe('model transition specs', () => {
 
   it('applyModelInterpolate respects explicit disabled', () => {
     const from: SceneModelInstanceState = {
-      model: { scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true },
+      model: { scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true },
       playback: { motion: { commands: [], scenes: [] }, animation: { enabled: false } },
       enabled: true,
     };
     const to: SceneModelInstanceState = {
-      model: { scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true },
+      model: { scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true },
       playback: { motion: { commands: [], scenes: [] }, animation: { enabled: false } },
       enabled: false,
     };
     const result = applyModelInterpolate(from, to, 0.5);
     expect(result.enabled).toBe(false);
+  });
+});
+
+// ─── nvsX/nvsY from bounds (plan §12.6) ─────────────────────────────────────
+
+/** Minimal helper: computes nvsX/nvsY the same way the CUSTOM_NODE_HANDLER does. */
+const computeNvsCenter = (props: { x?: number; y?: number; w?: number; h?: number }) => ({
+  nvsX: (props.x ?? 0) + (props.w ?? 1) / 2,
+  nvsY: (props.y ?? 0) + (props.h ?? 1) / 2,
+});
+
+describe('model nvsX/nvsY from bounds', () => {
+  it('center of x=0.2 y=0.1 w=0.5 h=0.6 is [0.45, 0.40]', () => {
+    const { nvsX, nvsY } = computeNvsCenter({ x: 0.2, y: 0.1, w: 0.5, h: 0.6 });
+    expect(nvsX).toBeCloseTo(0.45, 5);
+    expect(nvsY).toBeCloseTo(0.40, 5);
+  });
+
+  it('default bounds (0,0,1,1) centers at [0.5, 0.5]', () => {
+    const { nvsX, nvsY } = computeNvsCenter({});
+    expect(nvsX).toBeCloseTo(0.5, 5);
+    expect(nvsY).toBeCloseTo(0.5, 5);
+  });
+
+  it('SceneModel no longer has a position property', () => {
+    const model: SceneModel = {
+      scale: 1,
+      nvsX: 0.5,
+      nvsY: 0.5,
+      z: 0,
+      rotation: [0, 0, 0],
+      enabled: true,
+    };
+    expect(model).not.toHaveProperty('position');
+  });
+
+  it('modelTransitionSpec.interpolate blends nvsX/nvsY/z', () => {
+    const from: SceneModel = {
+      scale: 1, nvsX: 0.0, nvsY: 0.0, z: 0, rotation: [0, 0, 0], enabled: true,
+    };
+    const to: SceneModel = {
+      scale: 1, nvsX: 1.0, nvsY: 1.0, z: 2, rotation: [0, 0, 0], enabled: true,
+    };
+    const result = modelTransitionSpec.interpolate(from, to, 0.5);
+    expect(result.nvsX).toBeCloseTo(0.5, 5);
+    expect(result.nvsY).toBeCloseTo(0.5, 5);
+    expect(result.z).toBeCloseTo(1.0, 5);
   });
 });

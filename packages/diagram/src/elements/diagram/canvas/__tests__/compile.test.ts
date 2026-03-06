@@ -49,20 +49,29 @@ describe('compilePipe', () => {
     expect(pipe.controlPoints).toEqual([]);
   });
 
-  it('transforms node centers by diagram scale + position for nearest-face landing', () => {
-    const diagram = compileDiagram({
+  it('pipe from left-viewport diagram to right-viewport diagram has left-biased start point', () => {
+    // Diagram 'a' occupies the left half of the canvas [0..0.5].
+    // Diagram 'b' occupies the right half [0.5..1].
+    // The pipe's first control point (near diagram 'a') should be in the left half of canvas space.
+    const diagramA = compileDiagram({
       id: 'a',
       layout: { kind: 'manual' },
-      pivot: 'bottom-left',
-      position: [10, 0, 0],
-      scale: 2,
-      nodes: [{ id: 'n1', label: 'n1', position: [2, 1, 0] }],
+      viewportBounds: { x: 0, y: 0, w: 0.5, h: 1 },
+      nodes: [{ id: 'n1', label: 'n1', position: [0.5, 0.5, 0] }],
       edges: [],
       groups: [],
     });
-    const other = compileDiagram(makeDiagram('b', 'n2', [0, 0, 0]));
-    const pipe = compilePipe({ from: 'a.n1', to: 'b.n2' }, [diagram, other], 0, 'curved', 'nearest-face');
-    expect(pipe.controlPoints[0]).toEqual([14, 2, 0]);
+    const diagramB = compileDiagram({
+      id: 'b',
+      layout: { kind: 'manual' },
+      viewportBounds: { x: 0.5, y: 0, w: 0.5, h: 1 },
+      nodes: [{ id: 'n2', label: 'n2', position: [0.5, 0.5, 0] }],
+      edges: [],
+      groups: [],
+    });
+    const pipe = compilePipe({ from: 'a.n1', to: 'b.n2' }, [diagramA, diagramB], 0, 'curved', 'nearest-face');
+    // Start point should be in left canvas space (negative X with aspect 16/9, center-origin)
+    expect(pipe.controlPoints[0]![0]).toBeLessThan(0);
   });
 });
 

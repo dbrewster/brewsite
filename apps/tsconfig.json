@@ -8,7 +8,9 @@
       "@brewsite/diagram": ["../packages/diagram/src/index.ts"],
       "@brewsite/diagram/*": ["../packages/diagram/src/*"],
       "@brewsite/charts": ["../packages/charts/src/index.ts"],
-      "@brewsite/charts/*": ["../packages/charts/src/*"]
+      "@brewsite/charts/*": ["../packages/charts/src/*"],
+      "@brewsite/slides": ["../packages/slides/src/index.ts"],
+      "@brewsite/slides/*": ["../packages/slides/src/*"]
     },
     "target": "ES2020",
     "useDefineForClassFields": true,

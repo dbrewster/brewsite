@@ -35,22 +35,20 @@ export function buildThemeRenderConfig(theme: DiagramTheme): DiagramThemeRenderC
   };
 }
 
-export function compileExitConfig(dsl: DiagramExitDSL | undefined): DiagramExitConfig | null {
-  if (!dsl) return null;
+export function compileExitConfig(dsl: DiagramExitDSL | undefined): DiagramExitConfig | undefined {
+  if (!dsl) return undefined;
   return {
     to: dsl.to,
     fade: dsl.fade ?? true,
-    scaleTo: dsl.scaleTo,
     easing: dsl.easing ?? 'ease',
   };
 }
 
-export function compileEnterConfig(dsl: DiagramEnterDSL | undefined): DiagramEnterConfig | null {
-  if (!dsl) return null;
+export function compileEnterConfig(dsl: DiagramEnterDSL | undefined): DiagramEnterConfig | undefined {
+  if (!dsl) return undefined;
   return {
     from: dsl.from,
     fade: dsl.fade ?? true,
-    scaleFrom: dsl.scaleFrom,
     easing: dsl.easing ?? 'ease',
   };
 }

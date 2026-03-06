@@ -104,3 +104,101 @@ describe('applyCamera', () => {
     expect(camera.quaternion.w).toBeCloseTo(expected.quaternion.w, 6);
   });
 });
+
+describe('applyCamera nvsTarget', () => {
+  it('world mode: nvsTarget=[0.5,0.5] points camera at viewport center (world origin)', () => {
+    // Camera at z=10, fov=50°, aspect=1. nvsTarget center = world (0,0,0).
+    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2000);
+    const state: SceneCamera = {
+      enabled: true,
+      descriptor: {
+        mode: 'world',
+        position: [0, 0, 10],
+        // target has large off-center values — nvsTarget should override X,Y lookAt
+        target: [999, 999, 0],
+        nvsTarget: [0.5, 0.5],
+      },
+    };
+    applyCamera(state, { camera, tick: makeTickDouble() });
+
+    // A camera at [0,0,10] looking at [0,0,0] should face -Z
+    const expected = new THREE.PerspectiveCamera(50, 1, 0.1, 2000);
+    expected.position.set(0, 0, 10);
+    expected.lookAt(0, 0, 0);
+
+    expect(camera.quaternion.x).toBeCloseTo(expected.quaternion.x, 4);
+    expect(camera.quaternion.y).toBeCloseTo(expected.quaternion.y, 4);
+    expect(camera.quaternion.z).toBeCloseTo(expected.quaternion.z, 4);
+    expect(camera.quaternion.w).toBeCloseTo(expected.quaternion.w, 4);
+  });
+
+  it('world mode: nvsTarget overrides lookAt X,Y but preserves target Z', () => {
+    // Camera at [0,10,10], target Z=5. nvsTarget=[0.5,0.5] → world center at Z=5 = (0,0,5) approx.
+    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2000);
+    const targetZ = 5;
+    const state: SceneCamera = {
+      enabled: true,
+      descriptor: {
+        mode: 'world',
+        position: [0, 0, 10],
+        target: [99, 99, targetZ],
+        nvsTarget: [0.5, 0.5],
+      },
+    };
+    applyCamera(state, { camera, tick: makeTickDouble() });
+
+    // nvsTarget center should produce worldX≈0, worldY≈0, with targetZ=5
+    const expected = new THREE.PerspectiveCamera(50, 1, 0.1, 2000);
+    expected.position.set(0, 0, 10);
+    expected.lookAt(0, 0, targetZ);
+
+    expect(camera.quaternion.x).toBeCloseTo(expected.quaternion.x, 4);
+    expect(camera.quaternion.y).toBeCloseTo(expected.quaternion.y, 4);
+    expect(camera.quaternion.z).toBeCloseTo(expected.quaternion.z, 4);
+    expect(camera.quaternion.w).toBeCloseTo(expected.quaternion.w, 4);
+  });
+
+  it('orbit mode: nvsTarget=[0.5,0.5] keeps orbit center at world origin', () => {
+    // With nvsTarget center (0.5,0.5) the orbit center X,Y should map to (0,0).
+    // Camera azimuth=0, polar=0, distance=10, targetZ=0 → camera at (0,0,10).
+    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2000);
+    const state: SceneCamera = {
+      enabled: true,
+      descriptor: {
+        mode: 'orbit',
+        target: [99, 99, 0],  // large off-center target — nvsTarget overrides X,Y
+        azimuth: 0,
+        polar: 0,
+        distance: 10,
+        nvsTarget: [0.5, 0.5],
+      },
+    };
+    applyCamera(state, { camera, tick: makeTickDouble() });
+
+    // Orbit with center (0,0,0), azimuth=0, polar=0, distance=10 → camera at (0,0,10)
+    expect(camera.position.x).toBeCloseTo(0, 3);
+    expect(camera.position.y).toBeCloseTo(0, 3);
+    expect(camera.position.z).toBeCloseTo(10, 3);
+  });
+
+  it('orbit mode: nvsTarget preserves target Z from target[2]', () => {
+    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 2000);
+    const state: SceneCamera = {
+      enabled: true,
+      descriptor: {
+        mode: 'orbit',
+        target: [0, 0, 5],  // target Z=5 should be preserved
+        azimuth: 0,
+        polar: 0,
+        distance: 10,
+        nvsTarget: [0.5, 0.5],
+      },
+    };
+    applyCamera(state, { camera, tick: makeTickDouble() });
+
+    // With center (0,0,5), polar=0 (equator), distance=10: camera at (0,0,15)
+    expect(camera.position.x).toBeCloseTo(0, 3);
+    expect(camera.position.y).toBeCloseTo(0, 3);
+    expect(camera.position.z).toBeCloseTo(15, 3);
+  });
+});

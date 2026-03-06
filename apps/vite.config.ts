@@ -87,11 +87,13 @@ export default defineConfig({
       { find: /^@brewsite\/diagram\/(.*)$/, replacement: path.resolve(__dirname, '../packages/diagram/src/$1') },
       { find: /^@brewsite\/model\/(.*)$/, replacement: path.resolve(__dirname, '../packages/model/src/$1') },
       { find: /^@brewsite\/charts\/(.*)$/, replacement: path.resolve(__dirname, '../packages/charts/src/$1') },
+      { find: /^@brewsite\/slides\/(.*)$/, replacement: path.resolve(__dirname, '../packages/slides/src/$1') },
       // Top-level package imports resolve to each package's TS entry point.
       { find: '@brewsite/core', replacement: path.resolve(__dirname, '../packages/core/src/index.ts') },
       { find: '@brewsite/diagram', replacement: path.resolve(__dirname, '../packages/diagram/src/index.ts') },
       { find: '@brewsite/model', replacement: path.resolve(__dirname, '../packages/model/src/index.ts') },
       { find: '@brewsite/charts', replacement: path.resolve(__dirname, '../packages/charts/src/index.ts') },
+      { find: '@brewsite/slides', replacement: path.resolve(__dirname, '../packages/slides/src/index.ts') },
     ],
   },
   server: {

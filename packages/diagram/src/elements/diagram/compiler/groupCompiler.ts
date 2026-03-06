@@ -12,14 +12,22 @@ import { buildGroupDefaults } from './nodeCompiler';
 import { computeBounds } from './layoutAlgorithms';
 import type { ResolvedLayout } from './layoutResolver';
 
+/**
+ * Bounding box for a group, in diagram units pre-normalization, or in [0..1] NVS
+ * fractions post-normalization (after normalizeToViewport() in compile.ts).
+ *
+ * Pre-normalization (auto-layout): x/y are Cartesian diagram units; y = bottom edge (Y-up).
+ * Post-normalization: x/y are NVS fractions; y = TOP edge (Y-down, NVS convention).
+ * ManualLayout: positions are authored in [0..1] NVS; y = NVS top edge from the start.
+ */
 export type GroupBounds = {
   readonly x: number;
   readonly y: number;
   readonly w: number;
   readonly h: number;
-  /** Resolved padding [top, right, bottom, left] in diagram units. */
+  /** Resolved padding [top, right, bottom, left]. Units match the current coordinate space. */
   readonly padding: readonly [number, number, number, number];
-  /** Gap between group title label and content, in diagram units. */
+  /** Gap between group title label and content. Units match the current coordinate space. */
   readonly titleGap: number;
 };
 

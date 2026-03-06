@@ -1,6 +1,7 @@
 // Core data contracts for the scene compilation pipeline.
 // Types here flow compiler → runtime → player with no circular dependencies.
 
+import type { ReactNode } from 'react';
 import type { JsonPrimitive } from '../widget/VariableStore';
 
 /**
@@ -14,6 +15,25 @@ export type TransitionWindow = {
   enter?: [number, number];
 };
 
+// ─── DslBreadcrumb ────────────────────────────────────────────────────────────
+
+/**
+ * One step in a DSL ancestry chain, captured during compilation for error reporting.
+ * source is undefined in production builds (when Babel's __source injection is absent).
+ */
+export type DslBreadcrumb = {
+  /** displayName or name of the component, or the HTML tag string. */
+  componentName: string;
+  /** Element key at this position, if any (post-Children.toArray prefix stripped). */
+  key?: string;
+  /** Source location injected by @vitejs/plugin-react in development builds. */
+  source?: {
+    fileName: string;
+    lineNumber: number;
+    columnNumber: number;
+  };
+};
+
 // ─── CompileWarning ───────────────────────────────────────────────────────────
 
 export type CompileWarningCode =
@@ -21,13 +41,20 @@ export type CompileWarningCode =
   | 'DUPLICATE_WIDGET_ID'
   | 'UNRESOLVED_REFERENCE'
   | 'PROGRESS_MANAGER'
-  | 'TRANSITION_TIMING';
+  | 'TRANSITION_TIMING'
+  | 'MISSING_KEY';
 
 export type CompileWarning = {
   code: CompileWarningCode;
   message: string;
   widgetId?: string;
   sceneIndex?: number;
+  /**
+   * DSL ancestry chain from the Scene root to the element that caused the warning.
+   * Only populated in development builds (where React's __source is available).
+   * Used by the player to emit enriched console.warn messages.
+   */
+  elementAncestry?: readonly DslBreadcrumb[];
 };
 
 // ─── ProgressManager Types ────────────────────────────────────────────────────
@@ -238,6 +265,12 @@ export type SceneFrame = {
    * buildProgressProfile resolves it.
    */
   progressManager?: ProgressManagerSpec;
+  /**
+   * Non-DSL JSX children extracted from the <Scene> by compileChildrenSeparated.
+   * Contains React elements such as <TextBox> that render as DOM overlays.
+   * Carried to SceneTrack.sceneOverlays for runtime rendering via EngineOverlayHost.
+   */
+  sceneOverlay?: ReactNode;
 };
 
 // ─── SceneFrameDelta ──────────────────────────────────────────────────────────
@@ -302,6 +335,25 @@ export type SceneTrackTick = {
   sceneId: string;
   sceneIndex: number;
   blockProgress: number;
+  /**
+   * Normalized progress within this scene, [0, 1].
+   *
+   * At the first tick of a scene (just arrived), sceneProgress = 0.
+   * At the last tick of a scene before transition completes, sceneProgress = 1.
+   * For the terminal tick of the final scene, sceneProgress = 1 (user is fully inside).
+   *
+   * Semantics: this is identical to blockProgress for all non-terminal ticks.
+   * The distinction is the terminal tick: blockProgress is reset to 0 (compiler
+   * invariant), but sceneProgress is set to 1 (user has fully arrived in the scene).
+   *
+   * Use case: SlideMetaWidget reads sceneProgress to compute visibleBullets
+   * for animated bullet lists. Other elements may also use this for within-scene
+   * progressive reveal effects.
+   *
+   * Optional (not present in tracks compiled before this field was added).
+   * Defaults to blockProgress when absent at runtime.
+   */
+  sceneProgress?: number;
   state: SceneFrame;
   deltaForward: SceneFrameDelta;
   deltaBackward: SceneFrameDelta;
@@ -331,4 +383,10 @@ export type SceneTrack = {
    * zero overhead). Never undefined when any scene declares a non-default spec.
    */
   progressProfile?: SceneProgressProfile;
+  /**
+   * Keyed by scene id. Contains non-DSL JSX overlay content (e.g. <TextBox>)
+   * extracted from each <Scene> during compilation. Rendered by EngineOverlayHost.
+   * Only present when at least one scene has overlay content.
+   */
+  sceneOverlays?: Map<string, ReactNode>;
 };

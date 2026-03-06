@@ -1,0 +1,51 @@
+{
+  "name": "@brewsite/slides",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": ["dist", "LICENSE", "README.md"],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "build:lib": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run --passWithNoTests",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
+  },
+  "peerDependencies": {
+    "@brewsite/core": "workspace:*",
+    "react": "^18 || ^19",
+    "react-dom": "^18 || ^19",
+    "three": "^0.183.1",
+    "@brewsite/diagram": "workspace:*",
+    "@brewsite/model": "workspace:*",
+    "@brewsite/charts": "workspace:*"
+  },
+  "peerDependenciesMeta": {
+    "@brewsite/diagram": { "optional": true },
+    "@brewsite/model": { "optional": true },
+    "@brewsite/charts": { "optional": true }
+  },
+  "devDependencies": {
+    "@brewsite/core": "workspace:*",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/three": "^0.183.1",
+    "@vitejs/plugin-react": "^4.7.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "typescript": "^5.9.3",
+    "vite": "^5.4.21",
+    "vitest": "^2.1.9"
+  }
+}

@@ -147,22 +147,23 @@ export class DiagramWidget
     const cam = context.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
     if (!cam) return;
 
-    const { bounds, position, scale, rotation } = diagramState;
-    const [drx, dry, drz] = rotation;
+    // Stream 4 will recompute from viewportBounds in canvas-local space.
+    const { viewportBounds, tiltRotation } = diagramState;
+    const [drx, dry, drz] = tiltRotation;
     const corners: Array<readonly [number, number, number]> = [
-      [bounds.x, bounds.y, 0],
-      [bounds.x + bounds.w, bounds.y, 0],
-      [bounds.x, bounds.y + bounds.h, 0],
-      [bounds.x + bounds.w, bounds.y + bounds.h, 0],
+      [viewportBounds.x, viewportBounds.y, 0],
+      [viewportBounds.x + viewportBounds.w, viewportBounds.y, 0],
+      [viewportBounds.x, viewportBounds.y + viewportBounds.h, 0],
+      [viewportBounds.x + viewportBounds.w, viewportBounds.y + viewportBounds.h, 0],
     ];
     let minX = Infinity;
     let maxX = -Infinity;
     let minY = Infinity;
     let maxY = -Infinity;
     for (const corner of corners) {
-      const cx = corner[0] * scale + position[0];
-      const cy = corner[1] * scale + position[1];
-      const cz = corner[2] * scale + position[2];
+      const cx = corner[0];
+      const cy = corner[1];
+      const cz = corner[2];
       const [rx, ry] = rotateXYZ([cx, cy, cz], drx, dry, drz);
       minX = Math.min(minX, rx);
       maxX = Math.max(maxX, rx);
@@ -174,8 +175,8 @@ export class DiagramWidget
     const worldMaxDim = Math.max(maxX - minX, maxY - minY);
     const fov45 = 45 * (Math.PI / 180);
     const dist = (worldMaxDim / (2 * Math.tan(fov45 / 2))) * 1.2;
-    cam.position.set(worldCX, worldCY + dist * 0.3, position[2] + dist);
-    cam.lookAt(worldCX, worldCY, position[2]);
+    cam.position.set(worldCX, worldCY + dist * 0.3, dist);
+    cam.lookAt(worldCX, worldCY, 0);
   }
 
   apply(state: DiagramState, _ctx: WidgetRenderContext): void {

@@ -1,5 +1,6 @@
 // Three.js + DOM rendering for ScreenState.
 // WebGL bezel + DOM iframe overlay.
+// Accepts ScreenRenderInput (world-space position + dimensions) computed by the widget layer.
 
 import * as THREE from 'three';
 import type { ScreenState } from './types';
@@ -7,13 +8,27 @@ import { createBezel, disposeBezel } from '../_shared/bezelGeometry';
 import { createGlow, disposeGlowSprite } from '../_shared/glowSprite';
 import { SCREEN_ROTATION_WARNING_THRESHOLD_RAD } from './compile';
 
+/**
+ * World-space render input for ScreenRenderer.
+ * Produced by ScreenWidget.apply() by converting NVS fields to world-space.
+ * Never exported — internal to the screen element.
+ */
+export type ScreenRenderInput = Omit<ScreenState, 'nvsX' | 'nvsY' | 'z' | 'nvsWidth' | 'nvsHeight'> & {
+  /** World-space position of the screen center [x, y, z]. */
+  readonly position: readonly [number, number, number];
+  /** Screen content width in world units. */
+  readonly width: number;
+  /** Screen content height in world units. */
+  readonly height: number;
+};
+
 type ScreenEntry = {
   group: THREE.Group;
   bezelGroup: THREE.Group;
   glowSprite?: THREE.Sprite;
   iframeDiv: HTMLDivElement;
   iframe: HTMLIFrameElement;
-  lastState?: ScreenState;
+  lastState?: ScreenRenderInput;
 };
 
 export class ScreenRenderer {
@@ -25,7 +40,7 @@ export class ScreenRenderer {
     this.overlayContainer = overlayContainer;
   }
 
-  update(state: ScreenState, scene: THREE.Scene, camera: THREE.Camera, canvasRect: DOMRect): void {
+  update(state: ScreenRenderInput, scene: THREE.Scene, camera: THREE.Camera, canvasRect: DOMRect): void {
     let entry = this.screens.get(state.id);
     if (!entry) {
       entry = this.createScreen(state);
@@ -112,7 +127,7 @@ export class ScreenRenderer {
     this.warnedRotation.delete(screenId);
   }
 
-  private createScreen(state: ScreenState): ScreenEntry {
+  private createScreen(state: ScreenRenderInput): ScreenEntry {
     const group = new THREE.Group();
     const bezelGroup = createBezel(state.bezel, state.width, state.height, state.bezelThickness);
     group.add(bezelGroup);
@@ -140,7 +155,7 @@ export class ScreenRenderer {
 
   private syncIframeToBezel(
     entry: ScreenEntry,
-    state: ScreenState,
+    state: ScreenRenderInput,
     camera: THREE.Camera,
     canvasRect: DOMRect,
   ): void {

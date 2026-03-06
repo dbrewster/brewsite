@@ -15,13 +15,12 @@ import type {
   DiagramGroupDSL,
   DiagramExitDSL,
   DiagramEnterDSL,
-  DiagramPivot,
   DiagramState,
   DiagramTheme,
   DiagramWarnFn,
   LayoutDSL,
 } from '../elements/diagram/types';
-import type { InputActionSpec } from '@brewsite/core';
+import type { InputActionSpec, NVSRect } from '@brewsite/core';
 import type { DiagramCanvasDSL, DiagramPipeDSL, PipeRoutingAlgorithm, PipeLandingAlgorithm } from '../elements/diagram/canvas/types';
 import type { ImagePanelDSL } from '../elements/image-panel/types';
 import type { ScreenDSL } from '../elements/screen/types';
@@ -228,10 +227,8 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?:
     edges,
     groups,
     childrenOrder,
-    position: props.position as readonly [number, number, number] | undefined,
-    rotation: props.rotation as readonly [number, number, number] | undefined,
-    scale: props.scale as number | undefined,
-    pivot: (props.pivot ?? 'center') as DiagramPivot,
+    viewportBounds: props.viewportBounds as NVSRect | undefined,
+    tilt: props.tilt as readonly [number, number, number] | undefined,
     exit: exitDSL,
     enter: enterDSL,
     theme,
@@ -285,12 +282,7 @@ export const registerDiagramHandlers = (): void => {
 
     // Wrap the single diagram in a canvas state — DiagramCanvasWidget expects DiagramCanvasState.
     const canvasState = compileCanvas(
-      {
-        id: canvasId,
-        position: dsl.position,
-        rotation: dsl.rotation,
-        scale: dsl.scale,
-      },
+      { id: canvasId },
       [diagramState],
       [],
       onWarn,

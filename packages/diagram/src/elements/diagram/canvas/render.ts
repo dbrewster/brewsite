@@ -28,6 +28,12 @@ export class DiagramCanvasRenderer {
     this.canvasGroup.rotation.set(state.rotation[0], state.rotation[1], state.rotation[2]);
     this.canvasGroup.scale.setScalar(state.scale);
 
+    // Compute canvas aspect ratio: (canvas NVS width / canvas NVS height) × engine aspect.
+    // Reads the engine camera stored on scene.userData by CameraWidget.
+    const cam = scene.userData['__brewsite_camera'] as THREE.PerspectiveCamera | undefined;
+    const engineAspect = cam?.aspect ?? 16 / 9;
+    const canvasAspect = (state.nvsBounds.w / state.nvsBounds.h) * engineAspect;
+
     const activeDiagramIds = new Set(state.diagrams.map((d) => d.id));
     for (const [id, renderer] of this.diagramRenderers) {
       if (!activeDiagramIds.has(id)) {
@@ -40,7 +46,9 @@ export class DiagramCanvasRenderer {
       if (!this.diagramRenderers.has(diagramState.id)) {
         this.diagramRenderers.set(diagramState.id, new DiagramRenderer());
       }
-      this.diagramRenderers.get(diagramState.id)!.update(diagramState, this.canvasGroup);
+      const dr = this.diagramRenderers.get(diagramState.id)!;
+      dr.setCanvasAspect(canvasAspect);
+      dr.update(diagramState, this.canvasGroup);
     }
 
     const activePipeIds = new Set(state.pipes.map((p) => p.id));

@@ -6,15 +6,12 @@
 // The BackgroundWidget CUSTOM_NODE_HANDLER resolves SceneTheme at compile time
 // into the concrete fields below.
 
-export type Vec3 = [number, number, number];
-
 export type SceneBackground = {
   imageUrl?: string;
   opacity: number;
   color?: string;        // CSS background color (e.g. '#0a0a14')
   /** CSS gradient string — takes precedence over color/imageUrl when set */
   gradient?: string;
-  position?: Vec3;
   cssPosition?: string;
   cssSize?: string;
   cssRepeat?: string;

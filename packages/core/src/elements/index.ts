@@ -54,9 +54,7 @@ export { applyFloor, type FloorThreeRefs } from './floor';
 
 // TextBox overlay element
 export { TextBox } from './text-box';
-export type { TextBoxProps, TextBoxState, TextBoxAnchorMode, TextBoxEdge } from './text-box';
-export { TextBoxWidget, functionalTextBoxTransitionSpec } from './text-box';
-export { compileTextBox } from './text-box';
+export type { TextBoxProps } from './text-box';
 
 // Camera
 export type {

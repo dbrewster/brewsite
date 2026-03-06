@@ -1,5 +1,5 @@
 // Pure compilation for Screen element: ScreenDSL → ScreenState.
-// No Three.js. No React. No DOM access.
+// No Three.js. No DOM access.
 
 import type { ScreenDSL, ScreenState } from './types';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
@@ -15,7 +15,10 @@ const toMutableVec3 = (value: readonly [number, number, number]): [number, numbe
 
 /**
  * Compiles a ScreenDSL into a fully resolved ScreenState by applying defaults.
- * All fields in the output are defined — no undefined values.
+ * All fields in the output are defined — no undefined values except nvsHeight.
+ *
+ * Position is expressed as NVS fractions (nvsX, nvsY); world-space conversion
+ * happens in ScreenWidget.apply() using the live camera.
  *
  * Side effect: emits console.warn if any rotation axis exceeds
  * SCREEN_ROTATION_WARNING_THRESHOLD_RAD radians,
@@ -37,11 +40,13 @@ export function compileScreen(dsl: ScreenDSL): ScreenState {
   return {
     id: dsl.id,
     src: dsl.src,
-    position: dsl.position ?? [0, 0, 0],
+    nvsX: dsl.x ?? 0.5,
+    nvsY: dsl.y ?? 0.5,
+    z: dsl.z ?? 0,
+    nvsWidth: dsl.width ?? 0.625,
+    nvsHeight: dsl.height,
     rotation,
     scale: dsl.scale ?? 1,
-    width: dsl.width ?? 12,
-    height: dsl.height ?? 7.5,
     bezel: dsl.bezel ?? 'dark',
     bezelThickness: dsl.bezelThickness ?? 0.3,
     opacity: dsl.opacity ?? 1,
@@ -55,16 +60,9 @@ export function compileScreen(dsl: ScreenDSL): ScreenState {
 
 /**
  * Functional transition spec for ScreenState.
- * Position, scale, and opacity are continuously interpolated (opacity drives both
- * the WebGL bezel and the iframe CSS opacity simultaneously).
- * src and bezel step at the midpoint — URLs and variants cannot be interpolated.
- *
- * Note: height and width are not interpolated (no smooth resize of the iframe).
- * They step at the midpoint. To animate a resize, change only position/scale.
- *
- * Uses ctx.t for all channels (zero behavior change from old scalar-t path).
- * Scene authors may add <Transition channels={['opacity']} ...> children to the
- * <Screen> DSL element to activate per-channel window/ease control.
+ * NVS position (nvsX, nvsY, z), nvsWidth/nvsHeight, scale, and opacity are continuously
+ * interpolated. src, bezel, and width/height step at midpoint (cannot interpolate URLs
+ * or iframe resize without layout thrash).
  */
 export const functionalScreenTransitionSpec: FunctionalTransitionSpec<ScreenState> = {
   exitFn: (from) => (ctx) => ({
@@ -77,7 +75,11 @@ export const functionalScreenTransitionSpec: FunctionalTransitionSpec<ScreenStat
   }),
   interpolateFn: (from, to) => (ctx) => ({
     ...to,
-    position: blendVec3(toMutableVec3(from.position), toMutableVec3(to.position), ctx.t) ?? to.position,
+    nvsX: (blendNumber(from.nvsX, to.nvsX, ctx.t) ?? to.nvsX),
+    nvsY: (blendNumber(from.nvsY, to.nvsY, ctx.t) ?? to.nvsY),
+    z: (blendNumber(from.z, to.z, ctx.t) ?? to.z),
+    nvsWidth: ctx.t < 0.5 ? from.nvsWidth : to.nvsWidth,
+    nvsHeight: ctx.t < 0.5 ? from.nvsHeight : to.nvsHeight,
     rotation: blendVec3(toMutableVec3(from.rotation), toMutableVec3(to.rotation), ctx.t) ?? to.rotation,
     scale: blendNumber(from.scale, to.scale, ctx.t) ?? to.scale,
     opacity: blendOpacity(from.opacity, to.opacity, ctx.t) ?? to.opacity,
@@ -85,7 +87,5 @@ export const functionalScreenTransitionSpec: FunctionalTransitionSpec<ScreenStat
     // Discrete properties: step at midpoint
     src: ctx.t < 0.5 ? from.src : to.src,
     bezel: ctx.t < 0.5 ? from.bezel : to.bezel,
-    width: ctx.t < 0.5 ? from.width : to.width,
-    height: ctx.t < 0.5 ? from.height : to.height,
   }),
 };

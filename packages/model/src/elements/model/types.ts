@@ -198,7 +198,21 @@ export type ScenePlayback = {
 
 export type SceneModel = {
   scale: number;
-  position: Vec3;
+  /**
+   * NVS horizontal center position [0..1]. 0 = left, 1 = right.
+   * Converted to world X at render time using the active camera.
+   * Default: center of nvsBounds = (nvsBounds.x + nvsBounds.w / 2).
+   */
+  nvsX: number;
+  /**
+   * NVS vertical center position [0..1]. 0 = top, 1 = bottom.
+   * Default: center of nvsBounds = (nvsBounds.y + nvsBounds.h / 2).
+   */
+  nvsY: number;
+  /**
+   * World-space Z depth of the model center. Default: 0.
+   */
+  z: number;
   rotation: Vec3;
   opacity?: number;
   metalness?: number;

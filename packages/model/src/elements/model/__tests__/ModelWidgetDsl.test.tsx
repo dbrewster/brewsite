@@ -28,7 +28,9 @@ const makeContext = (): SceneSnapshotContext => ({
 const identity: SceneModelInstanceState = {
   model: {
     scale: 0.1,
-    position: [0, 0, 0],
+    nvsX: 0.5,
+    nvsY: 0.5,
+    z: 0,
     rotation: [0, 0, 0],
     enabled: true,
     bodyPartOverrides: {},
@@ -71,7 +73,11 @@ describe('ModelWidget DSL handler', () => {
           id="bot-instance"
           type="bot"
           scale={() => 0.5}
-          position={[1, 2, 3]}
+          x={0.3}
+          y={0.2}
+          w={0.4}
+          h={0.6}
+          z={3}
           rotation={[0, 0, 1]}
           metalness={() => 0.1}
           roughness={0.9}
@@ -103,7 +109,9 @@ describe('ModelWidget DSL handler', () => {
     const state = frame.widgets['bot-instance'] as SceneModelInstanceState;
 
     expect(state.model.scale).toBeCloseTo(0.5);
-    expect(state.model.position).toEqual([1, 2, 3]);
+    expect(state.model.nvsX).toBeCloseTo(0.3 + 0.4 / 2);  // x + w/2
+    expect(state.model.nvsY).toBeCloseTo(0.2 + 0.6 / 2);  // y + h/2
+    expect(state.model.z).toBeCloseTo(3);
     expect(state.model.rotation).toEqual([0, 0, 1]);
     expect(state.model.metalness).toBeCloseTo(0.1);
     expect(state.model.roughness).toBeCloseTo(0.9);
@@ -222,7 +230,7 @@ describe('ModelWidget runtime helpers', () => {
   it('compileExtra delegates to compileAnimation', () => {
     const widget = makeWidget();
     const state: SceneModelInstanceState = {
-      model: { scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true },
+      model: { scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true },
       playback: { motion: { commands: [], scenes: [] }, animation: { enabled: true, clipName: 'idle' } },
     };
     const extra = widget.compileExtra(state, { prefersReducedMotion: false, sceneProgress: 0, globalProgress: 0, clipMeta: [] });
@@ -302,11 +310,16 @@ describe('ModelWidget runtime helpers', () => {
     const renderer = { apply: vi.fn() };
     (widget as unknown as { renderer: typeof renderer }).renderer = renderer;
     const state: SceneModelInstanceState = {
-      model: { scale: 1, position: [0, 0, 0], rotation: [0, 0, 0], enabled: true },
+      model: { scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true },
       playback: { motion: { commands: [], scenes: [] }, animation: { enabled: false } },
     };
     widget.apply(state, { clock: { wallTimeSeconds: 0, deltaSeconds: 0 }, effectiveDeltaSeconds: 0, globalProgress: 0, variables: {} as never, extra: { enabled: false } });
-    expect(renderer.apply).toHaveBeenCalledWith(state, { enabled: false }, expect.any(Object));
+    // ModelWidget.apply() converts NVS → world before passing to renderer
+    expect(renderer.apply).toHaveBeenCalledWith(
+      expect.objectContaining({ model: expect.objectContaining({ position: expect.any(Array) }) }),
+      { enabled: false },
+      expect.any(Object),
+    );
   });
 
   it('findBoneNode and getBoneWorldPositions proxy to renderer', () => {

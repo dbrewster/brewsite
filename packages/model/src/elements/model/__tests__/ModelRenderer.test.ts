@@ -3,12 +3,24 @@ import * as THREE from 'three';
 import { ModelRenderer } from '../ModelRenderer';
 import { createDefaultModelInstanceState } from '../compile';
 import type { SceneModelInstanceState } from '../types';
+import type { ModelRenderInstanceState } from '../_renderTypes';
 import { VariableStore } from '@brewsite/core';
+
+/** Convert a SceneModelInstanceState (NVS coords) to ModelRenderInstanceState (world position). */
+const toRenderState = (
+  state: SceneModelInstanceState,
+  position: [number, number, number] = [0, 0, 0],
+): ModelRenderInstanceState => {
+  const { nvsX: _nx, nvsY: _ny, z: _z, ...modelRest } = state.model;
+  return { ...state, model: { ...modelRest, position } };
+};
 
 const identity: SceneModelInstanceState = {
   model: {
     scale: 0.1,
-    position: [0, 0, 0],
+    nvsX: 0.5,
+    nvsY: 0.5,
+    z: 0,
     rotation: [0, 0, 0],
     enabled: true,
     bodyPartOverrides: {},
@@ -20,20 +32,24 @@ const identity: SceneModelInstanceState = {
   nvsBounds: { x: 0, y: 0, w: 1, h: 1 },
 };
 
-const buildState = (): SceneModelInstanceState => ({
-  ...createDefaultModelInstanceState('primary', identity),
-  model: {
-    ...createDefaultModelInstanceState('primary', identity).model,
-    position: [1, 2, 3],
-    rotation: [0.1, 0.2, 0.3],
-    scale: 2,
-    metalness: 0.2,
-    roughness: 0.8,
-    bodyPartOverrides: {
-      Body: { color: '#ff0000', opacity: 0.5, metalness: 0.1, roughness: 0.9 },
+/** Builds a ModelRenderInstanceState with world-space position already resolved (as ModelWidget.apply() would do). */
+const buildState = (): ModelRenderInstanceState => {
+  const base = createDefaultModelInstanceState('primary', identity);
+  return {
+    ...base,
+    model: {
+      scale: 2,
+      position: [1, 2, 3],
+      rotation: [0.1, 0.2, 0.3],
+      metalness: 0.2,
+      roughness: 0.8,
+      enabled: true,
+      bodyPartOverrides: {
+        Body: { color: '#ff0000', opacity: 0.5, metalness: 0.1, roughness: 0.9 },
+      },
     },
-  },
-});
+  };
+};
 
 describe('ModelRenderer', () => {
   it('applies model transform and body part overrides', () => {
@@ -122,7 +138,7 @@ describe('ModelRenderer', () => {
     group.add(mesh);
     (renderer as any).ingestModel(group, []);
 
-    const state: SceneModelInstanceState = {
+    const rawState: SceneModelInstanceState = {
       ...createDefaultModelInstanceState('primary', identity),
       model: {
         ...createDefaultModelInstanceState('primary', identity).model,
@@ -137,7 +153,7 @@ describe('ModelRenderer', () => {
       },
     };
 
-    renderer.apply(state);
+    renderer.apply(toRenderState(rawState));
 
     const mat = mesh.material as THREE.MeshStandardMaterial;
     expect(mat.color.getHexString()).toBe('ff0000');
@@ -156,7 +172,7 @@ describe('ModelRenderer', () => {
 
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    const state: SceneModelInstanceState = {
+    const rawState: SceneModelInstanceState = {
       ...createDefaultModelInstanceState('primary', identity),
       model: {
         ...createDefaultModelInstanceState('primary', identity).model,
@@ -167,7 +183,7 @@ describe('ModelRenderer', () => {
       },
     };
 
-    renderer.apply(state);
+    renderer.apply(toRenderState(rawState));
 
     expect(warnSpy).not.toHaveBeenCalledWith(
       expect.stringContaining('[ModelRenderer] missing mesh'),
@@ -193,7 +209,7 @@ describe('ModelRenderer', () => {
     group.add(mesh);
     (renderer as any).ingestModel(group, []);
 
-    const state: SceneModelInstanceState = {
+    const rawState: SceneModelInstanceState = {
       ...createDefaultModelInstanceState('primary', identity),
       model: {
         ...createDefaultModelInstanceState('primary', identity).model,
@@ -208,7 +224,7 @@ describe('ModelRenderer', () => {
       },
     };
 
-    renderer.apply(state);
+    renderer.apply(toRenderState(rawState));
 
     // The bone should have its rotation modified via pose override
     expect(bone.rotation.y).toBeCloseTo(0.5);
@@ -240,8 +256,8 @@ describe('ModelRenderer', () => {
 
     (renderer as any).containedModelTemplates.set('brain', contained);
 
-    const state = createDefaultModelInstanceState('primary', identity) as SceneModelInstanceState;
-    state.model.parts = {
+    const rawState = createDefaultModelInstanceState('primary', identity) as SceneModelInstanceState;
+    rawState.model.parts = {
       brain: {
         id: 'brain',
         anchor: 'head',
@@ -262,7 +278,7 @@ describe('ModelRenderer', () => {
       },
     };
 
-    renderer.apply(state);
+    renderer.apply(toRenderState(rawState));
 
     const instance = (renderer as any).attachedParts.get('brain');
     expect(instance).toBeDefined();
@@ -285,13 +301,14 @@ describe('ModelRenderer', () => {
       new THREE.AnimationClip('idle', 1, []),
     ]);
 
-    const state: SceneModelInstanceState = {
+    const rawState: SceneModelInstanceState = {
       ...createDefaultModelInstanceState('primary', identity),
       playback: {
         ...createDefaultModelInstanceState('primary', identity).playback,
         animation: { enabled: true, clipName: 'idle' },
       },
     };
+    const state = toRenderState(rawState);
     const animation = { enabled: true, clipName: 'idle' };
     const variables = new VariableStore();
 
@@ -327,13 +344,14 @@ describe('ModelRenderer', () => {
       new THREE.AnimationClip('idle', 1, []),
     ]);
 
-    const state: SceneModelInstanceState = {
+    const rawState: SceneModelInstanceState = {
       ...createDefaultModelInstanceState('primary', identity),
       playback: {
         ...createDefaultModelInstanceState('primary', identity).playback,
         animation: { enabled: true, clipName: 'idle' },
       },
     };
+    const state = toRenderState(rawState);
     const animation = { enabled: true, clipName: 'idle' };
     const variables = new VariableStore();
 
@@ -350,7 +368,7 @@ describe('ModelRenderer', () => {
     const action = mixer.clipAction(activeClip);
     const resetSpy = vi.spyOn(action, 'reset');
 
-    const nextState: SceneModelInstanceState = {
+    const nextState: ModelRenderInstanceState = {
       ...state,
       playback: {
         ...state.playback,

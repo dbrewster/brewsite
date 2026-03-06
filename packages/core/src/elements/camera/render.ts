@@ -9,6 +9,7 @@ type SceneModelInstanceState = {
   model: { position: [number, number, number]; scale?: number };
 };
 import type { SceneCamera } from './types';
+import { nvsToWorldAnalytic } from '../../layout/nvsWorldBridge';
 
 export type CameraRenderContext = {
   camera: THREE.PerspectiveCamera;
@@ -115,13 +116,30 @@ export const applyCamera = (state: SceneCamera, ctx: CameraRenderContext): void 
   if (desc.mode === 'world') {
     camera.position.set(...desc.position);
     if (desc.up) camera.up.set(...desc.up);
-    camera.lookAt(...desc.target);
+    if (desc.nvsTarget) {
+      // Override look-at X,Y using NVS viewport fraction.
+      const targetZ = desc.target[2];
+      const dist = Math.abs(camera.position.z - targetZ);
+      const fov = lens?.fov ?? camera.fov;
+      const worldXY = nvsToWorldAnalytic(desc.nvsTarget[0], desc.nvsTarget[1], 0, 0, dist, fov, camera.aspect, targetZ);
+      camera.lookAt(worldXY[0], worldXY[1], targetZ);
+    } else {
+      camera.lookAt(...desc.target);
+    }
     return;
   }
 
   // Orbit mode — convert spherical to Cartesian
   if (desc.mode === 'orbit') {
-    const { target, azimuth, polar, distance } = desc;
+    const { azimuth, polar, distance } = desc;
+    let target = desc.target;
+    if (desc.nvsTarget) {
+      // Override orbit center X,Y using NVS viewport fraction.
+      const targetZ = desc.target[2];
+      const fov = lens?.fov ?? camera.fov;
+      const worldXY = nvsToWorldAnalytic(desc.nvsTarget[0], desc.nvsTarget[1], 0, 0, distance, fov, camera.aspect, targetZ);
+      target = [worldXY[0], worldXY[1], targetZ];
+    }
     const x = target[0] + distance * Math.cos(polar) * Math.sin(azimuth);
     const y = target[1] + distance * Math.sin(polar);
     const z = target[2] + distance * Math.cos(polar) * Math.cos(azimuth);

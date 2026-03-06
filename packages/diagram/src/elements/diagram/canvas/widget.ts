@@ -25,7 +25,6 @@ import type {
   DiagramNodeHoverEvent,
   DiagramNodeState,
 } from '../types';
-import { rotateXYZ } from './compiler/pipeRouter';
 import {
   clearDiagramFocusRegion,
   publishDiagramFocusCanvas,
@@ -137,73 +136,11 @@ export class DiagramCanvasWidget
   }
 
   /**
-   * Camera auto-framing: computes world-space bounds over all child diagrams
-   * and frames the camera to show everything. Yields to Camera widget if active.
+   * Auto-framing removed. Camera is set deterministically in apply() based on canvas.scale.
+   * Interactive zoom-to-group is handled via applyInputFocus() → focusMesh()/focusAll().
    */
-  onTick(context: AnimationTickContext): void {
-    const tick = context.tick;
-    const rawState = tick?.state.widgets[this.widgetId];
-    const state = (rawState as DiagramCanvasState | undefined) ?? this.lastState;
-    if (!state || state.diagrams.length === 0) return;
-
-    const rawCamState = tick?.state.widgets['camera'];
-    const functionalCam = tick
-      ? context.track?.transitionBlocks?.[tick.sceneIndex]?.widgetFns['camera']
-      : undefined;
-    const resolvedCamState = functionalCam
-      ? (functionalCam.fn(tick!.blockProgress) as { enabled?: boolean })
-      : (rawCamState as { enabled?: boolean } | undefined);
-    const cameraActive =
-      typeof resolvedCamState === 'object' &&
-      resolvedCamState !== null &&
-      'enabled' in resolvedCamState &&
-      resolvedCamState.enabled === true;
-    if (cameraActive) return;
-
-    const cam = context.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
-    if (!cam) return;
-
-    const [crx, cry, crz] = state.rotation;
-    const [cpx, cpy, cpz] = state.position;
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-
-    for (const diagram of state.diagrams) {
-      const { bounds: b } = diagram;
-      const ds = diagram.scale;
-      const [drx, dry, drz] = diagram.rotation;
-      const [dpx, dpy, dpz] = diagram.position;
-      const cs = state.scale;
-
-      const corners: Array<readonly [number, number, number]> = [
-        [b.x, b.y, 0],
-        [b.x + b.w, b.y, 0],
-        [b.x, b.y + b.h, 0],
-        [b.x + b.w, b.y + b.h, 0],
-      ];
-
-      for (const corner of corners) {
-        const cx = corner[0] * ds + dpx;
-        const cy = corner[1] * ds + dpy;
-        const cz = corner[2] * ds + dpz;
-        const [rx1, ry1, rz1] = rotateXYZ([cx, cy, cz], drx, dry, drz);
-        const wx = rx1 * cs + cpx;
-        const wy = ry1 * cs + cpy;
-        const wz = rz1 * cs + cpz;
-        const [wx2, wy2] = rotateXYZ([wx, wy, wz], crx, cry, crz);
-        minX = Math.min(minX, wx2);
-        maxX = Math.max(maxX, wx2);
-        minY = Math.min(minY, wy2);
-        maxY = Math.max(maxY, wy2);
-      }
-    }
-
-    const worldCX = (minX + maxX) / 2;
-    const worldCY = (minY + maxY) / 2;
-    const maxDim = Math.max(maxX - minX, maxY - minY);
-    const fov45 = 45 * (Math.PI / 180);
-    const dist = (maxDim / (2 * Math.tan(fov45 / 2))) * 1.2;
-    cam.position.set(worldCX, worldCY + dist * 0.3, cpz + dist);
-    cam.lookAt(worldCX, worldCY, cpz);
+  onTick(_context: AnimationTickContext): void {
+    // No-op: deterministic camera setup happens in apply().
   }
 
   apply(state: DiagramCanvasState, _ctx: WidgetRenderContext): void {
@@ -225,6 +162,24 @@ export class DiagramCanvasWidget
       ],
     };
     this.lastState = effectiveState;
+
+    // Deterministic camera setup: position camera so the [0..1] canvas height fills the view.
+    // Yields to Camera widget when a user-authored camera is active (enabled=true).
+    const cam = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
+    if (cam) {
+      const rawCamState = this.scene.userData['__brewsite_cam_enabled'] as boolean | undefined;
+      // Check for an authored camera by reading a sentinel the CameraWidget writes.
+      // If no authored camera is active, set deterministic position.
+      if (!rawCamState) {
+        const [cpx, cpy, cpz] = effectiveState.position;
+        const fovRad = THREE.MathUtils.degToRad(cam.fov > 0 ? cam.fov : 45);
+        // dist such that canvas height (= scale world units) exactly fills vertical FOV
+        const dist = effectiveState.scale / (2 * Math.tan(fovRad / 2));
+        cam.position.set(cpx, cpy, cpz + dist);
+        cam.lookAt(cpx, cpy, cpz);
+      }
+    }
+
     this.renderer.update(effectiveState, this.scene);
   }
 
@@ -676,59 +631,30 @@ export class DiagramCanvasWidget
   ): void {
     if (!this.scene || !this.lastState) return;
     const state = this.lastState;
-    const [crx, cry, crz] = state.rotation;
     const [cpx, cpy, cpz] = state.position;
-    let minX = Infinity, maxX = -Infinity;
-    let minY = Infinity, maxY = -Infinity;
-    let minZ = Infinity, maxZ = -Infinity;
 
-    for (const diagram of state.diagrams) {
-      const { bounds: b } = diagram;
-      const ds = diagram.scale;
-      const [drx, dry, drz] = diagram.rotation;
-      const [dpx, dpy, dpz] = diagram.position;
-      const cs = state.scale;
+    // Canvas extent is now fixed by canvas.scale and nvsBounds.
+    // Full canvas in canvas-local: X ∈ [-aspect/2, aspect/2], Y ∈ [-0.5, 0.5].
+    // In world space these are multiplied by canvas.scale.
+    const engineAspect = cam.aspect || 16 / 9;
+    const canvasAspect = (state.nvsBounds.w / state.nvsBounds.h) * engineAspect;
+    const worldW = canvasAspect * state.scale;
+    const worldH = state.scale;
 
-      const corners: Array<readonly [number, number, number]> = [
-        [b.x, b.y, 0],
-        [b.x + b.w, b.y, 0],
-        [b.x, b.y + b.h, 0],
-        [b.x + b.w, b.y + b.h, 0],
-      ];
-
-      for (const corner of corners) {
-        const cx = corner[0] * ds + dpx;
-        const cy = corner[1] * ds + dpy;
-        const cz = corner[2] * ds + dpz;
-        const [rx1, ry1, rz1] = rotateXYZ([cx, cy, cz], drx, dry, drz);
-        const wx = rx1 * cs + cpx;
-        const wy = ry1 * cs + cpy;
-        const wz = rz1 * cs + cpz;
-        const [wx2, wy2, wz2] = rotateXYZ([wx, wy, wz], crx, cry, crz);
-        minX = Math.min(minX, wx2);
-        maxX = Math.max(maxX, wx2);
-        minY = Math.min(minY, wy2);
-        maxY = Math.max(maxY, wy2);
-        minZ = Math.min(minZ, wz2);
-        maxZ = Math.max(maxZ, wz2);
-      }
-    }
-
-    if (!Number.isFinite(minX) || !Number.isFinite(minY) || !Number.isFinite(minZ)) return;
+    if (!Number.isFinite(worldW) || !Number.isFinite(worldH)) return;
 
     // Focus center priority:
     // 1) per-action focusCenter override
     // 2) canvas authored focusCenter
     // 3) authored canvas position
-    const centerSource = focusCenter ?? this.lastState.focusCenter ?? this.defaultState.focusCenter ?? this.defaultState.position;
-    const centerZ = this.lastState.position[2];
+    const centerSource = focusCenter ?? state.focusCenter ?? this.defaultState.focusCenter ?? this.defaultState.position;
     const center = new THREE.Vector3(
       centerSource[0],
       centerSource[1],
-      centerZ,
+      cpz,
     );
-    const width = Math.max(0.001, maxX - minX);
-    const height = Math.max(0.001, maxY - minY);
+    const width = Math.max(0.001, worldW);
+    const height = Math.max(0.001, worldH);
     const fov = THREE.MathUtils.degToRad(cam.fov);
     const aspect = cam.aspect || 1;
     const distY = (height / 2) / Math.tan(fov / 2);

@@ -13,17 +13,22 @@ const toMutableVec3 = (value: readonly [number, number, number]): [number, numbe
 
 /**
  * Compiles an ImagePanelDSL into a fully resolved ImagePanelState by applying defaults.
- * All fields in the output are defined — no undefined values.
+ * All fields in the output are defined — no undefined values except nvsHeight.
+ *
+ * Position is expressed as NVS fractions (nvsX, nvsY); world-space conversion
+ * happens in ImagePanelWidget.apply() using the live camera.
  */
 export function compileImagePanel(dsl: ImagePanelDSL): ImagePanelState {
   return {
     id: dsl.id,
     src: dsl.src,
-    position: dsl.position ?? [0, 0, 0],
+    nvsX: dsl.x ?? 0.5,
+    nvsY: dsl.y ?? 0.5,
+    z: dsl.z ?? 0,
+    nvsWidth: dsl.width ?? 0.6,
+    nvsHeight: dsl.height,
     rotation: dsl.rotation ?? [0, 0, 0],
     scale: dsl.scale ?? 1,
-    width: dsl.width ?? 12,
-    height: dsl.height,
     bezel: dsl.bezel ?? 'dark',
     bezelThickness: dsl.bezelThickness ?? 0.3,
     opacity: dsl.opacity ?? 1,
@@ -40,13 +45,8 @@ export function compileImagePanel(dsl: ImagePanelDSL): ImagePanelState {
 
 /**
  * Functional transition spec for ImagePanelState.
- * Position, rotation, scale, and opacity are all continuously interpolated.
- * Discrete properties (src, bezel, glow) step at the midpoint — you cannot meaningfully
- * interpolate an image URL or a bezel material variant.
- *
- * Uses ctx.t for all channels (zero behavior change from old scalar-t path).
- * Scene authors may add <Transition channels={['opacity']} ...> children to the
- * <ImagePanel> DSL element to activate per-channel window/ease control.
+ * NVS position (nvsX, nvsY, z), nvsWidth, nvsHeight, rotation, scale, and opacity
+ * are continuously interpolated. Discrete properties (src, bezel, glow) step at midpoint.
  */
 export const functionalImagePanelTransitionSpec: FunctionalTransitionSpec<ImagePanelState> = {
   exitFn: (from) => (ctx) => ({
@@ -59,7 +59,13 @@ export const functionalImagePanelTransitionSpec: FunctionalTransitionSpec<ImageP
   }),
   interpolateFn: (from, to) => (ctx) => ({
     ...to,
-    position: blendVec3(toMutableVec3(from.position), toMutableVec3(to.position), ctx.t) ?? to.position,
+    nvsX: (blendNumber(from.nvsX, to.nvsX, ctx.t) ?? to.nvsX),
+    nvsY: (blendNumber(from.nvsY, to.nvsY, ctx.t) ?? to.nvsY),
+    z: (blendNumber(from.z, to.z, ctx.t) ?? to.z),
+    nvsWidth: (blendNumber(from.nvsWidth, to.nvsWidth, ctx.t) ?? to.nvsWidth),
+    nvsHeight: from.nvsHeight !== undefined && to.nvsHeight !== undefined
+      ? (blendNumber(from.nvsHeight, to.nvsHeight, ctx.t) ?? to.nvsHeight)
+      : to.nvsHeight,
     rotation: blendVec3(toMutableVec3(from.rotation), toMutableVec3(to.rotation), ctx.t) ?? to.rotation,
     scale: blendNumber(from.scale, to.scale, ctx.t) ?? to.scale,
     opacity: blendOpacity(from.opacity, to.opacity, ctx.t) ?? to.opacity,

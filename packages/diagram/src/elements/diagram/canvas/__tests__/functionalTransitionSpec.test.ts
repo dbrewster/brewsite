@@ -10,8 +10,8 @@ const makeNode = (id: string, opacity = 1): DiagramNodeState => ({
   sublabel: undefined,
   shape: 'flow:rect',
   position: [0, 0, 0],
-  size: [4, 2],
-  depth: 0.4,
+  size: [0.1, 0.05],
+  thickness: 0.4,
   color: '#2a2d3e',
   sideColor: '#1f2231',
   borderColor: '#3a3d4f',
@@ -32,13 +32,11 @@ const makeDiagram = (id: string): DiagramState => ({
   nodes: [makeNode('n1')],
   edges: [],
   groups: [],
-  bounds: { x: 0, y: 0, w: 4, h: 2, minZ: 0, maxZ: 0 },
-  position: [0, 0, 0],
-  rotation: [0, 0, 0],
-  scale: 1,
-  pivot: 'center',
-  exit: null,
-  enter: null,
+  viewportBounds: { x: 0, y: 0, w: 1, h: 1 },
+  tiltRotation: [0, 0, 0],
+  exit: undefined,
+  enter: undefined,
+  themeConfig: {} as any,
 });
 
 const makeCanvas = (overrides: Partial<DiagramCanvasState> = {}): DiagramCanvasState => ({
@@ -87,11 +85,12 @@ describe('functionalDiagramCanvasTransitionSpec', () => {
       expect(result.pipes[0]!.opacity).toBeCloseTo(0);
     });
 
-    it('applies diagram exit config (to position + fade)', () => {
-      const diagram = { ...makeDiagram('d1'), exit: { to: [5, 0, 0], fade: true, easing: 'linear' as const } };
+    it('applies diagram exit config (viewportBounds center moved to `to` + fade)', () => {
+      const diagram = { ...makeDiagram('d1'), exit: { to: [0.5, 2, 0] as const, fade: true, easing: 'linear' as const } };
       const state = makeCanvas({ diagrams: [diagram] });
       const result = functionalDiagramCanvasTransitionSpec.exitFn(state)(makeSimpleContext(1));
-      expect(result.diagrams[0]!.position).toEqual([5, 0, 0]);
+      const centerY = result.diagrams[0]!.viewportBounds.y + result.diagrams[0]!.viewportBounds.h / 2;
+      expect(centerY).toBeCloseTo(2);
       expect(result.diagrams[0]!.nodes[0]!.opacity).toBeCloseTo(0);
     });
   });
@@ -103,11 +102,12 @@ describe('functionalDiagramCanvasTransitionSpec', () => {
       expect(result.diagrams[0]!.nodes[0]!.opacity).toBeCloseTo(0);
     });
 
-    it('applies diagram enter config (from position + fade)', () => {
-      const diagram = { ...makeDiagram('d1'), enter: { from: [-5, 0, 0], fade: true, easing: 'linear' as const } };
+    it('applies diagram enter config (viewportBounds center at `from` at t=0 + fade)', () => {
+      const diagram = { ...makeDiagram('d1'), enter: { from: [-1, 0.5, 0] as const, fade: true, easing: 'linear' as const } };
       const state = makeCanvas({ diagrams: [diagram] });
       const result = functionalDiagramCanvasTransitionSpec.enterFn(state)(makeSimpleContext(0));
-      expect(result.diagrams[0]!.position).toEqual([-5, 0, 0]);
+      const centerX = result.diagrams[0]!.viewportBounds.x + result.diagrams[0]!.viewportBounds.w / 2;
+      expect(centerX).toBeCloseTo(-1);
       expect(result.diagrams[0]!.nodes[0]!.opacity).toBeCloseTo(0);
     });
   });

@@ -22,4 +22,3 @@ export type { IHasCustomDslHandler } from './widget/WidgetRegistry';
 export type { ISceneLifecycle } from './widget/types';
 export { isSceneLifecycle } from './widget/WidgetRegistry';
 
-export {TextBox} from './elements/text-box'

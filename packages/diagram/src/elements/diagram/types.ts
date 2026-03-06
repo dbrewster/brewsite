@@ -1,7 +1,7 @@
 // Contract layer for the diagram element. No runtime imports, no Three.js, no React.
 
 import type { DiagramNodeShape, DiagramIconVariant } from './shapes/shapeVariants';
-import type { InputActionSpec, SceneTheme } from '@brewsite/core';
+import type { InputActionSpec, SceneTheme, NVSRect } from '@brewsite/core';
 
 // ─── Theming ─────────────────────────────────────────────────────────────────
 
@@ -324,7 +324,10 @@ export type DiagramGroupEdgeLightColorResolver = (
  */
 export type SvgIcon3DStyle = 'flat' | 'extruded' | 'layered' | 'embossed';
 
-/** Pivot point: which corner/center of the node layout maps to diagram local [0,0,0]. */
+/**
+ * @deprecated DiagramPivot is no longer used. Diagrams are positioned via viewportBounds.
+ * Kept temporarily for backward compatibility during migration.
+ */
 export type DiagramPivot =
   | 'center'
   | 'top-left'
@@ -490,14 +493,15 @@ export type LayoutDSL = GridLayoutDSL | HierarchicalLayoutDSL | ManualLayoutDSL 
  */
 export interface DiagramExitConfig {
   /**
-   * Target position in parent space (canvas-local or world) at t=1.
-   * If absent, diagram stays at its declared position (scale/fade only).
+   * Target viewport position at end of exit animation, in [0..1] NVS space.
+   * Values outside [0..1] move the diagram off-screen.
+   * Example: to={[0.5, 2, 0]} exits 1 full viewport height below center.
+   * Example: to={[-1, 0.5, 0]} exits 1 full viewport width to the left.
+   * If absent, diagram stays in place (fade only).
    */
   readonly to?: readonly [number, number, number];
   /** If true, fades all node and edge opacities from their declared values to 0. Default: true */
   readonly fade: boolean;
-  /** Target scale factor at t=1. If absent, scale does not animate. */
-  readonly scaleTo?: number;
   readonly easing: DiagramEasing;
 }
 
@@ -507,14 +511,13 @@ export interface DiagramExitConfig {
  */
 export interface DiagramEnterConfig {
   /**
-   * Source position in parent space (canvas-local or world) at t=0.
-   * If absent, diagram enters from its declared position (scale/fade only).
+   * Source viewport position at start of enter animation, in [0..1] NVS space.
+   * Values outside [0..1] start the animation from off-screen.
+   * If absent, diagram enters from its declared viewportBounds (fade only).
    */
   readonly from?: readonly [number, number, number];
   /** If true, fades all node and edge opacities from 0 to their declared values. Default: true */
   readonly fade: boolean;
-  /** Source scale factor at t=0. If absent, scale does not animate. */
-  readonly scaleFrom?: number;
   readonly easing: DiagramEasing;
 }
 
@@ -525,7 +528,6 @@ export interface DiagramEnterConfig {
 export interface DiagramExitDSL {
   readonly to?: readonly [number, number, number];
   readonly fade?: boolean;
-  readonly scaleTo?: number;
   readonly easing?: DiagramEasing;
 }
 
@@ -533,7 +535,6 @@ export interface DiagramExitDSL {
 export interface DiagramEnterDSL {
   readonly from?: readonly [number, number, number];
   readonly fade?: boolean;
-  readonly scaleFrom?: number;
   readonly easing?: DiagramEasing;
 }
 
@@ -565,13 +566,18 @@ export interface DiagramNodeState {
   readonly shape: DiagramNodeShape;
 
   /**
-   * World-space position of the node center [x, y, z].
-   * z is the primary axis for depth-reveal animations — the "flat" view has all nodes
-   * at z=0; expanded views use non-zero z to create depth.
+   * Node center position in diagram viewport space [x, y, z].
+   * x ∈ [0..1]: 0 = left edge of diagram viewport, 1 = right edge.
+   * y ∈ [0..1]: 0 = top edge, 1 = bottom edge (Y is DOWN, NVS convention).
+   * z: relative depth layering in diagram canvas units (unchanged; positive = closer to camera).
    */
   readonly position: readonly [number, number, number];
 
-  /** Node width and height in diagram units [w, h]. */
+  /**
+   * Node size as viewport fractions [w, h].
+   * w ∈ [0..1]: fraction of diagram viewport width.
+   * h ∈ [0..1]: fraction of diagram viewport height.
+   */
   readonly size: readonly [number, number];
 
   /**
@@ -772,9 +778,15 @@ export interface DiagramGroupState {
   readonly parentId?: string;
 
   /**
-   * Computed bounding box of all member nodes in diagram units.
-   * Includes a padding margin around the outermost node edges.
-   * Populated by compile.ts after layout resolution.
+   * Bounding box of all member nodes, normalized to [0..1] diagram viewport fractions.
+   * Populated by compile.ts after layout resolution and normalization.
+   *
+   * x: [0..1] left edge (NVS convention, Y-down).
+   * y: [0..1] TOP edge (Y-down, NVS convention — NOT Cartesian bottom).
+   * w: [0..1] fraction of diagram viewport width.
+   * h: [0..1] fraction of diagram viewport height.
+   * padding: resolved group padding in NVS fractions [top, right, bottom, left].
+   * titleGap: gap in NVS height fraction.
    */
   readonly bounds: {
     readonly x: number;
@@ -782,13 +794,13 @@ export interface DiagramGroupState {
     readonly w: number;
     readonly h: number;
     /**
-     * Resolved group padding [top, right, bottom, left] in diagram units.
+     * Resolved group padding [top, right, bottom, left] in normalized NVS fractions.
      * The bounds x/y/w/h already incorporate this padding.
-     * Stored for informational use by renderers.
+     * Stored for use by renderers during canvas-local conversion.
      */
     readonly padding: readonly [number, number, number, number];
     /**
-     * Gap between group title label and content area in diagram units.
+     * Gap between group title label and content area, as NVS height fraction.
      * Used by GroupRenderer to offset the title text.
      */
     readonly titleGap: number;
@@ -865,61 +877,34 @@ export interface DiagramState {
   readonly groups: ReadonlyArray<DiagramGroupState>;
 
   /**
-   * Computed bounding box of the entire diagram in diagram units.
-   * Bounding box of the diagram layout in DIAGRAM-LOCAL coordinates
-   * (after pivot offset is applied). Used by DiagramWidget.onTick() for
-   * camera auto-framing and by DiagramCanvasRenderer for canvas-level bounds.
+   * Viewport bounds within the parent DiagramCanvas's NVS region.
+   * Declares what portion of the canvas this diagram occupies.
+   * { x, y, w, h } in [0..1] fractions of the canvas NVS region.
+   * Default: { x: 0, y: 0, w: 1, h: 1 } (full canvas).
+   *
+   * For side-by-side diagrams:
+   *   left:  { x: 0,   y: 0, w: 0.5, h: 1 }
+   *   right: { x: 0.5, y: 0, w: 0.5, h: 1 }
    */
-  readonly bounds: {
-    readonly x: number;
-    readonly y: number;
-    readonly w: number;
-    readonly h: number;
-    readonly minZ: number;
-    readonly maxZ: number;
-  };
+  readonly viewportBounds: NVSRect;
 
   /**
-   * World/parent-space position of the diagram group origin.
-   * In a DiagramCanvas, parent space = canvas-local space.
-   * Defaults to [0, 0, 0].
+   * 3D tilt rotation (Euler XYZ radians) for dramatic perspective effects.
+   * Default: [0, 0, 0] (flat, facing camera).
    */
-  readonly position: readonly [number, number, number];
+  readonly tiltRotation: readonly [number, number, number];
 
   /**
-   * World/parent-space Euler XYZ rotation of the diagram group in radians.
-   * Defaults to [0, 0, 0].
-   */
-  readonly rotation: readonly [number, number, number];
-
-  /**
-   * Uniform scale applied to the entire diagram group.
-   * All node sizes, edge thicknesses, and depths scale proportionally.
-   * Use this to convert Lucid pixel coordinates to world units
-   * (e.g., scale={0.01} for a 1000px Lucid diagram → 10 world units wide).
-   * Defaults to 1.
-   */
-  readonly scale: number;
-
-  /**
-   * Which point of the node layout bounding box maps to local [0,0,0].
-   * Pivot offset is applied at compile time — all node/edge/group positions in the
-   * compiled state are already offset so the chosen pivot is at [0,0,0].
-   * Defaults to 'center'.
-   */
-  readonly pivot: DiagramPivot;
-
-  /**
-   * Compiled exit behaviour. null = default fade (no position/scale animation).
+   * Compiled exit behaviour. undefined = default fade (no position animation).
    * Applied by exitFn in functionalDiagramTransitionSpec.
    */
-  readonly exit: DiagramExitConfig | null;
+  readonly exit: DiagramExitConfig | undefined;
 
   /**
-   * Compiled enter behaviour. null = default fade.
+   * Compiled enter behaviour. undefined = default fade.
    * Applied by enterFn in functionalDiagramTransitionSpec.
    */
-  readonly enter: DiagramEnterConfig | null;
+  readonly enter: DiagramEnterConfig | undefined;
 
   /**
    * Render-time theme properties resolved at compile time.
@@ -1118,22 +1103,16 @@ export interface DiagramDSL {
    */
   readonly childrenOrder?: ReadonlyArray<string>;
   /**
-   * World/parent-space position of the diagram group origin. Default: [0, 0, 0].
-   * In a DiagramCanvas, this is canvas-local space.
+   * Viewport bounds within the parent DiagramCanvas's NVS region.
+   * { x, y, w, h } in [0..1] fractions of the canvas NVS region.
+   * Default: { x: 0, y: 0, w: 1, h: 1 } (full canvas).
    */
-  readonly position?: readonly [number, number, number];
-  /** World/parent-space Euler XYZ rotation in radians. Default: [0, 0, 0]. */
-  readonly rotation?: readonly [number, number, number];
+  readonly viewportBounds?: NVSRect;
   /**
-   * Uniform scale factor. Default: 1.
-   * Lucid authors: set scale to (desired world units / Lucid diagram pixel width).
+   * 3D tilt rotation in Euler XYZ radians.
+   * Default: [0, 0, 0] (flat, facing camera).
    */
-  readonly scale?: number;
-  /**
-   * Pivot point. Default: 'center'.
-   * 'top-left' is convenient for Lucid imports (no coordinate offsetting needed).
-   */
-  readonly pivot?: DiagramPivot;
+  readonly tilt?: readonly [number, number, number];
   /** Raw exit config from <Exit> child. Absent = default fade. */
   readonly exit?: DiagramExitDSL;
   /** Raw enter config from <Enter> child. Absent = default fade. */

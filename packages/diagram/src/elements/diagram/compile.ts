@@ -6,18 +6,18 @@ import type {
   DiagramState,
   DiagramNodeState,
   DiagramEdgeState,
-  DiagramPivot,
   DiagramEasing,
   DiagramTheme,
   DiagramWarnFn,
 } from './types';
-import type { FunctionalTransitionSpec } from '@brewsite/core';
-import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
+import type { FunctionalTransitionSpec, NVSRect } from '@brewsite/core';
+import { blendOpacity, blendVec3 } from '@brewsite/core';
 import { darkGlassTheme } from './themes/darkGlass';
 import { resolveLayout, resolveLayoutWithGroups, computeBounds } from './compiler/layoutAlgorithms';
 import { routeEdges } from './compiler/edgeRouter';
 import { buildNodeDefaults, buildGroupDefaults, compileNode, compileEdge } from './compiler/nodeCompiler';
 import { compileGroup, resolveGroupBoundsMap } from './compiler/groupCompiler';
+import type { GroupBounds } from './compiler/groupCompiler';
 import { buildThemeRenderConfig, compileExitConfig, compileEnterConfig } from './compiler/themeResolver';
 import { resolveEffectiveLayout, resolveGroupLayouts, resolveThemeLayoutDefaults } from './compiler/layoutResolver';
 import type { ResolvedLayout } from './compiler/layoutResolver';
@@ -67,26 +67,104 @@ function groupDepth(
   return depth;
 }
 
+// ─── Normalization Post-Pass ───────────────────────────────────────────────────
+
+type RawPosition = readonly [number, number, number];
+type RawSize = readonly [number, number];
+
 /**
- * Computes the translation to apply to ALL node positions so that the declared
- * pivot point of the diagram maps to local [0, 0, 0].
+ * Converts all node positions and sizes from diagram-unit Cartesian space
+ * to [0..1] NVS space after layout algorithms have assigned absolute positions.
+ *
+ * Also normalizes group bounds from diagram units to [0..1] NVS.
+ *
+ * The Y axis is FLIPPED: Cartesian +Y (up) → NVS y=0 (top).
+ *
+ * @param nodes     Node list with diagram-unit positions (Cartesian Y-up)
+ * @param groups    Group bounds map in diagram units (GroupBounds.y = Cartesian bottom)
+ * @param padding   The resolved padding in diagram units (used for bounding-box expansion)
+ * @returns         Normalized positions, sizes, and group bounds in [0..1] NVS
  */
-function compilePivotOffset(
-  bounds: { x: number; y: number; w: number; h: number },
-  pivot: DiagramPivot,
-): readonly [number, number, number] {
-  switch (pivot) {
-    case 'center': return [-(bounds.x + bounds.w / 2), -(bounds.y + bounds.h / 2), 0];
-    case 'top-left': return [-bounds.x, -(bounds.y + bounds.h), 0];
-    case 'top-right': return [-(bounds.x + bounds.w), -(bounds.y + bounds.h), 0];
-    case 'bottom-left': return [-bounds.x, -bounds.y, 0];
-    case 'bottom-right': return [-(bounds.x + bounds.w), -bounds.y, 0];
-    default: return [0, 0, 0];
+function normalizeToViewport(
+  nodes: ReadonlyArray<{ id: string; position: RawPosition; size: RawSize }>,
+  groups: Map<string, GroupBounds>,
+  padding: number,
+): {
+  normalizedPositions: Map<string, RawPosition>;
+  normalizedSizes: Map<string, RawSize>;
+  normalizedGroups: Map<string, GroupBounds>;
+} {
+  // Step 1: Compute bounding box of all node outer edges
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const node of nodes) {
+    const [px, py] = node.position;
+    const [sw, sh] = node.size;
+    minX = Math.min(minX, px - sw / 2);
+    maxX = Math.max(maxX, px + sw / 2);
+    minY = Math.min(minY, py - sh / 2);
+    maxY = Math.max(maxY, py + sh / 2);
   }
+
+  // Degenerate case: no nodes
+  if (!Number.isFinite(minX)) {
+    return {
+      normalizedPositions: new Map(),
+      normalizedSizes: new Map(),
+      normalizedGroups: new Map(),
+    };
+  }
+
+  // Step 2: Expand by padding
+  const spanX = (maxX - minX) + 2 * padding;
+  const spanY = (maxY - minY) + 2 * padding;
+  const originX = minX - padding;
+  const originY = minY - padding;  // BOTTOM of diagram in Cartesian Y-up
+
+  // Guard against degenerate diagrams (single node with zero size)
+  const safeSpanX = spanX > 0 ? spanX : 1;
+  const safeSpanY = spanY > 0 ? spanY : 1;
+
+  // Step 3: Normalize node positions (with Y-flip: Cartesian Y-up → NVS Y-down)
+  const normalizedPositions = new Map<string, RawPosition>();
+  const normalizedSizes = new Map<string, RawSize>();
+  for (const node of nodes) {
+    const [px, py, pz] = node.position;
+    const [sw, sh] = node.size;
+    const nx = (px - originX) / safeSpanX;
+    const ny = 1 - (py - originY) / safeSpanY;   // Y-flip: Cartesian up → NVS down
+    normalizedPositions.set(node.id, [nx, ny, pz]);
+    normalizedSizes.set(node.id, [sw / safeSpanX, sh / safeSpanY]);
+  }
+
+  // Step 4: Normalize group bounds
+  // GroupBounds.y is Cartesian BOTTOM (Y-up) pre-normalization.
+  // After Y-flip, NVS top = 1 - (Cartesian top - originY) / safeSpanY
+  const normalizedGroups = new Map<string, GroupBounds>();
+  for (const [groupId, bounds] of groups) {
+    const nvsX = (bounds.x - originX) / safeSpanX;
+    const cartesianTop = bounds.y + bounds.h;
+    const nvsY = 1 - (cartesianTop - originY) / safeSpanY;  // Y-flip: Cartesian top → NVS top
+    const nvsW = bounds.w / safeSpanX;
+    const nvsH = bounds.h / safeSpanY;
+    const [pt, pr, pb, pl] = bounds.padding;
+    normalizedGroups.set(groupId, {
+      x: nvsX,
+      y: nvsY,
+      w: nvsW,
+      h: nvsH,
+      padding: [pt / safeSpanY, pr / safeSpanX, pb / safeSpanY, pl / safeSpanX],
+      titleGap: bounds.titleGap / safeSpanY,
+    });
+  }
+
+  return { normalizedPositions, normalizedSizes, normalizedGroups };
 }
+
+// ─── compileDiagram ───────────────────────────────────────────────────────────
 
 /**
  * Full diagram compilation pipeline. Called by the compiler registry handler.
+ * Produces DiagramState with all positions/sizes normalized to [0..1] NVS.
  */
 export function compileDiagram(
   dsl: DiagramDSL,
@@ -98,7 +176,6 @@ export function compileDiagram(
   const layoutDefaults = resolveThemeLayoutDefaults(theme.layout);
   const rootLayout: ResolvedLayout = resolveEffectiveLayout(dsl.layout, undefined, layoutDefaults);
   const groupLayouts = resolveGroupLayouts(dsl.groups, rootLayout, layoutDefaults);
-  // childrenOrder is optional on DiagramGroupDSL — use nullish fallback for absent field.
   const groupChildrenOrders = new Map<string, ReadonlyArray<string>>(
     dsl.groups.map((g) => [g.id, g.childrenOrder ?? []]),
   );
@@ -126,6 +203,7 @@ export function compileDiagram(
     sizeWithDepthMap.set(node.id, [size[0], size[1], thickness]);
   });
 
+  // Run layout algorithm → positions in diagram units (Cartesian Y-up for auto-layouts)
   const positions = resolveLayoutWithGroups(
     dsl.nodes,
     dsl.edges,
@@ -134,26 +212,16 @@ export function compileDiagram(
     groupLayouts,
     sizeWithDepthMap,
     onWarn,
-    dsl.childrenOrder ?? [],       // childrenOrder is optional; empty array triggers defensive fallback
+    dsl.childrenOrder ?? [],
     groupChildrenOrders,
   );
 
-  const pivot: DiagramPivot = dsl.pivot ?? 'center';
-  const rawBounds = computeBounds(
-    dsl.nodes.map((n) => n.id),
-    positions,
-    sizeWithDepthMap,
-  );
-  const [ox, oy, oz] = compilePivotOffset(rawBounds, pivot);
-  if (ox !== 0 || oy !== 0 || oz !== 0) {
-    for (const [id, pos] of positions) {
-      positions.set(id, [pos[0] + ox, pos[1] + oy, pos[2] + oz]);
-    }
-  }
-
+  // Compute group bounds in diagram units (Cartesian Y-up, GroupBounds.y = bottom)
   const groupBoundsMap = resolveGroupBoundsMap(dsl.groups, positions, sizeWithDepthMap, groupLayouts);
+
   const groupDefaults = buildGroupDefaults(theme);
   const groupDslById = new Map(dsl.groups.map((group) => [group.id, group]));
+  // Add group centers to positions for edge routing (diagram units)
   groupBoundsMap.forEach((bounds, groupId) => {
     if (bounds.w === 0 && bounds.h === 0) return;
     const centerX = bounds.x + bounds.w / 2;
@@ -170,11 +238,7 @@ export function compileDiagram(
     const groupBorderHeight = borderStyle === 'none'
       ? 0.01
       : Math.max(0.01, groupDefaults.borderHeight);
-    // Route edges to the rendered group depth, not z=0, so group-target edges
-    // visually terminate into the 3D border frame.
     positions.set(groupId, [centerX, centerY, GROUP_RENDER_Z]);
-    // Route edges to the centerline of the rendered border frame (not its outer edge),
-    // so tube centers visually hit the middle of the frame thickness.
     sizeWithDepthMap.set(groupId, [
       bounds.w + borderCenterInset * 2,
       bounds.h + borderCenterInset * 2,
@@ -182,38 +246,86 @@ export function compileDiagram(
     ]);
   });
 
+  // Compile nodes with diagram-unit positions (temporary pre-normalization form)
+  const nodesPreNorm = dsl.nodes.map((node) => {
+    const positionFromMap = positions.get(node.id);
+    const positionInherited = positionFromMap === undefined;
+    const position: readonly [number, number, number] = positionFromMap ?? [0, 0, 0];
+    const groupId = node.groupId ?? groupMap.get(node.id);
+    return compileNode(node, position, groupId, theme, positionInherited);
+  });
+
+  // ─── Normalization ─────────────────────────────────────────────────────────
+  // Convert diagram-unit positions/sizes to [0..1] NVS.
+  // ManualLayout nodes are ALREADY authored in [0..1] NVS — skip normalization
+  // to prevent double-normalization of [0..1] values against a [0..1] bounding box.
+  let normalizedPositions: Map<string, RawPosition>;
+  let normalizedSizes: Map<string, RawSize>;
+  let normalizedGroups: Map<string, GroupBounds>;
+
+  if (rootLayout.kind !== 'manual') {
+    // Auto-layout: normalize diagram-unit positions to [0..1] NVS.
+    const resolvedPadding = (rootLayout as ResolvedLayout).groupPadding[0];
+    ({ normalizedPositions, normalizedSizes, normalizedGroups } = normalizeToViewport(
+      nodesPreNorm,
+      groupBoundsMap,
+      resolvedPadding,
+    ));
+  } else {
+    // ManualLayout: positions are [0..1] NVS as authored. Pass through unchanged.
+    // GroupBounds.y in ManualLayout = NVS top edge (smallest Y in Y-down space).
+    normalizedPositions = new Map(nodesPreNorm.map((n) => [n.id, n.position]));
+    normalizedSizes = new Map(nodesPreNorm.map((n) => [n.id, n.size]));
+    normalizedGroups = groupBoundsMap;
+  }
+
+  // Apply normalized positions/sizes to nodes
+  const nodes = nodesPreNorm
+    .map((node) => ({
+      ...node,
+      position: normalizedPositions.get(node.id) ?? node.position,
+      size: normalizedSizes.get(node.id) ?? node.size,
+    }))
+    .sort((a, b) => a.position[2] - b.position[2]);
+
+  // Build normalized size map including depth (thickness) for edge routing
+  const normalizedSizeWithDepthMap = new Map<string, readonly [number, number, number]>();
+  for (const [id, norm] of normalizedSizes) {
+    const originalDepth = sizeWithDepthMap.get(id)?.[2] ?? 0.4;
+    normalizedSizeWithDepthMap.set(id, [norm[0], norm[1], originalDepth]);
+  }
+  // Add group entries for edge routing — use normalized group centers as targets.
+  // For ManualLayout, sizeWithDepthMap already has the border-center inset baked in;
+  // use that pre-computed size so edge endpoints land on the border centerline.
+  for (const [groupId, normBounds] of normalizedGroups) {
+    normalizedPositions.set(groupId, [normBounds.x + normBounds.w / 2, normBounds.y + normBounds.h / 2, -0.6]);
+    const preNorm = rootLayout.kind === 'manual' ? sizeWithDepthMap.get(groupId) : undefined;
+    normalizedSizeWithDepthMap.set(groupId, preNorm ?? [normBounds.w, normBounds.h, 0.01]);
+  }
+
+  // Route edges with normalized positions (routing math is scale-invariant)
   const edgesForRouting = dsl.edges.map((edge) => ({
     ...edge,
     thickness: edge.thickness ?? theme.edge.defaultThickness,
   }));
-  const controlPointsMap = routeEdges(
+  const normalizedControlPointsMap = routeEdges(
     edgesForRouting,
-    positions,
-    sizeWithDepthMap,
+    normalizedPositions,
+    normalizedSizeWithDepthMap,
     theme.edge.routing,
     theme.edge.landing,
     onWarn,
   );
 
-  const nodes = dsl.nodes
-    .map((node) => {
-      const positionFromMap = positions.get(node.id);
-      const positionInherited = positionFromMap === undefined;
-      const position: readonly [number, number, number] = positionFromMap ?? [0, 0, 0];
-      const groupId = node.groupId ?? groupMap.get(node.id);
-      return compileNode(node, position, groupId, theme, positionInherited);
-    })
-    .sort((a, b) => a.position[2] - b.position[2]);
-
   const edges = dsl.edges.map((edge, index) => {
     const id = edge.id ?? `${edge.from}-${edge.to}-${index}`;
-    const controlPoints = controlPointsMap.get(id) ?? [];
+    const controlPoints = normalizedControlPointsMap.get(id) ?? [];
     return compileEdge(edge, controlPoints, index, theme);
   });
 
   const groups = dsl.groups
     .map((group) => {
-      const bounds = groupBoundsMap.get(group.id);
+      const bounds = normalizedGroups.get(group.id);
       if (!bounds) return null;
       return compileGroup(group, bounds, theme);
     })
@@ -227,22 +339,13 @@ export function compileDiagram(
       return areaB - areaA;
     });
 
-  const bounds = computeBounds(
-    dsl.nodes.map((node) => node.id),
-    positions,
-    sizeWithDepthMap,
-  );
-
   return {
     id: dsl.id,
+    viewportBounds: dsl.viewportBounds ?? { x: 0, y: 0, w: 1, h: 1 },
+    tiltRotation: dsl.tilt ?? [0, 0, 0],
     nodes,
     edges,
     groups,
-    bounds,
-    position: dsl.position ?? [0, 0, 0],
-    rotation: dsl.rotation ?? [0, 0, 0],
-    scale: dsl.scale ?? 1,
-    pivot,
     exit: compileExitConfig(dsl.exit),
     enter: compileEnterConfig(dsl.enter),
     themeConfig: buildThemeRenderConfig(theme),
@@ -253,15 +356,12 @@ export function compileDiagram(
 
 const lerpNum = (a: number, b: number, t: number): number => a + (b - a) * t;
 
-const lerpVec3 = (
-  a: readonly [number, number, number],
-  b: readonly [number, number, number],
-  t: number,
-): readonly [number, number, number] => [
-  lerpNum(a[0], b[0], t),
-  lerpNum(a[1], b[1], t),
-  lerpNum(a[2], b[2], t),
-];
+const lerpNVSRect = (a: NVSRect, b: NVSRect, t: number): NVSRect => ({
+  x: lerpNum(a.x, b.x, t),
+  y: lerpNum(a.y, b.y, t),
+  w: lerpNum(a.w, b.w, t),
+  h: lerpNum(a.h, b.h, t),
+});
 
 const fadeNodesOut = (
   nodes: ReadonlyArray<DiagramNodeState>,
@@ -289,6 +389,7 @@ const fadeEdgesIn = (
 
 /**
  * Applies the diagram's exit config to produce the state at exit progress t.
+ * Translates viewportBounds center toward config.to in NVS space.
  */
 export function applyDiagramExit(diagram: DiagramState, t: number): DiagramState {
   const config = diagram.exit;
@@ -300,21 +401,30 @@ export function applyDiagramExit(diagram: DiagramState, t: number): DiagramState
     };
   }
   const et = applyEasing(t, config.easing);
-  let position = diagram.position;
+
+  // Translate viewportBounds center toward config.to in NVS space
+  let viewportBounds = diagram.viewportBounds;
   if (config.to) {
-    position = lerpVec3(diagram.position, config.to, et);
+    const cx = diagram.viewportBounds.x + diagram.viewportBounds.w / 2;
+    const cy = diagram.viewportBounds.y + diagram.viewportBounds.h / 2;
+    const tx = cx + (config.to[0] - cx) * et;
+    const ty = cy + (config.to[1] - cy) * et;
+    viewportBounds = {
+      x: tx - diagram.viewportBounds.w / 2,
+      y: ty - diagram.viewportBounds.h / 2,
+      w: diagram.viewportBounds.w,
+      h: diagram.viewportBounds.h,
+    };
   }
-  let scale = diagram.scale;
-  if (config.scaleTo !== undefined) {
-    scale = lerpNum(diagram.scale, config.scaleTo, et);
-  }
+
   const nodes = config.fade ? fadeNodesOut(diagram.nodes, et) : diagram.nodes;
   const edges = config.fade ? fadeEdgesOut(diagram.edges, et) : diagram.edges;
-  return { ...diagram, position, scale, nodes, edges };
+  return { ...diagram, viewportBounds, nodes, edges };
 }
 
 /**
  * Applies the diagram's enter config to produce the state at enter progress t.
+ * Translates viewportBounds center from config.from toward its declared position.
  */
 export function applyDiagramEnter(diagram: DiagramState, t: number): DiagramState {
   const config = diagram.enter;
@@ -326,24 +436,31 @@ export function applyDiagramEnter(diagram: DiagramState, t: number): DiagramStat
     };
   }
   const et = applyEasing(t, config.easing);
-  let position = diagram.position;
+
+  // Translate viewportBounds center from config.from to declared viewportBounds
+  let viewportBounds = diagram.viewportBounds;
   if (config.from) {
-    position = lerpVec3(config.from, diagram.position, et);
+    const targetCX = diagram.viewportBounds.x + diagram.viewportBounds.w / 2;
+    const targetCY = diagram.viewportBounds.y + diagram.viewportBounds.h / 2;
+    const tx = config.from[0] + (targetCX - config.from[0]) * et;
+    const ty = config.from[1] + (targetCY - config.from[1]) * et;
+    viewportBounds = {
+      x: tx - diagram.viewportBounds.w / 2,
+      y: ty - diagram.viewportBounds.h / 2,
+      w: diagram.viewportBounds.w,
+      h: diagram.viewportBounds.h,
+    };
   }
-  let scale = diagram.scale;
-  if (config.scaleFrom !== undefined) {
-    scale = lerpNum(config.scaleFrom, diagram.scale, et);
-  }
+
   const nodes = config.fade ? fadeNodesIn(diagram.nodes, et) : diagram.nodes;
   const edges = config.fade ? fadeEdgesIn(diagram.edges, et) : diagram.edges;
-  return { ...diagram, position, scale, nodes, edges };
+  return { ...diagram, viewportBounds, nodes, edges };
 }
 
 /**
  * Functional transition spec for DiagramState.
- * Uses ctx.t for all properties (zero behavior change from old scalar-t path).
- * Scene authors may add <Transition channels={['opacity']} ...> children to the
- * <Diagram> DSL element to activate per-channel window/ease control.
+ * Blends viewportBounds and tiltRotation. Node positions in [0..1] NVS are
+ * blended by blendDiagramNodes; edges are re-routed from live node positions.
  */
 export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramState> = {
   exitFn: (from) => (ctx) => applyDiagramExit(from, ctx.t),
@@ -369,9 +486,12 @@ export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramSt
 
     return {
       ...to,
-      position: blendVec3([from.position[0], from.position[1], from.position[2]], [to.position[0], to.position[1], to.position[2]], t) ?? to.position,
-      rotation: blendVec3([from.rotation[0], from.rotation[1], from.rotation[2]], [to.rotation[0], to.rotation[1], to.rotation[2]], t) ?? to.rotation,
-      scale: blendNumber(from.scale, to.scale, t) ?? to.scale,
+      viewportBounds: lerpNVSRect(from.viewportBounds, to.viewportBounds, t),
+      tiltRotation: blendVec3(
+        [from.tiltRotation[0], from.tiltRotation[1], from.tiltRotation[2]],
+        [to.tiltRotation[0], to.tiltRotation[1], to.tiltRotation[2]],
+        t,
+      ) ?? to.tiltRotation,
       nodes: [...blended, ...fading],
       edges: [...blendedEdges, ...fadingEdges],
     };

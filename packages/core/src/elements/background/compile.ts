@@ -7,7 +7,7 @@ import type {
   ElementTransitionSpec,
   FunctionalTransitionSpec,
 } from '../../compiler/transitions/transitionTypes';
-import { blendOpacity, blendVec3, transitionT } from '../../compiler/transitions/transitionTypes';
+import { blendOpacity, transitionT } from '../../compiler/transitions/transitionTypes';
 
 const crossFadeOpacity = (from: SceneBackground, to: SceneBackground, t: number): number => {
   if (from.imageUrl === to.imageUrl) {
@@ -31,7 +31,6 @@ export const DEFAULT_BACKGROUND: SceneBackground = {
   opacity: 1,
   color: undefined,
   gradient: undefined,
-  position: undefined,
   cssPosition: undefined,
   cssSize: undefined,
   cssRepeat: undefined,
@@ -68,7 +67,6 @@ export const backgroundTransitionSpec: ElementTransitionSpec<SceneBackground> = 
         opacity:         crossFadeOpacity(fromState, toState, t),
         color:           selectStr(fromState.color, toState.color, t),
         gradient:        selectStr(fromState.gradient, toState.gradient, t),
-        position:        blendVec3(fromState.position, toState.position, t),
         cssPosition:     selectStr(fromState.cssPosition, toState.cssPosition, t),
         cssSize:         selectStr(fromState.cssSize, toState.cssSize, t),
         cssRepeat:       selectStr(fromState.cssRepeat, toState.cssRepeat, t),
@@ -95,7 +93,6 @@ export const functionalBackgroundTransitionSpec: FunctionalTransitionSpec<SceneB
     opacity:         crossFadeOpacity(from, to, ctx.t),
     color:           selectStr(from.color, to.color, ctx.t),
     gradient:        selectStr(from.gradient, to.gradient, ctx.t),
-    position:        blendVec3(from.position, to.position, ctx.t),
     cssPosition:     selectStr(from.cssPosition, to.cssPosition, ctx.t),
     cssSize:         selectStr(from.cssSize, to.cssSize, ctx.t),
     cssRepeat:       selectStr(from.cssRepeat, to.cssRepeat, ctx.t),

@@ -6,7 +6,7 @@
  * the widget's renderer implementation.
  */
 
-import type { SceneModel } from './types';
+import type { ModelRenderInput } from './_renderTypes';
 
 /**
  * Represents a 3D object with position, rotation, and scale.
@@ -18,10 +18,10 @@ export interface IRenderable {
 }
 
 /**
- * Applies position, rotation, and uniform scale from SceneModel to a renderable.
+ * Applies world-space position, rotation, and uniform scale from ModelRenderInput to a renderable.
  * If the model is disabled, scales to zero (hiding it).
  */
-export function applyModelTransform(state: SceneModel, root: IRenderable): void {
+export function applyModelTransform(state: ModelRenderInput, root: IRenderable): void {
   if (state.enabled === false) {
     root.localScale = [0, 0, 0];
     return;

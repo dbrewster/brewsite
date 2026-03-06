@@ -441,6 +441,43 @@ describe('compileSceneTrack', () => {
     expect(track.ticks.length).toBe(2);
   });
 
+  it('sets sceneProgress on every tick within [0, 1]', () => {
+    const widget = makeWidget({
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+    });
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      makeScene('s1', { w: 1 }),
+      makeScene('s2', { w: 2 }),
+      makeScene('s3', { w: 3 }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 4 });
+    for (const tick of track.ticks) {
+      expect(tick.sceneProgress).toBeDefined();
+      expect(tick.sceneProgress).toBeGreaterThanOrEqual(0);
+      expect(tick.sceneProgress).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('terminal tick has sceneProgress=1 while blockProgress remains 0', () => {
+    const widget = makeWidget({
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+    });
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      makeScene('s1', { w: 1 }),
+      makeScene('s2', { w: 2 }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 4 });
+    const terminal = track.ticks[track.ticks.length - 1]!;
+    expect(terminal.sceneProgress).toBe(1);
+    expect(terminal.blockProgress).toBe(0);
+  });
+
   it('carries input controller snapshot forward when a later scene omits it', () => {
     const widget = makeWidget({
       widgetId: 'w',

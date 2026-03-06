@@ -30,6 +30,13 @@ export type WorldSpaceCamera = {
   target: Vec3;
   /** Up vector, default [0, 1, 0]. */
   up?: Vec3;
+  /**
+   * Optional NVS-space look-at override [x, y].
+   * If set, overrides the world-space target X,Y at render time.
+   * The target Z is taken from `target[2]`.
+   * Allows viewport-fraction targeting without knowing world units.
+   */
+  nvsTarget?: readonly [number, number];
 };
 
 /**
@@ -48,6 +55,12 @@ export type OrbitCamera = {
   distance: number;
   /** Up vector, default [0, 1, 0]. */
   up?: Vec3;
+  /**
+   * Optional NVS-space orbit center override [x, y].
+   * If set, overrides the world-space target X,Y at render time.
+   * The target Z is taken from `target[2]`.
+   */
+  nvsTarget?: readonly [number, number];
 };
 
 /**

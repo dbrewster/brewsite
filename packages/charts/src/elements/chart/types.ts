@@ -25,7 +25,23 @@ export type ChartLegendState = {
  */
 export type ChartState = {
   readonly type: ChartType;
-  readonly position: readonly [number, number, number];
+  /**
+   * NVS center position X [0..1]. Derived from nvsBounds center at compile time.
+   * nvsX = nvsBounds.x + nvsBounds.w / 2
+   * Converted to world-space X at render time.
+   */
+  readonly nvsX: number;
+  /**
+   * NVS center position Y [0..1]. Derived from nvsBounds center at compile time.
+   * nvsY = nvsBounds.y + nvsBounds.h / 2
+   * Converted to world-space Y at render time.
+   */
+  readonly nvsY: number;
+  /**
+   * World-space depth (Z) of the chart center. Replaces position[2].
+   * Default: 0.
+   */
+  readonly z: number;
   readonly rotation: readonly [number, number, number];
   readonly bounds: { readonly width: number; readonly height: number; readonly depth: number };
   /** Data source name registered via ChartProvider. NOT the data itself. */
@@ -65,7 +81,9 @@ export type ChartState = {
 /** Default compiled state. opacity = 1 so charts are visible by default. */
 export const DEFAULT_CHART_STATE: ChartState = {
   type: 'bar',
-  position: [0, 0, 0],
+  nvsX: 0.5,
+  nvsY: 0.5,
+  z: 0,
   rotation: [0, 0, 0],
   bounds: { width: 4, height: 3, depth: 0.4 },
   dataSource: '',
@@ -87,7 +105,6 @@ export const DEFAULT_CHART_STATE: ChartState = {
 export type ChartDSL = {
   readonly id: string;
   readonly type: ChartType;
-  readonly position?: readonly [number, number, number];
   readonly rotation?: readonly [number, number, number];
   readonly bounds?: { readonly width?: number; readonly height?: number; readonly depth?: number };
   readonly dataSource?: string;
@@ -113,6 +130,8 @@ export type ChartDSL = {
   readonly w?: number;
   /** NVS height of the chart [0, 1]. Default: 1 */
   readonly h?: number;
+  /** World-space depth (Z) of the chart center. Default: 0 */
+  readonly z?: number;
 };
 
 /** Props for the <ChartData> DSL component. */

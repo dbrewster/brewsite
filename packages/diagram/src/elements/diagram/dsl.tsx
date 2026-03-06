@@ -8,7 +8,6 @@ import type {
   DiagramEdgeFlow,
   DiagramGroupVariant,
   DiagramOrientation,
-  DiagramPivot,
   DiagramEasing,
   SvgIcon3DStyle,
   DiagramTheme,
@@ -22,6 +21,7 @@ import type {
   DiagramGroupMouseHandler,
   DiagramNodeGlowConfig,
 } from './types';
+import type { NVSRect } from '@brewsite/core';
 
 // ─── <DiagramNode> ────────────────────────────────────────────────────────────
 
@@ -54,25 +54,33 @@ export interface DiagramNodeProps {
    */
   icon?: DiagramIconVariant;
   /**
-   * Node position in diagram-local space [x, y, z].
-   * x and y are in layout units (same units as `size`).
-   * z creates depth layering: non-zero z values stack nodes at different depths
-   * relative to the camera. The flat view has all nodes at z=0; drill-down scenes
-   * use non-zero z to reveal the third dimension.
+   * Node position in diagram viewport space [x, y, z].
+   * x ∈ [0..1]: 0 = left edge of diagram viewport, 1 = right edge.
+   * y ∈ [0..1]: 0 = top edge, 1 = bottom edge (Y is DOWN, NVS convention).
+   * z: depth layering in diagram canvas units (positive = closer to camera).
    *
-   * When using `<GridLayout>` or `<HierarchicalLayout>`, omit this prop — the
-   * layout engine assigns positions automatically. Only specify `position`
-   * explicitly when using `<ManualLayout>`.
+   * When using `<GridLayout>`, `<HierarchicalLayout>`, or `<FlowLayout>`, omit
+   * this prop — the layout engine assigns positions automatically and normalizes
+   * them to [0..1]. Only specify `position` explicitly when using `<ManualLayout>`.
    *
-   * Note: the parent `<Diagram pivot="...">` setting shifts the origin. With
-   * `pivot="center"`, the diagram's bounding-box center becomes [0, 0, 0], so
-   * all authored positions are relative to that center.
+   * For ManualLayout: authored positions must be in [0..1] NVS space.
+   * To place at screen center: position={[0.5, 0.5, 0]}.
+   * Values outside [0..1] render off-screen.
    *
    * If omitted and layout is manual, this is a ghost node (see `DiagramNode`
    * component documentation for ghost node behavior).
    */
   position?: [number, number, number];
-  /** Node width and height in diagram units. Default: [4, 2] */
+  /**
+   * Node width and height as viewport fractions [w, h].
+   * w ∈ [0..1]: fraction of diagram viewport width.
+   * h ∈ [0..1]: fraction of diagram viewport height.
+   * Default: [0.12, 0.10] (approximately a 2:1 node at 16:9 aspect).
+   *
+   * Note: when using auto-layout (GridLayout, HierarchicalLayout), size is still
+   * in layout units — the layout algorithm normalizes them to [0..1] at compile time.
+   * Only for ManualLayout should you author sizes in [0..1] NVS fractions directly.
+   */
   size?: [number, number];
   /**
    * Physical thickness of the 3D prism box in diagram units — how far it protrudes
@@ -397,18 +405,20 @@ export interface DiagramProps {
   /** Unique diagram ID. Must be stable across scenes. */
   id: string;
   /**
-   * Diagram origin position in parent space [x, y, z].
-   * When inside a `<DiagramCanvas>`, this is canvas-local space — coordinates
-   * relative to the canvas group origin. When used standalone, this is world space.
-   * Default: [0, 0, 0]
+   * Viewport bounds within the parent DiagramCanvas's NVS region.
+   * { x, y, w, h } in [0..1] fractions of the canvas NVS region.
+   * Default: { x: 0, y: 0, w: 1, h: 1 } (full canvas).
+   *
+   * For side-by-side diagrams:
+   *   left:  viewportBounds={{ x: 0,   y: 0, w: 0.5, h: 1 }}
+   *   right: viewportBounds={{ x: 0.5, y: 0, w: 0.5, h: 1 }}
    */
-  position?: [number, number, number];
-  /** World/parent-space Euler XYZ rotation in radians. Default: [0, 0, 0] */
-  rotation?: [number, number, number];
-  /** Uniform scale. Default: 1 */
-  scale?: number;
-  /** Pivot point. Default: 'center' */
-  pivot?: DiagramPivot;
+  viewportBounds?: NVSRect;
+  /**
+   * 3D tilt rotation in Euler XYZ radians for dramatic perspective effects.
+   * Default: [0, 0, 0] (flat, facing camera).
+   */
+  tilt?: [number, number, number];
   /**
    * Visual + behavioral theme for this diagram.
    * Overrides the parent `<DiagramCanvas>` theme for this diagram only.
@@ -439,20 +449,18 @@ export function Diagram(_props: DiagramProps): null {
 
 export interface DiagramExitProps {
   /**
-   * Target position in parent space (canvas-local or world) at the end of the exit.
-   * If absent, the diagram does not translate during exit (scale/fade only).
+   * Target viewport position at end of exit animation, in [0..1] NVS space.
+   * Values outside [0..1] move the diagram off-screen.
+   * Example: to={[0.5, 2, 0]} exits 1 full viewport height below center.
+   * Example: to={[-1, 0.5, 0]} exits 1 full viewport width to the left.
+   * If absent, the diagram stays in place (fade only).
    */
   to?: [number, number, number];
   /**
    * If true (default), fade all node and edge opacities to 0 during exit.
-   * Set false to disable the fade (translate/scale only).
+   * Set false to disable the fade (translate only).
    */
   fade?: boolean;
-  /**
-   * Target scale factor at the end of the exit. e.g., scaleTo={0} shrinks to a point.
-   * If absent, scale is not animated.
-   */
-  scaleTo?: number;
   /**
    * Easing function. Default: 'ease' (smooth ease-in-out).
    * 'spring' produces a slight overshoot feel.
@@ -473,18 +481,15 @@ export function DiagramExit(_props: DiagramExitProps): null {
 
 export interface DiagramEnterProps {
   /**
-   * Source position in parent space at the start of the enter transition.
-   * If absent, the diagram enters from its declared position (scale/fade only).
+   * Source viewport position at start of enter animation, in [0..1] NVS space.
+   * Values outside [0..1] start the animation from off-screen.
+   * If absent, the diagram enters from its declared viewportBounds (fade only).
    */
   from?: [number, number, number];
   /**
    * If true (default), fade all node and edge opacities from 0 during enter.
    */
   fade?: boolean;
-  /**
-   * Source scale factor at the start of the enter. e.g., scaleFrom={0} grows from a point.
-   */
-  scaleFrom?: number;
   /** Easing function. Default: 'ease'. */
   easing?: DiagramEasing;
 }

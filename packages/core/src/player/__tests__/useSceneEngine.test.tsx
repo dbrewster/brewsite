@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { act } from '@testing-library/react';
 import { useSceneEngine } from '../useSceneEngine';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import { Scene } from '../../compiler/sceneDslCompiler';
+import type { DslBreadcrumb } from '../../compiler/sceneTrackTypes';
 
 vi.mock('../useEngineInput', () => {
   return {
@@ -234,3 +235,117 @@ describe('useSceneEngine', () => {
     root.unmount();
   });
 }, {skip: true});
+
+// ─── Warning logging tests ────────────────────────────────────────────────────
+// These tests verify enriched console.warn output when compiled warnings include
+// elementAncestry. They use the mock compileSceneTrack (already mocked above)
+// to inject prebuilt warnings directly into the engine.
+
+describe('useSceneEngine warning logging', () => {
+  beforeEach(() => {
+    window.matchMedia = vi.fn().mockImplementation(() => ({
+      matches: false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+      media: '',
+      onchange: null,
+    }));
+    window.requestAnimationFrame = () => 1;
+    window.cancelAnimationFrame = () => {};
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('logs enriched console.warn with ancestry chain when elementAncestry is present', async () => {
+    const { compileSceneTrack } = await import('../../compiler/sceneTrackCompiler');
+    const ancestry: DslBreadcrumb[] = [
+      { componentName: 'Scene', key: 'test' },
+      { componentName: 'div' },
+    ];
+    (compileSceneTrack as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      ticks: [],
+      warnings: [
+        {
+          code: 'MISSING_KEY',
+          message: 'An overlay element <div> has no key.',
+          elementAncestry: ancestry,
+        },
+      ],
+    });
+
+    const { getCachedTrack } = await import('../../compiler/sceneTrackCache');
+    (getCachedTrack as ReturnType<typeof vi.fn>).mockReturnValueOnce(null);
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const registry = new WidgetRegistry();
+    const scenes = [
+      { sceneKey: 's1', contentKey: 'scene:s1', element: <Scene id="s1" /> },
+    ];
+
+    const Test = () => {
+      useSceneEngine({ scenes, widgetRegistry: registry });
+      return <div />;
+    };
+
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    act(() => {
+      root.render(<Test />);
+    });
+
+    const calls = warnSpy.mock.calls.map((c) => String(c[0]));
+    const ancestryCall = calls.find((msg) => msg.includes('DSL ancestry:'));
+    expect(ancestryCall).toBeDefined();
+    expect(ancestryCall).toContain('Scene[test]');
+    expect(ancestryCall).toContain('div');
+
+    root.unmount();
+  });
+
+  it('logs plain console.warn when elementAncestry is absent', async () => {
+    const { compileSceneTrack } = await import('../../compiler/sceneTrackCompiler');
+    (compileSceneTrack as ReturnType<typeof vi.fn>).mockReturnValueOnce({
+      ticks: [],
+      warnings: [
+        {
+          code: 'MISSING_WIDGET',
+          message: 'Widget "foo" is not registered.',
+        },
+      ],
+    });
+
+    const { getCachedTrack } = await import('../../compiler/sceneTrackCache');
+    (getCachedTrack as ReturnType<typeof vi.fn>).mockReturnValueOnce(null);
+
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const registry = new WidgetRegistry();
+    const scenes = [
+      { sceneKey: 's1', contentKey: 'scene:s1', element: <Scene id="s1" /> },
+    ];
+
+    const Test = () => {
+      useSceneEngine({ scenes, widgetRegistry: registry });
+      return <div />;
+    };
+
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    act(() => {
+      root.render(<Test />);
+    });
+
+    const calls = warnSpy.mock.calls.map((c) => String(c[0]));
+    const plainCall = calls.find((msg) => msg.includes('[BrewSite]') && msg.includes('Widget "foo"'));
+    expect(plainCall).toBeDefined();
+    expect(plainCall).not.toContain('DSL ancestry:');
+
+    root.unmount();
+  });
+});

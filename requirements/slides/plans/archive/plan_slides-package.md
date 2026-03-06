@@ -2,7 +2,7 @@
 title: "Implementation Plan: @brewsite/slides Package"
 doc_type: plan
 owner: brewsite-architect
-status: active
+status: complete
 updated: 2026-03-05
 change_history:
   - date: 2026-03-05
@@ -1514,7 +1514,7 @@ export function computeSlideStartProgress(scrollUnits: number[], index: number):
  * @param scrollUnits - Array of scrollUnits per slide (for correct progress mapping).
  */
 export function useSlideNavigation(totalSlides: number, scrollUnits: number[]): SlideNavigationState {
-  const { sceneIndex } = useCurrentScene();
+  const { index: sceneIndex } = useCurrentScene();  // useCurrentScene returns { id, index }
   const engine = useSceneEngineContext();
 
   const goTo = useCallback((index: number) => {
@@ -1801,7 +1801,7 @@ const SlidePlayerInner = ({
   navigation,
 }: SlidePlayerInnerProps): JSX.Element => {
   const engine = useSceneEngineContext();
-  const { sceneIndex } = useCurrentScene();
+  const { index: sceneIndex } = useCurrentScene();  // useCurrentScene returns { id, index }
   const scrollUnits = useMemo(() => spec.slides.map((s) => s.scrollUnits), [spec.slides]);
   const nav = useSlideNavigation(spec.slides.length, scrollUnits);
 
@@ -2054,7 +2054,7 @@ export const SlidePlayer = forwardRef<SlidePlayerHandle, SlidePlayerProps>(funct
         manifestUrl={EMPTY_MANIFEST_URL}
         plugins={allPlugins}
         sceneTheme={resolvedTheme.sceneTheme}
-        inputModePolicy="direct"
+        inputModePolicy="prefer-direct"
         pixelsPerScene={600}
       >
         {/* Inject <Slide>→<Scene> expanded children into the engine's scene registration */}
@@ -2162,7 +2162,7 @@ export function slidesPlugin(options: SlidesPluginOptions): WidgetPlugin {
       //
       // 1. Slide navigation is a pure React concern — it calls engine.scrollToProgress(),
       //    not a Three.js camera action.
-      // 2. EngineProvider uses inputModePolicy="direct", so the engine's scroll-based
+      // 2. EngineProvider uses inputModePolicy="prefer-direct", so the engine's scroll-based
       //    scene advancement is disabled. No InputController actions needed.
       // 3. <InputController> speaks in terms of camera actions (orbit, dolly, focus).
       //    "next slide" is not a camera action — it is a React navigation callback.
@@ -2586,7 +2586,7 @@ This is valid v1.0 usage. Document it in the package README.
 - [ ] Navigation API: `engine.scrollToProgress(p)` is the only public navigation call. `engine.goToScene`, `engine.setControlledProgress`, and `engine.getProgress` do not exist on `UseSceneEngineResult`.
 - [ ] `VariableStoreContext` is NOT exported from `@brewsite/core`. Reactive VariableStore reads use `useVariable(namespace, key)` (exported from `@brewsite/core`).
 - [ ] `NavigationConfig.scope` caveat: `'canvas'` scope is a v1.1 enhancement. v1.0 always attaches keyboard handlers to `window`. Document this in the README.
-- [ ] **No `<InputController>` DSL in slides.** Navigation is React-layer only (keyboard `useEffect` + pointer overlay div + touch `useEffect` in `SlidePlayerInner`). `EngineProvider` uses `inputModePolicy="direct"` — the engine's scroll-based pipeline is disabled. `<InputController>` is a camera action primitive; it does not apply to slide-level navigation.
+- [ ] **No `<InputController>` DSL in slides.** Navigation is React-layer only (keyboard `useEffect` + pointer overlay div + touch `useEffect` in `SlidePlayerInner`). `EngineProvider` uses `inputModePolicy="prefer-direct"` — the engine's scroll-based pipeline is disabled. `<InputController>` is a camera action primitive; it does not apply to slide-level navigation.
 - [ ] Pointer overlay div (`navigation?.pointer !== false`) renders at z-index 1, below `SlideProgressIndicator` (z-index 20). Click → `nav.next()`, right-click → `nav.prev()`.
 - [ ] Touch swipe: 40px minimum horizontal delta; swipe left → next, swipe right → prev. Guards `navigation?.touch !== false`.
 - [ ] `SceneCanvas` uses `forwardRef<HTMLCanvasElement>`. The ref prop is `ref`, not `canvasRef`.

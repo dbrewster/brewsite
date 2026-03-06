@@ -20,7 +20,8 @@ export type { Vec3 } from '@brewsite/core';
 
 export type ModelProps = {
   scale?: Resolvable<number>;
-  position?: Resolvable<[number, number, number]>;
+  /** World-space Z depth of the model center. Default: 0. */
+  z?: Resolvable<number>;
   rotation?: Resolvable<[number, number, number]>;
   opacity?: Resolvable<number>;
   metalness?: Resolvable<number>;

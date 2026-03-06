@@ -13,6 +13,7 @@ import type {ReactElement} from 'react';
 import {isValidElement} from 'react';
 import type * as THREE from 'three';
 import type {CompileExtraContext, IDslComposite, ILoadable, IRenderable, ISceneElement, IAttachmentHost, IRenderContributor, RenderContribution, WidgetInitContext, WidgetRenderContext, INVSBounded, NVSRect,} from '@brewsite/core';
+import {nvsToWorldWithCamera, nvsToWorldAnalytic} from '@brewsite/core';
 import {CUSTOM_NODE_HANDLER} from '@brewsite/core/widget/WidgetRegistry';
 import type {IHasCustomDslHandler} from '@brewsite/core/widget/WidgetRegistry';
 import type {CompileHelpers, NodeHandler, SceneSnapshotContext} from '@brewsite/core';
@@ -41,6 +42,7 @@ import {Label} from '../../labels/dsl';
 import type {LabelResolved} from '../../labels/types';
 
 import {ModelRenderer} from './ModelRenderer';
+import type {ModelRenderInput} from './_renderTypes';
 
 export type ModelWidgetConfig = {
   /**
@@ -55,7 +57,6 @@ type ModelAuthoredFlags = {
   model?: {
     reset?: boolean;
     scale?: boolean;
-    position?: boolean;
     rotation?: boolean;
     opacity?: boolean;
     metalness?: boolean;
@@ -412,6 +413,7 @@ export class ModelWidget
 
   private config: ModelWidgetConfig;
   private renderer: ModelRenderer | null = null;
+  private scene: THREE.Scene | null = null;
   private readonly modelType: string;
   private readonly baseRotation: Vec3 | null;
   private lastAppliedState: SceneModelInstanceState | null = null;
@@ -460,7 +462,6 @@ export class ModelWidget
         model: {
           reset: props.reset === true,
           scale: hasProp(rawProps as Record<string, unknown>, 'scale'),
-          position: hasProp(rawProps as Record<string, unknown>, 'position'),
           rotation: hasProp(rawProps as Record<string, unknown>, 'rotation'),
           opacity: hasProp(rawProps as Record<string, unknown>, 'opacity'),
           metalness: hasProp(rawProps as Record<string, unknown>, 'metalness'),
@@ -606,12 +607,16 @@ export class ModelWidget
       const modelRoughnessMultiplier =
         props.roughnessMultiplier !== undefined ? (props.roughnessMultiplier as number) : 1;
 
+      const nvsX = (props.x !== undefined ? (props.x as number) : 0) + (props.w !== undefined ? (props.w as number) : 1) / 2;
+      const nvsY = (props.y !== undefined ? (props.y as number) : 0) + (props.h !== undefined ? (props.h as number) : 1) / 2;
       const state: SceneModelInstanceState = {
         model: {
           ...base.model,
+          nvsX,
+          nvsY,
+          z: props.z !== undefined ? (props.z as number) : (base.model.z ?? 0),
           ...(props.reset === true ? { reset: true } : {}),
           ...(props.scale !== undefined ? { scale: props.scale as number } : {}),
-          ...(props.position !== undefined ? { position: props.position as Vec3 } : {}),
           ...(resolvedRotation !== undefined ? { rotation: resolvedRotation } : {}),
           ...(props.opacity !== undefined ? { opacity: props.opacity as number } : {}),
           ...(props.metalness !== undefined ? { metalness: props.metalness as number } : {}),
@@ -668,10 +673,13 @@ export class ModelWidget
       ? this.defaultState.model
       : base.model;
 
+    const mergedNvsBounds = next.nvsBounds ?? base.nvsBounds ?? { x: 0, y: 0, w: 1, h: 1 };
     const mergedModel = {
       ...modelBase,
+      nvsX: mergedNvsBounds.x + mergedNvsBounds.w / 2,
+      nvsY: mergedNvsBounds.y + mergedNvsBounds.h / 2,
+      z: next.model.z ?? base.model.z ?? 0,
       ...(authored?.model?.scale ? { scale: next.model.scale } : {}),
-      ...(authored?.model?.position ? { position: next.model.position } : {}),
       ...(authored?.model?.rotation ? { rotation: next.model.rotation } : {}),
       ...(authored?.model?.opacity ? { opacity: next.model.opacity } : {}),
       ...(authored?.model?.metalness ? { metalness: next.model.metalness } : {}),
@@ -731,7 +739,7 @@ export class ModelWidget
         animation: mergedAnimation,
       },
       enabled: authored?.enabled ? next.enabled : base.enabled,
-      nvsBounds: next.nvsBounds ?? base.nvsBounds ?? { x: 0, y: 0, w: 1, h: 1 },
+      nvsBounds: mergedNvsBounds,
     };
 
     delete (merged as SceneModelInstanceState & { __authored?: ModelAuthoredFlags }).__authored;
@@ -790,11 +798,13 @@ export class ModelWidget
    */
   initialize(context: WidgetInitContext): void {
     const scene = context.scene as THREE.Scene;
+    this.scene = scene;
     this.renderer = new ModelRenderer(scene, context.renderer);
   }
 
   /**
    * Apply state each frame.
+   * Converts NVS position (nvsX, nvsY, z) to world-space before passing to ModelRenderer.
    */
   apply(state: SceneModelInstanceState, context: WidgetRenderContext): void {
     this.lastAppliedState = state;
@@ -813,8 +823,18 @@ export class ModelWidget
         `Available clips: ${Array.from(this.loadedClipNames).join(', ')}`,
       );
     }
+
+    // Convert NVS position to world-space. Use the live camera when available for
+    // accurate conversion; fall back to analytic defaults when camera is not yet set.
+    const cam = this.scene?.userData['__brewsite_camera'] as THREE.PerspectiveCamera | undefined;
+    const worldPos = cam
+      ? nvsToWorldWithCamera(state.model.nvsX, state.model.nvsY, cam, state.model.z)
+      : nvsToWorldAnalytic(state.model.nvsX, state.model.nvsY, 0, 0, 12.07, 45, 16 / 9, state.model.z);
+
+    const { nvsX: _nx, nvsY: _ny, z: _z, ...modelRest } = state.model;
+    const renderInput: ModelRenderInput = { ...modelRest, position: worldPos };
     const animation = context.extra as CompiledAnimation | undefined;
-    this.renderer.apply(state, animation, context);
+    this.renderer.apply({ ...state, model: renderInput }, animation, context);
   }
 
   /**
@@ -822,6 +842,7 @@ export class ModelWidget
    */
   dispose(): void {
     this.renderer?.dispose();
+    this.scene = null;
   }
 
   getAnchorBoneName(anchorKey: string): string | undefined {
