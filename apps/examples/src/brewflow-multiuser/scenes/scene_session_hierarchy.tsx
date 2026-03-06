@@ -36,9 +36,9 @@ export const sceneSessionHierarchy: JSX.Element = (
     <Background color="#080b14" />
 
     <DiagramCanvas id="bfmu-sess-canvas" position={[0, 2, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="sess-diagram" pivot="center">
+      <Diagram id="sess-diagram">
         <HierarchicalLayout direction="top-down" spacing={[2, 2]} />
-        <DiagramEnter fade scaleFrom={0.85} />
+        <DiagramEnter fade />
 
         <DiagramNode
           id="level-tenant"

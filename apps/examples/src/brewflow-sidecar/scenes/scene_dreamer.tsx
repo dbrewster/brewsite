@@ -36,7 +36,7 @@ export const sceneDreamer: JSX.Element = (
     <Background color="#080b14" />
 
     <DiagramCanvas id="bf-dreamer" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="dreamer-flow" pivot="center">
+      <Diagram id="dreamer-flow">
         <HierarchicalLayout direction="left-right" spacing={[3, 3]} />
 
         <DiagramNode

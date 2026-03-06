@@ -38,7 +38,7 @@ export const sceneDim8Maturity: JSX.Element = (
     </InputController>
 
     <DiagramCanvas id="bfc-mature-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="mature-diagram" pivot="center">
+      <Diagram id="mature-diagram">
         <GridLayout columns={2} spacing={[3, 2]} />
 
         {/* Left column — claude-flow maturation */}

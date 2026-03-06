@@ -51,9 +51,9 @@ export const scene01CoreIntro: JSX.Element = (
             scale={isMobile ? 1.0 : 1.25}
             theme={neonCyberTheme}
         >
-            <Diagram id="presentation-arc" pivot="center">
+            <Diagram id="presentation-arc">
                 <HierarchicalLayout direction="top-down" spacing={[2.5, 2.4]}/>
-                <DiagramEnter from={[-45, 0, 0]} fade easing="ease-out"/>
+                <DiagramEnter from={[-1, 0.5, 0]} fade easing="ease-out" />
 
                 <DiagramNode id="problem" label="Problem" icon="ui:exclamation-triangle"/>
                 <DiagramNode id="insight" label="Insight" icon="ui:light-bulb"/>

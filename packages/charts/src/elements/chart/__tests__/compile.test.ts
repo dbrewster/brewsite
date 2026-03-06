@@ -14,9 +14,42 @@ describe('DEFAULT_CHART_STATE', () => {
   it('has fullscreen nvsBounds', () => {
     expect(DEFAULT_CHART_STATE.nvsBounds).toEqual({ x: 0, y: 0, w: 1, h: 1 });
   });
+
+  it('has nvsX and nvsY (no position field)', () => {
+    expect(DEFAULT_CHART_STATE).toHaveProperty('nvsX');
+    expect(DEFAULT_CHART_STATE).toHaveProperty('nvsY');
+    expect(DEFAULT_CHART_STATE).not.toHaveProperty('position');
+  });
 });
 
 describe('compileChart', () => {
+  it('derives nvsX, nvsY from x,y,w,h props', () => {
+    const state = compileChart({ id: 'c', type: 'bar', x: 0.2, y: 0.1, w: 0.5, h: 0.6 }, null, [], [], null);
+    expect(state.nvsX).toBeCloseTo(0.2 + 0.5 / 2, 5);  // 0.45
+    expect(state.nvsY).toBeCloseTo(0.1 + 0.6 / 2, 5);  // 0.40
+  });
+
+  it('defaults to NVS center when no x,y specified', () => {
+    const state = compileChart({ id: 'c', type: 'bar' }, null, [], [], null);
+    expect(state.nvsX).toBe(0.5);
+    expect(state.nvsY).toBe(0.5);
+  });
+
+  it('has no position property', () => {
+    const state = compileChart({ id: 'c', type: 'bar' }, null, [], [], null);
+    expect(state).not.toHaveProperty('position');
+  });
+
+  it('respects explicit z prop', () => {
+    const state = compileChart({ id: 'c', type: 'bar', z: -2 }, null, [], [], null);
+    expect(state.z).toBe(-2);
+  });
+
+  it('defaults z to 0', () => {
+    const state = compileChart({ id: 'c', type: 'bar' }, null, [], [], null);
+    expect(state.z).toBe(0);
+  });
+
   it('defaults type from DSL prop', () => {
     const state = compileChart({ id: 'c', type: 'bar' }, null, [], [], null);
     expect(state.type).toBe('bar');
@@ -183,20 +216,33 @@ describe('functionalChartTransitionSpec', () => {
     expect(mid.opacity).toBeLessThan(0.8);
   });
 
+  it('interpolateFn blends nvsX at t=0.5', () => {
+    const from = { ...DEFAULT_CHART_STATE, nvsX: 0.0 };
+    const to = { ...DEFAULT_CHART_STATE, nvsX: 1.0 };
+    const fn = functionalChartTransitionSpec.interpolateFn(from, to);
+    expect(fn(makeSimpleContext(0.5)).nvsX).toBeCloseTo(0.5);
+  });
+
+  it('interpolateFn blends nvsY at t=0.5', () => {
+    const from = { ...DEFAULT_CHART_STATE, nvsY: 0.0 };
+    const to = { ...DEFAULT_CHART_STATE, nvsY: 1.0 };
+    const fn = functionalChartTransitionSpec.interpolateFn(from, to);
+    expect(fn(makeSimpleContext(0.5)).nvsY).toBeCloseTo(0.5);
+  });
+
+  it('interpolateFn blends z at t=0.5', () => {
+    const from = { ...DEFAULT_CHART_STATE, z: 0 };
+    const to = { ...DEFAULT_CHART_STATE, z: 4 };
+    const fn = functionalChartTransitionSpec.interpolateFn(from, to);
+    expect(fn(makeSimpleContext(0.5)).z).toBeCloseTo(2);
+  });
+
   it('interpolateFn switches type at midpoint', () => {
     const from = { ...DEFAULT_CHART_STATE, type: 'bar' as const };
     const to = { ...DEFAULT_CHART_STATE, type: 'line' as const };
     const fn = functionalChartTransitionSpec.interpolateFn(from, to);
     expect(fn(makeSimpleContext(0.4)).type).toBe('bar');
     expect(fn(makeSimpleContext(0.6)).type).toBe('line');
-  });
-
-  it('interpolateFn blends position', () => {
-    const from = { ...DEFAULT_CHART_STATE, position: [0, 0, 0] as const };
-    const to = { ...DEFAULT_CHART_STATE, position: [4, 0, 0] as const };
-    const fn = functionalChartTransitionSpec.interpolateFn(from, to);
-    const mid = fn(makeSimpleContext(0.5));
-    expect(mid.position[0]).toBeCloseTo(2);
   });
 
   it('interpolateFn carries from.sceneTheme at t < 0.5', () => {

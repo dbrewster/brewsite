@@ -37,44 +37,44 @@ export const sceneArchitecture: JSX.Element = (
 
     <DiagramCanvas id="bf-arch" position={[0, config.diagramTop, 0]} rotation={[-0.12, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       {/* claude-flow block */}
-      <Diagram id="bf-arch-cf" pivot="center" position={[0, 6, 0]}>
+      <Diagram id="bf-arch-cf" viewportBounds={{x:0, y:0, w:1, h:0.35}}>
         <ManualLayout />
         <DiagramGroup id="cf-group" label="claude-flow" variant="boundary" color="#0d1525" borderColor="#2a3a60">
           <DiagramNode
             id="cf-db"
             label=".swarm/memory.db"
             sublabel="events · shared_state · patterns · tasks · sessions"
-            size={[9, 2.8]}
-            position={[-4, 0, 0]}
+            size={[0.409, 0.483]}
+            position={[0.273, 0.500, 0]}
           />
           <DiagramNode
             id="cf-yaml"
             label="agent-template.yaml"
             sublabel="pre/post/session-end hooks → npx brewflow ..."
-            size={[9, 2.8]}
-            position={[6, 0, 0]}
+            size={[0.409, 0.483]}
+            position={[0.727, 0.500, 0]}
           />
         </DiagramGroup>
       </Diagram>
 
       {/* sidecar block */}
-      <Diagram id="bf-arch-sidecar" pivot="center" position={[0, -5, 0]}>
+      <Diagram id="bf-arch-sidecar" viewportBounds={{x:0, y:0.35, w:1, h:0.65}}>
         <ManualLayout />
         <DiagramGroup id="sidecar-group" label="BrewFlow Memory Sidecar" variant="boundary" color="#0d0f1e" borderColor="#3a4080">
           <DiagramNode
             id="proc-bridge"
             label="brewflow-bridge"
             sublabel="Polls .swarm/memory.db (read-only) · rowid cursors · EpisodicStore writes"
-            size={[8, 2.8]}
-            position={[-9, 0, 0]}
+            size={[0.276, 0.267]}
+            position={[0.190, 0.276, 0]}
             color="#141830"
           />
           <DiagramNode
             id="proc-mcp"
             label="brewflow-mcp-server"
             sublabel="mcp__brewflow__* tools · recall · store · checkpoint · trigger_dream"
-            size={[8, 2.8]}
-            position={[0, 0, 0]}
+            size={[0.276, 0.267]}
+            position={[0.500, 0.276, 0]}
             color="#141830"
             glow={{ intensity: 0.12 }}
           />
@@ -82,24 +82,24 @@ export const sceneArchitecture: JSX.Element = (
             id="proc-dreamer"
             label="brewflow-dreamer"
             sublabel="7-stage consolidation · LLM extract → Neocortex promotion"
-            size={[8, 2.8]}
-            position={[9, 0, 0]}
+            size={[0.276, 0.267]}
+            position={[0.810, 0.276, 0]}
             color="#141830"
           />
           <DiagramNode
             id="store-episodic"
             label=".brewflow/episodic/"
             sublabel="JSONL segments · EpisodicStore"
-            size={[5.5, 2.2]}
-            position={[-5, -5, 0]}
+            size={[0.190, 0.210]}
+            position={[0.328, 0.752, 0]}
             color="#0f1525"
           />
           <DiagramNode
             id="store-neocortex"
             label=".brewflow/neocortex/"
             sublabel="typed JSON cards · verified knowledge"
-            size={[5.5, 2.2]}
-            position={[5, -5, 0]}
+            size={[0.190, 0.210]}
+            position={[0.672, 0.752, 0]}
             color="#0f1525"
           />
         </DiagramGroup>

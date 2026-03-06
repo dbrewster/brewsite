@@ -48,7 +48,7 @@ export const sceneSomniocortex: JSX.Element = (
         <DiagramCanvas id="bfm-somno-canvas" rotation={[config.diagramRotationX, 0, 0]} scale={.7}
                        position={[0, config.diagramTop +2, 0]}
                        theme={brewflowTheme}>
-            <Diagram id="somno-diagram" pivot="center">
+            <Diagram id="somno-diagram">
                 <FlowLayout direction="top-down" gap={2}/>
 
                 <DiagramNode id="in-episodic" label="EpisodicStore" sublabel="raw episodes"

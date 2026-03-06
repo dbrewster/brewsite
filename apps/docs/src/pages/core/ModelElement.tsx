@@ -7,9 +7,9 @@ import { LiveDemo } from '../../components/demo/LiveDemo';
 import ModelBasicDemo, { CODE as MODEL_BASIC_CODE } from '../../demos/core/ModelBasicDemo.demo';
 import ModelAnimationDemo, { CODE as MODEL_ANIM_CODE } from '../../demos/core/ModelAnimationDemo.demo';
 
-const BASIC_USAGE_CODE = `<Model type="MaleDummy" id="character" position={[0, 0, 0]} />`;
+const BASIC_USAGE_CODE = `<Model type="MaleDummy" id="character" />`;
 
-const ANIMATION_USAGE_CODE = `<Model type="MaleDummy" id="character" position={[0, 0, 0]}>
+const ANIMATION_USAGE_CODE = `<Model type="MaleDummy" id="character">
   <Playback>
     <Animation clipName="chat-relax-m" />
   </Playback>

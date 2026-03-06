@@ -37,7 +37,7 @@ export const sceneSensitiveDataGuard: JSX.Element = (
     </InputController>
 
     <DiagramCanvas id="bfm-guard-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="guard-diagram" pivot="center">
+      <Diagram id="guard-diagram">
         <HierarchicalLayout direction="left-right" spacing={[3, 2]} />
 
         {/* Guard hub + 4 directives */}

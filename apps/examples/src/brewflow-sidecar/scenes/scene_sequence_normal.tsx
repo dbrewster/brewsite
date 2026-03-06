@@ -36,7 +36,7 @@ export const sceneSequenceNormal: JSX.Element = (
     <Background color="#080b14" />
 
     <DiagramCanvas id="bf-seq-normal" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="seq-normal" pivot="center">
+      <Diagram id="seq-normal">
         <FlowLayout direction="top-down" gap={3} />
 
         <DiagramNode

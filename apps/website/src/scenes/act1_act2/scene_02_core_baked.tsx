@@ -43,9 +43,9 @@ export const scene02CoreBaked: JSX.Element = (
       scale={isMobile ? 1.0 : 1.35}
       theme={neonCyberTheme}
     >
-      <Diagram id="presentation-arc" pivot="center">
+      <Diagram id="presentation-arc">
         <HierarchicalLayout direction="top-down" spacing={[2.2, 2.3]} />
-        <DiagramEnter from={[-30, 0, 0]} fade easing="ease-out" />
+        <DiagramEnter from={[-1, 0.5, 0]} fade easing="ease-out" />
 
         <DiagramGroup id="context" label="Context" variant="boundary">
           <DiagramNode id="audience" label="Audience" icon="ui:users" />

@@ -8,9 +8,9 @@ import { dwellFn } from '../../utils/pacing';
 
 const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
-const snippetCode = `<DiagramNode id="api"   label="API Gateway" icon="aws:api-gateway" position={[0, 0, 0]} />
-<DiagramNode id="db"    label="PostgreSQL"  icon="aws:rds"         position={[-3, -4, 0]} />
-<DiagramNode id="cache" label="Redis"       icon="aws:elasticache" position={[3, -4, 0]} />
+const snippetCode = `<DiagramNode id="api"   label="API Gateway" icon="aws:api-gateway" position={[0.500, 0.500, 0]} />
+<DiagramNode id="db"    label="PostgreSQL"  icon="aws:rds"         position={[0.167, 0.864, 0]} />
+<DiagramNode id="cache" label="Redis"       icon="aws:elasticache" position={[0.833, 0.864, 0]} />
 <DiagramEdge from="api" to="db"    label="SQL"   flow="forward" />
 <DiagramEdge from="api" to="cache" label="Cache" flow="forward" />`;
 
@@ -39,12 +39,12 @@ export const scene01SimpleDiagram: JSX.Element = (
       scale={isMobile ? 1.0 : 1.3}
       theme={neonCyberTheme}
     >
-      <Diagram id="tech-stack" pivot="center">
+      <Diagram id="tech-stack">
         <ManualLayout />
-        <DiagramNode id="frontend" label="React App"   icon="ui:globe-alt"    position={[0, 4, 0]} />
-        <DiagramNode id="api"      label="API Gateway" icon="aws:api-gateway"  position={[0, 0, 0]} />
-        <DiagramNode id="db"       label="PostgreSQL"  icon="aws:rds"          position={[-3, -4, 0]} />
-        <DiagramNode id="cache"    label="Redis"       icon="aws:elasticache"  position={[3, -4, 0]} />
+        <DiagramNode id="frontend" label="React App"   icon="ui:globe-alt"    position={[0.500, 0.136, 0]} />
+        <DiagramNode id="api"      label="API Gateway" icon="aws:api-gateway"  position={[0.500, 0.500, 0]} />
+        <DiagramNode id="db"       label="PostgreSQL"  icon="aws:rds"          position={[0.167, 0.864, 0]} />
+        <DiagramNode id="cache"    label="Redis"       icon="aws:elasticache"  position={[0.833, 0.864, 0]} />
 
         <DiagramEdge from="frontend" to="api"   label="REST"  flow="forward" />
         <DiagramEdge from="api"      to="db"    label="SQL"   flow="forward" />

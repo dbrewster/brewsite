@@ -6,11 +6,13 @@ import type { ImagePanelState } from '../types';
 const makeState = (overrides: Partial<ImagePanelState> = {}): ImagePanelState => ({
   id: 'panel',
   src: '/a.png',
-  position: [0, 0, 0],
+  nvsX: 0.5,
+  nvsY: 0.5,
+  z: 0,
+  nvsWidth: 0.6,
+  nvsHeight: undefined,
   rotation: [0, 0, 0],
   scale: 1,
-  width: 12,
-  height: undefined,
   bezel: 'dark',
   bezelThickness: 0.3,
   opacity: 1,
@@ -50,11 +52,32 @@ describe('functionalImagePanelTransitionSpec', () => {
     expect(result.opacity).toBeCloseTo(0.8);
   });
 
-  it('interpolateFn blends position at t=0.5', () => {
-    const from = makeState({ position: [0, 0, 0] });
-    const to = makeState({ position: [10, 0, 0] });
+  it('interpolateFn blends nvsX at t=0.5', () => {
+    const from = makeState({ nvsX: 0.0 });
+    const to = makeState({ nvsX: 1.0 });
     const result = functionalImagePanelTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));
-    expect(result.position[0]).toBeCloseTo(5);
+    expect(result.nvsX).toBeCloseTo(0.5);
+  });
+
+  it('interpolateFn blends nvsY at t=0.5', () => {
+    const from = makeState({ nvsY: 0.0 });
+    const to = makeState({ nvsY: 1.0 });
+    const result = functionalImagePanelTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));
+    expect(result.nvsY).toBeCloseTo(0.5);
+  });
+
+  it('interpolateFn blends z at t=0.5', () => {
+    const from = makeState({ z: 0 });
+    const to = makeState({ z: 4 });
+    const result = functionalImagePanelTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));
+    expect(result.z).toBeCloseTo(2);
+  });
+
+  it('interpolateFn blends nvsWidth at t=0.5', () => {
+    const from = makeState({ nvsWidth: 0.2 });
+    const to = makeState({ nvsWidth: 0.8 });
+    const result = functionalImagePanelTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));
+    expect(result.nvsWidth).toBeCloseTo(0.5);
   });
 
   it('interpolateFn blends rotation at t=0.5', () => {

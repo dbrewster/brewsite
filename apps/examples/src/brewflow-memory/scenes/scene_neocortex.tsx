@@ -49,7 +49,7 @@ export const sceneNeocortex: JSX.Element = (
                        theme={brewflowTheme}>
 
             {/* Left tree: Card Types — what kinds of knowledge Neocortex stores */}
-            <Diagram id="neo-types" pivot="center" position={[-10, 0, 0]}>
+            <Diagram id="neo-types" viewportBounds={{x:0, y:0, w:0.5, h:1}}>
                 <HierarchicalLayout direction="top-down" spacing={[3, 2]}/>
 
                 <DiagramNode id="neo-core" label="Neocortex" sublabel="typed · versioned · provenance-backed"
@@ -76,7 +76,7 @@ export const sceneNeocortex: JSX.Element = (
             </Diagram>
 
             {/* Right tree: Lifecycle — how a memory card moves from proposal to terminal state */}
-            <Diagram id="neo-lifecycle" pivot="center" position={[10, 0, 0]}>
+            <Diagram id="neo-lifecycle" viewportBounds={{x:0.5, y:0, w:0.5, h:1}}>
                 <HierarchicalLayout direction="top-down" spacing={[3, 2]}/>
 
                 <DiagramNode id="lc-candidate" label="candidate" sublabel="LLM proposed · unvalidated"

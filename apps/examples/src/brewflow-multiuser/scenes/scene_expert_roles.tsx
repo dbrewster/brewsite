@@ -36,9 +36,9 @@ export const sceneExpertRoles: JSX.Element = (
     <Background color="#080b14" />
 
     <DiagramCanvas id="bfmu-exp-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="exp-diagram" pivot="center">
+      <Diagram id="exp-diagram">
         <ManualLayout />
-        <DiagramEnter fade scaleFrom={0.85} />
+        <DiagramEnter fade />
 
         {/* Hub — the episode */}
         <DiagramNode

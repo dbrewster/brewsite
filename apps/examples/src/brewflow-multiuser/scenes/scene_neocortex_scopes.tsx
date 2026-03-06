@@ -36,9 +36,9 @@ export const sceneNeocortexScopes: JSX.Element = (
     <Background color="#080b14" />
 
     <DiagramCanvas id="bfmu-neo-canvas" position={[0, 2, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="neo-diagram" pivot="center">
+      <Diagram id="neo-diagram">
         <ManualLayout />
-        <DiagramEnter fade scaleFrom={0.85} />
+        <DiagramEnter fade />
 
         {/* Three Neocortex planes */}
         <DiagramNode

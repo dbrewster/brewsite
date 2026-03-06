@@ -37,21 +37,21 @@ export const sceneClsTheory: JSX.Element = (
     </InputController>
 
     <DiagramCanvas id="bfm-cls-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="cls-diagram" pivot="center">
+      <Diagram id="cls-diagram">
         <ManualLayout />
-        <DiagramEnter fade scaleFrom={0.85} />
+        <DiagramEnter fade />
 
         {/* Left column — cognitive science analog (muted) */}
-        <DiagramNode id="cog-hippo" label="Hippocampus" sublabel="fast learning · high fidelity · specific episodes" size={[7, 2.8]} position={[-8, 6, 0]} color="#1a1525" />
-        <DiagramNode id="cog-consol" label="Consolidation" sublabel="sleep replay · pattern extraction · pruning noise" size={[7, 2.8]} position={[-8, 2, 0]} color="#1a1525" />
-        <DiagramNode id="cog-neo" label="Neocortex" sublabel="slow learning · generalization · stable patterns" size={[7, 2.8]} position={[-8, -2, 0]} color="#1a1525" />
-        <DiagramNode id="cog-work" label="Working Memory" sublabel="bounded · task-scoped · assembled on demand" size={[7, 2.8]} position={[-8, -6, 0]} color="#1a1525" />
+        <DiagramNode id="cog-hippo" label="Hippocampus" sublabel="fast learning · high fidelity · specific episodes" size={[0.269, 0.157]} position={[0.192, 0.163, 0]} color="#1a1525" />
+        <DiagramNode id="cog-consol" label="Consolidation" sublabel="sleep replay · pattern extraction · pruning noise" size={[0.269, 0.157]} position={[0.192, 0.387, 0]} color="#1a1525" />
+        <DiagramNode id="cog-neo" label="Neocortex" sublabel="slow learning · generalization · stable patterns" size={[0.269, 0.157]} position={[0.192, 0.613, 0]} color="#1a1525" />
+        <DiagramNode id="cog-work" label="Working Memory" sublabel="bounded · task-scoped · assembled on demand" size={[0.269, 0.157]} position={[0.192, 0.837, 0]} color="#1a1525" />
 
         {/* Right column — BrewFlow implementation (glowing) */}
-        <DiagramNode id="bf-episodic" label="EpisodicStore" sublabel="append-only · global event sequence · JSONL segments" size={[7, 2.8]} position={[8, 6, 0]} color="#141830" glow={{ intensity: 0.15 }} />
-        <DiagramNode id="bf-somno" label="Somniocortex" sublabel="7-stage dreaming pipeline · out-of-band · LLM proposes" size={[7, 2.8]} position={[8, 2, 0]} color="#141830" glow={{ intensity: 0.12 }} />
-        <DiagramNode id="bf-neo" label="Neocortex Store" sublabel="typed cards · versioned · provenance-backed · verified" size={[7, 2.8]} position={[8, -2, 0]} color="#141830" glow={{ intensity: 0.12 }} />
-        <DiagramNode id="bf-inject" label="InjectorCortex" sublabel="token-budget-aware · ordered · reproducible packs" size={[7, 2.8]} position={[8, -6, 0]} color="#141830" glow={{ intensity: 0.1 }} />
+        <DiagramNode id="bf-episodic" label="EpisodicStore" sublabel="append-only · global event sequence · JSONL segments" size={[0.269, 0.157]} position={[0.808, 0.163, 0]} color="#141830" glow={{ intensity: 0.15 }} />
+        <DiagramNode id="bf-somno" label="Somniocortex" sublabel="7-stage dreaming pipeline · out-of-band · LLM proposes" size={[0.269, 0.157]} position={[0.808, 0.387, 0]} color="#141830" glow={{ intensity: 0.12 }} />
+        <DiagramNode id="bf-neo" label="Neocortex Store" sublabel="typed cards · versioned · provenance-backed · verified" size={[0.269, 0.157]} position={[0.808, 0.613, 0]} color="#141830" glow={{ intensity: 0.12 }} />
+        <DiagramNode id="bf-inject" label="InjectorCortex" sublabel="token-budget-aware · ordered · reproducible packs" size={[0.269, 0.157]} position={[0.808, 0.837, 0]} color="#141830" glow={{ intensity: 0.1 }} />
 
         {/* Mapping edges */}
         <DiagramEdge from="cog-hippo" to="bf-episodic" label="→" routing="straight" color="#5060a0" arrowEnd="open" />

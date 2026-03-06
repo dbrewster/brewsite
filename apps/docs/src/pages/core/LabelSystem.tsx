@@ -39,7 +39,7 @@ export default function LabelSystem(): JSX.Element {
 
       <CodeBlock
         language="tsx"
-        code={`<Model type="MaleDummy" id="character" position={[0, 0, 0]}>
+        code={`<Model type="MaleDummy" id="character">
   <Label
     id="name-tag"
     boneKey="Head"

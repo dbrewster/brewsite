@@ -38,7 +38,7 @@ export const sceneDim5Restart: JSX.Element = (
     </InputController>
 
     <DiagramCanvas id="bfc-restart-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="restart-diagram" pivot="center">
+      <Diagram id="restart-diagram">
         <GridLayout columns={2} spacing={[3, 2]} />
 
         {/* Left — claude-flow process recovery */}

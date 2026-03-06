@@ -127,7 +127,14 @@ export class ChartWidget
     // NOTE: for animated heatmaps, the consuming scene should have multiple ticks
     // with blockProgress varying 0→1 over the desired time range.
     if (this.scene) {
-      this.chartRenderer.update(this.lastState, this.widgetId);
+      // Re-apply same state — heatmap renderer derives slice from store.getTimeSlice().
+      // Must convert NVS → world-space position same as apply().
+      const heatCam = (this.scene.userData as Record<string, unknown>)[SCENE_CAMERA_KEY];
+      const heatIsPerspCam = heatCam && typeof (heatCam as { fov?: unknown }).fov === 'number';
+      const heatWorldPos = heatIsPerspCam
+        ? nvsToWorldWithCamera(this.lastState.nvsX, this.lastState.nvsY, heatCam as { fov: number; aspect: number; position: { x: number; y: number; z: number } }, this.lastState.z)
+        : nvsToWorldAnalytic(this.lastState.nvsX, this.lastState.nvsY, 0, 0, 12.07, 45, 16 / 9, this.lastState.z);
+      this.chartRenderer.update({ ...this.lastState, position: heatWorldPos }, this.widgetId);
     }
   }
 

@@ -38,7 +38,7 @@ export const sceneDim3Context: JSX.Element = (
     </InputController>
 
     <DiagramCanvas id="bfc-ctx-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="ctx-diagram" pivot="center">
+      <Diagram id="ctx-diagram">
         <GridLayout columns={2} spacing={[3, 2]} />
 
         {/* Left — claude-flow */}

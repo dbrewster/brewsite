@@ -8,13 +8,13 @@ import { dwellFn } from '../../utils/pacing';
 
 const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
-const snippetCode = `// before
-<DiagramNode id="cdn" position={[0,  2, -25]} opacity={0.3} />
-<DiagramNode id="api" position={[0, -4, -25]} opacity={0.3} />
+const snippetCode = `// before (ghosted context)
+<DiagramNode id="cdn" position={[0.618, 0.083, -25]} opacity={0.3} />
+<DiagramNode id="api" position={[0.618, 0.417, -25]} opacity={0.3} />
 
-// after
-<DiagramNode id="ecs"     label="ECS Cluster" position={[-5, -8, -5]} />
-<DiagramNode id="svc-api" label="API Service" position={[-5, -6,  8]} />`;
+// after (detail drill-down)
+<DiagramNode id="ecs"     label="ECS Cluster" position={[0.324, 0.639, -5]} />
+<DiagramNode id="svc-api" label="API Service" position={[0.324, 0.528,  8]} />`;
 
 export const scene03ArchDetail: JSX.Element = (
   <Scene id="website-arch-detail" transition={LATE_FADE}>
@@ -35,32 +35,32 @@ export const scene03ArchDetail: JSX.Element = (
       <Directional intensity={0.6} color="#aaccff" position={[-20, 10, 20]} />
     </Lighting>
     <DiagramCanvas id="system-canvas" rotation={[-Math.PI / 12, 0, 0]} scale={isMobile ? 1.0 : 1.4} theme={darkGlassTheme}>
-      <Diagram id="system-arch" pivot="center">
+      <Diagram id="system-arch">
         <ManualLayout />
-        <DiagramEnter from={[-60, 0, 0]} fade easing="ease-in" />
+        <DiagramEnter from={[-1, 0.5, 0]} fade easing="ease-in" />
 
         {/* Ghost nodes from previous scene — carry position/shape but fade to 30% */}
-        <DiagramNode id="cdn"    position={[0, 2, -25]}   opacity={0.3} />
-        <DiagramNode id="alb"    position={[0, -1, -25]}  opacity={0.3} />
-        <DiagramNode id="api"    position={[0, -4, -25]}  opacity={0.3} />
-        <DiagramNode id="lambda" position={[5, -8, -25]}  opacity={0.3} />
-        <DiagramNode id="rds"    position={[-5, -13, -25]} opacity={0.3} />
-        <DiagramNode id="cache"  position={[0, -13, -25]} opacity={0.3} />
-        <DiagramNode id="s3"     position={[5, -13, -25]} opacity={0.3} />
+        <DiagramNode id="cdn"    position={[0.618, 0.083, -25]}   opacity={0.3} />
+        <DiagramNode id="alb"    position={[0.618, 0.250, -25]}  opacity={0.3} />
+        <DiagramNode id="api"    position={[0.618, 0.417, -25]}  opacity={0.3} />
+        <DiagramNode id="lambda" position={[0.912, 0.639, -25]}  opacity={0.3} />
+        <DiagramNode id="rds"    position={[0.324, 0.917, -25]} opacity={0.3} />
+        <DiagramNode id="cache"  position={[0.618, 0.917, -25]} opacity={0.3} />
+        <DiagramNode id="s3"     position={[0.912, 0.917, -25]} opacity={0.3} />
 
         {/* ECS detail drill-down */}
         <DiagramNode
           id="ecs"
           label="ECS Cluster"
           icon="aws:ecs"
-          position={[-5, -8, -5]}
+          position={[0.324, 0.639, -5]}
           thickness={0.8}
           color="#1a3d5c"
-          size={[6, 3]}
+          size={[0.353, 0.167]}
         />
-        <DiagramNode id="svc-auth"   label="Auth Service" position={[-9, -6, 8]}  color="#0d3d2b" size={[4, 2]} />
-        <DiagramNode id="svc-api"    label="API Service"  position={[-5, -6, 8]}  color="#0d3d2b" size={[4, 2]} />
-        <DiagramNode id="svc-worker" label="Worker"       position={[-1, -6, 8]}  color="#0d3d2b" size={[4, 2]} />
+        <DiagramNode id="svc-auth"   label="Auth Service" position={[0.088, 0.528, 8]}  color="#0d3d2b" size={[0.235, 0.111]} />
+        <DiagramNode id="svc-api"    label="API Service"  position={[0.324, 0.528, 8]}  color="#0d3d2b" size={[0.235, 0.111]} />
+        <DiagramNode id="svc-worker" label="Worker"       position={[0.559, 0.528, 8]}  color="#0d3d2b" size={[0.235, 0.111]} />
 
         <DiagramEdge from="ecs"      to="svc-auth"   flow="forward" />
         <DiagramEdge from="ecs"      to="svc-api"    flow="forward" />

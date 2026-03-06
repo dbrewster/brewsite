@@ -36,7 +36,7 @@ export const sceneSurfaces: JSX.Element = (
     <Background color="#080b14" />
 
     <DiagramCanvas id="bf-surfaces" position={[0, config.diagramTop, 0]} rotation={[-0.15, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="surfaces-diagram" pivot="center">
+      <Diagram id="surfaces-diagram">
         <HierarchicalLayout direction="top-down" spacing={[2, 2]} />
 
         <DiagramNode

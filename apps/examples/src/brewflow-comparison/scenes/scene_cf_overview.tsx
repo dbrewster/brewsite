@@ -46,9 +46,9 @@ export const sceneCfOverview: JSX.Element = (
     </InputController>
 
     <DiagramCanvas id="bfc-cf-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="cf-overview" pivot="center">
+      <Diagram id="cf-overview">
         <ManualLayout />
-        <DiagramEnter fade scaleFrom={0.85} />
+        <DiagramEnter fade />
 
         {/* Center hub */}
         <DiagramNode id="cf-db" label=".swarm/memory.db" sublabel="SQLite · single file · 12 tables" size={[7, 2.8]} position={[0, 0, 0]} color="#1a2030" />

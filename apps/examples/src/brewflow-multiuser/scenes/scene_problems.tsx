@@ -36,9 +36,9 @@ export const sceneProblems: JSX.Element = (
     <Background color="#080b14" />
 
     <DiagramCanvas id="bfmu-prob-canvas" position={[0, 2, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="prob-diagram" pivot="center">
+      <Diagram id="prob-diagram">
         <GridLayout columns={2} spacing={[3, 3]} />
-        <DiagramEnter fade scaleFrom={0.85} />
+        <DiagramEnter fade />
 
         <DiagramNode
           id="p1"

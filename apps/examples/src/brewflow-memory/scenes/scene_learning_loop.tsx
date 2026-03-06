@@ -37,16 +37,16 @@ export const sceneLearningLoop: JSX.Element = (
     </InputController>
 
     <DiagramCanvas id="bfm-loop-canvas" position={[0, config.diagramTop+2, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="loop-diagram" pivot="center">
+      <Diagram id="loop-diagram">
         <ManualLayout />
-        <DiagramEnter fade scaleFrom={0.88} />
+        <DiagramEnter fade />
 
         {/* Circular flow — 5 nodes arranged for clockwise loop */}
-        <DiagramNode id="loop-agent" label="Agent Session" sublabel="records new episodes · receives context pack" size={[7, 2.8]} position={[-7, 5, 0]} color="#1a2545" glow={{ intensity: 0.1 }} />
-        <DiagramNode id="loop-episodic" label="EpisodicStore" sublabel="everything recorded in real time · automatic" size={[7, 2.8]} position={[7, 5, 0]} color="#141830" />
-        <DiagramNode id="loop-somno" label="Somniocortex" sublabel="batch · triggered · out-of-band · not every episode" size={[7, 2.8]} position={[7, -3, 0]} color="#141830" />
-        <DiagramNode id="loop-neo" label="Neocortex" sublabel="validated knowledge · typed cards · lifecycle-managed" size={[7, 2.8]} position={[-7, -3, 0]} color="#141830" glow={{ intensity: 0.12 }} />
-        <DiagramNode id="loop-inject" label="InjectorCortex" sublabel="fast · on-demand · bounded · agent spawn" size={[7, 2.8]} position={[-7, 1, 0]} color="#141830" />
+        <DiagramNode id="loop-agent" label="Agent Session" sublabel="records new episodes · receives context pack" size={[0.292, 0.203]} position={[0.208, 0.210, 0]} color="#1a2545" glow={{ intensity: 0.1 }} />
+        <DiagramNode id="loop-episodic" label="EpisodicStore" sublabel="everything recorded in real time · automatic" size={[0.292, 0.203]} position={[0.792, 0.210, 0]} color="#141830" />
+        <DiagramNode id="loop-somno" label="Somniocortex" sublabel="batch · triggered · out-of-band · not every episode" size={[0.292, 0.203]} position={[0.792, 0.790, 0]} color="#141830" />
+        <DiagramNode id="loop-neo" label="Neocortex" sublabel="validated knowledge · typed cards · lifecycle-managed" size={[0.292, 0.203]} position={[0.208, 0.790, 0]} color="#141830" glow={{ intensity: 0.12 }} />
+        <DiagramNode id="loop-inject" label="InjectorCortex" sublabel="fast · on-demand · bounded · agent spawn" size={[0.292, 0.203]} position={[0.208, 0.500, 0]} color="#141830" />
 
         {/* Clockwise loop edges */}
         <DiagramEdge from="loop-agent" to="loop-episodic" label="continuous · automatic" flow="forward" color="#6080c0" />

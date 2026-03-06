@@ -37,7 +37,7 @@ export const sceneEpisodicStore: JSX.Element = (
     </InputController>
 
     <DiagramCanvas id="bfm-episodic-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="episodic-diagram" pivot="center">
+      <Diagram id="episodic-diagram">
         <HierarchicalLayout direction="left-right" spacing={[2, 2]} />
 
         {/* Hub */}

@@ -36,17 +36,17 @@ export const sceneConvergence: JSX.Element = (
     <Background color="#080b14" />
 
     <DiagramCanvas id="bfmu-conv-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="conv-diagram" pivot="center">
+      <Diagram id="conv-diagram">
         <ManualLayout />
-        <DiagramEnter fade scaleFrom={0.85} />
+        <DiagramEnter fade />
 
         <DiagramNode
           id="conv-pre"
           label="Pre-converged"
           sublabel="independently proposed · 0.92 · strongest signal"
           shape="rectangle"
-          size={[6.5, 2.4]}
-          position={[-14, 0, 0]}
+          size={[0.173, 0.444]}
+          position={[0.127, 0.500, 0]}
           color="#0f2015"
           glow={{ intensity: 0.15 }}
         />
@@ -55,8 +55,8 @@ export const sceneConvergence: JSX.Element = (
           label="Debate convergence"
           sublabel="all experts agree after challenge · 0.88"
           shape="rectangle"
-          size={[6.5, 2.4]}
-          position={[-7, 0, 0]}
+          size={[0.173, 0.444]}
+          position={[0.313, 0.500, 0]}
           color="#101e20"
           glow={{ intensity: 0.12 }}
         />
@@ -65,8 +65,8 @@ export const sceneConvergence: JSX.Element = (
           label="Refined convergence"
           sublabel="debate produced better formulation · 0.85"
           shape="rectangle"
-          size={[6.5, 2.4]}
-          position={[0, 0, 0]}
+          size={[0.173, 0.444]}
+          position={[0.500, 0.500, 0]}
           color="#10201a"
           glow={{ intensity: 0.1 }}
         />
@@ -75,8 +75,8 @@ export const sceneConvergence: JSX.Element = (
           label="Supermajority 4/5"
           sublabel="1 dissent captured as exception · 0.75"
           shape="rectangle"
-          size={[6.5, 2.4]}
-          position={[7, 0, 0]}
+          size={[0.173, 0.444]}
+          position={[0.687, 0.500, 0]}
           color="#141825"
         />
         <DiagramNode
@@ -84,8 +84,8 @@ export const sceneConvergence: JSX.Element = (
           label="Disputed · stalemate"
           sublabel="human review · 0.00 · full transcript preserved"
           shape="rectangle"
-          size={[6.5, 2.4]}
-          position={[14, 0, 0]}
+          size={[0.173, 0.444]}
+          position={[0.873, 0.500, 0]}
           color="#200f0f"
         />
       </Diagram>

@@ -36,9 +36,9 @@ export const sceneDreamingCloud: JSX.Element = (
     <Background color="#080b14" />
 
     <DiagramCanvas id="bfmu-dream-canvas" position={[0, 2, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="dream-diagram" pivot="center">
+      <Diagram id="dream-diagram">
         <ManualLayout />
-        <DiagramEnter fade scaleFrom={0.85} />
+        <DiagramEnter fade />
 
         {/* Three concurrent dreamers */}
         <DiagramNode

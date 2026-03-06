@@ -36,9 +36,9 @@ export const sceneCrossUserFlow: JSX.Element = (
     <Background color="#080b14" />
 
     <DiagramCanvas id="bfmu-cross-canvas" position={[0, 2, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="cross-diagram" pivot="center">
+      <Diagram id="cross-diagram">
         <HierarchicalLayout direction="top-down" />
-        <DiagramEnter fade scaleFrom={0.85} />
+        <DiagramEnter fade />
 
         <DiagramNode
           id="alice-session"

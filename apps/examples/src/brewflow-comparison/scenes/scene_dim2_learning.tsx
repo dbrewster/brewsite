@@ -38,7 +38,7 @@ export const sceneDim2Learning: JSX.Element = (
     </InputController>
 
     <DiagramCanvas id="bfc-learn-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="learn-diagram" pivot="center">
+      <Diagram id="learn-diagram">
         <GridLayout columns={2} spacing={[3, 2]} />
 
         {/* Left — claude-flow patterns */}

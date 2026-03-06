@@ -36,7 +36,7 @@ export const sceneMcp: JSX.Element = (
     <Background color="#080b14" />
 
     <DiagramCanvas id="bf-mcp-tools" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="mcp-tools" pivot="center">
+      <Diagram id="mcp-tools">
         <HierarchicalLayout direction="left-right" spacing={[3, 2]} />
 
         <DiagramNode

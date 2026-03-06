@@ -6,11 +6,13 @@ import type { ScreenState } from '../types';
 const makeState = (overrides: Partial<ScreenState> = {}): ScreenState => ({
   id: 'screen',
   src: 'https://example.com',
-  position: [0, 0, 0],
+  nvsX: 0.5,
+  nvsY: 0.5,
+  z: 0,
+  nvsWidth: 0.625,
+  nvsHeight: undefined,
   rotation: [0, 0, 0],
   scale: 1,
-  width: 12,
-  height: 7.5,
   bezel: 'dark',
   bezelThickness: 0.3,
   opacity: 1,
@@ -35,11 +37,25 @@ describe('functionalScreenTransitionSpec', () => {
     expect(result.opacity).toBeCloseTo(0);
   });
 
-  it('interpolateFn blends position at t=0.5', () => {
-    const from = makeState({ position: [0, 0, 0] });
-    const to = makeState({ position: [10, 0, 0] });
+  it('interpolateFn blends nvsX at t=0.5', () => {
+    const from = makeState({ nvsX: 0.0 });
+    const to = makeState({ nvsX: 1.0 });
     const result = functionalScreenTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));
-    expect(result.position[0]).toBeCloseTo(5);
+    expect(result.nvsX).toBeCloseTo(0.5);
+  });
+
+  it('interpolateFn blends nvsY at t=0.5', () => {
+    const from = makeState({ nvsY: 0.0 });
+    const to = makeState({ nvsY: 1.0 });
+    const result = functionalScreenTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));
+    expect(result.nvsY).toBeCloseTo(0.5);
+  });
+
+  it('interpolateFn blends z at t=0.5', () => {
+    const from = makeState({ z: 0 });
+    const to = makeState({ z: 4 });
+    const result = functionalScreenTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));
+    expect(result.z).toBeCloseTo(2);
   });
 
   it('interpolateFn blends opacity at t=0.5', () => {
@@ -56,11 +72,17 @@ describe('functionalScreenTransitionSpec', () => {
     expect(result.src).toBe('https://a.example.com');
   });
 
-  it('interpolateFn: width and height step at t=0.5 (no resize animation)', () => {
-    const from = makeState({ width: 10, height: 6 });
-    const to = makeState({ width: 12, height: 7.5 });
-    const result = functionalScreenTransitionSpec.interpolateFn(from, to)(0.51);
-    expect(result.width).toBe(12);
-    expect(result.height).toBe(7.5);
+  it('interpolateFn: nvsWidth steps at t=0.5 (no resize animation)', () => {
+    const from = makeState({ nvsWidth: 0.4 });
+    const to = makeState({ nvsWidth: 0.8 });
+    const result = functionalScreenTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.51));
+    expect(result.nvsWidth).toBe(0.8);
+  });
+
+  it('interpolateFn: nvsHeight steps at t=0.5 (no resize animation)', () => {
+    const from = makeState({ nvsHeight: 0.3 });
+    const to = makeState({ nvsHeight: 0.5 });
+    const result = functionalScreenTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.51));
+    expect(result.nvsHeight).toBe(0.5);
   });
 });

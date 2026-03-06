@@ -13,7 +13,7 @@ import { dwellFn } from '../../utils/pacing';
 const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
 const snippetCode = `<ModelRouter type="Worker" id="character"
-  position={[-12, 0, 5]} scale={6}>
+  z={5} scale={6}>
   <Playback>
     <Animation clipName="idle" weight={1} />
   </Playback>
@@ -56,7 +56,7 @@ export const scene02Combined: JSX.Element = (
     <ModelRouter
       type="FemaleDummy"
       id="combined-character"
-      position={[-12, 0, 5]}
+      z={5}
       scale={6}
       rotation={[0, Math.PI / 6, 0]}
       metalnessMultiplier={0.4}
@@ -74,12 +74,12 @@ export const scene02Combined: JSX.Element = (
       scale={1.1}
       theme={darkGlassTheme}
     >
-      <Diagram id="full-arch" pivot="center">
+      <Diagram id="full-arch">
         <ManualLayout />
-        <DiagramNode id="ui"  label="Web App"    icon="ui:globe-alt"    position={[0, 3, 0]} />
-        <DiagramNode id="api" label="API Server" icon="aws:api-gateway" position={[0, 0, 0]} />
-        <DiagramNode id="db"  label="Database"   icon="aws:rds"         position={[-2.5, -3, 0]} />
-        <DiagramNode id="cdn" label="CDN"        icon="aws:cloudfront"  position={[2.5, -3, 0]} />
+        <DiagramNode id="ui"  label="Web App"    icon="ui:globe-alt"    position={[0.500, 0.167, 0]} />
+        <DiagramNode id="api" label="API Server" icon="aws:api-gateway" position={[0.500, 0.500, 0]} />
+        <DiagramNode id="db"  label="Database"   icon="aws:rds"         position={[0.188, 0.833, 0]} />
+        <DiagramNode id="cdn" label="CDN"        icon="aws:cloudfront"  position={[0.813, 0.833, 0]} />
         <DiagramEdge from="ui"  to="api" flow="forward" />
         <DiagramEdge from="api" to="db"  flow="forward" />
         <DiagramEdge from="api" to="cdn" flow="forward" style="dashed" />

@@ -38,9 +38,9 @@ export const sceneBfOverview: JSX.Element = (
     </InputController>
 
     <DiagramCanvas id="bfc-bf-canvas" position={[0, config.diagramTop+1, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale*.7} theme={brewflowTheme}>
-      <Diagram id="bf-overview" pivot="center">
+      <Diagram id="bf-overview">
         <FlowLayout direction="top-down" gap={2} />
-        <DiagramEnter fade scaleFrom={0.85} />
+        <DiagramEnter fade />
 
         <DiagramNode id="bf-episodic" label="EpisodicStore" sublabel="append-only JSONL · globalEventSeq · lineage refs · single-writer" size={[10, 2.8]} color="#141830" glow={{ intensity: 0.1 }} />
         <DiagramNode id="bf-somno" label="Somniocortex" sublabel="7-stage consolidation · LLM proposes · deterministic validators accept" size={[10, 2.8]} color="#141830" glow={{ intensity: 0.12 }} />

@@ -38,7 +38,7 @@ export const sceneDim4Coordination: JSX.Element = (
     </InputController>
 
     <DiagramCanvas id="bfc-coord-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="coord-diagram" pivot="center">
+      <Diagram id="coord-diagram">
         <GridLayout columns={2} spacing={[3, 2]} />
 
         {/* Left — claude-flow shared_state */}

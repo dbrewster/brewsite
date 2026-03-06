@@ -36,9 +36,9 @@ export const sceneEpisodicPartition: JSX.Element = (
     <Background color="#080b14" />
 
     <DiagramCanvas id="bfmu-ep-canvas" position={[0, 2, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="ep-diagram" pivot="center">
+      <Diagram id="ep-diagram">
         <ManualLayout />
-        <DiagramEnter fade scaleFrom={0.85} />
+        <DiagramEnter fade />
 
         {/* Left — partition path tree */}
         <DiagramNode

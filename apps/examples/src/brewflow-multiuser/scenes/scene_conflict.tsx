@@ -36,17 +36,17 @@ export const sceneConflict: JSX.Element = (
     <Background color="#080b14" />
 
     <DiagramCanvas id="bfmu-conf-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale*.8} theme={brewflowTheme}>
-      <Diagram id="conf-diagram" pivot="center">
+      <Diagram id="conf-diagram">
         <ManualLayout />
-        <DiagramEnter fade scaleFrom={0.85} />
+        <DiagramEnter fade />
 
         <DiagramNode
           id="conf-alice"
           label="Alice's proposal"
           sublabel="migration files can be modified before staging apply"
           shape="rectangle"
-          size={[7, 2.4]}
-          position={[-7, 4, 0]}
+          size={[0.292, 0.138]}
+          position={[0.208, 0.155, 0]}
           color="#1a1520"
         />
         <DiagramNode
@@ -54,8 +54,8 @@ export const sceneConflict: JSX.Element = (
           label="Existing verified constraint"
           sublabel="Never modify existing migration files · version 3 · verified"
           shape="rectangle"
-          size={[7, 2.4]}
-          position={[7, 4, 0]}
+          size={[0.292, 0.138]}
+          position={[0.792, 0.155, 0]}
           color="#141830"
           glow={{ intensity: 0.1 }}
         />
@@ -64,8 +64,8 @@ export const sceneConflict: JSX.Element = (
           label="Conflict detected"
           sublabel="contradictory_claim · conflict record created"
           shape="rectangle"
-          size={[7, 2.8]}
-          position={[0, 0, 0]}
+          size={[0.292, 0.161]}
+          position={[0.500, 0.385, 0]}
           color="#2a1010"
           glow={{ intensity: 0.1 }}
         />
@@ -74,8 +74,8 @@ export const sceneConflict: JSX.Element = (
           label="Both flagged: disputed"
           sublabel="context packs show both with [disputed] label · not silently one or the other"
           shape="rectangle"
-          size={[7, 2.4]}
-          position={[0, -4, 0]}
+          size={[0.292, 0.138]}
+          position={[0.500, 0.615, 0]}
           color="#1a1015"
         />
         <DiagramNode
@@ -83,8 +83,8 @@ export const sceneConflict: JSX.Element = (
           label="Human review required"
           sublabel="correction to constraint OR exception documented"
           shape="rectangle"
-          size={[7, 2.4]}
-          position={[0, -8, 0]}
+          size={[0.292, 0.138]}
+          position={[0.500, 0.845, 0]}
           color="#141830"
         />
 

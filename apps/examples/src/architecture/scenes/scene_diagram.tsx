@@ -27,7 +27,7 @@ const angledFn = (t: number): number => (t < 0.5 ? 0 : (t - 0.5) / 0.5);
 
 function makeDiagramCanvasDiagram(): JSX.Element {
   return (
-    <Diagram id="arch-content" pivot="center">
+    <Diagram id="arch-content">
       <ManualLayout />
 
       {/* ── COLUMN 1: Author (DSL) ── */}

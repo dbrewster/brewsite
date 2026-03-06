@@ -38,7 +38,7 @@ export const sceneDim7Safety: JSX.Element = (
     </InputController>
 
     <DiagramCanvas id="bfc-safety-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="safety-diagram" pivot="center">
+      <Diagram id="safety-diagram">
         <ManualLayout />
 
         {/* Left — claude-flow TTL credentials */}

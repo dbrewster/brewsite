@@ -11,7 +11,7 @@ import {
 /** Returns the full whiteboard architecture <Diagram> JSX tree. */
 export function makeWhiteboardDiagram(): JSX.Element {
     return (
-        <Diagram id="whiteboard-arch-diagram" pivot="center">
+        <Diagram id="whiteboard-arch-diagram">
             <ManualLayout/>
 
             {/* ── Standalone nodes ── */}

@@ -17,7 +17,7 @@ export const CODE = `
 // The runtime cross-fades between clips when transitioning between scenes.
 <Scene key="relaxed" id="relaxed">
   <Camera mode="world" position={[0, 1.5, 4]} target={[0, 0.9, 0]} />
-  <Model type="MaleDummy" id="character" position={[0, 0, 0]}>
+  <Model type="MaleDummy" id="character">
     <Playback>
       <Animation clipName="chat-relax-m" enabled clipRepeat />
     </Playback>
@@ -26,7 +26,7 @@ export const CODE = `
 
 <Scene key="active" id="active">
   <Camera mode="orbit" target={[0, 0.9, 0]} azimuth={0.4} polar={1.2} distance={4} />
-  <Model type="MaleDummy" id="character" position={[0, 0, 0]}>
+  <Model type="MaleDummy" id="character">
     <Playback>
       <Animation clipName="standing_chat_m_270753" enabled clipRepeat />
     </Playback>
@@ -51,7 +51,7 @@ export default function ModelAnimationDemo(): JSX.Element {
         <Floor enabled>
           <FloorPhysical opacity={0.5} metalness={0.4} roughness={0.6} />
         </Floor>
-        <Model type="MaleDummy" id="character" position={[0, 0, 0]}>
+        <Model type="MaleDummy" id="character">
           <Playback>
             <Animation clipName="chat-relax-m" enabled clipRepeat />
           </Playback>
@@ -67,7 +67,7 @@ export default function ModelAnimationDemo(): JSX.Element {
         <Floor enabled>
           <FloorPhysical opacity={0.5} metalness={0.4} roughness={0.6} />
         </Floor>
-        <Model type="MaleDummy" id="character" position={[0, 0, 0]}>
+        <Model type="MaleDummy" id="character">
           <Playback>
             <Animation clipName="standing_chat_m_270753" enabled clipRepeat />
           </Playback>
