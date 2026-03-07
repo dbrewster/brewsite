@@ -38,8 +38,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="React context root · wires IFilterEngine + data source"
           sublabelColor="#b8c8e8"
           icon="ui:server"
-          position={[-18, 7, 0]}
-          size={[7, 3.2]}
+          position={[0.109, 0.276, 0]}
+          size={[0.152, 0.103]}
         />
         <DiagramNode
           id="dsl-chart"
@@ -47,8 +47,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="type · data array · series config · axis config"
           sublabelColor="#b8c8e8"
           icon="ui:chart-bar"
-          position={[-18, 2, 0]}
-          size={[7, 3.2]}
+          position={[0.109, 0.436, 0]}
+          size={[0.152, 0.103]}
         />
         <DiagramNode
           id="dsl-sources"
@@ -56,8 +56,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="source id · filter · group · sort pipeline config"
           sublabelColor="#b8c8e8"
           icon="ui:circle-stack"
-          position={[-18, -3, 0]}
-          size={[7, 3.2]}
+          position={[0.109, 0.596, 0]}
+          size={[0.152, 0.103]}
         />
         <DiagramNode
           id="dsl-crossfilter"
@@ -65,8 +65,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="brush selection → re-filters all linked chart compilations"
           sublabelColor="#b8c8e8"
           icon="ui:funnel"
-          position={[-18, -8, 0]}
-          size={[7, 3.2]}
+          position={[0.109, 0.756, 0]}
+          size={[0.152, 0.103]}
         />
       </DiagramGroup>
 
@@ -78,8 +78,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="pure: Chart props + filtered dataset → ChartState (SeriesPoint[])"
           sublabelColor="#b8c8e8"
           icon="ui:code-bracket-square"
-          position={[-6, 7.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.370, 0.260, 0]}
+          size={[0.163, 0.103]}
         />
         <DiagramNode
           id="cmp-transforms"
@@ -87,8 +87,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="filter → aggregate → sort → group pipeline · runs before snapshot"
           sublabelColor="#b8c8e8"
           icon="ui:arrows-right-left"
-          position={[-6, 2.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.370, 0.420, 0]}
+          size={[0.163, 0.103]}
         />
         <DiagramNode
           id="cmp-filter"
@@ -96,8 +96,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="cross-filter contract · brush/link interface"
           sublabelColor="#b8c8e8"
           icon="ui:funnel"
-          position={[-6, -2.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.370, 0.580, 0]}
+          size={[0.163, 0.103]}
         />
         <DiagramNode
           id="cmp-simple-filter"
@@ -105,8 +105,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="default impl · brush ranges + linked chart update propagation"
           sublabelColor="#b8c8e8"
           icon="ui:adjustments-horizontal"
-          position={[-6, -7.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.370, 0.740, 0]}
+          size={[0.163, 0.103]}
         />
       </DiagramGroup>
 
@@ -118,8 +118,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="InstancedMesh of BoxGeometry · shadow cast · per-bar color"
           sublabelColor="#b8c8e8"
           icon="ui:chart-bar"
-          position={[6, 12.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.630, 0.100, 0]}
+          size={[0.163, 0.103]}
         />
         <DiagramNode
           id="rnd-line"
@@ -127,8 +127,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="CatmullRomCurve3 → TubeGeometry · configurable tension"
           sublabelColor="#b8c8e8"
           icon="ui:presentation-chart-line"
-          position={[6, 7.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.630, 0.260, 0]}
+          size={[0.163, 0.103]}
         />
         <DiagramNode
           id="rnd-area"
@@ -136,8 +136,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="filled ribbon mesh · translucent PBR material"
           sublabelColor="#b8c8e8"
           icon="ui:presentation-chart-bar"
-          position={[6, 2.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.630, 0.420, 0]}
+          size={[0.163, 0.103]}
         />
         <DiagramNode
           id="rnd-pie"
@@ -145,8 +145,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="LatheGeometry per slice · IBL env reflection"
           sublabelColor="#b8c8e8"
           icon="ui:chart-pie"
-          position={[6, -2.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.630, 0.580, 0]}
+          size={[0.163, 0.103]}
         />
         <DiagramNode
           id="rnd-scatter"
@@ -154,8 +154,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="InstancedMesh of SphereGeometry · color per data point"
           sublabelColor="#b8c8e8"
           icon="ui:adjustments-horizontal"
-          position={[6, -7.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.630, 0.740, 0]}
+          size={[0.163, 0.103]}
         />
         <DiagramNode
           id="rnd-heatmap"
@@ -163,8 +163,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="PlaneGeometry · vertex color + height map"
           sublabelColor="#b8c8e8"
           icon="ui:squares-2x2"
-          position={[6, -12.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.630, 0.901, 0]}
+          size={[0.163, 0.103]}
         />
       </DiagramGroup>
 
@@ -176,8 +176,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="dispatches to IChartRenderer by chartType · apply() per frame"
           sublabelColor="#b8c8e8"
           icon="ui:puzzle-piece"
-          position={[18, 7, 0]}
-          size={[7, 3.2]}
+          position={[0.891, 0.276, 0]}
+          size={[0.152, 0.103]}
           color="#1a3060"
           glow={{ intensity: 0.2 }}
         />
@@ -187,8 +187,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="shared tick geometry · axis labels · linear/log scale"
           sublabelColor="#b8c8e8"
           icon="ui:chart-bar-square"
-          position={[18, 2, 0]}
-          size={[7, 3.2]}
+          position={[0.891, 0.436, 0]}
+          size={[0.152, 0.103]}
         />
         <DiagramNode
           id="out-tooltip"
@@ -196,8 +196,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="Three.js raycasting → React DOM tooltip via EngineOverlayHost"
           sublabelColor="#b8c8e8"
           icon="ui:magnifying-glass"
-          position={[18, -3, 0]}
-          size={[7, 3.2]}
+          position={[0.891, 0.596, 0]}
+          size={[0.152, 0.103]}
         />
         <DiagramNode
           id="out-material"
@@ -205,8 +205,8 @@ function makeChartsCanvasDiagram(): JSX.Element {
           sublabel="PBR materials · shared theme palette · metalness/roughness"
           sublabelColor="#b8c8e8"
           icon="ui:swatch"
-          position={[18, -8, 0]}
-          size={[7, 3.2]}
+          position={[0.891, 0.756, 0]}
+          size={[0.152, 0.103]}
         />
       </DiagramGroup>
 

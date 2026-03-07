@@ -84,7 +84,7 @@ export function modelPlugin(options: ModelPluginOptions = {}): WidgetPlugin & {
       const widget = modelWidgets[0];
       const nvsBounds = widget?.nvsBounds ?? undefined;
       labelPositioner.setContainerSize(containerWidth, containerHeight, nvsBounds);
-    }, [containerWidth, containerHeight]);
+    }, [containerWidth, containerHeight, modelWidgets[0]?.nvsBounds]);
     return null;
   };
 

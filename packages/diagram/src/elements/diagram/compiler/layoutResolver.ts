@@ -79,8 +79,15 @@ export function normalizeMargin(
   return typeof m === 'number' ? [m, m] : [m[0], m[1]];
 }
 
+// Diagram-unit padding for auto-layout: applied to diagram-unit bounding boxes,
+// then divided by the total span during normalizeToViewport(). Result: ~0.075–0.15 NVS.
 const DEFAULT_GROUP_PADDING_NORMALIZED: readonly [number, number, number, number] = [1.5, 1.5, 1.5, 1.5];
+// ManualLayout: node positions/sizes are already in [0..1] NVS; padding must be NVS fractions.
+// 0.025 ≈ 2.5% of the diagram viewport per side — tight but visually clear group boundary.
+const DEFAULT_MANUAL_GROUP_PADDING: readonly [number, number, number, number] = [0.025, 0.025, 0.025, 0.025];
 const DEFAULT_TITLE_GAP = 1;
+// ManualLayout title gap: NVS fraction of viewport height. 0.025 ≈ 2.5% of canvas height.
+const DEFAULT_MANUAL_TITLE_GAP = 0.025;
 const DEFAULT_GRID_SPACING: readonly [number, number] = [2, 2];
 const DEFAULT_HIERARCHICAL_SPACING: readonly [number, number] = [1.5, 1.5];
 const DEFAULT_MARGIN: readonly [number, number] = [0, 0];
@@ -109,8 +116,9 @@ export const DEFAULT_RESOLVED_HIERARCHICAL: ResolvedHierarchicalLayout = {
 
 export const DEFAULT_RESOLVED_MANUAL: ResolvedManualLayout = {
   kind: 'manual',
-  groupPadding: DEFAULT_GROUP_PADDING_NORMALIZED,
-  titleGap: DEFAULT_TITLE_GAP,
+  // ManualLayout positions are in [0..1] NVS — use NVS-scale padding, not diagram-unit padding.
+  groupPadding: DEFAULT_MANUAL_GROUP_PADDING,
+  titleGap: DEFAULT_MANUAL_TITLE_GAP,
 };
 
 export const DEFAULT_RESOLVED_FLOW: ResolvedFlowLayout = {

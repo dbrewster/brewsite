@@ -38,8 +38,8 @@ function makeModelCanvasDiagram(): JSX.Element {
           sublabel="per-scene declaration · consistent id required for interpolation"
           sublabelColor="#b8c8e8"
           icon="ui:archive-box"
-          position={[-18, 6, 0]}
-          size={[7.5, 3.2]}
+          position={[0.114, 0.217, 0]}
+          size={[0.162, 0.151]}
         />
         <DiagramNode
           id="dsl-label"
@@ -47,8 +47,8 @@ function makeModelCanvasDiagram(): JSX.Element {
           sublabel="bone-tracked HTML text · world → screen projection"
           sublabelColor="#b8c8e8"
           icon="ui:tag"
-          position={[-18, 1, 0]}
-          size={[7.5, 3.2]}
+          position={[0.114, 0.453, 0]}
+          size={[0.162, 0.151]}
         />
         <DiagramNode
           id="dsl-parts"
@@ -56,8 +56,8 @@ function makeModelCanvasDiagram(): JSX.Element {
           sublabel="per-mesh color · metalness · roughness · opacity"
           sublabelColor="#b8c8e8"
           icon="ui:paint-brush"
-          position={[-18, -4, 0]}
-          size={[7.5, 3.2]}
+          position={[0.114, 0.689, 0]}
+          size={[0.162, 0.151]}
         />
       </DiagramGroup>
 
@@ -69,8 +69,8 @@ function makeModelCanvasDiagram(): JSX.Element {
           sublabel="props → ModelState: position · rotation · scale · clip · playback"
           sublabelColor="#b8c8e8"
           icon="ui:code-bracket-square"
-          position={[-6, 7.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.373, 0.146, 0]}
+          size={[0.162, 0.151]}
         />
         <DiagramNode
           id="cmp-anim"
@@ -78,8 +78,8 @@ function makeModelCanvasDiagram(): JSX.Element {
           sublabel="clipName string → AnimationClip reference in loaded GLTF"
           sublabelColor="#b8c8e8"
           icon="ui:film"
-          position={[-6, 2.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.373, 0.382, 0]}
+          size={[0.162, 0.151]}
         />
         <DiagramNode
           id="cmp-label"
@@ -87,8 +87,8 @@ function makeModelCanvasDiagram(): JSX.Element {
           sublabel="Label props → LabelResolved (boneId, offset, text, visibility)"
           sublabelColor="#b8c8e8"
           icon="ui:document-text"
-          position={[-6, -2.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.373, 0.618, 0]}
+          size={[0.162, 0.151]}
         />
         <DiagramNode
           id="cmp-plugin"
@@ -96,8 +96,8 @@ function makeModelCanvasDiagram(): JSX.Element {
           sublabel="asset manifest: model id → GLTF URL + metadata"
           sublabelColor="#b8c8e8"
           icon="ui:puzzle-piece"
-          position={[-6, -7.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.373, 0.854, 0]}
+          size={[0.162, 0.151]}
         />
       </DiagramGroup>
 
@@ -109,8 +109,8 @@ function makeModelCanvasDiagram(): JSX.Element {
           sublabel="async: GLTFLoader + meshoptimizer · cached per URL"
           sublabelColor="#b8c8e8"
           icon="ui:inbox"
-          position={[6, 7.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.633, 0.146, 0]}
+          size={[0.162, 0.151]}
         />
         <DiagramNode
           id="rt-tick"
@@ -118,8 +118,8 @@ function makeModelCanvasDiagram(): JSX.Element {
           sublabel="AnimationMixer.update(delta) · must precede apply()"
           sublabelColor="#b8c8e8"
           icon="ui:arrow-path"
-          position={[6, 2.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.633, 0.382, 0]}
+          size={[0.162, 0.151]}
         />
         <DiagramNode
           id="rt-apply"
@@ -127,8 +127,8 @@ function makeModelCanvasDiagram(): JSX.Element {
           sublabel="sets Object3D: position · rotation · scale · clip weights"
           sublabelColor="#b8c8e8"
           icon="ui:cpu-chip"
-          position={[6, -2.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.633, 0.618, 0]}
+          size={[0.162, 0.151]}
         />
         <DiagramNode
           id="rt-label"
@@ -136,8 +136,8 @@ function makeModelCanvasDiagram(): JSX.Element {
           sublabel="bone world pos → camera matrix → screen UV per frame"
           sublabelColor="#b8c8e8"
           icon="ui:map-pin"
-          position={[6, -7.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.633, 0.854, 0]}
+          size={[0.162, 0.151]}
         />
       </DiagramGroup>
 
@@ -149,8 +149,8 @@ function makeModelCanvasDiagram(): JSX.Element {
           sublabel="Three.js scene graph · SkinnedMesh + bone hierarchy"
           sublabelColor="#b8c8e8"
           icon="ui:puzzle-piece"
-          position={[18, 6, 0]}
-          size={[7, 3.2]}
+          position={[0.892, 0.217, 0]}
+          size={[0.151, 0.151]}
           color="#1a3060"
           glow={{ intensity: 0.2 }}
         />
@@ -160,8 +160,8 @@ function makeModelCanvasDiagram(): JSX.Element {
           sublabel="crossfade · weight blending · clip time advance"
           sublabelColor="#b8c8e8"
           icon="ui:musical-note"
-          position={[18, 1, 0]}
-          size={[7, 3.2]}
+          position={[0.892, 0.453, 0]}
+          size={[0.151, 0.151]}
         />
         <DiagramNode
           id="out-label"
@@ -169,8 +169,8 @@ function makeModelCanvasDiagram(): JSX.Element {
           sublabel="React DOM absolute · CSS transform from screen UV coords"
           sublabelColor="#b8c8e8"
           icon="ui:chat-bubble-left-right"
-          position={[18, -4, 0]}
-          size={[7, 3.2]}
+          position={[0.892, 0.689, 0]}
+          size={[0.151, 0.151]}
         />
       </DiagramGroup>
 

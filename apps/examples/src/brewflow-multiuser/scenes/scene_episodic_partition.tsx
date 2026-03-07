@@ -45,24 +45,24 @@ export const sceneEpisodicPartition: JSX.Element = (
           id="ep-tenant"
           label="tenants/<tenantId>"
           shape="rectangle"
-          size={[7, 2.2]}
-          position={[-9, 6, 0]}
+          size={[0.250, 0.128]}
+          position={[0.179, 0.151, 0]}
           color="#141830"
         />
         <DiagramNode
           id="ep-project"
           label="projects/<projectId>"
           shape="rectangle"
-          size={[7, 2.2]}
-          position={[-9, 3, 0]}
+          size={[0.250, 0.128]}
+          position={[0.179, 0.326, 0]}
           color="#141830"
         />
         <DiagramNode
           id="ep-user"
           label="users/<userId>"
           shape="rectangle"
-          size={[7, 2.2]}
-          position={[-9, 0, 0]}
+          size={[0.250, 0.128]}
+          position={[0.179, 0.500, 0]}
           color="#141830"
           glow={{ intensity: 0.1 }}
         />
@@ -70,16 +70,16 @@ export const sceneEpisodicPartition: JSX.Element = (
           id="ep-session"
           label="sessions/<sessionId>"
           shape="rectangle"
-          size={[7, 2.2]}
-          position={[-9, -3, 0]}
+          size={[0.250, 0.128]}
+          position={[0.179, 0.674, 0]}
           color="#141830"
         />
         <DiagramNode
           id="ep-agent"
           label="agents/<agentId>/threads/<threadId>"
           shape="rectangle"
-          size={[7, 2.2]}
-          position={[-9, -6, 0]}
+          size={[0.250, 0.128]}
+          position={[0.179, 0.849, 0]}
           color="#141830"
           glow={{ intensity: 0.12 }}
         />
@@ -95,8 +95,8 @@ export const sceneEpisodicPartition: JSX.Element = (
           label="agentEventSeq"
           sublabel="per agent · low contention · distributed lock"
           shape="rectangle"
-          size={[7, 2.4]}
-          position={[9, 4, 0]}
+          size={[0.250, 0.140]}
+          position={[0.821, 0.267, 0]}
           color="#141830"
           glow={{ intensity: 0.1 }}
         />
@@ -105,8 +105,8 @@ export const sceneEpisodicPartition: JSX.Element = (
           label="sessionEventSeq"
           sublabel="per session · replay ordering · optimistic retry"
           shape="rectangle"
-          size={[7, 2.4]}
-          position={[9, 0, 0]}
+          size={[0.250, 0.140]}
+          position={[0.821, 0.500, 0]}
           color="#141830"
         />
         <DiagramNode
@@ -114,8 +114,8 @@ export const sceneEpisodicPartition: JSX.Element = (
           label="projectEventSeq"
           sublabel="per project · async stamping · audit + cross-user replay"
           shape="rectangle"
-          size={[7, 2.4]}
-          position={[9, -4, 0]}
+          size={[0.250, 0.140]}
+          position={[0.821, 0.733, 0]}
           color="#141830"
         />
 

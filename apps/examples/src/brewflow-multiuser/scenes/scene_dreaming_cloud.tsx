@@ -46,8 +46,8 @@ export const sceneDreamingCloud: JSX.Element = (
           label="Dreamer-A"
           sublabel="user A episodes only · Stages 1-4 · concurrent"
           shape="rectangle"
-          size={[6, 2.4]}
-          position={[-9, 8, 0]}
+          size={[0.222, 0.118]}
+          position={[0.167, 0.133, 0]}
           color="#141830"
         />
         <DiagramNode
@@ -55,8 +55,8 @@ export const sceneDreamingCloud: JSX.Element = (
           label="Dreamer-B"
           sublabel="user B episodes only · Stages 1-4 · concurrent"
           shape="rectangle"
-          size={[6, 2.4]}
-          position={[0, 8, 0]}
+          size={[0.222, 0.118]}
+          position={[0.500, 0.133, 0]}
           color="#141830"
         />
         <DiagramNode
@@ -64,8 +64,8 @@ export const sceneDreamingCloud: JSX.Element = (
           label="Dreamer-C"
           sublabel="user C episodes only · Stages 1-4 · concurrent"
           shape="rectangle"
-          size={[6, 2.4]}
-          position={[9, 8, 0]}
+          size={[0.222, 0.118]}
+          position={[0.833, 0.133, 0]}
           color="#141830"
         />
 
@@ -75,8 +75,8 @@ export const sceneDreamingCloud: JSX.Element = (
           label="Promotion Queue"
           sublabel="shared · ordered · serialized per scope"
           shape="rectangle"
-          size={[10, 2.8]}
-          position={[0, config.diagramTop, 0]}
+          size={[0.370, 0.138]}
+          position={[0.500, 0.517, 0]}
           color="#141e35"
           glow={{ intensity: 0.12 }}
         />
@@ -87,8 +87,8 @@ export const sceneDreamingCloud: JSX.Element = (
           label="Promotion Worker"
           sublabel="Stage 5: validate · Stage 6: decide · Stage 7: publish"
           shape="rectangle"
-          size={[8, 2.8]}
-          position={[0, -2, 0]}
+          size={[0.296, 0.138]}
+          position={[0.500, 0.626, 0]}
           color="#151e38"
           glow={{ intensity: 0.15 }}
         />
@@ -98,8 +98,8 @@ export const sceneDreamingCloud: JSX.Element = (
           id="out-user-a"
           label="User-A Neocortex"
           shape="rectangle"
-          size={[5, 2.2]}
-          position={[-8, -7, 0]}
+          size={[0.185, 0.108]}
+          position={[0.204, 0.872, 0]}
           color="#121828"
         />
         <DiagramNode
@@ -107,8 +107,8 @@ export const sceneDreamingCloud: JSX.Element = (
           label="Project Neocortex"
           sublabel="shared · serialized"
           shape="rectangle"
-          size={[5, 2.2]}
-          position={[0, -7, 0]}
+          size={[0.185, 0.108]}
+          position={[0.500, 0.872, 0]}
           color="#141830"
           glow={{ intensity: 0.1 }}
         />
@@ -116,8 +116,8 @@ export const sceneDreamingCloud: JSX.Element = (
           id="out-user-b"
           label="User-B Neocortex"
           shape="rectangle"
-          size={[5, 2.2]}
-          position={[8, -7, 0]}
+          size={[0.185, 0.108]}
+          position={[0.796, 0.872, 0]}
           color="#121828"
         />
 

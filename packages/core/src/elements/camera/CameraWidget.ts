@@ -170,6 +170,11 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
     this.cameraRef = camera;
     this.lastTick = tick;
 
+    // Signal to DiagramCanvasWidget (and any other widgets) that an authored Camera
+    // element is active. DiagramCanvasWidget checks this flag to decide whether to
+    // yield camera control rather than running its deterministic orbit camera.
+    context.scene.userData['__brewsite_cam_enabled'] = true;
+
     // Focus requests can be emitted by other widgets (e.g. DiagramCanvasWidget).
     // When interaction mode is active, delegate to the interaction driver for smooth motion.
     // Otherwise, promote the focus request into camera override state so authored camera state

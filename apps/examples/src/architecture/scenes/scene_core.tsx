@@ -41,8 +41,8 @@ function makeCoreCanvasDiagram(): JSX.Element {
           sublabel="key/id identity · easing · HTML overlay children"
           sublabelColor="#b8c8e8"
           icon="ui:document-text"
-          position={[-18, 10, 0]}
-          size={[7, 3.2]}
+          position={[0.109, 0.118, 0]}
+          size={[0.152, 0.122]}
         />
         <DiagramNode
           id="dsl-camera"
@@ -50,8 +50,8 @@ function makeCoreCanvasDiagram(): JSX.Element {
           sublabel="world | orbit | fitBotHeight modes · fov · exposure"
           sublabelColor="#b8c8e8"
           icon="ui:photo"
-          position={[-18, 5, 0]}
-          size={[7, 3.2]}
+          position={[0.109, 0.309, 0]}
+          size={[0.152, 0.122]}
         />
         <DiagramNode
           id="dsl-lighting"
@@ -59,8 +59,8 @@ function makeCoreCanvasDiagram(): JSX.Element {
           sublabel="Ambient | Directional | Point | Spot | GlowPoint"
           sublabelColor="#b8c8e8"
           icon="ui:bolt"
-          position={[-18, 0, 0]}
-          size={[7, 3.2]}
+          position={[0.109, 0.500, 0]}
+          size={[0.152, 0.122]}
         />
         <DiagramNode
           id="dsl-background"
@@ -68,8 +68,8 @@ function makeCoreCanvasDiagram(): JSX.Element {
           sublabel="color | gradient | imageUrl · CSS sizing"
           sublabelColor="#b8c8e8"
           icon="ui:swatch"
-          position={[-18, -5, 0]}
-          size={[7, 3.2]}
+          position={[0.109, 0.691, 0]}
+          size={[0.152, 0.122]}
         />
         <DiagramNode
           id="dsl-progress"
@@ -77,8 +77,8 @@ function makeCoreCanvasDiagram(): JSX.Element {
           sublabel="scrollUnits · fn(t) pacing curve · autoAdvance"
           sublabelColor="#b8c8e8"
           icon="ui:adjustments-horizontal"
-          position={[-18, -10, 0]}
-          size={[7, 3.2]}
+          position={[0.109, 0.882, 0]}
+          size={[0.152, 0.122]}
         />
       </DiagramGroup>
 
@@ -90,8 +90,8 @@ function makeCoreCanvasDiagram(): JSX.Element {
           sublabel="walks JSX tree · ReactElement.type → NodeHandler dispatch"
           sublabelColor="#b8c8e8"
           icon="ui:code-bracket-square"
-          position={[-6, 7.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.370, 0.214, 0]}
+          size={[0.163, 0.122]}
         />
         <DiagramNode
           id="comp-handler"
@@ -99,8 +99,8 @@ function makeCoreCanvasDiagram(): JSX.Element {
           sublabel="component type → (node, ctx) → SceneState"
           sublabelColor="#b8c8e8"
           icon="ui:squares-plus"
-          position={[-6, 2.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.370, 0.405, 0]}
+          size={[0.163, 0.122]}
         />
         <DiagramNode
           id="comp-track"
@@ -108,8 +108,8 @@ function makeCoreCanvasDiagram(): JSX.Element {
           sublabel="SceneFrame[] → flat pre-baked tick[] · interpolation baked"
           sublabelColor="#b8c8e8"
           icon="ui:arrows-right-left"
-          position={[-6, -2.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.370, 0.595, 0]}
+          size={[0.163, 0.122]}
         />
         <DiagramNode
           id="comp-scenetrack"
@@ -117,8 +117,8 @@ function makeCoreCanvasDiagram(): JSX.Element {
           sublabel="flat tick[] · O(1) lookup · compiled once at mount"
           sublabelColor="#b8c8e8"
           icon="ui:circle-stack"
-          position={[-6, -7.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.370, 0.786, 0]}
+          size={[0.163, 0.122]}
           color="#1a3060"
           glow={{ intensity: 0.2 }}
         />
@@ -132,8 +132,8 @@ function makeCoreCanvasDiagram(): JSX.Element {
           sublabel="requestAnimationFrame driver · fpsCap · delta time"
           sublabelColor="#b8c8e8"
           icon="ui:arrow-path"
-          position={[6, 7.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.630, 0.214, 0]}
+          size={[0.163, 0.122]}
         />
         <DiagramNode
           id="rt-driver"
@@ -141,8 +141,8 @@ function makeCoreCanvasDiagram(): JSX.Element {
           sublabel="sample SceneTrack per frame → WidgetState dispatch"
           sublabelColor="#b8c8e8"
           icon="ui:cpu-chip"
-          position={[6, 2.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.630, 0.405, 0]}
+          size={[0.163, 0.122]}
         />
         <DiagramNode
           id="rt-sampler"
@@ -150,8 +150,8 @@ function makeCoreCanvasDiagram(): JSX.Element {
           sublabel="progress [0..1] → WidgetState[] · O(1), no diffing"
           sublabelColor="#b8c8e8"
           icon="ui:funnel"
-          position={[6, -2.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.630, 0.595, 0]}
+          size={[0.163, 0.122]}
         />
         <DiagramNode
           id="rt-registry"
@@ -159,8 +159,8 @@ function makeCoreCanvasDiagram(): JSX.Element {
           sublabel="routes WidgetState by id → IWidget.apply()"
           sublabelColor="#b8c8e8"
           icon="ui:puzzle-piece"
-          position={[6, -7.5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.630, 0.786, 0]}
+          size={[0.163, 0.122]}
         />
       </DiagramGroup>
 
@@ -172,8 +172,8 @@ function makeCoreCanvasDiagram(): JSX.Element {
           sublabel="WebGLRenderer · tone-mapping · Three.js scene root"
           sublabelColor="#b8c8e8"
           icon="ui:photo"
-          position={[18, 5, 0]}
-          size={[7, 3.2]}
+          position={[0.891, 0.309, 0]}
+          size={[0.152, 0.122]}
         />
         <DiagramNode
           id="out-overlay"
@@ -181,8 +181,8 @@ function makeCoreCanvasDiagram(): JSX.Element {
           sublabel="absolute React tree over canvas · pointer-events passthrough"
           sublabelColor="#b8c8e8"
           icon="ui:chat-bubble-left-right"
-          position={[18, 0, 0]}
-          size={[7, 3.2]}
+          position={[0.891, 0.500, 0]}
+          size={[0.152, 0.122]}
         />
         <DiagramNode
           id="out-input"
@@ -190,8 +190,8 @@ function makeCoreCanvasDiagram(): JSX.Element {
           sublabel="scroll spacer · sticky viewport · progress [0..1]"
           sublabelColor="#b8c8e8"
           icon="ui:arrows-pointing-out"
-          position={[18, -5, 0]}
-          size={[7, 3.2]}
+          position={[0.891, 0.691, 0]}
+          size={[0.152, 0.122]}
         />
       </DiagramGroup>
 

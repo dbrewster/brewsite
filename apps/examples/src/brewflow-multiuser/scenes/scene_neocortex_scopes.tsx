@@ -46,8 +46,8 @@ export const sceneNeocortexScopes: JSX.Element = (
           label="Org-Neocortex"
           sublabel="tenantId · org-wide invariants · security · compliance · ALWAYS human approval"
           shape="rectangle"
-          size={[12, 2.8]}
-          position={[0, 6, 0]}
+          size={[0.505, 0.189]}
+          position={[0.316, 0.196, 0]}
           color="#1a1025"
           glow={{ intensity: 0.1 }}
         />
@@ -56,8 +56,8 @@ export const sceneNeocortexScopes: JSX.Element = (
           label="Project-Neocortex"
           sublabel="tenantId + projectId · deployment procedures · architecture constraints · ≥2 independent user sessions"
           shape="rectangle"
-          size={[12, 2.8]}
-          position={[0, 1.5, 0]}
+          size={[0.505, 0.189]}
+          position={[0.316, 0.500, 0]}
           color="#141830"
           glow={{ intensity: 0.13 }}
         />
@@ -66,8 +66,8 @@ export const sceneNeocortexScopes: JSX.Element = (
           label="User-Neocortex"
           sublabel="tenantId + projectId + userId · personal workflow patterns · auto-verify allowed"
           shape="rectangle"
-          size={[12, 2.8]}
-          position={[0, -3, 0]}
+          size={[0.505, 0.189]}
+          position={[0.316, 0.804, 0]}
           color="#121828"
         />
 
@@ -94,24 +94,24 @@ export const sceneNeocortexScopes: JSX.Element = (
           id="pack-1"
           label="1. Org constraints first"
           shape="rectangle"
-          size={[5.5, 2.0]}
-          position={[12, 5, 0]}
+          size={[0.232, 0.135]}
+          position={[0.821, 0.264, 0]}
           color="#1a1020"
         />
         <DiagramNode
           id="pack-2"
           label="2. Project knowledge"
           shape="rectangle"
-          size={[5.5, 2.0]}
-          position={[12, 2, 0]}
+          size={[0.232, 0.135]}
+          position={[0.821, 0.466, 0]}
           color="#141830"
         />
         <DiagramNode
           id="pack-3"
           label="3. User knowledge last"
           shape="rectangle"
-          size={[5.5, 2.0]}
-          position={[12, -1, 0]}
+          size={[0.232, 0.135]}
+          position={[0.821, 0.669, 0]}
           color="#121828"
         />
 

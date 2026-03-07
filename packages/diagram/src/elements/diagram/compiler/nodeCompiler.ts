@@ -17,6 +17,9 @@ const edgeIdFor = (edge: DiagramEdgeDSL, index: number): string =>
 
 export const buildNodeDefaults = (theme: DiagramTheme) => ({
   shape:                DEFAULT_NODE_SHAPE,
+  // NOTE: [4, 2] is intentionally in diagram units — correct for AutoLayout (gets divided
+  // by the layout span during normalizeToViewport). ManualLayout nodes MUST specify an
+  // explicit size in [0..1] NVS fractions; this default is never safe for ManualLayout.
   size:                 [4, 2] as [number, number],
   thickness:            theme.node.defaultThickness,
   color:                theme.node.defaultColor,

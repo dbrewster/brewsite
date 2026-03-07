@@ -70,7 +70,6 @@ export const chartDemoBar: JSX.Element = (
     <Chart
       id="bar-revenue"
       type="bar"
-      position={[0, 0, 0]}
       theme="darkGlass"
       bounds={{ width: 4, height: 3, depth: 0.45 }}
     >
@@ -107,7 +106,6 @@ export const chartDemoLine: JSX.Element = (
     <Chart
       id="line-arr"
       type="line"
-      position={[0, 0, 0]}
       theme="darkGlass"
       bounds={{ width: 4, height: 3, depth: 0.3 }}
     >
@@ -147,7 +145,6 @@ export const chartDemoPie: JSX.Element = (
     <Chart
       id="pie-products"
       type="pie"
-      position={[0, 0, 0]}
       theme="darkGlass"
       bounds={{ width: 4, height: 4, depth: 0.5 }}
     >
@@ -182,7 +179,6 @@ export const chartDemoScatter: JSX.Element = (
     <Chart
       id="scatter-teams"
       type="scatter"
-      position={[0, 0, 0]}
       theme="darkGlass"
       bounds={{ width: 4, height: 3, depth: 0.3 }}
     >

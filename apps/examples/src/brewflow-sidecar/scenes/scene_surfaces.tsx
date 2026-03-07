@@ -35,7 +35,7 @@ export const sceneSurfaces: JSX.Element = (
     <Camera mode="world" position={[0, 6, 22]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bf-surfaces" position={[0, config.diagramTop, 0]} rotation={[-0.15, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
+    <DiagramCanvas id="bf-surfaces" rotation={[-0.15, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="surfaces-diagram">
         <HierarchicalLayout direction="top-down" spacing={[2, 2]} />
 

@@ -2,8 +2,15 @@
 title: "Continuous Natural-Scroll Docs — Implementation Plan"
 doc_type: plan
 owner: brewsite-architect
-status: draft
-updated: 2026-03-05
+status: reviewed
+updated: 2026-03-06
+change_history:
+  - date: 2026-03-05
+    author: "brewsite-architect"
+    summary: "Initial plan. Defined Phase 1 (Streams A+B), Phase 2 (Streams C–G), full implementation detail for all streams."
+  - date: 2026-03-06
+    author: "PM-2 (brewsite-product-manager)"
+    summary: "PM challenge review. 5 challenges raised; all resolved over 2 debate rounds. Changes applied: (1) Stream F scope narrowed to scenes/content/**; act scene deletion assigned exclusively to Stream G. (2) Stream F split into F-1 (stubs, blocking) and F-2 (real DSL, parallel) to resolve C→F TypeScript compilation dependency. (3) useViewportRelativeScroll removed from player/index.ts exports — internal API only, types-only export retained. (4) §10 expanded with Stream D and Stream E named test cases including full scrollToSection arithmetic. (5) §7.1 rule 5 rewritten with no-exceptions language: all HTML moves to ProseBlock in DocsLayout; scene files become pure 3D DSL. (6) 25-scene migration table added to §7.2 with exact base/arrived camera positions for every panel. ProseBlock content ownership confirmed as Stream C."
 ---
 
 # Continuous Natural-Scroll Docs — Implementation Plan
@@ -25,13 +32,20 @@ Phase 1 (core toolkit — no docs work until this is merged)
   ├── Stream A: RuntimeLoop.pause()/resume()        [core only — no conflicts with B]
   └── Stream B: EngineProvider viewport-relative    [core only — no conflicts with A]
 
-Phase 2 (docs app rewrite — all streams after Phase 1)
-  ├── Stream C: DocsLayout (root layout + CSS)       [no conflicts with D/E/F/G]
-  ├── Stream D: ScenePanel, ActHeader, ProseBlock    [no conflicts with C/E/F/G]
-  ├── Stream E: NavContext + DocsSidebar             [no conflicts with C/D/F/G]
-  ├── Stream F: Scene DSL migration (all scene files)[no conflicts with C/D/E/G]
-  └── Stream G: Dead code deletion                  [no conflicts with C/D/E/F]
+Phase 2A (BLOCKING — must land on main before Phase 2B branches are cut)
+  └── Stream F-1: *Panel stub exports (25 files, 3 lines each)
+
+Phase 2B (parallel — all after F-1 merges; zero file conflicts between streams)
+  ├── Stream C:   DocsLayout (root layout + CSS + ProseBlock content)
+  ├── Stream D:   ScenePanel, ActHeader, ProseBlock components
+  ├── Stream E:   NavContext + DocsSidebar
+  ├── Stream F-2: Scene DSL migration (real 2-scene DSL replacing stubs)
+  └── Stream G:   Dead code deletion
 ```
+
+**F-1 is the unblocking commit.** It adds a `*Panel` stub export to each of the 25 scene files — syntactically valid TypeScript, function signature only, `<></>` body. This lets Stream C typecheck against the real symbol names while F-2 fills in the real DSL. F-1 takes roughly 30 minutes of mechanical work.
+
+**ProseBlock content ownership is Stream C.** Stream C reads the existing DocPanel HTML from scene files (read-only access) and writes all ProseBlock children directly into DocsLayout.tsx. Stream F does NOT edit DocsLayout.tsx. This keeps all DocsLayout.tsx ownership with Stream C and eliminates any F↔C edit conflict.
 
 **File ownership per stream — zero shared-file conflicts:**
 
@@ -39,11 +53,12 @@ Phase 2 (docs app rewrite — all streams after Phase 1)
 |---|---|
 | A | `packages/core/src/runtime/RuntimeLoop.ts`, `packages/core/src/player/useSceneEngine.ts`, `packages/core/src/runtime/__tests__/RuntimeLoop.test.ts` |
 | B | `packages/core/src/player/engineTypes.ts`, `packages/core/src/player/useViewportRelativeScroll.ts` (new), `packages/core/src/player/EngineProvider.tsx`, `packages/core/src/player/index.ts`, `packages/core/src/player/__tests__/useViewportRelativeScroll.test.ts` (new) |
-| C | `apps/docs/src/layout/DocsLayout.tsx` (new), `apps/docs/src/App.tsx`, `apps/docs/src/routes.tsx`, `apps/docs/src/style/layout.css`, `apps/docs/src/style/variables.css` |
+| C | `apps/docs/src/layout/DocsLayout.tsx` (new, includes all ProseBlock content), `apps/docs/src/App.tsx`, `apps/docs/src/routes.tsx`, `apps/docs/src/style/layout.css`, `apps/docs/src/style/variables.css` |
 | D | `apps/docs/src/components/ScenePanel.tsx` (new), `apps/docs/src/components/ActHeader.tsx` (new), `apps/docs/src/components/ProseBlock.tsx` (new) |
 | E | `apps/docs/src/nav/NavContext.tsx` (new), `apps/docs/src/nav/types.ts`, `apps/docs/src/nav/docs-nav.ts`, `apps/docs/src/components/layout/DocsSidebar.tsx` |
-| F | Every file in `apps/docs/src/scenes/**/*.tsx`, `apps/docs/src/scenes/index.ts`, `apps/docs/src/scenes/sceneUtils.ts` |
-| G | `apps/docs/src/components/content/DocPanel.tsx` (delete), `apps/docs/src/components/content/DemoProgressProvider.tsx` (delete), `apps/docs/src/scenes/acts/**` (delete all), `apps/docs/src/components/demo/InlineDemo.tsx` (simplify) |
+| F-1 | Every file in `apps/docs/src/scenes/content/**/*.tsx` (stub exports only — additive, does not delete anything; acts/ is NOT in F scope) |
+| F-2 | Every file in `apps/docs/src/scenes/content/**/*.tsx` (real 2-scene DSL — replaces stubs from F-1), `apps/docs/src/scenes/index.ts`, `apps/docs/src/scenes/sceneUtils.ts` |
+| G | `apps/docs/src/components/content/DocPanel.tsx` (delete), `apps/docs/src/components/content/DemoProgressProvider.tsx` (delete), `apps/docs/src/scenes/acts/**` (delete all — G exclusively owns act deletion), `apps/docs/src/components/demo/InlineDemo.tsx` (simplify) |
 
 ---
 
@@ -575,13 +590,17 @@ const engine = useSceneEngine({
 
 ### 3.4 Changes to `packages/core/src/player/index.ts`
 
-Add the following exports after the existing hook exports:
+Add the following type exports after the existing type exports:
 
 ```typescript
-export { useViewportRelativeScroll } from './useViewportRelativeScroll';
-export type { UseViewportRelativeScrollOptions } from './useViewportRelativeScroll';
+// Types only — consumers need ViewportRelativeScrollSource to type their refs when
+// constructing scrollSource={{ kind: 'viewport-relative', containerRef, canvasRef }}.
+// The hook (useViewportRelativeScroll) is an internal implementation detail of
+// EngineProvider and is NOT exported. Consumers must not call it directly.
 export type { ViewportRelativeScrollSource, EngineInternalScrollSource } from './engineTypes';
 ```
+
+**Do NOT export `useViewportRelativeScroll` or `UseViewportRelativeScrollOptions`.** Exporting the hook would expose an internal contract to consumers, creating API regret risk if the hook's signature changes. Consumers interact with the viewport-relative feature exclusively through the `scrollSource` prop on `EngineProvider`.
 
 ### 3.5 Test file: `packages/core/src/player/__tests__/useViewportRelativeScroll.test.ts`
 
@@ -768,7 +787,7 @@ export function DocsLayout(): JSX.Element {
           <ActHeader id="act-getting-started" title="Getting Started" />
 
           <ProseBlock id="what-is-brewsite-prose">
-            {/* PROSE: Stream F fills this with the WhatIsBrewSite prose content */}
+            {/* PROSE: Stream C — extract from WhatIsBrewSiteContent() in sceneWhatIsBrewSite.tsx */}
           </ProseBlock>
 
           <ScenePanel
@@ -781,7 +800,7 @@ export function DocsLayout(): JSX.Element {
           </ScenePanel>
 
           <ProseBlock id="installation-prose">
-            {/* PROSE: Stream F */}
+            {/* PROSE: Stream C — extract from existing *Content() function in that scene file */}
           </ProseBlock>
 
           <ScenePanel
@@ -794,7 +813,7 @@ export function DocsLayout(): JSX.Element {
           </ScenePanel>
 
           <ProseBlock id="quick-start-prose">
-            {/* PROSE: Stream F */}
+            {/* PROSE: Stream C — extract from existing *Content() function in that scene file */}
           </ProseBlock>
 
           <ScenePanel
@@ -807,7 +826,7 @@ export function DocsLayout(): JSX.Element {
           </ScenePanel>
 
           <ProseBlock id="concepts-prose">
-            {/* PROSE: Stream F */}
+            {/* PROSE: Stream C — extract from existing *Content() function in that scene file */}
           </ProseBlock>
 
           <ScenePanel
@@ -822,22 +841,22 @@ export function DocsLayout(): JSX.Element {
           {/* ── Act 2: Scene Authoring ───────────────────────────────────── */}
           <ActHeader id="act-scene-authoring" title="Scene Authoring" />
 
-          <ProseBlock id="scene-dsl-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="scene-dsl-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-scene-dsl" height="calc(100vh + 600px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneSceneDslPanel />
           </ScenePanel>
 
-          <ProseBlock id="multi-scene-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="multi-scene-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-multi-scene" height="calc(100vh + 600px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneMultiScenePanel />
           </ScenePanel>
 
-          <ProseBlock id="transitions-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="transitions-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-transitions" height="calc(100vh + 600px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneTransitionsPanel />
           </ScenePanel>
 
-          <ProseBlock id="progress-manager-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="progress-manager-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-progress-manager" height="calc(100vh + 400px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneProgressManagerPanel />
           </ScenePanel>
@@ -845,27 +864,27 @@ export function DocsLayout(): JSX.Element {
           {/* ── Act 3: Elements ──────────────────────────────────────────── */}
           <ActHeader id="act-elements" title="Elements" />
 
-          <ProseBlock id="camera-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="camera-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-camera" height="calc(100vh + 600px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneCameraPanel />
           </ScenePanel>
 
-          <ProseBlock id="lighting-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="lighting-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-lighting" height="calc(100vh + 600px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneLightingPanel />
           </ScenePanel>
 
-          <ProseBlock id="background-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="background-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-background" height="calc(100vh + 400px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneBackgroundPanel />
           </ScenePanel>
 
-          <ProseBlock id="environment-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="environment-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-environment" height="calc(100vh + 400px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneEnvironmentPanel />
           </ScenePanel>
 
-          <ProseBlock id="floor-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="floor-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-floor" height="calc(100vh + 400px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneFloorPanel />
           </ScenePanel>
@@ -873,12 +892,12 @@ export function DocsLayout(): JSX.Element {
           {/* ── Act 4: Overlay Content ───────────────────────────────────── */}
           <ActHeader id="act-overlay-content" title="Overlay Content" />
 
-          <ProseBlock id="hud-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="hud-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-hud" height="calc(100vh + 600px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneHudPanel />
           </ScenePanel>
 
-          <ProseBlock id="hud-animejs-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="hud-animejs-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-hud-animejs" height="calc(100vh + 400px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneHudAnimejsPanel />
           </ScenePanel>
@@ -886,12 +905,12 @@ export function DocsLayout(): JSX.Element {
           {/* ── Act 5: Input ─────────────────────────────────────────────── */}
           <ActHeader id="act-input" title="Input" />
 
-          <ProseBlock id="input-navigation-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="input-navigation-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-input-navigation" height="calc(100vh + 400px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneInputNavigationPanel />
           </ScenePanel>
 
-          <ProseBlock id="input-actions-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="input-actions-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-input-actions" height="calc(100vh + 600px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneInputActionsPanel />
           </ScenePanel>
@@ -899,12 +918,12 @@ export function DocsLayout(): JSX.Element {
           {/* ── Act 6: Player & Hooks ────────────────────────────────────── */}
           <ActHeader id="act-player-hooks" title="Player &amp; Hooks" />
 
-          <ProseBlock id="player-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="player-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-player" height="calc(100vh + 400px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <ScenePlayerPanel />
           </ScenePanel>
 
-          <ProseBlock id="hooks-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="hooks-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-hooks" height="calc(100vh + 600px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneHooksPanel />
           </ScenePanel>
@@ -912,22 +931,22 @@ export function DocsLayout(): JSX.Element {
           {/* ── Act 7: Widget SDK ────────────────────────────────────────── */}
           <ActHeader id="act-widget-sdk" title="Widget SDK" />
 
-          <ProseBlock id="widget-sdk-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="widget-sdk-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-widget-sdk" height="calc(100vh + 400px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneWidgetSdkPanel />
           </ScenePanel>
 
-          <ProseBlock id="custom-widget-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="custom-widget-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-custom-widget" height="calc(100vh + 400px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneCustomWidgetPanel />
           </ScenePanel>
 
-          <ProseBlock id="variable-store-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="variable-store-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-variable-store" height="calc(100vh + 600px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneVariableStorePanel />
           </ScenePanel>
 
-          <ProseBlock id="widget-registry-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="widget-registry-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-widget-registry" height="calc(100vh + 400px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneWidgetRegistryPanel />
           </ScenePanel>
@@ -935,12 +954,12 @@ export function DocsLayout(): JSX.Element {
           {/* ── Act 8: Reference ─────────────────────────────────────────── */}
           <ActHeader id="act-reference" title="Reference" />
 
-          <ProseBlock id="api-reference-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="api-reference-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-api-reference" height="calc(100vh + 400px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneApiReferencePanel />
           </ScenePanel>
 
-          <ProseBlock id="timeline-prose">{/* PROSE: Stream F */}</ProseBlock>
+          <ProseBlock id="timeline-prose">{/* PROSE: Stream C — extract from existing *Content() function in that scene file */}</ProseBlock>
           <ScenePanel id="scene-timeline" height="calc(100vh + 400px)" plugins={DOCS_PLUGINS} manifestUrl={MANIFEST_URL}>
             <SceneTimelinePanel />
           </ScenePanel>
@@ -1583,11 +1602,30 @@ export function DocsSidebar(): JSX.Element {
 
 ## 7. Phase 2, Stream F — Scene DSL Migration
 
-**Depends on:** Phase 1 complete. Independent of C, D, E, G.
+**F-1 depends on:** Phase 1 complete. F-1 MUST merge to main before any Phase 2B stream cuts its branch.
+**F-2 depends on:** F-1 merged. Independent of C, D, E, G once F-1 is in.
 
 Stream F owns all files in `apps/docs/src/scenes/**/*.tsx` and `apps/docs/src/scenes/index.ts`.
 
-### 7.1 Core migration pattern
+### 7.0 Stream F-1: Stub exports (blocking commit)
+
+Before Phase 2B work begins, add a stub `*Panel` export to each of the 25 content scene files. This is a pure additive commit — existing scene code is untouched.
+
+**F-1 stub format** (applies to all 25 files):
+
+```tsx
+// STUB — F-1: placeholder replaced by Stream F-2
+// This export satisfies Stream C's import at typecheck time.
+export function SceneWhatIsBrewSitePanel(): JSX.Element {
+  return <></>;
+}
+```
+
+Do not delete any existing scene code. Do not import anything new. Do not add `JSX` to the imports if it is not already imported (all current scene files already import `JSX` from `react`).
+
+After this commit, all 25 `*Panel` symbols exist and typecheck cleanly. Phase 2B (C/D/E/F-2/G) may now proceed in parallel.
+
+### 7.1 Core migration pattern (Stream F-2)
 
 Each existing content scene file follows the **old pattern**:
 
@@ -1609,6 +1647,11 @@ export function SceneWhatIsBrewSite(): JSX.Element {
 
 The new pattern is a **two-scene export** (`*Panel` suffix, no `key` prop needed on Scene):
 
+**Base camera formula** (applies to all 25 scenes):
+- `world` mode: z += 2 (camera further back). Target and fov identical to arrived.
+- `orbit` mode: distance += 2. Azimuth, polar, and target identical to arrived.
+- All lighting and background values are **identical** between base and arrived — only the camera differs.
+
 ```tsx
 // NEW — two scenes, no DocPanel, no scrollUnits
 import { JSX } from 'react';
@@ -1618,24 +1661,24 @@ import { DWELL_FN } from '../../sceneUtils';
 export function SceneWhatIsBrewSitePanel(): JSX.Element {
   return (
     <>
-      {/* Base state: camera approaching (start of panel scroll window) */}
+      {/* Base state: camera 2 units further back — start of panel scroll window */}
       <Scene id="scene-what-is-brewsite-base">
-        <Camera mode="world" position={[0, 3, 12]} target={[0, 1, 0]} fov={50} />
-        <Background color="#0a0a14" />
+        <Camera mode="world" position={[0, 1.8, 10]} target={[0, 0.8, 0]} fov={40} />
+        <Background color="#0d0f1a" />
         <Lighting>
-          <Ambient color="#4466ff" intensity={0.3} />
-          <Directional color="#ffffff" intensity={1.2} position={[4, 10, 6]} />
+          <Ambient color="#4466ff" intensity={0.4} />
+          <Directional color="#ffffff" intensity={1.6} position={[4, 10, 6]} />
         </Lighting>
         <Floor enabled>
-          <FloorPhysical opacity={0.2} metalness={0.4} roughness={0.6} />
+          <FloorPhysical opacity={0.35} metalness={0.4} roughness={0.6} />
         </Floor>
       </Scene>
 
-      {/* Arrived state: reading position (end of panel scroll window) */}
+      {/* Arrived state: reading position — end of panel scroll window */}
       {/* DWELL_FN: animation plays in first 25% of scroll window, then holds */}
-      <Scene id="scene-what-is-brewsite-arrived">
+      <Scene id="scene-what-is-brewsite">
         <ProgressManager fn={DWELL_FN} />
-        {/* scrollUnits is NOT specified — it has no effect in viewport-relative mode */}
+        {/* scrollUnits is NOT specified — no effect in viewport-relative mode */}
         <Camera mode="world" position={[0, 1.8, 8]} target={[0, 0.8, 0]} fov={40} />
         <Background color="#0d0f1a" />
         <Lighting>
@@ -1655,28 +1698,62 @@ export function SceneWhatIsBrewSitePanel(): JSX.Element {
 
 1. The export function name changes from `SceneFoo` to `SceneFooPanel`.
 2. Every scene gets a `base` scene and an `arrived` scene (minimum 2 scenes — compiler hard constraint).
-3. The `base` scene state is the camera/lighting/etc. for the beginning of the animation (approaching pose).
-4. The `arrived` scene has `<ProgressManager fn={DWELL_FN} />` (no `scrollUnits` — irrelevant in viewport-relative mode). It is the reading pose.
-5. All `DocPanel` children are removed from scene files. Prose content moves to `ProseBlock` sections in `DocsLayout`.
-6. The `WhatIsBrewSiteContent` (and equivalent) functions are deleted from scene files.
-7. The `key` prop on `<Scene>` is removed (not needed; ids are unique per panel).
-8. Import `DemoProgressProvider` is deleted from any scene file that used it.
+3. The `base` scene camera is the arrived camera with z+2 (world) or distance+2 (orbit). All other state is identical.
+4. The `arrived` scene has `<ProgressManager fn={DWELL_FN} />` (no `scrollUnits`). It is the reading pose.
+5. **ALL HTML content is removed from scene files — no exceptions.** This includes `DocPanel`, all `*Content()` functions, `CodeBlock`, `PropTable`, `Callout`, and any inline HTML. Scene files become pure 3D DSL: `<Scene>`, `<Camera>`, `<Lighting>`, `<Background>`, `<Floor>`, etc. The arrived `<Scene>` node must contain only BrewSite DSL elements. No React HTML. No overlay prose. HTML prose goes to `<ProseBlock>` in `DocsLayout.tsx` (Stream C's responsibility). `InlineDemo` demo widgets go to ProseBlock as well — they create their own EngineProvider internally and are document-flow elements, not overlays. This is the fundamental goal of the redesign: documentation text must be in real HTML document flow (findable by Ctrl+F, selectable, accessible to screen readers), not floating canvas overlays.
+6. The `*Content` functions (e.g., `WhatIsBrewSiteContent`, `HudContent`, `CameraContent`, etc.) and all their imports (`DocPanel`, `CodeBlock`, `PropTable`, `Callout`, `InlineDemo`, `DemoProgressProvider`) are deleted from scene files. After Stream F-2, a scene file should import only from `@brewsite/core` and `../../sceneUtils`.
+7. The `key` prop on `<Scene>` is replaced by `id` (ids serve as both identity and DOM anchor).
+8. `DemoProgressProvider` import and usage are deleted everywhere. `InlineDemo` components move to ProseBlock in DocsLayout (Stream C extracts them from the old scene files).
+9. `sceneTimeline.tsx`: Add `<ProgressManager fn={DWELL_FN} />` to the arrived scene. Remove the old comment about no ProgressManager on the last scene — that constraint does not apply in per-panel mode.
 
-### 7.2 Delete: act scene files
+### 7.2 Complete 25-scene migration table
 
-The act scenes (`apps/docs/src/scenes/acts/*.tsx`) are replaced by CSS-only `<ActHeader>` components. **Delete all files** in `apps/docs/src/scenes/acts/`:
+The table below specifies the exact `base` and `arrived` camera for all 25 content scenes. Lighting and background values are identical between base and arrived for each scene — see section 7.3 for the per-color-group reference.
 
-- `actElements.tsx`
-- `actGettingStarted.tsx`
-- `actHero.tsx`
-- `actInput.tsx`
-- `actOverlayContent.tsx`
-- `actPlayerHooks.tsx`
-- `actReference.tsx`
-- `actSceneAuthoring.tsx`
-- `actWidgetSdk.tsx`
+| # | File (relative to `scenes/content/`) | Old export | New export | Base camera | Arrived camera |
+|---|---|---|---|---|---|
+| 1 | `getting-started/sceneWhatIsBrewSite.tsx` | `SceneWhatIsBrewSite` | `SceneWhatIsBrewSitePanel` | world [0,1.8,**10**] t=[0,0.8,0] fov=40 | world [0,1.8,8] t=[0,0.8,0] fov=40 |
+| 2 | `getting-started/sceneInstallation.tsx` | `SceneInstallation` | `SceneInstallationPanel` | world [1,2,**10**] t=[0,0.8,0] fov=40 | world [1,2,8] t=[0,0.8,0] fov=40 |
+| 3 | `getting-started/sceneConcepts.tsx` | `SceneConcepts` | `SceneConceptsPanel` | world [-1,2,**10**] t=[0,0.8,0] fov=42 | world [-1,2,8] t=[0,0.8,0] fov=42 |
+| 4 | `getting-started/sceneQuickStart.tsx` | `SceneQuickStart` | `SceneQuickStartPanel` | world [2,2,**11**] t=[0,0.8,0] fov=40 | world [2,2,9] t=[0,0.8,0] fov=40 |
+| 5 | `scene-authoring/sceneSceneDsl.tsx` | `SceneSceneDsl` | `SceneSceneDslPanel` | world [0,2,**10**] t=[0,0.8,0] fov=42 | world [0,2,8] t=[0,0.8,0] fov=42 |
+| 6 | `scene-authoring/sceneMultiScene.tsx` | `SceneMultiScene` | `SceneMultiScenePanel` | world [-1,2,**10**] t=[0,0.8,0] fov=42 | world [-1,2,8] t=[0,0.8,0] fov=42 |
+| 7 | `scene-authoring/sceneTransitions.tsx` | `SceneTransitions` | `SceneTransitionsPanel` | world [1,2,**10**] t=[0,0.8,0] fov=42 | world [1,2,8] t=[0,0.8,0] fov=42 |
+| 8 | `scene-authoring/sceneProgressManager.tsx` | `SceneProgressManager` | `SceneProgressManagerPanel` | world [-1,2,**10**] t=[0,0.8,0] fov=42 | world [-1,2,8] t=[0,0.8,0] fov=42 |
+| 9 | `elements/sceneBackground.tsx` | `SceneBackground` | `SceneBackgroundPanel` | world [0,2,**10**] t=[0,1,0] fov=44 | world [0,2,8] t=[0,1,0] fov=44 |
+| 10 | `elements/sceneCamera.tsx` | `SceneCamera` | `SceneCameraPanel` | world [-3,2,**9**] t=[0,1,0] fov=45 | world [-3,2,7] t=[0,1,0] fov=45 |
+| 11 | `elements/sceneEnvironment.tsx` | `SceneEnvironment` | `SceneEnvironmentPanel` | orbit t=[0,0,0] az=0.3 pol=1.1 dist=**10** | orbit t=[0,0,0] az=0.3 pol=1.1 dist=8 |
+| 12 | `elements/sceneFloor.tsx` | `SceneFloor` | `SceneFloorPanel` | world [0,3,**11**] t=[0,0,0] fov=44 | world [0,3,9] t=[0,0,0] fov=44 |
+| 13 | `elements/sceneLighting.tsx` | `SceneLighting` | `SceneLightingPanel` | world [3,2,**9**] t=[0,1,0] fov=45 | world [3,2,7] t=[0,1,0] fov=45 |
+| 14 | `overlay-content/sceneHud.tsx` | `SceneHud` | `SceneHudPanel` | world [0,2,**10**] t=[0,1,0] fov=44 | world [0,2,8] t=[0,1,0] fov=44 |
+| 15 | `overlay-content/sceneHudAnimejs.tsx` | `SceneHudAnimejs` | `SceneHudAnimejsPanel` | world [2,2,**10**] t=[0,1,0] fov=44 | world [2,2,8] t=[0,1,0] fov=44 |
+| 16 | `input/sceneInputNavigation.tsx` | `SceneInputNavigation` | `SceneInputNavigationPanel` | world [0,2,**10**] t=[0,1,0] fov=44 | world [0,2,8] t=[0,1,0] fov=44 |
+| 17 | `input/sceneInputActions.tsx` | `SceneInputActions` | `SceneInputActionsPanel` | world [2,2,**10**] t=[0,1,0] fov=44 | world [2,2,8] t=[0,1,0] fov=44 |
+| 18 | `player-hooks/scenePlayer.tsx` | `ScenePlayerDocs` | `ScenePlayerPanel` | world [0,2,**10**] t=[0,1,0] fov=44 | world [0,2,8] t=[0,1,0] fov=44 |
+| 19 | `player-hooks/sceneHooks.tsx` | `SceneHooksDocs` | `SceneHooksPanel` | world [2,2,**10**] t=[0,1,0] fov=44 | world [2,2,8] t=[0,1,0] fov=44 |
+| 20 | `widget-sdk/sceneWidgetSdk.tsx` | `SceneWidgetSdk` | `SceneWidgetSdkPanel` | world [0,2,**10**] t=[0,1,0] fov=44 | world [0,2,8] t=[0,1,0] fov=44 |
+| 21 | `widget-sdk/sceneCustomWidget.tsx` | `SceneCustomWidget` | `SceneCustomWidgetPanel` | orbit t=[0,0,0] az=0.3 pol=1.0 dist=**10** | orbit t=[0,0,0] az=0.3 pol=1.0 dist=8 |
+| 22 | `widget-sdk/sceneVariableStore.tsx` | `SceneVariableStore` | `SceneVariableStorePanel` | world [2,2,**10**] t=[0,1,0] fov=44 | world [2,2,8] t=[0,1,0] fov=44 |
+| 23 | `widget-sdk/sceneWidgetRegistry.tsx` | `SceneWidgetRegistry` | `SceneWidgetRegistryPanel` | orbit t=[0,0,0] az=0.5 pol=1.0 dist=**10** | orbit t=[0,0,0] az=0.5 pol=1.0 dist=8 |
+| 24 | `reference/sceneApiReference.tsx` | `SceneApiReference` | `SceneApiReferencePanel` | world [0,2,**10**] t=[0,1,0] fov=44 | world [0,2,8] t=[0,1,0] fov=44 |
+| 25 | `reference/sceneTimeline.tsx` | `SceneTimelineDocs` | `SceneTimelinePanel` | world [2,2,**10**] t=[0,1,0] fov=44 | world [2,2,8] t=[0,1,0] fov=44 |
 
-Also delete the hero scene if it exists as a separate file — the docs hero becomes a `ProseBlock` + first `ScenePanel` in `DocsLayout`.
+### 7.3 Lighting and background reference by color group
+
+These values apply to both `base` and `arrived` scenes (unchanged between them):
+
+| Group | Scenes | Background | Ambient | Directional | Floor |
+|---|---|---|---|---|---|
+| Getting Started | 1–4 | `#0d0f1a` | `#4466ff` 0.4 | `#ffffff`/`#aaccff` 1.4–1.6 | Floor Physical — scenes 1 (opacity=0.35) and 4 (opacity=0.30); none on 2 and 3 |
+| Scene Authoring | 5–8 | `#0f0d1a` | `#8855ff` 0.3 | `#cc88ff` 1.4 | None |
+| Elements | 9–13 | `#0a1220` | `#2244ff` 0.4–0.5 | `#88ccff` 1.6–1.8 | Floor Physical on 10 (opacity=0.4) and 13 (opacity=0.4); Floor Mirror on 12 |
+| Overlay Content | 14–15 | `#140a0a` | `#ff4444` 0.3 | `#ffaa44` 1.6 | None |
+| Input | 16–17 | `#0d1210` | `#22ff88` 0.3 | `#44ffaa` 1.5 | None |
+| Player Hooks | 18–19 | `#0a0e18` | `#3388ff` 0.5 | `#ffffff` 1.8–2.0 | None |
+| Widget SDK | 20–23 | `#10080e` | `#cc44ff` 0.4 | `#ff88cc` 1.6 | None |
+| Reference | 24–25 | `#08100e` | `#44ff88` 0.3 | `#ccffaa` 1.3 | None |
+
+For the exact Directional `position` values for each individual scene, use the existing scene file as the ground truth (read before migrating — do not guess from the table).
 
 ### 7.3 ProgressManager in per-panel mode
 
@@ -1850,10 +1927,19 @@ export function InlineDemo({
               │ (both A and B must be merged before Phase 2 begins)
               ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ PHASE 2 (parallel — no shared files, all depend on Phase 1)                 │
+│ PHASE 2A — BLOCKING (must land before any 2B branch is cut)                 │
+│                                                                             │
+│  Stream F-1 ────────────────────────────────────────────────────────────►  │
+│  25 *Panel stub exports in scenes/content/**/*.tsx                          │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+              │ (F-1 merged)
+              ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ PHASE 2B (parallel — no shared files, all depend on Phase 1 + F-1)          │
 │                                                                             │
 │  Stream C ──────────────────────────────────────────────────────────────►  │
-│  DocsLayout.tsx, App.tsx, routes.tsx, layout.css                            │
+│  DocsLayout.tsx (all content + ProseBlock), App.tsx, routes.tsx, CSS        │
 │                                                                             │
 │  Stream D ──────────────────────────────────────────────────────────────►  │
 │  ScenePanel.tsx, ActHeader.tsx, ProseBlock.tsx                              │
@@ -1861,11 +1947,11 @@ export function InlineDemo({
 │  Stream E ──────────────────────────────────────────────────────────────►  │
 │  NavContext.tsx, nav/types.ts, docs-nav.ts, DocsSidebar.tsx                 │
 │                                                                             │
-│  Stream F ──────────────────────────────────────────────────────────────►  │
-│  All scenes/**/*.tsx, scenes/index.ts                                       │
+│  Stream F-2 ────────────────────────────────────────────────────────────►  │
+│  Real 2-scene DSL in scenes/content/**/*.tsx, scenes/index.ts               │
 │                                                                             │
 │  Stream G ──────────────────────────────────────────────────────────────►  │
-│  Delete dead files, simplify InlineDemo.tsx                                 │
+│  Delete DocPanel, DemoProgressProvider, all acts/**, simplify InlineDemo    │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
               │ (all streams merged — integration + smoke test)
@@ -1922,6 +2008,57 @@ Use `renderHook` from `@testing-library/react`. Mock `IntersectionObserver` glob
 | Re-entry → calls `restoreContext` | Full cycle: entry, exit, re-entry; assert `ext.restoreContext` called once |
 | IntersectionObserver rootMargin is '200px' | Assert constructor was called with `{ rootMargin: '200px' }` |
 | IntersectionObserver disconnected on unmount | `mockObserver.disconnect()` called |
+
+### Stream D tests
+**File:** `apps/docs/src/__tests__/ScenePanel.test.tsx`
+
+Use `renderHook` / `render` from `@testing-library/react`. ScenePanel wraps EngineProvider; mock EngineProvider to avoid real WebGL initialization.
+
+| Test scenario | Assertion |
+|---|---|
+| `height` prop less than `'100vh'` in development — emits `console.warn` | Render `<ScenePanel height="50vh" ...>` in `NODE_ENV=development`. Assert `console.warn` was called with a message containing `'ScenePanel height should be at least 100vh'`. |
+
+**Rationale:** A ScenePanel shorter than the viewport has `maxScroll = max(0, panelHeight - viewportHeight) = 0`, meaning the engine is always at progress=1 (terminal state). The animation from base to arrived never plays. This is almost always a configuration error and should fail loudly in development.
+
+### Stream E tests
+**File:** `apps/docs/src/__tests__/NavContext.test.tsx`
+
+Use `renderHook` with `NavProvider` wrapper. Mock `document.getElementById`, `element.getBoundingClientRect`, `element.offsetHeight`, `window.innerHeight`, `window.scrollTo`, `window.scrollY`.
+
+Use this setup for the `scrollToSection` arithmetic tests:
+
+```typescript
+function setupPanel(id: string, panelTop: number, offsetHeight: number): void {
+  const el = document.createElement('div');
+  Object.defineProperty(el, 'offsetHeight', { value: offsetHeight });
+  jest.spyOn(el, 'getBoundingClientRect').mockReturnValue({
+    top: panelTop - window.scrollY, // getBoundingClientRect().top is relative to viewport
+    ...emptyDOMRect,
+  });
+  jest.spyOn(document, 'getElementById').mockReturnValue(el);
+}
+
+// Set window.innerHeight:
+Object.defineProperty(window, 'innerHeight', { value: 900, writable: true });
+// Set window.scrollY:
+Object.defineProperty(window, 'scrollY', { value: 0, writable: true });
+```
+
+| Test scenario | Setup | Assertion |
+|---|---|---|
+| `scrollToSection(id)` — no progress | `panelTop=1000`, `offsetHeight=2000`, `innerHeight=900`, `scrollY=0` | `window.scrollTo({ top: 1000, behavior: 'smooth' })` (jumps to panel top, progress=0) |
+| `scrollToSection(id, 0.5)` — midpoint | `panelTop=1000`, `offsetHeight=2000`, `innerHeight=900`, `scrollY=0` | `window.scrollTo({ top: 1000 + 0.5 * 1100, behavior: 'smooth' })` = `{ top: 1550, behavior: 'smooth' }` |
+| `scrollToSection(id, 1.5)` — progress > 1 clamped | `panelTop=0`, `offsetHeight=2000`, `innerHeight=900`, `scrollY=0` | `window.scrollTo({ top: 1100, behavior: 'smooth' })` = `panelTop + maxScroll` = `0 + 1100`, not `0 + 1.5 * 1100 = 1650` |
+| `scrollToSection('unregistered-id')` — element not found | `document.getElementById` returns `null` | `console.warn` called; `window.scrollTo` NOT called; no throw |
+
+**Arithmetic derivation for test 2 (show your work):**
+- `panelTop = getBoundingClientRect().top + scrollY = (1000 - 0) + 0 = 1000`
+- `maxScroll = max(0, offsetHeight - innerHeight) = max(0, 2000 - 900) = 1100`
+- `targetY = panelTop + clamp01(0.5) * maxScroll = 1000 + 0.5 * 1100 = 1550`
+
+**Arithmetic derivation for test 3 (clamp):**
+- `clamp01(1.5) = 1.0` — clamped before multiplication
+- `targetY = 0 + 1.0 * 1100 = 1100`
 
 ---
 

@@ -42,16 +42,16 @@ export const sceneDim7Safety: JSX.Element = (
         <ManualLayout />
 
         {/* Left — claude-flow TTL credentials */}
-        <DiagramNode id="safe-cf-creds" label="credentials namespace" sublabel="1-hour TTL · agent-responsible" size={[6.5, 2.4]} position={[-8, 0, 0]} color="#1a1020" />
-        <DiagramNode id="safe-cf-gap" label="No classification pipeline" sublabel="no redaction · no sealed store · no read-time enforcement" size={[6.5, 2.2]} position={[-8, -4, 0]} color="#201010" />
+        <DiagramNode id="safe-cf-creds" label="credentials namespace" sublabel="1-hour TTL · agent-responsible" size={[0.232, 0.147]} position={[0.170, 0.411, 0]} color="#1a1020" />
+        <DiagramNode id="safe-cf-gap" label="No classification pipeline" sublabel="no redaction · no sealed store · no read-time enforcement" size={[0.232, 0.135]} position={[0.170, 0.656, 0]} color="#201010" />
 
         {/* Right — BrewFlow Sensitive Data Guard */}
-        <DiagramNode id="safe-bf-write" label="Every write boundary" sublabel="ingestion · consolidation · promotion · context assembly" size={[6.5, 2.4]} position={[8, 4, 0]} color="#141830" />
-        <DiagramNode id="safe-bf-d1" label="allow_store" sublabel="safe as-is" size={[5.5, 2.0]} position={[5, 0, 0]} color="#0f2015" />
-        <DiagramNode id="safe-bf-d2" label="store_redacted" sublabel="placeholders replace content" size={[5.5, 2.0]} position={[11, 0, 0]} color="#1a1810" />
-        <DiagramNode id="safe-bf-d3" label="store_sealed" sublabel="audited vault · PHI default" size={[5.5, 2.0]} position={[5, -3.5, 0]} color="#1a1015" />
-        <DiagramNode id="safe-bf-d4" label="no_store" sublabel="event logged · content withheld" size={[5.5, 2.0]} position={[11, -3.5, 0]} color="#1a0f0f" />
-        <DiagramNode id="safe-bf-read" label="CensorCortex" sublabel="minimum-necessary · lane-scoped · audited seal reads" size={[6.5, 2.2]} position={[8, -7, 0]} color="#1a1025" glow={{ intensity: 0.1 }} />
+        <DiagramNode id="safe-bf-write" label="Every write boundary" sublabel="ingestion · consolidation · promotion · context assembly" size={[0.232, 0.147]} position={[0.741, 0.166, 0]} color="#141830" />
+        <DiagramNode id="safe-bf-d1" label="allow_store" sublabel="safe as-is" size={[0.196, 0.123]} position={[0.634, 0.411, 0]} color="#0f2015" />
+        <DiagramNode id="safe-bf-d2" label="store_redacted" sublabel="placeholders replace content" size={[0.196, 0.123]} position={[0.848, 0.411, 0]} color="#1a1810" />
+        <DiagramNode id="safe-bf-d3" label="store_sealed" sublabel="audited vault · PHI default" size={[0.196, 0.123]} position={[0.634, 0.626, 0]} color="#1a1015" />
+        <DiagramNode id="safe-bf-d4" label="no_store" sublabel="event logged · content withheld" size={[0.196, 0.123]} position={[0.848, 0.626, 0]} color="#1a0f0f" />
+        <DiagramNode id="safe-bf-read" label="CensorCortex" sublabel="minimum-necessary · lane-scoped · audited seal reads" size={[0.232, 0.135]} position={[0.741, 0.840, 0]} color="#1a1025" glow={{ intensity: 0.1 }} />
 
         <DiagramEdge from="safe-bf-write" to="safe-bf-d1" color="#6050a0" />
         <DiagramEdge from="safe-bf-write" to="safe-bf-d2" color="#6050a0" />

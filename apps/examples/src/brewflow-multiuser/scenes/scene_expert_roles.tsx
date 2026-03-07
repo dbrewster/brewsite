@@ -46,8 +46,8 @@ export const sceneExpertRoles: JSX.Element = (
           label="Episode"
           sublabel="raw event log · tool calls · outcomes · errors"
           shape="rectangle"
-          size={[7, 2.8]}
-          position={[0, 0, 0]}
+          size={[0.185, 0.182]}
+          position={[0.364, 0.630, 0]}
           color="#141830"
           glow={{ intensity: 0.12 }}
         />
@@ -58,8 +58,8 @@ export const sceneExpertRoles: JSX.Element = (
           label="Security Expert"
           sublabel="credentials · secrets · access control · injection · PII"
           shape="rectangle"
-          size={[6.5, 2.4]}
-          position={[-9, 7, 0]}
+          size={[0.172, 0.156]}
+          position={[0.126, 0.175, 0]}
           color="#101828"
         />
         <DiagramNode
@@ -67,8 +67,8 @@ export const sceneExpertRoles: JSX.Element = (
           label="Reliability Expert"
           sublabel="failure modes · race conditions · retry · cascading failures"
           shape="rectangle"
-          size={[6.5, 2.4]}
-          position={[-9, 2, 0]}
+          size={[0.172, 0.156]}
+          position={[0.126, 0.500, 0]}
           color="#101828"
         />
         <DiagramNode
@@ -76,8 +76,8 @@ export const sceneExpertRoles: JSX.Element = (
           label="Process Expert"
           sublabel="multi-step sequences · ordering dependencies · preconditions"
           shape="rectangle"
-          size={[6.5, 2.4]}
-          position={[-9, -3, 0]}
+          size={[0.172, 0.156]}
+          position={[0.126, 0.825, 0]}
           color="#101828"
         />
         <DiagramNode
@@ -85,8 +85,8 @@ export const sceneExpertRoles: JSX.Element = (
           label="Constraint Expert"
           sublabel="hard rules · invariants · never-do-X patterns"
           shape="rectangle"
-          size={[6.5, 2.4]}
-          position={[9, 5, 0]}
+          size={[0.172, 0.156]}
+          position={[0.603, 0.305, 0]}
           color="#101828"
         />
         <DiagramNode
@@ -94,8 +94,8 @@ export const sceneExpertRoles: JSX.Element = (
           label="Disambiguation Expert"
           sublabel="ambiguous terms · naming collisions · contextual decisions"
           shape="rectangle"
-          size={[6.5, 2.4]}
-          position={[9, 0, 0]}
+          size={[0.172, 0.156]}
+          position={[0.603, 0.630, 0]}
           color="#101828"
         />
 
@@ -105,8 +105,8 @@ export const sceneExpertRoles: JSX.Element = (
           label="1. Observe"
           sublabel="what literally happened"
           shape="rectangle"
-          size={[5, 2.0]}
-          position={[20, 5, 0]}
+          size={[0.132, 0.130]}
+          position={[0.894, 0.305, 0]}
           color="#131828"
         />
         <DiagramNode
@@ -114,8 +114,8 @@ export const sceneExpertRoles: JSX.Element = (
           label="2. Interpret"
           sublabel="what it means for future"
           shape="rectangle"
-          size={[5, 2.0]}
-          position={[20, 2, 0]}
+          size={[0.132, 0.130]}
+          position={[0.894, 0.500, 0]}
           color="#131828"
         />
 

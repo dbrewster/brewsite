@@ -38,8 +38,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="orthographic Three.js scene · theme · DiagramWidget owner"
           sublabelColor="#b8c8e8"
           icon="ui:squares-2x2"
-          position={[-18, 10, 0]}
-          size={[7, 3.2]}
+          position={[0.109, 0.118, 0]}
+          size={[0.152, 0.122]}
         />
         <DiagramNode
           id="dsl-diagram"
@@ -47,8 +47,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="pivot center|corner · ManualLayout | AutoLayout root"
           sublabelColor="#b8c8e8"
           icon="ui:document-text"
-          position={[-18, 5, 0]}
-          size={[7, 3.2]}
+          position={[0.109, 0.309, 0]}
+          size={[0.152, 0.122]}
         />
         <DiagramNode
           id="dsl-node"
@@ -56,8 +56,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="id · label · sublabel · icon · position · size · glow"
           sublabelColor="#b8c8e8"
           icon="ui:squares-2x2"
-          position={[-18, 0, 0]}
-          size={[7, 3.2]}
+          position={[0.109, 0.500, 0]}
+          size={[0.152, 0.122]}
         />
         <DiagramNode
           id="dsl-edge"
@@ -65,8 +65,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="from/to · label · flow direction · style · arrowEnd"
           sublabelColor="#b8c8e8"
           icon="ui:arrows-right-left"
-          position={[-18, -5, 0]}
-          size={[7, 3.2]}
+          position={[0.109, 0.691, 0]}
+          size={[0.152, 0.122]}
         />
         <DiagramNode
           id="dsl-group-node"
@@ -74,8 +74,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="boundary | swimlane | cluster · architectural container"
           sublabelColor="#b8c8e8"
           icon="ui:squares-plus"
-          position={[-18, -10, 0]}
-          size={[7, 3.2]}
+          position={[0.109, 0.882, 0]}
+          size={[0.152, 0.122]}
         />
       </DiagramGroup>
 
@@ -87,8 +87,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="DiagramNode props → resolved world positions + anchor points"
           sublabelColor="#b8c8e8"
           icon="ui:adjustments-horizontal"
-          position={[-6, 10, 0]}
-          size={[7.5, 3.2]}
+          position={[0.370, 0.118, 0]}
+          size={[0.163, 0.122]}
         />
         <DiagramNode
           id="cmp-layout"
@@ -96,8 +96,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="ManualLayout passthrough or hierarchical/grid auto-layout"
           sublabelColor="#b8c8e8"
           icon="ui:squares-plus"
-          position={[-6, 5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.370, 0.309, 0]}
+          size={[0.163, 0.122]}
         />
         <DiagramNode
           id="cmp-edge-router"
@@ -105,8 +105,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="node anchors → Catmull-Rom curve control points"
           sublabelColor="#b8c8e8"
           icon="ui:arrows-pointing-out"
-          position={[-6, 0, 0]}
-          size={[7.5, 3.2]}
+          position={[0.370, 0.500, 0]}
+          size={[0.163, 0.122]}
         />
         <DiagramNode
           id="cmp-theme"
@@ -114,8 +114,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="theme defaults + per-node overrides → PBR material params"
           sublabelColor="#b8c8e8"
           icon="ui:swatch"
-          position={[-6, -5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.370, 0.691, 0]}
+          size={[0.163, 0.122]}
         />
         <DiagramNode
           id="cmp-transition"
@@ -123,8 +123,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="FunctionalTransitionSpec closures · enter/exit state capture"
           sublabelColor="#b8c8e8"
           icon="ui:sparkles"
-          position={[-6, -10, 0]}
-          size={[7.5, 3.2]}
+          position={[0.370, 0.882, 0]}
+          size={[0.163, 0.122]}
         />
       </DiagramGroup>
 
@@ -136,8 +136,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="rounded-corner BoxGeometry · PBR material · optional glow mesh"
           sublabelColor="#b8c8e8"
           icon="ui:puzzle-piece"
-          position={[6, 10, 0]}
-          size={[7.5, 3.2]}
+          position={[0.630, 0.118, 0]}
+          size={[0.163, 0.122]}
         />
         <DiagramNode
           id="rnd-edge"
@@ -145,8 +145,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="TubeGeometry · animated dashOffset · flow direction"
           sublabelColor="#b8c8e8"
           icon="ui:arrows-right-left"
-          position={[6, 5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.630, 0.309, 0]}
+          size={[0.163, 0.122]}
         />
         <DiagramNode
           id="rnd-group"
@@ -154,8 +154,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="boundary PlaneGeometry · swimlane divider panel mesh"
           sublabelColor="#b8c8e8"
           icon="ui:squares-plus"
-          position={[6, 0, 0]}
-          size={[7.5, 3.2]}
+          position={[0.630, 0.500, 0]}
+          size={[0.163, 0.122]}
         />
         <DiagramNode
           id="rnd-text"
@@ -163,8 +163,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="troika-three-text · GPU-accelerated SDF label rendering"
           sublabelColor="#b8c8e8"
           icon="ui:chat-bubble-left-right"
-          position={[6, -5, 0]}
-          size={[7.5, 3.2]}
+          position={[0.630, 0.691, 0]}
+          size={[0.163, 0.122]}
         />
         <DiagramNode
           id="rnd-icon"
@@ -172,8 +172,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="SVG → extruded BufferGeometry or 2D sprite billboard"
           sublabelColor="#b8c8e8"
           icon="ui:photo"
-          position={[6, -10, 0]}
-          size={[7.5, 3.2]}
+          position={[0.630, 0.882, 0]}
+          size={[0.163, 0.122]}
         />
       </DiagramGroup>
 
@@ -185,8 +185,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="owns Object3D tree · bridges compile → render · apply() per frame"
           sublabelColor="#b8c8e8"
           icon="ui:puzzle-piece"
-          position={[18, 5, 0]}
-          size={[7, 3.2]}
+          position={[0.891, 0.309, 0]}
+          size={[0.152, 0.122]}
           color="#1a3060"
           glow={{ intensity: 0.2 }}
         />
@@ -196,8 +196,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="Radiance HDR → IBL env map for PBR reflections on all nodes"
           sublabelColor="#b8c8e8"
           icon="ui:globe-alt"
-          position={[18, 0, 0]}
-          size={[7, 3.2]}
+          position={[0.891, 0.500, 0]}
+          size={[0.152, 0.122]}
         />
         <DiagramNode
           id="out-scene"
@@ -205,8 +205,8 @@ function makeDiagramCanvasDiagram(): JSX.Element {
           sublabel="isolated OrthographicCamera · separate from main scene camera"
           sublabelColor="#b8c8e8"
           icon="ui:squares-2x2"
-          position={[18, -5, 0]}
-          size={[7, 3.2]}
+          position={[0.891, 0.691, 0]}
+          size={[0.152, 0.122]}
         />
       </DiagramGroup>
 
