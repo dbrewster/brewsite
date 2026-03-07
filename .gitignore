@@ -53,3 +53,5 @@ coverage-tmp/
 packages/*/dist/
 apps/*/dist/
 CHANGELOG_DRAFT.md
+
+.claude/worktrees
