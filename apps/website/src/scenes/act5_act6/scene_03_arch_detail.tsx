@@ -34,7 +34,7 @@ export const scene03ArchDetail: JSX.Element = (
       <Ambient intensity={1.0} color="#ffffff" />
       <Directional intensity={0.6} color="#aaccff" position={[-20, 10, 20]} />
     </Lighting>
-    <DiagramCanvas id="system-canvas" rotation={[-Math.PI / 12, 0, 0]} scale={isMobile ? 1.0 : 1.4} theme={darkGlassTheme}>
+    <DiagramCanvas id="system-canvas" x={0} y={0} w={1} h={1} tilt={-Math.PI / 12} scale={isMobile ? 1.0 : 1.4} theme={darkGlassTheme}>
       <Diagram id="system-arch">
         <ManualLayout />
         <DiagramEnter from={[-1, 0.5, 0]} fade easing="ease-in" />

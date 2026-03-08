@@ -16,7 +16,7 @@ import type { FunctionalTransitionSpec } from '@brewsite/core';
 import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
 import { applyDiagramEnter, applyDiagramExit } from '../compile';
 import { blendDiagramNodes, buildLiveNodeMaps, rerouteLiveEdges, blendDiagramEdges } from '../compiler/transitionHelpers';
-import { sideAttachmentPoint, routePipe, rerouteLivePipes, nodeNvsToCanvasLocal, DEFAULT_CANVAS_ASPECT } from './compiler/pipeRouter';
+import { sideAttachmentPoint, routePipe, rerouteLivePipes, nodeNvsToCanvasLocal } from './compiler/pipeRouter';
 
 const lerpNum = (a: number, b: number, t: number): number => a + (b - a) * t;
 
@@ -71,6 +71,7 @@ export function compilePipe(
   routing: PipeRoutingAlgorithm = DEFAULT_PIPE_ROUTING,
   landing: PipeLandingAlgorithm = DEFAULT_PIPE_LANDING,
   onWarn?: DiagramWarnFn,
+  canvasAspect: number = 16 / 9,
 ): DiagramPipeState {
   const autoId = `pipe-${dsl.from.replace('.', '-')}--${dsl.to.replace('.', '-')}-${index}`;
   const id = dsl.id ?? autoId;
@@ -121,8 +122,8 @@ export function compilePipe(
           fromNode.thickness,
           fromDiagram.viewportBounds,
           fromDiagram.tiltRotation,
-          DEFAULT_CANVAS_ASPECT,
-          nodeNvsToCanvasLocal(toNode.position, toDiagram.viewportBounds, toDiagram.tiltRotation, DEFAULT_CANVAS_ASPECT),
+          canvasAspect,
+          nodeNvsToCanvasLocal(toNode.position, toDiagram.viewportBounds, toDiagram.tiltRotation, canvasAspect),
         );
         const toAttach = sideAttachmentPoint(
           toNode.position,
@@ -130,14 +131,14 @@ export function compilePipe(
           toNode.thickness,
           toDiagram.viewportBounds,
           toDiagram.tiltRotation,
-          DEFAULT_CANVAS_ASPECT,
-          nodeNvsToCanvasLocal(fromNode.position, fromDiagram.viewportBounds, fromDiagram.tiltRotation, DEFAULT_CANVAS_ASPECT),
+          canvasAspect,
+          nodeNvsToCanvasLocal(fromNode.position, fromDiagram.viewportBounds, fromDiagram.tiltRotation, canvasAspect),
         );
         controlPoints = routePipe(fromAttach.point, toAttach.point, fromAttach.normal, toAttach.normal, routing);
       } else {
         // 'nearest-face': use node centers (legacy behaviour)
-        const fromWorld = nodeNvsToCanvasLocal(fromNode.position, fromDiagram.viewportBounds, fromDiagram.tiltRotation, DEFAULT_CANVAS_ASPECT);
-        const toWorld   = nodeNvsToCanvasLocal(toNode.position,   toDiagram.viewportBounds,   toDiagram.tiltRotation,   DEFAULT_CANVAS_ASPECT);
+        const fromWorld = nodeNvsToCanvasLocal(fromNode.position, fromDiagram.viewportBounds, fromDiagram.tiltRotation, canvasAspect);
+        const toWorld   = nodeNvsToCanvasLocal(toNode.position,   toDiagram.viewportBounds,   toDiagram.tiltRotation,   canvasAspect);
         controlPoints = routePipe(fromWorld, toWorld, undefined, undefined, routing);
       }
     }
@@ -176,10 +177,10 @@ export function compileCanvas(
   pipes: ReadonlyArray<DiagramPipeDSL>,
   onWarn?: DiagramWarnFn,
   defaultInputActions?: ReadonlyArray<InputActionSpec>,
+  canvasAspect?: number,
 ): DiagramCanvasState {
   const pipeRouting = dsl.pipeRouting ?? DEFAULT_PIPE_ROUTING;
   const pipeLanding = dsl.pipeLanding ?? DEFAULT_PIPE_LANDING;
-  const compiledPipes = pipes.map((pipe, index) => compilePipe(pipe, diagrams, index, pipeRouting, pipeLanding, onWarn));
 
   const nvsBounds: NVSRect = {
     x: dsl.x ?? 0,
@@ -199,16 +200,23 @@ export function compileCanvas(
     }
   }
 
+  const ENGINE_ASPECT_DEFAULT = 16 / 9;
+  const effectiveCanvasAspect = canvasAspect ?? (nvsBounds.w / nvsBounds.h) * ENGINE_ASPECT_DEFAULT;
+
+  const compiledPipes = pipes.map((pipe, index) =>
+    compilePipe(pipe, diagrams, index, pipeRouting, pipeLanding, onWarn, effectiveCanvasAspect),
+  );
+
   return {
     id: dsl.id,
-    position: dsl.position ?? [0, 0, 0],
-    rotation: dsl.rotation ?? [0, 0, 0],
+    nvsBounds,
+    tilt: dsl.tilt ?? 0,
     scale: dsl.scale ?? 1,
+    padding: dsl.padding ?? 0.1,
     focusCenter: dsl.focusCenter,
     diagrams,
     pipes: compiledPipes,
     defaultInputActions,
-    nvsBounds,
   };
 }
 
@@ -282,11 +290,15 @@ export const functionalDiagramCanvasTransitionSpec: FunctionalTransitionSpec<Dia
       .filter((d) => !to.diagrams.some((td) => td.id === d.id))
       .map((d) => applyDiagramExit(d, t));
 
+    const ENGINE_ASPECT_DEFAULT = 16 / 9;
+    const canvasAspect = (to.nvsBounds.w / to.nvsBounds.h) * ENGINE_ASPECT_DEFAULT;
+
     const livePipePoints = rerouteLivePipes(
       [...to.pipes, ...from.pipes.filter((p) => !toPipeIds.has(p.id))],
       [...interpolatedDiagrams, ...fadingDiagrams],
       DEFAULT_PIPE_ROUTING,
       DEFAULT_PIPE_LANDING,
+      canvasAspect,
     );
 
     const blendedPipes = to.pipes.map((toPipe) => {
@@ -309,9 +321,15 @@ export const functionalDiagramCanvasTransitionSpec: FunctionalTransitionSpec<Dia
 
     return {
       ...to,
-      position: blendVec3(toMut(from.position), toMut(to.position), t) ?? to.position,
-      rotation: blendVec3(toMut(from.rotation), toMut(to.rotation), t) ?? to.rotation,
+      tilt: blendNumber(from.tilt, to.tilt, t) ?? to.tilt,
       scale: blendNumber(from.scale, to.scale, t) ?? to.scale,
+      padding: blendNumber(from.padding, to.padding, t) ?? to.padding,
+      nvsBounds: {
+        x: lerpNum(from.nvsBounds.x, to.nvsBounds.x, t),
+        y: lerpNum(from.nvsBounds.y, to.nvsBounds.y, t),
+        w: lerpNum(from.nvsBounds.w, to.nvsBounds.w, t),
+        h: lerpNum(from.nvsBounds.h, to.nvsBounds.h, t),
+      },
       diagrams: [...interpolatedDiagrams, ...fadingDiagrams],
       pipes: [...blendedPipes, ...fadingPipes],
     };

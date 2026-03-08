@@ -260,8 +260,8 @@ export const sceneChartsAngledArch: JSX.Element = (
     </Lighting>
     <DiagramCanvas
       id="arch-charts-canvas"
-      position={[0, 15, 0]}
-      rotation={[-Math.PI / 4, 0, 0]}
+      x={0} y={0} w={1} h={1}
+      tilt={-Math.PI / 4}
       scale={1.05}
       theme={darkGlassTheme}
     >
@@ -282,8 +282,8 @@ export const sceneChartsArch: JSX.Element = (
     />
     <DiagramCanvas
       id="arch-charts-canvas"
-      position={[0, 15, 0]}
-      rotation={[-Math.PI / 10, 0, 0]}
+      x={0} y={0} w={1} h={1}
+      tilt={-Math.PI / 10}
       scale={1.05}
       theme={darkGlassTheme}
     >

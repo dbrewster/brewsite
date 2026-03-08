@@ -3,7 +3,7 @@ title: "BrewSite Core — Architecture Reference"
 doc_type: prd
 owner: brewsite-product-manager
 status: active
-updated: 2026-03-07
+updated: 2026-03-08
 change_history:
   - date: 2026-02-20
     author: brewflow-architect
@@ -23,6 +23,9 @@ change_history:
   - date: 2026-03-03
     author: "Toolkit Product"
     summary: "API hardening updates: ScenePlayer replaced by EngineProvider as primary component (ScenePlayer deleted). EngineScrollRegion removed from key exports (deleted; use EngineInputRegion). createDefaultWidgetRegistry removed from key exports (deleted; use corePlugin()). Added EngineGate to key exports. Updated context providers attribution to EngineProvider. Removed compiler/primitives/index.ts barrel reference (barrel deleted in hardening phase). Updated all ScenePlayer references to EngineProvider across HUD, compiler, and SSR sections."
+  - date: 2026-03-08
+    author: "Toolkit Product"
+    summary: "DSL stub co-location: dsl.tsx files are now pure type modules (prop interfaces only). DSL stub functions (null-returning components) moved to {Name}Widget.ts files. Updated element module pattern description for dsl.tsx and {Name}Widget.ts layers. Updated design rule 8."
   - date: 2026-03-07
     author: "Toolkit Product"
     summary: "Core cleanup release: eliminated scene.userData inter-widget bus (ICameraFocusTarget + ICameraHost replace stringly-typed __brewsite_* keys); added ILightingOverride interface so downstream packages opt into lighting override without calling render-layer functions; added ViewportScaleContext (EngineARContainerContext deprecated as alias); all five scene widget ID constants (SCENE_CAMERA_KEY, SCENE_LIGHTING_KEY, SCENE_BACKGROUND_KEY, SCENE_ENVIRONMENT_KEY, SCENE_FLOOR_KEY) exported from @brewsite/core; disableWhenAbsent replaces duck-typed useDefaultStateWhenAbsent on ISceneElement; stateEquals optional hook added to ISceneElement for compiler change detection; resolvedState and setCameraOverride added to AnimationTickContext; InputActionType is now an open string union — diagram-canvas.* action types removed from core and owned by @brewsite/diagram; manifestUrl on EngineProvider is now optional and deprecated in favour of plugin-supplied manifests; animejs HUD presets removed from core bundle (moved to apps/examples/ as copy-paste recipes); CameraControlPanel, CameraInteractionInfoDialog, SceneInspector moved to @brewsite/core/devtools subpath; clearRegistry and test doubles available via @brewsite/core/testing subpath."
@@ -260,13 +263,13 @@ index.ts
 
 **`types.ts`** — Interface contracts only. No runtime imports, no Three.js, no React. Defines the state shape that flows through the compile/playback pipeline (e.g., `CameraState`, `ModelState`, `LightingState`).
 
-**`dsl.tsx`** — React DSL components. No Three.js. The JSX components that authors write in scene definitions (e.g., `<Camera mode="orbit" radius={5} />`). These are thin wrappers — they exist only to be evaluated by the compiler's JSX handler. They produce no React output.
+**`dsl.tsx`** — Prop type interfaces only. No React component function declarations, no Three.js. Defines the prop shapes (`XxxProps`) that authors use when writing scene definitions. DSL stub functions (null-returning components like `<Camera />`, `<Background />`, etc.) are defined in `{Name}Widget.ts`, not here.
 
 **`compile.ts`** — Pure transformation functions. No React, no Three.js. Contains functions that transform DSL props into the element's `types.ts` state shape. Called by the node handler registered in the compiler registry. May also export an `ElementTransitionSpec<T>` or `FunctionalTransitionSpec<T>` for the compiler to call during track baking.
 
 **`render.ts`** — Three.js application layer. No React, no compiler imports. Contains the Three.js mutation logic that applies a compiled state object to the live Three.js scene. This is the only file in the element module that may import from `three`.
 
-**`{Name}Widget.ts`** — Implements `IWidget` and the relevant sub-interfaces. Bridges the compiler state (from `compile.ts` output) to the render layer (from `render.ts`). Owns the widget's `ILoadable.load()` call if the element requires async asset loading. Calls `render.ts` functions from `IRenderable.apply()`.
+**`{Name}Widget.ts`** — Defines DSL stub functions (null-returning components, e.g., `export const Camera = (_props: CameraProps): null => null;`) and implements `IWidget` and the relevant sub-interfaces. Bridges the compiler state (from `compile.ts` output) to the render layer (from `render.ts`). Owns the widget's `ILoadable.load()` call if the element requires async asset loading. Calls `render.ts` functions from `IRenderable.apply()`.
 
 **`index.ts`** — Public re-exports only. Defines the element's public API surface. May re-export DSL components, widget class, state types, and compile utilities. Must not re-export internal render utilities.
 
@@ -872,7 +875,7 @@ These rules are non-negotiable. Any change that violates them requires a corresp
 
 7. **Lower layers never import from higher layers.** `math/` does not import from `compiler/`. `compiler/` does not import from `runtime/`. `elements/` does not import from `player/`.
 
-8. **The mandatory element module pattern is not optional.** Every new element module must contain `types.ts → dsl.tsx → compile.ts → render.ts → {Name}Widget.ts → index.ts` in that dependency order. Files that don't fit this pattern belong in a shared utility layer, not in an element module.
+8. **The mandatory element module pattern is not optional.** Every new element module must contain `types.ts → dsl.tsx → compile.ts → render.ts → {Name}Widget.ts → index.ts` in that dependency order. `dsl.tsx` contains only prop type interfaces; DSL stub functions live in `{Name}Widget.ts`. Files that don't fit this pattern belong in a shared utility layer, not in an element module.
 
 9. **No new peer dependencies without justification.** React, react-dom, and Three.js are the established peers. Adding a new peer imposes a constraint on every consumer of the package. Any proposed new peer dependency requires explicit evaluation of its bundle impact, version range constraint, and alternative approaches.
 

@@ -3,8 +3,11 @@ title: "BrewSite Core — Widget SDK"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-07
+last_updated: 2026-03-08
 change_history:
+  - date: 2026-03-08
+    author: "Toolkit Product"
+    summary: "DSL stub co-location: updated widget implementation pattern to reflect that dsl.tsx is now a pure type module (prop interfaces only) and DSL stub functions live in the widget file. Updated section 14 dsl.tsx and MyElementWidget.ts code examples accordingly."
   - date: 2026-03-07
     author: "Toolkit Product"
     summary: "Core cleanup: ISceneElement gains two new optional hooks — disableWhenAbsent (replaces duck-typed useDefaultStateWhenAbsent; when true, compiler substitutes makeDisabledDefault(defaultState) for absent scenes) and stateEquals (structural equality hook replacing JSON.stringify change detection in the compiler's delta pass). AnimationTickContext gains resolvedState (the widget's pre-resolved FunctionalTransitionSpec state for this tick, removing the need for controllers to duplicate runtime state resolution), cameraFocusTarget (the registered ICameraFocusTarget or null, replacing the __brewsite_cam_enabled scene.userData flag), cameraOverride (replaces __brewsite_camera_override key), and setCameraOverride callback (replaces __brewsite_camera_override_pending). New interfaces added: ICameraFocusTarget (requestFocus API for camera widgets), ICameraHost (decouples player layer from concrete CameraWidget), ILightingOverride (getLightingOverride + receiveLightController — replaces direct setSceneLightEnabled call from @brewsite/diagram). All scene.userData __brewsite_* bus keys eliminated."
@@ -896,7 +899,7 @@ The canonical pattern for authoring a widget follows the five-file module struct
 ```
 elements/my-element/
   types.ts        — state shape, no runtime/Three.js/React
-  dsl.tsx         — DSL React component, no Three.js
+  dsl.tsx         — prop type interfaces only, no React components, no Three.js
   compile.ts      — transition spec, no React/Three.js
   render.ts       — Three.js application layer, no React/compiler
   MyElementWidget.ts  — IWidget implementation, bridges compile → render
@@ -917,14 +920,10 @@ export interface MyElementState {
 **dsl.tsx:**
 
 ```typescript
-import React from 'react';
 import type { MyElementState } from './types';
 
+// Prop types only — no function declarations.
 export type MyElementProps = Partial<MyElementState> & { id?: string };
-
-// Renders nothing — interpreted by the compiler DSL pipeline.
-export function MyElement(_props: MyElementProps): null { return null; }
-MyElement.displayName = 'MyElement';
 ```
 
 **compile.ts:**
@@ -957,10 +956,14 @@ import type {
   ISceneElement, IRenderable,
   WidgetInitContext, WidgetRenderContext,
 } from '@brewsite/core/widget';
-import { MyElement } from './dsl';
+import type { MyElementProps } from './dsl';
 import { DEFAULT_STATE, myTransitionSpec } from './compile';
 import type { MyElementState } from './types';
 import * as THREE from 'three';
+
+// DSL stub — returns null; consumed purely by the compiler.
+export function MyElement(_props: MyElementProps): null { return null; }
+MyElement.displayName = 'MyElement';
 
 export class MyElementWidget
   implements ISceneElement<MyElementState>, IRenderable<MyElementState>

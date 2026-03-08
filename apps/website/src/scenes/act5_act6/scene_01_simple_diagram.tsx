@@ -35,7 +35,7 @@ export const scene01SimpleDiagram: JSX.Element = (
     </Lighting>
     <DiagramCanvas
       id="simple-tech-stack"
-      rotation={[-Math.PI / 12, 0, 0]}
+      x={0} y={0} w={1} h={1} tilt={-Math.PI / 12}
       scale={isMobile ? 1.0 : 1.3}
       theme={neonCyberTheme}
     >

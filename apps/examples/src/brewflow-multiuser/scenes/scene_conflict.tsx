@@ -35,7 +35,7 @@ export const sceneConflict: JSX.Element = (
     <Camera mode="world" position={[0, 4, 20]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bfmu-conf-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale*.8} theme={brewflowTheme}>
+    <DiagramCanvas id="bfmu-conf-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale*.8} theme={brewflowTheme}>
       <Diagram id="conf-diagram">
         <ManualLayout />
         <DiagramEnter fade />

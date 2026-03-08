@@ -5,7 +5,7 @@ import type {
   IAnimationController, IVariableProvider, ICameraActionTarget,
   IRendererLifecycle, IRenderContributor, IContainedRenderable, IAttachmentHost,
   ISceneLifecycle, IInputDefaultProvider,
-  ICameraFocusTarget, ILightingOverride,
+  ICameraFocusTarget, ILightingOverride, IExtraRenderPass,
 } from './types';
 import type { WebGLRenderer } from 'three';
 import type { ReactElement } from 'react';
@@ -297,6 +297,14 @@ export class WidgetRegistry {
   }
 
   /**
+   * Returns all registered widgets that implement IExtraRenderPass,
+   * in registration order (which equals DSL declaration order).
+   */
+  getExtraRenderPassWidgets(): IExtraRenderPass[] {
+    return this.getAll().filter(isExtraRenderPass);
+  }
+
+  /**
    * Broadcasts onRendererCreated to all IRendererLifecycle widgets.
    * Call from useSceneEngine.ts when the WebGLRenderer is constructed.
    */
@@ -372,3 +380,7 @@ export const isCameraFocusTarget = (w: IWidget): w is ICameraFocusTarget =>
 /** Type guard: returns true if widget implements ILightingOverride. */
 export const isLightingOverride = (w: IWidget): w is ILightingOverride =>
   typeof (w as ILightingOverride).getLightingOverride === 'function';
+
+/** Type guard: returns true if widget implements IExtraRenderPass. */
+export const isExtraRenderPass = (w: IWidget): w is IExtraRenderPass =>
+  typeof (w as IExtraRenderPass).renderPass === 'function';

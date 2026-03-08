@@ -4,7 +4,11 @@ import {
   routePipe,
   rerouteLivePipes,
   rotateXYZ,
+  nodeNvsToCanvasLocal,
 } from '../pipeRouter';
+
+// DEFAULT_CANVAS_ASPECT was removed in Track C; use the literal directly.
+const DEFAULT_ASPECT = 16 / 9;
 import type { DiagramPipeState } from '../../types';
 import type { DiagramState } from '../../../types';
 
@@ -193,5 +197,45 @@ describe('rerouteLivePipes', () => {
     };
     const points = rerouteLivePipes([pipe], [diagram('a', 0), diagram('b', 0.5)], 'curved', 'sides');
     expect(points.size).toBe(1);
+  });
+});
+
+describe('canvasAspect differentiation — sideAttachmentPoint and nodeNvsToCanvasLocal', () => {
+  const FULL_VIEWPORT = { x: 0, y: 0, w: 1, h: 1 };
+  const NO_TILT: readonly [number, number, number] = [0, 0, 0];
+
+  it('nodeNvsToCanvasLocal produces different X for 8/9 vs 16/9', () => {
+    const pos: readonly [number, number, number] = [0.5, 0.5, 0];
+    const narrow = nodeNvsToCanvasLocal(pos, FULL_VIEWPORT, NO_TILT, 8 / 9);
+    const wide = nodeNvsToCanvasLocal(pos, FULL_VIEWPORT, NO_TILT, 16 / 9);
+    // Center NVS maps to canvas-local [0,0] regardless of aspect.
+    // Use off-center position to show aspect affects output.
+    const posOffCenter: readonly [number, number, number] = [0.75, 0.5, 0];
+    const narrowOff = nodeNvsToCanvasLocal(posOffCenter, FULL_VIEWPORT, NO_TILT, 8 / 9);
+    const wideOff = nodeNvsToCanvasLocal(posOffCenter, FULL_VIEWPORT, NO_TILT, 16 / 9);
+    expect(narrowOff[0]).not.toBeCloseTo(wideOff[0], 5);
+    // At center, both aspects map to the same canvas origin.
+    expect(narrow[0]).toBeCloseTo(wide[0], 5);
+    expect(narrow[1]).toBeCloseTo(wide[1], 5);
+  });
+
+  it('sideAttachmentPoint produces different halfW for 8/9 vs 16/9', () => {
+    const nodePos: readonly [number, number, number] = [0.5, 0.5, 0];
+    const nodeSize: readonly [number, number] = [0.2, 0.1];
+    const targetFar: readonly [number, number, number] = [10, 0, 0];
+
+    const narrow = sideAttachmentPoint(
+      nodePos, nodeSize, 0.4,
+      FULL_VIEWPORT, NO_TILT, 8 / 9,
+      targetFar,
+    );
+    const wide = sideAttachmentPoint(
+      nodePos, nodeSize, 0.4,
+      FULL_VIEWPORT, NO_TILT, DEFAULT_ASPECT,
+      targetFar,
+    );
+
+    // halfW is scaled by canvasAspect, so attachment X differs.
+    expect(narrow.point[0]).not.toBeCloseTo(wide.point[0], 5);
   });
 });

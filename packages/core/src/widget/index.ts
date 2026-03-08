@@ -5,7 +5,7 @@ export type {
   IContainedRenderable, IAttachmentHost,
   ISceneLifecycle,
   IInputDefaultProvider,
-  ICameraFocusTarget, ILightingOverride,
+  ICameraFocusTarget, ILightingOverride, IExtraRenderPass,
   CompileExtraContext, WidgetInitContext, WidgetRenderContext, AnimationTickContext,
   VariableStoreReader, AssetManifest,
 } from './types';
@@ -17,7 +17,7 @@ export {
   isDslComposite, isAnimationController, isCameraActionTarget, isVariableProvider,
   isSceneLifecycle,
   isInputDefaultProvider,
-  isCameraFocusTarget, isLightingOverride,
+  isCameraFocusTarget, isLightingOverride, isExtraRenderPass,
 } from './WidgetRegistry';
 export type { IHasCustomDslHandler } from './WidgetRegistry';
 export { VariableStore } from './VariableStore';

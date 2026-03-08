@@ -35,7 +35,7 @@ export const sceneCrossUserFlow: JSX.Element = (
     <Camera mode="world" position={[0, 5, 26]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bfmu-cross-canvas" position={[0, 2, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
+    <DiagramCanvas id="bfmu-cross-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="cross-diagram">
         <HierarchicalLayout direction="top-down" />
         <DiagramEnter fade />

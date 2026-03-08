@@ -877,7 +877,22 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       driver,
       getGlobalProgress,
       render: () => {
+        // ── Main pass: full viewport, scene Camera, 3D elements ──────────────
+        renderer.setScissorTest(false);
+        renderer.setViewport(0, 0, renderer.domElement.clientWidth, renderer.domElement.clientHeight);
         renderer.render(scene, camera);
+
+        // ── Extra render passes: scissored sub-viewport passes (in registration order) ──
+        // DiagramCanvasWidget instances implement IExtraRenderPass and issue
+        // their own scissored diagram passes here, after the main scene.
+        const extraPasses = options.widgetRegistry.getExtraRenderPassWidgets();
+        if (extraPasses.length > 0) {
+          const w = renderer.domElement.clientWidth;
+          const h = renderer.domElement.clientHeight;
+          for (const pass of extraPasses) {
+            pass.renderPass(renderer, w, h);
+          }
+        }
       },
       onAfterTick: ({ deltaSeconds }) => {
         frameDriver.handleTick(driver.getCurrentTick());

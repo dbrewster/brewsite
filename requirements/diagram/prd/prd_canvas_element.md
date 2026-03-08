@@ -3,17 +3,8 @@ title: "BrewSite Diagram — Canvas Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-07
+last_updated: 2026-03-08
 change_history:
-  - date: 2026-03-07
-    author: "Toolkit Product"
-    summary: "Core cleanup migration: setSceneLightEnabled() call removed from DiagramCanvasWidget — DiagramCanvasWidget now implements ILightingOverride from @brewsite/core. getLightingOverride() returns { disableAll: true } when the diagram canvas is active, and LightingWidget polls this in apply() each frame. No @brewsite/diagram code calls render-layer functions from @brewsite/core. diagram-canvas.* action types (diagram-canvas.move, diagram-canvas.rotate, diagram-canvas.reset, diagram-canvas.focus) are now owned by @brewsite/diagram as string literals — they have been removed from @brewsite/core's InputActionType named value set. ActionInputController no longer dispatches diagram-canvas.* events; @brewsite/diagram's diagramPlugin registers its own ActionInputController handler for these types."
-  - date: 2026-03-08
-    author: "Toolkit Product"
-    summary: "Coordinate system audit: documented dev-mode nvsBounds guard in Guardrail Metrics. compileCanvas() now emits console.error in NODE_ENV !== 'production' when nvsBounds values fall outside [0,1]."
-  - date: 2026-03-04
-    author: "Toolkit Product"
-    summary: "NVS system: DiagramCanvasWidget implements INVSBounded. DiagramCanvasProps gains optional x?, y?, w?, h? NVS props (default fullscreen). DiagramCanvasState gains optional nvsBounds field. API Design and Technical Considerations sections updated. Non-Goals updated."
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Initial PRD created. Comprehensive documentation of the @brewsite/diagram DiagramCanvas element as implemented."
@@ -23,6 +14,15 @@ change_history:
   - date: 2026-03-03
     author: "Toolkit Product"
     summary: "Added theme-level default input handler support: DiagramCanvasState.defaultInputActions field, DiagramCanvasWidget implements IInputDefaultProvider, defaultDiagramCanvasInputActions convenience export, IGNORED_INPUT_CONFIG warning documented."
+  - date: 2026-03-04
+    author: "Toolkit Product"
+    summary: "NVS system: DiagramCanvasWidget implements INVSBounded. DiagramCanvasProps gains optional x?, y?, w?, h? NVS props (default fullscreen). DiagramCanvasState gains optional nvsBounds field. API Design and Technical Considerations sections updated. Non-Goals updated."
+  - date: 2026-03-07
+    author: "Toolkit Product"
+    summary: "Core cleanup migration: setSceneLightEnabled() call removed from DiagramCanvasWidget — DiagramCanvasWidget now implements ILightingOverride from @brewsite/core. diagram-canvas.* action types are now owned by @brewsite/diagram as string literals."
+  - date: 2026-03-08
+    author: "Toolkit Product"
+    summary: "NVS model promotion: DiagramCanvas fully migrated to scissored sub-viewport rendering. position/rotation props removed. tilt/padding props added. DiagramCanvasWidget now implements IExtraRenderPass instead of IAnimationController and ILightingOverride. DEFAULT_CANVAS_ASPECT removed. canvasAspect computed from live NVS bounds. All API Design, Technical Considerations, Consumer Stories, Goals, FR, and Breaking Change Assessment sections updated to reflect the shipping NVS model."
 ---
 
 # BrewSite Diagram — Canvas Element
@@ -40,15 +40,16 @@ A `Diagram` element in isolation renders in world space at a single position. Wh
 ## Goals & Success Metrics
 
 **Primary metrics:**
-- Consumers can position two or more diagrams relative to each other with a single `position`/`rotation`/`scale` set at the canvas level, and the entire composition moves correctly across scenes.
+- Consumers position two or more diagrams relative to each other using child `<Diagram>` `position`/`rotation`/`scale`, and the entire composition within a `<DiagramCanvas>` renders correctly as a scissored sub-viewport.
 - A `DiagramPipe` connecting `"frontend.browser"` to `"backend.api"` resolves at compile time to a routed `controlPoints` array with zero runtime cost.
-- Camera auto-framing in the absence of a Camera widget frames all child diagrams without consumer configuration.
+- Multiple `DiagramCanvas` elements in the same scene each render in their declared NVS sub-region without interfering with each other or the main scene camera.
+- Camera auto-framing (via the auto-fit private camera) frames all child diagrams without consumer configuration.
 
 **Guardrail metrics:**
 - No Three.js import in `canvas/types.ts`, `canvas/dsl.tsx`, or `canvas/compile.ts`.
 - Unresolvable `DiagramPipe` dot notation references emit `console.warn` and produce a pipe with empty `controlPoints` — the compiler does not throw, and playback continues.
 - `DiagramCanvasWidget.dispose()` removes all child diagram Three.js objects and DOM event listeners without memory leaks.
-- `compileCanvas()` emits `console.error` in `NODE_ENV !== 'production'` when any `nvsBounds` component violates the [0,1] contract (`x < 0`, `y < 0`, `w ≤ 0`, `h ≤ 0`, `x + w > 1`, or `y + h > 1`). The error message includes the canvas id and the offending values. This guard does not throw — compilation continues and the out-of-range bounds are passed through.
+- `compileCanvas()` emits `console.error` in `NODE_ENV !== 'production'` when any `nvsBounds` component violates the `[0, 1]` contract (`x < 0`, `y < 0`, `w ≤ 0`, `h ≤ 0`, `x + w > 1`, or `y + h > 1`). The error message includes the canvas id and the offending values. This guard does not throw — compilation continues and the out-of-range bounds are passed through.
 
 ## Non-Goals
 
@@ -59,23 +60,25 @@ A `Diagram` element in isolation renders in world space at a single position. Wh
 
 ## Consumer Stories
 
-- As a toolkit consumer, I want to group multiple diagrams under a single canvas transform so that one `position`/`rotation`/`scale` value moves the entire visualization as a unit across scene transitions.
+- As a toolkit consumer, I want to declare a `DiagramCanvas` using `x / y / w / h` NVS coordinates so that I can place it precisely alongside `TextBox` and `Hud` overlays using the same mental model.
+- As a toolkit consumer, I want multiple `DiagramCanvas` elements in the same scene to each render in their own sub-region so that split-screen diagram comparisons work without conflict.
 - As a toolkit consumer, I want to declare a cross-diagram pipe connector using dot notation (`"diagramId.nodeId"`) so that nodes in different sibling diagrams appear visually connected.
 - As a toolkit consumer, I want the canvas-level theme to propagate as a default to all child diagrams so that I can define a consistent visual style once without repeating it per diagram.
 - As a toolkit consumer, I want camera auto-framing to work without configuring a Camera widget so that simple canvas scenes display correctly with zero camera setup.
+- As a toolkit consumer, I want the `tilt` prop to control the 3D pitch angle of the diagram geometry so that I can author the classic "tilted board" visual without manual rotation math.
 - As a toolkit consumer, I want `DiagramPipe` routing to attach to node side faces rather than the front face so that pipe connectors do not obscure node icons and labels.
 
 ## Functional Requirements
 
 1. `DiagramCanvasWidget` instances are auto-registered at compile time by `diagramPlugin()` when the `DiagramCanvas` handler encounters a new canvas id. No manual widget pre-registration in `widgetSetup.ts` is required for canvas elements.
 2. The canvas `theme` prop shall propagate as `fallbackTheme` to all child `<Diagram>` elements that do not specify their own `theme`.
-3. Canvas `position`, `rotation`, and `scale` shall transform all child diagram groups and pipe renderers as a single `THREE.Group` in world space.
+3. `DiagramCanvas` placement is declared via `x`, `y`, `w`, `h` NVS props (top-left origin, `[0, 1]`). Each canvas renders in its own scissored sub-viewport with an isolated depth buffer. Child `<Diagram>` elements retain their own `position` / `rotation` / `scale` in diagram-local space.
 4. `DiagramPipe` dot notation (`"diagramId.nodeId"`) shall be validated at compile time. An invalid reference (missing diagram id, missing node id, or malformed dot notation) shall emit `console.warn` and produce a `DiagramPipeState` with `controlPoints: []` (rendered as invisible). The compiler must not throw.
 5. Pipe routing with `pipeLanding: 'sides'` shall attach to the left or right face of each node based on which side faces the target diagram's canvas-local X position, routing around the front (+Z) face where icons and labels render.
 6. Pipe routing with `pipeLanding: 'nearest-face'` shall use the same face-selection logic as intra-diagram edges, operating in canvas-local space.
 7. The `pipeRouting: 'curved'` algorithm shall produce a CatmullRom arc using `controlPoints` pre-baked at compile time.
 8. The `pipeRouting: 'straight'` algorithm shall produce a direct line between side-face attachment points.
-9. When no Camera widget is active (determined by `camera.enabled !== true` in the current tick state), `DiagramCanvasWidget.onTick()` shall compute camera position and look-at by framing the union of all child diagram bounds transformed to canvas space.
+9. `DiagramCanvasWidget` uses a private `THREE.PerspectiveCamera(FOV=45)` and private `THREE.Scene`. The auto-fit camera framing runs in `apply()` every frame, computing camera distance from the geometry bounding box and the `padding` prop. The `Camera` widget has no effect on the diagram sub-viewport.
 10. `DiagramCanvasWidget.dispose()` shall remove all child diagram Three.js objects from the scene, deregister all event listeners on the WebGL canvas element, and call `clearDiagramFocusRegion` for the widget's canvas id.
 11. The canvas renderer shall handle child diagram removal between ticks by disposing `DiagramRenderer` instances for diagrams no longer present in the new state.
 
@@ -87,21 +90,37 @@ A `Diagram` element in isolation renders in world space at a single position. Wh
 // packages/diagram/src/elements/diagram/canvas/dsl.tsx
 
 export interface DiagramCanvasProps {
-  /**
-   * Unique canvas ID. The DiagramCanvasWidget must be registered with this
-   * exact id in widgetSetup.ts before ScenePlayer mounts.
-   */
+  /** Unique canvas id. */
   id: string;
-  /** World-space position [x, y, z]. Default: [0, 0, 0] */
-  position?: [number, number, number];
-  /** World-space Euler XYZ rotation in radians. Default: [0, 0, 0] */
-  rotation?: [number, number, number];
+
+  // ── NVS placement (top-left origin, [0, 1]) ──────────────────────────────
+  /** NVS x-coordinate of the canvas left edge. Default: 0 */
+  x?: number;
+  /** NVS y-coordinate of the canvas top edge. Default: 0 */
+  y?: number;
+  /** NVS width of the canvas. Default: 1 */
+  w?: number;
+  /** NVS height of the canvas. Default: 1 */
+  h?: number;
+
+  // ── Geometry ──────────────────────────────────────────────────────────────
   /**
-   * Uniform scale for the entire canvas group.
-   * Child diagram positions, scales, and pipe thicknesses all scale with this.
-   * Default: 1
+   * Pitch tilt of the diagram geometry group in radians.
+   * Negative = top edge tilts away from viewer. Default: 0.
+   */
+  tilt?: number;
+  /**
+   * World-space uniform geometry scale. Default: 1.
+   * The auto-fit private camera responds naturally to changes in scale.
    */
   scale?: number;
+  /**
+   * Fractional framing inset for the auto-fit private camera.
+   * 0 = tight crop. 0.1 = 10% margin. Default: 0.1.
+   */
+  padding?: number;
+
+  // ── Other ─────────────────────────────────────────────────────────────────
   /**
    * Canvas-level theme. Acts as the default theme for all child <Diagram>
    * elements. Each child can override with its own theme prop.
@@ -115,24 +134,8 @@ export interface DiagramCanvasProps {
    * relative diagram X position — routes around front-face icons/labels).
    */
   pipeLanding?: PipeLandingAlgorithm;
-  /**
-   * Optional world-space center used when a canvas focus action targets the
-   * full canvas (e.g. Cmd+click on empty canvas area).
-   */
+  /** Optional focus center in canvas-local space (XY). */
   focusCenter?: [number, number] | [number, number, number];
-
-  /**
-   * NVS sub-region occupied by this canvas in the EngineARContainer.
-   * All values are ratios in [0, 1] relative to the AR-locked container.
-   * When absent, the canvas is fullscreen: x=0, y=0, w=1, h=1.
-   *
-   * DiagramCanvasWidget implements INVSBounded. The raycaster uses these
-   * bounds to restrict hit-testing to the canvas's declared viewport region.
-   */
-  x?: number;
-  y?: number;
-  w?: number;
-  h?: number;
 
   children?: React.ReactNode;
 }
@@ -224,21 +227,37 @@ export interface DiagramPipeState {
 
 export interface DiagramCanvasState {
   readonly id: string;
-  /** Canvas world-space position. Default: [0, 0, 0] */
-  readonly position: readonly [number, number, number];
-  /** Canvas world-space Euler XYZ rotation in radians. Default: [0, 0, 0] */
-  readonly rotation: readonly [number, number, number];
-  /** Canvas uniform scale. Default: 1 */
-  readonly scale: number;
+
   /**
-   * Optional focus center (XY or XYZ) in world space.
-   * Z component is accepted but only XY is used for canvas-wide focus framing.
+   * NVS bounds — authoritative for scissor rect and aspect ratio.
+   * Fullscreen default: { x: 0, y: 0, w: 1, h: 1 }.
+   * Always present; filled with defaults by compileCanvas().
    */
+  readonly nvsBounds: NVSRect;
+
+  /**
+   * Pitch tilt in radians applied to the diagram geometry group.
+   * Negative = top edge tilts away from viewer. Default: 0.
+   */
+  readonly tilt: number;
+
+  /** World-space uniform geometry scale. Default: 1. */
+  readonly scale: number;
+
+  /**
+   * Fractional framing inset for the auto-fit private camera. Default: 0.1.
+   */
+  readonly padding: number;
+
+  /** Optional focus center in canvas-local space (XY or XYZ). */
   readonly focusCenter?: readonly [number, number] | readonly [number, number, number];
+
   /** All child diagram states, in declaration order. */
   readonly diagrams: ReadonlyArray<DiagramState>;
+
   /** All cross-diagram pipe states. */
   readonly pipes: ReadonlyArray<DiagramPipeState>;
+
   /**
    * Default input actions derived from theme.input at compile time.
    * canvasId has been injected by the compiler from the <DiagramCanvas id="...">.
@@ -246,25 +265,23 @@ export interface DiagramCanvasState {
    * Consumed by DiagramCanvasWidget.getDefaultInputActions() at runtime.
    */
   readonly defaultInputActions?: ReadonlyArray<InputActionSpec>;
-
-  /**
-   * NVS bounds for this canvas. Derived from the x, y, w, h DSL props at compile time.
-   * Defaults to { x: 0, y: 0, w: 1, h: 1 } (fullscreen) when no NVS props are declared.
-   * Read by DiagramCanvasWidget.nvsBounds to implement INVSBounded.
-   */
-  readonly nvsBounds: NVSRect;
 }
 
 /** Raw DSL props for <DiagramCanvas> before compile.ts applies defaults. */
 export interface DiagramCanvasDSL {
   readonly id: string;
-  readonly position?: readonly [number, number, number];
-  readonly rotation?: readonly [number, number, number];
+  readonly x?: number;
+  readonly y?: number;
+  readonly w?: number;
+  readonly h?: number;
+  readonly tilt?: number;
   readonly scale?: number;
+  readonly padding?: number;
   readonly theme?: DiagramTheme;
   readonly pipeRouting?: PipeRoutingAlgorithm;
   readonly pipeLanding?: PipeLandingAlgorithm;
   readonly focusCenter?: readonly [number, number] | readonly [number, number, number];
+  readonly defaultInputActions?: ReadonlyArray<InputActionSpec>;
 }
 
 /** Raw DSL props for <DiagramPipe> before compile.ts applies defaults. */
@@ -348,7 +365,7 @@ export class DiagramCanvasWidget
   implements
     ISceneElement<DiagramCanvasState>,
     IRenderable<DiagramCanvasState>,
-    IAnimationController,
+    IExtraRenderPass,
     IInputDefaultProvider,
     INVSBounded
 {
@@ -356,7 +373,6 @@ export class DiagramCanvasWidget
   readonly defaultState: DiagramCanvasState;
   readonly transitionSpec: FunctionalTransitionSpec<DiagramCanvasState>;
   readonly DslComponent: typeof DiagramCanvas;
-  readonly tickPriority: number; // 1
 
   /**
    * Optional callback for node-click events within any child diagram.
@@ -368,10 +384,6 @@ export class DiagramCanvasWidget
    * Implements INVSBounded. Returns the NVS bounds from the most recently
    * applied DiagramCanvasState. Before any state has been applied, returns
    * { x: 0, y: 0, w: 1, h: 1 } (fullscreen default).
-   *
-   * The raycaster uses these bounds to restrict hit-testing to the sub-region
-   * of the viewport this canvas occupies. The EngineARContainer uses these
-   * bounds to auto-frame the camera to the declared region.
    */
   readonly nvsBounds: NVSRect;
 
@@ -380,19 +392,21 @@ export class DiagramCanvasWidget
   initialize(context: WidgetInitContext): void;
 
   /**
-   * Camera auto-framing: computes world-space bounds over all child diagrams
-   * and positions the camera to show everything. Yields to a Camera widget
-   * if one is active (camera.enabled === true in current tick state).
-   */
-  onTick(context: AnimationTickContext): void;
-
-  /**
-   * Applies canvas state to Three.js scene via DiagramCanvasRenderer.
-   * Merges inputTranslation and inputRotation offsets from ActionInputController
-   * before passing state to the renderer. Also updates currentInputActions from
-   * state.defaultInputActions so getDefaultInputActions() reflects the current scene.
+   * Applies canvas state to the private Three.js scene via DiagramCanvasRenderer.
+   * Computes canvasAspect from renderer size and nvsBounds.
+   * Runs auto-fit camera framing. Merges input offsets before passing state to renderer.
+   * Updates currentInputActions from state.defaultInputActions.
    */
   apply(state: DiagramCanvasState, context: WidgetRenderContext): void;
+
+  /**
+   * Issues a scissored render pass for this canvas.
+   * Called by useSceneEngine AFTER the main scene render pass, via IExtraRenderPass.
+   * Clears depth only — composites diagram over main scene color.
+   * Returns immediately when the scissored region is zero pixels wide or tall.
+   * Implements IExtraRenderPass from @brewsite/core.
+   */
+  renderPass(renderer: THREE.WebGLRenderer, viewportWidth: number, viewportHeight: number): void;
 
   /**
    * Returns the current scene's default input actions.
@@ -413,20 +427,27 @@ export class DiagramCanvasWidget
 
   dispose(): void;
 
-  /** Apply orbit/pan input offset (from ActionInputController). */
+  /** Apply pan input offset (from ActionInputController). */
   applyInputMove(dx: number, dy: number, dz?: number): void;
-  applyInputRotate(rx: number, ry: number, rz?: number): void;
+  /** Apply pitch input offset. Only the X axis (pitch) is supported; Y and Z are ignored. */
+  applyInputRotate(rx: number, ry?: number, rz?: number): void;
   resetInputTransform(): void;
 
   /**
    * Focus the camera on a specific group (by raycasting) or the full canvas.
    * Called by ActionInputController on focus action.
+   * Note: focus snaps immediately (no smooth animation — v2 DEBT).
    */
   applyInputFocus(
     clientX: number,
     clientY: number,
     focusCenter?: [number, number] | [number, number, number] | readonly [number, number] | readonly [number, number, number],
   ): void;
+
+  handleMove(event: PointerEvent | WheelEvent, speed?: number): void;
+  handleRotate(event: PointerEvent | WheelEvent, speed?: number): void;
+  handleReset(): void;
+  handleFocus(event: PointerEvent | MouseEvent, focusCenter?: [number, number] | [number, number, number]): void;
 }
 ```
 
@@ -461,7 +482,8 @@ Manual construction of `DiagramCanvasWidget` and `compileCanvas` is still suppor
 
 <DiagramCanvas
   id="system-canvas"
-  rotation={[-Math.PI / 10, -Math.PI / 8, 0]}
+  x={0} y={0} w={1} h={1}
+  tilt={-Math.PI / 10}
   scale={1.1}
   theme={darkGlassTheme}
   pipeRouting="curved"
@@ -515,14 +537,13 @@ On each `update()` call, the canvas group's `position`, `rotation`, and `scale` 
 
 ### Camera Auto-Framing
 
-When no `Camera` widget is active, `DiagramCanvasWidget.onTick()` computes camera position:
+`DiagramCanvasWidget.apply()` calls `updateAutoFitCamera(state, canvasAspect)` every frame. This positions the private camera to show all current diagram geometry:
 
-1. Transforms all four corners of each child diagram's `bounds` rectangle from diagram-local to canvas-local space (applying diagram `scale`/`rotation`/`position`), then to canvas-rotated world space.
-2. Computes the world-space bounding box (`minX`/`maxX`/`minY`/`maxY`) of all corners.
-3. Sets the camera position to a point along the camera's existing direction, stepped back far enough that the full bounding box fits within the FOV with a 1.2× safety margin.
-4. The camera look-at target is the center of the bounding box.
+1. Calls `this.renderer.getBoundingBox()` — returns a `THREE.Box3` over all diagram geometry in the private scene. Returns `null` before geometry is loaded; the camera defaults to `position(0, 0, 5)` looking at the origin.
+2. Computes `maxDim = Math.max(size.x / canvasAspect, size.y)` and `dist = (maxDim / 2 / Math.tan(fovRad / 2)) * (1 + state.padding)`.
+3. Sets `cam.position.set(center.x, center.y, center.z + dist)` and `cam.lookAt(center)`.
 
-This runs every tick when the Camera widget is inactive, giving a stable framing that updates as diagrams animate.
+The `Camera` widget has no effect on the private diagram camera. Auto-fit runs unconditionally every frame, giving a stable framing that updates as diagram geometry animates.
 
 ### Ghost-Node mergeSnapshot
 
@@ -536,11 +557,9 @@ This runs every tick when the Camera widget is inactive, giving a stable framing
 - **MouseMove:** Raycasts against both node meshes (`InteractionRegistry`) and group meshes (`GroupInteractionRegistry`). Computes a `HoverTarget` (diagramId, groupPath, nodeId). Transitions the hover state by dispatching `onMouseEnter`/`onMouseLeave` on the delta between previous and current `HoverTarget`.
 - **MouseLeave:** Clears the current hover target, firing leave events as needed.
 
-### Lighting Override Contract
+### Rendering Isolation
 
-`DiagramCanvasWidget` implements `ILightingOverride` (from `@brewsite/core`). When the canvas is active, `getLightingOverride()` returns `{ disableAll: true }`, suppressing all core scene lights for that frame. `LightingWidget.apply()` polls all `ILightingOverride` implementors from the registry on every frame.
-
-This replaces the previous `setSceneLightEnabled(scene, lightId, enabled)` call, which was a direct Three.js render-layer function that leaked across the `@brewsite/core` / `@brewsite/diagram` package boundary.
+`DiagramCanvasWidget` maintains a private `THREE.Scene` and a private `THREE.PerspectiveCamera(FOV=45)`. All diagram geometry is added to the private scene only — it never touches the main `THREE.Scene`. As a result, `ILightingOverride` is not implemented; core scene lights are unaffected by the presence of a `DiagramCanvas`. Diagram geometry receives no core scene lighting — it is lit by its own materials and environment map managed by `DiagramCanvasRenderer`.
 
 ### Input Action Ownership
 
@@ -566,21 +585,42 @@ The `diagramPlugin()` factory registers `ActionInputController` handlers for the
 
 ## Breaking Change Assessment
 
-**Semver impact: minor** (new optional NVS props on `DiagramCanvasProps` and `DiagramCanvasState`).
+**Semver impact: major** (`@brewsite/diagram`). **Minor** (`@brewsite/core` — new `IExtraRenderPass` interface, additive).
 
-The `x`, `y`, `w`, `h` props on `DiagramCanvas` are fully optional with fullscreen defaults. Existing scenes that do not declare NVS props compile and render identically to before. The addition of `nvsBounds` to `DiagramCanvasState` is a new field with a defined default (`{ x: 0, y: 0, w: 1, h: 1 }`) — consumers who snapshot or serialize `DiagramCanvasState` directly will now receive an additional field, which may require test updates.
+| Change | Before | After |
+|---|---|---|
+| `DiagramCanvasProps.position` | `position?: [number, number, number]` | **Removed** |
+| `DiagramCanvasProps.rotation` | `rotation?: [number, number, number]` | **Removed** |
+| `DiagramCanvasState.position` | `readonly position: readonly [number, number, number]` | **Removed** |
+| `DiagramCanvasState.rotation` | `readonly rotation: readonly [number, number, number]` | **Removed** |
+| `DiagramCanvasState.tilt` | Not present | **New required field** (default `0`) |
+| `DiagramCanvasState.padding` | Not present | **New required field** (default `0.1`) |
+| `DiagramCanvasWidget` interfaces | `ISceneElement, IRenderable, IAnimationController, ILightingOverride, IInputDefaultProvider, INVSBounded` | `ISceneElement, IRenderable, IExtraRenderPass, IInputDefaultProvider, INVSBounded` |
+| `DiagramCanvasWidget.onTick()` | Present (`IAnimationController`) | **Removed** |
+| `DEFAULT_CANVAS_ASPECT` export | `export const DEFAULT_CANVAS_ASPECT = 16/9` | **Removed** |
 
-The `INVSBounded` interface addition to `DiagramCanvasWidget` is purely additive.
+### DSL Migration
+
+Replace `position` and `rotation` with NVS props and `tilt`:
+
+```tsx
+// Before
+<DiagramCanvas id="c" position={[0, 2, -3]} rotation={[-0.3, 0, 0]} scale={1.1} />
+
+// After
+<DiagramCanvas id="c" tilt={-0.3} scale={1.1} />
+// x/y/w/h omitted = fullscreen default
+```
 
 Consumers adding `DiagramCanvasWidget` to an existing project must:
 
 1. Import `DiagramCanvasWidget` and `compileCanvas` from `@brewsite/diagram`.
-2. Register one `DiagramCanvasWidget` instance per `DiagramCanvas` id before `ScenePlayer` mounts.
-3. Replace standalone `<Diagram>` DSL usages with `<DiagramCanvas>` + nested `<Diagram>` children wherever cross-diagram pipes or unified transforms are needed. Standalone `<Diagram>` elements outside a canvas remain fully supported.
+2. Register one `DiagramCanvasWidget` instance per `DiagramCanvas` id before `ScenePlayer` mounts (or use `diagramPlugin()` for auto-registration).
+3. Replace standalone `<Diagram>` DSL usages with `<DiagramCanvas>` + nested `<Diagram>` children wherever cross-diagram pipes are needed. Standalone `<Diagram>` elements outside a canvas remain fully supported.
 
 ## Dependencies
 
-- `@brewsite/core`: `FunctionalTransitionSpec`, `ISceneElement`, `IRenderable`, `IAnimationController`, `ILightingOverride`, `INVSBounded`, `NVSRect`, `blendNumber`, `blendVec3`, `blendOpacity`, `WidgetRegistry`, `WidgetInitContext`, `WidgetRenderContext`, `AnimationTickContext`. (`setSceneLightEnabled` is no longer used; `ILightingOverride` replaces the lighting suppression contract.)
+- `@brewsite/core`: `FunctionalTransitionSpec`, `ISceneElement`, `IRenderable`, `IExtraRenderPass`, `IInputDefaultProvider`, `INVSBounded`, `NVSRect`, `blendNumber`, `blendVec3`, `blendOpacity`, `WidgetRegistry`, `WidgetInitContext`, `WidgetRenderContext`, `InputActionSpec`.
 - `packages/diagram/src/elements/diagram/compile.ts`: `compileDiagram`, `applyDiagramEnter`, `applyDiagramExit`.
 - `packages/diagram/src/elements/diagram/compiler/transitionHelpers.ts`: `blendDiagramNodes`, `buildLiveNodeMaps`, `rerouteLiveEdges`, `blendDiagramEdges`.
 - `packages/diagram/src/elements/diagram/canvas/compiler/pipeRouter.ts`: `sideAttachmentPoint`, `routePipe`, `rerouteLivePipes`, `rotateXYZ`.

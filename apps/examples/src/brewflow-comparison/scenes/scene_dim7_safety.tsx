@@ -36,7 +36,7 @@ export const sceneDim7Safety: JSX.Element = (
       </Action>
     </InputController>
 
-    <DiagramCanvas id="bfc-safety-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
+    <DiagramCanvas id="bfc-safety-canvas" x={0} y={0} w={1} h={0.56} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="safety-diagram">
         <ManualLayout />
 

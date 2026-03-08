@@ -2,7 +2,7 @@
 title: DSL Stub Co-location Implementation Plan
 doc_type: plan
 owner: architect
-status: draft
+status: complete
 updated: 2026-03-08
 ---
 

@@ -45,8 +45,7 @@ export const sceneSomniocortex: JSX.Element = (
             </Action>
         </InputController>
 
-        <DiagramCanvas id="bfm-somno-canvas" rotation={[config.diagramRotationX, 0, 0]} scale={.7}
-                       position={[0, config.diagramTop +2, 0]}
+        <DiagramCanvas id="bfm-somno-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={.7}
                        theme={brewflowTheme}>
             <Diagram id="somno-diagram">
                 <FlowLayout direction="top-down" gap={2}/>

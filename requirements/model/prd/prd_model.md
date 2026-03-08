@@ -10,6 +10,9 @@ change_history:
     summary: "Initial PRD created. Documents @brewsite/model as a published extension package: ModelWidget, LabelPositioner, label compiler, modelPlugin() factory, asset manifest contract, ViewportScaleContext integration (replaces EngineARContainerContext), and the post-cleanup API surface where all types are available from the @brewsite/core main barrel (no deep sub-path imports required)."
   - date: 2026-03-08
     author: "Toolkit Product"
+    summary: "DSL stub co-location: dsl.tsx files are now pure type modules. DSL stub functions (Model, ModelRouter, BodyParts, BodyPart, Pose, ModelPart, ContainedModel, Subpart, Playback, Motion, Animation, Label, Labels) moved to ModelWidget.ts. Updated ModelWidget implementation pattern description accordingly."
+  - date: 2026-03-08
+    author: "Toolkit Product"
     summary: "Model/diagram overhaul audit: LabelStyle.fontSize documented as intentional number|string union — number values render as px via React CSSProperties; string values pass through as-is (e.g., '1.2rem', '150%'). All model sizing fields verified correct; no changes to model coordinate system or API."
 ---
 
@@ -160,7 +163,7 @@ No deep sub-path imports (`@brewsite/core/runtime/types`, `@brewsite/core/compil
 types.ts → dsl.tsx → compile.ts → render.ts → ModelWidget.ts → index.ts
 ```
 
-Three.js is confined to `render.ts` and `ModelWidget.ts` (which calls render layer methods). The compiler layer (`compile.ts`) is pure TypeScript with no Three.js imports.
+`dsl.tsx` contains only prop type interfaces. DSL stub functions (`Model`, `ModelRouter`, `BodyParts`, `BodyPart`, `Pose`, `ModelPart`, `ContainedModel`, `Subpart`, `Playback`, `Motion`, `Animation`, `Label`, `Labels`) are defined in `ModelWidget.ts`. Three.js is confined to `render.ts` and `ModelWidget.ts` (which calls render layer methods). The compiler layer (`compile.ts`) is pure TypeScript with no Three.js imports.
 
 ### LabelStyle.fontSize Type
 

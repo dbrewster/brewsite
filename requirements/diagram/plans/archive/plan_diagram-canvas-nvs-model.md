@@ -2,7 +2,7 @@
 title: "DiagramCanvas NVS Model — Implementation Plan"
 doc_type: plan
 owner: Architect
-status: ready
+status: complete
 updated: 2026-03-08
 ---
 
@@ -1269,14 +1269,13 @@ In the new model:
 
 ## Part 11: Test Strategy
 
-All tests follow the interface-based stateful test pattern: real inputs, assert real outputs. No mocking of internals.
+All tests follow the interface-based stateful test pattern: real inputs, assert real outputs. Mocks of Three.js renderer methods (`setScissor`, `setViewport`, `render`) are explicitly justified below — they test that the correct renderer API is called with the correct arguments, not that the renderer itself works correctly. This is the appropriate boundary.
 
 ### Test 1: `canvas/__tests__/compile.test.ts` — Update existing tests
 
 Update `makeDiagram` and `compileCanvas()` call sites to use new DSL props:
 
 ```typescript
-// Replace position/rotation with tilt/nvsBounds:
 const state = compileCanvas(
   { id: 'test', tilt: -0.3, scale: 1, padding: 0.1, x: 0, y: 0, w: 1, h: 0.55 },
   diagrams,
@@ -1285,144 +1284,375 @@ const state = compileCanvas(
 expect(state.tilt).toBe(-0.3);
 expect(state.padding).toBe(0.1);
 expect(state.nvsBounds).toEqual({ x: 0, y: 0, w: 1, h: 0.55 });
-// Verify position/rotation are gone:
 expect('position' in state).toBe(false);
 expect('rotation' in state).toBe(false);
 ```
 
 **New test cases to add**:
-1. `compileCanvas` defaults: omitting `tilt`, `padding`, `x/y/w/h` → verify `tilt=0`, `padding=0.1`, `nvsBounds={x:0,y:0,w:1,h:1}`.
-2. `canvasAspect` passed to `compilePipe`: verify control points differ when `canvasAspect=8/9` vs `16/9` for the same node positions (sub-canvas placement correctness).
-3. NVS out-of-bounds warning: `x=-0.1` emits `console.error` in non-production.
-4. `compilePipe` with explicit `canvasAspect`: control points are deterministically computed (snapshot test using specific input/output values).
+1. Defaults: omitting all optional props → `tilt=0`, `padding=0.1`, `nvsBounds={x:0,y:0,w:1,h:1}`.
+2. `canvasAspect` correctness: control points for the same node positions differ when `canvasAspect=8/9` vs `16/9` (sub-canvas placement fix regression test).
+3. NVS out-of-bounds: `x=-0.1` emits `console.error` in non-production.
+4. Explicit `canvasAspect`: control points are deterministically computed for a known input.
 
 ### Test 2: `canvas/__tests__/functionalTransitionSpec.test.ts` — Update
 
-Build test states using new fields (`tilt`, `padding`, `nvsBounds`). Remove tests that reference `position`/`rotation` interpolation. Add tests for:
-1. `tilt` interpolates at `t=0.5`: `tilt = (from.tilt + to.tilt) / 2`.
-2. `nvsBounds` interpolates at `t=0.5`: each field lerps.
+Build test states using new fields. Remove all `position`/`rotation` interpolation tests. Add:
+1. `tilt` interpolates at `t=0.5`: result equals `(from.tilt + to.tilt) / 2`.
+2. `nvsBounds` interpolates at `t=0.5`: each `x/y/w/h` field lerps.
 3. `padding` interpolates at `t=0.5`.
-4. `exitFn`/`enterFn` preserve `tilt`, `padding`, `nvsBounds` from the from/to state spread.
+4. `exitFn`/`enterFn` preserve `tilt`, `padding`, `nvsBounds` from the from/to state.
 
 ### Test 3: `compiler/__tests__/pipeRouter.test.ts` — Update
 
-Add `canvasAspect` parameter to all `sideAttachmentPoint` and `nodeNvsToCanvasLocal` test calls. Verify that different `canvasAspect` values produce different control point positions (regression test for the DEFAULT_CANVAS_ASPECT correctness fix).
+Replace all uses of the removed `DEFAULT_CANVAS_ASPECT` constant with the explicit literal `16 / 9`. Add a test verifying that `sideAttachmentPoint` and `nodeNvsToCanvasLocal` produce different results for `canvasAspect = 8/9` vs `16/9` with identical inputs.
 
-### Test 4: `canvas/__tests__/widget.renderPass.test.ts` — New test file (pure behavior test)
+### Test 4: `canvas/__tests__/widget.renderPass.test.ts` — New (pure behavior + renderer call verification)
 
-Test `computeNdcForNvs` (already exported pure function) for sub-region placements:
+**4a. Pure scissor math** — `nvsToScissorRect`:
+
+Extract scissor rect calculation from `renderPass()` as an exported pure helper in `widget.ts` (see Part 7.8 for function spec). Test it directly:
+
 ```typescript
-it('maps pointer in NVS sub-region to correct NDC', () => {
-  // Canvas at x=0.5, y=0, w=0.5, h=1 (right half)
-  const ndc = computeNdcForNvs(
-    800, 300,  // pointer at center of right half of 1600×600 viewport
-    1600, 600,
-    { x: 0.5, y: 0, w: 0.5, h: 1 },
-  );
-  expect(ndc.x).toBeCloseTo(0, 3);  // center of right half → NDC 0
+import { nvsToScissorRect } from '../widget';
+
+it('NVS top-half maps to correct WebGL bottom-half pixel rect', () => {
+  // NVS y=0, h=0.5 is the top half. WebGL bottom = (1 - 0 - 0.5) * 600 = 300.
+  const rect = nvsToScissorRect({ x: 0, y: 0, w: 1, h: 0.5 }, 1600, 600);
+  expect(rect).toEqual({ left: 0, bottom: 300, width: 1600, height: 300 });
+});
+
+it('NVS right-half maps to correct left/width', () => {
+  const rect = nvsToScissorRect({ x: 0.5, y: 0, w: 0.5, h: 1 }, 1600, 600);
+  expect(rect).toEqual({ left: 800, bottom: 0, width: 800, height: 600 });
+});
+
+it('sub-pixel NVS values are rounded', () => {
+  // x=0.333, w=0.334 on 1000px wide viewport → left=333, width=334
+  const rect = nvsToScissorRect({ x: 0.333, y: 0, w: 0.334, h: 1 }, 1000, 600);
+  expect(rect.left).toBe(333);
+  expect(rect.width).toBe(334);
+});
+```
+
+**4b. `computeNdcForNvs` — NVS sub-region pointer mapping**:
+
+```typescript
+import { computeNdcForNvs } from '../widget';
+
+it('maps pointer at center of NVS sub-region to NDC (0, 0)', () => {
+  // Right half canvas. Center of right half = x=1200, y=300 on 1600×600 viewport.
+  const ndc = computeNdcForNvs(1200, 300, 1600, 600, { x: 0.5, y: 0, w: 0.5, h: 1 });
+  expect(ndc.x).toBeCloseTo(0, 3);
   expect(ndc.y).toBeCloseTo(0, 3);
 });
-```
 
-Test the NVS → pixel scissor rect conversion logic (extracted as pure helper `nvsToScissorRect` if possible, or test via the computed values in `renderPass()`):
-```typescript
-it('NVS top-half converts to correct WebGL bottom-half pixel rect', () => {
-  // NVS y=0, h=0.5 is the top half of the screen.
-  // WebGL bottom = (1 - y - h) * H = (1 - 0 - 0.5) * 600 = 300
-  const { left, bottom, width, height } = nvsToScissorRect(
-    { x: 0, y: 0, w: 1, h: 0.5 },
-    1600, 600,
-  );
-  expect(left).toBe(0);
-  expect(bottom).toBe(300);
-  expect(width).toBe(1600);
-  expect(height).toBe(300);
+it('maps pointer at NVS sub-region top-left to NDC (-1, 1)', () => {
+  const ndc = computeNdcForNvs(800, 0, 1600, 600, { x: 0.5, y: 0, w: 0.5, h: 1 });
+  expect(ndc.x).toBeCloseTo(-1, 3);
+  expect(ndc.y).toBeCloseTo(1, 3);
 });
 ```
 
-To enable this test, extract the scissor rect calculation from `renderPass()` into a pure helper function exported from `widget.ts` (or a co-located `scissorUtils.ts`):
+**4c. Render integration — verify `setScissor` is called with correct pixel rect**:
+
+This test verifies the `renderPass()` contract: that the correct WebGL scissor/viewport calls are made. We use `vi.fn()` mocks on the renderer API — this is justified because we are testing the *call contract* (which arguments are passed to Three.js), not the internal Three.js implementation.
 
 ```typescript
-// Export from widget.ts or a new scissorUtils.ts:
-export function nvsToScissorRect(
-  nvsBounds: NVSRect,
-  viewportWidth: number,
-  viewportHeight: number,
-): { left: number; bottom: number; width: number; height: number } {
-  return {
-    left:   Math.round(nvsBounds.x * viewportWidth),
-    bottom: Math.round((1 - nvsBounds.y - nvsBounds.h) * viewportHeight),
-    width:  Math.round(nvsBounds.w * viewportWidth),
-    height: Math.round(nvsBounds.h * viewportHeight),
-  };
-}
+import { vi, describe, it, expect } from 'vitest';
+
+// Construct a minimal mock renderer that records calls.
+const makeMockRenderer = () => ({
+  setScissorTest: vi.fn(),
+  setScissor: vi.fn(),
+  setViewport: vi.fn(),
+  clearDepth: vi.fn(),
+  render: vi.fn(),
+});
+
+describe('DiagramCanvasWidget.renderPass()', () => {
+  it('calls setScissor with correct pixel rect for right-half NVS region', () => {
+    const widget = new DiagramCanvasWidget('test', makeDefaultCanvasState());
+    // Prime lastState with a known nvsBounds.
+    const state: DiagramCanvasState = {
+      ...makeDefaultCanvasState(),
+      nvsBounds: { x: 0.5, y: 0, w: 0.5, h: 1 },
+    };
+    // Force lastState (replicate what apply() would do without full Three.js setup).
+    (widget as unknown as { lastState: DiagramCanvasState }).lastState = state;
+    // Also set diagramScene and privateCamera to non-null stubs.
+    (widget as unknown as { diagramScene: object }).diagramScene = {};
+    (widget as unknown as { privateCamera: object }).privateCamera = {};
+
+    const renderer = makeMockRenderer();
+    widget.renderPass(renderer as unknown as THREE.WebGLRenderer, 1600, 600);
+
+    // Right half: left=800, bottom=0, width=800, height=600.
+    expect(renderer.setScissor).toHaveBeenCalledWith(800, 0, 800, 600);
+    expect(renderer.setViewport).toHaveBeenCalledWith(800, 0, 800, 600);
+    expect(renderer.setScissorTest).toHaveBeenCalledWith(true);
+    expect(renderer.clearDepth).toHaveBeenCalledOnce();
+    expect(renderer.render).toHaveBeenCalledOnce();
+    // Scissor test must be reset after pass.
+    expect(renderer.setScissorTest).toHaveBeenLastCalledWith(false);
+  });
+
+  it('does not call render when nvsBounds produces zero-area rect', () => {
+    const widget = new DiagramCanvasWidget('test', makeDefaultCanvasState());
+    const state: DiagramCanvasState = {
+      ...makeDefaultCanvasState(),
+      nvsBounds: { x: 0.5, y: 0, w: 0, h: 1 },  // zero width
+    };
+    (widget as unknown as { lastState: DiagramCanvasState }).lastState = state;
+    (widget as unknown as { diagramScene: object }).diagramScene = {};
+    (widget as unknown as { privateCamera: object }).privateCamera = {};
+
+    const renderer = makeMockRenderer();
+    widget.renderPass(renderer as unknown as THREE.WebGLRenderer, 1600, 600);
+
+    expect(renderer.render).not.toHaveBeenCalled();
+  });
+});
 ```
+
+`makeDefaultCanvasState()` is a test helper producing a valid `DiagramCanvasState` with sensible defaults (`tilt=0`, `scale=1`, `padding=0.1`, `nvsBounds={x:0,y:0,w:1,h:1}`, empty diagrams/pipes).
+
+### Test 5: `@brewsite/core` — `IExtraRenderPass` type guard and registry method
+
+Add to `packages/core/src/widget/__tests__/WidgetRegistry.test.ts` (following the existing pattern for `isLightingOverride`):
+
+```typescript
+import { isExtraRenderPass } from '../WidgetRegistry';
+import type { IExtraRenderPass } from '../types';
+
+// ─── S4.3.D — isExtraRenderPass type guard ────────────────────────────────
+
+it('isExtraRenderPass returns false for widget without renderPass method', () => {
+  const plain: IWidget = { widgetId: 'plain' };
+  expect(isExtraRenderPass(plain)).toBe(false);
+});
+
+it('isExtraRenderPass returns true for widget with renderPass method', () => {
+  const passWidget: IWidget & IExtraRenderPass = {
+    widgetId: 'pass',
+    renderPass: vi.fn(),
+  };
+  expect(isExtraRenderPass(passWidget)).toBe(true);
+});
+
+it('getExtraRenderPassWidgets() returns only implementing widgets in registration order', () => {
+  const plain = new TestWidget('plain');  // does not implement IExtraRenderPass
+  const pass1: IWidget & IExtraRenderPass = { widgetId: 'pass1', renderPass: vi.fn() };
+  const pass2: IWidget & IExtraRenderPass = { widgetId: 'pass2', renderPass: vi.fn() };
+
+  registry.register(plain);
+  registry.register(pass1);
+  registry.register(pass2);
+
+  const result = registry.getExtraRenderPassWidgets();
+  expect(result).toHaveLength(2);
+  expect(result[0].widgetId).toBe('pass1');
+  expect(result[1].widgetId).toBe('pass2');
+});
+```
+
+### Test 6: `useSceneEngine` render callback — `IExtraRenderPass` invocation order
+
+This is the render integration test for the core render callback change. It must verify that:
+- `renderer.render(scene, camera)` (main pass) is called before any `renderPass()` calls.
+- `renderPass()` is called once per registered `IExtraRenderPass` widget per frame.
+- Widgets are called in registration order.
+
+This test belongs in `packages/core/src/player/__tests__/` as a new file `extraRenderPass.test.ts`.
+
+Since `useSceneEngine` is a React hook, testing it directly requires `@testing-library/react` or a test harness. Instead, test the **contract** by verifying `RuntimeLoop.render` invokes extra passes in correct order. Use a test-double `RuntimeLoop` with a controlled `render` callback:
+
+```typescript
+// packages/core/src/player/__tests__/extraRenderPass.test.ts
+import { describe, it, expect, vi } from 'vitest';
+import { WidgetRegistry } from '../../widget/WidgetRegistry';
+import type { IExtraRenderPass } from '../../widget/types';
+import type { IWidget } from '../../widget/types';
+import type * as THREE from 'three';
+
+describe('IExtraRenderPass render callback ordering', () => {
+  it('calls renderPass widgets after main render in registration order', () => {
+    const callOrder: string[] = [];
+
+    const registry = new WidgetRegistry();
+    const pass1: IWidget & IExtraRenderPass = {
+      widgetId: 'pass1',
+      renderPass: vi.fn(() => { callOrder.push('pass1'); }),
+    };
+    const pass2: IWidget & IExtraRenderPass = {
+      widgetId: 'pass2',
+      renderPass: vi.fn(() => { callOrder.push('pass2'); }),
+    };
+    registry.register(pass1);
+    registry.register(pass2);
+
+    // Simulate the render callback as it appears in useSceneEngine.ts.
+    const mainRender = vi.fn(() => { callOrder.push('main'); });
+    const mockRenderer = {
+      setScissorTest: vi.fn(),
+      setViewport: vi.fn(),
+      domElement: { clientWidth: 1600, clientHeight: 900 },
+    } as unknown as THREE.WebGLRenderer;
+
+    const renderCallback = () => {
+      // Main pass
+      mainRender();
+      // Extra passes
+      const extraPasses = registry.getExtraRenderPassWidgets();
+      for (const pass of extraPasses) {
+        pass.renderPass(mockRenderer, 1600, 900);
+      }
+    };
+
+    renderCallback();
+
+    expect(callOrder).toEqual(['main', 'pass1', 'pass2']);
+    expect(pass1.renderPass).toHaveBeenCalledWith(mockRenderer, 1600, 900);
+    expect(pass2.renderPass).toHaveBeenCalledWith(mockRenderer, 1600, 900);
+  });
+
+  it('render callback with no IExtraRenderPass widgets calls only main render', () => {
+    const registry = new WidgetRegistry();
+    // No IExtraRenderPass widgets registered.
+
+    const mainRender = vi.fn();
+    const renderCallback = () => {
+      mainRender();
+      for (const pass of registry.getExtraRenderPassWidgets()) {
+        pass.renderPass({} as THREE.WebGLRenderer, 100, 100);
+      }
+    };
+
+    renderCallback();
+    expect(mainRender).toHaveBeenCalledOnce();
+  });
+});
+```
+
+### Test 7: Mixed-scene non-interference (unit test)
+
+This test verifies that `DiagramCanvasWidget` does not interact with the shared scene camera after the redesign. It is a unit test, not a visual test.
+
+**What it verifies**:
+- `DiagramCanvasWidget.initialize()` does NOT store the shared camera reference (it ignores `WidgetInitContext.camera`).
+- Raycasting in `handleClick()` uses `this.privateCamera`, not the shared camera.
+
+```typescript
+// Append to canvas/__tests__/widget.renderPass.test.ts
+
+describe('DiagramCanvasWidget mixed-scene isolation', () => {
+  it('initialize() ignores the shared scene camera', () => {
+    const widget = new DiagramCanvasWidget('test', makeDefaultCanvasState());
+
+    const sharedCamera = new THREE.PerspectiveCamera(45, 16/9, 0.1, 100);
+    sharedCamera.position.set(99, 99, 99);  // distinctive position
+
+    widget.initialize({
+      scene: new THREE.Scene(),
+      widgetId: 'test',
+      renderer: undefined,
+      camera: sharedCamera,
+    });
+
+    // After initialize, the widget's internal private camera should NOT be the shared camera.
+    // Access via type cast for test visibility.
+    const internalCamera = (widget as unknown as { privateCamera: THREE.PerspectiveCamera }).privateCamera;
+    expect(internalCamera).not.toBe(sharedCamera);
+    expect(internalCamera.position.z).not.toBe(99);  // private camera is not the shared one
+
+    widget.dispose();
+  });
+});
+```
+
+**Visual QA requirement** (in addition to the above unit test): Before merge, manually verify the mixed scene at `apps/examples/src/architecture/scenes/scene_diagram.tsx` (or a test scene created for this purpose) containing both `<Camera>` and `<DiagramCanvas>`. Confirm that:
+1. The 3D model is framed by the `<Camera>` declaration.
+2. The diagram renders in its NVS region independently.
+3. Changing `<Camera>` position does not affect diagram framing.
+
+This visual QA step is recorded in the launch checklist (Part 13).
 
 ---
 
 ## Part 12: Independent Work Streams
 
-The following 5 parallel developer tracks have no shared-file conflicts and can proceed simultaneously in **Phase 1**. **Phase 2** (widget.ts) is sequenced after Phase 1 completes.
+### Dependency Model and Phase Structure
 
-### Phase 1 — 5 Parallel Tracks
+Track C has a **functional dependency** on Track B: `handlers.ts` calls `compileCanvas()` (whose signature changes in Track B's `compile.ts`), and `transitionHelpers.ts` calls `rerouteLivePipes()` (which gains a `canvasAspect` parameter threaded from Track B's `compilePipe` changes). There are no raw file conflicts, but the compiled output of Track C will diverge from Track B until merged.
+
+**Approach: frozen-spec parallelism with merge sequencing.**
+
+Tracks A, B, C, and D work from the interface spec in this plan (which is the authoritative contract). Each track is on its own branch. Integration order at merge time:
+1. Merge Track B first (`types.ts`, `compile.ts`, `dsl.tsx`).
+2. Merge Track A next (`@brewsite/core` changes — no diagram dependencies).
+3. Merge Tracks C and D after Track B is merged (both depend on B types; they do not conflict with each other).
+4. Merge Track E (tests) after B, C are merged.
+5. Merge Track F (widget rewrite) after all of A, B, C, D are merged.
+6. Merge Track G (app migration) after Track F.
+
+### Phase 1a — Immediate start (no dependencies)
 
 **Track A: Core interfaces** (`@brewsite/core` only)
 
-Files: `widget/types.ts`, `widget/WidgetRegistry.ts`, `widget/index.ts`, `player/useSceneEngine.ts`
+Files touched: `packages/core/src/widget/types.ts`, `packages/core/src/widget/WidgetRegistry.ts`, `packages/core/src/widget/index.ts`, `packages/core/src/player/useSceneEngine.ts`
 
-Work: Add `IExtraRenderPass` interface + type guard + accessor + update render callback. No diagram code touched. No tests broken by this change (all new code, no removals).
+New test file: `packages/core/src/player/__tests__/extraRenderPass.test.ts`
 
-**Track B: Types and compile** (pure TypeScript, no Three.js)
+Also add to `packages/core/src/widget/__tests__/WidgetRegistry.test.ts`: `isExtraRenderPass` type guard tests and `getExtraRenderPassWidgets()` tests (Test 5 in Part 11).
 
-Files: `canvas/types.ts`, `canvas/compile.ts`
+Work: Add `IExtraRenderPass` interface + `isExtraRenderPass` type guard + `getExtraRenderPassWidgets()` + update render callback in `useSceneEngine.ts` per Part 1. All new code; no removals. Existing tests unaffected.
 
-Work: Replace `DiagramCanvasDSL`, `DiagramCanvasState` per Part 2. Update `compileCanvas()` and `compilePipe()` signatures per Part 3. Update `functionalDiagramCanvasTransitionSpec` per Part 3.3.
+**Track B: Types, compile, and DSL props** (pure TypeScript, no Three.js)
 
-Dependency: None. Can start immediately.
+Files touched: `packages/diagram/src/elements/diagram/canvas/types.ts`, `packages/diagram/src/elements/diagram/canvas/dsl.tsx`, `packages/diagram/src/elements/diagram/canvas/compile.ts`
 
-Note: This breaks `render.ts` and `widget.ts` (they reference removed fields) — those are fixed in Tracks D and E.
+Work: Replace `DiagramCanvasDSL`, `DiagramCanvasState` per Parts 2–3. Update `compileCanvas()` and `compilePipe()` signatures. Update `functionalDiagramCanvasTransitionSpec`. Update `DiagramCanvasProps` in `dsl.tsx` per Part 8.1.
+
+Note: After merging Track B, `render.ts` and `widget.ts` will have TypeScript errors (they reference removed `position`/`rotation` fields). This is expected; those files are fixed in Tracks D and F respectively.
+
+### Phase 1b — Start after Track B types are merged (or from frozen spec)
+
+Tracks C, D, and E have no file conflicts with each other and can proceed in parallel once Track B's interface contract is agreed (which it is — this plan is the spec).
 
 **Track C: Pipeline fix — pipeRouter + handlers**
 
-Files: `canvas/compiler/pipeRouter.ts`, `compiler/handlers.ts`, `compiler/transitionHelpers.ts`
+Files touched: `packages/diagram/src/elements/diagram/canvas/compiler/pipeRouter.ts`, `packages/diagram/src/compiler/handlers.ts`, `packages/diagram/src/elements/diagram/compiler/transitionHelpers.ts`
 
-Work: Deprecate `DEFAULT_CANVAS_ASPECT` in call sites. Add `canvasAspect` parameter to `compilePipe`. Update `handlers.ts` canvasDSL construction. Update `rerouteLivePipes` signature.
-
-Dependency: Requires Track B types. Start after Track B `types.ts` is stable (or work from the spec in this plan).
+Work: Remove `DEFAULT_CANVAS_ASPECT` export entirely from `pipeRouter.ts`. Add `canvasAspect` parameter to `compilePipe`. Update `handlers.ts` canvasDSL construction per Part 5. Update `rerouteLivePipes` signature per Part 4.3.
 
 **Track D: Render layer** (Three.js only)
 
-Files: `canvas/render.ts`
+Files touched: `packages/diagram/src/elements/diagram/canvas/render.ts`
 
-Work: Update `DiagramCanvasRenderer.update()` signature (new params: `canvasAspect`, `panOffset`, `rotationOffset`; removed: `camera`). Add `getBoundingBox()`. Update `dispose()` to accept private scene. Remove `position`/`rotation` transform code. Add `tilt + rotationOffset` and pan offset application.
+Work: Update `DiagramCanvasRenderer.update()` signature per Part 6. Add `getBoundingBox()`. Update `dispose()`. Remove `position`/`rotation` transform code. Add tilt + rotation-offset + pan-offset application.
 
-Dependency: Track B types (`DiagramCanvasState` changes).
+**Track E: Test updates**
 
-**Track E: Test updates** (pure TypeScript)
+Files touched: `packages/diagram/src/elements/diagram/canvas/__tests__/compile.test.ts`, `packages/diagram/src/elements/diagram/canvas/__tests__/functionalTransitionSpec.test.ts`, `packages/diagram/src/elements/diagram/canvas/compiler/__tests__/pipeRouter.test.ts`
 
-Files: `canvas/__tests__/compile.test.ts`, `canvas/__tests__/functionalTransitionSpec.test.ts`, `canvas/compiler/__tests__/pipeRouter.test.ts`
+New test file: `packages/diagram/src/elements/diagram/canvas/__tests__/widget.renderPass.test.ts`
 
-Work: Update existing tests for new prop names. Add new test cases per Part 11. Add `nvsToScissorRect` pure test.
+Work: Update existing tests per Tests 1–3 in Part 11. Add new `widget.renderPass.test.ts` per Tests 4 and 7 in Part 11.
 
-Dependency: Track B (new types needed to write valid test inputs).
-
-### Phase 2 — Sequential (after Phase 1 complete)
+### Phase 2 — Sequential (after all Phase 1 tracks merged)
 
 **Track F: Widget rewrite** — depends on Tracks A + B + C + D
 
-Files: `canvas/widget.ts`
+Files touched: `packages/diagram/src/elements/diagram/canvas/widget.ts`
 
-Work: Major rewrite per Part 7. Implements `IExtraRenderPass` (from Track A), uses new types (Track B), new render API (Track D). Removes `IAnimationController`, `ILightingOverride`. Adds private scene + camera. Implements `renderPass()`.
+Work: Major rewrite per Part 7. Implements `IExtraRenderPass` (Track A), uses new types (Track B), calls updated render API (Track D). Removes `IAnimationController`, `ILightingOverride`. Adds private scene + camera. Implements `renderPass()`. Also updates `DiagramCanvas`/`DiagramPipe` JSDoc per Part 8.2.
 
-### Phase 3 — Migration (can start after Track B types are stable)
+Exports `nvsToScissorRect` as a named pure function (required for Track E tests).
 
-**Track G: App migration**
+### Phase 3 — After Track F merged
 
-Files: All `apps/examples/src/**/*.tsx` files using `<DiagramCanvas>`
+**Track G: App migration** (47 files — see exhaustive list in Part 9)
 
-Work: Replace `position`/`rotation` with `tilt` + NVS placement. Remove `config.diagramTop`/`diagramRotationX` usage. Clean up `settings.ts` after all migrations.
-
-Dependency: Track B (need new `DiagramCanvasProps` types to compile).
+Work: For each file, replace `position`/`rotation` with `tilt` + `x/y/w/h` NVS placement per the migration pattern in Part 9. After all files are migrated, run the `settings.ts` cleanup grep per Part 9.
 
 ---
 
@@ -1432,13 +1662,13 @@ Directly from PRD §13 — all must be true before merge:
 
 - [ ] `DiagramCanvasDSL` and `DiagramCanvasState` do not contain `position` or `rotation`. TypeScript rejects these props.
 - [ ] `tilt` and `padding` are exported from `@brewsite/diagram`.
-- [ ] Scissored sub-viewport rendering is implemented. A canvas at `x=0.5, w=0.5` renders only in the right half (verified by a render integration test or visual QA).
-- [ ] Mixed scene test: `<Camera>` + `<Model>` + `<DiagramCanvas>` — both model and diagram render correctly, independent of each other.
+- [ ] Scissored sub-viewport rendering is implemented. `Test 4c` (mock renderer) verifies `setScissor` is called with the correct pixel rect. Visual QA confirms diagram clips at NVS boundary.
+- [ ] Mixed scene non-interference: `Test 7` (unit) verifies `DiagramCanvasWidget` does not store the shared camera. Visual QA on `scene_diagram.tsx` confirms `<Camera>` governs 3D elements and `<DiagramCanvas>` renders independently.
 - [ ] Interactive focus (`focusMesh`, `focusAll`) operates on the diagram's private camera and produces correct framing.
 - [ ] Raycasting (click, hover) is correct for sub-region placements (`x=0.3, w=0.4`).
 - [ ] All scene files in `apps/examples/src` compile without TypeScript errors.
 - [ ] `config.diagramScale/Top/RotationX` removed from `settings.ts` (or retained only for unrelated uses).
-- [ ] Cross-diagram pipe routing uses actual `canvasAspect` from `nvsBounds`. `DEFAULT_CANVAS_ASPECT` is removed from all call sites (kept as deprecated export only).
+- [ ] Cross-diagram pipe routing uses actual `canvasAspect` from `nvsBounds`. `DEFAULT_CANVAS_ASPECT` constant is deleted entirely from `pipeRouter.ts` — no export, no deprecated shim.
 - [ ] All existing tests pass: `pnpm test`.
 - [ ] TypeScript strict mode: `pnpm typecheck` passes for `@brewsite/core` and `@brewsite/diagram`.
 - [ ] `packages/diagram/README.md` updated with new `DiagramCanvas` authoring example.
@@ -1452,18 +1682,41 @@ Directly from PRD §13 — all must be true before merge:
 
 The `getBoundingBox()` method returns `null` if `canvasGroup` is not initialized or if the box is empty (no geometry yet). The auto-fit camera method guards on `null` and positions the camera at a sensible default instead of breaking.
 
-## Appendix B: Why `renderer.domElement.clientWidth` (not `.width`)
+## Appendix B: Size retrieval — two methods, same values
 
-Three.js `WebGLRenderer`:
-- `.domElement.width` — physical pixel width (CSS width × devicePixelRatio)
-- `.domElement.clientWidth` — CSS pixel width (what CSS sees)
-- `renderer.getSize(v)` — returns the renderer's CSS pixel output size (same as `clientWidth`/`clientHeight`)
-- `renderer.setViewport(x, y, w, h)` — accepts CSS pixel coordinates (Three.js multiplies by pixelRatio internally)
-- `renderer.setScissor(x, y, w, h)` — same coordinate system as `setViewport`
+The plan uses two different ways to get the viewport size. They return the same values (CSS pixels) but are used in different call sites for different reasons:
 
-We use `renderer.domElement.clientWidth` and `clientHeight` in the render callback (in `useSceneEngine.ts`) to pass to `renderPass()`. Inside `renderPass()`, these values are used directly in `setScissor()` and `setViewport()` calls. This is correct.
+| Site | Method | Reason |
+|---|---|---|
+| `useSceneEngine.ts` render callback | `renderer.domElement.clientWidth/clientHeight` | Called in a React closure; no `this` reference; renderer DOM element is available directly |
+| `DiagramCanvasWidget.apply()` | `renderer.getSize(new THREE.Vector2())` | Called on `this.rendererRef`; both methods return the same CSS pixel dimensions |
 
-If `clientWidth` is 0 (renderer not yet attached to DOM), the guard `if (width <= 0 || height <= 0) return;` in `renderPass()` prevents the call from reaching WebGL.
+**Why CSS pixels, not `.width` (physical pixels)**:
+- `.domElement.width` = physical pixel width = CSS width × devicePixelRatio
+- `.domElement.clientWidth` = CSS pixel width (what CSS layout sees)
+- `renderer.getSize(v)` = CSS pixel output size (same as `clientWidth`/`clientHeight`)
+- `renderer.setViewport(x, y, w, h)` and `renderer.setScissor(x, y, w, h)` both accept **CSS pixel coordinates**. Three.js multiplies by `pixelRatio` internally before calling the WebGL scissor API.
+
+Using `clientWidth` and `clientHeight` (CSS pixels) is correct. Using `.width` (physical pixels) would produce a scissor region that is `devicePixelRatio` times too large on high-DPI displays.
+
+**Guard**: if `clientWidth` is 0 (renderer not yet attached to DOM), the check `if (width <= 0 || height <= 0) return;` in `renderPass()` prevents any WebGL call.
+
+## Appendix D: `WidgetInitContext.renderer` — already present
+
+Issue 7 from PM review: *"Does `WidgetInitContext` currently expose `renderer` as a property?"*
+
+**Confirmed**: `WidgetInitContext.renderer` is already defined in `packages/core/src/widget/types.ts` at line 299:
+
+```typescript
+export type WidgetInitContext = {
+  scene: ThreeScene;
+  widgetId: string;
+  renderer?: WebGLRenderer;   // ← line 299, present since Phase 2 renderer lifecycle work
+  camera?: PerspectiveCamera;
+};
+```
+
+Track A does **not** need to add this field. No scope change required.
 
 ## Appendix C: The `inputRotation` Type Change
 

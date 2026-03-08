@@ -43,30 +43,46 @@ export interface DiagramPipeState {
  */
 export interface DiagramCanvasState {
   readonly id: string;
-  /** Canvas world-space position. Default: [0, 0, 0] */
-  readonly position: readonly [number, number, number];
-  /** Canvas world-space Euler XYZ rotation in radians. Default: [0, 0, 0] */
-  readonly rotation: readonly [number, number, number];
-  /** Canvas uniform scale. Default: 1 */
+
+  /**
+   * NVS bounds — authoritative for scissor rect and aspect ratio.
+   * Fullscreen: { x: 0, y: 0, w: 1, h: 1 }.
+   * Always present; filled with defaults by compileCanvas().
+   */
+  readonly nvsBounds: NVSRect;
+
+  /**
+   * Pitch tilt in radians applied to the diagram group geometry.
+   * Negative = top edge tilts away from viewer. Default: 0.
+   */
+  readonly tilt: number;
+
+  /** World-space uniform geometry scale. Default: 1. */
   readonly scale: number;
-  /** Optional default focus center (XY). Z is ignored for canvas-wide focus actions. */
+
+  /**
+   * Fractional framing inset for the auto-fit private camera. Default: 0.1.
+   */
+  readonly padding: number;
+
+  /**
+   * Optional focus center in canvas-local space (XY).
+   * When provided, focusAll() uses this as the camera look-at target
+   * instead of the geometry bounding box center.
+   */
   readonly focusCenter?: readonly [number, number] | readonly [number, number, number];
+
   /** All child diagram states, in declaration order. */
   readonly diagrams: ReadonlyArray<DiagramState>;
+
   /** All cross-diagram pipe states. */
   readonly pipes: ReadonlyArray<DiagramPipeState>;
+
   /**
    * Default input actions derived from theme.input at compile time.
-   * canvasId has been injected by the compiler from the <DiagramCanvas id="...">.
-   * Undefined when no theme.input is configured on the canvas.
    * Consumed by DiagramCanvasWidget.getDefaultInputActions() at runtime.
    */
   readonly defaultInputActions?: ReadonlyArray<InputActionSpec>;
-  /**
-   * NVS bounds declaring what region of the AR-locked container this canvas occupies.
-   * Fullscreen is { x: 0, y: 0, w: 1, h: 1 }. Required — always filled by compile step.
-   */
-  readonly nvsBounds: NVSRect;
 }
 
 /** Raw DSL props from <DiagramPipe> before compile.ts applies defaults. */
@@ -105,30 +121,11 @@ export type PipeRoutingAlgorithm = 'curved' | 'straight';
  */
 export type PipeLandingAlgorithm = 'sides' | 'nearest-face';
 
-/** Raw DSL props from <DiagramCanvas> before compile.ts applies defaults. */
+/** Raw DSL props from <DiagramCanvas> in the NVS model. */
 export interface DiagramCanvasDSL {
   readonly id: string;
-  readonly position?: readonly [number, number, number];
-  readonly rotation?: readonly [number, number, number];
-  readonly scale?: number;
-  /**
-   * Canvas-level theme. Propagated as the default theme to all child diagrams.
-   * Each child <Diagram theme={...}> can override on top of this.
-   */
-  readonly theme?: DiagramTheme;
-  /**
-   * Pipe routing algorithm. Determines how control points are computed for
-   * cross-diagram tubes in 3D canvas space. Default: 'curved'.
-   */
-  readonly pipeRouting?: PipeRoutingAlgorithm;
-  /**
-   * Pipe attachment strategy. Default: 'sides' (exits node left or right face
-   * based on which side the destination diagram is, routing around icons/labels
-   * which live on the front Z+ face).
-   */
-  readonly pipeLanding?: PipeLandingAlgorithm;
-  /** Optional default focus center (XY). Z is ignored for canvas-wide focus actions. */
-  readonly focusCenter?: readonly [number, number] | readonly [number, number, number];
+
+  // ── Placement (NVS coordinates, top-left origin) ──────────────────────────
   /** NVS x-coordinate of the canvas left edge [0, 1]. Default: 0 */
   readonly x?: number;
   /** NVS y-coordinate of the canvas top edge [0, 1]. Default: 0 */
@@ -137,4 +134,38 @@ export interface DiagramCanvasDSL {
   readonly w?: number;
   /** NVS height of the canvas [0, 1]. Default: 1 */
   readonly h?: number;
+
+  // ── Geometry ──────────────────────────────────────────────────────────────
+  /**
+   * Pitch tilt applied to the diagram group geometry in radians.
+   * Negative values tilt the top edge away from the viewer (typical 3D effect).
+   * Default: 0 (flat, facing camera).
+   */
+  readonly tilt?: number;
+  /**
+   * World-space uniform geometry scale. The auto-fit private camera responds
+   * naturally — larger geometry, camera backs up proportionally. Default: 1.
+   */
+  readonly scale?: number;
+  /**
+   * Fractional framing inset for the auto-fit private camera around the content
+   * bounding box. 0 = tight crop, 0.1 = 10% margin. Default: 0.1.
+   */
+  readonly padding?: number;
+
+  // ── Other ─────────────────────────────────────────────────────────────────
+  /** Canvas-level theme. Propagated as default theme to all child diagrams. */
+  readonly theme?: DiagramTheme;
+  /** Cross-diagram pipe routing algorithm. Default: 'curved'. */
+  readonly pipeRouting?: PipeRoutingAlgorithm;
+  /** Pipe attachment strategy. Default: 'sides'. */
+  readonly pipeLanding?: PipeLandingAlgorithm;
+  /** Optional default focus center in canvas-local space (XY). */
+  readonly focusCenter?: readonly [number, number] | readonly [number, number, number];
+  /**
+   * Default input actions derived from theme.input at compile time.
+   * Consumed by DiagramCanvasWidget.getDefaultInputActions() at runtime.
+   * Undefined when no theme.input is configured on the canvas.
+   */
+  readonly defaultInputActions?: ReadonlyArray<InputActionSpec>;
 }

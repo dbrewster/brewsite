@@ -13,7 +13,26 @@ export class DiagramCanvasRenderer {
   private diagramRenderers = new Map<string, DiagramRenderer>();
   private pipeRenderer: EdgeRenderer | null = null;
 
-  update(state: DiagramCanvasState, scene: THREE.Scene, camera?: THREE.PerspectiveCamera): void {
+  /**
+   * Updates the canvas geometry group in the provided scene.
+   *
+   * The scene passed here MUST be the widget's private diagram scene,
+   * not the main Three.js scene. DiagramCanvasWidget owns the private scene
+   * and passes it here on every apply() call.
+   *
+   * @param state         Compiled canvas state (tilt, scale, nvsBounds).
+   * @param scene         Private THREE.Scene owned by DiagramCanvasWidget.
+   * @param canvasAspect  (nvsBounds.w / nvsBounds.h) × engineAspect.
+   * @param panOffset     Input-accumulated translation [dx, dy, dz] in world units.
+   * @param rotationOffset Additional pitch offset in radians (from interactive rotate).
+   */
+  update(
+    state: DiagramCanvasState,
+    scene: THREE.Scene,
+    canvasAspect: number,
+    panOffset: readonly [number, number, number],
+    rotationOffset: number,
+  ): void {
     if (!this.canvasGroup) {
       this.canvasGroup = new THREE.Group();
       this.canvasGroup.name = `canvas:${state.id}`;
@@ -26,13 +45,12 @@ export class DiagramCanvasRenderer {
       this.pipeRenderer = new EdgeRenderer(new EdgeMaterialFactory());
     }
 
-    this.canvasGroup.position.set(state.position[0], state.position[1], state.position[2]);
-    this.canvasGroup.rotation.set(state.rotation[0], state.rotation[1], state.rotation[2]);
+    // Position: pan offset only (no authored world position in new model).
+    this.canvasGroup.position.set(panOffset[0], panOffset[1], panOffset[2]);
+    // Rotation: authored tilt + interactive rotation offset.
+    this.canvasGroup.rotation.set(state.tilt + rotationOffset, 0, 0);
+    // Scale: authored world-space scale.
     this.canvasGroup.scale.setScalar(state.scale);
-
-    // Compute canvas aspect ratio: (canvas NVS width / canvas NVS height) × engine aspect.
-    const engineAspect = camera?.aspect ?? 16 / 9;
-    const canvasAspect = (state.nvsBounds.w / state.nvsBounds.h) * engineAspect;
 
     const activeDiagramIds = new Set(state.diagrams.map((d) => d.id));
     for (const [id, renderer] of this.diagramRenderers) {
@@ -60,6 +78,17 @@ export class DiagramCanvasRenderer {
     for (const pipe of state.pipes) {
       this.pipeRenderer!.getOrCreate(pipe, this.pipeRoot!);
     }
+  }
+
+  /**
+   * Returns the world-space axis-aligned bounding box of all diagram geometry
+   * in the canvas group, or null if the group is not yet initialized or is empty.
+   */
+  getBoundingBox(): THREE.Box3 | null {
+    if (!this.canvasGroup) return null;
+    const box = new THREE.Box3().setFromObject(this.canvasGroup);
+    if (box.isEmpty()) return null;
+    return box;
   }
 
   dispose(_canvasId: string, scene: THREE.Scene): void {

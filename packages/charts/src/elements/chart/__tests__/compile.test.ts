@@ -185,6 +185,24 @@ describe('compileChart', () => {
     const state = compileChart({ id: 'c', type: 'bar', w: 0.5 }, null, [], [], null);
     expect(state.nvsBounds).toEqual({ x: 0, y: 0, w: 0.5, h: 1 });
   });
+
+  it('nvsX = x + w/2 (centering contract: group anchor = NVS center)', () => {
+    // This verifies the invariant that the NVS center position used to anchor the chart group
+    // is derived as the center of the declared NVS bounding box, not its top-left corner.
+    // The ChartWidget.apply() centering fix subtracts bounds.width/2 and bounds.height/2
+    // from the world-space result so the chart content (which starts at local 0,0)
+    // is visually centered on the NVS coordinates.
+    const cases: Array<{ x: number; y: number; w: number; h: number; expectedX: number; expectedY: number }> = [
+      { x: 0,   y: 0,   w: 1,   h: 1,   expectedX: 0.5,  expectedY: 0.5  },
+      { x: 0.1, y: 0.2, w: 0.6, h: 0.4, expectedX: 0.4,  expectedY: 0.4  },
+      { x: 0,   y: 0,   w: 0.5, h: 0.5, expectedX: 0.25, expectedY: 0.25 },
+    ];
+    for (const c of cases) {
+      const state = compileChart({ id: 'c', type: 'bar', x: c.x, y: c.y, w: c.w, h: c.h }, null, [], [], null);
+      expect(state.nvsX).toBeCloseTo(c.expectedX, 5);
+      expect(state.nvsY).toBeCloseTo(c.expectedY, 5);
+    }
+  });
 });
 
 describe('functionalChartTransitionSpec', () => {

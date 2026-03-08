@@ -36,7 +36,7 @@ export const sceneLearningLoop: JSX.Element = (
       </Action>
     </InputController>
 
-    <DiagramCanvas id="bfm-loop-canvas" position={[0, config.diagramTop+2, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
+    <DiagramCanvas id="bfm-loop-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="loop-diagram">
         <ManualLayout />
         <DiagramEnter fade />

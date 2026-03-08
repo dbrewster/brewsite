@@ -29,7 +29,7 @@ export const sceneCfOverview: JSX.Element = (
   <Scene key="bfc-cf-overview" id="bfc-cf-overview">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
 
-    <DiagramCanvas id="bfc-cf-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
+    <DiagramCanvas id="bfc-cf-canvas" x={0} y={0} w={1} h={0.66} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="cf-overview">
         <ManualLayout />
 

@@ -36,7 +36,7 @@ export const sceneBfOverview: JSX.Element = (
       </Action>
     </InputController>
 
-    <DiagramCanvas id="bfc-bf-canvas" position={[0, config.diagramTop+1, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
+    <DiagramCanvas id="bfc-bf-canvas" x={0} y={0} w={1} h={0.56} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="bf-overview">
         <FlowLayout direction="top-down" gap={2} />
         <DiagramEnter fade />

@@ -35,7 +35,7 @@ export const sceneArchitecture: JSX.Element = (
     <Camera mode="world" position={[0, 8, 32]} target={[0, 0, 0]} fov={54} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bf-arch" position={[0, config.diagramTop, 0]} rotation={[-0.12, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
+    <DiagramCanvas id="bf-arch" x={0} y={0} w={1} h={0.58} tilt={-0.12} scale={config.diagramScale} theme={brewflowTheme}>
       {/* claude-flow block */}
       <Diagram id="bf-arch-cf" viewportBounds={{x:0, y:0, w:1, h:0.35}}>
         <ManualLayout />

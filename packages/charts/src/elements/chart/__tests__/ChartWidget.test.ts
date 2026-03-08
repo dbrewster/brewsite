@@ -247,6 +247,37 @@ describe('ChartWidget', () => {
     expect(widget.nvsBounds).toEqual({ x: 0, y: 0.5, w: 1, h: 0.5 });
   });
 
+  it('apply() centers chart group on NVS world position by subtracting half-bounds', () => {
+    const ctx = makeInitCtx();
+    const scene = ctx.scene as THREE.Scene;
+    widget.initialize(ctx);
+    // Default state: nvsX=0.5, nvsY=0.5, bounds={width:4, height:3}.
+    // Mock camera is at position (0,0,0) with fov/aspect undefined.
+    // nvsToWorldWithCamera(0.5, 0.5, camera, 0) → worldCenter=[0, 0, 0]
+    // (the (nvsX-0.5)*w and (nvsY-0.5)*h terms are zero regardless of NaN width/height).
+    // After centering offset: chartGroup.position = [0-4/2, 0-3/2, 0] = [-2, -1.5, 0].
+    const state = makeState();
+    widget.apply(state, makeRenderCtx());
+
+    const chartGroup = scene.children[0] as THREE.Object3D;
+    expect(chartGroup).toBeDefined();
+    expect(chartGroup.position.x).toBeCloseTo(-state.bounds.width / 2);
+    expect(chartGroup.position.y).toBeCloseTo(-state.bounds.height / 2);
+    expect(chartGroup.position.z).toBe(state.z);
+  });
+
+  it('apply() with custom bounds centers on those bounds dimensions', () => {
+    const ctx = makeInitCtx();
+    const scene = ctx.scene as THREE.Scene;
+    widget.initialize(ctx);
+    const state = makeState({ bounds: { width: 6, height: 2, depth: 0.3 } });
+    widget.apply(state, makeRenderCtx());
+
+    const chartGroup = scene.children[0] as THREE.Object3D;
+    expect(chartGroup.position.x).toBeCloseTo(-3);  // -6/2
+    expect(chartGroup.position.y).toBeCloseTo(-1);  // -2/2
+  });
+
   it('getCamera returns null before initialize', () => {
     expect(widget.getCamera()).toBeNull();
   });

@@ -35,7 +35,7 @@ export const sceneSequenceFailure: JSX.Element = (
     <Camera mode="world" position={[0, 5, 22]} target={[0, 0, 0]} fov={54} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bf-seq-fail" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
+    <DiagramCanvas id="bf-seq-fail" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="seq-fail">
         <FlowLayout direction="top-down" gap={3} />
 

@@ -33,7 +33,7 @@ export const myScene: SceneDefinition = {
         <Ambient intensity={1.5} color="#ffffff" />
         <Directional intensity={2.5} color="#ffffff" position={[10, 30, 60]} />
       </Lighting>
-      <DiagramCanvas id="main-canvas" rotation={[-Math.PI / 6, 0, 0]}>
+      <DiagramCanvas id="main-canvas" tilt={-Math.PI / 6}>
         <Diagram id="arch-diagram" pivot="center">
           <HierarchicalLayout spacing={[3, 2]} />
           <DiagramNode id="api"   label="API Gateway" icon="aws:api-gateway" />

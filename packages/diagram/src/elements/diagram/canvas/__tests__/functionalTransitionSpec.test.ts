@@ -41,9 +41,10 @@ const makeDiagram = (id: string): DiagramState => ({
 
 const makeCanvas = (overrides: Partial<DiagramCanvasState> = {}): DiagramCanvasState => ({
   id: 'canvas',
-  position: [0, 0, 0],
-  rotation: [0, 0, 0],
+  tilt: 0,
   scale: 1,
+  padding: 0.1,
+  nvsBounds: { x: 0, y: 0, w: 1, h: 1 },
   diagrams: [makeDiagram('d1')],
   pipes: [
     {
@@ -67,7 +68,6 @@ const makeCanvas = (overrides: Partial<DiagramCanvasState> = {}): DiagramCanvasS
       ],
     },
   ],
-  nvsBounds: { x: 0, y: 0, w: 1, h: 1 },
   ...overrides,
 });
 
@@ -83,6 +83,14 @@ describe('functionalDiagramCanvasTransitionSpec', () => {
       const state = makeCanvas();
       const result = functionalDiagramCanvasTransitionSpec.exitFn(state)(makeSimpleContext(1));
       expect(result.pipes[0]!.opacity).toBeCloseTo(0);
+    });
+
+    it('preserves tilt, padding, and nvsBounds from from-state', () => {
+      const state = makeCanvas({ tilt: -0.3, padding: 0.2, nvsBounds: { x: 0.1, y: 0, w: 0.8, h: 1 } });
+      const result = functionalDiagramCanvasTransitionSpec.exitFn(state)(makeSimpleContext(0.5));
+      expect(result.tilt).toBe(-0.3);
+      expect(result.padding).toBe(0.2);
+      expect(result.nvsBounds).toEqual({ x: 0.1, y: 0, w: 0.8, h: 1 });
     });
 
     it('applies diagram exit config (viewportBounds center moved to `to` + fade)', () => {
@@ -102,6 +110,14 @@ describe('functionalDiagramCanvasTransitionSpec', () => {
       expect(result.diagrams[0]!.nodes[0]!.opacity).toBeCloseTo(0);
     });
 
+    it('preserves tilt, padding, and nvsBounds from to-state', () => {
+      const state = makeCanvas({ tilt: 0.5, padding: 0.05, nvsBounds: { x: 0.5, y: 0, w: 0.5, h: 1 } });
+      const result = functionalDiagramCanvasTransitionSpec.enterFn(state)(makeSimpleContext(0.5));
+      expect(result.tilt).toBe(0.5);
+      expect(result.padding).toBe(0.05);
+      expect(result.nvsBounds).toEqual({ x: 0.5, y: 0, w: 0.5, h: 1 });
+    });
+
     it('applies diagram enter config (viewportBounds center at `from` at t=0 + fade)', () => {
       const diagram = { ...makeDiagram('d1'), enter: { from: [-1, 0.5, 0] as const, fade: true, easing: 'linear' as const } };
       const state = makeCanvas({ diagrams: [diagram] });
@@ -113,18 +129,28 @@ describe('functionalDiagramCanvasTransitionSpec', () => {
   });
 
   describe('interpolateFn', () => {
-    it('interpolates canvas position/rotation/scale', () => {
-      const from = makeCanvas();
-      const to = makeCanvas({ position: [10, 0, 0], rotation: [0, 1, 0], scale: 2 });
+    it('interpolates tilt, scale, and padding at t=0.5', () => {
+      const from = makeCanvas({ tilt: 0, scale: 1, padding: 0.1 });
+      const to = makeCanvas({ tilt: -0.6, scale: 2, padding: 0.3 });
       const result = functionalDiagramCanvasTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));
-      expect(result.position[0]).toBeCloseTo(5);
-      expect(result.rotation[1]).toBeCloseTo(0.5);
+      expect(result.tilt).toBeCloseTo(-0.3);
       expect(result.scale).toBeCloseTo(1.5);
+      expect(result.padding).toBeCloseTo(0.2);
+    });
+
+    it('interpolates nvsBounds x/y/w/h at t=0.5', () => {
+      const from = makeCanvas({ nvsBounds: { x: 0, y: 0, w: 1, h: 1 } });
+      const to = makeCanvas({ nvsBounds: { x: 0.5, y: 0.2, w: 0.4, h: 0.6 } });
+      const result = functionalDiagramCanvasTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));
+      expect(result.nvsBounds.x).toBeCloseTo(0.25);
+      expect(result.nvsBounds.y).toBeCloseTo(0.1);
+      expect(result.nvsBounds.w).toBeCloseTo(0.7);
+      expect(result.nvsBounds.h).toBeCloseTo(0.8);
     });
 
     it('interpolates child diagram node positions', () => {
       const fromDiagram = { ...makeDiagram('d1') };
-      const toDiagram = { ...makeDiagram('d1'), nodes: [{ ...makeNode('n1'), position: [10, 0, 0] }] };
+      const toDiagram = { ...makeDiagram('d1'), nodes: [{ ...makeNode('n1'), position: [10, 0, 0] as [number, number, number] }] };
       const from = makeCanvas({ diagrams: [fromDiagram] });
       const to = makeCanvas({ diagrams: [toDiagram] });
       const result = functionalDiagramCanvasTransitionSpec.interpolateFn(from, to)(makeSimpleContext(0.5));

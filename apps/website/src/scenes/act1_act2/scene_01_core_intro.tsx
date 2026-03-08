@@ -47,7 +47,7 @@ export const scene01CoreIntro: JSX.Element = (
 
         <DiagramCanvas
             id="presentation-flow"
-            rotation={[-Math.PI / 11, 0, 0]}
+            x={0} y={0} w={1} h={1} tilt={-Math.PI / 11}
             scale={isMobile ? 1.0 : 1.25}
             theme={neonCyberTheme}
         >

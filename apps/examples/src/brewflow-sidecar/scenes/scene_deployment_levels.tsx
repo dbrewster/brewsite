@@ -35,7 +35,7 @@ export const sceneDeploymentLevels: JSX.Element = (
     <Camera mode="world" position={[0, 5, 26]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bf-levels" position={[0, 2, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={.7} theme={brewflowTheme}>
+    <DiagramCanvas id="bf-levels" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={.7} theme={brewflowTheme}>
       <Diagram id="levels-diagram">
         <FlowLayout direction="top-down" gap={2} />
 

@@ -410,6 +410,30 @@ export interface ILightingOverride extends IWidget {
   receiveLightController?(setter: (lightId: string, enabled: boolean) => void): void;
 }
 
+/**
+ * Widget that issues additional WebGL render passes after the main scene pass.
+ *
+ * Called once per frame by the render loop after `renderer.render(scene, camera)`
+ * completes. Implement for widgets that require scissored sub-viewport passes
+ * (e.g. DiagramCanvasWidget) or post-processing effects that must composite
+ * on top of the main 3D scene.
+ *
+ * The main scene pass has already rendered when `renderPass()` is called.
+ * The implementation must restore renderer state (scissor, viewport) to its
+ * pre-call state before returning.
+ *
+ * @param renderer       - The active `THREE.WebGLRenderer` instance.
+ * @param viewportWidth  - Current renderer output width in CSS pixels.
+ * @param viewportHeight - Current renderer output height in CSS pixels.
+ */
+export interface IExtraRenderPass extends IWidget {
+  renderPass(
+    renderer: WebGLRenderer,
+    viewportWidth: number,
+    viewportHeight: number,
+  ): void;
+}
+
 export type AnimationTickContext = {
   /**
    * Synchronized real-time clock. Same values every widget sees every frame.

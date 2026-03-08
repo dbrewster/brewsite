@@ -39,7 +39,7 @@ export const scene02CoreBaked: JSX.Element = (
 
     <DiagramCanvas
       id="presentation-flow"
-      rotation={[-Math.PI / 12, 0, 0]}
+      x={0} y={0} w={1} h={1} tilt={-Math.PI / 12}
       scale={isMobile ? 1.0 : 1.35}
       theme={neonCyberTheme}
     >

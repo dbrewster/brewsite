@@ -11,16 +11,34 @@ export interface DiagramCanvasProps {
    * created for this ID during scene compilation.
    */
   id: string;
-  /** World-space position of the canvas group origin. Default: [0, 0, 0] */
-  position?: [number, number, number];
-  /** World-space Euler XYZ rotation in radians. Default: [0, 0, 0] */
-  rotation?: [number, number, number];
+  // ── Placement ──────────────────────────────────────────────────────────────
+  /** NVS x-coordinate of the canvas left edge [0, 1]. Default: 0 */
+  x?: number;
+  /** NVS y-coordinate of the canvas top edge [0, 1]. Default: 0 */
+  y?: number;
+  /** NVS width of the canvas [0, 1]. Default: 1 */
+  w?: number;
+  /** NVS height of the canvas [0, 1]. Default: 1 */
+  h?: number;
+  // ── Geometry ───────────────────────────────────────────────────────────────
+  /**
+   * Pitch tilt applied to the diagram group geometry in radians.
+   * Negative values tilt the top edge away from the viewer (typical 3D effect).
+   * Default: 0 (flat, facing camera).
+   */
+  tilt?: number;
   /**
    * Uniform scale for the entire canvas group.
    * All child diagram positions, scales, and pipe thicknesses scale with this.
    * Default: 1
    */
   scale?: number;
+  /**
+   * Fractional framing inset for the auto-fit private camera around the content
+   * bounding box. 0 = tight crop, 0.1 = 10% margin. Default: 0.1.
+   */
+  padding?: number;
+  // ── Other ──────────────────────────────────────────────────────────────────
   /**
    * Canvas-level theme. Acts as the fallback theme for all child `<Diagram>`
    * elements that do not specify their own `theme` prop.
@@ -40,18 +58,10 @@ export interface DiagramCanvasProps {
    */
   pipeLanding?: PipeLandingAlgorithm;
   /**
-   * Optional world-space center used when canvas focus action targets the full
+   * Optional canvas-local center used when canvas focus action targets the full
    * canvas (for example Cmd+click empty area).
    */
-  focusCenter?: [number, number] | [number, number, number];
-  /** NVS x-coordinate of the canvas left edge [0, 1]. Default: 0 */
-  x?: number;
-  /** NVS y-coordinate of the canvas top edge [0, 1]. Default: 0 */
-  y?: number;
-  /** NVS width of the canvas [0, 1]. Default: 1 */
-  w?: number;
-  /** NVS height of the canvas [0, 1]. Default: 1 */
-  h?: number;
+  focusCenter?: readonly [number, number] | readonly [number, number, number];
   children?: React.ReactNode;
 }
 

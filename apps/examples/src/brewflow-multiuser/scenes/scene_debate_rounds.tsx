@@ -35,7 +35,7 @@ export const sceneDebateRounds: JSX.Element = (
     <Camera mode="world" position={[0, 5, 26]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bfmu-deb-canvas" position={[0, config.diagramTop, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale*.8} theme={brewflowTheme}>
+    <DiagramCanvas id="bfmu-deb-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale*.8} theme={brewflowTheme}>
       <Diagram id="deb-diagram">
         <FlowLayout direction="top-down" gap={2} />
         <DiagramEnter fade />

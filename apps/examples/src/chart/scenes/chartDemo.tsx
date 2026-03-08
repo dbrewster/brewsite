@@ -46,9 +46,18 @@ export const teamPerformanceData = [
 
 // ─── Shared scene config ──────────────────────────────────────────────────────
 
-/** Camera centered on a 4×3 chart placed at [0,0,0]. */
-const CHART_CAM_POS: [number, number, number] = [2, 1.5, 2];
+// Camera placed at z=7, fov=45 for full chart visibility.
+// After the centering fix, a chart with bounds {w:4, h:3} has its content spanning
+// [-2..2, -1.5..1.5] relative to chartGroup. At distance 7 with fov=45:
+// half-width = 7 * tan(22.5°) ≈ 2.9 — the full 4-unit chart width fits in frame.
+const CHART_CAM_POS: [number, number, number] = [2, 1.5, 7];
 const CHART_CAM_TGT: [number, number, number] = [2, 1.5, 0];
+const CHART_CAM_FOV = 45;
+
+// Pie uses square bounds {w:4, h:4} — use a centered camera at (2, 2).
+const PIE_CAM_POS: [number, number, number] = [2, 2, 8];
+const PIE_CAM_TGT: [number, number, number] = [2, 2, 0];
+const PIE_CAM_FOV = 45;
 
 const SceneLighting = (): JSX.Element => (
   <Lighting intensityScale={1.2}>
@@ -63,7 +72,7 @@ const SceneLighting = (): JSX.Element => (
 export const chartDemoBar: JSX.Element = (
   <Scene id="chart-demo-bar" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.3] }}>
     <ProgressManager scrollUnits={1200} />
-    <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={55} />
+    <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={CHART_CAM_FOV} />
     <SceneLighting />
     <Background color="#020812" />
 
@@ -99,6 +108,9 @@ export const chartDemoBar: JSX.Element = (
 export const chartDemoLine: JSX.Element = (
   <Scene id="chart-demo-line" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.3] }}>
     <ProgressManager scrollUnits={1200} />
+    <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={CHART_CAM_FOV} />
+    <SceneLighting />
+    <Background color="#020812" />
 
     <Chart
       id="line-arr"
@@ -128,13 +140,12 @@ export const chartDemoLine: JSX.Element = (
 
 // ─── Scene 3: Pie — revenue by product ───────────────────────────────────────
 
-/** Pie is centered at (0,0,0); use a camera looking directly at it. */
-const PIE_CAM_POS: [number, number, number] = [0, 0, 7];
-const PIE_CAM_TGT: [number, number, number] = [0, 0, 0];
-
 export const chartDemoPie: JSX.Element = (
   <Scene id="chart-demo-pie" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.3] }}>
     <ProgressManager scrollUnits={1200} />
+    <Camera mode="world" position={PIE_CAM_POS} target={PIE_CAM_TGT} fov={PIE_CAM_FOV} />
+    <SceneLighting />
+    <Background color="#020812" />
 
     <Chart
       id="pie-products"
@@ -166,6 +177,9 @@ export const chartDemoPie: JSX.Element = (
 export const chartDemoScatter: JSX.Element = (
   <Scene id="chart-demo-scatter" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.3] }}>
     <ProgressManager scrollUnits={1200} />
+    <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={CHART_CAM_FOV} />
+    <SceneLighting />
+    <Background color="#020812" />
 
     <Chart
       id="scatter-teams"

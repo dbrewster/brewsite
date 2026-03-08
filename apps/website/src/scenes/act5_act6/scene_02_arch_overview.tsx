@@ -44,7 +44,7 @@ export const scene02ArchOverview: JSX.Element = (
       <Directional intensity={0.5} color="#ffefef" position={[0, 30, 50]} />
       <Directional intensity={0.6} color="#aaccff" position={[-20, 10, 20]} />
     </Lighting>
-    <DiagramCanvas id="system-canvas" rotation={[-Math.PI / 8, 0, 0]} scale={isMobile ? 1.0 : 1.4} theme={darkGlassTheme}>
+    <DiagramCanvas id="system-canvas" x={0} y={0} w={1} h={1} tilt={-Math.PI / 8} scale={isMobile ? 1.0 : 1.4} theme={darkGlassTheme}>
       <Diagram id="system-arch">
         <GridLayout />
 

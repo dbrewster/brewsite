@@ -340,16 +340,31 @@ export const registerDiagramHandlers = (): void => {
 
     const canvasDSL: DiagramCanvasDSL = {
       id: canvasId,
-      position: props.position as readonly [number, number, number] | undefined,
-      rotation: props.rotation as readonly [number, number, number] | undefined,
+      x: props.x as number | undefined,
+      y: props.y as number | undefined,
+      w: props.w as number | undefined,
+      h: props.h as number | undefined,
+      tilt: props.tilt as number | undefined,
       scale: props.scale as number | undefined,
+      padding: props.padding as number | undefined,
       theme: canvasTheme,
       pipeRouting: props.pipeRouting as PipeRoutingAlgorithm | undefined,
       pipeLanding: props.pipeLanding as PipeLandingAlgorithm | undefined,
       focusCenter: props.focusCenter as readonly [number, number] | readonly [number, number, number] | undefined,
     };
 
-    const canvasState = compileCanvas(canvasDSL, diagramStates, pipeDSLs, onWarn, defaultInputActions);
+    // Compute canvas aspect at compile time from the declared NVS bounds.
+    // Engine viewport aspect is unknown at compile time; use 16/9 as the standard default.
+    const ENGINE_ASPECT_DEFAULT = 16 / 9;
+    const compiledNvsBounds = {
+      x: (props.x as number | undefined) ?? 0,
+      y: (props.y as number | undefined) ?? 0,
+      w: (props.w as number | undefined) ?? 1,
+      h: (props.h as number | undefined) ?? 1,
+    };
+    const compiledCanvasAspect = (compiledNvsBounds.w / compiledNvsBounds.h) * ENGINE_ASPECT_DEFAULT;
+
+    const canvasState = compileCanvas(canvasDSL, diagramStates, pipeDSLs, onWarn, defaultInputActions, compiledCanvasAspect);
     api.setWidgetState(canvasId, canvasState);
   });
 

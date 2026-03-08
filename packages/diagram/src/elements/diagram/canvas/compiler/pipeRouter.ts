@@ -8,9 +8,6 @@ import { routeCurvedWithEndpointNormals } from '../../compiler/curveKernel';
 
 type Vec3 = readonly [number, number, number];
 
-/** Default canvas aspect ratio used at compile time (no camera available). */
-export const DEFAULT_CANVAS_ASPECT = 16 / 9;
-
 export function rotateXYZ(v: Vec3, rx: number, ry: number, rz: number): Vec3 {
   const cx = Math.cos(rx), sx = Math.sin(rx);
   const cy = Math.cos(ry), sy = Math.sin(ry);
@@ -145,6 +142,7 @@ export function rerouteLivePipes(
   diagrams: ReadonlyArray<DiagramState>,
   routing: PipeRoutingAlgorithm,
   landing: PipeLandingAlgorithm,
+  canvasAspect: number = 16 / 9,
 ): Map<string, ReadonlyArray<Vec3>> {
   const result = new Map<string, ReadonlyArray<Vec3>>();
 
@@ -172,8 +170,8 @@ export function rerouteLivePipes(
         fromNode.thickness,
         fromDiagram.viewportBounds,
         fromDiagram.tiltRotation,
-        DEFAULT_CANVAS_ASPECT,
-        nodeNvsToCanvasLocal(toNode.position, toDiagram.viewportBounds, toDiagram.tiltRotation, DEFAULT_CANVAS_ASPECT),
+        canvasAspect,
+        nodeNvsToCanvasLocal(toNode.position, toDiagram.viewportBounds, toDiagram.tiltRotation, canvasAspect),
       );
       const toAttach = sideAttachmentPoint(
         toNode.position,
@@ -181,13 +179,13 @@ export function rerouteLivePipes(
         toNode.thickness,
         toDiagram.viewportBounds,
         toDiagram.tiltRotation,
-        DEFAULT_CANVAS_ASPECT,
-        nodeNvsToCanvasLocal(fromNode.position, fromDiagram.viewportBounds, fromDiagram.tiltRotation, DEFAULT_CANVAS_ASPECT),
+        canvasAspect,
+        nodeNvsToCanvasLocal(fromNode.position, fromDiagram.viewportBounds, fromDiagram.tiltRotation, canvasAspect),
       );
       result.set(pipe.id, routePipe(fromAttach.point, toAttach.point, fromAttach.normal, toAttach.normal, routing));
     } else {
-      const fromWorld = nodeNvsToCanvasLocal(fromNode.position, fromDiagram.viewportBounds, fromDiagram.tiltRotation, DEFAULT_CANVAS_ASPECT);
-      const toWorld = nodeNvsToCanvasLocal(toNode.position, toDiagram.viewportBounds, toDiagram.tiltRotation, DEFAULT_CANVAS_ASPECT);
+      const fromWorld = nodeNvsToCanvasLocal(fromNode.position, fromDiagram.viewportBounds, fromDiagram.tiltRotation, canvasAspect);
+      const toWorld = nodeNvsToCanvasLocal(toNode.position, toDiagram.viewportBounds, toDiagram.tiltRotation, canvasAspect);
       result.set(pipe.id, routePipe(fromWorld, toWorld, undefined, undefined, routing));
     }
   }

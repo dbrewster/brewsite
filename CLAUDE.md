@@ -87,10 +87,10 @@ This is a **pnpm + Turborepo monorepo** with four published packages and one pri
    types.ts → dsl.tsx → compile.ts → render.ts → {Name}Widget.ts → index.ts
    ```
    - `types.ts` — interface contracts only; no runtime, Three.js, or React imports
-   - `dsl.tsx` — React DSL components; no Three.js
+   - `dsl.tsx` — prop type interfaces only; no React component functions, no Three.js
    - `compile.ts` — pure transformation functions; no React, no Three.js
    - `render.ts` — Three.js application layer; no React, no compiler imports
-   - `{Name}Widget.ts` — implements `IWidget` (and relevant sub-interfaces); bridges compiler state to render layer
+   - `{Name}Widget.ts` — implements `IWidget` (and relevant sub-interfaces); defines DSL stub functions (null-returning components); bridges compiler state to render layer
    - `index.ts` — public re-exports only
 
 5. **Widget SDK** (`widget/`) — Plugin system for extending the runtime.

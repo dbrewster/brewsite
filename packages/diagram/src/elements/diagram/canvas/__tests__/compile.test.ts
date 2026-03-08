@@ -76,11 +76,34 @@ describe('compilePipe', () => {
 });
 
 describe('compileCanvas', () => {
-  it('applies canvas position/scale defaults', () => {
+  it('applies canvas scale default and uses new NVS fields (not position/rotation)', () => {
     const diagram = compileDiagram(makeDiagram('a', 'n1', [0, 0, 0]));
     const canvas = compileCanvas({ id: 'canvas' }, [diagram], []);
-    expect(canvas.position).toEqual([0, 0, 0]);
     expect(canvas.scale).toBe(1);
+    expect('position' in canvas).toBe(false);
+    expect('rotation' in canvas).toBe(false);
+  });
+
+  it('applies tilt and padding defaults when omitted', () => {
+    const diagram = compileDiagram(makeDiagram('a', 'n1', [0, 0, 0]));
+    const canvas = compileCanvas({ id: 'canvas' }, [diagram], []);
+    expect(canvas.tilt).toBe(0);
+    expect(canvas.padding).toBe(0.1);
+    expect(canvas.nvsBounds).toEqual({ x: 0, y: 0, w: 1, h: 1 });
+  });
+
+  it('applies explicit tilt, padding, and NVS bounds from DSL', () => {
+    const diagram = compileDiagram(makeDiagram('a', 'n1', [0, 0, 0]));
+    const canvas = compileCanvas(
+      { id: 'test', tilt: -0.3, scale: 1, padding: 0.1, x: 0, y: 0, w: 1, h: 0.55 },
+      [diagram],
+      [],
+    );
+    expect(canvas.tilt).toBe(-0.3);
+    expect(canvas.padding).toBe(0.1);
+    expect(canvas.nvsBounds).toEqual({ x: 0, y: 0, w: 1, h: 0.55 });
+    expect('position' in canvas).toBe(false);
+    expect('rotation' in canvas).toBe(false);
   });
 
   it('stores compiled diagram states in output', () => {
@@ -109,6 +132,45 @@ describe('compileCanvas', () => {
     const diagram = compileDiagram(makeDiagram('a', 'n1', [0, 0, 0]));
     const canvas = compileCanvas({ id: 'canvas' }, [diagram], []);
     expect(canvas.pipes).toEqual([]);
+  });
+
+  it('emits console.error for NVS x=-0.1 (out of bounds)', () => {
+    const diagram = compileDiagram(makeDiagram('a', 'n1', [0, 0, 0]));
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    compileCanvas({ id: 'canvas', x: -0.1, w: 0.5 }, [diagram], []);
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('canvasAspect affects pipe control points: 8/9 vs 16/9 produce different results', () => {
+    const diagrams = [
+      compileDiagram({
+        id: 'a',
+        layout: { kind: 'manual' },
+        viewportBounds: { x: 0, y: 0, w: 0.5, h: 1 },
+        nodes: [{ id: 'n1', label: 'n1', position: [0.5, 0.5, 0] }],
+        edges: [],
+        groups: [],
+      }),
+      compileDiagram({
+        id: 'b',
+        layout: { kind: 'manual' },
+        viewportBounds: { x: 0.5, y: 0, w: 0.5, h: 1 },
+        nodes: [{ id: 'n2', label: 'n2', position: [0.5, 0.5, 0] }],
+        edges: [],
+        groups: [],
+      }),
+    ];
+    const pipes: DiagramPipeDSL[] = [{ from: 'a.n1', to: 'b.n2' }];
+
+    // Sub-canvas at x=0, w=0.5, h=1 → aspect = (0.5/1) * (16/9) = 8/9
+    const canvasNarrow = compileCanvas({ id: 'c', x: 0, y: 0, w: 0.5, h: 1 }, diagrams, pipes);
+    // Full-screen canvas → aspect = 16/9
+    const canvasWide = compileCanvas({ id: 'c', x: 0, y: 0, w: 1, h: 1 }, diagrams, pipes);
+
+    const narrowX = canvasNarrow.pipes[0]!.controlPoints[0]![0];
+    const wideX = canvasWide.pipes[0]!.controlPoints[0]![0];
+    expect(narrowX).not.toBeCloseTo(wideX, 5);
   });
 });
 

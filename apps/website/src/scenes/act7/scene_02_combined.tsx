@@ -70,7 +70,7 @@ export const scene02Combined: JSX.Element = (
     {/* Architecture diagram — right, slightly elevated and angled */}
     <DiagramCanvas
       id="full-diagram"
-      rotation={[-Math.PI / 10, -Math.PI / 8, 0]}
+      x={0} y={0} w={1} h={1} tilt={-Math.PI / 10}
       scale={1.1}
       theme={darkGlassTheme}
     >

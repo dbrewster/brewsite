@@ -144,9 +144,18 @@ export class ChartWidget
 
     // Convert NVS position to world-space using the live camera when available.
     const cam = this.cameraRef;
-    const worldPos = cam
+    const worldCenter = cam
       ? nvsToWorldWithCamera(state.nvsX, state.nvsY, cam, state.z)
       : nvsToWorldAnalytic(state.nvsX, state.nvsY, 0, 0, 12.07, 45, 16 / 9, state.z);
+
+    // Center the chart group on the NVS-derived world position.
+    // Chart content (bars, axes) starts at group-local (0, 0) and extends to
+    // (bounds.width, bounds.height). Subtract half-bounds to center it.
+    const worldPos: readonly [number, number, number] = [
+      worldCenter[0] - state.bounds.width / 2,
+      worldCenter[1] - state.bounds.height / 2,
+      worldCenter[2],
+    ];
 
     this.chartRenderer.update({ ...state, position: worldPos }, this.widgetId);
 
@@ -169,9 +178,14 @@ export class ChartWidget
       // Re-apply same state — heatmap renderer derives slice from store.getTimeSlice().
       // Must convert NVS → world-space position same as apply().
       const heatCam = this.cameraRef;
-      const heatWorldPos = heatCam
+      const heatWorldCenter = heatCam
         ? nvsToWorldWithCamera(this.lastState.nvsX, this.lastState.nvsY, heatCam, this.lastState.z)
         : nvsToWorldAnalytic(this.lastState.nvsX, this.lastState.nvsY, 0, 0, 12.07, 45, 16 / 9, this.lastState.z);
+      const heatWorldPos: readonly [number, number, number] = [
+        heatWorldCenter[0] - this.lastState.bounds.width / 2,
+        heatWorldCenter[1] - this.lastState.bounds.height / 2,
+        heatWorldCenter[2],
+      ];
       this.chartRenderer.update({ ...this.lastState, position: heatWorldPos }, this.widgetId);
     }
   }

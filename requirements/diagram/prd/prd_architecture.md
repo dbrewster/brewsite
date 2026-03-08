@@ -13,6 +13,9 @@ change_history:
     summary: "Breaking DX improvements: diagramPlugin() factory eliminates manual DiagramCanvasWidget pre-registration; DiagramWidget removed from public exports; Enter/Exit renamed to DiagramEnter/DiagramExit; ghost node trigger changed from label==='' to label===undefined. Updated Goals, Compiler Registration Contract, Widget Registration, Transition Model, and Design Rule 9 accordingly."
   - date: 2026-03-08
     author: "Toolkit Product"
+    summary: "DSL stub co-location: dsl.tsx is now a pure type module (prop interfaces only). DSL stub functions moved to widget.ts files. Updated mandatory element module pattern to reflect new dsl.tsx and widget.ts roles."
+  - date: 2026-03-08
+    author: "Toolkit Product"
     summary: "Architecture cleanup: added diagramLayoutConstants.ts and diagramRenderConstants.ts as shared constant sources; removed dead code (groupConstants.ts, TextRenderer.ts, createRoundedBorderGeometry, DiagramPivot type); DiagramRenderer constructor now requires DiagramThemeRenderConfig; 5 group edge light types added to package root exports; updated module source structure and rendering architecture sections."
 ---
 
@@ -112,7 +115,7 @@ types.ts
   ↓  interface contracts only; no runtime, Three.js, or React imports
 
 dsl.tsx
-  ↓  React DSL components; imports from types.ts; no Three.js
+  ↓  prop type interfaces only; imports from types.ts; no React components, no Three.js
 
 compile.ts
   ↓  pure transformation functions; imports from types.ts and @brewsite/core math utils;
@@ -123,8 +126,9 @@ render.ts
      no React, no compiler imports
 
 widget.ts
-  ↓  implements IWidget from @brewsite/core;
-     imports compile.ts (for transitionSpec), render.ts (for renderer), types.ts, dsl.tsx;
+  ↓  defines DSL stub functions (null-returning components);
+     implements IWidget from @brewsite/core;
+     imports compile.ts (for transitionSpec), render.ts (for renderer), types.ts, dsl.tsx (prop types);
      bridges compiler output to render layer
 
 index.ts

@@ -25,8 +25,8 @@ export const sceneParkingLot: JSX.Element = (
     </Lighting>
     <DiagramCanvas
       id="whiteboard-arch-canvas"
-      position={[0, 2, 0]}
-      rotation={[0, 0, 0]}
+      x={0} y={0} w={1} h={1}
+      tilt={0}
       scale={1.0}
       theme={darkGlassTheme}
     >
