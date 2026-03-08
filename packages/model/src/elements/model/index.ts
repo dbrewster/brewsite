@@ -59,7 +59,7 @@ export {
   Playback,
   Motion,
   Animation,
-} from './dsl';
+} from './ModelWidget';
 export type {
   ModelProps,
   BodyPartProps,

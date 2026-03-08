@@ -15,18 +15,6 @@ export type EnvironmentProps = {
   children?: React.ReactNode;
 };
 
-/**
- * Environment lighting (IBL) element.
- *
- * Requires one source child to produce an environment map:
- * - `<EnvironmentHdri url="..." />`
- * - `<EnvironmentExr url="..." />`
- * - `<EnvironmentCube urls={[...]} />`
- */
-export const Environment = (_props: EnvironmentProps) => null;
-
-Environment.displayName = 'Environment';
-
 export type EnvironmentHdriProps = {
   url: string;
   /**
@@ -35,9 +23,6 @@ export type EnvironmentHdriProps = {
    */
   background?: boolean;
 };
-
-export const EnvironmentHdri = (_props: EnvironmentHdriProps) => null;
-EnvironmentHdri.displayName = 'EnvironmentHdri';
 
 export type EnvironmentExrProps = {
   url: string;
@@ -48,9 +33,6 @@ export type EnvironmentExrProps = {
   background?: boolean;
 };
 
-export const EnvironmentExr = (_props: EnvironmentExrProps) => null;
-EnvironmentExr.displayName = 'EnvironmentExr';
-
 export type EnvironmentCubeProps = {
   urls: [string, string, string, string, string, string];
   /**
@@ -60,5 +42,4 @@ export type EnvironmentCubeProps = {
   background?: boolean;
 };
 
-export const EnvironmentCube = (_props: EnvironmentCubeProps) => null;
-EnvironmentCube.displayName = 'EnvironmentCube';
+

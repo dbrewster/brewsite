@@ -17,7 +17,7 @@ import {
   resolveClipRangeSeconds as DIRECT_RESOLVE,
 } from '../compile';
 import { applyModelTransform as DIRECT_APPLY } from '../render';
-import { Model as DIRECT_MODEL, Playback as DIRECT_PLAYBACK } from '../dsl';
+import { Model as DIRECT_MODEL, Playback as DIRECT_PLAYBACK } from '../ModelWidget';
 
 describe('model index re-exports', () => {
   it('re-exports compile helpers', () => {

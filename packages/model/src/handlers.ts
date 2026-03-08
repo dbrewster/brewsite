@@ -1,7 +1,7 @@
 // DSL NodeHandler registration for @brewsite/model DSL components.
 
 import { registerNode, getNodeHandler } from '@brewsite/core';
-import { Label, Labels } from './labels/dsl';
+import { Label, Labels } from './elements/model/ModelWidget';
 // Model DSL components are handled via CUSTOM_NODE_HANDLER on ModelWidget instances.
 // Label guard handlers are registered here to produce clear error messages.
 

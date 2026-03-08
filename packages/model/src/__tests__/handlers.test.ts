@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { registerModelHandlers, resetModelHandlerRegistrationForTesting } from '../handlers';
 import { getNodeHandler } from '@brewsite/core/compiler/registry';
 import { clearRegistry } from '@brewsite/core/testing';
-import { Label } from '../labels/dsl';
+import { Label } from '../elements/model/ModelWidget';
 
 beforeEach(() => {
   clearRegistry();

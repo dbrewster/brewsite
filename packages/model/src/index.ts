@@ -38,7 +38,7 @@ export {
   Playback,
   Motion,
   Animation,
-} from './elements/model/dsl';
+} from './elements/model/ModelWidget';
 export type {
   ModelProps,
   BodyPartProps,
@@ -54,7 +54,7 @@ export type {
 
 // Label public surface
 export type { LabelDefinition, LabelResolved, LabelStyle } from './labels/types';
-export { Label } from './labels/dsl';
+export { Label } from './labels';
 export { LabelItem } from './labels/LabelItem';
 export { LabelPositioner } from './player/LabelPositioner';
 export { LabelPositionerContext, useLabelPositioner } from './player/LabelPositionerContext';

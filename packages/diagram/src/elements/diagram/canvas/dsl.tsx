@@ -55,26 +55,6 @@ export interface DiagramCanvasProps {
   children?: React.ReactNode;
 }
 
-/**
- * Root container for a multi-diagram composition.
- * Provides a shared world-space transform and enables cross-diagram pipes.
- * Child <Diagram> elements use canvas-local coordinates.
- * Child <DiagramPipe> elements connect nodes across child diagrams.
- *
- * Compilation: two-pass (diagrams first, then pipes).
- * Rendering: single DiagramCanvasWidget owns all child diagrams and pipes.
- *
- * Example:
- *   <DiagramCanvas id="system" scale={0.01}>
- *     <Diagram id="frontend" position={[-600, 0, 0]}>...</Diagram>
- *     <Diagram id="backend" position={[600, 0, 0]}>...</Diagram>
- *     <DiagramPipe from="frontend.api" to="backend.gateway" />
- *   </DiagramCanvas>
- */
-export function DiagramCanvas(_props: DiagramCanvasProps): null {
-  return null;
-}
-
 export interface DiagramPipeProps {
   /**
    * Auto-generated id if omitted: "from--to" (dots replaced by dashes).
@@ -105,14 +85,4 @@ export interface DiagramPipeProps {
   opacity?: number;
 }
 
-/**
- * Declares a tube connector between nodes in two different <Diagram> elements
- * inside the same <DiagramCanvas>.
- * Must be a direct child of <DiagramCanvas>.
- *
- * Routing: CatmullRom arc in canvas-local space, computed at compile time.
- * The pipe is rendered by DiagramCanvasWidget alongside the diagram tubes.
- */
-export function DiagramPipe(_props: DiagramPipeProps): null {
-  return null;
-}
+

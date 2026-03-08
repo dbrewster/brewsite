@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { functionalChartTransitionSpec } from './compile';
 import { ChartRenderer } from './render';
-import { Chart, ChartData, ChartAxis, ChartSeries, ChartLegend } from './dsl';
+import type { ChartProps, ChartDataProps, ChartAxisProps, ChartSeriesProps, ChartLegendProps } from './dsl';
 import type { ChartState } from './types';
 import { DEFAULT_CHART_STATE } from './types';
 import type { ChartDataStore } from '../../data/ChartDataStore';
@@ -26,6 +26,42 @@ import type { ChartHitInfo } from '../../renderers/shared/IChartRenderer';
 
 /** Information passed to onHover and onSelect callbacks. */
 export type ChartHoverInfo = ChartHitInfo;
+
+/**
+ * Declares a 3D chart element.
+ * Compiled by chartPlugin().configureRegistry() — never rendered to DOM.
+ */
+export function Chart(_props: ChartProps): null { return null; }
+Chart.displayName = 'Chart';
+
+/**
+ * Declares the data source for a <Chart>.
+ * Must be a direct child of <Chart>.
+ */
+export function ChartData(_props: ChartDataProps): null { return null; }
+ChartData.displayName = 'ChartData';
+
+/**
+ * Declares one axis configuration for a <Chart>.
+ * Must be a direct child of <Chart>.
+ */
+export function ChartAxis(_props: ChartAxisProps): null { return null; }
+ChartAxis.displayName = 'ChartAxis';
+
+/**
+ * Declares one data series for a <Chart>.
+ * Must be a direct child of <Chart>.
+ * Multiple <ChartSeries> children yield a multi-series chart.
+ */
+export function ChartSeries(_props: ChartSeriesProps): null { return null; }
+ChartSeries.displayName = 'ChartSeries';
+
+/**
+ * Configures the chart legend.
+ * Must be a direct child of <Chart>.
+ */
+export function ChartLegend(_props: ChartLegendProps): null { return null; }
+ChartLegend.displayName = 'ChartLegend';
 
 /**
  * Widget for a single 3D chart element.

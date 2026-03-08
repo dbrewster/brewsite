@@ -15,7 +15,7 @@ import {
   FlowLayout,
   HierarchicalLayout,
   ManualLayout,
-} from '../../elements/diagram/dsl';
+} from '../../elements/diagram/widget';
 import type { DiagramCanvasState } from '../../elements/diagram/canvas/types';
 import type { DiagramNodeState } from '../../elements/diagram/types';
 

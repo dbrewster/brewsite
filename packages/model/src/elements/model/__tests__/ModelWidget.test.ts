@@ -17,8 +17,8 @@ import {
   Playback,
   Pose,
   Subpart,
-} from '../dsl';
-import { Label } from '../../../labels/dsl';
+  Label,
+} from '../ModelWidget';
 import { CUSTOM_NODE_HANDLER } from '@brewsite/core/widget/WidgetRegistry';
 import { makeInitContext, makeRenderContext } from '../../__tests__/elementTestMocks';
 

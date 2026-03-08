@@ -15,7 +15,7 @@ export type {
   SceneLightPanel,
   Vec3,
 } from './types';
-export { Lighting, Ambient, Directional, GlowPoint, Point, Spot, LightStrand, Wave, Circle, Rectangle, Panel } from './dsl';
+export { Lighting, Ambient, Directional, GlowPoint, Point, Spot, LightStrand, Wave, Circle, Rectangle, Panel } from './LightingWidget';
 export { DEFAULT_LIGHTING, lightingTransitionSpec, functionalLightingTransitionSpec } from './compile';
 export {
   applyLighting,

@@ -8,7 +8,7 @@ import { ViewportScaleContext } from '@brewsite/core';
 import type { AssetManifest } from './elements/model/metadata';
 import type { SceneModel } from './elements/model/types';
 import { clipMetaFromManifest, assertManifestValid } from './elements/model/metadata';
-import { ModelRouter } from './elements/model/dsl';
+import { ModelRouter } from './elements/model/ModelWidget';
 import { ModelWidget } from './elements/model/ModelWidget';
 import { ModelRenderer } from './elements/model/ModelRenderer';
 import { registerModelHandlers } from './handlers';

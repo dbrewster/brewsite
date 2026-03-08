@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Floor } from '../dsl';
+import { Floor } from '../FloorWidget';
 import { DEFAULT_FLOOR, floorTransitionSpec, functionalFloorTransitionSpec } from '../compile';
 import { applyFloor } from '../render';
 import type { SceneFloor } from '../types';

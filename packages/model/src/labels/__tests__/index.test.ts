@@ -5,7 +5,7 @@ import {
   renderLabels,
   LabelItem,
 } from '../index';
-import { Label as DirectLabel, Labels as DirectLabels } from '../dsl';
+import { Label as DirectLabel, Labels as DirectLabels } from '../../elements/model/ModelWidget';
 import { renderLabels as DirectRender } from '../render';
 import { LabelItem as DirectItem } from '../LabelItem';
 

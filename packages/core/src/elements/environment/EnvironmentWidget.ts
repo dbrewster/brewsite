@@ -13,19 +13,36 @@ import type {
 } from '../../widget/types';
 import type { EnvironmentSource, SceneEnvironment } from './types';
 import { DEFAULT_ENVIRONMENT, functionalEnvironmentTransitionSpec } from './compile';
-import {
-  Environment,
-  EnvironmentCube,
-  EnvironmentExr,
-  EnvironmentHdri,
-  type EnvironmentCubeProps,
-  type EnvironmentExrProps,
-  type EnvironmentHdriProps,
-  type EnvironmentProps,
+import type {
+  EnvironmentCubeProps,
+  EnvironmentExrProps,
+  EnvironmentHdriProps,
+  EnvironmentProps,
 } from './dsl';
 import { applyEnvironment } from './render';
 import type * as React from 'react';
 import { isValidElement } from 'react';
+
+/**
+ * Environment lighting (IBL) element.
+ *
+ * Requires one source child to produce an environment map:
+ * - `<EnvironmentHdri url="..." />`
+ * - `<EnvironmentExr url="..." />`
+ * - `<EnvironmentCube urls={[...]} />`
+ */
+export const Environment = (_props: EnvironmentProps) => null;
+
+Environment.displayName = 'Environment';
+
+export const EnvironmentHdri = (_props: EnvironmentHdriProps) => null;
+EnvironmentHdri.displayName = 'EnvironmentHdri';
+
+export const EnvironmentExr = (_props: EnvironmentExrProps) => null;
+EnvironmentExr.displayName = 'EnvironmentExr';
+
+export const EnvironmentCube = (_props: EnvironmentCubeProps) => null;
+EnvironmentCube.displayName = 'EnvironmentCube';
 import { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
 import type { IHasCustomDslHandler } from '../../widget/WidgetRegistry';
 import type { NodeHandler } from '../../compiler/sceneDslTypes';

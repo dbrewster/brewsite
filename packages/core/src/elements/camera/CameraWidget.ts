@@ -11,7 +11,6 @@ import type {
 } from './types';
 import type * as THREE from 'three';
 import { DEFAULT_CAMERA, functionalCameraTransitionSpec, extractWorldPosFromDescriptor } from './compile';
-import { Camera } from './dsl';
 import type { CameraProps } from './dsl';
 import { applyCamera } from './render';
 import { CameraControlsDriver } from './CameraControlsDriver';
@@ -27,6 +26,11 @@ import type {
 } from '../../widget/types';
 import { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
 import type { SceneTrackTick } from '../../compiler/sceneTrackTypes';
+
+/** Camera DSL component — returns null; consumed purely by the compiler. */
+export const Camera = (_props: CameraProps): null => null;
+
+Camera.displayName = 'Camera';
 
 /** Minimal model state shape used for camera target resolution. Full type lives in @brewsite/model. */
 type ModelStateForCamera = { model?: { position?: [number, number, number] } };

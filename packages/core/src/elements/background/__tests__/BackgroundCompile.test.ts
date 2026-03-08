@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Background } from '../dsl';
+import { Background } from '../BackgroundWidget';
 import { DEFAULT_BACKGROUND, backgroundTransitionSpec, functionalBackgroundTransitionSpec } from '../compile';
 import { applyBackground } from '../render';
 import type { SceneBackground } from '../types';

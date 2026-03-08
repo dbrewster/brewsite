@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { registerChartHandlers, resetChartHandlerRegistrationForTesting } from '../handlers';
-import { ChartData, ChartAxis, ChartSeries, ChartLegend } from '../../elements/chart/dsl';
+import { ChartData, ChartAxis, ChartSeries, ChartLegend } from '../../elements/chart/ChartWidget';
 
 // Access registry internals via direct source import for testing only.
 // In production, only registerNode is used.

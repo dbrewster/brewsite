@@ -4,10 +4,19 @@
 import * as THREE from 'three';
 import type { IRenderable, ISceneElement, WidgetInitContext, WidgetRenderContext } from '@brewsite/core';
 import { nvsToWorldWithCamera, nvsToWorldAnalytic, computeWorldDimensionsFromCamera, computeWorldDimensions } from '@brewsite/core';
-import { ImagePanel } from './dsl';
+import type { ImagePanelProps } from './dsl';
 import { functionalImagePanelTransitionSpec } from './compile';
 import { ImagePanelRenderer } from './render';
 import type { ImagePanelState } from './types';
+
+/**
+ * Renders a static image as a physical 3D floating panel in world space.
+ * The image is a WebGL texture — fully supports tilt, lighting, and reflections.
+ * For a live interactive website, use <Screen>.
+ */
+export function ImagePanel(_props: ImagePanelProps): null {
+  return null;
+}
 
 /** Default camera distance used when no live camera is available. */
 const DEFAULT_DIST = 12.07;

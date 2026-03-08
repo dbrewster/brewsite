@@ -4,7 +4,7 @@ import type { ReactElement } from 'react';
 import { registerNode } from '@brewsite/core';
 import type { CompileApi, CompileHelpers } from '@brewsite/core';
 import { compileDiagram } from '../elements/diagram/compile';
-import { DiagramCanvas, DiagramPipe } from '../elements/diagram/canvas/dsl';
+import { DiagramCanvas, DiagramPipe } from '../elements/diagram/canvas/widget';
 import { compileCanvas } from '../elements/diagram/canvas/compile';
 import { compileImagePanel } from '../elements/image-panel/compile';
 import { compileScreen } from '../elements/screen/compile';
@@ -35,9 +35,9 @@ import {
   HierarchicalLayout,
   ManualLayout,
   FlowLayout,
-} from '../elements/diagram/dsl';
-import { ImagePanel } from '../elements/image-panel/dsl';
-import { Screen } from '../elements/screen/dsl';
+} from '../elements/diagram/widget';
+import { ImagePanel } from '../elements/image-panel/widget';
+import { Screen } from '../elements/screen/widget';
 
 const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?: DiagramWarnFn): DiagramDSL => {
   const props = node.props as Record<string, unknown>;

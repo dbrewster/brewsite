@@ -6,7 +6,7 @@ import {
   DiagramNode,
   DiagramEnter,
   DiagramExit,
-} from '../dsl';
+} from '../widget';
 
 describe('diagram DSL components', () => {
   it('returns null for all DSL components', () => {

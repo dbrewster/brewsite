@@ -1,5 +1,5 @@
 // Chart element module — public re-exports only.
-export { Chart, ChartData, ChartAxis, ChartSeries, ChartLegend } from './dsl';
+export { Chart, ChartData, ChartAxis, ChartSeries, ChartLegend } from './ChartWidget';
 export type { ChartProps, ChartDataProps, ChartAxisProps, ChartSeriesProps, ChartLegendProps } from './dsl';
 export { compileChart, functionalChartTransitionSpec } from './compile';
 export { ChartRenderer } from './render';

@@ -32,17 +32,6 @@ export type FloorProps = {
   children?: React.ReactNode;
 };
 
-/**
- * Floor element.
- *
- * Visible output requires one surface child:
- * - `<FloorPhysical ... />`
- * - `<FloorMirror ... />`
- */
-export const Floor = (_props: FloorProps) => null;
-
-Floor.displayName = 'Floor';
-
 export type FloorPhysicalProps = {
   textureUrl?: string;
   color?: string;
@@ -72,9 +61,6 @@ export type FloorPhysicalProps = {
   wireframe?: boolean;
 };
 
-export const FloorPhysical = (_props: FloorPhysicalProps) => null;
-FloorPhysical.displayName = 'FloorPhysical';
-
 export type FloorMirrorProps = {
   mirrorColor?: string;
   mirrorOpacity?: number;
@@ -84,5 +70,3 @@ export type FloorMirrorProps = {
   mirrorEnvironmentIntensity?: number;
 };
 
-export const FloorMirror = (_props: FloorMirrorProps) => null;
-FloorMirror.displayName = 'FloorMirror';

@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { FloorWidget } from '../FloorWidget';
 import type { SceneFloor } from '../types';
 import { makeInitContext, makeRenderContext } from '../../__tests__/elementTestMocks';
-import { FloorPhysical, FloorMirror } from '../dsl';
+import { FloorPhysical, FloorMirror } from '../FloorWidget';
 import { CUSTOM_NODE_HANDLER } from '../../../widget/WidgetRegistry';
 import React from 'react';
 import { makeSimpleContext } from '../../../compiler/transitions/transitionResolver';

@@ -10,7 +10,7 @@ import {
   Playback,
   Motion,
   Animation,
-} from '../dsl';
+} from '../ModelWidget';
 
 describe('model DSL components', () => {
   it('render null for all DSL components', () => {

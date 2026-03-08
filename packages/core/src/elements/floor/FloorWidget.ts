@@ -11,10 +11,27 @@ import type {
 } from '../../widget/types';
 import type { FloorSurface, FloorSurfaceMirror, FloorSurfacePhysical, SceneFloor } from './types';
 import { DEFAULT_FLOOR, functionalFloorTransitionSpec } from './compile';
-import { Floor, FloorMirror, FloorPhysical, type FloorMirrorProps, type FloorPhysicalProps, type FloorProps } from './dsl';
+import type { FloorMirrorProps, FloorPhysicalProps, FloorProps } from './dsl';
 import { applyFloor, disposeFloor } from './render';
 import type * as React from 'react';
 import { isValidElement } from 'react';
+
+/**
+ * Floor element.
+ *
+ * Visible output requires one surface child:
+ * - `<FloorPhysical ... />`
+ * - `<FloorMirror ... />`
+ */
+export const Floor = (_props: FloorProps) => null;
+
+Floor.displayName = 'Floor';
+
+export const FloorPhysical = (_props: FloorPhysicalProps) => null;
+FloorPhysical.displayName = 'FloorPhysical';
+
+export const FloorMirror = (_props: FloorMirrorProps) => null;
+FloorMirror.displayName = 'FloorMirror';
 import { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
 import type { IHasCustomDslHandler } from '../../widget/WidgetRegistry';
 import type { NodeHandler } from '../../compiler/sceneDslTypes';

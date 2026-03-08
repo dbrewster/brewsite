@@ -130,26 +130,3 @@ export type LightingProps = {
   children?: ReactNode;
 };
 
-export const Lighting = (_props: LightingProps) => null;
-export const Ambient = (_props: AmbientProps) => null;
-export const Directional = (_props: DirectionalProps) => null;
-export const Point = (_props: PointProps) => null;
-export const GlowPoint = (_props: GlowPointProps) => null;
-export const Spot = (_props: SpotProps) => null;
-export const LightStrand = (_props: LightStrandProps) => null;
-export const Wave = (_props: WaveProps) => null;
-export const Circle = (_props: CircleProps) => null;
-export const Rectangle = (_props: RectangleProps) => null;
-export const Panel = (_props: PanelProps) => null;
-
-Lighting.displayName = 'Lighting';
-Ambient.displayName = 'Ambient';
-Directional.displayName = 'Directional';
-Point.displayName = 'Point';
-GlowPoint.displayName = 'GlowPoint';
-Spot.displayName = 'Spot';
-LightStrand.displayName = 'LightStrand';
-Wave.displayName = 'Wave';
-Circle.displayName = 'Circle';
-Rectangle.displayName = 'Rectangle';
-Panel.displayName = 'Panel';

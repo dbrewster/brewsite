@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { Label, Labels } from '../dsl';
+import { Label, Labels } from '../../elements/model/ModelWidget';
 import { getNodeHandler } from '@brewsite/core/compiler/registry';
 import { clearRegistry } from '@brewsite/core/testing';
 import { registerModelHandlers, resetModelHandlerRegistrationForTesting } from '../../handlers';

@@ -15,7 +15,7 @@ import type {
   WidgetInitContext,
   WidgetRenderContext,
 } from '@brewsite/core';
-import { DiagramCanvas } from './dsl';
+import type { DiagramCanvasProps, DiagramPipeProps } from './dsl';
 import { functionalDiagramCanvasTransitionSpec } from './compile';
 import { DiagramCanvasRenderer } from './render';
 import type { DiagramCanvasState } from './types';
@@ -32,6 +32,38 @@ import {
   publishDiagramFocusGroup,
 } from '../focusRegion';
 
+
+/**
+ * Root container for a multi-diagram composition.
+ * Provides a shared world-space transform and enables cross-diagram pipes.
+ * Child <Diagram> elements use canvas-local coordinates.
+ * Child <DiagramPipe> elements connect nodes across child diagrams.
+ *
+ * Compilation: two-pass (diagrams first, then pipes).
+ * Rendering: single DiagramCanvasWidget owns all child diagrams and pipes.
+ *
+ * Example:
+ *   <DiagramCanvas id="system" scale={0.01}>
+ *     <Diagram id="frontend" position={[-600, 0, 0]}>...</Diagram>
+ *     <Diagram id="backend" position={[600, 0, 0]}>...</Diagram>
+ *     <DiagramPipe from="frontend.api" to="backend.gateway" />
+ *   </DiagramCanvas>
+ */
+export function DiagramCanvas(_props: DiagramCanvasProps): null {
+  return null;
+}
+
+/**
+ * Declares a tube connector between nodes in two different <Diagram> elements
+ * inside the same <DiagramCanvas>.
+ * Must be a direct child of <DiagramCanvas>.
+ *
+ * Routing: CatmullRom arc in canvas-local space, computed at compile time.
+ * The pipe is rendered by DiagramCanvasWidget alongside the diagram tubes.
+ */
+export function DiagramPipe(_props: DiagramPipeProps): null {
+  return null;
+}
 
 /**
  * Pure helper: computes NDC coordinates for a pointer event scoped to an NVS sub-region.

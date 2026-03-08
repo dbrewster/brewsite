@@ -5,7 +5,7 @@ import {Lights} from "../../Lights";
 export const sceneHero: JSX.Element = (
   <Scene key="bfc-hero" id="bfc-hero">
     <ProgressManager scrollUnits={800} />
-    <Camera mode="world" position={[0, 1, 4]} target={[0, 0.5, 0]} fov={40} />
+    <Camera mode="world" position={[0, 1, 60]} target={[0, 1.5, 0]} fov={40} />
     <Lights/>
     <Background color="#080b14" />
 

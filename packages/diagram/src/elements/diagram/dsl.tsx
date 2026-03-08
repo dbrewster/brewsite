@@ -144,40 +144,6 @@ export interface DiagramNodeProps {
   onMouseLeave?: DiagramNodeMouseHandler;
 }
 
-/**
- * Declares a diagram node (shape with label).
- * Must be a direct or indirect child of <Diagram>.
- * Can be nested inside <DiagramGroup> to establish group membership.
- *
- * ### Ghost Nodes
- *
- * When `label` is omitted, this node is a **ghost node** — it inherits its
- * visual identity (label, sublabel, shape, icon, size) from the matching node
- * in the previous scene. Ghost nodes enable drill-down animations where a prior
- * scene's diagram appears as faded context behind the new focal point.
- *
- * To make a node appear as a ghost:
- * - Omit the `label` prop entirely (do NOT pass `label=""`).
- * - Optionally set `opacity` to reduce visual weight (e.g., `opacity={0.3}`).
- * - In a manual-layout diagram, also omit `position` — it will be inherited.
- *
- * @example
- * // Scene 1: full diagram with named nodes
- * <DiagramNode id="api" label="API Gateway" icon="aws:api-gateway" size={[4, 2]} />
- *
- * // Scene 2: api appears as ghost context (no label = inherit identity from Scene 1)
- * <DiagramNode id="api" opacity={0.3} />
- * // ↑ inherits label, icon, shape, size from Scene 1; only opacity changes
- *
- * Contrast with an intentionally labelless node (NOT a ghost):
- * // This node has a label — it is an empty string, not absent.
- * <DiagramNode id="cdn" label="" size={[3, 2]} color="#1a3d5c" />
- * // ↑ fully-declared node, no inheritance from prior scenes
- */
-export function DiagramNode(_props: DiagramNodeProps): null {
-  return null;
-}
-
 // ─── <DiagramEdge> ────────────────────────────────────────────────────────────
 
 export interface DiagramEdgeProps {
@@ -219,17 +185,6 @@ export interface DiagramEdgeProps {
    * Explicit attachment port at the destination node.
    */
   toPort?: DiagramEdgePort;
-}
-
-/**
- * Declares a directed connector between two diagram nodes.
- * `from` and `to` must match `<DiagramNode id="...">` values in the same
- * parent `<Diagram>`.
- * Unresolvable endpoints are compiled as hidden edges (no control points).
- * Must be a direct or indirect child of <Diagram>.
- */
-export function DiagramEdge(_props: DiagramEdgeProps): null {
-  return null;
 }
 
 // ─── <DiagramGroup> ───────────────────────────────────────────────────────────
@@ -279,14 +234,6 @@ export interface DiagramGroupProps {
   children?: React.ReactNode;
 }
 
-/**
- * Declares a visual grouping container (boundary, cluster, swimlane, or container).
- * Direct children that are <DiagramNode> elements are assigned to this group.
- */
-export function DiagramGroup(_props: DiagramGroupProps): null {
-  return null;
-}
-
 // ─── <GridLayout> ─────────────────────────────────────────────────────────────
 
 export interface GridLayoutProps {
@@ -304,15 +251,6 @@ export interface GridLayoutProps {
   alignment?: LayoutAlignment;
   /** Disconnected node placement. Default: 'next-to' */
   disconnected?: LayoutDisconnected;
-}
-
-/**
- * Declares a grid auto-layout for the parent <Diagram> or <DiagramGroup>.
- * Must be a direct child of <Diagram> or <DiagramGroup>. At most one layout
- * element per container. Cascades with parent layouts of the same kind.
- */
-export function GridLayout(_props: GridLayoutProps): null {
-  return null;
 }
 
 // ─── <HierarchicalLayout> ─────────────────────────────────────────────────────
@@ -334,16 +272,6 @@ export interface HierarchicalLayoutProps {
   disconnected?: LayoutDisconnected;
 }
 
-/**
- * Declares a topological (edge-driven) auto-layout for the parent
- * <Diagram> or <DiagramGroup>. Must be a direct child of either container.
- * At most one layout element per container. Cascades with parent layouts
- * of the same kind.
- */
-export function HierarchicalLayout(_props: HierarchicalLayoutProps): null {
-  return null;
-}
-
 // ─── <ManualLayout> ───────────────────────────────────────────────────────────
 
 export interface ManualLayoutProps {
@@ -351,15 +279,6 @@ export interface ManualLayoutProps {
   groupPadding?: LayoutPadding;
   /** Gap between group title and content. Default: 0.75 */
   titleGap?: number;
-}
-
-/**
- * Declares that all node positions are manually specified.
- * Non-ghost nodes (those with a label) that lack an explicit position
- * will throw a compile-time error.
- */
-export function ManualLayout(_props: ManualLayoutProps): null {
-  return null;
 }
 
 // ─── <FlowLayout> ─────────────────────────────────────────────────────────────
@@ -379,29 +298,6 @@ export interface FlowLayoutProps {
   groupPadding?: LayoutPadding;
   /** Gap between group title and content area. Default: 1 */
   titleGap?: number;
-}
-
-/**
- * Declares a sequential flow auto-layout for the parent <Diagram> or <DiagramGroup>.
- * Places all direct children in a single line in their JSX declaration order.
- * Items are positioned along the direction axis with edge-to-edge gap spacing.
- * Secondary axis (cross-axis) position is always 0 — items are center-aligned.
- * Must be a direct child of <Diagram> or <DiagramGroup>. At most one layout
- * element per container. Cascades with parent layouts of the same kind.
- *
- * @example
- * <Diagram id="pipeline">
- *   <FlowLayout direction="top-down" gap={2} />
- *   <DiagramNode id="input" label="Input" />
- *   <DiagramGroup id="processing">
- *     <GridLayout columns={3} />
- *     <DiagramNode id="p1" label="Step 1" />
- *   </DiagramGroup>
- *   <DiagramNode id="output" label="Output" />
- * </Diagram>
- */
-export function FlowLayout(_props: FlowLayoutProps): null {
-  return null;
 }
 
 // ─── <Diagram> ────────────────────────────────────────────────────────────────
@@ -438,18 +334,6 @@ export interface DiagramProps {
   children?: React.ReactNode;
 }
 
-/**
- * A standalone 3D diagram element with nodes, edges, groups, and layout.
- *
- * Use <Diagram> for single-diagram scenes where no cross-diagram connectors
- * are required.
- *
- * Use <DiagramCanvas> when multiple diagrams need pipes/connections between them.
- */
-export function Diagram(_props: DiagramProps): null {
-  return null;
-}
-
 // ─── <DiagramExit> ────────────────────────────────────────────────────────────
 
 export interface DiagramExitProps {
@@ -473,15 +357,6 @@ export interface DiagramExitProps {
   easing?: DiagramEasing;
 }
 
-/**
- * Declares exit animation for the parent <Diagram>.
- * Must be a direct child of <Diagram>. At most one <DiagramExit> per diagram.
- * @example <DiagramExit to={[0, -50, 0]} fade easing="ease-out" />
- */
-export function DiagramExit(_props: DiagramExitProps): null {
-  return null;
-}
-
 // ─── <DiagramEnter> ───────────────────────────────────────────────────────────
 
 export interface DiagramEnterProps {
@@ -499,11 +374,4 @@ export interface DiagramEnterProps {
   easing?: DiagramEasing;
 }
 
-/**
- * Declares enter animation for the parent <Diagram>.
- * Must be a direct child of <Diagram>. At most one <DiagramEnter> per diagram.
- * @example <DiagramEnter from={[-50, 0, 0]} fade easing="spring" />
- */
-export function DiagramEnter(_props: DiagramEnterProps): null {
-  return null;
-}
+

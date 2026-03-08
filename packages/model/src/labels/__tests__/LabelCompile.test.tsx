@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { renderLabels } from '../render';
-import { Label, Labels } from '../dsl';
+import { Label, Labels } from '../../elements/model/ModelWidget';
 import { resolveSceneFromDsl, Scene } from '@brewsite/core';
 import { registerNode } from '@brewsite/core';
 import { clearRegistry } from '@brewsite/core/testing';

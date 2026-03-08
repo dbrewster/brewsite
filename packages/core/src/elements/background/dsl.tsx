@@ -51,9 +51,3 @@ export type BackgroundProps = {
   theme?: SceneTheme;
 };
 
-/**
- * Scene background element. Uses CSS background props (`cssPosition`, `cssSize`, `cssRepeat`).
- */
-export const Background = (_props: BackgroundProps) => null;
-
-Background.displayName = 'Background';

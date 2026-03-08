@@ -8,7 +8,7 @@ import React from 'react';
 import type { ILightingOverride } from '../../../widget/types';
 import { LightingWidget } from '../LightingWidget';
 import type { SceneLighting } from '../types';
-import { Ambient, Directional, GlowPoint, Point, Spot, LightStrand, Wave, Panel, Lighting } from '../dsl';
+import { Ambient, Directional, GlowPoint, Point, Spot, LightStrand, Wave, Panel, Lighting } from '../LightingWidget';
 import { CUSTOM_NODE_HANDLER } from '../../../widget/WidgetRegistry';
 import { makeSimpleContext } from '../../../compiler/transitions/transitionResolver';
 

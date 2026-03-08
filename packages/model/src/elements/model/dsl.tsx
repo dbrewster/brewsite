@@ -156,16 +156,3 @@ export type AnimationProps = {
   allowScale?: boolean;
 };
 
-// ─── DSL Components (render as null - compilation happens in ModelWidget) ───
-
-export const Model = (_props: ModelProps) => null;
-export const ModelRouter = (_props: ModelProps) => null;
-export const BodyParts = (_props: { children?: ReactNode }) => null;
-export const BodyPart = (_props: BodyPartByIdProps) => null;
-export const Pose = (_props: PoseProps) => null;
-export const ModelPart = (_props: ModelPartProps) => null;
-export const ContainedModel = (_props: ContainedModelProps) => null;
-export const Subpart = (_props: SubpartProps) => null;
-export const Playback = (_props: PlaybackProps) => null;
-export const Motion = (_props: MotionProps) => null;
-export const Animation = (_props: AnimationProps) => null;

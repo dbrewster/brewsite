@@ -5,7 +5,7 @@ export type {
   EnvironmentSourceExr,
   EnvironmentSourceCube,
 } from './types';
-export { Environment, EnvironmentHdri, EnvironmentExr, EnvironmentCube } from './dsl';
+export { Environment, EnvironmentHdri, EnvironmentExr, EnvironmentCube } from './EnvironmentWidget';
 export { DEFAULT_ENVIRONMENT, environmentTransitionSpec, functionalEnvironmentTransitionSpec } from './compile';
 export { applyEnvironment, type EnvironmentThreeRefs } from './render';
 export { EnvironmentWidget } from './EnvironmentWidget';

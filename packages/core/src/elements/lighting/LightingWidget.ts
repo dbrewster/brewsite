@@ -1,6 +1,44 @@
 // LightingWidget — ISceneElement + IRenderable + IDslComposite.
 // Wraps compile.ts transition spec and render.ts Three.js logic into the widget SDK.
 
+import type {
+  AmbientProps,
+  DirectionalProps,
+  GlowPointProps,
+  PointProps,
+  SpotProps,
+  LightStrandProps,
+  WaveProps,
+  CircleProps,
+  RectangleProps,
+  PanelProps,
+  LightingProps,
+} from './dsl';
+
+export const Lighting = (_props: LightingProps): null => null;
+export const Ambient = (_props: AmbientProps): null => null;
+export const Directional = (_props: DirectionalProps): null => null;
+export const Point = (_props: PointProps): null => null;
+export const GlowPoint = (_props: GlowPointProps): null => null;
+export const Spot = (_props: SpotProps): null => null;
+export const LightStrand = (_props: LightStrandProps): null => null;
+export const Wave = (_props: WaveProps): null => null;
+export const Circle = (_props: CircleProps): null => null;
+export const Rectangle = (_props: RectangleProps): null => null;
+export const Panel = (_props: PanelProps): null => null;
+
+Lighting.displayName = 'Lighting';
+Ambient.displayName = 'Ambient';
+Directional.displayName = 'Directional';
+Point.displayName = 'Point';
+GlowPoint.displayName = 'GlowPoint';
+Spot.displayName = 'Spot';
+LightStrand.displayName = 'LightStrand';
+Wave.displayName = 'Wave';
+Circle.displayName = 'Circle';
+Rectangle.displayName = 'Rectangle';
+Panel.displayName = 'Panel';
+
 import type * as THREE from 'three';
 import type {
   ISceneElement,
@@ -12,30 +50,6 @@ import type {
 } from '../../widget/types';
 import type { SceneLighting, SceneLightDirectional } from './types';
 import { DEFAULT_LIGHTING, functionalLightingTransitionSpec } from './compile';
-import {
-  Lighting,
-  Ambient,
-  Directional,
-  GlowPoint,
-  Point,
-  Spot,
-  LightStrand,
-  Wave,
-  Circle,
-  Rectangle,
-  Panel,
-  type AmbientProps,
-  type DirectionalProps,
-  type GlowPointProps,
-  type PointProps,
-  type SpotProps,
-  type LightStrandProps,
-  type WaveProps,
-  type CircleProps,
-  type RectangleProps,
-  type PanelProps,
-  type LightingProps,
-} from './dsl';
 import { applyLighting, setSceneLightEnabled } from './render';
 import type * as React from 'react';
 import { isValidElement } from 'react';

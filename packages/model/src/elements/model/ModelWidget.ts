@@ -9,7 +9,7 @@
  */
 
 import type * as React from 'react';
-import type {ReactElement} from 'react';
+import type {ReactElement, ReactNode} from 'react';
 import {isValidElement} from 'react';
 import type * as THREE from 'three';
 import type {CompileExtraContext, IDslComposite, ILoadable, IRenderable, ISceneElement, IAttachmentHost, IRenderContributor, RenderContribution, WidgetInitContext, WidgetRenderContext, INVSBounded, NVSRect, IHasCustomDslHandler,} from '@brewsite/core';
@@ -34,13 +34,38 @@ import type {CompiledAnimation} from './compile';
 import {compileAnimation, createDefaultModelInstanceState, functionalInstanceTransitionSpec,} from './compile';
 import type {AssetManifest, ModelMeta} from './metadata';
 import type {AnimationProps, BodyPartByIdProps, ContainedModelProps, ModelPartProps, ModelProps, MotionProps, PlaybackProps, PoseProps, SubpartProps,} from './dsl';
-import {Animation, BodyPart, BodyParts, ContainedModel, ModelPart, ModelRouter, Motion, Playback, Pose, Subpart,} from './dsl';
 import type {LabelProps} from '../../labels/dsl';
-import {Label} from '../../labels/dsl';
 import type {LabelResolved} from '../../labels/types';
 
 import {ModelRenderer} from './ModelRenderer';
 import type {ModelRenderInput} from './_renderTypes';
+
+// ─── Model DSL stubs ──────────────────────────────────────────────────────────
+export const Model = (_props: ModelProps) => null;
+export const ModelRouter = (_props: ModelProps) => null;
+export const BodyParts = (_props: { children?: ReactNode }) => null;
+export const BodyPart = (_props: BodyPartByIdProps) => null;
+export const Pose = (_props: PoseProps) => null;
+export const ModelPart = (_props: ModelPartProps) => null;
+export const ContainedModel = (_props: ContainedModelProps) => null;
+export const Subpart = (_props: SubpartProps) => null;
+export const Playback = (_props: PlaybackProps) => null;
+export const Motion = (_props: MotionProps) => null;
+export const Animation = (_props: AnimationProps) => null;
+
+// ─── Label DSL stubs (compiled by this widget's CUSTOM_NODE_HANDLER) ──────────
+/**
+ * Label attached to a model part.
+ *
+ * Must be nested under `<BodyPart>` or `<Subpart>`.
+ * `targetPartId` is resolved automatically from the parent body-part context
+ * and is not set directly on `<Label>`.
+ */
+export const Label = (_props: LabelProps) => null;
+Label.displayName = 'Label';
+
+export const Labels = (_props: { children?: ReactNode }) => null;
+Labels.displayName = 'Labels';
 
 export type ModelWidgetConfig = {
   /**

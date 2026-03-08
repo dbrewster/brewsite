@@ -9,7 +9,7 @@ import { resolveLayout } from '../elements/diagram/compiler/layoutAlgorithms';
 import { compilePipe } from '../elements/diagram/canvas/compile';
 import { darkGlassTheme } from '../elements/diagram/themes/darkGlass';
 import { registerDiagramHandlers } from '../compiler/handlers';
-import { Diagram, DiagramNode, DiagramGroup, DiagramEnter } from '../elements/diagram/dsl';
+import { Diagram, DiagramNode, DiagramGroup, DiagramEnter } from '../elements/diagram/widget';
 
 describe('onWarn threading', () => {
   beforeAll(() => {

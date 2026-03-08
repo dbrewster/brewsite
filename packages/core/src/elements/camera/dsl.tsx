@@ -93,7 +93,3 @@ export type CameraProps = CameraDescriptorProps & {
   transitionIn?: CameraTransitionInterpolation;
 };
 
-/** Camera DSL component — returns null; consumed purely by the compiler. */
-export const Camera = (_props: CameraProps): null => null;
-
-Camera.displayName = 'Camera';

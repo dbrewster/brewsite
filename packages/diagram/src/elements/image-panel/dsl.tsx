@@ -77,11 +77,4 @@ export interface ImagePanelProps {
   enabled?: boolean;
 }
 
-/**
- * Renders a static image as a physical 3D floating panel in world space.
- * The image is a WebGL texture — fully supports tilt, lighting, and reflections.
- * For a live interactive website, use <Screen>.
- */
-export function ImagePanel(_props: ImagePanelProps): null {
-  return null;
-}
+

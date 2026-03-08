@@ -18,7 +18,7 @@ import {
   Panel,
   GlowPoint,
   LightStrand,
-} from '../dsl';
+} from '../LightingWidget';
 import type { SceneLighting } from '../types';
 
 const makeLighting = (overrides: Partial<SceneLighting> = {}): SceneLighting => ({

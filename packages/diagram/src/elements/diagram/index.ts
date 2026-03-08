@@ -62,7 +62,7 @@ export {
   ManualLayout,
   DiagramExit,
   DiagramEnter,
-} from './dsl';
+} from './widget';
 export type {
   DiagramExitProps,
   DiagramEnterProps,

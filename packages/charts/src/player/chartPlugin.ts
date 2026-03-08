@@ -6,7 +6,7 @@ import type { WidgetPlugin, WidgetRegistry } from '@brewsite/core';
 import { registerNode } from '@brewsite/core';
 import { ChartDataStore } from '../data/ChartDataStore';
 import { ChartStoreContext } from '../data/ChartStoreContext';
-import { Chart, ChartData, ChartAxis, ChartSeries, ChartLegend } from '../elements/chart/dsl';
+import { Chart, ChartData, ChartAxis, ChartSeries, ChartLegend } from '../elements/chart/ChartWidget';
 import { compileChart } from '../elements/chart/compile';
 import { ChartWidget } from '../elements/chart/ChartWidget';
 import { registerChartHandlers } from '../compiler/handlers';

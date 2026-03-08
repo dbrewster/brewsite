@@ -12,7 +12,7 @@ import {
   Playback,
   Motion,
   Animation,
-} from '../dsl';
+} from '../ModelWidget';
 import { resolveSceneFromDsl, Scene } from '@brewsite/core';
 import { registerNode } from '@brewsite/core';
 import { clearRegistry } from '@brewsite/core/testing';

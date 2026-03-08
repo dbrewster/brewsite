@@ -11,7 +11,7 @@ import {
   LightStrand,
   Wave,
   Panel,
-} from '../dsl';
+} from '../LightingWidget';
 import { resolveSceneFromDsl, Scene } from '../../../compiler/sceneDslCompiler';
 import { registerNode, clearRegistry } from '../../../compiler/registry';
 import { WidgetRegistry } from '../../../widget/WidgetRegistry';

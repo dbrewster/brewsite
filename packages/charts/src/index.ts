@@ -1,7 +1,7 @@
 // @brewsite/charts — native 3D chart elements for BrewSite scenes.
 
 // ─── DSL authoring surface ────────────────────────────────────────────────────
-export { Chart, ChartData, ChartAxis, ChartSeries, ChartLegend } from './elements/chart/dsl';
+export { Chart, ChartData, ChartAxis, ChartSeries, ChartLegend } from './elements/chart/ChartWidget';
 export type {
   ChartProps,
   ChartDataProps,

@@ -57,7 +57,7 @@ export type {
 
 export type { DiagramNodeShape, DiagramIconVariant } from './elements/diagram/shapes/shapeVariants';
 export { DEFAULT_NODE_SHAPE } from './elements/diagram/shapes/shapeVariants';
-export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, DiagramExit, DiagramEnter, GridLayout, HierarchicalLayout, ManualLayout, FlowLayout } from './elements/diagram/dsl';
+export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, DiagramExit, DiagramEnter, GridLayout, HierarchicalLayout, ManualLayout, FlowLayout } from './elements/diagram/widget';
 export type { DiagramExitProps, DiagramEnterProps, GridLayoutProps, HierarchicalLayoutProps, ManualLayoutProps, FlowLayoutProps } from './elements/diagram/dsl';
 export {
   compileDiagram,
@@ -94,7 +94,7 @@ export type {
 
 // ─── DiagramCanvas element ──────────────────────────────────────────────────
 export type { DiagramCanvasState, DiagramPipeState, DiagramCanvasDSL, DiagramPipeDSL } from './elements/diagram/canvas/types';
-export { DiagramCanvas, DiagramPipe } from './elements/diagram/canvas/dsl';
+export { DiagramCanvas, DiagramPipe } from './elements/diagram/canvas/widget';
 export type { DiagramCanvasProps, DiagramPipeProps } from './elements/diagram/canvas/dsl';
 export { compileCanvas, compilePipe, functionalDiagramCanvasTransitionSpec } from './elements/diagram/canvas/compile';
 export { DiagramCanvasRenderer } from './elements/diagram/canvas/render';
@@ -102,14 +102,14 @@ export { DiagramCanvasWidget } from './elements/diagram/canvas/widget';
 
 // ─── ImagePanel element ─────────────────────────────────────────────────────
 export type { ImagePanelState, ImagePanelDSL, ImagePanelBezelVariant } from './elements/image-panel/types';
-export { ImagePanel } from './elements/image-panel/dsl';
+export { ImagePanel } from './elements/image-panel/widget';
 export { compileImagePanel, functionalImagePanelTransitionSpec } from './elements/image-panel/compile';
 export { ImagePanelRenderer } from './elements/image-panel/render';
 export { ImagePanelWidget } from './elements/image-panel/widget';
 
 // ─── Screen element ─────────────────────────────────────────────────────────
 export type { ScreenState, ScreenDSL, ScreenBezelVariant } from './elements/screen/types';
-export { Screen } from './elements/screen/dsl';
+export { Screen } from './elements/screen/widget';
 export { compileScreen, functionalScreenTransitionSpec } from './elements/screen/compile';
 export { ScreenRenderer } from './elements/screen/render';
 export { ScreenWidget } from './elements/screen/widget';

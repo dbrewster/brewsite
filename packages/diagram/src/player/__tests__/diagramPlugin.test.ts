@@ -9,8 +9,8 @@ import { clearRegistry } from '../../../../core/src/compiler/registry';
 import { resetCoreHandlerRegistrationForTesting } from '../../../../core/src/compiler/coreHandlers';
 import { diagramPlugin } from '../diagramPlugin';
 import { DiagramCanvasWidget } from '../../elements/diagram/canvas/widget';
-import { DiagramCanvas } from '../../elements/diagram/canvas/dsl';
-import { Diagram, DiagramNode, ManualLayout } from '../../elements/diagram/dsl';
+import { DiagramCanvas } from '../../elements/diagram/canvas/widget';
+import { Diagram, DiagramNode, ManualLayout } from '../../elements/diagram/widget';
 import { Scene } from '@brewsite/core';
 import type { DiagramCanvasState } from '../../elements/diagram/canvas/types';
 

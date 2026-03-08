@@ -18,7 +18,7 @@ export type {
   CameraTransitionInterpolation,
   CameraOverrideState,
 } from './types';
-export { Camera } from './dsl';
+export { Camera } from './CameraWidget';
 export { DEFAULT_CAMERA, DEFAULT_CAMERA_DESCRIPTOR, cameraTransitionSpec, functionalCameraTransitionSpec } from './compile';
 export { applyCamera } from './render';
 export { CameraWidget } from './CameraWidget';

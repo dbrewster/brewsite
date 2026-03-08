@@ -1,7 +1,7 @@
 // DSL NodeHandler registration for @brewsite/charts child components.
 
 import { registerNode } from '@brewsite/core';
-import { ChartData, ChartAxis, ChartSeries, ChartLegend } from '../elements/chart/dsl';
+import { ChartData, ChartAxis, ChartSeries, ChartLegend } from '../elements/chart/ChartWidget';
 
 let chartHandlersRegistered = false;
 

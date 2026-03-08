@@ -14,8 +14,14 @@ import { CUSTOM_NODE_HANDLER, type IHasCustomDslHandler } from '../../widget/Wid
 import type { SceneBackground } from './types';
 import type { BackgroundProps } from './dsl';
 import { DEFAULT_BACKGROUND, functionalBackgroundTransitionSpec } from './compile';
-import { Background } from './dsl';
 import { applyBackground } from './render';
+
+/**
+ * Scene background element. Uses CSS background props (`cssPosition`, `cssSize`, `cssRepeat`).
+ */
+export const Background = (_props: BackgroundProps) => null;
+
+Background.displayName = 'Background';
 
 export class BackgroundWidget
   implements ISceneElement<SceneBackground>, IRenderable<SceneBackground>, IHasCustomDslHandler

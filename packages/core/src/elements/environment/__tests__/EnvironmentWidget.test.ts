@@ -6,7 +6,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { EnvironmentWidget } from '../EnvironmentWidget';
 import type { SceneEnvironment } from '../types';
 import { makeInitContext, makeRenderContext } from '../../__tests__/elementTestMocks';
-import { EnvironmentHdri, EnvironmentCube } from '../dsl';
+import { EnvironmentHdri, EnvironmentCube } from '../EnvironmentWidget';
 import { CUSTOM_NODE_HANDLER } from '../../../widget/WidgetRegistry';
 import React from 'react';
 import { makeSimpleContext } from '../../../compiler/transitions/transitionResolver';

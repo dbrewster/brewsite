@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { Environment } from '../dsl';
+import { Environment } from '../EnvironmentWidget';
 import { DEFAULT_ENVIRONMENT, environmentTransitionSpec, functionalEnvironmentTransitionSpec } from '../compile';
 import { applyEnvironment } from '../render';
 import type { SceneEnvironment } from '../types';

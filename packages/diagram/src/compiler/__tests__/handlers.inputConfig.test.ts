@@ -3,8 +3,8 @@ import React from 'react';
 import { Scene, resolveSceneFromDsl, WidgetRegistry } from '@brewsite/core';
 import type { InputActionSpec } from '@brewsite/core';
 import { registerDiagramHandlers } from '../handlers';
-import { DiagramCanvas, DiagramPipe } from '../../elements/diagram/canvas/dsl';
-import { Diagram, DiagramNode } from '../../elements/diagram/dsl';
+import { DiagramCanvas, DiagramPipe } from '../../elements/diagram/canvas/widget';
+import { Diagram, DiagramNode } from '../../elements/diagram/widget';
 import type { DiagramTheme } from '../../elements/diagram/types';
 import { darkGlassTheme } from '../../elements/diagram/themes/darkGlass';
 

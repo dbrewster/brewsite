@@ -66,13 +66,4 @@ export interface ScreenProps {
   enabled?: boolean;
 }
 
-/**
- * Renders a live interactive website inside a physical 3D bezel frame.
- * The website is a real <iframe> — click, scroll, and interact normally.
- * The bezel and glow are WebGL objects that track the screen position.
- * The 3D scene renders behind the screen. The iframe faces the camera.
- * For a static image, use <ImagePanel> instead.
- */
-export function Screen(_props: ScreenProps): null {
-  return null;
-}
+
