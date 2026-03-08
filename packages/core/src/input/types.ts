@@ -143,17 +143,24 @@ export type InputNavigationHandler = {
 
 export type InputControllerScope = 'canvas' | 'window';
 
+/**
+ * Core-defined action types for the ActionInputController.
+ *
+ * `(string & {})` extends the union to accept any string literal, allowing
+ * downstream packages (@brewsite/diagram) to define their own action types
+ * (e.g. 'diagram-canvas.move') without modifying core.
+ *
+ * The diagram-canvas.* types that previously lived here have been removed;
+ * they are now string literals owned by @brewsite/diagram.
+ */
 export type InputActionType =
   | 'camera.orbit'
   | 'camera.dolly'
   | 'camera.reset'
   | 'canvas.pan'
-  | 'diagram-canvas.move'
-  | 'diagram-canvas.rotate'
-  | 'diagram-canvas.reset'
-  | 'diagram-canvas.focus'
   | 'scene.next'
-  | 'scene.prev';
+  | 'scene.prev'
+  | (string & {}); // open union — allows downstream extension
 
 export type InputPointerMap = {
   kind: 'pointer';

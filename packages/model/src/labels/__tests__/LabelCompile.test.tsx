@@ -5,7 +5,7 @@ import { renderLabels } from '../render';
 import { Label, Labels } from '../dsl';
 import { resolveSceneFromDsl, Scene } from '@brewsite/core';
 import { registerNode } from '@brewsite/core';
-import { clearRegistry } from '@brewsite/core/compiler/registry';
+import { clearRegistry } from '@brewsite/core/testing';
 import { WidgetRegistry } from '@brewsite/core/widget/WidgetRegistry';
 import type { SceneSnapshotContext } from '@brewsite/core';
 

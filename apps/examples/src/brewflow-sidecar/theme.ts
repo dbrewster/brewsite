@@ -6,7 +6,7 @@ import {darkGlassTheme, mergeTheme} from '@brewsite/diagram';
 // iconStyle is available as defaultIconStyle on the theme.
 export const brewflowTheme: DiagramTheme = mergeTheme(darkGlassTheme, {
   node: {
-    defaultThickness: 1.0,      // was ~0.4 — much deeper prisms
+    defaultThickness: .2,      // was ~0.4 — much deeper prisms
     defaultMetalness: 0.75,     // was ~0.4 — more reflective
     defaultRoughness: 0.18,     // was ~0.3 — shinier, more specular highlights
     defaultIconStyle: 'extruded' as const,

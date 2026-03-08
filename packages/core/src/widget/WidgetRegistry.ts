@@ -5,10 +5,12 @@ import type {
   IAnimationController, IVariableProvider, ICameraActionTarget,
   IRendererLifecycle, IRenderContributor, IContainedRenderable, IAttachmentHost,
   ISceneLifecycle, IInputDefaultProvider,
+  ICameraFocusTarget, ILightingOverride,
 } from './types';
 import type { WebGLRenderer } from 'three';
+import type { ReactElement } from 'react';
 import { registerNode, getNodeHandler } from '../compiler/registry';
-import type { NodeHandler } from '../compiler/sceneDslTypes';
+import type { NodeHandler, CompileApi, CompileHelpers } from '../compiler/sceneDslTypes';
 
 export type WidgetRegistryOptions = {
   /**
@@ -53,15 +55,59 @@ export class WidgetRegistry {
   private widgets = new Map<string, IWidget>();
   private typeFactories = new Map<unknown, (props: Record<string, unknown>) => IWidget>();
   private readonly strict: boolean;
+  private frozen = false;
 
   constructor(options: WidgetRegistryOptions = {}) {
     this.strict = options.strict ?? false;
+  }
+
+  /**
+   * Finalises the widget list and makes registration immutable.
+   *
+   * Call immediately before RuntimeDriverImpl.initialize() to enforce the widget
+   * registration ordering contract. Once frozen, any call to register() or
+   * registerTypeFactory() throws a descriptive error.
+   */
+  freeze(): void {
+    this.frozen = true;
+  }
+
+  /**
+   * Dispatches a DSL node to the given widget.
+   * Calls CUSTOM_NODE_HANDLER if present; otherwise shallow-merges props into widget state.
+   * Extracted from the duplicated routing logic in register() and registerTypeFactory().
+   */
+  private dispatchToWidget(
+    node: ReactElement,
+    api: CompileApi,
+    helpers: CompileHelpers,
+    widget: IWidget,
+  ): void {
+    if (hasCustomDslHandler(widget)) {
+      widget[CUSTOM_NODE_HANDLER](node, api, helpers);
+      return;
+    }
+    // Default: shallow-merge DSL props into widget state slot.
+    const props = node.props as Record<string, unknown>;
+    const resolved = helpers.resolveObjectValues(
+      helpers.stripUndefinedDeep(props),
+      api.context,
+    );
+    api.setWidgetState(
+      widget.widgetId,
+      { ...(api.state.widgets[widget.widgetId] as object ?? {}), ...resolved },
+    );
   }
 
   registerTypeFactory(
     component: unknown,
     factory: (props: Record<string, unknown>) => IWidget,
   ): this {
+    if (this.frozen) {
+      throw new Error(
+        `[WidgetRegistry] Cannot registerTypeFactory after freeze() has been called.`,
+      );
+    }
     this.typeFactories.set(component, factory);
     if (!getNodeHandler(component)) {
       const registry = this;
@@ -85,20 +131,19 @@ export class WidgetRegistry {
             `[WidgetRegistry] No widget found for DSL component with type="${targetType}" and id="${targetId}"`,
           );
         }
-        if (hasCustomDslHandler(target)) {
-          target[CUSTOM_NODE_HANDLER](node, api, helpers);
-        } else {
-          api.setWidgetState(target.widgetId, {
-            ...(target.defaultState as object),
-            ...props,
-          });
-        }
+        registry.dispatchToWidget(node, api, helpers, target);
       });
     }
     return this;
   }
 
   register(widget: IWidget): this {
+    if (this.frozen) {
+      throw new Error(
+        `[WidgetRegistry] Cannot register widget "${widget.widgetId}" after freeze() ` +
+        `has been called. Ensure all widgets are registered before compileSceneTrack().`,
+      );
+    }
     if (this.widgets.has(widget.widgetId)) {
       const msg =
         `[WidgetRegistry] Widget ID "${widget.widgetId}" is already registered. ` +
@@ -156,14 +201,7 @@ export class WidgetRegistry {
                 `[WidgetRegistry] No widget found for DSL component with type="${targetType}" and id="${targetId}"`,
               );
             }
-            if (hasCustomDslHandler(target)) {
-              target[CUSTOM_NODE_HANDLER](node, api, helpers);
-            } else {
-              api.setWidgetState(target.widgetId, {
-                ...(target.defaultState as object),
-                ...props,
-              });
-            }
+            registry.dispatchToWidget(node, api, helpers, target);
             return;
           }
 
@@ -188,16 +226,7 @@ export class WidgetRegistry {
             return;
           }
 
-          // Prefer a CUSTOM_NODE_HANDLER registered on the widget for complex DSL
-          if (hasCustomDslHandler(target)) {
-            target[CUSTOM_NODE_HANDLER](node, api, helpers);
-          } else {
-            // Default: shallow-merge defaultState with props, set widget state
-            api.setWidgetState(target.widgetId, {
-              ...(target.defaultState as object),
-              ...props,
-            });
-          }
+          registry.dispatchToWidget(node, api, helpers, target);
         });
       }
       // else: routing handler already installed for this DslComponent — nothing to do.
@@ -227,6 +256,16 @@ export class WidgetRegistry {
 
   getAll(): IWidget[] { return Array.from(this.widgets.values()); }
   get(id: string): IWidget | undefined { return this.widgets.get(id); }
+
+  /**
+   * Returns all registered widgets as an iterable.
+   * Used by RuntimeDriverImpl and plugin factories to resolve interface
+   * implementors (e.g. ICameraFocusTarget, ILightingOverride) after construction.
+   */
+  getAllWidgets(): IterableIterator<IWidget> {
+    return this.widgets.values();
+  }
+
   getSceneElements(): Array<ISceneElement<unknown>> { return this.getAll().filter(isSceneElement); }
   getRenderables(): Array<IRenderable<unknown>> { return this.getAll().filter(isRenderable); }
   getAnimationControllers(): IAnimationController[] {
@@ -325,3 +364,11 @@ export const isAttachmentHost = (w: IWidget): w is IAttachmentHost =>
 export const isInputDefaultProvider = (w: IWidget): w is IInputDefaultProvider =>
   'getDefaultInputActions' in w &&
   typeof (w as IInputDefaultProvider).getDefaultInputActions === 'function';
+
+/** Type guard: returns true if widget implements ICameraFocusTarget. */
+export const isCameraFocusTarget = (w: IWidget): w is ICameraFocusTarget =>
+  typeof (w as ICameraFocusTarget).requestFocus === 'function';
+
+/** Type guard: returns true if widget implements ILightingOverride. */
+export const isLightingOverride = (w: IWidget): w is ILightingOverride =>
+  typeof (w as ILightingOverride).getLightingOverride === 'function';

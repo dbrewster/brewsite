@@ -17,7 +17,7 @@ import type {
   SceneModelInstanceState,
 } from './types';
 import type { NVSRect } from '@brewsite/core';
-import type { ElementTransitionSpec, FunctionalTransitionSpec } from '@brewsite/core/compiler/transitions/transitionTypes';
+import type { ElementTransitionSpec, FunctionalTransitionSpec } from '@brewsite/core';
 import {
   blendAxisRotation,
   blendAxisTranslation,
@@ -27,7 +27,7 @@ import {
   blendVec3,
   resolveEnabledByOpacity,
   transitionT,
-} from '@brewsite/core/compiler/transitions/transitionTypes';
+} from '@brewsite/core';
 
 const OPAQUE_OPACITY = 1;
 

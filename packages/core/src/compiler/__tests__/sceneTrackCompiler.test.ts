@@ -5,6 +5,7 @@ import type { SceneDefinition } from '../sceneTypes';
 import { compileSceneTrack } from '../sceneTrackCompiler';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import type { FunctionalTransitionSpec } from '../transitions/transitionTypes';
+import type { SceneTrackTick } from '../sceneTrackTypes';
 
 const makeScene = (id: string, widgetStates: Record<string, unknown>): SceneDefinition => ({
   id,
@@ -262,7 +263,7 @@ describe('compileSceneTrack', () => {
     expect(changedTrack.ticks[1]!.deltaForward.widgets).toBeDefined();
   });
 
-  it('uses disabled default when useDefaultStateWhenAbsent is false', () => {
+  it('uses disabled default when disableWhenAbsent is true', () => {
     const widget = {
       ...makeWidget({
         widgetId: 'w',
@@ -273,7 +274,7 @@ describe('compileSceneTrack', () => {
           interpolate: () => {},
         },
       }),
-      useDefaultStateWhenAbsent: false,
+      disableWhenAbsent: true,
     };
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
@@ -378,7 +379,7 @@ describe('compileSceneTrack', () => {
         defaultState: { enabled: true, model: { enabled: true } },
         transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
       }),
-      useDefaultStateWhenAbsent: false,
+      disableWhenAbsent: true,
     };
     const registry = new WidgetRegistry().register(widget);
     const scenes = [
@@ -476,6 +477,96 @@ describe('compileSceneTrack', () => {
     const terminal = track.ticks[track.ticks.length - 1]!;
     expect(terminal.sceneProgress).toBe(1);
     expect(terminal.blockProgress).toBe(0);
+  });
+
+  // ─── S4.1.A — disableWhenAbsent (S4 regression) ─────────────────────────
+
+  it('disableWhenAbsent=true produces disabled default when widget absent in a scene', () => {
+    const widget = {
+      ...makeWidget({
+        widgetId: 'w',
+        defaultState: { enabled: true },
+        transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+      }),
+      disableWhenAbsent: true,
+    };
+    const registry = new WidgetRegistry().register(widget);
+    const track = compileSceneTrack({
+      scenes: [makeScene('s1', {}), makeScene('s2', {})],
+      widgetRegistry: registry,
+      blockSize: 2,
+    });
+    const state = track.ticks[0]!.state.widgets['w'] as { enabled?: boolean };
+    expect(state.enabled).toBe(false);
+  });
+
+  // ─── S4.1.B — stateEquals() used in delta detection ─────────────────────
+
+  it('stateEquals() is called when serialize fails and suppresses spurious deltas', () => {
+    const equalsCalls: unknown[][] = [];
+    const widget = {
+      ...makeWidget({
+        widgetId: 'w',
+        defaultState: { a: 0, b: 0 },
+        transitionSpec: {
+          exit: (frames: SceneTrackTick[], id: string, s: unknown) => {
+            for (const f of frames) f.state.widgets[id] = s;
+          },
+          enter: (frames: SceneTrackTick[], id: string, s: unknown) => {
+            for (const f of frames) f.state.widgets[id] = s;
+          },
+          // Produce different key orderings between adjacent frames so serialize() fails,
+          // but the values are semantically identical — stateEquals() must suppress the delta.
+          interpolate: (frames: SceneTrackTick[], id: string) => {
+            if (frames[0]) frames[0].state.widgets[id] = { a: 1, b: 2 };
+            if (frames[1]) frames[1].state.widgets[id] = Object.fromEntries([['b', 2], ['a', 1]]);
+          },
+        },
+      }),
+      stateEquals(
+        a: { a: number; b: number },
+        b: { a: number; b: number },
+      ): boolean {
+        equalsCalls.push([a, b]);
+        return a.a === b.a && a.b === b.b;
+      },
+    };
+    const registry = new WidgetRegistry().register(widget);
+    const track = compileSceneTrack({
+      scenes: [makeScene('s1', { w: { a: 1, b: 2 } }), makeScene('s2', { w: { a: 1, b: 2 } })],
+      widgetRegistry: registry,
+      blockSize: 2,
+    });
+    // stateEquals must have been called (full-serialize check failed due to key-order difference)
+    expect(equalsCalls.length).toBeGreaterThan(0);
+    // Despite different serialization, stateEquals returns true → no delta expected
+    expect(track.ticks[1]!.deltaForward.widgets).toBeUndefined();
+  });
+
+  // ─── S4.1.C — blockProgress in compileExtra (verify correct field name) ──
+
+  it('compileExtra receives blockProgress (not sceneProgress)', () => {
+    const blockProgressValues: number[] = [];
+    const widget = {
+      ...makeWidget({
+        widgetId: 'w',
+        defaultState: 0,
+        transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+      }),
+      compileExtra(state: number, ctx: { blockProgress: number }): { bp: number } {
+        blockProgressValues.push(ctx.blockProgress);
+        return { bp: ctx.blockProgress };
+      },
+    };
+    const registry = new WidgetRegistry().register(widget);
+    compileSceneTrack({
+      scenes: [makeScene('s1', { w: 1 }), makeScene('s2', { w: 2 })],
+      widgetRegistry: registry,
+      blockSize: 2,
+    });
+    // blockProgress should be in [0, 1]
+    expect(blockProgressValues.every((v) => v >= 0 && v <= 1)).toBe(true);
+    expect(blockProgressValues.length).toBeGreaterThan(0);
   });
 
   it('carries input controller snapshot forward when a later scene omits it', () => {

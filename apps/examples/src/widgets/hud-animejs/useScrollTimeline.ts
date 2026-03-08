@@ -4,7 +4,7 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 import anime from 'animejs';
-import { useEngineState } from '../../player/EngineStateContext';
+import { useEngineState } from '@brewsite/core';
 
 /** Function that constructs an autoplay:false animejs timeline for a target element. */
 export type TimelineBuilder = (target: HTMLDivElement) => ReturnType<typeof anime.timeline>;

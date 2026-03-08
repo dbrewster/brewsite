@@ -3,7 +3,6 @@ import {Background, Camera, Scene, TextBox} from '@brewsite/core';
 
 export const sceneSummary: JSX.Element = (
   <Scene key="bfc-summary" id="bfc-summary">
-    <Camera mode="world" position={[0, 0, 5]} target={[0, 0, 0]} fov={50} />
     <Background color="#080b14" />
 
     <TextBox id="summary-content" x={0.04} y={0.06} w={0.92} h={0.88}>

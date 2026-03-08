@@ -29,7 +29,6 @@ export const sceneCfOverview: JSX.Element = (
   <Scene key="bfc-cf-overview" id="bfc-cf-overview">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
 
-    <Camera mode="world" position={[0, 5, 26]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
     <InputController scope="canvas">

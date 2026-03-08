@@ -1,13 +1,19 @@
-import type { Scene as ThreeScene, WebGLRenderer } from 'three';
+import type { PerspectiveCamera, Scene as ThreeScene, WebGLRenderer } from 'three';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { VariableStore } from '../widget/VariableStore';
 import type { SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
 import { createSceneTrackSampler } from '../compiler/sceneTrackSampler';
 import type { RuntimeDriver as IRuntimeDriver, RealtimeClock } from './types';
-import type { RenderContribution, AnimationTickContext, WidgetRenderContext, ISceneLifecycle } from '../widget/types';
-import { isAttachmentHost, isRenderContributor } from '../widget/WidgetRegistry';
-
-import type { AssetManifest } from '../widget/types';
+import type {
+  RenderContribution,
+  AnimationTickContext,
+  WidgetRenderContext,
+  ISceneLifecycle,
+  ICameraFocusTarget,
+  RuntimeCameraOverride,
+  AssetManifest,
+} from '../widget/types';
+import { isAttachmentHost, isRenderContributor, isCameraFocusTarget } from '../widget/WidgetRegistry';
 
 export type SceneTrackSampler = ReturnType<typeof createSceneTrackSampler>;
 
@@ -41,6 +47,8 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   private animationControllers: Array<import('../widget/types').IAnimationController>;
   private defaultStateById: Map<string, unknown>;
   private threeScene: ThreeScene | null = null;
+  private cameraFocusTarget: ICameraFocusTarget | null = null;
+  private cameraOverride: RuntimeCameraOverride | null = null;
   private sampler: SceneTrackSampler | null = null;
   private track: SceneTrack | null = null;
   private currentTick: SceneTrackTick | null = null;
@@ -81,13 +89,18 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     );
   }
 
-  async initialize(threeScene: ThreeScene, renderer?: WebGLRenderer): Promise<void> {
+  /**
+   * Synchronously initializes the runtime with the Three.js scene, camera, and renderer.
+   * - Re-reads widget lists to capture lazily-registered widgets from DSL compilation.
+   * - Resolves the first ICameraFocusTarget from the registry (usually CameraWidget).
+   * - Calls initialize() on all IRenderable widgets, injecting scene, camera, and renderer.
+   * - Starts async asset loading as a fire-and-forget; completion fires onAssetsReady.
+   */
+  initialize(threeScene: ThreeScene, camera?: PerspectiveCamera, renderer?: WebGLRenderer): void {
     this.threeScene = threeScene;
 
     // Re-read widget lists so lazily-registered widgets (e.g. ChartWidgets registered during
-    // scene compilation, after this driver was constructed) are included. The constructor
-    // snapshot is taken before compileSceneTrack runs, so it misses any widgets that
-    // chartPlugin / diagramPlugin register inside their DSL node handlers.
+    // scene compilation, after this driver was constructed) are included.
     this.sceneElements = this.widgetRegistry.getSceneElements();
     this.renderables = this.widgetRegistry.getRenderables();
     this.animationControllers = this.widgetRegistry.getAnimationControllers();
@@ -96,12 +109,20 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
       this.sceneElements.map((el) => [el.widgetId, el.defaultState as unknown]),
     );
 
-    // Step 1: Initialize all renderable widgets (sync)
-    // initialize() failures are fatal — a widget that fails to initialize the Three.js
-    // scene graph is unrecoverable.
+    // Resolve ICameraFocusTarget once — CameraWidget is the usual implementor.
+    this.cameraFocusTarget = null;
+    for (const widget of this.widgetRegistry.getAllWidgets()) {
+      if (isCameraFocusTarget(widget)) {
+        this.cameraFocusTarget = widget;
+        break;
+      }
+    }
+
+    // Initialize all IRenderable widgets (sync). Failures are fatal — a widget that fails
+    // to initialize the Three.js scene graph is unrecoverable.
     for (const renderable of this.renderables) {
       try {
-        renderable.initialize({ scene: threeScene, widgetId: renderable.widgetId, renderer });
+        renderable.initialize({ scene: threeScene, widgetId: renderable.widgetId, renderer, camera });
       } catch (e) {
         const err = e instanceof Error ? e : new Error(String(e));
         this.onError?.(err);
@@ -109,7 +130,16 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
       }
     }
 
-    // Step 2: Load all async assets in parallel — per-widget isolation.
+    // Start async asset loading — fire-and-forget. Completion fires onAssetsReady callback.
+    void this._loadAssets();
+  }
+
+  /** Set or clear the active camera override. Called by useSceneEngine. */
+  setCameraOverride(override: RuntimeCameraOverride | null): void {
+    this.cameraOverride = override;
+  }
+
+  private async _loadAssets(): Promise<void> {
     // Individual load() rejections are caught; the engine continues with remaining widgets.
     const loadables = this.widgetRegistry.getLoadables();
     await Promise.all(
@@ -217,18 +247,25 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     const clock: RealtimeClock = { wallTimeSeconds, deltaSeconds };
 
     // ── Step 4: Tick animation controllers ──────────────────────────────────
-    const animCtx: AnimationTickContext = {
+    // Build a shared context template; resolvedState is overridden per-widget below.
+    const animCtxBase = {
       clock,
       effectiveDeltaSeconds,
       scene: this.threeScene,
       variables: this.variableStore,
       tick,
       track: this.track,
+      cameraFocusTarget: this.cameraFocusTarget,
+      cameraOverride: this.cameraOverride,
+      // Injected callback — CameraWidget calls this to promote a focus request to an
+      // override without needing a scene.userData bus key.
+      setCameraOverride: (override: RuntimeCameraOverride | null) => { this.cameraOverride = override; },
     };
     for (const controller of this.animationControllers) {
       if (this.loadErroredWidgets.has(controller.widgetId) || this.applyErroredWidgets.has(controller.widgetId)) continue;
       try {
-        controller.onTick(animCtx);
+        const resolvedState = this.resolveWidgetState(controller.widgetId, tick);
+        controller.onTick({ ...animCtxBase, resolvedState } as AnimationTickContext);
       } catch (e) {
         const err = e instanceof Error ? e : new Error(String(e));
         this.applyErroredWidgets.add(controller.widgetId);
@@ -270,6 +307,19 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
         this.onWidgetError?.(renderable.widgetId, err);
       }
     }
+  }
+
+  /**
+   * Resolves the widget's state for a given tick.
+   * Functional path: evaluates closure at tick.blockProgress.
+   * Pre-baked path: returns the state from tick.state.widgets.
+   */
+  private resolveWidgetState(widgetId: string, tick: SceneTrackTick | null): unknown {
+    if (!tick) return null;
+    const tBlock = this.track?.transitionBlocks?.[tick.sceneIndex];
+    const funcOverride = tBlock?.widgetFns[widgetId];
+    if (funcOverride) return funcOverride.fn(tick.blockProgress);
+    return tick.state.widgets[widgetId] ?? null;
   }
 
   /**

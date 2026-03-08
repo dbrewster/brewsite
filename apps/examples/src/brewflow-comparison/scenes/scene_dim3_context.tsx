@@ -21,7 +21,6 @@ export const sceneDim3Context: JSX.Element = (
   <Scene key="bfc-dim3-context" id="bfc-dim3-context">
     <ProgressManager scrollUnits={2800} fn={DWELL_FN} />
 
-    <Camera mode="world" position={[0, 5, 24]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
     <InputController scope="canvas">

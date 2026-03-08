@@ -60,10 +60,15 @@ export type EngineARContainerProps = {
 };
 
 /**
- * The value provided by EngineARContainerContext.
- * Children can read the current container dimensions and configuration.
+ * Viewport scaling context. Provided by EngineARContainer.
+ *
+ * Consumed by @brewsite/model's LabelPositioner to compute correct label
+ * screen positions regardless of the enclosing layout component.
+ *
+ * Replaces EngineARContainerContext as the label-positioning contract so that
+ * custom layouts (not just EngineARContainer) can provide it.
  */
-export type EngineARContainerContextValue = {
+export type ViewportScaleContextValue = {
   containerWidth: number;
   containerHeight: number;
   /**
@@ -78,17 +83,22 @@ export type EngineARContainerContextValue = {
   scaleMode: ScaleMode;
 };
 
+/** @deprecated Use ViewportScaleContextValue. Alias will be removed in v3. */
+export type EngineARContainerContextValue = ViewportScaleContextValue;
+
 /**
  * Context exported so children can read container dimensions if needed.
  */
-export const EngineARContainerContext =
-  createContext<EngineARContainerContextValue>({
-    containerWidth: 0,
-    containerHeight: 0,
-    computedArHeight: 0,
-    referenceWidth: 1920,
-    scaleMode: 'fit-width',
-  });
+export const ViewportScaleContext = createContext<ViewportScaleContextValue>({
+  containerWidth: 0,
+  containerHeight: 0,
+  computedArHeight: 0,
+  referenceWidth: 1920,
+  scaleMode: 'fit-width',
+});
+
+/** @deprecated Use ViewportScaleContext. Alias will be removed in v3. */
+export const EngineARContainerContext = ViewportScaleContext;
 
 /**
  * Computes the --scene-scale value and container pixel dimensions
@@ -173,8 +183,22 @@ function computeContainerStyle(
     height: containerH > 0 ? `${containerH}px` : 'auto',
   };
 
-  // For contain/fit-height: center the AR container inside the outer div.
-  if (scaleMode === 'contain' || scaleMode === 'fit-height') {
+  // fit-height: MUST stay position:relative (in-flow) so the EngineInputRegion scroll
+  // spacer's height propagates through the CSS scrollable overflow rectangle to the page.
+  // position:absolute causes the scroll spacer to be treated as content overflow of an
+  // out-of-flow element — CSS only includes the absolute element's border box in the
+  // page scroll area, not its children's overflow. With containerH = outerH, maxScroll
+  // collapses to 0 and the page becomes unscrollable.
+  if (scaleMode === 'fit-height') {
+    return {
+      ...baseStyle,
+      // position stays 'relative' (inherited from baseStyle) — in-flow is required.
+      left: '50%',
+      transform: 'translateX(-50%)',
+    };
+  }
+
+  if (scaleMode === 'contain') {
     return {
       ...baseStyle,
       position: 'absolute',
@@ -234,7 +258,7 @@ export const EngineARContainer = ({
   const { containerH: arH } = computeContainerDims(dims.outerW, dims.outerH, aspectRatio, scaleMode, referenceWidth);
   const computedArHeight = arH > 0 ? arH : 0;
 
-  const contextValue: EngineARContainerContextValue = {
+  const contextValue: ViewportScaleContextValue = {
     containerWidth: dims.outerW,
     containerHeight: dims.outerH,
     computedArHeight,
@@ -243,12 +267,12 @@ export const EngineARContainer = ({
   };
 
   return (
-    <div ref={outerRef} style={{ position: 'relative', height: '100%', width: '100%', ...style }}>
-      <EngineARContainerContext.Provider value={contextValue}>
+    <div ref={outerRef} style={{ position: 'relative', height: '100%', width: '100%', ...(scaleMode === 'fit-height' ? { overflowX: 'clip' } : {}), ...style }}>
+      <ViewportScaleContext.Provider value={contextValue}>
         <div className={className} style={containerStyle}>
           {children}
         </div>
-      </EngineARContainerContext.Provider>
+      </ViewportScaleContext.Provider>
     </div>
   );
 };

@@ -9,7 +9,6 @@ import { functionalImagePanelTransitionSpec } from './compile';
 import { ImagePanelRenderer } from './render';
 import type { ImagePanelState } from './types';
 
-const CAMERA_KEY = '__brewsite_camera';
 /** Default camera distance used when no live camera is available. */
 const DEFAULT_DIST = 12.07;
 
@@ -21,21 +20,23 @@ export class ImagePanelWidget implements ISceneElement<ImagePanelState>, IRender
 
   private renderer = new ImagePanelRenderer();
   private scene: THREE.Scene | null = null;
+  private cameraRef: THREE.PerspectiveCamera | null = null;
 
   constructor(widgetId: string, defaultState: ImagePanelState) {
     this.widgetId = widgetId;
     this.defaultState = defaultState;
   }
 
-  initialize({ scene }: WidgetInitContext): void {
+  initialize({ scene, camera }: WidgetInitContext): void {
     this.scene = scene as THREE.Scene;
+    if (camera) this.cameraRef = camera;
   }
 
   apply(state: ImagePanelState, _ctx: WidgetRenderContext): void {
     if (!this.scene) return;
 
     // Convert NVS position to world-space using the live camera when available.
-    const cam = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
+    const cam = this.cameraRef;
     const worldPos = cam
       ? nvsToWorldWithCamera(state.nvsX, state.nvsY, cam, state.z)
       : nvsToWorldAnalytic(state.nvsX, state.nvsY, 0, 0, DEFAULT_DIST, 45, 16 / 9, state.z);
@@ -65,5 +66,6 @@ export class ImagePanelWidget implements ISceneElement<ImagePanelState>, IRender
     if (!this.scene) return;
     this.renderer.dispose(this.widgetId, this.scene);
     this.scene = null;
+    this.cameraRef = null;
   }
 }

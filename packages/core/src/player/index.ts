@@ -8,8 +8,8 @@ export type { SceneCanvasProps } from './SceneCanvas';
 export { EngineOverlayHost } from './EngineOverlayHost';
 export type { EngineOverlayHostProps } from './EngineOverlayHost';
 export { EngineARContainer } from './EngineARContainer';
-export type { EngineARContainerProps, ScaleMode, EngineARContainerContextValue } from './EngineARContainer';
-export { EngineARContainerContext } from './EngineARContainer';
+export type { EngineARContainerProps, ScaleMode, ViewportScaleContextValue, EngineARContainerContextValue } from './EngineARContainer';
+export { ViewportScaleContext, EngineARContainerContext } from './EngineARContainer';
 export { computeContainerDims } from './EngineARContainer';
 export { EngineGate } from './EngineGate';
 export type { EngineGateProps } from './EngineGate';
@@ -18,6 +18,7 @@ export type { ScrollCaptureSectionProps } from './ScrollCaptureSection';
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 export { useSceneEngine } from './useSceneEngine';
+export type { UseSceneEngineResult } from './useSceneEngine';
 export { useEngineScroll } from './useEngineScroll';
 export type { UseEngineScrollOptions, UseEngineScrollResult } from './useEngineScroll';
 export { useEngineInput } from './useEngineInput';
@@ -45,9 +46,11 @@ export type { EngineFrameState, EngineState } from './engineTypes';
 export { TimelineWidget } from './TimelineWidget';
 export type { TimelineWidgetProps, TimelineTickStyle, TimelineTheme } from './TimelineWidgetTypes';
 
-// ─── Dev Tools (unstable; not part of the public API contract) ────────────────
-// These exist for development and debugging. They are exported but not stable.
+// ─── Dev Tools (move to @brewsite/core/devtools; deprecated here) ─────────────
+/** @deprecated Import from `@brewsite/core/devtools` instead. Will be removed in v3. */
 export { CameraControlPanel } from './CameraControlPanel';
+/** @deprecated Import from `@brewsite/core/devtools` instead. Will be removed in v3. */
 export { CameraInteractionInfoDialog } from './CameraInteractionInfoDialog';
+/** @deprecated Import from `@brewsite/core/devtools` instead. Will be removed in v3. */
 export { SceneInspector } from './SceneInspector';
 export type { SceneInspectorProps } from './SceneInspector';

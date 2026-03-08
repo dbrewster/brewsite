@@ -3,7 +3,7 @@ title: "BrewSite Core — Architecture Reference"
 doc_type: prd
 owner: brewsite-product-manager
 status: active
-updated: 2026-03-03
+updated: 2026-03-07
 change_history:
   - date: 2026-02-20
     author: brewflow-architect
@@ -23,6 +23,9 @@ change_history:
   - date: 2026-03-03
     author: "Toolkit Product"
     summary: "API hardening updates: ScenePlayer replaced by EngineProvider as primary component (ScenePlayer deleted). EngineScrollRegion removed from key exports (deleted; use EngineInputRegion). createDefaultWidgetRegistry removed from key exports (deleted; use corePlugin()). Added EngineGate to key exports. Updated context providers attribution to EngineProvider. Removed compiler/primitives/index.ts barrel reference (barrel deleted in hardening phase). Updated all ScenePlayer references to EngineProvider across HUD, compiler, and SSR sections."
+  - date: 2026-03-07
+    author: "Toolkit Product"
+    summary: "Core cleanup release: eliminated scene.userData inter-widget bus (ICameraFocusTarget + ICameraHost replace stringly-typed __brewsite_* keys); added ILightingOverride interface so downstream packages opt into lighting override without calling render-layer functions; added ViewportScaleContext (EngineARContainerContext deprecated as alias); all five scene widget ID constants (SCENE_CAMERA_KEY, SCENE_LIGHTING_KEY, SCENE_BACKGROUND_KEY, SCENE_ENVIRONMENT_KEY, SCENE_FLOOR_KEY) exported from @brewsite/core; disableWhenAbsent replaces duck-typed useDefaultStateWhenAbsent on ISceneElement; stateEquals optional hook added to ISceneElement for compiler change detection; resolvedState and setCameraOverride added to AnimationTickContext; InputActionType is now an open string union — diagram-canvas.* action types removed from core and owned by @brewsite/diagram; manifestUrl on EngineProvider is now optional and deprecated in favour of plugin-supplied manifests; animejs HUD presets removed from core bundle (moved to apps/examples/ as copy-paste recipes); CameraControlPanel, CameraInteractionInfoDialog, SceneInspector moved to @brewsite/core/devtools subpath; clearRegistry and test doubles available via @brewsite/core/testing subpath."
 ---
 
 # BrewSite Core — Architecture Reference
@@ -103,8 +106,24 @@ The React integration surface. The public entry point for pages and routes. Owns
 - `EngineOverlayHost` — renders HUD and label overlays positioned over the canvas. Reads the current scene overlay from `EngineContext`.
 - `LabelPositioner` — bridges the Three.js render loop with React label rendering. Reads bone world positions from `RuntimeDriver.getBoneWorldPositions()`, projects through camera matrix, updates CSS positions on `LabelItem` DOM nodes.
 - `TimelineWidget` — debug/dev overlay showing scene timeline, tick index, and progress scrubber.
-- `CameraControlPanel` — debug camera state inspector.
 - `SceneMetaWidget` — built-in widget that fires `onSceneChange` when the current scene index changes. Registered by `corePlugin()`.
+
+**Dev-only exports (`@brewsite/core/devtools` subpath — not part of the main bundle):**
+- `CameraControlPanel` — debug camera state inspector.
+- `CameraInteractionInfoDialog` — debug dialog for live camera interaction state.
+- `SceneInspector` — debug overlay for scene/tick inspection.
+Import these from `@brewsite/core/devtools` to keep them out of production bundles. They should never be imported in application code outside of development contexts.
+
+**Testing exports (`@brewsite/core/testing` subpath):**
+- `clearRegistry` — resets the global compiler node registry between tests.
+- Test doubles (e.g. `createMockSceneElementWidget`) for compiler and runtime unit testing.
+
+**Scene widget ID constants (exported from `@brewsite/core`):**
+- `SCENE_CAMERA_KEY` — widget ID for the built-in CameraWidget (`'__brewsite_camera'`)
+- `SCENE_LIGHTING_KEY` — widget ID for the built-in LightingWidget (`'lighting'`)
+- `SCENE_BACKGROUND_KEY` — widget ID for the built-in BackgroundWidget (`'background'`)
+- `SCENE_ENVIRONMENT_KEY` — widget ID for the built-in EnvironmentWidget (`'environment'`)
+- `SCENE_FLOOR_KEY` — widget ID for the built-in FloorWidget (`'floor'`)
 - `corePlugin(options?)` — plugin factory that registers core built-in widgets (Lighting, Background, Environment, Floor, Camera, SceneMeta) into the engine.
 
 **Context providers (all established by `EngineProvider`):**
@@ -341,7 +360,7 @@ The heads-up display overlay system. Renders React content synchronized to scene
 
 **`HudOverlay`** — React component rendered in the `EngineOverlayHost` overlay tier. Reads `hudPrimitives` from the current `EngineFrameState` tick and renders each `HudItemResolved` as a positioned React element with CSS-based styling and animation.
 
-**`hud/animejs/`** — Optional sub-module providing anime.js-powered scroll-driven animation presets for HUD items. Exposes `useScrollTimeline` and preset factory functions. This sub-module has an optional peer dependency on `animejs`. Consumers who do not import from `hud/animejs/` do not incur the anime.js bundle cost.
+**`hud/animejs/`** — Removed. The `Fade`, `MidFade`, `SlideUp`, `SlideDown`, `ScrollOn`, `ScrollOff` preset components and `useScrollTimeline` have been removed from `@brewsite/core`. They are available as copy-paste recipes in `apps/examples/`. The `animejs` package is no longer a production dependency of `@brewsite/core`.
 
 ### 3.7 Labels (`labels/`)
 

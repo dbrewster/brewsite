@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import type { IWidget, AssetManifest } from './types';
 import type { WidgetRegistry } from './WidgetRegistry';
+import type { ActionInputHandler } from '../input/ActionInputController';
 import type * as THREE from 'three';
 
 /**
@@ -64,6 +65,18 @@ export interface WidgetPlugin {
    * )
    */
   wrapProvider?(children: ReactNode): ReactNode;
+
+  /**
+   * Optional: returns extensions to the ActionInputHandler passed to ActionInputController.
+   * Called by useSceneEngine after all plugins are initialized and the WidgetRegistry is
+   * constructed. The returned partial is merged into the handler passed to useEngineInput.
+   *
+   * Use this to provide `onUnknownAction` handling for action types not built into core.
+   * @brewsite/diagram uses this to handle 'diagram-canvas.*' action types.
+   */
+  getActionInputExtension?(
+    registry: WidgetRegistry,
+  ): Partial<Pick<ActionInputHandler, 'onUnknownAction'>>;
 
   /**
    * Optional: called when a WebGLRenderer instance is created.

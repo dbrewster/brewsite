@@ -9,6 +9,7 @@ import { EnvironmentWidget } from '../elements/environment/EnvironmentWidget';
 import { FloorWidget } from '../elements/floor/FloorWidget';
 import { CameraWidget } from '../elements/camera/CameraWidget';
 import { SceneMetaWidget } from './SceneMetaWidget';
+import { isLightingOverride } from '../widget/WidgetRegistry';
 
 export interface CorePluginOptions {
   onSceneChange?: (sceneId: string, sceneIndex: number) => void;
@@ -30,17 +31,26 @@ export interface CorePluginOptions {
  * />
  */
 export function corePlugin(options?: CorePluginOptions): WidgetPlugin {
+  const lightingWidget = new LightingWidget();
+  const backgroundWidget = new BackgroundWidget();
+  const environmentWidget = new EnvironmentWidget();
+  const floorWidget = new FloorWidget();
+  const cameraWidget = new CameraWidget();
+  const sceneMetaWidget = new SceneMetaWidget({ onSceneChange: options?.onSceneChange });
+
   return {
-    createWidgets: () => [
-      new LightingWidget(),
-      new BackgroundWidget(),
-      new EnvironmentWidget(),
-      new FloorWidget(),
-      new CameraWidget(),
-      new SceneMetaWidget({ onSceneChange: options?.onSceneChange }),
-    ],
-    registerHandlers: () => {
+    createWidgets() {
+      return [lightingWidget, backgroundWidget, environmentWidget,
+              floorWidget, cameraWidget, sceneMetaWidget];
+    },
+    registerHandlers() {
       registerCoreHandlers();
+    },
+    configureRegistry(reg) {
+      // Resolve ILightingOverride widgets registered by other plugins (e.g. diagram).
+      // Called after all plugins' createWidgets() have run.
+      const overrideWidgets = [...reg.getAllWidgets()].filter(isLightingOverride);
+      lightingWidget.setLightingOverrides(overrideWidgets);
     },
   };
 }

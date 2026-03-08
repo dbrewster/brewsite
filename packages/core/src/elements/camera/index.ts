@@ -21,5 +21,7 @@ export type {
 export { Camera } from './dsl';
 export { DEFAULT_CAMERA, DEFAULT_CAMERA_DESCRIPTOR, cameraTransitionSpec, functionalCameraTransitionSpec } from './compile';
 export { applyCamera } from './render';
-export { CameraWidget, CUSTOM_NODE_HANDLER } from './CameraWidget';
+export { CameraWidget } from './CameraWidget';
+export { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
+export type { ICameraHost } from './types';
 export { SCENE_CAMERA_KEY } from './cameraKeys';

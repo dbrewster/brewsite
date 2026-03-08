@@ -38,7 +38,7 @@ export default function MultiUserPage(): JSX.Element {
   const { plugins } = useMemo(() => createMultiUserPlugins(), []);
 
   return (
-    <div style={{ background: '#080b14', minHeight: '100vh', minWidth: '100vw', fontSize: '18px' }}>
+    <div style={{ background: '#080b14', height: '100vh', width: '100vw', minHeight: '100vh', minWidth: '100vw', fontSize: '18px' }}>
       <EngineProvider
         manifestUrl="/scene-manifest.json"
         plugins={plugins}
@@ -58,7 +58,7 @@ export default function MultiUserPage(): JSX.Element {
         {/*{sceneCrossUserFlow}*/}
         {/*{sceneConflict}*/}
         {/*{sceneSummary}*/}
-        <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-height" referenceWidth={1920}>
+        <EngineARContainer aspectRatio={9/9} scaleMode="fit-height" referenceWidth={1920}>
           <EngineInputRegion>
             <SceneCanvas />
             <EngineOverlayHost />

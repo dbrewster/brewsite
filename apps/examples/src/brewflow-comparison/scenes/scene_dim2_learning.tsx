@@ -21,7 +21,6 @@ export const sceneDim2Learning: JSX.Element = (
   <Scene key="bfc-dim2-learn" id="bfc-dim2-learn">
     <ProgressManager scrollUnits={3000} fn={DWELL_FN} />
 
-    <Camera mode="world" position={[0, 5, 28]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
     <InputController scope="canvas">

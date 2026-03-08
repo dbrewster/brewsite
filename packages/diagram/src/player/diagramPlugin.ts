@@ -2,7 +2,7 @@
 // Widget instances are constructed from declared canvas IDs and returned from
 // createWidgets() so the runtime can initialize them before scene compilation runs.
 
-import type { WidgetPlugin } from '@brewsite/core';
+import type { WidgetPlugin, WidgetRegistry } from '@brewsite/core';
 import { registerDiagramHandlers } from '../compiler/handlers';
 import { compileCanvas } from '../elements/diagram/canvas/compile';
 import { DiagramCanvasWidget } from '../elements/diagram/canvas/widget';
@@ -62,6 +62,40 @@ export function diagramPlugin(options: DiagramPluginOptions): WidgetPlugin {
       // Auto-registration of widgets no longer happens here — widgets
       // are created in createWidgets() and are already in the registry
       // by the time configureRegistry() is called.
+    },
+
+    getActionInputExtension(registry: WidgetRegistry) {
+      return {
+        onUnknownAction: (
+          type: string,
+          canvasId: string | undefined,
+          event: PointerEvent | WheelEvent | KeyboardEvent | MouseEvent,
+          extra: Record<string, unknown>,
+        ) => {
+          const canvas = canvasId
+            ? (registry.get(canvasId) as DiagramCanvasWidget | undefined)
+            : undefined;
+          if (!canvas) return;
+
+          switch (type) {
+            case 'diagram-canvas.move':
+              canvas.handleMove(event as PointerEvent | WheelEvent, extra.speed as number | undefined);
+              break;
+            case 'diagram-canvas.rotate':
+              canvas.handleRotate(event as PointerEvent | WheelEvent, extra.speed as number | undefined);
+              break;
+            case 'diagram-canvas.reset':
+              canvas.handleReset();
+              break;
+            case 'diagram-canvas.focus':
+              canvas.handleFocus(
+                event as PointerEvent | MouseEvent,
+                extra.focusCenter as [number, number] | [number, number, number] | undefined,
+              );
+              break;
+          }
+        },
+      };
     },
   };
 }

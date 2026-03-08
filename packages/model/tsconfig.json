@@ -3,6 +3,7 @@
     "baseUrl": ".",
     "paths": {
       "@brewsite/core": ["../core/src/index.ts"],
+      "@brewsite/core/testing": ["../core/src/testing.ts"],
       "@brewsite/core/compiler/registry": ["../core/src/compiler/registry.ts"],
       "@brewsite/core/compiler/sceneTypes": ["../core/src/compiler/sceneTypes.ts"],
       "@brewsite/core/compiler/transitions/transitionTypes": ["../core/src/compiler/transitions/transitionTypes.ts"],

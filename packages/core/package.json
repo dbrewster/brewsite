@@ -38,10 +38,15 @@
       "import": "./dist/runtime/index.js",
       "default": "./dist/runtime/index.js"
     },
-    "./hud/animejs": {
-      "types": "./dist/hud/animejs/index.d.ts",
-      "import": "./dist/hud/animejs/index.js",
-      "default": "./dist/hud/animejs/index.js"
+    "./devtools": {
+      "types": "./dist/player/devtools.d.ts",
+      "import": "./dist/player/devtools.js",
+      "default": "./dist/player/devtools.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js",
+      "default": "./dist/testing.js"
     }
   },
   "files": ["dist", "LICENSE", "README.md"],
@@ -56,16 +61,10 @@
   },
   "dependencies": {},
   "peerDependencies": {
-    "animejs": "^3.2.2",
     "camera-controls": "^3.1.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "three": "^0.183.1"
-  },
-  "peerDependenciesMeta": {
-    "animejs": {
-      "optional": true
-    }
   },
   "devDependencies": {
     "@babel/parser": "^7.29.0",
@@ -79,7 +78,6 @@
     "@testing-library/react": "^16.3.2",
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/coverage-v8": "^2.1.9",
-    "animejs": "^3.2.2",
     "jsdom": "^24.0.0",
     "typescript": "^5.9.3",
     "vite": "^5.4.21",

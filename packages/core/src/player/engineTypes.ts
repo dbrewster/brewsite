@@ -7,17 +7,21 @@ export type EngineFrameState = {
   sceneId: string;
   sceneIndex: number;
   sceneProgress: number;
-  tick: SceneTrackTick | null;
+  /** Current tick snapshot. Null before the engine's first frame. */
+  tick?: SceneTrackTick | null;
 };
 
-export type EngineState = {
-  /** Index of the last rendered tick. -1 before the engine's first frame. */
-  tickIndex: number;
-  progress: number;
-  sceneId: string;
-  sceneIndex: number;
-  sceneProgress: number;
-};
+/**
+ * @deprecated Use EngineFrameState instead.
+ * EngineState was a subset of EngineFrameState differing only in the absence
+ * of the `tick` field. EngineFrameState now has `tick` as optional.
+ */
+export type EngineState = EngineFrameState;
+
+// Re-export CameraInteractionDefaults from canonical location (elements/camera/types).
+// useSceneEngine.ts and EngineProvider.tsx import this from './engineTypes' — the re-export
+// keeps those imports working without modification.
+export type { CameraInteractionDefaults } from '../elements/camera/types';
 
 /**
  * Internal scene spec linking a scene registration key to its compiled content.
@@ -39,14 +43,4 @@ export type EngineTimingProfile = {
   blockSize?: number;
   qualityPreset?: 'performance' | 'balanced' | 'high';
   fpsCap?: number;
-};
-
-export type CameraInteractionDefaults = {
-  wheelLockIdleMs?: number;
-  wheelAxisDominance?: number;
-  wheelAxisActivationThreshold?: number;
-  orbitPolarMin?: number;
-  orbitPolarMax?: number;
-  dollyRadiusMin?: number;
-  dollyRadiusMax?: number;
 };

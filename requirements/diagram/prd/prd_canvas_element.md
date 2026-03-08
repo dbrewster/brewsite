@@ -3,8 +3,11 @@ title: "BrewSite Diagram — Canvas Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-08
+last_updated: 2026-03-07
 change_history:
+  - date: 2026-03-07
+    author: "Toolkit Product"
+    summary: "Core cleanup migration: setSceneLightEnabled() call removed from DiagramCanvasWidget — DiagramCanvasWidget now implements ILightingOverride from @brewsite/core. getLightingOverride() returns { disableAll: true } when the diagram canvas is active, and LightingWidget polls this in apply() each frame. No @brewsite/diagram code calls render-layer functions from @brewsite/core. diagram-canvas.* action types (diagram-canvas.move, diagram-canvas.rotate, diagram-canvas.reset, diagram-canvas.focus) are now owned by @brewsite/diagram as string literals — they have been removed from @brewsite/core's InputActionType named value set. ActionInputController no longer dispatches diagram-canvas.* events; @brewsite/diagram's diagramPlugin registers its own ActionInputController handler for these types."
   - date: 2026-03-08
     author: "Toolkit Product"
     summary: "Coordinate system audit: documented dev-mode nvsBounds guard in Guardrail Metrics. compileCanvas() now emits console.error in NODE_ENV !== 'production' when nvsBounds values fall outside [0,1]."
@@ -533,6 +536,26 @@ This runs every tick when the Camera widget is inactive, giving a stable framing
 - **MouseMove:** Raycasts against both node meshes (`InteractionRegistry`) and group meshes (`GroupInteractionRegistry`). Computes a `HoverTarget` (diagramId, groupPath, nodeId). Transitions the hover state by dispatching `onMouseEnter`/`onMouseLeave` on the delta between previous and current `HoverTarget`.
 - **MouseLeave:** Clears the current hover target, firing leave events as needed.
 
+### Lighting Override Contract
+
+`DiagramCanvasWidget` implements `ILightingOverride` (from `@brewsite/core`). When the canvas is active, `getLightingOverride()` returns `{ disableAll: true }`, suppressing all core scene lights for that frame. `LightingWidget.apply()` polls all `ILightingOverride` implementors from the registry on every frame.
+
+This replaces the previous `setSceneLightEnabled(scene, lightId, enabled)` call, which was a direct Three.js render-layer function that leaked across the `@brewsite/core` / `@brewsite/diagram` package boundary.
+
+### Input Action Ownership
+
+The `diagram-canvas.*` action types are owned by `@brewsite/diagram` as string literal constants:
+
+```typescript
+// @brewsite/diagram internal constants
+export const DIAGRAM_CANVAS_MOVE   = 'diagram-canvas.move'   as const;
+export const DIAGRAM_CANVAS_ROTATE = 'diagram-canvas.rotate' as const;
+export const DIAGRAM_CANVAS_RESET  = 'diagram-canvas.reset'  as const;
+export const DIAGRAM_CANVAS_FOCUS  = 'diagram-canvas.focus'  as const;
+```
+
+The `diagramPlugin()` factory registers `ActionInputController` handlers for these types. `@brewsite/core`'s `InputActionType` does not name these values — they flow through the `(string & {})` open union slot.
+
 ### Transition Model
 
 `functionalDiagramCanvasTransitionSpec` in `canvas/compile.ts` handles three cases:
@@ -557,7 +580,7 @@ Consumers adding `DiagramCanvasWidget` to an existing project must:
 
 ## Dependencies
 
-- `@brewsite/core`: `FunctionalTransitionSpec`, `ISceneElement`, `IRenderable`, `IAnimationController`, `INVSBounded`, `NVSRect`, `blendNumber`, `blendVec3`, `blendOpacity`, `setSceneLightEnabled`, `WidgetRegistry`, `WidgetInitContext`, `WidgetRenderContext`, `AnimationTickContext`.
+- `@brewsite/core`: `FunctionalTransitionSpec`, `ISceneElement`, `IRenderable`, `IAnimationController`, `ILightingOverride`, `INVSBounded`, `NVSRect`, `blendNumber`, `blendVec3`, `blendOpacity`, `WidgetRegistry`, `WidgetInitContext`, `WidgetRenderContext`, `AnimationTickContext`. (`setSceneLightEnabled` is no longer used; `ILightingOverride` replaces the lighting suppression contract.)
 - `packages/diagram/src/elements/diagram/compile.ts`: `compileDiagram`, `applyDiagramEnter`, `applyDiagramExit`.
 - `packages/diagram/src/elements/diagram/compiler/transitionHelpers.ts`: `blendDiagramNodes`, `buildLiveNodeMaps`, `rerouteLiveEdges`, `blendDiagramEdges`.
 - `packages/diagram/src/elements/diagram/canvas/compiler/pipeRouter.ts`: `sideAttachmentPoint`, `routePipe`, `rerouteLivePipes`, `rotateXYZ`.

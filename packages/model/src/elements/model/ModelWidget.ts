@@ -12,10 +12,8 @@ import type * as React from 'react';
 import type {ReactElement} from 'react';
 import {isValidElement} from 'react';
 import type * as THREE from 'three';
-import type {CompileExtraContext, IDslComposite, ILoadable, IRenderable, ISceneElement, IAttachmentHost, IRenderContributor, RenderContribution, WidgetInitContext, WidgetRenderContext, INVSBounded, NVSRect,} from '@brewsite/core';
-import {nvsToWorldWithCamera, nvsToWorldAnalytic} from '@brewsite/core';
-import {CUSTOM_NODE_HANDLER} from '@brewsite/core/widget/WidgetRegistry';
-import type {IHasCustomDslHandler} from '@brewsite/core/widget/WidgetRegistry';
+import type {CompileExtraContext, IDslComposite, ILoadable, IRenderable, ISceneElement, IAttachmentHost, IRenderContributor, RenderContribution, WidgetInitContext, WidgetRenderContext, INVSBounded, NVSRect, IHasCustomDslHandler,} from '@brewsite/core';
+import {nvsToWorldWithCamera, nvsToWorldAnalytic, CUSTOM_NODE_HANDLER} from '@brewsite/core';
 import type {CompileHelpers, NodeHandler, SceneSnapshotContext} from '@brewsite/core';
 import type {
   AxisRotation,
@@ -375,7 +373,7 @@ export class ModelWidget
   readonly defaultState: SceneModelInstanceState;
   readonly transitionSpec = functionalInstanceTransitionSpec;
   readonly DslComponent = ModelRouter;
-  readonly useDefaultStateWhenAbsent = false;
+  readonly disableWhenAbsent = true;
   private anchorTargets: Record<string, string> = {};
 
   readonly childDslComponents: readonly {
@@ -413,7 +411,7 @@ export class ModelWidget
 
   private config: ModelWidgetConfig;
   private renderer: ModelRenderer | null = null;
-  private scene: THREE.Scene | null = null;
+  private cameraRef: THREE.PerspectiveCamera | null = null;
   private readonly modelType: string;
   private readonly baseRotation: Vec3 | null;
   private lastAppliedState: SceneModelInstanceState | null = null;
@@ -798,7 +796,7 @@ export class ModelWidget
    */
   initialize(context: WidgetInitContext): void {
     const scene = context.scene as THREE.Scene;
-    this.scene = scene;
+    if (context.camera) this.cameraRef = context.camera;
     this.renderer = new ModelRenderer(scene, context.renderer);
   }
 
@@ -826,7 +824,7 @@ export class ModelWidget
 
     // Convert NVS position to world-space. Use the live camera when available for
     // accurate conversion; fall back to analytic defaults when camera is not yet set.
-    const cam = this.scene?.userData['__brewsite_camera'] as THREE.PerspectiveCamera | undefined;
+    const cam = this.cameraRef ?? undefined;
     const worldPos = cam
       ? nvsToWorldWithCamera(state.model.nvsX, state.model.nvsY, cam, state.model.z)
       : nvsToWorldAnalytic(state.model.nvsX, state.model.nvsY, 0, 0, 12.07, 45, 16 / 9, state.model.z);
@@ -842,7 +840,7 @@ export class ModelWidget
    */
   dispose(): void {
     this.renderer?.dispose();
-    this.scene = null;
+    this.cameraRef = null;
   }
 
   getAnchorBoneName(anchorKey: string): string | undefined {

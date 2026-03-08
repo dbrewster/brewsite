@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { CameraWidget } from '../CameraWidget';
 import { CUSTOM_NODE_HANDLER } from '../../../widget/WidgetRegistry';
-import type { AnimationTickContext } from '../../../widget/types';
+import type { AnimationTickContext, RuntimeCameraOverride } from '../../../widget/types';
 import type { SceneTrackTick } from '../../../compiler/sceneTrackTypes';
 import type {
   ICameraInteractionDriver,
@@ -54,13 +54,13 @@ class FakeInteractionDriver implements ICameraInteractionDriver {
 const makeCamera = (): THREE.PerspectiveCamera =>
   new THREE.PerspectiveCamera(45, 1, 0.1, 2000);
 
-const makeScene = (camera: THREE.PerspectiveCamera): THREE.Scene =>
-  ({
-    userData: {
-      __brewsite_camera: camera,
-      __brewsite_renderer: { domElement: document.createElement('div') },
-    },
-  } as unknown as THREE.Scene);
+const makeScene = (): THREE.Scene => new THREE.Scene();
+
+/** Creates a fake renderer with a real DOM element so key listeners work. */
+const makeFakeRenderer = (): THREE.WebGLRenderer => {
+  const domElement = document.createElement('div');
+  return { domElement } as unknown as THREE.WebGLRenderer;
+};
 
 const makeTick = (
   sceneIndex: number,
@@ -80,6 +80,8 @@ const makeCameraState = (
 const makeTickCtx = (
   tick: SceneTrackTick,
   scene: THREE.Scene,
+  resolvedState: unknown = null,
+  cameraOverride: RuntimeCameraOverride | null = null,
 ): AnimationTickContext => ({
   tick,
   scene,
@@ -87,6 +89,10 @@ const makeTickCtx = (
   clock: { wallTimeSeconds: 0, deltaSeconds: 0.016 },
   effectiveDeltaSeconds: 0.016,
   variables: {} as never,
+  resolvedState,
+  cameraFocusTarget: null,
+  cameraOverride,
+  setCameraOverride: () => {},
 });
 
 const makeDriverFactory = (
@@ -219,16 +225,18 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    widget.initialize({ scene, camera, widgetId: 'camera' });
     widget.onTick({ tick: null, scene } as AnimationTickContext);
     expect(calls.count).toBe(0);
   });
 
-  it('onTick returns early when camera is missing', () => {
+  it('onTick returns early when camera is not initialized', () => {
     const driver = new FakeInteractionDriver();
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
-    const scene = ({ userData: {} } as unknown as THREE.Scene);
+    const scene = makeScene();
+    // No initialize() call — camera is null
     const tick = makeTick(0, {});
     widget.onTick(makeTickCtx(tick, scene));
     expect(calls.count).toBe(0);
@@ -239,10 +247,12 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
     const state = makeCameraState(false);
 
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
 
     expect(calls.count).toBe(0);
     expect(camera.position.toArray()).toEqual([1, 2, 3]);
@@ -253,10 +263,12 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
     const state = makeCameraState(true);
 
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
 
     expect(calls.count).toBe(1);
     expect(driver.calls).toEqual([
@@ -273,12 +285,14 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
     const state = makeCameraState(true);
 
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
 
     expect(calls.count).toBe(1);
     expect(driver.calls.filter((call) => call === 'update')).toHaveLength(4);
@@ -290,11 +304,13 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
     const state = makeCameraState(true);
 
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
-    widget.onTick(makeTickCtx(makeTick(0, { camera: makeCameraState(false) }), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
+    widget.onTick(makeTickCtx(makeTick(0), scene, makeCameraState(false)));
 
     expect(driver.calls).toContain('dispose');
   });
@@ -304,11 +320,13 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
     const state = makeCameraState(true);
 
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
-    widget.onTick(makeTickCtx(makeTick(1, { camera: state }), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
+    widget.onTick(makeTickCtx(makeTick(1), scene, state));
 
     expect(driver.calls).toContain('setLookAt:smooth');
   });
@@ -318,11 +336,13 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
     const state = makeCameraState(true, { resetOnSceneChange: false });
 
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
-    widget.onTick(makeTickCtx(makeTick(1, { camera: state }), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
+    widget.onTick(makeTickCtx(makeTick(1), scene, state));
 
     expect(driver.calls.filter((call) => call === 'setLookAt:smooth')).toHaveLength(0);
   });
@@ -338,10 +358,12 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
     const state = makeCameraState(true);
 
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
 
     expect(widget.isWheelClaimedByInteraction()).toBe(true);
   });
@@ -351,10 +373,12 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
     const state = makeCameraState(true);
 
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
 
     expect(widget.isWheelClaimedByInteraction()).toBe(false);
   });
@@ -364,10 +388,12 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
     const state = makeCameraState(true);
 
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
     widget.dispose();
 
     expect(driver.calls).toContain('dispose');
@@ -378,12 +404,14 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
     const state = makeCameraState(true);
 
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
 
-    scene.userData.__brewsite_camera_override = {
+    const override: RuntimeCameraOverride = {
       enabled: true,
       position: [9, 8, 7] as Vec3,
       target: [0, 1, 0] as Vec3,
@@ -393,8 +421,7 @@ describe('CameraWidget', () => {
       far: 1500,
       exposure: 1.2,
     };
-
-    widget.onTick(makeTickCtx(makeTick(1, { camera: state }), scene));
+    widget.onTick(makeTickCtx(makeTick(1), scene, state, override));
 
     expect(driver.calls).toContain('dispose');
     expect(camera.position.toArray()).toEqual([9, 8, 7]);
@@ -404,36 +431,29 @@ describe('CameraWidget', () => {
   it('camera override without exposure applies lens only', () => {
     const widget = new CameraWidget();
     const camera = makeCamera();
-    const scene = makeScene(camera);
-    scene.userData.__brewsite_camera_override = {
+    const scene = makeScene();
+    widget.initialize({ scene, camera, widgetId: 'camera' });
+    const override: RuntimeCameraOverride = {
       enabled: true,
       position: [2, 3, 4] as Vec3,
       target: [0, 0, 0] as Vec3,
       fov: 70,
     };
-    widget.onTick(makeTickCtx(makeTick(0, {}), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, null, override));
     expect(camera.position.toArray()).toEqual([2, 3, 4]);
     expect(camera.fov).toBe(70);
   });
 
-  it('functional block overrides tick camera state', () => {
+  it('resolvedState overrides default camera state', () => {
     const widget = new CameraWidget();
     const camera = makeCamera();
-    const scene = makeScene(camera);
-    const functionalState: SceneCamera = {
+    const scene = makeScene();
+    widget.initialize({ scene, camera, widgetId: 'camera' });
+    const resolvedState: SceneCamera = {
       enabled: true,
       descriptor: { mode: 'world', position: [9, 9, 9], target: [0, 0, 0] },
     };
-    const tick = makeTick(0, {
-      camera: {
-        enabled: true,
-        descriptor: { mode: 'world', position: [1, 1, 1], target: [0, 0, 0] },
-      },
-    });
-    const track = {
-      transitionBlocks: [{ widgetFns: { camera: { fn: () => functionalState } } }],
-    } as unknown as AnimationTickContext['track'];
-    widget.onTick({ ...makeTickCtx(tick, scene), track });
+    widget.onTick(makeTickCtx(makeTick(0), scene, resolvedState));
     expect(camera.position.toArray()).toEqual([9, 9, 9]);
   });
 
@@ -442,10 +462,12 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = ({ userData: { __brewsite_camera: camera } } as unknown as THREE.Scene);
+    const scene = makeScene();
+    // initialize without renderer — no domElement available
+    widget.initialize({ scene, camera, widgetId: 'camera' });
     const state = makeCameraState(true);
 
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
 
     expect(calls.count).toBe(0);
   });
@@ -455,12 +477,14 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
     const state = makeCameraState(true, { reset: { key: 'r', modifiers: ['shift'] } });
 
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
 
-    scene.userData.__brewsite_renderer.domElement.dispatchEvent(
+    renderer.domElement.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'r', bubbles: true }),
     );
 
@@ -472,12 +496,14 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
     const state = makeCameraState(true, { reset: { key: 'r' } });
 
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
 
-    scene.userData.__brewsite_renderer.domElement.dispatchEvent(
+    renderer.domElement.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'r', bubbles: true }),
     );
 
@@ -490,14 +516,16 @@ describe('CameraWidget', () => {
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
     camera.position.set(1, 2, 3);
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
     const state: SceneCamera = {
       enabled: true,
       descriptor: { mode: 'fitFloorDepth', floorY: 5, floorZMin: 0, floorZMax: 10 },
       interaction: { enabled: true },
     };
 
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
 
     expect(driver.position).toEqual([camera.position.x, camera.position.y, camera.position.z]);
     expect(driver.target).toEqual([0, 5, 5]);
@@ -508,14 +536,16 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
     const state: SceneCamera = {
       enabled: true,
       descriptor: { mode: 'fitBotHeight', targetId: 'bot', targetHeight: 1 },
       interaction: { enabled: true },
     };
 
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
 
     expect(driver.calls).not.toContain('setLookAt:snap');
   });
@@ -525,15 +555,17 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
     const state: SceneCamera = {
       enabled: true,
       descriptor: { mode: 'fitBotHeight', targetId: 'bot', targetHeight: 1 },
       interaction: { enabled: true },
     };
-    const tick = makeTick(0, { camera: state, bot: { model: { position: [4, 5, 6] } } });
+    const tick = { ...makeTick(0), state: { widgets: { bot: { model: { position: [4, 5, 6] } } } } } as never;
 
-    widget.onTick(makeTickCtx(tick, scene));
+    widget.onTick(makeTickCtx(tick, scene, state));
 
     expect(driver.target).toEqual([4, 5, 6]);
   });
@@ -543,15 +575,54 @@ describe('CameraWidget', () => {
     const calls = { count: 0 };
     const widget = new CameraWidget(makeDriverFactory(driver, calls));
     const camera = makeCamera();
-    const scene = makeScene(camera);
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
     const state = makeCameraState(true, { reset: false });
 
-    widget.onTick(makeTickCtx(makeTick(0, { camera: state }), scene));
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
 
-    scene.userData.__brewsite_renderer.domElement.dispatchEvent(
+    renderer.domElement.dispatchEvent(
       new KeyboardEvent('keydown', { key: 'r', bubbles: true }),
     );
 
     expect(driver.calls.filter((call) => call === 'setLookAt:smooth')).toHaveLength(0);
+  });
+
+  it('requestFocus stores pending override when interaction inactive', () => {
+    const widget = new CameraWidget();
+    const camera = makeCamera();
+    const scene = makeScene();
+    widget.initialize({ scene, camera, widgetId: 'camera' });
+
+    let capturedOverride: RuntimeCameraOverride | null = null;
+    const ctx: AnimationTickContext = {
+      ...makeTickCtx(makeTick(0), scene),
+      setCameraOverride: (override) => { capturedOverride = override; },
+    };
+    widget.requestFocus([1, 2, 3], [0, 0, 0], false);
+    widget.onTick(ctx);
+
+    expect(capturedOverride).not.toBeNull();
+    expect(capturedOverride?.position).toEqual([1, 2, 3]);
+  });
+
+  it('requestFocus delegates to driver when interaction active', () => {
+    const driver = new FakeInteractionDriver();
+    const calls = { count: 0 };
+    const widget = new CameraWidget(makeDriverFactory(driver, calls));
+    const camera = makeCamera();
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ scene, camera, renderer, widgetId: 'camera' });
+    const state = makeCameraState(true);
+
+    widget.onTick(makeTickCtx(makeTick(0), scene, state));
+    driver.calls.length = 0; // clear setup calls
+
+    widget.requestFocus([5, 6, 7], [0, 0, 0], true);
+
+    expect(driver.calls).toContain('setLookAt:smooth');
+    expect(driver.position).toEqual([5, 6, 7]);
   });
 });

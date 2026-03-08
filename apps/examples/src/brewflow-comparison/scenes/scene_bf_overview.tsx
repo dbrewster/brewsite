@@ -21,7 +21,6 @@ export const sceneBfOverview: JSX.Element = (
   <Scene key="bfc-bf-overview" id="bfc-bf-overview">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
 
-    <Camera mode="world" position={[0, 5, 22]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
     <InputController scope="canvas">
@@ -37,7 +36,7 @@ export const sceneBfOverview: JSX.Element = (
       </Action>
     </InputController>
 
-    <DiagramCanvas id="bfc-bf-canvas" position={[0, config.diagramTop+1, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale*.7} theme={brewflowTheme}>
+    <DiagramCanvas id="bfc-bf-canvas" position={[0, config.diagramTop+1, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="bf-overview">
         <FlowLayout direction="top-down" gap={2} />
         <DiagramEnter fade />

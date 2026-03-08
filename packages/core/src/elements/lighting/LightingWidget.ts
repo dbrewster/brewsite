@@ -6,6 +6,7 @@ import type {
   ISceneElement,
   IRenderable,
   IDslComposite,
+  ILightingOverride,
   WidgetInitContext,
   WidgetRenderContext,
 } from '../../widget/types';
@@ -35,7 +36,7 @@ import {
   type PanelProps,
   type LightingProps,
 } from './dsl';
-import { applyLighting } from './render';
+import { applyLighting, setSceneLightEnabled } from './render';
 import type * as React from 'react';
 import { isValidElement } from 'react';
 import { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
@@ -50,7 +51,7 @@ export class LightingWidget
   readonly transitionSpec = functionalLightingTransitionSpec;
   // Cast: LightingProps.children is more restrictive than Partial<SceneLighting>.children?.
   readonly DslComponent = Lighting as React.ComponentType<Partial<SceneLighting> & { children?: React.ReactNode }>;
-  readonly useDefaultStateWhenAbsent = false;
+  readonly disableWhenAbsent = true;
 
   mergeSnapshot(
     prev: SceneLighting | undefined,
@@ -76,6 +77,33 @@ export class LightingWidget
   ];
 
   private threeScene: THREE.Scene | null = null;
+  private lightingOverrideWidgets: ILightingOverride[] = [];
+
+  /**
+   * Called by corePlugin.configureRegistry() after all plugins' createWidgets() have run.
+   * Does two things:
+   * 1. Stores the ILightingOverride list for per-frame getLightingOverride() checks.
+   * 2. Injects the per-light setter into any widget that implements receiveLightController?().
+   *    This enables DiagramWidget / DiagramCanvasWidget hover callbacks to toggle individual
+   *    core lights without importing setSceneLightEnabled() directly.
+   */
+  setLightingOverrides(overrides: ILightingOverride[]): void {
+    this.lightingOverrideWidgets = overrides;
+    const setter = this.setLightEnabled.bind(this);
+    for (const w of overrides) {
+      w.receiveLightController?.(setter);
+    }
+  }
+
+  /**
+   * Per-light control entry point. Called via the injected setter in hover callbacks.
+   * Uses the LightingCache mechanism in render.ts so that the next applyLighting() call
+   * respects the enabled/disabled state.
+   */
+  private setLightEnabled(lightId: string, enabled: boolean): void {
+    if (!this.threeScene) return;
+    setSceneLightEnabled(this.threeScene, lightId, enabled);
+  }
 
   // WidgetRegistry routing will call this when it encounters <Lighting> in a scene.
   readonly [CUSTOM_NODE_HANDLER]: NodeHandler = (node, api, helpers) => {
@@ -301,6 +329,12 @@ export class LightingWidget
 
   apply(state: SceneLighting, _ctx: WidgetRenderContext): void {
     if (!this.threeScene) return;
+    // Check if any peer widget is requesting full lighting suppression.
+    // DiagramCanvasWidget returns { disableAll: true } when its canvas is active.
+    const anyDisableAll = this.lightingOverrideWidgets.some(
+      (w) => w.getLightingOverride()?.disableAll === true,
+    );
+    if (anyDisableAll) return; // skip all Three.js light updates this frame
     applyLighting(state, { scene: this.threeScene });
   }
 

@@ -34,7 +34,13 @@ import type { AssetManifest } from '../widget/types';
 export type EngineProviderProps = {
   /** When provided, registers engine state in the global registry for useSceneEngineState(id). */
   id?: string;
-  manifestUrl: string;
+  /**
+   * URL of the asset manifest JSON file.
+   * @deprecated Pass manifestUrl directly to modelPlugin() instead.
+   * EngineProvider should not need model-specific configuration.
+   * This field will be removed in a future major release.
+   */
+  manifestUrl?: string;
   /**
    * Composable widget plugins. Each plugin contributes widgets and DSL handlers.
    * Evaluated in array order. Use corePlugin() from @brewsite/core for built-in
@@ -135,17 +141,14 @@ export const EngineProvider = (props: EngineProviderProps): ReactElement => {
 
   // Manifest fetch
   useEffect(() => {
+    if (!props.manifestUrl) return; // no manifest → skip fetch
     let cancelled = false;
     fetch(props.manifestUrl)
       .then((r) => r.json())
       .then((raw) => {
         if (cancelled) return;
-        // Minimal manifest validation. Full validation lives in @brewsite/model.
-        const m = raw as Record<string, unknown>;
-        if (!Array.isArray(m['models']) || !Array.isArray(m['animations'])) {
-          throw new Error('[EngineProvider] Invalid manifest: missing models or animations array.');
-        }
-        setManifest(m as unknown as AssetManifest);
+        // Model plugin handles its own manifest validation in configureRegistry().
+        setManifest(raw as AssetManifest);
       })
       .catch((e: unknown) => {
         if (cancelled) return;

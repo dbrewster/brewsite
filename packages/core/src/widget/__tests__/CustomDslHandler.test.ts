@@ -103,6 +103,7 @@ const makeFakeHelpers = () => ({
   collectChildren: () => [],
   resolveValue: (v: unknown) => v,
   resolveObjectValues: (v: unknown) => v,
+  stripUndefinedDeep: (v: unknown) => v,
 } as Parameters<NodeHandler>[2]);
 
 // ─── Tests ────────────────────────────────────────────────────────────────────

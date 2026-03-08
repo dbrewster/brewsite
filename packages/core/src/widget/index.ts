@@ -5,6 +5,7 @@ export type {
   IContainedRenderable, IAttachmentHost,
   ISceneLifecycle,
   IInputDefaultProvider,
+  ICameraFocusTarget, ILightingOverride,
   CompileExtraContext, WidgetInitContext, WidgetRenderContext, AnimationTickContext,
   VariableStoreReader, AssetManifest,
 } from './types';
@@ -16,12 +17,11 @@ export {
   isDslComposite, isAnimationController, isCameraActionTarget, isVariableProvider,
   isSceneLifecycle,
   isInputDefaultProvider,
+  isCameraFocusTarget, isLightingOverride,
 } from './WidgetRegistry';
 export type { IHasCustomDslHandler } from './WidgetRegistry';
 export { VariableStore } from './VariableStore';
 export type { JsonPrimitive } from './VariableStore';
 export { useVariable } from './useVariable';
 export type { WidgetPlugin } from './WidgetPlugin';
-export { corePlugin } from '../player/plugins';
-export type { CorePluginOptions } from '../player/plugins';
 export type { INVSBounded, NVSRect, NVSPosition } from '../layout/types';

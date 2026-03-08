@@ -20,8 +20,6 @@ const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 export const sceneDim1Audit: JSX.Element = (
   <Scene key="bfc-dim1-audit" id="bfc-dim1-audit">
     <ProgressManager scrollUnits={2800} fn={DWELL_FN} />
-
-    <Camera mode="world" position={[0, 5, 28]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
     <InputController scope="canvas">

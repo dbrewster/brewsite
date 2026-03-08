@@ -10,7 +10,6 @@ import { ScreenRenderer } from './render';
 import type { ScreenState } from './types';
 
 const OVERLAY_ATTR = 'data-brewsite-screen-overlay';
-const CAMERA_KEY = '__brewsite_camera';
 
 export class ScreenWidget implements ISceneElement<ScreenState>, IRenderable<ScreenState> {
   readonly widgetId: string;
@@ -20,6 +19,7 @@ export class ScreenWidget implements ISceneElement<ScreenState>, IRenderable<Scr
 
   private renderer: ScreenRenderer | null = null;
   private scene: THREE.Scene | null = null;
+  private cameraRef: THREE.PerspectiveCamera | null = null;
   private webglRenderer: THREE.WebGLRenderer | null = null;
 
   constructor(widgetId: string, defaultState: ScreenState) {
@@ -27,8 +27,9 @@ export class ScreenWidget implements ISceneElement<ScreenState>, IRenderable<Scr
     this.defaultState = defaultState;
   }
 
-  initialize({ scene, renderer }: WidgetInitContext): void {
+  initialize({ scene, renderer, camera }: WidgetInitContext): void {
     this.scene = scene as THREE.Scene;
+    if (camera) this.cameraRef = camera;
     this.webglRenderer = (renderer as THREE.WebGLRenderer) ?? null;
     const overlay = this.ensureOverlayContainer();
     this.renderer = new ScreenRenderer(overlay);
@@ -36,7 +37,7 @@ export class ScreenWidget implements ISceneElement<ScreenState>, IRenderable<Scr
 
   apply(state: ScreenState, _ctx: WidgetRenderContext): void {
     if (!this.scene || !this.renderer) return;
-    const camera = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
+    const camera = this.cameraRef;
     const canvas = this.webglRenderer?.domElement ?? null;
     if (!camera || !canvas) {
       console.warn(`ScreenWidget(${this.widgetId}): missing camera or canvas for iframe projection.`);
@@ -67,6 +68,7 @@ export class ScreenWidget implements ISceneElement<ScreenState>, IRenderable<Scr
     if (!this.scene || !this.renderer) return;
     this.renderer.dispose(this.widgetId, this.scene);
     this.scene = null;
+    this.cameraRef = null;
     this.renderer = null;
   }
 

@@ -1,65 +1,106 @@
+// Asserts the public API surface of elements/index.ts after S2 cleanup.
 import { describe, it, expect } from 'vitest';
-import {
-  DEFAULT_LIGHTING,
-  lightingTransitionSpec,
-  DEFAULT_BACKGROUND,
-  backgroundTransitionSpec,
-  DEFAULT_ENVIRONMENT,
-  environmentTransitionSpec,
-  DEFAULT_FLOOR,
-  floorTransitionSpec,
-  DEFAULT_CAMERA,
-  cameraTransitionSpec,
-  applyLighting,
-  applyBackground,
-  applyEnvironment,
-  applyFloor,
-  applyCamera,
-  Lighting,
-  Background,
-  Environment,
-  Floor,
-  Camera,
-} from '../index';
-import { DEFAULT_LIGHTING as DIRECT_LIGHTING, lightingTransitionSpec as DIRECT_LIGHTING_SPEC } from '../lighting';
-import { DEFAULT_BACKGROUND as DIRECT_BACKGROUND, backgroundTransitionSpec as DIRECT_BACKGROUND_SPEC } from '../background';
-import { DEFAULT_ENVIRONMENT as DIRECT_ENVIRONMENT, environmentTransitionSpec as DIRECT_ENVIRONMENT_SPEC } from '../environment';
-import { DEFAULT_FLOOR as DIRECT_FLOOR, floorTransitionSpec as DIRECT_FLOOR_SPEC } from '../floor';
-import { DEFAULT_CAMERA as DIRECT_CAMERA, cameraTransitionSpec as DIRECT_CAMERA_SPEC } from '../camera';
+import * as elementsBarrel from '../index';
 
-describe('elements index re-exports', () => {
-  it('re-exports lighting symbols', () => {
-    expect(DEFAULT_LIGHTING).toBe(DIRECT_LIGHTING);
-    expect(lightingTransitionSpec).toBe(DIRECT_LIGHTING_SPEC);
-    expect(typeof applyLighting).toBe('function');
-    expect(typeof Lighting).toBe('function');
+// ─── DSL components ARE exported ──────────────────────────────────────────────
+describe('elements barrel — DSL components are exported', () => {
+  it('exports Lighting and its sub-components', () => {
+    expect(typeof elementsBarrel.Lighting).toBe('function');
+    expect(typeof elementsBarrel.Ambient).toBe('function');
+    expect(typeof elementsBarrel.Directional).toBe('function');
   });
 
-  it('re-exports background symbols', () => {
-    expect(DEFAULT_BACKGROUND).toBe(DIRECT_BACKGROUND);
-    expect(backgroundTransitionSpec).toBe(DIRECT_BACKGROUND_SPEC);
-    expect(typeof applyBackground).toBe('function');
-    expect(typeof Background).toBe('function');
+  it('exports Background', () => {
+    expect(typeof elementsBarrel.Background).toBe('function');
   });
 
-  it('re-exports environment symbols', () => {
-    expect(DEFAULT_ENVIRONMENT).toBe(DIRECT_ENVIRONMENT);
-    expect(environmentTransitionSpec).toBe(DIRECT_ENVIRONMENT_SPEC);
-    expect(typeof applyEnvironment).toBe('function');
-    expect(typeof Environment).toBe('function');
+  it('exports Environment components', () => {
+    expect(typeof elementsBarrel.Environment).toBe('function');
+    expect(typeof elementsBarrel.EnvironmentHdri).toBe('function');
   });
 
-  it('re-exports floor symbols', () => {
-    expect(DEFAULT_FLOOR).toBe(DIRECT_FLOOR);
-    expect(floorTransitionSpec).toBe(DIRECT_FLOOR_SPEC);
-    expect(typeof applyFloor).toBe('function');
-    expect(typeof Floor).toBe('function');
+  it('exports Floor components', () => {
+    expect(typeof elementsBarrel.Floor).toBe('function');
   });
 
-  it('re-exports camera symbols', () => {
-    expect(DEFAULT_CAMERA).toBe(DIRECT_CAMERA);
-    expect(cameraTransitionSpec).toBe(DIRECT_CAMERA_SPEC);
-    expect(typeof applyCamera).toBe('function');
-    expect(typeof Camera).toBe('function');
+  it('exports Camera', () => {
+    expect(typeof elementsBarrel.Camera).toBe('function');
+  });
+
+  it('exports TextBox', () => {
+    expect(typeof elementsBarrel.TextBox).toBe('function');
+  });
+});
+
+// ─── Render-layer internals are NOT exported ──────────────────────────────────
+describe('elements barrel — render-layer internals are NOT exported', () => {
+  it('does not export applyLighting', () => {
+    expect((elementsBarrel as Record<string, unknown>)['applyLighting']).toBeUndefined();
+  });
+
+  it('does not export applyBackground', () => {
+    expect((elementsBarrel as Record<string, unknown>)['applyBackground']).toBeUndefined();
+  });
+
+  it('does not export applyEnvironment', () => {
+    expect((elementsBarrel as Record<string, unknown>)['applyEnvironment']).toBeUndefined();
+  });
+
+  it('does not export applyFloor', () => {
+    expect((elementsBarrel as Record<string, unknown>)['applyFloor']).toBeUndefined();
+  });
+
+  it('does not export applyCamera', () => {
+    expect((elementsBarrel as Record<string, unknown>)['applyCamera']).toBeUndefined();
+  });
+});
+
+// ─── DEFAULT_ constants are NOT exported ──────────────────────────────────────
+describe('elements barrel — DEFAULT_ compile-time internals are NOT exported', () => {
+  it('does not export DEFAULT_LIGHTING', () => {
+    expect((elementsBarrel as Record<string, unknown>)['DEFAULT_LIGHTING']).toBeUndefined();
+  });
+
+  it('does not export DEFAULT_BACKGROUND', () => {
+    expect((elementsBarrel as Record<string, unknown>)['DEFAULT_BACKGROUND']).toBeUndefined();
+  });
+
+  it('does not export DEFAULT_ENVIRONMENT', () => {
+    expect((elementsBarrel as Record<string, unknown>)['DEFAULT_ENVIRONMENT']).toBeUndefined();
+  });
+
+  it('does not export DEFAULT_FLOOR', () => {
+    expect((elementsBarrel as Record<string, unknown>)['DEFAULT_FLOOR']).toBeUndefined();
+  });
+
+  it('does not export DEFAULT_CAMERA', () => {
+    expect((elementsBarrel as Record<string, unknown>)['DEFAULT_CAMERA']).toBeUndefined();
+  });
+
+  it('does not export DEFAULT_CAMERA_DESCRIPTOR', () => {
+    expect((elementsBarrel as Record<string, unknown>)['DEFAULT_CAMERA_DESCRIPTOR']).toBeUndefined();
+  });
+});
+
+// ─── Legacy ElementTransitionSpec exports are NOT exported ────────────────────
+describe('elements barrel — legacy transition specs are NOT exported', () => {
+  it('does not export lightingTransitionSpec', () => {
+    expect((elementsBarrel as Record<string, unknown>)['lightingTransitionSpec']).toBeUndefined();
+  });
+
+  it('does not export backgroundTransitionSpec', () => {
+    expect((elementsBarrel as Record<string, unknown>)['backgroundTransitionSpec']).toBeUndefined();
+  });
+
+  it('does not export environmentTransitionSpec', () => {
+    expect((elementsBarrel as Record<string, unknown>)['environmentTransitionSpec']).toBeUndefined();
+  });
+
+  it('does not export floorTransitionSpec', () => {
+    expect((elementsBarrel as Record<string, unknown>)['floorTransitionSpec']).toBeUndefined();
+  });
+
+  it('does not export cameraTransitionSpec', () => {
+    expect((elementsBarrel as Record<string, unknown>)['cameraTransitionSpec']).toBeUndefined();
   });
 });

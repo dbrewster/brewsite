@@ -6,6 +6,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      '@brewsite/core/testing': resolve(__dirname, '../core/src/testing.ts'),
       '@brewsite/core/compiler/registry': resolve(__dirname, '../core/src/compiler/registry.ts'),
       '@brewsite/core/compiler/sceneTypes': resolve(__dirname, '../core/src/compiler/sceneTypes.ts'),
       '@brewsite/core/compiler/transitions/transitionTypes': resolve(__dirname, '../core/src/compiler/transitions/transitionTypes.ts'),

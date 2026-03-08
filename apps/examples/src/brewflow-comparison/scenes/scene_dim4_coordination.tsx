@@ -21,7 +21,6 @@ export const sceneDim4Coordination: JSX.Element = (
   <Scene key="bfc-dim4-coord" id="bfc-dim4-coord">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
 
-    <Camera mode="world" position={[0, 5, 24]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
     <InputController scope="canvas">

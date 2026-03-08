@@ -26,7 +26,6 @@ export class FloorWidget
   readonly defaultState: SceneFloor = DEFAULT_FLOOR;
   readonly transitionSpec = functionalFloorTransitionSpec;
   readonly DslComponent = Floor as React.ComponentType<Partial<SceneFloor> & { children?: React.ReactNode }>;
-  readonly useDefaultStateWhenAbsent = false;
   readonly childDslComponents: IDslComposite['childDslComponents'] = [
     { component: FloorPhysical as React.ComponentType<unknown>, displayName: 'FloorPhysical', topLevelError: true },
     { component: FloorMirror as React.ComponentType<unknown>, displayName: 'FloorMirror', topLevelError: true },

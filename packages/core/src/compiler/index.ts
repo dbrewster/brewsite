@@ -20,9 +20,6 @@ export { Transition } from './blocks/transition';
 export type { TransitionProps } from './blocks/transition';
 export { registerNode } from './registry';
 
-export { TextBox } from '../elements/text-box';
-export type { TextBoxProps } from '../elements/text-box';
-
 // Transition control types — used in FunctionalTransitionSpec closures and DSL authoring.
 export type {
   EaseFn,

@@ -18,6 +18,25 @@ const DEFAULT_STATE: SceneRuntimeState = {
   numScenes: 0,
 };
 
+/**
+ * MODULE-LEVEL SINGLETON — SSR and multi-instance constraints.
+ *
+ * This Map lives at module scope and accumulates state across the entire JS
+ * runtime lifetime (including across hot-module replacements and test runs).
+ *
+ * Constraints:
+ * 1. SSR (Node.js): All concurrently running server requests share this Map.
+ *    For stateless SSR, this is generally safe. Call unregisterSceneRuntime(id)
+ *    at the end of each render to avoid memory leaks.
+ * 2. Multiple EngineProvider instances on one page: each must have a unique `id`
+ *    prop. If two providers share an id, the second registration overwrites the first.
+ * 3. Tests: Call `clearRegistry()` from `@brewsite/core/testing` between test
+ *    cases that mount EngineProvider to avoid state bleed across tests.
+ *
+ * Design rationale: the global registry enables useSceneEngineState(id) and
+ * useSceneRuntime(id) to work from anywhere in the React tree without context
+ * threading. This trade-off is intentional.
+ */
 const states = new Map<string, SceneRuntimeState>();
 const listeners = new Map<string, Set<() => void>>();
 

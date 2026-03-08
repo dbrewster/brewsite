@@ -2,8 +2,6 @@ import type { ReactNode } from 'react';
 import type { SceneFrame } from './sceneTrackTypes';
 import type { VariableStoreReader, JsonPrimitive } from '../widget/VariableStore';
 
-export type SceneFrameState = SceneFrame; // alias
-
 export type SceneSnapshotContext = {
   /** 0-based index of this scene in the scene array. */
   sceneIndex: number;

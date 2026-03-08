@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { clearRegistry, getNodeHandler, isPrimitiveComponent, registerNode } from '../registry';
+import { getNodeHandler as getNodeHandlerFromBarrel } from '../../index';
 import type { CompileApi } from '../sceneDslTypes';
 
 const fakeApi: CompileApi = {
@@ -52,5 +53,12 @@ describe('compiler registry', () => {
     registerNode(Comp, () => {});
     clearRegistry();
     expect(getNodeHandler(Comp)).toBeUndefined();
+  });
+});
+
+// ─── Barrel smoke test ────────────────────────────────────────────────────────
+describe('root barrel — getNodeHandler is exported', () => {
+  it('getNodeHandler is a function exported from the root barrel', () => {
+    expect(typeof getNodeHandlerFromBarrel).toBe('function');
   });
 });

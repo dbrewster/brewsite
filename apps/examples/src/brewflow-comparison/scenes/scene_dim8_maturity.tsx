@@ -21,7 +21,6 @@ export const sceneDim8Maturity: JSX.Element = (
   <Scene key="bfc-dim8-mature" id="bfc-dim8-mature">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
 
-    <Camera mode="world" position={[0, 5, 22]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
     <InputController scope="canvas">

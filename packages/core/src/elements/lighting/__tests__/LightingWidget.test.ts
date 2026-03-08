@@ -3,8 +3,9 @@
 // widgetId, defaultState, transitionSpec (pure blend functions), and IDslComposite declarations.
 // apply() is NOT tested here — it requires Three.js and is excluded from coverage.
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import React from 'react';
+import type { ILightingOverride } from '../../../widget/types';
 import { LightingWidget } from '../LightingWidget';
 import type { SceneLighting } from '../types';
 import { Ambient, Directional, GlowPoint, Point, Spot, LightStrand, Wave, Panel, Lighting } from '../dsl';
@@ -179,6 +180,58 @@ describe('LightingWidget', () => {
     expect(captured?.intensityScale).toBe(0.5);
     expect(captured?.color).toBe('#ff00ff');
     expect(Lighting({})).toBeNull();
+  });
+
+  // ─── setLightingOverrides ────────────────────────────────────────────────
+  describe('setLightingOverrides', () => {
+    /** Minimal ILightingOverride implementor for testing injection. */
+    class MockOverride implements ILightingOverride {
+      readonly widgetId = 'mock-override';
+      injectedSetter: ((lightId: string, enabled: boolean) => void) | null = null;
+      getLightingOverride(): { disableAll: boolean } | null { return null; }
+      receiveLightController(setter: (lightId: string, enabled: boolean) => void): void {
+        this.injectedSetter = setter;
+      }
+    }
+
+    it('calls receiveLightController on each override widget', () => {
+      const override1 = new MockOverride();
+      const override2 = new MockOverride();
+      const receiveSpy1 = vi.spyOn(override1, 'receiveLightController');
+      const receiveSpy2 = vi.spyOn(override2, 'receiveLightController');
+
+      widget.setLightingOverrides([override1, override2]);
+
+      expect(receiveSpy1).toHaveBeenCalledTimes(1);
+      expect(receiveSpy2).toHaveBeenCalledTimes(1);
+    });
+
+    it('injects the same setter function into all overrides', () => {
+      const override1 = new MockOverride();
+      const override2 = new MockOverride();
+
+      widget.setLightingOverrides([override1, override2]);
+
+      expect(override1.injectedSetter).not.toBeNull();
+      expect(override2.injectedSetter).not.toBeNull();
+      // Both overrides receive the same bound method.
+      expect(typeof override1.injectedSetter).toBe('function');
+      expect(typeof override2.injectedSetter).toBe('function');
+    });
+
+    it('does not throw when an override does not implement receiveLightController', () => {
+      /** ILightingOverride without receiveLightController (optional method absent). */
+      const minimalOverride: ILightingOverride = {
+        widgetId: 'minimal',
+        getLightingOverride: () => null,
+      };
+
+      expect(() => widget.setLightingOverrides([minimalOverride])).not.toThrow();
+    });
+
+    it('accepts an empty array without error', () => {
+      expect(() => widget.setLightingOverrides([])).not.toThrow();
+    });
   });
 
   describe('LightingWidget — multiple <Directional> children', () => {

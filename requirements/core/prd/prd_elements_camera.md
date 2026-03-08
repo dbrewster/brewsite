@@ -3,11 +3,14 @@ title: "BrewSite Core — Camera Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-08
+last_updated: 2026-03-07
 change_history:
+  - date: 2026-03-07
+    author: "Toolkit Product"
+    summary: "Camera architecture cleanup: eliminated scene.userData inter-widget bus. ICameraFocusTarget interface added — CameraWidget implements it so downstream widgets (e.g. DiagramCanvasWidget) call context.cameraFocusTarget.requestFocus() instead of writing to scene.userData['__brewsite_camera_focus']. ICameraHost interface extracted so the player layer (useSceneEngine.ts) programs against an interface rather than importing concrete CameraWidget — exports setInteractionDefaults, isWheelClaimedByInteraction, getCameraOverride, getCameraInteractionDriver. CameraWidget.onTick() no longer duplicates RuntimeDriverImpl state resolution — reads resolvedState from AnimationTickContext instead. All __brewsite_camera, __brewsite_renderer, __brewsite_camera_override, __brewsite_cam_enabled, and __brewsite_camera_focus scene.userData keys eliminated. CameraPost.exposure JSDoc corrected: renderer injected via WidgetInitContext.renderer, not scene.userData."
   - date: 2026-03-08
     author: "Toolkit Product"
-    summary: "Coordinate system audit: updated CameraLens defaults (near 0.1→0.01, far 2000→100) for 20× depth-precision improvement in 1-unit worlds. Added @deprecated to FitFloorDepthCamera.cameraY with new scene-extent-relative derivation formula. Documented CameraConstraints minDistance/maxDistance runtime guardrail defaults (0.1 / 50). Added legacy note for fitFloorDepth mode in Technical Considerations."
+    summary: "Coordinate system audit: updated CameraLens defaults (near 0.1→0.01, far 2000→100) for 20× depth-precision improvement in 1-unit worlds. Added @deprecated to FitFloorDepthCamera.cameraY with new scene-extent-relative derivation formula (floorY + (floorZMax-floorZMin)*0.4). Documented CameraConstraints minDistance/maxDistance runtime guardrail defaults (0.1 / 50). Documented solveCameraZForFloor bisection search bound scaling. Added legacy callout for fitFloorDepth mode in Technical Considerations."
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Core customization unblocking implemented: camera action routing supports non-primary camera targets via ICameraActionTarget, primaryCameraId defaults, configurable camera interaction tunables (wheel lock timing, axis dominance/threshold, orbit/dolly clamps), and one-time runtime warnings for invalid camera targets."
@@ -414,6 +417,8 @@ class CameraWidget
 `FitBotHeightCamera` and `FitFloorDepthCamera` cannot be fully resolved at compile time because they depend on runtime values (viewport dimensions, model bounding box). The compiled `SceneCamera` stores the descriptor verbatim. Resolution to a world-space position and target occurs in `CameraWidget.apply()` at the first tick of each scene.
 
 **`fitFloorDepth` is a v1 legacy mode.** It was calibrated for large-world scenes (100+ unit geometry). For all new scenes, prefer `mode: 'world'` or `mode: 'orbit'`. If `fitFloorDepth` must be used, always supply `cameraY` explicitly — the auto-derived fallback (`floorY + (floorZMax - floorZMin) * 0.4`) is a best-effort heuristic and is not guaranteed to produce a correct framing for non-standard floor extents.
+
+The `fitFloorDepth` camera Z position is solved by a bisection algorithm (`solveCameraZForFloor` in `render.ts`) that searches for the camera Z that places all floor geometry within the view frustum. The search upper bound scales with the floor Z extent: `hi = floorZMax + Math.max(10, (floorZMax - floorZMin) * 20)`. This prevents the solver from settling on a camera position thousands of units out for small (1-unit scale) worlds.
 
 When computing `FitBotHeight`, `CameraWidget` retrieves the model bounding box from the corresponding `ModelWidget` via the widget registry. If the model has not finished loading, the camera falls back to the previous frame's position.
 

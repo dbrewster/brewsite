@@ -36,14 +36,20 @@ export type ActionInputHandler = {
   onCameraOrbit: (cameraId: string, dx: number, dy: number, speed: number) => void;
   onCameraDolly: (cameraId: string, delta: number, speed: number) => void;
   onCameraReset: (cameraId: string) => void;
-  onDiagramCanvasMove: (canvasId: string, dx: number, dy: number, speed: number) => void;
-  onDiagramCanvasRotate: (canvasId: string, dx: number, dy: number, speed: number) => void;
-  onDiagramCanvasReset: (canvasId: string) => void;
-  onDiagramCanvasFocus: (
-    canvasId: string,
-    clientX: number,
-    clientY: number,
-    focusCenter?: [number, number] | [number, number, number],
+  /**
+   * Dispatches an action type not handled by core to any registered extension handler.
+   * @brewsite/diagram provides its diagram-canvas.* handling via this callback.
+   *
+   * @param type      - The action type string (e.g. 'diagram-canvas.move').
+   * @param canvasId  - The target canvas widget ID (from action.canvasId).
+   * @param event     - The originating DOM event.
+   * @param extra     - Additional action-spec fields (speed, focusCenter, dx, dy, etc.).
+   */
+  onUnknownAction?: (
+    type: string,
+    canvasId: string | undefined,
+    event: PointerEvent | WheelEvent | KeyboardEvent | MouseEvent,
+    extra: Record<string, unknown>,
   ) => void;
 };
 
@@ -76,7 +82,6 @@ export type ActionInputControllerOptions = {
 };
 
 const LEGACY_CAMERA_ID = 'camera';
-const LEGACY_CANVAS_ID = 'llm-canvas';
 const DEFAULT_WHEEL_LOCK_IDLE_MS = 180;
 
 export class ActionInputController {
@@ -91,7 +96,6 @@ export class ActionInputController {
   private readonly idDefaults?: ActionInputControllerOptions['idDefaults'];
   private readonly wheelLockIdleMs: number;
   private warnedLegacyCameraId = false;
-  private warnedLegacyCanvasId = false;
 
   private readonly onPointerDown: (e: PointerEvent) => void;
   private readonly onPointerMove: (e: PointerEvent) => void;
@@ -259,19 +263,6 @@ export class ActionInputController {
     return LEGACY_CAMERA_ID;
   }
 
-  private resolveCanvasId(action: InputActionSpec): string {
-    if (action.canvasId) return action.canvasId;
-    if (this.idDefaults?.canvasId) return this.idDefaults.canvasId;
-    if (!this.warnedLegacyCanvasId) {
-      this.warnedLegacyCanvasId = true;
-      console.warn(
-        '[ActionInputController] canvasId defaulted to "llm-canvas". ' +
-        'Set `primaryCanvasActionTargetId` in engine options or author `canvasId` explicitly.',
-      );
-    }
-    return LEGACY_CANVAS_ID;
-  }
-
   private dispatchPinch(action: InputActionSpec, pinchDelta: number): void {
     const speed = this.actionSpeed(action);
     const cameraId = this.resolveCameraId(action);
@@ -334,6 +325,7 @@ export class ActionInputController {
     lockAxis: 'x' | 'y' | null,
     dx: number,
     dy: number,
+    e: PointerEvent,
   ): void {
     const speed = this.actionSpeed(action);
     const filtered = this.applyAxisToDelta(mapAxis, lockAxis, dx, dy);
@@ -349,14 +341,12 @@ export class ActionInputController {
           speed,
         );
         return;
-      case 'canvas.pan':
-      case 'diagram-canvas.move':
-        this.handler.onDiagramCanvasMove(this.resolveCanvasId(action), filtered.dx, filtered.dy, speed);
-        return;
-      case 'diagram-canvas.rotate':
-        this.handler.onDiagramCanvasRotate(this.resolveCanvasId(action), filtered.dx, filtered.dy, speed);
-        return;
       default:
+        this.handler.onUnknownAction?.(action.type, action.canvasId, e, {
+          speed: action.speed,
+          dx: filtered.dx,
+          dy: filtered.dy,
+        });
         return;
     }
   }
@@ -384,16 +374,6 @@ export class ActionInputController {
       case 'camera.reset':
         this.handler.onCameraReset(this.resolveCameraId(action));
         return;
-      case 'canvas.pan':
-      case 'diagram-canvas.move':
-        this.handler.onDiagramCanvasMove(this.resolveCanvasId(action), filtered.dx, filtered.dy, speed);
-        return;
-      case 'diagram-canvas.rotate':
-        this.handler.onDiagramCanvasRotate(this.resolveCanvasId(action), filtered.dx, filtered.dy, speed);
-        return;
-      case 'diagram-canvas.reset':
-        this.handler.onDiagramCanvasReset(this.resolveCanvasId(action));
-        return;
       case 'scene.next':
         this.handler.onSceneStep(1, this.actionStepScenes(action));
         return;
@@ -401,17 +381,19 @@ export class ActionInputController {
         this.handler.onSceneStep(-1, this.actionStepScenes(action));
         return;
       default:
+        this.handler.onUnknownAction?.(action.type, action.canvasId, e, {
+          speed: action.speed,
+          dx: filtered.dx,
+          dy: filtered.dy,
+        });
         return;
     }
   }
 
-  private dispatchKey(action: InputActionSpec): void {
+  private dispatchKey(action: InputActionSpec, e: KeyboardEvent): void {
     switch (action.type) {
       case 'camera.reset':
         this.handler.onCameraReset(this.resolveCameraId(action));
-        return;
-      case 'diagram-canvas.reset':
-        this.handler.onDiagramCanvasReset(this.resolveCanvasId(action));
         return;
       case 'scene.next':
         this.handler.onSceneStep(1, this.actionStepScenes(action));
@@ -420,15 +402,15 @@ export class ActionInputController {
         this.handler.onSceneStep(-1, this.actionStepScenes(action));
         return;
       default:
+        this.handler.onUnknownAction?.(action.type, action.canvasId, e, {
+          speed: action.speed,
+        });
         return;
     }
   }
 
   private dispatchClick(action: InputActionSpec, e: MouseEvent): void {
     switch (action.type) {
-      case 'diagram-canvas.focus':
-        this.handler.onDiagramCanvasFocus(this.resolveCanvasId(action), e.clientX, e.clientY, action.focusCenter);
-        return;
       case 'scene.next':
         this.handler.onSceneStep(1, this.actionStepScenes(action));
         return;
@@ -436,6 +418,10 @@ export class ActionInputController {
         this.handler.onSceneStep(-1, this.actionStepScenes(action));
         return;
       default:
+        this.handler.onUnknownAction?.(action.type, action.canvasId, e, {
+          speed: action.speed,
+          focusCenter: action.focusCenter,
+        });
         return;
     }
   }
@@ -526,7 +512,7 @@ export class ActionInputController {
     }
     this.activeDrag.x = e.clientX;
     this.activeDrag.y = e.clientY;
-    this.dispatchDrag(this.activeDrag.action, this.activeDrag.map.axis, this.activeDrag.lockedAxis, dx, dy);
+    this.dispatchDrag(this.activeDrag.action, this.activeDrag.map.axis, this.activeDrag.lockedAxis, dx, dy, e);
     e.preventDefault();
   }
 
@@ -666,6 +652,6 @@ export class ActionInputController {
       .filter((item) => item.modifierCount === maxModifierCount)
       .sort((a, b) => a.order - b.order);
     e.preventDefault();
-    selected.forEach((item) => this.dispatchKey(item.action));
+    selected.forEach((item) => this.dispatchKey(item.action, e));
   }
 }

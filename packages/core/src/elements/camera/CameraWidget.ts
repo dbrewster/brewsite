@@ -4,10 +4,10 @@
 import type {
   SceneCamera,
   Vec3,
-  CameraOverrideState,
   ICameraInteractionDriver,
   CameraInteractionDriverFactory,
   CameraInteractionDefaults,
+  ICameraHost,
 } from './types';
 import type * as THREE from 'three';
 import { DEFAULT_CAMERA, functionalCameraTransitionSpec, extractWorldPosFromDescriptor } from './compile';
@@ -15,17 +15,21 @@ import { Camera } from './dsl';
 import type { CameraProps } from './dsl';
 import { applyCamera } from './render';
 import { CameraControlsDriver } from './CameraControlsDriver';
-import type { AnimationTickContext, IAnimationController, ISceneElement } from '../../widget/types';
+import type {
+  AnimationTickContext,
+  IAnimationController,
+  ISceneElement,
+  IRenderable,
+  ICameraFocusTarget,
+  RuntimeCameraOverride,
+  WidgetInitContext,
+  WidgetRenderContext,
+} from '../../widget/types';
 import { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
 import type { SceneTrackTick } from '../../compiler/sceneTrackTypes';
-import { SCENE_CAMERA_KEY } from './cameraKeys';
+
 /** Minimal model state shape used for camera target resolution. Full type lives in @brewsite/model. */
 type ModelStateForCamera = { model?: { position?: [number, number, number] } };
-
-const CAMERA_KEY = SCENE_CAMERA_KEY;
-const RENDERER_KEY = '__brewsite_renderer';
-const CAMERA_OVERRIDE_KEY = '__brewsite_camera_override';
-const CAMERA_FOCUS_KEY = '__brewsite_camera_focus';
 
 const defaultDriverFactory: CameraInteractionDriverFactory = (cameraObject, domElement, config) => {
   const driver = new CameraControlsDriver();
@@ -33,14 +37,19 @@ const defaultDriverFactory: CameraInteractionDriverFactory = (cameraObject, domE
   return driver;
 };
 
-export { CUSTOM_NODE_HANDLER };
-
-export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationController {
+export class CameraWidget
+  implements
+    ISceneElement<SceneCamera>,
+    IRenderable<SceneCamera>,
+    IAnimationController,
+    ICameraHost,
+    ICameraFocusTarget
+{
   readonly widgetId = 'camera';
   readonly defaultState: SceneCamera = DEFAULT_CAMERA;
   readonly transitionSpec = functionalCameraTransitionSpec;
   readonly DslComponent = Camera;
-  readonly useDefaultStateWhenAbsent = false;
+  readonly disableWhenAbsent = true;
 
   constructor(
     /**
@@ -51,9 +60,12 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
     private readonly driverFactory: CameraInteractionDriverFactory = defaultDriverFactory,
   ) {}
 
-  // ─── Renderer / DOM references (lazy-init from scene.userData) ──────────
+  // ─── Renderer / DOM references (injected via initialize()) ──────────────
   private domElement: HTMLElement | null = null;
   private rendererRef: THREE.WebGLRenderer | null = null;
+
+  // ─── Pending focus override (from requestFocus in non-interaction mode) ─
+  private _pendingFocusOverride: RuntimeCameraOverride | null = null;
 
   // ─── Interaction driver lifecycle ────────────────────────────────────────
   private driver: ICameraInteractionDriver | null = null;
@@ -159,63 +171,80 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
     };
   }
 
+  // ─── IRenderable<SceneCamera> ────────────────────────────────────────────
+
+  /** Receives Three.js camera and renderer at engine mount via RuntimeDriverImpl.initialize(). */
+  initialize(context: WidgetInitContext): void {
+    if (context.camera) {
+      this.cameraRef = context.camera;
+    }
+    if (context.renderer) {
+      this.rendererRef = context.renderer;
+      this.domElement = context.renderer.domElement;
+    }
+  }
+
+  /**
+   * IRenderable.apply — no-op.
+   * CameraWidget drives itself via IAnimationController.onTick(), not apply().
+   * onTick() reads context.resolvedState so compiled camera state does not need
+   * to be re-read here.
+   */
+  apply(_state: SceneCamera, _context: WidgetRenderContext): void {}
+
+  // ─── ICameraFocusTarget ──────────────────────────────────────────────────
+
+  /**
+   * Request a camera focus to a world-space position and target.
+   * When interaction is active: delegates to the driver for smooth motion.
+   * When not active: stores a pending override for the next onTick().
+   */
+  requestFocus(
+    position: readonly [number, number, number],
+    target: readonly [number, number, number],
+    smooth = true,
+  ): void {
+    if (this.isInteractionActive && this.driver) {
+      this.driver.setLookAt(position as Vec3, target as Vec3, smooth);
+    } else if (this.cameraRef) {
+      this._pendingFocusOverride = {
+        enabled: true,
+        position,
+        target,
+        up: [this.cameraRef.up.x, this.cameraRef.up.y, this.cameraRef.up.z],
+        fov: this.cameraRef.fov,
+        near: this.cameraRef.near,
+        far: this.cameraRef.far,
+      };
+    }
+  }
+
   // ─── IAnimationController ────────────────────────────────────────────────
 
   onTick(context: AnimationTickContext): void {
     const tick = context.tick;
     if (!tick) return;
 
-    const camera = context.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
+    const camera = this.cameraRef;
     if (!camera) return;
-    this.cameraRef = camera;
     this.lastTick = tick;
 
-    // Signal to DiagramCanvasWidget (and any other widgets) that an authored Camera
-    // element is active. DiagramCanvasWidget checks this flag to decide whether to
-    // yield camera control rather than running its deterministic orbit camera.
-    context.scene.userData['__brewsite_cam_enabled'] = true;
-
-    // Focus requests can be emitted by other widgets (e.g. DiagramCanvasWidget).
-    // When interaction mode is active, delegate to the interaction driver for smooth motion.
-    // Otherwise, promote the focus request into camera override state so authored camera state
-    // does not immediately overwrite it on the next apply().
-    const focus = context.scene.userData[CAMERA_FOCUS_KEY] as
-      | { position: Vec3; target: Vec3; smooth?: boolean }
-      | undefined;
-    if (focus) {
-      if (this.isInteractionActive && this.driver) {
-        this.driver.setLookAt(focus.position, focus.target, focus.smooth !== false);
-      } else {
-        context.scene.userData[CAMERA_OVERRIDE_KEY] = {
-          enabled: true,
-          position: focus.position,
-          target: focus.target,
-          up: [camera.up.x, camera.up.y, camera.up.z] as Vec3,
-          fov: camera.fov,
-          near: camera.near,
-          far: camera.far,
-        };
-      }
-      delete context.scene.userData[CAMERA_FOCUS_KEY];
+    // Drain pending focus override via the typed context callback (no userData bus).
+    // context.setCameraOverride stores the override on the driver; the NEXT tick's
+    // context.cameraOverride will be populated, which is handled in the override path below.
+    if (this._pendingFocusOverride) {
+      context.setCameraOverride(this._pendingFocusOverride);
+      this._pendingFocusOverride = null;
     }
 
-    // Lazy-init DOM element + renderer from scene.userData (not available at construction)
-    if (!this.domElement) {
-      const renderer = context.scene.userData[RENDERER_KEY] as THREE.WebGLRenderer | undefined;
-      if (renderer) {
-        this.domElement = renderer.domElement;
-        this.rendererRef = renderer;
-      }
-    }
-
-    // Override path: bypass scene-driven + interactive camera
-    const override = context.scene.userData[CAMERA_OVERRIDE_KEY] as CameraOverrideState | undefined;
+    // Override path — use typed context.cameraOverride instead of userData.
+    const override = context.cameraOverride;
     if (override?.enabled) {
       if (this.isInteractionActive) this.exitInteractionMode();
       applyCamera(
         {
           enabled: true,
-          descriptor: { mode: 'world', position: override.position, target: override.target, up: override.up },
+          descriptor: { mode: 'world', position: override.position as Vec3, target: override.target as Vec3, up: override.up as Vec3 | undefined },
           lens: { fov: override.fov, near: override.near, far: override.far },
           post: override.exposure !== undefined ? { exposure: override.exposure } : undefined,
         },
@@ -224,12 +253,8 @@ export class CameraWidget implements ISceneElement<SceneCamera>, IAnimationContr
       return;
     }
 
-    // Resolve current scene camera state from functional block or pre-baked tick
-    const functionalBlock = context.track?.transitionBlocks?.[tick.sceneIndex];
-    const functionalWidget = functionalBlock?.widgetFns[this.widgetId];
-    const state = functionalWidget
-      ? (functionalWidget.fn(tick.blockProgress) as SceneCamera)
-      : ((tick.state.widgets[this.widgetId] as SceneCamera | undefined) ?? this.defaultState);
+    // Resolved state path — eliminates manual functional block re-evaluation.
+    const state = (context.resolvedState as SceneCamera | undefined) ?? this.defaultState;
 
     const wantsInteraction = state.interaction?.enabled === true;
 

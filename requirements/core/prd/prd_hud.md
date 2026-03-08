@@ -3,7 +3,7 @@ title: "BrewSite Core — HUD Overlay System"
 doc_type: prd
 status: deprecated
 owner: brewsite-product-manager
-last_updated: 2026-03-01
+last_updated: 2026-03-07
 change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
@@ -11,6 +11,9 @@ change_history:
   - date: 2026-03-01
     author: "Toolkit Product"
     summary: "Compiled HUD pipeline deleted as part of engine decomposition. <Hud> and <HudItem> DSL components removed. Scene overlay content is now authored as HTML children inside <Scene> and rendered by EngineOverlayHost. hud/animejs/ utilities retained for animating overlay content. PRD status set to deprecated."
+  - date: 2026-03-07
+    author: "Toolkit Product"
+    summary: "hud/animejs/ sub-module fully removed from @brewsite/core. The Fade, MidFade, SlideUp, SlideDown, ScrollOn, ScrollOff preset components and useScrollTimeline have been deleted from packages/core/src/hud/animejs/. The animejs package is no longer a production dependency of @brewsite/core. These utilities are available as copy-paste recipes in apps/examples/. Consumers who were importing from @brewsite/core/hud/animejs must migrate to a local copy or use a standalone animation library."
 ---
 
 # BrewSite Core — HUD Overlay System (Deprecated)
@@ -19,7 +22,7 @@ change_history:
 
 This feature is deprecated. The compiled HUD pipeline — `<Hud>`, `<HudItem>`, `hudCompiler.ts`, `HudOverlay.tsx`, `HudPhaseContext`, and all related types — has been removed from `@brewsite/core`.
 
-Scene overlay content is authored as plain HTML children directly inside `<Scene>` and rendered by the `EngineOverlayHost` player primitive. The `hud/animejs/` sub-module is retained and continues to function as a standalone utility for animating overlay content.
+Scene overlay content is authored as plain HTML children directly inside `<Scene>` and rendered by the `EngineOverlayHost` player primitive. The `hud/animejs/` sub-module has also been removed — see Section 2.
 
 See `prd_scene_authoring.md` for the current overlay authoring surface and `prd_player_runtime.md` for `EngineOverlayHost` documentation.
 
@@ -57,15 +60,16 @@ The following modules, types, and exports have been deleted:
 
 ---
 
-## 2. What Is Retained
+## 2. hud/animejs Removed
 
-The `hud/animejs/` sub-module is **retained** and continues to ship as `@brewsite/core/hud/animejs`. It is independently useful for animating overlay content written as HTML children in `<Scene>`. It does not depend on the removed HUD pipeline.
+The `hud/animejs/` sub-module has been **removed** from `@brewsite/core`. The following files no longer exist in `packages/core/src/hud/animejs/`:
+- `transitions.tsx` — exported `Fade`, `MidFade`, `SlideUp`, `SlideDown`, `ScrollOn`, `ScrollOff`
+- `useScrollTimeline.ts` — scrubbed an anime.js timeline to scroll blockProgress
+- `index.ts` — barrel export
 
-Retained exports from `hud/animejs/`:
-- `useScrollTimeline` — scrubs an anime.js timeline to scroll blockProgress
-- `Fade`, `MidFade`, `SlideUp`, `SlideDown`, `ScrollOn`, `ScrollOff` — animation preset components
+The `animejs` package has been removed as a production dependency of `@brewsite/core`.
 
-The `hud/animejs/` sub-module now reads `blockProgress` from a different context source — consumers must wire it manually or use the `EngineOverlayHost` scene change lifecycle. Refer to the current `hud/animejs/` README for updated integration guidance.
+**Migration:** Copy the preset components you need from `apps/examples/` into your own codebase. They are standalone React components with no dependency on the removed HUD pipeline. You must add `animejs` as a dependency in your application directly.
 
 ---
 
@@ -116,32 +120,16 @@ For persistent overlay content (navigation arrows, progress dots) that must appe
 
 ---
 
-## 5. hud/animejs Sub-Module (Retained)
+## 5. Migration from hud/animejs
 
-The `hud/animejs/` sub-module ships unchanged and is available at `@brewsite/core/hud/animejs`.
+The `@brewsite/core/hud/animejs` import path no longer exists. The `./hud/animejs` subpath has been removed from `@brewsite/core`'s exports map. The `animejs` package is no longer a dependency of `@brewsite/core`.
 
-```typescript
-import { useScrollTimeline, SlideUp, Fade } from '@brewsite/core/hud/animejs';
-```
-
-These utilities are still useful for animating HTML overlay content that is authored as children of `<Scene>`. They operate on React refs and anime.js timelines — they have no dependency on the removed HUD pipeline.
-
-**Peer dependency:** `animejs` must be installed by the consumer. Importing `@brewsite/core/hud/animejs` without `animejs` installed throws a module resolution error at import time.
-
-```json
-{
-  "exports": {
-    ".": "./dist/index.js",
-    "./hud/animejs": "./dist/hud/animejs/index.js"
-  }
-}
-```
+Copy the animation preset components (`Fade`, `MidFade`, `SlideUp`, `SlideDown`, `ScrollOn`, `ScrollOff`) and `useScrollTimeline` from `apps/examples/` into your project. Add `animejs` as a direct dependency in your application's `package.json`. These components have no dependency on any BrewSite infrastructure — they are self-contained React animation utilities.
 
 ---
 
-## 6. Dependencies (Retained Sub-Module Only)
+## 6. Dependencies
 
-- **anime.js** (optional peer dependency, sub-path only): `AnimeTimelineInstance`, `anime.timeline()`, `timeline.seek()`
-- **React** (peer): `React.useRef`, `React.useContext`
+- **React** (peer): used by overlay authoring components.
 
-No dependency on any removed HUD infrastructure.
+The `animejs` peer dependency has been removed from `@brewsite/core`.

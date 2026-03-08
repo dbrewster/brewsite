@@ -63,20 +63,37 @@ const serialize = (value: unknown): string => {
   }
 };
 
+type WidgetEqualsFnMap = Map<string, (a: unknown, b: unknown) => boolean>;
+
 /**
  * Build a delta between two frame states.
+ * Uses per-widget stateEquals() functions when available (S4.1.B).
  */
-const buildDelta = (prev: SceneFrame | undefined, next: SceneFrame): SceneFrameDelta => {
-  if (!prev) {
-    return {
-      widgets: next.widgets,
-    };
+const buildDelta = (
+  prev: SceneFrame | undefined,
+  next: SceneFrame,
+  equalsFns: WidgetEqualsFnMap,
+): SceneFrameDelta => {
+  if (!prev) return { widgets: next.widgets };
+  if (serialize(prev.widgets) === serialize(next.widgets)) return {};
+
+  // Per-widget equality for widgets that provide stateEquals():
+  const prevWidgets = prev.widgets;
+  const nextWidgets = next.widgets;
+  const allIds = new Set([...Object.keys(prevWidgets), ...Object.keys(nextWidgets)]);
+  let changed = false;
+  for (const id of allIds) {
+    const fn = equalsFns.get(id);
+    if (fn) {
+      const a = prevWidgets[id];
+      const b = nextWidgets[id];
+      if (a !== undefined && b !== undefined && !fn(a, b)) { changed = true; break; }
+      if ((a === undefined) !== (b === undefined)) { changed = true; break; }
+    } else {
+      if (serialize(prevWidgets[id]) !== serialize(nextWidgets[id])) { changed = true; break; }
+    }
   }
-  const delta: SceneFrameDelta = {};
-  if (serialize(prev.widgets) !== serialize(next.widgets)) {
-    delta.widgets = next.widgets;
-  }
-  return delta;
+  return changed ? { widgets: nextWidgets } : {};
 };
 
 // ─── ProgressManager Aggregation Pass ────────────────────────────────────────
@@ -300,6 +317,15 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
   ensureSceneRegistry();
   const { scenes, widgetRegistry, blockSize } = options;
   const warnings: CompileWarning[] = [];
+
+  // Build per-widget stateEquals map once (S4.1.B). Used in delta detection below.
+  const widgetEqualsFns: WidgetEqualsFnMap = new Map();
+  for (const widget of widgetRegistry.getSceneElements()) {
+    if (widget.stateEquals) {
+      const eq = widget.stateEquals.bind(widget);
+      widgetEqualsFns.set(widget.widgetId, (a, b) => eq(a as never, b as never));
+    }
+  }
   const numTransitions = scenes.length - 1;
   const totalFrames = numTransitions * blockSize + 1;
   const tickStep = totalFrames > 1 ? 1 / (totalFrames - 1) : 1;
@@ -438,9 +464,9 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
 
     for (const widget of widgetRegistry.getSceneElements()) {
       const { widgetId, defaultState, transitionSpec } = widget;
-      const useDefaultWhenAbsent =
-        (widget as { useDefaultStateWhenAbsent?: boolean }).useDefaultStateWhenAbsent !== false;
-      const absentDefault = useDefaultWhenAbsent ? defaultState : makeDisabledDefault(defaultState);
+      const absentDefault = widget.disableWhenAbsent === true
+        ? makeDisabledDefault(defaultState)
+        : defaultState;
       const fromState = fromSnap.widgets[widgetId];
       const toState = toSnap.widgets[widgetId];
       const inFrom = fromState !== undefined;
@@ -527,8 +553,8 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
           block[i]!.state.widgets[widgetId] = absentDefault;
         }
       } else if (inTo) {
-        // Widget arriving — toState in first half (unless defaults suppressed), enter in second half
-        const firstHalfState = useDefaultWhenAbsent ? toState : absentDefault;
+        // Widget arriving — toState in first half (unless disabled when absent), enter in second half
+        const firstHalfState = widget.disableWhenAbsent === true ? absentDefault : toState;
         for (let i = 0; i < mid; i++) {
           block[i]!.state.widgets[widgetId] = firstHalfState as never;
         }
@@ -547,11 +573,9 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
   const terminalSnap = snapshots[scenes.length - 1];
   if (terminalTick && terminalSnap) {
     for (const widget of widgetRegistry.getSceneElements()) {
-      const useDefaultWhenAbsent =
-        (widget as { useDefaultStateWhenAbsent?: boolean }).useDefaultStateWhenAbsent !== false;
-      const absentDefault = useDefaultWhenAbsent
-        ? widget.defaultState
-        : makeDisabledDefault(widget.defaultState);
+      const absentDefault = widget.disableWhenAbsent === true
+        ? makeDisabledDefault(widget.defaultState)
+        : widget.defaultState;
       const snapState = terminalSnap.widgets[widget.widgetId];
       terminalTick.state.widgets[widget.widgetId] = snapState ?? absentDefault;
     }
@@ -591,7 +615,7 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
       }
       if (state === undefined) continue;
       extras[widget.widgetId] = widget.compileExtra(state as never, {
-        sceneProgress: frame.blockProgress,
+        blockProgress: frame.blockProgress,
         globalProgress: frame.progress,
         prefersReducedMotion: options.prefersReducedMotion ?? false,
       });
@@ -604,8 +628,8 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     const frame = frames[i]!;
     const prev = frames[i - 1];
     const next = frames[i + 1];
-    frame.deltaForward = buildDelta(prev?.state, frame.state);
-    frame.deltaBackward = buildDelta(next?.state, frame.state);
+    frame.deltaForward = buildDelta(prev?.state, frame.state, widgetEqualsFns);
+    frame.deltaBackward = buildDelta(next?.state, frame.state, widgetEqualsFns);
   }
 
   // ── Assemble SceneWindows ────────────────────────────────────────────────────

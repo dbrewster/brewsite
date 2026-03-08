@@ -3,8 +3,11 @@ title: "BrewSite Core — Input System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-02
+last_updated: 2026-03-07
 change_history:
+  - date: 2026-03-07
+    author: "Toolkit Product"
+    summary: "Core cleanup: InputActionType is now a fully open string union. The diagram-canvas.* action types (diagram-canvas.move, diagram-canvas.rotate, diagram-canvas.reset, diagram-canvas.focus) have been removed from core's InputActionType and are now string literals owned and dispatched by @brewsite/diagram. The canvas.focus named value has been removed from core's union (diagram-canvas.focus in @brewsite/diagram replaces it). Two new named values added: 'scene.next' and 'scene.prev' for programmatic scene navigation. ActionInputController no longer contains diagram-canvas.* dispatch logic — that lives in @brewsite/diagram. The canvas.pan undocumented alias remains in core as a documented named value."
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Core customization unblocking implemented: inputModePolicy (auto/prefer-scroll/prefer-direct), ScrollSource (window or element ref), controlled-mode keyboard opt-in, ActionInputController idDefaults (primary camera/canvas), and deprecation warnings for legacy implicit IDs."
@@ -260,16 +263,16 @@ export interface KeyMap {
 
 ```typescript
 export type InputActionType =
-  | 'camera.orbit'     // pointer delta → CameraWidget orbit handler
-  | 'camera.dolly'     // wheel/pinch delta → CameraWidget dolly handler
-  | 'camera.reset'     // key → CameraWidget reset handler
-  | 'camera.pan'       // pointer delta → CameraWidget pan handler
-  | 'canvas.focus'     // click → DiagramCanvas focus handler
-  | (string & {});     // open union: custom action strings; enables string literals
-                        // while preserving autocomplete for known values
+  | 'camera.orbit'  // pointer delta → CameraWidget orbit handler
+  | 'camera.dolly'  // wheel/pinch delta → CameraWidget dolly handler
+  | 'camera.reset'  // key → CameraWidget reset handler
+  | 'canvas.pan'    // pointer delta → canvas pan handler
+  | 'scene.next'    // advance to the next scene
+  | 'scene.prev'    // retreat to the previous scene
+  | (string & {}); // open union — downstream packages add their own action strings
 ```
 
-The `(string & {})` pattern maintains TypeScript autocomplete for the named values while allowing arbitrary string literals for consumer-defined actions.
+The `(string & {})` pattern maintains TypeScript autocomplete for the named values while allowing arbitrary string literals for consumer-defined actions. `@brewsite/diagram` defines its own `diagram-canvas.*` action strings (e.g. `'diagram-canvas.move'`, `'diagram-canvas.rotate'`, `'diagram-canvas.reset'`, `'diagram-canvas.focus'`) as local constants — these are not part of `@brewsite/core`'s named value set.
 
 ### 7.7 Compiled Action Spec Types (`input/types.ts`)
 
@@ -403,7 +406,7 @@ No existing public API is modified. `SceneNavInputMap`, `InputNavigationHandler`
 
 Future breaking change risk:
 
-- `InputActionType` is an open string union. Adding new named values to the union is backward-compatible. Removing named values would be a major change. The current set (`camera.orbit`, `camera.dolly`, `camera.reset`, `camera.pan`, `canvas.focus`) is deliberately small; new actions should be added conservatively.
+- `InputActionType` is an open string union. Adding new named values to the union is backward-compatible. Removing named values is a major change. The current set (`camera.orbit`, `camera.dolly`, `camera.reset`, `canvas.pan`, `scene.next`, `scene.prev`) is deliberately small; new actions should be added conservatively. The `canvas.focus` value was removed and replaced by `diagram-canvas.focus` in `@brewsite/diagram` — any consumer that was listening for `canvas.focus` must migrate.
 - `SceneNavInputMap` adding new optional fields is backward-compatible. Removing or renaming existing fields is a major change.
 - `ActionEvent.rawEvent` typed as `Event` (not the specific event subtype) leaves room to narrow this type in a future minor release by making `rawEvent` a discriminated union keyed by `ActionEvent.type`. This is a backward-compatible narrowing.
 - The `wheelGuard` mechanism is an internal ref pattern. It is not part of the public API. Consumers cannot configure the guard timeout (300ms). If this timeout needs to be configurable in the future, adding an optional `dollyGuardTimeout` field to `SceneNavInputMap` is a minor additive change.

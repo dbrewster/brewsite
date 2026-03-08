@@ -3,7 +3,9 @@
 import * as THREE from 'three';
 import type {
   IAnimationController,
+  ICameraFocusTarget,
   IInputDefaultProvider,
+  ILightingOverride,
   INVSBounded,
   IRenderable,
   ISceneElement,
@@ -13,7 +15,6 @@ import type {
   WidgetInitContext,
   WidgetRenderContext,
 } from '@brewsite/core';
-import { setSceneLightEnabled } from '@brewsite/core';
 import { DiagramCanvas } from './dsl';
 import { functionalDiagramCanvasTransitionSpec } from './compile';
 import { DiagramCanvasRenderer } from './render';
@@ -31,8 +32,6 @@ import {
   publishDiagramFocusGroup,
 } from '../focusRegion';
 
-const CAMERA_KEY = '__brewsite_camera';
-const CAMERA_FOCUS_KEY = '__brewsite_camera_focus';
 
 /**
  * Pure helper: computes NDC coordinates for a pointer event scoped to an NVS sub-region.
@@ -76,7 +75,8 @@ export class DiagramCanvasWidget
     IRenderable<DiagramCanvasState>,
     IAnimationController,
     IInputDefaultProvider,
-    INVSBounded
+    INVSBounded,
+    ILightingOverride
 {
   readonly widgetId: string;
   readonly defaultState: DiagramCanvasState;
@@ -101,7 +101,11 @@ export class DiagramCanvasWidget
 
   private renderer = new DiagramCanvasRenderer();
   private scene: THREE.Scene | null = null;
+  private cameraRef: THREE.PerspectiveCamera | null = null;
+  private _cameraFocusTarget: ICameraFocusTarget | null = null;
   private lastState: DiagramCanvasState | null = null;
+  /** Injected by LightingWidget.setLightingOverrides() — used in hover callbacks. */
+  private _lightController: ((lightId: string, enabled: boolean) => void) | null = null;
   private canvasElement: HTMLCanvasElement | null = null;
   private clickHandler: ((e: MouseEvent) => void) | null = null;
   private mouseMoveHandler: ((e: MouseEvent) => void) | null = null;
@@ -122,8 +126,26 @@ export class DiagramCanvasWidget
     this.defaultState = defaultState;
   }
 
-  initialize({ scene, renderer }: WidgetInitContext): void {
+  /**
+   * ILightingOverride — returns { disableAll: true } when the canvas is active
+   * (initialized and rendering), so LightingWidget skips core light updates.
+   * The diagram canvas manages its own lighting via HDR environment maps.
+   */
+  getLightingOverride(): { disableAll: boolean } | null {
+    return this.scene !== null ? { disableAll: true } : null;
+  }
+
+  /**
+   * ILightingOverride — stores the per-light setter injected by LightingWidget
+   * so hover callbacks can toggle individual core lights.
+   */
+  receiveLightController(setter: (lightId: string, enabled: boolean) => void): void {
+    this._lightController = setter;
+  }
+
+  initialize({ scene, renderer, camera }: WidgetInitContext): void {
     this.scene = scene as THREE.Scene;
+    if (camera) this.cameraRef = camera;
     if (renderer?.domElement) {
       this.canvasElement = renderer.domElement;
       this.clickHandler = (e) => this.handleClick(e);
@@ -138,9 +160,10 @@ export class DiagramCanvasWidget
   /**
    * Auto-framing removed. Camera is set deterministically in apply() based on canvas.scale.
    * Interactive zoom-to-group is handled via applyInputFocus() → focusMesh()/focusAll().
+   * Stores ICameraFocusTarget from context for use by focusMesh/focusAll.
    */
-  onTick(_context: AnimationTickContext): void {
-    // No-op: deterministic camera setup happens in apply().
+  onTick(context: AnimationTickContext): void {
+    if (context.cameraFocusTarget) this._cameraFocusTarget = context.cameraFocusTarget;
   }
 
   apply(state: DiagramCanvasState, _ctx: WidgetRenderContext): void {
@@ -164,23 +187,18 @@ export class DiagramCanvasWidget
     this.lastState = effectiveState;
 
     // Deterministic camera setup: position camera so the [0..1] canvas height fills the view.
-    // Yields to Camera widget when a user-authored camera is active (enabled=true).
-    const cam = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
-    if (cam) {
-      const rawCamState = this.scene.userData['__brewsite_cam_enabled'] as boolean | undefined;
-      // Check for an authored camera by reading a sentinel the CameraWidget writes.
-      // If no authored camera is active, set deterministic position.
-      if (!rawCamState) {
-        const [cpx, cpy, cpz] = effectiveState.position;
-        const fovRad = THREE.MathUtils.degToRad(cam.fov > 0 ? cam.fov : 45);
-        // dist such that canvas height (= scale world units) exactly fills vertical FOV
-        const dist = effectiveState.scale / (2 * Math.tan(fovRad / 2));
-        cam.position.set(cpx, cpy, cpz + dist);
-        cam.lookAt(cpx, cpy, cpz);
-      }
+    // Yields to Camera widget when a user-authored camera is active (cameraFocusTarget present).
+    const cam = this.cameraRef;
+    if (cam && !this._cameraFocusTarget) {
+      const [cpx, cpy, cpz] = effectiveState.position;
+      const fovRad = THREE.MathUtils.degToRad(cam.fov > 0 ? cam.fov : 45);
+      // dist such that canvas height (= scale world units) exactly fills vertical FOV
+      const dist = effectiveState.scale / (2 * Math.tan(fovRad / 2));
+      cam.position.set(cpx, cpy, cpz + dist);
+      cam.lookAt(cpx, cpy, cpz);
     }
 
-    this.renderer.update(effectiveState, this.scene);
+    this.renderer.update(effectiveState, this.scene, cam ?? undefined);
   }
 
   /**
@@ -248,6 +266,8 @@ export class DiagramCanvasWidget
     if (!this.scene) return;
     this.renderer.dispose(this.widgetId, this.scene);
     this.scene = null;
+    this.cameraRef = null;
+    this._cameraFocusTarget = null;
     this.lastState = null;
     this.inputTranslation = [0, 0, 0];
     this.inputRotation = [0, 0, 0];
@@ -284,14 +304,14 @@ export class DiagramCanvasWidget
     if (!this.scene || !this.canvasElement) return;
     const requestedCenter = focusCenter ?? this.lastState?.focusCenter ?? this.defaultState.focusCenter;
     if (requestedCenter) {
-      const cam = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
+      const cam = this.cameraRef;
       if (!cam) return;
       this.focusAll(cam, requestedCenter);
       return;
     }
 
     this.computeNdc(clientX, clientY);
-    const cam = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
+    const cam = this.cameraRef;
     if (!cam) return;
     this.raycaster.setFromCamera(this.ndc, cam);
 
@@ -325,6 +345,61 @@ export class DiagramCanvasWidget
   }
 
   /**
+   * Handles diagram-canvas.move action dispatched via ActionInputController.onUnknownAction.
+   * Accepts PointerEvent (drag) or WheelEvent (wheel) and applies pre-computed deltas from
+   * the extra object — or falls back to movementX/Y for drag events.
+   */
+  handleMove(event: PointerEvent | WheelEvent, speed: number | undefined): void {
+    const s = speed ?? 1;
+    let dx: number;
+    let dy: number;
+    if ('deltaX' in event) {
+      dx = (event as WheelEvent).deltaX;
+      dy = -(event as WheelEvent).deltaY;
+    } else {
+      dx = (event as PointerEvent).movementX;
+      dy = (event as PointerEvent).movementY;
+    }
+    this.applyInputMove(-dx * s, -dy * s, 0);
+  }
+
+  /**
+   * Handles diagram-canvas.rotate action dispatched via ActionInputController.onUnknownAction.
+   */
+  handleRotate(event: PointerEvent | WheelEvent, speed: number | undefined): void {
+    const s = speed ?? 1;
+    let dx: number;
+    let dy: number;
+    if ('deltaX' in event) {
+      dx = (event as WheelEvent).deltaX;
+      dy = -(event as WheelEvent).deltaY;
+    } else {
+      dx = (event as PointerEvent).movementX;
+      dy = (event as PointerEvent).movementY;
+    }
+    const scaledX = dx * 0.005 * s;
+    const scaledY = dy * 0.005 * s;
+    this.applyInputRotate(-scaledY, 0, -scaledX);
+  }
+
+  /**
+   * Handles diagram-canvas.reset action dispatched via ActionInputController.onUnknownAction.
+   */
+  handleReset(): void {
+    this.resetInputTransform();
+  }
+
+  /**
+   * Handles diagram-canvas.focus action dispatched via ActionInputController.onUnknownAction.
+   */
+  handleFocus(
+    event: PointerEvent | MouseEvent,
+    focusCenter?: [number, number] | [number, number, number],
+  ): void {
+    this.applyInputFocus(event.clientX, event.clientY, focusCenter);
+  }
+
+  /**
    * Computes NDC coordinates for a pointer event, scoped to the NVS sub-region
    * this canvas occupies within the full renderer viewport.
    *
@@ -343,7 +418,7 @@ export class DiagramCanvasWidget
   private handleClick(event: MouseEvent): void {
     if (!this.scene || !this.canvasElement) return;
     this.computeNdc(event.clientX, event.clientY);
-    const cam = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
+    const cam = this.cameraRef;
     if (!cam) return;
     this.raycaster.setFromCamera(this.ndc, cam);
 
@@ -371,7 +446,7 @@ export class DiagramCanvasWidget
   private handleMouseMove(event: MouseEvent): void {
     if (!this.scene || !this.canvasElement || !this.lastState) return;
     this.computeNdc(event.clientX, event.clientY);
-    const cam = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
+    const cam = this.cameraRef;
     if (!cam) return;
     this.raycaster.setFromCamera(this.ndc, cam);
 
@@ -444,8 +519,7 @@ export class DiagramCanvasWidget
   private createHoverControls(defaultDiagramId: string): DiagramHoverControls {
     return {
       setLightEnabled: (lightId, enabled) => {
-        if (!this.scene) return;
-        setSceneLightEnabled(this.scene, lightId, enabled);
+        this._lightController?.(lightId, enabled);
       },
       setNodeEmissive: (nodeId, enabled, options) => {
         const diagramId = options?.diagramId ?? defaultDiagramId;
@@ -614,11 +688,7 @@ export class DiagramCanvasWidget
     cam.getWorldDirection(dir);
     const pos = center.clone().sub(dir.multiplyScalar(dist));
 
-    this.scene!.userData[CAMERA_FOCUS_KEY] = {
-      position: [pos.x, pos.y, pos.z],
-      target: [center.x, center.y, center.z],
-      smooth: true,
-    };
+    this._cameraFocusTarget?.requestFocus([pos.x, pos.y, pos.z], [center.x, center.y, center.z], true);
     const info = this.renderer.lookupGroupInteraction(mesh as THREE.Mesh);
     if (info) {
       publishDiagramFocusGroup(this.defaultState, info.diagramId, info.groupId);
@@ -665,11 +735,7 @@ export class DiagramCanvasWidget
     cam.getWorldDirection(dir);
     const pos = center.clone().sub(dir.multiplyScalar(dist));
 
-    this.scene.userData[CAMERA_FOCUS_KEY] = {
-      position: [pos.x, pos.y, pos.z],
-      target: [center.x, center.y, center.z],
-      smooth: true,
-    };
+    this._cameraFocusTarget?.requestFocus([pos.x, pos.y, pos.z], [center.x, center.y, center.z], true);
     publishDiagramFocusCanvas(this.defaultState);
   }
 }

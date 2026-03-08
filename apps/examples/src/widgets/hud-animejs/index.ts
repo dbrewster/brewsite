@@ -1,5 +1,5 @@
-// Public barrel for the HUD AnimeJS transition sub-module.
-// This module is NOT re-exported from src/hud/index.ts — it is an explicit opt-in.
+// HUD AnimeJS transition presets — local copy moved from @brewsite/core.
+// Import from this path within @brewsite/apps. Do not import from @brewsite/core/hud/animejs.
 
 export { useScrollTimeline } from './useScrollTimeline';
 export type { TimelineBuilder } from './useScrollTimeline';

@@ -5,13 +5,13 @@ import type * as React from 'react';
 import type {
   IAnimationController,
   IDslComposite,
+  ILightingOverride,
   IRenderable,
   ISceneElement,
   AnimationTickContext,
   WidgetInitContext,
   WidgetRenderContext,
 } from '@brewsite/core';
-import { setSceneLightEnabled } from '@brewsite/core';
 import {
   Diagram,
   DiagramNode,
@@ -36,7 +36,6 @@ import type {
 } from './types';
 import { rotateXYZ } from './canvas/compiler/pipeRouter';
 
-const CAMERA_KEY = '__brewsite_camera';
 type HoverTarget = {
   diagramId: string;
   groupPath: string[];
@@ -45,7 +44,7 @@ type HoverTarget = {
 };
 
 export class DiagramWidget
-  implements ISceneElement<DiagramState>, IRenderable<DiagramState>, IAnimationController, IDslComposite
+  implements ISceneElement<DiagramState>, IRenderable<DiagramState>, IAnimationController, IDslComposite, ILightingOverride
 {
   readonly widgetId: string;
   readonly defaultState: DiagramState;
@@ -80,8 +79,11 @@ export class DiagramWidget
 
   private renderer = new DiagramRenderer();
   private scene: THREE.Scene | null = null;
+  private cameraRef: THREE.PerspectiveCamera | null = null;
   /** Last applied state — used by onTick for camera auto-framing fallback. */
   private lastState: DiagramState | null = null;
+  /** Injected by LightingWidget.setLightingOverrides() — used in hover callbacks. */
+  private _lightController: ((lightId: string, enabled: boolean) => void) | null = null;
 
   // Click interaction plumbing
   private canvasElement: HTMLCanvasElement | null = null;
@@ -99,8 +101,25 @@ export class DiagramWidget
     this.defaultState = defaultState;
   }
 
-  initialize({ scene, renderer }: WidgetInitContext): void {
+  /**
+   * ILightingOverride — DiagramWidget does not suppress all lights.
+   * Only the per-light setter matters here (receiveLightController).
+   */
+  getLightingOverride(): { disableAll: boolean } | null {
+    return null;
+  }
+
+  /**
+   * ILightingOverride — stores the per-light setter injected by LightingWidget
+   * so hover callbacks can toggle individual core lights.
+   */
+  receiveLightController(setter: (lightId: string, enabled: boolean) => void): void {
+    this._lightController = setter;
+  }
+
+  initialize({ scene, renderer, camera }: WidgetInitContext): void {
     this.scene = scene as THREE.Scene;
+    if (camera) this.cameraRef = camera;
     if (renderer?.domElement) {
       this.canvasElement = renderer.domElement;
       this.clickHandler = (e: MouseEvent) => this.handleClick(e);
@@ -144,7 +163,7 @@ export class DiagramWidget
       resolvedCamState.enabled === true;
     if (cameraActive) return;
 
-    const cam = context.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
+    const cam = this.cameraRef;
     if (!cam) return;
 
     // Stream 4 will recompute from viewportBounds in canvas-local space.
@@ -254,6 +273,7 @@ export class DiagramWidget
     if (!this.scene) return;
     this.renderer.dispose(this.widgetId, this.scene);
     this.scene = null;
+    this.cameraRef = null;
     this.lastState = null;
   }
 
@@ -269,7 +289,7 @@ export class DiagramWidget
       -((event.clientY - rect.top) / rect.height) * 2 + 1,
     );
 
-    const cam = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
+    const cam = this.cameraRef;
     if (!cam) return;
 
     this.raycaster.setFromCamera(this.ndc, cam);
@@ -301,7 +321,7 @@ export class DiagramWidget
       ((event.clientX - rect.left) / rect.width) * 2 - 1,
       -((event.clientY - rect.top) / rect.height) * 2 + 1,
     );
-    const cam = this.scene.userData[CAMERA_KEY] as THREE.PerspectiveCamera | undefined;
+    const cam = this.cameraRef;
     if (!cam) return;
     this.raycaster.setFromCamera(this.ndc, cam);
 
@@ -368,8 +388,7 @@ export class DiagramWidget
   private createHoverControls(defaultDiagramId: string): DiagramHoverControls {
     return {
       setLightEnabled: (lightId, enabled) => {
-        if (!this.scene) return;
-        setSceneLightEnabled(this.scene, lightId, enabled);
+        this._lightController?.(lightId, enabled);
       },
       setNodeEmissive: (nodeId, enabled, options) => {
         const diagramId = options?.diagramId ?? defaultDiagramId;

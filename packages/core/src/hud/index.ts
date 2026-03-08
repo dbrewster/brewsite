@@ -3,5 +3,4 @@
 // Scene overlay content is now expressed as natural React children of <Scene>,
 // rendered by EngineOverlayHost in the player layer.
 //
-// AnimeJS transition presets remain available for animating overlay content:
-// `@brewsite/core/hud/animejs`
+// AnimeJS transition presets have been moved to apps — see apps/examples/src/widgets/hud-animejs/.

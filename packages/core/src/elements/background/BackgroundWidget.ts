@@ -24,7 +24,7 @@ export class BackgroundWidget
   readonly defaultState: SceneBackground = DEFAULT_BACKGROUND;
   readonly transitionSpec = functionalBackgroundTransitionSpec;
   readonly DslComponent = Background;
-  readonly useDefaultStateWhenAbsent = false;
+  readonly disableWhenAbsent = true;
 
   private domElement: HTMLElement | null = null;
   private overlayElement: HTMLElement | null = null;

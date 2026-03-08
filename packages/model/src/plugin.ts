@@ -4,7 +4,7 @@ import { createElement, useContext, useEffect } from 'react';
 import type { ReactNode, ReactElement } from 'react';
 import type { WebGLRenderer } from 'three';
 import type { WidgetPlugin, WidgetRegistry } from '@brewsite/core';
-import { EngineARContainerContext } from '@brewsite/core';
+import { ViewportScaleContext } from '@brewsite/core';
 import type { AssetManifest } from './elements/model/metadata';
 import type { SceneModel } from './elements/model/types';
 import { clipMetaFromManifest, assertManifestValid } from './elements/model/metadata';
@@ -79,7 +79,7 @@ export function modelPlugin(options: ModelPluginOptions = {}): WidgetPlugin & {
    * modelPlugin() call so the component type is stable across renders.
    */
   const LabelPositionerSyncer = (): ReactElement | null => {
-    const { containerWidth, containerHeight } = useContext(EngineARContainerContext);
+    const { containerWidth, containerHeight } = useContext(ViewportScaleContext);
     useEffect(() => {
       const widget = modelWidgets[0];
       const nvsBounds = widget?.nvsBounds ?? undefined;

@@ -3,7 +3,7 @@
  */
 
 import type { ReactNode } from 'react';
-import type { Resolvable } from '@brewsite/core/compiler/sceneTypes';
+import type { Resolvable } from '@brewsite/core';
 import type {
   AxisRotation,
   AxisTranslation,

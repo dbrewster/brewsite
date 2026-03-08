@@ -8,7 +8,6 @@ import type { ChartState } from './types';
 import { DEFAULT_CHART_STATE } from './types';
 import type { ChartDataStore } from '../../data/ChartDataStore';
 import {
-  SCENE_CAMERA_KEY,
   nvsToWorldWithCamera,
   nvsToWorldAnalytic,
 } from '@brewsite/core';
@@ -75,6 +74,7 @@ export class ChartWidget
   private readonly chartRenderer: ChartRenderer;
   private scene: THREE.Scene | null = null;
   private rendererDom: HTMLElement | null = null;
+  private cameraRef: THREE.PerspectiveCamera | null = null;
   private camera: THREE.Camera | null = null;
   private lastState: ChartState | null = null;
   private readonly raycaster = new THREE.Raycaster();
@@ -87,9 +87,13 @@ export class ChartWidget
     this.chartRenderer = new ChartRenderer(store);
   }
 
-  initialize({ scene, renderer }: WidgetInitContext): void {
+  initialize({ scene, renderer, camera }: WidgetInitContext): void {
     this.scene = scene;
     this.chartRenderer.mount(scene);
+    if (camera) {
+      this.cameraRef = camera;
+      this.camera = camera;
+    }
     if (renderer?.domElement) {
       this.rendererDom = renderer.domElement;
     }
@@ -103,10 +107,9 @@ export class ChartWidget
     }
 
     // Convert NVS position to world-space using the live camera when available.
-    const cam = (this.scene.userData as Record<string, unknown>)[SCENE_CAMERA_KEY];
-    const isPerspCam = cam && typeof (cam as { fov?: unknown }).fov === 'number';
-    const worldPos = isPerspCam
-      ? nvsToWorldWithCamera(state.nvsX, state.nvsY, cam as { fov: number; aspect: number; position: { x: number; y: number; z: number } }, state.z)
+    const cam = this.cameraRef;
+    const worldPos = cam
+      ? nvsToWorldWithCamera(state.nvsX, state.nvsY, cam, state.z)
       : nvsToWorldAnalytic(state.nvsX, state.nvsY, 0, 0, 12.07, 45, 16 / 9, state.z);
 
     this.chartRenderer.update({ ...state, position: worldPos }, this.widgetId);
@@ -129,10 +132,9 @@ export class ChartWidget
     if (this.scene) {
       // Re-apply same state — heatmap renderer derives slice from store.getTimeSlice().
       // Must convert NVS → world-space position same as apply().
-      const heatCam = (this.scene.userData as Record<string, unknown>)[SCENE_CAMERA_KEY];
-      const heatIsPerspCam = heatCam && typeof (heatCam as { fov?: unknown }).fov === 'number';
-      const heatWorldPos = heatIsPerspCam
-        ? nvsToWorldWithCamera(this.lastState.nvsX, this.lastState.nvsY, heatCam as { fov: number; aspect: number; position: { x: number; y: number; z: number } }, this.lastState.z)
+      const heatCam = this.cameraRef;
+      const heatWorldPos = heatCam
+        ? nvsToWorldWithCamera(this.lastState.nvsX, this.lastState.nvsY, heatCam, this.lastState.z)
         : nvsToWorldAnalytic(this.lastState.nvsX, this.lastState.nvsY, 0, 0, 12.07, 45, 16 / 9, this.lastState.z);
       this.chartRenderer.update({ ...this.lastState, position: heatWorldPos }, this.widgetId);
     }
@@ -144,6 +146,8 @@ export class ChartWidget
       this.chartRenderer.dispose(this.scene);
       this.scene = null;
     }
+    this.cameraRef = null;
+    this.camera = null;
   }
 
   private attachDomListeners(dom: HTMLElement): void {
@@ -171,13 +175,7 @@ export class ChartWidget
    * Returns null if the widget has not been initialized or the camera is unavailable.
    */
   public getCamera(): THREE.Camera | null {
-    if (!this.scene) return null;
-    if (!this.camera) {
-      // Camera is stored on scene.userData by CameraWidget
-      const cam = (this.scene.userData as Record<string, unknown>)[SCENE_CAMERA_KEY];
-      if (cam instanceof THREE.Camera) this.camera = cam;
-    }
-    return this.camera;
+    return this.cameraRef;
   }
 
   /**

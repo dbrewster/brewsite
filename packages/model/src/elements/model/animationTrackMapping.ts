@@ -2,7 +2,7 @@
 // Pure functions, no Three.js. Safe to unit-test without a DOM.
 
 import type { AnchorTargetMap } from './metadata';
-import type { AnimationTrack } from '@brewsite/core/runtime/types';
+import type { AnimationTrack } from '@brewsite/core';
 
 /**
  * Resolves a raw GLTF track target name to the canonical bone/node name.

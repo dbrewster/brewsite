@@ -25,7 +25,100 @@ describe('ActionInputController', () => {
     return event;
   };
 
-  it('dispatches diagram-canvas.reset from key mapping', () => {
+  /** Minimal handler that satisfies the required fields. */
+  const makeHandler = (overrides: Partial<Parameters<typeof ActionInputController>[2]> = {}) => ({
+    getSceneCount: () => 2,
+    onSceneStep: () => {},
+    onCameraOrbit: () => {},
+    onCameraDolly: () => {},
+    onCameraReset: () => {},
+    ...overrides,
+  });
+
+  it('routes diagram-canvas.move drag to onUnknownAction', () => {
+    const spec = makeSpec();
+    spec.actions.push({
+      id: 'move-canvas',
+      type: 'diagram-canvas.move',
+      canvasId: 'my-canvas',
+      maps: [{ kind: 'pointer', event: 'drag', button: 'left' }],
+    });
+
+    const onUnknownAction = vi.fn();
+    const target = document.createElement('div');
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onUnknownAction }), target);
+
+    ctrl.attach();
+    target.dispatchEvent(makePointerEvent('pointerdown', { button: 0, clientX: 0, clientY: 0, bubbles: true, cancelable: true }));
+    target.dispatchEvent(makePointerEvent('pointermove', { button: 0, clientX: 10, clientY: 5, bubbles: true, cancelable: true }));
+    target.dispatchEvent(makePointerEvent('pointerup', { button: 0, clientX: 10, clientY: 5, bubbles: true, cancelable: true }));
+    ctrl.detach();
+
+    expect(onUnknownAction).toHaveBeenCalledTimes(1);
+    const [type, canvasId, , extra] = onUnknownAction.mock.calls[0]!;
+    expect(type).toBe('diagram-canvas.move');
+    expect(canvasId).toBe('my-canvas');
+    expect((extra as Record<string, unknown>).dx).toBe(10);
+    expect((extra as Record<string, unknown>).dy).toBe(5);
+  });
+
+  it('routes camera.orbit drag to onCameraOrbit (not onUnknownAction)', () => {
+    const spec = makeSpec();
+    spec.actions.push({
+      id: 'orbit',
+      type: 'camera.orbit',
+      cameraId: 'cam',
+      maps: [{ kind: 'pointer', event: 'drag', button: 'left' }],
+    });
+
+    const onCameraOrbit = vi.fn();
+    const onUnknownAction = vi.fn();
+    const target = document.createElement('div');
+    const ctrl = new ActionInputController(
+      target,
+      () => spec,
+      makeHandler({ onCameraOrbit, onUnknownAction }),
+      target,
+    );
+
+    ctrl.attach();
+    target.dispatchEvent(makePointerEvent('pointerdown', { button: 0, clientX: 0, clientY: 0, bubbles: true, cancelable: true }));
+    target.dispatchEvent(makePointerEvent('pointermove', { button: 0, clientX: 5, clientY: 3, bubbles: true, cancelable: true }));
+    target.dispatchEvent(makePointerEvent('pointerup', { button: 0, bubbles: true, cancelable: true }));
+    ctrl.detach();
+
+    expect(onCameraOrbit).toHaveBeenCalledTimes(1);
+    expect(onUnknownAction).not.toHaveBeenCalled();
+  });
+
+  it('routes scene.next key to onSceneStep (not onUnknownAction)', () => {
+    const spec = makeSpec();
+    spec.actions.push({
+      id: 'next',
+      type: 'scene.next',
+      maps: [{ kind: 'key', key: 'ArrowRight' }],
+    });
+
+    const onSceneStep = vi.fn();
+    const onUnknownAction = vi.fn();
+    const target = document.createElement('div');
+    const ctrl = new ActionInputController(
+      target,
+      () => spec,
+      makeHandler({ onSceneStep, onUnknownAction }),
+      target,
+    );
+
+    ctrl.attach();
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    ctrl.detach();
+
+    expect(onSceneStep).toHaveBeenCalledTimes(1);
+    expect(onSceneStep).toHaveBeenCalledWith(1, 1);
+    expect(onUnknownAction).not.toHaveBeenCalled();
+  });
+
+  it('routes diagram-canvas.reset key to onUnknownAction', () => {
     const spec = makeSpec();
     spec.actions.push({
       id: 'reset-canvas',
@@ -34,34 +127,21 @@ describe('ActionInputController', () => {
       maps: [{ kind: 'key', key: '1', modifiers: ['ctrl'] }],
     });
 
-    const onDiagramCanvasReset = vi.fn();
+    const onUnknownAction = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(
-      target,
-      () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly: () => {},
-        onCameraReset: () => {},
-        onDiagramCanvasMove: () => {},
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset,
-        onDiagramCanvasFocus: () => {},
-      },
-      target,
-    );
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onUnknownAction }), target);
 
     ctrl.attach();
     target.dispatchEvent(new KeyboardEvent('keydown', { key: '1', ctrlKey: true, bubbles: true, cancelable: true }));
     ctrl.detach();
 
-    expect(onDiagramCanvasReset).toHaveBeenCalledTimes(1);
-    expect(onDiagramCanvasReset).toHaveBeenCalledWith('llm-canvas');
+    expect(onUnknownAction).toHaveBeenCalledTimes(1);
+    const [type, canvasId] = onUnknownAction.mock.calls[0]!;
+    expect(type).toBe('diagram-canvas.reset');
+    expect(canvasId).toBe('llm-canvas');
   });
 
-  it('fires multiple actions bound to the same key combo', () => {
+  it('fires camera.reset AND diagram-canvas.reset for same key combo', () => {
     const spec = makeSpec();
     spec.actions.push(
       {
@@ -79,22 +159,12 @@ describe('ActionInputController', () => {
     );
 
     const onCameraReset = vi.fn();
-    const onDiagramCanvasReset = vi.fn();
+    const onUnknownAction = vi.fn();
     const target = document.createElement('div');
     const ctrl = new ActionInputController(
       target,
       () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly: () => {},
-        onCameraReset,
-        onDiagramCanvasMove: () => {},
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset,
-        onDiagramCanvasFocus: () => {},
-      },
+      makeHandler({ onCameraReset, onUnknownAction }),
       target,
     );
 
@@ -104,11 +174,13 @@ describe('ActionInputController', () => {
 
     expect(onCameraReset).toHaveBeenCalledTimes(1);
     expect(onCameraReset).toHaveBeenCalledWith('camera');
-    expect(onDiagramCanvasReset).toHaveBeenCalledTimes(1);
-    expect(onDiagramCanvasReset).toHaveBeenCalledWith('llm-canvas');
+    expect(onUnknownAction).toHaveBeenCalledTimes(1);
+    const [type, canvasId] = onUnknownAction.mock.calls[0]!;
+    expect(type).toBe('diagram-canvas.reset');
+    expect(canvasId).toBe('llm-canvas');
   });
 
-  it('dispatches diagram-canvas.focus from cmd+click mapping', () => {
+  it('routes diagram-canvas.focus click to onUnknownAction with focusCenter in extra', () => {
     const spec = makeSpec();
     spec.actions.push({
       id: 'focus-canvas',
@@ -117,34 +189,22 @@ describe('ActionInputController', () => {
       maps: [{ kind: 'pointer', event: 'click', button: 'left', modifiers: ['meta'] }],
     });
 
-    const onDiagramCanvasFocus = vi.fn();
+    const onUnknownAction = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(
-      target,
-      () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly: () => {},
-        onCameraReset: () => {},
-        onDiagramCanvasMove: () => {},
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset: () => {},
-        onDiagramCanvasFocus,
-      },
-      target,
-    );
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onUnknownAction }), target);
 
     ctrl.attach();
     target.dispatchEvent(new MouseEvent('click', { button: 0, metaKey: true, clientX: 320, clientY: 180, bubbles: true, cancelable: true }));
     ctrl.detach();
 
-    expect(onDiagramCanvasFocus).toHaveBeenCalledTimes(1);
-    expect(onDiagramCanvasFocus).toHaveBeenCalledWith('llm-canvas', 320, 180, undefined);
+    expect(onUnknownAction).toHaveBeenCalledTimes(1);
+    const [type, canvasId, , extra] = onUnknownAction.mock.calls[0]!;
+    expect(type).toBe('diagram-canvas.focus');
+    expect(canvasId).toBe('llm-canvas');
+    expect((extra as Record<string, unknown>).focusCenter).toBeUndefined();
   });
 
-  it('passes action focusCenter to diagram-canvas.focus handler', () => {
+  it('passes action focusCenter to onUnknownAction extra for diagram-canvas.focus', () => {
     const spec = makeSpec();
     spec.actions.push({
       id: 'focus-canvas',
@@ -154,31 +214,17 @@ describe('ActionInputController', () => {
       maps: [{ kind: 'pointer', event: 'click', button: 'left', modifiers: ['meta'] }],
     });
 
-    const onDiagramCanvasFocus = vi.fn();
+    const onUnknownAction = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(
-      target,
-      () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly: () => {},
-        onCameraReset: () => {},
-        onDiagramCanvasMove: () => {},
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset: () => {},
-        onDiagramCanvasFocus,
-      },
-      target,
-    );
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onUnknownAction }), target);
 
     ctrl.attach();
     target.dispatchEvent(new MouseEvent('click', { button: 0, metaKey: true, clientX: 1, clientY: 2, bubbles: true, cancelable: true }));
     ctrl.detach();
 
-    expect(onDiagramCanvasFocus).toHaveBeenCalledTimes(1);
-    expect(onDiagramCanvasFocus).toHaveBeenCalledWith('llm-canvas', 1, 2, [10, 20, 30]);
+    expect(onUnknownAction).toHaveBeenCalledTimes(1);
+    const [, , , extra] = onUnknownAction.mock.calls[0]!;
+    expect((extra as Record<string, unknown>).focusCenter).toEqual([10, 20, 30]);
   });
 
   it('locks drag to first dominant axis when lockAxis is sticky', () => {
@@ -190,24 +236,9 @@ describe('ActionInputController', () => {
       maps: [{ kind: 'pointer', event: 'drag', button: 'left', modifiers: ['shift'], axis: 'xy', lockAxis: 'sticky' }],
     });
 
-    const onDiagramCanvasMove = vi.fn();
+    const onUnknownAction = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(
-      target,
-      () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly: () => {},
-        onCameraReset: () => {},
-        onDiagramCanvasMove,
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset: () => {},
-        onDiagramCanvasFocus: () => {},
-      },
-      target,
-    );
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onUnknownAction }), target);
 
     ctrl.attach();
     target.dispatchEvent(makePointerEvent('pointerdown', { button: 0, shiftKey: true, clientX: 0, clientY: 0, bubbles: true, cancelable: true }));
@@ -216,9 +247,13 @@ describe('ActionInputController', () => {
     target.dispatchEvent(makePointerEvent('pointerup', { button: 0, shiftKey: true, clientX: 10, clientY: 7, bubbles: true, cancelable: true }));
     ctrl.detach();
 
-    expect(onDiagramCanvasMove).toHaveBeenCalledTimes(2);
-    expect(onDiagramCanvasMove).toHaveBeenNthCalledWith(1, 'llm-canvas', 8, 0, 1);
-    expect(onDiagramCanvasMove).toHaveBeenNthCalledWith(2, 'llm-canvas', 2, 0, 1);
+    expect(onUnknownAction).toHaveBeenCalledTimes(2);
+    const extra0 = onUnknownAction.mock.calls[0]![3] as Record<string, unknown>;
+    const extra1 = onUnknownAction.mock.calls[1]![3] as Record<string, unknown>;
+    expect(extra0.dx).toBe(8);
+    expect(extra0.dy).toBe(0);
+    expect(extra1.dx).toBe(2);
+    expect(extra1.dy).toBe(0);
   });
 
   it('applies axis filtering to drag move mappings', () => {
@@ -230,24 +265,9 @@ describe('ActionInputController', () => {
       maps: [{ kind: 'pointer', event: 'drag', button: 'left', modifiers: ['shift'], axis: 'x' }],
     });
 
-    const onDiagramCanvasMove = vi.fn();
+    const onUnknownAction = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(
-      target,
-      () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly: () => {},
-        onCameraReset: () => {},
-        onDiagramCanvasMove,
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset: () => {},
-        onDiagramCanvasFocus: () => {},
-      },
-      target,
-    );
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onUnknownAction }), target);
 
     ctrl.attach();
     target.dispatchEvent(makePointerEvent('pointerdown', { button: 0, shiftKey: true, clientX: 2, clientY: 3, bubbles: true, cancelable: true }));
@@ -255,8 +275,10 @@ describe('ActionInputController', () => {
     target.dispatchEvent(makePointerEvent('pointerup', { button: 0, shiftKey: true, clientX: 12, clientY: 23, bubbles: true, cancelable: true }));
     ctrl.detach();
 
-    expect(onDiagramCanvasMove).toHaveBeenCalledTimes(1);
-    expect(onDiagramCanvasMove).toHaveBeenCalledWith('llm-canvas', 10, 0, 1);
+    expect(onUnknownAction).toHaveBeenCalledTimes(1);
+    const extra = onUnknownAction.mock.calls[0]![3] as Record<string, unknown>;
+    expect(extra.dx).toBe(10);
+    expect(extra.dy).toBe(0);
   });
 
   it('locks wheel move to dominant axis when lockAxis is sticky', () => {
@@ -268,31 +290,18 @@ describe('ActionInputController', () => {
       maps: [{ kind: 'wheel', modifiers: ['shift'], axis: 'xy', lockAxis: 'sticky' }],
     });
 
-    const onDiagramCanvasMove = vi.fn();
+    const onUnknownAction = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(
-      target,
-      () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly: () => {},
-        onCameraReset: () => {},
-        onDiagramCanvasMove,
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset: () => {},
-        onDiagramCanvasFocus: () => {},
-      },
-      target,
-    );
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onUnknownAction }), target);
 
     ctrl.attach();
     target.dispatchEvent(new WheelEvent('wheel', { deltaX: 18, deltaY: 4, shiftKey: true, bubbles: true, cancelable: true }));
     ctrl.detach();
 
-    expect(onDiagramCanvasMove).toHaveBeenCalledTimes(1);
-    expect(onDiagramCanvasMove).toHaveBeenCalledWith('llm-canvas', 18, 0, 1);
+    expect(onUnknownAction).toHaveBeenCalledTimes(1);
+    const extra = onUnknownAction.mock.calls[0]![3] as Record<string, unknown>;
+    expect(extra.dx).toBe(18);
+    expect(extra.dy).toBe(0);
   });
 
   it('inverts wheel Y deltas for wheel mappings', () => {
@@ -306,22 +315,7 @@ describe('ActionInputController', () => {
 
     const onCameraDolly = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(
-      target,
-      () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly,
-        onCameraReset: () => {},
-        onDiagramCanvasMove: () => {},
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset: () => {},
-        onDiagramCanvasFocus: () => {},
-      },
-      target,
-    );
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraDolly }), target);
 
     ctrl.attach();
     target.dispatchEvent(new WheelEvent('wheel', { deltaY: 12, bubbles: true, cancelable: true }));
@@ -340,33 +334,22 @@ describe('ActionInputController', () => {
       maps: [{ kind: 'wheel', modifiers: ['shift'], axis: 'xy', lockAxis: 'sticky' }],
     });
 
-    const onDiagramCanvasMove = vi.fn();
+    const onUnknownAction = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(
-      target,
-      () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly: () => {},
-        onCameraReset: () => {},
-        onDiagramCanvasMove,
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset: () => {},
-        onDiagramCanvasFocus: () => {},
-      },
-      target,
-    );
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onUnknownAction }), target);
 
     ctrl.attach();
     target.dispatchEvent(new WheelEvent('wheel', { deltaX: 20, deltaY: 3, shiftKey: true, bubbles: true, cancelable: true }));
     target.dispatchEvent(new WheelEvent('wheel', { deltaX: 1, deltaY: 14, shiftKey: true, bubbles: true, cancelable: true }));
     ctrl.detach();
 
-    expect(onDiagramCanvasMove).toHaveBeenCalledTimes(2);
-    expect(onDiagramCanvasMove).toHaveBeenNthCalledWith(1, 'llm-canvas', 20, 0, 1);
-    expect(onDiagramCanvasMove).toHaveBeenNthCalledWith(2, 'llm-canvas', 1, 0, 1);
+    expect(onUnknownAction).toHaveBeenCalledTimes(2);
+    const extra0 = onUnknownAction.mock.calls[0]![3] as Record<string, unknown>;
+    const extra1 = onUnknownAction.mock.calls[1]![3] as Record<string, unknown>;
+    expect(extra0.dx).toBe(20);
+    expect(extra0.dy).toBe(0);
+    expect(extra1.dx).toBe(1);
+    expect(extra1.dy).toBe(0);
   });
 
   it('does not let a subset modifier mapping override a more specific wheel mapping', () => {
@@ -384,33 +367,17 @@ describe('ActionInputController', () => {
       maps: [{ kind: 'wheel', modifiers: ['meta', 'shift'], axis: 'xy', lockAxis: 'sticky' }],
     });
 
-    const onDiagramCanvasMove = vi.fn();
-    const onDiagramCanvasRotate = vi.fn();
+    const onUnknownAction = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(
-      target,
-      () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly: () => {},
-        onCameraReset: () => {},
-        onDiagramCanvasMove,
-        onDiagramCanvasRotate,
-        onDiagramCanvasReset: () => {},
-        onDiagramCanvasFocus: () => {},
-      },
-      target,
-    );
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onUnknownAction }), target);
 
     ctrl.attach();
     target.dispatchEvent(new WheelEvent('wheel', { deltaX: 14, deltaY: 3, shiftKey: true, metaKey: true, bubbles: true, cancelable: true }));
     ctrl.detach();
 
-    expect(onDiagramCanvasMove).toHaveBeenCalledTimes(0);
-    expect(onDiagramCanvasRotate).toHaveBeenCalledTimes(1);
-    expect(onDiagramCanvasRotate).toHaveBeenCalledWith('llm-canvas', 14, 0, 1);
+    expect(onUnknownAction).toHaveBeenCalledTimes(1);
+    const [type] = onUnknownAction.mock.calls[0]!;
+    expect(type).toBe('diagram-canvas.rotate');
   });
 
   it('dispatches camera dolly for pinch out mapping', () => {
@@ -424,22 +391,7 @@ describe('ActionInputController', () => {
 
     const onCameraDolly = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(
-      target,
-      () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly,
-        onCameraReset: () => {},
-        onDiagramCanvasMove: () => {},
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset: () => {},
-        onDiagramCanvasFocus: () => {},
-      },
-      target,
-    );
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraDolly }), target);
 
     ctrl.attach();
     target.dispatchEvent(makeTouchPointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0, bubbles: true, cancelable: true }));
@@ -464,22 +416,7 @@ describe('ActionInputController', () => {
 
     const onCameraDolly = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(
-      target,
-      () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly,
-        onCameraReset: () => {},
-        onDiagramCanvasMove: () => {},
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset: () => {},
-        onDiagramCanvasFocus: () => {},
-      },
-      target,
-    );
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraDolly }), target);
 
     ctrl.attach();
     target.dispatchEvent(makeTouchPointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0, bubbles: true, cancelable: true }));
@@ -503,22 +440,7 @@ describe('ActionInputController', () => {
 
     const onCameraDolly = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(
-      target,
-      () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly,
-        onCameraReset: () => {},
-        onDiagramCanvasMove: () => {},
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset: () => {},
-        onDiagramCanvasFocus: () => {},
-      },
-      target,
-    );
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraDolly }), target);
 
     ctrl.attach();
     const ev = new WheelEvent('wheel', { ctrlKey: true, deltaY: 12, bubbles: true, cancelable: true });
@@ -547,22 +469,7 @@ describe('ActionInputController', () => {
 
     const onCameraDolly = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(
-      target,
-      () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly,
-        onCameraReset: () => {},
-        onDiagramCanvasMove: () => {},
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset: () => {},
-        onDiagramCanvasFocus: () => {},
-      },
-      target,
-    );
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraDolly }), target);
 
     ctrl.attach();
     const ev = new WheelEvent('wheel', { ctrlKey: true, deltaY: 15, bubbles: true, cancelable: true });
@@ -590,22 +497,12 @@ describe('ActionInputController', () => {
     });
 
     const onCameraDolly = vi.fn();
-    const onDiagramCanvasMove = vi.fn();
+    const onUnknownAction = vi.fn();
     const target = document.createElement('div');
     const ctrl = new ActionInputController(
       target,
       () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly,
-        onCameraReset: () => {},
-        onDiagramCanvasMove,
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset: () => {},
-        onDiagramCanvasFocus: () => {},
-      },
+      makeHandler({ onCameraDolly, onUnknownAction }),
       target,
     );
 
@@ -616,52 +513,60 @@ describe('ActionInputController', () => {
 
     expect(ev.defaultPrevented).toBe(true);
     expect(onCameraDolly).toHaveBeenCalledTimes(0);
-    expect(onDiagramCanvasMove).toHaveBeenCalledTimes(0);
+    expect(onUnknownAction).toHaveBeenCalledTimes(0);
   });
 
-  it('uses idDefaults when action IDs are omitted', () => {
+  it('uses idDefaults.cameraId when action cameraId is omitted', () => {
     const spec = makeSpec();
     spec.actions.push({
       id: 'reset-camera',
       type: 'camera.reset',
       maps: [{ kind: 'key', key: '1' }],
     });
-    spec.actions.push({
-      id: 'reset-canvas',
-      type: 'diagram-canvas.reset',
-      maps: [{ kind: 'key', key: '2' }],
-    });
 
     const onCameraReset = vi.fn();
-    const onDiagramCanvasReset = vi.fn();
     const target = document.createElement('div');
     const ctrl = new ActionInputController(
       target,
       () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly: () => {},
-        onCameraReset,
-        onDiagramCanvasMove: () => {},
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset,
-        onDiagramCanvasFocus: () => {},
-      },
+      makeHandler({ onCameraReset }),
       target,
-      {
-        idDefaults: { cameraId: 'primary-camera', canvasId: 'primary-canvas' },
-      },
+      { idDefaults: { cameraId: 'primary-camera', canvasId: 'primary-canvas' } },
     );
 
     ctrl.attach();
     target.dispatchEvent(new KeyboardEvent('keydown', { key: '1', bubbles: true, cancelable: true }));
-    target.dispatchEvent(new KeyboardEvent('keydown', { key: '2', bubbles: true, cancelable: true }));
     ctrl.detach();
 
     expect(onCameraReset).toHaveBeenCalledWith('primary-camera');
-    expect(onDiagramCanvasReset).toHaveBeenCalledWith('primary-canvas');
+  });
+
+  it('routes diagram-canvas.reset with no canvasId to onUnknownAction with undefined canvasId', () => {
+    const spec = makeSpec();
+    spec.actions.push({
+      id: 'reset-canvas',
+      type: 'diagram-canvas.reset',
+      // no canvasId — action.canvasId is undefined
+      maps: [{ kind: 'key', key: '2' }],
+    });
+
+    const onUnknownAction = vi.fn();
+    const target = document.createElement('div');
+    const ctrl = new ActionInputController(
+      target,
+      () => spec,
+      makeHandler({ onUnknownAction }),
+      target,
+    );
+
+    ctrl.attach();
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: '2', bubbles: true, cancelable: true }));
+    ctrl.detach();
+
+    expect(onUnknownAction).toHaveBeenCalledTimes(1);
+    const [type, canvasId] = onUnknownAction.mock.calls[0]!;
+    expect(type).toBe('diagram-canvas.reset');
+    expect(canvasId).toBeUndefined();
   });
 
   it('falls back to legacy implicit IDs with one-time warnings', () => {
@@ -678,17 +583,7 @@ describe('ActionInputController', () => {
     const ctrl = new ActionInputController(
       target,
       () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly: () => {},
-        onCameraReset,
-        onDiagramCanvasMove: () => {},
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset: () => {},
-        onDiagramCanvasFocus: () => {},
-      },
+      makeHandler({ onCameraReset }),
       target,
     );
 
@@ -716,22 +611,12 @@ describe('ActionInputController', () => {
       maps: [{ kind: 'wheel', modifiers: ['shift'], axis: 'xy', lockAxis: 'sticky' }],
     });
 
-    const onDiagramCanvasMove = vi.fn();
+    const onUnknownAction = vi.fn();
     const target = document.createElement('div');
     const ctrl = new ActionInputController(
       target,
       () => spec,
-      {
-        getSceneCount: () => 2,
-        onSceneStep: () => {},
-        onCameraOrbit: () => {},
-        onCameraDolly: () => {},
-        onCameraReset: () => {},
-        onDiagramCanvasMove,
-        onDiagramCanvasRotate: () => {},
-        onDiagramCanvasReset: () => {},
-        onDiagramCanvasFocus: () => {},
-      },
+      makeHandler({ onUnknownAction }),
       target,
       { wheelLockIdleMs: 5 },
     );
@@ -742,8 +627,14 @@ describe('ActionInputController', () => {
     target.dispatchEvent(new WheelEvent('wheel', { deltaX: 1, deltaY: 14, shiftKey: true, bubbles: true, cancelable: true }));
     ctrl.detach();
 
-    expect(onDiagramCanvasMove).toHaveBeenNthCalledWith(1, 'llm-canvas', 20, 0, 1);
-    expect(onDiagramCanvasMove).toHaveBeenNthCalledWith(2, 'llm-canvas', 0, -14, 1);
+    const extra0 = onUnknownAction.mock.calls[0]![3] as Record<string, unknown>;
+    const extra1 = onUnknownAction.mock.calls[1]![3] as Record<string, unknown>;
+    // First wheel event: X dominant → dx=20, dy=0
+    expect(extra0.dx).toBe(20);
+    expect(extra0.dy).toBe(0);
+    // After idle, lock resets: Y dominant for second event → dx=0, dy=-14 (inverted)
+    expect(extra1.dx).toBe(0);
+    expect(extra1.dy).toBe(-14);
     nowSpy.mockRestore();
   });
 });

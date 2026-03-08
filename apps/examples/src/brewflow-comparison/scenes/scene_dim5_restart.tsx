@@ -21,7 +21,6 @@ export const sceneDim5Restart: JSX.Element = (
   <Scene key="bfc-dim5-restart" id="bfc-dim5-restart">
     <ProgressManager scrollUnits={2800} fn={DWELL_FN} />
 
-    <Camera mode="world" position={[0, 5, 24]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
     <InputController scope="canvas">

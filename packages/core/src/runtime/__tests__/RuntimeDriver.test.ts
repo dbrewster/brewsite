@@ -188,15 +188,18 @@ describe('RuntimeDriverImpl', () => {
     const contained = new ContainedWidget();
     registry.register(host).register(contained);
 
-    const driver = new RuntimeDriverImpl({
-      widgetRegistry: registry,
-      variableStore,
-      manifest: { version: 2, models: [], animations: [] },
+    const assetsReady = new Promise<void>((resolve) => {
+      const driver = new RuntimeDriverImpl({
+        widgetRegistry: registry,
+        variableStore,
+        manifest: { version: 2, models: [], animations: [] },
+        onAssetsReady: resolve,
+      });
+      driver.initialize(scene);
     });
+    await assetsReady;
 
-    await driver.initialize(scene);
-
-    // After initialize, the contained widget's rootObject should be parented
+    // After assets load, the contained widget's rootObject should be parented
     // to the host's 'head' attachment point.
     expect(contained.rootObject.parent).not.toBeNull();
   });
@@ -232,7 +235,7 @@ describe('RuntimeDriverImpl', () => {
     });
 
     driver.setSceneTrack(makeEmptySceneTrack());
-    await driver.initialize(new THREE.Scene());
+    driver.initialize(new THREE.Scene());
     driver.tick({ deltaSeconds: 0.016, globalProgress: 0.5, deltaProgress: 0 });
 
     expect(order[0]).toBe('tick');
@@ -290,7 +293,7 @@ describe('RuntimeDriverImpl', () => {
 
     const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
     driver.setSceneTrack(track);
-    await driver.initialize(scene);
+    driver.initialize(scene);
     driver.tick({ deltaSeconds: 0.016, globalProgress: 0, deltaProgress: 0 });
 
     const funcApplied = applied.find((entry) => entry.widgetId === 'func');
@@ -331,7 +334,7 @@ describe('RuntimeDriverImpl', () => {
 
     const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
     driver.setSceneTrack(track);
-    await driver.initialize(scene);
+    driver.initialize(scene);
     driver.tick({ deltaSeconds: 0.016, globalProgress: 0, deltaProgress: 0 });
 
     expect(appliedValue).toBe(7);
@@ -377,7 +380,7 @@ describe('RuntimeDriverImpl', () => {
 
     const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
     driver.setSceneTrack(track);
-    await driver.initialize(scene);
+    driver.initialize(scene);
     driver.tick({ deltaSeconds: 0.016, globalProgress: 0, deltaProgress: 0 });
 
     expect(appliedValue).toBe(9);
@@ -406,7 +409,7 @@ describe('RuntimeDriverImpl', () => {
       onError: () => { errorCount += 1; },
     });
 
-    await expect(driver.initialize(new THREE.Scene())).rejects.toThrow('init fail');
+    expect(() => driver.initialize(new THREE.Scene())).toThrow('init fail');
     expect(errorCount).toBe(1);
   });
 
@@ -429,16 +432,18 @@ describe('RuntimeDriverImpl', () => {
     }
 
     registry.register(new BadLoadable());
-    const driver = new RuntimeDriverImpl({
-      widgetRegistry: registry,
-      variableStore,
-      manifest: null,
-      onAssetsReady: () => { assetsReadyFired = true; },
-      onWidgetError: (widgetId, error) => { widgetErrors.push({ widgetId, error }); },
+    // Per-widget isolation: load() failure does not prevent onAssetsReady from firing.
+    const assetsReadyPromise = new Promise<void>((resolve) => {
+      const driver = new RuntimeDriverImpl({
+        widgetRegistry: registry,
+        variableStore,
+        manifest: null,
+        onAssetsReady: () => { assetsReadyFired = true; resolve(); },
+        onWidgetError: (widgetId, error) => { widgetErrors.push({ widgetId, error }); },
+      });
+      driver.initialize(new THREE.Scene());
     });
-
-    // Per-widget isolation: load() failure resolves (engine continues with other widgets).
-    await expect(driver.initialize(new THREE.Scene())).resolves.toBeUndefined();
+    await assetsReadyPromise;
     expect(widgetErrors).toHaveLength(1);
     expect(widgetErrors[0]!.widgetId).toBe('bad-load');
     expect(widgetErrors[0]!.error.message).toBe('load fail');
@@ -470,9 +475,12 @@ describe('RuntimeDriverImpl', () => {
     }
 
     registry.register(new ContainedWidget());
-    const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
     // Missing host — should warn to console but not throw.
-    await expect(driver.initialize(scene)).resolves.toBeUndefined();
+    const assetsReady = new Promise<void>((resolve) => {
+      const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null, onAssetsReady: resolve });
+      driver.initialize(scene);
+    });
+    await assetsReady;
   });
 
   it('tick reports errors from controllers and renderables via onWidgetError', async () => {
@@ -506,7 +514,7 @@ describe('RuntimeDriverImpl', () => {
     });
 
     driver.setSceneTrack(makeEmptySceneTrack());
-    await driver.initialize(new THREE.Scene());
+    driver.initialize(new THREE.Scene());
     driver.tick({ deltaSeconds: 0.016, globalProgress: 0.5, deltaProgress: 0 });
     // Both the controller and renderable should have reported errors.
     expect(widgetErrors.length).toBeGreaterThan(0);
@@ -540,7 +548,7 @@ describe('RuntimeDriverImpl', () => {
     });
 
     driver.setSceneTrack(makeEmptySceneTrack());
-    await driver.initialize(new THREE.Scene());
+    driver.initialize(new THREE.Scene());
     driver.tick({ deltaSeconds: 0.016, globalProgress: 0.5, deltaProgress: 0 });
 
     expect(applied[0]?.value).toBe(7);
@@ -625,7 +633,7 @@ describe('RuntimeDriverImpl', () => {
 
     registry.register(new HostWidget()).register(new ContainedWidget());
     const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
-    await expect(driver.initialize(scene)).resolves.toBeUndefined();
+    expect(() => driver.initialize(scene)).not.toThrow();
   });
 
   it('attachContainedRenderables: host that is NOT IAttachmentHost — warns and does not throw', async () => {
@@ -667,7 +675,7 @@ describe('RuntimeDriverImpl', () => {
 
     registry.register(new PlainHostWidget()).register(new ContainedWidget());
     const driver = new RuntimeDriverImpl({ widgetRegistry: registry, variableStore, manifest: null });
-    await expect(driver.initialize(scene)).resolves.toBeUndefined();
+    expect(() => driver.initialize(scene)).not.toThrow();
   });
 
   it('dispose ignores errors from renderables', () => {
@@ -727,7 +735,7 @@ describe('RuntimeDriverImpl', () => {
       maxAnimBoostPerFrame: 0.05,
     });
     driver.setSceneTrack(track);
-    await driver.initialize(scene);
+    driver.initialize(scene);
     driver.tick({ deltaSeconds: 0.016, globalProgress: 0, deltaProgress: 1 });
 
     expect(effectiveDelta).toBeCloseTo(0.05, 6);

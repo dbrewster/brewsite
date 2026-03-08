@@ -4,7 +4,7 @@ import {
   mapTrackTargetName,
   filterAndRenameTrack,
 } from '../animationTrackMapping';
-import type { AnimationTrack } from '@brewsite/core/runtime/types';
+import type { AnimationTrack } from '@brewsite/core';
 
 describe('animationTrackMapping', () => {
   it('resolveTrackTargetName maps anchor targets', () => {

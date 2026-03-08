@@ -28,7 +28,10 @@ import {
   isRenderContributor,
   isContainedRenderable,
   isAttachmentHost,
+  isCameraFocusTarget,
+  isLightingOverride,
 } from '../WidgetRegistry';
+import type { ICameraFocusTarget, ILightingOverride } from '../types';
 import type { CompileApi } from '../../compiler/sceneDslTypes';
 import type { NodeHandler } from '../../compiler/sceneDslTypes';
 import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
@@ -92,6 +95,14 @@ const makeFakeApi = (): CompileApi & { widgetStates: Record<string, unknown> } =
     pushWarning: () => {},
   };
 };
+
+// Minimal CompileHelpers double — identity implementations of the helper methods.
+const makeFakeHelpers = () => ({
+  collectChildren: () => [],
+  resolveValue: (v: unknown) => v,
+  resolveObjectValues: <T>(v: T) => v,
+  stripUndefinedDeep: <T>(v: T) => v,
+} as Parameters<NodeHandler>[2]);
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -266,8 +277,8 @@ describe('WidgetRegistry', () => {
 
     const handler = getNodeHandler(SharedComponent);
     const api = makeFakeApi();
-    handler?.({ props: { id: 'beta', value: 42 } } as never, api as never, {} as never);
-    expect(api.widgetStates['beta']).toEqual({ value: 42, id: 'beta' });
+    handler?.({ props: { id: 'beta', value: 42 } } as never, api as never, makeFakeHelpers());
+    expect(api.widgetStates['beta']).toMatchObject({ value: 42, id: 'beta' });
   });
 
   it('uses CUSTOM_NODE_HANDLER when provided', () => {
@@ -278,7 +289,7 @@ describe('WidgetRegistry', () => {
     registry.register(widget);
     const handler = getNodeHandler(widget.DslComponent);
     const api = makeFakeApi();
-    handler?.({ props: { id: 'custom' } } as never, api as never, {} as never);
+    handler?.({ props: { id: 'custom' } } as never, api as never, makeFakeHelpers());
     expect(api.widgetStates['custom']).toEqual({ value: 9, id: 'custom' });
   });
 
@@ -310,7 +321,7 @@ describe('WidgetRegistry', () => {
     api.pushWarning = (warning) => {
       warnings.push(warning as { code?: string });
     };
-    handler?.({ props: { id: 'missing' } } as never, api as never, {} as never);
+    handler?.({ props: { id: 'missing' } } as never, api as never, makeFakeHelpers());
     expect(warnings[0]?.code).toBe('MISSING_WIDGET');
   });
 
@@ -525,5 +536,128 @@ describe('WidgetRegistry', () => {
     expect(calls).toEqual(['created']);
     registry.notifyRendererDisposing({} as never);
     expect(calls).toEqual(['created', 'disposing']);
+  });
+
+  // ─── S4.3.A — freeze() ──────────────────────────────────────────────────
+
+  it('freeze() → subsequent register() throws with descriptive message', () => {
+    registry.register(new TestWidget('a'));
+    registry.freeze();
+    expect(() => registry.register(new TestWidget('b'))).toThrow(
+      /Cannot register widget "b" after freeze\(\)/,
+    );
+  });
+
+  it('freeze() → subsequent registerTypeFactory() throws', () => {
+    registry.freeze();
+    expect(() => registry.registerTypeFactory(() => null, () => ({ widgetId: 'x' }))).toThrow(
+      /Cannot registerTypeFactory after freeze\(\)/,
+    );
+  });
+
+  it('freeze() does not prevent reads after freezing', () => {
+    registry.register(new TestWidget('readable'));
+    registry.freeze();
+    expect(registry.get('readable')).toBeDefined();
+    expect(registry.getAll()).toHaveLength(1);
+  });
+
+  // ─── S4.3.B — dispatchToWidget() regression ─────────────────────────────
+
+  it('dispatchToWidget() routes to CUSTOM_NODE_HANDLER when present', () => {
+    const customCalls: unknown[] = [];
+    const CustomDsl = (): null => null;
+
+    class DispatchWidget implements ISceneElement<TestState> {
+      readonly widgetId = 'dispatch-custom';
+      readonly defaultState: TestState = { value: 0 };
+      readonly transitionSpec = makeNoopSpec<TestState>();
+      readonly DslComponent = CustomDsl;
+
+      constructor() {
+        (this as unknown as Record<symbol, NodeHandler>)[CUSTOM_NODE_HANDLER] = (node, api) => {
+          customCalls.push(node);
+          api.setWidgetState('dispatch-custom', { value: 77 });
+        };
+      }
+    }
+
+    registry.register(new DispatchWidget());
+    const handler = getNodeHandler(CustomDsl) as NodeHandler;
+    const api = makeFakeApi();
+    handler({ props: { id: 'dispatch-custom' } } as never, api as never, {} as never);
+    expect(customCalls).toHaveLength(1);
+    expect(api.widgetStates['dispatch-custom']).toEqual({ value: 77 });
+  });
+
+  it('dispatchToWidget() shallow-merges props into state when no CUSTOM_NODE_HANDLER', () => {
+    const Dsl = (): null => null;
+    class SimpleWidget implements ISceneElement<TestState> {
+      readonly widgetId = 'dispatch-simple';
+      readonly defaultState: TestState = { value: 0 };
+      readonly transitionSpec = makeNoopSpec<TestState>();
+      readonly DslComponent = Dsl;
+    }
+    registry.register(new SimpleWidget());
+    const handler = getNodeHandler(Dsl) as NodeHandler;
+    const api = makeFakeApi();
+    const helpers = {
+      resolveObjectValues: <T>(v: T) => v,
+      stripUndefinedDeep: <T>(v: T) => v,
+      collectChildren: () => [],
+      resolveValue: (v: unknown) => v,
+    };
+    handler(
+      { props: { id: 'dispatch-simple', value: 42 } } as never,
+      api as never,
+      helpers as never,
+    );
+    expect((api.widgetStates['dispatch-simple'] as TestState).value).toBe(42);
+  });
+
+  // ─── S4.3.C — isCameraFocusTarget / isLightingOverride type guards ───────
+
+  it('isCameraFocusTarget returns true only for widgets with requestFocus method', () => {
+    const plain: IWidget = { widgetId: 'plain' };
+    expect(isCameraFocusTarget(plain)).toBe(false);
+
+    const target: IWidget & ICameraFocusTarget = {
+      widgetId: 'camera-focus',
+      requestFocus: () => {},
+    };
+    expect(isCameraFocusTarget(target)).toBe(true);
+  });
+
+  it('isLightingOverride returns true only for widgets with getLightingOverride method', () => {
+    const plain: IWidget = { widgetId: 'plain' };
+    expect(isLightingOverride(plain)).toBe(false);
+
+    const override: IWidget & ILightingOverride = {
+      widgetId: 'lighting-override',
+      getLightingOverride: () => null,
+    };
+    expect(isLightingOverride(override)).toBe(true);
+  });
+
+  // ─── S4.3.D — getAllWidgets() ────────────────────────────────────────────
+
+  it('getAllWidgets() returns an iterable of all registered widgets', () => {
+    registry.register(new TestWidget('w1'));
+    registry.register(new TestWidget('w2'));
+    const all = [...registry.getAllWidgets()];
+    expect(all).toHaveLength(2);
+    expect(all.map((w) => w.widgetId).sort()).toEqual(['w1', 'w2']);
+  });
+
+  it('getAllWidgets() can be filtered for interface implementors', () => {
+    const override: IWidget & ILightingOverride = {
+      widgetId: 'lo',
+      getLightingOverride: () => ({ disableAll: true }),
+    };
+    registry.register(new TestWidget('plain'));
+    registry.register(override);
+    const overrides = [...registry.getAllWidgets()].filter(isLightingOverride);
+    expect(overrides).toHaveLength(1);
+    expect(overrides[0]!.widgetId).toBe('lo');
   });
 });

@@ -21,7 +21,6 @@ export const sceneDim7Safety: JSX.Element = (
   <Scene key="bfc-dim7-safety" id="bfc-dim7-safety">
     <ProgressManager scrollUnits={2400} fn={DWELL_FN} />
 
-    <Camera mode="world" position={[0, 4, 22]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
     <InputController scope="canvas">

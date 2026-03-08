@@ -77,9 +77,23 @@ export type UseEngineInputOptions = {
   onCameraOrbit?: (cameraId: string, dx: number, dy: number, speed: number) => void;
   onCameraDolly?: (cameraId: string, delta: number, speed: number) => void;
   onCameraReset?: (cameraId: string) => void;
+  /**
+   * Extension callback for action types not handled by core.
+   * Provided by plugins via WidgetPlugin.getActionInputExtension().
+   */
+  onUnknownAction?: (
+    type: string,
+    canvasId: string | undefined,
+    event: PointerEvent | WheelEvent | KeyboardEvent | MouseEvent,
+    extra: Record<string, unknown>,
+  ) => void;
+  /** @deprecated Use onUnknownAction instead. Retained for backward compatibility until S3 cleanup. */
   onDiagramCanvasMove?: (canvasId: string, dx: number, dy: number, speed: number) => void;
+  /** @deprecated Use onUnknownAction instead. Retained for backward compatibility until S3 cleanup. */
   onDiagramCanvasRotate?: (canvasId: string, dx: number, dy: number, speed: number) => void;
+  /** @deprecated Use onUnknownAction instead. Retained for backward compatibility until S3 cleanup. */
   onDiagramCanvasReset?: (canvasId: string) => void;
+  /** @deprecated Use onUnknownAction instead. Retained for backward compatibility until S3 cleanup. */
   onDiagramCanvasFocus?: (
     canvasId: string,
     clientX: number,
@@ -121,10 +135,7 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
     onCameraOrbit,
     onCameraDolly,
     onCameraReset,
-    onDiagramCanvasMove,
-    onDiagramCanvasRotate,
-    onDiagramCanvasReset,
-    onDiagramCanvasFocus,
+    onUnknownAction,
   } = options;
 
   // ─── Scroll mode: delegate to useEngineScroll ─────────────────────────
@@ -234,18 +245,9 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
           onCameraReset: (cameraId) => {
             onCameraReset?.(cameraId);
           },
-          onDiagramCanvasMove: (canvasId, dx, dy, speed) => {
-            onDiagramCanvasMove?.(canvasId, dx, dy, speed);
-          },
-          onDiagramCanvasRotate: (canvasId, dx, dy, speed) => {
-            onDiagramCanvasRotate?.(canvasId, dx, dy, speed);
-          },
-          onDiagramCanvasReset: (canvasId) => {
-            onDiagramCanvasReset?.(canvasId);
-          },
-          onDiagramCanvasFocus: (canvasId, clientX, clientY, focusCenter) => {
-            onDiagramCanvasFocus?.(canvasId, clientX, clientY, focusCenter);
-          },
+          onUnknownAction: onUnknownAction
+            ? (type, canvasId, event, extra) => { onUnknownAction(type, canvasId, event, extra); }
+            : undefined,
         },
         keyboardTarget,
         {
@@ -299,10 +301,7 @@ export const useEngineInput = (options: UseEngineInputOptions): UseEngineInputRe
     onCameraOrbit,
     onCameraDolly,
     onCameraReset,
-    onDiagramCanvasMove,
-    onDiagramCanvasRotate,
-    onDiagramCanvasReset,
-    onDiagramCanvasFocus,
+    onUnknownAction,
     options.controlledProgress,
     options.enableKeyboardInControlledMode,
     options.controlledInputMap,

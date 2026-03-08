@@ -1,8 +1,9 @@
 // Runtime types — interfaces used by the generic widget-based runtime layer.
 // Only types that are consumed outside the mocks/ directory live here.
 
+import type { PerspectiveCamera, Scene as ThreeScene, WebGLRenderer } from 'three';
 import type { SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
-import type { RenderContribution } from '../widget/types';
+import type { RenderContribution, RuntimeCameraOverride } from '../widget/types';
 
 // ─── RealtimeClock ────────────────────────────────────────────────────────────
 
@@ -32,7 +33,7 @@ export type RealtimeClock = {
 
 // ─── Vec3 ─────────────────────────────────────────────────────────────────────
 
-/** Three-component vector: [x, y, z]. */
+/** Three-component vector. Structurally identical to Vec3 in math/. */
 export type Vec3 = [number, number, number];
 
 // ─── Scene-Graph Node ─────────────────────────────────────────────────────────
@@ -66,8 +67,10 @@ export type PoseSnapshotMap = Map<string, PoseSnapshot>;
 // ─── Animation Track ──────────────────────────────────────────────────────────
 
 /**
- * A single GLTF animation track, consumed by
- * src/elements/model/animationTrackMapping.ts.
+ * A single GLTF animation track.
+ * Consumed by @brewsite/model's animationTrackMapping.ts.
+ *
+ * Exported from @brewsite/core public barrel via src/index.ts.
  */
 export type AnimationTrack = {
   targetName: string;
@@ -94,6 +97,16 @@ export type RuntimeDriver = {
 
   /** Install a compiled SceneTrack so the driver can sample it each tick. */
   setSceneTrack(track: SceneTrack): void;
+
+  /**
+   * Initialize the runtime with the Three.js scene and optional camera/renderer.
+   * Synchronously initializes all IRenderable widgets and resolves ICameraFocusTarget.
+   * Asset loading is started internally as a fire-and-forget operation.
+   */
+  initialize(scene: ThreeScene, camera?: PerspectiveCamera, renderer?: WebGLRenderer): void;
+
+  /** Set or clear the active camera override. Called by useSceneEngine. */
+  setCameraOverride(override: RuntimeCameraOverride | null): void;
 
   /** Advance the runtime by one frame. */
   tick(options: {

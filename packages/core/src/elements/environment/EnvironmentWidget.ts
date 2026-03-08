@@ -37,7 +37,6 @@ export class EnvironmentWidget
   readonly defaultState: SceneEnvironment = DEFAULT_ENVIRONMENT;
   readonly transitionSpec = functionalEnvironmentTransitionSpec;
   readonly DslComponent = Environment as React.ComponentType<Partial<SceneEnvironment> & { children?: React.ReactNode }>;
-  readonly useDefaultStateWhenAbsent = false;
   readonly childDslComponents: IDslComposite['childDslComponents'] = [
     { component: EnvironmentHdri as React.ComponentType<unknown>, displayName: 'EnvironmentHdri', topLevelError: true },
     { component: EnvironmentExr as React.ComponentType<unknown>, displayName: 'EnvironmentExr', topLevelError: true },

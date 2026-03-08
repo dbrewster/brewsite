@@ -149,7 +149,7 @@ export type CameraPost = {
   /**
    * Renderer tone-mapping exposure multiplier.
    * Applied as renderer.toneMappingExposure. Default 1.0.
-   * The renderer reference is read from scene.userData['__brewsite_renderer'].
+   * The renderer reference is injected via WidgetInitContext.renderer.
    */
   exposure?: number;
   // dof?: DofConfig;  ← Phase 2: deferred
@@ -437,3 +437,26 @@ export type CameraOverrideState = {
   far?: number;
   exposure?: number;
 };
+
+/**
+ * Interface that CameraWidget exposes to the player layer (useSceneEngine).
+ *
+ * Decouples useSceneEngine from the concrete CameraWidget class. The player
+ * programs to this interface instead of importing CameraWidget directly,
+ * eliminating the player→elements hard dependency.
+ */
+export interface ICameraHost {
+  /**
+   * Returns true when camera interaction is active AND the interaction driver
+   * claims ALL wheel events. When true, useSceneEngine suppresses wheel-based
+   * scene navigation (the wheelGuard).
+   */
+  isWheelClaimedByInteraction(): boolean;
+
+  /**
+   * Sets per-engine camera interaction defaults that apply when a scene does not
+   * explicitly configure the interaction props (wheelLockIdleMs, polar limits, etc.).
+   * Called once per registry construction by useSceneEngine.
+   */
+  setInteractionDefaults(defaults: CameraInteractionDefaults | null | undefined): void;
+}

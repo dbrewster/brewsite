@@ -1,4 +1,4 @@
-import type { Object3D, Scene as ThreeScene, WebGLRenderer } from 'three';
+import type { Object3D, PerspectiveCamera, Scene as ThreeScene, WebGLRenderer } from 'three';
 import type { VariableStoreReader, JsonPrimitive } from './VariableStore';
 import type { ElementTransitionSpec, FunctionalTransitionSpec } from '../compiler/transitions/transitionTypes';
 import type { SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
@@ -53,6 +53,37 @@ export interface ISceneElement<TState, TExtra = void> extends IWidget {
    * Called per-scene before transitions are baked.
    */
   mergeSnapshot?(prev: TState | undefined, next: TState | undefined): TState | undefined;
+
+  /**
+   * When true, the compiler substitutes makeDisabledDefault(defaultState) —
+   * a clone of defaultState with `enabled` forced to false — for scenes where
+   * this widget is absent. When false or omitted, absent scenes use the raw
+   * defaultState unchanged.
+   *
+   * Replaces the duck-typed `readonly useDefaultStateWhenAbsent = false` pattern.
+   * The old field name was a double-negative that misrepresented the behaviour;
+   * the new name states the intent directly.
+   *
+   * Default: false (raw defaultState used when widget is absent).
+   *
+   * Widgets that should be disabled when not present in a scene
+   * (CameraWidget, LightingWidget, BackgroundWidget) declare:
+   *   readonly disableWhenAbsent = true;
+   */
+  readonly disableWhenAbsent?: boolean;
+
+  /**
+   * Optional structural equality hook used by the compiler's delta-detection pass.
+   *
+   * When provided, replaces the JSON.stringify comparison in buildDelta().
+   * This prevents false positives from non-deterministic key ordering and
+   * eliminates O(n×k) serialization for widgets with large or complex state.
+   *
+   * @param a - Previous state.
+   * @param b - Next state.
+   * @returns true when the two states are functionally equivalent.
+   */
+  stateEquals?(a: TState, b: TState): boolean;
 }
 
 export interface IDslComposite extends IWidget {
@@ -125,6 +156,11 @@ export interface ISceneLifecycle extends IWidget {
   onSceneEnter(sceneId: string, sceneIndex: number): void;
 }
 
+/**
+ * @deprecated No built-in widget implements this interface. If your custom widget
+ * uses ICameraActionTarget, migrate to ActionInputController's onUnknownAction callback
+ * pattern. This interface will be removed in v3.
+ */
 export interface ICameraActionTarget extends IWidget {
   applyOrbit(dx: number, dy: number, speed: number): void;
   applyDolly(delta: number, speed: number): void;
@@ -244,7 +280,14 @@ export interface IInputDefaultProvider extends IWidget {
 }
 
 export type CompileExtraContext = {
-  sceneProgress: number;
+  /**
+   * Block-level progress within the current transition block: 0 at block start,
+   * 1 at block end. Renamed from `sceneProgress` (which was misleading — the
+   * value was always block-level, not scene-level).
+   *
+   * BREAKING: any widget implementing compileExtra() must rename its usage.
+   */
+  blockProgress: number;
   globalProgress: number;
   prefersReducedMotion: boolean;
   // clipMeta removed — @brewsite/model manages its own clip metadata.
@@ -254,6 +297,13 @@ export type WidgetInitContext = {
   scene: ThreeScene;
   widgetId: string;
   renderer?: WebGLRenderer;
+  /**
+   * THREE.PerspectiveCamera managed by the engine.
+   * Injected once at widget initialization — replaces the __brewsite_camera
+   * scene.userData key. Widgets that need the camera object (e.g. CameraWidget)
+   * must save this reference in their initialize() implementation.
+   */
+  camera?: PerspectiveCamera;
 };
 
 export type WidgetRenderContext<TExtra = unknown> = {
@@ -282,6 +332,84 @@ export type WidgetRenderContext<TExtra = unknown> = {
   // REMOVED: wallTimeSeconds — use clock.wallTimeSeconds
 };
 
+/**
+ * Typed replacement for the __brewsite_camera_override scene.userData key.
+ * Set by useSceneEngine via RuntimeDriver.setCameraOverride().
+ * Read by CameraWidget in onTick() from context.cameraOverride.
+ */
+export type RuntimeCameraOverride = {
+  readonly enabled: boolean;
+  readonly position: readonly [number, number, number];
+  readonly target: readonly [number, number, number];
+  readonly up?: readonly [number, number, number];
+  readonly fov?: number;
+  readonly near?: number;
+  readonly far?: number;
+  readonly exposure?: number;
+};
+
+/**
+ * Widget that accepts camera focus requests from peer widgets.
+ *
+ * Implemented by CameraWidget. DiagramCanvasWidget dispatches focus requests
+ * via context.cameraFocusTarget?.requestFocus() rather than writing to
+ * scene.userData['__brewsite_camera_focus'].
+ *
+ * RuntimeDriverImpl resolves the first registered ICameraFocusTarget from the
+ * WidgetRegistry and injects it into AnimationTickContext before each tick.
+ */
+export interface ICameraFocusTarget extends IWidget {
+  /**
+   * Request a camera focus to a world-space position and target.
+   *
+   * When camera interaction is active: delegates to the interaction driver for
+   * smooth motion. When not active: promotes to a camera override so authored
+   * camera state does not overwrite the focus on the next apply().
+   *
+   * @param position  Camera world position [x, y, z].
+   * @param target    Camera look-at target [x, y, z].
+   * @param smooth    Animate (true) or snap (false). Default: true.
+   */
+  requestFocus(
+    position: readonly [number, number, number],
+    target: readonly [number, number, number],
+    smooth?: boolean,
+  ): void;
+}
+
+/**
+ * Widget that can temporarily suppress core scene lighting.
+ *
+ * Implemented by DiagramCanvasWidget to disable core lights when the diagram
+ * canvas is active and manages its own lighting via HDR environment maps.
+ *
+ * LightingWidget checks all registered ILightingOverride implementors in
+ * apply() and skips Three.js light updates when any returns { disableAll: true }.
+ * Replaces the direct setSceneLightEnabled() call from @brewsite/diagram.
+ */
+export interface ILightingOverride extends IWidget {
+  /**
+   * Returns the current lighting override request, or null if not overriding.
+   * Called every frame inside LightingWidget.apply() — keep implementation cheap.
+   * Return { disableAll: true } to suppress ALL core lights for this frame.
+   */
+  getLightingOverride(): { readonly disableAll: boolean } | null;
+
+  /**
+   * Called once by LightingWidget during configureRegistry to inject a per-light
+   * control setter. Widgets that expose `DiagramHoverControls.setLightEnabled` to
+   * scene authors (DiagramWidget, DiagramCanvasWidget) must implement this method
+   * and store the setter for use in their hover callbacks.
+   *
+   * This replaces the direct `setSceneLightEnabled(scene, lightId, enabled)` call
+   * that previously bypassed the widget contract.
+   *
+   * Optional: widgets that only use `getLightingOverride()` (all-or-nothing suppression)
+   * do not need to implement this.
+   */
+  receiveLightController?(setter: (lightId: string, enabled: boolean) => void): void;
+}
+
 export type AnimationTickContext = {
   /**
    * Synchronized real-time clock. Same values every widget sees every frame.
@@ -301,6 +429,50 @@ export type AnimationTickContext = {
   variables: VariableStore;
   tick: SceneTrackTick | null;
   track: SceneTrack | null;
+  /**
+   * The widget's fully resolved state for this tick.
+   *
+   * For FunctionalTransitionSpec widgets: RuntimeDriverImpl evaluates the closure
+   * at tick.blockProgress and places the result here so IAnimationController
+   * implementors do not need to re-implement the runtime's state resolution.
+   *
+   * CameraWidget uses this to avoid its current duplicate evaluation of
+   * functionalBlock.widgetFns[widgetId].fn(tick.blockProgress).
+   *
+   * Typed as unknown; cast to TState inside the widget's onTick() body.
+   * Null when the widget has no compiled state for this tick.
+   */
+  resolvedState: unknown;
+  /**
+   * The registered ICameraFocusTarget, if any.
+   *
+   * DiagramCanvasWidget uses this to request a camera focus on node
+   * double-click, replacing the scene.userData['__brewsite_camera_focus'] write.
+   * Also serves as an implicit signal that a Camera DSL element is active —
+   * context.cameraFocusTarget !== undefined replaces the __brewsite_cam_enabled flag.
+   *
+   * Null when no widget implements ICameraFocusTarget.
+   */
+  cameraFocusTarget: ICameraFocusTarget | null;
+  /**
+   * Active camera override, if set by the player layer.
+   *
+   * Replaces the __brewsite_camera_override scene.userData key.
+   * Set by useSceneEngine when it needs to bypass authored camera state
+   * (e.g. after a DiagramCanvasWidget focus request in non-interaction mode).
+   */
+  cameraOverride: RuntimeCameraOverride | null;
+  /**
+   * Callback to promote a pending focus request to a camera override.
+   *
+   * Injected by RuntimeDriverImpl. CameraWidget calls this in onTick() when a
+   * focus request arrives in non-interaction mode — the override is stored on the
+   * driver so the next frame's cameraOverride field is populated immediately.
+   *
+   * Replaces the __brewsite_camera_override_pending scene.userData key that the
+   * original plan accidentally introduced. No new bus keys are needed.
+   */
+  setCameraOverride: (override: RuntimeCameraOverride | null) => void;
   // REMOVED: deltaSeconds — use clock.deltaSeconds or effectiveDeltaSeconds
   // REMOVED: wallTimeSeconds — use clock.wallTimeSeconds
 };

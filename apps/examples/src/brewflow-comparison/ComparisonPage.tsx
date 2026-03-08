@@ -36,7 +36,7 @@ export default function ComparisonPage(): JSX.Element {
   const { plugins } = useMemo(() => createComparisonPlugins(), []);
 
   return (
-    <div style={{ background: '#080b14', minHeight: '100vh', fontSize: '18px' }}>
+    <div style={{ background: '#080b14', height: '100vh', minHeight: '100vh', fontSize: '18px' }}>
       <EngineProvider
         manifestUrl="/scene-manifest.json"
         plugins={plugins}
@@ -55,7 +55,7 @@ export default function ComparisonPage(): JSX.Element {
         {sceneDim7Safety}
         {sceneDim8Maturity}
         {sceneSummary}
-        <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width" referenceWidth={1920}>
+        <EngineARContainer aspectRatio={9 / 9} scaleMode="fit-height" referenceWidth={1920}>
           <EngineInputRegion>
             <SceneCanvas />
             <EngineOverlayHost />

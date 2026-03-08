@@ -14,10 +14,7 @@ import { nvsToWorldAnalytic } from '../../layout/nvsWorldBridge';
 export type CameraRenderContext = {
   camera: THREE.PerspectiveCamera;
   tick: SceneTrackTick;
-  /**
-   * Renderer reference, used for exposure application.
-   * Read from scene.userData['__brewsite_renderer'] in CameraWidget.
-   */
+  /** Renderer reference, used for exposure application. Injected via WidgetInitContext. */
   renderer?: THREE.WebGLRenderer;
 };
 

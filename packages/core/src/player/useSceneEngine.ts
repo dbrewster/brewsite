@@ -24,8 +24,7 @@ import type {
 import { useEngineInput } from './useEngineInput';
 import type { AssetManifest } from '../widget/types';
 import type { SceneNavInputMap } from '../input/types';
-import type { CameraOverrideState } from '../elements/camera/types';
-import type { CameraWidget } from '../elements/camera/CameraWidget';
+import type { CameraOverrideState, ICameraHost } from '../elements/camera/types';
 import type { SceneInputControllerSpec } from '../input/types';
 import { SceneProgressMapper } from './SceneProgressMapper';
 import { buildEffectiveInputSpec } from './effectiveInputSpec';
@@ -135,6 +134,10 @@ export type UseSceneEngineResult = {
   };
 };
 
+/** Type guard: returns true if a widget implements ICameraHost. */
+const isCameraHost = (w: unknown): w is ICameraHost =>
+  typeof (w as Record<string, unknown>).isWheelClaimedByInteraction === 'function';
+
 const DEFAULT_BLOCK_SIZE = 10;
 const QUALITY_PRESET_BLOCK_SIZE: Record<NonNullable<EngineTimingProfile['qualityPreset']>, number> = {
   performance: 30,
@@ -230,13 +233,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
 
   const setCameraOverrideInternal = useCallback((next: CameraOverrideState | null) => {
     cameraOverrideRef.current = next;
-    const scene = sceneRef.current;
-    if (!scene) return;
-    if (next) {
-      scene.userData['__brewsite_camera_override'] = next;
-    } else {
-      delete (scene as unknown as { userData?: Record<string, unknown> })?.userData?.['__brewsite_camera_override'];
-    }
+    driverRef.current?.setCameraOverride(next ?? null);
   }, []);
 
   const blockSize = useMemo(() => {
@@ -347,11 +344,14 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     );
   }, [inputMode, options.scrollHeightPx, scrollHeightMode, sceneTrack]);
 
-  // wheelGuard: reads isWheelClaimedByInteraction from CameraWidget if registered.
+  // wheelGuard: reads isWheelClaimedByInteraction from the first ICameraHost widget.
   // This prevents scene navigation advancing while camera dolly is active.
   const wheelGuard = useCallback((): boolean => {
-    const cameraWidget = options.widgetRegistry.get('camera') as { isWheelClaimedByInteraction?: () => boolean } | undefined;
-    return cameraWidget?.isWheelClaimedByInteraction?.() ?? false;
+    const cameraWidget = options.widgetRegistry.get('camera');
+    if (cameraWidget && isCameraHost(cameraWidget)) {
+      return cameraWidget.isWheelClaimedByInteraction();
+    }
+    return false;
   }, [options.widgetRegistry]);
 
   const resolveCurrentCameraTarget = useCallback((): [number, number, number] => {
@@ -717,9 +717,6 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     renderer.shadowMap.enabled = true;
     rendererRef.current = renderer;
     options.widgetRegistry.notifyRendererCreated(renderer);
-    if (sceneRef.current) {
-      sceneRef.current.userData['__brewsite_renderer'] = renderer;
-    }
     const onContextLost = (event: Event) => {
       event.preventDefault();
     };
@@ -735,9 +732,6 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       options.widgetRegistry.notifyRendererDisposing(renderer);
       renderer.dispose();
       rendererRef.current = null;
-      if (sceneRef.current) {
-        delete (sceneRef.current as unknown as { userData?: Record<string, unknown> })?.userData?.['__brewsite_renderer'];
-      }
     };
   }, [canvas]);
 
@@ -751,10 +745,10 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   }, [backgroundElement, options.widgetRegistry]);
 
   useEffect(() => {
-    const cameraWidget = options.widgetRegistry.get('camera') as (CameraWidget & {
-      setInteractionDefaults?: (defaults: CameraInteractionDefaults | null) => void;
-    }) | undefined;
-    cameraWidget?.setInteractionDefaults?.(cameraInteractionDefaults);
+    const cameraWidget = options.widgetRegistry.get('camera');
+    if (cameraWidget && isCameraHost(cameraWidget)) {
+      cameraWidget.setInteractionDefaults(cameraInteractionDefaults);
+    }
   }, [options.widgetRegistry, cameraInteractionDefaults]);
 
   useEffect(() => {
@@ -771,11 +765,6 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     const camera = new THREE.PerspectiveCamera(45, initialAspect, 0.1, 2000);
     camera.position.set(0, 0, 100);
     camera.updateProjectionMatrix();
-    scene.userData['__brewsite_camera'] = camera;
-    scene.userData['__brewsite_renderer'] = rendererRef.current;
-    if (cameraOverrideRef.current) {
-      scene.userData['__brewsite_camera_override'] = cameraOverrideRef.current;
-    }
     sceneRef.current = scene;
     cameraRef.current = camera;
 
@@ -790,27 +779,25 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     });
     driverRef.current = driver;
 
-    let disposed = false;
-    driver.initialize(scene, rendererRef.current ?? undefined)
-      .then(() => {
-        if (disposed) return;
-        setDriverReady(true);
-      })
-      .catch((error) => {
-        if (disposed) return;
-        const err = error instanceof Error ? error : new Error(String(error));
-        options.onError?.(err);
-      });
+    // Synchronously initialize renderables and inject camera/renderer via WidgetInitContext.
+    // Asset loading starts as fire-and-forget; setAssetsReady fires via onAssetsReady callback.
+    try {
+      driver.initialize(scene, camera, rendererRef.current ?? undefined);
+      // Propagate any existing camera override into the driver.
+      if (cameraOverrideRef.current) {
+        driver.setCameraOverride(cameraOverrideRef.current);
+      }
+      setDriverReady(true);
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      options.onError?.(err);
+    }
 
     return () => {
-      disposed = true;
       driver.dispose();
       driverRef.current = null;
       sceneRef.current = null;
       cameraRef.current = null;
-      delete (scene as unknown as { userData?: Record<string, unknown> })?.userData?.['__brewsite_camera'];
-      delete (scene as unknown as { userData?: Record<string, unknown> })?.userData?.['__brewsite_renderer'];
-      delete (scene as unknown as { userData?: Record<string, unknown> })?.userData?.['__brewsite_camera_override'];
       loopRef.current?.stop();
       loopRef.current = null;
       frameDriverRef.current?.reset();

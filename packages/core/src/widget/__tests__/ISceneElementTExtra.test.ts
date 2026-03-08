@@ -77,7 +77,7 @@ describe('ISceneElement TExtra generic', () => {
   it('compileExtra returns the typed extra value', () => {
     const widget = new ExtraWidget();
     const ctx: CompileExtraContext = {
-      sceneProgress: 0.5,
+      blockProgress: 0.5,
       globalProgress: 0.5,
       prefersReducedMotion: false,
     };

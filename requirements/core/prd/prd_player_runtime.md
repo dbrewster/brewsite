@@ -3,11 +3,14 @@ title: "BrewSite Core — Player & Runtime"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-05
+last_updated: 2026-03-07
 change_history:
+  - date: 2026-03-07
+    author: "Toolkit Product"
+    summary: "Core cleanup: manifestUrl on EngineProvider is now optional and deprecated — plugins supplied by the plugins prop handle manifest loading internally; manifestUrl is only needed for direct model loading without a plugin. EngineARContainerContext is deprecated and aliased to ViewportScaleContext; downstream packages (e.g. @brewsite/model LabelPositioner) should import ViewportScaleContext from @brewsite/core. CameraControlPanel, CameraInteractionInfoDialog, and SceneInspector moved to the @brewsite/core/devtools subpath (removed from main player/index.ts exports). A new @brewsite/core/testing subpath exports clearRegistry and test doubles for compiler and runtime unit testing — replaces deep sub-path imports."
   - date: 2026-03-05
     author: "Toolkit Product"
-    summary: "@brewsite/slides integration: documented that @brewsite/slides is a first-class EngineProvider consumer. SlidePlayer owns its own EngineProvider internally (inputModePolicy='prefer-direct', pixelsPerScene=600) and uses the plugin system exclusively — no widgetRegistry prop is exposed. SlidePlayer passes an EMPTY_MANIFEST_URL data-URL to EngineProvider when no GLTF assets are used, as a workaround for manifestUrl being required. This pattern is documented as a known DX gap."
+    summary: "@brewsite/slides integration: documented that @brewsite/slides is a first-class EngineProvider consumer. SlidePlayer owns its own EngineProvider internally (inputModePolicy='prefer-direct', pixelsPerScene=600) and uses the plugin system exclusively — no widgetRegistry prop is exposed. SlidePlayer passes an EMPTY_MANIFEST_URL data-URL to EngineProvider when no GLTF assets are used, as a workaround for the now-resolved manifestUrl-required DX gap."
   - date: 2026-03-05
     author: "Toolkit Product"
     summary: "Embedded demo integration: documented inputModePolicy, scrollHeightPx, and setRawProgress as the three EngineProvider API points consumed by @brewsite/docs DemoEngine. Added Section 7A.6 with the full embedded-direct-mode pattern: inputModePolicy='prefer-direct' + empty InputController injection + scrollHeightPx=0 + setRawProgress via DemoCaptureContext. Clarified that prefer-direct alone does not activate direct mode without an InputController in the scene tree. Added explicit note that DemoEngine from @brewsite/docs intentionally excludes scrollHeightPx and id from its prop surface — both are hardcoded internal decisions."
@@ -255,8 +258,13 @@ type EngineProviderProps = {
   // Player identity
   id?: string;
 
-  // Required configuration
-  manifestUrl: string;
+  /**
+   * @deprecated Optional since 2026-03-07. Plugins registered via `plugins` prop
+   * now handle manifest loading internally. Only needed when loading GLTF assets
+   * without using modelPlugin(). Consumers using corePlugin() only may omit this.
+   * Will be removed in v3.
+   */
+  manifestUrl?: string;
 
   // Widget configuration
   widgetSetup?: (manifest: AssetManifest) => WidgetRegistry;
@@ -513,23 +521,29 @@ export const EngineARContainer: React.FC<EngineARContainerProps>;
 
 **Context:**
 
-`EngineARContainer` provides `EngineARContainerContext` to its children. Use this context when a child component needs the current container dimensions.
+`EngineARContainer` provides `ViewportScaleContext` to its children. Use this context when a child component needs the current container dimensions.
 
 ```typescript
-export type EngineARContainerContextValue = {
+export type ViewportScaleContextValue = {
   containerWidth: number;
   containerHeight: number;
   referenceWidth: number;
   scaleMode: ScaleMode;
 };
 
-export const EngineARContainerContext =
-  React.createContext<EngineARContainerContextValue>({
+export const ViewportScaleContext =
+  React.createContext<ViewportScaleContextValue>({
     containerWidth: 0,
     containerHeight: 0,
     referenceWidth: 1920,
     scaleMode: 'fit-width',
   });
+
+/** @deprecated Use ViewportScaleContext. EngineARContainerContext is an alias
+ *  that will be removed in v3. */
+export const EngineARContainerContext = ViewportScaleContext;
+/** @deprecated Use ViewportScaleContextValue. Will be removed in v3. */
+export type EngineARContainerContextValue = ViewportScaleContextValue;
 ```
 
 **SSR safety:** `EngineARContainer` defers `ResizeObserver` setup to `useEffect`, so it renders safely on the server with `containerWidth: 0, containerHeight: 0`.
