@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Layout System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-04
+last_updated: 2026-03-08
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -11,6 +11,9 @@ change_history:
   - date: 2026-03-04
     author: "Toolkit Product"
     summary: "Added FlowLayout as the fourth first-class layout strategy. Documents FlowLayoutDSL, ResolvedFlowLayout, DEFAULT_RESOLVED_FLOW, childrenOrder field on DiagramDSL and DiagramGroupDSL, theme defaultKind extension to include 'flow', cascade behavior, and authoring example. Updated Overview, Problem Statement, Consumer Stories, Functional Requirements, Theme Layout Defaults, Dependencies, and Risks sections accordingly."
+  - date: 2026-03-08
+    author: "Toolkit Product"
+    summary: "Model/diagram overhaul: removed Pivot Offset section — DiagramPivot type deleted, pivot prop removed from DiagramProps and DiagramState, compilePivotOffset function removed. Constants consolidated: DEFAULT_NODE_SIZE, DEFAULT_GROUP_PADDING, DEFAULT_TITLE_GAP now exported from compiler/diagramLayoutConstants.ts."
 ---
 
 # BrewSite Diagram — Layout System
@@ -63,7 +66,6 @@ Complex diagrams contain dozens of nodes. Requiring every node to specify an exp
 6. Layout cascade shall support arbitrary group nesting depth without stack overflow (DFS with memoization).
 7. Same-kind layout cascade shall merge child props over parent; different-kind child layouts shall replace entirely (no cross-kind inheritance).
 8. When no layout child is declared on a `<Diagram>` or `<DiagramGroup>`, the effective layout shall be the resolved default from the theme, falling back to the package-level grid default.
-9. The `pivot` prop on `<Diagram>` shall shift all compiled positions so the specified pivot point maps to diagram-local `[0, 0, 0]`. Edge routing, group bounds, and the final `DiagramState.bounds` all use pivoted positions.
 10. The `alignment: 'fill'` option shall distribute node centers evenly across the reference width of the widest row (grid) or widest level (hierarchical), treating single-node rows/levels as centered.
 11. `FlowLayout` shall place all items at the current container level in their JSX declaration order along the primary axis, with edge-to-edge gap between adjacent items.
 12. `FlowLayout` shall center all items on the secondary (cross) axis at coordinate 0. No secondary-axis alignment prop is provided in v1.
@@ -519,38 +521,6 @@ export interface ResolvedLayoutDefaults {
 
 This struct is threaded through the entire layout resolution call chain so that all theme preferences propagate correctly to nested groups even when those groups' own layout kind differs from the root.
 
-## Pivot Offset
-
-After all node positions are resolved, the `pivot` prop on `<Diagram>` applies a global translation so that the specified point of the layout bounding box maps to diagram-local `[0, 0, 0]`.
-
-**Pivot offset computation:**
-
-```typescript
-function compilePivotOffset(
-  bounds: { x: number; y: number; w: number; h: number },
-  pivot: DiagramPivot,
-): readonly [number, number, number] {
-  switch (pivot) {
-    case 'center':
-      return [-(bounds.x + bounds.w / 2), -(bounds.y + bounds.h / 2), 0];
-    case 'top-left':
-      return [-bounds.x, -(bounds.y + bounds.h), 0];
-    case 'top-right':
-      return [-(bounds.x + bounds.w), -(bounds.y + bounds.h), 0];
-    case 'bottom-left':
-      return [-bounds.x, -bounds.y, 0];
-    case 'bottom-right':
-      return [-(bounds.x + bounds.w), -bounds.y, 0];
-    default:
-      return [0, 0, 0];
-  }
-}
-```
-
-The offset is added to every position in the resolved positions map in place, before edge routing and node compilation. The resulting `DiagramState` contains no raw (pre-pivot) coordinates — all positions are pivot-adjusted.
-
-**Note on Y axis orientation.** The diagram's Y axis increases upward (standard Three.js convention). `'top-left'` therefore maps to the bottom-left of the layout bounds in screen space when the camera looks straight down. Lucid importers typically use `pivot='top-left'` and negate y-coordinates to convert Lucid's top-down coordinate system.
-
 ## Z-Axis and Depth Layering
 
 `position[2]` (the Z component) is a first-class layout dimension. It is never assigned by the auto-layout algorithms; it is always taken from the node's explicit `position[2]` prop (defaulting to 0 if absent). Nodes at different Z depths create depth layering when viewed from a non-orthographic camera:
@@ -585,7 +555,7 @@ When a diagram has groups, the simple `resolveLayout` function is insufficient �
 ### Example 1: `ManualLayout` — Precise Positioning
 
 ```tsx
-<Diagram id="pipeline" pivot="center">
+<Diagram id="pipeline">
   <ManualLayout />
   <DiagramNode id="cdn" label="CDN" position={[-8, 0, 0]} />
   <DiagramNode id="lb" label="Load Balancer" position={[-2, 0, 0]} />
@@ -602,7 +572,7 @@ When a diagram has groups, the simple `resolveLayout` function is insufficient �
 Six services arranged in a 3-column grid with center alignment. No positions needed.
 
 ```tsx
-<Diagram id="services" pivot="center">
+<Diagram id="services">
   <GridLayout columns={3} spacing={[2.5, 2]} alignment="center" groupPadding={2} />
   <DiagramNode id="auth" label="Auth" icon="aws:cognito" />
   <DiagramNode id="api" label="API Gateway" icon="aws:api-gateway" />
@@ -618,7 +588,7 @@ Six services arranged in a 3-column grid with center alignment. No positions nee
 A pipeline with dependencies. The layout places sources at the top and sinks at the bottom.
 
 ```tsx
-<Diagram id="deploy-pipeline" pivot="center">
+<Diagram id="deploy-pipeline">
   <HierarchicalLayout direction="top-down" spacing={[2.5, 3.5]} alignment="center" />
   <DiagramNode id="code" label="Code Commit" icon="tech:git" />
   <DiagramNode id="build" label="Build" icon="tech:docker" />
@@ -643,7 +613,7 @@ A pipeline with dependencies. The layout places sources at the top and sinks at 
 The root diagram uses hierarchical layout. The inner `backend` group uses grid layout (different kind → replaces). The inner `edge-services` group uses hierarchical layout with custom spacing (same kind → merges, narrowing spacing from root's [2, 3] to [1.5, 2.5]).
 
 ```tsx
-<Diagram id="full-stack" pivot="center">
+<Diagram id="full-stack">
   <HierarchicalLayout direction="top-down" spacing={[2, 3]} alignment="center" />
 
   <DiagramGroup id="frontend" label="Frontend" variant="boundary">
@@ -680,7 +650,7 @@ The root diagram uses hierarchical layout. The inner `backend` group uses grid l
 A root diagram uses FlowLayout top-down. The inner `processing` group uses GridLayout for its three nodes (different kind → replaces). FlowLayout places the root-level items in declaration order: `input` → `processing` group block → `output`.
 
 ```tsx
-<Diagram id="pipeline" pivot="center">
+<Diagram id="pipeline">
   <FlowLayout direction="top-down" gap={2} />
   <DiagramNode id="input" label="Input" icon="tech:arrow-down" />
   <DiagramGroup id="processing" label="Processing">
@@ -698,7 +668,7 @@ Result: `input` is placed at the top; the `processing` group occupies the next s
 ### Example 6: `FlowLayout` Left-Right — Horizontal Stage Row
 
 ```tsx
-<Diagram id="stages" pivot="center">
+<Diagram id="stages">
   <FlowLayout direction="left-right" gap={3} />
   <DiagramNode id="plan" label="Plan" />
   <DiagramNode id="build" label="Build" />

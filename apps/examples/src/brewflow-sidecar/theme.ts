@@ -2,7 +2,7 @@ import type {DiagramTheme} from '@brewsite/diagram';
 import {darkGlassTheme, mergeTheme} from '@brewsite/diagram';
 
 // Note: DiagramThemeNodeConfig uses 'default'-prefixed property names.
-// iconDepth is NOT a theme-level property — it only exists per-node on DiagramNodeDSL.
+// iconDepthFactor is available as defaultIconDepthFactor on the theme and as a per-node override.
 // iconStyle is available as defaultIconStyle on the theme.
 export const brewflowTheme: DiagramTheme = mergeTheme(darkGlassTheme, {
   node: {

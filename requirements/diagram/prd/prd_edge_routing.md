@@ -3,11 +3,14 @@ title: "BrewSite Diagram — Edge Routing System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-02
+last_updated: 2026-03-08
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Initial PRD created. Comprehensive documentation of the @brewsite/diagram edge routing system as implemented."
+  - date: 2026-03-08
+    author: "Toolkit Product"
+    summary: "NVS recalibration: MIN_PORT_PITCH reduced from 0.35 to 0.05 (was calibrated for pre-NVS world units; 35% NVS pitch made multi-port faces impossible on typical nodes); EDGE_EPSILON reduced from 0.06 to 0.012 (6% NVS was too large for dense layouts). Functional Requirement 9 updated to remove stale pivot offset reference. Port Slot Distribution constants block updated."
 ---
 
 ## Overview
@@ -59,7 +62,7 @@ Diagram edges in a 3D scene require more than a straight line between two node c
 6. When `fromPort` or `toPort` is specified on an edge, face selection for that endpoint shall use the declared port and ignore the landing algorithm for that endpoint.
 7. When only one port is declared, the opposite endpoint shall resolve its face using the cost-scoring face selection algorithm.
 8. Multiple edges sharing the same face on the same node shall be distributed across port slots to avoid overlap.
-9. All control points shall be expressed in diagram-local space (after pivot offset is applied).
+9. All control points shall be expressed in diagram-local space (after node positions are resolved by the layout engine).
 10. The `routeEdges` function shall not import Three.js, React, or any runtime dependency.
 
 ## API Design
@@ -202,10 +205,13 @@ This approach replaces the simpler `nearestFace` heuristic for edges that benefi
 When multiple edges share the same face on a node, `routeEdges` distributes them across evenly spaced port slots along the face span. Slot count is derived from the face span, edge thickness, and minimum port pitch:
 
 ```typescript
-const MIN_PORT_PITCH = 0.35;
-const PORT_SPACING_FACTOR = 3.0;
-const PORT_MARGIN_FACTOR = 1.5;
+const EDGE_EPSILON = 0.012;      // NVS units: face-center offset to avoid z-fighting
+const MIN_PORT_PITCH = 0.05;     // NVS units: minimum spacing between adjacent edge ports on a face
+const PORT_SPACING_FACTOR = 3.0; // pitch = max(MIN_PORT_PITCH, thickness * PORT_SPACING_FACTOR)
+const PORT_MARGIN_FACTOR = 1.5;  // margin from face edge = thickness * PORT_MARGIN_FACTOR
 ```
+
+These constants are calibrated for the 0..1 NVS coordinate system. The previous values (`MIN_PORT_PITCH = 0.35`, `EDGE_EPSILON = 0.06`) were calibrated for a pre-NVS world-unit system and produced incorrect behavior in the NVS space — 35% of the viewport as minimum port pitch made multi-port faces impossible on typical-sized nodes.
 
 Each edge is assigned a slot using a weighted scoring function that balances proximity to the ideal position (derived from target node location), center attraction, edge-boundary repulsion, and current slot load. This prevents multiple edges from drawing through the same point on a node face.
 

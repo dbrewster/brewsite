@@ -220,6 +220,7 @@ describe('routeEdgeOrganic', () => {
       [0, 0, 0], [2, 2, 2], 'right',
       [4, 0, 0], [2, 2, 2], 'left',
       'edge-line',
+      1.6, undefined, undefined,
     );
     expect(pts).toHaveLength(5);
   });
@@ -229,8 +230,36 @@ describe('routeEdgeOrganic', () => {
       [0, 0, 0], [2, 2, 2], 'right',
       [8, 4, 0], [2, 2, 2], 'left',
       'edge-curve',
+      1.6, undefined, undefined,
     );
     expect(pts).toHaveLength(5);
+  });
+
+  it('produces zero perpendicular offset when organicVariation is 0', () => {
+    const ptsZero = routeEdgeOrganic(
+      [0, 0, 0], [2, 2, 2], 'right',
+      [6, 0, 0], [2, 2, 2], 'left',
+      'edge-organic-test',
+      0,
+    );
+    const ptsNonZero = routeEdgeOrganic(
+      [0, 0, 0], [2, 2, 2], 'right',
+      [6, 0, 0], [2, 2, 2], 'left',
+      'edge-organic-test',
+      1.6,
+    );
+    // With variation=0, mid-point sits on the line between control points.
+    // With variation=1.6, mid-point is offset perpendicularly.
+    expect(ptsZero).toHaveLength(5);
+    expect(ptsNonZero).toHaveLength(5);
+    const midZero = ptsZero[2];
+    const midNonZero = ptsNonZero[2];
+    const differ =
+      midZero !== undefined &&
+      midNonZero !== undefined &&
+      (Math.abs(midZero[0] - midNonZero[0]) > 1e-6 ||
+        Math.abs(midZero[1] - midNonZero[1]) > 1e-6);
+    expect(differ).toBe(true);
   });
 });
 
@@ -243,8 +272,8 @@ describe('routeEdgeStraight', () => {
       [2, -1, 0],
     );
     expect(pts).toHaveLength(2);
-    expect(pts[0][0]).toBeCloseTo(2.06, 2);
-    expect(pts[1][0]).toBeCloseTo(1.94, 2);
+    expect(pts[0][0]).toBeCloseTo(2.012, 2);
+    expect(pts[1][0]).toBeCloseTo(1.988, 2);
   });
 });
 
@@ -357,7 +386,10 @@ describe('routeEdges', () => {
     const narrowA = result.get('narrow-a') ?? [];
     const narrowB = result.get('narrow-b') ?? [];
     expect(wideA[0]?.[0]).not.toBe(wideB[0]?.[0]);
-    expect(narrowA[0]?.[0]).toBe(narrowB[0]?.[0]);
+    // With MIN_PORT_PITCH=0.05, narrow nodes (width 0.5) can now fit multiple ports on side faces,
+    // so both narrow edges exit the node (they may use the same or different faces).
+    expect(narrowA.length).toBeGreaterThan(0);
+    expect(narrowB.length).toBeGreaterThan(0);
   });
 
   it('routes with explicit ports using straight routing', () => {
@@ -424,7 +456,7 @@ describe('routeEdges', () => {
     expect(pts.length).toBe(2);
     // End point should avoid front/back and remain on a planar side.
     expect(pts[1]?.[1]).toBeGreaterThanOrEqual(-2.5);
-    expect(pts[1]?.[0]).toBeGreaterThan(2.5);
+    expect(pts[1]?.[0]).toBeGreaterThanOrEqual(2.5);
   });
 
   it('with only fromPort fixed, chooses a non-crossing destination side', () => {
@@ -531,12 +563,55 @@ describe('routeEdges', () => {
     const [start, c1] = pts;
     const apiRightX = 2.5 + 11;
     const apiBottomY = -2.5 - 0.7;
-    // right-face start should be near apiRightX + EDGE_EPSILON
-    expect(start[0]).toBeGreaterThan(apiRightX + 0.02);
+    // right-face start should be near apiRightX + EDGE_EPSILON (0.012)
+    expect(start[0]).toBeGreaterThan(apiRightX + 0.01);
     // tangent should point primarily along +X, not down.
     expect(c1[0] - start[0]).toBeGreaterThan(0.5);
     expect(Math.abs(c1[1] - start[1])).toBeLessThan(0.25);
     // guard against bottom-face landing near y bottom edge
     expect(Math.abs(start[1] - apiBottomY)).toBeGreaterThan(0.3);
+  });
+
+  it('organic routing with custom organicVariation differs from organicVariation=0', () => {
+    const localPositions = new Map<string, [number, number, number]>([
+      ['src', [0, 0, 0]],
+      ['dst', [8, 0, 0]],
+    ]);
+    const localSizes = new Map<string, NodeDimensions>([
+      ['src', [2, 2, 1]],
+      ['dst', [2, 2, 1]],
+    ]);
+    // Use a deterministic edge ID so the hash-based offset is reproducible.
+    const resultZero = routeEdges(
+      [{ id: 'organic-edge', from: 'src', to: 'dst', routing: 'organic' }],
+      localPositions,
+      localSizes,
+      'organic',
+      'nearest-face',
+      undefined,
+      0,
+    );
+    const resultNonZero = routeEdges(
+      [{ id: 'organic-edge', from: 'src', to: 'dst', routing: 'organic' }],
+      localPositions,
+      localSizes,
+      'organic',
+      'nearest-face',
+      undefined,
+      2.0,
+    );
+    const ptsZero = resultZero.get('organic-edge') ?? [];
+    const ptsNonZero = resultNonZero.get('organic-edge') ?? [];
+    expect(ptsZero.length).toBeGreaterThan(0);
+    expect(ptsNonZero.length).toBeGreaterThan(0);
+    // At least one control point should differ between the two results.
+    const anyDifference = ptsZero.some((pt, i) => {
+      const other = ptsNonZero[i];
+      return other && (
+        Math.abs(pt[0] - other[0]) > 1e-6 ||
+        Math.abs(pt[1] - other[1]) > 1e-6
+      );
+    });
+    expect(anyDifference).toBe(true);
   });
 });

@@ -11,30 +11,28 @@ import type {
 import { resolveIconUrl } from '../shapes/iconRegistry';
 import { DEFAULT_NODE_SHAPE } from '../shapes/shapeVariants';
 import { deriveColor } from '../math/colorUtils';
-
 const edgeIdFor = (edge: DiagramEdgeDSL, index: number): string =>
   edge.id ?? `${edge.from}-${edge.to}-${index}`;
 
 export const buildNodeDefaults = (theme: DiagramTheme) => ({
-  shape:                DEFAULT_NODE_SHAPE,
-  // NOTE: [4, 2] is intentionally in diagram units — correct for AutoLayout (gets divided
-  // by the layout span during normalizeToViewport). ManualLayout nodes MUST specify an
-  // explicit size in [0..1] NVS fractions; this default is never safe for ManualLayout.
-  size:                 [4, 2] as [number, number],
-  thickness:            theme.node.defaultThickness,
-  color:                theme.node.defaultColor,
-  metalness:            theme.node.defaultMetalness,
-  roughness:            theme.node.defaultRoughness,
-  emissiveIntensity:    theme.node.defaultEmissiveIntensity,
-  cornerRadius:         theme.node.cornerRadius,
-  labelColor:           theme.node.defaultLabelColor,
-  sublabelColor:        theme.node.defaultSublabelColor,
-  opacity:              1,
-  clickable:            false,
-  enabled:              true,
-  iconScale:            0.6,
-  iconStyle:            theme.node.defaultIconStyle,
-  iconDepth:            0.15,
+  shape:                    DEFAULT_NODE_SHAPE,
+  size:                     theme.node.defaultSize as [number, number],
+  thickness:                theme.node.defaultThickness,
+  color:                    theme.node.defaultColor,
+  metalness:                theme.node.defaultMetalness,
+  roughness:                theme.node.defaultRoughness,
+  emissiveIntensity:        theme.node.defaultEmissiveIntensity,
+  cornerRadius:             theme.node.cornerRadius,
+  labelColor:               theme.node.defaultLabelColor,
+  sublabelColor:            theme.node.defaultSublabelColor,
+  opacity:                  1,
+  clickable:                false,
+  enabled:                  true,
+  iconScale:                theme.node.defaultIconScale,
+  iconStyle:                theme.node.defaultIconStyle,
+  iconDepthFactor:          theme.node.defaultIconDepthFactor,
+  sideColorDarkenFactor:    theme.node.sideColorDarkenFactor,
+  borderColorLightenFactor: theme.node.borderColorLightenFactor,
 });
 
 export const buildEdgeDefaults = (theme: DiagramTheme) => ({
@@ -60,6 +58,7 @@ export const buildGroupDefaults = (theme: DiagramTheme) => ({
   borderOpacity: theme.group.defaultBorderOpacity,
   borderEmissiveColor: theme.group.defaultBorderEmissiveColor ?? theme.group.defaultBorderColor,
   borderEmissiveIntensity: theme.group.defaultBorderEmissiveIntensity ?? 0,
+  labelColor:    theme.group.defaultLabelColor,
 });
 
 export function compileNode(
@@ -72,8 +71,8 @@ export function compileNode(
   const nd = buildNodeDefaults(theme);
   const shape = dsl.shape ?? nd.shape;
   const color = dsl.color ?? nd.color;
-  const sideColor = dsl.sideColor ?? deriveColor(color, -0.15);
-  const borderColor = dsl.borderColor ?? deriveColor(color, 0.25);
+  const sideColor = dsl.sideColor ?? deriveColor(color, nd.sideColorDarkenFactor);
+  const borderColor = dsl.borderColor ?? deriveColor(color, nd.borderColorLightenFactor);
   const emissiveIntensity = (() => {
     if (dsl.glow === false) return 0;
     if (typeof dsl.glow === 'object' && dsl.glow !== null && dsl.glow.intensity !== undefined) {
@@ -118,7 +117,7 @@ export function compileNode(
     iconUrl: resolveIconUrl(dsl.icon),
     iconScale: dsl.iconScale ?? nd.iconScale,
     iconStyle: dsl.iconStyle ?? nd.iconStyle,
-    iconDepth: dsl.iconDepth ?? nd.iconDepth,
+    iconDepthFactor: dsl.iconDepthFactor ?? nd.iconDepthFactor,
     groupId,
     onMouseEnter: dsl.onMouseEnter,
     onMouseLeave: dsl.onMouseLeave,

@@ -72,14 +72,15 @@ export interface DiagramNodeProps {
    */
   position?: [number, number, number];
   /**
-   * Node width and height as viewport fractions [w, h].
-   * w ∈ [0..1]: fraction of diagram viewport width.
-   * h ∈ [0..1]: fraction of diagram viewport height.
-   * Default: [0.12, 0.10] (approximately a 2:1 node at 16:9 aspect).
+   * Node size [width, height].
+   * For AutoLayout (GridLayout, HierarchicalLayout, FlowLayout): diagram units.
+   * The layout algorithm normalizes positions+sizes to [0..1] NVS at compile time.
+   * Default: [4, 2] (diagram units — from theme.node.defaultSize).
    *
-   * Note: when using auto-layout (GridLayout, HierarchicalLayout), size is still
-   * in layout units — the layout algorithm normalizes them to [0..1] at compile time.
-   * Only for ManualLayout should you author sizes in [0..1] NVS fractions directly.
+   * For ManualLayout: [0..1] NVS fractions of the diagram viewport.
+   * Example: [0.15, 0.08] = 15% wide, 8% tall of the canvas.
+   * ManualLayout consumers MUST always specify an explicit size.
+   * The [4, 2] default is in diagram units and is NOT safe for ManualLayout.
    */
   size?: [number, number];
   /**
@@ -122,7 +123,7 @@ export interface DiagramNodeProps {
   clickable?: boolean;
   /** Whether node is rendered. Default: true */
   enabled?: boolean;
-  /** Icon scale relative to node face [0–1]. Default: 0.6 */
+  /** Icon scale relative to node face [0–1]. Default: from theme (defaultIconScale, typically 0.6) */
   iconScale?: number;
   /**
    * 3D rendering style for the icon on this node's front face.
@@ -131,10 +132,12 @@ export interface DiagramNodeProps {
    */
   iconStyle?: SvgIcon3DStyle;
   /**
-   * Max Z extrusion depth for 3D icon geometry in diagram units.
-   * Default: 0.15. Sensible range: 0.05–0.25.
+   * Override for 3D icon extrusion depth as a fraction of node thickness [0..1].
+   * 0.5 = icon extends 50% of node.thickness in Z (coordinate-system-invariant).
+   * Default: from theme (defaultIconDepthFactor, typically 0.5).
+   * Sensible range: 0.2–0.8. Values > 1.0 cause the icon to protrude beyond the node face.
    */
-  iconDepth?: number;
+  iconDepthFactor?: number;
   /** Runtime mouse-enter handler for this node. */
   onMouseEnter?: DiagramNodeMouseHandler;
   /** Runtime mouse-leave handler for this node. */
@@ -266,6 +269,8 @@ export interface DiagramGroupProps {
   onMouseLeave?: DiagramGroupMouseHandler;
   /** Optional point lights distributed clockwise around the group border. */
   edgeLights?: DiagramGroupEdgeLightsDSL;
+  /** Per-group override for title label text color. Falls back to theme.group.defaultLabelColor. */
+  labelColor?: string;
   /**
    * Child <DiagramNode> and <DiagramGroup> elements that belong to this group.
    * Group bounds are computed from the union of child node positions + sizes.

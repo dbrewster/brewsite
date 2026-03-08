@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Architecture Reference"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-02
+last_updated: 2026-03-08
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -11,6 +11,9 @@ change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Breaking DX improvements: diagramPlugin() factory eliminates manual DiagramCanvasWidget pre-registration; DiagramWidget removed from public exports; Enter/Exit renamed to DiagramEnter/DiagramExit; ghost node trigger changed from label==='' to label===undefined. Updated Goals, Compiler Registration Contract, Widget Registration, Transition Model, and Design Rule 9 accordingly."
+  - date: 2026-03-08
+    author: "Toolkit Product"
+    summary: "Architecture cleanup: added diagramLayoutConstants.ts and diagramRenderConstants.ts as shared constant sources; removed dead code (groupConstants.ts, TextRenderer.ts, createRoundedBorderGeometry, DiagramPivot type); DiagramRenderer constructor now requires DiagramThemeRenderConfig; 5 group edge light types added to package root exports; updated module source structure and rendering architecture sections."
 ---
 
 # BrewSite Diagram — Architecture Reference
@@ -85,6 +88,8 @@ packages/diagram/src/
     │   ├── index.ts
     │   ├── canvas/        ← DiagramCanvas, DiagramPipe (multi-diagram container)
     │   ├── compiler/      ← pure sub-compilers (layout, edge routing, theme, group bounds)
+    │   │   ├── diagramLayoutConstants.ts  ← canonical layout constants (DEFAULT_NODE_SIZE, DEFAULT_GROUP_PADDING, DEFAULT_TITLE_GAP)
+    │   │   └── diagramRenderConstants.ts  ← canonical render constants (GROUP_BORDER_PX_TO_UNITS, GROUP_RENDER_Z)
     │   ├── math/          ← color utilities (pure functions)
     │   ├── rendering/     ← Three.js renderers (NodeRenderer, EdgeRenderer, GroupRenderer, ...)
     │   ├── shapes/        ← geometry factory, icon registry, shape variants
@@ -93,6 +98,10 @@ packages/diagram/src/
     ├── screen/            ← Screen element (3D iframe frame)
     └── _shared/           ← bezelGeometry, glowSprite (shared Three.js geometry)
 ```
+
+**Deleted files (dead code removal):**
+- `elements/diagram/compiler/groupConstants.ts` — single unused constant; canonical value is in `diagramLayoutConstants.ts`
+- `elements/diagram/rendering/TextRenderer.ts` — two-line re-export with no logic; `NodeRenderer` and `GroupRenderer` import directly from `@brewsite/core`
 
 ## Mandatory Element Module Pattern
 
@@ -194,11 +203,11 @@ Scene JSX (Diagram, DiagramNode, DiagramEdge, DiagramGroup, ...)
   │
   ▼ compiler/handlers.ts → extractDiagramDSL(node, helpers)
   │
-DiagramDSL { id, nodes[], edges[], groups[], layout, theme, position, rotation, scale, pivot, exit, enter }
+DiagramDSL { id, nodes[], edges[], groups[], layout, theme, viewportBounds, tilt, exit, enter }
   │
   ▼ compileDiagram(dsl, fallbackTheme?)
   │
-DiagramState { id, nodes[], edges[], groups[], bounds, position, rotation, scale, pivot,
+DiagramState { id, nodes[], edges[], groups[], viewportBounds, tiltRotation,
                exit, enter, themeConfig }
   │
   ▼ api.setWidgetState(widgetId, state) → stored in SceneFrame.widgets[widgetId]
@@ -220,16 +229,16 @@ For `DiagramCanvas`, `DiagramCanvasState` wraps an array of `DiagramState` insta
 
 `@brewsite/diagram` exports `functionalDiagramTransitionSpec` — a `FunctionalTransitionSpec<DiagramState>` from `@brewsite/core`. The spec implements three functions:
 
-**`exitFn(from)(ctx)`** — applies the diagram's compiled `DiagramExitConfig` at exit progress `ctx.t`. Animates `position` (toward `config.to`), `scale` (toward `config.scaleTo`), and per-node/edge opacities (if `config.fade`). Uses the easing function specified by `config.easing`.
+**`exitFn(from)(ctx)`** — applies the diagram's compiled `DiagramExitConfig` at exit progress `ctx.t`. When `config.to` is present, the diagram's `viewportBounds` center is animated toward that NVS target. Per-node/edge opacities fade to 0 if `config.fade`. Uses the easing function specified by `config.easing`.
 
-**`enterFn(to)(ctx)`** — applies the diagram's compiled `DiagramEnterConfig` at enter progress `ctx.t`. Animates `position` (from `config.from`), `scale` (from `config.scaleFrom`), and per-node/edge opacities (if `config.fade`).
+**`enterFn(to)(ctx)`** — applies the diagram's compiled `DiagramEnterConfig` at enter progress `ctx.t`. When `config.from` is present, the diagram's `viewportBounds` center is animated from that NVS origin. Per-node/edge opacities fade in from 0 if `config.fade`.
 
 **`interpolateFn(from, to)(ctx)`** — produces a blended `DiagramState` at `ctx.t` between two scenes:
 - `blendDiagramNodes(from.nodes, to.nodes, t)` — nodes present in both states are interpolated; nodes present only in `from` are faded out; nodes present only in `to` are faded in.
 - `buildLiveNodeMaps([...blended, ...fading])` — extracts live positions/sizes for edge rerouting.
 - `rerouteLiveEdges(to.edges, from.edges, toEdgeIds, positions, sizes)` — recomputes control points at the current blended node positions so edges follow their nodes smoothly during the transition.
 - `blendDiagramEdges(from.edges, to.edges, liveControlPoints, t)` — interpolates edge colors, thicknesses, and opacities.
-- `position`, `rotation`, and `scale` are vector-blended using `blendVec3` / `blendNumber` from `@brewsite/core`.
+- `viewportBounds` and `tiltRotation` are blended between `from` and `to` states using component-wise linear interpolation.
 
 `DiagramWidget.mergeSnapshot(prev, next)` runs before the transition baking phase. It carries forward `label`, `sublabel`, `shape`, `iconUrl`, `iconScale`, and `sublabelColor` for ghost nodes (nodes whose `DiagramNodeState.label` is `undefined` in the next scene — i.e., the `label` prop was omitted entirely in the DSL), and carries forward `position`, `size`, and `thickness` for nodes with `positionInherited: true`. Explicitly setting `label=""` (empty string) is not a ghost node; it declares a node with a blank text label that preserves all other explicitly authored props. This enables minimal ghost node declarations in drill-down scenes.
 
@@ -266,9 +275,14 @@ The following rules are non-negotiable for all code in this package:
 
 ## Breaking Change Assessment
 
-This document describes the existing architecture. It introduces no new public API changes.
+Semver impact: **major** (for the 2026-03-08 overhaul — see element PRDs for per-field migration tables).
 
-Semver impact: **none** (documentation only).
+Key architectural-level breaking changes:
+
+- **`DiagramState.position/rotation/scale/pivot/bounds` removed** — replaced with `viewportBounds: NVSRect` and `tiltRotation: readonly [number,number,number]`. Any code reading these fields from compiled `DiagramState` objects must be updated.
+- **`DiagramRenderer` constructor signature changed** — now requires `DiagramThemeRenderConfig` as second argument. Code constructing `DiagramRenderer` directly must pass the resolved config.
+- **`DiagramPivot` type deleted** — the exported type and its DSL usage no longer exist. Any `import { DiagramPivot }` from `@brewsite/diagram` will fail to compile.
+- **5 group edge light types added to package root exports** — `DiagramGroupSide`, `DiagramGroupEdgeLightColorResolver`, `DiagramGroupEdgeLightState`, `DiagramGroupEdgeLightsState`, `DiagramGroupEdgeLightsDSL` are now exported from `@brewsite/diagram`. This is a minor-compatible addition but is noted here for completeness.
 
 ## Dependencies
 

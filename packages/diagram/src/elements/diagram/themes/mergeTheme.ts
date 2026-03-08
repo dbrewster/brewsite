@@ -88,5 +88,9 @@ export function withColorMode(base: DiagramTheme, colorMode: SceneColorMode): Di
       defaultLabelColor:    isDark ? '#e8eeff' : '#1a1a2e',
       defaultSublabelColor: isDark ? '#b8c0e0' : '#4a4a6e',
     },
+    group: {
+      ...base.group,
+      defaultLabelColor: isDark ? '#e8eeff' : '#1a1a2e',
+    },
   };
 }

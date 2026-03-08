@@ -27,11 +27,7 @@ import {
   rerouteLiveEdges,
   blendDiagramEdges,
 } from './compiler/transitionHelpers';
-
-// Keep in sync with GroupRenderer border width conversion.
-const GROUP_BORDER_PX_TO_UNITS = 0.4;
-// Keep in sync with GroupRenderer group Z placement.
-const GROUP_RENDER_Z = -0.6;
+import { GROUP_BORDER_PX_TO_UNITS, GROUP_RENDER_Z } from './compiler/diagramRenderConstants';
 
 /**
  * Maps a linear t ∈ [0,1] through the given easing curve.
@@ -197,7 +193,7 @@ export function compileDiagram(
   const sizeMap = new Map<string, readonly [number, number]>();
   const sizeWithDepthMap = new Map<string, readonly [number, number, number]>();
   dsl.nodes.forEach((node) => {
-    const size = node.size ?? nd.size;
+    const size = node.size ?? theme.node.defaultSize;
     const thickness = node.thickness ?? nd.thickness;
     sizeMap.set(node.id, size);
     sizeWithDepthMap.set(node.id, [size[0], size[1], thickness]);
@@ -214,6 +210,7 @@ export function compileDiagram(
     onWarn,
     dsl.childrenOrder ?? [],
     groupChildrenOrders,
+    theme.node.defaultSize,
   );
 
   // Compute group bounds in diagram units (Cartesian Y-up, GroupBounds.y = bottom)
@@ -279,6 +276,22 @@ export function compileDiagram(
     normalizedGroups = groupBoundsMap;
   }
 
+  // Warn when a ManualLayout diagram contains a node whose size dimension exceeds 1.5 —
+  // this almost always means an AutoLayout diagram-unit value was authored by mistake.
+  // (ManualLayout nodes are [0..1] NVS fractions; [4, 2] is never a valid NVS fraction.)
+  if (rootLayout.kind === 'manual' && onWarn) {
+    for (const node of nodesPreNorm) {
+      const [w, h] = node.size;
+      if (w > 1.5 || h > 1.5) {
+        onWarn(
+          'MANUAL_LAYOUT_NODE_SIZE_SUSPICIOUS',
+          `Diagram "${dsl.id}": node "${node.id}" has size [${w.toFixed(2)}, ${h.toFixed(2)}] in a ManualLayout diagram. ` +
+          `ManualLayout sizes should be [0..1] NVS fractions. Did you mean to use an auto-layout?`,
+        );
+      }
+    }
+  }
+
   // Apply normalized positions/sizes to nodes
   const nodes = nodesPreNorm
     .map((node) => ({
@@ -298,7 +311,7 @@ export function compileDiagram(
   // For ManualLayout, sizeWithDepthMap already has the border-center inset baked in;
   // use that pre-computed size so edge endpoints land on the border centerline.
   for (const [groupId, normBounds] of normalizedGroups) {
-    normalizedPositions.set(groupId, [normBounds.x + normBounds.w / 2, normBounds.y + normBounds.h / 2, -0.6]);
+    normalizedPositions.set(groupId, [normBounds.x + normBounds.w / 2, normBounds.y + normBounds.h / 2, GROUP_RENDER_Z]);
     const preNorm = rootLayout.kind === 'manual' ? sizeWithDepthMap.get(groupId) : undefined;
     normalizedSizeWithDepthMap.set(groupId, preNorm ?? [normBounds.w, normBounds.h, 0.01]);
   }
@@ -315,6 +328,7 @@ export function compileDiagram(
     theme.edge.routing,
     theme.edge.landing,
     onWarn,
+    theme.edge.organicVariation,
   );
 
   const edges = dsl.edges.map((edge, index) => {

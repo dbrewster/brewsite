@@ -1142,7 +1142,7 @@ const flow = (overrides: Partial<ResolvedFlowLayout> = {}): ResolvedFlowLayout =
 describe('resolveFlowLayout', () => {
   it('top-down: mixed heights maintain correct edge-to-edge gap', () => {
     const nodes = [makeNode('a', { size: [4, 2] }), makeNode('b', { size: [4, 4] }), makeNode('c', { size: [4, 2] })];
-    const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 2 }), ['a', 'b', 'c']);
+    const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 2 }), ['a', 'b', 'c'], [4, 2]);
     // a: center=0, half=1, trailing=-1
     // b: center=-1-2-2=-5, half=2, trailing=-7
     // c: center=-7-2-1=-10
@@ -1155,7 +1155,7 @@ describe('resolveFlowLayout', () => {
 
   it('left-right: mixed widths maintain correct edge-to-edge gap', () => {
     const nodes = [makeNode('a', { size: [4, 2] }), makeNode('b', { size: [6, 2] }), makeNode('c', { size: [2, 2] })];
-    const result = resolveFlowLayout(nodes, flow({ direction: 'left-right', gap: 1 }), ['a', 'b', 'c']);
+    const result = resolveFlowLayout(nodes, flow({ direction: 'left-right', gap: 1 }), ['a', 'b', 'c'], [4, 2]);
     // a: center=0, half=2, trailing=2
     // b: center=2+1+3=6, half=3, trailing=9
     // c: center=9+1+1=11
@@ -1177,6 +1177,7 @@ describe('resolveFlowLayout', () => {
       nodes,
       flow({ direction: 'top-down', gap: 2 }),
       ['a', '__group__::grp', 'b'],
+      [4, 2],
     );
     expect(result.get('a')).toEqual([0, 0, 0]);
     // a: center=0, half=1, trailing=-1; grp: center=-1-2-3=-6, half=3, trailing=-9
@@ -1187,7 +1188,7 @@ describe('resolveFlowLayout', () => {
 
   it('gap=0: items placed immediately adjacent (no space between)', () => {
     const nodes = [makeNode('a', { size: [4, 2] }), makeNode('b', { size: [4, 2] })];
-    const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 0 }), ['a', 'b']);
+    const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 0 }), ['a', 'b'], [4, 2]);
     expect(result.get('a')).toEqual([0, 0, 0]);
     // a: center=0, half=1, trailing=-1; b: center=-1-0-1=-2
     expect(result.get('b')).toEqual([0, -2, 0]);
@@ -1195,13 +1196,13 @@ describe('resolveFlowLayout', () => {
 
   it('single item: placed at primary axis origin', () => {
     const nodes = [makeNode('solo', { size: [6, 3] })];
-    const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 2 }), ['solo']);
+    const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 2 }), ['solo'], [4, 2]);
     expect(result.get('solo')).toEqual([0, 0, 0]);
   });
 
   it('childrenOrder determines placement sequence regardless of nodes array order', () => {
     const nodes = [makeNode('c'), makeNode('a'), makeNode('b')];
-    const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 1 }), ['a', 'b', 'c']);
+    const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 1 }), ['a', 'b', 'c'], [4, 2]);
     // a placed first (center=0), b second, c third
     const aY = result.get('a')![1];
     const bY = result.get('b')![1];
@@ -1211,13 +1212,13 @@ describe('resolveFlowLayout', () => {
   });
 
   it('empty nodes array returns empty positions map', () => {
-    const result = resolveFlowLayout([], flow({ direction: 'top-down', gap: 2 }), []);
+    const result = resolveFlowLayout([], flow({ direction: 'top-down', gap: 2 }), [], [4, 2]);
     expect(result.size).toBe(0);
   });
 
   it('childrenOrder entries not present in nodes are silently dropped', () => {
     const nodes = [makeNode('a', { size: [4, 2] }), makeNode('b', { size: [4, 2] })];
-    const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 1 }), ['a', 'phantom', 'b']);
+    const result = resolveFlowLayout(nodes, flow({ direction: 'top-down', gap: 1 }), ['a', 'phantom', 'b'], [4, 2]);
     // a above b; phantom not in result
     expect(result.get('a')![1]).toBeGreaterThan(result.get('b')![1]);
     expect(result.has('phantom')).toBe(false);

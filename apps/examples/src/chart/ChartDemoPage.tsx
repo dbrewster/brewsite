@@ -26,7 +26,7 @@ export default function ChartDemoPage(): JSX.Element {
   }), []);
 
   return (
-    <div style={{ background: '#020812', minHeight: '100vh' }}>
+    <div style={{ background: '#020812', height: '100vh', minHeight: '100vh' }}>
       <EngineProvider
         manifestUrl={MANIFEST_URL}
         plugins={plugins}
@@ -38,7 +38,7 @@ export default function ChartDemoPage(): JSX.Element {
           <Fragment key="chart-pie">{chartDemoPie}</Fragment>
           <Fragment key="chart-scatter">{chartDemoScatter}</Fragment>
         </ChartProvider>
-        <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width" referenceWidth={1920}>
+        <EngineARContainer aspectRatio={9 / 9} scaleMode="fit-height" referenceWidth={1920}>
           <EngineInputRegion>
             <SceneCanvas />
             <EngineOverlayHost />

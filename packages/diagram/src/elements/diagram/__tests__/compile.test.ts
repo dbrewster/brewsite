@@ -42,7 +42,7 @@ describe('routeEdges', () => {
       ['b', [4, 2, 1] as const],
     ]);
     const points = routeEdges([makeEdge('a', 'b')], positions, sizes).get('a-b-0')!;
-    expect(points[0][0]).toBeCloseTo(2.06, 5);
+    expect(points[0][0]).toBeCloseTo(2.012, 5);
   });
 
   it('end point is on the destination node face surface', () => {
@@ -55,7 +55,7 @@ describe('routeEdges', () => {
       ['b', [4, 2, 1] as const],
     ]);
     const points = routeEdges([makeEdge('a', 'b')], positions, sizes).get('a-b-0')!;
-    expect(points[points.length - 1][0]).toBeCloseTo(7.94, 5);
+    expect(points[points.length - 1][0]).toBeCloseTo(7.988, 5);
   });
 
   it('handles self-loops gracefully (from === to): returns empty control points array', () => {
@@ -329,7 +329,7 @@ describe('compileDiagram', () => {
     const end = edge.controlPoints[edge.controlPoints.length - 1]!;
 
     const borderWidthUnits = darkGlassTheme.group.defaultBorderWidth * 0.4;
-    const expectedX = group.bounds.x - borderWidthUnits / 2 - 0.06; // left border-centerline + EDGE_EPSILON outwards
+    const expectedX = group.bounds.x - borderWidthUnits / 2 - 0.012; // left border-centerline + EDGE_EPSILON outwards
     expect(end[0]).toBeCloseTo(expectedX, 3);
   });
 

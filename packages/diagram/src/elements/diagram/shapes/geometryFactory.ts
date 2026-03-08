@@ -139,34 +139,10 @@ export function createRoundedRectShape(w: number, h: number, cornerRadius: numbe
 }
 
 /**
- * Creates a BufferGeometry for a rounded rectangle LineLoop outline.
- * Points lie at Z = depth/2 + 0.005 so the outline sits just in front of the node face.
- * @deprecated Prefer createShapeOutlineGeometry which handles all DiagramNodeShape values.
- */
-export function createRoundedBorderGeometry(
-  w: number,
-  h: number,
-  depth: number,
-  cornerRadius: number,
-): THREE.BufferGeometry {
-  const shape = createRoundedRectShape(w, h, cornerRadius);
-  const pts2d = shape.getPoints(48);
-  const z = depth / 2 + 0.005;
-  const points3d = pts2d.map((p) => new THREE.Vector3(p.x, p.y, z));
-  // Close the loop explicitly — LineLoop also closes implicitly, but an extra
-  // identical final point avoids a visual gap at the seam on some drivers.
-  points3d.push(new THREE.Vector3(pts2d[0].x, pts2d[0].y, z));
-  return new THREE.BufferGeometry().setFromPoints(points3d);
-}
-
-/**
  * Creates a LineLoop-compatible BufferGeometry tracing the 2D front-face outline
  * of any DiagramNodeShape. Points lie at Z = depth/2 + 0.005 (just in front of the
  * node face). Used by NodeRenderer for all shapes except flat-cornered rectangle/square
  * (which use EdgesGeometry on the BoxGeometry directly).
- *
- * For rectangle/square, this produces the same outline as createRoundedBorderGeometry,
- * respecting the cornerRadius. For polygon shapes, cornerRadius is ignored.
  */
 export function createShapeOutlineGeometry(
   shape: DiagramNodeShape,

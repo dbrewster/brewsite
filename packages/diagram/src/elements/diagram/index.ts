@@ -15,7 +15,7 @@ export type {
   DiagramGroupVariant,
   DiagramGroupSide,
   DiagramOrientation,
-  DiagramPivot,
+
   DiagramEasing,
   DiagramExitConfig,
   DiagramEnterConfig,

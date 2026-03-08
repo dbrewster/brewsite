@@ -5,6 +5,7 @@ import type { DiagramNodeDSL, DiagramEdgeDSL, DiagramGroupDSL, DiagramWarnFn } f
 import {
   DEFAULT_RESOLVED_GRID,
 } from './layoutResolver';
+
 import type { ResolvedLayout, ResolvedGridLayout, ResolvedHierarchicalLayout, ResolvedFlowLayout } from './layoutResolver';
 
 /**
@@ -22,9 +23,9 @@ export function resolveFlowLayout(
   nodes: ReadonlyArray<DiagramNodeDSL>,
   layout: ResolvedFlowLayout,
   childrenOrder: ReadonlyArray<string>,
+  defaultNodeSize: readonly [number, number],
 ): Map<string, readonly [number, number, number]> {
   const positions = new Map<string, readonly [number, number, number]>();
-  const DEFAULT_NODE_SIZE: readonly [number, number] = [4, 2];
   const isTopDown = layout.direction !== 'left-right';
   const gap = layout.gap;
 
@@ -58,7 +59,7 @@ export function resolveFlowLayout(
     const node = nodeById.get(id);
     if (!node) continue;
 
-    const [w, h] = node.size ?? DEFAULT_NODE_SIZE;
+    const [w, h] = node.size ?? defaultNodeSize;
     const primarySize = isTopDown ? h : w;
     const halfPrimary = primarySize / 2;
 
@@ -109,6 +110,7 @@ export function resolveLayout(
   layout: ResolvedLayout,
   onWarn?: DiagramWarnFn,
   childrenOrder?: ReadonlyArray<string>,
+  defaultNodeSize: readonly [number, number] = [4, 2],
 ): Map<string, readonly [number, number, number]> {
   const layoutKind = (layout as { kind?: string }).kind;
   if (layoutKind !== 'manual' && layoutKind !== 'grid' && layoutKind !== 'hierarchical' && layoutKind !== 'flow') {
@@ -117,7 +119,7 @@ export function resolveLayout(
   }
 
   if (layout.kind === 'flow') {
-    return resolveFlowLayout(nodes, layout as ResolvedFlowLayout, childrenOrder ?? nodes.map((n) => n.id));
+    return resolveFlowLayout(nodes, layout as ResolvedFlowLayout, childrenOrder ?? nodes.map((n) => n.id), defaultNodeSize);
   }
 
   const isFiniteNumber = (value: number): boolean => Number.isFinite(value);
@@ -157,8 +159,6 @@ export function resolveLayout(
     return positions;
   }
 
-  const DEFAULT_NODE_SIZE: [number, number] = [4, 2];
-
   if (layout.kind === 'grid') {
     const { spacing, margin: rawMargin, columns: rawColumns, alignment, disconnected } = layout as ResolvedGridLayout;
     const safeSpacing = ensurePair(spacing, [2, 2]);
@@ -180,12 +180,12 @@ export function resolveLayout(
     const nodeSizeById = new Map<string, readonly [number, number]>(
       orderedMissing.map((node) => [
         node.id,
-        (node.size ?? DEFAULT_NODE_SIZE) as readonly [number, number],
+        (node.size ?? defaultNodeSize) as readonly [number, number],
       ]),
     );
     const effectiveSizeById = new Map<string, readonly [number, number]>(
       orderedMissing.map((node) => {
-        const [w, h] = nodeSizeById.get(node.id) ?? DEFAULT_NODE_SIZE;
+        const [w, h] = nodeSizeById.get(node.id) ?? defaultNodeSize;
         return [node.id, [w + 2 * margin[0], h + 2 * margin[1]] as const];
       }),
     );
@@ -194,8 +194,8 @@ export function resolveLayout(
     const rowWidths: number[] = [];
     for (let r = 0; r < rowCount; r += 1) {
       const rowNodes = orderedMissing.slice(r * cols, (r + 1) * cols);
-      const rowEffectiveWidths = rowNodes.map((n) => (effectiveSizeById.get(n.id) ?? DEFAULT_NODE_SIZE)[0]);
-      const rowEffectiveHeights = rowNodes.map((n) => (effectiveSizeById.get(n.id) ?? DEFAULT_NODE_SIZE)[1]);
+      const rowEffectiveWidths = rowNodes.map((n) => (effectiveSizeById.get(n.id) ?? defaultNodeSize)[0]);
+      const rowEffectiveHeights = rowNodes.map((n) => (effectiveSizeById.get(n.id) ?? defaultNodeSize)[1]);
       const rowWidth = rowEffectiveWidths.reduce((sum, w) => sum + w, 0) +
         Math.max(0, rowNodes.length - 1) * safeSpacing[0];
       const rowHeight = rowEffectiveHeights.length > 0 ? Math.max(...rowEffectiveHeights) : 0;
@@ -248,12 +248,12 @@ export function resolveLayout(
       for (let i = 0; i <= col; i += 1) {
         const currentNode = rowNodes[i];
         if (!currentNode) break;
-        const currentSize = effectiveSizeById.get(currentNode.id) ?? DEFAULT_NODE_SIZE;
+        const currentSize = effectiveSizeById.get(currentNode.id) ?? defaultNodeSize;
         if (i === 0) {
           x += currentSize[0] / 2;
         } else {
           const prevNode = rowNodes[i - 1]!;
-          const prevSize = effectiveSizeById.get(prevNode.id) ?? DEFAULT_NODE_SIZE;
+          const prevSize = effectiveSizeById.get(prevNode.id) ?? defaultNodeSize;
           x += prevSize[0] / 2 + safeSpacing[0] + currentSize[0] / 2;
         }
       }
@@ -350,7 +350,7 @@ export function resolveLayout(
   const levelSecondaryDimByNode = new Map<string, number>();
   nodes.forEach((node) => {
     const l = level.get(node.id) ?? 0;
-    const [w, h] = node.size ?? DEFAULT_NODE_SIZE;
+    const [w, h] = node.size ?? defaultNodeSize;
     const primaryHalf = isPrimary ? (w / 2 + margin[0]) : (h / 2 + margin[1]);
     const secondaryDim = isPrimary ? (h + 2 * margin[1]) : (w + 2 * margin[0]);
     levelMaxPrimaryHalf.set(l, Math.max(levelMaxPrimaryHalf.get(l) ?? 0, primaryHalf));
@@ -411,7 +411,7 @@ export function resolveLayout(
     levelNodes: DiagramNodeDSL[],
     secGap: number,
   ): number => {
-    const dims = levelNodes.map((node) => levelSecondaryDimByNode.get(node.id) ?? DEFAULT_NODE_SIZE[isPrimary ? 1 : 0]);
+    const dims = levelNodes.map((node) => levelSecondaryDimByNode.get(node.id) ?? defaultNodeSize[isPrimary ? 1 : 0]);
     return dims.reduce((sum, d) => sum + d, 0) + Math.max(0, levelNodes.length - 1) * secGap;
   };
 
@@ -448,14 +448,14 @@ export function resolveLayout(
       } else {
         const firstNode = levelNodes[0];
         const firstDim = firstNode
-          ? (levelSecondaryDimByNode.get(firstNode.id) ?? DEFAULT_NODE_SIZE[isPrimary ? 1 : 0])
+          ? (levelSecondaryDimByNode.get(firstNode.id) ?? defaultNodeSize[isPrimary ? 1 : 0])
           : 0;
         if (index === 0) {
           secVal = levelAlignOffset + firstDim / 2;
         } else {
           const prevNode = levelNodes[index - 1]!;
-          const prevDim = levelSecondaryDimByNode.get(prevNode.id) ?? DEFAULT_NODE_SIZE[isPrimary ? 1 : 0];
-          const currDim = levelSecondaryDimByNode.get(node.id) ?? DEFAULT_NODE_SIZE[isPrimary ? 1 : 0];
+          const prevDim = levelSecondaryDimByNode.get(prevNode.id) ?? defaultNodeSize[isPrimary ? 1 : 0];
+          const currDim = levelSecondaryDimByNode.get(node.id) ?? defaultNodeSize[isPrimary ? 1 : 0];
           const prevNodePos = positions.get(prevNode.id);
           const prevSecVal = prevNodePos ? (isPrimary ? prevNodePos[1] : prevNodePos[0]) : levelAlignOffset + firstDim / 2;
           secVal = prevSecVal + prevDim / 2 + secGap + currDim / 2;
@@ -605,9 +605,10 @@ export function resolveLayoutWithGroups(
   onWarn?: DiagramWarnFn,
   rootChildrenOrder?: ReadonlyArray<string>,
   groupChildrenOrders?: Map<string, ReadonlyArray<string>>,
+  defaultNodeSize: readonly [number, number] = [4, 2],
 ): Map<string, readonly [number, number, number]> {
   if (rootLayout.kind === 'manual' || groups.length === 0) {
-    return resolveLayout(nodes, edges, rootLayout, onWarn, rootChildrenOrder);
+    return resolveLayout(nodes, edges, rootLayout, onWarn, rootChildrenOrder, defaultNodeSize);
   }
 
   const groupById = new Map(groups.map((g) => [g.id, g]));
@@ -720,7 +721,7 @@ export function resolveLayoutWithGroups(
       const remappedGroupOrder = groupOrder?.map((id) =>
         childGroupIdSet.has(id) ? groupNodeId(id) : id,
       );
-      const rawLocalPositions = resolveLayout(virtualNodes, virtualEdges, groupLayout, onWarn, remappedGroupOrder);
+      const rawLocalPositions = resolveLayout(virtualNodes, virtualEdges, groupLayout, onWarn, remappedGroupOrder, defaultNodeSize);
 
       // Expand: translate synthetic child-group positions into actual descendant node positions.
       expandedPositions = new Map();
@@ -849,7 +850,7 @@ export function resolveLayoutWithGroups(
   const remappedRootOrder = rootChildrenOrder?.map((id) =>
     topLevelGroups.some((g) => g.id === id) ? groupNodeId(id) : id,
   );
-  const topLevelPositions = resolveLayout(topLevelLayoutNodes, topLevelEdges, rootLayout, onWarn, remappedRootOrder);
+  const topLevelPositions = resolveLayout(topLevelLayoutNodes, topLevelEdges, rootLayout, onWarn, remappedRootOrder, defaultNodeSize);
 
   // ─── Connection affinity refinement (hierarchical only) ──────────────────────
   // Adjusts standalone node secondary-axis positions so they align with their

@@ -67,11 +67,17 @@ describe('withColorMode', () => {
     expect(result.node.labelSizeFactor).toBe(darkGlassTheme.node.labelSizeFactor);
   });
 
-  it('preserves edge, group, and environment fields unchanged', () => {
+  it('preserves edge and environment fields unchanged', () => {
     const result = withColorMode(darkGlassTheme, 'dark');
     expect(result.edge).toEqual(darkGlassTheme.edge);
-    expect(result.group).toEqual(darkGlassTheme.group);
     expect(result.environment).toEqual(darkGlassTheme.environment);
+  });
+
+  it('updates group.defaultLabelColor but preserves other group fields', () => {
+    const result = withColorMode(darkGlassTheme, 'dark');
+    expect(result.group.defaultLabelColor).toBe('#e8eeff');
+    expect(result.group.defaultColor).toBe(darkGlassTheme.group.defaultColor);
+    expect(result.group.borderMetalness).toBe(darkGlassTheme.group.borderMetalness);
   });
 
   it('all 4 built-in presets can be passed to withColorMode without error', () => {
@@ -79,5 +85,15 @@ describe('withColorMode', () => {
     expect(() => withColorMode(lightMinimalTheme, 'light')).not.toThrow();
     expect(() => withColorMode(neonCyberTheme, 'dark')).not.toThrow();
     expect(() => withColorMode(enterpriseTheme, 'dark')).not.toThrow();
+  });
+
+  it('withColorMode sets group.defaultLabelColor for dark mode', () => {
+    const theme = withColorMode(lightMinimalTheme, 'dark');
+    expect(theme.group.defaultLabelColor).toBe('#e8eeff');
+  });
+
+  it('withColorMode sets group.defaultLabelColor for light mode', () => {
+    const theme = withColorMode(darkGlassTheme, 'light');
+    expect(theme.group.defaultLabelColor).toBe('#1a1a2e');
   });
 });

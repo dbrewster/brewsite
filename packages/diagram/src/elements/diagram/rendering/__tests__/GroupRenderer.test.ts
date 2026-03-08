@@ -1,9 +1,34 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import * as THREE from 'three';
 import { GroupRenderer } from '../GroupRenderer';
-import type { DiagramGroupState } from '../../types';
+import type { DiagramGroupState, DiagramThemeRenderConfig } from '../../types';
 import { Text } from 'troika-three-text';
 import { GroupInteractionRegistry } from '../GroupInteractionRegistry';
+
+const themeConfig: DiagramThemeRenderConfig = {
+  envMapUrl: null,
+  envMapIntensity: 1,
+  skyColor: '#000',
+  horizonColor: '#000',
+  nodeGlowIntensity: 0,
+  nodeGlowSpread: 2.2,
+  nodeCornerRadius: 0,
+  use3DArrows: false,
+  edgeSmoothness: 0.5,
+  edgeMetalness: 0.3,
+  edgeRoughness: 0.7,
+  edgeFlowSpeed: 0.7,
+  edgeFlowWidth: 0.18,
+  edgeTubeRadialSegments: 8,
+  groupBorderMetalness: 0.35,
+  groupBorderRoughness: 0.45,
+  groupBorderSideDarken: 0.40,
+  groupBorderEdgeDarken: 0.45,
+  edgeFlowPulseIntensity: 0.9,
+  nodeLabelFontSizeBase: 0.28,
+  nodeSublabelFontSizeBase: 0.18,
+  fontUrl: '',
+};
 
 const makeGroup = (overrides: Partial<DiagramGroupState> = {}): DiagramGroupState => ({
   id: 'g1',
@@ -20,6 +45,7 @@ const makeGroup = (overrides: Partial<DiagramGroupState> = {}): DiagramGroupStat
   borderOpacity: 0.8,
   borderEmissiveColor: '#ffffff',
   borderEmissiveIntensity: 0,
+  labelColor: '#ffffff',
   ...overrides,
 });
 
@@ -40,47 +66,47 @@ describe('GroupRenderer', () => {
   });
 
   it('getOrCreate adds group to parent', () => {
-    renderer.getOrCreate(makeGroup(), 'd1', parent);
+    renderer.getOrCreate(makeGroup(), 'd1', parent, themeConfig);
     expect(parent.children.length).toBe(1);
   });
 
   it('dispose removes group from parent', () => {
-    renderer.getOrCreate(makeGroup(), 'd1', parent);
+    renderer.getOrCreate(makeGroup(), 'd1', parent, themeConfig);
     renderer.dispose('g1', 'd1', parent);
     expect(parent.children.length).toBe(0);
   });
 
   it('disposeAllForDiagram removes all diagram groups', () => {
-    renderer.getOrCreate(makeGroup({ id: 'g1' }), 'd1', parent);
-    renderer.getOrCreate(makeGroup({ id: 'g2' }), 'd1', parent);
+    renderer.getOrCreate(makeGroup({ id: 'g1' }), 'd1', parent, themeConfig);
+    renderer.getOrCreate(makeGroup({ id: 'g2' }), 'd1', parent, themeConfig);
     renderer.disposeAllForDiagram('d1', parent);
     expect(parent.children.length).toBe(0);
   });
 
   it('updates geometry when bounds change', () => {
-    const entry = renderer.getOrCreate(makeGroup(), 'd1', parent);
+    const entry = renderer.getOrCreate(makeGroup(), 'd1', parent, themeConfig);
     const before = entry.fill.geometry;
-    renderer.getOrCreate(makeGroup({ bounds: { x: 0, y: 0, w: 6, h: 3, padding: [1, 1, 1, 1], titleGap: 0.5 } }), 'd1', parent);
+    renderer.getOrCreate(makeGroup({ bounds: { x: 0, y: 0, w: 6, h: 3, padding: [1, 1, 1, 1], titleGap: 0.5 } }), 'd1', parent, themeConfig);
     expect(entry.fill.geometry).not.toBe(before);
   });
 
   it('switches border material between solid and dashed', () => {
-    const entry = renderer.getOrCreate(makeGroup({ borderStyle: 'solid' }), 'd1', parent);
+    const entry = renderer.getOrCreate(makeGroup({ borderStyle: 'solid' }), 'd1', parent, themeConfig);
     expect(entry.border).toBeDefined();
     expect(entry.border?.children.length).toBe(2);
-    renderer.getOrCreate(makeGroup({ borderStyle: 'dashed' }), 'd1', parent);
+    renderer.getOrCreate(makeGroup({ borderStyle: 'dashed' }), 'd1', parent, themeConfig);
     expect(entry.border).toBeDefined();
     expect(entry.border?.children.length).toBe(2);
   });
 
   it('omits border when borderStyle is none', () => {
-    const entry = renderer.getOrCreate(makeGroup({ borderStyle: 'none' }), 'd1', parent);
+    const entry = renderer.getOrCreate(makeGroup({ borderStyle: 'none' }), 'd1', parent, themeConfig);
     expect(entry.border).toBeUndefined();
   });
 
   it('applies group borderWidth to border material', () => {
-    const base = renderer.getOrCreate(makeGroup({ borderWidth: 1.0 }), 'd1', parent);
-    const wide = renderer.getOrCreate(makeGroup({ id: 'g2', borderWidth: 2.25 }), 'd1', parent);
+    const base = renderer.getOrCreate(makeGroup({ borderWidth: 1.0 }), 'd1', parent, themeConfig);
+    const wide = renderer.getOrCreate(makeGroup({ id: 'g2', borderWidth: 2.25 }), 'd1', parent, themeConfig);
     const baseMesh = base.border?.children[0] as THREE.Mesh;
     const wideMesh = wide.border?.children[0] as THREE.Mesh;
     const baseGeom = baseMesh.geometry as THREE.ExtrudeGeometry;
@@ -93,7 +119,7 @@ describe('GroupRenderer', () => {
   });
 
   it('applies group borderHeight to border mesh depth', () => {
-    const entry = renderer.getOrCreate(makeGroup({ borderHeight: 1.75 }), 'd1', parent);
+    const entry = renderer.getOrCreate(makeGroup({ borderHeight: 1.75 }), 'd1', parent, themeConfig);
     expect(entry.border).toBeDefined();
     const ring = entry.border?.children[0] as THREE.Mesh;
     const box = new THREE.Box3().setFromObject(ring);
@@ -106,7 +132,7 @@ describe('GroupRenderer', () => {
     const entry = renderer.getOrCreate(makeGroup({
       borderEmissiveColor: '#00ffcc',
       borderEmissiveIntensity: 0.7,
-    }), 'd1', parent);
+    }), 'd1', parent, themeConfig);
     const ring = entry.border?.children[0] as THREE.Mesh;
     const materials = ring.material as THREE.MeshStandardMaterial[];
     expect(materials[0].emissive.getHexString()).toBe('00ffcc');
@@ -119,8 +145,8 @@ describe('GroupRenderer', () => {
     const state = makeGroup({
       bounds: { x: 0, y: 0, w: 20, h: 12, padding: [2, 1, 1, 1], titleGap: 0.75 },
     });
-    renderer.getOrCreate(state, 'd1', parent);
-    const entry = renderer.getOrCreate(state, 'd1', parent);
+    renderer.getOrCreate(state, 'd1', parent, themeConfig);
+    const entry = renderer.getOrCreate(state, 'd1', parent, themeConfig);
 
     const contentTopY = state.bounds.h / 2 - state.bounds.padding[0];
     expect(entry.label.position.y).toBeGreaterThan(contentTopY);
@@ -137,7 +163,7 @@ describe('GroupRenderer', () => {
         distance: 3,
         decay: 2,
       },
-    }), 'd1', parent);
+    }), 'd1', parent, themeConfig);
     expect(entry.edgeLights).toBeDefined();
     expect(entry.edgeLights?.children.length).toBe(2);
     expect(entry.edgeLights?.children[0]).toBeInstanceOf(THREE.PointLight);
@@ -151,7 +177,7 @@ describe('GroupRenderer', () => {
         distance: 3,
         decay: 2,
       },
-    }), 'd1', parent);
+    }), 'd1', parent, themeConfig);
     const before = entry.edgeLights;
     renderer.getOrCreate(makeGroup({
       edgeLights: {
@@ -160,10 +186,17 @@ describe('GroupRenderer', () => {
         distance: 3,
         decay: 2,
       },
-    }), 'd1', parent);
+    }), 'd1', parent, themeConfig);
     expect(entry.edgeLights).toBeDefined();
     expect(entry.edgeLights).not.toBe(before);
     const light = entry.edgeLights?.children[0] as THREE.PointLight;
     expect(light.color.getHexString()).toBe('00ff00');
+  });
+
+  it('renders group title label with state.labelColor, not hardcoded white', () => {
+    const state = makeGroup({ label: 'My Group', labelColor: '#00ff00' });
+    renderer.getOrCreate(state, 'd1', parent, themeConfig);
+    const entry = renderer.getOrCreate(state, 'd1', parent, themeConfig);
+    expect(entry.label.color).toBe('#00ff00');
   });
 });

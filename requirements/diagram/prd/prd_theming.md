@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-04
+last_updated: 2026-03-08
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -17,6 +17,9 @@ change_history:
   - date: 2026-03-04
     author: "Toolkit Product"
     summary: "Cross-package theming integration: added DiagramTheme.sceneTheme optional field; documented themeResolver fallback chain for fontUrl and effectiveLabelSizeFactor/effectiveSublabelSizeFactor on DiagramThemeRenderConfig; added withColorMode() utility; documented known limitation that sceneTheme.colorMode has no effect on built-in preset label colors without withColorMode(); updated buildThemeRenderConfig signature."
+  - date: 2026-03-08
+    author: "Toolkit Product"
+    summary: "Model/diagram overhaul: added required fields to DiagramThemeNodeConfig (defaultSize, defaultIconScale, defaultIconDepthFactor, glowSpread); added required fields to DiagramThemeEdgeConfig (tubeRadialSegments, organicVariation); added required fields to DiagramThemeGroupConfig (borderMetalness, borderRoughness, borderSideDarken, borderEdgeDarken); added corresponding render-time fields to DiagramThemeRenderConfig (nodeGlowSpread, edgeTubeRadialSegments, groupBorderMetalness, groupBorderRoughness, groupBorderSideDarken, groupBorderEdgeDarken); fontUrl promoted from DiagramThemeNodeConfig to DiagramTheme root level; all four preset themes updated with explicit values for every new required field; resolved both open questions; updated Breaking Change Assessment to major semver impact; removed Known Limitation #2."
 ---
 
 ## Overview
@@ -41,8 +44,8 @@ Diagram elements expose dozens of configurable properties across nodes, edges, a
 - Switching between any two preset themes in a demo scene requires only a prop change to `<Diagram theme={...}>`
 
 **Guardrail metrics:**
-- No new required fields added to `DiagramTheme` or its sub-configs without a deprecation window
 - Adding a new optional field to any sub-config is a minor version bump; removing or renaming a field is a major version bump
+- Any new required field must be added to all four preset themes simultaneously with a major version bump
 
 ## Non-Goals
 
@@ -86,6 +89,13 @@ export interface DiagramTheme {
   readonly layout?: DiagramThemeLayoutConfig;
   readonly palette?: readonly string[];
   /**
+   * Diagram-wide font URL for troika-three-text.
+   * Applies to all diagram text: node labels, node sublabels, and group title labels.
+   * Fallback chain: theme.fontUrl ?? theme.sceneTheme?.font.webglFontUrl.
+   * Must be an MSDF-encoded font — standard web font URLs will not render correctly.
+   */
+  readonly fontUrl?: string;
+  /**
    * Optional default input handler configuration for DiagramCanvas.
    * Only effective when applied to a <DiagramCanvas theme={...}>.
    * Ignored (with a compile-time warning) when placed on a child <Diagram>.
@@ -95,7 +105,7 @@ export interface DiagramTheme {
    * Optional cross-package scene theme for font URL and colorMode defaults.
    *
    * When present, themeResolver.ts derives:
-   * - fontUrl: theme.node.fontUrl ?? sceneTheme.font.webglFontUrl
+   * - fontUrl: theme.fontUrl ?? sceneTheme.font.webglFontUrl
    * - effectiveLabelSizeFactor: theme.node.labelSizeFactor * sceneTheme.fontSize.label
    * - effectiveSublabelSizeFactor: theme.node.sublabelSizeFactor * sceneTheme.fontSize.caption
    *
@@ -140,14 +150,40 @@ export interface DiagramThemeNodeConfig {
   readonly defaultRoughness: number;
   readonly defaultEmissiveIntensity: number;
   readonly defaultThickness: number;
+  /** Default node width and height in diagram units for AutoLayout. ManualLayout always requires explicit size. */
+  readonly defaultSize: readonly [number, number];
   readonly cornerRadius: number;
   readonly glowIntensity: number;
+  /** Glow sprite size multiplier relative to node bounding box dimensions. Controls halo radius. */
+  readonly glowSpread: number;
   readonly defaultLabelColor: string;
   readonly defaultSublabelColor: string;
-  readonly fontUrl?: string;
   readonly labelSizeFactor: number;
   readonly sublabelSizeFactor: number;
   readonly defaultIconStyle: SvgIcon3DStyle;
+  /** Default icon scale as a fraction of the node face [0..1]. */
+  readonly defaultIconScale: number;
+  /**
+   * Default icon extrusion depth as a fraction of node thickness [0..1].
+   * Only applies when iconStyle !== 'flat'. Coordinate-system-invariant.
+   */
+  readonly defaultIconDepthFactor: number;
+  /** Default 3D icon extrusion depth in canvas world units. Per-node iconDepth overrides this. */
+  readonly defaultIconDepth: number;
+  /**
+   * Addend applied to derive side-face color from front-face color.
+   * Negative values darken. Typical range: -0.3 to 0.
+   */
+  readonly sideColorDarkenFactor: number;
+  /**
+   * Addend applied to derive border color from front-face color.
+   * Positive values lighten. Typical range: 0 to 0.5.
+   */
+  readonly borderColorLightenFactor: number;
+  /** Base coefficient for label font size. Final size = contentH × labelFontSizeBase × labelSizeFactor × sceneTheme.fontSize.label. */
+  readonly labelFontSizeBase: number;
+  /** Base coefficient for sublabel font size. Final size = contentH × sublabelFontSizeBase × sublabelSizeFactor × sceneTheme.fontSize.caption. */
+  readonly sublabelFontSizeBase: number;
 }
 
 export interface DiagramThemeEdgeConfig {
@@ -162,6 +198,12 @@ export interface DiagramThemeEdgeConfig {
   readonly landing: EdgeLandingAlgorithm;
   readonly smoothness: number;
   readonly use3DArrows: boolean;
+  /** Number of sides in tube cross-section polygon. Higher values produce smoother tube silhouettes. */
+  readonly tubeRadialSegments: number;
+  /** Perpendicular offset magnitude for 'organic' routing variation. 0 = no variation, 3 = extreme. */
+  readonly organicVariation: number;
+  /** Peak brightness multiplier applied to the flow pulse shader. Range: 0–2. Default: 0.9. */
+  readonly flowPulseIntensity: number;
 }
 
 export interface DiagramThemeGroupConfig {
@@ -173,6 +215,16 @@ export interface DiagramThemeGroupConfig {
   readonly defaultBorderOpacity: number;
   readonly defaultBorderEmissiveColor?: string;
   readonly defaultBorderEmissiveIntensity?: number;
+  /** Default color for group title label text. Propagated into DiagramGroupState.labelColor. */
+  readonly defaultLabelColor: string;
+  /** PBR metalness for group border frame faces [0..1]. */
+  readonly borderMetalness: number;
+  /** PBR roughness for group border frame faces [0..1]. */
+  readonly borderRoughness: number;
+  /** Multiplier [0..1] applied to border face color for side faces. */
+  readonly borderSideDarken: number;
+  /** Multiplier applied to borderColor when computing edge-wire (LineSegments) color. */
+  readonly borderEdgeDarken: number;
 }
 
 export interface DiagramThemeEnvironmentConfig {
@@ -183,7 +235,7 @@ export interface DiagramThemeEnvironmentConfig {
 }
 
 export interface DiagramThemeLayoutConfig {
-  readonly defaultKind?: 'grid' | 'hierarchical' | 'manual';
+  readonly defaultKind?: 'grid' | 'hierarchical' | 'manual' | 'flow';
   readonly grid?: {
     readonly columns?: number | 'auto';
     readonly spacing?: readonly [number, number];
@@ -206,6 +258,12 @@ export interface DiagramThemeLayoutConfig {
     readonly groupPadding?: LayoutPadding;
     readonly titleGap?: number;
   };
+  readonly flow?: {
+    readonly direction?: 'top-down' | 'left-right';
+    readonly gap?: number;
+    readonly groupPadding?: LayoutPadding;
+    readonly titleGap?: number;
+  };
 }
 ```
 
@@ -218,6 +276,8 @@ export interface DiagramThemeRenderConfig {
   readonly skyColor: string;
   readonly horizonColor: string;
   readonly nodeGlowIntensity: number;
+  /** Resolved from DiagramThemeNodeConfig.glowSpread. Controls glow sprite radius multiplier. */
+  readonly nodeGlowSpread: number;
   readonly nodeCornerRadius: number;
   readonly use3DArrows: boolean;
   readonly edgeSmoothness: number;
@@ -225,19 +285,35 @@ export interface DiagramThemeRenderConfig {
   readonly edgeRoughness: number;
   readonly edgeFlowSpeed: number;
   readonly edgeFlowWidth: number;
+  /** Resolved from DiagramThemeEdgeConfig.tubeRadialSegments. */
+  readonly edgeTubeRadialSegments: number;
+  /** Resolved from DiagramThemeGroupConfig.borderMetalness. */
+  readonly groupBorderMetalness: number;
+  /** Resolved from DiagramThemeGroupConfig.borderRoughness. */
+  readonly groupBorderRoughness: number;
+  /** Resolved from DiagramThemeGroupConfig.borderSideDarken. */
+  readonly groupBorderSideDarken: number;
+  /** Resolved from DiagramThemeGroupConfig.borderEdgeDarken. */
+  readonly groupBorderEdgeDarken: number;
+  /** Peak brightness of flow pulse animation. Source: theme.edge.flowPulseIntensity. */
+  readonly edgeFlowPulseIntensity: number;
+  /** Base font-size coefficient for node labels. Source: theme.node.labelFontSizeBase. */
+  readonly nodeLabelFontSizeBase: number;
+  /** Base font-size coefficient for node sublabels. Source: theme.node.sublabelFontSizeBase. */
+  readonly nodeSublabelFontSizeBase: number;
   /**
    * Resolved font URL for troika-three-text. Applies to all diagram text:
    * node labels, node sublabels, and group title labels.
-   * Fallback chain: theme.node.fontUrl ?? theme.sceneTheme?.font.webglFontUrl.
+   * Fallback chain: theme.fontUrl ?? theme.sceneTheme?.font.webglFontUrl.
    */
   readonly fontUrl: string | undefined;
   /**
-   * Effective label size factor = theme.node.labelSizeFactor × (sceneTheme?.fontSize.label ?? 1.0).
+   * Effective label size factor = theme.node.labelSizeFactor x (sceneTheme?.fontSize.label ?? 1.0).
    * Passed to NodeRenderer and GroupRenderer for troika text sizing.
    */
   readonly effectiveLabelSizeFactor?: number;
   /**
-   * Effective sublabel size factor = theme.node.sublabelSizeFactor × (sceneTheme?.fontSize.caption ?? 1.0).
+   * Effective sublabel size factor = theme.node.sublabelSizeFactor x (sceneTheme?.fontSize.caption ?? 1.0).
    */
   readonly effectiveSublabelSizeFactor?: number;
 }
@@ -313,13 +389,13 @@ const brandTheme: DiagramTheme = {
 
 ### Four preset themes
 
-**`darkGlassTheme`** — Default theme. Deep navy nodes (`#1a2240`), metalness 0.40, roughness 0.30, emissive intensity 0.10. Edge color purple (`#702dc6`), flow color green (`#53ec68`), curved routing, nearest-face landing, 3D arrows enabled. Environment HDR at `/assets/envmaps/diagram-default.hdr`, IBL intensity 0.9. Default icon style `extruded`. Palette: `['#2a4fa0', '#1e7a5a', '#8a2a70', '#a06a20', '#2a8090']`.
+**`darkGlassTheme`** — Default theme. Deep navy nodes (`#1a2240`), metalness 0.40, roughness 0.30, emissive intensity 0.10. `glowSpread: 2.2`, `labelFontSizeBase: 0.28`, `sublabelFontSizeBase: 0.18`, `defaultIconDepth: 0.15`, `sideColorDarkenFactor: 0.15`, `borderColorLightenFactor: 0.25`. Edge color purple (`#702dc6`), flow color green (`#53ec68`), `flowPulseIntensity: 0.9`, curved routing, nearest-face landing, 3D arrows enabled. Group `defaultLabelColor: '#ffffff'`, `borderMetalness: 0.35`, `borderRoughness: 0.45`, `borderSideDarken: 0.40`, `borderEdgeDarken: 0.45`. Environment HDR at `/assets/envmaps/diagram-default.hdr`, IBL intensity 0.9. Default icon style `extruded`. Palette: `['#2a4fa0', '#1e7a5a', '#8a2a70', '#a06a20', '#2a8090']`.
 
-**`neonCyberTheme`** — Near-black nodes (`#0a0e1a`), metalness 0.55, roughness 0.20, emissive intensity 0.22, strong glow (0.55). Edge color cyan (`#00ccff`), orthogonal routing, 3D arrows enabled. Neon label colors (`#00ffcc`). Same HDR as darkGlass at 0.6 intensity. Palette: neon spectrum.
+**`neonCyberTheme`** — Near-black nodes (`#0a0e1a`), metalness 0.55, roughness 0.20, emissive intensity 0.22, `glowIntensity: 0.55`, `glowSpread: 2.4`. `flowPulseIntensity: 0.95`. Edge color cyan (`#00ccff`), orthogonal routing, 3D arrows enabled. Neon label colors (`#00ffcc`). Group `defaultLabelColor: '#00ffcc'`. Same HDR as darkGlass at 0.6 intensity. Palette: neon spectrum.
 
-**`enterpriseTheme`** — Professional blue nodes (`#1e3a6e`), metalness 0.25, roughness 0.45, no glow (0.0). Edge color `#4a7abf`, curved routing, flat arrows (`use3DArrows: false`). Default icon style `flat`. HDR at 0.75 intensity. No `palette` defined.
+**`enterpriseTheme`** — Professional blue nodes (`#1e3a6e`), metalness 0.25, roughness 0.45, no glow (0.0). `flowPulseIntensity: 0.8`. Edge color `#4a7abf`, curved routing, flat arrows (`use3DArrows: false`). Group `defaultLabelColor: '#d0d8f0'`, `borderMetalness: 0.15`, `borderRoughness: 0.65`. Default icon style `flat`. HDR at 0.75 intensity. No `palette` defined.
 
-**`lightMinimalTheme`** — Light background nodes (`#eef2fc`), metalness 0.08, roughness 0.60, no emissive, no glow. Edge color `#3060b0`, orthogonal routing, flat arrows. Environment map disabled (`envMapUrl: 'none'`). Default icon style `flat`. Suited for documentation and light-mode presentation contexts.
+**`lightMinimalTheme`** — Light background nodes (`#eef2fc`), metalness 0.08, roughness 0.60, no emissive, no glow. `sideColorDarkenFactor: 0.10`, `borderColorLightenFactor: 0.15`. `flowPulseIntensity: 0.7`. Edge color `#3060b0`, orthogonal routing, flat arrows. Group `defaultLabelColor: '#1a1a2e'`, `borderMetalness: 0.05`, `borderRoughness: 0.80`. Environment map disabled (`envMapUrl: 'none'`). Default icon style `flat`. Suited for documentation and light-mode presentation contexts.
 
 ### Palette system
 
@@ -333,9 +409,9 @@ When a node has no explicit `color` prop, `compile.ts` assigns a color from `Dia
 
 ### Color derivation for nodes
 
-When `sideColor` or `borderColor` are not specified in `DiagramNodeDSL`, `compile.ts` derives them from the resolved node `color`:
-- `sideColor`: darkened via luminance factor ~0.7
-- `borderColor`: lightened via luminance factor ~1.3 (clamped)
+When `sideColor` or `borderColor` are not specified in `DiagramNodeDSL`, `compile.ts` derives them from the resolved node `color` using theme-configured factors:
+- `sideColor`: `color * (1 - theme.node.sideColorDarkenFactor)` — defaults to 0.15 darken factor
+- `borderColor`: `color * (1 + theme.node.borderColorLightenFactor)`, clamped — defaults to 0.25 lighten factor
 
 These derivation functions are pure (no Three.js) and run at compile time. Explicit `sideColor` / `borderColor` props always override derivation.
 
@@ -368,12 +444,10 @@ The `IGNORED_INPUT_CONFIG` warning is surfaced via `SceneTrack.warnings` and for
 
 `buildThemeRenderConfig(theme)` resolves font URL as:
 ```
-theme.node.fontUrl ?? theme.sceneTheme?.font.webglFontUrl → undefined
+theme.fontUrl ?? theme.sceneTheme?.font.webglFontUrl → undefined
 ```
 
-`theme.node.fontUrl` takes precedence — the `sceneTheme` field provides a fallback, not an override. The resolved `fontUrl` applies to all troika-rendered text in the diagram: node labels, node sublabels, and group title labels.
-
-**Note on fontUrl placement:** `fontUrl` lives on `DiagramThemeNodeConfig.node` for historical reasons but is diagram-global — `themeResolver.ts` extracts it to `DiagramThemeRenderConfig.fontUrl` and both `NodeRenderer` and `GroupRenderer` consume it. Promotion to `DiagramTheme` root level is planned for v2.
+`theme.fontUrl` (on the `DiagramTheme` root) takes precedence — the `sceneTheme` field provides a fallback, not an override. The resolved `fontUrl` applies to all troika-rendered text in the diagram: node labels, node sublabels, and group title labels.
 
 ### Font size scale composition
 
@@ -415,22 +489,26 @@ const myTheme = {
 
 1. **`sceneTheme.colorMode` has no effect on built-in preset label colors without `withColorMode()`.** All four built-in DiagramTheme presets have explicit `defaultLabelColor` and `defaultSublabelColor` values. Use `withColorMode(preset, colorMode)` to create a preset with colorMode-derived label colors.
 
-2. **`fontUrl` on `DiagramThemeNodeConfig` is diagram-global despite its placement.** The field name and location are historical. `themeResolver.ts` extracts it to `DiagramThemeRenderConfig.fontUrl` which applies to all troika text (nodes and groups). Promotion to `DiagramTheme` root level is deferred to v2.
+2. **WebGL font URL must be MSDF-encoded.** Standard web font URLs will not render correctly in troika-three-text.
 
-3. **WebGL font URL must be MSDF-encoded.** Standard web font URLs will not render correctly in troika-three-text.
-
-4. **`DiagramTheme.background` field is deferred to v2.** The scene background must be configured separately via `<Background>`.
+3. **`DiagramTheme.background` field is deferred to v2.** The scene background must be configured separately via `<Background>`.
 
 ## Breaking Change Assessment
 
-**Semver impact: none (initial documentation of stable API).** All four sub-configs use `readonly` fields. Any future change to the theme contract:
+**Semver impact: major.** The 2026-03-08 changes constitute breaking API changes to `DiagramThemeNodeConfig`, `DiagramThemeEdgeConfig`, `DiagramThemeGroupConfig`, `DiagramTheme`, and `DiagramThemeRenderConfig`:
 
-- Adding an optional field to any sub-config: **minor** bump
-- Adding a required field to any sub-config: **major** bump (breaks all custom themes that spread from presets without the new field)
+- `fontUrl` removed from `DiagramThemeNodeConfig` and added to `DiagramTheme` root — any custom theme with `node: { ...preset.node, fontUrl: '...' }` must change to `{ ...preset, fontUrl: '...' }`.
+- New **required** fields on `DiagramThemeNodeConfig`: `defaultSize`, `defaultIconScale`, `defaultIconDepthFactor`, `glowSpread` — any custom theme that constructs `node` from scratch rather than spreading a preset will fail TypeScript strict mode.
+- New **required** fields on `DiagramThemeEdgeConfig`: `tubeRadialSegments`, `organicVariation`.
+- New **required** fields on `DiagramThemeGroupConfig`: `borderMetalness`, `borderRoughness`, `borderSideDarken`, `borderEdgeDarken`.
+- `DiagramThemeRenderConfig` gains `nodeGlowSpread`, `edgeTubeRadialSegments`, `groupBorderMetalness`, `groupBorderRoughness`, `groupBorderSideDarken`, `groupBorderEdgeDarken` — consumers who construct `DiagramThemeRenderConfig` directly will fail TypeScript; the only supported path is via `buildThemeRenderConfig(theme)`.
+
+**All four preset themes (`darkGlassTheme`, `neonCyberTheme`, `enterpriseTheme`, `lightMinimalTheme`) are updated with explicit values for every new required field.** Custom themes that spread from any preset and override only specific sub-configs compile correctly without modification (spread semantics preserve all new required fields).
+
+For future changes:
+- Adding an optional field: **minor** bump
+- Adding a required field: **major** bump (breaks all non-spread custom theme constructions)
 - Renaming or removing a field: **major** bump
-- Changing a field's type: **major** bump
-
-The safest extension pattern is adding optional fields with defaults applied in `buildThemeRenderConfig`. This is how `fontUrl`, `defaultBorderEmissiveColor`, and `defaultBorderEmissiveIntensity` were introduced without breaking existing themes.
 
 ## Dependencies
 
@@ -449,8 +527,7 @@ The safest extension pattern is adding optional fields with defaults applied in 
 
 ## Open Questions
 
-- Should the theme provide a `nodeDefaultSize: readonly [number, number]` field to give a fallback when `DiagramNodeDSL.size` is absent? Currently the default is hardcoded in `nodeCompiler.ts`. Moving it to the theme would make it configurable without a breaking API change, but it increases theme verbosity.
-- Should `DiagramThemeLayoutConfig` be promoted to a required field on `DiagramTheme` (with sensible defaults) rather than optional? Making it required would simplify `layoutResolver.ts` by removing the undefined checks, but breaks any custom theme authored before the field existed.
+- Should `DiagramThemeLayoutConfig` be promoted to a required field on `DiagramTheme` (with sensible defaults) rather than optional? Making it required would simplify `layoutResolver.ts` by removing the undefined checks, but breaks any custom theme authored before the field existed. No decision made yet; field remains optional.
 
 ## Launch Criteria
 

@@ -47,7 +47,7 @@ export const teamPerformanceData = [
 // ─── Shared scene config ──────────────────────────────────────────────────────
 
 /** Camera centered on a 4×3 chart placed at [0,0,0]. */
-const CHART_CAM_POS: [number, number, number] = [2, 1.5, 8];
+const CHART_CAM_POS: [number, number, number] = [2, 1.5, 2];
 const CHART_CAM_TGT: [number, number, number] = [2, 1.5, 0];
 
 const SceneLighting = (): JSX.Element => (
@@ -99,9 +99,6 @@ export const chartDemoBar: JSX.Element = (
 export const chartDemoLine: JSX.Element = (
   <Scene id="chart-demo-line" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.3] }}>
     <ProgressManager scrollUnits={1200} />
-    <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={55} />
-    <SceneLighting />
-    <Background color="#020812" />
 
     <Chart
       id="line-arr"
@@ -138,9 +135,6 @@ const PIE_CAM_TGT: [number, number, number] = [0, 0, 0];
 export const chartDemoPie: JSX.Element = (
   <Scene id="chart-demo-pie" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.3] }}>
     <ProgressManager scrollUnits={1200} />
-    <Camera mode="world" position={PIE_CAM_POS} target={PIE_CAM_TGT} fov={50} />
-    <SceneLighting />
-    <Background color="#020812" />
 
     <Chart
       id="pie-products"
@@ -172,9 +166,6 @@ export const chartDemoPie: JSX.Element = (
 export const chartDemoScatter: JSX.Element = (
   <Scene id="chart-demo-scatter" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.3] }}>
     <ProgressManager scrollUnits={1200} />
-    <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={55} />
-    <SceneLighting />
-    <Background color="#020812" />
 
     <Chart
       id="scatter-teams"

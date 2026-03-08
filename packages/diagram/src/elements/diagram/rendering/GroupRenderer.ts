@@ -1,16 +1,12 @@
 import * as THREE from 'three';
 import type { GroupRenderEntry, TextWithLayout } from './types';
 import type { DiagramGroupState, DiagramThemeRenderConfig } from '../types';
-import { ensureText } from './TextRenderer';
+import { ensureText } from '@brewsite/core';
 import { Text } from 'troika-three-text';
 import type { IGroupInteractionRegistry } from './GroupInteractionRegistry';
+import { GROUP_BORDER_PX_TO_UNITS, GROUP_RENDER_Z } from '../compiler/diagramRenderConstants';
 
 export class GroupRenderer {
-  // Converts "pixel-like" border width values from theme/state into diagram units.
-  private static readonly BORDER_PX_TO_UNITS = 0.4;
-  private static readonly BORDER_SIDE_DARKEN = 0.4;
-  private static readonly BORDER_METALNESS = 0.35;
-  private static readonly BORDER_ROUGHNESS = 0.45;
   private readonly entries = new Map<string, GroupRenderEntry>();
 
   constructor(private readonly registry: IGroupInteractionRegistry) {}
@@ -23,7 +19,7 @@ export class GroupRenderer {
     state: DiagramGroupState,
     diagramId: string,
     parent: THREE.Object3D,
-    themeConfig?: DiagramThemeRenderConfig,
+    themeConfig: DiagramThemeRenderConfig,
   ): GroupRenderEntry {
     const key = this.key(diagramId, state.id);
     const existing = this.entries.get(key);
@@ -31,7 +27,7 @@ export class GroupRenderer {
       this.updateGroup(existing, state, themeConfig);
       return existing;
     }
-    const entry = this.createGroup(state, diagramId);
+    const entry = this.createGroup(state, diagramId, themeConfig);
     parent.add(entry.group);
     this.entries.set(key, entry);
     return entry;
@@ -55,7 +51,7 @@ export class GroupRenderer {
     }
   }
 
-  private createGroup(state: DiagramGroupState, diagramId: string): GroupRenderEntry {
+  private createGroup(state: DiagramGroupState, diagramId: string, themeConfig: DiagramThemeRenderConfig): GroupRenderEntry {
     const group = new THREE.Group();
     const geometry = new THREE.PlaneGeometry(state.bounds.w, state.bounds.h);
     const fill = new THREE.Mesh(
@@ -70,7 +66,7 @@ export class GroupRenderer {
     fill.castShadow = true;
     fill.receiveShadow = false;
     const label = new Text() as TextWithLayout;
-    const border = this.createBorder(state);
+    const border = this.createBorder(state, themeConfig);
     const edgeLights = this.createEdgeLights(state);
     if (border) {
       group.add(fill, border, label);
@@ -136,7 +132,7 @@ export class GroupRenderer {
   private updateGroup(
     entry: GroupRenderEntry,
     state: DiagramGroupState,
-    themeConfig?: DiagramThemeRenderConfig,
+    themeConfig: DiagramThemeRenderConfig,
   ): void {
     if (!Number.isFinite(state.bounds.w) || !Number.isFinite(state.bounds.h)) {
       entry.group.visible = false;
@@ -145,7 +141,7 @@ export class GroupRenderer {
     entry.group.visible = true;
     const centerX = state.bounds.x + state.bounds.w / 2;
     const centerY = state.bounds.y + state.bounds.h / 2;
-    entry.group.position.set(centerX, centerY, -0.6);
+    entry.group.position.set(centerX, centerY, GROUP_RENDER_Z);
 
     const prev = entry.lastState;
     const boundsChanged =
@@ -180,7 +176,7 @@ export class GroupRenderer {
 
       if (borderNeedsRebuild) {
         this.removeBorder(entry);
-        const border = this.createBorder(state);
+        const border = this.createBorder(state, themeConfig);
         if (border) {
           entry.border = border;
           entry.group.add(border);
@@ -201,7 +197,7 @@ export class GroupRenderer {
               mats[0].emissiveIntensity = state.borderEmissiveIntensity;
             }
             if (mats[1]) {
-              mats[1].color.set(new THREE.Color(state.borderColor).multiplyScalar(GroupRenderer.BORDER_SIDE_DARKEN));
+              mats[1].color.set(new THREE.Color(state.borderColor).multiplyScalar(themeConfig.groupBorderSideDarken));
               mats[1].opacity = state.borderOpacity;
               mats[1].transparent = true;
               mats[1].emissive.set(state.borderEmissiveColor);
@@ -211,7 +207,7 @@ export class GroupRenderer {
           }
           if (obj instanceof THREE.LineSegments) {
             const edgeMat = obj.material as THREE.LineBasicMaterial;
-            edgeMat.color.set(new THREE.Color(state.borderColor).multiplyScalar(0.45));
+            edgeMat.color.set(new THREE.Color(state.borderColor).multiplyScalar(themeConfig.groupBorderEdgeDarken));
             edgeMat.opacity = Math.min(1, state.borderOpacity + 0.1);
             edgeMat.transparent = true;
           }
@@ -233,21 +229,32 @@ export class GroupRenderer {
     const topPadding = Math.max(0, state.bounds.padding[0]);
     const titleInset = Math.min(Math.max(state.bounds.titleGap, 0), topPadding);
     const availableHalfBand = Math.max(0.2, Math.min(titleInset, topPadding - titleInset));
+    // Group title label layout constants.
+    // 0.08 = label font-size as fraction of group height h (unclamped size: h × 0.08).
+    // 0.35 = minimum font-size floor in diagram units (prevents unreadably small labels).
+    // 1.6  = ceiling scale on availableHalfBand (max font-size proportional to title band).
+    //        Clamped: clamp(h × 0.08, 0.35, availableHalfBand × 1.6)
+    // 0.7  = horizontal inset from group border to label text edge (labelInsetX, diagram units).
+    //
+    // These are geometry calibration constants for the group title band. Theme scaling is
+    // applied via effectiveLabelSizeFactor. The raw ratios are not theme-exposed — they
+    // are calibrated together to keep labels proportional as groups scale in size and are
+    // not independently composable (four-condition principle).
     const labelFontSize = Math.max(
       0.35,
       Math.min(state.bounds.h * 0.08, availableHalfBand * 1.6),
-    ) * (themeConfig?.effectiveLabelSizeFactor ?? 1.0);
+    ) * (themeConfig.effectiveLabelSizeFactor ?? 1.0);
     const labelInsetX = 0.7;
     if (state.label) {
       ensureText(
         entry.label,
         state.label,
-        '#ffffff',
+        state.labelColor,
         labelFontSize,
         1,
         state.bounds.w - labelInsetX * 2,
         true,
-        { anchorX: 'left', anchorY: 'middle', textAlign: 'left', fontUrl: themeConfig?.fontUrl },
+        { anchorX: 'left', anchorY: 'middle', textAlign: 'left', fontUrl: themeConfig.fontUrl },
       );
       // Position title text inside the top padding band so it never overlaps node content.
       const titleY = state.bounds.h / 2 - topPadding + titleInset;
@@ -278,10 +285,10 @@ export class GroupRenderer {
     entry.label.geometry.dispose();
   }
 
-  private createBorder(state: DiagramGroupState): THREE.Group | undefined {
+  private createBorder(state: DiagramGroupState, themeConfig: DiagramThemeRenderConfig): THREE.Group | undefined {
     if (state.borderStyle === 'none') return undefined;
     const border = new THREE.Group();
-    const bw = Math.max(0.01, state.borderWidth * GroupRenderer.BORDER_PX_TO_UNITS);
+    const bw = Math.max(0.01, state.borderWidth * GROUP_BORDER_PX_TO_UNITS);
     const bh = Math.max(0.01, state.borderHeight);
     const w = Math.max(0.01, state.bounds.w);
     const h = Math.max(0.01, state.bounds.h);
@@ -291,17 +298,17 @@ export class GroupRenderer {
       color: state.borderColor,
       opacity: state.borderOpacity,
       transparent: true,
-      metalness: GroupRenderer.BORDER_METALNESS,
-      roughness: GroupRenderer.BORDER_ROUGHNESS,
+      metalness: themeConfig.groupBorderMetalness,
+      roughness: themeConfig.groupBorderRoughness,
       emissive: new THREE.Color(state.borderEmissiveColor),
       emissiveIntensity: state.borderEmissiveIntensity,
     });
     const sideMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(state.borderColor).multiplyScalar(GroupRenderer.BORDER_SIDE_DARKEN),
+      color: new THREE.Color(state.borderColor).multiplyScalar(themeConfig.groupBorderSideDarken),
       opacity: state.borderOpacity,
       transparent: true,
-      metalness: GroupRenderer.BORDER_METALNESS,
-      roughness: GroupRenderer.BORDER_ROUGHNESS,
+      metalness: themeConfig.groupBorderMetalness,
+      roughness: themeConfig.groupBorderRoughness,
       emissive: new THREE.Color(state.borderEmissiveColor),
       emissiveIntensity: state.borderEmissiveIntensity,
     });
@@ -333,7 +340,7 @@ export class GroupRenderer {
     const edgeLines = new THREE.LineSegments(
       new THREE.EdgesGeometry(geom),
       new THREE.LineBasicMaterial({
-        color: new THREE.Color(state.borderColor).multiplyScalar(0.45),
+        color: new THREE.Color(state.borderColor).multiplyScalar(themeConfig.groupBorderEdgeDarken),
         opacity: Math.min(1, state.borderOpacity + 0.1),
         transparent: true,
       }),

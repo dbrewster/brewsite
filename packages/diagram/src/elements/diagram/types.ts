@@ -54,24 +54,67 @@ export interface DiagramThemeNodeConfig {
   readonly defaultLabelColor: string;
   /** Default sublabel text color (CSS hex) */
   readonly defaultSublabelColor: string;
-  /**
-   * Optional troika-three-text fontUrl override.
-   * Must be a URL to an MSDF-encoded .ttf or .woff font.
-   * If absent, troika uses its built-in font.
-   *
-   * This field is diagram-wide despite its placement on the `node` sub-config.
-   * `themeResolver.ts` extracts it to `DiagramThemeRenderConfig.fontUrl` and applies
-   * it to all troika text (both node labels and group title labels).
-   * Promotion to `DiagramTheme` root level is planned for v2.
-   * Fallback chain: `theme.node.fontUrl ?? theme.sceneTheme?.font.webglFontUrl`.
-   */
-  readonly fontUrl?: string;
   /** Label font size multiplier relative to the default (node height × 0.28). Default: 1 */
   readonly labelSizeFactor: number;
   /** Sublabel font size multiplier relative to the default (node height × 0.18). Default: 1 */
   readonly sublabelSizeFactor: number;
   /** Default 3D icon rendering style when not specified per-node */
   readonly defaultIconStyle: SvgIcon3DStyle;
+  /**
+   * Default node size [width, height] in diagram units for auto-layouts.
+   * AutoLayout compilers read this when no explicit size is provided per-node.
+   * ManualLayout consumers MUST always specify an explicit NVS size — this
+   * default is not safe for ManualLayout where sizes are [0..1] fractions.
+   * darkGlass default: [4, 2]
+   */
+  readonly defaultSize: readonly [number, number];
+  /**
+   * Default icon scale as a fraction of node face dimensions [0..1].
+   * 1.0 = icon fills full node width; 0.6 = 60% of node width.
+   * darkGlass default: 0.6
+   */
+  readonly defaultIconScale: number;
+  /**
+   * Default icon extrusion depth as a fraction of node thickness [0..1].
+   * 0.5 = icon maximum Z depth is 50% of node.thickness.
+   * This is coordinate-system-invariant (works correctly for both AutoLayout
+   * and ManualLayout). Replaces the old absolute `iconDepth` value.
+   * darkGlass default: 0.5
+   */
+  readonly defaultIconDepthFactor: number;
+  /**
+   * Default 3D icon extrusion depth in canvas world units.
+   * Per-node iconDepth overrides this.
+   * darkGlass default: 0.15
+   */
+  readonly defaultIconDepth: number;
+  /**
+   * Glow sprite size as a multiple of the node bounding box [0.5..4].
+   * 2.2 = glow is 2.2× the node footprint. Controls glow halo radius.
+   * glowIntensity controls brightness; glowSpread controls spatial extent.
+   * darkGlass default: 2.2. Set to 1.0 for no visible spread beyond node edge.
+   */
+  readonly glowSpread: number;
+  /**
+   * Addend passed to deriveColor() when computing the auto-derived side-face color from the
+   * front-face color. Negative values darken. Range: typically -0.3 to 0.
+   */
+  readonly sideColorDarkenFactor: number;
+  /**
+   * Addend passed to deriveColor() when computing the auto-derived border color from the
+   * front-face color. Positive values lighten. Range: typically 0 to 0.5.
+   */
+  readonly borderColorLightenFactor: number;
+  /**
+   * Base coefficient for node label font size.
+   * Final size = contentH × labelFontSizeBase × labelSizeFactor × sceneTheme.fontSize.label.
+   */
+  readonly labelFontSizeBase: number;
+  /**
+   * Base coefficient for node sublabel font size.
+   * Final size = contentH × sublabelFontSizeBase × sublabelSizeFactor × sceneTheme.fontSize.caption.
+   */
+  readonly sublabelFontSizeBase: number;
 }
 
 /** Edge/connector appearance and routing defaults within a theme. */
@@ -105,6 +148,28 @@ export interface DiagramThemeEdgeConfig {
    * instead of flat triangles (MeshBasicMaterial).
    */
   readonly use3DArrows: boolean;
+  /**
+   * Number of radial cross-section polygon sides for TubeGeometry.
+   * 8 = octagonal, 12 = smoother, 16 = near-circular.
+   * Higher values are more expensive per edge. Typically 8–12.
+   * darkGlass default: 8
+   * neonCyber default: 12 (thicker edges benefit from more facets)
+   */
+  readonly tubeRadialSegments: number;
+  /**
+   * Magnitude of perpendicular offset for 'organic' edge routing.
+   * Controls how much each organically-routed edge deviates from a
+   * pure curved path. Offset = (deterministicSeed - 0.5) × organicVariation.
+   * 0 = no deviation (same as 'curved'); 1.6 = moderate variation;
+   * 3.0 = extreme variation. Value range [0..4] is predictable.
+   * Only affects edges with routing='organic' (per-edge or theme default).
+   * darkGlass default: 1.6
+   * enterprise default: 0.8 (conservative variation)
+   * neonCyber default: 2.0 (high variation for visual energy)
+   */
+  readonly organicVariation: number;
+  /** Peak brightness multiplier applied to the flow pulse shader. Range: 0–2. Default: 0.9. */
+  readonly flowPulseIntensity: number;
 }
 
 /** Group/container appearance defaults within a theme. */
@@ -125,6 +190,34 @@ export interface DiagramThemeGroupConfig {
   readonly defaultBorderEmissiveColor?: string;
   /** Optional default border emissive intensity [0–1+]. */
   readonly defaultBorderEmissiveIntensity?: number;
+  /** Default color for group title label text. Propagated into DiagramGroupState.labelColor. */
+  readonly defaultLabelColor: string;
+  /**
+   * PBR metalness for the group border frame faces [0..1].
+   * 0 = fully diffuse/plastic; 1 = fully metallic.
+   * darkGlass default: 0.35
+   * lightMinimal should use 0.08 to match its node material intent.
+   */
+  readonly borderMetalness: number;
+  /**
+   * PBR roughness for the group border frame faces [0..1].
+   * 0 = mirror smooth; 1 = fully matte.
+   * darkGlass default: 0.45
+   * lightMinimal should use 0.60 to match its node material intent.
+   */
+  readonly borderRoughness: number;
+  /**
+   * Multiplier [0..1] applied to the border face color for side faces.
+   * 0.4 = side faces are 40% as bright as front face (darkens sides).
+   * For light themes, reduce to 0.7–0.8 to avoid over-darkening.
+   * darkGlass default: 0.4
+   */
+  readonly borderSideDarken: number;
+  /**
+   * Multiplier applied to borderColor when computing the edge-wire (LineSegments) color
+   * on the border frame. Typical range: 0.3–0.6.
+   */
+  readonly borderEdgeDarken: number;
 }
 
 /** Environment map / image-based lighting config within a theme. */
@@ -227,7 +320,7 @@ export interface DiagramTheme {
    * Optional cross-package scene theme context.
    *
    * When present, `themeResolver.ts` derives:
-   * - `fontUrl`: `theme.node.fontUrl ?? sceneTheme.font.webglFontUrl` (node.fontUrl wins)
+   * - `fontUrl`: `theme.fontUrl ?? sceneTheme.font.webglFontUrl` (theme.fontUrl wins)
    * - `effectiveLabelSizeFactor`: `theme.node.labelSizeFactor * sceneTheme.fontSize.label`
    *
    * For label color polarity (colorMode → label colors): built-in presets all have
@@ -236,6 +329,12 @@ export interface DiagramTheme {
    * from the themes package to create a preset with colorMode-derived label colors.
    */
   readonly sceneTheme?: SceneTheme;
+  /**
+   * Custom troika font URL for all diagram text (nodes and groups).
+   * Overrides sceneTheme.font.webglFontUrl when present.
+   * Moved from DiagramThemeNodeConfig.fontUrl (which is deleted).
+   */
+  readonly fontUrl?: string;
 }
 
 /**
@@ -282,6 +381,24 @@ export interface DiagramThemeRenderConfig {
    * Optional — defaults to 1.0 when absent (identity, no size change).
    */
   readonly effectiveSublabelSizeFactor?: number;
+  /** Glow sprite size multiplier relative to node bounding box. Source: theme.node.glowSpread */
+  readonly nodeGlowSpread: number;
+  /** TubeGeometry radial segments for edge tubes. Source: theme.edge.tubeRadialSegments */
+  readonly edgeTubeRadialSegments: number;
+  /** Group border frame face metalness. Source: theme.group.borderMetalness */
+  readonly groupBorderMetalness: number;
+  /** Group border frame face roughness. Source: theme.group.borderRoughness */
+  readonly groupBorderRoughness: number;
+  /** Group border side-face color multiplier. Source: theme.group.borderSideDarken */
+  readonly groupBorderSideDarken: number;
+  /** Group border wireframe edge color multiplier. Source: theme.group.borderEdgeDarken */
+  readonly groupBorderEdgeDarken: number;
+  /** Peak brightness of the flow pulse animation. From theme.edge.flowPulseIntensity. */
+  readonly edgeFlowPulseIntensity: number;
+  /** Base font-size coefficient for node labels. From theme.node.labelFontSizeBase. */
+  readonly nodeLabelFontSizeBase: number;
+  /** Base font-size coefficient for node sublabels. From theme.node.sublabelFontSizeBase. */
+  readonly nodeSublabelFontSizeBase: number;
 }
 
 // ─── Node ───────────────────────────────────────────────────────────────────
@@ -324,16 +441,6 @@ export type DiagramGroupEdgeLightColorResolver = (
  */
 export type SvgIcon3DStyle = 'flat' | 'extruded' | 'layered' | 'embossed';
 
-/**
- * @deprecated DiagramPivot is no longer used. Diagrams are positioned via viewportBounds.
- * Kept temporarily for backward compatibility during migration.
- */
-export type DiagramPivot =
-  | 'center'
-  | 'top-left'
-  | 'top-right'
-  | 'bottom-left'
-  | 'bottom-right';
 
 /** Easing function for <Exit> / <Enter> transitions. */
 export type DiagramEasing = 'linear' | 'ease' | 'ease-in' | 'ease-out' | 'spring';
@@ -675,11 +782,10 @@ export interface DiagramNodeState {
   readonly iconStyle: SvgIcon3DStyle;
 
   /**
-   * Maximum Z extrusion depth for 3D icon geometry, in diagram units.
-   * Applies only when iconStyle !== 'flat'.
-   * Default: 0.15.
+   * 3D icon extrusion depth as a fraction of node thickness [0..1].
+   * The renderer computes: maxDepthUnits = iconDepthFactor × state.thickness.
    */
-  readonly iconDepth: number;
+  readonly iconDepthFactor: number;
 
   /** ID of the parent DiagramGroup, or undefined if top-level */
   readonly groupId: string | undefined;
@@ -835,6 +941,11 @@ export interface DiagramGroupState {
 
   /** Optional point lights distributed around the group's border perimeter. */
   readonly edgeLights?: DiagramGroupEdgeLightsState;
+  /**
+   * Compiled group title label color.
+   * From DiagramGroupDSL.labelColor ?? theme.group.defaultLabelColor.
+   */
+  readonly labelColor: string;
 }
 
 export interface DiagramGroupEdgeLightState {
@@ -984,8 +1095,13 @@ export interface DiagramNodeDSL {
   readonly iconScale?: number;
   /** 3D icon rendering style. Default: from theme (typically 'layered'). */
   readonly iconStyle?: SvgIcon3DStyle;
-  /** Max extrusion depth for 3D icon in diagram units. Default: 0.15. */
-  readonly iconDepth?: number;
+  /**
+   * Override for 3D icon extrusion depth as a fraction of node thickness [0..1].
+   * 0.5 = icon extends 50% of node.thickness in Z (coordinate-system-invariant).
+   * Default: from theme (defaultIconDepthFactor, typically 0.5).
+   * Sensible range: 0.2–0.8. Values > 1.0 cause the icon to protrude beyond the node face.
+   */
+  readonly iconDepthFactor?: number;
   readonly groupId?: string;
   readonly onMouseEnter?: DiagramNodeMouseHandler;
   readonly onMouseLeave?: DiagramNodeMouseHandler;
@@ -1041,6 +1157,8 @@ export interface DiagramGroupDSL {
   readonly onMouseEnter?: DiagramGroupMouseHandler;
   readonly onMouseLeave?: DiagramGroupMouseHandler;
   readonly edgeLights?: DiagramGroupEdgeLightsDSL;
+  /** Per-group override for the title label text color. Falls back to theme.group.defaultLabelColor. */
+  readonly labelColor?: string;
   readonly nodeIds: ReadonlyArray<string>;
   readonly childGroupIds?: ReadonlyArray<string>;
   /**

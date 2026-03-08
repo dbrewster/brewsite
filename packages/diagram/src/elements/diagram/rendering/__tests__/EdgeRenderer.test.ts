@@ -102,6 +102,13 @@ describe('EdgeRenderer', () => {
     expect(entry.arrowEnd).toBeUndefined();
   });
 
+  it('uses explicit tubeRadialSegments when provided', () => {
+    const renderer12 = new EdgeRenderer(new EdgeMaterialFactory(), false, 0.5, 0.3, 0.7, 0.7, 0.18, 12);
+    const localParent = new THREE.Group();
+    renderer12.getOrCreate(makeEdge(), localParent);
+    expect(localParent.children.length).toBe(1);
+  });
+
   it('builds 3D arrows when use3DArrows is enabled', () => {
     const threeD = new EdgeRenderer(new EdgeMaterialFactory(), true);
     const localParent = new THREE.Group();

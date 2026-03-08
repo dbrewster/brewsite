@@ -11,6 +11,8 @@ import type {
 import { buildGroupDefaults } from './nodeCompiler';
 import { computeBounds } from './layoutAlgorithms';
 import type { ResolvedLayout } from './layoutResolver';
+import { GROUP_BORDER_PX_TO_UNITS } from './diagramRenderConstants';
+import { DEFAULT_GROUP_PADDING, DEFAULT_TITLE_GAP } from './diagramLayoutConstants';
 
 /**
  * Bounding box for a group, in diagram units pre-normalization, or in [0..1] NVS
@@ -45,7 +47,6 @@ const unionBounds = (
   return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
 };
 
-const GROUP_BORDER_PX_TO_UNITS = 0.4;
 const DEFAULT_EDGE_LIGHT_DENSITY = 1;
 const DEFAULT_EDGE_LIGHT_COLOR = '#ffffff';
 const DEFAULT_EDGE_LIGHT_INTENSITY = 0.75;
@@ -159,12 +160,12 @@ export function resolveGroupBoundsMap(
     const cached = memo.get(groupId);
     if (cached) return cached;
     if (visiting.has(groupId)) {
-      return { x: 0, y: 0, w: 0, h: 0, padding: [1.5, 1.5, 1.5, 1.5] as const, titleGap: 0.75 };
+      return { x: 0, y: 0, w: 0, h: 0, padding: DEFAULT_GROUP_PADDING, titleGap: DEFAULT_TITLE_GAP };
     }
     visiting.add(groupId);
     const group = groupById.get(groupId);
     if (!group) {
-      const empty: GroupBounds = { x: 0, y: 0, w: 0, h: 0, padding: [1.5, 1.5, 1.5, 1.5], titleGap: 0.75 };
+      const empty: GroupBounds = { x: 0, y: 0, w: 0, h: 0, padding: DEFAULT_GROUP_PADDING, titleGap: DEFAULT_TITLE_GAP };
       memo.set(groupId, empty);
       visiting.delete(groupId);
       return empty;
@@ -189,8 +190,8 @@ export function resolveGroupBoundsMap(
 
     const base = combined ?? { x: 0, y: 0, w: 0, h: 0 };
     const gl = groupLayouts.get(groupId);
-    const [pt, pr, pb, pl] = gl?.groupPadding ?? [1.5, 1.5, 1.5, 1.5];
-    const titleGap = gl?.titleGap ?? 0.75;
+    const [pt, pr, pb, pl] = gl?.groupPadding ?? DEFAULT_GROUP_PADDING;
+    const titleGap = gl?.titleGap ?? DEFAULT_TITLE_GAP;
     const padded: GroupBounds = {
       x: base.x - pl,
       y: base.y - pb,
@@ -251,5 +252,6 @@ export function compileGroup(
     onMouseEnter: dsl.onMouseEnter,
     onMouseLeave: dsl.onMouseLeave,
     edgeLights,
+    labelColor: dsl.labelColor ?? gd.labelColor,
   };
 }

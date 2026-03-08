@@ -20,6 +20,7 @@ export function buildThemeRenderConfig(theme: DiagramTheme): DiagramThemeRenderC
     skyColor:         theme.environment.skyColor,
     horizonColor:     theme.environment.horizonColor,
     nodeGlowIntensity: theme.node.glowIntensity,
+    nodeGlowSpread:    theme.node.glowSpread,
     nodeCornerRadius:  theme.node.cornerRadius,
     use3DArrows:       theme.edge.use3DArrows,
     edgeSmoothness:    theme.edge.smoothness,
@@ -27,8 +28,16 @@ export function buildThemeRenderConfig(theme: DiagramTheme): DiagramThemeRenderC
     edgeRoughness:     theme.edge.defaultRoughness,
     edgeFlowSpeed:     theme.edge.defaultFlowSpeed,
     edgeFlowWidth:     theme.edge.defaultFlowWidth,
-    // Font URL: explicit node.fontUrl takes precedence over sceneTheme fallback.
-    fontUrl:           theme.node.fontUrl ?? theme.sceneTheme?.font.webglFontUrl,
+    edgeTubeRadialSegments: theme.edge.tubeRadialSegments,
+    groupBorderMetalness:    theme.group.borderMetalness,
+    groupBorderRoughness:    theme.group.borderRoughness,
+    groupBorderSideDarken:   theme.group.borderSideDarken,
+    groupBorderEdgeDarken:   theme.group.borderEdgeDarken,
+    edgeFlowPulseIntensity:  theme.edge.flowPulseIntensity,
+    nodeLabelFontSizeBase:   theme.node.labelFontSizeBase,
+    nodeSublabelFontSizeBase: theme.node.sublabelFontSizeBase,
+    // Font URL: explicit theme.fontUrl takes precedence over sceneTheme fallback.
+    fontUrl:           theme.fontUrl ?? theme.sceneTheme?.font.webglFontUrl,
     // Size factors composed with SceneTheme font size scale:
     effectiveLabelSizeFactor:    theme.node.labelSizeFactor * labelScale,
     effectiveSublabelSizeFactor: theme.node.sublabelSizeFactor * captionScale,

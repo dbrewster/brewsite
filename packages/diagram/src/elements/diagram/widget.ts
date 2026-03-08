@@ -26,6 +26,8 @@ import {
 } from './dsl';
 import { functionalDiagramTransitionSpec } from './compile';
 import { DiagramRenderer } from './render';
+import { buildThemeRenderConfig } from './compiler/themeResolver';
+import { darkGlassTheme } from './themes';
 import type {
   DiagramInteractionEvent,
   DiagramNodeHoverEvent,
@@ -77,7 +79,7 @@ export class DiagramWidget
    */
   public onInteraction: ((event: DiagramInteractionEvent) => void) | undefined = undefined;
 
-  private renderer = new DiagramRenderer();
+  private renderer = new DiagramRenderer(buildThemeRenderConfig(darkGlassTheme));
   private scene: THREE.Scene | null = null;
   private cameraRef: THREE.PerspectiveCamera | null = null;
   /** Last applied state — used by onTick for camera auto-framing fallback. */

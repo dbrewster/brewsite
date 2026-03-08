@@ -17,6 +17,13 @@ export type LabelStyle = {
    * at runtime.
    */
   lineColor?: LabelColor;
+  /**
+   * Font size for the label text.
+   * Both numeric pixel values (e.g., `14`) and CSS string values (e.g., `"1em"`, `"0.8rem"`) are
+   * intentionally supported — this maps directly to React's `CSSProperties.fontSize`.
+   * Do NOT narrow this type to `number`; string values are valid and commonly used for
+   * responsive sizing relative to the document or parent font size.
+   */
   fontSize?: number | string;
   lineOpacity?: number;
   labelOpacity?: number;

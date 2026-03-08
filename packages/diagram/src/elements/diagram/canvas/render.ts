@@ -21,6 +21,8 @@ export class DiagramCanvasRenderer {
       this.pipeRoot.name = `canvas:${state.id}:pipes`;
       this.canvasGroup.add(this.pipeRoot);
       scene.add(this.canvasGroup);
+      // Canvas pipe renderer uses default EdgeRenderer construction (tubeRadialSegments=8).
+      // Cross-diagram pipes are a canvas-level concept with no per-diagram theme — defaults are intentional.
       this.pipeRenderer = new EdgeRenderer(new EdgeMaterialFactory());
     }
 
@@ -42,7 +44,7 @@ export class DiagramCanvasRenderer {
 
     for (const diagramState of state.diagrams) {
       if (!this.diagramRenderers.has(diagramState.id)) {
-        this.diagramRenderers.set(diagramState.id, new DiagramRenderer());
+        this.diagramRenderers.set(diagramState.id, new DiagramRenderer(diagramState.themeConfig));
       }
       const dr = this.diagramRenderers.get(diagramState.id)!;
       dr.setCanvasAspect(canvasAspect);

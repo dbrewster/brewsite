@@ -3,11 +3,14 @@ title: "BrewSite Diagram — Shape and Icon System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-02
+last_updated: 2026-03-08
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Initial PRD created. Comprehensive documentation of the @brewsite/diagram shape and icon system as implemented."
+  - date: 2026-03-08
+    author: "Toolkit Product"
+    summary: "Model/diagram overhaul: iconDepth renamed to iconDepthFactor in SvgIcon3DStyle descriptions — depth is now expressed as a fraction of node thickness [0..1], making it coordinate-system-invariant across AutoLayout and ManualLayout."
 ---
 
 ## Overview
@@ -212,9 +215,9 @@ export type SvgIcon3DStyle = 'flat' | 'extruded' | 'layered' | 'embossed';
 ```
 
 - **`flat`** — `ShapeGeometry` + `MeshBasicMaterial`. Unlit, always visible, zero depth. Fastest render path.
-- **`extruded`** — `ExtrudeGeometry` with uniform depth from `iconDepth`. `MeshStandardMaterial`, PBR-lit. Best for monochrome icons.
+- **`extruded`** — `ExtrudeGeometry` with uniform depth derived from `iconDepthFactor × node.thickness`. `MeshStandardMaterial`, PBR-lit. Best for monochrome icons.
 - **`layered`** — Multi-layer extrusion; each SVG path group extruded at a different Z offset for depth separation. Best for multi-color cloud provider icons.
-- **`embossed`** — Icon raised from the node face surface; depth controlled by `iconDepth`. Icon merges visually with the node geometry rather than floating above it.
+- **`embossed`** — Icon raised from the node face surface; depth derived from `iconDepthFactor × node.thickness`. Icon merges visually with the node geometry rather than floating above it.
 
 Theme default: `darkGlassTheme.node.defaultIconStyle = 'extruded'`; `enterpriseTheme` and `lightMinimalTheme` default to `'flat'`.
 

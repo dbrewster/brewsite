@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Diagram Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-02
+last_updated: 2026-03-08
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -11,6 +11,12 @@ change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Breaking DX improvements: depth→thickness prop rename on DiagramNode and DiagramNodeState; emissive/emissiveIntensity/emissiveColor removed, replaced with glow?: boolean|DiagramNodeGlowConfig; Enter/Exit renamed to DiagramEnter/DiagramExit with corresponding prop types DiagramEnterProps/DiagramExitProps; DiagramNodeState.label type changed from string to string|undefined; ghost node trigger changed from label==='' to label===undefined; DiagramWidget removed from public exports. All affected sections updated."
+  - date: 2026-03-08
+    author: "Toolkit Product"
+    summary: "Model/diagram overhaul: iconDepth renamed to iconDepthFactor (now a fraction of node thickness 0..1, coordinate-system-invariant); DiagramPivot type deleted and pivot prop removed from DiagramProps/DiagramState; iconScale default now sourced from theme (DiagramThemeNodeConfig.defaultIconScale); compilation step 7 (pivot offset) removed; TextRenderer.ts deleted — callers import ensureText/TextWithLayout directly from @brewsite/core. All affected DSL, compiled state, pipeline, and technical sections updated."
+  - date: 2026-03-08
+    author: "Toolkit Product"
+    summary: "Coordinate system migration and group label propagation: DiagramProps position/rotation/scale/pivot replaced with viewportBounds (NVSRect) and tilt ([number,number,number]); DiagramState position/rotation/scale/pivot/bounds replaced with viewportBounds and tiltRotation; exit/enter changed from null to undefined default; DiagramGroupProps.labelColor added for per-group title color override; DiagramGroupState.labelColor added as resolved field; FlowLayout DSL component added with FlowLayoutProps. All authoring examples updated. Breaking change assessment updated to major."
 ---
 
 # BrewSite Diagram — Diagram Element
@@ -56,17 +62,16 @@ Technical marketing scenes frequently need to visualize system architecture, dat
 ## Functional Requirements
 
 1. The system shall compile a `<Diagram>` JSX element with any combination of `<DiagramNode>`, `<DiagramEdge>`, `<DiagramGroup>`, `<GridLayout>`, `<HierarchicalLayout>`, `<ManualLayout>`, `<DiagramExit>`, and `<DiagramEnter>` children into a `DiagramState` using `compileDiagram(dsl, fallbackTheme?)`.
-2. Consumers must be able to specify per-node `position`, `size`, `thickness`, `color`, `shape`, `icon`, `opacity`, `metalness`, `roughness`, `glow`, `cornerRadius`, `labelColor`, `sublabelColor`, `clickable`, `enabled`, `iconScale`, `iconStyle`, and `iconDepth`.
+2. Consumers must be able to specify per-node `position`, `size`, `thickness`, `color`, `shape`, `icon`, `opacity`, `metalness`, `roughness`, `glow`, `cornerRadius`, `labelColor`, `sublabelColor`, `clickable`, `enabled`, `iconScale`, `iconStyle`, and `iconDepthFactor`.
 3. Consumers must be able to specify per-edge `from`, `to`, `style`, `arrowStart`, `arrowEnd`, `flow`, `flowColor`, `color`, `thickness`, `opacity`, `routing`, `fromPort`, and `toPort`.
 4. Consumers must be able to nest `<DiagramNode>` and child `<DiagramGroup>` elements inside a `<DiagramGroup>` to establish group membership and visual containment.
 5. The system shall resolve all node positions that have no explicit `position` prop using the layout specified by the diagram's layout child element, or the theme's default layout if none is specified.
 6. The system shall route all edges using the `routeEdges()` function after layout resolution, producing `controlPoints` on each `DiagramEdgeState`.
 7. The `mergeSnapshot(prev, next)` method on `DiagramWidget` shall carry forward `label`, `sublabel`, `shape`, `iconUrl`, `iconScale`, and `sublabelColor` from `prev` for any node in `next` whose `label` is `undefined` (i.e., the `label` prop was omitted in the DSL). Nodes with `label=""` (explicit empty string) are not ghost nodes and are not subject to merge.
 8. The `mergeSnapshot` method shall additionally carry forward `position`, `size`, and `thickness` from `prev` for any node in `next` where `positionInherited` is `true`.
-9. The system shall apply the `pivot` prop to shift all compiled node positions so the chosen pivot point maps to diagram-local `[0, 0, 0]`. Edge routing shall use pivoted positions.
-10. Consumers must be able to attach `onMouseEnter` and `onMouseLeave` handlers to `<DiagramNode>` and `<DiagramGroup>` elements, which are invoked at runtime when the cursor enters or leaves the corresponding 3D mesh.
-11. `DiagramWidget` shall emit a `DiagramInteractionEvent` of type `'node-click'` when a `clickable` node's front-face mesh is clicked, provided an `onInteraction` callback is assigned.
-12. The system shall render nodes before edges using painter's algorithm (groups rendered first, then edges, then nodes sorted back-to-front by Z).
+9. Consumers must be able to attach `onMouseEnter` and `onMouseLeave` handlers to `<DiagramNode>` and `<DiagramGroup>` elements, which are invoked at runtime when the cursor enters or leaves the corresponding 3D mesh.
+10. `DiagramWidget` shall emit a `DiagramInteractionEvent` of type `'node-click'` when a `clickable` node's front-face mesh is clicked, provided an `onInteraction` callback is assigned.
+11. The system shall render nodes before edges using painter's algorithm (groups rendered first, then edges, then nodes sorted back-to-front by Z).
 
 ## DSL Authoring Surface
 
@@ -77,16 +82,21 @@ Technical marketing scenes frequently need to visualize system architecture, dat
 export interface DiagramProps {
   /** Unique diagram ID. Must be stable across scenes. */
   id: string;
-  /** World/parent-space position. Default: [0, 0, 0] */
-  position?: [number, number, number];
-  /** World/parent-space Euler XYZ rotation in radians. Default: [0, 0, 0] */
-  rotation?: [number, number, number];
-  /** Uniform scale. Default: 1 */
-  scale?: number;
-  /** Pivot point. Which corner/center maps to diagram-local [0,0,0]. Default: 'center' */
-  pivot?: DiagramPivot;
   /**
-   * Visual + behavioral theme. Falls back to darkGlassTheme if absent.
+   * Viewport bounds within the parent DiagramCanvas's NVS region.
+   * { x, y, w, h } in [0..1] fractions of the canvas NVS region.
+   * Default: { x: 0, y: 0, w: 1, h: 1 } (full canvas).
+   * For side-by-side diagrams: left={ x: 0, w: 0.5 }, right={ x: 0.5, w: 0.5 }.
+   */
+  viewportBounds?: NVSRect;
+  /**
+   * 3D tilt rotation in Euler XYZ radians for dramatic perspective effects.
+   * Default: [0, 0, 0] (flat, facing camera).
+   */
+  tilt?: [number, number, number];
+  /**
+   * Visual + behavioral theme. Overrides canvas theme for this diagram only.
+   * Falls back to darkGlassTheme if no canvas theme is present.
    * Per-node / per-edge props take precedence over all theme values.
    */
   theme?: DiagramTheme;
@@ -159,7 +169,7 @@ export interface DiagramNodeProps {
   clickable?: boolean;
   /** Whether node is rendered. Default: true */
   enabled?: boolean;
-  /** Icon scale relative to node face [0–1]. Default: 0.6 */
+  /** Icon scale relative to node face [0–1]. Default: from theme (see DiagramThemeNodeConfig.defaultIconScale). */
   iconScale?: number;
   /**
    * 3D rendering style for the icon on this node's front face.
@@ -169,10 +179,13 @@ export interface DiagramNodeProps {
    */
   iconStyle?: SvgIcon3DStyle;
   /**
-   * Max Z extrusion depth for 3D icon geometry in diagram units.
-   * Only applies when iconStyle !== 'flat'. Default: 0.15. Sensible range: 0.05–0.25.
+   * 3D icon extrusion depth as a fraction of the node's `thickness` [0..1].
+   * Only applies when iconStyle !== 'flat'.
+   * Default: from theme (see DiagramThemeNodeConfig.defaultIconDepthFactor).
+   * Example: 0.5 = icon extrudes to 50% of the node's physical z-depth.
+   * Using a fraction makes this coordinate-system-invariant across AutoLayout and ManualLayout.
    */
-  iconDepth?: number;
+  iconDepthFactor?: number;
   /** Runtime mouse-enter handler */
   onMouseEnter?: DiagramNodeMouseHandler;
   /** Runtime mouse-leave handler */
@@ -262,6 +275,8 @@ export interface DiagramGroupProps {
   onMouseLeave?: DiagramGroupMouseHandler;
   /** Optional point lights distributed clockwise around the group border perimeter. */
   edgeLights?: DiagramGroupEdgeLightsDSL;
+  /** Per-group override for title label text color. Falls back to theme.group.defaultLabelColor. */
+  labelColor?: string;
   /**
    * Child <DiagramNode> and <DiagramGroup> elements that belong to this group.
    * Group bounds are computed from the union of child node positions + sizes.
@@ -271,6 +286,23 @@ export interface DiagramGroupProps {
 }
 ```
 
+### `<FlowLayout>` — Sequential Flow Layout
+
+```typescript
+export interface FlowLayoutProps {
+  /** Primary layout axis. Default: 'top-down' */
+  direction?: 'top-down' | 'left-right';
+  /** Edge-to-edge gap between adjacent items in diagram units. Default: 2 */
+  gap?: number;
+  /** Padding inside group boundary boxes. Default: 1.5 */
+  groupPadding?: LayoutPadding;
+  /** Gap between group title label and content area. Default: 1 */
+  titleGap?: number;
+}
+```
+
+`<FlowLayout>` places all direct children in a single line in JSX declaration order. Items are positioned along the direction axis with edge-to-edge gap spacing. Cross-axis position is always 0 (center-aligned). Cascades with parent layouts of the same kind.
+
 ### `<DiagramExit>` and `<DiagramEnter>` — Transition Declarations
 
 Both components are direct children of `<Diagram>`. At most one `<DiagramExit>` and one `<DiagramEnter>` per diagram.
@@ -278,20 +310,16 @@ Both components are direct children of `<Diagram>`. At most one `<DiagramExit>` 
 ```typescript
 export interface DiagramExitProps {
   /**
-   * Target position in parent space at the end of the exit (t=1).
-   * Absent: diagram stays at its declared position (scale/fade only).
+   * Target viewport position at end of exit animation, in [0..1] NVS space.
+   * Values outside [0..1] move the diagram off-screen.
+   * Absent: diagram stays in place (fade only).
    */
   to?: [number, number, number];
   /**
    * If true (default), all node and edge opacities fade to 0 during exit.
-   * Set false for translate/scale-only exit.
+   * Set false for translate-only exit.
    */
   fade?: boolean;
-  /**
-   * Target scale factor at exit t=1. e.g., scaleTo={0} shrinks to a point.
-   * Absent: scale is not animated.
-   */
-  scaleTo?: number;
   /**
    * Easing function. Default: 'ease' (smooth ease-in-out).
    * 'spring' produces a slight overshoot feel.
@@ -301,18 +329,15 @@ export interface DiagramExitProps {
 
 export interface DiagramEnterProps {
   /**
-   * Source position in parent space at the start of the enter (t=0).
-   * Absent: diagram enters from its declared position (scale/fade only).
+   * Source viewport position at start of enter animation, in [0..1] NVS space.
+   * Values outside [0..1] start the animation from off-screen.
+   * Absent: diagram enters from its declared viewportBounds (fade only).
    */
   from?: [number, number, number];
   /**
    * If true (default), all node and edge opacities fade in from 0 during enter.
    */
   fade?: boolean;
-  /**
-   * Source scale factor at enter t=0. e.g., scaleFrom={0} grows from a point.
-   */
-  scaleFrom?: number;
   /** Easing function. Default: 'ease'. */
   easing?: DiagramEasing;
 }
@@ -336,7 +361,7 @@ export interface DiagramNodeState {
   readonly label: string | undefined;
   readonly sublabel: string | undefined;
   readonly shape: DiagramNodeShape;
-  /** World-space position after layout + pivot offset. [x, y, z] */
+  /** World-space position after layout resolution. [x, y, z] */
   readonly position: readonly [number, number, number];
   /** Node width and height in diagram units. */
   readonly size: readonly [number, number];
@@ -369,7 +394,8 @@ export interface DiagramNodeState {
   readonly iconUrl: string | undefined;
   readonly iconScale: number;
   readonly iconStyle: SvgIcon3DStyle;
-  readonly iconDepth: number;
+  /** Icon extrusion depth as a fraction of node.thickness [0..1]. Coordinate-system-invariant. */
+  readonly iconDepthFactor: number;
   readonly groupId: string | undefined;
   readonly onMouseEnter?: DiagramNodeMouseHandler;
   readonly onMouseLeave?: DiagramNodeMouseHandler;
@@ -435,6 +461,8 @@ export interface DiagramGroupState {
   readonly onMouseEnter?: DiagramGroupMouseHandler;
   readonly onMouseLeave?: DiagramGroupMouseHandler;
   readonly edgeLights?: DiagramGroupEdgeLightsState;
+  /** Compiled group title label color. From DiagramGroupDSL.labelColor ?? theme.group.defaultLabelColor. */
+  readonly labelColor: string;
 }
 ```
 
@@ -450,35 +478,26 @@ export interface DiagramState {
   /** All groups. Rendered before edges (painter's algorithm) */
   readonly groups: ReadonlyArray<DiagramGroupState>;
   /**
-   * Computed bounding box of the entire diagram in diagram units.
-   * In DIAGRAM-LOCAL coordinates after pivot offset is applied.
-   * Used by DiagramWidget.onTick() for camera auto-framing when no Camera widget is active.
+   * Viewport bounds within the parent DiagramCanvas's NVS region.
+   * { x, y, w, h } in [0..1] fractions of the canvas NVS region.
+   * Default: { x: 0, y: 0, w: 1, h: 1 }.
    */
-  readonly bounds: {
-    readonly x: number;
-    readonly y: number;
-    readonly w: number;
-    readonly h: number;
-    readonly minZ: number;
-    readonly maxZ: number;
-  };
-  /** World/parent-space position of the diagram group origin. */
-  readonly position: readonly [number, number, number];
-  /** World/parent-space Euler XYZ rotation in radians. */
-  readonly rotation: readonly [number, number, number];
-  /** Uniform scale factor. Default: 1. */
-  readonly scale: number;
-  readonly pivot: DiagramPivot;
+  readonly viewportBounds: NVSRect;
   /**
-   * Compiled exit config, or null for default fade.
+   * 3D tilt rotation (Euler XYZ radians) for dramatic perspective effects.
+   * Default: [0, 0, 0] (flat, facing camera).
+   */
+  readonly tiltRotation: readonly [number, number, number];
+  /**
+   * Compiled exit behaviour. undefined = default fade (no position animation).
    * Applied by exitFn in functionalDiagramTransitionSpec.
    */
-  readonly exit: DiagramExitConfig | null;
+  readonly exit: DiagramExitConfig | undefined;
   /**
-   * Compiled enter config, or null for default fade.
+   * Compiled enter behaviour. undefined = default fade.
    * Applied by enterFn in functionalDiagramTransitionSpec.
    */
-  readonly enter: DiagramEnterConfig | null;
+  readonly enter: DiagramEnterConfig | undefined;
   /** Render-time theme properties resolved at compile time. render.ts reads this struct only. */
   readonly themeConfig: DiagramThemeRenderConfig;
 }
@@ -500,13 +519,11 @@ export interface DiagramState {
 
 **Step 6 — Position resolution via `resolveLayoutWithGroups`.** Call `resolveLayoutWithGroups(nodes, edges, groups, rootLayout, groupLayouts, sizeWithDepthMap)`. This returns a `Map<string, [x, y, z]>` for all nodes that either have explicit positions or are assigned positions by the layout algorithm. Nodes without explicit positions and without auto-layout assignment remain absent from the map; these are ghost nodes.
 
-**Step 7 — Pivot offset calculation.** Call `computeBounds(nodeIds, positions, sizeWithDepthMap)` on the raw (pre-pivot) positions to get `rawBounds`. Call `compilePivotOffset(rawBounds, pivot)` to compute the translation offset `[ox, oy, oz]`. Apply the offset to every position in the map in place. All subsequent steps use pivoted positions.
+**Step 7 — Group bounds computation.** Call `resolveGroupBoundsMap(dsl.groups, positions, sizeWithDepthMap, groupLayouts)` to compute a bounding box for each group. Inject each group's center and synthetic size into `positions` and `sizeWithDepthMap` respectively so that edges can route to and from group borders.
 
-**Step 8 — Group bounds computation.** Call `resolveGroupBoundsMap(dsl.groups, positions, sizeWithDepthMap, groupLayouts)` to compute a bounding box for each group. Inject each group's center and synthetic size into `positions` and `sizeWithDepthMap` respectively so that edges can route to and from group borders.
+**Step 8 — Edge routing.** Call `routeEdges(edgesForRouting, positions, sizeWithDepthMap, theme.edge.routing, theme.edge.landing)` to produce `controlPointsMap: Map<string, ReadonlyArray<[x, y, z]>>`. Each edge ID maps to its computed control points.
 
-**Step 9 — Edge routing.** Call `routeEdges(edgesForRouting, positions, sizeWithDepthMap, theme.edge.routing, theme.edge.landing)` to produce `controlPointsMap: Map<string, ReadonlyArray<[x, y, z]>>`. Each edge ID maps to its computed control points.
-
-**Step 10 — Node, edge, and group compilation + final bounds.** Call `compileNode(node, position, groupId, theme, positionInherited)` for each node (nodes are sorted by Z ascending for back-to-front render order). Call `compileEdge(edge, controlPoints, index, theme)` for each edge. Call `compileGroup(group, bounds, theme)` for each group (groups are sorted by depth and area: shallowest and largest first). Call `computeBounds()` a final time for the diagram-level bounds. Assemble and return `DiagramState`.
+**Step 9 — Node, edge, and group compilation + final bounds.** Call `compileNode(node, position, groupId, theme, positionInherited)` for each node (nodes are sorted by Z ascending for back-to-front render order). Call `compileEdge(edge, controlPoints, index, theme)` for each edge. Call `compileGroup(group, bounds, theme)` for each group (groups are sorted by depth and area: shallowest and largest first). Call `computeBounds()` a final time for the diagram-level bounds. Assemble and return `DiagramState`.
 
 ## Ghost Node Inheritance
 
@@ -594,7 +611,7 @@ class DiagramWidget
 }
 ```
 
-**Camera auto-framing (`onTick`).** When the current tick's `CameraState.enabled` is `false` (or no Camera widget is present), `DiagramWidget.onTick` computes a framing camera position from `DiagramState.bounds`, `position`, `scale`, and `rotation`. It reads the scene camera from `scene.userData['__brewsite_camera']`. This ensures diagrams are always visible even without an explicit `<Camera>` DSL element in the scene.
+**Camera auto-framing (`onTick`).** When the current tick's `CameraState.enabled` is `false` (or no Camera widget is present), `DiagramWidget.onTick` computes a framing camera position from `DiagramState.viewportBounds` and `tiltRotation`. It reads the scene camera from `scene.userData['__brewsite_camera']`. This ensures diagrams are always visible even without an explicit `<Camera>` DSL element in the scene.
 
 **Hover event bubbling.** Mouse-move events bubble from the node level up through the group hierarchy. When the cursor moves from one node to another, `dispatchNodeHover` fires `node-mouse-leave` on the old node then `node-mouse-enter` on the new node. Group hover events follow the same bubbling path: `group-mouse-leave` fires on groups no longer in the path; `group-mouse-enter` fires on newly entered groups. `stopPropagation()` on any event halts further dispatching in that cycle.
 
@@ -666,7 +683,7 @@ function Scene2() {
 
 ### Example 3: Drill-Down Scene with Ghost Nodes and Enter Animation
 
-Scene 3 zooms into the backend group. The CDN and user nodes from Scene 2 are retained as ghosts at reduced opacity. New nodes appear with a scale-up enter animation.
+Scene 3 zooms into the backend group. The CDN and user nodes from Scene 2 are retained as ghosts at reduced opacity. The diagram enters from the right edge with a fade.
 
 ```tsx
 import {
@@ -677,7 +694,8 @@ import {
 function Scene3() {
   return (
     <Scene id="scene-3">
-      <Diagram id="microservices" theme={darkGlassTheme} scale={1.5}>
+      {/* viewportBounds fills the full canvas; tilt adds a slight perspective lean */}
+      <Diagram id="microservices" theme={darkGlassTheme} tilt={[0.1, 0, 0]}>
         <ManualLayout />
         {/* Full nodes in this scene — explicitly positioned in the expanded view */}
         <DiagramNode id="api" label="API Gateway" icon="aws:api-gateway" position={[0, 2, 0]} />
@@ -688,8 +706,8 @@ function Scene3() {
         <DiagramNode id="mobile" opacity={0.15} />
         <DiagramEdge from="api" to="auth" style="dashed" />
         <DiagramEdge from="api" to="db" arrowEnd="filled" />
-        {/* Scale up from zero on enter */}
-        <DiagramEnter scaleFrom={0.2} fade easing="spring" />
+        {/* Fade in from right on enter */}
+        <DiagramEnter from={[1.5, 0.5, 0]} fade easing="spring" />
       </Diagram>
     </Scene>
   );
@@ -698,15 +716,43 @@ function Scene3() {
 
 ## Technical Considerations
 
-- **Pivot offset is compile-time.** All compiled `DiagramNodeState.position` values are already in pivoted space. The pivot offset is not stored separately; it is baked into every position. This simplifies the renderer and ensures that `bounds` in `DiagramState` is always in the same coordinate system as node positions.
 - **Group bounds use a synthetic position/size injection.** After `resolveGroupBoundsMap`, each group's center position and border-inset size are injected into the same `positions` and `sizeWithDepthMap` used by `routeEdges`. This allows edges to terminate visually at the group border frame, not at the group center.
 - **Edge control points are recomputed on every interpolation tick.** `rerouteLiveEdges` in `transitionHelpers.ts` re-runs edge routing at each blended position during a scene transition. This is necessary for smooth edge motion as nodes move during interpolation.
 - **Three.js geometry is reused across frames.** `NodeRenderer`, `EdgeRenderer`, and `GroupRenderer` maintain per-ID geometry caches. Geometry is disposed and recreated only when the corresponding state changes structurally (e.g., node shape changes, edge control point count changes).
-- **Troika text is loaded asynchronously.** Label text meshes created by `TextRenderer` are async. There is no blocking on text load; labels appear as they resolve. This is consistent with the rest of the Three.js rendering model in the toolkit.
+- **Troika text is loaded asynchronously.** Label text meshes created via `ensureText` (imported directly from `@brewsite/core`) are async. There is no blocking on text load; labels appear as they resolve. This is consistent with the rest of the Three.js rendering model in the toolkit.
 
 ## Breaking Change Assessment
 
-Semver impact: **none** (documentation of implemented behavior).
+Semver impact: **major**.
+
+The 2026-03-08 overhaul introduced multiple breaking changes to the public API surface:
+
+| Change | Before | After |
+|---|---|---|
+| `DiagramProps.position` | `[number,number,number]` | removed |
+| `DiagramProps.rotation` | `[number,number,number]` | removed |
+| `DiagramProps.scale` | `number` | removed |
+| `DiagramProps.pivot` | `DiagramPivot` | removed |
+| `DiagramProps.viewportBounds` | absent | `NVSRect \| undefined` |
+| `DiagramProps.tilt` | absent | `[number,number,number] \| undefined` |
+| `DiagramNodeProps.iconDepth` | `number` (world units) | removed |
+| `DiagramNodeProps.iconDepthFactor` | absent | `number` (fraction of thickness, 0..1) |
+| `DiagramState.position` | `readonly [number,number,number]` | removed |
+| `DiagramState.rotation` | `readonly [number,number,number]` | removed |
+| `DiagramState.scale` | `number` | removed |
+| `DiagramState.pivot` | `DiagramPivotState` | removed |
+| `DiagramState.bounds` | `DiagramBounds` | removed |
+| `DiagramState.viewportBounds` | absent | `NVSRect` |
+| `DiagramState.tiltRotation` | absent | `readonly [number,number,number]` |
+| `DiagramState.exit` | `DiagramExitConfig \| null` | `DiagramExitConfig \| undefined` |
+| `DiagramState.enter` | `DiagramEnterConfig \| null` | `DiagramEnterConfig \| undefined` |
+| `DiagramExitProps.scaleTo` | `number` | removed |
+| `DiagramEnterProps.scaleFrom` | `number` | removed |
+| `DiagramGroupProps.labelColor` | absent | `string \| undefined` (new, non-breaking) |
+| `DiagramGroupState.labelColor` | absent | `readonly string` (new, non-breaking) |
+| `DiagramPivot` type | exported | deleted |
+
+**Migration path.** Replace `position`, `rotation`, `scale`, `pivot` on `<Diagram>` with `viewportBounds` and `tilt`. Replace `iconDepth` on `<DiagramNode>` with `iconDepthFactor` (convert world-unit depth to a fraction: `iconDepthFactor = iconDepth / thickness`). Replace null checks on `DiagramState.exit` and `DiagramState.enter` with `undefined` checks. Remove `scaleTo`/`scaleFrom` from `<DiagramExit>`/`<DiagramEnter>` — the equivalent effect is achieved via `to`/`from` with an off-screen NVS coordinate.
 
 ## Open Questions
 

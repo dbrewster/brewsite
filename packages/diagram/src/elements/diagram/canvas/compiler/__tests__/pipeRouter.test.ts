@@ -109,7 +109,7 @@ describe('rerouteLivePipes', () => {
         iconUrl: undefined,
         iconScale: 0.6,
         iconStyle: 'flat',
-        iconDepth: 0.1,
+        iconDepthFactor: 0.1,
         groupId: undefined,
         positionInherited: undefined,
       },

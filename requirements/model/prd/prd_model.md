@@ -3,11 +3,14 @@ title: "@brewsite/model — GLTF Model & Label System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-07
+last_updated: 2026-03-08
 change_history:
   - date: 2026-03-07
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents @brewsite/model as a published extension package: ModelWidget, LabelPositioner, label compiler, modelPlugin() factory, asset manifest contract, ViewportScaleContext integration (replaces EngineARContainerContext), and the post-cleanup API surface where all types are available from the @brewsite/core main barrel (no deep sub-path imports required)."
+  - date: 2026-03-08
+    author: "Toolkit Product"
+    summary: "Model/diagram overhaul audit: LabelStyle.fontSize documented as intentional number|string union — number values render as px via React CSSProperties; string values pass through as-is (e.g., '1.2rem', '150%'). All model sizing fields verified correct; no changes to model coordinate system or API."
 ---
 
 # @brewsite/model — GLTF Model & Label System
@@ -158,6 +161,15 @@ types.ts → dsl.tsx → compile.ts → render.ts → ModelWidget.ts → index.t
 ```
 
 Three.js is confined to `render.ts` and `ModelWidget.ts` (which calls render layer methods). The compiler layer (`compile.ts`) is pure TypeScript with no Three.js imports.
+
+### LabelStyle.fontSize Type
+
+`LabelStyle.fontSize` is typed as `number | string`. This is intentional — not a type error or oversight:
+
+- **`number`**: Rendered as pixels by React's CSS-in-JS handling (e.g., `14` → `14px`). Equivalent to `React.CSSProperties.fontSize` numeric behavior.
+- **`string`**: Any valid CSS font-size value passed through as-is (e.g., `"1.2rem"`, `"150%"`, `"0.875em"`).
+
+Default: `12` (px). Narrowing to `number` would remove valid functionality for consumers using relative font sizes.
 
 ### disableWhenAbsent
 

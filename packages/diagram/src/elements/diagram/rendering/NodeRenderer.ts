@@ -3,7 +3,7 @@ import type { NodeRenderEntry, TextWithLayout } from './types';
 import type { DiagramNodeState, DiagramThemeRenderConfig } from '../types';
 import type { IIconLoader } from './IconLoader';
 import type { IInteractionRegistry } from './InteractionRegistry';
-import { ensureText } from './TextRenderer';
+import { ensureText } from '@brewsite/core';
 import { createShapeGeometry, createShapeOutlineGeometry, isRectangularShape, getContentRect } from '../shapes/geometryFactory';
 import { createGlow, computeGlowScale, disposeGlowSprite } from '../../_shared/glowSprite';
 import { Text } from 'troika-three-text';
@@ -49,6 +49,12 @@ const createBoxMaterials = (
     opacity: state.opacity,
   });
   const top = side.clone();
+  // Top-face sub-emissive: 0.05 gives a faint upward-light highlight calibrated to the
+  // default lighting rig (ambient + directional from above). Bottom: 0.02 is near-zero,
+  // producing an ambient shadow effect. These are aesthetic calibrations for the default
+  // node lighting setup — not theme-exposed (four-condition principle: they co-vary with
+  // scene lighting, which is not a diagram-element concern, and are not independently
+  // composable outside the node geometry context).
   top.emissive = new THREE.Color(state.sideColor).multiplyScalar(0.05);
   const bottom = side.clone();
   bottom.emissive = new THREE.Color(state.sideColor).multiplyScalar(0.02);
@@ -199,7 +205,7 @@ export class NodeRenderer {
         state.color,
         state.size[0],
         state.size[1],
-        2.2,
+        themeConfig.nodeGlowSpread,
         themeConfig.nodeGlowIntensity * state.opacity,
       );
       group.add(glow);
@@ -365,7 +371,7 @@ export class NodeRenderer {
           state.color,
           state.size[0],
           state.size[1],
-          2.2,
+          themeConfig.nodeGlowSpread,
           themeConfig.nodeGlowIntensity * state.opacity,
         );
         entry.group.add(entry.glow);
@@ -375,7 +381,7 @@ export class NodeRenderer {
           entry.glow.material.color.set(state.color);
         }
         if (!prev || prev.size[0] !== state.size[0] || prev.size[1] !== state.size[1]) {
-          const [glowW, glowH] = computeGlowScale(state.size[0], state.size[1], 2.2);
+          const [glowW, glowH] = computeGlowScale(state.size[0], state.size[1], themeConfig.nodeGlowSpread);
           entry.glow.scale.set(glowW, glowH, 1);
         }
       }
@@ -390,8 +396,13 @@ export class NodeRenderer {
     // the rendered shape, constraining icon and text to the visible interior.
     const [contentW, contentH] = getContentRect(state.shape, state.size);
 
-    const labelFontSize = contentH * 0.28 * (themeConfig.effectiveLabelSizeFactor ?? 1.0);
-    const sublabelFontSize = contentH * 0.18 * (themeConfig.effectiveSublabelSizeFactor ?? 1.0);
+    // Label layout ratios relative to contentH (node interior height after shape masking).
+    // nodeLabelFontSizeBase = label font-size base fraction of contentH (from theme).
+    // nodeSublabelFontSizeBase = sublabel font-size base fraction of contentH (from theme).
+    // 1.1  = line-height multiplier (10% leading above the font-size).
+    // 0.06 = vertical gap between label and sublabel as a fraction of contentH.
+    const labelFontSize = contentH * themeConfig.nodeLabelFontSizeBase * (themeConfig.effectiveLabelSizeFactor ?? 1.0);
+    const sublabelFontSize = contentH * themeConfig.nodeSublabelFontSizeBase * (themeConfig.effectiveSublabelSizeFactor ?? 1.0);
     const labelLine = labelFontSize * 1.1;
     const sublabelLine = sublabelFontSize * 1.1;
     const lineGap = contentH * 0.06;
@@ -455,7 +466,7 @@ export class NodeRenderer {
         !entry.iconHolder ||
         entry.iconHolder.userData['iconUrl'] !== state.iconUrl ||
         entry.iconHolder.userData['iconStyle'] !== state.iconStyle ||
-        entry.iconHolder.userData['iconDepth'] !== state.iconDepth;
+        entry.iconHolder.userData['iconDepthFactor'] !== state.iconDepthFactor;
 
       if (needsIconRebuild) {
         if (entry.iconHolder) {
@@ -464,17 +475,19 @@ export class NodeRenderer {
         const holder = new THREE.Group();
         holder.userData['iconUrl'] = state.iconUrl;
         holder.userData['iconStyle'] = state.iconStyle;
-        holder.userData['iconDepth'] = state.iconDepth;
+        holder.userData['iconDepthFactor'] = state.iconDepthFactor;
         entry.iconHolder = holder;
         entry.group.add(holder);
         const iconWidth = contentW * state.iconScale;
         const iconHeight = contentH * state.iconScale;
+        // iconDepthFactor is a fraction of thickness; convert to diagram units for the loader.
+        const iconMaxDepth = state.iconDepthFactor * state.thickness;
         this.iconLoader.load(
           state.iconUrl,
           iconWidth,
           iconHeight,
           state.iconStyle,
-          state.iconDepth,
+          iconMaxDepth,
           state.metalness,
           state.roughness,
         ).then((obj) => {

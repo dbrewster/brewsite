@@ -1,4 +1,10 @@
 import type { DiagramThemeLayoutConfig, LayoutDSL, LayoutPadding } from '../types';
+import {
+  DEFAULT_GROUP_PADDING,
+  DEFAULT_TITLE_GAP,
+  DEFAULT_MANUAL_GROUP_PADDING,
+  DEFAULT_MANUAL_TITLE_GAP,
+} from './diagramLayoutConstants';
 
 // Resolved layout types — all fields required (no optionals).
 // Produced by resolveEffectiveLayout(); consumed by layout algorithms.
@@ -81,13 +87,9 @@ export function normalizeMargin(
 
 // Diagram-unit padding for auto-layout: applied to diagram-unit bounding boxes,
 // then divided by the total span during normalizeToViewport(). Result: ~0.075–0.15 NVS.
-const DEFAULT_GROUP_PADDING_NORMALIZED: readonly [number, number, number, number] = [1.5, 1.5, 1.5, 1.5];
 // ManualLayout: node positions/sizes are already in [0..1] NVS; padding must be NVS fractions.
 // 0.025 ≈ 2.5% of the diagram viewport per side — tight but visually clear group boundary.
-const DEFAULT_MANUAL_GROUP_PADDING: readonly [number, number, number, number] = [0.025, 0.025, 0.025, 0.025];
-const DEFAULT_TITLE_GAP = 1;
 // ManualLayout title gap: NVS fraction of viewport height. 0.025 ≈ 2.5% of canvas height.
-const DEFAULT_MANUAL_TITLE_GAP = 0.025;
 const DEFAULT_GRID_SPACING: readonly [number, number] = [2, 2];
 const DEFAULT_HIERARCHICAL_SPACING: readonly [number, number] = [1.5, 1.5];
 const DEFAULT_MARGIN: readonly [number, number] = [0, 0];
@@ -97,7 +99,7 @@ export const DEFAULT_RESOLVED_GRID: ResolvedGridLayout = {
   columns: 'auto',
   spacing: DEFAULT_GRID_SPACING,
   margin: DEFAULT_MARGIN,
-  groupPadding: DEFAULT_GROUP_PADDING_NORMALIZED,
+  groupPadding: DEFAULT_GROUP_PADDING,
   titleGap: DEFAULT_TITLE_GAP,
   alignment: 'left',
   disconnected: 'next-to',
@@ -108,7 +110,7 @@ export const DEFAULT_RESOLVED_HIERARCHICAL: ResolvedHierarchicalLayout = {
   direction: 'top-down',
   spacing: DEFAULT_HIERARCHICAL_SPACING,
   margin: DEFAULT_MARGIN,
-  groupPadding: DEFAULT_GROUP_PADDING_NORMALIZED,
+  groupPadding: DEFAULT_GROUP_PADDING,
   titleGap: DEFAULT_TITLE_GAP,
   alignment: 'center',
   disconnected: 'next-to',
@@ -125,7 +127,7 @@ export const DEFAULT_RESOLVED_FLOW: ResolvedFlowLayout = {
   kind: 'flow',
   direction: 'top-down',
   gap: 2,
-  groupPadding: DEFAULT_GROUP_PADDING_NORMALIZED,
+  groupPadding: DEFAULT_GROUP_PADDING,
   titleGap: DEFAULT_TITLE_GAP,
 };
 

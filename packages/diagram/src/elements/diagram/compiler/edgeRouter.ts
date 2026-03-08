@@ -23,11 +23,11 @@ type EdgeRoutingInput = {
   thickness?: number;
 };
 
-const EDGE_EPSILON = 0.06;
-const MIN_PORT_PITCH = 0.35;
+const EDGE_EPSILON = 0.012;    // was 0.06 — 6% NVS was too large for dense layouts
+const MIN_PORT_PITCH = 0.05;   // was 0.35 — 35% NVS port pitch made multi-port faces impossible
 const PORT_SPACING_FACTOR = 3.0;
 const PORT_MARGIN_FACTOR = 1.5;
-const OBSTACLE_PADDING = 0.2;
+const OBSTACLE_PADDING = 0.03; // was 0.20 — 20% NVS expanded every node obstacle by its full width
 const END_TOUCH_TOLERANCE_T = 0.03;
 
 type RoutingWeights = {
@@ -314,20 +314,74 @@ function routeEdgeCurvedProfile(
   const dstIsSide = dstFace === 'left' || dstFace === 'right';
   const renderProfile = profile === 'render';
   return routeCurvedWithEndpointNormals(srcCenter, dstCenter, srcNormal, dstNormal, {
+    /**
+     * Minimum distance below which endpoint normals are considered parallel —
+     * prevents degenerate handles on nearly-coincident nodes.
+     */
     epsilon: EDGE_EPSILON,
-    handleMin: 0.35,
-    handleMax: 4,
+    /**
+     * Minimum Bézier handle length as a fraction of node-to-node distance.
+     * Prevents overly straight curves for very close nodes.
+     */
+    handleMin: 0.06,
+    /**
+     * Maximum Bézier handle length as a fraction of node-to-node distance.
+     * Caps handles so long-range edges don't produce extreme loops.
+     */
+    handleMax: 1.5,
+    /**
+     * Linear scale factor mapping node-to-node distance to handle length.
+     * handle = clamp(distance × handleFactor, handleMin, handleMax)
+     */
     handleFactor: 0.28,
+    /**
+     * If true, replace the curved path with a straight line segment when the
+     * src/dst faces permit it. Only allowed for top/bottom face pairs to avoid
+     * visually ambiguous straight connections on side faces.
+     */
     allowDirectSegment: !srcIsSide && !dstIsSide,
+    /**
+     * Node-to-node distance below which allowDirectSegment is applied.
+     * Nodes farther apart than this always use the curved profile.
+     */
     directDistanceThreshold: 0.6,
+    /**
+     * Dot-product alignment threshold for direct segment.
+     * Both normals must point in near-opposite directions (cos(θ) > 0.97)
+     * for the direct segment to engage. Prevents straight lines on diagonal faces.
+     */
     directAlignmentThreshold: 0.97,
+    /** Allow the source handle to exit perpendicular to a side face. */
     startPreferSide: renderProfile && srcIsSide,
+    /** Allow the destination handle to exit perpendicular to a side face. */
     endPreferSide: renderProfile && dstIsSide,
+    /**
+     * Y-component fraction of node height below which a face-exit is treated
+     * as "side-exiting" (horizontal). Prevents handle miscalculation when
+     * nodes are nearly level horizontally.
+     */
     sideVerticalRatioThreshold: 0.3,
+    /**
+     * Base vertical handle component added when a side face exits upward/downward.
+     * Produces a gentle arc rather than a sharp kink for near-horizontal exits.
+     */
     sideVerticalBase: 0.45,
+    /**
+     * Additional vertical handle component per unit of vertical node-to-node distance.
+     * Scales the upward/downward arc proportionally to how far apart the nodes are.
+     */
     sideVerticalFactor: 0.18,
+    /**
+     * Maximum vertical handle component for side-exiting faces.
+     * Prevents runaway arcs on very tall diagrams.
+     */
     sideVerticalMax: 3.2,
-    minSideHandle: renderProfile ? 0.95 : 0,
+    /**
+     * Minimum handle length for side-face exits when using the render profile.
+     * Ensures a visible exit perpendicular to the node face even for close nodes.
+     * 0 when not in render profile (routing-only pass uses shorter handles).
+     */
+    minSideHandle: renderProfile ? 0.12 : 0,
   });
 }
 
@@ -346,16 +400,25 @@ export function routeEdgeStraight(
 const hashStr = (s: string): number =>
   s.split('').reduce((acc, c) => (Math.imul(acc, 31) + c.charCodeAt(0)) | 0, 0x9e3779b9);
 
+/**
+ * Routes an edge using the organic algorithm: a curved path with a deterministic
+ * perpendicular offset applied at the mid-point of the control polygon.
+ *
+ * @param organicVariation - Scalar controlling the magnitude of the perpendicular
+ *   mid-point offset. Sourced from `DiagramTheme.edge.organicVariation`.
+ *   A pure curved path results when set to 0. Offset = (deterministicSeed - 0.5) × organicVariation.
+ */
 export function routeEdgeOrganic(
   srcPos: Vec3, srcSize: NodeDimensions, srcFace: FaceId,
   dstPos: Vec3, dstSize: NodeDimensions, dstFace: FaceId,
   edgeId: string,
+  organicVariation: number,
   srcAnchor?: Vec3,
   dstAnchor?: Vec3,
 ): ReadonlyArray<Vec3> {
   const base = routeEdgeCurved(srcPos, srcSize, srcFace, dstPos, dstSize, dstFace, srcAnchor, dstAnchor);
   const seed = Math.abs(hashStr(edgeId));
-  const offset = ((seed % 1000) / 1000 - 0.5) * 1.6;
+  const offset = ((seed % 1000) / 1000 - 0.5) * organicVariation;
 
   const [p0, p1, p2, p3] = base;
   if (!p1 || !p2 || !p3) return base;
@@ -389,7 +452,16 @@ export function routeEdgeOrthogonal(
     return routeEdgeCurved(srcPos, srcSize, srcFace, dstPos, dstSize, dstFace);
   }
 
-  const stub = 0.8;
+  // stub: Distance in diagram units the edge travels perpendicular to the node face
+  // before making its 90° turn. Controls how far the edge "stubs out" from the face.
+  // WARNING: stub and ce are tightly coupled. Increasing stub without proportionally
+  // increasing ce will make corner rounding look proportionally too small on long edges.
+  // Decreasing ce without decreasing stub produces jagged near-corners.
+  // These two must be adjusted together or not at all.
+  const stub = 0.12;
+  // ce: Corner epsilon in diagram units — the distance before and after the 90° turn
+  // point at which the curve starts and ends. Controls visual rounding of the corner.
+  // Rule: ce ≈ stub × 0.15 for visually consistent corner rounding across edge lengths.
   const ce = 0.12;
   const srcCenter = srcAnchor ?? getFaceCenter(srcPos, srcSize, srcFace);
   const dstCenter = dstAnchor ?? getFaceCenter(dstPos, dstSize, dstFace);
@@ -455,6 +527,7 @@ function routeOneEdge(
   toPos: Vec3, toSize: NodeDimensions,
   routing: EdgeRoutingAlgorithm,
   landing: EdgeLandingAlgorithm,
+  organicVariation: number,
   fromPort?: DiagramEdgePort,
   toPort?: DiagramEdgePort,
   fromAnchor?: Vec3,
@@ -478,7 +551,7 @@ function routeOneEdge(
   switch (routing) {
     case 'straight':    return routeEdgeStraight(fromPos, fromSize, srcFace, toPos, toSize, dstFace, fromAnchor, toAnchor);
     case 'orthogonal':  return routeEdgeOrthogonal(fromPos, fromSize, srcFace, toPos, toSize, dstFace, fromAnchor, toAnchor);
-    case 'organic':     return routeEdgeOrganic(fromPos, fromSize, srcFace, toPos, toSize, dstFace, edgeId, fromAnchor, toAnchor);
+    case 'organic':     return routeEdgeOrganic(fromPos, fromSize, srcFace, toPos, toSize, dstFace, edgeId, organicVariation, fromAnchor, toAnchor);
     case 'curved':
     default:            return routeEdgeCurved(fromPos, fromSize, srcFace, toPos, toSize, dstFace, fromAnchor, toAnchor);
   }
@@ -810,6 +883,7 @@ export function routeEdges(
   defaultRouting: EdgeRoutingAlgorithm = 'curved',
   defaultLanding: EdgeLandingAlgorithm = 'nearest-face',
   onWarn?: DiagramWarnFn,
+  organicVariation: number = 1.6,
 ): Map<string, ReadonlyArray<Vec3>> {
   type EdgeFaceInfo = {
     id: string;
@@ -994,7 +1068,7 @@ export function routeEdges(
 
     result.set(id, routeOneEdge(
       id, fromPos, fromSize, toPos, toSize,
-      routing, landing, edge.fromPort, edge.toPort, fromAnchor, toAnchor, { srcFace, dstFace },
+      routing, landing, organicVariation, edge.fromPort, edge.toPort, fromAnchor, toAnchor, { srcFace, dstFace },
     ));
   });
 

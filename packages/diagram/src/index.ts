@@ -17,7 +17,7 @@ export type {
   DiagramEdgeFlow,
   DiagramGroupVariant,
   DiagramOrientation,
-  DiagramPivot,
+
   DiagramEasing,
   DiagramExitConfig,
   DiagramEnterConfig,
@@ -34,6 +34,11 @@ export type {
   LayoutPadding,
   LayoutAlignment,
   LayoutDisconnected,
+  DiagramGroupSide,
+  DiagramGroupEdgeLightColorResolver,
+  DiagramGroupEdgeLightState,
+  DiagramGroupEdgeLightsState,
+  DiagramGroupEdgeLightsDSL,
   // Theming
   DiagramTheme,
   DiagramCanvasInputConfig,

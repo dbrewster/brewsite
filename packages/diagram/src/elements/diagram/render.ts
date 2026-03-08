@@ -13,6 +13,23 @@ import { EnvMapManager } from './rendering/EnvMapManager';
 import { InteractionRegistry } from './rendering/InteractionRegistry';
 import { sharedIconLoader } from './rendering/IconLoader';
 import { GroupInteractionRegistry } from './rendering/GroupInteractionRegistry';
+import type { DiagramThemeRenderConfig } from './types';
+
+/**
+ * Computes a cache key from the EdgeRenderer construction-time params.
+ * Used to detect when EdgeRenderer needs to be recreated between updates.
+ */
+function edgeThemeKey(tc: DiagramThemeRenderConfig): string {
+  return [
+    tc.use3DArrows,
+    tc.edgeSmoothness,
+    tc.edgeMetalness,
+    tc.edgeRoughness,
+    tc.edgeFlowSpeed,
+    tc.edgeFlowWidth,
+    tc.edgeFlowPulseIntensity,
+  ].join('|');
+}
 
 const findScene = (obj: THREE.Object3D): THREE.Scene | null => {
   let current: THREE.Object3D | null = obj;
@@ -57,12 +74,33 @@ export class DiagramRenderer {
 
   readonly interactionRegistry = new InteractionRegistry();
   readonly groupInteractionRegistry = new GroupInteractionRegistry();
-  private nodeRenderer: NodeRenderer | null = null;
-  private edgeRenderer: EdgeRenderer | null = null;
-  private groupRenderer: GroupRenderer | null = null;
+
+  // Fully initialized in constructor — no null checks needed on update():
+  private readonly nodeRenderer: NodeRenderer;
+  private edgeRenderer: EdgeRenderer;                // NOT readonly — may be recreated on theme change
+  private readonly groupRenderer: GroupRenderer;
+
+  /** Tracks the last edge theme key to detect when EdgeRenderer must be recreated. */
+  private lastEdgeThemeKey: string;
 
   /** Canvas aspect ratio (canvasWidth / canvasHeight in canvas units). Set by DiagramCanvasRenderer before each update(). */
   private _canvasAspect: number = 16 / 9;
+
+  constructor(initialThemeConfig: DiagramThemeRenderConfig) {
+    this.nodeRenderer = new NodeRenderer(sharedIconLoader, this.interactionRegistry);
+    this.edgeRenderer = new EdgeRenderer(
+      new EdgeMaterialFactory(),
+      initialThemeConfig.use3DArrows,
+      initialThemeConfig.edgeSmoothness,
+      initialThemeConfig.edgeMetalness,
+      initialThemeConfig.edgeRoughness,
+      initialThemeConfig.edgeFlowSpeed,
+      initialThemeConfig.edgeFlowWidth,
+      initialThemeConfig.edgeFlowPulseIntensity,
+    );
+    this.groupRenderer = new GroupRenderer(this.groupInteractionRegistry);
+    this.lastEdgeThemeKey = edgeThemeKey(initialThemeConfig);
+  }
 
   /**
    * Sets the canvas aspect ratio used for NVS → canvas-local conversion.
@@ -74,8 +112,12 @@ export class DiagramRenderer {
 
   update(state: DiagramState, parent: THREE.Object3D): void {
     const tc = state.themeConfig;
-    if (!this.nodeRenderer) {
-      this.nodeRenderer = new NodeRenderer(sharedIconLoader, this.interactionRegistry);
+
+    // Recreate EdgeRenderer if any construction-time edge params changed.
+    const newKey = edgeThemeKey(tc);
+    if (newKey !== this.lastEdgeThemeKey) {
+      const root = this.diagramGroups.get(state.id);
+      if (root) this.edgeRenderer.disposeAll(root);
       this.edgeRenderer = new EdgeRenderer(
         new EdgeMaterialFactory(),
         tc.use3DArrows,
@@ -84,8 +126,9 @@ export class DiagramRenderer {
         tc.edgeRoughness,
         tc.edgeFlowSpeed,
         tc.edgeFlowWidth,
+        tc.edgeFlowPulseIntensity,
       );
-      this.groupRenderer = new GroupRenderer(this.groupInteractionRegistry);
+      this.lastEdgeThemeKey = newKey;
     }
 
     const prev = this.lastState.get(state.id);
@@ -116,7 +159,7 @@ export class DiagramRenderer {
     if (prev) {
       for (const g of prev.groups) {
         if (!activeGroupIds.has(g.id)) {
-          this.groupRenderer!.dispose(g.id, state.id, root);
+          this.groupRenderer.dispose(g.id, state.id, root);
         }
       }
     }
@@ -170,13 +213,13 @@ export class DiagramRenderer {
         },
         edgeLights: convertedEdgeLights,
       };
-      this.groupRenderer!.getOrCreate(convertedGroup, state.id, root, tc);
+      this.groupRenderer.getOrCreate(convertedGroup, state.id, root, tc);
     }
 
     const activeEdgeIds = new Set(state.edges.map((e) => `${state.id}::${e.id}`));
-    for (const id of this.edgeRenderer!.ids) {
+    for (const id of this.edgeRenderer.ids) {
       if (id.startsWith(`${state.id}::`) && !activeEdgeIds.has(id)) {
-        this.edgeRenderer!.dispose(id, root);
+        this.edgeRenderer.dispose(id, root);
       }
     }
 
@@ -190,7 +233,7 @@ export class DiagramRenderer {
           return [cl[0] - localX, cl[1] - localY, cl[2]] as readonly [number, number, number];
         }),
       };
-      this.edgeRenderer!.getOrCreate(
+      this.edgeRenderer.getOrCreate(
         { ...convertedEdge, id: `${state.id}::${convertedEdge.id}` },
         root,
       );
@@ -200,7 +243,7 @@ export class DiagramRenderer {
     if (prev) {
       for (const n of prev.nodes) {
         if (!activeNodeIds.has(n.id)) {
-          this.nodeRenderer!.dispose(n.id, state.id, root);
+          this.nodeRenderer.dispose(n.id, state.id, root);
         }
       }
     }
@@ -217,18 +260,18 @@ export class DiagramRenderer {
         size: canvasSize,
         // thickness stays in canvas world units (unchanged)
       };
-      this.nodeRenderer!.getOrCreate(convertedNode, state.id, tc, root);
+      this.nodeRenderer.getOrCreate(convertedNode, state.id, tc, root);
     }
 
     this.lastState.set(state.id, state);
   }
 
   setNodeEmissiveOverride(diagramId: string, nodeId: string, enabled: boolean | undefined): void {
-    this.nodeRenderer?.setNodeEmissiveOverride(diagramId, nodeId, enabled);
+    this.nodeRenderer.setNodeEmissiveOverride(diagramId, nodeId, enabled);
   }
 
   clearNodeEmissiveOverrides(diagramId: string): void {
-    this.nodeRenderer?.clearEmissiveOverridesForDiagram(diagramId);
+    this.nodeRenderer.clearEmissiveOverridesForDiagram(diagramId);
   }
 
   dispose(diagramId: string, parent: THREE.Object3D): void {
@@ -236,9 +279,9 @@ export class DiagramRenderer {
     if (root) {
       parent.remove(root);
     }
-    this.nodeRenderer?.disposeAllForDiagram(diagramId, root ?? new THREE.Group());
-    this.groupRenderer?.disposeAllForDiagram(diagramId, root ?? new THREE.Group());
-    if (this.edgeRenderer && root) {
+    this.nodeRenderer.disposeAllForDiagram(diagramId, root ?? new THREE.Group());
+    this.groupRenderer.disposeAllForDiagram(diagramId, root ?? new THREE.Group());
+    if (root) {
       for (const id of this.edgeRenderer.ids) {
         if (id.startsWith(`${diagramId}::`)) {
           this.edgeRenderer.dispose(id, root);
@@ -247,7 +290,7 @@ export class DiagramRenderer {
     }
     this.diagramGroups.delete(diagramId);
     this.lastState.delete(diagramId);
-    this.nodeRenderer?.clearEmissiveOverridesForDiagram(diagramId);
+    this.nodeRenderer.clearEmissiveOverridesForDiagram(diagramId);
     this.interactionRegistry.clear();
     this.groupInteractionRegistry.clear();
     this.envMapManager.disposeAll();

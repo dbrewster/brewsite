@@ -38,6 +38,8 @@ export class EdgeRenderer {
     private readonly edgeRoughness: number = 0.7,
     private readonly flowSpeed: number = 0.7,
     private readonly flowWidth: number = 0.18,
+    private readonly flowPulseIntensity: number = 0.9,
+    private readonly tubeRadialSegments: number = 8,
   ) {}
 
   getOrCreate(edge: EdgeLike, parent: THREE.Object3D): EdgeRenderEntry {
@@ -89,7 +91,7 @@ export class EdgeRenderer {
       curve,
       segments,
       edge.thickness,
-      8,
+      this.tubeRadialSegments,
       false,
     );
     const tubeMaterial = this.materialFactory.createMaterial(
@@ -141,7 +143,7 @@ export class EdgeRenderer {
         c,
         segments,
         edge.thickness,
-        8,
+        this.tubeRadialSegments,
         false,
       );
       entry.tube.geometry.dispose();
@@ -349,7 +351,7 @@ export class EdgeRenderer {
     uniforms.uPulseWidth.value = this.flowWidth;
     uniforms.uPulseDir.value = flow === 'backward' ? -1 : 1;
     uniforms.uPulseBidirectional.value = flow === 'bidirectional' ? 1 : 0;
-    uniforms.uPulseIntensity.value = wantsPulse ? 0.9 : 0;
+    uniforms.uPulseIntensity.value = wantsPulse ? this.flowPulseIntensity : 0;
   }
 
   private disposeEntry(entry: EdgeEntry): void {
