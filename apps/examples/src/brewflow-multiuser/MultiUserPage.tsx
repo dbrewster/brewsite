@@ -38,7 +38,7 @@ export default function MultiUserPage(): JSX.Element {
   const { plugins } = useMemo(() => createMultiUserPlugins(), []);
 
   return (
-    <div style={{ background: '#080b14', minHeight: '100vh', fontSize: '18px' }}>
+    <div style={{ background: '#080b14', minHeight: '100vh', minWidth: '100vw', fontSize: '18px' }}>
       <EngineProvider
         manifestUrl="/scene-manifest.json"
         plugins={plugins}
@@ -47,18 +47,18 @@ export default function MultiUserPage(): JSX.Element {
       >
         {sceneHero}
         {sceneProblems}
-        {sceneSessionHierarchy}
-        {sceneEpisodicPartition}
-        {sceneNeocortexScopes}
-        {sceneDreamingCloud}
-        {sceneExpertRoles}
-        {sceneDebateRounds}
-        {sceneConvergence}
-        {sceneFractal}
-        {sceneCrossUserFlow}
-        {sceneConflict}
-        {sceneSummary}
-        <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width" referenceWidth={1920}>
+        {/*{sceneSessionHierarchy}*/}
+        {/*{sceneEpisodicPartition}*/}
+        {/*{sceneNeocortexScopes}*/}
+        {/*{sceneDreamingCloud}*/}
+        {/*{sceneExpertRoles}*/}
+        {/*{sceneDebateRounds}*/}
+        {/*{sceneConvergence}*/}
+        {/*{sceneFractal}*/}
+        {/*{sceneCrossUserFlow}*/}
+        {/*{sceneConflict}*/}
+        {/*{sceneSummary}*/}
+        <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-height" referenceWidth={1920}>
           <EngineInputRegion>
             <SceneCanvas />
             <EngineOverlayHost />

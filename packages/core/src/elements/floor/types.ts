@@ -4,6 +4,12 @@
 
 export type SceneFloor = {
   enabled: boolean;
+  /**
+   * World-space position [x, y, z]. Typically [0, 0, 0].
+   * Not NVS — these are raw Three.js world-space units, not [0..1] viewport fractions.
+   * To co-locate the floor with a model placed at `nvsX`/`nvsY`, call
+   * `nvsToWorldAnalytic()` from `@brewsite/core` to resolve the model's world position first.
+   */
   position?: [number, number, number];
   rotation?: [number, number, number];
   /**

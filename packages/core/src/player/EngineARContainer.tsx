@@ -243,7 +243,7 @@ export const EngineARContainer = ({
   };
 
   return (
-    <div ref={outerRef} style={{ position: 'relative', width: '100%', ...style }}>
+    <div ref={outerRef} style={{ position: 'relative', height: '100%', width: '100%', ...style }}>
       <EngineARContainerContext.Provider value={contextValue}>
         <div className={className} style={containerStyle}>
           {children}

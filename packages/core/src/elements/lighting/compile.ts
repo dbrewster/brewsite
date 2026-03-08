@@ -289,6 +289,9 @@ const blendPanels = (
 
 export const DEFAULT_LIGHTING: SceneLighting = {
   ambient: { intensity: 1, color: '#ffffff' },
+  // position [10, 10, 10]: world-scale of ~10 units. For directional lights, only the
+  // direction from origin matters (Three.js normalises the position vector). This places
+  // the key light above-right-front, matching the standard three-point lighting convention.
   directionals: [{ id: 'directional-0', intensity: 1, color: '#ffffff', position: [10, 10, 10] }],
   lightStrands: [],
   points: [],

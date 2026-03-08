@@ -202,3 +202,78 @@ describe('applyCamera nvsTarget', () => {
     expect(camera.position.z).toBeCloseTo(15, 3);
   });
 });
+
+// ─── fitFloorDepth — cameraY derivation (Gap 5 / C-2 regression) ────────────
+
+describe('applyCamera fitFloorDepth — cameraY derivation', () => {
+  it('derives cameraY = floorY + (floorZMax - floorZMin) * 0.4 when cameraY is not supplied', () => {
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+    const state: SceneCamera = {
+      enabled: true,
+      descriptor: { mode: 'fitFloorDepth', floorY: 0, floorZMin: 0, floorZMax: 1 },
+    };
+    applyCamera(state, { camera, tick: makeTickDouble() });
+    // Expected: floorY + (floorZMax - floorZMin) * 0.4 = 0 + 1 * 0.4 = 0.4
+    // Verifies the old legacy `floorY + 50` default is no longer used.
+    expect(camera.position.y).toBeCloseTo(0.4, 3);
+  });
+
+  it('uses a non-zero floorY as the base for the derivation', () => {
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+    const state: SceneCamera = {
+      enabled: true,
+      descriptor: { mode: 'fitFloorDepth', floorY: 2, floorZMin: 0, floorZMax: 5 },
+    };
+    applyCamera(state, { camera, tick: makeTickDouble() });
+    // Expected: 2 + (5 - 0) * 0.4 = 2 + 2.0 = 4.0
+    expect(camera.position.y).toBeCloseTo(4.0, 3);
+  });
+
+  it('respects explicit cameraY when supplied, overriding derivation', () => {
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+    const state: SceneCamera = {
+      enabled: true,
+      descriptor: { mode: 'fitFloorDepth', floorY: 0, floorZMin: 0, floorZMax: 1, cameraY: 2 },
+    };
+    applyCamera(state, { camera, tick: makeTickDouble() });
+    expect(camera.position.y).toBeCloseTo(2, 3);
+  });
+});
+
+// ─── fitFloorDepth — bisection solver sanity (Gap 6 / C-1 regression) ────────
+
+describe('applyCamera fitFloorDepth — bisection solver sanity', () => {
+  it('1-unit floor extent converges to a reasonable camera Z (not thousands of units out)', () => {
+    // For floorZMax=1, zMin=0: old hi=5001, new hi=21.
+    // In both cases the bisection finds a physically-sensible camera position,
+    // but this test documents and regression-protects the expected range.
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+    const state: SceneCamera = {
+      enabled: true,
+      descriptor: {
+        mode: 'fitFloorDepth',
+        floorY: 0, floorZMin: 0, floorZMax: 1,
+        cameraY: 0.4,  // supply explicitly so this test isolates C-1 not C-2
+      },
+    };
+    applyCamera(state, { camera, tick: makeTickDouble() });
+    // Camera Z must be past the far edge of the floor (zMax=1) but not absurdly far.
+    expect(camera.position.z).toBeGreaterThan(1);
+    expect(camera.position.z).toBeLessThan(50);
+  });
+
+  it('10-unit floor extent converges to a reasonable camera Z', () => {
+    const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 200);
+    const state: SceneCamera = {
+      enabled: true,
+      descriptor: {
+        mode: 'fitFloorDepth',
+        floorY: 0, floorZMin: 0, floorZMax: 10,
+        cameraY: 4.0,
+      },
+    };
+    applyCamera(state, { camera, tick: makeTickDouble() });
+    expect(camera.position.z).toBeGreaterThan(10);
+    expect(camera.position.z).toBeLessThan(200);
+  });
+});

@@ -15,6 +15,11 @@ export type SceneLightDirectional = {
   id?: string;
   intensity: number;
   color: string;
+  /**
+   * World-space position. For directional lights, only the direction from origin to this
+   * position matters — Three.js normalises it internally, so the magnitude does not affect
+   * intensity or shadow frustum. The default `[10, 10, 10]` places the key light above-right-front.
+   */
   position: Vec3;
 };
 
@@ -22,6 +27,7 @@ export type SceneLightPoint = {
   id?: string;
   intensity: number;
   color: string;
+  /** World-space position of the point light source. */
   position: Vec3;
 };
 
@@ -29,6 +35,7 @@ export type SceneLightGlowPoint = {
   id?: string;
   intensity: number;
   color: string;
+  /** World-space position of the glow-point light source. */
   position: Vec3;
   distance?: number;
   decay?: number;
@@ -58,6 +65,7 @@ export type SceneLightStrandCircle = {
   kind: 'circle';
   radius: number;
   axis?: LightStrandAxis;
+  /** World-space position offset applied to the circle strand's geometric centre. */
   offset?: Vec3;
 };
 
@@ -66,6 +74,7 @@ export type SceneLightStrandRectangle = {
   width: number;
   height: number;
   axis?: LightStrandAxis;
+  /** World-space position offset applied to the rectangle strand's geometric centre. */
   offset?: Vec3;
 };
 
@@ -79,6 +88,7 @@ export type SceneLightStrand = {
   count: number;
   intensity: number;
   color: string;
+  /** World-space position offset applied to the strand shape's origin. */
   position?: Vec3;
   distance?: number;
   decay?: number;
@@ -89,7 +99,9 @@ export type SceneLightSpot = {
   id?: string;
   intensity: number;
   color: string;
+  /** World-space position of the spotlight source. */
   position: Vec3;
+  /** World-space point the spotlight aims at. */
   target: Vec3;
   angle: number;
   penumbra: number;
@@ -99,9 +111,11 @@ export type SceneLightSpot = {
 
 export type SceneLightPanel = {
   id: string;
+  /** World-space position of the top-left panel light (grid origin). */
   origin: Vec3;
   rows: number;
   cols: number;
+  /** World-space step vector between adjacent panel lights in the grid. */
   spacing: Vec3;
   intensity: number;
   distance?: number;

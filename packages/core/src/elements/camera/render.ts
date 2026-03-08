@@ -55,7 +55,12 @@ const solveCameraZForFloor = (
   const zMin = Math.min(params.floorZMin, params.floorZMax);
   const zMax = Math.max(params.floorZMin, params.floorZMax);
   let lo = zMax + 1;
-  let hi = zMax + 5000;
+  // Scale the search upper bound with scene Z extent rather than a fixed 5000-unit constant.
+  // For a 1-unit world (zMax≈1, zMin≈0):  hi = 1 + max(10, 20)   = 21.
+  // For a 100-unit world (zMax≈100, zMin≈-100): hi = 100 + max(10, 4000) = 4100.
+  // The bisection converges in 30 iterations regardless of range; the fix prevents
+  // the solver from returning a camera position thousands of units out for small worlds.
+  let hi = zMax + Math.max(10, (zMax - zMin) * 20);
   let bestZ = lo;
   let bestErr = Infinity;
 
@@ -184,7 +189,12 @@ export const applyCamera = (state: SceneCamera, ctx: CameraRenderContext): void 
     ) return;
     const lookAtZ = desc.lookAtZ ?? (desc.floorZMin + desc.floorZMax) / 2;
     const cameraX = desc.cameraX ?? 0;
-    const cameraY = desc.cameraY ?? desc.floorY + 50;
+    // LEGACY: The old `+ 50` constant was calibrated for 100+ unit worlds (v1). For a
+    // 1-unit world (floorY=0), that placed the camera 50 units above the floor — 50×
+    // the expected scene scale, making content appear far below the horizon.
+    // New default: derive from the floor Z extent, matching how solveCameraZForFloor
+    // scales its search domain. Always supply `cameraY` explicitly for predictable results.
+    const cameraY = desc.cameraY ?? (desc.floorY + (desc.floorZMax - desc.floorZMin) * 0.4);
     const solvedZ = solveCameraZForFloor(camera, {
       floorY: desc.floorY,
       floorZMin: desc.floorZMin,

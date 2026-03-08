@@ -1,7 +1,7 @@
 // Tests for NVS bounds integration: DiagramCanvasWidget.nvsBounds getter,
 // compileCanvas nvsBounds output, and computeNdcForNvs formula.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import * as THREE from 'three';
 import { compileCanvas } from '../canvas/compile';
 import { DiagramCanvasWidget, computeNdcForNvs } from '../canvas/widget';
@@ -150,5 +150,124 @@ describe('computeNdcForNvs — right-half sub-region NVS { x:0.5, y:0, w:0.5, h:
     const result = computeNdcForNvs(1920, 0, W, H, rightHalf);
     expect(result.x).toBeCloseTo(1);
     expect(result.y).toBeCloseTo(1);
+  });
+});
+
+// ─── compileCanvas — nvsBounds within [0..1] for valid inputs ────────────────
+
+describe('compileCanvas — nvsBounds contract: valid inputs stay within [0..1]', () => {
+  it('fullscreen default { x:0, y:0, w:1, h:1 } satisfies x≥0, y≥0, x+w≤1, y+h≤1', () => {
+    const state = compileCanvas({ id: 'c' }, [], []);
+    expect(state.nvsBounds.x).toBeGreaterThanOrEqual(0);
+    expect(state.nvsBounds.y).toBeGreaterThanOrEqual(0);
+    expect(state.nvsBounds.w).toBeGreaterThan(0);
+    expect(state.nvsBounds.h).toBeGreaterThan(0);
+    expect(state.nvsBounds.x + state.nvsBounds.w).toBeLessThanOrEqual(1);
+    expect(state.nvsBounds.y + state.nvsBounds.h).toBeLessThanOrEqual(1);
+  });
+
+  it('right-half { x:0.5, y:0, w:0.5, h:1 } satisfies x+w≤1 and y+h≤1', () => {
+    const state = compileCanvas({ id: 'c', x: 0.5, y: 0, w: 0.5, h: 1 }, [], []);
+    expect(state.nvsBounds.x + state.nvsBounds.w).toBeLessThanOrEqual(1);
+    expect(state.nvsBounds.y + state.nvsBounds.h).toBeLessThanOrEqual(1);
+  });
+
+  it('top-left quarter { x:0, y:0, w:0.5, h:0.5 } satisfies x+w≤1 and y+h≤1', () => {
+    const state = compileCanvas({ id: 'c', x: 0, y: 0, w: 0.5, h: 0.5 }, [], []);
+    expect(state.nvsBounds.x + state.nvsBounds.w).toBeLessThanOrEqual(1);
+    expect(state.nvsBounds.y + state.nvsBounds.h).toBeLessThanOrEqual(1);
+  });
+
+  it('bottom-right quarter { x:0.5, y:0.5, w:0.5, h:0.5 } satisfies x+w≤1 and y+h≤1', () => {
+    const state = compileCanvas({ id: 'c', x: 0.5, y: 0.5, w: 0.5, h: 0.5 }, [], []);
+    expect(state.nvsBounds.x + state.nvsBounds.w).toBeLessThanOrEqual(1);
+    expect(state.nvsBounds.y + state.nvsBounds.h).toBeLessThanOrEqual(1);
+  });
+});
+
+// ─── compileCanvas — dev-mode guard fires console.error for out-of-range nvsBounds ─
+
+describe('compileCanvas — dev-mode guard fires console.error for out-of-range nvsBounds', () => {
+  it('fires for x + w > 1 (right edge overflows viewport)', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    compileCanvas({ id: 'overflow-x', x: 0.7, w: 0.6 }, [], []);
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining('[DiagramCanvas] nvsBounds out of [0..1]'),
+    );
+    spy.mockRestore();
+  });
+
+  it('fires for y + h > 1 (bottom edge overflows viewport)', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    compileCanvas({ id: 'overflow-y', y: 0.8, h: 0.5 }, [], []);
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining('[DiagramCanvas] nvsBounds out of [0..1]'),
+    );
+    spy.mockRestore();
+  });
+
+  it('fires for negative x', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    compileCanvas({ id: 'neg-x', x: -0.1 }, [], []);
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining('[DiagramCanvas] nvsBounds out of [0..1]'),
+    );
+    spy.mockRestore();
+  });
+
+  it('fires for negative y', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    compileCanvas({ id: 'neg-y', y: -0.1 }, [], []);
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining('[DiagramCanvas] nvsBounds out of [0..1]'),
+    );
+    spy.mockRestore();
+  });
+
+  it('fires for w <= 0 (zero-width canvas)', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    compileCanvas({ id: 'zero-w', w: 0 }, [], []);
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining('[DiagramCanvas] nvsBounds out of [0..1]'),
+    );
+    spy.mockRestore();
+  });
+
+  it('fires for h <= 0 (zero-height canvas)', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    compileCanvas({ id: 'zero-h', h: 0 }, [], []);
+    expect(spy).toHaveBeenCalledOnce();
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining('[DiagramCanvas] nvsBounds out of [0..1]'),
+    );
+    spy.mockRestore();
+  });
+
+  it('does NOT fire for valid fullscreen bounds { x:0, y:0, w:1, h:1 }', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    compileCanvas({ id: 'valid-fullscreen' }, [], []);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('does NOT fire for valid sub-region { x:0.25, y:0.25, w:0.5, h:0.5 }', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    compileCanvas({ id: 'valid-quarter', x: 0.25, y: 0.25, w: 0.5, h: 0.5 }, [], []);
+    expect(spy).not.toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('includes the DiagramCanvas id in the error message', () => {
+    const spy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    compileCanvas({ id: 'my-canvas', x: 1.5 }, [], []);
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringContaining('id="my-canvas"'),
+    );
+    spy.mockRestore();
   });
 });

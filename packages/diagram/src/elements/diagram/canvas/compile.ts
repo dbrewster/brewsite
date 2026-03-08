@@ -188,6 +188,17 @@ export function compileCanvas(
     h: dsl.h ?? 1,
   };
 
+  if (process.env.NODE_ENV !== 'production') {
+    const { x, y, w, h } = nvsBounds;
+    if (x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > 1 || y + h > 1) {
+      console.error(
+        `[DiagramCanvas] nvsBounds out of [0..1]: ${JSON.stringify(nvsBounds)}. ` +
+          `DiagramCanvas id="${dsl.id}". All components must satisfy: ` +
+          `x≥0, y≥0, w>0, h>0, x+w≤1, y+h≤1.`,
+      );
+    }
+  }
+
   return {
     id: dsl.id,
     position: dsl.position ?? [0, 0, 0],

@@ -155,8 +155,13 @@ export class CameraControlsDriver implements ICameraInteractionDriver {
       cc.draggingSmoothTime = t * 0.5;
     }
 
-    if (config.minDistance !== undefined) cc.minDistance = config.minDistance;
-    if (config.maxDistance !== undefined) cc.maxDistance = config.maxDistance;
+    // Apply author-specified limits or sensible guardrail defaults.
+    // camera-controls uses 0 and Infinity when these are not set, which causes the camera
+    // to clip through the scene origin (minDistance=0) and allows infinite zoom-out (maxDistance=Infinity).
+    // Authors who need tighter or wider bounds should set minDistance/maxDistance explicitly on
+    // the <Camera> DSL element — the recommended values are documented on the types.
+    cc.minDistance = config.minDistance ?? 0.1;
+    cc.maxDistance = config.maxDistance ?? 50;
     if (config.minPolarAngle !== undefined) cc.minPolarAngle = config.minPolarAngle;
     if (config.maxPolarAngle !== undefined) cc.maxPolarAngle = config.maxPolarAngle;
   }

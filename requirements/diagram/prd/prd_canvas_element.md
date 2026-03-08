@@ -3,8 +3,11 @@ title: "BrewSite Diagram — Canvas Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-04
+last_updated: 2026-03-08
 change_history:
+  - date: 2026-03-08
+    author: "Toolkit Product"
+    summary: "Coordinate system audit: documented dev-mode nvsBounds guard in Guardrail Metrics. compileCanvas() now emits console.error in NODE_ENV !== 'production' when nvsBounds values fall outside [0,1]."
   - date: 2026-03-04
     author: "Toolkit Product"
     summary: "NVS system: DiagramCanvasWidget implements INVSBounded. DiagramCanvasProps gains optional x?, y?, w?, h? NVS props (default fullscreen). DiagramCanvasState gains optional nvsBounds field. API Design and Technical Considerations sections updated. Non-Goals updated."
@@ -42,6 +45,7 @@ A `Diagram` element in isolation renders in world space at a single position. Wh
 - No Three.js import in `canvas/types.ts`, `canvas/dsl.tsx`, or `canvas/compile.ts`.
 - Unresolvable `DiagramPipe` dot notation references emit `console.warn` and produce a pipe with empty `controlPoints` — the compiler does not throw, and playback continues.
 - `DiagramCanvasWidget.dispose()` removes all child diagram Three.js objects and DOM event listeners without memory leaks.
+- `compileCanvas()` emits `console.error` in `NODE_ENV !== 'production'` when any `nvsBounds` component violates the [0,1] contract (`x < 0`, `y < 0`, `w ≤ 0`, `h ≤ 0`, `x + w > 1`, or `y + h > 1`). The error message includes the canvas id and the offending values. This guard does not throw — compilation continues and the out-of-range bounds are passed through.
 
 ## Non-Goals
 

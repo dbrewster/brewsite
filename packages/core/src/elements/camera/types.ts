@@ -32,9 +32,11 @@ export type WorldSpaceCamera = {
   up?: Vec3;
   /**
    * Optional NVS-space look-at override [x, y].
+   * Both components are in [0, 1] (Normalized Viewport Space):
+   *   x=0 is the viewport left edge; x=1 is the right edge.
+   *   y=0 is the viewport top edge; y=1 is the bottom edge.
    * If set, overrides the world-space target X,Y at render time.
    * The target Z is taken from `target[2]`.
-   * Allows viewport-fraction targeting without knowing world units.
    */
   nvsTarget?: readonly [number, number];
 };
@@ -92,6 +94,14 @@ export type FitFloorDepthCamera = {
   floorZMax: number;
   lookAtZ?: number;
   cameraX?: number;
+  /**
+   * Camera Y position in world space. When omitted, the runtime derives a default from
+   * `floorY + (floorZMax - floorZMin) * 0.4` to produce a scene-extent-relative height.
+   *
+   * @deprecated Supply `cameraY` explicitly. The auto-derived fallback is a best-effort
+   * heuristic; `fitFloorDepth` mode is a v1 legacy API and is not calibrated for
+   * 1-unit world scenes. Prefer `mode: 'world'` for new scenes.
+   */
   cameraY?: number;
 };
 
@@ -219,9 +229,21 @@ export type TrackpadCameraConfig = {
    */
   damping?: number | false;
 
-  /** Minimum camera distance from target. */
+  /**
+   * Minimum camera distance from the orbit target, in world units.
+   * When unset, a runtime guardrail applies a default of `0.1` to prevent the camera
+   * from passing through the scene origin.
+   * @remarks For a 1-unit world (model height ≈ 1, natural camera distance ≈ 3.5 units):
+   *   a recommended minimum is `0.1`. Set explicitly if the scene requires tighter limits.
+   */
   minDistance?: number;
-  /** Maximum camera distance from target. */
+  /**
+   * Maximum camera distance from the orbit target, in world units.
+   * When unset, a runtime guardrail applies a default of `50` to prevent infinite zoom-out.
+   * @remarks For a 1-unit world (model height ≈ 1, natural camera distance ≈ 3.5 units):
+   *   a recommended maximum is `20` (≈ 5.7× the natural camera distance).
+   *   Set explicitly if the scene has content spread over a wider area.
+   */
   maxDistance?: number;
   /** Minimum polar angle (radians from top). Default 0. */
   minPolarAngle?: number;

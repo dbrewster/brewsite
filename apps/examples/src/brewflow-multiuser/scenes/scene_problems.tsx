@@ -32,10 +32,10 @@ export const sceneProblems: JSX.Element = (
         <KeyMap keyName="r" />
       </Action>
     </InputController>
-    <Camera mode="world" position={[0, 4, 20]} target={[0, 0, 0]} fov={52} />
+    <Camera mode="world" position={[0, 4, 2]} target={[0, 0, 0]} fov={20} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bfmu-prob-canvas" position={[0, 2, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
+    <DiagramCanvas id="bfmu-prob-canvas" position={[0, 0, 0]} rotation={[config.diagramRotationX, 0, 0]} scale={config.diagramScale} theme={brewflowTheme}>
       <Diagram id="prob-diagram">
         <GridLayout columns={2} spacing={[3, 3]} />
         <DiagramEnter fade />

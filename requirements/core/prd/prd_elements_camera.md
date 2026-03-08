@@ -3,8 +3,11 @@ title: "BrewSite Core — Camera Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-02
+last_updated: 2026-03-08
 change_history:
+  - date: 2026-03-08
+    author: "Toolkit Product"
+    summary: "Coordinate system audit: updated CameraLens defaults (near 0.1→0.01, far 2000→100) for 20× depth-precision improvement in 1-unit worlds. Added @deprecated to FitFloorDepthCamera.cameraY with new scene-extent-relative derivation formula. Documented CameraConstraints minDistance/maxDistance runtime guardrail defaults (0.1 / 50). Added legacy note for fitFloorDepth mode in Technical Considerations."
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Core customization unblocking implemented: camera action routing supports non-primary camera targets via ICameraActionTarget, primaryCameraId defaults, configurable camera interaction tunables (wheel lock timing, axis dominance/threshold, orbit/dolly clamps), and one-time runtime warnings for invalid camera targets."
@@ -147,7 +150,13 @@ export interface FitFloorDepthCamera {
   floorZMax: number;      // far Z boundary of the floor area to frame
   lookAtZ?: number;       // Z coordinate to look at; defaults to midpoint of floorZMin/floorZMax
   cameraX?: number;       // horizontal camera position; defaults to 0
-  cameraY?: number;       // vertical camera position override; computed from framing if omitted
+  /**
+   * Camera Y position in world space. When omitted, derived as
+   * `floorY + (floorZMax - floorZMin) * 0.4` — a scene-extent-relative height.
+   * @deprecated Supply `cameraY` explicitly. `fitFloorDepth` mode is a v1 legacy API
+   * that is not calibrated for 1-unit world scenes. Prefer `mode: 'world'` for new scenes.
+   */
+  cameraY?: number;
 }
 
 export type CameraPositionDescriptor =
@@ -160,8 +169,8 @@ export interface CameraLens {
   fov?: number;           // field of view in degrees; default 45
   focalLength?: number;   // focal length in mm (35mm equivalent); takes precedence over fov
   filmGauge?: number;     // sensor size in mm; default 35
-  near?: number;          // near clipping plane; default 0.1
-  far?: number;           // far clipping plane; default 1000
+  near?: number;          // near clipping plane; default 0.01
+  far?: number;           // far clipping plane; default 100
 }
 
 export interface CameraPost {
@@ -197,8 +206,20 @@ export interface CameraConstraints {
   maxPolar?: number;      // maximum polar angle in radians
   minAzimuth?: number;    // minimum azimuth angle in radians
   maxAzimuth?: number;    // maximum azimuth angle in radians
-  minDistance?: number;   // minimum orbit distance in world units
-  maxDistance?: number;   // maximum orbit distance in world units
+  /**
+   * Minimum camera distance from the orbit target, in world units.
+   * When unset, `CameraControlsDriver` applies a runtime guardrail default of `0.1`
+   * to prevent the camera from passing through the scene origin.
+   * For a 1-unit world (camera distance ≈ 3.5), a recommended explicit minimum is `0.1`.
+   */
+  minDistance?: number;
+  /**
+   * Maximum camera distance from the orbit target, in world units.
+   * When unset, `CameraControlsDriver` applies a runtime guardrail default of `50`
+   * to prevent infinite zoom-out.
+   * For a 1-unit world, a recommended explicit maximum is `20` (≈ 5.7× natural distance).
+   */
+  maxDistance?: number;
 }
 
 export interface CameraResetConfig {
@@ -391,6 +412,8 @@ class CameraWidget
 ### 8.1 Descriptor Resolution
 
 `FitBotHeightCamera` and `FitFloorDepthCamera` cannot be fully resolved at compile time because they depend on runtime values (viewport dimensions, model bounding box). The compiled `SceneCamera` stores the descriptor verbatim. Resolution to a world-space position and target occurs in `CameraWidget.apply()` at the first tick of each scene.
+
+**`fitFloorDepth` is a v1 legacy mode.** It was calibrated for large-world scenes (100+ unit geometry). For all new scenes, prefer `mode: 'world'` or `mode: 'orbit'`. If `fitFloorDepth` must be used, always supply `cameraY` explicitly — the auto-derived fallback (`floorY + (floorZMax - floorZMin) * 0.4`) is a best-effort heuristic and is not guaranteed to produce a correct framing for non-standard floor extents.
 
 When computing `FitBotHeight`, `CameraWidget` retrieves the model bounding box from the corresponding `ModelWidget` via the widget registry. If the model has not finished loading, the camera falls back to the previous frame's position.
 

@@ -22,8 +22,19 @@ type LightingCache = {
 };
 
 const LIGHTING_KEY = '__brewsite_lighting';
+/**
+ * Half-extent (world units) of the directional light's orthographic shadow-camera frustum.
+ * Produces a 520×520 world-unit shadow volume at 256px → ~0.5 px/unit texel density.
+ * This was calibrated for large-world scenes (geometry up to ~200 units from origin).
+ * For 1-unit scenes, reducing this to 5–10 will recover ~50× shadow resolution.
+ */
 const DIRECTIONAL_SHADOW_RANGE = 260;
+/** Shadow camera near plane. Set low to avoid clipping the light-source geometry itself. */
 const DIRECTIONAL_SHADOW_NEAR = 0.5;
+/**
+ * Shadow camera far plane. Must exceed DIRECTIONAL_SHADOW_RANGE * √3 (≈ 450 for range=260)
+ * to avoid clipping shadows from geometry on the frustum diagonal.
+ */
 const DIRECTIONAL_SHADOW_FAR = 600;
 
 const getCache = (scene: THREE.Scene): LightingCache => {

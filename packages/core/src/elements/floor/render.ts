@@ -87,6 +87,8 @@ const getOrCreateFloor = (
     disposeFloor(scene);
   }
 
+  // Intentionally large — must extend beyond maximum camera frustum extent.
+  // 400×400 world units covers scenes calibrated within a ±200 unit world.
   const geometry = new THREE.PlaneGeometry(400, 400);
   let mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.Material>;
   if (wantsMirror) {

@@ -6,6 +6,12 @@ import type * as React from 'react';
 
 export type FloorProps = {
   enabled?: boolean;
+  /**
+   * World-space position [x, y, z]. Typically [0, 0, 0] — the floor sits at the scene origin.
+   * Not NVS — values are raw Three.js world-space units.
+   * To co-locate with a model at `nvsX`/`nvsY`, use `nvsToWorldAnalytic()` from
+   * `@brewsite/core` to resolve the model's world position before setting this field.
+   */
   position?: [number, number, number];
   /**
    * Absolute world rotation in radians.
