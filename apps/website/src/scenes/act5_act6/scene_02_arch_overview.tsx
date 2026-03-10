@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, Floor, FloorMirror, ProgressManager } from '@brewsite/core';
-import {DiagramCanvas, Diagram, DiagramEdge, DiagramGroup, DiagramNode, HierarchicalLayout, darkGlassTheme, GridLayout} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, HierarchicalLayout, darkGlassTheme, GridLayout} from '@brewsite/diagram';
 import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
 import { isMobile } from '../../utils/viewport';
 import type { Vec3 } from '@brewsite/core';
@@ -44,8 +44,7 @@ export const scene02ArchOverview: JSX.Element = (
       <Directional intensity={0.5} color="#ffefef" position={[0, 30, 50]} />
       <Directional intensity={0.6} color="#aaccff" position={[-20, 10, 20]} />
     </Lighting>
-    <DiagramCanvas id="system-canvas" x={0} y={0} w={1} h={1} tilt={-Math.PI / 8} scale={isMobile ? 1.0 : 1.4} theme={darkGlassTheme}>
-      <Diagram id="system-arch">
+    <Diagram id="system-arch" x={0} y={0} w={1} h={1} tilt={-Math.PI / 8} scale={isMobile ? 1.0 : 1.4} theme={darkGlassTheme}>
         <GridLayout />
 
         <DiagramGroup id="frontend" label="Client Tier" variant="swimlane">
@@ -78,7 +77,6 @@ export const scene02ArchOverview: JSX.Element = (
         <DiagramEdge from="ecs"     to="cache"  label="Redis"    flow="forward" />
         <DiagramEdge from="ecs"     to="s3"     label="r/w"      style="dashed" flow="forward" />
       </Diagram>
-    </DiagramCanvas>
 
     {/* Top-right: stat only — no eyebrow label */}
     <div style={{ position: 'absolute', top: '6%', right: '5%', textAlign: 'right', maxWidth: 300 }}>

@@ -63,8 +63,23 @@ export class RuntimeLoop {
   private readonly fixedDeltaSeconds: number | null = null;
   private fpsAccumulatorMs = 0;
   private errorLogged = false;
+  private isPaused = false;
+  private canvas: HTMLCanvasElement | null = null;
   private readonly perfBuffer: Array<{ tickMs: number; afterTickMs: number; renderMs: number; totalMs: number }> = [];
   private perfIndex = 0;
+
+  private readonly handleContextLost = (e: Event): void => {
+    e.preventDefault(); // required by the WEBGL_lose_context spec to allow restoration
+    this.pause();
+  };
+
+  private readonly handleContextRestored = (): void => {
+    // Three.js WebGLRenderer (r158+) automatically rebuilds its internal WebGL state
+    // (programs, textures, geometries) on webglcontextrestored via its own internal
+    // listener registered at construction time. No caller-facing API is required.
+    // BrewSite only needs to restart the tick loop.
+    this.resume();
+  };
 
   constructor(options: RuntimeLoopOptions) {
     this.driver = options.driver;
@@ -82,8 +97,9 @@ export class RuntimeLoop {
   start(): void {
     if (this.running) return;
     this.running = true;
+    this.isPaused = false; // clear any stale pause state from before start
     const step = (nowMs: number) => {
-      if (!this.running) return;
+      if (!this.running || this.isPaused) return; // ← add isPaused check
       this.step(nowMs);
       this.rafId = this.clock.requestFrame(step);
     };
@@ -92,12 +108,62 @@ export class RuntimeLoop {
 
   stop(): void {
     this.running = false;
+    this.isPaused = false; // clear pause state so a subsequent start() is clean
     if (this.rafId !== null) {
       this.clock.cancelFrame(this.rafId);
       this.rafId = null;
     }
     this.lastMs = null;
     this.fpsAccumulatorMs = 0;
+    this.setCanvas(null); // remove canvas event listeners
+  }
+
+  /**
+   * Suspends the RAF loop without resetting engine state. Idempotent.
+   * Safe to call when already paused, stopped, or before start().
+   */
+  pause(): void {
+    if (this.isPaused) return;
+    this.isPaused = true;
+    if (this.rafId !== null) {
+      this.clock.cancelFrame(this.rafId);
+      this.rafId = null;
+    }
+  }
+
+  /**
+   * Resumes the RAF loop after pause(). Idempotent.
+   * No-op if the loop is not running or not paused.
+   */
+  resume(): void {
+    if (!this.isPaused) return;
+    this.isPaused = false;
+    if (!this.running) return;
+    const step = (nowMs: number) => {
+      if (!this.running || this.isPaused) return;
+      this.step(nowMs);
+      this.rafId = this.clock.requestFrame(step);
+    };
+    this.rafId = this.clock.requestFrame(step);
+  }
+
+  /**
+   * Registers a canvas element to receive webglcontextlost / webglcontextrestored
+   * event listeners that auto-pause and auto-resume the loop respectively.
+   * Pass null to remove the current canvas and its listeners.
+   * Safe to call multiple times; previous listeners are always removed first.
+   */
+  setCanvas(canvas: HTMLCanvasElement | null): void {
+    if (this.canvas !== null) {
+      this.canvas.removeEventListener('webglcontextlost', this.handleContextLost, false);
+      this.canvas.removeEventListener('webglcontextrestored', this.handleContextRestored, false);
+      this.canvas = null;
+    }
+    if (canvas !== null) {
+      this.canvas = canvas;
+      canvas.addEventListener('webglcontextlost', this.handleContextLost, false);
+      canvas.addEventListener('webglcontextrestored', this.handleContextRestored, false);
+    }
   }
 
   setWallTimeOverride(value: number | null): void {

@@ -3,11 +3,10 @@ import React from 'react';
 import { resolveSceneFromDsl, Scene } from '@brewsite/core';
 import { WidgetRegistry } from '@brewsite/core';
 import { Diagram, DiagramEdge, DiagramGroup, DiagramNode, GridLayout, ManualLayout } from '../../elements/diagram/widget';
-import { DiagramCanvas } from '../../elements/diagram/canvas/widget';
 import { ImagePanel } from '../../elements/image-panel/widget';
 import { Screen } from '../../elements/screen/widget';
 import { registerDiagramHandlers } from '../handlers';
-import type { DiagramCanvasState } from '../../elements/diagram/canvas/types';
+import type { DiagramState } from '../../elements/diagram/types';
 import type { ImagePanelState } from '../../elements/image-panel/types';
 import type { ScreenState } from '../../elements/screen/types';
 
@@ -40,8 +39,7 @@ describe('registerDiagramHandlers', () => {
 
     const { frame } = resolveSceneFromDsl(tree, makeContext(), registry);
 
-    const canvasState = frame.widgets['diagram-basic'] as DiagramCanvasState;
-    const diagram = canvasState.diagrams[0]!;
+    const diagram = frame.widgets['diagram-basic'] as DiagramState;
     const panel = frame.widgets['panel-1'] as ImagePanelState;
     const screen = frame.widgets['screen-1'] as ScreenState;
 
@@ -71,14 +69,32 @@ describe('registerDiagramHandlers', () => {
     );
 
     const { frame } = resolveSceneFromDsl(tree, makeContext(), registry);
-    const canvasState = frame.widgets['diagram-nested'] as DiagramCanvasState;
-    const diagram = canvasState.diagrams[0]!;
+    const diagram = frame.widgets['diagram-nested'] as DiagramState;
     const inner = diagram.groups.find((g) => g.id === 'inner');
     const outer = diagram.groups.find((g) => g.id === 'outer');
 
     expect(inner?.parentId).toBe('outer');
     expect(outer).toBeDefined();
     expect(diagram.nodes.find((n) => n.id === 'n1')?.groupId).toBe('inner');
+  });
+
+  it('passes DiagramNode boxColor through JSX extraction into compiled node sideColor', () => {
+    const registry = new WidgetRegistry();
+    registerDiagramHandlers();
+
+    const tree = (
+      <Scene id="diagram-box-color">
+        <Diagram id="diagram-box-color">
+          <ManualLayout />
+          <DiagramNode id="n1" label="Node 1" position={[0.5, 0.5, 0]} boxColor="#334455" />
+        </Diagram>
+      </Scene>
+    );
+
+    const { frame } = resolveSceneFromDsl(tree, makeContext(), registry);
+    const diagram = frame.widgets['diagram-box-color'] as DiagramState;
+
+    expect(diagram.nodes[0]?.sideColor).toBe('#334455');
   });
 
   it('ignores GridLayout that appears at scene top-level (no-op handler)', () => {

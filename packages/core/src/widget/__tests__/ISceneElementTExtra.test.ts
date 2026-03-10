@@ -8,6 +8,7 @@ import type {
   WidgetRenderContext,
   WidgetInitContext,
   CompileExtraContext,
+  NVSCoordService,
 } from '../types';
 import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
 
@@ -60,6 +61,20 @@ class ExtraWidget
   dispose(): void {}
 }
 
+// ─── Minimal stub coords for tests that don't need accurate world conversion ──
+
+const STUB_COORDS: NVSCoordService = {
+  toWorld: (x: number, y: number, z: number = 0): readonly [number, number, number] =>
+    [(x - 0.5) * 17.78, -(y - 0.5) * 10, z],
+  toWorldSize: (w: number, h: number): readonly [number, number] =>
+    [w * 17.78, h * 10],
+  canvasAspect: 16 / 9,
+  visibleWorldHeight: 10,
+  visibleWorldWidth: 17.78,
+  viewportWidth: 1920,
+  viewportHeight: 1080,
+};
+
 // ─── Minimal WidgetRenderContext helper ───────────────────────────────────────
 
 const makeRenderCtx = <TExtra>(extra: TExtra): WidgetRenderContext<TExtra> => ({
@@ -69,6 +84,7 @@ const makeRenderCtx = <TExtra>(extra: TExtra): WidgetRenderContext<TExtra> => ({
   variables: { get: () => null } as WidgetRenderContext<TExtra>['variables'],
   extra,
   tick: null,
+  coords: STUB_COORDS,
 });
 
 // ─── Tests ────────────────────────────────────────────────────────────────────

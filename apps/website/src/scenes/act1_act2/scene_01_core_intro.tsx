@@ -2,7 +2,6 @@ import type {JSX} from 'react';
 import {Scene, Camera, Lighting, Ambient, Directional, ProgressManager} from '@brewsite/core';
 import {MidFade, ScrollOn} from '@brewsite/core/hud/animejs';
 import {
-    DiagramCanvas,
     Diagram,
     DiagramNode,
     DiagramEdge,
@@ -45,13 +44,7 @@ export const scene01CoreIntro: JSX.Element = (
 
         <NeonSign enabled={false} opacity={1} intensity={.8} position={[0, 0, -12]}/>
 
-        <DiagramCanvas
-            id="presentation-flow"
-            x={0} y={0} w={1} h={1} tilt={-Math.PI / 11}
-            scale={isMobile ? 1.0 : 1.25}
-            theme={neonCyberTheme}
-        >
-            <Diagram id="presentation-arc">
+        <Diagram id="presentation-arc" x={0} y={0} w={1} h={1} tilt={-Math.PI / 11} scale={isMobile ? 1.0 : 1.25} theme={neonCyberTheme}>
                 <HierarchicalLayout direction="top-down" spacing={[2.5, 2.4]}/>
                 <DiagramEnter from={[-1, 0.5, 0]} fade easing="ease-out" />
 
@@ -76,7 +69,6 @@ export const scene01CoreIntro: JSX.Element = (
                     flow="forward"
                 />
             </Diagram>
-        </DiagramCanvas>
 
         <div style={{
             position: 'absolute',

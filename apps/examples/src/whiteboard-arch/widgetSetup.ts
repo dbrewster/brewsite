@@ -12,7 +12,7 @@ export function createWhiteboardArchPlugins(): { plugins: WidgetPlugin[] } {
     plugins: [
       corePlugin(),
       diagramPlugin({
-        canvases: ['whiteboard-arch-canvas'],
+        diagrams: ['whiteboard-arch-diagram'],
       }),
     ],
   };

@@ -11,7 +11,7 @@ import {
   TextBox,
   WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEnter, DiagramNode, GridLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEnter, DiagramNode, GridLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -35,8 +35,7 @@ export const sceneProblems: JSX.Element = (
     <Camera mode="world" position={[0, 4, 2]} target={[0, 0, 0]} fov={20} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bfmu-prob-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="prob-diagram">
+    <Diagram id="prob-diagram" theme={brewflowTheme}>
         <GridLayout columns={2} spacing={[3, 3]} />
         <DiagramEnter fade />
 
@@ -72,8 +71,7 @@ export const sceneProblems: JSX.Element = (
           size={[7, 2.8]}
           color="#2a1010"
         />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="problems-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

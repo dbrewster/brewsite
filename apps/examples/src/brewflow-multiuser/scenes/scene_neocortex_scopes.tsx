@@ -11,7 +11,7 @@ import {
   TextBox,
   WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -35,8 +35,7 @@ export const sceneNeocortexScopes: JSX.Element = (
     <Camera mode="world" position={[0, 5, 24]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bfmu-neo-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="neo-diagram">
+    <Diagram id="neo-diagram" theme={brewflowTheme}>
         <ManualLayout />
         <DiagramEnter fade />
 
@@ -117,8 +116,7 @@ export const sceneNeocortexScopes: JSX.Element = (
 
         <DiagramEdge from="pack-1" to="pack-2" color="#4060a0" />
         <DiagramEdge from="pack-2" to="pack-3" color="#4060a0" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="neocortex-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

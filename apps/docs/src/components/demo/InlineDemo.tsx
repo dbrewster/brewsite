@@ -1,46 +1,41 @@
-import { JSX, ReactNode, useMemo } from 'react';
+import { JSX, ReactNode } from 'react';
 import {
   corePlugin,
-  EngineProvider,
-  EngineInputRegion,
-  SceneCanvas,
+  ControlledInput,
+  SceneReel,
 } from '@brewsite/core';
 
 // Module-level stable plugin list for InlineDemo instances.
-// MUST be module-level — if recreated on every render, EngineProvider would
+// MUST be module-level — if recreated on every render, SceneReel would
 // rebuild the entire Three.js driver, causing constant flicker.
 const INLINE_DEMO_PLUGINS = [corePlugin()];
 
 interface InlineDemoProps {
-  /** Scene JSX children for this demo's EngineProvider instance */
+  /** Scene JSX children for this demo's SceneReel instance */
   children: ReactNode;
   /** Height of the demo container in pixels. Default: 360 */
   height?: number;
   /**
    * External progress [0..1] driving the demo.
    * Typically supplied by useDemoProgress() from DemoProgressProvider.
-   * When undefined, the EngineProvider will use its own scroll/controlled logic.
    */
   controlledProgress?: number;
-  /** Manifest URL for model assets. Default: '/scene-manifest.json' */
-  manifestUrl?: string;
 }
 
 /**
  * InlineDemo — a self-contained 3D demo embedded in a scene's DocPanel.
  *
- * Creates a separate EngineProvider instance, fully independent of the docs
- * engine. Progress is driven externally via `controlledProgress`, which is
- * typically wired to `useDemoProgress()` from DemoProgressProvider.
+ * Creates a separate SceneReel instance, fully independent of the docs engine.
+ * Progress is driven externally via `controlledProgress`, which is typically
+ * wired to `useDemoProgress()` from DemoProgressProvider.
  *
- * Uses `quality="performance"` (30fps) to minimize GPU load when multiple
+ * Uses timingProfile 'performance' (30fps) to minimize GPU load when multiple
  * demos are present on the page.
  */
 export function InlineDemo({
   children,
   height = 360,
   controlledProgress,
-  manifestUrl = '/scene-manifest.json',
 }: InlineDemoProps): JSX.Element {
   return (
     <div
@@ -53,17 +48,16 @@ export function InlineDemo({
         background: 'var(--bg-demo)',
       }}
     >
-      <EngineProvider
-        manifestUrl={manifestUrl}
+      <SceneReel
+        height={height}
         plugins={INLINE_DEMO_PLUGINS}
-        quality="performance"
-        controlledProgress={controlledProgress}
+        timingProfile={{ qualityPreset: 'performance' }}
       >
         {children}
-        <EngineInputRegion fillContainer>
-          <SceneCanvas style={{ width: '100%', height: '100%' }} />
-        </EngineInputRegion>
-      </EngineProvider>
+        {controlledProgress !== undefined && (
+          <ControlledInput value={controlledProgress} />
+        )}
+      </SceneReel>
     </div>
   );
 }

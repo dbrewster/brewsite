@@ -65,11 +65,36 @@ export type FitFloorDepthCameraProps = {
   cameraY?: number;
 };
 
+/**
+ * NVS-viewport camera props.
+ *
+ * Provides a principled, NVS-aligned camera setup for scenes without 3D models.
+ * The author declares two independent parameters; the compiler derives all camera
+ * primitives (position, near, far, fov) from them.
+ *
+ * With defaults (worldScale=10, zRange=5): cameraZ≈12.07, visibleWorldHeight=10,
+ * visibleWorldWidth≈17.78 at 16:9, visible Z range z ∈ [-2.5, +2.5].
+ */
+export type NvsViewportCameraProps = {
+  mode: 'nvsViewport';
+  /**
+   * How many world units the NVS vertical span [0..1] covers at z=0.
+   * Controls world scale and camera distance. Default: 10.
+   */
+  worldScale?: number;
+  /**
+   * Total visible Z depth, centered on z=0. Content from z=-(zRange/2) to
+   * z=+(zRange/2) is visible. Default: worldScale / 2.
+   */
+  zRange?: number;
+};
+
 export type CameraDescriptorProps =
   | WorldCameraProps
   | OrbitCameraProps
   | FitBotHeightCameraProps
-  | FitFloorDepthCameraProps;
+  | FitFloorDepthCameraProps
+  | NvsViewportCameraProps;
 
 /**
  * Full Camera DSL props. Combine a positioning descriptor with optional lens,

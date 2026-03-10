@@ -21,7 +21,6 @@ import type {
   DiagramGroupMouseHandler,
   DiagramNodeGlowConfig,
 } from './types';
-import type { NVSRect } from '@brewsite/core';
 
 // ─── <DiagramNode> ────────────────────────────────────────────────────────────
 
@@ -91,7 +90,9 @@ export interface DiagramNodeProps {
   thickness?: number;
   /** Face color (CSS hex). Default: '#2a2d3e' (dark slate) */
   color?: string;
-  /** Side/edge color (CSS hex). Default: derives from color (darker) */
+  /** Box/depth color (CSS hex) for sides, top, bottom, and back. Default: from theme or derived from color */
+  boxColor?: string;
+  /** Legacy alias for boxColor. Default: derives from color (darker) */
   sideColor?: string;
   /** Border outline color (CSS hex). Default: derives from color (lighter) */
   borderColor?: string;
@@ -173,16 +174,28 @@ export interface DiagramEdgeProps {
   opacity?: number;
   /**
    * Per-edge routing algorithm. Overrides the diagram theme's default routing.
-   * Useful for mixing curved and orthogonal edges in the same diagram.
+   * `routing="flow"` is the canonical obstacle-aware routing mode.
    */
   routing?: EdgeRoutingAlgorithm;
+  /** Optional per-edge override for canonical flow turn radius. */
+  flowTurnRadius?: number;
+  /** Optional per-edge override for canonical flow face stub length. */
+  flowFaceStub?: number;
+  /** Optional per-edge override for how long sibling flow edges remain bundled before splitting. */
+  flowBundleStrength?: number;
+  /** Optional per-edge override for how strongly a flow edge prefers direct target ingress after splitting. */
+  flowTargetApproachBias?: number;
+  /** Enables the flow router's Z underpass escape hatch when true. */
+  allowUnderpass?: boolean;
   /**
    * Explicit attachment port at the source node (requires landing: 'port' or
-   * automatically enables port landing for this edge).
+   * automatically enables port landing for this edge). In `flow` mode this still
+   * attaches at the exact face center.
    */
   fromPort?: DiagramEdgePort;
   /**
-   * Explicit attachment port at the destination node.
+   * Explicit attachment port at the destination node. In `flow` mode this still
+   * attaches at the exact face center.
    */
   toPort?: DiagramEdgePort;
 }
@@ -305,26 +318,23 @@ export interface FlowLayoutProps {
 export interface DiagramProps {
   /** Unique diagram ID. Must be stable across scenes. */
   id: string;
-  /**
-   * Viewport bounds within the parent DiagramCanvas's NVS region.
-   * { x, y, w, h } in [0..1] fractions of the canvas NVS region.
-   * Default: { x: 0, y: 0, w: 1, h: 1 } (full canvas).
-   *
-   * For side-by-side diagrams:
-   *   left:  viewportBounds={{ x: 0,   y: 0, w: 0.5, h: 1 }}
-   *   right: viewportBounds={{ x: 0.5, y: 0, w: 0.5, h: 1 }}
-   */
-  viewportBounds?: NVSRect;
-  /**
-   * 3D tilt rotation in Euler XYZ radians for dramatic perspective effects.
-   * Default: [0, 0, 0] (flat, facing camera).
-   */
-  tilt?: [number, number, number];
+  /** NVS left edge [0..1]. Default: 0. */
+  x?: number;
+  /** NVS top edge [0..1]. Default: 0. */
+  y?: number;
+  /** NVS width [0..1]. Default: 1. */
+  w?: number;
+  /** NVS height [0..1]. Default: 1. */
+  h?: number;
+  /** Pitch tilt in radians applied to diagram geometry. Default: 0. */
+  tilt?: number;
+  /** World-space Z depth of the diagram plane. Default: 0. */
+  z?: number;
+  /** World-space geometry scale. Default: 1. */
+  scale?: number;
   /**
    * Visual + behavioral theme for this diagram.
-   * Overrides the parent `<DiagramCanvas>` theme for this diagram only.
-   * If inside a DiagramCanvas and this prop is omitted, the canvas theme applies.
-   * Falls back to darkGlassTheme when no canvas theme is present.
+   * Falls back to darkGlassTheme when omitted.
    * Per-node / per-edge props take precedence over all theme values.
    *
    * @example
@@ -373,5 +383,3 @@ export interface DiagramEnterProps {
   /** Easing function. Default: 'ease'. */
   easing?: DiagramEasing;
 }
-
-

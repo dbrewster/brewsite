@@ -7,6 +7,7 @@ import { compileGroup } from '../groupCompiler';
 import { darkGlassTheme } from '../../themes/darkGlass';
 import type { DiagramNodeDSL, DiagramGroupDSL } from '../../types';
 import type { GroupBounds } from '../groupCompiler';
+import { deriveColor } from '../../math/colorUtils';
 
 // ─── buildNodeDefaults ────────────────────────────────────────────────────────
 
@@ -21,6 +22,12 @@ describe('buildNodeDefaults — theme-driven defaults', () => {
     const customTheme = { ...darkGlassTheme, node: { ...darkGlassTheme.node, defaultSize: [6, 3] as const } };
     const nd = buildNodeDefaults(customTheme);
     expect(nd.size).toEqual([6, 3]);
+  });
+
+  it('reads theme.node.defaultBoxColor when provided', () => {
+    const customTheme = { ...darkGlassTheme, node: { ...darkGlassTheme.node, defaultBoxColor: '#223344' } };
+    const nd = buildNodeDefaults(customTheme);
+    expect(nd.boxColor).toBe('#223344');
   });
 });
 
@@ -59,21 +66,47 @@ describe('buildNodeDefaults — borderColorLightenFactor', () => {
 // ─── compileNode — derive factors ─────────────────────────────────────────────
 
 describe('compileNode — sideColor derived from theme factor', () => {
-  it('uses theme sideColorDarkenFactor to derive sideColor when dsl.sideColor not set', () => {
+  it('uses theme defaultBoxColor as the compiled box color when dsl does not override it', () => {
     const theme = {
       ...darkGlassTheme,
-      node: { ...darkGlassTheme.node, sideColorDarkenFactor: 0.0 },
+      node: { ...darkGlassTheme.node, defaultBoxColor: '#223344' },
     };
     const dsl: DiagramNodeDSL = { id: 'n1', label: 'Node 1' };
     const node = compileNode(dsl, [0, 0, 0], undefined, theme);
-    // With factor 0.0, sideColor should equal the base color (no adjustment).
-    expect(node.sideColor).toBe(node.color);
+    expect(node.sideColor).toBe('#223344');
+  });
+
+  it('uses dsl.boxColor when explicitly set', () => {
+    const dsl: DiagramNodeDSL = { id: 'n1', label: 'Node 1', boxColor: '#445566' };
+    const node = compileNode(dsl, [0, 0, 0], undefined, darkGlassTheme);
+    expect(node.sideColor).toBe('#445566');
+  });
+
+  it('uses theme sideColorDarkenFactor to derive sideColor when dsl.sideColor not set', () => {
+    const theme = {
+      ...darkGlassTheme,
+      node: { ...darkGlassTheme.node, defaultBoxColor: undefined, sideColorDarkenFactor: 0.0 },
+    };
+    const dsl: DiagramNodeDSL = { id: 'n1', label: 'Node 1' };
+    const node = compileNode(dsl, [0, 0, 0], undefined, theme);
+    expect(node.sideColor).toBe(deriveColor(node.color, 0));
   });
 
   it('respects dsl.sideColor when explicitly set, ignoring derive factor', () => {
     const dsl: DiagramNodeDSL = { id: 'n1', label: 'Node 1', sideColor: '#112233' };
     const node = compileNode(dsl, [0, 0, 0], undefined, darkGlassTheme);
     expect(node.sideColor).toBe('#112233');
+  });
+
+  it('prefers dsl.boxColor over the legacy dsl.sideColor alias when both are set', () => {
+    const dsl: DiagramNodeDSL = {
+      id: 'n1',
+      label: 'Node 1',
+      boxColor: '#445566',
+      sideColor: '#112233',
+    };
+    const node = compileNode(dsl, [0, 0, 0], undefined, darkGlassTheme);
+    expect(node.sideColor).toBe('#445566');
   });
 });
 

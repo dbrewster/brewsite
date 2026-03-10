@@ -1,19 +1,13 @@
 import type {JSX} from 'react';
 import {
-    Action,
     Background,
     Camera,
-    InputController,
-    KeyMap,
-    PointerMap,
     ProgressManager,
     Scene,
     TextBox,
-    WheelMap,
 } from '@brewsite/core';
 import {
     Diagram,
-    DiagramCanvas,
     DiagramEdge,
     DiagramNode,
     HierarchicalLayout,
@@ -25,81 +19,59 @@ const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
 // Left tree: Card Types — root "Neocortex" with 6 typed-card children
 // Right tree: Lifecycle — root "candidate" chains through review/verification to terminal states
-export const sceneNeocortex: JSX.Element = (
+export const SceneNeocortex = () => (
     <Scene key="bfm-neocortex" id="bfm-neocortex">
         <ProgressManager scrollUnits={3200} fn={DWELL_FN}/>
-        <Camera mode="world" position={[0, 6, 28]} target={[0, 0, 0]} fov={52}/>
-        <Background color="#080b14"/>
 
-        <InputController scope="canvas">
-            <Action id="pan" type="diagram-canvas.move" canvasId="bfm-neo-canvas">
-                <PointerMap event="drag" axis="xy"/>
-                <WheelMap axis="xy"/>
-            </Action>
-            <Action id="rotate" type="diagram-canvas.rotate" canvasId="bfm-neo-canvas">
-                <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy"/>
-            </Action>
-            <Action id="reset" type="diagram-canvas.reset" canvasId="bfm-neo-canvas">
-                <KeyMap keyName="r"/>
-            </Action>
-        </InputController>
+        {/* Left tree: Card Types — what kinds of knowledge Neocortex stores */}
+        <Diagram id="neo-types" x={0} y={0} w={.5} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
+            <HierarchicalLayout direction="top-down" spacing={[3, 2]}/>
 
-        <DiagramCanvas id="bfm-neo-canvas"
-                       x={0} y={0} w={1} h={0.58}
-                       tilt={config.diagramRotationX} scale={config.diagramScale}
-                       theme={brewflowTheme}>
+            <DiagramNode id="neo-core" label="Neocortex" sublabel="typed · versioned · provenance-backed"
+                         size={[6, 2.8]} color="#141830" glow={{intensity: 0.15}}/>
+            <DiagramNode id="card-procedure" label="procedure" sublabel="executable multi-step plans"
+                         size={[5.5, 2.4]} color="#101828"/>
+            <DiagramNode id="card-constraint" label="constraint" sublabel="hard rules · invariants"
+                         size={[5.5, 2.4]} color="#101828"/>
+            <DiagramNode id="card-disambiguation" label="disambiguation"
+                         sublabel="ambiguous terms · decision rules" size={[5.5, 2.4]} color="#101828"/>
+            <DiagramNode id="card-checklist" label="checklist" sublabel="validation before ship"
+                         size={[5.5, 2.4]} color="#101828"/>
+            <DiagramNode id="card-pitfall" label="pitfall" sublabel="documented failure modes · corrections"
+                         size={[5.5, 2.4]} color="#101828"/>
+            <DiagramNode id="card-concept" label="concept" sublabel="canonical domain definitions"
+                         size={[5.5, 2.4]} color="#101828"/>
 
-            {/* Left tree: Card Types — what kinds of knowledge Neocortex stores */}
-            <Diagram id="neo-types" viewportBounds={{x:0, y:0, w:0.5, h:1}}>
-                <HierarchicalLayout direction="top-down" spacing={[3, 2]}/>
+            <DiagramEdge from="neo-core" to="card-procedure" color="#4060a0"/>
+            <DiagramEdge from="neo-core" to="card-constraint" color="#4060a0"/>
+            <DiagramEdge from="neo-core" to="card-disambiguation" color="#4060a0"/>
+            <DiagramEdge from="neo-core" to="card-checklist" color="#4060a0"/>
+            <DiagramEdge from="neo-core" to="card-pitfall" color="#4060a0"/>
+            <DiagramEdge from="neo-core" to="card-concept" color="#4060a0"/>
+        </Diagram>
 
-                <DiagramNode id="neo-core" label="Neocortex" sublabel="typed · versioned · provenance-backed"
-                             size={[6, 2.8]} color="#141830" glow={{intensity: 0.15}}/>
-                <DiagramNode id="card-procedure" label="procedure" sublabel="executable multi-step plans"
-                             size={[5.5, 2.4]} color="#101828"/>
-                <DiagramNode id="card-constraint" label="constraint" sublabel="hard rules · invariants"
-                             size={[5.5, 2.4]} color="#101828"/>
-                <DiagramNode id="card-disambiguation" label="disambiguation"
-                             sublabel="ambiguous terms · decision rules" size={[5.5, 2.4]} color="#101828"/>
-                <DiagramNode id="card-checklist" label="checklist" sublabel="validation before ship"
-                             size={[5.5, 2.4]} color="#101828"/>
-                <DiagramNode id="card-pitfall" label="pitfall" sublabel="documented failure modes · corrections"
-                             size={[5.5, 2.4]} color="#101828"/>
-                <DiagramNode id="card-concept" label="concept" sublabel="canonical domain definitions"
-                             size={[5.5, 2.4]} color="#101828"/>
+        {/* Right tree: Lifecycle — how a memory card moves from proposal to terminal state */}
+        <Diagram id="neo-lifecycle" x={0.5} y={0} w={0.5} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
+            <HierarchicalLayout direction="top-down" spacing={[3, 2]}/>
 
-                <DiagramEdge from="neo-core" to="card-procedure" color="#4060a0"/>
-                <DiagramEdge from="neo-core" to="card-constraint" color="#4060a0"/>
-                <DiagramEdge from="neo-core" to="card-disambiguation" color="#4060a0"/>
-                <DiagramEdge from="neo-core" to="card-checklist" color="#4060a0"/>
-                <DiagramEdge from="neo-core" to="card-pitfall" color="#4060a0"/>
-                <DiagramEdge from="neo-core" to="card-concept" color="#4060a0"/>
-            </Diagram>
+            <DiagramNode id="lc-candidate" label="candidate" sublabel="LLM proposed · unvalidated"
+                         size={[4.5, 2.4]} color="#1a1020"/>
+            <DiagramNode id="lc-reviewed" label="reviewed" sublabel="passed deterministic validators"
+                         size={[4.5, 2.4]} color="#141828"/>
+            <DiagramNode id="lc-verified" label="verified"
+                         sublabel="execution-validated · human approved (high-risk)" size={[4.5, 2.4]}
+                         color="#141e30" glow={{intensity: 0.12}}/>
+            <DiagramNode id="lc-deprecated" label="deprecated" sublabel="queryable for backtrace · not injected"
+                         size={[4.5, 2.4]} color="#1a1010"/>
+            <DiagramNode id="lc-disputed" label="disputed"
+                         sublabel="contradicting evidence · needs human resolution" size={[4.5, 2.4]}
+                         color="#1a1215"/>
 
-            {/* Right tree: Lifecycle — how a memory card moves from proposal to terminal state */}
-            <Diagram id="neo-lifecycle" viewportBounds={{x:0.5, y:0, w:0.5, h:1}}>
-                <HierarchicalLayout direction="top-down" spacing={[3, 2]}/>
-
-                <DiagramNode id="lc-candidate" label="candidate" sublabel="LLM proposed · unvalidated"
-                             size={[4.5, 2.4]} color="#1a1020"/>
-                <DiagramNode id="lc-reviewed" label="reviewed" sublabel="passed deterministic validators"
-                             size={[4.5, 2.4]} color="#141828"/>
-                <DiagramNode id="lc-verified" label="verified"
-                             sublabel="execution-validated · human approved (high-risk)" size={[4.5, 2.4]}
-                             color="#141e30" glow={{intensity: 0.12}}/>
-                <DiagramNode id="lc-deprecated" label="deprecated" sublabel="queryable for backtrace · not injected"
-                             size={[4.5, 2.4]} color="#1a1010"/>
-                <DiagramNode id="lc-disputed" label="disputed"
-                             sublabel="contradicting evidence · needs human resolution" size={[4.5, 2.4]}
-                             color="#1a1215"/>
-
-                <DiagramEdge from="lc-candidate" to="lc-reviewed" style="solid" flow="forward" color="#5070b0"/>
-                <DiagramEdge from="lc-reviewed" to="lc-verified" style="solid" flow="forward" color="#5070b0"/>
-                <DiagramEdge from="lc-verified" to="lc-deprecated" style="dashed" color="#4060a0"/>
-                <DiagramEdge from="lc-verified" to="lc-disputed" style="dashed" color="#8040a0"/>
-            </Diagram>
-
-        </DiagramCanvas>
+            <DiagramEdge from="lc-candidate" to="lc-reviewed" style="solid" flow="forward" color="#5070b0"/>
+            <DiagramEdge from="lc-reviewed" to="lc-verified" style="solid" flow="forward" color="#5070b0"/>
+            <DiagramEdge from="lc-verified" to="lc-deprecated" style="dashed" color="#4060a0"/>
+            <DiagramEdge from="lc-verified" to="lc-disputed" style="dashed" color="#8040a0"/>
+        </Diagram>
 
         <TextBox id="bfm-neo-prose" x={0} y={0.58} w={1} h={0.42}>
             <div style={{

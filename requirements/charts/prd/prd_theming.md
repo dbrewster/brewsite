@@ -3,11 +3,11 @@ title: "BrewSite Charts — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-04
+last_updated: 2026-03-09
 change_history:
-  - date: 2026-03-04
+  - date: 2026-03-09
     author: "Toolkit Product"
-    summary: "NVS system: Chart DSL gains optional x?, y?, w?, h? NVS props. ChartWidget implements INVSBounded. ChartTooltipOverlay breaking change: camera and domElement props removed; nvsBounds: NVSRect is now required. Documented in Section 8 (new NVS subsection) and Section 10 (Breaking Change Assessment updated)."
+    summary: "NVS Universal Coordinate System: ChartState.bounds.width and bounds.height changed from world-units to NVS fractions [0..1] — breaking change. DEFAULT_CHART_STATE.bounds is now { width: 1.0, height: 1.0, depth: 0.4 }. ChartWidget.apply() now uses context.coords.toWorldSize() to convert NVS bounds to world-space at render time. Breaking change table in Section 10 updated. See packages/charts/MIGRATION.md."
   - date: 2026-03-04
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents the ChartTheme system as implemented: ChartTheme type, four preset themes, sceneTheme integration for cross-package font and color-mode defaults, and ChartDSL.sceneTheme element-level override."
@@ -320,7 +320,18 @@ These fallbacks are only used when the resolved `ChartTheme` has no explicit `ax
 
 **Theme system (this PRD's original scope): Semver impact: minor.** `ChartTheme.sceneTheme` and `ChartDSL.sceneTheme` are optional additions. All four preset themes remain valid without modification. No existing `ChartTheme` fields are changed.
 
-**NVS system (breaking change — major semver impact on `@brewsite/charts`):**
+**NVS Universal Coordinate System (breaking change — major semver impact on `@brewsite/charts`):**
+
+`ChartState.bounds` — coordinate system change:
+
+| Symbol | Before | After |
+|---|---|---|
+| `ChartState.bounds.width` | World-units (absolute Three.js scale) | **NVS fraction [0..1]** (fraction of viewport width) |
+| `ChartState.bounds.height` | World-units | **NVS fraction [0..1]** (fraction of viewport height) |
+| `ChartState.bounds.depth` | World-units | World-units (unchanged — depth is always world-space) |
+| `DEFAULT_CHART_STATE.bounds` | `{ width: 6.0, height: 4.0, depth: 0.4 }` | **`{ width: 1.0, height: 1.0, depth: 0.4 }`** |
+
+`ChartWidget.apply()` converts NVS bounds to world-space using `context.coords.toWorldSize()` at render time. Any consumer that authors explicit `width`/`height` values in `<Chart>` DSL (or overrides `DEFAULT_CHART_STATE.bounds`) must scale their values from world-units to NVS fractions. A fullscreen chart at default scale is now `width: 1, height: 1`. See `packages/charts/MIGRATION.md` for the migration guide.
 
 `ChartTooltipOverlay` breaking change:
 

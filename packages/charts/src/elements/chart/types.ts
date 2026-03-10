@@ -43,6 +43,12 @@ export type ChartState = {
    */
   readonly z: number;
   readonly rotation: readonly [number, number, number];
+  /**
+   * Chart geometry dimensions.
+   * width: NVS fraction of viewport width [0..1]. Default: nvsBounds.w.
+   * height: NVS fraction of viewport height [0..1]. Default: nvsBounds.h.
+   * depth: World-space thickness of 3D geometry (bars, areas). Default: 0.4.
+   */
   readonly bounds: { readonly width: number; readonly height: number; readonly depth: number };
   /** Data source name registered via ChartProvider. NOT the data itself. */
   readonly dataSource: string;
@@ -85,7 +91,7 @@ export const DEFAULT_CHART_STATE: ChartState = {
   nvsY: 0.5,
   z: 0,
   rotation: [0, 0, 0],
-  bounds: { width: 4, height: 3, depth: 0.4 },
+  bounds: { width: 1.0, height: 1.0, depth: 0.4 },
   dataSource: '',
   transforms: [],
   xAxis: null,
@@ -106,7 +112,14 @@ export type ChartDSL = {
   readonly id: string;
   readonly type: ChartType;
   readonly rotation?: readonly [number, number, number];
-  readonly bounds?: { readonly width?: number; readonly height?: number; readonly depth?: number };
+  readonly bounds?: {
+    /** NVS width fraction [0..1]. Default: same as `w` prop (fills nvsBounds). */
+    readonly width?: number;
+    /** NVS height fraction [0..1]. Default: same as `h` prop (fills nvsBounds). */
+    readonly height?: number;
+    /** World-space 3D depth of chart geometry. Default: 0.4. */
+    readonly depth?: number;
+  };
   readonly dataSource?: string;
   readonly theme?: ChartThemeName | ChartTheme;
   readonly opacity?: number;

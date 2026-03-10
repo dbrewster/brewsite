@@ -11,7 +11,7 @@ import {
     TextBox,
     WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, GridLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramNode, GridLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -21,23 +21,7 @@ export const sceneDim4Coordination: JSX.Element = (
   <Scene key="bfc-dim4-coord" id="bfc-dim4-coord">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
 
-    <Background color="#080b14" />
-
-    <InputController scope="canvas">
-      <Action id="pan" type="diagram-canvas.move" canvasId="bfc-coord-canvas">
-        <PointerMap event="drag" axis="xy" />
-        <WheelMap axis="xy" />
-      </Action>
-      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bfc-coord-canvas">
-        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
-      </Action>
-      <Action id="reset" type="diagram-canvas.reset" canvasId="bfc-coord-canvas">
-        <KeyMap keyName="r" />
-      </Action>
-    </InputController>
-
-    <DiagramCanvas id="bfc-coord-canvas" x={0} y={0} w={1} h={0.56} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="coord-diagram">
+    <Diagram id="coord-diagram" x={0} y={0} w={1} h={0.56} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
         <GridLayout columns={2} spacing={[3, 2]} />
 
         {/* Left — claude-flow shared_state */}
@@ -55,8 +39,7 @@ export const sceneDim4Coordination: JSX.Element = (
 
         <DiagramEdge from="coord-bf-a1" to="coord-bf-ep" label="emits event" flow="forward" color="#5070b0" />
         <DiagramEdge from="coord-bf-ep" to="coord-bf-a2" label="causally traceable" flow="forward" color="#5070b0" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="dim4-prose" x={0} y={0.56} w={1} h={0.44}>
       <div style={{

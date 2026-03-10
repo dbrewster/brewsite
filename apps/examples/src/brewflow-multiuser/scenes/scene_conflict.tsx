@@ -11,7 +11,7 @@ import {
   TextBox,
   WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -35,8 +35,7 @@ export const sceneConflict: JSX.Element = (
     <Camera mode="world" position={[0, 4, 20]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bfmu-conf-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale*.8} theme={brewflowTheme}>
-      <Diagram id="conf-diagram">
+    <Diagram id="conf-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale*.8} theme={brewflowTheme}>
         <ManualLayout />
         <DiagramEnter fade />
 
@@ -92,8 +91,7 @@ export const sceneConflict: JSX.Element = (
         <DiagramEdge from="conf-existing" to="conf-detect" flow="forward" color="#805050" />
         <DiagramEdge from="conf-detect" to="conf-both" flow="forward" color="#805050" />
         <DiagramEdge from="conf-both" to="conf-human" flow="forward" color="#805050" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="conflict-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

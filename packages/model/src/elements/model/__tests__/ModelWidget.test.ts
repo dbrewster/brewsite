@@ -4,6 +4,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
+import * as THREE from 'three';
 import { ModelWidget, type ModelWidgetConfig } from '../ModelWidget';
 import type { ModelMeta } from '../metadata';
 import type { SceneModelInstanceState } from '../types';
@@ -20,6 +21,7 @@ import {
   Label,
 } from '../ModelWidget';
 import { CUSTOM_NODE_HANDLER } from '@brewsite/core/widget/WidgetRegistry';
+import { createNVSCoordService, nvsToWorldWithCamera } from '@brewsite/core';
 import { makeInitContext, makeRenderContext } from '../../__tests__/elementTestMocks';
 
 vi.mock('../ModelRenderer', () => {
@@ -418,5 +420,42 @@ describe('ModelWidget', () => {
     expect(widget.getAnchorBoneName('mixamorig:Head')).toBe('head');
     expect(widget.getBoneWorldPositions()).toBeInstanceOf(Map);
     expect(widget.getTargetColors()).toBeInstanceOf(Map);
+  });
+
+  it('apply() via NVSCoordService produces the same world position as the old nvsToWorldWithCamera path (§9.5b regression)', () => {
+    // Build a known camera — same parameters as the old analytic fallback defaults.
+    const camera = new THREE.PerspectiveCamera(45, 16 / 9, 0.01, 100);
+    camera.position.set(0, 0, 12.07);
+
+    const coords = createNVSCoordService(camera, 1920, 1080);
+    const renderCtx = makeRenderContext({ coords });
+
+    const widget = new ModelWidget(makeConfig('bot'));
+    widget.initialize(makeInitContext({ widgetId: widget.widgetId }));
+
+    // Use a non-center NVS position to exercise the math.
+    const nvsX = 0.3;
+    const nvsY = 0.7;
+    const z = 0;
+
+    const state: SceneModelInstanceState = {
+      ...widget.defaultState,
+      model: { ...widget.defaultState.model, nvsX, nvsY, z },
+    };
+
+    // The mock renderer's apply is a vi.fn() — retrieve it and check what position it was called with.
+    const mockRenderer = (widget as unknown as { renderer: { apply: ReturnType<typeof vi.fn> } }).renderer;
+
+    widget.apply(state, renderCtx);
+
+    // Expected: old nvsToWorldWithCamera path with the same camera.
+    const expected = nvsToWorldWithCamera(nvsX, nvsY, camera, z);
+
+    expect(mockRenderer.apply).toHaveBeenCalledOnce();
+    const callArg = mockRenderer.apply.mock.calls[0][0] as { model: { position: [number, number, number] } };
+    const [wx, wy, wz] = callArg.model.position;
+    expect(wx).toBeCloseTo(expected[0], 5);
+    expect(wy).toBeCloseTo(expected[1], 5);
+    expect(wz).toBeCloseTo(expected[2], 5);
   });
 });

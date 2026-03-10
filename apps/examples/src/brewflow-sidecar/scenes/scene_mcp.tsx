@@ -1,17 +1,12 @@
 import type {JSX} from 'react';
 import {
-  Action,
   Background,
   Camera,
-  InputController,
-  KeyMap,
-  PointerMap,
   ProgressManager,
   Scene,
   TextBox,
-  WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
 
@@ -20,23 +15,10 @@ const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 export const sceneMcp: JSX.Element = (
   <Scene key="bf-mcp" id="bf-mcp">
     <ProgressManager scrollUnits={3200} fn={DWELL_FN} />
-    <InputController scope="canvas">
-      <Action id="pan" type="diagram-canvas.move" canvasId="bf-mcp-tools">
-        <PointerMap event="drag" axis="xy" />
-        <WheelMap axis="xy" />
-      </Action>
-      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bf-mcp-tools">
-        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
-      </Action>
-      <Action id="reset" type="diagram-canvas.reset" canvasId="bf-mcp-tools">
-        <KeyMap keyName="r" />
-      </Action>
-    </InputController>
     <Camera mode="world" position={[0, 4, 20]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bf-mcp-tools" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="mcp-tools">
+    <Diagram id="mcp-tools" theme={brewflowTheme}>
         <HierarchicalLayout direction="left-right" spacing={[3, 2]} />
 
         <DiagramNode
@@ -97,8 +79,7 @@ export const sceneMcp: JSX.Element = (
         <DiagramEdge from="mcp-server" to="tool-checkpoint" arrowEnd="open" color="#4060a0" />
         <DiagramEdge from="mcp-server" to="tool-outcome" arrowEnd="open" color="#4060a0" />
         <DiagramEdge from="mcp-server" to="tool-dream" arrowEnd="open" color="#4060a0" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="mcp-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

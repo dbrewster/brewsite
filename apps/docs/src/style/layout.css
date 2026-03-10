@@ -145,6 +145,89 @@
   background: rgba(77, 159, 255, 0.07);
 }
 
+/* ── Continuous-scroll docs layout ───────────────────────────────────────── */
+.docs-main {
+  flex: 1;
+  min-width: 0;
+  /* Normal block flow — no position, no overflow, no height constraints */
+}
+
+/* ── Act header (CSS-only section separator) ─────────────────────────────── */
+.act-header {
+  width: 100%;
+  padding: 80px 48px 60px;
+  background: var(--bg-act-header, linear-gradient(180deg, var(--bg-primary, #0a0a14) 0%, var(--bg-secondary, #0d0f1a) 100%));
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.act-header__inner {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.act-header__title {
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+/* ── ProseBlock (real HTML doc content) ──────────────────────────────────── */
+.prose-block {
+  padding: 64px 48px;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.prose-block__content {
+  font-size: var(--font-size-base);
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+.prose-block__content h1 {
+  font-size: var(--font-size-3xl);
+  font-weight: 700;
+  margin: 0 0 16px;
+}
+
+.prose-block__content h2 {
+  font-size: var(--font-size-2xl);
+  font-weight: 600;
+  margin: 40px 0 12px;
+}
+
+.prose-block__content p {
+  margin: 0 0 16px;
+  color: var(--text-secondary);
+}
+
+.prose-block__content code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  background: var(--bg-code-inline, rgba(255,255,255,0.08));
+  padding: 2px 5px;
+  border-radius: 3px;
+}
+
+.prose-block__content pre {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  background: var(--bg-code);
+  padding: 16px 20px;
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  overflow-x: auto;
+  margin: 0 0 16px;
+}
+
+.prose-block__content pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
 /* ── Continuous-scroll docs sidebar ──────────────────────────────────────── */
 .docs-sidebar {
   position: sticky;

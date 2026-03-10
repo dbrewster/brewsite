@@ -1,10 +1,13 @@
 ---
 title: "BrewSite Diagram — Canvas Element"
 doc_type: prd
-status: active
+status: deprecated
 owner: brewsite-product-manager
-last_updated: 2026-03-08
+last_updated: 2026-03-09
 change_history:
+  - date: 2026-03-09
+    author: "Toolkit Product"
+    summary: "DEPRECATED: DiagramCanvas, DiagramPipe, DiagramCanvasWidget, DiagramCanvasState, DiagramCanvasDSL, DiagramPipeState, DiagramPipeDSL, compileCanvas, compilePipe, PipeRoutingAlgorithm, PipeLandingAlgorithm, and all canvas/ module files have been removed from @brewsite/diagram in the NVS Universal Coordinate System major release. Diagrams now render directly in the main Three.js scene via DiagramWidget with x/y/w/h NVS props on <Diagram>. See packages/diagram/MIGRATION.md and prd_diagram_element.md for the current API."
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Initial PRD created. Comprehensive documentation of the @brewsite/diagram DiagramCanvas element as implemented."
@@ -26,6 +29,14 @@ change_history:
 ---
 
 # BrewSite Diagram — Canvas Element
+
+> **DEPRECATED — @brewsite/diagram v3.x**
+>
+> `DiagramCanvas`, `DiagramPipe`, and all associated types and functions described in this document have been **removed** from `@brewsite/diagram` as part of the NVS Universal Coordinate System release.
+>
+> The replacement pattern: author `<Diagram id="..." x={0} y={0} w={1} h={1} tilt={...}>` directly inside `<Scene>` — diagrams render into the main Three.js scene using the main camera and the NVS coordinate service. Multiple diagrams coexist as sibling elements.
+>
+> See `packages/diagram/MIGRATION.md` for the migration guide and `prd_diagram_element.md` for the current `Diagram` element specification.
 
 ## Overview
 

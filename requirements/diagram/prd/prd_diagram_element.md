@@ -3,8 +3,14 @@ title: "BrewSite Diagram — Diagram Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-08
+last_updated: 2026-03-10
 change_history:
+  - date: 2026-03-10
+    author: "Toolkit Product"
+    summary: "Edge routing rewrite: canonical routing mode is now flow, orthogonal is removed from the public DSL, DiagramEdgeState now carries explicit path commands, flow routes attach to exact face centers, and the renderer consumes DiagramEdgePathCommand[] rather than inferring spline semantics from control-point counts."
+  - date: 2026-03-09
+    author: "Toolkit Product"
+    summary: "NVS Universal Coordinate System: DiagramCanvas removed — <Diagram> is now the top-level authoring element. DiagramProps.viewportBounds (NVSRect) replaced by flat x/y/w/h props. DiagramProps.tilt changed from Vec3 to scalar (pitch only). DiagramWidget now implements ILoadable (env map) + INVSBounded. Overview updated to remove DiagramCanvasWidget reference. Non-Goals updated to remove DiagramCanvas/DiagramPipe mention. DSL section updated with new DiagramProps. Consumer integration updated to diagramPlugin({ diagrams: [...] }) pattern. Breaking change assessment updated to major."
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Initial PRD created. Comprehensive documentation of the Diagram element DSL, compiled state types, compilation pipeline, ghost-node inheritance, rendering architecture, and widget contract as implemented."
@@ -23,7 +29,7 @@ change_history:
 
 ## Overview
 
-The `Diagram` element is the primary authoring surface in `@brewsite/diagram`. It is a 3D interactive diagram composed of typed nodes, directed edges, and group containers. Authors declare a diagram in JSX; the compiler resolves layout, routes edges, applies theme defaults, and produces a fully resolved `DiagramState`. `DiagramCanvasWidget` drives this state through Three.js to produce a prism-based 3D visualization that transitions smoothly between scenes. This element is for TypeScript developers building animated architectural, infrastructure, or flow diagrams for immersive 3D marketing scenes.
+The `Diagram` element is the primary authoring surface in `@brewsite/diagram`. It is a 3D interactive diagram composed of typed nodes, directed edges, and group containers. Authors declare `<Diagram>` directly inside `<Scene>` with `x/y/w/h` NVS bounds; the compiler resolves layout, routes edges, applies theme defaults, and produces a fully resolved `DiagramState`. `DiagramWidget` drives this state through Three.js, rendering directly into the main scene using the NVS coordinate service, to produce a prism-based 3D visualization that transitions smoothly between scenes. This element is for TypeScript developers building animated architectural, infrastructure, or flow diagrams for immersive 3D marketing scenes.
 
 Affected package: `@brewsite/diagram`.
 
@@ -45,7 +51,7 @@ Technical marketing scenes frequently need to visualize system architecture, dat
 
 ## Non-Goals
 
-- The `Diagram` element does not manage cross-diagram pipe connectors. That is `DiagramCanvas` and `DiagramPipe`.
+- Cross-diagram pipe connectors (`DiagramPipe`, `DiagramCanvas`) are not part of this element and have been removed from `@brewsite/diagram`. Multiple independent `<Diagram>` elements may coexist in the same scene as siblings.
 - Per-node animation beyond what `functionalDiagramTransitionSpec` provides (enter/exit/interpolate) is not part of this element's scope.
 - Real-time editable diagrams (runtime add/remove nodes) are out of scope. All diagram content is authored at compile time.
 - The element does not provide a legend, tooltip system, or annotation layer. Those belong in the consumer's HUD layer.
@@ -82,21 +88,29 @@ Technical marketing scenes frequently need to visualize system architecture, dat
 export interface DiagramProps {
   /** Unique diagram ID. Must be stable across scenes. */
   id: string;
+  /** NVS left edge [0..1]. Default: 0. */
+  x?: number;
+  /** NVS top edge [0..1]. Default: 0. */
+  y?: number;
+  /** NVS width [0..1]. Default: 1. */
+  w?: number;
+  /** NVS height [0..1]. Default: 1. */
+  h?: number;
   /**
-   * Viewport bounds within the parent DiagramCanvas's NVS region.
-   * { x, y, w, h } in [0..1] fractions of the canvas NVS region.
-   * Default: { x: 0, y: 0, w: 1, h: 1 } (full canvas).
-   * For side-by-side diagrams: left={ x: 0, w: 0.5 }, right={ x: 0.5, w: 0.5 }.
+   * Pitch tilt in radians applied to the diagram geometry group.
+   * Negative = top edge tilts away from viewer. Default: 0.
    */
-  viewportBounds?: NVSRect;
+  tilt?: number;
   /**
-   * 3D tilt rotation in Euler XYZ radians for dramatic perspective effects.
-   * Default: [0, 0, 0] (flat, facing camera).
+   * World-space Z depth of the diagram's geometry plane. Default: 0.
+   * Allows diagrams to be composited in front of or behind other scene elements.
    */
-  tilt?: [number, number, number];
+  z?: number;
+  /** World-space geometry scale multiplier. Default: 1. */
+  scale?: number;
   /**
-   * Visual + behavioral theme. Overrides canvas theme for this diagram only.
-   * Falls back to darkGlassTheme if no canvas theme is present.
+   * Visual + behavioral theme.
+   * Falls back to darkGlassTheme when absent.
    * Per-node / per-edge props take precedence over all theme values.
    */
   theme?: DiagramTheme;
@@ -223,9 +237,9 @@ export interface DiagramEdgeProps {
   opacity?: number;
   /**
    * Per-edge routing algorithm override. Overrides the diagram theme's default routing.
-   * Useful for mixing curved and orthogonal edges in the same diagram.
-   */
-  routing?: EdgeRoutingAlgorithm;  // 'curved' | 'orthogonal' | 'straight' | 'organic'
+   * `routing=\"flow\"` is the canonical obstacle-aware routing mode.
+  */
+  routing?: EdgeRoutingAlgorithm;  // 'curved' | 'straight' | 'organic' | 'flow'
   /**
    * Explicit attachment port at the source node.
    * When specified, the edge attaches from this face center regardless of the
@@ -478,9 +492,10 @@ export interface DiagramState {
   /** All groups. Rendered before edges (painter's algorithm) */
   readonly groups: ReadonlyArray<DiagramGroupState>;
   /**
-   * Viewport bounds within the parent DiagramCanvas's NVS region.
-   * { x, y, w, h } in [0..1] fractions of the canvas NVS region.
-   * Default: { x: 0, y: 0, w: 1, h: 1 }.
+   * NVS bounds for this diagram in the viewport.
+   * { x, y, w, h } in [0..1] fractions of the full viewport.
+   * Compiled from the <Diagram x/y/w/h> props.
+   * Default: { x: 0, y: 0, w: 1, h: 1 } (fullscreen).
    */
   readonly viewportBounds: NVSRect;
   /**
@@ -555,7 +570,7 @@ Four rendering classes collaborate to produce the Three.js scene. All live in `p
 
 **`NodeRenderer`** — Manages the Three.js mesh lifecycle for each `DiagramNodeState`. Creates or reuses a box geometry (either `BoxGeometry` for `cornerRadius === 0` or rounded box via `ExtrudeGeometry` for `cornerRadius > 0`). Applies `MeshStandardMaterial` for PBR nodes and `MeshBasicMaterial` for flat-shaded elements. Renders Troika `Text` meshes for primary and sublabels. Renders icon sprites loaded via `IconLoader` from SVG URLs on the `DiagramNodeState.iconUrl` field. Renders a glow sprite behind the node when `themeConfig.nodeGlowIntensity > 0`.
 
-**`EdgeRenderer`** — Manages the Three.js tube geometry lifecycle for each `DiagramEdgeState`. Constructs `CatmullRomCurve3` from `controlPoints` and wraps it in a `TubeGeometry`. Generates arrowhead geometries at `arrowStart` and `arrowEnd` positions (`LatheGeometry` for 3D cones when `themeConfig.use3DArrows`, flat `ShapeGeometry` for 2D arrowheads). Supports dashed material for `style === 'dashed'`. Animates flow pulses via UV offset on a flow-pulse material when `flow !== 'none'`.
+**`EdgeRenderer`** — Manages the Three.js tube geometry lifecycle for each `DiagramEdgeState`. Consumes explicit `DiagramEdgePathCommand[]` from `DiagramEdgeState.path`, building a `CurvePath` from `LineCurve3` and `CubicBezierCurve3` commands instead of inferring spline semantics from control-point counts. Generates arrowhead geometries at `arrowStart` and `arrowEnd` positions (`LatheGeometry` for 3D cones when `themeConfig.use3DArrows`, flat `ShapeGeometry` for 2D arrowheads). Supports dashed material for `style === 'dashed'`. Animates flow pulses via UV offset on a flow-pulse material when `flow !== 'none'`.
 
 **`GroupRenderer`** — Manages the Three.js fill plane and border frame lifecycle for each `DiagramGroupState`. Renders a `PlaneGeometry` fill mesh at the group's computed bounds, applying `MeshBasicMaterial` with `fillOpacity`. Renders a `LineSegments` or frame mesh at the group border using `borderColor` and `borderOpacity`. Distributes `THREE.PointLight` instances along the group's perimeter when `edgeLights` is present. Registers each group's fill mesh with `GroupInteractionRegistry` for hover hit-testing.
 
@@ -733,8 +748,10 @@ The 2026-03-08 overhaul introduced multiple breaking changes to the public API s
 | `DiagramProps.rotation` | `[number,number,number]` | removed |
 | `DiagramProps.scale` | `number` | removed |
 | `DiagramProps.pivot` | `DiagramPivot` | removed |
-| `DiagramProps.viewportBounds` | absent | `NVSRect \| undefined` |
-| `DiagramProps.tilt` | absent | `[number,number,number] \| undefined` |
+| `DiagramProps.x/y/w/h` | absent | `number \| undefined` (NVS bounds props, replace `viewportBounds`) |
+| `DiagramProps.tilt` | absent | `number \| undefined` (scalar pitch; was `[number,number,number]` in intermediate form) |
+| `DiagramProps.z` | absent | `number \| undefined` |
+| `DiagramProps.scale` | `number` on `DiagramCanvas` | now on `<Diagram>` directly |
 | `DiagramNodeProps.iconDepth` | `number` (world units) | removed |
 | `DiagramNodeProps.iconDepthFactor` | absent | `number` (fraction of thickness, 0..1) |
 | `DiagramState.position` | `readonly [number,number,number]` | removed |
@@ -752,7 +769,7 @@ The 2026-03-08 overhaul introduced multiple breaking changes to the public API s
 | `DiagramGroupState.labelColor` | absent | `readonly string` (new, non-breaking) |
 | `DiagramPivot` type | exported | deleted |
 
-**Migration path.** Replace `position`, `rotation`, `scale`, `pivot` on `<Diagram>` with `viewportBounds` and `tilt`. Replace `iconDepth` on `<DiagramNode>` with `iconDepthFactor` (convert world-unit depth to a fraction: `iconDepthFactor = iconDepth / thickness`). Replace null checks on `DiagramState.exit` and `DiagramState.enter` with `undefined` checks. Remove `scaleTo`/`scaleFrom` from `<DiagramExit>`/`<DiagramEnter>` — the equivalent effect is achieved via `to`/`from` with an off-screen NVS coordinate.
+**Migration path.** Replace `position`, `rotation`, `pivot` on `<Diagram>` with `x/y/w/h` NVS props. Move `scale` from `<DiagramCanvas>` to `<Diagram>` directly. Replace `tilt=[x,y,z]` with scalar `tilt` (pitch only). Replace `iconDepth` on `<DiagramNode>` with `iconDepthFactor` (convert world-unit depth to a fraction: `iconDepthFactor = iconDepth / thickness`). Replace null checks on `DiagramState.exit` and `DiagramState.enter` with `undefined` checks. Remove `scaleTo`/`scaleFrom` from `<DiagramExit>`/`<DiagramEnter>` — the equivalent effect is achieved via `to`/`from` with an off-screen NVS coordinate. See `packages/diagram/MIGRATION.md` for step-by-step instructions.
 
 ## Open Questions
 

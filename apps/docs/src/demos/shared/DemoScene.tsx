@@ -1,9 +1,7 @@
 import {
-  EngineProvider,
-  EngineInputRegion,
-  SceneCanvas,
+  ControlledInput,
+  SceneReel,
   useEngineState,
-  useSceneEngineContext,
   type WidgetPlugin,
 } from '@brewsite/core';
 import { JSX, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
@@ -27,26 +25,22 @@ function DemoSceneControls({
   sceneDuration,
   autoPlay,
   setAutoPlay,
+  progress,
+  onProgressChange,
 }: {
   sceneCount: number;
   sceneDuration: number;
   autoPlay: boolean;
   setAutoPlay: (next: boolean) => void;
+  progress: number;
+  onProgressChange: (next: number) => void;
 }): JSX.Element {
-  const engine = useSceneEngineContext();
   const state = useEngineState();
   const rafRef = useRef<number | null>(null);
   const startTimeRef = useRef<number>(0);
 
   const stepSize = useMemo(() => 1 / Math.max(1, sceneCount), [sceneCount]);
   const totalDuration = useMemo(() => Math.max(1, sceneCount) * sceneDuration, [sceneCount, sceneDuration]);
-
-  // engine.scrollToProgress is a stable useCallback in every mode (scroll,
-  // direct, controlled). Extract it so the auto-play effect depends on the
-  // stable function identity, NOT on the engine object — which is recreated
-  // on every render in controlled mode (progress changes → re-render →
-  // new engine object → effect resets startTimeRef → scene jumps to 0).
-  const { scrollToProgress } = engine;
 
   useEffect(() => {
     if (!autoPlay) {
@@ -62,7 +56,7 @@ function DemoSceneControls({
         startTimeRef.current = ts;
       }
       const elapsed = (ts - startTimeRef.current) % totalDuration;
-      scrollToProgress(elapsed / totalDuration);
+      onProgressChange(elapsed / totalDuration);
       rafRef.current = requestAnimationFrame(tick);
     };
 
@@ -74,18 +68,18 @@ function DemoSceneControls({
       rafRef.current = null;
       startTimeRef.current = 0;
     };
-  }, [autoPlay, scrollToProgress, totalDuration]);
+  }, [autoPlay, onProgressChange, totalDuration]);
 
   const nextScene = (): void => {
     setAutoPlay(false);
     const next = Math.min(1, Math.round((state.progress + stepSize) / stepSize) * stepSize);
-    scrollToProgress(next);
+    onProgressChange(next);
   };
 
   const prevScene = (): void => {
     setAutoPlay(false);
     const next = Math.max(0, Math.round((state.progress - stepSize) / stepSize) * stepSize);
-    scrollToProgress(next);
+    onProgressChange(next);
   };
 
   const currentScene = Math.min(sceneCount, Math.floor(state.progress * Math.max(1, sceneCount)) + 1);
@@ -118,7 +112,7 @@ function DemoSceneControls({
           value={state.progress}
           onChange={(event) => {
             setAutoPlay(false);
-            scrollToProgress(Number(event.target.value));
+            onProgressChange(Number(event.target.value));
           }}
           aria-label="Demo progress"
         />
@@ -135,18 +129,15 @@ export function DemoScene({
   sceneCount,
   height = 420,
   sceneDuration = 2500,
-  manifestUrl = '/scene-manifest.json',
   plugins,
 }: DemoSceneProps): JSX.Element {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [autoPlay, setAutoPlay] = useState(false);
-  // Controlled progress (0–1) drives the engine directly without touching
-  // window.scrollY or window.scrollTo, so the page can scroll freely.
   const [progress, setProgress] = useState(0);
 
   // IMPORTANT: resolvedPlugins must be a stable reference. DemoScene re-renders
   // on every progress tick (setProgress is called each RAF frame). If
-  // plugins were recreated inline, EngineProvider's widgetRegistry useMemo
+  // plugins were recreated inline, SceneReel's widgetRegistry useMemo
   // would fire every frame, disposing and recreating the Three.js driver 60×/s.
   const resolvedPlugins = useMemo(
     () => plugins ?? createDemoWidgetSetup(),
@@ -177,23 +168,18 @@ export function DemoScene({
     // overflow: hidden keeps the player canvas clipped to the declared
     // height even during brief layout transitions.
     <div className="demo-scene" ref={containerRef} style={{ height, overflow: 'hidden' }}>
-      <EngineProvider
-        manifestUrl={manifestUrl}
-        plugins={resolvedPlugins}
-        controlledProgress={progress}
-        onControlledProgressChange={setProgress}
-      >
+      <SceneReel height={height} plugins={resolvedPlugins}>
         {children}
-        <EngineInputRegion fillContainer>
-          <SceneCanvas style={{ width: '100%', height: '100%' }} />
-          <DemoSceneControls
-            sceneCount={sceneCount}
-            sceneDuration={sceneDuration}
-            autoPlay={autoPlay}
-            setAutoPlay={setAutoPlay}
-          />
-        </EngineInputRegion>
-      </EngineProvider>
+        <ControlledInput value={progress} onChange={setProgress} />
+        <DemoSceneControls
+          sceneCount={sceneCount}
+          sceneDuration={sceneDuration}
+          autoPlay={autoPlay}
+          setAutoPlay={setAutoPlay}
+          progress={progress}
+          onProgressChange={setProgress}
+        />
+      </SceneReel>
     </div>
   );
 }

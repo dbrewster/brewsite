@@ -186,6 +186,37 @@ describe('compileChart', () => {
     expect(state.nvsBounds).toEqual({ x: 0, y: 0, w: 0.5, h: 1 });
   });
 
+  it('bounds.width defaults to dsl.w (NVS fraction)', () => {
+    const state = compileChart({ id: 'c', type: 'bar', w: 0.6 }, null, [], [], null);
+    expect(state.bounds.width).toBe(0.6);
+  });
+
+  it('bounds.height defaults to dsl.h (NVS fraction)', () => {
+    const state = compileChart({ id: 'c', type: 'bar', h: 0.7 }, null, [], [], null);
+    expect(state.bounds.height).toBe(0.7);
+  });
+
+  it('bounds.width=1.0 when no w or bounds.width specified (NVS default)', () => {
+    const state = compileChart({ id: 'c', type: 'bar' }, null, [], [], null);
+    expect(state.bounds.width).toBe(1);
+    expect(state.bounds.height).toBe(1);
+  });
+
+  it('explicit bounds.width overrides dsl.w', () => {
+    const state = compileChart({ id: 'c', type: 'bar', w: 0.8, bounds: { width: 0.5 } }, null, [], [], null);
+    expect(state.bounds.width).toBe(0.5);
+  });
+
+  it('bounds.depth defaults to 0.4 when not specified', () => {
+    const state = compileChart({ id: 'c', type: 'bar' }, null, [], [], null);
+    expect(state.bounds.depth).toBe(0.4);
+  });
+
+  it('explicit bounds.depth overrides default', () => {
+    const state = compileChart({ id: 'c', type: 'bar', bounds: { depth: 0.8 } }, null, [], [], null);
+    expect(state.bounds.depth).toBe(0.8);
+  });
+
   it('nvsX = x + w/2 (centering contract: group anchor = NVS center)', () => {
     // This verifies the invariant that the NVS center position used to anchor the chart group
     // is derived as the center of the declared NVS bounding box, not its top-left corner.

@@ -1,10 +1,10 @@
 // Three.js rendering for DiagramState.
 // Orchestrates NodeRenderer, EdgeRenderer, GroupRenderer, EnvMapManager.
-// Converts NVS [0..1] positions to canvas-local space before dispatching to sub-renderers.
+// Converts NVS [0..1] positions to world-space via NVSCoordService before dispatching to sub-renderers.
 
 import * as THREE from 'three';
 import type { DiagramState, DiagramNodeState, DiagramEdgeState, DiagramGroupState, DiagramGroupEdgeLightsState } from './types';
-import type { NVSRect } from '@brewsite/core';
+import type { NVSCoordService, AssetManifest } from '@brewsite/core';
 import { NodeRenderer } from './rendering/NodeRenderer';
 import { EdgeRenderer } from './rendering/EdgeRenderer';
 import { GroupRenderer } from './rendering/GroupRenderer';
@@ -28,6 +28,7 @@ function edgeThemeKey(tc: DiagramThemeRenderConfig): string {
     tc.edgeFlowSpeed,
     tc.edgeFlowWidth,
     tc.edgeFlowPulseIntensity,
+    tc.edgeTubeRadialSegments,
   ].join('|');
 }
 
@@ -41,50 +42,27 @@ const findScene = (obj: THREE.Object3D): THREE.Scene | null => {
 };
 
 /**
- * Converts a node's [0..1] NVS position within a diagram viewport to canvas-local space.
- * Canvas-local convention: center-origin, Y-up, X scaled by canvasAspect.
+ * Orchestrates NodeRenderer, EdgeRenderer, GroupRenderer, and EnvMapManager for a diagram.
+ * Converts NVS [0..1] positions to world-space coordinates via NVSCoordService.
+ * The group parameter passed to update() IS the diagram's root group — this renderer
+ * does not create or position the root group.
  */
-function nodeNvsToCanvasLocal(
-  nvsPos: readonly [number, number, number],
-  vp: NVSRect,
-  aspect: number,
-): readonly [number, number, number] {
-  const vpX = vp.x + vp.w * nvsPos[0];
-  const vpY = vp.y + vp.h * nvsPos[1];
-  const localX = (vpX - 0.5) * aspect;
-  const localY = -(vpY - 0.5);  // Y-flip: NVS y=0 top → canvas +Y
-  return [localX, localY, nvsPos[2]];
-}
-
-/**
- * Converts a node's [0..1] NVS size fractions to canvas-local units.
- */
-function nodeSizeToCanvasLocal(
-  nvsSize: readonly [number, number],
-  vp: NVSRect,
-  aspect: number,
-): readonly [number, number] {
-  return [nvsSize[0] * vp.w * aspect, nvsSize[1] * vp.h];
-}
-
 export class DiagramRenderer {
-  private diagramGroups = new Map<string, THREE.Group>();
   private lastState = new Map<string, DiagramState>();
   private readonly envMapManager = new EnvMapManager();
+  private rendererRef: THREE.WebGLRenderer | undefined;
+  private _isEnvMapLoaded = true; // env maps load lazily; treated as always "ready"
 
   readonly interactionRegistry = new InteractionRegistry();
   readonly groupInteractionRegistry = new GroupInteractionRegistry();
 
   // Fully initialized in constructor — no null checks needed on update():
   private readonly nodeRenderer: NodeRenderer;
-  private edgeRenderer: EdgeRenderer;                // NOT readonly — may be recreated on theme change
+  private edgeRenderer: EdgeRenderer; // NOT readonly — may be recreated on theme change
   private readonly groupRenderer: GroupRenderer;
 
   /** Tracks the last edge theme key to detect when EdgeRenderer must be recreated. */
   private lastEdgeThemeKey: string;
-
-  /** Canvas aspect ratio (canvasWidth / canvasHeight in canvas units). Set by DiagramCanvasRenderer before each update(). */
-  private _canvasAspect: number = 16 / 9;
 
   constructor(initialThemeConfig: DiagramThemeRenderConfig) {
     this.nodeRenderer = new NodeRenderer(sharedIconLoader, this.interactionRegistry);
@@ -97,27 +75,47 @@ export class DiagramRenderer {
       initialThemeConfig.edgeFlowSpeed,
       initialThemeConfig.edgeFlowWidth,
       initialThemeConfig.edgeFlowPulseIntensity,
+      initialThemeConfig.edgeTubeRadialSegments,
     );
     this.groupRenderer = new GroupRenderer(this.groupInteractionRegistry);
     this.lastEdgeThemeKey = edgeThemeKey(initialThemeConfig);
   }
 
-  /**
-   * Sets the canvas aspect ratio used for NVS → canvas-local conversion.
-   * Must be called by DiagramCanvasRenderer before each call to update().
-   */
-  setCanvasAspect(aspect: number): void {
-    this._canvasAspect = aspect;
+  /** Store renderer reference for potential env map PMREM generation. */
+  initialize(renderer: THREE.WebGLRenderer | undefined): void {
+    this.rendererRef = renderer;
   }
 
-  update(state: DiagramState, parent: THREE.Object3D): void {
+  /**
+   * ILoadable delegation — env maps load lazily; resolves immediately.
+   * This method exists to satisfy ILoadable; no async work is needed here.
+   */
+  async loadEnvMap(_manifest: AssetManifest | null): Promise<void> {
+    // Env maps are loaded lazily when update() is first called.
+  }
+
+  /** True once initialize() has been called and env map loading is available. */
+  get isEnvMapLoaded(): boolean {
+    return this._isEnvMapLoaded;
+  }
+
+  /**
+   * Updates all sub-renderers with new DiagramState.
+   * The group parameter is the diagram's root Three.js group (owned by DiagramWidget).
+   * Position, rotation, and scale of the group are managed by DiagramWidget.apply().
+   * This method populates the group's children with nodes, edges, and groups.
+   *
+   * @param state  Compiled diagram state with NVS [0..1] positions.
+   * @param group  The diagram's root Three.js group (owned by DiagramWidget).
+   * @param coords Live NVS→world coordinate service from WidgetRenderContext.
+   */
+  update(state: DiagramState, group: THREE.Group, coords: NVSCoordService): void {
     const tc = state.themeConfig;
 
     // Recreate EdgeRenderer if any construction-time edge params changed.
     const newKey = edgeThemeKey(tc);
     if (newKey !== this.lastEdgeThemeKey) {
-      const root = this.diagramGroups.get(state.id);
-      if (root) this.edgeRenderer.disposeAll(root);
+      this.edgeRenderer.disposeAll(group);
       this.edgeRenderer = new EdgeRenderer(
         new EdgeMaterialFactory(),
         tc.use3DArrows,
@@ -127,140 +125,208 @@ export class DiagramRenderer {
         tc.edgeFlowSpeed,
         tc.edgeFlowWidth,
         tc.edgeFlowPulseIntensity,
+        tc.edgeTubeRadialSegments,
       );
       this.lastEdgeThemeKey = newKey;
     }
 
     const prev = this.lastState.get(state.id);
-    if (!this.diagramGroups.has(state.id)) {
-      const root = new THREE.Group();
-      root.name = `diagram:${state.id}`;
-      this.diagramGroups.set(state.id, root);
-      parent.add(root);
-    }
-    const root = this.diagramGroups.get(state.id)!;
-
-    // Position the diagram root at the center of its viewport bounds in canvas-local space.
     const vp = state.viewportBounds;
-    const vpCX = vp.x + vp.w / 2;
-    const vpCY = vp.y + vp.h / 2;
-    const localX = (vpCX - 0.5) * this._canvasAspect;
-    const localY = -(vpCY - 0.5);  // Y-flip
-    root.position.set(localX, localY, 0);
-    root.rotation.set(state.tiltRotation[0], state.tiltRotation[1], state.tiltRotation[2]);
-    root.scale.setScalar(1);
 
-    const scene = findScene(parent);
+    // Apply env map to the scene.
+    const scene = findScene(group);
     if (scene) {
       this.envMapManager.apply(scene, tc.envMapUrl, tc.envMapIntensity);
     }
+
+    // Compute group center in world space (used to make all positions group-local).
+    const groupCenterWorld = coords.toWorld(
+      vp.x + vp.w / 2,
+      vp.y + vp.h / 2,
+      state.z,
+    );
+
+    // Compute uniform fit scaling to preserve the diagram's natural bounding-box AR.
+    // Diagram-local NVS positions [0..1] map to world space via uniformWorldW/H
+    // rather than independently scaling X by vp.w and Y by vp.h, which would distort
+    // any diagram whose contentAspect != (vp.w / vp.h) * (visibleWorldWidth / visibleWorldHeight).
+    const availableWorldW = vp.w * coords.visibleWorldWidth;
+    const availableWorldH = vp.h * coords.visibleWorldHeight;
+    const fitByWidth = availableWorldW / state.contentAspect;
+    const uniformWorldH = Math.min(fitByWidth, availableWorldH);
+    const uniformWorldW = uniformWorldH * state.contentAspect;
+
+    // ─── Groups ───────────────────────────────────────────────────────────────
 
     const activeGroupIds = new Set(state.groups.map((g) => g.id));
     if (prev) {
       for (const g of prev.groups) {
         if (!activeGroupIds.has(g.id)) {
-          this.groupRenderer.dispose(g.id, state.id, root);
+          this.groupRenderer.dispose(g.id, state.id, group);
         }
       }
     }
 
-    // Convert group bounds from [0..1] NVS → canvas-local before passing to GroupRenderer.
-    // GroupRenderer.updateGroup() computes: centerX = bounds.x + bounds.w / 2; centerY = bounds.y + bounds.h / 2
-    // For this formula to produce the correct canvas-local center, bounds.y must be the canvas-local BOTTOM edge (Y-up).
     for (const groupState of state.groups) {
-      const nvsHalfW = groupState.bounds.w / 2;
-      const nvsHalfH = groupState.bounds.h / 2;
-      const localW = groupState.bounds.w * this._canvasAspect * vp.w;
-      const localH = groupState.bounds.h * vp.h;
-      const localHalfW = localW / 2;
-      const localHalfH = localH / 2;
+      // Compute group center in diagram-local NVS, then map to group-local world coords
+      // using the same uniform scaling applied to nodes (preserves contentAspect).
+      const gcNvsX = groupState.bounds.x + groupState.bounds.w / 2;
+      const gcNvsY = groupState.bounds.y + groupState.bounds.h / 2;
+      const localGCX = (gcNvsX - 0.5) * uniformWorldW;
+      const localGCY = -(gcNvsY - 0.5) * uniformWorldH;
 
-      // canvas-local left edge: map NVS group left edge → canvas-local X, then subtract diagram root offset
-      const localGX = (vp.x + vp.w * groupState.bounds.x - 0.5) * this._canvasAspect - localX;
-      // canvas-local BOTTOM edge: NVS top+height → flip → subtract root offset
-      const localGY = 0.5 - (vp.y + vp.h * (groupState.bounds.y + groupState.bounds.h)) - localY;
+      // Convert group size using uniform world dimensions.
+      const worldGW = groupState.bounds.w * uniformWorldW;
+      const worldGH = groupState.bounds.h * uniformWorldH;
 
-      // Rescale edge lights from NVS-group-local fractions to canvas-local units.
+      // Convert padding from NVS fractions to world units using uniform scaling.
+      // padding = [top, right, bottom, left] as NVS fractions.
+      const worldPadTop = groupState.bounds.padding[0] * uniformWorldH;
+      const worldPadRight = groupState.bounds.padding[1] * uniformWorldW;
+      const worldPadBottom = groupState.bounds.padding[2] * uniformWorldH;
+      const worldPadLeft = groupState.bounds.padding[3] * uniformWorldW;
+      const worldTitleGap = groupState.bounds.titleGap * uniformWorldH;
+
+      // Convert edge lights from NVS group-local fractions to world units.
+      // Edge light positions are in NVS group-local fractions — convert to world-space half-extents.
       let convertedEdgeLights: DiagramGroupEdgeLightsState | undefined = groupState.edgeLights;
-      if (groupState.edgeLights && nvsHalfW > 0 && nvsHalfH > 0) {
+      if (groupState.edgeLights && worldGW > 0 && worldGH > 0) {
         convertedEdgeLights = {
           ...groupState.edgeLights,
-          lights: groupState.edgeLights.lights.map((light) => ({
-            ...light,
-            position: [
-              light.position[0] * (localHalfW / nvsHalfW),
-              light.position[1] * (localHalfH / nvsHalfH),
-              light.position[2],  // Z (border height offset) stays in canvas world units
-            ] as readonly [number, number, number],
-          })),
+          lights: groupState.edgeLights.lights.map((light) => {
+            const lightWorldX = light.position[0] * worldGW;
+            const lightWorldY = light.position[1] * worldGH;
+            return {
+              ...light,
+              position: [lightWorldX / 2, lightWorldY / 2, light.position[2]] as readonly [number, number, number],
+            };
+          }),
         };
       }
 
+      // GroupRenderer uses bounds.x as left edge, bounds.y as bottom edge (Y-up).
+      // Compute left and bottom edges from center and half-extents.
       const convertedGroup: DiagramGroupState = {
         ...groupState,
         bounds: {
-          x: localGX,      // canvas-local LEFT edge (relative to diagram root)
-          y: localGY,      // canvas-local BOTTOM edge (Y-up) — required by GroupRenderer centerY formula
-          w: localW,
-          h: localH,
-          padding: [
-            groupState.bounds.padding[0] * vp.h,                       // top
-            groupState.bounds.padding[1] * vp.w * this._canvasAspect,  // right
-            groupState.bounds.padding[2] * vp.h,                       // bottom
-            groupState.bounds.padding[3] * vp.w * this._canvasAspect,  // left
-          ] as readonly [number, number, number, number],
-          titleGap: groupState.bounds.titleGap * vp.h,
+          x: localGCX - worldGW / 2,  // left edge (GroupRenderer: centerX = bounds.x + bounds.w/2)
+          y: localGCY - worldGH / 2,  // bottom edge Y-up (GroupRenderer: centerY = bounds.y + bounds.h/2)
+          w: worldGW,
+          h: worldGH,
+          padding: [worldPadTop, worldPadRight, worldPadBottom, worldPadLeft] as readonly [number, number, number, number],
+          titleGap: worldTitleGap,
         },
         edgeLights: convertedEdgeLights,
       };
-      this.groupRenderer.getOrCreate(convertedGroup, state.id, root, tc);
+      this.groupRenderer.getOrCreate(convertedGroup, state.id, group, tc);
     }
+
+    // ─── Edges ────────────────────────────────────────────────────────────────
 
     const activeEdgeIds = new Set(state.edges.map((e) => `${state.id}::${e.id}`));
     for (const id of this.edgeRenderer.ids) {
       if (id.startsWith(`${state.id}::`) && !activeEdgeIds.has(id)) {
-        this.edgeRenderer.dispose(id, root);
+        this.edgeRenderer.dispose(id, group);
       }
     }
 
-    // Convert edge control points from [0..1] NVS → canvas-local before passing to EdgeRenderer.
     for (const edgeState of state.edges) {
+      const convertedPath = {
+        ...edgeState.path,
+        commands: edgeState.path.commands.map((command) => {
+          if (command.kind === 'line') {
+            return {
+              kind: 'line' as const,
+              from: [
+                (command.from[0] - 0.5) * uniformWorldW,
+                -(command.from[1] - 0.5) * uniformWorldH,
+                command.from[2],
+              ] as const,
+              to: [
+                (command.to[0] - 0.5) * uniformWorldW,
+                -(command.to[1] - 0.5) * uniformWorldH,
+                command.to[2],
+              ] as const,
+            };
+          }
+          return {
+            kind: 'cubic' as const,
+            p0: [
+              (command.p0[0] - 0.5) * uniformWorldW,
+              -(command.p0[1] - 0.5) * uniformWorldH,
+              command.p0[2],
+            ] as const,
+            p1: [
+              (command.p1[0] - 0.5) * uniformWorldW,
+              -(command.p1[1] - 0.5) * uniformWorldH,
+              command.p1[2],
+            ] as const,
+            p2: [
+              (command.p2[0] - 0.5) * uniformWorldW,
+              -(command.p2[1] - 0.5) * uniformWorldH,
+              command.p2[2],
+            ] as const,
+            p3: [
+              (command.p3[0] - 0.5) * uniformWorldW,
+              -(command.p3[1] - 0.5) * uniformWorldH,
+              command.p3[2],
+            ] as const,
+          };
+        }),
+      };
       const convertedEdge: DiagramEdgeState = {
         ...edgeState,
+        path: convertedPath,
         controlPoints: edgeState.controlPoints.map((cp) => {
-          const cl = nodeNvsToCanvasLocal(cp, vp, this._canvasAspect);
-          // Subtract the diagram root offset so positions are relative to root
-          return [cl[0] - localX, cl[1] - localY, cl[2]] as readonly [number, number, number];
+          const localCpX = (cp[0] - 0.5) * uniformWorldW;
+          const localCpY = -(cp[1] - 0.5) * uniformWorldH;
+          return [localCpX, localCpY, cp[2]] as readonly [number, number, number];
         }),
       };
       this.edgeRenderer.getOrCreate(
         { ...convertedEdge, id: `${state.id}::${convertedEdge.id}` },
-        root,
+        group,
       );
     }
+
+    // ─── Nodes ────────────────────────────────────────────────────────────────
 
     const activeNodeIds = new Set(state.nodes.map((n) => n.id));
     if (prev) {
       for (const n of prev.nodes) {
         if (!activeNodeIds.has(n.id)) {
-          this.nodeRenderer.dispose(n.id, state.id, root);
+          this.nodeRenderer.dispose(n.id, state.id, group);
         }
       }
     }
 
-    // Convert node positions and sizes from [0..1] NVS → canvas-local before passing to NodeRenderer.
     for (const nodeState of state.nodes) {
-      const canvasPos = nodeNvsToCanvasLocal(nodeState.position, vp, this._canvasAspect);
-      const canvasSize = nodeSizeToCanvasLocal(nodeState.size, vp, this._canvasAspect);
+      // Node position: diagram-local NVS [0..1] → group-local world coords.
+      // Uses uniform scaling to preserve contentAspect (avoids X/Y axis distortion).
+      const localX = (nodeState.position[0] - 0.5) * uniformWorldW;
+      const localY = -(nodeState.position[1] - 0.5) * uniformWorldH; // Y-flip: NVS 0=top, Three.js +Y=up
+      const localZ = nodeState.position[2]; // world-space Z offset for layering
+
+      // Node size: NVS fractions → world units via uniform scaling.
+      const worldW = nodeState.size[0] * uniformWorldW;
+      const worldH = nodeState.size[1] * uniformWorldH;
+
+      if (process.env.NODE_ENV !== 'production') {
+        if (!Number.isFinite(localX) || !Number.isFinite(localY)) {
+          console.error(
+            `[DiagramRenderer] Non-finite position for node "${nodeState.id}": ` +
+            `localX=${localX}, localY=${localY}. ` +
+            `Check camera setup and NVS coords.`,
+          );
+        }
+      }
 
       const convertedNode: DiagramNodeState = {
         ...nodeState,
-        // Position relative to diagram root (subtract root offset)
-        position: [canvasPos[0] - localX, canvasPos[1] - localY, canvasPos[2]],
-        size: canvasSize,
-        // thickness stays in canvas world units (unchanged)
+        position: [localX, localY, localZ],
+        size: [worldW, worldH],
       };
-      this.nodeRenderer.getOrCreate(convertedNode, state.id, tc, root);
+      this.nodeRenderer.getOrCreate(convertedNode, state.id, tc, group);
     }
 
     this.lastState.set(state.id, state);
@@ -274,21 +340,14 @@ export class DiagramRenderer {
     this.nodeRenderer.clearEmissiveOverridesForDiagram(diagramId);
   }
 
-  dispose(diagramId: string, parent: THREE.Object3D): void {
-    const root = this.diagramGroups.get(diagramId);
-    if (root) {
-      parent.remove(root);
-    }
-    this.nodeRenderer.disposeAllForDiagram(diagramId, root ?? new THREE.Group());
-    this.groupRenderer.disposeAllForDiagram(diagramId, root ?? new THREE.Group());
-    if (root) {
-      for (const id of this.edgeRenderer.ids) {
-        if (id.startsWith(`${diagramId}::`)) {
-          this.edgeRenderer.dispose(id, root);
-        }
+  dispose(diagramId: string, group: THREE.Object3D): void {
+    this.nodeRenderer.disposeAllForDiagram(diagramId, group);
+    this.groupRenderer.disposeAllForDiagram(diagramId, group);
+    for (const id of this.edgeRenderer.ids) {
+      if (id.startsWith(`${diagramId}::`)) {
+        this.edgeRenderer.dispose(id, group);
       }
     }
-    this.diagramGroups.delete(diagramId);
     this.lastState.delete(diagramId);
     this.nodeRenderer.clearEmissiveOverridesForDiagram(diagramId);
     this.interactionRegistry.clear();

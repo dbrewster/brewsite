@@ -36,8 +36,20 @@ const makeEdge = (id: string, controlPoints: ReadonlyArray<readonly [number, num
   arrowEnd: 'open',
   color: '#555e7a',
   thickness: 0.04,
+  path: {
+    commands: controlPoints.length >= 2
+      ? [{ kind: 'line', from: controlPoints[0]!, to: controlPoints[controlPoints.length - 1]! }]
+      : [],
+    startTangent: [1, 0, 0],
+    endTangent: [-1, 0, 0],
+    usedUnderpass: false,
+    punctures: [],
+  },
   controlPoints,
   opacity,
+  flow: 'none',
+  flowColor: undefined,
+  routing: 'curved',
 });
 
 const makeState = (nodes: DiagramNodeState[], edges: DiagramEdgeState[]): DiagramState => ({
@@ -47,6 +59,9 @@ const makeState = (nodes: DiagramNodeState[], edges: DiagramEdgeState[]): Diagra
   groups: [],
   viewportBounds: { x: 0, y: 0, w: 1, h: 1 },
   tiltRotation: [0, 0, 0],
+  z: 0,
+  scale: 1,
+  contentAspect: 1.0,
   exit: undefined,
   enter: undefined,
   themeConfig: {} as any,

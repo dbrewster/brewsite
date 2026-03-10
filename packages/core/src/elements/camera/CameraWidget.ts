@@ -10,7 +10,7 @@ import type {
   ICameraHost,
 } from './types';
 import type * as THREE from 'three';
-import { DEFAULT_CAMERA, functionalCameraTransitionSpec, extractWorldPosFromDescriptor } from './compile';
+import { DEFAULT_CAMERA, functionalCameraTransitionSpec, extractWorldPosFromDescriptor, compileNvsViewportCamera } from './compile';
 import type { CameraProps } from './dsl';
 import { applyCamera } from './render';
 import { CameraControlsDriver } from './CameraControlsDriver';
@@ -99,6 +99,16 @@ export class CameraWidget
     api: { setWidgetState: (id: string, state: SceneCamera) => void },
   ): void => {
     const p = node.props;
+
+    // nvsViewport is compiled to a world-mode SceneCamera at compile time.
+    if (p.mode === 'nvsViewport') {
+      const compiled = compileNvsViewportCamera(
+        (p as { worldScale?: number }).worldScale,
+        (p as { zRange?: number }).zRange,
+      );
+      api.setWidgetState(this.widgetId, compiled);
+      return;
+    }
 
     let descriptor: SceneCamera['descriptor'];
     if (p.mode === 'world' && 'position' in p && 'target' in p) {

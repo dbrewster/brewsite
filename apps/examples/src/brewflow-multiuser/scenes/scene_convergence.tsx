@@ -11,7 +11,7 @@ import {
   TextBox,
   WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -35,8 +35,7 @@ export const sceneConvergence: JSX.Element = (
     <Camera mode="world" position={[0, 4, 20]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bfmu-conv-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="conv-diagram">
+    <Diagram id="conv-diagram" theme={brewflowTheme}>
         <ManualLayout />
         <DiagramEnter fade />
 
@@ -88,8 +87,7 @@ export const sceneConvergence: JSX.Element = (
           position={[0.873, 0.500, 0]}
           color="#200f0f"
         />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="convergence-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

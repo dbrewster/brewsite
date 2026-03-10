@@ -16,8 +16,7 @@ import {
   HierarchicalLayout,
   ManualLayout,
 } from '../../elements/diagram/widget';
-import type { DiagramCanvasState } from '../../elements/diagram/canvas/types';
-import type { DiagramNodeState } from '../../elements/diagram/types';
+import type { DiagramState, DiagramNodeState } from '../../elements/diagram/types';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -39,11 +38,9 @@ const getDiagramNodes = (
   frame: ReturnType<typeof resolveSceneFromDsl>['frame'],
   diagramId: string,
 ): ReadonlyArray<DiagramNodeState> => {
-  const canvasState = frame.widgets[diagramId] as DiagramCanvasState | undefined;
-  if (!canvasState) throw new Error(`No widget state for diagram "${diagramId}"`);
-  const diagram = canvasState.diagrams[0];
-  if (!diagram) throw new Error(`No diagram in canvas state for "${diagramId}"`);
-  return diagram.nodes;
+  const diagramState = frame.widgets[diagramId] as DiagramState | undefined;
+  if (!diagramState) throw new Error(`No widget state for diagram "${diagramId}"`);
+  return diagramState.nodes;
 };
 
 // ─── Tests ───────────────────────────────────────────────────────────────────

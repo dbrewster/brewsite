@@ -3,7 +3,7 @@
 
 import type { ImagePanelDSL, ImagePanelState } from './types';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
-import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
+import { blendNumber, blendOpacity, blendVec3, validateNVSScalar } from '@brewsite/core';
 
 const toMutableVec3 = (value: readonly [number, number, number]): [number, number, number] => [
   value[0],
@@ -19,14 +19,28 @@ const toMutableVec3 = (value: readonly [number, number, number]): [number, numbe
  * happens in ImagePanelWidget.apply() using the live camera.
  */
 export function compileImagePanel(dsl: ImagePanelDSL): ImagePanelState {
+  const nvsX = dsl.x ?? 0.5;
+  const nvsY = dsl.y ?? 0.5;
+  const nvsWidth = dsl.width ?? 0.6;
+  const nvsHeight = dsl.height;
+
+  if (process.env.NODE_ENV !== 'production') {
+    validateNVSScalar(nvsX, 'nvsX', `<ImagePanel id="${dsl.id}">`);
+    validateNVSScalar(nvsY, 'nvsY', `<ImagePanel id="${dsl.id}">`);
+    validateNVSScalar(nvsWidth, 'nvsWidth', `<ImagePanel id="${dsl.id}">`);
+    if (nvsHeight !== undefined) {
+      validateNVSScalar(nvsHeight, 'nvsHeight', `<ImagePanel id="${dsl.id}">`);
+    }
+  }
+
   return {
     id: dsl.id,
     src: dsl.src,
-    nvsX: dsl.x ?? 0.5,
-    nvsY: dsl.y ?? 0.5,
+    nvsX,
+    nvsY,
     z: dsl.z ?? 0,
-    nvsWidth: dsl.width ?? 0.6,
-    nvsHeight: dsl.height,
+    nvsWidth,
+    nvsHeight,
     rotation: dsl.rotation ?? [0, 0, 0],
     scale: dsl.scale ?? 1,
     bezel: dsl.bezel ?? 'dark',

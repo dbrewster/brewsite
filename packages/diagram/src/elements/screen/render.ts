@@ -3,6 +3,7 @@
 // Accepts ScreenRenderInput (world-space position + dimensions) computed by the widget layer.
 
 import * as THREE from 'three';
+import type { NVSCoordService } from '@brewsite/core';
 import type { ScreenState } from './types';
 import { createBezel, disposeBezel } from '../_shared/bezelGeometry';
 import { createGlow, disposeGlowSprite } from '../_shared/glowSprite';
@@ -40,7 +41,7 @@ export class ScreenRenderer {
     this.overlayContainer = overlayContainer;
   }
 
-  update(state: ScreenRenderInput, scene: THREE.Scene, camera: THREE.Camera, canvasRect: DOMRect): void {
+  update(state: ScreenRenderInput, scene: THREE.Scene, coords: NVSCoordService, canvasRect: DOMRect): void {
     let entry = this.screens.get(state.id);
     if (!entry) {
       entry = this.createScreen(state);
@@ -111,7 +112,7 @@ export class ScreenRenderer {
       entry.iframe.src = state.src;
     }
 
-    this.syncIframeToBezel(entry, state, camera, canvasRect);
+    this.syncIframeToBezel(entry, state, coords, canvasRect);
 
     entry.lastState = state;
   }
@@ -156,23 +157,24 @@ export class ScreenRenderer {
   private syncIframeToBezel(
     entry: ScreenEntry,
     state: ScreenRenderInput,
-    camera: THREE.Camera,
+    coords: NVSCoordService,
     canvasRect: DOMRect,
   ): void {
-    entry.group.updateWorldMatrix(true, false);
-    const bottomLeft = new THREE.Vector3(-state.width / 2, -state.height / 2, 0).applyMatrix4(entry.group.matrixWorld);
-    const topRight = new THREE.Vector3(state.width / 2, state.height / 2, 0).applyMatrix4(entry.group.matrixWorld);
+    // Derive NVS-space center and dimensions from world-space values (inverse of toWorld/toWorldSize).
+    // worldX = (nvsX - 0.5) * visibleWorldWidth  →  nvsX = worldX / visibleWorldWidth + 0.5
+    // worldY = -(nvsY - 0.5) * visibleWorldHeight →  nvsY = -worldY / visibleWorldHeight + 0.5
+    const nvsX = state.position[0] / coords.visibleWorldWidth + 0.5;
+    const nvsY = -state.position[1] / coords.visibleWorldHeight + 0.5;
+    const nvsW = state.width / coords.visibleWorldWidth;
+    const nvsH = state.height / coords.visibleWorldHeight;
 
-    const bl = bottomLeft.clone().project(camera);
-    const tr = topRight.clone().project(camera);
+    const left = (nvsX - nvsW / 2) * canvasRect.width;
+    const top = (nvsY - nvsH / 2) * canvasRect.height;
+    const w = nvsW * canvasRect.width;
+    const h = nvsH * canvasRect.height;
 
-    const x = (bl.x + 1) / 2 * canvasRect.width;
-    const y = (-tr.y + 1) / 2 * canvasRect.height;
-    const w = (tr.x - bl.x) / 2 * canvasRect.width;
-    const h = (bl.y - tr.y) / 2 * canvasRect.height;
-
-    entry.iframeDiv.style.left = `${canvasRect.left + x}px`;
-    entry.iframeDiv.style.top = `${canvasRect.top + y}px`;
+    entry.iframeDiv.style.left = `${canvasRect.left + left}px`;
+    entry.iframeDiv.style.top = `${canvasRect.top + top}px`;
     entry.iframeDiv.style.width = `${w}px`;
     entry.iframeDiv.style.height = `${h}px`;
   }

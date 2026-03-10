@@ -6,7 +6,6 @@ import { Scene, resolveSceneFromDsl, WidgetRegistry } from '@brewsite/core';
 import type { DiagramWarnFn } from '../elements/diagram/types';
 import { compileDiagram } from '../elements/diagram/compile';
 import { resolveLayout } from '../elements/diagram/compiler/layoutAlgorithms';
-import { compilePipe } from '../elements/diagram/canvas/compile';
 import { darkGlassTheme } from '../elements/diagram/themes/darkGlass';
 import { registerDiagramHandlers } from '../compiler/handlers';
 import { Diagram, DiagramNode, DiagramGroup, DiagramEnter } from '../elements/diagram/widget';
@@ -61,21 +60,7 @@ describe('onWarn threading', () => {
     expect(warns[0]!.message).toContain('"a"');
   });
 
-  // Test 4: compilePipe emits INVALID_PIPE_REF for bad dot-notation
-  it('compilePipe emits INVALID_PIPE_REF for malformed from reference', () => {
-    const warns: Array<{ code: string; message: string }> = [];
-    compilePipe(
-      { from: 'no-dot-here', to: 'a.b' },
-      [],
-      0,
-      'curved',
-      'sides',
-      (code, msg) => warns.push({ code, message: msg }),
-    );
-    expect(warns[0]!.code).toBe('INVALID_PIPE_REF');
-  });
-
-  // Test 5: extractDiagramDSL warns when Enter is inside a DiagramGroup
+  // Test 4: extractDiagramDSL warns when Enter is inside a DiagramGroup
   it('warns when <Enter> is placed inside a <DiagramGroup>', () => {
     const warnings: Array<{ code: string; message: string }> = [];
     const tree = React.createElement(

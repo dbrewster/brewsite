@@ -1,13 +1,13 @@
 import { useState, useCallback, useEffect } from 'react';
 import type { JSX } from 'react';
-import { useCurrentScene, useSceneEngineContext } from '@brewsite/core';
+import { useCurrentScene, useGoToScene } from '@brewsite/core';
 import { websiteNavTargets } from '../../scenes/websiteFlow';
 import '../hero/hero.css';
 
 export function NavMenu(): JSX.Element {
   const [open, setOpen] = useState(false);
   const { id: currentSceneId } = useCurrentScene();
-  const engine = useSceneEngineContext();
+  const goToScene = useGoToScene();
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -22,11 +22,8 @@ export function NavMenu(): JSX.Element {
 
   const handleNavClick = useCallback((sceneId: string) => {
     close();
-    const index = engine.sceneIds.findIndex((id) => id === sceneId);
-    if (index < 0) return;
-    const progress = index / Math.max(1, engine.sceneCount - 1);
-    engine.scrollToProgress(progress);
-  }, [close, engine]);
+    goToScene(sceneId);
+  }, [close, goToScene]);
 
   return (
     <div style={{ pointerEvents: 'auto' }}>

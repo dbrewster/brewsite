@@ -8,12 +8,14 @@ import type {
   RenderContribution,
   AnimationTickContext,
   WidgetRenderContext,
+  NVSCoordService,
   ISceneLifecycle,
   ICameraFocusTarget,
   RuntimeCameraOverride,
   AssetManifest,
 } from '../widget/types';
 import { isAttachmentHost, isRenderContributor, isCameraFocusTarget } from '../widget/WidgetRegistry';
+import { createNVSCoordService } from '../layout/nvsCoordService';
 
 export type SceneTrackSampler = ReturnType<typeof createSceneTrackSampler>;
 
@@ -47,6 +49,9 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   private animationControllers: Array<import('../widget/types').IAnimationController>;
   private defaultStateById: Map<string, unknown>;
   private threeScene: ThreeScene | null = null;
+  private camera: PerspectiveCamera | null = null;
+  private viewportWidth = 0;
+  private viewportHeight = 0;
   private cameraFocusTarget: ICameraFocusTarget | null = null;
   private cameraOverride: RuntimeCameraOverride | null = null;
   private sampler: SceneTrackSampler | null = null;
@@ -96,8 +101,15 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
    * - Calls initialize() on all IRenderable widgets, injecting scene, camera, and renderer.
    * - Starts async asset loading as a fire-and-forget; completion fires onAssetsReady.
    */
+  /** Update the canvas dimensions used for NVS→world coordinate conversion. */
+  setViewportSize(width: number, height: number): void {
+    this.viewportWidth = width;
+    this.viewportHeight = height;
+  }
+
   initialize(threeScene: ThreeScene, camera?: PerspectiveCamera, renderer?: WebGLRenderer): void {
     this.threeScene = threeScene;
+    this.camera = camera ?? null;
 
     // Re-read widget lists so lazily-registered widgets (e.g. ChartWidgets registered during
     // scene compilation, after this driver was constructed) are included.
@@ -274,6 +286,9 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     }
 
     // ── Step 5: Apply renderable widgets ────────────────────────────────────
+    const coords = this.camera
+      ? createNVSCoordService(this.camera, this.viewportWidth || 1920, this.viewportHeight || 1080)
+      : this._makeDefaultCoords();
     const renderCtx: WidgetRenderContext = {
       clock,
       effectiveDeltaSeconds,
@@ -281,6 +296,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
       variables: this.variableStore,
       extra: undefined as unknown,
       tick,
+      coords,
     };
     for (const renderable of this.renderables) {
       if (this.loadErroredWidgets.has(renderable.widgetId) || this.applyErroredWidgets.has(renderable.widgetId)) continue;
@@ -341,6 +357,29 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     return {
       namedPositions: namedPositions.size > 0 ? namedPositions : undefined,
       targetColors: targetColors.size > 0 ? targetColors : undefined,
+    };
+  }
+
+  /**
+   * Fallback NVSCoordService used when no camera is available (e.g., before initialize()).
+   * Uses worldScale=10 defaults (cameraZ≈12.07, fov=45).
+   */
+  private _makeDefaultCoords(): NVSCoordService {
+    const vw = this.viewportWidth || 1920;
+    const vh = this.viewportHeight || 1080;
+    const aspect = vw / Math.max(1, vh);
+    const visH = 10; // default worldScale=10
+    const visW = visH * aspect;
+    return {
+      toWorld: (x: number, y: number, z: number = 0): readonly [number, number, number] =>
+        [(x - 0.5) * visW, -(y - 0.5) * visH, z],
+      toWorldSize: (w: number, h: number): readonly [number, number] =>
+        [w * visW, h * visH],
+      canvasAspect: aspect,
+      visibleWorldHeight: visH,
+      visibleWorldWidth: visW,
+      viewportWidth: vw,
+      viewportHeight: vh,
     };
   }
 

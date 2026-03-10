@@ -9,11 +9,11 @@ import type { InputActionSpec, SceneTheme, NVSRect } from '@brewsite/core';
  * Controls how edge control points are computed between nodes.
  * Applied at the diagram level via the theme, or overridden per-edge.
  * 'curved'      — current: CatmullRom spline exiting node face perpendicularly (default)
- * 'orthogonal'  — Manhattan 90° routing (draw.io / Mermaid style)
+ * 'flow'        — obstacle-aware exact-face routing with smooth turn shaping
  * 'straight'    — direct line between face attachment points
  * 'organic'     — curved with a deterministic perpendicular offset per edge
  */
-export type EdgeRoutingAlgorithm = 'curved' | 'orthogonal' | 'straight' | 'organic';
+export type EdgeRoutingAlgorithm = 'curved' | 'straight' | 'organic' | 'flow';
 
 /**
  * Controls which point on a node face an edge attaches to.
@@ -31,6 +31,11 @@ export type DiagramEdgePort = 'top' | 'bottom' | 'left' | 'right' | 'front' | 'b
 export interface DiagramThemeNodeConfig {
   /** Default front-face fill color (CSS hex) */
   readonly defaultColor: string;
+  /**
+   * Default box/depth color (CSS hex) for the node's side, top, and bottom faces.
+   * If omitted, compileNode() derives it from defaultColor via sideColorDarkenFactor.
+   */
+  readonly defaultBoxColor?: string;
   /** PBR metalness [0–1]. ~0.35 = polished plastic, ~0.7 = brushed metal */
   readonly defaultMetalness: number;
   /** PBR roughness [0–1]. ~0.25 = glossy, ~0.65 = matte */
@@ -159,7 +164,9 @@ export interface DiagramThemeEdgeConfig {
   /**
    * Magnitude of perpendicular offset for 'organic' edge routing.
    * Controls how much each organically-routed edge deviates from a
-   * pure curved path. Offset = (deterministicSeed - 0.5) × organicVariation.
+   * pure curved path. The runtime scales the offset relative to the
+   * routed edge span so the same value behaves consistently across
+   * compact and wide diagrams.
    * 0 = no deviation (same as 'curved'); 1.6 = moderate variation;
    * 3.0 = extreme variation. Value range [0..4] is predictable.
    * Only affects edges with routing='organic' (per-edge or theme default).
@@ -168,6 +175,26 @@ export interface DiagramThemeEdgeConfig {
    * neonCyber default: 2.0 (high variation for visual energy)
    */
   readonly organicVariation: number;
+  /** Default turn radius for canonical flow routing. */
+  readonly flowTurnRadius: number;
+  /** Default outward face-normal stub distance for canonical flow routing. */
+  readonly flowFaceStub: number;
+  /** Controls how long compatible sibling flow edges remain on a shared trunk before splitting. */
+  readonly flowBundleStrength: number;
+  /** Default obstacle padding used by canonical flow routing. */
+  readonly flowObstaclePadding: number;
+  /** Bias toward direct target ingress after splitting from a flow trunk. */
+  readonly flowTargetApproachBias: number;
+  /** Default depth below the authored diagram plane for underpass routing. */
+  readonly flowUnderpassDepth: number;
+  /** Default vertical clearance used when entering and leaving an underpass. */
+  readonly flowUnderpassClearance: number;
+  /** Cost penalty multiplier for turns in the flow visibility search. */
+  readonly flowTurnPenalty: number;
+  /** Cost penalty applied when the flow router must puncture an obstacle. */
+  readonly flowPunchthroughPenalty: number;
+  /** Cost penalty applied when the flow router uses a Z underpass. */
+  readonly flowUnderpassPenalty: number;
   /** Peak brightness multiplier applied to the flow pulse shader. Range: 0–2. Default: 0.9. */
   readonly flowPulseIntensity: number;
 }
@@ -798,9 +825,39 @@ export interface DiagramNodeState {
 
 // ─── Edge ───────────────────────────────────────────────────────────────────
 
+export type DiagramEdgePathCommand =
+  | {
+      readonly kind: 'line';
+      readonly from: readonly [number, number, number];
+      readonly to: readonly [number, number, number];
+    }
+  | {
+      readonly kind: 'cubic';
+      readonly p0: readonly [number, number, number];
+      readonly p1: readonly [number, number, number];
+      readonly p2: readonly [number, number, number];
+      readonly p3: readonly [number, number, number];
+    };
+
+export interface DiagramEdgePathState {
+  readonly commands: ReadonlyArray<DiagramEdgePathCommand>;
+  readonly startTangent: readonly [number, number, number];
+  readonly endTangent: readonly [number, number, number];
+  readonly usedUnderpass: boolean;
+  readonly punctures: ReadonlyArray<{
+    readonly obstacleId: string;
+    readonly obstacleKind: 'node' | 'group';
+  }>;
+}
+
+export interface DiagramEdgePathDebug {
+  readonly routeKind: 'direct' | 'visibility' | 'underpass' | 'puncture-fallback';
+  readonly obstacleIds: readonly string[];
+}
+
 /**
  * Fully resolved state for a single diagram edge (connector).
- * Produced by compile.ts from DiagramEdgeDSL, including computed control points.
+ * Produced by compile.ts from DiagramEdgeDSL, including computed path commands.
  */
 export interface DiagramEdgeState {
   readonly id: string;
@@ -839,11 +896,15 @@ export interface DiagramEdgeState {
   readonly thickness: number;
 
   /**
-   * Bezier/catmull-rom control points for the edge path, in world space.
-   * Computed by compile.ts edge router. Always has ≥ 2 points (start and end).
-   * The start point is offset from the source node's nearest face center.
-   * The end point is offset from the destination node's nearest face center.
-   * Intermediate points create smooth routing around obstacles.
+   * Explicit path commands for the edge path, in normalized diagram space.
+   * The canonical 'flow' router uses this as the source of truth; renderers consume
+   * these commands directly rather than inferring semantics from point counts.
+   */
+  readonly path: DiagramEdgePathState;
+
+  /**
+   * Derived compatibility control points for one migration release.
+   * `path.commands` is the runtime source of truth.
    */
   readonly controlPoints: ReadonlyArray<readonly [number, number, number]>;
 
@@ -856,12 +917,25 @@ export interface DiagramEdgeState {
    * Stored on compiled state so transitions can re-route edges correctly.
    */
   readonly routing: EdgeRoutingAlgorithm;
+  /** Optional per-edge override for canonical flow turn radius. */
+  readonly flowTurnRadius?: number;
+  /** Optional per-edge override for canonical flow face stub length. */
+  readonly flowFaceStub?: number;
+  /** Optional per-edge override for flow trunk duration. 0 disables bundling for that edge's source set. */
+  readonly flowBundleStrength?: number;
+  /** Optional per-edge override for direct target ingress preference after a split. */
+  readonly flowTargetApproachBias?: number;
+  /** Enables the flow router's Z underpass escape hatch when true. */
+  readonly allowUnderpass?: boolean;
 
   /** Optional explicit source port from DSL; used to preserve live reroute intent. */
   readonly fromPort?: DiagramEdgePort;
 
   /** Optional explicit destination port from DSL; used to preserve live reroute intent. */
   readonly toPort?: DiagramEdgePort;
+
+  /** Optional development-only routing diagnostics. */
+  readonly pathDebug?: DiagramEdgePathDebug;
 }
 
 // ─── Group ──────────────────────────────────────────────────────────────────
@@ -988,22 +1062,44 @@ export interface DiagramState {
   readonly groups: ReadonlyArray<DiagramGroupState>;
 
   /**
-   * Viewport bounds within the parent DiagramCanvas's NVS region.
-   * Declares what portion of the canvas this diagram occupies.
-   * { x, y, w, h } in [0..1] fractions of the canvas NVS region.
-   * Default: { x: 0, y: 0, w: 1, h: 1 } (full canvas).
+   * NVS viewport bounds for this diagram: the region of the scene viewport it occupies.
+   * { x, y, w, h } in [0..1] fractions of the full viewport.
+   * Default: { x: 0, y: 0, w: 1, h: 1 } (full viewport).
    *
    * For side-by-side diagrams:
    *   left:  { x: 0,   y: 0, w: 0.5, h: 1 }
    *   right: { x: 0.5, y: 0, w: 0.5, h: 1 }
+   *
+   * Emitted from x/y/w/h DSL props by compileDiagram().
    */
   readonly viewportBounds: NVSRect;
 
   /**
-   * 3D tilt rotation (Euler XYZ radians) for dramatic perspective effects.
+   * 3D tilt rotation (Euler XYZ radians) applied to the diagram geometry group.
    * Default: [0, 0, 0] (flat, facing camera).
+   * tiltRotation[0] = pitch (set from DSL scalar `tilt`). Y and Z are always 0.
    */
   readonly tiltRotation: readonly [number, number, number];
+
+  /**
+   * World-space Z depth for the diagram's geometry plane. Default: 0.
+   * Allows diagrams to be composited in front of or behind other scene elements.
+   */
+  readonly z: number;
+
+  /**
+   * World-space scale multiplier applied to the geometry group. Default: 1.
+   * Scales geometry after NVS → world conversion; does not affect NVS positions.
+   */
+  readonly scale: number;
+
+  /**
+   * Natural aspect ratio of the diagram content bounding box, computed at compile time.
+   * Equals spanX / spanY (diagram units). Used by the renderer to apply uniform
+   * world-space scaling that preserves the diagram's authored geometry.
+   * For ManualLayout diagrams this is always 1.0 (positions already in NVS fractions).
+   */
+  readonly contentAspect: number;
 
   /**
    * Compiled exit behaviour. undefined = default fade (no position animation).
@@ -1073,6 +1169,16 @@ export interface DiagramNodeDSL {
   readonly size?: readonly [number, number];
   readonly thickness?: number;
   readonly color?: string;
+  /**
+   * Explicit color for the node's box/depth faces (sides, top, bottom, back).
+   * When omitted, compileNode() falls back to `sideColor`, then theme.node.defaultBoxColor,
+   * then derives from `color`.
+   */
+  readonly boxColor?: string;
+  /**
+   * Legacy alias for boxColor.
+   * When both are provided, boxColor wins.
+   */
   readonly sideColor?: string;
   readonly borderColor?: string;
   readonly metalness?: number;
@@ -1126,17 +1232,27 @@ export interface DiagramEdgeDSL {
   readonly opacity?: number;
   /**
    * Per-edge routing algorithm override. Overrides the diagram theme's edge.routing.
-   * Useful for mixing curved and orthogonal edges in the same diagram.
+   * `routing="flow"` is the canonical obstacle-aware routing mode.
    */
   readonly routing?: EdgeRoutingAlgorithm;
+  /** Optional per-edge override for canonical flow turn radius. */
+  readonly flowTurnRadius?: number;
+  /** Optional per-edge override for canonical flow face stub length. */
+  readonly flowFaceStub?: number;
+  /** Optional per-edge override for flow trunk duration. 0 disables bundling for that edge's source set. */
+  readonly flowBundleStrength?: number;
+  /** Optional per-edge override for direct target ingress preference after a split. */
+  readonly flowTargetApproachBias?: number;
+  /** Enables the flow router's Z underpass escape hatch when true. */
+  readonly allowUnderpass?: boolean;
   /**
    * Explicit attachment port at the source node.
-   * Requires landing: 'port' in the theme, or overrides to port landing for this edge.
+   * For `routing="flow"`, this selects the face and still attaches at the exact face center.
    */
   readonly fromPort?: DiagramEdgePort;
   /**
    * Explicit attachment port at the destination node.
-   * Requires landing: 'port' in the theme, or overrides to port landing for this edge.
+   * For `routing="flow"`, this selects the face and still attaches at the exact face center.
    */
   readonly toPort?: DiagramEdgePort;
 }
@@ -1220,24 +1336,28 @@ export interface DiagramDSL {
    * Used by resolveFlowLayout to sequence root-level items in JSX declaration order.
    */
   readonly childrenOrder?: ReadonlyArray<string>;
-  /**
-   * Viewport bounds within the parent DiagramCanvas's NVS region.
-   * { x, y, w, h } in [0..1] fractions of the canvas NVS region.
-   * Default: { x: 0, y: 0, w: 1, h: 1 } (full canvas).
-   */
-  readonly viewportBounds?: NVSRect;
-  /**
-   * 3D tilt rotation in Euler XYZ radians.
-   * Default: [0, 0, 0] (flat, facing camera).
-   */
-  readonly tilt?: readonly [number, number, number];
+  /** NVS left edge [0..1]. Default: 0. Replaces legacy viewportBounds.x. */
+  readonly x?: number;
+  /** NVS top edge [0..1]. Default: 0. Replaces legacy viewportBounds.y. */
+  readonly y?: number;
+  /** NVS width [0..1]. Default: 1. Replaces legacy viewportBounds.w. */
+  readonly w?: number;
+  /** NVS height [0..1]. Default: 1. Replaces legacy viewportBounds.h. */
+  readonly h?: number;
+  /** Pitch tilt in radians applied to diagram geometry group. Default: 0. */
+  readonly tilt?: number;
+  /** World-space Z depth of the diagram's geometry plane. Default: 0. */
+  readonly z?: number;
+  /** World-space geometry scale multiplier. Default: 1. */
+  readonly scale?: number;
+  // REMOVED: viewportBounds — use x/y/w/h props instead
+  // REMOVED: tilt as Vec3 — now a scalar (pitch only). Y and Z rotation unsupported.
   /** Raw exit config from <Exit> child. Absent = default fade. */
   readonly exit?: DiagramExitDSL;
   /** Raw enter config from <Enter> child. Absent = default fade. */
   readonly enter?: DiagramEnterDSL;
   /**
    * Theme to apply to this diagram.
-   * In a DiagramCanvas, the canvas theme is the fallback; this merges on top.
    * Individual node/edge props still override the theme.
    */
   readonly theme?: DiagramTheme;

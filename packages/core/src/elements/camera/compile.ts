@@ -16,6 +16,78 @@ import { transitionT } from '../../compiler/transitions/transitionTypes';
 import { makeSimpleContext } from '../../compiler/transitions/transitionResolver';
 import { smoothstep } from '../../timeline/math';
 
+// tan(22.5°): used to derive camera distance from worldScale at fov=45.
+// cameraZ = worldScale / (2 * TAN_22_5) ≈ worldScale * 1.2071
+const TAN_22_5 = Math.tan(Math.PI / 8); // ≈ 0.41421356
+
+// ─── nvsViewport camera compilation ─────────────────────────────────────────
+
+/**
+ * Compiles `mode="nvsViewport"` DSL props to a SceneCamera with `mode="world"`.
+ *
+ * The nvsViewport mode is fully resolved at compile time — no runtime handling
+ * is needed. The resulting SceneCamera is identical in shape to a world-mode state.
+ *
+ * Derivation (fov fixed at 45°):
+ *   cameraZ = worldScale / (2 × tan(22.5°)) ≈ worldScale × 1.2071
+ *   near    = max(0.01, cameraZ − zRange / 2)
+ *   far     = cameraZ + zRange / 2
+ *   position = [0, 0, cameraZ]
+ *   target   = [0, 0, 0]
+ *
+ * @param worldScale  NVS [0..1] height in world units. Default: 10.
+ * @param zRange      Total visible Z depth, centered on z=0. Default: worldScale / 2.
+ */
+export function compileNvsViewportCamera(
+  worldScaleIn: number | undefined,
+  zRangeIn: number | undefined,
+): SceneCamera {
+  let worldScale = worldScaleIn ?? 10;
+  if (!Number.isFinite(worldScale) || worldScale <= 0) {
+    console.error(
+      `[Camera mode="nvsViewport"] worldScale must be a positive finite number, ` +
+      `got ${worldScale}. Falling back to default worldScale=10.`,
+    );
+    worldScale = 10;
+  }
+
+  const cameraZ = worldScale / (2 * TAN_22_5);
+  let resolvedZRange = zRangeIn ?? worldScale / 2;
+
+  if (!Number.isFinite(resolvedZRange) || resolvedZRange <= 0) {
+    console.error(
+      `[Camera mode="nvsViewport"] zRange must be a positive finite number, ` +
+      `got ${resolvedZRange}. Falling back to zRange=worldScale/2.`,
+    );
+    resolvedZRange = worldScale / 2;
+  }
+
+  if (resolvedZRange > 2 * cameraZ) {
+    console.warn(
+      `[Camera mode="nvsViewport"] zRange=${resolvedZRange} exceeds 2 × cameraZ ` +
+      `(${(2 * cameraZ).toFixed(2)}). near will be clamped to 0.01; ` +
+      `front geometry (z > ${(cameraZ - 0.01).toFixed(2)}) will be clipped.`,
+    );
+  }
+
+  const near = Math.max(0.01, cameraZ - resolvedZRange / 2);
+  const far = cameraZ + resolvedZRange / 2;
+
+  return {
+    enabled: true,
+    descriptor: {
+      mode: 'world',
+      position: [0, 0, cameraZ],
+      target: [0, 0, 0],
+    },
+    lens: {
+      fov: 45,
+      near,
+      far,
+    },
+  };
+}
+
 // ─── Defaults ─────────────────────────────────────────────────────────────
 
 export const DEFAULT_CAMERA_DESCRIPTOR: CameraPositionDescriptor = {

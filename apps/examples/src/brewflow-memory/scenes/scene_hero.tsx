@@ -3,10 +3,10 @@ import {Background, Camera, ProgressManager, Scene, TextBox} from '@brewsite/cor
 import {Lights} from "../../Lights";
 import {config} from "../../settings";
 
-export const sceneHero: JSX.Element = (
+export const SceneHero = () => (
     <Scene key="bfm-hero" id="bfm-hero">
         <ProgressManager scrollUnits={800}/>
-        <Camera mode="world" position={[0, 1, 6]} target={[0, 0.5, 0]} fov={50}/>
+        <Camera mode="world" position={[0, 5, 22]} target={[0, 0, 0]} fov={52} />
         <Lights/>
         <Background color="#080b14"/>
 

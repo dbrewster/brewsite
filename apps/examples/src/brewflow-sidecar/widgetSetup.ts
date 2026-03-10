@@ -11,14 +11,15 @@ export function createSidecarPlugins(): { plugins: WidgetPlugin[] } {
     plugins: [
       corePlugin(),
       diagramPlugin({
-        canvases: [
-          'bf-surfaces',
-          'bf-arch',
-          'bf-mcp-tools',
-          'bf-seq-normal',
-          'bf-seq-fail',
-          'bf-dreamer',
-          'bf-levels',
+        diagrams: [
+          'surfaces-diagram',
+          'bf-arch-cf',
+          'bf-arch-sidecar',
+          'mcp-tools',
+          'seq-normal',
+          'seq-fail',
+          'dreamer-flow',
+          'levels-diagram',
         ],
       }),
     ],

@@ -3,8 +3,11 @@ title: "BrewSite Diagram — Architecture Reference"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-08
+last_updated: 2026-03-09
 change_history:
+  - date: 2026-03-09
+    author: "Toolkit Product"
+    summary: "NVS Universal Coordinate System: DiagramCanvas and DiagramPipe removed. canvas/ directory deleted. Compiler registration table updated (DiagramCanvas and DiagramPipe handlers removed). diagramPlugin() example updated — no canvases parameter. Module source structure updated to reflect deleted canvas/ subtree. Goals updated to remove compileCanvas. Consumer story about cross-diagram pipes updated to reflect removal. Breaking change: @brewsite/diagram major version bump."
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Initial PRD created. Comprehensive documentation of the @brewsite/diagram architecture as implemented."
@@ -35,8 +38,8 @@ Affected packages: `@brewsite/diagram` (primary). `@brewsite/core` is a peer dep
 
 **Primary metrics:**
 - Consumers can author, compile, and play back a multi-scene diagram with zero Three.js code in their scene files.
-- Adding `@brewsite/diagram` to a project requires only calling `diagramPlugin()` in the `plugins` array passed to `EngineProvider` or `ScenePlayer` — no manual widget pre-registration, no separate `widgetSetup.ts` file for diagram canvases.
-- All compile functions (`compileDiagram`, `compileCanvas`, `compileImagePanel`, `compileScreen`) pass their full test suites with real DSL inputs and asserted real outputs.
+- Adding `@brewsite/diagram` to a project requires only calling `diagramPlugin()` in the `plugins` array passed to `EngineProvider` — no manual widget pre-registration.
+- All compile functions (`compileDiagram`, `compileImagePanel`, `compileScreen`) pass their full test suites with real DSL inputs and asserted real outputs.
 
 **Guardrail metrics:**
 - No Three.js import leaks into `types.ts`, `dsl.tsx`, or `compile.ts` for any element.
@@ -55,7 +58,7 @@ Affected packages: `@brewsite/diagram` (primary). `@brewsite/core` is a peer dep
 - As a toolkit consumer, I want to author a diagram in JSX and have it render as a 3D scene without writing any Three.js code.
 - As a toolkit consumer, I want diagrams across multiple scenes to transition smoothly — nodes moving, edges rerouting, and new nodes fading in.
 - As a toolkit consumer, I want to group related nodes visually using swimlanes, boundaries, or clusters without changing my layout strategy.
-- As a toolkit consumer, I want to connect diagrams inside a canvas with cross-diagram pipe connectors.
+- As a toolkit consumer, I want to place multiple `<Diagram>` elements as siblings in the same scene, each with independent `x/y/w/h` NVS bounds, so that I can compose multi-diagram layouts without a container element.
 - As a toolkit consumer, I want to display a static 3D image frame or a live iframe screen alongside diagram content.
 
 ## Package Overview
@@ -89,7 +92,6 @@ packages/diagram/src/
     │   ├── focusRegion.ts
     │   ├── useDiagramFocusRegion.ts
     │   ├── index.ts
-    │   ├── canvas/        ← DiagramCanvas, DiagramPipe (multi-diagram container)
     │   ├── compiler/      ← pure sub-compilers (layout, edge routing, theme, group bounds)
     │   │   ├── diagramLayoutConstants.ts  ← canonical layout constants (DEFAULT_NODE_SIZE, DEFAULT_GROUP_PADDING, DEFAULT_TITLE_GAP)
     │   │   └── diagramRenderConstants.ts  ← canonical render constants (GROUP_BORDER_PX_TO_UNITS, GROUP_RENDER_Z)
@@ -145,13 +147,14 @@ Violations of this chain — e.g., importing Three.js in `compile.ts`, or import
 
 | DSL Component | Handler Behavior |
 |---|---|
-| `Diagram` | Calls `extractDiagramDSL(node, helpers)` → `compileDiagram(dsl)` → `api.setWidgetState(widgetId, state)` |
-| `DiagramCanvas` | Two-pass: collects child `<Diagram>` elements and compiles each with canvas theme as fallback; collects `<DiagramPipe>` elements; calls `compileCanvas(canvasDSL, diagramStates, pipeDSLs)` → `api.setWidgetState()` |
+| `Diagram` | Calls `extractDiagramDSL(node, helpers)` → `compileDiagram(dsl)` → `api.setWidgetState(dsl.id, state)`. Auto-registers a `DiagramWidget` instance when called through `diagramPlugin()`. |
 | `ImagePanel` | Calls `compileImagePanel(dsl)` → `api.setWidgetState()` |
 | `Screen` | Calls `compileScreen(dsl)` → `api.setWidgetState()` |
-| `DiagramNode`, `DiagramEdge`, `DiagramGroup`, `DiagramExit`, `DiagramEnter`, `DiagramPipe` | Registered as leaf primitives (empty handler); `collectChildren()` preserves them for parent handler extraction |
+| `DiagramNode`, `DiagramEdge`, `DiagramGroup`, `DiagramExit`, `DiagramEnter` | Registered as leaf primitives (empty handler); `collectChildren()` preserves them for parent handler extraction |
 
-The `registry` parameter to `registerDiagramHandlers(registry?)` is optional. When provided, the `DiagramCanvas` handler uses it to emit a `MISSING_WIDGET` warning at compile time if no corresponding `DiagramCanvasWidget` is registered.
+**Removed handlers:** `DiagramCanvas` and `DiagramPipe` handlers were removed in the NVS Universal Coordinate System release. `DiagramCanvas`, `DiagramPipe`, and all related compile functions (`compileCanvas`, `compilePipe`) are no longer part of the package.
+
+The `registry` parameter to `registerDiagramHandlers(registry?)` is optional. When provided, the `Diagram` handler uses it to auto-register `DiagramWidget` instances at compile time.
 
 ```typescript
 // packages/diagram/src/register.ts
@@ -164,7 +167,7 @@ import './register';
 
 ## Widget Registration via diagramPlugin()
 
-`diagramPlugin()` is the primary integration pattern. It returns a `WidgetPlugin` that auto-registers `DiagramCanvasWidget` instances at compile time when the `DiagramCanvas` handler encounters a canvas id — no manual `widgetSetup.ts` entries required.
+`diagramPlugin()` is the primary integration pattern. It returns a `WidgetPlugin` that auto-registers `DiagramWidget` instances at compile time when the `Diagram` handler encounters a diagram id — no manual `widgetSetup.ts` entries required.
 
 ```typescript
 import { useMemo } from 'react';
@@ -178,7 +181,7 @@ function App() {
       manifestUrl="/assets/manifest.json"
       plugins={[corePlugin(), diagPlugin]}
     >
-      {/* scenes with <DiagramCanvas> elements */}
+      {/* scenes with <Diagram> elements */}
     </EngineProvider>
   );
 }
@@ -207,12 +210,12 @@ Scene JSX (Diagram, DiagramNode, DiagramEdge, DiagramGroup, ...)
   │
   ▼ compiler/handlers.ts → extractDiagramDSL(node, helpers)
   │
-DiagramDSL { id, nodes[], edges[], groups[], layout, theme, viewportBounds, tilt, exit, enter }
+DiagramDSL { id, x, y, w, h, tilt, z, scale, nodes[], edges[], groups[], layout, theme, exit, enter }
   │
   ▼ compileDiagram(dsl, fallbackTheme?)
   │
-DiagramState { id, nodes[], edges[], groups[], viewportBounds, tiltRotation,
-               exit, enter, themeConfig }
+DiagramState { id, viewportBounds, tiltRotation, z, scale,
+               nodes[], edges[], groups[], exit, enter, themeConfig }
   │
   ▼ api.setWidgetState(widgetId, state) → stored in SceneFrame.widgets[widgetId]
   │
@@ -227,7 +230,7 @@ SceneTrackTick.state.widgets[widgetId] = blended DiagramState at tick t
 Three.js Scene (NodeRenderer, EdgeRenderer, GroupRenderer)
 ```
 
-For `DiagramCanvas`, `DiagramCanvasState` wraps an array of `DiagramState` instances plus `DiagramPipeState[]`, and the same flow applies at the canvas level via `DiagramCanvasWidget` and `DiagramCanvasRenderer`.
+Multiple `<Diagram>` siblings in the same scene each follow this flow independently — each compiles to its own `DiagramState` and is registered with its own `DiagramWidget` instance.
 
 ## Transition Model
 
@@ -302,7 +305,7 @@ Key architectural-level breaking changes:
 |---|---|
 | Three.js import leak into compile pipeline | CI type-check enforces no `import three` in `compile.ts`; module pattern documented and enforced in code review |
 | Reverse dependency (`@brewsite/core` importing from `@brewsite/diagram`) | Enforced by monorepo dependency rule; `@brewsite/core` package.json has no dependency on `@brewsite/diagram` |
-| Widget ID mismatch between DSL and registry | Runtime warning emitted by `DiagramCanvas` handler when `registry` is provided; documented in consumer integration guide |
+| Widget ID mismatch between DSL and registry | Runtime warning emitted by `Diagram` handler when `registry` is provided; documented in consumer integration guide |
 | SSR breakage from browser-global access in compile pipeline | Node.js-compatible test suite catches regressions without WebGL polyfills |
 
 ## Open Questions

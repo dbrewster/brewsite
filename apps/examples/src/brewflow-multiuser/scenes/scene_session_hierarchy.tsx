@@ -11,7 +11,7 @@ import {
     TextBox,
     WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -35,8 +35,7 @@ export const sceneSessionHierarchy: JSX.Element = (
     <Camera mode="world" position={[0, 5, 20]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bfmu-sess-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="sess-diagram">
+    <Diagram id="sess-diagram" theme={brewflowTheme}>
         <HierarchicalLayout direction="top-down" spacing={[2, 2]} />
         <DiagramEnter fade />
 
@@ -88,8 +87,7 @@ export const sceneSessionHierarchy: JSX.Element = (
         <DiagramEdge from="level-project" to="level-session" flow="forward" color="#5070b0" />
         <DiagramEdge from="level-session" to="level-agent" flow="forward" color="#5070b0" />
         <DiagramEdge from="level-agent" to="level-thread" flow="forward" color="#5070b0" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="sessions-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

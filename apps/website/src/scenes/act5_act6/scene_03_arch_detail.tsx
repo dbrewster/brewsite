@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
-import { DiagramCanvas, Diagram, DiagramEdge, DiagramNode, DiagramEnter, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
+import { Diagram, DiagramEdge, DiagramNode, DiagramEnter, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
 import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
 import { isMobile } from '../../utils/viewport';
 import type { Vec3 } from '@brewsite/core';
@@ -34,8 +34,7 @@ export const scene03ArchDetail: JSX.Element = (
       <Ambient intensity={1.0} color="#ffffff" />
       <Directional intensity={0.6} color="#aaccff" position={[-20, 10, 20]} />
     </Lighting>
-    <DiagramCanvas id="system-canvas" x={0} y={0} w={1} h={1} tilt={-Math.PI / 12} scale={isMobile ? 1.0 : 1.4} theme={darkGlassTheme}>
-      <Diagram id="system-arch">
+    <Diagram id="system-arch" x={0} y={0} w={1} h={1} tilt={-Math.PI / 12} scale={isMobile ? 1.0 : 1.4} theme={darkGlassTheme}>
         <ManualLayout />
         <DiagramEnter from={[-1, 0.5, 0]} fade easing="ease-in" />
 
@@ -68,7 +67,6 @@ export const scene03ArchDetail: JSX.Element = (
         <DiagramEdge from="svc-api"  to="rds"        flow="forward" />
         <DiagramEdge from="svc-auth" to="cache"      flow="forward" />
       </Diagram>
-    </DiagramCanvas>
 
     {/* Right-aligned overlay: eyebrow + headline + snippet + body */}
     <div style={{ position: 'absolute', bottom: '8%', right: '5%', textAlign: 'right', maxWidth: 340 }}>

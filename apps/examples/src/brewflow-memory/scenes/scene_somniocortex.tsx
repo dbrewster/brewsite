@@ -1,53 +1,29 @@
 import type {JSX} from 'react';
 import {
-    Action,
     Background,
     Camera,
-    InputController,
-    KeyMap,
-    PointerMap,
     ProgressManager,
     Scene,
     TextBox,
-    WheelMap,
 } from '@brewsite/core';
 import {
     Diagram,
-    DiagramCanvas,
     DiagramEdge,
     DiagramGroup,
     DiagramNode,
     FlowLayout,
     GridLayout,
-    HierarchicalLayout,
 } from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneSomniocortex: JSX.Element = (
+export const SceneSomniocortex = () => (
     <Scene key="bfm-somniocortex" id="bfm-somniocortex">
         <ProgressManager scrollUnits={3200} fn={DWELL_FN}/>
-        <Camera mode="world" position={[0, 5, 28]} target={[0, 0, 0]} fov={52}/>
-        <Background color="#080b14"/>
 
-        <InputController scope="canvas">
-            <Action id="pan" type="diagram-canvas.move" canvasId="bfm-somno-canvas">
-                <PointerMap event="drag" axis="xy"/>
-                <WheelMap axis="xy"/>
-            </Action>
-            <Action id="rotate" type="diagram-canvas.rotate" canvasId="bfm-somno-canvas">
-                <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy"/>
-            </Action>
-            <Action id="reset" type="diagram-canvas.reset" canvasId="bfm-somno-canvas">
-                <KeyMap keyName="r"/>
-            </Action>
-        </InputController>
-
-        <DiagramCanvas id="bfm-somno-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={.7}
-                       theme={brewflowTheme}>
-            <Diagram id="somno-diagram">
+        <Diagram id="somno-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={0.7} theme={brewflowTheme}>
                 <FlowLayout direction="top-down" gap={2}/>
 
                 <DiagramNode id="in-episodic" label="EpisodicStore" sublabel="raw episodes"
@@ -84,7 +60,6 @@ export const sceneSomniocortex: JSX.Element = (
                 <DiagramEdge from="s6" to="s7"               flow="forward" color="#5070b0" />
                 <DiagramEdge from="s7" to="out-neo"          flow="forward" color="#5070b0" />
             </Diagram>
-        </DiagramCanvas>
 
         <TextBox id="bfm-somno-prose" x={0} y={0.58} w={1} h={0.42}>
             <div style={{

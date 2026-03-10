@@ -11,17 +11,17 @@ export function createComparisonPlugins(): { plugins: WidgetPlugin[] } {
     plugins: [
       corePlugin(),
       diagramPlugin({
-        canvases: [
-          'bfc-cf-canvas',
-          'bfc-bf-canvas',
-          'bfc-audit-canvas',
-          'bfc-learn-canvas',
-          'bfc-ctx-canvas',
-          'bfc-coord-canvas',
-          'bfc-restart-canvas',
-          'bfc-gate-canvas',
-          'bfc-safety-canvas',
-          'bfc-mature-canvas',
+        diagrams: [
+          'cf-overview',
+          'bf-overview',
+          'audit-cf',
+          'learn-diagram',
+          'ctx-diagram',
+          'coord-diagram',
+          'restart-diagram',
+          'gate-diagram',
+          'safety-diagram',
+          'mature-diagram',
         ],
       }),
     ],

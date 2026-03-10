@@ -11,7 +11,7 @@ import {
     TextBox,
     WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, FlowLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, FlowLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -21,23 +21,7 @@ export const sceneBfOverview: JSX.Element = (
   <Scene key="bfc-bf-overview" id="bfc-bf-overview">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
 
-    <Background color="#080b14" />
-
-    <InputController scope="canvas">
-      <Action id="pan" type="diagram-canvas.move" canvasId="bfc-bf-canvas">
-        <PointerMap event="drag" axis="xy" />
-        <WheelMap axis="xy" />
-      </Action>
-      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bfc-bf-canvas">
-        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
-      </Action>
-      <Action id="reset" type="diagram-canvas.reset" canvasId="bfc-bf-canvas">
-        <KeyMap keyName="r" />
-      </Action>
-    </InputController>
-
-    <DiagramCanvas id="bfc-bf-canvas" x={0} y={0} w={1} h={0.56} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="bf-overview">
+    <Diagram id="bf-overview" x={0} y={0} w={1} h={0.56} scale={config.diagramScale} theme={brewflowTheme}>
         <FlowLayout direction="top-down" gap={2} />
         <DiagramEnter fade />
 
@@ -51,8 +35,7 @@ export const sceneBfOverview: JSX.Element = (
         <DiagramEdge from="bf-somno" to="bf-neo" flow="forward" color="#5070b0" />
         <DiagramEdge from="bf-neo" to="bf-inject" style="dashed" label="retrieval" color="#5070b0" />
         <DiagramEdge from="bf-inject" to="bf-guard" flow="forward" color="#4a3570" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="bf-overview-prose" x={0} y={0.56} w={1} h={0.44}>
       <div style={{

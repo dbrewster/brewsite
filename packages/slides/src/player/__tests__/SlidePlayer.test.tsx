@@ -15,8 +15,8 @@ vi.mock('@brewsite/core', async () => {
   const ReactModule = await import('react');
   const R = ReactModule.default;
 
-  /** Minimal EngineProvider stub — renders children inside a labelled div. */
-  const EngineProvider = ({
+  /** SceneEngine stub — renders children inside a labelled div. */
+  const SceneEngine = ({
     children,
     id,
   }: {
@@ -37,14 +37,6 @@ vi.mock('@brewsite/core', async () => {
     children?: ReactModule.ReactNode;
     [key: string]: unknown;
   }) => R.createElement('div', { 'data-testid': 'ar-container' }, children);
-
-  /** EngineInputRegion stub — passes children through. */
-  const EngineInputRegion = ({
-    children,
-  }: {
-    children?: ReactModule.ReactNode;
-    [key: string]: unknown;
-  }) => R.createElement('div', { 'data-testid': 'input-region' }, children);
 
   /** SceneCanvas stub — forwardRef returns a canvas element. */
   const SceneCanvas = R.forwardRef<HTMLCanvasElement>(
@@ -91,9 +83,8 @@ vi.mock('@brewsite/core', async () => {
 
   return {
     // Components
-    EngineProvider,
+    SceneEngine,
     EngineARContainer,
-    EngineInputRegion,
     SceneCanvas,
     EngineOverlayHost,
     Scene,
@@ -107,10 +98,8 @@ vi.mock('@brewsite/core', async () => {
     // Hook stubs (called inside SlidePlayerInner which renders in the mocked tree)
     useCurrentScene: () => ({ id: '', index: 0 }),
     useSceneEngineContext: () => ({
-      scrollToProgress: vi.fn(),
-      getGlobalProgress: vi.fn(() => 0),
-      frameState: { tickIndex: 0, sceneId: '' },
-      inputMode: 'prefer-direct',
+      setProgress: vi.fn(),
+      frameState: { tickIndex: 0, sceneId: '', progress: 0 },
     }),
     useVariable: () => null,
   };
@@ -146,7 +135,7 @@ describe('SlidePlayer', () => {
     expect(html).toContain('position:relative');
   });
 
-  it('renders the EngineProvider stub for a 3-slide deck', () => {
+  it('renders the SceneEngine stub for a 3-slide deck', () => {
     const html = renderToStaticMarkup(
       <SlidePlayer>
         <Slide key="s1"><TitleLayout title="S1" /></Slide>

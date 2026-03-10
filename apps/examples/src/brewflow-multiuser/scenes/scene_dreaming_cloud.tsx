@@ -11,7 +11,7 @@ import {
   TextBox,
   WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -35,8 +35,7 @@ export const sceneDreamingCloud: JSX.Element = (
     <Camera mode="world" position={[0, 5, 30]} target={[0, 0, 0]} fov={54} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bfmu-dream-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="dream-diagram">
+    <Diagram id="dream-diagram" theme={brewflowTheme}>
         <ManualLayout />
         <DiagramEnter fade />
 
@@ -133,8 +132,7 @@ export const sceneDreamingCloud: JSX.Element = (
         <DiagramEdge from="promo-worker" to="out-user-a" color="#5070b0" />
         <DiagramEdge from="promo-worker" to="out-project" color="#5070b0" />
         <DiagramEdge from="promo-worker" to="out-user-b" color="#5070b0" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="dreaming-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

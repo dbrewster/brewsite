@@ -129,7 +129,7 @@ export const DOCS_SCENES: ReactNode = (
     <Scene key="model-basic-s1" id="model-basic-s1">
       <ProgressManager scrollUnits={SCROLL_UNITS_PER_SCENE} />
       <Camera mode="world" position={[0, 1.5, 4]} target={[0, 0.9, 0]} />
-      <Model type="MaleDummy" id="model-basic-character" position={[0, 0, 0]} rotation={[0, 0, 0]}>
+      <Model type="MaleDummy" id="model-basic-character" rotation={[0, 0, 0]}>
         <Playback>
           <Animation clipName="chat-relax-m" enabled clipRepeat />
         </Playback>
@@ -145,7 +145,7 @@ export const DOCS_SCENES: ReactNode = (
     <Scene key="model-basic-s2" id="model-basic-s2">
       <ProgressManager scrollUnits={SCROLL_UNITS_PER_SCENE} />
       <Camera mode="orbit" target={[0, 0.9, 0]} azimuth={0.8} polar={1.3} distance={4} />
-      <Model type="MaleDummy" id="model-basic-character" position={[0, 0, 0]} rotation={[0, 1.2, 0]}>
+      <Model type="MaleDummy" id="model-basic-character" rotation={[0, 1.2, 0]}>
         <Playback>
           <Animation clipName="chat-relax-m" enabled clipRepeat />
         </Playback>
@@ -163,7 +163,7 @@ export const DOCS_SCENES: ReactNode = (
     <Scene key="model-anim-relaxed" id="model-anim-relaxed">
       <ProgressManager scrollUnits={SCROLL_UNITS_PER_SCENE} />
       <Camera mode="world" position={[0, 1.5, 4]} target={[0, 0.9, 0]} />
-      <Model type="MaleDummy" id="model-anim-character" position={[0, 0, 0]}>
+      <Model type="MaleDummy" id="model-anim-character">
         <Playback>
           <Animation clipName="chat-relax-m" enabled clipRepeat />
         </Playback>
@@ -179,7 +179,7 @@ export const DOCS_SCENES: ReactNode = (
     <Scene key="model-anim-active" id="model-anim-active">
       <ProgressManager scrollUnits={SCROLL_UNITS_PER_SCENE} />
       <Camera mode="orbit" target={[0, 0.9, 0]} azimuth={0.4} polar={1.2} distance={4} />
-      <Model type="MaleDummy" id="model-anim-character" position={[0, 0, 0]}>
+      <Model type="MaleDummy" id="model-anim-character">
         <Playback>
           <Animation clipName="standing_chat_m_270753" enabled clipRepeat />
         </Playback>

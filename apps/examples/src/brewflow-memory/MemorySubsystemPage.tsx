@@ -1,16 +1,25 @@
 import type {JSX} from 'react';
 import {useMemo} from 'react';
-import {EngineARContainer, EngineInputRegion, EngineOverlayHost, EngineProvider, SceneCanvas,} from '@brewsite/core';
+import {
+  BackgroundLayer,
+  EngineARContainer,
+  EngineOverlayHost,
+  KeyboardInput,
+  SceneCanvas,
+  SceneEngine,
+  ScrollInput,
+  ScrollStage,
+} from '@brewsite/core';
 import {createMemoryPlugins} from './widgetSetup';
-import {sceneHero} from './scenes/scene_hero';
-import {sceneClsTheory} from './scenes/scene_cls_theory';
-import {sceneEpisodicStore} from './scenes/scene_episodic_store';
-import {sceneSomniocortex} from './scenes/scene_somniocortex';
-import {sceneNeocortex} from './scenes/scene_neocortex';
-import {sceneInjector} from './scenes/scene_injector';
-import {sceneLearningLoop} from './scenes/scene_learning_loop';
-import {sceneSensitiveDataGuard} from './scenes/scene_sensitive_data_guard';
-import {sceneSummary} from './scenes/scene_summary';
+import {SceneHero} from './scenes/scene_hero';
+import {SceneClsTheory} from './scenes/scene_cls_theory';
+import {SceneEpisodicStore} from './scenes/scene_episodic_store';
+import {SceneSomniocortex} from './scenes/scene_somniocortex';
+import {SceneNeocortex} from './scenes/scene_neocortex';
+import {SceneInjector} from './scenes/scene_injector';
+import {SceneLearningLoop} from './scenes/scene_learning_loop';
+import {SceneSensitiveDataGuard} from './scenes/scene_sensitive_data_guard';
+import {SceneSummary} from './scenes/scene_summary';
 
 const SCENE_SCROLL_REGISTRY = [
   { sceneId: 'bfm-hero',         scrollUnits: 800  },
@@ -30,29 +39,27 @@ export default function MemorySubsystemPage(): JSX.Element {
   const { plugins } = useMemo(() => createMemoryPlugins(), []);
 
   return (
-    <div style={{ background: '#eeeeee', minHeight: '100vh', fontSize: '20px' }}>
-      <EngineProvider
-        manifestUrl="/scene-manifest.json"
-        plugins={plugins}
-        pixelsPerScene={TOTAL_SCROLL_HEIGHT / SCENE_SCROLL_REGISTRY.length}
-        inputModePolicy="prefer-scroll"
-      >
-        {sceneHero}
-        {sceneClsTheory}
-        {sceneEpisodicStore}
-        {sceneSomniocortex}
-        {sceneNeocortex}
-        {sceneInjector}
-        {sceneLearningLoop}
-        {sceneSensitiveDataGuard}
-        {sceneSummary}
-        <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width" referenceWidth={1920}>
-          <EngineInputRegion>
-            <SceneCanvas style={{background: '#444444'}}/>
+    <div style={{ background: '#080b14', minHeight: '100vh', fontSize: '20px' }}>
+      <SceneEngine plugins={plugins}>
+        <SceneHero/>
+        <SceneClsTheory/>
+        <SceneEpisodicStore/>
+        <SceneSomniocortex/>
+        <SceneNeocortex/>
+        <SceneInjector/>
+        <SceneLearningLoop/>
+        <SceneSensitiveDataGuard/>
+        <SceneSummary/>
+        <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={TOTAL_SCROLL_HEIGHT / SCENE_SCROLL_REGISTRY.length}>
+          <EngineARContainer aspectRatio={9 / 9} scaleMode="fit-height" referenceWidth={1920}>
+            <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+            <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
             <EngineOverlayHost />
-          </EngineInputRegion>
-        </EngineARContainer>
-      </EngineProvider>
+          </EngineARContainer>
+          <ScrollInput source="window" />
+          <KeyboardInput />
+        </ScrollStage>
+      </SceneEngine>
     </div>
   );
 }

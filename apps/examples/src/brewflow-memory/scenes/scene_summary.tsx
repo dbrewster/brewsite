@@ -2,11 +2,9 @@ import type {JSX} from 'react';
 import {Background, Camera, ProgressManager, Scene, TextBox} from '@brewsite/core';
 import {config} from "../../settings";
 
-export const sceneSummary: JSX.Element = (
+export const SceneSummary = () => (
   <Scene key="bfm-summary" id="bfm-summary">
     <ProgressManager scrollUnits={1600} />
-    <Camera mode="world" position={[0, 0, 5]} target={[0, 0, 0]} fov={50} />
-    <Background color="#080b14" />
 
     <TextBox id="bfm-summary-content" x={0} y={0.10} w={1} h={0.90}>
       <div style={{

@@ -3,8 +3,14 @@ title: "BrewSite Core — Player & Runtime"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-07
+last_updated: 2026-03-09
 change_history:
+  - date: 2026-03-09
+    author: "Toolkit Product"
+    summary: "v2 player API (major breaking change — @brewsite/core v2.0.0): EngineProvider, EngineInputRegion, ScenePlayer, and ScrollCaptureSection are deleted. useEngineScroll and useEngineInput hooks deleted. SceneEngine replaces EngineProvider as the primary integration component. ScrollStage replaces EngineInputRegion for the full-page scroll pattern. SceneReel introduced for embedded/docs/slides use cases. Composable input components (ScrollInput, TimeInput, KeyboardInput, PointerInput, ControlledInput) replace all input mode configuration. useEngineState(id) unifies useEngineState and deleted useSceneEngineState. useGoToScene hook added for programmatic scene navigation. IScrollSource / ScrollSourceProp replace deleted ScrollSource type. Spring-physics inertia model replaces DOM-scroll inertia. BackgroundLayer extracted as standalone component. SceneCanvas gains engineId prop for cross-tree binding. All section 7 EngineProvider documentation rewritten for SceneEngine. All apps migrated; MIGRATION.md published."
+  - date: 2026-03-09
+    author: "Toolkit Product"
+    summary: "NVS Universal Coordinate System: WidgetRenderContext gains required coords: NVSCoordService field. RuntimeDriverImpl computes NVSCoordService from the live PerspectiveCamera and canvas dimensions at the start of each tick and injects it into every apply() call. This is a breaking change — @brewsite/core major version bump. See prd_widget_sdk.md Section 12.3 for the full NVSCoordService interface and Section 12.7 for usage patterns."
   - date: 2026-03-07
     author: "Toolkit Product"
     summary: "Core cleanup: manifestUrl on EngineProvider is now optional and deprecated — plugins supplied by the plugins prop handle manifest loading internally; manifestUrl is only needed for direct model loading without a plugin. EngineARContainerContext is deprecated and aliased to ViewportScaleContext; downstream packages (e.g. @brewsite/model LabelPositioner) should import ViewportScaleContext from @brewsite/core. CameraControlPanel, CameraInteractionInfoDialog, and SceneInspector moved to the @brewsite/core/devtools subpath (removed from main player/index.ts exports). A new @brewsite/core/testing subpath exports clearRegistry and test doubles for compiler and runtime unit testing — replaces deep sub-path imports."
@@ -53,9 +59,9 @@ change_history:
 
 ## 1. Overview
 
-The Player layer is the React integration surface for `@brewsite/core`. `EngineProvider` is the primary component that a host application mounts to render an animated 3D scene, composed with `EngineARContainer` (aspect-ratio-locked container), `EngineGate` (loading gate), `EngineInputRegion` (input capture), `SceneCanvas` (Three.js canvas), and `EngineOverlayHost` (overlay tier) to form the complete integration. The Runtime layer is the frame-by-frame execution engine that drives widget ticking, scene track sampling, Three.js rendering, and state publishing. Together they form the complete playback stack: from JSX scene authoring through compilation, asset loading, frame scheduling, and reactive state propagation to host UI.
+The Player layer is the React integration surface for `@brewsite/core`. `SceneEngine` is the primary component that a host application mounts to run an animated 3D scene. It is a pure context provider with zero DOM output, composed with `EngineARContainer` (aspect-ratio-locked container), `EngineGate` (loading gate), `SceneCanvas` (Three.js canvas), `EngineOverlayHost` (overlay tier), and one or more input components (`ScrollInput`, `KeyboardInput`, `PointerInput`, `TimeInput`, `ControlledInput`) to form the complete integration. `SceneReel` provides a pre-composed convenience wrapper for embedded/docs/slides use cases. The Runtime layer is the frame-by-frame execution engine that drives widget ticking, scene track sampling, Three.js rendering, and state publishing. Together they form the complete playback stack: from JSX scene authoring through compilation, asset loading, frame scheduling, and reactive state propagation to host UI.
 
-This document covers `EngineProvider` and the composable player primitives (`EngineARContainer`, `EngineGate`, `EngineInputRegion`, `SceneCanvas`, `EngineOverlayHost`), the `useSceneEngine` hook and its options, `RuntimeDriverImpl` and the per-frame tick sequence, `RuntimeLoop` and the animation frame scheduler, `EngineFrameDriver` and the React state bridge, all consumer hooks (`useEngineScroll`, `useEngineInput`, `useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `useSceneEngineState`), all context providers (`EngineStateContext`, `VariableStoreContext`, `LabelPositionerContext`, `EngineContext`, `EngineARContainerContext`), the `EngineInputRegion` DOM input region, `LabelPositioner` for 3D-to-screen projection, `TimelineWidget` for interactive scrubbing, `CameraControlPanel`, `SceneMetaWidget`, `SceneProgressMapper`, the asset manifest pipeline, the Normalized Viewport Space (NVS) layout system, and the SSR safety contract.
+This document covers `SceneEngine` and the composable player primitives (`EngineARContainer`, `EngineGate`, `ScrollStage`, `SceneCanvas`, `EngineOverlayHost`, `BackgroundLayer`, `SceneReel`), the composable input components (`ScrollInput`, `TimeInput`, `KeyboardInput`, `PointerInput`, `ControlledInput`), the `useSceneEngine` hook and its options, `RuntimeDriverImpl` and the per-frame tick sequence, `RuntimeLoop` and the animation frame scheduler, `EngineFrameDriver` and the React state bridge, all consumer hooks (`useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `useEngineState`, `useGoToScene`, `useNativeScrollSource`), all context providers (`EngineStateContext`, `VariableStoreContext`, `LabelPositionerContext`, `EngineContext`, `EngineARContainerContext`), `TimelineWidget` for interactive scrubbing, `CameraControlPanel`, `SceneMetaWidget`, `SceneProgressMapper`, the asset manifest pipeline, the Normalized Viewport Space (NVS) layout system, and the SSR safety contract.
 
 Affects: `@brewsite/core`.
 
@@ -65,7 +71,7 @@ Affects: `@brewsite/core`.
 
 Three.js scene toolkits typically expose imperative APIs: create a renderer, create a scene, load assets, call render in a loop. Integrating this into a React host application requires careful management of refs, effect cleanup, hydration safety, and progress synchronization.
 
-The BrewSite Player layer solves these integration problems once, providing a composable `<EngineProvider>` + `<EngineGate>` + `<SceneCanvas>` pattern that handles all imperative Three.js lifecycle internally. Host applications interact exclusively with props, hooks, and context — no direct Three.js API surface is exposed unless the consumer explicitly requests engine access via `useSceneEngineContext`.
+The BrewSite Player layer solves these integration problems once, providing a composable `<SceneEngine>` + `<EngineGate>` + `<SceneCanvas>` pattern that handles all imperative Three.js lifecycle internally. Host applications interact exclusively with props, hooks, and context — no direct Three.js API surface is exposed unless the consumer explicitly requests engine access via `useSceneEngineContext`.
 
 The Runtime layer solves the per-frame orchestration problem: widgets must tick in a defined order, scene track state must be sampled O(1), functional transitions must evaluate at blockProgress, and the output must be pushed to React state in a way that does not cause excessive re-renders.
 
@@ -75,52 +81,53 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 
 **Primary goals:**
 - A host application can integrate a fully animated 3D scene in under 30 lines of application code.
-- EngineProvider is safe to render server-side — no crash, no hydration mismatch.
+- `SceneEngine` is safe to render server-side — no crash, no hydration mismatch.
 - Adding a new widget does not require changes to the Player or Runtime layers.
 - The frame loop runs at 60fps on target hardware with zero React state updates per frame during steady-state playback (state updates only on tick index change, not on every animation frame).
 
 **Success metrics:**
-- EngineProvider mounts and begins rendering in under 500ms on a 100ms round-trip manifest fetch.
+- `SceneEngine` mounts and begins rendering in under 500ms.
 - Zero React re-renders per animation frame during steady-state playback with a static scene (no scene transitions).
-- TypeScript props for `EngineProvider` produce compile errors for incorrect prop types with zero `any` escape hatches.
+- TypeScript props for `SceneEngine` produce compile errors for incorrect prop types with zero `any` escape hatches.
 - `useCurrentScene` does not re-render its consumer on every frame — it re-renders only when `sceneId` changes.
 
 **Guardrail metrics:**
-- No `EngineProviderProps` fields may be removed or renamed in a minor version release.
+- No `SceneEngineProps` fields may be removed or renamed in a minor version release.
 - The `useSceneEngine` return shape must remain backward compatible across minor versions.
 
 ---
 
 ## 4. Non-Goals
 
-- `EngineProvider` does not manage routing, page layout, or CSS beyond what is needed for Three.js canvas sizing.
+- `SceneEngine` does not manage routing, page layout, or CSS beyond what is needed for Three.js canvas sizing.
 - The Player layer does not expose a public Three.js `Scene` or `Camera` reference in the standard consumption pattern. Consumer access to engine internals is available via `useSceneEngineContext` for advanced use cases only, and is considered an escape hatch.
 - Audio synchronization is out of scope for the Player layer.
 - The Runtime layer does not implement physics, collision detection, or pathfinding. These belong in widget `IAnimationController` implementations.
 - The Player layer does not manage React Router integration. Scene change callbacks are wired through `corePlugin({ onSceneChange })` options.
-- `EngineProvider` does not manage full-page scroll position. `EngineInputRegion` is the component for integrating scene progress with document scroll or direct input.
+- `SceneEngine` does not manage full-page scroll position. `ScrollStage` + `ScrollInput` handle the sticky-canvas scroll layout pattern; `SceneReel` handles embedded/fill-container layouts.
 
 ---
 
 ## 5. Consumer Stories
 
-- As a toolkit consumer, I want to declare a scene in JSX and mount `<EngineProvider>` with composable layout primitives so that my three.js scene renders without writing any imperative Three.js setup code.
+- As a toolkit consumer, I want to declare a scene in JSX and mount `<SceneEngine>` with composable layout and input primitives so that my Three.js scene renders without writing any imperative Three.js setup code.
 - As a toolkit consumer, I want to use `useCurrentScene()` to reactively update a nav indicator so that my UI reflects the active scene without wiring custom event listeners.
-- As a toolkit consumer, I want `<EngineInputRegion>` to handle scroll, drag, wheel, and keyboard input so that my scene transitions as the user navigates.
-- As a toolkit consumer, I want `useVariable('scene', 'id')` inside any component nested under `<EngineProvider>` so that I can build reactive overlays driven by scene metadata.
-- As a toolkit consumer, I want to mount `<TimelineWidget>` inside `<EngineProvider>` so that I get a scrubbing timeline for development and debugging without additional code.
+- As a toolkit consumer, I want to render `<ScrollInput>`, `<KeyboardInput>`, and other input components as children of `<SceneEngine>` so that my scene transitions as the user navigates, with each input modality independently composable.
+- As a toolkit consumer, I want `useVariable('scene', 'id')` inside any component nested under `<SceneEngine>` so that I can build reactive overlays driven by scene metadata.
+- As a toolkit consumer, I want to mount `<TimelineWidget>` inside `<SceneEngine>` so that I get a scrubbing timeline for development and debugging without additional code.
 - As a server-side rendering host, I want `<EngineGate>` to render the `placeholder` prop during SSR and until the engine's first tick so that my page has no layout shift and no hydration mismatch.
+- As a toolkit consumer building a docs page, I want `<SceneReel height={400}>` to embed a self-contained 3D animation in a single line so that I have no scroll configuration to manage.
 
 ---
 
 ## 6. Functional Requirements
 
-1. `EngineProvider` shall accept `children: ReactNode`, `manifestUrl`, and `plugins` as primary props. `children` must consist of `<Scene key="...">` elements plus layout primitives (`EngineGate`, `EngineInputRegion`, etc.). All other props are optional.
-2. `EngineProvider` shall fetch the manifest from `manifestUrl` and pass the parsed result to each plugin via `IWidgetPlugin.register(registry, manifest)` to construct the `WidgetRegistry`.
+1. `SceneEngine` shall accept `children: ReactNode` and `plugins` as primary props. `children` consists of `<Scene key="...">` elements plus any layout primitives, input components, and overlay hosts. `plugins` is required unless a parent `SceneEngine` provides plugins via zero-scene mode. All other props are optional.
+2. Each plugin in `plugins` shall receive `IWidgetPlugin.register(registry, manifest)` when the registry is constructed. Manifest loading is performed internally by the plugin (e.g., `modelPlugin({ manifestUrl })`); `SceneEngine` does not fetch a manifest itself.
 3. `EngineGate` shall render the `placeholder` prop while `frameState.tickIndex < 0` (before the first tick completes), then render `children`.
-4. `EngineProvider` shall call `onManifestError` if manifest fetching fails. The engine continues operating with whatever plugins were already registered.
+4. `SceneEngine` shall call `onError` for any error from widget initialization or asset loading. The engine continues operating with whatever plugins were already registered.
 5. Scene change callbacks shall be wired via `corePlugin({ onSceneChange })` options. `SceneMetaWidget` (registered by `corePlugin()`) fires the callback when the active scene changes.
-6. `EngineProvider` shall support Vite HMR automatically via content-hash compilation. When Vite HMR causes a parent component re-render, the `<Scene>` JSX elements are re-created. `serializeJsx` produces a new `contentKey` if any prop changed. If the `sceneContentKey` changes, `useMemo` fires and recompilation is triggered naturally. No manual `import.meta.hot` subscription, `hmrVersion` state counter, or `clearRegistry` call is needed or present.
+6. `SceneEngine` shall support Vite HMR automatically via content-hash compilation. When Vite HMR causes a parent component re-render, the `<Scene>` JSX elements are re-created. `serializeJsx` produces a new `contentKey` if any prop changed. If the `sceneContentKey` changes, `useMemo` fires and recompilation is triggered naturally. No manual `import.meta.hot` subscription, `hmrVersion` state counter, or `clearRegistry` call is needed or present.
 7. `useSceneEngine` shall create a `THREE.WebGLRenderer` once the canvas DOM element is available, and dispose it on unmount.
 8. `useSceneEngine` shall compile the `SceneTrack` via `compileSceneTrack` when `sceneGroup`, `widgetRegistry`, or `clipMeta` changes. Compiled tracks shall be cached by `buildSceneTrackKey` to avoid recompilation on unrelated re-renders.
 9. `RuntimeDriverImpl.tick` shall execute in this order per frame: (1) tick all `IAnimationController` widgets in priority order, (2) sample the scene track, (3) apply state to all `IRenderable` widgets.
@@ -130,58 +137,76 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 13. `useCurrentScene()` shall return `{ id: string; index: number }` and re-render its consumer only when `sceneId` changes.
 14. `useSceneProgress()` shall return the current `progress: number` ([0, 1] global progress) and update on every tick index change.
 15. `LabelPositioner.update` shall be called once per render, after `renderer.render(scene, camera)`, with the current label primitives and bone world positions from the runtime driver.
-16. `EngineInputRegion` shall support both `scroll` mode (tall spacer creates scrollable space) and `direct` mode (fixed-height viewport, pointer/wheel/keyboard events drive progress directly).
-17. `EngineProvider` shall be SSR-safe: all Three.js and DOM initialization shall be deferred to `useEffect`. On the server, `EngineGate` renders `placeholder` (if provided) or `null`.
+16. Input components (`ScrollInput`, `KeyboardInput`, `PointerInput`, `TimeInput`, `ControlledInput`) shall be rendered as children of `SceneEngine` or `SceneReel`. Multiple input components may coexist; `ControlledInput` has highest priority, user-initiated input has next priority, and `TimeInput` (auto-advance) has lowest priority and yields to user input. `EngineInputRegion` and `ScrollCaptureSection` are deleted.
+17. `SceneEngine` shall be SSR-safe: all Three.js and DOM initialization shall be deferred to `useEffect`. On the server, `EngineGate` renders `placeholder` (if provided) or `null`. Input components render nothing on the server.
 18. `corePlugin()` shall be accessible from `@brewsite/core` player exports. Pairing `corePlugin()` with `modelPlugin()` from `@brewsite/model` provides complete widget coverage for scenes with GLTF models.
 
 ---
 
-## 7. EngineProvider: Primary Integration Component
+## 7. SceneEngine: Primary Integration Component
 
-`EngineProvider` is the primary component for integrating BrewSite scenes into a host application. It establishes the engine context tree and manages the Three.js engine lifecycle. Compose it with `EngineGate` (loading gate), `EngineInputRegion` (input capture), `SceneCanvas` (Three.js canvas), and `EngineOverlayHost` (overlay tier) to build the complete player integration.
+`SceneEngine` is the primary component for integrating BrewSite scenes into a host application. It is a pure React context provider with zero DOM output — it establishes the engine context tree and manages the Three.js engine lifecycle without rendering any DOM structure. Compose it with `EngineGate` (loading gate), `ScrollStage` (full-page scroll layout), `SceneCanvas` (Three.js canvas), `EngineOverlayHost` (overlay tier), and input components (`ScrollInput`, `KeyboardInput`, etc.) to build the complete player integration. Use `SceneReel` for embedded/inline animations that require no custom layout.
 
-**Canonical integration pattern:**
+**Canonical full-page scroll integration pattern:**
 
 ```tsx
 import {
-  EngineProvider, EngineGate, EngineInputRegion,
-  SceneCanvas, EngineOverlayHost, corePlugin,
+  SceneEngine, EngineARContainer, EngineGate, ScrollStage,
+  BackgroundLayer, SceneCanvas, EngineOverlayHost,
+  ScrollInput, KeyboardInput, corePlugin,
 } from '@brewsite/core';
 import { modelPlugin } from '@brewsite/model';
 
 const PLUGINS = [
   corePlugin({ onSceneChange: (id) => console.log('scene:', id) }),
-  modelPlugin(manifest),
+  modelPlugin({ manifestUrl: '/manifest.json' }),
 ];
 
 export default function Page() {
   return (
-    <EngineProvider
-      id="main"
-      manifestUrl="/manifest.json"
-      plugins={PLUGINS}
-      framesPerTick={100}
-      pixelsPerScene={1600}
-    >
+    <SceneEngine id="main" plugins={PLUGINS}>
       <Scene key="intro">...</Scene>
-      <EngineGate placeholder={<Spinner />}>
-        <EngineInputRegion>
-          <SceneCanvas />
-          <EngineOverlayHost />
-        </EngineInputRegion>
-      </EngineGate>
-    </EngineProvider>
+      <EngineARContainer aspectRatio={16 / 9}>
+        <EngineGate placeholder={<Spinner />}>
+          <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1600}>
+            <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+            <SceneCanvas />
+            <ScrollInput source="window" />
+            <KeyboardInput />
+            <EngineOverlayHost />
+          </ScrollStage>
+        </EngineGate>
+      </EngineARContainer>
+    </SceneEngine>
+  );
+}
+```
+
+**Canonical embedded reel pattern:**
+
+```tsx
+import { SceneReel, TimeInput } from '@brewsite/core';
+
+export default function DocArticle() {
+  return (
+    <article>
+      <p>Intro text...</p>
+      <SceneReel height={400} plugins={PLUGINS}>
+        <Scene key="demo">...</Scene>
+        <TimeInput duration={4} loop pauseWhenHidden={{ y: 0.5 }} />
+      </SceneReel>
+    </article>
   );
 }
 ```
 
 Define `PLUGINS` at module scope (or via `useMemo`) to keep the array reference stable across renders and avoid restarting asset loading.
 
-Full `EngineProviderProps` documentation is in **Section 7A.1**. Full `EngineGateProps` documentation is below.
+Full `SceneEngineProps` documentation is in **Section 7A.1**. Full `EngineGateProps` documentation is below.
 
 ### 7.1 EngineGate
 
-`EngineGate` renders its `placeholder` until the engine produces its first frame (`tickIndex >= 0`), then renders `children`. It is the standard loading gate for `EngineProvider` integrations and must be placed inside an `EngineProvider` tree.
+`EngineGate` renders its `placeholder` until the engine produces its first frame (`tickIndex >= 0`), then renders `children`. It is the standard loading gate for `SceneEngine` integrations and must be placed inside a `SceneEngine` tree.
 
 ```typescript
 type EngineGateProps = {
@@ -195,27 +220,17 @@ const EngineGate: React.FC<EngineGateProps>;
 
 `EngineGate` reads `tickIndex` from `EngineStateContext`. Any component that needs the engine's first-frame guarantee (canvas sizing, overlay positioning, label registration) should be nested inside `EngineGate`.
 
-**`pixelsPerScene`** — Scroll height in pixels allocated per scene in scroll mode. When set, overrides the default height calculation. Only relevant in `scroll` input mode.
-
-**`framesPerTick`** — Number of pre-baked frames per scene transition block (the `blockSize` in `compileSceneTrack`). Higher values produce smoother transitions at the cost of larger `SceneTrack` arrays. Default: `10`.
-
-**`inputMap`** — Input configuration for scene navigation. Determines input mode (`scroll` or `direct`) and which input sources (wheel, drag, swipe, keys) are active. See Section 10 (`useEngineInput`) for details.
-
-**`timeline`** — When `true`, renders `TimelineWidget` with default configuration. When an object, renders `TimelineWidget` with the provided configuration overrides. When absent, no timeline is rendered. See Section 13 for `TimelineWidgetProps`.
-
 **`onReady`** — Called once after the first successful tick completes (all assets loaded, first frame rendered). Not called again after HMR updates.
 
-**`onError`** — Called with any Error from manifest fetching, widget initialization, or asset loading. The engine continues operating in a degraded state; the host decides how to handle.
+**`onError`** — Called with any Error from widget initialization or asset loading. The engine continues operating in a degraded state; the host decides how to handle.
 
-**`onSceneChange`** — Called when the active scene changes. Receives `(sceneId: string, sceneIndex: number)`. Wired internally via `SceneMetaWidget.setOnSceneChange`.
+**`onSceneChange`** — Called when the active scene changes. Receives `(sceneId: string, sceneIndex: number)`. Wired internally via `corePlugin({ onSceneChange })`.
 
-**`placeholder`** — ReactNode rendered while the engine is initializing (before the first tick). Overlaid absolutely over the canvas area with `pointerEvents: 'none'`.
-
-**`children`** — Additional React children rendered inside the input region, overlaid on the canvas. Receives pointer events passthrough from the `EngineInputRegion` overlay.
+**`children`** — All content: `<Scene>` declarations, layout primitives, input components, canvas, and overlay hosts. `SceneEngine` renders no DOM of its own.
 
 ### 7.2 Internal Behavior
 
-`EngineProvider` performs the following operations on each render:
+`SceneEngine` performs the following operations on each render:
 
 **Scene extraction and content hashing (every render, synchronous):**
 1. Calls `Children.toArray(props.children)` to collect all children.
@@ -225,20 +240,18 @@ const EngineGate: React.FC<EngineGateProps>;
 5. `useMemo([sceneContentKey])` — `scenes: InternalSceneSpec[]` reference is stable when content is identical, changes when any scene prop changes.
 
 **On mount:**
-6. Starts manifest fetch from `manifestUrl`. On success, calls `assertManifestValid(raw)` and stores the result.
-7. Constructs `WidgetRegistry` by invoking each plugin via `IWidgetPlugin.register(registry, manifest)` inside `useMemo`.
-8. Constructs a `LabelPositioner` instance and a `VariableStore` instance (both stable across re-renders).
-9. Calls `useSceneEngine` with the registry, manifest, clip metadata, `scenes`, and configuration options.
-10. `SceneMetaWidget` (registered by `corePlugin()`) fires scene change callbacks via its own internal wiring.
-11. Renders the full context provider tree: `VariableStoreContext`, `LabelPositionerContext`, `EngineStateContext`, `EngineContext`.
-12. Renders `EngineInputRegion` as the primary viewport container.
-13. Renders `SceneCanvas`, `EngineOverlayHost`, `LabelItem` elements, optional `TimelineWidget`, and overlay children inside the input region.
+6. Constructs `WidgetRegistry` by invoking each plugin via `IWidgetPlugin.register(registry, manifest)` inside `useMemo`. Plugins handle their own manifest fetching internally.
+7. Constructs a `LabelPositioner` instance and a `VariableStore` instance (both stable across re-renders).
+8. Calls `useSceneEngine` with the registry, clip metadata, `scenes`, and configuration options.
+9. `SceneMetaWidget` (registered by `corePlugin()`) fires scene change callbacks via its own internal wiring.
+10. Renders the full context provider tree: `VariableStoreContext`, `LabelPositionerContext`, `EngineStateContext`, `EngineContext`.
+11. Renders `children` — which may include `<Scene>` declarations, layout primitives (`ScrollStage`, `EngineARContainer`), input components, `SceneCanvas`, `EngineOverlayHost`, and consumer-provided overlays.
 
 **Runtime state publishing (when `id` prop is set):**
-14. A `useEffect` publishes `SceneRuntimeState` to `ScenePlayerRegistry` on every change to `assetsReady`, viewport dimensions, `variableStore`, or `scenes.length`. Consumers using `useSceneRuntime(id)` receive these updates reactively.
-15. On unmount, calls `unregisterSceneRuntime(id)` to clean up the registry entry.
+12. A `useEffect` publishes `SceneRuntimeState` to `ScenePlayerRegistry` on every change to `assetsReady`, viewport dimensions, `variableStore`, or `scenes.length`. Consumers using `useSceneRuntime(id)` receive these updates reactively.
+13. On unmount, calls `unregisterSceneRuntime(id)` to clean up the registry entry.
 
-On server (SSR), `EngineProvider` short-circuits at `typeof window === 'undefined'` and defers all engine initialization. `EngineGate` returns `placeholder ?? null` on the server code path. No Three.js imports are invoked.
+On server (SSR), `SceneEngine` short-circuits at `typeof window === 'undefined'` and defers all engine initialization. `EngineGate` returns `placeholder ?? null` on the server code path. No Three.js imports are invoked.
 
 ---
 
@@ -246,105 +259,64 @@ On server (SSR), `EngineProvider` short-circuits at `typeof window === 'undefine
 
 The composable player primitives allow host applications to construct custom canvas layouts. Each primitive is independently exported from `@brewsite/core`.
 
-### 7A.1 EngineProvider
+### 7A.1 SceneEngine
 
-`EngineProvider` creates the engine and establishes all React context providers. It renders no DOM elements itself — it is a pure context tree wrapper. Compose it with `SceneCanvas` and `EngineOverlayHost` to construct custom layouts.
+`SceneEngine` creates the engine and establishes all React context providers. It renders no DOM elements — it is a pure context tree wrapper. Compose it with `ScrollStage`, `SceneCanvas`, `EngineOverlayHost`, and input components to construct full-page or custom layouts. Use `SceneReel` for self-contained embedded animations.
 
 ```typescript
-type EngineProviderProps = {
-  // Scene content — required
+type SceneEngineProps = {
+  /** All children: <Scene> declarations, layout, input components, canvas, overlays. */
   children: ReactNode;
 
-  // Player identity
+  /** Registers engine state in the global registry for cross-tree useEngineState(id). */
   id?: string;
 
   /**
-   * @deprecated Optional since 2026-03-07. Plugins registered via `plugins` prop
-   * now handle manifest loading internally. Only needed when loading GLTF assets
-   * without using modelPlugin(). Consumers using corePlugin() only may omit this.
-   * Will be removed in v3.
+   * Widget plugins. Overrides ancestor SceneEngine plugin context when set.
+   * Required if no ancestor SceneEngine provides plugins via zero-scene mode.
    */
-  manifestUrl?: string;
+  plugins?: WidgetPlugin[];
 
-  // Widget configuration
-  widgetSetup?: (manifest: AssetManifest) => WidgetRegistry;
+  timingProfile?: EngineTimingProfile;
 
-  // Engine configuration
-  fpsCap?: number;
-  pixelsPerScene?: number;
-  framesPerTick?: number;
-  quality?: 'performance' | 'balanced' | 'high';
+  /** The widget id of the camera to use as the primary scene camera. */
+  primaryCameraId?: string;
 
-  // Input
-  inputMap?: SceneNavInputMap;
+  /** The widget id of the canvas that receives action-based camera input. */
+  primaryCanvasActionTargetId?: string;
+
+  cameraInteractionDefaults?: CameraInteractionDefaults;
+
   /**
-   * Controls whether the engine derives input mode from scene content (`'auto'`),
-   * prefers scroll mode (`'prefer-scroll'`), or prefers direct mode (`'prefer-direct'`).
-   *
-   * `'prefer-direct'` activates direct mode ONLY when at least one `<Scene>` child
-   * contains an `<InputController>`. Without an `<InputController>`, it falls back to scroll
-   * mode regardless of this setting. `DemoEngine` from `@brewsite/docs` combines
-   * `inputModePolicy="prefer-direct"` with automatic `<InputController>` injection to
-   * prevent scroll spacer creation while keeping the engine in direct mode.
-   *
-   * Defaults to `'auto'`.
+   * Increment to force recompilation of the SceneTrack when scene DSL
+   * hasn't structurally changed but content has (e.g., dynamic asset URLs).
    */
-  inputModePolicy?: InputModePolicy;
-  /**
-   * Fixed height in pixels for the scroll spacer element. When provided, overrides the
-   * default `pixelsPerScene * sceneCount` calculation. `DemoEngine` from `@brewsite/docs`
-   * passes `scrollHeightPx={0}` to suppress the scroll spacer entirely — the demo is
-   * driven by direct `setRawProgress` calls from wheel event interception, not by
-   * `window.scrollY`. Only meaningful in scroll mode; ignored when the engine resolves
-   * to direct mode.
-   */
-  scrollHeightPx?: number;
+  invalidateCacheToken?: number | string;
 
-  // Controlled progress mode
-  controlledProgress?: number;
-  onControlledProgressChange?: (progress: number) => void;
-
-  // Lifecycle callbacks
-  onReady?: () => void;
-  onError?: (error: Error) => void;
-  onManifestError?: (error: Error) => void;
-  onWidgetError?: (widgetId: string, error: Error) => void;
-  onCompileWarning?: (warning: CompileWarning) => void;
-  onSceneChange?: (sceneId: string, sceneIndex: number) => void;
-
-  // Widget defaults
-  defaultModelStates?: Record<string, unknown>;
+  /** Max animation-seconds that may advance in a single frame tick during fast scroll/input. */
+  maxAnimBoostPerFrame?: number;
 
   /**
    * Optional scene theme token set for cross-package visual styling.
-   *
-   * When provided: EngineOverlayHost reads the theme via ThemeContext and injects
-   * CSS custom properties on its overlay container, making font family, font sizes,
-   * color mode, and text colors available to all overlay content.
-   *
-   * CSS variables injected: --brewsite-font-family, --brewsite-font-size-{heading,body,
-   * label,caption,annotation}, --brewsite-color-mode, --brewsite-text-primary,
-   * --brewsite-text-secondary, --brewsite-accent-color (conditional).
-   *
-   * Static for the player lifetime — does not change per scene. For per-scene background
-   * changes, use <Background theme={...} /> in each scene.
-   *
-   * The webglFontUrl token is NOT auto-plumbed to WebGL renderers — pass the sceneTheme
-   * explicitly to DiagramTheme.sceneTheme or ChartTheme.sceneTheme / ChartDSL.sceneTheme.
-   *
+   * EngineOverlayHost reads the theme via ThemeContext and injects CSS custom properties.
    * See requirements/core/prd/prd_theming.md for full documentation.
    */
   sceneTheme?: SceneTheme;
+
+  onReady?: () => void;
+  onError?: (error: Error) => void;
+  onWidgetError?: (widgetId: string, error: Error) => void;
+  onCompileWarning?: (warnings: CompileWarning[]) => void;
 };
 ```
 
-**When to use `EngineProvider` directly:**
+**When to use `SceneEngine` directly:**
 - Custom canvas layout (grid, flex, portal, absolute positioning outside the document flow)
 - Multiple canvases registered against a single engine
 - Overlay content hosted in a separate React subtree or DOM portal
-- Integration with a custom input region
+- Plugin hoisting (zero-scene mode: provide plugins to all nested `SceneReel` instances)
 
-**Context tree established by `EngineProvider`:**
+**Context tree established by `SceneEngine`:**
 ```
 VariableStoreContext.Provider
   LabelPositionerContext.Provider
@@ -353,14 +325,21 @@ VariableStoreContext.Provider
         {children}
 ```
 
-All player hooks (`useCurrentScene`, `useSceneProgress`, `useVariable`, `useEngineState`, `useSceneEngineContext`) require an `EngineProvider` ancestor.
+All player hooks (`useCurrentScene`, `useSceneProgress`, `useVariable`, `useEngineState`, `useSceneEngineContext`) require a `SceneEngine` ancestor.
 
 ### 7A.2 SceneCanvas
 
-`SceneCanvas` renders the `<canvas>` element and registers it with the engine via `EngineContext`. It owns the `ResizeObserver` that keeps `engine.setViewportSize` current. `SceneCanvas` must be rendered inside an `EngineProvider` tree.
+`SceneCanvas` renders the `<canvas>` element and registers it with the engine via `EngineContext`. It owns the `ResizeObserver` that keeps `engine.setViewportSize` current. `SceneCanvas` must be rendered inside a `SceneEngine` tree, or paired with an `engineId` prop to bind cross-tree.
 
 ```typescript
 type SceneCanvasProps = React.CanvasHTMLAttributes<HTMLCanvasElement> & {
+  /**
+   * Binds this canvas to a SceneEngine in a separate React subtree by id.
+   * When set, the canvas does not require a SceneEngine ancestor — it looks up
+   * the engine by id from the global ScenePlayerRegistry.
+   */
+  engineId?: string;
+
   /**
    * ReactElement rendered while the engine is initializing (tickIndex < 0).
    * Overlaid absolutely over the canvas with pointer-events: none.
@@ -379,7 +358,7 @@ const SceneCanvas = React.forwardRef<HTMLCanvasElement, SceneCanvasProps>(
 
 ### 7A.3 EngineOverlayHost
 
-`EngineOverlayHost` renders the compiled `TextBox` overlay content for the current scene, positioned in NVS coordinates over the canvas. It must be rendered inside an `EngineProvider` tree, and it must be rendered inside an `EngineARContainer` so that NVS coordinates resolve correctly against the AR-locked viewport.
+`EngineOverlayHost` renders the compiled `TextBox` overlay content for the current scene, positioned in NVS coordinates over the canvas. It must be rendered inside a `SceneEngine` tree, and it must be rendered inside an `EngineARContainer` so that NVS coordinates resolve correctly against the AR-locked viewport.
 
 ```typescript
 type EngineOverlayHostProps = {
@@ -400,7 +379,7 @@ const EngineOverlayHost: React.FC<EngineOverlayHostProps>;
 **Behavior:**
 - Reads `engine.frameState.sceneId` from `EngineContext`.
 - Reads all `TextBoxState` entries keyed under `"textbox:{id}"` from the `VariableStore` for the current scene. These are written by the `TextBoxWidget` during `onTick`.
-- Reads `ThemeContext` (provided by `EngineProvider`) and — when a `SceneTheme` is present — injects CSS custom properties on the overlay container div.
+- Reads `ThemeContext` (provided by `SceneEngine` via `sceneTheme` prop) and — when a `SceneTheme` is present — injects CSS custom properties on the overlay container div.
 - Renders each `TextBoxState` as an absolutely positioned `div` whose `left`, `top`, `width`, and `height` are derived from the `TextBoxState.nvsBounds` NVS rectangle, converted to percentage values against the container (which is AR-locked by `EngineARContainer`).
 - Renders the overlay inside a `div` with `position: absolute; inset: 0; overflow: hidden`.
 - Uses `key={sceneId}` on the inner overlay div to trigger a React remount on scene change, which applies a CSS fade-in transition.
@@ -408,7 +387,7 @@ const EngineOverlayHost: React.FC<EngineOverlayHostProps>;
 
 **Removed:** `sceneOverlays` — the previous pattern of authoring raw HTML children directly inside `<Scene>` (collected as `SceneFrame.sceneOverlay: ReactNode`) has been removed. `SceneFrame` no longer has a `sceneOverlay` field. All overlay content is now authored via the `<TextBox>` DSL element.
 
-**CSS variable injection (when `EngineProvider.sceneTheme` is set):**
+**CSS variable injection (when `SceneEngine.sceneTheme` is set):**
 
 `EngineOverlayHost` reads `ThemeContext` and injects these CSS custom properties on its root container:
 
@@ -436,17 +415,14 @@ The overlay container uses a CSS fade-in on mount, keyed by `sceneId`. This give
 
 ```tsx
 import {
-  EngineProvider, EngineARContainer, EngineGate, EngineInputRegion,
-  SceneCanvas, EngineOverlayHost, corePlugin,
+  SceneEngine, EngineARContainer, EngineGate, ScrollStage,
+  BackgroundLayer, SceneCanvas, EngineOverlayHost,
+  ScrollInput, KeyboardInput, corePlugin,
 } from '@brewsite/core';
 
 function App() {
   return (
-    <EngineProvider
-      id="main"
-      manifestUrl="/manifest.json"
-      plugins={[corePlugin()]}
-    >
+    <SceneEngine id="main" plugins={[corePlugin()]}>
       <Scene key="intro">
         <Camera descriptor={{ mode: 'world', position: [0, 1, 5], target: [0, 0, 0] }} />
         <TextBox id="headline" x={0.1} y={0.1} w={0.4} h={0.2}>
@@ -456,20 +432,23 @@ function App() {
 
       <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width">
         <EngineGate placeholder={<Spinner />}>
-          <EngineInputRegion>
+          <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1200}>
+            <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
             <SceneCanvas />
+            <ScrollInput source="window" />
+            <KeyboardInput />
             <EngineOverlayHost />
-          </EngineInputRegion>
+          </ScrollStage>
         </EngineGate>
       </EngineARContainer>
-    </EngineProvider>
+    </SceneEngine>
   );
 }
 ```
 
 ### 7A.4 EngineARContainer
 
-`EngineARContainer` maintains a fixed aspect ratio for the engine viewport. It wraps `SceneCanvas`, `EngineOverlayHost`, and `EngineInputRegion` to form the AR-locked spatial frame against which all NVS coordinates are resolved. `EngineARContainer` is required when using `<TextBox>` elements or any widget that implements `INVSBounded`.
+`EngineARContainer` maintains a fixed aspect ratio for the engine viewport. It wraps `SceneCanvas` and `EngineOverlayHost` to form the AR-locked spatial frame against which all NVS coordinates are resolved. `EngineARContainer` is required when using `<TextBox>` elements or any widget that implements `INVSBounded`.
 
 ```typescript
 export type ScaleMode = 'fit-width' | 'fit-height' | 'contain' | 'cover';
@@ -508,7 +487,7 @@ export type EngineARContainerProps = {
    */
   style?: React.CSSProperties;
 
-  /** All children — SceneCanvas, EngineOverlayHost, EngineInputRegion, etc. */
+  /** All children — SceneCanvas, EngineOverlayHost, ScrollStage, etc. */
   children: React.ReactNode;
 };
 
@@ -550,34 +529,40 @@ export type EngineARContainerContextValue = ViewportScaleContextValue;
 
 **Source:** `packages/core/src/player/EngineARContainer.tsx`
 
-### 7A.5 useSceneEngineState
+### 7A.5 useEngineState
 
-`useSceneEngineState(id)` reads current engine state from `ScenePlayerRegistry` via `useSyncExternalStore`. It works from anywhere in the React tree — no `EngineProvider` ancestor is required. It returns `null` when no engine with the given `id` is registered.
+`useEngineState(id?)` is the unified hook for reading engine state. Called without arguments inside a `SceneEngine` tree, it reads from context. Called with an `id` string, it reads from `ScenePlayerRegistry` via `useSyncExternalStore` — no `SceneEngine` ancestor is required in that case.
+
+`useSceneEngineState(id)` is deleted in v2; use `useEngineState(id)` instead.
 
 ```typescript
-type SceneEngineSnapshot = {
+type EngineStateSnapshot = {
   sceneId: string;
   sceneIndex: number;
   sceneProgress: number;
   progress: number;
 };
 
-const useSceneEngineState = (id: string): SceneEngineSnapshot | null;
+// No arguments — reads from nearest SceneEngine ancestor context:
+const useEngineState: () => EngineStateSnapshot;
+
+// With id — reads from global ScenePlayerRegistry:
+const useEngineState: (id: string) => EngineStateSnapshot | null;
 ```
 
-**When to use:**
+**When to use the `id` overload:**
 - Reading engine progress from a component in a different React subtree (e.g., a navigation bar outside the canvas container)
 - Coordinating multiple engines on a page without prop-drilling
 - Reading scene state in a portal-rendered component
 
 **Update frequency:** Updates on every tick index change (same cadence as `EngineStateContext`). Does not update on every animation frame.
 
-**Null behavior:** Returns `null` when no `<EngineProvider id={id}>` has registered. Callers must handle the null case.
+**Null behavior:** Returns `null` when no `<SceneEngine id={id}>` has registered. Callers must handle the null case.
 
 **Example:**
 ```typescript
 function NavBar() {
-  const state = useSceneEngineState('main-player');
+  const state = useEngineState('main-player');
 
   if (!state) return null;
 
@@ -590,43 +575,36 @@ function NavBar() {
 }
 ```
 
-### 7A.6 Embedded Direct-Mode Integration Pattern
+### 7A.6 Embedded Animation Integration Pattern
 
-`EngineProvider` supports an **embedded direct-mode** configuration for use inside host pages where the engine must not create a scroll spacer, must not read `window.scrollY`, and must instead be driven imperatively via `setRawProgress`. This is a general-purpose pattern available to any host application.
+In v2, embedding an animation on a page is handled by `SceneReel`, which provides a self-contained, sized container with no scroll infrastructure. There is no `inputModePolicy`, no scroll spacer, and no `setRawProgress` imperative pattern.
 
-**Requirements for embedded direct-mode operation:**
+**`SceneReel` — embedded reel:**
 
-1. **`inputModePolicy="prefer-direct"`** — Requests direct mode. Alone, this does _not_ activate direct mode — the engine falls back to scroll if no `<InputController>` is present in any scene.
-
-2. **Empty `<InputController>` in the scene tree** — The scene DSL must include at least one `<InputController>` (with no `<Action>` children) inside a `<Scene>`. This is the condition that `inputModePolicy="prefer-direct"` checks before switching to direct mode. A host may inject this automatically or require the scene author to include it explicitly.
-
-3. **`scrollHeightPx={0}`** — Suppresses the scroll spacer element. Even in direct mode, the engine renders a spacer defaulting to viewport height. Pass `scrollHeightPx={0}` to eliminate it when the engine is embedded inside a host that manages its own scroll.
-
-4. **`setRawProgress`** — Call `setRawProgress(value)` (obtained from `useSceneEngine`) to imperatively push progress into the engine. The engine enters "push" mode on first call; subsequent `window.scrollY` reads are ignored until `scrollToProgress` relinquishes control.
-
-**Minimal example:**
 ```tsx
-<EngineProvider
-  manifestUrl={manifestUrl}
-  plugins={plugins}
-  inputModePolicy="prefer-direct"
-  scrollHeightPx={0}
->
-  <Scene id="my-scene">
-    <InputController /> {/* empty — satisfies hasSceneInputController */}
-    {/* scene content */}
+import { SceneReel, TimeInput } from '@brewsite/core';
+
+// Auto-playing inline animation — no input config required
+<SceneReel height={400} plugins={PLUGINS}>
+  <Scene key="demo">
+    <Camera descriptor={{ mode: 'world', position: [0, 1, 5], target: [0, 0, 0] }} />
   </Scene>
-  <SceneCanvas />
-  <EngineARContainer>
-    <EngineOverlayHost />
-    <EngineInputRegion />
-  </EngineARContainer>
-</EngineProvider>
+  <TimeInput duration={4} loop pauseWhenHidden={{ y: 0.5 }} />
+</SceneReel>
 ```
 
-**Do not** render `<EngineInputRegion>` outside the `<EngineARContainer>` in an embedded configuration — it would register pointer/wheel handlers against the wrong viewport bounds and interfere with the host page's own scroll.
+**`SceneReel` with externally controlled progress:**
 
-**Note on `@brewsite/docs`:** The docs application no longer uses the embedded direct-mode pattern per demo section. As of 2026-03-05, `@brewsite/docs` uses a single app-level `EngineProvider` in standard scroll mode, driven by `ScrollCaptureSection` reading `window.scrollY`. All 34 demo scenes are authored in a single global `docs-scenes.tsx`. The per-demo `DemoEngine` and `DemoCaptureContext` components have been deleted.
+```tsx
+const [progress, setProgress] = useState(0);
+
+<SceneReel height={400} plugins={PLUGINS}>
+  <Scene key="demo">...</Scene>
+  <ControlledInput value={progress} onChange={setProgress} />
+</SceneReel>
+```
+
+**`@brewsite/docs` integration:** The docs application uses a single app-level `SceneEngine` in standard scroll mode. All demo scenes are authored in a single global `docs-scenes.tsx`. Input is provided by a `ScrollInput` component reading from the window.
 
 ---
 
@@ -649,7 +627,7 @@ class SceneProgressMapper {
   remap(rawProgress: number): number;
 
   /**
-   * Cold path — called by scrollToProgress() only.
+   * Cold path — called by setProgress() and useGoToScene() only.
    * Inverse of remap: maps engine progress [0, 1] back to raw input
    * progress [0, 1]. Used to calculate the scroll position to jump to
    * when the caller requests a specific engine progress value.
@@ -660,9 +638,9 @@ class SceneProgressMapper {
 
 **When a mapper is active:** `SceneProgressMapper` is constructed when `SceneTrack.progressProfile` is present (i.e., at least one scene declared a `<ProgressManager>`). When `progressProfile` is absent (no `<ProgressManager>` in any scene), the identity mapping is used — no `SceneProgressMapper` is instantiated.
 
-**Mode scope:** `remap` is applied in scroll mode and direct mode. It is not applied when `controlledProgress` is set on `EngineProvider` (the caller provides engine progress directly).
+**Mode scope:** `remap` is applied in scroll mode and direct mode. It is not applied when `ControlledInput` drives engine progress directly (the caller provides engine progress directly).
 
-**`inverse` usage:** `scrollToProgress(engineProgress)` converts the requested engine progress through `mapper.inverse(engineProgress)` before setting scroll position or direct-mode progress state. This ensures that a call like `scrollToProgress(0.5)` jumps to the scroll position that produces engine progress 0.5, not raw progress 0.5.
+**`inverse` usage:** `setProgress(engineProgress)` and `useGoToScene` convert the requested engine progress through `mapper.inverse(engineProgress)` before setting scroll position or direct-mode progress state. This ensures that a call like `setProgress(0.5)` jumps to the scroll position that produces engine progress 0.5, not raw progress 0.5.
 
 ---
 
@@ -698,7 +676,7 @@ Widget authoring guidance:
 
 ## 8. useSceneEngine Hook
 
-`useSceneEngine` is the stateful hook that owns the Three.js engine lifecycle. It is called by `EngineProvider` internally and is not intended for direct use by host applications in the standard integration pattern. It is exported for advanced consumers who need to compose the engine with custom container components.
+`useSceneEngine` is the stateful hook that owns the Three.js engine lifecycle. It is called by `SceneEngine` internally and is not intended for direct use by host applications in the standard integration pattern. It is exported for advanced consumers who need to compose the engine with custom container components.
 
 ### 8.1 Options
 
@@ -738,7 +716,7 @@ type UseSceneEngineResult = {
   scrollRegionRef: RefObject<HTMLDivElement | null>;
   scrollRegionHeightPx: number;
   progress: number;
-  scrollToProgress: (next: number) => void;
+  setProgress: (next: number) => void;
   getGlobalProgress: () => number;
   sceneCount: number;
   /** All scene IDs in playback order. Derived from InternalSceneSpec[]. */
@@ -753,24 +731,19 @@ type UseSceneEngineResult = {
   getCameraOverride: () => CameraOverrideState | null;
   /**
    * Pauses or resumes idle auto-advance for all scenes in this engine instance.
-   * Instance-scoped: does not affect other EngineProvider instances on the same page.
+   * Instance-scoped: does not affect other SceneEngine instances on the same page.
    * When paused: true, the auto-advance clock is frozen regardless of idle state.
    * When paused: false, the clock resumes from where it stopped.
    * Typical use: pause when a modal opens, resume when it closes.
    */
   setAutoAdvancePaused: (paused: boolean) => void;
   /**
-   * Imperatively pushes a raw progress value [0, 1] into the engine, bypassing
-   * `window.scrollY`. Switches the engine to "push" mode on first call. Subsequent
-   * scroll events are ignored until `scrollToProgress` is called to relinquish control.
-   *
-   * Reference is stable across renders (wrapped in `useCallback([])`). Safe to store
-   * in a ref or pass to a non-React callback without risk of stale closure.
-   *
-   * Useful for any host that drives engine progress imperatively (e.g., a slide player,
-   * an embedded demo, or a custom scroll driver). See Section 7A.6.
+   * Directly sets engine progress [0, 1]. In v2, prefer ControlledInput for
+   * externally-driven progress, or useGoToScene for scene navigation.
+   * This method is retained for advanced use cases (e.g., TimelineWidget scrubbing).
+   * Reference is stable across renders.
    */
-  setRawProgress: (raw: number) => void;
+  setProgress: (next: number) => void;
   debug?: {
     driverReady: boolean;
     assetsReady: boolean;
@@ -782,13 +755,13 @@ type UseSceneEngineResult = {
 
 **`frameState`** — Current `EngineFrameState` (see Section 8.3). Updated once per tick index change, not once per animation frame.
 
-**`scrollRegionRef`** — Ref to be attached to the scroll region DOM element. Used by `useEngineInput` to calculate scroll progress relative to the region.
+**`scrollRegionRef`** — Ref for the sticky scroll region DOM element. Attached by `ScrollStage` to enable progress computation from scroll position.
 
-**`scrollRegionHeightPx`** — Computed height for the scroll region spacer. In `scroll` mode: proportional to `pixelsPerScene * sceneCount`. In `direct` mode: equals viewport height.
+**`scrollRegionHeightPx`** — Computed height for the scroll region spacer. Computed by `ScrollStage` from the scene count and `pixelsPerScene`.
 
-**`progress`** — Global progress value [0, 1]. Updated via React state in scroll mode; updated via `useState` + ref in direct mode.
+**`progress`** — Global progress value [0, 1]. Updated by whichever active input component drives progress each frame.
 
-**`scrollToProgress(next)`** — Imperatively seeks to a progress value. In scroll mode: calls `window.scrollTo`. In direct mode: updates the progress state directly.
+**`setProgress(next)`** — Directly sets engine progress [0, 1]. Prefer `useGoToScene` for scene navigation and `ControlledInput` for external progress control. Primarily used by `TimelineWidget` during scrubbing.
 
 **`getGlobalProgress()`** — Reads the current progress from a ref (not React state). Stable, synchronous, no re-render. Used by `RuntimeLoop` to read progress each frame without subscribing to state.
 
@@ -804,15 +777,15 @@ type UseSceneEngineResult = {
 
 **`setBackgroundRef`** — Callback ref for the background div element. Wired to `BackgroundWidget` if registered, enabling DOM-level background color/image transitions.
 
-**`setViewportSize(width, height)`** — Called by `EngineInputRegion` on mount and on resize. Updates renderer size, camera aspect ratio, and label positioner container size.
+**`setViewportSize(width, height)`** — Called by `SceneCanvas` (via `ResizeObserver`) on mount and on resize. Updates renderer size, camera aspect ratio, and label positioner container size.
 
 **`setCameraOverride` / `getCameraOverride`** — Set and get a `CameraOverrideState` that is applied by `CameraWidget` each frame, overriding the compiled camera state. Used by camera orbit/dolly interaction handlers.
 
-**`setAutoAdvancePaused(paused)`** — Pauses or resumes idle auto-advance for all scenes in this engine instance. Instance-scoped: does not affect other `EngineProvider` instances on the same page. When `paused: true`, the auto-advance clock is frozen regardless of idle state; when `paused: false`, the clock resumes from where it stopped. Use this to pause auto-advance while a modal or overlay is open, then resume when it closes.
+**`setAutoAdvancePaused(paused)`** — Pauses or resumes idle auto-advance for all scenes in this engine instance. Instance-scoped: does not affect other `SceneEngine` instances on the same page. When `paused: true`, the auto-advance clock is frozen regardless of idle state; when `paused: false`, the clock resumes from where it stopped. Use this to pause auto-advance while a modal or overlay is open, then resume when it closes.
 
-**`setRawProgress(raw)`** — Imperatively pushes a raw progress value `[0, 1]` into the engine, bypassing `window.scrollY`. Puts the engine in "push" mode on first call; subsequent scroll events are ignored until `scrollToProgress` is called to relinquish control. The reference is stable across renders — it is safe to capture once and call from a non-React callback. The primary consumer is `DemoCaptureContext` in `@brewsite/docs`, which registers this function during `DocsDemo` mount and calls it with normalized wheel deltas to drive the embedded `DemoEngine` from scroll gestures captured inside the demo viewport.
+**`setProgress(next)`** — See above. Replaces `setRawProgress` and `scrollToProgress` from v1.
 
-**`debug`** — Development diagnostic object. Contains `driverReady`, `assetsReady`, `sceneTrackTicks`, and viewport dimensions. Used internally by `EngineProvider` to publish `SceneRuntimeState` to the `ScenePlayerRegistry`. Not intended for direct use by consumers.
+**`debug`** — Development diagnostic object. Contains `driverReady`, `assetsReady`, `sceneTrackTicks`, and viewport dimensions. Used internally by `SceneEngine` to publish `SceneRuntimeState` to the `ScenePlayerRegistry`. Not intended for direct use by consumers.
 
 ### 8.3 EngineFrameState
 
@@ -1014,7 +987,7 @@ This design ensures React re-renders from the animation loop are proportional to
 
 ### 12.1 serializeJsx
 
-`serializeJsx` is an internal utility used by `EngineProvider` to detect scene content changes between renders. It is not exported from the player public API.
+`serializeJsx` is an internal utility used by `SceneEngine` to detect scene content changes between renders. It is not exported from the player public API.
 
 ```typescript
 // packages/core/src/player/serializeJsx.ts — internal
@@ -1036,7 +1009,7 @@ Converts a JSX element tree to a stable, deterministic string for cache key comp
 
 ### 12.2 ScenePlayerRegistry
 
-`ScenePlayerRegistry` is a module-level registry that enables `useSceneRuntime()` to read engine-internal state from outside the `<EngineProvider>` React subtree. It is not exported from the player public API.
+`ScenePlayerRegistry` is a module-level registry that enables `useSceneRuntime()` to read engine-internal state from outside the `<SceneEngine>` React subtree. It is not exported from the player public API.
 
 ```typescript
 // packages/core/src/player/ScenePlayerRegistry.ts — internal
@@ -1052,12 +1025,12 @@ export type SceneRuntimeState = {
   readonly numScenes: number;
 };
 
-// Published by EngineProvider when id prop is set
+// Published by SceneEngine when id prop is set
 export const setSceneRuntimeState: (id: string, state: SceneRuntimeState) => void;
 export const getSceneRuntimeState: (id: string) => SceneRuntimeState;
 export const subscribeSceneRuntime: (id: string, listener: () => void) => () => void;
 export const unregisterSceneRuntime: (id: string) => void;
-// Dev-mode check: returns true if an EngineProvider with this id has registered
+// Dev-mode check: returns true if a SceneEngine with this id has registered
 export const hasRegisteredPlayer: (id: string) => boolean;
 ```
 
@@ -1069,101 +1042,70 @@ export const hasRegisteredPlayer: (id: string) => boolean;
 export const useSceneRuntime = (playerId: string): SceneRuntimeState;
 ```
 
-Reads reactive runtime state published by `<EngineProvider id={playerId}>`. Uses `useSyncExternalStore` for concurrent-mode safety. When `assetsReady`, viewport, `variables`, or `numScenes` change, subscribers re-render automatically.
+Reads reactive runtime state published by `<SceneEngine id={playerId}>`. Uses `useSyncExternalStore` for concurrent-mode safety. When `assetsReady`, viewport, `variables`, or `numScenes` change, subscribers re-render automatically.
 
 **Recompile flow:**
 1. Assets finish loading → `engine.debug.assetsReady` → `true`
-2. EngineProvider's publish effect fires → `setSceneRuntimeState` → notifies listeners
+2. SceneEngine's publish effect fires → `setSceneRuntimeState` → notifies listeners
 3. Parent component re-renders via `useSceneRuntime`
 4. New JSX produces different `contentKey` via `serializeJsx`
 5. `sceneContentKey` changes → `useMemo` fires → new `scenes` reference
 6. Compilation effect fires → cache miss → `compileSceneTrack` → new `SceneTrack`
 
-**Dev-mode footgun warning:** If `useSceneRuntime(id)` is called but no `<EngineProvider id={id}>` registers within 1000ms, a `console.warn` is emitted. Gated on `process.env.NODE_ENV !== 'production'`.
+**Dev-mode footgun warning:** If `useSceneRuntime(id)` is called but no `<SceneEngine id={id}>` registers within 1000ms, a `console.warn` is emitted. Gated on `process.env.NODE_ENV !== 'production'`.
 
 ## 13. Consumer Hooks
 
-### 13.1 useEngineScroll
+### 13.1 useEngineScroll (deleted in v2)
 
-```typescript
-type UseEngineScrollOptions = {
-  scrollRegionRef: RefObject<HTMLElement | null>;
-  scrollRegionHeightPx: number;
-};
+`useEngineScroll` is removed in v2.0.0. Scene navigation from window scroll is now handled by the `<ScrollInput source="window" />` component. See `packages/core/MIGRATION.md`.
 
-type UseEngineScrollResult = {
-  progress: number;
-  scrollToProgress: (next: number) => void;
-  getGlobalProgress: () => number;
-};
+### 13.2 useEngineInput (deleted in v2)
 
-const useEngineScroll = (options: UseEngineScrollOptions): UseEngineScrollResult
-```
-
-Subscribes to `window.scroll` and `window.resize` events. Computes progress as the normalized scroll position of the scroll region within the viewport: `(scrollTop - regionTop) / (scrollRegionHeightPx - viewportHeight)`. `getGlobalProgress` reads from a ref for synchronous access in the rAF loop.
-
-### 13.2 useEngineInput
-
-```typescript
-type UseEngineInputOptions = {
-  scrollRegionRef: RefObject<HTMLElement | null>;
-  scrollRegionHeightPx: number;
-  sceneCount: number;
-  canvasRef?: RefObject<HTMLElement | null>;
-  inputMap?: SceneNavInputMap;
-  wheelGuard?: () => boolean;
-  inputControllerSpec?: SceneInputControllerSpec | null;
-  onCameraOrbit?: (cameraId: string, dx: number, dy: number, speed: number) => void;
-  onCameraDolly?: (cameraId: string, delta: number, speed: number) => void;
-  onCameraReset?: (cameraId: string) => void;
-  onDiagramCanvasMove?: (canvasId: string, dx: number, dy: number, speed: number) => void;
-  onDiagramCanvasRotate?: (canvasId: string, dx: number, dy: number, speed: number) => void;
-  onDiagramCanvasReset?: (canvasId: string) => void;
-  onDiagramCanvasFocus?: (
-    canvasId: string,
-    clientX: number,
-    clientY: number,
-    focusCenter?: [number, number] | [number, number, number],
-  ) => void;
-};
-
-type UseEngineInputResult = {
-  progress: number;
-  scrollToProgress: (next: number) => void;
-  getGlobalProgress: () => number;
-};
-```
-
-`useEngineInput` is the unified input hook that handles all scene navigation and camera/canvas interaction. It selects between three internal routing paths:
-
-**Path 1: Scene-authored controller (`inputControllerSpec` present)** — When the current scene tick includes a `SceneInputControllerSpec` (from a `<InputController>` DSL element), an `ActionInputController` is created and attached. `ActionInputController` reads the spec each frame via a ref, dispatching to `onCameraOrbit`, `onCameraDolly`, `onCameraReset`, `onDiagramCanvasMove`, etc., based on the action mappings in the spec.
-
-**Path 2: Scroll mode** — When no `inputMap` or `inputMap.mode === 'scroll'`, delegates to `useEngineScroll`. Also attaches an `InputController` for keyboard-only navigation (arrow keys, Home/End). Wheel events are handled by native scroll; a separate `InputController` is not attached for wheel.
-
-**Path 3: Direct mode** — When `inputMap.mode === 'direct'`, attaches an `InputController` to the scroll region element for wheel, drag, swipe, and keyboard input. Progress is managed via a local ref + state pair rather than window scroll. `wheelGuard` is passed to `InputController` to suppress wheel scene navigation when the camera dolly interaction is active.
-
-The `wheelGuard` callback reads `CameraWidget.isWheelClaimedByInteraction()` — this prevents the scene from advancing while the user is using two-finger scroll to dolly the camera.
+`useEngineInput` is removed in v2.0.0. Replace with the appropriate input components (`ScrollInput`, `KeyboardInput`, `PointerInput`). Camera/canvas interaction continues to be handled by `ActionInputController` internally. See `packages/core/MIGRATION.md`.
 
 ### 13.3 useEngineScrubber
 
 ```typescript
-type UseEngineScrubberOptions = {
-  scrollToProgress: (next: number) => void;
-  getGlobalProgress: () => number;
-};
-
 type UseEngineScrubberResult = {
-  progress: number;
   isScrubbing: boolean;
   startScrub: () => void;
   stopScrub: () => void;
   setProgress: (next: number) => void;
 };
 
-const useEngineScrubber = (options: UseEngineScrubberOptions): UseEngineScrubberResult
+const useEngineScrubber = (): UseEngineScrubberResult
 ```
 
-Provides direct progress control for the `TimelineWidget`. `setProgress` calls `scrollToProgress`. `startScrub` / `stopScrub` manage the `isScrubbing` flag, which the `TimelineWidget` uses to show a visual drag indicator and suppress engine progress during active scrub.
+No options in v2 — the hook reads the engine context directly and must be called inside a `<SceneEngine>` tree. `setProgress` calls `engine.setProgress(p)` internally. `startScrub` / `stopScrub` manage the `isScrubbing` flag, which the `TimelineWidget` uses to show a visual drag indicator and suppress engine progress during active scrub.
+
+The `progress` field from the v1 result is removed. Read `engine.progress` from `useSceneEngineContext()` directly instead.
+
+### 13.3a useGoToScene (new in v2)
+
+```typescript
+const useGoToScene = (): (target: string | number) => void
+```
+
+Returns a stable callback for programmatic scene navigation. The callback accepts either a scene `id` string or a zero-based scene `index` number. It syncs the active scroll source to the target scene — the correct mechanism for navigation buttons and sidebar links.
+
+```typescript
+const goToScene = useGoToScene();
+
+// By id:
+goToScene('chapter-3');
+
+// By index:
+goToScene(2);
+```
+
+### 13.3b useNativeScrollSource (new in v2)
+
+```typescript
+const useNativeScrollSource = (containerRef: RefObject<HTMLElement>): IScrollSource
+```
+
+Returns an `IScrollSource` implementation that reads scroll position from the provided element ref. Used to drive `<ScrollInput source={source} />` from a custom scroll container instead of `window`. The returned object is stable across renders (referential equality preserved).
 
 ### 13.4 useSceneProgress
 
@@ -1201,21 +1143,20 @@ return (
 const useEngineState = (): EngineState
 ```
 
-Returns the full `EngineState` (`progress`, `sceneId`, `sceneIndex`, `sceneProgress`) from `EngineStateContext`. Throws if called outside `<EngineProvider>`. Used internally by `useSceneProgress` and `useCurrentScene`. Direct use is appropriate for custom overlays that need multiple state values.
+Returns the full `EngineState` (`progress`, `sceneId`, `sceneIndex`, `sceneProgress`) from `EngineStateContext`. Throws if called outside `<SceneEngine>`. Used internally by `useSceneProgress` and `useCurrentScene`. Direct use is appropriate for custom overlays that need multiple state values.
 
 ---
 
 ## 14. Context Providers
 
-All context providers are established by `EngineProvider` in this nesting order (outer to inner):
+All context providers are established by `SceneEngine` in this nesting order (outer to inner):
 
 ```
 VariableStoreContext.Provider
   LabelPositionerContext.Provider
     EngineStateContext.Provider
       EngineContext.Provider
-        EngineInputRegion
-          [SceneCanvas, EngineOverlayHost, LabelItems, TimelineWidget, children]
+        {children}  ← SceneCanvas, EngineOverlayHost, ScrollStage, input components, etc.
 ```
 
 ### 14.1 EngineStateContext
@@ -1231,7 +1172,7 @@ type EngineState = {
 };
 ```
 
-Updated by `EngineProvider` via `useMemo` from `engine.progress` and `engine.frameState`. Consumed by `useEngineState`, `useSceneProgress`, and `useCurrentScene`. The context value is a new object reference on every tick index change — memo comparisons on this context value must compare individual fields, not the object reference.
+Updated by `SceneEngine` via `useMemo` from `engine.progress` and `engine.frameState`. Consumed by `useEngineState`, `useSceneProgress`, and `useCurrentScene`. The context value is a new object reference on every tick index change — memo comparisons on this context value must compare individual fields, not the object reference.
 
 ### 14.2 VariableStoreContext
 
@@ -1250,7 +1191,7 @@ Provides the `VariableStore` instance to all components in the tree. Consumed by
 ```typescript
 const LabelPositionerContext = createContext<LabelPositioner | null>(null);
 
-const useLabelPositioner = (): LabelPositioner  // throws if outside EngineProvider
+const useLabelPositioner = (): LabelPositioner  // throws if outside SceneEngine
 ```
 
 Provides the `LabelPositioner` instance to `LabelItem` components. The positioner is stable for the engine lifetime. `LabelItem` components call `positioner.registerElement(id, el)` on mount/unmount to register their DOM elements for per-frame positioning updates.
@@ -1260,35 +1201,37 @@ Provides the `LabelPositioner` instance to `LabelItem` components. The positione
 ```typescript
 const EngineContext = createContext<UseSceneEngineResult | null>(null);
 
-const useSceneEngineContext = (): UseSceneEngineResult  // throws if outside EngineProvider
+const useSceneEngineContext = (): UseSceneEngineResult  // throws if outside SceneEngine
 ```
 
 Provides the full `UseSceneEngineResult` to advanced consumers. Used by `CameraControlPanel` (needs `getCamera()`, `setCameraOverride()`). Not intended for standard host application use — it exposes the engine's internals. Prefer `useCurrentScene`, `useSceneProgress`, and `useVariable` for normal UI integration.
 
 ---
 
-## 15. EngineInputRegion
+## 15. ScrollStage (replaces EngineInputRegion)
 
-`EngineInputRegion` is the canonical input capture region for `EngineProvider` integrations. It reads layout configuration and engine state directly from `EngineContext` — no `engine` prop is required. Mount `SceneCanvas` and `EngineOverlayHost` as children.
+`EngineInputRegion` is deleted in v2.0.0. The full-page scroll layout it provided is now implemented by `ScrollStage`. Focus management and keyboard capture moved to `KeyboardInput`.
 
-> **Migration from `EngineScrollRegion`:** `EngineScrollRegion` has been removed. Replace any `<EngineScrollRegion engine={engine}>` usage with `<EngineInputRegion>` and add `<SceneCanvas />` as a child. `EngineInputRegion` reads `scrollRegionHeightPx` and `scrollRegionRef` directly from engine context.
+`ScrollStage` creates the tall-spacer + sticky-viewport DOM structure for full-page scroll-driven animations. It computes scroll height from the compiled `SceneTrack` (via `SceneEngineContext`) or from explicit props.
 
 ```typescript
-type EngineInputRegionProps = {
-  inputMap?: SceneNavInputMap;
+type ScrollStageProps = {
+  children: ReactNode;
   className?: string;
-  children?: ReactNode;
-};
+} & (
+  | { scrollHeightMode: 'scene-count'; pixelsPerScene: number }
+  | { scrollHeightMode: 'scroll-units'; pixelsPerScrollUnit: number }
+  | { scrollHeightPx: number }
+);
 ```
 
-Adapts layout based on `inputMap.mode`:
+**Layout:**
+- **Outer div:** Height = computed scroll height. `overscrollBehavior: 'none'`.
+- **Inner viewport:** `position: sticky; top: 0; height: 100vh`. Contains `SceneCanvas`, `EngineOverlayHost`, and any other children.
 
-- **Scroll mode:** Outer div has height = `scrollRegionHeightPx` and `overscrollBehavior: 'none'`. Inner viewport is `position: sticky`.
-- **Direct mode:** Outer div has height = `100vh`. Inner viewport is `position: relative`.
+Input components (`ScrollInput`, `KeyboardInput`, etc.) are rendered as children alongside `SceneCanvas` and `EngineOverlayHost`. They attach their own event listeners and do not require a separate region wrapper.
 
-The inner viewport has `tabIndex={-1}` and an `onPointerDown` handler that calls `focus()` — this ensures keyboard events fire after the user clicks into the scene (required for keyboard navigation shortcuts).
-
-Both region components manage `ResizeObserver` and `window.resize` events to keep `engine.setViewportSize` current.
+See `packages/core/MIGRATION.md` for the `EngineInputRegion` → `ScrollStage` migration guide.
 
 ---
 
@@ -1329,7 +1272,7 @@ Labels for which `enabled === false` have `display: none` set without projection
 
 ## 17. TimelineWidget
 
-`TimelineWidget` is an interactive scrubbing UI component rendered inside an `<EngineProvider>` tree.
+`TimelineWidget` is an interactive scrubbing UI component rendered inside a `<SceneEngine>` tree.
 
 ```typescript
 type TimelineWidgetProps = {
@@ -1352,7 +1295,7 @@ type TimelineWidgetProps = {
 
 The widget renders a track bar with a draggable handle. Major tick marks correspond to scene boundaries (when `majorTicks === 'scene'`) or individual tick frames (when `majorTicks === 'frame'`). Scene labels appear above/beside major ticks when `showSceneLabels` is true.
 
-Scrubbing is implemented via pointer capture (`setPointerCapture`) — the handle tracks the pointer even when it moves outside the track bounds. During scrub, `engine.scrollToProgress` is called on every pointer move. The `isScrubbing` flag suppresses the engine's own progress from overwriting the scrub handle position during the drag.
+Scrubbing is implemented via pointer capture (`setPointerCapture`) — the handle tracks the pointer even when it moves outside the track bounds. During scrub, `engine.setProgress` is called on every pointer move. The `isScrubbing` flag suppresses the engine's own progress from overwriting the scrub handle position during the drag.
 
 The `pointerEvents: 'auto'` style is critical: `EngineOverlayHost` sets `pointer-events: none` on its container by default when `passthroughPointerEvents` is true. `TimelineWidget` re-enables pointer events on its own container to remain interactive.
 
@@ -1375,7 +1318,7 @@ It reads `getCamera()` and `setCameraOverride()` from `useSceneEngineContext`. T
 
 ## 19. SceneInspector
 
-`SceneInspector` is a development-only overlay component that provides scene navigation and progress visibility directly in the browser. Mount it inside `<EngineProvider>` for debug builds.
+`SceneInspector` is a development-only overlay component that provides scene navigation and progress visibility directly in the browser. Mount it inside `<SceneEngine>` for debug builds.
 
 ```typescript
 // Exported from @brewsite/core/player
@@ -1384,12 +1327,12 @@ export type { SceneInspectorProps } from './SceneInspector';
 ```
 
 **Features:**
-- **Scene list** — all scene keys listed; clicking a scene calls `scrollToProgress` to jump directly to it
+- **Scene list** — all scene keys listed; clicking a scene calls `goToScene` to jump directly to it
 - **Progress readouts** — current `sceneId`, 0-based `sceneIndex`, `progress` (global, 2dp), `sceneProgress` / `blockProgress` (within current transition block, 2dp), raw `tickIndex`
 
 **Integration:**
 ```tsx
-<EngineProvider manifestUrl="/manifest.json" plugins={PLUGINS} ...>
+<SceneEngine plugins={PLUGINS} ...>
   {process.env.NODE_ENV === 'development' && <SceneInspector />}
   ...
 ```
@@ -1457,23 +1400,23 @@ Extracts `ClipMeta[]` from the manifest for use by the compiler. Each `ClipMeta`
 const assertManifestValid = (raw: unknown): AssetManifest
 ```
 
-Validates the raw JSON fetched from `manifestUrl`. Throws if the manifest is not an object with a `version` field, or if `models` / `animations` are not arrays. Used by `EngineProvider` before storing the manifest in state.
+Validates the raw JSON fetched from a manifest URL. Throws if the manifest is not an object with a `version` field, or if `models` / `animations` are not arrays. Used by plugins (e.g., `modelPlugin`) before storing the manifest in state.
 
 ---
 
 ## 22. SSR Safety Contract
 
-`EngineProvider` must be safe to render server-side. The following constraints are enforced:
+`SceneEngine` must be safe to render server-side. The following constraints are enforced:
 
 1. **No Three.js code on the server code path.** All Three.js imports (`new THREE.WebGLRenderer(...)`, `new THREE.Scene()`, etc.) are inside `useEffect` callbacks. They are never called during `render()` or `renderToString()`.
 
-2. **Server render gates via EngineGate.** `EngineProvider` defers all engine initialization to client-side effects. `EngineGate` returns `placeholder ?? null` until the engine's first client-side tick, producing stable HTML for hydration.
+2. **Server render gates via EngineGate.** `SceneEngine` defers all engine initialization to client-side effects. `EngineGate` returns `placeholder ?? null` until the engine's first client-side tick, producing stable HTML for hydration. Input components render nothing on the server.
 
-3. **No hydration mismatch.** The canvas, HUD overlay, and label elements are only rendered client-side (after the engine's first tick via `EngineGate`). The placeholder renders identically on server and client until that point.
+3. **No hydration mismatch.** The canvas, overlay, and label elements are only rendered client-side (after the engine's first tick via `EngineGate`). The placeholder renders identically on server and client until that point.
 
 4. **Vite-specific HMR code is guarded.** The `import.meta.hot` HMR handler is only registered if `import.meta.hot` exists. This guard prevents crashes in non-Vite build environments.
 
-5. **Manifest fetching is safe.** The `fetch(manifestUrl)` call is inside a `useEffect` with a `cancelled` flag. If the component unmounts before fetch resolves, the state update is suppressed.
+5. **Manifest fetching is safe.** Plugin manifest fetches (`modelPlugin({ manifestUrl })`) are initiated inside `useEffect` with cancelled-flag guards. If the plugin component unmounts before fetch resolves, the state update is suppressed.
 
 ---
 
@@ -1507,15 +1450,15 @@ In tests, provide a deterministic clock that controls `now()` and manually dispa
 
 The testing pattern for the Runtime layer is interface-based stateful testing: construct a real `RuntimeDriverImpl` with mock widgets from `widgetMocks.ts`, call `tick` with known inputs, assert on `appliedStates[]`. Do not mock `RuntimeDriverImpl` internals.
 
-For hooks (`useSceneProgress`, `useCurrentScene`, `useEngineInput`), use React Testing Library with a minimal `EngineProvider` wrapper providing a real engine context.
+For hooks (`useSceneProgress`, `useCurrentScene`, `useEngineState`, `useGoToScene`), use React Testing Library with a minimal `SceneEngine` wrapper providing a real engine context.
 
 ---
 
 ## 24. Breaking Change Assessment
 
-**Current semver status:** `ScenePlayer` and `ScenePlayerProps` have been removed entirely (major breaking change). `EngineScrollRegion` and `EngineScrollRegionProps` have been removed. `createDefaultWidgetRegistry` and `DefaultWidgetRegistryOptions` have been removed. The canonical integration pattern is `EngineProvider` + `EngineGate` + `EngineInputRegion` + `SceneCanvas` + `EngineOverlayHost` with `corePlugin()` and `modelPlugin()`. Migration: replace `<ScenePlayer widgetSetup={...}>` with `<EngineProvider plugins={[corePlugin(), modelPlugin(manifest)]}>` wrapped layout primitives.
+**Current semver status:** `@brewsite/core` v2.0.0 — major release. The following symbols are deleted entirely with no compatibility shims: `EngineProvider`, `EngineInputRegion`, `ScenePlayer`, `ScrollCaptureSection`, `useEngineScroll`, `useEngineInput`, `useSceneEngineState`, `InputModePolicy`, `ScrollSource`. `scrollToProgress` renamed to `setProgress` on `UseSceneEngineResult`. `WidgetRenderContext.coords: NVSCoordService` is now required. See `packages/core/MIGRATION.md` for full migration table.
 
-**Guardrail:** `EngineProviderProps` fields must not be removed or renamed in minor versions. New optional fields can be added freely.
+**Guardrail:** `SceneEngineProps` fields must not be removed or renamed in minor versions. New optional fields can be added freely. `SceneEngineProps`, `ScrollStageProps`, and all input component prop types are the stable public API surface.
 
 **Known future risk:** `useSceneEngineContext` returns `UseSceneEngineResult` which includes internal engine refs. Additions to this type are non-breaking; removals are major changes. The type should not be used as a stable public API surface for third-party libraries — prefer the narrow hook APIs.
 
@@ -1550,10 +1493,9 @@ All downstream packages (`@brewsite/diagram`, `@brewsite/charts`, `@brewsite/mod
 ## 26. Open Questions
 
 - Should `useSceneProgress()` return the full `EngineState` instead of just `number`, to avoid consumers calling both `useSceneProgress` and `useCurrentScene`? A combined hook would reduce context reads.
-- Should `EngineProvider` expose a way to forward a `ref` to the canvas element for consumers who need direct canvas access (e.g., screenshot capture)? `SceneCanvas` already supports `forwardRef` — a convenience shortcut may be warranted.
+- Should `SceneEngine` expose a way to forward a `ref` to the canvas element for consumers who need direct canvas access (e.g., screenshot capture)? `SceneCanvas` already supports `forwardRef` — a convenience shortcut may be warranted.
 - Should `debug` information in `UseSceneEngineResult` be gated behind a `__DEV__` flag to prevent any dev-only overhead in production builds?
 - Should `EngineOverlayHost` expose a `transitionDurationMs` prop to control the CSS fade-in duration on scene change, or is a CSS class override sufficient?
-- Should `useSceneEngineState` be renamed to `useEngineSnapshot` to avoid confusion with `useSceneEngine`?
 
 ---
 
@@ -1561,18 +1503,21 @@ All downstream packages (`@brewsite/diagram`, `@brewsite/charts`, `@brewsite/mod
 
 For any release that modifies the Player or Runtime public API:
 
-- All `EngineProvider`, `EngineGate`, `SceneCanvas`, `EngineOverlayHost`, and `EngineARContainer` prop types compile with `strict: true` and no `any`.
-- `useCurrentScene`, `useSceneProgress`, and `useVariable` pass integration tests inside an `<EngineProvider>` wrapper.
-- `useSceneEngineState(id)` passes integration tests verifying: returns null before registration, returns correct snapshot after registration, returns null after unregister, updates on tick index change.
+- All `SceneEngine`, `SceneReel`, `ScrollStage`, `EngineGate`, `SceneCanvas`, `EngineOverlayHost`, and `EngineARContainer` prop types compile with `strict: true` and no `any`.
+- All input components (`ScrollInput`, `TimeInput`, `KeyboardInput`, `PointerInput`, `ControlledInput`) prop types compile with `strict: true` and no `any`.
+- `useCurrentScene`, `useSceneProgress`, and `useVariable` pass integration tests inside a `<SceneEngine>` wrapper.
+- `useEngineState(id)` passes integration tests verifying: returns null before registration, returns correct snapshot after registration, returns null after unregister, updates on tick index change.
+- `useGoToScene` integration test verifies navigation to scene by id and by index.
 - `RuntimeDriverImpl` unit tests cover the full tick sequence order (animation controllers before sampling before apply).
 - `RuntimeLoop` deterministic tests cover fpsCap throttling and delta clamping.
-- `EngineInputRegion` renders correctly in both `scroll` and `direct` modes.
-- `TimelineWidget` scrub interaction test confirms `scrollToProgress` is called on pointer drag.
+- `ScrollStage` renders correctly in all three height modes (`scene-count`, `scroll-units`, `scrollHeightPx`).
+- `TimelineWidget` scrub interaction test confirms `engine.setProgress` is called on pointer drag.
 - `EngineOverlayHost` renders `TextBox` overlay content from VariableStore and switches it on scene change.
 - `EngineARContainer` injects `--scene-scale` correctly for all four `scaleMode` values; unit test verifies computed scale for known parent dimensions.
 - `SceneProgressMapper.remap` unit tests cover: uniform segments (identity), single custom fn, multiple scenes with different scrollUnits, progress boundary conditions (0, 1).
 - `SceneProgressMapper.inverse` unit tests verify inverse maps engine progress back to raw progress correctly for both uniform and non-uniform profiles.
-- SSR render of `<EngineProvider>` with `<EngineGate>` produces no Three.js errors and matches the placeholder output.
-- At least one example in `apps/examples/` demonstrates `EngineProvider` + `EngineARContainer` + `SceneCanvas` + `EngineOverlayHost` with a `TextBox` overlay element.
+- SSR render of `<SceneEngine>` with `<EngineGate>` produces no Three.js errors and matches the placeholder output.
+- At least one example in `apps/examples/` demonstrates `SceneEngine` + `EngineARContainer` + `SceneCanvas` + `EngineOverlayHost` with a `TextBox` overlay element.
+- At least one example demonstrates `SceneReel` with `TimeInput`.
 - `CHANGELOG.md` in `packages/core` has an entry for every changed exported symbol.
-- `packages/core/README.md` reflects the current `EngineProviderProps` interface and documents `EngineARContainer`, `EngineGate`, `EngineInputRegion`, `SceneCanvas`, and `EngineOverlayHost`.
+- `packages/core/README.md` reflects the current `SceneEngineProps` interface and documents `SceneEngine`, `SceneReel`, `ScrollStage`, `EngineGate`, `SceneCanvas`, `EngineOverlayHost`, all input components, and `useGoToScene`.

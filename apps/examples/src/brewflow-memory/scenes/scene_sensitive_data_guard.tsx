@@ -1,43 +1,22 @@
 import type {JSX} from 'react';
 import {
-  Action,
   Background,
   Camera,
-  InputController,
-  KeyMap,
-  PointerMap,
   ProgressManager,
   Scene,
   TextBox,
-  WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneSensitiveDataGuard: JSX.Element = (
+export const SceneSensitiveDataGuard = () => (
   <Scene key="bfm-guard" id="bfm-guard">
     <ProgressManager scrollUnits={2000} fn={DWELL_FN} />
-    <Camera mode="world" position={[0, 4, 18]} target={[0, 0, 0]} fov={52} />
-    <Background color="#080b14" />
 
-    <InputController scope="canvas">
-      <Action id="pan" type="diagram-canvas.move" canvasId="bfm-guard-canvas">
-        <PointerMap event="drag" axis="xy" />
-        <WheelMap axis="xy" />
-      </Action>
-      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bfm-guard-canvas">
-        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
-      </Action>
-      <Action id="reset" type="diagram-canvas.reset" canvasId="bfm-guard-canvas">
-        <KeyMap keyName="r" />
-      </Action>
-    </InputController>
-
-    <DiagramCanvas id="bfm-guard-canvas" x={0} y={0} w={1} h={0.52} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="guard-diagram">
+    <Diagram id="guard-diagram" x={0} y={0} w={1} h={0.52} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
         <HierarchicalLayout direction="left-right" spacing={[3, 2]} />
 
         {/* Guard hub + 4 directives */}
@@ -52,7 +31,6 @@ export const sceneSensitiveDataGuard: JSX.Element = (
         <DiagramEdge from="guard-core" to="dir-sealed" arrowEnd="open" color="#6050a0" />
         <DiagramEdge from="guard-core" to="dir-no" arrowEnd="open" color="#6050a0" />
       </Diagram>
-    </DiagramCanvas>
 
     <TextBox id="bfm-guard-prose" x={0} y={0.52} w={1} h={0.48}>
       <div style={{

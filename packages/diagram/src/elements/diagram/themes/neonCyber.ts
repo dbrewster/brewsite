@@ -1,11 +1,11 @@
 // Neon Cyber theme — near-black backgrounds, saturated neon accents, strong glow.
-// Orthogonal routing by default for a structured "circuit board" look.
+// Flow routing by default for a structured "circuit board" look.
 
 import type { DiagramTheme } from '../types';
 
 /**
  * Neon Cyber: dark backgrounds with electric neon accent colours.
- * Orthogonal routing + 3D arrows by default. Strong node glow.
+ * Flow routing + 3D arrows by default. Strong node glow.
  * Best for dark-room demo contexts and "system architecture" decks.
  */
 export const neonCyberTheme: DiagramTheme = {
@@ -39,12 +39,22 @@ export const neonCyberTheme: DiagramTheme = {
     defaultThickness:     0.055,
     defaultMetalness:     0.70,
     defaultRoughness:     0.15,
-    routing:              'orthogonal',
+    routing:              'flow',
     landing:              'nearest-face',
     smoothness:           1.0,
     use3DArrows:          true,
     tubeRadialSegments:   12,
     organicVariation:     2.0,
+    flowTurnRadius:       0.035,
+    flowFaceStub:         0.05,
+    flowBundleStrength:   1.0,
+    flowObstaclePadding:  0.025,
+    flowTargetApproachBias: 1.35,
+    flowUnderpassDepth:   0.08,
+    flowUnderpassClearance: 0.03,
+    flowTurnPenalty:      0.45,
+    flowPunchthroughPenalty: 500,
+    flowUnderpassPenalty: 60,
     flowPulseIntensity:   0.9,
   },
   group: {

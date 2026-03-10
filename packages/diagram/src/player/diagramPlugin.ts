@@ -1,101 +1,81 @@
 // Factory for the @brewsite/diagram WidgetPlugin.
-// Widget instances are constructed from declared canvas IDs and returned from
-// createWidgets() so the runtime can initialize them before scene compilation runs.
+// Creates DiagramWidget instances for each declared diagram ID.
 
-import type { WidgetPlugin, WidgetRegistry } from '@brewsite/core';
+import type { WidgetPlugin } from '@brewsite/core';
 import { registerDiagramHandlers } from '../compiler/handlers';
-import { compileCanvas } from '../elements/diagram/canvas/compile';
-import { DiagramCanvasWidget } from '../elements/diagram/canvas/widget';
+import { DiagramWidget } from '../elements/diagram/widget';
+import { buildThemeRenderConfig } from '../elements/diagram/compiler/themeResolver';
+import { darkGlassTheme } from '../elements/diagram/themes';
+import type { DiagramState } from '../elements/diagram/types';
 
 /**
  * Options for the @brewsite/diagram WidgetPlugin.
  *
- * Declare every canvas ID used in the scene DSL so that DiagramCanvasWidget
+ * Declare every diagram ID used in the scene DSL so that DiagramWidget
  * instances are created before the runtime is constructed. This ensures
  * initialize() is called on each widget at engine startup.
  */
 export type DiagramPluginOptions = {
   /**
-   * The widgetIds of every DiagramCanvas (or standalone Diagram) used in the
-   * scene DSL. A DiagramCanvasWidget is created for each ID and returned from
-   * createWidgets() so the runtime can call initialize() on them before
-   * scene compilation runs.
+   * The widget IDs of every <Diagram> used in the scene DSL.
+   * A DiagramWidget is created for each ID.
    *
    * Use the id prop value exactly as written in the JSX:
-   *   <DiagramCanvas id="my-canvas"> → canvases: ['my-canvas']
-   *   <Diagram id="my-diagram">      → canvases: ['my-diagram']
+   *   <Diagram id="my-diagram"> → diagrams: ['my-diagram']
    */
-  canvases: readonly string[];
+  diagrams: readonly string[];
 };
 
 /**
  * WidgetPlugin for @brewsite/diagram.
  *
- * Pass the id of every <DiagramCanvas> or standalone <Diagram> used in your
- * scene DSL. The plugin creates one DiagramCanvasWidget per ID and returns
- * them from createWidgets() so the runtime initializes them before playback.
+ * Pass the id of every <Diagram> used in your scene DSL.
+ * The plugin creates one DiagramWidget per ID.
  *
  * @example
  * plugins={[
  *   corePlugin(),
  *   modelPlugin({ manifestUrl: '...' }),
- *   diagramPlugin({ canvases: ['my-canvas', 'detail-canvas'] }),
+ *   diagramPlugin({ diagrams: ['my-diagram', 'detail-diagram'] }),
  * ]}
  */
 export function diagramPlugin(options: DiagramPluginOptions): WidgetPlugin {
-  const { canvases } = options;
-
   return {
-    createWidgets: () => {
-      return canvases.map((id) => {
-        const defaultState = compileCanvas({ id }, [], []);
-        return new DiagramCanvasWidget(id, defaultState);
+    createWidgets(): DiagramWidget[] {
+      return options.diagrams.map((id) => {
+        const defaultState = makeDefaultDiagramState(id);
+        return new DiagramWidget(id, defaultState);
       });
     },
 
-    registerHandlers: () => {
+    registerHandlers(): void {
       registerDiagramHandlers();
     },
 
-    configureRegistry: () => {
+    configureRegistry(): void {
       // No-op. Handler registration happened in registerHandlers().
-      // Auto-registration of widgets no longer happens here — widgets
-      // are created in createWidgets() and are already in the registry
-      // by the time configureRegistry() is called.
+      // Widgets are created in createWidgets() and already in the registry.
     },
+  };
+}
 
-    getActionInputExtension(registry: WidgetRegistry) {
-      return {
-        onUnknownAction: (
-          type: string,
-          canvasId: string | undefined,
-          event: PointerEvent | WheelEvent | KeyboardEvent | MouseEvent,
-          extra: Record<string, unknown>,
-        ) => {
-          const canvas = canvasId
-            ? (registry.get(canvasId) as DiagramCanvasWidget | undefined)
-            : undefined;
-          if (!canvas) return;
-
-          switch (type) {
-            case 'diagram-canvas.move':
-              canvas.handleMove(event as PointerEvent | WheelEvent, extra.speed as number | undefined);
-              break;
-            case 'diagram-canvas.rotate':
-              canvas.handleRotate(event as PointerEvent | WheelEvent, extra.speed as number | undefined);
-              break;
-            case 'diagram-canvas.reset':
-              canvas.handleReset();
-              break;
-            case 'diagram-canvas.focus':
-              canvas.handleFocus(
-                event as PointerEvent | MouseEvent,
-                extra.focusCenter as [number, number] | [number, number, number] | undefined,
-              );
-              break;
-          }
-        },
-      };
-    },
+/**
+ * Creates a default DiagramState for use as the DiagramWidget's initial state.
+ * All fields are set to safe defaults; the actual state comes from compiled DSL.
+ */
+function makeDefaultDiagramState(id: string): DiagramState {
+  return {
+    id,
+    viewportBounds: { x: 0, y: 0, w: 1, h: 1 },
+    tiltRotation: [0, 0, 0],
+    z: 0,
+    scale: 1,
+    contentAspect: 1.0,
+    nodes: [],
+    edges: [],
+    groups: [],
+    exit: undefined,
+    enter: undefined,
+    themeConfig: buildThemeRenderConfig(darkGlassTheme),
   };
 }

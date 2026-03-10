@@ -1,10 +1,13 @@
 import { useState, useMemo } from 'react';
 import type { JSX } from 'react';
 import {
-  EngineProvider,
-  EngineInputRegion,
-  SceneCanvas,
+  BackgroundLayer,
   EngineOverlayHost,
+  KeyboardInput,
+  SceneCanvas,
+  SceneEngine,
+  ScrollInput,
+  ScrollStage,
   useSceneEngineContext,
 } from '@brewsite/core';
 import { createWebsitePlugins } from '../widgetSetup';
@@ -14,7 +17,7 @@ import { isMobile } from '../utils/viewport';
 
 const MANIFEST_URL = '/scene-manifest.json';
 
-/** Inner layout — must live inside EngineProvider to access engine context. */
+/** Inner layout — must live inside SceneEngine to access engine context. */
 function WebsiteLayout({
   loadError,
 }: {
@@ -24,7 +27,7 @@ function WebsiteLayout({
   const isLoading = engine.frameState.tickIndex < 0;
 
   return (
-    <div style={{ position: 'relative' }}>
+    <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1400}>
       {loadError && (
         <div role="alert" style={{ position: 'absolute', inset: 0, zIndex: 100, padding: 16 }}>
           Scene engine error: {loadError.message}
@@ -45,11 +48,12 @@ function WebsiteLayout({
           Loading BrewSite flow…
         </div>
       )}
-      <EngineInputRegion>
-        <SceneCanvas style={{ width: '100%', height: '100%' }} />
-        <EngineOverlayHost />
-      </EngineInputRegion>
-    </div>
+      <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+      <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
+      <ScrollInput source="window" />
+      <KeyboardInput />
+      <EngineOverlayHost />
+    </ScrollStage>
   );
 }
 
@@ -60,21 +64,16 @@ export default function LandingPage(): JSX.Element {
   const plugins = useMemo(() => createWebsitePlugins(MANIFEST_URL), []);
 
   return (
-    <EngineProvider
+    <SceneEngine
       id="website-flow-player"
-      manifestUrl={MANIFEST_URL}
       plugins={plugins}
-      quality={isMobile ? 'balanced' : 'high'}
-      pixelsPerScene={1400}
+      timingProfile={{ qualityPreset: isMobile ? 'balanced' : 'high' }}
       onError={(err) => {
         setLoadError(err);
         console.error('[WebsiteFlow] Engine error:', err);
       }}
       onWidgetError={(widgetId, err) => {
         console.error(`[WebsiteFlow] Widget "${widgetId}" error:`, err);
-      }}
-      onManifestError={(err) => {
-        console.error('[WebsiteFlow] Manifest load failed:', err);
       }}
       onCompileWarning={(warnings) => {
         warnings.forEach((w) => console.warn('[WebsiteFlow] Compile warning:', w));
@@ -83,6 +82,6 @@ export default function LandingPage(): JSX.Element {
       {websiteFlowScenes}
       <NavMenu />
       <WebsiteLayout loadError={loadError} />
-    </EngineProvider>
+    </SceneEngine>
   );
 }

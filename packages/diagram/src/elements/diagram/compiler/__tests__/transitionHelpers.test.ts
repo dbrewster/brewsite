@@ -7,6 +7,14 @@ import {
 } from '../transitionHelpers';
 import type { DiagramNodeState, DiagramEdgeState } from '../../types';
 
+const linePath = {
+  commands: [{ kind: 'line' as const, from: [0, 0, 0] as const, to: [1, 0, 0] as const }],
+  startTangent: [1, 0, 0] as const,
+  endTangent: [-1, 0, 0] as const,
+  usedUnderpass: false,
+  punctures: [],
+};
+
 const makeNode = (id: string, overrides: Partial<DiagramNodeState> = {}): DiagramNodeState => ({
   id,
   label: id,
@@ -46,6 +54,7 @@ const makeEdge = (id: string, fromId: string, toId: string, overrides: Partial<D
   arrowEnd: 'open',
   color: '#00ff00',
   thickness: 0.1,
+  path: linePath,
   controlPoints: [[0, 0, 0], [1, 0, 0]],
   opacity: 1,
   routing: 'curved',
@@ -82,7 +91,7 @@ describe('rerouteLiveEdges', () => {
       positions,
       sizes,
     );
-    expect(live.get('e1')).toEqual([]);
+    expect(live.get('e1')?.controlPoints).toEqual([]);
   });
 
   it('returns empty control points for edges with missing nodes', () => {
@@ -94,7 +103,7 @@ describe('rerouteLiveEdges', () => {
       positions,
       sizes,
     );
-    expect(live.get('e1')).toEqual([]);
+    expect(live.get('e1')?.controlPoints).toEqual([]);
   });
 
   it('recomputes control points when node positions change', () => {
@@ -107,7 +116,7 @@ describe('rerouteLiveEdges', () => {
       positions,
       sizes,
     );
-    expect(live.get('e1')?.length).toBeGreaterThan(1);
+    expect(live.get('e1')?.controlPoints.length).toBeGreaterThan(1);
   });
 });
 
@@ -120,8 +129,17 @@ describe('blendDiagramEdges', () => {
   });
 
   it('attaches live control points from rerouteLiveEdges result', () => {
-    const livePoints = new Map([['e1', [[1, 1, 1], [2, 2, 2]]]]);
-    const { blended } = blendDiagramEdges([], [makeEdge('e1', 'a', 'b')], livePoints, 0.5);
+    const liveRoutes = new Map([['e1', {
+      path: {
+        commands: [{ kind: 'line' as const, from: [1, 1, 1] as const, to: [2, 2, 2] as const }],
+        startTangent: [1, 0, 0] as const,
+        endTangent: [-1, 0, 0] as const,
+        usedUnderpass: false,
+        punctures: [],
+      },
+      controlPoints: [[1, 1, 1], [2, 2, 2]] as const,
+    }]]);
+    const { blended } = blendDiagramEdges([], [makeEdge('e1', 'a', 'b')], liveRoutes, 0.5);
     expect(blended[0].controlPoints).toEqual([[1, 1, 1], [2, 2, 2]]);
   });
 });

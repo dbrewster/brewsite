@@ -2,9 +2,17 @@
 // via setCanvasRef and the ResizeObserver that drives setViewportSize.
 // Place as a sibling of EngineOverlayHost inside a position:relative container.
 
-import { forwardRef, useEffect, useRef, type ReactElement, type CanvasHTMLAttributes } from 'react';
+import {
+  forwardRef,
+  useContext,
+  useEffect,
+  useRef,
+  type ReactElement,
+  type CanvasHTMLAttributes,
+} from 'react';
 import React from 'react';
-import { useSceneEngineContext } from './EngineContext';
+import { EngineContext } from './EngineContext';
+import { getCanvasBinding } from './ScenePlayerRegistry';
 
 export interface SceneCanvasProps extends CanvasHTMLAttributes<HTMLCanvasElement> {
   /**
@@ -12,21 +20,57 @@ export interface SceneCanvasProps extends CanvasHTMLAttributes<HTMLCanvasElement
    * Rendered as a sibling absolutely positioned over the canvas.
    */
   placeholder?: ReactElement;
+
+  /**
+   * Bind this canvas to a named engine when SceneCanvas is not a descendant of
+   * the target SceneEngine. Reads from ScenePlayerRegistry by id.
+   * For standard usage (canvas inside engine provider), omit this prop.
+   */
+  engineId?: string;
 }
 
 export const SceneCanvas = forwardRef<HTMLCanvasElement, SceneCanvasProps>(
-  function SceneCanvas({ placeholder, style, ...rest }, forwardedRef) {
-    const engine = useSceneEngineContext();
+  function SceneCanvas({ placeholder, style, engineId, ...rest }, forwardedRef) {
+    // Always call useContext unconditionally — returns null when outside SceneEngine.
+    // When engineId is set, localEngine may be null (canvas is outside the engine subtree).
+    const localEngine = useContext(EngineContext);
     const internalRef = useRef<HTMLCanvasElement>(null);
+
+    // Throw at render time if neither engineId nor a local engine context is available.
+    if (!engineId && !localEngine) {
+      throw new Error(
+        '[SceneCanvas] must be used inside a <SceneEngine> or with an `engineId` prop.',
+      );
+    }
 
     // Register/unregister canvas with engine
     useEffect(() => {
       const el = internalRef.current;
       if (!el) return;
-      engine.setCanvasRef(el);
-      return () => { engine.setCanvasRef(null); };
+
+      if (engineId) {
+        // Poll for the canvas binding via a RAF retry loop until the engine mounts.
+        let rafId: number;
+        const tryBind = () => {
+          const binding = getCanvasBinding(engineId);
+          if (binding) {
+            binding.setCanvasRef(el);
+          } else {
+            rafId = requestAnimationFrame(tryBind);
+          }
+        };
+        rafId = requestAnimationFrame(tryBind);
+        return () => {
+          cancelAnimationFrame(rafId);
+          const binding = getCanvasBinding(engineId);
+          binding?.setCanvasRef(null);
+        };
+      }
+
+      localEngine!.setCanvasRef(el);
+      return () => { localEngine!.setCanvasRef(null); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [engine.setCanvasRef]);
+    }, [engineId, localEngine?.setCanvasRef]);
 
     // Forward external ref
     useEffect(() => {
@@ -42,14 +86,19 @@ export const SceneCanvas = forwardRef<HTMLCanvasElement, SceneCanvasProps>(
       };
     }, [forwardedRef]);
 
-    // ResizeObserver drives engine.setViewportSize — moved here from EngineInputRegion
+    // ResizeObserver drives setViewportSize
     useEffect(() => {
       const el = internalRef.current;
       if (!el) return;
 
       const update = () => {
         const rect = el.getBoundingClientRect();
-        engine.setViewportSize(rect.width, rect.height);
+        if (engineId) {
+          const binding = getCanvasBinding(engineId);
+          binding?.setViewportSize(rect.width, rect.height);
+        } else {
+          localEngine?.setViewportSize(rect.width, rect.height);
+        }
       };
       update(); // initialize immediately
 
@@ -65,9 +114,9 @@ export const SceneCanvas = forwardRef<HTMLCanvasElement, SceneCanvasProps>(
         window.removeEventListener('resize', update);
       };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [engine.setViewportSize]);
+    }, [engineId, localEngine?.setViewportSize]);
 
-    const isLoading = engine.frameState.tickIndex < 0;
+    const isLoading = localEngine ? localEngine.frameState.tickIndex < 0 : false;
 
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%', ...style }}>

@@ -11,14 +11,15 @@ export function createMemoryPlugins(): { plugins: WidgetPlugin[] } {
     plugins: [
       corePlugin(),
       diagramPlugin({
-        canvases: [
-          'bfm-cls-canvas',
-          'bfm-episodic-canvas',
-          'bfm-somno-canvas',
-          'bfm-neo-canvas',
-          'bfm-inject-canvas',
-          'bfm-loop-canvas',
-          'bfm-guard-canvas',
+        diagrams: [
+          'cls-diagram',
+          'episodic-diagram',
+          'somno-diagram',
+          'neo-types',
+          'neo-lifecycle',
+          'inject-diagram',
+          'loop-diagram',
+          'guard-diagram',
         ],
       }),
     ],

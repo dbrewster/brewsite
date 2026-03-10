@@ -1,17 +1,12 @@
 import type {JSX} from 'react';
 import {
-  Action,
   Background,
   Camera,
-  InputController,
-  KeyMap,
-  PointerMap,
   ProgressManager,
   Scene,
   TextBox,
-  WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
 
@@ -20,23 +15,10 @@ const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 export const sceneDreamer: JSX.Element = (
   <Scene key="bf-dreamer" id="bf-dreamer">
     <ProgressManager scrollUnits={2800} fn={DWELL_FN} />
-    <InputController scope="canvas">
-      <Action id="pan" type="diagram-canvas.move" canvasId="bf-dreamer">
-        <PointerMap event="drag" axis="xy" />
-        <WheelMap axis="xy" />
-      </Action>
-      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bf-dreamer">
-        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
-      </Action>
-      <Action id="reset" type="diagram-canvas.reset" canvasId="bf-dreamer">
-        <KeyMap keyName="r" />
-      </Action>
-    </InputController>
     <Camera mode="world" position={[0, 5, 22]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bf-dreamer" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="dreamer-flow">
+    <Diagram id="dreamer-flow" theme={brewflowTheme}>
         <HierarchicalLayout direction="left-right" spacing={[3, 3]} />
 
         <DiagramNode
@@ -74,8 +56,7 @@ export const sceneDreamer: JSX.Element = (
         <DiagramEdge from="d-dreamer" to="d-episodic" label="query episodes" color="#5070b0" />
         <DiagramEdge from="d-episodic" to="d-dreamer" label="bundles + summaries" style="dashed" color="#4060a0" />
         <DiagramEdge from="d-dreamer" to="d-neocortex" label="Stage 7: publish cards" flow="forward" color="#6090d0" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="dreamer-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

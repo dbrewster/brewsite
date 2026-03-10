@@ -1,25 +1,35 @@
 import type {JSX} from 'react';
 import {useMemo} from 'react';
-import {EngineARContainer, EngineInputRegion, EngineOverlayHost, EngineProvider, SceneCanvas,} from '@brewsite/core';
+import {
+  BackgroundLayer,
+  EngineARContainer,
+  EngineOverlayHost,
+  KeyboardInput,
+  SceneCanvas,
+  SceneEngine,
+  ScrollInput,
+  ScrollStage,
+} from '@brewsite/core';
 import {createArchitecturePlugins} from './widgetSetup';
 import {architectureFlowScenes} from './flow';
-
-const MANIFEST_URL = '/scene-manifest.json';
 
 export default function ArchitecturePage(): JSX.Element {
   const { plugins } = useMemo(() => createArchitecturePlugins(), []);
 
   return (
     <div style={{ background: '#030508', minHeight: '100vh' }}>
-      <EngineProvider manifestUrl={MANIFEST_URL} plugins={plugins} pixelsPerScene={1400} inputModePolicy="prefer-scroll">
+      <SceneEngine plugins={plugins}>
         {architectureFlowScenes}
-        <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width" referenceWidth={1920}>
-          <EngineInputRegion>
-            <SceneCanvas />
+        <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1400}>
+          <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width" referenceWidth={1920}>
+            <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+            <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
             <EngineOverlayHost />
-          </EngineInputRegion>
-        </EngineARContainer>
-      </EngineProvider>
+          </EngineARContainer>
+          <ScrollInput source="window" />
+          <KeyboardInput />
+        </ScrollStage>
+      </SceneEngine>
     </div>
   );
 }

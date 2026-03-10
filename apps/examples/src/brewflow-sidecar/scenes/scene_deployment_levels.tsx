@@ -1,17 +1,12 @@
 import type {JSX} from 'react';
 import {
-  Action,
   Background,
   Camera,
-  InputController,
-  KeyMap,
-  PointerMap,
   ProgressManager,
   Scene,
   TextBox,
-  WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, FlowLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramNode, FlowLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
 
@@ -20,23 +15,10 @@ const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 export const sceneDeploymentLevels: JSX.Element = (
   <Scene key="bf-levels" id="bf-levels">
     <ProgressManager scrollUnits={3000} fn={DWELL_FN} />
-    <InputController scope="canvas">
-      <Action id="pan" type="diagram-canvas.move" canvasId="bf-levels">
-        <PointerMap event="drag" axis="xy" />
-        <WheelMap axis="xy" />
-      </Action>
-      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bf-levels">
-        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
-      </Action>
-      <Action id="reset" type="diagram-canvas.reset" canvasId="bf-levels">
-        <KeyMap keyName="r" />
-      </Action>
-    </InputController>
     <Camera mode="world" position={[0, 5, 26]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bf-levels" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={.7} theme={brewflowTheme}>
-      <Diagram id="levels-diagram">
+    <Diagram id="levels-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={.7} theme={brewflowTheme}>
         <FlowLayout direction="top-down" gap={2} />
 
         <DiagramNode
@@ -90,8 +72,7 @@ export const sceneDeploymentLevels: JSX.Element = (
         <DiagramEdge from="lvl-2" to="lvl-3" arrowEnd="open" flow="forward" color="#5070b0" />
         <DiagramEdge from="lvl-3" to="lvl-4" arrowEnd="open" flow="forward" color="#5070b0" />
         <DiagramEdge from="lvl-4" to="lvl-5" arrowEnd="open" flow="forward" color="#5070b0" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="levels-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

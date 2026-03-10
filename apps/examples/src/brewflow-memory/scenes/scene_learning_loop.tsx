@@ -1,43 +1,22 @@
 import type {JSX} from 'react';
 import {
-  Action,
   Background,
   Camera,
-  InputController,
-  KeyMap,
-  PointerMap,
   ProgressManager,
   Scene,
   TextBox,
-  WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneLearningLoop: JSX.Element = (
+export const SceneLearningLoop = () => (
   <Scene key="bfm-loop" id="bfm-loop">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
-    <Camera mode="world" position={[0, 6, 26]} target={[0, 0, 0]} fov={52} />
-    <Background color="#080b14" />
 
-    <InputController scope="canvas">
-      <Action id="pan" type="diagram-canvas.move" canvasId="bfm-loop-canvas">
-        <PointerMap event="drag" axis="xy" />
-        <WheelMap axis="xy" />
-      </Action>
-      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bfm-loop-canvas">
-        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
-      </Action>
-      <Action id="reset" type="diagram-canvas.reset" canvasId="bfm-loop-canvas">
-        <KeyMap keyName="r" />
-      </Action>
-    </InputController>
-
-    <DiagramCanvas id="bfm-loop-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="loop-diagram">
+    <Diagram id="loop-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
         <ManualLayout />
         <DiagramEnter fade />
 
@@ -55,7 +34,6 @@ export const sceneLearningLoop: JSX.Element = (
         <DiagramEdge from="loop-neo" to="loop-inject" label="curated library" color="#5070b0" />
         <DiagramEdge from="loop-inject" to="loop-agent" label="bounded context pack" flow="forward" color="#6090d0" />
       </Diagram>
-    </DiagramCanvas>
 
     <TextBox id="bfm-loop-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

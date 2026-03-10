@@ -6,6 +6,7 @@ import type {
   DiagramNodeState,
   DiagramEdgeDSL,
   DiagramEdgeState,
+  DiagramEdgePathState,
   DiagramTheme,
 } from '../types';
 import { resolveIconUrl } from '../shapes/iconRegistry';
@@ -19,6 +20,7 @@ export const buildNodeDefaults = (theme: DiagramTheme) => ({
   size:                     theme.node.defaultSize as [number, number],
   thickness:                theme.node.defaultThickness,
   color:                    theme.node.defaultColor,
+  boxColor:                 theme.node.defaultBoxColor,
   metalness:                theme.node.defaultMetalness,
   roughness:                theme.node.defaultRoughness,
   emissiveIntensity:        theme.node.defaultEmissiveIntensity,
@@ -36,14 +38,19 @@ export const buildNodeDefaults = (theme: DiagramTheme) => ({
 });
 
 export const buildEdgeDefaults = (theme: DiagramTheme) => ({
-  style:      'solid' as const,
-  arrowStart: 'none' as const,
-  arrowEnd:   'none' as const,
-  color:      theme.edge.defaultColor,
-  thickness:  theme.edge.defaultThickness,
-  opacity:    1,
-  routing:    theme.edge.routing,
-  flow:       'none' as const,
+  style:          'solid' as const,
+  arrowStart:     'none' as const,
+  arrowEnd:       'none' as const,
+  color:          theme.edge.defaultColor,
+  thickness:      theme.edge.defaultThickness,
+  opacity:        1,
+  routing:        theme.edge.routing,
+  flowTurnRadius: theme.edge.flowTurnRadius,
+  flowFaceStub:   theme.edge.flowFaceStub,
+  flowBundleStrength: theme.edge.flowBundleStrength,
+  flowTargetApproachBias: theme.edge.flowTargetApproachBias,
+  allowUnderpass: true,
+  flow:           'none' as const,
 });
 
 export const buildGroupDefaults = (theme: DiagramTheme) => ({
@@ -71,7 +78,7 @@ export function compileNode(
   const nd = buildNodeDefaults(theme);
   const shape = dsl.shape ?? nd.shape;
   const color = dsl.color ?? nd.color;
-  const sideColor = dsl.sideColor ?? deriveColor(color, nd.sideColorDarkenFactor);
+  const sideColor = dsl.boxColor ?? dsl.sideColor ?? nd.boxColor ?? deriveColor(color, nd.sideColorDarkenFactor);
   const borderColor = dsl.borderColor ?? deriveColor(color, nd.borderColorLightenFactor);
   const emissiveIntensity = (() => {
     if (dsl.glow === false) return 0;
@@ -127,9 +134,11 @@ export function compileNode(
 
 export function compileEdge(
   dsl: DiagramEdgeDSL,
+  path: DiagramEdgePathState,
   controlPoints: ReadonlyArray<readonly [number, number, number]>,
   index: number,
   theme: DiagramTheme,
+  pathDebug?: DiagramEdgeState['pathDebug'],
 ): DiagramEdgeState {
   const ed = buildEdgeDefaults(theme);
   return {
@@ -142,12 +151,19 @@ export function compileEdge(
     arrowEnd: dsl.arrowEnd ?? ed.arrowEnd,
     color: dsl.color ?? ed.color,
     thickness: dsl.thickness ?? ed.thickness,
+    path,
     controlPoints,
     opacity: dsl.opacity ?? ed.opacity,
     routing: dsl.routing ?? ed.routing,
+    flowTurnRadius: dsl.flowTurnRadius ?? ed.flowTurnRadius,
+    flowFaceStub: dsl.flowFaceStub ?? ed.flowFaceStub,
+    flowBundleStrength: dsl.flowBundleStrength ?? ed.flowBundleStrength,
+    flowTargetApproachBias: dsl.flowTargetApproachBias ?? ed.flowTargetApproachBias,
+    allowUnderpass: dsl.allowUnderpass ?? ed.allowUnderpass,
     fromPort: dsl.fromPort,
     toPort: dsl.toPort,
     flow: dsl.flow ?? ed.flow,
     flowColor: dsl.flowColor ?? theme.edge.defaultFlowColor,
+    pathDebug,
   };
 }

@@ -1,9 +1,10 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import type { SceneCamera } from '../types';
 import {
   extractWorldPosFromDescriptor,
   interpolateCameraDescriptor,
   cameraTransitionSpec,
+  compileNvsViewportCamera,
 } from '../compile';
 
 describe('interpolateCameraDescriptor', () => {
@@ -115,6 +116,117 @@ describe('extractWorldPosFromDescriptor', () => {
   it('returns null for auto-framing modes', () => {
     const res = extractWorldPosFromDescriptor({ mode: 'fitFloorDepth', floorY: 0, floorZMin: -1, floorZMax: 1 });
     expect(res).toBeNull();
+  });
+});
+
+describe('compileNvsViewportCamera', () => {
+  let errorSpy: ReturnType<typeof vi.spyOn>;
+  let warnSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    errorSpy.mockRestore();
+    warnSpy.mockRestore();
+  });
+
+  it('worldScale=10 zRange=5: outputs mode="world" with correct values', () => {
+    const result = compileNvsViewportCamera(10, 5);
+    expect(result.enabled).toBe(true);
+    // Compiled nvsViewport always outputs mode='world' descriptor
+    expect(result.descriptor.mode).toBe('world');
+    if (result.descriptor.mode === 'world') {
+      expect(result.descriptor.position[0]).toBeCloseTo(0, 4);
+      expect(result.descriptor.position[1]).toBeCloseTo(0, 4);
+      expect(result.descriptor.position[2]).toBeCloseTo(12.07, 1);
+      expect(result.descriptor.target).toEqual([0, 0, 0]);
+    }
+    expect(result.lens?.fov).toBe(45);
+    expect(result.lens?.near).toBeCloseTo(9.57, 1);
+    expect(result.lens?.far).toBeCloseTo(14.57, 1);
+  });
+
+  it('worldScale=5 zRange=2: cameraZ≈6.035, near≈5.035, far≈7.035', () => {
+    const result = compileNvsViewportCamera(5, 2);
+    if (result.descriptor.mode === 'world') {
+      expect(result.descriptor.position[2]).toBeCloseTo(6.035, 1);
+    }
+    expect(result.lens?.near).toBeCloseTo(5.035, 1);
+    expect(result.lens?.far).toBeCloseTo(7.035, 1);
+  });
+
+  it('uses defaults when worldScale and zRange are undefined', () => {
+    const result = compileNvsViewportCamera(undefined, undefined);
+    expect(result.descriptor.mode).toBe('world');
+    if (result.descriptor.mode === 'world') {
+      expect(result.descriptor.position[2]).toBeCloseTo(12.07, 1);
+    }
+    expect(result.lens?.fov).toBe(45);
+    // Default zRange = worldScale/2 = 5
+    expect(result.lens?.near).toBeCloseTo(9.57, 1);
+    expect(result.lens?.far).toBeCloseTo(14.57, 1);
+  });
+
+  it('near is clamped to 0.01 minimum', () => {
+    const result = compileNvsViewportCamera(10, 5);
+    // near = max(0.01, 12.07 - 2.5) = 9.57 — above clamp already
+    expect(result.lens!.near!).toBeGreaterThanOrEqual(0.01);
+  });
+
+  it('worldScale=0: logs console.error and falls back to worldScale=10', () => {
+    const result = compileNvsViewportCamera(0, 5);
+    expect(errorSpy).toHaveBeenCalledOnce();
+    expect(errorSpy.mock.calls[0]![0]).toContain('worldScale');
+    // Fallback to worldScale=10
+    if (result.descriptor.mode === 'world') {
+      expect(result.descriptor.position[2]).toBeCloseTo(12.07, 1);
+    }
+    expect(Number.isFinite(result.lens?.near)).toBe(true);
+    expect(Number.isFinite(result.lens?.far)).toBe(true);
+  });
+
+  it('worldScale=-5: logs console.error and falls back to worldScale=10', () => {
+    const result = compileNvsViewportCamera(-5, 5);
+    expect(errorSpy).toHaveBeenCalledOnce();
+    expect(errorSpy.mock.calls[0]![0]).toContain('worldScale');
+    if (result.descriptor.mode === 'world') {
+      expect(result.descriptor.position[2]).toBeCloseTo(12.07, 1);
+    }
+  });
+
+  it('zRange > 2 * cameraZ: logs console.warn about clipping', () => {
+    // cameraZ ≈ 12.07 for worldScale=10; 2*cameraZ ≈ 24.14
+    const result = compileNvsViewportCamera(10, 30);
+    expect(warnSpy).toHaveBeenCalledOnce();
+    expect(warnSpy.mock.calls[0]![0]).toContain('clipped');
+    // near is clamped to 0.01
+    expect(result.lens?.near).toBeCloseTo(0.01, 4);
+    // far = cameraZ + zRange/2 ≈ 12.07 + 15 = 27.07
+    expect(result.lens?.far).toBeCloseTo(27.07, 1);
+  });
+
+  it('worldScale=Infinity: logs console.error and falls back to valid state', () => {
+    const result = compileNvsViewportCamera(Infinity, 5);
+    expect(errorSpy).toHaveBeenCalledOnce();
+    expect(Number.isFinite(result.lens?.near)).toBe(true);
+    expect(Number.isFinite(result.lens?.far)).toBe(true);
+    if (result.descriptor.mode === 'world') {
+      expect(result.descriptor.position.every(Number.isFinite)).toBe(true);
+    }
+  });
+
+  it('worldScale=0.001: extremely small but positive — produces valid (finite) CameraState', () => {
+    const result = compileNvsViewportCamera(0.001, undefined);
+    // Does NOT trigger worldScale guard (0.001 > 0 and is finite)
+    expect(errorSpy).not.toHaveBeenCalled();
+    expect(Number.isFinite(result.lens?.near)).toBe(true);
+    expect(Number.isFinite(result.lens?.far)).toBe(true);
+    if (result.descriptor.mode === 'world') {
+      expect(result.descriptor.position.every(Number.isFinite)).toBe(true);
+    }
   });
 });
 

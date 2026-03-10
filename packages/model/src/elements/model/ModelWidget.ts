@@ -13,7 +13,7 @@ import type {ReactElement, ReactNode} from 'react';
 import {isValidElement} from 'react';
 import type * as THREE from 'three';
 import type {CompileExtraContext, IDslComposite, ILoadable, IRenderable, ISceneElement, IAttachmentHost, IRenderContributor, RenderContribution, WidgetInitContext, WidgetRenderContext, INVSBounded, NVSRect, IHasCustomDslHandler,} from '@brewsite/core';
-import {nvsToWorldWithCamera, nvsToWorldAnalytic, CUSTOM_NODE_HANDLER} from '@brewsite/core';
+import {validateNVSScalar, validateNVSRect, CUSTOM_NODE_HANDLER} from '@brewsite/core';
 import type {CompileHelpers, NodeHandler, SceneSnapshotContext} from '@brewsite/core';
 import type {
   AxisRotation,
@@ -436,7 +436,6 @@ export class ModelWidget
 
   private config: ModelWidgetConfig;
   private renderer: ModelRenderer | null = null;
-  private cameraRef: THREE.PerspectiveCamera | null = null;
   private readonly modelType: string;
   private readonly baseRotation: Vec3 | null;
   private lastAppliedState: SceneModelInstanceState | null = null;
@@ -632,6 +631,17 @@ export class ModelWidget
 
       const nvsX = (props.x !== undefined ? (props.x as number) : 0) + (props.w !== undefined ? (props.w as number) : 1) / 2;
       const nvsY = (props.y !== undefined ? (props.y as number) : 0) + (props.h !== undefined ? (props.h as number) : 1) / 2;
+      const nvsBoundsForValidation = {
+        x: props.x !== undefined ? (props.x as number) : 0,
+        y: props.y !== undefined ? (props.y as number) : 0,
+        w: props.w !== undefined ? (props.w as number) : 1,
+        h: props.h !== undefined ? (props.h as number) : 1,
+      };
+      if (process.env.NODE_ENV !== 'production') {
+        validateNVSScalar(nvsX, 'nvsX', `<Model id="${this.widgetId}">`);
+        validateNVSScalar(nvsY, 'nvsY', `<Model id="${this.widgetId}">`);
+        validateNVSRect(nvsBoundsForValidation, `<Model id="${this.widgetId}">`);
+      }
       const state: SceneModelInstanceState = {
         model: {
           ...base.model,
@@ -821,7 +831,6 @@ export class ModelWidget
    */
   initialize(context: WidgetInitContext): void {
     const scene = context.scene as THREE.Scene;
-    if (context.camera) this.cameraRef = context.camera;
     this.renderer = new ModelRenderer(scene, context.renderer);
   }
 
@@ -847,15 +856,15 @@ export class ModelWidget
       );
     }
 
-    // Convert NVS position to world-space. Use the live camera when available for
-    // accurate conversion; fall back to analytic defaults when camera is not yet set.
-    const cam = this.cameraRef ?? undefined;
-    const worldPos = cam
-      ? nvsToWorldWithCamera(state.model.nvsX, state.model.nvsY, cam, state.model.z)
-      : nvsToWorldAnalytic(state.model.nvsX, state.model.nvsY, 0, 0, 12.07, 45, 16 / 9, state.model.z);
+    if (process.env.NODE_ENV !== 'production') {
+      validateNVSScalar(state.model.nvsX, 'nvsX', `ModelWidget(${this.widgetId})`);
+      validateNVSScalar(state.model.nvsY, 'nvsY', `ModelWidget(${this.widgetId})`);
+    }
+    // Convert NVS position to world-space using the live NVSCoordService injected by the engine.
+    const worldPos = context.coords.toWorld(state.model.nvsX, state.model.nvsY, state.model.z);
 
     const { nvsX: _nx, nvsY: _ny, z: _z, ...modelRest } = state.model;
-    const renderInput: ModelRenderInput = { ...modelRest, position: worldPos };
+    const renderInput: ModelRenderInput = { ...modelRest, position: worldPos as Vec3 };
     const animation = context.extra as CompiledAnimation | undefined;
     this.renderer.apply({ ...state, model: renderInput }, animation, context);
   }
@@ -865,7 +874,6 @@ export class ModelWidget
    */
   dispose(): void {
     this.renderer?.dispose();
-    this.cameraRef = null;
   }
 
   getAnchorBoneName(anchorKey: string): string | undefined {

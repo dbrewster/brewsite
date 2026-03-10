@@ -1,17 +1,12 @@
 import type {JSX} from 'react';
 import {
-  Action,
   Background,
   Camera,
-  InputController,
-  KeyMap,
-  PointerMap,
   ProgressManager,
   Scene,
   TextBox,
-  WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, FlowLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramNode, FlowLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
 
@@ -20,23 +15,10 @@ const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 export const sceneSequenceNormal: JSX.Element = (
   <Scene key="bf-seq-normal" id="bf-seq-normal">
     <ProgressManager scrollUnits={2800} fn={DWELL_FN} />
-    <InputController scope="canvas">
-      <Action id="pan" type="diagram-canvas.move" canvasId="bf-seq-normal">
-        <PointerMap event="drag" axis="xy" />
-        <WheelMap axis="xy" />
-      </Action>
-      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bf-seq-normal">
-        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
-      </Action>
-      <Action id="reset" type="diagram-canvas.reset" canvasId="bf-seq-normal">
-        <KeyMap keyName="r" />
-      </Action>
-    </InputController>
     <Camera mode="world" position={[0, 5, 24]} target={[0, 0, 0]} fov={54} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bf-seq-normal" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="seq-normal">
+    <Diagram id="seq-normal" theme={brewflowTheme}>
         <FlowLayout direction="top-down" gap={3} />
 
         <DiagramNode
@@ -80,8 +62,7 @@ export const sceneSequenceNormal: JSX.Element = (
         <DiagramEdge from="actor-worker" to="actor-mcp" label="store(discovered X)" color="#6080c0" />
         <DiagramEdge from="actor-mcp" to="actor-episodic" label="append synaptic_event" flow="forward" color="#5070b0" />
         <DiagramEdge from="actor-queen" to="actor-mcp" label="log_outcome(success)" color="#6080c0" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="seq-normal-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

@@ -2,9 +2,12 @@
 title: "DiagramCanvas NVS Sub-Viewport Model"
 doc_type: prd
 owner: product
-status: current
-updated: 2026-03-08
+status: deprecated
+updated: 2026-03-09
 change_history:
+  - date: 2026-03-09
+    author: "Toolkit Product"
+    summary: "DEPRECATED: The DiagramCanvas scissored sub-viewport model described in this document has been superseded by the NVS Universal Coordinate System (plan_nvs-universal-coordinate-system.md). DiagramCanvas has been removed from @brewsite/diagram entirely. Diagrams now render into the main Three.js scene via DiagramWidget using context.coords (NVSCoordService). The IExtraRenderPass contract and private-scene isolation model are no longer in use. See prd_canvas_element.md (deprecated) and prd_diagram_element.md for the current Diagram element spec."
   - date: 2026-03-08
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents the fully implemented NVS-primary sub-viewport redesign of DiagramCanvas: scissored rendering, private perspective camera, tilt/x/y/w/h placement API, IExtraRenderPass contract. Replaces the hidden-camera-takeover model. Records the major semver bump for @brewsite/diagram and minor bump for @brewsite/core."

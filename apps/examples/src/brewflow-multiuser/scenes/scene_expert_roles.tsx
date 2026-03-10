@@ -11,7 +11,7 @@ import {
     TextBox,
     WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -35,8 +35,7 @@ export const sceneExpertRoles: JSX.Element = (
     <Camera mode="world" position={[0, 5, 24]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bfmu-exp-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="exp-diagram">
+    <Diagram id="exp-diagram" theme={brewflowTheme}>
         <ManualLayout />
         <DiagramEnter fade />
 
@@ -127,8 +126,7 @@ export const sceneExpertRoles: JSX.Element = (
         <DiagramEdge from="exp-dis" to="exp-episode" arrowEnd="none" arrowStart="open" color="#4060a0" />
 
         <DiagramEdge from="cot-1" to="cot-2" color="#3050a0" style="dashed" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="experts-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

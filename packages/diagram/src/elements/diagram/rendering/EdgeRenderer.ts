@@ -3,10 +3,17 @@
 import * as THREE from 'three';
 import type { EdgeRenderEntry } from './types';
 import type { IEdgeMaterialFactory } from './EdgeMaterialFactory';
+import type {
+  DiagramEdgePathCommand,
+  DiagramEdgePathState,
+  EdgeRoutingAlgorithm,
+} from '../types';
 
 export type EdgeLike = {
   id: string;
+  path?: DiagramEdgePathState;
   controlPoints: ReadonlyArray<readonly [number, number, number]>;
+  routing?: EdgeRoutingAlgorithm;
   thickness: number;
   color: string;
   opacity: number;
@@ -24,6 +31,92 @@ type ShaderLike = {
 };
 
 type EdgeEntry = Omit<EdgeRenderEntry, 'lastState'> & { lastState?: EdgeLike };
+
+const toVectorPoints = (controlPoints: EdgeLike['controlPoints']): THREE.Vector3[] =>
+  controlPoints.length >= 2
+    ? controlPoints.map((pt) => new THREE.Vector3(pt[0], pt[1], pt[2]))
+    : [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0)];
+
+const buildPolylinePath = (points: ReadonlyArray<THREE.Vector3>): THREE.CurvePath<THREE.Vector3> => {
+  const path = new THREE.CurvePath<THREE.Vector3>();
+  for (let i = 0; i < points.length - 1; i += 1) {
+    const start = points[i];
+    const end = points[i + 1];
+    if (!start || !end) continue;
+    path.add(new THREE.LineCurve3(start, end));
+  }
+  return path;
+};
+
+const toVector3 = (point: readonly [number, number, number]): THREE.Vector3 =>
+  new THREE.Vector3(point[0], point[1], point[2]);
+
+const buildCurvePathFromCommands = (
+  commands: ReadonlyArray<DiagramEdgePathCommand>,
+): THREE.CurvePath<THREE.Vector3> => {
+  const path = new THREE.CurvePath<THREE.Vector3>();
+  for (const command of commands) {
+    if (command.kind === 'line') {
+      path.add(new THREE.LineCurve3(toVector3(command.from), toVector3(command.to)));
+      continue;
+    }
+    path.add(new THREE.CubicBezierCurve3(
+      toVector3(command.p0),
+      toVector3(command.p1),
+      toVector3(command.p2),
+      toVector3(command.p3),
+    ));
+  }
+  return path;
+};
+
+const buildCurve = (edge: EdgeLike): THREE.Curve<THREE.Vector3> => {
+  if (edge.path && edge.path.commands.length > 0) {
+    const commands = edge.path.commands;
+    if (
+      commands.length === 1 &&
+      commands[0]?.kind === 'line'
+    ) {
+      return new THREE.LineCurve3(
+        toVector3(commands[0].from),
+        toVector3(commands[0].to),
+      );
+    }
+    if (
+      commands.length === 1 &&
+      commands[0]?.kind === 'cubic'
+    ) {
+      return new THREE.CubicBezierCurve3(
+        toVector3(commands[0].p0),
+        toVector3(commands[0].p1),
+        toVector3(commands[0].p2),
+        toVector3(commands[0].p3),
+      );
+    }
+    return buildCurvePathFromCommands(commands);
+  }
+
+  const points = toVectorPoints(edge.controlPoints);
+  const routing = edge.routing;
+
+  if (routing === 'straight' || points.length === 2) {
+    return new THREE.LineCurve3(points[0]!, points[points.length - 1]!);
+  }
+
+  if ((routing === 'curved' || routing === 'organic') && points.length === 4) {
+    return new THREE.CubicBezierCurve3(points[0]!, points[1]!, points[2]!, points[3]!);
+  }
+
+  if (routing === 'organic') {
+    return new THREE.CatmullRomCurve3(points, false, 'centripetal', 0.15);
+  }
+
+  if (points.length === 4) {
+    return new THREE.CubicBezierCurve3(points[0]!, points[1]!, points[2]!, points[3]!);
+  }
+
+  return buildPolylinePath(points);
+};
 
 export class EdgeRenderer {
   private readonly entries = new Map<string, EdgeEntry>();
@@ -77,16 +170,8 @@ export class EdgeRenderer {
 
   private createEntry(edge: EdgeLike): EdgeEntry {
     const group = new THREE.Group();
-    const points = edge.controlPoints.length >= 2
-      ? edge.controlPoints.map((pt) => new THREE.Vector3(pt[0], pt[1], pt[2]))
-      : [new THREE.Vector3(0, 0, 0), new THREE.Vector3(0, 0, 0)];
-    const curve = points.length === 4
-      ? new THREE.CubicBezierCurve3(points[0]!, points[1]!, points[2]!, points[3]!)
-      : new THREE.CatmullRomCurve3(points);
-    const segments = Math.max(
-      20,
-      Math.round((points.length === 4 ? 40 : edge.controlPoints.length * 8) * this.edgeSmoothness),
-    );
+    const curve = buildCurve(edge);
+    const segments = this.resolveSegments(edge);
     const tubeGeometry = new THREE.TubeGeometry(
       curve,
       segments,
@@ -119,26 +204,22 @@ export class EdgeRenderer {
     const prev = entry.lastState;
     const needsGeometry =
       !prev ||
+      edge.path !== prev.path ||
       edge.controlPoints !== prev.controlPoints ||
-      edge.thickness !== prev.thickness;
+      edge.thickness !== prev.thickness ||
+      edge.routing !== prev.routing;
 
     let curve: THREE.Curve<THREE.Vector3> | undefined;
     const getCurve = (): THREE.Curve<THREE.Vector3> => {
       if (!curve) {
-        const points = edge.controlPoints.map((p) => new THREE.Vector3(p[0], p[1], p[2]));
-        curve = points.length === 4
-          ? new THREE.CubicBezierCurve3(points[0]!, points[1]!, points[2]!, points[3]!)
-          : new THREE.CatmullRomCurve3(points);
+        curve = buildCurve(edge);
       }
       return curve;
     };
 
     if (needsGeometry) {
       const c = getCurve();
-      const segments = Math.max(
-        20,
-        Math.round((edge.controlPoints.length === 4 ? 40 : edge.controlPoints.length * 8) * this.edgeSmoothness),
-      );
+      const segments = this.resolveSegments(edge);
       const geometry = new THREE.TubeGeometry(
         c,
         segments,
@@ -259,6 +340,29 @@ export class EdgeRenderer {
     }
 
     entry.lastState = edge;
+  }
+
+  private resolveSegments(edge: EdgeLike): number {
+    const commands = edge.path?.commands;
+    const commandCount = commands?.length ?? 0;
+    if (commandCount > 0) {
+      if (commandCount === 1 && commands?.[0]?.kind === 'line') {
+        return Math.max(8, Math.round(12 * this.edgeSmoothness));
+      }
+      const cubicCount = commands?.filter((command) => command.kind === 'cubic').length ?? 0;
+      return Math.max(
+        16,
+        Math.round((commandCount * 10 + cubicCount * 8) * this.edgeSmoothness),
+      );
+    }
+
+    if (edge.routing === 'straight' || edge.controlPoints.length === 2) {
+      return Math.max(8, Math.round(12 * this.edgeSmoothness));
+    }
+    return Math.max(
+      20,
+      Math.round((edge.controlPoints.length === 4 ? 40 : edge.controlPoints.length * 8) * this.edgeSmoothness),
+    );
   }
 
   private updatePulseMaterial(material: THREE.MeshStandardMaterial, edge: EdgeLike): void {

@@ -1,43 +1,22 @@
 import type {JSX} from 'react';
 import {
-  Action,
   Background,
   Camera,
-  InputController,
-  KeyMap,
-  PointerMap,
   ProgressManager,
   Scene,
   TextBox,
-  WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, FlowLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramNode, FlowLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneInjector: JSX.Element = (
+export const SceneInjector = () => (
   <Scene key="bfm-injector" id="bfm-injector">
     <ProgressManager scrollUnits={2800} fn={DWELL_FN} />
-    <Camera mode="world" position={[0, 5, 24]} target={[0, 0, 0]} fov={52} />
-    <Background color="#080b14" />
 
-    <InputController scope="canvas">
-      <Action id="pan" type="diagram-canvas.move" canvasId="bfm-inject-canvas">
-        <PointerMap event="drag" axis="xy" />
-        <WheelMap axis="xy" />
-      </Action>
-      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bfm-inject-canvas">
-        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
-      </Action>
-      <Action id="reset" type="diagram-canvas.reset" canvasId="bfm-inject-canvas">
-        <KeyMap keyName="r" />
-      </Action>
-    </InputController>
-
-    <DiagramCanvas id="bfm-inject-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="inject-diagram">
+    <Diagram id="inject-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
         <FlowLayout direction="top-down" gap={2} />
 
         {/* Core + serving modes */}
@@ -64,7 +43,6 @@ export const sceneInjector: JSX.Element = (
         <DiagramEdge from="ord-4" to="ord-5" flow="forward" color="#4060a0" />
         <DiagramEdge from="ord-5" to="ord-6" flow="forward" color="#4060a0" />
       </Diagram>
-    </DiagramCanvas>
 
     <TextBox id="bfm-inject-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

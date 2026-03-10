@@ -7,16 +7,14 @@ import type { ChartProps, ChartDataProps, ChartAxisProps, ChartSeriesProps, Char
 import type { ChartState } from './types';
 import { DEFAULT_CHART_STATE } from './types';
 import type { ChartDataStore } from '../../data/ChartDataStore';
-import {
-  nvsToWorldWithCamera,
-  nvsToWorldAnalytic,
-} from '@brewsite/core';
+import { validateNVSScalar } from '@brewsite/core';
 import type {
   ISceneElement,
   IRenderable,
   IAnimationController,
   IDslComposite,
   INVSBounded,
+  NVSCoordService,
   NVSRect,
   WidgetInitContext,
   WidgetRenderContext,
@@ -110,9 +108,9 @@ export class ChartWidget
   private readonly chartRenderer: ChartRenderer;
   private scene: THREE.Scene | null = null;
   private rendererDom: HTMLElement | null = null;
-  private cameraRef: THREE.PerspectiveCamera | null = null;
   private camera: THREE.Camera | null = null;
   private lastState: ChartState | null = null;
+  private lastCoords: NVSCoordService | null = null;
   private readonly raycaster = new THREE.Raycaster();
   private mousemoveListener: ((e: MouseEvent) => void) | null = null;
   private mouseleaveListener: (() => void) | null = null;
@@ -127,7 +125,6 @@ export class ChartWidget
     this.scene = scene;
     this.chartRenderer.mount(scene);
     if (camera) {
-      this.cameraRef = camera;
       this.camera = camera;
     }
     if (renderer?.domElement) {
@@ -135,29 +132,40 @@ export class ChartWidget
     }
   }
 
-  apply(state: ChartState, _ctx: WidgetRenderContext): void {
+  apply(state: ChartState, ctx: WidgetRenderContext): void {
     this.lastState = state;
+    this.lastCoords = ctx.coords;
     if (!this.scene) {
       console.error(`[ChartWidget] apply() called but scene is null for id="${this.widgetId}" — widget not initialized`);
       return;
     }
 
-    // Convert NVS position to world-space using the live camera when available.
-    const cam = this.cameraRef;
-    const worldCenter = cam
-      ? nvsToWorldWithCamera(state.nvsX, state.nvsY, cam, state.z)
-      : nvsToWorldAnalytic(state.nvsX, state.nvsY, 0, 0, 12.07, 45, 16 / 9, state.z);
+    if (process.env.NODE_ENV !== 'production') {
+      validateNVSScalar(state.nvsX, 'nvsX', `ChartWidget(${this.widgetId})`);
+      validateNVSScalar(state.nvsY, 'nvsY', `ChartWidget(${this.widgetId})`);
+      validateNVSScalar(state.bounds.width, 'bounds.width', `ChartWidget(${this.widgetId})`);
+      validateNVSScalar(state.bounds.height, 'bounds.height', `ChartWidget(${this.widgetId})`);
+    }
 
-    // Center the chart group on the NVS-derived world position.
+    // Convert NVS position to world-space center using the live NVSCoordService.
+    const [wcx, wcy, wcz] = ctx.coords.toWorld(state.nvsX, state.nvsY, state.z);
+
+    // Convert NVS size fractions to world-space dimensions.
+    const [worldW, worldH] = ctx.coords.toWorldSize(state.bounds.width, state.bounds.height);
+
     // Chart content (bars, axes) starts at group-local (0, 0) and extends to
-    // (bounds.width, bounds.height). Subtract half-bounds to center it.
+    // (worldW, worldH). Subtract half-bounds to center it on the NVS position.
     const worldPos: readonly [number, number, number] = [
-      worldCenter[0] - state.bounds.width / 2,
-      worldCenter[1] - state.bounds.height / 2,
-      worldCenter[2],
+      wcx - worldW / 2,
+      wcy - worldH / 2,
+      wcz,
     ];
 
-    this.chartRenderer.update({ ...state, position: worldPos }, this.widgetId);
+    this.chartRenderer.update({
+      ...state,
+      bounds: { width: worldW, height: worldH, depth: state.bounds.depth },
+      position: worldPos,
+    }, this.widgetId);
 
     // Attach or detach DOM listeners based on interactive flag
     if (state.interactive && !this.mousemoveListener && this.rendererDom) {
@@ -167,26 +175,26 @@ export class ChartWidget
     }
   }
 
-  onTick(ctx: AnimationTickContext): void {
+  onTick(_ctx: AnimationTickContext): void {
     // Heatmap time-slice animation
     if (this.lastState?.type !== 'heatmap' || !this.lastState.timeField) return;
-    const sliceProgress = ctx.tick?.blockProgress ?? 0;
     // Re-apply with same state — heatmap renderer derives slice from store.getTimeSlice()
     // NOTE: for animated heatmaps, the consuming scene should have multiple ticks
     // with blockProgress varying 0→1 over the desired time range.
-    if (this.scene) {
-      // Re-apply same state — heatmap renderer derives slice from store.getTimeSlice().
-      // Must convert NVS → world-space position same as apply().
-      const heatCam = this.cameraRef;
-      const heatWorldCenter = heatCam
-        ? nvsToWorldWithCamera(this.lastState.nvsX, this.lastState.nvsY, heatCam, this.lastState.z)
-        : nvsToWorldAnalytic(this.lastState.nvsX, this.lastState.nvsY, 0, 0, 12.07, 45, 16 / 9, this.lastState.z);
+    if (this.scene && this.lastCoords) {
+      const state = this.lastState;
+      const [wcx, wcy, wcz] = this.lastCoords.toWorld(state.nvsX, state.nvsY, state.z);
+      const [worldW, worldH] = this.lastCoords.toWorldSize(state.bounds.width, state.bounds.height);
       const heatWorldPos: readonly [number, number, number] = [
-        heatWorldCenter[0] - this.lastState.bounds.width / 2,
-        heatWorldCenter[1] - this.lastState.bounds.height / 2,
-        heatWorldCenter[2],
+        wcx - worldW / 2,
+        wcy - worldH / 2,
+        wcz,
       ];
-      this.chartRenderer.update({ ...this.lastState, position: heatWorldPos }, this.widgetId);
+      this.chartRenderer.update({
+        ...state,
+        bounds: { width: worldW, height: worldH, depth: state.bounds.depth },
+        position: heatWorldPos,
+      }, this.widgetId);
     }
   }
 
@@ -196,8 +204,8 @@ export class ChartWidget
       this.chartRenderer.dispose(this.scene);
       this.scene = null;
     }
-    this.cameraRef = null;
     this.camera = null;
+    this.lastCoords = null;
   }
 
   private attachDomListeners(dom: HTMLElement): void {
@@ -225,7 +233,7 @@ export class ChartWidget
    * Returns null if the widget has not been initialized or the camera is unavailable.
    */
   public getCamera(): THREE.Camera | null {
-    return this.cameraRef;
+    return this.camera;
   }
 
   /**

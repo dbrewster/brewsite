@@ -4,8 +4,6 @@ import type { ReactElement } from 'react';
 import { registerNode } from '@brewsite/core';
 import type { CompileApi, CompileHelpers } from '@brewsite/core';
 import { compileDiagram } from '../elements/diagram/compile';
-import { DiagramCanvas, DiagramPipe } from '../elements/diagram/canvas/widget';
-import { compileCanvas } from '../elements/diagram/canvas/compile';
 import { compileImagePanel } from '../elements/image-panel/compile';
 import { compileScreen } from '../elements/screen/compile';
 import type {
@@ -15,13 +13,10 @@ import type {
   DiagramGroupDSL,
   DiagramExitDSL,
   DiagramEnterDSL,
-  DiagramState,
   DiagramTheme,
   DiagramWarnFn,
   LayoutDSL,
 } from '../elements/diagram/types';
-import type { InputActionSpec, NVSRect } from '@brewsite/core';
-import type { DiagramCanvasDSL, DiagramPipeDSL, PipeRoutingAlgorithm, PipeLandingAlgorithm } from '../elements/diagram/canvas/types';
 import type { ImagePanelDSL } from '../elements/image-panel/types';
 import type { ScreenDSL } from '../elements/screen/types';
 import {
@@ -38,6 +33,7 @@ import {
 } from '../elements/diagram/widget';
 import { ImagePanel } from '../elements/image-panel/widget';
 import { Screen } from '../elements/screen/widget';
+
 
 const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?: DiagramWarnFn): DiagramDSL => {
   const props = node.props as Record<string, unknown>;
@@ -228,8 +224,13 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?:
     edges,
     groups,
     childrenOrder,
-    viewportBounds: props.viewportBounds as NVSRect | undefined,
-    tilt: props.tilt as readonly [number, number, number] | undefined,
+    x: props.x as number | undefined,
+    y: props.y as number | undefined,
+    w: props.w as number | undefined,
+    h: props.h as number | undefined,
+    tilt: typeof props.tilt === 'number' ? props.tilt : undefined,
+    z: props.z as number | undefined,
+    scale: props.scale as number | undefined,
     exit: exitDSL,
     enter: enterDSL,
     theme,
@@ -257,7 +258,6 @@ export const registerDiagramHandlers = (): void => {
   registerNode(DiagramGroup, () => {});
   registerNode(DiagramExit, () => {});
   registerNode(DiagramEnter, () => {});
-  registerNode(DiagramPipe, () => {});
   registerNode(GridLayout, () => {});
   registerNode(HierarchicalLayout, () => {});
   registerNode(ManualLayout, () => {});
@@ -267,105 +267,16 @@ export const registerDiagramHandlers = (): void => {
     const onWarn = makeWarnFn(api);
     const dsl = extractDiagramDSL(node, helpers, onWarn);
 
-    // Warn if standalone <Diagram> theme has input — this is the wrong authoring level.
-    // theme.input is only effective on <DiagramCanvas>, not on a bare <Diagram>.
+    // Warn if theme has input — input is now handled at DiagramWidget level, not canvas level.
     if (dsl.theme?.input !== undefined) {
       onWarn(
         'IGNORED_INPUT_CONFIG',
-        `<Diagram id="${dsl.id}"> has a theme with an "input" section. ` +
-          `theme.input is only effective on <DiagramCanvas>. ` +
-          `Wrap this diagram in a <DiagramCanvas theme={...}> to use input defaults.`,
+        `<Diagram id="${dsl.id}">: theme.input is not yet supported on standalone <Diagram>.`,
       );
     }
 
     const diagramState = compileDiagram(dsl, undefined, onWarn);
-    const canvasId = dsl.id;
-
-    // Wrap the single diagram in a canvas state — DiagramCanvasWidget expects DiagramCanvasState.
-    const canvasState = compileCanvas(
-      { id: canvasId },
-      [diagramState],
-      [],
-      onWarn,
-    );
-
-    api.setWidgetState(canvasId, canvasState);
-  });
-
-  registerNode(DiagramCanvas, (node: ReactElement, api: CompileApi, helpers: CompileHelpers) => {
-    const props = node.props as Record<string, unknown>;
-    const allChildren = helpers.collectChildren(node);
-    const canvasTheme = props.theme as DiagramTheme | undefined;
-    const canvasId = String(props.id);
-    const onWarn = makeWarnFn(api);
-
-    const diagramStates: DiagramState[] = [];
-    for (const child of allChildren) {
-      if (!child || typeof child !== 'object' || !('type' in (child as object))) continue;
-      const el = child as ReactElement;
-      if (el.type !== Diagram) continue;
-      const dsl = extractDiagramDSL(el, helpers, onWarn);
-
-      // Warn if a child <Diagram> has theme.input — this is the wrong authoring level.
-      // theme.input is only effective on <DiagramCanvas>, not on its <Diagram> children.
-      if (dsl.theme?.input !== undefined) {
-        onWarn(
-          'IGNORED_INPUT_CONFIG',
-          `<Diagram id="${dsl.id}"> inside <DiagramCanvas id="${canvasId}">: ` +
-            `theme.input is ignored on child <Diagram> elements. ` +
-            `Move theme.input to the <DiagramCanvas theme={...}> instead.`,
-        );
-      }
-
-      // Pass canvas theme as fallback; diagram's own theme (if any) overrides inside compileDiagram
-      diagramStates.push(compileDiagram(dsl, canvasTheme, onWarn));
-    }
-
-    const pipeDSLs: DiagramPipeDSL[] = [];
-    for (const child of allChildren) {
-      if (!child || typeof child !== 'object' || !('type' in (child as object))) continue;
-      const el = child as ReactElement;
-      if (el.type !== DiagramPipe) continue;
-      pipeDSLs.push(el.props as DiagramPipeDSL);
-    }
-
-    // Compile default input actions from theme.input, injecting canvasId into each action.
-    let defaultInputActions: ReadonlyArray<InputActionSpec> | undefined;
-    if (canvasTheme?.input?.defaultActions && canvasTheme.input.defaultActions.length > 0) {
-      defaultInputActions = canvasTheme.input.defaultActions.map((action) => ({
-        ...action,
-        canvasId,
-      }));
-    }
-
-    const canvasDSL: DiagramCanvasDSL = {
-      id: canvasId,
-      x: props.x as number | undefined,
-      y: props.y as number | undefined,
-      w: props.w as number | undefined,
-      h: props.h as number | undefined,
-      tilt: props.tilt as number | undefined,
-      scale: props.scale as number | undefined,
-      padding: props.padding as number | undefined,
-      theme: canvasTheme,
-      pipeRouting: props.pipeRouting as PipeRoutingAlgorithm | undefined,
-      pipeLanding: props.pipeLanding as PipeLandingAlgorithm | undefined,
-      focusCenter: props.focusCenter as readonly [number, number] | readonly [number, number, number] | undefined,
-    };
-
-    // Compute canvas aspect at compile time from the declared NVS bounds.
-    // Engine viewport aspect is unknown at compile time; use 16/9 as the standard default.
-    const ENGINE_ASPECT_DEFAULT = 16 / 9;
-    const compiledNvsBounds = {
-      x: (props.x as number | undefined) ?? 0,
-      y: (props.y as number | undefined) ?? 0,
-      w: (props.w as number | undefined) ?? 1,
-      h: (props.h as number | undefined) ?? 1,
-    };
-    const compiledCanvasAspect = (compiledNvsBounds.w / compiledNvsBounds.h) * ENGINE_ASPECT_DEFAULT;
-
-    const canvasState = compileCanvas(canvasDSL, diagramStates, pipeDSLs, onWarn, defaultInputActions, compiledCanvasAspect);
-    api.setWidgetState(canvasId, canvasState);
+    api.setWidgetState(dsl.id, diagramState);
   });
 
   registerNode(ImagePanel, (node: ReactElement, api: CompileApi, _helpers: CompileHelpers) => {

@@ -65,18 +65,18 @@ export function useSlideNavigation(totalSlides: number, scrollUnits: number[]): 
     // scrollToProgress is the correct API on UseSceneEngineResult.
     // Navigate by seeking to the global progress value corresponding to the
     // start of the target slide's scroll window.
-    engine.scrollToProgress(computeSlideStartProgress(scrollUnits, clamped));
+    engine.setProgress(computeSlideStartProgress(scrollUnits, clamped));
   }, [engine, totalSlides, scrollUnits]);
 
   const next = useCallback(() => {
     if (sceneIndex < totalSlides - 1) {
-      engine.scrollToProgress(computeSlideStartProgress(scrollUnits, sceneIndex + 1));
+      engine.setProgress(computeSlideStartProgress(scrollUnits, sceneIndex + 1));
     }
   }, [engine, sceneIndex, totalSlides, scrollUnits]);
 
   const prev = useCallback(() => {
     if (sceneIndex > 0) {
-      engine.scrollToProgress(computeSlideStartProgress(scrollUnits, sceneIndex - 1));
+      engine.setProgress(computeSlideStartProgress(scrollUnits, sceneIndex - 1));
     }
   }, [engine, sceneIndex, scrollUnits]);
 

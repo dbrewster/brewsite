@@ -1,14 +1,12 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import React from 'react';
 import { Scene, resolveSceneFromDsl, WidgetRegistry } from '@brewsite/core';
-import type { InputActionSpec } from '@brewsite/core';
 import { registerDiagramHandlers } from '../handlers';
-import { DiagramCanvas, DiagramPipe } from '../../elements/diagram/canvas/widget';
 import { Diagram, DiagramNode } from '../../elements/diagram/widget';
-import type { DiagramTheme } from '../../elements/diagram/types';
+import type { DiagramTheme, DiagramState } from '../../elements/diagram/types';
 import { darkGlassTheme } from '../../elements/diagram/themes/darkGlass';
 
-const moveAction: Omit<InputActionSpec, 'canvasId'> = {
+const moveAction = {
   id: 'move',
   type: 'diagram-canvas.move',
   speed: 1,
@@ -32,46 +30,12 @@ const compileScene = (tree: React.ReactElement) => {
   return { result, warnings };
 };
 
-describe('DiagramCanvas handler — IGNORED_INPUT_CONFIG warning', () => {
+describe('Diagram handler — IGNORED_INPUT_CONFIG warning', () => {
   beforeAll(() => {
     registerDiagramHandlers();
   });
 
-  it('emits IGNORED_INPUT_CONFIG when child <Diagram> has theme.input', () => {
-    const tree = React.createElement(
-      Scene, { id: 's1' },
-      React.createElement(
-        DiagramCanvas, { id: 'canvas-1' },
-        React.createElement(
-          Diagram, { id: 'diag-1', theme: themeWithInput },
-          React.createElement(DiagramNode, { id: 'n1', label: 'A', position: [0, 0, 0] as [number, number, number] }),
-        ),
-      ),
-    );
-    const { warnings } = compileScene(tree);
-    const match = warnings.find((w) => w.code === 'IGNORED_INPUT_CONFIG');
-    expect(match).toBeDefined();
-    expect(match!.message).toContain('diag-1');
-    expect(match!.message).toContain('canvas-1');
-  });
-
-  it('does NOT emit IGNORED_INPUT_CONFIG when theme.input is on <DiagramCanvas> only', () => {
-    const tree = React.createElement(
-      Scene, { id: 's1' },
-      React.createElement(
-        DiagramCanvas, { id: 'canvas-1', theme: themeWithInput },
-        React.createElement(
-          Diagram, { id: 'diag-1', theme: darkGlassTheme },
-          React.createElement(DiagramNode, { id: 'n1', label: 'A', position: [0, 0, 0] as [number, number, number] }),
-        ),
-      ),
-    );
-    const { warnings } = compileScene(tree);
-    const match = warnings.find((w) => w.code === 'IGNORED_INPUT_CONFIG');
-    expect(match).toBeUndefined();
-  });
-
-  it('emits IGNORED_INPUT_CONFIG for standalone <Diagram> with theme.input', () => {
+  it('emits IGNORED_INPUT_CONFIG for <Diagram> with theme.input', () => {
     const tree = React.createElement(
       Scene, { id: 's1' },
       React.createElement(
@@ -84,22 +48,46 @@ describe('DiagramCanvas handler — IGNORED_INPUT_CONFIG warning', () => {
     expect(match).toBeDefined();
     expect(match!.message).toContain('diag-1');
   });
+
+  it('does NOT emit IGNORED_INPUT_CONFIG when theme has no input config', () => {
+    const tree = React.createElement(
+      Scene, { id: 's1' },
+      React.createElement(
+        Diagram, { id: 'diag-1', theme: darkGlassTheme },
+        React.createElement(DiagramNode, { id: 'n1', label: 'A', position: [0, 0, 0] as [number, number, number] }),
+      ),
+    );
+    const { warnings } = compileScene(tree);
+    const match = warnings.find((w) => w.code === 'IGNORED_INPUT_CONFIG');
+    expect(match).toBeUndefined();
+  });
+
+  it('emits IGNORED_INPUT_CONFIG for standalone <Diagram> with theme.input', () => {
+    const tree = React.createElement(
+      Scene, { id: 's1' },
+      React.createElement(
+        Diagram, { id: 'diag-2', theme: themeWithInput },
+        React.createElement(DiagramNode, { id: 'n1', label: 'A', position: [0, 0, 0] as [number, number, number] }),
+      ),
+    );
+    const { warnings } = compileScene(tree);
+    const match = warnings.find((w) => w.code === 'IGNORED_INPUT_CONFIG');
+    expect(match).toBeDefined();
+    expect(match!.message).toContain('diag-2');
+  });
 });
 
-describe('DiagramCanvas handler — canvasId injection', () => {
+describe('Diagram handler — state keyed by diagram ID', () => {
   beforeAll(() => {
     registerDiagramHandlers();
   });
 
-  it('injects canvasId from <DiagramCanvas id="..."> into each default action', () => {
+  it('writes DiagramState under the diagram ID (not a canvas wrapper ID)', () => {
     const tree = React.createElement(
       Scene, { id: 's1' },
       React.createElement(
-        DiagramCanvas, { id: 'my-canvas', theme: themeWithInput },
-        React.createElement(
-          Diagram, { id: 'diag-1' },
-          React.createElement(DiagramNode, { id: 'n1', label: 'A', position: [0, 0, 0] as [number, number, number] }),
-        ),
+        Diagram, { id: 'my-diagram' },
+        React.createElement(DiagramNode, { id: 'n1', label: 'A', position: [0, 0, 0] as [number, number, number] }),
       ),
     );
     const registry = new WidgetRegistry();
@@ -108,22 +96,18 @@ describe('DiagramCanvas handler — canvasId injection', () => {
       { sceneIndex: 0, numScenes: 1, assetsReady: false },
       registry,
     );
-    const state = frame.widgets['my-canvas'] as { defaultInputActions?: InputActionSpec[] } | undefined;
-    expect(state?.defaultInputActions).toBeDefined();
-    expect(state!.defaultInputActions).toHaveLength(1);
-    expect(state!.defaultInputActions![0]!.canvasId).toBe('my-canvas');
-    expect(state!.defaultInputActions![0]!.id).toBe('move');
+    const state = frame.widgets['my-diagram'] as DiagramState | undefined;
+    expect(state).toBeDefined();
+    expect(state!.id).toBe('my-diagram');
+    expect(state!.nodes).toHaveLength(1);
   });
 
-  it('produces undefined defaultInputActions when no theme.input on canvas', () => {
+  it('produces DiagramState with no defaultInputActions field', () => {
     const tree = React.createElement(
       Scene, { id: 's1' },
       React.createElement(
-        DiagramCanvas, { id: 'my-canvas', theme: darkGlassTheme },
-        React.createElement(
-          Diagram, { id: 'diag-1' },
-          React.createElement(DiagramNode, { id: 'n1', label: 'A', position: [0, 0, 0] as [number, number, number] }),
-        ),
+        Diagram, { id: 'my-diagram', theme: darkGlassTheme },
+        React.createElement(DiagramNode, { id: 'n1', label: 'A', position: [0, 0, 0] as [number, number, number] }),
       ),
     );
     const registry = new WidgetRegistry();
@@ -132,7 +116,8 @@ describe('DiagramCanvas handler — canvasId injection', () => {
       { sceneIndex: 0, numScenes: 1, assetsReady: false },
       registry,
     );
-    const state = frame.widgets['my-canvas'] as { defaultInputActions?: InputActionSpec[] } | undefined;
-    expect(state?.defaultInputActions).toBeUndefined();
+    const state = frame.widgets['my-diagram'] as DiagramState | undefined;
+    expect(state).toBeDefined();
+    expect((state as Record<string, unknown>)['defaultInputActions']).toBeUndefined();
   });
 });

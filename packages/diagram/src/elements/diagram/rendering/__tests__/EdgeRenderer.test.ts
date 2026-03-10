@@ -5,24 +5,41 @@ import { EdgeMaterialFactory } from '../EdgeMaterialFactory';
 
 const makeEdge = (overrides: Partial<{
   id: string;
+  path: {
+    commands: ReadonlyArray<
+      | { kind: 'line'; from: readonly [number, number, number]; to: readonly [number, number, number] }
+      | { kind: 'cubic'; p0: readonly [number, number, number]; p1: readonly [number, number, number]; p2: readonly [number, number, number]; p3: readonly [number, number, number] }
+    >;
+    startTangent: readonly [number, number, number];
+    endTangent: readonly [number, number, number];
+    usedUnderpass: boolean;
+    punctures: ReadonlyArray<{ obstacleId: string; obstacleKind: 'node' | 'group' }>;
+  };
   controlPoints: ReadonlyArray<readonly [number, number, number]>;
+  routing: 'curved' | 'straight' | 'organic' | 'flow';
   thickness: number;
   color: string;
   opacity: number;
   style: 'solid' | 'dashed' | 'dotted';
   arrowStart?: string;
   arrowEnd?: string;
-}> = {}) => ({
-  id: 'e1',
-  controlPoints: [[0, 0, 0], [1, 0, 0]] as const,
-  thickness: 0.1,
-  color: '#ff0000',
-  opacity: 1,
-  style: 'solid' as const,
-  arrowStart: 'none',
-  arrowEnd: 'open',
-  ...overrides,
-});
+}> = {}) => {
+  const base = {
+    id: 'e1',
+    controlPoints: [[0, 0, 0], [1, 0, 0]] as const,
+    routing: 'straight' as const,
+    thickness: 0.1,
+    color: '#ff0000',
+    opacity: 1,
+    style: 'solid' as const,
+    arrowStart: 'none',
+    arrowEnd: 'open',
+  };
+  return {
+    ...base,
+    ...overrides,
+  };
+};
 
 describe('EdgeRenderer', () => {
   let renderer: EdgeRenderer;
@@ -116,6 +133,39 @@ describe('EdgeRenderer', () => {
     threeD.getOrCreate(makeEdge({ arrowEnd: 'open' }), localParent);
     expect(entry.arrowEnd).toBeDefined();
     expect(entry.arrowEnd?.geometry).toBeInstanceOf(THREE.ConeGeometry);
+  });
+
+  it('renders flow routing as a curve path built from explicit commands', () => {
+    const entry = renderer.getOrCreate(makeEdge({
+      routing: 'flow',
+      path: {
+        commands: [
+          { kind: 'line', from: [0, 0, 0], to: [1, 0, 0] },
+          { kind: 'cubic', p0: [1, 0, 0], p1: [1.4, 0, 0], p2: [1.6, 1, 0], p3: [2, 1, 0] },
+        ],
+        startTangent: [1, 0, 0],
+        endTangent: [-1, 0, 0],
+        usedUnderpass: false,
+        punctures: [],
+      },
+      controlPoints: [[0, 0, 0], [1, 0, 0], [1.4, 0, 0], [1.6, 1, 0], [2, 1, 0]],
+    }), parent);
+    const geom = entry.tube.geometry as THREE.TubeGeometry;
+    expect(geom.parameters.path).toBeInstanceOf(THREE.CurvePath);
+  });
+
+  it('renders curved routing as a cubic bezier path', () => {
+    const entry = renderer.getOrCreate(makeEdge({
+      routing: 'curved',
+      controlPoints: [
+        [0, 0, 0],
+        [1, 0, 0],
+        [1, 1, 0],
+        [2, 1, 0],
+      ],
+    }), parent);
+    const geom = entry.tube.geometry as THREE.TubeGeometry;
+    expect(geom.parameters.path).toBeInstanceOf(THREE.CubicBezierCurve3);
   });
 
   it('adds pulse uniforms when flow is enabled and clears intensity when disabled', () => {

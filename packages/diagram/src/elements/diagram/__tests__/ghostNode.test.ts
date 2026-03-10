@@ -1,9 +1,53 @@
-// Tests for ghost node semantics (Finding 2): label: undefined triggers merge, '' does not.
+// Tests for ghost node semantics: label: undefined triggers merge, '' does not.
 
 import { describe, it, expect } from 'vitest';
 import { compileDiagram } from '../compile';
-import { compileCanvas } from '../canvas/compile';
-import { DiagramCanvasWidget } from '../canvas/widget';
+import { DiagramWidget } from '../widget';
+import type { DiagramState, DiagramThemeRenderConfig } from '../types';
+
+/** Minimal theme config that avoids asset loading in the test environment. */
+const testThemeConfig: DiagramThemeRenderConfig = {
+  envMapUrl: 'none',
+  envMapIntensity: 1,
+  skyColor: '#000000',
+  horizonColor: '#000000',
+  nodeGlowIntensity: 0,
+  nodeGlowSpread: 2.2,
+  nodeCornerRadius: 0,
+  use3DArrows: false,
+  edgeSmoothness: 0.5,
+  edgeMetalness: 0.3,
+  edgeRoughness: 0.7,
+  edgeFlowSpeed: 0.7,
+  edgeFlowWidth: 0.18,
+  edgeTubeRadialSegments: 8,
+  edgeFlowPulseIntensity: 0.9,
+  groupBorderMetalness: 0.35,
+  groupBorderRoughness: 0.45,
+  groupBorderSideDarken: 0.40,
+  groupBorderEdgeDarken: 0.45,
+  nodeLabelFontSizeBase: 0.28,
+  nodeSublabelFontSizeBase: 0.18,
+  fontUrl: undefined,
+};
+
+function makeDefaultState(overrides: Partial<DiagramState> = {}): DiagramState {
+  return {
+    id: 'test',
+    viewportBounds: { x: 0, y: 0, w: 1, h: 1 },
+    tiltRotation: [0, 0, 0],
+    z: 0,
+    scale: 1,
+    contentAspect: 1.0,
+    nodes: [],
+    edges: [],
+    groups: [],
+    exit: undefined,
+    enter: undefined,
+    themeConfig: testThemeConfig,
+    ...overrides,
+  };
+}
 
 describe('ghost node semantic fix (Finding 2)', () => {
   it('node with label absent compiles to label: undefined', () => {
@@ -41,11 +85,9 @@ describe('ghost node semantic fix (Finding 2)', () => {
       edges: [],
       groups: [],
     });
-    const prev = compileCanvas({ id: 'c' }, [prevDiagram], []);
-    const next = compileCanvas({ id: 'c' }, [nextDiagram], []);
-    const widget = new DiagramCanvasWidget('c', prev);
-    const merged = widget.mergeSnapshot(prev, next);
-    const mergedNode = merged!.diagrams[0]!.nodes.find((n) => n.id === 'a')!;
+    const widget = new DiagramWidget('d', makeDefaultState({ id: 'd' }));
+    const merged = widget.mergeSnapshot(prevDiagram, nextDiagram);
+    const mergedNode = merged!.nodes.find((n) => n.id === 'a')!;
     expect(mergedNode.label).toBe('API Gateway');
   });
 
@@ -62,11 +104,9 @@ describe('ghost node semantic fix (Finding 2)', () => {
       edges: [],
       groups: [],
     });
-    const prev = compileCanvas({ id: 'c' }, [prevDiagram], []);
-    const next = compileCanvas({ id: 'c' }, [nextDiagram], []);
-    const widget = new DiagramCanvasWidget('c', prev);
-    const merged = widget.mergeSnapshot(prev, next);
-    const mergedNode = merged!.diagrams[0]!.nodes.find((n) => n.id === 'a')!;
+    const widget = new DiagramWidget('d', makeDefaultState({ id: 'd' }));
+    const merged = widget.mergeSnapshot(prevDiagram, nextDiagram);
+    const mergedNode = merged!.nodes.find((n) => n.id === 'a')!;
     expect(mergedNode.label).toBe('');
   });
 });

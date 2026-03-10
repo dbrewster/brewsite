@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import type { IRenderable, ISceneElement, WidgetInitContext, WidgetRenderContext } from '@brewsite/core';
-import { nvsToWorldWithCamera, computeWorldDimensionsFromCamera } from '@brewsite/core';
+import { validateNVSScalar } from '@brewsite/core';
 import type { ScreenProps } from './dsl';
 import { functionalScreenTransitionSpec } from './compile';
 import { ScreenRenderer } from './render';
@@ -30,7 +30,6 @@ export class ScreenWidget implements ISceneElement<ScreenState>, IRenderable<Scr
 
   private renderer: ScreenRenderer | null = null;
   private scene: THREE.Scene | null = null;
-  private cameraRef: THREE.PerspectiveCamera | null = null;
   private webglRenderer: THREE.WebGLRenderer | null = null;
 
   constructor(widgetId: string, defaultState: ScreenState) {
@@ -38,48 +37,49 @@ export class ScreenWidget implements ISceneElement<ScreenState>, IRenderable<Scr
     this.defaultState = defaultState;
   }
 
-  initialize({ scene, renderer, camera }: WidgetInitContext): void {
+  initialize({ scene, renderer }: WidgetInitContext): void {
     this.scene = scene as THREE.Scene;
-    if (camera) this.cameraRef = camera;
     this.webglRenderer = (renderer as THREE.WebGLRenderer) ?? null;
     const overlay = this.ensureOverlayContainer();
     this.renderer = new ScreenRenderer(overlay);
   }
 
-  apply(state: ScreenState, _ctx: WidgetRenderContext): void {
+  apply(state: ScreenState, context: WidgetRenderContext): void {
     if (!this.scene || !this.renderer) return;
-    const camera = this.cameraRef;
-    const canvas = this.webglRenderer?.domElement ?? null;
-    if (!camera || !canvas) {
-      console.warn(`ScreenWidget(${this.widgetId}): missing camera or canvas for iframe projection.`);
-      return;
+
+    if (process.env.NODE_ENV !== 'production') {
+      validateNVSScalar(state.nvsX, 'nvsX', `ScreenWidget(${this.widgetId})`);
+      validateNVSScalar(state.nvsY, 'nvsY', `ScreenWidget(${this.widgetId})`);
+      validateNVSScalar(state.nvsWidth, 'nvsWidth', `ScreenWidget(${this.widgetId})`);
+      if (state.nvsHeight !== undefined) {
+        validateNVSScalar(state.nvsHeight, 'nvsHeight', `ScreenWidget(${this.widgetId})`);
+      }
     }
 
-    // Convert NVS position to world-space.
-    const worldPos = nvsToWorldWithCamera(state.nvsX, state.nvsY, camera, state.z);
+    // Convert NVS position to world-space using the per-frame coord service.
+    const [worldX, worldY, worldZ] = context.coords.toWorld(state.nvsX, state.nvsY, state.z);
 
     // Convert NVS width/height fractions to world units.
-    const { worldWidth: ww, worldHeight: wh } = computeWorldDimensionsFromCamera(camera, state.z);
-    const worldWidth = state.nvsWidth * ww;
-    // For height: if nvsHeight is provided use it; otherwise derive from 16:9.
-    const worldHeight = state.nvsHeight !== undefined
-      ? state.nvsHeight * wh
-      : worldWidth * (9 / 16);
+    // When nvsHeight is undefined, derive height from a 16:9 ratio applied to the world width.
+    // nvsH_fallback = nvsWidth * canvasAspect * (9/16) ensures worldH = worldW * (9/16).
+    const nvsH = state.nvsHeight ?? (state.nvsWidth * context.coords.canvasAspect * (9 / 16));
+    const [worldW, worldH] = context.coords.toWorldSize(state.nvsWidth, nvsH);
 
-    const rect = canvas.getBoundingClientRect();
+    const canvas = this.webglRenderer?.domElement ?? null;
+    const rect = canvas?.getBoundingClientRect() ?? new DOMRect(0, 0, 1920, 1080);
+
     this.renderer.update({
       ...state,
-      position: worldPos,
-      width: worldWidth,
-      height: worldHeight,
-    }, this.scene, camera, rect);
+      position: [worldX, worldY, worldZ],
+      width: worldW,
+      height: worldH,
+    }, this.scene, context.coords, rect);
   }
 
   dispose(): void {
     if (!this.scene || !this.renderer) return;
     this.renderer.dispose(this.widgetId, this.scene);
     this.scene = null;
-    this.cameraRef = null;
     this.renderer = null;
   }
 
@@ -104,4 +104,3 @@ export class ScreenWidget implements ISceneElement<ScreenState>, IRenderable<Scr
     return overlay;
   }
 }
-

@@ -1,6 +1,6 @@
 // Hook for reading demo engine progress from the global registry.
 
-import { useSceneEngineState } from '@brewsite/core';
+import { useEngineState } from '@brewsite/core';
 
 /**
  * Reads the current engine progress for a named demo.
@@ -11,6 +11,6 @@ import { useSceneEngineState } from '@brewsite/core';
  * Returns null if the engine is not mounted or the id is not registered.
  */
 export function useDemoProgress(engineId: string): number | null {
-  const state = useSceneEngineState(engineId);
+  const state = useEngineState(engineId);
   return state?.progress ?? null;
 }

@@ -1,24 +1,16 @@
 import type {JSX} from 'react';
 import {
-    Action,
-    Background,
-    Camera,
-    InputController,
-    KeyMap,
-    PointerMap,
     ProgressManager,
     Scene,
     TextBox,
-    WheelMap,
 } from '@brewsite/core';
 import {
     Diagram,
-    DiagramCanvas,
     DiagramEdge,
-    DiagramEnter,
     DiagramGroup,
     DiagramNode,
-    ManualLayout,
+    FlowLayout,
+    GridLayout,
 } from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
@@ -29,50 +21,57 @@ export const sceneCfOverview: JSX.Element = (
   <Scene key="bfc-cf-overview" id="bfc-cf-overview">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
 
-    <DiagramCanvas id="bfc-cf-canvas" x={0} y={0} w={1} h={0.66} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="cf-overview">
-        <ManualLayout />
+    <Diagram id="cf-overview" x={0} y={0} w={1} h={0.60} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
+        <FlowLayout direction="top-down" gap={1.05} />
 
-        {/* Center hub */}
-        <DiagramNode id="cf-db" label=".swarm/memory.db" sublabel="SQLite · single file · 12 tables" size={[0.645, 0.438]} position={[1.500, 1.656, 0]} color="#1a2030" />
+        <DiagramNode
+          id="cf-db"
+          label=".swarm/memory.db"
+          sublabel="SQLite · single file · 12 tables"
+          size={[8.8, 2.5]}
+          color="#1a2030"
+          glow={{ intensity: 0.12 }}
+        />
 
-        {/* Core Storage cluster — top-left around [-12, 5, 0] */}
-        <DiagramGroup id="cf-core" label="Core Storage" variant="cluster" >
-          <DiagramNode id="cf-memstore" label="memory_store" sublabel="key-value · namespace · TTL" size={[0.507, 0.345]} position={[0.393, 0.405, 0]} color="#101828" />
-          <DiagramNode id="cf-sessions" label="sessions" sublabel="cross-session context" size={[0.507, 0.345]} position={[0.393, 0.798, 0]} color="#101828" />
-          <DiagramNode id="cf-agents" label="agents" sublabel="registry · config · state" size={[0.507, 0.345]} position={[0.393, 1.188, 0]} color="#101828" />
-          <DiagramNode id="cf-tasks" label="tasks" sublabel="tracking · deps · status" size={[0.507, 0.345]} position={[0.393, 1.578, 0]} color="#101828" />
+        <DiagramGroup id="cf-categories" variant="container">
+          <GridLayout columns={2} spacing={[1.9, 1.1]} />
+
+          <DiagramGroup id="cf-core" label="Core Storage" variant="cluster">
+            <FlowLayout direction="top-down" gap={0.72} />
+            <DiagramNode id="cf-memstore" label="memory_store" sublabel="key-value · namespace · TTL" size={[5.0, 1.55]} color="#101828" />
+            <DiagramNode id="cf-sessions" label="sessions" sublabel="cross-session context" size={[5.0, 1.55]} color="#101828" />
+            <DiagramNode id="cf-agents" label="agents" sublabel="registry · config · state" size={[5.0, 1.55]} color="#101828" />
+            <DiagramNode id="cf-tasks" label="tasks" sublabel="tracking · deps · status" size={[5.0, 1.55]} color="#101828" />
+          </DiagramGroup>
+
+          <DiagramGroup id="cf-coord" label="Coordination" variant="cluster">
+            <FlowLayout direction="top-down" gap={0.72} />
+            <DiagramNode id="cf-shared" label="shared_state" sublabel="cross-agent blackboard · versioned" size={[5.0, 1.55]} color="#101828" />
+            <DiagramNode id="cf-agmem" label="agent_memory" sublabel="per-agent state" size={[5.0, 1.55]} color="#101828" />
+            <DiagramNode id="cf-events" label="events" sublabel="audit log" size={[5.0, 1.55]} color="#101828" />
+            <DiagramNode id="cf-topology" label="swarm_topology" sublabel="agent relationships" size={[5.0, 1.55]} color="#101828" />
+          </DiagramGroup>
+
+          <DiagramGroup id="cf-intel" label="Intelligence" variant="cluster">
+            <FlowLayout direction="top-down" gap={0.72} />
+            <DiagramNode id="cf-patterns" label="patterns" sublabel="usage_count · confidence" size={[5.0, 1.55]} color="#101828" />
+            <DiagramNode id="cf-perf" label="performance_metrics" sublabel="latency · throughput" size={[5.0, 1.55]} color="#101828" />
+          </DiagramGroup>
+
+          <DiagramGroup id="cf-recov" label="Recovery" variant="cluster">
+            <FlowLayout direction="top-down" gap={0.72} />
+            <DiagramNode id="cf-workflow" label="workflow_state" sublabel="crash-recovery checkpoints" size={[5.0, 1.55]} color="#101828" />
+            <DiagramNode id="cf-consensus" label="consensus_state" sublabel="quorum voting · ≥2 acceptors" size={[5.0, 1.55]} color="#101828" />
+          </DiagramGroup>
         </DiagramGroup>
 
-        {/* Coordination cluster — top-right around [12, 5, 0] */}
-        <DiagramGroup id="cf-coord" label="Coordination" variant="cluster">
-          <DiagramNode id="cf-shared" label="shared_state" sublabel="cross-agent blackboard · versioned" size={[0.507, 0.345]} position={[2.607, 0.405, 0]} color="#101828" />
-          <DiagramNode id="cf-agmem" label="agent_memory" sublabel="per-agent state" size={[0.507, 0.345]} position={[2.607, 0.798, 0]} color="#101828" />
-          <DiagramNode id="cf-events" label="events" sublabel="audit log" size={[0.507, 0.345]} position={[2.607, 1.188, 0]} color="#101828" />
-          <DiagramNode id="cf-topology" label="swarm_topology" sublabel="agent relationships" size={[0.507, 0.345]} position={[2.607, 1.578, 0]} color="#101828" />
-        </DiagramGroup>
+        <DiagramEdge from="cf-db" to="cf-core"  routing="flow"  arrowEnd="none" color="#3a5070" flow='forward' />
+        <DiagramEdge from="cf-db" to="cf-coord" routing="flow" arrowEnd="none" color="#3a5070" flow='forward' />
+        <DiagramEdge from="cf-db" to="cf-intel" routing="flow" arrowEnd="none" color="#3a5070" flow='forward' />
+        <DiagramEdge from="cf-db" to="cf-recov" routing="flow" arrowEnd="none" color="#3a5070" flow='forward' />
+    </Diagram>
 
-        {/* Intelligence cluster — bottom-left around [-12, -5, 0] */}
-        <DiagramGroup id="cf-intel" label="Intelligence" variant="cluster">
-          <DiagramNode id="cf-patterns" label="patterns" sublabel="usage_count · confidence" size={[0.507, 0.345]} position={[0.393, 2.202, 0]} color="#101828" />
-          <DiagramNode id="cf-perf" label="performance_metrics" sublabel="latency · throughput" size={[0.507, 0.345]} position={[0.393, 2.595, 0]} color="#101828" />
-        </DiagramGroup>
-
-        {/* Recovery cluster — bottom-right around [12, -5, 0] */}
-        <DiagramGroup id="cf-recov" label="Recovery" variant="cluster">
-          <DiagramNode id="cf-workflow" label="workflow_state" sublabel="crash-recovery checkpoints" size={[0.507, 0.345]} position={[2.607, 2.202, 0]} color="#101828" />
-          <DiagramNode id="cf-consensus" label="consensus_state" sublabel="quorum voting · ≥2 acceptors" size={[0.507, 0.345]} position={[2.607, 2.595, 0]} color="#101828" />
-        </DiagramGroup>
-
-        {/* Edges from center db to each group representative node */}
-        <DiagramEdge from="cf-db" to="cf-memstore" arrowEnd="none" color="#3a5070" />
-        <DiagramEdge from="cf-db" to="cf-shared" arrowEnd="none" color="#3a5070" />
-        <DiagramEdge from="cf-db" to="cf-patterns" arrowEnd="none" color="#3a5070" />
-        <DiagramEdge from="cf-db" to="cf-workflow" arrowEnd="none" color="#3a5070" />
-      </Diagram>
-    </DiagramCanvas>
-
-    <TextBox id="cf-overview-prose" x={0} y={0.66} w={1} h={0.34}>
+    <TextBox id="cf-overview-prose" x={0} y={0.60} w={1} h={0.40}>
       <div style={{
         padding: '36px 60px 44px',
         background: 'rgba(8, 11, 20, 0.88)',

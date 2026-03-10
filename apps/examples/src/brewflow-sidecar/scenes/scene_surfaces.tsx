@@ -1,17 +1,12 @@
 import type {JSX} from 'react';
 import {
-  Action,
   Background,
   Camera,
-  InputController,
-  KeyMap,
-  PointerMap,
   ProgressManager,
   Scene,
   TextBox,
-  WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
 
@@ -20,23 +15,10 @@ const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 export const sceneSurfaces: JSX.Element = (
   <Scene key="bf-surfaces" id="bf-surfaces">
     <ProgressManager scrollUnits={3200} fn={DWELL_FN} />
-    <InputController scope="canvas">
-      <Action id="pan" type="diagram-canvas.move" canvasId="bf-surfaces">
-        <PointerMap event="drag" axis="xy" />
-        <WheelMap axis="xy" />
-      </Action>
-      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bf-surfaces">
-        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
-      </Action>
-      <Action id="reset" type="diagram-canvas.reset" canvasId="bf-surfaces">
-        <KeyMap keyName="r" />
-      </Action>
-    </InputController>
     <Camera mode="world" position={[0, 6, 22]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bf-surfaces" x={0} y={0} w={1} h={0.58} tilt={-0.15} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="surfaces-diagram">
+    <Diagram id="surfaces-diagram" x={0} y={0} w={1} h={0.58} tilt={-0.15} scale={config.diagramScale} theme={brewflowTheme}>
         <HierarchicalLayout direction="top-down" spacing={[2, 2]} />
 
         <DiagramNode
@@ -87,8 +69,7 @@ export const sceneSurfaces: JSX.Element = (
         <DiagramEdge from="surface-hooks" to="bf-box" arrowEnd="open" color="#6080c0"  flow='forward'/>
         <DiagramEdge from="surface-mcp" to="bf-box" arrowEnd="open" color="#6080c0" flow='bidirectional'/>
         <DiagramEdge from="surface-sqlite" to="bf-box" arrowEnd="open" color="#6080c0" flow='bidirectional'/>
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="surfaces-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

@@ -1,5 +1,50 @@
 # @brewsite/core Changelog
 
+## [2.0.0] — 2026-03-09
+
+### Breaking Changes
+
+This release introduces the Composable Player Architecture. All v1 player components and hooks
+that dealt with scroll/input configuration on `EngineProvider` have been removed in favour of
+explicit composable primitives. See [MIGRATION.md](./MIGRATION.md) for upgrade instructions.
+
+#### Deleted exports (no compatibility shims)
+
+- `EngineProvider` — replaced by `SceneEngine`
+- `EngineInputRegion` — replaced by `ScrollStage` + `ScrollInput` (scroll mode) or `SceneReel` (embedded mode)
+- `ScrollCaptureSection` — replaced by `ScrollStage`
+- `useEngineScroll` / `UseEngineScrollOptions` / `UseEngineScrollResult` — internalized in `ScrollInput`
+- `useEngineInput` / `UseEngineInputOptions` / `UseEngineInputResult` — internalized in input components
+- `InputModePolicy` type — no replacement; input mode is determined by which components are rendered
+- `ScrollSource` type — replaced by `IScrollSource` / `ScrollSourceProp`
+- `useSceneEngineState(id)` — replaced by `useEngineState(id)` (unified hook)
+- `engine.scrollToProgress(p)` — replaced by `engine.setProgress(p)` / `useGoToScene()`
+
+#### `useEngineScrubber` — options argument removed
+
+The options object (`{ scrollToProgress, getGlobalProgress }`) is removed. The hook now reads
+engine context directly. See MIGRATION.md for the upgrade path.
+
+### New Features
+
+- `SceneEngine` — pure context provider replacing `EngineProvider`
+- `ScrollStage` — DOM layout helper for the full-page sticky-canvas pattern
+- `BackgroundLayer` — wires `engine.setBackgroundRef` to a positioned div
+- `SceneReel` — convenience wrapper for embedded/docs/slides use cases
+- `ScrollInput` — scroll-driven progress (inertia, window, element, `IScrollSource`)
+- `TimeInput` — wall-clock auto-advance
+- `KeyboardInput` — arrow key + space scene navigation
+- `PointerInput` — click-to-advance and hover-to-scrub
+- `ControlledInput` — externally controlled progress (highest priority)
+- `useGoToScene()` — programmatic scene navigation with scroll source sync
+- `useEngineState(id?)` — unified hook (local context or global registry)
+- `useNativeScrollSource()` — hidden native scroll container as `IScrollSource`
+- `IScrollSource` / `ScrollSourceProp` — custom scroll source interface
+- `SceneCanvas engineId` prop — allows `SceneCanvas` outside the engine's React subtree
+- Plugin inheritance via `PluginInheritanceContext` — zero-scene root engine for app-level hoisting
+
+---
+
 ## [Unreleased] — Pre-Release API Hardening
 
 This release completes the API surface cleanup required before `@brewsite/core` is published publicly. It removes several legacy abstractions that were present from early development and replaces them with composable primitives. All removals have direct migration paths described below.

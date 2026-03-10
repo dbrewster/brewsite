@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import React from 'react';
+import * as THREE from 'three';
 import { ModelWidget } from '../ModelWidget';
 import {
   ModelRouter,
@@ -13,12 +14,16 @@ import {
   Motion,
   Animation,
 } from '../ModelWidget';
-import { resolveSceneFromDsl, Scene } from '@brewsite/core';
+import { resolveSceneFromDsl, Scene, createNVSCoordService } from '@brewsite/core';
 import { registerNode } from '@brewsite/core';
 import { clearRegistry } from '@brewsite/core/testing';
 import { WidgetRegistry } from '@brewsite/core/widget/WidgetRegistry';
 import type { SceneSnapshotContext } from '@brewsite/core';
 import type { SceneModelInstanceState } from '../types';
+
+const _testCamera = new THREE.PerspectiveCamera(45, 16 / 9, 0.01, 100);
+_testCamera.position.set(0, 0, 12.07);
+const _testCoords = createNVSCoordService(_testCamera, 1920, 1080);
 
 const makeContext = (): SceneSnapshotContext => ({
   sceneIndex: 0,
@@ -313,7 +318,7 @@ describe('ModelWidget runtime helpers', () => {
       model: { scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true },
       playback: { motion: { commands: [], scenes: [] }, animation: { enabled: false } },
     };
-    widget.apply(state, { clock: { wallTimeSeconds: 0, deltaSeconds: 0 }, effectiveDeltaSeconds: 0, globalProgress: 0, variables: {} as never, extra: { enabled: false } });
+    widget.apply(state, { clock: { wallTimeSeconds: 0, deltaSeconds: 0 }, effectiveDeltaSeconds: 0, globalProgress: 0, variables: {} as never, extra: { enabled: false }, coords: _testCoords });
     // ModelWidget.apply() converts NVS → world before passing to renderer
     expect(renderer.apply).toHaveBeenCalledWith(
       expect.objectContaining({ model: expect.objectContaining({ position: expect.any(Array) }) }),

@@ -9,7 +9,6 @@ import {
   Scene,
   TextBox,
 } from '@brewsite/core';
-import { DiagramCanvas, darkGlassTheme } from '@brewsite/diagram';
 import { MidFade } from '@brewsite/core/hud/animejs';
 import { makeWhiteboardDiagram } from '../diagram';
 
@@ -23,15 +22,7 @@ export const sceneProxy: JSX.Element = (
       <Directional intensity={0.6} color="#aaccff" position={[10, 20, 30]} />
       <Directional intensity={0.3} color="#334466" position={[-20, 5, 10]} />
     </Lighting>
-    <DiagramCanvas
-      id="whiteboard-arch-canvas"
-      x={0} y={0} w={1} h={1}
-      tilt={0}
-      scale={1.0}
-      theme={darkGlassTheme}
-    >
-      {makeWhiteboardDiagram()}
-    </DiagramCanvas>
+    {makeWhiteboardDiagram()}
     <TextBox id="proxy-callout" x={0.02} y={0.70} w={0.45} h={0.26}>
       <div style={{
         padding: '20px 24px',

@@ -2,7 +2,12 @@
 
 import type * as THREE from 'three';
 import type { Text } from 'troika-three-text';
-import type { DiagramNodeState, DiagramEdgeState, DiagramGroupState } from '../types';
+import type {
+  DiagramNodeState,
+  DiagramEdgeState,
+  DiagramGroupState,
+  DiagramEdgePathState,
+} from '../types';
 
 /** Extended Text type for troika layout properties not in official types. */
 export type TextWithLayout = Text & {
@@ -42,10 +47,12 @@ export type EdgeRenderEntry = {
   arrowEnd?: THREE.Mesh;
   lastState?: DiagramEdgeState | {
     id: string;
+    path?: DiagramEdgePathState;
     controlPoints: ReadonlyArray<readonly [number, number, number]>;
     thickness: number;
     color: string;
     opacity: number;
+    routing?: DiagramEdgeState['routing'];
     style?: 'solid' | 'dashed' | 'dotted';
     arrowStart?: string;
     arrowEnd?: string;

@@ -1,43 +1,22 @@
 import type {JSX} from 'react';
 import {
-  Action,
   Background,
   Camera,
-  InputController,
-  KeyMap,
-  PointerMap,
   ProgressManager,
   Scene,
   TextBox,
-  WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneClsTheory: JSX.Element = (
+export const SceneClsTheory = () => (
   <Scene key="bfm-cls" id="bfm-cls">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
-    <Camera mode="world" position={[0, 5, 22]} target={[0, 0, 0]} fov={52} />
-    <Background color="#080b14" />
 
-    <InputController scope="canvas">
-      <Action id="pan" type="diagram-canvas.move" canvasId="bfm-cls-canvas">
-        <PointerMap event="drag" axis="xy" />
-        <WheelMap axis="xy" />
-      </Action>
-      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bfm-cls-canvas">
-        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
-      </Action>
-      <Action id="reset" type="diagram-canvas.reset" canvasId="bfm-cls-canvas">
-        <KeyMap keyName="r" />
-      </Action>
-    </InputController>
-
-    <DiagramCanvas id="bfm-cls-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="cls-diagram">
+    <Diagram id="cls-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
         <ManualLayout />
         <DiagramEnter fade />
 
@@ -59,7 +38,6 @@ export const sceneClsTheory: JSX.Element = (
         <DiagramEdge from="cog-neo" to="bf-neo" label="→" routing="straight" color="#5060a0" arrowEnd="open" />
         <DiagramEdge from="cog-work" to="bf-inject" label="→" routing="straight" color="#5060a0" arrowEnd="open" />
       </Diagram>
-    </DiagramCanvas>
 
     <TextBox id="bfm-cls-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

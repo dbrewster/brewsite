@@ -13,6 +13,11 @@ it('mergeTheme preserves unmentioned fields from base', () => {
   expect(result.group).toEqual(darkGlassTheme.group);
 });
 
+it('mergeTheme applies node.defaultBoxColor overrides', () => {
+  const result = mergeTheme(darkGlassTheme, { node: { defaultBoxColor: '#223344' } });
+  expect(result.node.defaultBoxColor).toBe('#223344');
+});
+
 it('mergeTheme does not mutate base theme', () => {
   const original = darkGlassTheme.node.defaultColor;
   mergeTheme(darkGlassTheme, { node: { defaultColor: '#000' } });
@@ -21,9 +26,9 @@ it('mergeTheme does not mutate base theme', () => {
 
 it('mergeTheme merges nested objects (edge config)', () => {
   const result = mergeTheme(darkGlassTheme, {
-    edge: { routing: 'orthogonal' },
+    edge: { routing: 'flow' },
   });
-  expect(result.edge.routing).toBe('orthogonal');
+  expect(result.edge.routing).toBe('flow');
   expect(result.edge.defaultColor).toBe(darkGlassTheme.edge.defaultColor);
   expect(result.edge.defaultThickness).toBe(darkGlassTheme.edge.defaultThickness);
 });

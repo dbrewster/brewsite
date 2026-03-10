@@ -13,12 +13,14 @@ const makeEngineDouble = (overrides?: Partial<UseSceneEngineResult>): UseSceneEn
     sceneProgress: 0,
     tick: null,
   },
-  scrollRegionRef: { current: null },
-  scrollRegionHeightPx: 100,
   progress: overrides?.progress ?? 0,
-  scrollToProgress: overrides?.scrollToProgress ?? (() => {}),
-  getGlobalProgress: overrides?.getGlobalProgress ?? (() => overrides?.progress ?? 0),
+  setProgress: overrides?.setProgress ?? vi.fn(),
+  setRawProgress: vi.fn(),
+  advanceProgress: vi.fn(),
   sceneCount: overrides?.sceneCount ?? 3,
+  sceneTrack: null,
+  compiledScenes: [],
+  progressMapper: null,
   variableStore: overrides?.variableStore as UseSceneEngineResult['variableStore'],
   setCanvasRef: () => {},
   setBackgroundRef: () => {},
@@ -27,7 +29,9 @@ const makeEngineDouble = (overrides?: Partial<UseSceneEngineResult>): UseSceneEn
   getRenderer: () => null,
   setCameraOverride: () => {},
   getCameraOverride: () => null,
-  debug: { driverReady: true, assetsReady: true, sceneTrackTicks: 5, viewport: { width: 100, height: 100 } },
+  setAutoAdvancePaused: () => {},
+  sceneOverlays: new Map(),
+  debug: { assetsReady: true, viewport: { width: 100, height: 100 } },
 });
 
 afterEach(() => {
@@ -51,9 +55,9 @@ describe('TimelineWidget', () => {
     expect(slider.getAttribute('aria-valuenow')).toBe('50');
   });
 
-  it('calls scrollToProgress when scrubbing', () => {
-    const scrollToProgress = vi.fn();
-    const engineDouble = makeEngineDouble({ progress: 0.1, scrollToProgress });
+  it('calls setProgress when scrubbing', () => {
+    const setProgress = vi.fn();
+    const engineDouble = makeEngineDouble({ progress: 0.1, setProgress });
     render(<TimelineWidget engine={engineDouble} />);
     const slider = screen.getByRole('slider');
 
@@ -70,7 +74,7 @@ describe('TimelineWidget', () => {
     } as DOMRect);
 
     fireEvent.pointerDown(slider, { clientX: 50, clientY: 10, pointerId: 1 });
-    expect(scrollToProgress).toHaveBeenCalled();
+    expect(setProgress).toHaveBeenCalled();
   });
 
   it('renders scene labels for each provided scene', () => {
@@ -93,11 +97,11 @@ describe('TimelineWidget', () => {
   });
 
   it('respects scrubEnabled=false', () => {
-    const scrollToProgress = vi.fn();
-    const engineDouble = makeEngineDouble({ progress: 0.1, scrollToProgress });
+    const setProgress = vi.fn();
+    const engineDouble = makeEngineDouble({ progress: 0.1, setProgress });
     render(<TimelineWidget engine={engineDouble} scrubEnabled={false} />);
     const slider = screen.getByRole('slider');
     fireEvent.pointerDown(slider, { clientX: 50, clientY: 10, pointerId: 1 });
-    expect(scrollToProgress).not.toHaveBeenCalled();
+    expect(setProgress).not.toHaveBeenCalled();
   });
 });

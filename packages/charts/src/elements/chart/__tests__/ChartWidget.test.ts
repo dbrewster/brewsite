@@ -53,10 +53,13 @@ vi.mock('three', () => {
   }
   class Color { constructor(_?: unknown) {} set(_: unknown) {} }
   const FrontSide = 0;
+  const MathUtils = {
+    degToRad: (deg: number) => deg * (Math.PI / 180),
+  };
   return {
     Vector3, Vector2, Object3D, Scene, Group, BufferGeometry,
     MeshPhysicalMaterial, LineBasicMaterial, MeshStandardMaterial,
-    Mesh, Camera, PerspectiveCamera, Raycaster, Color, FrontSide,
+    Mesh, Camera, PerspectiveCamera, Raycaster, Color, FrontSide, MathUtils,
   };
 });
 
@@ -85,7 +88,8 @@ import { ChartWidget } from '../ChartWidget';
 import { ChartDataStore } from '../../../data/ChartDataStore';
 import { DEFAULT_CHART_STATE } from '../types';
 import type { ChartState } from '../types';
-import type { WidgetInitContext, WidgetRenderContext } from '@brewsite/core';
+import type { WidgetInitContext, WidgetRenderContext, NVSCoordService } from '@brewsite/core';
+import { createNVSCoordService } from '@brewsite/core';
 
 /** Minimal mock DOM element for tests running in node environment. */
 function createMockDomElement(): HTMLElement {
@@ -117,8 +121,16 @@ function makeInitCtx(): WidgetInitContext {
   } as unknown as WidgetInitContext;
 }
 
+/** Build a real NVSCoordService for a worldScale=10 camera (position z=12.07, fov=45, 1920×1080).
+ * Uses a plain object to bypass the THREE mock (which ignores PerspectiveCamera constructor args).
+ */
+function makeCoords(): NVSCoordService {
+  const camera = { position: { x: 0, y: 0, z: 12.07 }, fov: 45 };
+  return createNVSCoordService(camera as unknown as import('three').PerspectiveCamera, 1920, 1080);
+}
+
 function makeRenderCtx(): WidgetRenderContext {
-  return {} as WidgetRenderContext;
+  return { coords: makeCoords() } as unknown as WidgetRenderContext;
 }
 
 function makeState(overrides?: Partial<ChartState>): ChartState {
@@ -247,35 +259,69 @@ describe('ChartWidget', () => {
     expect(widget.nvsBounds).toEqual({ x: 0, y: 0.5, w: 1, h: 0.5 });
   });
 
-  it('apply() centers chart group on NVS world position by subtracting half-bounds', () => {
+  it('apply() centers chart group on NVS world position by subtracting half worldW/worldH', () => {
     const ctx = makeInitCtx();
     const scene = ctx.scene as THREE.Scene;
     widget.initialize(ctx);
-    // Default state: nvsX=0.5, nvsY=0.5, bounds={width:4, height:3}.
-    // Mock camera is at position (0,0,0) with fov/aspect undefined.
-    // nvsToWorldWithCamera(0.5, 0.5, camera, 0) → worldCenter=[0, 0, 0]
-    // (the (nvsX-0.5)*w and (nvsY-0.5)*h terms are zero regardless of NaN width/height).
-    // After centering offset: chartGroup.position = [0-4/2, 0-3/2, 0] = [-2, -1.5, 0].
+    // Default state: nvsX=0.5, nvsY=0.5, bounds={width:1.0, height:1.0} (NVS fractions).
+    // coords at worldScale=10 (fov=45, z=12.07, 1920x1080):
+    //   visibleWorldHeight ≈ 10.0, visibleWorldWidth ≈ 17.78
+    //   toWorld(0.5, 0.5) = [0, 0, 0]
+    //   toWorldSize(1.0, 1.0) = [17.78, 10.0]
+    // worldPos = [0 - 17.78/2, 0 - 10.0/2, 0] = [-8.89, -5.0, 0]
     const state = makeState();
-    widget.apply(state, makeRenderCtx());
+    const coords = makeCoords();
+    const [worldW, worldH] = coords.toWorldSize(state.bounds.width, state.bounds.height);
+    widget.apply(state, { coords } as unknown as WidgetRenderContext);
 
     const chartGroup = scene.children[0] as THREE.Object3D;
     expect(chartGroup).toBeDefined();
-    expect(chartGroup.position.x).toBeCloseTo(-state.bounds.width / 2);
-    expect(chartGroup.position.y).toBeCloseTo(-state.bounds.height / 2);
+    expect(chartGroup.position.x).toBeCloseTo(-worldW / 2);
+    expect(chartGroup.position.y).toBeCloseTo(-worldH / 2);
     expect(chartGroup.position.z).toBe(state.z);
   });
 
-  it('apply() with custom bounds centers on those bounds dimensions', () => {
+  it('apply() with NVS fraction bounds (0.5, 0.4) produces correct world-space group position', () => {
     const ctx = makeInitCtx();
     const scene = ctx.scene as THREE.Scene;
     widget.initialize(ctx);
-    const state = makeState({ bounds: { width: 6, height: 2, depth: 0.3 } });
+    // bounds.width=0.5 → worldW ≈ 0.5 * 17.78 ≈ 8.89
+    // bounds.height=0.4 → worldH ≈ 0.4 * 10.0 = 4.0
+    // worldPos (nvsCenter=0.5,0.5 → worldCenter=[0,0,0]): [-8.89/2, -4.0/2, 0] = [-4.44, -2.0, 0]
+    const state = makeState({ bounds: { width: 0.5, height: 0.4, depth: 0.4 } });
     widget.apply(state, makeRenderCtx());
 
     const chartGroup = scene.children[0] as THREE.Object3D;
-    expect(chartGroup.position.x).toBeCloseTo(-3);  // -6/2
-    expect(chartGroup.position.y).toBeCloseTo(-1);  // -2/2
+    expect(chartGroup.position.x).toBeCloseTo(-8.89 / 2, 1);   // ≈ -4.44
+    expect(chartGroup.position.y).toBeCloseTo(-4.0 / 2, 1);    // ≈ -2.0
+  });
+
+  // §9.5 — NVS bounds conversion test
+  it('apply() with bounds={width:0.5, height:0.4} sends worldW≈8.89, worldH≈4.0 to renderer', () => {
+    const ctx = makeInitCtx();
+    const scene = ctx.scene as THREE.Scene;
+    widget.initialize(ctx);
+    // worldScale=10: visibleWorldHeight≈10.0, visibleWorldWidth≈17.78
+    // bounds.width=0.5 → worldW = 0.5 * 17.78 ≈ 8.89
+    // bounds.height=0.4 → worldH = 0.4 * 10.0 = 4.0
+    // bounds.depth=0.4 passes through unchanged
+    const state = makeState({ nvsX: 0.5, nvsY: 0.5, bounds: { width: 0.5, height: 0.4, depth: 0.4 } });
+    const coords = makeCoords();
+    widget.apply(state, { coords } as unknown as WidgetRenderContext);
+
+    // Chart group is positioned at [wcx - worldW/2, wcy - worldH/2, z].
+    // With nvsCenter=(0.5,0.5) → worldCenter=[0,0,0].
+    // So chartGroup.position.x = -worldW/2 ≈ -4.445
+    //    chartGroup.position.y = -worldH/2 ≈ -2.0
+    const chartGroup = scene.children[0] as THREE.Object3D;
+    const worldW = coords.toWorldSize(0.5, 0.4)[0];
+    const worldH = coords.toWorldSize(0.5, 0.4)[1];
+    expect(worldW).toBeCloseTo(8.89, 1);
+    expect(worldH).toBeCloseTo(4.0, 1);
+    expect(chartGroup.position.x).toBeCloseTo(-worldW / 2, 1);
+    expect(chartGroup.position.y).toBeCloseTo(-worldH / 2, 1);
+    // depth passes through unchanged
+    expect(state.bounds.depth).toBe(0.4);
   });
 
   it('getCamera returns null before initialize', () => {

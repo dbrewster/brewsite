@@ -11,10 +11,10 @@ import type {
   DiagramWarnFn,
 } from './types';
 import type { FunctionalTransitionSpec, NVSRect } from '@brewsite/core';
-import { blendOpacity, blendVec3 } from '@brewsite/core';
+import { blendOpacity, blendVec3, validateNVSRect, validateNVSPosition } from '@brewsite/core';
 import { darkGlassTheme } from './themes/darkGlass';
 import { resolveLayout, resolveLayoutWithGroups, computeBounds } from './compiler/layoutAlgorithms';
-import { routeEdges } from './compiler/edgeRouter';
+import { routeEdges, routeEdgesYDown } from './compiler/edgeRouter';
 import { buildNodeDefaults, buildGroupDefaults, compileNode, compileEdge } from './compiler/nodeCompiler';
 import { compileGroup, resolveGroupBoundsMap } from './compiler/groupCompiler';
 import type { GroupBounds } from './compiler/groupCompiler';
@@ -73,6 +73,8 @@ type RawSize = readonly [number, number];
  * to [0..1] NVS space after layout algorithms have assigned absolute positions.
  *
  * Also normalizes group bounds from diagram units to [0..1] NVS.
+ * The fit extents are computed from the union of node outer edges and group
+ * bounds so group padding/title bands participate in the final viewport fit.
  *
  * The Y axis is FLIPPED: Cartesian +Y (up) → NVS y=0 (top).
  *
@@ -89,8 +91,9 @@ function normalizeToViewport(
   normalizedPositions: Map<string, RawPosition>;
   normalizedSizes: Map<string, RawSize>;
   normalizedGroups: Map<string, GroupBounds>;
+  contentAspect: number;
 } {
-  // Step 1: Compute bounding box of all node outer edges
+  // Step 1: Compute bounding box of all node outer edges.
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const node of nodes) {
     const [px, py] = node.position;
@@ -101,12 +104,25 @@ function normalizeToViewport(
     maxY = Math.max(maxY, py + sh / 2);
   }
 
-  // Degenerate case: no nodes
+  // Step 1b: Expand the fit extents to include full group bounds.
+  // Group bounds already include resolved group padding/title band space.
+  for (const bounds of groups.values()) {
+    if (!Number.isFinite(bounds.x) || !Number.isFinite(bounds.y)) continue;
+    if (!Number.isFinite(bounds.w) || !Number.isFinite(bounds.h)) continue;
+    if (bounds.w <= 0 && bounds.h <= 0) continue;
+    minX = Math.min(minX, bounds.x);
+    maxX = Math.max(maxX, bounds.x + bounds.w);
+    minY = Math.min(minY, bounds.y);
+    maxY = Math.max(maxY, bounds.y + bounds.h);
+  }
+
+  // Degenerate case: no nodes and no non-empty groups.
   if (!Number.isFinite(minX)) {
     return {
       normalizedPositions: new Map(),
       normalizedSizes: new Map(),
       normalizedGroups: new Map(),
+      contentAspect: 1.0,
     };
   }
 
@@ -153,7 +169,7 @@ function normalizeToViewport(
     });
   }
 
-  return { normalizedPositions, normalizedSizes, normalizedGroups };
+  return { normalizedPositions, normalizedSizes, normalizedGroups, contentAspect: safeSpanX / safeSpanY };
 }
 
 // ─── compileDiagram ───────────────────────────────────────────────────────────
@@ -259,11 +275,12 @@ export function compileDiagram(
   let normalizedPositions: Map<string, RawPosition>;
   let normalizedSizes: Map<string, RawSize>;
   let normalizedGroups: Map<string, GroupBounds>;
+  let contentAspect: number;
 
   if (rootLayout.kind !== 'manual') {
     // Auto-layout: normalize diagram-unit positions to [0..1] NVS.
     const resolvedPadding = (rootLayout as ResolvedLayout).groupPadding[0];
-    ({ normalizedPositions, normalizedSizes, normalizedGroups } = normalizeToViewport(
+    ({ normalizedPositions, normalizedSizes, normalizedGroups, contentAspect } = normalizeToViewport(
       nodesPreNorm,
       groupBoundsMap,
       resolvedPadding,
@@ -274,6 +291,8 @@ export function compileDiagram(
     normalizedPositions = new Map(nodesPreNorm.map((n) => [n.id, n.position]));
     normalizedSizes = new Map(nodesPreNorm.map((n) => [n.id, n.size]));
     normalizedGroups = groupBoundsMap;
+    // ManualLayout positions are already in NVS fractions — no AR correction needed.
+    contentAspect = 1.0;
   }
 
   // Warn when a ManualLayout diagram contains a node whose size dimension exceeds 1.5 —
@@ -321,7 +340,7 @@ export function compileDiagram(
     ...edge,
     thickness: edge.thickness ?? theme.edge.defaultThickness,
   }));
-  const normalizedControlPointsMap = routeEdges(
+  const normalizedEdgeRoutes = routeEdgesYDown(
     edgesForRouting,
     normalizedPositions,
     normalizedSizeWithDepthMap,
@@ -329,12 +348,37 @@ export function compileDiagram(
     theme.edge.landing,
     onWarn,
     theme.edge.organicVariation,
+    {
+      flowTurnRadius: theme.edge.flowTurnRadius,
+      flowFaceStub: theme.edge.flowFaceStub,
+      flowBundleStrength: theme.edge.flowBundleStrength,
+      flowObstaclePadding: theme.edge.flowObstaclePadding,
+      flowTargetApproachBias: theme.edge.flowTargetApproachBias,
+      flowUnderpassDepth: theme.edge.flowUnderpassDepth,
+      flowUnderpassClearance: theme.edge.flowUnderpassClearance,
+      flowTurnPenalty: theme.edge.flowTurnPenalty,
+      flowPunchthroughPenalty: theme.edge.flowPunchthroughPenalty,
+      flowUnderpassPenalty: theme.edge.flowUnderpassPenalty,
+    },
   );
 
   const edges = dsl.edges.map((edge, index) => {
     const id = edge.id ?? `${edge.from}-${edge.to}-${index}`;
-    const controlPoints = normalizedControlPointsMap.get(id) ?? [];
-    return compileEdge(edge, controlPoints, index, theme);
+    const route = normalizedEdgeRoutes.get(id);
+    return compileEdge(
+      edge,
+      route?.path ?? {
+        commands: [],
+        startTangent: [0, 0, 0],
+        endTangent: [0, 0, 0],
+        usedUnderpass: false,
+        punctures: [],
+      },
+      route?.controlPoints ?? [],
+      index,
+      theme,
+      route?.pathDebug,
+    );
   });
 
   const groups = dsl.groups
@@ -353,10 +397,38 @@ export function compileDiagram(
       return areaB - areaA;
     });
 
+  const viewportBounds: NVSRect = {
+    x: dsl.x ?? 0,
+    y: dsl.y ?? 0,
+    w: dsl.w ?? 1,
+    h: dsl.h ?? 1,
+  };
+
+  if (process.env.NODE_ENV !== 'production') {
+    validateNVSRect(viewportBounds, `<Diagram id="${dsl.id}">`);
+    for (const node of nodes) {
+      validateNVSPosition(node.position, `<Diagram id="${dsl.id}"> node "${node.id}"`);
+    }
+    for (const edge of edges) {
+      for (const pt of edge.controlPoints) {
+        if (pt[0] < -0.05 || pt[0] > 1.05 || pt[1] < -0.05 || pt[1] > 1.05) {
+          console.warn(
+            `[NVS] <Diagram id="${dsl.id}"> edge "${edge.id}" has control point ` +
+            `[${pt[0].toFixed(3)}, ${pt[1].toFixed(3)}] outside [0..1]. ` +
+            `Edge may render outside viewportBounds.`,
+          );
+        }
+      }
+    }
+  }
+
   return {
     id: dsl.id,
-    viewportBounds: dsl.viewportBounds ?? { x: 0, y: 0, w: 1, h: 1 },
-    tiltRotation: dsl.tilt ?? [0, 0, 0],
+    viewportBounds,
+    tiltRotation: [dsl.tilt ?? 0, 0, 0],
+    z: dsl.z ?? 0,
+    scale: dsl.scale ?? 1,
+    contentAspect,
     nodes,
     edges,
     groups,
@@ -500,6 +572,9 @@ export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramSt
 
     return {
       ...to,
+      z: lerpNum(from.z, to.z, t),
+      scale: lerpNum(from.scale, to.scale, t),
+      contentAspect: to.contentAspect,  // structural property — pass through, do not lerp
       viewportBounds: lerpNVSRect(from.viewportBounds, to.viewportBounds, t),
       tiltRotation: blendVec3(
         [from.tiltRotation[0], from.tiltRotation[1], from.tiltRotation[2]],

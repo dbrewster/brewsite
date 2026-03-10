@@ -11,10 +11,12 @@ import {
   type ReactNode,
 } from 'react';
 import {
-  EngineProvider,
-  SceneCanvas,
   EngineOverlayHost,
-  ScrollCaptureSection,
+  KeyboardInput,
+  SceneCanvas,
+  SceneEngine,
+  ScrollInput,
+  ScrollStage,
   type WidgetPlugin,
 } from '@brewsite/core';
 import type { DocsNav } from '../nav/types';
@@ -37,19 +39,17 @@ export interface DocsAppProps {
   nav: DocsNav<string>;
   /**
    * Optional engine configuration. When provided, DocsApp wraps the content
-   * column in an EngineProvider and mounts a sticky SceneCanvas driven by
+   * column in a SceneEngine and mounts a sticky SceneCanvas driven by
    * window scroll. When omitted, DocsApp renders a pure documentation layout
    * with no 3D canvas.
    */
   engineConfig?: {
     plugins: WidgetPlugin[];
-    manifestUrl: string;
+    /** @deprecated Removed in v2. Pass manifestUrl to your model plugin instead. */
+    manifestUrl?: string;
     /**
      * Total scroll height in pixels. Sum of all scene scrollUnits.
-     * Passed to <ScrollCaptureSection height={...}> only.
-     * NOT forwarded to EngineProvider.scrollHeightPx — ScrollCaptureSection
-     * drives progress via setRawProgress() and does not use the engine's
-     * internal scroll-height calculation.
+     * Passed to <ScrollStage scrollHeightPx={...}>.
      */
     scrollHeightPx: number;
     /** Scene DSL children (Scene elements with their DSL props). */
@@ -71,8 +71,8 @@ export interface DocsAppProps {
  * The content column has NO overflow-y: auto — the window is the scroll source.
  * The sidebar is sticky at height: 100vh.
  *
- * When engineConfig is provided, the content column is wrapped in an EngineProvider
- * with a sticky SceneCanvas driven by window scroll via ScrollCaptureSection.
+ * When engineConfig is provided, the content column is wrapped in a SceneEngine
+ * with a sticky SceneCanvas driven by window scroll via ScrollStage + ScrollInput.
  *
  * Active section tracking:
  * - Mounts one IntersectionObserver watching all [data-section-id] elements.
@@ -161,33 +161,28 @@ export function DocsApp({ nav, engineConfig, children }: DocsAppProps): ReactEle
   // DocsMainColumn would both become direct grid children. A wrapper div
   // keeps them in a single second-column block.
   const contentColumn: ReactNode = engineConfig ? (
-    <EngineProvider
+    <SceneEngine
       plugins={engineConfig.plugins}
-      manifestUrl={engineConfig.manifestUrl}
-      quality={engineConfig.quality}
-      // NOTE: scrollHeightPx is intentionally NOT passed to EngineProvider here.
-      // ScrollCaptureSection drives progress via direct setRawProgress() calls,
-      // computing normalized [0,1] progress from its own outer div geometry.
-      // EngineProvider.scrollHeightPx only affects the engine's internal scroll-
-      // height calculation (used by EngineScrollRegion), which is bypassed
-      // entirely when ScrollCaptureSection is the scroll driver.
+      timingProfile={engineConfig.quality ? { qualityPreset: engineConfig.quality } : undefined}
     >
       {/* Scene declarations — compile to SceneTrack, no DOM output */}
       {engineConfig.scenes}
-      {/* Wrapper div ensures ScrollCaptureSection + DocsMainColumn occupy the
+      {/* Wrapper div ensures ScrollStage + DocsMainColumn occupy the
           same second grid column rather than splitting across grid rows. */}
       <div>
         {/* Sticky canvas driven by window scroll */}
-        <ScrollCaptureSection height={engineConfig.scrollHeightPx} stageHeight="100vh">
-          <SceneCanvas style={{ width: '100%', height: '100%' }} />
+        <ScrollStage scrollHeightPx={engineConfig.scrollHeightPx} stageHeight="100vh">
+          <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
+          <ScrollInput source="window" />
+          <KeyboardInput />
           <EngineOverlayHost />
-        </ScrollCaptureSection>
+        </ScrollStage>
         {/* Documentation content flows after the scroll region */}
         <DocsMainColumn ref={columnRef}>
           {children}
         </DocsMainColumn>
       </div>
-    </EngineProvider>
+    </SceneEngine>
   ) : (
     <DocsMainColumn ref={columnRef}>
       {children}

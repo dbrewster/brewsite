@@ -1,7 +1,16 @@
 // Chart demo page — showcases bar, line, pie, and scatter chart types.
 import type {JSX} from 'react';
 import {Fragment, useMemo} from 'react';
-import {EngineARContainer, EngineInputRegion, EngineOverlayHost, EngineProvider, SceneCanvas,} from '@brewsite/core';
+import {
+  BackgroundLayer,
+  EngineARContainer,
+  EngineOverlayHost,
+  KeyboardInput,
+  SceneCanvas,
+  SceneEngine,
+  ScrollInput,
+  ScrollStage,
+} from '@brewsite/core';
 import {ChartProvider} from '@brewsite/charts';
 import {createChartDemoPlugins} from './widgetSetup';
 import {
@@ -26,25 +35,24 @@ export default function ChartDemoPage(): JSX.Element {
   }), []);
 
   return (
-    <div style={{ background: '#020812', height: '100vh', minHeight: '100vh' }}>
-      <EngineProvider
-        manifestUrl={MANIFEST_URL}
-        plugins={plugins}
-        pixelsPerScene={1400}
-      >
+    <div style={{ background: '#020812', minHeight: '100vh' }}>
+      <SceneEngine plugins={plugins}>
         <ChartProvider data={chartData}>
           <Fragment key="chart-bar">{chartDemoBar}</Fragment>
           <Fragment key="chart-line">{chartDemoLine}</Fragment>
           <Fragment key="chart-pie">{chartDemoPie}</Fragment>
           <Fragment key="chart-scatter">{chartDemoScatter}</Fragment>
         </ChartProvider>
-        <EngineARContainer aspectRatio={9 / 9} scaleMode="fit-height" referenceWidth={1920}>
-          <EngineInputRegion>
-            <SceneCanvas />
+        <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1400}>
+          <EngineARContainer aspectRatio={9 / 9} scaleMode="fit-height" referenceWidth={1920}>
+            <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+            <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
             <EngineOverlayHost />
-          </EngineInputRegion>
-        </EngineARContainer>
-      </EngineProvider>
+          </EngineARContainer>
+          <ScrollInput source="window" />
+          <KeyboardInput />
+        </ScrollStage>
+      </SceneEngine>
     </div>
   );
 }

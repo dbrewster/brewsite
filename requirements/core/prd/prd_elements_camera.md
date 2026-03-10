@@ -3,8 +3,11 @@ title: "BrewSite Core — Camera Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-07
+last_updated: 2026-03-09
 change_history:
+  - date: 2026-03-09
+    author: "Toolkit Product"
+    summary: "NVS Universal Coordinate System: added nvsViewport as a fifth camera mode (mode: 'nvsViewport'). NVSViewportCamera accepts worldScale and zRange; compiles to an equivalent mode='world' CameraState at compile time — no special runtime handling. Non-Goals updated: removed reference to DiagramCanvas managing its own orthographic camera (DiagramCanvas has been removed from @brewsite/diagram). Breaking change assessment updated to minor (additive mode)."
   - date: 2026-03-07
     author: "Toolkit Product"
     summary: "Camera architecture cleanup: eliminated scene.userData inter-widget bus. ICameraFocusTarget interface added — CameraWidget implements it so downstream widgets (e.g. DiagramCanvasWidget) call context.cameraFocusTarget.requestFocus() instead of writing to scene.userData['__brewsite_camera_focus']. ICameraHost interface extracted so the player layer (useSceneEngine.ts) programs against an interface rather than importing concrete CameraWidget — exports setInteractionDefaults, isWheelClaimedByInteraction, getCameraOverride, getCameraInteractionDriver. CameraWidget.onTick() no longer duplicates RuntimeDriverImpl state resolution — reads resolvedState from AnimationTickContext instead. All __brewsite_camera, __brewsite_renderer, __brewsite_camera_override, __brewsite_cam_enabled, and __brewsite_camera_focus scene.userData keys eliminated. CameraPost.exposure JSDoc corrected: renderer injected via WidgetInitContext.renderer, not scene.userData."
@@ -27,7 +30,7 @@ The Camera element controls the Three.js `PerspectiveCamera` across scenes in `@
 
 The Camera element lives in `packages/core/src/elements/camera/` and follows the mandatory module pattern: `types.ts → dsl.tsx → compile.ts → render.ts → CameraWidget.ts → index.ts`. Three.js is confined to `render.ts` and `CameraWidget.ts`. The compiler layer is pure TypeScript with no Three.js imports.
 
-The `@brewsite/diagram` package extends the camera interaction model with `DiagramCanvas`-specific focus actions (`canvas.focus`), which are routed through the `ActionInputController` and handled by `CameraWidget` via the `ICameraInteractionDriver` abstraction. This extension is additive and does not modify the core camera type surface.
+The `@brewsite/diagram` package extends the camera interaction model with diagram focus actions (`canvas.focus`), which are routed through the `ActionInputController` and handled by `CameraWidget` via the `ICameraInteractionDriver` abstraction. This extension is additive and does not modify the core camera type surface.
 
 ---
 
@@ -65,7 +68,7 @@ Additionally, interactive camera controls (orbit, dolly, pan via trackpad) are a
 
 - The Camera element does not implement cinematic camera paths (bezier curves, look-at tracking over time). Path-following is an animation library concern; within the scene system, smooth transitions are the responsibility of the interpolation system between discrete scene states.
 - Multiple simultaneous cameras (split-screen, picture-in-picture) are not supported by this element. The scene has exactly one active camera.
-- Orthographic camera mode is not part of this element. The `DiagramCanvas` element in `@brewsite/diagram` manages its own orthographic camera independently.
+- Orthographic camera mode is not part of this element. The `nvsViewport` mode positions the camera to give a near-orthographic frustum for NVS-primary scenes (see §7.7), but the camera remains a `PerspectiveCamera` — true orthographic mode is not provided.
 - VR/AR camera rig management (XR reference space, XR session) is not in scope.
 - Camera shake, procedural noise, or handheld simulation are consumer-widget concerns, not part of this element.
 - The Camera element does not write to the `VariableStore` for consumption by other widgets in the first version. Read access (for label projection) is exposed via a direct method, not a reactive store key.
@@ -91,7 +94,7 @@ Additionally, interactive camera controls (orbit, dolly, pan via trackpad) are a
 
 1. The `<Camera>` DSL component must accept a `descriptor` prop typed as `CameraPositionDescriptor`. The `descriptor` is required; a scene without a `<Camera>` inherits the prior scene's camera state.
 2. The `CameraPositionDescriptor` type must be a discriminated union on a `mode` string literal. TypeScript must narrow the type correctly when switching on `mode`.
-3. The four valid `mode` values are: `'world'`, `'orbit'`, `'fitBotHeight'`, and `'fitFloorDepth'`. No other mode values are valid.
+3. The five valid `mode` values are: `'world'`, `'orbit'`, `'fitBotHeight'`, `'fitFloorDepth'`, and `'nvsViewport'`. No other mode values are valid.
 4. `WorldSpaceCamera` must accept `position: Vec3`, `target: Vec3`, and optional `up: Vec3` (default `[0, 1, 0]`).
 5. `OrbitCamera` must accept `target: Vec3`, `azimuth: number` (radians), `polar: number` (radians from up axis), `distance: number` (world units), and optional `up: Vec3`.
 6. `FitBotHeightCamera` must accept `targetId: string` (ModelWidget ID), `targetHeight: number` (world units), optional `framingHeightPct: number` (default 0.8), optional `heightOffset: number`, and optional `distanceOffset: number`. The widget must compute the camera position at runtime using the current camera FOV and viewport dimensions.
@@ -162,11 +165,44 @@ export interface FitFloorDepthCamera {
   cameraY?: number;
 }
 
+/**
+ * NVS-first camera setup for scenes containing diagrams, charts, or other
+ * NVS-positioned elements — with no large-world 3D models.
+ *
+ * The author declares two independent degrees of freedom:
+ *   worldScale — the visible world height at z=0, in world units
+ *   zRange     — the total visible Z depth, in world units
+ *
+ * The compiler derives camera position, FOV, near, and far from these two values.
+ * The resulting CameraState is identical in shape to a mode='world' state —
+ * nvsViewport is fully resolved at compile time, leaving no special runtime handling.
+ *
+ * Typical values for a 1-unit NVS world: worldScale=1, zRange=2.
+ * Low FOV (auto-derived) gives near-orthographic appearance for NVS-primary scenes.
+ */
+export interface NVSViewportCamera {
+  mode: 'nvsViewport';
+  /**
+   * Desired visible world height at z=0, in world units.
+   * This is the canonical "size" of the NVS viewport in 3D space.
+   * Default: 1. Larger values give a wider world for the same NVS positions.
+   */
+  worldScale?: number;
+  /**
+   * Total visible Z range (near to far of meaningful content), in world units.
+   * Controls camera distance: camera is placed at z = worldScale * 6 + zRange/2
+   * (heuristic; exact formula in compile.ts).
+   * Default: 2.
+   */
+  zRange?: number;
+}
+
 export type CameraPositionDescriptor =
   | WorldSpaceCamera
   | OrbitCamera
   | FitBotHeightCamera
-  | FitFloorDepthCamera;
+  | FitFloorDepthCamera
+  | NVSViewportCamera;
 
 export interface CameraLens {
   fov?: number;           // field of view in degrees; default 45
@@ -317,6 +353,20 @@ Floor-depth framing for environment shots:
   }}
 />
 ```
+
+NVS-first camera for diagram/chart scenes (no 3D models):
+
+```tsx
+<Camera
+  descriptor={{
+    mode: 'nvsViewport',
+    worldScale: 1,  // visible world height = 1 unit at z=0
+    zRange: 2,      // visible Z depth = 2 units
+  }}
+/>
+```
+
+The compiler resolves this to an equivalent `mode: 'world'` state — the NVS coordinate service then maps `[0..1]` positions to world-space using this camera. Authors use `nvsViewport` when they want predictable NVS→world mapping without computing camera math manually.
 
 Full interactive orbit with constraints:
 

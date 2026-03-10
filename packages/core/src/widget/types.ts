@@ -306,6 +306,65 @@ export type WidgetInitContext = {
   camera?: PerspectiveCamera;
 };
 
+/**
+ * Per-frame coordinate conversion service injected by the engine into
+ * WidgetRenderContext. Converts NVS [0..1] positions to Three.js world-space
+ * using the live camera and live canvas dimensions.
+ *
+ * Widgets that place geometry in the main scene MUST use this service instead
+ * of holding camera references or using hardcoded aspect-ratio constants.
+ *
+ * Available from the first apply() call onward. Guaranteed non-null.
+ */
+export interface NVSCoordService {
+  /**
+   * Convert NVS [0..1] viewport position to Three.js world-space XYZ.
+   * Projects onto the world Z-plane at the given depth.
+   *
+   * @param nvsX  Horizontal position [0=left, 1=right].
+   * @param nvsY  Vertical position [0=top, 1=bottom].
+   * @param z     World-space Z depth of the target plane. Default: 0 (look-at plane).
+   *
+   * @remarks
+   * Gives exact results only when the camera is positioned on the Z-axis looking
+   * straight toward [0, 0, 0] — i.e., camera.position = [cx, cy, cameraZ] with no
+   * X/Y tilt and camera.lookAt([cx, cy, 0]). This is guaranteed for mode="nvsViewport".
+   *
+   * For orbit-mode cameras pointed at an angle, toWorld(0.5, 0.5) still maps correctly
+   * to the camera's look-at point, but corner values are approximate — the NVS grid is
+   * projected onto z=0 as if the camera were axis-aligned. Error grows with camera tilt
+   * angle. For extreme angles, use world-space positioning instead.
+   */
+  toWorld(nvsX: number, nvsY: number, z?: number): readonly [number, number, number];
+
+  /**
+   * Convert NVS width/height fractions to Three.js world-space units.
+   * Based on the visible world size at z=0 (the camera look-at plane).
+   *
+   * @param nvsW  Width as fraction of viewport [0..1].
+   * @param nvsH  Height as fraction of viewport [0..1].
+   */
+  toWorldSize(nvsW: number, nvsH: number): readonly [number, number];
+
+  /** Live canvas aspect ratio: width / height in CSS pixels. */
+  readonly canvasAspect: number;
+
+  /**
+   * Visible world height at z=0 (the camera look-at plane).
+   * Equals 2 * cameraDistance * tan(fov/2).
+   */
+  readonly visibleWorldHeight: number;
+
+  /** Visible world width at z=0. Equals visibleWorldHeight * canvasAspect. */
+  readonly visibleWorldWidth: number;
+
+  /** Canvas width in CSS pixels. Updated each frame. */
+  readonly viewportWidth: number;
+
+  /** Canvas height in CSS pixels. Updated each frame. */
+  readonly viewportHeight: number;
+}
+
 export type WidgetRenderContext<TExtra = unknown> = {
   /**
    * Synchronized real-time clock. Same values every widget sees every frame.
@@ -328,6 +387,8 @@ export type WidgetRenderContext<TExtra = unknown> = {
   extra: TExtra;
   /** Current tick snapshot (if available). */
   tick?: SceneTrackTick | null;
+  /** Live NVS → world coordinate conversion service. Never null after first apply(). */
+  coords: NVSCoordService;
   // REMOVED: deltaSeconds — use clock.deltaSeconds or effectiveDeltaSeconds
   // REMOVED: wallTimeSeconds — use clock.wallTimeSeconds
 };

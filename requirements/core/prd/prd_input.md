@@ -5,6 +5,9 @@ status: active
 owner: brewsite-product-manager
 last_updated: 2026-03-07
 change_history:
+  - date: 2026-03-09
+    author: "Toolkit Product"
+    summary: "v2 player API (breaking): useEngineInput and useEngineScroll hooks are deleted — scene navigation is now owned by the composable input components (ScrollInput, KeyboardInput, PointerInput, TimeInput, ControlledInput). EngineInputRegion is deleted; input components render inside SceneEngine or SceneReel. InputModePolicy type deleted — input mode is determined by which input components are rendered. FR #10 updated to remove EngineInputRegion. Section 7.3 (useEngineInput) marked deprecated/removed and replaced by component-based summary. Section 7.2 (InputNavigationHandler) internal — no longer exposed."
   - date: 2026-03-07
     author: "Toolkit Product"
     summary: "Core cleanup: InputActionType is now a fully open string union. The diagram-canvas.* action types (diagram-canvas.move, diagram-canvas.rotate, diagram-canvas.reset, diagram-canvas.focus) have been removed from core's InputActionType and are now string literals owned and dispatched by @brewsite/diagram. The canvas.focus named value has been removed from core's union (diagram-canvas.focus in @brewsite/diagram replaces it). Two new named values added: 'scene.next' and 'scene.prev' for programmatic scene navigation. ActionInputController no longer contains diagram-canvas.* dispatch logic — that lives in @brewsite/diagram. The canvas.pan undocumented alias remains in core as a documented named value."
@@ -22,7 +25,7 @@ change_history:
 
 The Input system handles two distinct concerns: navigating between scenes (advancing and retreating through the scroll-driven composition) and dispatching named actions to widgets (camera orbit, dolly, custom consumer-defined effects). These two concerns are implemented as independent, composable subsystems that can operate simultaneously without conflict.
 
-The first subsystem, **scene navigation**, is configured through `SceneNavInputMap` — a typed configuration object passed to `useEngineInput`. It maps wheel, drag, swipe, click, and keyboard events to scene advancement and retreat, operating in either scroll mode (synchronized with page scroll position) or direct mode (canvas-local pointer events with no scroll spacer).
+The first subsystem, **scene navigation**, is configured through composable input components: `ScrollInput`, `KeyboardInput`, `PointerInput`, `TimeInput`, and `ControlledInput`. These components replace the v1 `useEngineInput` hook and `inputModePolicy` prop pattern. Each component encapsulates one input modality; the input mode is determined by which components are rendered under a `SceneEngine` — there is no `InputModePolicy` enum. `SceneNavInputMap` remains the low-level type for scroll-mode configuration but is now passed as a prop to the relevant input component rather than to `useEngineInput`.
 
 The second subsystem, **action input**, is authored through the `InputController` and `Action` DSL components compiled into the `SceneTrack`. At runtime, `ActionInputController` reads the baked action map and routes pointer, wheel, pinch, and keyboard events to registered named-action handlers on widgets.
 
@@ -95,7 +98,7 @@ Without a well-designed input system that handles these concerns explicitly, eve
 7. The `wheelGuard` mechanism shall prevent scene navigation wheel events from firing while an `'camera.dolly'` action is in progress; the guard shall activate on the first wheel event matching the dolly action and deactivate when the wheel idle timeout expires.
 8. Each `InputActionSpec` shall route matching events to the handler registered for `onAction` on the current `ActionInputController`.
 9. Custom `onAction` strings (not in `InputActionType`) shall be routed to handlers registered by consumer widgets via `ActionInputController.registerHandler(actionType, handler)`.
-10. The `EngineInputRegion` component shall wrap the canvas and attach all necessary DOM event listeners for the `ActionInputController`.
+10. Input components (`ScrollInput`, `KeyboardInput`, `PointerInput`) shall attach all necessary DOM event listeners for the `ActionInputController`. `EngineInputRegion` is deleted — listeners are owned by each input component independently.
 11. Modifier key matching in `PointerMap.key` and `WheelMap.key` shall be evaluated from the event's `ctrlKey`, `metaKey`, `altKey`, and `shiftKey` properties. `'none'` means no modifier key is pressed.
 12. `InputController` scope `'canvas'` shall attach listeners to the canvas element. Scope `'window'` shall attach listeners to the `window` object.
 13. The `DragConfig.axis` setting shall restrict scene navigation to the specified axis: `'y'` responds only to vertical drag, `'x'` only to horizontal, `'both'` to either.
@@ -149,37 +152,21 @@ export interface SceneNavInputMap {
 }
 ```
 
-### 7.2 InputNavigationHandler Interface (`input/types.ts`)
+### 7.2 Scene Navigation Input Components
 
-```typescript
-export interface InputNavigationHandler {
-  onProgress: (delta: number) => void;    // additive delta to current progress
-  onJumpToScene: (index: number) => void; // jump to exact scene index
-  getProgress: () => number;              // current progress [0, numScenes]
-  getSceneCount: () => number;            // total number of scenes
-}
-```
+Scene navigation is handled by composable input components rendered as children of `SceneEngine` or `SceneReel`. Each component manages its own event listeners and cleanup lifecycle. The v1 `InputNavigationHandler` interface and `useEngineInput` hook are deleted.
 
-The `ScenePlayer` passes a conforming `InputNavigationHandler` to `useEngineInput`. This decouples the input system from the player's specific state management.
+| Component | Replaces | Purpose |
+|---|---|---|
+| `ScrollInput` | `useEngineInput` (scroll mode) | Drives progress from `window.scrollY` or a custom `IScrollSource` |
+| `KeyboardInput` | `useEngineInput` (keyboard handling) | Maps keyboard events to scene navigation and action dispatch |
+| `PointerInput` | — | Click or hover scrubbing |
+| `TimeInput` | `setAutoAdvancePaused` / auto-advance | Wall-clock auto-advance with loop and reset-on-exit |
+| `ControlledInput` | `controlledProgress` prop | External `value` prop drives progress directly |
 
-### 7.3 useEngineInput Hook (`input/useEngineInput.ts`)
+### 7.3 `useEngineInput` (deleted in v2)
 
-```typescript
-export interface UseEngineInputOptions {
-  handlers: InputNavigationHandler;
-  config?: SceneNavInputMap;
-  canvasRef: React.RefObject<HTMLElement>;
-  wheelGuardRef?: React.MutableRefObject<boolean>;
-}
-
-export interface UseEngineInputResult {
-  cleanup: () => void;
-}
-
-export function useEngineInput(options: UseEngineInputOptions): UseEngineInputResult
-```
-
-`useEngineInput` is called once in `ScenePlayer` and its cleanup is registered with `useEffect`'s return function. It does not re-register listeners on re-render unless `config` changes (referential equality check).
+`useEngineInput` is removed in v2.0.0. Replace with the appropriate input component. See `packages/core/MIGRATION.md` for the complete migration table.
 
 ### 7.4 InputController DSL (`compiler/blocks/inputController.tsx`)
 

@@ -1,43 +1,22 @@
 import type {JSX} from 'react';
 import {
-  Action,
   Background,
   Camera,
-  InputController,
-  KeyMap,
-  PointerMap,
   ProgressManager,
   Scene,
   TextBox,
-  WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneEpisodicStore: JSX.Element = (
+export const SceneEpisodicStore = () => (
   <Scene key="bfm-episodic" id="bfm-episodic">
     <ProgressManager scrollUnits={3000} fn={DWELL_FN} />
-    <Camera mode="world" position={[0, 5, 24]} target={[0, 0, 0]} fov={52} />
-    <Background color="#080b14" />
 
-    <InputController scope="canvas">
-      <Action id="pan" type="diagram-canvas.move" canvasId="bfm-episodic-canvas">
-        <PointerMap event="drag" axis="xy" />
-        <WheelMap axis="xy" />
-      </Action>
-      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bfm-episodic-canvas">
-        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
-      </Action>
-      <Action id="reset" type="diagram-canvas.reset" canvasId="bfm-episodic-canvas">
-        <KeyMap keyName="r" />
-      </Action>
-    </InputController>
-
-    <DiagramCanvas id="bfm-episodic-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="episodic-diagram">
+    <Diagram id="episodic-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
         <HierarchicalLayout direction="left-right" spacing={[2, 2]} />
 
         {/* Hub */}
@@ -57,7 +36,6 @@ export const sceneEpisodicStore: JSX.Element = (
         <DiagramEdge from="es-core" to="es-synaptic" color="#4060a0" />
         <DiagramEdge from="es-core" to="es-lineage" color="#4060a0" />
       </Diagram>
-    </DiagramCanvas>
 
     <TextBox id="bfm-episodic-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

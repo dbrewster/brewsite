@@ -11,7 +11,7 @@ import {
     TextBox,
     WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -35,8 +35,7 @@ export const sceneCrossUserFlow: JSX.Element = (
     <Camera mode="world" position={[0, 5, 26]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bfmu-cross-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="cross-diagram">
+    <Diagram id="cross-diagram" theme={brewflowTheme}>
         <HierarchicalLayout direction="top-down" />
         <DiagramEnter fade />
 
@@ -97,8 +96,7 @@ export const sceneCrossUserFlow: JSX.Element = (
         <DiagramEdge from="bob-session" to="promo-queue" flow="forward" color="#5070b0" />
         <DiagramEdge from="promo-queue" to="project-neo" flow="forward" color="#6080c0" />
         <DiagramEdge from="project-neo" to="dave-session" label="verified · injected by InjectorCortex" flow="forward" color="#5070b0" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="crossuser-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

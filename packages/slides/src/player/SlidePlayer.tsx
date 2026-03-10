@@ -18,10 +18,10 @@ import React, {
   type RefObject,
 } from 'react';
 import {
-  EngineProvider,
+  BackgroundLayer,
   EngineARContainer,
-  EngineInputRegion,
   SceneCanvas,
+  SceneEngine,
   EngineOverlayHost,
   corePlugin,
   useSceneEngineContext,
@@ -45,13 +45,6 @@ import { Slide } from '../dsl';
 import { SLIDE_META_NAMESPACE } from '../widget/SlideMetaWidget';
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-// Empty manifest data URL — EngineProvider requires a non-empty manifestUrl.
-// fetch('') would fetch the current page (runtime failure). A data URL with an
-// empty asset list is the correct zero-manifest sentinel.
-const EMPTY_MANIFEST_URL = `data:application/json,${encodeURIComponent(
-  JSON.stringify({ models: [], animations: [] }),
-)}`;
 
 // ─── SlideContentWithProgress ─────────────────────────────────────────────────
 
@@ -153,16 +146,15 @@ const SlidePlayerInner = ({
       if (!canvas) return new Map();
       const result = new Map<string, string>();
 
-      // Save current progress. getGlobalProgress() is typed () => number —
-      // calling it returns the current value directly.
-      const savedProgress = engine.getGlobalProgress();
+      // Save current progress.
+      const savedProgress = engine.frameState.progress;
 
       for (let i = 0; i < spec.slides.length; i++) {
         const slide = spec.slides[i]!;
         // Compute exact start progress using cumulative scrollUnits (not i/(n-1),
         // which is wrong for non-uniform budgets like title=100, body=400).
         const targetProgress = computeSlideStartProgress(scrollUnits, i);
-        engine.scrollToProgress(targetProgress);
+        engine.setProgress(targetProgress);
         // Wait two rAF cycles for Three.js to render the new frame.
         await new Promise<void>((resolve) =>
           requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
@@ -170,7 +162,7 @@ const SlidePlayerInner = ({
         result.set(slide.key, canvas.toDataURL('image/png'));
       }
 
-      engine.scrollToProgress(savedProgress);
+      engine.setProgress(savedProgress);
       return result;
     },
   }), [nav, canvasRef, engine, spec.slides, scrollUnits]);
@@ -466,40 +458,35 @@ export const SlidePlayer = forwardRef<SlidePlayerHandle, SlidePlayerProps>(
 
     return (
       <div ref={containerRef} className={className} style={containerStyle}>
-        <EngineProvider
+        <SceneEngine
           id={id}
-          manifestUrl={EMPTY_MANIFEST_URL}
           plugins={allPlugins}
           sceneTheme={resolvedTheme.sceneTheme}
-          inputModePolicy="prefer-direct"
-          pixelsPerScene={600}
         >
           {/* Inject <Slide>→<Scene> expanded children into the engine's scene registration */}
           {sceneElements}
 
           <EngineARContainer aspectRatio={aspectRatio} scaleMode="fit-width">
-            <EngineInputRegion fillContainer>
-              {/* SceneCanvas uses forwardRef<HTMLCanvasElement> — prop is `ref`, NOT `canvasRef`. */}
-              <SceneCanvas ref={canvasRef} />
-              <EngineOverlayHost
-                passthroughPointerEvents={false}
-                overlayTransition={
-                  transition === 'none'
-                    ? { enabled: false }
-                    : { enabled: true, durationMs: 200 }
-                }
-              />
-              {/* Inner component uses hooks — must be inside EngineProvider */}
-              <SlidePlayerInner
-                spec={spec}
-                progressIndicator={progressIndicator}
-                canvasRef={canvasRef}
-                imperativeRef={imperativeRef}
-                navigation={navigation}
-              />
-            </EngineInputRegion>
+            {/* SceneCanvas uses forwardRef<HTMLCanvasElement> — prop is `ref`, NOT `canvasRef`. */}
+            <SceneCanvas ref={canvasRef} />
+            <EngineOverlayHost
+              passthroughPointerEvents={false}
+              overlayTransition={
+                transition === 'none'
+                  ? { enabled: false }
+                  : { enabled: true, durationMs: 200 }
+              }
+            />
+            {/* Inner component uses hooks — must be inside SceneEngine */}
+            <SlidePlayerInner
+              spec={spec}
+              progressIndicator={progressIndicator}
+              canvasRef={canvasRef}
+              imperativeRef={imperativeRef}
+              navigation={navigation}
+            />
           </EngineARContainer>
-        </EngineProvider>
+        </SceneEngine>
       </div>
     );
   },

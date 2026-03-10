@@ -11,7 +11,7 @@ import {
     TextBox,
     WheelMap,
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramNode, GridLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramNode, GridLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -22,22 +22,8 @@ export const sceneDim1Audit: JSX.Element = (
     <ProgressManager scrollUnits={2800} fn={DWELL_FN} />
     <Background color="#080b14" />
 
-    <InputController scope="canvas">
-      <Action id="pan" type="diagram-canvas.move" canvasId="bfc-audit-canvas">
-        <PointerMap event="drag" axis="xy" />
-        <WheelMap axis="xy" />
-      </Action>
-      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bfc-audit-canvas">
-        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
-      </Action>
-      <Action id="reset" type="diagram-canvas.reset" canvasId="bfc-audit-canvas">
-        <KeyMap keyName="r" />
-      </Action>
-    </InputController>
-
-    <DiagramCanvas id="bfc-audit-canvas" x={0} y={0} w={1} h={0.56} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      {/* Left side — claude-flow */}
-      <Diagram id="audit-cf">
+    {/* Left side — claude-flow */}
+    <Diagram id="audit-cf" x={0} y={0} w={1} h={0.56} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
         <GridLayout columns={2} spacing={[3, 2]} />
 
         <DiagramNode id="cf-events-node" label="events table" sublabel="generic rows · timestamp · label · no global order · no lineage" size={[7, 2.8]} color="#1a1520" />
@@ -48,8 +34,7 @@ export const sceneDim1Audit: JSX.Element = (
         <DiagramNode id="bf-episodic-node" label="EpisodicStore" sublabel="typed records · globalEventSeq · lineage closure at query time" size={[7, 2.8]} color="#141830" glow={{ intensity: 0.15 }} />
         <DiagramNode id="bf-audit-q1" label="What happened?" sublabel="✓ typed, ordered, reproducible" size={[6, 2.2]} color="#102015" />
         <DiagramNode id="bf-audit-q2" label="Why did this happen?" sublabel="✓ lineage closure: session→plan→thread→turn" size={[6, 2.2]} color="#0f2015" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="dim1-prose" x={0} y={0.56} w={1} h={0.44}>
       <div style={{

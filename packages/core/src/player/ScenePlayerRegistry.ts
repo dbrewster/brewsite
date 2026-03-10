@@ -28,10 +28,10 @@ const DEFAULT_STATE: SceneRuntimeState = {
  * 1. SSR (Node.js): All concurrently running server requests share this Map.
  *    For stateless SSR, this is generally safe. Call unregisterSceneRuntime(id)
  *    at the end of each render to avoid memory leaks.
- * 2. Multiple EngineProvider instances on one page: each must have a unique `id`
- *    prop. If two providers share an id, the second registration overwrites the first.
+ * 2. Multiple SceneEngine instances on one page: each must have a unique `id`
+ *    prop. If two engines share an id, the second registration overwrites the first.
  * 3. Tests: Call `clearRegistry()` from `@brewsite/core/testing` between test
- *    cases that mount EngineProvider to avoid state bleed across tests.
+ *    cases that mount SceneEngine to avoid state bleed across tests.
  *
  * Design rationale: the global registry enables useSceneEngineState(id) and
  * useSceneRuntime(id) to work from anywhere in the React tree without context
@@ -102,3 +102,28 @@ export const subscribeEngineSnapshot = (id: string, listener: () => void): (() =
     if (engineSnapshotListeners.get(id)?.size === 0) engineSnapshotListeners.delete(id);
   };
 };
+
+// ─── Canvas Binding Registry ───────────────────────────────────────────────────
+// Allows SceneCanvas with engineId prop to register a canvas to a named engine
+// even when SceneCanvas is not a descendant of that engine in the React tree.
+
+type CanvasBindingEntry = {
+  setCanvasRef: (el: HTMLCanvasElement | null) => void;
+  setViewportSize: (w: number, h: number) => void;
+};
+
+const canvasBindings = new Map<string, CanvasBindingEntry>();
+
+/** Called by SceneEngine on mount when it has an id prop. */
+export const registerCanvasBinding = (id: string, entry: CanvasBindingEntry): void => {
+  canvasBindings.set(id, entry);
+};
+
+/** Called by SceneEngine on unmount. */
+export const unregisterCanvasBinding = (id: string): void => {
+  canvasBindings.delete(id);
+};
+
+/** Called by SceneCanvas when engineId prop is set. Returns null if engine not mounted yet. */
+export const getCanvasBinding = (id: string): CanvasBindingEntry | null =>
+  canvasBindings.get(id) ?? null;

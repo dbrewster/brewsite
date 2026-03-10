@@ -1,6 +1,6 @@
 # @brewsite/core
 
-The core animation engine for the BrewFlow Scene Toolkit. Provides a TypeScript + React + Three.js framework for authoring multi-scene, scroll-driven 3D experiences via a declarative JSX DSL.
+The core animation engine for the BrewSite Scene Toolkit. Provides a TypeScript + React + Three.js framework for authoring multi-scene, scroll-driven 3D experiences via a declarative JSX DSL.
 
 ## Installation
 
@@ -16,77 +16,185 @@ Scene authors declare state in a typed JSX DSL. The compiler pre-bakes those dec
 
 ## Quick Start
 
+### Full-page marketing scroll
+
 ```tsx
 import {
-  EngineProvider, EngineGate, EngineInputRegion,
-  SceneCanvas, EngineOverlayHost, corePlugin,
-  Scene, Lighting, Ambient, Directional,
+  SceneEngine, ScrollStage, BackgroundLayer, SceneCanvas, EngineOverlayHost,
+  ScrollInput, KeyboardInput, corePlugin, Scene,
 } from '@brewsite/core';
 import { modelPlugin } from '@brewsite/model';
-import type { SceneDefinition } from '@brewsite/core';
-import { useMemo } from 'react';
-
-const scene01: SceneDefinition = {
-  id: 'intro',
-  index: 0,
-  getFrame: () => (
-    <Scene id="intro">
-      <Lighting intensityScale={1}>
-        <Ambient intensity={2} color="#ffffff" />
-        <Directional intensity={2} color="#ffffff" position={[20, 30, 40]} />
-      </Lighting>
-    </Scene>
-  ),
-};
 
 const PLUGINS = [corePlugin(), modelPlugin(null)];
 
-export default function Page() {
+export default function LandingPage() {
   return (
-    <EngineProvider
-      id="demo"
-      sceneGroup={{ id: 'demo', scenes: [scene01] }}
-      manifestUrl="/scene-manifest.json"
-      plugins={PLUGINS}
-      framesPerTick={100}
-      pixelsPerScene={1600}
-    >
-      <EngineGate>
-        <EngineInputRegion>
-          <SceneCanvas />
-          <EngineOverlayHost />
-        </EngineInputRegion>
-      </EngineGate>
-    </EngineProvider>
+    <SceneEngine plugins={PLUGINS} onError={console.error}>
+      <Scene id="intro">...</Scene>
+      <Scene id="features">...</Scene>
+
+      <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1400}>
+        <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+        <SceneCanvas style={{ width: '100%', height: '100%' }} />
+        <ScrollInput source="window" />
+        <KeyboardInput />
+        <EngineOverlayHost />
+      </ScrollStage>
+    </SceneEngine>
   );
 }
 ```
 
-`EngineInputRegion` and `SceneCanvas` read engine state from context — no `engine` prop required. Define `PLUGINS` at module scope (or via `useMemo`) to keep the array reference stable across renders and avoid restarting asset loading.
+### Embedded reel (docs / slides)
+
+```tsx
+import { SceneReel, TimeInput, Scene, corePlugin } from '@brewsite/core';
+
+export function DemoWidget() {
+  return (
+    <SceneReel height={400} plugins={[corePlugin()]}>
+      <Scene id="step1">...</Scene>
+      <Scene id="step2">...</Scene>
+      <TimeInput duration={4} loop pauseWhenHidden={{ y: 0.5 }} />
+    </SceneReel>
+  );
+}
+```
+
+### Slide deck (keyboard navigation)
+
+```tsx
+import { SceneReel, KeyboardInput, Scene, corePlugin } from '@brewsite/core';
+
+export function SlideDeck() {
+  return (
+    <SceneReel height={600} plugins={[corePlugin()]}>
+      <Scene id="slide1">...</Scene>
+      <Scene id="slide2">...</Scene>
+      <KeyboardInput />
+    </SceneReel>
+  );
+}
+```
+
+### Complex layout with sidebar nav
+
+```tsx
+import { SceneEngine, SceneCanvas, ScrollInput, useGoToScene, corePlugin, Scene } from '@brewsite/core';
+
+function Sidebar() {
+  const goToScene = useGoToScene();
+  return (
+    <nav>
+      <button onClick={() => goToScene('overview')}>Overview</button>
+      <button onClick={() => goToScene('features')}>Features</button>
+    </nav>
+  );
+}
+
+export function DocsLayout() {
+  return (
+    <SceneEngine plugins={[corePlugin()]}>
+      <Scene id="overview">...</Scene>
+      <Scene id="features">...</Scene>
+      <ScrollInput source="inertia" />
+
+      <div style={{ display: 'flex' }}>
+        <Sidebar />
+        <SceneCanvas style={{ flex: 1 }} />
+      </div>
+    </SceneEngine>
+  );
+}
+```
+
+### App-level plugin hoisting (root zero-scene mode)
+
+```tsx
+import { SceneEngine, SceneReel, TimeInput, Scene, corePlugin } from '@brewsite/core';
+import { modelPlugin } from '@brewsite/model';
+import { diagramPlugin } from '@brewsite/diagram';
+
+// Root layout — no scenes; provides plugins for all nested reels.
+function RootLayout({ children }: { children: React.ReactNode }) {
+  const plugins = useMemo(() => [corePlugin(), modelPlugin({ manifestUrl: '/manifest.json' }), diagramPlugin()], []);
+  return (
+    <SceneEngine plugins={plugins}>
+      {children}
+    </SceneEngine>
+  );
+}
+
+// Anywhere nested (plugins inherited automatically):
+function ProductPage() {
+  return (
+    <SceneReel height={400}>   {/* no plugins prop needed */}
+      <Scene id="hero">...</Scene>
+      <TimeInput duration={5} loop />
+    </SceneReel>
+  );
+}
+```
+
+---
 
 ## Key Exports
 
-### Player (React integration surface)
+### Core Engine
 
 | Export | Description |
 |---|---|
-| `EngineProvider` | Root engine component — configures the scene group, plugins, timing, and quality |
-| `EngineGate` | Gates rendering until the engine produces its first frame; renders `placeholder` before that |
-| `EngineInputRegion` | Input capture region; reads from `EngineContext` — no props required for basic use |
-| `SceneCanvas` | Renders the Three.js canvas; reads from `EngineContext` |
-| `EngineOverlayHost` | Renders HUD and label overlays; reads from `EngineContext` |
-| `corePlugin` | Plugin factory that registers core widgets (Lighting, Background, Environment, Floor, Camera, SceneMeta) |
-| `useSceneEngine` | Low-level hook for custom player layouts |
-| `useEngineScroll` | Hook for scroll-progress binding |
-| `useEngineInput` | Hook for input binding |
-| `useEngineScrubber` | Hook for scrubber/seek binding |
-| `useSceneProgress` | Hook for current scene progress (0–1) |
-| `useCurrentScene` | Hook for current scene metadata |
-| `useEngineState` | Hook for full engine frame state |
-| `EngineContext` / `useSceneEngineContext` | Engine context for custom integrations |
-| `TimelineWidget` | Timeline overlay component |
-| `CameraControlPanel` | Camera orbit/dolly control UI *(dev tool — not stable public API)* |
-| `CameraInteractionInfoDialog` | Camera interaction help dialog *(dev tool — not stable public API)* |
+| `SceneEngine` | Root engine component — pure context provider, zero DOM output |
+| `SceneReel` | Convenience wrapper for embedded/docs/slides use cases |
+
+### Layout Components
+
+| Export | Description |
+|---|---|
+| `ScrollStage` | DOM layout helper for the full-page sticky-canvas pattern |
+| `BackgroundLayer` | Wires `engine.setBackgroundRef` to a positioned div |
+| `SceneCanvas` | Renders the Three.js canvas |
+| `EngineOverlayHost` | Renders HUD overlay content |
+| `EngineARContainer` | Fixed aspect-ratio container with scale mode handling |
+| `EngineGate` | Gates rendering until the first frame; shows placeholder during loading |
+
+### Input Components
+
+| Export | Description |
+|---|---|
+| `ScrollInput` | Drives engine progress from scroll (inertia, window, element, or custom `IScrollSource`) |
+| `TimeInput` | Drives engine progress via wall-clock auto-advance |
+| `KeyboardInput` | Keyboard scene navigation (arrow keys, space) |
+| `PointerInput` | Click-to-advance or hover-to-scrub pointer input |
+| `ControlledInput` | Drives engine progress from an external `value` prop (highest priority) |
+
+### Scroll Source
+
+| Export | Description |
+|---|---|
+| `useNativeScrollSource` | Creates a hidden off-screen native scroll container returning `IScrollSource` |
+| `IScrollSource` | Interface for custom scroll source implementations (Lenis, Virtual Scroll, etc.) |
+| `ScrollSourceProp` | Union type for the `source` prop on `<ScrollInput>` |
+
+### Hooks
+
+| Export | Description |
+|---|---|
+| `useEngineState()` | Engine frame state from nearest `SceneEngine` context |
+| `useEngineState(id)` | Engine frame state from global registry by engine id |
+| `useGoToScene()` | Returns a stable function for programmatic scene navigation |
+| `useEngineScrubber()` | Scrubbing state + `setProgress` for drag/seek UI |
+| `useSceneProgress()` | Current scene-local progress [0, 1] |
+| `useCurrentScene()` | Current scene id and index |
+| `useSceneRuntime(id)` | Runtime state (assets, viewport) from global registry |
+| `useSceneEngineContext()` | Raw engine context for advanced custom integrations |
+| `useNativeScrollSource(opts)` | Hidden native scroll region as `IScrollSource` |
+
+### Plugin System
+
+| Export | Description |
+|---|---|
+| `corePlugin` | Registers core widgets: Lighting, Background, Environment, Floor, Camera, SceneMeta |
 
 ### Compiler DSL (scene authoring)
 
@@ -102,69 +210,36 @@ export default function Page() {
 
 | Export | Description |
 |---|---|
-| `WidgetRegistry` | Plugin registry; maps DSL components to widget instances |
+| `WidgetRegistry` | Plugin registry — maps DSL components to widget instances |
 | `VariableStore` | Reactive key-value store for cross-widget state |
 | `useVariable` | React hook for reading a `VariableStore` variable |
 | `CUSTOM_NODE_HANDLER` | Symbol for widgets that override default DSL node routing |
-| `IHasCustomDslHandler` | Interface for widgets with a custom DSL node handler |
-| `hasCustomDslHandler` | Type guard: returns true if the widget implements `IHasCustomDslHandler` |
-| `ISceneLifecycle` | Optional interface for widgets that need `onSceneEnter` / `onSceneExit` hooks |
-| `isSceneLifecycle` | Type guard for `ISceneLifecycle` |
 
-### Core element DSL components
+### UI Components
 
-Base compilers and types for first-party elements:
-
-```ts
-import { compileModel, compileLighting, compileBackground, compileCamera } from '@brewsite/core';
-```
-
-### Type exports
-
-```ts
-import type {
-  SceneDefinition,
-  SceneGroup,
-  SceneFrame,
-  SceneTrack,
-  SceneTrackTick,
-  ClipMeta,
-  AssetManifest,
-  WidgetRegistry,
-  RuntimeDriver,
-  SceneNavInputMap,
-  SceneInputControllerSpec,
-  InputActionSpec,
-  FunctionalTransitionSpec,
-  ElementTransitionSpec,
-  // Widget SDK interfaces
-  IWidget,
-  ISceneElement,
-  IRenderable,
-  ILoadable,
-  ISceneLifecycle,
-  IHasCustomDslHandler,
-  // Engine types
-  EngineState,
-  EngineFrameState,
-  CorePluginOptions,
-  EngineGateProps,
-} from '@brewsite/core';
-```
-
-### Transition utilities
-
-```ts
-import { blendNumber, blendOpacity, blendVec3, blendColor, transitionT } from '@brewsite/core';
-```
-
-## Peer Dependencies
-
-| Package | Version |
+| Export | Description |
 |---|---|
-| `react` | ^19 |
-| `react-dom` | ^19 |
-| `three` | ^0.183 |
+| `TimelineWidget` | Timeline scrubber overlay component |
+| `CameraControlPanel` | Camera orbit/dolly control UI *(dev tool)* |
+| `SceneInspector` | Scene navigation overlay *(dev tool)* |
+
+---
+
+## Upgrading from v1
+
+See [MIGRATION.md](./MIGRATION.md) for a complete v1 → v2 upgrade guide.
+
+**Summary of breaking changes:**
+- `EngineProvider` deleted → use `SceneEngine`
+- `EngineInputRegion` deleted → use `ScrollStage` + `ScrollInput` (scroll mode) or `SceneReel` (embedded mode)
+- `ScrollCaptureSection` deleted → use `ScrollStage`
+- `useEngineScroll` / `useEngineInput` deleted → functionality internalized in input components
+- `useSceneEngineState(id)` deleted → use `useEngineState(id)`
+- `engine.scrollToProgress(p)` deleted → use `engine.setProgress(p)` or `useGoToScene()`
+- `InputModePolicy` / `ScrollSource` types deleted → no replacement needed
+- `useEngineScrubber` no longer takes an options argument
+
+---
 
 ## Architecture
 
@@ -175,17 +250,20 @@ The engine is structured in layers (top to bottom):
 3. **Compiler** (`src/compiler/`) — Pure DSL → SceneTrack pipeline (no Three.js, no React)
 4. **Elements** (`src/elements/`) — Core renderable widgets (model, camera, lighting, background, environment, floor)
 5. **Widget SDK** (`src/widget/`) — `WidgetRegistry`, `VariableStore`, widget interfaces
-6. **HUD / Labels / Input** — Overlay and input systems
+6. **HUD / Input** — Overlay and input systems
 
 Each element follows a strict module pattern:
 ```
 types.ts → dsl.tsx → compile.ts → render.ts → {Name}Widget.ts → index.ts
 ```
-- `types.ts` — interface contracts only; no Three.js or React
-- `dsl.tsx` — React DSL components; no Three.js
-- `compile.ts` — pure transformation functions; no React, no Three.js
-- `render.ts` — Three.js application layer
-- `{Name}Widget.ts` — implements `IWidget`; bridges compiled state to render layer
+
+## Peer Dependencies
+
+| Package | Version |
+|---|---|
+| `react` | ^19 |
+| `react-dom` | ^19 |
+| `three` | ^0.183 |
 
 ## License
 

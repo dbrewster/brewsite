@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
-import { DocsApp } from './components/layout/DocsApp';
+import { DocsLayout } from './layout/DocsLayout';
 
 export default function App(): JSX.Element {
-  return <DocsApp />;
+  return <DocsLayout />;
 }

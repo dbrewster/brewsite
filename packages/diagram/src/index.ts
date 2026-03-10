@@ -1,5 +1,4 @@
 // @brewsite/diagram — 3D immersive diagram and screen elements
-// Full implementation: see requirements/plans/plan_diagram_package.md
 import './register';
 
 // ─── Diagram element ─────────────────────────────────────────────────────────
@@ -7,6 +6,9 @@ export type {
   DiagramState,
   DiagramNodeState,
   DiagramEdgeState,
+  DiagramEdgePathCommand,
+  DiagramEdgePathState,
+  DiagramEdgePathDebug,
   DiagramGroupState,
   DiagramDSL,
   DiagramNodeDSL,
@@ -57,7 +59,7 @@ export type {
 
 export type { DiagramNodeShape, DiagramIconVariant } from './elements/diagram/shapes/shapeVariants';
 export { DEFAULT_NODE_SHAPE } from './elements/diagram/shapes/shapeVariants';
-export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, DiagramExit, DiagramEnter, GridLayout, HierarchicalLayout, ManualLayout, FlowLayout } from './elements/diagram/widget';
+export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, DiagramExit, DiagramEnter, GridLayout, HierarchicalLayout, ManualLayout, FlowLayout, DiagramWidget } from './elements/diagram/widget';
 export type { DiagramExitProps, DiagramEnterProps, GridLayoutProps, HierarchicalLayoutProps, ManualLayoutProps, FlowLayoutProps } from './elements/diagram/dsl';
 export {
   compileDiagram,
@@ -92,14 +94,6 @@ export type {
   NetworkShape,
 } from './elements/diagram/shapes/shapeVariants';
 
-// ─── DiagramCanvas element ──────────────────────────────────────────────────
-export type { DiagramCanvasState, DiagramPipeState, DiagramCanvasDSL, DiagramPipeDSL } from './elements/diagram/canvas/types';
-export { DiagramCanvas, DiagramPipe } from './elements/diagram/canvas/widget';
-export type { DiagramCanvasProps, DiagramPipeProps } from './elements/diagram/canvas/dsl';
-export { compileCanvas, compilePipe, functionalDiagramCanvasTransitionSpec } from './elements/diagram/canvas/compile';
-export { DiagramCanvasRenderer } from './elements/diagram/canvas/render';
-export { DiagramCanvasWidget } from './elements/diagram/canvas/widget';
-
 // ─── ImagePanel element ─────────────────────────────────────────────────────
 export type { ImagePanelState, ImagePanelDSL, ImagePanelBezelVariant } from './elements/image-panel/types';
 export { ImagePanel } from './elements/image-panel/widget';
@@ -117,7 +111,6 @@ export { ScreenWidget } from './elements/screen/widget';
 // ─── Theme presets ────────────────────────────────────────────────────────────
 export { darkGlassTheme, neonCyberTheme, enterpriseTheme, lightMinimalTheme } from './elements/diagram/themes';
 export { mergeTheme, withColorMode } from './elements/diagram/themes/mergeTheme';
-export { defaultDiagramCanvasInputActions } from './elements/diagram/canvas/defaultInputActions';
 
 // ─── Compiler handler registration ──────────────────────────────────────────
 // registerDiagramHandlers is called automatically via ./register.ts at module-load time.

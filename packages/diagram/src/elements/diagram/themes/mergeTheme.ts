@@ -23,7 +23,7 @@ type DeepPartial<T> = {
  * @example
  * const myTheme = mergeTheme(darkGlassTheme, {
  *   node: { defaultColor: '#2a1a40' },
- *   edge: { routing: 'orthogonal', defaultColor: '#ff6b35' },
+ *   edge: { routing: 'flow', defaultColor: '#ff6b35' },
  * });
  */
 export function mergeTheme(base: DiagramTheme, overrides: DeepPartial<DiagramTheme>): DiagramTheme {

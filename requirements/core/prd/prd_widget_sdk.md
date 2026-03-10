@@ -3,8 +3,14 @@ title: "BrewSite Core — Widget SDK"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-08
+last_updated: 2026-03-09
 change_history:
+  - date: 2026-03-09
+    author: "Toolkit Product"
+    summary: "v2 player API: All body-text references to EngineProvider updated to SceneEngine. Plugin registration examples updated to SceneEngine. modelPlugin documentation updated to reflect that manifest loading is now handled by the plugin internally. No widget SDK interface changes — player layer refactoring only."
+  - date: 2026-03-09
+    author: "Toolkit Product"
+    summary: "NVS Universal Coordinate System: WidgetRenderContext gains required coords: NVSCoordService field (breaking — major version bump for @brewsite/core). NVSCoordService interface documented in Section 12.3. createNVSCoordService() factory exported for test use. NVS validation functions (validateNVSScalar, validateNVSRect, validateNVSPosition) exported from layout/index.ts and documented. IExtraRenderPass reserved for future use — currently no built-in widgets implement it following DiagramCanvas removal."
   - date: 2026-03-08
     author: "Toolkit Product"
     summary: "DSL stub co-location: updated widget implementation pattern to reflect that dsl.tsx is now a pure type module (prop interfaces only) and DSL stub functions live in the widget file. Updated section 14 dsl.tsx and MyElementWidget.ts code examples accordingly."
@@ -116,7 +122,7 @@ The Widget SDK solves this by defining a stable, versioned interface set that wi
 11. `CUSTOM_NODE_HANDLER` shall be a `Symbol` that widgets set on themselves to provide their own DSL node compilation logic. When present, the routing handler installed by `WidgetRegistry` shall delegate to it instead of the default state-merge path.
 12. `VariableStore` shall be a reactive key-value store partitioned by namespace. Consumers may subscribe to individual keys (`namespace.key`) or an entire namespace.
 13. The `VariableStoreReader` read-only view shall be the only variable access surface provided to `IRenderable` widgets via `WidgetRenderContext`. Full read-write `VariableStore` access is provided to `IAnimationController` widgets via `AnimationTickContext`.
-14. `corePlugin()` shall provide the standard set of built-in core widgets (`LightingWidget`, `BackgroundWidget`, `EnvironmentWidget`, `FloorWidget`, `CameraWidget`, `SceneMetaWidget`) and register their DSL node handlers. `modelPlugin()` from `@brewsite/model` shall provide `ModelWidget` (via a type factory) and register model DSL handlers. Both are passed as entries in the `plugins` prop of `EngineProvider`.
+14. `corePlugin()` shall provide the standard set of built-in core widgets (`LightingWidget`, `BackgroundWidget`, `EnvironmentWidget`, `FloorWidget`, `CameraWidget`, `SceneMetaWidget`) and register their DSL node handlers. `modelPlugin()` from `@brewsite/model` shall provide `ModelWidget` (via a type factory) and register model DSL handlers. Both are passed as entries in the `plugins` prop of `SceneEngine`.
 15. All type guard functions (`isSceneElement`, `isRenderable`, `isLoadable`, `isContainedModel`, `isDslComposite`, `isAnimationController`, `isVariableProvider`) shall be exported from the `widget` module for use by the runtime and by custom registry implementations.
 
 ---
@@ -455,7 +461,7 @@ class WidgetRegistry {
 }
 ```
 
-`WidgetRegistry` is the central registry for all widgets in a scene. A registry is created per `EngineProvider` instance; it is not a singleton. This allows multiple independent providers on the same page with different widget configurations.
+`WidgetRegistry` is the central registry for all widgets in a scene. A registry is created per `SceneEngine` instance; it is not a singleton. This allows multiple independent engines on the same page with different widget configurations.
 
 **`constructor(options?)`** — Accepts `WidgetRegistryOptions`. The `strict` option controls duplicate-ID behavior (see `register()` below). Consumers building custom registries without `corePlugin()` should pass `{ strict: true }` explicitly.
 
@@ -584,12 +590,12 @@ const useVariable = <T extends JsonPrimitive = JsonPrimitive>(
 ): T | undefined
 ```
 
-React hook for consuming `VariableStore` values in components. Uses `useSyncExternalStore` for correct concurrent-mode subscription. Must be called inside `<EngineProvider>` (reads from `VariableStoreContext`). Re-renders only when the specific `namespace.key` changes.
+React hook for consuming `VariableStore` values in components. Uses `useSyncExternalStore` for correct concurrent-mode subscription. Must be called inside `<SceneEngine>` (reads from `VariableStoreContext`). Re-renders only when the specific `namespace.key` changes.
 
 **Example:**
 
 ```typescript
-// In a custom overlay component inside EngineProvider
+// In a custom overlay component inside SceneEngine
 const sceneId = useVariable<string>('scene', 'id');
 const sceneIndex = useVariable<number>('scene', 'index');
 ```
@@ -609,7 +615,7 @@ const sceneIndex = useVariable<number>('scene', 'index');
 
 ## 11. Built-In Plugins: corePlugin() and modelPlugin()
 
-Widget registration follows the composable plugin model. Plugins are passed as an array to the `plugins` prop of `EngineProvider`. Each plugin implements the `WidgetPlugin` interface:
+Widget registration follows the composable plugin model. Plugins are passed as an array to the `plugins` prop of `SceneEngine`. Each plugin implements the `WidgetPlugin` interface:
 
 ```typescript
 interface WidgetPlugin {
@@ -665,19 +671,18 @@ function modelPlugin(options?: ModelPluginOptions): WidgetPlugin & {
 }
 ```
 
-The `WidgetPlugin` for `@brewsite/model`. Provides `ModelWidget` (via a type factory registered in `configureRegistry()`) and registers model DSL node handlers (`Label`, `Labels`). Manifest loading is handled asynchronously by `EngineProvider` — consumers pass either `manifestUrl` (fetched on mount) or a pre-loaded `manifest` object.
+The `WidgetPlugin` for `@brewsite/model`. Provides `ModelWidget` (via a type factory registered in `configureRegistry()`) and registers model DSL node handlers (`Label`, `Labels`). Manifest loading is handled internally by the plugin itself — consumers pass either `manifestUrl` (fetched on mount) or a pre-loaded `manifest` object.
 
 **Model type factory:** When a manifest is available, `registerTypeFactory(ModelRouter, factory)` installs a lazy factory on the `WidgetRegistry`. On first encounter of a `<Model>` DSL node, the factory looks up model metadata from `manifest.models` by `type` prop and constructs a `ModelWidget` with that metadata and the derived `clipMeta`. If no manifest is provided, no `ModelWidget` instances are created — scenes without models work normally.
 
 ### Standard Integration Pattern
 
-```typescript
+```tsx
 // page.tsx
-import { corePlugin } from '@brewsite/core';
+import { SceneEngine, corePlugin } from '@brewsite/core';
 import { modelPlugin } from '@brewsite/model';
 
-<EngineProvider
-  manifestUrl="/assets/manifest.json"
+<SceneEngine
   plugins={[
     corePlugin({ onSceneChange: (id, index) => console.log(id, index) }),
     modelPlugin({ manifestUrl: '/assets/manifest.json' }),
@@ -685,18 +690,18 @@ import { modelPlugin } from '@brewsite/model';
 >
   {scene01}
   {scene02}
-</EngineProvider>
+</SceneEngine>
 ```
 
 **Adding custom widgets:**
 
-```typescript
-import { corePlugin } from '@brewsite/core';
+```tsx
+import { SceneEngine, corePlugin } from '@brewsite/core';
 import { modelPlugin } from '@brewsite/model';
 
 const myModelPlugin = modelPlugin({ manifestUrl: '/assets/manifest.json' });
 
-<EngineProvider
+<SceneEngine
   plugins={[
     corePlugin(),
     myModelPlugin,
@@ -707,7 +712,7 @@ const myModelPlugin = modelPlugin({ manifestUrl: '/assets/manifest.json' });
   ]}
 >
   {scene01}
-</EngineProvider>
+</SceneEngine>
 ```
 
 ---
@@ -749,12 +754,111 @@ type WidgetRenderContext = {
   variables: VariableStoreReader;
   extra: unknown;
   tick?: SceneTrackTick | null;
+  /**
+   * Per-frame NVS coordinate conversion service.
+   * Converts NVS [0..1] viewport positions to Three.js world-space
+   * using the live camera and live canvas dimensions.
+   *
+   * Widgets that place geometry in the main scene MUST use this service
+   * instead of holding camera references or using hardcoded aspect-ratio
+   * constants. Available from the first apply() call onward. Non-null.
+   *
+   * See Section 12.7 for the NVSCoordService interface definition.
+   */
+  coords: NVSCoordService;
 };
 ```
 
-Passed to `IRenderable.apply` on every frame. `extra` is the value returned by `compileExtra` for this widget at this tick (or `undefined` if `compileExtra` is not implemented). `variables` is the read-only view of the `VariableStore`. `tick` is the current `SceneTrackTick` — useful for accessing label primitives or per-tick metadata.
+Passed to `IRenderable.apply` on every frame. `extra` is the value returned by `compileExtra` for this widget at this tick (or `undefined` if `compileExtra` is not implemented). `variables` is the read-only view of the `VariableStore`. `tick` is the current `SceneTrackTick` — useful for accessing label primitives or per-tick metadata. `coords` is the live coordinate conversion service injected by the engine from the current camera state.
 
 `clock.wallTimeSeconds` is the canonical source for time-based oscillations and ambient animations. `effectiveDeltaSeconds` is the correct delta to pass to GLTF `AnimationMixer` and camera controls damping — it is scroll-speed-boosted when `animationTimeScale` is declared on `<ProgressManager>`, and equals `clock.deltaSeconds` during idle. See Section 12.5 for the `RealtimeClock` type definition.
+
+### 12.7 NVSCoordService
+
+NVS (Normalized Viewport Space) is the canonical coordinate language for all authored positions, sizes, and bounds across the BrewSite toolkit. NVS values are `[0..1]` fractions of the viewport: `x=0` is the left edge, `x=1` is the right edge, `y=0` is the top, `y=1` is the bottom.
+
+`NVSCoordService` is a per-frame service injected into every `WidgetRenderContext`. It converts NVS positions to Three.js world-space using the live camera and live canvas dimensions. The engine computes this service at the start of each tick from the current `PerspectiveCamera` state and canvas pixel dimensions.
+
+```typescript
+// packages/core/src/widget/types.ts
+
+export interface NVSCoordService {
+  /**
+   * Convert NVS [0..1] viewport position to Three.js world-space XYZ.
+   * Projects onto the world Z-plane at the given depth.
+   * @param nvsX  Horizontal position [0=left, 1=right].
+   * @param nvsY  Vertical position [0=top, 1=bottom].
+   * @param z     World-space Z depth of the target plane. Default: 0.
+   */
+  toWorld(nvsX: number, nvsY: number, z?: number): readonly [number, number, number];
+
+  /**
+   * Convert NVS width/height fractions to Three.js world-space units.
+   * Based on the visible world size at z=0 (the camera look-at plane).
+   * @param nvsW  Width as fraction of viewport [0..1].
+   * @param nvsH  Height as fraction of viewport [0..1].
+   */
+  toWorldSize(nvsW: number, nvsH: number): readonly [number, number];
+
+  /** Live canvas aspect ratio: width / height in CSS pixels. */
+  readonly canvasAspect: number;
+
+  /**
+   * Visible world height at z=0 (the camera look-at plane).
+   * Equals 2 * cameraDistance * tan(fov/2).
+   */
+  readonly visibleWorldHeight: number;
+
+  /** Visible world width at z=0. Equals visibleWorldHeight * canvasAspect. */
+  readonly visibleWorldWidth: number;
+
+  /** Canvas width in CSS pixels. Updated each frame. */
+  readonly viewportWidth: number;
+
+  /** Canvas height in CSS pixels. Updated each frame. */
+  readonly viewportHeight: number;
+}
+```
+
+The `createNVSCoordService(camera, width, height)` factory is exported from `@brewsite/core` for test environments where a real engine is not running:
+
+```typescript
+import { createNVSCoordService } from '@brewsite/core';
+import * as THREE from 'three';
+
+const cam = new THREE.PerspectiveCamera(45, 16/9, 0.01, 100);
+cam.position.set(0, 0, 5);
+cam.updateProjectionMatrix();
+const coords = createNVSCoordService(cam, 1920, 1080);
+const [x, y, z] = coords.toWorld(0.5, 0.5, 0); // center of viewport at z=0
+```
+
+### 12.8 NVS Validation Functions
+
+Three validation functions are exported from `@brewsite/core` (via `packages/core/src/layout/index.ts`) for use in widget `apply()` and compile functions in development mode:
+
+```typescript
+/** Asserts nvsValue is in [0..1]. Emits console.error (does not throw). */
+function validateNVSScalar(value: number, label: string): void;
+
+/** Asserts all four components of an NVSRect are valid. Emits console.error per violation. */
+function validateNVSRect(rect: NVSRect, label: string): void;
+
+/** Asserts nvsX and nvsY components of an NVS position are in [0..1]. */
+function validateNVSPosition(pos: readonly [number, number, ...number[]], label: string): void;
+```
+
+All three are no-ops in production builds (`process.env.NODE_ENV === 'production'`). Use `validateNVSRect` in widget `apply()` to catch out-of-range compiled state in development:
+
+```typescript
+apply(state: MyState, ctx: WidgetRenderContext): void {
+  if (process.env.NODE_ENV !== 'production') {
+    validateNVSRect(state.bounds, `MyWidget(${this.widgetId})`);
+  }
+  const [worldX, worldY] = ctx.coords.toWorld(state.bounds.x, state.bounds.y);
+  // ...
+}
+```
 
 ### 12.4 AnimationTickContext
 

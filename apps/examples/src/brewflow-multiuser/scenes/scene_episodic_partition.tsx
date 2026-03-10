@@ -11,7 +11,7 @@ import {
   TextBox,
   WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -35,8 +35,7 @@ export const sceneEpisodicPartition: JSX.Element = (
     <Camera mode="world" position={[0, 5, 22]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bfmu-ep-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="ep-diagram">
+    <Diagram id="ep-diagram" theme={brewflowTheme}>
         <ManualLayout />
         <DiagramEnter fade />
 
@@ -121,8 +120,7 @@ export const sceneEpisodicPartition: JSX.Element = (
 
         <DiagramEdge from="seq-agent" to="seq-session" color="#4060a0" style="dashed" />
         <DiagramEdge from="seq-session" to="seq-project" color="#4060a0" style="dashed" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="episodic-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

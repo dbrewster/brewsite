@@ -2,11 +2,14 @@
 import type { JSX } from 'react';
 import { useMemo } from 'react';
 import {
+  BackgroundLayer,
   EngineARContainer,
-  EngineInputRegion,
   EngineOverlayHost,
-  EngineProvider,
+  KeyboardInput,
   SceneCanvas,
+  SceneEngine,
+  ScrollInput,
+  ScrollStage,
 } from '@brewsite/core';
 import { createWhiteboardArchPlugins } from './widgetSetup';
 import { whiteboardArchScenes } from './flow';
@@ -20,20 +23,18 @@ export default function WhiteboardArchPage(): JSX.Element {
 
   return (
     <div style={{ background: '#0d1117', minHeight: '100vh' }}>
-      <EngineProvider
-        manifestUrl={MANIFEST_URL}
-        plugins={plugins}
-        pixelsPerScene={1400}
-        inputModePolicy="prefer-scroll"
-      >
+      <SceneEngine plugins={plugins}>
         {scenes}
-        <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width" referenceWidth={1920}>
-          <EngineInputRegion>
-            <SceneCanvas />
+        <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1400}>
+          <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width" referenceWidth={1920}>
+            <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+            <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
             <EngineOverlayHost />
-          </EngineInputRegion>
-        </EngineARContainer>
-      </EngineProvider>
+          </EngineARContainer>
+          <ScrollInput source="window" />
+          <KeyboardInput />
+        </ScrollStage>
+      </SceneEngine>
     </div>
   );
 }

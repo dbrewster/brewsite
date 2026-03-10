@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import type { IRenderable, ISceneElement, WidgetInitContext, WidgetRenderContext } from '@brewsite/core';
-import { nvsToWorldWithCamera, nvsToWorldAnalytic, computeWorldDimensionsFromCamera, computeWorldDimensions } from '@brewsite/core';
+import { validateNVSScalar } from '@brewsite/core';
 import type { ImagePanelProps } from './dsl';
 import { functionalImagePanelTransitionSpec } from './compile';
 import { ImagePanelRenderer } from './render';
@@ -18,9 +18,6 @@ export function ImagePanel(_props: ImagePanelProps): null {
   return null;
 }
 
-/** Default camera distance used when no live camera is available. */
-const DEFAULT_DIST = 12.07;
-
 export class ImagePanelWidget implements ISceneElement<ImagePanelState>, IRenderable<ImagePanelState> {
   readonly widgetId: string;
   readonly defaultState: ImagePanelState;
@@ -29,44 +26,43 @@ export class ImagePanelWidget implements ISceneElement<ImagePanelState>, IRender
 
   private renderer = new ImagePanelRenderer();
   private scene: THREE.Scene | null = null;
-  private cameraRef: THREE.PerspectiveCamera | null = null;
 
   constructor(widgetId: string, defaultState: ImagePanelState) {
     this.widgetId = widgetId;
     this.defaultState = defaultState;
   }
 
-  initialize({ scene, camera }: WidgetInitContext): void {
+  initialize({ scene }: WidgetInitContext): void {
     this.scene = scene as THREE.Scene;
-    if (camera) this.cameraRef = camera;
   }
 
-  apply(state: ImagePanelState, _ctx: WidgetRenderContext): void {
+  apply(state: ImagePanelState, context: WidgetRenderContext): void {
     if (!this.scene) return;
 
-    // Convert NVS position to world-space using the live camera when available.
-    const cam = this.cameraRef;
-    const worldPos = cam
-      ? nvsToWorldWithCamera(state.nvsX, state.nvsY, cam, state.z)
-      : nvsToWorldAnalytic(state.nvsX, state.nvsY, 0, 0, DEFAULT_DIST, 45, 16 / 9, state.z);
+    if (process.env.NODE_ENV !== 'production') {
+      validateNVSScalar(state.nvsX, 'nvsX', `ImagePanelWidget(${this.widgetId})`);
+      validateNVSScalar(state.nvsY, 'nvsY', `ImagePanelWidget(${this.widgetId})`);
+      validateNVSScalar(state.nvsWidth, 'nvsWidth', `ImagePanelWidget(${this.widgetId})`);
+      if (state.nvsHeight !== undefined) {
+        validateNVSScalar(state.nvsHeight, 'nvsHeight', `ImagePanelWidget(${this.widgetId})`);
+      }
+    }
+
+    // Convert NVS position to world-space using the per-frame coord service.
+    const [worldX, worldY, worldZ] = context.coords.toWorld(state.nvsX, state.nvsY, state.z);
 
     // Convert NVS width/height fractions to world units.
-    let worldWidth: number;
-    let worldHeight: number | undefined;
-    if (cam) {
-      const { worldWidth: ww, worldHeight: wh } = computeWorldDimensionsFromCamera(cam, state.z);
-      worldWidth = state.nvsWidth * ww;
-      worldHeight = state.nvsHeight !== undefined ? state.nvsHeight * wh : undefined;
-    } else {
-      const { worldWidth: ww, worldHeight: wh } = computeWorldDimensions(DEFAULT_DIST, 45, 16 / 9);
-      worldWidth = state.nvsWidth * ww;
-      worldHeight = state.nvsHeight !== undefined ? state.nvsHeight * wh : undefined;
-    }
+    // Pass a placeholder for the height arg when nvsHeight is undefined so we can ignore it.
+    const [worldW, worldH] = context.coords.toWorldSize(
+      state.nvsWidth,
+      state.nvsHeight ?? state.nvsWidth,
+    );
+    const worldHeight = state.nvsHeight !== undefined ? worldH : undefined;
 
     this.renderer.update({
       ...state,
-      position: worldPos,
-      width: worldWidth,
+      position: [worldX, worldY, worldZ],
+      width: worldW,
       height: worldHeight,
     }, this.scene);
   }
@@ -75,6 +71,5 @@ export class ImagePanelWidget implements ISceneElement<ImagePanelState>, IRender
     if (!this.scene) return;
     this.renderer.dispose(this.widgetId, this.scene);
     this.scene = null;
-    this.cameraRef = null;
   }
 }

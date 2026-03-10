@@ -5,7 +5,7 @@ import type { DiagramTheme } from '../types';
 
 /**
  * Light Minimal: light backgrounds, dark text, subtle styling.
- * No environment map (IBL disabled). Orthogonal routing for clean layout.
+ * No environment map (IBL disabled). Flow routing for clean layout.
  * Best for documentation contexts and light-background presentation slides.
  */
 export const lightMinimalTheme: DiagramTheme = {
@@ -39,12 +39,22 @@ export const lightMinimalTheme: DiagramTheme = {
     defaultThickness:     0.060,
     defaultMetalness:     0.10,
     defaultRoughness:     0.60,
-    routing:              'orthogonal',
+    routing:              'flow',
     landing:              'nearest-face',
     smoothness:           1.0,
     use3DArrows:          false,
     tubeRadialSegments:   8,
     organicVariation:     1.2,
+    flowTurnRadius:       0.035,
+    flowFaceStub:         0.05,
+    flowBundleStrength:   1.0,
+    flowObstaclePadding:  0.025,
+    flowTargetApproachBias: 1.35,
+    flowUnderpassDepth:   0.08,
+    flowUnderpassClearance: 0.03,
+    flowTurnPenalty:      0.45,
+    flowPunchthroughPenalty: 500,
+    flowUnderpassPenalty: 60,
     flowPulseIntensity:   0.9,
   },
   group: {

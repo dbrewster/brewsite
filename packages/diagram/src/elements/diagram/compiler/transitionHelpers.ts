@@ -4,7 +4,7 @@
 import type { DiagramNodeState, DiagramEdgeState } from '../types';
 import type { EdgeRoutingAlgorithm, EdgeLandingAlgorithm } from '../types';
 import { blendOpacity, blendVec3 } from '@brewsite/core';
-import { routeEdges } from './edgeRouter';
+import { routeEdgesYDown } from './edgeRouter';
 
 type Vec3 = readonly [number, number, number];
 type NodeDimensions = readonly [number, number, number];
@@ -67,12 +67,17 @@ export function rerouteLiveEdges(
   liveSizes: Map<string, NodeDimensions>,
   defaultRouting?: EdgeRoutingAlgorithm,
   defaultLanding?: EdgeLandingAlgorithm,
-): Map<string, ReadonlyArray<Vec3>> {
+): ReturnType<typeof routeEdgesYDown> {
   const edgesForRouting = toEdges.map((e) => ({
     id: e.id,
     from: e.fromId,
     to: e.toId,
     routing: e.routing,
+    flowTurnRadius: e.flowTurnRadius,
+    flowFaceStub: e.flowFaceStub,
+    flowBundleStrength: e.flowBundleStrength,
+    flowTargetApproachBias: e.flowTargetApproachBias,
+    allowUnderpass: e.allowUnderpass,
     fromPort: e.fromPort,
     toPort: e.toPort,
     thickness: e.thickness,
@@ -84,11 +89,16 @@ export function rerouteLiveEdges(
       from: e.fromId,
       to: e.toId,
       routing: e.routing,
+      flowTurnRadius: e.flowTurnRadius,
+      flowFaceStub: e.flowFaceStub,
+      flowBundleStrength: e.flowBundleStrength,
+      flowTargetApproachBias: e.flowTargetApproachBias,
+      allowUnderpass: e.allowUnderpass,
       fromPort: e.fromPort,
       toPort: e.toPort,
       thickness: e.thickness,
     }));
-  return routeEdges(
+  return routeEdgesYDown(
     [...edgesForRouting, ...fadingEdgesForRouting],
     livePositions,
     liveSizes,
@@ -100,7 +110,7 @@ export function rerouteLiveEdges(
 export function blendDiagramEdges(
   fromEdges: ReadonlyArray<DiagramEdgeState>,
   toEdges: ReadonlyArray<DiagramEdgeState>,
-  liveControlPoints: Map<string, ReadonlyArray<Vec3>>,
+  liveRoutes: ReturnType<typeof routeEdges>,
   t: number,
 ): { blended: DiagramEdgeState[]; fading: DiagramEdgeState[] } {
   const fromEdgeMap = new Map(fromEdges.map((edge) => [edge.id, edge]));
@@ -113,7 +123,9 @@ export function blendDiagramEdges(
       opacity: fromEdge
         ? blendOpacity(fromEdge.opacity, toEdge.opacity, t) ?? toEdge.opacity
         : blendOpacity(0, toEdge.opacity, t) ?? toEdge.opacity,
-      controlPoints: liveControlPoints.get(toEdge.id) ?? toEdge.controlPoints,
+      path: liveRoutes.get(toEdge.id)?.path ?? toEdge.path,
+      controlPoints: liveRoutes.get(toEdge.id)?.controlPoints ?? toEdge.controlPoints,
+      pathDebug: liveRoutes.get(toEdge.id)?.pathDebug ?? toEdge.pathDebug,
     };
   });
 
@@ -122,7 +134,9 @@ export function blendDiagramEdges(
     .map((edge) => ({
       ...edge,
       opacity: blendOpacity(edge.opacity, 0, t) ?? 0,
-      controlPoints: liveControlPoints.get(edge.id) ?? edge.controlPoints,
+      path: liveRoutes.get(edge.id)?.path ?? edge.path,
+      controlPoints: liveRoutes.get(edge.id)?.controlPoints ?? edge.controlPoints,
+      pathDebug: liveRoutes.get(edge.id)?.pathDebug ?? edge.pathDebug,
     }));
 
   return { blended, fading };

@@ -6,7 +6,7 @@ export type {
   ISceneLifecycle,
   IInputDefaultProvider,
   ICameraFocusTarget, ILightingOverride, IExtraRenderPass,
-  CompileExtraContext, WidgetInitContext, WidgetRenderContext, AnimationTickContext,
+  CompileExtraContext, WidgetInitContext, WidgetRenderContext, AnimationTickContext, NVSCoordService,
   VariableStoreReader, AssetManifest,
 } from './types';
 export {

@@ -11,7 +11,7 @@ import {
   TextBox,
   WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, FlowLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, FlowLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -35,8 +35,7 @@ export const sceneFractal: JSX.Element = (
     <Camera mode="world" position={[0, 5, 22]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bfmu-frac-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="frac-diagram">
+    <Diagram id="frac-diagram" theme={brewflowTheme}>
         <FlowLayout direction="top-down" gap={2} />
         <DiagramEnter fade />
 
@@ -89,8 +88,7 @@ export const sceneFractal: JSX.Element = (
         <DiagramEdge from="sc1" to="sc2" flow="forward" color="#5070b0" />
         <DiagramEdge from="sc2" to="sc3" flow="forward" color="#5070b0" />
         <DiagramEdge from="sc3" to="sc4" flow="forward" color="#5070b0" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="fractal-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

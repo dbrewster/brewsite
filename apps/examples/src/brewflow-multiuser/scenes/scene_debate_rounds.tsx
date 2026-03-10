@@ -11,7 +11,7 @@ import {
   TextBox,
   WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramEnter, DiagramNode, FlowLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, FlowLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
@@ -35,8 +35,7 @@ export const sceneDebateRounds: JSX.Element = (
     <Camera mode="world" position={[0, 5, 26]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bfmu-deb-canvas" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale*.8} theme={brewflowTheme}>
-      <Diagram id="deb-diagram">
+    <Diagram id="deb-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale*.8} theme={brewflowTheme}>
         <FlowLayout direction="top-down" gap={2} />
         <DiagramEnter fade />
 
@@ -96,8 +95,7 @@ export const sceneDebateRounds: JSX.Element = (
         <DiagramEdge from="deb-r1" to="deb-check" flow="forward" color="#5070b0" />
         <DiagramEdge from="deb-check" to="deb-r2" flow="forward" color="#5070b0" />
         <DiagramEdge from="deb-r2" to="deb-final" flow="forward" color="#5070b0" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="debate-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

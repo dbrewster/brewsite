@@ -299,6 +299,11 @@ export class WidgetRegistry {
   /**
    * Returns all registered widgets that implement IExtraRenderPass,
    * in registration order (which equals DSL declaration order).
+   *
+   * @debt Currently unused after DiagramCanvas removal (v2.x). Reserved
+   * for future post-processing widgets. The IExtraRenderPass interface
+   * and this method are kept in place so that any future widget that
+   * needs a post-render pass can implement it without a breaking SDK change.
    */
   getExtraRenderPassWidgets(): IExtraRenderPass[] {
     return this.getAll().filter(isExtraRenderPass);

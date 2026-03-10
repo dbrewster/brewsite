@@ -9,7 +9,6 @@ import {
   Scene,
   TextBox,
 } from '@brewsite/core';
-import { DiagramCanvas, darkGlassTheme } from '@brewsite/diagram';
 import { MidFade } from '@brewsite/core/hud/animejs';
 import { makeWhiteboardDiagram } from '../diagram';
 
@@ -23,15 +22,7 @@ export const sceneParkingLot: JSX.Element = (
       <Directional intensity={0.6} color="#aaccff" position={[10, 20, 30]} />
       <Directional intensity={0.3} color="#334466" position={[-20, 5, 10]} />
     </Lighting>
-    <DiagramCanvas
-      id="whiteboard-arch-canvas"
-      x={0} y={0} w={1} h={1}
-      tilt={0}
-      scale={1.0}
-      theme={darkGlassTheme}
-    >
-      {makeWhiteboardDiagram()}
-    </DiagramCanvas>
+    {makeWhiteboardDiagram()}
     <TextBox id="parkinglot-overlay" x={0.25} y={0.1} w={0.50} h={0.80}>
       <div style={{
         padding: '32px 40px',

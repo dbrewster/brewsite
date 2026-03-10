@@ -61,14 +61,14 @@ export const TimelineWidget = ({
   // Do NOT use engine.debug.sceneTrackTicks as a fallback — that is the total
   // number of pre-baked ticks (potentially 100+), not the scene count.
   const sceneCount = scenes?.length ?? engine.sceneCount ?? 1;
-  const totalTicks = engine.debug?.sceneTrackTicks ?? 1;
+  const totalTicks = engine.sceneTrack?.ticks.length ?? 1;
 
   // ─── Seek logic ─────────────────────────────────────────────────────────
 
   const seekTo = useCallback((progress: number): void => {
     const clamped = clamp01(progress);
     scrubProgressRef.current = clamped;
-    engine.scrollToProgress(clamped);
+    engine.setProgress(clamped);
     onSeek?.(clamped);
   }, [engine, onSeek]);
 

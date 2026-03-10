@@ -1,6 +1,6 @@
 // Pure compilation functions for the chart element — no Three.js, no React render.
 
-import { blendNumber, blendOpacity } from '@brewsite/core';
+import { blendNumber, blendOpacity, validateNVSScalar, validateNVSRect } from '@brewsite/core';
 import type { FunctionalTransitionSpec, NVSRect } from '@brewsite/core';
 import type {
   ChartState,
@@ -35,6 +35,19 @@ export function compileChart(
   const w = dsl.w ?? 1;
   const h = dsl.h ?? 1;
 
+  const nvsBounds: NVSRect = { x, y, w, h };
+
+  // bounds.width/height are NVS fractions [0..1] defaulting to nvsBounds.w/h
+  const boundsWidth = dsl.bounds?.width ?? w;
+  const boundsHeight = dsl.bounds?.height ?? h;
+  const boundsDepth = dsl.bounds?.depth ?? 0.4;
+
+  if (process.env.NODE_ENV !== 'production') {
+    validateNVSScalar(boundsWidth, 'bounds.width', `<Chart id="${dsl.id}">`);
+    validateNVSScalar(boundsHeight, 'bounds.height', `<Chart id="${dsl.id}">`);
+    validateNVSRect(nvsBounds, `<Chart id="${dsl.id}">`);
+  }
+
   return {
     type: dsl.type ?? DEFAULT_CHART_STATE.type,
     nvsX: x + w / 2,
@@ -42,9 +55,9 @@ export function compileChart(
     z: dsl.z ?? 0,
     rotation: dsl.rotation ?? DEFAULT_CHART_STATE.rotation,
     bounds: {
-      width: dsl.bounds?.width ?? DEFAULT_CHART_STATE.bounds.width,
-      height: dsl.bounds?.height ?? DEFAULT_CHART_STATE.bounds.height,
-      depth: dsl.bounds?.depth ?? DEFAULT_CHART_STATE.bounds.depth,
+      width: boundsWidth,
+      height: boundsHeight,
+      depth: boundsDepth,
     },
     dataSource: dataDsl?.source ?? dsl.dataSource ?? '',
     transforms: dataDsl?.transforms ?? [],
@@ -72,12 +85,7 @@ export function compileChart(
     interactive: dsl.interactive ?? false,
     innerRadius: dsl.innerRadius ?? 0,
     sceneTheme: dsl.sceneTheme,
-    nvsBounds: {
-      x,
-      y,
-      w,
-      h,
-    } satisfies NVSRect,
+    nvsBounds,
   };
 }
 

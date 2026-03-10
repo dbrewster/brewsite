@@ -87,9 +87,10 @@ describe('normalizeToViewport via compileDiagram — auto-layout (GridLayout)', 
     const result = compileDiagram(gridDSL([{ id: 'a' }]));
     expect(result).toHaveProperty('viewportBounds');
     expect(result).toHaveProperty('tiltRotation');
+    expect(result).toHaveProperty('z');
+    expect(result).toHaveProperty('scale');
     expect(result).not.toHaveProperty('position');
     expect(result).not.toHaveProperty('rotation');
-    expect(result).not.toHaveProperty('scale');
     expect(result).not.toHaveProperty('pivot');
     expect(result).not.toHaveProperty('bounds');
   });

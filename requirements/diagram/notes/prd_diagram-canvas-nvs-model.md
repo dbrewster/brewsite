@@ -1,10 +1,13 @@
 ---
 title: "DiagramCanvas NVS Model"
 doc_type: prd
-status: draft
+status: deprecated
 owner: Toolkit Product
-last_updated: 2026-03-08
+last_updated: 2026-03-09
 change_history:
+  - date: 2026-03-09
+    author: "Toolkit Product"
+    summary: "DEPRECATED: Superseded by the NVS Universal Coordinate System implementation. DiagramCanvas has been removed from @brewsite/diagram. This draft document's scissored sub-viewport model was an intermediate design step; the final implementation places diagrams directly in the main scene via DiagramWidget + NVSCoordService."
   - date: 2026-03-08
     author: "Toolkit Product (PM-1 + PM-2)"
     summary: "Initial PRD created from note_diagram-canvas-camera-model.md. Defines clean-break redesign: NVS-primary placement, scissored sub-viewport rendering, private perspective camera with auto-fit, removal of position/rotation in favor of tilt + nvsBounds. Two product stances confirmed: fixed render order (main scene first, diagrams on top), pan clipped at NVS boundary."

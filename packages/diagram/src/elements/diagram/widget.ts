@@ -1,17 +1,20 @@
-// DiagramWidget — implements ISceneElement<DiagramState>, IRenderable, IAnimationController.
+// DiagramWidget — implements ISceneElement<DiagramState>, IRenderable, ILoadable, INVSBounded.
 
 import * as THREE from 'three';
 import type * as React from 'react';
 import type {
-  IAnimationController,
   IDslComposite,
   ILightingOverride,
+  ILoadable,
   IRenderable,
   ISceneElement,
-  AnimationTickContext,
+  AssetManifest,
+  NVSRect,
   WidgetInitContext,
   WidgetRenderContext,
 } from '@brewsite/core';
+import { validateNVSRect } from '@brewsite/core';
+import type { INVSBounded } from '@brewsite/core';
 import type {
   DiagramNodeProps,
   DiagramEdgeProps,
@@ -36,7 +39,7 @@ import type {
   DiagramNodeState,
   DiagramState,
 } from './types';
-import { rotateXYZ } from './canvas/compiler/pipeRouter';
+import { clearDiagramFocusRegion } from './focusRegion';
 
 /**
  * Declares a diagram node (shape with label).
@@ -126,17 +129,6 @@ export function ManualLayout(_props: ManualLayoutProps): null {
  * Secondary axis (cross-axis) position is always 0 — items are center-aligned.
  * Must be a direct child of <Diagram> or <DiagramGroup>. At most one layout
  * element per container. Cascades with parent layouts of the same kind.
- *
- * @example
- * <Diagram id="pipeline">
- *   <FlowLayout direction="top-down" gap={2} />
- *   <DiagramNode id="input" label="Input" />
- *   <DiagramGroup id="processing">
- *     <GridLayout columns={3} />
- *     <DiagramNode id="p1" label="Step 1" />
- *   </DiagramGroup>
- *   <DiagramNode id="output" label="Output" />
- * </Diagram>
  */
 export function FlowLayout(_props: FlowLayoutProps): null {
   return null;
@@ -144,11 +136,8 @@ export function FlowLayout(_props: FlowLayoutProps): null {
 
 /**
  * A standalone 3D diagram element with nodes, edges, groups, and layout.
- *
- * Use <Diagram> for single-diagram scenes where no cross-diagram connectors
- * are required.
- *
- * Use <DiagramCanvas> when multiple diagrams need pipes/connections between them.
+ * Use <Diagram> for single-diagram scenes. Supports x/y/w/h NVS bounds,
+ * tilt (pitch rotation), z (world depth), and scale.
  */
 export function Diagram(_props: DiagramProps): null {
   return null;
@@ -179,8 +168,12 @@ type HoverTarget = {
   point: readonly [number, number, number];
 };
 
+/**
+ * Widget for the <Diagram> DSL element. Renders the diagram directly into
+ * the main Three.js scene using a diagramGroup positioned via NVSCoordService.
+ */
 export class DiagramWidget
-  implements ISceneElement<DiagramState>, IRenderable<DiagramState>, IAnimationController, IDslComposite, ILightingOverride
+  implements ISceneElement<DiagramState>, IRenderable<DiagramState>, ILoadable, INVSBounded, IDslComposite, ILightingOverride
 {
   readonly widgetId: string;
   readonly defaultState: DiagramState;
@@ -199,13 +192,6 @@ export class DiagramWidget
   ];
 
   /**
-   * Runs after CameraWidget (tickPriority = 0), ensuring the scene camera has
-   * been positioned by the Camera widget before DiagramWidget evaluates whether
-   * auto-framing is needed.
-   */
-  readonly tickPriority = 1;
-
-  /**
    * Optional callback for node-click interactions.
    * Assign after construction:
    *   const widget = new DiagramWidget('my-diagram', defaultState);
@@ -215,8 +201,9 @@ export class DiagramWidget
 
   private renderer = new DiagramRenderer(buildThemeRenderConfig(darkGlassTheme));
   private scene: THREE.Scene | null = null;
-  private cameraRef: THREE.PerspectiveCamera | null = null;
-  /** Last applied state — used by onTick for camera auto-framing fallback. */
+  private mainCamera: THREE.PerspectiveCamera | null = null;
+  private diagramGroup: THREE.Group | null = null;
+  /** Last applied state — used by hover handlers. */
   private lastState: DiagramState | null = null;
   /** Injected by LightingWidget.setLightingOverrides() — used in hover callbacks. */
   private _lightController: ((lightId: string, enabled: boolean) => void) | null = null;
@@ -253,9 +240,26 @@ export class DiagramWidget
     this._lightController = setter;
   }
 
+  /**
+   * INVSBounded — returns the current NVS viewport bounds for this diagram.
+   * Used by the engine to track which NVS region is occupied by this widget.
+   */
+  get nvsBounds(): NVSRect {
+    return this.lastState?.viewportBounds ?? this.defaultState.viewportBounds;
+  }
+
   initialize({ scene, renderer, camera }: WidgetInitContext): void {
     this.scene = scene as THREE.Scene;
-    if (camera) this.cameraRef = camera;
+    if (camera) this.mainCamera = camera as THREE.PerspectiveCamera;
+
+    // Create the Three.js group that will hold diagram geometry.
+    this.diagramGroup = new THREE.Group();
+    this.diagramGroup.name = `diagram:${this.widgetId}`;
+    (scene as THREE.Scene).add(this.diagramGroup);
+
+    // Store renderer reference for env map setup.
+    this.renderer.initialize(renderer);
+
     if (renderer?.domElement) {
       this.canvasElement = renderer.domElement;
       this.clickHandler = (e: MouseEvent) => this.handleClick(e);
@@ -267,83 +271,45 @@ export class DiagramWidget
     }
   }
 
-  /**
-   * IAnimationController — runs before apply() in the engine tick cycle.
-   *
-   * When the scene has no active Camera widget (camera.enabled === false or
-   * camera widget is absent), this method auto-frames the Three.js camera
-   * using diagram bounds + position + scale from DiagramState.
-   */
-  onTick(context: AnimationTickContext): void {
-    const tick = context.tick;
+  apply(state: DiagramState, context: WidgetRenderContext): void {
+    if (!this.scene || !this.diagramGroup) return;
+    this.lastState = state;
 
-    // Resolve current diagram state: use the in-tick compiled value so there is
-    // no one-frame lag when transitioning into a new scene. Fall back to the
-    // last applied state (e.g. when tick is null outside playback).
-    const rawDiagramState = tick?.state.widgets[this.widgetId];
-    const diagramState = (rawDiagramState as DiagramState | undefined) ?? this.lastState;
-    if (!diagramState) return;
-
-    // Yield to the Camera widget when it is explicitly enabled for this tick.
-    const rawCamState = tick?.state.widgets['camera'];
-    const functionalCam = tick
-      ? context.track?.transitionBlocks?.[tick.sceneIndex]?.widgetFns['camera']
-      : undefined;
-    const resolvedCamState = functionalCam
-      ? (functionalCam.fn(tick!.blockProgress) as { enabled?: boolean })
-      : (rawCamState as { enabled?: boolean } | undefined);
-    const cameraActive =
-      typeof resolvedCamState === 'object' &&
-      resolvedCamState !== null &&
-      'enabled' in resolvedCamState &&
-      resolvedCamState.enabled === true;
-    if (cameraActive) return;
-
-    const cam = this.cameraRef;
-    if (!cam) return;
-
-    // Stream 4 will recompute from viewportBounds in canvas-local space.
-    const { viewportBounds, tiltRotation } = diagramState;
-    const [drx, dry, drz] = tiltRotation;
-    const corners: Array<readonly [number, number, number]> = [
-      [viewportBounds.x, viewportBounds.y, 0],
-      [viewportBounds.x + viewportBounds.w, viewportBounds.y, 0],
-      [viewportBounds.x, viewportBounds.y + viewportBounds.h, 0],
-      [viewportBounds.x + viewportBounds.w, viewportBounds.y + viewportBounds.h, 0],
-    ];
-    let minX = Infinity;
-    let maxX = -Infinity;
-    let minY = Infinity;
-    let maxY = -Infinity;
-    for (const corner of corners) {
-      const cx = corner[0];
-      const cy = corner[1];
-      const cz = corner[2];
-      const [rx, ry] = rotateXYZ([cx, cy, cz], drx, dry, drz);
-      minX = Math.min(minX, rx);
-      maxX = Math.max(maxX, rx);
-      minY = Math.min(minY, ry);
-      maxY = Math.max(maxY, ry);
+    if (process.env.NODE_ENV !== 'production') {
+      validateNVSRect(state.viewportBounds, `DiagramWidget(${this.widgetId})`);
     }
-    const worldCX = (minX + maxX) / 2;
-    const worldCY = (minY + maxY) / 2;
-    const worldMaxDim = Math.max(maxX - minX, maxY - minY);
-    const fov45 = 45 * (Math.PI / 180);
-    const dist = (worldMaxDim / (2 * Math.tan(fov45 / 2))) * 1.2;
-    cam.position.set(worldCX, worldCY + dist * 0.3, dist);
-    cam.lookAt(worldCX, worldCY, 0);
+
+    // Compute the group's world-space anchor point (center of viewportBounds).
+    const cx = state.viewportBounds.x + state.viewportBounds.w / 2;
+    const cy = state.viewportBounds.y + state.viewportBounds.h / 2;
+    const [worldCX, worldCY, worldCZ] = context.coords.toWorld(cx, cy, state.z);
+
+    // Apply world position, tilt, and scale to the group.
+    this.diagramGroup.position.set(worldCX, worldCY, worldCZ);
+    this.diagramGroup.rotation.set(state.tiltRotation[0], state.tiltRotation[1], state.tiltRotation[2]);
+    this.diagramGroup.scale.setScalar(state.scale);
+
+    // Pass state and coord service to the renderer.
+    this.renderer.update(state, this.diagramGroup, context.coords);
   }
 
-  apply(state: DiagramState, _ctx: WidgetRenderContext): void {
-    if (!this.scene) return;
-    this.lastState = state;
-    this.renderer.update(state, this.scene);
+  /**
+   * ILoadable — loads the HDR environment map via DiagramRenderer.
+   * Env maps load lazily on first apply(); this resolves immediately.
+   */
+  async load(manifest: AssetManifest | null): Promise<void> {
+    await this.renderer.loadEnvMap(manifest);
+  }
+
+  /** ILoadable — true once the env map has been initialized. */
+  get isLoaded(): boolean {
+    return this.renderer.isEnvMapLoaded;
   }
 
   /**
    * Ghost-node merge: when a node appears in the next scene with an empty label
    * OR with positionInherited=true (no explicit position in a manual-layout diagram),
-   * carry forward properties from the previous scene's compiled state:
+   * carry forward properties from the previous scene's compiled state.
    *
    * Always carried for ghost nodes (empty label):
    *   label, sublabel, shape, iconUrl, iconScale, sublabelColor
@@ -396,8 +362,9 @@ export class DiagramWidget
   }
 
   dispose(): void {
-    if (this.canvasElement && this.clickHandler) {
-      this.canvasElement.removeEventListener('click', this.clickHandler);
+    // Remove DOM event listeners.
+    if (this.canvasElement) {
+      if (this.clickHandler) this.canvasElement.removeEventListener('click', this.clickHandler);
       if (this.mouseMoveHandler) this.canvasElement.removeEventListener('mousemove', this.mouseMoveHandler);
       if (this.mouseLeaveHandler) this.canvasElement.removeEventListener('mouseleave', this.mouseLeaveHandler);
       this.canvasElement = null;
@@ -406,17 +373,21 @@ export class DiagramWidget
       this.mouseLeaveHandler = null;
     }
     this.clearHover();
-    if (!this.scene) return;
-    this.renderer.dispose(this.widgetId, this.scene);
+    if (this.diagramGroup) {
+      this.scene?.remove(this.diagramGroup);
+      this.renderer.dispose(this.widgetId, this.diagramGroup);
+      this.diagramGroup = null;
+    }
     this.scene = null;
-    this.cameraRef = null;
+    this.mainCamera = null;
     this.lastState = null;
+    clearDiagramFocusRegion(this.widgetId);
   }
 
   // ─── Private: click interaction ───────────────────────────────────────────
 
   private handleClick(event: MouseEvent): void {
-    if (!this.onInteraction || !this.scene || !this.canvasElement) return;
+    if (!this.onInteraction || !this.diagramGroup || !this.canvasElement) return;
 
     // Convert client coords to normalised device coordinates [-1, +1].
     const rect = this.canvasElement.getBoundingClientRect();
@@ -425,7 +396,7 @@ export class DiagramWidget
       -((event.clientY - rect.top) / rect.height) * 2 + 1,
     );
 
-    const cam = this.cameraRef;
+    const cam = this.mainCamera;
     if (!cam) return;
 
     this.raycaster.setFromCamera(this.ndc, cam);
@@ -451,13 +422,13 @@ export class DiagramWidget
   }
 
   private handleMouseMove(event: MouseEvent): void {
-    if (!this.scene || !this.canvasElement || !this.lastState) return;
+    if (!this.diagramGroup || !this.canvasElement || !this.lastState) return;
     const rect = this.canvasElement.getBoundingClientRect();
     this.ndc.set(
       ((event.clientX - rect.left) / rect.width) * 2 - 1,
       -((event.clientY - rect.top) / rect.height) * 2 + 1,
     );
-    const cam = this.cameraRef;
+    const cam = this.mainCamera;
     if (!cam) return;
     this.raycaster.setFromCamera(this.ndc, cam);
 

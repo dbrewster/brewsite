@@ -82,6 +82,11 @@ export default defineConfig({
   resolve: {
     dedupe: ['react', 'react-dom', 'three'],
     alias: [
+      // HUD animejs transition presets were removed from @brewsite/core and
+      // co-located as a local widget. Map the old package sub-path so existing
+      // scene files continue to resolve until they are individually migrated.
+      { find: '@brewsite/core/hud/animejs', replacement: path.resolve(__dirname, 'examples/src/widgets/hud-animejs/index.ts') },
+
       // Sub-path imports (e.g. @brewsite/core/elements/model/types) resolve to src/.
       { find: /^@brewsite\/core\/(.*)$/, replacement: path.resolve(__dirname, '../packages/core/src/$1') },
       { find: /^@brewsite\/diagram\/(.*)$/, replacement: path.resolve(__dirname, '../packages/diagram/src/$1') },
@@ -94,6 +99,7 @@ export default defineConfig({
       { find: '@brewsite/model', replacement: path.resolve(__dirname, '../packages/model/src/index.ts') },
       { find: '@brewsite/charts', replacement: path.resolve(__dirname, '../packages/charts/src/index.ts') },
       { find: '@brewsite/slides', replacement: path.resolve(__dirname, '../packages/slides/src/index.ts') },
+      { find: '@brewsite/docs', replacement: path.resolve(__dirname, '../packages/docs/src/index.ts') },
     ],
   },
   server: {

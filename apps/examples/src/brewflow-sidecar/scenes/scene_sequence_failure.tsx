@@ -1,17 +1,12 @@
 import type {JSX} from 'react';
 import {
-  Action,
   Background,
   Camera,
-  InputController,
-  KeyMap,
-  PointerMap,
   ProgressManager,
   Scene,
   TextBox,
-  WheelMap
 } from '@brewsite/core';
-import {Diagram, DiagramCanvas, DiagramEdge, DiagramNode, FlowLayout,} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramNode, FlowLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
 
@@ -20,23 +15,10 @@ const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 export const sceneSequenceFailure: JSX.Element = (
   <Scene key="bf-seq-failure" id="bf-seq-failure">
     <ProgressManager scrollUnits={2400} fn={DWELL_FN} />
-    <InputController scope="canvas">
-      <Action id="pan" type="diagram-canvas.move" canvasId="bf-seq-fail">
-        <PointerMap event="drag" axis="xy" />
-        <WheelMap axis="xy" />
-      </Action>
-      <Action id="rotate" type="diagram-canvas.rotate" canvasId="bf-seq-fail">
-        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
-      </Action>
-      <Action id="reset" type="diagram-canvas.reset" canvasId="bf-seq-fail">
-        <KeyMap keyName="r" />
-      </Action>
-    </InputController>
     <Camera mode="world" position={[0, 5, 22]} target={[0, 0, 0]} fov={54} />
     <Background color="#080b14" />
 
-    <DiagramCanvas id="bf-seq-fail" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
-      <Diagram id="seq-fail">
+    <Diagram id="seq-fail" theme={brewflowTheme}>
         <FlowLayout direction="top-down" gap={3} />
 
         <DiagramNode
@@ -74,8 +56,7 @@ export const sceneSequenceFailure: JSX.Element = (
         <DiagramEdge from="actor-queen" to="actor-mcp" label="checkpoint(agent, task, 'failure')" color="#6080c0" />
         <DiagramEdge from="actor-mcp" to="actor-queen" label="memory schematic" style="dashed" color="#4060a0" />
         <DiagramEdge from="actor-queen" to="actor-worker-new" label="spawn + instructions + schematic" flow="forward" color="#6080c0" />
-      </Diagram>
-    </DiagramCanvas>
+    </Diagram>
 
     <TextBox id="seq-failure-prose" x={0} y={0.58} w={1} h={0.42}>
       <div style={{

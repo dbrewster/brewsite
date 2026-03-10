@@ -80,7 +80,7 @@ export const chartDemoBar: JSX.Element = (
       id="bar-revenue"
       type="bar"
       theme="darkGlass"
-      bounds={{ width: 4, height: 3, depth: 0.45 }}
+      bounds={{ width: .4, height: .3, depth: 0.45 }}
     >
       <ChartData source="monthly" />
       <ChartAxis axis="x" field="month" label="Month" />
@@ -116,7 +116,7 @@ export const chartDemoLine: JSX.Element = (
       id="line-arr"
       type="line"
       theme="darkGlass"
-      bounds={{ width: 4, height: 3, depth: 0.3 }}
+      bounds={{ width: .4, height: .3, depth: 0.3 }}
     >
       <ChartData source="monthly" />
       <ChartAxis axis="x" field="month" label="Month" />
@@ -151,7 +151,7 @@ export const chartDemoPie: JSX.Element = (
       id="pie-products"
       type="pie"
       theme="darkGlass"
-      bounds={{ width: 4, height: 4, depth: 0.5 }}
+      bounds={{ width: .4, height: .4, depth: 0.5 }}
     >
       <ChartData source="products" />
       <ChartAxis axis="x" field="product" label="Product" />
@@ -185,7 +185,7 @@ export const chartDemoScatter: JSX.Element = (
       id="scatter-teams"
       type="scatter"
       theme="darkGlass"
-      bounds={{ width: 4, height: 3, depth: 0.3 }}
+      bounds={{ width: .4, height: .3, depth: 0.3 }}
     >
       <ChartData source="teams" />
       <ChartAxis axis="x" field="teamSize"     label="Team Size" />

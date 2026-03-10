@@ -1,6 +1,15 @@
 import type {JSX} from 'react';
 import {useMemo} from 'react';
-import {EngineARContainer, EngineInputRegion, EngineOverlayHost, EngineProvider, SceneCanvas,} from '@brewsite/core';
+import {
+  BackgroundLayer,
+  EngineARContainer,
+  EngineOverlayHost,
+  KeyboardInput,
+  SceneCanvas,
+  SceneEngine,
+  ScrollInput,
+  ScrollStage,
+} from '@brewsite/core';
 import {createMultiUserPlugins} from './widgetSetup';
 import {sceneHero} from './scenes/scene_hero';
 import {sceneProblems} from './scenes/scene_problems';
@@ -38,13 +47,8 @@ export default function MultiUserPage(): JSX.Element {
   const { plugins } = useMemo(() => createMultiUserPlugins(), []);
 
   return (
-    <div style={{ background: '#080b14', height: '100vh', width: '100vw', minHeight: '100vh', minWidth: '100vw', fontSize: '18px' }}>
-      <EngineProvider
-        manifestUrl="/scene-manifest.json"
-        plugins={plugins}
-        pixelsPerScene={TOTAL_SCROLL_HEIGHT / SCENE_SCROLL_REGISTRY.length}
-        inputModePolicy="prefer-scroll"
-      >
+    <div style={{ background: '#080b14', width: '100vw', minHeight: '100vh', minWidth: '100vw', fontSize: '18px' }}>
+      <SceneEngine plugins={plugins}>
         {sceneHero}
         {sceneProblems}
         {/*{sceneSessionHierarchy}*/}
@@ -58,13 +62,16 @@ export default function MultiUserPage(): JSX.Element {
         {/*{sceneCrossUserFlow}*/}
         {/*{sceneConflict}*/}
         {/*{sceneSummary}*/}
-        <EngineARContainer aspectRatio={9/9} scaleMode="fit-height" referenceWidth={1920}>
-          <EngineInputRegion>
-            <SceneCanvas />
+        <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={TOTAL_SCROLL_HEIGHT / SCENE_SCROLL_REGISTRY.length}>
+          <EngineARContainer aspectRatio={9/9} scaleMode="fit-height" referenceWidth={1920}>
+            <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+            <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
             <EngineOverlayHost />
-          </EngineInputRegion>
-        </EngineARContainer>
-      </EngineProvider>
+          </EngineARContainer>
+          <ScrollInput source="window" />
+          <KeyboardInput />
+        </ScrollStage>
+      </SceneEngine>
     </div>
   );
 }

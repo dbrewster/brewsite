@@ -9,7 +9,6 @@ import {
   Scene,
   TextBox,
 } from '@brewsite/core';
-import { DiagramCanvas, darkGlassTheme } from '@brewsite/diagram';
 import { makeWhiteboardDiagram } from '../diagram';
 
 export const sceneOverview: JSX.Element = (
@@ -22,15 +21,7 @@ export const sceneOverview: JSX.Element = (
       <Directional intensity={0.5} color="#aaccff" position={[0, 20, 30]} />
       <Directional intensity={0.3} color="#6688cc" position={[-20, 10, 10]} />
     </Lighting>
-    <DiagramCanvas
-      id="whiteboard-arch-canvas"
-      x={0} y={0} w={1} h={1}
-      tilt={0}
-      scale={1.0}
-      theme={darkGlassTheme}
-    >
-      {makeWhiteboardDiagram()}
-    </DiagramCanvas>
+    {makeWhiteboardDiagram()}
 
     <TextBox id="overview-title" x={0.03} y={0.03} w={0.32} h={0.14}>
       <div style={{

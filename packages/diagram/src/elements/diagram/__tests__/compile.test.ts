@@ -19,6 +19,11 @@ const makeEdge = (from: string, to: string, overrides: Partial<DiagramEdgeDSL> =
 });
 
 describe('routeEdges', () => {
+  const routePoints = (
+    result: ReturnType<typeof routeEdges>,
+    id: string,
+  ): ReadonlyArray<readonly [number, number, number]> => result.get(id)?.controlPoints ?? [];
+
   it('produces at least 2 control points per edge', () => {
     const positions = new Map([
       ['a', [0, 0, 0] as const],
@@ -28,8 +33,8 @@ describe('routeEdges', () => {
       ['a', [4, 2, 1] as const],
       ['b', [4, 2, 1] as const],
     ]);
-    const points = routeEdges([makeEdge('a', 'b')], positions, sizes);
-    expect(points.get('a-b-0')!.length).toBeGreaterThanOrEqual(2);
+    const points = routePoints(routeEdges([makeEdge('a', 'b')], positions, sizes), 'a-b-0');
+    expect(points.length).toBeGreaterThanOrEqual(2);
   });
 
   it('start point is on the source node face surface (z-offset from face center)', () => {
@@ -41,7 +46,7 @@ describe('routeEdges', () => {
       ['a', [4, 2, 1] as const],
       ['b', [4, 2, 1] as const],
     ]);
-    const points = routeEdges([makeEdge('a', 'b')], positions, sizes).get('a-b-0')!;
+    const points = routePoints(routeEdges([makeEdge('a', 'b')], positions, sizes), 'a-b-0');
     expect(points[0][0]).toBeCloseTo(2.012, 5);
   });
 
@@ -54,22 +59,25 @@ describe('routeEdges', () => {
       ['a', [4, 2, 1] as const],
       ['b', [4, 2, 1] as const],
     ]);
-    const points = routeEdges([makeEdge('a', 'b')], positions, sizes).get('a-b-0')!;
+    const points = routePoints(routeEdges([makeEdge('a', 'b')], positions, sizes), 'a-b-0');
     expect(points[points.length - 1][0]).toBeCloseTo(7.988, 5);
   });
 
   it('handles self-loops gracefully (from === to): returns empty control points array', () => {
     const positions = new Map([['a', [0, 0, 0] as const]]);
     const sizes = new Map([['a', [4, 2, 1] as const]]);
-    const points = routeEdges([makeEdge('a', 'a')], positions, sizes);
-    expect(points.get('a-a-0')).toEqual([]);
+    const points = routePoints(routeEdges([makeEdge('a', 'a')], positions, sizes), 'a-a-0');
+    expect(points).toEqual([]);
   });
 
   it('handles missing node IDs gracefully: calls onWarn, returns empty control points', () => {
     const warns: Array<{ code: string }> = [];
     const positions = new Map([['a', [0, 0, 0] as const]]);
     const sizes = new Map([['a', [4, 2, 1] as const]]);
-    const points = routeEdges([makeEdge('a', 'b')], positions, sizes, 'curved', 'nearest-face', (code) => warns.push({ code })).get('a-b-0')!;
+    const points = routePoints(
+      routeEdges([makeEdge('a', 'b')], positions, sizes, 'curved', 'nearest-face', (code) => warns.push({ code })),
+      'a-b-0',
+    );
     expect(warns[0]!.code).toBe('MISSING_EDGE_ENDPOINT');
     expect(points).toEqual([]);
   });
@@ -99,6 +107,37 @@ describe('compileDiagram', () => {
     expect(node.size[1]).toBeGreaterThan(0);
     expect(node.thickness).toBe(darkGlassTheme.node.defaultThickness);
     expect(node.color).toBe(darkGlassTheme.node.defaultColor);
+  });
+
+  it('uses theme.node.defaultBoxColor as the compiled node box color', () => {
+    const theme: DiagramTheme = {
+      ...darkGlassTheme,
+      node: {
+        ...darkGlassTheme.node,
+        defaultBoxColor: '#223344',
+      },
+    };
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl, theme);
+    expect(state.nodes[0]!.sideColor).toBe('#223344');
+  });
+
+  it('uses node boxColor to override the theme-derived box color', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [makeNode('a', { boxColor: '#334455' })],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    expect(state.nodes[0]!.sideColor).toBe('#334455');
   });
 
   it('supports glow override on nodes (emissive disabled)', () => {
@@ -169,6 +208,93 @@ describe('compileDiagram', () => {
     expect(() => compileDiagram(dsl)).not.toThrow();
   });
 
+  it('keeps flow fan-out to nested groups within NVS bounds after Y-down normalization', () => {
+    const dsl: DiagramDSL = {
+      id: 'cf-overview-regression',
+      layout: { kind: 'flow', direction: 'top-down', gap: 1.05 },
+      childrenOrder: ['cf-db', 'cf-categories'],
+      nodes: [
+        makeNode('cf-db', { size: [8.8, 2.5] }),
+        makeNode('cf-memstore', { size: [5.0, 1.55] }),
+        makeNode('cf-sessions', { size: [5.0, 1.55] }),
+        makeNode('cf-agents', { size: [5.0, 1.55] }),
+        makeNode('cf-tasks', { size: [5.0, 1.55] }),
+        makeNode('cf-shared', { size: [5.0, 1.55] }),
+        makeNode('cf-agmem', { size: [5.0, 1.55] }),
+        makeNode('cf-events', { size: [5.0, 1.55] }),
+        makeNode('cf-topology', { size: [5.0, 1.55] }),
+        makeNode('cf-patterns', { size: [5.0, 1.55] }),
+        makeNode('cf-perf', { size: [5.0, 1.55] }),
+        makeNode('cf-workflow', { size: [5.0, 1.55] }),
+        makeNode('cf-consensus', { size: [5.0, 1.55] }),
+      ],
+      edges: [
+        makeEdge('cf-db', 'cf-core', { routing: 'flow' }),
+        makeEdge('cf-db', 'cf-coord', { routing: 'flow' }),
+        makeEdge('cf-db', 'cf-intel', { routing: 'flow' }),
+        makeEdge('cf-db', 'cf-recov', { routing: 'flow' }),
+      ],
+      groups: [
+        {
+          id: 'cf-categories',
+          nodeIds: [],
+          childGroupIds: ['cf-core', 'cf-coord', 'cf-intel', 'cf-recov'],
+          childrenOrder: ['cf-core', 'cf-coord', 'cf-intel', 'cf-recov'],
+          layout: { kind: 'grid', columns: 2, spacing: [1.9, 1.1] },
+        },
+        {
+          id: 'cf-core',
+          parentId: 'cf-categories',
+          nodeIds: ['cf-memstore', 'cf-sessions', 'cf-agents', 'cf-tasks'],
+          childrenOrder: ['cf-memstore', 'cf-sessions', 'cf-agents', 'cf-tasks'],
+          layout: { kind: 'flow', direction: 'top-down', gap: 0.72 },
+        },
+        {
+          id: 'cf-coord',
+          parentId: 'cf-categories',
+          nodeIds: ['cf-shared', 'cf-agmem', 'cf-events', 'cf-topology'],
+          childrenOrder: ['cf-shared', 'cf-agmem', 'cf-events', 'cf-topology'],
+          layout: { kind: 'flow', direction: 'top-down', gap: 0.72 },
+        },
+        {
+          id: 'cf-intel',
+          parentId: 'cf-categories',
+          nodeIds: ['cf-patterns', 'cf-perf'],
+          childrenOrder: ['cf-patterns', 'cf-perf'],
+          layout: { kind: 'flow', direction: 'top-down', gap: 0.72 },
+        },
+        {
+          id: 'cf-recov',
+          parentId: 'cf-categories',
+          nodeIds: ['cf-workflow', 'cf-consensus'],
+          childrenOrder: ['cf-workflow', 'cf-consensus'],
+          layout: { kind: 'flow', direction: 'top-down', gap: 0.72 },
+        },
+      ],
+    };
+
+    const state = compileDiagram(dsl);
+    const edgeById = new Map(state.edges.map((edge) => [edge.id, edge]));
+    const upperLeft = edgeById.get('cf-db-cf-core-0');
+    const upperRight = edgeById.get('cf-db-cf-coord-1');
+    const lowerLeft = edgeById.get('cf-db-cf-intel-2');
+    const lowerRight = edgeById.get('cf-db-cf-recov-3');
+
+    expect(upperLeft?.path.startTangent[0]).toBeLessThan(-0.95);
+    expect(upperRight?.path.startTangent[0]).toBeGreaterThan(0.95);
+    expect(lowerLeft?.path.startTangent).toEqual([0, 1, 0]);
+    expect(lowerRight?.path.startTangent).toEqual([0, 1, 0]);
+
+    state.edges.forEach((edge) => {
+      edge.controlPoints.forEach((point) => {
+        expect(point[0]).toBeGreaterThanOrEqual(-0.01);
+        expect(point[0]).toBeLessThanOrEqual(1.01);
+        expect(point[1]).toBeGreaterThanOrEqual(-0.01);
+        expect(point[1]).toBeLessThanOrEqual(1.01);
+      });
+    });
+  });
+
   it('uses theme layout defaults when diagram DSL omits layout', () => {
     const theme: DiagramTheme = {
       ...darkGlassTheme,
@@ -216,6 +342,34 @@ describe('compileDiagram', () => {
     // After normalization, group bounds are [0..1] NVS fractions.
     expect(group.bounds.w).toBeGreaterThan(0);
     expect(group.bounds.h).toBeGreaterThan(0);
+  });
+
+  it('includes auto-layout group bounds in viewport fitting so top padding shifts content downward', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [
+        makeNode('a', { position: [0, 0, 0], size: [4, 2] }),
+      ],
+      edges: [],
+      groups: [
+        {
+          id: 'group-1',
+          label: 'Group',
+          nodeIds: ['a'],
+          layout: {
+            kind: 'grid',
+            groupPadding: [4, 0, 0, 0],
+            titleGap: 2,
+          },
+        },
+      ],
+    };
+
+    const state = compileDiagram(dsl);
+    const node = state.nodes[0]!;
+
+    expect(node.position[1]).toBeGreaterThan(0.6);
   });
 
   it('applies group border width default from theme', () => {
@@ -329,7 +483,7 @@ describe('compileDiagram', () => {
     const end = edge.controlPoints[edge.controlPoints.length - 1]!;
 
     const borderWidthUnits = darkGlassTheme.group.defaultBorderWidth * 0.4;
-    const expectedX = group.bounds.x - borderWidthUnits / 2 - 0.012; // left border-centerline + EDGE_EPSILON outwards
+    const expectedX = group.bounds.x - borderWidthUnits / 2;
     expect(end[0]).toBeCloseTo(expectedX, 3);
   });
 
@@ -360,7 +514,7 @@ describe('compileDiagram', () => {
 });
 
 describe('viewportBounds', () => {
-  it('defaults to full-canvas { x:0, y:0, w:1, h:1 } when not provided', () => {
+  it('defaults to full-viewport { x:0, y:0, w:1, h:1 } when x/y/w/h are not provided', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
       layout: { kind: 'grid' },
@@ -372,11 +526,14 @@ describe('viewportBounds', () => {
     expect(state.viewportBounds).toEqual({ x: 0, y: 0, w: 1, h: 1 });
   });
 
-  it('passes through an explicitly-provided viewportBounds', () => {
+  it('emits viewportBounds from x/y/w/h DSL props', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
       layout: { kind: 'manual' },
-      viewportBounds: { x: 0.1, y: 0.2, w: 0.5, h: 0.4 },
+      x: 0.1,
+      y: 0.2,
+      w: 0.5,
+      h: 0.4,
       nodes: [makeNode('a', { position: [0.5, 0.5, 0] })],
       edges: [],
       groups: [],
@@ -395,6 +552,101 @@ describe('viewportBounds', () => {
     };
     const state = compileDiagram(dsl);
     expect(state.tiltRotation).toEqual([0, 0, 0]);
+  });
+
+  it('tiltRotation[0] is set from scalar tilt prop; Y and Z are always 0', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [],
+      tilt: -0.3,
+    };
+    const state = compileDiagram(dsl);
+    expect(state.tiltRotation[0]).toBeCloseTo(-0.3);
+    expect(state.tiltRotation[1]).toBe(0);
+    expect(state.tiltRotation[2]).toBe(0);
+  });
+
+  it('z defaults to 0 when not provided', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    expect(state.z).toBe(0);
+  });
+
+  it('z is emitted from DSL z prop', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [],
+      z: 1.5,
+    };
+    const state = compileDiagram(dsl);
+    expect(state.z).toBe(1.5);
+  });
+
+  it('scale defaults to 1 when not provided', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    expect(state.scale).toBe(1);
+  });
+
+  it('scale is emitted from DSL scale prop', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [],
+      scale: 0.8,
+    };
+    const state = compileDiagram(dsl);
+    expect(state.scale).toBe(0.8);
+  });
+
+  it('auto-layout node positions are in [0..1] NVS range', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [makeNode('a'), makeNode('b'), makeNode('c')],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    for (const node of state.nodes) {
+      expect(node.position[0]).toBeGreaterThanOrEqual(0);
+      expect(node.position[0]).toBeLessThanOrEqual(1);
+      expect(node.position[1]).toBeGreaterThanOrEqual(0);
+      expect(node.position[1]).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('manual-layout node positions pass through in [0..1] NVS', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'manual' },
+      nodes: [makeNode('a', { position: [0.25, 0.75, 0] })],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    expect(state.nodes[0]!.position[0]).toBeCloseTo(0.25);
+    expect(state.nodes[0]!.position[1]).toBeCloseTo(0.75);
   });
 });
 
@@ -440,8 +692,62 @@ describe('exit / enter config compilation', () => {
   });
 });
 
+describe('contentAspect', () => {
+  it('is present on all compiled DiagramState objects', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [makeNode('a')],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    expect(state).toHaveProperty('contentAspect');
+    expect(typeof state.contentAspect).toBe('number');
+    expect(Number.isFinite(state.contentAspect)).toBe(true);
+  });
+
+
+  it('equals spanX / spanY for a FlowLayout diagram with known node dimensions', () => {
+    // Two nodes side by side: total spanX ≈ 9 (4+1+4), spanY ≈ 2 (just one row)
+    // Default darkGlass node size is [4, 2] and grid spacing ≈ 1 gap
+    // The exact ratio depends on layout, but contentAspect > 1 for a wide diagram.
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'grid' },
+      nodes: [
+        makeNode('a', { size: [4, 2] }),
+        makeNode('b', { size: [4, 2] }),
+        makeNode('c', { size: [4, 2] }),
+        makeNode('d', { size: [4, 2] }),
+      ],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    // A 2×2 grid of [4,2] nodes should produce a bounding box with AR > 1.
+    expect(state.contentAspect).toBeGreaterThan(0);
+    expect(state.contentAspect).not.toBeCloseTo(1.0, 0); // should not be square
+  });
+
+  it('is 1.0 for a ManualLayout diagram', () => {
+    const dsl: DiagramDSL = {
+      id: 'diagram',
+      layout: { kind: 'manual' },
+      nodes: [
+        makeNode('a', { position: [0.2, 0.3, 0], size: [0.1, 0.05] }),
+        makeNode('b', { position: [0.7, 0.6, 0], size: [0.1, 0.05] }),
+      ],
+      edges: [],
+      groups: [],
+    };
+    const state = compileDiagram(dsl);
+    expect(state.contentAspect).toBe(1.0);
+  });
+});
+
 describe('DiagramState NVS fields', () => {
-  it('has viewportBounds and tiltRotation, not position/rotation/scale', () => {
+  it('has viewportBounds, tiltRotation, z, and scale; not position or rotation', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
       layout: { kind: 'grid' },
@@ -452,21 +758,24 @@ describe('DiagramState NVS fields', () => {
     const state = compileDiagram(dsl);
     expect(state).toHaveProperty('viewportBounds');
     expect(state).toHaveProperty('tiltRotation');
+    expect(state).toHaveProperty('z', 0);
+    expect(state).toHaveProperty('scale', 1);
     expect(state).not.toHaveProperty('position');
-    expect(state).not.toHaveProperty('scale');
     expect(state).not.toHaveProperty('rotation');
   });
 
-  it('tilt from DSL is passed through as tiltRotation', () => {
+  it('tilt scalar from DSL is set as tiltRotation[0] (pitch only)', () => {
     const dsl: DiagramDSL = {
       id: 'diagram',
       layout: { kind: 'manual' },
-      tilt: [0.1, 0.2, 0.3],
+      tilt: 0.1,
       nodes: [makeNode('a', { position: [0.5, 0.5, 0] })],
       edges: [],
       groups: [],
     };
     const state = compileDiagram(dsl);
-    expect(state.tiltRotation).toEqual([0.1, 0.2, 0.3]);
+    expect(state.tiltRotation[0]).toBeCloseTo(0.1);
+    expect(state.tiltRotation[1]).toBe(0);
+    expect(state.tiltRotation[2]).toBe(0);
   });
 });

@@ -5,7 +5,7 @@
  * May change or be removed without a major version bump.
  */
 import type { CSSProperties, ReactElement } from 'react';
-import { useEngineState } from './EngineStateContext';
+import { useEngineState } from './useEngineState';
 import { useSceneEngineContext } from './EngineContext';
 
 export type SceneInspectorProps = {
@@ -56,7 +56,7 @@ export const SceneInspector = ({ sceneIds }: SceneInspectorProps): ReactElement 
   const sceneCount = Math.max(1, sceneIds.length);
 
   const jumpToScene = (index: number): void => {
-    engine.scrollToProgress(index / Math.max(1, sceneCount - 1));
+    engine.setProgress(index / Math.max(1, sceneCount - 1));
   };
 
   return (

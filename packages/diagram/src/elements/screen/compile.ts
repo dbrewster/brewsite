@@ -3,7 +3,7 @@
 
 import type { ScreenDSL, ScreenState } from './types';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
-import { blendNumber, blendOpacity, blendVec3 } from '@brewsite/core';
+import { blendNumber, blendOpacity, blendVec3, validateNVSScalar } from '@brewsite/core';
 
 export const SCREEN_ROTATION_WARNING_THRESHOLD_RAD = 0.1;
 
@@ -37,14 +37,28 @@ export function compileScreen(dsl: ScreenDSL): ScreenState {
     );
   }
 
+  const nvsX = dsl.x ?? 0.5;
+  const nvsY = dsl.y ?? 0.5;
+  const nvsWidth = dsl.width ?? 0.625;
+  const nvsHeight = dsl.height;
+
+  if (process.env.NODE_ENV !== 'production') {
+    validateNVSScalar(nvsX, 'nvsX', `<Screen id="${dsl.id}">`);
+    validateNVSScalar(nvsY, 'nvsY', `<Screen id="${dsl.id}">`);
+    validateNVSScalar(nvsWidth, 'nvsWidth', `<Screen id="${dsl.id}">`);
+    if (nvsHeight !== undefined) {
+      validateNVSScalar(nvsHeight, 'nvsHeight', `<Screen id="${dsl.id}">`);
+    }
+  }
+
   return {
     id: dsl.id,
     src: dsl.src,
-    nvsX: dsl.x ?? 0.5,
-    nvsY: dsl.y ?? 0.5,
+    nvsX,
+    nvsY,
     z: dsl.z ?? 0,
-    nvsWidth: dsl.width ?? 0.625,
-    nvsHeight: dsl.height,
+    nvsWidth,
+    nvsHeight,
     rotation,
     scale: dsl.scale ?? 1,
     bezel: dsl.bezel ?? 'dark',

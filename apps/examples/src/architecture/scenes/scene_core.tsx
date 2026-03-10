@@ -1,13 +1,9 @@
 import type {JSX} from 'react';
 import {
-    Action,
     Ambient,
     Camera,
     Directional,
-    InputController,
-    KeyMap,
     Lighting,
-    PointerMap,
     ProgressManager,
     Scene,
     TextBox,
@@ -15,7 +11,6 @@ import {
 import {
     darkGlassTheme,
     Diagram,
-    DiagramCanvas,
     DiagramEdge,
     DiagramGroup,
     DiagramNode,
@@ -28,9 +23,9 @@ import {MidFade, ScrollOn} from '@brewsite/core/hud/animejs';
 // then animates to the head-on position as they continue.
 const angledFn = (t: number): number => (t < 0.5 ? 0 : (t - 0.5) / 0.5);
 
-function makeCoreCanvasDiagram(): JSX.Element {
+function makeCoreCanvasDiagram(tilt: number, scale: number): JSX.Element {
   return (
-    <Diagram id="arch-content">
+    <Diagram id="arch-content" x={0} y={0} w={1} h={1} tilt={tilt} scale={scale} theme={darkGlassTheme}>
       <ManualLayout />
 
       {/* ── COLUMN 1: Author (DSL) ── */}
@@ -221,18 +216,6 @@ function makeCoreCanvasDiagram(): JSX.Element {
 export const sceneCoreAngledArch: JSX.Element = (
   <Scene id="arch-core-angled">
     <ProgressManager scrollUnits={2000} fn={angledFn} />
-    {/* Camera controls: Cmd+drag to orbit, Shift+drag to pan, R to reset */}
-    <InputController scope="canvas">
-      <Action id="rotate" type="diagram-canvas.rotate" canvasId="arch-core-canvas">
-        <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
-      </Action>
-      <Action id="pan" type="diagram-canvas.move" canvasId="arch-core-canvas">
-        <PointerMap event="drag" button="left" modifiers={['shift']} axis="xy" />
-      </Action>
-      <Action id="reset" type="diagram-canvas.reset" canvasId="arch-core-canvas">
-        <KeyMap keyName="r" />
-      </Action>
-    </InputController>
     <Camera
       mode="world"
       position={[0, 35, 45]}
@@ -244,15 +227,7 @@ export const sceneCoreAngledArch: JSX.Element = (
       <Directional intensity={0.6} color="#aaccff" position={[0, 20, 30]} />
       <Directional intensity={0.3} color="#6677ff" position={[-15, 5, 10]} />
     </Lighting>
-    <DiagramCanvas
-      id="arch-core-canvas"
-      x={0} y={0} w={1} h={1}
-      tilt={-Math.PI / 4}
-      scale={1.1}
-      theme={darkGlassTheme}
-    >
-      {makeCoreCanvasDiagram()}
-    </DiagramCanvas>
+    {makeCoreCanvasDiagram(-Math.PI / 4, 1.1)}
   </Scene>
 );
 
@@ -268,15 +243,7 @@ export const sceneCoreArch: JSX.Element = (
       target={[0, 0, 0]}
       fov={54}
     />
-    <DiagramCanvas
-      id="arch-core-canvas"
-      x={0} y={0} w={1} h={1}
-      tilt={-Math.PI / 10}
-      scale={1.1}
-      theme={darkGlassTheme}
-    >
-      {makeCoreCanvasDiagram()}
-    </DiagramCanvas>
+    {makeCoreCanvasDiagram(-Math.PI / 10, 1.1)}
 
     {/* Teaching overlay */}
     <TextBox id="core-teaching" x={0.03} y={0.52} w={0.44} h={0.45}>

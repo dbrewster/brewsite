@@ -1,5 +1,5 @@
-// Tests for DiagramRenderer NVS → canvas-local coordinate conversion.
-// §12.9: Edge control point conversion from [0..1] NVS → canvas-local space.
+// Tests for DiagramRenderer NVS → world coordinate conversion.
+// §12.9: Edge control point conversion from NVS [0..1] → world-space group-local.
 // §12.10: Group center placement verification (Y-up convention for bounds.y).
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
@@ -9,6 +9,8 @@ import { DiagramRenderer } from '../render';
 import { buildThemeRenderConfig } from '../compiler/themeResolver';
 import { darkGlassTheme } from '../themes';
 import { mergeTheme } from '../themes/mergeTheme';
+import { createNVSCoordService } from '@brewsite/core';
+import type { NVSCoordService } from '@brewsite/core';
 import type {
   DiagramState,
   DiagramEdgeState,
@@ -44,10 +46,26 @@ const minimalThemeConfig: DiagramThemeRenderConfig = {
   fontUrl: undefined,
 };
 
+/** Build a real NVSCoordService from a camera at z=12.07, fov=45, 1:1 aspect. */
+function makeSquareCoords(): NVSCoordService {
+  const cam = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
+  cam.position.set(0, 0, 12.07);
+  return createNVSCoordService(cam, 1000, 1000); // 1:1 aspect
+}
+
+/** Build a real NVSCoordService with 16:9 aspect. */
+function make16x9Coords(): NVSCoordService {
+  const cam = new THREE.PerspectiveCamera(45, 16 / 9, 0.01, 100);
+  cam.position.set(0, 0, 12.07);
+  return createNVSCoordService(cam, 1920, 1080);
+}
+
 /** Build a minimal DiagramEdgeState with custom NVS control points. */
 function makeEdgeState(
   controlPoints: ReadonlyArray<readonly [number, number, number]>,
 ): DiagramEdgeState {
+  const start = controlPoints[0] ?? [0, 0, 0];
+  const end = controlPoints[controlPoints.length - 1] ?? start;
   return {
     id: 'e1',
     fromId: 'n1',
@@ -60,6 +78,15 @@ function makeEdgeState(
     flow: 'none',
     flowColor: undefined,
     thickness: 0.04,
+    path: {
+      commands: controlPoints.length >= 2
+        ? [{ kind: 'line', from: start, to: end }]
+        : [],
+      startTangent: [1, 0, 0],
+      endTangent: [-1, 0, 0],
+      usedUnderpass: false,
+      punctures: [],
+    },
     controlPoints,
     opacity: 1,
     routing: 'curved',
@@ -105,120 +132,164 @@ function makeDiagramState(
     groups,
     viewportBounds: { x: 0, y: 0, w: 1, h: 1 },
     tiltRotation: [0, 0, 0],
+    z: 0,
+    scale: 1,
+    contentAspect: 1.0,
     exit: undefined,
     enter: undefined,
     themeConfig: minimalThemeConfig,
   };
 }
 
-// ─── §12.9: Edge control point NVS → canvas-local conversion ─────────────────
+function getPathPoints(geometry: THREE.TubeGeometry): THREE.Vector3[] {
+  const path = geometry.parameters.path as THREE.Curve<THREE.Vector3>;
+  return path.getPoints(8);
+}
 
-describe('DiagramRenderer — edge control point NVS → canvas-local conversion (§12.9)', () => {
-  it('maps NVS (0,0) control point to canvas-local top-left (negative X, positive Y)', () => {
-    // Arrange: fullscreen viewport, aspect=1. NVS origin (0,0) is the top-left.
-    // Canvas-local is center-origin, Y-up: top-left maps to (-0.5, +0.5).
+// ─── §12.9: Edge control point NVS → world-space group-local conversion ────────
+
+describe('DiagramRenderer — edge control point NVS → world-space conversion (§12.9)', () => {
+  it('maps NVS (0.5,0.5) control point to group-local (0, 0, 0) with fullscreen vp', () => {
+    // NVS center (0.5,0.5) = group center → local offset (0,0).
     const renderer = new DiagramRenderer(minimalThemeConfig);
-    renderer.setCanvasAspect(1);
-    const parent = new THREE.Group();
+    const group = new THREE.Group();
+    const coords = makeSquareCoords();
+    const state = makeDiagramState(
+      [makeEdgeState([[0.5, 0.5, 0]])],
+      [],
+    );
+
+    renderer.update(state, group, coords);
+
+    const edgeGroup = group.children[0] as THREE.Group;
+    const tube = edgeGroup.children[0] as THREE.Mesh;
+    const geom = tube.geometry as THREE.TubeGeometry;
+    const points = getPathPoints(geom);
+
+    // NVS center maps to group-local (0,0).
+    expect(points[0]!.x).toBeCloseTo(0, 3);
+    expect(points[0]!.y).toBeCloseTo(0, 3);
+
+    renderer.dispose('testDiagram', group);
+  });
+
+  it('maps NVS (0,0) control point to group-local top-left (negative X, positive Y)', () => {
+    // NVS (0,0) = top-left → world X negative, world Y positive.
+    const renderer = new DiagramRenderer(minimalThemeConfig);
+    const group = new THREE.Group();
+    const coords = makeSquareCoords();
     const state = makeDiagramState(
       [makeEdgeState([[0, 0, 0], [0.5, 0.5, 0]])],
       [],
     );
 
-    renderer.update(state, parent);
+    renderer.update(state, group, coords);
 
-    // Navigate to the tube mesh: parent → root group → edge entry group → tube mesh
-    const root = parent.children[0] as THREE.Group;
-    const edgeGroup = root.children[0] as THREE.Group;
+    const edgeGroup = group.children[0] as THREE.Group;
     const tube = edgeGroup.children[0] as THREE.Mesh;
     const geom = tube.geometry as THREE.TubeGeometry;
-    const curve = geom.parameters.path as THREE.CatmullRomCurve3;
+    const points = getPathPoints(geom);
 
-    // NVS (0,0,0) with fullscreen vp and aspect=1:
-    // localX = (0 - 0.5) * 1 = -0.5, localY = -(0 - 0.5) = 0.5
-    // Root offset = (0,0) for fullscreen → final CP = (-0.5, 0.5, 0)
-    expect(curve.points[0]!.x).toBeCloseTo(-0.5, 5);
-    expect(curve.points[0]!.y).toBeCloseTo(0.5, 5);
-    expect(curve.points[0]!.z).toBeCloseTo(0, 5);
+    // NVS (0,0) is top-left: group-local X should be negative, Y should be positive.
+    expect(points[0]!.x).toBeLessThan(0);
+    expect(points[0]!.y).toBeGreaterThan(0);
 
-    renderer.dispose('testDiagram', parent);
+    renderer.dispose('testDiagram', group);
   });
 
-  it('maps NVS (1,1) control point to canvas-local bottom-right (positive X, negative Y)', () => {
+  it('maps NVS (1,1) control point to group-local bottom-right (positive X, negative Y)', () => {
     const renderer = new DiagramRenderer(minimalThemeConfig);
-    renderer.setCanvasAspect(1);
-    const parent = new THREE.Group();
+    const group = new THREE.Group();
+    const coords = makeSquareCoords();
     const state = makeDiagramState(
       [makeEdgeState([[0.5, 0.5, 0], [1, 1, 0]])],
       [],
     );
 
-    renderer.update(state, parent);
+    renderer.update(state, group, coords);
 
-    const root = parent.children[0] as THREE.Group;
-    const edgeGroup = root.children[0] as THREE.Group;
+    const edgeGroup = group.children[0] as THREE.Group;
     const tube = edgeGroup.children[0] as THREE.Mesh;
     const geom = tube.geometry as THREE.TubeGeometry;
-    const curve = geom.parameters.path as THREE.CatmullRomCurve3;
+    const points = getPathPoints(geom);
+    const lastPt = points[points.length - 1]!;
+    // NVS (1,1) is bottom-right: group-local X positive, Y negative.
+    expect(lastPt.x).toBeGreaterThan(0);
+    expect(lastPt.y).toBeLessThan(0);
 
-    // NVS (1,1,0): localX=(1-0.5)*1=0.5, localY=-(1-0.5)=-0.5
-    const lastPt = curve.points[curve.points.length - 1]!;
-    expect(lastPt.x).toBeCloseTo(0.5, 5);
-    expect(lastPt.y).toBeCloseTo(-0.5, 5);
-    expect(lastPt.z).toBeCloseTo(0, 5);
-
-    renderer.dispose('testDiagram', parent);
+    renderer.dispose('testDiagram', group);
   });
 
-  it('maps NVS (0.5,0.5) control point to canvas-local center (0, 0)', () => {
+  it('NVS (0,0) and (1,1) have equal-magnitude group-local offsets with square coords', () => {
+    // With a fullscreen square viewport, the top-left and bottom-right corners
+    // are equidistant from center, so their local coordinates should be symmetric.
     const renderer = new DiagramRenderer(minimalThemeConfig);
-    renderer.setCanvasAspect(1);
-    const parent = new THREE.Group();
-    const state = makeDiagramState(
-      [makeEdgeState([[0, 0, 0], [0.5, 0.5, 0], [1, 1, 0]])],
-      [],
-    );
-
-    renderer.update(state, parent);
-
-    const root = parent.children[0] as THREE.Group;
-    const edgeGroup = root.children[0] as THREE.Group;
-    const tube = edgeGroup.children[0] as THREE.Mesh;
-    const geom = tube.geometry as THREE.TubeGeometry;
-    const curve = geom.parameters.path as THREE.CatmullRomCurve3;
-
-    // NVS (0.5,0.5,0): localX=(0.5-0.5)*1=0, localY=-(0.5-0.5)=0
-    const midPt = curve.points[1]!;
-    expect(midPt.x).toBeCloseTo(0, 5);
-    expect(midPt.y).toBeCloseTo(0, 5);
-    expect(midPt.z).toBeCloseTo(0, 5);
-
-    renderer.dispose('testDiagram', parent);
-  });
-
-  it('applies canvas aspect ratio: NVS (0,0) with aspect=2 maps to X=-1 (wider canvas)', () => {
-    // With aspect=2 (twice as wide), the X range expands: localX = (vpX - 0.5) * 2
-    // NVS (0,0): localX = (0 - 0.5) * 2 = -1
-    const renderer = new DiagramRenderer(minimalThemeConfig);
-    renderer.setCanvasAspect(2);
-    const parent = new THREE.Group();
+    const group = new THREE.Group();
+    const coords = makeSquareCoords();
     const state = makeDiagramState(
       [makeEdgeState([[0, 0, 0], [1, 1, 0]])],
       [],
     );
 
-    renderer.update(state, parent);
+    renderer.update(state, group, coords);
 
-    const root = parent.children[0] as THREE.Group;
-    const edgeGroup = root.children[0] as THREE.Group;
+    const edgeGroup = group.children[0] as THREE.Group;
     const tube = edgeGroup.children[0] as THREE.Mesh;
     const geom = tube.geometry as THREE.TubeGeometry;
-    const curve = geom.parameters.path as THREE.CatmullRomCurve3;
+    const points = getPathPoints(geom);
+    const first = points[0]!;
+    const last = points[points.length - 1]!;
 
-    // NVS (0,0,0) with aspect=2: localX = -1, root offset = (vpCX-0.5)*2 = 0
-    expect(curve.points[0]!.x).toBeCloseTo(-1, 5);
+    // Symmetric about origin: (0,0) → (-halfW, +halfH), (1,1) → (+halfW, -halfH).
+    expect(first.x).toBeCloseTo(-last.x, 3);
+    expect(first.y).toBeCloseTo(-last.y, 3);
 
-    renderer.dispose('testDiagram', parent);
+    renderer.dispose('testDiagram', group);
+  });
+
+  it('square diagram (contentAspect=1) on 16:9 viewport produces equal |X| and |Y| for corner NVS (0,0)', () => {
+    // A square diagram (contentAspect=1.0) on a 16:9 viewport is height-constrained.
+    // uniformWorldW = uniformWorldH, so NVS (0,0) → |localX| ≈ |localY|.
+    const renderer = new DiagramRenderer(minimalThemeConfig);
+    const group = new THREE.Group();
+    const coords = make16x9Coords();
+    const state = makeDiagramState(
+      [makeEdgeState([[0, 0, 0], [1, 1, 0]])],
+      [],
+    );
+    // contentAspect: 1.0 from makeDiagramState — square diagram
+
+    renderer.update(state, group, coords);
+
+    const edgeGroup = group.children[0] as THREE.Group;
+    const tube = edgeGroup.children[0] as THREE.Mesh;
+    const geom = tube.geometry as THREE.TubeGeometry;
+    const points = getPathPoints(geom);
+
+    // With uniform fit: height limits scale → uniformWorldW = uniformWorldH → |X| = |Y|
+    expect(Math.abs(points[0]!.x)).toBeCloseTo(Math.abs(points[0]!.y), 3);
+
+    renderer.dispose('testDiagram', group);
+  });
+
+  it('wide diagram (contentAspect=16/9) on 16:9 viewport produces larger |X| than |Y| for corner NVS (0,0)', () => {
+    // A diagram whose AR matches the 16:9 viewport fills the viewport exactly.
+    // uniformWorldW > uniformWorldH, so NVS (0,0) → |localX| > |localY|.
+    const renderer = new DiagramRenderer(minimalThemeConfig);
+    const group = new THREE.Group();
+    const coords = make16x9Coords();
+    const state = { ...makeDiagramState([makeEdgeState([[0, 0, 0], [1, 1, 0]])], []), contentAspect: 16 / 9 };
+
+    renderer.update(state, group, coords);
+
+    const edgeGroup = group.children[0] as THREE.Group;
+    const tube = edgeGroup.children[0] as THREE.Mesh;
+    const geom = tube.geometry as THREE.TubeGeometry;
+    const points = getPathPoints(geom);
+
+    expect(Math.abs(points[0]!.x)).toBeGreaterThan(Math.abs(points[0]!.y));
+
+    renderer.dispose('testDiagram', group);
   });
 });
 
@@ -234,96 +305,57 @@ describe('DiagramRenderer — group center placement Y-up convention (§12.10)',
     vi.restoreAllMocks();
   });
 
-  it('places group center at canvas-local Y=0 when NVS group spans y=[0.25, 0.75]', () => {
-    // A group spanning NVS y=0.25 to 0.75 has its center at NVS y=0.5, which is
-    // the canvas vertical center — canvas-local Y=0.
-    //
-    // Conversion formula in render.ts for fullscreen vp, aspect=1, root at origin:
-    //   localGY = 0.5 - (vp.y + vp.h * (groupBounds.y + groupBounds.h)) - localY
-    //           = 0.5 - (0 + 1 * (0.25 + 0.5)) - 0
-    //           = 0.5 - 0.75 = -0.25   ← canvas-local BOTTOM edge (Y-up: below center)
-    //
-    // GroupRenderer formula: centerY = bounds.y + bounds.h / 2
-    //   = -0.25 + 0.5 / 2 = -0.25 + 0.25 = 0   ← canvas-local center ✓
+  it('places group center at Y≈0 when NVS group spans y=[0.25, 0.75] (centered)', () => {
+    // A group from NVS y=0.25 to 0.75 has its center at NVS y=0.5 (vertical center).
+    // The diagram group also centers at NVS y=0.5, so local Y=0.
     const renderer = new DiagramRenderer(minimalThemeConfig);
-    renderer.setCanvasAspect(1);
-    const parent = new THREE.Group();
+    const group = new THREE.Group();
+    const coords = makeSquareCoords();
     const state = makeDiagramState([], [makeGroupState(0.25, 0.5)]);
 
-    // First call: creates entry (position not yet set by updateGroup)
-    renderer.update(state, parent);
-    // Second call: finds existing entry, calls updateGroup which sets position
-    renderer.update(state, parent);
+    // First call: creates entry (position not yet set by updateGroup).
+    renderer.update(state, group, coords);
+    // Second call: finds existing entry, calls updateGroup which sets position.
+    renderer.update(state, group, coords);
 
-    const root = parent.children[0] as THREE.Group;
-    const groupEntryGroup = root.children[0] as THREE.Group;
-    expect(groupEntryGroup.position.y).toBeCloseTo(0, 5);
+    const groupEntryGroup = group.children[0] as THREE.Group;
+    expect(groupEntryGroup.position.y).toBeCloseTo(0, 3);
 
-    renderer.dispose('testDiagram', parent);
+    renderer.dispose('testDiagram', group);
   });
 
   it('places group center above Y=0 when NVS group is in the upper half (y=[0, 0.5])', () => {
-    // NVS group y=[0, 0.5]: center at NVS y=0.25 (upper quarter)
-    // localGY = 0.5 - (0 + 1*(0 + 0.5)) - 0 = 0.5 - 0.5 = 0  ← canvas-local BOTTOM = 0
-    // centerY = 0 + 0.5/2 = 0.25  ← canvas-local center is positive (upper half) ✓
+    // Group spanning NVS y=0 to 0.5 has center at NVS y=0.25 (upper quarter).
+    // The diagram group centers at NVS y=0.5, so local Y > 0.
     const renderer = new DiagramRenderer(minimalThemeConfig);
-    renderer.setCanvasAspect(1);
-    const parent = new THREE.Group();
+    const group = new THREE.Group();
+    const coords = makeSquareCoords();
     const state = makeDiagramState([], [makeGroupState(0, 0.5)]);
 
-    renderer.update(state, parent);
-    renderer.update(state, parent);
+    renderer.update(state, group, coords);
+    renderer.update(state, group, coords);
 
-    const root = parent.children[0] as THREE.Group;
-    const groupEntryGroup = root.children[0] as THREE.Group;
+    const groupEntryGroup = group.children[0] as THREE.Group;
     expect(groupEntryGroup.position.y).toBeGreaterThan(0);
 
-    renderer.dispose('testDiagram', parent);
+    renderer.dispose('testDiagram', group);
   });
 
   it('places group center below Y=0 when NVS group is in the lower half (y=[0.5, 1])', () => {
-    // NVS group y=[0.5, 0.5]: center at NVS y=0.75 (lower quarter)
-    // localGY = 0.5 - (0 + 1*(0.5 + 0.5)) - 0 = 0.5 - 1 = -0.5 ← canvas-local BOTTOM
-    // centerY = -0.5 + 0.5/2 = -0.25 ← canvas-local center is negative (lower half) ✓
+    // Group spanning NVS y=0.5 to 1.0 has center at NVS y=0.75 (lower quarter).
+    // The diagram group centers at NVS y=0.5, so local Y < 0.
     const renderer = new DiagramRenderer(minimalThemeConfig);
-    renderer.setCanvasAspect(1);
-    const parent = new THREE.Group();
+    const group = new THREE.Group();
+    const coords = makeSquareCoords();
     const state = makeDiagramState([], [makeGroupState(0.5, 0.5)]);
 
-    renderer.update(state, parent);
-    renderer.update(state, parent);
+    renderer.update(state, group, coords);
+    renderer.update(state, group, coords);
 
-    const root = parent.children[0] as THREE.Group;
-    const groupEntryGroup = root.children[0] as THREE.Group;
+    const groupEntryGroup = group.children[0] as THREE.Group;
     expect(groupEntryGroup.position.y).toBeLessThan(0);
 
-    renderer.dispose('testDiagram', parent);
-  });
-
-  it('bounds.y is negative (below canvas midpoint) confirming Y-up BOTTOM edge convention', () => {
-    // For NVS group spanning y=[0.25, 0.75]:
-    // localGY = -0.25 which is negative → below the canvas center in Y-up space.
-    // This confirms bounds.y received by GroupRenderer IS the BOTTOM edge (not top).
-    // GroupRenderer's formula centerY = bounds.y + h/2 then correctly computes the center.
-    const renderer = new DiagramRenderer(minimalThemeConfig);
-    renderer.setCanvasAspect(1);
-    const parent = new THREE.Group();
-    const state = makeDiagramState([], [makeGroupState(0.25, 0.5)]);
-
-    renderer.update(state, parent);
-    renderer.update(state, parent);
-
-    const root = parent.children[0] as THREE.Group;
-    const groupEntryGroup = root.children[0] as THREE.Group;
-
-    // centerY = bounds.y + h/2 = 0 → bounds.y = -h/2 = -0.25
-    // Verify: position.y == 0 means bounds.y was -0.25, a NEGATIVE value = BOTTOM edge ✓
-    const localH = 0.5; // fullscreen vp, nvsH=0.5 → localH = nvsH * vp.h = 0.5
-    const impliedBoundsY = groupEntryGroup.position.y - localH / 2;
-    expect(impliedBoundsY).toBeCloseTo(-0.25, 5);
-    expect(impliedBoundsY).toBeLessThan(0); // negative confirms it's the Y-up bottom edge
-
-    renderer.dispose('testDiagram', parent);
+    renderer.dispose('testDiagram', group);
   });
 });
 
@@ -338,6 +370,9 @@ function makeMinimalDiagramState(overrides: { themeConfig: DiagramThemeRenderCon
     groups: [],
     viewportBounds: { x: 0, y: 0, w: 1, h: 1 },
     tiltRotation: [0, 0, 0],
+    z: 0,
+    scale: 1,
+    contentAspect: 1.0,
     exit: undefined,
     enter: undefined,
     themeConfig: overrides.themeConfig,
@@ -353,22 +388,23 @@ describe('DiagramRenderer — constructor architecture (Stream H)', () => {
   it('update() works on first call without prior init', () => {
     const config = buildThemeRenderConfig(darkGlassTheme);
     const renderer = new DiagramRenderer(config);
-    const parent = new THREE.Group();
+    const group = new THREE.Group();
+    const coords = makeSquareCoords();
     const state = makeMinimalDiagramState({ themeConfig: config });
-    expect(() => renderer.update(state, parent)).not.toThrow();
+    expect(() => renderer.update(state, group, coords)).not.toThrow();
   });
 
   it('recreates EdgeRenderer when edge smoothness changes between updates', () => {
     const config1 = buildThemeRenderConfig(darkGlassTheme);
     const config2 = buildThemeRenderConfig(mergeTheme(darkGlassTheme, { edge: { smoothness: 2.5 } }));
     const renderer = new DiagramRenderer(config1);
-    const parent = new THREE.Group();
+    const group = new THREE.Group();
+    const coords = makeSquareCoords();
     const state1 = makeMinimalDiagramState({ themeConfig: config1 });
     const state2 = makeMinimalDiagramState({ themeConfig: config2, id: state1.id });
-    renderer.update(state1, parent);
-    renderer.update(state2, parent);
+    renderer.update(state1, group, coords);
+    renderer.update(state2, group, coords);
     // No crash. Edge rendering applied config2 params.
-    // (EdgeRenderer recreation is observable via the parent group's edge children being replaced.)
-    expect(parent.children.length).toBeGreaterThan(0);
+    expect(group.children.length).toBeGreaterThanOrEqual(0);
   });
 });

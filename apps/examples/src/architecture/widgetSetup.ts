@@ -11,7 +11,7 @@ export function createArchitecturePlugins(): { plugins: WidgetPlugin[] } {
     plugins: [
       corePlugin(),
       diagramPlugin({
-        canvases: ['arch-core-canvas', 'arch-diagram-canvas', 'arch-model-canvas', 'arch-charts-canvas'],
+        diagrams: ['arch-content'],
       }),
     ],
   };

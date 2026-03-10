@@ -1,6 +1,15 @@
 import type {JSX} from 'react';
 import {useMemo} from 'react';
-import {EngineARContainer, EngineInputRegion, EngineOverlayHost, EngineProvider, SceneCanvas,} from '@brewsite/core';
+import {
+  BackgroundLayer,
+  EngineARContainer,
+  EngineOverlayHost,
+  KeyboardInput,
+  SceneCanvas,
+  SceneEngine,
+  ScrollInput,
+  ScrollStage,
+} from '@brewsite/core';
 import {createSidecarPlugins} from './widgetSetup';
 import {sceneHero} from './scenes/scene_hero';
 import {sceneSurfaces} from './scenes/scene_surfaces';
@@ -35,12 +44,7 @@ export default function SidecarNotePage(): JSX.Element {
 
   return (
     <div style={{ background: '#080b14', minHeight: '100vh', fontSize: '18px' }}>
-      <EngineProvider
-        manifestUrl="/scene-manifest.json"
-        plugins={plugins}
-        pixelsPerScene={TOTAL_SCROLL_HEIGHT / SCENE_SCROLL_REGISTRY.length}
-        inputModePolicy="prefer-scroll"
-      >
+      <SceneEngine plugins={plugins}>
         {sceneHero}
         {sceneSurfaces}
         {sceneArchitecture}
@@ -52,13 +56,16 @@ export default function SidecarNotePage(): JSX.Element {
         {sceneDreamer}
         {sceneDeploymentLevels}
         {sceneTradeoffs}
-        <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width" referenceWidth={1920}>
-          <EngineInputRegion>
-            <SceneCanvas />
+        <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={TOTAL_SCROLL_HEIGHT / SCENE_SCROLL_REGISTRY.length}>
+          <EngineARContainer aspectRatio={9 / 9} scaleMode="fit-height" referenceWidth={1920}>
+            <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+            <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
             <EngineOverlayHost />
-          </EngineInputRegion>
-        </EngineARContainer>
-      </EngineProvider>
+          </EngineARContainer>
+          <ScrollInput source="window" />
+          <KeyboardInput />
+        </ScrollStage>
+      </SceneEngine>
     </div>
   );
 }
