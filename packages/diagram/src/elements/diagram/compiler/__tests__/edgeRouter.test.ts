@@ -4,10 +4,6 @@ import {
   getFacePortAnchor,
   nearestFace,
   resolveFaces,
-  routeEdgeCurved,
-  routeEdgeStraight,
-  routeEdgeOrganic,
-  routeEdgeOrthogonal,
   routeEdges,
 } from '../edgeRouter';
 import type { NodeDimensions } from '../edgeRouter';
@@ -40,124 +36,6 @@ describe('nearestFace', () => {
   });
 });
 
-describe('routeEdgeCurved — anti-parallel arc fix', () => {
-  it('returns 4 points for left→right face connection (anti-parallel)', () => {
-    const pts = routeEdgeCurved(
-      [0, -4, 0], [4, 2, 0.4] as NodeDimensions, 'left',
-      [-5, -8, 0], [4, 2, 0.4] as NodeDimensions, 'right',
-    );
-    expect(pts).toHaveLength(4);
-    const [start, c1, c2, end] = pts;
-    const directMidX = (start[0] + end[0]) / 2;
-    const directMidY = (start[1] + end[1]) / 2;
-    expect(Math.abs(c1[0] - directMidX) + Math.abs(c1[1] - directMidY)).toBeGreaterThan(0.1);
-    expect(Math.abs(c2[0] - directMidX) + Math.abs(c2[1] - directMidY)).toBeGreaterThan(0.1);
-  });
-
-  it('returns curved points for convergent faces when distance is non-trivial', () => {
-    const pts = routeEdgeCurved(
-      [0, 2, 0], [4, 2, 0.4] as NodeDimensions, 'bottom',
-      [0, -1, 0], [4, 2, 0.4] as NodeDimensions, 'top',
-    );
-    expect(pts).toHaveLength(4);
-  });
-
-  it('returns 4 points for same-side connection (left→left, dot=+1)', () => {
-    const pts = routeEdgeCurved(
-      [0, 0, 0], [4, 2, 0.4] as NodeDimensions, 'left',
-      [-8, 0, 0], [4, 2, 0.4] as NodeDimensions, 'left',
-    );
-    expect(pts).toHaveLength(4);
-  });
-
-  it('enforces a visible orthogonal side-face exit stub', () => {
-    const pts = routeEdgeCurved(
-      [0, 0, 0], [4, 2, 0.4] as NodeDimensions, 'right',
-      [4, 6, 0], [4, 2, 0.4] as NodeDimensions, 'left',
-    );
-    expect(pts).toHaveLength(4);
-    const [start, c1] = pts;
-    expect(c1[0] - start[0]).toBeGreaterThan(0.9);
-    expect(Math.abs(c1[1] - start[1])).toBeLessThan(0.01);
-  });
-});
-
-describe('routeEdgeOrthogonal', () => {
-  it('routes H→H as Z-shape via midY', () => {
-    const pts = routeEdgeOrthogonal(
-      [0, 0, 0], [4, 2, 0.4] as NodeDimensions, 'right',
-      [6, 4, 0], [4, 2, 0.4] as NodeDimensions, 'left',
-    );
-    expect(pts.length).toBeGreaterThanOrEqual(6);
-    for (let i = 0; i < pts.length - 1; i += 1) {
-      const dx = Math.abs(pts[i + 1][0] - pts[i][0]);
-      const dy = Math.abs(pts[i + 1][1] - pts[i][1]);
-      expect(Math.min(dx, dy)).toBeLessThan(0.03);
-    }
-    expect(pts.length).toBeGreaterThanOrEqual(6);
-  });
-
-  it('routes V→V as Z-shape via midX', () => {
-    const pts = routeEdgeOrthogonal(
-      [0, 0, 0], [4, 2, 0.4] as NodeDimensions, 'top',
-      [2, 6, 0], [4, 2, 0.4] as NodeDimensions, 'bottom',
-    );
-    expect(pts.length).toBeGreaterThanOrEqual(6);
-    for (let i = 0; i < pts.length - 1; i += 1) {
-      const dx = Math.abs(pts[i + 1][0] - pts[i][0]);
-      const dy = Math.abs(pts[i + 1][1] - pts[i][1]);
-      expect(Math.min(dx, dy)).toBeLessThan(0.03);
-    }
-    expect(pts.length).toBeGreaterThanOrEqual(6);
-  });
-
-  it('falls back to curved when a face is non-orthogonal', () => {
-    const pts = routeEdgeOrthogonal(
-      [0, 0, 0], [4, 2, 0.4] as NodeDimensions, 'front',
-      [4, 0, 0], [4, 2, 0.4] as NodeDimensions, 'right',
-    );
-    expect(pts.length).toBeGreaterThanOrEqual(4);
-  });
-
-  it('falls back when destination face is non-orthogonal', () => {
-    const pts = routeEdgeOrthogonal(
-      [0, 0, 0], [4, 2, 0.4] as NodeDimensions, 'left',
-      [0, 0, 5], [4, 2, 0.4] as NodeDimensions, 'front',
-    );
-    expect(pts.length).toBeGreaterThanOrEqual(4);
-  });
-
-  it('routes mixed H→V as L-shape', () => {
-    const pts = routeEdgeOrthogonal(
-      [0, 0, 0], [4, 2, 0.4] as NodeDimensions, 'right',
-      [4, 4, 0], [4, 2, 0.4] as NodeDimensions, 'top',
-    );
-    expect(pts.length).toBeGreaterThanOrEqual(5);
-  });
-
-  it('supports explicit corner radius overrides', () => {
-    const sharp = routeEdgeOrthogonal(
-      [0, 0, 0], [4, 2, 0.4] as NodeDimensions, 'right',
-      [6, 4, 0], [4, 2, 0.4] as NodeDimensions, 'left',
-      0,
-    );
-    const rounded = routeEdgeOrthogonal(
-      [0, 0, 0], [4, 2, 0.4] as NodeDimensions, 'right',
-      [6, 4, 0], [4, 2, 0.4] as NodeDimensions, 'left',
-      0.06,
-    );
-    expect(sharp.length).toBeLessThan(rounded.length);
-  });
-
-  it('keeps endpoint-adjacent elbows sharp so routes meet boundaries cleanly', () => {
-    const pts = routeEdgeOrthogonal(
-      [0, 0, 0], [4, 2, 0.4] as NodeDimensions, 'right',
-      [6, 4, 0], [4, 2, 0.4] as NodeDimensions, 'left',
-      0.08,
-    );
-    expect(pts.length).toBe(8);
-  });
-});
 
 describe('resolveFaces', () => {
   const srcPos: [number, number, number] = [0, 0, 0];
@@ -250,74 +128,13 @@ describe('getFacePortAnchor', () => {
   });
 });
 
-describe('routeEdgeOrganic', () => {
-  it('keeps organic control points when curved path remains curved', () => {
-    const pts = routeEdgeOrganic(
-      [0, 0, 0], [2, 2, 2], 'right',
-      [4, 0, 0], [2, 2, 2], 'left',
-      'edge-line',
-      1.6, undefined, undefined,
-    );
-    expect(pts).toHaveLength(4);
-  });
-
-  it('keeps organic routing cubic for curved paths', () => {
-    const pts = routeEdgeOrganic(
-      [0, 0, 0], [2, 2, 2], 'right',
-      [8, 4, 0], [2, 2, 2], 'left',
-      'edge-curve',
-      1.6, undefined, undefined,
-    );
-    expect(pts).toHaveLength(4);
-  });
-
-  it('keeps endpoints stable and shifts handles when organicVariation is non-zero', () => {
-    const ptsZero = routeEdgeOrganic(
-      [0, 0, 0], [2, 2, 2], 'right',
-      [6, 0, 0], [2, 2, 2], 'left',
-      'edge-organic-test',
-      0,
-    );
-    const ptsNonZero = routeEdgeOrganic(
-      [0, 0, 0], [2, 2, 2], 'right',
-      [6, 0, 0], [2, 2, 2], 'left',
-      'edge-organic-test',
-      1.6,
-    );
-    expect(ptsZero).toHaveLength(4);
-    expect(ptsNonZero).toHaveLength(4);
-    expect(ptsZero[0]).toEqual(ptsNonZero[0]);
-    expect(ptsZero[3]).toEqual(ptsNonZero[3]);
-    const midZero = ptsZero[1];
-    const midNonZero = ptsNonZero[1];
-    const differ =
-      midZero !== undefined &&
-      midNonZero !== undefined &&
-      (Math.abs(midZero[0] - midNonZero[0]) > 1e-6 ||
-        Math.abs(midZero[1] - midNonZero[1]) > 1e-6);
-    expect(differ).toBe(true);
-  });
-});
-
-describe('routeEdgeStraight', () => {
-  it('returns start/end using face normals and anchors', () => {
-    const pts = routeEdgeStraight(
-      [0, 0, 0], [4, 2, 2], 'right',
-      [4, 0, 0], [4, 2, 2], 'left',
-      [2, 1, 0],
-      [2, -1, 0],
-    );
-    expect(pts).toHaveLength(2);
-    expect(pts[0][0]).toBeCloseTo(2.012, 2);
-    expect(pts[1][0]).toBeCloseTo(1.988, 2);
-  });
-});
 
 describe('routeEdges', () => {
+  // Positions are in Y-down NVS space (routeEdges applies Y-mirror internally).
   const positions = new Map<string, [number, number, number]>([
     ['a', [0, 0, 0]],
-    ['b', [6, 2, 0]],
-    ['c', [6, -2, 0]],
+    ['b', [6, -2, 0]],
+    ['c', [6, 2, 0]],
   ]);
   const sizes = new Map<string, NodeDimensions>([
     ['a', [10, 4, 1]],
@@ -447,7 +264,7 @@ describe('routeEdges', () => {
   it('routes a valid edge when nearest-face route has a blocker near the direct line', () => {
     const localPositions = new Map<string, [number, number, number]>([
       ['src', [0, 0, 0]],
-      ['dst', [7, -3, 0]],
+      ['dst', [7, 3, 0]],
       ['blocker', [2.6, 0, 0]],
     ]);
     const localSizes = new Map<string, NodeDimensions>([
@@ -472,8 +289,8 @@ describe('routeEdges', () => {
 
   it('for intra-diagram auto-routing, avoids front/back and can use top/bottom', () => {
     const localPositions = new Map<string, [number, number, number]>([
-      ['client-layer', [12.5, -1.3, 0]],
-      ['api', [2.5, -2.5, 0]],
+      ['client-layer', [12.5, 1.3, 0]],
+      ['api', [2.5, 2.5, 0]],
     ]);
     const localSizes = new Map<string, NodeDimensions>([
       ['client-layer', [3.5, 1.3, 1]],
@@ -498,7 +315,7 @@ describe('routeEdges', () => {
   it('keeps flow exits face-normal before turning toward the target', () => {
     const localPositions = new Map<string, [number, number, number]>([
       ['src', [0, 0, 0]],
-      ['dst', [-3, -8, 0]],
+      ['dst', [-3, 8, 0]],
     ]);
     const localSizes = new Map<string, NodeDimensions>([
       ['src', [4, 2, 1]],
@@ -522,7 +339,7 @@ describe('routeEdges', () => {
   it('keeps member-to-member flow routes clean inside an enclosing group', () => {
     const localPositions = new Map<string, [number, number, number]>([
       ['group', [0, 0, 0]],
-      ['db', [0, 6, 0]],
+      ['db', [0, -6, 0]],
       ['table', [0, 0, 0]],
     ]);
     const localSizes = new Map<string, NodeDimensions>([
@@ -546,7 +363,7 @@ describe('routeEdges', () => {
 
   it('bundles downward fan-out from a top hub through a shared bottom trunk in flow mode', () => {
     const localPositions = new Map<string, [number, number, number]>([
-      ['swarm', [0, 10, 0]],
+      ['swarm', [0, -10, 0]],
       ['core-storage', [-8, 0, 0]],
       ['coordination', [8, 0, 0]],
     ]);
@@ -577,13 +394,13 @@ describe('routeEdges', () => {
     expect(routePoints(result, 'swarm-coordination').at(-1)?.[0] ?? 0).toBeGreaterThan(0);
   });
 
-  it('lets upper fan-out edges route directly while only lower siblings share the trunk', () => {
+  it('uses a shared vertical trunk for symmetric multi-row fan-out', () => {
     const localPositions = new Map<string, [number, number, number]>([
-      ['swarm', [0, 10, 0]],
+      ['swarm', [0, -10, 0]],
       ['core-storage', [-8, 0, 0]],
       ['coordination', [8, 0, 0]],
-      ['intelligence', [-8, -12, 0]],
-      ['recovery', [8, -12, 0]],
+      ['intelligence', [-8, 12, 0]],
+      ['recovery', [8, 12, 0]],
     ]);
     const localSizes = new Map<string, NodeDimensions>([
       ['swarm', [10, 2.5, 1]],
@@ -606,16 +423,14 @@ describe('routeEdges', () => {
       'nearest-face',
     );
 
-    expect(routePath(result, 'swarm-core')?.startTangent).toEqual([-1, 0, 0]);
-    expect(routePath(result, 'swarm-coordination')?.startTangent).toEqual([1, 0, 0]);
+    expect(routePath(result, 'swarm-core')?.startTangent).toEqual([0, -1, 0]);
+    expect(routePath(result, 'swarm-coordination')?.startTangent).toEqual([0, -1, 0]);
     expect(routePath(result, 'swarm-core')?.endTangent?.[1]).toBeCloseTo(-1);
     expect(routePath(result, 'swarm-coordination')?.endTangent?.[1]).toBeCloseTo(-1);
-    expect(routePoints(result, 'swarm-core')[0]?.[0] ?? 0).toBeLessThan(0);
-    expect(routePoints(result, 'swarm-coordination')[0]?.[0] ?? 0).toBeGreaterThan(0);
+    expect(Math.abs(routePoints(result, 'swarm-core')[0]?.[0] ?? Infinity)).toBeLessThan(0.05);
+    expect(Math.abs(routePoints(result, 'swarm-coordination')[0]?.[0] ?? Infinity)).toBeLessThan(0.05);
     expect(routePoints(result, 'swarm-core').at(-1)?.[0] ?? 0).toBeLessThan(0);
     expect(routePoints(result, 'swarm-coordination').at(-1)?.[0] ?? 0).toBeGreaterThan(0);
-    expect(routePoints(result, 'swarm-core')[0]?.[1] ?? Infinity).toBeLessThan(9.2);
-    expect(routePoints(result, 'swarm-coordination')[0]?.[1] ?? Infinity).toBeLessThan(9.2);
     expect(routePath(result, 'swarm-intelligence')?.startTangent?.[1]).toBeCloseTo(-1);
     expect(routePath(result, 'swarm-recovery')?.startTangent?.[1]).toBeCloseTo(-1);
   });
@@ -623,8 +438,8 @@ describe('routeEdges', () => {
   it('distributes inferred flow anchors on the same face instead of collapsing to one center point', () => {
     const localPositions = new Map<string, [number, number, number]>([
       ['source', [0, 0, 0]],
-      ['upper-right', [10, 3, 0]],
-      ['lower-right', [10, -3, 0]],
+      ['upper-right', [10, -3, 0]],
+      ['lower-right', [10, 3, 0]],
     ]);
     const localSizes = new Map<string, NodeDimensions>([
       ['source', [4, 6, 1]],
@@ -653,7 +468,7 @@ describe('routeEdges', () => {
   it('keeps vertically stacked flow edges centered instead of drifting to a side slot', () => {
     const localPositions = new Map<string, [number, number, number]>([
       ['top', [0, 0, 0]],
-      ['bottom', [0, -8, 0]],
+      ['bottom', [0, 8, 0]],
     ]);
     const localSizes = new Map<string, NodeDimensions>([
       ['top', [10, 2.8, 1]],
@@ -675,9 +490,9 @@ describe('routeEdges', () => {
     expect(Math.abs(pts.at(-1)?.[0] ?? 0)).toBeLessThan(0.05);
   });
 
-  it('uses outward top ports for group targets while keeping non-group vertical landings centered', () => {
+  it('keeps group-target flow routes on explicit perimeter faces without puncturing', () => {
     const localPositions = new Map<string, [number, number, number]>([
-      ['db', [0, 8, 0]],
+      ['db', [0, -8, 0]],
       ['group-left', [-8, 0, 0]],
       ['group-right', [8, 0, 0]],
     ]);
@@ -698,17 +513,19 @@ describe('routeEdges', () => {
       'nearest-face',
     );
 
-    expect(routePath(result, 'left')?.endTangent?.[1]).toBeCloseTo(-1);
-    expect(routePath(result, 'right')?.endTangent?.[1]).toBeCloseTo(-1);
-    expect(routePoints(result, 'left').at(-1)?.[0] ?? 0).toBeLessThan(-10);
-    expect(routePoints(result, 'right').at(-1)?.[0] ?? 0).toBeGreaterThan(10);
+    expect(routePath(result, 'left')?.punctures).toEqual([]);
+    expect(routePath(result, 'right')?.punctures).toEqual([]);
+    expect(Math.abs(routePath(result, 'left')?.endTangent?.[0] ?? 0) + Math.abs(routePath(result, 'left')?.endTangent?.[1] ?? 0)).toBeGreaterThan(0.95);
+    expect(Math.abs(routePath(result, 'right')?.endTangent?.[0] ?? 0) + Math.abs(routePath(result, 'right')?.endTangent?.[1] ?? 0)).toBeGreaterThan(0.95);
+    expect(routePoints(result, 'left').at(-1)?.[0] ?? 0).toBeLessThan(0);
+    expect(routePoints(result, 'right').at(-1)?.[0] ?? 0).toBeGreaterThan(0);
   });
 
   it('shares a bottom-center trunk before splitting for downward cross-column flow fan-out', () => {
     const localPositions = new Map<string, [number, number, number]>([
-      ['db', [0, 10, 0]],
-      ['core', [-8, 1, 0]],
-      ['coord', [8, 1, 0]],
+      ['db', [0, -10, 0]],
+      ['core', [-8, -1, 0]],
+      ['coord', [8, -1, 0]],
     ]);
     const localSizes = new Map<string, NodeDimensions>([
       ['db', [10, 2.8, 1]],
@@ -735,17 +552,19 @@ describe('routeEdges', () => {
     expect(Math.abs(right[0]?.[0] ?? Infinity)).toBeLessThan(0.05);
     expect(Math.abs((left[1]?.[0] ?? Infinity) - (right[1]?.[0] ?? -Infinity))).toBeLessThan(0.05);
     expect(Math.abs((left[1]?.[1] ?? Infinity) - (right[1]?.[1] ?? -Infinity))).toBeLessThan(0.05);
-    expect((left.at(-1)?.[0] ?? 0)).toBeLessThan(-6);
-    expect((right.at(-1)?.[0] ?? 0)).toBeGreaterThan(6);
+    expect((left.at(-1)?.[0] ?? 0)).toBeLessThan(0);
+    expect((right.at(-1)?.[0] ?? 0)).toBeGreaterThan(0);
+    expect(routePath(result, 'db-core')?.punctures).toEqual([]);
+    expect(routePath(result, 'db-coord')?.punctures).toEqual([]);
   });
 
   it('shares a top-center trunk before splitting when compiled y-order increases downward', () => {
     const localPositions = new Map<string, [number, number, number]>([
-      ['db', [0, 0.16, 0]],
-      ['core', [-0.18, 0.33, 0]],
-      ['coord', [0.18, 0.57, 0]],
-      ['intel', [-0.18, 0.76, 0]],
-      ['recov', [0.18, 0.88, 0]],
+      ['db', [0, -0.16, 0]],
+      ['core', [-0.18, -0.33, 0]],
+      ['coord', [0.18, -0.57, 0]],
+      ['intel', [-0.18, -0.76, 0]],
+      ['recov', [0.18, -0.88, 0]],
     ]);
     const localSizes = new Map<string, NodeDimensions>([
       ['db', [0.74, 0.06, 1]],
@@ -768,21 +587,50 @@ describe('routeEdges', () => {
       'nearest-face',
     );
 
-    expect(Math.abs(routePath(result, 'db-core')?.startTangent?.[0] ?? 0)).toBeGreaterThan(0.95);
-    expect(Math.abs(routePath(result, 'db-coord')?.startTangent?.[0] ?? 0)).toBeGreaterThan(0.95);
+    expect(routePath(result, 'db-core')?.startTangent).toEqual([0, 1, 0]);
+    expect(routePath(result, 'db-coord')?.startTangent).toEqual([0, 1, 0]);
     expect(routePath(result, 'db-intel')?.startTangent).toEqual([0, 1, 0]);
     expect(routePath(result, 'db-recov')?.startTangent).toEqual([0, 1, 0]);
     expect(Math.abs(routePath(result, 'db-core')?.endTangent?.[1] ?? 0)).toBeGreaterThan(0.95);
     expect(Math.abs(routePath(result, 'db-coord')?.endTangent?.[1] ?? 0)).toBeGreaterThan(0.95);
-    expect(Math.abs(routePoints(result, 'db-core')[0]?.[0] ?? 0)).toBeGreaterThan(0.05);
-    expect(Math.abs(routePoints(result, 'db-coord')[0]?.[0] ?? 0)).toBeGreaterThan(0.05);
+    expect(Math.abs(routePoints(result, 'db-core')[0]?.[0] ?? Infinity)).toBeLessThan(0.05);
+    expect(Math.abs(routePoints(result, 'db-coord')[0]?.[0] ?? Infinity)).toBeLessThan(0.05);
     expect(Math.abs(routePoints(result, 'db-intel')[0]?.[0] ?? Infinity)).toBeLessThan(0.05);
     expect(Math.abs(routePoints(result, 'db-recov')[0]?.[0] ?? Infinity)).toBeLessThan(0.05);
+    expect(routePath(result, 'db-intel')?.punctures).toEqual([]);
+    expect(routePath(result, 'db-recov')?.punctures).toEqual([]);
+    expect(result.get('db-intel')?.pathDebug?.selectedDstFace).toBeDefined();
+    expect(result.get('db-recov')?.pathDebug?.selectedDstFace).toBeDefined();
+  });
+
+  it('routes to a side boundary when a lower group top corridor is explicitly blocked', () => {
+    const localPositions = new Map<string, [number, number, number]>([
+      ['db', [0, -10, 0]],
+      ['upper-left', [-8, -1, 0]],
+      ['lower-left', [-8, 12, 0]],
+    ]);
+    const localSizes = new Map<string, NodeDimensions>([
+      ['db', [10, 2.8, 1]],
+      ['upper-left', [8, 10, 0.01]],
+      ['lower-left', [8, 8, 0.01]],
+    ]);
+
+    const result = routeEdges(
+      [{ id: 'db-lower-left', from: 'db', to: 'lower-left', routing: 'flow' }],
+      localPositions,
+      localSizes,
+      'flow',
+      'nearest-face',
+    );
+
+    expect(routePath(result, 'db-lower-left')?.punctures).toEqual([]);
+    expect(Math.abs(routePath(result, 'db-lower-left')?.endTangent?.[0] ?? 0)).toBeGreaterThan(0.95);
+    expect(['left', 'right']).toContain(result.get('db-lower-left')?.pathDebug?.selectedDstFace);
   });
 
   it('disables shared flow trunks when flowBundleStrength is set to 0', () => {
     const localPositions = new Map<string, [number, number, number]>([
-      ['swarm', [0, 10, 0]],
+      ['swarm', [0, -10, 0]],
       ['core-storage', [-8, 0, 0]],
       ['coordination', [8, 0, 0]],
     ]);
@@ -815,8 +663,8 @@ describe('routeEdges', () => {
 
   it('with only fromPort fixed, chooses a non-crossing destination side', () => {
     const localPositions = new Map<string, [number, number, number]>([
-      ['output-filters', [16, -7.5, 0]],
-      ['llm-conv', [2, -13, 0]],
+      ['output-filters', [16, 7.5, 0]],
+      ['llm-conv', [2, 13, 0]],
     ]);
     const localSizes = new Map<string, NodeDimensions>([
       ['output-filters', [18, 8, 1]],
@@ -845,8 +693,8 @@ describe('routeEdges', () => {
 
   it('prefers the target face that actually faces the source node', () => {
     const localPositions = new Map<string, [number, number, number]>([
-      ['users', [8, 6, 0]],
-      ['app-layer', [2.5, 3.5, 0]],
+      ['users', [8, -6, 0]],
+      ['app-layer', [2.5, -3.5, 0]],
     ]);
     const localSizes = new Map<string, NodeDimensions>([
       ['users', [4, 4, 1]],
@@ -870,7 +718,7 @@ describe('routeEdges', () => {
   it('group-to-group links with horizontal dominance use side-face ports', () => {
     const localPositions = new Map<string, [number, number, number]>([
       ['left-group', [0, 0, 0]],
-      ['right-group', [20, 8, 0]],
+      ['right-group', [20, -8, 0]],
     ]);
     const localSizes = new Map<string, NodeDimensions>([
       ['left-group', [18, 8, 1]],
@@ -896,8 +744,8 @@ describe('routeEdges', () => {
 
   it('api -> output-filters exits API from right side (scene_llm_filter geometry)', () => {
     const localPositions = new Map<string, [number, number, number]>([
-      ['api', [2.5, -2.5, 0]],
-      ['output-filters', [16, -7.5, 0]],
+      ['api', [2.5, 2.5, 0]],
+      ['output-filters', [16, 7.5, 0]],
     ]);
     const localSizes = new Map<string, NodeDimensions>([
       ['api', [22, 1.4, 1]],

@@ -2,9 +2,11 @@
 title: "Diagram Flow Routing Rewrite — Implementation Plan"
 doc_type: plan
 owner: brewsite-architect
-status: ready
-updated: 2026-03-09
+status: superseded
+updated: 2026-03-10
 ---
+
+> **SUPERSEDED** — This plan described a monolithic delegation model where `edgeRouter.ts` delegated `flow` routing to `flowRouter.ts` while `curved`, `straight`, and `organic` continued running separate logic. That architecture was replaced by the unified candidate pipeline described in `requirements/diagram/plans/archive/plan_edge-routing-candidate-pipeline.md`, which landed 2026-03-10. All four routing algorithms now share the same staged planning pipeline (routingSpace → candidatePlanner → portPlanner → guidePlanner → routingProfiles → scorer → selector); algorithm differences are confined to `RoutingProfile.generateRoute()` and `materializePath()`. This file is retained for historical reference only.
 
 # Plan: Diagram Flow Routing Rewrite
 

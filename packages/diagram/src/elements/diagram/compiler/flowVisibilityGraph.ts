@@ -1,6 +1,7 @@
-import type { FlowObstacle } from './flowObstacleModel';
+import type { FlowObstacle, Rect2D } from './flowObstacleModel';
 
 type Vec3 = readonly [number, number, number];
+type Direction2D = 'N' | 'S' | 'E' | 'W';
 
 export type FlowVisibilityRoute = {
   readonly waypoints: ReadonlyArray<Vec3>;
@@ -9,8 +10,12 @@ export type FlowVisibilityRoute = {
     readonly obstacleId: string;
     readonly obstacleKind: 'node' | 'group';
   }>;
-  readonly routeKind: 'direct' | 'visibility' | 'underpass' | 'puncture-fallback';
+  readonly routeKind: 'direct' | 'clean-orthogonal' | 'underpass' | 'puncture-fallback';
   readonly obstacleIds: readonly string[];
+  readonly acuteTurnCount: number;
+  readonly reversalCount: number;
+  readonly orthogonalDeviationPenalty: number;
+  readonly groupIngressPenalty: number;
 };
 
 type SegmentAssessment = {
@@ -41,24 +46,70 @@ type FlowVisibilityInput = {
 
 const EPSILON = 1e-6;
 
-const length2D = (a: Vec3, b: Vec3): number => Math.hypot(b[0] - a[0], b[1] - a[1]);
+const manhattanDistance = (a: Vec3, b: Vec3): number =>
+  Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1]) + Math.abs(b[2] - a[2]);
 
-const length3D = (a: Vec3, b: Vec3): number => Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+const axisAligned = (a: Vec3, b: Vec3): boolean =>
+  Math.abs(a[0] - b[0]) < EPSILON || Math.abs(a[1] - b[1]) < EPSILON;
 
-const normalize2D = (a: Vec3, b: Vec3): readonly [number, number] => {
-  const dx = b[0] - a[0];
-  const dy = b[1] - a[1];
-  const len = Math.hypot(dx, dy);
-  if (len < EPSILON) return [0, 0];
-  return [dx / len, dy / len];
+const directionBetween = (a: Vec3, b: Vec3): Direction2D | null => {
+  if (Math.abs(a[0] - b[0]) < EPSILON && Math.abs(a[1] - b[1]) < EPSILON) return null;
+  if (Math.abs(a[0] - b[0]) < EPSILON) return b[1] > a[1] ? 'N' : 'S';
+  if (Math.abs(a[1] - b[1]) < EPSILON) return b[0] > a[0] ? 'E' : 'W';
+  return null;
 };
 
-const turnMagnitude = (prev: Vec3 | null, current: Vec3, next: Vec3): number => {
-  if (!prev) return 0;
-  const a = normalize2D(prev, current);
-  const b = normalize2D(current, next);
-  const dot = Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1]));
-  return 1 - dot;
+const oppositeDirection = (dir: Direction2D): Direction2D => {
+  switch (dir) {
+    case 'N': return 'S';
+    case 'S': return 'N';
+    case 'E': return 'W';
+    case 'W': return 'E';
+  }
+};
+
+const pointStrictlyInsideRect = (point: Vec3, rect: Rect2D): boolean =>
+  point[0] > rect.left + EPSILON &&
+  point[0] < rect.right - EPSILON &&
+  point[1] > rect.bottom + EPSILON &&
+  point[1] < rect.top - EPSILON;
+
+const rangesOverlap = (a0: number, a1: number, b0: number, b1: number): boolean =>
+  Math.max(Math.min(a0, a1), Math.min(b0, b1)) < Math.min(Math.max(a0, a1), Math.max(b0, b1)) - EPSILON;
+
+const segmentIntersectsRect2D = (
+  start: Vec3,
+  end: Vec3,
+  rect: Rect2D,
+): boolean => {
+  if (!axisAligned(start, end)) return true;
+  if (Math.abs(start[0] - end[0]) < EPSILON) {
+    const x = start[0];
+    if (x <= rect.left + EPSILON || x >= rect.right - EPSILON) return false;
+    return rangesOverlap(start[1], end[1], rect.bottom, rect.top);
+  }
+  const y = start[1];
+  if (y <= rect.bottom + EPSILON || y >= rect.top - EPSILON) return false;
+  return rangesOverlap(start[0], end[0], rect.left, rect.right);
+};
+
+const segmentAllowedByCorridor = (
+  start: Vec3,
+  end: Vec3,
+  corridor: Rect2D | undefined,
+): boolean => {
+  if (!corridor) return false;
+  if (!axisAligned(start, end)) return false;
+  if (Math.abs(start[0] - end[0]) < EPSILON) {
+    const x = start[0];
+    return x >= corridor.left - EPSILON &&
+      x <= corridor.right + EPSILON &&
+      rangesOverlap(start[1], end[1], corridor.bottom, corridor.top);
+  }
+  const y = start[1];
+  return y >= corridor.bottom - EPSILON &&
+    y <= corridor.top + EPSILON &&
+    rangesOverlap(start[0], end[0], corridor.left, corridor.right);
 };
 
 const dedupePunctures = (
@@ -84,36 +135,72 @@ const dedupePunctures = (
   return unique;
 };
 
-const segmentIntersectsRect2D = (
-  start: Vec3,
-  end: Vec3,
-  rect: FlowObstacle['rect'],
-): boolean => {
-  const dx = end[0] - start[0];
-  const dy = end[1] - start[1];
-  let t0 = 0;
-  let t1 = 1;
+const compressWaypoints = (waypoints: ReadonlyArray<Vec3>): ReadonlyArray<Vec3> => {
+  if (waypoints.length <= 2) return waypoints;
+  const compressed: Vec3[] = [waypoints[0]!];
+  for (let i = 1; i < waypoints.length - 1; i += 1) {
+    const prev = compressed[compressed.length - 1]!;
+    const current = waypoints[i]!;
+    const next = waypoints[i + 1]!;
+    const inDir = directionBetween(prev, current);
+    const outDir = directionBetween(current, next);
+    if (inDir && outDir && inDir === outDir) continue;
+    compressed.push(current);
+  }
+  compressed.push(waypoints[waypoints.length - 1]!);
+  return compressed;
+};
 
-  const clip = (p: number, q: number): boolean => {
-    if (Math.abs(p) < EPSILON) return q >= 0;
-    const r = q / p;
-    if (p < 0) {
-      if (r > t1) return false;
-      if (r > t0) t0 = r;
-    } else {
-      if (r < t0) return false;
-      if (r < t1) t1 = r;
+const analyzeWaypoints = (waypoints: ReadonlyArray<Vec3>): Pick<
+  FlowVisibilityRoute,
+  'acuteTurnCount' | 'reversalCount' | 'orthogonalDeviationPenalty'
+> => {
+  let acuteTurnCount = 0;
+  let reversalCount = 0;
+  let orthogonalDeviationPenalty = 0;
+  for (let i = 1; i < waypoints.length - 1; i += 1) {
+    const a = waypoints[i - 1]!;
+    const b = waypoints[i]!;
+    const c = waypoints[i + 1]!;
+    const ab: Vec3 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
+    const bc: Vec3 = [c[0] - b[0], c[1] - b[1], c[2] - b[2]];
+    const abLen = Math.hypot(ab[0], ab[1], ab[2]) || 1;
+    const bcLen = Math.hypot(bc[0], bc[1], bc[2]) || 1;
+    const dot = (ab[0] * bc[0] + ab[1] * bc[1] + ab[2] * bc[2]) / (abLen * bcLen);
+    if (Math.abs(ab[0]) > EPSILON && Math.abs(ab[1]) > EPSILON) orthogonalDeviationPenalty += 1000;
+    if (Math.abs(bc[0]) > EPSILON && Math.abs(bc[1]) > EPSILON) orthogonalDeviationPenalty += 1000;
+    if (dot > -0.707 && dot < 0.707) {
+      continue;
     }
-    return true;
-  };
+    if (dot > 0.707) {
+      acuteTurnCount += 1;
+    } else if (dot < -0.95) {
+      reversalCount += 1;
+    }
+  }
+  return { acuteTurnCount, reversalCount, orthogonalDeviationPenalty };
+};
 
-  if (!clip(-dx, start[0] - rect.left)) return false;
-  if (!clip(dx, rect.right - start[0])) return false;
-  if (!clip(-dy, start[1] - rect.bottom)) return false;
-  if (!clip(dy, rect.top - start[1])) return false;
-
-  if (t0 > t1) return false;
-  return t1 > EPSILON && t0 < 1 - EPSILON;
+const computeGroupIngressPenalty = (
+  waypoints: ReadonlyArray<Vec3>,
+  obstacles: ReadonlyArray<FlowObstacle>,
+): number => {
+  if (waypoints.length < 2) return 0;
+  const end = waypoints[waypoints.length - 1]!;
+  const approach = waypoints[waypoints.length - 2]!;
+  let penalty = 0;
+  for (const obstacle of obstacles) {
+    if (obstacle.kind !== 'group') continue;
+    if (end[0] >= obstacle.rawRect.left - EPSILON && end[0] <= obstacle.rawRect.right + EPSILON &&
+        end[1] >= obstacle.rawRect.bottom - EPSILON && end[1] <= obstacle.rawRect.top + EPSILON) {
+      // End point lies on or inside the group boundary; discourage long runs across the top body.
+      if (Math.abs(end[1] - obstacle.rawRect.top) < EPSILON) {
+        const horizontalApproach = Math.abs(end[0] - approach[0]);
+        penalty += horizontalApproach;
+      }
+    }
+  }
+  return penalty;
 };
 
 const assessSegment = (
@@ -126,6 +213,10 @@ const assessSegment = (
   allowSoftPuncture: boolean,
   allowHardPuncture: boolean,
 ): SegmentAssessment => {
+  if (!axisAligned(start, end)) {
+    return { blocked: true, penalty: Infinity, punctures: [] };
+  }
+
   let penalty = 0;
   const punctures: Array<{
     obstacleId: string;
@@ -133,11 +224,11 @@ const assessSegment = (
   }> = [];
 
   for (const obstacle of obstacles) {
-    if (!segmentIntersectsRect2D(start, end, obstacle.rect)) continue;
+    if (!segmentIntersectsRect2D(start, end, obstacle.expandedRect)) continue;
     const softOwned =
       obstacle.kind === 'group' &&
       (sourceOwningGroupIds.has(obstacle.id) || destinationOwningGroupIds.has(obstacle.id));
-    if (softOwned) {
+    if (softOwned && segmentAllowedByCorridor(start, end, obstacle.allowedCorridor)) {
       continue;
     }
 
@@ -147,9 +238,8 @@ const assessSegment = (
     if (!obstacle.hard && !allowSoftPuncture) {
       return { blocked: true, penalty: Infinity, punctures: [] };
     }
-    penalty += obstacle.hard
-      ? punchthroughPenalty
-      : punchthroughPenalty;
+
+    penalty += obstacle.hard ? punchthroughPenalty : punchthroughPenalty * 0.85;
     punctures.push({
       obstacleId: obstacle.id,
       obstacleKind: obstacle.kind,
@@ -169,29 +259,42 @@ const buildCandidateVertices = (
   planeZ: number,
   obstacles: ReadonlyArray<FlowObstacle>,
 ): Vec3[] => {
-  const vertices: Vec3[] = [start, end];
-  const vertexKeys = new Set<string>([
-    `${start[0].toFixed(6)}:${start[1].toFixed(6)}:${start[2].toFixed(6)}`,
-    `${end[0].toFixed(6)}:${end[1].toFixed(6)}:${end[2].toFixed(6)}`,
-  ]);
-  const pushUnique = (point: Vec3): void => {
-    const key = `${point[0].toFixed(6)}:${point[1].toFixed(6)}:${point[2].toFixed(6)}`;
-    if (vertexKeys.has(key)) return;
-    vertexKeys.add(key);
-    vertices.push(point);
-  };
+  const xs = new Set<number>([start[0], end[0]]);
+  const ys = new Set<number>([start[1], end[1]]);
 
   for (const obstacle of obstacles) {
-    const { left, right, top, bottom } = obstacle.rect;
-    pushUnique([left, top, planeZ]);
-    pushUnique([left, bottom, planeZ]);
-    pushUnique([right, top, planeZ]);
-    pushUnique([right, bottom, planeZ]);
-    if (obstacle.kind === 'group') {
-      pushUnique([(left + right) / 2, top, planeZ]);
-      pushUnique([(left + right) / 2, bottom, planeZ]);
-      pushUnique([left, (top + bottom) / 2, planeZ]);
-      pushUnique([right, (top + bottom) / 2, planeZ]);
+    xs.add(obstacle.expandedRect.left);
+    xs.add(obstacle.expandedRect.right);
+    ys.add(obstacle.expandedRect.bottom);
+    ys.add(obstacle.expandedRect.top);
+    if (obstacle.allowedCorridor) {
+      xs.add(obstacle.allowedCorridor.left);
+      xs.add(obstacle.allowedCorridor.right);
+      ys.add(obstacle.allowedCorridor.bottom);
+      ys.add(obstacle.allowedCorridor.top);
+    }
+  }
+
+  const vertices: Vec3[] = [start, end];
+  const seen = new Set<string>([
+    `${start[0].toFixed(6)}:${start[1].toFixed(6)}`,
+    `${end[0].toFixed(6)}:${end[1].toFixed(6)}`,
+  ]);
+
+  const sortedX = [...xs].sort((a, b) => a - b);
+  const sortedY = [...ys].sort((a, b) => a - b);
+  for (const x of sortedX) {
+    for (const y of sortedY) {
+      const point: Vec3 = [x, y, planeZ];
+      const inside = obstacles.some((obstacle) =>
+        pointStrictlyInsideRect(point, obstacle.expandedRect) &&
+        !pointStrictlyInsideRect(point, obstacle.allowedCorridor ?? obstacle.expandedRect),
+      );
+      if (inside) continue;
+      const key = `${x.toFixed(6)}:${y.toFixed(6)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      vertices.push(point);
     }
   }
 
@@ -259,7 +362,7 @@ const reconstructPath = (
     path.push(vertices[state.vertexIndex]!);
     cursor = state.prevKey;
   }
-  return path.reverse();
+  return compressWaypoints(path.reverse());
 };
 
 const searchVisibilityRoute = (
@@ -268,18 +371,17 @@ const searchVisibilityRoute = (
   allowHardPuncture: boolean,
 ): FlowVisibilityRoute | null => {
   const vertices = buildCandidateVertices(input.start, input.end, input.planeZ, input.obstacles);
-  const searchMode: SearchMode = allowSoftPuncture || allowHardPuncture ? 'puncture' : 'clean';
   const startIndex = 0;
   const endIndex = 1;
+  const searchMode: SearchMode = allowSoftPuncture || allowHardPuncture ? 'puncture' : 'clean';
   const frontier = new MinQueue<string>();
-  frontier.push(`-1:${startIndex}`, 0);
-  const costs = new Map<string, number>([['-1:0', 0]]);
+  frontier.push(`none:${startIndex}`, 0);
+  const costs = new Map<string, number>([[`none:${startIndex}`, 0]]);
   const previous = new Map<string, { prevKey: string | null; vertexIndex: number }>([
-    ['-1:0', { prevKey: null, vertexIndex: startIndex }],
+    [`none:${startIndex}`, { prevKey: null, vertexIndex: startIndex }],
   ]);
-  const punctureByState = new Map<string, FlowVisibilityRoute['punctures']>([['-1:0', []]]);
+  const punctureByState = new Map<string, FlowVisibilityRoute['punctures']>([[`none:${startIndex}`, []]]);
   const segmentAssessmentCache = new Map<string, SegmentAssessment>();
-  const adjacency = new Map<number, number[]>();
 
   const assessSegmentByIndex = (fromIndex: number, toIndex: number): SegmentAssessment => {
     const key = fromIndex < toIndex
@@ -301,34 +403,21 @@ const searchVisibilityRoute = (
     return assessment;
   };
 
-  const getNeighbors = (vertexIndex: number): number[] => {
-    const cached = adjacency.get(vertexIndex);
-    if (cached) return cached;
-    const neighbors: number[] = [];
-    for (let nextIndex = 0; nextIndex < vertices.length; nextIndex += 1) {
-      if (nextIndex === vertexIndex) continue;
-      const assessment = assessSegmentByIndex(vertexIndex, nextIndex);
-      if (!assessment.blocked) neighbors.push(nextIndex);
-    }
-    adjacency.set(vertexIndex, neighbors);
-    return neighbors;
-  };
-
   while (frontier.size > 0) {
     const currentKey = frontier.pop()!;
-    const [prevIndexRaw, currentIndexRaw] = currentKey.split(':');
-    const prevIndex = Number(prevIndexRaw);
+    const [prevDirRaw, currentIndexRaw] = currentKey.split(':');
     const currentIndex = Number(currentIndexRaw);
     const current = vertices[currentIndex]!;
-    const prev = prevIndex >= 0 ? vertices[prevIndex] ?? null : null;
+    const prevDir = prevDirRaw === 'none' ? null : prevDirRaw as Direction2D;
     const currentBest = costs.get(currentKey);
     if (currentBest === undefined) continue;
 
     if (currentIndex === endIndex) {
       const waypoints = reconstructPath(previous, currentKey, vertices);
       const punctures = dedupePunctures(punctureByState.get(currentKey) ?? []);
+      const metrics = analyzeWaypoints(waypoints);
       const routeKind = punctures.length === 0
-        ? (waypoints.length <= 2 ? 'direct' : 'visibility')
+        ? (waypoints.length <= 2 ? 'direct' : 'clean-orthogonal')
         : 'puncture-fallback';
       return {
         waypoints,
@@ -336,26 +425,43 @@ const searchVisibilityRoute = (
         punctures,
         routeKind,
         obstacleIds: punctures.map((puncture) => puncture.obstacleId),
+        ...metrics,
+        groupIngressPenalty: computeGroupIngressPenalty(waypoints, input.obstacles),
       };
     }
 
-    for (const nextIndex of getNeighbors(currentIndex)) {
+    for (let nextIndex = 0; nextIndex < vertices.length; nextIndex += 1) {
+      if (nextIndex === currentIndex) continue;
       const next = vertices[nextIndex]!;
-      const assessment = assessSegmentByIndex(currentIndex, nextIndex);
+      if (!axisAligned(current, next)) continue;
 
-      const nextKey = `${currentIndex}:${nextIndex}`;
-      const baseCost = currentBest;
-      const turnCost = turnMagnitude(prev, current, next) * input.turnPenalty;
-      const cost = baseCost + length2D(current, next) + assessment.penalty + turnCost;
-      if (cost >= (costs.get(nextKey) ?? Infinity)) continue;
+      const segmentAssessment = assessSegmentByIndex(currentIndex, nextIndex);
+      if (segmentAssessment.blocked) continue;
 
-      costs.set(nextKey, cost);
+      const nextDir = directionBetween(current, next);
+      if (!nextDir) continue;
+      const turnCost = prevDir === null
+        ? 0
+        : prevDir === nextDir
+          ? 0
+          : oppositeDirection(prevDir) === nextDir
+            ? input.turnPenalty * 5
+            : input.turnPenalty;
+      const nextKey = `${nextDir}:${nextIndex}`;
+      const nextCost =
+        currentBest +
+        manhattanDistance(current, next) +
+        segmentAssessment.penalty +
+        turnCost;
+      if (nextCost >= (costs.get(nextKey) ?? Infinity)) continue;
+
+      costs.set(nextKey, nextCost);
       previous.set(nextKey, { prevKey: currentKey, vertexIndex: nextIndex });
       punctureByState.set(nextKey, dedupePunctures([
         ...(punctureByState.get(currentKey) ?? []),
-        ...assessment.punctures,
+        ...segmentAssessment.punctures,
       ]));
-      frontier.push(nextKey, cost);
+      frontier.push(nextKey, nextCost + manhattanDistance(next, input.end));
     }
   }
 
@@ -366,25 +472,23 @@ const buildUnderpassRoute = (
   input: FlowVisibilityInput,
 ): FlowVisibilityRoute => {
   const clearanceZ = input.planeZ - Math.max(input.underpassDepth, input.underpassClearance);
-  const startDir = normalize2D(input.start, input.end);
-  const endDir: readonly [number, number] = [-startDir[0], -startDir[1]];
-  const startLift: Vec3 = [
-    input.start[0] + startDir[0] * input.underpassClearance,
-    input.start[1] + startDir[1] * input.underpassClearance,
-    clearanceZ,
+  const waypoints: Vec3[] = [
+    input.start,
+    [input.start[0], input.start[1], clearanceZ],
+    [input.end[0], input.start[1], clearanceZ],
+    [input.end[0], input.end[1], clearanceZ],
+    input.end,
   ];
-  const endLift: Vec3 = [
-    input.end[0] + endDir[0] * input.underpassClearance,
-    input.end[1] + endDir[1] * input.underpassClearance,
-    clearanceZ,
-  ];
-
+  const compressed = compressWaypoints(waypoints);
+  const metrics = analyzeWaypoints(compressed);
   return {
-    waypoints: [input.start, startLift, endLift, input.end],
+    waypoints: compressed,
     usedUnderpass: true,
     punctures: [],
     routeKind: 'underpass',
     obstacleIds: [],
+    ...metrics,
+    groupIngressPenalty: computeGroupIngressPenalty(compressed, input.obstacles),
   };
 };
 
@@ -394,11 +498,12 @@ const routeCost = (
 ): number => {
   let cost = 0;
   for (let i = 1; i < route.waypoints.length; i += 1) {
-    cost += length3D(route.waypoints[i - 1]!, route.waypoints[i]!);
+    cost += manhattanDistance(route.waypoints[i - 1]!, route.waypoints[i]!);
   }
-  for (let i = 1; i < route.waypoints.length - 1; i += 1) {
-    cost += turnMagnitude(route.waypoints[i - 1]!, route.waypoints[i]!, route.waypoints[i + 1]!) * input.turnPenalty;
-  }
+  cost += route.acuteTurnCount * 10000;
+  cost += route.reversalCount * 5000;
+  cost += route.orthogonalDeviationPenalty;
+  cost += route.groupIngressPenalty * 100;
   cost += route.punctures.length * input.punchthroughPenalty;
   if (route.usedUnderpass) cost += input.underpassPenalty;
   return cost;
@@ -413,7 +518,7 @@ export function findFlowVisibilityRoute(input: FlowVisibilityInput): FlowVisibil
     .sort((a, b) => {
       const costDelta = routeCost(a, input) - routeCost(b, input);
       if (Math.abs(costDelta) > EPSILON) return costDelta;
-      const routeOrder = ['direct', 'visibility', 'underpass', 'puncture-fallback'] as const;
+      const routeOrder = ['direct', 'clean-orthogonal', 'underpass', 'puncture-fallback'] as const;
       return routeOrder.indexOf(a.routeKind) - routeOrder.indexOf(b.routeKind);
     });
 
@@ -425,5 +530,9 @@ export function findFlowVisibilityRoute(input: FlowVisibilityInput): FlowVisibil
     punctures: [],
     routeKind: 'direct',
     obstacleIds: [],
+    acuteTurnCount: 0,
+    reversalCount: 0,
+    orthogonalDeviationPenalty: 0,
+    groupIngressPenalty: 0,
   };
 }

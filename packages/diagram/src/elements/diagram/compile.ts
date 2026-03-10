@@ -16,6 +16,7 @@ import { darkGlassTheme } from './themes/darkGlass';
 import { resolveLayout, resolveLayoutWithGroups, computeBounds } from './compiler/layoutAlgorithms';
 import { routeEdges, routeEdgesYDown } from './compiler/edgeRouter';
 import { buildNodeDefaults, buildGroupDefaults, compileNode, compileEdge } from './compiler/nodeCompiler';
+import { optimizeSharedFlowTrunks } from './compiler/edgeRenderOptimizer';
 import { compileGroup, resolveGroupBoundsMap } from './compiler/groupCompiler';
 import type { GroupBounds } from './compiler/groupCompiler';
 import { buildThemeRenderConfig, compileExitConfig, compileEnterConfig } from './compiler/themeResolver';
@@ -360,9 +361,10 @@ export function compileDiagram(
       flowPunchthroughPenalty: theme.edge.flowPunchthroughPenalty,
       flowUnderpassPenalty: theme.edge.flowUnderpassPenalty,
     },
+    new Set(normalizedGroups.keys()),
   );
 
-  const edges = dsl.edges.map((edge, index) => {
+  const rawEdges = dsl.edges.map((edge, index) => {
     const id = edge.id ?? `${edge.from}-${edge.to}-${index}`;
     const route = normalizedEdgeRoutes.get(id);
     return compileEdge(
@@ -380,6 +382,7 @@ export function compileDiagram(
       route?.pathDebug,
     );
   });
+  const edges = optimizeSharedFlowTrunks(rawEdges);
 
   const groups = dsl.groups
     .map((group) => {
@@ -554,7 +557,7 @@ export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramSt
   interpolateFn: (from, to) => (ctx) => {
     const t = ctx.t;
     const { blended, fading } = blendDiagramNodes(from.nodes, to.nodes, t);
-    const { positions, sizes } = buildLiveNodeMaps([...blended, ...fading]);
+    const { positions, sizes, groupIds } = buildLiveNodeMaps([...blended, ...fading], to.groups);
     const toEdgeIds = new Set(to.edges.map((e) => e.id));
     const liveControlPoints = rerouteLiveEdges(
       to.edges,
@@ -562,6 +565,7 @@ export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramSt
       toEdgeIds,
       positions,
       sizes,
+      groupIds,
     );
     const { blended: blendedEdges, fading: fadingEdges } = blendDiagramEdges(
       from.edges,

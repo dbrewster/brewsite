@@ -39,7 +39,7 @@ describe('routeFlowEdge', () => {
     expect(result.path.endTangent[1]).toBeCloseTo(0);
   });
 
-  it('uses an underpass when it produces a cleaner obstacle escape than puncturing', () => {
+  it('finds a planar orthogonal escape around a single blocker without puncture or underpass', () => {
     const positions = new Map<string, readonly [number, number, number]>([
       ['blocker', [4, 0, 0]],
     ]);
@@ -49,8 +49,8 @@ describe('routeFlowEdge', () => {
 
     const result = route({ positions, sizes });
     expect(result.path.punctures).toEqual([]);
-    expect(result.path.usedUnderpass).toBe(true);
-    expect(result.controlPoints.some((point) => point[2] < 0)).toBe(true);
+    expect(result.path.usedUnderpass).toBe(false);
+    expect(result.controlPoints.some((point) => point[2] < 0)).toBe(false);
   });
 
   it('avoids puncture fallback in a boxed route when a cleaner alternative exists', () => {

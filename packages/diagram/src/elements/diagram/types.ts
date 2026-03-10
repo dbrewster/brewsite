@@ -851,8 +851,30 @@ export interface DiagramEdgePathState {
 }
 
 export interface DiagramEdgePathDebug {
-  readonly routeKind: 'direct' | 'visibility' | 'underpass' | 'puncture-fallback';
+  readonly routeKind: 'direct' | 'visibility' | 'clean-orthogonal' | 'underpass' | 'puncture-fallback' | string;
   readonly obstacleIds: readonly string[];
+  /** Winning candidate face pair (compile-time debug only). */
+  readonly selectedFaces?: { readonly srcFace: string; readonly dstFace: string };
+  /** Winning candidate port indices (compile-time debug only). */
+  readonly selectedPorts?: {
+    readonly sourcePortIndex?: number;
+    readonly destinationPortIndex?: number;
+  };
+  /** Lexicographic rank key of the winning candidate (compile-time debug only). */
+  readonly rankKey?: readonly number[];
+  /** Whether the winning candidate used a bundle hint from sibling edges. */
+  readonly usedBundleHint?: boolean;
+  /** Whether the winning candidate used a destination approach guide. */
+  readonly usedDestinationGuide?: boolean;
+  /** True when all scored candidates had non-zero blocker penalty (fallback route used). */
+  readonly isFallback?: boolean;
+  readonly selectedSrcFace?: string;
+  readonly selectedDstFace?: string;
+  readonly selectedSourcePortIndex?: number;
+  readonly selectedDestinationPortIndex?: number;
+  readonly acuteTurnCount?: number;
+  readonly reversalCount?: number;
+  readonly routeCostClass?: 'direct' | 'clean-orthogonal' | 'underpass' | 'puncture-fallback';
 }
 
 /**

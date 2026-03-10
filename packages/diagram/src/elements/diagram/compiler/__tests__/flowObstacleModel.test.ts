@@ -56,4 +56,31 @@ describe('buildFlowObstacleModel', () => {
     expect([...model.sourceOwningGroupIds].sort()).toEqual(['shared-group', 'source-group']);
     expect([...model.destinationOwningGroupIds].sort()).toEqual(['destination-group', 'shared-group']);
   });
+
+  it('treats explicit group IDs as groups even when their depth exceeds the legacy threshold', () => {
+    const positions = new Map<string, readonly [number, number, number]>([
+      ['thick-group', [0, 0, 0]],
+      ['node-obstacle', [8, 0, 0]],
+    ]);
+    const sizes = new Map<string, readonly [number, number, number]>([
+      ['thick-group', [12, 8, 0.7]],
+      ['node-obstacle', [2, 2, 1]],
+    ]);
+
+    const model = buildFlowObstacleModel({
+      positions,
+      sizes,
+      groupIds: new Set(['thick-group']),
+      sourceId: 'src',
+      destinationId: 'dst',
+      sourceAnchor: [0, 0, 0],
+      destinationAnchor: [10, 0, 0],
+      obstaclePadding: 0,
+    });
+
+    expect(model.obstacles.find((obstacle) => obstacle.id === 'thick-group')).toMatchObject({
+      kind: 'group',
+      hard: false,
+    });
+  });
 });

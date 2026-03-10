@@ -3,6 +3,7 @@ import type {
   DiagramWarnFn,
 } from '../types';
 import { buildFlowObstacleModel } from './flowObstacleModel';
+import type { FlowObstacleModel } from './flowObstacleModel';
 import { buildFlowPathState, commandsToControlPoints } from './flowPathBuilder';
 import { findFlowVisibilityRoute } from './flowVisibilityGraph';
 
@@ -13,6 +14,11 @@ export type NodeDimensions = readonly [number, number, number];
 export type FlowRouteResult = {
   readonly path: ReturnType<typeof buildFlowPathState>;
   readonly controlPoints: ReadonlyArray<Vec3>;
+  readonly planningWaypoints: ReadonlyArray<Vec3>;
+  readonly acuteTurnCount: number;
+  readonly reversalCount: number;
+  readonly orthogonalDeviationPenalty: number;
+  readonly groupIngressPenalty: number;
   readonly pathDebug?: DiagramEdgePathDebug;
 };
 
@@ -30,6 +36,8 @@ type RouteFlowEdgeInput = {
   readonly destinationAnchor?: Vec3;
   readonly sourceGuide?: Vec3;
   readonly destinationGuide?: Vec3;
+  readonly routeStart?: Vec3;
+  readonly routeEnd?: Vec3;
   readonly positions: ReadonlyMap<string, Vec3>;
   readonly sizes: ReadonlyMap<string, NodeDimensions>;
   readonly flowTurnRadius: number;
@@ -42,6 +50,8 @@ type RouteFlowEdgeInput = {
   readonly flowUnderpassPenalty: number;
   readonly allowUnderpass: boolean;
   readonly onWarn?: DiagramWarnFn;
+  /** Pre-built obstacle model; if provided, skips the expensive buildFlowObstacleModel call. */
+  readonly obstacleModel?: FlowObstacleModel;
 };
 
 const addVec = (a: Vec3, b: Vec3): Vec3 => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -79,16 +89,20 @@ export function routeFlowEdge(input: RouteFlowEdgeInput): FlowRouteResult {
   const endTangent = scaleVec(getFaceNormal(input.dstFace), -1);
   const sourceStub = addVec(sourceAnchor, scaleVec(startTangent, input.flowFaceStub));
   const destinationStub = addVec(destinationAnchor, scaleVec(scaleVec(endTangent, -1), input.flowFaceStub));
-  const routeStart = input.sourceGuide ?? sourceStub;
-  const routeEnd = input.destinationGuide ?? destinationStub;
+  const routeStart = input.routeStart ?? input.sourceGuide ?? sourceStub;
+  const routeEnd = input.routeEnd ?? input.destinationGuide ?? destinationStub;
 
-  const obstacleModel = buildFlowObstacleModel({
+  const obstacleModel = input.obstacleModel ?? buildFlowObstacleModel({
     positions: input.positions,
     sizes: input.sizes,
     sourceId: input.fromId,
     destinationId: input.toId,
     sourceAnchor,
     destinationAnchor,
+    sourceFace: input.srcFace,
+    destinationFace: input.dstFace,
+    routeStart,
+    routeEnd,
     obstaclePadding: input.flowObstaclePadding,
   });
 
@@ -148,12 +162,20 @@ export function routeFlowEdge(input: RouteFlowEdgeInput): FlowRouteResult {
     ? {
       routeKind: route.routeKind,
       obstacleIds: route.obstacleIds,
+      acuteTurnCount: route.acuteTurnCount,
+      reversalCount: route.reversalCount,
+      routeCostClass: route.routeKind === 'clean-orthogonal' ? 'clean-orthogonal' : route.routeKind,
     } satisfies DiagramEdgePathDebug
     : undefined;
 
   return {
     path,
     controlPoints,
+    planningWaypoints: route.waypoints,
+    acuteTurnCount: route.acuteTurnCount,
+    reversalCount: route.reversalCount,
+    orthogonalDeviationPenalty: route.orthogonalDeviationPenalty,
+    groupIngressPenalty: route.groupIngressPenalty,
     pathDebug,
   };
 }

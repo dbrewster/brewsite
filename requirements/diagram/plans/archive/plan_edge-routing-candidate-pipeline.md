@@ -2,7 +2,7 @@
 title: "Diagram Edge Routing Candidate Pipeline — Implementation Plan"
 doc_type: plan
 owner: brewsite-architect
-status: ready
+status: completed
 updated: 2026-03-10
 ---
 
@@ -135,15 +135,17 @@ Create these new pure compiler modules:
 
 ### 6.2 Modified files
 
-- `packages/diagram/src/elements/diagram/compiler/edgeRouter.ts`
-- `packages/diagram/src/elements/diagram/compiler/flowRouter.ts`
-- `packages/diagram/src/elements/diagram/compiler/flowObstacleModel.ts`
-- `packages/diagram/src/elements/diagram/compiler/flowPathBuilder.ts`
-- `packages/diagram/src/elements/diagram/compiler/transitionHelpers.ts`
-- `packages/diagram/src/elements/diagram/compile.ts`
-- `packages/diagram/src/elements/diagram/types.ts`
-- `packages/diagram/src/elements/diagram/__tests__/compile.test.ts`
-- `packages/diagram/src/elements/diagram/compiler/__tests__/edgeRouter.test.ts`
+| File | What changes and why |
+|---|---|
+| `compiler/edgeRouter.ts` | Reduced to orchestration: builds `EdgeRoutingRequest[]`, invokes the staged pipeline (planner → port → guide → profile.generateRoute → scorer → selector → profile.materializePath), returns `Map<string, EdgeRouteState>`. All routing logic moves to new modules. `FaceId`, `Vec3`, `NodeDimensions` aliases move to `routingTypes.ts`. |
+| `compiler/flowRouter.ts` | Signature unchanged. Now called per-candidate by the `flow` profile in `edgeRoutingProfiles.ts` instead of once per edge in `edgeRouter.ts`. The obstacle model is built once per edge (not per candidate) and cached in the profile's call-local context. No public API change. |
+| `compiler/flowObstacleModel.ts` | No interface change. `buildFlowObstacleModel()` is called from the `flow` profile implementation. Its `Vec3`/`NodeDimensions` local aliases may be removed in favor of imports from `routingTypes.ts`. |
+| `compiler/flowPathBuilder.ts` | No interface change. `buildFlowPathState()` and `commandsToControlPoints()` remain the materialization helpers called by the `flow` profile's `materializePath()`. `buildLegacyEdgePath()` is removed if no callers remain after extraction. |
+| `compiler/transitionHelpers.ts` | `rerouteLiveEdges()` calls `routeEdgesYDown()`, which is unchanged at the call site. The only modification is updating internal imports to use `EdgeRoutingRequest`-shaped types from `routingTypes.ts` rather than `edgeRouter.ts` local types, if those aliases move. No behavioral change. |
+| `compile.ts` | Import paths update if `FaceId`, `Vec3`, or other shared types migrate from `edgeRouter.ts` to `routingTypes.ts`. The `routeEdges()` call site is identical; no behavioral change. |
+| `types.ts` | `DiagramEdgePathDebug` is extended with structured debug fields from the winning candidate (Section 12.4). No existing fields are removed. |
+| `__tests__/compile.test.ts` | Update assertions that depend on edge `path` or `controlPoints` shape, if debug field additions change the output type. |
+| `compiler/__tests__/edgeRouter.test.ts` | Update to exercise the new pipeline through `routeEdges()`, replacing any tests that depended on now-extracted internal functions. Stage-level tests move to their own files (Section 19.1). |
 
 ### 6.3 Documentation files
 
@@ -186,6 +188,28 @@ Responsibilities:
 
 This is the only place where Y-down vs Y-up translation may exist.
 
+**Exported function signatures:**
+
+```typescript
+/** Negate the Y component of a Vec3. Y-down NVS ↔ Y-up router space (symmetric). */
+export function mirrorVecY(v: Vec3): Vec3;
+
+/**
+ * Build a unified RoutingNodeMap in router Y-up space from separate NVS position
+ * and size maps. Applies mirrorVecY to every position; sizes are unchanged.
+ */
+export function buildRoutingNodeMap(
+  positions: ReadonlyMap<string, Vec3>,
+  sizes: ReadonlyMap<string, NodeDimensions>,
+): RoutingNodeMap;
+
+/**
+ * Mirror all Vec3 coordinates in a single EdgeRouteState back from router Y-up
+ * space to caller Y-down NVS space. Called per-route by routeEdgesYDown().
+ */
+export function denormalizeEdgeRoute(route: EdgeRouteState): EdgeRouteState;
+```
+
 ### 7.3 `edgeCandidatePlanner.ts`
 
 Purpose:
@@ -199,6 +223,40 @@ Responsibilities:
 - attach per-candidate metadata without generating routes yet.
 
 This module must not assign ports or build guides.
+
+**Exported function signatures:**
+
+```typescript
+/**
+ * Infer bundle hints for a set of edges from their sibling routing requests.
+ * Edges from the same source node targeting nodes on the same side are grouped
+ * into a shared trunk. Returns a map keyed by edge ID.
+ */
+export function inferBundleHints(
+  requests: ReadonlyArray<EdgeRoutingRequest>,
+  nodeMap: RoutingNodeMap,
+): ReadonlyMap<string, BundleHint>;
+
+/**
+ * Expand all valid face-pair candidates for a single edge, respecting explicit
+ * port locks and bundle face hints. Returns all candidates before port assignment.
+ */
+export function enumerateFaceCandidates(
+  request: EdgeRoutingRequest,
+  nodeMap: RoutingNodeMap,
+  bundleHints: ReadonlyMap<string, BundleHint>,
+): ReadonlyArray<EdgeFaceCandidate>;
+
+/**
+ * Remove candidates that cannot produce a valid route given the request and node
+ * positions, before any port assignment or route generation is attempted.
+ */
+export function pruneImpossibleFaceCandidates(
+  candidates: ReadonlyArray<EdgeFaceCandidate>,
+  request: EdgeRoutingRequest,
+  nodeMap: RoutingNodeMap,
+): ReadonlyArray<EdgeFaceCandidate>;
+```
 
 ### 7.4 `edgePortPlanner.ts`
 
@@ -214,6 +272,21 @@ Responsibilities:
 
 This module must not decide faces.
 
+**Exported function signature:**
+
+```typescript
+/**
+ * Assign source and destination port anchors for a single face-candidate given
+ * the current node geometry and per-face slot occupancy within this call context.
+ * Returns a port-assigned candidate; does not modify external state.
+ */
+export function assignPorts(
+  candidate: EdgeFaceCandidate,
+  request: EdgeRoutingRequest,
+  nodeMap: RoutingNodeMap,
+): EdgePortCandidate;
+```
+
 ### 7.5 `edgeGuidePlanner.ts`
 
 Purpose:
@@ -226,6 +299,21 @@ Responsibilities:
 - skip guide generation when a guide would introduce overshoot or backtracking risk.
 
 This module must not score complete routes.
+
+**Exported function signature:**
+
+```typescript
+/**
+ * Attach source and destination guide points to a port-assigned candidate.
+ * Guide rejection reasons are stored as optional debug metadata on the returned
+ * candidate; rejected guides produce an undefined field (not an error throw).
+ */
+export function buildCandidateGuides(
+  candidate: EdgePortCandidate,
+  request: EdgeRoutingRequest,
+  nodeMap: RoutingNodeMap,
+): EdgeGuidedCandidate;
+```
 
 ### 7.6 `edgeCandidateScorer.ts`
 
@@ -243,6 +331,26 @@ Responsibilities:
 
 This module must produce a structured score object, not a single scalar.
 
+**Exported function signatures:**
+
+```typescript
+/**
+ * Compute a structured score for a single routed candidate.
+ * All metrics read from candidate.geometry — no profile-specific branching.
+ */
+export function scoreCandidate(
+  candidate: RoutedEdgeCandidate,
+): EdgeCandidateScore;
+
+/**
+ * Project a structured score into a lexicographic rank key tuple.
+ * The tuple ordering matches the required selection priority (Section 12.1).
+ */
+export function candidateToRankKey(
+  score: EdgeCandidateScore,
+): EdgeCandidateRankKey;
+```
+
 ### 7.7 `edgeCandidateSelector.ts`
 
 Purpose:
@@ -256,6 +364,20 @@ Responsibilities:
 
 This module must not generate geometry.
 
+**Exported function signature:**
+
+```typescript
+/**
+ * Select the winning candidate from a scored set using lexicographic comparison
+ * of rank keys. Returns null only when the input array is empty (callers handle
+ * the empty case by invoking the fallback path described in Section 14.2).
+ * Must never collapse rank keys into a weighted sum.
+ */
+export function selectBestCandidate(
+  candidates: ReadonlyArray<ScoredEdgeCandidate>,
+): ScoredEdgeCandidate | null;
+```
+
 ### 7.8 `edgeRoutingProfiles.ts`
 
 Purpose:
@@ -268,7 +390,64 @@ Profiles:
 - `straight`
 - `organic`
 
-Each profile must implement the same pure interface.
+Each profile must implement the same pure interface. The interface is defined in
+`routingTypes.ts` and is the central composition seam between the shared pipeline
+and the algorithm-specific code.
+
+**`RoutingProfileContext` and `RoutingProfile` interface:**
+
+```typescript
+/**
+ * Immutable context passed to every RoutingProfile method.
+ * Profiles must not store this context between calls.
+ */
+export type RoutingProfileContext = {
+  /** Full node map in router Y-up space. Required by the flow profile for obstacle model. */
+  readonly nodeMap: RoutingNodeMap;
+  /** Routing configuration parameters (turn radius, face stub, padding, penalties). */
+  readonly config: FlowRoutingConfig;
+  /** Edge ID, forwarded to warnings and debug output only. */
+  readonly edgeId: string;
+  /** Optional warn callback for non-fatal routing events. */
+  readonly onWarn?: DiagramWarnFn;
+};
+
+/**
+ * Algorithm-specific route generation and path materialization contract.
+ * All four routing algorithms (flow, curved, straight, organic) implement this.
+ *
+ * generateRoute() is called once per candidate (for all candidates before scoring).
+ * materializePath() is called once for the winning candidate only.
+ */
+export type RoutingProfile = {
+  /**
+   * Generate intermediate normalized route geometry from a guided candidate.
+   * Must pre-compute bendCount and pathLength (the scorer reads these directly).
+   * Must not produce a DiagramEdgePathState — that is materializePath's responsibility.
+   */
+  generateRoute(
+    candidate: EdgeGuidedCandidate,
+    context: RoutingProfileContext,
+  ): NormalizedRouteGeometry;
+
+  /**
+   * Materialize the final EdgeRouteState from the winning scored candidate.
+   * Called once per edge after selection completes.
+   */
+  materializePath(
+    candidate: ScoredEdgeCandidate,
+    context: RoutingProfileContext,
+  ): EdgeRouteState;
+};
+
+/** Registry mapping routing algorithm names to their profile implementations. */
+export const ROUTING_PROFILES: Record<EdgeRoutingAlgorithm, RoutingProfile>;
+```
+
+The four profile implementations (`flow`, `curved`, `straight`, `organic`) are
+non-exported implementation details inside `edgeRoutingProfiles.ts`. Only
+`ROUTING_PROFILES` is exported, so `edgeRouter.ts` selects the profile via
+`ROUTING_PROFILES[request.routing]` without importing each profile individually.
 
 ### 7.9 `edgeRouter.ts`
 
@@ -363,18 +542,60 @@ export type EdgeGuidedCandidate = EdgePortCandidate & {
 };
 ```
 
-### 8.6 Routed candidate
+### 8.6 Normalized route geometry
+
+Produced by `RoutingProfile.generateRoute()`. Provides a profile-neutral representation
+that `edgeCandidateScorer.ts` can consume without any profile-specific branching.
+This resolves the `FlowRouteResult | ReadonlyArray<Vec3>` union that would otherwise
+leak profile knowledge into the shared scoring stage.
+
+```typescript
+/**
+ * Intermediate route representation produced by RoutingProfile.generateRoute().
+ * All metrics needed for lexicographic scoring are pre-computed by the profile.
+ * DiagramEdgePathState is NOT produced here — only after the winner is selected.
+ */
+export type NormalizedRouteGeometry = {
+  /** Planning-space Y-up waypoints, including stubs and any guides. */
+  readonly waypoints: ReadonlyArray<Vec3>;
+  /** Number of direction changes above a straight-line dot-product threshold. */
+  readonly bendCount: number;
+  /** Total polyline path length in planning-space units. */
+  readonly pathLength: number;
+  /** Route kind string, forwarded to DiagramEdgePathDebug.routeKind. */
+  readonly routeKind: string;
+  /** Obstacle IDs intersected, forwarded to DiagramEdgePathDebug.obstacleIds. */
+  readonly obstacleIds?: ReadonlyArray<string>;
+};
+```
+
+### 8.7 Routed candidate
+
+`RoutedEdgeCandidate` carries a `NormalizedRouteGeometry` — not a raw
+`FlowRouteResult` or bare `Vec3[]`. The path is not materialized until the winner
+is selected (step 11 of the pipeline). The `sharedTrunkKey` is populated by the
+`flow` profile when it detects a shared trunk during route generation.
 
 ```typescript
 export type RoutedEdgeCandidate = EdgeGuidedCandidate & {
-  readonly route: FlowRouteResult | ReadonlyArray<Vec3>;
-  readonly controlPoints: ReadonlyArray<Vec3>;
-  readonly path: DiagramEdgePathState;
+  readonly geometry: NormalizedRouteGeometry;
   readonly sharedTrunkKey?: string;
 };
 ```
 
-### 8.7 Structured score
+### 8.8 Scored candidate
+
+Produced by combining a `RoutedEdgeCandidate` with its score and rank key.
+This is the input type for `selectBestCandidate()`.
+
+```typescript
+export type ScoredEdgeCandidate = RoutedEdgeCandidate & {
+  readonly score: EdgeCandidateScore;
+  readonly rankKey: EdgeCandidateRankKey;
+};
+```
+
+### 8.9 Structured score
 
 ```typescript
 export type EdgeCandidateScore = {
@@ -387,7 +608,7 @@ export type EdgeCandidateScore = {
 };
 ```
 
-### 8.8 Lexicographic compare result
+### 8.10 Lexicographic rank key
 
 ```typescript
 export type EdgeCandidateRankKey = readonly [
@@ -540,7 +761,8 @@ Extend `DiagramEdgePathDebug` so development builds can expose the winning candi
 - rank key,
 - route kind,
 - whether bundle hint was used,
-- whether destination guide was used.
+- whether destination guide was used,
+- whether this is a fallback route (all candidates were invalid — see Section 14.2).
 
 This remains compile-time debug data only.
 
@@ -728,6 +950,27 @@ Tests must independently cover:
 8. Real-scene compile regression:
    - BrewFlow comparison scene equivalent remains within expected NVS bounds and chooses direct
      upper links plus centered lower trunk links.
+9. Guide rejection occurs before route generation:
+   - Construct an `EdgePortCandidate` whose destination face normal points away from the source.
+   - Call `buildCandidateGuides()` and assert `destinationGuide` is `undefined`.
+   - Then call `profile.generateRoute()` with the guide-less candidate and assert the resulting
+     route is shorter or has fewer bends than it would with a spurious guide attached.
+   - This test verifies that overshoot suppression happens at the guide stage, not only at scoring.
+10. Lexicographic tie-breaking is not a weighted sum:
+    - Construct two `ScoredEdgeCandidate` instances that are identical in `blockerPenalty`,
+      `overshootPenalty`, `bendCount`, and `pathLength`, but differ only in `sharedPathPenalty`
+      (candidate A lower, candidate B higher).
+    - Call `selectBestCandidate([B, A])` and assert candidate A wins.
+    - Then construct a third candidate C with a lower `bendCount` but a higher `sharedPathPenalty`
+      than both A and B.
+    - Call `selectBestCandidate([A, B, C])` and assert C wins, proving bends outrank shared-path.
+    - This test would fail if the selector used a weighted sum with large enough shared-path weight.
+11. Fallback route is marked in debug metadata:
+    - Construct a routing scenario where all candidates have non-zero `blockerPenalty` (all blocked).
+    - Route via `routeEdges()` and assert the returned `EdgeRouteState.pathDebug` contains
+      `isFallback: true`.
+    - Assert the fallback route is a valid (non-empty) path despite all candidates failing.
+    - This confirms Section 14.2 behavior: the system never silently returns an empty route.
 
 ### 19.4 Test style
 
@@ -737,18 +980,37 @@ No DOM, no Three.js, no renderer dependence for planning-stage tests.
 
 ## 20. Implementation Sequence
 
-1. Add `routingTypes.ts` and `routingSpace.ts`.
+Steps are listed in logical dependency order. **Steps 3–7 are parallelizable** once step 1
+is complete — they each create a new file that depends only on the type definitions in
+`routingTypes.ts` and `routingSpace.ts`, not on each other.
+
+1. Add `routingTypes.ts` and `routingSpace.ts`. *(gate for all subsequent work — must finish first)*
 2. Move Y-down normalization logic out of `edgeRouter.ts` into `routingSpace.ts`.
+
+**Steps 3–7 may be implemented in parallel** by separate developers once step 1 is verified
+(types compile cleanly):
+
 3. Extract bundle inference and face expansion into `edgeCandidatePlanner.ts`.
 4. Extract per-candidate port assignment into `edgePortPlanner.ts`.
 5. Extract guide generation into `edgeGuidePlanner.ts`.
 6. Extract structured scoring into `edgeCandidateScorer.ts`.
 7. Extract lexicographic comparison into `edgeCandidateSelector.ts`.
+
+> **Typecheck note for steps 3–8:** During this phase, the original routing logic in
+> `edgeRouter.ts` remains in place and unchanged. New modules re-implement the logic from
+> scratch based on the types in `routingTypes.ts`; they do not delete or import from
+> `edgeRouter.ts` until step 9. This means both old and new code coexist, and `edgeRouter.ts`
+> continues to typecheck cleanly throughout. The developer must resist the temptation to delete
+> from `edgeRouter.ts` incrementally — all removal happens in step 9 as a single pass after
+> steps 3–8 are complete and their tests pass.
+
 8. Add `edgeRoutingProfiles.ts` and move algorithm-specific route generation there.
-9. Reduce `edgeRouter.ts` to composition only.
+   *(depends on steps 3–7 — the profiles call the new stage functions)*
+9. Reduce `edgeRouter.ts` to composition only — wire the staged pipeline, remove all extracted
+   logic. This is when the old code is deleted. `edgeRouter.ts` must typecheck after this step.
 10. Update compile and transition reroute code to use the new orchestration path unchanged from
     the caller perspective.
-11. Add stage-level tests.
+11. Add stage-level tests for all new modules.
 12. Update PRD and archive/synchronize superseded planning docs after implementation is verified.
 
 ## 21. Acceptance Criteria

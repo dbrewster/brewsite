@@ -47,6 +47,9 @@ const dotVec = (a: Vec3, b: Vec3): number => a[0] * b[0] + a[1] * b[1] + a[2] * 
 
 const clamp = (value: number, min: number, max: number): number => Math.max(min, Math.min(max, value));
 
+const isAxisAligned = (v: Vec3): boolean =>
+  Math.abs(v[0]) < EPSILON || Math.abs(v[1]) < EPSILON;
+
 const pushLine = (
   commands: DiagramEdgePathCommand[],
   from: Vec3,
@@ -172,12 +175,20 @@ export function buildFlowPathState(input: FlowPathBuildInput): DiagramEdgePathSt
       continue;
     }
 
+    if (!isAxisAligned(incoming) || !isAxisAligned(outgoing)) {
+      pushLine(rebuilt, currentCursor, current);
+      currentCursor = current;
+      continue;
+    }
+
     const isTerminalCorner = i === 1 || i === rawPoints.length - 2;
     const radiusCap = isTerminalCorner
-      ? Math.min(incomingLength * 0.4, outgoingLength * 0.45)
+      ? Math.min(incomingLength * 0.42, outgoingLength * 0.42)
       : Math.min(incomingLength * 0.5, outgoingLength * 0.5);
     const radius = Math.min(input.turnRadius, radiusCap);
-    if (radius < EPSILON) {
+    if (
+      radius < EPSILON
+    ) {
       pushLine(rebuilt, currentCursor, current);
       currentCursor = current;
       continue;
