@@ -105,7 +105,7 @@ export default function ChartDemoPage(): JSX.Element {
         flexFlow: 'column',
         height: '100vh',
         overflow: 'hidden',
-        background: theme == 'lightCanvas' ? 'radial-gradient(circle at 50% 0%, #f2f4fd 0%, #d6d3d6 42%, #c2c8c2 72%, #b1b4ba 100%)'
+        background: theme == 'lightCanvas' ? 'radial-gradient(circle at 50% 0%, #f2f4fd 0%, #d1cada 42%, #c2c8c2 72%, #d6d3d6 100%)'
           : 'radial-gradient(circle at 50% 0%, #12345d 0%, #061326 42%, #020812 72%, #01040a 100%)',
       }}
     >

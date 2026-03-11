@@ -50,6 +50,19 @@ const clamp = (value: number, min: number, max: number): number => Math.max(min,
 const isAxisAligned = (v: Vec3): boolean =>
   Math.abs(v[0]) < EPSILON || Math.abs(v[1]) < EPSILON;
 
+/**
+ * Snap a near-cardinal vector to the exact cardinal axis it dominates.
+ * Called only after isAxisAligned() returns true, so the dominant axis is clear.
+ * This prevents the tiny off-axis floating-point residual that survives normalizeVec()
+ * from being amplified by handleLength into a visible bezier-arm deviation.
+ */
+const snapToCardinal = (v: Vec3): Vec3 => {
+  if (Math.abs(v[0]) >= Math.abs(v[1])) {
+    return [v[0] < 0 ? -1 : 1, 0, 0];
+  }
+  return [0, v[1] < 0 ? -1 : 1, 0];
+};
+
 const pushLine = (
   commands: DiagramEdgePathCommand[],
   from: Vec3,
@@ -198,11 +211,18 @@ export function buildFlowPathState(input: FlowPathBuildInput): DiagramEdgePathSt
     const endInset = addVec(current, scaleVec(outgoingDir, radius));
     const handleLength = radius * ARC_KAPPA * clamp(turnAngle / (Math.PI / 2), 0.55, 1.25);
 
+    // Snap the incoming tangent to the nearest exact cardinal axis before using it
+    // for the p1 control point.  normalizeVec() preserves any tiny off-axis residual
+    // that isAxisAligned() tolerates, and that residual scales up by handleLength into
+    // a visible arm deviation (e.g. |p1[1] - p0[1]| ≈ 0.007 on a horizontal arm).
+    // We snap only the tangent direction used for p1 — the inset positions and the
+    // outgoing arm (p2) are untouched so no other geometry is disturbed.
+    const snapIn = snapToCardinal(incoming);
     pushLine(rebuilt, currentCursor, startInset);
     rebuilt.push({
       kind: 'cubic',
       p0: startInset,
-      p1: addVec(startInset, scaleVec(incomingDir, handleLength)),
+      p1: addVec(startInset, scaleVec(snapIn, handleLength)),
       p2: addVec(endInset, scaleVec(outgoingDir, -handleLength)),
       p3: endInset,
     });
