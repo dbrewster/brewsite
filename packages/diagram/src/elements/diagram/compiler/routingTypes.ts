@@ -194,6 +194,8 @@ export type RoutingProfileContext = {
   readonly nodeMap: RoutingNodeMap;
   /** Explicit set of routing IDs that represent diagram groups. */
   readonly groupIds: ReadonlySet<string>;
+  /** Subset of groupIds that should behave as routing obstacles. */
+  readonly obstacleGroupIds: ReadonlySet<string>;
   /** Routing configuration parameters (turn radius, face stub, padding, penalties). */
   readonly config: FlowRoutingConfig;
   /** Edge ID, forwarded to warnings and debug output only. */

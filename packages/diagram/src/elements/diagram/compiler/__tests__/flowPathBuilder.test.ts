@@ -63,7 +63,7 @@ describe('buildFlowPathState', () => {
     expect(points.some((point) => point[2] < 0)).toBe(true);
   });
 
-  it('uses turnRadius on terminal flow elbows instead of leaving them permanently sharp', () => {
+  it('keeps terminal flow elbows sharp so endpoint smoothing cannot bulge into nearby geometry', () => {
     const sharp = buildFlowPathState({
       anchorStart: [0, 0, 0],
       startStub: [1, 0, 0],
@@ -91,6 +91,6 @@ describe('buildFlowPathState', () => {
     });
 
     expect(sharp.commands.every((command) => command.kind === 'line')).toBe(true);
-    expect(rounded.commands.some((command) => command.kind === 'cubic')).toBe(true);
+    expect(rounded.commands.every((command) => command.kind === 'line')).toBe(true);
   });
 });

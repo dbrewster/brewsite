@@ -17,7 +17,7 @@ export type FlowObstacle = {
   readonly expandedRect: Rect2D;
   readonly hard: boolean;
   readonly softOwnerKind?: 'source-group' | 'destination-group';
-  readonly allowedCorridor?: Rect2D;
+  readonly allowedCorridors: ReadonlyArray<Rect2D>;
 };
 
 export type FlowObstacleModel = {
@@ -122,11 +122,14 @@ export function buildFlowObstacleModel(input: BuildFlowObstacleModelInput): Flow
       softOwnerKind = softOwnerKind ?? 'destination-group';
     }
 
-    const allowedCorridor = softOwnerKind === 'source-group'
-      ? corridorForFace(rawRect, input.sourceAnchor, input.routeStart, input.sourceFace, padding)
-      : softOwnerKind === 'destination-group'
+    const allowedCorridors = [
+      pointInsideRect(input.sourceAnchor, rawRect)
+        ? corridorForFace(rawRect, input.sourceAnchor, input.routeStart, input.sourceFace, padding)
+        : undefined,
+      pointInsideRect(input.destinationAnchor, rawRect)
         ? corridorForFace(rawRect, input.destinationAnchor, input.routeEnd, input.destinationFace, padding)
-        : undefined;
+        : undefined,
+    ].filter((corridor): corridor is Rect2D => corridor !== undefined);
 
     obstacles.push({
       id,
@@ -136,7 +139,7 @@ export function buildFlowObstacleModel(input: BuildFlowObstacleModelInput): Flow
       expandedRect,
       hard: !isGroup,
       softOwnerKind,
-      allowedCorridor,
+      allowedCorridors,
     });
   }
 

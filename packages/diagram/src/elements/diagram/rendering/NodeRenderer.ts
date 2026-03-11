@@ -7,6 +7,7 @@ import { ensureText } from '@brewsite/core';
 import { createShapeGeometry, createShapeOutlineGeometry, isRectangularShape, getContentRect } from '../shapes/geometryFactory';
 import { createGlow, computeGlowScale, disposeGlowSprite } from '../../_shared/glowSprite';
 import { Text } from 'troika-three-text';
+import { computeNodeLabelLayout } from './nodeLabelLayout';
 
 const resolveEffectiveEmissiveIntensity = (
   state: DiagramNodeState,
@@ -396,43 +397,30 @@ export class NodeRenderer {
     // the rendered shape, constraining icon and text to the visible interior.
     const [contentW, contentH] = getContentRect(state.shape, state.size);
 
-    // Label layout ratios relative to contentH (node interior height after shape masking).
-    // nodeLabelFontSizeBase = label font-size base fraction of contentH (from theme).
-    // nodeSublabelFontSizeBase = sublabel font-size base fraction of contentH (from theme).
-    // 1.1  = line-height multiplier (10% leading above the font-size).
-    // 0.06 = vertical gap between label and sublabel as a fraction of contentH.
-    const labelFontSize = contentH * themeConfig.nodeLabelFontSizeBase * (themeConfig.effectiveLabelSizeFactor ?? 1.0);
-    const sublabelFontSize = contentH * themeConfig.nodeSublabelFontSizeBase * (themeConfig.effectiveSublabelSizeFactor ?? 1.0);
-    const labelLine = labelFontSize * 1.1;
-    const sublabelLine = sublabelFontSize * 1.1;
-    const lineGap = contentH * 0.06;
-    let labelY = 0;
-    let sublabelY = -contentH * 0.22;
-    if (state.iconUrl) {
-      const iconHeight = contentH * state.iconScale;
-      const iconCenterY = contentH * 0.2;
-      const iconBottomY = iconCenterY - iconHeight / 2;
-      const textTopY = iconBottomY - contentH * 0.08;
-      labelY = textTopY - labelLine / 2;
-      if (state.sublabel) {
-        sublabelY = labelY - (labelLine / 2 + sublabelLine / 2 + lineGap);
-      }
-    } else if (state.sublabel) {
-      labelY = contentH * 0.1;
-      sublabelY = labelY - (labelLine / 2 + sublabelLine / 2 + lineGap);
-    }
+    const labelLayout = computeNodeLabelLayout(
+      contentW,
+      contentH,
+      state.thickness,
+      !!state.iconUrl,
+      !!state.sublabel,
+      state.iconScale,
+      themeConfig.nodeLabelFontSizeBase,
+      themeConfig.nodeSublabelFontSizeBase,
+      themeConfig.effectiveLabelSizeFactor ?? 1.0,
+      themeConfig.effectiveSublabelSizeFactor ?? 1.0,
+    );
 
     ensureText(
       entry.label,
       state.label ?? '',
       state.labelColor,
-      labelFontSize,
+      labelLayout.labelFontSize,
       state.opacity,
       contentW * 0.85,
       true,
       { fontUrl: themeConfig.fontUrl },
     );
-    entry.label.position.set(0, labelY, state.thickness / 2 + 0.02);
+    entry.label.position.set(0, labelLayout.labelY, labelLayout.labelZ);
 
     if (state.sublabel) {
       if (!entry.sublabel) {
@@ -443,13 +431,13 @@ export class NodeRenderer {
         entry.sublabel,
         state.sublabel,
         state.sublabelColor,
-        sublabelFontSize,
+        labelLayout.sublabelFontSize ?? 0,
         state.opacity,
         contentW * 0.85,
         true,
         { fontUrl: themeConfig.fontUrl },
       );
-      entry.sublabel.position.set(0, sublabelY, state.thickness / 2 + 0.02);
+      entry.sublabel.position.set(0, labelLayout.sublabelY ?? 0, labelLayout.sublabelZ);
     } else if (entry.sublabel) {
       entry.group.remove(entry.sublabel);
       entry.sublabel = undefined;

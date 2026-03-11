@@ -275,6 +275,75 @@ const EMPTY_ROUTE: import('./routingTypes').EdgeRouteState = {
   controlPoints: [],
 };
 
+const ROUTE_DEBUG_ENABLED = true;
+const ROUTE_DEBUG_FILTER: string | undefined = undefined;
+
+function emitRouteDebugLog(
+  request: EdgeRoutingRequest,
+  candidates: ReadonlyArray<ScoredEdgeCandidate>,
+  winner: ScoredEdgeCandidate | undefined,
+): void {
+  if (!ROUTE_DEBUG_ENABLED) return;
+  if (ROUTE_DEBUG_FILTER && request.id !== ROUTE_DEBUG_FILTER) return;
+
+  const serializedCandidates = [...candidates]
+    .sort((a, b) => {
+      for (let index = 0; index < a.rankKey.length; index += 1) {
+        const delta = a.rankKey[index]! - b.rankKey[index]!;
+        if (Math.abs(delta) > 1e-9) return delta;
+      }
+      return 0;
+    })
+    .map((candidate) => ({
+      srcFace: candidate.srcFace,
+      dstFace: candidate.dstFace,
+      sourcePortIndex: candidate.sourcePortIndex,
+      destinationPortIndex: candidate.destinationPortIndex,
+      sourceAnchor: candidate.sourceAnchor,
+      destinationAnchor: candidate.destinationAnchor,
+      sourceGuide: candidate.sourceGuide,
+      destinationGuide: candidate.destinationGuide,
+      routeKind: candidate.geometry.routeKind,
+      obstacleIds: candidate.geometry.obstacleIds ?? [],
+      usedUnderpass: candidate.geometry.usedUnderpass ?? false,
+      groupIngressPenalty: candidate.geometry.groupIngressPenalty,
+      bendCount: candidate.geometry.bendCount,
+      pathLength: candidate.geometry.pathLength,
+      score: candidate.score,
+      rankKey: candidate.rankKey,
+      sharedTrunkKey: candidate.sharedTrunkKey,
+      bundleHint: candidate.bundleHint
+        ? {
+          sourceFaceHint: candidate.bundleHint.sourceFaceHint,
+          sourceAnchorHint: candidate.bundleHint.sourceAnchorHint,
+          sourceGuideHint: candidate.bundleHint.sourceGuideHint,
+          sharedTrunkKey: candidate.bundleHint.sharedTrunkKey,
+        }
+        : undefined,
+    }));
+
+  console.log(`[route-debug] ${JSON.stringify({
+    edgeId: request.id,
+    fromId: request.fromId,
+    toId: request.toId,
+    routing: request.routing,
+    landing: request.landing,
+    winner: winner
+      ? {
+        srcFace: winner.srcFace,
+        dstFace: winner.dstFace,
+        sourcePortIndex: winner.sourcePortIndex,
+        destinationPortIndex: winner.destinationPortIndex,
+        routeKind: winner.geometry.routeKind,
+        obstacleIds: winner.geometry.obstacleIds ?? [],
+        rankKey: winner.rankKey,
+        score: winner.score,
+      }
+      : null,
+    candidates: serializedCandidates,
+  })}`);
+}
+
 // ─── Center-landing special case ──────────────────────────────────────────────
 
 function routeCenterLanding(
@@ -322,6 +391,7 @@ export function routeEdges(
   organicVariation: number = 1.6,
   flowConfig: import('./routingTypes').FlowRoutingConfig = DEFAULT_FLOW_ROUTING_CONFIG,
   groupIds: ReadonlySet<string> = new Set(),
+  obstacleGroupIds: ReadonlySet<string> = groupIds,
 ): Map<string, import('./routingTypes').EdgeRouteState> {
   const effectiveGroupIds = groupIds.size > 0
     ? groupIds
@@ -330,6 +400,9 @@ export function routeEdges(
         .filter(([, size]) => size[2] <= 0.02)
         .map(([id]) => id),
     );
+  const effectiveObstacleGroupIds = obstacleGroupIds.size > 0
+    ? obstacleGroupIds
+    : effectiveGroupIds;
   const resolvedThickness = (edge: EdgeRoutingInput): number => edge.thickness ?? 0.06;
 
   // Build normalized request objects with all defaults applied.
@@ -397,6 +470,7 @@ export function routeEdges(
     const context: RoutingProfileContext = {
       nodeMap,
       groupIds: effectiveGroupIds,
+      obstacleGroupIds: effectiveObstacleGroupIds,
       config: flowConfig,
       edgeId,
       fromId: request.fromId,
@@ -448,6 +522,7 @@ export function routeEdges(
 
     // Stage 5: Lexicographic selection.
     const winner = selectBestCandidate(scoredCandidates);
+    emitRouteDebugLog(request, scoredCandidates, winner);
     if (!winner) {
       result.set(edgeId, EMPTY_ROUTE);
       return;
@@ -475,6 +550,7 @@ export function routeEdgesYDown(
   organicVariation: number = 1.6,
   flowConfig: import('./routingTypes').FlowRoutingConfig = DEFAULT_FLOW_ROUTING_CONFIG,
   groupIds: ReadonlySet<string> = new Set(),
+  obstacleGroupIds: ReadonlySet<string> = groupIds,
 ): Map<string, import('./routingTypes').EdgeRouteState> {
   const routed = routeEdges(
     edges,
@@ -486,6 +562,7 @@ export function routeEdgesYDown(
     organicVariation,
     flowConfig,
     groupIds,
+    obstacleGroupIds,
   );
 
   // Mirror results back to Y-down NVS.

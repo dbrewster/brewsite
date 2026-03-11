@@ -112,6 +112,12 @@ const segmentAllowedByCorridor = (
     rangesOverlap(start[0], end[0], corridor.left, corridor.right);
 };
 
+const segmentAllowedByAnyCorridor = (
+  start: Vec3,
+  end: Vec3,
+  corridors: ReadonlyArray<Rect2D>,
+): boolean => corridors.some((corridor) => segmentAllowedByCorridor(start, end, corridor));
+
 const dedupePunctures = (
   punctures: ReadonlyArray<{
     readonly obstacleId: string;
@@ -228,7 +234,7 @@ const assessSegment = (
     const softOwned =
       obstacle.kind === 'group' &&
       (sourceOwningGroupIds.has(obstacle.id) || destinationOwningGroupIds.has(obstacle.id));
-    if (softOwned && segmentAllowedByCorridor(start, end, obstacle.allowedCorridor)) {
+    if (softOwned && segmentAllowedByAnyCorridor(start, end, obstacle.allowedCorridors)) {
       continue;
     }
 
@@ -267,11 +273,11 @@ const buildCandidateVertices = (
     xs.add(obstacle.expandedRect.right);
     ys.add(obstacle.expandedRect.bottom);
     ys.add(obstacle.expandedRect.top);
-    if (obstacle.allowedCorridor) {
-      xs.add(obstacle.allowedCorridor.left);
-      xs.add(obstacle.allowedCorridor.right);
-      ys.add(obstacle.allowedCorridor.bottom);
-      ys.add(obstacle.allowedCorridor.top);
+    for (const corridor of obstacle.allowedCorridors) {
+      xs.add(corridor.left);
+      xs.add(corridor.right);
+      ys.add(corridor.bottom);
+      ys.add(corridor.top);
     }
   }
 
@@ -288,7 +294,7 @@ const buildCandidateVertices = (
       const point: Vec3 = [x, y, planeZ];
       const inside = obstacles.some((obstacle) =>
         pointStrictlyInsideRect(point, obstacle.expandedRect) &&
-        !pointStrictlyInsideRect(point, obstacle.allowedCorridor ?? obstacle.expandedRect),
+        !obstacle.allowedCorridors.some((corridor) => pointStrictlyInsideRect(point, corridor)),
       );
       if (inside) continue;
       const key = `${x.toFixed(6)}:${y.toFixed(6)}`;

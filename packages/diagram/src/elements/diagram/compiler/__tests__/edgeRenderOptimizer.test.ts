@@ -239,4 +239,5 @@ describe('optimizeSharedFlowTrunks', () => {
     expect(optimizedFollower.controlPoints).toEqual([[1, 3, -0.08], [0, 3, -0.08]]);
     expect(optimizedFollower.path.startTangent).toEqual([-1, 0, 0]);
   });
+
 });

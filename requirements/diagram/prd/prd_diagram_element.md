@@ -8,6 +8,9 @@ change_history:
   - date: 2026-03-10
     author: "Toolkit Product"
     summary: "Edge routing rewrite: canonical routing mode is now flow, orthogonal is removed from the public DSL, DiagramEdgeState now carries explicit path commands, flow routes attach to exact face centers, and the renderer consumes DiagramEdgePathCommand[] rather than inferring spline semantics from control-point counts."
+  - date: 2026-03-10
+    author: "Toolkit Product"
+    summary: "Module architecture redesign: ghost node merge logic extracted to compiler/ghostNodeMerge.ts; hover state machine extracted to compiler/hoverStateMachine.ts; coordinate normalization extracted to compiler/normalizeToViewport.ts; node label arithmetic extracted to rendering/nodeLabelLayout.ts; IFocusRegionService interface + DiagramFocusRegionService class added to focusRegion.ts; DiagramRenderer now accepts optional IIconLoader injection; global dispose() side effect removed from render.ts. Updated Compilation Pipeline, Ghost Node Inheritance, Rendering Architecture, DiagramWidget Contract, and Technical Considerations sections."
   - date: 2026-03-09
     author: "Toolkit Product"
     summary: "NVS Universal Coordinate System: DiagramCanvas removed — <Diagram> is now the top-level authoring element. DiagramProps.viewportBounds (NVSRect) replaced by flat x/y/w/h props. DiagramProps.tilt changed from Vec3 to scalar (pitch only). DiagramWidget now implements ILoadable (env map) + INVSBounded. Overview updated to remove DiagramCanvasWidget reference. Non-Goals updated to remove DiagramCanvas/DiagramPipe mention. DSL section updated with new DiagramProps. Consumer integration updated to diagramPlugin({ diagrams: [...] }) pattern. Breaking change assessment updated to major."
@@ -530,7 +533,7 @@ export interface DiagramState {
 
 **Step 4 — Group membership map construction.** Build `groupMap: Map<string, string>` mapping each node ID to its group ID, extracted from `dsl.groups[].nodeIds`. Emit a `console.warn` if a node ID appears in multiple groups.
 
-**Step 5 — Size and thickness map construction.** Iterate `dsl.nodes` to build `sizeMap: Map<string, [w, h]>` and `sizeWithDepthMap: Map<string, [w, h, thickness]>`, applying node-level overrides over theme defaults.
+**Step 5 — Size and thickness map construction.** Call `buildNodeDefaults(theme)` from `compiler/defaultsCompiler.ts` to get the resolved theme defaults for all node fields. Iterate `dsl.nodes` to build `sizeMap: Map<string, [w, h]>` and `sizeWithDepthMap: Map<string, [w, h, thickness]>`, applying node-level overrides over those defaults. `buildEdgeDefaults(theme)` and `buildGroupDefaults(theme)` follow the same pattern for edges and groups respectively, eliminating lateral coupling between `nodeCompiler.ts` and `groupCompiler.ts`.
 
 **Step 6 — Position resolution via `resolveLayoutWithGroups`.** Call `resolveLayoutWithGroups(nodes, edges, groups, rootLayout, groupLayouts, sizeWithDepthMap)`. This returns a `Map<string, [x, y, z]>` for all nodes that either have explicit positions or are assigned positions by the layout algorithm. Nodes without explicit positions and without auto-layout assignment remain absent from the map; these are ghost nodes.
 
@@ -544,7 +547,9 @@ export interface DiagramState {
 
 Ghost nodes are nodes in a subsequent scene whose `label` prop is absent (`undefined`) — meaning `DiagramNodeState.label === undefined` after compilation. Nodes with `positionInherited: true` (no explicit `position` in a `ManualLayout` diagram) also receive position inheritance.
 
-`DiagramWidget.mergeSnapshot(prev, next)` runs before the SceneTrack baking phase. For each node in `next`:
+`DiagramWidget.mergeSnapshot(prev, next)` runs before the SceneTrack baking phase. The merge logic is implemented as a pure function in `compiler/ghostNodeMerge.ts` and called by `widget.ts` — this separation makes the inheritance rules independently testable without constructing a widget instance.
+
+For each node in `next`:
 
 - If `node.label === undefined`: carry forward `label`, `sublabel`, `shape`, `iconUrl`, `iconScale`, `sublabelColor` from the matching node in `prev` (matched by `id`).
 - If `node.positionInherited === true`: additionally carry forward `position`, `size`, `thickness` from `prev`.
@@ -568,7 +573,7 @@ Four rendering classes collaborate to produce the Three.js scene. All live in `p
 
 **`DiagramRenderer`** — Orchestrates the other renderers. Maintains a `THREE.Group` per diagram widget ID in the scene. On each `update(state, scene)` call, delegates to `NodeRenderer`, `EdgeRenderer`, and `GroupRenderer` with the appropriate sub-arrays from `DiagramState`. Manages `InteractionRegistry` and `GroupInteractionRegistry` for click and hover hit-testing.
 
-**`NodeRenderer`** — Manages the Three.js mesh lifecycle for each `DiagramNodeState`. Creates or reuses a box geometry (either `BoxGeometry` for `cornerRadius === 0` or rounded box via `ExtrudeGeometry` for `cornerRadius > 0`). Applies `MeshStandardMaterial` for PBR nodes and `MeshBasicMaterial` for flat-shaded elements. Renders Troika `Text` meshes for primary and sublabels. Renders icon sprites loaded via `IconLoader` from SVG URLs on the `DiagramNodeState.iconUrl` field. Renders a glow sprite behind the node when `themeConfig.nodeGlowIntensity > 0`.
+**`NodeRenderer`** — Manages the Three.js mesh lifecycle for each `DiagramNodeState`. Creates or reuses a box geometry (either `BoxGeometry` for `cornerRadius === 0` or rounded box via `ExtrudeGeometry` for `cornerRadius > 0`). Applies `MeshStandardMaterial` for PBR nodes and `MeshBasicMaterial` for flat-shaded elements. Label position arithmetic (Y offsets, font sizes, Z depth) is computed by the pure `computeNodeLabelLayout()` function in `rendering/nodeLabelLayout.ts`, which returns a `NodeLabelLayout` struct; `NodeRenderer` applies the result to Troika `Text` meshes for primary and sublabels. Renders icon sprites loaded via `IconLoader` from SVG URLs on the `DiagramNodeState.iconUrl` field. Renders a glow sprite behind the node when `themeConfig.nodeGlowIntensity > 0`.
 
 **`EdgeRenderer`** — Manages the Three.js tube geometry lifecycle for each `DiagramEdgeState`. Consumes explicit `DiagramEdgePathCommand[]` from `DiagramEdgeState.path`, building a `CurvePath` from `LineCurve3` and `CubicBezierCurve3` commands instead of inferring spline semantics from control-point counts. Generates arrowhead geometries at `arrowStart` and `arrowEnd` positions (`LatheGeometry` for 3D cones when `themeConfig.use3DArrows`, flat `ShapeGeometry` for 2D arrowheads). Supports dashed material for `style === 'dashed'`. Animates flow pulses via UV offset on a flow-pulse material when `flow !== 'none'`.
 
@@ -628,7 +633,7 @@ class DiagramWidget
 
 **Camera auto-framing (`onTick`).** When the current tick's `CameraState.enabled` is `false` (or no Camera widget is present), `DiagramWidget.onTick` computes a framing camera position from `DiagramState.viewportBounds` and `tiltRotation`. It reads the scene camera from `scene.userData['__brewsite_camera']`. This ensures diagrams are always visible even without an explicit `<Camera>` DSL element in the scene.
 
-**Hover event bubbling.** Mouse-move events bubble from the node level up through the group hierarchy. When the cursor moves from one node to another, `dispatchNodeHover` fires `node-mouse-leave` on the old node then `node-mouse-enter` on the new node. Group hover events follow the same bubbling path: `group-mouse-leave` fires on groups no longer in the path; `group-mouse-enter` fires on newly entered groups. `stopPropagation()` on any event halts further dispatching in that cycle.
+**Hover event bubbling.** Mouse-move events bubble from the node level up through the group hierarchy. The pure hover state machine logic is implemented in `compiler/hoverStateMachine.ts` — it computes which nodes and groups have entered or left the hover path given the previous and next hovered IDs, and returns a list of events to dispatch. `widget.ts` calls this function and fires the resulting events; no hover logic lives in `widget.ts` itself. When the cursor moves from one node to another, `node-mouse-leave` fires on the old node then `node-mouse-enter` fires on the new node. Group hover events follow the same bubbling path: `group-mouse-leave` fires on groups no longer in the path; `group-mouse-enter` fires on newly entered groups. `stopPropagation()` on any event halts further dispatching in that cycle.
 
 ## Authoring Examples
 
@@ -733,7 +738,9 @@ function Scene3() {
 
 - **Group bounds use a synthetic position/size injection.** After `resolveGroupBoundsMap`, each group's center position and border-inset size are injected into the same `positions` and `sizeWithDepthMap` used by `routeEdges`. This allows edges to terminate visually at the group border frame, not at the group center.
 - **Edge control points are recomputed on every interpolation tick.** `rerouteLiveEdges` in `transitionHelpers.ts` re-runs edge routing at each blended position during a scene transition. This is necessary for smooth edge motion as nodes move during interpolation.
+- **Coordinate normalization is a pure, testable module.** `compiler/normalizeToViewport.ts` implements the conversion from diagram-unit positions and sizes to `[0..1]` NVS space. It is a pure function with no Three.js or React dependencies and is covered directly by unit tests.
 - **Three.js geometry is reused across frames.** `NodeRenderer`, `EdgeRenderer`, and `GroupRenderer` maintain per-ID geometry caches. Geometry is disposed and recreated only when the corresponding state changes structurally (e.g., node shape changes, edge control point count changes).
+- **`DiagramRenderer` supports optional `IIconLoader` injection.** Passing an `IIconLoader` implementation to the `DiagramRenderer` constructor overrides the default global icon loader. Tests and consumers that need to control icon loading (e.g., stub out network requests) pass a custom `IIconLoader`. The global `dispose()` side effect that previously ran at module-load time has been removed; disposal is now explicit via `DiagramRenderer.dispose()`.
 - **Troika text is loaded asynchronously.** Label text meshes created via `ensureText` (imported directly from `@brewsite/core`) are async. There is no blocking on text load; labels appear as they resolve. This is consistent with the rest of the Three.js rendering model in the toolkit.
 
 ## Breaking Change Assessment

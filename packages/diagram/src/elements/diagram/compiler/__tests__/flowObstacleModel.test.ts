@@ -57,6 +57,33 @@ describe('buildFlowObstacleModel', () => {
     expect([...model.destinationOwningGroupIds].sort()).toEqual(['destination-group', 'shared-group']);
   });
 
+  it('allows both source and destination ancestry corridors on a shared parent group', () => {
+    const positions = new Map<string, readonly [number, number, number]>([
+      ['shared-parent', [0, 0, 0]],
+    ]);
+    const sizes = new Map<string, readonly [number, number, number]>([
+      ['shared-parent', [20, 10, 0.01]],
+    ]);
+
+    const model = buildFlowObstacleModel({
+      positions,
+      sizes,
+      sourceId: 'src',
+      destinationId: 'dst',
+      sourceAnchor: [-4, 0, 0],
+      destinationAnchor: [4, 0, 0],
+      sourceFace: 'left',
+      destinationFace: 'right',
+      routeStart: [-6, 0, 0],
+      routeEnd: [6, 0, 0],
+      obstaclePadding: 0.25,
+    });
+
+    expect(model.sourceOwningGroupIds.has('shared-parent')).toBe(true);
+    expect(model.destinationOwningGroupIds.has('shared-parent')).toBe(true);
+    expect(model.obstacles.find((obstacle) => obstacle.id === 'shared-parent')?.allowedCorridors).toHaveLength(2);
+  });
+
   it('treats explicit group IDs as groups even when their depth exceeds the legacy threshold', () => {
     const positions = new Map<string, readonly [number, number, number]>([
       ['thick-group', [0, 0, 0]],

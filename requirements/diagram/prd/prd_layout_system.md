@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Layout System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-08
+last_updated: 2026-03-10
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -14,6 +14,9 @@ change_history:
   - date: 2026-03-08
     author: "Toolkit Product"
     summary: "Model/diagram overhaul: removed Pivot Offset section — DiagramPivot type deleted, pivot prop removed from DiagramProps and DiagramState, compilePivotOffset function removed. Constants consolidated: DEFAULT_NODE_SIZE, DEFAULT_GROUP_PADDING, DEFAULT_TITLE_GAP now exported from compiler/diagramLayoutConstants.ts."
+  - date: 2026-03-10
+    author: "Toolkit Product"
+    summary: "Module architecture redesign: the 1,078-line layoutAlgorithms.ts split into a 120-line orchestrator plus four extracted algorithm modules under compiler/layout/ (bounds.ts, flowLayout.ts, gridLayout.ts, hierarchicalLayout.ts). Each algorithm module has its own co-located __tests__/ suite. Updated Goals & Success Metrics, Module Location, and Technical Considerations to reference the new file structure."
 ---
 
 # BrewSite Diagram — Layout System
@@ -30,12 +33,12 @@ Complex diagrams contain dozens of nodes. Requiring every node to specify an exp
 
 **Primary metrics:**
 - Consumers can declare a 10-node diagram with no explicit positions and receive a visually correct grid layout with zero manual coordinate work.
-- `resolveLayout`, `resolveLayoutWithGroups`, and `resolveFlowLayout` achieve 100% test coverage on all algorithmic branches in `layoutAlgorithms.ts` and `layoutResolver.ts`.
+- `resolveLayout`, `resolveLayoutWithGroups`, and the four extracted algorithm functions (`resolveFlowLayout`, `resolveGridLayout`, `resolveHierarchicalLayout`, `computeBounds`) achieve 100% test coverage across `layoutAlgorithms.ts`, `layoutResolver.ts`, and the `compiler/layout/` sub-modules.
 - Hierarchical layout correctly handles directed cycles without throwing or producing degenerate output.
 - Layout cascade correctly propagates from root diagram through arbitrarily nested groups.
 
 **Guardrail metrics:**
-- No Three.js import in any layout file (`layoutAlgorithms.ts`, `layoutResolver.ts`).
+- No Three.js import in any layout file (`layoutAlgorithms.ts`, `layoutResolver.ts`, or any module under `compiler/layout/`).
 - Explicit node positions are never overwritten by any layout algorithm.
 - Ghost nodes (nodes with `positionInherited: true`) are never assigned positions by the layout engine.
 
@@ -709,6 +712,7 @@ const customEnterprise: DiagramTheme = {
 
 ## Technical Considerations
 
+- **Algorithm implementations live in `compiler/layout/`.** The 1,078-line `layoutAlgorithms.ts` has been refactored into a 120-line orchestrator that delegates to four extracted modules: `compiler/layout/bounds.ts` (`computeBounds`), `compiler/layout/flowLayout.ts` (`resolveFlowLayout`), `compiler/layout/gridLayout.ts` (`resolveGridLayout`), `compiler/layout/hierarchicalLayout.ts` (`resolveHierarchicalLayout`). Each module has its own co-located `__tests__/` suite. The `compiler/layout/index.ts` barrel re-exports these four functions but intentionally does not re-export from `layoutAlgorithms.ts` to avoid a circular dependency (`layoutAlgorithms.ts` imports from `layout/index.ts`).
 - **`resolveLayoutWithGroups` is the primary entry point.** Direct use of `resolveLayout` is appropriate only when no groups are present, or in unit tests for the flat layout algorithms.
 - **Explicit positions are always preserved.** `resolveLayout` only populates positions for nodes absent from the positions map at the start of the call. It never overwrites an existing entry.
 - **Synthetic `__group__::id` nodes are internal.** They appear in the positions map during the group-aware layout pass but are filtered out before the final positions map is returned. Consumers never see these IDs.
@@ -726,7 +730,8 @@ Semver impact: **none** (documentation of implemented behavior).
 
 - `packages/diagram/src/elements/diagram/types.ts` — `LayoutDSL`, `LayoutPadding`, `LayoutAlignment`, `LayoutDisconnected`, `DiagramThemeLayoutConfig`, `BaseLayoutDSL`, `GridLayoutDSL`, `HierarchicalLayoutDSL`, `ManualLayoutDSL`, `FlowLayoutDSL`
 - `packages/diagram/src/elements/diagram/dsl.tsx` — `FlowLayout`, `FlowLayoutProps`
-- `packages/diagram/src/elements/diagram/compiler/layoutAlgorithms.ts` — `resolveLayout`, `resolveLayoutWithGroups`, `resolveFlowLayout`, `computeBounds`
+- `packages/diagram/src/elements/diagram/compiler/layoutAlgorithms.ts` — `resolveLayout`, `resolveLayoutWithGroups` (orchestrator; delegates algorithm implementations to `compiler/layout/`)
+- `packages/diagram/src/elements/diagram/compiler/layout/` — `computeBounds` (`bounds.ts`), `resolveFlowLayout` (`flowLayout.ts`), `resolveGridLayout` (`gridLayout.ts`), `resolveHierarchicalLayout` (`hierarchicalLayout.ts`)
 - `packages/diagram/src/elements/diagram/compiler/layoutResolver.ts` — `resolveEffectiveLayout`, `resolveGroupLayouts`, `resolveThemeLayoutDefaults`, all resolved types and defaults including `ResolvedFlowLayout`, `DEFAULT_RESOLVED_FLOW`
 - `packages/diagram/src/compiler/handlers.ts` — `childrenOrder` population in `extractDiagramDSL` and `collectGroup`
 
@@ -749,7 +754,7 @@ None at this time. This document reflects the current implemented layout system.
 
 This is a documentation PRD for an implemented system. The criteria for keeping it current are:
 
-- Updated within one sprint of any change to `layoutAlgorithms.ts`, `layoutResolver.ts`, `types.ts` layout interfaces, or any DSL layout component props.
+- Updated within one sprint of any change to `layoutAlgorithms.ts`, the `compiler/layout/` modules, `layoutResolver.ts`, `types.ts` layout interfaces, or any DSL layout component props.
 - All DSL types and resolved types referenced in this document remain in sync with the source of truth in `packages/diagram/src/elements/diagram/`.
 - Authoring examples compile without TypeScript errors against the current package.
-- `resolveLayout`, `resolveLayoutWithGroups`, and `resolveFlowLayout` maintain >= 95% branch coverage in Vitest.
+- `resolveLayout`, `resolveLayoutWithGroups`, and the four extracted algorithm functions (`resolveFlowLayout`, `resolveGridLayout`, `resolveHierarchicalLayout`, `computeBounds`) maintain >= 95% branch coverage in Vitest.

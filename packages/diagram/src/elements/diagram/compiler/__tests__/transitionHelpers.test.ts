@@ -109,7 +109,7 @@ describe('blendDiagramNodes', () => {
 describe('rerouteLiveEdges', () => {
   it('returns empty array for self-loop edges', () => {
     const nodes = [makeNode('a')];
-    const { positions, sizes, groupIds } = buildLiveNodeMaps(nodes);
+    const { positions, sizes, groupIds, obstacleGroupIds } = buildLiveNodeMaps(nodes);
     const live = rerouteLiveEdges(
       [makeEdge('e1', 'a', 'a')],
       [],
@@ -117,12 +117,13 @@ describe('rerouteLiveEdges', () => {
       positions,
       sizes,
       groupIds,
+      obstacleGroupIds,
     );
     expect(live.get('e1')?.controlPoints).toEqual([]);
   });
 
   it('returns empty control points for edges with missing nodes', () => {
-    const { positions, sizes, groupIds } = buildLiveNodeMaps([]);
+    const { positions, sizes, groupIds, obstacleGroupIds } = buildLiveNodeMaps([]);
     const live = rerouteLiveEdges(
       [makeEdge('e1', 'a', 'b')],
       [],
@@ -130,13 +131,14 @@ describe('rerouteLiveEdges', () => {
       positions,
       sizes,
       groupIds,
+      obstacleGroupIds,
     );
     expect(live.get('e1')?.controlPoints).toEqual([]);
   });
 
   it('recomputes control points when node positions change', () => {
     const nodes = [makeNode('a', { position: [0, 0, 0] }), makeNode('b', { position: [5, 0, 0] })];
-    const { positions, sizes, groupIds } = buildLiveNodeMaps(nodes);
+    const { positions, sizes, groupIds, obstacleGroupIds } = buildLiveNodeMaps(nodes);
     const live = rerouteLiveEdges(
       [makeEdge('e1', 'a', 'b')],
       [],
@@ -144,6 +146,7 @@ describe('rerouteLiveEdges', () => {
       positions,
       sizes,
       groupIds,
+      obstacleGroupIds,
     );
     expect(live.get('e1')?.controlPoints.length).toBeGreaterThan(1);
   });
@@ -162,11 +165,24 @@ describe('rerouteLiveEdges', () => {
       borderHeight: 1,
     });
 
-    const { positions, sizes, groupIds } = buildLiveNodeMaps([], [group]);
+    const { positions, sizes, groupIds, obstacleGroupIds } = buildLiveNodeMaps([], [group]);
 
     expect(groupIds.has('g1')).toBe(true);
+    expect(obstacleGroupIds.has('g1')).toBe(true);
     expect(positions.get('g1')).toEqual([0.45, 0.30000000000000004, 0]);
     expect(sizes.get('g1')).toEqual([1, 0.9, 1]);
+  });
+
+  it('excludes container groups from obstacle routing ids', () => {
+    const containerGroup = makeGroup('container', { variant: 'container', borderStyle: 'none' });
+    const boundaryGroup = makeGroup('boundary', { variant: 'boundary' });
+
+    const { groupIds, obstacleGroupIds } = buildLiveNodeMaps([], [containerGroup, boundaryGroup]);
+
+    expect(groupIds.has('container')).toBe(true);
+    expect(groupIds.has('boundary')).toBe(true);
+    expect(obstacleGroupIds.has('container')).toBe(false);
+    expect(obstacleGroupIds.has('boundary')).toBe(true);
   });
 });
 

@@ -12,6 +12,7 @@ import { EdgeMaterialFactory } from './rendering/EdgeMaterialFactory';
 import { EnvMapManager } from './rendering/EnvMapManager';
 import { InteractionRegistry } from './rendering/InteractionRegistry';
 import { sharedIconLoader } from './rendering/IconLoader';
+import type { IIconLoader } from './rendering/IconLoader';
 import { GroupInteractionRegistry } from './rendering/GroupInteractionRegistry';
 import type { DiagramThemeRenderConfig } from './types';
 
@@ -64,8 +65,11 @@ export class DiagramRenderer {
   /** Tracks the last edge theme key to detect when EdgeRenderer must be recreated. */
   private lastEdgeThemeKey: string;
 
-  constructor(initialThemeConfig: DiagramThemeRenderConfig) {
-    this.nodeRenderer = new NodeRenderer(sharedIconLoader, this.interactionRegistry);
+  constructor(
+    initialThemeConfig: DiagramThemeRenderConfig,
+    iconLoader: IIconLoader = sharedIconLoader,
+  ) {
+    this.nodeRenderer = new NodeRenderer(iconLoader, this.interactionRegistry);
     this.edgeRenderer = new EdgeRenderer(
       new EdgeMaterialFactory(),
       initialThemeConfig.use3DArrows,
@@ -353,6 +357,5 @@ export class DiagramRenderer {
     this.interactionRegistry.clear();
     this.groupInteractionRegistry.clear();
     this.envMapManager.disposeAll();
-    sharedIconLoader.disposeAll();
   }
 }

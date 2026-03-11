@@ -16,6 +16,101 @@ import {
 import type { DiagramState } from '../../elements/diagram/types';
 
 const EPSILON = 1e-6;
+const CUBIC_SAMPLES = 24;
+
+type Rect = {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+};
+
+const nodeRect = (node: DiagramState['nodes'][number]): Rect => ({
+  left: node.position[0] - node.size[0] / 2,
+  right: node.position[0] + node.size[0] / 2,
+  top: node.position[1] - node.size[1] / 2,
+  bottom: node.position[1] + node.size[1] / 2,
+});
+
+const groupRect = (group: DiagramState['groups'][number]): Rect => ({
+  left: group.bounds.x,
+  right: group.bounds.x + group.bounds.w,
+  top: group.bounds.y,
+  bottom: group.bounds.y + group.bounds.h,
+});
+
+const pointInsideRect = (
+  point: readonly [number, number, number],
+  rect: Rect,
+): boolean => (
+  point[0] > rect.left + EPSILON &&
+  point[0] < rect.right - EPSILON &&
+  point[1] > rect.top + EPSILON &&
+  point[1] < rect.bottom - EPSILON
+);
+
+const sampleCubicPoint = (
+  p0: readonly [number, number, number],
+  p1: readonly [number, number, number],
+  p2: readonly [number, number, number],
+  p3: readonly [number, number, number],
+  t: number,
+): readonly [number, number, number] => {
+  const oneMinusT = 1 - t;
+  const a = oneMinusT ** 3;
+  const b = 3 * oneMinusT ** 2 * t;
+  const c = 3 * oneMinusT * t ** 2;
+  const d = t ** 3;
+  return [
+    a * p0[0] + b * p1[0] + c * p2[0] + d * p3[0],
+    a * p0[1] + b * p1[1] + c * p2[1] + d * p3[1],
+    a * p0[2] + b * p1[2] + c * p2[2] + d * p3[2],
+  ];
+};
+
+const sampleEdgePath = (edge: DiagramState['edges'][number]): ReadonlyArray<readonly [number, number, number]> => {
+  const samples: Array<readonly [number, number, number]> = [];
+  for (const command of edge.path.commands) {
+    if (command.kind === 'line') {
+      samples.push(command.from, command.to);
+      continue;
+    }
+    for (let index = 0; index <= CUBIC_SAMPLES; index += 1) {
+      samples.push(sampleCubicPoint(command.p0, command.p1, command.p2, command.p3, index / CUBIC_SAMPLES));
+    }
+  }
+  return samples;
+};
+
+const collectAllowedGroupIdsForEdge = (
+  state: DiagramState,
+  edge: DiagramState['edges'][number],
+): ReadonlySet<string> => {
+  const groupById = new Map(state.groups.map((group) => [group.id, group]));
+  const nodeById = new Map(state.nodes.map((node) => [node.id, node]));
+  const allowed = new Set<string>();
+
+  const addGroupAncestry = (groupId: string | undefined): void => {
+    let cursor = groupId;
+    while (cursor) {
+      if (allowed.has(cursor)) break;
+      allowed.add(cursor);
+      cursor = groupById.get(cursor)?.parentId;
+    }
+  };
+
+  const addEndpointAncestry = (endpointId: string): void => {
+    if (groupById.has(endpointId)) {
+      addGroupAncestry(endpointId);
+      return;
+    }
+    addGroupAncestry(nodeById.get(endpointId)?.groupId);
+  };
+
+  addEndpointAncestry(edge.fromId);
+  addEndpointAncestry(edge.toId);
+  return allowed;
+};
 
 function buildSceneCfOverview(): ReactElement {
   return (
@@ -120,5 +215,46 @@ describe('sceneCfOverview routing', () => {
         expect(point[1]).toBeLessThanOrEqual(1.01);
       });
     });
+  });
+
+  it('does not route overview edges through group or node interiors', async () => {
+    const state = await compileCfOverview();
+    const nodeRects = state.nodes.map((node) => ({
+      id: node.id,
+      rect: nodeRect(node),
+    }));
+    const groupRects = state.groups
+      .filter((group) => group.variant !== 'container')
+      .map((group) => ({
+        id: group.id,
+        rect: groupRect(group),
+      }));
+
+    for (const edge of state.edges) {
+      const interiorSamples = sampleEdgePath(edge).slice(1, -1);
+      const allowedGroupIds = collectAllowedGroupIdsForEdge(state, edge);
+
+      for (const sample of interiorSamples) {
+        for (const group of groupRects) {
+          if (allowedGroupIds.has(group.id)) {
+            continue;
+          }
+          expect(
+            pointInsideRect(sample, group.rect),
+            `edge ${edge.id} crosses into group ${group.id} at (${sample[0].toFixed(4)}, ${sample[1].toFixed(4)})`,
+          ).toBe(false);
+        }
+
+        for (const node of nodeRects) {
+          if (node.id === edge.fromId || node.id === edge.toId) {
+            continue;
+          }
+          expect(
+            pointInsideRect(sample, node.rect),
+            `edge ${edge.id} crosses into node ${node.id} at (${sample[0].toFixed(4)}, ${sample[1].toFixed(4)})`,
+          ).toBe(false);
+        }
+      }
+    }
   });
 });

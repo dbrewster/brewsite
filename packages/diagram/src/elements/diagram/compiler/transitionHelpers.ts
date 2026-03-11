@@ -53,10 +53,12 @@ export function buildLiveNodeMaps(
   positions: Map<string, Vec3>;
   sizes: Map<string, NodeDimensions>;
   groupIds: Set<string>;
+  obstacleGroupIds: Set<string>;
 } {
   const positions = new Map<string, Vec3>();
   const sizes = new Map<string, NodeDimensions>();
   const groupIds = new Set<string>();
+  const obstacleGroupIds = new Set<string>();
   nodes.forEach((n) => {
     positions.set(n.id, n.position);
     sizes.set(n.id, [n.size[0], n.size[1], n.thickness]);
@@ -80,8 +82,11 @@ export function buildLiveNodeMaps(
       groupDepth,
     ]);
     groupIds.add(group.id);
+    if (group.variant !== 'container') {
+      obstacleGroupIds.add(group.id);
+    }
   });
-  return { positions, sizes, groupIds };
+  return { positions, sizes, groupIds, obstacleGroupIds };
 }
 
 export function rerouteLiveEdges(
@@ -91,6 +96,7 @@ export function rerouteLiveEdges(
   livePositions: Map<string, Vec3>,
   liveSizes: Map<string, NodeDimensions>,
   groupIds: ReadonlySet<string>,
+  obstacleGroupIds: ReadonlySet<string>,
   defaultRouting?: EdgeRoutingAlgorithm,
   defaultLanding?: EdgeLandingAlgorithm,
 ): ReturnType<typeof routeEdgesYDown> {
@@ -134,6 +140,7 @@ export function rerouteLiveEdges(
     undefined,
     undefined,
     groupIds,
+    obstacleGroupIds,
   );
 }
 

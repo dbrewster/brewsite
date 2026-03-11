@@ -15,10 +15,13 @@ import { blendOpacity, blendVec3, validateNVSRect, validateNVSPosition } from '@
 import { darkGlassTheme } from './themes/darkGlass';
 import { resolveLayout, resolveLayoutWithGroups, computeBounds } from './compiler/layoutAlgorithms';
 import { routeEdges, routeEdgesYDown } from './compiler/edgeRouter';
-import { buildNodeDefaults, buildGroupDefaults, compileNode, compileEdge } from './compiler/nodeCompiler';
+import { compileNode, compileEdge } from './compiler/nodeCompiler';
+import { buildNodeDefaults, buildGroupDefaults } from './compiler/defaultsCompiler';
 import { optimizeSharedFlowTrunks } from './compiler/edgeRenderOptimizer';
 import { compileGroup, resolveGroupBoundsMap } from './compiler/groupCompiler';
 import type { GroupBounds } from './compiler/groupCompiler';
+import { normalizeToViewport } from './compiler/normalizeToViewport';
+import type { NormalizeToViewportResult } from './compiler/normalizeToViewport';
 import { buildThemeRenderConfig, compileExitConfig, compileEnterConfig } from './compiler/themeResolver';
 import { resolveEffectiveLayout, resolveGroupLayouts, resolveThemeLayoutDefaults } from './compiler/layoutResolver';
 import type { ResolvedLayout } from './compiler/layoutResolver';
@@ -68,110 +71,6 @@ function groupDepth(
 
 type RawPosition = readonly [number, number, number];
 type RawSize = readonly [number, number];
-
-/**
- * Converts all node positions and sizes from diagram-unit Cartesian space
- * to [0..1] NVS space after layout algorithms have assigned absolute positions.
- *
- * Also normalizes group bounds from diagram units to [0..1] NVS.
- * The fit extents are computed from the union of node outer edges and group
- * bounds so group padding/title bands participate in the final viewport fit.
- *
- * The Y axis is FLIPPED: Cartesian +Y (up) → NVS y=0 (top).
- *
- * @param nodes     Node list with diagram-unit positions (Cartesian Y-up)
- * @param groups    Group bounds map in diagram units (GroupBounds.y = Cartesian bottom)
- * @param padding   The resolved padding in diagram units (used for bounding-box expansion)
- * @returns         Normalized positions, sizes, and group bounds in [0..1] NVS
- */
-function normalizeToViewport(
-  nodes: ReadonlyArray<{ id: string; position: RawPosition; size: RawSize }>,
-  groups: Map<string, GroupBounds>,
-  padding: number,
-): {
-  normalizedPositions: Map<string, RawPosition>;
-  normalizedSizes: Map<string, RawSize>;
-  normalizedGroups: Map<string, GroupBounds>;
-  contentAspect: number;
-} {
-  // Step 1: Compute bounding box of all node outer edges.
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  for (const node of nodes) {
-    const [px, py] = node.position;
-    const [sw, sh] = node.size;
-    minX = Math.min(minX, px - sw / 2);
-    maxX = Math.max(maxX, px + sw / 2);
-    minY = Math.min(minY, py - sh / 2);
-    maxY = Math.max(maxY, py + sh / 2);
-  }
-
-  // Step 1b: Expand the fit extents to include full group bounds.
-  // Group bounds already include resolved group padding/title band space.
-  for (const bounds of groups.values()) {
-    if (!Number.isFinite(bounds.x) || !Number.isFinite(bounds.y)) continue;
-    if (!Number.isFinite(bounds.w) || !Number.isFinite(bounds.h)) continue;
-    if (bounds.w <= 0 && bounds.h <= 0) continue;
-    minX = Math.min(minX, bounds.x);
-    maxX = Math.max(maxX, bounds.x + bounds.w);
-    minY = Math.min(minY, bounds.y);
-    maxY = Math.max(maxY, bounds.y + bounds.h);
-  }
-
-  // Degenerate case: no nodes and no non-empty groups.
-  if (!Number.isFinite(minX)) {
-    return {
-      normalizedPositions: new Map(),
-      normalizedSizes: new Map(),
-      normalizedGroups: new Map(),
-      contentAspect: 1.0,
-    };
-  }
-
-  // Step 2: Expand by padding
-  const spanX = (maxX - minX) + 2 * padding;
-  const spanY = (maxY - minY) + 2 * padding;
-  const originX = minX - padding;
-  const originY = minY - padding;  // BOTTOM of diagram in Cartesian Y-up
-
-  // Guard against degenerate diagrams (single node with zero size)
-  const safeSpanX = spanX > 0 ? spanX : 1;
-  const safeSpanY = spanY > 0 ? spanY : 1;
-
-  // Step 3: Normalize node positions (with Y-flip: Cartesian Y-up → NVS Y-down)
-  const normalizedPositions = new Map<string, RawPosition>();
-  const normalizedSizes = new Map<string, RawSize>();
-  for (const node of nodes) {
-    const [px, py, pz] = node.position;
-    const [sw, sh] = node.size;
-    const nx = (px - originX) / safeSpanX;
-    const ny = 1 - (py - originY) / safeSpanY;   // Y-flip: Cartesian up → NVS down
-    normalizedPositions.set(node.id, [nx, ny, pz]);
-    normalizedSizes.set(node.id, [sw / safeSpanX, sh / safeSpanY]);
-  }
-
-  // Step 4: Normalize group bounds
-  // GroupBounds.y is Cartesian BOTTOM (Y-up) pre-normalization.
-  // After Y-flip, NVS top = 1 - (Cartesian top - originY) / safeSpanY
-  const normalizedGroups = new Map<string, GroupBounds>();
-  for (const [groupId, bounds] of groups) {
-    const nvsX = (bounds.x - originX) / safeSpanX;
-    const cartesianTop = bounds.y + bounds.h;
-    const nvsY = 1 - (cartesianTop - originY) / safeSpanY;  // Y-flip: Cartesian top → NVS top
-    const nvsW = bounds.w / safeSpanX;
-    const nvsH = bounds.h / safeSpanY;
-    const [pt, pr, pb, pl] = bounds.padding;
-    normalizedGroups.set(groupId, {
-      x: nvsX,
-      y: nvsY,
-      w: nvsW,
-      h: nvsH,
-      padding: [pt / safeSpanY, pr / safeSpanX, pb / safeSpanY, pl / safeSpanX],
-      titleGap: bounds.titleGap / safeSpanY,
-    });
-  }
-
-  return { normalizedPositions, normalizedSizes, normalizedGroups, contentAspect: safeSpanX / safeSpanY };
-}
 
 // ─── compileDiagram ───────────────────────────────────────────────────────────
 
@@ -362,6 +261,11 @@ export function compileDiagram(
       flowUnderpassPenalty: theme.edge.flowUnderpassPenalty,
     },
     new Set(normalizedGroups.keys()),
+    new Set(
+      dsl.groups
+        .filter((group) => (group.variant ?? groupDefaults.variant) !== 'container')
+        .map((group) => group.id),
+    ),
   );
 
   const rawEdges = dsl.edges.map((edge, index) => {
@@ -557,7 +461,7 @@ export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramSt
   interpolateFn: (from, to) => (ctx) => {
     const t = ctx.t;
     const { blended, fading } = blendDiagramNodes(from.nodes, to.nodes, t);
-    const { positions, sizes, groupIds } = buildLiveNodeMaps([...blended, ...fading], to.groups);
+    const { positions, sizes, groupIds, obstacleGroupIds } = buildLiveNodeMaps([...blended, ...fading], to.groups);
     const toEdgeIds = new Set(to.edges.map((e) => e.id));
     const liveControlPoints = rerouteLiveEdges(
       to.edges,
@@ -566,6 +470,7 @@ export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramSt
       positions,
       sizes,
       groupIds,
+      obstacleGroupIds,
     );
     const { blended: blendedEdges, fading: fadingEdges } = blendDiagramEdges(
       from.edges,

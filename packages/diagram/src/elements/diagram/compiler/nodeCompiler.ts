@@ -10,63 +10,11 @@ import type {
   DiagramTheme,
 } from '../types';
 import { resolveIconUrl } from '../shapes/iconRegistry';
-import { DEFAULT_NODE_SHAPE } from '../shapes/shapeVariants';
 import { deriveColor } from '../math/colorUtils';
+import { buildNodeDefaults, buildEdgeDefaults } from './defaultsCompiler';
+
 const edgeIdFor = (edge: DiagramEdgeDSL, index: number): string =>
   edge.id ?? `${edge.from}-${edge.to}-${index}`;
-
-export const buildNodeDefaults = (theme: DiagramTheme) => ({
-  shape:                    DEFAULT_NODE_SHAPE,
-  size:                     theme.node.defaultSize as [number, number],
-  thickness:                theme.node.defaultThickness,
-  color:                    theme.node.defaultColor,
-  boxColor:                 theme.node.defaultBoxColor,
-  metalness:                theme.node.defaultMetalness,
-  roughness:                theme.node.defaultRoughness,
-  emissiveIntensity:        theme.node.defaultEmissiveIntensity,
-  cornerRadius:             theme.node.cornerRadius,
-  labelColor:               theme.node.defaultLabelColor,
-  sublabelColor:            theme.node.defaultSublabelColor,
-  opacity:                  1,
-  clickable:                false,
-  enabled:                  true,
-  iconScale:                theme.node.defaultIconScale,
-  iconStyle:                theme.node.defaultIconStyle,
-  iconDepthFactor:          theme.node.defaultIconDepthFactor,
-  sideColorDarkenFactor:    theme.node.sideColorDarkenFactor,
-  borderColorLightenFactor: theme.node.borderColorLightenFactor,
-});
-
-export const buildEdgeDefaults = (theme: DiagramTheme) => ({
-  style:          'solid' as const,
-  arrowStart:     'none' as const,
-  arrowEnd:       'none' as const,
-  color:          theme.edge.defaultColor,
-  thickness:      theme.edge.defaultThickness,
-  opacity:        1,
-  routing:        theme.edge.routing,
-  flowTurnRadius: theme.edge.flowTurnRadius,
-  flowFaceStub:   theme.edge.flowFaceStub,
-  flowBundleStrength: theme.edge.flowBundleStrength,
-  flowTargetApproachBias: theme.edge.flowTargetApproachBias,
-  allowUnderpass: true,
-  flow:           'none' as const,
-});
-
-export const buildGroupDefaults = (theme: DiagramTheme) => ({
-  variant:       'boundary' as const,
-  orientation:   'vertical' as const,
-  color:         theme.group.defaultColor,
-  borderColor:   theme.group.defaultBorderColor,
-  borderWidth:   theme.group.defaultBorderWidth,
-  borderHeight:  theme.group.defaultBorderHeight,
-  borderStyle:   'solid' as const,
-  fillOpacity:   theme.group.defaultFillOpacity,
-  borderOpacity: theme.group.defaultBorderOpacity,
-  borderEmissiveColor: theme.group.defaultBorderEmissiveColor ?? theme.group.defaultBorderColor,
-  borderEmissiveIntensity: theme.group.defaultBorderEmissiveIntensity ?? 0,
-  labelColor:    theme.group.defaultLabelColor,
-});
 
 export function compileNode(
   dsl: DiagramNodeDSL,

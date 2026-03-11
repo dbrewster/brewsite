@@ -271,7 +271,7 @@ function buildFlowObstacleModelForEdge(
   candidate: EdgeGuidedCandidate,
   context: RoutingProfileContext,
 ): FlowObstacleModel | null {
-  const { nodeMap, groupIds, config, fromId, toId } = context;
+  const { nodeMap, obstacleGroupIds, config, fromId, toId } = context;
   const fromNode = nodeMap.get(fromId);
   const toNode = nodeMap.get(toId);
   if (!fromNode || !toNode) return null;
@@ -292,7 +292,7 @@ function buildFlowObstacleModelForEdge(
   const model = buildFlowObstacleModel({
     positions,
     sizes,
-    groupIds,
+    groupIds: obstacleGroupIds,
     sourceId: fromId,
     destinationId: toId,
     sourceAnchor: candidate.sourceAnchor,

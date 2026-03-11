@@ -36,10 +36,17 @@ import type {
   DiagramNodeHoverEvent,
   DiagramGroupHoverEvent,
   DiagramHoverControls,
-  DiagramNodeState,
   DiagramState,
 } from './types';
 import { clearDiagramFocusRegion } from './focusRegion';
+import {
+  computeHoverTransitionEvents,
+  buildGroupPath,
+  collectGroupIds,
+  type HoverTarget,
+  type HoverEvent,
+} from './compiler/hoverStateMachine';
+import { mergeGhostNodeSnapshot } from './compiler/ghostNodeMerge';
 
 /**
  * Declares a diagram node (shape with label).
@@ -160,13 +167,6 @@ export function DiagramExit(_props: DiagramExitProps): null {
 export function DiagramEnter(_props: DiagramEnterProps): null {
   return null;
 }
-
-type HoverTarget = {
-  diagramId: string;
-  groupPath: string[];
-  nodeId?: string;
-  point: readonly [number, number, number];
-};
 
 /**
  * Widget for the <Diagram> DSL element. Renders the diagram directly into
@@ -311,54 +311,13 @@ export class DiagramWidget
    * OR with positionInherited=true (no explicit position in a manual-layout diagram),
    * carry forward properties from the previous scene's compiled state.
    *
-   * Always carried for ghost nodes (empty label):
-   *   label, sublabel, shape, iconUrl, iconScale, sublabelColor
-   *
-   * Additionally carried when positionInherited=true (no explicit position in DSL):
-   *   position, size, depth
-   *
-   * This enables minimal ghost node declarations:
-   *   <DiagramNode id="cdn" opacity={0.3} />   ← no position/label needed
-   *
-   * The positionInherited flag is cleared after merge so downstream code
-   * always receives a fully-resolved DiagramNodeState.
+   * Delegates to mergeGhostNodeSnapshot for pure transformation logic.
    */
   mergeSnapshot(
     prev: DiagramState | undefined,
     next: DiagramState | undefined,
   ): DiagramState | undefined {
-    if (!next) return next;
-    if (!prev) return next;
-
-    let anyChanged = false;
-    const mergedNodes = next.nodes.map((node): DiagramNodeState => {
-      // Fully-declared node: no merge needed.
-      if (node.label !== undefined && !node.positionInherited) return node;
-
-      const prevNode = prev.nodes.find((p) => p.id === node.id);
-      if (!prevNode) return node;
-
-      anyChanged = true;
-      return {
-        ...node,
-        // Visual identity (ghost nodes only — when label is undefined).
-        label:         node.label !== undefined ? node.label         : prevNode.label,
-        sublabel:      node.label !== undefined ? node.sublabel      : prevNode.sublabel,
-        shape:         node.label !== undefined ? node.shape         : prevNode.shape,
-        iconUrl:       node.label !== undefined ? node.iconUrl       : prevNode.iconUrl,
-        iconScale:     node.label !== undefined ? node.iconScale     : prevNode.iconScale,
-        sublabelColor: node.label !== undefined ? node.sublabelColor : prevNode.sublabelColor,
-        // Layout geometry (only when DSL omitted position entirely).
-        position:  node.positionInherited ? prevNode.position  : node.position,
-        size:      node.positionInherited ? prevNode.size      : node.size,
-        thickness: node.positionInherited ? prevNode.thickness : node.thickness,
-        // Clear the flag — the state is now fully resolved.
-        positionInherited: undefined,
-      };
-    });
-
-    // Avoid allocating a new state object when nothing actually changed.
-    return anyChanged ? { ...next, nodes: mergedNodes } : next;
+    return mergeGhostNodeSnapshot(prev, next);
   }
 
   dispose(): void {
@@ -447,7 +406,7 @@ export class DiagramWidget
       const nodeInfo = this.renderer.interactionRegistry.lookup(nodeHit.object as THREE.Mesh);
       if (nodeInfo && nodeInfo.diagramId === this.widgetId) {
         const node = this.lastState.nodes.find((n) => n.id === nodeInfo.nodeId);
-        const groupPath = node?.groupId ? this.buildGroupPath(this.lastState, node.groupId) : [];
+        const groupPath = node?.groupId ? buildGroupPath(this.lastState, node.groupId) : [];
         next = {
           diagramId: nodeInfo.diagramId,
           nodeId: nodeInfo.nodeId,
@@ -466,9 +425,9 @@ export class DiagramWidget
         .filter((v): v is NonNullable<typeof v> => !!v);
       if (groupInfos.length > 0) {
         let selected = groupInfos[0]!;
-        let selectedDepth = this.groupDepth(this.lastState, selected.info.groupId);
+        let selectedDepth = buildGroupPath(this.lastState, selected.info.groupId).length;
         for (const candidate of groupInfos.slice(1)) {
-          const depth = this.groupDepth(this.lastState, candidate.info.groupId);
+          const depth = buildGroupPath(this.lastState, candidate.info.groupId).length;
           if (depth > selectedDepth) {
             selected = candidate;
             selectedDepth = depth;
@@ -476,19 +435,19 @@ export class DiagramWidget
         }
         next = {
           diagramId: selected.info.diagramId,
-          groupPath: this.buildGroupPath(this.lastState, selected.info.groupId),
+          groupPath: buildGroupPath(this.lastState, selected.info.groupId),
           point: [selected.hit.point.x, selected.hit.point.y, selected.hit.point.z],
         };
       }
     }
 
-    this.transitionHover(this.hovered, next, this.lastState);
+    this.dispatchHoverEvents(this.hovered, next);
     this.hovered = next;
   }
 
   private clearHover(): void {
     if (!this.lastState || !this.hovered) return;
-    this.transitionHover(this.hovered, null, this.lastState);
+    this.dispatchHoverEvents(this.hovered, null);
     this.hovered = null;
   }
 
@@ -506,7 +465,7 @@ export class DiagramWidget
         const diagramId = options?.diagramId ?? defaultDiagramId;
         if (diagramId !== this.widgetId || !this.lastState) return;
         const includeDescendants = options?.includeDescendants ?? true;
-        const groupIds = this.collectGroupIds(this.lastState, groupId, includeDescendants);
+        const groupIds = collectGroupIds(this.lastState, groupId, includeDescendants);
         for (const node of this.lastState.nodes) {
           if (!node.groupId || !groupIds.has(node.groupId)) continue;
           this.renderer.setNodeEmissiveOverride(diagramId, node.id, enabled);
@@ -515,71 +474,29 @@ export class DiagramWidget
     };
   }
 
-  private collectGroupIds(state: DiagramState, groupId: string, includeDescendants: boolean): Set<string> {
-    const result = new Set<string>([groupId]);
-    if (!includeDescendants) return result;
-    const childMap = new Map<string, string[]>();
-    for (const group of state.groups) {
-      if (!group.parentId) continue;
-      const list = childMap.get(group.parentId) ?? [];
-      list.push(group.id);
-      childMap.set(group.parentId, list);
-    }
-    const queue = [groupId];
-    while (queue.length > 0) {
-      const current = queue.shift();
-      if (!current) continue;
-      const children = childMap.get(current) ?? [];
-      for (const child of children) {
-        if (result.has(child)) continue;
-        result.add(child);
-        queue.push(child);
-      }
-    }
-    return result;
-  }
-
-  private transitionHover(prev: HoverTarget | null, next: HoverTarget | null, state: DiagramState): void {
-    const prevPath = prev?.groupPath ?? [];
-    const nextPath = next?.groupPath ?? [];
-    let shared = 0;
-    while (
-      shared < prevPath.length &&
-      shared < nextPath.length &&
-      prevPath[shared] === nextPath[shared] &&
-      prev?.diagramId === next?.diagramId
-    ) {
-      shared += 1;
-    }
-
-    const prevNodeChanged = prev?.diagramId !== next?.diagramId || prev?.nodeId !== next?.nodeId;
-    if (prev?.nodeId && prevNodeChanged) {
-      if (this.dispatchNodeHover(state, prev.diagramId, prev.nodeId, prev.point, 'node-mouse-leave')) return;
-    }
-    for (let i = shared; i < prevPath.length; i += 1) {
-      if (this.dispatchGroupHover(state, prev!.diagramId, prevPath[i]!, prev!.point, 'group-mouse-leave')) return;
-    }
-    for (let i = shared; i < nextPath.length; i += 1) {
-      if (this.dispatchGroupHover(state, next!.diagramId, nextPath[i]!, next!.point, 'group-mouse-enter')) return;
-    }
-    if (next?.nodeId && prevNodeChanged) {
-      this.dispatchNodeHover(state, next.diagramId, next.nodeId, next.point, 'node-mouse-enter');
+  /**
+   * Dispatches hover events computed by the pure hover state machine.
+   * stopPropagation semantics: if any handler stops propagation, remaining events are skipped.
+   */
+  private dispatchHoverEvents(prev: HoverTarget | null, next: HoverTarget | null): void {
+    if (!this.lastState) return;
+    const state = this.lastState;
+    const events = computeHoverTransitionEvents(prev, next);
+    for (const event of events) {
+      const stopped = this.dispatchSingleEvent(event, state);
+      if (stopped) break;
     }
   }
 
-  private buildGroupPath(state: DiagramState, leafGroupId: string): string[] {
-    const byId = new Map(state.groups.map((group) => [group.id, group] as const));
-    const path: string[] = [];
-    let cursor = byId.get(leafGroupId);
-    while (cursor) {
-      path.push(cursor.id);
-      cursor = cursor.parentId ? byId.get(cursor.parentId) : undefined;
+  /**
+   * Dispatches a single HoverEvent to the appropriate node or group handler.
+   * Returns true if the handler called stopPropagation().
+   */
+  private dispatchSingleEvent(event: HoverEvent, state: DiagramState): boolean {
+    if (event.type === 'node-mouse-enter' || event.type === 'node-mouse-leave') {
+      return this.dispatchNodeHover(state, event.diagramId, event.nodeId, event.point, event.type);
     }
-    return path.reverse();
-  }
-
-  private groupDepth(state: DiagramState, groupId: string): number {
-    return this.buildGroupPath(state, groupId).length;
+    return this.dispatchGroupHover(state, event.diagramId, event.groupId, event.point, event.type);
   }
 
   private dispatchGroupHover(

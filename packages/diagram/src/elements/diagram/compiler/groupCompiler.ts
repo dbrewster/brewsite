@@ -8,7 +8,7 @@ import type {
   DiagramGroupSide,
   DiagramGroupEdgeLightsState,
 } from '../types';
-import { buildGroupDefaults } from './nodeCompiler';
+import { buildGroupDefaults } from './defaultsCompiler';
 import { computeBounds } from './layoutAlgorithms';
 import type { ResolvedLayout } from './layoutResolver';
 import { GROUP_BORDER_PX_TO_UNITS } from './diagramRenderConstants';

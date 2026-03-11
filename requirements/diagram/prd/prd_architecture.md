@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Architecture Reference"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-09
+last_updated: 2026-03-10
 change_history:
   - date: 2026-03-09
     author: "Toolkit Product"
@@ -20,6 +20,9 @@ change_history:
   - date: 2026-03-08
     author: "Toolkit Product"
     summary: "Architecture cleanup: added diagramLayoutConstants.ts and diagramRenderConstants.ts as shared constant sources; removed dead code (groupConstants.ts, TextRenderer.ts, createRoundedBorderGeometry, DiagramPivot type); DiagramRenderer constructor now requires DiagramThemeRenderConfig; 5 group edge light types added to package root exports; updated module source structure and rendering architecture sections."
+  - date: 2026-03-10
+    author: "Toolkit Product"
+    summary: "Module architecture redesign for testability: extracted pure-function modules (defaultsCompiler.ts, ghostNodeMerge.ts, hoverStateMachine.ts, normalizeToViewport.ts); split layoutAlgorithms.ts into compiler/layout/ sub-directory (bounds, flowLayout, gridLayout, hierarchicalLayout); extracted nodeLabelLayout.ts from NodeRenderer; added IFocusRegionService interface + DiagramFocusRegionService class to focusRegion.ts; added optional IIconLoader injection to DiagramRenderer; added constants.ts for shared compile/render constants. Public API at index.ts unchanged. Updated Module Source Structure, Design Rules, and Testing Philosophy sections."
 ---
 
 # BrewSite Diagram — Architecture Reference
@@ -87,16 +90,35 @@ packages/diagram/src/
     │   ├── types.ts
     │   ├── dsl.tsx
     │   ├── compile.ts
-    │   ├── render.ts
+    │   ├── render.ts      ← DiagramRenderer; accepts optional IIconLoader injection
     │   ├── widget.ts
-    │   ├── focusRegion.ts
+    │   ├── constants.ts   ← shared compile/render constants (GROUP_BORDER_PX_TO_UNITS, GROUP_RENDER_Z)
+    │   ├── focusRegion.ts ← IFocusRegionService interface + DiagramFocusRegionService class; module-level wrappers preserved for backwards compat
     │   ├── useDiagramFocusRegion.ts
     │   ├── index.ts
-    │   ├── compiler/      ← pure sub-compilers (layout, edge routing, theme, group bounds)
-    │   │   ├── diagramLayoutConstants.ts  ← canonical layout constants (DEFAULT_NODE_SIZE, DEFAULT_GROUP_PADDING, DEFAULT_TITLE_GAP)
-    │   │   └── diagramRenderConstants.ts  ← canonical render constants (GROUP_BORDER_PX_TO_UNITS, GROUP_RENDER_Z)
+    │   ├── compiler/      ← pure sub-compilers; all files are Three.js-free and React-free
+    │   │   ├── defaultsCompiler.ts       ← NodeDefaults, EdgeDefaults, GroupDefaults; buildNodeDefaults/buildEdgeDefaults/buildGroupDefaults
+    │   │   ├── diagramLayoutConstants.ts ← canonical layout constants (DEFAULT_NODE_SIZE, DEFAULT_GROUP_PADDING, DEFAULT_TITLE_GAP)
+    │   │   ├── diagramRenderConstants.ts ← legacy render constants; prefer constants.ts for new imports
+    │   │   ├── ghostNodeMerge.ts         ← pure ghost node inheritance logic extracted from widget.ts
+    │   │   ├── groupCompiler.ts
+    │   │   ├── hoverStateMachine.ts      ← pure hover event computation extracted from widget.ts
+    │   │   ├── layoutAlgorithms.ts       ← 120-line orchestrator; algorithm implementations live in layout/
+    │   │   ├── layoutResolver.ts
+    │   │   ├── nodeCompiler.ts
+    │   │   ├── normalizeToViewport.ts    ← pure coordinate transformation (diagram units → NVS); directly unit-testable
+    │   │   ├── transitionHelpers.ts
+    │   │   ├── themeResolver.ts
+    │   │   ├── edgeRouter.ts
+    │   │   └── layout/                  ← extracted layout algorithm modules
+    │   │       ├── bounds.ts             ← computeBounds()
+    │   │       ├── flowLayout.ts         ← resolveFlowLayout()
+    │   │       ├── gridLayout.ts         ← resolveGridLayout()
+    │   │       ├── hierarchicalLayout.ts ← resolveHierarchicalLayout()
+    │   │       └── index.ts              ← barrel re-exports (not layoutAlgorithms to avoid circular dep)
     │   ├── math/          ← color utilities (pure functions)
     │   ├── rendering/     ← Three.js renderers (NodeRenderer, EdgeRenderer, GroupRenderer, ...)
+    │   │   └── nodeLabelLayout.ts        ← pure label position arithmetic extracted from NodeRenderer; NodeLabelLayout type
     │   ├── shapes/        ← geometry factory, icon registry, shape variants
     │   └── themes/        ← theme presets (darkGlass, enterprise, neonCyber, lightMinimal)
     ├── image-panel/       ← ImagePanel element (3D image frame with bezel and glow)
@@ -104,7 +126,7 @@ packages/diagram/src/
     └── _shared/           ← bezelGeometry, glowSprite (shared Three.js geometry)
 ```
 
-**Deleted files (dead code removal):**
+**Deleted files (dead code removal, prior overhaul):**
 - `elements/diagram/compiler/groupConstants.ts` — single unused constant; canonical value is in `diagramLayoutConstants.ts`
 - `elements/diagram/rendering/TextRenderer.ts` — two-line re-export with no logic; `NodeRenderer` and `GroupRenderer` import directly from `@brewsite/core`
 
@@ -276,7 +298,10 @@ The following rules are non-negotiable for all code in this package:
 ## Testing Philosophy
 
 - All `compile.ts` functions are pure and are tested with real DSL input → asserted real output. Tests live in `__tests__/` directories co-located with source.
-- `render.ts` and `rendering/` files are excluded from coverage instrumentation. They require WebGL and are validated via manual integration testing.
+- The extracted pure-function modules (`defaultsCompiler.ts`, `ghostNodeMerge.ts`, `hoverStateMachine.ts`, `normalizeToViewport.ts`, `rendering/nodeLabelLayout.ts`, `compiler/layout/bounds.ts`, `compiler/layout/flowLayout.ts`, `compiler/layout/gridLayout.ts`, `compiler/layout/hierarchicalLayout.ts`) each have co-located `__tests__/` suites with real inputs and asserted real outputs. No mocking required.
+- `render.ts` and `rendering/` files (except `nodeLabelLayout.ts`) are excluded from coverage instrumentation. They require WebGL and are validated via manual integration testing.
+- `focusRegion.ts` is tested via `DiagramFocusRegionService` instances — each test constructs a fresh service instance to avoid singleton bleed between tests.
+- `DiagramRenderer` accepts an optional `IIconLoader` injection. Tests that exercise the renderer path pass a stub `IIconLoader` implementation rather than relying on global state or network icon loading.
 - Widget integration is tested using `RuntimeDriverImpl` with interface-conforming doubles from `packages/core/src/runtime/mocks/`.
 - The `registerDiagramHandlers` function is called in test files that clear the registry, ensuring handler registration is always re-applied before test cases run.
 

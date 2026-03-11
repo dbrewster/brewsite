@@ -183,7 +183,7 @@ export function buildFlowPathState(input: FlowPathBuildInput): DiagramEdgePathSt
 
     const isTerminalCorner = i === 1 || i === rawPoints.length - 2;
     const radiusCap = isTerminalCorner
-      ? Math.min(incomingLength * 0.42, outgoingLength * 0.42)
+      ? 0
       : Math.min(incomingLength * 0.5, outgoingLength * 0.5);
     const radius = Math.min(input.turnRadius, radiusCap);
     if (
