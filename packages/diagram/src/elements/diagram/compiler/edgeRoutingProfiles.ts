@@ -292,7 +292,8 @@ function buildFlowObstacleModelForEdge(
   const model = buildFlowObstacleModel({
     positions,
     sizes,
-    groupIds: obstacleGroupIds,
+    groupIds: context.groupIds,
+    obstacleGroupIds,
     sourceId: fromId,
     destinationId: toId,
     sourceAnchor: candidate.sourceAnchor,
@@ -359,15 +360,33 @@ function buildFlowRouteWithModel(
   });
 }
 
+function serializeFlowObstacleModel(
+  obstacleModel: FlowObstacleModel,
+): NonNullable<NormalizedRouteGeometry['debug']> {
+  return {
+    obstacles: obstacleModel.obstacles.map((obstacle) => ({
+      id: obstacle.id,
+      kind: obstacle.kind,
+      hard: obstacle.hard,
+      softOwnerKind: obstacle.softOwnerKind,
+      rawRect: obstacle.rawRect,
+      expandedRect: obstacle.expandedRect,
+      allowedCorridors: obstacle.allowedCorridors,
+    })),
+    sourceOwningGroupIds: [...obstacleModel.sourceOwningGroupIds].sort(),
+    destinationOwningGroupIds: [...obstacleModel.destinationOwningGroupIds].sort(),
+  };
+}
+
 function computeDestinationGroupIngressPenalty(
   candidate: EdgeGuidedCandidate,
   context: RoutingProfileContext,
   obstacleModel: FlowObstacleModel,
-): number {
-  if (!context.groupIds.has(context.toId)) return 0;
+): NonNullable<NormalizedRouteGeometry['debug']>['destinationGroupIngress'] {
+  if (!context.groupIds.has(context.toId)) return undefined;
   const fromNode = context.nodeMap.get(context.fromId);
   const toNode = context.nodeMap.get(context.toId);
-  if (!fromNode || !toNode) return 0;
+  if (!fromNode || !toNode) return undefined;
 
   const sourceAbove = fromNode.position[1] >= toNode.position[1];
   const preferredVerticalFace: FaceId = sourceAbove ? 'top' : 'bottom';
@@ -402,24 +421,39 @@ function computeDestinationGroupIngressPenalty(
 
   const dstIsSide = candidate.dstFace === 'left' || candidate.dstFace === 'right';
   const dstIsVertical = candidate.dstFace === 'top' || candidate.dstFace === 'bottom';
+  const destinationLateralClass = candidate.destinationLateralClass ?? 'center';
+  const lateralOffset = Math.abs(fromNode.position[0] - toNode.position[0]);
+  const verticalOffset = Math.abs(fromNode.position[1] - toNode.position[1]);
   let penalty = 0;
 
   if (!corridorBlocked && dstIsSide) {
     penalty += 3.5;
   }
-  if (corridorBlocked && candidate.dstFace === preferredVerticalFace) {
-    penalty += 2.5;
-  }
 
-  const lateralOffset = Math.abs(fromNode.position[0] - toNode.position[0]);
   if (dstIsVertical && lateralOffset > toNode.size[0] * 0.35) {
-    const destinationLateralClass = candidate.destinationLateralClass ?? 'center';
     if (destinationLateralClass === 'center' || destinationLateralClass === 'inner') {
-      penalty += corridorBlocked ? 0.5 : 2;
+      penalty += corridorBlocked ? 0 : 2;
     }
   }
 
-  return penalty;
+  if (
+    corridorBlocked &&
+    dstIsVertical &&
+    lateralOffset >= toNode.size[0] * 0.75 &&
+    verticalOffset >= Math.max(toNode.size[1] * 1.35, fromNode.size[1] * 2.2)
+  ) {
+    // A blocked, wide top ingress should lose early to a clean side entry.
+    penalty += 1;
+  }
+
+  return {
+    penalty,
+    corridorBlocked,
+    preferredVerticalFace,
+    destinationLateralClass,
+    lateralOffset,
+    sourceAbove,
+  };
 }
 
 function fallbackEdgeRoute(candidate: EdgeGuidedCandidate): EdgeRouteState {
@@ -440,9 +474,10 @@ const flowProfile: RoutingProfile = {
       return toNormalizedGeometry(pts, 'direct');
     }
     const result = buildFlowRouteWithModel(candidate, context, obstacleModel);
+    const destinationGroupIngress = computeDestinationGroupIngressPenalty(candidate, context, obstacleModel);
     const groupIngressPenalty =
       result.groupIngressPenalty +
-      computeDestinationGroupIngressPenalty(candidate, context, obstacleModel);
+      (destinationGroupIngress?.penalty ?? 0);
     return {
       waypoints: result.planningWaypoints,
       bendCount: computeBendCount(result.planningWaypoints),
@@ -454,6 +489,12 @@ const flowProfile: RoutingProfile = {
       orthogonalDeviationPenalty: result.orthogonalDeviationPenalty,
       groupIngressPenalty,
       usedUnderpass: result.path.usedUnderpass,
+      debug: process.env.NODE_ENV !== 'production'
+        ? {
+          ...serializeFlowObstacleModel(obstacleModel),
+          destinationGroupIngress,
+        }
+        : undefined,
     };
   },
 

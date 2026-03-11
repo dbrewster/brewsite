@@ -11,22 +11,16 @@ import { AreaRenderer } from '../../renderers/area/AreaRenderer';
 import { PieRenderer } from '../../renderers/pie/PieRenderer';
 import { ScatterRenderer } from '../../renderers/scatter/ScatterRenderer';
 import { HeatmapRenderer } from '../../renderers/heatmap/HeatmapRenderer';
-import type { IChartRenderer, ChartHitInfo } from '../../renderers/shared/IChartRenderer';
+import type { IChartRenderer, ChartHitInfo, MorphContext } from '../../renderers/shared/IChartRenderer';
 import type { ChartDataStore } from '../../data/ChartDataStore';
 import type { ResolvedDataFrame } from '../../data/types';
-import type { ChartState, ChartType } from './types';
+import type { ChartState, ChartType, ChartStateDataSource, ChartRenderInput } from './types';
 import type { ChartTheme, ChartThemeName } from '../../themes/types';
 import { computeChartLayout } from './layout';
+import type { ChartLayout } from './layout';
 
-/**
- * World-space render input for ChartRenderer.
- * Produced by ChartWidget.apply() by converting NVS position fields to world-space.
- * Never exported — internal to the chart element.
- */
-export type ChartRenderInput = Omit<ChartState, 'nvsX' | 'nvsY' | 'z'> & {
-  /** World-space position of the chart center [x, y, z]. */
-  readonly position: readonly [number, number, number];
-};
+// ChartRenderInput is now defined in ./types and imported above.
+// It was moved there in V2.1 so ChartWidget.ts and render.ts share a single source.
 
 const THEME_MAP: Record<ChartThemeName, ChartTheme> = {
   darkGlass: darkGlassChartTheme,
@@ -38,6 +32,9 @@ const THEME_MAP: Record<ChartThemeName, ChartTheme> = {
 /**
  * Manages the Three.js scene subtree for a single chart widget.
  * Delegates rendering to the appropriate IChartRenderer for the active chart type.
+ *
+ * Sole construction site for MorphContext — ChartWidget.apply() does NOT build it.
+ * lastFromData stores the previous frame's resolved data for datum-level morphing.
  */
 export class ChartRenderer {
   private readonly chartGroup = new THREE.Group();
@@ -47,6 +44,10 @@ export class ChartRenderer {
   private activeRenderer: IChartRenderer | null = null;
   private lastType: ChartType | null = null;
   private lastData: ResolvedDataFrame = { rows: [], fields: [] };
+  /** Previous frame's resolved data — used to build MorphContext for datum morphing. */
+  private lastFromData: ResolvedDataFrame | null = null;
+  /** Cached layout from last update() call — reused by updateHeatmapSlice(). */
+  private lastLayout: ChartLayout | null = null;
 
   constructor(private readonly store: ChartDataStore) {
     this.chartGroup.add(this.seriesGroup, this.axesGroup, this.legendGroup);
@@ -71,28 +72,35 @@ export class ChartRenderer {
 
     if (!this.activeRenderer) return;
 
-    // Resolve data from store
-    const data = this.store.resolve(state.dataSource, state.transforms);
-    if (state.dataSource.length > 0 && data.rows.length === 0) {
-      console.warn(`[ChartRenderer] No data for source "${state.dataSource}" in widget "${widgetId}" — chart will be empty`);
+    // Resolve data from store via discriminated source type
+    const data = this.resolveData(state.dataSource, state.transforms, widgetId);
+    if (data.rows.length === 0) {
+      const name = this.resolveSourceName(state.dataSource, widgetId);
+      if (name.length > 0) {
+        console.warn(`[ChartRenderer] No data for source "${name}" in widget "${widgetId}" — chart will be empty`);
+      }
     }
+
+    // Build MorphContext — sole construction site (Q3 resolution).
+    // lastFromData holds the PREVIOUS frame's resolved data. During a transition,
+    // the first frame where _morphT is set correctly morphs from-scene to to-scene.
+    let morphCtx: MorphContext | undefined;
+    if (state._morphT !== undefined && state.dataSource.keyField && this.lastFromData) {
+      morphCtx = {
+        fromData: this.lastFromData,
+        // toData intentionally absent — renderers use ctx.data for the to-state (Challenge 11)
+        t: state._morphT,
+        keyField: state.dataSource.keyField,
+      };
+    }
+    // Update lastFromData AFTER building morphCtx so next frame can use this frame's data
+    this.lastFromData = data;
     this.lastData = data;
 
-    const theme: ChartTheme =
+    const effectiveTheme: ChartTheme =
       typeof state.theme === 'string'
         ? (THEME_MAP[state.theme as ChartThemeName] ?? darkGlassChartTheme)
         : state.theme;
-    const effectiveTheme: ChartTheme = {
-      ...theme,
-      axis: {
-        ...theme.axis,
-        gap: state.axisGap ?? theme.axis.gap,
-      },
-      legend: {
-        ...theme.legend,
-        gap: state.legendGap ?? theme.legend.gap,
-      },
-    };
 
     // Resolve sceneTheme: state.sceneTheme (DSL prop) takes precedence over theme.sceneTheme
     const resolvedSceneTheme = state.sceneTheme ?? effectiveTheme.sceneTheme;
@@ -102,13 +110,14 @@ export class ChartRenderer {
 
     const layout = computeChartLayout({
       bounds: state.bounds,
-      type: state.type,
+      typeConfig: state.typeConfig,
       theme: effectiveTheme,
       xAxis: state.xAxis,
       yAxis: state.yAxis,
       series: state.series,
       legend: state.legend,
     });
+    this.lastLayout = layout;
 
     this.seriesGroup.position.set(layout.plotFrame.x, layout.plotFrame.y, 0);
     this.axesGroup.position.set(layout.plotFrame.x, layout.plotFrame.y, 0);
@@ -123,6 +132,8 @@ export class ChartRenderer {
       xAxis: state.xAxis,
       yAxis: state.yAxis,
       series: state.series,
+      referenceLines: state.referenceLines,
+      legend: state.legend,
       bounds: {
         width: layout.plotFrame.width,
         height: layout.plotFrame.height,
@@ -130,12 +141,14 @@ export class ChartRenderer {
       },
       theme: effectiveTheme,
       opacity: state.opacity,
-      lineShape: state.lineShape,
-      lineSmoothness: state.lineSmoothness,
-      lineSubdivisions: state.lineSubdivisions,
-      innerRadius: state.innerRadius ?? 0,
-      pieTilt: state.pieTilt ?? effectiveTheme.pie.tilt,
+      typeOptions: state.typeConfig,
+      dataLabels: state.dataLabels ?? null,
+      gridlines: state.gridlines ?? null,
       fontUrl,
+      morphCtx,
+      entryT: state.entryT,             // V2.1 — pass through from ChartWidget.apply()
+      accessors: state.accessors,        // V2.1 — pass through from ChartWidget.apply()
+      fittedMargins: layout.fittedMargins, // V2.1 — for axis title positioning in AxesRenderer
     });
 
     // Update legend group visibility/position based on state
@@ -147,6 +160,54 @@ export class ChartRenderer {
     } else {
       this.legendGroup.visible = false;
     }
+  }
+
+  /**
+   * Updates a heatmap chart to display a specific time slice.
+   * Called by ChartWidget.onTick() for scroll-driven heatmap animation.
+   * Skips layout recomputation — uses the layout cached from the last update() call.
+   */
+  updateHeatmapSlice(sliceIndex: number, state: ChartRenderInput, widgetId: string): void {
+    if (!this.activeRenderer || state.typeConfig.kind !== 'heatmap') return;
+    const opts = state.typeConfig.options;
+    if (!opts.timeField || !this.lastLayout) return;
+
+    const sourceName = this.resolveSourceName(state.dataSource, widgetId);
+    const data = this.store.getTimeSlice(sourceName, opts.timeField, sliceIndex);
+
+    const effectiveTheme: ChartTheme =
+      typeof state.theme === 'string'
+        ? (THEME_MAP[state.theme as ChartThemeName] ?? darkGlassChartTheme)
+        : state.theme;
+
+    const resolvedSceneTheme = state.sceneTheme ?? effectiveTheme.sceneTheme;
+    const fontUrl = resolvedSceneTheme?.font.webglFontUrl;
+
+    const layout = this.lastLayout;
+
+    this.activeRenderer.update({
+      seriesGroup: this.seriesGroup,
+      axesGroup: this.axesGroup,
+      legendGroup: this.legendGroup,
+      chartPosition: state.position,
+      data,
+      xAxis: state.xAxis,
+      yAxis: state.yAxis,
+      series: state.series,
+      referenceLines: state.referenceLines,
+      legend: state.legend,
+      bounds: {
+        width: layout.plotFrame.width,
+        height: layout.plotFrame.height,
+        depth: state.bounds.depth,
+      },
+      theme: effectiveTheme,
+      opacity: state.opacity,
+      typeOptions: state.typeConfig,
+      dataLabels: state.dataLabels ?? null,
+      gridlines: state.gridlines ?? null,
+      fontUrl,
+    });
   }
 
   getInteractiveObjects(): THREE.Object3D[] {
@@ -163,6 +224,33 @@ export class ChartRenderer {
     this.activeRenderer = null;
     this.clearGroups();
     scene.remove(this.chartGroup);
+  }
+
+  /**
+   * Resolves a ChartStateDataSource to the store key name used for data lookup.
+   * - inline sources register under `__inline__${widgetId}`
+   * - named sources use the configured name directly
+   * - async sources register under `__async__${widgetId}` once loaded
+   */
+  private resolveSourceName(dataSource: ChartStateDataSource, widgetId: string): string {
+    switch (dataSource.type) {
+      case 'inline': return `__inline__${widgetId}`;
+      case 'named':  return dataSource.name;
+      case 'async':  return `__async__${widgetId}`;
+    }
+  }
+
+  /**
+   * Resolves data for the given source, applying transforms.
+   * Routes to the correct store key based on the source discriminant.
+   */
+  private resolveData(
+    dataSource: ChartStateDataSource,
+    transforms: readonly import('../../data/types').DataTransform[],
+    widgetId: string,
+  ): ResolvedDataFrame {
+    const name = this.resolveSourceName(dataSource, widgetId);
+    return this.store.resolve(name, transforms);
   }
 
   private createRenderer(type: ChartType): IChartRenderer {

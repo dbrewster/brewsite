@@ -110,4 +110,39 @@ describe('buildFlowObstacleModel', () => {
       hard: false,
     });
   });
+
+  it('keeps a non-container destination group as an obstacle and only opens its ingress corridor', () => {
+    const positions = new Map<string, readonly [number, number, number]>([
+      ['src', [0, 0, 0]],
+      ['target-group', [8, 0, 0]],
+    ]);
+    const sizes = new Map<string, readonly [number, number, number]>([
+      ['src', [2, 2, 1]],
+      ['target-group', [6, 6, 0.01]],
+    ]);
+
+    const model = buildFlowObstacleModel({
+      positions,
+      sizes,
+      groupIds: new Set(['target-group']),
+      obstacleGroupIds: new Set(['target-group']),
+      sourceId: 'src',
+      destinationId: 'target-group',
+      sourceAnchor: [1, 0, 0],
+      destinationAnchor: [5, 0, 0],
+      sourceFace: 'right',
+      destinationFace: 'left',
+      routeStart: [2, 0, 0],
+      routeEnd: [4, 0, 0],
+      obstaclePadding: 0.25,
+    });
+
+    expect(model.destinationOwningGroupIds.has('target-group')).toBe(true);
+    expect(model.obstacles.find((obstacle) => obstacle.id === 'target-group')).toMatchObject({
+      kind: 'group',
+      hard: false,
+      softOwnerKind: 'destination-group',
+    });
+    expect(model.obstacles.find((obstacle) => obstacle.id === 'target-group')?.allowedCorridors).toHaveLength(1);
+  });
 });

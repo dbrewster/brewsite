@@ -88,9 +88,16 @@ export function routeFlowEdge(input: RouteFlowEdgeInput): FlowRouteResult {
   const startTangent = getFaceNormal(input.srcFace);
   const endTangent = scaleVec(getFaceNormal(input.dstFace), -1);
   const sourceStub = addVec(sourceAnchor, scaleVec(startTangent, input.flowFaceStub));
-  const destinationStub = addVec(destinationAnchor, scaleVec(scaleVec(endTangent, -1), input.flowFaceStub));
+  const defaultDestinationStub = addVec(destinationAnchor, scaleVec(scaleVec(endTangent, -1), input.flowFaceStub));
   const routeStart = input.routeStart ?? input.sourceGuide ?? sourceStub;
-  const routeEnd = input.routeEnd ?? input.destinationGuide ?? destinationStub;
+  const routeEnd = input.routeEnd ?? input.destinationGuide ?? defaultDestinationStub;
+  // For bundled side-face approaches, routeEnd may have been adjusted in buildCandidateGuides
+  // to prevent control-point crossings. Use that adjusted point as destinationStub so rawPoints
+  // (in buildFlowPathState) matches the visibility router's target.
+  const isBundledSideFaceApproach =
+    input.sourceGuide !== undefined &&
+    (input.dstFace === 'left' || input.dstFace === 'right');
+  const destinationStub = isBundledSideFaceApproach ? routeEnd : defaultDestinationStub;
 
   const obstacleModel = input.obstacleModel ?? buildFlowObstacleModel({
     positions: input.positions,

@@ -12,6 +12,11 @@ import type {
   ChartLineTokens,
   ChartPieTokens,
   ChartInteractionTokens,
+  ChartBarTokens,
+  ChartAreaTokens,
+  ChartGridlinesTokens,
+  ChartDataLabelsTokens,
+  ChartReferenceLineTokens,
 } from './types';
 
 const PRESET_MAP: Record<ChartThemeName, ChartTheme> = {
@@ -21,17 +26,36 @@ const PRESET_MAP: Record<ChartThemeName, ChartTheme> = {
   lightMinimal: lightMinimalChartTheme,
 };
 
+/**
+ * Merges a partial override on top of an optional base token group.
+ * Returns undefined when both inputs are undefined (no group configured).
+ * The base is expected to supply all required fields; the override replaces only specified fields.
+ */
+function mergeOptional<T extends object>(
+  base: T | undefined,
+  override: Partial<T> | undefined,
+): T | undefined {
+  if (override === undefined) return base;
+  // Spread is safe: base provides required fields, override supplies only optional replacements.
+  return { ...base, ...override } as T;
+}
+
 /** Deep-partial type for ChartTheme overrides. */
-export type ChartThemeOverrides = {
-  readonly name?: string;
-  readonly series?: ReadonlyArray<Partial<ChartSeriesMaterialTokens>>;
-  readonly axis?: Partial<ChartAxisTokens>;
-  readonly background?: Partial<ChartBackgroundTokens>;
-  readonly legend?: Partial<ChartLegendTokens>;
-  readonly line?: Partial<ChartLineTokens>;
-  readonly pie?: Partial<ChartPieTokens>;
-  readonly interaction?: Partial<ChartInteractionTokens>;
-};
+export type ChartThemeOverrides = Partial<{
+  readonly name: string;
+  readonly series: ReadonlyArray<Partial<ChartSeriesMaterialTokens>>;
+  readonly axis: Partial<ChartAxisTokens>;
+  readonly background: Partial<ChartBackgroundTokens>;
+  readonly legend: Partial<ChartLegendTokens>;
+  readonly line: Partial<ChartLineTokens>;
+  readonly pie: Partial<ChartPieTokens>;
+  readonly interaction: Partial<ChartInteractionTokens>;
+  readonly bar: Partial<ChartBarTokens>;
+  readonly area: Partial<ChartAreaTokens>;
+  readonly gridlines: Partial<ChartGridlinesTokens>;
+  readonly dataLabels: Partial<ChartDataLabelsTokens>;
+  readonly referenceLines: Partial<ChartReferenceLineTokens>;
+}>;
 
 /**
  * Creates a ChartTheme by merging overrides on top of a base preset.
@@ -87,5 +111,10 @@ export function createChartTheme(
     interaction: overrides.interaction
       ? { ...baseTheme.interaction, ...overrides.interaction }
       : baseTheme.interaction,
+    bar: mergeOptional(baseTheme.bar, overrides.bar),
+    area: mergeOptional(baseTheme.area, overrides.area),
+    gridlines: mergeOptional(baseTheme.gridlines, overrides.gridlines),
+    dataLabels: mergeOptional(baseTheme.dataLabels, overrides.dataLabels),
+    referenceLines: mergeOptional(baseTheme.referenceLines, overrides.referenceLines),
   };
 }

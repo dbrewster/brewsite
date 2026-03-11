@@ -3,7 +3,7 @@ title: Charts Package Overhaul — Implementation Plan
 doc_type: plan
 owner: brewsite-architect
 status: draft
-updated: 2026-03-10
+updated: 2026-03-11
 ---
 
 # Charts Package Overhaul — Implementation Plan
@@ -25,17 +25,19 @@ This plan covers the complete V2 overhaul of `@brewsite/charts`. It is derived f
 ```typescript
 export type MorphContext = {
   readonly fromData: ResolvedDataFrame;  // data from the "from" scene
-  readonly toData: ResolvedDataFrame;    // data from the "to" scene (same as ctx.data)
+  // NOTE: toData is intentionally absent — renderers use ctx.data for the to-state.
+  // ctx.data IS the to-state data. Having toData would be redundant dead weight.
   readonly t: number;                    // interpolation progress [0, 1]
   readonly keyField: string;             // field name used to match datums
 };
 ```
 
-- `morphCtx` is injected by `ChartRenderer.update()` when both the from-state and to-state have the same `keyField` set in their `dataSource`.
+- `morphCtx` is built and injected **solely inside `ChartRenderer.update()`** using a `private lastFromData: ResolvedDataFrame | null` field. `ChartWidget.apply()` does NOT build `morphCtx` — that was a plan error corrected here.
+- Renderers that implement morphing use `morphCtx.fromData` for the from-state and `ctx.data` for the to-state.
 - `IChartRenderer.update(ctx)` signature is **unchanged** — the new field is additive on `ChartRenderContext`.
 - Renderers that don't implement morphing safely ignore `morphCtx` — they render `ctx.data` as before.
 - **V2 scope:** Only `BarRenderer` and `ScatterRenderer` implement morphing. All others ignore `morphCtx`.
-- `interpolateFn` in `compile.ts` populates a new `_morphT?: number` field on the interpolated `ChartState`. `ChartRenderer` reads this to construct `MorphContext` during transition ticks.
+- `interpolateFn` in `compile.ts` populates a `_morphT?: number` field on the interpolated `ChartState`. `ChartRenderer.update()` reads this to construct `MorphContext` during transition ticks.
 
 ### Q7 — AreaRenderer SmartRebuild with stackMode
 
@@ -74,20 +76,13 @@ export type DataLabelEntry = {
 
 ### 3.1 `packages/charts/src/elements/chart/types.ts` — Full V2 Definition
 
+**Challenge 6 fix:** `DataRow`, `ColumnarData`, `DataInput` are defined ONCE in `data/types.ts` (§3.3). `types.ts` imports and re-exports them from there — no duplicate definitions.
+
 #### Data Source Types (new)
 
 ```typescript
-/** A single data row — flat column-value pairs. Fully JSON-serializable. */
-export type DataRow = Readonly<Record<string, unknown>>;
-
-/**
- * Columnar data format: { month: ['Jan','Feb'], revenue: [128, 145] }.
- * Transposed to DataRow[] by normalizeDataInput() before storage.
- */
-export type ColumnarData = Readonly<Record<string, ReadonlyArray<unknown>>>;
-
-/** Accepted DSL data input formats. Normalized before entering ChartState. */
-export type DataInput = ReadonlyArray<DataRow> | ColumnarData;
+// DataRow, ColumnarData, DataInput are imported from '../../data/types' — not defined here.
+export type { DataRow, ColumnarData, DataInput } from '../../data/types';
 
 /** Inline static rows — stored directly in ChartState. SceneTrack-safe. */
 export type InlineDataSource = {
@@ -323,6 +318,28 @@ export const DEFAULT_CHART_STATE: ChartState = {
 };
 ```
 
+#### V1 Deprecated Type (kept for backward compat)
+
+```typescript
+/**
+ * V1 generic chart DSL props — kept for the deprecated <Chart type="..."> component.
+ * @deprecated Use BarChartDSL, LineChartDSL, etc.
+ */
+export type ChartDSL = BaseChartDSL & {
+  readonly type?: ChartType;
+  // V1 flat per-type props — accepted by the deprecated <Chart> and mapped to typeConfig
+  readonly lineShape?: ChartLineShape;
+  readonly lineSmoothness?: number;
+  readonly lineSubdivisions?: number;
+  readonly innerRadius?: number;
+  readonly pieTilt?: number;
+  readonly timeField?: string;
+  readonly axisGap?: number;
+  readonly legendGap?: number;
+  readonly dataSource?: string; // V1 flat source name
+};
+```
+
 #### DSL Prop Types (new/updated — live in `dsl.tsx`)
 
 ```typescript
@@ -473,7 +490,7 @@ export type ChartHitInfo = {
  */
 export type MorphContext = {
   readonly fromData: ResolvedDataFrame;
-  readonly toData: ResolvedDataFrame;
+  // toData intentionally omitted — renderers use ctx.data for the to-state (Challenge 11)
   readonly t: number;
   readonly keyField: string;
 };
@@ -493,19 +510,29 @@ export type DataLabelEntry = {
 /**
  * V2 render context — passed to every IChartRenderer.update() call.
  * Breaking changes from V1: typeOptions replaces flat lineShape/pieTilt/etc.,
- * morphCtx added (optional), dataLabels added, referenceLines added, gridlines added.
+ * morphCtx added (optional), dataLabels added, referenceLines added, gridlines added,
+ * legend added.
+ *
+ * Challenge 1+2 fix: `legend` is defined here in Phase 0-B so Stream 4 (LegendRenderer)
+ * does NOT need to modify IChartRenderer.ts. All fields are final after Phase 0-B.
  */
 export type ChartRenderContext = {
   readonly seriesGroup: THREE.Group;
   readonly axesGroup: THREE.Group;
   readonly legendGroup: THREE.Group;
   readonly chartPosition?: readonly [number, number, number];
-  /** Current/to-state data. Used for rendering. Also in morphCtx.toData when morphing. */
+  /**
+   * Current/to-state data. Renderers use this for all normal rendering.
+   * When morphCtx is present, this IS the to-state data — morphCtx.fromData
+   * holds the from-state. No separate toData field on MorphContext (Challenge 11).
+   */
   readonly data: ResolvedDataFrame;
   readonly xAxis: ChartAxisState | null;
   readonly yAxis: ChartAxisState | null;
   readonly series: readonly ChartSeriesState[];
   readonly referenceLines?: ReadonlyArray<ReferenceLineState>;
+  /** V2: Legend state — used by LegendRenderer.update() for title, columns, maxItems. */
+  readonly legend: ChartLegendState | null;
   readonly bounds: { readonly width: number; readonly height: number; readonly depth: number };
   readonly theme: ChartTheme;
   readonly opacity: number;
@@ -518,7 +545,9 @@ export type ChartRenderContext = {
   readonly fontUrl?: string;
   /**
    * Q3 Resolution: Present only during keyField-based datum-morphing transitions.
+   * Built solely inside ChartRenderer.update() — NOT in ChartWidget.apply().
    * Renderers that don't implement morphing ignore this field — they render `data` as-is.
+   * Implementing renderers use morphCtx.fromData (from) and ctx.data (to).
    */
   readonly morphCtx?: MorphContext;
 };
@@ -533,30 +562,41 @@ export interface IChartRenderer {
 
 ### 3.3 `packages/charts/src/data/types.ts` — V2 Additions
 
-Add `ColumnarData` and `DataInput` and `normalizeDataInput` function signature:
+**Challenge 6 fix:** `DataRow`, `ColumnarData`, `DataInput` are defined ONCE here (canonical location). `elements/chart/types.ts` imports and re-exports them — no duplicate definitions.
 
 ```typescript
 // ADDED to existing data/types.ts:
 
 /**
+ * A single data row — flat column-value pairs. Fully JSON-serializable.
+ * Canonical definition: imported by elements/chart/types.ts from here.
+ */
+export type DataRow = Readonly<Record<string, unknown>>;
+
+/**
  * Columnar data format: { month: ['Jan','Feb'], revenue: [128, 145] }.
- * Transposed to DataRow[] by normalizeDataInput().
+ * Transposed to DataRow[] by normalizeDataInput() before storage.
+ * Canonical definition: imported by elements/chart/types.ts from here.
  */
 export type ColumnarData = Readonly<Record<string, ReadonlyArray<unknown>>>;
 
-/** Accepted data input formats for inline data prop and ChartProvider. */
-export type DataInput = ReadonlyArray<Record<string, unknown>> | ColumnarData;
+/**
+ * Accepted data input formats for inline data prop and ChartProvider.
+ * Canonical definition: imported by elements/chart/types.ts from here.
+ */
+export type DataInput = ReadonlyArray<DataRow> | ColumnarData;
 
 /**
  * Normalizes DataInput to a flat row array.
  * - If input is an array → returned as-is (cast)
  * - If input is a columnar object → transposed to row array
- * Throws if columnar columns have different lengths.
+ * Throws in dev mode if columnar columns have different lengths.
+ * Implementation lives in data/transforms.ts; re-exported from here for convenience.
  */
 export function normalizeDataInput(input: DataInput): ReadonlyArray<Record<string, unknown>>;
 ```
 
-`normalizeDataInput` is implemented in `data/transforms.ts` and re-exported from `data/types.ts`.
+`normalizeDataInput` is implemented in `data/transforms.ts` and re-exported from `data/types.ts`. The function signature appears in `types.ts` as a type-only re-export; the implementation is in `transforms.ts`.
 
 ---
 
@@ -571,11 +611,13 @@ export function normalizeDataInput(input: DataInput): ReadonlyArray<Record<strin
 **What changes:** Complete replacement of type definitions as specified in §3.1. Remove V1 flat per-type fields. Add all V2 types.
 
 **Exported symbols (all):**
-- Types: `DataRow`, `ColumnarData`, `DataInput`, `InlineDataSource`, `NamedDataSource`, `AsyncDataSource`, `ChartStateDataSource`, `BarChartOptions`, `LineChartOptions`, `ScatterChartOptions`, `PieChartOptions`, `AreaChartOptions`, `HeatMapChartOptions`, `ChartTypeOptions`, `DataLabelsPosition`, `ChartDataLabelsState`, `ReferenceLineState`, `ChartAxisState`, `ChartSeriesState`, `ChartLegendState`, `ChartState`, `ChartType`, `LegendPosition`, `ChartLineShape`
+- Types re-exported from `data/types.ts`: `DataRow`, `ColumnarData`, `DataInput` (no duplicate definitions — Challenge 6)
+- Own types: `InlineDataSource`, `NamedDataSource`, `AsyncDataSource`, `ChartStateDataSource`, `BarChartOptions`, `LineChartOptions`, `ScatterChartOptions`, `PieChartOptions`, `AreaChartOptions`, `HeatMapChartOptions`, `ChartTypeOptions`, `DataLabelsPosition`, `ChartDataLabelsState`, `ReferenceLineState`, `ChartAxisState`, `ChartSeriesState`, `ChartLegendState`, `ChartState`, `ChartType`, `LegendPosition`, `ChartLineShape`
 - DSL types: `BaseChartDSL`, `BarChartDSL`, `LineChartDSL`, `ScatterPlotChartDSL`, `PieChartDSL`, `AreaChartDSL`, `HeatMapChartDSL`, `ChartDataDSL`, `ChartAxisDSL`, `ChartSeriesDSL`, `ChartLegendDSL`, `ChartDataLabelsDSL`, `ReferenceLineDSL`
+- Deprecated: `ChartDSL` (`@deprecated` — V1 generic flat type, kept for `<Chart>` backward compat — Challenge 12)
 - Values: `DEFAULT_CHART_STATE`
 
-**Imports:** `@brewsite/core` (SceneTheme, NVSRect), `../../data/types` (DataTransform, FilterGroupId), `../../themes/types` (ChartThemeName, ChartTheme)
+**Imports:** `@brewsite/core` (SceneTheme, NVSRect), `../../data/types` (DataTransform, FilterGroupId, DataRow, ColumnarData, DataInput), `../../themes/types` (ChartThemeName, ChartTheme)
 
 **Dependencies in:** `dsl.tsx`, `compile.ts`, `render.ts`, `ChartWidget.ts`, `layout.ts`, `IChartRenderer.ts`, `chartPlugin.ts`, `handlers.ts`, tests
 
@@ -585,9 +627,11 @@ export function normalizeDataInput(input: DataInput): ReadonlyArray<Record<strin
 
 #### `packages/charts/src/renderers/shared/IChartRenderer.ts` — MODIFY
 
-**What changes:** Per §3.2 — add `MorphContext`, `DataLabelAlignment`, `DataLabelEntry`; update `ChartRenderContext` to replace flat type-specific fields with `typeOptions: ChartTypeOptions`; add `dataLabels`, `gridlines`, `morphCtx`, `referenceLines`.
+**What changes:** Per §3.2 — add `MorphContext`, `DataLabelAlignment`, `DataLabelEntry`; update `ChartRenderContext` to replace flat type-specific fields with `typeOptions: ChartTypeOptions`; add `dataLabels`, `gridlines`, `morphCtx`, `referenceLines`, `legend`.
 
 **Exported symbols:** `ChartHitInfo`, `ChartAxisState` (re-export), `ChartSeriesState` (re-export), `MorphContext`, `DataLabelAlignment`, `DataLabelEntry`, `ChartRenderContext`, `IChartRenderer`
+
+**Challenge 1+2 fix:** `legend: ChartLegendState | null` is included in `ChartRenderContext` here in Phase 0-B. Stream 4 (LegendRenderer) reads `ctx.legend` from the already-complete type — Stream 4 does NOT modify `IChartRenderer.ts`.
 
 **No logic — types and interface only.**
 
@@ -895,7 +939,7 @@ Add test: cartesian true for bar/line/area/scatter/heatmap, false for pie.
 2. Implement `ILoadable` for async data sources.
 3. Handle inline data registration in `apply()`.
 4. Update `childDslComponents` to include all V2 components.
-5. Update `apply()` to pass `typeOptions`, `dataLabels`, `referenceLines`, `gridlines`, `morphCtx` to `ChartRenderer.update()`.
+5. Update `apply()` to pass `typeOptions`, `dataLabels`, `referenceLines`, `gridlines` to `ChartRenderer.update()`. **`apply()` does NOT build `MorphContext`** — that is done exclusively inside `ChartRenderer.update()` (Challenges 3 & 4 fix).
 6. `onTick()` — use `ctx.blockProgress` for heatmap time animation.
 7. Add `_configureAsync()` method (called by `chartPlugin.reconcileCompiledTrack`).
 
@@ -951,7 +995,8 @@ private asyncUrl: string | null = null;
 private asyncFormat: 'json' | 'csv' = 'json';
 private asyncDataLoaded = false;
 private lastInlineRowsRef: ReadonlyArray<DataRow> | null = null;
-private lastMorphFrom: ChartState | null = null; // the previous state for morphCtx construction
+// NOTE: No lastMorphFrom field. MorphContext is built inside ChartRenderer.update(),
+// not here. ChartWidget.apply() never touches morphCtx. (Challenges 3 & 4 fix)
 ```
 
 **`apply()` logic additions:**
@@ -967,15 +1012,12 @@ private lastMorphFrom: ChartState | null = null; // the previous state for morph
    - 'named' → state.dataSource.name
    - 'async' → `__async__${widgetId}` (or '' if not loaded)
 
-3. Build morphCtx if state._morphT is set and dataSource.keyField is set:
-   if state._morphT !== undefined && dataSource.keyField && lastMorphFrom:
-     const fromData = store.resolve(effectiveFromName, lastMorphFrom.transforms)
-     const toData = store.resolve(effectiveToName, state.transforms)
-     morphCtx = { fromData, toData, t: state._morphT, keyField: dataSource.keyField }
+3. Pass state directly to ChartRenderer.update() — ChartRenderer handles MorphContext
+   construction internally using its own lastFromData field.
 
-4. Pass typeOptions, dataLabels, referenceLines, gridlines, morphCtx to ChartRenderer.update()
-
-5. lastMorphFrom = state (store for next tick)
+4. Pass typeOptions, dataLabels, referenceLines, gridlines to ChartRenderer.update()
+   (via ChartRenderInput which is Omit<ChartState,...> & position).
+   ChartRenderer extracts these from the state and builds ChartRenderContext.
 ```
 
 **`onTick()` for heatmap — use blockProgress:**
@@ -1080,19 +1122,28 @@ private resolveData(dataSource: ChartStateDataSource, transforms: readonly DataT
 }
 ```
 
-**MorphContext construction in `update()`:**
+**MorphContext construction in `update()` — sole construction site (Challenges 3 & 4):**
 ```typescript
-// Build morphCtx if _morphT is present and keyField is set
+// ChartRenderer.update() is the ONLY place MorphContext is built.
+// ChartWidget.apply() does NOT build it — that design was a plan error.
+// The lastFromData: ResolvedDataFrame | null field is stored here, not in ChartWidget.
+// This is correct because:
+//   - lastFromData stores the actual RESOLVED data, not a ChartState reference.
+//   - During transitions, interpolateFn spreads `...to`, so every interpolated
+//     ChartState has to.dataSource. If ChartWidget stored the state for "from",
+//     it would immediately overwrite to to.dataSource, breaking morphing after tick 1.
+//   - Storing resolved ResolvedDataFrame here avoids that bug entirely.
+
 let morphCtx: MorphContext | undefined;
 if (state._morphT !== undefined && state.dataSource.keyField && this.lastFromData) {
   morphCtx = {
     fromData: this.lastFromData,
-    toData: data,
+    // toData intentionally absent — renderers use ctx.data (Challenge 11)
     t: state._morphT,
     keyField: state.dataSource.keyField,
   };
 }
-this.lastFromData = data; // store for next call
+this.lastFromData = data; // store current resolved data for next call
 ```
 
 `private lastFromData: ResolvedDataFrame | null = null;`
@@ -1321,9 +1372,7 @@ update(
 ```
 (Previous signature was `update(series, theme, opacity, fontUrl)` — now also takes `legend` state for title/columns/maxItems.)
 
-All callers in per-type renderers update their `legendRenderer.update()` call to pass the full `legend` state from `ctx` (available in `ChartRenderContext` as `ctx.legend` — wait, currently `legend` is not in `ChartRenderContext`. It needs to be added).
-
-**Add `legend: ChartLegendState | null` to `ChartRenderContext`** (in `IChartRenderer.ts`).
+All callers in per-type renderers update their `legendRenderer.update()` call to pass the full `legend` state from `ctx.legend`. `legend: ChartLegendState | null` is already in `ChartRenderContext` as specified in Phase 0-B (§3.2). **Stream 4 does NOT modify `IChartRenderer.ts`** — the `legend` field was added there in Phase 0-B. (Challenge 1 fix)
 
 ---
 
@@ -1408,13 +1457,23 @@ For each series layer (si) in stacked output:
 ```
 if ctx.morphCtx:
   Build a key→value map from morphCtx.fromData keyed by keyField
-  For each bar datum in toData:
-    fromValue = fromData.get(datum[keyField])?.[series.field] ?? 0
+  For each bar datum in ctx.data (the to-state):
+    fromValue = fromKeyMap.get(datum[keyField])?.[series.field] ?? 0
     toValue = datum[series.field]
     interpolatedValue = lerp(fromValue, toValue, morphCtx.t)
     Use interpolatedValue for bar height
-  If key not found in fromData: bar enters from height=0
-  If key in fromData but not toData: bar exits to height=0
+  If key not found in fromKeyMap: bar enters from height=0
+  If key in fromKeyMap but not in ctx.data: bar exits to height=0
+// NOTE: use ctx.data for the to-state — NOT morphCtx.toData (which doesn't exist).
+```
+
+**Challenge 5 fix — DataLabelsPosition to DataLabelAlignment mapping:**
+```
+When ctx.dataLabels is non-null, compute DataLabelEntry[] and call dataLabelRenderer.update():
+  ctx.dataLabels.position 'top'    → DataLabelEntry.alignment: 'above'
+  ctx.dataLabels.position 'center' → DataLabelEntry.alignment: 'center'
+  ctx.dataLabels.position 'outside'→ DataLabelEntry.alignment: 'outside' (not used by BarRenderer)
+BarRenderer always uses 'above' for bar-top labels regardless of position value.
 ```
 
 **Tick computation:** `BarRenderer` continues to compute X/Y ticks for `AxesRenderer`. Domain override: if `yAxis.domain` is set, use `[domain[0], domain[1]]` instead of `[0, maxY * 1.1]`.
@@ -1428,9 +1487,9 @@ Test cases:
 4. SmartRebuild — stackMode change triggers rebuild (lastStackMode check)
 5. SmartRebuild — orientation change triggers rebuild
 6. Datum morphing: with morphCtx t=0 → from bar heights; t=1 → to bar heights; t=0.5 → midpoint
-7. Datum morphing: new key in toData (not in fromData) → bar enters from height 0
-8. Datum morphing: key in fromData not in toData → bar exits to height 0
-9. DataLabels: if ctx.dataLabels non-null, 1 DataLabelEntry per datum per series
+7. Datum morphing: new key in ctx.data not in morphCtx.fromData → bar enters from height 0
+8. Datum morphing: key in morphCtx.fromData not in ctx.data → bar exits to height 0
+9. DataLabels: if ctx.dataLabels non-null, DataLabelEntry count = rows × series, alignment = 'above'
 
 ---
 
@@ -1453,15 +1512,19 @@ Inspect first non-null value:
 
 **DataLabelRenderer**: scatter doesn't use data labels (no `ChartDataLabels` UI for scatter in V2).
 
-**Test file:** `packages/charts/src/renderers/scatter/__tests__/ScatterRenderer.test.ts` — new or modify existing
+**Test file:** `packages/charts/src/renderers/scatter/__tests__/ScatterRenderer.test.ts` — NEW (Challenge 7: no existing test file)
 
 Test cases:
-1. Basic scatter: instanceCount matches data.rows.length
-2. sizeField encoding: matrix scale for row with large value > scale for row with small value
-3. colorField ordinal: InstancedMesh has distinct colors for distinct string values
-4. colorField numeric: InstancedMesh colors lie on the viridis spectrum
-5. MorphContext: point positions interpolated by keyField at t=0.5
-6. SmartRebuild: sizeField change triggers rebuild
+1. Basic scatter: instanceCount matches `data.rows.length` after `update()`
+2. sizeField encoding: `getMatrixAt()` scale component for largest value > scale for smallest value
+3. colorField ordinal: `getColorAt()` returns distinct colors for distinct string field values
+4. colorField numeric: `getColorAt()` returns colors on the viridis spectrum (first color is dark, last is light)
+5. MorphContext at t=0: point positions match `morphCtx.fromData` positions
+6. MorphContext at t=1: point positions match `ctx.data` positions
+7. MorphContext at t=0.5: point positions are midpoints between fromData and ctx.data
+8. SmartRebuild: `sizeField` change triggers geometry rebuild (instance count reset)
+9. SmartRebuild: `colorField` change triggers geometry rebuild
+10. No sizeField/colorField: all instances have uniform scale and series palette color
 
 ---
 
@@ -1533,13 +1596,20 @@ Test cases:
 1. Read `innerRadius`, `pieTilt`, `explodeSlice` from `ctx.typeOptions.options`
 2. `explodeSlice`: when matching slice is found, translate the slice mesh outward by `0.1 * outerRadius` in the direction of the slice centroid
 3. DataLabels: if `ctx.dataLabels` non-null, compute `DataLabelEntry[]` for slice centroids and call `dataLabelRenderer.update()`
-4. DataLabel position for pie: `alignment: 'outside'` for exploded slice, `'center'` otherwise
+4. **Challenge 5 fix — DataLabelsPosition to DataLabelAlignment mapping for pie:**
+   ```
+   ctx.dataLabels.position 'center'  → DataLabelEntry.alignment: 'center' (mid-slice label)
+   ctx.dataLabels.position 'outside' → DataLabelEntry.alignment: 'outside' (outside slice)
+   ctx.dataLabels.position 'top'     → DataLabelEntry.alignment: 'above' (above pie top — unusual but valid)
+   explodeSlice matching slice       → always DataLabelEntry.alignment: 'outside'
+   ```
 
 **Test file:** `packages/charts/src/renderers/pie/__tests__/PieRenderer.test.ts` — MODIFY
 
 Test cases:
 1. explodeSlice='Core Platform': that slice's mesh.position differs from non-exploded slices
-2. DataLabels: entries count matches slice count; alignment 'center' for non-exploded
+2. DataLabels with position='center': entries count matches slice count; all alignments 'center'
+3. DataLabels with explodeSlice active: exploded slice entry has alignment 'outside'
 
 ---
 
@@ -1554,12 +1624,14 @@ Test cases:
 
 **`updateSlice()` method:** Called by `ChartRenderer.updateHeatmapSlice()` from `ChartWidget.onTick()`. Allows the heatmap to be updated without a full `update()` cycle.
 
-**Test file:** Existing heatmap test — MODIFY
+**Test file:** `packages/charts/src/renderers/heatmap/__tests__/HeatmapRenderer.test.ts` — NEW (Challenge 7: no existing test file in codebase)
 
 Test cases:
-1. heightField encoding: tiles with higher field values have taller Z scale
-2. colorInterpolator: viridis scale produces colors on the viridis spectrum
-3. `updateSlice(1, ctx)`: shows data from slice index 1 only
+1. Basic render: instanceCount matches `xField × yField` unique-value grid size
+2. heightField encoding: `getMatrixAt()` scale Z component is taller for rows with larger heightField values than rows with smaller values
+3. colorInterpolator='viridis': colors produced by `interpolateColor` lie on the viridis spectrum (min value ≈ dark purple; max value ≈ yellow-green)
+4. timeField slicing: after `updateSlice(0, ctx)`, only slice-0 rows are displayed; after `updateSlice(1, ctx)`, only slice-1 rows are displayed; instance colors differ between slices
+5. No timeField: full dataset rendered in single `update()` call; `updateSlice()` is a no-op
 
 ---
 
@@ -1851,6 +1923,105 @@ Add `d3-scale-chromatic` dependency:
 
 ---
 
+#### `packages/charts/MIGRATION.md` — NEW (Challenge 8)
+
+**Full content specification:**
+
+```markdown
+# @brewsite/charts V2 Migration Guide
+
+## Breaking Changes in V2.0.0
+
+### 1. Per-type DSL components replace `<Chart type="...">`
+
+Before (V1, deprecated but still works):
+```tsx
+<Chart id="revenue" type="bar">
+  <ChartData source="monthly" />
+  <ChartAxis axis="x" field="month" />
+  <ChartAxis axis="y" field="revenue" />
+</Chart>
+```
+
+After (V2, preferred):
+```tsx
+<BarChart id="revenue">
+  <ChartData source="monthly" />
+  <ChartAxis axis="x" field="month" />
+  <ChartAxis axis="y" field="revenue" />
+</BarChart>
+```
+
+`<Chart>` remains exported and functional but is marked `@deprecated`. No removal timeline.
+
+### 2. `ChartState.dataSource` type changed
+
+V1: `dataSource: string` — a named source key.
+V2: `dataSource: ChartStateDataSource` — a discriminated union.
+
+If you read `state.dataSource` in custom code:
+```typescript
+// V1
+const sourceName = state.dataSource; // string
+
+// V2
+const sourceName = state.dataSource.type === 'named'
+  ? state.dataSource.name
+  : state.dataSource.type === 'inline'
+    ? `__inline__${widgetId}`
+    : `__async__${widgetId}`;
+```
+
+### 3. Type-specific props moved into `typeConfig.options`
+
+V1 flat fields `lineShape`, `pieTilt`, `innerRadius`, `timeField`, `lineSmoothness`,
+`lineSubdivisions`, `axisGap`, `legendGap` are removed from `ChartState`.
+
+V2: Use `state.typeConfig.options` with a `kind` guard:
+```typescript
+// V1
+const shape = state.lineShape;
+
+// V2
+const shape = state.typeConfig.kind === 'line'
+  ? state.typeConfig.options.lineShape
+  : undefined;
+```
+
+### 4. `ChartProvider` is now optional for inline data
+
+```tsx
+// V2: No ChartProvider needed for inline data
+<BarChart id="revenue" data={myRows}>
+  <ChartAxis axis="x" field="month" />
+  <ChartAxis axis="y" field="revenue" />
+</BarChart>
+
+// V2: ChartProvider still required for named sources
+<ChartProvider data={{ monthly: rows }}>
+  <BarChart id="revenue">
+    <ChartData source="monthly" />
+  </BarChart>
+</ChartProvider>
+```
+
+### 5. `IChartRenderer.update()` context changed
+
+Custom `IChartRenderer` implementations must update `update(ctx: ChartRenderContext)`:
+- Remove reads of `ctx.lineShape`, `ctx.pieTilt`, `ctx.innerRadius`, etc.
+- Replace with `ctx.typeOptions.kind === 'xxx' ? ctx.typeOptions.options.xxx : undefined`
+- Add null-guard for `ctx.legend` (now in context; was not present in V1)
+
+### 6. Package version
+
+`@brewsite/charts` 2.0.0 is a major version. Update your package.json:
+```json
+{ "dependencies": { "@brewsite/charts": "^2.0.0" } }
+```
+```
+
+---
+
 ### Phase 3 — Demo Page
 
 **Can begin once Phase 1 streams are complete and at least the compile/widget layers are merged.**
@@ -1862,12 +2033,66 @@ Add `d3-scale-chromatic` dependency:
 **`apps/examples/src/chart/data/saasMetrics.ts`**
 ```typescript
 // SaaS metrics data for chart demo scenes.
-// Two years of monthly data for datum-morphing demo.
+// Challenge 10 fix: datum-morphing requires shared `quarter` key values between
+// yearA and yearB. BOTH arrays MUST have identical `quarter` values ('Q1','Q2','Q3','Q4').
+// The keyField='quarter' in Scene 1's DSL matches datums by this field.
 
-export const saasMetricsYearA = [/* 12 months: { quarter, month, revenue, costs, profit } */];
-export const saasMetricsYearB = [/* 12 months: same structure, different values */];
-export const saasMetrics24Months = [/* 24 months: { month, arr, revenue, costs } */];
-export const regionalRevenue = [/* { month, apac, emea, americas } x 12 */];
+export const saasMetricsYearA = [
+  { quarter: 'Q1', revenue: 128, costs: 87,  profit: 41 },
+  { quarter: 'Q2', revenue: 184, costs: 115, profit: 69 },
+  { quarter: 'Q3', revenue: 231, costs: 142, profit: 89 },
+  { quarter: 'Q4', revenue: 314, costs: 188, profit: 126 },
+];
+
+// CRITICAL: quarter values must exactly match saasMetricsYearA for datum morphing to work.
+export const saasMetricsYearB = [
+  { quarter: 'Q1', revenue: 165, costs: 102, profit: 63 },
+  { quarter: 'Q2', revenue: 218, costs: 135, profit: 83 },
+  { quarter: 'Q3', revenue: 287, costs: 168, profit: 119 },
+  { quarter: 'Q4', revenue: 362, costs: 209, profit: 153 },
+];
+
+export const saasMetrics24Months = [
+  { month: 'Jan', arr: 1536, revenue: 128, costs: 87 },
+  { month: 'Feb', arr: 1740, revenue: 145, costs: 94 },
+  { month: 'Mar', arr: 1584, revenue: 132, costs: 88 },
+  { month: 'Apr', arr: 2016, revenue: 168, costs: 107 },
+  { month: 'May', arr: 2340, revenue: 195, costs: 121 },
+  { month: 'Jun', arr: 2208, revenue: 184, costs: 115 },
+  { month: 'Jul', arr: 2544, revenue: 212, costs: 130 },
+  { month: 'Aug', arr: 2772, revenue: 231, costs: 142 },
+  { month: 'Sep', arr: 2976, revenue: 248, costs: 149 },
+  { month: 'Oct', arr: 3204, revenue: 267, costs: 161 },
+  { month: 'Nov', arr: 3468, revenue: 289, costs: 174 },
+  { month: 'Dec', arr: 3768, revenue: 314, costs: 188 },
+  { month: 'Jan Y2', arr: 3900, revenue: 325, costs: 196 },
+  { month: 'Feb Y2', arr: 4200, revenue: 350, costs: 210 },
+  { month: 'Mar Y2', arr: 4050, revenue: 337, costs: 200 },
+  { month: 'Apr Y2', arr: 4560, revenue: 380, costs: 228 },
+  { month: 'May Y2', arr: 5040, revenue: 420, costs: 252 },
+  { month: 'Jun Y2', arr: 4800, revenue: 400, costs: 240 },
+  { month: 'Jul Y2', arr: 5400, revenue: 450, costs: 270 },
+  { month: 'Aug Y2', arr: 5880, revenue: 490, costs: 294 },
+  { month: 'Sep Y2', arr: 6240, revenue: 520, costs: 312 },
+  { month: 'Oct Y2', arr: 6480, revenue: 540, costs: 324 },
+  { month: 'Nov Y2', arr: 7200, revenue: 600, costs: 360 },
+  { month: 'Dec Y2', arr: 7680, revenue: 640, costs: 384 },
+];
+
+export const regionalRevenue = [
+  { month: 'Jan', apac: 38, emea: 52, americas: 38 },
+  { month: 'Feb', apac: 42, emea: 61, americas: 42 },
+  { month: 'Mar', apac: 39, emea: 55, americas: 38 },
+  { month: 'Apr', apac: 48, emea: 74, americas: 46 },
+  { month: 'May', apac: 56, emea: 88, americas: 51 },
+  { month: 'Jun', apac: 52, emea: 82, americas: 50 },
+  { month: 'Jul', apac: 60, emea: 96, americas: 56 },
+  { month: 'Aug', apac: 67, emea: 104, americas: 60 },
+  { month: 'Sep', apac: 70, emea: 112, americas: 66 },
+  { month: 'Oct', apac: 75, emea: 120, americas: 72 },
+  { month: 'Nov', apac: 82, emea: 130, americas: 77 },
+  { month: 'Dec', apac: 89, emea: 142, americas: 83 },
+];
 ```
 
 **`apps/examples/src/chart/data/teamData.ts`**
@@ -2040,13 +2265,19 @@ import { teamPerformance } from './data/teamData';
 import { activityHeatmap } from './data/heatmapData';
 
 export function registerChartDemoData(store: ChartDataStore): void {
-  store.register('saas-year-a', saasMetricsYearA);
-  store.register('saas-year-b', saasMetricsYearB);
-  store.register('saas-24m', saasMetrics24Months);
-  store.register('regional', regionalRevenue);
-  store.register('teams', teamPerformance);
-  store.register('heatmap', activityHeatmap, 'ops'); // filter group for linked brush
-  // ... etc
+  // Challenge 9 fix: Scene 1 uses INLINE data (data={saasMetricsYearA/B} props) —
+  // do NOT register 'saas-year-a' or 'saas-year-b' as named sources. That would be dead code.
+  // Only scenes using <ChartData source="..."> need named registrations here.
+
+  store.register('saas-24m', saasMetrics24Months); // Scene 3 (multi-line)
+  store.register('regional', regionalRevenue);      // Scene 4 (stacked area)
+  store.register('teams', teamPerformance);         // Scene 5 (bubble), Scene 8 (linked brush) with filterGroup
+  store.register('heatmap', activityHeatmap);       // Scene 7 (heatmap time animation)
+  // Scene 2 (stacked bar) uses inline data — no named registration needed
+  // Scene 6 (pie/donut) uses inline productRevenue data — no named registration needed
+  // Scene 8 filter group: store.register('ops-data', opsData, 'ops') for linked brush demo
+  // Scene 9 uses dataUrl — no registration needed (ChartWidget.load() fetches)
+  // Scene 10 uses inline data — no named registration needed
 }
 ```
 
@@ -2077,7 +2308,7 @@ These three files have no dependencies on each other. P0-A and P0-B are truly pa
 | S2: Widget+Render | Dev 2 | `elements/chart/render.ts`, `elements/chart/ChartWidget.ts`, `elements/chart/__tests__/ChartWidget.test.ts` |
 | S3: Data Layer | Dev 3 | `data/ChartDataStore.ts`, `data/transforms.ts`, `data/__tests__/ChartDataStore.test.ts`, `data/__tests__/transforms.test.ts`, `data/__tests__/ChartDataStoreIntegration.test.ts` |
 | S4: Shared Renderers | Dev 4 | `renderers/shared/DataLabelRenderer.ts` (NEW), `renderers/shared/AxesRenderer.ts`, `renderers/shared/LegendRenderer.ts`, `renderers/shared/ChartMaterialFactory.ts`, `renderers/shared/__tests__/DataLabelRenderer.test.ts` (NEW), `renderers/shared/__tests__/ChartMaterialFactory.test.ts` |
-| S5: Per-Type Renderers | Dev 5 | `renderers/bar/BarRenderer.ts`, `renderers/bar/__tests__/BarRenderer.test.ts`, `renderers/scatter/ScatterRenderer.ts`, `renderers/area/AreaRenderer.ts`, `renderers/area/__tests__/AreaRenderer.test.ts`, `renderers/line/LineRenderer.ts`, `renderers/line/__tests__/LineRenderer.test.ts`, `renderers/pie/PieRenderer.ts`, `renderers/pie/__tests__/PieRenderer.test.ts`, `renderers/heatmap/HeatmapRenderer.ts` |
+| S5: Per-Type Renderers | Dev 5 | `renderers/bar/BarRenderer.ts`, `renderers/bar/__tests__/BarRenderer.test.ts`, `renderers/scatter/ScatterRenderer.ts`, `renderers/scatter/__tests__/ScatterRenderer.test.ts` **(NEW)**, `renderers/area/AreaRenderer.ts`, `renderers/area/__tests__/AreaRenderer.test.ts`, `renderers/line/LineRenderer.ts`, `renderers/line/__tests__/LineRenderer.test.ts`, `renderers/pie/PieRenderer.ts`, `renderers/pie/__tests__/PieRenderer.test.ts`, `renderers/heatmap/HeatmapRenderer.ts`, `renderers/heatmap/__tests__/HeatmapRenderer.test.ts` **(NEW)** |
 
 **Note on S5 and DataLabelRenderer:** Dev 5 imports `DataLabelRenderer` from its planned path. If S4 hasn't merged yet at the time of compilation, CI will fail — but the implementation is still correct. Coordinate merge order: S4 DataLabelRenderer → S5 per-type renderers.
 
@@ -2087,9 +2318,11 @@ These three files have no dependencies on each other. P0-A and P0-B are truly pa
 
 | Dev | Files |
 |-----|-------|
-| Any | `compiler/handlers.ts`, `compiler/__tests__/handlers.test.ts`, `player/chartPlugin.ts`, `compiler/__tests__/chartPlugin.test.ts`, `elements/chart/index.ts`, `index.ts`, `package.json` |
+| Any | `compiler/handlers.ts`, `compiler/__tests__/handlers.test.ts`, `player/chartPlugin.ts`, `compiler/__tests__/chartPlugin.test.ts`, `elements/chart/index.ts`, `index.ts`, `package.json`, `MIGRATION.md` **(NEW — Challenge 8)** |
 
 One developer can handle Phase 2; it's primarily wiring the new compile functions and stubs into the plugin.
+
+**IChartRenderer.ts is NOT modified in Phase 2.** It was fully specified in Phase 0-B. Stream 4 (LegendRenderer) reads `ctx.legend` from the type but does not modify the file. (Challenge 1 confirmation)
 
 ### Phase 3 (Demo — after Phase 2 merged)
 
@@ -2109,10 +2342,11 @@ One developer can handle Phase 2; it's primarily wiring the new compile function
 | `DataLabelRenderer.ts` | `renderers/shared/__tests__/DataLabelRenderer.test.ts` | Fake THREE.Group with stub add/remove. Assert text count and position offsets. |
 | `ChartMaterialFactory.ts` | `renderers/shared/__tests__/ChartMaterialFactory.test.ts` | Assert material properties. |
 | `BarRenderer.ts` | `renderers/bar/__tests__/BarRenderer.test.ts` | Fake THREE.Group. Real data rows. Assert mesh count and position values for stacked/grouped/horizontal/morph cases. |
-| `ScatterRenderer.ts` | `renderers/scatter/__tests__/ScatterRenderer.test.ts` | Real InstancedMesh inspection via getMatrixAt/getColorAt. |
+| `ScatterRenderer.ts` | `renderers/scatter/__tests__/ScatterRenderer.test.ts` **(NEW)** | Real InstancedMesh inspection via getMatrixAt/getColorAt. sizeField, colorField, morph cases. |
 | `AreaRenderer.ts` | `renderers/area/__tests__/AreaRenderer.test.ts` | Real data. Assert stackMode triggers rebuild (lastStackMode). |
 | `LineRenderer.ts` | `renderers/line/__tests__/LineRenderer.test.ts` | Assert reference line objects in axesGroup. |
-| `PieRenderer.ts` | `renderers/pie/__tests__/PieRenderer.test.ts` | Assert explodeSlice offset, dataLabels entry count. |
+| `PieRenderer.ts` | `renderers/pie/__tests__/PieRenderer.test.ts` | Assert explodeSlice offset, dataLabels entry count, DataLabelsPosition→alignment mapping. |
+| `HeatmapRenderer.ts` | `renderers/heatmap/__tests__/HeatmapRenderer.test.ts` **(NEW)** | heightField Z-scale, colorInterpolator, updateSlice() data isolation. |
 | `ChartWidget.ts` | `__tests__/ChartWidget.test.ts` | Real ChartDataStore. Assert ILoadable isLoaded transitions. |
 | `handlers.ts` | `compiler/__tests__/handlers.test.ts` | Assert guard throws on child components outside chart. |
 | `chartPlugin.ts` | `compiler/__tests__/chartPlugin.test.ts` | Real compile pipeline: DSL tree → assert ChartState. |
@@ -2168,11 +2402,11 @@ One developer can handle Phase 2; it's primarily wiring the new compile function
 
 ### V1 `IChartRenderer` Migration
 
-Custom `IChartRenderer` implementations (undocumented but possible): `ChartRenderContext` fields `lineShape`, `lineSmoothness`, `lineSub divisions`, `innerRadius`, `pieTilt` are removed. Implementations must read from `ctx.typeOptions.options`. Since `IChartRenderer` is not a public API surface (documented in the note), no deprecation window required.
+Custom `IChartRenderer` implementations (undocumented but possible): `ChartRenderContext` fields `lineShape`, `lineSmoothness`, `lineSubdivisions`, `innerRadius`, `pieTilt` are removed. Implementations must read from `ctx.typeOptions.options`. Since `IChartRenderer` is not a public API surface (documented in the note), no deprecation window required.
 
 ### MIGRATION.md
 
-Create `packages/charts/MIGRATION.md` documenting:
+Full content specification is in the Phase 2 file spec above (§4, Phase 2 section). The file is owned by the Phase 2 developer. Summary of the 6 migration scenarios covered:
 1. `<Chart type="bar">` → `<BarChart>` (show before/after)
 2. `ChartState.dataSource: string` → `ChartState.dataSource: ChartStateDataSource`
 3. Flat per-type props → `typeConfig.options` (with narrowing example)
@@ -2219,20 +2453,22 @@ Phase 1 (parallel, ~2-3 days):
 
 Phase 2 (sequential, ~1 day):
   [ ] handlers.ts, chartPlugin.ts, index.ts, package.json + tests
+  [ ] MIGRATION.md (full content spec in §4 Phase 2 section)
   [ ] pnpm install (d3-scale-chromatic)
   [ ] Code review + merge Phase 2
   [ ] pnpm typecheck (all packages)
   [ ] pnpm test (all packages)
+  NOTE: IChartRenderer.ts is NOT touched in Phase 2 — it was finalized in Phase 0-B
 
 Phase 3 (demo, ~1-2 days):
-  [ ] Data constants files
+  [ ] Data constants files (saasMetrics.ts with exact quarter values for morphing)
   [ ] public/data/metrics.json
   [ ] 10 scene files
-  [ ] widgetSetup.ts, ChartDemoPage.tsx updates
+  [ ] widgetSetup.ts (inline-data scenes do NOT get named registrations — see Challenge 9 fix)
+  [ ] ChartDemoPage.tsx updates
   [ ] Manual visual review in pnpm dev
 
 Wrap-up:
-  [ ] MIGRATION.md
   [ ] Bump @brewsite/charts version to 2.0.0 in package.json
   [ ] Update requirements/charts/prd/ documents
   [ ] Move plan to archive when fully implemented

@@ -29,6 +29,7 @@ export function buildCandidateGuides(
   candidate: EdgePortCandidate,
   request: EdgeRoutingRequest,
   nodeMap: RoutingNodeMap,
+  groupIds: ReadonlySet<string> = new Set(),
 ): EdgeGuidedCandidate {
   const sourceNormal = getFaceNormalLocal(candidate.srcFace);
   const destinationNormal = getFaceNormalLocal(candidate.dstFace);
@@ -41,12 +42,15 @@ export function buildCandidateGuides(
     const fromNode = nodeMap.get(request.fromId);
     const toNode = nodeMap.get(request.toId);
     if (fromNode && toNode) {
+      const destinationIsGroup = groupIds.has(request.toId);
+      const destinationUsesVerticalIngress =
+        candidate.dstFace === 'top' || candidate.dstFace === 'bottom';
       const towardSource = subVec(fromNode.position, candidate.destinationAnchor);
       const facesSource = dotVec(destinationNormal, towardSource) > 1e-6;
       const sourceFaceParallelEnough = !candidate.sourceFaceLocked ||
         Math.abs(dotVec(sourceNormal, destinationNormal)) >= 0.1;
 
-      if (facesSource && sourceFaceParallelEnough) {
+      if (facesSource && sourceFaceParallelEnough && !(destinationIsGroup && destinationUsesVerticalIngress)) {
         const guideDistance = request.flowFaceStub * request.flowTargetApproachBias;
         const candidateGuide = addVec(candidate.destinationAnchor, scaleVec(destinationNormal, guideDistance));
         const supportsSourceProgress = !sourceGuide || dotVec(subVec(candidateGuide, sourceGuide), sourceNormal) >= -1e-6;
@@ -58,6 +62,34 @@ export function buildCandidateGuides(
   }
   const routeStart = sourceGuide ?? defaultRouteStart;
   const routeEnd = destinationGuide ?? defaultRouteEnd;
+
+  // For bundled routes approaching a group's side face, cap the stub so the
+  // approach waypoint stays on the same lateral side as the trunk. This prevents
+  // control-point crossings when two sibling routes approach opposite inner faces.
+  if (
+    sourceGuide !== undefined &&
+    (candidate.dstFace === 'left' || candidate.dstFace === 'right') &&
+    groupIds.has(request.toId)
+  ) {
+    const trunkX = sourceGuide[0];
+    const anchorX = candidate.destinationAnchor[0];
+    const lateralGap = Math.abs(anchorX - trunkX);
+    const safeStubLength = Math.min(request.flowFaceStub, lateralGap * 0.75);
+    if (safeStubLength < request.flowFaceStub - 1e-9) {
+      const destinationNormalLocal = getFaceNormalLocal(candidate.dstFace);
+      const adjustedRouteEnd = addVec(
+        candidate.destinationAnchor,
+        scaleVec(destinationNormalLocal, safeStubLength),
+      );
+      return {
+        ...candidate,
+        sourceGuide,
+        destinationGuide,
+        routeStart,
+        routeEnd: adjustedRouteEnd,
+      };
+    }
+  }
 
   return {
     ...candidate,

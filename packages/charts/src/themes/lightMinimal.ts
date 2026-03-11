@@ -23,6 +23,7 @@ export const lightMinimalChartTheme: ChartTheme = {
     fontSize: 0.12,
     tickLength: 0.08,
     gap: 0.18,
+    titleFontSize: 0.052,
   },
   background: {
     planeColor: '#ffffff',
@@ -35,6 +36,7 @@ export const lightMinimalChartTheme: ChartTheme = {
     swatchSize: 0.08,
     spacing: 0.14,
     gap: 0.28,
+    textOpacity: 1.0,
   },
   line: {
     shape: 'circle',
@@ -49,4 +51,9 @@ export const lightMinimalChartTheme: ChartTheme = {
     hoverEmissiveIntensity: 0.2,
     selectedColor: '#ee4400',
   },
+  bar: { padding: 0.22 },
+  area: { fillOpacity: 0.72 },
+  gridlines: { color: '#b0b8c0', opacity: 0.25, visible: false },
+  dataLabels: { fontSize: 0.044, color: '#222233' },
+  referenceLines: { defaultColor: '#cc4400', lineWidth: 0.004, lineOpacity: 0.8 },
 };

@@ -104,12 +104,14 @@ const segmentAllowedByCorridor = (
     const x = start[0];
     return x >= corridor.left - EPSILON &&
       x <= corridor.right + EPSILON &&
-      rangesOverlap(start[1], end[1], corridor.bottom, corridor.top);
+      Math.min(start[1], end[1]) >= corridor.bottom - EPSILON &&
+      Math.max(start[1], end[1]) <= corridor.top + EPSILON;
   }
   const y = start[1];
   return y >= corridor.bottom - EPSILON &&
     y <= corridor.top + EPSILON &&
-    rangesOverlap(start[0], end[0], corridor.left, corridor.right);
+    Math.min(start[0], end[0]) >= corridor.left - EPSILON &&
+    Math.max(start[0], end[0]) <= corridor.right + EPSILON;
 };
 
 const segmentAllowedByAnyCorridor = (

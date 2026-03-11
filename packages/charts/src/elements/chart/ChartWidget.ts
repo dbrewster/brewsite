@@ -1,65 +1,56 @@
-// ChartWidget — ISceneElement + IRenderable + IAnimationController + IDslComposite.
+// ChartWidget — ISceneElement + IRenderable + IAnimationController + IDslComposite + ILoadable.
 
 import * as THREE from 'three';
 import { functionalChartTransitionSpec } from './compile';
 import { ChartRenderer } from './render';
-import type { ChartProps, ChartDataProps, ChartAxisProps, ChartSeriesProps, ChartLegendProps } from './dsl';
-import type { ChartState } from './types';
+import type { ChartState, ChartStateDataSource, DataRow, ChartRenderInput } from './types';
 import { DEFAULT_CHART_STATE } from './types';
 import type { ChartDataStore } from '../../data/ChartDataStore';
+import { normalizeDataInput, parseCsv } from '../../data/transforms';
 import { validateNVSScalar } from '@brewsite/core';
 import type {
   ISceneElement,
   IRenderable,
   IAnimationController,
   IDslComposite,
+  ILoadable,
   INVSBounded,
   NVSCoordService,
   NVSRect,
   WidgetInitContext,
   WidgetRenderContext,
   AnimationTickContext,
+  AssetManifest,
 } from '@brewsite/core';
-import type { ChartHitInfo } from '../../renderers/shared/IChartRenderer';
+import type { ChartHitInfo, ChartAccessorFunctions } from '../../renderers/shared/IChartRenderer';
+import {
+  BarChart,
+  LineChart,
+  ScatterPlotChart,
+  PieChart,
+  AreaChart,
+  HeatMapChart,
+  Chart,
+  ChartData,
+  ChartAxis,
+  ChartSeries,
+  ChartLegend,
+  ChartDataLabels,
+  ReferenceLine,
+} from './stubs';
 
 /** Information passed to onHover and onSelect callbacks. */
 export type ChartHoverInfo = ChartHitInfo;
 
 /**
- * Declares a 3D chart element.
- * Compiled by chartPlugin().configureRegistry() — never rendered to DOM.
+ * Minimal interface required by ChartWidget — subset of ChartRenderer's public surface.
+ * Used for the test-seam constructor parameter so ChartRendererDouble can be injected.
+ * @internal
  */
-export function Chart(_props: ChartProps): null { return null; }
-Chart.displayName = 'Chart';
-
-/**
- * Declares the data source for a <Chart>.
- * Must be a direct child of <Chart>.
- */
-export function ChartData(_props: ChartDataProps): null { return null; }
-ChartData.displayName = 'ChartData';
-
-/**
- * Declares one axis configuration for a <Chart>.
- * Must be a direct child of <Chart>.
- */
-export function ChartAxis(_props: ChartAxisProps): null { return null; }
-ChartAxis.displayName = 'ChartAxis';
-
-/**
- * Declares one data series for a <Chart>.
- * Must be a direct child of <Chart>.
- * Multiple <ChartSeries> children yield a multi-series chart.
- */
-export function ChartSeries(_props: ChartSeriesProps): null { return null; }
-ChartSeries.displayName = 'ChartSeries';
-
-/**
- * Configures the chart legend.
- * Must be a direct child of <Chart>.
- */
-export function ChartLegend(_props: ChartLegendProps): null { return null; }
-ChartLegend.displayName = 'ChartLegend';
+type ChartRendererLike = Pick<
+  ChartRenderer,
+  'mount' | 'update' | 'dispose' | 'updateHeatmapSlice' | 'getInteractiveObjects' | 'resolveHoverInfo'
+>;
 
 /**
  * Widget for a single 3D chart element.
@@ -67,8 +58,10 @@ ChartLegend.displayName = 'ChartLegend';
  * Implements:
  * - ISceneElement<ChartState> — DSL component + transition spec
  * - IRenderable<ChartState> — Three.js lifecycle (initialize, apply, dispose)
- * - IAnimationController — heatmap time-slice animation tick
- * - IDslComposite — routes child DSL components (ChartData, ChartAxis, etc.)
+ * - IAnimationController — heatmap time-slice animation tick + entry animation
+ * - IDslComposite — routes child DSL components
+ * - ILoadable — async data fetch before first tick
+ * - INVSBounded — NVS region for interaction hit testing
  */
 export class ChartWidget
   implements
@@ -76,14 +69,41 @@ export class ChartWidget
     IRenderable<ChartState>,
     IAnimationController,
     IDslComposite,
+    ILoadable,
     INVSBounded
 {
   readonly widgetId: string;
   readonly defaultState: ChartState = DEFAULT_CHART_STATE;
   readonly disableWhenAbsent = true;
   readonly transitionSpec = functionalChartTransitionSpec;
-  readonly DslComponent = Chart;
+  readonly DslComponent = BarChart;
   readonly tickPriority = 2; // after CameraWidget(0) and DiagramWidget(1)
+
+  // ── ILoadable ─────────────────────────────────────────────────────────────
+
+  /** True when no async URL is configured, or after load() has completed. */
+  get isLoaded(): boolean {
+    return this.asyncUrl === null || this.asyncDataLoaded;
+  }
+
+  // ── IDslComposite ─────────────────────────────────────────────────────────
+
+  readonly childDslComponents: IDslComposite['childDslComponents'] = [
+    { component: LineChart        as React.ComponentType<unknown>, displayName: 'LineChart' },
+    { component: ScatterPlotChart as React.ComponentType<unknown>, displayName: 'ScatterPlotChart' },
+    { component: PieChart         as React.ComponentType<unknown>, displayName: 'PieChart' },
+    { component: AreaChart        as React.ComponentType<unknown>, displayName: 'AreaChart' },
+    { component: HeatMapChart     as React.ComponentType<unknown>, displayName: 'HeatMapChart' },
+    { component: Chart            as React.ComponentType<unknown>, displayName: 'Chart' },
+    { component: ChartData        as React.ComponentType<unknown>, displayName: 'ChartData' },
+    { component: ChartAxis        as React.ComponentType<unknown>, displayName: 'ChartAxis' },
+    { component: ChartSeries      as React.ComponentType<unknown>, displayName: 'ChartSeries' },
+    { component: ChartLegend      as React.ComponentType<unknown>, displayName: 'ChartLegend' },
+    { component: ChartDataLabels  as React.ComponentType<unknown>, displayName: 'ChartDataLabels' },
+    { component: ReferenceLine    as React.ComponentType<unknown>, displayName: 'ReferenceLine' },
+  ];
+
+  // ── INVSBounded ───────────────────────────────────────────────────────────
 
   /**
    * Returns the NVS bounds of the chart within the AR-locked container.
@@ -93,12 +113,7 @@ export class ChartWidget
     return this.lastState?.nvsBounds ?? DEFAULT_CHART_STATE.nvsBounds;
   }
 
-  readonly childDslComponents: IDslComposite['childDslComponents'] = [
-    { component: ChartData as React.ComponentType<unknown>,   displayName: 'ChartData' },
-    { component: ChartAxis as React.ComponentType<unknown>,   displayName: 'ChartAxis' },
-    { component: ChartSeries as React.ComponentType<unknown>, displayName: 'ChartSeries' },
-    { component: ChartLegend as React.ComponentType<unknown>, displayName: 'ChartLegend' },
-  ];
+  // ── Interaction callbacks ─────────────────────────────────────────────────
 
   /** Called on hover interaction when interactive=true. */
   public onHover: ((info: ChartHoverInfo | null) => void) | undefined = undefined;
@@ -106,7 +121,12 @@ export class ChartWidget
   /** Called on click interaction when interactive=true. */
   public onSelect: ((info: ChartHoverInfo) => void) | undefined = undefined;
 
-  private readonly chartRenderer: ChartRenderer;
+  // ── Private state ─────────────────────────────────────────────────────────
+
+  private readonly chartRenderer: ChartRendererLike;
+  private readonly store: ChartDataStore;
+  /** V2.1: Accessor registry passed from chartPlugin. Null when not provided. */
+  private readonly accessorRegistry: Map<string, ChartAccessorFunctions> | null;
   private scene: THREE.Scene | null = null;
   private rendererDom: HTMLElement | null = null;
   private camera: THREE.Camera | null = null;
@@ -117,10 +137,94 @@ export class ChartWidget
   private mouseleaveListener: (() => void) | null = null;
   private clickListener: ((e: MouseEvent) => void) | null = null;
 
-  constructor(widgetId: string, store: ChartDataStore) {
+  // ── ILoadable private fields ──────────────────────────────────────────────
+
+  /** URL for async data source, set by _configureAsync(). Null = no async source. */
+  private asyncUrl: string | null = null;
+  /** Format for async fetch (json or csv). Default: json. */
+  private asyncFormat: 'json' | 'csv' = 'json';
+  /** True after load() successfully registers async data in the store. */
+  private asyncDataLoaded = false;
+
+  // ── Inline data deduplication ─────────────────────────────────────────────
+
+  /** Reference to the last registered inline rows array — used for reference-equality guard. */
+  private lastInlineRowsRef: ReadonlyArray<DataRow> | null = null;
+
+  // ── V2.1: Entry animation ─────────────────────────────────────────────────
+
+  /** Entry animation progress [0..1]. 1.0 = complete (default — geometry at full size). */
+  private currentEntryT: number = 1.0;
+
+  // ── V2.1: Live override cleanup ───────────────────────────────────────────
+
+  /**
+   * Unsubscribe function returned by store.onDeregisterInline().
+   * Called in dispose() to prevent stale callbacks after widget is destroyed.
+   */
+  private readonly unsubscribeDeregister: () => void;
+
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /**
+   * @param widgetId       Widget identifier — must match the chart's `id` DSL prop.
+   * @param store          The ChartDataStore owned by the chartPlugin() instance.
+   * @param accessorRegistry Optional accessor registry from chartPlugin() for useChartAccessors().
+   * @param rendererOverride Optional renderer override — used by tests to inject a ChartRendererDouble.
+   */
+  constructor(
+    widgetId: string,
+    store: ChartDataStore,
+    accessorRegistry?: Map<string, ChartAccessorFunctions>,
+    rendererOverride?: ChartRendererLike,
+  ) {
     this.widgetId = widgetId;
-    this.chartRenderer = new ChartRenderer(store);
+    this.store = store;
+    this.accessorRegistry = accessorRegistry ?? null;
+    this.chartRenderer = rendererOverride ?? new ChartRenderer(store);
+
+    // Register cleanup callback — store calls this when deregisterInline() fires.
+    // This resets lastInlineRowsRef so the next apply() re-registers SceneTrack rows.
+    this.unsubscribeDeregister = store.onDeregisterInline(widgetId, () => {
+      this.lastInlineRowsRef = null;
+    });
   }
+
+  // ── Internal: called by chartPlugin.reconcileCompiledTrack when async source detected ──
+
+  /**
+   * Configures the widget for async data loading.
+   * Must be called before load() — typically by chartPlugin during track reconciliation.
+   */
+  _configureAsync(url: string, format?: 'json' | 'csv'): void {
+    this.asyncUrl = url;
+    this.asyncFormat = format ?? 'json';
+    this.asyncDataLoaded = false;
+  }
+
+  // ── ILoadable ─────────────────────────────────────────────────────────────
+
+  /**
+   * Fetches async data if an async URL is configured.
+   * Registers the result in the store under `__async__${widgetId}`.
+   * No-op if no async URL is set.
+   */
+  async load(_manifest: AssetManifest | null): Promise<void> {
+    if (!this.asyncUrl) return;
+    try {
+      const resp = await fetch(this.asyncUrl);
+      const rows: ReadonlyArray<Record<string, unknown>> = this.asyncFormat === 'csv'
+        ? parseCsv(await resp.text())
+        : (await resp.json() as ReadonlyArray<Record<string, unknown>>);
+      const normalized = normalizeDataInput(rows);
+      this.store.register(`__async__${this.widgetId}`, normalized);
+      this.asyncDataLoaded = true;
+    } catch (e) {
+      console.error(`[ChartWidget] Failed to load async data from "${this.asyncUrl}":`, e);
+    }
+  }
+
+  // ── IRenderable ───────────────────────────────────────────────────────────
 
   initialize({ scene, renderer, camera }: WidgetInitContext): void {
     this.scene = scene;
@@ -148,25 +252,47 @@ export class ChartWidget
       validateNVSScalar(state.bounds.height, 'bounds.height', `ChartWidget(${this.widgetId})`);
     }
 
+    // ── Inline data registration (reference-equality guard) ─────────────────
+    // Register inline rows on first apply or when the rows array reference changes.
+    // Avoids redundant store writes every frame when rows are stable.
+    // V2.1: when useLiveChartData is active, skip SceneTrack-baked write.
+    if (state.dataSource.type === 'inline') {
+      if (this.store.hasLiveOverride(this.widgetId)) {
+        // useLiveChartData owns this widget's data — skip SceneTrack-baked write.
+        // store.registerInline() + setLiveOverride() already called by the hook.
+      } else {
+        if (state.dataSource.rows !== this.lastInlineRowsRef) {
+          this.store.registerInline(this.widgetId, state.dataSource.rows);
+          this.lastInlineRowsRef = state.dataSource.rows;
+        }
+      }
+    }
+
     // Convert NVS position to world-space center using the live NVSCoordService.
     const [wcx, wcy, wcz] = ctx.coords.toWorld(state.nvsX, state.nvsY, state.z);
 
     // Convert NVS size fractions to world-space dimensions.
     const [worldW, worldH] = ctx.coords.toWorldSize(state.bounds.width, state.bounds.height);
 
-    // Chart content (bars, axes) starts at group-local (0, 0) and extends to
-    // (worldW, worldH). Subtract half-bounds to center it on the NVS position.
+    // Chart content starts at group-local (0, 0) and extends to (worldW, worldH).
+    // Subtract half-bounds to center it on the NVS position.
     const worldPos: readonly [number, number, number] = [
       wcx - worldW / 2,
       wcy - worldH / 2,
       wcz,
     ];
 
-    this.chartRenderer.update({
+    const renderInput: ChartRenderInput = {
       ...state,
       bounds: { width: worldW, height: worldH, depth: state.bounds.depth },
       position: worldPos,
-    }, this.widgetId);
+      // V2.1: pass entryT only when animation is in progress (< 1.0)
+      entryT: this.currentEntryT < 1.0 ? this.currentEntryT : undefined,
+      // V2.1: pass function accessors from useChartAccessors() registry
+      accessors: this.accessorRegistry?.get(this.widgetId),
+    };
+
+    this.chartRenderer.update(renderInput, this.widgetId);
 
     // Attach or detach DOM listeners based on interactive flag
     if (state.interactive && !this.mousemoveListener && this.rendererDom) {
@@ -176,30 +302,59 @@ export class ChartWidget
     }
   }
 
-  onTick(_ctx: AnimationTickContext): void {
-    // Heatmap time-slice animation
-    if (this.lastState?.type !== 'heatmap' || !this.lastState.timeField) return;
-    // Re-apply with same state — heatmap renderer derives slice from store.getTimeSlice()
-    // NOTE: for animated heatmaps, the consuming scene should have multiple ticks
-    // with blockProgress varying 0→1 over the desired time range.
-    if (this.scene && this.lastCoords) {
-      const state = this.lastState;
-      const [wcx, wcy, wcz] = this.lastCoords.toWorld(state.nvsX, state.nvsY, state.z);
-      const [worldW, worldH] = this.lastCoords.toWorldSize(state.bounds.width, state.bounds.height);
-      const heatWorldPos: readonly [number, number, number] = [
-        wcx - worldW / 2,
-        wcy - worldH / 2,
-        wcz,
-      ];
-      this.chartRenderer.update({
+  // ── IAnimationController ──────────────────────────────────────────────────
+
+  onTick(ctx: AnimationTickContext): void {
+    if (!this.lastState) return;
+    const state = this.lastState;
+
+    // ── Entry animation (all chart types, rendered by BarRenderer only in V2.1) ──
+    if (state.animateEntry) {
+      const blockProgress = ctx.tick?.blockProgress ?? 0;
+      const duration = state.animationDuration;
+      this.currentEntryT = duration > 0 ? Math.min(blockProgress / duration, 1.0) : 1.0;
+    } else {
+      this.currentEntryT = 1.0;
+    }
+
+    // ── Heatmap time-slice animation ─────────────────────────────────────────
+    if (state.typeConfig.kind !== 'heatmap') return;
+    const opts = state.typeConfig.options;
+    if (!opts.timeField || !this.lastCoords) return;
+
+    const sourceName = this.resolveSourceName(state.dataSource);
+    const totalSlices = this.store.getTimeSliceCount(sourceName, opts.timeField);
+    if (totalSlices === 0) return;
+
+    const blockProgress = ctx.tick?.blockProgress ?? 0;
+    const sliceIndex = Math.min(
+      Math.floor(blockProgress * totalSlices),
+      totalSlices - 1,
+    );
+
+    // Compute world-space position (same as apply())
+    const [wcx, wcy, wcz] = this.lastCoords.toWorld(state.nvsX, state.nvsY, state.z);
+    const [worldW, worldH] = this.lastCoords.toWorldSize(state.bounds.width, state.bounds.height);
+    const worldPos: readonly [number, number, number] = [
+      wcx - worldW / 2,
+      wcy - worldH / 2,
+      wcz,
+    ];
+
+    this.chartRenderer.updateHeatmapSlice(
+      sliceIndex,
+      {
         ...state,
         bounds: { width: worldW, height: worldH, depth: state.bounds.depth },
-        position: heatWorldPos,
-      }, this.widgetId);
-    }
+        position: worldPos,
+      },
+      this.widgetId,
+    );
   }
 
   dispose(): void {
+    // Unsubscribe from deregisterInline callbacks to prevent stale calls after dispose
+    this.unsubscribeDeregister();
     this.detachDomListeners();
     if (this.scene) {
       this.chartRenderer.dispose(this.scene);
@@ -207,27 +362,10 @@ export class ChartWidget
     }
     this.camera = null;
     this.lastCoords = null;
+    this.lastInlineRowsRef = null;
   }
 
-  private attachDomListeners(dom: HTMLElement): void {
-    this.mousemoveListener = (e: MouseEvent) => this.handleMouseMove(e, dom);
-    this.mouseleaveListener = () => this.onHover?.(null);
-    this.clickListener = (e: MouseEvent) => this.handleClick(e, dom);
-    dom.addEventListener('mousemove', this.mousemoveListener);
-    dom.addEventListener('mouseleave', this.mouseleaveListener);
-    dom.addEventListener('click', this.clickListener);
-  }
-
-  private detachDomListeners(): void {
-    if (this.rendererDom && this.mousemoveListener) {
-      this.rendererDom.removeEventListener('mousemove', this.mousemoveListener);
-      this.rendererDom.removeEventListener('mouseleave', this.mouseleaveListener!);
-      this.rendererDom.removeEventListener('click', this.clickListener!);
-    }
-    this.mousemoveListener = null;
-    this.mouseleaveListener = null;
-    this.clickListener = null;
-  }
+  // ── Interaction helpers ───────────────────────────────────────────────────
 
   /**
    * Returns the Three.js camera used for chart rendering.
@@ -249,6 +387,40 @@ export class ChartWidget
       width: this.rendererDom.offsetWidth,
       height: this.rendererDom.offsetHeight,
     };
+  }
+
+  // ── Private helpers ───────────────────────────────────────────────────────
+
+  /**
+   * Resolves a ChartStateDataSource to the store key name.
+   * Async source returns empty string if not yet loaded (store has no data).
+   */
+  private resolveSourceName(dataSource: ChartStateDataSource): string {
+    switch (dataSource.type) {
+      case 'inline': return `__inline__${this.widgetId}`;
+      case 'named':  return dataSource.name;
+      case 'async':  return this.asyncDataLoaded ? `__async__${this.widgetId}` : '';
+    }
+  }
+
+  private attachDomListeners(dom: HTMLElement): void {
+    this.mousemoveListener = (e: MouseEvent) => this.handleMouseMove(e, dom);
+    this.mouseleaveListener = () => this.onHover?.(null);
+    this.clickListener = (e: MouseEvent) => this.handleClick(e, dom);
+    dom.addEventListener('mousemove', this.mousemoveListener);
+    dom.addEventListener('mouseleave', this.mouseleaveListener);
+    dom.addEventListener('click', this.clickListener);
+  }
+
+  private detachDomListeners(): void {
+    if (this.rendererDom && this.mousemoveListener) {
+      this.rendererDom.removeEventListener('mousemove', this.mousemoveListener);
+      this.rendererDom.removeEventListener('mouseleave', this.mouseleaveListener!);
+      this.rendererDom.removeEventListener('click', this.clickListener!);
+    }
+    this.mousemoveListener = null;
+    this.mouseleaveListener = null;
+    this.clickListener = null;
   }
 
   private getNdc(e: MouseEvent, dom: HTMLElement): THREE.Vector2 | null {
@@ -300,3 +472,21 @@ export class ChartWidget
 
 // Required for IDslComposite — React.ComponentType must be imported
 import type React from 'react';
+
+// Re-export stubs for backward-compat with importers that still reference them from ChartWidget.
+// The canonical location is ./stubs — these re-exports will be removed once all callers migrate.
+export {
+  Chart,
+  BarChart,
+  LineChart,
+  ScatterPlotChart,
+  PieChart,
+  AreaChart,
+  HeatMapChart,
+  ChartData,
+  ChartAxis,
+  ChartSeries,
+  ChartLegend,
+  ChartDataLabels,
+  ReferenceLine,
+} from './stubs';

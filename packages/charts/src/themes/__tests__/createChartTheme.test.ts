@@ -123,4 +123,87 @@ describe('createChartTheme', () => {
     expect(result.background.planeOpacity).toBe(darkGlassChartTheme.background.planeOpacity);
     expect(result.background.gridColor).toBe(darkGlassChartTheme.background.gridColor);
   });
+
+  it('bar partial override merges correctly', () => {
+    const result = createChartTheme('darkGlass', {
+      bar: { padding: 0.35 },
+    });
+    expect(result.bar?.padding).toBe(0.35);
+  });
+
+  it('bar tokens pass through unchanged when no override', () => {
+    const result = createChartTheme('darkGlass');
+    expect(result.bar?.padding).toBe(darkGlassChartTheme.bar?.padding);
+  });
+
+  it('area partial override merges correctly', () => {
+    const result = createChartTheme('darkGlass', {
+      area: { fillOpacity: 0.5 },
+    });
+    expect(result.area?.fillOpacity).toBe(0.5);
+  });
+
+  it('gridlines partial override merges correctly', () => {
+    const result = createChartTheme('darkGlass', {
+      gridlines: { color: '#ff0000', opacity: 0.3, visible: true },
+    });
+    expect(result.gridlines?.color).toBe('#ff0000');
+    expect(result.gridlines?.opacity).toBe(0.3);
+    expect(result.gridlines?.visible).toBe(true);
+  });
+
+  it('gridlines partial override preserves unoverridden fields', () => {
+    const result = createChartTheme('neonCyber', {
+      gridlines: { opacity: 0.5 },
+    });
+    // color and dashSize from neonCyber base preserved
+    expect(result.gridlines?.color).toBe('#00ffcc');
+    expect(result.gridlines?.dashSize).toBe(0.03);
+    expect(result.gridlines?.gapSize).toBe(0.02);
+    expect(result.gridlines?.opacity).toBe(0.5);
+  });
+
+  it('dataLabels partial override merges correctly', () => {
+    const result = createChartTheme('enterprise', {
+      dataLabels: { fontSize: 0.06, color: '#ff4400' },
+    });
+    expect(result.dataLabels?.fontSize).toBe(0.06);
+    expect(result.dataLabels?.color).toBe('#ff4400');
+  });
+
+  it('dataLabels pass through unchanged when no override', () => {
+    const result = createChartTheme('enterprise');
+    expect(result.dataLabels?.fontSize).toBe(enterpriseChartTheme.dataLabels?.fontSize);
+    expect(result.dataLabels?.color).toBe(enterpriseChartTheme.dataLabels?.color);
+  });
+
+  it('referenceLines partial override merges correctly', () => {
+    const result = createChartTheme('darkGlass', {
+      referenceLines: { defaultColor: '#00ff00', lineOpacity: 1.0 },
+    });
+    expect(result.referenceLines?.defaultColor).toBe('#00ff00');
+    expect(result.referenceLines?.lineOpacity).toBe(1.0);
+    // lineWidth inherited from base
+    expect(result.referenceLines?.lineWidth).toBe(darkGlassChartTheme.referenceLines?.lineWidth);
+  });
+
+  it('legend textOpacity override merges correctly', () => {
+    const result = createChartTheme('enterprise', {
+      legend: { textOpacity: 0.6 },
+    });
+    expect(result.legend.textOpacity).toBe(0.6);
+    // Other legend fields inherited
+    expect(result.legend.textColor).toBe(enterpriseChartTheme.legend.textColor);
+    expect(result.legend.fontSize).toBe(enterpriseChartTheme.legend.fontSize);
+  });
+
+  it('axis titleFontSize override merges correctly', () => {
+    const result = createChartTheme('darkGlass', {
+      axis: { titleFontSize: 0.1 },
+    });
+    expect(result.axis.titleFontSize).toBe(0.1);
+    // Other axis fields inherited
+    expect(result.axis.lineColor).toBe(darkGlassChartTheme.axis.lineColor);
+    expect(result.axis.fontSize).toBe(darkGlassChartTheme.axis.fontSize);
+  });
 });

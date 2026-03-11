@@ -96,6 +96,16 @@ describe('TimelineWidget', () => {
     expect(root.style.background.replace(/\s+/g, '')).toBe('rgba(0,0,0,0.35)');
   });
 
+  it('anchors horizontal timeline to bottom when position is bottom', () => {
+    const engineDouble = makeEngineDouble({ progress: 0.2 });
+    const { container } = render(
+      <TimelineWidget engine={engineDouble} orientation="horizontal" position="bottom" />,
+    );
+    const root = container.firstChild as HTMLElement;
+    expect(root.style.bottom).toBe('0px');
+    expect(root.style.top).toBe('');
+  });
+
   it('respects scrubEnabled=false', () => {
     const setProgress = vi.fn();
     const engineDouble = makeEngineDouble({ progress: 0.1, setProgress });

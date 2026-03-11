@@ -6,6 +6,8 @@
 line, area, pie, scatter, and heatmap charts with a JSX DSL and the engine renders
 them as animated Three.js geometry inside the BrewSite scene graph.
 
+**Current version: 2.1.0** — V1 upgraders see [MIGRATION.md](./MIGRATION.md).
+
 ## 2. Installation
 
 ```bash
@@ -20,40 +22,37 @@ pnpm add @brewsite/charts
 | `react` | `>=18` |
 | `three` | `>=0.160` |
 
-## 3. Quick Start
+## 3. Quick Start — Inline Data
+
+No `ChartProvider` required when data is passed inline:
 
 ```tsx
 import { useMemo } from 'react';
 import { ScenePlayer, Scene, corePlugin } from '@brewsite/core';
-import {
-  chartPlugin, ChartProvider,
-  Chart, ChartData, ChartAxis, ChartSeries, ChartLegend,
-} from '@brewsite/charts';
+import { chartPlugin, BarChart, ChartAxis, ChartSeries, ChartLegend } from '@brewsite/charts';
 
 const salesRows = [
-  { month: 'Jan', revenue: 120, units: 45 },
-  { month: 'Feb', revenue: 140, units: 52 },
-  { month: 'Mar', revenue: 110, units: 38 },
+  { month: 'Jan', revenue: 120, costs: 85 },
+  { month: 'Feb', revenue: 140, costs: 92 },
+  { month: 'Mar', revenue: 110, costs: 78 },
 ];
 
 function SalesPage() {
-  const chartsPlugin = useMemo(() => chartPlugin(), []);
+  const charts = useMemo(() => chartPlugin(), []);
   return (
     <ScenePlayer
       manifestUrl="/assets/manifest.json"
-      plugins={[corePlugin(), chartsPlugin]}
+      plugins={[corePlugin(), charts]}
     >
-      <ChartProvider data={{ sales: salesRows }}>
-        <Scene id="chart-scene">
-          <Chart id="revenue" type="bar" position={[0, 0, 0]} theme="darkGlass">
-            <ChartData source="sales" />
-            <ChartAxis axis="x" field="month" label="Month" />
-            <ChartAxis axis="y" field="revenue" label="Revenue ($)" format="$,.0f" />
-            <ChartSeries field="revenue" label="Revenue" />
-            <ChartLegend visible position="right" />
-          </Chart>
-        </Scene>
-      </ChartProvider>
+      <Scene id="chart-scene">
+        <BarChart id="revenue" data={salesRows} theme="darkGlass">
+          <ChartAxis axis="x" field="month" label="Month" />
+          <ChartAxis axis="y" field="revenue" label="Revenue ($)" />
+          <ChartSeries field="revenue" label="Revenue" />
+          <ChartSeries field="costs"   label="Costs" />
+          <ChartLegend visible position="right" />
+        </BarChart>
+      </Scene>
     </ScenePlayer>
   );
 }
@@ -70,11 +69,11 @@ import { EngineProvider, corePlugin } from '@brewsite/core';
 import { chartPlugin } from '@brewsite/charts';
 
 function App() {
-  const chartsPlugin = useMemo(() => chartPlugin(), []);
+  const charts = useMemo(() => chartPlugin(), []);
   return (
     <EngineProvider
       manifestUrl="/assets/manifest.json"
-      plugins={[corePlugin(), chartsPlugin]}
+      plugins={[corePlugin(), charts]}
     >
       {/* scenes and layout here */}
     </EngineProvider>
@@ -82,42 +81,62 @@ function App() {
 }
 ```
 
-The plugin:
-- Registers chart DSL node handlers (`<Chart>`, `<ChartData>`, etc.)
-- Auto-creates `ChartWidget` instances on first DSL encounter
-- Wraps children in a `ChartStoreContext.Provider` so hooks can access the store
+## 5. Data Sources
 
-## 5. Data Registration
+V2 supports three data source paths. Mix them freely across charts in the same scene.
 
-### Flat-array form
+### Inline data
+
+Pass rows or columnar data directly via the `data` prop. `ChartProvider` not required.
 
 ```tsx
-import { ChartProvider } from '@brewsite/charts';
-
-const salesRows = [
+const rows = [
   { month: 'Jan', revenue: 120 },
   { month: 'Feb', revenue: 140 },
 ];
 
-<ChartProvider data={{ sales: salesRows }}>
-  {/* scenes */}
-</ChartProvider>
+<BarChart id="revenue" data={rows}>
+  <ChartAxis axis="x" field="month" />
+  <ChartAxis axis="y" field="revenue" />
+</BarChart>
 ```
 
-### Filter group form
+### Async fetch
 
-Use `filterGroup` on `<ChartData>` to enable linked-brush filtering across charts:
+Pass a URL via `dataUrl`. The widget fetches the data at runtime (JSON default, or CSV).
+The chart renders empty until the fetch resolves. `ChartProvider` not required.
 
 ```tsx
-<Chart id="bar1" type="bar">
-  <ChartData source="sales" filterGroup="dashboard" />
-  {/* ... */}
-</Chart>
+<LineChart id="remote-chart" dataUrl="/api/metrics.json">
+  <ChartAxis axis="x" field="month" />
+  <ChartAxis axis="y" field="arr" />
+</LineChart>
 
-<Chart id="scatter1" type="scatter">
-  <ChartData source="sales" filterGroup="dashboard" />
+// CSV source:
+<BarChart id="csv-chart" dataUrl="/data/sales.csv">
   {/* ... */}
-</Chart>
+</BarChart>
+```
+
+### Named source with `ChartProvider`
+
+Register named datasets once and reference them from multiple charts. Supports
+linked-brush filtering via `filterGroup`.
+
+```tsx
+import { ChartProvider, BarChart, LineChart, ChartData } from '@brewsite/charts';
+
+<ChartProvider data={{ sales: salesRows, kpis: kpiRows }}>
+  <BarChart id="bar1">
+    <ChartData source="sales" filterGroup="dashboard" />
+    {/* ... */}
+  </BarChart>
+
+  <LineChart id="line1">
+    <ChartData source="kpis" filterGroup="dashboard" />
+    {/* ... */}
+  </LineChart>
+</ChartProvider>
 ```
 
 ### `useChartData` hook
@@ -133,70 +152,339 @@ function Overlay() {
 }
 ```
 
-## 6. DSL Reference
+### Reactive inline data — `useLiveChartData` (V2.1)
 
-### `<Chart>`
+Propagate React state changes into an inline chart without recompiling the scene.
+Only effective for charts whose `dataSource.type === 'inline'` (i.e., charts using
+the `data={rows}` prop directly).
 
-| Prop | Type | Required | Description |
-|---|---|---|---|
-| `id` | `string` | Yes | Unique chart element ID |
-| `type` | `ChartType` | Yes | Chart type: `'bar'` \| `'line'` \| `'area'` \| `'pie'` \| `'scatter'` \| `'heatmap'` |
-| `position` | `[x, y, z]` | No | World-space position. Default `[0, 0, 0]` |
-| `rotation` | `[x, y, z]` | No | Euler rotation in radians. Default `[0, 0, 0]` |
-| `bounds` | `{ width, height, depth }` | No | Chart bounding box. Default `{ 4, 3, 0.4 }` |
-| `theme` | `ChartThemeName` | No | Theme preset name. Default `'darkGlass'` |
-| `opacity` | `number` | No | Overall opacity 0-1. Default `1` |
-| `interactive` | `boolean` | No | Enable hover/click events. Default `false` |
-| `axisGap` | `number` | No | Gap between the plot axes and axis labels/title. Overrides `theme.axis.gap` |
-| `legendGap` | `number` | No | Gap between the plot area and the legend. Overrides `theme.legend.gap` |
-| `innerRadius` | `number` | No | Pie/donut inner radius ratio. Default `0` |
-| `pieTilt` | `number` | No | Pie chart tilt in radians. Overrides `theme.pie.tilt` when set |
+```tsx
+import { useMemo, useState } from 'react';
+import { chartPlugin, BarChart, ChartAxis, useLiveChartData } from '@brewsite/charts';
+
+function LiveDashboard() {
+  const charts = useMemo(() => chartPlugin(), []);
+  const [rows, setRows] = useState(initialRows);
+
+  // Propagates rows into the chart on every reference change.
+  // The scene DSL still needs data={initialRows} to seed the SceneTrack.
+  useLiveChartData(charts, 'live-chart', rows);
+
+  // Update rows externally (e.g., on interval, WebSocket, etc.):
+  useEffect(() => {
+    const id = setInterval(() => setRows(fetchLatest()), 5000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <ScenePlayer plugins={[charts]}>
+      <Scene id="s1">
+        <BarChart id="live-chart" data={initialRows} theme="darkGlass">
+          <ChartAxis axis="x" field="month" />
+          <ChartAxis axis="y" field="revenue" />
+        </BarChart>
+      </Scene>
+    </ScenePlayer>
+  );
+}
+```
+
+**Notes:**
+- The hook fires after first paint (`useEffect`). The very first frame shows `initialRows`; subsequent frames show live data. For most use cases this single-frame delta is invisible.
+- Has **no effect** on named (`<ChartData source="...">`) or async (`dataUrl="..."`) data sources. Use `ChartProvider` + `ChartDataStore.register()` for reactive named sources.
+
+## 6. Per-Type Components
+
+V2 provides one component per chart type with narrowed TypeScript props.
+The deprecated `<Chart type="...">` from V1 continues to work.
+
+### `<BarChart>`
+
+```tsx
+<BarChart
+  id="revenue"
+  data={rows}
+  orientation="vertical"
+  stackMode="stacked"
+  barPadding={0.2}
+  theme="darkGlass"
+  animateEntry          // V2.1: bars grow upward on scene entry
+  animationDuration={0.4}  // V2.1: completes at 40% of blockProgress
+>
+  <ChartAxis axis="x" field="month" />
+  <ChartAxis axis="y" field="revenue" />
+  <ChartSeries field="revenue" label="Revenue" />
+  <ChartSeries field="costs"   label="Costs" />
+  <ChartLegend visible />
+  <ChartDataLabels position="top" format=".0f" />
+  <ReferenceLine axis="y" value={500} label="Target" />
+</BarChart>
+```
+
+### `<LineChart>`
+
+```tsx
+<LineChart
+  id="metrics"
+  dataUrl="/api/data.json"
+  lineShape="circle"
+  lineSmoothness={0.5}
+  showPoints={true}
+>
+  <ChartAxis axis="x" field="month" />
+  <ChartAxis axis="y" field="value" gridlines />
+  <ChartSeries field="arr"     label="ARR" />
+  <ChartSeries field="revenue" label="Revenue" />
+</LineChart>
+```
+
+### `<ScatterPlotChart>` (4D encoding)
+
+```tsx
+<ScatterPlotChart
+  id="scatter"
+  data={rows}
+  sizeField="revenue"
+  colorField="region"
+  pointShape="sphere"
+  sizeScale={{ min: 0.05, max: 0.3 }}
+  colorInterpolator="viridis"
+>
+  <ChartAxis axis="x" field="acquisitionCost" label="CAC ($)" />
+  <ChartAxis axis="y" field="ltv"             label="LTV ($)" />
+</ScatterPlotChart>
+```
+
+### `<PieChart>` / donut
+
+```tsx
+<PieChart
+  id="market-share"
+  data={rows}
+  innerRadius={0.4}
+  pieTilt={0.4}
+  explodeSlice="North America"
+>
+  <ChartAxis axis="x" field="region" />
+  <ChartAxis axis="y" field="share" />
+  <ChartLegend visible position="bottom" />
+  <ChartDataLabels position="outside" format=".1%" />
+</PieChart>
+```
+
+### `<AreaChart>` (with band variant)
+
+```tsx
+<AreaChart id="range" data={rows} stackMode="stacked">
+  <ChartAxis axis="x" field="month" />
+  <ChartAxis axis="y" field="revenue" />
+  {/* Band area: fills between revenue and revenueMin */}
+  <ChartSeries field="revenue" bandField="revenueMin" label="Revenue Range" />
+</AreaChart>
+```
+
+### `<HeatMapChart>`
+
+```tsx
+<HeatMapChart
+  id="heatmap"
+  data={rows}
+  timeField="week"
+  colorInterpolator="blues"
+>
+  <ChartAxis axis="x" field="day" />
+  <ChartAxis axis="y" field="hour" />
+</HeatMapChart>
+```
+
+## 7. Multi-Series Example
+
+```tsx
+<BarChart id="comparison" data={rows} theme="enterprise">
+  <ChartAxis axis="x" field="quarter" label="Quarter" />
+  <ChartAxis axis="y" field="revenue" label="Revenue ($k)" format=",.0f" gridlines />
+  <ChartSeries field="revenue" label="Revenue" />
+  <ChartSeries field="costs"   label="Costs" />
+  <ChartSeries field="profit"  label="Profit" />
+  <ChartLegend visible position="right" title="Metrics" />
+  <ChartDataLabels position="top" format=".0f" />
+</BarChart>
+```
+
+## 8. Scene-to-Scene Datum Morphing
+
+Charts with the same `id` across consecutive scenes animate data values between
+matched data points when `keyField` is set. In V2.1, morphing is supported in
+`BarChart`, `ScatterPlotChart`, `LineChart`, and `AreaChart`.
+
+```tsx
+// Scene A
+<BarChart id="revenue-comparison" data={yearARows}>
+  <ChartData keyField="quarter" />
+  <ChartAxis axis="x" field="quarter" />
+  <ChartAxis axis="y" field="revenue" />
+</BarChart>
+
+// Scene B — same id + keyField triggers datum-level morphing
+<BarChart id="revenue-comparison" data={yearBRows}>
+  <ChartData keyField="quarter" />
+  <ChartAxis axis="x" field="quarter" />
+  <ChartAxis axis="y" field="revenue" />
+</BarChart>
+```
+
+The same pattern works for `<LineChart>` (Y positions morph) and `<AreaChart>`
+(upper and lower boundary points morph).
+
+## 9. Axis Mapping Functions (V2.1)
+
+### Tier 1 — Serializable `compute` transforms
+
+Derive new columns from existing fields inside the DSL. All operations are
+serializable and stored in the `SceneTrack`.
+
+```tsx
+<ScatterPlotChart id="team-perf" sizeField="sqrt_headcount">
+  <ChartData
+    source="teams"
+    transforms={[
+      { type: 'compute', outputField: 'sqrt_headcount', operation: { fn: 'sqrt', inputField: 'headcount' } },
+      { type: 'compute', outputField: 'log_revenue', operation: { fn: 'log', inputField: 'revenue', base: 10 } },
+    ]}
+  />
+  <ChartAxis axis="x" field="teamSize" />
+  <ChartAxis axis="y" field="log_revenue" label="Revenue (log₁₀)" />
+</ScatterPlotChart>
+```
+
+Supported operations: `log` (with optional `base`), `sqrt`, `normalize` (maps to [0, 1] over dataset range), `scale` (multiply by constant), `add` (add constant).
+
+### Tier 2 — Runtime accessor functions
+
+Attach arbitrary JavaScript accessor functions to a chart by ID. Accessors are
+not serialized into the `SceneTrack` — they live in plugin memory and persist
+across all scenes using the same chart ID.
+
+```tsx
+import { useChartAccessors } from '@brewsite/charts';
+import type { ChartAccessorFunctions } from '@brewsite/charts';
+
+function MyComponent() {
+  const charts = useMemo(() => chartPlugin(), []);
+
+  // Stabilize the object with useMemo to avoid re-registering on every render:
+  const accessors = useMemo<ChartAccessorFunctions>(() => ({
+    sizeAccessor: (row) => Math.sqrt(Number(row.headcount)),
+    colorAccessor: (row) => String(row.region),
+  }), []);
+
+  useChartAccessors(charts, 'team-perf', accessors);
+
+  // ...
+}
+```
+
+`ChartAccessorFunctions` has four optional fields: `xAccessor`, `yAccessor`,
+`sizeAccessor`, `colorAccessor`. Supported on `BarChart`, `LineChart`, and
+`ScatterPlotChart`. On unmount, renderers fall back to `Number(row[field])`.
+
+## 10. DSL Reference
+
+### Shared Base Props (all per-type components)
+
+| Prop | Type | Description |
+|---|---|---|
+| `id` | `string` | Required. Unique chart element ID |
+| `data` | `DataInput` | Inline rows or columnar data. Mutually exclusive with `dataUrl` |
+| `dataUrl` | `string` | URL for async JSON/CSV fetch. Mutually exclusive with `data` |
+| `theme` | `ChartThemeName \| ChartTheme` | Theme preset name or custom theme object |
+| `opacity` | `number` | Overall opacity 0–1. Default `1` |
+| `interactive` | `boolean` | Enable hover/click events. Default `false` |
+| `x` | `number` | NVS left edge [0, 1]. Default `0` |
+| `y` | `number` | NVS top edge [0, 1]. Default `0` |
+| `w` | `number` | NVS width [0, 1]. Default `1` |
+| `h` | `number` | NVS height [0, 1]. Default `1` |
+| `z` | `number` | World-space z offset. Default `0` |
+| `rotation` | `[x, y, z]` | Euler rotation in radians |
+| `bounds` | `{ width?, height?, depth? }` | Geometry fill ratio within NVS region. `width`/`height` are NVS fractions [0..1]; `depth` is world-space thickness |
+| `gridlines` | `boolean` | Per-chart gridlines shorthand |
+| `sceneTheme` | `SceneTheme` | Cross-package font/color-mode context |
+| `animateEntry` | `boolean` | **V2.1** — Enable bar-grow entry animation. Scoped to `BarChart`. Default `false` |
+| `animationDuration` | `number` | **V2.1** — Entry animation duration as fraction of `blockProgress` [0..1]. Default `0.4` |
 
 ### `<ChartData>`
 
-| Prop | Type | Required | Description |
-|---|---|---|---|
-| `source` | `string` | Yes | Data source name registered via `ChartProvider` |
-| `transforms` | `DataTransform[]` | No | Transforms applied at resolve time |
-| `filterGroup` | `string` | No | Linked-brush filter group ID |
-| `timeField` | `string` | No | Time dimension field for heatmap animation |
+| Prop | Type | Description |
+|---|---|---|
+| `source` | `string` | Named source registered via `ChartProvider`. Required for named path. |
+| `keyField` | `string` | Key field for datum-level morphing |
+| `transforms` | `DataTransform[]` | Transforms applied at resolve time. Includes `'compute'` in V2.1 |
+| `filterGroup` | `string` | Linked-brush filter group ID |
 
 ### `<ChartAxis>`
 
-| Prop | Type | Required | Description |
-|---|---|---|---|
-| `axis` | `'x'` \| `'y'` | Yes | Which axis to configure |
-| `field` | `string` | Yes | Data field name to map to this axis |
-| `label` | `string` | No | Axis label text |
-| `format` | `string` | No | d3-format string for tick labels |
+| Prop | Type | Description |
+|---|---|---|
+| `axis` | `'x' \| 'y'` | Which axis to configure |
+| `field` | `string` | Data field name |
+| `label` | `string` | Axis label text |
+| `format` | `string` | d3-format string for tick labels |
+| `scaleType` | `'linear' \| 'log' \| 'time' \| 'band' \| 'sqrt'` | Scale type |
+| `domain` | `[min, max]` | Fixed domain override |
+| `tickCount` | `number` | Approximate tick count |
+| `nice` | `boolean` | Round domain to nice values |
+| `clamp` | `boolean` | Clamp out-of-domain values |
+| `reverse` | `boolean` | Reverse axis direction |
+| `gridlines` | `boolean` | Show gridlines for this axis |
+| `gridlineOpacity` | `number` | Gridline opacity 0–1 |
 
 ### `<ChartSeries>`
 
-| Prop | Type | Required | Description |
-|---|---|---|---|
-| `field` | `string` | Yes | Data field for this series |
-| `label` | `string` | No | Legend label text |
-| `color` | `string` | No | Override series color (hex) |
+| Prop | Type | Description |
+|---|---|---|
+| `field` | `string` | Data field for this series |
+| `label` | `string` | Legend label text |
+| `color` | `string` | Override series color (hex) |
+| `bandField` | `string` | Lower-bound field for area band variant |
 
 ### `<ChartLegend>`
 
-| Prop | Type | Required | Description |
-|---|---|---|---|
-| `visible` | `boolean` | No | Show/hide the legend. Default `true` when present |
-| `position` | `'right'` \| `'bottom'` \| `'top'` \| `'left'` | No | Legend placement. Default `'right'` |
+| Prop | Type | Description |
+|---|---|---|
+| `visible` | `boolean` | Show/hide legend. Default `true` when present |
+| `position` | `'right' \| 'bottom' \| 'top' \| 'left'` | Legend placement. Default `'right'` |
+| `title` | `string` | Legend title text |
+| `columns` | `number` | Number of legend columns |
+| `maxItems` | `number` | Maximum legend entries to show |
 
-## 7. Chart Types
+### `<ChartDataLabels>` (new in V2)
 
-| Type | Description |
-|---|---|
-| `bar` | Vertical bar chart with grouped multi-series support |
-| `line` | Line chart rendered as 3D tubes with per-series coloring |
-| `area` | Filled area chart with extruded geometry |
-| `pie` | Pie/donut chart with configurable `innerRadius` |
-| `scatter` | 3D scatter plot with sphere markers |
-| `heatmap` | 2D heatmap grid with color-mapped cells and optional time animation |
+| Prop | Type | Description |
+|---|---|---|
+| `position` | `'top' \| 'center' \| 'outside'` | Label placement. Default `'top'` |
+| `format` | `string` | d3-format string. Default `'.0f'` |
 
-## 8. Themes
+### `<ReferenceLine>` (new in V2)
+
+| Prop | Type | Description |
+|---|---|---|
+| `axis` | `'x' \| 'y'` | Which axis the value is on |
+| `value` | `number` | Axis value where the line appears |
+| `label` | `string` | Label text |
+| `color` | `string` | Line color (hex). Falls back to `theme.referenceLines.defaultColor` |
+
+## 11. Chart Types
+
+| Component | Type | Description |
+|---|---|---|
+| `<BarChart>` | `bar` | Vertical/horizontal bars, grouped or stacked multi-series |
+| `<LineChart>` | `line` | 3D tube lines with configurable cross-section shape and point markers |
+| `<AreaChart>` | `area` | Filled extruded area with stacked and band variants |
+| `<PieChart>` | `pie` | Pie/donut with configurable `innerRadius`, tilt, and slice explode |
+| `<ScatterPlotChart>` | `scatter` | 3D scatter plot with optional size and color encoding (4D) |
+| `<HeatMapChart>` | `heatmap` | 2D color-mapped grid with optional time animation |
+
+## 12. Themes
 
 ### Preset themes
 
@@ -207,121 +495,167 @@ function Overlay() {
 | `enterprise` | Muted professional palette on a light background |
 | `lightMinimal` | Clean light theme with flat opaque materials |
 
+Pass a preset name string or import the theme constant directly:
+
+```tsx
+import { darkGlassChartTheme } from '@brewsite/charts';
+<BarChart id="rev" theme={darkGlassChartTheme}>...</BarChart>
+```
+
 ### Custom themes with `createChartTheme`
+
+V2.1 adds five new optional token groups to `ChartTheme`. Existing theme objects
+work unchanged — new groups are optional with renderer fallback defaults.
 
 ```tsx
 import { createChartTheme } from '@brewsite/charts';
 
 const brandTheme = createChartTheme('darkGlass', {
   name: 'brand',
-  axis: { lineColor: '#ff4400', labelColor: '#ffffff', gap: 0.22 },
-  legend: { gap: 0.32 },
-  pie: { tilt: 0.5 },
-  series: [
-    { color: '#ff4400', metalness: 0.3, roughness: 0.4, transmission: 0, emissiveIntensity: 0.1, depth: 0.3 },
-  ],
+  axis: {
+    lineColor: '#ff4400',
+    labelColor: '#ffffff',
+    titleFontSize: 0.07,  // V2.1: independent axis title font size
+  },
+  legend: {
+    textOpacity: 0.85,    // V2.1: legend label opacity
+  },
+  bar: { padding: 0.25 },    // V2.1: default barPadding when DSL prop absent
+  area: { fillOpacity: 0.6 }, // V2.1: default fillOpacity
+  gridlines: {               // V2.1: replaces deprecated background.gridColor
+    color: '#4a8080',
+    opacity: 0.2,
+    visible: true,           // on by default for this theme
+    dashSize: 0.03,          // dashed gridlines (requires LineDashedMaterial)
+    gapSize: 0.02,
+  },
+  dataLabels: { fontSize: 0.05, color: '#e0e8ff' },
+  referenceLines: { defaultColor: '#ff8844', lineWidth: 0.005, lineOpacity: 0.85 },
 });
 ```
 
-Pass the resulting `ChartTheme` object to the `theme` prop on `<Chart>`.
+### Cross-package font via `sceneTheme`
 
-Built-in themes now include `theme.pie.tilt`, so pie and donut charts render with a slight upward tilt by default to expose slice depth.
-Built-in themes also include `theme.axis.gap` and `theme.legend.gap`, and individual charts can override them with `axisGap` and `legendGap`.
+```tsx
+import { darkSceneTheme } from '@brewsite/core';
 
-## 9. Linked-Brush Filtering
+<BarChart
+  id="rev"
+  theme="darkGlass"
+  sceneTheme={{
+    ...darkSceneTheme,
+    font: { ...darkSceneTheme.font, webglFontUrl: '/fonts/inter-msdf.ttf' },
+  }}
+>
+  {/* ... */}
+</BarChart>
+```
+
+## 13. Linked-Brush Filtering
 
 Charts that share a `filterGroup` are automatically linked. Selecting data in one
-chart filters all other charts in the same group.
+chart filters all others in the same group.
 
 ```tsx
 import { useChartFilter } from '@brewsite/charts';
 
 function FilterControls() {
   const { applyFilter, clearFilters } = useChartFilter('dashboard');
-
   return (
     <div>
-      <button onClick={() => applyFilter('month', ['Jan', 'Feb'])}>
-        Filter Jan+Feb
-      </button>
+      <button onClick={() => applyFilter('month', ['Jan', 'Feb'])}>Jan+Feb</button>
       <button onClick={() => clearFilters()}>Clear</button>
     </div>
   );
 }
 ```
 
-In the scene DSL, set the same `filterGroup` on each chart's `<ChartData>`:
-
 ```tsx
-<Chart id="chart-a" type="bar">
-  <ChartData source="sales" filterGroup="dashboard" />
-  {/* ... */}
-</Chart>
+<ChartProvider data={{ sales: rows }}>
+  <BarChart id="chart-a">
+    <ChartData source="sales" filterGroup="dashboard" />
+  </BarChart>
 
-<Chart id="chart-b" type="line">
-  <ChartData source="sales" filterGroup="dashboard" />
-  {/* ... */}
-</Chart>
+  <LineChart id="chart-b">
+    <ChartData source="sales" filterGroup="dashboard" />
+  </LineChart>
+</ChartProvider>
 ```
 
-## 10. Interactivity
-
-Enable hover and click events with `interactive={true}`:
+## 14. Interactivity
 
 ```tsx
-<Chart id="revenue" type="bar" interactive>
-  <ChartData source="sales" />
+<BarChart id="revenue" interactive>
   {/* ... */}
-</Chart>
+</BarChart>
 ```
 
-Wire callbacks via `getWidget`:
-
-> **Important:** `getWidget(id)` is only available after the engine has compiled
-> the scene for the first time. Call it in a `useEffect`, not at render time:
-
 ```tsx
+import { useMemo, useEffect } from 'react';
+import { chartPlugin } from '@brewsite/charts';
+
 const plugin = useMemo(() => chartPlugin(), []);
 
-// Correct -- wire callbacks after mount, inside useEffect
 useEffect(() => {
   const chart = plugin.getWidget('revenue');
   if (chart) {
-    chart.onHover = (info) => setTooltipInfo(info);
+    chart.onHover  = (info) => setTooltipInfo(info);
     chart.onSelect = (info) => console.log('selected', info?.row);
   }
 }, [plugin]);
-
-// Wrong -- getWidget returns undefined at render time (scene not yet compiled)
-const chart = plugin.getWidget('revenue'); // undefined here
 ```
 
-Use `ChartTooltipOverlay` for a ready-made tooltip that projects hover info
-to screen coordinates:
+Use `ChartTooltipOverlay` for built-in tooltip projection:
 
 ```tsx
 import { ChartTooltipOverlay } from '@brewsite/charts';
 
-<ChartTooltipOverlay widget={chartWidget} />
+// nvsBounds required in V2; pass widget.nvsBounds or a fullscreen rect
+<ChartTooltipOverlay nvsBounds={chartWidget.nvsBounds} />
 ```
 
-## 11. TypeScript
+## 15. TypeScript
 
 Key exported types:
 
 | Type | Description |
 |---|---|
-| `ChartType` | `'bar'` \| `'line'` \| `'area'` \| `'pie'` \| `'scatter'` \| `'heatmap'` |
+| `ChartType` | `'bar' \| 'line' \| 'area' \| 'pie' \| 'scatter' \| 'heatmap'` |
 | `ChartState` | Compiled runtime state for one chart element |
+| `ChartStateDataSource` | Discriminated union: `InlineDataSource \| NamedDataSource \| AsyncDataSource` |
+| `ChartTypeOptions` | Discriminated union of per-type option bags |
+| `BarChartOptions` | Bar-specific options |
+| `LineChartOptions` | Line-specific options |
+| `ScatterChartOptions` | Scatter-specific options |
+| `PieChartOptions` | Pie-specific options |
+| `AreaChartOptions` | Area-specific options |
+| `HeatMapChartOptions` | Heatmap-specific options |
 | `ChartTheme` | Complete theme token set |
 | `ChartThemeName` | Preset theme name union |
 | `ChartPluginInstance` | Return type of `chartPlugin()` |
+| `ChartAccessorFunctions` | **V2.1** — Function accessor object for `useChartAccessors` |
 | `ChartHoverInfo` | Hover/select event payload |
 | `ChartProviderProps` | Props for `<ChartProvider>` |
-| `DataTransform` | Union of transform descriptors (filter, sort, groupBy, bin) |
-| `FilterGroupId` | String alias for filter group identifiers |
+| `DataTransform` | Union of transform descriptors (`filter`, `sort`, `groupBy`, `bin`, `compute`) |
+| `ComputeTransform` | **V2.1** — Serializable column-derive transform |
 | `ResolvedDataFrame` | `{ rows, fields }` resolved from the data store |
+| `DataInput` | `DataRow[] \| ColumnarData` — accepted by the `data` prop |
+| `ChartBarTokens` | **V2.1** — Bar chart theme defaults token group |
+| `ChartAreaTokens` | **V2.1** — Area chart theme defaults token group |
+| `ChartGridlinesTokens` | **V2.1** — Gridline visual token group |
+| `ChartDataLabelsTokens` | **V2.1** — Data label theme token group |
+| `ChartReferenceLineTokens` | **V2.1** — Reference line theme token group |
 
-## 12. License
+## 16. V1 Migration
+
+See [MIGRATION.md](./MIGRATION.md) for the complete V1 → V2 migration guide, including:
+- Replacing `<Chart type="...">` with per-type components
+- Migrating `state.dataSource` (string → discriminated union)
+- Migrating `state.lineShape`, `state.innerRadius`, etc. (flat → `typeConfig.options`)
+- Updating `ChartTooltipOverlay` props (`camera`/`domElement` → `nvsBounds`)
+- Converting `bounds.width`/`height` from world-units to NVS fractions
+- V2.1 notes for custom renderer authors
+
+## 17. License
 
 MIT

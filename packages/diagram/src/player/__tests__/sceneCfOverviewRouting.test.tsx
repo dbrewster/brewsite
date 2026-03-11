@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { ReactElement } from 'react';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { Scene, WidgetRegistry } from '@brewsite/core';
 import { compileSceneTrack } from '../../../../core/src/compiler/sceneTrackCompiler';
 import { clearRegistry } from '../../../../core/src/compiler/registry';
@@ -17,12 +19,21 @@ import type { DiagramState } from '../../elements/diagram/types';
 
 const EPSILON = 1e-6;
 const CUBIC_SAMPLES = 24;
+const SVG_WIDTH = 1200;
+const SVG_HEIGHT = 720;
+const ARTIFACT_DIR = '/tmp/brewsite-test-artifacts';
 
 type Rect = {
   readonly left: number;
   readonly right: number;
   readonly top: number;
   readonly bottom: number;
+};
+
+type EdgePathCommand = DiagramState['edges'][number]['path']['commands'][number];
+
+type InteriorIntersection = {
+  readonly detail: string;
 };
 
 const nodeRect = (node: DiagramState['nodes'][number]): Rect => ({
@@ -68,18 +79,295 @@ const sampleCubicPoint = (
   ];
 };
 
-const sampleEdgePath = (edge: DiagramState['edges'][number]): ReadonlyArray<readonly [number, number, number]> => {
-  const samples: Array<readonly [number, number, number]> = [];
-  for (const command of edge.path.commands) {
-    if (command.kind === 'line') {
-      samples.push(command.from, command.to);
-      continue;
+const formatPoint = (point: readonly [number, number, number]): string =>
+  `(${point[0].toFixed(4)}, ${point[1].toFixed(4)})`;
+
+const lineIntersectsRectInterior = (
+  from: readonly [number, number, number],
+  to: readonly [number, number, number],
+  rect: Rect,
+): boolean => {
+  const left = rect.left + EPSILON;
+  const right = rect.right - EPSILON;
+  const top = rect.top + EPSILON;
+  const bottom = rect.bottom - EPSILON;
+  if (left >= right || top >= bottom) {
+    return false;
+  }
+
+  let tMin = 0;
+  let tMax = 1;
+  const deltaX = to[0] - from[0];
+  const deltaY = to[1] - from[1];
+
+  const clip = (p: number, q: number): boolean => {
+    if (Math.abs(p) <= EPSILON) {
+      return q >= 0;
     }
-    for (let index = 0; index <= CUBIC_SAMPLES; index += 1) {
-      samples.push(sampleCubicPoint(command.p0, command.p1, command.p2, command.p3, index / CUBIC_SAMPLES));
+    const ratio = q / p;
+    if (p < 0) {
+      if (ratio > tMax) {
+        return false;
+      }
+      if (ratio > tMin) {
+        tMin = ratio;
+      }
+      return true;
+    }
+    if (ratio < tMin) {
+      return false;
+    }
+    if (ratio < tMax) {
+      tMax = ratio;
+    }
+    return true;
+  };
+
+  return (
+    clip(-deltaX, from[0] - left) &&
+    clip(deltaX, right - from[0]) &&
+    clip(-deltaY, from[1] - top) &&
+    clip(deltaY, bottom - from[1]) &&
+    tMin <= tMax
+  );
+};
+
+const findCommandRectInteriorIntersection = (
+  command: EdgePathCommand,
+  rect: Rect,
+): InteriorIntersection | undefined => {
+  if (command.kind === 'line') {
+    if (!lineIntersectsRectInterior(command.from, command.to, rect)) {
+      return undefined;
+    }
+    return {
+      detail: `line ${formatPoint(command.from)} -> ${formatPoint(command.to)}`,
+    };
+  }
+
+  for (let index = 1; index < CUBIC_SAMPLES; index += 1) {
+    const point = sampleCubicPoint(command.p0, command.p1, command.p2, command.p3, index / CUBIC_SAMPLES);
+    if (pointInsideRect(point, rect)) {
+      return { detail: `curve sample ${formatPoint(point)}` };
     }
   }
+  return undefined;
+};
+
+const findPathRectInteriorIntersection = (
+  edge: DiagramState['edges'][number],
+  rect: Rect,
+): InteriorIntersection | undefined => {
+  for (const command of edge.path.commands) {
+    const intersection = findCommandRectInteriorIntersection(command, rect);
+    if (intersection) {
+      return intersection;
+    }
+  }
+  return undefined;
+};
+
+const firstLateralSplit = (
+  left: ReadonlyArray<readonly [number, number, number]>,
+  right: ReadonlyArray<readonly [number, number, number]>,
+  tolerance = 0.02,
+): {
+  readonly index: number;
+  readonly leftPoint: readonly [number, number, number];
+  readonly rightPoint: readonly [number, number, number];
+} | undefined => {
+  const limit = Math.min(left.length, right.length);
+  for (let index = 0; index < limit; index += 1) {
+    const leftPoint = left[index]!;
+    const rightPoint = right[index]!;
+    if (Math.abs(leftPoint[0] - rightPoint[0]) > tolerance) {
+      return { index, leftPoint, rightPoint };
+    }
+  }
+  return undefined;
+};
+
+const sampleEdgePath = (
+  edge: DiagramState['edges'][number],
+  cubicSamples = CUBIC_SAMPLES,
+): ReadonlyArray<readonly [number, number, number]> => {
+  const points: Array<readonly [number, number, number]> = [];
+  const pushUnique = (point: readonly [number, number, number]): void => {
+    const last = points[points.length - 1];
+    if (
+      !last ||
+      Math.abs(last[0] - point[0]) > EPSILON ||
+      Math.abs(last[1] - point[1]) > EPSILON ||
+      Math.abs(last[2] - point[2]) > EPSILON
+    ) {
+      points.push(point);
+    }
+  };
+
+  for (const command of edge.path.commands) {
+    if (command.kind === 'line') {
+      pushUnique(command.from);
+      pushUnique(command.to);
+      continue;
+    }
+
+    for (let index = 0; index <= cubicSamples; index += 1) {
+      pushUnique(sampleCubicPoint(command.p0, command.p1, command.p2, command.p3, index / cubicSamples));
+    }
+  }
+
+  return points;
+};
+
+const planarDistance = (
+  from: readonly [number, number, number],
+  to: readonly [number, number, number],
+): number => Math.hypot(to[0] - from[0], to[1] - from[1]);
+
+const resamplePolyline = (
+  points: ReadonlyArray<readonly [number, number, number]>,
+  sampleCount: number,
+): ReadonlyArray<readonly [number, number, number]> => {
+  if (points.length <= 1 || sampleCount <= 1) {
+    return points;
+  }
+
+  const cumulativeLengths: number[] = [0];
+  for (let index = 1; index < points.length; index += 1) {
+    cumulativeLengths.push(cumulativeLengths[index - 1]! + planarDistance(points[index - 1]!, points[index]!));
+  }
+
+  const totalLength = cumulativeLengths.at(-1) ?? 0;
+  if (totalLength <= EPSILON) {
+    return Array.from({ length: sampleCount }, () => points[0]!);
+  }
+
+  const samples: Array<readonly [number, number, number]> = [];
+  let segmentIndex = 1;
+  for (let index = 0; index < sampleCount; index += 1) {
+    const targetLength = totalLength * (index / (sampleCount - 1));
+    while (
+      segmentIndex < cumulativeLengths.length - 1 &&
+      cumulativeLengths[segmentIndex]! < targetLength - EPSILON
+    ) {
+      segmentIndex += 1;
+    }
+
+    const from = points[segmentIndex - 1]!;
+    const to = points[segmentIndex]!;
+    const startLength = cumulativeLengths[segmentIndex - 1]!;
+    const endLength = cumulativeLengths[segmentIndex]!;
+    const span = Math.max(endLength - startLength, EPSILON);
+    const t = Math.min(1, Math.max(0, (targetLength - startLength) / span));
+    samples.push([
+      from[0] + (to[0] - from[0]) * t,
+      from[1] + (to[1] - from[1]) * t,
+      from[2] + (to[2] - from[2]) * t,
+    ]);
+  }
+
   return samples;
+};
+
+const findLateralOrderViolation = (
+  left: ReadonlyArray<readonly [number, number, number]>,
+  right: ReadonlyArray<readonly [number, number, number]>,
+  startIndex: number,
+  tolerance = 0.01,
+): {
+  readonly index: number;
+  readonly leftPoint: readonly [number, number, number];
+  readonly rightPoint: readonly [number, number, number];
+} | undefined => {
+  const limit = Math.min(left.length, right.length);
+  for (let index = startIndex; index < limit; index += 1) {
+    const leftPoint = left[index]!;
+    const rightPoint = right[index]!;
+    if (leftPoint[0] > rightPoint[0] + tolerance) {
+      return { index, leftPoint, rightPoint };
+    }
+  }
+  return undefined;
+};
+
+const pathEndPoint = (
+  edge: DiagramState['edges'][number],
+): readonly [number, number, number] | undefined => {
+  const last = edge.path.commands.at(-1);
+  if (!last) return undefined;
+  return last.kind === 'line' ? last.to : last.p3;
+};
+
+const svgPoint = (point: readonly [number, number, number]): string =>
+  `${(point[0] * SVG_WIDTH).toFixed(2)},${(point[1] * SVG_HEIGHT).toFixed(2)}`;
+
+const escapeXml = (value: string): string => value
+  .replaceAll('&', '&amp;')
+  .replaceAll('<', '&lt;')
+  .replaceAll('>', '&gt;')
+  .replaceAll('"', '&quot;');
+
+const buildSvgPathData = (edge: DiagramState['edges'][number]): string => edge.path.commands
+  .map((command) => {
+    if (command.kind === 'line') {
+      return `M ${svgPoint(command.from)} L ${svgPoint(command.to)}`;
+    }
+    return `M ${svgPoint(command.p0)} C ${svgPoint(command.p1)} ${svgPoint(command.p2)} ${svgPoint(command.p3)}`;
+  })
+  .join(' ');
+
+const renderCfOverviewSvg = (state: DiagramState): string => {
+  const groups = state.groups.map((group) => {
+    const x = group.bounds.x * SVG_WIDTH;
+    const y = group.bounds.y * SVG_HEIGHT;
+    const w = group.bounds.w * SVG_WIDTH;
+    const h = group.bounds.h * SVG_HEIGHT;
+    const stroke = group.variant === 'container' ? '#7c8fb5' : '#6178a8';
+    const fill = group.variant === 'container' ? 'rgba(24, 30, 52, 0.22)' : 'rgba(34, 42, 70, 0.28)';
+    const title = group.label ?? group.id;
+    return `
+      <g data-group="${escapeXml(group.id)}">
+        <rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" rx="16" ry="16" fill="${fill}" stroke="${stroke}" stroke-width="2" />
+        <text x="${(x + 14).toFixed(2)}" y="${(y + 26).toFixed(2)}" fill="#d7e1ff" font-size="18" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${escapeXml(title)}</text>
+      </g>
+    `;
+  }).join('\n');
+
+  const edges = state.edges.map((edge) => `
+    <g data-edge="${escapeXml(edge.id)}">
+      <path d="${buildSvgPathData(edge)}" fill="none" stroke="${edge.color ?? '#7aa2ff'}" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+    </g>
+  `).join('\n');
+
+  const nodes = state.nodes.map((node) => {
+    const x = (node.position[0] - node.size[0] / 2) * SVG_WIDTH;
+    const y = (node.position[1] - node.size[1] / 2) * SVG_HEIGHT;
+    const w = node.size[0] * SVG_WIDTH;
+    const h = node.size[1] * SVG_HEIGHT;
+    return `
+      <g data-node="${escapeXml(node.id)}">
+        <rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${w.toFixed(2)}" height="${h.toFixed(2)}" rx="10" ry="10" fill="${node.color}" stroke="#b9c8ef" stroke-opacity="0.18" stroke-width="1.5" />
+        <text x="${(x + 10).toFixed(2)}" y="${(y + 22).toFixed(2)}" fill="#f4f7ff" font-size="16" font-family="ui-monospace, SFMono-Regular, Menlo, monospace">${escapeXml(node.label ?? node.id)}</text>
+      </g>
+    `;
+  }).join('\n');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${SVG_WIDTH}" height="${SVG_HEIGHT}" viewBox="0 0 ${SVG_WIDTH} ${SVG_HEIGHT}">
+  <rect width="${SVG_WIDTH}" height="${SVG_HEIGHT}" fill="#050816" />
+  <g opacity="0.9">${groups}</g>
+  <g>${edges}</g>
+  <g>${nodes}</g>
+</svg>`;
+};
+
+const writeCfOverviewSvgArtifact = async (state: DiagramState): Promise<void> => {
+  await mkdir(ARTIFACT_DIR, { recursive: true });
+  await writeFile(
+    join(ARTIFACT_DIR, 'cf-overview-routing.svg'),
+    renderCfOverviewSvg(state),
+    'utf8',
+  );
 };
 
 const collectAllowedGroupIdsForEdge = (
@@ -90,25 +378,38 @@ const collectAllowedGroupIdsForEdge = (
   const nodeById = new Map(state.nodes.map((node) => [node.id, node]));
   const allowed = new Set<string>();
 
-  const addGroupAncestry = (groupId: string | undefined): void => {
+  const addGroupAncestry = (
+    groupId: string | undefined,
+    includeSelf = true,
+  ): void => {
     let cursor = groupId;
+    let isFirst = true;
     while (cursor) {
-      if (allowed.has(cursor)) break;
-      allowed.add(cursor);
+      if (includeSelf || !isFirst) {
+        if (allowed.has(cursor)) break;
+        allowed.add(cursor);
+      }
+      isFirst = false;
       cursor = groupById.get(cursor)?.parentId;
     }
   };
 
-  const addEndpointAncestry = (endpointId: string): void => {
-    if (groupById.has(endpointId)) {
-      addGroupAncestry(endpointId);
+  const addEndpointAncestry = (
+    endpointId: string,
+    endpointRole: 'source' | 'destination',
+  ): void => {
+    const endpointGroup = groupById.get(endpointId);
+    if (endpointGroup) {
+      const allowEndpointInterior =
+        endpointRole === 'source' || endpointGroup.variant === 'container';
+      addGroupAncestry(endpointId, allowEndpointInterior);
       return;
     }
     addGroupAncestry(nodeById.get(endpointId)?.groupId);
   };
 
-  addEndpointAncestry(edge.fromId);
-  addEndpointAncestry(edge.toId);
+  addEndpointAncestry(edge.fromId, 'source');
+  addEndpointAncestry(edge.toId, 'destination');
   return allowed;
 };
 
@@ -189,23 +490,142 @@ beforeEach(() => {
 });
 
 describe('sceneCfOverview routing', () => {
+  // Expected routing shape for the CF overview:
+  // 1. The source `.swarm/memory.db` should feed the two upper groups by exiting
+  //    the source on its left edge for `Core Storage` and on its right edge for
+  //    `Coordination`, then dropping downward into the top edge of each group.
+  // 2. The two lower groups should share one bundled downward trunk from the
+  //    source as long as possible. That shared run is what the render optimizer
+  //    should preserve as a single visual stem.
+  // 3. The lower routes should only split near `Intelligence` and `Recovery`,
+  //    approaching those groups from their left and right sides respectively.
+  // 4. No route should cross through unrelated group or node interiors, and the
+  //    lower pair should not "cross streams" or branch through the upper groups.
   it('routes the top containers out of the source to the left and right', async () => {
     const state = await compileCfOverview();
+    await writeCfOverviewSvgArtifact(state);
     const edgeById = new Map(state.edges.map((edge) => [edge.id, edge]));
     const upperLeft = edgeById.get('cf-db-cf-core-0');
     const upperRight = edgeById.get('cf-db-cf-coord-1');
     const lowerLeft = edgeById.get('cf-db-cf-intel-2');
     const lowerRight = edgeById.get('cf-db-cf-recov-3');
+    const groupById = new Map(state.groups.map((group) => [group.id, group]));
+    const upperCore = groupById.get('cf-core');
+    const upperCoord = groupById.get('cf-coord');
+    const lowerIntel = groupById.get('cf-intel');
+    const lowerRecov = groupById.get('cf-recov');
 
     expect(upperLeft, 'missing edge cf-db-cf-core-0').toBeDefined();
     expect(upperRight, 'missing edge cf-db-cf-coord-1').toBeDefined();
     expect(lowerLeft, 'missing edge cf-db-cf-intel-2').toBeDefined();
     expect(lowerRight, 'missing edge cf-db-cf-recov-3').toBeDefined();
+    expect(upperCore).toBeDefined();
+    expect(upperCoord).toBeDefined();
+    expect(lowerIntel).toBeDefined();
+    expect(lowerRecov).toBeDefined();
 
     expect(upperLeft!.path.startTangent[0]).toBeLessThan(-0.95);
     expect(upperRight!.path.startTangent[0]).toBeGreaterThan(0.95);
+    expect(upperLeft!.pathDebug?.selectedSrcFace).toBe('left');
+    expect(upperRight!.pathDebug?.selectedSrcFace).toBe('right');
     expect(lowerLeft!.path.startTangent).toEqual([0, 1, 0]);
     expect(lowerRight!.path.startTangent).toEqual([0, 1, 0]);
+    expect(Math.abs(upperLeft!.path.endTangent[1])).toBeGreaterThan(0.95);
+    expect(Math.abs(upperRight!.path.endTangent[1])).toBeGreaterThan(0.95);
+    expect(lowerLeft!.path.endTangent[0]).toBeLessThan(-0.95);
+    expect(lowerRight!.path.endTangent[0]).toBeGreaterThan(0.95);
+    expect(lowerLeft!.pathDebug?.selectedDstFace).toBe('right');
+    expect(lowerRight!.pathDebug?.selectedDstFace).toBe('left');
+    expect(Math.abs((pathEndPoint(upperLeft)?.[0] ?? Infinity) - upperCore!.bounds.x - upperCore!.bounds.w / 2)).toBeLessThan(upperCore!.bounds.w * 0.3);
+    expect(Math.abs((pathEndPoint(upperRight)?.[0] ?? Infinity) - upperCoord!.bounds.x - upperCoord!.bounds.w / 2)).toBeLessThan(upperCoord!.bounds.w * 0.3);
+    expect(upperLeft!.pathDebug?.routeKind).toBe('clean-orthogonal');
+    expect(upperLeft!.path.commands.filter((command) => command.kind === 'cubic')).toHaveLength(1);
+
+    // Upper-right route must also be clean-orthogonal with exactly one 90° bend
+    expect(upperRight!.pathDebug?.routeKind).toBe('clean-orthogonal');
+    expect(upperRight!.path.commands.filter((command) => command.kind === 'cubic')).toHaveLength(1);
+
+    // The one cubic is a horizontal-to-vertical L-turn (the "90° turn downward")
+    const upperLeftCubic = upperLeft!.path.commands.find(
+      (c): c is Extract<(typeof c), { kind: 'cubic' }> => c.kind === 'cubic',
+    )!;
+    const upperRightCubic = upperRight!.path.commands.find(
+      (c): c is Extract<(typeof c), { kind: 'cubic' }> => c.kind === 'cubic',
+    )!;
+    // upperLeft: horizontal-to-vertical L-turn (exits left, turns downward into dest top)
+    // Incoming arm is horizontal: p0 and p1 share the same Y in Y-down NVS
+    expect(Math.abs(upperLeftCubic.p1[1] - upperLeftCubic.p0[1])).toBeLessThan(0.005);
+    // Outgoing arm is vertical: p2 and p3 share the same X
+    expect(Math.abs(upperLeftCubic.p2[0] - upperLeftCubic.p3[0])).toBeLessThan(0.005);
+    // The turn exits downward: p3 is below p2 in Y-down NVS (larger Y value)
+    expect(upperLeftCubic.p3[1]).toBeGreaterThan(upperLeftCubic.p2[1]);
+    // upperRight: same horizontal-to-vertical L-turn shape as upperLeft — exits right, turns downward.
+    // Simple pipe geometry: one clean bend, no overshoot-and-backtrack Z-shape.
+    // Incoming arm is horizontal: p0 and p1 share the same Y in Y-down NVS
+    expect(Math.abs(upperRightCubic.p1[1] - upperRightCubic.p0[1])).toBeLessThan(0.005);
+    // Outgoing arm is vertical: p2 and p3 share the same X
+    expect(Math.abs(upperRightCubic.p2[0] - upperRightCubic.p3[0])).toBeLessThan(0.005);
+    // The turn exits downward: p3 is below p2 in Y-down NVS (larger Y value)
+    expect(upperRightCubic.p3[1]).toBeGreaterThan(upperRightCubic.p2[1]);
+    // Appropriate port: entry X is on the same lateral side as the exit face
+    // Left exit → entry left of centre; right exit → entry right of centre
+    expect(pathEndPoint(upperLeft)?.[0] ?? Infinity).toBeLessThan(0.5);
+    expect(pathEndPoint(upperRight)?.[0] ?? Infinity).toBeGreaterThan(0.5);
+
+    // Side-face entries for the lower routes should land at the MIDDLE of the face (center Y),
+    // not the top-most edge. Port placement must be consistent: top/bottom faces prefer center X,
+    // and left/right faces should equally prefer center Y.
+    const lowerIntelCenterY = lowerIntel!.bounds.y + lowerIntel!.bounds.h / 2;
+    const lowerRecovCenterY = lowerRecov!.bounds.y + lowerRecov!.bounds.h / 2;
+    expect(
+      Math.abs((pathEndPoint(lowerLeft)?.[1] ?? Infinity) - lowerIntelCenterY),
+      'lower-left entry should be at the middle of cf-intel\'s side face, not the top edge',
+    ).toBeLessThan(lowerIntel!.bounds.h * 0.25);
+    expect(
+      Math.abs((pathEndPoint(lowerRight)?.[1] ?? Infinity) - lowerRecovCenterY),
+      'lower-right entry should be at the middle of cf-recov\'s side face, not the top edge',
+    ).toBeLessThan(lowerRecov!.bounds.h * 0.25);
+
+    const lowerLeftPoints = lowerLeft!.controlPoints;
+    const lowerRightPoints = lowerRight!.controlPoints;
+    expect(lowerLeftPoints.length).toBeGreaterThanOrEqual(4);
+    expect(lowerRightPoints.length).toBeGreaterThanOrEqual(4);
+
+    expect(Math.abs(lowerLeftPoints[0]![0] - lowerRightPoints[0]![0])).toBeLessThan(0.01);
+    expect(Math.abs(lowerLeftPoints[1]![0] - lowerRightPoints[1]![0])).toBeLessThan(0.01);
+    expect(Math.abs(lowerLeftPoints[1]![1] - lowerRightPoints[1]![1])).toBeLessThan(0.01);
+
+    const split = firstLateralSplit(lowerLeftPoints, lowerRightPoints);
+    expect(split, 'lower routes never split laterally').toBeDefined();
+
+    const upperBottom = Math.max(groupRect(upperCore!).bottom, groupRect(upperCoord!).bottom);
+    const lowerTop = Math.min(groupRect(lowerIntel!).top, groupRect(lowerRecov!).top);
+    const splitThreshold = upperBottom + (lowerTop - upperBottom) * 0.5;
+
+    expect(Math.abs(split!.leftPoint[1] - split!.rightPoint[1])).toBeLessThan(0.03);
+    expect(split!.leftPoint[1]).toBeGreaterThan(splitThreshold);
+    expect(split!.leftPoint[0]).toBeLessThan(split!.rightPoint[0]);
+
+    const lowerLeftResampled = resamplePolyline(sampleEdgePath(lowerLeft!), 64);
+    const lowerRightResampled = resamplePolyline(sampleEdgePath(lowerRight!), 64);
+    const sampledSplit = firstLateralSplit(lowerLeftResampled, lowerRightResampled, 0.015);
+    expect(sampledSplit, 'lower routes never split laterally in sampled path').toBeDefined();
+    const orderViolation = findLateralOrderViolation(
+      lowerLeftResampled,
+      lowerRightResampled,
+      sampledSplit!.index,
+    );
+    expect(
+      orderViolation,
+      orderViolation
+        ? `lower routes cross after splitting near ${formatPoint(orderViolation.leftPoint)} and ${formatPoint(orderViolation.rightPoint)}`
+        : undefined,
+    ).toBeUndefined();
+
+    const lowerLeftInteriorSamples = sampleEdgePath(lowerLeft!).slice(1, -1);
+    const lowerRightInteriorSamples = sampleEdgePath(lowerRight!).slice(1, -1);
+    expect(Math.max(...lowerLeftInteriorSamples.map((point) => point[1]))).toBeLessThan(groupRect(lowerIntel!).bottom - 0.01);
+    expect(Math.max(...lowerRightInteriorSamples.map((point) => point[1]))).toBeLessThan(groupRect(lowerRecov!).bottom - 0.01);
 
     state.edges.forEach((edge) => {
       edge.controlPoints.forEach((point) => {
@@ -229,32 +649,32 @@ describe('sceneCfOverview routing', () => {
         id: group.id,
         rect: groupRect(group),
       }));
+    const violations: string[] = [];
 
     for (const edge of state.edges) {
-      const interiorSamples = sampleEdgePath(edge).slice(1, -1);
       const allowedGroupIds = collectAllowedGroupIdsForEdge(state, edge);
 
-      for (const sample of interiorSamples) {
-        for (const group of groupRects) {
-          if (allowedGroupIds.has(group.id)) {
-            continue;
-          }
-          expect(
-            pointInsideRect(sample, group.rect),
-            `edge ${edge.id} crosses into group ${group.id} at (${sample[0].toFixed(4)}, ${sample[1].toFixed(4)})`,
-          ).toBe(false);
+      for (const group of groupRects) {
+        if (allowedGroupIds.has(group.id)) {
+          continue;
         }
+        const intersection = findPathRectInteriorIntersection(edge, group.rect);
+        if (intersection) {
+          violations.push(`edge ${edge.id} crosses into group ${group.id} via ${intersection.detail}`);
+        }
+      }
 
-        for (const node of nodeRects) {
-          if (node.id === edge.fromId || node.id === edge.toId) {
-            continue;
-          }
-          expect(
-            pointInsideRect(sample, node.rect),
-            `edge ${edge.id} crosses into node ${node.id} at (${sample[0].toFixed(4)}, ${sample[1].toFixed(4)})`,
-          ).toBe(false);
+      for (const node of nodeRects) {
+        if (node.id === edge.fromId || node.id === edge.toId) {
+          continue;
+        }
+        const intersection = findPathRectInteriorIntersection(edge, node.rect);
+        if (intersection) {
+          violations.push(`edge ${edge.id} crosses into node ${node.id} via ${intersection.detail}`);
         }
       }
     }
+
+    expect(violations).toEqual([]);
   });
 });

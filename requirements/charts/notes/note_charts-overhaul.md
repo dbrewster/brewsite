@@ -2,8 +2,8 @@
 title: Charts Package Overhaul
 doc_type: note
 owner: brewsite-product-manager
-status: draft
-updated: 2026-03-10
+status: complete
+updated: 2026-03-11
 change_summary: "PM debate pass — inline rows moved into ChartState directly (fixes per-scene collision); FunctionDataSource cut from V2 scope; DSL/State layer types explicitly separated; Scene 6 smooth innerRadius animation descoped to V2.1; 7 open questions closed as decisions; ChartState.type documented as derived field with interpolateFn change; d3-scale-chromatic added as explicit dependency decision."
 ---
 

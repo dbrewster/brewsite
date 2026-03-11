@@ -203,6 +203,54 @@ describe('scoreCandidate', () => {
     const score = scoreCandidate(candidate, fromPos, toPos, nodeSize, nodeSize, undefined);
     expect(score.sharedPathPenalty).toBe(0);
   });
+
+  it('does not penalize the inner side face for bundled vertical group ingress', () => {
+    const from: Vec3 = [0.5, -0.1, 0];
+    const to: Vec3 = [0.29, -0.76, 0];
+    const groupSize: readonly [number, number, number] = [0.33, 0.25, 0.01];
+    const candidate: RoutedEdgeCandidate = {
+      edgeId: 'e-group',
+      srcFace: 'bottom',
+      dstFace: 'right',
+      sourceFaceLocked: true,
+      destinationFaceLocked: false,
+      destinationLateralClass: 'edge',
+      sourceAnchor: [0.5, -0.15, 0],
+      destinationAnchor: [0.455, -0.76, 0],
+      bundleHint: {
+        edgeId: 'e-group',
+        sourceFaceHint: 'bottom',
+        sourceAnchorHint: [0.5, -0.15, 0],
+        sourceGuideHint: [0.5, -0.38, 0],
+        sharedTrunkKey: 'from:bottom',
+      },
+      geometry: {
+        waypoints: [
+          [0.5, -0.38, 0],
+          [0.5, -0.76, 0],
+          [0.455, -0.76, 0],
+        ],
+        bendCount: 1,
+        pathLength: 0.425,
+        routeKind: 'clean-orthogonal',
+        acuteTurnCount: 0,
+        reversalCount: 0,
+        orthogonalDeviationPenalty: 0,
+        groupIngressPenalty: 0,
+      },
+    };
+
+    const bundledScore = scoreCandidate(candidate, from, to, nodeSize, groupSize, 'from:bottom');
+    const topCandidate: RoutedEdgeCandidate = {
+      ...candidate,
+      dstFace: 'top',
+      destinationLateralClass: 'edge',
+      destinationAnchor: [0.29, -0.635, 0],
+    };
+    const topScore = scoreCandidate(topCandidate, from, to, nodeSize, groupSize, 'from:bottom');
+
+    expect(bundledScore.heuristicPenalty).toBeLessThan(topScore.heuristicPenalty);
+  });
 });
 
 // ─── candidateToRankKey ────────────────────────────────────────────────────────

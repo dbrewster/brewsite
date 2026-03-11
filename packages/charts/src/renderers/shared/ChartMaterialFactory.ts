@@ -1,7 +1,14 @@
 // Material factory for chart renderers — caches MeshPhysicalMaterial by token key.
 
 import * as THREE from 'three';
+import {
+  interpolateBlues,
+  interpolateReds,
+  interpolateViridis,
+  interpolatePlasma,
+} from 'd3-scale-chromatic';
 import type { ChartTheme } from '../../themes/types';
+import type { ScatterChartOptions } from './IChartRenderer';
 
 type MaterialKey = string;
 
@@ -73,6 +80,50 @@ export class ChartMaterialFactory {
     });
     this.cache.set(key, mat);
     return mat;
+  }
+
+  /**
+   * Returns a fresh MeshPhysicalMaterial for a specific datum color (colorField encoding).
+   * Not cached — caller is responsible for disposal.
+   */
+  getColorFieldMaterial(color: THREE.Color, opacity: number): THREE.MeshPhysicalMaterial {
+    return new THREE.MeshPhysicalMaterial({
+      color,
+      emissive: color,
+      emissiveIntensity: 0.1,
+      metalness: 0.1,
+      roughness: 0.6,
+      transparent: opacity < 1,
+      opacity,
+      side: THREE.FrontSide,
+    });
+  }
+
+  /**
+   * Maps a normalized [0,1] value to a Three.js Color using the specified d3-scale-chromatic interpolator.
+   * Used by ScatterRenderer for continuous colorField encoding.
+   */
+  static interpolateColor(
+    normalizedValue: number,
+    interpolator: ScatterChartOptions['colorInterpolator'],
+  ): THREE.Color {
+    let cssColor: string;
+    switch (interpolator) {
+      case 'blues':
+        cssColor = interpolateBlues(normalizedValue);
+        break;
+      case 'reds':
+        cssColor = interpolateReds(normalizedValue);
+        break;
+      case 'plasma':
+        cssColor = interpolatePlasma(normalizedValue);
+        break;
+      case 'viridis':
+      default:
+        cssColor = interpolateViridis(normalizedValue);
+        break;
+    }
+    return new THREE.Color(cssColor);
   }
 
   /** Apply opacity to all cached MeshPhysicalMaterial instances. */

@@ -1,5 +1,33 @@
 // Core data types for the @brewsite/charts data layer.
 
+/**
+ * A single data row — flat column-value pairs. Fully JSON-serializable.
+ * Canonical definition: imported by elements/chart/types.ts from here.
+ */
+export type DataRow = Readonly<Record<string, unknown>>;
+
+/**
+ * Columnar data format: { month: ['Jan','Feb'], revenue: [128, 145] }.
+ * Transposed to DataRow[] by normalizeDataInput() before storage.
+ * Canonical definition: imported by elements/chart/types.ts from here.
+ */
+export type ColumnarData = Readonly<Record<string, ReadonlyArray<unknown>>>;
+
+/**
+ * Accepted data input formats for inline data prop and ChartProvider.
+ * Canonical definition: imported by elements/chart/types.ts from here.
+ */
+export type DataInput = ReadonlyArray<DataRow> | ColumnarData;
+
+/**
+ * Normalizes DataInput to a flat row array.
+ * - If input is an array → returned as-is.
+ * - If input is a columnar object → transposed to row array.
+ * Throws in dev mode if columnar columns have different lengths.
+ * Implementation lives in data/transforms.ts; re-exported from here for convenience.
+ */
+export { normalizeDataInput } from './transforms';
+
 /** Comparison operators for serializable filter predicates. */
 export type FilterOp = 'eq' | 'neq' | 'gt' | 'gte' | 'lt' | 'lte' | 'in';
 
@@ -43,8 +71,30 @@ export type BinTransform = {
   readonly thresholds?: number;
 };
 
+/**
+ * V2.1: Derives a new computed column from an existing numeric field.
+ * All operations are serializable — no function references.
+ * Stored in ChartState.transforms[] and evaluated at runtime by ChartDataStore.resolve().
+ */
+export type ComputeTransform = {
+  readonly type: 'compute';
+  /** Name of the new computed output field added to each row. */
+  readonly outputField: string;
+  readonly operation:
+    | { readonly fn: 'log'; readonly inputField: string; readonly base?: number }
+    | { readonly fn: 'sqrt'; readonly inputField: string }
+    | { readonly fn: 'normalize'; readonly inputField: string }
+    | { readonly fn: 'scale'; readonly inputField: string; readonly factor: number }
+    | { readonly fn: 'add'; readonly inputField: string; readonly value: number };
+};
+
 /** Union of all supported data transforms. All are serializable — no function references. */
-export type DataTransform = FilterTransform | GroupByTransform | SortTransform | BinTransform;
+export type DataTransform =
+  | FilterTransform
+  | GroupByTransform
+  | SortTransform
+  | BinTransform
+  | ComputeTransform;
 
 /** A resolved data frame after all transforms are applied. */
 export type ResolvedDataFrame = {

@@ -1,7 +1,7 @@
 import { SimpleFilterEngine } from './SimpleFilterEngine';
-import { applyTransforms } from './transforms';
+import { applyTransforms, normalizeDataInput } from './transforms';
 import type { IFilterEngine } from './IFilterEngine';
-import type { DataTransform, ResolvedDataFrame } from './types';
+import type { DataInput, DataRow, DataTransform, ResolvedDataFrame } from './types';
 
 type Row = Record<string, unknown>;
 
@@ -41,6 +41,10 @@ export class ChartDataStore {
   private readonly registeredSources = new Set<string>();
   // Memoization cache: source name → { cacheKey, result }
   private readonly resolveCache = new Map<string, { key: string; result: ResolvedDataFrame }>();
+  // V2.1: tracks widget IDs with an active useLiveChartData override
+  private readonly liveOverrides = new Set<string>();
+  /** V2.1: Cleanup callbacks registered by ChartWidget at construction time. Keyed by widgetId. */
+  private readonly deregisterCallbacks = new Map<string, () => void>();
 
   constructor(filterEngine: IFilterEngine = new SimpleFilterEngine()) {
     this.filterEngine = filterEngine;
@@ -48,21 +52,77 @@ export class ChartDataStore {
 
   /**
    * Register a data source by name.
+   * Accepts row arrays or columnar data objects (transposed automatically).
    * If filterGroupId is provided, applyFilter(groupId, ...) will affect this source.
    *
-   * @param name         Unique source name referenced in <ChartData source="..." />.
-   * @param rows         Row data. Treated as immutable — do not mutate after registration.
-   * @param filterGroupId  Optional filter group. Sources in the same group share filters.
+   * @param name          Unique source name referenced in <ChartData source="..." />.
+   * @param rows          Row array or columnar DataInput. Treated as immutable after registration.
+   * @param filterGroupId Optional filter group. Sources in the same group share filters.
    */
   register(
     name: string,
-    rows: ReadonlyArray<Row>,
+    rows: ReadonlyArray<Row> | DataInput,
     filterGroupId?: string,
   ): void {
     this.unregister(name); // Clean up previous registration if any
     this.registeredSources.add(name);
-    this.filterEngine.register(name, rows, filterGroupId);
+    const normalizedRows = normalizeDataInput(rows as DataInput);
+    this.filterEngine.register(name, normalizedRows, filterGroupId);
     this.resolveCache.delete(name);
+  }
+
+  /**
+   * Registers inline data for a chart widget, keyed by __inline__${widgetId}.
+   * Thin wrapper around register() for the inline data source pattern.
+   * If filterGroupId is provided, the inline source participates in linked-brush filtering.
+   */
+  registerInline(widgetId: string, rows: ReadonlyArray<DataRow>, filterGroupId?: string): void {
+    this.register(`__inline__${widgetId}`, rows, filterGroupId);
+  }
+
+  /**
+   * V2.1: Mark widgetId as having an active live hook override.
+   * Called by useLiveChartData after registerInline().
+   */
+  setLiveOverride(widgetId: string): void {
+    this.liveOverrides.add(widgetId);
+  }
+
+  /**
+   * V2.1: Returns true when useLiveChartData has registered for this widget and not yet unmounted.
+   */
+  hasLiveOverride(widgetId: string): boolean {
+    return this.liveOverrides.has(widgetId);
+  }
+
+  /**
+   * V2.1: Remove data and override flag registered by useLiveChartData.
+   * Called on hook unmount. Invokes the cleanup callback registered by ChartWidget
+   * (which resets lastInlineRowsRef so the next apply() re-registers SceneTrack rows).
+   */
+  deregisterInline(widgetId: string): void {
+    this.liveOverrides.delete(widgetId);
+    this.unregister(`__inline__${widgetId}`);
+    this.deregisterCallbacks.get(widgetId)?.();
+  }
+
+  /**
+   * V2.1: Register a callback invoked by deregisterInline(). Called once by ChartWidget constructor.
+   * Returns an unsubscribe function — ChartWidget.dispose() calls it to prevent stale callbacks.
+   */
+  onDeregisterInline(widgetId: string, cb: () => void): () => void {
+    this.deregisterCallbacks.set(widgetId, cb);
+    return () => { this.deregisterCallbacks.delete(widgetId); };
+  }
+
+  /**
+   * Returns the number of distinct time-slice values for a given time field.
+   * Used by ChartWidget.onTick() for scroll-driven heatmap animation.
+   */
+  getTimeSliceCount(name: string, timeField: string): number {
+    if (!this.registeredSources.has(name)) return 0;
+    const allRows = this.filterEngine.getRows(name);
+    return new Set(allRows.map((r) => r[timeField])).size;
   }
 
   /** Remove a source and clean up filter state. */
@@ -171,6 +231,8 @@ export class ChartDataStore {
       this.unregister(name);
     }
     this.resolveCache.clear();
+    this.liveOverrides.clear();
+    this.deregisterCallbacks.clear();
     this.filterEngine.dispose();
   }
 

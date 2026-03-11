@@ -1,20 +1,26 @@
-// Area chart renderer — THREE.Shape from d3-area boundaries → ExtrudeGeometry.
+// Area chart renderer — THREE.Shape from d3-area boundaries → ExtrudeGeometry; V2 adds stacked areas and band areas.
 
 import * as THREE from 'three';
 import { scaleLinear } from 'd3-scale';
 import { extent } from 'd3-array';
-import { area } from 'd3-shape';
+import { stack, stackOrderNone, stackOffsetNone } from 'd3-shape';
 import { AxesRenderer } from '../shared/AxesRenderer';
 import { LegendRenderer } from '../shared/LegendRenderer';
 import { ChartMaterialFactory } from '../shared/ChartMaterialFactory';
-import type { IChartRenderer, ChartRenderContext, ChartHitInfo } from '../shared/IChartRenderer';
+import type { IChartRenderer, ChartRenderContext, ChartHitInfo, MorphContext } from '../shared/IChartRenderer';
 import type { ResolvedDataFrame } from '../../data/types';
 
-const AREA_OPACITY_FACTOR = 0.65;
+/** Linearly interpolates between a and b at progress t. */
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
 
 /**
  * Renders area charts as extruded Three.js shapes.
- * Multi-series areas are slightly offset along Z for depth.
+ * V2: reads stackMode and fillOpacity from ctx.typeOptions.
+ *     SmartRebuild tracks lastStackMode per Q7 decision.
+ *     Stacked mode uses d3-shape.stack() for cumulative layers.
+ *     Band areas: series[i].bandField renders area between field (upper) and bandField (lower).
  */
 export class AreaRenderer implements IChartRenderer {
   private readonly materialFactory = new ChartMaterialFactory();
@@ -25,14 +31,20 @@ export class AreaRenderer implements IChartRenderer {
   private lastBoundsWidth = 1;
   private lastDataLength = -1;
   private lastSeriesCount = -1;
+  /** Q7: tracks last stackMode to trigger SmartRebuild when it changes. */
+  private lastStackMode: 'none' | 'stacked' = 'none';
   private chartPosition: readonly [number, number, number] = [0, 0, 0];
 
   update(ctx: ChartRenderContext): void {
     const { seriesGroup, axesGroup, legendGroup, data, xAxis, yAxis, series, bounds, theme, opacity, fontUrl } = ctx;
     this.chartPosition = ctx.chartPosition ?? [0, 0, 0];
 
-    const effectiveSeries: Array<{ field: string; label?: string; color?: string }> = series.length > 0
-      ? [...series]
+    const areaOptions = ctx.typeOptions.kind === 'area' ? ctx.typeOptions.options : {};
+    const stackMode = areaOptions.stackMode ?? 'none';
+    const fillOpacity = areaOptions.fillOpacity ?? theme.area?.fillOpacity ?? 0.7;
+
+    const effectiveSeries: Array<{ field: string; label?: string; color?: string; bandField?: string }> = series.length > 0
+      ? series.map((s) => ({ ...s }))
       : (yAxis ? [{ field: yAxis.field, label: yAxis.label }] : []);
 
     this.seriesGroupRef = seriesGroup;
@@ -45,17 +57,24 @@ export class AreaRenderer implements IChartRenderer {
     const xField = xAxis?.field ?? data.fields[0] ?? 'x';
     const needsRebuild =
       data.rows.length !== this.lastDataLength ||
-      effectiveSeries.length !== this.lastSeriesCount;
+      effectiveSeries.length !== this.lastSeriesCount ||
+      stackMode !== this.lastStackMode ||
+      ctx.morphCtx !== undefined; // always rebuild during morph transitions
 
     if (needsRebuild) {
       this.clearAreas();
-      this.buildAreas(seriesGroup, data, xField, effectiveSeries, bounds, theme, opacity);
+      if (stackMode === 'stacked') {
+        this.buildStackedAreas(seriesGroup, data, xField, effectiveSeries, bounds, theme, opacity, fillOpacity);
+      } else {
+        this.buildAreas(seriesGroup, data, xField, effectiveSeries, bounds, theme, opacity, fillOpacity, ctx.morphCtx);
+      }
       this.lastDataLength = data.rows.length;
       this.lastSeriesCount = effectiveSeries.length;
+      this.lastStackMode = stackMode;
     } else {
       for (const mesh of this.areaMeshes) {
         const mat = mesh.material as THREE.MeshPhysicalMaterial;
-        mat.opacity = opacity * AREA_OPACITY_FACTOR;
+        mat.opacity = opacity * fillOpacity;
         mat.transparent = true;
       }
     }
@@ -73,22 +92,33 @@ export class AreaRenderer implements IChartRenderer {
       value: Math.round((yMax * i) / 5),
       position: i / 5,
     }));
-    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl });
+    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl, gridlines: ctx.gridlines, fittedMargins: ctx.fittedMargins });
 
     if (!this.legendRenderer) this.legendRenderer = new LegendRenderer(legendGroup);
-    this.legendRenderer.update(effectiveSeries, theme, opacity, fontUrl);
+    this.legendRenderer.update(effectiveSeries, ctx.legend ?? { visible: true, position: 'right' }, theme, opacity, fontUrl);
   }
 
   private buildAreas(
     seriesGroup: THREE.Group,
     data: ResolvedDataFrame,
     xField: string,
-    series: Array<{ field: string; label?: string; color?: string }>,
+    series: Array<{ field: string; label?: string; color?: string; bandField?: string }>,
     bounds: { width: number; height: number; depth: number },
     theme: ChartRenderContext['theme'],
     opacity: number,
+    fillOpacity: number,
+    morphCtx: MorphContext | undefined,
   ): void {
     this.lastBoundsWidth = bounds.width;
+
+    type Row = Record<string, unknown>;
+
+    // Build O(1) lookup map from fromData rows for morphing — built once per update()
+    const morphFromMap: Map<unknown, Row> | null = morphCtx
+      ? new Map<unknown, Row>(
+          morphCtx.fromData.rows.map((r) => [r[morphCtx.keyField], r as Row]),
+        )
+      : null;
 
     const allValues = data.rows.flatMap((r) =>
       series.map((s) => Number(r[s.field]) || 0),
@@ -101,20 +131,63 @@ export class AreaRenderer implements IChartRenderer {
       const s = series[si]!;
       const zOffset = si * 0.1;
 
-      // Build shape from area boundaries
       const shape = new THREE.Shape();
-      // Start at baseline left
-      shape.moveTo(0, 0);
-      // Upper boundary
-      for (let i = 0; i < data.rows.length; i++) {
-        const x = xScale(i);
-        const y = yScale(Number(data.rows[i]![s.field]) || 0);
-        if (i === 0) shape.lineTo(x, y);
-        else shape.lineTo(x, y);
+
+      if (s.bandField) {
+        // Band area: between upper field and lower bandField
+        // Upper boundary (left to right)
+        const startRow = data.rows[0] as Row;
+        const startToUpperY = Number(startRow[s.field]) || 0;
+        const startUpperY = (() => {
+          if (!morphFromMap || !morphCtx) return startToUpperY;
+          const fromRow = morphFromMap.get(startRow[morphCtx.keyField]);
+          const fromUpperY = fromRow ? (Number(fromRow[s.field]) || 0) : startToUpperY;
+          return lerp(fromUpperY, startToUpperY, morphCtx.t);
+        })();
+        shape.moveTo(xScale(0), yScale(startUpperY));
+
+        for (let i = 1; i < data.rows.length; i++) {
+          const row = data.rows[i] as Row;
+          const toUpperY = Number(row[s.field]) || 0;
+          const upperY = (() => {
+            if (!morphFromMap || !morphCtx) return toUpperY;
+            const fromRow = morphFromMap.get(row[morphCtx.keyField]);
+            const fromUpperY = fromRow ? (Number(fromRow[s.field]) || 0) : toUpperY;
+            return lerp(fromUpperY, toUpperY, morphCtx.t);
+          })();
+          shape.lineTo(xScale(i), yScale(upperY));
+        }
+        // Lower boundary (right to left)
+        for (let i = data.rows.length - 1; i >= 0; i--) {
+          const row = data.rows[i] as Row;
+          const toLowerY = Number(row[s.bandField!]) || 0;
+          const lowerY = (() => {
+            if (!morphFromMap || !morphCtx) return toLowerY;
+            const fromRow = morphFromMap.get(row[morphCtx.keyField]);
+            const fromLowerY = fromRow ? (Number(fromRow[s.bandField!]) || 0) : toLowerY;
+            return lerp(fromLowerY, toLowerY, morphCtx.t);
+          })();
+          shape.lineTo(xScale(i), yScale(lowerY));
+        }
+        shape.closePath();
+      } else {
+        // Standard area: upper boundary + baseline
+        shape.moveTo(0, 0);
+        for (let i = 0; i < data.rows.length; i++) {
+          const x = xScale(i);
+          const row = data.rows[i] as Row;
+          const toUpperY = Number(row[s.field]) || 0;
+          const upperY = (() => {
+            if (!morphFromMap || !morphCtx) return toUpperY;
+            const fromRow = morphFromMap.get(row[morphCtx.keyField]);
+            const fromUpperY = fromRow ? (Number(fromRow[s.field]) || 0) : toUpperY;
+            return lerp(fromUpperY, toUpperY, morphCtx.t);
+          })();
+          shape.lineTo(x, yScale(upperY));
+        }
+        shape.lineTo(xScale(data.rows.length - 1), 0);
+        shape.lineTo(0, 0);
       }
-      // Close back to baseline
-      shape.lineTo(xScale(data.rows.length - 1), 0);
-      shape.lineTo(0, 0);
 
       const tokens = theme.series[si % theme.series.length]!;
       const geo = new THREE.ExtrudeGeometry(shape, {
@@ -122,10 +195,65 @@ export class AreaRenderer implements IChartRenderer {
         bevelEnabled: false,
       });
       const mat = this.materialFactory.getSeriesMaterial(theme, si);
-      mat.opacity = opacity * AREA_OPACITY_FACTOR;
+      mat.opacity = opacity * fillOpacity;
       mat.transparent = true;
       const mesh = new THREE.Mesh(geo, mat);
       mesh.position.z = zOffset;
+      seriesGroup.add(mesh);
+      this.areaMeshes.push(mesh);
+    }
+  }
+
+  private buildStackedAreas(
+    seriesGroup: THREE.Group,
+    data: ResolvedDataFrame,
+    xField: string,
+    series: Array<{ field: string; label?: string; color?: string }>,
+    bounds: { width: number; height: number; depth: number },
+    theme: ChartRenderContext['theme'],
+    opacity: number,
+    fillOpacity: number,
+  ): void {
+    this.lastBoundsWidth = bounds.width;
+
+    const stackedData = stack<Record<string, unknown>>()
+      .keys(series.map((s) => s.field))
+      .order(stackOrderNone)
+      .offset(stackOffsetNone)(data.rows as Array<Record<string, unknown>>);
+
+    const totalByRow = data.rows.map((r) =>
+      series.reduce((sum, s) => sum + (Number(r[s.field]) || 0), 0),
+    );
+    const maxTotal = (extent(totalByRow) as [number, number])[1] ?? 1;
+    const yScale = scaleLinear().domain([0, maxTotal]).range([0, bounds.height]);
+    const xScale = scaleLinear().domain([0, data.rows.length - 1]).range([0, bounds.width]);
+
+    for (let si = 0; si < stackedData.length; si++) {
+      const layer = stackedData[si]!;
+      const shape = new THREE.Shape();
+
+      // Upper boundary (left to right): y1 values
+      const firstDatum = layer[0]!;
+      shape.moveTo(xScale(0), yScale(firstDatum[0]));
+      for (let i = 0; i < layer.length; i++) {
+        shape.lineTo(xScale(i), yScale(layer[i]![1]));
+      }
+      // Lower boundary (right to left): y0 values
+      for (let i = layer.length - 1; i >= 0; i--) {
+        shape.lineTo(xScale(i), yScale(layer[i]![0]));
+      }
+      shape.closePath();
+
+      const tokens = theme.series[si % theme.series.length]!;
+      const geo = new THREE.ExtrudeGeometry(shape, {
+        depth: tokens.depth,
+        bevelEnabled: false,
+      });
+      const mat = this.materialFactory.getSeriesMaterial(theme, si);
+      mat.opacity = opacity * fillOpacity;
+      mat.transparent = true;
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.z = si * 0.05;
       seriesGroup.add(mesh);
       this.areaMeshes.push(mesh);
     }

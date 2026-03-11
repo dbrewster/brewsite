@@ -253,4 +253,21 @@ describe('enumeratePortCandidates', () => {
     expect(result.length).toBeGreaterThan(1);
     expect(new Set(result.map((entry) => `${entry.sourcePortIndex}:${entry.destinationPortIndex}`)).size).toBe(result.length);
   });
+
+  it('keeps narrow shallow group-top slots in the natural near-center band', () => {
+    const nodeMap = makeNodeMap([0.5, -0.1, 0], [0.29, -0.39, 0], [0.36, 0.09, 0.58], [0.33, 0.42, 0.01]);
+    const candidate = makeFaceCandidate('left', 'top');
+    const result = enumeratePortCandidates(candidate, makeRequest(), nodeMap, new Set(['to']));
+
+    expect(result.length).toBeGreaterThan(0);
+    expect(result.every((entry) => entry.destinationLateralClass === 'center' || entry.destinationLateralClass === 'inner')).toBe(true);
+  });
+
+  it('keeps the best shallow side-led group top ingress near the center when not bundled', () => {
+    const nodeMap = makeNodeMap([0.5, -0.1, 0], [0.29, -0.39, 0], [0.37, 0.09, 0.58], [0.33, 0.42, 0.01]);
+    const candidate = makeFaceCandidate('left', 'top');
+    const result = enumeratePortCandidates(candidate, makeRequest(), nodeMap, new Set(['to']));
+
+    expect(result[0]?.destinationLateralClass === 'center' || result[0]?.destinationLateralClass === 'inner').toBe(true);
+  });
 });

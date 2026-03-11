@@ -30,6 +30,7 @@ type BuildFlowObstacleModelInput = {
   readonly positions: ReadonlyMap<string, Vec3>;
   readonly sizes: ReadonlyMap<string, NodeDimensions>;
   readonly groupIds?: ReadonlySet<string>;
+  readonly obstacleGroupIds?: ReadonlySet<string>;
   readonly sourceId: string;
   readonly destinationId: string;
   readonly sourceAnchor: Vec3;
@@ -95,9 +96,15 @@ export function buildFlowObstacleModel(input: BuildFlowObstacleModelInput): Flow
   const destinationOwningGroupIds = new Set<string>();
 
   for (const [id, pos] of input.positions) {
-    if (id === input.sourceId || id === input.destinationId) continue;
     const size = input.sizes.get(id);
     if (!size) continue;
+
+    const isGroup = input.groupIds?.has(id) ?? size[2] <= GROUP_DEPTH_THRESHOLD;
+    const isObstacleGroup = isGroup && (!input.obstacleGroupIds || input.obstacleGroupIds.has(id));
+    const isEndpointGroupObstacle =
+      isObstacleGroup &&
+      (id === input.sourceId || id === input.destinationId);
+    if ((id === input.sourceId || id === input.destinationId) && !isEndpointGroupObstacle) continue;
 
     const rawRect = {
       left: pos[0] - size[0] / 2,
@@ -106,7 +113,9 @@ export function buildFlowObstacleModel(input: BuildFlowObstacleModelInput): Flow
       top: pos[1] + size[1] / 2,
     } satisfies Rect2D;
 
-    const isGroup = input.groupIds?.has(id) ?? size[2] <= GROUP_DEPTH_THRESHOLD;
+    if (isGroup && input.obstacleGroupIds && !input.obstacleGroupIds.has(id)) {
+      continue;
+    }
     const padding = isGroup
       ? input.obstaclePadding * GROUP_BOUNDARY_CLEARANCE_MULTIPLIER
       : input.obstaclePadding;

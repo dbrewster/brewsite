@@ -23,6 +23,7 @@ export const darkGlassChartTheme: ChartTheme = {
     fontSize: .05,
     tickLength: 0.08,
     gap: 0.18,
+    titleFontSize: 0.065,
   },
   background: {
     planeColor: '#0f172a',
@@ -35,6 +36,7 @@ export const darkGlassChartTheme: ChartTheme = {
     swatchSize: 0.08,
     spacing: 0.14,
     gap: 0.28,
+    textOpacity: 1.0,
   },
   line: {
     shape: 'circle',
@@ -49,4 +51,9 @@ export const darkGlassChartTheme: ChartTheme = {
     hoverEmissiveIntensity: 0.6,
     selectedColor: '#ffdd00',
   },
+  bar: { padding: 0.2 },
+  area: { fillOpacity: 0.7},
+  gridlines: { color: '#4a6080', opacity: 0.18, visible: false },
+  dataLabels: { fontSize: 0.05, color: '#e0e8ff' },
+  referenceLines: { defaultColor: '#ff8844', lineWidth: 0.005, lineOpacity: 0.85 },
 };

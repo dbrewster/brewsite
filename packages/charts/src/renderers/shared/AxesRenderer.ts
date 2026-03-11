@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { Text } from 'troika-three-text';
 import { ensureText } from '@brewsite/core';
 import type { TextWithLayout } from '@brewsite/core';
-import type { ChartAxisState } from './IChartRenderer';
+import type { ChartAxisState, FittedMargins } from './IChartRenderer';
 import type { ChartTheme } from '../../themes/types';
 
 type TickEntry = {
@@ -21,6 +21,14 @@ type AxisRenderState = {
   xAxis: ChartAxisState | null;
   yAxis: ChartAxisState | null;
   fontUrl?: string;
+  /** Per-chart gridlines override from ChartRenderContext.gridlines. When absent, treated as null (no override). */
+  gridlines?: boolean | null;
+  /**
+   * V2.1: Fitted margin values from computeChartLayout().
+   * When present, used for axis title positioning instead of raw theme margin values.
+   * When absent, falls back to legacy theme-based formula for backward compatibility.
+   */
+  fittedMargins?: FittedMargins;
 };
 
 const AXIS_LABEL_Z_OFFSET = 0.01;
@@ -38,11 +46,12 @@ export class AxesRenderer {
   private readonly yTickLabels: TextWithLayout[] = [];
   private xAxisTitle: TextWithLayout | null = null;
   private yAxisTitle: TextWithLayout | null = null;
+  private readonly gridlineObjects: THREE.Line[] = [];
 
   constructor(private readonly axesGroup: THREE.Group) {}
 
   update(state: AxisRenderState): void {
-    const { xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl } = state;
+    const { xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl, gridlines, fittedMargins } = state;
     const { width, height } = bounds;
 
     // Floor plane
@@ -52,7 +61,10 @@ export class AxesRenderer {
     this.updateAxisLines(width, height, theme, opacity);
 
     // Ticks + labels
-    this.updateTicks(xTicks, yTicks, width, height, theme, opacity, xAxis, yAxis, fontUrl);
+    this.updateTicks(xTicks, yTicks, width, height, theme, opacity, xAxis, yAxis, fontUrl, fittedMargins);
+
+    // Gridlines
+    this.updateGridlines(yTicks, width, height, theme, opacity, xAxis, yAxis, gridlines ?? null);
   }
 
   private updateFloor(
@@ -137,12 +149,14 @@ export class AxesRenderer {
     xAxis: ChartAxisState | null,
     yAxis: ChartAxisState | null,
     fontUrl?: string,
+    fittedMargins?: FittedMargins,
   ): void {
     const tickLen = theme.axis.tickLength;
     const color = new THREE.Color(theme.axis.lineColor);
     const labelColor = theme.axis.labelColor;
     const labelOpacity = opacity * theme.axis.labelOpacity;
     const fontSize = theme.axis.fontSize;
+    const titleFontSize = theme.axis.titleFontSize ?? fontSize * 1.1;
     const tickOpacity = opacity * theme.axis.tickOpacity;
     const axisGap = theme.axis.gap;
 
@@ -188,14 +202,20 @@ export class AxesRenderer {
       });
     }
 
-    // Axis title labels
+    // Axis title labels — V2.1: use fittedMargins for positioning when available
+    const titlePad = titleFontSize * 0.5;
+
     if (xAxis?.label) {
       const titleLabel = this.ensureAxisTitle('x');
       const titleObject = titleLabel as unknown as THREE.Object3D;
-      titleObject.position.set(width / 2, -tickLen - axisGap - fontSize * 1.8, AXIS_LABEL_Z_OFFSET);
+      // V2.1: use fittedMargins.bottom for X axis title Y position; fall back to legacy formula
+      const xTitleY = fittedMargins
+        ? -fittedMargins.bottom + titlePad
+        : -(tickLen + axisGap + fontSize * 1.8);
+      titleObject.position.set(width / 2, xTitleY, AXIS_LABEL_Z_OFFSET);
       titleObject.rotation.z = 0;
       titleObject.renderOrder = 10;
-      ensureText(titleLabel, xAxis.label, labelColor, fontSize * 1.1, labelOpacity, undefined, false, {
+      ensureText(titleLabel, xAxis.label, labelColor, titleFontSize, labelOpacity, undefined, false, {
         anchorX: 'center',
         anchorY: 'top',
         fontUrl,
@@ -208,10 +228,14 @@ export class AxesRenderer {
     if (yAxis?.label) {
       const titleLabel = this.ensureAxisTitle('y');
       const obj = titleLabel as unknown as THREE.Object3D;
-      obj.position.set(-tickLen - axisGap - fontSize * 2.5, height / 2, AXIS_LABEL_Z_OFFSET);
+      // V2.1: use fittedMargins.left for Y axis title X position; fall back to legacy formula
+      const yTitleX = fittedMargins
+        ? -fittedMargins.left + titlePad
+        : -(tickLen + axisGap + fontSize * 2.5);
+      obj.position.set(yTitleX, height / 2, AXIS_LABEL_Z_OFFSET);
       obj.rotation.z = Math.PI / 2;
       obj.renderOrder = 10;
-      ensureText(titleLabel, yAxis.label, labelColor, fontSize * 1.1, labelOpacity, undefined, false, {
+      ensureText(titleLabel, yAxis.label, labelColor, titleFontSize, labelOpacity, undefined, false, {
         anchorX: 'center',
         anchorY: 'bottom',
         fontUrl,
@@ -219,6 +243,72 @@ export class AxesRenderer {
     } else if (this.yAxisTitle) {
       this.removeLabel(this.yAxisTitle);
       this.yAxisTitle = null;
+    }
+  }
+
+  private updateGridlines(
+    yTicks: TickEntry[],
+    width: number,
+    height: number,
+    theme: ChartTheme,
+    opacity: number,
+    _xAxis: ChartAxisState | null,
+    yAxis: ChartAxisState | null,
+    gridlines: boolean | null,
+  ): void {
+    // V2.1: theme.gridlines?.visible is the baseline; per-chart and per-axis props override.
+    const themeGridlinesVisible = theme.gridlines?.visible ?? false;
+    const yAxisGridlines = yAxis?.gridlines !== false;
+    // gridlines === true: explicit DSL enable. false: explicit disable. null: use theme baseline.
+    const showGridlines = gridlines !== false && yAxisGridlines && (gridlines === true || themeGridlinesVisible);
+
+    // Remove all existing gridline objects first
+    for (const line of this.gridlineObjects) {
+      this.axesGroup.remove(line);
+      line.geometry.dispose();
+      const mat = line.material;
+      if (Array.isArray(mat)) { for (const m of mat) m.dispose(); } else { mat.dispose(); }
+    }
+    this.gridlineObjects.length = 0;
+
+    if (!showGridlines) return;
+
+    // V2.1: read all tokens from theme.gridlines — color fallback chain, opacity, dash support
+    const gridColor = new THREE.Color(theme.gridlines?.color ?? theme.background.gridColor ?? '#4a6080');
+    const gridOpacity = (theme.gridlines?.opacity ?? 0.15) * opacity;
+    const dashSize = theme.gridlines?.dashSize;
+    const gapSize = theme.gridlines?.gapSize ?? dashSize; // default gapSize equals dashSize
+
+    for (const tick of yTicks) {
+      const y = tick.position * height;
+      const geo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0, y, -0.005),
+        new THREE.Vector3(width, y, -0.005),
+      ]);
+
+      let line: THREE.Line;
+      if (dashSize) {
+        // V2.1: use LineDashedMaterial for themes that specify dashSize (e.g. neonCyber)
+        const mat = new THREE.LineDashedMaterial({
+          color: gridColor,
+          transparent: true,
+          opacity: gridOpacity,
+          dashSize,
+          gapSize: gapSize ?? dashSize,
+        });
+        line = new THREE.Line(geo, mat);
+        line.computeLineDistances();
+      } else {
+        const mat = new THREE.LineBasicMaterial({
+          color: gridColor,
+          transparent: true,
+          opacity: gridOpacity,
+        });
+        line = new THREE.Line(geo, mat);
+      }
+
+      this.axesGroup.add(line);
+      this.gridlineObjects.push(line);
     }
   }
 
@@ -312,6 +402,14 @@ export class AxesRenderer {
     if (this.yAxisTitle) this.removeLabel(this.yAxisTitle);
     this.xAxisTitle = null;
     this.yAxisTitle = null;
+
+    for (const line of this.gridlineObjects) {
+      this.axesGroup.remove(line);
+      line.geometry.dispose();
+      const mat = line.material;
+      if (Array.isArray(mat)) { for (const m of mat) m.dispose(); } else { mat.dispose(); }
+    }
+    this.gridlineObjects.length = 0;
 
     if (this.axisLineX) {
       this.axisLineX.geometry.dispose();

@@ -1,9 +1,206 @@
-// IChartRenderer — interface every chart-type renderer implements.
+// IChartRenderer — interface every chart-type renderer implements (V2).
 
 import type * as THREE from 'three';
-import type { ResolvedDataFrame } from '../../data/types';
+import type { DataRow, ResolvedDataFrame } from '../../data/types';
 import type { ChartTheme } from '../../themes/types';
-import type { ChartLineShape } from '../../elements/chart/types';
+
+// ─── V2.1: Accessor functions ──────────────────────────────────────────────
+
+/**
+ * V2.1: Function-based data accessors registered by useChartAccessors().
+ * These bypass the SceneTrack and override field-name-based value lookup in renderers.
+ * Defined here (shared renderer type hub) so both renderers and the plugin layer can import
+ * this type without creating a circular dependency.
+ */
+export type ChartAccessorFunctions = {
+  /** Accessor for the X axis numeric channel. Overrides Number(row[xField]). */
+  readonly xAccessor?: (row: DataRow) => number;
+  /** Accessor for the Y axis numeric channel. Overrides Number(row[yField]). */
+  readonly yAccessor?: (row: DataRow) => number;
+  /** Accessor for the size channel (scatter). Overrides Number(row[sizeField]). */
+  readonly sizeAccessor?: (row: DataRow) => number;
+  /** Accessor for the color channel (scatter). Overrides field lookup. */
+  readonly colorAccessor?: (row: DataRow) => number | string;
+};
+
+// ─── V2.1: Fitted margins ─────────────────────────────────────────────────
+
+/**
+ * V2.1: Actual margin values produced by fitMargins() in computeChartLayout().
+ * These may be smaller than raw theme values when the chart is narrow.
+ * AxesRenderer uses these for all axis decoration positioning — not raw theme margin values.
+ * Defined here (shared renderer type hub) so both layout.ts and AxesRenderer.ts can import it
+ * without creating a circular dependency.
+ */
+export type FittedMargins = {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+};
+
+// ─── Re-exported axis/series state (canonical definitions — elements/chart/types imports these) ─
+
+/** Axis state — pre-computed scale domain/range for one axis. V2 adds scale control fields. */
+export type ChartAxisState = {
+  readonly axis: 'x' | 'y';
+  readonly field: string;
+  readonly label?: string;
+  readonly format?: string;
+  readonly domain?: readonly [number | string, number | string];
+  // V2 additions:
+  readonly scaleType?: 'linear' | 'log' | 'time' | 'band' | 'sqrt';
+  readonly tickCount?: number;
+  readonly nice?: boolean;
+  readonly clamp?: boolean;
+  readonly reverse?: boolean;
+  readonly gridlines?: boolean;
+  readonly gridlineOpacity?: number;
+};
+
+/** State for one data series within a chart. V2 adds bandField for area band variant. */
+export type ChartSeriesState = {
+  readonly field: string;
+  readonly label?: string;
+  readonly color?: string;
+  /** For area band variant: name of the lower-bound field. */
+  readonly bandField?: string;
+};
+
+// ─── Legend ──────────────────────────────────────────────────────────────────
+
+/** Legend position. */
+export type LegendPosition = 'right' | 'bottom' | 'top' | 'left';
+
+/**
+ * Compiled legend state — V2 adds title, columns, maxItems.
+ */
+export type ChartLegendState = {
+  readonly visible: boolean;
+  readonly position: LegendPosition;
+  readonly title?: string;
+  readonly columns?: number;
+  readonly maxItems?: number;
+};
+
+// ─── Type-specific options (Q7/Q8 resolution) ─────────────────────────────
+
+/** Rendered profile shape for line charts. */
+export type ChartLineShape = 'circle' | 'triangle' | 'hexagon' | 'heptagon' | 'octagon' | 'line';
+
+/** Bar chart type-specific options. */
+export type BarChartOptions = {
+  readonly orientation?: 'vertical' | 'horizontal';
+  readonly stackMode?: 'grouped' | 'stacked';
+  /** Padding ratio between bar groups [0..1]. Default from theme. */
+  readonly barPadding?: number;
+};
+
+/** Line chart type-specific options. */
+export type LineChartOptions = {
+  readonly lineShape?: ChartLineShape;
+  readonly lineSmoothness?: number;
+  readonly lineSubdivisions?: number;
+  readonly showPoints?: boolean;
+};
+
+/** Scatter plot type-specific options. */
+export type ScatterChartOptions = {
+  readonly sizeField?: string;
+  readonly colorField?: string;
+  readonly pointShape?: 'sphere' | 'cube' | 'cylinder';
+  /** World-space radius scale range for sizeField encoding. */
+  readonly sizeScale?: { readonly min: number; readonly max: number };
+  /** Color interpolator for continuous numeric colorField values. */
+  readonly colorInterpolator?: 'blues' | 'reds' | 'viridis' | 'plasma';
+};
+
+/** Pie/donut chart type-specific options. */
+export type PieChartOptions = {
+  /** [0..1] — 0 = pie, >0 = donut. Default: 0. */
+  readonly innerRadius?: number;
+  readonly pieTilt?: number;
+  /** x-axis field value of the slice to push outward. */
+  readonly explodeSlice?: string;
+};
+
+/** Area chart type-specific options. */
+export type AreaChartOptions = {
+  readonly stackMode?: 'none' | 'stacked';
+  readonly fillOpacity?: number;
+};
+
+/** Heatmap chart type-specific options. */
+export type HeatMapChartOptions = {
+  readonly timeField?: string;
+  readonly heightField?: string;
+  readonly colorInterpolator?: 'blues' | 'reds' | 'viridis' | 'plasma';
+};
+
+/**
+ * Discriminated union of per-chart-type options.
+ * `kind` matches ChartState.type. Renderers pattern-match on `kind`.
+ */
+export type ChartTypeOptions =
+  | { readonly kind: 'bar';     readonly options: BarChartOptions }
+  | { readonly kind: 'line';    readonly options: LineChartOptions }
+  | { readonly kind: 'scatter'; readonly options: ScatterChartOptions }
+  | { readonly kind: 'pie';     readonly options: PieChartOptions }
+  | { readonly kind: 'area';    readonly options: AreaChartOptions }
+  | { readonly kind: 'heatmap'; readonly options: HeatMapChartOptions };
+
+// ─── Data labels (Q8 resolution) ─────────────────────────────────────────
+
+/** Position of data value labels relative to geometry. */
+export type DataLabelsPosition = 'top' | 'center' | 'outside';
+
+/** Compiled data label display state. */
+export type ChartDataLabelsState = {
+  readonly position: DataLabelsPosition;
+  /** d3-format string. Default: '.0f'. */
+  readonly format?: string;
+};
+
+// ─── Reference lines ──────────────────────────────────────────────────────
+
+/** A single reference line drawn on one axis at a given value. */
+export type ReferenceLineState = {
+  readonly axis: 'x' | 'y';
+  readonly value: number;
+  readonly label?: string;
+  readonly color?: string;
+};
+
+// ─── Morph context (Q3 resolution) ───────────────────────────────────────
+
+/**
+ * Q3 Resolution: Datum morphing context.
+ * Present in ChartRenderContext only when keyField is set on both the from- and
+ * to-state data sources and both have data. Renderers that don't implement
+ * morphing safely ignore this field.
+ */
+export type MorphContext = {
+  readonly fromData: ResolvedDataFrame;
+  // toData intentionally omitted — renderers use ctx.data for the to-state (Challenge 11).
+  readonly t: number;
+  readonly keyField: string;
+};
+
+// ─── Data label entry (Q8 resolution) ────────────────────────────────────
+
+/**
+ * Q8 Resolution: Single entry for DataLabelRenderer.
+ * Per-type renderers compute these from geometry; shared DataLabelRenderer renders them.
+ */
+export type DataLabelAlignment = 'above' | 'center' | 'outside';
+
+export type DataLabelEntry = {
+  readonly position: THREE.Vector3;
+  readonly text: string;
+  readonly alignment: DataLabelAlignment;
+};
+
+// ─── Hit info ─────────────────────────────────────────────────────────────
 
 /** Hit info returned by hover/click raycasting. */
 export type ChartHitInfo = {
@@ -13,48 +210,74 @@ export type ChartHitInfo = {
   readonly point: readonly [number, number, number];
 };
 
-/** Axis state — pre-computed scale domain/range for one axis. */
-export type ChartAxisState = {
-  readonly axis: 'x' | 'y';
-  readonly field: string;
-  readonly label?: string;
-  readonly format?: string;
-  readonly domain?: readonly [number | string, number | string];
-};
+// ─── Render context ───────────────────────────────────────────────────────
 
-/** State for one data series within a chart. */
-export type ChartSeriesState = {
-  readonly field: string;
-  readonly label?: string;
-  readonly color?: string;
-};
-
-/** Render context passed to every IChartRenderer.update() call. */
+/**
+ * V2 render context — passed to every IChartRenderer.update() call.
+ *
+ * Breaking changes from V1: typeOptions replaces flat lineShape/pieTilt/etc.,
+ * morphCtx added (optional), dataLabels added, referenceLines added,
+ * gridlines added, legend field added (Challenge 1+2 fix).
+ *
+ * All fields defined here in Phase 0-B so Stream 4 (LegendRenderer) does NOT
+ * need to modify this file. All fields are final after Phase 0-B.
+ */
 export type ChartRenderContext = {
   readonly seriesGroup: THREE.Group;
   readonly axesGroup: THREE.Group;
   readonly legendGroup: THREE.Group;
   readonly chartPosition?: readonly [number, number, number];
+  /**
+   * Current/to-state data. Renderers use this for all normal rendering.
+   * When morphCtx is present, this IS the to-state data — morphCtx.fromData
+   * holds the from-state. No separate toData field on MorphContext (Challenge 11).
+   */
   readonly data: ResolvedDataFrame;
   readonly xAxis: ChartAxisState | null;
   readonly yAxis: ChartAxisState | null;
   readonly series: readonly ChartSeriesState[];
+  readonly referenceLines?: ReadonlyArray<ReferenceLineState>;
+  /** V2: Legend state — used by LegendRenderer.update() for title, columns, maxItems. */
+  readonly legend: ChartLegendState | null;
   readonly bounds: { readonly width: number; readonly height: number; readonly depth: number };
   readonly theme: ChartTheme;
   readonly opacity: number;
-  readonly lineShape?: ChartLineShape;
-  readonly lineSmoothness?: number;
-  readonly lineSubdivisions?: number;
-  readonly innerRadius: number;
-  readonly pieTilt: number;
-  /**
-   * Optional MSDF font URL for troika-three-text label rendering.
-   * Derived by ChartRenderer from state.sceneTheme.font.webglFontUrl
-   * and theme.sceneTheme.font.webglFontUrl (state sceneTheme takes precedence).
-   * When absent, each renderer falls back to the troika built-in font.
-   */
+  /** V2: Replaces flat lineShape, lineSmoothness, innerRadius, pieTilt, timeField, etc. */
+  readonly typeOptions: ChartTypeOptions;
+  /** V2: Non-null when <ChartDataLabels> is present in the DSL. */
+  readonly dataLabels: ChartDataLabelsState | null;
+  /** V2: Per-chart gridlines override (null = use axis-level settings). */
+  readonly gridlines: boolean | null;
   readonly fontUrl?: string;
+  /**
+   * Q3 Resolution: Present only during keyField-based datum-morphing transitions.
+   * Built solely inside ChartRenderer.update() — NOT in ChartWidget.apply().
+   * Renderers that don't implement morphing ignore this field — they render `data` as-is.
+   * Implementing renderers use morphCtx.fromData (from) and ctx.data (to).
+   */
+  readonly morphCtx?: MorphContext;
+  /**
+   * V2.1: Entry animation progress [0..1].
+   * Present only when animateEntry=true and the animation is in progress.
+   * Absent (or 1.0) = geometry at full size. Currently consumed by BarRenderer only.
+   * @default undefined (treated as 1.0 — fully rendered)
+   */
+  readonly entryT?: number;
+  /**
+   * V2.1: Function accessors from useChartAccessors(). May override field-name lookups.
+   * Renderers check for accessors before falling back to Number(row[field]).
+   * @default undefined (no override — field-name lookup applies)
+   */
+  readonly accessors?: ChartAccessorFunctions;
+  /**
+   * V2.1: Fitted margin values from computeChartLayout().
+   * Passed to AxesRenderer for axis title positioning.
+   * Absent for renderers that have not yet been migrated to the bounding-fix path.
+   */
+  readonly fittedMargins?: FittedMargins;
 };
+
+// ─── Interface ────────────────────────────────────────────────────────────
 
 /**
  * Interface every chart-type renderer (Bar, Line, Area, Pie, Scatter, Heatmap) implements.

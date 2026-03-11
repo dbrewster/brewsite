@@ -1,13 +1,18 @@
 // @brewsite/charts — native 3D chart elements for BrewSite scenes.
 
 // ─── DSL authoring surface ────────────────────────────────────────────────────
-export { Chart, ChartData, ChartAxis, ChartSeries, ChartLegend } from './elements/chart/ChartWidget';
+// V2: Per-type components
+export { BarChart, LineChart, ScatterPlotChart, PieChart, AreaChart, HeatMapChart } from './elements/chart/stubs';
+// V2: Shared child components
+export { ChartData, ChartAxis, ChartSeries, ChartLegend, ChartDataLabels, ReferenceLine } from './elements/chart/stubs';
+// Deprecated: generic V1 Chart component
+export { Chart } from './elements/chart/stubs';
+
+// V2 prop types
 export type {
-  ChartProps,
-  ChartDataProps,
-  ChartAxisProps,
-  ChartSeriesProps,
-  ChartLegendProps,
+  BarChartProps, LineChartProps, ScatterPlotChartProps, PieChartProps,
+  AreaChartProps, HeatMapChartProps, ChartDataProps, ChartAxisProps,
+  ChartSeriesProps, ChartLegendProps, ChartDataLabelsProps, ReferenceLineProps,
 } from './elements/chart/dsl';
 
 // ─── State types ─────────────────────────────────────────────────────────────
@@ -17,11 +22,23 @@ export type {
   ChartAxisState,
   ChartSeriesState,
   ChartLegendState,
-  ChartDSL,
-  ChartDataDSL,
-  ChartAxisDSL,
-  ChartSeriesDSL,
-  ChartLegendDSL,
+  ChartTypeOptions,
+  BarChartOptions,
+  LineChartOptions,
+  ScatterChartOptions,
+  PieChartOptions,
+  AreaChartOptions,
+  HeatMapChartOptions,
+  ChartStateDataSource,
+  InlineDataSource,
+  NamedDataSource,
+  AsyncDataSource,
+  ChartDataLabelsState,
+  DataLabelsPosition,
+  ReferenceLineState,
+  DataRow,
+  ColumnarData,
+  DataInput,
 } from './elements/chart/types';
 export { DEFAULT_CHART_STATE } from './elements/chart/types';
 
@@ -39,7 +56,16 @@ export const FILTER_OPS = [
 ] as const satisfies readonly FilterOp[];
 
 // ─── Compiler ────────────────────────────────────────────────────────────────
-export { compileChart, functionalChartTransitionSpec } from './elements/chart/compile';
+export {
+  compileChart,
+  compileBarChartOptions,
+  compileLineChartOptions,
+  compileScatterChartOptions,
+  compilePieChartOptions,
+  compileAreaChartOptions,
+  compileHeatMapChartOptions,
+  functionalChartTransitionSpec,
+} from './elements/chart/compile';
 
 // ─── Widget ──────────────────────────────────────────────────────────────────
 export type { ChartHoverInfo } from './elements/chart/ChartWidget';
@@ -47,6 +73,10 @@ export type { ChartHoverInfo } from './elements/chart/ChartWidget';
 // ─── Plugin ───────────────────────────────────────────────────────────────────
 export { chartPlugin } from './player/chartPlugin';
 export type { ChartPluginInstance } from './player/chartPlugin';
+
+// ─── Player hooks (V2.1) ─────────────────────────────────────────────────────
+export { useLiveChartData } from './player/useLiveChartData';
+export { useChartAccessors } from './player/useChartAccessors';
 
 // ─── Player components ────────────────────────────────────────────────────────
 export { ChartProvider } from './player/ChartProvider';
@@ -61,6 +91,7 @@ export { useChartFilter } from './data/useChartFilter';
 export { useChartStore, ChartStoreContext } from './data/ChartStoreContext';
 export type { IFilterEngine } from './data/IFilterEngine';
 export { SimpleFilterEngine } from './data/SimpleFilterEngine';
+export { normalizeDataInput } from './data/transforms';
 export type {
   DataTransform,
   FilterTransform,
@@ -68,10 +99,14 @@ export type {
   GroupByTransform,
   SortTransform,
   BinTransform,
+  ComputeTransform,
   ResolvedDataFrame,
   FilterGroupId,
   ChartDimension,
 } from './data/types';
+
+// ─── Renderer shared types (V2.1) ─────────────────────────────────────────────
+export type { FittedMargins, ChartAccessorFunctions } from './renderers/shared/IChartRenderer';
 
 // ─── Themes ───────────────────────────────────────────────────────────────────
 export { darkGlassChartTheme } from './themes/darkGlass';
@@ -87,4 +122,13 @@ export type {
   ChartLegendTokens,
   ChartPieTokens,
   ChartInteractionTokens,
+  ChartBarTokens,
+  ChartAreaTokens,
+  ChartGridlinesTokens,
+  ChartDataLabelsTokens,
+  ChartReferenceLineTokens,
 } from './themes/types';
+
+// V1 deprecated type exports (migration compat)
+/** @deprecated V1 type. Use BarChartDSL, LineChartDSL, etc. from specific imports. */
+export type { ChartDSL, ChartDataDSL, ChartAxisDSL, ChartSeriesDSL, ChartLegendDSL } from './elements/chart/types';

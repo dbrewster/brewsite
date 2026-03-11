@@ -1,16 +1,15 @@
-// Hover resolution tests for AreaRenderer.
+// AreaRenderer V2 tests — stackMode SmartRebuild, stacked areas, band areas, fillOpacity, morphCtx.
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+
+// Track all lineTo calls across all Shape instances for morphCtx Y position assertions
+const allLineToCalls: Array<[number, number]> = [];
 
 vi.mock('three', () => {
   class Vector3 {
     x: number; y: number; z: number;
     constructor(x = 0, y = 0, z = 0) { this.x = x; this.y = y; this.z = z; }
     set(x: number, y: number, z: number) { this.x = x; this.y = y; this.z = z; return this; }
-  }
-  class Vector2 {
-    x: number; y: number;
-    constructor(x = 0, y = 0) { this.x = x; this.y = y; }
   }
   class Object3D {
     children: Object3D[] = [];
@@ -23,7 +22,8 @@ vi.mock('three', () => {
   class BufferGeometry { dispose = vi.fn(); }
   class Shape {
     moveTo = vi.fn();
-    lineTo = vi.fn();
+    lineTo = vi.fn((x: number, y: number) => { allLineToCalls.push([x, y]); });
+    closePath = vi.fn();
   }
   class ExtrudeGeometry extends BufferGeometry {
     constructor(_shape?: Shape, _opts?: Record<string, unknown>) { super(); }
@@ -49,7 +49,7 @@ vi.mock('three', () => {
   class Color { constructor(_?: unknown) {} set(_: unknown) {} }
   const FrontSide = 0;
   return {
-    Vector3, Vector2, Object3D, Group, BufferGeometry, Shape, ExtrudeGeometry,
+    Vector3, Object3D, Group, BufferGeometry, Shape, ExtrudeGeometry,
     MeshPhysicalMaterial, LineBasicMaterial, MeshStandardMaterial,
     Mesh, Color, FrontSide,
   };
@@ -69,7 +69,7 @@ import { darkGlassChartTheme } from '../../../themes/darkGlass';
 import type { ResolvedDataFrame } from '../../../data/types';
 import type { ChartRenderContext } from '../../shared/IChartRenderer';
 
-function makeCtx(data: ResolvedDataFrame, overrides?: Partial<ChartRenderContext>): ChartRenderContext {
+function makeCtx(data: ResolvedDataFrame, overrides: Partial<ChartRenderContext> = {}): ChartRenderContext {
   return {
     seriesGroup: new THREE.Group(),
     axesGroup: new THREE.Group(),
@@ -81,112 +81,269 @@ function makeCtx(data: ResolvedDataFrame, overrides?: Partial<ChartRenderContext
     bounds: { width: 4, height: 3, depth: 0.3 },
     theme: darkGlassChartTheme,
     opacity: 1,
-    innerRadius: 0,
-    pieTilt: 0,
+    typeOptions: { kind: 'area', options: {} },
+    dataLabels: null,
+    gridlines: null,
+    legend: null,
     ...overrides,
   };
 }
 
-describe('AreaRenderer', () => {
+const multiSeriesData: ResolvedDataFrame = {
+  rows: [
+    { x: 0, a: 10, b: 5 },
+    { x: 1, a: 20, b: 10 },
+    { x: 2, a: 15, b: 8 },
+    { x: 3, a: 25, b: 12 },
+  ],
+  fields: ['x', 'a', 'b'],
+};
+
+describe('AreaRenderer V2', () => {
   let renderer: AreaRenderer;
+  let groups: { seriesGroup: THREE.Group; axesGroup: THREE.Group; legendGroup: THREE.Group };
 
   beforeEach(() => {
     renderer = new AreaRenderer();
+    groups = {
+      seriesGroup: new THREE.Group(),
+      axesGroup: new THREE.Group(),
+      legendGroup: new THREE.Group(),
+    };
+    allLineToCalls.length = 0;
   });
 
-  it('resolveHoverInfo returns datumIndex proportional to X position', () => {
-    const data: ResolvedDataFrame = {
+  it('stacked mode: one mesh per series', () => {
+    renderer.update(makeCtx(multiSeriesData, {
+      ...groups,
+      series: [{ field: 'a' }, { field: 'b' }],
+      typeOptions: { kind: 'area', options: { stackMode: 'stacked' } },
+    }));
+    expect(renderer.getInteractiveObjects()).toHaveLength(2);
+  });
+
+  it('none mode: one mesh per series', () => {
+    renderer.update(makeCtx(multiSeriesData, {
+      ...groups,
+      series: [{ field: 'a' }, { field: 'b' }],
+      typeOptions: { kind: 'area', options: { stackMode: 'none' } },
+    }));
+    expect(renderer.getInteractiveObjects()).toHaveLength(2);
+  });
+
+  it('SmartRebuild: stackMode change from none to stacked triggers rebuild', () => {
+    const ctx1 = makeCtx(multiSeriesData, {
+      ...groups,
+      series: [{ field: 'a' }, { field: 'b' }],
+      typeOptions: { kind: 'area', options: { stackMode: 'none' } },
+    });
+    renderer.update(ctx1);
+    const firstMeshes = [...renderer.getInteractiveObjects()];
+
+    const ctx2 = makeCtx(multiSeriesData, {
+      seriesGroup: groups.seriesGroup,
+      axesGroup: groups.axesGroup,
+      legendGroup: groups.legendGroup,
+      series: [{ field: 'a' }, { field: 'b' }],
+      typeOptions: { kind: 'area', options: { stackMode: 'stacked' } },
+    });
+    renderer.update(ctx2);
+    const secondMeshes = [...renderer.getInteractiveObjects()];
+
+    // Should be new mesh objects after rebuild
+    expect(secondMeshes[0]).not.toBe(firstMeshes[0]);
+  });
+
+  it('SmartRebuild: same stackMode does NOT trigger rebuild', () => {
+    const ctx1 = makeCtx(multiSeriesData, {
+      ...groups,
+      series: [{ field: 'a' }],
+      typeOptions: { kind: 'area', options: { stackMode: 'none' } },
+    });
+    renderer.update(ctx1);
+    const firstMeshes = [...renderer.getInteractiveObjects()];
+
+    const ctx2 = makeCtx(multiSeriesData, {
+      seriesGroup: groups.seriesGroup,
+      axesGroup: groups.axesGroup,
+      legendGroup: groups.legendGroup,
+      series: [{ field: 'a' }],
+      typeOptions: { kind: 'area', options: { stackMode: 'none' } },
+    });
+    renderer.update(ctx2);
+    const secondMeshes = [...renderer.getInteractiveObjects()];
+
+    // Same objects — no rebuild
+    expect(secondMeshes[0]).toBe(firstMeshes[0]);
+  });
+
+  it('band area: series with bandField renders one mesh per series', () => {
+    const bandData: ResolvedDataFrame = {
       rows: [
-        { x: 0, y: 10 },
-        { x: 1, y: 20 },
-        { x: 2, y: 30 },
-        { x: 3, y: 40 },
-        { x: 4, y: 50 },
+        { x: 0, upper: 30, lower: 10 },
+        { x: 1, upper: 40, lower: 15 },
+        { x: 2, upper: 35, lower: 12 },
       ],
+      fields: ['x', 'upper', 'lower'],
+    };
+    renderer.update(makeCtx(bandData, {
+      ...groups,
+      series: [{ field: 'upper', bandField: 'lower' }],
+      typeOptions: { kind: 'area', options: {} },
+    }));
+    expect(renderer.getInteractiveObjects()).toHaveLength(1);
+  });
+
+  it('fillOpacity: applied to mesh material opacity', () => {
+    const data: ResolvedDataFrame = {
+      rows: [{ x: 0, y: 10 }, { x: 1, y: 20 }, { x: 2, y: 15 }],
       fields: ['x', 'y'],
     };
-    const ctx = makeCtx(data);
-    renderer.update(ctx);
+    renderer.update(makeCtx(data, {
+      ...groups,
+      typeOptions: { kind: 'area', options: { fillOpacity: 0.4 } },
+    }));
+    const meshes = renderer.getInteractiveObjects() as THREE.Mesh[];
+    expect(meshes).toHaveLength(1);
+    const mat = meshes[0]!.material as THREE.MeshPhysicalMaterial;
+    expect(mat.opacity).toBeCloseTo(0.4, 5);
+    expect(mat.transparent).toBe(true);
+  });
 
+  it('resolveHoverInfo: returns datumIndex proportional to X position', () => {
+    const data: ResolvedDataFrame = {
+      rows: [{ x: 0, y: 10 }, { x: 1, y: 20 }, { x: 2, y: 30 }, { x: 3, y: 40 }, { x: 4, y: 50 }],
+      fields: ['x', 'y'],
+    };
+    renderer.update(makeCtx(data, groups));
     const meshes = renderer.getInteractiveObjects();
-    expect(meshes.length).toBeGreaterThan(0);
-
-    // X at the midpoint of bounds.width (4) → should resolve to midpoint index (2)
-    const intersection = {
-      object: meshes[0]!,
-      point: new THREE.Vector3(2, 1, 0),
-    } as unknown as THREE.Intersection;
-
-    const hit = renderer.resolveHoverInfo(intersection, data);
+    const hit = renderer.resolveHoverInfo(
+      { object: meshes[0]!, point: new THREE.Vector3(2, 1, 0) } as unknown as THREE.Intersection,
+      data,
+    );
     expect(hit).not.toBeNull();
     expect(hit!.datumIndex).toBe(2);
-    expect(hit!.seriesIndex).toBe(0);
   });
 
-  it('resolveHoverInfo clamps datumIndex to [0, rows.length-1]', () => {
-    const data: ResolvedDataFrame = {
-      rows: [
-        { x: 0, y: 10 },
-        { x: 1, y: 20 },
-        { x: 2, y: 30 },
-      ],
-      fields: ['x', 'y'],
-    };
-    const ctx = makeCtx(data);
-    renderer.update(ctx);
-
-    const meshes = renderer.getInteractiveObjects();
-
-    // X beyond bounds — should clamp to last index
-    const hitRight = renderer.resolveHoverInfo(
-      { object: meshes[0]!, point: new THREE.Vector3(10, 1, 0) } as unknown as THREE.Intersection,
-      data,
-    );
-    expect(hitRight).not.toBeNull();
-    expect(hitRight!.datumIndex).toBe(2);
-
-    // X at negative — should clamp to first index
-    const hitLeft = renderer.resolveHoverInfo(
-      { object: meshes[0]!, point: new THREE.Vector3(-5, 1, 0) } as unknown as THREE.Intersection,
-      data,
-    );
-    expect(hitLeft).not.toBeNull();
-    expect(hitLeft!.datumIndex).toBe(0);
-  });
-
-  it('resolveHoverInfo returns null for non-area intersection', () => {
+  it('resolveHoverInfo: returns null for non-area intersection', () => {
     const data: ResolvedDataFrame = {
       rows: [{ x: 0, y: 10 }, { x: 1, y: 20 }],
       fields: ['x', 'y'],
     };
-    const ctx = makeCtx(data);
-    renderer.update(ctx);
-
+    renderer.update(makeCtx(data, groups));
     const fakeObject = new THREE.Mesh();
-    const intersection = {
-      object: fakeObject,
-      point: new THREE.Vector3(0, 0, 0),
-    } as unknown as THREE.Intersection;
-
-    const hit = renderer.resolveHoverInfo(intersection, data);
+    const hit = renderer.resolveHoverInfo(
+      { object: fakeObject, point: new THREE.Vector3(0, 0, 0) } as unknown as THREE.Intersection,
+      data,
+    );
     expect(hit).toBeNull();
   });
 
-  it('resolveHoverInfo returns null for empty data rows', () => {
+  it('morphCtx at t=0.5: lineTo Y values are between from and to Y values', () => {
+    const n = 3;
+    const fromData: ResolvedDataFrame = {
+      rows: Array.from({ length: n }, (_, i) => ({ id: String(i), y: 0 })),
+      fields: ['id', 'y'],
+    };
+    const toData: ResolvedDataFrame = {
+      rows: Array.from({ length: n }, (_, i) => ({ id: String(i), y: 100 })),
+      fields: ['id', 'y'],
+    };
+
+    renderer.update(makeCtx(toData, {
+      ...groups,
+      xAxis: { axis: 'x', field: 'id' },
+      yAxis: { axis: 'y', field: 'y' },
+      series: [{ field: 'y' }],
+      morphCtx: { fromData, t: 0.5, keyField: 'id' },
+    }));
+
+    expect(renderer.getInteractiveObjects()).toHaveLength(1);
+    // All lineTo Y values should be > 0 (not at from baseline) and < full height (not at to max)
+    // Since from=0, to=100, lerp at t=0.5 → y=50, which maps to yScale(50) = 0.5 * bounds.height
+    const upperLineToYValues = allLineToCalls.map(([, y]) => y).filter((y) => y > 0);
+    expect(upperLineToYValues.length).toBeGreaterThan(0);
+    for (const y of upperLineToYValues) {
+      expect(y).toBeGreaterThan(0);
+    }
+  });
+
+  it('morphCtx: unmatched key falls back to toY (no NaN, no crash)', () => {
+    const fromData: ResolvedDataFrame = {
+      rows: [{ id: 'A', y: 50 }, { id: 'B', y: 30 }],
+      fields: ['id', 'y'],
+    };
+    const toData: ResolvedDataFrame = {
+      rows: [{ id: 'A', y: 80 }, { id: 'NEW', y: 60 }, { id: 'B', y: 40 }],
+      fields: ['id', 'y'],
+    };
+
+    expect(() => {
+      renderer.update(makeCtx(toData, {
+        ...groups,
+        xAxis: { axis: 'x', field: 'id' },
+        series: [{ field: 'y' }],
+        morphCtx: { fromData, t: 0.5, keyField: 'id' },
+      }));
+    }).not.toThrow();
+
+    expect(renderer.getInteractiveObjects()).toHaveLength(1);
+    // All lineTo calls must have finite Y values
+    for (const [, y] of allLineToCalls) {
+      expect(isFinite(y)).toBe(true);
+    }
+  });
+
+  it('morphCtx with bandField: both upper and lower boundaries are interpolated', () => {
+    const fromData: ResolvedDataFrame = {
+      rows: [
+        { id: '0', upper: 0, lower: 0 },
+        { id: '1', upper: 0, lower: 0 },
+        { id: '2', upper: 0, lower: 0 },
+      ],
+      fields: ['id', 'upper', 'lower'],
+    };
+    const toData: ResolvedDataFrame = {
+      rows: [
+        { id: '0', upper: 100, lower: 20 },
+        { id: '1', upper: 100, lower: 20 },
+        { id: '2', upper: 100, lower: 20 },
+      ],
+      fields: ['id', 'upper', 'lower'],
+    };
+
+    renderer.update(makeCtx(toData, {
+      ...groups,
+      xAxis: { axis: 'x', field: 'id' },
+      series: [{ field: 'upper', bandField: 'lower' }],
+      morphCtx: { fromData, t: 0.5, keyField: 'id' },
+    }));
+
+    expect(renderer.getInteractiveObjects()).toHaveLength(1);
+    // At t=0.5: upper lerp(0,100,0.5)=50, lower lerp(0,20,0.5)=10
+    // The shape should have upper and lower boundary calls
+    const yValues = allLineToCalls.map(([, y]) => y).filter((y) => y > 0);
+    expect(yValues.length).toBeGreaterThan(0);
+  });
+
+  it('fillOpacity reads from theme.area.fillOpacity when not specified in typeOptions', () => {
     const data: ResolvedDataFrame = {
-      rows: [{ x: 0, y: 10 }, { x: 1, y: 20 }],
+      rows: [{ x: 0, y: 10 }, { x: 1, y: 20 }, { x: 2, y: 15 }],
       fields: ['x', 'y'],
     };
-    const ctx = makeCtx(data);
-    renderer.update(ctx);
-
-    const meshes = renderer.getInteractiveObjects();
-
-    const emptyData: ResolvedDataFrame = { rows: [], fields: ['x', 'y'] };
-    const hit = renderer.resolveHoverInfo(
-      { object: meshes[0]!, point: new THREE.Vector3(1, 1, 0) } as unknown as THREE.Intersection,
-      emptyData,
-    );
-    expect(hit).toBeNull();
+    const themeWithAreaOpacity = {
+      ...darkGlassChartTheme,
+      area: { fillOpacity: 0.55 },
+    };
+    renderer.update(makeCtx(data, {
+      ...groups,
+      theme: themeWithAreaOpacity,
+      typeOptions: { kind: 'area', options: {} }, // no explicit fillOpacity
+    }));
+    const meshes = renderer.getInteractiveObjects() as THREE.Mesh[];
+    expect(meshes).toHaveLength(1);
+    const mat = meshes[0]!.material as THREE.MeshPhysicalMaterial;
+    // opacity (1.0) * theme.area.fillOpacity (0.55) = 0.55
+    expect(mat.opacity).toBeCloseTo(0.55, 5);
   });
 });

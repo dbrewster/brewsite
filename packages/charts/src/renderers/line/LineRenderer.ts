@@ -1,4 +1,4 @@
-// Line chart renderer — extruded profile shapes swept along a CatmullRom curve.
+// Line chart renderer — extruded profile shapes swept along a CatmullRom curve; V2 adds showPoints and reference lines.
 
 import * as THREE from 'three';
 import { scaleLinear } from 'd3-scale';
@@ -6,13 +6,21 @@ import { extent } from 'd3-array';
 import { AxesRenderer } from '../shared/AxesRenderer';
 import { LegendRenderer } from '../shared/LegendRenderer';
 import { ChartMaterialFactory } from '../shared/ChartMaterialFactory';
-import type { IChartRenderer, ChartRenderContext, ChartHitInfo } from '../shared/IChartRenderer';
-import type { ResolvedDataFrame } from '../../data/types';
+import type { IChartRenderer, ChartRenderContext, ChartHitInfo, MorphContext, ChartAccessorFunctions } from '../shared/IChartRenderer';
+import type { DataRow, ResolvedDataFrame } from '../../data/types';
 import type { ChartLineShape } from '../../elements/chart/types';
+
+/** Linearly interpolates between a and b at progress t. */
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
 
 /**
  * Renders line charts as CatmullRom spline tubes in Three.js.
- * Multi-series lines are offset along Z.
+ * V2: reads lineShape/lineSmoothness/lineSubdivisions/showPoints from ctx.typeOptions.
+ *     Multi-series lines offset along Z.
+ *     Renders reference lines as THREE.Line objects.
+ *     Adds sphere point markers when showPoints is enabled.
  */
 export class LineRenderer implements IChartRenderer {
   private readonly materialFactory = new ChartMaterialFactory();
@@ -20,24 +28,34 @@ export class LineRenderer implements IChartRenderer {
   private legendRenderer: LegendRenderer | null = null;
   private readonly profileMeshes: THREE.Mesh[] = [];
   private readonly lineObjects: THREE.Line[] = [];
+  private readonly pointMeshes: THREE.Mesh[] = [];
+  private readonly referenceLineObjects: THREE.Line[] = [];
   private readonly seriesPoints: THREE.Vector3[][] = [];
   private seriesGroupRef: THREE.Group | null = null;
+  private axesGroupRef: THREE.Group | null = null;
   private lastDataLength = -1;
   private lastSeriesCount = -1;
   private lastLineShape: ChartLineShape | null = null;
   private lastLineSmoothness = -1;
   private lastLineSubdivisions = -1;
+  private lastShowPoints = false;
   private chartPosition: readonly [number, number, number] = [0, 0, 0];
 
   update(ctx: ChartRenderContext): void {
     const { seriesGroup, axesGroup, legendGroup, data, xAxis, yAxis, series, bounds, theme, opacity, fontUrl } = ctx;
     this.chartPosition = ctx.chartPosition ?? [0, 0, 0];
+    this.seriesGroupRef = seriesGroup;
+    this.axesGroupRef = axesGroup;
+
+    const lineOptions = ctx.typeOptions.kind === 'line' ? ctx.typeOptions.options : {};
+    const lineShape: ChartLineShape = lineOptions.lineShape ?? theme.line.shape;
+    const lineSmoothness = this.clampSmoothness(lineOptions.lineSmoothness ?? theme.line.smoothness);
+    const lineSubdivisions = this.clampSubdivisions(lineOptions.lineSubdivisions ?? theme.line.subdivisions);
+    const showPoints = lineOptions.showPoints ?? false;
 
     const effectiveSeries: Array<{ field: string; label?: string; color?: string }> = series.length > 0
       ? [...series]
       : (yAxis ? [{ field: yAxis.field, label: yAxis.label }] : []);
-
-    this.seriesGroupRef = seriesGroup;
 
     if (effectiveSeries.length === 0 || data.rows.length < 2) {
       this.reset();
@@ -45,27 +63,30 @@ export class LineRenderer implements IChartRenderer {
     }
 
     const xField = xAxis?.field ?? data.fields[0] ?? 'x';
-    const lineShape = ctx.lineShape ?? theme.line.shape;
-    const lineSmoothness = this.clampSmoothness(ctx.lineSmoothness ?? theme.line.smoothness);
-    const lineSubdivisions = this.clampSubdivisions(ctx.lineSubdivisions ?? theme.line.subdivisions);
     const needsRebuild =
       data.rows.length !== this.lastDataLength ||
       effectiveSeries.length !== this.lastSeriesCount ||
       lineShape !== this.lastLineShape ||
       lineSmoothness !== this.lastLineSmoothness ||
-      lineSubdivisions !== this.lastLineSubdivisions;
+      lineSubdivisions !== this.lastLineSubdivisions ||
+      showPoints !== this.lastShowPoints ||
+      ctx.morphCtx !== undefined; // always rebuild during morph transitions
 
     if (needsRebuild) {
       this.clearProfiles();
-      this.buildLines(seriesGroup, data, xField, effectiveSeries, bounds, theme, opacity, lineShape, lineSmoothness, lineSubdivisions);
+      this.buildLines(seriesGroup, data, xField, effectiveSeries, bounds, theme, opacity, lineShape, lineSmoothness, lineSubdivisions, showPoints, ctx.morphCtx, ctx.accessors);
       this.lastDataLength = data.rows.length;
       this.lastSeriesCount = effectiveSeries.length;
       this.lastLineShape = lineShape;
       this.lastLineSmoothness = lineSmoothness;
       this.lastLineSubdivisions = lineSubdivisions;
+      this.lastShowPoints = showPoints;
     } else {
       this.updateOpacity(opacity);
     }
+
+    // Reference lines
+    this.updateReferenceLines(ctx, axesGroup, data, xField, effectiveSeries, bounds, theme, opacity);
 
     // Axes
     if (!this.axesRenderer) this.axesRenderer = new AxesRenderer(axesGroup);
@@ -86,10 +107,10 @@ export class LineRenderer implements IChartRenderer {
       value: Math.round(yMin + (yRange * i) / 5),
       position: i / 5,
     }));
-    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl });
+    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl, gridlines: ctx.gridlines, fittedMargins: ctx.fittedMargins });
 
     if (!this.legendRenderer) this.legendRenderer = new LegendRenderer(legendGroup);
-    this.legendRenderer.update(effectiveSeries, theme, opacity, fontUrl);
+    this.legendRenderer.update(effectiveSeries, ctx.legend ?? { visible: true, position: 'right' }, theme, opacity, fontUrl);
   }
 
   private buildLines(
@@ -103,7 +124,19 @@ export class LineRenderer implements IChartRenderer {
     lineShape: ChartLineShape,
     lineSmoothness: number,
     lineSubdivisions: number,
+    showPoints: boolean,
+    morphCtx: MorphContext | undefined,
+    accessors: ChartAccessorFunctions | undefined,
   ): void {
+    type Row = Record<string, unknown>;
+
+    // Build O(1) lookup map from fromData rows for morphing — built once per update()
+    const morphFromMap: Map<unknown, Row> | null = morphCtx
+      ? new Map<unknown, Row>(
+          morphCtx.fromData.rows.map((r) => [r[morphCtx.keyField], r as Row]),
+        )
+      : null;
+
     const allValues = data.rows.flatMap((r) =>
       series.map((s) => Number(r[s.field]) || 0),
     );
@@ -115,7 +148,20 @@ export class LineRenderer implements IChartRenderer {
       const s = series[si]!;
       const zOffset = si * 0.15;
       const points = data.rows.map((r, i) => {
-        const y = yScale(Number(r[s.field]) || 0);
+        // Resolve Y value: check accessor first, then field name
+        const toY = accessors?.yAccessor
+          ? accessors.yAccessor(r as DataRow)
+          : (Number((r as Row)[s.field]) || 0);
+
+        // Apply morphing via O(1) Map lookup
+        const yValue = (() => {
+          if (!morphFromMap || !morphCtx) return toY;
+          const fromRow = morphFromMap.get((r as Row)[morphCtx.keyField]);
+          const fromY = fromRow ? (Number(fromRow[s.field]) || 0) : toY;
+          return lerp(fromY, toY, morphCtx.t);
+        })();
+
+        const y = yScale(yValue);
         return new THREE.Vector3(xScale(i), y, zOffset);
       });
 
@@ -150,6 +196,80 @@ export class LineRenderer implements IChartRenderer {
         seriesGroup.add(mesh);
         this.profileMeshes.push(mesh);
       }
+
+      // Show-points spheres
+      if (showPoints) {
+        const sphereGeo = new THREE.SphereGeometry(0.04, 8, 8);
+        const tokens = theme.series[si % theme.series.length]!;
+        for (const pt of points) {
+          const mat = new THREE.MeshPhysicalMaterial({
+            color: new THREE.Color(tokens.color),
+            metalness: tokens.metalness,
+            roughness: tokens.roughness,
+            transparent: opacity < 1,
+            opacity,
+          });
+          const sphere = new THREE.Mesh(sphereGeo, mat);
+          sphere.position.copy(pt);
+          seriesGroup.add(sphere);
+          this.pointMeshes.push(sphere);
+        }
+      }
+    }
+  }
+
+  private updateReferenceLines(
+    ctx: ChartRenderContext,
+    axesGroup: THREE.Group,
+    data: ResolvedDataFrame,
+    xField: string,
+    series: Array<{ field: string }>,
+    bounds: { width: number; height: number; depth: number },
+    theme: ChartRenderContext['theme'],
+    opacity: number,
+  ): void {
+    // Clear previous reference lines
+    for (const line of this.referenceLineObjects) {
+      axesGroup.remove(line);
+      line.geometry.dispose();
+      (line.material as THREE.Material).dispose();
+    }
+    this.referenceLineObjects.length = 0;
+
+    if (!ctx.referenceLines || ctx.referenceLines.length === 0) return;
+
+    const allValues = data.rows.flatMap((r) =>
+      series.map((s) => Number(r[s.field]) || 0),
+    );
+    const [yMin, yMax] = extent(allValues) as [number, number];
+    const yRange = yMax - yMin || 1;
+    const yScale = scaleLinear().domain([yMin, yMax]).range([0, bounds.height]);
+    const n = data.rows.length;
+    const xScale = scaleLinear().domain([0, n - 1]).range([0, bounds.width]);
+
+    for (const refLine of ctx.referenceLines) {
+      const color = new THREE.Color(refLine.color ?? theme.axis.lineColor);
+      const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: opacity * 0.8 });
+      let points: THREE.Vector3[];
+
+      if (refLine.axis === 'y') {
+        const scaledValue = yRange > 0 ? yScale(refLine.value) : (refLine.value / (yMax || 1)) * bounds.height;
+        points = [
+          new THREE.Vector3(0, scaledValue, 0),
+          new THREE.Vector3(bounds.width, scaledValue, 0),
+        ];
+      } else {
+        const scaledValue = n > 1 ? xScale(refLine.value) : (refLine.value / ((n - 1) || 1)) * bounds.width;
+        points = [
+          new THREE.Vector3(scaledValue, 0, 0),
+          new THREE.Vector3(scaledValue, bounds.height, 0),
+        ];
+      }
+
+      const geo = new THREE.BufferGeometry().setFromPoints(points);
+      const line = new THREE.Line(geo, mat);
+      axesGroup.add(line);
+      this.referenceLineObjects.push(line);
     }
   }
 
@@ -164,18 +284,33 @@ export class LineRenderer implements IChartRenderer {
       line.geometry.dispose();
       (line.material as THREE.Material).dispose();
     }
+    for (const sphere of this.pointMeshes) {
+      group?.remove(sphere);
+      sphere.geometry.dispose();
+      (sphere.material as THREE.Material).dispose();
+    }
     this.profileMeshes.length = 0;
     this.lineObjects.length = 0;
+    this.pointMeshes.length = 0;
     this.seriesPoints.length = 0;
     this.lastDataLength = -1;
     this.lastSeriesCount = -1;
     this.lastLineShape = null;
     this.lastLineSmoothness = -1;
     this.lastLineSubdivisions = -1;
+    this.lastShowPoints = false;
   }
 
   private reset(): void {
     this.clearProfiles();
+    // Clear reference lines
+    const axesGroup = this.axesGroupRef;
+    for (const line of this.referenceLineObjects) {
+      axesGroup?.remove(line);
+      line.geometry.dispose();
+      (line.material as THREE.Material).dispose();
+    }
+    this.referenceLineObjects.length = 0;
     this.axesRenderer?.dispose();
     this.legendRenderer?.dispose();
     this.axesRenderer = null;
@@ -254,6 +389,11 @@ export class LineRenderer implements IChartRenderer {
     }
     for (const line of this.lineObjects) {
       const mat = line.material as THREE.LineBasicMaterial;
+      mat.opacity = opacity;
+      mat.transparent = opacity < 1;
+    }
+    for (const sphere of this.pointMeshes) {
+      const mat = sphere.material as THREE.MeshPhysicalMaterial;
       mat.opacity = opacity;
       mat.transparent = opacity < 1;
     }

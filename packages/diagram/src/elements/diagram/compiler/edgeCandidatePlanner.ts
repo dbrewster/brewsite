@@ -25,6 +25,14 @@ const getFaceNormalLocal = (face: FaceId): Vec3 => {
   }
 };
 
+const resolveGroupApproachX = (
+  candidate: EdgeFaceCandidate,
+  fromPos: Vec3,
+): number =>
+  candidate.bundleHint?.sourceGuideHint?.[0]
+  ?? candidate.bundleHint?.sourceAnchorHint?.[0]
+  ?? fromPos[0];
+
 const getFaceCenterLocal = (pos: Vec3, size: readonly [number, number, number], face: FaceId): Vec3 => {
   const [x, y, z] = pos;
   const [w, h, d] = size;
@@ -39,6 +47,19 @@ const getFaceCenterLocal = (pos: Vec3, size: readonly [number, number, number], 
 };
 
 const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
+
+const getBoundaryPointAlongFaceNormal = (
+  pos: Vec3,
+  size: readonly [number, number, number],
+  face: FaceId,
+): Vec3 => {
+  const normal = getFaceNormalLocal(face);
+  return [
+    pos[0] - normal[0] * size[0] * 0.5,
+    pos[1] - normal[1] * size[1] * 0.5,
+    pos[2] - normal[2] * size[2] * 0.5,
+  ];
+};
 
 /** Planar faces used for candidate expansion. Front/back only via locks. */
 const PLANAR_FACES: readonly FaceId[] = ['left', 'right', 'top', 'bottom'];
@@ -126,7 +147,11 @@ export function inferBundleHints(
       const targetNode = nodeMap.get(req.toId);
       if (!targetNode) continue;
       const targetPos = targetNode.position;
-      const projectedDistance = sourceNormal[1] * (targetPos[1] - sourceAnchorHint[1]);
+      const targetBoundary = getBoundaryPointAlongFaceNormal(targetPos, targetNode.size, sourceFace);
+      const projectedDistance =
+        sourceNormal[0] * (targetBoundary[0] - sourceAnchorHint[0]) +
+        sourceNormal[1] * (targetBoundary[1] - sourceAnchorHint[1]) +
+        sourceNormal[2] * (targetBoundary[2] - sourceAnchorHint[2]);
       if (projectedDistance <= 0) continue;
       const preferredSideFace: FaceId | undefined =
         targetPos[0] < sourcePos[0] - sourceSize[0] * 0.1
@@ -140,19 +165,24 @@ export function inferBundleHints(
     if (edgeTargets.length < 2) return;
     edgeTargets.sort((a, b) => a.projectedDistance - b.projectedDistance);
 
-    const bundleTargets = edgeTargets;
+    const minimumBundleDepth = Math.max(
+      flowFaceStub * 1.1,
+      verticalTolerance * 1.5,
+    );
+    const bundleTargets = edgeTargets.filter((entry) => entry.projectedDistance >= minimumBundleDepth);
+    if (bundleTargets.length < 2) return;
+
     const nearestProjectedDistance = bundleTargets[0]?.projectedDistance ?? Infinity;
     const availableRun = Number.isFinite(nearestProjectedDistance)
       ? nearestProjectedDistance
       : Math.max(sourceSize[1], flowFaceStub * 3);
 
-    const guideFraction = clamp(0.15 + clamp(bundleStrength, 0, 1.5) * 0.35, 0.15, 0.65);
+    const guideFraction = clamp(0.98 + clamp(bundleStrength, 0, 1.5) * 0.02, 0.98, 1);
+    const guideClearance = Math.max(0.0125, flowFaceStub * 0.25);
+    const maxGuideDistance = Math.max(0, availableRun - guideClearance);
     const guideDistance = Math.max(
-      flowFaceStub * 1.25,
-      Math.min(
-        availableRun * guideFraction,
-        availableRun - Math.max(0.025, flowFaceStub * 0.5),
-      ),
+      Math.min(flowFaceStub * 1.6, maxGuideDistance),
+      Math.min(availableRun * guideFraction, maxGuideDistance),
     );
 
     const sourceGuideHint: Vec3 = addVec(sourceAnchorHint, scaleVec(sourceNormal, guideDistance));
@@ -261,75 +291,19 @@ export function pruneImpossibleFaceCandidates(
   nodeMap: RoutingNodeMap,
   groupIds: ReadonlySet<string> = new Set(),
 ): ReadonlyArray<EdgeFaceCandidate> {
+  const evaluations = evaluateFaceCandidatePruning(candidates, request, nodeMap, groupIds);
+  const pruned = evaluations
+    .filter((evaluation) => evaluation.keep)
+    .map((evaluation) => evaluation.candidate);
+
   const fromNode = nodeMap.get(request.fromId);
   const toNode = nodeMap.get(request.toId);
   if (!fromNode || !toNode) return candidates;
 
-  const fromPos = fromNode.position;
-  const toPos = toNode.position;
-  const dx = toPos[0] - fromPos[0];
-  const dy = toPos[1] - fromPos[1];
-  const dz = toPos[2] - fromPos[2];
-  const len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
-  const dirToTarget: Vec3 = [dx / len, dy / len, dz / len];
-
-  const pruned = candidates.filter((c) => {
-    // Never prune locked faces.
-    if (c.sourceFaceLocked && c.destinationFaceLocked) return true;
-
-    // Prune source face if it strongly points away from the target (and not locked).
-    if (!c.sourceFaceLocked) {
-      const srcNormal = getFaceNormalLocal(c.srcFace);
-      const dotSrc = srcNormal[0] * dirToTarget[0] + srcNormal[1] * dirToTarget[1] + srcNormal[2] * dirToTarget[2];
-      if (dotSrc < -0.7 && c.srcFace !== 'front' && c.srcFace !== 'back') return false;
-    }
-
-    // Prune destination face if it strongly faces away from the source (and not locked).
-    if (!c.destinationFaceLocked) {
-      const dstNormal = getFaceNormalLocal(c.dstFace);
-      const dirFromTarget: Vec3 = [-dirToTarget[0], -dirToTarget[1], -dirToTarget[2]];
-      const dotDst = dstNormal[0] * dirFromTarget[0] + dstNormal[1] * dirFromTarget[1] + dstNormal[2] * dirFromTarget[2];
-      if (dotDst < -0.7 && c.dstFace !== 'front' && c.dstFace !== 'back') return false;
-
-      // Prune destination face if the source node is behind that face (would require
-      // passing through the destination node to enter from this side).
-      const dstFaceCenter = getFaceCenterLocal(toNode.position, toNode.size, c.dstFace);
-      const fromToDstFace: Vec3 = [
-        fromPos[0] - dstFaceCenter[0],
-        fromPos[1] - dstFaceCenter[1],
-        fromPos[2] - dstFaceCenter[2],
-      ];
-      const dotBehind = dstNormal[0] * fromToDstFace[0] + dstNormal[1] * fromToDstFace[1] + dstNormal[2] * fromToDstFace[2];
-      if (dotBehind < 0) return false;
-
-      // Prune destination face if the source face is locked AND vertical (top/bottom)
-      // AND the destination face is horizontal (left/right). A vertical exit through a
-      // bundle trunk naturally continues into a vertical approach at the destination;
-      // allowing a horizontal destination face creates an extra 90° bend that makes
-      // side-face routes win spuriously over the shorter-bend top-face route.
-      if (c.sourceFaceLocked && !groupIds.has(request.toId)) {
-        const srcIsVertical = c.srcFace === 'top' || c.srcFace === 'bottom';
-        const dstIsHorizontal = c.dstFace === 'left' || c.dstFace === 'right';
-        if (srcIsVertical && dstIsHorizontal) return false;
-      }
-
-      if (groupIds.has(request.toId)) {
-        const srcIsVertical = c.srcFace === 'top' || c.srcFace === 'bottom';
-        const dstIsHorizontal = c.dstFace === 'left' || c.dstFace === 'right';
-        const targetIsLeft = toPos[0] < fromPos[0] - toNode.size[0] * 0.1;
-        const targetIsRight = toPos[0] > fromPos[0] + toNode.size[0] * 0.1;
-        if (srcIsVertical && dstIsHorizontal) {
-          if (targetIsLeft && c.dstFace === 'right') return false;
-          if (targetIsRight && c.dstFace === 'left') return false;
-        }
-      }
-    }
-
-    return true;
-  });
-
   // Never return an empty set — keep at least the nearest-face pair as fallback.
   if (pruned.length === 0) {
+    const fromPos = fromNode.position;
+    const toPos = toNode.position;
     const fromSize = fromNode.size;
     const srcFace = nearestFaceLocal(fromPos, toPos, fromSize);
     const dstFace = nearestFaceLocal(toPos, fromPos, toNode.size);
@@ -343,6 +317,140 @@ export function pruneImpossibleFaceCandidates(
   }
 
   return pruned;
+}
+
+export type FaceCandidatePruneEvaluation = {
+  readonly candidate: EdgeFaceCandidate;
+  readonly keep: boolean;
+  readonly reasons: ReadonlyArray<string>;
+};
+
+export function evaluateFaceCandidatePruning(
+  candidates: ReadonlyArray<EdgeFaceCandidate>,
+  request: EdgeRoutingRequest,
+  nodeMap: RoutingNodeMap,
+  groupIds: ReadonlySet<string> = new Set(),
+): ReadonlyArray<FaceCandidatePruneEvaluation> {
+  const fromNode = nodeMap.get(request.fromId);
+  const toNode = nodeMap.get(request.toId);
+  if (!fromNode || !toNode) {
+    return candidates.map((candidate) => ({
+      candidate,
+      keep: true,
+      reasons: ['missing-endpoint'],
+    }));
+  }
+
+  const fromPos = fromNode.position;
+  const toPos = toNode.position;
+  const dx = toPos[0] - fromPos[0];
+  const dy = toPos[1] - fromPos[1];
+  const dz = toPos[2] - fromPos[2];
+  const absDx = Math.abs(dx);
+  const absDy = Math.abs(dy);
+  const len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+  const dirToTarget: Vec3 = [dx / len, dy / len, dz / len];
+
+  return candidates.map((candidate) => {
+    const reasons: string[] = [];
+    // Never prune locked faces.
+    if (candidate.sourceFaceLocked && candidate.destinationFaceLocked) {
+      return { candidate, keep: true, reasons: ['fully-locked'] };
+    }
+
+    // Prune source face if it strongly points away from the target (and not locked).
+    if (!candidate.sourceFaceLocked) {
+      const srcNormal = getFaceNormalLocal(candidate.srcFace);
+      const dotSrc = srcNormal[0] * dirToTarget[0] + srcNormal[1] * dirToTarget[1] + srcNormal[2] * dirToTarget[2];
+      const destinationIsGroup = groupIds.has(request.toId);
+      const sourceIsVertical = candidate.srcFace === 'top' || candidate.srcFace === 'bottom';
+      const useModerateVerticalAwayThreshold =
+        request.routing === 'flow' &&
+        destinationIsGroup &&
+        sourceIsVertical &&
+        absDy >= absDx * 0.85;
+      const sourceAwayThreshold = useModerateVerticalAwayThreshold ? -0.55 : -0.7;
+      if (dotSrc < sourceAwayThreshold && candidate.srcFace !== 'front' && candidate.srcFace !== 'back') {
+        reasons.push('source-face-points-away');
+      }
+    }
+
+    // Prune destination face if it strongly faces away from the source (and not locked).
+    if (!candidate.destinationFaceLocked) {
+      const destinationIsGroup = groupIds.has(request.toId);
+      const destinationIsSideFace = candidate.dstFace === 'left' || candidate.dstFace === 'right';
+      const dstNormal = getFaceNormalLocal(candidate.dstFace);
+      const dirFromTarget: Vec3 = [-dirToTarget[0], -dirToTarget[1], -dirToTarget[2]];
+      const dotDst = dstNormal[0] * dirFromTarget[0] + dstNormal[1] * dirFromTarget[1] + dstNormal[2] * dirFromTarget[2];
+      if (
+        dotDst < -0.7 &&
+        candidate.dstFace !== 'front' &&
+        candidate.dstFace !== 'back' &&
+        !(destinationIsGroup && destinationIsSideFace)
+      ) {
+        reasons.push('destination-face-points-away');
+      }
+
+      // Prune destination face if the source node is behind that face (would require
+      // passing through the destination node to enter from this side).
+      const dstFaceCenter = getFaceCenterLocal(toNode.position, toNode.size, candidate.dstFace);
+      const fromToDstFace: Vec3 = [
+        fromPos[0] - dstFaceCenter[0],
+        fromPos[1] - dstFaceCenter[1],
+        fromPos[2] - dstFaceCenter[2],
+      ];
+      const dotBehind = dstNormal[0] * fromToDstFace[0] + dstNormal[1] * fromToDstFace[1] + dstNormal[2] * fromToDstFace[2];
+      if (dotBehind < 0 && !(destinationIsGroup && destinationIsSideFace)) {
+        reasons.push('destination-face-behind-node');
+      }
+
+      // Prune destination face if the source face is locked AND vertical (top/bottom)
+      // AND the destination face is horizontal (left/right). A vertical exit through a
+      // bundle trunk naturally continues into a vertical approach at the destination;
+      // allowing a horizontal destination face creates an extra 90° bend that makes
+      // side-face routes win spuriously over the shorter-bend top-face route.
+      if (candidate.sourceFaceLocked && !groupIds.has(request.toId)) {
+        const srcIsVertical = candidate.srcFace === 'top' || candidate.srcFace === 'bottom';
+        const dstIsHorizontal = candidate.dstFace === 'left' || candidate.dstFace === 'right';
+        if (srcIsVertical && dstIsHorizontal) {
+          reasons.push('locked-vertical-source-disallows-horizontal-destination');
+        }
+      }
+
+      if (destinationIsGroup) {
+        const srcIsVertical = candidate.srcFace === 'top' || candidate.srcFace === 'bottom';
+        const dstIsHorizontal = destinationIsSideFace;
+        const dstIsVertical = candidate.dstFace === 'top' || candidate.dstFace === 'bottom';
+        const approachX = resolveGroupApproachX(candidate, fromPos);
+        const bundledSideOffset = Math.abs(approachX - toPos[0]);
+        const approachFromLeft = approachX < toPos[0] - toNode.size[0] * 0.1;
+        const approachFromRight = approachX > toPos[0] + toNode.size[0] * 0.1;
+        if (srcIsVertical && dstIsHorizontal) {
+          if (approachFromLeft && candidate.dstFace === 'right') {
+            reasons.push('group-target-side-face-opposes-target-direction');
+          }
+          if (approachFromRight && candidate.dstFace === 'left') {
+            reasons.push('group-target-side-face-opposes-target-direction');
+          }
+        }
+        if (
+          srcIsVertical &&
+          dstIsVertical &&
+          (approachFromLeft || approachFromRight) &&
+          bundledSideOffset >= toNode.size[0] * 0.35 &&
+          candidate.bundleHint?.sourceGuideHint
+        ) {
+          reasons.push('group-target-vertical-face-ignores-bundled-side-approach');
+        }
+      }
+    }
+
+    return {
+      candidate,
+      keep: reasons.length === 0,
+      reasons,
+    };
+  });
 }
 
 // ─── Local helpers ────────────────────────────────────────────────────────────

@@ -1,0 +1,14 @@
+[
+  { "month": "Jan", "arr": 1536, "revenue": 128, "costs": 87 },
+  { "month": "Feb", "arr": 1740, "revenue": 145, "costs": 94 },
+  { "month": "Mar", "arr": 1584, "revenue": 132, "costs": 88 },
+  { "month": "Apr", "arr": 2016, "revenue": 168, "costs": 107 },
+  { "month": "May", "arr": 2340, "revenue": 195, "costs": 121 },
+  { "month": "Jun", "arr": 2208, "revenue": 184, "costs": 115 },
+  { "month": "Jul", "arr": 2544, "revenue": 212, "costs": 130 },
+  { "month": "Aug", "arr": 2772, "revenue": 231, "costs": 142 },
+  { "month": "Sep", "arr": 2976, "revenue": 248, "costs": 149 },
+  { "month": "Oct", "arr": 3204, "revenue": 267, "costs": 161 },
+  { "month": "Nov", "arr": 3468, "revenue": 289, "costs": 174 },
+  { "month": "Dec", "arr": 3768, "revenue": 314, "costs": 188 }
+]

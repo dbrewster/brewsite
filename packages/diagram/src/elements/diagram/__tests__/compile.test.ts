@@ -18,6 +18,26 @@ const makeEdge = (from: string, to: string, overrides: Partial<DiagramEdgeDSL> =
   ...overrides,
 });
 
+const firstLateralSplit = (
+  left: ReadonlyArray<readonly [number, number, number]>,
+  right: ReadonlyArray<readonly [number, number, number]>,
+  tolerance = 0.02,
+): {
+  readonly index: number;
+  readonly leftPoint: readonly [number, number, number];
+  readonly rightPoint: readonly [number, number, number];
+} | undefined => {
+  const limit = Math.min(left.length, right.length);
+  for (let index = 0; index < limit; index += 1) {
+    const leftPoint = left[index]!;
+    const rightPoint = right[index]!;
+    if (Math.abs(leftPoint[0] - rightPoint[0]) > tolerance) {
+      return { index, leftPoint, rightPoint };
+    }
+  }
+  return undefined;
+};
+
 describe('routeEdges', () => {
   const routePoints = (
     result: ReturnType<typeof routeEdges>,
@@ -279,11 +299,45 @@ describe('compileDiagram', () => {
     const upperRight = edgeById.get('cf-db-cf-coord-1');
     const lowerLeft = edgeById.get('cf-db-cf-intel-2');
     const lowerRight = edgeById.get('cf-db-cf-recov-3');
+    const groupById = new Map(state.groups.map((group) => [group.id, group]));
+    const upperCore = groupById.get('cf-core');
+    const upperCoord = groupById.get('cf-coord');
+    const lowerIntel = groupById.get('cf-intel');
+    const lowerRecov = groupById.get('cf-recov');
 
     expect(upperLeft?.path.startTangent[0]).toBeLessThan(-0.95);
     expect(upperRight?.path.startTangent[0]).toBeGreaterThan(0.95);
     expect(lowerLeft?.path.startTangent).toEqual([0, 1, 0]);
     expect(lowerRight?.path.startTangent).toEqual([0, 1, 0]);
+    expect(Math.abs(upperLeft?.path.endTangent?.[1] ?? 0)).toBeGreaterThan(0.95);
+    expect(Math.abs(upperRight?.path.endTangent?.[1] ?? 0)).toBeGreaterThan(0.95);
+    expect(lowerLeft?.path.endTangent?.[0]).toBeGreaterThan(0.95);
+    expect(lowerRight?.path.endTangent?.[0]).toBeLessThan(-0.95);
+
+    const lowerLeftPoints = lowerLeft?.controlPoints ?? [];
+    const lowerRightPoints = lowerRight?.controlPoints ?? [];
+    expect(lowerLeftPoints.length).toBeGreaterThanOrEqual(4);
+    expect(lowerRightPoints.length).toBeGreaterThanOrEqual(4);
+    expect(Math.abs((lowerLeftPoints[0]?.[0] ?? Infinity) - (lowerRightPoints[0]?.[0] ?? -Infinity))).toBeLessThan(0.01);
+    expect(Math.abs((lowerLeftPoints[1]?.[0] ?? Infinity) - (lowerRightPoints[1]?.[0] ?? -Infinity))).toBeLessThan(0.01);
+    expect(Math.abs((lowerLeftPoints[1]?.[1] ?? Infinity) - (lowerRightPoints[1]?.[1] ?? -Infinity))).toBeLessThan(0.01);
+
+    const split = firstLateralSplit(lowerLeftPoints, lowerRightPoints);
+    expect(split, 'lower routes never split laterally').toBeDefined();
+
+    const upperBottom = Math.max(
+      (upperCore?.bounds.y ?? 0) + (upperCore?.bounds.h ?? 0),
+      (upperCoord?.bounds.y ?? 0) + (upperCoord?.bounds.h ?? 0),
+    );
+    const lowerTop = Math.min(
+      lowerIntel?.bounds.y ?? 0,
+      lowerRecov?.bounds.y ?? 0,
+    );
+    const splitThreshold = upperBottom + (lowerTop - upperBottom) * 0.5;
+
+    expect(Math.abs((split?.leftPoint[1] ?? Infinity) - (split?.rightPoint[1] ?? -Infinity))).toBeLessThan(0.03);
+    expect(split?.leftPoint[1] ?? -Infinity).toBeGreaterThan(splitThreshold);
+    expect((split?.leftPoint[0] ?? Infinity)).toBeLessThan(split?.rightPoint[0] ?? -Infinity);
 
     state.edges.forEach((edge) => {
       edge.controlPoints.forEach((point) => {

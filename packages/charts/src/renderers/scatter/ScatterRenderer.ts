@@ -1,8 +1,9 @@
-// Scatter chart renderer — InstancedMesh of SphereGeometry for performance.
+// Scatter chart renderer — InstancedMesh with 4D encoding: x/y position, sizeField scale, colorField color.
 
 import * as THREE from 'three';
 import { scaleLinear } from 'd3-scale';
 import { extent } from 'd3-array';
+import { interpolateViridis, interpolatePlasma, interpolateBlues, interpolateReds } from 'd3-scale-chromatic';
 import { AxesRenderer } from '../shared/AxesRenderer';
 import { LegendRenderer } from '../shared/LegendRenderer';
 import type { IChartRenderer, ChartRenderContext, ChartHitInfo } from '../shared/IChartRenderer';
@@ -10,10 +11,27 @@ import type { ResolvedDataFrame } from '../../data/types';
 
 const _dummy = new THREE.Object3D();
 
+/** Returns a d3 color interpolator function for the named palette. */
+function getInterpolator(name: 'blues' | 'reds' | 'viridis' | 'plasma' | undefined): (t: number) => string {
+  switch (name) {
+    case 'blues': return interpolateBlues;
+    case 'reds': return interpolateReds;
+    case 'plasma': return interpolatePlasma;
+    case 'viridis':
+    default:
+      return interpolateViridis;
+  }
+}
+
+/** Linearly interpolates between a and b at t. */
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
 /**
  * Renders scatter plots as InstancedMesh of spheres.
- * Rebuilds InstancedMesh only when the row count changes; otherwise
- * calls setMatrixAt/setColorAt in-place for fast incremental updates.
+ * V2: supports sizeField (per-instance scale), colorField (ordinal or continuous),
+ *     datum-level morphing via ctx.morphCtx.
  */
 export class ScatterRenderer implements IChartRenderer {
   private instancedMesh: THREE.InstancedMesh | null = null;
@@ -21,6 +39,8 @@ export class ScatterRenderer implements IChartRenderer {
   private legendRenderer: LegendRenderer | null = null;
   private seriesGroupRef: THREE.Group | null = null;
   private lastCount = -1;
+  private lastSizeField: string | undefined = undefined;
+  private lastColorField: string | undefined = undefined;
   private readonly hitRows: Array<Record<string, unknown>> = [];
 
   update(ctx: ChartRenderContext): void {
@@ -33,20 +53,43 @@ export class ScatterRenderer implements IChartRenderer {
       return;
     }
 
+    const scatterOptions = ctx.typeOptions.kind === 'scatter' ? ctx.typeOptions.options : {};
+    const sizeField = scatterOptions.sizeField;
+    const colorField = scatterOptions.colorField;
+    const sizeScaleOpts = scatterOptions.sizeScale ?? { min: 0.5, max: 1.5 };
+    const colorInterpolator = scatterOptions.colorInterpolator ?? 'viridis';
+
     const xField = xAxis?.field ?? data.fields[0] ?? 'x';
     const yField = series[0]?.field ?? yAxis?.field ?? data.fields[1] ?? data.fields[0] ?? 'y';
 
-    const xValues = data.rows.map((r) => Number(r[xField]) || 0);
-    const yValues = data.rows.map((r) => Number(r[yField]) || 0);
+    // Resolve x/y values via accessors when provided, else field-name lookup
+    const xValues = data.rows.map((r) =>
+      ctx.accessors?.xAccessor ? ctx.accessors.xAccessor(r as Record<string, unknown>) : (Number(r[xField]) || 0),
+    );
+    const yValues = data.rows.map((r) =>
+      ctx.accessors?.yAccessor ? ctx.accessors.yAccessor(r as Record<string, unknown>) : (Number(r[yField]) || 0),
+    );
     const [xMin, xMax] = extent(xValues) as [number, number];
     const [yMin, yMax] = extent(yValues) as [number, number];
 
-    const xScale = scaleLinear().domain([xMin, xMax]).range([0.1 * bounds.width, 0.9 * bounds.width]);
-    const yScale = scaleLinear().domain([yMin, yMax]).range([0.1 * bounds.height, 0.9 * bounds.height]);
+    // V2.1: Move whitespace into domain padding instead of range padding.
+    // This aligns point positions and tick positions on the same 0–100% range.
+    const xPad = xMin === xMax ? Math.abs(xMin) * 0.1 + 0.5 : (xMax - xMin) * 0.05;
+    const yPad = yMin === yMax ? Math.abs(yMin) * 0.1 + 0.5 : (yMax - yMin) * 0.05;
+    const xScale = scaleLinear()
+      .domain([xMin - xPad, xMax + xPad])
+      .range([0, bounds.width]);
+    const yScale = scaleLinear()
+      .domain([yMin - yPad, yMax + yPad])
+      .range([0, bounds.height]);
 
     const count = data.rows.length;
+    const needsRebuild =
+      count !== this.lastCount ||
+      sizeField !== this.lastSizeField ||
+      colorField !== this.lastColorField;
 
-    if (count !== this.lastCount) {
+    if (needsRebuild) {
       this.clearMesh();
       const geo = new THREE.SphereGeometry(0.08, 12, 12);
       const mat = new THREE.MeshPhysicalMaterial({
@@ -67,38 +110,135 @@ export class ScatterRenderer implements IChartRenderer {
         this.hitRows.push(row as Record<string, unknown>);
       }
       this.lastCount = count;
+      this.lastSizeField = sizeField;
+      this.lastColorField = colorField;
     }
 
     if (!this.instancedMesh) return;
 
-    // Partial update — matrix and color per instance
+    // Compute size values for sizeField encoding
+    const sizeValues = sizeField
+      ? data.rows.map((r) => Number(r[sizeField]) || 0)
+      : null;
+    const sizeExtent = sizeValues ? (extent(sizeValues) as [number, number]) : null;
+    const [sMin, sMax] = sizeExtent ?? [1, 1];
+    const sRange = (sMax - sMin) || 1;
+
+    // Detect colorField type: ordinal (string) vs continuous (number)
+    const colorFieldFirstVal = colorField ? data.rows[0]?.[colorField] : undefined;
+    const isColorOrdinal = colorField && typeof colorFieldFirstVal === 'string';
+    const ordinalColorMap = isColorOrdinal
+      ? (() => {
+          const uniq = [...new Set(data.rows.map((r) => String(r[colorField!])))];
+          return new Map(uniq.map((v, i) => [v, i]));
+        })()
+      : null;
+    const continuousExtent = (!isColorOrdinal && colorField)
+      ? (extent(data.rows.map((r) => Number(r[colorField!]) || 0)) as [number, number])
+      : null;
+    const [cMin, cMax] = continuousExtent ?? [0, 1];
+    const cRange = (cMax - cMin) || 1;
+    const colorInterp = getInterpolator(colorInterpolator);
+
+    // MorphContext: build from-key → position map for interpolation
+    const fromKeyMap = ctx.morphCtx
+      ? new Map(
+          ctx.morphCtx.fromData.rows.map((r) => [
+            String(r[ctx.morphCtx!.keyField]),
+            r as Record<string, unknown>,
+          ]),
+        )
+      : null;
+
     const baseColor = new THREE.Color(theme.series[0]?.color ?? '#00d4ff');
+
     for (let i = 0; i < count; i++) {
-      _dummy.position.set(xScale(xValues[i]!), yScale(yValues[i]!), 0);
+      const row = data.rows[i] as Record<string, unknown>;
+      let px = xScale(xValues[i]!);
+      let py = yScale(yValues[i]!);
+
+      // Morphing
+      if (ctx.morphCtx && fromKeyMap) {
+        const key = String(row[ctx.morphCtx.keyField]);
+        const fromRow = fromKeyMap.get(key);
+        if (fromRow) {
+          const fromX = ctx.accessors?.xAccessor ? ctx.accessors.xAccessor(fromRow) : (Number(fromRow[xField]) || 0);
+          const fromY = ctx.accessors?.yAccessor ? ctx.accessors.yAccessor(fromRow) : (Number(fromRow[yField]) || 0);
+          const fromPx = xScale(fromX);
+          const fromPy = yScale(fromY);
+          px = lerp(fromPx, px, ctx.morphCtx.t);
+          py = lerp(fromPy, py, ctx.morphCtx.t);
+        }
+      }
+
+      // Size encoding — use sizeAccessor when available
+      let scale = 1.0;
+      if (sizeField && sizeValues && sizeExtent) {
+        const rawSize = ctx.accessors?.sizeAccessor
+          ? ctx.accessors.sizeAccessor(row)
+          : (sizeValues[i]!);
+        const normalizedSize = (rawSize - sMin) / sRange;
+        scale = sizeScaleOpts.min + normalizedSize * (sizeScaleOpts.max - sizeScaleOpts.min);
+      }
+
+      _dummy.position.set(px, py, 0);
+      _dummy.scale.set(scale, scale, scale);
       _dummy.updateMatrix();
       this.instancedMesh.setMatrixAt(i, _dummy.matrix);
-      this.instancedMesh.setColorAt(i, baseColor);
+
+      // Color encoding
+      let color = baseColor;
+      if (colorField) {
+        if (isColorOrdinal && ordinalColorMap) {
+          const colorIdx = ordinalColorMap.get(String(row[colorField])) ?? 0;
+          const tokens = theme.series[colorIdx % theme.series.length]!;
+          color = new THREE.Color(tokens.color);
+        } else if (!isColorOrdinal) {
+          const rawVal = ctx.accessors?.colorAccessor
+            ? Number(ctx.accessors.colorAccessor(row))
+            : (Number(row[colorField!]) || 0);
+          const normalizedColor = (rawVal - cMin) / cRange;
+          const cssColor = colorInterp(Math.max(0, Math.min(1, normalizedColor)));
+          color = new THREE.Color(cssColor);
+        }
+      }
+      this.instancedMesh.setColorAt(i, color);
     }
+
     this.instancedMesh.instanceMatrix.needsUpdate = true;
     if (this.instancedMesh.instanceColor) this.instancedMesh.instanceColor.needsUpdate = true;
     (this.instancedMesh.material as THREE.MeshPhysicalMaterial).opacity = opacity;
     (this.instancedMesh.material as THREE.MeshPhysicalMaterial).transparent = opacity < 1;
 
-    // Axes
+    // Axes — V2.1: ticks generated from same xScale/yScale as point positions for alignment
     if (!this.axesRenderer) this.axesRenderer = new AxesRenderer(axesGroup);
-    const xTicks = Array.from({ length: 6 }, (_, i) => ({
-      value: Math.round(xMin + ((xMax - xMin) * i) / 5),
-      position: i / 5,
+    const xTickValues = xScale.ticks(6);
+    const xTicks = xTickValues.map((v) => ({
+      value: Math.round(v * 100) / 100,
+      position: xScale(v) / bounds.width,  // normalized [0..1] — same range as point x positions
     }));
-    const yTicks = Array.from({ length: 6 }, (_, i) => ({
-      value: Math.round(yMin + ((yMax - yMin) * i) / 5),
-      position: i / 5,
+    const yTickValues = yScale.ticks(5);
+    const yTicks = yTickValues.map((v) => ({
+      value: Math.round(v * 100) / 100,
+      position: yScale(v) / bounds.height, // normalized [0..1] — same range as point y positions
     }));
-    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl });
+    this.axesRenderer.update({
+      xTicks,
+      yTicks,
+      bounds,
+      theme,
+      opacity,
+      xAxis,
+      yAxis,
+      fontUrl,
+      gridlines: ctx.gridlines,
+      fittedMargins: ctx.fittedMargins, // V2.1 — for axis title positioning
+    });
 
     if (!this.legendRenderer) this.legendRenderer = new LegendRenderer(legendGroup);
     this.legendRenderer.update(
       series.length > 0 ? series : [{ field: yField }],
+      ctx.legend ?? { visible: true, position: 'right' },
       theme,
       opacity,
       fontUrl,
@@ -114,6 +254,8 @@ export class ScatterRenderer implements IChartRenderer {
       this.instancedMesh = null;
     }
     this.lastCount = -1;
+    this.lastSizeField = undefined;
+    this.lastColorField = undefined;
     this.hitRows.length = 0;
   }
 

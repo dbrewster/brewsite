@@ -74,7 +74,12 @@ vi.mock('../../renderers/heatmap/HeatmapRenderer', () => ({
 import { createElement } from 'react';
 import { WidgetRegistry } from '@brewsite/core';
 import { chartPlugin } from '../../player/chartPlugin';
-import { compileChart } from '../../elements/chart/compile';
+import {
+  compileChart,
+  compileBarChartOptions,
+  compilePieChartOptions,
+  compileScatterChartOptions,
+} from '../../elements/chart/compile';
 import { resetChartHandlerRegistrationForTesting } from '../handlers';
 import type { ChartState } from '../../elements/chart/types';
 
@@ -136,12 +141,17 @@ describe('chartPlugin', () => {
   it('reconcileCompiledTrack registers missing chart widgets from compiled state', () => {
     const plugin = chartPlugin();
     const registry = new WidgetRegistry({ strict: true });
+
     const chartState = compileChart(
-      { id: 'revenue', type: 'bar' },
+      { id: 'revenue' },
+      'bar',
+      { kind: 'bar', options: compileBarChartOptions({ id: 'revenue' }) },
       { source: 'sales' },
       [{ axis: 'x', field: 'month', label: 'Month' }],
       [{ field: 'sales', label: 'Sales' }],
       null,
+      null,
+      [],
     );
 
     plugin.reconcileCompiledTrack?.(registry, {
@@ -159,12 +169,50 @@ describe('chartPlugin', () => {
     expect(registry.get('revenue')).toBeDefined();
     expect(plugin.getWidget('revenue')).toBeDefined();
   });
+
+  it('reconcileCompiledTrack calls _configureAsync for async sources', () => {
+    const plugin = chartPlugin();
+    const registry = new WidgetRegistry({ strict: true });
+
+    const asyncState = compileChart(
+      { id: 'async-chart', dataUrl: '/data/metrics.json' },
+      'line',
+      { kind: 'line', options: {} },
+      null,
+      [{ axis: 'x', field: 'month' }],
+      [{ field: 'value' }],
+      null,
+      null,
+      [],
+    );
+
+    plugin.reconcileCompiledTrack?.(registry, {
+      ticks: [
+        {
+          state: {
+            widgets: {
+              'async-chart': asyncState,
+            },
+          },
+        },
+      ],
+    } as never);
+
+    const widget = plugin.getWidget('async-chart');
+    expect(widget).toBeDefined();
+    // After _configureAsync, isLoaded should be false (has async URL, not yet fetched)
+    const chartWidget = registry.get('async-chart') as { isLoaded: boolean };
+    expect(chartWidget.isLoaded).toBe(false);
+  });
 });
 
 describe('compileChart via chartPlugin', () => {
-  it('compiles Chart with all children into correct ChartState', () => {
+  it('compiles BarChart with all children into correct V2 ChartState', () => {
+    const typeOptions = { kind: 'bar' as const, options: compileBarChartOptions({ id: 'revenue' }) };
     const state: ChartState = compileChart(
-      { id: 'revenue', type: 'bar', opacity: 0.8, theme: 'neonCyber' },
+      { id: 'revenue', opacity: 0.8, theme: 'neonCyber' },
+      'bar',
+      typeOptions,
       { source: 'sales', transforms: [{ type: 'filter', field: 'year', op: 'eq', value: 2025 }] },
       [
         { axis: 'x', field: 'month', label: 'Month' },
@@ -175,10 +223,13 @@ describe('compileChart via chartPlugin', () => {
         { field: 'costs', label: 'Costs' },
       ],
       { visible: true, position: 'right' },
+      null,
+      [],
     );
 
     expect(state.type).toBe('bar');
-    expect(state.dataSource).toBe('sales');
+    expect(state.typeConfig.kind).toBe('bar');
+    expect(state.dataSource).toMatchObject({ type: 'named', name: 'sales' });
     expect(state.transforms).toHaveLength(1);
     expect(state.xAxis?.field).toBe('month');
     expect(state.yAxis?.field).toBe('revenue');
@@ -190,83 +241,160 @@ describe('compileChart via chartPlugin', () => {
     expect(state.opacity).toBe(0.8);
   });
 
-  it('Scene with Chart missing ChartData throws descriptive error', () => {
-    // When chartPlugin configureRegistry handler is invoked without ChartData,
-    // it throws. We test the validation logic directly.
-    // The actual error is thrown in chartPlugin's configureRegistry handler.
-    // Since we can't easily invoke the handler outside the compiler, we verify
-    // that compileChart with null dataDsl yields an empty dataSource.
-    const state = compileChart({ id: 'c', type: 'bar' }, null, [], [], null);
-    expect(state.dataSource).toBe('');
-  });
-
-  it('Scene with multiple Charts produces independent states', () => {
-    const state1: ChartState = compileChart(
-      { id: 'c1', type: 'bar' },
-      { source: 'sales' },
-      [{ axis: 'x', field: 'month' }],
-      [],
-      null,
-    );
-
-    const state2: ChartState = compileChart(
-      { id: 'c2', type: 'line', opacity: 0.5 },
-      { source: 'expenses' },
-      [{ axis: 'y', field: 'cost' }],
-      [{ field: 'cost', label: 'Cost' }],
-      { visible: true, position: 'bottom' },
-    );
-
-    expect(state1.type).toBe('bar');
-    expect(state1.dataSource).toBe('sales');
-    expect(state2.type).toBe('line');
-    expect(state2.dataSource).toBe('expenses');
-    expect(state2.opacity).toBe(0.5);
-    expect(state2.legend?.position).toBe('bottom');
-  });
-
-  it('ChartData source sets dataSource in compiled state', () => {
+  it('PieChart handler produces state with correct typeConfig.kind', () => {
+    const typeOptions = { kind: 'pie' as const, options: compilePieChartOptions({ id: 'donut', innerRadius: 0.4 }) };
     const state: ChartState = compileChart(
-      { id: 'c', type: 'bar' },
-      { source: 'my-source' },
-      [],
-      [],
-      null,
-    );
-    expect(state.dataSource).toBe('my-source');
-  });
-
-  it('compileChart includes innerRadius from DSL', () => {
-    const state: ChartState = compileChart(
-      { id: 'c', type: 'pie', innerRadius: 0.4 },
+      { id: 'donut', innerRadius: 0.4 },
+      'pie',
+      typeOptions,
       { source: 'data' },
       [],
       [],
       null,
+      null,
+      [],
     );
-    expect(state.innerRadius).toBe(0.4);
+    expect(state.type).toBe('pie');
+    expect(state.typeConfig.kind).toBe('pie');
+    expect(state.typeConfig.options).toMatchObject({ innerRadius: 0.4 });
   });
 
-  it('compileChart includes timeField from ChartData DSL', () => {
+  it('ScatterPlotChart handler produces state with sizeField and colorField in typeConfig.options', () => {
+    const typeOptions = {
+      kind: 'scatter' as const,
+      options: compileScatterChartOptions({ id: 'sc', sizeField: 'headcount', colorField: 'region' }),
+    };
     const state: ChartState = compileChart(
-      { id: 'c', type: 'heatmap' },
-      { source: 'timeseries', timeField: 'date' },
+      { id: 'sc', sizeField: 'headcount', colorField: 'region' } as never,
+      'scatter',
+      typeOptions,
+      { source: 'teams' },
       [],
       [],
       null,
+      null,
+      [],
     );
-    expect(state.timeField).toBe('date');
+    expect(state.typeConfig.kind).toBe('scatter');
+    expect(state.typeConfig.options).toMatchObject({ sizeField: 'headcount', colorField: 'region' });
+  });
+
+  it('compileChart with null dataDsl and no dataUrl yields empty named source', () => {
+    const state = compileChart(
+      { id: 'c' },
+      'bar',
+      { kind: 'bar', options: {} },
+      null,
+      [],
+      [],
+      null,
+      null,
+      [],
+    );
+    expect(state.dataSource).toMatchObject({ type: 'named', name: '' });
+  });
+
+  it('compileChart with inline data yields InlineDataSource', () => {
+    const rows = [{ month: 'Jan', revenue: 100 }];
+    const state = compileChart(
+      { id: 'c', data: rows },
+      'bar',
+      { kind: 'bar', options: {} },
+      null,
+      [],
+      [],
+      null,
+      null,
+      [],
+    );
+    expect(state.dataSource).toMatchObject({ type: 'inline', rows });
+  });
+
+  it('compileChart with dataUrl yields AsyncDataSource', () => {
+    const state = compileChart(
+      { id: 'c', dataUrl: '/api/data.json' },
+      'line',
+      { kind: 'line', options: {} },
+      null,
+      [],
+      [],
+      null,
+      null,
+      [],
+    );
+    expect(state.dataSource).toMatchObject({ type: 'async', url: '/api/data.json' });
   });
 
   it('compileChart includes filterGroup from ChartData DSL', () => {
-    const state: ChartState = compileChart(
-      { id: 'c', type: 'bar' },
+    const state = compileChart(
+      { id: 'c' },
+      'bar',
+      { kind: 'bar', options: {} },
       { source: 'data', filterGroup: 'linked-brush-1' },
       [],
       [],
       null,
+      null,
+      [],
     );
     expect(state.filterGroup).toBe('linked-brush-1');
+  });
+
+  it('isChartStateLike correctly identifies V2 ChartState (dataSource is object)', () => {
+    const plugin = chartPlugin();
+    const registry = new WidgetRegistry({ strict: true });
+
+    const v2State = compileChart(
+      { id: 'v2' },
+      'bar',
+      { kind: 'bar', options: {} },
+      { source: 'data' },
+      [],
+      [],
+      null,
+      null,
+      [],
+    );
+
+    // V2 state should be recognized by reconcileCompiledTrack
+    plugin.reconcileCompiledTrack?.(registry, {
+      ticks: [{ state: { widgets: { v2: v2State } } }],
+    } as never);
+
+    expect(registry.get('v2')).toBeDefined();
+  });
+
+  it('compileChart with multiple independent states produces separate ChartState objects', () => {
+    const state1: ChartState = compileChart(
+      { id: 'c1' },
+      'bar',
+      { kind: 'bar', options: {} },
+      { source: 'sales' },
+      [{ axis: 'x', field: 'month' }],
+      [],
+      null,
+      null,
+      [],
+    );
+
+    const state2: ChartState = compileChart(
+      { id: 'c2', opacity: 0.5 },
+      'line',
+      { kind: 'line', options: {} },
+      { source: 'expenses' },
+      [{ axis: 'y', field: 'cost' }],
+      [{ field: 'cost', label: 'Cost' }],
+      { visible: true, position: 'bottom' },
+      null,
+      [],
+    );
+
+    expect(state1.type).toBe('bar');
+    expect(state1.dataSource).toMatchObject({ type: 'named', name: 'sales' });
+    expect(state2.type).toBe('line');
+    expect(state2.dataSource).toMatchObject({ type: 'named', name: 'expenses' });
+    expect(state2.opacity).toBe(0.5);
+    expect(state2.legend?.position).toBe('bottom');
   });
 });
 
@@ -278,7 +406,7 @@ describe('guard handlers', () => {
   it('registerChartHandlers registers guard handlers for child DSL components', () => {
     const plugin = chartPlugin();
     plugin.registerHandlers!();
-    // Guard handlers are registered; they throw when children appear outside <Chart>.
+    // Guard handlers are registered; they throw when children appear outside a chart component.
     // We verify registration completes without error.
     expect(true).toBe(true);
   });

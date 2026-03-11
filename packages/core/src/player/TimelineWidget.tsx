@@ -1,15 +1,15 @@
 // HUD timeline scrubber widget — pure React, no Three.js.
 
-import React, { useCallback, useRef, useState } from 'react';
-import type { ReactElement } from 'react';
-import type { TimelineWidgetProps } from './TimelineWidgetTypes';
+import type {ReactElement} from 'react';
+import React, {useCallback, useRef, useState} from 'react';
+import type {TimelineWidgetProps} from './TimelineWidgetTypes';
 
 const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 
 const THEMES = {
   dark: {
-    track: 'rgba(255,255,255,0.15)',
-    fill: 'rgba(255,255,255,0.7)',
+    track: 'rgba(255,255,255,0.05)',
+    fill: 'rgba(255,255,255,0.1)',
     handle: '#ffffff',
     handleBorder: 'rgba(0,0,0,0.3)',
     tickMajor: 'rgba(255,255,255,0.6)',
@@ -20,7 +20,7 @@ const THEMES = {
   },
   light: {
     track: 'rgba(0,0,0,0.15)',
-    fill: 'rgba(0,0,0,0.6)',
+    fill: 'rgba(0,0,0,0.1)',
     handle: '#333333',
     handleBorder: 'rgba(255,255,255,0.5)',
     tickMajor: 'rgba(0,0,0,0.55)',
@@ -32,23 +32,22 @@ const THEMES = {
 };
 
 export const TimelineWidget = ({
-  engine,
-  scenes,
-  orientation = 'horizontal',
-  position = 'bottom',
-  theme = 'dark',
-  thickness = 48,
-  majorTicks = 'scene',
-  minorTicksPerScene = 0,
-  showSceneLabels = true,
-  showProgress = false,
-  scrubEnabled = true,
-  className,
-  style,
-  onSeek,
-}: TimelineWidgetProps): ReactElement => {
+                                 engine,
+                                 scenes,
+                                 position = 'bottom',
+                                 theme = 'dark',
+                                 thickness = 44,
+                                 majorTicks = 'scene',
+                                 minorTicksPerScene = 0,
+                                 showSceneLabels = true,
+                                 showProgress = false,
+                                 scrubEnabled = true,
+                                 className,
+                                 style,
+                                 onSeek,
+                               }: TimelineWidgetProps): ReactElement => {
   const colors = THEMES[theme];
-  const isHorizontal = orientation === 'horizontal';
+  const isHorizontal = position === 'top' || position === 'bottom';
   const trackRef = useRef<HTMLDivElement | null>(null);
   const [isScrubbing, setIsScrubbing] = useState(false);
   const scrubProgressRef = useRef(engine.progress);
@@ -111,19 +110,19 @@ export const TimelineWidget = ({
     for (let i = 0; i < sceneCount; i++) {
       const p = i / (sceneCount - 1);
       const label = scenes?.[i]?.id ?? `Scene ${i + 1}`;
-      tickMarks.push({ progress: p, isMajor: true, label });
+      tickMarks.push({progress: p, isMajor: true, label});
 
       // Minor ticks
       if (minorTicksPerScene > 0 && i < sceneCount - 1) {
         for (let m = 1; m <= minorTicksPerScene; m++) {
           const mp = p + (m / (minorTicksPerScene + 1)) / (sceneCount - 1);
-          tickMarks.push({ progress: mp, isMajor: false });
+          tickMarks.push({progress: mp, isMajor: false});
         }
       }
     }
   } else if (majorTicks === 'frame' && totalTicks > 1) {
     for (let i = 0; i < totalTicks; i++) {
-      tickMarks.push({ progress: i / (totalTicks - 1), isMajor: true });
+      tickMarks.push({progress: i / (totalTicks - 1), isMajor: true});
     }
   }
 
@@ -132,19 +131,24 @@ export const TimelineWidget = ({
   const trackPad = 16;   // px padding on each end of track
   const handleSize = 14; // px diameter of scrub handle
   const tickAreaHeight = showSceneLabels ? 20 : 0; // px above/beside track for labels
-  const trackHeight = 4; // px height of the track bar itself
+  const trackHeight = 22; // px height of the track bar itself
 
   void tickAreaHeight;
+  const horizontalTicksUp = isHorizontal && position === 'bottom';
+
+  const anchorStyle: React.CSSProperties = isHorizontal
+    ? (position === 'top'
+      ? {top: 0, left: 0, right: 0}
+      : {bottom: 0, left: 0, right: 0})
+    : (position === 'right'
+      ? {right: 0, top: 0, bottom: 0}
+      : {left: 0, top: 0, bottom: 0});
 
   const containerStyle: React.CSSProperties = {
     position: 'absolute',
-    [position]: 0,
-    left: isHorizontal ? 0 : undefined,
-    right: isHorizontal ? 0 : undefined,
-    top: !isHorizontal ? 0 : undefined,
-    bottom: !isHorizontal ? 0 : undefined,
+    ...anchorStyle,
     width: isHorizontal ? '100%' : thickness,
-    height: isHorizontal ? thickness : '100%',
+    height: isHorizontal ? 'fit-content' : '100%',
     background: colors.background,
     backdropFilter: 'blur(8px)',
     display: 'flex',
@@ -163,7 +167,9 @@ export const TimelineWidget = ({
   const trackStyle: React.CSSProperties = {
     position: 'relative',
     width: isHorizontal ? '100%' : trackHeight,
+    minWidth: isHorizontal ? '100%' : trackHeight,
     height: isHorizontal ? trackHeight : '100%',
+    minHeight: isHorizontal ? trackHeight : '100%',
     background: colors.track,
     borderRadius: trackHeight / 2,
     flexShrink: 0,
@@ -173,10 +179,10 @@ export const TimelineWidget = ({
     position: 'absolute',
     top: 0,
     left: 0,
-    width: isHorizontal ? `${displayProgress * 100}%` : '100%',
-    height: isHorizontal ? '100%' : `${displayProgress * 100}%`,
+    width: isHorizontal ? `${displayProgress * 100}%` : '75%',
+    height: isHorizontal ? '75%' : `${displayProgress * 100}%`,
     background: colors.fill,
-    borderRadius: trackHeight / 2,
+    borderRadius: 2,
     pointerEvents: 'none',
   };
 
@@ -201,7 +207,14 @@ export const TimelineWidget = ({
     <div className={className} style={containerStyle}>
       {/* Progress readout */}
       {showProgress && (
-        <div style={{ fontSize: 11, color: colors.progress, marginBottom: 4, fontVariantNumeric: 'tabular-nums' }}>
+        <div style={{
+          fontSize: 11, color: colors.progress, ...(
+            position == 'right' ? {marginLeft: 4} :
+              position == 'left' ? {marginRight: 4} :
+                (position == 'bottom' ? {marginTop: 4} :
+                  {marginBottom: 4})
+          ), fontVariantNumeric: 'tabular-nums'
+        }}>
           {(displayProgress * 100).toFixed(1)}%
         </div>
       )}
@@ -209,7 +222,7 @@ export const TimelineWidget = ({
       {/* Track area */}
       <div
         ref={trackRef}
-        style={{ ...trackStyle, position: 'relative', flex: 1 }}
+        style={{...trackStyle, position: 'relative', flex: 1}}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
@@ -222,7 +235,7 @@ export const TimelineWidget = ({
         tabIndex={0}
       >
         {/* Fill */}
-        <div style={fillStyle} />
+        <div style={fillStyle}/>
 
         {/* Tick marks */}
         {tickMarks.map((tick, i) => {
@@ -230,7 +243,7 @@ export const TimelineWidget = ({
           const tickStyle: React.CSSProperties = {
             position: 'absolute',
             [isHorizontal ? 'left' : 'top']: pct,
-            [isHorizontal ? 'top' : 'left']: '50%',
+            [isHorizontal ? (horizontalTicksUp ? 'bottom' : 'top') : 'left']: '50%',
             transform: isHorizontal ? 'translateX(-50%)' : 'translateY(-50%)',
             width: isHorizontal ? (tick.isMajor ? 2 : 1) : (tick.isMajor ? 10 : 6),
             height: isHorizontal ? (tick.isMajor ? 10 : 6) : (tick.isMajor ? 2 : 1),
@@ -242,13 +255,14 @@ export const TimelineWidget = ({
               {tick.isMajor && showSceneLabels && tick.label && (
                 <div style={{
                   position: 'absolute',
-                  [isHorizontal ? 'bottom' : 'left']: '100%',
+                  [isHorizontal ? (horizontalTicksUp ? 'bottom' : 'top') : 'left']: '100%',
                   [isHorizontal ? 'left' : 'top']: '50%',
                   transform: isHorizontal ? 'translateX(-50%)' : 'translateY(-50%)',
                   fontSize: 9,
                   color: colors.label,
                   whiteSpace: 'nowrap',
-                  marginBottom: isHorizontal ? 4 : 0,
+                  marginBottom: isHorizontal && horizontalTicksUp ? 4 : 0,
+                  marginTop: isHorizontal && !horizontalTicksUp ? 4 : 0,
                   marginLeft: !isHorizontal ? 4 : 0,
                   pointerEvents: 'none',
                   maxWidth: 60,
@@ -263,7 +277,7 @@ export const TimelineWidget = ({
         })}
 
         {/* Scrub handle */}
-        {scrubEnabled && <div style={handleStyle} />}
+        {scrubEnabled && <div style={handleStyle}/>}
       </div>
     </div>
   );

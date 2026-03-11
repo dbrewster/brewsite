@@ -4,8 +4,11 @@ import {
   applyGroupBy,
   applySort,
   applyBin,
+  applyCompute,
   applyTransforms,
   evaluateFilterOp,
+  normalizeDataInput,
+  parseCsv,
 } from '../transforms';
 
 describe('evaluateFilterOp', () => {
@@ -144,6 +147,186 @@ describe('applyBin', () => {
   });
 });
 
+describe('normalizeDataInput', () => {
+  it('row array passthrough: returns same values', () => {
+    const input = [{ a: 1 }];
+    const result = normalizeDataInput(input);
+    expect(result).toEqual([{ a: 1 }]);
+  });
+
+  it('columnar 2-column input is transposed to rows', () => {
+    const input = { month: ['Jan', 'Feb'], rev: [128, 145] };
+    const result = normalizeDataInput(input);
+    expect(result).toEqual([
+      { month: 'Jan', rev: 128 },
+      { month: 'Feb', rev: 145 },
+    ]);
+  });
+
+  it('empty columnar object returns empty array', () => {
+    expect(normalizeDataInput({})).toEqual([]);
+  });
+
+  it('single-column columnar is transposed', () => {
+    const result = normalizeDataInput({ x: [1, 2, 3] });
+    expect(result).toEqual([{ x: 1 }, { x: 2 }, { x: 3 }]);
+  });
+});
+
+describe('parseCsv', () => {
+  it('basic 2-column CSV produces correct rows with numeric coercion', () => {
+    const result = parseCsv('a,b\n1,2\n3,4');
+    expect(result).toEqual([
+      { a: 1, b: 2 },
+      { a: 3, b: 4 },
+    ]);
+  });
+
+  it('quoted field containing comma is parsed as single field', () => {
+    const result = parseCsv('name,val\n"Foo, Inc",42');
+    expect(result).toEqual([{ name: 'Foo, Inc', val: 42 }]);
+  });
+
+  it('trailing newline does not produce empty row', () => {
+    const result = parseCsv('a,b\n1,2\n');
+    expect(result).toHaveLength(1);
+    expect(result[0]).toEqual({ a: 1, b: 2 });
+  });
+
+  it('date-like string stays as string; numeric string is coerced to number', () => {
+    const result = parseCsv('date,amount\n2024-01-01,123.45');
+    expect(result[0]!['date']).toBe('2024-01-01');
+    expect(result[0]!['amount']).toBe(123.45);
+  });
+
+  it('returns empty array when input has fewer than 2 lines', () => {
+    expect(parseCsv('a,b')).toEqual([]);
+    expect(parseCsv('')).toEqual([]);
+  });
+
+  it('double-quoted quotes within a quoted field are unescaped', () => {
+    const result = parseCsv('name,val\n"Say ""Hello""",1');
+    expect(result[0]!['name']).toBe('Say "Hello"');
+  });
+});
+
+describe('applyCompute', () => {
+  const rows = [
+    { v: 100 },
+    { v: 4 },
+    { v: 0 },
+  ];
+
+  it('log (natural): computes ln of each positive value', () => {
+    const result = applyCompute(rows.slice(0, 2), {
+      type: 'compute',
+      outputField: 'logV',
+      operation: { fn: 'log', inputField: 'v' },
+    });
+    expect(result[0]!['logV']).toBeCloseTo(Math.log(100));
+    expect(result[1]!['logV']).toBeCloseTo(Math.log(4));
+  });
+
+  it('log (base 10): log10(100) = 2', () => {
+    const result = applyCompute([{ v: 100 }], {
+      type: 'compute',
+      outputField: 'logV',
+      operation: { fn: 'log', inputField: 'v', base: 10 },
+    });
+    expect(result[0]!['logV']).toBeCloseTo(2);
+  });
+
+  it('log with zero input uses Number.EPSILON to avoid -Infinity', () => {
+    const result = applyCompute([{ v: 0 }], {
+      type: 'compute',
+      outputField: 'logV',
+      operation: { fn: 'log', inputField: 'v' },
+    });
+    expect(Number.isFinite(result[0]!['logV'] as number)).toBe(true);
+  });
+
+  it('sqrt: computes square root', () => {
+    const result = applyCompute([{ v: 9 }, { v: 25 }], {
+      type: 'compute',
+      outputField: 'sqrtV',
+      operation: { fn: 'sqrt', inputField: 'v' },
+    });
+    expect(result[0]!['sqrtV']).toBeCloseTo(3);
+    expect(result[1]!['sqrtV']).toBeCloseTo(5);
+  });
+
+  it('sqrt with negative value clamps to 0', () => {
+    const result = applyCompute([{ v: -4 }], {
+      type: 'compute',
+      outputField: 'sqrtV',
+      operation: { fn: 'sqrt', inputField: 'v' },
+    });
+    expect(result[0]!['sqrtV']).toBe(0);
+  });
+
+  it('normalize: maps values to [0, 1] range', () => {
+    const result = applyCompute([{ v: 0 }, { v: 5 }, { v: 10 }], {
+      type: 'compute',
+      outputField: 'norm',
+      operation: { fn: 'normalize', inputField: 'v' },
+    });
+    expect(result[0]!['norm']).toBeCloseTo(0);
+    expect(result[1]!['norm']).toBeCloseTo(0.5);
+    expect(result[2]!['norm']).toBeCloseTo(1);
+  });
+
+  it('normalize with all-same-value input returns 0 (range=0 edge case)', () => {
+    const result = applyCompute([{ v: 7 }, { v: 7 }, { v: 7 }], {
+      type: 'compute',
+      outputField: 'norm',
+      operation: { fn: 'normalize', inputField: 'v' },
+    });
+    expect(result[0]!['norm']).toBe(0);
+    expect(result[1]!['norm']).toBe(0);
+    expect(result[2]!['norm']).toBe(0);
+  });
+
+  it('scale: multiplies by factor', () => {
+    const result = applyCompute([{ v: 4 }, { v: 10 }], {
+      type: 'compute',
+      outputField: 'scaled',
+      operation: { fn: 'scale', inputField: 'v', factor: 2.5 },
+    });
+    expect(result[0]!['scaled']).toBeCloseTo(10);
+    expect(result[1]!['scaled']).toBeCloseTo(25);
+  });
+
+  it('add: adds a constant value', () => {
+    const result = applyCompute([{ v: 10 }, { v: 20 }], {
+      type: 'compute',
+      outputField: 'shifted',
+      operation: { fn: 'add', inputField: 'v', value: 5 },
+    });
+    expect(result[0]!['shifted']).toBeCloseTo(15);
+    expect(result[1]!['shifted']).toBeCloseTo(25);
+  });
+
+  it('preserves all existing fields on each row', () => {
+    const result = applyCompute([{ v: 4, label: 'foo' }], {
+      type: 'compute',
+      outputField: 'sqrtV',
+      operation: { fn: 'sqrt', inputField: 'v' },
+    });
+    expect(result[0]!['label']).toBe('foo');
+    expect(result[0]!['sqrtV']).toBeCloseTo(2);
+  });
+
+  it('does not mutate input rows', () => {
+    const input = [{ v: 9 }];
+    applyCompute(input, {
+      type: 'compute',
+      outputField: 'out',
+      operation: { fn: 'sqrt', inputField: 'v' },
+    });
+    expect(Object.keys(input[0]!)).not.toContain('out');
+  });
+});
+
 describe('applyTransforms', () => {
   const rows = [
     { region: 'APAC', year: 2024, revenue: 100 },
@@ -164,5 +347,14 @@ describe('applyTransforms', () => {
   it('returns copy of rows when transforms is empty', () => {
     const result = applyTransforms(rows, []);
     expect(result).toHaveLength(rows.length);
+  });
+
+  it('handles compute transform in pipeline', () => {
+    const data = [{ region: 'APAC', revenue: 100 }, { region: 'EMEA', revenue: 400 }];
+    const result = applyTransforms(data, [
+      { type: 'compute', outputField: 'sqrtRev', operation: { fn: 'sqrt', inputField: 'revenue' } },
+    ]);
+    expect(result[0]!['sqrtRev']).toBeCloseTo(10);
+    expect(result[1]!['sqrtRev']).toBeCloseTo(20);
   });
 });

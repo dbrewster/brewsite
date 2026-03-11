@@ -1,5 +1,5 @@
-import type { ChartAxisState, ChartSeriesState } from '../../renderers/shared/IChartRenderer';
-import type { ChartLegendState, ChartType } from './types';
+import type { ChartAxisState, ChartSeriesState, FittedMargins } from '../../renderers/shared/IChartRenderer';
+import type { ChartLegendState, ChartTypeOptions } from './types';
 import type { ChartTheme } from '../../themes/types';
 
 type ChartBounds = {
@@ -18,11 +18,17 @@ export type ChartFrame = {
 export type ChartLayout = {
   readonly plotFrame: ChartFrame;
   readonly legendAnchor: { readonly x: number; readonly y: number } | null;
+  /**
+   * V2.1: Actual fitted margin values in world units.
+   * AxesRenderer MUST use these for axis title and tick label positioning.
+   * These values may be smaller than raw theme margin values when fitMargins() scaled them.
+   */
+  readonly fittedMargins: FittedMargins;
 };
 
 type ComputeChartLayoutInput = {
   readonly bounds: ChartBounds;
-  readonly type: ChartType;
+  readonly typeConfig: ChartTypeOptions;
   readonly theme: ChartTheme;
   readonly xAxis: ChartAxisState | null;
   readonly yAxis: ChartAxisState | null;
@@ -61,14 +67,14 @@ function estimateLegendReserve(
 
 export function computeChartLayout({
   bounds,
-  type,
+  typeConfig,
   theme,
   xAxis,
   yAxis,
   series,
   legend,
 }: ComputeChartLayoutInput): ChartLayout {
-  const isCartesian = type !== 'pie';
+  const isCartesian = typeConfig.kind !== 'pie';
   let left = DEFAULT_PAD;
   let right = DEFAULT_PAD;
   let top = DEFAULT_PAD * 0.8;
@@ -99,20 +105,28 @@ export function computeChartLayout({
     }
   }
 
-  const minPlotWidth = Math.max(bounds.width * 0.48, 0.8);
-  const minPlotHeight = Math.max(bounds.height * 0.42, 0.6);
-  [left, right] = fitMargins(bounds.width, left, right, minPlotWidth);
-  [bottom, top] = fitMargins(bounds.height, bottom, top, minPlotHeight);
+  const minPlotWidth = bounds.width * 0.48;   // 48% floor, purely relative — no absolute 0.8 floor
+  const minPlotHeight = bounds.height * 0.42; // 42% floor, purely relative
+
+  const [fittedLeft, fittedRight] = fitMargins(bounds.width, left, right, minPlotWidth);
+  const [fittedBottom, fittedTop] = fitMargins(bounds.height, bottom, top, minPlotHeight);
 
   const plotFrame: ChartFrame = {
-    x: left,
-    y: bottom,
-    width: Math.max(bounds.width - left - right, 0.01),
-    height: Math.max(bounds.height - bottom - top, 0.01),
+    x: fittedLeft,
+    y: fittedBottom,
+    width: Math.max(bounds.width - fittedLeft - fittedRight, 0.01),
+    height: Math.max(bounds.height - fittedBottom - fittedTop, 0.01),
+  };
+
+  const fittedMargins: FittedMargins = {
+    left: fittedLeft,
+    right: fittedRight,
+    top: fittedTop,
+    bottom: fittedBottom,
   };
 
   if (!legend?.visible) {
-    return { plotFrame, legendAnchor: null };
+    return { plotFrame, legendAnchor: null, fittedMargins };
   }
 
   const legendPad = theme.legend.gap;
@@ -124,6 +138,7 @@ export function computeChartLayout({
           x: plotFrame.x + plotFrame.width + legendPad,
           y: plotFrame.y + plotFrame.height / 2,
         },
+        fittedMargins,
       };
     case 'left':
       return {
@@ -132,6 +147,7 @@ export function computeChartLayout({
           x: legendPad,
           y: plotFrame.y + plotFrame.height / 2,
         },
+        fittedMargins,
       };
     case 'top':
       return {
@@ -140,6 +156,7 @@ export function computeChartLayout({
           x: plotFrame.x + plotFrame.width / 2,
           y: plotFrame.y + plotFrame.height + legendPad,
         },
+        fittedMargins,
       };
     case 'bottom':
       return {
@@ -148,6 +165,7 @@ export function computeChartLayout({
           x: plotFrame.x + plotFrame.width / 2,
           y: legendPad,
         },
+        fittedMargins,
       };
   }
 }

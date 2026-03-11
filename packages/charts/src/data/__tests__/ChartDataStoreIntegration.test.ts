@@ -143,6 +143,32 @@ describe('ChartDataStore integration', () => {
     expect(store.resolve('b', []).rows).toHaveLength(0);
   });
 
+  it('resolve with compute transform derives new column end-to-end', () => {
+    store.register('values', [
+      { n: 4 },
+      { n: 9 },
+      { n: 16 },
+    ]);
+    const frame = store.resolve('values', [
+      { type: 'compute', outputField: 'sqrtN', operation: { fn: 'sqrt', inputField: 'n' } },
+    ]);
+    expect(frame.rows).toHaveLength(3);
+    expect(frame.rows[0]!['sqrtN']).toBeCloseTo(2);
+    expect(frame.rows[1]!['sqrtN']).toBeCloseTo(3);
+    expect(frame.rows[2]!['sqrtN']).toBeCloseTo(4);
+    expect(frame.fields).toContain('sqrtN');
+  });
+
+  it('resolve with compute memoizes result for same transform', () => {
+    store.register('nums', [{ v: 100 }]);
+    const transforms = [
+      { type: 'compute' as const, outputField: 'lg', operation: { fn: 'log' as const, inputField: 'v', base: 10 } },
+    ];
+    const first = store.resolve('nums', transforms);
+    const second = store.resolve('nums', transforms);
+    expect(first).toBe(second);
+  });
+
   it('resolve applies transforms in order', () => {
     store.register('items', [
       { n: 1 },
@@ -156,5 +182,41 @@ describe('ChartDataStore integration', () => {
     ]);
     expect(frame.rows).toHaveLength(3);
     expect(frame.rows[0]!['n']).toBe(4);
+  });
+
+  it('inline data: registerInline → resolve → correct rows', () => {
+    store.registerInline('widget-abc', [
+      { product: 'Alpha', sales: 50 },
+      { product: 'Beta', sales: 80 },
+    ]);
+    const frame = store.resolve('__inline__widget-abc', []);
+    expect(frame.rows).toHaveLength(2);
+    expect(frame.fields).toContain('product');
+    expect(frame.rows[1]!['sales']).toBe(80);
+  });
+
+  it('named source: register → applyFilter → re-resolve → filtered rows', () => {
+    store.register('revenue', ROWS, 'grp-rev');
+    const unfiltered = store.resolve('revenue', []);
+    expect(unfiltered.rows).toHaveLength(3);
+
+    store.applyFilter('grp-rev', 'region', ['east']);
+    const filtered = store.resolve('revenue', []);
+    expect(filtered.rows).toHaveLength(2);
+    expect(filtered.rows.every((r) => r['region'] === 'east')).toBe(true);
+  });
+
+  it('columnar data: register → resolve → flat rows correct', () => {
+    store.register('monthly', {
+      month: ['Jan', 'Feb', 'Mar'],
+      revenue: [120, 145, 200],
+      region: ['APAC', 'APAC', 'EMEA'],
+    });
+    const frame = store.resolve('monthly', []);
+    expect(frame.rows).toHaveLength(3);
+    expect(frame.rows[0]).toEqual({ month: 'Jan', revenue: 120, region: 'APAC' });
+    expect(frame.rows[2]).toEqual({ month: 'Mar', revenue: 200, region: 'EMEA' });
+    expect(frame.fields).toContain('month');
+    expect(frame.fields).toContain('revenue');
   });
 });

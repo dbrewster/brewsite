@@ -133,6 +133,29 @@ describe('inferBundleHints', () => {
     expect(hints.size).toBe(0);
   });
 
+  it('skips shallow targets that do not have enough run for a shared trunk', () => {
+    const nodeMap = makeNodeMap({
+      src: { pos: [0, 0, 0], size: [2, 2, 1] },
+      upperLeft: { pos: [-4, -1.2, 0], size: [4, 2, 0.01] },
+      upperRight: { pos: [4, -1.2, 0], size: [4, 2, 0.01] },
+      lowerLeft: { pos: [-4, -5, 0], size: [4, 2, 0.01] },
+      lowerRight: { pos: [4, -5, 0], size: [4, 2, 0.01] },
+    });
+    const requests = [
+      makeFlowRequest('upper-left', 'src', 'upperLeft', { flowFaceStub: 0.2 }),
+      makeFlowRequest('upper-right', 'src', 'upperRight', { flowFaceStub: 0.2 }),
+      makeFlowRequest('lower-left', 'src', 'lowerLeft', { flowFaceStub: 0.2 }),
+      makeFlowRequest('lower-right', 'src', 'lowerRight', { flowFaceStub: 0.2 }),
+    ];
+
+    const hints = inferBundleHints(requests, nodeMap);
+
+    expect(hints.has('upper-left')).toBe(false);
+    expect(hints.has('upper-right')).toBe(false);
+    expect(hints.get('lower-left')?.sourceFaceHint).toBe('bottom');
+    expect(hints.get('lower-right')?.sourceFaceHint).toBe('bottom');
+  });
+
   it('skips edges with explicit fromPort set', () => {
     const nodeMap = makeNodeMap({
       src: { pos: [0, 0, 0] },
@@ -391,4 +414,91 @@ describe('pruneImpossibleFaceCandidates', () => {
     const survived = result.some(c => c.srcFace === 'left' && c.dstFace === 'right');
     expect(survived).toBe(true);
   });
+
+  it('keeps the inner destination side for bundled vertical group fan-out', () => {
+    const nodeMap = makeNodeMap({
+      from: { pos: [0.5, -0.1, 0], size: [0.36, 0.09, 0.58] },
+      to: { pos: [0.29, -0.76, 0], size: [0.33, 0.25, 0.01] },
+    });
+    const request = makeFlowRequest('e1', 'from', 'to');
+    const candidates = [
+      {
+        edgeId: 'e1',
+        srcFace: 'bottom' as const,
+        dstFace: 'left' as const,
+        sourceFaceLocked: true,
+        destinationFaceLocked: false,
+        bundleHint: {
+          edgeId: 'e1',
+          sourceFaceHint: 'bottom',
+          sourceAnchorHint: [0.5, -0.15, 0],
+          sourceGuideHint: [0.5, -0.38, 0],
+          sharedTrunkKey: 'from:bottom',
+        },
+      },
+      {
+        edgeId: 'e1',
+        srcFace: 'bottom' as const,
+        dstFace: 'right' as const,
+        sourceFaceLocked: true,
+        destinationFaceLocked: false,
+        bundleHint: {
+          edgeId: 'e1',
+          sourceFaceHint: 'bottom',
+          sourceAnchorHint: [0.5, -0.15, 0],
+          sourceGuideHint: [0.5, -0.38, 0],
+          sharedTrunkKey: 'from:bottom',
+        },
+      },
+    ];
+
+    const result = pruneImpossibleFaceCandidates(candidates, request, nodeMap, new Set(['to']));
+
+    expect(result.some((candidate) => candidate.dstFace === 'right')).toBe(true);
+    expect(result.some((candidate) => candidate.dstFace === 'left')).toBe(false);
+  });
+
+  it('prunes vertical destination faces for bundled side-directed group fan-out', () => {
+    const nodeMap = makeNodeMap({
+      from: { pos: [0.5, -0.1, 0], size: [0.36, 0.09, 0.58] },
+      to: { pos: [0.29, -0.76, 0], size: [0.33, 0.25, 0.01] },
+    });
+    const request = makeFlowRequest('e1', 'from', 'to');
+    const candidates = [
+      {
+        edgeId: 'e1',
+        srcFace: 'bottom' as const,
+        dstFace: 'top' as const,
+        sourceFaceLocked: true,
+        destinationFaceLocked: false,
+        bundleHint: {
+          edgeId: 'e1',
+          sourceFaceHint: 'bottom',
+          sourceAnchorHint: [0.5, -0.15, 0],
+          sourceGuideHint: [0.5, -0.38, 0],
+          sharedTrunkKey: 'from:bottom',
+        },
+      },
+      {
+        edgeId: 'e1',
+        srcFace: 'bottom' as const,
+        dstFace: 'right' as const,
+        sourceFaceLocked: true,
+        destinationFaceLocked: false,
+        bundleHint: {
+          edgeId: 'e1',
+          sourceFaceHint: 'bottom',
+          sourceAnchorHint: [0.5, -0.15, 0],
+          sourceGuideHint: [0.5, -0.38, 0],
+          sharedTrunkKey: 'from:bottom',
+        },
+      },
+    ];
+
+    const result = pruneImpossibleFaceCandidates(candidates, request, nodeMap, new Set(['to']));
+
+    expect(result.some((candidate) => candidate.dstFace === 'right')).toBe(true);
+    expect(result.some((candidate) => candidate.dstFace === 'top')).toBe(false);
+  });
+
 });

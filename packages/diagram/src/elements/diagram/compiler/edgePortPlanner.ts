@@ -144,7 +144,9 @@ export function buildPortOptions(
   isSourceFaceLocked: boolean,
   preferOuterLateral = false,
 ): ReadonlyArray<PortOption> {
-  const portCount = resolvePortCountForFace(face, size, thickness);
+  const portCount = preferOuterLateral && face !== 'front' && face !== 'back'
+    ? Math.max(3, resolvePortCountForFace(face, size, thickness))
+    : resolvePortCountForFace(face, size, thickness);
   const centerIdx = Math.floor(portCount / 2);
   const faceNormal = getFaceNormalLocal(face);
   const applyLateralBias = !isFrom || isLockedFace;
@@ -258,6 +260,36 @@ function rankPairCandidate(candidate: EdgePortPairCandidate): number {
   return sourceScore + destinationScore + sourceCenterBias * 2 + destinationCenterBias;
 }
 
+function filterGroupVerticalDestinationOptions(
+  options: ReadonlyArray<PortOption>,
+  candidate: EdgeFaceCandidate,
+  fromPos: Vec3,
+  toPos: Vec3,
+  toSize: readonly [number, number, number],
+  destinationIsGroup: boolean,
+): ReadonlyArray<PortOption> {
+  if (!destinationIsGroup) return options;
+  const dstIsVertical = candidate.dstFace === 'top' || candidate.dstFace === 'bottom';
+  if (!dstIsVertical) return options;
+  const lateralOffset = Math.abs(fromPos[0] - toPos[0]);
+  if (lateralOffset <= toSize[0] * 0.35) return options;
+  const srcIsSide = candidate.srcFace === 'left' || candidate.srcFace === 'right';
+  const hasBundleGuidance = candidate.bundleHint?.sourceGuideHint !== undefined;
+  const shallowVerticalOffset = Math.abs(fromPos[1] - toPos[1]) <= toSize[1] * 1.15;
+
+  if (srcIsSide && !hasBundleGuidance && shallowVerticalOffset) {
+    const centeredOptions = options.filter((option) =>
+      option.lateralClass === 'center' || option.lateralClass === 'inner',
+    );
+    return centeredOptions.length > 0 ? centeredOptions : options;
+  }
+
+  const outerOptions = options.filter((option) =>
+    option.lateralClass === 'outer' || option.lateralClass === 'edge',
+  );
+  return outerOptions.length > 0 ? outerOptions : options;
+}
+
 export function enumeratePortPairCandidates(
   candidate: EdgeFaceCandidate,
   request: EdgeRoutingRequest,
@@ -281,7 +313,8 @@ export function enumeratePortPairCandidates(
   const destinationIsGroup = groupIds.has(request.toId);
 
   if (candidate.bundleHint?.sourceAnchorHint) {
-    const destinationOptions = buildPortOptions(
+    const destinationOptions = filterGroupVerticalDestinationOptions(
+      buildPortOptions(
       toPos,
       toSize,
       candidate.dstFace,
@@ -290,6 +323,12 @@ export function enumeratePortPairCandidates(
       false,
       candidate.destinationFaceLocked,
       candidate.sourceFaceLocked,
+      destinationIsGroup,
+      ),
+      candidate,
+      fromPos,
+      toPos,
+      toSize,
       destinationIsGroup,
     );
     const ranked = destinationOptions
@@ -322,7 +361,8 @@ export function enumeratePortPairCandidates(
     candidate.sourceFaceLocked || (request.routing === 'flow' && (candidate.srcFace === 'left' || candidate.srcFace === 'right')),
     candidate.sourceFaceLocked,
   );
-  const destinationOptions = buildPortOptions(
+  const destinationOptions = filterGroupVerticalDestinationOptions(
+    buildPortOptions(
     toPos,
     toSize,
     candidate.dstFace,
@@ -331,6 +371,12 @@ export function enumeratePortPairCandidates(
     false,
     candidate.destinationFaceLocked,
     candidate.sourceFaceLocked,
+    destinationIsGroup,
+    ),
+    candidate,
+    fromPos,
+    toPos,
+    toSize,
     destinationIsGroup,
   );
 

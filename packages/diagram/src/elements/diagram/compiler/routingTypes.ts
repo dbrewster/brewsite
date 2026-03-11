@@ -135,6 +135,43 @@ export type NormalizedRouteGeometry = {
   readonly groupIngressPenalty: number;
   /** True when this candidate used underpass routing. */
   readonly usedUnderpass?: boolean;
+  /** Optional non-production troubleshooting payload for route-debug logging. */
+  readonly debug?: {
+    readonly obstacles: ReadonlyArray<{
+      readonly id: string;
+      readonly kind: 'node' | 'group';
+      readonly hard: boolean;
+      readonly softOwnerKind?: 'source-group' | 'destination-group';
+      readonly rawRect: {
+        readonly left: number;
+        readonly right: number;
+        readonly top: number;
+        readonly bottom: number;
+      };
+      readonly expandedRect: {
+        readonly left: number;
+        readonly right: number;
+        readonly top: number;
+        readonly bottom: number;
+      };
+      readonly allowedCorridors: ReadonlyArray<{
+        readonly left: number;
+        readonly right: number;
+        readonly top: number;
+        readonly bottom: number;
+      }>;
+    }>;
+    readonly sourceOwningGroupIds: ReadonlyArray<string>;
+    readonly destinationOwningGroupIds: ReadonlyArray<string>;
+    readonly destinationGroupIngress?: {
+      readonly penalty: number;
+      readonly corridorBlocked: boolean;
+      readonly preferredVerticalFace: FaceId;
+      readonly destinationLateralClass: 'center' | 'inner' | 'outer' | 'edge';
+      readonly lateralOffset: number;
+      readonly sourceAbove: boolean;
+    };
+  };
 };
 
 /** A guided candidate with its generated route geometry attached. */

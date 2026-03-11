@@ -3,22 +3,43 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 vi.mock('three', () => {
+  function parseCssColor(input: string): { r: number; g: number; b: number } {
+    // Handle rgb(r, g, b) format from d3-scale-chromatic
+    const rgbMatch = input.match(/^rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)$/);
+    if (rgbMatch) {
+      return {
+        r: parseInt(rgbMatch[1]!, 10) / 255,
+        g: parseInt(rgbMatch[2]!, 10) / 255,
+        b: parseInt(rgbMatch[3]!, 10) / 255,
+      };
+    }
+    // Handle hex format
+    const h = input.replace('#', '');
+    if (h.length === 6) {
+      return {
+        r: parseInt(h.substring(0, 2), 16) / 255,
+        g: parseInt(h.substring(2, 4), 16) / 255,
+        b: parseInt(h.substring(4, 6), 16) / 255,
+      };
+    }
+    return { r: 0, g: 0, b: 0 };
+  }
+
   class Color {
     r = 0; g = 0; b = 0;
-    constructor(hex?: string | number) {
-      if (typeof hex === 'string') {
-        // Simple hex parse for test
-        const h = hex.replace('#', '');
-        this.r = parseInt(h.substring(0, 2), 16) / 255;
-        this.g = parseInt(h.substring(2, 4), 16) / 255;
-        this.b = parseInt(h.substring(4, 6), 16) / 255;
+    constructor(input?: string | number | Color) {
+      if (typeof input === 'string') {
+        const parsed = parseCssColor(input);
+        this.r = parsed.r; this.g = parsed.g; this.b = parsed.b;
       }
     }
-    set(hex: string) {
-      const h = hex.replace('#', '');
-      this.r = parseInt(h.substring(0, 2), 16) / 255;
-      this.g = parseInt(h.substring(2, 4), 16) / 255;
-      this.b = parseInt(h.substring(4, 6), 16) / 255;
+    set(input: string | Color) {
+      if (typeof input === 'string') {
+        const parsed = parseCssColor(input);
+        this.r = parsed.r; this.g = parsed.g; this.b = parsed.b;
+      } else if (input instanceof Color) {
+        this.r = input.r; this.g = input.g; this.b = input.b;
+      }
       return this;
     }
   }
@@ -49,6 +70,8 @@ vi.mock('three', () => {
       if (opts['metalness'] !== undefined) this.metalness = opts['metalness'] as number;
       if (opts['roughness'] !== undefined) this.roughness = opts['roughness'] as number;
       if (opts['side'] !== undefined) this.side = opts['side'] as number;
+      if (opts['opacity'] !== undefined) this.opacity = opts['opacity'] as number;
+      if (opts['transparent'] !== undefined) this.transparent = opts['transparent'] as boolean;
     }
   }
 
@@ -165,5 +188,75 @@ describe('ChartMaterialFactory', () => {
     factory.dispose();
     const mat2 = factory.getSeriesMaterial(darkGlassChartTheme, 0);
     expect(mat1).not.toBe(mat2);
+  });
+
+  describe('getColorFieldMaterial', () => {
+    it('returns a MeshPhysicalMaterial with the provided opacity', () => {
+      const color = new THREE.Color('#ff0000');
+      const mat = factory.getColorFieldMaterial(color, 0.6);
+      expect(mat).toBeInstanceOf(THREE.MeshPhysicalMaterial);
+      expect(mat.opacity).toBeCloseTo(0.6);
+    });
+
+    it('sets transparent=true when opacity < 1', () => {
+      const color = new THREE.Color('#00ff00');
+      const mat = factory.getColorFieldMaterial(color, 0.5);
+      expect(mat.transparent).toBe(true);
+    });
+
+    it('sets transparent=false when opacity === 1', () => {
+      const color = new THREE.Color('#0000ff');
+      const mat = factory.getColorFieldMaterial(color, 1);
+      expect(mat.transparent).toBe(false);
+    });
+
+    it('returns a fresh (non-cached) instance each call', () => {
+      const color = new THREE.Color('#ffffff');
+      const mat1 = factory.getColorFieldMaterial(color, 1);
+      const mat2 = factory.getColorFieldMaterial(color, 1);
+      expect(mat1).not.toBe(mat2);
+    });
+  });
+
+  describe('ChartMaterialFactory.interpolateColor', () => {
+    it('viridis at 0 produces a dark color (low R, low G)', () => {
+      const color = ChartMaterialFactory.interpolateColor(0, 'viridis');
+      // viridis(0) ≈ #440154 — dark purple: R≈0.27, G≈0.00, B≈0.33
+      expect(color.r).toBeLessThan(0.4);
+    });
+
+    it('viridis at 1 produces a bright yellowish color (high R, high G)', () => {
+      const color = ChartMaterialFactory.interpolateColor(1, 'viridis');
+      // viridis(1) ≈ #fde725 — bright yellow: R≈0.99, G≈0.91, B≈0.14
+      expect(color.r).toBeGreaterThan(0.8);
+      expect(color.g).toBeGreaterThan(0.7);
+    });
+
+    it('blues at 0 produces a near-white color (high RGB)', () => {
+      const color = ChartMaterialFactory.interpolateColor(0, 'blues');
+      // blues(0) ≈ #f7fbff — very light blue
+      expect(color.r).toBeGreaterThan(0.8);
+    });
+
+    it('reds at 1 produces a dark red color (high R, low G, low B)', () => {
+      const color = ChartMaterialFactory.interpolateColor(1, 'reds');
+      // reds(1) ≈ #67000d — dark red
+      expect(color.r).toBeGreaterThan(0.3);
+      expect(color.g).toBeLessThan(0.2);
+    });
+
+    it('plasma at 0.5 produces a mid-range color', () => {
+      const color = ChartMaterialFactory.interpolateColor(0.5, 'plasma');
+      // Should be valid (non-black, non-white)
+      const brightness = color.r + color.g + color.b;
+      expect(brightness).toBeGreaterThan(0.1);
+      expect(brightness).toBeLessThan(2.9);
+    });
+
+    it('undefined interpolator falls back to viridis', () => {
+      const color = ChartMaterialFactory.interpolateColor(0, undefined);
+      // viridis(0) ≈ dark purple — R < 0.4
+      expect(color.r).toBeLessThan(0.4);
+    });
   });
 });

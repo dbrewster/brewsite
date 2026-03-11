@@ -23,6 +23,7 @@ export const enterpriseChartTheme: ChartTheme = {
     fontSize: 0.12,
     tickLength: 0.08,
     gap: 0.18,
+    titleFontSize: 0.055,
   },
   background: {
     planeColor: '#f8fafc',
@@ -35,6 +36,7 @@ export const enterpriseChartTheme: ChartTheme = {
     swatchSize: 0.08,
     spacing: 0.14,
     gap: 0.28,
+    textOpacity: 0.9,
   },
   line: {
     shape: 'line',
@@ -49,4 +51,9 @@ export const enterpriseChartTheme: ChartTheme = {
     hoverEmissiveIntensity: 0.3,
     selectedColor: '#ff6600',
   },
+  bar: { padding: 0.25 },
+  area: { fillOpacity: 0.6 },
+  gridlines: { color: '#c8d0d8', opacity: 0.2, visible: false },
+  dataLabels: { fontSize: 0.045, color: '#2a3a4a' },
+  referenceLines: { defaultColor: '#e05020', lineWidth: 0.004, lineOpacity: 0.8 },
 };

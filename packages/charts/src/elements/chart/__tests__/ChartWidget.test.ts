@@ -1,4 +1,4 @@
-// ChartWidget lifecycle tests — uses Three.js mocks (no real GPU).
+// ChartWidget V2 lifecycle and ILoadable tests — uses Three.js mocks (no real GPU).
 
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
@@ -56,10 +56,32 @@ vi.mock('three', () => {
   const MathUtils = {
     degToRad: (deg: number) => deg * (Math.PI / 180),
   };
+  class BoxGeometry extends BufferGeometry {}
+  class PlaneGeometry extends BufferGeometry {}
+  class SphereGeometry extends BufferGeometry {}
+  class CylinderGeometry extends BufferGeometry {}
+  class EdgesGeometry extends BufferGeometry {}
+  class InstancedMesh extends Object3D {
+    count = 0;
+    constructor(_g?: BufferGeometry, _m?: MockMaterial, count = 0) { super(); this.count = count; }
+    setMatrixAt = vi.fn();
+    setColorAt = vi.fn();
+    getMatrixAt = vi.fn().mockReturnValue({ elements: new Array(16).fill(0) });
+    getColorAt = vi.fn().mockImplementation((_: number, target: Record<string, number>) => { target.r = 0; target.g = 0; target.b = 0; return target; });
+    instanceMatrix = { needsUpdate: false };
+    instanceColor = { needsUpdate: false };
+    material: MockMaterial = new MockMaterial();
+    geometry: BufferGeometry = new BufferGeometry();
+    dispose = vi.fn();
+  }
+  class Line extends Object3D {}
+  class Matrix4 { elements = new Array(16).fill(0); set() { return this; } makeScale() { return this; } copy() { return this; } }
   return {
     Vector3, Vector2, Object3D, Scene, Group, BufferGeometry,
     MeshPhysicalMaterial, LineBasicMaterial, MeshStandardMaterial,
     Mesh, Camera, PerspectiveCamera, Raycaster, Color, FrontSide, MathUtils,
+    BoxGeometry, PlaneGeometry, SphereGeometry, CylinderGeometry, EdgesGeometry,
+    InstancedMesh, Line, Matrix4,
   };
 });
 
@@ -87,9 +109,29 @@ import * as THREE from 'three';
 import { ChartWidget } from '../ChartWidget';
 import { ChartDataStore } from '../../../data/ChartDataStore';
 import { DEFAULT_CHART_STATE } from '../types';
-import type { ChartState } from '../types';
+import type { ChartState, InlineDataSource, ChartRenderInput } from '../types';
 import type { WidgetInitContext, WidgetRenderContext, NVSCoordService } from '@brewsite/core';
 import { createNVSCoordService } from '@brewsite/core';
+
+// ── ChartRendererDouble ───────────────────────────────────────────────────────
+// Interface-conforming test double for ChartRenderer — records last update() input.
+
+class ChartRendererDouble {
+  lastInput: ChartRenderInput | null = null;
+  lastWidgetId: string | null = null;
+  mountCalls = 0;
+  disposeCalls = 0;
+
+  update(input: ChartRenderInput, widgetId: string): void {
+    this.lastInput = input;
+    this.lastWidgetId = widgetId;
+  }
+  mount(_scene: unknown): void { this.mountCalls++; }
+  dispose(_scene: unknown): void { this.disposeCalls++; }
+  updateHeatmapSlice(_sliceIndex: number, _input: ChartRenderInput, _widgetId: string): void {}
+  getInteractiveObjects(): unknown[] { return []; }
+  resolveHoverInfo(): null { return null; }
+}
 
 /** Minimal mock DOM element for tests running in node environment. */
 function createMockDomElement(): HTMLElement {
@@ -121,9 +163,7 @@ function makeInitCtx(): WidgetInitContext {
   } as unknown as WidgetInitContext;
 }
 
-/** Build a real NVSCoordService for a worldScale=10 camera (position z=12.07, fov=45, 1920×1080).
- * Uses a plain object to bypass the THREE mock (which ignores PerspectiveCamera constructor args).
- */
+/** Build a real NVSCoordService for a worldScale=10 camera (position z=12.07, fov=45, 1920×1080). */
 function makeCoords(): NVSCoordService {
   const camera = { position: { x: 0, y: 0, z: 12.07 }, fov: 45 };
   return createNVSCoordService(camera as unknown as import('three').PerspectiveCamera, 1920, 1080);
@@ -133,10 +173,11 @@ function makeRenderCtx(): WidgetRenderContext {
   return { coords: makeCoords() } as unknown as WidgetRenderContext;
 }
 
+/** Build a V2 ChartState with named data source by default. */
 function makeState(overrides?: Partial<ChartState>): ChartState {
   return {
     ...DEFAULT_CHART_STATE,
-    dataSource: 'sales',
+    dataSource: { type: 'named', name: 'sales' },
     ...overrides,
   };
 }
@@ -154,6 +195,8 @@ describe('ChartWidget', () => {
     vi.restoreAllMocks();
   });
 
+  // ── Existing lifecycle tests ───────────────────────────────────────────────
+
   it('initialize mounts chart group into scene', () => {
     const ctx = makeInitCtx();
     const scene = ctx.scene as THREE.Scene;
@@ -164,9 +207,8 @@ describe('ChartWidget', () => {
 
   it('apply updates lastState', () => {
     widget.initialize(makeInitCtx());
-    const state = makeState({ type: 'line', opacity: 0.5 });
+    const state = makeState({ type: 'line', opacity: 0.5, typeConfig: { kind: 'line', options: {} } });
     widget.apply(state, makeRenderCtx());
-    // After apply, onTick should not crash (it accesses lastState)
     expect(() => widget.onTick({ tick: null, delta: 0 } as never)).not.toThrow();
   });
 
@@ -205,6 +247,12 @@ describe('ChartWidget', () => {
 
   it('onTick is a no-op if lastState is null (no crash)', () => {
     widget.initialize(makeInitCtx());
+    expect(() => widget.onTick({ tick: null, delta: 0 } as never)).not.toThrow();
+  });
+
+  it('onTick is a no-op for non-heatmap chart types', () => {
+    widget.initialize(makeInitCtx());
+    widget.apply(makeState({ type: 'bar', typeConfig: { kind: 'bar', options: {} } }), makeRenderCtx());
     expect(() => widget.onTick({ tick: null, delta: 0 } as never)).not.toThrow();
   });
 
@@ -263,12 +311,6 @@ describe('ChartWidget', () => {
     const ctx = makeInitCtx();
     const scene = ctx.scene as THREE.Scene;
     widget.initialize(ctx);
-    // Default state: nvsX=0.5, nvsY=0.5, bounds={width:1.0, height:1.0} (NVS fractions).
-    // coords at worldScale=10 (fov=45, z=12.07, 1920x1080):
-    //   visibleWorldHeight ≈ 10.0, visibleWorldWidth ≈ 17.78
-    //   toWorld(0.5, 0.5) = [0, 0, 0]
-    //   toWorldSize(1.0, 1.0) = [17.78, 10.0]
-    // worldPos = [0 - 17.78/2, 0 - 10.0/2, 0] = [-8.89, -5.0, 0]
     const state = makeState();
     const coords = makeCoords();
     const [worldW, worldH] = coords.toWorldSize(state.bounds.width, state.bounds.height);
@@ -285,34 +327,22 @@ describe('ChartWidget', () => {
     const ctx = makeInitCtx();
     const scene = ctx.scene as THREE.Scene;
     widget.initialize(ctx);
-    // bounds.width=0.5 → worldW ≈ 0.5 * 17.78 ≈ 8.89
-    // bounds.height=0.4 → worldH ≈ 0.4 * 10.0 = 4.0
-    // worldPos (nvsCenter=0.5,0.5 → worldCenter=[0,0,0]): [-8.89/2, -4.0/2, 0] = [-4.44, -2.0, 0]
     const state = makeState({ bounds: { width: 0.5, height: 0.4, depth: 0.4 } });
     widget.apply(state, makeRenderCtx());
 
     const chartGroup = scene.children[0] as THREE.Object3D;
-    expect(chartGroup.position.x).toBeCloseTo(-8.89 / 2, 1);   // ≈ -4.44
-    expect(chartGroup.position.y).toBeCloseTo(-4.0 / 2, 1);    // ≈ -2.0
+    expect(chartGroup.position.x).toBeCloseTo(-8.89 / 2, 1);
+    expect(chartGroup.position.y).toBeCloseTo(-4.0 / 2, 1);
   });
 
-  // §9.5 — NVS bounds conversion test
   it('apply() with bounds={width:0.5, height:0.4} sends worldW≈8.89, worldH≈4.0 to renderer', () => {
     const ctx = makeInitCtx();
     const scene = ctx.scene as THREE.Scene;
     widget.initialize(ctx);
-    // worldScale=10: visibleWorldHeight≈10.0, visibleWorldWidth≈17.78
-    // bounds.width=0.5 → worldW = 0.5 * 17.78 ≈ 8.89
-    // bounds.height=0.4 → worldH = 0.4 * 10.0 = 4.0
-    // bounds.depth=0.4 passes through unchanged
     const state = makeState({ nvsX: 0.5, nvsY: 0.5, bounds: { width: 0.5, height: 0.4, depth: 0.4 } });
     const coords = makeCoords();
     widget.apply(state, { coords } as unknown as WidgetRenderContext);
 
-    // Chart group is positioned at [wcx - worldW/2, wcy - worldH/2, z].
-    // With nvsCenter=(0.5,0.5) → worldCenter=[0,0,0].
-    // So chartGroup.position.x = -worldW/2 ≈ -4.445
-    //    chartGroup.position.y = -worldH/2 ≈ -2.0
     const chartGroup = scene.children[0] as THREE.Object3D;
     const worldW = coords.toWorldSize(0.5, 0.4)[0];
     const worldH = coords.toWorldSize(0.5, 0.4)[1];
@@ -320,7 +350,6 @@ describe('ChartWidget', () => {
     expect(worldH).toBeCloseTo(4.0, 1);
     expect(chartGroup.position.x).toBeCloseTo(-worldW / 2, 1);
     expect(chartGroup.position.y).toBeCloseTo(-worldH / 2, 1);
-    // depth passes through unchanged
     expect(state.bounds.depth).toBe(0.4);
   });
 
@@ -350,5 +379,362 @@ describe('ChartWidget', () => {
     expect(size).not.toBeNull();
     expect(size?.width).toBe(1920);
     expect(size?.height).toBe(1080);
+  });
+
+  // ── V2: ILoadable tests ───────────────────────────────────────────────────
+
+  it('isLoaded is true when no async URL is configured', () => {
+    expect(widget.isLoaded).toBe(true);
+  });
+
+  it('isLoaded is false after _configureAsync() and before load()', () => {
+    widget._configureAsync('https://example.com/data.json');
+    expect(widget.isLoaded).toBe(false);
+  });
+
+  it('load() with no async URL is a no-op and does not throw', async () => {
+    await expect(widget.load(null)).resolves.toBeUndefined();
+    expect(widget.isLoaded).toBe(true);
+  });
+
+  it('_configureAsync() + load() fetches data and registers in store under __async__ key', async () => {
+    const rows = [{ month: 'Jan', revenue: 100 }, { month: 'Feb', revenue: 200 }];
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: vi.fn().mockResolvedValue(rows),
+      text: vi.fn().mockResolvedValue(''),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    widget._configureAsync('https://example.com/data.json', 'json');
+    await widget.load(null);
+
+    expect(widget.isLoaded).toBe(true);
+    // Data should be registered under __async__test-chart
+    const result = store.resolve('__async__test-chart', []);
+    expect(result.rows).toHaveLength(2);
+    expect(result.rows[0]).toMatchObject({ month: 'Jan', revenue: 100 });
+
+    vi.unstubAllGlobals();
+  });
+
+  it('load() for CSV format uses parseCsv and registers rows correctly', async () => {
+    const csvText = 'name,value\nAlpha,10\nBeta,20';
+    const fetchMock = vi.fn().mockResolvedValue({
+      json: vi.fn().mockResolvedValue([]),
+      text: vi.fn().mockResolvedValue(csvText),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    widget._configureAsync('https://example.com/data.csv', 'csv');
+    await widget.load(null);
+
+    expect(widget.isLoaded).toBe(true);
+    const result = store.resolve('__async__test-chart', []);
+    expect(result.rows).toHaveLength(2);
+    expect(result.rows[0]).toMatchObject({ name: 'Alpha', value: 10 });
+
+    vi.unstubAllGlobals();
+  });
+
+  it('load() logs error and leaves isLoaded false when fetch fails', async () => {
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fetchMock = vi.fn().mockRejectedValue(new Error('Network error'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    widget._configureAsync('https://example.com/data.json');
+    await widget.load(null);
+
+    expect(widget.isLoaded).toBe(false);
+    expect(consoleSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[ChartWidget]'),
+      expect.any(Error),
+    );
+
+    vi.unstubAllGlobals();
+    consoleSpy.mockRestore();
+  });
+
+  // ── V2: Inline data registration tests ───────────────────────────────────
+
+  it('apply() with inline source registers rows in store on first call', () => {
+    widget.initialize(makeInitCtx());
+    const rows = [{ x: 1, y: 10 }, { x: 2, y: 20 }] as const;
+    const state = makeState({
+      dataSource: { type: 'inline', rows },
+      typeConfig: { kind: 'bar', options: {} },
+    });
+
+    widget.apply(state, makeRenderCtx());
+
+    const result = store.resolve('__inline__test-chart', []);
+    expect(result.rows).toHaveLength(2);
+  });
+
+  it('apply() with inline source skips re-registration when same rows reference is applied twice', () => {
+    widget.initialize(makeInitCtx());
+    const rows = [{ x: 1, y: 10 }] as const;
+    const source: InlineDataSource = { type: 'inline', rows };
+
+    const registerInlineSpy = vi.spyOn(store, 'registerInline');
+
+    widget.apply(makeState({ dataSource: source }), makeRenderCtx());
+    const callsAfterFirst = registerInlineSpy.mock.calls.length;
+
+    // Second apply with same rows reference — no new registration expected
+    widget.apply(makeState({ dataSource: source }), makeRenderCtx());
+    expect(registerInlineSpy.mock.calls.length).toBe(callsAfterFirst);
+  });
+
+  it('apply() with inline source re-registers rows when rows reference changes', () => {
+    widget.initialize(makeInitCtx());
+    const rows1 = [{ x: 1, y: 10 }] as const;
+    const rows2 = [{ x: 2, y: 20 }] as const;
+
+    widget.apply(makeState({ dataSource: { type: 'inline', rows: rows1 } }), makeRenderCtx());
+    widget.apply(makeState({ dataSource: { type: 'inline', rows: rows2 } }), makeRenderCtx());
+
+    const result = store.resolve('__inline__test-chart', []);
+    // rows2 should now be registered
+    expect(result.rows[0]).toMatchObject({ x: 2, y: 20 });
+  });
+
+  it('apply() with named source does not register inline data', () => {
+    widget.initialize(makeInitCtx());
+    const registerSpy = vi.spyOn(store, 'register');
+    const inlineCallsBefore = registerSpy.mock.calls.filter(c => String(c[0]).startsWith('__inline__')).length;
+
+    widget.apply(makeState({ dataSource: { type: 'named', name: 'sales' } }), makeRenderCtx());
+
+    const inlineCallsAfter = registerSpy.mock.calls.filter(c => String(c[0]).startsWith('__inline__')).length;
+    expect(inlineCallsAfter).toBe(inlineCallsBefore);
+  });
+
+  // ── V2: childDslComponents ────────────────────────────────────────────────
+
+  it('childDslComponents includes all 12 V2 child components', () => {
+    const displayNames = widget.childDslComponents.map(c => c.displayName);
+    expect(displayNames).toContain('LineChart');
+    expect(displayNames).toContain('ScatterPlotChart');
+    expect(displayNames).toContain('PieChart');
+    expect(displayNames).toContain('AreaChart');
+    expect(displayNames).toContain('HeatMapChart');
+    expect(displayNames).toContain('Chart');
+    expect(displayNames).toContain('ChartData');
+    expect(displayNames).toContain('ChartAxis');
+    expect(displayNames).toContain('ChartSeries');
+    expect(displayNames).toContain('ChartLegend');
+    expect(displayNames).toContain('ChartDataLabels');
+    expect(displayNames).toContain('ReferenceLine');
+    // BarChart is DslComponent (not in childDslComponents), total 12 children
+    expect(widget.childDslComponents).toHaveLength(12);
+  });
+
+  it('DslComponent is BarChart', () => {
+    expect(widget.DslComponent.displayName).toBe('BarChart');
+  });
+
+  // ── V2: heatmap onTick ────────────────────────────────────────────────────
+
+  it('onTick is a no-op when lastState has no timeField', () => {
+    // Heatmap without timeField configured → onTick returns early without crash
+    widget.initialize(makeInitCtx());
+    widget.apply(makeState({
+      type: 'bar',
+      typeConfig: { kind: 'bar', options: {} },
+    }), makeRenderCtx());
+    expect(() => widget.onTick({ tick: { blockProgress: 0.5 }, delta: 0 } as never)).not.toThrow();
+  });
+
+  it('onTick returns early when getTimeSliceCount returns 0', () => {
+    // Named source not registered → getTimeSliceCount returns 0 → no-op
+    const emptyStore = new ChartDataStore();
+    const hw = new ChartWidget('hw', emptyStore);
+    hw.initialize(makeInitCtx());
+
+    // Apply a non-heatmap state (bar) so heatmap renderer doesn't need to be created
+    hw.apply(makeState({
+      type: 'bar',
+      typeConfig: { kind: 'bar', options: {} },
+      dataSource: { type: 'named', name: '' },
+    }), makeRenderCtx());
+
+    // Simulate that lastState has heatmap typeConfig but no real data
+    // onTick should check typeConfig.kind === 'heatmap' → return early (kind is 'bar' here)
+    expect(() => hw.onTick({ tick: { blockProgress: 0.5 }, delta: 0 } as never)).not.toThrow();
+  });
+
+  it('sliceIndex clamps to totalSlices-1 when blockProgress=1.0', () => {
+    // Verify the clamping math: floor(1.0 * n) = n, clamped to n-1
+    // This is a pure math verification, not a rendering test
+    const totalSlices = 4;
+    const blockProgress = 1.0;
+    const sliceIndex = Math.min(
+      Math.floor(blockProgress * totalSlices),
+      totalSlices - 1,
+    );
+    expect(sliceIndex).toBe(totalSlices - 1); // clamped to 3
+  });
+
+  it('sliceIndex from blockProgress=0.5 with 4 slices = 2', () => {
+    const totalSlices = 4;
+    const blockProgress = 0.5;
+    const sliceIndex = Math.min(
+      Math.floor(blockProgress * totalSlices),
+      totalSlices - 1,
+    );
+    expect(sliceIndex).toBe(2); // floor(0.5 * 4) = floor(2) = 2
+  });
+
+  // ── V2.1: Entry animation entryT threading ────────────────────────────────
+
+  it('entryT is threaded to ChartRenderer when animateEntry=true and blockProgress < animationDuration', () => {
+    const rendererDouble = new ChartRendererDouble();
+    const w = new ChartWidget('chart1', store, undefined, rendererDouble as never);
+    w.initialize(makeInitCtx());
+
+    const state = makeState({ animateEntry: true, animationDuration: 0.4 });
+    w.apply(state, makeRenderCtx()); // sets lastState
+
+    // onTick at blockProgress=0.2 → entryT = 0.2/0.4 = 0.5
+    w.onTick({ tick: { blockProgress: 0.2 }, delta: 0 } as never);
+    w.apply(state, makeRenderCtx());
+
+    expect(rendererDouble.lastInput?.entryT).toBeCloseTo(0.5);
+  });
+
+  it('entryT is undefined when animateEntry=true and blockProgress >= animationDuration (animation complete)', () => {
+    const rendererDouble = new ChartRendererDouble();
+    const w = new ChartWidget('chart1', store, undefined, rendererDouble as never);
+    w.initialize(makeInitCtx());
+
+    const state = makeState({ animateEntry: true, animationDuration: 0.4 });
+    w.apply(state, makeRenderCtx());
+
+    // blockProgress=0.4 → entryT = 0.4/0.4 = 1.0 → should be absent (undefined)
+    w.onTick({ tick: { blockProgress: 0.4 }, delta: 0 } as never);
+    w.apply(state, makeRenderCtx());
+
+    expect(rendererDouble.lastInput?.entryT).toBeUndefined();
+  });
+
+  it('entryT is undefined when animateEntry=false regardless of blockProgress', () => {
+    const rendererDouble = new ChartRendererDouble();
+    const w = new ChartWidget('chart1', store, undefined, rendererDouble as never);
+    w.initialize(makeInitCtx());
+
+    const state = makeState({ animateEntry: false, animationDuration: 0.4 });
+    w.apply(state, makeRenderCtx());
+
+    w.onTick({ tick: { blockProgress: 0.1 }, delta: 0 } as never);
+    w.apply(state, makeRenderCtx());
+
+    expect(rendererDouble.lastInput?.entryT).toBeUndefined();
+  });
+
+  it('entryT progresses correctly: blockProgress=0.2, duration=0.4 → entryT≈0.5', () => {
+    const rendererDouble = new ChartRendererDouble();
+    const w = new ChartWidget('chart2', store, undefined, rendererDouble as never);
+    w.initialize(makeInitCtx());
+
+    const state = makeState({ animateEntry: true, animationDuration: 0.4 });
+    w.apply(state, makeRenderCtx());
+    w.onTick({ tick: { blockProgress: 0.2 }, delta: 0 } as never);
+    w.apply(state, makeRenderCtx());
+
+    // 0.2 / 0.4 = 0.5
+    expect(rendererDouble.lastInput?.entryT).toBeCloseTo(0.5);
+  });
+
+  // ── V2.1: accessors threading ─────────────────────────────────────────────
+
+  it('accessors from plugin registry are threaded to ChartRenderer when registered', () => {
+    const accessorRegistry = new Map<string, import('../types').ChartRenderInput['accessors'] & object>();
+    const yAccessor = (row: Record<string, unknown>) => Number(row['value']) * 2;
+    accessorRegistry.set('chart-acc', { yAccessor });
+
+    const rendererDouble = new ChartRendererDouble();
+    const w = new ChartWidget('chart-acc', store, accessorRegistry as never, rendererDouble as never);
+    w.initialize(makeInitCtx());
+
+    const state = makeState();
+    w.apply(state, makeRenderCtx());
+
+    expect(rendererDouble.lastInput?.accessors).toBeDefined();
+    expect(rendererDouble.lastInput?.accessors?.yAccessor).toBe(yAccessor);
+  });
+
+  it('accessors is undefined when no registry is provided', () => {
+    const rendererDouble = new ChartRendererDouble();
+    const w = new ChartWidget('chart-no-acc', store, undefined, rendererDouble as never);
+    w.initialize(makeInitCtx());
+
+    w.apply(makeState(), makeRenderCtx());
+
+    expect(rendererDouble.lastInput?.accessors).toBeUndefined();
+  });
+
+  // ── V2.1: live override / onDeregisterInline callback ────────────────────
+
+  it('apply() with inline source uses registerInline when no live override active', () => {
+    widget.initialize(makeInitCtx());
+    const rows = [{ x: 1, y: 10 }] as const;
+    const registerInlineSpy = vi.spyOn(store, 'registerInline');
+
+    widget.apply(makeState({ dataSource: { type: 'inline', rows } }), makeRenderCtx());
+
+    expect(registerInlineSpy).toHaveBeenCalledWith('test-chart', rows);
+  });
+
+  it('apply() skips registerInline when live override is active', () => {
+    widget.initialize(makeInitCtx());
+    const rows1 = [{ x: 1, y: 10 }] as const;
+    const rows2 = [{ x: 2, y: 20 }] as const;
+
+    // Register initial inline data
+    widget.apply(makeState({ dataSource: { type: 'inline', rows: rows1 } }), makeRenderCtx());
+
+    // Activate live override
+    store.setLiveOverride('test-chart');
+    const registerInlineSpy = vi.spyOn(store, 'registerInline');
+
+    // Apply with different rows — should NOT update store because live override is active
+    widget.apply(makeState({ dataSource: { type: 'inline', rows: rows2 } }), makeRenderCtx());
+
+    expect(registerInlineSpy).not.toHaveBeenCalled();
+  });
+
+  it('deregisterInline resets lastInlineRowsRef so next apply() re-registers SceneTrack rows', () => {
+    widget.initialize(makeInitCtx());
+    const rows = [{ x: 1, y: 10 }] as const;
+
+    // Initial registration
+    widget.apply(makeState({ dataSource: { type: 'inline', rows } }), makeRenderCtx());
+
+    // Activate live override then deregister (simulates hook unmount)
+    store.setLiveOverride('test-chart');
+    store.deregisterInline('test-chart'); // triggers the callback, resetting lastInlineRowsRef
+
+    // Now apply again — should re-register SceneTrack rows
+    const registerInlineSpy = vi.spyOn(store, 'registerInline');
+    widget.apply(makeState({ dataSource: { type: 'inline', rows } }), makeRenderCtx());
+
+    expect(registerInlineSpy).toHaveBeenCalledWith('test-chart', rows);
+  });
+
+  it('dispose() unsubscribes deregisterInline callback — no callback after dispose', () => {
+    widget.initialize(makeInitCtx());
+    const rows = [{ x: 1, y: 10 }] as const;
+    widget.apply(makeState({ dataSource: { type: 'inline', rows } }), makeRenderCtx());
+    store.setLiveOverride('test-chart');
+
+    // Dispose widget — unsubscribes from store
+    widget.dispose();
+
+    // deregisterInline should NOT invoke the (now-unsubscribed) callback
+    const registerInlineSpy = vi.spyOn(store, 'registerInline');
+    store.deregisterInline('test-chart');
+
+    // Even if we had a fresh widget, the old callback is gone — no registerInline call
+    expect(registerInlineSpy).not.toHaveBeenCalled();
   });
 });

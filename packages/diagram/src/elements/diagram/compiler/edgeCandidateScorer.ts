@@ -125,6 +125,12 @@ function computeNearEdgePenalty(
   return Math.pow(normalized, 3);
 }
 
+function resolveGroupApproachX(candidate: RoutedEdgeCandidate, fromPos: Vec3): number {
+  return candidate.bundleHint?.sourceGuideHint?.[0]
+    ?? candidate.bundleHint?.sourceAnchorHint?.[0]
+    ?? fromPos[0];
+}
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
@@ -186,18 +192,33 @@ export function scoreCandidate(
     const horizontalDominant = absDx > absDy * 1.1;
     const dstIsSide = candidate.dstFace === 'left' || candidate.dstFace === 'right';
     const dstIsVertical = candidate.dstFace === 'top' || candidate.dstFace === 'bottom';
-    const targetIsLeft = toPos[0] < fromPos[0] - toSize[0] * 0.1;
-    const targetIsRight = toPos[0] > fromPos[0] + toSize[0] * 0.1;
-    if (verticalDominant && dstIsSide) groupFacePenalty += 760;
+    const approachX = resolveGroupApproachX(candidate, fromPos);
+    const approachFromLeft = approachX < toPos[0] - toSize[0] * 0.1;
+    const approachFromRight = approachX > toPos[0] + toSize[0] * 0.1;
+    const hasDirectedSideApproach = approachFromLeft || approachFromRight;
+    if (verticalDominant && dstIsSide && !hasDirectedSideApproach) groupFacePenalty += 760;
     if (horizontalDominant && dstIsVertical) groupFacePenalty += 220;
+    if (candidate.sourceFaceLocked && hasDirectedSideApproach && dstIsVertical) {
+      groupFacePenalty += 360;
+    }
     if (verticalDominant && dstIsSide) {
-      if (targetIsLeft && candidate.dstFace === 'right') groupFacePenalty += 640;
-      if (targetIsRight && candidate.dstFace === 'left') groupFacePenalty += 640;
+      if (approachFromLeft && candidate.dstFace === 'right') groupFacePenalty += 640;
+      if (approachFromRight && candidate.dstFace === 'left') groupFacePenalty += 640;
     }
 
     const destinationLateralClass = candidate.destinationLateralClass ?? 'center';
     if (dstIsVertical && absDx > toSize[0] * 0.35 && (destinationLateralClass === 'center' || destinationLateralClass === 'inner')) {
       groupSlotPenalty += 420;
+    }
+
+    const ingress = candidate.geometry.debug?.destinationGroupIngress;
+    if (
+      ingress?.corridorBlocked &&
+      dstIsVertical &&
+      ingress.lateralOffset >= toSize[0] * 0.75 &&
+      absDy >= Math.max(toSize[1] * 1.35, fromSize[1] * 2.2)
+    ) {
+      groupFacePenalty += 6000;
     }
   }
 

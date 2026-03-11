@@ -23,6 +23,7 @@ export const neonCyberChartTheme: ChartTheme = {
     fontSize: 0.12,
     tickLength: 0.08,
     gap: 0.18,
+    titleFontSize: 0.06,
   },
   background: {
     planeColor: '#000000',
@@ -35,6 +36,7 @@ export const neonCyberChartTheme: ChartTheme = {
     swatchSize: 0.08,
     spacing: 0.14,
     gap: 0.28,
+    textOpacity: 1.0,
   },
   line: {
     shape: 'hexagon',
@@ -49,4 +51,9 @@ export const neonCyberChartTheme: ChartTheme = {
     hoverEmissiveIntensity: 1.2,
     selectedColor: '#ff00ff',
   },
+  bar: { padding: 0.15 },
+  area: { fillOpacity: 0.65 },
+  gridlines: { color: '#00ffcc', opacity: 0.12, visible: false, dashSize: 0.03, gapSize: 0.02 },
+  dataLabels: { fontSize: 0.048, color: '#00ffff' },
+  referenceLines: { defaultColor: '#ff00aa', lineWidth: 0.005, lineOpacity: 0.9 },
 };

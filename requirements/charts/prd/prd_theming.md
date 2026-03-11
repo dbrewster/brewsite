@@ -3,14 +3,17 @@ title: "BrewSite Charts — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-09
+last_updated: 2026-03-11
 change_history:
-  - date: 2026-03-09
-    author: "Toolkit Product"
-    summary: "NVS Universal Coordinate System: ChartState.bounds.width and bounds.height changed from world-units to NVS fractions [0..1] — breaking change. DEFAULT_CHART_STATE.bounds is now { width: 1.0, height: 1.0, depth: 0.4 }. ChartWidget.apply() now uses context.coords.toWorldSize() to convert NVS bounds to world-space at render time. Breaking change table in Section 10 updated. See packages/charts/MIGRATION.md."
   - date: 2026-03-04
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents the ChartTheme system as implemented: ChartTheme type, four preset themes, sceneTheme integration for cross-package font and color-mode defaults, and ChartDSL.sceneTheme element-level override."
+  - date: 2026-03-09
+    author: "Toolkit Product"
+    summary: "NVS Universal Coordinate System: ChartState.bounds.width and bounds.height changed from world-units to NVS fractions [0..1] — breaking change. DEFAULT_CHART_STATE.bounds is now { width: 1.0, height: 1.0, depth: 0.4 }. ChartWidget.apply() now uses context.coords.toWorldSize() to convert NVS bounds to world-space at render time. Breaking change table in Section 10 updated. See packages/charts/MIGRATION.md."
+  - date: 2026-03-11
+    author: "Toolkit Product"
+    summary: "V2.1.0 theme coverage additions: five new optional token groups on ChartTheme (ChartBarTokens, ChartAreaTokens, ChartGridlinesTokens, ChartDataLabelsTokens, ChartReferenceLineTokens) and two extensions to existing types (ChartAxisTokens.titleFontSize, ChartLegendTokens.textOpacity). All new fields are optional — no breaking change to existing createChartTheme() callers. Four built-in themes updated with explicit values. ChartBackgroundTokens.gridColor deprecated in favor of ChartGridlinesTokens. lineWidth for reference lines uses world-space BoxGeometry (not LineBasicMaterial.linewidth, which is WebGL1-capped at 1px). Dashed gridlines use LineDashedMaterial (acceptable for decorative lines at 1px width)."
 ---
 
 # BrewSite Charts — Theming System
@@ -63,6 +66,10 @@ Chart rendering via troika-three-text used the troika built-in default font unco
 - As a toolkit consumer, I want to set `sceneTheme.font.webglFontUrl` on my `ChartTheme` so that chart axis labels use my branded MSDF font matching my diagram labels.
 - As a toolkit consumer, I want `<Chart theme="darkGlass" sceneTheme={mySceneTheme} />` so that I can add a custom font URL to a named preset without constructing a full `ChartTheme` object.
 - As a toolkit consumer, I want the four preset chart themes to be individually importable so that my bundle only includes the preset I use.
+- **V2.1:** As a toolkit consumer, I want `createChartTheme(darkGlassChartTheme, { bar: { padding: 0.3 } })` so that I can set the default bar padding once at the theme level instead of repeating it on every `<BarChart>` in every scene.
+- **V2.1:** As a toolkit consumer, I want `createChartTheme(base, { gridlines: { color: '#888', opacity: 0.2, visible: true } })` so that gridlines are on by default for my theme without setting `gridlines` on every `<ChartAxis>`.
+- **V2.1:** As a toolkit consumer, I want `theme.axis.titleFontSize` to be independent of `theme.axis.fontSize` so that axis titles can be slightly larger than tick labels to establish visual hierarchy.
+- **V2.1:** As a toolkit consumer, I want `theme.legend.textOpacity` so that I can fade legend labels independently of their color, without constructing a new color value.
 
 ---
 
@@ -74,8 +81,16 @@ Chart rendering via troika-three-text used the troika built-in default font unco
 4. When `sceneTheme.font.webglFontUrl` is set, the chart render context shall pass it to troika-three-text for all axis tick labels, axis title labels, and legend labels.
 5. When `sceneTheme.colorMode` is `'dark'` and no explicit `ChartAxisTokens.labelColor` override is set, the chart renderer shall use a light-appropriate label color as a fallback default. Explicit theme values take precedence.
 6. When `sceneTheme.colorMode` is `'light'` and no explicit label color is set, the chart renderer shall use a dark-appropriate label color as a fallback default.
-7. `ChartDSL.sceneTheme?: SceneTheme` shall be available as a prop on `<Chart>`, taking precedence over `ChartTheme.sceneTheme` when set. This allows passing a named theme (e.g. `theme="darkGlass"`) with a custom sceneTheme without constructing a full `ChartTheme` object.
-8. `fontUrl` shall be threaded through `ChartRenderContext → AxesRenderer → LegendRenderer` and all six chart renderers (`BarRenderer`, `LineRenderer`, `AreaRenderer`, `PieRenderer`, `ScatterRenderer`, `HeatmapRenderer`).
+7. `ChartDSL.sceneTheme?: SceneTheme` shall be available as a prop on `<Chart>`, taking precedence over `ChartTheme.sceneTheme` when set.
+8. `fontUrl` shall be threaded through `ChartRenderContext → AxesRenderer → LegendRenderer` and all six chart renderers.
+9. **V2.1:** `ChartTheme` shall accept five new optional token groups: `bar?: ChartBarTokens`, `area?: ChartAreaTokens`, `gridlines?: ChartGridlinesTokens`, `dataLabels?: ChartDataLabelsTokens`, `referenceLines?: ChartReferenceLineTokens`. All groups are optional. When absent, renderers use documented fallback defaults.
+10. **V2.1:** `ChartAxisTokens` shall accept an optional `titleFontSize?: number` field. When absent, `AxesRenderer` defaults to `theme.axis.fontSize * 1.1`.
+11. **V2.1:** `ChartLegendTokens` shall accept an optional `textOpacity?: number` field. When absent, `LegendRenderer` defaults to `1.0`.
+12. **V2.1:** When `ChartGridlinesTokens` is present, it takes precedence over `ChartBackgroundTokens.gridColor`. The fallback chain in `AxesRenderer` is: `theme.gridlines?.color ?? theme.background.gridColor ?? '#4a6080'`.
+13. **V2.1:** `ChartGridlinesTokens.dashSize` and `gapSize` enable dashed gridlines via `LineDashedMaterial`. When absent, gridlines use `LineBasicMaterial` (solid). WebGL1 linewidth cap (1px) applies to both — dashed gridlines are decorative.
+14. **V2.1:** `ChartReferenceLineTokens.lineWidth` is a world-space width applied to a thin `BoxGeometry` plane, not a `Three.js linewidth` property. This avoids the WebGL1 1px linewidth cap for reference lines.
+15. **V2.1:** `createChartTheme(base, overrides)` shall support deep-merging all new optional token groups via `ChartThemeOverrides`. Partial overrides of nested groups are supported (e.g., overriding only `bar.padding`).
+16. **V2.1:** All four built-in preset themes shall include explicit values for all new optional token groups. New `ChartThemeOverrides` callers that don't specify new groups inherit the preset's explicit values.
 
 ---
 
@@ -90,21 +105,26 @@ export type ChartTheme = {
   readonly axis: ChartAxisTokens;
   readonly background: ChartBackgroundTokens;
   readonly legend: ChartLegendTokens;
+  readonly line: ChartLineTokens;
+  readonly pie: ChartPieTokens;
   readonly interaction: ChartInteractionTokens;
   /**
    * Optional cross-package scene theme context.
    *
    * When present, ChartRenderer derives:
-   * - WebGL font URL from sceneTheme.font.webglFontUrl (first-ever font customization for charts)
+   * - WebGL font URL from sceneTheme.font.webglFontUrl
    * - Axis/legend label color fallback from sceneTheme.colorMode when not set by the chart theme
    *
    * Priority: explicit ChartTheme axis.labelColor and legend.textColor take precedence.
    * sceneTheme provides DEFAULT fallbacks only.
-   *
-   * Note: All four built-in chart theme presets have explicit labelColor/textColor values.
-   * sceneTheme.colorMode has no effect when using them without a custom override.
    */
   readonly sceneTheme?: SceneTheme;
+  // V2.1 additions — all optional; renderers have documented fallback defaults:
+  readonly bar?: ChartBarTokens;
+  readonly area?: ChartAreaTokens;
+  readonly gridlines?: ChartGridlinesTokens;
+  readonly dataLabels?: ChartDataLabelsTokens;
+  readonly referenceLines?: ChartReferenceLineTokens;
 };
 ```
 
@@ -125,12 +145,15 @@ export type ChartAxisTokens = {
   readonly labelColor: string;         // tick label text color
   readonly fontSize: number;           // world units
   readonly tickLength: number;         // world units
+  /** V2.1: Font size for axis title labels, independent of tick label fontSize. Default: fontSize * 1.1. */
+  readonly titleFontSize?: number;
 };
 
 export type ChartBackgroundTokens = {
   readonly planeColor: string | null;  // null = no background plane
   readonly planeOpacity: number;
-  readonly gridColor: string | null;   // null = no grid lines
+  /** @deprecated V2.1: use ChartGridlinesTokens.color. Kept for backward compat — ChartGridlinesTokens takes precedence when present. */
+  readonly gridColor: string | null;
 };
 
 export type ChartLegendTokens = {
@@ -138,12 +161,81 @@ export type ChartLegendTokens = {
   readonly fontSize: number;           // world units
   readonly swatchSize: number;         // world units
   readonly spacing: number;            // world units
+  /** V2.1: Opacity for legend label text [0..1]. Default: 1.0. */
+  readonly textOpacity?: number;
 };
 
 export type ChartInteractionTokens = {
   readonly hoverColor: string;
   readonly hoverEmissiveIntensity: number;
   readonly selectedColor: string;
+};
+
+// V2.1 new optional token group types:
+
+/** V2.1: Bar chart theme defaults. Used when DSL barPadding is not specified. */
+export type ChartBarTokens = {
+  /** Padding ratio between bar groups [0..1]. Renderer default when absent: 0.2. */
+  readonly padding: number;
+};
+
+/** V2.1: Area chart theme defaults. Used when DSL fillOpacity is not specified. */
+export type ChartAreaTokens = {
+  /** Area fill opacity [0..1]. Renderer default when absent: 0.7. */
+  readonly fillOpacity: number;
+};
+
+/**
+ * V2.1: Gridline visual tokens.
+ * When present, takes precedence over ChartBackgroundTokens.gridColor (which is deprecated).
+ * When absent, ChartBackgroundTokens.gridColor is used for backward compatibility.
+ * AxesRenderer fallback chain: theme.gridlines?.color ?? theme.background.gridColor ?? '#4a6080'
+ */
+export type ChartGridlinesTokens = {
+  readonly color: string;
+  /** Gridline opacity [0..1]. Renderer default when absent: 0.15. */
+  readonly opacity: number;
+  /**
+   * Whether gridlines are visible by default for this theme.
+   * Per-axis DSL gridlines prop overrides this. Renderer default when absent: false.
+   */
+  readonly visible: boolean;
+  /**
+   * Dash segment length in world units. Absent = solid line (LineBasicMaterial).
+   * When set, requires LineDashedMaterial + line.computeLineDistances().
+   * Note: linewidth is WebGL1-capped at 1px — dashed gridlines are decorative.
+   */
+  readonly dashSize?: number;
+  /** Gap between dash segments in world units. Only meaningful when dashSize is set. */
+  readonly gapSize?: number;
+};
+
+/** V2.1: Data label theme tokens. Applied when <ChartDataLabels> is present in the DSL. */
+export type ChartDataLabelsTokens = {
+  /** Font size in world units. Renderer default when token group absent: 0.05. */
+  readonly fontSize: number;
+  /** Label text color (CSS hex). Renderer default when absent: '#ffffff'. */
+  readonly color: string;
+  /** Optional pill background color (CSS hex). Absent = no background. */
+  readonly background?: string;
+};
+
+/**
+ * V2.1: Reference line theme tokens.
+ * Applied when ReferenceLine.color or lineWidth is not specified in the DSL.
+ *
+ * Implementation note: lineWidth is world-space width of a thin BoxGeometry plane,
+ * NOT a Three.js linewidth property. BoxGeometry is portable; LineBasicMaterial.linewidth
+ * is WebGL1-capped at 1px. AxesRenderer (gridlines) uses LineDashedMaterial; reference
+ * lines use BoxGeometry.
+ */
+export type ChartReferenceLineTokens = {
+  /** Default line color (CSS hex) when not specified on <ReferenceLine>. Renderer default: '#ff8844'. */
+  readonly defaultColor: string;
+  /** World-space width of the reference line BoxGeometry geometry. Renderer default: 0.005. */
+  readonly lineWidth: number;
+  /** Line opacity [0..1]. Renderer default: 0.85. */
+  readonly lineOpacity: number;
 };
 ```
 
@@ -365,9 +457,22 @@ Any consumer code that passes `camera` or `domElement` to `ChartTooltipOverlay` 
 
 ## 13. Launch Criteria
 
-- `ChartTheme.sceneTheme` optional field present and typed correctly in `packages/charts/src/themes/types.ts`.
-- `ChartDSL.sceneTheme` optional field present and typed correctly in `packages/charts/src/elements/chart/types.ts`.
-- `fontUrl` threaded through `ChartRenderContext` to `AxesRenderer`, `LegendRenderer`, and all six chart renderers.
-- Compile test: `ChartState.sceneTheme` is populated from `ChartDSL.sceneTheme` and from `ChartTheme.sceneTheme` with correct override priority.
-- `pnpm test` passes for `@brewsite/charts`.
-- TypeScript strict-mode typecheck passes on `packages/charts/src/`.
+**Shipped (original theming system):**
+- [x] `ChartTheme.sceneTheme` optional field present and typed correctly.
+- [x] `ChartDSL.sceneTheme` optional field present and typed correctly.
+- [x] `fontUrl` threaded through `ChartRenderContext` to `AxesRenderer`, `LegendRenderer`, and all six chart renderers.
+- [x] `pnpm test` passes for `@brewsite/charts`.
+
+**V2.1 (pending implementation):**
+- [ ] Five new optional token group types exported from `@brewsite/charts`: `ChartBarTokens`, `ChartAreaTokens`, `ChartGridlinesTokens`, `ChartDataLabelsTokens`, `ChartReferenceLineTokens`.
+- [ ] `ChartAxisTokens.titleFontSize` and `ChartLegendTokens.textOpacity` optional fields present and typed.
+- [ ] All four built-in themes include explicit values for all new token groups.
+- [ ] `createChartTheme()` `ChartThemeOverrides` accepts and deep-merges all new token groups.
+- [ ] `AxesRenderer` uses `titleFontSize ?? fontSize * 1.1` for axis title rendering.
+- [ ] `LegendRenderer` applies `textOpacity ?? 1.0` to legend label material/text opacity.
+- [ ] `AxesRenderer` gridline rendering uses the three-level fallback chain for color, plus `LineDashedMaterial` branch when `dashSize` is set.
+- [ ] `BarRenderer` reads `barPadding` from `theme.bar?.padding ?? 0.2` when DSL `barPadding` is absent.
+- [ ] `AreaRenderer` reads `fillOpacity` from `theme.area?.fillOpacity ?? 0.7` when DSL `fillOpacity` is absent.
+- [ ] `DataLabelRenderer` reads `fontSize` and `color` from `theme.dataLabels` with documented fallbacks.
+- [ ] Reference line rendering uses `theme.referenceLines.lineWidth` as world-space `BoxGeometry` width.
+- [ ] `pnpm --filter @brewsite/charts typecheck` passes with zero errors after V2.1 theme changes.

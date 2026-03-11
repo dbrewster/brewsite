@@ -15,6 +15,7 @@ import {
   enumerateFaceCandidates,
   inferBundleHints,
   pruneImpossibleFaceCandidates,
+  evaluateFaceCandidatePruning,
 } from './edgeCandidatePlanner';
 import { assignPorts, enumeratePortCandidates } from './edgePortPlanner';
 import { buildCandidateGuides } from './edgeGuidePlanner';
@@ -280,6 +281,38 @@ const ROUTE_DEBUG_FILTER: string | undefined = undefined;
 
 function emitRouteDebugLog(
   request: EdgeRoutingRequest,
+  debugContext: {
+    readonly bundleHint?: {
+      readonly sourceFaceHint?: FaceId;
+      readonly sourceAnchorHint?: Vec3;
+      readonly sourceGuideHint?: Vec3;
+      readonly sharedTrunkKey?: string;
+      readonly sharedTrunkDepth?: number;
+    };
+    readonly fromNode?: { readonly position: Vec3; readonly size: NodeDimensions };
+    readonly toNode?: { readonly position: Vec3; readonly size: NodeDimensions };
+    readonly faceCandidates: ReadonlyArray<{
+      readonly srcFace: FaceId;
+      readonly dstFace: FaceId;
+      readonly sourceFaceLocked: boolean;
+      readonly destinationFaceLocked: boolean;
+      readonly hasBundleHint: boolean;
+    }>;
+    readonly activeFaceCandidates: ReadonlyArray<{
+      readonly srcFace: FaceId;
+      readonly dstFace: FaceId;
+      readonly sourceFaceLocked: boolean;
+      readonly destinationFaceLocked: boolean;
+      readonly hasBundleHint: boolean;
+    }>;
+    readonly prunedFaceCandidates: ReadonlyArray<{
+      readonly srcFace: FaceId;
+      readonly dstFace: FaceId;
+      readonly sourceFaceLocked: boolean;
+      readonly destinationFaceLocked: boolean;
+      readonly reasons: ReadonlyArray<string>;
+    }>;
+  },
   candidates: ReadonlyArray<ScoredEdgeCandidate>,
   winner: ScoredEdgeCandidate | undefined,
 ): void {
@@ -307,6 +340,7 @@ function emitRouteDebugLog(
       obstacleIds: candidate.geometry.obstacleIds ?? [],
       usedUnderpass: candidate.geometry.usedUnderpass ?? false,
       groupIngressPenalty: candidate.geometry.groupIngressPenalty,
+      debug: candidate.geometry.debug,
       bendCount: candidate.geometry.bendCount,
       pathLength: candidate.geometry.pathLength,
       score: candidate.score,
@@ -328,6 +362,12 @@ function emitRouteDebugLog(
     toId: request.toId,
     routing: request.routing,
     landing: request.landing,
+    bundleHint: debugContext.bundleHint,
+    fromNode: debugContext.fromNode,
+    toNode: debugContext.toNode,
+    faceCandidates: debugContext.faceCandidates,
+    activeFaceCandidates: debugContext.activeFaceCandidates,
+    prunedFaceCandidates: debugContext.prunedFaceCandidates,
     winner: winner
       ? {
         srcFace: winner.srcFace,
@@ -484,6 +524,7 @@ export function routeEdges(
 
     // Stage 1: Face enumeration.
     const faceCandidates = enumerateFaceCandidates(request, nodeMap, bundleHints);
+    const pruneEvaluations = evaluateFaceCandidatePruning(faceCandidates, request, nodeMap, effectiveGroupIds);
     const prunedCandidates = pruneImpossibleFaceCandidates(faceCandidates, request, nodeMap, effectiveGroupIds);
     const activeCandidates = prunedCandidates.length > 0 ? prunedCandidates : faceCandidates;
 
@@ -504,7 +545,7 @@ export function routeEdges(
         : [assignPorts(faceCandidate, request, nodeMap, effectiveGroupIds)];
 
       return portCandidates.map((portCandidate) => {
-        const guidedCandidate = buildCandidateGuides(portCandidate, request, nodeMap);
+        const guidedCandidate = buildCandidateGuides(portCandidate, request, nodeMap, effectiveGroupIds);
         const geometry = profile.generateRoute(guidedCandidate, context);
 
         const routedCandidate: RoutedEdgeCandidate = {
@@ -522,7 +563,34 @@ export function routeEdges(
 
     // Stage 5: Lexicographic selection.
     const winner = selectBestCandidate(scoredCandidates);
-    emitRouteDebugLog(request, scoredCandidates, winner);
+    emitRouteDebugLog(request, {
+      bundleHint: bundleHints.get(request.id),
+      fromNode,
+      toNode,
+      faceCandidates: faceCandidates.map((candidate) => ({
+        srcFace: candidate.srcFace,
+        dstFace: candidate.dstFace,
+        sourceFaceLocked: candidate.sourceFaceLocked,
+        destinationFaceLocked: candidate.destinationFaceLocked,
+        hasBundleHint: candidate.bundleHint !== undefined,
+      })),
+      activeFaceCandidates: activeCandidates.map((candidate) => ({
+        srcFace: candidate.srcFace,
+        dstFace: candidate.dstFace,
+        sourceFaceLocked: candidate.sourceFaceLocked,
+        destinationFaceLocked: candidate.destinationFaceLocked,
+        hasBundleHint: candidate.bundleHint !== undefined,
+      })),
+      prunedFaceCandidates: pruneEvaluations
+        .filter((evaluation) => !evaluation.keep)
+        .map((evaluation) => ({
+          srcFace: evaluation.candidate.srcFace,
+          dstFace: evaluation.candidate.dstFace,
+          sourceFaceLocked: evaluation.candidate.sourceFaceLocked,
+          destinationFaceLocked: evaluation.candidate.destinationFaceLocked,
+          reasons: evaluation.reasons,
+        })),
+    }, scoredCandidates, winner ?? undefined);
     if (!winner) {
       result.set(edgeId, EMPTY_ROUTE);
       return;
