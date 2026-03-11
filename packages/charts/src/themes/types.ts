@@ -4,7 +4,13 @@ import type { SceneTheme } from '@brewsite/core';
 import type { ChartLineShape } from '../elements/chart/types';
 
 /** Supported chart theme preset names. */
-export type ChartThemeName = 'darkGlass' | 'neonCyber' | 'enterprise' | 'lightMinimal';
+export type ChartThemeName =
+  | 'darkGlass'
+  | 'midnight'
+  | 'neonCyber'
+  | 'enterprise'
+  | 'lightCanvas'
+  | 'lightMinimal';
 
 /** Material tokens for a single data series. */
 export type ChartSeriesMaterialTokens = {

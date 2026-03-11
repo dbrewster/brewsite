@@ -9,4 +9,13 @@ export type {
   SceneThemeBackground,
 } from './types';
 export { ThemeContext, useTheme } from './ThemeContext';
-export { darkSceneTheme, lightSceneTheme } from './presets';
+export {
+  darkSceneTheme,
+  lightSceneTheme,
+  darkGlassSceneTheme,
+  midnightSceneTheme,
+  neonCyberSceneTheme,
+  enterpriseSceneTheme,
+  lightCanvasSceneTheme,
+  lightMinimalSceneTheme,
+} from './presets';

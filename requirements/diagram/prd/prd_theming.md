@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-08
+last_updated: 2026-03-11
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -20,11 +20,14 @@ change_history:
   - date: 2026-03-08
     author: "Toolkit Product"
     summary: "Model/diagram overhaul: added required fields to DiagramThemeNodeConfig (defaultSize, defaultIconScale, defaultIconDepthFactor, glowSpread); added required fields to DiagramThemeEdgeConfig (tubeRadialSegments, organicVariation); added required fields to DiagramThemeGroupConfig (borderMetalness, borderRoughness, borderSideDarken, borderEdgeDarken); added corresponding render-time fields to DiagramThemeRenderConfig (nodeGlowSpread, edgeTubeRadialSegments, groupBorderMetalness, groupBorderRoughness, groupBorderSideDarken, groupBorderEdgeDarken); fontUrl promoted from DiagramThemeNodeConfig to DiagramTheme root level; all four preset themes updated with explicit values for every new required field; resolved both open questions; updated Breaking Change Assessment to major semver impact; removed Known Limitation #2."
+  - date: 2026-03-11
+    author: "Toolkit Product"
+    summary: "Theme redesign: expanded canonical theme set from four to six names, adding midnight (warm dark) and lightCanvas (premium light). All four existing presets redesigned with coherent palettes; two new presets added. Introduced DiagramThemeName union type and DIAGRAM_THEMES keyed registry. Added string name API for <Diagram theme='...'> (non-breaking union widening). All six presets carry an 8-color accent palette coordinated with @brewsite/charts via cross-package comment blocks. Version bump: minor."
 ---
 
 ## Overview
 
-The theming system in `@brewsite/diagram` provides the complete design language for diagram visualization. A `DiagramTheme` is a plain TypeScript object — no React, no Three.js — that configures default colors, PBR material properties, layout behavior, edge routing algorithms, environment map, and optional cross-package scene theme integration for all elements within a diagram. Four preset themes ship with the package. Consumers create custom themes by composing the full `DiagramTheme` struct, typically by spreading an existing preset and overriding specific sub-configs. The `withColorMode()` utility creates a theme variant with colorMode-derived label colors. The system affects `@brewsite/diagram`.
+The theming system in `@brewsite/diagram` provides the complete design language for diagram visualization. A `DiagramTheme` is a plain TypeScript object — no React, no Three.js — that configures default colors, PBR material properties, layout behavior, edge routing algorithms, environment map, and optional cross-package scene theme integration for all elements within a diagram. Six preset themes ship with the package, corresponding to the six canonical `DiagramThemeName` values: `darkGlass`, `midnight`, `neonCyber`, `enterprise`, `lightCanvas`, and `lightMinimal`. Consumers can reference presets by string name (`<Diagram theme="darkGlass">`) or by importing the full theme object. Custom themes are authored by spreading a preset and overriding specific sub-configs. The `withColorMode()` utility creates a theme variant with colorMode-derived label colors. The system affects `@brewsite/diagram`.
 
 ## Problem Statement
 
@@ -34,18 +37,18 @@ Diagram elements expose dozens of configurable properties across nodes, edges, a
 
 **Primary goals:**
 - A consumer can change the visual character of a complete diagram by passing a single theme object, with no per-node or per-edge edits required
-- All four preset themes produce visually coherent output without additional configuration
+- All six preset themes produce visually coherent output without additional configuration
 - The theme type is fully statically typed so TypeScript catches partial or malformed custom themes at authoring time
 - The theme object is pure data: no runtime cost when the diagram is not rendered
 
 **Success metrics:**
-- All four presets pass a visual smoke test (screenshot comparison) in the CI pipeline
+- All six presets pass a visual smoke test (screenshot comparison) in the CI pipeline
 - TypeScript strict-mode type check passes on all theme exports
-- Switching between any two preset themes in a demo scene requires only a prop change to `<Diagram theme={...}>`
+- Switching between any two preset themes in a demo scene requires only a prop change to `<Diagram theme="...">` (string name) or `<Diagram theme={themeObject}>`
 
 **Guardrail metrics:**
 - Adding a new optional field to any sub-config is a minor version bump; removing or renaming a field is a major version bump
-- Any new required field must be added to all four preset themes simultaneously with a major version bump
+- Any new required field must be added to all six preset themes simultaneously with a major version bump
 
 ## Non-Goals
 
@@ -56,7 +59,7 @@ Diagram elements expose dozens of configurable properties across nodes, edges, a
 
 ## Consumer Stories
 
-- As a toolkit consumer, I want to pass a single preset theme to `<Diagram>` so that all my nodes, edges, and groups adopt a consistent visual style without per-element configuration.
+- As a toolkit consumer, I want to pass a theme name string to `<Diagram theme="darkGlass">` so that all my nodes, edges, and groups adopt a consistent visual style without importing or constructing a theme object.
 - As a toolkit consumer, I want to spread a preset and override specific fields so that I can create a brand-aligned custom theme with minimal boilerplate.
 - As a toolkit consumer, I want to specify a custom HDR URL in a theme so that my diagram uses my own lighting environment without forking the theme.
 - As a toolkit consumer, I want themes to be individually importable so that my bundle only includes the preset I use.
@@ -64,8 +67,11 @@ Diagram elements expose dozens of configurable properties across nodes, edges, a
 ## Functional Requirements
 
 1. The `DiagramTheme` type shall be a plain TypeScript interface with no runtime dependencies.
-2. The four preset themes (`darkGlassTheme`, `neonCyberTheme`, `enterpriseTheme`, `lightMinimalTheme`) shall be exported as named constants from `@brewsite/diagram`.
+2. The six preset themes (`darkGlassTheme`, `midnightTheme`, `neonCyberTheme`, `enterpriseTheme`, `lightCanvasTheme`, `lightMinimalTheme`) shall be exported as named constants from `@brewsite/diagram`.
 3. Each preset shall be declared `as const` so that TypeScript infers narrow literal types.
+4a. A `DiagramThemeName` union type (`'darkGlass' | 'midnight' | 'neonCyber' | 'enterprise' | 'lightCanvas' | 'lightMinimal'`) shall be exported from `@brewsite/diagram`.
+4b. A `DIAGRAM_THEMES: Record<DiagramThemeName, DiagramTheme>` keyed registry shall be exported from `@brewsite/diagram`, enabling compile-time and runtime lookup by name.
+4c. The `theme?` prop on `DiagramProps` (the `<Diagram>` DSL element) shall accept `DiagramThemeName | DiagramTheme`. String name inputs are resolved to the full `DiagramTheme` object via `DIAGRAM_THEMES` at compile time. Existing call sites that pass a `DiagramTheme` object are unaffected.
 4. The `DiagramThemeRenderConfig` struct shall be derived from `DiagramTheme` at compile time by `buildThemeRenderConfig()` in `compiler/themeResolver.ts`.
 5. `render.ts` and `EdgeRenderer` shall read only `DiagramThemeRenderConfig` — never the full `DiagramTheme`.
 6. Theme resolution shall run once per diagram compile call, not per frame.
@@ -75,6 +81,37 @@ Diagram elements expose dozens of configurable properties across nodes, edges, a
 10. When `envMapUrl` is `'none'`, no environment map shall be applied and no HDR fetch shall be initiated.
 
 ## API Design
+
+### DiagramThemeName and DIAGRAM_THEMES
+
+```typescript
+// packages/diagram/src/elements/diagram/types.ts
+
+export type DiagramThemeName =
+  | 'darkGlass'
+  | 'midnight'
+  | 'neonCyber'
+  | 'enterprise'
+  | 'lightCanvas'
+  | 'lightMinimal';
+```
+
+```typescript
+// packages/diagram/src/elements/diagram/themes/index.ts
+
+export const DIAGRAM_THEMES: Record<DiagramThemeName, DiagramTheme>;
+```
+
+The `<Diagram>` DSL `theme` prop accepts either form:
+
+```tsx
+// String name (resolved via DIAGRAM_THEMES at compile time):
+<Diagram theme="darkGlass">...</Diagram>
+
+// Full object (existing pattern — still valid):
+import { darkGlassTheme } from '@brewsite/diagram';
+<Diagram theme={darkGlassTheme}>...</Diagram>
+```
 
 ### DiagramTheme
 
@@ -110,7 +147,7 @@ export interface DiagramTheme {
    * - effectiveSublabelSizeFactor: theme.node.sublabelSizeFactor * sceneTheme.fontSize.caption
    *
    * colorMode label color derivation: only fires when defaultLabelColor is absent.
-   * All four built-in presets have explicit defaultLabelColor values, so
+   * All six built-in presets have explicit defaultLabelColor values, so
    * sceneTheme.colorMode has NO effect on label colors when using a preset directly.
    * Use withColorMode(preset, colorMode) to create a preset with colorMode-derived
    * label colors.
@@ -341,7 +378,7 @@ export function mergeTheme(base: DiagramTheme, overrides: DeepPartial<DiagramThe
 /**
  * Creates a DiagramTheme with colorMode-derived label colors applied.
  *
- * All four built-in presets have explicit defaultLabelColor values, so
+ * All six built-in presets have explicit defaultLabelColor values, so
  * DiagramTheme.sceneTheme.colorMode has NO effect on label colors when
  * using a preset directly. This utility creates a new theme where
  * node.defaultLabelColor and node.defaultSublabelColor are set to
@@ -387,15 +424,19 @@ const brandTheme: DiagramTheme = {
 };
 ```
 
-### Four preset themes
+### Six preset themes
 
-**`darkGlassTheme`** — Default theme. Deep navy nodes (`#1a2240`), metalness 0.40, roughness 0.30, emissive intensity 0.10. `glowSpread: 2.2`, `labelFontSizeBase: 0.28`, `sublabelFontSizeBase: 0.18`, `defaultIconDepth: 0.15`, `sideColorDarkenFactor: 0.15`, `borderColorLightenFactor: 0.25`. Edge color purple (`#702dc6`), flow color green (`#53ec68`), `flowPulseIntensity: 0.9`, curved routing, nearest-face landing, 3D arrows enabled. Group `defaultLabelColor: '#ffffff'`, `borderMetalness: 0.35`, `borderRoughness: 0.45`, `borderSideDarken: 0.40`, `borderEdgeDarken: 0.45`. Environment HDR at `/assets/envmaps/diagram-default.hdr`, IBL intensity 0.9. Default icon style `extruded`. Palette: `['#2a4fa0', '#1e7a5a', '#8a2a70', '#a06a20', '#2a8090']`.
+**`darkGlassTheme`** — Polished deep-navy intelligence. Node default color `#111a35`, metalness 0.65–0.75, roughness 0.25–0.35, `glowSpread: 2.2`. Edge color `#5040b0` (deep indigo-violet), flow color `#00c8f0` (electric cyan). Monochromatic cool-blue palette; `flowPulseIntensity: 0.9`. Group `defaultLabelColor: '#dce8ff'`. Environment HDR at `/assets/envmaps/diagram-default.hdr`, IBL intensity 0.9. Default icon style `extruded`. Palette: `['#4455aa', '#2266bb', '#7744cc', '#1188aa', '#335588', '#3dbccc', '#9966ff', '#44aadd']`.
 
-**`neonCyberTheme`** — Near-black nodes (`#0a0e1a`), metalness 0.55, roughness 0.20, emissive intensity 0.22, `glowIntensity: 0.55`, `glowSpread: 2.4`. `flowPulseIntensity: 0.95`. Edge color cyan (`#00ccff`), orthogonal routing, 3D arrows enabled. Neon label colors (`#00ffcc`). Group `defaultLabelColor: '#00ffcc'`. Same HDR as darkGlass at 0.6 intensity. Palette: neon spectrum.
+**`midnightTheme`** — Warm authority; near-black with amber-gold accents. Node default color `#18140a`, metalness 0.28–0.38, roughness 0.40–0.52. Edge color `#c8851a` (amber), flow color `#f0b030` (gold). Matte-metal feel. Group `defaultLabelColor: '#f0e8d8'`. Environment HDR shared with darkGlass at reduced intensity. Default icon style `extruded`. Palette: `['#d08c20', '#c24840', '#d4ac30', '#2e8870', '#c05578', '#8a6028', '#6a8430', '#b84530']`.
 
-**`enterpriseTheme`** — Professional blue nodes (`#1e3a6e`), metalness 0.25, roughness 0.45, no glow (0.0). `flowPulseIntensity: 0.8`. Edge color `#4a7abf`, curved routing, flat arrows (`use3DArrows: false`). Group `defaultLabelColor: '#d0d8f0'`, `borderMetalness: 0.15`, `borderRoughness: 0.65`. Default icon style `flat`. HDR at 0.75 intensity. No `palette` defined.
+**`neonCyberTheme`** — Electric violet + laser cyan with high emissive. Node default color `#060b1a`, metalness 0.60–0.70, roughness 0.10–0.18, emissive intensity 0.22, `glowSpread: 2.4`. Edge color `#7b2dff` (electric violet), flow color `#00eeff` (laser cyan). Two-color story: violet = structure, cyan = motion. Group `defaultLabelColor: '#b090ff'`. Same HDR as darkGlass at 0.6 intensity. `flowPulseIntensity: 0.95`. Palette: `['#7b2dff', '#00eeff', '#b855ff', '#00ccdd', '#5020cc', '#44ddee', '#9944ff', '#00aacc']`.
 
-**`lightMinimalTheme`** — Light background nodes (`#eef2fc`), metalness 0.08, roughness 0.60, no emissive, no glow. `sideColorDarkenFactor: 0.10`, `borderColorLightenFactor: 0.15`. `flowPulseIntensity: 0.7`. Edge color `#3060b0`, orthogonal routing, flat arrows. Group `defaultLabelColor: '#1a1a2e'`, `borderMetalness: 0.05`, `borderRoughness: 0.80`. Environment map disabled (`envMapUrl: 'none'`). Default icon style `flat`. Suited for documentation and light-mode presentation contexts.
+**`enterpriseTheme`** — Board-ready professional slate-blue. Node default color `#182844`, metalness 0.12–0.22, roughness 0.48–0.58, no glow. Edge color `#3a6aaa` (muted steel-blue), no flow animation by default. Flat arrows (`use3DArrows: false`). Group `defaultLabelColor: '#e8f0ff'`, `borderMetalness: 0.15`, `borderRoughness: 0.65`. Default icon style `flat`. HDR at 0.75 intensity. Palette: `['#3a5fa0', '#38766a', '#c87830', '#5a4e7a', '#2e7280', '#7a5c38', '#456040', '#7a3840']`.
+
+**`lightCanvasTheme`** — Premium light; white ceramic nodes on warm-neutral gray background. Node default color `#ffffff`, metalness 0.03–0.06, roughness 0.52–0.66, `cornerRadius: 0.09`. Edge color `#3a5fa8` (slate-blue), flow color `#1a5fd8` (cobalt). No IBL (`envMapUrl: 'none'`). Group `defaultLabelColor: '#18202c'`. Jewel-tone palette: `['#3355cc', '#1a9966', '#cc3355', '#cc8800', '#6644bb', '#0088aa', '#996622', '#448822']`.
+
+**`lightMinimalTheme`** — Flat documentation-grade light. Node default color `#eef2fc`, metalness 0.08, roughness 0.60, no emissive, no glow. `sideColorDarkenFactor: 0.10`, `borderColorLightenFactor: 0.15`. Edge color `#3060b0`, orthogonal routing, flat arrows. Group `defaultLabelColor: '#1a1a2e'`. `envMapUrl: 'none'`. Pastel light-mode palette preserved from v1.
 
 ### Palette system
 
@@ -421,7 +462,7 @@ These derivation functions are pure (no Three.js) and run at compile time. Expli
 
 ### Tree-shaking
 
-Each preset theme is in its own file (`themes/darkGlass.ts`, `themes/neonCyber.ts`, `themes/enterprise.ts`, `themes/lightMinimal.ts`). The barrel `themes/index.ts` re-exports all four. Consumers importing a single preset directly from their source path (or via the named export in the package `index.ts`) allow bundlers to tree-shake unused presets. Each preset is a `const` object with no side effects.
+Each preset theme is in its own file (`themes/darkGlass.ts`, `themes/midnight.ts`, `themes/neonCyber.ts`, `themes/enterprise.ts`, `themes/lightCanvas.ts`, `themes/lightMinimal.ts`). The barrel `themes/index.ts` re-exports all six alongside the `DIAGRAM_THEMES` registry. Consumers importing a single preset directly from their source path allow bundlers to tree-shake unused presets. Each preset is a `const` object with no side effects. Each preset file contains a cross-package palette comment block listing the 8 shared accent colors, enabling code review to detect diagram/chart palette divergence.
 
 ### Layout defaults in theme
 
@@ -459,7 +500,7 @@ When `theme.sceneTheme` is set, `buildThemeRenderConfig` computes:
 
 ### colorMode and label colors — the `withColorMode()` escape hatch
 
-`sceneTheme.colorMode` drives label color defaults **only** when `DiagramThemeNodeConfig.defaultLabelColor` is absent. All four built-in presets have explicit values, so colorMode has no effect on them directly.
+`sceneTheme.colorMode` drives label color defaults **only** when `DiagramThemeNodeConfig.defaultLabelColor` is absent. All six built-in presets have explicit values, so colorMode has no effect on them directly.
 
 To create a preset-derived theme with colorMode-driven label colors, use `withColorMode()`:
 
@@ -487,7 +528,7 @@ const myTheme = {
 
 ## Known Limitations
 
-1. **`sceneTheme.colorMode` has no effect on built-in preset label colors without `withColorMode()`.** All four built-in DiagramTheme presets have explicit `defaultLabelColor` and `defaultSublabelColor` values. Use `withColorMode(preset, colorMode)` to create a preset with colorMode-derived label colors.
+1. **`sceneTheme.colorMode` has no effect on built-in preset label colors without `withColorMode()`.** All six built-in DiagramTheme presets have explicit `defaultLabelColor` and `defaultSublabelColor` values. Use `withColorMode(preset, colorMode)` to create a preset with colorMode-derived label colors.
 
 2. **WebGL font URL must be MSDF-encoded.** Standard web font URLs will not render correctly in troika-three-text.
 
@@ -503,7 +544,11 @@ const myTheme = {
 - New **required** fields on `DiagramThemeGroupConfig`: `borderMetalness`, `borderRoughness`, `borderSideDarken`, `borderEdgeDarken`.
 - `DiagramThemeRenderConfig` gains `nodeGlowSpread`, `edgeTubeRadialSegments`, `groupBorderMetalness`, `groupBorderRoughness`, `groupBorderSideDarken`, `groupBorderEdgeDarken` — consumers who construct `DiagramThemeRenderConfig` directly will fail TypeScript; the only supported path is via `buildThemeRenderConfig(theme)`.
 
-**All four preset themes (`darkGlassTheme`, `neonCyberTheme`, `enterpriseTheme`, `lightMinimalTheme`) are updated with explicit values for every new required field.** Custom themes that spread from any preset and override only specific sub-configs compile correctly without modification (spread semantics preserve all new required fields).
+**All six preset themes (`darkGlassTheme`, `midnightTheme`, `neonCyberTheme`, `enterpriseTheme`, `lightCanvasTheme`, `lightMinimalTheme`) include explicit values for every required field.** Custom themes that spread from any preset and override only specific sub-configs compile correctly without modification (spread semantics preserve all required fields).
+
+**String name API addition (non-breaking):** The `theme?` prop on `DiagramProps` changed from `DiagramTheme | undefined` to `DiagramThemeName | DiagramTheme | undefined`. This is a union widening — existing call sites that pass a `DiagramTheme` object compile identically. TypeScript discriminates the union cleanly: string literals satisfy `DiagramThemeName`; objects satisfy `DiagramTheme`.
+
+**Visual breaking change:** The palette values for `darkGlass`, `neonCyber`, and `enterprise` themes have changed. Scenes tuned to the previous preset colors will see different visual output after upgrade. `DiagramTheme` preset palette values are product content, not API contracts; visual changes are documented in the CHANGELOG but do not require code migration.
 
 For future changes:
 - Adding an optional field: **minor** bump
@@ -523,7 +568,7 @@ For future changes:
 
 **HDR loading latency:** The default HDR file at `/assets/envmaps/diagram-default.hdr` is shared across all four themes that use it. If the file is large, it adds perceived loading time. Mitigation: the environment map cache prevents duplicate loads; consumers can substitute a lower-resolution HDR or set `envMapUrl: null` for procedural sky at lower visual fidelity.
 
-**Bundle size from unused presets:** All four preset files are small (< 2 KB each). The risk is minimal. Tree-shaking by bundler should remove unused presets automatically given the side-effect-free `const` exports.
+**Bundle size from unused presets:** All six preset files are small (< 2 KB each). The risk is minimal. Tree-shaking by bundler should remove unused presets automatically given the side-effect-free `const` exports.
 
 ## Open Questions
 
@@ -531,9 +576,9 @@ For future changes:
 
 ## Launch Criteria
 
-- All four preset themes exported from `@brewsite/diagram` package `index.ts`
+- All six preset themes exported from `@brewsite/diagram` package `index.ts`; `DiagramThemeName` and `DIAGRAM_THEMES` also exported
 - `DiagramTheme`, `DiagramThemeNodeConfig`, `DiagramThemeEdgeConfig`, `DiagramThemeGroupConfig`, `DiagramThemeEnvironmentConfig`, `DiagramThemeLayoutConfig`, `DiagramThemeRenderConfig` all exported from `@brewsite/diagram`
 - `buildThemeRenderConfig` unit tested in `compiler/__tests__/themeResolver.test.ts`
-- README documents the four presets with import paths and brief descriptions
+- README documents all six presets with import paths, string names, and brief descriptions
 - At least one example scene in `apps/examples/` demonstrates switching between two presets
 - TypeScript strict-mode typecheck passes on the themes package directory

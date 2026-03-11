@@ -147,10 +147,4 @@ export type SceneTheme = {
   readonly fontSize: SceneThemeFontSizeScale;
   /** Optional background fill and effects configuration. */
   readonly background?: SceneThemeBackground;
-  /**
-   * Primary accent color. Drives diagram node palette defaults and chart series[0].
-   * Each package may interpret this differently. CSS hex string.
-   * @example '#6b48ff'
-   */
-  readonly accentColor?: string;
 };

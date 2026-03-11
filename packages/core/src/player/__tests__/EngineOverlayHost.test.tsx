@@ -184,17 +184,4 @@ describe('EngineOverlayHost', () => {
     expect(overlay.style.getPropertyValue('--brewsite-text-primary')).toBe('#111111');
   });
 
-  it('does NOT set --brewsite-accent-color when accentColor is undefined', () => {
-    const theme = makeTestTheme({ accentColor: undefined });
-    const view = renderHost({ theme });
-    const overlay = view.container.firstChild as HTMLDivElement;
-    expect(overlay.style.getPropertyValue('--brewsite-accent-color')).toBe('');
-  });
-
-  it('sets --brewsite-accent-color when accentColor is defined', () => {
-    const theme = makeTestTheme({ accentColor: '#6b48ff' });
-    const view = renderHost({ theme });
-    const overlay = view.container.firstChild as HTMLDivElement;
-    expect(overlay.style.getPropertyValue('--brewsite-accent-color')).toBe('#6b48ff');
-  });
 });

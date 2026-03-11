@@ -39,7 +39,6 @@ export function compileDeckTheme(theme?: Partial<DeckTheme>): ResolvedDeckTheme 
       annotation: 0.7,
     },
     colorMode,
-    accentColor,
   };
 
   // CSS variable map for --slide-* namespace

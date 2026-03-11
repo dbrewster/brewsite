@@ -1,6 +1,6 @@
 // Chart demo page — 10-scene V2 showcase.
 import type { JSX } from 'react';
-import { useMemo } from 'react';
+import { useCallback, useMemo, useRef, type RefObject } from 'react';
 import {
   BackgroundLayer,
   EngineARContainer,
@@ -10,11 +10,18 @@ import {
   SceneCanvas,
   SceneEngine,
   ScrollStage,
+  type ScrollStageHandle,
   TimelineWidget,
   useSceneEngineContext,
+  clearSceneTrackCache, lightCanvasSceneTheme, darkGlassSceneTheme
 } from '@brewsite/core';
 import { ChartProvider, useLiveChartData } from '@brewsite/charts';
 import { createChartDemoPlugins } from './widgetSetup';
+
+// Bust the compiled SceneTrack cache whenever this module is re-evaluated by Vite HMR.
+// This ensures changes to transition specs (functionalChartTransitionSpec, etc.) take effect
+// immediately in the dev server without a hard browser reload.
+if (process.env.NODE_ENV !== 'production') { clearSceneTrackCache(); }
 
 // ─── Data imports (named provider registrations only) ────────────────────────
 // Inline-data scenes (1, 2, 6, 9) pass data via props — NOT registered here.
@@ -35,13 +42,27 @@ import { Scene8 } from './scenes/scene8-async';
 import { Scene9a, Scene9b, Scene9c, Scene9d } from './scenes/scene9-switcher';
 import { Scene10 } from './scenes/scene10-linked-brush';
 
-function ChartProgressIndicator(): JSX.Element {
+type ChartProgressIndicatorProps = {
+  scrollStageRef: RefObject<ScrollStageHandle | null>;
+};
+
+export const theme: 'lightCanvas' | 'darkGlass' = 'lightCanvas'
+
+function ChartProgressIndicator({ scrollStageRef }: ChartProgressIndicatorProps): JSX.Element {
   const engine = useSceneEngineContext();
+  const handleSeek = useCallback((progress: number): void => {
+    const rawProgress = engine.progressMapper ? engine.progressMapper.inverse(progress) : progress;
+    if (scrollStageRef.current) {
+      scrollStageRef.current.scrollToProgress(rawProgress);
+      return;
+    }
+    engine.setProgress(progress);
+  }, [engine, scrollStageRef]);
 
   return (
     <TimelineWidget
       engine={engine}
-      theme="dark"
+      theme={theme === 'lightCanvas' ? 'light' : 'dark'}
       position="bottom"
       thickness={36}
       majorTicks="scene"
@@ -49,13 +70,15 @@ function ChartProgressIndicator(): JSX.Element {
       showSceneLabels={false}
       showProgress
       scrubEnabled
-      style={{ zIndex: 20, left: 4, right: 4, bottom: 12, borderRadius: 10 }}
+      onSeek={handleSeek}
+      style={{ zIndex: 20, left: 0, right: 0, bottom: 0, borderRadius: 10 }}
     />
   );
 }
 
 export default function ChartDemoPage(): JSX.Element {
   const { plugins, chartsPlugin } = useMemo(() => createChartDemoPlugins(), []);
+  const scrollStageRef = useRef<ScrollStageHandle | null>(null);
 
   // Named data sources: only scenes using <ChartData source="..."> are registered here.
   //   Scene 3 (multi-line):    source="saas-24m"
@@ -82,10 +105,11 @@ export default function ChartDemoPage(): JSX.Element {
         flexFlow: 'column',
         height: '100vh',
         overflow: 'hidden',
-        background: 'radial-gradient(circle at 50% 0%, #12345d 0%, #061326 42%, #020812 72%, #01040a 100%)',
+        background: theme == 'lightCanvas' ? 'radial-gradient(circle at 50% 0%, #f2f4fd 0%, #d6d3d6 42%, #c2c8c2 72%, #b1b4ba 100%)'
+          : 'radial-gradient(circle at 50% 0%, #12345d 0%, #061326 42%, #020812 72%, #01040a 100%)',
       }}
     >
-      <SceneEngine plugins={plugins}>
+      <SceneEngine plugins={plugins} sceneTheme={lightCanvasSceneTheme}>
         <ChartProvider data={chartData}>
           {/* Scene 1: Animated bar morphing (2 sub-scenes, same chart ID) */}
           <Scene1a />
@@ -124,7 +148,7 @@ export default function ChartDemoPage(): JSX.Element {
           {/* Scene 10: Linked-brush multi-chart dashboard */}
           <Scene10 />
         </ChartProvider>
-        <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={400}>
+        <ScrollStage ref={scrollStageRef} scrollHeightMode="scene-count" pixelsPerScene={400}>
           <EngineARContainer aspectRatio={9 / 9} scaleMode="fit-height" referenceWidth={1920}>
             <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
             <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
@@ -133,7 +157,7 @@ export default function ChartDemoPage(): JSX.Element {
           <KeyboardInput />
           <InertiaScrollSource inertiaSensitivity={0.010} inertiaDecay={0.82} />
         </ScrollStage>
-        <ChartProgressIndicator />
+        <ChartProgressIndicator scrollStageRef={scrollStageRef} />
       </SceneEngine>
     </div>
   );

@@ -20,6 +20,9 @@ export type { IHasCustomDslHandler } from './widget/WidgetRegistry';
 export type { ISceneLifecycle } from './widget/types';
 export { isSceneLifecycle } from './widget/WidgetRegistry';
 
+// ─── Dev utilities ─────────────────────────────────────────────────────────────
+export { clearCache as clearSceneTrackCache } from './compiler/sceneTrackCache';
+
 // ─── S2 — Public API additions (eliminates @brewsite/model deep sub-path imports) ──
 export type { AnimationTrack } from './runtime/types';
 export type { Resolvable } from './compiler/sceneTypes';

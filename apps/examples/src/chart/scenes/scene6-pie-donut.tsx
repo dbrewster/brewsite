@@ -4,6 +4,7 @@ import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { ChartAxis, ChartLegend, ChartSeries, PieChart } from '@brewsite/charts';
 import { productRevenue } from '../data/productData';
 import { PIE_CAM_FOV, PIE_CAM_POS, PIE_CAM_TGT, PIE_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
+import {theme} from "../ChartDemoPage";
 
 // Scene 6a — Pie chart (innerRadius=0)
 export const Scene6a = (): JSX.Element => (
@@ -15,7 +16,7 @@ export const Scene6a = (): JSX.Element => (
     <PieChart
       id="product-split"
       data={productRevenue}
-      theme="darkGlass"
+      theme={theme}
       innerRadius={0}
       pieTilt={-0.35}
       x={PIE_LAYOUT.x}
@@ -44,7 +45,7 @@ export const Scene6b = (): JSX.Element => (
     <PieChart
       id="product-split"
       data={productRevenue}
-      theme="darkGlass"
+      theme={theme}
       innerRadius={0.5}
       pieTilt={-0.35}
       x={PIE_LAYOUT.x}
@@ -73,7 +74,7 @@ export const Scene6c = (): JSX.Element => (
     <PieChart
       id="product-split"
       data={productRevenue}
-      theme="darkGlass"
+      theme={theme}
       innerRadius={0.5}
       pieTilt={-0.35}
       explodeSlice="Core Platform"

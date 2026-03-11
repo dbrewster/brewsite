@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { ChartAxis, ChartData, ChartLegend, ChartSeries, LineChart, ReferenceLine } from '@brewsite/charts';
 import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, CHART_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
+import {theme} from "../ChartDemoPage";
 
 export const Scene3 = (): JSX.Element => (
   <Scene id="chart-s3" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
@@ -12,7 +13,7 @@ export const Scene3 = (): JSX.Element => (
 
     <LineChart
       id="arr-trend"
-      theme="darkGlass"
+      theme={theme}
       lineShape="circle"
       lineSmoothness={0.5}
       showPoints={true}

@@ -279,7 +279,7 @@ describe('compileChart via chartPlugin', () => {
     expect(state.typeConfig.options).toMatchObject({ sizeField: 'headcount', colorField: 'region' });
   });
 
-  it('compileChart with null dataDsl and no dataUrl yields empty named source', () => {
+  it('compileChart with null dataDsl and no dataUrl yields empty inline source (live override path)', () => {
     const state = compileChart(
       { id: 'c' },
       'bar',
@@ -291,7 +291,7 @@ describe('compileChart via chartPlugin', () => {
       null,
       [],
     );
-    expect(state.dataSource).toMatchObject({ type: 'named', name: '' });
+    expect(state.dataSource).toMatchObject({ type: 'inline', rows: [] });
   });
 
   it('compileChart with inline data yields InlineDataSource', () => {

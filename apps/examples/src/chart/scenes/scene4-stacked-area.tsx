@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { AreaChart, ChartAxis, ChartData, ChartLegend, ChartSeries } from '@brewsite/charts';
 import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, CHART_LAYOUT, NeonLighting, SceneTitleBox } from './sceneShared';
+import {theme} from "../ChartDemoPage";
 
 export const Scene4 = (): JSX.Element => (
   <Scene id="chart-s4" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
@@ -12,7 +13,7 @@ export const Scene4 = (): JSX.Element => (
 
     <AreaChart
       id="regional-area"
-      theme="neonCyber"
+      theme={theme}
       stackMode="stacked"
       fillOpacity={0.72}
       x={CHART_LAYOUT.x}

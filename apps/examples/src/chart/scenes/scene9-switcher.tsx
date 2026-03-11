@@ -6,6 +6,7 @@ import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { AreaChart, BarChart, ChartAxis, ChartLegend, ChartSeries, LineChart, ScatterPlotChart } from '@brewsite/charts';
 import { saasMetrics24Months } from '../data/saasMetrics';
 import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, CHART_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
+import {theme} from "../ChartDemoPage";
 
 const SWITCHER_DATA = saasMetrics24Months.slice(0, 12); // 12 months for compact view
 
@@ -19,7 +20,7 @@ export const Scene9a = (): JSX.Element => (
     <BarChart
       id="switcher-demo"
       data={SWITCHER_DATA}
-      theme="darkGlass"
+      theme={theme}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
       w={CHART_LAYOUT.w}
@@ -47,7 +48,7 @@ export const Scene9b = (): JSX.Element => (
     <LineChart
       id="switcher-demo"
       data={SWITCHER_DATA}
-      theme="darkGlass"
+      theme={theme}
       showPoints={true}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
@@ -76,7 +77,7 @@ export const Scene9c = (): JSX.Element => (
     <AreaChart
       id="switcher-demo"
       data={SWITCHER_DATA}
-      theme="darkGlass"
+      theme={theme}
       fillOpacity={0.6}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
@@ -105,7 +106,7 @@ export const Scene9d = (): JSX.Element => (
     <ScatterPlotChart
       id="switcher-demo"
       data={SWITCHER_DATA}
-      theme="darkGlass"
+      theme={theme}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
       w={CHART_LAYOUT.w}

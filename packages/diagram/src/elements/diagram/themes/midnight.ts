@@ -1,24 +1,24 @@
-// Dark Glass theme — deep navy with polished metallic surfaces, coherent blue-violet story.
-// This is the package default theme. High visual impact for tech/architecture diagrams.
+// Midnight theme — near-black warm background, amber-gold accent, matte-metal surfaces.
+// Warm authority: the only warm dark theme in the toolkit.
 
-// SHARED ACCENT PALETTE — must match packages/charts/src/themes/darkGlass.ts
+// SHARED ACCENT PALETTE — must match packages/charts/src/themes/midnight.ts
 // Index 0–4: diagram node palette[0..4]; indices 0–7: chart series[0..7].color
-// '#4455aa', '#2266bb', '#7744cc', '#1188aa', '#335588', '#3dbccc', '#9966ff', '#44aadd'
+// '#d08c20', '#c24840', '#d4ac30', '#2e8870', '#c05578', '#8a6028', '#6a8430', '#b84530'
 
 import type { DiagramTheme } from '../types';
 
-export const darkGlassTheme: DiagramTheme = {
+export const midnightTheme: DiagramTheme = {
   node: {
-    defaultColor:             '#111a35',
-    defaultBoxColor:          '#1e2d52',
-    defaultMetalness:          0.70,
-    defaultRoughness:          0.30,
-    defaultEmissiveIntensity:  0.08,
-    defaultThickness:          0.58,
+    defaultColor:             '#18140a',
+    defaultBoxColor:          '#252010',
+    defaultMetalness:          0.32,
+    defaultRoughness:          0.46,
+    defaultEmissiveIntensity:  0.06,
+    defaultThickness:          0.38,
     cornerRadius:              0.06,
-    glowIntensity:             0.12,
-    defaultLabelColor:         '#dce8ff',
-    defaultSublabelColor:      '#8898cc',
+    glowIntensity:             0.0,
+    defaultLabelColor:         '#f0e8d8',
+    defaultSublabelColor:      '#b0986a',
     labelSizeFactor:           1.0,
     sublabelSizeFactor:        1.0,
     defaultIconStyle:          'extruded',
@@ -28,24 +28,24 @@ export const darkGlassTheme: DiagramTheme = {
     defaultIconDepth:          0.15,
     glowSpread:                2.2,
     sideColorDarkenFactor:     -0.15,
-    borderColorLightenFactor:  0.25,
+    borderColorLightenFactor:  0.20,
     labelFontSizeBase:         0.28,
     sublabelFontSizeBase:      0.18,
   },
   edge: {
-    defaultColor:               '#5040b0',
-    defaultFlowColor:           '#00c8f0',
-    defaultFlowSpeed:            0.3,
-    defaultFlowWidth:            0.20,
-    defaultThickness:            0.065,
-    defaultMetalness:            0.50,
-    defaultRoughness:            0.30,
+    defaultColor:               '#c8851a',
+    defaultFlowColor:           '#f0b030',
+    defaultFlowSpeed:            0.28,
+    defaultFlowWidth:            0.18,
+    defaultThickness:            0.060,
+    defaultMetalness:            0.35,
+    defaultRoughness:            0.50,
     routing:                    'flow',
     landing:                    'nearest-face',
-    smoothness:                  1.6,
+    smoothness:                  1.4,
     use3DArrows:                 true,
-    tubeRadialSegments:          16,
-    organicVariation:            1.6,
+    tubeRadialSegments:          12,
+    organicVariation:            1.4,
     flowTurnRadius:              0.035,
     flowFaceStub:                0.05,
     flowBundleStrength:          0.9,
@@ -56,32 +56,32 @@ export const darkGlassTheme: DiagramTheme = {
     flowTurnPenalty:             0.45,
     flowPunchthroughPenalty:     500,
     flowUnderpassPenalty:        60,
-    flowPulseIntensity:          0.9,
+    flowPulseIntensity:          0.85,
   },
   group: {
-    defaultColor:         '#151c38',
-    defaultBorderColor:   '#2e3d6e',
+    defaultColor:         '#120f08',
+    defaultBorderColor:   '#2a2010',
     defaultBorderWidth:    0.25,
     defaultBorderHeight:   0.7,
-    defaultFillOpacity:    0.10,
-    defaultBorderOpacity:  0.85,
-    defaultLabelColor:    '#dce8ff',
-    borderMetalness:       0.35,
-    borderRoughness:       0.45,
-    borderSideDarken:      0.40,
-    borderEdgeDarken:      0.45,
+    defaultFillOpacity:    0.12,
+    defaultBorderOpacity:  0.80,
+    defaultLabelColor:    '#f0e8d8',
+    borderMetalness:       0.28,
+    borderRoughness:       0.52,
+    borderSideDarken:      0.45,
+    borderEdgeDarken:      0.50,
   },
   environment: {
     envMapUrl:       '/assets/envmaps/diagram-default.hdr',
-    envMapIntensity:  0.9,
-    skyColor:        '#0a1530',
-    horizonColor:    '#182648',
+    envMapIntensity:  0.5,
+    skyColor:        '#1a1208',
+    horizonColor:    '#2a2010',
   },
   layout: {
     defaultKind: 'grid',
     grid: {
       columns: 'auto',
-      spacing: [1, 1],
+      spacing: [1.5, 1.5],
       margin: 0,
       groupPadding: 1.5,
       titleGap: 1,
@@ -102,5 +102,5 @@ export const darkGlassTheme: DiagramTheme = {
       titleGap: 1,
     },
   },
-  palette: ['#4455aa', '#2266bb', '#7744cc', '#1188aa', '#335588'],
+  palette: ['#d08c20', '#c24840', '#d4ac30', '#2e8870', '#c05578'],
 } as const;

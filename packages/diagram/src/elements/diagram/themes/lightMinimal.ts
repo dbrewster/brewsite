@@ -1,6 +1,11 @@
 // Light Minimal theme — white/light backgrounds, high contrast, no IBL.
 // Suited for documentation, diagrams in white-background contexts.
 
+// SHARED ACCENT PALETTE — must match packages/charts/src/themes/lightMinimal.ts
+// Index 0–4: diagram node palette[0..4]; indices 0–7: chart series[0..7].color
+// (lightMinimal does not define a node palette[] array; these are the chart series colors only)
+// '#93c5fd', '#c4b5fd', '#86efac', '#fca5a5', '#fde68a', '#67e8f9', '#d9f99d', '#fed7aa'
+
 import type { DiagramTheme } from '../types';
 
 /**

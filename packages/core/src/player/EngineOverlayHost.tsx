@@ -66,11 +66,6 @@ export const EngineOverlayHost = ({
       theme.colorMode === 'dark' ? '#ffffff' : '#111111',
     '--brewsite-text-secondary':
       theme.colorMode === 'dark' ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.6)',
-    // accentColor is only injected when set. Setting '--brewsite-accent-color' to ''
-    // (empty string) would cause var(--brewsite-accent-color, fallback) to return ''
-    // instead of the fallback — CSS treats empty value as "set but invalid". Skip
-    // injection entirely when accentColor is absent so consumer fallbacks work correctly.
-    ...(theme.accentColor ? { '--brewsite-accent-color': theme.accentColor } : {}),
   } as CSSProperties) : {};
 
   return (

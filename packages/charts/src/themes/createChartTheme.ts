@@ -1,6 +1,8 @@
 import { darkGlassChartTheme } from './darkGlass';
+import { midnightChartTheme }   from './midnight';
 import { neonCyberChartTheme } from './neonCyber';
 import { enterpriseChartTheme } from './enterprise';
+import { lightCanvasChartTheme } from './lightCanvas';
 import { lightMinimalChartTheme } from './lightMinimal';
 import type {
   ChartTheme,
@@ -20,9 +22,11 @@ import type {
 } from './types';
 
 const PRESET_MAP: Record<ChartThemeName, ChartTheme> = {
-  darkGlass: darkGlassChartTheme,
-  neonCyber: neonCyberChartTheme,
-  enterprise: enterpriseChartTheme,
+  darkGlass:    darkGlassChartTheme,
+  midnight:     midnightChartTheme,
+  neonCyber:    neonCyberChartTheme,
+  enterprise:   enterpriseChartTheme,
+  lightCanvas:  lightCanvasChartTheme,
   lightMinimal: lightMinimalChartTheme,
 };
 

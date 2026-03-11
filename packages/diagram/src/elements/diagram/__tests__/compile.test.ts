@@ -5,6 +5,8 @@ import {
 } from '../compile';
 import type { DiagramDSL, DiagramNodeDSL, DiagramEdgeDSL, DiagramTheme } from '../types';
 import { darkGlassTheme } from '../themes/darkGlass';
+import { midnightTheme } from '../themes/midnight';
+import { lightCanvasTheme } from '../themes/lightCanvas';
 
 const makeNode = (id: string, overrides: Partial<DiagramNodeDSL> = {}): DiagramNodeDSL => ({
   id,
@@ -833,5 +835,58 @@ describe('DiagramState NVS fields', () => {
     expect(state.tiltRotation[0]).toBeCloseTo(0.1);
     expect(state.tiltRotation[1]).toBe(0);
     expect(state.tiltRotation[2]).toBe(0);
+  });
+});
+
+describe('string theme name resolution', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const baseDsl: DiagramDSL = {
+    id: 'diagram',
+    layout: { kind: 'grid' },
+    nodes: [makeNode('a')],
+    edges: [],
+    groups: [],
+  };
+
+  it('compile resolves string "darkGlass" to darkGlassTheme node defaultColor #111a35', () => {
+    const state = compileDiagram({ ...baseDsl, theme: 'darkGlass' });
+    expect(state.nodes[0]!.color).toBe(darkGlassTheme.node.defaultColor);
+  });
+
+  it('compile resolves string "midnight" to midnightTheme node defaultColor #18140a', () => {
+    const state = compileDiagram({ ...baseDsl, theme: 'midnight' });
+    expect(state.nodes[0]!.color).toBe(midnightTheme.node.defaultColor);
+  });
+
+  it('compile resolves string "lightCanvas" to lightCanvasTheme node defaultColor #ffffff', () => {
+    const state = compileDiagram({ ...baseDsl, theme: 'lightCanvas' });
+    expect(state.nodes[0]!.color).toBe(lightCanvasTheme.node.defaultColor);
+  });
+
+  it('compile falls back to darkGlassTheme when unknown theme name passed', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const state = compileDiagram({ ...baseDsl, theme: 'unknownTheme' as any });
+    expect(state.nodes[0]!.color).toBe(darkGlassTheme.node.defaultColor);
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining('unknownTheme'),
+    );
+  });
+
+  it('compile still accepts full DiagramTheme object (regression)', () => {
+    const stateByString = compileDiagram({ ...baseDsl, theme: 'darkGlass' });
+    const stateByObject = compileDiagram({ ...baseDsl, theme: darkGlassTheme });
+    expect(stateByString.nodes[0]!.color).toBe(stateByObject.nodes[0]!.color);
+  });
+
+  it('compile uses darkGlass default when no theme is passed (regression)', () => {
+    const state = compileDiagram({ ...baseDsl });
+    expect(state.nodes[0]!.color).toBe(darkGlassTheme.node.defaultColor);
   });
 });

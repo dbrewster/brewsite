@@ -11,6 +11,7 @@ import type {
   DiagramEasing,
   SvgIcon3DStyle,
   DiagramTheme,
+  DiagramThemeName,
   EdgeRoutingAlgorithm,
   DiagramEdgePort,
   LayoutAlignment,
@@ -340,7 +341,7 @@ export interface DiagramProps {
    * @example
    * import { darkGlassTheme, lightMinimalTheme, enterpriseTheme, neonCyberTheme } from '@brewsite/diagram';
    */
-  theme?: DiagramTheme;
+  theme?: DiagramThemeName | DiagramTheme;
   children?: React.ReactNode;
 }
 

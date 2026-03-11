@@ -81,9 +81,11 @@ export class AreaRenderer implements IChartRenderer {
 
     if (!this.axesRenderer) this.axesRenderer = new AxesRenderer(axesGroup);
     const n = data.rows.length;
-    const xTicks = data.rows
-      .filter((_, i) => i % Math.max(1, Math.floor(n / 6)) === 0)
-      .map((r, i) => ({ value: r[xField], position: i / (n - 1) }));
+    const stride = Math.max(1, Math.floor(n / 6));
+    const xTicks: Array<{ value: unknown; position: number }> = [];
+    for (let i = 0; i < n; i += stride) {
+      xTicks.push({ value: data.rows[i]![xField], position: i / Math.max(1, n - 1) });
+    }
     const allValues = data.rows.flatMap((r) =>
       effectiveSeries.map((s) => Number(r[s.field]) || 0),
     );

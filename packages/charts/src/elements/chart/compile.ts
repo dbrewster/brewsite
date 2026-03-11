@@ -300,10 +300,22 @@ export function compileChart(
  * - Consistent with how @brewsite/diagram handles its element transitions
  *
  * V2 additions:
- * - typeConfig switches discretely at midpoint (alongside type for backward compat)
+ * - typeConfig and type use to-state immediately at t=0 (no midpoint switch)
  * - _morphT is injected so ChartRenderer can build MorphContext during keyField transitions
+ * - defaultWindow: { exit: [0,0], enter: [0,0] } — charts update instantly by default.
+ *   Scene-level transition={{ exit: [...], enter: [...] }} overrides this when morphing is wanted.
  */
 export const functionalChartTransitionSpec: FunctionalTransitionSpec<ChartState> = {
+  /**
+   * enter: [0,0] — new charts appear immediately at the start of the transition block
+   *   (zero-length window resolves to ctx.t=1 via resolveProgress, so enterFn returns full opacity).
+   * exit: [0.9,1.0] — leaving charts fade out in the last 10% of the transition block
+   *   (non-zero window avoids the zero-length resolveProgress=1 → opacity=0 trap).
+   * These defaults apply only when the scene has no explicit transition={{ exit:[…], enter:[…] }}.
+   * Charts present in both adjacent scenes use interpolateFn over [0,1] — defaultWindow has no effect.
+   */
+  defaultWindow: { exit: [0.9, 1.0], enter: [0.0, 0.0] },
+
   exitFn: (from: ChartState) => (ctx: TransitionContext): ChartState => ({
     ...from,
     opacity: blendOpacity(from.opacity, 0, ctx.t) ?? 0,
@@ -320,10 +332,10 @@ export const functionalChartTransitionSpec: FunctionalTransitionSpec<ChartState>
     nvsY: blendNumber(from.nvsY, to.nvsY, ctx.t) ?? to.nvsY,
     z: blendNumber(from.z, to.z, ctx.t) ?? to.z,
     opacity: blendOpacity(from.opacity, to.opacity, ctx.t) ?? to.opacity,
-    // typeConfig and type switch discretely at midpoint — no interpolation for chart type/options
-    typeConfig: ctx.t < 0.5 ? from.typeConfig : to.typeConfig,
-    type: ctx.t < 0.5 ? from.type : to.type,
-    sceneTheme: ctx.t < 0.5 ? from.sceneTheme : to.sceneTheme,
+    // typeConfig, type, and sceneTheme use to-state immediately — no midpoint switch.
+    typeConfig: to.typeConfig,
+    type: to.type,
+    sceneTheme: to.sceneTheme,
     // Internal: inject t so ChartRenderer can build MorphContext for datum-level morphing
     _morphT: ctx.t,
   }),

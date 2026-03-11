@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { ChartAxis, ChartData, ChartLegend, HeatMapChart } from '@brewsite/charts';
 import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, SceneLighting, SceneTitleBox } from './sceneShared';
+import {theme} from "../ChartDemoPage";
 
 export const Scene7 = (): JSX.Element => (
   <Scene id="chart-s7" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
@@ -12,7 +13,7 @@ export const Scene7 = (): JSX.Element => (
 
     <HeatMapChart
       id="activity-heat"
-      theme="darkGlass"
+      theme={theme}
       timeField="day"
       heightField="calls"
       colorInterpolator="viridis"

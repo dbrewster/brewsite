@@ -34,11 +34,6 @@ describe('compileDeckTheme', () => {
       expect(result.sceneTheme.colorMode).toBe('dark');
     });
 
-    it('maps accentColor to sceneTheme.accentColor', () => {
-      const result = compileDeckTheme({ accentColor: '#ff0000' });
-      expect(result.sceneTheme.accentColor).toBe('#ff0000');
-    });
-
     it('maps fonts.heading to sceneTheme.font.htmlFamily', () => {
       const result = compileDeckTheme({ fonts: { heading: 'Inter, sans-serif' } });
       expect(result.sceneTheme.font.htmlFamily).toBe('Inter, sans-serif');

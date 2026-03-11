@@ -104,9 +104,9 @@ describe('compileDataSource', () => {
     expect(result.keyField).toBe('name');
   });
 
-  it('no source: returns named with empty name', () => {
+  it('no source: returns empty inline source (live override path)', () => {
     const result = compileDataSource(baseDsl(), null);
-    expect(result).toEqual({ type: 'named', name: '' });
+    expect(result).toEqual({ type: 'inline', rows: [] });
   });
 
   it('warns in dev when no data source specified', () => {
@@ -416,9 +416,9 @@ describe('compileChart', () => {
     expect(state.bounds.height).toBe(1);
   });
 
-  it('explicit bounds.width overrides dsl.w', () => {
+  it('bounds.width is always derived from dsl.w (bounds.width override ignored)', () => {
     const state = compileChart(baseDsl({ w: 0.8, bounds: { width: 0.5 } }), 'bar', barTypeOptions, null, [], [], null, null, []);
-    expect(state.bounds.width).toBe(0.5);
+    expect(state.bounds.width).toBe(0.8);
   });
 
   it('bounds.depth defaults to 0.4 when not specified', () => {
@@ -701,45 +701,36 @@ describe('functionalChartTransitionSpec', () => {
     expect(fn(makeSimpleContext(0.5)).z).toBeCloseTo(2);
   });
 
-  it('interpolateFn switches type at midpoint', () => {
+  it('interpolateFn uses to.type immediately at t=0', () => {
     const from = { ...DEFAULT_CHART_STATE, type: 'bar' as const };
     const to = { ...DEFAULT_CHART_STATE, type: 'line' as const };
     const fn = functionalChartTransitionSpec.interpolateFn(from, to);
-    expect(fn(makeSimpleContext(0.4)).type).toBe('bar');
-    expect(fn(makeSimpleContext(0.6)).type).toBe('line');
+    expect(fn(makeSimpleContext(0)).type).toBe('line');
+    expect(fn(makeSimpleContext(0.4)).type).toBe('line');
+    expect(fn(makeSimpleContext(1)).type).toBe('line');
   });
 
-  it('interpolateFn carries from.sceneTheme at t < 0.5', () => {
+  it('interpolateFn uses to.sceneTheme immediately at t=0', () => {
     const fromTheme: SceneTheme = { ...mockSceneTheme, colorMode: 'dark' };
     const toTheme: SceneTheme = { ...mockSceneTheme, colorMode: 'light' };
     const from = { ...DEFAULT_CHART_STATE, sceneTheme: fromTheme };
     const to = { ...DEFAULT_CHART_STATE, sceneTheme: toTheme };
     const fn = functionalChartTransitionSpec.interpolateFn(from, to);
-    expect(fn(makeSimpleContext(0)).sceneTheme).toBe(fromTheme);
-    expect(fn(makeSimpleContext(0.4)).sceneTheme).toBe(fromTheme);
-  });
-
-  it('interpolateFn switches to to.sceneTheme at t >= 0.5', () => {
-    const fromTheme: SceneTheme = { ...mockSceneTheme, colorMode: 'dark' };
-    const toTheme: SceneTheme = { ...mockSceneTheme, colorMode: 'light' };
-    const from = { ...DEFAULT_CHART_STATE, sceneTheme: fromTheme };
-    const to = { ...DEFAULT_CHART_STATE, sceneTheme: toTheme };
-    const fn = functionalChartTransitionSpec.interpolateFn(from, to);
-    expect(fn(makeSimpleContext(0.5)).sceneTheme).toBe(toTheme);
+    expect(fn(makeSimpleContext(0)).sceneTheme).toBe(toTheme);
+    expect(fn(makeSimpleContext(0.4)).sceneTheme).toBe(toTheme);
     expect(fn(makeSimpleContext(1)).sceneTheme).toBe(toTheme);
   });
 
   // V2 test #15 — typeConfig + _morphT
-  it('interpolateFn at t<0.5 uses from.typeConfig; at t>=0.5 uses to.typeConfig', () => {
+  it('interpolateFn uses to.typeConfig immediately at t=0', () => {
     const fromConfig: ChartTypeOptions = { kind: 'bar', options: { stackMode: 'grouped' } };
     const toConfig: ChartTypeOptions = { kind: 'line', options: { lineShape: 'hexagon' } };
     const from = { ...DEFAULT_CHART_STATE, typeConfig: fromConfig, type: 'bar' as const };
     const to = { ...DEFAULT_CHART_STATE, typeConfig: toConfig, type: 'line' as const };
     const fn = functionalChartTransitionSpec.interpolateFn(from, to);
 
-    expect(fn(makeSimpleContext(0)).typeConfig).toBe(fromConfig);
-    expect(fn(makeSimpleContext(0.4)).typeConfig).toBe(fromConfig);
-    expect(fn(makeSimpleContext(0.5)).typeConfig).toBe(toConfig);
+    expect(fn(makeSimpleContext(0)).typeConfig).toBe(toConfig);
+    expect(fn(makeSimpleContext(0.4)).typeConfig).toBe(toConfig);
     expect(fn(makeSimpleContext(1)).typeConfig).toBe(toConfig);
   });
 

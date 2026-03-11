@@ -6,6 +6,19 @@ import type { InputActionSpec, SceneTheme, NVSRect } from '@brewsite/core';
 // ─── Theming ─────────────────────────────────────────────────────────────────
 
 /**
+ * Canonical diagram theme preset names.
+ * All six names have matching presets in @brewsite/charts (ChartThemeName).
+ * Both unions are maintained independently per package — valid divergence is expected.
+ */
+export type DiagramThemeName =
+  | 'darkGlass'
+  | 'midnight'
+  | 'neonCyber'
+  | 'enterprise'
+  | 'lightCanvas'
+  | 'lightMinimal';
+
+/**
  * Controls how edge control points are computed between nodes.
  * Applied at the diagram level via the theme, or overridden per-edge.
  * 'curved'      — current: CatmullRom spline exiting node face perpendicularly (default)

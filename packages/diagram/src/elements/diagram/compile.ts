@@ -8,11 +8,13 @@ import type {
   DiagramEdgeState,
   DiagramEasing,
   DiagramTheme,
+  DiagramThemeName,
   DiagramWarnFn,
 } from './types';
 import type { FunctionalTransitionSpec, NVSRect } from '@brewsite/core';
 import { blendOpacity, blendVec3, validateNVSRect, validateNVSPosition } from '@brewsite/core';
 import { darkGlassTheme } from './themes/darkGlass';
+import { DIAGRAM_THEMES } from './themes/index';
 import { resolveLayout, resolveLayoutWithGroups, computeBounds } from './compiler/layoutAlgorithms';
 import { routeEdges, routeEdgesYDown } from './compiler/edgeRouter';
 import { compileNode, compileEdge } from './compiler/nodeCompiler';
@@ -72,6 +74,29 @@ function groupDepth(
 type RawPosition = readonly [number, number, number];
 type RawSize = readonly [number, number];
 
+// ─── Theme Resolution ─────────────────────────────────────────────────────────
+
+/**
+ * Resolves a DiagramThemeName string, DiagramTheme object, or undefined
+ * to a concrete DiagramTheme. Unknown string names fall back to darkGlassTheme
+ * with a console.warn.
+ */
+function resolveTheme(
+  raw: DiagramThemeName | DiagramTheme | undefined,
+  fallback: DiagramTheme,
+): DiagramTheme {
+  if (raw === undefined) return fallback;
+  if (typeof raw === 'string') {
+    const named = DIAGRAM_THEMES[raw];
+    if (!named) {
+      console.warn(`[Diagram] Unknown theme name "${raw}" — falling back to darkGlass.`);
+      return fallback;
+    }
+    return named;
+  }
+  return raw;
+}
+
 // ─── compileDiagram ───────────────────────────────────────────────────────────
 
 /**
@@ -83,7 +108,7 @@ export function compileDiagram(
   fallbackTheme: DiagramTheme = darkGlassTheme,
   onWarn?: DiagramWarnFn,
 ): DiagramState {
-  const theme: DiagramTheme = dsl.theme ?? fallbackTheme;
+  const theme: DiagramTheme = resolveTheme(dsl.theme, fallbackTheme);
 
   const layoutDefaults = resolveThemeLayoutDefaults(theme.layout);
   const rootLayout: ResolvedLayout = resolveEffectiveLayout(dsl.layout, undefined, layoutDefaults);

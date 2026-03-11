@@ -78,7 +78,6 @@ export class HeatmapRenderer implements IChartRenderer {
       }
 
       const mat = new THREE.MeshPhysicalMaterial({
-        vertexColors: true,
         metalness: 0.1,
         roughness: 0.4,
         transparent: opacity < 1,

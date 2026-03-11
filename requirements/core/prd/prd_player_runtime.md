@@ -402,7 +402,6 @@ const EngineOverlayHost: React.FC<EngineOverlayHostProps>;
 | `--brewsite-color-mode` | `'dark'` or `'light'` |
 | `--brewsite-text-primary` | `#ffffff` (dark) / `#111111` (light) |
 | `--brewsite-text-secondary` | `rgba(255,255,255,0.6)` (dark) / `rgba(0,0,0,0.6)` (light) |
-| `--brewsite-accent-color` | `theme.accentColor` — only set when present |
 
 `fontFamily: 'var(--brewsite-font-family)'` is also set as an inline style on the container so that CSS inheritance propagates the font to all overlay children and DOM labels automatically.
 

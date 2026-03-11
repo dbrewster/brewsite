@@ -331,7 +331,20 @@ export class WidgetRegistry {
 
   buildCacheKey(): string {
     return Array.from(this.widgets.values())
-      .map((w) => w.widgetId)
+      .map((w) => {
+        // For widgets using FunctionalTransitionSpec, include the interpolateFn source length
+        // as a lightweight change-detection hash. When the spec's interpolateFn is edited
+        // (e.g., compile.ts changes), its .toString() length changes → cache key changes →
+        // SceneTrack recompiles with fresh closures. Prevents stale transitions after HMR.
+        if (isSceneElement(w)) {
+          const spec = w.transitionSpec as Record<string, unknown>;
+          if (typeof spec['interpolateFn'] === 'function') {
+            const len = (spec['interpolateFn'] as Function).toString().length;
+            return `${w.widgetId}:ifn${len}`;
+          }
+        }
+        return w.widgetId;
+      })
       .sort()
       .join('|');
   }

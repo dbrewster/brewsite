@@ -2,8 +2,9 @@
 // The widget renders empty until ILoadable.load() resolves.
 import type { JSX } from 'react';
 import { Camera, ProgressManager, Scene } from '@brewsite/core';
-import { ChartAxis, ChartLegend, ChartSeries, LineChart } from '@brewsite/charts';
+import {ChartAxis, ChartData, ChartLegend, ChartSeries, LineChart} from '@brewsite/charts';
 import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, CHART_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
+import {theme} from "../ChartDemoPage";
 
 export const Scene8 = (): JSX.Element => (
   <Scene id="chart-s8" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
@@ -13,8 +14,7 @@ export const Scene8 = (): JSX.Element => (
 
     <LineChart
       id="remote-chart"
-      dataUrl="/data/metrics.json"
-      theme="darkGlass"
+      theme={theme}
       lineShape="circle"
       showPoints={true}
       x={CHART_LAYOUT.x}
@@ -29,6 +29,7 @@ export const Scene8 = (): JSX.Element => (
       <ChartSeries field="revenue" label="Revenue" />
       <ChartSeries field="costs"   label="Costs" />
       <ChartLegend visible position="right" />
+      <ChartData source={'/data/metrics.json'}/>
     </LineChart>
 
     <SceneTitleBox id="s8-title" subtitle="Chart Demo · Async" title="Async Data Loading — /data/metrics.json" />

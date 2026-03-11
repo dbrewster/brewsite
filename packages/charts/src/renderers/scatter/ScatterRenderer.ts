@@ -93,7 +93,6 @@ export class ScatterRenderer implements IChartRenderer {
       this.clearMesh();
       const geo = new THREE.SphereGeometry(0.08, 12, 12);
       const mat = new THREE.MeshPhysicalMaterial({
-        vertexColors: true,
         metalness: theme.series[0]?.metalness ?? 0.2,
         roughness: theme.series[0]?.roughness ?? 0.3,
         transparent: opacity < 1,

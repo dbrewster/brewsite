@@ -171,7 +171,7 @@ export const TimelineWidget = ({
     height: isHorizontal ? trackHeight : '100%',
     minHeight: isHorizontal ? trackHeight : '100%',
     background: colors.track,
-    borderRadius: trackHeight / 2,
+    borderRadius: '2',
     flexShrink: 0,
   };
 

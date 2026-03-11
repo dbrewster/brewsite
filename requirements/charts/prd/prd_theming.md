@@ -14,13 +14,16 @@ change_history:
   - date: 2026-03-11
     author: "Toolkit Product"
     summary: "V2.1.0 theme coverage additions: five new optional token groups on ChartTheme (ChartBarTokens, ChartAreaTokens, ChartGridlinesTokens, ChartDataLabelsTokens, ChartReferenceLineTokens) and two extensions to existing types (ChartAxisTokens.titleFontSize, ChartLegendTokens.textOpacity). All new fields are optional — no breaking change to existing createChartTheme() callers. Four built-in themes updated with explicit values. ChartBackgroundTokens.gridColor deprecated in favor of ChartGridlinesTokens. lineWidth for reference lines uses world-space BoxGeometry (not LineBasicMaterial.linewidth, which is WebGL1-capped at 1px). Dashed gridlines use LineDashedMaterial (acceptable for decorative lines at 1px width)."
+  - date: 2026-03-11
+    author: "Toolkit Product"
+    summary: "Theme redesign: expanded canonical theme set from four to six names. Added midnightChartTheme (warm dark, amber-gold) and lightCanvasChartTheme (premium light, jewel-tone series). Redesigned darkGlass, neonCyber, and enterprise palettes for cross-package coherence with @brewsite/diagram. ChartThemeName union updated to include midnight and lightCanvas. CHART_THEMES registry updated with all six entries. All six themes carry 8-color series palettes coordinated with paired diagram theme files via comment blocks. Version bump: minor."
 ---
 
 # BrewSite Charts — Theming System
 
 ## 1. Overview
 
-The theming system in `@brewsite/charts` provides the complete design language for 3D chart visualization. A `ChartTheme` is a plain TypeScript object that configures series material tokens, axis styling, background plane tokens, legend styling, and interaction feedback colors for all elements within a chart. Four preset themes ship with the package, matching the names of the `@brewsite/diagram` presets for visual coherence. The `ChartTheme` accepts an optional `sceneTheme?: SceneTheme` field from `@brewsite/core` that provides cross-package font URL and color-mode defaults. This is the first mechanism for custom font rendering in the charts package.
+The theming system in `@brewsite/charts` provides the complete design language for 3D chart visualization. A `ChartTheme` is a plain TypeScript object that configures series material tokens, axis styling, background plane tokens, legend styling, and interaction feedback colors for all elements within a chart. Six preset themes ship with the package, matching the six canonical `ChartThemeName` values (`darkGlass`, `midnight`, `neonCyber`, `enterprise`, `lightCanvas`, `lightMinimal`) that correspond to the paired presets in `@brewsite/diagram`. Each preset carries an 8-color series palette coordinated with its diagram counterpart. The `ChartTheme` accepts an optional `sceneTheme?: SceneTheme` field from `@brewsite/core` that provides cross-package font URL and color-mode defaults.
 
 Affects: `@brewsite/charts`.
 
@@ -36,11 +39,11 @@ Chart rendering via troika-three-text used the troika built-in default font unco
 
 **Primary goals:**
 - A consumer can pass a `sceneTheme` to a chart and have axis labels and legend text render using the same font as diagram labels and overlay content.
-- Four preset themes (`darkGlass`, `neonCyber`, `enterprise`, `lightMinimal`) produce visually coherent chart output without additional configuration.
+- Six preset themes (`darkGlass`, `midnight`, `neonCyber`, `enterprise`, `lightCanvas`, `lightMinimal`) produce visually coherent chart output without additional configuration, with palettes coordinated with their paired `@brewsite/diagram` presets.
 - The `sceneTheme` integration is fully additive — existing charts that never set `sceneTheme` behave identically to before.
 
 **Success metrics:**
-- All four preset `ChartTheme` constants pass TypeScript strict-mode type check.
+- All six preset `ChartTheme` constants pass TypeScript strict-mode type check.
 - When `ChartTheme.sceneTheme.font.webglFontUrl` is set, troika-rendered axis and legend text uses that font file.
 - Switching between preset themes requires only a `theme` prop change on `<Chart>`.
 
@@ -65,7 +68,7 @@ Chart rendering via troika-three-text used the troika built-in default font unco
 - As a toolkit consumer, I want to pass a single preset theme string (e.g. `theme="darkGlass"`) to `<Chart>` so that all my chart elements adopt a consistent visual style without configuration.
 - As a toolkit consumer, I want to set `sceneTheme.font.webglFontUrl` on my `ChartTheme` so that chart axis labels use my branded MSDF font matching my diagram labels.
 - As a toolkit consumer, I want `<Chart theme="darkGlass" sceneTheme={mySceneTheme} />` so that I can add a custom font URL to a named preset without constructing a full `ChartTheme` object.
-- As a toolkit consumer, I want the four preset chart themes to be individually importable so that my bundle only includes the preset I use.
+- As a toolkit consumer, I want the six preset chart themes to be individually importable so that my bundle only includes the preset I use.
 - **V2.1:** As a toolkit consumer, I want `createChartTheme(darkGlassChartTheme, { bar: { padding: 0.3 } })` so that I can set the default bar padding once at the theme level instead of repeating it on every `<BarChart>` in every scene.
 - **V2.1:** As a toolkit consumer, I want `createChartTheme(base, { gridlines: { color: '#888', opacity: 0.2, visible: true } })` so that gridlines are on by default for my theme without setting `gridlines` on every `<ChartAxis>`.
 - **V2.1:** As a toolkit consumer, I want `theme.axis.titleFontSize` to be independent of `theme.axis.fontSize` so that axis titles can be slightly larger than tick labels to establish visual hierarchy.
@@ -76,7 +79,7 @@ Chart rendering via troika-three-text used the troika built-in default font unco
 ## 6. Functional Requirements
 
 1. The `ChartTheme` type shall be a plain TypeScript object type with no runtime dependencies.
-2. Four preset themes — `darkGlassChartTheme`, `neonCyberChartTheme`, `enterpriseChartTheme`, `lightMinimalChartTheme` — shall be exported as named constants from `@brewsite/charts`.
+2. Six preset themes — `darkGlassChartTheme`, `midnightChartTheme`, `neonCyberChartTheme`, `enterpriseChartTheme`, `lightCanvasChartTheme`, `lightMinimalChartTheme` — shall be exported as named constants from `@brewsite/charts`. The `ChartThemeName` union type shall include all six names: `'darkGlass' | 'midnight' | 'neonCyber' | 'enterprise' | 'lightCanvas' | 'lightMinimal'`. The `CHART_THEMES: Record<ChartThemeName, ChartTheme>` registry shall include all six entries.
 3. `ChartTheme` shall accept an optional `sceneTheme?: SceneTheme` field (imported from `@brewsite/core`).
 4. When `sceneTheme.font.webglFontUrl` is set, the chart render context shall pass it to troika-three-text for all axis tick labels, axis title labels, and legend labels.
 5. When `sceneTheme.colorMode` is `'dark'` and no explicit `ChartAxisTokens.labelColor` override is set, the chart renderer shall use a light-appropriate label color as a fallback default. Explicit theme values take precedence.
@@ -90,7 +93,7 @@ Chart rendering via troika-three-text used the troika built-in default font unco
 13. **V2.1:** `ChartGridlinesTokens.dashSize` and `gapSize` enable dashed gridlines via `LineDashedMaterial`. When absent, gridlines use `LineBasicMaterial` (solid). WebGL1 linewidth cap (1px) applies to both — dashed gridlines are decorative.
 14. **V2.1:** `ChartReferenceLineTokens.lineWidth` is a world-space width applied to a thin `BoxGeometry` plane, not a `Three.js linewidth` property. This avoids the WebGL1 1px linewidth cap for reference lines.
 15. **V2.1:** `createChartTheme(base, overrides)` shall support deep-merging all new optional token groups via `ChartThemeOverrides`. Partial overrides of nested groups are supported (e.g., overriding only `bar.padding`).
-16. **V2.1:** All four built-in preset themes shall include explicit values for all new optional token groups. New `ChartThemeOverrides` callers that don't specify new groups inherit the preset's explicit values.
+16. **V2.1:** All six built-in preset themes shall include explicit values for all new optional token groups. New `ChartThemeOverrides` callers that don't specify new groups inherit the preset's explicit values.
 
 ---
 
@@ -276,7 +279,7 @@ Explicit ChartTheme.axis.labelColor    (always wins — highest priority)
   → troika default color  (lowest priority)
 ```
 
-**Known limitation:** All four built-in `ChartTheme` presets have explicit `axis.labelColor` and `legend.textColor` values. `sceneTheme.colorMode` therefore has **no effect** on text colors when using any built-in preset without a custom override.
+**Known limitation:** All six built-in `ChartTheme` presets have explicit `axis.labelColor` and `legend.textColor` values. `sceneTheme.colorMode` therefore has **no effect** on text colors when using any built-in preset without a custom override.
 
 ### 7.6 Usage Patterns
 
@@ -390,7 +393,7 @@ The chart render context derives axis/legend label color fallbacks from `sceneTh
 - `'dark'` → `'rgba(255,255,255,0.8)'` for axis labels, `'rgba(255,255,255,0.7)'` for legend text
 - `'light'` → `'rgba(0,0,0,0.8)'` for axis labels, `'rgba(0,0,0,0.7)'` for legend text
 
-These fallbacks are only used when the resolved `ChartTheme` has no explicit `axis.labelColor` or `legend.textColor`. Since all four built-in presets define these explicitly, colorMode fallbacks are only active in fully custom themes.
+These fallbacks are only used when the resolved `ChartTheme` has no explicit `axis.labelColor` or `legend.textColor`. Since all six built-in presets define these explicitly, colorMode fallbacks are only active in fully custom themes.
 
 ### No font URL in ChartState compiled output
 
@@ -400,7 +403,7 @@ These fallbacks are only used when the resolved `ChartTheme` has no explicit `ax
 
 ## 9. Known Limitations
 
-1. **`sceneTheme.colorMode` has no effect on built-in preset label colors.** All four built-in chart theme presets have explicit `axis.labelColor` and `legend.textColor` values. The colorMode-derived fallback only applies when these fields are not set. Custom themes that omit explicit label colors will receive colorMode defaults.
+1. **`sceneTheme.colorMode` has no effect on built-in preset label colors.** All six built-in chart theme presets have explicit `axis.labelColor` and `legend.textColor` values. The colorMode-derived fallback only applies when these fields are not set. Custom themes that omit explicit label colors will receive colorMode defaults.
 
 2. **WebGL font URL must be MSDF-encoded.** Standard web font URLs will not render correctly in troika-three-text. The file must be MSDF-pre-processed. Self-host for production.
 
@@ -410,7 +413,9 @@ These fallbacks are only used when the resolved `ChartTheme` has no explicit `ax
 
 ## 10. Breaking Change Assessment
 
-**Theme system (this PRD's original scope): Semver impact: minor.** `ChartTheme.sceneTheme` and `ChartDSL.sceneTheme` are optional additions. All four preset themes remain valid without modification. No existing `ChartTheme` fields are changed.
+**Theme system (original scope): Semver impact: minor.** `ChartTheme.sceneTheme` and `ChartDSL.sceneTheme` are optional additions. All four original preset themes remain valid. No existing `ChartTheme` fields are changed.
+
+**Theme redesign (this release): Semver impact: minor.** Two new presets added (`midnight`, `lightCanvas`). Existing preset palette values redesigned for cross-package coherence. `ChartThemeName` union expanded from 4 to 6 values. Palette value changes are product content, not API contracts — no migration required.
 
 **NVS Universal Coordinate System (breaking change — major semver impact on `@brewsite/charts`):**
 
@@ -463,10 +468,16 @@ Any consumer code that passes `camera` or `domElement` to `ChartTooltipOverlay` 
 - [x] `fontUrl` threaded through `ChartRenderContext` to `AxesRenderer`, `LegendRenderer`, and all six chart renderers.
 - [x] `pnpm test` passes for `@brewsite/charts`.
 
+**Shipped (theme redesign):**
+- [x] All six `ChartTheme` preset constants (`darkGlassChartTheme`, `midnightChartTheme`, `neonCyberChartTheme`, `enterpriseChartTheme`, `lightCanvasChartTheme`, `lightMinimalChartTheme`) exported from `@brewsite/charts`.
+- [x] `ChartThemeName` union includes `midnight` and `lightCanvas`.
+- [x] `CHART_THEMES` registry includes all six entries.
+- [x] Each preset theme file contains the cross-package palette comment block matching the paired `@brewsite/diagram` theme file.
+
 **V2.1 (pending implementation):**
 - [ ] Five new optional token group types exported from `@brewsite/charts`: `ChartBarTokens`, `ChartAreaTokens`, `ChartGridlinesTokens`, `ChartDataLabelsTokens`, `ChartReferenceLineTokens`.
 - [ ] `ChartAxisTokens.titleFontSize` and `ChartLegendTokens.textOpacity` optional fields present and typed.
-- [ ] All four built-in themes include explicit values for all new token groups.
+- [ ] All six built-in themes include explicit values for all new token groups.
 - [ ] `createChartTheme()` `ChartThemeOverrides` accepts and deep-merges all new token groups.
 - [ ] `AxesRenderer` uses `titleFontSize ?? fontSize * 1.1` for axis title rendering.
 - [ ] `LegendRenderer` applies `textOpacity ?? 1.0` to legend label material/text opacity.

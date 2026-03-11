@@ -2,6 +2,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { createChartTheme } from '../createChartTheme';
+import { CHART_THEMES } from '../index';
 import { darkGlassChartTheme } from '../darkGlass';
 import { enterpriseChartTheme } from '../enterprise';
 import type { ChartTheme } from '../types';
@@ -157,7 +158,7 @@ describe('createChartTheme', () => {
       gridlines: { opacity: 0.5 },
     });
     // color and dashSize from neonCyber base preserved
-    expect(result.gridlines?.color).toBe('#00ffcc');
+    expect(result.gridlines?.color).toBe('#7b2dff');
     expect(result.gridlines?.dashSize).toBe(0.03);
     expect(result.gridlines?.gapSize).toBe(0.02);
     expect(result.gridlines?.opacity).toBe(0.5);
@@ -205,5 +206,82 @@ describe('createChartTheme', () => {
     // Other axis fields inherited
     expect(result.axis.lineColor).toBe(darkGlassChartTheme.axis.lineColor);
     expect(result.axis.fontSize).toBe(darkGlassChartTheme.axis.fontSize);
+  });
+});
+
+describe('new theme names midnight and lightCanvas', () => {
+  it('createChartTheme("midnight", {}) returns theme with name "midnight"', () => {
+    const result = createChartTheme('midnight', {});
+    expect(result.name).toBe('midnight');
+  });
+
+  it('createChartTheme("midnight", {}) has 8 series', () => {
+    const result = createChartTheme('midnight', {});
+    expect(result.series).toHaveLength(8);
+  });
+
+  it('createChartTheme("midnight", {}) series[0].color is #d08c20', () => {
+    const result = createChartTheme('midnight', {});
+    expect(result.series[0]?.color).toBe('#d08c20');
+  });
+
+  it('createChartTheme("lightCanvas", {}) returns theme with name "lightCanvas"', () => {
+    const result = createChartTheme('lightCanvas', {});
+    expect(result.name).toBe('lightCanvas');
+  });
+
+  it('createChartTheme("lightCanvas", {}) series[0].color is #3355cc', () => {
+    const result = createChartTheme('lightCanvas', {});
+    expect(result.series[0]?.color).toBe('#3355cc');
+  });
+
+  it('createChartTheme("lightCanvas", {}) series[0].emissiveIntensity is 0.0', () => {
+    const result = createChartTheme('lightCanvas', {});
+    expect(result.series[0]?.emissiveIntensity).toBe(0.0);
+  });
+
+  it('createChartTheme("midnight", { series: [{ color: "#ff0000" }] }) overrides series[0] color', () => {
+    const result = createChartTheme('midnight', { series: [{ color: '#ff0000' }] });
+    expect(result.series[0]?.color).toBe('#ff0000');
+  });
+});
+
+describe('CHART_THEMES registry completeness', () => {
+  it('CHART_THEMES contains exactly 6 keys', () => {
+    expect(Object.keys(CHART_THEMES)).toHaveLength(6);
+  });
+
+  it('CHART_THEMES.midnight resolves to midnightChartTheme', () => {
+    expect(CHART_THEMES.midnight).toBeDefined();
+    expect(CHART_THEMES.midnight.name).toBe('midnight');
+  });
+
+  it('CHART_THEMES.lightCanvas resolves to lightCanvasChartTheme', () => {
+    expect(CHART_THEMES.lightCanvas).toBeDefined();
+    expect(CHART_THEMES.lightCanvas.name).toBe('lightCanvas');
+  });
+
+  it('CHART_THEMES contains all 6 canonical keys', () => {
+    expect(CHART_THEMES).toHaveProperty('darkGlass');
+    expect(CHART_THEMES).toHaveProperty('midnight');
+    expect(CHART_THEMES).toHaveProperty('neonCyber');
+    expect(CHART_THEMES).toHaveProperty('enterprise');
+    expect(CHART_THEMES).toHaveProperty('lightCanvas');
+    expect(CHART_THEMES).toHaveProperty('lightMinimal');
+  });
+});
+
+describe('neonCyber stepped emissive intensities', () => {
+  it('neonCyber chart theme series emissive intensities are stepped (not uniform)', () => {
+    const theme = CHART_THEMES.neonCyber;
+    expect(theme.series[0]!.emissiveIntensity).toBeGreaterThan(theme.series[7]!.emissiveIntensity);
+  });
+
+  it('neonCyber series[0] emissiveIntensity is exactly 0.90', () => {
+    expect(CHART_THEMES.neonCyber.series[0]!.emissiveIntensity).toBe(0.90);
+  });
+
+  it('neonCyber series[7] emissiveIntensity is exactly 0.62', () => {
+    expect(CHART_THEMES.neonCyber.series[7]!.emissiveIntensity).toBe(0.62);
   });
 });

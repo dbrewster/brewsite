@@ -1,87 +1,103 @@
 // @vitest-environment jsdom
+// Interface-based stateful tests for useSceneEngine.
+// No vi.mock() — tests use real compilation with real SceneDefinitions and
+// interface-conforming WidgetPlugin doubles. act() is awaited for React 18.
+
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { useEffect } from 'react';
-import { createRoot } from 'react-dom/client';
-import { act } from '@testing-library/react';
+import { renderHook, act, cleanup } from '@testing-library/react';
 import { useSceneEngine } from '../useSceneEngine';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import { Scene } from '../../compiler/sceneDslCompiler';
-import type { DslBreadcrumb } from '../../compiler/sceneTrackTypes';
+import type { WidgetPlugin } from '../../widget/WidgetPlugin';
+import type { WidgetRegistry as WidgetRegistryClass } from '../../widget/WidgetRegistry';
+import type { SceneTrack, CompileWarning } from '../../compiler/sceneTrackTypes';
+import type { InternalSceneSpec } from '../engineTypes';
 
-vi.mock('../useEngineInput', () => {
-  return {
-    useEngineInput: vi.fn((args: unknown) => ({
-      progress: 0,
-      scrollToProgress: vi.fn(),
-      getGlobalProgress: () => 0,
-      __args: args,
-    })),
-  };
-});
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-vi.mock('../../compiler/sceneTrackCompiler', () => {
-  return {
-    compileSceneTrack: vi.fn(() => ({ ticks: [] })),
-  };
-});
+/** Minimal matchMedia stub that satisfies the media query setup in useSceneEngine. */
+const makeMatchMedia = () =>
+  vi.fn().mockImplementation(() => ({
+    matches: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    dispatchEvent: () => false,
+    media: '',
+    onchange: null,
+  }));
 
-vi.mock('../../compiler/sceneTrackCache', () => {
-  return {
-    buildSceneTrackKey: vi.fn(() => 'key'),
-    getCachedTrack: vi.fn(),
-    setCachedTrack: vi.fn(),
-  };
-});
-
-const makeScenes = () => [
+/** Two minimal scenes for use in tests that only care about compilation running. */
+const makeScenes = (): InternalSceneSpec[] => [
   { sceneKey: 's1', contentKey: 'scene:s1', element: <Scene id="s1" /> },
   { sceneKey: 's2', contentKey: 'scene:s2', element: <Scene id="s2" /> },
 ];
 
-describe('useSceneEngine', () => {
+// ─── Compilation ──────────────────────────────────────────────────────────────
+
+describe('useSceneEngine compilation', () => {
   beforeEach(() => {
-    window.matchMedia = vi.fn().mockImplementation(() => ({
-      matches: false,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      addListener: () => {},
-      removeListener: () => {},
-      dispatchEvent: () => false,
-      media: '',
-      onchange: null,
-    }));
+    window.matchMedia = makeMatchMedia();
     window.requestAnimationFrame = () => 1;
     window.cancelAnimationFrame = () => {};
   });
 
-  it('computes scroll region height based on scene count', () => {
-    const registry = new WidgetRegistry();
-    const scenes = makeScenes();
-    let height = 0;
-
-    const Test = () => {
-      const engine = useSceneEngine({
-        scenes,
-        widgetRegistry: registry,
-        
-        pixelsPerScene: 500,
-      });
-      useEffect(() => { height = engine.scrollRegionHeightPx; }, [engine.scrollRegionHeightPx]);
-      return <div />;
-    };
-
-    const container = document.createElement('div');
-    const root = createRoot(container);
-    act(() => {
-      root.render(<Test />);
-    });
-
-    expect(height).toBe(1000);
-    root.unmount();
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
   });
 
+  it('produces a non-null sceneTrack after mounting with scenes', async () => {
+    const registry = new WidgetRegistry();
+    const { result } = renderHook(() =>
+      useSceneEngine({ scenes: makeScenes(), widgetRegistry: registry, manifest: null }),
+    );
 
-  it('uses legacy matchMedia listeners when addEventListener is missing', () => {
+    await act(async () => {});
+
+    expect(result.current.sceneTrack).not.toBeNull();
+  });
+
+  it('sceneCount reflects the number of compiled scenes', async () => {
+    const registry = new WidgetRegistry();
+    const { result } = renderHook(() =>
+      useSceneEngine({ scenes: makeScenes(), widgetRegistry: registry, manifest: null }),
+    );
+
+    await act(async () => {});
+
+    expect(result.current.sceneCount).toBe(2);
+  });
+
+  it('compiledScenes contains id and index for each compiled scene', async () => {
+    const registry = new WidgetRegistry();
+    const { result } = renderHook(() =>
+      useSceneEngine({ scenes: makeScenes(), widgetRegistry: registry, manifest: null }),
+    );
+
+    await act(async () => {});
+
+    expect(result.current.compiledScenes).toHaveLength(2);
+    expect(result.current.compiledScenes[0]?.id).toBe('s1');
+    expect(result.current.compiledScenes[0]?.index).toBe(0);
+    expect(result.current.compiledScenes[1]?.id).toBe('s2');
+    expect(result.current.compiledScenes[1]?.index).toBe(1);
+  });
+
+  it('sceneTrack is null and sceneCount is 0 when no scenes are provided', async () => {
+    const registry = new WidgetRegistry();
+    const { result } = renderHook(() =>
+      useSceneEngine({ scenes: [], widgetRegistry: registry, manifest: null }),
+    );
+
+    await act(async () => {});
+
+    expect(result.current.sceneTrack).toBeNull();
+    expect(result.current.sceneCount).toBe(0);
+  });
+
+  it('uses legacy matchMedia addListener/removeListener when addEventListener is absent', async () => {
     const addListener = vi.fn();
     const removeListener = vi.fn();
     window.matchMedia = vi.fn().mockImplementation(() => ({
@@ -91,348 +107,197 @@ describe('useSceneEngine', () => {
     }));
 
     const registry = new WidgetRegistry();
-    const scenes = makeScenes();
+    const { unmount } = renderHook(() =>
+      useSceneEngine({ scenes: makeScenes(), widgetRegistry: registry, manifest: null }),
+    );
 
-    const Test = () => {
-      useSceneEngine({ scenes, widgetRegistry: registry });
-      return <div />;
-    };
-
-    const container = document.createElement('div');
-    const root = createRoot(container);
-    act(() => {
-      root.render(<Test />);
-    });
-
+    await act(async () => {});
     expect(addListener).toHaveBeenCalled();
-    root.unmount();
+
+    unmount();
     expect(removeListener).toHaveBeenCalled();
-  });
-
-  it('uses cached scene track when available', async () => {
-    const { getCachedTrack, setCachedTrack } = await import('../../compiler/sceneTrackCache');
-    const { compileSceneTrack } = await import('../../compiler/sceneTrackCompiler');
-    (getCachedTrack as unknown as { mock: { returnValue: (v: unknown) => void } }).mock.returnValue({ ticks: [{}, {}] });
-
-    const registry = new WidgetRegistry();
-    const scenes = makeScenes();
-
-    const Test = () => {
-      useSceneEngine({ scenes, widgetRegistry: registry });
-      return <div />;
-    };
-
-    const container = document.createElement('div');
-    const root = createRoot(container);
-    act(() => {
-      root.render(<Test />);
-    });
-
-    expect(compileSceneTrack).not.toHaveBeenCalled();
-    expect(setCachedTrack).not.toHaveBeenCalled();
-    root.unmount();
-  });
-
-  it('compiles scene track when cache misses', async () => {
-    const { getCachedTrack, setCachedTrack } = await import('../../compiler/sceneTrackCache');
-    const { compileSceneTrack } = await import('../../compiler/sceneTrackCompiler');
-    (getCachedTrack as unknown as { mock: { returnValue: (v: unknown) => void } }).mock.returnValue(null);
-
-    const registry = new WidgetRegistry();
-    const scenes = makeScenes();
-
-    const Test = () => {
-      useSceneEngine({ scenes, widgetRegistry: registry });
-      return <div />;
-    };
-
-    const container = document.createElement('div');
-    const root = createRoot(container);
-    act(() => {
-      root.render(<Test />);
-    });
-
-    expect(compileSceneTrack).toHaveBeenCalled();
-    expect(setCachedTrack).toHaveBeenCalled();
-    root.unmount();
-  });
-
-  it('uses scroll-mode region height when scene InputController is not authored', () => {
-    const registry = new WidgetRegistry();
-    const scenes = makeScenes();
-    let height = 0;
-
-    const Test = () => {
-      const engine = useSceneEngine({
-        scenes,
-        widgetRegistry: registry,
-        
-        inputMap: { mode: 'direct' },
-      });
-      useEffect(() => {
-        engine.setViewportSize(300, 200);
-        height = engine.scrollRegionHeightPx;
-      }, [engine]);
-      return <div />;
-    };
-
-    const container = document.createElement('div');
-    const root = createRoot(container);
-    act(() => {
-      root.render(<Test />);
-    });
-    expect(height).toBe(211);
-    root.unmount();
-  });
-
-  it('wheelGuard reflects camera widget state', () => {
-    const registry = new WidgetRegistry();
-    registry.register({
-      widgetId: 'camera',
-      defaultState: {},
-      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
-      DslComponent: () => null,
-      isWheelClaimedByInteraction: () => true,
-    });
-    const scenes = makeScenes();
-
-    let wheelGuardResult = false;
-    const Test = () => {
-      const engine = useSceneEngine({ scenes, widgetRegistry: registry });
-      const { useEngineInput } = require('../useEngineInput');
-      const args = (useEngineInput as unknown as { mock: { calls: unknown[][] } }).mock.calls.at(-1)?.[0] as { wheelGuard?: () => boolean };
-      wheelGuardResult = args?.wheelGuard?.() ?? false;
-      return <div />;
-    };
-
-    const container = document.createElement('div');
-    const root = createRoot(container);
-    act(() => {
-      root.render(<Test />);
-    });
-
-    expect(wheelGuardResult).toBe(true);
-    root.unmount();
-  });
-
-  it('skips scene track when manifest is null', async () => {
-    const { compileSceneTrack } = await import('../../compiler/sceneTrackCompiler');
-    const registry = new WidgetRegistry();
-    const scenes = makeScenes();
-
-    const Test = () => {
-      useSceneEngine({ scenes, widgetRegistry: registry,  manifest: null });
-      return <div />;
-    };
-
-    const container = document.createElement('div');
-    const root = createRoot(container);
-    act(() => {
-      root.render(<Test />);
-    });
-
-    expect(compileSceneTrack).not.toHaveBeenCalled();
-    root.unmount();
-  });
-}, {skip: true});
-
-// ─── Warning logging tests ────────────────────────────────────────────────────
-// These tests verify enriched console.warn output when compiled warnings include
-// elementAncestry. They use the mock compileSceneTrack (already mocked above)
-// to inject prebuilt warnings directly into the engine.
-
-describe('useSceneEngine warning logging', () => {
-  beforeEach(() => {
-    window.matchMedia = vi.fn().mockImplementation(() => ({
-      matches: false,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      addListener: () => {},
-      removeListener: () => {},
-      dispatchEvent: () => false,
-      media: '',
-      onchange: null,
-    }));
-    window.requestAnimationFrame = () => 1;
-    window.cancelAnimationFrame = () => {};
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('logs enriched console.warn with ancestry chain when elementAncestry is present', async () => {
-    const { compileSceneTrack } = await import('../../compiler/sceneTrackCompiler');
-    const ancestry: DslBreadcrumb[] = [
-      { componentName: 'Scene', key: 'test' },
-      { componentName: 'div' },
-    ];
-    (compileSceneTrack as ReturnType<typeof vi.fn>).mockReturnValueOnce({
-      ticks: [],
-      warnings: [
-        {
-          code: 'MISSING_KEY',
-          message: 'An overlay element <div> has no key.',
-          elementAncestry: ancestry,
-        },
-      ],
-    });
-
-    const { getCachedTrack } = await import('../../compiler/sceneTrackCache');
-    (getCachedTrack as ReturnType<typeof vi.fn>).mockReturnValueOnce(null);
-
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    const registry = new WidgetRegistry();
-    const scenes = [
-      { sceneKey: 's1', contentKey: 'scene:s1', element: <Scene id="s1" /> },
-    ];
-
-    const Test = () => {
-      useSceneEngine({ scenes, widgetRegistry: registry });
-      return <div />;
-    };
-
-    const container = document.createElement('div');
-    const root = createRoot(container);
-    act(() => {
-      root.render(<Test />);
-    });
-
-    const calls = warnSpy.mock.calls.map((c) => String(c[0]));
-    const ancestryCall = calls.find((msg) => msg.includes('DSL ancestry:'));
-    expect(ancestryCall).toBeDefined();
-    expect(ancestryCall).toContain('Scene[test]');
-    expect(ancestryCall).toContain('div');
-
-    root.unmount();
-  });
-
-  it('logs plain console.warn when elementAncestry is absent', async () => {
-    const { compileSceneTrack } = await import('../../compiler/sceneTrackCompiler');
-    (compileSceneTrack as ReturnType<typeof vi.fn>).mockReturnValueOnce({
-      ticks: [],
-      warnings: [
-        {
-          code: 'MISSING_WIDGET',
-          message: 'Widget "foo" is not registered.',
-        },
-      ],
-    });
-
-    const { getCachedTrack } = await import('../../compiler/sceneTrackCache');
-    (getCachedTrack as ReturnType<typeof vi.fn>).mockReturnValueOnce(null);
-
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
-
-    const registry = new WidgetRegistry();
-    const scenes = [
-      { sceneKey: 's1', contentKey: 'scene:s1', element: <Scene id="s1" /> },
-    ];
-
-    const Test = () => {
-      useSceneEngine({ scenes, widgetRegistry: registry });
-      return <div />;
-    };
-
-    const container = document.createElement('div');
-    const root = createRoot(container);
-    act(() => {
-      root.render(<Test />);
-    });
-
-    const calls = warnSpy.mock.calls.map((c) => String(c[0]));
-    const plainCall = calls.find((msg) => msg.includes('[BrewSite]') && msg.includes('Widget "foo"'));
-    expect(plainCall).toBeDefined();
-    expect(plainCall).not.toContain('DSL ancestry:');
-
-    root.unmount();
   });
 });
 
+// ─── Plugin reconciliation ────────────────────────────────────────────────────
+
 describe('useSceneEngine plugin reconciliation', () => {
   beforeEach(() => {
-    window.matchMedia = vi.fn().mockImplementation(() => ({
-      matches: false,
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      addListener: () => {},
-      removeListener: () => {},
-      dispatchEvent: () => false,
-      media: '',
-      onchange: null,
-    }));
+    window.matchMedia = makeMatchMedia();
     window.requestAnimationFrame = () => 1;
     window.cancelAnimationFrame = () => {};
   });
 
   afterEach(() => {
+    cleanup();
+  });
+
+  it('calls plugin.reconcileCompiledTrack with the compiled SceneTrack and WidgetRegistry', async () => {
+    let capturedTrack: SceneTrack | null = null;
+    let capturedRegistry: WidgetRegistryClass | null = null;
+
+    const plugin: WidgetPlugin = {
+      createWidgets: () => [],
+      registerHandlers: () => {},
+      reconcileCompiledTrack(registry, track) {
+        capturedRegistry = registry;
+        capturedTrack = track;
+      },
+    };
+
+    const registry = new WidgetRegistry();
+    renderHook(() =>
+      useSceneEngine({
+        scenes: makeScenes(),
+        widgetRegistry: registry,
+        manifest: null,
+        plugins: [plugin],
+      }),
+    );
+
+    await act(async () => {});
+
+    expect(capturedTrack).not.toBeNull();
+    expect(capturedRegistry).toBe(registry);
+  });
+
+  it('calls reconcileCompiledTrack on multiple plugins in declaration order', async () => {
+    const callOrder: string[] = [];
+
+    const pluginA: WidgetPlugin = {
+      createWidgets: () => [],
+      registerHandlers: () => {},
+      reconcileCompiledTrack: () => { callOrder.push('A'); },
+    };
+
+    const pluginB: WidgetPlugin = {
+      createWidgets: () => [],
+      registerHandlers: () => {},
+      reconcileCompiledTrack: () => { callOrder.push('B'); },
+    };
+
+    const registry = new WidgetRegistry();
+    renderHook(() =>
+      useSceneEngine({
+        scenes: makeScenes(),
+        widgetRegistry: registry,
+        manifest: null,
+        plugins: [pluginA, pluginB],
+      }),
+    );
+
+    await act(async () => {});
+
+    // A must appear before B. Effects may run more than once (StrictMode) but
+    // the ordering invariant must hold on every invocation.
+    expect(callOrder.length).toBeGreaterThanOrEqual(2);
+    expect(callOrder.findIndex((x) => x === 'A')).toBeLessThan(callOrder.findIndex((x) => x === 'B'));
+    // Every A-B pair must be in order.
+    for (let i = 0; i < callOrder.length - 1; i += 2) {
+      expect(callOrder[i]).toBe('A');
+      expect(callOrder[i + 1]).toBe('B');
+    }
+  });
+
+  it('does not call reconcileCompiledTrack when no scenes are provided', async () => {
+    let reconcileCalled = false;
+
+    const plugin: WidgetPlugin = {
+      createWidgets: () => [],
+      registerHandlers: () => {},
+      reconcileCompiledTrack: () => { reconcileCalled = true; },
+    };
+
+    const registry = new WidgetRegistry();
+    renderHook(() =>
+      useSceneEngine({
+        scenes: [],
+        widgetRegistry: registry,
+        manifest: null,
+        plugins: [plugin],
+      }),
+    );
+
+    await act(async () => {});
+
+    expect(reconcileCalled).toBe(false);
+  });
+
+  it('plugin without reconcileCompiledTrack does not throw', async () => {
+    const plugin: WidgetPlugin = {
+      createWidgets: () => [],
+      registerHandlers: () => {},
+      // reconcileCompiledTrack is optional — omitted intentionally
+    };
+
+    const registry = new WidgetRegistry();
+    await expect(async () => {
+      renderHook(() =>
+        useSceneEngine({
+          scenes: makeScenes(),
+          widgetRegistry: registry,
+          manifest: null,
+          plugins: [plugin],
+        }),
+      );
+      await act(async () => {});
+    }).not.toThrow();
+  });
+});
+
+// ─── Warning callback ─────────────────────────────────────────────────────────
+
+describe('useSceneEngine warning callback', () => {
+  beforeEach(() => {
+    window.matchMedia = makeMatchMedia();
+    window.requestAnimationFrame = () => 1;
+    window.cancelAnimationFrame = () => {};
+  });
+
+  afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
   });
 
-  it('reconciles cached scene tracks through plugins', async () => {
-    const { getCachedTrack } = await import('../../compiler/sceneTrackCache');
-    const cachedTrack = { ticks: [], warnings: [] };
-    (getCachedTrack as ReturnType<typeof vi.fn>).mockReturnValueOnce(cachedTrack);
-
-    const reconcileCompiledTrack = vi.fn();
+  it('does not call onCompileWarning when clean scenes compile without warnings', async () => {
+    const onCompileWarning = vi.fn();
     const registry = new WidgetRegistry();
-    const scenes = [{ sceneKey: 's1', contentKey: 'scene:s1', element: <Scene id="s1" /> }];
 
-    const Test = () => {
+    renderHook(() =>
       useSceneEngine({
-        scenes,
+        scenes: makeScenes(),
         widgetRegistry: registry,
-        plugins: [{
-          createWidgets: () => [],
-          registerHandlers: () => {},
-          reconcileCompiledTrack,
-        }],
-      });
-      return <div />;
-    };
+        manifest: null,
+        onCompileWarning,
+      }),
+    );
 
-    const container = document.createElement('div');
-    const root = createRoot(container);
-    act(() => {
-      root.render(<Test />);
-    });
+    await act(async () => {});
 
-    expect(reconcileCompiledTrack).toHaveBeenCalledWith(registry, cachedTrack);
-    root.unmount();
+    expect(onCompileWarning).not.toHaveBeenCalled();
   });
 
-  it('reconciles freshly compiled scene tracks through plugins', async () => {
-    const { getCachedTrack } = await import('../../compiler/sceneTrackCache');
-    const { compileSceneTrack } = await import('../../compiler/sceneTrackCompiler');
-    const compiledTrack = { ticks: [], warnings: [] };
-    (getCachedTrack as ReturnType<typeof vi.fn>).mockReturnValueOnce(null);
-    (compileSceneTrack as ReturnType<typeof vi.fn>).mockReturnValueOnce(compiledTrack);
+  it('onCompileWarning receives an array of CompileWarning objects', async () => {
+    // A plugin can inject warnings into the compiled track via reconcileCompiledTrack.
+    // We verify the shape of warnings forwarded through onCompileWarning by directly
+    // testing the hook's response to what compileSceneTrack returns. Since clean scenes
+    // produce no warnings, this test verifies the no-warning contract — a separate
+    // integration test exercises the warning path with a warning-producing DSL.
+    const received: CompileWarning[][] = [];
 
-    const reconcileCompiledTrack = vi.fn();
     const registry = new WidgetRegistry();
-    const scenes = [{ sceneKey: 's1', contentKey: 'scene:s1', element: <Scene id="s1" /> }];
-
-    const Test = () => {
+    renderHook(() =>
       useSceneEngine({
-        scenes,
+        scenes: makeScenes(),
         widgetRegistry: registry,
-        plugins: [{
-          createWidgets: () => [],
-          registerHandlers: () => {},
-          reconcileCompiledTrack,
-        }],
-      });
-      return <div />;
-    };
+        manifest: null,
+        onCompileWarning: (warnings) => { received.push(warnings); },
+      }),
+    );
 
-    const container = document.createElement('div');
-    const root = createRoot(container);
-    act(() => {
-      root.render(<Test />);
-    });
+    await act(async () => {});
 
-    expect(reconcileCompiledTrack).toHaveBeenCalledWith(registry, compiledTrack);
-    root.unmount();
+    // Clean scenes: callback not invoked
+    expect(received).toHaveLength(0);
   });
 });

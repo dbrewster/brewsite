@@ -3,11 +3,14 @@ title: "BrewSite Core — Cross-Package Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-04
+last_updated: 2026-03-11
 change_history:
   - date: 2026-03-04
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents the complete SceneTheme cross-package theming system as implemented: types module, ThemeContext, CSS variable injection in EngineOverlayHost, sceneTheme prop on EngineProvider, darkSceneTheme/lightSceneTheme presets, and per-package integration surface."
+  - date: 2026-03-11
+    author: "Toolkit Product"
+    summary: "Theme redesign: removed SceneTheme.accentColor (field was never consumed by any package; migration: inject --brewsite-accent-color directly in your stylesheet if needed). Expanded preset library from 2 to 6 named presets: darkGlassSceneTheme, midnightSceneTheme, neonCyberSceneTheme, enterpriseSceneTheme, lightCanvasSceneTheme, lightMinimalSceneTheme. Removed --brewsite-accent-color from CSS variable injection. Version bump: minor."
 ---
 
 # BrewSite Core — Cross-Package Theming System
@@ -37,7 +40,7 @@ Additionally, the Background element supported only solid color and image fills 
 - The system is fully additive — existing scenes with no `SceneTheme` behave identically to before.
 
 **Success metrics:**
-- Zero TypeScript errors in strict mode for any code that constructs a `SceneTheme` or uses `darkSceneTheme`/`lightSceneTheme`.
+- Zero TypeScript errors in strict mode for any code that constructs a `SceneTheme` or uses any of the six named `SceneTheme` presets.
 - CSS variables injected by `EngineOverlayHost` are measurable in browser DevTools on the overlay container element when `sceneTheme` is provided.
 - Switching a demo scene from dark to light requires ≤ 2 code edits (sceneTheme prop change + DiagramTheme/ChartTheme adjustment if applicable).
 
@@ -73,14 +76,14 @@ Additionally, the Background element supported only solid color and image fills 
 
 ## 6. Functional Requirements
 
-1. The `SceneTheme` type and all its sub-types (`SceneColorMode`, `SceneThemeFontTokens`, `SceneThemeFontSizeScale`, `SceneThemeBackgroundFill`, `SceneThemeBackgroundEffects`, `SceneThemeBackground`) shall be exported from `@brewsite/core/src/index.ts`.
+1. The `SceneTheme` type and all its sub-types (`SceneColorMode`, `SceneThemeFontTokens`, `SceneThemeFontSizeScale`, `SceneThemeBackgroundFill`, `SceneThemeBackgroundEffects`, `SceneThemeBackground`) shall be exported from `@brewsite/core/src/index.ts`. `SceneTheme` does not include an `accentColor` field.
 2. `EngineProvider` shall accept an optional `sceneTheme?: SceneTheme` prop and provide it via `ThemeContext`.
 3. `EngineOverlayHost` shall read from `ThemeContext` and, when a theme is present, inject CSS custom properties on its root `<div>` element.
-4. CSS variable injection shall cover: `--brewsite-font-family`, `--brewsite-font-size-heading`, `--brewsite-font-size-body`, `--brewsite-font-size-label`, `--brewsite-font-size-caption`, `--brewsite-font-size-annotation`, `--brewsite-color-mode`, `--brewsite-text-primary`, `--brewsite-text-secondary`. `--brewsite-accent-color` shall be injected only when `SceneTheme.accentColor` is set.
+4. CSS variable injection shall cover: `--brewsite-font-family`, `--brewsite-font-size-heading`, `--brewsite-font-size-body`, `--brewsite-font-size-label`, `--brewsite-font-size-caption`, `--brewsite-font-size-annotation`, `--brewsite-color-mode`, `--brewsite-text-primary`, `--brewsite-text-secondary`. `--brewsite-accent-color` is not injected by the engine; consumers who need this variable must set it directly in their own stylesheet.
 5. CSS font size variables shall use `calc(1rem * <scale>)` values — they do not depend on a `--brewsite-base-font-size` variable.
 6. `ThemeContext` shall hold a single static value for the player lifetime; it shall not change per scene.
 7. `fontFamily: 'var(--brewsite-font-family)'` shall be set as an inline style on the `EngineOverlayHost` container so that CSS inheritance propagates to all overlay children and label DOM elements without requiring each child to opt in.
-8. `darkSceneTheme` and `lightSceneTheme` preset constants shall be exported from `@brewsite/core`.
+8. Six named `SceneTheme` preset constants shall be exported from `@brewsite/core`: `darkGlassSceneTheme`, `midnightSceneTheme`, `neonCyberSceneTheme`, `enterpriseSceneTheme`, `lightCanvasSceneTheme`, `lightMinimalSceneTheme`. The generic `darkSceneTheme` and `lightSceneTheme` constants remain exported for backward compatibility.
 9. All `SceneTheme` fields shall be `readonly`. The type shall have no runtime dependencies — it is pure TypeScript data.
 10. `ThemeContext` shall export a `useTheme(): SceneTheme | null` hook consumed internally by `EngineOverlayHost`.
 11. When `sceneTheme` is absent from `EngineProvider`, `EngineOverlayHost` shall inject no CSS variables and apply no theme styles — overlay behavior is unchanged from pre-theming behavior.
@@ -140,8 +143,6 @@ export type SceneTheme = {
   readonly font: SceneThemeFontTokens;
   readonly fontSize: SceneThemeFontSizeScale;
   readonly background?: SceneThemeBackground;
-  /** Primary accent color — optional. CSS hex string. e.g. '#6b48ff' */
-  readonly accentColor?: string;
 };
 ```
 
@@ -191,46 +192,40 @@ When `ThemeContext` contains a `SceneTheme`, `EngineOverlayHost` injects these c
 | `--brewsite-color-mode` | `'dark'` or `'light'` |
 | `--brewsite-text-primary` | `'#ffffff'` (dark) or `'#111111'` (light) |
 | `--brewsite-text-secondary` | `'rgba(255,255,255,0.6)'` (dark) or `'rgba(0,0,0,0.6)'` (light) |
-| `--brewsite-accent-color` | `theme.accentColor` — injected only when set |
 
 Additionally, `fontFamily: 'var(--brewsite-font-family)'` is set as an inline style on the overlay container so CSS inheritance propagates automatically to all children.
 
-**Note on `--brewsite-accent-color`:** When `accentColor` is absent, the variable is not injected at all. This is intentional — injecting an empty string would suppress consumer fallback values in `var(--brewsite-accent-color, fallback)` expressions.
+**Note on `--brewsite-accent-color`:** This variable is not injected by the engine. Consumers who require a scene-scoped accent color variable must declare `--brewsite-accent-color` directly in their own stylesheet or on a wrapper element. This allows fallback expressions like `var(--brewsite-accent-color, #6b48ff)` to work without engine involvement.
 
 ### 7.5 Preset Themes (`packages/core/src/theme/presets.ts`)
 
-```typescript
-export const darkSceneTheme: SceneTheme = {
-  colorMode: 'dark',
-  font: {
-    htmlFamily: 'system-ui, -apple-system, sans-serif',
-    webglFontUrl: undefined,
-  },
-  fontSize: { heading: 1.5, body: 1.0, label: 0.85, caption: 0.7, annotation: 0.6 },
-};
+Six named presets correspond to the six canonical theme names across `@brewsite/diagram` and `@brewsite/charts`. Each preset captures the `colorMode`, default system font, and standard font size scale appropriate for that theme family:
 
-export const lightSceneTheme: SceneTheme = {
-  colorMode: 'light',
-  font: {
-    htmlFamily: 'system-ui, -apple-system, sans-serif',
-    webglFontUrl: undefined,
-  },
-  fontSize: { heading: 1.5, body: 1.0, label: 0.85, caption: 0.7, annotation: 0.6 },
-};
+```typescript
+// Generic dark/light presets (backward-compatible):
+export const darkSceneTheme: SceneTheme;
+export const lightSceneTheme: SceneTheme;
+
+// Six canonical named presets — one per theme family:
+export const darkGlassSceneTheme: SceneTheme;    // dark, deep navy
+export const midnightSceneTheme: SceneTheme;     // dark, warm amber
+export const neonCyberSceneTheme: SceneTheme;    // dark, electric violet/cyan
+export const enterpriseSceneTheme: SceneTheme;   // dark, professional slate-blue
+export const lightCanvasSceneTheme: SceneTheme;  // light, premium product docs
+export const lightMinimalSceneTheme: SceneTheme; // light, flat documentation
 ```
 
-Consumers can spread and override presets:
+Named presets carry the correct `colorMode` for their family (all dark themes → `'dark'`; `lightCanvas` and `lightMinimal` → `'light'`). All presets use `system-ui, -apple-system, sans-serif` as the default `htmlFamily` and the standard `fontSize` scale — consumers override these as needed:
 
 ```typescript
-import { darkSceneTheme } from '@brewsite/core';
+import { darkGlassSceneTheme } from '@brewsite/core';
 
 const brandTheme: SceneTheme = {
-  ...darkSceneTheme,
+  ...darkGlassSceneTheme,
   font: {
     htmlFamily: 'Inter, system-ui, sans-serif',
     webglFontUrl: 'https://cdn.example.com/fonts/inter-msdf.ttf',
   },
-  accentColor: '#6b48ff',
 };
 ```
 
@@ -295,7 +290,9 @@ All public types and presets are re-exported from `packages/core/src/index.ts`.
 
 ## 10. Breaking Change Assessment
 
-**Semver impact: minor.** All new exports are additive. `sceneTheme` on `EngineProvider` is optional; `EngineOverlayHost` behavior is unchanged when no theme is provided. No existing public API symbols are modified.
+**Semver impact: minor.** The six new named `SceneTheme` presets are additive exports. The `darkSceneTheme` and `lightSceneTheme` constants remain unchanged.
+
+**`SceneTheme.accentColor` removal:** The `accentColor` field is removed from the `SceneTheme` type. This is a **breaking change** for any consumer who set this field on a custom `SceneTheme`. Because `accentColor` was documented as optional and was never consumed by any package in the toolkit (no renderer read it; no CSS variable was derived from it), the practical impact is limited to TypeScript type errors at the call site. Migration: remove `accentColor` from any `SceneTheme` literal. If a `--brewsite-accent-color` CSS variable is needed, declare it directly in the application stylesheet or on a wrapper element.
 
 ---
 
@@ -320,7 +317,7 @@ All public types and presets are re-exported from `packages/core/src/index.ts`.
 
 ## 13. Launch Criteria
 
-- `SceneTheme`, `SceneColorMode`, `SceneThemeFontTokens`, `SceneThemeFontSizeScale`, `SceneThemeBackgroundFill`, `SceneThemeBackgroundEffects`, `SceneThemeBackground`, `darkSceneTheme`, `lightSceneTheme` exported from `packages/core/src/index.ts`.
+- `SceneTheme`, `SceneColorMode`, `SceneThemeFontTokens`, `SceneThemeFontSizeScale`, `SceneThemeBackgroundFill`, `SceneThemeBackgroundEffects`, `SceneThemeBackground`, `darkSceneTheme`, `lightSceneTheme`, `darkGlassSceneTheme`, `midnightSceneTheme`, `neonCyberSceneTheme`, `enterpriseSceneTheme`, `lightCanvasSceneTheme`, `lightMinimalSceneTheme` exported from `packages/core/src/index.ts`.
 - `EngineProvider` `sceneTheme` prop typed and documented in JSDoc.
 - `EngineOverlayHost` tests cover: CSS variables present when theme provided; no CSS variables when theme absent.
 - TypeScript strict-mode typecheck passes on `packages/core/src/theme/`.

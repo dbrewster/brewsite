@@ -81,7 +81,7 @@ export const ChartDemoBar = () => (
     <Chart
       id="bar-revenue"
       type="bar"
-      theme="darkGlass"
+      theme={theme}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
       w={CHART_LAYOUT.w}
@@ -118,7 +118,7 @@ export const ChartDemoLine = () => (
     <Chart
       id="line-arr"
       type="line"
-      theme="darkGlass"
+      theme={theme}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
       w={CHART_LAYOUT.w}
@@ -155,7 +155,7 @@ export const ChartDemoPie = () => (
     <Chart
       id="pie-products"
       type="pie"
-      theme="darkGlass"
+      theme={theme}
       x={PIE_LAYOUT.x}
       y={PIE_LAYOUT.y}
       w={PIE_LAYOUT.w}
@@ -190,7 +190,7 @@ export const ChartDemoScatter = () => (
     <Chart
       id="scatter-teams"
       type="scatter"
-      theme="darkGlass"
+      theme={theme}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
       w={CHART_LAYOUT.w}

@@ -15,6 +15,7 @@ export type {
   DiagramGroupVariant,
   DiagramGroupSide,
   DiagramOrientation,
+  DiagramThemeName,
 
   DiagramEasing,
   DiagramExitConfig,
@@ -86,7 +87,15 @@ export { DiagramRenderer } from './render';
 export { InteractionRegistry } from './rendering/InteractionRegistry';
 export type { IInteractionRegistry } from './rendering/InteractionRegistry';
 // DiagramWidget is kept as an internal implementation detail but removed from public API.
-export { enterpriseTheme, darkGlassTheme, lightMinimalTheme, neonCyberTheme } from './themes';
+export {
+  enterpriseTheme,
+  darkGlassTheme,
+  lightMinimalTheme,
+  neonCyberTheme,
+  midnightTheme,
+  lightCanvasTheme,
+  DIAGRAM_THEMES,
+} from './themes';
 export { mergeTheme } from './themes/mergeTheme';
 export {
   DIAGRAM_FOCUS_REGION_EVENT,

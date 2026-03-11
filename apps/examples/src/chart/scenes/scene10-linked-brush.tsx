@@ -4,6 +4,7 @@ import type { JSX } from 'react';
 import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { BarChart, ChartAxis, ChartData, ChartLegend, ChartSeries, ScatterPlotChart } from '@brewsite/charts';
 import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, DASH_LAYOUT_LEFT, DASH_LAYOUT_RIGHT, SceneLighting, SceneTitleBox } from './sceneShared';
+import {theme} from "../ChartDemoPage";
 
 export const Scene10 = (): JSX.Element => (
   <Scene id="chart-s10" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
@@ -14,7 +15,7 @@ export const Scene10 = (): JSX.Element => (
     {/* Left: Bar chart — revenue by team, interactive */}
     <BarChart
       id="ops-bar"
-      theme="darkGlass"
+      theme={theme}
       interactive={true}
       x={DASH_LAYOUT_LEFT.x}
       y={DASH_LAYOUT_LEFT.y}
@@ -32,7 +33,7 @@ export const Scene10 = (): JSX.Element => (
     {/* Right: Scatter chart — team size vs revenue, same filter group */}
     <ScatterPlotChart
       id="ops-scatter"
-      theme="darkGlass"
+      theme={theme}
       interactive={true}
       sizeField="headcount"
       x={DASH_LAYOUT_RIGHT.x}

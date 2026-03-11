@@ -27,7 +27,8 @@ overlays, both of which break the visual coherence of the scene.
 
 The goal is a first-party charting package that integrates natively with the
 Widget SDK and the BrewSite visual language (PBR materials, environment maps,
-the darkGlass / neonCyber / enterprise / lightMinimal theme palette).
+the darkGlass / midnight / neonCyber / enterprise / lightCanvas / lightMinimal
+theme palette).
 
 ---
 
@@ -396,9 +397,9 @@ The `render.ts` phase, on each `apply()` call:
 
 ## Theme System
 
-`ChartTheme` is a token object parallel to `DiagramTheme`. Existing theme names
-(`darkGlass`, `neonCyber`, `enterprise`, `lightMinimal`) are implemented for
-charts, mapping the same design tokens into chart-specific properties:
+`ChartTheme` is a token object parallel to `DiagramTheme`. Six canonical theme names
+(`darkGlass`, `midnight`, `neonCyber`, `enterprise`, `lightCanvas`, `lightMinimal`) are
+implemented for charts, mapping the same design tokens into chart-specific properties:
 
 ```ts
 type ChartTheme = {
@@ -443,10 +444,12 @@ packages/charts/
       useChartData.ts        — hook: resolved + transformed data for a named source
     themes/
       darkGlass.ts
+      midnight.ts
       neonCyber.ts
       enterprise.ts
+      lightCanvas.ts
       lightMinimal.ts
-      types.ts               — ChartTheme interface
+      types.ts               — ChartTheme interface, ChartThemeName union, CHART_THEMES registry
     renderers/
       bar/
         BarRenderer.ts        — D3 scales → BoxGeometry update logic

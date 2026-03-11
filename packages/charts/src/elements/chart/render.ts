@@ -2,8 +2,10 @@
 
 import * as THREE from 'three';
 import { darkGlassChartTheme } from '../../themes/darkGlass';
+import { midnightChartTheme } from '../../themes/midnight';
 import { neonCyberChartTheme } from '../../themes/neonCyber';
 import { enterpriseChartTheme } from '../../themes/enterprise';
+import { lightCanvasChartTheme } from '../../themes/lightCanvas';
 import { lightMinimalChartTheme } from '../../themes/lightMinimal';
 import { BarRenderer } from '../../renderers/bar/BarRenderer';
 import { LineRenderer } from '../../renderers/line/LineRenderer';
@@ -23,9 +25,11 @@ import type { ChartLayout } from './layout';
 // It was moved there in V2.1 so ChartWidget.ts and render.ts share a single source.
 
 const THEME_MAP: Record<ChartThemeName, ChartTheme> = {
-  darkGlass: darkGlassChartTheme,
-  neonCyber: neonCyberChartTheme,
-  enterprise: enterpriseChartTheme,
+  darkGlass:    darkGlassChartTheme,
+  midnight:     midnightChartTheme,
+  neonCyber:    neonCyberChartTheme,
+  enterprise:   enterpriseChartTheme,
+  lightCanvas:  lightCanvasChartTheme,
   lightMinimal: lightMinimalChartTheme,
 };
 
@@ -75,10 +79,7 @@ export class ChartRenderer {
     // Resolve data from store via discriminated source type
     const data = this.resolveData(state.dataSource, state.transforms, widgetId);
     if (data.rows.length === 0) {
-      const name = this.resolveSourceName(state.dataSource, widgetId);
-      if (name.length > 0) {
-        console.warn(`[ChartRenderer] No data for source "${name}" in widget "${widgetId}" — chart will be empty`);
-      }
+
     }
 
     // Build MorphContext — sole construction site (Q3 resolution).
