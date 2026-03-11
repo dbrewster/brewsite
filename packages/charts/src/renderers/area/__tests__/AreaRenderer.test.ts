@@ -82,6 +82,7 @@ function makeCtx(data: ResolvedDataFrame, overrides?: Partial<ChartRenderContext
     theme: darkGlassChartTheme,
     opacity: 1,
     innerRadius: 0,
+    pieTilt: 0,
     ...overrides,
   };
 }

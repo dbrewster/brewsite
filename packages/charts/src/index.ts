@@ -85,5 +85,6 @@ export type {
   ChartTheme,
   ChartThemeName,
   ChartLegendTokens,
+  ChartPieTokens,
   ChartInteractionTokens,
 } from './themes/types';

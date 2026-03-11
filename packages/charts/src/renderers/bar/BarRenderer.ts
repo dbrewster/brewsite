@@ -39,7 +39,7 @@ export class BarRenderer implements IChartRenderer {
     this.seriesGroupRef = seriesGroup;
 
     if (effectiveSeries.length === 0 || data.rows.length === 0) {
-      this.clearBars();
+      this.reset();
       return;
     }
 
@@ -139,6 +139,16 @@ export class BarRenderer implements IChartRenderer {
     }
     this.barMeshes.length = 0;
     this.hitMap.clear();
+    this.lastDataLength = -1;
+    this.lastSeriesCount = -1;
+  }
+
+  private reset(): void {
+    this.clearBars();
+    this.axesRenderer?.dispose();
+    this.legendRenderer?.dispose();
+    this.axesRenderer = null;
+    this.legendRenderer = null;
   }
 
   getInteractiveObjects(): THREE.Object3D[] {
@@ -159,11 +169,7 @@ export class BarRenderer implements IChartRenderer {
   }
 
   dispose(): void {
-    this.clearBars();
-    this.axesRenderer?.dispose();
-    this.legendRenderer?.dispose();
+    this.reset();
     this.materialFactory.dispose();
-    this.axesRenderer = null;
-    this.legendRenderer = null;
   }
 }

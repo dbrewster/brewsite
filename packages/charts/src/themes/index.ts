@@ -12,6 +12,7 @@ export type {
   ChartAxisTokens,
   ChartBackgroundTokens,
   ChartLegendTokens,
+  ChartPieTokens,
   ChartInteractionTokens,
 } from './types';
 

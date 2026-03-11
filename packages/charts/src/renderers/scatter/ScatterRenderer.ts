@@ -29,7 +29,7 @@ export class ScatterRenderer implements IChartRenderer {
     this.seriesGroupRef = seriesGroup;
 
     if (data.rows.length === 0) {
-      this.clearMesh();
+      this.reset();
       return;
     }
 
@@ -117,6 +117,14 @@ export class ScatterRenderer implements IChartRenderer {
     this.hitRows.length = 0;
   }
 
+  private reset(): void {
+    this.clearMesh();
+    this.axesRenderer?.dispose();
+    this.legendRenderer?.dispose();
+    this.axesRenderer = null;
+    this.legendRenderer = null;
+  }
+
   getInteractiveObjects(): THREE.Object3D[] {
     return this.instancedMesh ? [this.instancedMesh] : [];
   }
@@ -136,10 +144,6 @@ export class ScatterRenderer implements IChartRenderer {
   }
 
   dispose(): void {
-    this.clearMesh();
-    this.axesRenderer?.dispose();
-    this.legendRenderer?.dispose();
-    this.axesRenderer = null;
-    this.legendRenderer = null;
+    this.reset();
   }
 }

@@ -16,6 +16,7 @@ import type { ChartDataStore } from '../../data/ChartDataStore';
 import type { ResolvedDataFrame } from '../../data/types';
 import type { ChartState, ChartType } from './types';
 import type { ChartTheme, ChartThemeName } from '../../themes/types';
+import { computeChartLayout } from './layout';
 
 /**
  * World-space render input for ChartRenderer.
@@ -72,7 +73,7 @@ export class ChartRenderer {
 
     // Resolve data from store
     const data = this.store.resolve(state.dataSource, state.transforms);
-    if (data.rows.length === 0) {
+    if (state.dataSource.length > 0 && data.rows.length === 0) {
       console.warn(`[ChartRenderer] No data for source "${state.dataSource}" in widget "${widgetId}" — chart will be empty`);
     }
     this.lastData = data;
@@ -81,32 +82,68 @@ export class ChartRenderer {
       typeof state.theme === 'string'
         ? (THEME_MAP[state.theme as ChartThemeName] ?? darkGlassChartTheme)
         : state.theme;
+    const effectiveTheme: ChartTheme = {
+      ...theme,
+      axis: {
+        ...theme.axis,
+        gap: state.axisGap ?? theme.axis.gap,
+      },
+      legend: {
+        ...theme.legend,
+        gap: state.legendGap ?? theme.legend.gap,
+      },
+    };
 
     // Resolve sceneTheme: state.sceneTheme (DSL prop) takes precedence over theme.sceneTheme
-    const resolvedSceneTheme = state.sceneTheme ?? theme.sceneTheme;
+    const resolvedSceneTheme = state.sceneTheme ?? effectiveTheme.sceneTheme;
 
     // Derive font URL from sceneTheme
     const fontUrl = resolvedSceneTheme?.font.webglFontUrl;
+
+    const layout = computeChartLayout({
+      bounds: state.bounds,
+      type: state.type,
+      theme: effectiveTheme,
+      xAxis: state.xAxis,
+      yAxis: state.yAxis,
+      series: state.series,
+      legend: state.legend,
+    });
+
+    this.seriesGroup.position.set(layout.plotFrame.x, layout.plotFrame.y, 0);
+    this.axesGroup.position.set(layout.plotFrame.x, layout.plotFrame.y, 0);
+    this.legendGroup.position.set(0, 0, 0);
 
     this.activeRenderer.update({
       seriesGroup: this.seriesGroup,
       axesGroup: this.axesGroup,
       legendGroup: this.legendGroup,
+      chartPosition: state.position,
       data,
       xAxis: state.xAxis,
       yAxis: state.yAxis,
       series: state.series,
-      bounds: state.bounds,
-      theme,
+      bounds: {
+        width: layout.plotFrame.width,
+        height: layout.plotFrame.height,
+        depth: state.bounds.depth,
+      },
+      theme: effectiveTheme,
       opacity: state.opacity,
+      lineShape: state.lineShape,
+      lineSmoothness: state.lineSmoothness,
+      lineSubdivisions: state.lineSubdivisions,
       innerRadius: state.innerRadius ?? 0,
+      pieTilt: state.pieTilt ?? effectiveTheme.pie.tilt,
       fontUrl,
     });
 
     // Update legend group visibility/position based on state
     if (state.legend) {
       this.legendGroup.visible = state.legend.visible;
-      this.positionLegend(state.legend.position, state.bounds);
+      if (layout.legendAnchor) {
+        this.positionLegend(state.legend.position, state.bounds, layout.legendAnchor);
+      }
     } else {
       this.legendGroup.visible = false;
     }
@@ -155,12 +192,19 @@ export class ChartRenderer {
   private positionLegend(
     position: string,
     bounds: { width: number; height: number; depth: number },
+    anchor: { x: number; y: number },
   ): void {
     switch (position) {
-      case 'right':  this.legendGroup.position.set(bounds.width + 0.3, bounds.height / 2, 0); break;
-      case 'left':   this.legendGroup.position.set(-0.5, bounds.height / 2, 0); break;
-      case 'top':    this.legendGroup.position.set(bounds.width / 2, bounds.height + 0.3, 0); break;
-      case 'bottom': this.legendGroup.position.set(bounds.width / 2, -0.5, 0); break;
+      case 'right':
+      case 'left':
+        this.legendGroup.position.set(anchor.x, anchor.y, 0);
+        break;
+      case 'top':
+        this.legendGroup.position.set(anchor.x, Math.min(anchor.y, bounds.height - 0.02), 0);
+        break;
+      case 'bottom':
+        this.legendGroup.position.set(anchor.x, Math.max(anchor.y, 0.02), 0);
+        break;
     }
   }
 }

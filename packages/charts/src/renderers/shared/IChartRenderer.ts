@@ -3,6 +3,7 @@
 import type * as THREE from 'three';
 import type { ResolvedDataFrame } from '../../data/types';
 import type { ChartTheme } from '../../themes/types';
+import type { ChartLineShape } from '../../elements/chart/types';
 
 /** Hit info returned by hover/click raycasting. */
 export type ChartHitInfo = {
@@ -33,6 +34,7 @@ export type ChartRenderContext = {
   readonly seriesGroup: THREE.Group;
   readonly axesGroup: THREE.Group;
   readonly legendGroup: THREE.Group;
+  readonly chartPosition?: readonly [number, number, number];
   readonly data: ResolvedDataFrame;
   readonly xAxis: ChartAxisState | null;
   readonly yAxis: ChartAxisState | null;
@@ -40,7 +42,11 @@ export type ChartRenderContext = {
   readonly bounds: { readonly width: number; readonly height: number; readonly depth: number };
   readonly theme: ChartTheme;
   readonly opacity: number;
+  readonly lineShape?: ChartLineShape;
+  readonly lineSmoothness?: number;
+  readonly lineSubdivisions?: number;
   readonly innerRadius: number;
+  readonly pieTilt: number;
   /**
    * Optional MSDF font URL for troika-three-text label rendering.
    * Derived by ChartRenderer from state.sceneTheme.font.webglFontUrl

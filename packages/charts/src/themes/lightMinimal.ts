@@ -15,10 +15,14 @@ export const lightMinimalChartTheme: ChartTheme = {
     { color: '#fed7aa', metalness: 0.0, roughness: 0.8, transmission: 0.0, emissiveIntensity: 0.0, depth: 0.2 },
   ],
   axis: {
-    lineColor: '#e2e8f0',
-    labelColor: '#64748b',
+    lineColor: '#cbd5e1',
+    lineOpacity: 0.9,
+    tickOpacity: 0.82,
+    labelColor: '#475569',
+    labelOpacity: 0.94,
     fontSize: 0.12,
     tickLength: 0.08,
+    gap: 0.18,
   },
   background: {
     planeColor: '#ffffff',
@@ -30,6 +34,15 @@ export const lightMinimalChartTheme: ChartTheme = {
     fontSize: 0.09,
     swatchSize: 0.08,
     spacing: 0.14,
+    gap: 0.28,
+  },
+  line: {
+    shape: 'circle',
+    smoothness: 0.42,
+    subdivisions: 5,
+  },
+  pie: {
+    tilt: -0.35,
   },
   interaction: {
     hoverColor: '#1144ee',

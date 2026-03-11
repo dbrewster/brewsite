@@ -78,6 +78,9 @@ export class ChartDataStore {
    * invalidated when filters change.
    */
   resolve(name: string, transforms: readonly DataTransform[]): ResolvedDataFrame {
+    if (name.length === 0) {
+      return EMPTY_FRAME;
+    }
     if (!this.registeredSources.has(name)) {
       console.warn(
         `[ChartDataStore] Unknown data source: "${name}". ` +

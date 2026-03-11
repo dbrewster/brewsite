@@ -14,9 +14,14 @@ export class ChartMaterialFactory {
   private readonly cache = new Map<MaterialKey, THREE.Material>();
 
   /** Returns a cached (or new) material for the given series index. */
-  getSeriesMaterial(theme: ChartTheme, seriesIndex: number): THREE.MeshPhysicalMaterial {
+  getSeriesMaterial(
+    theme: ChartTheme,
+    seriesIndex: number,
+    options?: { flatShading?: boolean },
+  ): THREE.MeshPhysicalMaterial {
     const tokens = theme.series[seriesIndex % theme.series.length]!;
-    const key = `${tokens.color}|${tokens.metalness}|${tokens.roughness}|${tokens.transmission}|${tokens.emissiveIntensity}`;
+    const flatShading = options?.flatShading === true;
+    const key = `${tokens.color}|${tokens.metalness}|${tokens.roughness}|${tokens.transmission}|${tokens.emissiveIntensity}|${flatShading}`;
     const cached = this.cache.get(key);
     if (cached instanceof THREE.MeshPhysicalMaterial) return cached;
 
@@ -29,6 +34,7 @@ export class ChartMaterialFactory {
       roughness: tokens.roughness,
       transmission: tokens.transmission,
       transparent: tokens.transmission > 0,
+      flatShading,
       side: THREE.FrontSide,
     });
     this.cache.set(key, mat);

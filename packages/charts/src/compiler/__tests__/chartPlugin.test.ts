@@ -72,6 +72,7 @@ vi.mock('../../renderers/heatmap/HeatmapRenderer', () => ({
 }));
 
 import { createElement } from 'react';
+import { WidgetRegistry } from '@brewsite/core';
 import { chartPlugin } from '../../player/chartPlugin';
 import { compileChart } from '../../elements/chart/compile';
 import { resetChartHandlerRegistrationForTesting } from '../handlers';
@@ -130,6 +131,33 @@ describe('chartPlugin', () => {
   it('registerHandlers does not throw', () => {
     const plugin = chartPlugin();
     expect(() => plugin.registerHandlers!()).not.toThrow();
+  });
+
+  it('reconcileCompiledTrack registers missing chart widgets from compiled state', () => {
+    const plugin = chartPlugin();
+    const registry = new WidgetRegistry({ strict: true });
+    const chartState = compileChart(
+      { id: 'revenue', type: 'bar' },
+      { source: 'sales' },
+      [{ axis: 'x', field: 'month', label: 'Month' }],
+      [{ field: 'sales', label: 'Sales' }],
+      null,
+    );
+
+    plugin.reconcileCompiledTrack?.(registry, {
+      ticks: [
+        {
+          state: {
+            widgets: {
+              revenue: chartState,
+            },
+          },
+        },
+      ],
+    } as never);
+
+    expect(registry.get('revenue')).toBeDefined();
+    expect(plugin.getWidget('revenue')).toBeDefined();
   });
 });
 

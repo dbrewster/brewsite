@@ -9,6 +9,8 @@ import type {
   ChartAxisTokens,
   ChartBackgroundTokens,
   ChartLegendTokens,
+  ChartLineTokens,
+  ChartPieTokens,
   ChartInteractionTokens,
 } from './types';
 
@@ -26,6 +28,8 @@ export type ChartThemeOverrides = {
   readonly axis?: Partial<ChartAxisTokens>;
   readonly background?: Partial<ChartBackgroundTokens>;
   readonly legend?: Partial<ChartLegendTokens>;
+  readonly line?: Partial<ChartLineTokens>;
+  readonly pie?: Partial<ChartPieTokens>;
   readonly interaction?: Partial<ChartInteractionTokens>;
 };
 
@@ -74,6 +78,12 @@ export function createChartTheme(
     legend: overrides.legend
       ? { ...baseTheme.legend, ...overrides.legend }
       : baseTheme.legend,
+    line: overrides.line
+      ? { ...baseTheme.line, ...overrides.line }
+      : baseTheme.line,
+    pie: overrides.pie
+      ? { ...baseTheme.pie, ...overrides.pie }
+      : baseTheme.pie,
     interaction: overrides.interaction
       ? { ...baseTheme.interaction, ...overrides.interaction }
       : baseTheme.interaction,

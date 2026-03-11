@@ -14,8 +14,7 @@ type SliceEntry = {
 };
 
 /**
- * Renders pie or donut charts as extruded arc shapes in the XZ plane.
- * Supports exploded slice on hover via position offset.
+ * Renders pie or donut charts as camera-facing extruded arc shapes in the XY plane.
  */
 export class PieRenderer implements IChartRenderer {
   private readonly materialFactory = new ChartMaterialFactory();
@@ -23,10 +22,11 @@ export class PieRenderer implements IChartRenderer {
   private slices: SliceEntry[] = [];
   private seriesGroupRef: THREE.Group | null = null;
   private lastDataLength = -1;
+  private lastInnerRadius = -1;
   private hoveredIndex = -1;
 
   update(ctx: ChartRenderContext): void {
-    const { seriesGroup, legendGroup, data, yAxis, series, bounds, theme, opacity, fontUrl } = ctx;
+    const { seriesGroup, legendGroup, data, yAxis, series, bounds, theme, opacity, fontUrl, innerRadius, pieTilt } = ctx;
 
     const valueField = series[0]?.field ?? yAxis?.field ?? data.fields[1] ?? data.fields[0] ?? 'value';
     const labelField = ctx.xAxis?.field ?? data.fields[0] ?? 'label';
@@ -34,21 +34,23 @@ export class PieRenderer implements IChartRenderer {
     this.seriesGroupRef = seriesGroup;
 
     if (data.rows.length === 0) {
-      this.clearSlices();
+      this.reset();
       return;
     }
 
-    const needsRebuild = data.rows.length !== this.lastDataLength;
+    const needsRebuild = data.rows.length !== this.lastDataLength || innerRadius !== this.lastInnerRadius;
 
     if (needsRebuild) {
       this.clearSlices();
-      this.buildSlices(seriesGroup, data, valueField, labelField, bounds, theme, opacity);
+      this.buildSlices(seriesGroup, data, valueField, labelField, bounds, theme, opacity, innerRadius, pieTilt);
       this.lastDataLength = data.rows.length;
+      this.lastInnerRadius = innerRadius;
     } else {
       for (let i = 0; i < this.slices.length; i++) {
         const mat = this.slices[i]!.mesh.material as THREE.MeshPhysicalMaterial;
         mat.opacity = opacity;
         mat.transparent = opacity < 1;
+        this.slices[i]!.mesh.rotation.x = pieTilt;
       }
     }
 
@@ -68,9 +70,11 @@ export class PieRenderer implements IChartRenderer {
     bounds: { width: number; height: number; depth: number },
     theme: ChartRenderContext['theme'],
     opacity: number,
+    innerRadiusRatio: number,
+    pieTilt: number,
   ): void {
     const radius = Math.min(bounds.width, bounds.height) * 0.4;
-    const innerRadius = 0; // 0 = pie, radius * 0.5 = donut
+    const innerRadius = radius * Math.max(0, Math.min(0.85, innerRadiusRatio));
 
     const pieGen = pie<Record<string, unknown>>()
       .value((d) => Math.max(0, Number(d[valueField]) || 0))
@@ -121,7 +125,7 @@ export class PieRenderer implements IChartRenderer {
       const mesh = new THREE.Mesh(geo, mat);
       // Center the pie
       mesh.position.set(bounds.width / 2, bounds.height / 2, 0);
-      mesh.rotation.x = -Math.PI / 2;
+      mesh.rotation.x = pieTilt;
       seriesGroup.add(mesh);
       this.slices.push({ mesh, datumIndex: i, row: d.data as Record<string, unknown> });
     }
@@ -135,6 +139,14 @@ export class PieRenderer implements IChartRenderer {
     }
     this.slices = [];
     this.hoveredIndex = -1;
+    this.lastDataLength = -1;
+    this.lastInnerRadius = -1;
+  }
+
+  private reset(): void {
+    this.clearSlices();
+    this.legendRenderer?.dispose();
+    this.legendRenderer = null;
   }
 
   getInteractiveObjects(): THREE.Object3D[] {
@@ -155,9 +167,7 @@ export class PieRenderer implements IChartRenderer {
   }
 
   dispose(): void {
-    this.clearSlices();
-    this.legendRenderer?.dispose();
+    this.reset();
     this.materialFactory.dispose();
-    this.legendRenderer = null;
   }
 }

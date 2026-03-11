@@ -1,7 +1,7 @@
 // Pure compilation functions for the chart element — no Three.js, no React render.
 
 import { blendNumber, blendOpacity, validateNVSScalar, validateNVSRect } from '@brewsite/core';
-import type { FunctionalTransitionSpec, NVSRect } from '@brewsite/core';
+import type { FunctionalTransitionSpec, NVSRect, TransitionContext } from '@brewsite/core';
 import type {
   ChartState,
   ChartDSL,
@@ -83,7 +83,13 @@ export function compileChart(
     theme: dsl.theme ?? 'darkGlass',
     opacity: dsl.opacity ?? 1,
     interactive: dsl.interactive ?? false,
+    lineShape: dsl.lineShape,
+    lineSmoothness: dsl.lineSmoothness,
+    lineSubdivisions: dsl.lineSubdivisions,
+    axisGap: dsl.axisGap,
     innerRadius: dsl.innerRadius ?? 0,
+    legendGap: dsl.legendGap,
+    pieTilt: dsl.pieTilt,
     sceneTheme: dsl.sceneTheme,
     nvsBounds,
   };
@@ -98,17 +104,17 @@ export function compileChart(
  * - Consistent with how @brewsite/diagram handles its element transitions
  */
 export const functionalChartTransitionSpec: FunctionalTransitionSpec<ChartState> = {
-  exitFn: (from: ChartState) => (ctx): ChartState => ({
+  exitFn: (from: ChartState) => (ctx: TransitionContext): ChartState => ({
     ...from,
     opacity: blendOpacity(from.opacity, 0, ctx.t) ?? 0,
   }),
 
-  enterFn: (to: ChartState) => (ctx): ChartState => ({
+  enterFn: (to: ChartState) => (ctx: TransitionContext): ChartState => ({
     ...to,
     opacity: blendOpacity(0, to.opacity, ctx.t) ?? to.opacity,
   }),
 
-  interpolateFn: (from: ChartState, to: ChartState) => (ctx): ChartState => ({
+  interpolateFn: (from: ChartState, to: ChartState) => (ctx: TransitionContext): ChartState => ({
     ...to,
     nvsX: blendNumber(from.nvsX, to.nvsX, ctx.t) ?? to.nvsX,
     nvsY: blendNumber(from.nvsY, to.nvsY, ctx.t) ?? to.nvsY,

@@ -14,6 +14,8 @@ describe('createChartTheme', () => {
     expect(result.axis).toBe(darkGlassChartTheme.axis);
     expect(result.background).toBe(darkGlassChartTheme.background);
     expect(result.legend).toBe(darkGlassChartTheme.legend);
+    expect(result.line).toBe(darkGlassChartTheme.line);
+    expect(result.pie).toBe(darkGlassChartTheme.pie);
     expect(result.interaction).toBe(darkGlassChartTheme.interaction);
   });
 
@@ -43,11 +45,14 @@ describe('createChartTheme', () => {
 
   it('axis partial override merges correctly', () => {
     const result = createChartTheme('darkGlass', {
-      axis: { lineColor: '#ff0000' },
+      axis: { lineColor: '#ff0000', lineOpacity: 0.5 },
     });
     expect(result.axis.lineColor).toBe('#ff0000');
+    expect(result.axis.lineOpacity).toBe(0.5);
     // Non-overridden fields stay from base
     expect(result.axis.labelColor).toBe(darkGlassChartTheme.axis.labelColor);
+    expect(result.axis.labelOpacity).toBe(darkGlassChartTheme.axis.labelOpacity);
+    expect(result.axis.tickOpacity).toBe(darkGlassChartTheme.axis.tickOpacity);
     expect(result.axis.fontSize).toBe(darkGlassChartTheme.axis.fontSize);
     expect(result.axis.tickLength).toBe(darkGlassChartTheme.axis.tickLength);
   });
@@ -62,6 +67,15 @@ describe('createChartTheme', () => {
     expect(result.legend.spacing).toBe(darkGlassChartTheme.legend.spacing);
   });
 
+  it('line partial override merges correctly', () => {
+    const result = createChartTheme('darkGlass', {
+      line: { shape: 'triangle', smoothness: 0.2, subdivisions: 10 },
+    });
+    expect(result.line.shape).toBe('triangle');
+    expect(result.line.smoothness).toBe(0.2);
+    expect(result.line.subdivisions).toBe(10);
+  });
+
   it('interaction partial override merges correctly', () => {
     const result = createChartTheme('enterprise', {
       interaction: { hoverColor: '#ff00ff' },
@@ -73,6 +87,13 @@ describe('createChartTheme', () => {
     expect(result.interaction.selectedColor).toBe(
       enterpriseChartTheme.interaction.selectedColor,
     );
+  });
+
+  it('pie partial override merges correctly', () => {
+    const result = createChartTheme('darkGlass', {
+      pie: { tilt: 0.52 },
+    });
+    expect(result.pie.tilt).toBe(0.52);
   });
 
   it('inline ChartTheme object as base with partial overrides', () => {

@@ -4,6 +4,7 @@ import type { ReactNode } from 'react';
 import type { IWidget, AssetManifest } from './types';
 import type { WidgetRegistry } from './WidgetRegistry';
 import type { ActionInputHandler } from '../input/ActionInputController';
+import type { SceneTrack } from '../compiler/sceneTrackTypes';
 import type * as THREE from 'three';
 
 /**
@@ -47,6 +48,13 @@ export interface WidgetPlugin {
    * are registered. `manifest` is null when no manifest has been fetched yet.
    */
   configureRegistry?(registry: WidgetRegistry, manifest: AssetManifest | null): void;
+
+  /**
+   * Optional: reconcile a compiled SceneTrack back into the live WidgetRegistry.
+   * Use this for plugins that author state into the track before all widget instances
+   * are materialized, so runtime renderables can be created from the compiled output.
+   */
+  reconcileCompiledTrack?(registry: WidgetRegistry, track: SceneTrack): void;
 
   /**
    * Optional: wraps EngineProvider's rendered subtree with this plugin's React

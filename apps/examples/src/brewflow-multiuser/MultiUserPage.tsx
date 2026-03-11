@@ -7,7 +7,6 @@ import {
   KeyboardInput,
   SceneCanvas,
   SceneEngine,
-  ScrollInput,
   ScrollStage,
 } from '@brewsite/core';
 import {createMultiUserPlugins} from './widgetSetup';
@@ -47,7 +46,7 @@ export default function MultiUserPage(): JSX.Element {
   const { plugins } = useMemo(() => createMultiUserPlugins(), []);
 
   return (
-    <div style={{ background: '#080b14', width: '100vw', minHeight: '100vh', minWidth: '100vw', fontSize: '18px' }}>
+    <div style={{ background: '#080b14', width: '100vw', height: '100vh', overflow: 'hidden', minWidth: '100vw', fontSize: '18px' }}>
       <SceneEngine plugins={plugins}>
         {sceneHero}
         {sceneProblems}
@@ -68,7 +67,6 @@ export default function MultiUserPage(): JSX.Element {
             <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
             <EngineOverlayHost />
           </EngineARContainer>
-          <ScrollInput source="window" />
           <KeyboardInput />
         </ScrollStage>
       </SceneEngine>

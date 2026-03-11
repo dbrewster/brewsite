@@ -80,6 +80,7 @@ export class ChartWidget
 {
   readonly widgetId: string;
   readonly defaultState: ChartState = DEFAULT_CHART_STATE;
+  readonly disableWhenAbsent = true;
   readonly transitionSpec = functionalChartTransitionSpec;
   readonly DslComponent = Chart;
   readonly tickPriority = 2; // after CameraWidget(0) and DiagramWidget(1)

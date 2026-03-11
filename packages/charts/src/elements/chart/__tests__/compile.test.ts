@@ -112,6 +112,30 @@ describe('compileChart', () => {
     expect(state.opacity).toBe(0.7);
   });
 
+  it('compiles line shape and smoothness overrides', () => {
+    const state = compileChart(
+      { id: 'c', type: 'line', lineShape: 'hexagon', lineSmoothness: 0.3, lineSubdivisions: 9 },
+      null,
+      [],
+      [],
+      null,
+    );
+    expect(state.lineShape).toBe('hexagon');
+    expect(state.lineSmoothness).toBe(0.3);
+    expect(state.lineSubdivisions).toBe(9);
+  });
+
+  it('compiles pie tilt overrides', () => {
+    const state = compileChart(
+      { id: 'c', type: 'pie', pieTilt: 0.48 },
+      null,
+      [],
+      [],
+      null,
+    );
+    expect(state.pieTilt).toBe(0.48);
+  });
+
   it('compiles dataSource from ChartDataDSL', () => {
     const state = compileChart(
       { id: 'c', type: 'bar' },

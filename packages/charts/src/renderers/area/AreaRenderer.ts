@@ -25,9 +25,11 @@ export class AreaRenderer implements IChartRenderer {
   private lastBoundsWidth = 1;
   private lastDataLength = -1;
   private lastSeriesCount = -1;
+  private chartPosition: readonly [number, number, number] = [0, 0, 0];
 
   update(ctx: ChartRenderContext): void {
     const { seriesGroup, axesGroup, legendGroup, data, xAxis, yAxis, series, bounds, theme, opacity, fontUrl } = ctx;
+    this.chartPosition = ctx.chartPosition ?? [0, 0, 0];
 
     const effectiveSeries: Array<{ field: string; label?: string; color?: string }> = series.length > 0
       ? [...series]
@@ -36,7 +38,7 @@ export class AreaRenderer implements IChartRenderer {
     this.seriesGroupRef = seriesGroup;
 
     if (effectiveSeries.length === 0 || data.rows.length < 2) {
-      this.clearAreas();
+      this.reset();
       return;
     }
 
@@ -136,6 +138,16 @@ export class AreaRenderer implements IChartRenderer {
       mesh.geometry.dispose();
     }
     this.areaMeshes.length = 0;
+    this.lastDataLength = -1;
+    this.lastSeriesCount = -1;
+  }
+
+  private reset(): void {
+    this.clearAreas();
+    this.axesRenderer?.dispose();
+    this.legendRenderer?.dispose();
+    this.axesRenderer = null;
+    this.legendRenderer = null;
   }
 
   getInteractiveObjects(): THREE.Object3D[] {
@@ -148,7 +160,11 @@ export class AreaRenderer implements IChartRenderer {
     if (data.rows.length === 0) return null;
 
     // X coordinate maps linearly to data index
-    const normalizedX = intersection.point.x / this.lastBoundsWidth;
+    const localX =
+      intersection.point.x -
+      this.chartPosition[0] -
+      (this.seriesGroupRef?.position.x ?? 0);
+    const normalizedX = localX / this.lastBoundsWidth;
     const datumIndex = Math.round(
       Math.max(0, Math.min(1, normalizedX)) * (data.rows.length - 1)
     );
@@ -163,11 +179,7 @@ export class AreaRenderer implements IChartRenderer {
   }
 
   dispose(): void {
-    this.clearAreas();
-    this.axesRenderer?.dispose();
-    this.legendRenderer?.dispose();
+    this.reset();
     this.materialFactory.dispose();
-    this.axesRenderer = null;
-    this.legendRenderer = null;
   }
 }

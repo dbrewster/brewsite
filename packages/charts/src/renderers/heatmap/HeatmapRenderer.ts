@@ -17,15 +17,17 @@ const _dummy = new THREE.Object3D();
 export class HeatmapRenderer implements IChartRenderer {
   private instancedMesh: THREE.InstancedMesh | null = null;
   private axesRenderer: AxesRenderer | null = null;
+  private seriesGroupRef: THREE.Group | null = null;
   private lastXCount = -1;
   private lastYCount = -1;
   private readonly hitMap = new Map<number, { row: Record<string, unknown>; xi: number; yi: number }>();
 
   update(ctx: ChartRenderContext): void {
     const { seriesGroup, axesGroup, data, xAxis, yAxis, series, bounds, theme, opacity, fontUrl } = ctx;
+    this.seriesGroupRef = seriesGroup;
 
     if (data.rows.length === 0) {
-      this.clearMesh(seriesGroup);
+      this.reset();
       return;
     }
 
@@ -40,7 +42,7 @@ export class HeatmapRenderer implements IChartRenderer {
     const totalCount = xCount * yCount;
 
     if (xCount !== this.lastXCount || yCount !== this.lastYCount) {
-      this.clearMesh(seriesGroup);
+      this.clearMesh();
       const cellW = bounds.width / Math.max(xCount, 1);
       const cellH = bounds.height / Math.max(yCount, 1);
       const geo = new THREE.PlaneGeometry(cellW * 0.92, cellH * 0.92);
@@ -119,9 +121,9 @@ export class HeatmapRenderer implements IChartRenderer {
     this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl });
   }
 
-  private clearMesh(seriesGroup: THREE.Group): void {
+  private clearMesh(): void {
     if (this.instancedMesh) {
-      seriesGroup.remove(this.instancedMesh);
+      this.seriesGroupRef?.remove(this.instancedMesh);
       this.instancedMesh.geometry.dispose();
       (this.instancedMesh.material as THREE.Material).dispose();
       this.instancedMesh = null;
@@ -129,6 +131,12 @@ export class HeatmapRenderer implements IChartRenderer {
     this.lastXCount = -1;
     this.lastYCount = -1;
     this.hitMap.clear();
+  }
+
+  private reset(): void {
+    this.clearMesh();
+    this.axesRenderer?.dispose();
+    this.axesRenderer = null;
   }
 
   getInteractiveObjects(): THREE.Object3D[] {
@@ -150,8 +158,6 @@ export class HeatmapRenderer implements IChartRenderer {
   }
 
   dispose(): void {
-    this.clearMesh({ children: [] } as unknown as THREE.Group);
-    this.axesRenderer?.dispose();
-    this.axesRenderer = null;
+    this.reset();
   }
 }

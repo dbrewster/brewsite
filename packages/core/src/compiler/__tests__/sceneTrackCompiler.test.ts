@@ -392,6 +392,26 @@ describe('compileSceneTrack', () => {
     expect(state.model?.enabled).toBe(false);
   });
 
+  it('makeDisabledDefault zeroes opacity when disableWhenAbsent is true', () => {
+    const widget = {
+      ...makeWidget({
+        widgetId: 'w',
+        defaultState: { opacity: 1, visible: true },
+        transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+      }),
+      disableWhenAbsent: true,
+    };
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      makeScene('s1', {}),
+      makeScene('s2', {}),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+    const state = track.ticks[0]!.state.widgets['w'] as { opacity?: number; visible?: boolean };
+    expect(state.opacity).toBe(0);
+    expect(state.visible).toBe(true);
+  });
+
   it('handles serialize for content and react-like objects', () => {
     const widget = makeWidget({
       widgetId: 'w',

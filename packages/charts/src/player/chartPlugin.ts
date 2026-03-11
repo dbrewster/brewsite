@@ -1,16 +1,24 @@
 // chartPlugin factory — composable WidgetPlugin for @brewsite/charts.
 
 import { createElement } from 'react';
-import type { ReactNode } from 'react';
+import type { ReactElement, ReactNode } from 'react';
 import type { WidgetPlugin, WidgetRegistry } from '@brewsite/core';
 import { registerNode } from '@brewsite/core';
+import type { CompileApi, CompileHelpers } from '@brewsite/core';
 import { ChartDataStore } from '../data/ChartDataStore';
 import { ChartStoreContext } from '../data/ChartStoreContext';
 import { Chart, ChartData, ChartAxis, ChartSeries, ChartLegend } from '../elements/chart/ChartWidget';
 import { compileChart } from '../elements/chart/compile';
 import { ChartWidget } from '../elements/chart/ChartWidget';
 import { registerChartHandlers } from '../compiler/handlers';
-import type { ChartDSL, ChartDataDSL, ChartAxisDSL, ChartSeriesDSL, ChartLegendDSL } from '../elements/chart/types';
+import type {
+  ChartDSL,
+  ChartDataDSL,
+  ChartSeriesDSL,
+  ChartLegendDSL,
+  ChartAxisDSL,
+  ChartState,
+} from '../elements/chart/types';
 
 export type ChartPluginInstance = WidgetPlugin & {
   /** The per-engine ChartDataStore owned by this plugin instance. */
@@ -28,6 +36,29 @@ export type ChartPluginInstance = WidgetPlugin & {
    */
   getWidget(id: string): Pick<ChartWidget, 'onHover' | 'onSelect'> | undefined;
 };
+
+const CHART_TYPES = new Set(['bar', 'line', 'area', 'pie', 'scatter', 'heatmap']);
+
+function isChartStateLike(state: unknown): state is ChartState {
+  if (!state || typeof state !== 'object') return false;
+  const candidate = state as Partial<ChartState> & {
+    bounds?: { width?: unknown; height?: unknown; depth?: unknown };
+    nvsBounds?: { x?: unknown; y?: unknown; w?: unknown; h?: unknown };
+  };
+  return (
+    typeof candidate.type === 'string' &&
+    CHART_TYPES.has(candidate.type) &&
+    typeof candidate.dataSource === 'string' &&
+    Array.isArray(candidate.series) &&
+    typeof candidate.bounds?.width === 'number' &&
+    typeof candidate.bounds?.height === 'number' &&
+    typeof candidate.bounds?.depth === 'number' &&
+    typeof candidate.nvsBounds?.x === 'number' &&
+    typeof candidate.nvsBounds?.y === 'number' &&
+    typeof candidate.nvsBounds?.w === 'number' &&
+    typeof candidate.nvsBounds?.h === 'number'
+  );
+}
 
 /**
  * Creates a WidgetPlugin for @brewsite/charts.
@@ -47,6 +78,23 @@ export type ChartPluginInstance = WidgetPlugin & {
 export function chartPlugin(): ChartPluginInstance {
   const store = new ChartDataStore();
   const widgetMap = new Map<string, ChartWidget>();
+  const registerChartWidget = (registry: WidgetRegistry, chartId: string): ChartWidget => {
+    const existing = registry.get(chartId);
+    if (existing instanceof ChartWidget) {
+      widgetMap.set(chartId, existing);
+      return existing;
+    }
+
+    const widget = new ChartWidget(chartId, store);
+    widgetMap.set(chartId, widget);
+    const originalDispose = widget.dispose.bind(widget);
+    widget.dispose = () => {
+      widgetMap.delete(chartId);
+      originalDispose();
+    };
+    registry.register(widget);
+    return widget;
+  };
 
   return {
     store,
@@ -68,21 +116,14 @@ export function chartPlugin(): ChartPluginInstance {
       // Register the main Chart handler. This is the only handler for Chart — child
       // component guards (ChartData, ChartAxis, etc.) are registered separately in
       // registerHandlers() and are never invoked for children collected by this handler.
-      registerNode(Chart, (node, api, helpers) => {
+      registerNode(Chart, (node: ReactElement, api: CompileApi, helpers: CompileHelpers) => {
         const props = node.props as Record<string, unknown>;
         const chartId = typeof props['id'] === 'string' ? props['id'] : null;
         if (!chartId) throw new Error('<Chart> requires a string "id" prop.');
 
         // Auto-create and register ChartWidget on first encounter.
         if (!registry.get(chartId)) {
-          const widget = new ChartWidget(chartId, store);
-          widgetMap.set(chartId, widget);
-          const originalDispose = widget.dispose.bind(widget);
-          widget.dispose = () => {
-            widgetMap.delete(chartId);
-            originalDispose();
-          };
-          registry.register(widget);
+          registerChartWidget(registry, chartId);
         }
 
         // Extract and compile child DSL.
@@ -111,6 +152,19 @@ export function chartPlugin(): ChartPluginInstance {
         const chartState = compileChart(props as ChartDSL, dataDsl, axisDsls, seriesDsls, legendDsl);
         api.setWidgetState(chartId, chartState);
       });
+    },
+
+    reconcileCompiledTrack: (
+      registry: WidgetRegistry,
+      track: Parameters<NonNullable<WidgetPlugin['reconcileCompiledTrack']>>[1],
+    ) => {
+      for (const tick of track.ticks) {
+        for (const [widgetId, state] of Object.entries(tick.state.widgets)) {
+          if (!registry.get(widgetId) && isChartStateLike(state)) {
+            registerChartWidget(registry, widgetId);
+          }
+        }
+      }
     },
 
     wrapProvider: (children: ReactNode): ReactNode =>

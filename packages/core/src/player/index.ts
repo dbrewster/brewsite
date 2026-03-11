@@ -6,7 +6,7 @@ export type { SceneEngineProps } from './SceneEngine';
 export { SceneCanvas } from './SceneCanvas';
 export type { SceneCanvasProps } from './SceneCanvas';
 export { ScrollStage } from './ScrollStage';
-export type { ScrollStageProps } from './ScrollStage';
+export type { ScrollStageHandle, ScrollStageProps, ScrollStageSnapshot } from './ScrollStage';
 export { BackgroundLayer } from './BackgroundLayer';
 export type { BackgroundLayerProps } from './BackgroundLayer';
 export { SceneReel } from './SceneReel';
@@ -15,6 +15,8 @@ export type { SceneReelProps } from './SceneReel';
 // ─── Input Components ─────────────────────────────────────────────────────────
 export { ScrollInput } from './ScrollInput';
 export type { ScrollInputProps } from './ScrollInput';
+export { CustomScrollSource, ElementScrollSource, InertiaScrollSource } from './StageScrollSources';
+export type { ElementScrollSourceProps, InertiaScrollSourceProps } from './StageScrollSources';
 export { TimeInput } from './TimeInput';
 export type { TimeInputProps } from './TimeInput';
 export { KeyboardInput } from './KeyboardInput';

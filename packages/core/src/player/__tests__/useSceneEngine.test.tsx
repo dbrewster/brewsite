@@ -349,3 +349,90 @@ describe('useSceneEngine warning logging', () => {
     root.unmount();
   });
 });
+
+describe('useSceneEngine plugin reconciliation', () => {
+  beforeEach(() => {
+    window.matchMedia = vi.fn().mockImplementation(() => ({
+      matches: false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+      media: '',
+      onchange: null,
+    }));
+    window.requestAnimationFrame = () => 1;
+    window.cancelAnimationFrame = () => {};
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('reconciles cached scene tracks through plugins', async () => {
+    const { getCachedTrack } = await import('../../compiler/sceneTrackCache');
+    const cachedTrack = { ticks: [], warnings: [] };
+    (getCachedTrack as ReturnType<typeof vi.fn>).mockReturnValueOnce(cachedTrack);
+
+    const reconcileCompiledTrack = vi.fn();
+    const registry = new WidgetRegistry();
+    const scenes = [{ sceneKey: 's1', contentKey: 'scene:s1', element: <Scene id="s1" /> }];
+
+    const Test = () => {
+      useSceneEngine({
+        scenes,
+        widgetRegistry: registry,
+        plugins: [{
+          createWidgets: () => [],
+          registerHandlers: () => {},
+          reconcileCompiledTrack,
+        }],
+      });
+      return <div />;
+    };
+
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    act(() => {
+      root.render(<Test />);
+    });
+
+    expect(reconcileCompiledTrack).toHaveBeenCalledWith(registry, cachedTrack);
+    root.unmount();
+  });
+
+  it('reconciles freshly compiled scene tracks through plugins', async () => {
+    const { getCachedTrack } = await import('../../compiler/sceneTrackCache');
+    const { compileSceneTrack } = await import('../../compiler/sceneTrackCompiler');
+    const compiledTrack = { ticks: [], warnings: [] };
+    (getCachedTrack as ReturnType<typeof vi.fn>).mockReturnValueOnce(null);
+    (compileSceneTrack as ReturnType<typeof vi.fn>).mockReturnValueOnce(compiledTrack);
+
+    const reconcileCompiledTrack = vi.fn();
+    const registry = new WidgetRegistry();
+    const scenes = [{ sceneKey: 's1', contentKey: 'scene:s1', element: <Scene id="s1" /> }];
+
+    const Test = () => {
+      useSceneEngine({
+        scenes,
+        widgetRegistry: registry,
+        plugins: [{
+          createWidgets: () => [],
+          registerHandlers: () => {},
+          reconcileCompiledTrack,
+        }],
+      });
+      return <div />;
+    };
+
+    const container = document.createElement('div');
+    const root = createRoot(container);
+    act(() => {
+      root.render(<Test />);
+    });
+
+    expect(reconcileCompiledTrack).toHaveBeenCalledWith(registry, compiledTrack);
+    root.unmount();
+  });
+});

@@ -7,7 +7,6 @@ import {
   KeyboardInput,
   SceneCanvas,
   SceneEngine,
-  ScrollInput,
   ScrollStage,
 } from '@brewsite/core';
 import {createComparisonPlugins} from './widgetSetup';
@@ -45,7 +44,7 @@ export default function ComparisonPage(): JSX.Element {
   const { plugins } = useMemo(() => createComparisonPlugins(), []);
 
   return (
-    <div style={{ background: '#080b14', minHeight: '100vh', fontSize: '18px' }}>
+    <div style={{ background: '#080b14', height: '100vh', overflow: 'hidden', fontSize: '18px' }}>
       <SceneEngine plugins={plugins}>
         {sceneHero}
         {sceneCfOverview}
@@ -65,7 +64,6 @@ export default function ComparisonPage(): JSX.Element {
             <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
             <EngineOverlayHost />
           </EngineARContainer>
-          <ScrollInput source="window" />
           <KeyboardInput />
         </ScrollStage>
       </SceneEngine>

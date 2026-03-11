@@ -7,7 +7,6 @@ import {
   KeyboardInput,
   SceneCanvas,
   SceneEngine,
-  ScrollInput,
   ScrollStage,
 } from '@brewsite/core';
 import {createSidecarPlugins} from './widgetSetup';
@@ -43,7 +42,7 @@ export default function SidecarNotePage(): JSX.Element {
   const { plugins } = useMemo(() => createSidecarPlugins(), []);
 
   return (
-    <div style={{ background: '#080b14', minHeight: '100vh', fontSize: '18px' }}>
+    <div style={{ background: '#080b14', height: '100vh', overflow: 'hidden', fontSize: '18px' }}>
       <SceneEngine plugins={plugins}>
         {sceneHero}
         {sceneSurfaces}
@@ -62,7 +61,6 @@ export default function SidecarNotePage(): JSX.Element {
             <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
             <EngineOverlayHost />
           </EngineARContainer>
-          <ScrollInput source="window" />
           <KeyboardInput />
         </ScrollStage>
       </SceneEngine>

@@ -252,7 +252,7 @@ export function compileDiagram(
     const groupBorderHeight = borderStyle === 'none'
       ? 0.01
       : Math.max(0.01, groupDefaults.borderHeight);
-    positions.set(groupId, [centerX, centerY, GROUP_RENDER_Z]);
+    positions.set(groupId, [centerX, centerY, 0]);
     sizeWithDepthMap.set(groupId, [
       bounds.w + borderCenterInset * 2,
       bounds.h + borderCenterInset * 2,
@@ -331,7 +331,7 @@ export function compileDiagram(
   // For ManualLayout, sizeWithDepthMap already has the border-center inset baked in;
   // use that pre-computed size so edge endpoints land on the border centerline.
   for (const [groupId, normBounds] of normalizedGroups) {
-    normalizedPositions.set(groupId, [normBounds.x + normBounds.w / 2, normBounds.y + normBounds.h / 2, GROUP_RENDER_Z]);
+    normalizedPositions.set(groupId, [normBounds.x + normBounds.w / 2, normBounds.y + normBounds.h / 2, 0]);
     const preNorm = rootLayout.kind === 'manual' ? sizeWithDepthMap.get(groupId) : undefined;
     normalizedSizeWithDepthMap.set(groupId, preNorm ?? [normBounds.w, normBounds.h, 0.01]);
   }

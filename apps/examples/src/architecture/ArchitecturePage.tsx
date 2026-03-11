@@ -7,7 +7,6 @@ import {
   KeyboardInput,
   SceneCanvas,
   SceneEngine,
-  ScrollInput,
   ScrollStage,
 } from '@brewsite/core';
 import {createArchitecturePlugins} from './widgetSetup';
@@ -17,7 +16,7 @@ export default function ArchitecturePage(): JSX.Element {
   const { plugins } = useMemo(() => createArchitecturePlugins(), []);
 
   return (
-    <div style={{ background: '#030508', minHeight: '100vh' }}>
+    <div style={{ background: '#030508', height: '100vh', overflow: 'hidden' }}>
       <SceneEngine plugins={plugins}>
         {architectureFlowScenes}
         <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1400}>
@@ -26,7 +25,6 @@ export default function ArchitecturePage(): JSX.Element {
             <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
             <EngineOverlayHost />
           </EngineARContainer>
-          <ScrollInput source="window" />
           <KeyboardInput />
         </ScrollStage>
       </SceneEngine>

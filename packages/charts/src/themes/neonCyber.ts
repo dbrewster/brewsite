@@ -15,10 +15,14 @@ export const neonCyberChartTheme: ChartTheme = {
     { color: '#ff0055', metalness: 0.1, roughness: 0.05, transmission: 0.0, emissiveIntensity: 0.9, depth: 0.25 },
   ],
   axis: {
-    lineColor: '#1a1a2e',
+    lineColor: '#45ff93',
+    lineOpacity: 0.95,
+    tickOpacity: 0.92,
     labelColor: '#39ff14',
+    labelOpacity: 1.0,
     fontSize: 0.12,
     tickLength: 0.08,
+    gap: 0.18,
   },
   background: {
     planeColor: '#000000',
@@ -30,6 +34,15 @@ export const neonCyberChartTheme: ChartTheme = {
     fontSize: 0.09,
     swatchSize: 0.08,
     spacing: 0.14,
+    gap: 0.28,
+  },
+  line: {
+    shape: 'hexagon',
+    smoothness: 0.82,
+    subdivisions: 7,
+  },
+  pie: {
+    tilt: -0.35,
   },
   interaction: {
     hoverColor: '#ffffff',

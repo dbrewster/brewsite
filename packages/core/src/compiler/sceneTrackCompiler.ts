@@ -342,6 +342,7 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
         ? structuredClone(cloneable)
         : JSON.parse(JSON.stringify(cloneable));
     if ('enabled' in clone) clone.enabled = false;
+    if ('opacity' in clone && typeof clone.opacity === 'number') clone.opacity = 0;
     if (clone.model && typeof clone.model === 'object' && 'enabled' in (clone.model as object)) {
       (clone.model as Record<string, unknown>).enabled = false;
     }

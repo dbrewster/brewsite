@@ -1,6 +1,7 @@
 // Chart theme type contracts — no Three.js, no React.
 
 import type { SceneTheme } from '@brewsite/core';
+import type { ChartLineShape } from '../elements/chart/types';
 
 /** Supported chart theme preset names. */
 export type ChartThemeName = 'darkGlass' | 'neonCyber' | 'enterprise' | 'lightMinimal';
@@ -25,12 +26,20 @@ export type ChartSeriesMaterialTokens = {
 export type ChartAxisTokens = {
   /** Axis line color. */
   readonly lineColor: string;
+  /** Axis line opacity multiplier. */
+  readonly lineOpacity: number;
+  /** Tick mark opacity multiplier. */
+  readonly tickOpacity: number;
   /** Tick label text color. */
   readonly labelColor: string;
+  /** Tick and title label opacity multiplier. */
+  readonly labelOpacity: number;
   /** Font size for tick labels (world units). */
   readonly fontSize: number;
   /** Tick line length (world units). */
   readonly tickLength: number;
+  /** Gap between the axis line and the axis label/title block (world units). */
+  readonly gap: number;
 };
 
 /** Chart background and floor plane tokens. */
@@ -53,6 +62,24 @@ export type ChartLegendTokens = {
   readonly swatchSize: number;
   /** Vertical spacing between legend entries (world units). */
   readonly spacing: number;
+  /** Gap between the plot area and the legend block (world units). */
+  readonly gap: number;
+};
+
+/** Styling tokens for line-chart curve generation. */
+export type ChartLineTokens = {
+  /** Default rendered profile shape for line charts. */
+  readonly shape: ChartLineShape;
+  /** Catmull-Rom tension in [0, 1]. Used for smooth lines only. */
+  readonly smoothness: number;
+  /** Subdivisions inserted per data-point span when building the rendered curve. */
+  readonly subdivisions: number;
+};
+
+/** Styling tokens for pie/donut chart presentation. */
+export type ChartPieTokens = {
+  /** Default slice tilt in radians around the local X axis. */
+  readonly tilt: number;
 };
 
 /** Tokens for interactive hover and selection feedback. */
@@ -77,6 +104,8 @@ export type ChartTheme = {
   readonly axis: ChartAxisTokens;
   readonly background: ChartBackgroundTokens;
   readonly legend: ChartLegendTokens;
+  readonly line: ChartLineTokens;
+  readonly pie: ChartPieTokens;
   readonly interaction: ChartInteractionTokens;
   /**
    * Optional cross-package scene theme context.

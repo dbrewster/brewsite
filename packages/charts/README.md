@@ -147,6 +147,10 @@ function Overlay() {
 | `theme` | `ChartThemeName` | No | Theme preset name. Default `'darkGlass'` |
 | `opacity` | `number` | No | Overall opacity 0-1. Default `1` |
 | `interactive` | `boolean` | No | Enable hover/click events. Default `false` |
+| `axisGap` | `number` | No | Gap between the plot axes and axis labels/title. Overrides `theme.axis.gap` |
+| `legendGap` | `number` | No | Gap between the plot area and the legend. Overrides `theme.legend.gap` |
+| `innerRadius` | `number` | No | Pie/donut inner radius ratio. Default `0` |
+| `pieTilt` | `number` | No | Pie chart tilt in radians. Overrides `theme.pie.tilt` when set |
 
 ### `<ChartData>`
 
@@ -210,7 +214,9 @@ import { createChartTheme } from '@brewsite/charts';
 
 const brandTheme = createChartTheme('darkGlass', {
   name: 'brand',
-  axis: { lineColor: '#ff4400', labelColor: '#ffffff' },
+  axis: { lineColor: '#ff4400', labelColor: '#ffffff', gap: 0.22 },
+  legend: { gap: 0.32 },
+  pie: { tilt: 0.5 },
   series: [
     { color: '#ff4400', metalness: 0.3, roughness: 0.4, transmission: 0, emissiveIntensity: 0.1, depth: 0.3 },
   ],
@@ -218,6 +224,9 @@ const brandTheme = createChartTheme('darkGlass', {
 ```
 
 Pass the resulting `ChartTheme` object to the `theme` prop on `<Chart>`.
+
+Built-in themes now include `theme.pie.tilt`, so pie and donut charts render with a slight upward tilt by default to expose slice depth.
+Built-in themes also include `theme.axis.gap` and `theme.legend.gap`, and individual charts can override them with `axisGap` and `legendGap`.
 
 ## 9. Linked-Brush Filtering
 

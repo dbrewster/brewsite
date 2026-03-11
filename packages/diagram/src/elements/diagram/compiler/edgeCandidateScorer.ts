@@ -186,8 +186,14 @@ export function scoreCandidate(
     const horizontalDominant = absDx > absDy * 1.1;
     const dstIsSide = candidate.dstFace === 'left' || candidate.dstFace === 'right';
     const dstIsVertical = candidate.dstFace === 'top' || candidate.dstFace === 'bottom';
+    const targetIsLeft = toPos[0] < fromPos[0] - toSize[0] * 0.1;
+    const targetIsRight = toPos[0] > fromPos[0] + toSize[0] * 0.1;
     if (verticalDominant && dstIsSide) groupFacePenalty += 760;
     if (horizontalDominant && dstIsVertical) groupFacePenalty += 220;
+    if (verticalDominant && dstIsSide) {
+      if (targetIsLeft && candidate.dstFace === 'right') groupFacePenalty += 640;
+      if (targetIsRight && candidate.dstFace === 'left') groupFacePenalty += 640;
+    }
 
     const destinationLateralClass = candidate.destinationLateralClass ?? 'center';
     if (dstIsVertical && absDx > toSize[0] * 0.35 && (destinationLateralClass === 'center' || destinationLateralClass === 'inner')) {

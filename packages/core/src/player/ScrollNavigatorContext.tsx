@@ -1,9 +1,9 @@
-// ScrollNavigatorContext.tsx — Provided by ScrollInput source='window', consumed by useGoToScene.
+// ScrollNavigatorContext.tsx — Provided by ScrollStage or legacy ScrollInput, consumed by useGoToScene.
 
 import { createContext } from 'react';
 
 /**
- * Provided by ScrollInput when source='window' or source={elementRef}.
+ * Provided by ScrollStage's active scroll driver or legacy ScrollInput adapters.
  * Consumed by useGoToScene() to perform scroll-position sync on programmatic navigation.
  */
 export type ScrollNavigatorContextValue = {

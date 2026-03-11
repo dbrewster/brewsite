@@ -13,6 +13,9 @@ export type ChartType = 'bar' | 'line' | 'area' | 'pie' | 'scatter' | 'heatmap';
 /** Legend position. */
 export type LegendPosition = 'right' | 'bottom' | 'top' | 'left';
 
+/** Rendered profile shape for line charts. */
+export type ChartLineShape = 'circle' | 'triangle' | 'hexagon' | 'heptagon' | 'octagon' | 'line';
+
 /** Compiled legend state. */
 export type ChartLegendState = {
   readonly visible: boolean;
@@ -67,8 +70,20 @@ export type ChartState = {
   readonly theme: ChartThemeName | ChartTheme;
   readonly opacity: number;
   readonly interactive: boolean;
+  /** Optional per-chart line profile shape. */
+  readonly lineShape?: ChartLineShape;
+  /** Optional per-chart line smoothness override. Falls back to theme.line.smoothness. */
+  readonly lineSmoothness?: number;
+  /** Optional per-chart line subdivision override. Falls back to theme.line.subdivisions. */
+  readonly lineSubdivisions?: number;
+  /** Optional per-chart axis gap override. Falls back to theme.axis.gap. */
+  readonly axisGap?: number;
   /** Inner radius ratio for pie charts (0 = pie, 0.1–0.8 = donut). Default 0. */
   readonly innerRadius?: number;
+  /** Optional per-chart legend gap override. Falls back to theme.legend.gap. */
+  readonly legendGap?: number;
+  /** Optional per-chart pie tilt override in radians. Falls back to theme.pie.tilt. */
+  readonly pieTilt?: number;
   /** For heatmap time-series animation — field name containing the time dimension. */
   readonly timeField?: string;
   /**
@@ -124,7 +139,13 @@ export type ChartDSL = {
   readonly theme?: ChartThemeName | ChartTheme;
   readonly opacity?: number;
   readonly interactive?: boolean;
+  readonly lineShape?: ChartLineShape;
+  readonly lineSmoothness?: number;
+  readonly lineSubdivisions?: number;
+  readonly axisGap?: number;
   readonly innerRadius?: number;
+  readonly legendGap?: number;
+  readonly pieTilt?: number;
   /**
    * Optional scene theme for cross-package theming.
    * When set, overrides ChartTheme.sceneTheme for this element.

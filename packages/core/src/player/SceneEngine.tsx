@@ -178,6 +178,7 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
   const engine = useSceneEngine({
     scenes,
     widgetRegistry,
+    plugins: resolvedPlugins,
     manifest,
     timingProfile: props.timingProfile,
     maxAnimBoostPerFrame: props.maxAnimBoostPerFrame,

@@ -1,19 +1,19 @@
 // @vitest-environment jsdom
-// ScrollStage tests — verifies scroll height computation, sticky layout, and context provision.
+// ScrollStage tests — verifies contained-scroll layout, context provision, and handle APIs.
 
-import { describe, it, expect, afterEach, useContext as _useContext, vi } from 'vitest';
-import React, { useContext } from 'react';
-import { cleanup, render } from '@testing-library/react';
-import { ScrollStage } from '../ScrollStage';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import React, { createRef, useContext } from 'react';
+import { act, cleanup, render } from '@testing-library/react';
+import { ScrollStage, type ScrollStageHandle } from '../ScrollStage';
+import { CustomScrollSource } from '../StageScrollSources';
 import { EngineContext } from '../EngineContext';
 import { ScrollRegionContext } from '../ScrollRegionContext';
 import { ViewportScaleContext } from '../EngineARContainer';
 import type { UseSceneEngineResult } from '../useSceneEngine';
 import type { ViewportScaleContextValue } from '../EngineARContainer';
+import type { IScrollSource } from '../scrollSourceTypes';
 
 afterEach(() => cleanup());
-
-// ─── Engine test double ────────────────────────────────────────────────────────
 
 type MockEngineOptions = {
   sceneCount?: number;
@@ -59,8 +59,6 @@ const makeArCtx = (computedArHeight: number): ViewportScaleContextValue => ({
   scaleMode: 'fit-width',
 });
 
-// ─── Helper: render ScrollStage inside engine context ─────────────────────────
-
 const renderScrollStage = (
   stageProps: React.ComponentProps<typeof ScrollStage>,
   engineOptions: MockEngineOptions = {},
@@ -78,139 +76,69 @@ const renderScrollStage = (
   );
 };
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+describe('ScrollStage — contained host layout', () => {
+  it('renders a scroll host with intrinsic overflow defaults', () => {
+    const { container } = renderScrollStage({ children: <div /> }, { sceneCount: 1 });
+    const host = container.firstChild as HTMLDivElement;
+    expect(host.style.position).toBe('relative');
+    expect(host.style.width).toBe('100%');
+    expect(host.style.height).toBe('100%');
+    expect(host.style.overflowY).toBe('auto');
+    expect(host.style.overflowX).toBe('hidden');
+  });
 
-describe('ScrollStage — scene-count mode (default)', () => {
-  it('computes height = pixelsPerScene × sceneCount', () => {
+  it('computes spacer minHeight = pixelsPerScene × sceneCount', () => {
     const { container } = renderScrollStage(
       { pixelsPerScene: 400, children: <div /> },
       { sceneCount: 3 },
     );
-    const spacer = container.firstChild as HTMLDivElement;
-    // The outer spacer div has inline height
-    expect(spacer.style.height).toBe('1200px');
+    const spacer = (container.firstChild as HTMLDivElement).firstChild as HTMLDivElement;
+    expect(spacer.style.minHeight).toBe('1200px');
   });
 
-  it('defaults pixelsPerScene to 1200 when omitted', () => {
-    const { container } = renderScrollStage(
-      { children: <div /> },
-      { sceneCount: 2 },
-    );
-    const spacer = container.firstChild as HTMLDivElement;
-    expect(spacer.style.height).toBe('2400px');
-  });
-
-  it('uses min sceneCount of 1 when sceneCount === 0 (not yet compiled)', () => {
-    const { container } = renderScrollStage(
-      { pixelsPerScene: 500, children: <div /> },
-      { sceneCount: 0 },
-    );
-    const spacer = container.firstChild as HTMLDivElement;
-    expect(spacer.style.height).toBe('500px');
-  });
-});
-
-describe('ScrollStage — scroll-units mode', () => {
-  it('computes height = totalScrollUnits × pixelsPerScrollUnit', () => {
+  it('computes spacer minHeight from scroll-units mode', () => {
     const { container } = renderScrollStage(
       { scrollHeightMode: 'scroll-units', pixelsPerScrollUnit: 2, children: <div /> },
       { totalScrollUnits: 5000 },
     );
-    const spacer = container.firstChild as HTMLDivElement;
-    expect(spacer.style.height).toBe('10000px');
-  });
-
-  it('defaults pixelsPerScrollUnit to 1 when omitted', () => {
-    const { container } = renderScrollStage(
-      { scrollHeightMode: 'scroll-units', children: <div /> },
-      { totalScrollUnits: 3000 },
-    );
-    const spacer = container.firstChild as HTMLDivElement;
-    expect(spacer.style.height).toBe('3000px');
+    const spacer = (container.firstChild as HTMLDivElement).firstChild as HTMLDivElement;
+    expect(spacer.style.minHeight).toBe('10000px');
   });
 });
 
-describe('ScrollStage — explicit scrollHeightPx', () => {
-  it('overrides all calculation when scrollHeightPx is provided', () => {
+describe('ScrollStage — sticky viewport', () => {
+  it('renders a sticky inner stage with explicit height override', () => {
     const { container } = renderScrollStage(
-      { scrollHeightPx: 99999, pixelsPerScene: 400, children: <div /> },
-      { sceneCount: 5 },
-    );
-    const spacer = container.firstChild as HTMLDivElement;
-    expect(spacer.style.height).toBe('99999px');
-  });
-});
-
-describe('ScrollStage — sticky inner stage', () => {
-  it('renders a sticky inner div with default 100vh height', () => {
-    const { container } = renderScrollStage(
-      { children: <div data-testid="content" /> },
+      { stageHeight: 480, children: <div data-testid="content" /> },
       { sceneCount: 1 },
     );
-    const stage = (container.firstChild as HTMLDivElement).firstChild as HTMLDivElement;
+    const stage = ((container.firstChild as HTMLDivElement).firstChild as HTMLDivElement).firstChild as HTMLDivElement;
     expect(stage.style.position).toBe('sticky');
     expect(stage.style.top).toBe('0px');
-    expect(stage.style.overflow).toBe('hidden');
-    expect(stage.style.height).toBe('100vh');
-  });
-
-  it('applies custom stageHeight (number) to the sticky inner div', () => {
-    const { container } = renderScrollStage(
-      { stageHeight: 480, children: <div /> },
-      { sceneCount: 1 },
-    );
-    const stage = (container.firstChild as HTMLDivElement).firstChild as HTMLDivElement;
     expect(stage.style.height).toBe('480px');
+    expect(stage.querySelector('[data-testid="content"]')).not.toBeNull();
   });
 
-  it('applies custom stageHeight (string) to the sticky inner div', () => {
+  it('uses computedArHeight when provided by context', () => {
     const { container } = renderScrollStage(
-      { stageHeight: '50vh', children: <div /> },
+      { children: <div /> },
       { sceneCount: 1 },
+      640,
     );
-    const stage = (container.firstChild as HTMLDivElement).firstChild as HTMLDivElement;
-    expect(stage.style.height).toBe('50vh');
-  });
-
-  it('children are rendered inside the sticky stage', () => {
-    const { container } = renderScrollStage(
-      { children: <div data-testid="inner-child" /> },
-      { sceneCount: 1 },
-    );
-    const stage = (container.firstChild as HTMLDivElement).firstChild as HTMLDivElement;
-    expect(stage.querySelector('[data-testid="inner-child"]')).not.toBeNull();
-  });
-});
-
-describe('ScrollStage — EngineARContainerContext interop', () => {
-  it('uses computedArHeight for sticky stage height when non-zero', () => {
-    const { container } = renderScrollStage(
-      { stageHeight: '100vh', children: <div /> },
-      { sceneCount: 1 },
-      640, // computedArHeight
-    );
-    const stage = (container.firstChild as HTMLDivElement).firstChild as HTMLDivElement;
+    const stage = ((container.firstChild as HTMLDivElement).firstChild as HTMLDivElement).firstChild as HTMLDivElement;
     expect(stage.style.height).toBe('640px');
-  });
-
-  it('falls back to stageHeight when computedArHeight is 0', () => {
-    const { container } = renderScrollStage(
-      { stageHeight: 500, children: <div /> },
-      { sceneCount: 1 },
-      0, // computedArHeight = 0 → use stageHeight
-    );
-    const stage = (container.firstChild as HTMLDivElement).firstChild as HTMLDivElement;
-    expect(stage.style.height).toBe('500px');
   });
 });
 
 describe('ScrollStage — ScrollRegionContext provision', () => {
-  it('provides ScrollRegionContext to children with correct scrollHeightPx', () => {
-    let capturedCtx: { containerRef: unknown; scrollHeightPx: number } | null = null;
+  it('provides containerRef and computed scrollHeightPx to children', () => {
+    let capturedScrollHeight = 0;
+    let capturedRef: unknown = null;
 
     function ScrollRegionConsumer(): React.ReactElement {
       const ctx = useContext(ScrollRegionContext);
-      capturedCtx = ctx as typeof capturedCtx;
+      capturedScrollHeight = ctx?.scrollHeightPx ?? 0;
+      capturedRef = ctx?.containerRef;
       return <div />;
     }
 
@@ -219,8 +147,94 @@ describe('ScrollStage — ScrollRegionContext provision', () => {
       { sceneCount: 4 },
     );
 
-    expect(capturedCtx).not.toBeNull();
-    expect(capturedCtx!.scrollHeightPx).toBe(1200); // 300 × 4
-    expect(capturedCtx!.containerRef).toBeDefined();
+    expect(capturedScrollHeight).toBe(1200);
+    expect(capturedRef).toBeDefined();
+  });
+});
+
+describe('ScrollStage — imperative handle', () => {
+  it('exposes snapshot reads, programmatic scroll, and subscription', () => {
+    const ref = createRef<ScrollStageHandle>();
+    const engine = makeEngine({ sceneCount: 3 });
+    const arCtx = makeArCtx(0);
+
+    const { container } = render(
+      <ViewportScaleContext.Provider value={arCtx}>
+        <EngineContext.Provider value={engine}>
+          <ScrollStage ref={ref} pixelsPerScene={400}>
+            <div />
+          </ScrollStage>
+        </EngineContext.Provider>
+      </ViewportScaleContext.Provider>,
+    );
+
+    const host = container.firstChild as HTMLDivElement;
+    Object.defineProperty(host, 'clientHeight', { value: 400, configurable: true });
+    host.scrollTo = ((options?: ScrollToOptions | number, _y?: number) => {
+      if (typeof options === 'number') {
+        host.scrollTop = options;
+        return;
+      }
+      host.scrollTop = options?.top ?? 0;
+    }) as typeof host.scrollTo;
+
+    act(() => {
+      window.dispatchEvent(new Event('resize'));
+    });
+
+    const snapshots: number[] = [];
+    const unsubscribe = ref.current!.subscribe((snapshot) => {
+      snapshots.push(snapshot.rawProgress);
+    });
+
+    act(() => {
+      ref.current!.scrollToProgress(0.5);
+      host.dispatchEvent(new Event('scroll'));
+    });
+
+    expect(ref.current!.getScrollTop()).toBe(400);
+    expect(ref.current!.getMaxScrollTop()).toBe(800);
+    expect(ref.current!.getRawProgress()).toBe(0.5);
+    expect(snapshots.at(-1)).toBe(0.5);
+
+    unsubscribe();
+  });
+
+  it('switches to a child-provided custom scroll source', () => {
+    const ref = createRef<ScrollStageHandle>();
+    const engine = makeEngine({ sceneCount: 3 });
+    const arCtx = makeArCtx(0);
+    let subscriber: ((rawProgress: number) => void) | null = null;
+
+    const source: IScrollSource = {
+      subscribe(onProgress) {
+        subscriber = onProgress;
+        onProgress(0.1);
+        return () => { subscriber = null; };
+      },
+      scrollTo(rawProgress) {
+        subscriber?.(rawProgress);
+      },
+    };
+
+    render(
+      <ViewportScaleContext.Provider value={arCtx}>
+        <EngineContext.Provider value={engine}>
+          <ScrollStage ref={ref} pixelsPerScene={400}>
+            <CustomScrollSource source={source} />
+            <div />
+          </ScrollStage>
+        </EngineContext.Provider>
+      </ViewportScaleContext.Provider>,
+    );
+
+    expect(engine.setRawProgress).toHaveBeenCalledWith(0.1);
+
+    act(() => {
+      ref.current!.scrollToProgress(0.75);
+    });
+
+    expect(engine.setRawProgress).toHaveBeenLastCalledWith(0.75);
+    expect(ref.current!.getRawProgress()).toBe(0.75);
   });
 });

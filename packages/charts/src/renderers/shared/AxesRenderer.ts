@@ -23,6 +23,8 @@ type AxisRenderState = {
   fontUrl?: string;
 };
 
+const AXIS_LABEL_Z_OFFSET = 0.01;
+
 /**
  * Manages floor plane, axis lines, tick marks, and tick label Text objects
  * inside an axesGroup. Designed for incremental update — call update() each frame.
@@ -32,8 +34,10 @@ export class AxesRenderer {
   private axisLineY: THREE.Line | null = null;
   private floorPlane: THREE.Mesh | null = null;
   private readonly tickObjects: THREE.Object3D[] = [];
-  private readonly labelObjects: TextWithLayout[] = [];
-  private lastThemeAxis: string | null = null;
+  private readonly xTickLabels: TextWithLayout[] = [];
+  private readonly yTickLabels: TextWithLayout[] = [];
+  private xAxisTitle: TextWithLayout | null = null;
+  private yAxisTitle: TextWithLayout | null = null;
 
   constructor(private readonly axesGroup: THREE.Group) {}
 
@@ -55,20 +59,35 @@ export class AxesRenderer {
     width: number,
     height: number,
     theme: ChartTheme,
-    _opacity: number,
+    opacity: number,
   ): void {
+    if (!theme.background.planeColor) {
+      if (this.floorPlane) {
+        this.floorPlane.geometry.dispose();
+        const material = this.floorPlane.material;
+        if (Array.isArray(material)) { for (const entry of material) entry.dispose(); } else { material.dispose(); }
+        this.axesGroup.remove(this.floorPlane);
+        this.floorPlane = null;
+      }
+      return;
+    }
+
     if (!this.floorPlane) {
       const geo = new THREE.PlaneGeometry(width, height);
       const mat = new THREE.MeshStandardMaterial({
-        color: theme.background.gridColor ? new THREE.Color(theme.background.gridColor) : 0x111111,
-        transparent: true,
-        opacity: 0.3,
+        color: new THREE.Color(theme.background.planeColor),
+        transparent: theme.background.planeOpacity * opacity < 1,
+        opacity: theme.background.planeOpacity * opacity,
         side: THREE.FrontSide,
       });
       this.floorPlane = new THREE.Mesh(geo, mat);
-      this.floorPlane.rotation.x = -Math.PI / 2;
-      this.floorPlane.position.set(width / 2, 0, 0);
+      this.floorPlane.position.set(width / 2, height / 2, -0.01);
       this.axesGroup.add(this.floorPlane);
+    } else {
+      const mat = this.floorPlane.material as THREE.MeshStandardMaterial;
+      mat.color.set(theme.background.planeColor);
+      mat.opacity = theme.background.planeOpacity * opacity;
+      mat.transparent = theme.background.planeOpacity * opacity < 1;
     }
   }
 
@@ -79,7 +98,7 @@ export class AxesRenderer {
     opacity: number,
   ): void {
     const color = new THREE.Color(theme.axis.lineColor);
-    const lineOpacity = opacity * 0.8;
+    const lineOpacity = opacity * theme.axis.lineOpacity;
 
     if (!this.axisLineX) {
       const geo = new THREE.BufferGeometry().setFromPoints([
@@ -119,114 +138,158 @@ export class AxesRenderer {
     yAxis: ChartAxisState | null,
     fontUrl?: string,
   ): void {
-    // Remove old tick objects
-    for (const obj of this.tickObjects) {
-      this.axesGroup.remove(obj);
-      if ((obj as THREE.Line).geometry) (obj as THREE.Line).geometry.dispose();
-    }
-    this.tickObjects.length = 0;
-
-    // Remove old label objects
-    for (const lbl of this.labelObjects) {
-      if (lbl instanceof THREE.Object3D) this.axesGroup.remove(lbl);
-    }
-    this.labelObjects.length = 0;
-
     const tickLen = theme.axis.tickLength;
     const color = new THREE.Color(theme.axis.lineColor);
     const labelColor = theme.axis.labelColor;
+    const labelOpacity = opacity * theme.axis.labelOpacity;
     const fontSize = theme.axis.fontSize;
+    const tickOpacity = opacity * theme.axis.tickOpacity;
+    const axisGap = theme.axis.gap;
 
-    // X-axis ticks (along bottom)
-    for (const tick of xTicks) {
+    this.syncTickObjects(xTicks.length + yTicks.length, color, tickOpacity);
+    this.syncLabelArray(this.xTickLabels, xTicks.length);
+    this.syncLabelArray(this.yTickLabels, yTicks.length);
+
+    for (let i = 0; i < xTicks.length; i++) {
+      const tick = xTicks[i]!;
       const x = tick.position * width;
-      const tickGeo = new THREE.BufferGeometry().setFromPoints([
+      this.updateTickLine(this.tickObjects[i] as THREE.Line, [
         new THREE.Vector3(x, 0, 0),
         new THREE.Vector3(x, -tickLen, 0),
-      ]);
-      const tickMat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: opacity * 0.6 });
-      const tickLine = new THREE.Line(tickGeo, tickMat);
-      this.axesGroup.add(tickLine);
-      this.tickObjects.push(tickLine);
+      ], color, tickOpacity);
 
-      // Label
-      const label = new Text() as unknown as TextWithLayout;
-      label.userData = {};
-      (label as unknown as THREE.Object3D).position.set(x, -tickLen - fontSize * 0.6, 0);
-      ensureText(
-        label,
-        String(tick.value),
-        labelColor,
-        fontSize,
-        opacity,
-        undefined,
-        false,
-        { anchorX: 'center', anchorY: 'top', fontUrl },
-      );
-      this.axesGroup.add(label as unknown as THREE.Object3D);
-      this.labelObjects.push(label);
-    }
-
-    // Y-axis ticks (along left)
-    for (const tick of yTicks) {
-      const y = (tick as { position: number }).position * height;
-      const tickGeo = new THREE.BufferGeometry().setFromPoints([
-        new THREE.Vector3(0, y, 0),
-        new THREE.Vector3(-tickLen, y, 0),
-      ]);
-      const tickMat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: opacity * 0.6 });
-      const tickLine = new THREE.Line(tickGeo, tickMat);
-      this.axesGroup.add(tickLine);
-      this.tickObjects.push(tickLine);
-
-      // Label
-      const label = new Text() as unknown as TextWithLayout;
-      label.userData = {};
-      (label as unknown as THREE.Object3D).position.set(-tickLen - fontSize * 0.3, y, 0);
-      ensureText(
-        label,
-        String(tick.value),
-        labelColor,
-        fontSize,
-        opacity,
-        undefined,
-        false,
-        { anchorX: 'right', anchorY: 'middle', fontUrl },
-      );
-      this.axesGroup.add(label as unknown as THREE.Object3D);
-      this.labelObjects.push(label);
-    }
-
-    // Axis title labels
-    if (xAxis?.label) {
-      const titleLabel = new Text() as unknown as TextWithLayout;
-      titleLabel.userData = {};
-      (titleLabel as unknown as THREE.Object3D).position.set(width / 2, -tickLen - fontSize * 1.8, 0);
-      ensureText(titleLabel, xAxis.label, labelColor, fontSize * 1.1, opacity, undefined, false, {
+      const label = this.xTickLabels[i]!;
+      const labelObject = label as unknown as THREE.Object3D;
+      labelObject.position.set(x, -tickLen - axisGap - fontSize * 0.6, AXIS_LABEL_Z_OFFSET);
+      labelObject.renderOrder = 10;
+      ensureText(label, String(tick.value), labelColor, fontSize, labelOpacity, undefined, false, {
         anchorX: 'center',
         anchorY: 'top',
         fontUrl,
       });
-      this.axesGroup.add(titleLabel as unknown as THREE.Object3D);
-      this.labelObjects.push(titleLabel);
+    }
+
+    for (let i = 0; i < yTicks.length; i++) {
+      const tick = yTicks[i]!;
+      const y = tick.position * height;
+      this.updateTickLine(this.tickObjects[xTicks.length + i] as THREE.Line, [
+        new THREE.Vector3(0, y, 0),
+        new THREE.Vector3(-tickLen, y, 0),
+      ], color, tickOpacity);
+
+      const label = this.yTickLabels[i]!;
+      const labelObject = label as unknown as THREE.Object3D;
+      labelObject.position.set(-tickLen - axisGap - fontSize * 0.3, y, AXIS_LABEL_Z_OFFSET);
+      labelObject.renderOrder = 10;
+      ensureText(label, String(tick.value), labelColor, fontSize, labelOpacity, undefined, false, {
+        anchorX: 'right',
+        anchorY: 'middle',
+        fontUrl,
+      });
+    }
+
+    // Axis title labels
+    if (xAxis?.label) {
+      const titleLabel = this.ensureAxisTitle('x');
+      const titleObject = titleLabel as unknown as THREE.Object3D;
+      titleObject.position.set(width / 2, -tickLen - axisGap - fontSize * 1.8, AXIS_LABEL_Z_OFFSET);
+      titleObject.rotation.z = 0;
+      titleObject.renderOrder = 10;
+      ensureText(titleLabel, xAxis.label, labelColor, fontSize * 1.1, labelOpacity, undefined, false, {
+        anchorX: 'center',
+        anchorY: 'top',
+        fontUrl,
+      });
+    } else if (this.xAxisTitle) {
+      this.removeLabel(this.xAxisTitle);
+      this.xAxisTitle = null;
     }
 
     if (yAxis?.label) {
-      const titleLabel = new Text() as unknown as TextWithLayout;
-      titleLabel.userData = {};
+      const titleLabel = this.ensureAxisTitle('y');
       const obj = titleLabel as unknown as THREE.Object3D;
-      obj.position.set(-tickLen - fontSize * 2.5, height / 2, 0);
+      obj.position.set(-tickLen - axisGap - fontSize * 2.5, height / 2, AXIS_LABEL_Z_OFFSET);
       obj.rotation.z = Math.PI / 2;
-      ensureText(titleLabel, yAxis.label, labelColor, fontSize * 1.1, opacity, undefined, false, {
+      obj.renderOrder = 10;
+      ensureText(titleLabel, yAxis.label, labelColor, fontSize * 1.1, labelOpacity, undefined, false, {
         anchorX: 'center',
         anchorY: 'bottom',
         fontUrl,
       });
-      this.axesGroup.add(obj);
-      this.labelObjects.push(titleLabel);
+    } else if (this.yAxisTitle) {
+      this.removeLabel(this.yAxisTitle);
+      this.yAxisTitle = null;
+    }
+  }
+
+  private syncTickObjects(count: number, color: THREE.Color, opacity: number): void {
+    while (this.tickObjects.length > count) {
+      const obj = this.tickObjects.pop() as THREE.Line | undefined;
+      if (!obj) break;
+      this.axesGroup.remove(obj);
+      obj.geometry.dispose();
+      const material = obj.material;
+      if (Array.isArray(material)) { for (const entry of material) entry.dispose(); } else { material.dispose(); }
     }
 
-    this.lastThemeAxis = `${theme.name}|${opacity}`;
+    while (this.tickObjects.length < count) {
+      const material = new THREE.LineBasicMaterial({ color, transparent: true, opacity });
+      const line = new THREE.Line(new THREE.BufferGeometry(), material);
+      this.axesGroup.add(line);
+      this.tickObjects.push(line);
+    }
+  }
+
+  private syncLabelArray(target: TextWithLayout[], count: number): void {
+    while (target.length > count) {
+      const label = target.pop();
+      if (label) this.removeLabel(label);
+    }
+
+    while (target.length < count) {
+      const label = new Text() as unknown as TextWithLayout;
+      label.userData = {};
+      this.axesGroup.add(label as unknown as THREE.Object3D);
+      target.push(label);
+    }
+  }
+
+  private updateTickLine(
+    line: THREE.Line,
+    points: [THREE.Vector3, THREE.Vector3],
+    color: THREE.Color,
+    opacity: number,
+  ): void {
+    line.geometry.dispose();
+    line.geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = line.material as THREE.LineBasicMaterial;
+    material.color.set(color);
+    material.opacity = opacity;
+    material.transparent = opacity < 1;
+  }
+
+  private ensureAxisTitle(axis: 'x' | 'y'): TextWithLayout {
+    if (axis === 'x') {
+      if (!this.xAxisTitle) {
+        this.xAxisTitle = new Text() as unknown as TextWithLayout;
+        this.xAxisTitle.userData = {};
+        this.axesGroup.add(this.xAxisTitle as unknown as THREE.Object3D);
+      }
+      return this.xAxisTitle;
+    }
+
+    if (!this.yAxisTitle) {
+      this.yAxisTitle = new Text() as unknown as TextWithLayout;
+      this.yAxisTitle.userData = {};
+      this.axesGroup.add(this.yAxisTitle as unknown as THREE.Object3D);
+    }
+    return this.yAxisTitle;
+  }
+
+  private removeLabel(label: TextWithLayout): void {
+    if (label instanceof THREE.Object3D) {
+      this.axesGroup.remove(label);
+    }
   }
 
   dispose(): void {
@@ -241,12 +304,14 @@ export class AxesRenderer {
     }
     this.tickObjects.length = 0;
 
-    for (const lbl of this.labelObjects) {
-      if (lbl instanceof THREE.Object3D) {
-        this.axesGroup.remove(lbl);
-      }
-    }
-    this.labelObjects.length = 0;
+    for (const label of this.xTickLabels) this.removeLabel(label);
+    for (const label of this.yTickLabels) this.removeLabel(label);
+    this.xTickLabels.length = 0;
+    this.yTickLabels.length = 0;
+    if (this.xAxisTitle) this.removeLabel(this.xAxisTitle);
+    if (this.yAxisTitle) this.removeLabel(this.yAxisTitle);
+    this.xAxisTitle = null;
+    this.yAxisTitle = null;
 
     if (this.axisLineX) {
       this.axisLineX.geometry.dispose();
@@ -269,6 +334,5 @@ export class AxesRenderer {
       this.axesGroup.remove(this.floorPlane);
       this.floorPlane = null;
     }
-    this.lastThemeAxis = null;
   }
 }

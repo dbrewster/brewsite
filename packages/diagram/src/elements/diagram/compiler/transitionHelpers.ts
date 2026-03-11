@@ -72,7 +72,7 @@ export function buildLiveNodeMaps(
     positions.set(group.id, [
       group.bounds.x + group.bounds.w / 2,
       group.bounds.y + group.bounds.h / 2,
-      GROUP_RENDER_Z,
+      0,
     ]);
     sizes.set(group.id, [
       group.bounds.w + borderCenterInset * 2,

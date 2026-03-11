@@ -15,14 +15,18 @@ export const darkGlassChartTheme: ChartTheme = {
     { color: '#fb923c', metalness: 0.15, roughness: 0.2, transmission: 0.25, emissiveIntensity: 0.3, depth: 0.3 },
   ],
   axis: {
-    lineColor: '#334155',
-    labelColor: '#94a3b8',
-    fontSize: 0.12,
+    lineColor: '#7fb2ff',
+    lineOpacity: 0.96,
+    tickOpacity: 0.9,
+    labelColor: '#d7e7ff',
+    labelOpacity: 0.98,
+    fontSize: .05,
     tickLength: 0.08,
+    gap: 0.18,
   },
   background: {
     planeColor: '#0f172a',
-    planeOpacity: 0.85,
+    planeOpacity: 0.1,
     gridColor: '#1e293b',
   },
   legend: {
@@ -30,6 +34,15 @@ export const darkGlassChartTheme: ChartTheme = {
     fontSize: 0.09,
     swatchSize: 0.08,
     spacing: 0.14,
+    gap: 0.28,
+  },
+  line: {
+    shape: 'circle',
+    smoothness: 0.88,
+    subdivisions: 10,
+  },
+  pie: {
+    tilt: -0.35,
   },
   interaction: {
     hoverColor: '#ffffff',

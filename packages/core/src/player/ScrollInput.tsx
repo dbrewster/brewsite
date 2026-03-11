@@ -5,6 +5,7 @@ import type { ReactElement, RefObject } from 'react';
 import { useSceneEngineContext } from './EngineContext';
 import { ScrollRegionContext } from './ScrollRegionContext';
 import { ScrollNavigatorContext } from './ScrollNavigatorContext';
+import { ScrollDriverContext } from './ScrollDriverContext';
 import { usePauseWhenHidden } from './usePauseWhenHidden';
 import { computeInertiaStep } from './scrollInertia';
 import type { ScrollSourceProp, IScrollSource } from './scrollSourceTypes';
@@ -14,11 +15,14 @@ import type { SceneNavInputMap } from '../input/types';
 /**
  * Props for ScrollInput.
  * Drives engine progress from a scroll source.
+ * Prefer ScrollStage's built-in native scroll path and child scroll-source
+ * components for new code; this remains as a legacy input adapter.
  */
 export interface ScrollInputProps {
   /**
    * The scroll source. Default: 'inertia'.
-   * - 'window': reads window.scrollY. Must be paired with ScrollStage.
+   * - 'window': reads native DOM scrolling. Uses the nearest ScrollStage
+   *   container when present; otherwise falls back to window.scrollY.
    * - { elementRef }: reads element.scrollTop. Must be paired with ScrollStage.
    * - 'inertia': spring-decay integrator on wheel events. No ScrollStage needed.
    * - IScrollSource: custom implementation.
@@ -66,6 +70,7 @@ export function ScrollInput(props: ScrollInputProps): ReactElement {
   const source = props.source ?? 'inertia';
   const engine = useSceneEngineContext();
   const scrollRegion = useContext(ScrollRegionContext);
+  const stageDriver = useContext(ScrollDriverContext);
 
   const velocityRef = useRef(0);
   const pendingWheelDeltaRef = useRef(0);
@@ -124,30 +129,31 @@ export function ScrollInput(props: ScrollInputProps): ReactElement {
     return () => cancelAnimationFrame(rafRef.current);
   }, [source, engine]); // engine is stable; props decay/sensitivity read via closure on each tick
 
-  // ── Window/element scroll source mode ────────────────────────────────────────
+  // ── Native DOM scroll source mode ────────────────────────────────────────────
   useEffect(() => {
     const isWindow = source === 'window';
     const isElement = typeof source === 'object' && 'elementRef' in source;
     if (!isWindow && !isElement) return;
-
-    if (!scrollRegion) {
-      console.error(
-        '[BrewSite] <ScrollInput source="window"> must be used inside <ScrollStage>.',
-      );
-      return;
-    }
+    if (stageDriver && isWindow) return;
 
     const computeProgress = (): number => {
-      const el = scrollRegion.containerRef.current;
-      if (!el) return 0;
-      const rect = el.getBoundingClientRect();
-      const scrollTop = isWindow
-        ? (window.scrollY || window.pageYOffset || 0)
-        : ((source as { elementRef: RefObject<HTMLElement | null> }).elementRef.current?.scrollTop ?? 0);
-      const viewportHeight = isWindow ? window.innerHeight : 1;
-      const regionTop = scrollTop + rect.top;
-      const maxScroll = Math.max(1, scrollRegion.scrollHeightPx - viewportHeight);
-      return Math.max(0, Math.min(1, (scrollTop - regionTop) / maxScroll));
+      const stageContainer = scrollRegion?.containerRef.current;
+      if (stageContainer) {
+        const maxScroll = Math.max(1, scrollRegion.scrollHeightPx - stageContainer.clientHeight);
+        return Math.max(0, Math.min(1, stageContainer.scrollTop / maxScroll));
+      }
+
+      if (isElement) {
+        const element = (source as { elementRef: RefObject<HTMLElement | null> }).elementRef.current;
+        if (!element) return 0;
+        const maxScroll = Math.max(1, element.scrollHeight - element.clientHeight);
+        return Math.max(0, Math.min(1, element.scrollTop / maxScroll));
+      }
+
+      const root = document.scrollingElement ?? document.documentElement;
+      const scrollTop = window.scrollY || window.pageYOffset || root.scrollTop || 0;
+      const maxScroll = Math.max(1, root.scrollHeight - window.innerHeight);
+      return Math.max(0, Math.min(1, scrollTop / maxScroll));
     };
 
     const update = () => {
@@ -156,14 +162,20 @@ export function ScrollInput(props: ScrollInputProps): ReactElement {
       engine.setRawProgress(raw);
     };
 
+    const stageContainer = scrollRegion?.containerRef.current;
+    const elementSource = isElement
+      ? (source as { elementRef: RefObject<HTMLElement | null> }).elementRef.current
+      : null;
+    const nativeTarget = stageContainer ?? elementSource ?? window;
+
     update();
-    window.addEventListener('scroll', update, { passive: true });
+    nativeTarget.addEventListener('scroll', update as EventListener, { passive: true });
     window.addEventListener('resize', update, { passive: true });
     return () => {
-      window.removeEventListener('scroll', update);
+      nativeTarget.removeEventListener('scroll', update as EventListener);
       window.removeEventListener('resize', update);
     };
-  }, [source, scrollRegion, engine]);
+  }, [source, scrollRegion, engine, stageDriver]);
 
   // ── IScrollSource custom mode ─────────────────────────────────────────────────
   useEffect(() => {
@@ -178,12 +190,14 @@ export function ScrollInput(props: ScrollInputProps): ReactElement {
   const scrollNavigatorValue = useMemo(() => ({
     scrollTo: (rawProgress: number) => {
       const region = scrollRegion?.containerRef.current;
-      if (!region) return;
-      const rect = region.getBoundingClientRect();
-      const scrollTop = window.scrollY || 0;
-      const regionTop = scrollTop + rect.top;
-      const maxScroll = Math.max(1, (scrollRegion?.scrollHeightPx ?? 0) - window.innerHeight);
-      window.scrollTo({ top: regionTop + rawProgress * maxScroll, behavior: 'smooth' });
+      if (region) {
+        const maxScroll = Math.max(1, (scrollRegion?.scrollHeightPx ?? 0) - region.clientHeight);
+        region.scrollTo({ top: rawProgress * maxScroll, behavior: 'smooth' });
+        return;
+      }
+      const root = document.scrollingElement ?? document.documentElement;
+      const maxScroll = Math.max(1, root.scrollHeight - window.innerHeight);
+      window.scrollTo({ top: rawProgress * maxScroll, behavior: 'smooth' });
     },
   }), [scrollRegion]);
 

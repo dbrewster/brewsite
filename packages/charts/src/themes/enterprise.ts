@@ -15,10 +15,14 @@ export const enterpriseChartTheme: ChartTheme = {
     { color: '#84cc16', metalness: 0.05, roughness: 0.6, transmission: 0.0, emissiveIntensity: 0.05, depth: 0.25 },
   ],
   axis: {
-    lineColor: '#cbd5e1',
-    labelColor: '#475569',
+    lineColor: '#94a3b8',
+    lineOpacity: 0.94,
+    tickOpacity: 0.88,
+    labelColor: '#334155',
+    labelOpacity: 0.95,
     fontSize: 0.12,
     tickLength: 0.08,
+    gap: 0.18,
   },
   background: {
     planeColor: '#f8fafc',
@@ -30,6 +34,15 @@ export const enterpriseChartTheme: ChartTheme = {
     fontSize: 0.09,
     swatchSize: 0.08,
     spacing: 0.14,
+    gap: 0.28,
+  },
+  line: {
+    shape: 'line',
+    smoothness: 0,
+    subdivisions: 3,
+  },
+  pie: {
+    tilt: -0.35,
   },
   interaction: {
     hoverColor: '#2255cc',

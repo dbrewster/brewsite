@@ -140,6 +140,40 @@ describe('scoreCandidate', () => {
     expect(overshootScore.overshootPenalty).toBeGreaterThan(directScore.overshootPenalty);
   });
 
+  it('retreating route has higher overshoot penalty than a target-directed route', () => {
+    const retreatingCandidate: RoutedEdgeCandidate = {
+      ...makeDirectCandidate(fromPos, toPos),
+      geometry: {
+        waypoints: [fromPos, [0, 3, 0], [5, 3, 0], toPos],
+        bendCount: 2,
+        pathLength: 11,
+        routeKind: 'flow',
+        acuteTurnCount: 0,
+        reversalCount: 0,
+        orthogonalDeviationPenalty: 0,
+        groupIngressPenalty: 0,
+      },
+    };
+    const targetDirectedCandidate: RoutedEdgeCandidate = {
+      ...makeDirectCandidate(fromPos, toPos),
+      geometry: {
+        waypoints: [fromPos, [2, 0, 0], toPos],
+        bendCount: 0,
+        pathLength: 5,
+        routeKind: 'flow',
+        acuteTurnCount: 0,
+        reversalCount: 0,
+        orthogonalDeviationPenalty: 0,
+        groupIngressPenalty: 0,
+      },
+    };
+
+    const retreatingScore = scoreCandidate(retreatingCandidate, fromPos, toPos, nodeSize, nodeSize, undefined);
+    const targetDirectedScore = scoreCandidate(targetDirectedCandidate, fromPos, toPos, nodeSize, nodeSize, undefined);
+
+    expect(retreatingScore.overshootPenalty).toBeGreaterThan(targetDirectedScore.overshootPenalty);
+  });
+
   it('direct route produces lower total rank than bendy route (blocker/overshoot equal)', () => {
     const direct = makeDirectCandidate(fromPos, toPos);
     const bendy = makeBendyCandidate(fromPos, [0, 4, 0], toPos);

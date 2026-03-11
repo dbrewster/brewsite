@@ -165,7 +165,7 @@ describe('rerouteLiveEdges', () => {
     const { positions, sizes, groupIds } = buildLiveNodeMaps([], [group]);
 
     expect(groupIds.has('g1')).toBe(true);
-    expect(positions.get('g1')).toEqual([0.45, 0.30000000000000004, -0.6]);
+    expect(positions.get('g1')).toEqual([0.45, 0.30000000000000004, 0]);
     expect(sizes.get('g1')).toEqual([1, 0.9, 1]);
   });
 });

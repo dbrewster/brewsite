@@ -11,6 +11,7 @@ import { RuntimeDriverImpl } from '../runtime/RuntimeDriver';
 import { RuntimeLoop } from '../runtime/RuntimeLoop';
 import { VariableStore } from '../widget/VariableStore';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
+import type { WidgetPlugin } from '../widget/WidgetPlugin';
 import { EngineFrameDriver } from './EngineFrameDriver';
 import type {
   EngineFrameState,
@@ -28,6 +29,7 @@ const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
 export type UseSceneEngineOptions = {
   scenes: InternalSceneSpec[];
   widgetRegistry: WidgetRegistry;
+  plugins?: WidgetPlugin[];
   manifest: AssetManifest | null;
   timingProfile?: EngineTimingProfile;
   maxAnimBoostPerFrame?: number;
@@ -405,6 +407,12 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       setSceneTrack(null);
       return;
     }
+    const reconcileCompiledTrack = (track: SceneTrack): SceneTrack => {
+      for (const plugin of options.plugins ?? []) {
+        plugin.reconcileCompiledTrack?.(options.widgetRegistry, track);
+      }
+      return track;
+    };
     const key = buildSceneTrackKey({
       scenes: options.scenes,
       widgetRegistry: options.widgetRegistry,
@@ -414,7 +422,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     });
     const cached = getCachedTrack(key);
     if (cached) {
-      setSceneTrack(cached);
+      setSceneTrack(reconcileCompiledTrack(cached));
       return;
     }
     const compiled = compileSceneTrack({
@@ -437,11 +445,13 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
         options.onCompileWarning(compiled.warnings);
       }
     }
-    setCachedTrack(key, compiled);
-    setSceneTrack(compiled);
+    const reconciled = reconcileCompiledTrack(compiled);
+    setCachedTrack(key, reconciled);
+    setSceneTrack(reconciled);
   }, [
     options.scenes,
     options.widgetRegistry,
+    options.plugins,
     blockSize,
     prefersReducedMotion,
     sceneDefs,

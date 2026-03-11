@@ -312,6 +312,17 @@ export function pruneImpossibleFaceCandidates(
         const dstIsHorizontal = c.dstFace === 'left' || c.dstFace === 'right';
         if (srcIsVertical && dstIsHorizontal) return false;
       }
+
+      if (groupIds.has(request.toId)) {
+        const srcIsVertical = c.srcFace === 'top' || c.srcFace === 'bottom';
+        const dstIsHorizontal = c.dstFace === 'left' || c.dstFace === 'right';
+        const targetIsLeft = toPos[0] < fromPos[0] - toNode.size[0] * 0.1;
+        const targetIsRight = toPos[0] > fromPos[0] + toNode.size[0] * 0.1;
+        if (srcIsVertical && dstIsHorizontal) {
+          if (targetIsLeft && c.dstFace === 'right') return false;
+          if (targetIsRight && c.dstFace === 'left') return false;
+        }
+      }
     }
 
     return true;
