@@ -103,7 +103,7 @@ import * as THREE from 'three';
 import { LineRenderer } from '../LineRenderer';
 import { darkGlassChartTheme } from '../../../themes/darkGlass';
 import type { ResolvedDataFrame } from '../../../data/types';
-import type { ChartRenderContext } from '../../shared/IChartRenderer';
+import type { ChartRenderContext, ChartHitInfo } from '../../shared/IChartRenderer';
 
 function makeCtx(data: ResolvedDataFrame, overrides: Partial<ChartRenderContext> = {}): ChartRenderContext {
   return {
@@ -226,6 +226,25 @@ describe('LineRenderer V2', () => {
     expect(renderer.getInteractiveObjects()).toHaveLength(2);
   });
 
+  it('series z offsets are negative so lines render behind axes', () => {
+    const data: ResolvedDataFrame = {
+      rows: [
+        { x: 0, a: 10, b: 20 },
+        { x: 1, a: 15, b: 25 },
+        { x: 2, a: 20, b: 30 },
+      ],
+      fields: ['x', 'a', 'b'],
+    };
+    renderer.update(makeCtx(data, {
+      series: [{ field: 'a', label: 'A' }, { field: 'b', label: 'B' }],
+      typeOptions: { kind: 'line', options: { lineShape: 'line' } },
+    }));
+    const firstSeriesPoints = catmullRomCalls[0]?.[0] as Array<{ z: number }> | undefined;
+    const secondSeriesPoints = catmullRomCalls[1]?.[0] as Array<{ z: number }> | undefined;
+    expect(firstSeriesPoints?.[0]?.z).toBeLessThan(0);
+    expect(secondSeriesPoints?.[0]?.z).toBeLessThan(firstSeriesPoints?.[0]?.z ?? 0);
+  });
+
   it('typeOptions lineShape=circle used for curve generation', () => {
     const data: ResolvedDataFrame = {
       rows: [{ x: 0, y: 0 }, { x: 1, y: 10 }, { x: 2, y: 20 }],
@@ -237,6 +256,37 @@ describe('LineRenderer V2', () => {
     expect(catmullRomCalls).toHaveLength(1);
     expect(catmullRomCalls[0]?.[3]).toBe(0.73);
     expect((extrudeGeometryCalls[0]?.[1] as { steps?: number })?.steps).toBe(18);
+  });
+
+  it('SmartRebuild: data content change with same row count triggers rebuild', () => {
+    const firstData: ResolvedDataFrame = {
+      rows: [{ x: 0, y: 10 }, { x: 1, y: 20 }, { x: 2, y: 30 }],
+      fields: ['x', 'y'],
+    };
+    const secondData: ResolvedDataFrame = {
+      rows: [{ x: 0, y: 40 }, { x: 1, y: 5 }, { x: 2, y: 12 }],
+      fields: ['x', 'y'],
+    };
+
+    const groups = {
+      seriesGroup: new THREE.Group(),
+      axesGroup: new THREE.Group(),
+      legendGroup: new THREE.Group(),
+    };
+
+    renderer.update(makeCtx(firstData, {
+      ...groups,
+      typeOptions: { kind: 'line', options: { lineShape: 'circle' } },
+    }));
+    const firstObjects = [...renderer.getInteractiveObjects()];
+
+    renderer.update(makeCtx(secondData, {
+      ...groups,
+      typeOptions: { kind: 'line', options: { lineShape: 'circle' } },
+    }));
+    const secondObjects = [...renderer.getInteractiveObjects()];
+
+    expect(secondObjects[0]).not.toBe(firstObjects[0]);
   });
 
   it('typeOptions lineShape falls back to theme when not set', () => {
@@ -432,5 +482,82 @@ describe('LineRenderer V2', () => {
 
     const points = (renderer as unknown as { seriesPoints: THREE.Vector3[][] }).seriesPoints[0]!;
     expect(points).toHaveLength(n);
+  });
+});
+
+describe('LineRenderer: resolveHoverInfo meta + projectionTarget', () => {
+  const lineData: ResolvedDataFrame = {
+    rows: [
+      { x: 'Jan', y: 100 },
+      { x: 'Feb', y: 200 },
+      { x: 'Mar', y: 150 },
+    ],
+    fields: ['x', 'y'],
+  };
+
+  function renderAndResolve(
+    data: ResolvedDataFrame,
+    overrides: Partial<ChartRenderContext> = {},
+  ): ChartHitInfo | null {
+    const r = new LineRenderer();
+    const g = {
+      seriesGroup: new THREE.Group(),
+      axesGroup: new THREE.Group(),
+      legendGroup: new THREE.Group(),
+    };
+    r.update({
+      ...makeCtx(data, g),
+      chartPosition: [1.0, 0, 0],
+      plotFrameOffset: { x: 0.5, y: 0 },
+      typeOptions: { kind: 'line', options: { lineShape: 'line' } },
+      ...overrides,
+    });
+    const objects = r.getInteractiveObjects();
+    if (objects.length === 0) return null;
+    const hitPoint = new THREE.Vector3(2.0, 0.8, -0.12);
+    const intersection = {
+      object: objects[0]!,
+      point: hitPoint,
+      distance: 5,
+    } as unknown as THREE.Intersection;
+    return r.resolveHoverInfo(intersection, data);
+  }
+
+  it('meta.kind = "line"', () => {
+    const result = renderAndResolve(lineData);
+    expect(result?.meta?.kind).toBe('line');
+  });
+
+  it('meta.seriesLabel = series[0].label', () => {
+    const result = renderAndResolve(lineData);
+    if (result?.meta?.kind !== 'line') throw new Error('expected line meta');
+    expect(result.meta.seriesLabel).toBe('Y');
+  });
+
+  it('meta.yValue = row[yAxis.field]', () => {
+    const result = renderAndResolve(lineData);
+    if (result?.meta?.kind !== 'line') throw new Error('expected line meta');
+    // The nearest datum to the hit point should have a numeric yValue
+    expect(typeof result.meta.yValue).toBe('number');
+  });
+
+  it('projectionTarget is defined', () => {
+    const result = renderAndResolve(lineData);
+    expect(result?.projectionTarget).toBeDefined();
+  });
+
+  it('projectionTarget[0] = chartPositionX + plotFrameOffsetX = 1.5', () => {
+    const result = renderAndResolve(lineData);
+    expect(result?.projectionTarget?.[0]).toBeCloseTo(1.5, 5);
+  });
+
+  it('projectionTarget[1] = world-space hit point Y = 0.8', () => {
+    const result = renderAndResolve(lineData);
+    expect(result?.projectionTarget?.[1]).toBeCloseTo(0.8, 5);
+  });
+
+  it('projectionTarget[2] = world-space hit point Z = -0.12', () => {
+    const result = renderAndResolve(lineData);
+    expect(result?.projectionTarget?.[2]).toBeCloseTo(-0.12, 5);
   });
 });

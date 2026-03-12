@@ -20,7 +20,7 @@ const THEMES = {
   },
   light: {
     track: 'rgba(0,0,0,0.15)',
-    fill: 'rgba(0,0,0,0.1)',
+    fill: 'rgba(0,0,0,0.4)',
     handle: '#333333',
     handleBorder: 'rgba(255,255,255,0.5)',
     tickMajor: 'rgba(0,0,0,0.55)',
@@ -179,8 +179,8 @@ export const TimelineWidget = ({
     position: 'absolute',
     top: 0,
     left: 0,
-    width: isHorizontal ? `${displayProgress * 100}%` : '75%',
-    height: isHorizontal ? '75%' : `${displayProgress * 100}%`,
+    width: isHorizontal ? `${displayProgress * 100}%` : '100%',
+    height: isHorizontal ? '100%' : `${displayProgress * 100}%`,
     background: colors.fill,
     borderRadius: 2,
     pointerEvents: 'none',
@@ -222,7 +222,7 @@ export const TimelineWidget = ({
       {/* Track area */}
       <div
         ref={trackRef}
-        style={{...trackStyle, position: 'relative', flex: 1}}
+        style={{...trackStyle, position: 'relative', flex: 1, background: colors.background}}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

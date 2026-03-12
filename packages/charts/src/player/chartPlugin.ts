@@ -12,7 +12,7 @@ import { ChartDataStore } from '../data/ChartDataStore';
 import { ChartStoreContext } from '../data/ChartStoreContext';
 import {
   Chart, ChartData, ChartAxis, ChartSeries, ChartLegend, ChartDataLabels, ReferenceLine,
-  BarChart, LineChart, ScatterPlotChart, PieChart, AreaChart, HeatMapChart,
+  BarChart, LineChart, ScatterPlotChart, PieChart, AreaChart, HeatMapChart, ChartTooltip,
 } from '../elements/chart/stubs';
 import {
   compileChart,
@@ -35,6 +35,7 @@ import type {
   ReferenceLineDSL,
   ChartState,
   ChartTypeOptions,
+  ChartTooltipDSL,
 } from '../elements/chart/types';
 import type {
   BarChartDSL,
@@ -102,6 +103,7 @@ function extractChartChildren(
   legendDsl: ChartLegendDSL | null;
   dataLabelsDsl: ChartDataLabelsDSL | null;
   referenceLineDsls: ReferenceLineDSL[];
+  tooltipDsl: ChartTooltipDSL | null;
 } {
   let dataDsl: ChartDataDSL | null = null;
   const axisDsls: ChartAxisDSL[] = [];
@@ -109,6 +111,7 @@ function extractChartChildren(
   let legendDsl: ChartLegendDSL | null = null;
   let dataLabelsDsl: ChartDataLabelsDSL | null = null;
   const referenceLineDsls: ReferenceLineDSL[] = [];
+  let tooltipDsl: ChartTooltipDSL | null = null;
 
   for (const child of children) {
     if (!child || typeof child !== 'object') continue;
@@ -119,9 +122,10 @@ function extractChartChildren(
     else if (el.type === ChartLegend)     legendDsl = el.props as ChartLegendDSL;
     else if (el.type === ChartDataLabels) dataLabelsDsl = el.props as ChartDataLabelsDSL;
     else if (el.type === ReferenceLine)   referenceLineDsls.push(el.props as ReferenceLineDSL);
+    else if (el.type === ChartTooltip)    tooltipDsl = el.props as ChartTooltipDSL;
   }
 
-  return { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls };
+  return { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl };
 }
 
 /**
@@ -189,7 +193,7 @@ export function chartPlugin(): ChartPluginInstance {
         if (!registry.get(chartId)) registerChartWidget(registry, chartId);
 
         const children = helpers.collectChildren(node);
-        const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls } =
+        const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl } =
           extractChartChildren(children);
 
         const typeOptions: ChartTypeOptions = {
@@ -199,7 +203,10 @@ export function chartPlugin(): ChartPluginInstance {
 
         const state = compileChart(
           props, 'bar', typeOptions, dataDsl, axisDsls, seriesDsls,
-          legendDsl, dataLabelsDsl, referenceLineDsls,
+          legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
+          api.composeBounds,
+          api.composeZ,
+          api.composeOpacity,
         );
         api.setWidgetState(chartId, state);
       });
@@ -211,7 +218,7 @@ export function chartPlugin(): ChartPluginInstance {
         if (!registry.get(chartId)) registerChartWidget(registry, chartId);
 
         const children = helpers.collectChildren(node);
-        const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls } =
+        const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl } =
           extractChartChildren(children);
 
         const typeOptions: ChartTypeOptions = {
@@ -221,7 +228,10 @@ export function chartPlugin(): ChartPluginInstance {
 
         const state = compileChart(
           props, 'line', typeOptions, dataDsl, axisDsls, seriesDsls,
-          legendDsl, dataLabelsDsl, referenceLineDsls,
+          legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
+          api.composeBounds,
+          api.composeZ,
+          api.composeOpacity,
         );
         api.setWidgetState(chartId, state);
       });
@@ -233,7 +243,7 @@ export function chartPlugin(): ChartPluginInstance {
         if (!registry.get(chartId)) registerChartWidget(registry, chartId);
 
         const children = helpers.collectChildren(node);
-        const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls } =
+        const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl } =
           extractChartChildren(children);
 
         const typeOptions: ChartTypeOptions = {
@@ -243,7 +253,10 @@ export function chartPlugin(): ChartPluginInstance {
 
         const state = compileChart(
           props, 'scatter', typeOptions, dataDsl, axisDsls, seriesDsls,
-          legendDsl, dataLabelsDsl, referenceLineDsls,
+          legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
+          api.composeBounds,
+          api.composeZ,
+          api.composeOpacity,
         );
         api.setWidgetState(chartId, state);
       });
@@ -255,7 +268,7 @@ export function chartPlugin(): ChartPluginInstance {
         if (!registry.get(chartId)) registerChartWidget(registry, chartId);
 
         const children = helpers.collectChildren(node);
-        const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls } =
+        const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl } =
           extractChartChildren(children);
 
         const typeOptions: ChartTypeOptions = {
@@ -265,7 +278,10 @@ export function chartPlugin(): ChartPluginInstance {
 
         const state = compileChart(
           props, 'pie', typeOptions, dataDsl, axisDsls, seriesDsls,
-          legendDsl, dataLabelsDsl, referenceLineDsls,
+          legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
+          api.composeBounds,
+          api.composeZ,
+          api.composeOpacity,
         );
         api.setWidgetState(chartId, state);
       });
@@ -277,7 +293,7 @@ export function chartPlugin(): ChartPluginInstance {
         if (!registry.get(chartId)) registerChartWidget(registry, chartId);
 
         const children = helpers.collectChildren(node);
-        const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls } =
+        const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl } =
           extractChartChildren(children);
 
         const typeOptions: ChartTypeOptions = {
@@ -287,7 +303,10 @@ export function chartPlugin(): ChartPluginInstance {
 
         const state = compileChart(
           props, 'area', typeOptions, dataDsl, axisDsls, seriesDsls,
-          legendDsl, dataLabelsDsl, referenceLineDsls,
+          legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
+          api.composeBounds,
+          api.composeZ,
+          api.composeOpacity,
         );
         api.setWidgetState(chartId, state);
       });
@@ -299,7 +318,7 @@ export function chartPlugin(): ChartPluginInstance {
         if (!registry.get(chartId)) registerChartWidget(registry, chartId);
 
         const children = helpers.collectChildren(node);
-        const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls } =
+        const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl } =
           extractChartChildren(children);
 
         const typeOptions: ChartTypeOptions = {
@@ -309,7 +328,10 @@ export function chartPlugin(): ChartPluginInstance {
 
         const state = compileChart(
           props, 'heatmap', typeOptions, dataDsl, axisDsls, seriesDsls,
-          legendDsl, dataLabelsDsl, referenceLineDsls,
+          legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
+          api.composeBounds,
+          api.composeZ,
+          api.composeOpacity,
         );
         api.setWidgetState(chartId, state);
       });
@@ -327,7 +349,7 @@ export function chartPlugin(): ChartPluginInstance {
         const kind = (dsl.type ?? 'bar') as ChartState['type'];
 
         const children = helpers.collectChildren(node);
-        const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls } =
+        const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl } =
           extractChartChildren(children);
 
         // Build typeOptions from V1 flat props — V1→V2 compat shim
@@ -373,7 +395,10 @@ export function chartPlugin(): ChartPluginInstance {
 
         const state = compileChart(
           dsl, kind, typeOptions, dataDsl, axisDsls, seriesDsls,
-          legendDsl, dataLabelsDsl, referenceLineDsls,
+          legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
+          api.composeBounds,
+          api.composeZ,
+          api.composeOpacity,
         );
         api.setWidgetState(chartId, state);
       });

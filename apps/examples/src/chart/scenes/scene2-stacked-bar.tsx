@@ -5,19 +5,20 @@ import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { BarChart, ChartAxis, ChartDataLabels, ChartLegend, ChartSeries } from '@brewsite/charts';
 import { regionalRevenue } from '../data/saasMetrics';
 import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, CHART_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
-import {theme} from "../ChartDemoPage";
+import { useDemoChartTheme } from './sceneShared';
 
 // Scene 2a — Stacked vertical bars
-export const Scene2a = (): JSX.Element => (
+export const Scene2a = (): JSX.Element => {
+  const chartTheme = useDemoChartTheme();
+  return (
   <Scene id="chart-s2a" >
     <ProgressManager scrollUnits={1200} />
-    <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={CHART_CAM_FOV} />
     <SceneLighting />
 
     <BarChart
       id="stacked-revenue"
       data={regionalRevenue}
-      theme={theme}
+      theme={chartTheme}
       stackMode="stacked"
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
@@ -36,19 +37,21 @@ export const Scene2a = (): JSX.Element => (
 
     <SceneTitleBox id="s2a-title" title="Regional Revenue — Stacked" />
   </Scene>
-);
+  );
+};
 
 // Scene 2b — Same chart, horizontal orientation
-export const Scene2b = (): JSX.Element => (
+export const Scene2b = (): JSX.Element => {
+  const chartTheme = useDemoChartTheme();
+  return (
   <Scene id="chart-s2b" >
     <ProgressManager scrollUnits={1200} />
-    <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={CHART_CAM_FOV} />
     <SceneLighting />
 
     <BarChart
       id="stacked-revenue"
       data={regionalRevenue}
-      theme={theme}
+      theme={chartTheme}
       stackMode="stacked"
       orientation="horizontal"
       x={CHART_LAYOUT.x}
@@ -67,4 +70,5 @@ export const Scene2b = (): JSX.Element => (
 
     <SceneTitleBox id="s2b-title" title="Regional Revenue — Horizontal" />
   </Scene>
-);
+  );
+};

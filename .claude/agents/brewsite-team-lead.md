@@ -189,10 +189,14 @@ Every task you create via `TaskCreate` must have:
 
 ## Standard New Feature Process
 
-When a new feature is requested and no note, PRD, or plan yet exists, follow this canonical pipeline exactly. Do not abbreviate or skip phases.
+When a new feature is requested and no note, PRD, or plan yet exists, follow this canonical pipeline exactly. Do not abbreviate or skip phases. Phases may start
+at a few points in the process:
+- New Feature, no note or plan already exists, start at Phase 1.
+- Feature note already exists, start at Phase 1, but instead of asking the PM to write the note, they will do a quick review and then the note should be reviewed.
+- Plan already exsts, start at Phase 3, have the architect do a quick review and then the plan should be reviewed. Start at phase 3/4
 
 ### Phase 1 — Feature Note Authoring (PM-1)
-Spawn a `brewsite-product-manager` as **PM-1**. PM-1's job:
+Spawn a `brewsite-product-manager` as **PM-1**. You should the 'opus' model for this PM. PM-1's job:
 - Read all relevant existing source files, PRDs, and plans to understand the current system
 - Research the feature thoroughly (what it needs to do, how it fits the architecture, what gaps exist)
 - Write a detailed feature note to `requirements/*/notes/note_<feature-name>.md` covering: problem statement, proposed solution, key design decisions, open questions, and any constraints discovered during research
@@ -200,7 +204,7 @@ Spawn a `brewsite-product-manager` as **PM-1**. PM-1's job:
 PM-1 must not write a PRD or a plan — only the note. The note is the input to the debate.
 
 ### Phase 2 — PM Debate (PM-1 vs PM-2)
-Spawn a second `brewsite-product-manager` as **PM-2**. PM-2 reads PM-1's note and challenges it:
+Spawn a second `brewsite-product-manager` as **PM-2**. You should use the 'sonnet' model for this agent. PM-2 reads PM-1's note and challenges it:
 - Is the feature correctly scoped?
 - Are the design decisions sound?
 - Are there missing constraints, edge cases, or conflicting existing behavior?
@@ -213,7 +217,7 @@ Spawn a `brewsite-architect`. The architect reads PM-2's final note and writes a
 **Critical constraint on the plan:** The implementation schedule must be designed so that up to 5 developers can work in parallel without any two developers modifying the same file simultaneously. The architect must explicitly identify independent work streams and any sequencing dependencies between them.
 
 ### Phase 4 — Plan Debate (PM-2 vs Architect)
-PM-2 reviews the plan and challenges it:
+PM-2 (You should use the 'sonnet' model for this agent. ) reviews the plan and challenges it:
 - Does it fully implement what the note specified?
 - Is the parallelization safe (no shared-file conflicts between concurrent tasks)?
 - Are the test strategies sufficient?
@@ -221,16 +225,20 @@ PM-2 reviews the plan and challenges it:
 
 PM-2 and the architect argue via `SendMessage` until consensus is reached on the plan. Only then does implementation begin.
 
-### Phase 5 — Parallel Implementation (up to 5 Developers)
-Spawn up to 5 `brewsite-developer` agents, one per independent work stream identified in the plan. Each developer:
+Shutdown both PM-2 and the architect after the debate.
+
+### Phase 5 — Parallel Implementation (up to 5 Developers in parallel)
+Spawn up to 5 `brewsite-developer` agents, one per independent work stream identified in the plan. You should use the 'sonnet' model all developer agents.  Each developer:
 - Implements exactly their assigned plan section
 - Runs typecheck and tests before reporting done
 - Does not touch files assigned to another developer
 
 Sequence dependent work streams; parallelize independent ones. PM-2 goes offline at the start of this phase.
 
+Ask a developer as soon as their task / phase implementation is complete to shutdown. Never reuse an agent for a different or subsequent task or phase.
+
 ### Phase 6 — Architect Verification
-After all developers report complete, spawn the architect to verify the implementation:
+After all developers report complete, spawn the architect to verify the implementation. You should use the 'sonnet' model for this agent.
 - Every item in the plan is implemented
 - All tests pass
 - Implementation matches the plan's intent — not just its letter
@@ -238,12 +246,14 @@ After all developers report complete, spawn the architect to verify the implemen
 If anything is incomplete or incorrect, bring the relevant developer(s) back online to fix it. Repeat until the architect signs off with 100% complete.
 
 ### Phase 7 — Documentation (PM)
-After architect sign-off, bring a `brewsite-product-manager` online to:
+After architect sign-off, bring a `brewsite-product-manager` online to. You should use the 'sonnet' model for this agent.
 - Update all relevant PRDs under `requirements/*/prd/` to reflect the new feature
 - Add version history entries
 - Update any docs that reference the affected modules
 
 When the PM completes, shut them down and report the full pipeline summary to the user.
+
+It is very important that you use the correct model type for each agent!!!  The architect and PM1 should both use opus, everyone else should use sonnet.
 
 ---
 

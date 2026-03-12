@@ -3,9 +3,28 @@
  */
 
 import type * as React from 'react';
+import type { FloorNegativeZEdge, FloorPlacement, FloorVariant } from './types';
+import type { SceneTheme } from '../../theme/types';
 
 export type FloorProps = {
   enabled?: boolean;
+  /** Optional SceneTheme to derive grid-floor tokens from. */
+  theme?: SceneTheme;
+  /**
+   * Quick surface preset.
+   * - 'grid' (default): physical floor with procedural grid + shadows
+   * - 'mirror': reflection floor + shadows
+   * - 'physical': plain physical floor + shadows
+   *
+   * A `<FloorPhysical>` or `<FloorMirror>` child, when provided, overrides this preset.
+   */
+  variant?: FloorVariant;
+  /**
+   * Floor Y-origin placement strategy.
+   * - 'origin': use world origin (legacy behavior for authored <Floor> nodes)
+   * - 'sceneBase': snap to lowest visible scene geometry each frame
+   */
+  placement?: FloorPlacement;
   /**
    * World-space position [x, y, z]. Typically [0, 0, 0] — the floor sits at the scene origin.
    * Not NVS — values are raw Three.js world-space units.
@@ -24,6 +43,22 @@ export type FloorProps = {
   rotationRelative?: [number, number, number];
   scale?: number;
   /**
+   * Optional world-space reach in the negative Z direction from the floor origin.
+   * When omitted, depth is unbounded.
+   */
+  negativeZExtent?: number;
+  /**
+   * Back-edge behavior for `negativeZExtent`.
+   * - 'hard': clip at the edge
+   * - 'fade': alpha fade to transparent at the edge
+   */
+  negativeZEdge?: FloorNegativeZEdge;
+  /**
+   * World-space fade distance for `negativeZEdge='fade'`.
+   * Uses an internal default when omitted.
+   */
+  negativeZFadeDistance?: number;
+  /**
    * Floor surface definition.
    * Only `<FloorPhysical>` and `<FloorMirror>` children are compiled.
    * When `enabled` is true and no surface child is provided, no visible floor
@@ -33,8 +68,15 @@ export type FloorProps = {
 };
 
 export type FloorPhysicalProps = {
+  pattern?: 'grid';
   textureUrl?: string;
   color?: string;
+  gridColor?: string;
+  gridMajorColor?: string;
+  gridCellSize?: number;
+  gridMajorEvery?: number;
+  gridLineOpacity?: number;
+  gridFillOpacity?: number;
   opacity?: number;
   metalness?: number;
   roughness?: number;
@@ -64,9 +106,9 @@ export type FloorPhysicalProps = {
 export type FloorMirrorProps = {
   mirrorColor?: string;
   mirrorOpacity?: number;
+  shadowOpacity?: number;
   mirrorResolution?: number;
   mirrorClipBias?: number;
   mirrorUseEnvironmentBackground?: boolean;
   mirrorEnvironmentIntensity?: number;
 };
-

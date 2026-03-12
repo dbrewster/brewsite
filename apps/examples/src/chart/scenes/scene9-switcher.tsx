@@ -6,21 +6,22 @@ import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { AreaChart, BarChart, ChartAxis, ChartLegend, ChartSeries, LineChart, ScatterPlotChart } from '@brewsite/charts';
 import { saasMetrics24Months } from '../data/saasMetrics';
 import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, CHART_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
-import {theme} from "../ChartDemoPage";
+import { useDemoChartTheme } from './sceneShared';
 
 const SWITCHER_DATA = saasMetrics24Months.slice(0, 12); // 12 months for compact view
 
 // Scene 9a — Bar view
-export const Scene9a = (): JSX.Element => (
+export const Scene9a = (): JSX.Element => {
+  const chartTheme = useDemoChartTheme();
+  return (
   <Scene id="chart-s9a" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
     <ProgressManager scrollUnits={1000} />
-    <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={CHART_CAM_FOV} />
     <SceneLighting />
 
     <BarChart
       id="switcher-demo"
       data={SWITCHER_DATA}
-      theme={theme}
+      theme={chartTheme}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
       w={CHART_LAYOUT.w}
@@ -36,10 +37,13 @@ export const Scene9a = (): JSX.Element => (
 
     <SceneTitleBox id="s9a-title" subtitle="Type Switcher" title="Same Data — Bar View" />
   </Scene>
-);
+  );
+};
 
 // Scene 9b — Line view (same chart ID)
-export const Scene9b = (): JSX.Element => (
+export const Scene9b = (): JSX.Element => {
+  const chartTheme = useDemoChartTheme();
+  return (
   <Scene id="chart-s9b" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
     <ProgressManager scrollUnits={1000} />
     <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={CHART_CAM_FOV} />
@@ -48,7 +52,7 @@ export const Scene9b = (): JSX.Element => (
     <LineChart
       id="switcher-demo"
       data={SWITCHER_DATA}
-      theme={theme}
+      theme={chartTheme}
       showPoints={true}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
@@ -65,10 +69,13 @@ export const Scene9b = (): JSX.Element => (
 
     <SceneTitleBox id="s9b-title" subtitle="Type Switcher" title="Same Data — Line View" />
   </Scene>
-);
+  );
+};
 
 // Scene 9c — Area view (same chart ID)
-export const Scene9c = (): JSX.Element => (
+export const Scene9c = (): JSX.Element => {
+  const chartTheme = useDemoChartTheme();
+  return (
   <Scene id="chart-s9c" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
     <ProgressManager scrollUnits={1000} />
     <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={CHART_CAM_FOV} />
@@ -77,7 +84,7 @@ export const Scene9c = (): JSX.Element => (
     <AreaChart
       id="switcher-demo"
       data={SWITCHER_DATA}
-      theme={theme}
+      theme={chartTheme}
       fillOpacity={0.6}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
@@ -94,10 +101,13 @@ export const Scene9c = (): JSX.Element => (
 
     <SceneTitleBox id="s9c-title" subtitle="Type Switcher" title="Same Data — Area View" />
   </Scene>
-);
+  );
+};
 
 // Scene 9d — Scatter view (same chart ID)
-export const Scene9d = (): JSX.Element => (
+export const Scene9d = (): JSX.Element => {
+  const chartTheme = useDemoChartTheme();
+  return (
   <Scene id="chart-s9d" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
     <ProgressManager scrollUnits={1000} />
     <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={CHART_CAM_FOV} />
@@ -106,7 +116,7 @@ export const Scene9d = (): JSX.Element => (
     <ScatterPlotChart
       id="switcher-demo"
       data={SWITCHER_DATA}
-      theme={theme}
+      theme={chartTheme}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
       w={CHART_LAYOUT.w}
@@ -121,4 +131,5 @@ export const Scene9d = (): JSX.Element => (
 
     <SceneTitleBox id="s9d-title" subtitle="Type Switcher" title="Same Data — Scatter View" />
   </Scene>
-);
+  );
+};

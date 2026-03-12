@@ -1,0 +1,46 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`viewBackwardCompat — InputController state unchanged > scene with only Scene root and no DSL children has empty widgets > bare-scene-widgets 1`] = `{}`;
+
+exports[`viewBackwardCompat — InputController state unchanged > stores inputController widget state with mode and actions > inputController-scroll-mode 1`] = `
+{
+  "actions": [
+    {
+      "cameraId": undefined,
+      "canvasId": undefined,
+      "focusCenter": undefined,
+      "id": "next",
+      "maps": [
+        {
+          "key": "ArrowRight",
+          "kind": "key",
+          "modifiers": undefined,
+        },
+      ],
+      "speed": undefined,
+      "stepScenes": undefined,
+      "type": "scene.next",
+    },
+    {
+      "cameraId": undefined,
+      "canvasId": undefined,
+      "focusCenter": undefined,
+      "id": "prev",
+      "maps": [
+        {
+          "key": "ArrowLeft",
+          "kind": "key",
+          "modifiers": undefined,
+        },
+      ],
+      "speed": undefined,
+      "stepScenes": undefined,
+      "type": "scene.prev",
+    },
+  ],
+  "id": "main",
+  "scope": "canvas",
+}
+`;
+
+exports[`viewBackwardCompat — ProgressManager spec unchanged > produces identical progressManager spec as a snapshot > progressManager-scrollUnits 1`] = `1000`;

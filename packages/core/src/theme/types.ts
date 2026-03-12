@@ -123,6 +123,73 @@ export type SceneThemeBackground = {
 };
 
 /**
+ * Theme tokens for the default floor grid surface.
+ *
+ * Applies to `<Floor variant="grid" />` and any floor surface using
+ * `pattern="grid"` when the Floor DSL node receives a `theme`.
+ */
+export type SceneThemeFloorGrid = {
+  /**
+   * Minor grid spacing in world units.
+   * Maps to FloorPhysicalProps.gridCellSize.
+   */
+  readonly spacing?: number;
+  /**
+   * Minor line color.
+   * Maps to FloorPhysicalProps.gridColor.
+   */
+  readonly lineColor?: string;
+  /**
+   * Major line color.
+   * Maps to FloorPhysicalProps.gridMajorColor.
+   */
+  readonly majorLineColor?: string;
+  /**
+   * Base fill color under grid lines.
+   * Maps to FloorPhysicalProps.color.
+   */
+  readonly fillColor?: string;
+  /**
+   * Line opacity [0-1].
+   * Maps to FloorPhysicalProps.gridLineOpacity.
+   */
+  readonly lineOpacity?: number;
+  /**
+   * Fill opacity [0-1].
+   * Maps to FloorPhysicalProps.gridFillOpacity.
+   */
+  readonly fillOpacity?: number;
+  /**
+   * Number of minor cells per major grid line.
+   * Maps to FloorPhysicalProps.gridMajorEvery.
+   */
+  readonly majorEvery?: number;
+};
+
+/**
+ * Theme tokens for floor rendering.
+ */
+export type SceneThemeFloor = {
+  /** Grid-floor visual tokens. */
+  readonly grid?: SceneThemeFloorGrid;
+  /**
+   * Optional world-space reach in the negative Z direction from floor origin.
+   * Maps to FloorProps.negativeZExtent.
+   */
+  readonly negativeZExtent?: number;
+  /**
+   * Back-edge behavior for negative-Z depth control.
+   * Maps to FloorProps.negativeZEdge.
+   */
+  readonly negativeZEdge?: 'hard' | 'fade';
+  /**
+   * Fade distance in world units when `negativeZEdge='fade'`.
+   * Maps to FloorProps.negativeZFadeDistance.
+   */
+  readonly negativeZFadeDistance?: number;
+};
+
+/**
  * Unified scene theme token set.
  *
  * Defined in @brewsite/core; imported and consumed by all packages.
@@ -147,4 +214,31 @@ export type SceneTheme = {
   readonly fontSize: SceneThemeFontSizeScale;
   /** Optional background fill and effects configuration. */
   readonly background?: SceneThemeBackground;
+  /** Optional floor configuration. */
+  readonly floor?: SceneThemeFloor;
+};
+
+/**
+ * Canonical theme family names. All six names have matching presets in
+ * @brewsite/diagram (DiagramThemeName) and @brewsite/charts (ChartThemeName).
+ * This type is the single source of truth for the cross-package theme name vocabulary.
+ */
+export type ThemeFamily =
+  | 'darkGlass'
+  | 'midnight'
+  | 'neonCyber'
+  | 'enterprise'
+  | 'lightCanvas'
+  | 'lightMinimal';
+
+/** Light or dark background polarity for a theme variant. */
+export type ThemePolarity = 'dark' | 'light';
+
+/**
+ * A light+dark pair of SceneTheme presets for a single ThemeFamily.
+ * The entry type for SCENE_THEME_PAIRS.
+ */
+export type SceneThemePair = {
+  readonly dark: SceneTheme;
+  readonly light: SceneTheme;
 };

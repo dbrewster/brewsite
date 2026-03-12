@@ -10,7 +10,7 @@ export * from './runtime';
 export * from './input';
 export type { FunctionalTransitionSpec, ElementTransitionSpec } from './compiler/transitions/transitionTypes';
 export { blendNumber, blendOpacity, blendVec3, blendColor, transitionT, blendAxisRotation, blendAxisTranslation, resolveEnabledByOpacity } from './compiler/transitions/transitionTypes';
-export { ensureText } from './text/TextRenderer';
+export { ensureText, disposeText } from './text/TextRenderer';
 export type { TextWithLayout } from './text/types';
 
 // ─── New in pre-release API hardening ─────────────────────────────────────────

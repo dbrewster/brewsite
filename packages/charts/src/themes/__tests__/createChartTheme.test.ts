@@ -4,7 +4,17 @@ import { describe, it, expect } from 'vitest';
 import { createChartTheme } from '../createChartTheme';
 import { CHART_THEMES } from '../index';
 import { darkGlassChartTheme } from '../darkGlass';
+import { darkGlassLightChartTheme } from '../darkGlassLight';
 import { enterpriseChartTheme } from '../enterprise';
+import { enterpriseLightChartTheme } from '../enterpriseLight';
+import { midnightChartTheme } from '../midnight';
+import { midnightLightChartTheme } from '../midnightLight';
+import { neonCyberChartTheme } from '../neonCyber';
+import { neonCyberLightChartTheme } from '../neonCyberLight';
+import { lightCanvasChartTheme } from '../lightCanvas';
+import { lightCanvasDarkChartTheme } from '../lightCanvasDark';
+import { lightMinimalChartTheme } from '../lightMinimal';
+import { lightMinimalDarkChartTheme } from '../lightMinimalDark';
 import type { ChartTheme } from '../types';
 
 describe('createChartTheme', () => {
@@ -158,7 +168,7 @@ describe('createChartTheme', () => {
       gridlines: { opacity: 0.5 },
     });
     // color and dashSize from neonCyber base preserved
-    expect(result.gridlines?.color).toBe('#7b2dff');
+    expect(result.gridlines?.color).toBe('#6E55D1');
     expect(result.gridlines?.dashSize).toBe(0.03);
     expect(result.gridlines?.gapSize).toBe(0.02);
     expect(result.gridlines?.opacity).toBe(0.5);
@@ -220,9 +230,9 @@ describe('new theme names midnight and lightCanvas', () => {
     expect(result.series).toHaveLength(8);
   });
 
-  it('createChartTheme("midnight", {}) series[0].color is #d08c20', () => {
+  it('createChartTheme("midnight", {}) series[0].color is #E2A33A', () => {
     const result = createChartTheme('midnight', {});
-    expect(result.series[0]?.color).toBe('#d08c20');
+    expect(result.series[0]?.color).toBe('#E2A33A');
   });
 
   it('createChartTheme("lightCanvas", {}) returns theme with name "lightCanvas"', () => {
@@ -230,9 +240,9 @@ describe('new theme names midnight and lightCanvas', () => {
     expect(result.name).toBe('lightCanvas');
   });
 
-  it('createChartTheme("lightCanvas", {}) series[0].color is #3355cc', () => {
+  it('createChartTheme("lightCanvas", {}) series[0].color is #3D63D9', () => {
     const result = createChartTheme('lightCanvas', {});
-    expect(result.series[0]?.color).toBe('#3355cc');
+    expect(result.series[0]?.color).toBe('#3D63D9');
   });
 
   it('createChartTheme("lightCanvas", {}) series[0].emissiveIntensity is 0.0', () => {
@@ -244,6 +254,33 @@ describe('new theme names midnight and lightCanvas', () => {
     const result = createChartTheme('midnight', { series: [{ color: '#ff0000' }] });
     expect(result.series[0]?.color).toBe('#ff0000');
   });
+});
+
+describe('All 12 preset themes: tooltip + projection tokens', () => {
+  const allThemes = [
+    darkGlassChartTheme, darkGlassLightChartTheme,
+    midnightChartTheme, midnightLightChartTheme,
+    neonCyberChartTheme, neonCyberLightChartTheme,
+    enterpriseChartTheme, enterpriseLightChartTheme,
+    lightCanvasChartTheme, lightCanvasDarkChartTheme,
+    lightMinimalChartTheme, lightMinimalDarkChartTheme,
+  ];
+
+  for (const theme of allThemes) {
+    it(`${theme.name}: tooltip tokens present and valid`, () => {
+      expect(theme.tooltip).toBeDefined();
+      expect(typeof theme.tooltip!.background).toBe('string');
+      expect(typeof theme.tooltip!.maxWidth).toBe('number');
+      expect(theme.tooltip!.offsetX).toBeGreaterThan(0);
+    });
+
+    it(`${theme.name}: projection tokens present and valid`, () => {
+      expect(theme.projection).toBeDefined();
+      expect(typeof theme.projection!.color).toBe('string');
+      expect(theme.projection!.animationDurationMs).toBe(220);
+      expect(theme.projection!.beamWidth).toBeGreaterThan(0);
+    });
+  }
 });
 
 describe('CHART_THEMES registry completeness', () => {
@@ -277,11 +314,138 @@ describe('neonCyber stepped emissive intensities', () => {
     expect(theme.series[0]!.emissiveIntensity).toBeGreaterThan(theme.series[7]!.emissiveIntensity);
   });
 
-  it('neonCyber series[0] emissiveIntensity is exactly 0.90', () => {
-    expect(CHART_THEMES.neonCyber.series[0]!.emissiveIntensity).toBe(0.90);
+  it('neonCyber series[0] emissiveIntensity is exactly 0.95', () => {
+    expect(CHART_THEMES.neonCyber.series[0]!.emissiveIntensity).toBe(0.95);
   });
 
-  it('neonCyber series[7] emissiveIntensity is exactly 0.62', () => {
-    expect(CHART_THEMES.neonCyber.series[7]!.emissiveIntensity).toBe(0.62);
+  it('neonCyber series[7] emissiveIntensity is exactly 0.58', () => {
+    expect(CHART_THEMES.neonCyber.series[7]!.emissiveIntensity).toBe(0.58);
+  });
+});
+
+describe('Stream A corrections: material and tooltip/projection token values', () => {
+  // darkGlassLight material correction
+  it('darkGlassLightChartTheme series[0].metalness is 0.10 (was 0.50)', () => {
+    expect(darkGlassLightChartTheme.series[0]!.metalness).toBe(0.10);
+  });
+
+  it('darkGlassLightChartTheme series[0].roughness is 0.34 (was 0.14)', () => {
+    expect(darkGlassLightChartTheme.series[0]!.roughness).toBe(0.34);
+  });
+
+  it('darkGlassLightChartTheme all series have metalness 0.10', () => {
+    for (const s of darkGlassLightChartTheme.series) {
+      expect(s.metalness).toBe(0.10);
+    }
+  });
+
+  it('darkGlassLightChartTheme all series have roughness 0.34', () => {
+    for (const s of darkGlassLightChartTheme.series) {
+      expect(s.roughness).toBe(0.34);
+    }
+  });
+
+  // midnight tooltip/projection correction (amber family, not blue)
+  it('midnightChartTheme.projection.color is amber (#E2A33A), not blue', () => {
+    expect(midnightChartTheme.projection!.color).toBe('#E2A33A');
+  });
+
+  it('midnightChartTheme.tooltip.borderColor contains amber family rgba values', () => {
+    expect(midnightChartTheme.tooltip!.borderColor).toBe('rgba(226,163,58,0.30)');
+  });
+
+  it('midnightLightChartTheme.projection.color is amber (#A7793A), not blue', () => {
+    expect(midnightLightChartTheme.projection!.color).toBe('#A7793A');
+  });
+
+  it('midnightLightChartTheme.tooltip.valueColor is warm (#3A2A1B), not blue', () => {
+    expect(midnightLightChartTheme.tooltip!.valueColor).toBe('#3A2A1B');
+  });
+
+  // enterprise dark tooltip correction
+  it('enterpriseChartTheme.tooltip.background is dark navy (not white)', () => {
+    expect(enterpriseChartTheme.tooltip!.background).toBe('rgba(10,20,36,0.94)');
+  });
+
+  it('enterpriseChartTheme.tooltip.valueColor is light (#E3ECF8) for dark polarity', () => {
+    expect(enterpriseChartTheme.tooltip!.valueColor).toBe('#E3ECF8');
+  });
+
+  it('enterpriseChartTheme.projection.opacity is 0.72', () => {
+    expect(enterpriseChartTheme.projection!.opacity).toBe(0.72);
+  });
+
+  // lightCanvas tooltip/projection correction
+  it('lightCanvasChartTheme.projection.color is blue (#3D63D9), not green', () => {
+    expect(lightCanvasChartTheme.projection!.color).toBe('#3D63D9');
+  });
+
+  it('lightCanvasDarkChartTheme.projection.color is blue (#3D63D9), not green', () => {
+    expect(lightCanvasDarkChartTheme.projection!.color).toBe('#3D63D9');
+  });
+
+  it('lightCanvasDarkChartTheme.tooltip.background is navy-tinted (not green-tinted)', () => {
+    expect(lightCanvasDarkChartTheme.tooltip!.background).toBe('rgba(18,26,38,0.94)');
+  });
+
+  // lightMinimal tooltip/projection correction
+  it('lightMinimalChartTheme.projection.color is pastel blue (#7FAEEA), not gray', () => {
+    expect(lightMinimalChartTheme.projection!.color).toBe('#7FAEEA');
+  });
+
+  it('lightMinimalDarkChartTheme.projection.color is pastel blue (#7FAEEA), not gray', () => {
+    expect(lightMinimalDarkChartTheme.projection!.color).toBe('#7FAEEA');
+  });
+
+  it('lightMinimalChartTheme.tooltip.valueColor is family-specific (#223248), not generic', () => {
+    expect(lightMinimalChartTheme.tooltip!.valueColor).toBe('#223248');
+  });
+
+  it('lightMinimalDarkChartTheme.tooltip.valueColor is #E8EDF5', () => {
+    expect(lightMinimalDarkChartTheme.tooltip!.valueColor).toBe('#E8EDF5');
+  });
+
+  // Regression: dark variants must not have white/light tooltip backgrounds
+  it('No dark-polarity chart theme has a white tooltip background', () => {
+    const darkThemes = [
+      darkGlassChartTheme,
+      midnightChartTheme,
+      neonCyberChartTheme,
+      enterpriseChartTheme,
+      lightCanvasDarkChartTheme,
+      lightMinimalDarkChartTheme,
+    ];
+    for (const theme of darkThemes) {
+      expect(theme.tooltip!.background).not.toMatch(/rgba\(255,255,255/);
+    }
+  });
+
+  // Regression: midnight must not have blue tooltip/projection
+  it('midnightChartTheme.tooltip.borderColor does not contain blue channel values', () => {
+    expect(midnightChartTheme.tooltip!.borderColor).not.toMatch(/107,155,255/);
+    expect(midnightChartTheme.tooltip!.borderColor).not.toMatch(/79,100,200/);
+  });
+
+  // Challenge 3a: midnight light tooltip.borderColor amber assertion (PM-2 named this explicitly)
+  it('midnightLightChartTheme.tooltip.borderColor is amber family, not blue', () => {
+    expect(midnightLightChartTheme.tooltip!.borderColor).toBe('rgba(170,120,58,0.28)');
+  });
+
+  // Challenge 3b: cross-theme regression guard — no light-polarity theme should ever have
+  // metalness > 0.20, which would produce dark mirror-like surfaces on light backgrounds.
+  it('All light-polarity chart themes have series metalness ≤ 0.20 (regression guard)', () => {
+    const lightThemes = [
+      darkGlassLightChartTheme,
+      midnightLightChartTheme,
+      neonCyberLightChartTheme,
+      enterpriseLightChartTheme,
+      lightCanvasChartTheme,
+      lightMinimalChartTheme,
+    ];
+    for (const theme of lightThemes) {
+      for (const s of theme.series) {
+        expect(s.metalness).toBeLessThanOrEqual(0.20);
+      }
+    }
   });
 });

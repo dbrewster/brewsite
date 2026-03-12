@@ -113,6 +113,7 @@ describe('ModelWidget CUSTOM_NODE_HANDLER nvsBounds', () => {
       { props: { ...modelProps, children: [] } },
       {
         setWidgetState: (_id, state) => { captured = state; },
+        composeBounds: (r: { x: number; y: number; w: number; h: number }) => r,
         state: { widgets: {} },
         context: {},
       },

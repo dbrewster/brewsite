@@ -41,6 +41,10 @@ export function buildThemeRenderConfig(theme: DiagramTheme): DiagramThemeRenderC
     // Size factors composed with SceneTheme font size scale:
     effectiveLabelSizeFactor:    theme.node.labelSizeFactor * labelScale,
     effectiveSublabelSizeFactor: theme.node.sublabelSizeFactor * captionScale,
+    // SDF glyph size: use troika's default (64) unless the theme explicitly overrides.
+    // Lower values (e.g. 32) increase atlas capacity but risk overflow when combined
+    // with improper disposal — prefer correct disposal over reduced glyph size.
+    nodeSdfGlyphSize: theme.sdfGlyphSize ?? 64,
   };
 }
 

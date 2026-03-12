@@ -138,6 +138,16 @@ export type ChartLegendProps = ChartLegendDSL;
 export type ChartDataLabelsProps = ChartDataLabelsDSL;
 export type ReferenceLineProps = ReferenceLineDSL;
 
+// ─── Tooltip DSL prop type ────────────────────────────────────────────────────
+
+/** Props for the <ChartTooltip> DSL child component. */
+export type ChartTooltipProps = {
+  /** Enable Y-axis projection beam. Default: false. */
+  readonly projection?: boolean;
+  /** d3-format string for Y values. Default: '.3~s'. */
+  readonly format?: string;
+};
+
 // ─── V1 Compat (deprecated) ──────────────────────────────────────────────────
 
 /** @deprecated Use BarChartProps, LineChartProps, etc. instead. */

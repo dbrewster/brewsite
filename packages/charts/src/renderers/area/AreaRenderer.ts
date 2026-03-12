@@ -7,7 +7,7 @@ import { stack, stackOrderNone, stackOffsetNone } from 'd3-shape';
 import { AxesRenderer } from '../shared/AxesRenderer';
 import { LegendRenderer } from '../shared/LegendRenderer';
 import { ChartMaterialFactory } from '../shared/ChartMaterialFactory';
-import type { IChartRenderer, ChartRenderContext, ChartHitInfo, MorphContext } from '../shared/IChartRenderer';
+import type { IChartRenderer, ChartRenderContext, ChartHitInfo, ChartHitMeta, MorphContext } from '../shared/IChartRenderer';
 import type { ResolvedDataFrame } from '../../data/types';
 
 /** Linearly interpolates between a and b at progress t. */
@@ -29,6 +29,14 @@ export class AreaRenderer implements IChartRenderer {
   private readonly areaMeshes: THREE.Mesh[] = [];
   private seriesGroupRef: THREE.Group | null = null;
   private lastBoundsWidth = 1;
+  private lastDataFrame: ResolvedDataFrame | null = null;
+  private cachedChartPositionX = 0;
+  private cachedPlotFrameOffsetX = 0;
+  private cachedSeries: Array<{ field: string; label?: string }> = [];
+  private cachedYField = '';
+  /** cachedStackLayers[seriesIndex][datumIndex] = cumulative y1 for stacked mode. */
+  private cachedStackLayers: Array<readonly number[]> = [];
+  private cachedIsStacked = false;
   private lastDataLength = -1;
   private lastSeriesCount = -1;
   /** Q7: tracks last stackMode to trigger SmartRebuild when it changes. */
@@ -38,6 +46,9 @@ export class AreaRenderer implements IChartRenderer {
   update(ctx: ChartRenderContext): void {
     const { seriesGroup, axesGroup, legendGroup, data, xAxis, yAxis, series, bounds, theme, opacity, fontUrl } = ctx;
     this.chartPosition = ctx.chartPosition ?? [0, 0, 0];
+    this.cachedChartPositionX   = ctx.chartPosition?.[0] ?? 0;
+    this.cachedPlotFrameOffsetX = ctx.plotFrameOffset?.x ?? 0;
+    this.cachedYField = ctx.yAxis?.field ?? '';
 
     const areaOptions = ctx.typeOptions.kind === 'area' ? ctx.typeOptions.options : {};
     const stackMode = areaOptions.stackMode ?? 'none';
@@ -46,6 +57,13 @@ export class AreaRenderer implements IChartRenderer {
     const effectiveSeries: Array<{ field: string; label?: string; color?: string; bandField?: string }> = series.length > 0
       ? series.map((s) => ({ ...s }))
       : (yAxis ? [{ field: yAxis.field, label: yAxis.label }] : []);
+    this.cachedSeries = effectiveSeries;
+    const maxTokenDepth = effectiveSeries.reduce((maxDepth, _series, i) => {
+      const tokenDepth = theme.series[i % theme.series.length]?.depth ?? bounds.depth;
+      return Math.max(maxDepth, tokenDepth);
+    }, 0);
+    const seriesZSpacing = stackMode === 'stacked' ? 0.05 : 0.1;
+    const seriesDepth = maxTokenDepth + Math.max(0, effectiveSeries.length - 1) * seriesZSpacing;
 
     this.seriesGroupRef = seriesGroup;
 
@@ -56,6 +74,7 @@ export class AreaRenderer implements IChartRenderer {
 
     const xField = xAxis?.field ?? data.fields[0] ?? 'x';
     const needsRebuild =
+      data !== this.lastDataFrame ||
       data.rows.length !== this.lastDataLength ||
       effectiveSeries.length !== this.lastSeriesCount ||
       stackMode !== this.lastStackMode ||
@@ -63,11 +82,14 @@ export class AreaRenderer implements IChartRenderer {
 
     if (needsRebuild) {
       this.clearAreas();
+      this.cachedIsStacked = stackMode === 'stacked';
       if (stackMode === 'stacked') {
         this.buildStackedAreas(seriesGroup, data, xField, effectiveSeries, bounds, theme, opacity, fillOpacity);
       } else {
+        this.cachedStackLayers = [];
         this.buildAreas(seriesGroup, data, xField, effectiveSeries, bounds, theme, opacity, fillOpacity, ctx.morphCtx);
       }
+      this.lastDataFrame = data;
       this.lastDataLength = data.rows.length;
       this.lastSeriesCount = effectiveSeries.length;
       this.lastStackMode = stackMode;
@@ -94,7 +116,19 @@ export class AreaRenderer implements IChartRenderer {
       value: Math.round((yMax * i) / 5),
       position: i / 5,
     }));
-    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl, gridlines: ctx.gridlines, fittedMargins: ctx.fittedMargins });
+    this.axesRenderer.update({
+      xTicks,
+      yTicks,
+      bounds,
+      seriesDepth,
+      theme,
+      opacity,
+      xAxis,
+      yAxis,
+      fontUrl,
+      gridlines: ctx.gridlines,
+      fittedMargins: ctx.fittedMargins,
+    });
 
     if (!this.legendRenderer) this.legendRenderer = new LegendRenderer(legendGroup);
     this.legendRenderer.update(effectiveSeries, ctx.legend ?? { visible: true, position: 'right' }, theme, opacity, fontUrl);
@@ -200,7 +234,10 @@ export class AreaRenderer implements IChartRenderer {
       mat.opacity = opacity * fillOpacity;
       mat.transparent = true;
       const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.z = zOffset;
+      // Anchor front face at the axis plane and extrude into -Z.
+      mesh.position.z = -(tokens.depth + zOffset);
+      mesh.castShadow = true;
+      mesh.receiveShadow = false;
       seriesGroup.add(mesh);
       this.areaMeshes.push(mesh);
     }
@@ -230,8 +267,11 @@ export class AreaRenderer implements IChartRenderer {
     const yScale = scaleLinear().domain([0, maxTotal]).range([0, bounds.height]);
     const xScale = scaleLinear().domain([0, data.rows.length - 1]).range([0, bounds.width]);
 
+    this.cachedStackLayers = [];
     for (let si = 0; si < stackedData.length; si++) {
       const layer = stackedData[si]!;
+      // Cache cumulative top (y1) values per datum for resolveHoverInfo
+      this.cachedStackLayers[si] = layer.map((d) => d[1]);
       const shape = new THREE.Shape();
 
       // Upper boundary (left to right): y1 values
@@ -255,7 +295,10 @@ export class AreaRenderer implements IChartRenderer {
       mat.opacity = opacity * fillOpacity;
       mat.transparent = true;
       const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.z = si * 0.05;
+      // Anchor front face at the axis plane and extrude into -Z.
+      mesh.position.z = -(tokens.depth + si * 0.05);
+      mesh.castShadow = true;
+      mesh.receiveShadow = false;
       seriesGroup.add(mesh);
       this.areaMeshes.push(mesh);
     }
@@ -268,6 +311,7 @@ export class AreaRenderer implements IChartRenderer {
       mesh.geometry.dispose();
     }
     this.areaMeshes.length = 0;
+    this.lastDataFrame = null;
     this.lastDataLength = -1;
     this.lastSeriesCount = -1;
   }
@@ -299,12 +343,26 @@ export class AreaRenderer implements IChartRenderer {
       Math.max(0, Math.min(1, normalizedX)) * (data.rows.length - 1)
     );
     const row = (data.rows[datumIndex] ?? {}) as Record<string, unknown>;
-    const p = intersection.point;
+
+    const yValue = Number(row[this.cachedYField]) || 0;
+    const stackValue = this.cachedIsStacked
+      ? (this.cachedStackLayers[meshIndex]?.[datumIndex])
+      : undefined;
+    const seriesLabel = this.cachedSeries[meshIndex]?.label
+      ?? this.cachedSeries[meshIndex]?.field
+      ?? `Series ${meshIndex}`;
+    const meta: ChartHitMeta = { kind: 'area', seriesLabel, yValue, stackValue };
+
+    const worldP = intersection.point;
+    const yAxisWorldX = this.cachedChartPositionX + this.cachedPlotFrameOffsetX;
+
     return {
       seriesIndex: meshIndex,
       datumIndex,
       row,
-      point: [p.x, p.y, p.z],
+      point: [worldP.x, worldP.y, worldP.z],
+      meta,
+      projectionTarget: [yAxisWorldX, worldP.y, worldP.z],
     };
   }
 

@@ -13,16 +13,14 @@ export { SceneReel } from './SceneReel';
 export type { SceneReelProps } from './SceneReel';
 
 // ─── Input Components ─────────────────────────────────────────────────────────
-export { ScrollInput } from './ScrollInput';
-export type { ScrollInputProps } from './ScrollInput';
+export { ActionInput } from './ActionInput';
+export type { ActionInputProps } from './ActionInput';
 export { CustomScrollSource, ElementScrollSource, InertiaScrollSource } from './StageScrollSources';
 export type { ElementScrollSourceProps, InertiaScrollSourceProps } from './StageScrollSources';
 export { TimeInput } from './TimeInput';
 export type { TimeInputProps } from './TimeInput';
 export { KeyboardInput } from './KeyboardInput';
 export type { KeyboardInputProps } from './KeyboardInput';
-export { PointerInput } from './PointerInput';
-export type { PointerInputProps } from './PointerInput';
 export { ControlledInput } from './ControlledInput';
 export type { ControlledInputProps } from './ControlledInput';
 

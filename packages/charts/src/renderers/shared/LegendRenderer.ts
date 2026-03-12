@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import { Text } from 'troika-three-text';
-import { ensureText } from '@brewsite/core';
+import { ensureText, disposeText } from '@brewsite/core';
 import type { TextWithLayout } from '@brewsite/core';
 import type { ChartSeriesState, ChartLegendState } from './IChartRenderer';
 import type { ChartTheme } from '../../themes/types';
@@ -48,6 +48,7 @@ export class LegendRenderer {
       if (entry.label instanceof THREE.Object3D) {
         this.legendGroup.remove(entry.label as unknown as THREE.Object3D);
       }
+      disposeText(entry.label);
     }
 
     const swatchSize = theme.legend.swatchSize;
@@ -131,6 +132,7 @@ export class LegendRenderer {
       );
     } else if (this.titleLabel) {
       this.legendGroup.remove(this.titleLabel as unknown as THREE.Object3D);
+      disposeText(this.titleLabel);
       this.titleLabel = null;
     }
 
@@ -159,6 +161,7 @@ export class LegendRenderer {
       );
     } else if (this.moreLabel) {
       this.legendGroup.remove(this.moreLabel as unknown as THREE.Object3D);
+      disposeText(this.moreLabel);
       this.moreLabel = null;
     }
   }
@@ -171,15 +174,18 @@ export class LegendRenderer {
       if (entry.label instanceof THREE.Object3D) {
         this.legendGroup.remove(entry.label as unknown as THREE.Object3D);
       }
+      disposeText(entry.label);
     }
     this.entries = [];
 
     if (this.titleLabel) {
       this.legendGroup.remove(this.titleLabel as unknown as THREE.Object3D);
+      disposeText(this.titleLabel);
       this.titleLabel = null;
     }
     if (this.moreLabel) {
       this.legendGroup.remove(this.moreLabel as unknown as THREE.Object3D);
+      disposeText(this.moreLabel);
       this.moreLabel = null;
     }
   }

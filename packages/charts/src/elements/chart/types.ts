@@ -269,6 +269,11 @@ export type ChartState = {
    * @default 0.4
    */
   readonly animationDuration: number;
+  /**
+   * Compiled tooltip configuration. Non-null when <ChartTooltip> is a DSL child.
+   * Null when no <ChartTooltip> child is present.
+   */
+  readonly tooltip: import('./tooltip/types').ChartTooltipState | null;
 };
 
 /** Default compiled state. opacity = 1 so charts are visible by default. */
@@ -293,6 +298,7 @@ export const DEFAULT_CHART_STATE: ChartState = {
   typeConfig: { kind: 'bar', options: {} },
   animateEntry: false,
   animationDuration: 0.4,
+  tooltip: null,
 };
 
 // ─── ChartRenderInput (V2.1 — moved here from render.ts) ────────────────────
@@ -408,4 +414,15 @@ export type ReferenceLineDSL = {
   readonly value: number;
   readonly label?: string;
   readonly color?: string;
+};
+
+/** DSL props for <ChartTooltip> child component. */
+export type ChartTooltipDSL = {
+  /** Enable Y-axis projection beam. Default: false. */
+  readonly projection?: boolean;
+  /**
+   * d3-format string for Y values in the tooltip.
+   * @default '.3~s'
+   */
+  readonly format?: string;
 };

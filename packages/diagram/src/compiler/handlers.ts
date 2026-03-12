@@ -275,7 +275,39 @@ export const registerDiagramHandlers = (): void => {
       );
     }
 
-    const diagramState = compileDiagram(dsl, undefined, onWarn);
+    // Compose local [0..1] bounds and Z through the parent NVS context.
+    // This is essential when <Diagram> is nested inside a <View> or other scoped
+    // container — without it, viewportBounds ignores the parent coordinate system
+    // (carousel scale, view position, etc.) and the diagram renders at the wrong size.
+    const localBounds = { x: dsl.x ?? 0, y: dsl.y ?? 0, w: dsl.w ?? 1, h: dsl.h ?? 1 };
+    const composedBounds = api.composeBounds(localBounds);
+    const composedZ = api.composeZ(dsl.z ?? 0);
+
+    // Compose view opacity (carousel fade, nested view fade, etc.) into all per-element
+    // opacities at compile time. Each scene's compiled state gets the right reduced
+    // opacities baked in, so the transition spec blends them correctly without any
+    // renderer changes needed.
+    const viewOpacity = api.composeOpacity(1);
+
+    let diagramState = compileDiagram(
+      { ...dsl, x: composedBounds.x, y: composedBounds.y, w: composedBounds.w, h: composedBounds.h, z: composedZ },
+      undefined,
+      onWarn,
+    );
+
+    if (viewOpacity < 1) {
+      diagramState = {
+        ...diagramState,
+        nodes: diagramState.nodes.map((n) => ({ ...n, opacity: n.opacity * viewOpacity })),
+        edges: diagramState.edges.map((e) => ({ ...e, opacity: e.opacity * viewOpacity })),
+        groups: diagramState.groups.map((g) => ({
+          ...g,
+          fillOpacity: g.fillOpacity * viewOpacity,
+          borderOpacity: g.borderOpacity * viewOpacity,
+        })),
+      };
+    }
+
     api.setWidgetState(dsl.id, diagramState);
   });
 

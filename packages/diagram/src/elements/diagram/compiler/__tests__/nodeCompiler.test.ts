@@ -66,7 +66,7 @@ describe('compileNode — borderColor derived from theme factor', () => {
     const dsl: DiagramNodeDSL = { id: 'n1', label: 'Node 1' };
     const node = compileNode(dsl, [0, 0, 0], undefined, theme);
     // With factor 0.0, borderColor should equal the base color (no adjustment).
-    expect(node.borderColor).toBe(node.color);
+    expect(node.borderColor.toLowerCase()).toBe(node.color.toLowerCase());
   });
 
   it('respects dsl.borderColor when explicitly set, ignoring derive factor', () => {

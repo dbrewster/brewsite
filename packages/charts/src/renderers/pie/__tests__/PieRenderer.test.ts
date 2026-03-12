@@ -122,6 +122,13 @@ describe('PieRenderer V2', () => {
     expect(renderer.getInteractiveObjects()).toHaveLength(2);
   });
 
+  it('slices are placed behind axis plane in negative Z', () => {
+    renderer.update(makeCtx(twoSliceData));
+    const slices = renderer.getInteractiveObjects() as THREE.Mesh[];
+    expect(slices[0]!.position.z).toBeLessThan(0);
+    expect(slices[1]!.position.z).toBeLessThan(0);
+  });
+
   it('donut (innerRadius=0.5): renders same number of slices', () => {
     renderer.update(makeCtx(twoSliceData, {
       typeOptions: { kind: 'pie', options: { innerRadius: 0.5 } },
@@ -141,6 +148,35 @@ describe('PieRenderer V2', () => {
     const secondMeshes = [...renderer.getInteractiveObjects()];
 
     // Rebuild should create new mesh objects
+    expect(secondMeshes[0]).not.toBe(firstMeshes[0]);
+  });
+
+  it('SmartRebuild: data content change with same slice count triggers rebuild', () => {
+    const firstData: ResolvedDataFrame = {
+      rows: [
+        { label: 'Core Platform', value: 520 },
+        { label: 'Diagram', value: 285 },
+      ],
+      fields: ['label', 'value'],
+    };
+    const secondData: ResolvedDataFrame = {
+      rows: [
+        { label: 'Core Platform', value: 100 },
+        { label: 'Diagram', value: 900 },
+      ],
+      fields: ['label', 'value'],
+    };
+
+    renderer.update(makeCtx(firstData, {
+      typeOptions: { kind: 'pie', options: { innerRadius: 0 } },
+    }));
+    const firstMeshes = [...renderer.getInteractiveObjects()];
+
+    renderer.update(makeCtx(secondData, {
+      typeOptions: { kind: 'pie', options: { innerRadius: 0 } },
+    }));
+    const secondMeshes = [...renderer.getInteractiveObjects()];
+
     expect(secondMeshes[0]).not.toBe(firstMeshes[0]);
   });
 
@@ -214,5 +250,79 @@ describe('PieRenderer V2', () => {
     expect(hit).not.toBeNull();
     expect(hit!.datumIndex).toBe(1);
     expect(hit!.row).toMatchObject({ label: 'Diagram', value: 285 });
+  });
+});
+
+import type { ChartHitInfo } from '../../shared/IChartRenderer';
+
+describe('PieRenderer: resolveHoverInfo meta + projectionTarget', () => {
+  const pieData: ResolvedDataFrame = {
+    rows: [
+      { label: 'Alpha', value: 400 },
+      { label: 'Beta', value: 600 },
+    ],
+    fields: ['label', 'value'],
+  };
+
+  function renderAndResolve(sliceIndex: number = 0): ChartHitInfo | null {
+    const r = new PieRenderer();
+    const g = {
+      seriesGroup: new THREE.Group(),
+      axesGroup: new THREE.Group(),
+      legendGroup: new THREE.Group(),
+    };
+    r.update(makeCtx(pieData, { ...g }));
+    const slices = r.getInteractiveObjects() as THREE.Mesh[];
+    if (slices.length <= sliceIndex) return null;
+    return r.resolveHoverInfo(
+      { object: slices[sliceIndex]!, point: new THREE.Vector3(1, 2, 0.2) } as unknown as THREE.Intersection,
+      pieData,
+    );
+  }
+
+  it('meta.kind is "pie"', () => {
+    const hit = renderAndResolve(0);
+    expect(hit).not.toBeNull();
+    expect(hit!.meta).toBeDefined();
+    expect(hit!.meta!.kind).toBe('pie');
+  });
+
+  it('meta.sliceName matches the label field', () => {
+    const hit = renderAndResolve(0);
+    expect(hit!.meta!.kind).toBe('pie');
+    if (hit!.meta!.kind === 'pie') {
+      expect(hit!.meta.sliceName).toBe('Alpha');
+    }
+  });
+
+  it('meta.percentage is a number between 0 and 100', () => {
+    const hit = renderAndResolve(0);
+    expect(hit!.meta!.kind).toBe('pie');
+    if (hit!.meta!.kind === 'pie') {
+      expect(hit!.meta.percentage).toBeGreaterThan(0);
+      expect(hit!.meta.percentage).toBeLessThanOrEqual(100);
+    }
+  });
+
+  it('meta.total equals the sum of all slice values', () => {
+    const hit = renderAndResolve(0);
+    expect(hit!.meta!.kind).toBe('pie');
+    if (hit!.meta!.kind === 'pie') {
+      expect(hit!.meta.total).toBe(1000);
+    }
+  });
+
+  it('projectionTarget is undefined for pie charts', () => {
+    const hit = renderAndResolve(0);
+    expect(hit).not.toBeNull();
+    expect(hit!.projectionTarget).toBeUndefined();
+  });
+
+  it('second slice: meta.sliceName is Beta', () => {
+    const hit = renderAndResolve(1);
+    expect(hit!.meta!.kind).toBe('pie');
+    if (hit!.meta!.kind === 'pie') {
+      expect(hit!.meta.sliceName).toBe('Beta');
+    }
   });
 });

@@ -14,6 +14,9 @@ vi.mock('three', () => {
       this.elements[0] = _scale.x;
       this.elements[5] = _scale.y;
       this.elements[10] = _scale.z;
+      this.elements[12] = _pos.x;
+      this.elements[13] = _pos.y;
+      this.elements[14] = _pos.z;
       return this;
     }
     identity() { return this; }
@@ -194,6 +197,13 @@ describe('HeatmapRenderer V2', () => {
     expect(mesh.count).toBe(6);
   });
 
+  it('cells are positioned at non-positive Z so they render behind axes', () => {
+    renderer.update(makeCtx(gridData, groups));
+    const mesh = renderer.getInteractiveObjects()[0] as THREE.InstancedMesh;
+    const m0 = mesh.getMatrixAt(0);
+    expect(m0.elements[14]).toBeLessThan(0);
+  });
+
   it('heightField encoding: larger heightField value → larger Y scale on instance', () => {
     const heightData: ResolvedDataFrame = {
       rows: [
@@ -300,5 +310,78 @@ describe('HeatmapRenderer V2', () => {
   it('dispose: releases resources without errors', () => {
     renderer.update(makeCtx(gridData, groups));
     expect(() => renderer.dispose()).not.toThrow();
+  });
+});
+
+import type { ChartHitInfo } from '../../shared/IChartRenderer';
+
+describe('HeatmapRenderer: resolveHoverInfo meta + projectionTarget', () => {
+  const heatData: ResolvedDataFrame = {
+    rows: [
+      { row: 'A', col: 'X', value: 10 },
+      { row: 'A', col: 'Y', value: 20 },
+      { row: 'B', col: 'X', value: 30 },
+      { row: 'B', col: 'Y', value: 40 },
+    ],
+    fields: ['row', 'col', 'value'],
+  };
+
+  function renderAndResolve(instanceId: number = 0): ChartHitInfo | null {
+    const r = new HeatmapRenderer();
+    const g = {
+      seriesGroup: new THREE.Group(),
+      axesGroup: new THREE.Group(),
+      legendGroup: new THREE.Group(),
+    };
+    r.update(makeCtx(heatData, {
+      ...g,
+      xAxis: { axis: 'x', field: 'col' },
+      yAxis: { axis: 'y', field: 'row' },
+      series: [{ field: 'value' }],
+    }));
+    const objects = r.getInteractiveObjects();
+    if (objects.length === 0) return null;
+    return r.resolveHoverInfo(
+      { instanceId, object: objects[0]!, point: new THREE.Vector3(1, 2, 0) } as unknown as THREE.Intersection,
+      heatData,
+    );
+  }
+
+  it('meta.kind is "heatmap"', () => {
+    const hit = renderAndResolve(0);
+    expect(hit).not.toBeNull();
+    expect(hit!.meta).toBeDefined();
+    expect(hit!.meta!.kind).toBe('heatmap');
+  });
+
+  it('meta.intensity is a number between 0 and 1', () => {
+    const hit = renderAndResolve(0);
+    expect(hit!.meta!.kind).toBe('heatmap');
+    if (hit!.meta!.kind === 'heatmap') {
+      expect(hit!.meta.intensity).toBeGreaterThanOrEqual(0);
+      expect(hit!.meta.intensity).toBeLessThanOrEqual(1);
+    }
+  });
+
+  it('meta.rowLabel is a string', () => {
+    const hit = renderAndResolve(0);
+    expect(hit!.meta!.kind).toBe('heatmap');
+    if (hit!.meta!.kind === 'heatmap') {
+      expect(typeof hit!.meta.rowLabel).toBe('string');
+    }
+  });
+
+  it('meta.columnLabel is a string', () => {
+    const hit = renderAndResolve(0);
+    expect(hit!.meta!.kind).toBe('heatmap');
+    if (hit!.meta!.kind === 'heatmap') {
+      expect(typeof hit!.meta.columnLabel).toBe('string');
+    }
+  });
+
+  it('projectionTarget is undefined for heatmap charts', () => {
+    const hit = renderAndResolve(0);
+    expect(hit).not.toBeNull();
+    expect(hit!.projectionTarget).toBeUndefined();
   });
 });

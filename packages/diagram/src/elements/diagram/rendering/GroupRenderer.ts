@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { GroupRenderEntry, TextWithLayout } from './types';
 import type { DiagramGroupState, DiagramThemeRenderConfig } from '../types';
-import { ensureText } from '@brewsite/core';
+import { ensureText, disposeText } from '@brewsite/core';
 import { Text } from 'troika-three-text';
 import type { IGroupInteractionRegistry } from './GroupInteractionRegistry';
 import { GROUP_BORDER_PX_TO_UNITS, GROUP_RENDER_Z } from '../compiler/diagramRenderConstants';
@@ -66,6 +66,7 @@ export class GroupRenderer {
     fill.castShadow = true;
     fill.receiveShadow = false;
     const label = new Text() as TextWithLayout;
+    label.renderOrder = 1;
     const border = this.createBorder(state, themeConfig);
     const edgeLights = this.createEdgeLights(state);
     if (border) {
@@ -254,14 +255,14 @@ export class GroupRenderer {
         1,
         state.bounds.w - labelInsetX * 2,
         true,
-        { anchorX: 'left', anchorY: 'middle', textAlign: 'left', fontUrl: themeConfig.fontUrl },
+        { anchorX: 'left', anchorY: 'middle', textAlign: 'left', fontUrl: themeConfig.fontUrl, sdfGlyphSize: themeConfig.nodeSdfGlyphSize },
       );
       // Position title text inside the top padding band so it never overlaps node content.
       const titleY = state.bounds.h / 2 - topPadding + titleInset;
       entry.label.position.set(
         -state.bounds.w / 2 + labelInsetX,
         titleY,
-        0.01,
+        0.05,
       );
       entry.label.visible = true;
     } else {
@@ -282,7 +283,7 @@ export class GroupRenderer {
       entry.edgeLights.clear();
       entry.edgeLights = undefined;
     }
-    entry.label.geometry.dispose();
+    disposeText(entry.label);
   }
 
   private createBorder(state: DiagramGroupState, themeConfig: DiagramThemeRenderConfig): THREE.Group | undefined {

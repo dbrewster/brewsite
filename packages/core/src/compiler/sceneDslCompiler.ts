@@ -11,6 +11,8 @@ import React, {
 import type { SceneSnapshotContext } from './sceneTypes';
 import { getNodeHandler, isPrimitiveComponent } from './registry';
 import type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
+import type { NVSRect } from '../layout/types';
+import { composeBoundsIntoParent } from '../layout/regionNormalize';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { JsonPrimitive } from '../widget/VariableStore';
 import type { CompileWarning, DslBreadcrumb, SceneFrame, TransitionWindow } from './sceneTrackTypes';
@@ -293,8 +295,42 @@ const createApi = (
         : warning;
       pushWarning?.(enriched);
     },
+    // Default composeBounds is identity — returns localRect unchanged.
+    composeBounds: (localRect) => localRect,
+    // Default composeZ is identity — returns localZ unchanged.
+    composeZ: (localZ) => localZ,
+    // Default composeOpacity is identity — returns localOpacity unchanged.
+    composeOpacity: (localOpacity) => localOpacity,
   };
 };
+
+/**
+ * Creates a child CompileApi that delegates to the parent but overrides composeBounds
+ * to compose local coordinates into the given parentContentBounds, and composeZ
+ * to accumulate Z offsets from parent views/layouts.
+ *
+ * Used by viewHandler to create scoped compilation contexts for view children.
+ */
+export function createChildApi(
+  parentApi: CompileApi,
+  parentContentBounds: NVSRect,
+  zOffset: number = 0,
+  opacityScale: number = 1,
+): CompileApi {
+  return {
+    ...parentApi,
+    composeBounds: (localRect: NVSRect): NVSRect => {
+      const composed = composeBoundsIntoParent(localRect, parentContentBounds);
+      return parentApi.composeBounds(composed);
+    },
+    composeZ: (localZ: number): number => {
+      return parentApi.composeZ(localZ + zOffset);
+    },
+    composeOpacity: (localOpacity: number): number => {
+      return parentApi.composeOpacity(localOpacity * opacityScale);
+    },
+  };
+}
 
 /**
  * Discriminated union for <Scene> transition control props.

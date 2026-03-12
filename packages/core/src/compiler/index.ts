@@ -18,6 +18,11 @@ export type {
 } from './blocks/inputController';
 export { Transition } from './blocks/transition';
 export type { TransitionProps } from './blocks/transition';
+export { View } from './blocks/viewDsl';
+export type { ViewProps } from './blocks/viewDsl';
+export { ViewLayout } from './blocks/viewLayoutDsl';
+export type { ViewLayoutProps } from './blocks/viewLayoutDsl';
+export type { ViewState, ViewLayoutState } from './viewTypes';
 export { registerNode } from './registry';
 
 // Transition control types — used in FunctionalTransitionSpec closures and DSL authoring.

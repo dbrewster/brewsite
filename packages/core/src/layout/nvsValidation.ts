@@ -19,10 +19,11 @@ export function validateNVSScalar(
 ): boolean {
   if (process.env.NODE_ENV === 'production') return true;
   if (value < 0 || value > 1 || !Number.isFinite(value)) {
-    console.error(
-      `[NVS] Out-of-range: ${context} field "${fieldName}" = ${value}. ` +
-      `Expected [0..1]. This will produce incorrect rendering.`,
-    );
+    // commented this out because it is spamming logs.
+    // console.error(
+    //   `[NVS] Out-of-range: ${context} field "${fieldName}" = ${value}. ` +
+    //   `Expected [0..1]. This will produce incorrect rendering.`,
+    // );
     return false;
   }
   return true;

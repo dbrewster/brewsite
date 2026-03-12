@@ -1,19 +1,22 @@
 // Scene 4: Stacked area chart — APAC, EMEA, Americas regional revenue. neonCyber theme.
 import type { JSX } from 'react';
-import { Camera, ProgressManager, Scene } from '@brewsite/core';
+import { ProgressManager, Scene } from '@brewsite/core';
 import { AreaChart, ChartAxis, ChartData, ChartLegend, ChartSeries } from '@brewsite/charts';
-import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, CHART_LAYOUT, NeonLighting, SceneTitleBox } from './sceneShared';
-import {theme} from "../ChartDemoPage";
+import { regionalRevenue } from '../data/saasMetrics';
+import { CHART_LAYOUT, NeonLighting, SceneTitleBox } from './sceneShared';
+import { useDemoChartTheme } from './sceneShared';
 
-export const Scene4 = (): JSX.Element => (
+export const Scene4 = (): JSX.Element => {
+  const chartTheme = useDemoChartTheme();
+  return (
   <Scene id="chart-s4" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
     <ProgressManager scrollUnits={1400} />
-    <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={CHART_CAM_FOV} />
     <NeonLighting />
 
     <AreaChart
       id="regional-area"
-      theme={theme}
+      data={regionalRevenue}
+      theme={chartTheme}
       stackMode="stacked"
       fillOpacity={0.72}
       x={CHART_LAYOUT.x}
@@ -22,7 +25,7 @@ export const Scene4 = (): JSX.Element => (
       h={CHART_LAYOUT.h}
       depth={0.35}
     >
-      <ChartData source="regional" />
+      <ChartData />
       <ChartAxis axis="x" field="month"    label="Month" />
       <ChartAxis axis="y" field="emea"     label="Revenue ($k)" gridlines />
       <ChartSeries field="americas" label="Americas" />
@@ -33,4 +36,5 @@ export const Scene4 = (): JSX.Element => (
 
     <SceneTitleBox id="s4-title" subtitle="Chart Demo · neonCyber" title="Regional Revenue — Stacked Area" />
   </Scene>
-);
+  );
+};

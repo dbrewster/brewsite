@@ -270,7 +270,20 @@ function filterGroupVerticalDestinationOptions(
 ): ReadonlyArray<PortOption> {
   if (!destinationIsGroup) return options;
   const dstIsVertical = candidate.dstFace === 'top' || candidate.dstFace === 'bottom';
-  if (!dstIsVertical) return options;
+  // For side-face (left/right) entries into a group, always prefer the centre Y port.
+  // The lateral bias in buildPortOptions pulls the port toward the source's Y level
+  // which causes top-edge landings when the source is above the group. Groups should
+  // be entered at their vertical centre on side faces for visual consistency.
+  if (!dstIsVertical) {
+    const dstIsSide = candidate.dstFace === 'left' || candidate.dstFace === 'right';
+    if (dstIsSide) {
+      const centeredOptions = options.filter((option) =>
+        option.lateralClass === 'center' || option.lateralClass === 'inner',
+      );
+      return centeredOptions.length > 0 ? centeredOptions : options;
+    }
+    return options;
+  }
   const lateralOffset = Math.abs(fromPos[0] - toPos[0]);
   if (lateralOffset <= toSize[0] * 0.35) return options;
   const srcIsSide = candidate.srcFace === 'left' || candidate.srcFace === 'right';

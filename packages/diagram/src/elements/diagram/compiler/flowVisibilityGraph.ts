@@ -42,6 +42,10 @@ type FlowVisibilityInput = {
   readonly underpassDepth: number;
   readonly underpassClearance: number;
   readonly allowUnderpass: boolean;
+  /** Optional preferred arrival direction at the end vertex. When a candidate
+   *  path arrives at end with this direction, a tiny cost reduction is applied
+   *  to break ties deterministically in favour of face-aligned approaches. */
+  readonly endApproachDirection?: Direction2D;
 };
 
 const EPSILON = 1e-6;
@@ -456,11 +460,18 @@ const searchVisibilityRoute = (
             ? input.turnPenalty * 5
             : input.turnPenalty;
       const nextKey = `${nextDir}:${nextIndex}`;
+      const endAlignBonus =
+        nextIndex === endIndex &&
+        input.endApproachDirection !== undefined &&
+        nextDir === input.endApproachDirection
+          ? 1e-6
+          : 0;
       const nextCost =
         currentBest +
         manhattanDistance(current, next) +
         segmentAssessment.penalty +
-        turnCost;
+        turnCost -
+        endAlignBonus;
       if (nextCost >= (costs.get(nextKey) ?? Infinity)) continue;
 
       costs.set(nextKey, nextCost);

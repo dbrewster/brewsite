@@ -14,6 +14,7 @@ export type FloorThreeRefs = {
 type FloorInstance = {
   mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.Material>;
   isMirror: boolean;
+  shadowCatcher?: THREE.Mesh<THREE.PlaneGeometry, THREE.ShadowMaterial>;
   mirrorResolution?: number;
   mirrorClipBias?: number;
   mirrorUseEnvironmentBackground?: boolean;
@@ -28,11 +29,43 @@ type FloorInstance = {
   displacementMapUrl?: string;
   alphaMapUrl?: string;
   emissiveMapUrl?: string;
+  isUsingGridPattern?: boolean;
+  gridLines?: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial>;
+  gridLinesKey?: string;
 };
 
 const FLOOR_KEY = '__brewsite_floor';
+const FLOOR_PART_KEY = '__brewsite_floor_part';
 const ENV_KEY = '__brewsite_environment';
+const FLOOR_SIZE = 400;
 const FLOOR_BASE_ROTATION: [number, number, number] = [-Math.PI / 2, 0, 0];
+const FLOOR_DEPTH_UNBOUNDED_MIN_Z = -1_000_000;
+const FLOOR_DEFAULT_FADE_FRACTION = 0.18;
+const FLOOR_DEFAULT_FADE_MAX_DISTANCE = 40;
+
+type FloorDepthEdgeConfig = {
+  minZ: number;
+  fadeDistance: number;
+};
+
+type FloorDepthShaderUniformRefs = {
+  minZ: { value: number };
+  fadeDistance: { value: number };
+};
+
+type FloorMutableShader = {
+  uniforms: Record<string, { value: unknown }>;
+  vertexShader: string;
+  fragmentShader: string;
+};
+
+type FloorDepthMaterialUserData = {
+  __brewFloorDepthPatched?: boolean;
+  __brewFloorDepthSettings?: FloorDepthEdgeConfig;
+  __brewFloorDepthUniforms?: FloorDepthShaderUniformRefs;
+};
+
+const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
 
 const resolveFloorRotation = (state: SceneFloor): [number, number, number] => {
   if (state.rotationRelative) {
@@ -46,24 +79,498 @@ const resolveFloorRotation = (state: SceneFloor): [number, number, number] => {
   return FLOOR_BASE_ROTATION;
 };
 
+const isFloorPart = (object: THREE.Object3D): boolean => {
+  const userData = object.userData as { [FLOOR_PART_KEY]?: boolean };
+  return userData[FLOOR_PART_KEY] === true;
+};
+
+const computeSceneBaseY = (scene: THREE.Scene): number => {
+  const sceneBounds = new THREE.Box3();
+  const objectBounds = new THREE.Box3();
+  let found = false;
+
+  scene.updateMatrixWorld(true);
+  for (const child of scene.children) {
+    if (!child.visible || isFloorPart(child)) continue;
+    objectBounds.makeEmpty();
+    objectBounds.expandByObject(child);
+    if (objectBounds.isEmpty()) continue;
+    sceneBounds.union(objectBounds);
+    found = true;
+  }
+
+  return found ? sceneBounds.min.y : 0;
+};
+
+const resolveFloorPosition = (state: SceneFloor, scene: THREE.Scene): [number, number, number] => {
+  const x = state.position?.[0] ?? 0;
+  const y = state.position?.[1] ?? 0;
+  const z = state.position?.[2] ?? 0;
+  if (state.placement === 'sceneBase') {
+    return [x, computeSceneBaseY(scene) + y, z];
+  }
+  return [x, y, z];
+};
+
+const resolveFloorDepthEdgeConfig = (state: SceneFloor, originZ: number): FloorDepthEdgeConfig => {
+  const extentRaw = state.negativeZExtent;
+  if (!(typeof extentRaw === 'number' && Number.isFinite(extentRaw) && extentRaw > 0)) {
+    return { minZ: FLOOR_DEPTH_UNBOUNDED_MIN_Z, fadeDistance: 0 };
+  }
+
+  const minZ = originZ - extentRaw;
+  if (state.negativeZEdge !== 'fade') {
+    return { minZ, fadeDistance: 0 };
+  }
+
+  const fadeDistanceRaw = state.negativeZFadeDistance;
+  const fallbackFadeDistance = Math.min(
+    FLOOR_DEFAULT_FADE_MAX_DISTANCE,
+    Math.max(0.25, extentRaw * FLOOR_DEFAULT_FADE_FRACTION),
+  );
+  const fadeDistance =
+    typeof fadeDistanceRaw === 'number' && Number.isFinite(fadeDistanceRaw) && fadeDistanceRaw > 0
+      ? Math.min(extentRaw, fadeDistanceRaw)
+      : Math.min(extentRaw, fallbackFadeDistance);
+
+  return { minZ, fadeDistance };
+};
+
+const ensureDepthShaderUniforms = (
+  shaderUniforms: Record<string, { value: unknown }>,
+  settings: FloorDepthEdgeConfig,
+): FloorDepthShaderUniformRefs => {
+  if (!shaderUniforms['brewFloorMinZ']) {
+    shaderUniforms['brewFloorMinZ'] = { value: settings.minZ };
+  }
+  if (!shaderUniforms['brewFloorFadeDistance']) {
+    shaderUniforms['brewFloorFadeDistance'] = { value: settings.fadeDistance };
+  }
+  return {
+    minZ: shaderUniforms['brewFloorMinZ']!,
+    fadeDistance: shaderUniforms['brewFloorFadeDistance']!,
+  } as FloorDepthShaderUniformRefs;
+};
+
+const patchStandardDepthShader = (
+  shader: FloorMutableShader,
+  settings: FloorDepthEdgeConfig,
+): FloorDepthShaderUniformRefs | undefined => {
+  const uniforms = ensureDepthShaderUniforms(
+    shader.uniforms as Record<string, { value: unknown }>,
+    settings,
+  );
+
+  if (!shader.vertexShader.includes('varying vec3 brewFloorWorldPosition;')) {
+    shader.vertexShader = `varying vec3 brewFloorWorldPosition;\n${shader.vertexShader}`;
+  }
+  if (
+    shader.vertexShader.includes('#include <begin_vertex>') &&
+    !shader.vertexShader.includes('brewFloorWorldPosition = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;')
+  ) {
+    shader.vertexShader = shader.vertexShader.replace(
+      '#include <begin_vertex>',
+      '#include <begin_vertex>\n\tbrewFloorWorldPosition = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;',
+    );
+  }
+
+  if (!shader.fragmentShader.includes('varying vec3 brewFloorWorldPosition;')) {
+    shader.fragmentShader = [
+      'varying vec3 brewFloorWorldPosition;',
+      'uniform float brewFloorMinZ;',
+      'uniform float brewFloorFadeDistance;',
+      shader.fragmentShader,
+    ].join('\n');
+  }
+  if (!shader.fragmentShader.includes('float brewFloorDepthFactor()')) {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      'void main() {',
+      [
+        'float brewFloorDepthFactor() {',
+        `  if (brewFloorMinZ <= ${FLOOR_DEPTH_UNBOUNDED_MIN_Z + 1}.0) return 1.0;`,
+        '  if (brewFloorFadeDistance <= 0.0001) {',
+        '    return brewFloorWorldPosition.z >= brewFloorMinZ ? 1.0 : 0.0;',
+        '  }',
+        '  return clamp((brewFloorWorldPosition.z - brewFloorMinZ) / brewFloorFadeDistance, 0.0, 1.0);',
+        '}',
+        '',
+        'void main() {',
+      ].join('\n'),
+    );
+  }
+
+  if (
+    shader.fragmentShader.includes('#include <opaque_fragment>') &&
+    !shader.fragmentShader.includes('brewFloorDepthFactorValue')
+  ) {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <opaque_fragment>',
+      [
+        'float brewFloorDepthFactorValue = brewFloorDepthFactor();',
+        'if (brewFloorDepthFactorValue <= 0.0) discard;',
+        'diffuseColor.a *= brewFloorDepthFactorValue;',
+        '#include <opaque_fragment>',
+      ].join('\n'),
+    );
+    return uniforms;
+  }
+
+  if (
+    shader.fragmentShader.includes('gl_FragColor = vec4( diffuseColor.rgb, diffuseColor.a );') &&
+    !shader.fragmentShader.includes('brewFloorDepthFactorLine')
+  ) {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      'gl_FragColor = vec4( diffuseColor.rgb, diffuseColor.a );',
+      [
+        'float brewFloorDepthFactorLine = brewFloorDepthFactor();',
+        'if (brewFloorDepthFactorLine <= 0.0) discard;',
+        'gl_FragColor = vec4( diffuseColor.rgb, diffuseColor.a * brewFloorDepthFactorLine );',
+      ].join('\n'),
+    );
+    return uniforms;
+  }
+
+  const shadowRegex = /gl_FragColor\s*=\s*vec4\(\s*color,\s*opacity\s*\*\s*\(\s*1\.0\s*-\s*getShadowMask\(\)\s*\)\s*\)\s*;/;
+  if (shadowRegex.test(shader.fragmentShader) && !shader.fragmentShader.includes('brewFloorDepthFactorShadow')) {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      shadowRegex,
+      [
+        'float brewFloorDepthFactorShadow = brewFloorDepthFactor();',
+        'if (brewFloorDepthFactorShadow <= 0.0) discard;',
+        'gl_FragColor = vec4( color, opacity * ( 1.0 - getShadowMask() ) * brewFloorDepthFactorShadow );',
+      ].join('\n'),
+    );
+    return uniforms;
+  }
+
+  return uniforms;
+};
+
+const ensureStandardDepthEdgeShaderPatch = (material: THREE.Material): void => {
+  const userData = material.userData as FloorDepthMaterialUserData;
+  if (userData.__brewFloorDepthPatched) return;
+
+  const previousOnBeforeCompile = material.onBeforeCompile.bind(material);
+  const previousProgramCacheKey = material.customProgramCacheKey?.bind(material);
+  userData.__brewFloorDepthPatched = true;
+  material.onBeforeCompile = (shader, renderer) => {
+    previousOnBeforeCompile(shader, renderer);
+    const settings = userData.__brewFloorDepthSettings ?? {
+      minZ: FLOOR_DEPTH_UNBOUNDED_MIN_Z,
+      fadeDistance: 0,
+    };
+    const uniforms = patchStandardDepthShader(shader, settings);
+    if (uniforms) {
+      userData.__brewFloorDepthUniforms = uniforms;
+    }
+  };
+  material.customProgramCacheKey = () => {
+    const base = previousProgramCacheKey ? previousProgramCacheKey() : '';
+    return `${base}|brewFloorDepthEdgeV1`;
+  };
+  material.needsUpdate = true;
+};
+
 const ensureMirrorOpacityShader = (material: THREE.Material): void => {
   const shader = material as THREE.ShaderMaterial;
   if (!shader.uniforms) return;
+
+  const userData = material.userData as FloorDepthMaterialUserData;
+  const uniforms = ensureDepthShaderUniforms(
+    shader.uniforms as Record<string, { value: unknown }>,
+    { minZ: FLOOR_DEPTH_UNBOUNDED_MIN_Z, fadeDistance: 0 },
+  );
+  userData.__brewFloorDepthUniforms = uniforms;
+
+  let changed = false;
   if (!shader.uniforms['opacity']) {
     shader.uniforms['opacity'] = { value: 1 };
+    changed = true;
   }
+
   if (shader.fragmentShader && !shader.fragmentShader.includes('uniform float opacity')) {
-    shader.fragmentShader = shader.fragmentShader
-      .replace(
-        'uniform sampler2D tDiffuse;',
-        'uniform sampler2D tDiffuse;\n\t\tuniform float opacity;',
-      )
-      .replace(
-        'gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );',
-        'vec3 blended = blendOverlay( base.rgb, color );\n\t\t\tgl_FragColor = vec4( blended * opacity, opacity );',
-      );
+    shader.fragmentShader = shader.fragmentShader.replace(
+      'uniform sampler2D tDiffuse;',
+      'uniform sampler2D tDiffuse;\n\t\tuniform float opacity;',
+    );
+    changed = true;
+  }
+
+  if (shader.vertexShader && !shader.vertexShader.includes('varying vec3 brewFloorWorldPosition;')) {
+    shader.vertexShader = `varying vec3 brewFloorWorldPosition;\n${shader.vertexShader}`;
+    changed = true;
+  }
+  if (
+    shader.vertexShader &&
+    !shader.vertexShader.includes('brewFloorWorldPosition = ( modelMatrix * vec4( position, 1.0 ) ).xyz;')
+  ) {
+    shader.vertexShader = shader.vertexShader.replace(
+      'void main() {',
+      'void main() {\n\t\t\tbrewFloorWorldPosition = ( modelMatrix * vec4( position, 1.0 ) ).xyz;',
+    );
+    changed = true;
+  }
+
+  if (shader.fragmentShader && !shader.fragmentShader.includes('varying vec3 brewFloorWorldPosition;')) {
+    shader.fragmentShader = [
+      'varying vec3 brewFloorWorldPosition;',
+      'uniform float brewFloorMinZ;',
+      'uniform float brewFloorFadeDistance;',
+      shader.fragmentShader,
+    ].join('\n');
+    changed = true;
+  }
+
+  if (shader.fragmentShader && !shader.fragmentShader.includes('float brewFloorDepthFactor()')) {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      'void main() {',
+      [
+        'float brewFloorDepthFactor() {',
+        `  if (brewFloorMinZ <= ${FLOOR_DEPTH_UNBOUNDED_MIN_Z + 1}.0) return 1.0;`,
+        '  if (brewFloorFadeDistance <= 0.0001) {',
+        '    return brewFloorWorldPosition.z >= brewFloorMinZ ? 1.0 : 0.0;',
+        '  }',
+        '  return clamp((brewFloorWorldPosition.z - brewFloorMinZ) / brewFloorFadeDistance, 0.0, 1.0);',
+        '}',
+        '',
+        'void main() {',
+      ].join('\n'),
+    );
+    changed = true;
+  }
+
+  if (
+    shader.fragmentShader &&
+    shader.fragmentShader.includes('gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );')
+  ) {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      'gl_FragColor = vec4( blendOverlay( base.rgb, color ), 1.0 );',
+      'vec3 blended = blendOverlay( base.rgb, color );\n\t\t\tgl_FragColor = vec4( blended * opacity, opacity );',
+    );
+    changed = true;
+  }
+  if (shader.fragmentShader && !shader.fragmentShader.includes('brewFloorDepthFactorMirror')) {
+    shader.fragmentShader = shader.fragmentShader.replace(
+      'gl_FragColor = vec4( blended * opacity, opacity );',
+      [
+        'float brewFloorDepthFactorMirror = brewFloorDepthFactor();',
+        'if (brewFloorDepthFactorMirror <= 0.0) discard;',
+        'gl_FragColor = vec4( blended * opacity, opacity * brewFloorDepthFactorMirror );',
+      ].join('\n\t\t\t'),
+    );
+    changed = true;
+  }
+
+  if (changed) {
     shader.needsUpdate = true;
   }
+};
+
+const setFloorDepthEdgeMaterialState = (
+  material: THREE.Material | undefined,
+  settings: FloorDepthEdgeConfig,
+): void => {
+  if (!material) return;
+  if (material instanceof THREE.ShaderMaterial && material.fragmentShader.includes('blendOverlay(')) {
+    ensureMirrorOpacityShader(material);
+  } else {
+    ensureStandardDepthEdgeShaderPatch(material);
+  }
+
+  const userData = material.userData as FloorDepthMaterialUserData;
+  userData.__brewFloorDepthSettings = settings;
+  if (userData.__brewFloorDepthUniforms) {
+    userData.__brewFloorDepthUniforms.minZ.value = settings.minZ;
+    userData.__brewFloorDepthUniforms.fadeDistance.value = settings.fadeDistance;
+  }
+};
+
+const resetMaterialMapKeys = (instance: FloorInstance): void => {
+  instance.textureUrl = undefined;
+  instance.textureRepeat = undefined;
+  instance.textureOffset = undefined;
+  instance.textureRotation = undefined;
+  instance.normalMapUrl = undefined;
+  instance.roughnessMapUrl = undefined;
+  instance.metalnessMapUrl = undefined;
+  instance.aoMapUrl = undefined;
+  instance.displacementMapUrl = undefined;
+  instance.alphaMapUrl = undefined;
+  instance.emissiveMapUrl = undefined;
+};
+
+const clearPhysicalMaps = (material: THREE.MeshPhysicalMaterial): void => {
+  if (material.map) material.map.dispose();
+  if (material.normalMap) material.normalMap.dispose();
+  if (material.roughnessMap) material.roughnessMap.dispose();
+  if (material.metalnessMap) material.metalnessMap.dispose();
+  if (material.aoMap) material.aoMap.dispose();
+  if (material.displacementMap) material.displacementMap.dispose();
+  if (material.alphaMap) material.alphaMap.dispose();
+  if (material.emissiveMap) material.emissiveMap.dispose();
+  material.map = null;
+  material.normalMap = null;
+  material.roughnessMap = null;
+  material.metalnessMap = null;
+  material.aoMap = null;
+  material.displacementMap = null;
+  material.alphaMap = null;
+  material.emissiveMap = null;
+  material.needsUpdate = true;
+};
+
+const disposeGridLines = (instance: FloorInstance): void => {
+  if (!instance.gridLines) return;
+  instance.mesh.remove(instance.gridLines);
+  instance.gridLines.geometry.dispose();
+  instance.gridLines.material.dispose();
+  instance.gridLines = undefined;
+  instance.gridLinesKey = undefined;
+};
+
+const buildGridLines = (
+  size: number,
+  divisions: number,
+  majorEvery: number,
+  minorColor: THREE.Color,
+  majorColor: THREE.Color,
+): THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial> => {
+  const lineCount = (divisions + 1) * 2;
+  const positions = new Float32Array(lineCount * 2 * 3);
+  const colors = new Float32Array(lineCount * 2 * 3);
+  const half = size / 2;
+  const step = size / divisions;
+  const centerIndex = divisions / 2;
+
+  let cursor = 0;
+  const writeLine = (
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number,
+    color: THREE.Color,
+  ): void => {
+    positions[cursor + 0] = x1;
+    positions[cursor + 1] = y1;
+    positions[cursor + 2] = 0;
+    positions[cursor + 3] = x2;
+    positions[cursor + 4] = y2;
+    positions[cursor + 5] = 0;
+
+    colors[cursor + 0] = color.r;
+    colors[cursor + 1] = color.g;
+    colors[cursor + 2] = color.b;
+    colors[cursor + 3] = color.r;
+    colors[cursor + 4] = color.g;
+    colors[cursor + 5] = color.b;
+    cursor += 6;
+  };
+
+  for (let i = 0; i <= divisions; i++) {
+    const p = -half + i * step;
+    const isMajor = Math.abs(i - centerIndex) % majorEvery === 0;
+    const color = isMajor ? majorColor : minorColor;
+    writeLine(p, -half, p, half, color);
+    writeLine(-half, p, half, p, color);
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  geometry.computeBoundingSphere();
+
+  const material = new THREE.LineBasicMaterial({
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.95,
+    depthWrite: false,
+    toneMapped: false,
+  });
+
+  return new THREE.LineSegments(geometry, material);
+};
+
+const ensureGridLines = (
+  instance: FloorInstance,
+  state: FloorSurfacePhysical,
+  floorScale: number,
+): void => {
+  const gridCellSizeRaw = state.gridCellSize ?? 2;
+  const gridCellSize =
+    Number.isFinite(gridCellSizeRaw) && gridCellSizeRaw > 0
+      ? gridCellSizeRaw
+      : 2;
+  const majorEveryRaw = state.gridMajorEvery ?? 5;
+  const majorEvery =
+    Number.isFinite(majorEveryRaw) && majorEveryRaw >= 1
+      ? Math.max(1, Math.min(32, Math.round(majorEveryRaw)))
+      : 5;
+
+  const effectiveScale =
+    Number.isFinite(floorScale) && floorScale > 0
+      ? floorScale
+      : 1;
+  const estimatedDivisions = Math.round((FLOOR_SIZE * effectiveScale) / gridCellSize);
+  const divisions = Math.max(2, Math.min(800, estimatedDivisions));
+
+  const minorColor = new THREE.Color(state.gridColor ?? '#3b4a5e');
+  const majorColor = new THREE.Color(state.gridMajorColor ?? '#6a7f98');
+  const lineOpacityRaw = state.gridLineOpacity ?? 0.95;
+  const lineOpacity =
+    Number.isFinite(lineOpacityRaw)
+      ? clamp01(lineOpacityRaw)
+      : 0.95;
+  const key = `${divisions}|${majorEvery}|${minorColor.getHexString()}|${majorColor.getHexString()}|${lineOpacity.toFixed(3)}`;
+
+  if (instance.gridLinesKey === key && instance.gridLines) {
+    instance.gridLines.visible = true;
+    instance.gridLines.material.opacity = lineOpacity;
+    instance.gridLines.material.needsUpdate = true;
+    return;
+  }
+
+  disposeGridLines(instance);
+  const lines = buildGridLines(FLOOR_SIZE, divisions, majorEvery, minorColor, majorColor);
+  lines.position.set(0, 0, 0.001);
+  lines.material.opacity = lineOpacity;
+  lines.name = 'FloorGridLines';
+  (lines.userData as { [FLOOR_PART_KEY]?: boolean })[FLOOR_PART_KEY] = true;
+  instance.mesh.add(lines);
+  instance.gridLines = lines;
+  instance.gridLinesKey = key;
+};
+
+const createShadowCatcher = (
+  geometry: THREE.PlaneGeometry,
+): THREE.Mesh<THREE.PlaneGeometry, THREE.ShadowMaterial> => {
+  const material = new THREE.ShadowMaterial({ opacity: 0.3 });
+  material.transparent = true;
+  material.depthWrite = false;
+  material.polygonOffset = true;
+  material.polygonOffsetFactor = -1;
+  material.polygonOffsetUnits = -1;
+  const mesh = new THREE.Mesh(geometry.clone(), material);
+  mesh.rotation.x = FLOOR_BASE_ROTATION[0];
+  mesh.receiveShadow = true;
+  mesh.castShadow = false;
+  mesh.name = 'FloorShadowCatcher';
+  (mesh.userData as { [FLOOR_PART_KEY]?: boolean })[FLOOR_PART_KEY] = true;
+  return mesh;
+};
+
+const ensureShadowCatcher = (instance: FloorInstance, scene: THREE.Scene): void => {
+  if (instance.shadowCatcher) return;
+  const catcher = createShadowCatcher(new THREE.PlaneGeometry(FLOOR_SIZE, FLOOR_SIZE));
+  instance.shadowCatcher = catcher;
+  scene.add(catcher);
+};
+
+const disposeShadowCatcher = (instance: FloorInstance, scene: THREE.Scene): void => {
+  if (!instance.shadowCatcher) return;
+  scene.remove(instance.shadowCatcher);
+  instance.shadowCatcher.geometry.dispose();
+  instance.shadowCatcher.material.dispose();
+  instance.shadowCatcher = undefined;
 };
 
 const getOrCreateFloor = (
@@ -82,15 +589,15 @@ const getOrCreateFloor = (
   ) {
     return existing;
   }
+
   if (existing?.mesh) {
-    scene.remove(existing.mesh);
     disposeFloor(scene);
   }
 
-  // Intentionally large — must extend beyond maximum camera frustum extent.
-  // 400×400 world units covers scenes calibrated within a ±200 unit world.
-  const geometry = new THREE.PlaneGeometry(400, 400);
+  const geometry = new THREE.PlaneGeometry(FLOOR_SIZE, FLOOR_SIZE);
   let mesh: THREE.Mesh<THREE.PlaneGeometry, THREE.Material>;
+  let shadowCatcher: THREE.Mesh<THREE.PlaneGeometry, THREE.ShadowMaterial> | undefined;
+
   if (wantsMirror) {
     const mirrorColor = surface.mirrorColor ?? '#111111';
     mesh = new Reflector(geometry, {
@@ -104,9 +611,12 @@ const getOrCreateFloor = (
     mesh.material.transparent = mirrorOpacity < 1;
     mesh.material.depthWrite = mirrorOpacity >= 1;
     mesh.material.opacity = mirrorOpacity;
+    shadowCatcher = createShadowCatcher(geometry);
+    scene.add(shadowCatcher);
+
     const originalOnBeforeRender = mesh.onBeforeRender?.bind(mesh);
-    mesh.onBeforeRender = (renderer, scene, camera, geometry, material, group) => {
-      const env = (scene as THREE.Scene).userData[ENV_KEY] as { raw?: THREE.Texture } | undefined;
+    mesh.onBeforeRender = (renderer, sceneObj, camera, geom, material, group) => {
+      const env = (sceneObj as THREE.Scene).userData[ENV_KEY] as { raw?: THREE.Texture } | undefined;
       const userData = mesh.userData as {
         __brewsite_mirror?: {
           useEnvBackground?: boolean;
@@ -117,22 +627,22 @@ const getOrCreateFloor = (
       };
       const mirror = userData.__brewsite_mirror;
       if (mirror?.useEnvBackground && env?.raw) {
-        mirror.prevBackground = (scene as THREE.Scene).background as THREE.Texture | null;
-        (scene as THREE.Scene).background = env.raw;
+        mirror.prevBackground = (sceneObj as THREE.Scene).background as THREE.Texture | null;
+        (sceneObj as THREE.Scene).background = env.raw;
         if (typeof mirror.envIntensity === 'number') {
-          const sceneAny = scene as unknown as { backgroundIntensity?: number };
+          const sceneAny = sceneObj as unknown as { backgroundIntensity?: number };
           mirror.prevBackgroundIntensity =
             typeof sceneAny.backgroundIntensity === 'number' ? sceneAny.backgroundIntensity : null;
           sceneAny.backgroundIntensity = mirror.envIntensity;
         }
       }
       if (originalOnBeforeRender) {
-        originalOnBeforeRender(renderer, scene, camera, geometry, material, group);
+        originalOnBeforeRender(renderer, sceneObj, camera, geom, material, group);
       }
       if (mirror?.useEnvBackground) {
-        (scene as THREE.Scene).background = mirror.prevBackground ?? null;
+        (sceneObj as THREE.Scene).background = mirror.prevBackground ?? null;
         if (typeof mirror.prevBackgroundIntensity === 'number') {
-          const sceneAny = scene as unknown as { backgroundIntensity?: number };
+          const sceneAny = sceneObj as unknown as { backgroundIntensity?: number };
           sceneAny.backgroundIntensity = mirror.prevBackgroundIntensity;
         }
         mirror.prevBackground = undefined;
@@ -147,15 +657,18 @@ const getOrCreateFloor = (
     });
     mesh = new THREE.Mesh(geometry, material);
   }
+
   mesh.rotation.x = FLOOR_BASE_ROTATION[0];
   mesh.position.y = 0;
   mesh.receiveShadow = true;
   mesh.castShadow = false;
   mesh.name = 'Floor';
+  (mesh.userData as { [FLOOR_PART_KEY]?: boolean })[FLOOR_PART_KEY] = true;
   scene.add(mesh);
 
   const instance: FloorInstance = {
     mesh,
+    shadowCatcher,
     isMirror: wantsMirror,
     mirrorResolution,
     mirrorClipBias,
@@ -184,7 +697,7 @@ const applyMapUrl = (
   key: keyof FloorInstance,
   apply: (texture: THREE.Texture) => void,
   clear: () => void,
-) => {
+): void => {
   const prevUrl = instance[key] as string | undefined;
   if (url && url !== prevUrl) {
     loader.load(url, (texture) => {
@@ -196,6 +709,28 @@ const applyMapUrl = (
     clear();
     instance[key] = undefined as never;
   }
+};
+
+const applyTransform = (
+  instance: FloorInstance,
+  state: SceneFloor,
+  scene: THREE.Scene,
+): { scale: number } => {
+  const position = resolveFloorPosition(state, scene);
+  const rotation = resolveFloorRotation(state);
+  const scale = typeof state.scale === 'number' && Number.isFinite(state.scale) ? state.scale : 1;
+
+  instance.mesh.position.set(position[0], position[1], position[2]);
+  instance.mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
+  instance.mesh.scale.set(scale, scale, scale);
+
+  if (instance.shadowCatcher) {
+    instance.shadowCatcher.position.set(position[0], position[1], position[2]);
+    instance.shadowCatcher.rotation.set(rotation[0], rotation[1], rotation[2]);
+    instance.shadowCatcher.scale.set(scale, scale, scale);
+  }
+
+  return { scale };
 };
 
 const disposeMaterial = (material: THREE.Material): void => {
@@ -211,6 +746,8 @@ const disposeMaterial = (material: THREE.Material): void => {
 export const disposeFloor = (scene: THREE.Scene): void => {
   const instance = scene.userData[FLOOR_KEY] as FloorInstance | undefined;
   if (!instance?.mesh) return;
+
+  disposeGridLines(instance);
   scene.remove(instance.mesh);
   const reflector = instance.mesh as unknown as { dispose?: () => void };
   if (typeof reflector.dispose === 'function') {
@@ -218,6 +755,9 @@ export const disposeFloor = (scene: THREE.Scene): void => {
   }
   instance.mesh.geometry.dispose();
   disposeMaterial(instance.mesh.material);
+
+  disposeShadowCatcher(instance, scene);
+
   delete scene.userData[FLOOR_KEY];
 };
 
@@ -225,14 +765,26 @@ export function applyFloor(state: SceneFloor, refs: FloorThreeRefs): void {
   const surface = state.surface;
   if (!state.enabled || !surface) {
     const existing = refs.scene.userData[FLOOR_KEY] as FloorInstance | undefined;
-    if (existing?.mesh) existing.mesh.visible = false;
+    if (existing?.mesh) {
+      existing.mesh.visible = false;
+      if (existing.shadowCatcher) existing.shadowCatcher.visible = false;
+      if (existing.gridLines) existing.gridLines.visible = false;
+    }
     return;
   }
 
   const floor = getOrCreateFloor(refs.scene, surface);
   floor.mesh.visible = true;
+  if (floor.shadowCatcher) floor.shadowCatcher.visible = true;
+  const { scale } = applyTransform(floor, state, refs.scene);
+  const depthEdge = resolveFloorDepthEdgeConfig(state, floor.mesh.position.z);
+  setFloorDepthEdgeMaterialState(floor.mesh.material, depthEdge);
+  if (floor.shadowCatcher) {
+    setFloorDepthEdgeMaterialState(floor.shadowCatcher.material, depthEdge);
+  }
+
   if (floor.isMirror) {
-    if (!surface || surface.type !== 'mirror') return;
+    if (surface.type !== 'mirror') return;
     floor.mirrorUseEnvironmentBackground = surface.mirrorUseEnvironmentBackground === true;
     const userData = floor.mesh.userData as {
       __brewsite_mirror?: { useEnvBackground?: boolean; envIntensity?: number | null };
@@ -241,14 +793,7 @@ export function applyFloor(state: SceneFloor, refs: FloorThreeRefs): void {
     userData.__brewsite_mirror.useEnvBackground = floor.mirrorUseEnvironmentBackground;
     userData.__brewsite_mirror.envIntensity =
       typeof surface.mirrorEnvironmentIntensity === 'number' ? surface.mirrorEnvironmentIntensity : null;
-    if (state.position) {
-      floor.mesh.position.set(state.position[0], state.position[1], state.position[2]);
-    }
-    const rotation = resolveFloorRotation(state);
-    floor.mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
-    if (typeof state.scale === 'number') {
-      floor.mesh.scale.set(state.scale, state.scale, state.scale);
-    }
+
     const mirrorOpacity = typeof surface.mirrorOpacity === 'number' ? surface.mirrorOpacity : 1;
     floor.mesh.material.transparent = mirrorOpacity < 1;
     floor.mesh.material.depthWrite = mirrorOpacity >= 1;
@@ -261,67 +806,102 @@ export function applyFloor(state: SceneFloor, refs: FloorThreeRefs): void {
     if (material?.uniforms?.['opacity']) {
       material.uniforms['opacity'].value = mirrorOpacity;
     }
+
+    if (floor.shadowCatcher) {
+      const shadowOpacity =
+        typeof surface.shadowOpacity === 'number' && Number.isFinite(surface.shadowOpacity)
+          ? Math.max(0, Math.min(1, surface.shadowOpacity))
+          : 0.3;
+      floor.shadowCatcher.material.opacity = shadowOpacity;
+      floor.shadowCatcher.material.needsUpdate = true;
+      setFloorDepthEdgeMaterialState(floor.shadowCatcher.material, depthEdge);
+    }
+    if (floor.gridLines) floor.gridLines.visible = false;
     return;
   }
 
-  if (!surface || surface.type !== 'physical') return;
+  if (surface.type !== 'physical') return;
   const material = floor.mesh.material as THREE.MeshPhysicalMaterial;
-  if (surface.color) {
-    material.color.set(surface.color);
-  }
-  if (typeof surface.opacity === 'number') {
-    material.opacity = surface.opacity;
-    material.transparent = surface.opacity < 1;
-    material.depthWrite = surface.opacity >= 1;
-  }
-  if (typeof surface.metalness === 'number') {
-    material.metalness = surface.metalness;
-  }
-  if (typeof surface.roughness === 'number') {
-    material.roughness = surface.roughness;
-  }
-  if (typeof surface.reflectivity === 'number') {
-    material.reflectivity = surface.reflectivity;
-  }
-  if (typeof surface.clearcoat === 'number') {
-    material.clearcoat = surface.clearcoat;
-  }
-  if (typeof surface.clearcoatRoughness === 'number') {
-    material.clearcoatRoughness = surface.clearcoatRoughness;
-  }
-  if (surface.emissive) {
-    material.emissive.set(surface.emissive);
-  }
-  if (typeof surface.emissiveIntensity === 'number') {
-    material.emissiveIntensity = surface.emissiveIntensity;
-  }
-  if (typeof surface.envMapIntensity === 'number') {
-    material.envMapIntensity = surface.envMapIntensity;
-  }
+  material.color.set(surface.color ?? '#1a222d');
+  material.toneMapped = true;
+  const opacity = typeof surface.opacity === 'number' ? surface.opacity : 1;
+  material.opacity = opacity;
+  material.transparent = opacity < 1;
+  material.depthWrite = opacity >= 1;
+  material.metalness = typeof surface.metalness === 'number' ? surface.metalness : 0.08;
+  material.roughness = typeof surface.roughness === 'number' ? surface.roughness : 0.92;
+  material.reflectivity = typeof surface.reflectivity === 'number' ? surface.reflectivity : material.reflectivity;
+  material.clearcoat = typeof surface.clearcoat === 'number' ? surface.clearcoat : material.clearcoat;
+  material.clearcoatRoughness =
+    typeof surface.clearcoatRoughness === 'number' ? surface.clearcoatRoughness : material.clearcoatRoughness;
+  material.emissive.set(surface.emissive ?? '#000000');
+  material.emissiveIntensity = typeof surface.emissiveIntensity === 'number' ? surface.emissiveIntensity : 1;
+  material.envMapIntensity = surface.pattern === 'grid'
+    ? 0
+    : typeof surface.envMapIntensity === 'number'
+      ? surface.envMapIntensity
+      : 1;
+  material.aoMapIntensity = typeof surface.aoMapIntensity === 'number' ? surface.aoMapIntensity : 1;
+  material.displacementScale = typeof surface.displacementScale === 'number' ? surface.displacementScale : 1;
+  material.displacementBias = typeof surface.displacementBias === 'number' ? surface.displacementBias : 0;
+  material.wireframe = typeof surface.wireframe === 'boolean' ? surface.wireframe : false;
   if (typeof surface.normalScale?.[0] === 'number' && typeof surface.normalScale?.[1] === 'number') {
     material.normalScale.set(surface.normalScale[0], surface.normalScale[1]);
-  }
-  if (typeof surface.aoMapIntensity === 'number') {
-    material.aoMapIntensity = surface.aoMapIntensity;
-  }
-  if (typeof surface.displacementScale === 'number') {
-    material.displacementScale = surface.displacementScale;
-  }
-  if (typeof surface.displacementBias === 'number') {
-    material.displacementBias = surface.displacementBias;
-  }
-  if (typeof surface.wireframe === 'boolean') {
-    material.wireframe = surface.wireframe;
+  } else {
+    material.normalScale.set(1, 1);
   }
 
-  if (state.position) {
-    floor.mesh.position.set(state.position[0], state.position[1], state.position[2]);
+  if (surface.pattern === 'grid') {
+    if (!floor.isUsingGridPattern) {
+      clearPhysicalMaps(material);
+      resetMaterialMapKeys(floor);
+      floor.isUsingGridPattern = true;
+    }
+    // Grid fill should stay color-faithful (not light-tinted) and non-reflective.
+    // Shadows are rendered by a dedicated ShadowMaterial catcher mesh.
+    const fillColor = surface.color ?? '#1a222d';
+    material.color.set('#000000');
+    material.emissive.set(fillColor);
+    material.emissiveIntensity = 1;
+    material.toneMapped = false;
+    material.metalness = 0;
+    material.roughness = 1;
+    material.clearcoat = 0;
+    material.clearcoatRoughness = 1;
+    material.reflectivity = 0;
+
+    ensureShadowCatcher(floor, refs.scene);
+    floor.mesh.receiveShadow = false;
+    const fillOpacityRaw = surface.gridFillOpacity ?? surface.opacity ?? 0;
+    const fillOpacity =
+      Number.isFinite(fillOpacityRaw)
+        ? clamp01(fillOpacityRaw)
+        : 0;
+    material.transparent = fillOpacity < 1;
+    material.opacity = fillOpacity;
+    material.depthWrite = fillOpacity >= 1;
+    material.needsUpdate = true;
+    if (floor.shadowCatcher) {
+      floor.shadowCatcher.visible = true;
+      floor.shadowCatcher.material.opacity = 0.35;
+      floor.shadowCatcher.material.needsUpdate = true;
+      setFloorDepthEdgeMaterialState(floor.shadowCatcher.material, depthEdge);
+    }
+    ensureGridLines(floor, surface, scale);
+    if (floor.gridLines) {
+      setFloorDepthEdgeMaterialState(floor.gridLines.material, depthEdge);
+    }
+    return;
   }
-  const rotation = resolveFloorRotation(state);
-  floor.mesh.rotation.set(rotation[0], rotation[1], rotation[2]);
-  if (typeof state.scale === 'number') {
-    floor.mesh.scale.set(state.scale, state.scale, state.scale);
+
+  if (floor.isUsingGridPattern) {
+    disposeGridLines(floor);
+    floor.isUsingGridPattern = false;
   }
+  if (!floor.isMirror && floor.shadowCatcher) {
+    disposeShadowCatcher(floor, refs.scene);
+  }
+  floor.mesh.receiveShadow = true;
 
   const loader = new THREE.TextureLoader();
 

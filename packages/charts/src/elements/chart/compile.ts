@@ -26,8 +26,10 @@ import type {
   ReferenceLineDSL,
   ReferenceLineState,
   ChartDataDSL,
+  ChartTooltipDSL,
 } from './types';
 import { DEFAULT_CHART_STATE } from './types';
+import type { ChartTooltipState } from './tooltip/types';
 import type {
   BaseChartDSL,
   BarChartDSL,
@@ -70,6 +72,19 @@ function compileLegendDsl(dsl: ChartLegendDSL): ChartLegendState {
 }
 
 // ─── Exported Compile Functions ───────────────────────────────────────────────
+
+/**
+ * Compiles ChartTooltipDSL to ChartTooltipState.
+ * Returns null when dsl is null (no <ChartTooltip> child present).
+ * Pure — no Three.js, no React.
+ */
+export function compileTooltipDsl(dsl: ChartTooltipDSL | null): ChartTooltipState | null {
+  if (!dsl) return null;
+  return {
+    projection: dsl.projection ?? false,
+    format: dsl.format,
+  };
+}
 
 /**
  * Normalizes DSL inline/url/named data props into ChartStateDataSource.
@@ -194,6 +209,13 @@ export function compileHeatMapChartOptions(dsl: HeatMapChartDSL): HeatMapChartOp
  * @param legendDsl         <ChartLegend> child props, or null
  * @param dataLabelsDsl     <ChartDataLabels> child props, or null
  * @param referenceLineDsls All <ReferenceLine> children props
+ * @param tooltipDsl        <ChartTooltip> child props, or null
+ * @param composeBoundsFn   Optional function to compose local NVS rect into parent view/region space.
+ *                          When absent, local bounds are used as-is (identity behavior).
+ * @param composeZFn        Optional function to compose local Z into accumulated parent Z offset.
+ *                          When absent, local Z is used as-is (identity behavior).
+ * @param composeOpacityFn  Optional function to compose local opacity with parent view opacity.
+ *                          When absent, local opacity is used as-is (identity behavior).
  */
 export function compileChart(
   dsl: BaseChartDSL,
@@ -205,6 +227,10 @@ export function compileChart(
   legendDsl: ChartLegendDSL | null,
   dataLabelsDsl: ChartDataLabelsDSL | null,
   referenceLineDsls: readonly ReferenceLineDSL[],
+  tooltipDsl: ChartTooltipDSL | null = null,
+  composeBoundsFn?: (localRect: NVSRect) => NVSRect,
+  composeZFn?: (localZ: number) => number,
+  composeOpacityFn?: (localOpacity: number) => number,
 ): ChartState {
   const xAxisDsl = axisDsls.find((a) => a.axis === 'x') ?? null;
   const yAxisDsl = axisDsls.find((a) => a.axis === 'y') ?? null;
@@ -213,12 +239,11 @@ export function compileChart(
   const y = dsl.y ?? 0;
   const w = dsl.w ?? 1;
   const h = dsl.h ?? 1;
+  const localBounds: NVSRect = { x, y, w, h };
 
-  const nvsBounds: NVSRect = { x, y, w, h };
+  // Compose into parent view/region if present. Identity when no parent.
+  const nvsBounds: NVSRect = composeBoundsFn ? composeBoundsFn(localBounds) : localBounds;
 
-  // bounds.width/height are always derived from w/h — no separate override.
-  const boundsWidth = w;
-  const boundsHeight = h;
   const boundsDepth = dsl.depth ?? dsl.bounds?.depth ?? 0.4;
 
   if (process.env.NODE_ENV !== 'production') {
@@ -259,15 +284,23 @@ export function compileChart(
         }))
       : undefined;
 
+  // Compose local Z with parent view/layout Z offset (carousel zStep, nested views, etc.)
+  const localZ = dsl.z ?? 0;
+  const composedZ = composeZFn ? composeZFn(localZ) : localZ;
+
+  // Compose local opacity with parent view opacity (carousel fade, nested views, etc.)
+  const localOpacity = dsl.opacity ?? 1;
+  const composedOpacity = composeOpacityFn ? composeOpacityFn(localOpacity) : localOpacity;
+
   return {
     type: kind,
-    nvsX: x + w / 2,
-    nvsY: y + h / 2,
-    z: dsl.z ?? 0,
+    nvsX: nvsBounds.x + nvsBounds.w / 2,
+    nvsY: nvsBounds.y + nvsBounds.h / 2,
+    z: composedZ,
     rotation: dsl.rotation ?? DEFAULT_CHART_STATE.rotation,
     bounds: {
-      width: boundsWidth,
-      height: boundsHeight,
+      width: nvsBounds.w,
+      height: nvsBounds.h,
       depth: boundsDepth,
     },
     dataSource,
@@ -279,7 +312,7 @@ export function compileChart(
     referenceLines,
     legend,
     theme: dsl.theme ?? 'darkGlass',
-    opacity: dsl.opacity ?? 1,
+    opacity: composedOpacity,
     interactive: dsl.interactive ?? false,
     sceneTheme: dsl.sceneTheme,
     nvsBounds,
@@ -288,6 +321,7 @@ export function compileChart(
     gridlines: dsl.gridlines,
     animateEntry: dsl.animateEntry ?? false,
     animationDuration: Math.min(Math.max(dsl.animationDuration ?? 0.4, 0.01), 1.0),
+    tooltip: compileTooltipDsl(tooltipDsl),
   };
 }
 
@@ -300,8 +334,8 @@ export function compileChart(
  * - Consistent with how @brewsite/diagram handles its element transitions
  *
  * V2 additions:
- * - typeConfig and type use to-state immediately at t=0 (no midpoint switch)
  * - _morphT is injected so ChartRenderer can build MorphContext during keyField transitions
+ * - when chart type/config/theme changes, transitions defer structural switch until scene boundary
  * - defaultWindow: { exit: [0,0], enter: [0,0] } — charts update instantly by default.
  *   Scene-level transition={{ exit: [...], enter: [...] }} overrides this when morphing is wanted.
  */
@@ -326,17 +360,35 @@ export const functionalChartTransitionSpec: FunctionalTransitionSpec<ChartState>
     opacity: blendOpacity(0, to.opacity, ctx.t) ?? to.opacity,
   }),
 
-  interpolateFn: (from: ChartState, to: ChartState) => (ctx: TransitionContext): ChartState => ({
-    ...to,
-    nvsX: blendNumber(from.nvsX, to.nvsX, ctx.t) ?? to.nvsX,
-    nvsY: blendNumber(from.nvsY, to.nvsY, ctx.t) ?? to.nvsY,
-    z: blendNumber(from.z, to.z, ctx.t) ?? to.z,
-    opacity: blendOpacity(from.opacity, to.opacity, ctx.t) ?? to.opacity,
-    // typeConfig, type, and sceneTheme use to-state immediately — no midpoint switch.
-    typeConfig: to.typeConfig,
-    type: to.type,
-    sceneTheme: to.sceneTheme,
-    // Internal: inject t so ChartRenderer can build MorphContext for datum-level morphing
-    _morphT: ctx.t,
-  }),
+  interpolateFn: (from: ChartState, to: ChartState) => {
+    const typeChanged = from.type !== to.type;
+    const typeConfigChanged = JSON.stringify(from.typeConfig) !== JSON.stringify(to.typeConfig);
+    const sceneThemeChanged = from.sceneTheme !== to.sceneTheme;
+    const needsDeferredSwitch = typeChanged || typeConfigChanged || sceneThemeChanged;
+
+    return (ctx: TransitionContext): ChartState => {
+      if (!needsDeferredSwitch) {
+        return {
+          ...to,
+          nvsX: blendNumber(from.nvsX, to.nvsX, ctx.t) ?? to.nvsX,
+          nvsY: blendNumber(from.nvsY, to.nvsY, ctx.t) ?? to.nvsY,
+          z: blendNumber(from.z, to.z, ctx.t) ?? to.z,
+          bounds: {
+            width: blendNumber(from.bounds.width, to.bounds.width, ctx.t) ?? to.bounds.width,
+            height: blendNumber(from.bounds.height, to.bounds.height, ctx.t) ?? to.bounds.height,
+            depth: blendNumber(from.bounds.depth, to.bounds.depth, ctx.t) ?? to.bounds.depth,
+          },
+          opacity: blendOpacity(from.opacity, to.opacity, ctx.t) ?? to.opacity,
+          // Internal: inject t so ChartRenderer can build MorphContext for datum-level morphing
+          _morphT: ctx.t,
+        };
+      }
+
+      // For structural chart changes (type/config/theme), keep current scene chart
+      // until the boundary and then switch to the next scene chart.
+      return ctx.t < 1
+        ? { ...from, _morphT: undefined }
+        : { ...to, _morphT: undefined };
+    };
+  },
 };

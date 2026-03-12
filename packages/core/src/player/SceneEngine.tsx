@@ -11,6 +11,8 @@ import {
   type ReactElement,
   type ReactNode,
 } from 'react';
+import { ActionInputExtensionContext } from './ActionInputExtensionContext';
+import type { ActionInputExtension } from './ActionInputExtensionContext';
 import { WidgetRegistry as WidgetRegistryClass } from '../widget/WidgetRegistry';
 import type { WidgetPlugin } from '../widget/WidgetPlugin';
 import { useSceneEngine } from './useSceneEngine';
@@ -20,7 +22,10 @@ import { VariableStoreContext } from '../widget/VariableStoreContext';
 import { SceneRegistrationContext } from '../compiler/SceneRegistrationContext';
 import type { SceneRegistrationValue } from '../compiler/SceneRegistrationContext';
 import { ThemeContext } from '../theme/ThemeContext';
-import type { SceneTheme } from '../theme/types';
+import { ThemeKeyContext } from '../theme/ThemeKeyContext';
+import type { ThemeKey } from '../theme/ThemeKeyContext';
+import type { SceneTheme, ThemeFamily, ThemePolarity } from '../theme/types';
+import { SCENE_THEME_PAIRS } from '../theme/presets';
 import { serializeJsx } from './serializeJsx';
 import {
   setSceneRuntimeState,
@@ -78,6 +83,20 @@ export interface SceneEngineProps {
   sceneTheme?: SceneTheme;
 
   /**
+   * Theme family key. When set (with optional themePolarity), auto-resolves
+   * sceneTheme from SCENE_THEME_PAIRS and provides ThemeKeyContext so child
+   * components can resolve chart/diagram themes via useThemeKey().
+   * Overridden by explicit sceneTheme prop if both are provided.
+   */
+  themeFamily?: ThemeFamily;
+
+  /**
+   * Theme polarity ('dark' | 'light'). Defaults to 'dark' when themeFamily is set.
+   * Ignored when themeFamily is not set.
+   */
+  themePolarity?: ThemePolarity;
+
+  /**
    * Optional scroll source for this engine.
    * When set to a ViewportRelativeScrollSource, the engine tracks scroll progress
    * through the referenced container element and manages WebGL context lifecycle
@@ -102,6 +121,25 @@ export interface SceneEngineProps {
  * scene compilation, RAF loop, and context provision. Replaces EngineProvider.
  */
 export const SceneEngine = (props: SceneEngineProps): ReactElement => {
+  // ─── Theme key resolution ──────────────────────────────────────────────────
+  // When themeFamily is provided, auto-resolve sceneTheme from SCENE_THEME_PAIRS
+  // and build a ThemeKey for child components to consume via useThemeKey().
+  const resolvedSceneTheme = useMemo((): SceneTheme | undefined => {
+    if (props.sceneTheme) return props.sceneTheme;
+    if (props.themeFamily) {
+      const polarity = props.themePolarity ?? 'dark';
+      return SCENE_THEME_PAIRS[props.themeFamily]?.[polarity];
+    }
+    return undefined;
+  }, [props.sceneTheme, props.themeFamily, props.themePolarity]);
+
+  const themeKey = useMemo((): ThemeKey | null => {
+    if (props.themeFamily) {
+      return { family: props.themeFamily, polarity: props.themePolarity ?? 'dark' };
+    }
+    return null;
+  }, [props.themeFamily, props.themePolarity]);
+
   // ─── Plugin resolution ──────────────────────────────────────────────────────
   const inheritedPlugins = useContext(PluginInheritanceContext);
 
@@ -180,9 +218,12 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
     widgetRegistry,
     plugins: resolvedPlugins,
     manifest,
+    sceneTheme: resolvedSceneTheme ?? null,
     timingProfile: props.timingProfile,
     maxAnimBoostPerFrame: props.maxAnimBoostPerFrame,
     invalidateCacheToken: props.invalidateCacheToken,
+    primaryCameraId: props.primaryCameraId,
+    primaryCanvasActionTargetId: props.primaryCanvasActionTargetId,
     onReady: props.onReady,
     onError: props.onError,
     onWidgetError: props.onWidgetError,
@@ -242,6 +283,21 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, engine.setCanvasRef, engine.setViewportSize]);
 
+  // ─── Plugin action input extensions ─────────────────────────────────────────
+  // Collect onUnknownAction handlers from all plugins and merge into a single function.
+  // Scoped to this engine's React subtree so multi-engine pages get independent extensions.
+  const mergedActionInputExtension = useMemo((): ActionInputExtension | null => {
+    const handlers = resolvedPlugins
+      .map((p) => p.getActionInputExtension?.(widgetRegistry))
+      .filter(Boolean)
+      .map((ext) => ext!.onUnknownAction)
+      .filter((fn): fn is ActionInputExtension => fn != null);
+    if (handlers.length === 0) return null;
+    return (type, canvasId, event, extra) => {
+      for (const handler of handlers) handler(type, canvasId, event, extra);
+    };
+  }, [resolvedPlugins, widgetRegistry]);
+
   // ─── Engine state memo ──────────────────────────────────────────────────────
   const engineState = useMemo(() => ({
     tickIndex: engine.frameState.tickIndex,
@@ -254,11 +310,13 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
   // ─── Plugin wrapProvider chain ──────────────────────────────────────────────
   // Applied in reverse plugin order so the first plugin is outermost.
   let innerContent: ReactNode = (
-    <EngineStateContext.Provider value={engineState}>
-      <EngineContext.Provider value={engine}>
-        {props.children}
-      </EngineContext.Provider>
-    </EngineStateContext.Provider>
+    <ActionInputExtensionContext.Provider value={mergedActionInputExtension}>
+      <EngineStateContext.Provider value={engineState}>
+        <EngineContext.Provider value={engine}>
+          {props.children}
+        </EngineContext.Provider>
+      </EngineStateContext.Provider>
+    </ActionInputExtensionContext.Provider>
   );
   for (let i = resolvedPlugins.length - 1; i >= 0; i--) {
     const plugin = resolvedPlugins[i]!;
@@ -272,7 +330,8 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
   // null on server. Children always render for SSR layout correctness.
 
   return (
-    <ThemeContext.Provider value={props.sceneTheme ?? null}>
+    <ThemeContext.Provider value={resolvedSceneTheme ?? null}>
+      <ThemeKeyContext.Provider value={themeKey}>
       <SceneRegistrationContext.Provider value={registrationContextValue}>
         <VariableStoreContext.Provider value={engine.variableStore}>
           <PluginInheritanceContext.Provider value={resolvedPlugins}>
@@ -280,6 +339,7 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
           </PluginInheritanceContext.Provider>
         </VariableStoreContext.Provider>
       </SceneRegistrationContext.Provider>
+      </ThemeKeyContext.Provider>
     </ThemeContext.Provider>
   );
 };

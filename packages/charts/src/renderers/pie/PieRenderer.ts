@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { pie } from 'd3-shape';
 import { LegendRenderer } from '../shared/LegendRenderer';
 import { ChartMaterialFactory } from '../shared/ChartMaterialFactory';
-import type { IChartRenderer, ChartRenderContext, ChartHitInfo, DataLabelEntry } from '../shared/IChartRenderer';
+import type { IChartRenderer, ChartRenderContext, ChartHitInfo, ChartHitMeta, DataLabelEntry } from '../shared/IChartRenderer';
 import type { ResolvedDataFrame } from '../../data/types';
 // DataLabelRenderer from S4 — import path correct; resolves at merge time.
 import type { DataLabelRenderer } from '../shared/DataLabelRenderer';
@@ -13,8 +13,15 @@ type SliceEntry = {
   mesh: THREE.Mesh;
   datumIndex: number;
   row: Record<string, unknown>;
+  depth: number;
   /** Centroid angle in radians (for explode direction). */
   centroidAngle: number;
+  /** Display label of the slice (from labelField). */
+  sliceName: string;
+  /** Percentage of total [0..100]. */
+  percentage: number;
+  /** Sum of all slice values. */
+  total: number;
 };
 
 /**
@@ -27,6 +34,7 @@ export class PieRenderer implements IChartRenderer {
   private legendRenderer: LegendRenderer | null = null;
   private slices: SliceEntry[] = [];
   private seriesGroupRef: THREE.Group | null = null;
+  private lastDataFrame: ResolvedDataFrame | null = null;
   private lastDataLength = -1;
   private lastInnerRadius = -1;
   private hoveredIndex = -1;
@@ -52,11 +60,15 @@ export class PieRenderer implements IChartRenderer {
       return;
     }
 
-    const needsRebuild = data.rows.length !== this.lastDataLength || innerRadiusRatio !== this.lastInnerRadius;
+    const needsRebuild =
+      data !== this.lastDataFrame ||
+      data.rows.length !== this.lastDataLength ||
+      innerRadiusRatio !== this.lastInnerRadius;
 
     if (needsRebuild) {
       this.clearSlices();
       this.buildSlices(seriesGroup, data, valueField, labelField, bounds, theme, opacity, innerRadiusRatio, pieTilt, explodeSlice);
+      this.lastDataFrame = data;
       this.lastDataLength = data.rows.length;
       this.lastInnerRadius = innerRadiusRatio;
     } else {
@@ -73,7 +85,7 @@ export class PieRenderer implements IChartRenderer {
         const explodeOffset = isExploded ? 0.1 * Math.min(bounds.width, bounds.height) * 0.4 : 0;
         const cx = bounds.width / 2 + Math.cos(entry.centroidAngle) * explodeOffset;
         const cy = bounds.height / 2 + Math.sin(entry.centroidAngle) * explodeOffset;
-        entry.mesh.position.set(cx, cy, 0);
+        entry.mesh.position.set(cx, cy, -entry.depth);
       }
     }
 
@@ -114,6 +126,12 @@ export class PieRenderer implements IChartRenderer {
 
     const sliceData = pieGen(data.rows as Array<Record<string, unknown>>);
     const segments = 48;
+
+    // Compute total for percentage calculation
+    const total = (data.rows as Array<Record<string, unknown>>).reduce(
+      (sum, r) => sum + Math.max(0, Number(r[valueField]) || 0),
+      0,
+    );
 
     for (let i = 0; i < sliceData.length; i++) {
       const d = sliceData[i]!;
@@ -164,10 +182,16 @@ export class PieRenderer implements IChartRenderer {
       // Center the pie + explode offset
       const cx = bounds.width / 2 + Math.cos(centroidAngle) * explodeOffset;
       const cy = bounds.height / 2 + Math.sin(centroidAngle) * explodeOffset;
-      mesh.position.set(cx, cy, 0);
+      // Anchor front face at the axis plane and extrude into -Z.
+      mesh.position.set(cx, cy, -tokens.depth);
       mesh.rotation.x = pieTilt;
+      mesh.castShadow = true;
+      mesh.receiveShadow = false;
+      const sliceValue = Math.max(0, Number(row[valueField]) || 0);
+      const sliceName = String(row[labelField] ?? '');
+      const percentage = total > 0 ? (sliceValue / total) * 100 : 0;
       seriesGroup.add(mesh);
-      this.slices.push({ mesh, datumIndex: i, row, centroidAngle });
+      this.slices.push({ mesh, datumIndex: i, row, depth: tokens.depth, centroidAngle, sliceName, percentage, total });
     }
   }
 
@@ -218,6 +242,7 @@ export class PieRenderer implements IChartRenderer {
     }
     this.slices = [];
     this.hoveredIndex = -1;
+    this.lastDataFrame = null;
     this.lastDataLength = -1;
     this.lastInnerRadius = -1;
   }
@@ -238,12 +263,22 @@ export class PieRenderer implements IChartRenderer {
     const mesh = intersection.object as THREE.Mesh;
     const entry = this.slices.find((s) => s.mesh === mesh);
     if (!entry) return null;
+
     const p = intersection.point;
+    const meta: ChartHitMeta = {
+      kind: 'pie',
+      sliceName: entry.sliceName,
+      percentage: entry.percentage,
+      total: entry.total,
+    };
+
     return {
       seriesIndex: 0,
       datumIndex: entry.datumIndex,
       row: entry.row,
       point: [p.x, p.y, p.z],
+      meta,
+      // No projectionTarget for pie/donut charts
     };
   }
 

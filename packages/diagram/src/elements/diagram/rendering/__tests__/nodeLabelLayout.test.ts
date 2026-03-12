@@ -97,7 +97,7 @@ describe('computeNodeLabelLayout — font size arithmetic', () => {
 });
 
 describe('computeNodeLabelLayout — labelZ', () => {
-  it('sets labelZ = thickness/2 + 0.02', () => {
+  it('places labelZ in front of the box face with sufficient depth-buffer margin', () => {
     const result = computeNodeLabelLayout(
       BASE.contentW, BASE.contentH, BASE.thickness,
       false, false,
@@ -105,10 +105,11 @@ describe('computeNodeLabelLayout — labelZ', () => {
       BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
       BASE.labelSizeFactor, BASE.sublabelSizeFactor,
     );
-    expect(result.labelZ).toBeCloseTo(BASE.thickness / 2 + 0.02, 10);
+    // Must be strictly in front of the box face (thickness/2) with at least 0.05 offset
+    expect(result.labelZ).toBeGreaterThanOrEqual(BASE.thickness / 2 + 0.05);
   });
 
-  it('sets sublabelZ = thickness/2 + 0.02 (same as labelZ)', () => {
+  it('sublabelZ equals labelZ', () => {
     const result = computeNodeLabelLayout(
       BASE.contentW, BASE.contentH, BASE.thickness,
       false, true,
@@ -116,20 +117,29 @@ describe('computeNodeLabelLayout — labelZ', () => {
       BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
       BASE.labelSizeFactor, BASE.sublabelSizeFactor,
     );
-    expect(result.sublabelZ).toBeCloseTo(BASE.thickness / 2 + 0.02, 10);
     expect(result.sublabelZ).toBeCloseTo(result.labelZ, 10);
   });
 
   it('labelZ scales with thickness', () => {
-    const thickness = 0.4;
-    const result = computeNodeLabelLayout(
-      BASE.contentW, BASE.contentH, thickness,
+    const thin = computeNodeLabelLayout(
+      BASE.contentW, BASE.contentH, 0.1,
       false, false,
       BASE.iconScale,
       BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
       BASE.labelSizeFactor, BASE.sublabelSizeFactor,
     );
-    expect(result.labelZ).toBeCloseTo(thickness / 2 + 0.02, 10);
+    const thick = computeNodeLabelLayout(
+      BASE.contentW, BASE.contentH, 0.8,
+      false, false,
+      BASE.iconScale,
+      BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
+      BASE.labelSizeFactor, BASE.sublabelSizeFactor,
+    );
+    // Thicker nodes have labels farther from origin (higher Z)
+    expect(thick.labelZ).toBeGreaterThan(thin.labelZ);
+    // Both must be in front of their respective box faces
+    expect(thin.labelZ).toBeGreaterThan(0.1 / 2);
+    expect(thick.labelZ).toBeGreaterThan(0.8 / 2);
   });
 });
 

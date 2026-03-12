@@ -86,7 +86,7 @@ import * as THREE from 'three';
 import { BarRenderer } from '../BarRenderer';
 import { darkGlassChartTheme } from '../../../themes/darkGlass';
 import type { ResolvedDataFrame } from '../../../data/types';
-import type { ChartRenderContext } from '../../shared/IChartRenderer';
+import type { ChartRenderContext, ChartHitInfo } from '../../shared/IChartRenderer';
 
 function makeCtx(
   data: ResolvedDataFrame,
@@ -141,6 +141,18 @@ describe('BarRenderer V2', () => {
     // 2 rows × 2 series = 4 bars
     expect(renderer.getInteractiveObjects()).toHaveLength(4);
     expect(ctx.seriesGroup.children).toHaveLength(4);
+  });
+
+  it('bars are anchored at axis and extrude into negative Z', () => {
+    const ctx = makeCtx(twoRowData, groups);
+    renderer.update(ctx);
+    const meshes = renderer.getInteractiveObjects() as THREE.Mesh[];
+    expect(meshes.length).toBeGreaterThan(0);
+    for (const mesh of meshes) {
+      const geo = mesh.geometry as THREE.BoxGeometry;
+      const depth = geo.parameters.depth;
+      expect(mesh.position.z).toBeCloseTo(-depth / 2, 5);
+    }
   });
 
   it('stacked bars: mesh count = rows × series (same as grouped)', () => {
@@ -213,6 +225,31 @@ describe('BarRenderer V2', () => {
       typeOptions: { kind: 'bar', options: { orientation: 'horizontal' } },
     });
     renderer.update(ctx2);
+    const secondMeshes = [...renderer.getInteractiveObjects()];
+
+    expect(secondMeshes[0]).not.toBe(firstMeshes[0]);
+  });
+
+  it('SmartRebuild: data content change with same row count triggers rebuild', () => {
+    const firstData: ResolvedDataFrame = {
+      rows: [{ month: 'Jan', value: 10 }, { month: 'Feb', value: 20 }],
+      fields: ['month', 'value'],
+    };
+    const secondData: ResolvedDataFrame = {
+      rows: [{ month: 'Jan', value: 90 }, { month: 'Feb', value: 5 }],
+      fields: ['month', 'value'],
+    };
+
+    renderer.update(makeCtx(firstData, {
+      ...groups,
+      series: [{ field: 'value' }],
+    }));
+    const firstMeshes = [...renderer.getInteractiveObjects()];
+
+    renderer.update(makeCtx(secondData, {
+      ...groups,
+      series: [{ field: 'value' }],
+    }));
     const secondMeshes = [...renderer.getInteractiveObjects()];
 
     expect(secondMeshes[0]).not.toBe(firstMeshes[0]);
@@ -448,5 +485,90 @@ describe('BarRenderer V2', () => {
 
     // Accessor doubles the value so height should be double
     expect(heightWithAccessor).toBeCloseTo(heightWithoutAccessor * 2, 1);
+  });
+});
+
+describe('BarRenderer: resolveHoverInfo meta + projectionTarget', () => {
+  /**
+   * Helper: call update() with chartPosition=[1.0,0,0] + plotFrameOffset.x=0.5,
+   * then call resolveHoverInfo() against the first bar mesh.
+   * Y-axis world X = 1.0 + 0.5 = 1.5.
+   */
+  function renderAndResolve(
+    data: ResolvedDataFrame,
+    overrides: Partial<ChartRenderContext> = {},
+  ): ChartHitInfo | null {
+    const r = new BarRenderer();
+    const g = {
+      seriesGroup: new THREE.Group(),
+      axesGroup: new THREE.Group(),
+      legendGroup: new THREE.Group(),
+    };
+    r.update({
+      ...makeCtx(data, g),
+      chartPosition: [1.0, 0, 0],
+      plotFrameOffset: { x: 0.5, y: 0 },
+      ...overrides,
+    });
+    const meshes = r.getInteractiveObjects() as THREE.Mesh[];
+    if (meshes.length === 0) return null;
+    const hitPoint = new THREE.Vector3(2.0, 0.8, -0.12);
+    const intersection = { object: meshes[0]!, point: hitPoint, distance: 5 } as THREE.Intersection;
+    return r.resolveHoverInfo(intersection, data);
+  }
+
+  it('grouped bar: meta.kind = "bar"', () => {
+    const result = renderAndResolve(twoRowData);
+    expect(result?.meta?.kind).toBe('bar');
+  });
+
+  it('grouped bar: meta.seriesLabel = series[0].label', () => {
+    const result = renderAndResolve(twoRowData);
+    if (result?.meta?.kind !== 'bar') throw new Error('expected bar meta');
+    expect(result.meta.seriesLabel).toBe('Revenue');
+  });
+
+  it('grouped bar: meta.segmentValue = numeric value for that series + datum', () => {
+    const data: ResolvedDataFrame = {
+      rows: [{ month: 'Jan', revenue: 120, costs: 80 }],
+      fields: ['month', 'revenue', 'costs'],
+    };
+    const result = renderAndResolve(data);
+    if (result?.meta?.kind !== 'bar') throw new Error('expected bar meta');
+    expect(result.meta.segmentValue).toBe(120);
+  });
+
+  it('grouped bar: meta.stackTotal is undefined', () => {
+    const result = renderAndResolve(twoRowData);
+    if (result?.meta?.kind !== 'bar') throw new Error('expected bar meta');
+    expect(result.meta.stackTotal).toBeUndefined();
+  });
+
+  it('stacked bar: meta.stackTotal = sum of all series for that datum', () => {
+    const data: ResolvedDataFrame = {
+      rows: [{ month: 'Jan', revenue: 120, costs: 80 }],
+      fields: ['month', 'revenue', 'costs'],
+    };
+    const result = renderAndResolve(data, {
+      typeOptions: { kind: 'bar', options: { stackMode: 'stacked' } },
+    });
+    if (result?.meta?.kind !== 'bar') throw new Error('expected bar meta');
+    // stackTotal = 120 + 80 = 200
+    expect(result.meta.stackTotal).toBe(200);
+  });
+
+  it('projectionTarget[0] = chartPositionX + plotFrameOffsetX = 1.5', () => {
+    const result = renderAndResolve(twoRowData);
+    expect(result?.projectionTarget?.[0]).toBeCloseTo(1.5, 5);
+  });
+
+  it('projectionTarget[1] = hit point Y = 0.8', () => {
+    const result = renderAndResolve(twoRowData);
+    expect(result?.projectionTarget?.[1]).toBeCloseTo(0.8, 5);
+  });
+
+  it('projectionTarget[2] = hit point Z = -0.12', () => {
+    const result = renderAndResolve(twoRowData);
+    expect(result?.projectionTarget?.[2]).toBeCloseTo(-0.12, 5);
   });
 });

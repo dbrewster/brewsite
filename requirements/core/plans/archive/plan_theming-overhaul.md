@@ -2,7 +2,7 @@
 title: "Theming Overhaul — Light/Dark Pairs, ThemeFamily Registry, CSS Class Injection, Examples Toggle"
 doc_type: plan
 owner: brewsite-architect
-status: draft
+status: complete
 updated: 2026-03-11
 ---
 

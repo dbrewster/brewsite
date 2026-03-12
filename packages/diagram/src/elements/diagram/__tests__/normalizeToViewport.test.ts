@@ -246,3 +246,54 @@ describe('normalizeToViewport — contentAspect', () => {
     expect(result.contentAspect).toBeLessThan(1.0);
   });
 });
+
+// ─── safeSpanX ───────────────────────────────────────────────────────────────
+
+describe('normalizeToViewport — safeSpanX', () => {
+  it('returns safeSpanX=1 when nodes is empty', () => {
+    const result = normalizeToViewport([], new Map(), 0);
+    expect(result.safeSpanX).toBe(1);
+  });
+
+  it('returns safeSpanX equal to the horizontal content span (no padding)', () => {
+    // Two nodes at x=-3 and x=+3, each with size [2, 2].
+    // Outer edges: -3 - 1 = -4 and +3 + 1 = +4. spanX = 8.
+    const nodes = [
+      { id: 'l', position: [-3, 0, 0] as const, size: [2, 2] as const },
+      { id: 'r', position: [3, 0, 0] as const, size: [2, 2] as const },
+    ];
+    const result = normalizeToViewport(nodes, new Map(), 0);
+    expect(result.safeSpanX).toBeCloseTo(8, 5);
+  });
+
+  it('safeSpanX includes padding on both sides', () => {
+    // Single node at origin, size [4, 2]. spanX = 4, padding = 1.
+    // safeSpanX = 4 + 2 * 1 = 6.
+    const nodes = [{ id: 'a', position: [0, 0, 0] as const, size: [4, 2] as const }];
+    const result = normalizeToViewport(nodes, new Map(), 1);
+    expect(result.safeSpanX).toBeCloseTo(6, 5);
+  });
+
+  it('safeSpanX is consistent with contentAspect (safeSpanX / safeSpanY)', () => {
+    // Two nodes creating a rectangular bounding box.
+    const nodes = [
+      { id: 'a', position: [-2, -1, 0] as const, size: [1, 1] as const },
+      { id: 'b', position: [2, 1, 0] as const, size: [1, 1] as const },
+    ];
+    const result = normalizeToViewport(nodes, new Map(), 0);
+    // spanX = (2+0.5) - (-2-0.5) = 5, spanY = (1+0.5) - (-1-0.5) = 3
+    // contentAspect = 5/3, safeSpanX = 5
+    const safeSpanY = result.safeSpanX / result.contentAspect;
+    expect(result.safeSpanX).toBeCloseTo(5, 5);
+    expect(safeSpanY).toBeCloseTo(3, 5);
+  });
+
+  it('safeSpanX expands to include group bounds', () => {
+    // Node at origin with size [2,2] → spanX = 2.
+    // Group at x=3, w=2 → extends to x=5 → spanX = 5 - (-1) = 6.
+    const nodes = [{ id: 'n', position: [0, 0, 0] as const, size: [2, 2] as const }];
+    const groups = new Map([['g', makeGroup(3, 0, 2, 2)]]);
+    const result = normalizeToViewport(nodes, groups, 0);
+    expect(result.safeSpanX).toBeCloseTo(6, 5);
+  });
+});

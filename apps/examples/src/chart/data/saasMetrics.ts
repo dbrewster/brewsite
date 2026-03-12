@@ -12,10 +12,10 @@ export const saasMetricsYearA = [
 
 // CRITICAL: quarter values must exactly match saasMetricsYearA for datum morphing to work.
 export const saasMetricsYearB = [
-  { quarter: 'Q1', revenue: 165, costs: 102, profit: 63 },
-  { quarter: 'Q2', revenue: 218, costs: 135, profit: 83 },
-  { quarter: 'Q3', revenue: 287, costs: 168, profit: 119 },
-  { quarter: 'Q4', revenue: 362, costs: 209, profit: 153 },
+  { quarter: 'Q1', revenue: 65, costs: 402, profit: 63 },
+  { quarter: 'Q2', revenue: 318, costs: 135, profit: 83 },
+  { quarter: 'Q3', revenue: 187, costs: 168, profit: 119 },
+  { quarter: 'Q4', revenue: 62, costs: 209, profit: 153 },
 ];
 
 export const saasMetrics24Months = [

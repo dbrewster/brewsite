@@ -3,7 +3,7 @@ title: "BrewSite Core — Player & Runtime"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-09
+last_updated: 2026-03-12
 change_history:
   - date: 2026-03-09
     author: "Toolkit Product"
@@ -53,15 +53,18 @@ change_history:
   - date: 2026-03-01
     author: "Toolkit Product"
     summary: "Annotated LabelPositioner and labelPrimitives as model-specific concepts moving to @brewsite/model per plan_core_modularization."
+  - date: 2026-03-12
+    author: "Toolkit Product"
+    summary: "Input unification (plan_input-unification.md implemented): ActionInput component added as the DSL-to-runtime bridge for <InputController> scene authoring. PointerInput and ScrollInput components removed — scroll is handled natively by ScrollStage; pointer/keyboard/wheel action-based input is handled by ActionInput. KeyboardInput is now focus management only (no inputMap prop). Default keyboard nav (ArrowRight/Down = scene.next, ArrowLeft/Up = scene.prev) is compiler-injected when no scene authors <InputController>. UseSceneEngineResult gains applyCameraOrbit, applyCameraDolly, applyCameraReset, and patchWidgetStates. UseSceneEngineOptions loses inputMap (SceneNavInputMap removed). ActionInputExtensionContext documented as the mechanism for plugins to extend action dispatch. diagramPlugin.getActionInputExtension() wires diagram-canvas actions to DiagramWidget.applyCanvasAction(). carousel.next/carousel.prev are forward-declared InputActionType values."
 ---
 
 # BrewSite Core — Player & Runtime
 
 ## 1. Overview
 
-The Player layer is the React integration surface for `@brewsite/core`. `SceneEngine` is the primary component that a host application mounts to run an animated 3D scene. It is a pure context provider with zero DOM output, composed with `EngineARContainer` (aspect-ratio-locked container), `EngineGate` (loading gate), `SceneCanvas` (Three.js canvas), `EngineOverlayHost` (overlay tier), and one or more input components (`ScrollInput`, `KeyboardInput`, `PointerInput`, `TimeInput`, `ControlledInput`) to form the complete integration. `SceneReel` provides a pre-composed convenience wrapper for embedded/docs/slides use cases. The Runtime layer is the frame-by-frame execution engine that drives widget ticking, scene track sampling, Three.js rendering, and state publishing. Together they form the complete playback stack: from JSX scene authoring through compilation, asset loading, frame scheduling, and reactive state propagation to host UI.
+The Player layer is the React integration surface for `@brewsite/core`. `SceneEngine` is the primary component that a host application mounts to run an animated 3D scene. It is a pure context provider with zero DOM output, composed with `EngineARContainer` (aspect-ratio-locked container), `EngineGate` (loading gate), `SceneCanvas` (Three.js canvas), `EngineOverlayHost` (overlay tier), and input components (`ActionInput`, `KeyboardInput`, `TimeInput`, `ControlledInput`) to form the complete integration. `SceneReel` provides a pre-composed convenience wrapper for embedded/docs/slides use cases. The Runtime layer is the frame-by-frame execution engine that drives widget ticking, scene track sampling, Three.js rendering, and state publishing. Together they form the complete playback stack: from JSX scene authoring through compilation, asset loading, frame scheduling, and reactive state propagation to host UI.
 
-This document covers `SceneEngine` and the composable player primitives (`EngineARContainer`, `EngineGate`, `ScrollStage`, `SceneCanvas`, `EngineOverlayHost`, `BackgroundLayer`, `SceneReel`), the composable input components (`ScrollInput`, `TimeInput`, `KeyboardInput`, `PointerInput`, `ControlledInput`), the `useSceneEngine` hook and its options, `RuntimeDriverImpl` and the per-frame tick sequence, `RuntimeLoop` and the animation frame scheduler, `EngineFrameDriver` and the React state bridge, all consumer hooks (`useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `useEngineState`, `useGoToScene`, `useNativeScrollSource`), all context providers (`EngineStateContext`, `VariableStoreContext`, `LabelPositionerContext`, `EngineContext`, `EngineARContainerContext`), `TimelineWidget` for interactive scrubbing, `CameraControlPanel`, `SceneMetaWidget`, `SceneProgressMapper`, the asset manifest pipeline, the Normalized Viewport Space (NVS) layout system, and the SSR safety contract.
+This document covers `SceneEngine` and the composable player primitives (`EngineARContainer`, `EngineGate`, `ScrollStage`, `SceneCanvas`, `EngineOverlayHost`, `BackgroundLayer`, `SceneReel`), the composable input components (`ActionInput`, `TimeInput`, `KeyboardInput`, `ControlledInput`), the `useSceneEngine` hook and its options, `RuntimeDriverImpl` and the per-frame tick sequence, `RuntimeLoop` and the animation frame scheduler, `EngineFrameDriver` and the React state bridge, all consumer hooks (`useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `useEngineState`, `useGoToScene`, `useNativeScrollSource`), all context providers (`EngineStateContext`, `VariableStoreContext`, `LabelPositionerContext`, `EngineContext`, `EngineARContainerContext`), `TimelineWidget` for interactive scrubbing, `CameraControlPanel`, `SceneMetaWidget`, `SceneProgressMapper`, the asset manifest pipeline, the Normalized Viewport Space (NVS) layout system, and the SSR safety contract.
 
 Affects: `@brewsite/core`.
 
@@ -104,7 +107,7 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 - Audio synchronization is out of scope for the Player layer.
 - The Runtime layer does not implement physics, collision detection, or pathfinding. These belong in widget `IAnimationController` implementations.
 - The Player layer does not manage React Router integration. Scene change callbacks are wired through `corePlugin({ onSceneChange })` options.
-- `SceneEngine` does not manage full-page scroll position. `ScrollStage` + `ScrollInput` handle the sticky-canvas scroll layout pattern; `SceneReel` handles embedded/fill-container layouts.
+- `SceneEngine` does not manage full-page scroll position. `ScrollStage` provides the sticky-canvas scroll layout pattern with native scroll handling; `SceneReel` handles embedded/fill-container layouts.
 
 ---
 
@@ -112,7 +115,7 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 
 - As a toolkit consumer, I want to declare a scene in JSX and mount `<SceneEngine>` with composable layout and input primitives so that my Three.js scene renders without writing any imperative Three.js setup code.
 - As a toolkit consumer, I want to use `useCurrentScene()` to reactively update a nav indicator so that my UI reflects the active scene without wiring custom event listeners.
-- As a toolkit consumer, I want to render `<ScrollInput>`, `<KeyboardInput>`, and other input components as children of `<SceneEngine>` so that my scene transitions as the user navigates, with each input modality independently composable.
+- As a toolkit consumer, I want to render `<ActionInput>`, `<KeyboardInput>`, and other input components as children of `<SceneEngine>` so that my scene transitions as the user navigates, with each input modality independently composable.
 - As a toolkit consumer, I want `useVariable('scene', 'id')` inside any component nested under `<SceneEngine>` so that I can build reactive overlays driven by scene metadata.
 - As a toolkit consumer, I want to mount `<TimelineWidget>` inside `<SceneEngine>` so that I get a scrubbing timeline for development and debugging without additional code.
 - As a server-side rendering host, I want `<EngineGate>` to render the `placeholder` prop during SSR and until the engine's first tick so that my page has no layout shift and no hydration mismatch.
@@ -137,7 +140,7 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 13. `useCurrentScene()` shall return `{ id: string; index: number }` and re-render its consumer only when `sceneId` changes.
 14. `useSceneProgress()` shall return the current `progress: number` ([0, 1] global progress) and update on every tick index change.
 15. `LabelPositioner.update` shall be called once per render, after `renderer.render(scene, camera)`, with the current label primitives and bone world positions from the runtime driver.
-16. Input components (`ScrollInput`, `KeyboardInput`, `PointerInput`, `TimeInput`, `ControlledInput`) shall be rendered as children of `SceneEngine` or `SceneReel`. Multiple input components may coexist; `ControlledInput` has highest priority, user-initiated input has next priority, and `TimeInput` (auto-advance) has lowest priority and yields to user input. `EngineInputRegion` and `ScrollCaptureSection` are deleted.
+16. Input components (`ActionInput`, `KeyboardInput`, `TimeInput`, `ControlledInput`) shall be rendered as children of `SceneEngine` or `SceneReel`. Multiple input components may coexist; `ControlledInput` has highest priority, user-initiated input (`ActionInput`) has next priority, and `TimeInput` (auto-advance) has lowest priority and yields to user input. `EngineInputRegion`, `ScrollCaptureSection`, `ScrollInput`, and `PointerInput` are deleted. Scroll progress is driven natively by `ScrollStage`.
 17. `SceneEngine` shall be SSR-safe: all Three.js and DOM initialization shall be deferred to `useEffect`. On the server, `EngineGate` renders `placeholder` (if provided) or `null`. Input components render nothing on the server.
 18. `corePlugin()` shall be accessible from `@brewsite/core` player exports. Pairing `corePlugin()` with `modelPlugin()` from `@brewsite/model` provides complete widget coverage for scenes with GLTF models.
 
@@ -153,7 +156,7 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 import {
   SceneEngine, EngineARContainer, EngineGate, ScrollStage,
   BackgroundLayer, SceneCanvas, EngineOverlayHost,
-  ScrollInput, KeyboardInput, corePlugin,
+  ActionInput, KeyboardInput, corePlugin,
 } from '@brewsite/core';
 import { modelPlugin } from '@brewsite/model';
 
@@ -171,7 +174,7 @@ export default function Page() {
           <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1600}>
             <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
             <SceneCanvas />
-            <ScrollInput source="window" />
+            <ActionInput />
             <KeyboardInput />
             <EngineOverlayHost />
           </ScrollStage>
@@ -416,7 +419,7 @@ The overlay container uses a CSS fade-in on mount, keyed by `sceneId`. This give
 import {
   SceneEngine, EngineARContainer, EngineGate, ScrollStage,
   BackgroundLayer, SceneCanvas, EngineOverlayHost,
-  ScrollInput, KeyboardInput, corePlugin,
+  ActionInput, KeyboardInput, corePlugin,
 } from '@brewsite/core';
 
 function App() {
@@ -434,7 +437,7 @@ function App() {
           <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1200}>
             <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
             <SceneCanvas />
-            <ScrollInput source="window" />
+            <ActionInput />
             <KeyboardInput />
             <EngineOverlayHost />
           </ScrollStage>
@@ -603,7 +606,107 @@ const [progress, setProgress] = useState(0);
 </SceneReel>
 ```
 
-**`@brewsite/docs` integration:** The docs application uses a single app-level `SceneEngine` in standard scroll mode. All demo scenes are authored in a single global `docs-scenes.tsx`. Input is provided by a `ScrollInput` component reading from the window.
+**`@brewsite/docs` integration:** The docs application uses a single app-level `SceneEngine` in standard scroll mode. All demo scenes are authored in a single global `docs-scenes.tsx`. Scroll input is provided natively by `ScrollStage`; action-based input (keyboard, camera) is provided by an `<ActionInput>` component.
+
+### 7A.7 ActionInput
+
+`ActionInput` is the runtime bridge between compiled `<InputController>` DSL and the `ActionInputController` class. It reads the `__input_controller` spec from the current tick state each frame and configures `ActionInputController` accordingly. Spec changes across scenes (scene.next, camera.orbit, etc.) take effect immediately without re-mounting.
+
+```typescript
+export interface ActionInputProps {
+  /**
+   * DOM element that receives pointer and wheel events.
+   * When omitted, uses the <canvas> managed by <SceneCanvas>.
+   */
+  target?: HTMLElement | null;
+
+  /**
+   * DOM element, document, or window that receives keyboard events.
+   * Defaults to document. Pass the canvas element for canvas-scoped keyboard events.
+   */
+  keyboardTarget?: HTMLElement | Document | Window | null;
+}
+
+export function ActionInput(props: ActionInputProps): ReactElement | null;
+```
+
+**Behavior:**
+- Reads `tick.state.widgets['__input_controller']` from the current engine tick each event cycle.
+- Dispatches recognized action types (`camera.orbit`, `camera.dolly`, `camera.reset`, `scene.next`, `scene.prev`) to the engine directly via `applyCameraOrbit`, `applyCameraDolly`, `applyCameraReset`, and `advanceProgress`.
+- Dispatches unrecognized action types (e.g., `diagram-canvas.move`) to `onUnknownAction` from `ActionInputExtensionContext`. Plugin extensions provide this handler via `WidgetPlugin.getActionInputExtension()`.
+- When no `<InputController>` is authored, the compiler injects a default spec (ArrowRight/ArrowDown = scene.next, ArrowLeft/ArrowUp = scene.prev, scope: window). `ActionInput` picks this up automatically.
+- Renders null (no DOM output).
+
+**Canonical usage:**
+```tsx
+<ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1200}>
+  <SceneCanvas />
+  <ActionInput />           {/* Handles keyboard, pointer, wheel actions */}
+  <KeyboardInput />         {/* Focus management only */}
+  <EngineOverlayHost />
+</ScrollStage>
+```
+
+### 7A.8 ActionInputExtensionContext
+
+`ActionInputExtensionContext` allows downstream plugins to extend `ActionInput`'s action dispatch without modifying `@brewsite/core`. `SceneEngine` collects `getActionInputExtension()` from each registered plugin and merges the result into a single `onUnknownAction` handler provided via this context.
+
+```typescript
+// packages/core/src/player/ActionInputExtensionContext.ts
+
+/** Merged onUnknownAction callback from all WidgetPlugin.getActionInputExtension() results. */
+export type ActionInputExtension = (
+  type: string,
+  canvasId: string | undefined,
+  event: PointerEvent | WheelEvent | KeyboardEvent,
+  extra: Record<string, unknown>,
+) => void;
+
+export const ActionInputExtensionContext =
+  React.createContext<ActionInputExtension | null>(null);
+```
+
+**Plugin implementation (WidgetPlugin interface):**
+```typescript
+interface WidgetPlugin {
+  // ... other methods ...
+
+  /**
+   * Optional. Return an object with onUnknownAction to handle custom InputActionTypes.
+   * Called by SceneEngine at startup; the registry is fully populated by this point.
+   */
+  getActionInputExtension?(registry: WidgetRegistry): { onUnknownAction: ActionInputExtension } | undefined;
+}
+```
+
+`ActionInput` reads this context and passes the merged `onUnknownAction` to `ActionInputController`. Actions with types not recognized by core (e.g., `diagram-canvas.move`, `carousel.next`) are forwarded to this callback. The callback receives the action `type`, the `canvasId` from the `<Action>` DSL spec, the original DOM event, and an `extra` record with event-specific data (`dx`, `dy`, `speed`, `focusCenter`).
+
+### 7A.9 KeyboardInput
+
+`KeyboardInput` provides focus management for the canvas so that keyboard events from `ActionInput` (which registers on `document` by default) can correctly route. It no longer handles keyboard navigation directly — that responsibility has moved to `ActionInput` via the `<InputController>` DSL.
+
+```typescript
+export interface KeyboardInputProps {
+  /** Whether to render a focusable container div. Default: true. */
+  manageFocus?: boolean;
+
+  /**
+   * Pause when the nearest positioned ancestor falls below this
+   * IntersectionObserver threshold.
+   */
+  pauseWhenHidden?: PauseWhenHiddenOptions;
+
+  children?: ReactNode;
+}
+
+export function KeyboardInput(props: KeyboardInputProps): ReactElement | null;
+```
+
+**Behavior:**
+- When `manageFocus=true` (default), renders a `position: absolute; inset: 0` focusable `div` (`tabIndex=-1`) that gains focus on pointer-down. This ensures keyboard events directed at the canvas area are captured.
+- When `pauseWhenHidden` is configured, blurs the container when the intersection threshold drops below the configured value, pausing the engine automatically.
+- Renders null when `manageFocus=false`.
+- Does not bind any keyboard shortcuts or navigation keys. All key handling is done by `ActionInput`.
 
 ---
 
@@ -699,7 +802,6 @@ type UseSceneEngineOptions = {
   onReady?: () => void;
   onError?: (error: Error) => void;
   labelPositioner?: LabelPositioner;
-  inputMap?: SceneNavInputMap;
 };
 ```
 
@@ -743,10 +845,38 @@ type UseSceneEngineResult = {
    * Reference is stable across renders.
    */
   setProgress: (next: number) => void;
+
+  // ── Action input wiring ────────────────────────────────────────────────────
+  /** Widget ID of the primary camera. Defaults to 'camera'. Used by ActionInput as the idDefaults.cameraId. */
+  readonly primaryCameraId: string;
+  /** Widget ID of the primary canvas action target. Defaults to ''. Used by ActionInput as the idDefaults.canvasId. */
+  readonly primaryCanvasActionTargetId: string;
+  /**
+   * Apply an orbital rotation delta to the camera. Delegates to CameraWidget.applyCameraOrbit().
+   * No-op with console.warn if the camera widget is not found or does not support orbit.
+   * Called by ActionInput on 'camera.orbit' action dispatch.
+   */
+  applyCameraOrbit(cameraId: string, dx: number, dy: number, speed: number): void;
+  /**
+   * Apply a dolly (zoom) delta along the camera's forward axis. Delegates to CameraWidget.applyCameraDolly().
+   * No-op with console.warn if the camera widget is not found or does not support dolly.
+   * Called by ActionInput on 'camera.dolly' action dispatch.
+   */
+  applyCameraDolly(cameraId: string, delta: number, speed: number): void;
+  /**
+   * Reset the camera override. Equivalent to setCameraOverride(null).
+   * Called by ActionInput on 'camera.reset' action dispatch.
+   */
+  applyCameraReset(cameraId: string): void;
+  /**
+   * Apply per-widget state patches that override compiled SceneTrack state for the current tick.
+   * Patches are applied after SceneTrack sampling and before widget apply() calls.
+   * Used by dynamic widget overrides (e.g., carousel scrubbing). Cleared by calling with an empty object.
+   */
+  patchWidgetStates(patches: Record<string, unknown>): void;
+
   debug?: {
-    driverReady: boolean;
     assetsReady: boolean;
-    sceneTrackTicks: number;
     viewport: { width: number; height: number };
   };
 };
@@ -1057,11 +1187,11 @@ Reads reactive runtime state published by `<SceneEngine id={playerId}>`. Uses `u
 
 ### 13.1 useEngineScroll (deleted in v2)
 
-`useEngineScroll` is removed in v2.0.0. Scene navigation from window scroll is now handled by the `<ScrollInput source="window" />` component. See `packages/core/MIGRATION.md`.
+`useEngineScroll` is removed in v2.0.0. Scene navigation from native scroll is now handled by `<ScrollStage>` directly. See `packages/core/MIGRATION.md`.
 
 ### 13.2 useEngineInput (deleted in v2)
 
-`useEngineInput` is removed in v2.0.0. Replace with the appropriate input components (`ScrollInput`, `KeyboardInput`, `PointerInput`). Camera/canvas interaction continues to be handled by `ActionInputController` internally. See `packages/core/MIGRATION.md`.
+`useEngineInput` is removed in v2.0.0. Replace with `<ActionInput>` for keyboard, pointer, and wheel-based input (including camera orbit/dolly and scene navigation). `<KeyboardInput>` handles focus management only. Camera/canvas interaction is dispatched through `ActionInputController` via the compiled `<InputController>` DSL. See `packages/core/MIGRATION.md`.
 
 ### 13.3 useEngineScrubber
 
@@ -1104,7 +1234,7 @@ goToScene(2);
 const useNativeScrollSource = (containerRef: RefObject<HTMLElement>): IScrollSource
 ```
 
-Returns an `IScrollSource` implementation that reads scroll position from the provided element ref. Used to drive `<ScrollInput source={source} />` from a custom scroll container instead of `window`. The returned object is stable across renders (referential equality preserved).
+Returns an `IScrollSource` implementation that reads scroll position from the provided element ref. Used to override `ScrollStage`'s native scroll driver with a custom scroll container. Pass the result to `<CustomScrollSource source={source} />` inside a `ScrollStage`. The returned object is stable across renders (referential equality preserved).
 
 ### 13.4 useSceneProgress
 
@@ -1209,9 +1339,9 @@ Provides the full `UseSceneEngineResult` to advanced consumers. Used by `CameraC
 
 ## 15. ScrollStage (replaces EngineInputRegion)
 
-`EngineInputRegion` is deleted in v2.0.0. The full-page scroll layout it provided is now implemented by `ScrollStage`. Focus management and keyboard capture moved to `KeyboardInput`.
+`EngineInputRegion` is deleted in v2.0.0. The full-page scroll layout it provided is now implemented by `ScrollStage`. Focus management moved to `KeyboardInput`; action-based input (keyboard scene navigation, camera orbit/dolly) moved to `ActionInput`.
 
-`ScrollStage` creates the tall-spacer + sticky-viewport DOM structure for full-page scroll-driven animations. It computes scroll height from the compiled `SceneTrack` (via `SceneEngineContext`) or from explicit props.
+`ScrollStage` creates the tall-spacer + sticky-viewport DOM structure for full-page scroll-driven animations. It handles native scroll internally — no `ScrollInput` component is required. It computes scroll height from the compiled `SceneTrack` (via `SceneEngineContext`) or from explicit props.
 
 ```typescript
 type ScrollStageProps = {
@@ -1228,7 +1358,7 @@ type ScrollStageProps = {
 - **Outer div:** Height = computed scroll height. `overscrollBehavior: 'none'`.
 - **Inner viewport:** `position: sticky; top: 0; height: 100vh`. Contains `SceneCanvas`, `EngineOverlayHost`, and any other children.
 
-Input components (`ScrollInput`, `KeyboardInput`, etc.) are rendered as children alongside `SceneCanvas` and `EngineOverlayHost`. They attach their own event listeners and do not require a separate region wrapper.
+Input components (`ActionInput`, `KeyboardInput`, etc.) are rendered as children of `ScrollStage` alongside `SceneCanvas` and `EngineOverlayHost`. They attach their own event listeners and do not require a separate region wrapper. Scroll source overrides (`CustomScrollSource`, `ElementScrollSource`, `InertiaScrollSource`) must also be children of `ScrollStage`.
 
 See `packages/core/MIGRATION.md` for the `EngineInputRegion` → `ScrollStage` migration guide.
 
@@ -1477,7 +1607,7 @@ The NVS system is a cross-package spatial contract. The authoritative reference 
 | `Chart` NVS bounds (`x`, `y`, `w`, `h` props) | `@brewsite/charts` | `src/elements/chart/` |
 | `Model` NVS bounds (`x`, `y`, `w`, `h` props) | `@brewsite/model` | `src/elements/model/` |
 | `LabelPositioner` NVS sub-region | `@brewsite/model` | `src/player/LabelPositioner.ts` |
-| `ChartTooltipOverlay` NVS bounds | `@brewsite/charts` | `src/elements/chart/ChartTooltipOverlay.tsx` |
+| `ChartTooltipOverlay` NVS bounds | `@brewsite/charts` | `src/elements/chart/ChartTooltipOverlay.tsx` — **@deprecated**, use `<ChartTooltip>` + `<ChartTooltipHost />` |
 
 **Core NVS types are exported from `@brewsite/core`:**
 
@@ -1503,7 +1633,7 @@ All downstream packages (`@brewsite/diagram`, `@brewsite/charts`, `@brewsite/mod
 For any release that modifies the Player or Runtime public API:
 
 - All `SceneEngine`, `SceneReel`, `ScrollStage`, `EngineGate`, `SceneCanvas`, `EngineOverlayHost`, and `EngineARContainer` prop types compile with `strict: true` and no `any`.
-- All input components (`ScrollInput`, `TimeInput`, `KeyboardInput`, `PointerInput`, `ControlledInput`) prop types compile with `strict: true` and no `any`.
+- All input components (`ActionInput`, `TimeInput`, `KeyboardInput`, `ControlledInput`) prop types compile with `strict: true` and no `any`.
 - `useCurrentScene`, `useSceneProgress`, and `useVariable` pass integration tests inside a `<SceneEngine>` wrapper.
 - `useEngineState(id)` passes integration tests verifying: returns null before registration, returns correct snapshot after registration, returns null after unregister, updates on tick index change.
 - `useGoToScene` integration test verifies navigation to scene by id and by index.
@@ -1519,4 +1649,4 @@ For any release that modifies the Player or Runtime public API:
 - At least one example in `apps/examples/` demonstrates `SceneEngine` + `EngineARContainer` + `SceneCanvas` + `EngineOverlayHost` with a `TextBox` overlay element.
 - At least one example demonstrates `SceneReel` with `TimeInput`.
 - `CHANGELOG.md` in `packages/core` has an entry for every changed exported symbol.
-- `packages/core/README.md` reflects the current `SceneEngineProps` interface and documents `SceneEngine`, `SceneReel`, `ScrollStage`, `EngineGate`, `SceneCanvas`, `EngineOverlayHost`, all input components, and `useGoToScene`.
+- `packages/core/README.md` reflects the current `SceneEngineProps` interface and documents `SceneEngine`, `SceneReel`, `ScrollStage`, `EngineGate`, `SceneCanvas`, `EngineOverlayHost`, `ActionInput`, `KeyboardInput`, `TimeInput`, `ControlledInput`, and `useGoToScene`.

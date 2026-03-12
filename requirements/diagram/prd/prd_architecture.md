@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Architecture Reference"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-10
+last_updated: 2026-03-12
 change_history:
   - date: 2026-03-09
     author: "Toolkit Product"
@@ -20,6 +20,12 @@ change_history:
   - date: 2026-03-08
     author: "Toolkit Product"
     summary: "Architecture cleanup: added diagramLayoutConstants.ts and diagramRenderConstants.ts as shared constant sources; removed dead code (groupConstants.ts, TextRenderer.ts, createRoundedBorderGeometry, DiagramPivot type); DiagramRenderer constructor now requires DiagramThemeRenderConfig; 5 group edge light types added to package root exports; updated module source structure and rendering architecture sections."
+  - date: 2026-03-12
+    author: "Toolkit Product"
+    summary: "Input unification: documented diagramPlugin.getActionInputExtension() and DiagramWidget.applyCanvasAction(). Added section on diagram canvas action routing through the unified input system. Diagram canvas actions (diagram-canvas.move, diagram-canvas.rotate, diagram-canvas.focus, diagram-canvas.reset) are now dispatched via ActionInputExtensionContext to DiagramWidget, not through a separate input subsystem."
+  - date: 2026-03-12
+    author: "Toolkit Product"
+    summary: "View/Region Architecture: groupCompiler.ts now imports unionBounds from @brewsite/core/layout instead of a local copy. Updated Dependencies section and groupCompiler note."
   - date: 2026-03-10
     author: "Toolkit Product"
     summary: "Module architecture redesign for testability: extracted pure-function modules (defaultsCompiler.ts, ghostNodeMerge.ts, hoverStateMachine.ts, normalizeToViewport.ts); split layoutAlgorithms.ts into compiler/layout/ sub-directory (bounds, flowLayout, gridLayout, hierarchicalLayout); extracted nodeLabelLayout.ts from NodeRenderer; added IFocusRegionService interface + DiagramFocusRegionService class to focusRegion.ts; added optional IIconLoader injection to DiagramRenderer; added constants.ts for shared compile/render constants. Public API at index.ts unchanged. Updated Module Source Structure, Design Rules, and Testing Philosophy sections."
@@ -101,7 +107,7 @@ packages/diagram/src/
     │   │   ├── diagramLayoutConstants.ts ← canonical layout constants (DEFAULT_NODE_SIZE, DEFAULT_GROUP_PADDING, DEFAULT_TITLE_GAP)
     │   │   ├── diagramRenderConstants.ts ← legacy render constants; prefer constants.ts for new imports
     │   │   ├── ghostNodeMerge.ts         ← pure ghost node inheritance logic extracted from widget.ts
-    │   │   ├── groupCompiler.ts
+    │   │   ├── groupCompiler.ts          ← imports unionBounds from @brewsite/core layout module
     │   │   ├── hoverStateMachine.ts      ← pure hover event computation extracted from widget.ts
     │   │   ├── layoutAlgorithms.ts       ← 120-line orchestrator; algorithm implementations live in layout/
     │   │   ├── layoutResolver.ts
@@ -223,6 +229,86 @@ import { diagramPlugin } from '@brewsite/diagram';
 
 For `ImagePanel` and `Screen` elements, widget instances must still be registered explicitly (they require asset loading configuration that cannot be auto-inferred from the DSL alone).
 
+## Diagram Canvas Action Input
+
+`diagramPlugin()` implements `WidgetPlugin.getActionInputExtension(registry)` to wire diagram-canvas-specific action types into the unified `ActionInput` system from `@brewsite/core`. This means scene authors can declare `<Action type="diagram-canvas.move">` etc. inside `<InputController>` without any additional wiring.
+
+```typescript
+// packages/diagram/src/player/diagramPlugin.ts
+
+diagramPlugin(options): WidgetPlugin {
+  return {
+    // ...
+    getActionInputExtension(registry: WidgetRegistry) {
+      return {
+        onUnknownAction: (type, canvasId, _event, extra) => {
+          if (!canvasId) return;
+          const widget = registry.get(canvasId);
+          if (!widget || !('applyCanvasAction' in widget)) return;
+
+          switch (type) {
+            case 'diagram-canvas.move':
+              widget.applyCanvasAction('move', dx, dy, speed);
+              break;
+            case 'diagram-canvas.rotate':
+              widget.applyCanvasAction('rotate', dx, dy, speed);
+              break;
+            case 'diagram-canvas.focus':
+              widget.applyCanvasAction('focus', 0, 0, 1, extra['focusCenter']);
+              break;
+            case 'diagram-canvas.reset':
+              widget.applyCanvasAction('reset', 0, 0, 1);
+              break;
+          }
+        },
+      };
+    },
+  };
+}
+```
+
+**Supported diagram-canvas action types:**
+
+| Action Type | Effect |
+|---|---|
+| `diagram-canvas.move` | Pan the diagram canvas; `dx`/`dy` from the pointer delta |
+| `diagram-canvas.rotate` | Rotate the diagram canvas; `dx`/`dy` from the pointer delta |
+| `diagram-canvas.focus` | Focus the canvas on a point; `focusCenter: [x, y]` from the `<Action>` spec |
+| `diagram-canvas.reset` | Reset canvas to default position/rotation |
+
+**Scene authoring example:**
+
+```tsx
+<Scene key="detail">
+  <InputController scope="canvas">
+    <Action id="pan" type="diagram-canvas.move" canvasId="my-diagram">
+      <PointerMap drag button="left" />
+    </Action>
+    <Action id="rotate" type="diagram-canvas.rotate" canvasId="my-diagram">
+      <PointerMap drag button="right" />
+    </Action>
+    <Action id="reset" type="diagram-canvas.reset" canvasId="my-diagram">
+      <KeyMap key="r" />
+    </Action>
+  </InputController>
+  <Diagram id="my-diagram" ... />
+</Scene>
+```
+
+**`DiagramWidget.applyCanvasAction`** — The imperative method called by the extension. Its signature:
+
+```typescript
+applyCanvasAction(
+  kind: 'move' | 'rotate' | 'focus' | 'reset',
+  dx: number,
+  dy: number,
+  speed: number,
+  focusCenter?: [number, number],
+): void;
+```
+
+This method is called directly on the `DiagramWidget` instance (looked up by `canvasId` from the registry). It applies the delta to the diagram renderer's orbit/pan controls. `diagram-canvas.*` action types are owned by `@brewsite/diagram` — they are string literals, not part of the `InputActionType` enum in `@brewsite/core`.
+
 ## State Flow
 
 The full path from JSX authoring surface to Three.js renderer:
@@ -318,7 +404,7 @@ Key architectural-level breaking changes:
 
 ## Dependencies
 
-- `@brewsite/core` (peer, `^0.x`) — compiler registry, widget SDK interfaces, runtime, math utilities
+- `@brewsite/core` (peer, `^0.x`) — compiler registry, widget SDK interfaces, runtime, math utilities, layout helpers. `groupCompiler.ts` imports `unionBounds` from `@brewsite/core`'s `layout/regionNormalize` module rather than maintaining a local copy. This ensures group bounds computation stays consistent with the View/Region architecture used by other packages.
 - `react` (peer) — DSL component definitions
 - `react-dom` (peer) — implied by react usage
 - `three` (peer) — Three.js rendering in `render.ts` files

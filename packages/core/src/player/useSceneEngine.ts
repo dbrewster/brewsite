@@ -1,7 +1,7 @@
 // useSceneEngine.ts — Core engine hook: compilation, RAF loop, widget dispatch, and progress control.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { MutableRefObject, ReactNode } from 'react';
 import * as THREE from 'three';
 import type { SceneDefinition } from '../compiler/sceneTypes';
 import { compileSceneTrack } from '../compiler/sceneTrackCompiler';
@@ -22,18 +22,25 @@ import type { AssetManifest } from '../widget/types';
 import type { CameraOverrideState } from '../elements/camera/types';
 import { SceneProgressMapper } from './SceneProgressMapper';
 import { formatBreadcrumbChain } from '../compiler/dslSourceInfo';
+import type { SceneTheme } from '../theme/types';
 
 /** Clamp value to [0, 1]. */
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
+const SCENE_THEME_USERDATA_KEY = '__brewsite_scene_theme';
 
 export type UseSceneEngineOptions = {
   scenes: InternalSceneSpec[];
   widgetRegistry: WidgetRegistry;
   plugins?: WidgetPlugin[];
   manifest: AssetManifest | null;
+  sceneTheme?: SceneTheme | null;
   timingProfile?: EngineTimingProfile;
   maxAnimBoostPerFrame?: number;
   invalidateCacheToken?: number | string;
+  /** Widget ID of the primary camera. Used by ActionInput for orbit/dolly dispatch. Default: 'camera'. */
+  primaryCameraId?: string;
+  /** Widget ID of the primary canvas action target. Used by ActionInput for unknown action dispatch. */
+  primaryCanvasActionTargetId?: string;
   onReady?: () => void;
   onError?: (error: Error) => void;
   onWidgetError?: (widgetId: string, error: Error) => void;
@@ -49,6 +56,8 @@ export type UseSceneEngineResult = {
   variableStore: VariableStore;
 
   // ── Canvas wiring ─────────────────────────────────────────────────────────────
+  /** Ref to the canvas element managed by SceneCanvas. Used by ActionInput for pointer/wheel events. */
+  canvasRef: MutableRefObject<HTMLCanvasElement | null>;
   setCanvasRef(el: HTMLCanvasElement | null): void;
   setViewportSize(w: number, h: number): void;
   setBackgroundRef(el: HTMLDivElement | null): void;
@@ -104,6 +113,34 @@ export type UseSceneEngineResult = {
    * Null when all scenes have equal scroll weight (identity mapping).
    */
   progressMapper: SceneProgressMapper | null;
+
+  // ── Action input wiring ───────────────────────────────────────────────────────
+  /** Widget ID of the primary camera. Passed to ActionInputController as idDefaults.cameraId. */
+  readonly primaryCameraId: string;
+  /** Widget ID of the primary canvas action target. Passed to ActionInputController as idDefaults.canvasId. */
+  readonly primaryCanvasActionTargetId: string;
+
+  /**
+   * Apply an orbital rotation delta to the camera. Delegates to CameraWidget.applyCameraOrbit().
+   * No-op with console.warn if the camera widget is not found or does not support orbit.
+   */
+  applyCameraOrbit(cameraId: string, dx: number, dy: number, speed: number): void;
+
+  /**
+   * Apply a dolly (zoom) delta along the camera's forward axis. Delegates to CameraWidget.applyCameraDolly().
+   * No-op with console.warn if the camera widget is not found or does not support dolly.
+   */
+  applyCameraDolly(cameraId: string, delta: number, speed: number): void;
+
+  /** Reset the camera override. Equivalent to setCameraOverride(null). */
+  applyCameraReset(cameraId: string): void;
+
+  /**
+   * Apply per-widget state patches that override compiled SceneTrack state for this tick.
+   * Used by dynamic widget overrides (e.g., carousel scrubbing). Patches are cleared by
+   * calling with an empty object.
+   */
+  patchWidgetStates(patches: Record<string, unknown>): void;
 
   // ── Camera control ────────────────────────────────────────────────────────────
   getCamera(): THREE.PerspectiveCamera | null;
@@ -297,6 +334,9 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       camera.aspect = width / Math.max(1, height);
       camera.updateProjectionMatrix();
     }
+    // Propagate to RuntimeDriverImpl so createNVSCoordService uses the real
+    // canvas dimensions instead of the 1920×1080 fallback.
+    driverRef.current?.setViewportSize(width, height);
   }, []);
 
   const setCameraOverride = setCameraOverrideInternal;
@@ -347,10 +387,14 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     if (!sceneTrack) return;
 
     const scene = new THREE.Scene();
+    (
+      scene.userData as Record<string, unknown>
+    )[SCENE_THEME_USERDATA_KEY] = options.sceneTheme ?? null;
     const initialViewport = viewportRef.current;
     const initialAspect = initialViewport.width / Math.max(1, initialViewport.height);
-    const camera = new THREE.PerspectiveCamera(45, initialAspect, 0.1, 2000);
-    camera.position.set(0, 0, 100);
+    const camera = new THREE.PerspectiveCamera(45, initialAspect, 0.01, 100);
+    camera.position.set(2.71, 2.35, 2.71);
+    camera.lookAt(0, 0, 0);
     camera.updateProjectionMatrix();
     sceneRef.current = scene;
     cameraRef.current = camera;
@@ -365,6 +409,10 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       onWidgetError: options.onWidgetError,
     });
     driverRef.current = driver;
+
+    // Seed the driver with the current viewport size so createNVSCoordService
+    // uses real canvas dimensions from the very first tick.
+    driver.setViewportSize(initialViewport.width, initialViewport.height);
 
     try {
       driver.initialize(scene, camera, rendererRef.current ?? undefined);
@@ -389,12 +437,21 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   }, [
     canvas,
     options.widgetRegistry,
+    options.sceneTheme,
     options.onError,
     options.manifest,
     options.maxAnimBoostPerFrame,
     variableStore,
     sceneTrack,
   ]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Keep scene-level theme userData in sync for already-initialized scenes.
+  useEffect(() => {
+    if (!sceneRef.current) return;
+    (
+      sceneRef.current.userData as Record<string, unknown>
+    )[SCENE_THEME_USERDATA_KEY] = options.sceneTheme ?? null;
+  }, [options.sceneTheme]);
 
   // ─── Scene track compilation ────────────────────────────────────────────────
   // Compiles as soon as scenes are available. Manifest is no longer a prerequisite
@@ -514,6 +571,33 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     progressRef.current = p;
   }, []);
 
+  // ─── Camera orbit/dolly/reset dispatch ─────────────────────────────────────
+  const applyCameraOrbit = useCallback((cameraId: string, dx: number, dy: number, speed: number) => {
+    const widget = options.widgetRegistry.get(cameraId);
+    if (!widget || !('applyCameraOrbit' in widget)) {
+      console.warn(`[ActionInput] Camera widget "${cameraId}" not found or does not support orbit.`);
+      return;
+    }
+    (widget as { applyCameraOrbit: (dx: number, dy: number, speed: number) => void }).applyCameraOrbit(dx, dy, speed);
+  }, [options.widgetRegistry]);
+
+  const applyCameraDolly = useCallback((cameraId: string, delta: number, speed: number) => {
+    const widget = options.widgetRegistry.get(cameraId);
+    if (!widget || !('applyCameraDolly' in widget)) {
+      console.warn(`[ActionInput] Camera widget "${cameraId}" not found or does not support dolly.`);
+      return;
+    }
+    (widget as { applyCameraDolly: (delta: number, speed: number) => void }).applyCameraDolly(delta, speed);
+  }, [options.widgetRegistry]);
+
+  const applyCameraReset = useCallback((_cameraId: string) => {
+    setCameraOverrideInternal(null);
+  }, [setCameraOverrideInternal]);
+
+  const patchWidgetStates = useCallback((patches: Record<string, unknown>) => {
+    driverRef.current?.setWidgetStatePatches(patches);
+  }, []);
+
   const pause = useCallback(() => {
     loopRef.current?.pause();
   }, []);
@@ -526,6 +610,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     frameState,
     progress: frameState.progress,
     variableStore,
+    canvasRef: canvasElementRef,
     setCanvasRef,
     setViewportSize,
     setBackgroundRef,
@@ -535,6 +620,12 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     setRawProgress,
     setProgress,
     advanceProgress,
+    primaryCameraId: options.primaryCameraId ?? 'camera',
+    primaryCanvasActionTargetId: options.primaryCanvasActionTargetId ?? '',
+    applyCameraOrbit,
+    applyCameraDolly,
+    applyCameraReset,
+    patchWidgetStates,
     sceneTrack,
     sceneCount,
     compiledScenes,

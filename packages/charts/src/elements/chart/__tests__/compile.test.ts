@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { makeSimpleContext } from '@brewsite/core';
-import type { SceneTheme } from '@brewsite/core';
+import type { SceneTheme, NVSRect } from '@brewsite/core';
 import {
   compileChart,
   compileDataSource,
@@ -11,6 +11,7 @@ import {
   compileAreaChartOptions,
   compileHeatMapChartOptions,
   functionalChartTransitionSpec,
+  compileTooltipDsl,
 } from '../compile';
 import { DEFAULT_CHART_STATE } from '../types';
 import type { BaseChartDSL, BarChartDSL, LineChartDSL } from '../dsl';
@@ -627,6 +628,54 @@ describe('compileChart', () => {
     expect(state.series[0]?.bandField).toBe('lower');
   });
 
+  // composeBoundsFn — bounds composition
+  it('composeBoundsFn: absent → behavior unchanged (identity)', () => {
+    const state = compileChart(
+      baseDsl({ x: 0.2, y: 0.1, w: 0.5, h: 0.6 }),
+      'bar', barTypeOptions, null, [], [], null, null, [],
+    );
+    expect(state.nvsBounds).toEqual({ x: 0.2, y: 0.1, w: 0.5, h: 0.6 });
+    expect(state.nvsX).toBeCloseTo(0.2 + 0.5 / 2, 5);
+    expect(state.nvsY).toBeCloseTo(0.1 + 0.6 / 2, 5);
+    expect(state.bounds.width).toBeCloseTo(0.5, 5);
+    expect(state.bounds.height).toBeCloseTo(0.6, 5);
+  });
+
+  it('composeBoundsFn: maps local [0,0,1,1] into parent region → correct bounds and center', () => {
+    const compose = (r: NVSRect): NVSRect => ({
+      x: 0.1 + r.x * 0.8,
+      y: 0.1 + r.y * 0.8,
+      w: r.w * 0.8,
+      h: r.h * 0.8,
+    });
+    const state = compileChart(baseDsl(), 'bar', barTypeOptions, null, [], [], null, null, [], null, compose);
+    expect(state.nvsBounds).toEqual({ x: 0.1, y: 0.1, w: 0.8, h: 0.8 });
+    expect(state.nvsX).toBeCloseTo(0.5);
+    expect(state.nvsY).toBeCloseTo(0.5);
+    expect(state.bounds.width).toBeCloseTo(0.8);
+    expect(state.bounds.height).toBeCloseTo(0.8);
+  });
+
+  it('composeBoundsFn: composed bounds used for nvsX/nvsY center recomputation', () => {
+    // Local rect in top-left quadrant; parent maps it to the right half
+    const compose = (r: NVSRect): NVSRect => ({
+      x: 0.5 + r.x * 0.5,
+      y: r.y * 0.5,
+      w: r.w * 0.5,
+      h: r.h * 0.5,
+    });
+    const state = compileChart(
+      baseDsl({ x: 0, y: 0, w: 1, h: 1 }),
+      'bar', barTypeOptions, null, [], [], null, null, [], null, compose,
+    );
+    // Composed: { x: 0.5, y: 0, w: 0.5, h: 0.5 } → center at (0.75, 0.25)
+    expect(state.nvsBounds).toEqual({ x: 0.5, y: 0, w: 0.5, h: 0.5 });
+    expect(state.nvsX).toBeCloseTo(0.75);
+    expect(state.nvsY).toBeCloseTo(0.25);
+    expect(state.bounds.width).toBeCloseTo(0.5);
+    expect(state.bounds.height).toBeCloseTo(0.5);
+  });
+
   // Backward compat: deprecated <Chart> DSL — ChartDSL is a superset of BaseChartDSL
   it('backward-compat: deprecated Chart DSL compiles via compileChart with derived kind', () => {
     // Handlers will extract type from ChartDSL.type and pass as kind.
@@ -701,36 +750,39 @@ describe('functionalChartTransitionSpec', () => {
     expect(fn(makeSimpleContext(0.5)).z).toBeCloseTo(2);
   });
 
-  it('interpolateFn uses to.type immediately at t=0', () => {
+  it('interpolateFn defers type switch until t=1', () => {
     const from = { ...DEFAULT_CHART_STATE, type: 'bar' as const };
     const to = { ...DEFAULT_CHART_STATE, type: 'line' as const };
     const fn = functionalChartTransitionSpec.interpolateFn(from, to);
-    expect(fn(makeSimpleContext(0)).type).toBe('line');
-    expect(fn(makeSimpleContext(0.4)).type).toBe('line');
+    expect(fn(makeSimpleContext(0)).type).toBe('bar');
+    expect(fn(makeSimpleContext(0.4)).type).toBe('bar');
+    expect(fn(makeSimpleContext(0.9)).type).toBe('bar');
     expect(fn(makeSimpleContext(1)).type).toBe('line');
   });
 
-  it('interpolateFn uses to.sceneTheme immediately at t=0', () => {
+  it('interpolateFn defers sceneTheme switch until t=1', () => {
     const fromTheme: SceneTheme = { ...mockSceneTheme, colorMode: 'dark' };
     const toTheme: SceneTheme = { ...mockSceneTheme, colorMode: 'light' };
     const from = { ...DEFAULT_CHART_STATE, sceneTheme: fromTheme };
     const to = { ...DEFAULT_CHART_STATE, sceneTheme: toTheme };
     const fn = functionalChartTransitionSpec.interpolateFn(from, to);
-    expect(fn(makeSimpleContext(0)).sceneTheme).toBe(toTheme);
-    expect(fn(makeSimpleContext(0.4)).sceneTheme).toBe(toTheme);
+    expect(fn(makeSimpleContext(0)).sceneTheme).toBe(fromTheme);
+    expect(fn(makeSimpleContext(0.4)).sceneTheme).toBe(fromTheme);
+    expect(fn(makeSimpleContext(0.9)).sceneTheme).toBe(fromTheme);
     expect(fn(makeSimpleContext(1)).sceneTheme).toBe(toTheme);
   });
 
   // V2 test #15 — typeConfig + _morphT
-  it('interpolateFn uses to.typeConfig immediately at t=0', () => {
+  it('interpolateFn defers typeConfig switch until t=1', () => {
     const fromConfig: ChartTypeOptions = { kind: 'bar', options: { stackMode: 'grouped' } };
     const toConfig: ChartTypeOptions = { kind: 'line', options: { lineShape: 'hexagon' } };
     const from = { ...DEFAULT_CHART_STATE, typeConfig: fromConfig, type: 'bar' as const };
     const to = { ...DEFAULT_CHART_STATE, typeConfig: toConfig, type: 'line' as const };
     const fn = functionalChartTransitionSpec.interpolateFn(from, to);
 
-    expect(fn(makeSimpleContext(0)).typeConfig).toBe(toConfig);
-    expect(fn(makeSimpleContext(0.4)).typeConfig).toBe(toConfig);
+    expect(fn(makeSimpleContext(0)).typeConfig).toBe(fromConfig);
+    expect(fn(makeSimpleContext(0.4)).typeConfig).toBe(fromConfig);
+    expect(fn(makeSimpleContext(0.9)).typeConfig).toBe(fromConfig);
     expect(fn(makeSimpleContext(1)).typeConfig).toBe(toConfig);
   });
 
@@ -745,12 +797,70 @@ describe('functionalChartTransitionSpec', () => {
     expect(fn(makeSimpleContext(1))._morphT).toBeCloseTo(1);
   });
 
+  it('interpolateFn clears _morphT when cross-fading structural changes', () => {
+    const from = { ...DEFAULT_CHART_STATE, type: 'bar' as const };
+    const to = { ...DEFAULT_CHART_STATE, type: 'line' as const };
+    const fn = functionalChartTransitionSpec.interpolateFn(from, to);
+    expect(fn(makeSimpleContext(0.25))._morphT).toBeUndefined();
+    expect(fn(makeSimpleContext(0.75))._morphT).toBeUndefined();
+  });
+
   it('interpolateFn opacity is interpolated across full range', () => {
     const from = { ...DEFAULT_CHART_STATE, opacity: 0 };
     const to = { ...DEFAULT_CHART_STATE, opacity: 1 };
     const fn = functionalChartTransitionSpec.interpolateFn(from, to);
     expect(fn(makeSimpleContext(0)).opacity).toBeCloseTo(0);
     expect(fn(makeSimpleContext(1)).opacity).toBeCloseTo(1);
+  });
+});
+
+// ─── compileTooltipDsl ────────────────────────────────────────────────────────
+
+describe('compileTooltipDsl', () => {
+  it('null input → null output', () => {
+    expect(compileTooltipDsl(null)).toBeNull();
+  });
+
+  it('empty object → projection=false, format=undefined', () => {
+    expect(compileTooltipDsl({})).toEqual({ projection: false, format: undefined });
+  });
+
+  it('projection=true, format=".2f" → compiles verbatim', () => {
+    expect(compileTooltipDsl({ projection: true, format: '.2f' })).toEqual({
+      projection: true,
+      format: '.2f',
+    });
+  });
+});
+
+// ─── compileChart: tooltip field ─────────────────────────────────────────────
+
+describe('compileChart: tooltip field', () => {
+  it('no tooltip child → state.tooltip is null', () => {
+    const state = compileChart(
+      baseDsl({ id: 'test' }), 'bar', barTypeOptions,
+      null, [], [], null, null, [],
+      null,
+    );
+    expect(state.tooltip).toBeNull();
+  });
+
+  it('<ChartTooltip projection> → state.tooltip.projection is true', () => {
+    const state = compileChart(
+      baseDsl({ id: 'test' }), 'bar', barTypeOptions,
+      null, [], [], null, null, [],
+      { projection: true },
+    );
+    expect(state.tooltip?.projection).toBe(true);
+  });
+
+  it('<ChartTooltip format=".2f"> → state.tooltip.format is set', () => {
+    const state = compileChart(
+      baseDsl({ id: 'test' }), 'bar', barTypeOptions,
+      null, [], [], null, null, [],
+      { format: '.2f' },
+    );
+    expect(state.tooltip?.format).toBe('.2f');
   });
 });
 

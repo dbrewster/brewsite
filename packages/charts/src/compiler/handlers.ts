@@ -3,7 +3,7 @@
 import { registerNode } from '@brewsite/core';
 import {
   ChartData, ChartAxis, ChartSeries, ChartLegend,
-  ChartDataLabels, ReferenceLine,
+  ChartDataLabels, ReferenceLine, ChartTooltip,
   BarChart, LineChart, ScatterPlotChart, PieChart, AreaChart, HeatMapChart,
 } from '../elements/chart/stubs';
 
@@ -33,6 +33,7 @@ export function registerChartHandlers(): void {
   registerNode(ChartLegend, guardHandler('ChartLegend'));
   registerNode(ChartDataLabels, guardHandler('ChartDataLabels'));
   registerNode(ReferenceLine, guardHandler('ReferenceLine'));
+  registerNode(ChartTooltip, guardHandler('ChartTooltip'));
 
   // Per-type component guards (before chartPlugin.configureRegistry registers real handlers).
   // These are overwritten by configureRegistry — but guard against use before plugin init.

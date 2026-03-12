@@ -63,7 +63,7 @@ describe('buildFlowPathState', () => {
     expect(points.some((point) => point[2] < 0)).toBe(true);
   });
 
-  it('keeps terminal flow elbows sharp so endpoint smoothing cannot bulge into nearby geometry', () => {
+  it('produces sharp elbows when turnRadius is zero', () => {
     const sharp = buildFlowPathState({
       anchorStart: [0, 0, 0],
       startStub: [1, 0, 0],
@@ -77,6 +77,10 @@ describe('buildFlowPathState', () => {
       punctures: [],
     });
 
+    expect(sharp.commands.every((command) => command.kind === 'line')).toBe(true);
+  });
+
+  it('produces smooth curves at terminal corners when turnRadius is positive', () => {
     const rounded = buildFlowPathState({
       anchorStart: [0, 0, 0],
       startStub: [1, 0, 0],
@@ -90,7 +94,11 @@ describe('buildFlowPathState', () => {
       punctures: [],
     });
 
-    expect(sharp.commands.every((command) => command.kind === 'line')).toBe(true);
-    expect(rounded.commands.every((command) => command.kind === 'line')).toBe(true);
+    // Terminal corners now receive rounded cubics when the turn radius permits.
+    expect(rounded.commands.some((command) => command.kind === 'cubic')).toBe(true);
+    // Anchor endpoints are preserved.
+    const points = commandsToControlPoints(rounded.commands);
+    expect(points[0]).toEqual([0, 0, 0]);
+    expect(points.at(-1)).toEqual([1, 4, 0]);
   });
 });

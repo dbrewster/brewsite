@@ -23,6 +23,12 @@ import type {
   AssetManifest,
 } from '@brewsite/core';
 import type { ChartHitInfo, ChartAccessorFunctions } from '../../renderers/shared/IChartRenderer';
+import type { ChartTheme } from '../../themes/types';
+import type { ChartTooltipState } from './tooltip/types';
+import { chartTooltipStore } from './tooltip/ChartTooltipStore';
+import { resolveChartTheme } from '../../themes/resolveTheme';
+import { darkGlassChartTheme } from '../../themes/darkGlass';
+import { projectNdcToNvsPixels } from './tooltip/projectUtils';
 import {
   BarChart,
   LineChart,
@@ -37,6 +43,7 @@ import {
   ChartLegend,
   ChartDataLabels,
   ReferenceLine,
+  ChartTooltip,
 } from './stubs';
 
 /** Information passed to onHover and onSelect callbacks. */
@@ -49,7 +56,9 @@ export type ChartHoverInfo = ChartHitInfo;
  */
 type ChartRendererLike = Pick<
   ChartRenderer,
-  'mount' | 'update' | 'dispose' | 'updateHeatmapSlice' | 'getInteractiveObjects' | 'resolveHoverInfo'
+  | 'mount' | 'update' | 'dispose' | 'updateHeatmapSlice'
+  | 'getInteractiveObjects' | 'resolveHoverInfo'
+  | 'updateProjection' | 'tickProjection'
 >;
 
 /**
@@ -101,6 +110,7 @@ export class ChartWidget
     { component: ChartLegend      as React.ComponentType<unknown>, displayName: 'ChartLegend' },
     { component: ChartDataLabels  as React.ComponentType<unknown>, displayName: 'ChartDataLabels' },
     { component: ReferenceLine    as React.ComponentType<unknown>, displayName: 'ReferenceLine' },
+    { component: ChartTooltip     as React.ComponentType<unknown>, displayName: 'ChartTooltip' },
   ];
 
   // ── INVSBounded ───────────────────────────────────────────────────────────
@@ -155,6 +165,13 @@ export class ChartWidget
 
   /** Entry animation progress [0..1]. 1.0 = complete (default — geometry at full size). */
   private currentEntryT: number = 1.0;
+
+  // ── Tooltip + projection state ────────────────────────────────────────────
+
+  /** Cached resolved ChartTheme from last apply() — used by hover handlers and onTick(). */
+  private lastEffectiveTheme: ChartTheme | null = null;
+  /** Cached tooltip state from last apply() — controls tooltip and projection opt-in. */
+  private lastTooltipState: ChartTooltipState | null = null;
 
   // ── V2.1: Live override cleanup ───────────────────────────────────────────
 
@@ -240,6 +257,8 @@ export class ChartWidget
   apply(state: ChartState, ctx: WidgetRenderContext): void {
     this.lastState = state;
     this.lastCoords = ctx.coords;
+    this.lastEffectiveTheme = resolveChartTheme(state.theme);
+    this.lastTooltipState = state.tooltip ?? null;
     if (!this.scene) {
       console.error(`[ChartWidget] apply() called but scene is null for id="${this.widgetId}" — widget not initialized`);
       return;
@@ -317,6 +336,11 @@ export class ChartWidget
       this.currentEntryT = 1.0;
     }
 
+    // ── Projection beam animation tick ───────────────────────────────────────
+    if (this.lastEffectiveTheme) {
+      this.chartRenderer.tickProjection(this.lastEffectiveTheme);
+    }
+
     // ── Heatmap time-slice animation ─────────────────────────────────────────
     if (state.typeConfig.kind !== 'heatmap') return;
     const opts = state.typeConfig.options;
@@ -353,6 +377,7 @@ export class ChartWidget
   }
 
   dispose(): void {
+    chartTooltipStore.clear(this.widgetId);
     // Unsubscribe from deregisterInline callbacks to prevent stale calls after dispose
     this.unsubscribeDeregister();
     this.detachDomListeners();
@@ -363,6 +388,8 @@ export class ChartWidget
     this.camera = null;
     this.lastCoords = null;
     this.lastInlineRowsRef = null;
+    this.lastEffectiveTheme = null;
+    this.lastTooltipState = null;
   }
 
   // ── Interaction helpers ───────────────────────────────────────────────────
@@ -405,7 +432,16 @@ export class ChartWidget
 
   private attachDomListeners(dom: HTMLElement): void {
     this.mousemoveListener = (e: MouseEvent) => this.handleMouseMove(e, dom);
-    this.mouseleaveListener = () => this.onHover?.(null);
+    this.mouseleaveListener = () => {
+      // Guard on lastTooltipState — same rule as handleMouseMove
+      if (this.lastTooltipState) {
+        chartTooltipStore.clear(this.widgetId);
+      }
+      if (this.lastTooltipState?.projection) {
+        this.chartRenderer.updateProjection(null, this.lastEffectiveTheme ?? darkGlassChartTheme);
+      }
+      this.onHover?.(null);
+    };
     this.clickListener = (e: MouseEvent) => this.handleClick(e, dom);
     dom.addEventListener('mousemove', this.mousemoveListener);
     dom.addEventListener('mouseleave', this.mouseleaveListener);
@@ -458,9 +494,52 @@ export class ChartWidget
   }
 
   private handleMouseMove(e: MouseEvent, dom: HTMLElement): void {
-    if (!this.onHover) return;
     const info = this.raycast(e, dom);
-    this.onHover(info);
+    const theme = this.lastEffectiveTheme ?? darkGlassChartTheme;
+
+    if (info) {
+      // Only publish to tooltip store when <ChartTooltip> is present in DSL
+      if (this.lastTooltipState) {
+        const { x, y } = this.projectHitPoint(info.point, dom);
+        chartTooltipStore.publish(
+          this.widgetId, x, y, info, theme.tooltip ?? null, this.lastTooltipState.format,
+        );
+      }
+      // Update projection beam if explicitly enabled
+      if (this.lastTooltipState?.projection) {
+        this.chartRenderer.updateProjection(info, theme);
+      }
+    } else {
+      // Clear tooltip store only if we were publishing to it
+      if (this.lastTooltipState) {
+        chartTooltipStore.clear(this.widgetId);
+      }
+      if (this.lastTooltipState?.projection) {
+        this.chartRenderer.updateProjection(null, theme);
+      }
+    }
+
+    // Backward-compat: still call onHover callback
+    this.onHover?.(info);
+  }
+
+  private projectHitPoint(
+    point: readonly [number, number, number],
+    dom: HTMLElement,
+  ): { x: number; y: number } {
+    const camera = this.camera;
+    if (!camera) return { x: 0, y: 0 };
+
+    const worldPoint = new THREE.Vector3(point[0], point[1], point[2]);
+    worldPoint.project(camera);
+
+    return projectNdcToNvsPixels(
+      worldPoint.x,
+      worldPoint.y,
+      dom.offsetWidth,
+      dom.offsetHeight,
+      this.nvsBounds,
+    );
   }
 
   private handleClick(e: MouseEvent, dom: HTMLElement): void {

@@ -4,10 +4,11 @@ import * as THREE from 'three';
 import { extent } from 'd3-array';
 import { interpolateViridis, interpolatePlasma, interpolateBlues, interpolateReds } from 'd3-scale-chromatic';
 import { AxesRenderer } from '../shared/AxesRenderer';
-import type { IChartRenderer, ChartRenderContext, ChartHitInfo } from '../shared/IChartRenderer';
+import type { IChartRenderer, ChartRenderContext, ChartHitInfo, ChartHitMeta } from '../shared/IChartRenderer';
 import type { ResolvedDataFrame } from '../../data/types';
 
 const _dummy = new THREE.Object3D();
+const HEATMAP_FRONT_Z = -0.01;
 
 /** Returns a d3 color interpolator function for the named palette. */
 function getInterpolator(name: 'blues' | 'reds' | 'viridis' | 'plasma' | undefined): (t: number) => string {
@@ -34,7 +35,14 @@ export class HeatmapRenderer implements IChartRenderer {
   private lastYCount = -1;
   private lastHasHeightField = false;
   private lastTimeSliceIndex = -1;
-  private readonly hitMap = new Map<number, { row: Record<string, unknown>; xi: number; yi: number }>();
+  private readonly hitMap = new Map<number, {
+    row: Record<string, unknown>;
+    xi: number;
+    yi: number;
+    intensity: number;
+    rowLabel: string;
+    columnLabel: string;
+  }>();
 
   update(ctx: ChartRenderContext): void {
     const { seriesGroup, axesGroup, data, xAxis, yAxis, series, bounds, theme, opacity, fontUrl } = ctx;
@@ -61,8 +69,14 @@ export class HeatmapRenderer implements IChartRenderer {
     const yCategories = [...new Set(activeRows.map((r) => String(r[yField])))];
     const xCount = xCategories.length;
     const yCount = yCategories.length;
-    const totalCount = xCount * yCount;
     const hasHeightField = !!heightField;
+    const cellH = bounds.height / Math.max(yCount, 1);
+    const furthestCenterDepth = Math.max(0, yCount - 1) * cellH + cellH / 2;
+    const columnHalfDepth = hasHeightField ? (cellH * 0.92) / 2 : 0;
+    const seriesDepth = hasHeightField
+      ? furthestCenterDepth + columnHalfDepth
+      : Math.abs(HEATMAP_FRONT_Z);
+    const totalCount = xCount * yCount;
 
     if (xCount !== this.lastXCount || yCount !== this.lastYCount || hasHeightField !== this.lastHasHeightField) {
       this.clearMesh();
@@ -84,6 +98,8 @@ export class HeatmapRenderer implements IChartRenderer {
         opacity,
       });
       this.instancedMesh = new THREE.InstancedMesh(geo, mat, totalCount);
+      this.instancedMesh.castShadow = true;
+      this.instancedMesh.receiveShadow = false;
       this.instancedMesh.instanceColor = new THREE.InstancedBufferAttribute(
         new Float32Array(totalCount * 3),
         3,
@@ -102,7 +118,18 @@ export class HeatmapRenderer implements IChartRenderer {
     if (!this.axesRenderer) this.axesRenderer = new AxesRenderer(axesGroup);
     const xTicks = xCategories.map((cat, i) => ({ value: cat, position: (i + 0.5) / xCount }));
     const yTicks = yCategories.map((cat, i) => ({ value: cat, position: (i + 0.5) / yCount }));
-    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl, gridlines: ctx.gridlines });
+    this.axesRenderer.update({
+      xTicks,
+      yTicks,
+      bounds,
+      seriesDepth,
+      theme,
+      opacity,
+      xAxis,
+      yAxis,
+      fontUrl,
+      gridlines: ctx.gridlines,
+    });
   }
 
   /**
@@ -201,10 +228,11 @@ export class HeatmapRenderer implements IChartRenderer {
         if (heightValues && entry) {
           const normalizedH = hRange > 0 ? (entry.height - hMin) / hRange : 0;
           const barH = Math.max(0.01, normalizedH * maxBarHeight);
-          _dummy.position.set(xi * cellW + cellW / 2, barH / 2, yi * cellH + cellH / 2);
+          const z = -(yi * cellH + cellH / 2);
+          _dummy.position.set(xi * cellW + cellW / 2, barH / 2, z);
           _dummy.scale.set(1, barH, 1);
         } else {
-          _dummy.position.set(xi * cellW + cellW / 2, yi * cellH + cellH / 2, 0);
+          _dummy.position.set(xi * cellW + cellW / 2, yi * cellH + cellH / 2, HEATMAP_FRONT_Z);
           _dummy.scale.set(1, 1, 1);
         }
         _dummy.updateMatrix();
@@ -212,7 +240,14 @@ export class HeatmapRenderer implements IChartRenderer {
         this.instancedMesh.setColorAt(idx, color);
 
         if (entry?.row) {
-          this.hitMap.set(idx, { row: entry.row, xi, yi });
+          this.hitMap.set(idx, {
+            row: entry.row,
+            xi,
+            yi,
+            intensity: normalizedVal,
+            rowLabel: yCategories[yi] ?? '',
+            columnLabel: xCategories[xi] ?? '',
+          });
         }
         instanceIdx++;
       }
@@ -252,12 +287,22 @@ export class HeatmapRenderer implements IChartRenderer {
     if (instanceId === undefined || instanceId === null) return null;
     const entry = this.hitMap.get(instanceId);
     if (!entry) return null;
+
     const p = intersection.point;
+    const meta: ChartHitMeta = {
+      kind: 'heatmap',
+      intensity: entry.intensity,
+      rowLabel: entry.rowLabel,
+      columnLabel: entry.columnLabel,
+    };
+
     return {
       seriesIndex: 0,
       datumIndex: instanceId,
       row: entry.row,
       point: [p.x, p.y, p.z],
+      meta,
+      // No projectionTarget for heatmap charts
     };
   }
 

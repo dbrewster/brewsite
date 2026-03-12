@@ -3,8 +3,14 @@ title: "BrewSite Core — Compiler Pipeline"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-05
+last_updated: 2026-03-12
 change_history:
+  - date: 2026-03-12
+    author: "Toolkit Product"
+    summary: "View/Region Architecture: added <View> and <ViewLayout> to public compiler exports; documented CompileApi.composeBounds; added Section 14 covering View/ViewLayout compilation, ViewState/ViewLayoutState types, and CompileApi child scoping."
+  - date: 2026-03-11
+    author: "Toolkit Product"
+    summary: "Clarified Step 4.5 passthrough semantics: non-widget state remains source-scene aligned across each transition block."
   - date: 2026-03-05
     author: "Toolkit Product"
     summary: "@brewsite/slides integration: added sceneProgress?: number as an optional field to SceneTrackTick (sceneTrackTypes.ts). Semantics: equals blockProgress for all non-terminal ticks; equals 1 for the terminal tick of the final scene (correct within-scene progress coordinate). Populated by sceneTrackCompiler.ts during the frame-allocation pass. The field is optional and backward-compatible — consumers that read it default to blockProgress when absent. Used by SlideMetaWidget (in @brewsite/slides) to compute visibleBullets for animated bullet reveals without inflating scene count. No change to SceneTrack structure or any other compiler types."
@@ -86,6 +92,12 @@ export type {
   PinchMapProps,
   KeyMapProps,
 } from './blocks/inputController';
+
+// View and ViewLayout DSL components (View/Region Architecture)
+export { View } from './blocks/viewDsl';
+export type { ViewProps } from './blocks/viewDsl';
+export { ViewLayout } from './blocks/viewLayoutDsl';
+export type { ViewLayoutProps } from './blocks/viewLayoutDsl';
 
 // Node registration (for external packages extending the DSL surface)
 export { registerNode } from './registry';
@@ -183,7 +195,7 @@ Each frame is initialized with:
 
 The last frame (`index = totalFrames - 1`) is the terminal frame. It is assigned `sceneId` and `sceneIndex` of the final scene and `blockProgress = 0`, regardless of block arithmetic.
 
-**Non-widget passthrough states** — `SceneFrame.widgets` entries that are not registered `ISceneElement` widgets (e.g., the `__input_controller` state written by `<InputController>`) are identified after Step 1. These are segregated into `passthroughWidgetsByScene[]` and reapplied to every frame in Step 4.5, using the "from" scene's state for the first half of each block and the "to" scene's state for the second half.
+**Non-widget passthrough states** — `SceneFrame.widgets` entries that are not registered `ISceneElement` widgets (e.g., the `__input_controller` state written by `<InputController>`) are identified after Step 1. These are segregated into `passthroughWidgetsByScene[]` and reapplied to every frame in Step 4.5, using source-scene-aligned state for each block.
 
 ### Step 3: Transition Block Fill
 
@@ -244,8 +256,8 @@ The terminal frame is the "resting state" of the experience at progress = 1.
 **Step 4.5: Passthrough Widget Backfill**
 
 Non-widget scene-level states (those not managed by `ISceneElement` widgets) are written into every frame. For frame at block index `n`:
-- First half of block (`blockProgress < 0.5`) or the final frame: use `passthroughWidgetsByScene[n]`.
-- Second half of block (`blockProgress >= 0.5`): use `passthroughWidgetsByScene[n + 1]`.
+- Use `passthroughWidgetsByScene[n]` for all frames in the block (source-scene-aligned).
+- Final frame uses the last scene state by construction (`n` resolves to the final scene index).
 
 This ensures `InputController` spec state (keyed as `__input_controller`) is always available on `tick.state.widgets` without requiring InputController to implement `ISceneElement`.
 
@@ -519,6 +531,41 @@ export type SceneProgressProfile = {
 };
 ```
 
+### ViewState and ViewLayoutState
+
+View-related compiled states stored in `SceneFrame.widgets`, produced by `viewHandler` and `viewLayoutHandler`:
+
+```typescript
+// packages/core/src/compiler/viewTypes.ts
+
+export type ViewState = {
+  readonly id: string;
+  /** Resolved absolute NVS bounds for this view. */
+  readonly bounds: NVSRect;
+  /** Normalized padding applied to this view's bounds [top, right, bottom, left]. */
+  readonly padding: NormalizedPadding;
+  /** Content bounds (bounds after padding). Elements inside this view are relative to contentBounds. */
+  readonly contentBounds: NVSRect;
+  /** Z-order layer. 0 = default. Higher values render in front. Set by carousel layout. */
+  readonly layer: number;
+  /** Scale factor applied by the layout manager. 1.0 for standalone views and stack layouts. */
+  readonly scale: number;
+  /** ID of the parent ViewLayout, if any. Absent for standalone views. */
+  readonly layoutId?: string;
+};
+
+export type ViewLayoutState = {
+  readonly id: string;
+  readonly kind: ViewLayoutKind;
+  /** Absolute NVS bounds of the layout container. */
+  readonly bounds: NVSRect;
+  /** Ordered list of child view IDs. */
+  readonly viewIds: readonly string[];
+};
+```
+
+Both types are stored in `SceneFrame.widgets` keyed by the view/layout `id`. They are not `ISceneElement` widget states — no `IWidget` is registered for these IDs. Consumer code that needs to read view bounds at runtime may access them via `tick.state.widgets[viewId] as ViewState`.
+
 ### Functional Transition Types
 
 ```typescript
@@ -630,7 +677,7 @@ export type FunctionalTransitionSpec<T> = {
    * Called once at compile time with fromState.
    * Returns a pure function of t ∈ [0, 1].
    * t = 0: widget at fromState. t = 1: widget fully absent.
-   * Active over the first half of the block (blockProgress ∈ [0, 0.5)).
+   * Active over the configured exit window.
    */
   exitFn: (fromState: T) => (t: number) => T;
 
@@ -638,7 +685,7 @@ export type FunctionalTransitionSpec<T> = {
    * Called once at compile time with toState.
    * Returns a pure function of t ∈ [0, 1].
    * t = 0: widget fully absent. t = 1: widget at toState.
-   * Active over the second half of the block (blockProgress ∈ [0.5, 1]).
+   * Active over the configured enter window.
    */
   enterFn: (toState: T) => (t: number) => T;
 
@@ -662,7 +709,7 @@ export const isFunctionalSpec = <T>(
 
 **Runtime contract:** For frames in a functional transition block, `tick.state.widgets[widgetId]` is absent (the compiler intentionally does not write it). The runtime driver checks `track.transitionBlocks[tick.sceneIndex]?.widgetFns[widgetId]` and, if present, calls `fn(tick.blockProgress)` to obtain the current state before passing it to the widget's `apply` method.
 
-**Half-block remapping:** The compiler wraps the widget author's raw closure with half-block remapping at storage time. The author writes closures expecting `t ∈ [0, 1]` only. The wrapper handles the `bp < 0.5` / `bp >= 0.5` branching and `absentDefault` fallback. The runtime need not know the difference between exit, enter, and interpolate closures at evaluation time.
+**Window remapping:** The compiler wraps the widget author's raw closure with window-aware remapping at storage time. The author writes closures expecting `t ∈ [0, 1]` only. The wrapper handles transition-window activation and `absentDefault` fallback. The runtime need not know the difference between exit, enter, and interpolate closures at evaluation time.
 
 **Suitable for:** Spring physics, momentum-based transitions, easing curves that require continuous evaluation, diagram canvas camera transitions.
 
@@ -922,6 +969,50 @@ Hosts DSL block components that are not element-specific but still require handl
 **`progressManager.tsx`:** `<ProgressManager>` DSL component. The handler reads `scrollUnits` and `fn` props, validates constraints (emitting `PROGRESS_MANAGER` warnings for violations), and writes a `ProgressManagerSpec` to `api.state.progressManager`. Carry-forward merge of `ProgressManagerSpec` across scenes happens in the Step 1.5 snapshot merging pass, using the same `mergeSnapshot` mechanism as other carry-forward widgets — the `ProgressManager` handler itself only writes to the current scene's snapshot.
 
 **`inputController.tsx`:** `<InputController>`, `<Action>`, `<PointerMap>`, `<WheelMap>`, `<PinchMap>`, `<KeyMap>`. The InputController handler parses the full action tree and writes a `SceneInputControllerSpec` to `api.setWidgetState('__input_controller', spec)`. Child components (`Action`, `*Map`) are registered with protective handlers that throw if used outside an `InputController`. `ensureInputControllerRegistry()` guards all registrations.
+
+**`viewDsl.tsx`:** `<View>` DSL component and `ViewProps`. A null-returning component registered with `viewHandler` at module load time. Defines `id` (required), `x`, `y`, `w`, `h`, and `padding` props.
+
+**`viewLayoutDsl.tsx`:** `<ViewLayout>` DSL component and `ViewLayoutProps`. A null-returning component registered with `viewLayoutHandler` at module load time. Defines `id` (optional — auto-generated when absent), `kind`, container geometry (`x`, `y`, `w`, `h`), and layout-policy-specific props (`direction` for stack; `activeIndex`, `inactiveScale`, `zStep` for carousel).
+
+**`viewHandlers.ts`:** `viewHandler` and `viewLayoutHandler` — the `NodeHandler` implementations for `<View>` and `<ViewLayout>`. Both are pure: no Three.js, no side effects beyond `api.setWidgetState` calls and `helpers.compileChildren`. The handler coordination mechanism uses a module-level `WeakMap<CompileApi, ViewLayoutContext>` to pass pre-computed bounds from `viewLayoutHandler` to the child `viewHandler` instances it spawns, without polluting the `CompileApi` interface. Nested `<ViewLayout>` nesting is supported via save/restore of the previous layout context before and after `helpers.compileChildren`.
+
+Key behaviors:
+- **Standalone `<View>`** (no parent `<ViewLayout>`): resolves absolute bounds via `api.composeBounds(localBounds)`. Sets `layer = 0`, `scale = 1.0`.
+- **Managed `<View>`** (inside `<ViewLayout>`): bounds, layer, and scale are pre-computed by the parent `viewLayoutHandler` via `resolveLayout(config, container, sizeHints)` and injected via the WeakMap context. The `x`/`y` props are ignored (a console warning is emitted).
+- **Child scoping**: after resolving bounds and padding, each `<View>` creates a scoped child `CompileApi` via `createChildApi(api, contentBounds)`. The child API's `composeBounds` is configured to map local [0..1] coordinates into the view's content bounds. All DSL children of `<View>` are compiled using this scoped api, so elements like `<Chart>` or `<DiagramCanvas>` inside a view automatically inherit absolute bounds without any knowledge of the nesting.
+
+`ViewState` and `ViewLayoutState` (from `compiler/viewTypes.ts`) are stored via `api.setWidgetState(id, state)` on the parent CompileApi, ensuring they appear in `SceneFrame.widgets` alongside all other element states.
+
+### `CompileApi.composeBounds`
+
+`CompileApi` carries a `composeBounds(localRect: NVSRect): NVSRect` method used by DSL node handlers to convert local NVS coordinates into absolute NVS coordinates:
+
+```typescript
+export type CompileApi = {
+  context: SceneSnapshotContext;
+  state: SceneFrame;
+  setWidgetState: (widgetId: string, state: unknown) => void;
+  setSceneMeta: (meta: { id?: string; meta?: Record<string, JsonPrimitive> }) => void;
+  pushWarning: (warning: CompileWarning) => void;
+  /**
+   * Maps a local NVS rect into absolute NVS coordinate space.
+   *
+   * At the root (no parent View), this is the identity: localRect is returned unchanged.
+   * Inside a <View>, this maps local [0..1] coordinates into the view's content bounds
+   * using composeBoundsIntoParent() from layout/regionNormalize.ts.
+   * Nesting is handled transparently — each level chains with its parent via createChildApi.
+   *
+   * Handlers for elements that accept NVS position/size props (Chart, Model,
+   * DiagramCanvas, TextBox) must call api.composeBounds() to resolve absolute bounds
+   * before writing to SceneFrame.widgets.
+   */
+  composeBounds: (localRect: NVSRect) => NVSRect;
+};
+```
+
+**How it works:** The root-level `CompileApi` uses the identity function for `composeBounds`. When a `<View>` is compiled, its handler calls `createChildApi(api, contentBounds)` to produce a new `CompileApi` whose `composeBounds` maps local [0..1] coordinates into the view's `contentBounds` rectangle. This child api is passed to `helpers.compileChildren()` for all of the view's DSL children. Nesting is correctly handled — a `<View>` inside another `<View>` creates a chain of `composeBounds` mappings.
+
+**Consumer contract:** Any DSL handler that places an element at an NVS position must call `api.composeBounds(localRect)` rather than using the prop values directly. This ensures the element respects its parent view's bounds when nested inside `<View>`. Handlers that do not respect this contract will render at incorrect positions when placed inside a `<View>`.
 
 ### `compiler/transitions/`
 

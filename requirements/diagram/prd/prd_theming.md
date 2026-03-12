@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-11
+last_updated: 2026-03-12
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -23,6 +23,12 @@ change_history:
   - date: 2026-03-11
     author: "Toolkit Product"
     summary: "Theme redesign: expanded canonical theme set from four to six names, adding midnight (warm dark) and lightCanvas (premium light). All four existing presets redesigned with coherent palettes; two new presets added. Introduced DiagramThemeName union type and DIAGRAM_THEMES keyed registry. Added string name API for <Diagram theme='...'> (non-breaking union widening). All six presets carry an 8-color accent palette coordinated with @brewsite/charts via cross-package comment blocks. Version bump: minor."
+  - date: 2026-03-11
+    author: "Toolkit Product"
+    summary: "Theming overhaul — polarity pairs: DiagramThemeName is now a type alias for ThemeFamily (imported from @brewsite/core), maintaining backward compatibility while tying the type to the canonical cross-package union. Added DIAGRAM_THEME_PAIRS registry (Record<ThemeFamily, DiagramThemePair>) — each entry pre-wired with the corresponding SceneTheme from SCENE_THEME_PAIRS. Six polarity-variant DiagramTheme files added as @internal placeholders (darkGlassLight, enterpriseLight, midnightLight, neonCyberLight, lightCanvasDark, lightMinimalDark); production aesthetic authoring deferred to a follow-on story. DIAGRAM_THEMES flat registry unchanged; no breaking changes. Version bump: minor."
+  - date: 2026-03-12
+    author: "Toolkit Product"
+    summary: "Theme family art direction: all six polarity-variant DiagramTheme presets promoted from @internal placeholders to production-ready public exports. Each polarity variant carries fully designed node/edge PBR material profiles, label colors, palette, and motion/interaction parameters distinct to its family and polarity — no sibling-theme reuse. DIAGRAM_THEME_PAIRS and DIAGRAM_THEMES both export all 12 variants. Added Technical Considerations section covering per-family node and edge material profiles and per-family motion and interaction profile ranges."
 ---
 
 ## Overview
@@ -82,24 +88,51 @@ Diagram elements expose dozens of configurable properties across nodes, edges, a
 
 ## API Design
 
-### DiagramThemeName and DIAGRAM_THEMES
+### DiagramThemeName, DIAGRAM_THEMES, and DIAGRAM_THEME_PAIRS
 
 ```typescript
 // packages/diagram/src/elements/diagram/types.ts
 
-export type DiagramThemeName =
-  | 'darkGlass'
-  | 'midnight'
-  | 'neonCyber'
-  | 'enterprise'
-  | 'lightCanvas'
-  | 'lightMinimal';
+/**
+ * Type alias for ThemeFamily from @brewsite/core.
+ * Maintained for backward compatibility — existing code referencing DiagramThemeName compiles identically.
+ * The union values and their string literals are unchanged.
+ */
+import type { ThemeFamily } from '@brewsite/core';
+export type DiagramThemeName = ThemeFamily;
 ```
 
 ```typescript
 // packages/diagram/src/elements/diagram/themes/index.ts
 
 export const DIAGRAM_THEMES: Record<DiagramThemeName, DiagramTheme>;
+
+/**
+ * Dark/light pair type for a DiagramTheme family.
+ * Each entry is a complete DiagramTheme pre-wired with its corresponding SceneTheme
+ * from SCENE_THEME_PAIRS — consumers need not manually attach sceneTheme.
+ */
+export type DiagramThemePair = {
+  readonly dark: DiagramTheme;
+  readonly light: DiagramTheme;
+};
+
+/**
+ * Registry of DiagramTheme pairs for all six ThemeFamily values.
+ * Each entry's dark/light DiagramThemes are pre-wired with the matching SceneTheme
+ * from @brewsite/core's SCENE_THEME_PAIRS.
+ *
+ * All twelve entries carry production-quality aesthetic values. Both polarities for every
+ * ThemeFamily are publicly exported and production-ready for use in shipped scenes.
+ * Each polarity variant has a fully designed node/edge material profile and palette;
+ * no entry reuses a sibling-theme's values as a placeholder.
+ *
+ * @example
+ * import { DIAGRAM_THEME_PAIRS } from '@brewsite/diagram';
+ * const theme = DIAGRAM_THEME_PAIRS['darkGlass']['light'];
+ * // theme.sceneTheme is pre-wired — no manual attachment needed
+ */
+export const DIAGRAM_THEME_PAIRS: Record<ThemeFamily, DiagramThemePair>;
 ```
 
 The `<Diagram>` DSL `theme` prop accepts either form:
@@ -464,6 +497,30 @@ These derivation functions are pure (no Three.js) and run at compile time. Expli
 
 Each preset theme is in its own file (`themes/darkGlass.ts`, `themes/midnight.ts`, `themes/neonCyber.ts`, `themes/enterprise.ts`, `themes/lightCanvas.ts`, `themes/lightMinimal.ts`). The barrel `themes/index.ts` re-exports all six alongside the `DIAGRAM_THEMES` registry. Consumers importing a single preset directly from their source path allow bundlers to tree-shake unused presets. Each preset is a `const` object with no side effects. Each preset file contains a cross-package palette comment block listing the 8 shared accent colors, enabling code review to detect diagram/chart palette divergence.
 
+### Per-Family Node and Edge Material Profiles
+
+Each `ThemeFamily` defines a distinct PBR material profile for nodes and edges that expresses that family's visual character. Material profiles specify metalness, roughness, emissive intensity, and glow parameters for nodes; and metalness, roughness, and flow speed for edges.
+
+The material profiles vary meaningfully across families:
+
+- **Dark families** (darkGlass, midnight, neonCyber): higher emissive intensity on nodes to create depth contrast against dark backgrounds. `glowIntensity` is non-zero; `glowSpread` is sized to the family's characteristic halo radius.
+- **Light families** (lightCanvas, lightMinimal): near-zero emissive intensity; no glow; higher roughness to produce diffuse ceramic/paper surface character.
+- **Opposite-polarity variants**: when a dark-primary family (e.g. darkGlass) is rendered in its light polarity, its material profile shifts toward lower metalness and near-matte roughness — matching the inversion of the scene's ambient lighting character. When a light-primary family (e.g. lightCanvas) is rendered in its dark polarity, emissive intensity increases to maintain visual weight against a dark scene background.
+
+Each polarity variant of a family is required to have a distinct, intentionally designed material profile. A light-polarity variant that copies the dark variant's PBR values does not meet the production-ready quality bar.
+
+### Per-Family Motion and Interaction Profile Ranges
+
+Each `ThemeFamily` defines characteristic motion and interaction parameter ranges for animated diagram elements. These ranges express the family's animation identity and ensure visual consistency when diagram scenes are composed with `@brewsite/charts` elements using the same family.
+
+**Flow animation:** `edge.defaultFlowSpeed` and `edge.flowPulseIntensity` define the velocity and brightness of edge flow animations. Families with a high-energy character (neonCyber) use elevated flow speeds; families with deliberate, authoritative character (midnight, enterprise) use lower flow speeds. Light-polarity variants of dark families reduce flow speed and pulse intensity relative to their dark counterparts.
+
+**Glow behavior:** `node.glowIntensity` and `node.glowSpread` define the soft-light halo rendered behind node geometry. Dark families with high-gloss aesthetics (darkGlass, neonCyber) use non-zero glow; documentary families (enterprise, lightMinimal) set `glowIntensity: 0` to suppress halo rendering entirely. The polarity variant must maintain consistent glow intent — a dark-glass-light polarity suppresses glow because glow halos are visually disruptive on pale backgrounds.
+
+**Interaction hover:** `DiagramThemeNodeConfig`'s interaction-related fields (emissive boost on hover) and `DiagramThemeEdgeConfig.flowPulseIntensity` combine to define how "reactive" a diagram family feels on user interaction. High-energy families amplify interaction feedback; understated families keep hover states subtle.
+
+All six families' preset `DiagramTheme` values for motion parameters are defined in the family art direction spec (`requirements/core/notes/note_theme-family-art-direction.md`). Polarity variants must conform to those per-polarity targets.
+
 ### Layout defaults in theme
 
 `DiagramThemeLayoutConfig` provides fallback values for grid, hierarchical, and manual layout when the `<Diagram>` DSL does not specify a layout child. `layoutResolver.ts` merges theme layout defaults with DSL-declared layout props, with DSL values taking precedence. This allows the theme to establish sensible spacing and padding defaults without requiring every diagram DSL to be verbose.
@@ -534,6 +591,8 @@ const myTheme = {
 
 3. **`DiagramTheme.background` field is deferred to v2.** The scene background must be configured separately via `<Background>`.
 
+4. **`withColorMode()` produces colorMode-appropriate label colors only.** Node PBR material values (metalness, roughness, emissive intensity, glow) are not adjusted by `withColorMode()` — it only updates `defaultLabelColor` and `defaultSublabelColor`. For a fully correct polarity-switched theme, use a `DIAGRAM_THEME_PAIRS` entry rather than `withColorMode()` on a preset, as the pair entry carries a fully designed material profile for the opposite polarity.
+
 ## Breaking Change Assessment
 
 **Semver impact: major.** The 2026-03-08 changes constitute breaking API changes to `DiagramThemeNodeConfig`, `DiagramThemeEdgeConfig`, `DiagramThemeGroupConfig`, `DiagramTheme`, and `DiagramThemeRenderConfig`:
@@ -576,9 +635,24 @@ For future changes:
 
 ## Launch Criteria
 
-- All six preset themes exported from `@brewsite/diagram` package `index.ts`; `DiagramThemeName` and `DIAGRAM_THEMES` also exported
-- `DiagramTheme`, `DiagramThemeNodeConfig`, `DiagramThemeEdgeConfig`, `DiagramThemeGroupConfig`, `DiagramThemeEnvironmentConfig`, `DiagramThemeLayoutConfig`, `DiagramThemeRenderConfig` all exported from `@brewsite/diagram`
-- `buildThemeRenderConfig` unit tested in `compiler/__tests__/themeResolver.test.ts`
-- README documents all six presets with import paths, string names, and brief descriptions
-- At least one example scene in `apps/examples/` demonstrates switching between two presets
-- TypeScript strict-mode typecheck passes on the themes package directory
+**Shipped (original theming system and redesign):**
+- [x] All six preset themes exported from `@brewsite/diagram` package `index.ts`; `DiagramThemeName` and `DIAGRAM_THEMES` also exported.
+- [x] `DiagramTheme`, `DiagramThemeNodeConfig`, `DiagramThemeEdgeConfig`, `DiagramThemeGroupConfig`, `DiagramThemeEnvironmentConfig`, `DiagramThemeLayoutConfig`, `DiagramThemeRenderConfig` all exported from `@brewsite/diagram`.
+- [x] `buildThemeRenderConfig` unit tested in `compiler/__tests__/themeResolver.test.ts`.
+- [x] At least one example scene in `apps/examples/` demonstrates switching between two presets.
+- [x] TypeScript strict-mode typecheck passes on the themes package directory.
+
+**Shipped (theming overhaul — polarity pairs):**
+- [x] `DiagramThemeName` is a type alias for `ThemeFamily` from `@brewsite/core`. Backward compat: all existing `DiagramThemeName` usages compile without change.
+- [x] `DiagramThemePair` type and `DIAGRAM_THEME_PAIRS` registry exported from `@brewsite/diagram`.
+- [x] All six `DIAGRAM_THEME_PAIRS` entries are pre-wired with corresponding `SceneTheme` from `SCENE_THEME_PAIRS`.
+- [x] TypeScript strict-mode typecheck passes for all new theme files.
+
+**Shipped (theme family art direction — polarity variants):**
+- [x] All six polarity-variant `DiagramTheme` presets carry production-quality aesthetic values; no placeholder or sibling-theme reuse remains.
+- [x] All 12 `DiagramTheme` variants (6 canonical + 6 opposite-polarity) publicly exported from `@brewsite/diagram`.
+- [x] Each polarity variant carries a fully designed node/edge PBR material profile and palette distinct from its family sibling.
+- [x] Per-family motion and interaction parameter targets (flow speed, pulse intensity, glow) are reflected in preset values.
+
+**Follow-on (not yet shipped — tracked separately):**
+- [ ] README documents `DIAGRAM_THEME_PAIRS` usage pattern with cross-package consumer example.

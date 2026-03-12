@@ -131,11 +131,11 @@ describe('buildThemeRenderConfig — new Stream C fields', () => {
     expect(config.nodeGlowSpread).toBe(2.2);
     expect(config.nodeLabelFontSizeBase).toBe(0.28);
     expect(config.nodeSublabelFontSizeBase).toBe(0.18);
-    expect(config.edgeFlowPulseIntensity).toBe(0.9);
-    expect(config.groupBorderMetalness).toBe(0.35);
-    expect(config.groupBorderRoughness).toBe(0.45);
-    expect(config.groupBorderSideDarken).toBe(0.40);
-    expect(config.groupBorderEdgeDarken).toBe(0.45);
+    expect(config.edgeFlowPulseIntensity).toBe(0.68);
+    expect(config.groupBorderMetalness).toBe(0.32);
+    expect(config.groupBorderRoughness).toBe(0.48);
+    expect(config.groupBorderSideDarken).toBe(0.42);
+    expect(config.groupBorderEdgeDarken).toBe(0.46);
   });
 
   it('emits new fields from lightMinimalTheme with distinct values', () => {

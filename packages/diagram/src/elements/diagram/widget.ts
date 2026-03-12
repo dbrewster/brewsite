@@ -38,7 +38,7 @@ import type {
   DiagramHoverControls,
   DiagramState,
 } from './types';
-import { clearDiagramFocusRegion } from './focusRegion';
+import { clearDiagramFocusRegion, publishDiagramFocusCanvas } from './focusRegion';
 import {
   computeHoverTransitionEvents,
   buildGroupPath,
@@ -201,6 +201,10 @@ export class DiagramWidget
 
   private renderer = new DiagramRenderer(buildThemeRenderConfig(darkGlassTheme));
   private scene: THREE.Scene | null = null;
+
+  // Canvas action overrides — accumulated by applyCanvasAction(), composed in apply().
+  private _canvasPan: { x: number; y: number } = { x: 0, y: 0 };
+  private _tiltDelta: { x: number; y: number } = { x: 0, y: 0 };
   private mainCamera: THREE.PerspectiveCamera | null = null;
   private diagramGroup: THREE.Group | null = null;
   /** Last applied state — used by hover handlers. */
@@ -279,14 +283,19 @@ export class DiagramWidget
       validateNVSRect(state.viewportBounds, `DiagramWidget(${this.widgetId})`);
     }
 
-    // Compute the group's world-space anchor point (center of viewportBounds).
-    const cx = state.viewportBounds.x + state.viewportBounds.w / 2;
-    const cy = state.viewportBounds.y + state.viewportBounds.h / 2;
+    // Compute the group's world-space anchor point (center of viewportBounds),
+    // offset by any accumulated canvas pan from applyCanvasAction().
+    const cx = state.viewportBounds.x + state.viewportBounds.w / 2 + this._canvasPan.x;
+    const cy = state.viewportBounds.y + state.viewportBounds.h / 2 + this._canvasPan.y;
     const [worldCX, worldCY, worldCZ] = context.coords.toWorld(cx, cy, state.z);
 
-    // Apply world position, tilt, and scale to the group.
+    // Apply world position, tilt (plus accumulated delta), and scale to the group.
     this.diagramGroup.position.set(worldCX, worldCY, worldCZ);
-    this.diagramGroup.rotation.set(state.tiltRotation[0], state.tiltRotation[1], state.tiltRotation[2]);
+    this.diagramGroup.rotation.set(
+      state.tiltRotation[0] + this._tiltDelta.x,
+      state.tiltRotation[1] + this._tiltDelta.y,
+      state.tiltRotation[2],
+    );
     this.diagramGroup.scale.setScalar(state.scale);
 
     // Pass state and coord service to the renderer.
@@ -318,6 +327,51 @@ export class DiagramWidget
     next: DiagramState | undefined,
   ): DiagramState | undefined {
     return mergeGhostNodeSnapshot(prev, next);
+  }
+
+  /**
+   * Applies a canvas-level action from ActionInputController.
+   * Accumulates position and rotation deltas; the next apply() tick composes
+   * these with the compiled DiagramState.
+   *
+   * @param action - The action variant to apply.
+   * @param dx - Horizontal delta in pointer pixels.
+   * @param dy - Vertical delta in pointer pixels.
+   * @param speed - Speed multiplier from the action spec.
+   * @param focusCenter - NVS [x, y] for the 'focus' action. Unused by other actions.
+   */
+  applyCanvasAction(
+    action: 'move' | 'rotate' | 'focus' | 'reset',
+    dx: number,
+    dy: number,
+    speed: number,
+    focusCenter?: [number, number],
+  ): void {
+    // Sensitivity constants tune pointer-pixel-to-NVS-unit / radian conversion.
+    const MOVE_SENSITIVITY = 0.001;
+    const ROTATE_SENSITIVITY = 0.003;
+
+    switch (action) {
+      case 'move':
+        this._canvasPan.x += dx * speed * MOVE_SENSITIVITY;
+        this._canvasPan.y += dy * speed * MOVE_SENSITIVITY;
+        break;
+      case 'rotate':
+        this._tiltDelta.x += dy * speed * ROTATE_SENSITIVITY;
+        this._tiltDelta.y += dx * speed * ROTATE_SENSITIVITY;
+        break;
+      case 'focus':
+        // Publish a canvas-level focus region. focusCenter is informational —
+        // the focus region system uses the widgetId as the canvas ID.
+        void focusCenter; // reserved for future viewport re-centering
+        publishDiagramFocusCanvas({ id: this.widgetId });
+        break;
+      case 'reset':
+        this._canvasPan = { x: 0, y: 0 };
+        this._tiltDelta = { x: 0, y: 0 };
+        clearDiagramFocusRegion(this.widgetId);
+        break;
+    }
   }
 
   dispose(): void {

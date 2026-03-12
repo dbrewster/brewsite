@@ -5,7 +5,22 @@ import * as THREE from 'three';
 import type { NVSRect } from '@brewsite/core';
 import type { ChartHoverInfo } from '../elements/chart/ChartWidget';
 import type { ChartWidget } from '../elements/chart/ChartWidget';
+export { projectNdcToNvsPixels } from '../elements/chart/tooltip/projectUtils';
 
+/**
+ * @deprecated Since v2.2. Use `<ChartTooltip>` inside the chart DSL and
+ * `<ChartTooltipHost>` inside EngineOverlayHost instead.
+ * This component will be **removed in the next minor version**.
+ *
+ * Migration:
+ * ```tsx
+ * // Before:
+ * <ChartTooltipOverlay widget={someWidget} nvsBounds={{ x: 0, y: 0, w: 1, h: 1 }} />
+ * // After:
+ * // In DSL:  <BarChart id="revenue" interactive><ChartTooltip /></BarChart>
+ * // In overlay: <EngineOverlayHost><ChartTooltipHost /></EngineOverlayHost>
+ * ```
+ */
 export type ChartTooltipOverlayProps = {
   /** The ChartWidget instance to subscribe to hover events on. */
   widget: ChartWidget;
@@ -28,35 +43,7 @@ type TooltipState = {
   y: number;
 };
 
-/**
- * Projects NDC coordinates to pixel offsets within the NVS sub-region of
- * the AR-locked container.
- *
- * @param ndcX - Normalized device coordinate X in [-1, 1].
- * @param ndcY - Normalized device coordinate Y in [-1, 1].
- * @param containerW - Full AR-locked container width in pixels.
- * @param containerH - Full AR-locked container height in pixels.
- * @param nvsBounds - The NVS sub-region the chart occupies.
- * @returns Pixel position relative to the AR container top-left.
- */
-export function projectNdcToNvsPixels(
-  ndcX: number,
-  ndcY: number,
-  containerW: number,
-  containerH: number,
-  nvsBounds: NVSRect,
-): { x: number; y: number } {
-  const regionX = nvsBounds.x * containerW;
-  const regionY = nvsBounds.y * containerH;
-  const regionW = nvsBounds.w * containerW;
-  const regionH = nvsBounds.h * containerH;
-
-  // NDC (-1 to 1) → sub-region pixel position relative to AR container origin.
-  const x = regionX + ((ndcX + 1) / 2) * regionW;
-  const y = regionY + ((-ndcY + 1) / 2) * regionH;
-
-  return { x, y };
-}
+import { projectNdcToNvsPixels } from '../elements/chart/tooltip/projectUtils';
 
 function defaultRenderContent(info: ChartHoverInfo): React.ReactNode {
   const entries = Object.entries(info.row).slice(0, 4);
@@ -73,11 +60,25 @@ function defaultRenderContent(info: ChartHoverInfo): React.ReactNode {
 }
 
 /**
+ * @deprecated Since v2.2. Use `<ChartTooltip>` inside the chart DSL and
+ * `<ChartTooltipHost>` inside EngineOverlayHost instead.
+ * This component will be **removed in the next minor version**.
+ *
+ * Migration:
+ * ```tsx
+ * // Before:
+ * <ChartTooltipOverlay widget={someWidget} nvsBounds={{ x: 0, y: 0, w: 1, h: 1 }} />
+ * // After:
+ * // In DSL:  <BarChart id="revenue" interactive><ChartTooltip /></BarChart>
+ * // In overlay: <EngineOverlayHost><ChartTooltipHost /></EngineOverlayHost>
+ * ```
+ *
  * Renders a floating tooltip inside EngineOverlayHost when a chart element is hovered.
  * Projects the 3D hit point to 2D pixel coordinates within the NVS sub-region
  * using the widget's camera and container size.
  *
- * Usage: place inside EngineOverlayHost in the same React tree as EngineProvider.
+ * @see ChartTooltip
+ * @see ChartTooltipHost
  */
 export function ChartTooltipOverlay({
   widget,

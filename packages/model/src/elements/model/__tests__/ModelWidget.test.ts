@@ -254,6 +254,7 @@ describe('ModelWidget', () => {
       node,
       {
         setWidgetState: (_id, state) => { captured = state; },
+        composeBounds: (r: { x: number; y: number; w: number; h: number }) => r,
         state: { widgets: {}, materialMetalnessMultiplier: 2, materialRoughnessMultiplier: 3 },
         context: {},
       },

@@ -3,8 +3,17 @@ title: "BrewSite Core — Architecture Reference"
 doc_type: prd
 owner: brewsite-product-manager
 status: active
-updated: 2026-03-08
+updated: 2026-03-12
 change_history:
+  - date: 2026-03-12
+    author: "Toolkit Product"
+    summary: "Input unification: rewrote section 3.8 Input to describe the unified system. SceneNavInputController (InputController class) and SceneNavInputMap removed. ActionInput (React component) added as the DSL-to-runtime bridge. Default spec injection (ArrowRight/Down = scene.next, ArrowLeft/Up = scene.prev) documented. ActionInputExtensionContext mechanism for plugin extensions documented."
+  - date: 2026-03-12
+    author: "Toolkit Product"
+    summary: "View/Region Architecture: added section 3.11 Layout module; updated section 3.3 Compiler to document view DSL files and viewTypes.ts; documented <View>/<ViewLayout> DSL and CompileApi.composeBounds."
+  - date: 2026-03-11
+    author: "Toolkit Product"
+    summary: "Compiler passthrough semantics clarified: non-widget state remains source-scene aligned across each transition block."
   - date: 2026-02-20
     author: brewflow-architect
     summary: "Initial architecture reference document."
@@ -93,6 +102,7 @@ hud/         ← HUD overlay types + compiler (no Three.js)
 labels/      ← Label types + projection math
 input/       ← Input controller abstractions
 timeline/    ← Timeline algebra
+layout/      ← Region types + spatial composition utilities
 math/        ← Pure math utilities (bottom)
 ```
 
@@ -220,10 +230,11 @@ import { getSceneTrackCache, setSceneTrackCache } from '../compiler/sceneTrackCa
 ```
 
 **Compiler sub-directories:**
-- `blocks/` — DSL block components: `hudBlocks.tsx` (Hud, HudItem), `inputController.tsx` (InputController, Action), `sceneDsl.tsx` (Scene, SceneGroup).
+- `blocks/` — DSL block components: `hudBlocks.tsx` (Hud, HudItem), `inputController.tsx` (InputController, Action), `sceneDsl.tsx` (Scene, SceneGroup), `viewDsl.tsx` (`<View>` DSL component and `ViewProps`), `viewLayoutDsl.tsx` (`<ViewLayout>` DSL component and `ViewLayoutProps`), `viewHandlers.ts` (NodeHandler implementations for `<View>` and `<ViewLayout>`).
 - `transitions/` — Transition type system: `transitionTypes.ts` defines `ElementTransitionSpec<T>`, `FunctionalTransitionSpec<T>`, `isFunctionalSpec()`, and the full set of blend/math utilities.
 - `primitives/` — Contains only `progressManager.ts`. The `compiler/primitives/` barrel (`primitives/index.ts`) has been removed; element DSL components are exported directly from `@brewsite/core`.
 - `registry.ts` — The global node handler registry (`registerNode`, `getNodeHandler`, `isPrimitiveComponent`, `clearRegistry`).
+- `viewTypes.ts` — Compiler state contracts for `<View>` and `<ViewLayout>`: `ViewState` and `ViewLayoutState`. Stored in `SceneFrame.widgets` keyed by the view/layout id. No Three.js, no React.
 - `sceneTrackTypes.ts` — Core data contracts: `SceneFrame`, `SceneFrameDelta`, `SceneTrackTick`, `SceneTrack`, `SceneWindow`, `FunctionalWidgetTransition`, `SceneTrackTransitionBlock`.
 - `sceneTrackCompiler.ts` — The main `compileSceneTrack()` function. Seven-step algorithm described in Section 5.
 - `sceneTrackSampler.ts` — O(1) `SceneTrackSampler.sample(progress)` implementation.
@@ -231,7 +242,7 @@ import { getSceneTrackCache, setSceneTrackCache } from '../compiler/sceneTrackCa
 - `hudCompiler.ts` — Compiles `HudItemDefinition` arrays into `HudItemResolved` arrays per tick.
 - `labelCompiler.ts` — Compiles `LabelResolved` arrays per tick.
 - `sceneTypes.ts` — Shared scene DSL type definitions.
-- `sceneDslTypes.ts` — `NodeHandler` type and related DSL infrastructure types.
+- `sceneDslTypes.ts` — `NodeHandler` type and related DSL infrastructure types. Contains `CompileApi` (including `composeBounds`) and `CompileHelpers`.
 
 ### 3.4 Elements (`elements/`)
 
@@ -393,36 +404,42 @@ type LabelResolved = {
 
 ### 3.8 Input (`input/`)
 
-Scene navigation and action-based input controllers.
+Scene navigation and action-based input. The input system is unified: a single declarative `<InputController>` DSL element covers all keyboard, pointer, and wheel-based input. The compiled spec is read at runtime by the `<ActionInput>` React component, which bridges it to `ActionInputController`.
 
-**`InputController` (exported as `SceneNavInputController`)** — Maps scroll, drag, swipe, wheel, and keyboard input to scene navigation progress. Configures via `SceneInputControllerSpec`:
+**`ActionInputController`** — The sole runtime input controller. Maps pointer, wheel, pinch, and keyboard events to named actions. Actions are dispatched to typed handlers:
+
+- `camera.orbit` / `camera.dolly` / `camera.reset` — delegated to `CameraWidget` methods via `UseSceneEngineResult`
+- `scene.next` / `scene.prev` — call `engine.advanceProgress(delta)` to step through scenes
+- `carousel.next` / `carousel.prev` — forward-declared; runtime handler is a follow-on plan
+- Unknown action types — forwarded to `onUnknownAction` from `ActionInputExtensionContext` (used by `@brewsite/diagram` to handle `diagram-canvas.*` actions)
+
+The `<InputController>` DSL component and its `<Action>` children compile to a `SceneInputControllerSpec` stored at the `__input_controller` widget ID in the SceneTrack:
 
 ```typescript
 type SceneInputControllerSpec = {
-  mode: 'scroll' | 'direct';
-  scope?: InputControllerScope;   // 'window' | 'element'
-  inputMap?: SceneNavInputMap;
+  id: string;
+  scope: InputControllerScope;   // 'canvas' | 'window'
+  actions: InputActionSpec[];
 };
 
-type SceneNavInputMap = {
-  wheel?: WheelConfig;
-  drag?: DragConfig;
-  swipe?: SwipeConfig;
-  click?: ClickConfig;
-  key?: SceneNavKeys;
-};
-```
-
-**`ActionInputController`** — Maps pointer and wheel input to named actions. Used for camera orbit, dolly, pan, and custom canvas interactions. The `InputController` DSL component and its `Action` children define the action-to-input mapping per scene:
-
-```typescript
 type InputActionSpec = {
-  name: string;
-  type: InputActionType;  // 'orbit' | 'dolly' | 'pan' | 'reset' | 'focus' | string
+  id: string;
+  type: InputActionType;  // 'camera.orbit' | 'scene.next' | 'carousel.next' | string
+  cameraId?: string;
+  canvasId?: string;
+  focusCenter?: [number, number] | [number, number, number];
+  speed?: number;
+  stepScenes?: number;
+  maps: InputActionMap[];   // pointer/wheel/pinch/key event bindings
 };
-
-type InputActionMap = Record<string, InputPointerMap | InputWheelMap | InputPinchMap | InputKeyMap>;
 ```
+
+When no scene authors an `<InputController>`, the compiler injects a default spec at compile time:
+- `scope: 'window'`, id `'__default'`
+- ArrowRight / ArrowDown → `scene.next`
+- ArrowLeft / ArrowUp → `scene.prev`
+
+**`ActionInput`** (player layer, `player/ActionInput.tsx`) — The React bridge component. Reads `__input_controller` from the current tick on every DOM event (no re-mount on scene change), constructs an `ActionInputController`, and keeps it attached for the component lifetime. Dispatches recognized actions to engine methods and unknown actions to `ActionInputExtensionContext`. Render null.
 
 **`input/types.ts`** — All input type definitions. Exported from `input/index.ts`.
 
@@ -478,6 +495,104 @@ function copyVec3(value: Vec3): Vec3;
 ```
 
 **`math/pose.ts`** — Pose utilities for working with `Node` scene graph objects: computing world-space positions, applying pose snapshots, and diffing pose maps.
+
+### 3.11 Layout (`layout/`)
+
+Spatial composition utilities for the View/Region system. All code here is pure — no Three.js, no React, no side effects.
+
+**`layout/regionTypes.ts`** — Type contracts for the region system:
+
+```typescript
+/** RegionBounds is an alias for NVSRect. All region math operates on NVSRect directly. */
+type RegionBounds = NVSRect;
+
+/** Padding spec — single value, [vertical, horizontal], or [top, right, bottom, left]. All in NVS fractions. */
+type RegionPadding = number | readonly [number, number] | readonly [number, number, number, number];
+
+/** Always [top, right, bottom, left]. Produced by normalizePadding(). */
+type NormalizedPadding = readonly [number, number, number, number];
+
+/** Layout policy discriminator. */
+type ViewLayoutKind = 'stack' | 'carousel';
+
+type StackLayoutConfig = {
+  kind: 'stack';
+  direction?: 'horizontal' | 'vertical';  // default: 'horizontal'
+  gap?: number;                            // NVS gap between views. Default: 0.
+};
+
+type CarouselLayoutConfig = {
+  kind: 'carousel';
+  activeIndex: number;      // 0-indexed active view
+  gap?: number;             // NVS gap between adjacent views. Default: 0.04.
+  inactiveScale?: number;   // Scale for inactive views. Default: 0.75.
+  zStep?: number;           // NVS z-step per position from active. Default: 0.1.
+};
+
+type ViewLayoutConfig = StackLayoutConfig | CarouselLayoutConfig;
+
+/** Per-view result of a layout resolution pass. */
+type ViewLayoutResult = {
+  bounds: NVSRect;   // Resolved absolute NVS bounds for this view
+  layer: number;     // Z-order — higher = in front
+  scale: number;     // Scale factor (1.0 = full size; < 1.0 for inactive carousel items)
+};
+```
+
+**`layout/regionNormalize.ts`** — Pure helper functions:
+
+```typescript
+/** Normalize any RegionPadding form to a 4-tuple [top, right, bottom, left]. */
+function normalizePadding(padding: RegionPadding): NormalizedPadding;
+
+/** Apply padding insets to a rect, returning the inner content bounds. */
+function applyPaddingToRect(rect: NVSRect, padding: NormalizedPadding): NVSRect;
+
+/** Resolve a RegionContract to its full ResolvedRegion (outer bounds + content bounds + padding). */
+function resolveRegion(contract: RegionContract): ResolvedRegion;
+
+/**
+ * Map a local [0..1] NVS rect into a parent NVS rect.
+ * local.x=0 maps to parent.x; local.x=1 maps to parent.x + parent.w.
+ * Used by CompileApi.composeBounds() to chain view nesting.
+ */
+function composeBoundsIntoParent(local: NVSRect, parent: NVSRect): NVSRect;
+
+/** Compute the smallest NVS rect enclosing both input rects. */
+function unionBounds(a: NVSRect, b: NVSRect): NVSRect;
+```
+
+**`layout/regionLayout.ts`** — Layout resolution algorithms:
+
+```typescript
+/**
+ * Resolves a layout for N child views within a container.
+ * Returns one ViewLayoutResult per child in the same order as childSizeHints.
+ */
+function resolveLayout(
+  config: ViewLayoutConfig,
+  container: NVSRect,
+  childSizeHints: Array<{ w: number; h: number }>,
+): ViewLayoutResult[];
+
+/** Stack layout: arranges views linearly with optional gap. */
+function resolveStackLayout(
+  config: StackLayoutConfig,
+  container: NVSRect,
+  childSizeHints: Array<{ w: number; h: number }>,
+): ViewLayoutResult[];
+
+/** Carousel layout: symmetric fan around active view with scale + z-depth falloff. */
+function resolveCarouselLayout(
+  config: CarouselLayoutConfig,
+  container: NVSRect,
+  childSizeHints: Array<{ w: number; h: number }>,
+): ViewLayoutResult[];
+```
+
+**`layout/index.ts`** — Re-exports all public layout symbols. Consumers of the View/Region system import from `@brewsite/core/layout` or directly from `@brewsite/core` (types are re-exported from the core index).
+
+**Design rule for the layout module:** All functions are pure. They accept plain data and return plain data. There is no Three.js, no React, and no mutable shared state. Tests for this module use real inputs and assert exact output shapes.
 
 ---
 
@@ -629,7 +744,7 @@ The widget fills its own frame slots by writing `frames[i].state.widgets[widgetI
 - `interpolate()` — widget present in both scenes. Receives the full block.
 
 **Path B — FunctionalTransitionSpec (closure capture):**
-The compiler calls `exitFn(fromState)`, `enterFn(toState)`, or `interpolateFn(fromState, toState)` once, capturing endpoint state into closures. The returned `(t: number) => T` functions are wrapped with half-block remapping and stored in `SceneTrack.transitionBlocks[N].widgetFns`.
+The compiler calls `exitFn(fromState)`, `enterFn(toState)`, or `interpolateFn(fromState, toState)` once, capturing endpoint state into closures. The returned `(t: number) => T` functions are wrapped with transition-window remapping and stored in `SceneTrack.transitionBlocks[N].widgetFns`.
 
 Path B is selected when `isFunctionalSpec(spec)` returns `true` — i.e., when the spec has `interpolateFn` rather than `interpolate`.
 
@@ -696,7 +811,7 @@ type FunctionalTransitionSpec<T> = {
   /**
    * Called once with fromState at compile time.
    * Returns a pure function: t ∈ [0, 1] → T.
-   * Active over first half of block (blockProgress ∈ [0, 0.5)).
+   * Active over the configured exit window.
    * t = 0: widget at fromState. t = 1: widget fully absent.
    */
   exitFn(fromState: T): (t: number) => T;
@@ -704,7 +819,7 @@ type FunctionalTransitionSpec<T> = {
   /**
    * Called once with toState at compile time.
    * Returns a pure function: t ∈ [0, 1] → T.
-   * Active over second half of block (blockProgress ∈ [0.5, 1]).
+   * Active over the configured enter window.
    * t = 0: widget fully absent. t = 1: widget at toState.
    */
   enterFn(toState: T): (t: number) => T;

@@ -276,8 +276,13 @@ const EMPTY_ROUTE: import('./routingTypes').EdgeRouteState = {
   controlPoints: [],
 };
 
-const ROUTE_DEBUG_ENABLED = true;
+const ROUTE_DEBUG_ENABLED = false;
 const ROUTE_DEBUG_FILTER: string | undefined = undefined;
+
+function appendDebugEntry(_json: string): void {
+  // Debug logging disabled. Enable ROUTE_DEBUG_ENABLED and
+  // use console.warn to inspect individual edges during development.
+}
 
 function emitRouteDebugLog(
   request: EdgeRoutingRequest,
@@ -356,32 +361,32 @@ function emitRouteDebugLog(
         : undefined,
     }));
 
-  console.log(`[route-debug] ${JSON.stringify({
-    edgeId: request.id,
-    fromId: request.fromId,
-    toId: request.toId,
-    routing: request.routing,
-    landing: request.landing,
-    bundleHint: debugContext.bundleHint,
-    fromNode: debugContext.fromNode,
-    toNode: debugContext.toNode,
-    faceCandidates: debugContext.faceCandidates,
-    activeFaceCandidates: debugContext.activeFaceCandidates,
-    prunedFaceCandidates: debugContext.prunedFaceCandidates,
-    winner: winner
-      ? {
-        srcFace: winner.srcFace,
-        dstFace: winner.dstFace,
-        sourcePortIndex: winner.sourcePortIndex,
-        destinationPortIndex: winner.destinationPortIndex,
-        routeKind: winner.geometry.routeKind,
-        obstacleIds: winner.geometry.obstacleIds ?? [],
-        rankKey: winner.rankKey,
-        score: winner.score,
-      }
-      : null,
-    candidates: serializedCandidates,
-  })}`);
+  appendDebugEntry(JSON.stringify({
+      edgeId: request.id,
+      fromId: request.fromId,
+      toId: request.toId,
+      routing: request.routing,
+      landing: request.landing,
+      bundleHint: debugContext.bundleHint,
+      fromNode: debugContext.fromNode,
+      toNode: debugContext.toNode,
+      faceCandidates: debugContext.faceCandidates,
+      activeFaceCandidates: debugContext.activeFaceCandidates,
+      prunedFaceCandidates: debugContext.prunedFaceCandidates,
+      winner: winner
+        ? {
+          srcFace: winner.srcFace,
+          dstFace: winner.dstFace,
+          sourcePortIndex: winner.sourcePortIndex,
+          destinationPortIndex: winner.destinationPortIndex,
+          routeKind: winner.geometry.routeKind,
+          obstacleIds: winner.geometry.obstacleIds ?? [],
+          rankKey: winner.rankKey,
+          score: winner.score,
+        }
+        : null,
+      candidates: serializedCandidates,
+  }));
 }
 
 // ─── Center-landing special case ──────────────────────────────────────────────

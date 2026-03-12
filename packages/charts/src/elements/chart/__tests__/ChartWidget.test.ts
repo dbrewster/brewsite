@@ -131,6 +131,8 @@ class ChartRendererDouble {
   updateHeatmapSlice(_sliceIndex: number, _input: ChartRenderInput, _widgetId: string): void {}
   getInteractiveObjects(): unknown[] { return []; }
   resolveHoverInfo(): null { return null; }
+  updateProjection(_info: unknown, _theme: unknown): void {}
+  tickProjection(_theme: unknown): void {}
 }
 
 /** Minimal mock DOM element for tests running in node environment. */
@@ -525,8 +527,8 @@ describe('ChartWidget', () => {
     expect(displayNames).toContain('ChartLegend');
     expect(displayNames).toContain('ChartDataLabels');
     expect(displayNames).toContain('ReferenceLine');
-    // BarChart is DslComponent (not in childDslComponents), total 12 children
-    expect(widget.childDslComponents).toHaveLength(12);
+    // BarChart is DslComponent (not in childDslComponents), total 13 children (includes ChartTooltip)
+    expect(widget.childDslComponents).toHaveLength(13);
   });
 
   it('DslComponent is BarChart', () => {

@@ -1,22 +1,16 @@
 // Contract layer for the diagram element. No runtime imports, no Three.js, no React.
 
 import type { DiagramNodeShape, DiagramIconVariant } from './shapes/shapeVariants';
-import type { InputActionSpec, SceneTheme, NVSRect } from '@brewsite/core';
+import type { InputActionSpec, SceneTheme, NVSRect, ThemeFamily } from '@brewsite/core';
 
 // ─── Theming ─────────────────────────────────────────────────────────────────
 
 /**
  * Canonical diagram theme preset names.
+ * Type alias for ThemeFamily from @brewsite/core. Maintained for backward compatibility.
  * All six names have matching presets in @brewsite/charts (ChartThemeName).
- * Both unions are maintained independently per package — valid divergence is expected.
  */
-export type DiagramThemeName =
-  | 'darkGlass'
-  | 'midnight'
-  | 'neonCyber'
-  | 'enterprise'
-  | 'lightCanvas'
-  | 'lightMinimal';
+export type DiagramThemeName = ThemeFamily;
 
 /**
  * Controls how edge control points are computed between nodes.
@@ -375,6 +369,18 @@ export interface DiagramTheme {
    * Moved from DiagramThemeNodeConfig.fontUrl (which is deleted).
    */
   readonly fontUrl?: string;
+  /**
+   * SDF glyph size for troika-three-text atlas tiles (pixels per glyph).
+   * Controls how many unique glyphs fit in the shared troika SDF atlas.
+   *
+   * Troika's built-in default is 64. Setting to 32 quadruples atlas capacity
+   * (~4096 glyph slots) with negligible quality loss at typical diagram viewport
+   * sizes. This is the recommended value for applications with many diagram scenes.
+   *
+   * When absent, `themeResolver` defaults to 32. Set to 64 explicitly only if
+   * maximum per-glyph sharpness is required at very large font sizes.
+   */
+  readonly sdfGlyphSize?: number;
 }
 
 /**
@@ -439,6 +445,13 @@ export interface DiagramThemeRenderConfig {
   readonly nodeLabelFontSizeBase: number;
   /** Base font-size coefficient for node sublabels. From theme.node.sublabelFontSizeBase. */
   readonly nodeSublabelFontSizeBase: number;
+  /**
+   * SDF glyph size for troika-three-text atlas tiles (pixels per glyph).
+   * Source: theme.sdfGlyphSize ?? 32.
+   * Applied to all Text objects (node labels, sublabels, group titles).
+   * Lower = more glyph slots in the atlas; 32 gives ~4096 slots vs 64's ~1024.
+   */
+  readonly nodeSdfGlyphSize: number;
 }
 
 // ─── Node ───────────────────────────────────────────────────────────────────

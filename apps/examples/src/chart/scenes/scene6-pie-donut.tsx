@@ -4,10 +4,12 @@ import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { ChartAxis, ChartLegend, ChartSeries, PieChart } from '@brewsite/charts';
 import { productRevenue } from '../data/productData';
 import { PIE_CAM_FOV, PIE_CAM_POS, PIE_CAM_TGT, PIE_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
-import {theme} from "../ChartDemoPage";
+import { useDemoChartTheme } from './sceneShared';
 
 // Scene 6a — Pie chart (innerRadius=0)
-export const Scene6a = (): JSX.Element => (
+export const Scene6a = (): JSX.Element => {
+  const chartTheme = useDemoChartTheme();
+  return (
   <Scene id="chart-s6a" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.3] }}>
     <ProgressManager scrollUnits={1200} />
     <Camera mode="world" position={PIE_CAM_POS} target={PIE_CAM_TGT} fov={PIE_CAM_FOV} />
@@ -16,9 +18,9 @@ export const Scene6a = (): JSX.Element => (
     <PieChart
       id="product-split"
       data={productRevenue}
-      theme={theme}
+      theme={chartTheme}
       innerRadius={0}
-      pieTilt={-0.35}
+      pieTilt={0}
       x={PIE_LAYOUT.x}
       y={PIE_LAYOUT.y}
       w={PIE_LAYOUT.w}
@@ -33,10 +35,13 @@ export const Scene6a = (): JSX.Element => (
 
     <SceneTitleBox id="s6a-title" title="Revenue by Product — Pie" />
   </Scene>
-);
+  );
+};
 
 // Scene 6b — Donut (innerRadius=0.5)
-export const Scene6b = (): JSX.Element => (
+export const Scene6b = (): JSX.Element => {
+  const chartTheme = useDemoChartTheme();
+  return (
   <Scene id="chart-s6b" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.3] }}>
     <ProgressManager scrollUnits={1200} />
     <Camera mode="world" position={PIE_CAM_POS} target={PIE_CAM_TGT} fov={PIE_CAM_FOV} />
@@ -45,9 +50,9 @@ export const Scene6b = (): JSX.Element => (
     <PieChart
       id="product-split"
       data={productRevenue}
-      theme={theme}
+      theme={chartTheme}
       innerRadius={0.5}
-      pieTilt={-0.35}
+      pieTilt={0}
       x={PIE_LAYOUT.x}
       y={PIE_LAYOUT.y}
       w={PIE_LAYOUT.w}
@@ -62,10 +67,13 @@ export const Scene6b = (): JSX.Element => (
 
     <SceneTitleBox id="s6b-title" title="Revenue by Product — Donut" />
   </Scene>
-);
+  );
+};
 
 // Scene 6c — Exploded slice (Core Platform pushed outward)
-export const Scene6c = (): JSX.Element => (
+export const Scene6c = (): JSX.Element => {
+  const chartTheme = useDemoChartTheme();
+  return (
   <Scene id="chart-s6c" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.3] }}>
     <ProgressManager scrollUnits={1000} />
     <Camera mode="world" position={PIE_CAM_POS} target={PIE_CAM_TGT} fov={PIE_CAM_FOV} />
@@ -74,9 +82,9 @@ export const Scene6c = (): JSX.Element => (
     <PieChart
       id="product-split"
       data={productRevenue}
-      theme={theme}
+      theme={chartTheme}
       innerRadius={0.5}
-      pieTilt={-0.35}
+      pieTilt={0}
       explodeSlice="Core Platform"
       x={PIE_LAYOUT.x}
       y={PIE_LAYOUT.y}
@@ -92,4 +100,5 @@ export const Scene6c = (): JSX.Element => (
 
     <SceneTitleBox id="s6c-title" title="Core Platform — Spotlight" />
   </Scene>
-);
+  );
+};

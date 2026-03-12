@@ -202,12 +202,85 @@ export type DataLabelEntry = {
 
 // ─── Hit info ─────────────────────────────────────────────────────────────
 
-/** Hit info returned by hover/click raycasting. */
+/**
+ * Typed per-chart-kind hover metadata.
+ * Discriminated on `kind` — matches ChartType.
+ * Populated by each renderer's resolveHoverInfo().
+ */
+export type ChartHitMeta =
+  | {
+      readonly kind: 'bar';
+      /** Label of the hovered series (from ChartSeriesState.label or field). */
+      readonly seriesLabel: string;
+      /** Stack group key when stackMode='stacked'. */
+      readonly stackGroup?: string;
+      /** The hovered segment's own value (not the cumulative stack top). */
+      readonly segmentValue: number;
+      /** Sum of all series values for this datum. Absent for grouped bars. */
+      readonly stackTotal?: number;
+    }
+  | {
+      readonly kind: 'line';
+      readonly seriesLabel: string;
+      /** The Y-axis value at the hit point — from row[yAxis.field]. */
+      readonly yValue: number;
+    }
+  | {
+      readonly kind: 'area';
+      readonly seriesLabel: string;
+      /** The Y-axis value at the hit point — from row[yAxis.field]. */
+      readonly yValue: number;
+      /** Cumulative stack value at this point, when stackMode='stacked'. */
+      readonly stackValue?: number;
+    }
+  | {
+      readonly kind: 'scatter';
+      /** The X-axis numeric value at the hit point. */
+      readonly xValue: number;
+      /** Size encoding value (from sizeField). */
+      readonly sizeValue?: number;
+      /** Color encoding value (from colorField). */
+      readonly colorValue?: number | string;
+    }
+  | {
+      readonly kind: 'pie';
+      /** The category label for the hovered slice. */
+      readonly sliceName: string;
+      /** Percentage of total this slice represents [0..100]. */
+      readonly percentage: number;
+      /** Sum of all slice values. */
+      readonly total: number;
+    }
+  | {
+      readonly kind: 'heatmap';
+      /** Normalized intensity value [0..1] at the hit cell. */
+      readonly intensity: number;
+      /** Row label (Y-axis category). */
+      readonly rowLabel: string;
+      /** Column label (X-axis category). */
+      readonly columnLabel: string;
+    };
+
+/** Hit information returned by hover/click raycasting. */
 export type ChartHitInfo = {
   readonly seriesIndex: number;
   readonly datumIndex: number;
   readonly row: Record<string, unknown>;
+  /** World-space hit point [x, y, z]. */
   readonly point: readonly [number, number, number];
+  /**
+   * Typed per-chart-kind metadata for rich tooltip rendering.
+   * Populated by each renderer's resolveHoverInfo().
+   */
+  readonly meta?: ChartHitMeta;
+  /**
+   * World-space terminus for the Y-axis projection beam.
+   * The point on the Y-axis face at the same Y and Z height as the hit point.
+   * Formula: [chartGroup.position.x + plotFrame.x, point[1], point[2]]
+   * Present for bar, line, area, scatter. Absent for pie, heatmap.
+   * Beam is drawn IFF this field is non-null.
+   */
+  readonly projectionTarget?: readonly [number, number, number];
 };
 
 // ─── Render context ───────────────────────────────────────────────────────
@@ -275,6 +348,14 @@ export type ChartRenderContext = {
    * Absent for renderers that have not yet been migrated to the bounding-fix path.
    */
   readonly fittedMargins?: FittedMargins;
+  /**
+   * Offset of the plot frame within chartGroup local space.
+   * plotFrameOffset.x is the X position of the Y-axis face in chartGroup coordinates.
+   * World-space Y-axis X = chartPosition[0] + plotFrameOffset.x
+   * Required by renderers to compute projectionTarget.
+   * @default undefined — renderers that don't need it ignore this field
+   */
+  readonly plotFrameOffset?: { readonly x: number; readonly y: number };
 };
 
 // ─── Interface ────────────────────────────────────────────────────────────

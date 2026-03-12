@@ -10,6 +10,8 @@ const ComparisonPage = lazy(() => import('./brewflow-comparison/ComparisonPage')
 const MultiUserPage = lazy(() => import('./brewflow-multiuser/MultiUserPage'));
 const SlidesDemoPage = lazy(() => import('./slides-demo/SlidesDemoPage'));
 const WhiteboardArchPage = lazy(() => import('./whiteboard-arch/WhiteboardArchPage'));
+const ThemeGalleryPage = lazy(() => import('./theme-gallery/ThemeGalleryPage'));
+const ViewDemoPage = lazy(() => import('./views/ViewDemoPage'));
 
 function Loading(): JSX.Element {
   return <div style={{ padding: '2rem' }}>Loading example...</div>;
@@ -27,6 +29,8 @@ export default function ExamplesApp(): JSX.Element {
         <Route path="/brewflow-multiuser" element={<MultiUserPage />} />
         <Route path="/slides-demo" element={<SlidesDemoPage />} />
         <Route path="/whiteboard-arch" element={<WhiteboardArchPage />} />
+        <Route path="/theme-gallery" element={<ThemeGalleryPage />} />
+        <Route path="/views" element={<ViewDemoPage />} />
         <Route
           path="/"
           element={
@@ -41,6 +45,8 @@ export default function ExamplesApp(): JSX.Element {
                 <li><a href="/examples/brewflow-multiuser">BrewFlow Memory at Scale: Multi-User Cloud Architecture</a></li>
                 <li><a href="/examples/slides-demo">Slides Demo — @brewsite/slides</a></li>
                 <li><a href="/examples/whiteboard-arch">Whiteboard Architecture</a></li>
+                <li><a href="/examples/theme-gallery">Theme Family Gallery (all 12 variants)</a></li>
+                <li><a href="/examples/views">View/ViewLayout Demo</a></li>
               </ul>
             </div>
           }

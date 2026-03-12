@@ -91,16 +91,16 @@ export function compileNvsViewportCamera(
 // ─── Defaults ─────────────────────────────────────────────────────────────
 
 export const DEFAULT_CAMERA_DESCRIPTOR: CameraPositionDescriptor = {
-  mode: 'fitBotHeight',
-  targetId: '',
-  targetHeight: 1,
-  framingHeightPct: 0.4,
-  heightOffset: 0,
-  distanceOffset: 0,
+  mode: 'orbit',
+  target: [0, 0, 0],
+  // 3/4 product-style default view.
+  azimuth: Math.PI / 4,
+  polar: 0.55,
+  distance: 4.5,
 };
 
 export const DEFAULT_CAMERA: SceneCamera = {
-  enabled: false,
+  enabled: true,
   descriptor: DEFAULT_CAMERA_DESCRIPTOR,
   // near: 0.01 — eliminates near-clip pop during close-focus transitions in 1-unit worlds.
   // far: 100  — recovers ~20× depth-buffer precision vs. the previous far=2000 default.

@@ -616,4 +616,23 @@ describe('compileSceneTrack', () => {
     const terminal = track.ticks[track.ticks.length - 1]!;
     expect(terminal.state.widgets['__input_controller']).toEqual(inputSpec);
   });
+
+  it('keeps source-scene passthrough state across the block', () => {
+    const widget = makeWidget({
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+    });
+    const registry = new WidgetRegistry().register(widget);
+    const fromInputSpec = { id: 'from', scope: 'canvas', actions: [] };
+    const toInputSpec = { id: 'to', scope: 'window', actions: [] };
+
+    const scenes = [
+      makeScene('s1', { w: 1, __input_controller: fromInputSpec }),
+      makeScene('s2', { w: 2, __input_controller: toInputSpec }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 4 });
+    const block = track.ticks.slice(0, 4).map((tick) => tick.state.widgets['__input_controller']);
+    expect(block).toEqual([fromInputSpec, fromInputSpec, fromInputSpec, fromInputSpec]);
+  });
 });

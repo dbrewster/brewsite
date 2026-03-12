@@ -1,12 +1,11 @@
 // @vitest-environment jsdom
-// Tests for ControlledInput: value write, onChange provision, KeyboardInput interop.
+// Tests for ControlledInput: value write, onChange provision.
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import React, { act, useState } from 'react';
 import { render, cleanup, fireEvent } from '@testing-library/react';
 import { EngineContext } from '../EngineContext';
 import { ControlledProgressContext } from '../ControlledProgressContext';
 import { ControlledInput } from '../ControlledInput';
-import { KeyboardInput } from '../KeyboardInput';
 import type { UseSceneEngineResult } from '../useSceneEngine';
 import type { ControlledProgressContextValue } from '../ControlledProgressContext';
 
@@ -165,32 +164,6 @@ describe('ControlledInput — ControlledProgressContext provision', () => {
   });
 });
 
-describe('ControlledInput + KeyboardInput interop', () => {
-  beforeEach(() => {
-    vi.stubGlobal('requestAnimationFrame', (cb: (ts: number) => void) => { cb(0); return 1; });
-    vi.stubGlobal('cancelAnimationFrame', vi.fn());
-  });
-
-  it('KeyboardInput calls onChange from ControlledInput when wrapped as child', () => {
-    const engine = makeEngine();
-    (engine as { sceneCount: number }).sceneCount = 3;
-    (engine.frameState as { progress: number }).progress = 0;
-    const onChange = vi.fn();
-
-    // KeyboardInput must be a CHILD of ControlledInput to receive its context
-    render(
-      <EngineContext.Provider value={engine}>
-        <ControlledInput value={0} onChange={onChange}>
-          <KeyboardInput manageFocus={false} />
-        </ControlledInput>
-      </EngineContext.Provider>,
-    );
-
-    act(() => {
-      fireEvent.keyDown(document, { key: 'ArrowRight' });
-    });
-
-    expect(onChange).toHaveBeenCalledWith(expect.closeTo(0.5, 5));
-    expect(engine.setProgress).toHaveBeenCalled(); // called by ControlledInput's useLayoutEffect
-  });
-});
+// Note: KeyboardInput + ControlledProgressContext interop tests have been removed.
+// KeyboardInput no longer handles keyboard events — scene navigation is delegated
+// to ActionInput via the compiled __input_controller spec. See ActionInput.test.tsx.

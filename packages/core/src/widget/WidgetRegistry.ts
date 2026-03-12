@@ -51,6 +51,27 @@ export interface IHasCustomDslHandler extends IWidget {
 export const hasCustomDslHandler = (widget: IWidget): widget is IHasCustomDslHandler =>
   CUSTOM_NODE_HANDLER in widget;
 
+const hashString = (input: string): string => {
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash = Math.imul(hash, 0x01000193);
+  }
+  return (hash >>> 0).toString(16);
+};
+
+const buildFunctionalTransitionSignature = (spec: Record<string, unknown>): string => {
+  const fnNames = ['exitFn', 'enterFn', 'interpolateFn'] as const;
+  const fnSource = fnNames
+    .map((name) => {
+      const fn = spec[name];
+      return typeof fn === 'function' ? `${name}:${fn.toString()}` : `${name}:`;
+    })
+    .join('|');
+  const defaultWindow = JSON.stringify(spec['defaultWindow'] ?? null);
+  return hashString(`${fnSource}|defaultWindow:${defaultWindow}`);
+};
+
 export class WidgetRegistry {
   private widgets = new Map<string, IWidget>();
   private typeFactories = new Map<unknown, (props: Record<string, unknown>) => IWidget>();
@@ -332,15 +353,13 @@ export class WidgetRegistry {
   buildCacheKey(): string {
     return Array.from(this.widgets.values())
       .map((w) => {
-        // For widgets using FunctionalTransitionSpec, include the interpolateFn source length
-        // as a lightweight change-detection hash. When the spec's interpolateFn is edited
-        // (e.g., compile.ts changes), its .toString() length changes → cache key changes →
-        // SceneTrack recompiles with fresh closures. Prevents stale transitions after HMR.
+        // For widgets using FunctionalTransitionSpec, include a hash of transition
+        // function sources so cache invalidation tracks real code changes, not length.
         if (isSceneElement(w)) {
           const spec = w.transitionSpec as Record<string, unknown>;
           if (typeof spec['interpolateFn'] === 'function') {
-            const len = (spec['interpolateFn'] as Function).toString().length;
-            return `${w.widgetId}:ifn${len}`;
+            const sig = buildFunctionalTransitionSignature(spec);
+            return `${w.widgetId}:fsig${sig}`;
           }
         }
         return w.widgetId;

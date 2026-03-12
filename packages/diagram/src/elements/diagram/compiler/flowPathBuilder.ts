@@ -144,8 +144,52 @@ export function buildLegacyEdgePath(
   return buildPathStateFromCommands(commands, startTangent, endTangent);
 }
 
+/**
+ * Remove axis-aligned direction reversals from a point sequence.
+ * A reversal occurs when three consecutive colinear points form a
+ * go-and-come-back pattern (A→B→C where B overshoots past C relative to A).
+ * In that case B is clamped to C's coordinate, eliminating the overshoot.
+ * This prevents stubs from extending past the first route waypoint.
+ */
+const eliminateAxisReversals = (points: Vec3[]): Vec3[] => {
+  if (points.length < 3) return points;
+  const result: Vec3[] = [points[0]!];
+  for (let i = 1; i < points.length; i += 1) {
+    const prev = result[result.length - 1]!;
+    const curr = points[i]!;
+    const next = i < points.length - 1 ? points[i + 1] : undefined;
+    if (!next) {
+      if (!vecEqual(prev, curr)) result.push(curr);
+      continue;
+    }
+    // Check for horizontal reversal: prev→curr→next all at same Y, and
+    // curr overshoots next relative to prev.
+    const sameY = Math.abs(prev[1] - curr[1]) < EPSILON && Math.abs(curr[1] - next[1]) < EPSILON;
+    if (sameY) {
+      const dxPrevCurr = curr[0] - prev[0];
+      const dxCurrNext = next[0] - curr[0];
+      // Reversal: directions are opposite and curr overshoots next
+      if (dxPrevCurr * dxCurrNext < -EPSILON) {
+        // Skip the overshooting point — collapse to next
+        continue;
+      }
+    }
+    // Check for vertical reversal: prev→curr→next all at same X
+    const sameX = Math.abs(prev[0] - curr[0]) < EPSILON && Math.abs(curr[0] - next[0]) < EPSILON;
+    if (sameX) {
+      const dyPrevCurr = curr[1] - prev[1];
+      const dyCurrNext = next[1] - curr[1];
+      if (dyPrevCurr * dyCurrNext < -EPSILON) {
+        continue;
+      }
+    }
+    if (!vecEqual(prev, curr)) result.push(curr);
+  }
+  return result;
+};
+
 export function buildFlowPathState(input: FlowPathBuildInput): DiagramEdgePathState {
-  const rawPoints = [
+  const rawPointsUnfiltered = [
     input.anchorStart,
     input.startStub,
     ...input.waypoints,
@@ -156,6 +200,11 @@ export function buildFlowPathState(input: FlowPathBuildInput): DiagramEdgePathSt
     const prev = index > 0 ? all[index - 1] : undefined;
     return !prev || !vecEqual(point, prev as Vec3);
   });
+
+  // Eliminate stub overshoots: when a stub extends past the first route
+  // waypoint and then the route reverses direction, the overshoot point
+  // is removed to produce a clean monotonic approach.
+  const rawPoints = eliminateAxisReversals(rawPointsUnfiltered);
 
   if (rawPoints.length < 2) {
     return buildPathStateFromCommands([], input.startTangent, input.endTangent, input.usedUnderpass, input.punctures);
@@ -194,10 +243,7 @@ export function buildFlowPathState(input: FlowPathBuildInput): DiagramEdgePathSt
       continue;
     }
 
-    const isTerminalCorner = i === 1 || i === rawPoints.length - 2;
-    const radiusCap = isTerminalCorner
-      ? 0
-      : Math.min(incomingLength * 0.5, outgoingLength * 0.5);
+    const radiusCap = Math.min(incomingLength * 0.5, outgoingLength * 0.5);
     const radius = Math.min(input.turnRadius, radiusCap);
     if (
       radius < EPSILON

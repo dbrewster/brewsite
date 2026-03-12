@@ -5,6 +5,7 @@ import { cleanup, render } from '@testing-library/react';
 import { EngineOverlayHost } from '../EngineOverlayHost';
 import { EngineContext } from '../EngineContext';
 import { ThemeContext } from '../../theme/ThemeContext';
+import { darkGlassSceneTheme, lightCanvasSceneTheme, SCENE_THEME_PAIRS } from '../../theme/presets';
 import type { UseSceneEngineResult } from '../useSceneEngine';
 import type { SceneTheme } from '../../theme/types';
 
@@ -45,12 +46,14 @@ const renderHost = (options: {
   transition?: React.ComponentProps<typeof EngineOverlayHost>['overlayTransition'];
   theme?: SceneTheme | null;
   passthroughPointerEvents?: boolean;
+  className?: string;
 } = {}) => {
   const {
     engine = makeEngine('scene-a'),
     transition,
     theme,
     passthroughPointerEvents,
+    className,
   } = options;
 
   const inner = (
@@ -58,6 +61,7 @@ const renderHost = (options: {
       <EngineOverlayHost
         overlayTransition={transition}
         passthroughPointerEvents={passthroughPointerEvents}
+        className={className}
       />
     </EngineContext.Provider>
   );
@@ -78,22 +82,27 @@ describe('EngineOverlayHost', () => {
 
   // ─── Transition animation ────────────────────────────────────────────────────
 
-  it('applies default transition style on the overlay container', () => {
+  it('applies default transition style on the inner overlay wrapper', () => {
     const view = renderHost();
-    const overlay = view.container.firstChild as HTMLDivElement;
-    expect(overlay.style.animation).toContain('brewsite-overlay-enter 200ms ease-out');
+    const outer = view.container.firstChild as HTMLDivElement;
+    // The animation is scoped to the inner wrapper (first child of outer) so that
+    // persistent children (e.g. ChartTooltipHost) are not unmounted on scene change.
+    const inner = outer.children[0] as HTMLDivElement;
+    expect(inner.style.animation).toContain('brewsite-overlay-enter 200ms ease-out');
   });
 
   it('supports disabling transition animation', () => {
     const view = renderHost({ transition: { enabled: false } });
-    const overlay = view.container.firstChild as HTMLDivElement;
-    expect(overlay.style.animation).toBe('');
+    const outer = view.container.firstChild as HTMLDivElement;
+    const inner = outer.children[0] as HTMLDivElement;
+    expect(inner.style.animation).toBe('');
   });
 
   it('applies configured transition duration and easing', () => {
     const view = renderHost({ transition: { durationMs: 350, easing: 'linear' } });
-    const overlay = view.container.firstChild as HTMLDivElement;
-    expect(overlay.style.animation).toContain('brewsite-overlay-enter 350ms linear');
+    const outer = view.container.firstChild as HTMLDivElement;
+    const inner = outer.children[0] as HTMLDivElement;
+    expect(inner.style.animation).toContain('brewsite-overlay-enter 350ms linear');
   });
 
   // ─── sceneOverlays rendering ─────────────────────────────────────────────────
@@ -117,10 +126,14 @@ describe('EngineOverlayHost', () => {
     expect(view.queryByText('Scene B content')).toBeNull();
   });
 
-  it('renders no content when sceneOverlays is empty', () => {
+  it('renders no overlay content in inner wrapper when sceneOverlays is empty', () => {
     const view = renderHost();
-    const overlay = view.container.firstChild as HTMLDivElement;
-    expect(overlay.children).toHaveLength(0);
+    const outer = view.container.firstChild as HTMLDivElement;
+    // The outer div always has one child (the inner overlay wrapper).
+    expect(outer.children).toHaveLength(1);
+    // The inner wrapper has no content when there is no overlay for the current scene.
+    const inner = outer.children[0] as HTMLDivElement;
+    expect(inner.children).toHaveLength(0);
   });
 
   it('passes through pointer events when passthroughPointerEvents is true', () => {
@@ -184,4 +197,126 @@ describe('EngineOverlayHost', () => {
     expect(overlay.style.getPropertyValue('--brewsite-text-primary')).toBe('#111111');
   });
 
+});
+
+describe('EngineOverlayHost — new CSS variables (theming-overhaul)', () => {
+  afterEach(() => { cleanup(); });
+
+  it('injects --brewsite-background-color fallback for non-color fills', () => {
+    // darkGlassSceneTheme uses a gradient fill, so the overlay variable falls back by colorMode.
+    const view = renderHost({ theme: darkGlassSceneTheme });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    expect(overlay.style.getPropertyValue('--brewsite-background-color')).toBe('#0a0a14');
+  });
+
+  it('injects --brewsite-background-color colorMode fallback when theme has no background fill', () => {
+    const theme: SceneTheme = makeTestTheme({ colorMode: 'dark', background: undefined });
+    const view = renderHost({ theme });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    expect(overlay.style.getPropertyValue('--brewsite-background-color')).toBe('#0a0a14');
+  });
+
+  it('injects --brewsite-background-color light fallback when colorMode is light and no fill', () => {
+    const theme: SceneTheme = makeTestTheme({ colorMode: 'light', background: undefined });
+    const view = renderHost({ theme });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    expect(overlay.style.getPropertyValue('--brewsite-background-color')).toBe('#f5f5f7');
+  });
+
+  it('injects --brewsite-radius-base as 6px for any theme', () => {
+    const view = renderHost({ theme: darkGlassSceneTheme });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    expect(overlay.style.getPropertyValue('--brewsite-radius-base')).toBe('6px');
+  });
+
+  it('injects --brewsite-surface-elevated with dark rgba value for dark colorMode', () => {
+    const view = renderHost({ theme: darkGlassSceneTheme });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    expect(overlay.style.getPropertyValue('--brewsite-surface-elevated')).toBe('rgba(255,255,255,0.06)');
+  });
+
+  it('injects --brewsite-surface-elevated with light rgba value for light colorMode', () => {
+    const view = renderHost({ theme: lightCanvasSceneTheme });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    expect(overlay.style.getPropertyValue('--brewsite-surface-elevated')).toBe('rgba(0,0,0,0.04)');
+  });
+
+  it('injects --brewsite-border-subtle with dark rgba value for dark colorMode', () => {
+    const view = renderHost({ theme: darkGlassSceneTheme });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    expect(overlay.style.getPropertyValue('--brewsite-border-subtle')).toBe('rgba(255,255,255,0.12)');
+  });
+
+  it('does NOT inject new variables when theme is null', () => {
+    const view = renderHost({ theme: null });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    expect(overlay.style.getPropertyValue('--brewsite-background-color')).toBe('');
+    expect(overlay.style.getPropertyValue('--brewsite-radius-base')).toBe('');
+  });
+});
+
+describe('EngineOverlayHost — CSS class injection (theming-overhaul)', () => {
+  afterEach(() => { cleanup(); });
+
+  it('adds bw-theme-darkGlass class when darkGlassSceneTheme is active (registry match)', () => {
+    const view = renderHost({ theme: darkGlassSceneTheme });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    expect(overlay.classList.contains('bw-theme-darkGlass')).toBe(true);
+  });
+
+  it('adds bw-dark class for dark colorMode', () => {
+    const view = renderHost({ theme: darkGlassSceneTheme });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    expect(overlay.classList.contains('bw-dark')).toBe(true);
+  });
+
+  it('adds bw-light class for light colorMode', () => {
+    const view = renderHost({ theme: lightCanvasSceneTheme });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    expect(overlay.classList.contains('bw-light')).toBe(true);
+  });
+
+  it('adds bw-theme-lightCanvas class for lightCanvasSceneTheme (registry match)', () => {
+    const view = renderHost({ theme: lightCanvasSceneTheme });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    expect(overlay.classList.contains('bw-theme-lightCanvas')).toBe(true);
+  });
+
+  it('does NOT add bw-theme-* class for a custom spread theme not in registry', () => {
+    // Object spread creates a new reference — resolveThemeFamily returns undefined.
+    const customTheme: SceneTheme = { ...darkGlassSceneTheme };
+    const view = renderHost({ theme: customTheme });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    const hasThemeClass = [...overlay.classList].some(c => c.startsWith('bw-theme-'));
+    expect(hasThemeClass).toBe(false);
+  });
+
+  it('custom spread theme still gets bw-dark from colorMode', () => {
+    const customTheme: SceneTheme = { ...darkGlassSceneTheme };
+    const view = renderHost({ theme: customTheme });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    expect(overlay.classList.contains('bw-dark')).toBe(true);
+  });
+
+  it('preserves consumer-provided className alongside injected theme classes', () => {
+    const view = renderHost({ theme: darkGlassSceneTheme, className: 'my-overlay' });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    expect(overlay.classList.contains('my-overlay')).toBe(true);
+    expect(overlay.classList.contains('bw-theme-darkGlass')).toBe(true);
+    expect(overlay.classList.contains('bw-dark')).toBe(true);
+  });
+
+  it('adds no bw-* classes when theme is null', () => {
+    const view = renderHost({ theme: null });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    expect([...overlay.classList].some(c => c.startsWith('bw-'))).toBe(false);
+  });
+
+  it('the light polarity entry for darkGlass family also resolves to bw-theme-darkGlass', () => {
+    // SCENE_THEME_PAIRS.darkGlass.light is in the registry by reference.
+    const view = renderHost({ theme: SCENE_THEME_PAIRS.darkGlass.light });
+    const overlay = view.container.firstChild as HTMLDivElement;
+    expect(overlay.classList.contains('bw-theme-darkGlass')).toBe(true);
+    expect(overlay.classList.contains('bw-light')).toBe(true);
+  });
 });

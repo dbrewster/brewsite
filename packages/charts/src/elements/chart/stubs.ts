@@ -15,6 +15,7 @@ import type {
   ChartDataLabelsProps,
   ReferenceLineProps,
   ChartProps,
+  ChartTooltipProps,
 } from './dsl';
 
 /** @deprecated Use <BarChart>, <LineChart>, etc. instead. */
@@ -68,3 +69,7 @@ ChartDataLabels.displayName = 'ChartDataLabels';
 /** DSL stub for a reference line drawn across the chart. */
 export function ReferenceLine(_props: ReferenceLineProps): null { return null; }
 ReferenceLine.displayName = 'ReferenceLine';
+
+/** DSL stub for tooltip configuration within a chart element. */
+export function ChartTooltip(_props: ChartTooltipProps): null { return null; }
+ChartTooltip.displayName = 'ChartTooltip';

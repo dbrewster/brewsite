@@ -212,6 +212,10 @@ export class DiagramRenderer {
       // Compute left and bottom edges from center and half-extents.
       const convertedGroup: DiagramGroupState = {
         ...groupState,
+        // Convert borderWidth and borderHeight from NVS fraction to world units —
+        // same scaling applied to node sizes. Keeps border proportional to diagram size.
+        borderWidth: groupState.borderWidth * uniformWorldW,
+        borderHeight: groupState.borderHeight * uniformWorldW,
         bounds: {
           x: localGCX - worldGW / 2,  // left edge (GroupRenderer: centerX = bounds.x + bounds.w/2)
           y: localGCY - worldGH / 2,  // bottom edge Y-up (GroupRenderer: centerY = bounds.y + bounds.h/2)
@@ -280,6 +284,9 @@ export class DiagramRenderer {
       };
       const convertedEdge: DiagramEdgeState = {
         ...edgeState,
+        // Convert edge thickness from NVS fraction to world units — same scaling
+        // applied to node sizes. Keeps tube radius proportional to diagram size.
+        thickness: edgeState.thickness * uniformWorldW,
         path: convertedPath,
         controlPoints: edgeState.controlPoints.map((cp) => {
           const localCpX = (cp[0] - 0.5) * uniformWorldW;
@@ -329,6 +336,8 @@ export class DiagramRenderer {
         ...nodeState,
         position: [localX, localY, localZ],
         size: [worldW, worldH],
+        // Convert node Z-depth from NVS fraction to world units.
+        thickness: nodeState.thickness * uniformWorldW,
       };
       this.nodeRenderer.getOrCreate(convertedNode, state.id, tc, group);
     }

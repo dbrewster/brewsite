@@ -3,7 +3,7 @@ title: "BrewSite Charts — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-11
+last_updated: 2026-03-12
 change_history:
   - date: 2026-03-04
     author: "Toolkit Product"
@@ -17,6 +17,15 @@ change_history:
   - date: 2026-03-11
     author: "Toolkit Product"
     summary: "Theme redesign: expanded canonical theme set from four to six names. Added midnightChartTheme (warm dark, amber-gold) and lightCanvasChartTheme (premium light, jewel-tone series). Redesigned darkGlass, neonCyber, and enterprise palettes for cross-package coherence with @brewsite/diagram. ChartThemeName union updated to include midnight and lightCanvas. CHART_THEMES registry updated with all six entries. All six themes carry 8-color series palettes coordinated with paired diagram theme files via comment blocks. Version bump: minor."
+  - date: 2026-03-11
+    author: "Toolkit Product"
+    summary: "Theming overhaul — polarity pairs and examples toggle: ChartThemeName is now a type alias for ThemeFamily (imported from @brewsite/core). Added CHART_THEME_PAIRS registry (Record<ThemeFamily, ChartThemePair>) — each entry pre-wired with the corresponding SceneTheme from SCENE_THEME_PAIRS. Six polarity-variant ChartTheme files added as @internal placeholders; production aesthetic authoring deferred. Examples app: ChartDemoPage now exports ChartDemoThemeContext and useDemoChartTheme() hook consumed by all 11 chart scenes; added sun/moon polarity toggle button; polarity toggle uses clearSceneTrackCache() + engineKey increment for full player remount. Version bump: minor."
+  - date: 2026-03-11
+    author: "Toolkit Product"
+    summary: "Tooltip + Y-axis projection system: Added ChartTooltipTokens and ChartProjectionTokens optional token groups to ChartTheme. All 12 preset themes include explicit tooltip and projection token objects. Added <ChartTooltip> DSL child, ChartTooltipState compiled type, ChartTooltipStore global bridge, <ChartTooltipHost /> overlay component, useChartTooltip() and useChartTooltipConfig() hooks. ChartHitInfo enriched with typed ChartHitMeta discriminated union and projectionTarget field. ChartProjectionRenderer added for 3D beam + landing dot. ChartTooltipOverlay marked @deprecated — replaced by <ChartTooltip> + <ChartTooltipHost />. All new types exported from @brewsite/charts."
+  - date: 2026-03-12
+    author: "Toolkit Product"
+    summary: "Theme family art direction: all six polarity-variant ChartTheme presets promoted from @internal placeholders to production-ready public exports. Each polarity variant carries a fully designed series material profile (metalness, roughness, transmission, emissiveIntensity), axis/legend label colors, and tooltip/projection tokens coordinated with the family's neutral palette and accent identity. Tooltip and projection token values for all 12 presets are now spec-authoritative. CHART_THEME_PAIRS exports all 12 variants. Added per-family series material profiles and opposite-polarity completeness requirements."
 ---
 
 # BrewSite Charts — Theming System
@@ -73,13 +82,19 @@ Chart rendering via troika-three-text used the troika built-in default font unco
 - **V2.1:** As a toolkit consumer, I want `createChartTheme(base, { gridlines: { color: '#888', opacity: 0.2, visible: true } })` so that gridlines are on by default for my theme without setting `gridlines` on every `<ChartAxis>`.
 - **V2.1:** As a toolkit consumer, I want `theme.axis.titleFontSize` to be independent of `theme.axis.fontSize` so that axis titles can be slightly larger than tick labels to establish visual hierarchy.
 - **V2.1:** As a toolkit consumer, I want `theme.legend.textOpacity` so that I can fade legend labels independently of their color, without constructing a new color value.
+- As a toolkit consumer, I want to add `<ChartTooltip />` as a child of my chart DSL so that hover tooltips appear automatically with no external component or widget reference required.
+- As a toolkit consumer, I want to place `<ChartTooltipHost />` once inside `EngineOverlayHost` and have it handle all chart tooltips in the engine so I don't need one overlay component per chart.
+- As a toolkit consumer, I want `<ChartTooltip projection />` so that a glowing 3D beam animates from the hovered data point to the Y-axis, giving hover interaction a signature visual moment.
+- As a toolkit consumer, I want `theme.tooltip` and `theme.projection` token groups so that tooltip and projection visuals are fully theme-native without custom CSS.
+- As a toolkit consumer, I want `useChartTooltipConfig('myChartId', { renderContent })` so that I can render custom React content in the tooltip without replacing the built-in layout for other charts.
 
 ---
 
 ## 6. Functional Requirements
 
 1. The `ChartTheme` type shall be a plain TypeScript object type with no runtime dependencies.
-2. Six preset themes — `darkGlassChartTheme`, `midnightChartTheme`, `neonCyberChartTheme`, `enterpriseChartTheme`, `lightCanvasChartTheme`, `lightMinimalChartTheme` — shall be exported as named constants from `@brewsite/charts`. The `ChartThemeName` union type shall include all six names: `'darkGlass' | 'midnight' | 'neonCyber' | 'enterprise' | 'lightCanvas' | 'lightMinimal'`. The `CHART_THEMES: Record<ChartThemeName, ChartTheme>` registry shall include all six entries.
+2. Six preset themes — `darkGlassChartTheme`, `midnightChartTheme`, `neonCyberChartTheme`, `enterpriseChartTheme`, `lightCanvasChartTheme`, `lightMinimalChartTheme` — shall be exported as named constants from `@brewsite/charts`. The `ChartThemeName` union type shall be a type alias for `ThemeFamily` from `@brewsite/core`, maintaining backward compatibility while tying it to the cross-package canonical union. The `CHART_THEMES: Record<ChartThemeName, ChartTheme>` registry shall include all six entries.
+2a. A `ChartThemePair` type (`{ readonly dark: ChartTheme; readonly light: ChartTheme }`) and `CHART_THEME_PAIRS: Record<ThemeFamily, ChartThemePair>` registry shall be exported from `@brewsite/charts`. Each entry is pre-wired with the corresponding `SceneTheme` from `SCENE_THEME_PAIRS`. All 12 entries carry production-quality aesthetic values; both polarities for every family are publicly exported.
 3. `ChartTheme` shall accept an optional `sceneTheme?: SceneTheme` field (imported from `@brewsite/core`).
 4. When `sceneTheme.font.webglFontUrl` is set, the chart render context shall pass it to troika-three-text for all axis tick labels, axis title labels, and legend labels.
 5. When `sceneTheme.colorMode` is `'dark'` and no explicit `ChartAxisTokens.labelColor` override is set, the chart renderer shall use a light-appropriate label color as a fallback default. Explicit theme values take precedence.
@@ -94,6 +109,17 @@ Chart rendering via troika-three-text used the troika built-in default font unco
 14. **V2.1:** `ChartReferenceLineTokens.lineWidth` is a world-space width applied to a thin `BoxGeometry` plane, not a `Three.js linewidth` property. This avoids the WebGL1 1px linewidth cap for reference lines.
 15. **V2.1:** `createChartTheme(base, overrides)` shall support deep-merging all new optional token groups via `ChartThemeOverrides`. Partial overrides of nested groups are supported (e.g., overriding only `bar.padding`).
 16. **V2.1:** All six built-in preset themes shall include explicit values for all new optional token groups. New `ChartThemeOverrides` callers that don't specify new groups inherit the preset's explicit values.
+17. `ChartTheme` shall accept two new optional token groups: `tooltip?: ChartTooltipTokens` and `projection?: ChartProjectionTokens`. All 12 built-in preset themes (6 base + 6 polarity variants) include explicit values for both groups.
+18. `<ChartTooltip>` shall be a valid DSL child of all chart types (`BarChart`, `LineChart`, `AreaChart`, `ScatterChart`, `PieChart`, `HeatmapChart`). It shall compile to `ChartState.tooltip: ChartTooltipState | null`.
+19. `ChartHitInfo` shall include a `meta?: ChartHitMeta` discriminated union field with chart-type-specific data (series label, stack total, percentage, size, intensity, etc.) populated by each renderer's `resolveHoverInfo()`.
+20. Bar, line, area, and scatter renderers shall populate `ChartHitInfo.projectionTarget` — the world-space terminus on the Y-axis face at the same Y and Z height as the hit point. Pie and heatmap renderers shall not populate `projectionTarget`.
+21. `<ChartTooltipHost />` (zero props) shall be a valid child of `EngineOverlayHost`. It subscribes to `ChartTooltipStore` and renders the active tooltip for whichever chart is hovered. When no chart is hovered, it renders nothing.
+22. `useChartTooltipConfig(chartId: string, config: ChartTooltipRuntimeConfig): void` shall register a custom `renderContent` function outside the SceneTrack. The hook deregisters on component unmount or `chartId` change.
+23. The Y-axis projection beam shall be drawn by `ChartProjectionRenderer` when `ChartHitInfo.projectionTarget` is non-null. Entrance animation is 220ms ease-out-expo (`beam.scale.x` from 0 to 1). Exit animation fades beam and dot to zero opacity over 160ms. Hover-change snaps to the new position and restarts the entrance animation.
+24. `ChartTooltipOverlay` is deprecated. Consumers must migrate to `<ChartTooltip>` + `<ChartTooltipHost />`. `ChartTooltipOverlay` will be removed in the next minor version.
+25. When `theme.tooltip` or `theme.projection` is absent (consumer custom theme without these optional groups), `ChartTooltipHost` and `ChartProjectionRenderer` use `darkGlass` token values as compile-time fallback constants.
+26. Each built-in `ChartTheme` preset shall define a family-specific series material profile in `theme.series[]` — covering `metalness`, `roughness`, `transmission`, and `emissiveIntensity` — that reflects the rendering character of that family and polarity. Dark-polarity variants use elevated emissive intensity and higher metalness relative to light-polarity variants of the same family. Light-polarity variants use near-matte materials with minimal emission to avoid visual noise on pale scene backgrounds.
+27. For every `ThemeFamily` in `CHART_THEME_PAIRS`, both the canonical and opposite-polarity `ChartTheme` entries shall carry fully designed values across all token groups: series materials, axis/legend colors, interaction tokens, tooltip tokens, and projection tokens. Neither polarity may reuse the other polarity's token values as a substitute for intentional design.
 
 ---
 
@@ -128,6 +154,19 @@ export type ChartTheme = {
   readonly gridlines?: ChartGridlinesTokens;
   readonly dataLabels?: ChartDataLabelsTokens;
   readonly referenceLines?: ChartReferenceLineTokens;
+  /**
+   * Tooltip HTML overlay visual tokens.
+   * When absent, ChartTooltipHost uses darkGlass token values as built-in fallback.
+   * All 12 built-in preset themes include explicit values.
+   */
+  readonly tooltip?: ChartTooltipTokens;
+  /**
+   * Y-axis projection beam visual tokens.
+   * Beam is drawn when ChartHitInfo.projectionTarget is non-null (bar, line, area, scatter).
+   * When absent, ChartProjectionRenderer uses darkGlass token values as built-in fallback.
+   * All 12 built-in preset themes include explicit values.
+   */
+  readonly projection?: ChartProjectionTokens;
 };
 ```
 
@@ -242,6 +281,224 @@ export type ChartReferenceLineTokens = {
 };
 ```
 
+### 7.2b ChartTooltipTokens and ChartProjectionTokens
+
+```typescript
+/**
+ * Tooltip HTML overlay visual tokens.
+ * When absent on a custom theme, ChartTooltipHost uses darkGlass values as fallback.
+ */
+export type ChartTooltipTokens = {
+  readonly background: string;
+  /**
+   * Argument to `backdrop-filter: blur(...)`. Empty string '' = no backdrop-filter.
+   * Requires a non-opaque background to be visible.
+   */
+  readonly blur: string;
+  readonly borderColor: string;
+  readonly borderRadius: string;
+  /** Primary value text color (Y value hero line). */
+  readonly valueColor: string;
+  /** Secondary label/key text color. */
+  readonly labelColor: string;
+  /** Font size in px (HTML units). */
+  readonly fontSize: number;
+  /** CSS font-family. Defaults to scene theme HTML font when absent. */
+  readonly fontFamily?: string;
+  readonly shadow: string;
+  /** Inner padding, CSS shorthand (e.g. '8px 12px'). */
+  readonly padding: string;
+  /** Maximum tooltip width in px. Default: 220. */
+  readonly maxWidth: number;
+  /** X offset from anchor point in px. Default: 12. */
+  readonly offsetX: number;
+  /** Y offset from anchor point in px. Default: -12 (above). */
+  readonly offsetY: number;
+};
+
+/**
+ * Y-axis projection beam visual tokens.
+ * Beam is drawn when ChartHitInfo.projectionTarget is non-null.
+ * When absent on a custom theme, ChartProjectionRenderer uses darkGlass values as fallback.
+ */
+export type ChartProjectionTokens = {
+  readonly color: string;
+  readonly emissiveIntensity: number;
+  /** Beam height in world units. */
+  readonly beamWidth: number;
+  readonly opacity: number;
+  /** Landing dot radius in world units. */
+  readonly dotRadius: number;
+  readonly dotEmissiveIntensity: number;
+  /** Entrance animation duration in ms. Default: 220. */
+  readonly animationDurationMs: number;
+};
+```
+
+**Built-in theme values for `tooltip` and `projection` token groups:**
+
+All 12 built-in preset themes include spec-authoritative `tooltip` and `projection` token values. Tooltip background colors are derived from each family's neutral palette and carry the family's characteristic translucency level. Border colors are derived from the family's primary accent. Projection beam and dot colors match the family's primary accent, with dark-polarity variants using the warmer/brighter accent value and light-polarity variants using the darker/cooler complement.
+
+| Theme | Tooltip bg | Tooltip border | Projection color | Beam width |
+|-------|-----------|----------------|-----------------|------------|
+| darkGlass | `rgba(28,16,10,0.92)` | `rgba(227,106,46,0.3)` | `#E36A2E` | 0.004 |
+| darkGlassLight | `rgba(252,246,240,0.95)` | `rgba(179,58,43,0.25)` | `#B33A2B` | 0.004 |
+| neonCyber | `rgba(8,0,28,0.94)` | `rgba(0,231,255,0.4)` | `#00E7FF` | 0.005 |
+| neonCyberLight | `rgba(240,248,255,0.95)` | `rgba(138,61,255,0.3)` | `#8A3DFF` | 0.005 |
+| enterprise | `rgba(255,255,255,0.96)` | `rgba(79,118,184,0.25)` | `#4F76B8` | 0.003 |
+| enterpriseLight | `rgba(255,255,255,0.97)` | `rgba(63,127,115,0.25)` | `#3F7F73` | 0.003 |
+| midnight | `rgba(6,8,24,0.94)` | `rgba(107,155,255,0.3)` | `#6B9BFF` | 0.005 |
+| midnightLight | `rgba(242,244,255,0.96)` | `rgba(79,100,200,0.25)` | `#4F64C8` | 0.004 |
+| lightCanvas | `rgba(255,255,255,0.96)` | `rgba(90,138,106,0.25)` | `#5A8A6A` | 0.003 |
+| lightCanvasDark | `rgba(18,26,20,0.93)` | `rgba(90,138,106,0.3)` | `#5A8A6A` | 0.003 |
+| lightMinimal | `rgba(255,255,255,0.97)` | `rgba(180,180,180,0.3)` | `#888888` | 0.003 |
+| lightMinimalDark | `rgba(16,16,18,0.94)` | `rgba(150,150,150,0.25)` | `#999999` | 0.003 |
+
+### 7.2c ChartTooltip DSL and Hover Metadata
+
+```typescript
+// DSL child component props (packages/charts/src/elements/chart/dsl.tsx)
+export type ChartTooltipProps = {
+  /**
+   * Enable the 3D Y-axis projection beam on hover. Default: false.
+   * Applies to bar, line, area, and scatter chart types only.
+   */
+  readonly projection?: boolean;
+  /**
+   * d3-format string for numeric Y values.
+   * @default '.3~s'
+   */
+  readonly format?: string;
+};
+
+// Compiled tooltip state — SceneTrack-safe, no functions
+export type ChartTooltipState = {
+  readonly projection: boolean;
+  readonly format?: string;
+};
+
+// Typed hit metadata discriminated union (packages/charts/src/renderers/shared/IChartRenderer.ts)
+export type ChartHitMeta =
+  | { readonly kind: 'bar';
+      readonly seriesLabel: string;
+      readonly stackGroup?: string;
+      readonly segmentValue: number;
+      readonly stackTotal?: number }
+  | { readonly kind: 'line';
+      readonly seriesLabel: string }
+  | { readonly kind: 'area';
+      readonly seriesLabel: string;
+      readonly stackValue?: number }
+  | { readonly kind: 'scatter';
+      readonly xValue: number;
+      readonly sizeValue?: number;
+      readonly colorValue?: number | string }
+  | { readonly kind: 'pie';
+      readonly sliceName: string;
+      readonly percentage: number;
+      readonly total: number }
+  | { readonly kind: 'heatmap';
+      readonly intensity: number;
+      readonly rowLabel: string;
+      readonly columnLabel: string };
+
+export type ChartHitInfo = {
+  readonly seriesIndex: number;
+  readonly datumIndex: number;
+  readonly row: Record<string, unknown>;
+  readonly point: readonly [number, number, number];
+  /** Typed per-chart-kind metadata for tooltip rendering. */
+  readonly meta?: ChartHitMeta;
+  /**
+   * World-space terminus for the Y-axis projection beam (Y-axis face at same Y+Z as hit).
+   * Non-null for bar, line, area, scatter. Absent for pie and heatmap.
+   */
+  readonly projectionTarget?: readonly [number, number, number];
+};
+```
+
+**DSL authoring example:**
+
+```tsx
+// Minimum — zero config:
+<BarChart id="revenue" interactive>
+  <ChartData source="revenueData" />
+  <ChartAxis axis="x" field="month" />
+  <ChartAxis axis="y" field="revenue" />
+  <ChartTooltip />
+</BarChart>
+
+// With projection beam and custom format:
+<BarChart id="revenue" interactive>
+  <ChartData source="revenueData" />
+  <ChartAxis axis="x" field="month" />
+  <ChartAxis axis="y" field="revenue" />
+  <ChartTooltip projection format=".2s" />
+</BarChart>
+```
+
+**Global overlay host (placed once, handles all charts):**
+
+```tsx
+<EngineOverlayHost>
+  <ChartTooltipHost />
+  {/* other overlay content */}
+</EngineOverlayHost>
+```
+
+**Custom render content:**
+
+```tsx
+useChartTooltipConfig('revenue', {
+  renderContent: (info) => <MyCustomTooltip info={info} />,
+});
+```
+
+### 7.2a ChartThemeName, ChartThemePair, and CHART_THEME_PAIRS
+
+```typescript
+// packages/charts/src/themes/types.ts
+
+/**
+ * Type alias for ThemeFamily from @brewsite/core.
+ * Maintained for backward compatibility — existing code referencing ChartThemeName compiles identically.
+ */
+import type { ThemeFamily } from '@brewsite/core';
+export type ChartThemeName = ThemeFamily;
+
+/** Dark/light pair of ChartTheme presets for a single ThemeFamily. */
+export type ChartThemePair = {
+  readonly dark: ChartTheme;
+  readonly light: ChartTheme;
+};
+```
+
+```typescript
+// packages/charts/src/themes/index.ts
+
+/**
+ * Registry of ChartTheme pairs for all six ThemeFamily values.
+ * Each entry's dark/light ChartThemes are pre-wired with the matching SceneTheme
+ * from @brewsite/core's SCENE_THEME_PAIRS — consumers need not manually attach sceneTheme.
+ *
+ * All twelve entries carry production-quality aesthetic values. Both polarities for every
+ * ThemeFamily are publicly exported and production-ready for use in shipped scenes.
+ *
+ * @example
+ * import { SCENE_THEME_PAIRS } from '@brewsite/core';
+ * import { DIAGRAM_THEME_PAIRS } from '@brewsite/diagram';
+ * import { CHART_THEME_PAIRS } from '@brewsite/charts';
+ *
+ * const family = 'darkGlass';
+ * const polarity = isDarkMode ? 'dark' : 'light';
+ *
+ * const sceneTheme   = SCENE_THEME_PAIRS[family][polarity];
+ * const diagramTheme = DIAGRAM_THEME_PAIRS[family][polarity]; // sceneTheme pre-wired
+ * const chartTheme   = CHART_THEME_PAIRS[family][polarity];   // sceneTheme pre-wired
+ */
+export const CHART_THEME_PAIRS: Record<ThemeFamily, ChartThemePair>;
+```
+
 ### 7.3 ChartDSL `sceneTheme` Prop
 
 ```typescript
@@ -326,6 +583,20 @@ const mySceneTheme = { ...darkSceneTheme, font: { ...darkSceneTheme.font, webglF
 
 ## 8. Technical Considerations
 
+### Per-Family Series Material Profiles
+
+Each `ThemeFamily` defines a distinct series material profile that governs the rendering character of data geometry (bars, lines, area fills, scatter points) for that family and polarity. The profile is expressed in `ChartTheme.series[]` via `ChartSeriesMaterialTokens`: `metalness`, `roughness`, `transmission`, and `emissiveIntensity`.
+
+Material profiles vary by family intent and polarity:
+
+- **Dark families** (darkGlass, midnight, neonCyber): elevated `emissiveIntensity` per series to create luminous data geometry that reads against dark scene backgrounds. `metalness` is moderate-to-high, giving series a three-dimensional gloss character. `transmission` above zero produces a glass depth effect on appropriate families (darkGlass).
+- **Light families** (lightCanvas, lightMinimal): near-zero `emissiveIntensity`; low `metalness`; low `transmission` — producing diffuse matte or ceramic series geometry that reads cleanly on pale scene backgrounds without hazing.
+- **Opposite-polarity variants**: the light-polarity variant of a dark family drops `emissiveIntensity` and `metalness` toward the light-family range. The dark-polarity variant of a light family raises `emissiveIntensity` to maintain series legibility against a dark scene background.
+
+Series colors (`ChartSeriesMaterialTokens.color`) are shared across polarities within a family — the same eight accent hex values are used for both dark and light entries. Only the material rendering parameters (`metalness`, `roughness`, `transmission`, `emissiveIntensity`) differ by polarity.
+
+Cross-package coordination: the series color palette is specified to match the 8-color accent palette used in the paired `DiagramTheme` (accessible via the cross-package comment block present in each preset theme file). When `DIAGRAM_THEME_PAIRS` and `CHART_THEME_PAIRS` entries for the same family are used together, the series colors and diagram node/edge accent colors form a coherent palette in side-by-side scenes.
+
 ### NVS Sub-Region Support
 
 `Chart` elements participate in the Normalized Viewport Space (NVS) system. `ChartWidget` implements `INVSBounded` (from `@brewsite/core`). When a chart is placed in a sub-region of the AR-locked container, its camera projection and tooltip DOM projection are both restricted to that region.
@@ -351,34 +622,28 @@ export type ChartDSL = {
 
 `x`, `y`, `w`, `h` are compiled into `ChartState.nvsBounds` and reflected by `ChartWidget.nvsBounds`. This controls camera framing and tooltip projection.
 
-**`ChartTooltipOverlay` — Breaking change:**
+**`ChartTooltipOverlay` — Deprecated:**
 
-The `camera` and `domElement` props on `ChartTooltipOverlay` have been **removed**. The `nvsBounds: NVSRect` prop is now **required**. `ChartTooltipOverlay` derives viewport offset from the NVS bounds against the `EngineARContainer` dimensions, rather than performing its own DOM element coordinate query.
-
-```typescript
-// REMOVED props:
-// camera: THREE.Camera
-// domElement: HTMLElement
-
-// REQUIRED prop added:
-// nvsBounds: NVSRect
-
-// Current ChartTooltipOverlay props:
-export type ChartTooltipOverlayProps = {
-  nvsBounds: NVSRect;        // required — replaces camera + domElement
-  className?: string;
-};
-```
-
-**Migration:** Remove `camera` and `domElement` props from `ChartTooltipOverlay` usages. Add `nvsBounds` — pass the value from `ChartWidget.nvsBounds` or construct a fullscreen rect `{ x: 0, y: 0, w: 1, h: 1 }` for charts that fill the viewport.
+`ChartTooltipOverlay` is **deprecated** and will be removed in the next minor version. The replacement is `<ChartTooltip>` (DSL child) + `<ChartTooltipHost />` (once in `EngineOverlayHost`). This eliminates the widget reference requirement and the duplicated `nvsBounds` prop.
 
 ```tsx
-// Before (removed):
-<ChartTooltipOverlay camera={engine.camera} domElement={canvas} />
-
-// After (current):
+// Before — deprecated pattern:
 <ChartTooltipOverlay nvsBounds={chartWidget.nvsBounds} />
+
+// After — current pattern:
+// In chart DSL:
+<BarChart id="revenue" interactive>
+  ...
+  <ChartTooltip />
+</BarChart>
+
+// In EngineOverlayHost (once, for all charts):
+<EngineOverlayHost>
+  <ChartTooltipHost />
+</EngineOverlayHost>
 ```
+
+`ChartTooltipOverlay` carries a `@deprecated` JSDoc tag referencing the version it was deprecated in and the version it will be removed in. The file is retained for this release cycle only.
 
 ### FontUrl propagation path
 
@@ -408,6 +673,18 @@ These fallbacks are only used when the resolved `ChartTheme` has no explicit `ax
 2. **WebGL font URL must be MSDF-encoded.** Standard web font URLs will not render correctly in troika-three-text. The file must be MSDF-pre-processed. Self-host for production.
 
 3. **Font is chart-wide, not per-axis.** A single `webglFontUrl` applies to all troika-rendered text in the chart (both axes, legend, any internally rendered text). Per-axis font customization is not supported in v1.
+
+4. **`sceneTheme.colorMode` has no effect on series material parameters.** `sceneTheme.colorMode` influences axis/legend label color fallbacks (when explicit values are absent) but does not adjust series `metalness`, `roughness`, or `emissiveIntensity`. For a fully correct polarity-switched chart, use a `CHART_THEME_PAIRS` entry rather than attempting to construct a polarity variant via `sceneTheme` alone — the pair entry carries the intentionally designed material profile for that polarity.
+
+5. **Polarity toggle in the examples app requires full player remount.** `ChartDemoPage` implements the polarity toggle via `clearSceneTrackCache()` + `engineKey` increment, causing `SceneEngine` to unmount and remount. This produces ~100–300ms latency. This is acceptable for a demo button. A lightweight CSS-variables-only update path (without remount) is possible for overlay content changes but does not address Three.js material color changes, which always require recompilation.
+
+6. **Hover interaction is mouse-only.** `ChartWidget` attaches `mousemove`, `mouseleave`, and `click` listeners. Touch events are not supported. Touch support is a separate future feature.
+
+7. **`interactive: true` is required for tooltips.** All hover behavior gates on `ChartState.interactive`. Charts that don't set `interactive` do not fire hover events and do not show tooltips, regardless of whether `<ChartTooltip>` is present.
+
+8. **`<ChartTooltipHost />` must be mounted for tooltips to display.** In development mode, a `console.warn` is emitted once per chart ID if `ChartWidget` writes to `ChartTooltipStore` and no `<ChartTooltipHost />` subscriber is registered within one frame. Silent failure in production.
+
+9. **Custom themes without `tooltip`/`projection` token groups fall back to `darkGlass` tokens.** Consumers defining fully custom `ChartTheme` objects that omit `tooltip` and `projection` will receive the `darkGlass` visual defaults. Specify these token groups explicitly to match your theme.
 
 ---
 
@@ -442,12 +719,21 @@ Any consumer code that passes `camera` or `domElement` to `ChartTooltipOverlay` 
 
 `ChartDSL.x`, `y`, `w`, `h` props and `ChartState.nvsBounds` are additive (minor) and require no migration.
 
+**Tooltip + Y-Axis Projection system: Semver impact: minor.** All new additions are additive:
+- `ChartTheme.tooltip` and `ChartTheme.projection` are optional fields — no existing `ChartTheme` callers break.
+- `ChartHitInfo.meta` and `ChartHitInfo.projectionTarget` are optional fields — no existing `resolveHoverInfo()` callers break.
+- `<ChartTooltip>`, `ChartTooltipHost`, `useChartTooltip`, `useChartTooltipConfig` are net-new exports.
+- `ChartTooltipOverlay` is marked `@deprecated` but still exported — no TypeScript errors for existing consumers until removal.
+
+**`ChartTooltipOverlay` deprecation: Semver impact: minor (deprecation). Removal: next minor.** Existing `ChartTooltipOverlay` consumers receive a TypeScript deprecation warning. No runtime breakage. Migration path documented in Section 8.
+
 ---
 
 ## 11. Dependencies
 
 - `@brewsite/core` — `SceneTheme`, `NVSRect`, `INVSBounded` type imports
 - `troika-three-text` — WebGL text rendering (peer dependency via Three.js ecosystem)
+- `three` — `BoxGeometry`, `MeshBasicMaterial`, `AdditiveBlending` for projection beam (existing peer dependency)
 - No new external npm packages
 
 ---
@@ -473,6 +759,45 @@ Any consumer code that passes `camera` or `domElement` to `ChartTooltipOverlay` 
 - [x] `ChartThemeName` union includes `midnight` and `lightCanvas`.
 - [x] `CHART_THEMES` registry includes all six entries.
 - [x] Each preset theme file contains the cross-package palette comment block matching the paired `@brewsite/diagram` theme file.
+
+**Shipped (theming overhaul — polarity pairs and examples toggle):**
+- [x] `ChartThemeName` is a type alias for `ThemeFamily` from `@brewsite/core`. Backward compat: all existing `ChartThemeName` usages compile without change.
+- [x] `ChartThemePair` type and `CHART_THEME_PAIRS` registry exported from `@brewsite/charts`.
+- [x] All six `CHART_THEME_PAIRS` entries pre-wired with corresponding `SceneTheme` from `SCENE_THEME_PAIRS`.
+- [x] `ChartDemoThemeContext` and `useDemoChartTheme()` hook implemented in `apps/examples/src/chart/scenes/sceneShared.tsx`.
+- [x] `ChartDemoPage` adds sun/moon polarity toggle button; all 11 chart scenes consume `useDemoChartTheme()`.
+- [x] Polarity toggle calls `clearSceneTrackCache()` and increments `engineKey` for player remount.
+- [x] TypeScript strict-mode typecheck passes for all new theme files.
+
+**Shipped (tooltip + Y-axis projection):**
+- [x] `ChartTooltipTokens` and `ChartProjectionTokens` types exported from `@brewsite/charts`.
+- [x] `ChartTheme.tooltip` and `ChartTheme.projection` optional fields present and typed.
+- [x] All 12 built-in preset themes include explicit `tooltip` and `projection` token objects.
+- [x] `<ChartTooltip>` DSL child compiles to `ChartState.tooltip: ChartTooltipState | null`.
+- [x] `ChartHitMeta` discriminated union type exported; all 6 renderers populate `meta` in `resolveHoverInfo()`.
+- [x] Bar, line, area, scatter renderers populate `projectionTarget`; pie and heatmap do not.
+- [x] `ChartProjectionRenderer` renders beam + landing dot; entrance 220ms ease-out-expo, exit 160ms fade.
+- [x] Hover-change snaps beam to new position and restarts entrance animation.
+- [x] `ChartTooltipStore` + `<ChartTooltipHost />` render type-aware tooltip for all 6 chart types.
+- [x] Tooltip anchored to projected 3D hit point; edge-flip at 16px canvas boundary.
+- [x] `useChartTooltipConfig(chartId, config)` hook exported; deregisters on unmount.
+- [x] `useChartTooltip()` hook exported.
+- [x] `ChartTooltipOverlay` carries `@deprecated` JSDoc with version numbers and migration link.
+- [x] New types and hooks exported from `packages/charts/src/index.ts`.
+- [x] `ChartTooltipProjectionRenderer` tests use `getNow` injection for deterministic timing.
+- [x] `apps/examples/src/chart/` demonstrates tooltip + projection on ≥2 chart types (bar, line).
+- [x] TypeScript strict mode passes across `packages/charts/`.
+
+**Shipped (theme family art direction — polarity variants and series materials):**
+- [x] All six polarity-variant `ChartTheme` presets carry production-quality aesthetic values; no placeholder or sibling-theme reuse remains.
+- [x] All 12 `ChartTheme` variants (6 canonical + 6 opposite-polarity) publicly exported from `@brewsite/charts`.
+- [x] Each polarity variant carries a fully designed series material profile (metalness, roughness, transmission, emissiveIntensity) distinct from its family sibling.
+- [x] Tooltip and projection token values for all 12 presets are spec-authoritative, coordinated with family neutral palette and accent identity.
+
+**Follow-on (not yet shipped — tracked separately):**
+- [ ] DiagramDemoPage and SimpleDemoPage polarity toggles (no pages exist yet).
+- [ ] README documents `CHART_THEME_PAIRS` usage pattern with cross-package consumer example.
+- [ ] `ChartTooltipOverlay` removed (scheduled for next minor version after deprecation cycle).
 
 **V2.1 (pending implementation):**
 - [ ] Five new optional token group types exported from `@brewsite/charts`: `ChartBarTokens`, `ChartAreaTokens`, `ChartGridlinesTokens`, `ChartDataLabelsTokens`, `ChartReferenceLineTokens`.

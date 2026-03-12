@@ -1,16 +1,39 @@
-// Midnight theme — light-background variant (PLACEHOLDER).
-// @internal Aesthetic placeholder — production design pending. Do not use in shipped scenes.
-
-// SHARED ACCENT PALETTE — must match packages/charts/src/themes/midnightLight.ts
-// Placeholder uses lightCanvas palette: '#3355cc', '#1a9966', '#cc3355', '#cc8800', '#6644bb'
+// Midnight theme — light polarity variant.
 
 import type { DiagramTheme } from '../types';
-import { lightCanvasTheme } from './lightCanvas';
+import { midnightTheme } from './midnight';
 
-/**
- * Light-background placeholder variant of the midnight theme family.
- * @internal Aesthetic placeholder — production design pending. Do not use in shipped scenes.
- */
 export const midnightLightTheme: DiagramTheme = {
-  ...lightCanvasTheme,
+  ...midnightTheme,
+  node: {
+    ...midnightTheme.node,
+    defaultColor: '#FFF9EE',
+    defaultBoxColor: '#F2E6D5',
+    defaultLabelColor: '#3A2A1B',
+    defaultSublabelColor: '#7B664C',
+    defaultMetalness: 0.12,
+    defaultRoughness: 0.58,
+    defaultEmissiveIntensity: 0.01,
+  },
+  edge: {
+    ...midnightTheme.edge,
+    defaultColor: '#A7793A',
+    defaultFlowColor: '#C07A59',
+    defaultFlowSpeed: 0.20,
+    defaultMetalness: 0.18,
+    defaultRoughness: 0.60,
+    flowPulseIntensity: 0.46,
+  },
+  group: {
+    ...midnightTheme.group,
+    defaultColor: '#F2E6D5',
+    defaultBorderColor: '#B58C5A',
+    defaultLabelColor: '#3A2A1B',
+  },
+  environment: {
+    ...midnightTheme.environment,
+    envMapIntensity: 0.14,
+    skyColor: '#FAF6EE',
+    horizonColor: '#F1E7D8',
+  },
 } as const;

@@ -1569,15 +1569,6 @@ function Controls() {
 </ScenePlayer>`}
             />
 
-            <h2><code>SceneNavInputMap</code> Options</h2>
-            <PropTable
-              rows={[
-                { name: 'mode', type: "'scroll' | 'direct'", required: false, defaultValue: 'scroll', description: 'Navigation mode' },
-                { name: 'wheel.enabled', type: 'boolean', required: false, defaultValue: 'true', description: 'Whether mouse wheel advances scenes' },
-                { name: 'drag.enabled', type: 'boolean', required: false, defaultValue: 'false', description: 'Whether drag gesture advances scenes' },
-                { name: 'pixelsPerScene', type: 'number', required: false, defaultValue: '800', description: 'Scroll/drag pixels per scene advance' },
-              ]}
-            />
           </ProseBlock>
           <ScenePanel id="scene-input-navigation" height="480px" plugins={DOCS_PLUGINS}>
             <SceneInputNavigationPanel />

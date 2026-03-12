@@ -1,7 +1,8 @@
 // Chart demo page — 10-scene V2 showcase.
 import type { JSX } from 'react';
-import { useCallback, useMemo, useRef, type RefObject } from 'react';
+import { useState, useCallback, useMemo, useRef, type RefObject } from 'react';
 import {
+  ActionInput,
   BackgroundLayer,
   EngineARContainer,
   EngineOverlayHost,
@@ -13,27 +14,24 @@ import {
   type ScrollStageHandle,
   TimelineWidget,
   useSceneEngineContext,
-  clearSceneTrackCache, lightCanvasSceneTheme, darkGlassSceneTheme
+  clearSceneTrackCache,
+  SCENE_THEME_PAIRS,
+  type ThemeFamily,
+  type ThemePolarity,
 } from '@brewsite/core';
-import { ChartProvider, useLiveChartData } from '@brewsite/charts';
+import { CHART_THEME_PAIRS, ChartTooltipHost } from '@brewsite/charts';
 import { createChartDemoPlugins } from './widgetSetup';
+import { ChartDemoThemeProvider } from './scenes/sceneShared';
 
 // Bust the compiled SceneTrack cache whenever this module is re-evaluated by Vite HMR.
 // This ensures changes to transition specs (functionalChartTransitionSpec, etc.) take effect
 // immediately in the dev server without a hard browser reload.
 if (process.env.NODE_ENV !== 'production') { clearSceneTrackCache(); }
 
-// ─── Data imports (named provider registrations only) ────────────────────────
-// Inline-data scenes (1, 2, 6, 9) pass data via props — NOT registered here.
-// Async scene (8) fetches /data/metrics.json via dataUrl — NOT registered here.
-import { regionalRevenue, saasMetrics24Months } from './data/saasMetrics';
-import { teamPerformance } from './data/teamData';
-import { activityHeatmap } from './data/heatmapData';
-
 // ─── Scene imports ────────────────────────────────────────────────────────────
 import { Scene1a, Scene1b } from './scenes/scene1-bar-morph';
 import { Scene2a, Scene2b } from './scenes/scene2-stacked-bar';
-import { Scene3 } from './scenes/scene3-multiline';
+import { Scene3a, Scene3b } from './scenes/scene3-multiline';
 import { Scene4 } from './scenes/scene4-stacked-area';
 import { Scene5 } from './scenes/scene5-bubble';
 import { Scene6a, Scene6b, Scene6c } from './scenes/scene6-pie-donut';
@@ -41,14 +39,14 @@ import { Scene7 } from './scenes/scene7-heatmap';
 import { Scene8 } from './scenes/scene8-async';
 import { Scene9a, Scene9b, Scene9c, Scene9d } from './scenes/scene9-switcher';
 import { Scene10 } from './scenes/scene10-linked-brush';
+import {LightDarkToggle} from "../Lights";
 
 type ChartProgressIndicatorProps = {
   scrollStageRef: RefObject<ScrollStageHandle | null>;
+  colorMode: 'dark' | 'light';
 };
 
-export const theme: 'lightCanvas' | 'darkGlass' = 'lightCanvas'
-
-function ChartProgressIndicator({ scrollStageRef }: ChartProgressIndicatorProps): JSX.Element {
+function ChartProgressIndicator({ scrollStageRef, colorMode }: ChartProgressIndicatorProps): JSX.Element {
   const engine = useSceneEngineContext();
   const handleSeek = useCallback((progress: number): void => {
     const rawProgress = engine.progressMapper ? engine.progressMapper.inverse(progress) : progress;
@@ -62,7 +60,7 @@ function ChartProgressIndicator({ scrollStageRef }: ChartProgressIndicatorProps)
   return (
     <TimelineWidget
       engine={engine}
-      theme={theme === 'lightCanvas' ? 'light' : 'dark'}
+      theme={colorMode === 'light' ? 'light' : 'dark'}
       position="bottom"
       thickness={36}
       majorTicks="scene"
@@ -77,40 +75,42 @@ function ChartProgressIndicator({ scrollStageRef }: ChartProgressIndicatorProps)
 }
 
 export default function ChartDemoPage(): JSX.Element {
-  const { plugins, chartsPlugin } = useMemo(() => createChartDemoPlugins(), []);
+  if (process.env.NODE_ENV !== 'production') {
+    clearSceneTrackCache();
+  }
+
+  const CHART_FAMILY: ThemeFamily = 'enterprise';
+  const [polarity, setPolarity] = useState<ThemePolarity>('light');
+
+  const sceneTheme = SCENE_THEME_PAIRS[CHART_FAMILY][polarity];
+  const chartTheme = useMemo(
+    () => CHART_THEME_PAIRS[CHART_FAMILY][polarity],
+    [polarity]
+  );
+
+  const { plugins } = createChartDemoPlugins();
   const scrollStageRef = useRef<ScrollStageHandle | null>(null);
-
-  // Named data sources: only scenes using <ChartData source="..."> are registered here.
-  //   Scene 3 (multi-line):    source="saas-24m"
-  //   Scene 4 (stacked area):  source="regional"
-  //   Scene 5 (bubble):        source="teams"
-  //   Scene 7 (heatmap):       source="heatmap"
-  //   Scene 10 (linked brush): live data via useLiveChartData (no named source needed)
-  const chartData = useMemo(() => ({
-    'saas-24m': saasMetrics24Months,
-    'regional': regionalRevenue,
-    'teams':    teamPerformance,
-    'heatmap':  activityHeatmap,
-  }), []);
-
-  // Scene 10: Register teamPerformance as live inline data for both ops charts,
-  // with filterGroup="ops" so linked-brush filters propagate across both charts.
-  useLiveChartData(chartsPlugin, 'ops-bar', teamPerformance, { filterGroup: 'ops' });
-  useLiveChartData(chartsPlugin, 'ops-scatter', teamPerformance, { filterGroup: 'ops' });
 
   return (
     <div
       style={{
+        position: 'relative',
         display: 'flex',
         flexFlow: 'column',
         height: '100vh',
         overflow: 'hidden',
-        background: theme == 'lightCanvas' ? 'radial-gradient(circle at 50% 0%, #f2f4fd 0%, #d1cada 42%, #c2c8c2 72%, #d6d3d6 100%)'
+        background: polarity === 'light'
+          ? 'radial-gradient(circle at 50% 0%, #f2f4f3 0%, #dadada 42%, #c2c8c2 72%, #d6d3d6 100%)'
           : 'radial-gradient(circle at 50% 0%, #12345d 0%, #061326 42%, #020812 72%, #01040a 100%)',
       }}
     >
-      <SceneEngine plugins={plugins} sceneTheme={lightCanvasSceneTheme}>
-        <ChartProvider data={chartData}>
+      <LightDarkToggle setPolarity={setPolarity} savePolarityInLocalStorage/>
+
+      <SceneEngine
+        plugins={plugins}
+        sceneTheme={sceneTheme}
+      >
+        <ChartDemoThemeProvider value={chartTheme}>
           {/* Scene 1: Animated bar morphing (2 sub-scenes, same chart ID) */}
           <Scene1a />
           <Scene1b />
@@ -119,8 +119,9 @@ export default function ChartDemoPage(): JSX.Element {
           <Scene2a />
           <Scene2b />
 
-          {/* Scene 3: Multi-line chart with reference line */}
-          <Scene3 />
+          {/* Scene 3: Multi-line chart morph (2 sub-scenes, same chart ID) */}
+          <Scene3a />
+          <Scene3b />
 
           {/* Scene 4: Stacked area chart — neonCyber theme */}
           <Scene4 />
@@ -147,17 +148,20 @@ export default function ChartDemoPage(): JSX.Element {
 
           {/* Scene 10: Linked-brush multi-chart dashboard */}
           <Scene10 />
-        </ChartProvider>
+        </ChartDemoThemeProvider>
         <ScrollStage ref={scrollStageRef} scrollHeightMode="scene-count" pixelsPerScene={400}>
           <EngineARContainer aspectRatio={9 / 9} scaleMode="fit-height" referenceWidth={1920}>
             <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
             <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
-            <EngineOverlayHost />
+            <EngineOverlayHost passthroughPointerEvents>
+              <ChartTooltipHost />
+            </EngineOverlayHost>
           </EngineARContainer>
+          <ActionInput />
           <KeyboardInput />
           <InertiaScrollSource inertiaSensitivity={0.010} inertiaDecay={0.82} />
         </ScrollStage>
-        <ChartProgressIndicator scrollStageRef={scrollStageRef} />
+        <ChartProgressIndicator scrollStageRef={scrollStageRef} colorMode={sceneTheme.colorMode} />
       </SceneEngine>
     </div>
   );

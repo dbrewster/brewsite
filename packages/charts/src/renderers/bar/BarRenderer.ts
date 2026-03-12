@@ -7,7 +7,7 @@ import { stack, stackOrderNone, stackOffsetNone } from 'd3-shape';
 import { AxesRenderer } from '../shared/AxesRenderer';
 import { LegendRenderer } from '../shared/LegendRenderer';
 import { ChartMaterialFactory } from '../shared/ChartMaterialFactory';
-import type { IChartRenderer, ChartRenderContext, ChartHitInfo, DataLabelEntry, MorphContext, ChartAccessorFunctions } from '../shared/IChartRenderer';
+import type { IChartRenderer, ChartRenderContext, ChartHitInfo, ChartHitMeta, DataLabelEntry, MorphContext, ChartAccessorFunctions } from '../shared/IChartRenderer';
 import type { DataRow, ResolvedDataFrame } from '../../data/types';
 // DataLabelRenderer from S4 — import path correct; resolves at merge time.
 import type { DataLabelRenderer } from '../shared/DataLabelRenderer';
@@ -21,6 +21,10 @@ type BarHitEntry = {
   seriesIndex: number;
   datumIndex: number;
   row: Record<string, unknown>;
+  /** For stacked bars: cumulative top value for this mesh. */
+  stackTop?: number;
+  /** Stack mode at render time. */
+  stackMode?: 'grouped' | 'stacked';
 };
 
 /** Linearly interpolates between a and b at progress t. */
@@ -42,6 +46,10 @@ export class BarRenderer implements IChartRenderer {
   private readonly hitMap = new Map<THREE.Mesh, BarHitEntry>();
   private seriesGroupRef: THREE.Group | null = null;
   private labelGroupRef: THREE.Group | null = null;
+  private lastDataFrame: ResolvedDataFrame | null = null;
+  private cachedChartPositionX = 0;
+  private cachedPlotFrameOffsetX = 0;
+  private cachedSeries: Array<{ field: string; label?: string }> = [];
   private lastDataLength = -1;
   private lastSeriesCount = -1;
   private lastStackMode: 'grouped' | 'stacked' = 'grouped';
@@ -58,9 +66,17 @@ export class BarRenderer implements IChartRenderer {
     const stackMode = barOptions.stackMode ?? 'grouped';
     const barPadding = barOptions.barPadding ?? theme.bar?.padding ?? 0.2;
 
+    this.cachedChartPositionX   = ctx.chartPosition?.[0] ?? 0;
+    this.cachedPlotFrameOffsetX = ctx.plotFrameOffset?.x ?? 0;
+
     const effectiveSeries: Array<{ field: string; label?: string; color?: string }> = series.length > 0
       ? [...series]
       : (yAxis ? [{ field: yAxis.field, label: yAxis.label }] : []);
+    this.cachedSeries = effectiveSeries;
+    const seriesDepth = effectiveSeries.reduce((maxDepth, _series, i) => {
+      const tokenDepth = theme.series[i % theme.series.length]?.depth ?? bounds.depth;
+      return Math.max(maxDepth, tokenDepth);
+    }, 0);
 
     this.seriesGroupRef = seriesGroup;
     this.labelGroupRef = legendGroup;
@@ -72,6 +88,7 @@ export class BarRenderer implements IChartRenderer {
 
     const xField = xAxis?.field ?? data.fields[0] ?? 'x';
     const needsRebuild =
+      data !== this.lastDataFrame ||
       data.rows.length !== this.lastDataLength ||
       effectiveSeries.length !== this.lastSeriesCount ||
       stackMode !== this.lastStackMode ||
@@ -85,6 +102,7 @@ export class BarRenderer implements IChartRenderer {
       } else {
         this.buildGroupedBars(seriesGroup, data, xField, effectiveSeries, bounds, theme, opacity, orientation, barPadding, ctx.morphCtx, ctx.accessors);
       }
+      this.lastDataFrame = data;
       this.lastDataLength = data.rows.length;
       this.lastSeriesCount = effectiveSeries.length;
       this.lastStackMode = stackMode;
@@ -139,7 +157,19 @@ export class BarRenderer implements IChartRenderer {
       value: Math.round((yDomainMax * i) / yTickCount),
       position: i / yTickCount,
     }));
-    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl, gridlines: ctx.gridlines, fittedMargins: ctx.fittedMargins });
+    this.axesRenderer.update({
+      xTicks,
+      yTicks,
+      bounds,
+      seriesDepth,
+      theme,
+      opacity,
+      xAxis,
+      yAxis,
+      fontUrl,
+      gridlines: ctx.gridlines,
+      fittedMargins: ctx.fittedMargins,
+    });
 
     // Legend
     if (!this.legendRenderer) this.legendRenderer = new LegendRenderer(legendGroup);
@@ -235,21 +265,25 @@ export class BarRenderer implements IChartRenderer {
           // Translate so bar grows from left baseline (x=0) rightward
           geo.translate(0, innerScale.bandwidth() / 2, 0);
           mesh = new THREE.Mesh(geo, mat);
-          mesh.position.set(barExtent / 2, catPos + innerPos, 0);
+          // Anchor the front face at the axis plane and extrude into -Z.
+          mesh.position.set(barExtent / 2, catPos + innerPos, -tokens.depth / 2);
         } else {
           geo = new THREE.BoxGeometry(innerScale.bandwidth(), barExtent, tokens.depth);
           // Translate so bar grows upward from y=0 baseline (not from center)
           geo.translate(0, barExtent / 2, 0);
           mesh = new THREE.Mesh(geo, mat);
-          mesh.position.set(catPos + innerPos + innerScale.bandwidth() / 2, 0, 0);
+          // Anchor the front face at the axis plane and extrude into -Z.
+          mesh.position.set(catPos + innerPos + innerScale.bandwidth() / 2, 0, -tokens.depth / 2);
         }
+        mesh.castShadow = true;
+        mesh.receiveShadow = false;
 
         seriesGroup.add(mesh);
         this.barMeshes.push(mesh);
         const datumRow = isExiting
           ? (fromKeyMap?.get(catStr) ?? row)
           : row;
-        this.hitMap.set(mesh, { seriesIndex: si, datumIndex: di, row: datumRow });
+        this.hitMap.set(mesh, { seriesIndex: si, datumIndex: di, row: datumRow, stackMode: 'grouped' });
       }
     }
   }
@@ -332,18 +366,22 @@ export class BarRenderer implements IChartRenderer {
           // Translate so bar starts at catPos (y bottom of band)
           geo.translate(0, catScale.bandwidth() / 2, 0);
           mesh = new THREE.Mesh(geo, mat);
-          mesh.position.set(basePos + barExtent / 2, catPos, 0);
+          // Anchor the front face at the axis plane and extrude into -Z.
+          mesh.position.set(basePos + barExtent / 2, catPos, -tokens.depth / 2);
         } else {
           geo = new THREE.BoxGeometry(catScale.bandwidth(), barExtent, tokens.depth);
           // Translate so bar grows upward from basePos (not from center)
           geo.translate(0, barExtent / 2, 0);
           mesh = new THREE.Mesh(geo, mat);
-          mesh.position.set(catPos + catScale.bandwidth() / 2, basePos, 0);
+          // Anchor the front face at the axis plane and extrude into -Z.
+          mesh.position.set(catPos + catScale.bandwidth() / 2, basePos, -tokens.depth / 2);
         }
+        mesh.castShadow = true;
+        mesh.receiveShadow = false;
 
         seriesGroup.add(mesh);
         this.barMeshes.push(mesh);
-        this.hitMap.set(mesh, { seriesIndex: si, datumIndex: di, row });
+        this.hitMap.set(mesh, { seriesIndex: si, datumIndex: di, row, stackTop: datum[1], stackMode: 'stacked' });
       }
     }
   }
@@ -383,6 +421,7 @@ export class BarRenderer implements IChartRenderer {
     }
     this.barMeshes.length = 0;
     this.hitMap.clear();
+    this.lastDataFrame = null;
     this.lastDataLength = -1;
     this.lastSeriesCount = -1;
   }
@@ -405,13 +444,40 @@ export class BarRenderer implements IChartRenderer {
     const mesh = intersection.object as THREE.Mesh;
     const entry = this.hitMap.get(mesh);
     if (!entry) return null;
+
     const p = intersection.point;
+    const yAxisWorldX = this.cachedChartPositionX + this.cachedPlotFrameOffsetX;
+    const projectionTarget: readonly [number, number, number] = [yAxisWorldX, p.y, p.z];
+
+    const seriesLabel = this.cachedSeries[entry.seriesIndex]?.label
+      ?? this.cachedSeries[entry.seriesIndex]?.field
+      ?? `Series ${entry.seriesIndex}`;
+
+    const meta: ChartHitMeta = entry.stackMode === 'stacked'
+      ? {
+          kind: 'bar',
+          seriesLabel,
+          segmentValue: Number(entry.row[this.cachedSeries[entry.seriesIndex]?.field ?? '']) || 0,
+          stackTotal: this.computeStackTotal(entry.row),
+        }
+      : {
+          kind: 'bar',
+          seriesLabel,
+          segmentValue: Number(entry.row[this.cachedSeries[entry.seriesIndex]?.field ?? '']) || 0,
+        };
+
     return {
       seriesIndex: entry.seriesIndex,
-      datumIndex: entry.datumIndex,
-      row: entry.row,
-      point: [p.x, p.y, p.z],
+      datumIndex:  entry.datumIndex,
+      row:         entry.row,
+      point:       [p.x, p.y, p.z],
+      meta,
+      projectionTarget,
     };
+  }
+
+  private computeStackTotal(row: Record<string, unknown>): number {
+    return this.cachedSeries.reduce((sum, s) => sum + (Number(row[s.field]) || 0), 0);
   }
 
   dispose(): void {

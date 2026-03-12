@@ -2,10 +2,13 @@
 import type { JSX } from 'react';
 import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { ChartAxis, ChartData, ChartLegend, HeatMapChart } from '@brewsite/charts';
+import { activityHeatmap } from '../data/heatmapData';
 import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, SceneLighting, SceneTitleBox } from './sceneShared';
-import {theme} from "../ChartDemoPage";
+import { useDemoChartTheme } from './sceneShared';
 
-export const Scene7 = (): JSX.Element => (
+export const Scene7 = (): JSX.Element => {
+  const chartTheme = useDemoChartTheme();
+  return (
   <Scene id="chart-s7" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
     <ProgressManager scrollUnits={1800} fn={(t) => Math.min(1, t * 2.5)} />
     <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={CHART_CAM_FOV} />
@@ -13,7 +16,8 @@ export const Scene7 = (): JSX.Element => (
 
     <HeatMapChart
       id="activity-heat"
-      theme={theme}
+      data={activityHeatmap}
+      theme={chartTheme}
       timeField="day"
       heightField="calls"
       colorInterpolator="viridis"
@@ -23,7 +27,7 @@ export const Scene7 = (): JSX.Element => (
       h={0.32}
       depth={0.25}
     >
-      <ChartData source="heatmap" />
+      <ChartData />
       <ChartAxis axis="x" field="hour" label="Hour of Day" />
       <ChartAxis axis="y" field="day"  label="Day" />
       <ChartLegend visible position="right" />
@@ -31,4 +35,5 @@ export const Scene7 = (): JSX.Element => (
 
     <SceneTitleBox id="s7-title" title="Support Call Activity — 7-Day Heatmap" />
   </Scene>
-);
+  );
+};

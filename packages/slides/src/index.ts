@@ -48,6 +48,11 @@ export type {
 
 // ─── Theme ────────────────────────────────────────────────────────────────────
 export { defaultDeckTheme, darkDeckTheme, createDeckTheme } from './theme';
+export {
+  DECK_THEME_PAIRS,
+  getDeckThemeForFamily,
+  createDeckThemeForFamily,
+} from './themeFamily';
 
 // ─── Plugin ───────────────────────────────────────────────────────────────────
 export { slidesPlugin } from './plugin';

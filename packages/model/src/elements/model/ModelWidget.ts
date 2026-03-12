@@ -629,18 +629,20 @@ export class ModelWidget
       const modelRoughnessMultiplier =
         props.roughnessMultiplier !== undefined ? (props.roughnessMultiplier as number) : 1;
 
-      const nvsX = (props.x !== undefined ? (props.x as number) : 0) + (props.w !== undefined ? (props.w as number) : 1) / 2;
-      const nvsY = (props.y !== undefined ? (props.y as number) : 0) + (props.h !== undefined ? (props.h as number) : 1) / 2;
-      const nvsBoundsForValidation = {
+      const localBounds: NVSRect = {
         x: props.x !== undefined ? (props.x as number) : 0,
         y: props.y !== undefined ? (props.y as number) : 0,
         w: props.w !== undefined ? (props.w as number) : 1,
         h: props.h !== undefined ? (props.h as number) : 1,
       };
+      // Compose into parent view/region if present. Identity when no parent.
+      const nvsBounds = api.composeBounds(localBounds);
+      const nvsX = nvsBounds.x + nvsBounds.w / 2;
+      const nvsY = nvsBounds.y + nvsBounds.h / 2;
       if (process.env.NODE_ENV !== 'production') {
         validateNVSScalar(nvsX, 'nvsX', `<Model id="${this.widgetId}">`);
         validateNVSScalar(nvsY, 'nvsY', `<Model id="${this.widgetId}">`);
-        validateNVSRect(nvsBoundsForValidation, `<Model id="${this.widgetId}">`);
+        validateNVSRect(nvsBounds, `<Model id="${this.widgetId}">`);
       }
       const state: SceneModelInstanceState = {
         model: {
@@ -669,12 +671,7 @@ export class ModelWidget
         },
         ...(props.enabled !== undefined ? { enabled: props.enabled as boolean } : {}),
         ...(collectedLabels.length > 0 ? { labels: collectedLabels } : {}),
-        nvsBounds: {
-          x: props.x !== undefined ? (props.x as number) : 0,
-          y: props.y !== undefined ? (props.y as number) : 0,
-          w: props.w !== undefined ? (props.w as number) : 1,
-          h: props.h !== undefined ? (props.h as number) : 1,
-        },
+        nvsBounds,
       };
 
       (state as SceneModelInstanceState & { __authored?: ModelAuthoredFlags }).__authored = authored;

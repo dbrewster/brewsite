@@ -108,9 +108,18 @@ export { compileScreen, functionalScreenTransitionSpec } from './elements/screen
 export { ScreenRenderer } from './elements/screen/render';
 export { ScreenWidget } from './elements/screen/widget';
 
-// ─── Theme presets ────────────────────────────────────────────────────────────
-export { darkGlassTheme, neonCyberTheme, enterpriseTheme, lightMinimalTheme } from './elements/diagram/themes';
+// ─── Diagram themes ───────────────────────────────────────────────────────────
+// Primary (canonical) dark presets
+export { darkGlassTheme, midnightTheme, neonCyberTheme, enterpriseTheme, lightCanvasTheme, lightMinimalTheme } from './elements/diagram/themes';
+// Polarity variants
+export { darkGlassLightTheme, midnightLightTheme, neonCyberLightTheme, enterpriseLightTheme, lightCanvasDarkTheme, lightMinimalDarkTheme } from './elements/diagram/themes';
+// Theme registries and pair utilities
+export { DIAGRAM_THEMES, DIAGRAM_THEME_PAIRS } from './elements/diagram/themes';
+export type { DiagramThemePair } from './elements/diagram/themes';
+// Theme composition helpers
 export { mergeTheme, withColorMode } from './elements/diagram/themes/mergeTheme';
+// Convenience hooks
+export { useDiagramTheme } from './hooks/useDiagramTheme';
 
 // ─── Compiler handler registration ──────────────────────────────────────────
 // registerDiagramHandlers is called automatically via ./register.ts at module-load time.

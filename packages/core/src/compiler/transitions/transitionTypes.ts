@@ -127,14 +127,14 @@ export type FunctionalTransitionSpec<T> = {
   /**
    * Widget is leaving (present in scene N, absent from N+1).
    * Called once with fromState. Returns a closure accepting TransitionContext.
-   * Active over the exit window of the block (default: blockProgress ∈ [0, 0.5)).
+   * Active over the exit window of the block.
    */
   exitFn: (fromState: T) => (ctx: TransitionContext) => T;
 
   /**
    * Widget is arriving (absent from scene N, present in scene N+1).
    * Called once with toState. Returns a closure accepting TransitionContext.
-   * Active over the enter window of the block (default: blockProgress ∈ [0.5, 1]).
+   * Active over the enter window of the block.
    */
   enterFn: (toState: T) => (ctx: TransitionContext) => T;
 
@@ -148,7 +148,7 @@ export type FunctionalTransitionSpec<T> = {
   /**
    * Optional default window spec for this widget type.
    * Overridden by scene-level transition config on <Scene transition={...}>.
-   * When absent, the system default [0, 0.5]/[0.5, 1] split is used.
+   * When absent, compiler-level system defaults apply.
    */
   defaultWindow?: TransitionWindow;
 };

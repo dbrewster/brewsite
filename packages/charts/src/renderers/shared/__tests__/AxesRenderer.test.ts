@@ -113,6 +113,9 @@ vi.mock('@brewsite/core', () => ({
     label['text'] = text;
     label['fontSize'] = fontSize;
   }),
+  disposeText: vi.fn((text: { dispose?: () => void }) => {
+    text.dispose?.();
+  }),
 }));
 
 import * as THREE from 'three';
@@ -232,6 +235,39 @@ describe('AxesRenderer — fittedMargins (V2.1)', () => {
     const renderer = new AxesRenderer(group);
     renderer.update(makeState());
     expect(() => renderer.dispose()).not.toThrow();
+  });
+
+  it('background plane is placed behind the provided seriesDepth extent', () => {
+    const group = new THREE.Group();
+    const renderer = new AxesRenderer(group);
+    const themeWithFloor = {
+      ...darkGlassChartTheme,
+      background: { ...darkGlassChartTheme.background, planeOpacity: 0.5 },
+    };
+    renderer.update(makeState({ seriesDepth: 0.75, theme: themeWithFloor }));
+
+    const floorMesh = group.children.find((child) => child instanceof THREE.Mesh) as
+      | (THREE.Mesh & { position: { z: number } })
+      | undefined;
+    expect(floorMesh).toBeDefined();
+    expect(floorMesh?.position.z).toBeCloseTo(-0.76, 4);
+  });
+
+  it('removes background plane when effective floor opacity is zero', () => {
+    const group = new THREE.Group();
+    const renderer = new AxesRenderer(group);
+    const visibleFloorTheme = {
+      ...darkGlassChartTheme,
+      background: { ...darkGlassChartTheme.background, planeOpacity: 0.5 },
+    };
+
+    renderer.update(makeState({ theme: visibleFloorTheme }));
+    const meshBefore = group.children.find((child) => child instanceof THREE.Mesh);
+    expect(meshBefore).toBeDefined();
+
+    renderer.update(makeState({ theme: darkGlassChartTheme }));
+    const meshAfter = group.children.find((child) => child instanceof THREE.Mesh);
+    expect(meshAfter).toBeUndefined();
   });
 });
 

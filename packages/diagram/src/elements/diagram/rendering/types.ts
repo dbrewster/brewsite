@@ -16,6 +16,11 @@ export type TextWithLayout = Text & {
   whiteSpace?: string;
   lineHeight?: number;
   textRenderInfo?: { blockBounds?: [number, number, number, number] };
+  /**
+   * Troika Text.dispose() releases the SDF atlas slot, ShaderMaterial, and geometry.
+   * The troika type declarations omit this, but it exists at runtime on every Text instance.
+   */
+  dispose(): void;
 };
 
 /**

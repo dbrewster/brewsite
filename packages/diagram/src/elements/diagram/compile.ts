@@ -201,11 +201,16 @@ export function compileDiagram(
   let normalizedSizes: Map<string, RawSize>;
   let normalizedGroups: Map<string, GroupBounds>;
   let contentAspect: number;
+  // safeSpanX: the diagram's horizontal extent in content units.
+  // Used to normalize thickness-type values (edge tube radius, group border width)
+  // from diagram-content-units to [0..1] NVS fractions.
+  // For ManualLayout, content is already in NVS (span = 1).
+  let safeSpanX: number;
 
   if (rootLayout.kind !== 'manual') {
     // Auto-layout: normalize diagram-unit positions to [0..1] NVS.
     const resolvedPadding = (rootLayout as ResolvedLayout).groupPadding[0];
-    ({ normalizedPositions, normalizedSizes, normalizedGroups, contentAspect } = normalizeToViewport(
+    ({ normalizedPositions, normalizedSizes, normalizedGroups, contentAspect, safeSpanX } = normalizeToViewport(
       nodesPreNorm,
       groupBoundsMap,
       resolvedPadding,
@@ -218,6 +223,7 @@ export function compileDiagram(
     normalizedGroups = groupBoundsMap;
     // ManualLayout positions are already in NVS fractions — no AR correction needed.
     contentAspect = 1.0;
+    safeSpanX = 1;
   }
 
   // Warn when a ManualLayout diagram contains a node whose size dimension exceeds 1.5 —
@@ -242,6 +248,9 @@ export function compileDiagram(
       ...node,
       position: normalizedPositions.get(node.id) ?? node.position,
       size: normalizedSizes.get(node.id) ?? node.size,
+      // Normalize node Z-depth from diagram-content-units to NVS fraction.
+      // The renderer multiplies by uniformWorldW to convert to world units.
+      thickness: node.thickness / safeSpanX,
     }))
     .sort((a, b) => a.position[2] - b.position[2]);
 
@@ -296,7 +305,7 @@ export function compileDiagram(
   const rawEdges = dsl.edges.map((edge, index) => {
     const id = edge.id ?? `${edge.from}-${edge.to}-${index}`;
     const route = normalizedEdgeRoutes.get(id);
-    return compileEdge(
+    const compiled = compileEdge(
       edge,
       route?.path ?? {
         commands: [],
@@ -310,6 +319,10 @@ export function compileDiagram(
       theme,
       route?.pathDebug,
     );
+    // Normalize edge thickness from diagram-content-units to NVS fraction.
+    // The renderer multiplies by uniformWorldW to convert to world units,
+    // keeping tube radius proportional to the diagram's rendered size.
+    return { ...compiled, thickness: compiled.thickness / safeSpanX };
   });
   const edges = optimizeSharedFlowTrunks(rawEdges);
 
@@ -317,7 +330,15 @@ export function compileDiagram(
     .map((group) => {
       const bounds = normalizedGroups.get(group.id);
       if (!bounds) return null;
-      return compileGroup(group, bounds, theme);
+      const compiled = compileGroup(group, bounds, theme);
+      // Normalize group borderWidth and borderHeight from diagram-content-units
+      // to NVS fraction. The renderer multiplies by uniformWorldW to convert
+      // to world units, keeping the border proportional to the diagram's size.
+      return {
+        ...compiled,
+        borderWidth: compiled.borderWidth / safeSpanX,
+        borderHeight: compiled.borderHeight / safeSpanX,
+      };
     })
     .filter((group): group is NonNullable<typeof group> => !!group)
     .sort((a, b) => {

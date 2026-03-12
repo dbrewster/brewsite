@@ -6,6 +6,9 @@ import { Scene, sceneRootHandler } from './sceneDslCompiler';
 import { ensureInputControllerRegistry } from './blocks/inputController';
 import { ProgressManager, progressManagerHandler } from './primitives/progressManager';
 import { Transition } from './blocks/transition';
+import { View } from './blocks/viewDsl';
+import { ViewLayout } from './blocks/viewLayoutDsl';
+import { viewHandler, viewLayoutHandler } from './blocks/viewHandlers';
 
 let coreHandlersRegistered = false;
 
@@ -36,6 +39,12 @@ export function registerCoreHandlers(): void {
     // This guard prevents "unregistered DSL component" warnings when Transition appears
     // in unexpected positions.
     registerNode(Transition, (_node, _api, _helpers) => {});
+  }
+  if (!getNodeHandler(View)) {
+    registerNode(View, viewHandler);
+  }
+  if (!getNodeHandler(ViewLayout)) {
+    registerNode(ViewLayout, viewLayoutHandler);
   }
 }
 

@@ -192,6 +192,38 @@ describe('ScatterRenderer V2', () => {
     expect(mesh.count).toBe(3);
   });
 
+  it('SmartRebuild: data content change with same count rebuilds instanced mesh', () => {
+    const firstData: ResolvedDataFrame = {
+      rows: [
+        { id: 'a', x: 10, y: 20 },
+        { id: 'b', x: 30, y: 40 },
+      ],
+      fields: ['id', 'x', 'y'],
+    };
+    const secondData: ResolvedDataFrame = {
+      rows: [
+        { id: 'a', x: 100, y: 5 },
+        { id: 'b', x: 2, y: 90 },
+      ],
+      fields: ['id', 'x', 'y'],
+    };
+
+    renderer.update(makeCtx(firstData, groups));
+    const firstMesh = renderer.getInteractiveObjects()[0];
+
+    renderer.update(makeCtx(secondData, groups));
+    const secondMesh = renderer.getInteractiveObjects()[0];
+
+    expect(secondMesh).not.toBe(firstMesh);
+  });
+
+  it('points are offset into negative Z so axes stay visible', () => {
+    renderer.update(makeCtx(basicData, groups));
+    const mesh = renderer.getInteractiveObjects()[0] as THREE.InstancedMesh;
+    const m0 = mesh.getMatrixAt(0);
+    expect(m0.elements[14]).toBeLessThan(0);
+  });
+
   it('sizeField encoding: larger sizeField value → larger X scale component', () => {
     renderer.update(makeCtx(basicData, {
       ...groups,
@@ -558,5 +590,91 @@ describe('ScatterRenderer V2', () => {
     const m2 = mesh.getMatrixAt(2);
     expect(m0.elements[0]).toBeCloseTo(m1.elements[0], 5);
     expect(m1.elements[0]).toBeCloseTo(m2.elements[0], 5);
+  });
+});
+
+import type { ChartHitInfo } from '../../shared/IChartRenderer';
+
+describe('ScatterRenderer: resolveHoverInfo meta + projectionTarget', () => {
+  const scatterData: ResolvedDataFrame = {
+    rows: [
+      { x: 10, y: 20, size: 5, category: 'A' },
+      { x: 30, y: 40, size: 8, category: 'B' },
+      { x: 50, y: 60, size: 3, category: 'A' },
+    ],
+    fields: ['x', 'y', 'size', 'category'],
+  };
+
+  function renderAndResolve(
+    data: ResolvedDataFrame,
+    overrides: Partial<ChartRenderContext> = {},
+  ): ChartHitInfo | null {
+    const r = new ScatterRenderer();
+    const g = {
+      seriesGroup: new THREE.Group(),
+      axesGroup: new THREE.Group(),
+      legendGroup: new THREE.Group(),
+    };
+    r.update(makeCtx(data, {
+      ...g,
+      xAxis: { axis: 'x', field: 'x' },
+      yAxis: { axis: 'y', field: 'y' },
+      series: [{ field: 'y', label: 'Y' }],
+      chartPosition: [1.0, 0, 0],
+      plotFrameOffset: { x: 0.5, y: 0 },
+      typeOptions: { kind: 'scatter', options: {} },
+      ...overrides,
+    }));
+    const objects = r.getInteractiveObjects();
+    if (objects.length === 0) return null;
+    return r.resolveHoverInfo(
+      { instanceId: 0, object: objects[0]!, point: new THREE.Vector3(2.0, 0.8, -0.12) } as unknown as THREE.Intersection,
+      data,
+    );
+  }
+
+  it('meta.kind is "scatter"', () => {
+    const hit = renderAndResolve(scatterData);
+    expect(hit).not.toBeNull();
+    expect(hit!.meta).toBeDefined();
+    expect(hit!.meta!.kind).toBe('scatter');
+  });
+
+  it('meta.xValue is a number', () => {
+    const hit = renderAndResolve(scatterData);
+    expect(hit!.meta!.kind).toBe('scatter');
+    if (hit!.meta!.kind === 'scatter') {
+      expect(typeof hit!.meta.xValue).toBe('number');
+    }
+  });
+
+  it('meta.sizeValue is present when sizeField is set', () => {
+    const hit = renderAndResolve(scatterData, {
+      typeOptions: { kind: 'scatter', options: { sizeField: 'size' } },
+    });
+    expect(hit!.meta!.kind).toBe('scatter');
+    if (hit!.meta!.kind === 'scatter') {
+      expect(hit!.meta.sizeValue).toBeDefined();
+    }
+  });
+
+  it('meta.sizeValue is undefined when sizeField is not set', () => {
+    const hit = renderAndResolve(scatterData);
+    expect(hit!.meta!.kind).toBe('scatter');
+    if (hit!.meta!.kind === 'scatter') {
+      expect(hit!.meta.sizeValue).toBeUndefined();
+    }
+  });
+
+  it('projectionTarget is present and x equals chartPositionX + plotFrameOffsetX', () => {
+    const hit = renderAndResolve(scatterData);
+    expect(hit!.projectionTarget).toBeDefined();
+    expect(hit!.projectionTarget![0]).toBeCloseTo(1.5, 5);
+  });
+
+  it('projectionTarget y and z match the intersection point', () => {
+    const hit = renderAndResolve(scatterData);
+    expect(hit!.projectionTarget![1]).toBeCloseTo(0.8, 5);
+    expect(hit!.projectionTarget![2]).toBeCloseTo(-0.12, 5);
   });
 });

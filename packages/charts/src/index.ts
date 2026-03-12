@@ -58,6 +58,7 @@ export const FILTER_OPS = [
 // ─── Compiler ────────────────────────────────────────────────────────────────
 export {
   compileChart,
+  compileTooltipDsl,
   compileBarChartOptions,
   compileLineChartOptions,
   compileScatterChartOptions,
@@ -106,16 +107,47 @@ export type {
 } from './data/types';
 
 // ─── Renderer shared types (V2.1) ─────────────────────────────────────────────
-export type { FittedMargins, ChartAccessorFunctions } from './renderers/shared/IChartRenderer';
+export type { FittedMargins, ChartAccessorFunctions, ChartHitInfo, ChartHitMeta } from './renderers/shared/IChartRenderer';
+
+// ─── Tooltip system (new in v2.2) ─────────────────────────────────────────────
+
+// DSL component
+export { ChartTooltip } from './elements/chart/stubs';
+export type { ChartTooltipProps } from './elements/chart/dsl';
+
+// Types
+export type { ChartTooltipState, ChartTooltipRuntimeConfig } from './elements/chart/tooltip/types';
+
+// Store hook (read-only consumer surface — chartTooltipStore singleton is NOT exported)
+export { useChartTooltip } from './elements/chart/tooltip/ChartTooltipStore';
+export type { ChartTooltipEntry } from './elements/chart/tooltip/ChartTooltipStore';
+export { useChartTooltipConfig } from './elements/chart/tooltip/useChartTooltipConfig';
+
+// Host component
+export { ChartTooltipHost } from './elements/chart/tooltip/ChartTooltipHost';
+
+// resolveChartTheme for consumers who build custom themes
+export { resolveChartTheme } from './themes/resolveTheme';
 
 // ─── Themes ───────────────────────────────────────────────────────────────────
-export { darkGlassChartTheme } from './themes/darkGlass';
-export { neonCyberChartTheme } from './themes/neonCyber';
-export { enterpriseChartTheme } from './themes/enterprise';
+// Primary (canonical) presets
+export { darkGlassChartTheme }    from './themes/darkGlass';
+export { midnightChartTheme }     from './themes/midnight';
+export { neonCyberChartTheme }    from './themes/neonCyber';
+export { enterpriseChartTheme }   from './themes/enterprise';
+export { lightCanvasChartTheme }  from './themes/lightCanvas';
 export { lightMinimalChartTheme } from './themes/lightMinimal';
+// Polarity variants
+export { darkGlassLightChartTheme }   from './themes/darkGlassLight';
+export { midnightLightChartTheme }    from './themes/midnightLight';
+export { neonCyberLightChartTheme }   from './themes/neonCyberLight';
+export { enterpriseLightChartTheme }  from './themes/enterpriseLight';
+export { lightCanvasDarkChartTheme }  from './themes/lightCanvasDark';
+export { lightMinimalDarkChartTheme } from './themes/lightMinimalDark';
 export { createChartTheme } from './themes/createChartTheme';
-export { CHART_THEMES } from './themes/index';
+export { CHART_THEMES, CHART_THEME_PAIRS } from './themes/index';
 export type { ChartThemeOverrides } from './themes/createChartTheme';
+export type { ChartThemePair } from './themes/index';
 export type {
   ChartTheme,
   ChartThemeName,
@@ -127,7 +159,12 @@ export type {
   ChartGridlinesTokens,
   ChartDataLabelsTokens,
   ChartReferenceLineTokens,
+  ChartTooltipTokens,
+  ChartProjectionTokens,
 } from './themes/types';
+
+// ─── Convenience hooks ───────────────────────────────────────────────────────
+export { useChartTheme } from './hooks/useChartTheme';
 
 // V1 deprecated type exports (migration compat)
 /** @deprecated V1 type. Use BarChartDSL, LineChartDSL, etc. from specific imports. */

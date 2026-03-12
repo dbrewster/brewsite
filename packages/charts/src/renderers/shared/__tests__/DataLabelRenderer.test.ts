@@ -77,6 +77,9 @@ vi.mock('@brewsite/core', () => ({
     text.visible = true;
     text.fillOpacity = 1;
   }),
+  disposeText: vi.fn((text: { dispose?: () => void }) => {
+    text.dispose?.();
+  }),
 }));
 
 import * as THREE from 'three';

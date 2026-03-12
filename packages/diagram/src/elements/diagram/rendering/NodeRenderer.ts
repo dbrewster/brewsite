@@ -3,7 +3,7 @@ import type { NodeRenderEntry, TextWithLayout } from './types';
 import type { DiagramNodeState, DiagramThemeRenderConfig } from '../types';
 import type { IIconLoader } from './IconLoader';
 import type { IInteractionRegistry } from './InteractionRegistry';
-import { ensureText } from '@brewsite/core';
+import { ensureText, disposeText } from '@brewsite/core';
 import { createShapeGeometry, createShapeOutlineGeometry, isRectangularShape, getContentRect } from '../shapes/geometryFactory';
 import { createGlow, computeGlowScale, disposeGlowSprite } from '../../_shared/glowSprite';
 import { Text } from 'troika-three-text';
@@ -195,7 +195,9 @@ export class NodeRenderer {
     }
 
     const label = new Text() as TextWithLayout;
+    label.renderOrder = 1;
     const sublabel = state.sublabel ? (new Text() as TextWithLayout) : undefined;
+    if (sublabel) sublabel.renderOrder = 1;
 
     group.add(boxMesh, border, label);
     if (sublabel) group.add(sublabel);
@@ -418,13 +420,14 @@ export class NodeRenderer {
       state.opacity,
       contentW * 0.85,
       true,
-      { fontUrl: themeConfig.fontUrl },
+      { fontUrl: themeConfig.fontUrl, sdfGlyphSize: themeConfig.nodeSdfGlyphSize },
     );
     entry.label.position.set(0, labelLayout.labelY, labelLayout.labelZ);
 
     if (state.sublabel) {
       if (!entry.sublabel) {
         entry.sublabel = new Text() as TextWithLayout;
+        entry.sublabel.renderOrder = 1;
         entry.group.add(entry.sublabel);
       }
       ensureText(
@@ -435,11 +438,12 @@ export class NodeRenderer {
         state.opacity,
         contentW * 0.85,
         true,
-        { fontUrl: themeConfig.fontUrl },
+        { fontUrl: themeConfig.fontUrl, sdfGlyphSize: themeConfig.nodeSdfGlyphSize },
       );
       entry.sublabel.position.set(0, labelLayout.sublabelY ?? 0, labelLayout.sublabelZ);
     } else if (entry.sublabel) {
       entry.group.remove(entry.sublabel);
+      disposeText(entry.sublabel);
       entry.sublabel = undefined;
     }
 
@@ -534,8 +538,8 @@ export class NodeRenderer {
     if (entry.roundedBorder) {
       (entry.roundedBorder.material as THREE.Material).dispose();
     }
-    entry.label.geometry.dispose();
-    entry.sublabel?.geometry.dispose();
+    disposeText(entry.label);
+    if (entry.sublabel) disposeText(entry.sublabel);
     if (entry.glow) {
       disposeGlowSprite(entry.glow);
     }

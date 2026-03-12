@@ -1,12 +1,6 @@
 // Three.js render layer for chart elements — delegates to per-type IChartRenderer.
 
 import * as THREE from 'three';
-import { darkGlassChartTheme } from '../../themes/darkGlass';
-import { midnightChartTheme } from '../../themes/midnight';
-import { neonCyberChartTheme } from '../../themes/neonCyber';
-import { enterpriseChartTheme } from '../../themes/enterprise';
-import { lightCanvasChartTheme } from '../../themes/lightCanvas';
-import { lightMinimalChartTheme } from '../../themes/lightMinimal';
 import { BarRenderer } from '../../renderers/bar/BarRenderer';
 import { LineRenderer } from '../../renderers/line/LineRenderer';
 import { AreaRenderer } from '../../renderers/area/AreaRenderer';
@@ -17,44 +11,41 @@ import type { IChartRenderer, ChartHitInfo, MorphContext } from '../../renderers
 import type { ChartDataStore } from '../../data/ChartDataStore';
 import type { ResolvedDataFrame } from '../../data/types';
 import type { ChartState, ChartType, ChartStateDataSource, ChartRenderInput } from './types';
-import type { ChartTheme, ChartThemeName } from '../../themes/types';
+import type { ChartTheme } from '../../themes/types';
+import { resolveChartTheme } from '../../themes/resolveTheme';
 import { computeChartLayout } from './layout';
 import type { ChartLayout } from './layout';
+import { ChartProjectionRenderer, DEFAULT_PROJECTION_TOKENS } from './projection/ChartProjectionRenderer';
 
 // ChartRenderInput is now defined in ./types and imported above.
 // It was moved there in V2.1 so ChartWidget.ts and render.ts share a single source.
-
-const THEME_MAP: Record<ChartThemeName, ChartTheme> = {
-  darkGlass:    darkGlassChartTheme,
-  midnight:     midnightChartTheme,
-  neonCyber:    neonCyberChartTheme,
-  enterprise:   enterpriseChartTheme,
-  lightCanvas:  lightCanvasChartTheme,
-  lightMinimal: lightMinimalChartTheme,
-};
 
 /**
  * Manages the Three.js scene subtree for a single chart widget.
  * Delegates rendering to the appropriate IChartRenderer for the active chart type.
  *
  * Sole construction site for MorphContext — ChartWidget.apply() does NOT build it.
- * lastFromData stores the previous frame's resolved data for datum-level morphing.
+ * The morph "from" dataset is pinned for the full transition block.
  */
 export class ChartRenderer {
   private readonly chartGroup = new THREE.Group();
   private readonly seriesGroup = new THREE.Group();
   private readonly axesGroup = new THREE.Group();
   private readonly legendGroup = new THREE.Group();
+  private readonly projectionRenderer: ChartProjectionRenderer;
   private activeRenderer: IChartRenderer | null = null;
   private lastType: ChartType | null = null;
   private lastData: ResolvedDataFrame = { rows: [], fields: [] };
-  /** Previous frame's resolved data — used to build MorphContext for datum morphing. */
-  private lastFromData: ResolvedDataFrame | null = null;
+  /** Snapshot of pre-transition data pinned for all frames in the current morph block. */
+  private pinnedMorphFromData: ResolvedDataFrame | null = null;
+  /** Tracks whether the previous update was inside a morph transition block. */
+  private wasMorphing = false;
   /** Cached layout from last update() call — reused by updateHeatmapSlice(). */
   private lastLayout: ChartLayout | null = null;
 
   constructor(private readonly store: ChartDataStore) {
     this.chartGroup.add(this.seriesGroup, this.axesGroup, this.legendGroup);
+    this.projectionRenderer = new ChartProjectionRenderer(this.chartGroup);
   }
 
   mount(scene: THREE.Scene): void {
@@ -83,25 +74,31 @@ export class ChartRenderer {
     }
 
     // Build MorphContext — sole construction site (Q3 resolution).
-    // lastFromData holds the PREVIOUS frame's resolved data. During a transition,
-    // the first frame where _morphT is set correctly morphs from-scene to to-scene.
+    // Pin the pre-transition data once when morphing starts so every morph frame
+    // uses the same fromData baseline.
     let morphCtx: MorphContext | undefined;
-    if (state._morphT !== undefined && state.dataSource.keyField && this.lastFromData) {
+    const isMorphing = state._morphT !== undefined && Boolean(state.dataSource.keyField);
+    if (isMorphing) {
+      if (!this.wasMorphing) {
+        this.pinnedMorphFromData = this.lastData;
+      }
+      this.wasMorphing = true;
+    } else {
+      this.wasMorphing = false;
+      this.pinnedMorphFromData = null;
+    }
+    if (isMorphing && state.dataSource.keyField && this.pinnedMorphFromData) {
       morphCtx = {
-        fromData: this.lastFromData,
+        fromData: this.pinnedMorphFromData,
         // toData intentionally absent — renderers use ctx.data for the to-state (Challenge 11)
         t: state._morphT,
         keyField: state.dataSource.keyField,
       };
     }
-    // Update lastFromData AFTER building morphCtx so next frame can use this frame's data
-    this.lastFromData = data;
+
     this.lastData = data;
 
-    const effectiveTheme: ChartTheme =
-      typeof state.theme === 'string'
-        ? (THEME_MAP[state.theme as ChartThemeName] ?? darkGlassChartTheme)
-        : state.theme;
+    const effectiveTheme: ChartTheme = resolveChartTheme(state.theme);
 
     // Resolve sceneTheme: state.sceneTheme (DSL prop) takes precedence over theme.sceneTheme
     const resolvedSceneTheme = state.sceneTheme ?? effectiveTheme.sceneTheme;
@@ -150,6 +147,7 @@ export class ChartRenderer {
       entryT: state.entryT,             // V2.1 — pass through from ChartWidget.apply()
       accessors: state.accessors,        // V2.1 — pass through from ChartWidget.apply()
       fittedMargins: layout.fittedMargins, // V2.1 — for axis title positioning in AxesRenderer
+      plotFrameOffset: { x: layout.plotFrame.x, y: layout.plotFrame.y },
     });
 
     // Update legend group visibility/position based on state
@@ -176,10 +174,7 @@ export class ChartRenderer {
     const sourceName = this.resolveSourceName(state.dataSource, widgetId);
     const data = this.store.getTimeSlice(sourceName, opts.timeField, sliceIndex);
 
-    const effectiveTheme: ChartTheme =
-      typeof state.theme === 'string'
-        ? (THEME_MAP[state.theme as ChartThemeName] ?? darkGlassChartTheme)
-        : state.theme;
+    const effectiveTheme: ChartTheme = resolveChartTheme(state.theme);
 
     const resolvedSceneTheme = state.sceneTheme ?? effectiveTheme.sceneTheme;
     const fontUrl = resolvedSceneTheme?.font.webglFontUrl;
@@ -220,9 +215,28 @@ export class ChartRenderer {
     return this.activeRenderer.resolveHoverInfo(intersection, this.lastData);
   }
 
+  /**
+   * Updates the Y-axis projection beam for a hover event.
+   * Called by ChartWidget immediately on hover change.
+   * Null info starts the exit animation.
+   */
+  updateProjection(info: ChartHitInfo | null, theme: ChartTheme): void {
+    const tokens = theme.projection ?? DEFAULT_PROJECTION_TOKENS;
+    this.projectionRenderer.updateProjection(info, tokens);
+  }
+
+  /**
+   * Advances projection beam animation. Called every frame by ChartWidget.onTick().
+   */
+  tickProjection(theme: ChartTheme): void {
+    const tokens = theme.projection ?? DEFAULT_PROJECTION_TOKENS;
+    this.projectionRenderer.tick(tokens);
+  }
+
   dispose(scene: THREE.Scene): void {
     this.activeRenderer?.dispose();
     this.activeRenderer = null;
+    this.projectionRenderer.dispose();
     this.clearGroups();
     scene.remove(this.chartGroup);
   }

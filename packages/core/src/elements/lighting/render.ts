@@ -36,6 +36,9 @@ const DIRECTIONAL_SHADOW_NEAR = 0.5;
  * to avoid clipping shadows from geometry on the frustum diagonal.
  */
 const DIRECTIONAL_SHADOW_FAR = 600;
+const DIRECTIONAL_SHADOW_MAP_SIZE = 2048;
+const POINT_SHADOW_MAP_SIZE = 1024;
+const SPOT_SHADOW_MAP_SIZE = 2048;
 
 const getCache = (scene: THREE.Scene): LightingCache => {
   const existing = scene.userData[LIGHTING_KEY] as LightingCache | undefined;
@@ -110,7 +113,7 @@ export function applyLighting(state: SceneLighting, refs: LightingThreeRefs): vo
       const isPrimary = i === 0;
       light.castShadow = isPrimary;
       if (isPrimary) {
-        light.shadow.mapSize.set(1024, 1024);
+        light.shadow.mapSize.set(DIRECTIONAL_SHADOW_MAP_SIZE, DIRECTIONAL_SHADOW_MAP_SIZE);
       }
       cache.directionals.set(directionalId, light);
       scene.add(light);
@@ -266,7 +269,7 @@ export function applyLighting(state: SceneLighting, refs: LightingThreeRefs): vo
     if (!pointLight) {
       pointLight = new THREE.PointLight();
       pointLight.castShadow = true;
-      pointLight.shadow.mapSize.set(512, 512);
+      pointLight.shadow.mapSize.set(POINT_SHADOW_MAP_SIZE, POINT_SHADOW_MAP_SIZE);
       cache.points.set(pointId, pointLight);
       scene.add(pointLight);
     }
@@ -293,7 +296,7 @@ export function applyLighting(state: SceneLighting, refs: LightingThreeRefs): vo
     if (!entry) {
       const light = new THREE.SpotLight();
       light.castShadow = true;
-      light.shadow.mapSize.set(1024, 1024);
+      light.shadow.mapSize.set(SPOT_SHADOW_MAP_SIZE, SPOT_SHADOW_MAP_SIZE);
       const target = new THREE.Object3D();
       scene.add(light);
       scene.add(target);

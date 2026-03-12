@@ -2,6 +2,7 @@
 import type { JSX } from 'react';
 import { useMemo } from 'react';
 import {
+  ActionInput,
   BackgroundLayer,
   EngineARContainer,
   EngineOverlayHost,
@@ -30,6 +31,7 @@ export default function WhiteboardArchPage(): JSX.Element {
             <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
             <EngineOverlayHost />
           </EngineARContainer>
+          <ActionInput />
           <KeyboardInput />
         </ScrollStage>
       </SceneEngine>

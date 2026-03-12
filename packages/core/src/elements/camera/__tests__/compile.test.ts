@@ -1,11 +1,25 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import type { SceneCamera } from '../types';
 import {
+  DEFAULT_CAMERA,
+  DEFAULT_CAMERA_DESCRIPTOR,
   extractWorldPosFromDescriptor,
   interpolateCameraDescriptor,
   cameraTransitionSpec,
   compileNvsViewportCamera,
 } from '../compile';
+
+describe('camera defaults', () => {
+  it('uses enabled 3/4 orbit default camera', () => {
+    expect(DEFAULT_CAMERA.enabled).toBe(true);
+    expect(DEFAULT_CAMERA_DESCRIPTOR.mode).toBe('orbit');
+    if (DEFAULT_CAMERA_DESCRIPTOR.mode === 'orbit') {
+      expect(DEFAULT_CAMERA_DESCRIPTOR.azimuth).toBeCloseTo(Math.PI / 4, 6);
+      expect(DEFAULT_CAMERA_DESCRIPTOR.polar).toBeCloseTo(0.55, 6);
+      expect(DEFAULT_CAMERA_DESCRIPTOR.distance).toBeCloseTo(4.5, 6);
+    }
+  });
+});
 
 describe('interpolateCameraDescriptor', () => {
   it('linearly interpolates world-space positions', () => {

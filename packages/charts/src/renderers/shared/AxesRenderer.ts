@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import { Text } from 'troika-three-text';
-import { ensureText } from '@brewsite/core';
+import { ensureText, disposeText } from '@brewsite/core';
 import type { TextWithLayout } from '@brewsite/core';
 import type { ChartAxisState, FittedMargins } from './IChartRenderer';
 import type { ChartTheme } from '../../themes/types';
@@ -16,6 +16,11 @@ type AxisRenderState = {
   xTicks: TickEntry[];
   yTicks: TickEntry[];
   bounds: { width: number; height: number };
+  /**
+   * Positive depth extent of rendered series geometry behind the axis plane (z=0).
+   * The background plane is positioned just beyond this depth.
+   */
+  seriesDepth?: number;
   theme: ChartTheme;
   opacity: number;
   xAxis: ChartAxisState | null;
@@ -51,11 +56,11 @@ export class AxesRenderer {
   constructor(private readonly axesGroup: THREE.Group) {}
 
   update(state: AxisRenderState): void {
-    const { xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl, gridlines, fittedMargins } = state;
+    const { xTicks, yTicks, bounds, seriesDepth, theme, opacity, xAxis, yAxis, fontUrl, gridlines, fittedMargins } = state;
     const { width, height } = bounds;
 
     // Floor plane
-    this.updateFloor(width, height, theme, opacity);
+    this.updateFloor(width, height, theme, opacity, seriesDepth ?? 0);
 
     // Axis lines
     this.updateAxisLines(width, height, theme, opacity);
@@ -72,15 +77,11 @@ export class AxesRenderer {
     height: number,
     theme: ChartTheme,
     opacity: number,
+    seriesDepth: number,
   ): void {
-    if (!theme.background.planeColor) {
-      if (this.floorPlane) {
-        this.floorPlane.geometry.dispose();
-        const material = this.floorPlane.material;
-        if (Array.isArray(material)) { for (const entry of material) entry.dispose(); } else { material.dispose(); }
-        this.axesGroup.remove(this.floorPlane);
-        this.floorPlane = null;
-      }
+    const floorOpacity = theme.background.planeOpacity * opacity;
+    if (!theme.background.planeColor || floorOpacity <= 0) {
+      this.removeFloorPlane();
       return;
     }
 
@@ -88,19 +89,31 @@ export class AxesRenderer {
       const geo = new THREE.PlaneGeometry(width, height);
       const mat = new THREE.MeshStandardMaterial({
         color: new THREE.Color(theme.background.planeColor),
-        transparent: theme.background.planeOpacity * opacity < 1,
-        opacity: theme.background.planeOpacity * opacity,
+        transparent: floorOpacity < 1,
+        opacity: floorOpacity,
         side: THREE.FrontSide,
       });
       this.floorPlane = new THREE.Mesh(geo, mat);
-      this.floorPlane.position.set(width / 2, height / 2, -0.01);
+      const floorZ = -(Math.max(0, seriesDepth) + 0.01);
+      this.floorPlane.position.set(width / 2, height / 2, floorZ);
       this.axesGroup.add(this.floorPlane);
     } else {
       const mat = this.floorPlane.material as THREE.MeshStandardMaterial;
       mat.color.set(theme.background.planeColor);
-      mat.opacity = theme.background.planeOpacity * opacity;
-      mat.transparent = theme.background.planeOpacity * opacity < 1;
+      mat.opacity = floorOpacity;
+      mat.transparent = floorOpacity < 1;
+      const floorZ = -(Math.max(0, seriesDepth) + 0.01);
+      this.floorPlane.position.set(width / 2, height / 2, floorZ);
     }
+  }
+
+  private removeFloorPlane(): void {
+    if (!this.floorPlane) return;
+    this.floorPlane.geometry.dispose();
+    const material = this.floorPlane.material;
+    if (Array.isArray(material)) { for (const entry of material) entry.dispose(); } else { material.dispose(); }
+    this.axesGroup.remove(this.floorPlane);
+    this.floorPlane = null;
   }
 
   private updateAxisLines(
@@ -380,6 +393,7 @@ export class AxesRenderer {
     if (label instanceof THREE.Object3D) {
       this.axesGroup.remove(label);
     }
+    disposeText(label);
   }
 
   dispose(): void {
@@ -425,12 +439,6 @@ export class AxesRenderer {
       this.axesGroup.remove(this.axisLineY);
       this.axisLineY = null;
     }
-    if (this.floorPlane) {
-      this.floorPlane.geometry.dispose();
-      const fpMat = this.floorPlane.material;
-      if (Array.isArray(fpMat)) { for (const m of fpMat) m.dispose(); } else { fpMat.dispose(); }
-      this.axesGroup.remove(this.floorPlane);
-      this.floorPlane = null;
-    }
+    this.removeFloorPlane();
   }
 }

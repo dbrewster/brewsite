@@ -10,7 +10,7 @@ export const sceneDim7Safety: JSX.Element = (
   <Scene key="bfc-dim7-safety" id="bfc-dim7-safety">
     <ProgressManager scrollUnits={2400} fn={DWELL_FN}/>
 
-    <Diagram id="safety-diagram" x={0.2} y={0} w={.6} h={0.56} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
+    <Diagram id="safety-diagram" x={0} y={0} w={1} h={0.56} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
       <FlowLayout direction="left-right" gap={.05} />
 
       {/* Left — claude-flow TTL credentials */}

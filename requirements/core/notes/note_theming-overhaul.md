@@ -2,7 +2,7 @@
 title: "Theming Overhaul — Light/Dark Variants, Single Theme Name, CSS-Class Overrides"
 doc_type: note
 owner: brewsite-product-manager
-status: draft
+status: complete
 updated: 2026-03-11
 ---
 

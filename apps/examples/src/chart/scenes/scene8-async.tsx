@@ -1,20 +1,22 @@
-// Scene 8: Async data loading — LineChart fetches /data/metrics.json at runtime.
-// The widget renders empty until ILoadable.load() resolves.
+// Scene 8: Remote metrics chart.
+// Data is loaded by chart async source (`dataUrl`) and managed by ChartWidget.load().
 import type { JSX } from 'react';
-import { Camera, ProgressManager, Scene } from '@brewsite/core';
+import { ProgressManager, Scene } from '@brewsite/core';
 import {ChartAxis, ChartData, ChartLegend, ChartSeries, LineChart} from '@brewsite/charts';
-import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, CHART_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
-import {theme} from "../ChartDemoPage";
+import { CHART_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
+import { useDemoChartTheme } from './sceneShared';
 
-export const Scene8 = (): JSX.Element => (
+export const Scene8 = (): JSX.Element => {
+  const chartTheme = useDemoChartTheme();
+  return (
   <Scene id="chart-s8" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
     <ProgressManager scrollUnits={1400} />
-    <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={CHART_CAM_FOV} />
     <SceneLighting />
 
     <LineChart
       id="remote-chart"
-      theme={theme}
+      dataUrl="/data/metrics.json"
+      theme={chartTheme}
       lineShape="circle"
       showPoints={true}
       x={CHART_LAYOUT.x}
@@ -29,9 +31,10 @@ export const Scene8 = (): JSX.Element => (
       <ChartSeries field="revenue" label="Revenue" />
       <ChartSeries field="costs"   label="Costs" />
       <ChartLegend visible position="right" />
-      <ChartData source={'/data/metrics.json'}/>
+      <ChartData />
     </LineChart>
 
     <SceneTitleBox id="s8-title" subtitle="Chart Demo · Async" title="Async Data Loading — /data/metrics.json" />
   </Scene>
-);
+  );
+};

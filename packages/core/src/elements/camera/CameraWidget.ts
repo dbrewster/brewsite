@@ -84,6 +84,14 @@ export class CameraWidget
   private cameraRef: THREE.PerspectiveCamera | null = null;
   private lastTick: SceneTrackTick | null = null;
 
+  // ─── Orbit/dolly state ────────────────────────────────────────────────────
+  /** Last known look-at target; updated from scene state in onTick. Used for orbit/dolly. */
+  private _lastKnownTarget: [number, number, number] = [0, 0, 0];
+  private static readonly ORBIT_SENSITIVITY = 0.005;
+  private static readonly DOLLY_SENSITIVITY = 0.01;
+  private static readonly MIN_POLAR = -Math.PI / 2 + 0.05;
+  private static readonly MAX_POLAR = Math.PI / 2 - 0.05;
+
   // ─── Keyboard/context-menu listeners ────────────────────────────────────
   private resetKeyListener: ((e: KeyboardEvent) => void) | null = null;
   private contextMenuListener: ((e: MouseEvent) => void) | null = null;
@@ -255,6 +263,10 @@ export class CameraWidget
     const override = context.cameraOverride;
     if (override?.enabled) {
       if (this.isInteractionActive) this.exitInteractionMode();
+      // Track target so orbit/dolly calculations have an up-to-date reference.
+      if (override.target) {
+        this._lastKnownTarget = [override.target[0] as number, override.target[1] as number, override.target[2] as number];
+      }
       applyCamera(
         {
           enabled: true,
@@ -301,7 +313,9 @@ export class CameraWidget
 
     this.lastSceneIndex = tick.sceneIndex;
 
-    // Scene-driven: apply compiled camera state each tick
+    // Scene-driven: apply compiled camera state each tick.
+    // Update last known target from the descriptor before applying.
+    this._updateLastKnownTargetFromState(state);
     applyCamera(state, { camera, tick, renderer: this.rendererRef ?? undefined });
   }
 
@@ -324,6 +338,87 @@ export class CameraWidget
 
   setInteractionDefaults(defaults: CameraInteractionDefaults | null | undefined): void {
     this.interactionDefaults = defaults ?? null;
+  }
+
+  /**
+   * Applies an orbital rotation delta to the camera around the last known look-at target.
+   * Sets a pending focus override that is applied on the next onTick().
+   *
+   * @param dx - Horizontal pixel delta (azimuth). Positive rotates right.
+   * @param dy - Vertical pixel delta (polar elevation). Positive moves camera down in screen space.
+   * @param speed - Multiplier applied to the sensitivity constant.
+   */
+  applyCameraOrbit(dx: number, dy: number, speed: number): void {
+    const camera = this.cameraRef;
+    if (!camera) return;
+
+    const target = this._lastKnownTarget;
+    const ox = camera.position.x - target[0];
+    const oy = camera.position.y - target[1];
+    const oz = camera.position.z - target[2];
+    const distance = Math.sqrt(ox * ox + oy * oy + oz * oz);
+    if (distance < 1e-6) return;
+
+    // Convert to spherical: polar = elevation from equator, azimuth = angle around Y-axis.
+    let polar = Math.asin(Math.max(-1, Math.min(1, oy / distance)));
+    let azimuth = Math.atan2(ox, oz);
+
+    // Apply deltas. Invert dy so drag-up (negative screen-y delta) raises the camera.
+    azimuth += dx * CameraWidget.ORBIT_SENSITIVITY * speed;
+    polar -= dy * CameraWidget.ORBIT_SENSITIVITY * speed;
+    polar = Math.max(CameraWidget.MIN_POLAR, Math.min(CameraWidget.MAX_POLAR, polar));
+
+    const cosPolar = Math.cos(polar);
+    const newX = target[0] + distance * cosPolar * Math.sin(azimuth);
+    const newY = target[1] + distance * Math.sin(polar);
+    const newZ = target[2] + distance * cosPolar * Math.cos(azimuth);
+
+    this._pendingFocusOverride = {
+      enabled: true,
+      position: [newX, newY, newZ],
+      target,
+      up: [camera.up.x, camera.up.y, camera.up.z],
+      fov: camera.fov,
+      near: camera.near,
+      far: camera.far,
+    };
+  }
+
+  /**
+   * Applies a dolly (zoom) delta along the camera-to-target axis.
+   * Sets a pending focus override that is applied on the next onTick().
+   *
+   * @param delta - Signed distance. Positive zooms in toward the target.
+   * @param speed - Multiplier applied to the sensitivity constant.
+   */
+  applyCameraDolly(delta: number, speed: number): void {
+    const camera = this.cameraRef;
+    if (!camera) return;
+
+    const target = this._lastKnownTarget;
+    const dx = target[0] - camera.position.x;
+    const dy = target[1] - camera.position.y;
+    const dz = target[2] - camera.position.z;
+    const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (dist < 1e-6) return;
+
+    const move = delta * speed * CameraWidget.DOLLY_SENSITIVITY;
+    // Clamp so camera cannot pass through the target or retreat excessively.
+    const clampedMove = Math.max(-dist * 2, Math.min(dist * 0.9, move));
+
+    const newX = camera.position.x + (dx / dist) * clampedMove;
+    const newY = camera.position.y + (dy / dist) * clampedMove;
+    const newZ = camera.position.z + (dz / dist) * clampedMove;
+
+    this._pendingFocusOverride = {
+      enabled: true,
+      position: [newX, newY, newZ],
+      target,
+      up: [camera.up.x, camera.up.y, camera.up.z],
+      fov: camera.fov,
+      near: camera.near,
+      far: camera.far,
+    };
   }
 
   // ─── Interaction mode management ──────────────────────────────────────────
@@ -395,6 +490,16 @@ export class CameraWidget
     this.isInteractionActive = false;
     this.savedSceneState = null;
     this.lastSceneIndex = -1;
+  }
+
+  /** Updates _lastKnownTarget from a scene state descriptor when the target is explicit. */
+  private _updateLastKnownTargetFromState(state: SceneCamera): void {
+    const d = state.descriptor;
+    if (d.mode === 'world' && d.target) {
+      this._lastKnownTarget = [d.target[0], d.target[1], d.target[2]];
+    } else if (d.mode === 'orbit' && d.target) {
+      this._lastKnownTarget = [d.target[0], d.target[1], d.target[2]];
+    }
   }
 
   private resolveInteractionConfig(

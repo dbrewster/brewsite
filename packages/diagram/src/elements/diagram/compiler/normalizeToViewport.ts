@@ -17,6 +17,13 @@ export type NormalizeToViewportResult = {
   readonly normalizedSizes: Map<string, RawSize>;
   readonly normalizedGroups: Map<string, GroupBounds>;
   readonly contentAspect: number;
+  /**
+   * The diagram's horizontal span in content units (before normalization).
+   * Needed by compile.ts to normalize thickness-type values (edge tube radius,
+   * group border width) from diagram-content-units to [0..1] NVS fractions,
+   * keeping them proportional to the diagram's rendered size.
+   */
+  readonly safeSpanX: number;
 };
 
 /**
@@ -63,6 +70,7 @@ export function normalizeToViewport(
       normalizedSizes: new Map(),
       normalizedGroups: new Map(),
       contentAspect: 1.0,
+      safeSpanX: 1,
     };
   }
 
@@ -109,5 +117,5 @@ export function normalizeToViewport(
     });
   }
 
-  return { normalizedPositions, normalizedSizes, normalizedGroups, contentAspect: safeSpanX / safeSpanY };
+  return { normalizedPositions, normalizedSizes, normalizedGroups, contentAspect: safeSpanX / safeSpanY, safeSpanX };
 }

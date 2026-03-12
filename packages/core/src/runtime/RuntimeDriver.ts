@@ -70,6 +70,9 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
 
   assetsReady = false;
 
+  /** Widget state patches applied on top of compiled state each tick. Set via patchWidgetStates(). */
+  private _widgetStatePatches: Record<string, unknown> = {};
+
   setAssetsReady(ready: boolean): void {
     this.assetsReady = ready;
     if (ready) {
@@ -144,6 +147,15 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
 
     // Start async asset loading — fire-and-forget. Completion fires onAssetsReady callback.
     void this._loadAssets();
+  }
+
+  /**
+   * Applies per-widget state patches that override compiled SceneTrack state.
+   * Patches are applied each tick before widgets receive state.
+   * Used by patchWidgetStates() in useSceneEngine for dynamic widget overrides.
+   */
+  setWidgetStatePatches(patches: Record<string, unknown>): void {
+    this._widgetStatePatches = patches;
   }
 
   /** Set or clear the active camera override. Called by useSceneEngine. */
@@ -308,7 +320,10 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
         const functionalBlock = this.track?.transitionBlocks?.[tick.sceneIndex];
         const functionalWidget = functionalBlock?.widgetFns[renderable.widgetId];
         let state: unknown;
-        if (functionalWidget) {
+        // Patches override both functional and compiled state.
+        if (Object.prototype.hasOwnProperty.call(this._widgetStatePatches, renderable.widgetId)) {
+          state = this._widgetStatePatches[renderable.widgetId];
+        } else if (functionalWidget) {
           state = functionalWidget.fn(tick.blockProgress);
         } else {
           state =
@@ -327,11 +342,14 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
 
   /**
    * Resolves the widget's state for a given tick.
-   * Functional path: evaluates closure at tick.blockProgress.
-   * Pre-baked path: returns the state from tick.state.widgets.
+   * Priority order: widgetStatePatches → functional closure → pre-baked discrete state.
    */
   private resolveWidgetState(widgetId: string, tick: SceneTrackTick | null): unknown {
     if (!tick) return null;
+    // Patches from patchWidgetStates() override compiled state.
+    if (Object.prototype.hasOwnProperty.call(this._widgetStatePatches, widgetId)) {
+      return this._widgetStatePatches[widgetId];
+    }
     const tBlock = this.track?.transitionBlocks?.[tick.sceneIndex];
     const funcOverride = tBlock?.widgetFns[widgetId];
     if (funcOverride) return funcOverride.fn(tick.blockProgress);

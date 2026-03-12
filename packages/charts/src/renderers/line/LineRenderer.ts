@@ -6,7 +6,7 @@ import { extent } from 'd3-array';
 import { AxesRenderer } from '../shared/AxesRenderer';
 import { LegendRenderer } from '../shared/LegendRenderer';
 import { ChartMaterialFactory } from '../shared/ChartMaterialFactory';
-import type { IChartRenderer, ChartRenderContext, ChartHitInfo, MorphContext, ChartAccessorFunctions } from '../shared/IChartRenderer';
+import type { IChartRenderer, ChartRenderContext, ChartHitInfo, ChartHitMeta, MorphContext, ChartAccessorFunctions } from '../shared/IChartRenderer';
 import type { DataRow, ResolvedDataFrame } from '../../data/types';
 import type { ChartLineShape } from '../../elements/chart/types';
 
@@ -33,6 +33,11 @@ export class LineRenderer implements IChartRenderer {
   private readonly seriesPoints: THREE.Vector3[][] = [];
   private seriesGroupRef: THREE.Group | null = null;
   private axesGroupRef: THREE.Group | null = null;
+  private lastDataFrame: ResolvedDataFrame | null = null;
+  private cachedChartPositionX = 0;
+  private cachedPlotFrameOffsetX = 0;
+  private cachedSeries: Array<{ field: string; label?: string }> = [];
+  private cachedYField = '';
   private lastDataLength = -1;
   private lastSeriesCount = -1;
   private lastLineShape: ChartLineShape | null = null;
@@ -46,6 +51,9 @@ export class LineRenderer implements IChartRenderer {
     this.chartPosition = ctx.chartPosition ?? [0, 0, 0];
     this.seriesGroupRef = seriesGroup;
     this.axesGroupRef = axesGroup;
+    this.cachedChartPositionX   = ctx.chartPosition?.[0] ?? 0;
+    this.cachedPlotFrameOffsetX = ctx.plotFrameOffset?.x ?? 0;
+    this.cachedYField = ctx.yAxis?.field ?? '';
 
     const lineOptions = ctx.typeOptions.kind === 'line' ? ctx.typeOptions.options : {};
     const lineShape: ChartLineShape = lineOptions.lineShape ?? theme.line.shape;
@@ -56,6 +64,9 @@ export class LineRenderer implements IChartRenderer {
     const effectiveSeries: Array<{ field: string; label?: string; color?: string }> = series.length > 0
       ? [...series]
       : (yAxis ? [{ field: yAxis.field, label: yAxis.label }] : []);
+    this.cachedSeries = effectiveSeries;
+    const profileRadius = lineShape === 'line' ? (showPoints ? 0.04 : 0) : 0.03;
+    const seriesDepth = 0.05 + Math.max(0, effectiveSeries.length - 1) * 0.15 + profileRadius;
 
     if (effectiveSeries.length === 0 || data.rows.length < 2) {
       this.reset();
@@ -64,6 +75,7 @@ export class LineRenderer implements IChartRenderer {
 
     const xField = xAxis?.field ?? data.fields[0] ?? 'x';
     const needsRebuild =
+      data !== this.lastDataFrame ||
       data.rows.length !== this.lastDataLength ||
       effectiveSeries.length !== this.lastSeriesCount ||
       lineShape !== this.lastLineShape ||
@@ -81,6 +93,7 @@ export class LineRenderer implements IChartRenderer {
       this.lastLineSmoothness = lineSmoothness;
       this.lastLineSubdivisions = lineSubdivisions;
       this.lastShowPoints = showPoints;
+      this.lastDataFrame = data;
     } else {
       this.updateOpacity(opacity);
     }
@@ -107,7 +120,19 @@ export class LineRenderer implements IChartRenderer {
       value: Math.round(yMin + (yRange * i) / 5),
       position: i / 5,
     }));
-    this.axesRenderer.update({ xTicks, yTicks, bounds, theme, opacity, xAxis, yAxis, fontUrl, gridlines: ctx.gridlines, fittedMargins: ctx.fittedMargins });
+    this.axesRenderer.update({
+      xTicks,
+      yTicks,
+      bounds,
+      seriesDepth,
+      theme,
+      opacity,
+      xAxis,
+      yAxis,
+      fontUrl,
+      gridlines: ctx.gridlines,
+      fittedMargins: ctx.fittedMargins,
+    });
 
     if (!this.legendRenderer) this.legendRenderer = new LegendRenderer(legendGroup);
     this.legendRenderer.update(effectiveSeries, ctx.legend ?? { visible: true, position: 'right' }, theme, opacity, fontUrl);
@@ -146,7 +171,7 @@ export class LineRenderer implements IChartRenderer {
 
     for (let si = 0; si < series.length; si++) {
       const s = series[si]!;
-      const zOffset = si * 0.15;
+      const zOffset = -0.05 - si * 0.15;
       const points = data.rows.map((r, i) => {
         // Resolve Y value: check accessor first, then field name
         const toY = accessors?.yAccessor
@@ -193,6 +218,8 @@ export class LineRenderer implements IChartRenderer {
         mat.transparent = opacity < 1;
         mat.needsUpdate = true;
         const mesh = new THREE.Mesh(geo, mat);
+        mesh.castShadow = true;
+        mesh.receiveShadow = false;
         seriesGroup.add(mesh);
         this.profileMeshes.push(mesh);
       }
@@ -211,6 +238,8 @@ export class LineRenderer implements IChartRenderer {
           });
           const sphere = new THREE.Mesh(sphereGeo, mat);
           sphere.position.copy(pt);
+          sphere.castShadow = true;
+          sphere.receiveShadow = false;
           seriesGroup.add(sphere);
           this.pointMeshes.push(sphere);
         }
@@ -293,6 +322,7 @@ export class LineRenderer implements IChartRenderer {
     this.lineObjects.length = 0;
     this.pointMeshes.length = 0;
     this.seriesPoints.length = 0;
+    this.lastDataFrame = null;
     this.lastDataLength = -1;
     this.lastSeriesCount = -1;
     this.lastLineShape = null;
@@ -409,23 +439,34 @@ export class LineRenderer implements IChartRenderer {
     if (objectIndex < 0) return null;
 
     const points = this.seriesPoints[objectIndex] ?? [];
-    const p = intersection.point.clone();
-    p.x -= this.chartPosition[0] + (this.seriesGroupRef?.position.x ?? 0);
-    p.y -= this.chartPosition[1] + (this.seriesGroupRef?.position.y ?? 0);
-    p.z -= this.chartPosition[2] + (this.seriesGroupRef?.position.z ?? 0);
+    const localP = intersection.point.clone();
+    localP.x -= this.chartPosition[0] + (this.seriesGroupRef?.position.x ?? 0);
+    localP.y -= this.chartPosition[1] + (this.seriesGroupRef?.position.y ?? 0);
+    localP.z -= this.chartPosition[2] + (this.seriesGroupRef?.position.z ?? 0);
     let nearest = 0;
     let nearestDist = Infinity;
     for (let i = 0; i < points.length; i++) {
-      const d = p.distanceTo(points[i]!);
+      const d = localP.distanceTo(points[i]!);
       if (d < nearestDist) { nearestDist = d; nearest = i; }
     }
 
     const row = (data.rows[nearest] ?? {}) as Record<string, unknown>;
+    const yValue = Number(row[this.cachedYField]) || 0;
+    const seriesLabel = this.cachedSeries[objectIndex]?.label
+      ?? this.cachedSeries[objectIndex]?.field
+      ?? `Series ${objectIndex}`;
+    const meta: ChartHitMeta = { kind: 'line', seriesLabel, yValue };
+
+    const worldP = intersection.point;
+    const yAxisWorldX = this.cachedChartPositionX + this.cachedPlotFrameOffsetX;
+
     return {
       seriesIndex: objectIndex,
       datumIndex: nearest,
       row,
-      point: [p.x, p.y, p.z],
+      point: [localP.x, localP.y, localP.z],
+      meta,
+      projectionTarget: [yAxisWorldX, worldP.y, worldP.z],
     };
   }
 

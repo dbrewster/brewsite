@@ -8,7 +8,7 @@ import type { JsonPrimitive } from '../widget/VariableStore';
  * Per-scene transition window configuration.
  * exit — sub-window within block progress [0,1] where the outgoing scene fades out.
  * enter — sub-window within block progress [0,1] where the incoming scene fades in.
- * When absent, each widget's defaultWindow (or the system default [0,0.5]/[0.5,1]) applies.
+ * When absent, each widget's defaultWindow (or compiler system defaults) applies.
  */
 export type TransitionWindow = {
   exit?: [number, number];

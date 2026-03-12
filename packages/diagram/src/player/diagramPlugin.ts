@@ -56,6 +56,38 @@ export function diagramPlugin(options: DiagramPluginOptions): WidgetPlugin {
       // No-op. Handler registration happened in registerHandlers().
       // Widgets are created in createWidgets() and already in the registry.
     },
+
+    getActionInputExtension(registry) {
+      return {
+        onUnknownAction: (type, canvasId, _event, extra) => {
+          if (!canvasId) return;
+          const widget = registry.get(canvasId);
+          if (!widget || !('applyCanvasAction' in widget)) return;
+
+          const dx = (extra['dx'] as number) ?? 0;
+          const dy = (extra['dy'] as number) ?? 0;
+          const speed = (extra['speed'] as number) ?? 1;
+
+          switch (type) {
+            case 'diagram-canvas.move':
+              (widget as DiagramWidget).applyCanvasAction('move', dx, dy, speed);
+              break;
+            case 'diagram-canvas.rotate':
+              (widget as DiagramWidget).applyCanvasAction('rotate', dx, dy, speed);
+              break;
+            case 'diagram-canvas.focus':
+              (widget as DiagramWidget).applyCanvasAction(
+                'focus', 0, 0, 1,
+                extra['focusCenter'] as [number, number] | undefined,
+              );
+              break;
+            case 'diagram-canvas.reset':
+              (widget as DiagramWidget).applyCanvasAction('reset', 0, 0, 1);
+              break;
+          }
+        },
+      };
+    },
   };
 }
 

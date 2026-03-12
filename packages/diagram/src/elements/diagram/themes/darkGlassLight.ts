@@ -1,17 +1,40 @@
-// Dark Glass theme — light-background variant (PLACEHOLDER).
-// @internal Aesthetic placeholder — production design pending. Do not use in shipped scenes.
-
-// SHARED ACCENT PALETTE — must match packages/charts/src/themes/darkGlassLight.ts
-// Placeholder uses lightCanvas palette: '#3355cc', '#1a9966', '#cc3355', '#cc8800', '#6644bb'
+// Dark Glass theme — light polarity variant.
 
 import type { DiagramTheme } from '../types';
-import { lightCanvasTheme } from './lightCanvas';
+import { darkGlassTheme } from './darkGlass';
 
-/**
- * Light-background placeholder variant of the darkGlass theme family.
- * @internal Aesthetic placeholder — production design pending. Do not use in shipped scenes.
- * Uses lightCanvasTheme as structural stand-in; aesthetics are incorrect for darkGlass family.
- */
 export const darkGlassLightTheme: DiagramTheme = {
-  ...lightCanvasTheme,
+  ...darkGlassTheme,
+  node: {
+    ...darkGlassTheme.node,
+    defaultColor: '#FFF9F5',
+    defaultBoxColor: '#F4EAE3',
+    defaultLabelColor: '#2B1F1A',
+    defaultSublabelColor: '#6E5750',
+    defaultMetalness: 0.40,
+    defaultRoughness: 0.46,
+    defaultEmissiveIntensity: 0.02,
+    glowIntensity: 0.0,
+  },
+  edge: {
+    ...darkGlassTheme.edge,
+    defaultColor: '#9F4637',
+    defaultFlowColor: '#C96A3F',
+    defaultFlowSpeed: 0.24,
+    defaultMetalness: 0.26,
+    defaultRoughness: 0.52,
+    flowPulseIntensity: 0.58,
+  },
+  group: {
+    ...darkGlassTheme.group,
+    defaultColor: '#F4EAE3',
+    defaultBorderColor: '#B89F92',
+    defaultLabelColor: '#2B1F1A',
+  },
+  environment: {
+    ...darkGlassTheme.environment,
+    envMapIntensity: 0.18,
+    skyColor: '#F8F3EF',
+    horizonColor: '#EFE6DE',
+  },
 } as const;

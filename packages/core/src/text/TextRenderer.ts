@@ -1,4 +1,4 @@
-// Utility for updating troika Text objects with minimal sync() calls.
+// Utility for updating and disposing troika Text objects.
 
 import type { TextWithLayout } from './types';
 
@@ -15,6 +15,12 @@ type TextLayoutOptions = {
    * troika retains its current font (built-in default on first use).
    */
   fontUrl?: string;
+  /**
+   * SDF glyph size for the troika atlas tile (pixels per glyph).
+   * When provided, sets text.sdfGlyphSize before the first sync.
+   * Troika default is 64. When absent, troika's default is preserved.
+   */
+  sdfGlyphSize?: number;
 };
 
 export function ensureText(
@@ -60,12 +66,17 @@ export function ensureText(
     baseChanged ||
     userData.maxWidth !== maxWidth ||
     userData.shrinkToFit !== shrinkToFit ||
-    text.font !== (layout.fontUrl ?? text.font);  // font change triggers re-sync
+    text.font !== (layout.fontUrl ?? text.font) ||  // font change triggers re-sync
+    text.sdfGlyphSize !== (layout.sdfGlyphSize ?? text.sdfGlyphSize);  // glyph size change triggers re-sync
 
   if (layoutChanged) {
     // Set font URL before sync — must happen before text.sync() call
     if (layout.fontUrl !== undefined && text.font !== layout.fontUrl) {
       text.font = layout.fontUrl;
+    }
+    // Set SDF glyph size before sync — changing after sync causes cache invalidation
+    if (layout.sdfGlyphSize !== undefined && text.sdfGlyphSize !== layout.sdfGlyphSize) {
+      text.sdfGlyphSize = layout.sdfGlyphSize;
     }
     text.text = value;
     text.color = color;
@@ -125,4 +136,17 @@ export function ensureText(
       }
     }
   }
+}
+
+/**
+ * Properly disposes a troika Text instance by calling its `.dispose()` method,
+ * which releases the SDF atlas slot, internal ShaderMaterial, and generated geometry.
+ *
+ * Always use this instead of manually calling `.geometry.dispose()` — troika manages
+ * shared atlas resources that only its own `.dispose()` can properly release. Failing
+ * to call this causes atlas slots to leak, eventually overflowing the shared glyph
+ * atlas and corrupting visible text.
+ */
+export function disposeText(text: TextWithLayout): void {
+  text.dispose();
 }

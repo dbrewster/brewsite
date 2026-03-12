@@ -3,8 +3,17 @@ title: "BrewSite Core — Scene Authoring DSL"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-05
+last_updated: 2026-03-12
 change_history:
+  - date: 2026-03-12
+    author: "Toolkit Product"
+    summary: "Input unification: updated <InputController> description in Section 7.5 to remove the hasSceneInputController/inputModePolicy reference and document the ActionInput runtime bridge pattern. Added default keyboard nav behavior (ArrowRight/Down=scene.next, ArrowLeft/Up=scene.prev injected when no <InputController> is authored). Added carousel.next/carousel.prev as forward-declared InputActionType values. Removed all references to SceneNavInputMap."
+  - date: 2026-03-12
+    author: "Toolkit Product"
+    summary: "View/Region Architecture: added <View> and <ViewLayout> to Section 7.5 Built-in DSL Elements; updated Section 7.4 CompileApi to document composeBounds; updated Section 6 functional requirements with View/Region authoring rules; added Section 8.12 View/ViewLayout Authoring Patterns; added Section 16 documenting the View/Region system architecture."
+  - date: 2026-03-11
+    author: "Toolkit Product"
+    summary: "Entry transitions section wording refreshed for clarity; behavior remains midpoint-split for discrete exit/enter with full-block interpolate."
   - date: 2026-03-05
     author: "Toolkit Product"
     summary: "Embedded demo integration: documented the empty <InputController> behavior in Section 7.5. Clarified that an empty <InputController> (no <Action> children) is valid and sets hasSceneInputController=true, which is the condition inputModePolicy='prefer-direct' checks before activating direct mode. This is the mechanism DemoEngine from @brewsite/docs uses to prevent its embedded engine from creating a scroll spacer."
@@ -298,6 +307,19 @@ export type CompileApi = {
   setWidgetState: (widgetId: string, state: unknown) => void;
   /** Set scene-level metadata (id and meta map) on the frame. */
   setSceneMeta: (meta: { id?: string; meta?: Record<string, JsonPrimitive> }) => void;
+  /**
+   * Maps a local NVS rect [0..1] into the absolute NVS coordinate space.
+   *
+   * At the scene root (outside any <View>), this is the identity function.
+   * When a DSL element is compiled inside a <View>, this maps local coordinates
+   * into the view's content bounds using composeBoundsIntoParent().
+   * Nesting is transparent — each <View> level chains the mapping automatically.
+   *
+   * All DSL element handlers that accept NVS position/size props must call this
+   * method before writing bounds to SceneFrame.widgets. Elements that do not call
+   * composeBounds will render at incorrect positions when placed inside a <View>.
+   */
+  composeBounds: (localRect: NVSRect) => NVSRect;
 };
 
 export type CompileHelpers = {
@@ -338,7 +360,7 @@ export type NodeHandler = (
 
 The following DSL components are available at the `<Scene>` level. Each is a null-returning React component registered with the node handler system. Detailed prop contracts live in element-specific PRDs.
 
-**Elements from `@brewsite/core`:** `<Camera>`, `<Lighting>`, `<Background>`, `<Floor>`, `<Environment>`, `<TextBox>`, `<ProgressManager>`, `<InputController>`, `<Action>`, `<PointerMap>`, `<WheelMap>`, `<PinchMap>`, `<KeyMap>`.
+**Elements from `@brewsite/core`:** `<Camera>`, `<Lighting>`, `<Background>`, `<Floor>`, `<Environment>`, `<TextBox>`, `<View>`, `<ViewLayout>`, `<ProgressManager>`, `<InputController>`, `<Action>`, `<PointerMap>`, `<WheelMap>`, `<PinchMap>`, `<KeyMap>`.
 
 **Elements from companion packages:** `<Model>` (from `@brewsite/model`), `<DiagramCanvas>` (from `@brewsite/diagram`), `<Chart>` (from `@brewsite/charts`).
 
@@ -391,6 +413,53 @@ The following DSL components are available at the `<Scene>` level. Each is a nul
 </Scene>
 ```
 
+**`<View>`** — A spatial composition container. Establishes an NVS sub-region and scopes all child element coordinates into that region.
+- Required props: `id` (string — stable view identity).
+- Optional props: `x`, `y` (NVS position [0..1]), `w`, `h` (NVS size [0..1]), `padding` (NVS padding inset — uniform number, [vertical, horizontal] pair, or [top, right, bottom, left] tuple).
+- `children`: exactly one renderable DSL element (e.g., `<Chart>`, `<DiagramCanvas>`, future renderable types).
+- **Standalone mode** (no parent `<ViewLayout>`): `x`, `y`, `w`, `h` define the view's position within the viewport (or parent view's content bounds if nested). The child element's local [0..1] coordinates are mapped into the view's content area.
+- **Managed mode** (inside `<ViewLayout>`): `x` and `y` are ignored (a console warning is emitted). Bounds are computed by the parent layout algorithm. `w` and `h` serve as optional size hints that the layout algorithm may use when distributing space.
+- Compiled into `ViewState` (stored in `SceneFrame.widgets[id]`). Does not implement `ISceneElement` — no transition interpolation occurs for view bounds between scenes.
+- Source: `packages/core/src/compiler/blocks/viewDsl.tsx`
+
+```typescript
+type ViewProps = {
+  id: string;
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  padding?: RegionPadding;
+  children?: React.ReactNode;
+};
+```
+
+**`<ViewLayout>`** — A multi-view arrangement manager. Positions multiple `<View>` children according to a layout policy.
+- Required props: `kind` (`'stack'` | `'carousel'`).
+- Optional props: `id` (string — if absent, auto-generated from `kind` + scene index), `x`, `y`, `w`, `h` (container bounds in NVS, default: full viewport), `gap` (NVS gap between views).
+- Stack-specific: `direction` (`'horizontal'` | `'vertical'`, default: `'horizontal'`).
+- Carousel-specific: `activeIndex` (0-indexed active view, default: 0), `inactiveScale` (scale factor for non-active views, default: 0.75), `zStep` (NVS z-depth per position from active, default: 0.1).
+- `children`: must be `<View>` elements only. Non-`<View>` children emit a console warning and are ignored.
+- Compiled into `ViewLayoutState` (stored in `SceneFrame.widgets[layoutId]`).
+- The `activeIndex` prop can be changed scene-to-scene to animate the carousel's active item. Because `ViewState.bounds` changes between scenes when `activeIndex` changes, elements inside those views will reposition.
+- Source: `packages/core/src/compiler/blocks/viewLayoutDsl.tsx`
+
+```typescript
+type ViewLayoutProps = {
+  id?: string;
+  kind: 'stack' | 'carousel';
+  x?: number; y?: number; w?: number; h?: number;
+  gap?: number;
+  // stack-only:
+  direction?: 'horizontal' | 'vertical';
+  // carousel-only:
+  activeIndex?: number;
+  inactiveScale?: number;
+  zStep?: number;
+  children?: React.ReactNode;
+};
+```
+
 **`<ProgressManager>`** — Scroll budget and input pacing configuration for a scene.
 - Optional props: `scrollUnits` (number, default 1), `fn` (pure pacing curve function), `autoAdvance` (idle cinematic auto-play config), `animationTimeScale` (scroll-to-animation-time multiplier).
 - Carry-forward merge semantics: a scene that omits `<ProgressManager>` inherits the prior scene's spec.
@@ -400,7 +469,9 @@ The following DSL components are available at the `<Scene>` level. Each is a nul
 - Props: `id` (optional, defaults to `'main'`), `scope` (`'canvas'` | `'window'`, defaults to `'canvas'`), `children`.
 - Only one `<InputController>` per `<Scene>` is permitted. A duplicate throws at compile time.
 - Children must be `<Action>` elements.
-- An **empty `<InputController>`** (no `<Action>` children) is valid and has a critical runtime effect: it signals `hasSceneInputController = true`, which is the condition `EngineProvider`'s `inputModePolicy="prefer-direct"` checks before switching to direct mode. Without this signal, `prefer-direct` falls back to scroll mode regardless of the prop value. Any host using the embedded direct-mode pattern (see `prd_player_runtime.md` Section 7A.6) must ensure an empty `<InputController>` is present in at least one scene.
+- The compiled spec is stored in the SceneTrack under the `__input_controller` widget ID. The `<ActionInput>` runtime component reads this spec each tick and configures `ActionInputController` accordingly — spec changes across scenes take effect immediately without re-mounting.
+- **Default keyboard navigation:** When no scene in the group authors an `<InputController>`, the compiler injects a default spec with `scope: 'window'` that maps ArrowRight/ArrowDown → `scene.next` and ArrowLeft/ArrowUp → `scene.prev`. Authoring an `<InputController>` in any scene overrides this default for all scenes (the authored spec carry-forwards via the normal passthrough semantics).
+- An **empty `<InputController>`** (no `<Action>` children) is valid. It overrides the default keyboard nav spec with an empty action set — effectively disabling all default input bindings for scenes where it is carried forward.
 
 **`<Action>`** — A single named input action within `<InputController>`.
 - Required props: `id` (string), `type` (string — one of the `InputActionType` values).
@@ -421,6 +492,27 @@ The following DSL components are available at the `<Scene>` level. Each is a nul
 - Props: `key` or `keyName` (string, one must be provided and non-empty).
 
 ### 7.6 InputController DSL Types
+
+```typescript
+// packages/core/src/input/types.ts
+
+/**
+ * Named action types understood by ActionInputController.
+ *
+ * The open-string union `(string & {})` allows downstream packages to define
+ * their own action types (e.g. 'diagram-canvas.move') without modifying core.
+ */
+export type InputActionType =
+  | 'camera.orbit'       // Orbital rotation delta; delegates to CameraWidget.applyCameraOrbit()
+  | 'camera.dolly'       // Dolly (zoom) delta; delegates to CameraWidget.applyCameraDolly()
+  | 'camera.reset'       // Reset camera override; delegates to CameraWidget.applyCameraReset()
+  | 'canvas.pan'         // Canvas pan — handled by plugin extension (e.g. diagram-canvas.move)
+  | 'scene.next'         // Advance to next scene by stepScenes (default 1)
+  | 'scene.prev'         // Retreat to previous scene by stepScenes (default 1)
+  | 'carousel.next'      // Forward-declared: advance carousel active index. Runtime handler is in a follow-on plan.
+  | 'carousel.prev'      // Forward-declared: retreat carousel active index. Runtime handler is in a follow-on plan.
+  | (string & {});       // Open union — downstream packages may define additional action types
+```
 
 ```typescript
 // packages/core/src/compiler/blocks/inputController.tsx
@@ -883,6 +975,93 @@ Both props support the context function form:
 </Scene>
 ```
 
+### 8.12 View and ViewLayout
+
+`<View>` scopes child element coordinates into a sub-region of the viewport. `<ViewLayout>` arranges multiple `<View>` elements using a layout policy.
+
+**Standalone `<View>`** — explicit position and size:
+
+```tsx
+import { View } from '@brewsite/core';
+// <Chart> requires @brewsite/charts
+
+// Chart occupies the right 45% of the viewport, top 60%.
+<Scene key="overview">
+  <Camera descriptor={{ mode: 'world', position: [0, 0.5, 8], target: [0, 0, 0] }} />
+  <View id="chart-panel" x={0.53} y={0.05} w={0.44} h={0.60} padding={0.02}>
+    <Chart id="revenue-chart" type="bar" data={salesData} theme="darkGlass" />
+  </View>
+</Scene>
+```
+
+Inside the `<View>`, the `<Chart>` element receives a `composeBounds` function that maps its local [0..1] NVS coordinates into the view's content bounds (bounds after padding). The chart renders within `x=0.53..0.97, y=0.05..0.65` of the viewport — but the chart author writes nothing about those outer coordinates.
+
+**Stack layout — horizontal** — two charts side by side:
+
+```tsx
+import { View, ViewLayout } from '@brewsite/core';
+// <Chart> requires @brewsite/charts
+
+<Scene key="comparison">
+  <ViewLayout kind="stack" direction="horizontal" x={0.05} y={0.1} w={0.9} h={0.7} gap={0.03}>
+    <View id="view-left">
+      <Chart id="chart-left" type="bar" data={q1Data} theme="enterprise" />
+    </View>
+    <View id="view-right">
+      <Chart id="chart-right" type="line" data={q2Data} theme="enterprise" />
+    </View>
+  </ViewLayout>
+</Scene>
+```
+
+Each `<View>` receives equal horizontal space (minus the gap) computed by the stack layout algorithm. The charts inside each view use the full [0..1] NVS space within their allocated region.
+
+**Carousel layout — active item cycling across scenes:**
+
+```tsx
+import { View, ViewLayout } from '@brewsite/core';
+// <Chart> requires @brewsite/charts
+
+// Scene 1: first chart active
+export const sceneCarousel1 = (
+  <Scene key="carousel-1">
+    <ViewLayout kind="carousel" activeIndex={0} inactiveScale={0.7} zStep={0.08}>
+      <View id="chart-a"><Chart id="rev" type="bar" data={revData} /></View>
+      <View id="chart-b"><Chart id="cost" type="line" data={costData} /></View>
+      <View id="chart-c"><Chart id="margin" type="area" data={marginData} /></View>
+    </ViewLayout>
+  </Scene>
+);
+
+// Scene 2: second chart active — carousel advances, bounds recalculate
+export const sceneCarousel2 = (
+  <Scene key="carousel-2">
+    <ViewLayout kind="carousel" activeIndex={1} inactiveScale={0.7} zStep={0.08}>
+      <View id="chart-a"><Chart id="rev" type="bar" data={revData} /></View>
+      <View id="chart-b"><Chart id="cost" type="line" data={costData} /></View>
+      <View id="chart-c"><Chart id="margin" type="area" data={marginData} /></View>
+    </ViewLayout>
+  </Scene>
+);
+```
+
+When `activeIndex` changes between scenes, the `ViewState.bounds` for each view changes. Elements inside the views — which read their bounds from `composeBounds()` — automatically reposition. The transition between scenes animates the chart positions and scales as the `ViewLayoutState` changes.
+
+**Nested views:**
+
+```tsx
+// Outer view occupies the left half; inner view is the bottom quarter of the outer.
+<Scene key="nested">
+  <View id="left-panel" x={0.02} y={0.05} w={0.46} h={0.9} padding={0.01}>
+    <View id="chart-area" x={0} y={0.5} w={1} h={0.5}>
+      <Chart id="trend" type="area" data={trendData} />
+    </View>
+  </View>
+</Scene>
+```
+
+The inner `<View>` uses coordinates relative to the outer view's content bounds. The chart ultimately renders in the bottom half of the left 46% of the viewport, with the outer padding applied.
+
 ---
 
 ## 9. Entry Transitions Rule
@@ -1086,6 +1265,18 @@ Tree-shaking: because each element's DSL component and handler live in the same 
 
 `SceneSnapshotContext` values for `variables` and `viewport` are injected by the player layer immediately before `compileSceneTrack` is called. The DSL itself has no dependency on the player — `SceneSnapshotContext` is a plain data type defined in `compiler/sceneTypes.ts` with no runtime imports.
 
+### View/ViewLayout Architecture
+
+**`CompileApi.composeBounds` is the composition boundary.** The `<View>` handler calls `createChildApi(api, contentBounds)` to create a scoped `CompileApi` where `composeBounds` maps local [0..1] coordinates into the view's content bounds. All DSL children of `<View>` receive this scoped api automatically. Elements that call `api.composeBounds(localRect)` (as required by the element handler contract) will automatically inherit the correct bounds without any knowledge of their nesting context.
+
+**ViewState and ViewLayoutState are not ISceneElement widgets.** They do not have registered `IWidget` implementations. They are stored in `SceneFrame.widgets` like any other widget state, but no widget class reads them. This means they do not participate in the standard transition interpolation pipeline — view bounds do not animate between scenes. If a consuming application needs animated view bounds, it must implement a custom widget that reads `ViewState` from `tick.state.widgets[viewId]` and applies the bounds at render time.
+
+**No transition interpolation for view bounds.** When `activeIndex` changes in a carousel `<ViewLayout>` between two scenes, the `ViewState.bounds` values are discrete — they snap at the scene transition midpoint, not interpolate. The elements inside the views do interpolate their own state (e.g., chart data values) if those elements implement standard transition specs. For smooth visual transitions of the view containers themselves, future versions may support a `FunctionalTransitionSpec` for `ViewState`.
+
+**`<ViewLayout>` children must all be `<View>` elements.** Non-`<View>` elements inside `<ViewLayout>` emit a console warning and are ignored. This constraint keeps the layout algorithm simple and avoids ambiguous behavior when non-spatial elements appear in a spatial layout container.
+
+**Backward compatibility:** All existing scenes compile unchanged. `CompileApi.composeBounds` returns the identity for all root-level elements (those not inside any `<View>`). No existing DSL element handler is broken by the addition of `composeBounds` to `CompileApi`.
+
 ---
 
 ## 15. Breaking Change Assessment
@@ -1109,6 +1300,16 @@ Any future change to the following constitutes a breaking change requiring a maj
 - Removing `useSceneRuntime` or changing the shape of `SceneRuntimeState`.
 - Changing the `ProgressManagerSpec` type or the merge semantics of `<ProgressManager>`.
 - Removing the `compileChildrenSeparated` helper or changing its contract. (Note: the helper's behavior for non-DSL children is now a warning-only path; `TextBox` is the supported overlay authoring pattern.)
+- Removing `View` or `ViewLayout` from `compiler/index.ts` public exports once published.
+- Changing `CompileApi.composeBounds` signature or semantics — this would break all downstream element handlers that call it.
+- Removing or renaming any prop on `View` or `ViewLayout` that has been consumed in published scenes.
+
+### Backward compatible additions (no semver bump required)
+
+The following additions are backward compatible:
+- `<View>` and `<ViewLayout>` are new DSL components that do not affect scenes that do not use them.
+- `CompileApi.composeBounds` is a new field on `CompileApi`. Existing handlers that do not call it are unaffected; `composeBounds` is the identity at the root level.
+- `ViewState` and `ViewLayoutState` in `SceneFrame.widgets` only appear when `<View>` or `<ViewLayout>` are used. Existing scenes have no such entries.
 
 ---
 
@@ -1120,6 +1321,10 @@ Any future change to the following constitutes a breaking change requiring a maj
 - `packages/core/src/labels/types` — `LabelResolved` type; no Three.js.
 - `packages/core/src/input/types` — `InputActionType`, `InputActionMap`, and related types.
 - `packages/core/src/compiler/sceneTrackTypes` — `ProgressManagerSpec` type; no Three.js.
+- `packages/core/src/layout/regionTypes` — `RegionPadding`, `ViewLayoutKind`, `StackLayoutConfig`, `CarouselLayoutConfig`, `ViewLayoutResult`; no Three.js.
+- `packages/core/src/layout/regionNormalize` — `normalizePadding`, `applyPaddingToRect`, `composeBoundsIntoParent`; pure math.
+- `packages/core/src/layout/regionLayout` — `resolveLayout`, `resolveStackLayout`, `resolveCarouselLayout`; pure math.
+- `packages/core/src/compiler/viewTypes` — `ViewState`, `ViewLayoutState`; no Three.js.
 
 ---
 
@@ -1132,6 +1337,9 @@ Any future change to the following constitutes a breaking change requiring a maj
 | `displayName`-based secondary registry lookup causing wrong handler dispatch after HMR | Low | Test HMR scenarios in `apps/examples/` before each release. `displayName` fallback is opt-in. |
 | Fragment-wrapped DSL trees not compiling correctly | Low | `expandNode` has tests in `sceneTrackCompiler.test.ts`. Any expansion regression is caught by CI. |
 | Consumers misusing `registerNode` to override core handlers | Medium | Document that `registerNode` overwrites. Core handlers are registered at module load; consumer overrides registered later win. Prefer `CUSTOM_NODE_HANDLER` for per-widget customization. |
+| Element handlers forgetting to call `api.composeBounds()` — renders at wrong position inside `<View>` | Medium | Document the contract explicitly in `CompileApi.composeBounds` JSDoc. Add lint rule or test assertion to verify that `<Chart>`, `<DiagramCanvas>`, and `<Model>` handlers call `api.composeBounds`. |
+| Carousel `activeIndex` change between scenes producing a hard visual snap rather than smooth animation | Medium | By design — ViewState bounds are not animated. Document that carousel advancement produces discrete repositioning (like a scene cut for view positions). Future mitigation: FunctionalTransitionSpec for ViewState if animated view positions are needed. |
+| `<ViewLayout>` children with no explicit `w`/`h` props receiving equal space — may not match visual intent | Low | Document stack algorithm: equal distribution when hints are absent. Provide size hints via `w` and `h` on `<View>` children to control proportional allocation. |
 
 ---
 
@@ -1150,6 +1358,10 @@ Any future change to the following constitutes a breaking change requiring a maj
 - `ProgressManager` compile-time validation tests cover: `fn(0) !== 0` warning, `fn(1) !== 1` warning, and `scrollUnits <= 0` warning.
 - At least one example in `apps/examples/` demonstrates `<ProgressManager>` with a custom `scrollUnits` and `fn`.
 - At least one example in `apps/examples/` demonstrates `<TextBox>` overlay content inside `<Scene>` rendered by `EngineOverlayHost` with an `EngineARContainer` layout.
+- At least one example in `apps/examples/` demonstrates a `<View>` with a child element (e.g., `<Chart>`) scoped into a sub-region of the viewport.
+- At least one example in `apps/examples/` demonstrates `<ViewLayout kind="stack">` or `<ViewLayout kind="carousel">` with multiple `<View>` children.
+- `View` and `ViewLayout` are exported from `@brewsite/core`'s compiler/index.ts and visible in the TypeScript public API.
+- Unit tests cover: standalone `<View>` bounds resolution, managed `<View>` bounds from stack and carousel layouts, nested `<View>` composeBounds chaining, `<ViewLayout>` with no explicit `id` (auto-generation), non-`<View>` child inside `<ViewLayout>` (warning emitted, child ignored), `x`/`y` on a managed `<View>` (warning emitted, values ignored).
 - `README.md` for `@brewsite/core` includes a minimal scene example demonstrating `<Scene>`, `<Camera>`, `<Model>`, and `<Lighting>`.
 - Every exported symbol from `compiler/index.ts` is documented with a JSDoc comment.
 - CHANGELOG entry written for the current release version.

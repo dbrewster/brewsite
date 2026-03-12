@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import * as THREE from 'three';
 import { Floor } from '../FloorWidget';
 import { DEFAULT_FLOOR, floorTransitionSpec, functionalFloorTransitionSpec } from '../compile';
 import { applyFloor } from '../render';
@@ -7,9 +8,11 @@ import { makeInitContext } from '../../__tests__/elementTestMocks';
 import { makeSimpleContext } from '../../../compiler/transitions/transitionResolver';
 
 describe('floor compile + render', () => {
-  it('defaults are disabled with no texture', () => {
-    expect(DEFAULT_FLOOR.enabled).toBe(false);
-    expect(DEFAULT_FLOOR.surface).toBeUndefined();
+  it('defaults are enabled with scene-base grid surface', () => {
+    expect(DEFAULT_FLOOR.enabled).toBe(true);
+    expect(DEFAULT_FLOOR.placement).toBe('sceneBase');
+    expect(DEFAULT_FLOOR.surface?.type).toBe('physical');
+    expect((DEFAULT_FLOOR.surface as { pattern?: string }).pattern).toBe('grid');
   });
 
   it('functional transitionSpec.exit disables at t=1', () => {
@@ -95,6 +98,97 @@ describe('floor compile + render', () => {
     const ctx = makeInitContext();
     const state: SceneFloor = { enabled: true };
     expect(() => applyFloor(state, { scene: ctx.scene })).not.toThrow();
+  });
+
+  it('sceneBase placement anchors floor to lowest visible scene Y', () => {
+    const ctx = makeInitContext();
+    const box = new THREE.Mesh(
+      new THREE.BoxGeometry(1, 2, 1),
+      new THREE.MeshBasicMaterial({ color: '#ffffff' }),
+    );
+    box.position.set(0, 5, 0); // box minY = 4
+    ctx.scene.add(box);
+
+    applyFloor(
+      {
+        enabled: true,
+        placement: 'sceneBase',
+        position: [0, 0, 0],
+        surface: { type: 'physical', pattern: 'grid' },
+      },
+      { scene: ctx.scene },
+    );
+
+    const floorMesh = ctx.scene.children.find((child) => child.name === 'Floor') as THREE.Mesh | undefined;
+    expect(floorMesh).toBeDefined();
+    expect(floorMesh?.position.y).toBeCloseTo(4, 4);
+  });
+
+  it('grid pattern disables env reflections by default while preserving shadows', () => {
+    const ctx = makeInitContext();
+    applyFloor(
+      {
+        enabled: true,
+        surface: { type: 'physical', pattern: 'grid', color: '#ffffff', gridFillOpacity: 1 },
+      },
+      { scene: ctx.scene },
+    );
+
+    const floorMesh = ctx.scene.children.find((child) => child.name === 'Floor') as THREE.Mesh | undefined;
+    expect(floorMesh).toBeDefined();
+    const material = floorMesh?.material as THREE.MeshPhysicalMaterial | undefined;
+    expect(material?.envMapIntensity).toBe(0);
+
+    const shadowCatcher = ctx.scene.children.find((child) => child.name === 'FloorShadowCatcher') as
+      | THREE.Mesh
+      | undefined;
+    expect(shadowCatcher).toBeDefined();
+    expect(shadowCatcher?.visible).toBe(true);
+  });
+
+  it('grid pattern ignores explicit envMapIntensity and stays non-reflective', () => {
+    const ctx = makeInitContext();
+    applyFloor(
+      {
+        enabled: true,
+        surface: {
+          type: 'physical',
+          pattern: 'grid',
+          color: '#ffffff',
+          gridFillOpacity: 1,
+          envMapIntensity: 2,
+        },
+      },
+      { scene: ctx.scene },
+    );
+
+    const floorMesh = ctx.scene.children.find((child) => child.name === 'Floor') as THREE.Mesh | undefined;
+    expect(floorMesh).toBeDefined();
+    const material = floorMesh?.material as THREE.MeshPhysicalMaterial | undefined;
+    expect(material?.envMapIntensity).toBe(0);
+  });
+
+  it('grid pattern uses emissive fill so scene lighting does not tint floor color', () => {
+    const ctx = makeInitContext();
+    applyFloor(
+      {
+        enabled: true,
+        surface: {
+          type: 'physical',
+          pattern: 'grid',
+          color: '#ffffff',
+          gridFillOpacity: 1,
+        },
+      },
+      { scene: ctx.scene },
+    );
+
+    const floorMesh = ctx.scene.children.find((child) => child.name === 'Floor') as THREE.Mesh | undefined;
+    expect(floorMesh).toBeDefined();
+    const material = floorMesh?.material as THREE.MeshPhysicalMaterial | undefined;
+    expect(material?.color.getHexString()).toBe('000000');
+    expect(material?.emissive.getHexString()).toBe('ffffff');
+    expect(material?.toneMapped).toBe(false);
   });
 
   it('Floor DSL component renders null and has displayName', () => {

@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import { Text } from 'troika-three-text';
-import { ensureText } from '@brewsite/core';
+import { ensureText, disposeText } from '@brewsite/core';
 import type { TextWithLayout } from '@brewsite/core';
 import type { ChartTheme } from '../../themes/types';
 import type { DataLabelEntry } from './IChartRenderer';
@@ -38,7 +38,7 @@ export class DataLabelRenderer {
     while (this.texts.length > entries.length) {
       const text = this.texts.pop()!;
       this.labelGroup.remove(text as unknown as THREE.Object3D);
-      (text as unknown as { dispose?: () => void }).dispose?.();
+      disposeText(text);
     }
 
     // Grow pool
@@ -92,7 +92,7 @@ export class DataLabelRenderer {
   dispose(): void {
     for (const text of this.texts) {
       this.labelGroup.remove(text as unknown as THREE.Object3D);
-      (text as unknown as { dispose?: () => void }).dispose?.();
+      disposeText(text);
     }
     this.texts = [];
   }

@@ -1,16 +1,13 @@
 // Chart theme type contracts — no Three.js, no React.
 
-import type { SceneTheme } from '@brewsite/core';
+import type { SceneTheme, ThemeFamily } from '@brewsite/core';
 import type { ChartLineShape } from '../elements/chart/types';
 
-/** Supported chart theme preset names. */
-export type ChartThemeName =
-  | 'darkGlass'
-  | 'midnight'
-  | 'neonCyber'
-  | 'enterprise'
-  | 'lightCanvas'
-  | 'lightMinimal';
+/**
+ * Supported chart theme preset names.
+ * Type alias for ThemeFamily from @brewsite/core. Maintained for backward compatibility.
+ */
+export type ChartThemeName = ThemeFamily;
 
 /** Material tokens for a single data series. */
 export type ChartSeriesMaterialTokens = {
@@ -205,6 +202,66 @@ export type ChartReferenceLineTokens = {
 };
 
 /**
+ * HTML overlay tooltip visual tokens.
+ * When absent from ChartTheme, ChartTooltipHost uses darkGlass fallback constants.
+ * The tooltip has no caret — the Y-axis projection beam provides the visual connection.
+ */
+export type ChartTooltipTokens = {
+  /** CSS background (rgba recommended for opacity + blur). */
+  readonly background: string;
+  /**
+   * Value for `backdrop-filter: blur(...)`, e.g. '8px'.
+   * Empty string '' = no backdrop-filter applied.
+   */
+  readonly blur: string;
+  /** CSS border color. */
+  readonly borderColor: string;
+  /** CSS border-radius, e.g. '6px'. */
+  readonly borderRadius: string;
+  /** Primary value text color (hero Y-value line). */
+  readonly valueColor: string;
+  /** Secondary label/key text color. */
+  readonly labelColor: string;
+  /** Font size in HTML pixels. */
+  readonly fontSize: number;
+  /** CSS font-family. Falls back to system sans-serif when absent. */
+  readonly fontFamily?: string;
+  /** CSS box-shadow value. */
+  readonly shadow: string;
+  /** CSS padding shorthand, e.g. '8px 12px'. */
+  readonly padding: string;
+  /** Maximum tooltip width in px. */
+  readonly maxWidth: number;
+  /** X offset from anchor point in px (right of anchor). */
+  readonly offsetX: number;
+  /** Y offset from anchor point in px (negative = above anchor). */
+  readonly offsetY: number;
+};
+
+/**
+ * Y-axis projection beam visual tokens.
+ * Beam is drawn IFF ChartHitInfo.projectionTarget is non-null — beam visibility
+ * is controlled by the renderer, not by theme tokens.
+ * When absent from ChartTheme, ChartProjectionRenderer uses darkGlass fallback constants.
+ */
+export type ChartProjectionTokens = {
+  /** Beam color as CSS hex string. */
+  readonly color: string;
+  /** Emissive intensity multiplier for the beam material. */
+  readonly emissiveIntensity: number;
+  /** Beam height in world units (BoxGeometry Y dimension). */
+  readonly beamWidth: number;
+  /** Beam opacity [0..1]. */
+  readonly opacity: number;
+  /** Landing dot radius in world units. */
+  readonly dotRadius: number;
+  /** Emissive intensity for the landing dot. */
+  readonly dotEmissiveIntensity: number;
+  /** Entrance animation duration in ms. */
+  readonly animationDurationMs: number;
+};
+
+/**
  * Complete chart theme — material tokens for up to 8 series, axis styling,
  * and background/floor styling.
  */
@@ -244,4 +301,14 @@ export type ChartTheme = {
   readonly dataLabels?: ChartDataLabelsTokens;
   /** @default undefined (ReferenceLineRenderer uses built-in defaults) */
   readonly referenceLines?: ChartReferenceLineTokens;
+  /**
+   * HTML tooltip overlay tokens.
+   * @default undefined — ChartTooltipHost falls back to darkGlass defaults
+   */
+  readonly tooltip?: ChartTooltipTokens;
+  /**
+   * Y-axis projection beam tokens.
+   * @default undefined — ChartProjectionRenderer falls back to darkGlass defaults
+   */
+  readonly projection?: ChartProjectionTokens;
 };

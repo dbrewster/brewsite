@@ -178,7 +178,16 @@ export function inferBundleHints(
       : Math.max(sourceSize[1], flowFaceStub * 3);
 
     const guideFraction = clamp(0.98 + clamp(bundleStrength, 0, 1.5) * 0.02, 0.98, 1);
-    const guideClearance = Math.max(0.0125, flowFaceStub * 0.25);
+    // guideClearance keeps the shared trunk outside the nearest target's expanded
+    // obstacle rect. The flow obstacle model expands rects by obstaclePadding on
+    // each side, so the guide must stay at least obstaclePadding + faceStub away
+    // from the target boundary to avoid the horizontal fan-out segments landing
+    // inside the obstacle zone (which would force an underpass or puncture).
+    const obstaclePadding = 0.025;
+    const guideClearance = Math.max(
+      obstaclePadding + flowFaceStub,
+      flowFaceStub * 1.5,
+    );
     const maxGuideDistance = Math.max(0, availableRun - guideClearance);
     const guideDistance = Math.max(
       Math.min(flowFaceStub * 1.6, maxGuideDistance),

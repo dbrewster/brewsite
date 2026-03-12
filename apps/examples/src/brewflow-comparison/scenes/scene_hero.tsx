@@ -1,5 +1,5 @@
 import type {JSX} from 'react';
-import {Background, Camera, ProgressManager, Scene, TextBox} from '@brewsite/core';
+import {Background, Camera, Floor, ProgressManager, Scene, TextBox} from '@brewsite/core';
 import {Lights} from "../../Lights";
 
 export const sceneHero: JSX.Element = (
@@ -8,6 +8,7 @@ export const sceneHero: JSX.Element = (
     <Camera mode="world" position={[0, 1, 60]} target={[0, 1.5, 0]} fov={40} />
     <Lights/>
     <Background color="#080b14" />
+    <Floor enabled={false}/>
 
     <TextBox id="hero-content" x={0.06} y={0.08} w={0.88} h={0.84}>
       <div style={{

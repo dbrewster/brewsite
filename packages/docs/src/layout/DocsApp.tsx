@@ -11,11 +11,11 @@ import {
   type ReactNode,
 } from 'react';
 import {
+  ActionInput,
   EngineOverlayHost,
   KeyboardInput,
   SceneCanvas,
   SceneEngine,
-  ScrollInput,
   ScrollStage,
   type WidgetPlugin,
 } from '@brewsite/core';
@@ -72,7 +72,7 @@ export interface DocsAppProps {
  * The sidebar is sticky at height: 100vh.
  *
  * When engineConfig is provided, the content column is wrapped in a SceneEngine
- * with a sticky SceneCanvas driven by window scroll via ScrollStage + ScrollInput.
+ * with a sticky SceneCanvas driven by window scroll via ScrollStage + ActionInput.
  *
  * Active section tracking:
  * - Mounts one IntersectionObserver watching all [data-section-id] elements.
@@ -173,7 +173,7 @@ export function DocsApp({ nav, engineConfig, children }: DocsAppProps): ReactEle
         {/* Sticky canvas driven by window scroll */}
         <ScrollStage scrollHeightPx={engineConfig.scrollHeightPx} stageHeight="100vh">
           <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
-          <ScrollInput source="window" />
+          <ActionInput />
           <KeyboardInput />
           <EngineOverlayHost />
         </ScrollStage>

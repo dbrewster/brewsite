@@ -6,10 +6,11 @@ import { extent } from 'd3-array';
 import { interpolateViridis, interpolatePlasma, interpolateBlues, interpolateReds } from 'd3-scale-chromatic';
 import { AxesRenderer } from '../shared/AxesRenderer';
 import { LegendRenderer } from '../shared/LegendRenderer';
-import type { IChartRenderer, ChartRenderContext, ChartHitInfo } from '../shared/IChartRenderer';
+import type { IChartRenderer, ChartRenderContext, ChartHitInfo, ChartHitMeta } from '../shared/IChartRenderer';
 import type { ResolvedDataFrame } from '../../data/types';
 
 const _dummy = new THREE.Object3D();
+const SCATTER_Z_OFFSET = -0.2;
 
 /** Returns a d3 color interpolator function for the named palette. */
 function getInterpolator(name: 'blues' | 'reds' | 'viridis' | 'plasma' | undefined): (t: number) => string {
@@ -38,15 +39,23 @@ export class ScatterRenderer implements IChartRenderer {
   private axesRenderer: AxesRenderer | null = null;
   private legendRenderer: LegendRenderer | null = null;
   private seriesGroupRef: THREE.Group | null = null;
+  private lastDataFrame: ResolvedDataFrame | null = null;
   private lastCount = -1;
   private lastSizeField: string | undefined = undefined;
   private lastColorField: string | undefined = undefined;
   private readonly hitRows: Array<Record<string, unknown>> = [];
+  private cachedChartPositionX = 0;
+  private cachedPlotFrameOffsetX = 0;
+  private cachedXField = '';
+  private cachedSizeField: string | undefined = undefined;
+  private cachedColorField: string | undefined = undefined;
 
   update(ctx: ChartRenderContext): void {
     const { seriesGroup, axesGroup, legendGroup, data, xAxis, yAxis, series, bounds, theme, opacity, fontUrl } = ctx;
 
     this.seriesGroupRef = seriesGroup;
+    this.cachedChartPositionX   = ctx.chartPosition?.[0] ?? 0;
+    this.cachedPlotFrameOffsetX = ctx.plotFrameOffset?.x ?? 0;
 
     if (data.rows.length === 0) {
       this.reset();
@@ -61,6 +70,9 @@ export class ScatterRenderer implements IChartRenderer {
 
     const xField = xAxis?.field ?? data.fields[0] ?? 'x';
     const yField = series[0]?.field ?? yAxis?.field ?? data.fields[1] ?? data.fields[0] ?? 'y';
+    this.cachedXField = xField;
+    this.cachedSizeField = sizeField;
+    this.cachedColorField = colorField;
 
     // Resolve x/y values via accessors when provided, else field-name lookup
     const xValues = data.rows.map((r) =>
@@ -85,6 +97,7 @@ export class ScatterRenderer implements IChartRenderer {
 
     const count = data.rows.length;
     const needsRebuild =
+      data !== this.lastDataFrame ||
       count !== this.lastCount ||
       sizeField !== this.lastSizeField ||
       colorField !== this.lastColorField;
@@ -99,6 +112,8 @@ export class ScatterRenderer implements IChartRenderer {
         opacity,
       });
       this.instancedMesh = new THREE.InstancedMesh(geo, mat, count);
+      this.instancedMesh.castShadow = true;
+      this.instancedMesh.receiveShadow = false;
       this.instancedMesh.instanceColor = new THREE.InstancedBufferAttribute(
         new Float32Array(count * 3),
         3,
@@ -111,6 +126,7 @@ export class ScatterRenderer implements IChartRenderer {
       this.lastCount = count;
       this.lastSizeField = sizeField;
       this.lastColorField = colorField;
+      this.lastDataFrame = data;
     }
 
     if (!this.instancedMesh) return;
@@ -122,6 +138,9 @@ export class ScatterRenderer implements IChartRenderer {
     const sizeExtent = sizeValues ? (extent(sizeValues) as [number, number]) : null;
     const [sMin, sMax] = sizeExtent ?? [1, 1];
     const sRange = (sMax - sMin) || 1;
+    const maxPointScale = sizeField ? sizeScaleOpts.max : 1;
+    const pointRadius = 0.08;
+    const seriesDepth = Math.abs(SCATTER_Z_OFFSET) + pointRadius * maxPointScale;
 
     // Detect colorField type: ordinal (string) vs continuous (number)
     const colorFieldFirstVal = colorField ? data.rows[0]?.[colorField] : undefined;
@@ -180,7 +199,7 @@ export class ScatterRenderer implements IChartRenderer {
         scale = sizeScaleOpts.min + normalizedSize * (sizeScaleOpts.max - sizeScaleOpts.min);
       }
 
-      _dummy.position.set(px, py, 0);
+      _dummy.position.set(px, py, SCATTER_Z_OFFSET);
       _dummy.scale.set(scale, scale, scale);
       _dummy.updateMatrix();
       this.instancedMesh.setMatrixAt(i, _dummy.matrix);
@@ -225,6 +244,7 @@ export class ScatterRenderer implements IChartRenderer {
       xTicks,
       yTicks,
       bounds,
+      seriesDepth,
       theme,
       opacity,
       xAxis,
@@ -255,6 +275,7 @@ export class ScatterRenderer implements IChartRenderer {
     this.lastCount = -1;
     this.lastSizeField = undefined;
     this.lastColorField = undefined;
+    this.lastDataFrame = null;
     this.hitRows.length = 0;
   }
 
@@ -275,12 +296,24 @@ export class ScatterRenderer implements IChartRenderer {
     if (instanceId === undefined || instanceId === null) return null;
     const row = this.hitRows[instanceId];
     if (!row) return null;
+
     const p = intersection.point;
+    const yAxisWorldX = this.cachedChartPositionX + this.cachedPlotFrameOffsetX;
+
+    const meta: ChartHitMeta = {
+      kind: 'scatter',
+      xValue: Number(row[this.cachedXField]) || 0,
+      sizeValue: this.cachedSizeField !== undefined ? (Number(row[this.cachedSizeField]) || undefined) : undefined,
+      colorValue: this.cachedColorField !== undefined ? row[this.cachedColorField] as number | string | undefined : undefined,
+    };
+
     return {
       seriesIndex: 0,
       datumIndex: instanceId,
       row,
       point: [p.x, p.y, p.z],
+      meta,
+      projectionTarget: [yAxisWorldX, p.y, p.z],
     };
   }
 

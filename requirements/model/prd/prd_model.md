@@ -3,7 +3,7 @@ title: "@brewsite/model — GLTF Model & Label System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-08
+last_updated: 2026-03-12
 change_history:
   - date: 2026-03-07
     author: "Toolkit Product"
@@ -11,6 +11,9 @@ change_history:
   - date: 2026-03-08
     author: "Toolkit Product"
     summary: "DSL stub co-location: dsl.tsx files are now pure type modules. DSL stub functions (Model, ModelRouter, BodyParts, BodyPart, Pose, ModelPart, ContainedModel, Subpart, Playback, Motion, Animation, Label, Labels) moved to ModelWidget.ts. Updated ModelWidget implementation pattern description accordingly."
+  - date: 2026-03-12
+    author: "Toolkit Product"
+    summary: "View/Region Architecture: documented ModelWidget CUSTOM_NODE_HANDLER composeBounds integration. ModelWidget calls api.composeBounds() to resolve absolute nvsBounds when inside a parent <View>."
   - date: 2026-03-08
     author: "Toolkit Product"
     summary: "Model/diagram overhaul audit: LabelStyle.fontSize documented as intentional number|string union — number values render as px via React CSSProperties; string values pass through as-is (e.g., '1.2rem', '150%'). All model sizing fields verified correct; no changes to model coordinate system or API."
@@ -173,6 +176,25 @@ types.ts → dsl.tsx → compile.ts → render.ts → ModelWidget.ts → index.t
 - **`string`**: Any valid CSS font-size value passed through as-is (e.g., `"1.2rem"`, `"150%"`, `"0.875em"`).
 
 Default: `12` (px). Narrowing to `number` would remove valid functionality for consumers using relative font sizes.
+
+### View/Region Composition (composeBounds)
+
+`ModelWidget` uses `CUSTOM_NODE_HANDLER` to control its own compilation. Inside the custom handler, it calls `api.composeBounds(localBounds)` to resolve the model's absolute NVS bounds when placed inside a `<View>`:
+
+```typescript
+// Inside ModelWidget's CUSTOM_NODE_HANDLER:
+const localBounds: NVSRect = {
+  x: props.x ?? 0,
+  y: props.y ?? 0,
+  w: props.w ?? 1,
+  h: props.h ?? 1,
+};
+// api.composeBounds maps local [0..1] into parent view's content bounds if inside a <View>.
+// Returns localBounds unchanged at the root level (identity).
+const nvsBounds = api.composeBounds(localBounds);
+```
+
+This allows `<Model>` elements to be placed inside a `<View>` without any changes to the model DSL. The model author writes local [0..1] NVS coordinates; the view's `composeBounds` maps them into the view's absolute viewport region automatically. The resulting `nvsBounds` is stored on `ModelState` and used by `ModelWidget.apply()` at render time.
 
 ### disableWhenAbsent
 

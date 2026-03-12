@@ -141,12 +141,17 @@ describe('scoreCandidate', () => {
   });
 
   it('retreating route has higher overshoot penalty than a target-directed route', () => {
+    // The retreating candidate doubles back behind the source (x = -2) before
+    // heading to the target.  computeOvershootPenalty projects each waypoint onto
+    // the from→to axis; x = -2 gives t ≈ -0.4, which is below -OVERSHOOT_TOLERANCE
+    // and therefore accrues a positive penalty.  Lateral-only detours (e.g. going
+    // up in Y without retreating in X) do not trigger the overshoot check.
     const retreatingCandidate: RoutedEdgeCandidate = {
       ...makeDirectCandidate(fromPos, toPos),
       geometry: {
-        waypoints: [fromPos, [0, 3, 0], [5, 3, 0], toPos],
+        waypoints: [fromPos, [-2, 0, 0], [5, 0, 0], toPos],
         bendCount: 2,
-        pathLength: 11,
+        pathLength: 14,
         routeKind: 'flow',
         acuteTurnCount: 0,
         reversalCount: 0,

@@ -25,7 +25,20 @@ export type TextWithLayout = {
   maxWidth?: number;
   fillOpacity?: number;
   visible: boolean;
+  /**
+   * SDF glyph size for troika-three-text atlas tile rendering (pixels per glyph).
+   * Smaller values fit more unique glyphs into the shared atlas but increase
+   * atlas pressure. Troika default is 64. Corresponds to troika Text.sdfGlyphSize.
+   */
+  sdfGlyphSize?: number;
   sync(): void;
+  /**
+   * Disposes the troika Text instance, releasing its SDF atlas slot, internal
+   * ShaderMaterial, and generated geometry. Must be called instead of manual
+   * `.geometry.dispose()` — troika manages shared atlas resources that only
+   * `.dispose()` can properly release.
+   */
+  dispose(): void;
   userData: Record<string, unknown>;
   textRenderInfo?: unknown;
 };

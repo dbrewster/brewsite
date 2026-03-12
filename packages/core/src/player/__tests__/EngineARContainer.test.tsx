@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 // Tests for EngineARContainer: computeContainerDims pure function and --scene-scale injection.
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import React from 'react';
 import { cleanup, render, act } from '@testing-library/react';
 import { computeContainerDims, EngineARContainer } from '../EngineARContainer';
@@ -58,6 +58,12 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
+});
+
+// Delete the stub so subsequent test files in the same fork see the original
+// (or undefined) ResizeObserver rather than a cleared vi.fn() that returns undefined.
+afterAll(() => {
+  delete (globalThis as Record<string, unknown>).ResizeObserver;
 });
 
 // ─── computeContainerDims — pure function tests ────────────────────────────────

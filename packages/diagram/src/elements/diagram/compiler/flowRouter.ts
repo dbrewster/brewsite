@@ -113,6 +113,10 @@ export function routeFlowEdge(input: RouteFlowEdgeInput): FlowRouteResult {
     obstaclePadding: input.flowObstaclePadding,
   });
 
+  const endApproachDirectionMap: Record<FaceId, 'S' | 'N' | 'E' | 'W'> = {
+    top: 'S', bottom: 'N', left: 'E', right: 'W', front: 'S', back: 'N',
+  };
+
   const route = findFlowVisibilityRoute({
     start: routeStart,
     end: routeEnd,
@@ -126,6 +130,7 @@ export function routeFlowEdge(input: RouteFlowEdgeInput): FlowRouteResult {
     underpassDepth: input.flowUnderpassDepth,
     underpassClearance: input.flowUnderpassClearance,
     allowUnderpass: input.allowUnderpass,
+    endApproachDirection: endApproachDirectionMap[input.dstFace],
   });
 
   if (route.usedUnderpass) {

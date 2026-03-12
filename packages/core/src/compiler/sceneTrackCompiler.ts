@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
+import type { SceneInputControllerSpec } from '../input/types';
 import type { SceneDefinition } from './sceneTypes';
 import type {
   SceneFrame,
@@ -406,6 +407,39 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     prevInputController = mergedInputController;
   }
 
+  // If no scene declares an <InputController>, inject default keyboard navigation bindings.
+  // Uses scope: 'window' so keyboard events register on document — matching the old
+  // InputController class behavior. Default bindings: ArrowRight/Down = scene.next,
+  // ArrowLeft/Up = scene.prev.
+  const anyHasInput = snapshots.some((s) => s.widgets[INPUT_CONTROLLER_WIDGET_ID] != null);
+  if (!anyHasInput) {
+    const DEFAULT_INPUT_SPEC: SceneInputControllerSpec = {
+      id: '__default',
+      scope: 'window',
+      actions: [
+        {
+          id: '__scene_next',
+          type: 'scene.next',
+          maps: [
+            { kind: 'key', key: 'ArrowRight' },
+            { kind: 'key', key: 'ArrowDown' },
+          ],
+        },
+        {
+          id: '__scene_prev',
+          type: 'scene.prev',
+          maps: [
+            { kind: 'key', key: 'ArrowLeft' },
+            { kind: 'key', key: 'ArrowUp' },
+          ],
+        },
+      ],
+    };
+    for (const snapshot of snapshots) {
+      snapshot.widgets[INPUT_CONTROLLER_WIDGET_ID] = DEFAULT_INPUT_SPEC;
+    }
+  }
+
   const sceneElementWidgetIds = new Set(widgetRegistry.getSceneElements().map((w) => w.widgetId));
   const passthroughWidgetsByScene: Array<Record<string, unknown>> = snapshots.map((snapshot) =>
     Object.fromEntries(
@@ -592,8 +626,7 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
       ? snapshots.length - 1
       : Math.min(Math.floor(frame.index / blockSize), numTransitions - 1);
     const fromExtra = passthroughWidgetsByScene[blockIdx] ?? {};
-    const toExtra = passthroughWidgetsByScene[blockIdx + 1] ?? fromExtra;
-    const activeExtra = (isLast || frame.blockProgress < 0.5) ? fromExtra : toExtra;
+    const activeExtra = fromExtra;
     for (const [widgetId, state] of Object.entries(activeExtra)) {
       frame.state.widgets[widgetId] = state;
     }

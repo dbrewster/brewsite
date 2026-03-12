@@ -8,6 +8,7 @@ import type {
   DiagramGroupSide,
   DiagramGroupEdgeLightsState,
 } from '../types';
+import { unionBounds } from '@brewsite/core';
 import { buildGroupDefaults } from './defaultsCompiler';
 import { computeBounds } from './layoutAlgorithms';
 import type { ResolvedLayout } from './layoutResolver';
@@ -35,17 +36,6 @@ export type GroupBounds = {
 
 const isEmptyBounds = (bounds: { w: number; h: number }): boolean =>
   bounds.w === 0 && bounds.h === 0;
-
-const unionBounds = (
-  a: { x: number; y: number; w: number; h: number },
-  b: { x: number; y: number; w: number; h: number },
-): { x: number; y: number; w: number; h: number } => {
-  const minX = Math.min(a.x, b.x);
-  const minY = Math.min(a.y, b.y);
-  const maxX = Math.max(a.x + a.w, b.x + b.w);
-  const maxY = Math.max(a.y + a.h, b.y + b.h);
-  return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
-};
 
 const DEFAULT_EDGE_LIGHT_DENSITY = 1;
 const DEFAULT_EDGE_LIGHT_COLOR = '#ffffff';

@@ -3,8 +3,11 @@ title: "@brewsite/charts V2 — Charts Package"
 doc_type: prd
 status: current
 owner: brewsite-product-manager
-last_updated: 2026-03-11
+last_updated: 2026-03-12
 change_history:
+  - date: 2026-03-12
+    author: "Toolkit Product"
+    summary: "View/Region Architecture: documented compileChart() composeBoundsFn parameter and how <Chart> elements inside a <View> automatically inherit composed NVS bounds. Updated NVS Coordinate System section."
   - date: 2026-03-11
     author: "Toolkit Product"
     summary: "Initial V2 PRD created post-implementation. Documents the full V2.0.0 API: per-type DSL components, three data source paths, ChartStateDataSource discriminated union, ChartTypeOptions discriminated union, multi-dimensional data encoding, data labels, reference lines, enhanced axis/legend controls, datum-level morphing, and NVS coordinate system. Breaking changes documented with migration path. Supersedes V1 implicit documentation; links to MIGRATION.md for upgraders."
@@ -487,6 +490,8 @@ When two consecutive scenes contain a chart with the same `id` and both have a r
 ### NVS Coordinate System
 
 `ChartWidget` implements `INVSBounded`. `bounds.width` and `bounds.height` are NVS fractions converted to world-space via `context.coords.toWorldSize()` at render time. V2.1 removes the absolute `0.8` world-unit floor from `minPlotWidth`, replacing it with a purely relative `bounds.width * 0.48` floor. `computeChartLayout()` now returns `fittedMargins: FittedMargins` alongside `plotFrame`; `AxesRenderer` uses these fitted values for all axis title and tick label positioning.
+
+**View/Region Composition (`composeBoundsFn`):** The `compileChart()` internal function accepts an optional trailing `composeBoundsFn?: (localRect: NVSRect) => NVSRect` parameter. All chart DSL handlers in `chartPlugin.ts` pass `api.composeBounds` as this argument. When a `<Chart>` element is placed inside a `<View>`, the view handler creates a child `CompileApi` whose `composeBounds` maps local [0..1] coordinates into the view's content bounds. The chart handler transparently passes this through to `compileChart()`, which calls `composeBoundsFn(localBounds)` to produce the final absolute NVS bounds stored in `ChartState.nvsBounds`. The center point (`nvsX`, `nvsY`) is recomputed from the composed absolute bounds. Scene authors place charts inside views using only local [0..1] coordinates — no knowledge of parent view geometry is required.
 
 ### Bundle Impact
 

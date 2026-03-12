@@ -131,6 +131,18 @@ describe('AreaRenderer V2', () => {
     expect(renderer.getInteractiveObjects()).toHaveLength(2);
   });
 
+  it('area meshes are positioned behind axes in negative Z', () => {
+    renderer.update(makeCtx(multiSeriesData, {
+      ...groups,
+      series: [{ field: 'a' }, { field: 'b' }],
+      typeOptions: { kind: 'area', options: { stackMode: 'none' } },
+    }));
+    const meshes = renderer.getInteractiveObjects() as THREE.Mesh[];
+    expect(meshes).toHaveLength(2);
+    expect(meshes[0]!.position.z).toBeLessThan(0);
+    expect(meshes[1]!.position.z).toBeLessThan(meshes[0]!.position.z);
+  });
+
   it('SmartRebuild: stackMode change from none to stacked triggers rebuild', () => {
     const ctx1 = makeCtx(multiSeriesData, {
       ...groups,
@@ -175,6 +187,31 @@ describe('AreaRenderer V2', () => {
 
     // Same objects — no rebuild
     expect(secondMeshes[0]).toBe(firstMeshes[0]);
+  });
+
+  it('SmartRebuild: data content change with same row count triggers rebuild', () => {
+    const firstData: ResolvedDataFrame = {
+      rows: [{ x: 0, y: 10 }, { x: 1, y: 20 }, { x: 2, y: 30 }],
+      fields: ['x', 'y'],
+    };
+    const secondData: ResolvedDataFrame = {
+      rows: [{ x: 0, y: 35 }, { x: 1, y: 8 }, { x: 2, y: 15 }],
+      fields: ['x', 'y'],
+    };
+
+    renderer.update(makeCtx(firstData, {
+      ...groups,
+      typeOptions: { kind: 'area', options: { stackMode: 'none' } },
+    }));
+    const firstMeshes = [...renderer.getInteractiveObjects()];
+
+    renderer.update(makeCtx(secondData, {
+      ...groups,
+      typeOptions: { kind: 'area', options: { stackMode: 'none' } },
+    }));
+    const secondMeshes = [...renderer.getInteractiveObjects()];
+
+    expect(secondMeshes[0]).not.toBe(firstMeshes[0]);
   });
 
   it('band area: series with bandField renders one mesh per series', () => {
@@ -345,5 +382,107 @@ describe('AreaRenderer V2', () => {
     const mat = meshes[0]!.material as THREE.MeshPhysicalMaterial;
     // opacity (1.0) * theme.area.fillOpacity (0.55) = 0.55
     expect(mat.opacity).toBeCloseTo(0.55, 5);
+  });
+});
+
+import type { ChartHitInfo } from '../../shared/IChartRenderer';
+
+describe('AreaRenderer: resolveHoverInfo meta + projectionTarget', () => {
+  const areaData: ResolvedDataFrame = {
+    rows: [
+      { x: 'Jan', y: 100 },
+      { x: 'Feb', y: 200 },
+      { x: 'Mar', y: 150 },
+    ],
+    fields: ['x', 'y'],
+  };
+
+  const stackedData: ResolvedDataFrame = {
+    rows: [
+      { x: 'Jan', a: 10, b: 5 },
+      { x: 'Feb', a: 20, b: 10 },
+      { x: 'Mar', a: 15, b: 8 },
+    ],
+    fields: ['x', 'a', 'b'],
+  };
+
+  function renderAndResolve(
+    data: ResolvedDataFrame,
+    overrides: Partial<ChartRenderContext> = {},
+  ): ChartHitInfo | null {
+    const r = new AreaRenderer();
+    const g = {
+      seriesGroup: new THREE.Group(),
+      axesGroup: new THREE.Group(),
+      legendGroup: new THREE.Group(),
+    };
+    r.update(makeCtx(data, {
+      ...g,
+      chartPosition: [1.0, 0, 0],
+      plotFrameOffset: { x: 0.5, y: 0 },
+      ...overrides,
+    }));
+    const meshes = r.getInteractiveObjects();
+    if (meshes.length === 0) return null;
+    return r.resolveHoverInfo(
+      { object: meshes[0]!, point: new THREE.Vector3(2.0, 0.8, -0.12) } as unknown as THREE.Intersection,
+      data,
+    );
+  }
+
+  it('meta.kind is "area"', () => {
+    const hit = renderAndResolve(areaData);
+    expect(hit).not.toBeNull();
+    expect(hit!.meta).toBeDefined();
+    expect(hit!.meta!.kind).toBe('area');
+  });
+
+  it('meta.seriesLabel matches the series label', () => {
+    const hit = renderAndResolve(areaData);
+    expect(hit!.meta!.kind).toBe('area');
+    if (hit!.meta!.kind === 'area') {
+      expect(hit!.meta.seriesLabel).toBe('Y');
+    }
+  });
+
+  it('meta.yValue is a number', () => {
+    const hit = renderAndResolve(areaData);
+    expect(hit!.meta!.kind).toBe('area');
+    if (hit!.meta!.kind === 'area') {
+      expect(typeof hit!.meta.yValue).toBe('number');
+    }
+  });
+
+  it('projectionTarget is present and x equals chartPositionX + plotFrameOffsetX', () => {
+    const hit = renderAndResolve(areaData);
+    expect(hit!.projectionTarget).toBeDefined();
+    expect(hit!.projectionTarget![0]).toBeCloseTo(1.5, 5);
+  });
+
+  it('projectionTarget y and z match the intersection point', () => {
+    const hit = renderAndResolve(areaData);
+    expect(hit!.projectionTarget![1]).toBeCloseTo(0.8, 5);
+    expect(hit!.projectionTarget![2]).toBeCloseTo(-0.12, 5);
+  });
+
+  it('stacked mode: meta.stackValue is a number', () => {
+    const hit = renderAndResolve(stackedData, {
+      series: [{ field: 'a', label: 'A' }, { field: 'b', label: 'B' }],
+      typeOptions: { kind: 'area', options: { stackMode: 'stacked' } },
+    });
+    expect(hit).not.toBeNull();
+    expect(hit!.meta!.kind).toBe('area');
+    if (hit!.meta!.kind === 'area') {
+      expect(hit!.meta.stackValue).toBeDefined();
+      expect(typeof hit!.meta.stackValue).toBe('number');
+    }
+  });
+
+  it('non-stacked mode: meta.stackValue is undefined', () => {
+    const hit = renderAndResolve(areaData);
+    expect(hit!.meta!.kind).toBe('area');
+    if (hit!.meta!.kind === 'area') {
+      expect(hit!.meta.stackValue).toBeUndefined();
+    }
   });
 });
