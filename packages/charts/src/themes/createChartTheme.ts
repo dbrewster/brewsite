@@ -1,9 +1,6 @@
-import { darkGlassChartTheme } from './darkGlass';
-import { midnightChartTheme }   from './midnight';
-import { neonCyberChartTheme } from './neonCyber';
-import { enterpriseChartTheme } from './enterprise';
-import { lightCanvasChartTheme } from './lightCanvas';
-import { lightMinimalChartTheme } from './lightMinimal';
+// Factory for creating custom ChartThemes from a base preset with partial overrides.
+
+import { resolveChartTheme } from './chartThemeRegistry';
 import type {
   ChartTheme,
   ChartThemeName,
@@ -20,15 +17,6 @@ import type {
   ChartDataLabelsTokens,
   ChartReferenceLineTokens,
 } from './types';
-
-const PRESET_MAP: Record<ChartThemeName, ChartTheme> = {
-  darkGlass:    darkGlassChartTheme,
-  midnight:     midnightChartTheme,
-  neonCyber:    neonCyberChartTheme,
-  enterprise:   enterpriseChartTheme,
-  lightCanvas:  lightCanvasChartTheme,
-  lightMinimal: lightMinimalChartTheme,
-};
 
 /**
  * Merges a partial override on top of an optional base token group.
@@ -66,7 +54,9 @@ export type ChartThemeOverrides = Partial<{
  *
  * The base can be a preset name ('darkGlass', 'enterprise', etc.) or a full
  * ChartTheme object. Only the fields you override are changed — the rest
- * inherit from the base.
+ * inherit from the base. Named family presets (darkGlass, midnight, etc.) are
+ * resolved from the registry — ensure @brewsite/themes has registered them at
+ * app startup before calling this with a named string base.
  *
  * @example
  * const brandTheme = createChartTheme('darkGlass', {
@@ -87,7 +77,7 @@ export function createChartTheme(
   overrides: ChartThemeOverrides = {},
 ): ChartTheme {
   const baseTheme: ChartTheme =
-    typeof base === 'string' ? PRESET_MAP[base] : base;
+    typeof base === 'string' ? resolveChartTheme(base, 'dark') : base;
 
   const mergedSeries: readonly ChartSeriesMaterialTokens[] = overrides.series
     ? overrides.series.map((s, i) => ({

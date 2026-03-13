@@ -26,17 +26,24 @@ describe('registerDiagramHandlers', () => {
 
     const tree = (
       <Scene id="diagram-test">
-        <Diagram id="diagram-basic">
-          <ManualLayout />
-          <DiagramGroup id="group-1" label="Group">
-            <DiagramNode id="n1" label="Node 1" position={[0, 0, 0]} />
-          </DiagramGroup>
-          <DiagramNode id="n2" label="Node 2" position={[4, 0, 0]} />
-          <DiagramEdge from="n1" to="n2" />
-        </Diagram>
-
-        <ImagePanel id="panel-1" src="/mock.png" />
-        <Screen id="screen-1" src="https://example.com" />
+        <ViewLayout kind="stack">
+          <View id="v-diagram" w={1} h={1}>
+            <Diagram id="diagram-basic">
+              <ManualLayout />
+              <DiagramGroup id="group-1" label="Group">
+                <DiagramNode id="n1" label="Node 1" position={[0, 0, 0]} />
+              </DiagramGroup>
+              <DiagramNode id="n2" label="Node 2" position={[4, 0, 0]} />
+              <DiagramEdge from="n1" to="n2" />
+            </Diagram>
+          </View>
+          <View id="v-panel" w={1} h={1}>
+            <ImagePanel id="panel-1" src="/mock.png" />
+          </View>
+          <View id="v-screen" w={1} h={1}>
+            <Screen id="screen-1" src="https://example.com" />
+          </View>
+        </ViewLayout>
       </Scene>
     );
 

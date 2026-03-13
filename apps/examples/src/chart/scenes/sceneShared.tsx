@@ -2,8 +2,8 @@
 import type { JSX } from 'react';
 import { createContext, useContext, type ReactNode } from 'react';
 import { Ambient, Directional, Lighting, TextBox } from '@brewsite/core';
-import { CHART_THEME_PAIRS } from '@brewsite/charts';
 import type { ChartTheme } from '@brewsite/charts';
+import { bundles } from '@brewsite/themes';
 
 // ─── Chart demo theme context ─────────────────────────────────────────────────
 
@@ -20,7 +20,7 @@ export const ChartDemoThemeProvider = ({ value, children }: { value: ChartTheme;
  * (e.g., in tests that render scene components in isolation).
  */
 export function useDemoChartTheme(): ChartTheme {
-  return useContext(ChartDemoThemeContext) ?? CHART_THEME_PAIRS['lightCanvas']['light'];
+  return useContext(ChartDemoThemeContext) ?? bundles.lightCanvas.chart.light;
 }
 
 export const CHART_CAM_POS: [number, number, number] = [0, 1.5, 6.6];

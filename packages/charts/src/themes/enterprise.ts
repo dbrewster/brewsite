@@ -1,4 +1,4 @@
-// Enterprise chart theme — board-ready clarity and low-flair execution.
+// Default chart theme — enterprise aesthetic. Named presets live in @brewsite/themes.
 
 // SHARED ACCENT PALETTE — must match packages/diagram/src/elements/diagram/themes/enterprise.ts
 // '#4F76B8', '#3F7F73', '#C9843F', '#6D5D8E', '#3B7E8D', '#8A6C47', '#5A724E', '#8B4A54'
@@ -81,3 +81,6 @@ export const enterpriseChartTheme: ChartTheme = {
     animationDurationMs: 220,
   },
 };
+
+/** Default ChartTheme — enterprise aesthetic. Used as the pre-loaded registry fallback. */
+export const defaultChartTheme: ChartTheme = enterpriseChartTheme;

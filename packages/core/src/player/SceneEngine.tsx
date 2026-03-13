@@ -25,7 +25,7 @@ import { ThemeContext } from '../theme/ThemeContext';
 import { ThemeKeyContext } from '../theme/ThemeKeyContext';
 import type { ThemeKey } from '../theme/ThemeKeyContext';
 import type { SceneTheme, ThemeFamily, ThemePolarity } from '../theme/types';
-import { SCENE_THEME_PAIRS } from '../theme/presets';
+import { resolveSceneTheme } from '../theme/sceneThemeRegistry';
 import { serializeJsx } from './serializeJsx';
 import {
   setSceneRuntimeState,
@@ -84,7 +84,7 @@ export interface SceneEngineProps {
 
   /**
    * Theme family key. When set (with optional themePolarity), auto-resolves
-   * sceneTheme from SCENE_THEME_PAIRS and provides ThemeKeyContext so child
+   * sceneTheme from the scene theme registry and provides ThemeKeyContext so child
    * components can resolve chart/diagram themes via useThemeKey().
    * Overridden by explicit sceneTheme prop if both are provided.
    */
@@ -122,13 +122,13 @@ export interface SceneEngineProps {
  */
 export const SceneEngine = (props: SceneEngineProps): ReactElement => {
   // ─── Theme key resolution ──────────────────────────────────────────────────
-  // When themeFamily is provided, auto-resolve sceneTheme from SCENE_THEME_PAIRS
+  // When themeFamily is provided, auto-resolve sceneTheme from the registry
   // and build a ThemeKey for child components to consume via useThemeKey().
   const resolvedSceneTheme = useMemo((): SceneTheme | undefined => {
     if (props.sceneTheme) return props.sceneTheme;
     if (props.themeFamily) {
       const polarity = props.themePolarity ?? 'dark';
-      return SCENE_THEME_PAIRS[props.themeFamily]?.[polarity];
+      return resolveSceneTheme(props.themeFamily, polarity);
     }
     return undefined;
   }, [props.sceneTheme, props.themeFamily, props.themePolarity]);

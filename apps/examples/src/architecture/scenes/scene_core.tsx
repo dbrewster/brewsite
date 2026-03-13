@@ -9,14 +9,17 @@ import {
     TextBox,
 } from '@brewsite/core';
 import {
-    darkGlassTheme,
+
     Diagram,
     DiagramEdge,
     DiagramGroup,
     DiagramNode,
     ManualLayout,
 } from '@brewsite/diagram';
+import { darkGlassBundle } from '@brewsite/themes';
 import {MidFade, ScrollOn} from '@brewsite/core/hud/animejs';
+
+const darkGlassTheme = darkGlassBundle.diagram.dark;
 
 // Holds blockProgress=0 for first 50% of scroll, then ramps 0→1 in the second 50%.
 // This keeps the camera static at the angled position while the user starts scrolling,

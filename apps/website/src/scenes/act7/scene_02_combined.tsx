@@ -4,8 +4,11 @@ import {
   Floor, FloorMirror, ProgressManager,
 } from '@brewsite/core';
 import { ModelRouter, Playback, Animation } from '@brewsite/model';
-import { Diagram, DiagramNode, DiagramEdge, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
+import { Diagram, DiagramNode, DiagramEdge, ManualLayout } from '@brewsite/diagram';
+import { darkGlassBundle } from '@brewsite/themes';
 import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
+
+const darkGlassTheme = darkGlassBundle.diagram.dark;
 import { isMobile } from '../../utils/viewport';
 import type { Vec3 } from '@brewsite/core';
 import { dwellFn } from '../../utils/pacing';

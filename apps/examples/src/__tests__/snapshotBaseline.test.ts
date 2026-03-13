@@ -18,15 +18,25 @@ import { diagramPlugin } from '@brewsite/diagram';
 import type { SceneDefinition } from '@brewsite/core/compiler/sceneTypes';
 import type { SceneTrack } from '@brewsite/core/compiler/sceneTrackTypes';
 
-// Architecture scenes export raw JSX elements — safe to use as SceneDefinition.getFrame.
+// Architecture scenes export React function components — wrap in arrow function for getFrame.
 import {
-  sceneCoreAngledArch,
-  sceneCoreArch,
+  SceneCoreAngledArch,
+  SceneCoreArch,
 } from '../architecture/scenes/scene_core';
 import {
-  sceneDiagramAngledArch,
-  sceneDiagramArch,
+  SceneDiagramAngledArch,
+  SceneDiagramArch,
 } from '../architecture/scenes/scene_diagram';
+
+// Adapter: scene components are React components returning JSX; invoke to get JSX for getFrame.
+// eslint-disable-next-line new-cap
+const sceneCoreAngledArch = SceneCoreAngledArch();
+// eslint-disable-next-line new-cap
+const sceneCoreArch = SceneCoreArch();
+// eslint-disable-next-line new-cap
+const sceneDiagramAngledArch = SceneDiagramAngledArch();
+// eslint-disable-next-line new-cap
+const sceneDiagramArch = SceneDiagramArch();
 
 // ─── Custom snapshot serializer ───────────────────────────────────────────────
 //

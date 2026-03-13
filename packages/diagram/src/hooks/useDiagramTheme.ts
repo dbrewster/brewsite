@@ -2,15 +2,18 @@
 // Scene components use this to get the right diagram theme without manual lookup.
 
 import { useThemeKey } from '@brewsite/core';
-import { DIAGRAM_THEME_PAIRS } from '../elements/diagram/themes/index';
+import { resolveDiagramTheme } from '../elements/diagram/themeRegistry';
 import type { DiagramTheme } from '../elements/diagram/types';
 
 /**
  * Returns the DiagramTheme resolved from the current ThemeKeyContext
  * (set by `<SceneEngine themeFamily="..." themePolarity="...">`).
  *
- * Returns null when no ThemeKeyContext is provided — callers should fall back
+ * Returns undefined when no ThemeKeyContext is provided — callers should fall back
  * to an explicit theme prop or a hardcoded default.
+ *
+ * Named family presets (darkGlass, midnight, etc.) are available after
+ * @brewsite/themes has registered them at app startup via themesPlugin().
  *
  * @example
  * ```tsx
@@ -21,5 +24,5 @@ import type { DiagramTheme } from '../elements/diagram/types';
 export function useDiagramTheme(): DiagramTheme | undefined {
   const key = useThemeKey();
   if (!key) return undefined;
-  return DIAGRAM_THEME_PAIRS[key.family]?.[key.polarity] ?? undefined;
+  return resolveDiagramTheme(key.family, key.polarity);
 }

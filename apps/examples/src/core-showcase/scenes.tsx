@@ -23,13 +23,15 @@ import {
   WheelMap,
 } from '@brewsite/core';
 import {
-  darkGlassTheme,
   Diagram,
   DiagramEdge,
   DiagramGroup,
   DiagramNode,
   ManualLayout,
 } from '@brewsite/diagram';
+import { darkGlassBundle } from '@brewsite/themes';
+
+const darkGlassTheme = darkGlassBundle.diagram.dark;
 import {
   BarChart,
   ChartAxis,

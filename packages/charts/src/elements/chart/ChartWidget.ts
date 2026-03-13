@@ -27,7 +27,7 @@ import type { ChartHitInfo, ChartAccessorFunctions } from '../../renderers/share
 import type { ChartTheme } from '../../themes/types';
 import type { ChartTooltipState } from './tooltip/types';
 import { chartTooltipStore } from './tooltip/ChartTooltipStore';
-import { resolveChartTheme } from '../../themes/resolveTheme';
+import { resolveChartThemeValue as resolveChartTheme } from '../../themes/chartThemeRegistry';
 import { darkGlassChartTheme } from '../../themes/darkGlass';
 import { projectNdcToNvsPixels } from './tooltip/projectUtils';
 import {

@@ -12,6 +12,8 @@
       "@brewsite/charts/*": ["../packages/charts/src/*"],
       "@brewsite/slides": ["../packages/slides/src/index.ts"],
       "@brewsite/slides/*": ["../packages/slides/src/*"],
+      "@brewsite/themes": ["../packages/themes/src/index.ts"],
+      "@brewsite/themes/*": ["../packages/themes/src/*"],
       "@brewsite/docs": ["../packages/docs/src/index.ts"],
       "@brewsite/docs/*": ["../packages/docs/src/*"]
     },

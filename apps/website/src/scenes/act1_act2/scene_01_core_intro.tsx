@@ -7,9 +7,11 @@ import {
     DiagramEdge,
     HierarchicalLayout,
     DiagramEnter,
-    neonCyberTheme
 } from '@brewsite/diagram';
+import { neonCyberBundle } from '@brewsite/themes';
 import {dwellFn} from '../../utils/pacing';
+
+const neonCyberTheme = neonCyberBundle.diagram.dark;
 import {isMobile} from '../../utils/viewport';
 import type {Vec3} from '@brewsite/core';
 import {NeonSign} from "../../widgets/neon-sign";

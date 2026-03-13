@@ -2,15 +2,18 @@
 // Scene components use this to get the right chart theme without manual lookup.
 
 import { useThemeKey } from '@brewsite/core';
-import { CHART_THEME_PAIRS } from '../themes/index';
+import { resolveChartTheme } from '../themes/chartThemeRegistry';
 import type { ChartTheme } from '../themes/types';
 
 /**
  * Returns the ChartTheme resolved from the current ThemeKeyContext
  * (set by `<SceneEngine themeFamily="..." themePolarity="...">`).
  *
- * Returns null when no ThemeKeyContext is provided — callers should fall back
+ * Returns undefined when no ThemeKeyContext is provided — callers should fall back
  * to an explicit theme prop or a hardcoded default.
+ *
+ * Named family presets (darkGlass, midnight, etc.) are available after
+ * @brewsite/themes has registered them at app startup via themesPlugin().
  *
  * @example
  * ```tsx
@@ -21,5 +24,5 @@ import type { ChartTheme } from '../themes/types';
 export function useChartTheme(): ChartTheme | undefined {
   const key = useThemeKey();
   if (!key) return undefined;
-  return CHART_THEME_PAIRS[key.family]?.[key.polarity] ?? undefined;
+  return resolveChartTheme(key.family, key.polarity);
 }
