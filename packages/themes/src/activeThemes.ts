@@ -3,6 +3,12 @@
 
 import type { ActiveTheme } from '@brewsite/core';
 
+/** A pair of ActiveTheme selectors for dark and light polarities of a single family. */
+export type ActiveThemeSelector = {
+  readonly dark: ActiveTheme;
+  readonly light: ActiveTheme;
+};
+
 /** ActiveTheme selectors for the enterprise family. */
 export const enterprise = {
   dark:  { family: 'enterprise',   polarity: 'dark'  } as const satisfies ActiveTheme,

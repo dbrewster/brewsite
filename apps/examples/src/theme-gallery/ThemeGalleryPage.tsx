@@ -1,5 +1,6 @@
 // Page component rendering all theme family × polarity variants side-by-side for visual review.
 import { Fragment } from 'react';
+import type { ThemeFamily } from '@brewsite/core';
 import type { JSX } from 'react';
 import { bundles } from '@brewsite/themes';
 import { ThemeSwatchCard } from './ThemeSwatchCard';

@@ -1,5 +1,6 @@
 // Shared layout constants and helper components for chart demo scenes.
-import type { JSX } from 'react';
+import { createContext, useContext } from 'react';
+import type { JSX, ReactNode } from 'react';
 import { Ambient, Directional, Lighting, TextBox } from '@brewsite/core';
 import type { ChartTheme } from '@brewsite/charts';
 import { bundles } from '@brewsite/themes';
