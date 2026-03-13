@@ -5,7 +5,7 @@ import type { WidgetPlugin } from '@brewsite/core';
 import { registerDiagramHandlers } from '../compiler/handlers';
 import { DiagramWidget } from '../elements/diagram/widget';
 import { buildThemeRenderConfig } from '../elements/diagram/compiler/themeResolver';
-import { darkGlassTheme } from '../elements/diagram/themes';
+import { defaultDiagramTheme } from '../elements/diagram/themes';
 import type { DiagramState } from '../elements/diagram/types';
 
 /**
@@ -109,6 +109,6 @@ function makeDefaultDiagramState(id: string): DiagramState {
     groups: [],
     exit: undefined,
     enter: undefined,
-    themeConfig: buildThemeRenderConfig(darkGlassTheme),
+    themeConfig: buildThemeRenderConfig(defaultDiagramTheme),
   };
 }
