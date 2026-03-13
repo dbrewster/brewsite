@@ -17,7 +17,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneDreamingCloud: JSX.Element = (
+export const SceneDreamingCloud = () => (
   <Scene key="bfmu-dreaming" id="bfmu-dreaming">
     <ProgressManager scrollUnits={3000} fn={DWELL_FN} />
     <InputController scope="canvas">

@@ -8,17 +8,17 @@ import React, {
   type ReactElement,
   type ReactNode,
 } from 'react';
+export { createChildApi } from './childApi';
 import type { SceneSnapshotContext } from './sceneTypes';
 import { getNodeHandler, isPrimitiveComponent } from './registry';
 import type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
-import type { NVSRect } from '../layout/types';
-import { composeBoundsIntoParent } from '../layout/regionNormalize';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { JsonPrimitive } from '../widget/VariableStore';
 import type { CompileWarning, DslBreadcrumb, SceneFrame, TransitionWindow } from './sceneTrackTypes';
 import { resolveSceneTransition } from './transitions/transitionPresets';
 import type { SceneTransitionProp } from './transitions/transitionPresets';
 import { SceneRegistrationContext } from './SceneRegistrationContext';
+import { enforceSceneChildConstraint } from './sceneViewConstraint';
 // registerCoreHandlers is imported via circular reference (safe — only used inside functions,
 // not at module scope; see the comment above ensureSceneRegistry for details).
 import { registerCoreHandlers } from './coreHandlers';
@@ -123,7 +123,7 @@ const collectChildren = (node: ReactElement): unknown[] =>
  * with their original `key` prop intact, rather than being unwrapped into their
  * rendered HTML output (which has no `key`).
  */
-const collectChildrenShallow = (node: ReactElement): unknown[] => {
+export const collectChildrenShallow = (node: ReactElement): unknown[] => {
   const expandShallow = (n: unknown): unknown[] => {
     if (!isValidElement(n)) return [n];
     const el = n as ReactElement;
@@ -139,6 +139,100 @@ const collectChildrenShallow = (node: ReactElement): unknown[] => {
 
 function createHelpers(): { helpers: CompileHelpers; getBreadcrumbs: () => readonly DslBreadcrumb[] } {
   const stack: DslBreadcrumb[] = [];
+
+  // Internal shared implementation — processes a pre-collected children array.
+  // Extracted so both compileChildrenSeparated and compileChildrenFromArray use
+  // the same loop without duplicating code.
+  function processChildrenForOverlay(
+    children: unknown[],
+    api: CompileApi,
+  ): ReactNode[] {
+    const overlayNodes: ReactNode[] = [];
+
+    for (const child of children) {
+      if (!isValidElement(child)) {
+        // Text nodes, numbers, booleans — treat as overlay content
+        if (child !== null && child !== undefined && child !== false) {
+          overlayNodes.push(child as ReactNode);
+        }
+        continue;
+      }
+      const childEl = child as ReactElement;
+
+      // String type = native HTML element (div, h1, p, span, etc.) → overlay
+      if (typeof childEl.type === 'string') {
+        // After Children.toArray, developer-supplied keys are prefixed with '.$'.
+        // A key NOT starting with '.$' means the element had no key in the source.
+        if (process.env.NODE_ENV !== 'production' && !childEl.key?.startsWith('.$')) {
+          api.pushWarning({
+            code: 'MISSING_KEY',
+            message:
+              `An overlay element <${getComponentName(childEl)}> has no key. ` +
+              'Add a key prop to prevent React reconciliation warnings. ' +
+              `Ancestry: ${formatBreadcrumbChain([...stack])}`,
+            sceneIndex: api.context.sceneIndex,
+          });
+        }
+        overlayNodes.push(childEl);
+        continue;
+      }
+
+      // Registered DSL component → compile as normal
+      const handler = getNodeHandler(childEl.type);
+      if (handler) {
+        handler(childEl, api, helpers);
+        continue;
+      }
+
+      // Non-registered function component → try expanding
+      if (typeof childEl.type === 'function' && !isPrimitiveComponent(childEl.type)) {
+        const expanded = expandNode(childEl);
+        let anyCompiled = false;
+        // Collect HTML nodes found during expansion separately before committing them.
+        // This avoids the double-push bug: if a component renders only HTML (no DSL),
+        // anyCompiled stays false AND the individual HTML nodes would already be in
+        // overlayNodes — then the whole-component fallback would push childEl on top,
+        // rendering the content twice. Using pendingHtml as a staging area prevents this.
+        const pendingHtml: ReactNode[] = [];
+        for (const next of expanded) {
+          if (isValidElement(next)) {
+            const nextEl = next as ReactElement;
+            const nextHandler = getNodeHandler(nextEl.type);
+            if (nextHandler) {
+              nextHandler(nextEl, api, helpers);
+              anyCompiled = true;
+            } else if (typeof nextEl.type === 'string') {
+              // HTML inside expanded component — stage, don't commit yet
+              pendingHtml.push(nextEl);
+            }
+          }
+        }
+        if (anyCompiled) {
+          // Mixed component: DSL parts compiled, HTML parts become overlay
+          overlayNodes.push(...pendingHtml);
+        } else {
+          // No DSL output (HTML-only expansion or no yield at all):
+          // Preserve the original element so its key prop survives to the render phase.
+          // React will call the component normally when EngineOverlayHost renders it.
+          // After Children.toArray, developer-supplied keys are prefixed with '.$'.
+          // A key NOT starting with '.$' means the element had no key in the source.
+          if (process.env.NODE_ENV !== 'production' && !childEl.key?.startsWith('.$')) {
+            api.pushWarning({
+              code: 'MISSING_KEY',
+              message:
+                `An overlay element <${getComponentName(childEl)}> has no key. ` +
+                'Add a key prop to prevent React reconciliation warnings. ' +
+                `Ancestry: ${formatBreadcrumbChain([...stack])}`,
+              sceneIndex: api.context.sceneIndex,
+            });
+          }
+          overlayNodes.push(childEl);
+        }
+      }
+    }
+
+    return overlayNodes;
+  }
 
   const helpers: CompileHelpers = {
     compileChildren: (node, api) => {
@@ -173,92 +267,20 @@ function createHelpers(): { helpers: CompileHelpers; getBreadcrumbs: () => reado
       // Use shallow collection so non-registered function components (e.g. <TextBox>)
       // are preserved with their key props rather than being pre-expanded to keyless HTML.
       const children = collectChildrenShallow(node);
-      const overlayNodes: ReactNode[] = [];
-
-      for (const child of children) {
-        if (!isValidElement(child)) {
-          // Text nodes, numbers, booleans — treat as overlay content
-          if (child !== null && child !== undefined && child !== false) {
-            overlayNodes.push(child as ReactNode);
-          }
-          continue;
-        }
-        const childEl = child as ReactElement;
-
-        // String type = native HTML element (div, h1, p, span, etc.) → overlay
-        if (typeof childEl.type === 'string') {
-          // After Children.toArray, developer-supplied keys are prefixed with '.$'.
-          // A key NOT starting with '.$' means the element had no key in the source.
-          if (process.env.NODE_ENV !== 'production' && !childEl.key?.startsWith('.$')) {
-            api.pushWarning({
-              code: 'MISSING_KEY',
-              message:
-                `An overlay element <${getComponentName(childEl)}> has no key. ` +
-                'Add a key prop to prevent React reconciliation warnings. ' +
-                `Ancestry: ${formatBreadcrumbChain([...stack])}`,
-              sceneIndex: api.context.sceneIndex,
-            });
-          }
-          overlayNodes.push(childEl);
-          continue;
-        }
-
-        // Registered DSL component → compile as normal
-        const handler = getNodeHandler(childEl.type);
-        if (handler) {
-          handler(childEl, api, helpers);
-          continue;
-        }
-
-        // Non-registered function component → try expanding
-        if (typeof childEl.type === 'function' && !isPrimitiveComponent(childEl.type)) {
-          const expanded = expandNode(childEl);
-          let anyCompiled = false;
-          // Collect HTML nodes found during expansion separately before committing them.
-          // This avoids the double-push bug: if a component renders only HTML (no DSL),
-          // anyCompiled stays false AND the individual HTML nodes would already be in
-          // overlayNodes — then the whole-component fallback would push childEl on top,
-          // rendering the content twice. Using pendingHtml as a staging area prevents this.
-          const pendingHtml: ReactNode[] = [];
-          for (const next of expanded) {
-            if (isValidElement(next)) {
-              const nextEl = next as ReactElement;
-              const nextHandler = getNodeHandler(nextEl.type);
-              if (nextHandler) {
-                nextHandler(nextEl, api, helpers);
-                anyCompiled = true;
-              } else if (typeof nextEl.type === 'string') {
-                // HTML inside expanded component — stage, don't commit yet
-                pendingHtml.push(nextEl);
-              }
-            }
-          }
-          if (anyCompiled) {
-            // Mixed component: DSL parts compiled, HTML parts become overlay
-            overlayNodes.push(...pendingHtml);
-          } else {
-            // No DSL output (HTML-only expansion or no yield at all):
-            // Preserve the original element so its key prop survives to the render phase.
-            // React will call the component normally when EngineOverlayHost renders it.
-            // After Children.toArray, developer-supplied keys are prefixed with '.$'.
-            // A key NOT starting with '.$' means the element had no key in the source.
-            if (process.env.NODE_ENV !== 'production' && !childEl.key?.startsWith('.$')) {
-              api.pushWarning({
-                code: 'MISSING_KEY',
-                message:
-                  `An overlay element <${getComponentName(childEl)}> has no key. ` +
-                  'Add a key prop to prevent React reconciliation warnings. ' +
-                  `Ancestry: ${formatBreadcrumbChain([...stack])}`,
-                sceneIndex: api.context.sceneIndex,
-              });
-            }
-            overlayNodes.push(childEl);
-          }
-        }
-      }
-
+      const result = processChildrenForOverlay(children, api);
       stack.pop();
-      return overlayNodes;
+      return result;
+    },
+
+    compileChildrenFromArray: (children, api, parentNode): ReactNode[] => {
+      if (parentNode) {
+        const crumb = buildBreadcrumb(parentNode);
+        stack.push(crumb);
+        const result = processChildrenForOverlay(children, api);
+        stack.pop();
+        return result;
+      }
+      return processChildrenForOverlay(children, api);
     },
 
     resolveValue,
@@ -274,15 +296,17 @@ const createApi = (
   context: SceneSnapshotContext,
   pushWarning?: (warning: CompileWarning) => void,
   getBreadcrumbs?: () => readonly DslBreadcrumb[],
-): CompileApi => {
+): CompileApi & { _overlayNodes: ReactNode[] } => {
   const state: SceneFrame = {
     id: '',
     scrollProgress: 0,
     widgets: {},
   };
+  const _overlayNodes: ReactNode[] = [];
   return {
     context,
     state,
+    _overlayNodes,
     setWidgetState: (widgetId, widgetState) => {
       state.widgets[widgetId] = widgetState;
     },
@@ -302,36 +326,10 @@ const createApi = (
     composeZ: (localZ) => localZ,
     // Default composeOpacity is identity — returns localOpacity unchanged.
     composeOpacity: (localOpacity) => localOpacity,
+    // Push overlay content for collection by the scene root handler.
+    pushOverlay: (node) => { _overlayNodes.push(node); },
   };
 };
-
-/**
- * Creates a child CompileApi that delegates to the parent but overrides composeBounds
- * to compose local coordinates into the given parentContentBounds, and composeZ
- * to accumulate Z offsets from parent views/layouts.
- *
- * Used by viewHandler to create scoped compilation contexts for view children.
- */
-export function createChildApi(
-  parentApi: CompileApi,
-  parentContentBounds: NVSRect,
-  zOffset: number = 0,
-  opacityScale: number = 1,
-): CompileApi {
-  return {
-    ...parentApi,
-    composeBounds: (localRect: NVSRect): NVSRect => {
-      const composed = composeBoundsIntoParent(localRect, parentContentBounds);
-      return parentApi.composeBounds(composed);
-    },
-    composeZ: (localZ: number): number => {
-      return parentApi.composeZ(localZ + zOffset);
-    },
-    composeOpacity: (localOpacity: number): number => {
-      return parentApi.composeOpacity(localOpacity * opacityScale);
-    },
-  };
-}
 
 /**
  * Discriminated union for <Scene> transition control props.
@@ -386,66 +384,110 @@ export const Scene = (props: {
 };
 Scene.displayName = 'Scene';
 
-export const sceneRootHandler: NodeHandler = (node, api, helpers) => {
-  const props = node.props as {
-    id?: string;
-    meta?: Record<string, JsonPrimitive>;
-    metalnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
-    roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
-    transition?: SceneTransitionProp;
-    exitStart?: number;
-  };
-  // Children.toArray() prefixes keys with ".$" (e.g. "arch-auto" -> ".$arch-auto").
-  // Strip the prefix defensively for any direct-element fallback path.
-  const rawKey = typeof node.key === 'string' && node.key.startsWith('.$')
-    ? node.key.slice(2)
-    : node.key;
-  const sceneId = props.id ?? rawKey ?? null;
-  if (sceneId === null) {
-    console.warn(
-      '[EngineProvider] A <Scene> element has no id. ' +
-      'Assign id="..." to every <Scene> for stable scene identity.',
-    );
-  }
-  if (sceneId) api.setSceneMeta({ id: String(sceneId) });
-  if (props.meta) api.setSceneMeta({ meta: props.meta });
-  if (props.metalnessMultiplier !== undefined) {
-    api.state.materialMetalnessMultiplier = helpers.resolveValue(props.metalnessMultiplier, api.context);
-  }
-  if (props.roughnessMultiplier !== undefined) {
-    api.state.materialRoughnessMultiplier = helpers.resolveValue(props.roughnessMultiplier, api.context);
-  }
-  if (props.transition !== undefined || props.exitStart !== undefined) {
-    api.state.transitionWindow = resolveSceneTransition(props.transition, props.exitStart);
-  }
-
-  // Warn when exitStart is declared on the last scene — it has no effect because there
-  // is no outgoing transition block from the final scene.
-  if (props.exitStart !== undefined && api.context.sceneIndex === api.context.numScenes - 1) {
-    const lastSceneId = String(sceneId ?? 'unknown');
-    api.pushWarning({
-      code: 'TRANSITION_TIMING',
-      message:
-        `exitStart on the last scene ("${lastSceneId}") has no effect. ` +
-        'There is no outgoing transition from the final scene.',
-      sceneIndex: api.context.sceneIndex,
-    });
-  }
-
-  // Compile DSL children. DSL nodes are processed into api.state; non-DSL JSX
-  // (HTML elements, <TextBox>, etc.) is returned as overlay content and stored
-  // on sceneOverlay for EngineOverlayHost to render above the canvas.
-  const overlayNodes = helpers.compileChildrenSeparated(node, api);
-  if (overlayNodes.length > 0) {
-    // Wrap in a Fragment so EngineOverlayHost renders a single ReactNode rather than a
-    // bare array. A bare array requires every sibling to carry a key; the Fragment does not.
-    api.state.sceneOverlay = React.createElement(Fragment, null, ...overlayNodes);
-  }
+/**
+ * Dependencies injected at registration time by coreHandlers.ts.
+ * This pattern avoids a circular import between sceneDslCompiler and viewHandlers.
+ * Stream D will use viewHandler and the DSL component refs for auto-wrapping.
+ */
+export type SceneRootHandlerDeps = {
+  /** The viewHandler function — called for auto-wrapping a single spatial child. */
+  viewHandler: NodeHandler;
+  /** The View DSL component — used for type-checking direct Scene children and auto-wrap createElement. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  View: React.ComponentType<any>;
+  /** The ViewLayout DSL component — used for type-checking direct Scene children. */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ViewLayout: React.ComponentType<any>;
 };
+
+/**
+ * Factory that creates the sceneRootHandler NodeHandler with the given deps injected.
+ * Called once by registerCoreHandlers() in coreHandlers.ts.
+ */
+export function createSceneRootHandler(deps: SceneRootHandlerDeps): NodeHandler {
+  return (node, api, helpers) => {
+    const props = node.props as {
+      id?: string;
+      meta?: Record<string, JsonPrimitive>;
+      metalnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
+      roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
+      transition?: SceneTransitionProp;
+      exitStart?: number;
+    };
+    // Children.toArray() prefixes keys with ".$" (e.g. "arch-auto" -> ".$arch-auto").
+    // Strip the prefix defensively for any direct-element fallback path.
+    const rawKey = typeof node.key === 'string' && node.key.startsWith('.$')
+      ? node.key.slice(2)
+      : node.key;
+    const sceneId = props.id ?? rawKey ?? null;
+    if (sceneId === null) {
+      console.warn(
+        '[EngineProvider] A <Scene> element has no id. ' +
+        'Assign id="..." to every <Scene> for stable scene identity.',
+      );
+    }
+    if (sceneId) api.setSceneMeta({ id: String(sceneId) });
+    if (props.meta) api.setSceneMeta({ meta: props.meta });
+    if (props.metalnessMultiplier !== undefined) {
+      api.state.materialMetalnessMultiplier = helpers.resolveValue(props.metalnessMultiplier, api.context);
+    }
+    if (props.roughnessMultiplier !== undefined) {
+      api.state.materialRoughnessMultiplier = helpers.resolveValue(props.roughnessMultiplier, api.context);
+    }
+    if (props.transition !== undefined || props.exitStart !== undefined) {
+      api.state.transitionWindow = resolveSceneTransition(props.transition, props.exitStart);
+    }
+
+    // Warn when exitStart is declared on the last scene — it has no effect because there
+    // is no outgoing transition block from the final scene.
+    if (props.exitStart !== undefined && api.context.sceneIndex === api.context.numScenes - 1) {
+      const lastSceneId = String(sceneId ?? 'unknown');
+      api.pushWarning({
+        code: 'TRANSITION_TIMING',
+        message:
+          `exitStart on the last scene ("${lastSceneId}") has no effect. ` +
+          'There is no outgoing transition from the final scene.',
+        sceneIndex: api.context.sceneIndex,
+      });
+    }
+
+    // Collect children once — shared between constraint enforcement and compilation.
+    // Uses shallow collection (Fragments expanded, function components NOT expanded).
+    const allChildren = collectChildrenShallow(node);
+
+    // Enforce the view constraint. Spatial children are auto-wrapped or errored;
+    // the remaining array excludes them so we do not double-compile.
+    const { remaining } = enforceSceneChildConstraint(
+      allChildren,
+      sceneId !== null ? String(sceneId) : null,
+      api,
+      helpers,
+      deps,
+    );
+
+    // Compile remaining children (ambient, views, overlays).
+    // DSL nodes are processed into api.state; non-DSL JSX is returned as overlay content.
+    // Pass node as parentNode so the Scene breadcrumb is on the ancestry stack for
+    // MISSING_KEY and other warnings emitted while processing Scene's direct children.
+    const overlayNodes = helpers.compileChildrenFromArray(remaining, api, node);
+
+    // Merge in any overlay nodes pushed by nested View/ViewLayout handlers via pushOverlay().
+    const pushedOverlays = (api as ReturnType<typeof createApi>)._overlayNodes;
+    if (pushedOverlays.length > 0) {
+      overlayNodes.push(...pushedOverlays);
+    }
+
+    if (overlayNodes.length > 0) {
+      // Wrap in a Fragment so EngineOverlayHost renders a single ReactNode rather than a
+      // bare array. A bare array requires every sibling to carry a key; the Fragment does not.
+      api.state.sceneOverlay = React.createElement(Fragment, null, ...overlayNodes);
+    }
+  };
+}
 
 // Keep ensureSceneRegistry for backward compatibility — delegates to registerCoreHandlers.
 // The circular import (sceneDslCompiler → coreHandlers → sceneDslCompiler) is safe because
-// coreHandlers.ts only accesses Scene and sceneRootHandler inside registerCoreHandlers(),
+// coreHandlers.ts only accesses Scene and createSceneRootHandler inside registerCoreHandlers(),
 // not at module scope. By the time any caller invokes ensureSceneRegistry(), both modules
 // are fully evaluated and all live bindings are resolved.
 export const ensureSceneRegistry = (): void => {

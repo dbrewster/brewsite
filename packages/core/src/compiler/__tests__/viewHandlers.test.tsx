@@ -1,7 +1,7 @@
 // Tests for <View> and <ViewLayout> NodeHandlers — interface-based stateful tests.
 // Uses real CompileApi (via resolveSceneFromDsl), real helpers, real layout algorithms.
 
-import React from 'react';
+import React, { isValidElement, Fragment, type ReactElement } from 'react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { resolveSceneFromDsl, Scene } from '../sceneDslCompiler';
 import { clearRegistry, registerNode } from '../registry';
@@ -12,6 +12,11 @@ import type { NVSRect } from '../../layout/types';
 import { View } from '../blocks/viewDsl';
 import { ViewLayout } from '../blocks/viewLayoutDsl';
 import type { ViewState, ViewLayoutState } from '../viewTypes';
+import { TextBox } from '../../elements/text-box/dsl';
+
+// A minimal spatial widget for tests that need a child inside a View.
+const SpatialWidget = () => null;
+SpatialWidget.displayName = 'SpatialWidget';
 
 const testContext: SceneSnapshotContext = {
   sceneIndex: 0,
@@ -31,6 +36,8 @@ beforeEach(() => {
   resetCoreHandlerRegistrationForTesting();
   // Re-register core handlers so View/ViewLayout/Scene are available.
   registerCoreHandlers();
+  // Register a minimal spatial widget for tests that need a DSL child inside a View.
+  registerNode(SpatialWidget, () => {});
 });
 
 // --- <View> tests ---
@@ -330,6 +337,163 @@ describe('viewLayoutHandler — non-View children warning', () => {
   });
 });
 
+// ─── Overlay propagation from View ───────────────────────────────────────────
+// These tests cover the bug fix: non-DSL children (TextBox, HTML) inside a
+// <View> must appear in sceneOverlay wrapped in a positioned container div,
+// not be silently dropped. Added 2026-03-13.
+
+describe('viewHandler — overlay propagation', () => {
+  function compileOverlay(tree: React.ReactElement): ReactElement | undefined {
+    const result = resolveSceneFromDsl(tree, testContext, registry);
+    return result.frame.sceneOverlay as ReactElement | undefined;
+  }
+
+  it('TextBox inside View appears in sceneOverlay (not silently dropped)', () => {
+    const tree = (
+      <Scene id="s1">
+        <View id="stage" x={0.1} y={0.1} w={0.8} h={0.8}>
+          <TextBox key="tb1" x={0} y={0} w={1} h={1} />
+        </View>
+      </Scene>
+    );
+    const overlay = compileOverlay(tree);
+    expect(overlay).toBeDefined();
+    // sceneOverlay should be a Fragment wrapping the View's positioned container
+    expect(isValidElement(overlay)).toBe(true);
+    expect(overlay!.type).toBe(Fragment);
+  });
+
+  it('View overlay wrapper div has CSS bounds matching the View NVS rect', () => {
+    const tree = (
+      <Scene id="s1">
+        <View id="stage" x={0.06} y={0.10} w={0.88} h={0.78}>
+          <TextBox key="tb1" x={0} y={0} w={1} h={1} />
+        </View>
+      </Scene>
+    );
+    const overlay = compileOverlay(tree);
+    // The Fragment's child is the positioned wrapper div
+    const children = React.Children.toArray(overlay!.props.children) as ReactElement[];
+    expect(children).toHaveLength(1);
+    const wrapperDiv = children[0] as ReactElement;
+    expect(wrapperDiv.type).toBe('div');
+    // Its inline style should position it at the View's NVS bounds as percentages
+    const style = wrapperDiv.props.style as React.CSSProperties;
+    expect(style.position).toBe('absolute');
+    expect(style.left).toBe('6%');
+    expect(style.top).toBe('10%');
+    expect(style.width).toBe('88%');
+    expect(style.height).toBe('78%');
+  });
+
+  it('TextBox inside View is contained within the wrapper div', () => {
+    const tree = (
+      <Scene id="s1">
+        <View id="stage" x={0.1} y={0.1} w={0.8} h={0.8}>
+          <TextBox key="tb1" x={0.25} y={0.25} w={0.5} h={0.5} />
+        </View>
+      </Scene>
+    );
+    const overlay = compileOverlay(tree);
+    const wrapperDiv = React.Children.toArray(overlay!.props.children)[0] as ReactElement;
+    const wrapperChildren = React.Children.toArray(wrapperDiv.props.children) as ReactElement[];
+    expect(wrapperChildren).toHaveLength(1);
+    // The TextBox itself is a child of the wrapper — its x/y/w/h are relative to the View
+    const textBox = wrapperChildren[0] as ReactElement;
+    expect(textBox.type).toBe(TextBox);
+  });
+
+  it('multiple TextBoxes inside View all appear in the wrapper', () => {
+    const tree = (
+      <Scene id="s1">
+        <View id="stage" x={0} y={0} w={1} h={1}>
+          <TextBox key="tb1" x={0} y={0} w={0.5} h={0.5} />
+          <TextBox key="tb2" x={0.5} y={0.5} w={0.5} h={0.5} />
+        </View>
+      </Scene>
+    );
+    const overlay = compileOverlay(tree);
+    const wrapperDiv = React.Children.toArray(overlay!.props.children)[0] as ReactElement;
+    const wrapperChildren = React.Children.toArray(wrapperDiv.props.children) as ReactElement[];
+    expect(wrapperChildren).toHaveLength(2);
+    expect(wrapperChildren[0].type).toBe(TextBox);
+    expect(wrapperChildren[1].type).toBe(TextBox);
+  });
+
+  it('TextBox outside View and TextBox inside View both appear in sceneOverlay', () => {
+    const tree = (
+      <Scene id="s1">
+        <TextBox key="outer" x={0} y={0} w={1} h={0.1} />
+        <View id="stage" x={0.1} y={0.1} w={0.8} h={0.8}>
+          <TextBox key="inner" x={0} y={0} w={1} h={1} />
+        </View>
+      </Scene>
+    );
+    const overlay = compileOverlay(tree);
+    expect(overlay).toBeDefined();
+    const children = React.Children.toArray(overlay!.props.children) as ReactElement[];
+    // Two overlay nodes: the outer TextBox and the View's wrapper div
+    expect(children).toHaveLength(2);
+    // Outer TextBox is a direct child (not wrapped)
+    const outerTextBox = children[0] as ReactElement;
+    expect(outerTextBox.type).toBe(TextBox);
+    // View's content is a wrapper div
+    const viewWrapper = children[1] as ReactElement;
+    expect(viewWrapper.type).toBe('div');
+  });
+
+  it('View with only DSL children produces no overlay', () => {
+    // A View that only contains registered DSL elements (no TextBox/HTML) should
+    // produce no sceneOverlay entry — only widget state entries.
+    const DslChild = (_props: { id: string }): null => null;
+    DslChild.displayName = 'DslChildNoOverlay';
+    registerNode(DslChild, (node, api) => {
+      api.setWidgetState((node.props as { id: string }).id, { compiled: true });
+    });
+
+    const tree = (
+      <Scene id="s1">
+        <View id="stage" x={0.1} y={0.1} w={0.8} h={0.8}>
+          <DslChild id="child1" />
+        </View>
+      </Scene>
+    );
+    const result = resolveSceneFromDsl(tree, testContext, registry);
+    // DSL child compiled into widgets
+    expect(result.frame.widgets['child1']).toEqual({ compiled: true });
+    // No overlay — no non-DSL content
+    expect(result.frame.sceneOverlay).toBeUndefined();
+  });
+
+  it('nested View overlay wrapper uses the outer absolute bounds (not local)', () => {
+    // Inner view x=0.5, y=0.5, w=0.5, h=0.5 inside outer x=0.1, y=0.1, w=0.8, h=0.8
+    // Inner absolute bounds = outer.content * inner.local = {0.5, 0.5, 0.4, 0.4}
+    const tree = (
+      <Scene id="s1">
+        <View id="outer" x={0.1} y={0.1} w={0.8} h={0.8}>
+          <View id="inner" x={0.5} y={0.5} w={0.5} h={0.5}>
+            <TextBox key="tb1" x={0} y={0} w={1} h={1} />
+          </View>
+        </View>
+      </Scene>
+    );
+    const overlay = compileOverlay(tree);
+    // The Fragment's only child is the inner View's wrapper div (outer View has no direct overlays)
+    const children = React.Children.toArray(overlay!.props.children) as ReactElement[];
+    expect(children).toHaveLength(1);
+    const innerWrapper = children[0] as ReactElement;
+    const style = innerWrapper.props.style as React.CSSProperties;
+    // Inner absolute left = 0.1 + 0.8 * 0.5 = 0.5 = 50%
+    expect(style.left).toBe('50%');
+    // Inner absolute top = 0.1 + 0.8 * 0.5 = 0.5 = 50%
+    expect(style.top).toBe('50%');
+    // Inner absolute width = 0.8 * 0.5 = 0.4 = 40%
+    expect(style.width).toBe('40%');
+    // Inner absolute height = 0.8 * 0.5 = 0.4 = 40%
+    expect(style.height).toBe('40%');
+  });
+});
+
 describe('viewLayoutHandler — degenerate cases', () => {
   it('single-child carousel: view centered at full scale, layer = 1', () => {
     const tree = (
@@ -492,5 +656,113 @@ describe('loop carousel — composeOpacity flows to child widgets', () => {
     expect((w0['p1'] as { composedOpacity: number }).composedOpacity).not.toBeCloseTo(
       (w1['p1'] as { composedOpacity: number }).composedOpacity,
     );
+  });
+});
+
+// ─── childWidgetIds tracking ──────────────────────────────────────────────────
+
+describe('viewHandler — childWidgetIds', () => {
+  it('childWidgetIds is empty when View has no children', () => {
+    const tree = (
+      <Scene id="s1">
+        <View id="v1" x={0.1} y={0.1} w={0.8} h={0.8} />
+      </Scene>
+    );
+    const widgets = compile(tree);
+    const state = widgets['v1'] as ViewState;
+    expect(state.childWidgetIds).toEqual([]);
+  });
+
+  it('childWidgetIds contains widget ID set by a DSL child inside the View', () => {
+    const TrackedChild = (_props: { id: string }): null => null;
+    TrackedChild.displayName = 'TrackedChild';
+    registerNode(TrackedChild, (node, api) => {
+      api.setWidgetState((node.props as { id: string }).id, { compiled: true });
+    });
+
+    const tree = (
+      <Scene id="s1">
+        <View id="v1">
+          <TrackedChild id="child1" />
+        </View>
+      </Scene>
+    );
+    const widgets = compile(tree);
+    const state = widgets['v1'] as ViewState;
+    expect(state.childWidgetIds).toContain('child1');
+  });
+
+  it('childWidgetIds contains all widget IDs when multiple DSL children', () => {
+    const TrackedChildA = (_props: { id: string }): null => null;
+    TrackedChildA.displayName = 'TrackedChildA';
+    registerNode(TrackedChildA, (node, api) => {
+      api.setWidgetState((node.props as { id: string }).id, { a: true });
+    });
+
+    const tree = (
+      <Scene id="s1">
+        <View id="v1">
+          <TrackedChildA id="childA" />
+          <TrackedChildA id="childB" />
+        </View>
+      </Scene>
+    );
+    const widgets = compile(tree);
+    const state = widgets['v1'] as ViewState;
+    expect(state.childWidgetIds).toContain('childA');
+    expect(state.childWidgetIds).toContain('childB');
+    expect(state.childWidgetIds).toHaveLength(2);
+  });
+
+  it('nested Views: outer childWidgetIds contains inner View id and propagated grandchildren', () => {
+    // setWidgetState wraps delegate up the chain, so grandchild IDs propagate to
+    // outer.childWidgetIds. The inner viewHandler calls api.setWidgetState('inner', ...)
+    // on the outer childApi, which also receives grandchild calls from inner's childApi.
+    const InnerChild = (_props: { id: string }): null => null;
+    InnerChild.displayName = 'InnerChild';
+    registerNode(InnerChild, (node, api) => {
+      api.setWidgetState((node.props as { id: string }).id, { inner: true });
+    });
+
+    const tree = (
+      <Scene id="s1">
+        <View id="outer">
+          <View id="inner">
+            <InnerChild id="grandchild" />
+          </View>
+        </View>
+      </Scene>
+    );
+    const widgets = compile(tree);
+    const outerState = widgets['outer'] as ViewState;
+    const innerState = widgets['inner'] as ViewState;
+    // Outer View's childApi sees all setWidgetState calls including grandchild (chain propagation)
+    expect(outerState.childWidgetIds).toContain('inner');
+    expect(outerState.childWidgetIds).toContain('grandchild');
+    // Inner View's childWidgetIds contains the grandchild
+    expect(innerState.childWidgetIds).toContain('grandchild');
+    expect(innerState.childWidgetIds).not.toContain('inner');
+  });
+});
+
+// ─── Reserved-id guard ────────────────────────────────────────────────────────
+
+describe('viewHandler — reserved-id guard', () => {
+  it('emits console.warn when a View uses a reserved __...__ id', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    compile(<Scene id="s1"><View id="__my_reserved__"><SpatialWidget /></View></Scene>);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('reserved'));
+    warnSpy.mockRestore();
+  });
+
+  it('does not warn for the compiler-generated __scene_root__ sentinel id', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    compile(<Scene id="s1"><SpatialWidget /></Scene>); // triggers auto-wrap with __scene_root__
+    // Filter for the reserved-id warning specifically
+    const reservedWarnings = warnSpy.mock.calls.filter(([msg]) =>
+      typeof msg === 'string' && msg.includes('reserved')
+    );
+    expect(reservedWarnings).toHaveLength(0);
+    warnSpy.mockRestore();
   });
 });

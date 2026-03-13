@@ -1,7 +1,7 @@
 import type {JSX} from 'react';
 import {Background, Camera, Lighting, ProgressManager, Scene, TextBox} from '@brewsite/core';
 
-export const sceneHero: JSX.Element = (
+export const SceneHero = () => (
   <Scene key="bfmu-hero" id="bfmu-hero">
     <ProgressManager scrollUnits={800} />
     <Camera mode="world" position={[0, 1, 6]} target={[0, 0.5, 0]} fov={50} />

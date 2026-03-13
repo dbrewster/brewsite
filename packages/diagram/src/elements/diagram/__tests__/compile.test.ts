@@ -938,7 +938,7 @@ describe('compileDiagram — thickness normalization', () => {
     expect(group.borderHeight).toBeLessThan(darkGlassTheme.group.defaultBorderHeight);
   });
 
-  it('manual-layout: node thickness equals authored value (safeSpanX = 1)', () => {
+  it('manual-layout: node thickness is normalized by virtual safeSpan', () => {
     const dsl: DiagramDSL = {
       id: 'd',
       layout: { kind: 'manual' },
@@ -948,11 +948,15 @@ describe('compileDiagram — thickness normalization', () => {
     };
     const state = compileDiagram(dsl);
     const node = state.nodes[0]!;
-    // Manual layout: safeSpanX = 1, so thickness is unchanged.
-    expect(node.thickness).toBeCloseTo(0.15, 5);
+    // ManualLayout computes a virtual safeSpan from the ratio of theme default node
+    // size to the median NVS node size. For [0.3, 0.2] NVS and [4, 2] theme default:
+    // virtualSpanX = 4/0.3 ≈ 13.33, virtualSpanY = 2/0.2 = 10, safeSpan = max = 13.33
+    // thickness = 0.15 / 13.33 ≈ 0.01125
+    const expectedSafeSpan = 4 / 0.3; // ~13.33
+    expect(node.thickness).toBeCloseTo(0.15 / expectedSafeSpan, 5);
   });
 
-  it('manual-layout: edge thickness equals authored value (safeSpanX = 1)', () => {
+  it('manual-layout: edge thickness is normalized by virtual safeSpan', () => {
     const dsl: DiagramDSL = {
       id: 'd',
       layout: { kind: 'manual' },
@@ -964,7 +968,10 @@ describe('compileDiagram — thickness normalization', () => {
       groups: [],
     };
     const state = compileDiagram(dsl);
-    expect(state.edges[0]!.thickness).toBeCloseTo(0.01, 5);
+    // Median NVS node width = 0.1, theme default = [4, 2].
+    // virtualSpanX = 4/0.1 = 40, virtualSpanY = 2/0.1 = 20, safeSpan = 40
+    const expectedSafeSpan = 4 / 0.1; // 40
+    expect(state.edges[0]!.thickness).toBeCloseTo(0.01 / expectedSafeSpan, 5);
   });
 
   it('two diagrams with same content but different padding produce different normalized thicknesses', () => {

@@ -6,11 +6,12 @@ import type {
   IRendererLifecycle, IRenderContributor, IContainedRenderable, IAttachmentHost,
   ISceneLifecycle, IInputDefaultProvider,
   ICameraFocusTarget, ILightingOverride, IExtraRenderPass,
+  IGroupOwner,
 } from './types';
 import type { WebGLRenderer } from 'three';
 import type { ReactElement } from 'react';
 import { registerNode, getNodeHandler } from '../compiler/registry';
-import type { NodeHandler, CompileApi, CompileHelpers } from '../compiler/sceneDslTypes';
+import type { NodeHandler, CompileApi, CompileHelpers, NodeHandlerCategory } from '../compiler/sceneDslTypes';
 
 export type WidgetRegistryOptions = {
   /**
@@ -136,6 +137,7 @@ export class WidgetRegistry {
     this.typeFactories.set(component, factory);
     if (!getNodeHandler(component)) {
       const registry = this;
+      // No factory-registered components are ambient; category defaults to spatial.
       registerNode(component, (node, api, helpers) => {
         const props = node.props as Record<string, unknown>;
         const targetType = typeof props['type'] === 'string' ? props['type'] : undefined;
@@ -188,6 +190,13 @@ export class WidgetRegistry {
         // Routing handler dispatches to the correct widget by the 'id' prop,
         // falling back to any widget sharing this DslComponent.
         const registry = this;
+        // Duck-type read the optional nodeHandlerCategory from the widget class.
+        // Ambient widgets (Camera, Lighting, etc.) declare this as 'ambient' to exempt
+        // them from the Scene view constraint enforcement. Defaults to 'spatial' if absent.
+        const widgetCategory: NodeHandlerCategory | undefined =
+          'nodeHandlerCategory' in widget
+            ? (widget as { nodeHandlerCategory: NodeHandlerCategory }).nodeHandlerCategory
+            : undefined;
         registerNode(widget.DslComponent, (node, api, helpers) => {
           const props = node.props as Record<string, unknown>;
           const targetType = typeof props['type'] === 'string' ? props['type'] : undefined;
@@ -253,7 +262,7 @@ export class WidgetRegistry {
           }
 
           registry.dispatchToWidget(node, api, helpers, target);
-        });
+        }, widgetCategory ? { category: widgetCategory } : undefined);
       }
       // else: routing handler already installed for this DslComponent — nothing to do.
       // The routing handler will look up the target widget by id prop at call time.
@@ -426,3 +435,8 @@ export const isLightingOverride = (w: IWidget): w is ILightingOverride =>
 /** Type guard: returns true if widget implements IExtraRenderPass. */
 export const isExtraRenderPass = (w: IWidget): w is IExtraRenderPass =>
   typeof (w as IExtraRenderPass).renderPass === 'function';
+
+/** Type guard: returns true if widget implements IGroupOwner (duck-type, not instanceof). */
+export function isGroupOwner(widget: IWidget): widget is IGroupOwner {
+  return 'rootGroup' in widget && (widget as IGroupOwner).rootGroup != null;
+}

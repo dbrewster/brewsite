@@ -50,6 +50,8 @@ import type { NodeHandler } from '../../compiler/sceneDslTypes';
 export class EnvironmentWidget
   implements ISceneElement<SceneEnvironment>, IRenderable<SceneEnvironment>, ILoadable, IDslComposite, IHasCustomDslHandler
 {
+  // Ambient: Environment configures scene IBL globally. Not an NVS-bounded canvas element.
+  readonly nodeHandlerCategory = 'ambient' as const;
   readonly widgetId = 'environment';
   readonly defaultState: SceneEnvironment = DEFAULT_ENVIRONMENT;
   readonly transitionSpec = functionalEnvironmentTransitionSpec;

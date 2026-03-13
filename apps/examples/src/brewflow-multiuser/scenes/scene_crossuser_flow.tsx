@@ -17,7 +17,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneCrossUserFlow: JSX.Element = (
+export const SceneCrossUserFlow = () => (
   <Scene key="bfmu-crossuser" id="bfmu-crossuser">
     <ProgressManager scrollUnits={3000} fn={DWELL_FN} />
     <InputController scope="canvas">

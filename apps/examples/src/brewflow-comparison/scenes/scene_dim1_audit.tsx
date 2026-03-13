@@ -1,23 +1,11 @@
-import type {JSX} from 'react';
-import {
-    Action,
-    Background,
-    Camera,
-    InputController,
-    KeyMap,
-    PointerMap,
-    ProgressManager,
-    Scene,
-    TextBox,
-    WheelMap,
-} from '@brewsite/core';
+import {Background, ProgressManager, Scene, TextBox,} from '@brewsite/core';
 import {Diagram, DiagramNode, GridLayout,} from '@brewsite/diagram';
 import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneDim1Audit: JSX.Element = (
+export const SceneDim1Audit = () => (
   <Scene key="bfc-dim1-audit" id="bfc-dim1-audit">
     <ProgressManager scrollUnits={2800} fn={DWELL_FN} />
     <Background color="#080b14" />

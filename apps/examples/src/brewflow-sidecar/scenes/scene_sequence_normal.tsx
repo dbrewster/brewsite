@@ -12,7 +12,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneSequenceNormal: JSX.Element = (
+export const SceneSequenceNormal = () => (
   <Scene key="bf-seq-normal" id="bf-seq-normal">
     <ProgressManager scrollUnits={2800} fn={DWELL_FN} />
     <Camera mode="world" position={[0, 5, 24]} target={[0, 0, 0]} fov={54} />

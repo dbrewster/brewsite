@@ -10,6 +10,7 @@ import {
   InputController,
   KeyMap,
   Lighting,
+  PinchMap,
   PointerMap,
   ProgressManager,
   Scene,
@@ -26,6 +27,7 @@ import {
   useChartTheme,
   type ChartTheme,
 } from '@brewsite/charts';
+import { pk } from '../platformKeys';
 
 const CAM_POS_A: [number, number, number] = [-2, 2, 8];
 const CAM_POS_B: [number, number, number] = [2, 2, 8];
@@ -93,6 +95,9 @@ function SceneNavInput(): JSX.Element {
       </Action>
       <Action id="skip-prev" type="scene.prev" stepScenes={2}>
         <KeyMap keyName="ArrowLeft" modifiers={['shift']} />
+      </Action>
+      <Action id="dolly" type="camera.dolly">
+        <PinchMap direction="both" threshold={1} />
       </Action>
     </InputController>
   );
@@ -165,10 +170,10 @@ function InfoBar({ text }: InfoBarProps): JSX.Element {
       >
         <span>{text}</span>
         <span style={{ marginLeft: 'auto', display: 'flex', gap: 4, alignItems: 'center' }}>
-          <kbd style={{ background: '#c0604022', border: '1px solid #c0604055', borderRadius: 5, padding: '1px 6px', fontFamily: 'monospace', fontSize: 10, color: '#c06040' }}>→</kbd>
-          <kbd style={{ background: '#c0604022', border: '1px solid #c0604055', borderRadius: 5, padding: '1px 6px', fontFamily: 'monospace', fontSize: 10, color: '#c06040' }}>←</kbd>
+          <kbd style={{ background: '#c0604022', border: '1px solid #c0604055', borderRadius: 5, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#c06040' }}>→</kbd>
+          <kbd style={{ background: '#c0604022', border: '1px solid #c0604055', borderRadius: 5, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#c06040' }}>←</kbd>
           <span style={{ color: 'rgba(140,170,220,0.5)', fontSize: 10 }}>next/prev</span>
-          <kbd style={{ background: '#c050e022', border: '1px solid #c050e055', borderRadius: 5, padding: '1px 6px', fontFamily: 'monospace', fontSize: 10, color: '#c050e0' }}>Shift+→</kbd>
+          <kbd style={{ background: '#c050e022', border: '1px solid #c050e055', borderRadius: 5, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#c050e0' }}>{pk('Shift+→')}</kbd>
           <span style={{ color: 'rgba(140,170,220,0.5)', fontSize: 10 }}>skip 2</span>
         </span>
       </div>
@@ -191,7 +196,7 @@ export const SceneNavAScene = (): JSX.Element => {
       </Lighting>
       <Floor variant="grid" negativeZExtent={18} />
       <SceneNavInput />
-      <InfoBar text="Scene Nav (Part 1 of 2) — Arrow keys, Click, or Scroll to move scenes. Shift+Arrow skips 2." />
+      <InfoBar text={`Scene Nav (Part 1 of 2) — Arrow keys, Click, or Scroll to move scenes. ${pk('Shift')}+Arrow skips 2.`} />
       <StackCharts chartTheme={chartTheme} variant="a" />
     </Scene>
   );

@@ -3,8 +3,14 @@ title: "BrewSite Core — Scene Authoring DSL"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-12
+last_updated: 2026-03-13
 change_history:
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "View Widget Carousel Rendering: updated carousel.next/carousel.prev action type descriptions from 'forward-declared' to active — runtime handler now implemented via ViewWidget. Updated carousel rendering behavior description in Section 15 View/ViewLayout Architecture to document the full Group-based delta transform math (XY: G = P_new - P_old * S; Z: G_z = state.z - originalZ delta to prevent double-offset; scale ratio). Documented that originalNvsCenter, originalScale, and originalZ are all captured from first apply() — not hardcoded. Updated risks table entry. Added childWidgetIds to ViewState field description."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "Scene Child Constraint: added Section 8.13 documenting the two-rule compile-time constraint on <Scene> children. Defined 'spatial element' and 'ambient element' with explicit element lists. Documented auto-wrap to __scene_root__ implicit View (single spatial), console.error cases (multiple spatial without Views; mixed spatial+View), TextBox ambient classification, reserved __...__ id convention, and console.warn behavior. Added functional requirement 15 formalizing the constraint rules. Added worked examples covering single fullscreen diagram, two-chart side-by-side layout, and diagram with floating TextBox."
   - date: 2026-03-12
     author: "Toolkit Product"
     summary: "Input unification: updated <InputController> description in Section 7.5 to remove the hasSceneInputController/inputModePolicy reference and document the ActionInput runtime bridge pattern. Added default keyboard nav behavior (ArrowRight/Down=scene.next, ArrowLeft/Up=scene.prev injected when no <InputController> is authored). Added carousel.next/carousel.prev as forward-declared InputActionType values. Removed all references to SceneNavInputMap."
@@ -133,6 +139,12 @@ Without a clear, stable, well-typed authoring surface, consumer adoption is bloc
 13. The `<InputController>` component must be usable within a `<Scene>` tree to declare input action mappings. Only one `<InputController>` is permitted per `<Scene>`.
 13. Custom widgets implementing `IDslComposite` must be able to declare child DSL components that are protected from accidental top-level usage with a descriptive error.
 14. Widgets with the `CUSTOM_NODE_HANDLER` symbol set receive full control over DSL compilation, bypassing the default shallow-merge behavior.
+15. The compiler must enforce the following scene child constraint on direct children of `<Scene>` that are not `<View>` or `<ViewLayout>`:
+    - **Zero spatial children** (ambient-only or empty `<Scene>`): compiles normally; no implicit View is created.
+    - **Exactly one spatial child**: the compiler silently auto-wraps it in an implicit full-screen `<View id="__scene_root__" x={0} y={0} w={1} h={1}>`. The author does not declare this View. Its `ViewState` appears in `SceneFrame.widgets` under `__scene_root__`.
+    - **Two or more spatial children without Views**: the compiler emits `console.error` and skips all spatial children. Ambient children compile normally.
+    - **Mixed spatial children and `<View>`/`<ViewLayout>` children**: the compiler emits `console.error` and skips the bare spatial children. This mix is always an authoring error.
+    - **Only `<View>`/`<ViewLayout>` children**: compiles normally via the View/ViewLayout system (see §8.12).
 
 ---
 
@@ -509,8 +521,8 @@ export type InputActionType =
   | 'canvas.pan'         // Canvas pan — handled by plugin extension (e.g. diagram-canvas.move)
   | 'scene.next'         // Advance to next scene by stepScenes (default 1)
   | 'scene.prev'         // Retreat to previous scene by stepScenes (default 1)
-  | 'carousel.next'      // Forward-declared: advance carousel active index. Runtime handler is in a follow-on plan.
-  | 'carousel.prev'      // Forward-declared: retreat carousel active index. Runtime handler is in a follow-on plan.
+  | 'carousel.next'      // Advance carousel active index. Dispatched to InputCoordinator.onCarouselStep; patches ViewState bounds via engine.patchWidgetStates; ViewWidget applies delta transform.
+  | 'carousel.prev'      // Retreat carousel active index. Same dispatch path as carousel.next.
   | (string & {});       // Open union — downstream packages may define additional action types
 ```
 
@@ -1064,6 +1076,112 @@ The inner `<View>` uses coordinates relative to the outer view's content bounds.
 
 ---
 
+### 8.13 Scene Child Constraint
+
+The compiler enforces a spatial-element constraint on direct children of `<Scene>`. This constraint ensures all spatial content flows through the `viewHandler`, eliminating coordinate-system ambiguity.
+
+#### Spatial vs. Ambient Elements
+
+**Spatial elements** occupy a region of the viewport and require NVS bounds to render correctly. They must be inside a `<View>` when more than one is present.
+
+Built-in spatial elements (all from companion packages):
+- `<DiagramCanvas>` (`@brewsite/diagram`)
+- `<Chart>` (`@brewsite/charts`)
+- `<Model>` (`@brewsite/model`)
+- `<ImagePanel>` (`@brewsite/diagram`)
+- `<Screen>` (`@brewsite/diagram`)
+
+Any DSL component registered with `registerNode` whose handler category is `'spatial'` (the default) is a spatial element.
+
+**Ambient elements** configure the global scene environment and are not bounded to a viewport region. They may always appear as direct `<Scene>` children regardless of how many spatial elements are present.
+
+Built-in ambient elements (all from `@brewsite/core`):
+- `<Camera>`
+- `<Lighting>`
+- `<Background>`
+- `<Environment>`
+- `<Floor>`
+- `<SpotlightRig>`
+- `<InputController>`
+- `<ProgressManager>`
+
+**`<TextBox>`** is also ambient. It is an HTML overlay component rendered by `EngineOverlayHost`; it is not a registered DSL spatial element, and the constraint does not apply to it.
+
+#### Constraint Rules
+
+| Direct children of `<Scene>` | Behavior |
+|---|---|
+| Zero spatial children (ambient + TextBox only) | Compiles normally. No implicit View created. |
+| Exactly one spatial child, no `<View>` | Compiler auto-wraps it in `<View id="__scene_root__" x={0} y={0} w={1} h={1}>`. Silent. |
+| Two or more spatial children, no `<View>` | `console.error`. Spatial children skipped. Ambient children compile normally. |
+| Spatial children mixed with `<View>`/`<ViewLayout>` | `console.error`. Bare spatial children skipped. Views compile normally. |
+| Only `<View>` and/or `<ViewLayout>` children | Compiles normally via View/ViewLayout system. |
+
+#### The Implicit `__scene_root__` View
+
+When the auto-wrap fires, the compiler creates a `ViewState` entry in `SceneFrame.widgets` under the id `__scene_root__`. Authors never declare this View — it is a compiler implementation detail. Its `ViewState` may appear in `SceneInspector` output and debugging tools, but it is not a user-facing concept. Do not reference `__scene_root__` in authored DSL.
+
+#### Reserved ID Convention
+
+All ids that match the pattern `__...__` (double underscores surrounding any string) are reserved by the compiler. Authoring a `<View id="__my_id__">` emits `console.warn` and the View still compiles, but the behavior may conflict with compiler-internal ids in future versions. The auto-wrap sentinel `__scene_root__` is the only currently defined reserved id; the compiler suppresses the reserved-id warning for its own internally generated ids.
+
+#### Worked Examples
+
+**Example A — Single fullscreen diagram (no View needed)**
+
+The single `<DiagramCanvas>` is a spatial element. The auto-wrap fires silently: it renders at full-screen bounds.
+
+```tsx
+// No <View> required — one spatial element auto-wraps.
+<Scene key="architecture">
+  <Camera descriptor={{ mode: 'nvsViewport', worldScale: 10, zRange: [0.1, 100] }} />
+  <Lighting ambient={{ color: '#ffffff', intensity: 0.8 }} />
+  <Background color="#0a0a1a" />
+  {/* Single spatial element — auto-wrapped to __scene_root__ full-screen View */}
+  <DiagramCanvas id="arch-diagram" nodes={nodes} edges={edges} theme="darkGlass" />
+</Scene>
+```
+
+**Example B — Two charts side by side (Views required)**
+
+Two spatial elements require explicit `<View>` wrappers. Use `<ViewLayout kind="stack">` to partition the viewport automatically.
+
+```tsx
+// Two spatial elements — <View> required for each.
+<Scene key="comparison">
+  <Camera descriptor={{ mode: 'nvsViewport', worldScale: 12, zRange: [0.1, 100] }} />
+  <Lighting ambient={{ color: '#ffffff', intensity: 0.9 }} />
+  <ViewLayout kind="stack" direction="horizontal" x={0.05} y={0.1} w={0.9} h={0.75} gap={0.03}>
+    <View id="chart-left">
+      <Chart id="revenue" type="bar" data={revenueData} theme="enterprise" />
+    </View>
+    <View id="chart-right">
+      <Chart id="cost" type="line" data={costData} theme="enterprise" />
+    </View>
+  </ViewLayout>
+</Scene>
+```
+
+**Example C — Diagram with floating TextBox (no Views needed)**
+
+`<TextBox>` is ambient — it is not a spatial element. A single spatial element (`<DiagramCanvas>`) plus any number of `<TextBox>` elements requires no `<View>`.
+
+```tsx
+// TextBox is ambient. One spatial element + ambient elements → auto-wrap fires.
+<Scene key="hero">
+  <Camera descriptor={{ mode: 'nvsViewport', worldScale: 10, zRange: [0.1, 100] }} />
+  <Background color="#0d0d1a" />
+  {/* Spatial — auto-wrapped to full-screen */}
+  <DiagramCanvas id="flow" nodes={nodes} edges={edges} theme="darkGlass" />
+  {/* Ambient — not subject to the spatial constraint */}
+  <TextBox id="caption" x={0.05} y={0.82} w={0.5} h={0.12}>
+    <p>Your infrastructure, visualized.</p>
+  </TextBox>
+</Scene>
+```
+
+---
+
 ## 9. Entry Transitions Rule
 
 Entry transitions belong to the incoming scene, not the outgoing one. The compiler processes transitions between adjacent scene pairs (sceneA → sceneB). For each widget:
@@ -1269,9 +1387,15 @@ Tree-shaking: because each element's DSL component and handler live in the same 
 
 **`CompileApi.composeBounds` is the composition boundary.** The `<View>` handler calls `createChildApi(api, contentBounds)` to create a scoped `CompileApi` where `composeBounds` maps local [0..1] coordinates into the view's content bounds. All DSL children of `<View>` receive this scoped api automatically. Elements that call `api.composeBounds(localRect)` (as required by the element handler contract) will automatically inherit the correct bounds without any knowledge of their nesting context.
 
-**ViewState and ViewLayoutState are not ISceneElement widgets.** They do not have registered `IWidget` implementations. They are stored in `SceneFrame.widgets` like any other widget state, but no widget class reads them. This means they do not participate in the standard transition interpolation pipeline — view bounds do not animate between scenes. If a consuming application needs animated view bounds, it must implement a custom widget that reads `ViewState` from `tick.state.widgets[viewId]` and applies the bounds at render time.
+**ViewState is read by ViewWidget at runtime.** `corePlugin().reconcileCompiledTrack` creates one `ViewWidget` (`IRenderable<ViewState>`) per unique view ID found in the compiled `SceneTrack`. `ViewWidget` owns a `THREE.Group` that reparents child widget 3D objects on first `apply()`. When `ViewState.bounds` is patched at runtime via `engine.patchWidgetStates` (e.g., on `carousel.next`), `ViewWidget` computes a delta transform — the difference between the original compile-time bounds and the patched bounds — and applies it as a position/scale change to the Group:
 
-**No transition interpolation for view bounds.** When `activeIndex` changes in a carousel `<ViewLayout>` between two scenes, the `ViewState.bounds` values are discrete — they snap at the scene transition midpoint, not interpolate. The elements inside the views do interpolate their own state (e.g., chart data values) if those elements implement standard transition specs. For smooth visual transitions of the view containers themselves, future versions may support a `FunctionalTransitionSpec` for `ViewState`.
+- **XY position:** `G_x = P_new_x - P_old_x * scaleRatio`, `G_y = P_new_y - P_old_y * scaleRatio` (world-space NVS center delta)
+- **Z position:** `G_z = state.z - originalZ` (delta from compile-time Z, captured on first `apply()` — prevents double-offsetting the Z depth)
+- **Scale:** `G_scale = state.scale / originalScale` (ratio from compile-time scale, also captured on first `apply()`)
+
+`originalNvsCenter`, `originalScale`, and `originalZ` are all captured from the first `apply()` call, not hardcoded — this correctly handles both active (scale=1.0) and inactive (scale<1.0) carousel views at tick 0. Child 3D widgets move automatically because they are parented under the Group. `ViewWidget` does not implement `ISceneElement` — it has no DSL component and does not participate in the compiler's transition interpolation pipeline.
+
+**No transition interpolation for view bounds between scenes.** When `activeIndex` changes in a carousel `<ViewLayout>` between two authored scenes, the `ViewState.bounds` values are discrete — they snap at the scene transition midpoint, not interpolate. Elements inside the views interpolate their own state (e.g., chart data values) normally. For runtime carousel interactions (`carousel.next`/`carousel.prev`), `ViewWidget` applies the delta transform immediately when the patched bounds arrive — smooth lerp animation is a follow-up concern.
 
 **`<ViewLayout>` children must all be `<View>` elements.** Non-`<View>` elements inside `<ViewLayout>` emit a console warning and are ignored. This constraint keeps the layout algorithm simple and avoids ambiguous behavior when non-spatial elements appear in a spatial layout container.
 
@@ -1310,6 +1434,7 @@ The following additions are backward compatible:
 - `<View>` and `<ViewLayout>` are new DSL components that do not affect scenes that do not use them.
 - `CompileApi.composeBounds` is a new field on `CompileApi`. Existing handlers that do not call it are unaffected; `composeBounds` is the identity at the root level.
 - `ViewState` and `ViewLayoutState` in `SceneFrame.widgets` only appear when `<View>` or `<ViewLayout>` are used. Existing scenes have no such entries.
+- The addition of `childWidgetIds` to `ViewState` is backward compatible — all producers are in the same codebase and compile together. Consumer code reading `ViewState` from `tick.state.widgets` must be updated to acknowledge the new required field, but this is an additive change.
 
 ---
 
@@ -1338,7 +1463,7 @@ The following additions are backward compatible:
 | Fragment-wrapped DSL trees not compiling correctly | Low | `expandNode` has tests in `sceneTrackCompiler.test.ts`. Any expansion regression is caught by CI. |
 | Consumers misusing `registerNode` to override core handlers | Medium | Document that `registerNode` overwrites. Core handlers are registered at module load; consumer overrides registered later win. Prefer `CUSTOM_NODE_HANDLER` for per-widget customization. |
 | Element handlers forgetting to call `api.composeBounds()` — renders at wrong position inside `<View>` | Medium | Document the contract explicitly in `CompileApi.composeBounds` JSDoc. Add lint rule or test assertion to verify that `<Chart>`, `<DiagramCanvas>`, and `<Model>` handlers call `api.composeBounds`. |
-| Carousel `activeIndex` change between scenes producing a hard visual snap rather than smooth animation | Medium | By design — ViewState bounds are not animated. Document that carousel advancement produces discrete repositioning (like a scene cut for view positions). Future mitigation: FunctionalTransitionSpec for ViewState if animated view positions are needed. |
+| Carousel `activeIndex` change between scenes (scene-to-scene DSL authoring) producing a discrete bound change | Low | By design for DSL-authored scene transitions. For runtime carousel.next/carousel.prev interactions, `ViewWidget` applies a Group delta transform immediately, repositioning 3D children smoothly to their new bounds. Animated lerp between positions is a follow-up concern. |
 | `<ViewLayout>` children with no explicit `w`/`h` props receiving equal space — may not match visual intent | Low | Document stack algorithm: equal distribution when hints are absent. Provide size hints via `w` and `h` on `<View>` children to control proportional allocation. |
 
 ---

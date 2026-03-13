@@ -17,7 +17,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneSessionHierarchy: JSX.Element = (
+export const SceneSessionHierarchy = () => (
   <Scene key="bfmu-sessions" id="bfmu-sessions">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
     <InputController scope="canvas">

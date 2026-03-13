@@ -110,6 +110,8 @@ const resolveThemedFloorState = (
 
 export class FloorWidget
   implements ISceneElement<SceneFloor>, IRenderable<SceneFloor>, IDslComposite, IHasCustomDslHandler {
+  // Ambient: Floor configures the scene globally. Not an NVS-bounded canvas element.
+  readonly nodeHandlerCategory = 'ambient' as const;
   readonly widgetId = 'floor';
   readonly defaultState: SceneFloor = DEFAULT_FLOOR;
   readonly transitionSpec = functionalFloorTransitionSpec;

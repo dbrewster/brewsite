@@ -17,7 +17,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneDim8Maturity: JSX.Element = (
+export const SceneDim8Maturity = () => (
   <Scene key="bfc-dim8-mature" id="bfc-dim8-mature">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
 

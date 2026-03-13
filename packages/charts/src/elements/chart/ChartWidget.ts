@@ -15,6 +15,7 @@ import type {
   IDslComposite,
   ILoadable,
   INVSBounded,
+  IGroupOwner,
   NVSCoordService,
   NVSRect,
   WidgetInitContext,
@@ -59,6 +60,7 @@ type ChartRendererLike = Pick<
   | 'mount' | 'update' | 'dispose' | 'updateHeatmapSlice'
   | 'getInteractiveObjects' | 'resolveHoverInfo'
   | 'updateProjection' | 'tickProjection'
+  | 'chartGroup'
 >;
 
 /**
@@ -79,7 +81,8 @@ export class ChartWidget
     IAnimationController,
     IDslComposite,
     ILoadable,
-    INVSBounded
+    INVSBounded,
+    IGroupOwner
 {
   readonly widgetId: string;
   readonly defaultState: ChartState = DEFAULT_CHART_STATE;
@@ -123,6 +126,13 @@ export class ChartWidget
     return this.lastState?.nvsBounds ?? DEFAULT_CHART_STATE.nvsBounds;
   }
 
+  // ── IGroupOwner ───────────────────────────────────────────────────────────
+
+  /** Root Three.js Group — exposed for ViewWidget to re-parent this chart into a View Group. */
+  get rootGroup(): THREE.Group {
+    return this.chartRenderer.chartGroup;
+  }
+
   // ── Interaction callbacks ─────────────────────────────────────────────────
 
   /** Called on hover interaction when interactive=true. */
@@ -142,6 +152,16 @@ export class ChartWidget
   private camera: THREE.Camera | null = null;
   private lastState: ChartState | null = null;
   private lastCoords: NVSCoordService | null = null;
+
+  // ── Stable world scale cache (immune to camera zoom) ──────────────────────
+  // Cache world-space dimensions keyed on NVS bounds. Only recompute when the
+  // NVS bounds change (scene transition / View layout), NOT when the camera
+  // zooms (which only changes coords.visibleWorldWidth/Height). This ensures
+  // charts are fixed 3D objects that scale naturally with the camera.
+  private cachedWorldScale: {
+    nvsW: number; nvsH: number;
+    worldW: number; worldH: number;
+  } | null = null;
   private readonly raycaster = new THREE.Raycaster();
   private mousemoveListener: ((e: MouseEvent) => void) | null = null;
   private mouseleaveListener: (() => void) | null = null;
@@ -308,10 +328,26 @@ export class ChartWidget
     }
 
     // Convert NVS position to world-space center using the live NVSCoordService.
+    // Position is always live so the chart stays anchored at its NVS viewport slot.
     const [wcx, wcy, wcz] = ctx.coords.toWorld(state.nvsX, state.nvsY, state.z);
 
-    // Convert NVS size fractions to world-space dimensions.
-    const [worldW, worldH] = ctx.coords.toWorldSize(state.bounds.width, state.bounds.height);
+    // ── Stable world scale (locked to NVS bounds, immune to camera zoom) ──
+    // Cache world-space dimensions and only recompute when the NVS bounds change
+    // (scene transition), NOT when the camera zooms. This ensures charts are
+    // fixed 3D objects that scale naturally with the camera like diagrams/models.
+    const cached = this.cachedWorldScale;
+    let worldW: number;
+    let worldH: number;
+    if (cached && cached.nvsW === state.bounds.width && cached.nvsH === state.bounds.height) {
+      worldW = cached.worldW;
+      worldH = cached.worldH;
+    } else {
+      [worldW, worldH] = ctx.coords.toWorldSize(state.bounds.width, state.bounds.height);
+      this.cachedWorldScale = {
+        nvsW: state.bounds.width, nvsH: state.bounds.height,
+        worldW, worldH,
+      };
+    }
 
     // Chart content starts at group-local (0, 0) and extends to (worldW, worldH).
     // Subtract half-bounds to center it on the NVS position.
@@ -376,9 +412,11 @@ export class ChartWidget
       totalSlices - 1,
     );
 
-    // Compute world-space position (same as apply())
+    // Compute world-space position (same as apply()) — use cached world scale.
     const [wcx, wcy, wcz] = this.lastCoords.toWorld(state.nvsX, state.nvsY, state.z);
-    const [worldW, worldH] = this.lastCoords.toWorldSize(state.bounds.width, state.bounds.height);
+    const cws = this.cachedWorldScale;
+    const worldW = cws?.worldW ?? this.lastCoords.toWorldSize(state.bounds.width, state.bounds.height)[0];
+    const worldH = cws?.worldH ?? this.lastCoords.toWorldSize(state.bounds.width, state.bounds.height)[1];
     const worldPos: readonly [number, number, number] = [
       wcx - worldW / 2,
       wcy - worldH / 2,
@@ -412,6 +450,7 @@ export class ChartWidget
       this.store.unregister(`__morph_from__${this.widgetId}`);
       this.lastMorphFromRowsRef = null;
     }
+    this.cachedWorldScale = null;
     this.lastEffectiveTheme = null;
     this.lastTooltipState = null;
   }

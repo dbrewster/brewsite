@@ -3,8 +3,14 @@ title: "BrewSite Core — Compiler Pipeline"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-12
+last_updated: 2026-03-13
 change_history:
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "View Widget Carousel Rendering: added childWidgetIds to ViewState type (Section 14 ViewState definition). Updated ViewState storage note to reflect that ViewWidget is now registered for view IDs via corePlugin.reconcileCompiledTrack. Updated createChildApi description in Section 14 View compilation to document childWidgetIds tracking. The ViewWidget captures originalNvsCenter, originalScale, and originalZ from the first apply() call (not hardcoded) to compute correct delta transforms for all carousel view positions."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "Scene Child Constraint: added NodeHandlerCategory type and RegisterNodeOptions to Section 13 (DSL Node Handler Registration). Documented getHandlerCategory() API and when plugin authors use it. Documented Scene root handler enforcement behavior: child classification, auto-wrap mechanics, error cases. Added sceneViewConstraint.ts to Section 14 (Sub-directory Responsibilities). Updated registerNode contract to note category declaration requirement."
   - date: 2026-03-12
     author: "Toolkit Product"
     summary: "View/Region Architecture: added <View> and <ViewLayout> to public compiler exports; documented CompileApi.composeBounds; added Section 14 covering View/ViewLayout compilation, ViewState/ViewLayoutState types, and CompileApi child scoping."
@@ -552,6 +558,13 @@ export type ViewState = {
   readonly scale: number;
   /** ID of the parent ViewLayout, if any. Absent for standalone views. */
   readonly layoutId?: string;
+  /**
+   * Widget IDs compiled within this View's scoped child context.
+   * Populated by createChildApi's setWidgetState interceptor during compilation.
+   * Used by ViewWidget to reparent child 3D objects into the View's THREE.Group
+   * for carousel delta-transform repositioning.
+   */
+  readonly childWidgetIds: readonly string[];
 };
 
 export type ViewLayoutState = {
@@ -564,7 +577,7 @@ export type ViewLayoutState = {
 };
 ```
 
-Both types are stored in `SceneFrame.widgets` keyed by the view/layout `id`. They are not `ISceneElement` widget states — no `IWidget` is registered for these IDs. Consumer code that needs to read view bounds at runtime may access them via `tick.state.widgets[viewId] as ViewState`.
+Both types are stored in `SceneFrame.widgets` keyed by the view/layout `id`. They are not `ISceneElement` widget states — they carry no `defaultState`, `transitionSpec`, or `DslComponent`. However, `corePlugin().reconcileCompiledTrack` registers a `ViewWidget` (`IRenderable<ViewState>`) for each view ID found in the compiled track. This widget owns the Three.js Group that repositions child widget content during carousel steps. Consumer code that needs to read view bounds at runtime may access them via `tick.state.widgets[viewId] as ViewState`.
 
 ### Functional Transition Types
 
@@ -934,14 +947,51 @@ const key = [
 
 The node registry is the dispatch table that maps DSL component references to their compile-time handlers.
 
+### 13.1 Registry API
+
 ```typescript
 // packages/core/src/compiler/registry.ts
 
+/**
+ * The compile-time classification of a DSL element.
+ *
+ * 'spatial'  — The element occupies a viewport region and must be compiled
+ *              inside a <View>. Spatial elements are subject to the Scene
+ *              child constraint (see §13.3). This is the default.
+ * 'ambient'  — The element configures the global scene environment and is
+ *              not bound to any viewport region. Ambient elements are never
+ *              subject to the Scene child constraint.
+ */
+export type NodeHandlerCategory = 'spatial' | 'ambient';
+
+/**
+ * Options for registerNode(). The category field is optional;
+ * omitting it defaults to 'spatial'.
+ */
+export type RegisterNodeOptions = {
+  category?: NodeHandlerCategory;
+};
+
 /** Register a handler for a DSL component. Overwrites any existing handler. */
-export const registerNode = (component: unknown, handler: NodeHandler): void;
+export const registerNode = (
+  component: unknown,
+  handler: NodeHandler,
+  options?: RegisterNodeOptions,
+): void;
 
 /** Look up the handler for a DSL component. Returns undefined if not registered. */
 export const getNodeHandler = (component: unknown): NodeHandler | undefined;
+
+/**
+ * Returns the NodeHandlerCategory for a registered component.
+ * Returns 'spatial' (the default) for any component that is not registered
+ * or for which no category was declared at registration time.
+ *
+ * Plugin authors use this when implementing custom Scene-level compilers
+ * or constraint enforcement in test harnesses. Most consumers do not call
+ * this function directly.
+ */
+export const getHandlerCategory = (component: unknown): NodeHandlerCategory;
 
 /** Returns true if the component has a registered handler. */
 export const isPrimitiveComponent = (component: unknown): boolean;
@@ -950,13 +1000,42 @@ export const isPrimitiveComponent = (component: unknown): boolean;
 export const clearRegistry = (): void;
 ```
 
+### 13.2 Registration Conventions
+
 **Dual index:** Handlers are indexed by both component reference (primary) and `displayName` string (secondary). The `displayName` fallback enables correct dispatch after Hot Module Replacement, where module re-evaluation creates a new function reference but preserves `displayName`. The secondary lookup uses `displayName ?? name` from the component function.
 
 **Registration timing:** Core DSL components (`Scene`, `ProgressManager`, `InputController`, and its children) register themselves at module import time as side effects. This is intentional — the DSL authoring surface must be ready before any `resolveSceneFromDsl` call. `ensureSceneRegistry()` and `ensureInputControllerRegistry()` guard against double-registration in environments where modules may be evaluated multiple times.
 
-**External element registration:** `@brewsite/diagram` elements register their handlers by importing `registerNode` from `@brewsite/core` and calling it from their element module's `dsl.tsx` or `compile.ts` at module load time. This means any application that imports `@brewsite/diagram` DSL components automatically populates the registry with diagram handlers.
+**Category declaration requirement:** All `registerNode` calls should explicitly declare `category` when the element is ambient. The default (`'spatial'`) is appropriate for elements that place content in the 3D viewport. Elements that configure global scene environment (lighting, background, camera, etc.) must declare `{ category: 'ambient' }` to opt out of the Scene child constraint. Failing to declare ambient category for an ambient element will cause the Scene root handler to treat it as a spatial element during constraint enforcement, which may produce spurious constraint errors when multiple ambient elements are present.
 
-**WidgetRegistry interaction:** `WidgetRegistry.register(widget)` internally calls `registerNode(widget.DslComponent, routingHandler)` if no handler exists for that component. The routing handler dispatches to the correct widget instance by matching the `id` prop from the DSL element to the widget's `widgetId`. For type-factory-routed widgets, `registerTypeFactory` installs a handler that creates the correct widget instance on demand.
+**External element registration:** `@brewsite/diagram` elements register their handlers by importing `registerNode` from `@brewsite/core` and calling it from their element module's `dsl.tsx` or `compile.ts` at module load time. This means any application that imports `@brewsite/diagram` DSL components automatically populates the registry with diagram handlers. Spatial elements from companion packages (DiagramCanvas, Chart, Model, ImagePanel, Screen) do not need to declare a category — they are spatial by default.
+
+**WidgetRegistry interaction:** `WidgetRegistry.register(widget)` internally calls `registerNode(widget.DslComponent, routingHandler, { category })` if no handler exists for that component. The category is read from the duck-typed `widget.nodeHandlerCategory` property (see `prd_widget_sdk.md` §8). If the property is absent, the default `'spatial'` is used. For type-factory-routed widgets, `registerTypeFactory` installs a handler that creates the correct widget instance on demand.
+
+### 13.3 Scene Root Handler Enforcement
+
+The `<Scene>` root handler (`createSceneRootHandler`) enforces the spatial-element constraint on its direct children before delegating compilation. The enforcement is implemented in `packages/core/src/compiler/sceneViewConstraint.ts` and produces a `ConstraintResult` that determines which compilation path the Scene root handler takes.
+
+**Child classification:** The Scene root handler calls `collectChildrenShallow()` to enumerate direct children of the `<Scene>` JSX element, flattening one level of Fragments. For each child:
+- If the child is a primitive (string, number, boolean, null, undefined): ignored.
+- If the child is an HTML element (a string tag): treated as an overlay and ignored by the constraint. HTML elements pass through to `compileChildrenSeparated`.
+- If the child is a function component:
+  - If registered and category is `'ambient'`: classified as ambient.
+  - If registered and category is `'spatial'`: classified as spatial.
+  - If registered and the component is `View` or `ViewLayout`: classified as a View.
+  - If not registered (`isPrimitiveComponent` returns false): classified as spatial (conservative default; will trigger constraint errors when mixed with Views or other spatials).
+
+**Enforcement outcomes:**
+
+| Scenario | Result | Behavior |
+|---|---|---|
+| No spatial children | `noSpatial` | Normal compilation; no auto-wrap. |
+| One spatial, no Views | `autoWrap` | Spatial child compiled inside implicit `__scene_root__` View. |
+| Multiple spatials, no Views | `error` | `console.error` emitted; spatial children skipped. Ambient children compile. |
+| Views only (no bare spatials) | `viewMode` | Normal View/ViewLayout compilation path. |
+| Bare spatials mixed with Views | `error` | `console.error` emitted; bare spatials skipped. Views compile normally. |
+
+**`__scene_root__` sentinel:** The implicit View created during auto-wrap uses the id `IMPLICIT_SCENE_ROOT_VIEW_ID = '__scene_root__'`. The `viewHandler` suppresses the reserved-id `console.warn` for this sentinel value specifically.
 
 ---
 
@@ -979,7 +1058,7 @@ Hosts DSL block components that are not element-specific but still require handl
 Key behaviors:
 - **Standalone `<View>`** (no parent `<ViewLayout>`): resolves absolute bounds via `api.composeBounds(localBounds)`. Sets `layer = 0`, `scale = 1.0`.
 - **Managed `<View>`** (inside `<ViewLayout>`): bounds, layer, and scale are pre-computed by the parent `viewLayoutHandler` via `resolveLayout(config, container, sizeHints)` and injected via the WeakMap context. The `x`/`y` props are ignored (a console warning is emitted).
-- **Child scoping**: after resolving bounds and padding, each `<View>` creates a scoped child `CompileApi` via `createChildApi(api, contentBounds)`. The child API's `composeBounds` is configured to map local [0..1] coordinates into the view's content bounds. All DSL children of `<View>` are compiled using this scoped api, so elements like `<Chart>` or `<DiagramCanvas>` inside a view automatically inherit absolute bounds without any knowledge of the nesting.
+- **Child scoping**: after resolving bounds and padding, each `<View>` creates a scoped child `CompileApi` via `createChildApi(api, contentBounds)` (defined in `compiler/childApi.ts`). The child API's `composeBounds` is configured to map local [0..1] coordinates into the view's content bounds. Its `setWidgetState` is wrapped to record the widget ID in a `childWidgetIds` accumulator. After child compilation completes, `childWidgetIds` is stored on `ViewState`. All DSL children of `<View>` are compiled using this scoped api, so elements like `<Chart>` or `<DiagramCanvas>` inside a view automatically inherit absolute bounds and are tracked as children without any knowledge of the nesting.
 
 `ViewState` and `ViewLayoutState` (from `compiler/viewTypes.ts`) are stored via `api.setWidgetState(id, state)` on the parent CompileApi, ensuring they appear in `SceneFrame.widgets` alongside all other element states.
 
@@ -1013,6 +1092,41 @@ export type CompileApi = {
 **How it works:** The root-level `CompileApi` uses the identity function for `composeBounds`. When a `<View>` is compiled, its handler calls `createChildApi(api, contentBounds)` to produce a new `CompileApi` whose `composeBounds` maps local [0..1] coordinates into the view's `contentBounds` rectangle. This child api is passed to `helpers.compileChildren()` for all of the view's DSL children. Nesting is correctly handled — a `<View>` inside another `<View>` creates a chain of `composeBounds` mappings.
 
 **Consumer contract:** Any DSL handler that places an element at an NVS position must call `api.composeBounds(localRect)` rather than using the prop values directly. This ensures the element respects its parent view's bounds when nested inside `<View>`. Handlers that do not respect this contract will render at incorrect positions when placed inside a `<View>`.
+
+### `compiler/sceneViewConstraint.ts`
+
+**New file** added by the Scene Child Constraint feature. Contains the pure enforcement logic for the spatial-element constraint:
+
+```typescript
+// packages/core/src/compiler/sceneViewConstraint.ts
+
+/** The sentinel id used for the implicit full-screen View auto-created during auto-wrap. */
+export const IMPLICIT_SCENE_ROOT_VIEW_ID = '__scene_root__';
+
+/**
+ * The outcome of constraint enforcement for a given <Scene>'s direct children.
+ *
+ * 'noSpatial'  — No spatial children found. Normal ambient-only compilation.
+ * 'autoWrap'   — Exactly one spatial child, no Views. Compiler auto-wraps in __scene_root__.
+ * 'viewMode'   — Only <View>/<ViewLayout> children (no bare spatials). Normal View path.
+ * 'error'      — Constraint violated (multiple spatials, or mixed spatial+View).
+ *                Spatial children are excluded from compilation; ambients compile normally.
+ */
+export type ConstraintResult =
+  | { kind: 'noSpatial' }
+  | { kind: 'autoWrap'; spatialChild: ReactElement }
+  | { kind: 'viewMode' }
+  | { kind: 'error'; message: string; skipElements: ReactElement[] };
+
+/** Classifies the direct children of a <Scene> and returns the enforcement outcome. */
+export function enforceSceneChildConstraint(
+  children: ReactNode,
+  getCategory: (component: unknown) => NodeHandlerCategory,
+  isPrimitive: (component: unknown) => boolean,
+): ConstraintResult;
+```
+
+`enforceSceneChildConstraint` is a pure function: it reads children (using `collectChildrenShallow` from `sceneDslCompiler.ts`) and the registry query functions, and returns a `ConstraintResult`. It has no side effects. All `console.error` calls happen in `createSceneRootHandler` after receiving the result, not inside the constraint function itself.
 
 ### `compiler/transitions/`
 

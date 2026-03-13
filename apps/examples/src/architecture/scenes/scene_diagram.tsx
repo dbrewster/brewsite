@@ -225,8 +225,34 @@ function makeDiagramCanvasDiagram(tilt: number, scale: number): JSX.Element {
   );
 }
 
+// ── Scene Child Constraint — spatial vs. ambient elements ──────────────────
+//
+// The @brewsite/core compiler enforces a constraint on direct <Scene> children:
+//
+//   SPATIAL elements  (<DiagramCanvas>, <Chart>, <Model>, <ImagePanel>, <Screen>)
+//   — occupy a region of the 3D viewport; require <View> wrappers when more than
+//     one is present as a direct <Scene> child.
+//
+//   AMBIENT elements  (<Camera>, <Lighting>, <Background>, <Environment>, <Floor>,
+//                      <SpotlightRig>, <InputController>, <ProgressManager>, <TextBox>)
+//   — configure the global scene environment; never require <View> wrappers.
+//
+// These scenes each have ONE spatial element (<Diagram>) plus several ambient
+// elements. The compiler silently auto-wraps the single <Diagram> in a
+// full-screen implicit View (id="__scene_root__"), so no explicit <View> is
+// needed here. The <TextBox> is ambient — it is an HTML overlay component and
+// is not counted as a spatial element by the constraint.
+//
+// If you needed two spatial elements (e.g., a <Diagram> and a <Chart>), you
+// would wrap each in an explicit <View> with NVS bounds:
+//
+//   <ViewLayout kind="stack" direction="horizontal">
+//     <View id="diagram-panel"><Diagram ... /></View>
+//     <View id="chart-panel"><Chart ... /></View>
+//   </ViewLayout>
+
 // ── Scene 1 of 2: Angled view ──────────────────────────────────────────────
-export const sceneDiagramAngledArch: JSX.Element = (
+export const SceneDiagramAngledArch = () => (
   <Scene id="arch-diagram-angled">
     <ProgressManager scrollUnits={2000} fn={angledFn} />
     <Camera
@@ -245,7 +271,7 @@ export const sceneDiagramAngledArch: JSX.Element = (
 );
 
 // ── Scene 2 of 2: Head-on view with teaching overlay ──────────────────────
-export const sceneDiagramArch: JSX.Element = (
+export const SceneDiagramArch = () => (
   <Scene id="arch-diagram" exitStart={0.9}>
     <ProgressManager scrollUnits={3000} />
     <Camera

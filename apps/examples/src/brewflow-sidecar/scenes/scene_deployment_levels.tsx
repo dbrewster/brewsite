@@ -12,7 +12,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneDeploymentLevels: JSX.Element = (
+export const SceneDeploymentLevels = () => (
   <Scene key="bf-levels" id="bf-levels">
     <ProgressManager scrollUnits={3000} fn={DWELL_FN} />
     <Camera mode="world" position={[0, 5, 26]} target={[0, 0, 0]} fov={52} />

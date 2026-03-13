@@ -12,7 +12,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneSurfaces: JSX.Element = (
+export const SceneSurfaces = () => (
   <Scene key="bf-surfaces" id="bf-surfaces">
     <ProgressManager scrollUnits={3200} fn={DWELL_FN} />
     <Camera mode="world" position={[0, 6, 22]} target={[0, 0, 0]} fov={52} />

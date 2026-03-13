@@ -25,6 +25,10 @@ import {
   ChartSeries,
   useChartTheme,
 } from '@brewsite/charts';
+import { pk } from '../platformKeys';
+import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, FlowLayout, GridLayout, useDiagramTheme} from "@brewsite/diagram";
+import {config} from "../../settings";
+import {brewflowTheme} from "../../brewflow-sidecar/theme";
 
 const CAM_POS: [number, number, number] = [0, 1.5, 7];
 const CAM_TGT: [number, number, number] = [0, 0, 0];
@@ -52,9 +56,9 @@ function Kbd({ children, color = C_CAMERA }: KbdProps): JSX.Element {
         background: color + '22',
         border: `1px solid ${color}55`,
         borderRadius: 5,
-        padding: '2px 7px',
+        padding: '2px 8px',
         fontFamily: 'monospace',
-        fontSize: 10,
+        fontSize: 13,
         color,
         whiteSpace: 'nowrap',
       }}
@@ -84,6 +88,7 @@ function BindingRow({ label, keys, desc }: BindingRowProps): JSX.Element {
 }
 
 export const CameraControlsScene = (): JSX.Element => {
+  const theme = useDiagramTheme();
   const chartTheme = useChartTheme();
   return (
     <Scene id="input-camera">
@@ -101,10 +106,10 @@ export const CameraControlsScene = (): JSX.Element => {
         <Action id="orbit" type="camera.orbit">
           <PointerMap event="drag" button="left" axis="xy" />
         </Action>
-        {/* Orbit — alt speed variants */}
-        <Action id="orbit-alt" type="camera.orbit" speed={0.8}>
+        {/* Orbit — modifier speed variants (⌘/Ctrl+drag) */}
+        <Action id="orbit-mod" type="camera.orbit" speed={0.8}>
           <PointerMap event="drag" button="right" axis="xy" />
-          <PointerMap event="drag" button="left" modifiers={['alt']} axis="xy" />
+          <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
         </Action>
         {/* Dolly — wheel */}
         <Action id="dolly" type="camera.dolly">
@@ -118,7 +123,7 @@ export const CameraControlsScene = (): JSX.Element => {
         {/* Reset */}
         <Action id="reset" type="camera.reset">
           <KeyMap keyName="r" />
-          <PointerMap event="click" modifiers={['alt']} />
+          <PointerMap event="click" modifiers={['meta']} />
         </Action>
         {/* Scene navigation */}
         <Action id="scene-next" type="scene.next">
@@ -130,7 +135,58 @@ export const CameraControlsScene = (): JSX.Element => {
       </InputController>
 
       {/* Chart view */}
-      <View id="cam-chart-view" x={0.05} y={0.08} w={0.58} h={0.82}>
+      <View id="cam-diagram-view" x={0.05} y={0.48} w={0.58} h={0.42}>
+        <Diagram id="cf-overview" x={0} y={0} w={1} h={1} theme={theme}>
+          <FlowLayout direction="top-down" gap={1.05} />
+
+          <DiagramNode
+            id="cf-db"
+            label=".swarm/memory.db"
+            sublabel="SQLite · single file · 12 tables"
+            size={[8.8, 2.5]}
+            color="#1a2030"
+            glow={{ intensity: 0.12 }}
+          />
+
+          <DiagramGroup id="cf-categories" variant="container">
+            <GridLayout columns={2} spacing={[1.9, 1.1]} />
+
+            <DiagramGroup id="cf-core" label="Core Storage" variant="cluster">
+              <FlowLayout direction="top-down" gap={0.72} />
+              <DiagramNode id="cf-memstore" label="memory_store" sublabel="key-value · namespace · TTL" size={[5.0, 1.55]} color="#101828" />
+              <DiagramNode id="cf-sessions" label="sessions" sublabel="cross-session context" size={[5.0, 1.55]} color="#101828" />
+              <DiagramNode id="cf-agents" label="agents" sublabel="registry · config · state" size={[5.0, 1.55]} color="#101828" />
+              <DiagramNode id="cf-tasks" label="tasks" sublabel="tracking · deps · status" size={[5.0, 1.55]} color="#101828" />
+            </DiagramGroup>
+
+            <DiagramGroup id="cf-coord" label="Coordination" variant="cluster">
+              <FlowLayout direction="top-down" gap={0.72} />
+              <DiagramNode id="cf-shared" label="shared_state" sublabel="cross-agent blackboard · versioned" size={[5.0, 1.55]} color="#101828" />
+              <DiagramNode id="cf-agmem" label="agent_memory" sublabel="per-agent state" size={[5.0, 1.55]} color="#101828" />
+              <DiagramNode id="cf-events" label="events" sublabel="audit log" size={[5.0, 1.55]} color="#101828" />
+              <DiagramNode id="cf-topology" label="swarm_topology" sublabel="agent relationships" size={[5.0, 1.55]} color="#101828" />
+            </DiagramGroup>
+
+            <DiagramGroup id="cf-intel" label="Intelligence" variant="cluster">
+              <FlowLayout direction="top-down" gap={0.72} />
+              <DiagramNode id="cf-patterns" label="patterns" sublabel="usage_count · confidence" size={[5.0, 1.55]} color="#101828" />
+              <DiagramNode id="cf-perf" label="performance_metrics" sublabel="latency · throughput" size={[5.0, 1.55]} color="#101828" />
+            </DiagramGroup>
+
+            <DiagramGroup id="cf-recov" label="Recovery" variant="cluster">
+              <FlowLayout direction="top-down" gap={0.72} />
+              <DiagramNode id="cf-workflow" label="workflow_state" sublabel="crash-recovery checkpoints" size={[5.0, 1.55]} color="#101828" />
+              <DiagramNode id="cf-consensus" label="consensus_state" sublabel="quorum voting · ≥2 acceptors" size={[5.0, 1.55]} color="#101828" />
+            </DiagramGroup>
+          </DiagramGroup>
+
+          <DiagramEdge from="cf-db" to="cf-core"  routing="flow"  arrowEnd="none" color="#3a5070" flow='forward' />
+          <DiagramEdge from="cf-db" to="cf-coord" routing="flow" arrowEnd="none" color="#3a5070" flow='forward' />
+          <DiagramEdge from="cf-db" to="cf-intel" routing="flow" arrowEnd="none" color="#3a5070" flow='forward' />
+          <DiagramEdge from="cf-db" to="cf-recov" routing="flow" arrowEnd="none" color="#3a5070" flow='forward' />
+        </Diagram>
+      </View>
+      <View id="cam-chart-view" x={0.05} y={0.08} w={0.58} h={0.42}>
         <BarChart
           id="is-camera-binding-chart"
           data={cameraBindingData}
@@ -173,8 +229,8 @@ export const CameraControlsScene = (): JSX.Element => {
           />
           <BindingRow
             label="orbit ×0.8"
-            keys={[{ text: 'Right Drag', color: C_CAMERA }, { text: 'Alt', color: C_MODIFIER }, { text: '+ Left Drag', color: C_CAMERA }]}
-            desc="Slower orbit — right button or Alt+drag"
+            keys={[{ text: 'Right Drag', color: C_CAMERA }, { text: pk('Mod'), color: C_MODIFIER }, { text: '+ Left Drag', color: C_CAMERA }]}
+            desc={`Slower orbit — right button or ${pk('Mod')}+drag`}
           />
 
           <div style={{ fontSize: 10, color: 'rgba(120,160,220,0.5)', textTransform: 'uppercase', letterSpacing: '0.12em', margin: '10px 0 8px' }}>
@@ -192,7 +248,7 @@ export const CameraControlsScene = (): JSX.Element => {
           />
           <BindingRow
             label="dolly ×0.25"
-            keys={[{ text: 'Ctrl', color: C_MODIFIER }, { text: '+ Scroll', color: C_CAMERA }]}
+            keys={[{ text: pk('Ctrl'), color: C_MODIFIER }, { text: '+ Scroll', color: C_CAMERA }]}
             desc="Precision dolly — 4× slower"
           />
 
@@ -206,8 +262,8 @@ export const CameraControlsScene = (): JSX.Element => {
           />
           <BindingRow
             label="reset"
-            keys={[{ text: 'Alt', color: C_MODIFIER }, { text: '+ Click', color: C_RESET }]}
-            desc="Alt+click reset"
+            keys={[{ text: pk('Mod'), color: C_MODIFIER }, { text: '+ Click', color: C_RESET }]}
+            desc={`${pk('Mod')}+click reset`}
           />
 
           <div style={{ fontSize: 10, color: 'rgba(120,160,220,0.5)', textTransform: 'uppercase', letterSpacing: '0.12em', margin: '10px 0 8px' }}>

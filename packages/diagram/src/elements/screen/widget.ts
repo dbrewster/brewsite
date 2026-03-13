@@ -32,6 +32,15 @@ export class ScreenWidget implements ISceneElement<ScreenState>, IRenderable<Scr
   private scene: THREE.Scene | null = null;
   private webglRenderer: THREE.WebGLRenderer | null = null;
 
+  // ── Stable world scale cache (immune to camera zoom) ──────────────────────
+  // Cache world-space dimensions keyed on NVS size. Only recompute when the
+  // NVS size changes (scene transition), NOT when the camera zooms. This
+  // ensures screens are fixed 3D objects that scale naturally with camera.
+  private cachedWorldScale: {
+    nvsW: number; nvsH: number;
+    worldW: number; worldH: number;
+  } | null = null;
+
   constructor(widgetId: string, defaultState: ScreenState) {
     this.widgetId = widgetId;
     this.defaultState = defaultState;
@@ -57,13 +66,27 @@ export class ScreenWidget implements ISceneElement<ScreenState>, IRenderable<Scr
     }
 
     // Convert NVS position to world-space using the per-frame coord service.
+    // Position is always live so the screen stays anchored at its NVS viewport slot.
     const [worldX, worldY, worldZ] = context.coords.toWorld(state.nvsX, state.nvsY, state.z);
 
-    // Convert NVS width/height fractions to world units.
-    // When nvsHeight is undefined, derive height from a 16:9 ratio applied to the world width.
+    // ── Stable world scale (locked to NVS size, immune to camera zoom) ──
+    // Cache world-space dimensions and only recompute when the NVS size changes
+    // (scene transition), NOT when the camera zooms. This ensures screens are
+    // fixed 3D objects that scale naturally with the camera.
+    // When nvsHeight is undefined, derive height from a 16:9 ratio applied to world width.
     // nvsH_fallback = nvsWidth * canvasAspect * (9/16) ensures worldH = worldW * (9/16).
-    const nvsH = state.nvsHeight ?? (state.nvsWidth * context.coords.canvasAspect * (9 / 16));
-    const [worldW, worldH] = context.coords.toWorldSize(state.nvsWidth, nvsH);
+    const nvsW = state.nvsWidth;
+    const nvsH = state.nvsHeight ?? (nvsW * context.coords.canvasAspect * (9 / 16));
+    const cached = this.cachedWorldScale;
+    let worldW: number;
+    let worldH: number;
+    if (cached && cached.nvsW === nvsW && cached.nvsH === nvsH) {
+      worldW = cached.worldW;
+      worldH = cached.worldH;
+    } else {
+      [worldW, worldH] = context.coords.toWorldSize(nvsW, nvsH);
+      this.cachedWorldScale = { nvsW, nvsH, worldW, worldH };
+    }
 
     const canvas = this.webglRenderer?.domElement ?? null;
     const rect = canvas?.getBoundingClientRect() ?? new DOMRect(0, 0, 1920, 1080);
@@ -81,6 +104,7 @@ export class ScreenWidget implements ISceneElement<ScreenState>, IRenderable<Scr
     this.renderer.dispose(this.widgetId, this.scene);
     this.scene = null;
     this.renderer = null;
+    this.cachedWorldScale = null;
   }
 
   private ensureOverlayContainer(): HTMLDivElement {

@@ -9,6 +9,7 @@ import {
   InputController,
   KeyMap,
   Lighting,
+  PinchMap,
   ProgressManager,
   Scene,
   TextBox,
@@ -23,6 +24,7 @@ import {
   useChartTheme,
   type ChartTheme,
 } from '@brewsite/charts';
+import { pk } from '../platformKeys';
 
 const CAM_POS: [number, number, number] = [0, 1, 6.6];
 const CAM_TGT: [number, number, number] = [0, 0, 0];
@@ -132,7 +134,7 @@ export const LinearCarouselScene = (): JSX.Element => {
       </Lighting>
 
       <InputController scope="canvas">
-        {/* Default: jump 2 slides at a time */}
+        {/* Default: jump 2 positions at a time */}
         <Action id="carousel-next" type="carousel.next" layoutId={LAYOUT_ID} stepSlides={2}>
           <KeyMap keyName="ArrowRight" />
           <KeyMap keyName=" " />
@@ -140,7 +142,7 @@ export const LinearCarouselScene = (): JSX.Element => {
         <Action id="carousel-prev" type="carousel.prev" layoutId={LAYOUT_ID} stepSlides={2}>
           <KeyMap keyName="ArrowLeft" />
         </Action>
-        {/* Shift variant: single slide */}
+        {/* Shift variant: single position */}
         <Action id="carousel-next-single" type="carousel.next" layoutId={LAYOUT_ID} stepSlides={1}>
           <KeyMap keyName="ArrowRight" modifiers={['shift']} />
         </Action>
@@ -152,6 +154,9 @@ export const LinearCarouselScene = (): JSX.Element => {
         </Action>
         <Action id="scene-prev" type="scene.prev">
           <KeyMap keyName="ArrowUp" />
+        </Action>
+        <Action id="dolly" type="camera.dolly">
+          <PinchMap direction="both" threshold={1} />
         </Action>
       </InputController>
 
@@ -180,11 +185,14 @@ export const LinearCarouselScene = (): JSX.Element => {
           <div style={{ fontSize: 15, fontWeight: 700, color: '#c8deff', marginBottom: 4 }}>
             Linear Carousel
           </div>
-          <div style={{ fontSize: 11, color: 'rgba(160, 200, 255, 0.7)', lineHeight: 1.4 }}>
-            <kbd style={{ background: '#50c08022', border: '1px solid #50c08055', borderRadius: 4, padding: '1px 5px', fontFamily: 'monospace', fontSize: 10, color: '#50c080' }}>→</kbd>{' '}
-            skips 2 slides (stepSlides=2){' · '}
-            <kbd style={{ background: '#c050e022', border: '1px solid #c050e055', borderRadius: 4, padding: '1px 5px', fontFamily: 'monospace', fontSize: 10, color: '#c050e0' }}>Shift+→</kbd>{' '}
-            moves 1
+          <div style={{ fontSize: 11, color: 'rgba(160, 200, 255, 0.7)', lineHeight: 1.5 }}>
+            <kbd style={{ background: '#50c08022', border: '1px solid #50c08055', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#50c080' }}>→</kbd>{' / '}
+            <kbd style={{ background: '#50c08022', border: '1px solid #50c08055', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#50c080' }}>Space</kbd>{' '}
+            jump 2 positions{' · '}
+            <kbd style={{ background: '#c050e022', border: '1px solid #c050e055', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#c050e0' }}>{pk('Shift+→')}</kbd>{' '}
+            move 1{' · '}
+            <kbd style={{ background: '#50c08022', border: '1px solid #50c08055', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#50c080' }}>←</kbd>{' '}
+            go back
           </div>
           <div style={{ fontSize: 10, color: 'rgba(120,160,220,0.5)', marginTop: 3 }}>
             loop=false · inactiveScale=0.75 · zStep=8

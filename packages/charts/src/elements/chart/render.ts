@@ -28,7 +28,7 @@ import { ChartProjectionRenderer, DEFAULT_PROJECTION_TOKENS } from './projection
  * The morph "from" dataset is pinned for the full transition block.
  */
 export class ChartRenderer {
-  private readonly chartGroup = new THREE.Group();
+  private readonly _chartGroup = new THREE.Group();
   private readonly seriesGroup = new THREE.Group();
   private readonly axesGroup = new THREE.Group();
   private readonly legendGroup = new THREE.Group();
@@ -39,19 +39,22 @@ export class ChartRenderer {
   /** Cached layout from last update() call — reused by updateHeatmapSlice(). */
   private lastLayout: ChartLayout | null = null;
 
+  /** Root Three.js Group for external parenting by ViewWidget. */
+  get chartGroup(): THREE.Group { return this._chartGroup; }
+
   constructor(private readonly store: ChartDataStore) {
-    this.chartGroup.add(this.seriesGroup, this.axesGroup, this.legendGroup);
-    this.projectionRenderer = new ChartProjectionRenderer(this.chartGroup);
+    this._chartGroup.add(this.seriesGroup, this.axesGroup, this.legendGroup);
+    this.projectionRenderer = new ChartProjectionRenderer(this._chartGroup);
   }
 
   mount(scene: THREE.Scene): void {
-    scene.add(this.chartGroup);
+    scene.add(this._chartGroup);
   }
 
   update(state: ChartRenderInput, widgetId: string): void {
     // Position and rotation (position is in world-space, pre-converted by ChartWidget)
-    this.chartGroup.position.set(...state.position as [number, number, number]);
-    this.chartGroup.rotation.set(...state.rotation as [number, number, number]);
+    this._chartGroup.position.set(...state.position as [number, number, number]);
+    this._chartGroup.rotation.set(...state.rotation as [number, number, number]);
 
     // Switch renderer if type changed
     if (state.type !== this.lastType) {
@@ -224,7 +227,7 @@ export class ChartRenderer {
     this.activeRenderer = null;
     this.projectionRenderer.dispose();
     this.clearGroups();
-    scene.remove(this.chartGroup);
+    scene.remove(this._chartGroup);
   }
 
   /**

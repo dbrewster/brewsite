@@ -10,6 +10,9 @@ change_history:
     summary: "Comprehensive rewrite replacing outdated BrewFlow-era vision document. Updated product name to BrewSite, corrected all API surface details against actual source, expanded Widget SDK section, added SSR safety contract, aligned all type references with live codebase."
   - date: 2026-03-13
     author: "Toolkit Product"
+    summary: "Scene Child Constraint: updated §3.6 (NVS) with a paragraph on the scene child constraint as a first-class authoring model rule — ambient elements configure global environment; spatial elements inside Views define positioned 3D regions. Updated §4.4 DSL Authoring Components to add Scene child constraint rules to the <View> and <ViewLayout> entries."
+  - date: 2026-03-13
+    author: "Toolkit Product"
     summary: "Full PRD rewrite to match v2 codebase. ScenePlayer replaced by SceneEngine + composable primitives (ScrollStage, SceneCanvas, EngineOverlayHost, EngineARContainer, BackgroundLayer, SceneReel). HUD system removed entirely. Labels and Model element moved to @brewsite/model. createDefaultWidgetRegistry replaced by plugin system (corePlugin + modelPlugin). useEngineInput/useEngineScroll deleted; replaced by composable input components (ActionInput, KeyboardInput, TimeInput, ControlledInput). Widget SDK expanded with IContainedRenderable, IAttachmentHost, IRenderContributor, ISceneLifecycle, ICameraFocusTarget, ILightingOverride, IInputDefaultProvider, IExtraRenderPass. NVS coordinate system and layout module added. TextBox overlay element added. SpotlightRig element added. Camera gains nvsViewport mode. Lighting expanded with GlowPoint, LightStrand, Wave, Circle, Rectangle types. Package dependency table expanded to four published packages."
 ---
 
@@ -144,6 +147,14 @@ Labels, `LabelPositioner`, `LabelItem`, `LabelPositionerContext`, and all label 
 The NVS coordinate system provides a resolution-independent positioning model for scene elements. NVS coordinates range from `[0, 0]` (top-left) to `[1, 1]` (bottom-right) of the viewport. The `layout/` module provides `NVSCoordService` which converts NVS positions to world-space coordinates at runtime using the active camera's projection.
 
 Elements that declare NVS bounds (`x`, `y`, `w`, `h` props) implement `INVSBounded`. The `View` and `ViewLayout` DSL components provide spatial composition — stack and carousel layouts that partition the NVS viewport among child views.
+
+The NVS model divides all DSL elements into two categories with a first-class authoring rule enforced at compile time:
+
+- **Ambient elements** (`<Camera>`, `<Lighting>`, `<Background>`, `<Environment>`, `<Floor>`, `<SpotlightRig>`, `<InputController>`, `<ProgressManager>`, `<TextBox>`) configure the global scene environment. They do not require NVS bounds relative to the canvas and may always appear as direct `<Scene>` children regardless of scene composition.
+
+- **Spatial elements** (`<DiagramCanvas>`, `<Chart>`, `<Model>`, `<ImagePanel>`, `<Screen>`) occupy a region of the 3D viewport and require NVS bounds to render correctly. The compiler enforces a constraint on direct `<Scene>` children: a single spatial element is silently auto-wrapped in a full-screen View; two or more spatial elements without explicit `<View>` wrappers produce a `console.error`; mixing bare spatial elements with `<View>`/`<ViewLayout>` children is also an error.
+
+This constraint is not a limitation — it is a deliberate authoring model rule that ensures all spatial content flows through the `viewHandler` compilation path, eliminating coordinate-system ambiguity and providing a consistent spatial composition model. Authors who want multiple spatial elements in a single scene always use explicit `<View>` or `<ViewLayout>` wrappers, making layout intent visible in the DSL.
 
 ### 3.7 Pre-Compiled Timeline Algebra
 
@@ -337,6 +348,10 @@ interface AnimationTickContext {
 <Transition ease={EaseFn} duration={number} />
 
 // Spatial composition
+// NOTE: <View> and <ViewLayout> are the required wrappers for multiple spatial elements.
+// Two or more spatial elements as direct <Scene> children without Views → console.error.
+// One spatial element without a View → auto-wrapped to full-screen __scene_root__ View.
+// Ambient elements (<Camera>, <Lighting>, etc.) never require <View> wrappers.
 <View id={string} x={number} y={number} w={number} h={number}>...</View>
 <ViewLayout kind="stack" direction="horizontal">...</ViewLayout>
 

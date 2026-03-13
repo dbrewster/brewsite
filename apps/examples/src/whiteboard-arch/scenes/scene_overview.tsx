@@ -11,7 +11,7 @@ import {
 } from '@brewsite/core';
 import { makeWhiteboardDiagram } from '../diagram';
 
-export const sceneOverview: JSX.Element = (
+export const SceneOverview = () => (
   <Scene id="whiteboard-overview">
     <ProgressManager scrollUnits={2500} />
     <Camera mode="world" position={[7, 2, 88]} target={[7, 2, 0]} fov={54} />

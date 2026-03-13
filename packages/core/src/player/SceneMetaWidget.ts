@@ -5,6 +5,8 @@ import type { AnimationTickContext, IAnimationController } from '../widget/types
  * to the VariableStore, and fires onSceneChange when the scene id changes.
  */
 export class SceneMetaWidget implements IAnimationController {
+  // Ambient: SceneMeta configures scene identity globally. Not an NVS-bounded canvas element.
+  readonly nodeHandlerCategory = 'ambient' as const;
   readonly widgetId = '__scene_meta__';
   readonly tickPriority = -1000;
 

@@ -11,9 +11,8 @@ import {
   type ReactNode,
 } from 'react';
 import {
-  ActionInput,
+  InputCoordinator,
   EngineOverlayHost,
-  KeyboardInput,
   SceneCanvas,
   SceneEngine,
   ScrollStage,
@@ -173,8 +172,7 @@ export function DocsApp({ nav, engineConfig, children }: DocsAppProps): ReactEle
         {/* Sticky canvas driven by window scroll */}
         <ScrollStage scrollHeightPx={engineConfig.scrollHeightPx} stageHeight="100vh">
           <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
-          <ActionInput />
-          <KeyboardInput />
+          <InputCoordinator />
           <EngineOverlayHost />
         </ScrollStage>
         {/* Documentation content flows after the scroll region */}

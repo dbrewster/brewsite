@@ -17,7 +17,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneFractal: JSX.Element = (
+export const SceneFractal = () => (
   <Scene key="bfmu-fractal" id="bfmu-fractal">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
     <InputController scope="canvas">

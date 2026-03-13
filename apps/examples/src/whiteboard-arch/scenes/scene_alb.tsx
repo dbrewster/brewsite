@@ -12,7 +12,7 @@ import {
 import { MidFade } from '@brewsite/core/hud/animejs';
 import { makeWhiteboardDiagram } from '../diagram';
 
-export const sceneAlb: JSX.Element = (
+export const SceneAlb = () => (
   <Scene id="whiteboard-alb">
     <ProgressManager scrollUnits={2000} />
     <Background color="#0d1117" />

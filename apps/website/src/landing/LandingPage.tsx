@@ -1,10 +1,9 @@
 import { useState, useMemo } from 'react';
 import type { JSX } from 'react';
 import {
-  ActionInput,
+  InputCoordinator,
   BackgroundLayer,
   EngineOverlayHost,
-  KeyboardInput,
   SceneCanvas,
   SceneEngine,
   ScrollStage,
@@ -50,8 +49,7 @@ function WebsiteLayout({
       )}
       <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
       <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
-      <ActionInput />
-      <KeyboardInput />
+      <InputCoordinator />
       <EngineOverlayHost />
     </ScrollStage>
   );

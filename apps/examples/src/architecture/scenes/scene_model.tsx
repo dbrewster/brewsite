@@ -189,7 +189,7 @@ function makeModelCanvasDiagram(tilt: number, scale: number): JSX.Element {
 }
 
 // ── Scene 1 of 2: Angled view ──────────────────────────────────────────────
-export const sceneModelAngledArch: JSX.Element = (
+export const SceneModelAngledArch = () => (
   <Scene id="arch-model-angled">
     <ProgressManager scrollUnits={2000} fn={angledFn} />
     <Camera
@@ -208,7 +208,7 @@ export const sceneModelAngledArch: JSX.Element = (
 );
 
 // ── Scene 2 of 2: Head-on view with teaching overlay ──────────────────────
-export const sceneModelArch: JSX.Element = (
+export const SceneModelArch = () => (
   <Scene id="arch-model" exitStart={0.9}>
     <ProgressManager scrollUnits={3000} />
     <Camera

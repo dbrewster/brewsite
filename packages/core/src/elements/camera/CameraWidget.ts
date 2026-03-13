@@ -49,6 +49,8 @@ export class CameraWidget
     ICameraHost,
     ICameraFocusTarget
 {
+  // Ambient: Camera configures the scene globally. Not an NVS-bounded canvas element.
+  readonly nodeHandlerCategory = 'ambient' as const;
   readonly widgetId = 'camera';
   readonly defaultState: SceneCamera = DEFAULT_CAMERA;
   readonly transitionSpec = functionalCameraTransitionSpec;

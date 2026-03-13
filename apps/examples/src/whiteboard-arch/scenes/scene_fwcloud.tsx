@@ -12,7 +12,7 @@ import {
 import { MidFade } from '@brewsite/core/hud/animejs';
 import { makeWhiteboardDiagram } from '../diagram';
 
-export const sceneFwCloud: JSX.Element = (
+export const SceneFwCloud = () => (
   <Scene id="whiteboard-fwcloud">
     <ProgressManager scrollUnits={2000} />
     <Background color="#0d1117" />

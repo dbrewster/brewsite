@@ -1,13 +1,12 @@
 // View/ViewLayout demo page — showcases standalone views, stack, carousel, and nested views.
 import {JSX, type RefObject, useCallback, useMemo, useRef, useState} from 'react';
-import {InertiaScrollSource, WidgetPlugin} from '@brewsite/core';
+import {WidgetPlugin} from '@brewsite/core';
 import {
-  ActionInput,
+  InputCoordinator,
   BackgroundLayer,
   corePlugin,
   EngineARContainer,
   EngineOverlayHost,
-  KeyboardInput,
   SceneCanvas,
   SceneEngine,
   ScrollStage,
@@ -95,9 +94,7 @@ export default function ViewDemoPage(): JSX.Element {
             <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
             <EngineOverlayHost />
           </EngineARContainer>
-          <ActionInput />
-          <KeyboardInput />
-          <InertiaScrollSource inertiaSensitivity={0.010} inertiaDecay={0.82} />
+          <InputCoordinator inertiaSensitivity={0.010} inertiaDecay={0.82} />
         </ScrollStage>
         <ChartProgressIndicator scrollStageRef={scrollStageRef} polarity={polarity} />
       </SceneEngine>

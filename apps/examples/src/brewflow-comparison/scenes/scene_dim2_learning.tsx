@@ -17,7 +17,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneDim2Learning: JSX.Element = (
+export const SceneDim2Learning = () => (
   <Scene key="bfc-dim2-learn" id="bfc-dim2-learn">
     <ProgressManager scrollUnits={3000} fn={DWELL_FN} />
 

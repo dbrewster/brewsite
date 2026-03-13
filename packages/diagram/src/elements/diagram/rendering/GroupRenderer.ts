@@ -30,6 +30,10 @@ export class GroupRenderer {
     const entry = this.createGroup(state, diagramId, themeConfig);
     parent.add(entry.group);
     this.entries.set(key, entry);
+    // Set position, border, label, and edge lights on first creation too —
+    // not just on subsequent getOrCreate calls. This ensures the group is
+    // fully initialized in a single update() pass.
+    this.updateGroup(entry, state, themeConfig);
     return entry;
   }
 

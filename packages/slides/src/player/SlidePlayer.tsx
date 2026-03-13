@@ -239,19 +239,19 @@ const SlidePlayerInner = ({
       <SlideProgressIndicator nav={nav} style={progressIndicator} />
       {/*
        * Pointer navigation overlay: click → next, right-click → prev.
-       * Rendered as a full-size transparent div layered above the 3D canvas but
-       * below the progress indicator (z-index: 1 vs indicator's z-index: 20).
-       * Only rendered when pointer navigation is not explicitly disabled.
+       * Rendered as a full-size transparent div layered above the EngineOverlayHost
+       * (z-index: 11 vs overlay host's z-index: 10) but below the progress
+       * indicator (z-index: 20). Only rendered when pointer navigation is not
+       * explicitly disabled.
        *
-       * NOTE: This overlay does NOT interfere with TextBox overlay interactions
-       * because EngineOverlayHost uses pointer-events: none at the canvas layer.
-       * For slides that need interactive DOM elements in overlays, pointer events
-       * must be re-enabled at the TextBox child level.
+       * EngineOverlayHost is set to passthroughPointerEvents so TextBox content
+       * does not block click events. The pointer overlay captures all remaining
+       * pointer interactions for slide navigation.
        */}
       {navigation?.pointer !== false && (
         <div
           aria-hidden
-          style={{ position: 'absolute', inset: 0, zIndex: 1, cursor: 'pointer' }}
+          style={{ position: 'absolute', inset: 0, zIndex: 11, cursor: 'pointer' }}
           onClick={() => nav.next()}
           onContextMenu={(e) => {
             e.preventDefault();
@@ -470,7 +470,7 @@ export const SlidePlayer = forwardRef<SlidePlayerHandle, SlidePlayerProps>(
             {/* SceneCanvas uses forwardRef<HTMLCanvasElement> — prop is `ref`, NOT `canvasRef`. */}
             <SceneCanvas ref={canvasRef} />
             <EngineOverlayHost
-              passthroughPointerEvents={false}
+              passthroughPointerEvents
               overlayTransition={
                 transition === 'none'
                   ? { enabled: false }

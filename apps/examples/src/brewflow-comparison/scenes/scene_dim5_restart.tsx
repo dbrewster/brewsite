@@ -17,7 +17,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneDim5Restart: JSX.Element = (
+export const SceneDim5Restart = () => (
   <Scene key="bfc-dim5-restart" id="bfc-dim5-restart">
     <ProgressManager scrollUnits={2800} fn={DWELL_FN} />
 

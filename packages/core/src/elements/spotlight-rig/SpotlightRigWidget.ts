@@ -65,6 +65,8 @@ export class SpotlightRigWidget
     IDslComposite,
     IHasCustomDslHandler
 {
+  // Ambient: SpotlightRig configures scene lighting globally. Not an NVS-bounded canvas element.
+  readonly nodeHandlerCategory = 'ambient' as const;
   readonly widgetId: string;
 
   // ── ISceneElement ────────────────────────────────────────────────────────────

@@ -31,6 +31,7 @@ import {
   useChartTheme,
   type ChartTheme,
 } from '@brewsite/charts';
+import { pk } from '../platformKeys';
 
 const CAM_POS: [number, number, number] = [0, 1.5, 9];
 const CAM_TGT: [number, number, number] = [0, 0, 0];
@@ -183,9 +184,9 @@ function KbdCell({ children, color }: KbdCellProps): JSX.Element {
         background: color + '22',
         border: `1px solid ${color}55`,
         borderRadius: 4,
-        padding: '1px 6px',
+        padding: '2px 8px',
         fontFamily: 'monospace',
-        fontSize: 10,
+        fontSize: 13,
         color,
         whiteSpace: 'nowrap',
       }}
@@ -227,8 +228,8 @@ export const AllMapsScene = (): JSX.Element => {
         <Action id="orbit-right" type="camera.orbit" speed={0.7}>
           <PointerMap event="drag" button="right" axis="xy" />
         </Action>
-        <Action id="orbit-alt" type="camera.orbit" speed={0.6}>
-          <PointerMap event="drag" button="left" modifiers={['alt']} axis="xy" />
+        <Action id="orbit-mod" type="camera.orbit" speed={0.6}>
+          <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
         </Action>
         {/* Camera dolly — wheel + pinch */}
         <Action id="dolly" type="camera.dolly">
@@ -312,6 +313,7 @@ export const AllMapsScene = (): JSX.Element => {
             borderRadius: 8,
             border: '1px solid rgba(70, 130, 220, 0.25)',
             boxSizing: 'border-box',
+            pointerEvents: 'auto',
           }}
         >
           <div style={{ fontSize: 12, fontWeight: 600, color: '#c8deff', marginBottom: 8 }}>
@@ -324,11 +326,11 @@ export const AllMapsScene = (): JSX.Element => {
           <div style={{ fontSize: 11, fontWeight: 600, color: '#a0c8ff', marginBottom: 6 }}>Modifier combos:</div>
           {[
             { combo: 'No modifier', desc: 'Left Drag = Orbit · Scroll = Dolly · Click = Carousel Next' },
-            { combo: 'Alt', desc: 'Alt+Drag = Slow Orbit (×0.6)' },
-            { combo: 'Ctrl', desc: 'Ctrl+Scroll = Precision Dolly (×0.2)' },
+            { combo: pk('Mod'), desc: `${pk('Mod')}+Drag = Slow Orbit (×0.6)` },
+            { combo: pk('Ctrl'), desc: `${pk('Ctrl')}+Scroll = Precision Dolly (×0.2)` },
             { combo: 'Right button', desc: 'Right Drag = Orbit (×0.7)' },
             { combo: 'Middle click', desc: 'Reset camera position' },
-            { combo: 'Shift', desc: 'Shift+→ = Jump 3 slides · Shift+← = Back 3' },
+            { combo: pk('Shift'), desc: `${pk('Shift')}+→ = Jump 3 slides · ${pk('Shift')}+← = Back 3` },
           ].map(({ combo, desc }) => (
             <div key={combo} style={{ marginBottom: 7 }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: '#7ab4ff', marginBottom: 2 }}>{combo}</div>
@@ -350,6 +352,7 @@ export const AllMapsScene = (): JSX.Element => {
             borderRadius: 8,
             border: '1px solid rgba(70, 130, 220, 0.25)',
             boxSizing: 'border-box',
+            pointerEvents: 'auto',
           }}
         >
           <div style={{ fontSize: 11, fontWeight: 600, color: '#c8deff', marginBottom: 8 }}>Cheatsheet</div>
@@ -357,16 +360,16 @@ export const AllMapsScene = (): JSX.Element => {
             {[
               { kbd: 'Left Drag', desc: 'Orbit camera', color: C_CAM },
               { kbd: 'Right Drag', desc: 'Orbit ×0.7', color: C_CAM },
-              { kbd: 'Alt+Left Drag', desc: 'Orbit ×0.6', color: C_MOD },
+              { kbd: pk('Mod+Left Drag'), desc: 'Orbit ×0.6', color: C_MOD },
               { kbd: 'Scroll', desc: 'Dolly camera', color: C_CAM },
-              { kbd: 'Ctrl+Scroll', desc: 'Dolly ×0.2', color: C_MOD },
+              { kbd: pk('Ctrl+Scroll'), desc: 'Dolly ×0.2', color: C_MOD },
               { kbd: 'Pinch', desc: 'Dolly (in/out)', color: C_CAM },
               { kbd: 'R', desc: 'Reset camera', color: '#e07050' },
               { kbd: 'Middle Click', desc: 'Reset camera', color: '#e07050' },
               { kbd: '→ / Click', desc: 'Carousel +1', color: C_CAR },
-              { kbd: 'Shift+→', desc: 'Carousel +3', color: C_MOD },
+              { kbd: pk('Shift+→'), desc: 'Carousel +3', color: C_MOD },
               { kbd: '←', desc: 'Carousel −1', color: C_CAR },
-              { kbd: 'Shift+←', desc: 'Carousel −3', color: C_MOD },
+              { kbd: pk('Shift+←'), desc: 'Carousel −3', color: C_MOD },
               { kbd: '↓', desc: 'Next scene', color: C_SCENE },
               { kbd: '↑', desc: 'Prev scene', color: C_SCENE },
             ].map(({ kbd, desc, color }) => (

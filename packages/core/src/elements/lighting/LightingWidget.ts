@@ -60,6 +60,8 @@ import type { NodeHandler } from '../../compiler/sceneDslTypes';
 export class LightingWidget
   implements ISceneElement<SceneLighting>, IRenderable<SceneLighting>, IDslComposite, IHasCustomDslHandler
 {
+  // Ambient: Lighting configures the scene globally. Not an NVS-bounded canvas element.
+  readonly nodeHandlerCategory = 'ambient' as const;
   readonly widgetId = 'lighting';
   readonly defaultState: SceneLighting = DEFAULT_LIGHTING;
   readonly transitionSpec = functionalLightingTransitionSpec;

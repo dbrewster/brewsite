@@ -1,11 +1,10 @@
 import type {JSX} from 'react';
 import {useMemo} from 'react';
 import {
-  ActionInput,
+  InputCoordinator,
   BackgroundLayer,
   EngineARContainer,
   EngineOverlayHost,
-  KeyboardInput,
   SceneCanvas,
   SceneEngine,
   ScrollStage,
@@ -62,8 +61,7 @@ export default function SidecarNotePage(): JSX.Element {
             <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
             <EngineOverlayHost />
           </EngineARContainer>
-          <ActionInput />
-          <KeyboardInput />
+          <InputCoordinator />
         </ScrollStage>
       </SceneEngine>
     </div>

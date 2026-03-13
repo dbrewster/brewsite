@@ -12,7 +12,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneDreamer: JSX.Element = (
+export const SceneDreamer = () => (
   <Scene key="bf-dreamer" id="bf-dreamer">
     <ProgressManager scrollUnits={2800} fn={DWELL_FN} />
     <Camera mode="world" position={[0, 5, 22]} target={[0, 0, 0]} fov={52} />

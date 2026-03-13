@@ -1,18 +1,20 @@
 import { describe, it, expect, beforeEach } from 'vitest';
-import { clearRegistry, getNodeHandler, isPrimitiveComponent, registerNode } from '../registry';
+import { clearRegistry, getHandlerCategory, getNodeHandler, isPrimitiveComponent, registerNode } from '../registry';
 import { getNodeHandler as getNodeHandlerFromBarrel } from '../../index';
 import type { CompileApi } from '../sceneDslTypes';
 
 const fakeApi: CompileApi = {
   context: {} as CompileApi['context'],
   state: { id: '', scrollProgress: 0, widgets: {} },
-  pushHudItem: () => {},
-  pushLabel: () => {},
   setWidgetState: () => {},
   setSceneMeta: (meta) => {
     if (meta.id) fakeApi.state.id = meta.id;
   },
   pushWarning: () => {},
+  composeBounds: (r) => r,
+  composeZ: (z) => z,
+  composeOpacity: (o) => o,
+  pushOverlay: () => {},
 };
 
 describe('compiler registry', () => {
@@ -60,5 +62,51 @@ describe('compiler registry', () => {
 describe('root barrel — getNodeHandler is exported', () => {
   it('getNodeHandler is a function exported from the root barrel', () => {
     expect(typeof getNodeHandlerFromBarrel).toBe('function');
+  });
+});
+
+// ─── NodeHandlerCategory storage and retrieval ────────────────────────────────
+describe('getHandlerCategory', () => {
+  beforeEach(() => clearRegistry());
+
+  it('returns spatial for a component registered without options', () => {
+    const Comp = () => null;
+    registerNode(Comp, () => {});
+    expect(getHandlerCategory(Comp)).toBe('spatial');
+  });
+
+  it('returns spatial for an unregistered component', () => {
+    const Comp = () => null;
+    expect(getHandlerCategory(Comp)).toBe('spatial');
+  });
+
+  it('returns ambient for a component registered with category: ambient', () => {
+    const Comp = () => null;
+    registerNode(Comp, () => {}, { category: 'ambient' });
+    expect(getHandlerCategory(Comp)).toBe('ambient');
+  });
+
+  it('returns spatial for a component registered with category: spatial', () => {
+    const Comp = () => null;
+    registerNode(Comp, () => {}, { category: 'spatial' });
+    expect(getHandlerCategory(Comp)).toBe('spatial');
+  });
+
+  it('resolves category by display name when component reference differs', () => {
+    // Simulates cross-module identity loss (same displayName, different reference)
+    const Comp1 = () => null;
+    Comp1.displayName = 'SharedComp';
+    registerNode(Comp1, () => {}, { category: 'ambient' });
+
+    const Comp2 = () => null;
+    Comp2.displayName = 'SharedComp';
+    expect(getHandlerCategory(Comp2)).toBe('ambient');
+  });
+
+  it('clearRegistry also clears category entries', () => {
+    const Comp = () => null;
+    registerNode(Comp, () => {}, { category: 'ambient' });
+    clearRegistry();
+    expect(getHandlerCategory(Comp)).toBe('spatial');
   });
 });

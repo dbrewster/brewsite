@@ -227,7 +227,7 @@ function makeChartsCanvasDiagram(tilt: number, scale: number): JSX.Element {
 }
 
 // ── Scene 1 of 2: Angled view ──────────────────────────────────────────────
-export const sceneChartsAngledArch: JSX.Element = (
+export const SceneChartsAngledArch = () => (
   <Scene id="arch-charts-angled">
     <ProgressManager scrollUnits={2000} fn={angledFn} />
     <Camera
@@ -246,7 +246,7 @@ export const sceneChartsAngledArch: JSX.Element = (
 );
 
 // ── Scene 2 of 2: Head-on view with teaching overlay ──────────────────────
-export const sceneChartsArch: JSX.Element = (
+export const SceneChartsArch = () => (
   <Scene id="arch-charts" exitStart={0.9}>
     <ProgressManager scrollUnits={3000} />
     <Camera

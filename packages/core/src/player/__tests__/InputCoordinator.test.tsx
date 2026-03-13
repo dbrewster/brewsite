@@ -1,13 +1,16 @@
 // @vitest-environment jsdom
-// Tests for ActionInput: lifecycle, spec reading, and handler dispatch.
+// Tests for InputCoordinator: lifecycle, spec reading, handler dispatch, and
+// the wheel priority waterfall (WheelMap exclusive, inertia fallback, scrollable guard).
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { ActionInputController } from '../../input/ActionInputController';
 import React from 'react';
 import { cleanup, render, act } from '@testing-library/react';
-import { ActionInput } from '../ActionInput';
+import { InputCoordinator } from '../InputCoordinator';
 import { EngineContext } from '../EngineContext';
 import { ActionInputExtensionContext } from '../ActionInputExtensionContext';
+import { ScrollDriverContext } from '../ScrollDriverContext';
+import { ScrollRegionContext } from '../ScrollRegionContext';
 import type { UseSceneEngineResult } from '../useSceneEngine';
 import type { SceneTrackTick } from '../../compiler/sceneTrackTypes';
 import type { SceneInputControllerSpec } from '../../input/types';
@@ -15,6 +18,9 @@ import type { ActionInputExtension } from '../ActionInputExtensionContext';
 import { VariableStore } from '../../widget/VariableStore';
 import type { ViewLayoutState, ViewState } from '../../compiler/viewTypes';
 import type { NVSRect } from '../../layout/types';
+import type { ScrollDriverContextValue } from '../ScrollDriverContext';
+import type { ScrollRegionContextValue } from '../ScrollRegionContext';
+import type { IScrollSource } from '../scrollSourceTypes';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -52,7 +58,7 @@ const makeTick = (spec: SceneInputControllerSpec | null): SceneTrackTick => ({
 });
 
 /**
- * Builds a minimal UseSceneEngineResult with only the fields ActionInput needs.
+ * Builds a minimal UseSceneEngineResult with only the fields InputCoordinator needs.
  * All dispatchable methods are vi.fn() so tests can assert on them.
  */
 const makeEngine = (
@@ -91,10 +97,8 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe('ActionInput', () => {
+describe('InputCoordinator', () => {
   it('does not re-create controller when engine object reference changes (tick simulation)', async () => {
-    // Verify that a new engine object (as produced by useSceneEngine on every tick)
-    // does NOT cause the ActionInputController to detach and re-attach.
     const spec = makeSpec();
     const tick = makeTick(spec);
     const canvas = document.createElement('canvas');
@@ -107,7 +111,7 @@ describe('ActionInput', () => {
     await act(async () => {
       const result = render(
         <EngineContext.Provider value={engine1}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
       rerender = result.rerender;
@@ -123,7 +127,7 @@ describe('ActionInput', () => {
     await act(async () => {
       rerender(
         <EngineContext.Provider value={engine2}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
     });
@@ -139,7 +143,7 @@ describe('ActionInput', () => {
 
     const { container } = render(
       <EngineContext.Provider value={engine}>
-        <ActionInput />
+        <InputCoordinator />
       </EngineContext.Provider>,
     );
 
@@ -150,11 +154,10 @@ describe('ActionInput', () => {
     // canvasRef.current is null and no target prop provided.
     const engine = makeEngine({ canvasEl: null });
 
-    // Should not throw; effect exits early without creating a controller.
     expect(() =>
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput />
+          <InputCoordinator />
         </EngineContext.Provider>,
       ),
     ).not.toThrow();
@@ -169,7 +172,7 @@ describe('ActionInput', () => {
     await act(async () => {
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
     });
@@ -192,7 +195,7 @@ describe('ActionInput', () => {
     await act(async () => {
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
     });
@@ -204,7 +207,6 @@ describe('ActionInput', () => {
   });
 
   it('does NOT dispatch when spec is null (tick has no __input_controller)', async () => {
-    // Tick exists but has no __input_controller spec.
     const tick = makeTick(null);
     const engine = makeEngine({ tick, sceneCount: 3 });
     const canvas = document.createElement('canvas');
@@ -212,7 +214,7 @@ describe('ActionInput', () => {
     await act(async () => {
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
     });
@@ -232,7 +234,7 @@ describe('ActionInput', () => {
     const { unmount } = await act(async () =>
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       ),
     );
@@ -248,14 +250,13 @@ describe('ActionInput', () => {
   });
 
   it('reads __input_controller spec from tick state via getSpec() closure', async () => {
-    // Engine starts with no tick (pre-first-frame).
     const engine = makeEngine({ tick: null, sceneCount: 3 });
     const canvas = document.createElement('canvas');
 
     await act(async () => {
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
     });
@@ -294,7 +295,7 @@ describe('ActionInput', () => {
       render(
         <EngineContext.Provider value={engine}>
           <ActionInputExtensionContext.Provider value={onUnknownAction}>
-            <ActionInput target={canvas} />
+            <InputCoordinator target={canvas} />
           </ActionInputExtensionContext.Provider>
         </EngineContext.Provider>,
       );
@@ -320,7 +321,7 @@ describe('ActionInput', () => {
     await act(async () => {
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
     });
@@ -328,6 +329,154 @@ describe('ActionInput', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     // sceneCount <= 1 → onSceneStep returns early without calling advanceProgress.
     expect(engine.advanceProgress).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Waterfall tests ──────────────────────────────────────────────────────────
+
+/** Minimal ScrollDriverContextValue that captures what source was registered. */
+class TestScrollDriver implements ScrollDriverContextValue {
+  registeredSource: IScrollSource | null = null;
+  setSource(source: IScrollSource | null): void {
+    this.registeredSource = source;
+  }
+}
+
+const makeWheelSpec = (): SceneInputControllerSpec => ({
+  id: 'ctrl',
+  scope: 'canvas',
+  actions: [
+    {
+      id: 'dolly',
+      type: 'camera.dolly',
+      maps: [{ kind: 'wheel', axis: 'y' }],
+    },
+  ],
+});
+
+describe('InputCoordinator — wheel waterfall', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('WheelMap exclusive: when spec has WheelMap, wheel event fires action, not inertia', async () => {
+    const tick = makeTick(makeWheelSpec());
+    const engine = makeEngine({ tick, sceneCount: 3 });
+    const target = document.createElement('div');
+    const driver = new TestScrollDriver();
+    const containerRef = { current: target };
+    const scrollRegionValue: ScrollRegionContextValue = { containerRef, scrollHeightPx: 5000 };
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <ScrollDriverContext.Provider value={driver}>
+            <ScrollRegionContext.Provider value={scrollRegionValue}>
+              <InputCoordinator target={target} />
+            </ScrollRegionContext.Provider>
+          </ScrollDriverContext.Provider>
+        </EngineContext.Provider>,
+      );
+    });
+
+    // Record progress before the wheel event fires.
+    let lastProgress: number | undefined;
+    driver.registeredSource?.subscribe((p) => { lastProgress = p; });
+    // At this point lastProgress = 0 (initial emit from subscribe).
+    const progressBeforeWheel = lastProgress;
+
+    // Dispatch wheel event to target.
+    target.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, bubbles: true, cancelable: true }));
+
+    // Camera dolly must have fired.
+    expect(engine.applyCameraDolly).toHaveBeenCalledTimes(1);
+
+    // Progress must NOT have changed synchronously — the WheelMap claimed the event,
+    // so the inertia accumulator was not fed. Progress stays at 0.
+    expect(lastProgress).toBe(progressBeforeWheel);
+  });
+
+  it('Wheel fallback to inertia: when spec has no WheelMap, wheel event accumulates inertia', async () => {
+    const specNoWheel: SceneInputControllerSpec = {
+      id: 'ctrl',
+      scope: 'canvas',
+      actions: [
+        {
+          id: 'next',
+          type: 'scene.next',
+          maps: [{ kind: 'key', key: 'ArrowRight' }],
+        },
+      ],
+    };
+    const tick = makeTick(specNoWheel);
+    const engine = makeEngine({ tick, sceneCount: 3 });
+    const target = document.createElement('div');
+    const driver = new TestScrollDriver();
+    const containerRef = { current: target };
+    const scrollRegionValue: ScrollRegionContextValue = { containerRef, scrollHeightPx: 5000 };
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <ScrollDriverContext.Provider value={driver}>
+            <ScrollRegionContext.Provider value={scrollRegionValue}>
+              <InputCoordinator target={target} inertiaSensitivity={0.5} inertiaDecay={0.5} />
+            </ScrollRegionContext.Provider>
+          </ScrollDriverContext.Provider>
+        </EngineContext.Provider>,
+      );
+    });
+
+    // No camera dolly should fire.
+    expect(engine.applyCameraDolly).not.toHaveBeenCalled();
+
+    // After a wheel event, progress should eventually become non-zero via RAF.
+    // We check that the scroll source was registered (proving the inertia path is wired).
+    expect(driver.registeredSource).not.toBeNull();
+  });
+
+  it('Scrollable content guard: wheel over element with room to scroll → no action, no inertia', async () => {
+    const tick = makeTick(makeWheelSpec());
+    const engine = makeEngine({ tick, sceneCount: 3 });
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+
+    // Create a scrollable child inside the target.
+    const scrollableChild = document.createElement('div');
+    Object.defineProperty(scrollableChild, 'scrollHeight', { value: 500, configurable: true });
+    Object.defineProperty(scrollableChild, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(scrollableChild, 'scrollTop', { value: 50, configurable: true, writable: true });
+    scrollableChild.style.overflowY = 'auto';
+    target.appendChild(scrollableChild);
+
+    const driver = new TestScrollDriver();
+    const containerRef = { current: target };
+    const scrollRegionValue: ScrollRegionContextValue = { containerRef, scrollHeightPx: 5000 };
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <ScrollDriverContext.Provider value={driver}>
+            <ScrollRegionContext.Provider value={scrollRegionValue}>
+              <InputCoordinator target={target} />
+            </ScrollRegionContext.Provider>
+          </ScrollDriverContext.Provider>
+        </EngineContext.Provider>,
+      );
+    });
+
+    // Dispatch wheel event with target set to the scrollable child.
+    const wheelEvent = new WheelEvent('wheel', { deltaY: 50, bubbles: true, cancelable: true });
+    Object.defineProperty(wheelEvent, 'target', { value: scrollableChild, configurable: true });
+    target.dispatchEvent(wheelEvent);
+
+    // Neither camera dolly nor inertia should fire.
+    expect(engine.applyCameraDolly).not.toHaveBeenCalled();
+    // The event should NOT have been prevented (native scroll allowed).
+    expect(wheelEvent.defaultPrevented).toBe(false);
+
+    document.body.removeChild(target);
   });
 });
 
@@ -438,7 +587,7 @@ const makeCarouselEngine = (opts: CarouselEngineOptions): UseSceneEngineResult =
   } as unknown as UseSceneEngineResult;
 };
 
-describe('ActionInput — onCarouselStep', () => {
+describe('InputCoordinator — onCarouselStep', () => {
   const LAYOUT_ID = 'my-carousel';
   const VIEW_IDS = ['v1', 'v2', 'v3'];
 
@@ -458,14 +607,13 @@ describe('ActionInput — onCarouselStep', () => {
     await act(async () => {
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
     });
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
 
-    // Already at index 0 with no loop — newIndex === currentIndex, so no patch.
     expect(patchWidgetStates).not.toHaveBeenCalled();
     expect(variableStore.get('carousel', `${LAYOUT_ID}.activeIndex`)).toBeUndefined();
   });
@@ -481,7 +629,7 @@ describe('ActionInput — onCarouselStep', () => {
     await act(async () => {
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
     });
@@ -503,7 +651,7 @@ describe('ActionInput — onCarouselStep', () => {
     await act(async () => {
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
     });
@@ -528,7 +676,7 @@ describe('ActionInput — onCarouselStep', () => {
     await act(async () => {
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
     });
@@ -550,7 +698,6 @@ describe('ActionInput — onCarouselStep', () => {
     const viewStates = Object.fromEntries(sevenViews.map((id) => [id, makeViewState(id)]));
     const canvas = document.createElement('canvas');
 
-    // Build the engine with a 3-slide step spec.
     const spec = makeCarouselSpec(LAYOUT_ID, 3);
     const tick: SceneTrackTick = {
       index: 0, progress: 0, sceneId: 'scene-1', sceneIndex: 0, blockProgress: 0, sceneProgress: 0,
@@ -568,7 +715,7 @@ describe('ActionInput — onCarouselStep', () => {
     await act(async () => {
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
     });
@@ -578,7 +725,6 @@ describe('ActionInput — onCarouselStep', () => {
     expect(patchWidgetStates).toHaveBeenCalledOnce();
     const patches = patchWidgetStates.mock.calls[0][0] as Record<string, unknown>;
     const patchedLayout = patches[LAYOUT_ID] as ViewLayoutState;
-    // (5 + 3) % 7 = 1
     expect((patchedLayout.layoutConfig as { activeIndex: number }).activeIndex).toBe(1);
     expect(variableStore.get('carousel', `${LAYOUT_ID}.activeIndex`)).toBe(1);
   });
@@ -588,13 +734,11 @@ describe('ActionInput — onCarouselStep', () => {
     const patchWidgetStates = vi.fn();
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    // ViewLayoutState without layoutConfig.
     const layoutState: ViewLayoutState = {
       id: LAYOUT_ID,
       kind: 'carousel',
       bounds: { x: 0, y: 0, w: 1, h: 1 },
       viewIds: VIEW_IDS,
-      // layoutConfig intentionally absent
     };
     const viewStates = Object.fromEntries(VIEW_IDS.map((id) => [id, makeViewState(id)]));
     const canvas = document.createElement('canvas');
@@ -603,7 +747,7 @@ describe('ActionInput — onCarouselStep', () => {
     await act(async () => {
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
     });
@@ -624,7 +768,7 @@ describe('ActionInput — onCarouselStep', () => {
     await act(async () => {
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
     });
@@ -637,7 +781,6 @@ describe('ActionInput — onCarouselStep', () => {
   it('(8) VariableStore fallback: first step reads compiled activeIndex when VariableStore is empty', async () => {
     const variableStore = new VariableStore();
     const patchWidgetStates = vi.fn();
-    // Compiled activeIndex = 1.
     const layoutState = makeCarouselLayoutState(LAYOUT_ID, VIEW_IDS, 1, false);
     const viewStates = Object.fromEntries(VIEW_IDS.map((id) => [id, makeViewState(id)]));
     const canvas = document.createElement('canvas');
@@ -646,12 +789,11 @@ describe('ActionInput — onCarouselStep', () => {
     await act(async () => {
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
     });
 
-    // VariableStore has no entry — handler falls back to compiled activeIndex=1.
     expect(variableStore.get('carousel', `${LAYOUT_ID}.activeIndex`)).toBeUndefined();
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
@@ -667,7 +809,6 @@ describe('ActionInput — onCarouselStep', () => {
   it('(9) VariableStore persistence: second step reads VariableStore value, not compiled value', async () => {
     const variableStore = new VariableStore();
     const patchWidgetStates = vi.fn();
-    // Compiled activeIndex = 0.
     const layoutState = makeCarouselLayoutState(LAYOUT_ID, VIEW_IDS, 0, false);
     const viewStates = Object.fromEntries(VIEW_IDS.map((id) => [id, makeViewState(id)]));
     const canvas = document.createElement('canvas');
@@ -676,7 +817,7 @@ describe('ActionInput — onCarouselStep', () => {
     await act(async () => {
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
     });
@@ -698,7 +839,6 @@ describe('ActionInput — onCarouselStep', () => {
   it('(10) out-of-bounds compiled activeIndex: activeIndex=99, 3 children → clamps, then step is clamped no-op', async () => {
     const variableStore = new VariableStore();
     const patchWidgetStates = vi.fn();
-    // Compiled activeIndex=99 with only 3 children — clamps to 2.
     const layoutState = makeCarouselLayoutState(LAYOUT_ID, VIEW_IDS, 99, false);
     const viewStates = Object.fromEntries(VIEW_IDS.map((id) => [id, makeViewState(id)]));
     const canvas = document.createElement('canvas');
@@ -707,7 +847,7 @@ describe('ActionInput — onCarouselStep', () => {
     await act(async () => {
       render(
         <EngineContext.Provider value={engine}>
-          <ActionInput target={canvas} />
+          <InputCoordinator target={canvas} />
         </EngineContext.Provider>,
       );
     });

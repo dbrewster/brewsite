@@ -17,7 +17,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneExpertRoles: JSX.Element = (
+export const SceneExpertRoles = () => (
   <Scene key="bfmu-experts" id="bfmu-experts">
     <ProgressManager scrollUnits={2800} fn={DWELL_FN} />
     <InputController scope="canvas">

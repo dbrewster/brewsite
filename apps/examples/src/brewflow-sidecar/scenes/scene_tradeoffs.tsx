@@ -1,7 +1,7 @@
 import type {JSX} from 'react';
 import {Background, Camera, ProgressManager, Scene, TextBox} from '@brewsite/core';
 
-export const sceneTradeoffs: JSX.Element = (
+export const SceneTradeoffs = () => (
   <Scene key="bf-tradeoffs" id="bf-tradeoffs">
     <ProgressManager scrollUnits={1600} />
     <Camera mode="world" position={[0, 0, 5]} target={[0, 0, 0]} fov={50} />

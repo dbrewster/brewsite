@@ -241,13 +241,15 @@ const childOnlyHandler = (display: string): NodeHandler => () => {
   throw new Error(`<${display}> must be nested inside <InputController>.`);
 };
 
+// All input controller sub-components are ambient — they configure input behavior,
+// not spatial content.
 export const ensureInputControllerRegistry = (): void => {
-  if (!getNodeHandler(InputController)) registerNode(InputController, inputControllerHandler);
-  if (!getNodeHandler(Action)) registerNode(Action, childOnlyHandler('Action'));
-  if (!getNodeHandler(PointerMap)) registerNode(PointerMap, childOnlyHandler('PointerMap'));
-  if (!getNodeHandler(WheelMap)) registerNode(WheelMap, childOnlyHandler('WheelMap'));
-  if (!getNodeHandler(PinchMap)) registerNode(PinchMap, childOnlyHandler('PinchMap'));
-  if (!getNodeHandler(KeyMap)) registerNode(KeyMap, childOnlyHandler('KeyMap'));
+  if (!getNodeHandler(InputController)) registerNode(InputController, inputControllerHandler,  { category: 'ambient' });
+  if (!getNodeHandler(Action))          registerNode(Action,          childOnlyHandler('Action'),          { category: 'ambient' });
+  if (!getNodeHandler(PointerMap))      registerNode(PointerMap,      childOnlyHandler('PointerMap'),      { category: 'ambient' });
+  if (!getNodeHandler(WheelMap))        registerNode(WheelMap,        childOnlyHandler('WheelMap'),        { category: 'ambient' });
+  if (!getNodeHandler(PinchMap))        registerNode(PinchMap,        childOnlyHandler('PinchMap'),        { category: 'ambient' });
+  if (!getNodeHandler(KeyMap))          registerNode(KeyMap,          childOnlyHandler('KeyMap'),          { category: 'ambient' });
 };
 
 // NOTE: Module-scope auto-registration removed.

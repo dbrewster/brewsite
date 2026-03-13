@@ -26,6 +26,8 @@ Background.displayName = 'Background';
 export class BackgroundWidget
   implements ISceneElement<SceneBackground>, IRenderable<SceneBackground>, IHasCustomDslHandler
 {
+  // Ambient: Background configures the scene globally. Not an NVS-bounded canvas element.
+  readonly nodeHandlerCategory = 'ambient' as const;
   readonly widgetId = 'background';
   readonly defaultState: SceneBackground = DEFAULT_BACKGROUND;
   readonly transitionSpec = functionalBackgroundTransitionSpec;

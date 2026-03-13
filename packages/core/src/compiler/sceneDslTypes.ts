@@ -31,6 +31,14 @@ export type CompileApi = {
    * unchanged) when no parent view has opacity < 1.
    */
   composeOpacity: (localOpacity: number) => number;
+  /**
+   * Pushes a ReactNode to the scene's overlay content collection.
+   * Used by View/ViewLayout handlers to propagate non-DSL children
+   * (e.g. <TextBox>) upward to the scene root's overlay layer.
+   * The pushed node is rendered by EngineOverlayHost alongside any
+   * overlay content collected directly from Scene children.
+   */
+  pushOverlay: (node: ReactNode) => void;
 };
 
 export type CompileHelpers = {
@@ -51,6 +59,24 @@ export type CompileHelpers = {
   resolveObjectValues: <T extends Record<string, unknown>>(value: T, context: SceneSnapshotContext) => T;
   stripUndefinedDeep: <T extends Record<string, unknown>>(value: T) => T;
   collectChildren: (node: ReactElement) => unknown[];
+  /**
+   * Like compileChildrenSeparated, but operates on a pre-collected children array
+   * rather than extracting children from a node. Used by the scene root handler
+   * to compile the filtered children returned by enforceSceneChildConstraint.
+   *
+   * DSL children (with registered NodeHandlers) are compiled into api.state.
+   * Non-DSL children (HTML elements, non-registered components) are collected
+   * and returned as overlay content.
+   *
+   * If parentNode is provided, its breadcrumb is pushed onto the ancestry stack
+   * for the duration of processing — preserving the Scene entry in MISSING_KEY
+   * warning ancestry chains.
+   */
+  compileChildrenFromArray(
+    children: unknown[],
+    api: CompileApi,
+    parentNode?: ReactElement,
+  ): ReactNode[];
 };
 
 export type NodeHandler = (
@@ -58,3 +84,27 @@ export type NodeHandler = (
   api: CompileApi,
   helpers: CompileHelpers,
 ) => void;
+
+/**
+ * Classifies a DSL component for Scene-level child constraint enforcement.
+ *
+ * 'spatial' — element occupies an NVS region in the 3D canvas. Subject to the
+ *   Scene view constraint: must be the sole direct child (auto-wrapped) or inside
+ *   a <View>. This is the DEFAULT for all registered components.
+ *
+ * 'ambient' — element configures the scene globally and is not region-bound.
+ *   Always allowed as a direct <Scene> child regardless of View presence.
+ *   Examples: Camera, Lighting, Background, Environment, Floor, TextBox.
+ */
+export type NodeHandlerCategory = 'spatial' | 'ambient';
+
+/**
+ * Options bag for registerNode. Extensible for future registration metadata.
+ */
+export type RegisterNodeOptions = {
+  /**
+   * Category for Scene-level child constraint enforcement.
+   * Defaults to 'spatial' if not provided — the safe default for new elements.
+   */
+  category?: NodeHandlerCategory;
+};

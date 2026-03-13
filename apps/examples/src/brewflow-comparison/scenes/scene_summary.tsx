@@ -1,7 +1,7 @@
 import type {JSX} from 'react';
 import {Background, Camera, Scene, TextBox} from '@brewsite/core';
 
-export const sceneSummary: JSX.Element = (
+export const SceneSummary = () => (
   <Scene key="bfc-summary" id="bfc-summary">
     <TextBox id="summary-content" x={0.04} y={0.06} w={0.92} h={0.88}>
       <div style={{

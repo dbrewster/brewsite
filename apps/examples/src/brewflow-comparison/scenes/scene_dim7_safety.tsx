@@ -6,7 +6,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneDim7Safety: JSX.Element = (
+export const SceneDim7Safety = () => (
   <Scene key="bfc-dim7-safety" id="bfc-dim7-safety">
     <ProgressManager scrollUnits={2400} fn={DWELL_FN}/>
 

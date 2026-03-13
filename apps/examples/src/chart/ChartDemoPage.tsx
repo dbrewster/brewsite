@@ -2,12 +2,10 @@
 import type { JSX } from 'react';
 import { useState, useMemo, useRef, type RefObject } from 'react';
 import {
-  ActionInput,
+  InputCoordinator,
   BackgroundLayer,
   EngineARContainer,
   EngineOverlayHost,
-  InertiaScrollSource,
-  KeyboardInput,
   SceneCanvas,
   SceneEngine,
   ScrollStage,
@@ -112,9 +110,7 @@ export default function ChartDemoPage(): JSX.Element {
               <ChartTooltipHost />
             </EngineOverlayHost>
           </EngineARContainer>
-          <ActionInput />
-          <KeyboardInput />
-          <InertiaScrollSource inertiaSensitivity={0.010} inertiaDecay={0.82} />
+          <InputCoordinator inertiaSensitivity={0.010} inertiaDecay={0.82} />
         </ScrollStage>
         <ChartProgressIndicator scrollStageRef={scrollStageRef} polarity={polarity} />
       </SceneEngine>

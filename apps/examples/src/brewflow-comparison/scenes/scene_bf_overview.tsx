@@ -17,7 +17,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneBfOverview: JSX.Element = (
+export const SceneBfOverview = () => (
   <Scene key="bfc-bf-overview" id="bfc-bf-overview">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
 

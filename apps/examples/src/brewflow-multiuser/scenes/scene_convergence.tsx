@@ -17,7 +17,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneConvergence: JSX.Element = (
+export const SceneConvergence = () => (
   <Scene key="bfmu-convergence" id="bfmu-convergence">
     <ProgressManager scrollUnits={2400} fn={DWELL_FN} />
     <InputController scope="canvas">

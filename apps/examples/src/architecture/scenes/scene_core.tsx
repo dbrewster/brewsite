@@ -213,7 +213,7 @@ function makeCoreCanvasDiagram(tilt: number, scale: number): JSX.Element {
 // Camera starts elevated at 45°. ProgressManager.fn holds the transition at
 // blockProgress=0 for the first half of scroll (static angled view), then
 // animates camera + diagram rotation to head-on in the second half.
-export const sceneCoreAngledArch: JSX.Element = (
+export const SceneCoreAngledArch = () => (
   <Scene id="arch-core-angled">
     <ProgressManager scrollUnits={2000} fn={angledFn} />
     <Camera
@@ -234,7 +234,7 @@ export const sceneCoreAngledArch: JSX.Element = (
 // ── Scene 2 of 2: Head-on view with teaching overlay ──────────────────────
 // Camera is at the head-on position. Text fades in as this scene becomes active.
 // Dissolve-to-black transitions out to the next package's angled scene.
-export const sceneCoreArch: JSX.Element = (
+export const SceneCoreArch = () => (
   <Scene id="arch-core" exitStart={0.9}>
     <ProgressManager scrollUnits={3000} />
     <Camera

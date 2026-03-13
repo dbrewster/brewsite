@@ -2,13 +2,11 @@
 // PointerMap / WheelMap / PinchMap / KeyMap option available in BrewSite.
 import { type JSX, useCallback, useMemo, useRef, useState } from 'react';
 import {
-  ActionInput,
+  InputCoordinator,
   BackgroundLayer,
   corePlugin,
   EngineARContainer,
   EngineOverlayHost,
-  InertiaScrollSource,
-  KeyboardInput,
   SceneCanvas,
   SceneEngine,
   ScrollStage,
@@ -29,6 +27,7 @@ import { RingCarouselScene } from './scenes/scene4-ring-carousel';
 import { LinearCarouselScene } from './scenes/scene5-linear-carousel';
 import { ScrollableTextScene } from './scenes/scene6-scrollable-text';
 import { AllMapsScene } from './scenes/scene7-all-maps';
+import {diagramPlugin} from "@brewsite/diagram";
 
 // ─── Plugin factory (outside component for stable reference) ──────────────────
 
@@ -37,7 +36,11 @@ function createPlugins(): { plugins: WidgetPlugin[] } {
     plugins: [
       corePlugin(),
       chartPlugin(),
-    ],
+      diagramPlugin({
+        diagrams: [
+          'cf-overview',
+          ]}),
+      ]
   };
 }
 
@@ -129,11 +132,15 @@ export default function InputShowcasePage(): JSX.Element {
           <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width">
             <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
             <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
-            <EngineOverlayHost />
+            {/*
+              passthroughPointerEvents makes the overlay container pointer-events:none
+              so pointer/wheel/click events pass through to the canvas where
+              ActionInputController is listening. Individual TextBox content opts
+              back in with pointerEvents:'auto' on its inner elements.
+            */}
+            <EngineOverlayHost passthroughPointerEvents />
           </EngineARContainer>
-          <ActionInput />
-          <KeyboardInput />
-          <InertiaScrollSource inertiaSensitivity={0.012} inertiaDecay={0.85} />
+          <InputCoordinator inertiaSensitivity={0.012} inertiaDecay={0.85} />
         </ScrollStage>
 
         {/* ── Timeline scrubber ────────────────────────────────────────────── */}

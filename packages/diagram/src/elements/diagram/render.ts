@@ -66,6 +66,18 @@ export class DiagramRenderer {
   /** Tracks the last edge theme key to detect when EdgeRenderer must be recreated. */
   private lastEdgeThemeKey: string;
 
+  /**
+   * Cached world-scale factors per diagram ID. Keyed by viewport bounds so that
+   * scene transitions (which change the viewport) trigger recomputation, but user
+   * camera zoom (which only changes visibleWorldWidth/Height) does NOT.
+   * This ensures diagrams scale naturally with the camera like any other 3D object
+   * instead of continuously rebuilding geometry every frame during zoom.
+   */
+  private readonly cachedWorldScale = new Map<string, {
+    vpX: number; vpY: number; vpW: number; vpH: number;
+    uniformWorldW: number; uniformWorldH: number;
+  }>();
+
   constructor(
     initialThemeConfig: DiagramThemeRenderConfig,
     iconLoader: IIconLoader = sharedIconLoader,
@@ -116,6 +128,21 @@ export class DiagramRenderer {
    * @param coords Live NVS→world coordinate service from WidgetRenderContext.
    */
   update(state: DiagramState, group: THREE.Group, coords: NVSCoordService): void {
+    const prev = this.lastState.get(state.id);
+
+    // ─── Early out: same diagram state, same world scale → camera-only change ──
+    // During user zoom/orbit the scene track returns the same DiagramState object
+    // (same tick). Three.js naturally handles camera-driven scaling; no geometry
+    // rebuild is needed. Skip the entire conversion + sub-renderer dispatch.
+    if (prev === state) {
+      // Env map still needs updating (opacity/intensity may animate independently)
+      const scene = findScene(group);
+      if (scene) {
+        this.envMapManager.apply(scene, state.themeConfig.envMapUrl, state.themeConfig.envMapIntensity);
+      }
+      return;
+    }
+
     const tc = state.themeConfig;
 
     // Recreate EdgeRenderer if any construction-time edge params changed.
@@ -136,7 +163,6 @@ export class DiagramRenderer {
       this.lastEdgeThemeKey = newKey;
     }
 
-    const prev = this.lastState.get(state.id);
     const vp = state.viewportBounds;
 
     // Apply env map to the scene.
@@ -145,19 +171,26 @@ export class DiagramRenderer {
       this.envMapManager.apply(scene, tc.envMapUrl, tc.envMapIntensity);
     }
 
-    // Compute group center in world space (used to make all positions group-local).
-    const groupCenterWorld = coords.toWorld(
-      vp.x + vp.w / 2,
-      vp.y + vp.h / 2,
-      state.z,
-    );
-
-    // Map the diagram's NVS [0..1] positions directly to the view's world-space bounds.
-    // The view's w/h defines the AR — the diagram fills it fully, same as charts do.
-    // Node sizes are already NVS-normalized by normalizeToViewport, so mapping through
-    // the view bounds preserves the proportions established during layout compilation.
-    const uniformWorldW = vp.w * coords.visibleWorldWidth;
-    const uniformWorldH = vp.h * coords.visibleWorldHeight;
+    // ─── Stable world scale (locked to viewport bounds, immune to camera zoom) ──
+    // Cache uniformWorldW/H per diagram viewport bounds. Only recompute when the
+    // viewport changes (scene transition), NOT when the camera zooms (which only
+    // changes coords.visibleWorldWidth/Height). This ensures diagrams are fixed
+    // 3D objects that scale naturally with the camera like models, charts, etc.
+    const cached = this.cachedWorldScale.get(state.id);
+    let uniformWorldW: number;
+    let uniformWorldH: number;
+    if (cached && cached.vpX === vp.x && cached.vpY === vp.y &&
+        cached.vpW === vp.w && cached.vpH === vp.h) {
+      uniformWorldW = cached.uniformWorldW;
+      uniformWorldH = cached.uniformWorldH;
+    } else {
+      uniformWorldW = vp.w * coords.visibleWorldWidth;
+      uniformWorldH = vp.h * coords.visibleWorldHeight;
+      this.cachedWorldScale.set(state.id, {
+        vpX: vp.x, vpY: vp.y, vpW: vp.w, vpH: vp.h,
+        uniformWorldW, uniformWorldH,
+      });
+    }
 
     // Quantize uniformWorldW for thickness/border scaling to prevent per-frame
     // geometry rebuilds during transitions. Sub-renderers compare thickness values
@@ -370,6 +403,7 @@ export class DiagramRenderer {
       }
     }
     this.lastState.delete(diagramId);
+    this.cachedWorldScale.delete(diagramId);
     this.nodeRenderer.clearEmissiveOverridesForDiagram(diagramId);
     this.interactionRegistry.clear();
     this.groupInteractionRegistry.clear();

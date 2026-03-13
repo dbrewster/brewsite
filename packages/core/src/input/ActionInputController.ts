@@ -89,6 +89,12 @@ export type ActionInputControllerOptions = {
     canvasId: string;
   };
   wheelLockIdleMs?: number;
+  /**
+   * Called when a wheel event is not claimed by any WheelMap in the current spec.
+   * InputCoordinator passes its inertia accumulator here to implement the
+   * priority waterfall: action maps win over scene scroll.
+   */
+  onUnclaimedWheel?: (event: WheelEvent) => void;
 };
 
 const LEGACY_CAMERA_ID = 'camera';
@@ -105,6 +111,7 @@ export class ActionInputController {
   private readonly handler: ActionInputHandler;
   private readonly idDefaults?: ActionInputControllerOptions['idDefaults'];
   private readonly wheelLockIdleMs: number;
+  private readonly onUnclaimedWheel: ((event: WheelEvent) => void) | null;
   private warnedLegacyCameraId = false;
 
   private readonly onPointerDown: (e: PointerEvent) => void;
@@ -127,6 +134,7 @@ export class ActionInputController {
     this.keyboardTarget = keyboardTarget ?? (target instanceof HTMLElement ? target : window);
     this.idDefaults = options?.idDefaults;
     this.wheelLockIdleMs = options?.wheelLockIdleMs ?? DEFAULT_WHEEL_LOCK_IDLE_MS;
+    this.onUnclaimedWheel = options?.onUnclaimedWheel ?? null;
     this.onPointerDown = this.handlePointerDown.bind(this);
     this.onPointerMove = this.handlePointerMove.bind(this);
     this.onPointerUp = this.handlePointerUp.bind(this);
@@ -564,9 +572,43 @@ export class ActionInputController {
     this.activeDrag = null;
   }
 
+  private isOverScrollableContent(e: WheelEvent): boolean {
+    const container = this.target instanceof HTMLElement ? this.target : null;
+    let el = e.target as HTMLElement | null;
+    while (el && el !== container) {
+      // Vertical scroll check (cheap property read first)
+      if (el.scrollHeight > el.clientHeight) {
+        const style = getComputedStyle(el);
+        if (style.overflowY === 'auto' || style.overflowY === 'scroll') {
+          const atTop = el.scrollTop <= 0 && e.deltaY < 0;
+          const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1 && e.deltaY > 0;
+          if (!atTop && !atBottom) return true;
+        }
+      }
+      // Horizontal scroll check
+      if (el.scrollWidth > el.clientWidth) {
+        const style = getComputedStyle(el);
+        if (style.overflowX === 'auto' || style.overflowX === 'scroll') {
+          const atLeft = el.scrollLeft <= 0 && e.deltaX < 0;
+          const atRight = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1 && e.deltaX > 0;
+          if (!atLeft && !atRight) return true;
+        }
+      }
+      el = el.parentElement;
+    }
+    return false;
+  }
+
   private handleWheel(e: WheelEvent): void {
+    // [Waterfall step 1] Yield to scrollable overlay content.
+    if (this.isOverScrollableContent(e)) return; // no preventDefault
+
     const spec = this.resolveSpec();
-    if (!spec) return;
+    if (!spec) {
+      // No spec; fall through to unclaimed handler (scene scroll).
+      this.onUnclaimedWheel?.(e);
+      return;
+    }
 
     // Desktop trackpad pinch commonly arrives as ctrl+wheel (no touch pointer events).
     if (e.ctrlKey) {
@@ -608,7 +650,11 @@ export class ActionInputController {
         }
       }
     }
-    if (!best) return;
+    if (!best) {
+      // [Waterfall step 4] No action claimed it — fall through to scroll.
+      this.onUnclaimedWheel?.(e);
+      return;
+    }
     e.preventDefault();
     const currentTs = this.nowMs();
     const modifierSignature = this.eventModifierSignature(e);

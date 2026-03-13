@@ -17,7 +17,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneDim6Gating: JSX.Element = (
+export const SceneDim6Gating = () => (
   <Scene key="bfc-dim6-gate" id="bfc-dim6-gate">
     <ProgressManager scrollUnits={2400} fn={DWELL_FN} />
 

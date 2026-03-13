@@ -9,6 +9,7 @@ import {
   InputController,
   KeyMap,
   Lighting,
+  PinchMap,
   PointerMap,
   ProgressManager,
   Scene,
@@ -17,7 +18,6 @@ import {
   TextBox,
   View,
   ViewLayout,
-  WheelMap,
   type OrbitFn,
 } from '@brewsite/core';
 import {
@@ -29,6 +29,7 @@ import {
   useChartTheme,
   type ChartTheme,
 } from '@brewsite/charts';
+import { pk } from '../platformKeys';
 
 const CAM_POS: [number, number, number] = [0, 1, 6.6];
 const CAM_TGT: [number, number, number] = [0, 0, 0];
@@ -204,7 +205,6 @@ export const RingCarouselScene = (): JSX.Element => {
         <Action id="carousel-next" type="carousel.next" layoutId={LAYOUT_ID} stepSlides={1}>
           <KeyMap keyName="ArrowRight" />
           <PointerMap event="click" />
-          <WheelMap axis="y" />
         </Action>
         <Action id="carousel-next-skip" type="carousel.next" layoutId={LAYOUT_ID} stepSlides={2}>
           <KeyMap keyName="ArrowRight" modifiers={['shift']} />
@@ -220,6 +220,9 @@ export const RingCarouselScene = (): JSX.Element => {
         </Action>
         <Action id="scene-prev" type="scene.prev">
           <KeyMap keyName="ArrowUp" />
+        </Action>
+        <Action id="dolly" type="camera.dolly">
+          <PinchMap direction="both" threshold={1} />
         </Action>
       </InputController>
 
@@ -266,14 +269,14 @@ export const RingCarouselScene = (): JSX.Element => {
           <div style={{ fontWeight: 600, marginBottom: 6, color: '#c8deff' }}>Controls</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {[
-              { keys: '→ / Click / Scroll', desc: 'Next slide (×1)' },
-              { keys: 'Shift+→', desc: 'Jump 2 slides' },
-              { keys: '←', desc: 'Prev slide (×1)' },
-              { keys: 'Shift+←', desc: 'Jump back 2' },
+              { keys: '→ / Click', desc: 'Rotate forward (×1)' },
+              { keys: pk('Shift+→'), desc: 'Jump 2 positions' },
+              { keys: '←', desc: 'Rotate back (×1)' },
+              { keys: pk('Shift+←'), desc: 'Jump back 2' },
               { keys: '↑ / ↓', desc: 'Change scene' },
             ].map(({ keys, desc }) => (
               <div key={keys} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>
-                <kbd style={{ background: '#50c08022', border: '1px solid #50c08055', borderRadius: 4, padding: '1px 6px', fontFamily: 'monospace', fontSize: 10, color: '#50c080' }}>
+                <kbd style={{ background: '#50c08022', border: '1px solid #50c08055', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#50c080' }}>
                   {keys}
                 </kbd>
                 <span style={{ color: 'rgba(140,180,230,0.65)' }}>{desc}</span>

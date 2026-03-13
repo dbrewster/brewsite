@@ -7,6 +7,12 @@ last_updated: 2026-03-13
 change_history:
   - date: 2026-03-13
     author: "Toolkit Product"
+    summary: "View Widget Carousel Rendering: added IGroupOwner interface (§7.19) — capability interface for widgets that expose their root THREE.Group for ViewWidget reparenting. Added isGroupOwner duck-type guard to §8.2. Added functional requirement 8c. Updated corePlugin description (§14) to document reconcileCompiledTrack creating ViewWidgets lazily from the compiled track; documented full delta transform math including Z delta (G_z = state.z - originalZ, prevents double-offset). Updated WidgetPlugin interface documentation to show reconcileCompiledTrack. ChartWidget now implements IGroupOwner."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "Scene Child Constraint: documented the optional duck-typed nodeHandlerCategory property on widget classes (§8.1). Added built-in core widget category table listing all ambient widgets. Noted that downstream package widgets (DiagramWidget, ChartWidget, ModelWidget, ImagePanelWidget, ScreenWidget) are spatial by default and do not need to declare this property. Documented TextBox classification: TextBox is an HTML overlay component, not a registered DSL spatial element; the constraint's isPrimitiveComponent guard treats unregistered components as overlay content."
+  - date: 2026-03-13
+    author: "Toolkit Product"
     summary: "PRD audit: added missing interface documentation for IContainedRenderable (§7.14), IAttachmentHost (§7.15), IRenderContributor (§7.16), IRendererLifecycle (§7.17), and ISceneLifecycle (§7.18). These interfaces were referenced in change_history but not documented in the PRD body."
   - date: 2026-03-09
     author: "Toolkit Product"
@@ -120,13 +126,14 @@ The Widget SDK solves this by defining a stable, versioned interface set that wi
 8. `IVariableProvider` shall declare `readonly variableNamespace: string` and `readonly variableKeys: readonly string[]`. The runtime uses this for introspection; actual variable publishing is done inside `onTick` via `AnimationTickContext.variables`.
 8a. `IInputDefaultProvider` shall declare `getDefaultInputActions(): InputActionSpec[]`. Widgets that carry per-canvas default input actions in their compiled state implement this interface. The player layer calls `WidgetRegistry.getInputDefaultProviders()` each frame to aggregate default actions for the current scene when no explicit `<InputController>` is authored.
 8b. `INVSBounded` shall declare `readonly nvsBounds: NVSRect`. Widgets that occupy a declared sub-region of the AR-locked viewport implement this interface. `nvsBounds` returns the current NVS rectangle from the widget's most recently applied state; before any state has been applied, it returns the fullscreen default `{ x: 0, y: 0, w: 1, h: 1 }`. The interface is defined in `packages/core/src/layout/types.ts` and exported from `@brewsite/core`. `DiagramCanvasWidget`, `ChartWidget`, and `ModelWidget` all implement `INVSBounded`.
+8c. `IGroupOwner` shall declare `readonly rootGroup: THREE.Object3D`. Widgets that expose their root Three.js Group for external reparenting implement this interface. `ViewWidget` queries `isGroupOwner(widget)` on each child widget ID when initializing carousel Group parenting. The type guard `isGroupOwner` uses a duck-type check (`'rootGroup' in widget`) to avoid runtime `instanceof` dependency on the Three.js value import. `ChartWidget` in `@brewsite/charts` implements `IGroupOwner`.
 9. `WidgetRegistry.register(widget)` shall install a DSL node routing handler for the widget's `DslComponent` if one has not already been installed.
 10. `WidgetRegistry.registerTypeFactory(component, factory)` shall install a type-routed handler that calls `factory(props)` on first encounter of a given `type` prop value, then registers and dispatches to the produced widget.
 11. `CUSTOM_NODE_HANDLER` shall be a `Symbol` that widgets set on themselves to provide their own DSL node compilation logic. When present, the routing handler installed by `WidgetRegistry` shall delegate to it instead of the default state-merge path.
 12. `VariableStore` shall be a reactive key-value store partitioned by namespace. Consumers may subscribe to individual keys (`namespace.key`) or an entire namespace.
 13. The `VariableStoreReader` read-only view shall be the only variable access surface provided to `IRenderable` widgets via `WidgetRenderContext`. Full read-write `VariableStore` access is provided to `IAnimationController` widgets via `AnimationTickContext`.
-14. `corePlugin()` shall provide the standard set of built-in core widgets (`LightingWidget`, `BackgroundWidget`, `EnvironmentWidget`, `FloorWidget`, `CameraWidget`, `SceneMetaWidget`) and register their DSL node handlers. `modelPlugin()` from `@brewsite/model` shall provide `ModelWidget` (via a type factory) and register model DSL handlers. Both are passed as entries in the `plugins` prop of `SceneEngine`.
-15. All type guard functions (`isSceneElement`, `isRenderable`, `isLoadable`, `isContainedModel`, `isDslComposite`, `isAnimationController`, `isVariableProvider`) shall be exported from the `widget` module for use by the runtime and by custom registry implementations.
+14. `corePlugin()` shall provide the standard set of built-in core widgets (`LightingWidget`, `BackgroundWidget`, `EnvironmentWidget`, `FloorWidget`, `CameraWidget`, `SceneMetaWidget`, `SpotlightRigWidget`) and register their DSL node handlers. It shall also implement `reconcileCompiledTrack` to lazily create and register `ViewWidget` instances for every view ID found in the compiled `SceneTrack`. `modelPlugin()` from `@brewsite/model` shall provide `ModelWidget` (via a type factory) and register model DSL handlers. Both are passed as entries in the `plugins` prop of `SceneEngine`.
+15. All type guard functions (`isSceneElement`, `isRenderable`, `isLoadable`, `isContainedModel`, `isDslComposite`, `isAnimationController`, `isVariableProvider`, `isGroupOwner`) shall be exported from the `widget` module for use by the runtime and by custom registry implementations.
 
 ---
 
@@ -487,6 +494,35 @@ interface ISceneLifecycle extends IWidget {
 
 Implemented by widgets that need to perform side effects on scene transitions that cannot be expressed as compiled state changes. `SceneMetaWidget` implements this to fire the `onSceneChange` callback. The runtime calls `onSceneExit()` on the outgoing scene and `onSceneEnter()` on the incoming scene during tick processing when the active scene ID changes.
 
+### 7.19 IGroupOwner
+
+```typescript
+/**
+ * Widget that exposes its root Three.js Group for external parenting.
+ * Implement this interface to allow ViewWidget to re-parent the widget's
+ * 3D content into a View Group for carousel/layout delta transforms.
+ */
+interface IGroupOwner extends IWidget {
+  readonly rootGroup: THREE.Object3D;
+}
+```
+
+Implemented by widgets whose 3D content must move as a unit when a carousel step repositions their parent View. `ViewWidget` queries the `WidgetRegistry` for `IGroupOwner` instances when reparenting children into its `THREE.Group` on the first `apply()` call.
+
+`IGroupOwner` is a capability interface — it does not extend `ISceneElement` or `IRenderable`. Any widget that has a stable root `Object3D` may implement it, regardless of its other interface participation.
+
+`ChartWidget` in `@brewsite/charts` implements `IGroupOwner`, exposing its internal chart group. `DiagramWidget` in `@brewsite/diagram` may implement it in a follow-up to support carousel Views containing diagram elements.
+
+The type guard `isGroupOwner` in `widget/WidgetRegistry.ts` uses a duck-type check (not `instanceof`), since `widget/types.ts` uses type-only Three.js imports:
+
+```typescript
+export function isGroupOwner(widget: IWidget): widget is IGroupOwner {
+  return 'rootGroup' in widget;
+}
+```
+
+`IGroupOwner` and `isGroupOwner` are exported from `@brewsite/core` via `widget/index.ts`.
+
 ---
 
 ## 8. WidgetRegistry
@@ -543,6 +579,38 @@ The routing handler installed by `registerTypeFactory` requires both a `type` pr
 
 **`buildCacheKey()`** — Returns a stable string key representing the current registry contents. Used by the scene track cache to detect when a registry change (e.g., model metadata update) requires recompilation.
 
+### 8.1 `nodeHandlerCategory` Duck-Type Property
+
+Widget classes may declare an optional `nodeHandlerCategory` property to control how the compiler's Scene child constraint classifies their DSL component. This is a duck-typed opt-in — it is not defined in any `IWidget` sub-interface.
+
+```typescript
+// Declare a widget as ambient by adding this property:
+class CameraWidget implements ISceneElement<CameraState>, IRenderable<CameraState> {
+  readonly widgetId = 'camera';
+  readonly nodeHandlerCategory = 'ambient' as const;
+  // ... ISceneElement and IRenderable implementation ...
+}
+```
+
+When `WidgetRegistry.register(widget)` installs a widget's DSL handler via `registerNode`, it reads `widget.nodeHandlerCategory` and passes `{ category: widget.nodeHandlerCategory }` to `registerNode`. If the property is absent, the category defaults to `'spatial'`.
+
+**Built-in core widget categories:**
+
+| Widget | `nodeHandlerCategory` | Notes |
+|---|---|---|
+| `CameraWidget` | `'ambient'` | Configures the global camera; no viewport region. |
+| `LightingWidget` | `'ambient'` | Configures global scene lighting. |
+| `BackgroundWidget` | `'ambient'` | Sets the DOM background behind the canvas. |
+| `EnvironmentWidget` | `'ambient'` | Provides the HDR environment map. |
+| `FloorWidget` | `'ambient'` | Manages the reflective floor plane. |
+| `SpotlightRigWidget` | `'ambient'` | Themed spotlight arrays. |
+| `SceneMetaWidget` | `'ambient'` | Internal scene metadata; not a spatial element. |
+| `TextBoxWidget` | `'ambient'` | HTML overlay positioned via NVS — see note below. |
+
+**TextBox classification note:** `TextBoxWidget` is registered with category `'ambient'`. However, `<TextBox>` elements authored inside `<Scene>` are typically treated as HTML overlay content by the Scene root handler via the `isPrimitiveComponent` guard. If authored as a direct `<Scene>` child, TextBox is classified as ambient and does not trigger the spatial constraint regardless of how many other elements are present.
+
+**Downstream package widgets:** `DiagramWidget`, `ChartWidget`, `ModelWidget`, `ImagePanelWidget`, and `ScreenWidget` are all spatial by default. They do not declare `nodeHandlerCategory` and the default `'spatial'` applies. This means they participate in the Scene child constraint — two of them as direct `<Scene>` children without `<View>` wrappers triggers a `console.error`.
+
 > **Note:** `getContainedModels()` is model-specific and will be removed from `WidgetRegistry` in Phase 4 of plan_core_modularization when `IContainedModel` moves to `@brewsite/model`. The `attachContainedModels()` runtime step will move with it.
 
 ### Type Guards
@@ -558,9 +626,10 @@ const isVariableProvider = (w: IWidget): w is IVariableProvider
 const isContainedModel = (w: IWidget): w is IContainedModel<unknown>
 const isDslComposite = (w: IWidget): w is IDslComposite
 const isInputDefaultProvider = (w: IWidget): w is IInputDefaultProvider
+const isGroupOwner = (w: IWidget): w is IGroupOwner  // duck-type: 'rootGroup' in w
 ```
 
-These are structural type guards (duck-typed on the expected property names) rather than `instanceof` checks. This allows widgets to pass interface compliance without extending a base class.
+These are structural type guards (duck-typed on the expected property names) rather than `instanceof` checks. This allows widgets to pass interface compliance without extending a base class. `isGroupOwner` specifically avoids `instanceof Object3D` because `widget/types.ts` uses type-only Three.js imports — the `Object3D` class is not available as a runtime value at that import site.
 
 ---
 
@@ -686,6 +755,16 @@ interface WidgetPlugin {
   createWidgets(): IWidget[];
   registerHandlers(): void;
   configureRegistry?(registry: WidgetRegistry, manifest: AssetManifest | null): void;
+  /**
+   * Optional: reconcile a compiled SceneTrack back into the live WidgetRegistry.
+   * Called after compilation completes. Use this for plugins that author state into
+   * the track before all widget instances are materialized, so runtime renderables
+   * can be created from the compiled output.
+   *
+   * corePlugin() uses this to lazily register ViewWidget instances — one per unique
+   * view ID found in the compiled track — after scene DSL compilation completes.
+   */
+  reconcileCompiledTrack?(registry: WidgetRegistry, track: SceneTrack): void;
   wrapProvider?(children: ReactNode): ReactNode;
   onRendererDisposing?(renderer: WebGLRenderer): void;
 }
@@ -707,14 +786,18 @@ The built-in `WidgetPlugin` for `@brewsite/core`. Provides all non-model core wi
 
 **Widgets registered by corePlugin():**
 
-| Widget | widgetId | Interfaces |
-|--------|----------|------------|
-| `LightingWidget` | `'lighting'` | `ISceneElement`, `IRenderable` |
-| `BackgroundWidget` | `'background'` | `ISceneElement`, `IRenderable` |
-| `EnvironmentWidget` | `'environment'` | `ISceneElement`, `IRenderable`, `ILoadable` |
-| `FloorWidget` | `'floor'` | `ISceneElement`, `IRenderable` |
-| `CameraWidget` | `'camera'` | `ISceneElement`, `IRenderable`, `IAnimationController` |
-| `SceneMetaWidget` | `'__scene_meta__'` | `IAnimationController` |
+| Widget | widgetId | Interfaces | Registration |
+|--------|----------|------------|--------------|
+| `LightingWidget` | `'lighting'` | `ISceneElement`, `IRenderable` | `createWidgets()` |
+| `BackgroundWidget` | `'background'` | `ISceneElement`, `IRenderable` | `createWidgets()` |
+| `EnvironmentWidget` | `'environment'` | `ISceneElement`, `IRenderable`, `ILoadable` | `createWidgets()` |
+| `FloorWidget` | `'floor'` | `ISceneElement`, `IRenderable` | `createWidgets()` |
+| `CameraWidget` | `'camera'` | `ISceneElement`, `IRenderable`, `IAnimationController` | `createWidgets()` |
+| `SceneMetaWidget` | `'__scene_meta__'` | `IAnimationController`, `ISceneLifecycle` | `createWidgets()` |
+| `SpotlightRigWidget` | `'spotlight-rig'` | `ISceneElement`, `IRenderable` | `createWidgets()` |
+| `ViewWidget` | `<view id>` (one per view) | `IRenderable` | `reconcileCompiledTrack()` — lazy, one per view ID in compiled track |
+
+`ViewWidget` instances are not returned by `createWidgets()`. They are created lazily in `reconcileCompiledTrack()` after the `SceneTrack` is compiled. Each `ViewWidget` owns a `THREE.Group` that reparents child widget 3D content (those implementing `IGroupOwner`) on first `apply()`. On each subsequent `apply()`, it computes a delta transform from the original compile-time bounds (captured on first call) to the current `ViewState.bounds`, and applies it to the Group: XY position uses `G = P_new - P_old * scaleRatio`; Z position uses `G_z = state.z - originalZ` (delta to prevent Z double-offsetting); scale uses `state.scale / originalScale`. All three original values are captured from the first `apply()` call. `ViewWidget` does not implement `ISceneElement` — it has no DSL component, no `defaultState`, and no `transitionSpec`. Its state (`ViewState`) is authored by the `viewHandler` compiler block.
 
 `onSceneChange` wires a callback into `SceneMetaWidget` that fires on every scene transition with the new scene's `id` and zero-based index.
 

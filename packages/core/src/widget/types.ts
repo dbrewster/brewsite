@@ -265,6 +265,15 @@ export interface IAttachmentHost extends IWidget {
 }
 
 /**
+ * Widget that exposes its root Three.js Group for external parenting.
+ * Implement this to allow ViewWidget to re-parent the widget's 3D content
+ * into a View Group for carousel/layout transforms.
+ */
+export interface IGroupOwner extends IWidget {
+  readonly rootGroup: Object3D;
+}
+
+/**
  * Widget that exposes default input actions to the player layer.
  *
  * Implemented by widgets (e.g. DiagramCanvasWidget) that carry input configuration

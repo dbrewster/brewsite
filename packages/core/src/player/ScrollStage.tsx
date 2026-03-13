@@ -270,7 +270,7 @@ export const ScrollStage = forwardRef<ScrollStageHandle, ScrollStageProps>(
                 height: '100%',
                 minWidth: 0,
                 minHeight: 0,
-                overflowY: 'auto',
+                overflowY: customSource ? 'hidden' : 'auto',
                 overflowX: 'hidden',
                 overscrollBehavior: 'none',
                 ...props.style,

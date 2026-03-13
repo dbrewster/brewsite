@@ -1,7 +1,7 @@
 import type {JSX} from 'react';
 import {Background, Camera, Scene, TextBox} from '@brewsite/core';
 
-export const sceneSummary: JSX.Element = (
+export const SceneSummary = () => (
   <Scene key="bfmu-summary" id="bfmu-summary">
     <Camera mode="world" position={[0, 0, 5]} target={[0, 0, 0]} fov={50} />
     <Background color="#080b14" />

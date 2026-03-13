@@ -10,12 +10,14 @@ import {
   InputController,
   KeyMap,
   Lighting,
+  PinchMap,
   PointerMap,
   ProgressManager,
   Scene,
   TextBox,
   WheelMap,
 } from '@brewsite/core';
+import { pk } from '../platformKeys';
 
 const CAM_POS: [number, number, number] = [0, 2.5, 9];
 const CAM_TGT: [number, number, number] = [0, 0, 0];
@@ -29,9 +31,9 @@ interface SceneCard {
 const SCENE_CARDS: SceneCard[] = [
   { num: 2, title: 'Camera Controls', desc: 'Orbit, dolly, and reset bindings — drag, wheel, pinch, and keyboard.' },
   { num: 3, title: 'Scene Navigation', desc: 'Arrow keys, click, scroll, and multi-step scene jumping (stepScenes).' },
-  { num: 4, title: 'Ring Carousel', desc: 'Looping 3D ring carousel driven by carousel.next / carousel.prev actions.' },
-  { num: 5, title: 'Linear Carousel', desc: 'Non-looping linear carousel with stepSlides=2 and single-step Shift variant.' },
-  { num: 6, title: 'Scrollable Text', desc: 'TextBox with overflowY:auto inner div. Ctrl+Scroll reserved for dolly.' },
+  { num: 4, title: 'Ring Carousel', desc: 'Press → or Click to advance cards. ← to go back. Scroll also cycles slides.' },
+  { num: 5, title: 'Linear Carousel', desc: `Press → or Space to jump 2 cards. ${pk('Shift')}+→ moves 1 at a time.` },
+  { num: 6, title: 'Scrollable Text', desc: `TextBox with overflowY:auto inner div. ${pk('Ctrl')}+Scroll reserved for dolly.` },
   { num: 7, title: 'All Input Maps', desc: 'scope="window" + every map type, all modifier combos, and multi-step actions.' },
 ];
 
@@ -54,6 +56,9 @@ export const WelcomeScene = (): JSX.Element => (
       </Action>
       <Action id="scene-prev" type="scene.prev">
         <KeyMap keyName="ArrowLeft" />
+      </Action>
+      <Action id="dolly" type="camera.dolly">
+        <PinchMap direction="both" threshold={1} />
       </Action>
     </InputController>
 
@@ -147,8 +152,8 @@ export const WelcomeScene = (): JSX.Element => (
     {/* Navigation hint */}
     <TextBox id="welcome-hint" x={0.3} y={0.96} w={0.4} h={0.04} layer={2}>
       <div style={{ textAlign: 'center', fontSize: 11, color: 'rgba(120,160,220,0.6)' }}>
-        Press <kbd style={{ background: 'rgba(80,144,224,0.2)', border: '1px solid rgba(80,144,224,0.4)', borderRadius: 4, padding: '1px 5px', fontFamily: 'monospace', fontSize: 10 }}>→</kbd>{' '}
-        or <kbd style={{ background: 'rgba(80,144,224,0.2)', border: '1px solid rgba(80,144,224,0.4)', borderRadius: 4, padding: '1px 5px', fontFamily: 'monospace', fontSize: 10 }}>Click</kbd>{' '}
+        Press <kbd style={{ background: 'rgba(80,144,224,0.2)', border: '1px solid rgba(80,144,224,0.4)', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13 }}>→</kbd>{' '}
+        or <kbd style={{ background: 'rgba(80,144,224,0.2)', border: '1px solid rgba(80,144,224,0.4)', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13 }}>Click</kbd>{' '}
         or scroll to advance
       </div>
     </TextBox>

@@ -3,7 +3,7 @@ import {Background, Camera, ProgressManager, Scene, TextBox} from '@brewsite/cor
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneBridge: JSX.Element = (
+export const SceneBridge = () => (
   <Scene key="bf-bridge" id="bf-bridge">
     <ProgressManager scrollUnits={2400} fn={DWELL_FN} />
     <Camera mode="world" position={[0, 0, 5]} target={[0, 0, 0]} fov={50} />

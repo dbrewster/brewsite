@@ -2,7 +2,7 @@
 // Called by corePlugin().registerHandlers() — not at module scope.
 
 import { registerNode, getNodeHandler } from './registry';
-import { Scene, sceneRootHandler } from './sceneDslCompiler';
+import { Scene, createSceneRootHandler } from './sceneDslCompiler';
 import { ensureInputControllerRegistry } from './blocks/inputController';
 import { ProgressManager, progressManagerHandler } from './primitives/progressManager';
 import { Transition } from './blocks/transition';
@@ -29,23 +29,29 @@ export function registerCoreHandlers(): void {
   coreHandlersRegistered = true;
 
   if (!getNodeHandler(Scene)) {
-    registerNode(Scene, sceneRootHandler);
+    // Factory pattern — inject viewHandler and DSL component refs into scene root handler.
+    // This avoids a circular import between sceneDslCompiler.ts and viewHandlers.ts.
+    registerNode(Scene, createSceneRootHandler({ viewHandler, View, ViewLayout }), { category: 'ambient' });
   }
   ensureInputControllerRegistry();
   if (!getNodeHandler(ProgressManager)) {
-    registerNode(ProgressManager, progressManagerHandler);
+    registerNode(ProgressManager, progressManagerHandler, { category: 'ambient' });
   }
   if (!getNodeHandler(Transition)) {
     // No-op: <Transition> children are consumed by parent widget CUSTOM_NODE_HANDLERs.
     // This guard prevents "unregistered DSL component" warnings when Transition appears
     // in unexpected positions.
-    registerNode(Transition, (_node, _api, _helpers) => {});
+    registerNode(Transition, (_node, _api, _helpers) => {}, { category: 'ambient' });
   }
   if (!getNodeHandler(View)) {
-    registerNode(View, viewHandler);
+    // Category is 'ambient' by convention; constraint enforcement matches View/ViewLayout
+    // by type reference, not category.
+    registerNode(View, viewHandler, { category: 'ambient' });
   }
   if (!getNodeHandler(ViewLayout)) {
-    registerNode(ViewLayout, viewLayoutHandler);
+    // Category is 'ambient' by convention; constraint enforcement matches View/ViewLayout
+    // by type reference, not category.
+    registerNode(ViewLayout, viewLayoutHandler, { category: 'ambient' });
   }
 }
 

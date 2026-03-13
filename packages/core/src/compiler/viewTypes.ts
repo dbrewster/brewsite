@@ -27,6 +27,8 @@ export type ViewState = {
   readonly opacity: number;
   /** ID of the parent ViewLayout, if any. */
   readonly layoutId?: string;
+  /** Widget IDs compiled within this View's scoped child context. */
+  readonly childWidgetIds: readonly string[];
 };
 
 /**

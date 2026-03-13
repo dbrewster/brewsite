@@ -753,4 +753,70 @@ describe('ActionInputController', () => {
     expect(extra1.dy).toBe(-14);
     nowSpy.mockRestore();
   });
+
+  it('isOverScrollableContent: yields when wheel is over scrollable ancestor with room to scroll', () => {
+    const spec = makeSpec();
+    spec.actions.push({
+      id: 'dolly',
+      type: 'camera.dolly',
+      cameraId: 'camera',
+      maps: [{ kind: 'wheel', axis: 'y' }],
+    });
+
+    const onCameraDolly = vi.fn();
+    const target = document.createElement('div');
+    document.body.appendChild(target);
+
+    // Create a scrollable child with room to scroll downward.
+    const scrollableChild = document.createElement('div');
+    Object.defineProperty(scrollableChild, 'scrollHeight', { value: 500, configurable: true });
+    Object.defineProperty(scrollableChild, 'clientHeight', { value: 200, configurable: true });
+    Object.defineProperty(scrollableChild, 'scrollTop', { value: 50, configurable: true, writable: true });
+    scrollableChild.style.overflowY = 'auto';
+    target.appendChild(scrollableChild);
+
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraDolly }), target);
+    ctrl.attach();
+
+    // Wheel event targeting the scrollable child — should NOT reach the action.
+    const ev = new WheelEvent('wheel', { deltaY: 50, bubbles: true, cancelable: true });
+    Object.defineProperty(ev, 'target', { value: scrollableChild, configurable: true });
+    target.dispatchEvent(ev);
+
+    ctrl.detach();
+    document.body.removeChild(target);
+
+    // Camera dolly must NOT have fired — the event was yielded to native scroll.
+    expect(onCameraDolly).not.toHaveBeenCalled();
+    // The event must NOT have been prevented (native scroll is allowed).
+    expect(ev.defaultPrevented).toBe(false);
+  });
+
+  it('onUnclaimedWheel: called when no WheelMap matches the event', () => {
+    const spec = makeSpec();
+    // Only a key mapping — no wheel mapping.
+    spec.actions.push({
+      id: 'next',
+      type: 'scene.next',
+      maps: [{ kind: 'key', key: 'ArrowRight' }],
+    });
+
+    const onUnclaimedWheel = vi.fn();
+    const target = document.createElement('div');
+    const ctrl = new ActionInputController(
+      target,
+      () => spec,
+      makeHandler(),
+      target,
+      { onUnclaimedWheel },
+    );
+
+    ctrl.attach();
+    const ev = new WheelEvent('wheel', { deltaY: 100, bubbles: true, cancelable: true });
+    target.dispatchEvent(ev);
+    ctrl.detach();
+
+    expect(onUnclaimedWheel).toHaveBeenCalledOnce();
+    expect(onUnclaimedWheel).toHaveBeenCalledWith(ev);
+  });
 });

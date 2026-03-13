@@ -1,10 +1,11 @@
 // NodeHandler implementations for <View> and <ViewLayout>.
 // Handlers are pure — no Three.js, no side effects beyond api.state writes.
 
-import type { ReactElement } from 'react';
+import React, { type ReactElement } from 'react';
 import { isValidElement } from 'react';
 import type { CompileApi, NodeHandler } from '../sceneDslTypes';
-import { createChildApi } from '../sceneDslCompiler';
+import { createChildApi } from '../childApi';
+import { IMPLICIT_SCENE_ROOT_VIEW_ID } from '../sceneViewConstraint';
 import type { NVSRect } from '../../layout/types';
 import type { ViewLayoutConfig, ViewLayoutResult } from '../../layout/regionTypes';
 import type { ViewState, ViewLayoutState } from '../viewTypes';
@@ -36,6 +37,20 @@ export const viewHandler: NodeHandler = (node, api, helpers) => {
   if (!id || typeof id !== 'string') {
     console.error('[View] Missing required "id" prop on <View>. View will not be compiled.');
     return;
+  }
+
+  // Guard against authors using the reserved '__...__' naming pattern.
+  // Allow the compiler's own sentinel (IMPLICIT_SCENE_ROOT_VIEW_ID = '__scene_root__')
+  // but warn on any other double-underscore-wrapped id.
+  if (
+    id !== IMPLICIT_SCENE_ROOT_VIEW_ID &&
+    id.startsWith('__') &&
+    id.endsWith('__')
+  ) {
+    console.warn(
+      `[View] ID "${id}" uses the reserved '__...__' naming pattern. ` +
+      `This prefix is reserved for compiler-generated views. Choose a different id.`,
+    );
   }
 
   let bounds: NVSRect;
@@ -90,8 +105,36 @@ export const viewHandler: NodeHandler = (node, api, helpers) => {
   // through the view's layout-assigned opacity.
   const childApi = createChildApi(api, contentBounds, zOffset, viewOpacity);
 
-  // Compile children using the scoped child api
-  helpers.compileChildren(node, childApi);
+  // Compile children using the scoped child api.
+  // Use compileChildrenSeparated so non-DSL children (e.g. <TextBox>, HTML elements)
+  // are collected as overlay content rather than silently dropped.
+  const overlayNodes = helpers.compileChildrenSeparated(node, childApi);
+
+  // If overlay content was found, wrap it in a positioned container that matches
+  // this View's NVS bounds, then push it up to the scene root's overlay collection.
+  // This makes <TextBox x={0} y={0} w={1} h={1}> inside a View fill the View's
+  // spatial region on screen, not the entire viewport.
+  if (overlayNodes.length > 0) {
+    const viewOverlay = React.createElement(
+      'div',
+      {
+        key: `view-overlay-${id}`,
+        style: {
+          position: 'absolute' as const,
+          left: `${bounds.x * 100}%`,
+          top: `${bounds.y * 100}%`,
+          width: `${bounds.w * 100}%`,
+          height: `${bounds.h * 100}%`,
+          zIndex: layer,
+          opacity: viewOpacity,
+          pointerEvents: 'none' as const,
+          boxSizing: 'border-box' as const,
+        },
+      },
+      ...overlayNodes,
+    );
+    api.pushOverlay(viewOverlay);
+  }
 
   // Store ViewState on the parent api (not childApi) — it belongs to the current scene
   const viewState: ViewState = {
@@ -104,6 +147,7 @@ export const viewHandler: NodeHandler = (node, api, helpers) => {
     z: zOffset,
     opacity: viewOpacity,
     layoutId,
+    childWidgetIds: childApi.childWidgetIds,
   };
   api.setWidgetState(id, viewState);
 };

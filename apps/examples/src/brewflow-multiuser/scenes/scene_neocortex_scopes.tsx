@@ -17,7 +17,7 @@ import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
 
-export const sceneNeocortexScopes: JSX.Element = (
+export const SceneNeocortexScopes = () => (
   <Scene key="bfmu-neocortex" id="bfmu-neocortex">
     <ProgressManager scrollUnits={2800} fn={DWELL_FN} />
     <InputController scope="canvas">

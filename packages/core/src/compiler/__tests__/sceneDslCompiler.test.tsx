@@ -1,7 +1,14 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import React, { Fragment, isValidElement, type ReactElement } from 'react';
 import { registerNode } from '../registry';
-import { resolveSceneFromDsl, Scene, sceneRootHandler } from '../sceneDslCompiler';
+import { resolveSceneFromDsl, Scene, createSceneRootHandler } from '../sceneDslCompiler';
+import type { SceneRootHandlerDeps } from '../sceneDslCompiler';
+import { View } from '../blocks/viewDsl';
+import { ViewLayout } from '../blocks/viewLayoutDsl';
+import { viewHandler } from '../blocks/viewHandlers';
+
+const testDeps: SceneRootHandlerDeps = { viewHandler, View, ViewLayout };
+const sceneRootHandler = createSceneRootHandler(testDeps);
 import type { CompileApi, CompileHelpers } from '../sceneDslTypes';
 import type { CompileWarning } from '../sceneTrackTypes';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';

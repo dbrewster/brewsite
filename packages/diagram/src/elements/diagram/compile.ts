@@ -225,7 +225,31 @@ export function compileDiagram(
     normalizedGroups = groupBoundsMap;
     // ManualLayout positions are already in NVS fractions — no AR correction needed.
     contentAspect = 1.0;
-    safeSpan = 1;
+
+    // Theme thickness values (node.defaultThickness, edge.defaultThickness, group border
+    // widths) are specified in diagram units — the same coordinate system used by auto-layout
+    // where nodes default to theme.node.defaultSize (e.g. [4, 2] diagram units).
+    // For ManualLayout, positions and sizes are already in NVS [0..1] fractions.
+    // We compute safeSpan as the scale factor between diagram units and NVS by comparing
+    // the theme's default node width to the median NVS node width authored in the layout.
+    // This ensures thickness values remain proportional to node sizes regardless of layout mode.
+    const nvsWidths = nodesPreNorm
+      .map((n) => n.size[0])
+      .filter((w) => w > 0)
+      .sort((a, b) => a - b);
+    const nvsHeights = nodesPreNorm
+      .map((n) => n.size[1])
+      .filter((h) => h > 0)
+      .sort((a, b) => a - b);
+    const medianW = nvsWidths.length > 0
+      ? nvsWidths[Math.floor(nvsWidths.length / 2)]
+      : 0.15;
+    const medianH = nvsHeights.length > 0
+      ? nvsHeights[Math.floor(nvsHeights.length / 2)]
+      : 0.10;
+    const virtualSpanX = theme.node.defaultSize[0] / medianW;
+    const virtualSpanY = theme.node.defaultSize[1] / medianH;
+    safeSpan = Math.max(virtualSpanX, virtualSpanY);
   }
 
   // Warn when a ManualLayout diagram contains a node whose size dimension exceeds 1.5 —
