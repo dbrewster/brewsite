@@ -1,7 +1,7 @@
 ---
 title: "Screen Element — CSS3DRenderer Upgrade"
 doc_type: plan
-status: ready
+status: superseded
 owner: Toolkit Product
 last_updated: 2026-03-13
 ---

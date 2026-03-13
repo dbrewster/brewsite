@@ -1,7 +1,7 @@
 ---
 title: "MediaScreen Element — WebGL Video/Stream Texture Screen"
 doc_type: plan
-status: ready
+status: superseded
 owner: Toolkit Product
 last_updated: 2026-03-13
 change_history:
