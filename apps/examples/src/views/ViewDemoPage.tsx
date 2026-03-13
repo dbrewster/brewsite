@@ -24,6 +24,8 @@ import {StandaloneViewsScene} from './scenes/scene1-standalone-views';
 import {StackLayoutScene} from './scenes/scene2-stack-layout';
 import {CarouselScene, CarouselScene1, CarouselScene2, CarouselScene3, CarouselScene4} from './scenes/scene3-carousel';
 import {NestedViewsScene} from './scenes/scene4-nested-views';
+import {StackVerticalScene} from './scenes/scene5-stack-vertical';
+import {LinearCarouselScene1, LinearCarouselScene2, LinearCarouselScene3} from './scenes/scene6-linear-carousel';
 import {ChartProgressIndicator, ThemeToggle} from "../Lights";
 
 function createViewDemoPlugins(): { plugins: WidgetPlugin[] } {
@@ -67,16 +69,24 @@ export default function ViewDemoPage(): JSX.Element {
         {/* Scene 1: Two standalone views (side-by-side) */}
         <StandaloneViewsScene />
 
-        {/* Scene 2: Stack layout with three charts */}
+        {/* Scene 2: Horizontal stack layout with three charts */}
         <StackLayoutScene />
 
-        {/* Scene 3: Carousel cycling through three views */}
+        {/* Scene 3: Vertical stack layout with three charts */}
+        <StackVerticalScene />
+
+        {/* Scene 4: Loop carousel cycling through views */}
         <CarouselScene1 />
         <CarouselScene2 />
         <CarouselScene3 />
         <CarouselScene4 />
 
-        {/* Scene 4: Nested views with padding */}
+        {/* Scene 5: Linear (non-loop) carousel — fan-out with scale decay */}
+        <LinearCarouselScene1 />
+        <LinearCarouselScene2 />
+        <LinearCarouselScene3 />
+
+        {/* Scene 6: Nested views with padding */}
         <NestedViewsScene />
 
         <ScrollStage ref={scrollStageRef} scrollHeightMode="scene-count" pixelsPerScene={500}>
