@@ -5,8 +5,6 @@ import type { ScreenDSL, ScreenState } from './types';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
 import { blendNumber, blendOpacity, blendVec3, copyVec3, validateNVSScalar } from '@brewsite/core';
 
-export const SCREEN_ROTATION_WARNING_THRESHOLD_RAD = 0.1;
-
 /**
  * Compiles a ScreenDSL into a fully resolved ScreenState by applying defaults.
  * All fields in the output are defined — no undefined values except nvsHeight.
@@ -14,23 +12,10 @@ export const SCREEN_ROTATION_WARNING_THRESHOLD_RAD = 0.1;
  * Position is expressed as NVS fractions (nvsX, nvsY); world-space conversion
  * happens in ScreenWidget.apply() using the live camera.
  *
- * Side effect: emits console.warn if any rotation axis exceeds
- * SCREEN_ROTATION_WARNING_THRESHOLD_RAD radians,
- * because the iframe overlay cannot meaningfully tilt with the WebGL bezel.
+ * Full 3D rotation is supported via CSS3DRenderer. No rotation warnings are emitted.
  */
 export function compileScreen(dsl: ScreenDSL): ScreenState {
   const rotation = dsl.rotation ?? [0, 0, 0];
-  if (
-    Math.abs(rotation[0]) > SCREEN_ROTATION_WARNING_THRESHOLD_RAD ||
-    Math.abs(rotation[1]) > SCREEN_ROTATION_WARNING_THRESHOLD_RAD ||
-    Math.abs(rotation[2]) > SCREEN_ROTATION_WARNING_THRESHOLD_RAD
-  ) {
-    // DEBT: Replace console.warn with onWarn callback for side-effect-free compilation
-    console.warn(
-      `Screen compileScreen: rotation ${rotation.join(', ')} may misalign the iframe overlay. ` +
-        'Use <ImagePanel> for tilted content.',
-    );
-  }
 
   const nvsX = dsl.x ?? 0.5;
   const nvsY = dsl.y ?? 0.5;

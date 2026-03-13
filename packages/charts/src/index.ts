@@ -124,22 +124,13 @@ export { useChartTooltipConfig } from './elements/chart/tooltip/useChartTooltipC
 export { ChartTooltipHost } from './elements/chart/tooltip/ChartTooltipHost';
 
 // ─── Themes ───────────────────────────────────────────────────────────────────
-// Primary (canonical) presets
-export { darkGlassChartTheme }    from './themes/darkGlass';
-export { midnightChartTheme }     from './themes/midnight';
-export { neonCyberChartTheme }    from './themes/neonCyber';
-export { enterpriseChartTheme }   from './themes/enterprise';
-export { lightCanvasChartTheme }  from './themes/lightCanvas';
-export { lightMinimalChartTheme } from './themes/lightMinimal';
-// Polarity variants
-export { darkGlassLightChartTheme }   from './themes/darkGlassLight';
-export { midnightLightChartTheme }    from './themes/midnightLight';
-export { neonCyberLightChartTheme }   from './themes/neonCyberLight';
-export { enterpriseLightChartTheme }  from './themes/enterpriseLight';
-export { lightCanvasDarkChartTheme }  from './themes/lightCanvasDark';
-export { lightMinimalDarkChartTheme } from './themes/lightMinimalDark';
+// Default presets (enterprise aesthetic). Named presets live in @brewsite/themes.
+export { enterpriseChartTheme, defaultChartTheme } from './themes/enterprise';
+export { enterpriseLightChartTheme, defaultLightChartTheme } from './themes/enterpriseLight';
 export { createChartTheme } from './themes/createChartTheme';
 export type { ChartThemeOverrides } from './themes/createChartTheme';
+export type { ChartThemePairEntry } from './themes/chartThemeRegistry';
+export type { ChartThemePair } from './themes/index';
 export type {
   ChartTheme,
   ChartThemeName,
@@ -164,4 +155,3 @@ export {
 
 // ─── Convenience hooks ───────────────────────────────────────────────────────
 export { useChartTheme } from './hooks/useChartTheme';
-

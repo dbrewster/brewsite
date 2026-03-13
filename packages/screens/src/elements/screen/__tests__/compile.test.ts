@@ -56,22 +56,11 @@ describe('compileScreen', () => {
     expect(state.glow).toBe(true);
   });
 
-  it('emits console.warn when rotation Y exceeds 0.15 radians', () => {
+  it('compiles large rotation values without warning', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    compileScreen({ id: 'screen', src: 'https://example.com', rotation: [0, 0.2, 0] });
-    expect(warnSpy).toHaveBeenCalled();
-  });
-
-  it('emits console.warn when rotation X exceeds 0.15 radians', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    compileScreen({ id: 'screen', src: 'https://example.com', rotation: [0.2, 0, 0] });
-    expect(warnSpy).toHaveBeenCalled();
-  });
-
-  it('does NOT warn for rotation values below 0.15 radians', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    compileScreen({ id: 'screen', src: 'https://example.com', rotation: [0.1, 0.1, 0.1] });
+    const state = compileScreen({ id: 'screen', src: 'https://example.com', rotation: [0, 1.0, 0] });
     expect(warnSpy).not.toHaveBeenCalled();
+    expect(state.rotation[1]).toBe(1.0);
   });
 
   it('ScreenState has no gloss field', () => {

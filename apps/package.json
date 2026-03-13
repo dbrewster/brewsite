@@ -18,6 +18,7 @@
     "@brewsite/core": "workspace:*",
     "@brewsite/diagram": "workspace:*",
     "@brewsite/model": "workspace:*",
+    "@brewsite/screens": "workspace:*",
     "@brewsite/slides": "workspace:*",
     "@brewsite/themes": "workspace:*",
     "animejs": "^3.2.2",

@@ -27,7 +27,7 @@ import type { ChartHitInfo, ChartAccessorFunctions } from '../../renderers/share
 import type { ChartTheme } from '../../themes/types';
 import type { ChartTooltipState } from './tooltip/types';
 import { chartTooltipStore } from './tooltip/ChartTooltipStore';
-import { enterpriseChartTheme } from '../../themes/enterprise';
+import { resolveChartThemeValue as resolveChartTheme } from '../../themes/chartThemeRegistry';
 import { projectNdcToNvsPixels } from './tooltip/projectUtils';
 import {
   BarChart,
@@ -558,7 +558,7 @@ export class ChartWidget
         chartTooltipStore.clear(this.widgetId);
       }
       if (this.lastTooltipState?.projection) {
-        this.chartRenderer.updateProjection(null, this.lastEffectiveTheme ?? enterpriseChartTheme);
+        this.chartRenderer.updateProjection(null, this.lastEffectiveTheme ?? resolveChartTheme('default'));
       }
       this.onHover?.(null);
     };
@@ -615,7 +615,7 @@ export class ChartWidget
 
   private handleMouseMove(e: MouseEvent, dom: HTMLElement): void {
     const info = this.raycast(e, dom);
-    const theme = this.lastEffectiveTheme ?? enterpriseChartTheme;
+    const theme = this.lastEffectiveTheme ?? resolveChartTheme('default');
 
     if (info) {
       // Only publish to tooltip store when <ChartTooltip> is present in DSL

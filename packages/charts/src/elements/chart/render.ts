@@ -12,6 +12,7 @@ import type { ChartDataStore } from '../../data/ChartDataStore';
 import type { ResolvedDataFrame } from '../../data/types';
 import type { ChartState, ChartType, ChartStateDataSource, ChartRenderInput } from './types';
 import type { ChartTheme } from '../../themes/types';
+import { resolveChartThemeValue as resolveChartTheme } from '../../themes/chartThemeRegistry';
 import { computeChartLayout } from './layout';
 import type { ChartLayout } from './layout';
 import { ChartProjectionRenderer, DEFAULT_PROJECTION_TOKENS } from './projection/ChartProjectionRenderer';

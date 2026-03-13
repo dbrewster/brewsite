@@ -6,12 +6,8 @@ import { registerCoreHandlers } from '../../../../core/src/compiler/coreHandlers
 import { View } from '../../../../core/src/compiler/blocks/viewDsl';
 import { ViewLayout } from '../../../../core/src/compiler/blocks/viewLayoutDsl';
 import { Diagram, DiagramEdge, DiagramGroup, DiagramNode, GridLayout, ManualLayout } from '../../elements/diagram/widget';
-import { ImagePanel } from '../../elements/image-panel/widget';
-import { Screen } from '../../elements/screen/widget';
 import { registerDiagramHandlers } from '../handlers';
 import type { DiagramState } from '../../elements/diagram/types';
-import type { ImagePanelState } from '../../elements/image-panel/types';
-import type { ScreenState } from '../../elements/screen/types';
 
 const makeContext = () => ({
   sceneIndex: 0,
@@ -22,46 +18,32 @@ const makeContext = () => ({
 });
 
 describe('registerDiagramHandlers', () => {
-  it('compiles diagram/image-panel/screen widgets into frame state', () => {
+  it('compiles diagram widget into frame state', () => {
     const registry = new WidgetRegistry();
     registerCoreHandlers();
     registerDiagramHandlers();
 
-    // Multiple spatial elements require <View> wrappers — wrap each in a View
-    // inside a ViewLayout so the core compiler can handle them correctly.
     const tree = (
       <Scene id="diagram-test">
-        <View id="v-diagram">
-          <Diagram id="diagram-basic">
-            <ManualLayout />
-            <DiagramGroup id="group-1" label="Group">
-              <DiagramNode id="n1" label="Node 1" position={[0, 0, 0]} />
-            </DiagramGroup>
-            <DiagramNode id="n2" label="Node 2" position={[4, 0, 0]} />
-            <DiagramEdge from="n1" to="n2" />
-          </Diagram>
-        </View>
-        <View id="v-panel">
-          <ImagePanel id="panel-1" src="/mock.png" />
-        </View>
-        <View id="v-screen">
-          <Screen id="screen-1" src="https://example.com" />
-        </View>
+        <Diagram id="diagram-basic">
+          <ManualLayout />
+          <DiagramGroup id="group-1" label="Group">
+            <DiagramNode id="n1" label="Node 1" position={[0, 0, 0]} />
+          </DiagramGroup>
+          <DiagramNode id="n2" label="Node 2" position={[4, 0, 0]} />
+          <DiagramEdge from="n1" to="n2" />
+        </Diagram>
       </Scene>
     );
 
     const { frame } = resolveSceneFromDsl(tree, makeContext(), registry);
 
     const diagram = frame.widgets['diagram-basic'] as DiagramState;
-    const panel = frame.widgets['panel-1'] as ImagePanelState;
-    const screen = frame.widgets['screen-1'] as ScreenState;
 
     expect(diagram.id).toBe('diagram-basic');
     expect(diagram.nodes.length).toBe(2);
     expect(diagram.edges.length).toBe(1);
     expect(diagram.nodes.find((n) => n.id === 'n1')?.groupId).toBe('group-1');
-    expect(panel.src).toBe('/mock.png');
-    expect(screen.src).toBe('https://example.com');
   });
 
   it('captures nested groups with parentId and node membership', () => {

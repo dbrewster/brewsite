@@ -1,12 +1,10 @@
-// Registers diagram, image-panel, and screen DSL node handlers with @brewsite/core registry.
+// Registers diagram DSL node handlers with @brewsite/core registry.
 
 import type { ReactElement } from 'react';
 import { registerNode } from '@brewsite/core';
 import type { CompileApi, CompileHelpers } from '@brewsite/core';
 import { compileDiagram } from '../elements/diagram/compile';
 import { resolveDiagramTheme } from '../elements/diagram/themeRegistry';
-import { compileImagePanel } from '../elements/image-panel/compile';
-import { compileScreen } from '../elements/screen/compile';
 import type {
   DiagramDSL,
   DiagramNodeDSL,
@@ -17,8 +15,6 @@ import type {
   DiagramWarnFn,
   LayoutDSL,
 } from '../elements/diagram/types';
-import type { ImagePanelDSL } from '../elements/image-panel/types';
-import type { ScreenDSL } from '../elements/screen/types';
 import {
   Diagram,
   DiagramNode,
@@ -31,8 +27,6 @@ import {
   ManualLayout,
   FlowLayout,
 } from '../elements/diagram/widget';
-import { ImagePanel } from '../elements/image-panel/widget';
-import { Screen } from '../elements/screen/widget';
 
 
 const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?: DiagramWarnFn): DiagramDSL => {
@@ -305,17 +299,5 @@ export const registerDiagramHandlers = (): void => {
     }
 
     api.setWidgetState(dsl.id, diagramState);
-  });
-
-  registerNode(ImagePanel, (node: ReactElement, api: CompileApi, _helpers: CompileHelpers) => {
-    const dsl = node.props as ImagePanelDSL;
-    const state = compileImagePanel(dsl);
-    api.setWidgetState(String((node.props as { id?: string }).id ?? dsl.id), state);
-  });
-
-  registerNode(Screen, (node: ReactElement, api: CompileApi, _helpers: CompileHelpers) => {
-    const dsl = node.props as ScreenDSL;
-    const state = compileScreen(dsl);
-    api.setWidgetState(String((node.props as { id?: string }).id ?? dsl.id), state);
   });
 };

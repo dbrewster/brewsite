@@ -53,6 +53,9 @@ importers:
       '@brewsite/model':
         specifier: workspace:*
         version: link:../packages/model
+      '@brewsite/screens':
+        specifier: workspace:*
+        version: link:../packages/screens
       '@brewsite/slides':
         specifier: workspace:*
         version: link:../packages/slides

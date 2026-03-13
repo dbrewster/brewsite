@@ -7,6 +7,9 @@ import {
     DiagramNode,
     ManualLayout,
 } from '@brewsite/diagram';
+import { darkGlassBundle } from '@brewsite/themes';
+
+const darkGlassTheme = darkGlassBundle.diagram.dark;
 
 /** Returns the full whiteboard architecture <Diagram> JSX tree. */
 export function makeWhiteboardDiagram(): JSX.Element {

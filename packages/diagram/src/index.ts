@@ -92,18 +92,6 @@ export type {
   NetworkShape,
 } from './elements/diagram/shapes/shapeVariants';
 
-// ─── ImagePanel element ─────────────────────────────────────────────────────
-export type { ImagePanelState, ImagePanelDSL, ImagePanelBezelVariant } from './elements/image-panel/types';
-export { ImagePanel, ImagePanelWidget } from './elements/image-panel/widget';
-export { compileImagePanel, functionalImagePanelTransitionSpec } from './elements/image-panel/compile';
-export { ImagePanelRenderer } from './elements/image-panel/render';
-
-// ─── Screen element ─────────────────────────────────────────────────────────
-export type { ScreenState, ScreenDSL, ScreenBezelVariant } from './elements/screen/types';
-export { Screen, ScreenWidget } from './elements/screen/widget';
-export { compileScreen, functionalScreenTransitionSpec } from './elements/screen/compile';
-export { ScreenRenderer } from './elements/screen/render';
-
 // ─── Diagram themes ───────────────────────────────────────────────────────────
 // Default presets (enterprise aesthetic)
 export { enterpriseTheme, enterpriseLightTheme, defaultDiagramTheme, defaultLightDiagramTheme } from './elements/diagram/themes';

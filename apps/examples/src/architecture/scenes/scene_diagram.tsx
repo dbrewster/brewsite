@@ -9,13 +9,17 @@ import {
     TextBox,
 } from '@brewsite/core';
 import {
+
     Diagram,
     DiagramEdge,
     DiagramGroup,
     DiagramNode,
     ManualLayout,
 } from '@brewsite/diagram';
+import { darkGlassBundle } from '@brewsite/themes';
 import {MidFade, ScrollOn} from '@brewsite/core/hud/animejs';
+
+const darkGlassTheme = darkGlassBundle.diagram.dark;
 
 const angledFn = (t: number): number => (t < 0.5 ? 0 : (t - 0.5) / 0.5);
 

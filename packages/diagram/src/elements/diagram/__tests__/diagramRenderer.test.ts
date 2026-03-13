@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { Text } from 'troika-three-text';
 import { DiagramRenderer } from '../render';
 import { buildThemeRenderConfig } from '../compiler/themeResolver';
-import { darkGlassTheme } from '../themes';
+import { defaultDiagramTheme as darkGlassTheme } from '../themes/enterprise';
 import { mergeTheme } from '../themes/mergeTheme';
 import { createNVSCoordService } from '@brewsite/core';
 import type { NVSCoordService } from '@brewsite/core';

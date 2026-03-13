@@ -12,6 +12,9 @@ import type { DiagramTheme } from '../elements/diagram/types';
  * Returns undefined when no ThemeKeyContext is provided — callers should fall back
  * to an explicit theme prop or a hardcoded default.
  *
+ * Named family presets (darkGlass, midnight, etc.) are available after
+ * @brewsite/themes has registered them at app startup via themesPlugin().
+ *
  * @example
  * ```tsx
  * const diagramTheme = useDiagramTheme();

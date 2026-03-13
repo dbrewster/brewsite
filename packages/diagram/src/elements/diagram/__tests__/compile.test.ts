@@ -7,6 +7,11 @@ import type { DiagramDSL, DiagramNodeDSL, DiagramEdgeDSL, DiagramTheme } from '.
 import { darkGlassTheme } from '../themes/darkGlass';
 import { midnightTheme } from '../themes/midnight';
 import { lightCanvasTheme } from '../themes/lightCanvas';
+import { defaultDiagramTheme } from '../themes/enterprise';
+import {
+  registerDiagramThemePair,
+  _resetDiagramThemeRegistryForTesting,
+} from '../themeRegistry';
 
 const makeNode = (id: string, overrides: Partial<DiagramNodeDSL> = {}): DiagramNodeDSL => ({
   id,
@@ -129,8 +134,8 @@ describe('compileDiagram', () => {
     expect(node.size[1]).toBeGreaterThan(0);
     // Thickness is normalized from diagram-content-units to NVS fraction (/ safeSpanX).
     expect(node.thickness).toBeGreaterThan(0);
-    expect(node.thickness).toBeLessThan(darkGlassTheme.node.defaultThickness);
-    expect(node.color).toBe(darkGlassTheme.node.defaultColor);
+    expect(node.thickness).toBeLessThan(defaultDiagramTheme.node.defaultThickness);
+    expect(node.color).toBe(defaultDiagramTheme.node.defaultColor);
   });
 
   it('uses theme.node.defaultBoxColor as the compiled node box color', () => {
@@ -429,9 +434,9 @@ describe('compileDiagram', () => {
     const state = compileDiagram(dsl);
     // borderWidth and borderHeight are normalized from diagram-content-units to NVS fraction.
     expect(state.groups[0]?.borderWidth).toBeGreaterThan(0);
-    expect(state.groups[0]?.borderWidth).toBeLessThan(darkGlassTheme.group.defaultBorderWidth);
+    expect(state.groups[0]?.borderWidth).toBeLessThan(defaultDiagramTheme.group.defaultBorderWidth);
     expect(state.groups[0]?.borderHeight).toBeGreaterThan(0);
-    expect(state.groups[0]?.borderHeight).toBeLessThan(darkGlassTheme.group.defaultBorderHeight);
+    expect(state.groups[0]?.borderHeight).toBeLessThan(defaultDiagramTheme.group.defaultBorderHeight);
   });
 
   it('compiles group border emissive defaults and overrides', () => {
@@ -443,7 +448,7 @@ describe('compileDiagram', () => {
       groups: [{ id: 'group-1', nodeIds: ['a'] }],
     };
     const baseState = compileDiagram(baseDsl);
-    expect(baseState.groups[0]?.borderEmissiveColor).toBe(darkGlassTheme.group.defaultBorderColor);
+    expect(baseState.groups[0]?.borderEmissiveColor).toBe(defaultDiagramTheme.group.defaultBorderColor);
     expect(baseState.groups[0]?.borderEmissiveIntensity).toBe(0);
 
     const overrideDsl: DiagramDSL = {
@@ -531,7 +536,7 @@ describe('compileDiagram', () => {
     const edge = state.edges[0]!;
     const end = edge.controlPoints[edge.controlPoints.length - 1]!;
 
-    const borderWidthUnits = darkGlassTheme.group.defaultBorderWidth * 0.4;
+    const borderWidthUnits = defaultDiagramTheme.group.defaultBorderWidth * 0.4;
     const expectedX = group.bounds.x - borderWidthUnits / 2;
     // Routing profiles apply a small epsilon offset (~0.012) to start/end anchors to
     // prevent z-fighting at node surfaces. Accept ±0.02 tolerance around the border centerline.
@@ -831,7 +836,22 @@ describe('DiagramState NVS fields', () => {
   });
 });
 
-describe('theme resolution via fallback parameter', () => {
+describe('string theme name resolution', () => {
+  beforeEach(() => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    // Register named themes for string-based resolution tests.
+    // These are the local theme files — the registry is the seam for named families.
+    registerDiagramThemePair('darkGlass', { dark: darkGlassTheme, light: darkGlassTheme });
+    registerDiagramThemePair('midnight',  { dark: midnightTheme,  light: midnightTheme });
+    registerDiagramThemePair('lightCanvas', { dark: lightCanvasTheme, light: lightCanvasTheme });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    _resetDiagramThemeRegistryForTesting();
+  });
+
+
   const baseDsl: DiagramDSL = {
     id: 'diagram',
     layout: { kind: 'grid' },
@@ -840,24 +860,37 @@ describe('theme resolution via fallback parameter', () => {
     groups: [],
   };
 
-  it('uses the fallback theme when passed as second argument', () => {
-    const state = compileDiagram(baseDsl, darkGlassTheme);
+  it('compile resolves string "darkGlass" to darkGlassTheme node defaultColor', () => {
+    const state = compileDiagram({ ...baseDsl, theme: 'darkGlass' });
     expect(state.nodes[0]!.color).toBe(darkGlassTheme.node.defaultColor);
   });
 
-  it('uses midnightTheme when passed as fallback', () => {
-    const state = compileDiagram(baseDsl, midnightTheme);
+  it('compile resolves string "midnight" to midnightTheme node defaultColor', () => {
+    const state = compileDiagram({ ...baseDsl, theme: 'midnight' });
     expect(state.nodes[0]!.color).toBe(midnightTheme.node.defaultColor);
   });
 
-  it('uses lightCanvasTheme when passed as fallback', () => {
-    const state = compileDiagram(baseDsl, lightCanvasTheme);
+  it('compile resolves string "lightCanvas" to lightCanvasTheme node defaultColor', () => {
+    const state = compileDiagram({ ...baseDsl, theme: 'lightCanvas' });
     expect(state.nodes[0]!.color).toBe(lightCanvasTheme.node.defaultColor);
   });
 
-  it('uses darkGlass as default when no fallback theme is passed', () => {
-    const state = compileDiagram(baseDsl);
-    expect(state.nodes[0]!.color).toBe(darkGlassTheme.node.defaultColor);
+  it('compile falls back to default (enterprise) theme when unknown theme name passed', () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const state = compileDiagram({ ...baseDsl, theme: 'unknownTheme' as any });
+    expect(state.nodes[0]!.color).toBe(defaultDiagramTheme.node.defaultColor);
+  });
+
+  it('compile still accepts full DiagramTheme object (regression)', () => {
+    const stateByString = compileDiagram({ ...baseDsl, theme: 'darkGlass' });
+    const stateByObject = compileDiagram({ ...baseDsl, theme: darkGlassTheme });
+    expect(stateByString.nodes[0]!.color).toBe(stateByObject.nodes[0]!.color);
+  });
+
+  it('compile uses default (enterprise) theme when no theme is passed (regression)', () => {
+    // After the refactor, the default fallback is enterprise (not darkGlass).
+    const state = compileDiagram({ ...baseDsl });
+    expect(state.nodes[0]!.color).toBe(defaultDiagramTheme.node.defaultColor);
   });
 });
 
@@ -910,9 +943,9 @@ describe('compileDiagram — thickness normalization', () => {
     const state = compileDiagram(dsl);
     const group = state.groups[0]!;
     expect(group.borderWidth).toBeGreaterThan(0);
-    expect(group.borderWidth).toBeLessThan(darkGlassTheme.group.defaultBorderWidth);
+    expect(group.borderWidth).toBeLessThan(defaultDiagramTheme.group.defaultBorderWidth);
     expect(group.borderHeight).toBeGreaterThan(0);
-    expect(group.borderHeight).toBeLessThan(darkGlassTheme.group.defaultBorderHeight);
+    expect(group.borderHeight).toBeLessThan(defaultDiagramTheme.group.defaultBorderHeight);
   });
 
   it('manual-layout: node thickness is normalized by virtual safeSpan', () => {

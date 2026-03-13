@@ -1,6 +1,26 @@
 // Shared layout constants and helper components for chart demo scenes.
 import type { JSX } from 'react';
 import { Ambient, Directional, Lighting, TextBox } from '@brewsite/core';
+import type { ChartTheme } from '@brewsite/charts';
+import { bundles } from '@brewsite/themes';
+
+// ─── Chart demo theme context ─────────────────────────────────────────────────
+
+const ChartDemoThemeContext = createContext<ChartTheme | null>(null);
+
+/** Provides the current ChartTheme to all chart demo scenes. */
+export const ChartDemoThemeProvider = ({ value, children }: { value: ChartTheme; children: ReactNode }): JSX.Element => (
+  <ChartDemoThemeContext.Provider value={value}>{children}</ChartDemoThemeContext.Provider>
+);
+
+/**
+ * Returns the current ChartTheme from ChartDemoThemeContext.
+ * Falls back to CHART_THEME_PAIRS['lightCanvas']['light'] when no provider is present
+ * (e.g., in tests that render scene components in isolation).
+ */
+export function useDemoChartTheme(): ChartTheme {
+  return useContext(ChartDemoThemeContext) ?? bundles.lightCanvas.chart.light;
+}
 
 export const CHART_CAM_POS: [number, number, number] = [0, 1.5, 6.6];
 export const CHART_CAM_TGT: [number, number, number] = [0, 0.08, 0];

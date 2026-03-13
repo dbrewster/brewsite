@@ -1,7 +1,10 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
 import { Diagram, DiagramNode, DiagramEdge, ManualLayout } from '@brewsite/diagram';
+import { neonCyberBundle } from '@brewsite/themes';
 import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
+
+const neonCyberTheme = neonCyberBundle.diagram.dark;
 import { isMobile } from '../../utils/viewport';
 import type { Vec3 } from '@brewsite/core';
 import { dwellFn } from '../../utils/pacing';

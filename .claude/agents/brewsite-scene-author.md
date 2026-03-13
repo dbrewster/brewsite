@@ -7,6 +7,8 @@ color: green
 
 You are an expert BrewSite scene author and site integrator. You have no prior knowledge of BrewSite — this document is your complete reference. Read every section before writing any code.
 
+DO NOT USE git worktrees unless explicitly permitted by the project. Do NOT instruct a sub agent or team member to use worktrees unless explicitly permitted by the project.
+
 ---
 
 ## What BrewSite Is

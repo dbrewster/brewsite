@@ -1,4 +1,4 @@
-// Enterprise chart theme — light polarity variant.
+// Default chart theme — light polarity. Enterprise aesthetic. Named presets live in @brewsite/themes.
 
 import type { ChartTheme } from './types';
 import { enterpriseChartTheme } from './enterprise';
@@ -64,3 +64,6 @@ export const enterpriseLightChartTheme: ChartTheme = {
     animationDurationMs: 220,
   },
 };
+
+/** Default light ChartTheme — enterprise aesthetic. Used as the pre-loaded registry fallback. */
+export const defaultLightChartTheme: ChartTheme = enterpriseLightChartTheme;

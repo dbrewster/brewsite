@@ -1,8 +1,8 @@
-// Contract layer for the Screen element. No runtime imports, no Three.js, no React.
-// Screen renders a LIVE INTERACTIVE WEBSITE via a DOM <iframe> overlaid on the WebGL canvas.
-// The iframe is projected to screen-space every frame to align with the WebGL bezel.
-// Does NOT support significant tilt — the iframe is always a flat 2D rectangle.
+// Contract layer for the Screen element in @brewsite/screens. No runtime imports, no Three.js, no React.
+// Screen renders a LIVE INTERACTIVE WEBSITE via a CSS3DObject placed in 3D space.
+// Full 3D rotation is supported via CSS3DRenderer.
 // For a static image displayed in 3D, use <ImagePanel> instead.
+// For a live video or MediaStream with full WebGL depth compositing, use <MediaScreen>.
 
 import type { BezelVariant } from '../_shared/bezelGeometry';
 
@@ -45,16 +45,15 @@ export interface ScreenState {
   readonly z: number;
 
   /**
-   * World-space rotation in radians [x, y, z].
-   * IMPORTANT: The iframe is a flat 2D DOM rectangle. Rotation values above ~0.1
-   * radians on any axis will cause the iframe to visibly misalign with the bezel.
-   * compile.ts emits a console.warn if |rotation[i]| > 0.15 for any axis.
-   * For tilted image content, use <ImagePanel> instead.
+   * World-space rotation in radians [x, y, z] (Euler XYZ order).
+   * Full 3D rotation supported via CSS3DRenderer — suitable for carousel layouts
+   * and angled perspective views. For a static image, use <ImagePanel>.
+   * For a live video or MediaStream with full WebGL depth compositing, use <MediaScreen>.
    * Default: [0, 0, 0]
    */
   readonly rotation: readonly [number, number, number];
 
-  /** Uniform scale. Applied to the WebGL bezel and to the iframe CSS dimensions. */
+  /** Uniform scale. Applied to the WebGL bezel and to the CSS3DObject. */
   readonly scale: number;
 
   /**
@@ -124,6 +123,13 @@ export interface ScreenDSL {
   readonly width?: number;
   /** NVS height fraction [0..1]. Derived from 16:9 if omitted. */
   readonly height?: number;
+  /**
+   * World-space rotation in radians [x, y, z] (Euler XYZ order).
+   * Full 3D rotation supported via CSS3DRenderer — suitable for carousel layouts
+   * and angled perspective views. For a static image, use <ImagePanel>.
+   * For a live video or MediaStream with full WebGL depth compositing, use <MediaScreen>.
+   * Default: [0, 0, 0]
+   */
   readonly rotation?: readonly [number, number, number];
   readonly scale?: number;
   readonly bezel?: ScreenBezelVariant;

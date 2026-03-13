@@ -1,6 +1,7 @@
-// Declarative DSL for the Screen element. No Three.js. No compiler internals.
-// Use <Screen> for live interactive websites rendered via a DOM <iframe>.
+// Declarative DSL for the Screen element in @brewsite/screens. No Three.js. No compiler internals.
+// Use <Screen> for live interactive websites rendered via CSS3DObject in 3D space.
 // For static images, use <ImagePanel>.
+// For video or live MediaStream, use <MediaScreen>.
 
 import type { ScreenBezelVariant } from './types';
 
@@ -39,10 +40,10 @@ export interface ScreenProps {
    */
   height?: number;
   /**
-   * World-space rotation in radians [x, y, z].
-   * Keep near [0, 0, 0] — the iframe is a flat DOM rect and cannot tilt.
-   * Values above ~0.15 rad will visibly misalign the iframe with the bezel.
-   * compile.ts emits console.warn if |rotation[i]| > 0.15.
+   * World-space rotation in radians [x, y, z] (Euler XYZ order).
+   * Full 3D rotation supported via CSS3DRenderer — suitable for carousel layouts
+   * and angled perspective views. For a static image, use <ImagePanel>.
+   * For a live video or MediaStream with full WebGL depth compositing, use <MediaScreen>.
    * Default: [0, 0, 0]
    */
   rotation?: [number, number, number];
@@ -65,5 +66,3 @@ export interface ScreenProps {
   /** Whether rendered. When false, iframe is display:none. Default: true */
   enabled?: boolean;
 }
-
-
