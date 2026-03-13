@@ -42,6 +42,7 @@ vi.mock('three', () => {
     roughness = 0;
     transmission = 0;
     needsUpdate = false;
+    userData: Record<string, unknown> = {};
     dispose = vi.fn();
     constructor(options: Record<string, unknown> = {}) { Object.assign(this, options); }
   }

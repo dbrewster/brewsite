@@ -144,6 +144,12 @@ describe('ChartMaterialFactory', () => {
     factory.applyOpacity(0.5);
     // min(0.5, 1.0) = 0.5
     expect(mat.opacity).toBe(0.5);
+    // emissiveIntensity scales with opacity when userData is available
+    if (mat.userData) {
+      expect(mat.emissiveIntensity).toBeCloseTo(
+        (mat.userData.baseEmissiveIntensity as number) * 0.5,
+      );
+    }
   });
 
   it('applyOpacity on transmissive material caps at 0.85', () => {

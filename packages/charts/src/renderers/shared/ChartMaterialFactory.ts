@@ -112,12 +112,21 @@ export class ChartMaterialFactory {
     return new THREE.Color(interp(normalizedValue));
   }
 
-  /** Apply opacity to all cached MeshPhysicalMaterial instances. */
+  /** Apply opacity to all cached MeshPhysicalMaterial instances.
+   *  Also scales emissiveIntensity proportionally so self-glow dims with
+   *  the chart (e.g. carousel back-of-ring items). */
   applyOpacity(opacity: number): void {
     for (const mat of this.cache.values()) {
       if (mat instanceof THREE.MeshPhysicalMaterial) {
         mat.opacity = Math.min(opacity, mat.transmission > 0 ? 0.85 : 1.0);
         mat.transparent = mat.transparent || opacity < 1;
+        // Scale emissive intensity so self-glow fades with opacity.
+        if (mat.userData) {
+          if (mat.userData.baseEmissiveIntensity === undefined) {
+            mat.userData.baseEmissiveIntensity = mat.emissiveIntensity;
+          }
+          mat.emissiveIntensity = (mat.userData.baseEmissiveIntensity as number) * opacity;
+        }
       }
     }
   }

@@ -40,7 +40,7 @@ export type FittedMargins = {
 };
 
 // ─── Re-exported from elements/chart/types.ts (single source of truth) ────────
-export type {
+import type {
   ChartAxisState,
   ChartSeriesState,
   LegendPosition,
@@ -57,6 +57,23 @@ export type {
   ChartDataLabelsState,
   ReferenceLineState,
 } from '../../elements/chart/types';
+export type {
+  ChartAxisState,
+  ChartSeriesState,
+  LegendPosition,
+  ChartLegendState,
+  ChartLineShape,
+  BarChartOptions,
+  LineChartOptions,
+  ScatterChartOptions,
+  PieChartOptions,
+  AreaChartOptions,
+  HeatMapChartOptions,
+  ChartTypeOptions,
+  DataLabelsPosition,
+  ChartDataLabelsState,
+  ReferenceLineState,
+};
 
 // ─── Morph context (Q3 resolution) ───────────────────────────────────────
 

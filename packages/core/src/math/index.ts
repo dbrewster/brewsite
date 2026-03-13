@@ -232,7 +232,7 @@ export const decomposeMatrix = (matrix: Mat4): { position: Vec3; rotation: Vec3;
   };
 };
 
-export const copyVec3 = (value: Vec3): Vec3 => [value[0], value[1], value[2]];
+export const copyVec3 = (value: Readonly<Vec3>): Vec3 => [value[0], value[1], value[2]];
 
 // ─── Color alpha parsing ──────────────────────────────────────────────────────
 

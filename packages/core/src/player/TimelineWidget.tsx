@@ -130,7 +130,6 @@ export const TimelineWidget = ({
 
   const trackPad = 16;   // px padding on each end of track
   const handleSize = 14; // px diameter of scrub handle
-  const _tickAreaHeight = showSceneLabels ? 20 : 0; // px above/beside track for labels
   const trackHeight = 22; // px height of the track bar itself
 
   const horizontalTicksUp = isHorizontal && position === 'bottom';

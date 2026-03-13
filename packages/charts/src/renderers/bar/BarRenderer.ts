@@ -107,11 +107,19 @@ export class BarRenderer implements IChartRenderer {
       this.lastBoundsWidth = bounds.width;
       this.lastBoundsHeight = bounds.height;
     } else {
-      // Incremental update — only opacity
+      // Incremental update — opacity and emissive intensity scale
       for (const mesh of this.barMeshes) {
         const mat = mesh.material as THREE.MeshPhysicalMaterial;
         mat.opacity = opacity;
         mat.transparent = opacity < 1;
+        // Scale emissive intensity proportionally with opacity so bars dim
+        // convincingly when faded (e.g. carousel back-of-ring items).
+        // The base emissiveIntensity is baked into the material at build time;
+        // here we modulate it by the current opacity so self-glow fades too.
+        if (mat.userData.baseEmissiveIntensity === undefined) {
+          mat.userData.baseEmissiveIntensity = mat.emissiveIntensity;
+        }
+        mat.emissiveIntensity = (mat.userData.baseEmissiveIntensity as number) * opacity;
       }
     }
 
@@ -234,6 +242,10 @@ export class BarRenderer implements IChartRenderer {
       const mat = this.materialFactory.getSeriesMaterial(theme, si);
       mat.opacity = opacity;
       mat.transparent = opacity < 1;
+      if (mat.userData.baseEmissiveIntensity === undefined) {
+        mat.userData.baseEmissiveIntensity = mat.emissiveIntensity;
+      }
+      mat.emissiveIntensity = (mat.userData.baseEmissiveIntensity as number) * opacity;
 
       for (let di = 0; di < effectiveRows.length; di++) {
         const row = effectiveRows[di]!;
@@ -334,6 +346,10 @@ export class BarRenderer implements IChartRenderer {
       const mat = this.materialFactory.getSeriesMaterial(theme, si);
       mat.opacity = opacity;
       mat.transparent = opacity < 1;
+      if (mat.userData.baseEmissiveIntensity === undefined) {
+        mat.userData.baseEmissiveIntensity = mat.emissiveIntensity;
+      }
+      mat.emissiveIntensity = (mat.userData.baseEmissiveIntensity as number) * opacity;
 
       for (let di = 0; di < layer.length; di++) {
         const datum = layer[di]!;
