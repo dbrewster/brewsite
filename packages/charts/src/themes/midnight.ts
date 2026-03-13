@@ -1,3 +1,4 @@
+// @internal — not part of the public API. Use @brewsite/themes bundles instead.
 // Midnight chart theme — warm cinematic seriousness.
 
 // SHARED ACCENT PALETTE — must match packages/diagram/src/elements/diagram/themes/midnight.ts

@@ -1,3 +1,4 @@
+// @internal — not part of the public API. Use @brewsite/themes bundles instead.
 // Dark Glass chart theme — light polarity variant.
 
 import type { ChartTheme } from './types';

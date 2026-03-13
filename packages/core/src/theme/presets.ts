@@ -7,8 +7,6 @@ import {
   SceneThemeFloor,
 } from './types';
 
-// Internal pair type — no longer exported from the public surface.
-type SceneThemePair = { readonly dark: SceneTheme; readonly light: SceneTheme };
 
 const defaultFontSize = {
   heading: 1.5,

@@ -1,3 +1,4 @@
+// @internal — not part of the public API. Use @brewsite/themes bundles instead.
 // Midnight theme — warm cinematic tone with bronze/amber authority.
 
 // SHARED ACCENT PALETTE — must match packages/charts/src/themes/midnight.ts

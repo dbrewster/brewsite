@@ -1,3 +1,4 @@
+// @internal — not part of the public API. Use @brewsite/themes bundles instead.
 // Light Minimal chart theme — documentation-first light presentation.
 
 // SHARED ACCENT PALETTE — must match packages/diagram/src/elements/diagram/themes/lightMinimal.ts

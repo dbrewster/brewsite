@@ -1,3 +1,4 @@
+// @internal — not part of the public API. Use @brewsite/themes bundles instead.
 // Light Canvas theme — premium editorial light mode with controlled jewel accents.
 
 // SHARED ACCENT PALETTE — must match packages/charts/src/themes/lightCanvas.ts

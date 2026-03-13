@@ -1,3 +1,4 @@
+// @internal — not part of the public API. Use @brewsite/themes bundles instead.
 // Dark Glass chart theme — obsidian glass with ember highlights.
 
 // SHARED ACCENT PALETTE — must match packages/diagram/src/elements/diagram/themes/darkGlass.ts

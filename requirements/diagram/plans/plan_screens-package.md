@@ -406,7 +406,7 @@ Copy verbatim from diagram. No changes — no diagram-specific imports.
 
 ### `src/elements/screen/css3dSetup.ts` (NEW)
 
-Module-level CSS3DRenderer singleton management. One `CSS3DRenderer` + `CSS3DScene`
+Module-level CSS3DRenderer singleton management. One `CSS3DRenderer` + `THREE.Scene`
 per canvas parent element, reference-counted across ScreenWidget instances.
 
 ```typescript
@@ -530,8 +530,8 @@ Copy from diagram. Make these changes:
 
 ### `src/elements/screen/render.ts` (NEW — replaces the absolute-position overlay)
 
-CSS3DObject-based renderer. Takes a `CSS3DScene` in the constructor instead of an
-`HTMLDivElement` overlay container.
+CSS3DObject-based renderer. Takes a `THREE.Scene` (for the CSS3D layer) in the
+constructor instead of an `HTMLDivElement` overlay container.
 
 ```typescript
 // render.ts — CSS3DRenderer-based Screen rendering.
@@ -1307,6 +1307,16 @@ export class MediaScreenWidget implements ISceneElement<MediaScreenState>, IRend
     return MediaScreenWidget.streamRegistry.get(id) ?? null;
   }
 
+  /**
+   * Clear the static stream registry. Test-only — ensures test isolation.
+   * Must be called in afterEach() for any test that calls registerStream().
+   */
+  static _clearRegistryForTest(): void {
+    if (process.env.NODE_ENV !== 'production') {
+      MediaScreenWidget.streamRegistry.clear();
+    }
+  }
+
   constructor(widgetId: string, defaultState: MediaScreenState) {
     this.widgetId = widgetId;
     this.defaultState = defaultState;
@@ -1574,7 +1584,7 @@ vi.spyOn(MediaScreenWidget, 'unregisterStream').mockImplementation(() => {});
 // All three element types are registered and auto-created on first DSL compile.
 
 import type { ReactElement } from 'react';
-import type { WidgetPlugin, WidgetRegistry } from '@brewsite/core';
+import type { WidgetPlugin, WidgetRegistry, CompileApi, CompileHelpers } from '@brewsite/core';
 import { registerNode } from '@brewsite/core';
 import { Screen, ScreenWidget } from './elements/screen/widget';
 import { ImagePanel, ImagePanelWidget } from './elements/image-panel/widget';
@@ -1614,43 +1624,26 @@ export function screensPlugin(): WidgetPlugin {
     },
 
     configureRegistry(registry: WidgetRegistry): void {
-      // ── Screen ─────────────────────────────────────────────────────────────
-      registerNode(Screen, (node: ReactElement) => {
+      registerNode(Screen, (node: ReactElement, api: CompileApi, _helpers: CompileHelpers) => {
         const dsl = node.props as ScreenDSL;
         if (!registry.get(dsl.id)) {
-          registry.register(
-            new ScreenWidget(dsl.id, compileScreen({ id: dsl.id, src: '' })),
-          );
-        }
-        // Note: api.setWidgetState is called after this function returns,
-        // by the configureRegistry wrapper. Re-examine if the WidgetPlugin
-        // contract changes. For now, follow the same pattern as chartPlugin.
-      });
-
-      // ── Actually: follow the chartPlugin exact pattern ──────────────────────
-      // registerNode inside configureRegistry receives (node, api) and calls
-      // api.setWidgetState. Correct pattern:
-
-      registerNode(Screen, (node: ReactElement, api) => {
-        const dsl = node.props as ScreenDSL;
-        if (!registry.get(dsl.id)) {
-          registry.register(new ScreenWidget(dsl.id, compileScreen({ id: dsl.id, src: '' })));
+          registry.register(new ScreenWidget(dsl.id, compileScreen({ id: dsl.id, src: '', enabled: false })));
         }
         api.setWidgetState(dsl.id, compileScreen(dsl));
       });
 
-      registerNode(MediaScreen, (node: ReactElement, api) => {
+      registerNode(MediaScreen, (node: ReactElement, api: CompileApi, _helpers: CompileHelpers) => {
         const dsl = node.props as MediaScreenDSL;
         if (!registry.get(dsl.id)) {
-          registry.register(new MediaScreenWidget(dsl.id, compileMediaScreen({ id: dsl.id })));
+          registry.register(new MediaScreenWidget(dsl.id, compileMediaScreen({ id: dsl.id, enabled: false })));
         }
         api.setWidgetState(dsl.id, compileMediaScreen(dsl));
       });
 
-      registerNode(ImagePanel, (node: ReactElement, api) => {
+      registerNode(ImagePanel, (node: ReactElement, api: CompileApi, _helpers: CompileHelpers) => {
         const dsl = node.props as ImagePanelDSL;
         if (!registry.get(dsl.id)) {
-          registry.register(new ImagePanelWidget(dsl.id, compileImagePanel({ id: dsl.id, src: '' })));
+          registry.register(new ImagePanelWidget(dsl.id, compileImagePanel({ id: dsl.id, src: '', enabled: false })));
         }
         api.setWidgetState(dsl.id, compileImagePanel(dsl));
       });
@@ -1659,19 +1652,9 @@ export function screensPlugin(): WidgetPlugin {
 }
 ```
 
-**Note on double `registerNode(Screen, ...)` in the code above**: Remove the first
-(incomplete) call — it is a drafting artifact in this plan. The final implementation
-has exactly one `registerNode` per element type inside `configureRegistry`.
-
-The `compileScreen({ id, src: '' })` default state provides valid non-null values for all
-fields. The widget's `defaultState` is only used when the engine initializes before the
-first compiled state arrives — it should be visually inert (enabled=false or empty src).
-Consider adding `enabled: false` to the default:
-```typescript
-registry.register(
-  new ScreenWidget(dsl.id, compileScreen({ id: dsl.id, src: '', enabled: false })),
-);
-```
+Default states use `enabled: false` so widgets are visually inert before the first
+compiled state arrives. This also prevents `compileMediaScreen({ id })` from emitting
+a dev-mode `console.warn` about missing `src`/`streamId` (amendment #7).
 
 ---
 
@@ -1759,16 +1742,17 @@ export { ScreenRenderer } from './elements/screen/render';
 ### Files to DELETE from `packages/diagram/src/`
 
 ```
-elements/_shared/bezelGeometry.ts
-elements/_shared/glowSprite.ts
-elements/_shared/__tests__/bezelGeometry.test.ts
-elements/_shared/__tests__/glowSprite.test.ts
+elements/_shared/bezelGeometry.ts                ← deleted (no remaining diagram imports)
+elements/_shared/__tests__/bezelGeometry.test.ts ← deleted
 elements/image-panel/     (entire directory)
 elements/screen/          (entire directory)
 ```
 
+**KEEP:** `elements/_shared/glowSprite.ts` and `elements/_shared/__tests__/glowSprite.test.ts`
+— `NodeRenderer.ts` imports `createGlow`, `computeGlowScale`, `disposeGlowSprite` from it.
+
 Run `pnpm --filter @brewsite/diagram typecheck` after deletions to confirm nothing
-in the remaining diagram code imports from these paths.
+in the remaining diagram code imports from deleted paths.
 
 ---
 
@@ -1802,60 +1786,19 @@ packages being published. The exact change depends on the script's current struc
 
 ## apps/examples — Migration
 
-### Import path changes
+### Current state: no existing usages
 
-Every file in `apps/examples/src/` that imports `Screen`, `ScreenWidget`,
-`ImagePanel`, or `ImagePanelWidget` from `@brewsite/diagram` must be updated:
+**No apps currently import `Screen`, `ScreenWidget`, `ImagePanel`, or `ImagePanelWidget`
+from `@brewsite/diagram`.** No import migration is needed at this time.
 
-```typescript
-// BEFORE:
-import { Screen, ScreenWidget } from '@brewsite/diagram';
-import { ImagePanel, ImagePanelWidget } from '@brewsite/diagram';
-
-// AFTER:
-import { Screen, ScreenWidget } from '@brewsite/screens';
-import { ImagePanel, ImagePanelWidget } from '@brewsite/screens';
-```
-
-Find all occurrences with:
+If any new usages are added before this plan executes, grep to find and update them:
 ```bash
 grep -r "from '@brewsite/diagram'" apps/examples/src/ | grep -E "Screen|ImagePanel"
 ```
 
-### Widget setup migration
-
-Currently, consumer apps manually create and register `ScreenWidget` and
-`ImagePanelWidget` instances in their `widgetSetup.ts` files. After the migration,
-these manual registrations are removed — `screensPlugin()` handles all widget
-creation automatically.
-
-**Step 1**: Find all manual registrations in `apps/examples/`:
-```bash
-grep -r "ScreenWidget\|ImagePanelWidget" apps/examples/src/
-```
-
-**Step 2**: Remove `new ScreenWidget(...)` and `new ImagePanelWidget(...)` calls from
-widget setup files and the corresponding `registry.register()` calls.
-
-**Step 3**: Add `screensPlugin()` to each affected page's `EngineProvider` or
-`ScenePlayer` setup. The location depends on how each demo page is structured.
-
-Example: if a page currently has:
-```typescript
-// widgetSetup.ts (old)
-import { ScreenWidget } from '@brewsite/diagram';
-registry.register(new ScreenWidget('screen-1', defaultScreenState));
-```
-
-The new approach removes `widgetSetup.ts` entries and adds to the page component:
-```typescript
-import { screensPlugin } from '@brewsite/screens';
-
-// In JSX:
-<ScenePlayer scenes={scenes} plugins={[screensPlugin()]} />
-```
-
 ### Add `@brewsite/screens` to apps/examples devDependencies
+
+Add the workspace dependency so future example pages can use the screens package:
 
 ```bash
 pnpm --filter @brewsite/examples add -D @brewsite/screens
@@ -1868,13 +1811,15 @@ Or manually add to `apps/examples/package.json`:
 }
 ```
 
-### New example page: MediaScreen demo
+### MediaScreen demo page — DEFERRED
 
-Create `apps/examples/src/core-showcase/MediaScreenPage.tsx` and
-`apps/examples/src/core-showcase/scenes/scene-media-screen.tsx` as specified in the
-Browser Capture Utilities section of the superseded `plan_media-screen-element.md`.
-The page component structure (three-panel layout: video file, canvas stream,
-getDisplayMedia) remains the same.
+The MediaScreen example page (`MediaScreenPage.tsx` with three-panel layout: video file,
+canvas stream, getDisplayMedia) is **deferred to a follow-up task**. All MediaScreen code,
+tests, and hooks ship in v0.1, but the demo page requires real browser integration testing
+with video files and permission dialogs that should not block the package release.
+
+When the demo page is implemented, it should use `screensPlugin()` in the plugin array
+and demonstrate all three source modes (video URL, canvas capture, display capture).
 
 ---
 
@@ -1897,6 +1842,11 @@ getDisplayMedia) remains the same.
 All tests use real function calls with real inputs and assert real outputs. No mocking
 of Three.js internals. `@testing-library/react` for hook tests. `vi.stubGlobal` for
 `navigator.mediaDevices`.
+
+**Static registry test isolation**: Any test file that calls
+`MediaScreenWidget.registerStream()` **must** call
+`MediaScreenWidget._clearRegistryForTest()` in `afterEach` to prevent state bleed
+between tests. This applies to `streamUtils.test.ts` and `useDisplayCapture.test.tsx`.
 
 ### Typecheck passes
 
@@ -1940,14 +1890,17 @@ pnpm --filter @brewsite/examples typecheck   # must pass after import migration
 11. **Modify `@brewsite/diagram`**:
     - Edit `handlers.ts` (remove Screen + ImagePanel registrations).
     - Edit `index.ts` (remove exports).
-    - Delete `elements/_shared/`, `elements/image-panel/`, `elements/screen/`.
+    - Delete `elements/_shared/bezelGeometry.ts` + its test (NOT glowSprite — NodeRenderer needs it).
+    - Delete `elements/image-panel/` (entire directory).
+    - Delete `elements/screen/` (entire directory).
 12. **Run `pnpm --filter @brewsite/diagram typecheck`** — must pass.
 13. **Run `pnpm --filter @brewsite/diagram test`** — must pass.
-14. **Migrate `apps/examples`**: Update import paths, remove manual widget
-    registrations, add `screensPlugin()`.
+14. **`apps/examples`**: No current usages of Screen/ImagePanel from diagram exist.
+    Add `@brewsite/screens` as a devDependency (`pnpm --filter @brewsite/examples add -D @brewsite/screens`).
 15. **Run `pnpm --filter @brewsite/examples typecheck`** — must pass.
 16. **Update `scripts/publish-core-diagram.mjs`** to include `@brewsite/screens`.
 17. **Full `pnpm build`** at root — all packages must build.
 18. **Manual integration test** in dev server (`pnpm dev`).
 19. **Archive** `plan_screen-css3d-upgrade.md` and `plan_media-screen-element.md`
     by moving them to `requirements/diagram/plans/archive/`.
+20. *(Follow-up)* **Create MediaScreen demo page** in `apps/examples/` — deferred from v0.1.

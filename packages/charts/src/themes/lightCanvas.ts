@@ -1,3 +1,4 @@
+// @internal — not part of the public API. Use @brewsite/themes bundles instead.
 // Light Canvas chart theme — premium editorial light mode.
 
 // SHARED ACCENT PALETTE — must match packages/diagram/src/elements/diagram/themes/lightCanvas.ts

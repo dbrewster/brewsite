@@ -1,3 +1,4 @@
+// @internal — not part of the public API. Use @brewsite/themes bundles instead.
 // Light Minimal theme — dark polarity variant.
 
 import type { DiagramTheme } from '../types';

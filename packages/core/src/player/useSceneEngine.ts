@@ -531,6 +531,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     prefersReducedMotion,
     sceneDefs,
     options.invalidateCacheToken,
+    options.activeTheme,
     options.onCompileWarning,
   ]);
 

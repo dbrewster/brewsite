@@ -9,6 +9,7 @@ import {
   TimelineWidget,
   useSceneEngineContext
 } from "@brewsite/core";
+import { bundles } from '@brewsite/themes';
 import {config} from "./settings";
 import {JSX, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 
@@ -27,19 +28,16 @@ export const Lights = () => (
   </Lighting>
 )
 
-// ─── Theme families available for selection ──────────────────────────────────
-const THEME_FAMILIES: ThemeFamily[] = [
-  'darkGlass', 'midnight', 'neonCyber', 'lightCanvas', 'lightMinimal',
-];
+// ─── Theme families — derived from registered bundles, no manual maintenance ──
+const THEME_FAMILIES = Object.keys(bundles) as ThemeFamily[];
 
-const FAMILY_LABELS: Record<ThemeFamily, string> = {
-  default: 'Default',
-  darkGlass: 'Dark Glass',
-  midnight: 'Midnight',
-  neonCyber: 'Neon Cyber',
-  lightCanvas: 'Light Canvas',
-  lightMinimal: 'Light Minimal',
-};
+/** Convert a camelCase family key to a human-readable label. */
+function familyLabel(family: string): string {
+  return family
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (c) => c.toUpperCase())
+    .trim();
+}
 
 // ─── Theme toggle component ──────────────────────────────────────────────────
 
@@ -137,7 +135,7 @@ export const ThemeToggle = ({
         }}
       >
         {THEME_FAMILIES.map((f) => (
-          <option key={f} value={f}>{FAMILY_LABELS[f]}</option>
+          <option key={f} value={f}>{familyLabel(f)}</option>
         ))}
       </select>
 

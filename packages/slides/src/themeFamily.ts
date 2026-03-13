@@ -12,8 +12,7 @@ const withSharedDeckTokens = (theme: DeckTheme): DeckTheme => ({
   border: { radius: '0.5rem' },
 });
 
-export const DECK_THEME_PAIRS: Record<ThemeFamily, DeckThemePair> = {
-  default: {
+const _defaultPair: DeckThemePair = {
     dark: withSharedDeckTokens({
       fonts: { heading: '"Inter", sans-serif', body: '"Inter", sans-serif' },
       colorMode: 'dark',
@@ -32,7 +31,11 @@ export const DECK_THEME_PAIRS: Record<ThemeFamily, DeckThemePair> = {
       spacing: { slide: '8%', stack: '1.5rem' },
       border: { radius: '0.5rem' },
     }),
-  },
+};
+
+export const DECK_THEME_PAIRS: Record<ThemeFamily, DeckThemePair> = {
+  default:    _defaultPair,
+  enterprise: _defaultPair,
   darkGlass: {
     dark: withSharedDeckTokens({
       fonts: { heading: '"Sora", "Inter", sans-serif', body: '"Sora", "Inter", sans-serif' },

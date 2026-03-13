@@ -1,3 +1,4 @@
+// @internal — not part of the public API. Use @brewsite/themes bundles instead.
 // Neon Cyber theme — light polarity variant.
 
 import type { DiagramTheme } from '../types';
