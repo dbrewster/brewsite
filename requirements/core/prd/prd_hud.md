@@ -101,7 +101,7 @@ Replace `<Hud>` and `<HudItem>` blocks with HTML children directly inside `<Scen
 </Scene>
 ```
 
-The `EngineOverlayHost` component handles rendering. It is included automatically inside `ScenePlayer`. When composing the engine manually with `EngineProvider`, mount `EngineOverlayHost` alongside `SceneCanvas`.
+The `EngineOverlayHost` component handles rendering. It is mounted by the consumer inside `SceneEngine` alongside `SceneCanvas`. `SceneReel` includes it automatically.
 
 For persistent overlay content (navigation arrows, progress dots) that must appear regardless of the active scene, render those components as siblings of `EngineOverlayHost` — they are not part of scene overlay children.
 
@@ -115,8 +115,8 @@ For persistent overlay content (navigation arrows, progress dots) that must appe
 | `HudOverlay` — rendered compiled primitives | `EngineOverlayHost` — renders current scene's ReactNode overlay |
 | `HudPhaseContext` — provided `phase` / `blockProgress` | No direct replacement. Use `useSceneProgress()` or animate on mount. |
 | `contentSlots` on `ScenePlayer` | Sibling components alongside `EngineOverlayHost` |
-| `SceneFrame.hudItems` field | `SceneFrame.sceneOverlay?: ReactNode` |
-| `SceneTrackTick.hudPrimitives` | Removed. Overlays are per-scene ReactNodes on `SceneTrack.sceneOverlays`. |
+| `SceneFrame.hudItems` field | Removed. Overlay content is authored via `<TextBox>` DSL element. |
+| `SceneTrackTick.hudPrimitives` | Removed. Overlays are `TextBoxState` entries in the `VariableStore`, rendered by `EngineOverlayHost`. |
 
 ---
 

@@ -1,29 +1,32 @@
 ---
 title: "@brewsite/model — GLTF Model & Label System"
 doc_type: prd
-status: active
-owner: brewsite-product-manager
-last_updated: 2026-03-12
+status: approved
+owner: Toolkit Product
+last_updated: 2026-03-13
 change_history:
   - date: 2026-03-07
     author: "Toolkit Product"
-    summary: "Initial PRD created. Documents @brewsite/model as a published extension package: ModelWidget, LabelPositioner, label compiler, modelPlugin() factory, asset manifest contract, ViewportScaleContext integration (replaces EngineARContainerContext), and the post-cleanup API surface where all types are available from the @brewsite/core main barrel (no deep sub-path imports required)."
+    summary: "Initial PRD created. Documents @brewsite/model as a published extension package: ModelWidget, LabelPositioner, label compiler, modelPlugin() factory, asset manifest contract, ViewportScaleContext integration (replaces EngineARContainerContext), and the post-cleanup API surface."
   - date: 2026-03-08
     author: "Toolkit Product"
     summary: "DSL stub co-location: dsl.tsx files are now pure type modules. DSL stub functions (Model, ModelRouter, BodyParts, BodyPart, Pose, ModelPart, ContainedModel, Subpart, Playback, Motion, Animation, Label, Labels) moved to ModelWidget.ts. Updated ModelWidget implementation pattern description accordingly."
   - date: 2026-03-12
     author: "Toolkit Product"
     summary: "View/Region Architecture: documented ModelWidget CUSTOM_NODE_HANDLER composeBounds integration. ModelWidget calls api.composeBounds() to resolve absolute nvsBounds when inside a parent <View>."
-  - date: 2026-03-08
+  - date: 2026-03-12
     author: "Toolkit Product"
-    summary: "Model/diagram overhaul audit: LabelStyle.fontSize documented as intentional number|string union — number values render as px via React CSSProperties; string values pass through as-is (e.g., '1.2rem', '150%'). All model sizing fields verified correct; no changes to model coordinate system or API."
+    summary: "Model/diagram overhaul audit: LabelStyle.fontSize documented as intentional number|string union. All model sizing fields verified correct."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "Comprehensive audit against actual codebase. Corrected SceneModel coordinate system (nvsX/nvsY/z replace position Vec3). Corrected SceneAnimation shape (many new fields: gltfClipName, fbxClipName, fbxRetarget, clipStart, clipEnd, clipRangeUnit, clipRepeat, clipStartOnce, trimStartKeyframes, trimEndKeyframes, holdStartPose, allowRotation, allowScale). Corrected SceneMotion shape (commands/scenes/customAnimations/pose/reset). Corrected MotionCommand shape (groupId, rotate, translate, weight, space — replaces old discriminated union). Added MotionScene, PoseGroup, ModelPose, CustomAnimation, CustomAnimationContext, CustomAnimationOp, BodyPartOverride. Documented ModelPartSpec correctly. Corrected ModelPluginOptions (manifestUrl and defaultModelStates replace widgetDefaults). Corrected LabelPositionerContext API (provides LabelPositioner instance directly, not a subscribe-based map). Corrected LabelItem API (takes label: LabelResolved prop, not id string). Corrected IContainedModel interface (extends IContainedRenderable from core, not IContainedModel standalone). Added IAttachmentHost, IRenderContributor, IHasCustomDslHandler to ModelWidget's interface list. Corrected ModelWidget implements IDslComposite via childDslComponents. Documented mergeSnapshot() method. Added AssetManifest v2 schema. Corrected wrapProvider pattern (LabelPositionerContext provides LabelPositioner instance directly). Added modelPlugin.getManifest() and fetchManifest() methods. Corrected label placement rule (Label must be under BodyPart or Subpart, not direct Model child). Added compileLabels() from compiler/labelCompiler.ts. Corrected LabelStyle.color/lineColor as LabelColor union ('target-color' | string). Added target-color inheritance behavior."
 ---
 
 # @brewsite/model — GLTF Model & Label System
 
 ## 1. Overview
 
-`@brewsite/model` is a published extension package for `@brewsite/core` that adds GLTF model loading, GLTF animation playback, and a 3D-tracked label system. It is the canonical way to add animated 3D model content to a BrewSite scene. The package integrates with `@brewsite/core` exclusively through public APIs — it does not deep-import internal modules.
+`@brewsite/model` is a published extension package for `@brewsite/core` that adds GLTF model loading, GLTF and FBX animation playback, procedural motion, body-part material overrides, and a 3D-tracked HTML label system. It is the canonical way to add animated 3D model content to a BrewSite scene. The package integrates with `@brewsite/core` exclusively through public APIs — it does not deep-import internal modules.
 
 **Affects:** `packages/model/` (published as `@brewsite/model`). Consumers add both `@brewsite/core` and `@brewsite/model` as dependencies.
 
@@ -31,7 +34,7 @@ change_history:
 
 ## 2. Problem Statement
 
-Consumers building product marketing scenes need to display GLTF models with GLTF animation playback and overlaid HTML labels that track 3D bone positions in world space. These concerns require Three.js `GLTFLoader`, `AnimationMixer`, and per-frame 3D-to-screen projection — none of which belong in `@brewsite/core`.
+Consumers building product marketing scenes need to display GLTF models with GLTF/FBX animation playback, per-bone-group procedural motion, per-mesh material overrides, and overlaid HTML labels that track 3D bone positions in world space. These concerns require Three.js `GLTFLoader`, `AnimationMixer`, material traversal, and per-frame 3D-to-screen projection — none of which belong in `@brewsite/core`.
 
 Separating model/label concerns into `@brewsite/model` keeps the `@brewsite/core` bundle lean for consumers who do not use GLTF models, and avoids coupling the core runtime to Three.js GLTF infrastructure.
 
@@ -40,8 +43,8 @@ Separating model/label concerns into `@brewsite/model` keeps the `@brewsite/core
 ## 3. Goals & Success Metrics
 
 **Primary metrics:**
-- Consumers can load a GLTF model, author its position/rotation/scale per scene, and play back named animation clips via a simple DSL without writing Three.js code.
-- Consumers can attach HTML labels to named bones; labels track the bone's world-space position in real time via CSS transforms.
+- Consumers can load a GLTF model, author its NVS position/rotation/scale per scene, and play back named animation clips via a simple DSL without writing Three.js code.
+- Consumers can attach HTML labels to named bone groups; labels track the bone's world-space position in real time via direct DOM transform updates.
 - All types required to author scenes and extend the package are importable from the `@brewsite/core` and `@brewsite/model` main barrels — no sub-path imports.
 
 **Guardrail metrics:**
@@ -56,27 +59,37 @@ Separating model/label concerns into `@brewsite/model` keeps the `@brewsite/core
 - Skeletal physics / ragdoll simulation.
 - Real-time LOD management.
 - Server-side rendering of Three.js content (labels use DOM transforms; SSR outputs empty label containers with no hydration mismatch).
+- Label click interaction (`pointer-events: none` on all labels).
+- Label collision avoidance or automatic spreading.
 
 ---
 
 ## 5. Consumer Stories
 
-- As a toolkit consumer, I want to declare a GLTF model in a scene DSL with position, rotation, scale, and a named animation clip so that the model renders and animates without writing Three.js code.
-- As a toolkit consumer, I want to attach HTML label components to named bones so that labels track model animations in real time.
-- As a toolkit consumer, I want to register the model plugin with a single `modelPlugin(manifest)` call so that I do not need to manually construct `ModelWidget` instances.
+- As a toolkit consumer, I want to declare a GLTF model in a scene DSL with NVS position, rotation, scale, and a named animation clip so that the model renders and animates without writing Three.js code.
+- As a toolkit consumer, I want to attach HTML label components to named body-part groups so that labels track model animations in real time.
+- As a toolkit consumer, I want to register the model plugin with a single `modelPlugin({ manifestUrl })` call so that I do not need to manually construct `ModelWidget` instances or fetch the manifest separately.
+- As a toolkit consumer, I want to override individual mesh opacity, color, metalness, and roughness per scene using `<BodyPart>` DSL elements so that I can show different model configurations.
+- As a toolkit consumer, I want to declare procedural motion commands and time-coded motion scenes in the DSL so that bones animate in sync with scene progress.
 
 ---
 
 ## 6. Functional Requirements
 
-1. `ModelWidget` shall implement `ISceneElement`, `IRenderable`, `ILoadable`, `IAnimationController`, `INVSBounded`, and `IDslComposite` from `@brewsite/core`.
+1. `ModelWidget` shall implement `ISceneElement`, `IRenderable`, `ILoadable`, `IDslComposite`, `IAttachmentHost`, `IRenderContributor`, `IHasCustomDslHandler`, and `INVSBounded` from `@brewsite/core`.
 2. `ModelWidget` shall declare `readonly disableWhenAbsent = true` on `ISceneElement`. When a scene does not reference the model widget, the compiler substitutes `makeDisabledDefault(defaultState)` — the model is hidden rather than frozen at its default position.
-3. `ModelWidget.load(manifest)` shall use `THREE.GLTFLoader` to load the GLTF asset specified in the asset manifest, cache the result, and set `isLoaded = true`.
-4. `ModelWidget.onTick()` shall advance the `AnimationMixer` by `context.effectiveDeltaSeconds` and apply the current animation clip state from `context.resolvedState`.
-5. The label system shall project bone world positions to screen space using the active `PerspectiveCamera` and update CSS `transform: translate(x, y)` on label DOM nodes each frame.
-6. `LabelPositioner` shall read viewport dimensions from `ViewportScaleContext` (not `EngineARContainerContext`, which is deprecated).
-7. `modelPlugin(options?)` shall be the sole registration entry point. It creates `ModelWidget` instances lazily via `WidgetRegistry.registerTypeFactory()` — one instance per `<Model type="...">` id encountered during compilation.
-8. All types required to integrate `@brewsite/model` (`AnimationTrack`, `Resolvable<T>`, `getNodeHandler`, transition blend functions) shall be importable from `@brewsite/core` or `@brewsite/model` main barrels. No sub-path imports to internal core modules are required.
+3. `ModelWidget.load(manifest)` shall use `THREE.GLTFLoader` to load the GLTF asset specified in the asset manifest, and set `isLoaded = true` when complete.
+4. `ModelWidget.apply()` shall convert NVS position (`nvsX`, `nvsY`, `z`) to world-space coordinates using `context.coords.toWorld()` before passing to `ModelRenderer`.
+5. The label system shall project named body-part world positions to screen space using the active `Camera` and update CSS `transform` on label DOM nodes each frame via direct DOM mutation (not React state).
+6. `LabelPositioner.update()` computes screen-space positions for both the bone target and the offset label point, computing connector line angle and length from the two screen points.
+7. `LabelPositioner.setContainerSize(width, height, nvsBounds?)` shall accept an optional NVS sub-region to restrict label projection.
+8. `LabelPositionerContext` shall provide the `LabelPositioner` instance directly — consumers use `useLabelPositioner()` to retrieve it and call `registerElement(id, el)` imperative API.
+9. `modelPlugin(options)` shall be the sole registration entry point. It creates `ModelWidget` instances lazily via `WidgetRegistry.registerTypeFactory()` — one instance per `<Model type="...">` id encountered during compilation.
+10. `modelPlugin()` shall expose `getManifest()` and `fetchManifest()` methods in addition to the `WidgetPlugin` interface, enabling the host application to inspect or pre-load the manifest.
+11. `modelPlugin()` shall wrap the provider tree in `LabelPositionerContext.Provider`, providing the `LabelPositioner` instance.
+12. `<Label>` shall be valid only as a direct child of `<BodyPart>` or `<Subpart>` DSL elements. Placing `<Label>` directly under `<Model>` or anywhere else shall throw a compile-time error.
+13. All types required to integrate `@brewsite/model` shall be importable from `@brewsite/core` or `@brewsite/model` main barrels. No sub-path imports are required.
+14. `LabelStyle.color` and `LabelStyle.lineColor` shall support the special value `'target-color'`, which causes the label to inherit the resolved color of its target body part at runtime.
 
 ---
 
@@ -88,148 +101,773 @@ Separating model/label concerns into `@brewsite/model` keeps the `@brewsite/core
 // packages/model/src/plugin.ts
 
 export interface ModelPluginOptions {
-  /** Arbitrary props merged into every ModelWidget constructor. */
-  widgetDefaults?: Partial<ModelWidgetOptions>;
+  /**
+   * URL to fetch the asset manifest JSON from (e.g. '/assets/manifest.json').
+   * Mutually exclusive with `manifest`. Fetched asynchronously during EngineProvider mount.
+   */
+  manifestUrl?: string;
+
+  /**
+   * Pre-loaded asset manifest. Use when you have already fetched and validated the manifest.
+   * Mutually exclusive with `manifestUrl`.
+   */
+  manifest?: AssetManifest | null;
+
+  /**
+   * Per-model default state overrides. Key = widgetId used by <Model id="...">.
+   * Applied to each ModelWidget created by the factory.
+   */
+  defaultModelStates?: Partial<Record<string, Partial<SceneModel>>>;
 }
 
-export function modelPlugin(options?: ModelPluginOptions): IWidgetPlugin;
+export function modelPlugin(options?: ModelPluginOptions): WidgetPlugin & {
+  getManifest(): AssetManifest | null;
+  fetchManifest(): Promise<AssetManifest | null>;
+};
 ```
 
 Register via `EngineProvider.plugins`:
 
 ```tsx
-<EngineProvider plugins={[corePlugin(), modelPlugin()]}>
+<EngineProvider plugins={[corePlugin(), modelPlugin({ manifestUrl: '/assets/manifest.json' })]}>
   {/* scenes */}
 </EngineProvider>
 ```
 
 The `modelPlugin()` factory:
-- Registers a `ModelWidget` type factory under `<Model>` DSL component.
-- Creates and mounts a `LabelPositionerSyncer` React component inside the provider tree. This component reads `ViewportScaleContext` and forwards `containerWidth`/`containerHeight` to `LabelPositioner` on every resize.
-- Exposes `LabelPositionerContext` to the subtree so label components can register themselves.
+- Registers a `ModelWidget` type factory on `WidgetRegistry` via `reg.registerTypeFactory(ModelRouter, ...)`. The factory is keyed on the `<Model type="...">` prop, which it looks up in the manifest's `models` array.
+- Creates a `LabelPositioner` instance and wraps the provider tree in `LabelPositionerContext.Provider` via the `wrapProvider` hook.
+- Mounts a `LabelPositionerSyncer` component that reads `ViewportScaleContext` and calls `labelPositioner.setContainerSize()` on every resize.
+- Registers the `onRendererDisposing` hook to call `ModelRenderer.disposeKtx2Loader()` when the WebGL renderer is torn down.
 
 ### DSL Components
+
+The full DSL surface lives in `ModelWidget.ts` as null-returning stubs. `dsl.tsx` contains only prop type interfaces.
 
 ```tsx
 // Model DSL — one per GLTF asset per scene
 <Model
-  type="robot"          // Required: maps to manifest entry; produces ModelWidget id='robot'
-  position={[0, 0, 0]}
-  rotation={[0, 0, 0]}
+  type="robot"          // Required: matches manifest model type; determines widget to route to
+  id="robot-1"          // Required: widget instance ID in the runtime registry
   scale={1}
-  animationClip="idle"  // Named GLTF animation clip to play
-  visible={true}
-/>
+  z={0}                 // World-space Z depth (default 0)
+  rotation={[0, 0, 0]}
+  opacity={1}
+  x={0} y={0} w={1} h={1}  // NVS sub-region (defaults to fullscreen)
+  enabled={true}
+>
+  <Playback>
+    <Animation clipName="idle" weight={1} />
+    <Motion commands={[...]} scenes={[...]} />
+  </Playback>
+  <BodyParts>
+    <BodyPart id="head" opacity={0.8} color="#ff0000">
+      <Pose pitchPct={0.5} />
+      <Label id="head-label" text="CPU Unit" labelOffset={[0, 0.3, 0]} />
+    </BodyPart>
+  </BodyParts>
+  <ModelPart id="arm-left" anchor="shoulder_L" position={[0.1, 0, 0]} />
+</Model>
+```
 
-// Label DSL — attached to a bone
-<LabelItem
-  id="label-head"
-  target="head_bone"    // Bone name in the GLTF rig
-  offsetPx={[0, -20]}
-/>
+**DSL component hierarchy:**
+- `<Model>` — root; accepts `<Playback>`, `<BodyParts>`, `<BodyPart>` (direct), `<ModelPart>`
+- `<Playback>` — container for `<Animation>` and `<Motion>` children
+- `<BodyParts>` — container for `<BodyPart id="...">` children
+- `<BodyPart id="...">` — single body-part override; accepts optional `<Pose>` and `<Label>` children
+- `<ModelPart id="...">` — contained sub-model attachment; accepts `<ContainedModel>` and `<Subpart>` children
+- `<Subpart id="...">` — mesh-level override inside a `<ModelPart>`; accepts `<Label>` children
+- `<Label>` — label declaration; valid only under `<BodyPart>` or `<Subpart>`
+
+### State Types
+
+```typescript
+// packages/model/src/elements/model/types.ts
+
+export type Vec3 = [number, number, number]; // re-export from @brewsite/core
+
+export type ClipMeta = {
+  name: string;
+  duration: number;
+  clipStart?: number;
+  clipEnd?: number;
+};
+
+// ─── Body part overrides ─────────────────────────────────────────────────────
+
+export type BodyPartOverride = {
+  opacity?: number;
+  color?: string;
+  metalness?: number;
+  roughness?: number;
+  targetKind?: 'bone' | 'mesh';
+  pose?: PoseGroup;
+  reset?: boolean;
+  poseReset?: boolean;
+  meshId?: string;   // alternate mesh ID for material lookups
+  boneId?: string;   // alternate bone ID for pose lookups
+};
+
+export type BodyPartOverrideMap = Partial<Record<string, BodyPartOverride>>;
+
+// ─── Model parts (contained sub-model attachments) ───────────────────────────
+
+export type ModelSubpartSpec = {
+  id: string;
+  enabled?: boolean;
+  opacity?: number;
+  color?: string;
+  metalness?: number;
+  roughness?: number;
+  reset?: boolean;
+};
+
+export type ModelPartSpec = {
+  id: string;
+  anchor: string;         // bone name on the parent model
+  enabled: boolean;
+  space?: 'local' | 'world';
+  position: Vec3;
+  rotation: Vec3;
+  scale: number;
+  containedPosition?: Vec3;
+  containedRotation?: Vec3;
+  containedScale?: number;
+  opacity?: number;
+  metalness?: number;
+  roughness?: number;
+  modelId?: string;       // type of contained model widget
+  subparts?: Partial<Record<string, ModelSubpartSpec>>;
+  reset?: boolean;
+};
+
+// ─── Motion ──────────────────────────────────────────────────────────────────
+
+export type AxisRotation = {
+  yawPct?: number;
+  pitchPct?: number;
+  rollPct?: number;
+};
+
+export type AxisTranslation = {
+  xPct?: number;
+  yPct?: number;
+  zPct?: number;
+};
+
+export type PoseGroup = {
+  rotate?: AxisRotation;
+  translate?: AxisTranslation;
+  reset?: boolean;
+};
+
+export type ModelPose = {
+  mode?: 'override' | 'add';
+  groups: Partial<Record<string, PoseGroup>>;
+};
+
+export type MotionCommand = {
+  groupId: string;               // named bone group in the model rig
+  rotate?: AxisRotation;
+  translate?: AxisTranslation;
+  weight?: number;               // blend weight, default 1.0
+  space?: 'local' | 'world';
+};
+
+export type CustomAnimationContext = {
+  tickTimeSeconds: number;
+  wallTimeSeconds: number;
+  sceneProgress: number;
+  globalProgress: number;
+  getBaseTransform: (name: string) => { position: Vec3; rotation: Vec3; scale: Vec3 } | null;
+};
+
+export type CustomAnimationOp = {
+  targetName: string;
+  type: 'rotation' | 'position' | 'scale';
+  value: Vec3;
+  mode?: 'add' | 'set';
+  weight?: number;
+};
+
+export type CustomAnimation = {
+  id: string;
+  enabled: boolean;
+  layer?: 'base' | 'overlay';
+  weight?: number;
+  apply: (context: CustomAnimationContext) => CustomAnimationOp[];
+};
+
+export type MotionScene = {
+  id: string;
+  start: number;
+  end: number;
+  ease?: (t: number) => number;
+  commands: MotionCommand[] | ((t: number, timeSeconds: number) => MotionCommand[]);
+  holdAtEnd?: boolean;
+};
+
+export type SceneMotion = {
+  commands: MotionCommand[];
+  scenes: MotionScene[];
+  customAnimations?: CustomAnimation[];
+  pose?: ModelPose;
+  reset?: boolean;
+};
+
+// ─── Animation (clip playback) ───────────────────────────────────────────────
+
+export type SceneAnimation = {
+  enabled: boolean;
+  clipName?: string;            // Clip name from the manifest animation list
+  gltfUrl?: string;             // Override GLTF source URL for this animation clip
+  gltfClipName?: string;        // Clip name inside the override GLTF
+  fbxUrl?: string;              // FBX animation source URL
+  fbxClipName?: string;         // Clip name inside the FBX
+  fbxRetarget?: boolean;
+  fadeInSeconds?: number;       // Crossfade in duration in seconds
+  weight?: number;              // Blend weight [0, 1], default 1.0
+  clipStart?: number;           // Start offset within the clip
+  clipEnd?: number;             // End offset within the clip (negative = from end)
+  clipRangeUnit?: 'seconds' | 'percent';  // Unit for clipStart/clipEnd, default 'seconds'
+  clipRepeat?: boolean;
+  clipStartOnce?: number;       // Start offset applied only the first time the animation starts
+  trimStartKeyframes?: number;  // Trim N keyframes from clip start before playback
+  trimEndKeyframes?: number;    // Trim N keyframes from clip end before playback
+  holdStartPose?: boolean;
+  allowRotation?: boolean;
+  allowScale?: boolean;
+  reset?: boolean;
+};
+
+// ─── Playback ────────────────────────────────────────────────────────────────
+
+export type ScenePlayback = {
+  motion: SceneMotion;
+  animation: SceneAnimation;
+  reset?: boolean;
+};
+
+// ─── Model base state ───────────────────────────────────────────────────────
+
+export type SceneModel = {
+  scale: number;
+  /**
+   * NVS horizontal center position [0..1]. 0 = left, 1 = right.
+   * Converted to world X at render time using the active camera.
+   * Default: center of nvsBounds = (nvsBounds.x + nvsBounds.w / 2).
+   */
+  nvsX: number;
+  /**
+   * NVS vertical center position [0..1]. 0 = top, 1 = bottom.
+   * Default: center of nvsBounds = (nvsBounds.y + nvsBounds.h / 2).
+   */
+  nvsY: number;
+  /** World-space Z depth of the model center. Default: 0. */
+  z: number;
+  rotation: Vec3;
+  opacity?: number;
+  metalness?: number;
+  roughness?: number;
+  metalnessMultiplier?: number;
+  roughnessMultiplier?: number;
+  bodyPartOverrides?: BodyPartOverrideMap;
+  parts?: Record<string, ModelPartSpec>;
+  enabled?: boolean;
+  reset?: boolean;
+};
+
+// ─── Instance state ──────────────────────────────────────────────────────────
+
+export type SceneModelInstanceState = {
+  model: SceneModel;
+  playback: ScenePlayback;
+  enabled?: boolean;
+  /** Label definitions compiled for this model instance. Populated by CUSTOM_NODE_HANDLER. */
+  labels?: LabelResolved[];
+  /**
+   * NVS bounds for this model's viewport region.
+   * Fullscreen is { x: 0, y: 0, w: 1, h: 1 }. Always filled by the compile step.
+   */
+  nvsBounds: NVSRect;
+};
+```
+
+### DSL Prop Types
+
+```typescript
+// packages/model/src/elements/model/dsl.tsx (prop type interfaces only)
+
+export type ModelProps = {
+  type: string;                         // Required: manifest model type
+  id: string;                           // Required: widget instance ID
+  scale?: Resolvable<number>;
+  z?: Resolvable<number>;
+  rotation?: Resolvable<[number, number, number]>;
+  opacity?: Resolvable<number>;
+  metalness?: Resolvable<number>;
+  roughness?: Resolvable<number>;
+  metalnessMultiplier?: Resolvable<number>;
+  roughnessMultiplier?: Resolvable<number>;
+  enabled?: Resolvable<boolean>;
+  reset?: Resolvable<boolean>;
+  x?: number;   // NVS x-coordinate of viewport region [0, 1], default 0
+  y?: number;   // NVS y-coordinate of viewport region [0, 1], default 0
+  w?: number;   // NVS width of viewport region [0, 1], default 1
+  h?: number;   // NVS height of viewport region [0, 1], default 1
+  children?: ReactNode;
+};
+
+export type BodyPartByIdProps = {
+  id: string;
+  targetKind?: 'bone' | 'mesh';
+  boneId?: string;
+  meshId?: string;
+  opacity?: Resolvable<number>;
+  color?: Resolvable<string>;
+  metalness?: Resolvable<number>;
+  roughness?: Resolvable<number>;
+  reset?: Resolvable<boolean>;
+  children?: ReactNode;
+};
+
+export type PoseProps = {
+  rotate?: Resolvable<AxisRotation>;
+  translate?: Resolvable<AxisTranslation>;
+  reset?: Resolvable<boolean>;
+  // Flat shortcuts merged into rotate/translate at compilation:
+  yawPct?: Resolvable<number>;
+  pitchPct?: Resolvable<number>;
+  rollPct?: Resolvable<number>;
+  xPct?: Resolvable<number>;
+  yPct?: Resolvable<number>;
+  zPct?: Resolvable<number>;
+};
+
+export type AnimationProps = {
+  reset?: Resolvable<boolean>;
+  enabled?: Resolvable<boolean>;
+  clipName?: string;
+  gltfUrl?: string;
+  gltfClipName?: string;
+  fbxUrl?: string;
+  fbxClipName?: string;
+  fbxRetarget?: boolean;
+  fadeInSeconds?: number;
+  weight?: number;
+  clipStart?: number;
+  clipEnd?: number;
+  clipRangeUnit?: 'seconds' | 'percent';
+  clipRepeat?: boolean;
+  clipStartOnce?: number;
+  trimStartKeyframes?: number;
+  trimEndKeyframes?: number;
+  holdStartPose?: boolean;
+  allowRotation?: boolean;
+  allowScale?: boolean;
+};
+
+export type MotionProps = {
+  reset?: Resolvable<boolean>;
+  commands?: MotionCommand[];
+  scenes?: MotionScene[];
+  customAnimations?: CustomAnimation[];
+};
+```
+
+### Asset Manifest (v2 Schema)
+
+```typescript
+// packages/model/src/elements/model/metadata.ts
+
+export const ASSET_MANIFEST_VERSION = 2;
+
+export type AnchorTargetMap = Record<string, string>;
+
+export type BodyPartGroup = {
+  name: string;       // PascalCase component name derived from bone display name
+  boneIds: string[];  // GLB bone/joint names for pose overrides
+  meshIds: string[];  // GLB mesh names for material overrides
+};
+
+export type ModelMeta = {
+  type: string;
+  glb: string;
+  bones: string[];
+  meshes: string[];
+  subparts?: string[];
+  footOffsetY?: number;
+  anchorTargets: AnchorTargetMap;
+  bodyParts?: string[];
+  bodyPartGroups?: BodyPartGroup[];
+  baseRotation?: [number, number, number];
+  identity: SceneModelInstanceState;  // default state derived from the GLB
+};
+
+export type AnimationEntry = {
+  type: string;
+  glb: string;
+  clipName: string;
+  duration: number;
+  clipStart?: number;
+  clipEnd?: number;
+};
+
+export type AssetManifest = {
+  version: number;      // must equal ASSET_MANIFEST_VERSION = 2
+  models: ModelMeta[];
+  animations: AnimationEntry[];
+};
+
+// Helpers
+export function clipMetaFromManifest(manifest: AssetManifest): ClipMeta[];
+export function findModelMeta(manifest: AssetManifest, modelType: string): ModelMeta | undefined;
+export function assertManifestValid(raw: unknown): AssetManifest;
+```
+
+### ModelWidget Interface Summary
+
+```typescript
+// packages/model/src/elements/model/ModelWidget.ts
+
+export class ModelWidget
+  implements
+    ISceneElement<SceneModelInstanceState, CompiledAnimation>,
+    IRenderable<SceneModelInstanceState>,
+    ILoadable,
+    IDslComposite,
+    IAttachmentHost,
+    IRenderContributor,
+    IHasCustomDslHandler,
+    INVSBounded {
+
+  readonly widgetId: string;
+  readonly defaultState: SceneModelInstanceState;
+  readonly transitionSpec: FunctionalTransitionSpec<SceneModelInstanceState>;
+  readonly DslComponent: typeof ModelRouter;
+  readonly disableWhenAbsent = true;
+  readonly childDslComponents: readonly { component: React.ComponentType<unknown>; displayName: string; topLevelError?: boolean; }[];
+  readonly [CUSTOM_NODE_HANDLER]: NodeHandler;
+  isLoaded: boolean;
+  readonly clipMeta: ClipMeta[];
+
+  constructor(config: ModelWidgetConfig, defaultStateOverride?: Partial<SceneModel>);
+
+  // ISceneElement — DSL compilation (handled by CUSTOM_NODE_HANDLER, not compileState)
+  compileExtra(state: SceneModelInstanceState, ctx: CompileExtraContext): CompiledAnimation;
+  mergeSnapshot(prev: SceneModelInstanceState | undefined, next: SceneModelInstanceState | undefined): SceneModelInstanceState | undefined;
+
+  // IRenderable
+  initialize(context: WidgetInitContext): void;
+  apply(state: SceneModelInstanceState, context: WidgetRenderContext): void;
+  dispose(): void;
+
+  // ILoadable
+  async load(manifest: unknown): Promise<void>;
+
+  // INVSBounded
+  get nvsBounds(): NVSRect;
+
+  // IAttachmentHost
+  getAttachmentPoint(key: string): THREE.Object3D | null;
+
+  // IRenderContributor
+  contributeRenderData(): RenderContribution;  // { namedPositions, targetColors }
+
+  // Bone access utilities (used by LabelPositioner)
+  getBoneWorldPositions(): Map<string, [number, number, number]>;
+  getTargetColors(): Map<string, string>;
+  getAnchorBoneName(anchorKey: string): string | undefined;
+  findBoneNode(boneName: string): THREE.Object3D | undefined;
+}
+
+export type ModelWidgetConfig = {
+  modelMeta: ModelMeta;
+  clipMeta: ClipMeta[];
+  widgetId?: string;
+};
+```
+
+### Transition Functions
+
+```typescript
+// packages/model/src/elements/model/compile.ts
+
+// Functional transition spec (preferred — evaluates at runtime for infinite easing fidelity)
+export const functionalInstanceTransitionSpec: FunctionalTransitionSpec<SceneModelInstanceState>;
+
+// Imperative transition spec (deprecated — kept for backward compatibility)
+/** @deprecated Use functionalInstanceTransitionSpec instead. */
+export const instanceTransitionSpec: ElementTransitionSpec<SceneModelInstanceState>;
+
+// Component transition helpers (exported for testing and custom transitions)
+export const modelTransitionSpec: {
+  exit(from: SceneModel, t: number): SceneModel;
+  enter(to: SceneModel, t: number): SceneModel;
+  interpolate(from: SceneModel, to: SceneModel, t: number): SceneModel;
+};
+
+export const playbackTransitionSpec: {
+  exit(from: ScenePlayback, t: number): ScenePlayback;
+  enter(to: ScenePlayback, t: number): ScenePlayback;
+  interpolate(from: ScenePlayback, to: ScenePlayback, t: number): ScenePlayback;
+};
+
+export function applyModelExit(from: SceneModelInstanceState, t: number): SceneModelInstanceState;
+export function applyModelEnter(to: SceneModelInstanceState, t: number): SceneModelInstanceState;
+export function applyModelInterpolate(from: SceneModelInstanceState, to: SceneModelInstanceState, t: number): SceneModelInstanceState;
+
+// Animation compilation
+export type CompiledAnimation = {
+  enabled: boolean;
+  clipName?: string;
+  clipDuration?: number;
+  range?: { startSeconds: number; endSeconds: number; span: number };
+};
+
+export function compileAnimation(
+  animation: SceneAnimation | undefined,
+  clipMeta: ClipMeta[],
+  prefersReducedMotion: boolean,
+): CompiledAnimation;
+
+export function resolveClipRangeSeconds(
+  animation: SceneAnimation,
+  clipDuration: number,
+): { startSeconds: number; endSeconds: number; span: number };
+
+// Default state factory
+export function createDefaultModelInstanceState(
+  modelId: string,
+  identity: SceneModelInstanceState,
+): SceneModelInstanceState;
+```
+
+### Label System
+
+#### LabelStyle and LabelDefinition
+
+```typescript
+// packages/model/src/labels/types.ts
+
+/** Special sentinel value causing the label to inherit the target body part's resolved color. */
+export type LabelColor = 'target-color' | (string & {});
+
+export type LabelStyle = {
+  color?: LabelColor;          // label text color; 'target-color' inherits from body part
+  lineColor?: LabelColor;      // connector line color; 'target-color' inherits from body part
+  /**
+   * number | string is intentional — number renders as px, string is any valid CSS font-size.
+   */
+  fontSize?: number | string;
+  lineOpacity?: number;
+  labelOpacity?: number;
+  lineThickness?: number;
+  fontFamily?: string;         // per-label font override; absent = inherit from CSS cascade
+};
+
+export type LabelDefinition = {
+  id: string;
+  text: string;
+  labelOffset?: [number, number, number];
+  enabled?: boolean;
+  style?: LabelStyle;
+};
+
+export type LabelResolved = LabelDefinition & {
+  targetPartId: string;   // body-part ID resolved from parent <BodyPart> or <Subpart>
+  screenPosition?: { x: number; y: number };
+};
+```
+
+#### LabelProps (DSL)
+
+```typescript
+// packages/model/src/labels/dsl.tsx
+export type LabelProps = LabelDefinition & { children?: never };
+```
+
+#### Label Compiler
+
+```typescript
+// packages/model/src/compiler/labelCompiler.ts
+
+export type LabelCompileContext = { sceneProgress: number };
+
+/**
+ * Compiles label definitions for a transition block.
+ * Fades labels in/out on enter/exit, interpolates labelOffset and opacity between scenes.
+ * Filters out labels with enabled: false before blending.
+ */
+export function compileLabels(
+  fromLabels: LabelResolved[] | undefined,
+  toLabels: LabelResolved[] | undefined,
+  context: LabelCompileContext,
+): LabelResolved[];
+```
+
+#### LabelPositioner
+
+```typescript
+// packages/model/src/player/LabelPositioner.ts
+
+export class LabelPositioner {
+  /**
+   * Register or unregister a DOM element for a label ID.
+   * Called by LabelItem via useEffect when mounting/unmounting.
+   */
+  registerElement(id: string, el: HTMLElement | null): void;
+
+  /**
+   * Update container dimensions and optional NVS sub-region.
+   * When nvsBounds is omitted, defaults to fullscreen { x:0, y:0, w:1, h:1 }.
+   */
+  setContainerSize(width: number, height: number, nvsBounds?: NVSRect): void;
+
+  /**
+   * Project all active labels and update CSS transforms on their DOM nodes.
+   * Called once per render frame by the runtime driver.
+   *
+   * Computes screen position for both the bone target and the offset label point.
+   * Sets CSS custom properties on each label DOM node:
+   *   --label-line-length, --label-line-angle, --label-line-origin-x, --label-line-origin-y
+   *   --label-color, --label-line-color (when style.color === 'target-color')
+   * Applies transform: translate(x, y) for the label position.
+   */
+  update(
+    labels: LabelResolved[],
+    camera: Camera,
+    namedPositions: ReadonlyMap<string, [number, number, number]>,
+    targetColors?: ReadonlyMap<string, string>,
+  ): void;
+}
+```
+
+#### LabelPositionerContext
+
+```typescript
+// packages/model/src/player/LabelPositionerContext.ts
+
+/**
+ * Provides the LabelPositioner instance to LabelItem components.
+ * Value is the LabelPositioner class instance directly.
+ */
+export const LabelPositionerContext: React.Context<LabelPositioner | null>;
+
+/**
+ * Hook to access the LabelPositioner.
+ * Throws if called outside a ScenePlayer / EngineProvider with modelPlugin().
+ */
+export function useLabelPositioner(): LabelPositioner;
+```
+
+#### LabelItem Component
+
+```typescript
+// packages/model/src/labels/LabelItem.tsx
+
+/**
+ * Renders a single label and its connector line.
+ * Calls positioner.registerElement(label.id, ref.current) to register its DOM node.
+ * Reads LabelPositioner via useLabelPositioner().
+ * Position updates come via CSS transforms set directly on the DOM node — no React state.
+ *
+ * Connector line is rendered as a <span> with CSS custom properties for angle and length.
+ */
+export const LabelItem: React.FC<{ label: LabelResolved }>;
+```
+
+#### IContainedModel Interface
+
+```typescript
+// packages/model/src/widget/types.ts
+
+/**
+ * Model-specific extension of IContainedRenderable (from @brewsite/core).
+ * Widget whose rootObject is a model anchored to a bone on another ModelWidget.
+ * anchorWidgetId must be the widgetId of a registered ModelWidget implementing IAttachmentHost.
+ * anchorKey is resolved via ModelWidget.getAttachmentPoint(key).
+ */
+export interface IContainedModel<TState> extends IRenderable<TState>, IContainedRenderable {
+  // anchorWidgetId is always a ModelWidget widgetId.
+  // anchorKey resolved by ModelWidget.getAttachmentPoint() via bone name lookup.
+}
 ```
 
 ### ViewportScaleContext Integration
 
-`LabelPositionerSyncer` reads viewport dimensions from `ViewportScaleContext`:
+`LabelPositionerSyncer` (internal to `modelPlugin`) reads viewport dimensions from `ViewportScaleContext`:
 
 ```typescript
-import { ViewportScaleContext } from '@brewsite/core';
-
+// Internal to plugin.ts
 const LabelPositionerSyncer = (): ReactElement | null => {
   const { containerWidth, containerHeight } = useContext(ViewportScaleContext);
-  // Forward to LabelPositioner for 3D-to-screen projection
-  labelPositioner.setViewport(containerWidth, containerHeight);
+  const currentBounds = modelWidgets.find(w => w.nvsBounds != null)?.nvsBounds ?? undefined;
+  useEffect(() => {
+    labelPositioner.setContainerSize(containerWidth, containerHeight, currentBounds);
+  }, [containerWidth, containerHeight, currentBounds]);
   return null;
 };
 ```
 
-`EngineARContainerContext` is deprecated and aliased to `ViewportScaleContext`. All new `@brewsite/model` code imports from `ViewportScaleContext`.
+`EngineARContainerContext` is deprecated and aliased to `ViewportScaleContext`. All `@brewsite/model` code imports from `ViewportScaleContext`.
 
 ---
 
 ## 8. Technical Considerations
 
-### Package Boundary
+### NVS Coordinate System
 
-`@brewsite/model` imports from `@brewsite/core` exclusively through the main barrel (`@brewsite/core`). After the 2026-03-07 cleanup, the following types that previously required sub-path imports are now available from the main barrel:
-- `AnimationTrack` — animation timing track type
-- `Resolvable<T>` — lazy/eager value wrapper
-- `getNodeHandler` — compiler node handler lookup
+`SceneModel` does not use a world-space `position: Vec3`. Instead it uses `nvsX` (horizontal center [0..1]), `nvsY` (vertical center [0..1]), and `z` (world-space depth). These are computed in the `CUSTOM_NODE_HANDLER` from the `<Model x= y= w= h=>` props via `api.composeBounds()`, then stored in `SceneModelInstanceState`. At render time, `ModelWidget.apply()` converts `(nvsX, nvsY, z)` to world space using `context.coords.toWorld(nvsX, nvsY, z)` — a live NVS coordinate service injected by the engine.
 
-No deep sub-path imports (`@brewsite/core/runtime/types`, `@brewsite/core/compiler/sceneTypes`, etc.) are required or permitted.
+This design means `SceneModel` is free of Three.js camera math. All camera-dependent coordinate conversion happens in the render layer.
 
-### ModelWidget Implementation Pattern
+### ModelWidget Registration Pattern
 
-`ModelWidget` follows the element module pattern:
-```
-types.ts → dsl.tsx → compile.ts → render.ts → ModelWidget.ts → index.ts
-```
+`ModelWidget` uses `CUSTOM_NODE_HANDLER` on its constructor rather than a static `registerNode()` call. The plugin's `configureRegistry` hook calls `reg.registerTypeFactory(ModelRouter, factory)` which installs a routing handler on first `<Model>` encounter. Each `ModelWidget` instance registers its own `CUSTOM_NODE_HANDLER` for its specific `type`/`id` combination. This allows multiple model types to coexist in the same scene with independent DSL compilation.
 
-`dsl.tsx` contains only prop type interfaces. DSL stub functions (`Model`, `ModelRouter`, `BodyParts`, `BodyPart`, `Pose`, `ModelPart`, `ContainedModel`, `Subpart`, `Playback`, `Motion`, `Animation`, `Label`, `Labels`) are defined in `ModelWidget.ts`. Three.js is confined to `render.ts` and `ModelWidget.ts` (which calls render layer methods). The compiler layer (`compile.ts`) is pure TypeScript with no Three.js imports.
+### mergeSnapshot Pattern
 
-### LabelStyle.fontSize Type
+`ModelWidget` implements `mergeSnapshot(prev, next)` to perform authored-flag-aware state merging. The `CUSTOM_NODE_HANDLER` attaches a `__authored` flags object to the compiled state, and `mergeSnapshot` uses those flags to determine which fields were explicitly set by the DSL author (versus inherited from the previous scene's state). This enables per-field scene inheritance: an author can set only `animation.clipName` in a scene and inherit all other state from the previous scene.
 
-`LabelStyle.fontSize` is typed as `number | string`. This is intentional — not a type error or oversight:
+### DSL Stub Co-location
 
-- **`number`**: Rendered as pixels by React's CSS-in-JS handling (e.g., `14` → `14px`). Equivalent to `React.CSSProperties.fontSize` numeric behavior.
-- **`string`**: Any valid CSS font-size value passed through as-is (e.g., `"1.2rem"`, `"150%"`, `"0.875em"`).
+`dsl.tsx` contains only TypeScript prop type interfaces — no React function components. All DSL stub functions (`Model`, `ModelRouter`, `BodyParts`, `BodyPart`, `Pose`, `ModelPart`, `ContainedModel`, `Subpart`, `Playback`, `Motion`, `Animation`, `Label`, `Labels`) are defined as null-returning arrow functions in `ModelWidget.ts`. `Label` and `Labels` additionally set `displayName` for runtime component identity checks.
 
-Default: `12` (px). Narrowing to `number` would remove valid functionality for consumers using relative font sizes.
+### Label Architecture
 
-### View/Region Composition (composeBounds)
+Labels are collected during CUSTOM_NODE_HANDLER compilation and stored in `SceneModelInstanceState.labels`. The `compileLabels()` function (in `compiler/labelCompiler.ts`) handles transition blending — fading labels in/out and interpolating `labelOffset`. `LabelPositioner.update()` handles the screen-space projection each frame via `Vector3.project(camera)`, then maps NDC coordinates to the NVS sub-region's pixel footprint. DOM updates are direct mutations via CSS custom properties and `element.style.transform` — React state is not used for per-frame position updates.
 
-`ModelWidget` uses `CUSTOM_NODE_HANDLER` to control its own compilation. Inside the custom handler, it calls `api.composeBounds(localBounds)` to resolve the model's absolute NVS bounds when placed inside a `<View>`:
+### IContainedModel vs IContainedRenderable
 
-```typescript
-// Inside ModelWidget's CUSTOM_NODE_HANDLER:
-const localBounds: NVSRect = {
-  x: props.x ?? 0,
-  y: props.y ?? 0,
-  w: props.w ?? 1,
-  h: props.h ?? 1,
-};
-// api.composeBounds maps local [0..1] into parent view's content bounds if inside a <View>.
-// Returns localBounds unchanged at the root level (identity).
-const nvsBounds = api.composeBounds(localBounds);
-```
-
-This allows `<Model>` elements to be placed inside a `<View>` without any changes to the model DSL. The model author writes local [0..1] NVS coordinates; the view's `composeBounds` maps them into the view's absolute viewport region automatically. The resulting `nvsBounds` is stored on `ModelState` and used by `ModelWidget.apply()` at render time.
+`IContainedRenderable` (in `@brewsite/core`) is the generic interface for any widget anchored to another widget's attachment point. `IContainedModel<TState>` (in `@brewsite/model/widget/types.ts`) is the model-specific extension that additionally implements `IRenderable<TState>` and constrains `anchorWidgetId` to be a `ModelWidget` widgetId. Use `IContainedRenderable` for non-model attachment cases.
 
 ### disableWhenAbsent
 
-`ModelWidget` declares `readonly disableWhenAbsent = true`. This means the compiler calls `makeDisabledDefault(defaultState)` for scenes that omit the model — effectively hiding the model (setting `enabled: false`) rather than using the raw `defaultState` (which would leave it visible at its default position). This is the correct behavior for consumer models that should only appear in scenes that explicitly reference them.
+`ModelWidget` declares `readonly disableWhenAbsent = true`. The compiler calls `makeDisabledDefault(defaultState)` for scenes that omit the model — hiding the model (setting `enabled: false`) rather than freezing it at its default position. This is the correct behavior for models that should only appear in scenes that explicitly reference them.
 
-### Animation Track Mapping
+### Animation Compilation
 
-GLTF clip names are mapped to `AnimationTrack` entries via `animationTrackMapping.ts` during the `compileExtra` pass. This mapping is stored in `SceneTrackTick.widgetExtras[widgetId]` and read by `ModelWidget.onTick()` to select the correct `AnimationAction` from the `AnimationMixer` without re-computing the mapping every frame.
+The `compileAnimation()` function (called from `ModelWidget.compileExtra()`) resolves `SceneAnimation` to a `CompiledAnimation` at compile time. It handles clip lookup by name from `ClipMeta[]`, range resolution (`clipStart`/`clipEnd` in seconds or percent), and `prefersReducedMotion` gating. The result is stored in `SceneTrackTick.widgetExtras[widgetId]` and read by `ModelWidget.apply()` via `context.extra`.
 
-### Label Positioning
+### View/Region Composition
 
-`LabelPositioner` is a stateful class that:
-1. Maintains a `Map<string, HTMLElement>` of registered label DOM nodes.
-2. Each animation frame, receives bone world positions from `RuntimeDriver.getBoneWorldPositions()`.
-3. Projects each bone position through the current `PerspectiveCamera` matrix to normalized device coordinates, then maps to pixel offsets.
-4. Updates `transform: translate(x, y)` directly on the DOM node (not via React state) to avoid React re-renders on every frame.
-
-Viewport dimensions for the projection come from `ViewportScaleContext`. This context is provided by `EngineARContainer` — labels only project correctly when the engine is mounted inside an `EngineARContainer`. Consumers using a custom layout must provide `ViewportScaleContext` themselves.
+Inside the `CUSTOM_NODE_HANDLER`, the model calls `api.composeBounds(localBounds)` to resolve its NVS bounds when placed inside a parent `<View>`. This returns `localBounds` unchanged at the root level (identity). The composed `nvsBounds` is stored on `SceneModelInstanceState.nvsBounds` and reflected by `ModelWidget.nvsBounds` (satisfying `INVSBounded`) for use by `LabelPositionerSyncer`.
 
 ---
 
 ## 9. Breaking Change Assessment
 
-**Semver impact: Minor** for initial formal documentation.
+**Semver impact: None** for current consumers. The existing DSL surface (`<Model>`, `<BodyPart>`, `<Animation>`, `<Motion>`) is stable. The `SceneModel` type changed its coordinate representation from `position: Vec3` to `nvsX/nvsY/z` (scalars) — this was an internal migration and `SceneModelInstanceState` is not expected to be constructed directly by consumers (they use DSL props).
 
-The `disableWhenAbsent = true` field replaces the duck-typed `useDefaultStateWhenAbsent = false` on `ModelWidget`. The compiler behavior is identical — this is a rename to the formal interface property. Consumers who tested against `widget.useDefaultStateWhenAbsent` directly (unlikely) must update to `widget.disableWhenAbsent`. No change to compiled SceneTrack output.
-
-The `ViewportScaleContext` import path (`@brewsite/core`) is unchanged from the previous `EngineARContainerContext` import path — `EngineARContainerContext` is now a deprecated alias to `ViewportScaleContext`. No migration needed unless the consumer was using `EngineARContainerContextValue` by name (rename to `ViewportScaleContextValue`).
+`instanceTransitionSpec` is deprecated in favor of `functionalInstanceTransitionSpec`. It remains exported for backward compatibility. Consumers using `instanceTransitionSpec` in custom scenes should migrate to `functionalInstanceTransitionSpec`.
 
 ---
 
 ## 10. Dependencies
 
-- `@brewsite/core` (peer): `ISceneElement`, `IRenderable`, `ILoadable`, `IAnimationController`, `INVSBounded`, `IDslComposite`, `IAttachmentHost`, `IRenderContributor`, `CUSTOM_NODE_HANDLER`, `ViewportScaleContext`, `AnimationTrack`, `Resolvable`, `getNodeHandler`, `WidgetRegistry`, and related context/hook types.
-- `three` (peer): `GLTFLoader`, `AnimationMixer`, `AnimationAction`, `PerspectiveCamera`.
+- `@brewsite/core` (peer): `ISceneElement`, `IRenderable`, `ILoadable`, `IDslComposite`, `IAttachmentHost`, `IRenderContributor`, `IHasCustomDslHandler`, `INVSBounded`, `IContainedRenderable`, `CUSTOM_NODE_HANDLER`, `ViewportScaleContext`, `NVSRect`, `Vec3`, `Resolvable`, `FunctionalTransitionSpec`, `ElementTransitionSpec`, `blendNumber`, `blendVec3`, `blendOpacity`, `blendColor`, `blendAxisRotation`, `blendAxisTranslation`, `resolveEnabledByOpacity`, `transitionT`, `registerNode`, `getNodeHandler`, `validateNVSScalar`, `validateNVSRect`.
+- `three` (peer): `GLTFLoader`, `AnimationMixer`, `AnimationAction`, `Camera`, `Vector3`.
 - `react` (peer): context, hooks, element creation.
 
 ---
@@ -237,10 +875,16 @@ The `ViewportScaleContext` import path (`@brewsite/core`) is unchanged from the 
 ## 11. Risks & Mitigations
 
 **Risk: LabelPositioner projects incorrectly when ViewportScaleContext is absent.**
-**Mitigation:** `LabelPositionerSyncer` reads from `ViewportScaleContext`. If the context is missing (no `EngineARContainer` ancestor), dimensions default to `containerWidth: 0` — labels render at origin. A console warning is emitted in development mode.
+**Mitigation:** `LabelPositionerSyncer` reads `ViewportScaleContext`. If the context is missing, `containerWidth` and `containerHeight` default to `0` — labels are silently skipped (no projection when dimensions are 0).
 
-**Risk: AnimationTrack availability from core barrel.**
-**Mitigation:** `AnimationTrack` is now explicitly exported from `@brewsite/core`'s main barrel as of the 2026-03-07 cleanup. The deep import is removed.
+**Risk: `nvsBounds` changes across scenes without a concurrent container resize.**
+**Mitigation:** Known limitation documented in `requirements/core/notes/note_nvs-known-limitations.md`. `LabelPositionerSyncer` reads `nvsBounds` from `modelWidgets[0]` on every render, so the next resize event will correct the projection. Per-frame `nvsBounds` tracking is a future improvement.
+
+**Risk: Multiple models with distinct NVS sub-regions produce incorrect label projections.**
+**Mitigation:** `LabelPositionerSyncer` uses the first registered `ModelWidget` with a non-null `nvsBounds`. Multi-model label projection with distinct sub-regions requires a per-widget LabelPositioner — tracked as a future improvement.
+
+**Risk: `target-color` label color falls back to white when `targetColors` is absent.**
+**Mitigation:** `LabelItem` defaults `'target-color'` to `'#ffffff'` for text and `'rgba(255,255,255,0.8)'` for lines when no target color is resolved. This is a safe fallback.
 
 ---
 
@@ -252,7 +896,9 @@ None. All design decisions are resolved in the current implementation.
 
 ## 13. Launch Criteria
 
-- `modelPlugin()` registers `ModelWidget` instances and mounts `LabelPositionerSyncer` correctly.
+- `modelPlugin()` registers `ModelWidget` instances lazily and mounts `LabelPositionerSyncer` correctly.
 - All types are importable from `@brewsite/core` or `@brewsite/model` main barrels.
-- Tests pass: `ModelWidget` unit tests, `LabelPositioner` unit tests, `AnimationTrackMapping` tests.
+- Tests pass: `ModelWidget` unit tests, `LabelPositioner` unit tests, `AnimationTrackMapping` tests, `labelCompiler` tests.
 - `apps/examples/` contains at least one scene using `modelPlugin()` with a GLTF model and labels.
+- `pnpm build:lib` passes with zero TypeScript errors.
+- `pnpm test` passes for `@brewsite/model` with coverage targets met.

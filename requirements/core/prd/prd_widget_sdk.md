@@ -3,8 +3,11 @@ title: "BrewSite Core — Widget SDK"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-09
+last_updated: 2026-03-13
 change_history:
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "PRD audit: added missing interface documentation for IContainedRenderable (§7.14), IAttachmentHost (§7.15), IRenderContributor (§7.16), IRendererLifecycle (§7.17), and ISceneLifecycle (§7.18). These interfaces were referenced in change_history but not documented in the PRD body."
   - date: 2026-03-09
     author: "Toolkit Product"
     summary: "v2 player API: All body-text references to EngineProvider updated to SceneEngine. Plugin registration examples updated to SceneEngine. modelPlugin documentation updated to reflect that manifest loading is now handled by the plugin internally. No widget SDK interface changes — player layer refactoring only."
@@ -422,6 +425,67 @@ Implemented by widgets that need to suppress core scene lighting. `DiagramCanvas
 `LightingWidget.apply()` queries all registered `ILightingOverride` widgets each frame and skips Three.js light updates when any returns `{ disableAll: true }`. This replaces the `setSceneLightEnabled()` render-layer function that previously leaked across the `@brewsite/diagram` package boundary.
 
 `receiveLightController` is optional — widgets that need fine-grained per-light control (rather than all-or-nothing suppression) implement it to receive a `(lightId, enabled) => void` setter injected by `LightingWidget` during `configureRegistry`.
+
+### 7.14 IContainedRenderable
+
+```typescript
+interface IContainedRenderable extends IWidget {
+  readonly anchorWidgetId: string;   // widget ID of the parent (e.g. ModelWidget)
+  readonly anchorKey: string;        // named attachment point on the parent (e.g. bone name)
+  readonly rootObject: THREE.Object3D;  // the contained object to parent under the attachment
+}
+```
+
+Implemented by widgets that are spatially attached to another widget's skeleton or structure. `ModelWidget` in `@brewsite/model` implements this for contained sub-models (accessories attached to bones). The `RuntimeDriverImpl` wires up the parent-child attachment after all widgets complete `ILoadable.load()` by querying `IAttachmentHost` on the parent widget.
+
+### 7.15 IAttachmentHost
+
+```typescript
+interface IAttachmentHost extends IWidget {
+  getAttachmentPoint(key: string): THREE.Object3D | undefined;
+}
+```
+
+Implemented by widgets that expose named attachment points for `IContainedRenderable` children. `ModelWidget` implements this — it returns bone `Object3D` references by name. The runtime calls `getAttachmentPoint(anchorKey)` on the host widget and re-parents the contained widget's `rootObject` under the returned object.
+
+### 7.16 IRenderContributor
+
+```typescript
+interface IRenderContributor extends IWidget {
+  contributeRenderData(): RenderContribution;
+}
+
+type RenderContribution = {
+  bonePositions?: Map<string, Vec3>;
+  targetColors?: Map<string, string>;
+};
+```
+
+Implemented by widgets that publish render-time data for consumption by other systems (e.g., label projection, mesh target color tracking). `ModelWidget` in `@brewsite/model` implements this to expose bone world positions (used by `LabelPositioner`) and mesh target colors (used for label color inheritance).
+
+`RuntimeDriverImpl` calls `contributeRenderData()` on all `IRenderContributor` widgets after `apply()` and aggregates the results into a unified render data map available to post-tick consumers.
+
+### 7.17 IRendererLifecycle
+
+```typescript
+interface IRendererLifecycle extends IWidget {
+  onRendererCreated(renderer: THREE.WebGLRenderer): void;
+  onRendererDisposing?(): void;
+}
+```
+
+Implemented by widgets that need a reference to the `WebGLRenderer` for setup or cleanup (e.g., environment map generation, post-processing effects). `EnvironmentWidget` implements this to run `PMREMGenerator` initialization when the renderer is first created.
+
+### 7.18 ISceneLifecycle
+
+```typescript
+interface ISceneLifecycle extends IWidget {
+  onSceneEnter?(sceneId: string): void;
+  onSceneExit?(sceneId: string): void;
+}
+```
+
+Implemented by widgets that need to perform side effects on scene transitions that cannot be expressed as compiled state changes. `SceneMetaWidget` implements this to fire the `onSceneChange` callback. The runtime calls `onSceneExit()` on the outgoing scene and `onSceneEnter()` on the incoming scene during tick processing when the active scene ID changes.
 
 ---
 

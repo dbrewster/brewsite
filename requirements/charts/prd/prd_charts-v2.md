@@ -3,7 +3,7 @@ title: "@brewsite/charts V2 — Charts Package"
 doc_type: prd
 status: current
 owner: brewsite-product-manager
-last_updated: 2026-03-12
+last_updated: 2026-03-13
 change_history:
   - date: 2026-03-12
     author: "Toolkit Product"
@@ -14,6 +14,9 @@ change_history:
   - date: 2026-03-11
     author: "Toolkit Product"
     summary: "V2.1.0 additions: reactive data binding (useLiveChartData hook + ChartDataStore additions), axis mapping functions (compute transform tier 1, useChartAccessors tier 2), bar chart entry animation via blockProgress/mesh.scale.y, extended MorphContext to LineRenderer and AreaRenderer, full theme coverage (5 new optional token groups + textOpacity and titleFontSize extensions), and chart bounding fixes (fittedMargins in ChartLayout, ScatterRenderer scale alignment, removal of absolute minPlotWidth floor). Semver: minor (2.0.0 → 2.1.0). No breaking changes. donut-to-pie morphing deferred to future version (not V2.1). prd_theming.md updated separately for theme token additions."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "Codebase audit sync. Corrected BaseChartDSL.bounds — bounds.width/height are @deprecated (no effect); top-level depth prop added. Added ChartState.tooltip, _morphFromDataSource, _morphFromTransforms fields to ChartState spec. Corrected ChartTooltipOverlay API: requires both widget and nvsBounds props (not nvsBounds alone); marked @deprecated since v2.2 per codebase JSDoc. Documented <ChartTooltip> DSL child + ChartTooltipHost as the current tooltip pattern. Added useLiveChartData options.filterGroup parameter. Corrected compileChart() parameter list (composeZ, composeOpacity). Marked all V2.1 launch criteria as complete. Added ChartTooltip, CHART_TYPES, and FILTER_OPS to exported symbols."
 ---
 
 # @brewsite/charts V2 — Charts Package
@@ -145,6 +148,7 @@ V2.0.0 left five gaps identified through usage:
 20. `LineRenderer` and `AreaRenderer` implement `MorphContext`-driven datum morphing using a Map-based O(n) lookup by `keyField`. Morph behavior is consistent with existing `BarRenderer` and `ScatterRenderer` morphing.
 21. `ChartTheme` gains five new optional token groups: `bar?: ChartBarTokens`, `area?: ChartAreaTokens`, `gridlines?: ChartGridlinesTokens`, `dataLabels?: ChartDataLabelsTokens`, `referenceLines?: ChartReferenceLineTokens`. `ChartAxisTokens` gains `titleFontSize?: number`. `ChartLegendTokens` gains `textOpacity?: number`. All new fields are optional — no breaking change to existing `createChartTheme()` callers.
 22. `computeChartLayout()` returns `fittedMargins: FittedMargins` alongside `plotFrame`. `AxesRenderer` uses `fittedMargins` for all axis title and tick label positioning. `ScatterRenderer` uses domain-padded scales so tick positions and point positions are co-aligned. `minPlotWidth` and `minPlotHeight` use a purely relative percentage floor (48% / 42% of chart bounds), removing the absolute world-unit floor.
+23. `CHART_TYPES` and `FILTER_OPS` are exported as `as const` arrays from `@brewsite/charts` for consumers who need enumerated values (e.g., type-selector dropdowns, exhaustive test loops).
 
 ---
 
@@ -157,7 +161,8 @@ import {
   BarChart, LineChart, ScatterPlotChart,
   PieChart, AreaChart, HeatMapChart,
   ChartData, ChartAxis, ChartSeries, ChartLegend,
-  ChartDataLabels, ReferenceLine,
+  ChartDataLabels, ReferenceLine, ChartTooltip,
+  ChartTooltipHost,
 } from '@brewsite/charts';
 
 // Inline data — no ChartProvider required
@@ -209,7 +214,25 @@ type BaseChartDSL = {
   readonly h?: number;   // NVS height [0, 1]
   readonly z?: number;
   readonly rotation?: readonly [number, number, number];
-  readonly bounds?: { readonly width?: number; readonly height?: number; readonly depth?: number };
+  /**
+   * 3D extrusion depth of chart geometry in world units. Default: 0.4.
+   * Only the depth dimension is meaningful — width and height are always derived from w/h.
+   */
+  readonly depth?: number;
+  /**
+   * @deprecated Use `depth` for the 3D extrusion depth.
+   * `bounds.width` and `bounds.height` have no effect — chart geometry width/height are
+   * always derived from the `w`/`h` NVS layout props.
+   * `bounds.depth` still works but top-level `depth` is preferred.
+   */
+  readonly bounds?: {
+    /** @deprecated Use top-level `depth` prop. */
+    readonly depth?: number;
+    /** @deprecated Has no effect. Use `w` instead. */
+    readonly width?: number;
+    /** @deprecated Has no effect. Use `h` instead. */
+    readonly height?: number;
+  };
   readonly gridlines?: boolean;
   readonly children?: React.ReactNode;
   // V2.1 additions:
@@ -328,10 +351,29 @@ type ChartState = {
   readonly typeConfig: ChartTypeOptions;
   readonly dataLabels?: ChartDataLabelsState;
   readonly gridlines?: boolean;
-  readonly _morphT?: number;               // internal — injected during transitions
+  /**
+   * @internal Interpolation t value injected by interpolateFn during transitions.
+   * Used by ChartRenderer to build MorphContext.
+   */
+  readonly _morphT?: number;
+  /**
+   * @internal The "from" scene's data source, injected by interpolateFn.
+   * Enables correct morph origin resolution regardless of scroll direction.
+   * Without this, reverse scrolling would pin B's data as both from and to.
+   */
+  readonly _morphFromDataSource?: ChartStateDataSource;
+  /**
+   * @internal The "from" scene's data transforms, paired with _morphFromDataSource.
+   */
+  readonly _morphFromTransforms?: readonly DataTransform[];
   // V2.1 additions:
   readonly animateEntry: boolean;          // default: false
   readonly animationDuration: number;      // default: 0.4
+  /**
+   * Compiled tooltip configuration. Non-null when <ChartTooltip> is a DSL child.
+   * Null when no <ChartTooltip> child is present.
+   */
+  readonly tooltip: ChartTooltipState | null;
 };
 ```
 
@@ -391,6 +433,9 @@ useLiveChartData(chartsPlugin, 'revenue-chart', revenueRows);
 // chartId: matches the `id` prop on <BarChart id="revenue-chart" data={initialRows}>.
 // rows: any DataInput (row array or columnar). Hook normalizes before registering.
 
+// Optional fourth argument for linked-brush participation:
+useLiveChartData(chartsPlugin, 'revenue-chart', revenueRows, { filterGroup: 'dashboard' });
+
 // useChartAccessors — attaches function-based data accessors by chart ID
 // Accessors are stored in the plugin's accessorRegistry (not in the SceneTrack).
 // Registry entry persists across all scenes using the same chart ID, for the hook's lifetime.
@@ -401,6 +446,18 @@ const accessors: ChartAccessorFunctions = useMemo(() => ({
 }), []);
 useChartAccessors(chartsPlugin, 'team-perf', accessors);
 ```
+
+**`useLiveChartData` full signature:**
+```typescript
+function useLiveChartData(
+  plugin: ChartPluginInstance,
+  chartId: string,
+  data: DataInput,
+  options?: { readonly filterGroup?: string },
+): void
+```
+
+`options.filterGroup` enrolls the live data in the linked-brush filter system, identical to the `filterGroup` prop on `<ChartData>`. This is stable — if the string reference changes on every render the hook re-registers, which is correct but wasteful; memoize the `options` object.
 
 **`useLiveChartData` full contract:**
 - On mount and on every render where `rows` reference changes: calls `store.registerInline(widgetId, normalizedRows)` and marks a live override flag.
@@ -446,18 +503,66 @@ useChartAccessors(chartsPlugin, 'team-perf', accessors);
 />
 ```
 
-### 7.9 ChartTooltipOverlay — API (V2, no change in V2.1)
+### 7.9 Tooltip System — Current API
+
+The V2 tooltip system is co-located with the chart DSL. `<ChartTooltip>` is a child of any per-type chart component. `<ChartTooltipHost />` is placed once inside `EngineOverlayHost` and handles all charts in the engine.
+
+```tsx
+// In scene DSL — tooltip with optional projection beam:
+<BarChart id="revenue" interactive>
+  <ChartAxis axis="x" field="month" />
+  <ChartAxis axis="y" field="revenue" />
+  <ChartTooltip projection format=".2s" />
+</BarChart>
+
+// In player layout — placed once, handles all charts:
+<EngineOverlayHost>
+  <ChartTooltipHost />
+</EngineOverlayHost>
+
+// Custom tooltip content:
+useChartTooltipConfig('revenue', {
+  renderContent: (info) => <MyTooltip info={info} />,
+});
+```
+
+**`<ChartTooltip>` props:**
+```typescript
+type ChartTooltipProps = {
+  /** Enable the 3D Y-axis projection beam on hover. Default: false. */
+  readonly projection?: boolean;
+  /** d3-format string for numeric Y values. Default: '.3~s'. */
+  readonly format?: string;
+};
+```
+
+**`ChartTooltipHost`** accepts no props (zero-prop component). A single instance handles all charts registered in the engine.
+
+---
+
+### 7.10 ChartTooltipOverlay — Deprecated
+
+`ChartTooltipOverlay` is deprecated since v2.2 and will be removed in the next minor version. New consumers must use `<ChartTooltip>` + `<ChartTooltipHost />`.
 
 ```typescript
-// Before (V1, removed):
-<ChartTooltipOverlay camera={engine.camera} domElement={canvas} />
+// @deprecated — current signature (still works until removal):
+type ChartTooltipOverlayProps = {
+  widget: ChartWidget;        // required: widget instance for hover event subscription
+  nvsBounds: NVSRect;         // required: NVS bounds for 3D-to-2D projection
+  renderContent?: (info: ChartHoverInfo) => React.ReactNode;
+  className?: string;
+};
 
-// After (V2, current):
-<ChartTooltipOverlay nvsBounds={chartWidget.nvsBounds} />
+// Migration:
+// Before:
+<ChartTooltipOverlay widget={someWidget} nvsBounds={{ x: 0, y: 0, w: 1, h: 1 }} />
 
-// For a fullscreen chart:
-<ChartTooltipOverlay nvsBounds={{ x: 0, y: 0, w: 1, h: 1 }} />
+// After:
+// In DSL:  <BarChart id="revenue" interactive><ChartTooltip /></BarChart>
+// In overlay: <EngineOverlayHost><ChartTooltipHost /></EngineOverlayHost>
 ```
+
+Note: The V2.0.0 breaking change that removed `camera` and `domElement` props from `ChartTooltipOverlay` is complete. The current signature requires `widget` (a `ChartWidget` instance) and `nvsBounds` — not the V2.0 signature described in the original PRD body which listed only `nvsBounds`. Both `widget` and `nvsBounds` are required on the deprecated component.
 
 ---
 
@@ -491,7 +596,7 @@ When two consecutive scenes contain a chart with the same `id` and both have a r
 
 `ChartWidget` implements `INVSBounded`. `bounds.width` and `bounds.height` are NVS fractions converted to world-space via `context.coords.toWorldSize()` at render time. V2.1 removes the absolute `0.8` world-unit floor from `minPlotWidth`, replacing it with a purely relative `bounds.width * 0.48` floor. `computeChartLayout()` now returns `fittedMargins: FittedMargins` alongside `plotFrame`; `AxesRenderer` uses these fitted values for all axis title and tick label positioning.
 
-**View/Region Composition (`composeBoundsFn`):** The `compileChart()` internal function accepts an optional trailing `composeBoundsFn?: (localRect: NVSRect) => NVSRect` parameter. All chart DSL handlers in `chartPlugin.ts` pass `api.composeBounds` as this argument. When a `<Chart>` element is placed inside a `<View>`, the view handler creates a child `CompileApi` whose `composeBounds` maps local [0..1] coordinates into the view's content bounds. The chart handler transparently passes this through to `compileChart()`, which calls `composeBoundsFn(localBounds)` to produce the final absolute NVS bounds stored in `ChartState.nvsBounds`. The center point (`nvsX`, `nvsY`) is recomputed from the composed absolute bounds. Scene authors place charts inside views using only local [0..1] coordinates — no knowledge of parent view geometry is required.
+**View/Region Composition:** The `compileChart()` internal function accepts trailing `composeBounds`, `composeZ`, and `composeOpacity` parameters from `CompileApi`. All chart DSL handlers in `chartPlugin.ts` pass these three functions from the active `api` instance. When a chart is placed inside a `<View>`, the view handler creates a child `CompileApi` whose `composeBounds` maps local [0..1] NVS coordinates into the view's content bounds. `compileChart()` calls `composeBounds(localBounds)` to produce the final absolute `NVSRect` stored in `ChartState.nvsBounds`. The center point (`nvsX`, `nvsY`) is derived from the composed absolute bounds. Scene authors use only local [0..1] coordinates — no knowledge of parent view geometry is required.
 
 ### Bundle Impact
 
@@ -519,16 +624,30 @@ When two consecutive scenes contain a chart with the same `id` and both have a r
 | `ChartState.bounds.height` | World-space units → NVS fraction [0..1] |
 | `ChartTooltipOverlayProps.camera` | **Removed.** |
 | `ChartTooltipOverlayProps.domElement` | **Removed.** |
-| `ChartTooltipOverlayProps.nvsBounds` | **Added, required.** |
+| `ChartTooltipOverlayProps.widget` | **Added, required.** `ChartWidget` instance for hover event subscription. |
+| `ChartTooltipOverlayProps.nvsBounds` | **Added, required.** `NVSRect` for 3D-to-2D projection. |
 | `IChartRenderer.update(ctx)` | `ctx.typeOptions` replaces flat ctx fields. |
 
 **V1 compatibility:** `<Chart type="...">` is deprecated but functional. V1 named source patterns with `ChartProvider` continue to work. See `packages/charts/MIGRATION.md`.
+
+### V2.2.0 — Minor (2.1.0 → 2.2.0)
+
+| Symbol | Change |
+|---|---|
+| `ChartTooltipOverlay` | **Deprecated** (`@deprecated` JSDoc since v2.2). Will be removed in the next minor version. Replacement: `<ChartTooltip>` DSL child + `<ChartTooltipHost />`. |
+| `<ChartTooltip>` | **Added.** DSL child component — compiles to `ChartState.tooltip`. |
+| `ChartTooltipHost` | **Added.** Zero-prop overlay component. Place once inside `EngineOverlayHost`. |
+| `useChartTooltip` | **Added.** Read-side hook for tooltip store. |
+| `useChartTooltipConfig` | **Added.** Hook to register custom `renderContent` per chart ID. |
+| `ChartState.tooltip` | **Added, required.** `ChartTooltipState | null`. |
+| `ChartHitInfo.meta` | **Added (optional).** `ChartHitMeta` discriminated union for type-aware tooltip rendering. |
+| `ChartHitInfo.projectionTarget` | **Added (optional).** World-space Y-axis beam terminus. |
 
 ### V2.1.0 — Minor (2.0.0 → 2.1.0)
 
 No breaking changes. All additions are additive:
 
-- `ChartState.animateEntry` and `animationDuration` are new required fields with defaults (`false`/`0.4`). Any code that constructs a `ChartState` object directly (not via `DEFAULT_CHART_STATE` spread) must add these fields. SceneTrack-baked states via the DSL compiler are handled automatically.
+- `ChartState.animateEntry`, `animationDuration`, and `tooltip` are required fields. `animateEntry` defaults to `false`, `animationDuration` defaults to `0.4`, `tooltip` defaults to `null`. Any code that constructs a `ChartState` object directly (not via `DEFAULT_CHART_STATE` spread) must add all three fields. SceneTrack-baked states via the DSL compiler are handled automatically.
 - `ChartTheme` gains five new optional token groups. Existing `createChartTheme()` callers with no new fields are unaffected — renderers have documented fallback defaults.
 - `DataTransform` gains `ComputeTransform` as a new union member. Code that exhaustively switches on `DataTransform.type` must add a `'compute'` case to avoid TypeScript errors.
 - `AxisRenderState` gains a required `fittedMargins: FittedMargins` field. Tests that construct `AxisRenderState` directly must add `fittedMargins: { left: 0, right: 0, top: 0, bottom: 0 }` as a stub.
@@ -583,21 +702,29 @@ None. All design questions for V2.0 and V2.1 resolved during PM debate and archi
 - [x] `packages/charts/README.md` reflects V2 API.
 - [x] `packages/charts/package.json` version is `2.0.0`.
 
-**V2.1.0 (pending implementation):**
-- [ ] `useLiveChartData` exported from `@brewsite/charts`. Hook updates a live inline chart when React state changes.
-- [ ] `useChartAccessors` exported from `@brewsite/charts`. Registry persists across scenes; cleared on unmount.
-- [ ] `ComputeTransform` exported from `@brewsite/charts`. All five operations (`log`, `sqrt`, `normalize`, `scale`, `add`) tested with real data.
-- [ ] `<BarChart animateEntry>` grows bars from floor to full height on scene entry, synchronized to `blockProgress`.
-- [ ] `<LineChart>` and `<AreaChart>` with `keyField` morph Y positions between consecutive scenes.
-- [ ] All 10 theme token gaps resolved. Four built-in themes updated with explicit values for all new groups.
-- [ ] `computeChartLayout()` returns `fittedMargins`. `AxesRenderer` uses fitted values — no axis label overflow in example scenes.
-- [ ] `ScatterRenderer` tick positions and point positions co-aligned (domain-padding approach).
-- [ ] Absolute `0.8` world-unit floor removed from `minPlotWidth`.
-- [ ] `pnpm --filter @brewsite/charts test` passes all tests including V2.1 additions.
-- [ ] `pnpm --filter @brewsite/charts typecheck` passes with zero errors.
-- [ ] `packages/charts/package.json` version bumped to `2.1.0`.
-- [ ] `packages/charts/MIGRATION.md` updated with V2.1 notes (additive changes, `animateEntry` geometry origin note for test authors).
-- [ ] `packages/charts/README.md` updated with `useLiveChartData`, `useChartAccessors`, `animateEntry`, `compute` transform, and new theme tokens.
+**V2.1.0 (shipped):**
+- [x] `useLiveChartData` exported from `@brewsite/charts`. Hook updates a live inline chart when React state changes. Accepts optional `{ filterGroup }` for linked-brush participation.
+- [x] `useChartAccessors` exported from `@brewsite/charts`. Registry persists across scenes; cleared on unmount.
+- [x] `ComputeTransform` exported from `@brewsite/charts`. All five operations (`log`, `sqrt`, `normalize`, `scale`, `add`) tested with real data.
+- [x] `<BarChart animateEntry>` grows bars from floor to full height on scene entry, synchronized to `blockProgress`.
+- [x] `<LineChart>` and `<AreaChart>` with `keyField` morph Y positions between consecutive scenes.
+- [x] All theme token gaps resolved. All six built-in themes include explicit values for all new groups (`bar`, `area`, `gridlines`, `dataLabels`, `referenceLines`).
+- [x] `computeChartLayout()` returns `fittedMargins`. `AxesRenderer` uses fitted values.
+- [x] `ScatterRenderer` tick positions and point positions co-aligned (domain-padding approach).
+- [x] Absolute `0.8` world-unit floor removed from `minPlotWidth`.
+- [x] `pnpm --filter @brewsite/charts test` passes all tests including V2.1 additions.
+- [x] `pnpm --filter @brewsite/charts typecheck` passes with zero errors.
+- [x] `packages/charts/MIGRATION.md` updated with V2.1 notes.
+- [x] `packages/charts/README.md` updated with `useLiveChartData`, `useChartAccessors`, `animateEntry`, `compute` transform, and new theme tokens.
+
+**V2.2.0 (shipped):**
+- [x] `<ChartTooltip>` DSL child exported from `@brewsite/charts`. Compiles to `ChartState.tooltip: ChartTooltipState | null`.
+- [x] `ChartTooltipHost` zero-prop component exported. Handles all charts in the engine from one mount point.
+- [x] `useChartTooltip` and `useChartTooltipConfig` hooks exported.
+- [x] `ChartHitMeta` discriminated union exported. All six renderers populate `meta` in `resolveHoverInfo()`.
+- [x] `ChartProjectionRenderer` renders Y-axis beam + landing dot on hover.
+- [x] `ChartTooltipOverlay` carries `@deprecated` JSDoc with migration reference.
+- [x] `ChartState.tooltip` field present in `DEFAULT_CHART_STATE` with value `null`.
 
 ---
 

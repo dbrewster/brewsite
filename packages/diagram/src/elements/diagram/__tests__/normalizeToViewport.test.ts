@@ -304,4 +304,25 @@ describe('normalizeToViewport — safeSpan', () => {
     const result = normalizeToViewport(nodes, groups, 0);
     expect(result.safeSpan).toBeCloseTo(6, 5);
   });
+
+  it('returns safeSpan equal to spanY when diagram is taller than wide', () => {
+    // Two nodes stacked vertically: y=-4 and y=+4, each size [2,2].
+    // Outer edges: x=[-1, 1] → spanX=2, y=[-5, 5] → spanY=10. safeSpan = max(2, 10) = 10.
+    const nodes = [
+      { id: 't', position: [0, 4, 0] as const, size: [2, 2] as const },
+      { id: 'b', position: [0, -4, 0] as const, size: [2, 2] as const },
+    ];
+    const result = normalizeToViewport(nodes, new Map(), 0);
+    expect(result.safeSpan).toBeCloseTo(10, 5);
+  });
+
+  it('returns safeSpan equal to spanY when tall group dominates', () => {
+    // Node at origin with size [2,2] → spanX=2, spanY=2.
+    // Group at y=0, h=10 → extends to y=10 → spanY = 10-(-1) = 11, spanX = 2.
+    // safeSpan = max(2, 11) = 11.
+    const nodes = [{ id: 'n', position: [0, 0, 0] as const, size: [2, 2] as const }];
+    const groups = new Map([['g', makeGroup(-1, 0, 2, 10)]]);
+    const result = normalizeToViewport(nodes, groups, 0);
+    expect(result.safeSpan).toBeCloseTo(11, 5);
+  });
 });

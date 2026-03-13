@@ -3,7 +3,7 @@ title: "BrewSite Charts — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-12
+last_updated: 2026-03-13
 change_history:
   - date: 2026-03-04
     author: "Toolkit Product"
@@ -26,6 +26,9 @@ change_history:
   - date: 2026-03-12
     author: "Toolkit Product"
     summary: "Theme family art direction: all six polarity-variant ChartTheme presets promoted from @internal placeholders to production-ready public exports. Each polarity variant carries a fully designed series material profile (metalness, roughness, transmission, emissiveIntensity), axis/legend label colors, and tooltip/projection tokens coordinated with the family's neutral palette and accent identity. Tooltip and projection token values for all 12 presets are now spec-authoritative. CHART_THEME_PAIRS exports all 12 variants. Added per-family series material profiles and opposite-polarity completeness requirements."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "Codebase audit sync. Corrected ChartAxisTokens, ChartLegendTokens, and ChartInteractionTokens API Design entries to include all fields present in the implementation (lineOpacity, tickOpacity, labelOpacity, gap for axis; swatchSize, spacing, gap for legend; selectedColor for interaction). Updated Section 7.6 usage pattern to use <BarChart> instead of deprecated <Chart type='bar'>. Marked all V2.1 token group launch criteria as complete — ChartBarTokens, ChartAreaTokens, ChartGridlinesTokens, ChartDataLabelsTokens, ChartReferenceLineTokens are shipped and exported."
 ---
 
 # BrewSite Charts — Theming System
@@ -183,33 +186,59 @@ export type ChartSeriesMaterialTokens = {
 };
 
 export type ChartAxisTokens = {
+  /** Axis line color. */
   readonly lineColor: string;
-  readonly labelColor: string;         // tick label text color
-  readonly fontSize: number;           // world units
-  readonly tickLength: number;         // world units
+  /** Axis line opacity multiplier. */
+  readonly lineOpacity: number;
+  /** Tick mark opacity multiplier. */
+  readonly tickOpacity: number;
+  /** Tick label text color. */
+  readonly labelColor: string;
+  /** Tick and title label opacity multiplier. */
+  readonly labelOpacity: number;
+  /** Font size for tick labels (world units). */
+  readonly fontSize: number;
+  /** Tick line length (world units). */
+  readonly tickLength: number;
+  /** Gap between the axis line and the axis label/title block (world units). */
+  readonly gap: number;
   /** V2.1: Font size for axis title labels, independent of tick label fontSize. Default: fontSize * 1.1. */
   readonly titleFontSize?: number;
 };
 
 export type ChartBackgroundTokens = {
-  readonly planeColor: string | null;  // null = no background plane
+  /** Background plane color (null = no background plane). */
+  readonly planeColor: string | null;
+  /** Background plane opacity. */
   readonly planeOpacity: number;
-  /** @deprecated V2.1: use ChartGridlinesTokens.color. Kept for backward compat — ChartGridlinesTokens takes precedence when present. */
+  /**
+   * @deprecated V2.1: use ChartGridlinesTokens.color.
+   * Kept for backward compat — ChartGridlinesTokens takes precedence when present.
+   */
   readonly gridColor: string | null;
 };
 
 export type ChartLegendTokens = {
+  /** Label text color. */
   readonly textColor: string;
-  readonly fontSize: number;           // world units
-  readonly swatchSize: number;         // world units
-  readonly spacing: number;            // world units
+  /** Font size for legend labels (world units). */
+  readonly fontSize: number;
+  /** Side length of each color swatch (world units). */
+  readonly swatchSize: number;
+  /** Vertical spacing between legend entries (world units). */
+  readonly spacing: number;
+  /** Gap between the plot area and the legend block (world units). */
+  readonly gap: number;
   /** V2.1: Opacity for legend label text [0..1]. Default: 1.0. */
   readonly textOpacity?: number;
 };
 
 export type ChartInteractionTokens = {
+  /** Color applied to a hovered element (hex). */
   readonly hoverColor: string;
+  /** Emissive intensity multiplier for hovered elements. */
   readonly hoverEmissiveIntensity: number;
+  /** Color applied to a selected element (hex). */
   readonly selectedColor: string;
 };
 
@@ -544,15 +573,17 @@ Explicit ChartTheme.axis.labelColor    (always wins — highest priority)
 ```tsx
 import { darkSceneTheme } from '@brewsite/core';
 
-<Chart
+<BarChart
   id="sales-chart"
-  type="bar"
   theme="darkGlass"
   sceneTheme={{
     ...darkSceneTheme,
     font: { ...darkSceneTheme.font, webglFontUrl: '/fonts/inter-msdf.ttf' },
   }}
-/>
+>
+  <ChartAxis axis="x" field="month" />
+  <ChartAxis axis="y" field="revenue" />
+</BarChart>
 ```
 
 **Full custom theme with sceneTheme:**
@@ -576,7 +607,9 @@ const brandChartTheme: ChartTheme = {
 const mySceneTheme = { ...darkSceneTheme, font: { ...darkSceneTheme.font, webglFontUrl: '/fonts/inter-msdf.ttf' } };
 
 <DiagramCanvas theme={{ ...darkGlassTheme, sceneTheme: mySceneTheme }} />
-<Chart theme="darkGlass" sceneTheme={mySceneTheme} />
+<BarChart id="sales-chart" theme="darkGlass" sceneTheme={mySceneTheme}>
+  {/* axes and series */}
+</BarChart>
 ```
 
 ---
@@ -799,16 +832,16 @@ Any consumer code that passes `camera` or `domElement` to `ChartTooltipOverlay` 
 - [ ] README documents `CHART_THEME_PAIRS` usage pattern with cross-package consumer example.
 - [ ] `ChartTooltipOverlay` removed (scheduled for next minor version after deprecation cycle).
 
-**V2.1 (pending implementation):**
-- [ ] Five new optional token group types exported from `@brewsite/charts`: `ChartBarTokens`, `ChartAreaTokens`, `ChartGridlinesTokens`, `ChartDataLabelsTokens`, `ChartReferenceLineTokens`.
-- [ ] `ChartAxisTokens.titleFontSize` and `ChartLegendTokens.textOpacity` optional fields present and typed.
-- [ ] All six built-in themes include explicit values for all new token groups.
-- [ ] `createChartTheme()` `ChartThemeOverrides` accepts and deep-merges all new token groups.
-- [ ] `AxesRenderer` uses `titleFontSize ?? fontSize * 1.1` for axis title rendering.
-- [ ] `LegendRenderer` applies `textOpacity ?? 1.0` to legend label material/text opacity.
-- [ ] `AxesRenderer` gridline rendering uses the three-level fallback chain for color, plus `LineDashedMaterial` branch when `dashSize` is set.
-- [ ] `BarRenderer` reads `barPadding` from `theme.bar?.padding ?? 0.2` when DSL `barPadding` is absent.
-- [ ] `AreaRenderer` reads `fillOpacity` from `theme.area?.fillOpacity ?? 0.7` when DSL `fillOpacity` is absent.
-- [ ] `DataLabelRenderer` reads `fontSize` and `color` from `theme.dataLabels` with documented fallbacks.
-- [ ] Reference line rendering uses `theme.referenceLines.lineWidth` as world-space `BoxGeometry` width.
-- [ ] `pnpm --filter @brewsite/charts typecheck` passes with zero errors after V2.1 theme changes.
+**V2.1 (shipped):**
+- [x] Five new optional token group types exported from `@brewsite/charts`: `ChartBarTokens`, `ChartAreaTokens`, `ChartGridlinesTokens`, `ChartDataLabelsTokens`, `ChartReferenceLineTokens`.
+- [x] `ChartAxisTokens.titleFontSize` and `ChartLegendTokens.textOpacity` optional fields present and typed.
+- [x] All six built-in themes include explicit values for all new token groups.
+- [x] `createChartTheme()` `ChartThemeOverrides` accepts and deep-merges all new token groups.
+- [x] `AxesRenderer` uses `titleFontSize ?? fontSize * 1.1` for axis title rendering.
+- [x] `LegendRenderer` applies `textOpacity ?? 1.0` to legend label material/text opacity.
+- [x] `AxesRenderer` gridline rendering uses the three-level fallback chain for color, plus `LineDashedMaterial` branch when `dashSize` is set.
+- [x] `BarRenderer` reads `barPadding` from `theme.bar?.padding ?? 0.2` when DSL `barPadding` is absent.
+- [x] `AreaRenderer` reads `fillOpacity` from `theme.area?.fillOpacity ?? 0.7` when DSL `fillOpacity` is absent.
+- [x] `DataLabelRenderer` reads `fontSize` and `color` from `theme.dataLabels` with documented fallbacks.
+- [x] Reference line rendering uses `theme.referenceLines.lineWidth` as world-space `BoxGeometry` width.
+- [x] `pnpm --filter @brewsite/charts typecheck` passes with zero errors after V2.1 theme changes.

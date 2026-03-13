@@ -3,7 +3,7 @@ title: "BrewSite Core — Environment Elements"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-03
+last_updated: 2026-03-13
 change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
@@ -11,6 +11,9 @@ change_history:
   - date: 2026-03-03
     author: "Toolkit Product"
     summary: "API hardening update: replaced createDefaultWidgetRegistry() references with corePlugin() to reflect the plugin-based registration model."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "PRD audit: major update to reflect expanded element APIs. Lighting element now supports GlowPoint, LightStrand (with Wave, Circle, Rectangle shapes), and expanded Spot/Directional with shadow-related fields. Floor element expanded with FloorPhysical and FloorMirror variant DSL components, FloorVariant discriminant, FloorPlacement, grid overlay with configurable cell size/colors/opacity, negativeZ extent controls, and SceneThemeFloor integration. Environment element expanded with EnvironmentHdri, EnvironmentExr, EnvironmentCube discriminated DSL components replacing the single generic Environment component; EnvironmentSource discriminated union replaces flat url/preset fields. SceneFloor type substantially expanded. SceneLighting type expanded with glowPoints, strands, and new directional fields. Updated all API Design sections with current type signatures."
 ---
 
 # BrewSite Core — Environment Elements
@@ -141,27 +144,47 @@ The compiler emits one `SceneBackground` entry per scene frame. Between two scen
 #### State Types (`elements/lighting/types.ts`)
 
 ```typescript
-export interface SceneLightAmbient {
+export type SceneLightAmbient = {
   intensity: number;
   color?: string;          // CSS hex color string; default '#ffffff'
-}
+};
 
-export interface SceneLightDirectional {
+export type SceneLightDirectional = {
   intensity: number;
   color?: string;          // default '#ffffff'
   position?: Vec3;         // normalized direction vector; default [1, 2, 3]
   castShadow?: boolean;    // default false
-}
+  shadowBias?: number;     // shadow bias; default -0.0001
+  shadowNormalBias?: number;
+  shadowMapSize?: number;  // shadow map resolution; default 1024
+  shadowCameraSize?: number; // orthographic shadow camera frustum size
+};
 
-export interface SceneLightPoint {
+export type SceneLightGlowPoint = {
   intensity: number;
   color?: string;          // default '#ffffff'
-  position?: Vec3;         // world-space position; default [0, 2, 0]
-  distance?: number;       // attenuation range; 0 = no attenuation; default 0
+  position?: Vec3;         // world-space position
+  size?: number;           // glow sprite size in world units
+  distance?: number;       // attenuation range; 0 = no attenuation
   decay?: number;          // physical attenuation exponent; default 2
-}
+};
 
-export interface SceneLightSpot {
+export type SceneLightStrandWave = { shape: 'wave'; amplitude: number; frequency: number; phaseOffset?: number };
+export type SceneLightStrandCircle = { shape: 'circle'; radius: number; segments?: number; arcStart?: number; arcEnd?: number };
+export type SceneLightStrandRectangle = { shape: 'rectangle'; width: number; height: number };
+export type SceneLightStrandShape = SceneLightStrandWave | SceneLightStrandCircle | SceneLightStrandRectangle;
+
+export type SceneLightStrand = {
+  count: number;           // number of point lights along the strand
+  intensity?: number;
+  color?: string;
+  position?: Vec3;         // strand center position
+  spread?: number;         // spread factor along the strand path
+  curve?: SceneLightStrandCurve;
+  shapes?: SceneLightStrandShape[];
+};
+
+export type SceneLightSpot = {
   intensity: number;
   color?: string;          // default '#ffffff'
   position?: Vec3;         // world-space position
@@ -169,42 +192,49 @@ export interface SceneLightSpot {
   angle?: number;          // cone half-angle in radians; default Math.PI / 6
   penumbra?: number;       // cone edge softness [0, 1]; default 0
   castShadow?: boolean;    // default false
-}
+};
 
-export interface SceneLightPanel {
+export type SceneLightPanel = {
   intensity: number;
   color?: string;          // default '#ffffff'
   position?: Vec3;
   rotation?: Vec3;         // Euler angles in radians; default [0, 0, 0]
   width?: number;          // panel width in world units; default 2
   height?: number;         // panel height in world units; default 2
-}
+};
 
-export interface SceneLighting {
+export type SceneLighting = {
   ambient?: SceneLightAmbient;
   directional?: SceneLightDirectional;
-  points?: SceneLightPoint[];
+  directionals?: SceneLightDirectional[];  // multiple directional lights
+  glowPoints?: SceneLightGlowPoint[];
   spots?: SceneLightSpot[];
+  strands?: SceneLightStrand[];
   panels?: SceneLightPanel[];
   intensityScale?: number; // global multiplier applied to all light intensities; default 1
   color?: string;          // global color tint blended into all lights; default '#ffffff'
-}
+};
 ```
 
 #### DSL (`elements/lighting/dsl.tsx`)
 
-```tsx
-// Minimal usage — ambient only
-<Lighting ambient={{ intensity: 0.4 }} />
+The Lighting DSL supports both the legacy compound `<Lighting>` component (with all light types as props) and individual sub-element components for a cleaner compositional authoring style:
 
-// Production usage
+```tsx
+// Individual sub-elements (preferred for v2 scenes):
+<Ambient intensity={0.5} color="#ddeeff" />
+<Directional intensity={1.2} position={[1, 2, 3]} castShadow />
+<GlowPoint intensity={0.8} position={[2, 1, 0]} size={0.1} />
+<Spot intensity={1.0} position={[0, 4, 2]} target={[0, 0, 0]} angle={0.4} penumbra={0.2} />
+<Panel intensity={0.6} position={[0, 2, -1]} width={3} height={2} />
+<LightStrand count={12} intensity={0.3} color="#ffd700" position={[0, 3, 0]}>
+  <Wave amplitude={0.5} frequency={2} />
+</LightStrand>
+
+// Legacy compound form (still supported):
 <Lighting
   ambient={{ intensity: 0.5, color: '#ddeeff' }}
   directional={{ intensity: 1.2, position: [1, 2, 3], castShadow: true }}
-  points={[
-    { intensity: 0.8, position: [2, 1, 0], distance: 8 },
-    { intensity: 0.6, position: [-2, 1, 0], distance: 6 },
-  ]}
   spots={[
     { intensity: 1.0, position: [0, 4, 2], target: [0, 0, 0], angle: 0.4, penumbra: 0.2 },
   ]}
@@ -227,57 +257,130 @@ All numeric fields in `SceneLighting` participate in per-frame lerp. The compile
 #### State Type (`elements/floor/types.ts`)
 
 ```typescript
-export interface SceneFloor {
-  enabled?: boolean;       // default true
-  textureUrl?: string;     // optional floor texture; untextured plane if omitted
-  reflectivity?: number;   // reflection contribution [0, 1]; default 0.3
-  roughness?: number;      // MeshStandardMaterial roughness [0, 1]; default 0.8
-}
+export type FloorVariant = 'grid' | 'mirror' | 'physical';
+export type FloorPlacement = 'origin' | 'sceneBase';
+export type FloorNegativeZEdge = 'hard' | 'fade';
+
+export type SceneFloor = {
+  enabled?: boolean;
+  variant?: FloorVariant;        // default 'physical'
+  placement?: FloorPlacement;    // default 'origin'
+  opacity?: number;              // [0, 1]; default 1
+  y?: number;                    // Y position of floor plane
+  size?: number;                 // floor plane size in world units
+  negativeZExtent?: number;      // world-space reach in negative Z
+  negativeZEdge?: FloorNegativeZEdge;
+  negativeZFadeDistance?: number;
+  surface?: FloorSurface;        // FloorSurfacePhysical | FloorSurfaceMirror
+};
+
+export type FloorSurfacePhysical = {
+  kind: 'physical';
+  color?: string;
+  roughness?: number;
+  metalness?: number;
+  gridCellSize?: number;         // grid line spacing in world units
+  gridColor?: string;            // minor grid line color
+  gridMajorColor?: string;       // major grid line color
+  gridLineOpacity?: number;
+  gridFillOpacity?: number;
+  gridMajorEvery?: number;       // minor cells per major grid line
+};
+
+export type FloorSurfaceMirror = {
+  kind: 'mirror';
+  color?: string;
+  opacity?: number;
+  blur?: number;
+  mixStrength?: number;
+};
+
+export type FloorSurface = FloorSurfacePhysical | FloorSurfaceMirror;
 ```
 
 #### DSL (`elements/floor/dsl.tsx`)
 
+The Floor element supports three DSL variants:
+
 ```tsx
-// Show floor (default)
-<Floor />
+// Generic floor (defaults to 'physical')
+<Floor enabled opacity={0.8} />
 
-// Explicit configuration
-<Floor enabled={true} reflectivity={0.4} roughness={0.7} />
+// Physical floor with grid overlay
+<FloorPhysical
+  gridCellSize={0.1}
+  gridColor="rgba(255,255,255,0.15)"
+  gridMajorColor="rgba(255,255,255,0.3)"
+  gridMajorEvery={5}
+  roughness={0.9}
+/>
 
-// Hide floor — triggers opacity transition, not instant removal
+// Mirror/reflection floor
+<FloorMirror
+  color="#0a0a14"
+  opacity={0.6}
+  blur={0.5}
+  mixStrength={0.8}
+/>
+
+// Hide floor
 <Floor enabled={false} />
+
+// Theme-driven floor
+<Floor theme={darkGlassSceneTheme} />
 ```
 
 #### Transition Behavior
 
-When `enabled` toggles between `true` and `false` across scenes, the compiler treats it as a transition on the floor plane's material `opacity` (from `1` to `0` or vice versa). The floor plane remains in the scene graph; only its material opacity transitions. Instant geometry removal is not performed, preserving visual continuity for shadow receivers.
+When `enabled` toggles between `true` and `false` across scenes, the compiler transitions the floor's `opacity` (from `1` to `0` or vice versa). The floor plane remains in the scene graph; only opacity transitions. When `variant` changes between scenes, the compiler crossfades between surface types.
 
 ### 7.5 Environment (HDR) Element
 
 #### State Type (`elements/environment/types.ts`)
 
 ```typescript
-export type EnvironmentPreset = 'studio' | 'sunset' | 'forest' | 'city';
+export type EnvironmentSourceHdri = {
+  kind: 'hdri';
+  url: string;              // URL to .hdr or .hdri file
+};
 
-export interface SceneEnvironment {
-  enabled?: boolean;       // default true
-  intensity?: number;      // environment map intensity [0, 2+]; default 1.0
-  url?: string;            // custom HDR or EXR URL; takes precedence over preset
-  preset?: EnvironmentPreset; // built-in HDR preset; default 'studio'
-}
+export type EnvironmentSourceExr = {
+  kind: 'exr';
+  url: string;              // URL to .exr file
+};
+
+export type EnvironmentSourceCube = {
+  kind: 'cube';
+  urls: [string, string, string, string, string, string]; // +x, -x, +y, -y, +z, -z
+};
+
+export type EnvironmentSource = EnvironmentSourceHdri | EnvironmentSourceExr | EnvironmentSourceCube;
+
+export type SceneEnvironment = {
+  enabled?: boolean;        // default true
+  intensity?: number;       // environment map intensity [0, 2+]; default 1.0
+  source?: EnvironmentSource;
+  backgroundBlur?: number;  // blur factor for scene.backgroundBlurriness
+  backgroundIntensity?: number; // separate intensity for scene background
+};
 ```
 
 #### DSL (`elements/environment/dsl.tsx`)
 
+The Environment element supports discriminated DSL components for each source type, plus a generic fallback:
+
 ```tsx
-// Default studio environment
-<Environment />
+// Generic environment (legacy, accepts url and preset)
+<Environment intensity={1.0} />
 
-// Explicit preset
-<Environment preset="sunset" intensity={0.9} />
+// HDRI source (most common)
+<EnvironmentHdri url="/envmaps/warehouse.hdr" intensity={1.2} />
 
-// Custom HDR file
-<Environment url="/envmaps/warehouse.hdr" intensity={1.2} />
+// EXR source
+<EnvironmentExr url="/envmaps/studio.exr" intensity={0.9} />
+
+// Cube map source
+<EnvironmentCube urls={['+x.jpg', '-x.jpg', '+y.jpg', '-y.jpg', '+z.jpg', '-z.jpg']} />
 
 // Disabled — removes scene.environment (unlit fallback)
 <Environment enabled={false} />
@@ -285,9 +388,9 @@ export interface SceneEnvironment {
 
 #### Behavior
 
-The `EnvironmentWidget` uses `RGBELoader` to load HDR textures and `PMREMGenerator` to produce pre-filtered environment maps for PBR materials. The resulting `THREE.Texture` is assigned to `scene.environment`. When `intensity` transitions between scenes, the widget lerps the effective intensity via `scene.environmentIntensity` (Three.js r154+) or by adjusting the `PMREMGenerator` output scale on older builds.
+The `EnvironmentWidget` uses `RGBELoader` for HDRI, `EXRLoader` for EXR, and `CubeTextureLoader` for cube maps. Loaded textures are passed through `PMREMGenerator` to produce pre-filtered environment maps for PBR materials. The resulting `THREE.Texture` is assigned to `scene.environment`.
 
-Crossfading between two different environment maps is handled by blending both environment textures using a custom material pass — the outgoing map fades to zero intensity while the incoming map fades to its target intensity.
+When `intensity` transitions between scenes, the widget lerps `scene.environmentIntensity` (Three.js r154+). Crossfading between different environment maps is handled by blending intensity values.
 
 ---
 

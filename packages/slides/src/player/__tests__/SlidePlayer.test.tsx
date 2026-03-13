@@ -81,6 +81,13 @@ vi.mock('@brewsite/core', async () => {
   /** ProgressManager stub — renders nothing. */
   const ProgressManager = () => null;
 
+  /** DSL element stubs — compiled, not rendered. Return null. */
+  const Floor = () => null;
+  const Background = () => null;
+  const Lighting = ({ children }: { children?: ReactModule.ReactNode }) =>
+    R.createElement(R.Fragment, null, children);
+  const Ambient = () => null;
+
   return {
     // Components
     SceneEngine,
@@ -90,6 +97,10 @@ vi.mock('@brewsite/core', async () => {
     Scene,
     TextBox,
     ProgressManager,
+    Floor,
+    Background,
+    Lighting,
+    Ambient,
 
     // Plugin factory stubs
     corePlugin: () => ({ createWidgets: () => [], registerHandlers: () => {} }),

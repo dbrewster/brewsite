@@ -3,7 +3,7 @@ title: "BrewSite Core — Cross-Package Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-12
+last_updated: 2026-03-13
 change_history:
   - date: 2026-03-04
     author: "Toolkit Product"
@@ -17,6 +17,9 @@ change_history:
   - date: 2026-03-12
     author: "Toolkit Product"
     summary: "Theme family art direction: all six opposite-polarity SceneTheme presets promoted to public named exports with production-quality aesthetic values — no placeholder or sibling-theme reuse remains. Each named SceneTheme preset now encodes a family-specific font.htmlFamily value (typography differentiation per family). Added FR #20 (family typography differentiation) and FR #21 (opposite-polarity completeness quality bar). Removed from Non-Goals: the deferred polarity-variant aesthetic authoring item. Launch criteria updated."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "PRD audit: added SceneThemeFloor and SceneThemeFloorGrid types to Section 7.1 (floor grid visual tokens for <Floor variant='grid'> integration). Added SceneTheme.floor optional field. Added ThemeKeyContext documentation. Updated SceneTheme type definition to include floor field. Updated named preset exports to include polarity-variant names (darkGlassLightSceneTheme, midnightLightSceneTheme, etc.). Updated last_updated."
 ---
 
 # BrewSite Core — Cross-Package Theming System
@@ -85,7 +88,7 @@ Additionally, the Background element supported only solid color and image fills 
 
 ## 6. Functional Requirements
 
-1. The `SceneTheme` type and all its sub-types (`SceneColorMode`, `SceneThemeFontTokens`, `SceneThemeFontSizeScale`, `SceneThemeBackgroundFill`, `SceneThemeBackgroundEffects`, `SceneThemeBackground`) shall be exported from `@brewsite/core/src/index.ts`. `SceneTheme` does not include an `accentColor` field.
+1. The `SceneTheme` type and all its sub-types (`SceneColorMode`, `SceneThemeFontTokens`, `SceneThemeFontSizeScale`, `SceneThemeBackgroundFill`, `SceneThemeBackgroundEffects`, `SceneThemeBackground`, `SceneThemeFloor`, `SceneThemeFloorGrid`) shall be exported from `@brewsite/core/src/index.ts`. `SceneTheme` does not include an `accentColor` field.
 2. `EngineProvider` shall accept an optional `sceneTheme?: SceneTheme` prop and provide it via `ThemeContext`.
 3. `EngineOverlayHost` shall read from `ThemeContext` and, when a theme is present, inject CSS custom properties on its root `<div>` element.
 4. CSS variable injection shall cover: `--brewsite-font-family`, `--brewsite-font-size-heading`, `--brewsite-font-size-body`, `--brewsite-font-size-label`, `--brewsite-font-size-caption`, `--brewsite-font-size-annotation`, `--brewsite-color-mode`, `--brewsite-text-primary`, `--brewsite-text-secondary`. `--brewsite-accent-color` is not injected by the engine; consumers who need this variable must set it directly in their own stylesheet.
@@ -157,11 +160,29 @@ export type SceneThemeBackground = {
   readonly effects?: SceneThemeBackgroundEffects;
 };
 
+export type SceneThemeFloorGrid = {
+  readonly spacing?: number;           // minor grid spacing in world units
+  readonly lineColor?: string;         // minor line color
+  readonly majorLineColor?: string;    // major line color
+  readonly fillColor?: string;         // base fill color under grid lines
+  readonly lineOpacity?: number;       // line opacity [0-1]
+  readonly fillOpacity?: number;       // fill opacity [0-1]
+  readonly majorEvery?: number;        // minor cells per major grid line
+};
+
+export type SceneThemeFloor = {
+  readonly grid?: SceneThemeFloorGrid;
+  readonly negativeZExtent?: number;           // world-space reach in negative Z
+  readonly negativeZEdge?: 'hard' | 'fade';    // back-edge behavior
+  readonly negativeZFadeDistance?: number;      // fade distance when edge='fade'
+};
+
 export type SceneTheme = {
   readonly colorMode: SceneColorMode;
   readonly font: SceneThemeFontTokens;
   readonly fontSize: SceneThemeFontSizeScale;
   readonly background?: SceneThemeBackground;
+  readonly floor?: SceneThemeFloor;
 };
 ```
 
@@ -307,6 +328,14 @@ export const neonCyberSceneTheme: SceneTheme;    // dark, electric violet/cyan
 export const enterpriseSceneTheme: SceneTheme;   // dark, professional slate-blue
 export const lightCanvasSceneTheme: SceneTheme;  // light, premium product docs
 export const lightMinimalSceneTheme: SceneTheme; // light, flat documentation
+
+// Six opposite-polarity variants:
+export const darkGlassLightSceneTheme: SceneTheme;    // light polarity of darkGlass family
+export const midnightLightSceneTheme: SceneTheme;     // light polarity of midnight family
+export const neonCyberLightSceneTheme: SceneTheme;    // light polarity of neonCyber family
+export const enterpriseLightSceneTheme: SceneTheme;   // light polarity of enterprise family
+export const lightCanvasDarkSceneTheme: SceneTheme;   // dark polarity of lightCanvas family
+export const lightMinimalDarkSceneTheme: SceneTheme;  // dark polarity of lightMinimal family
 ```
 
 Named presets carry the correct `colorMode` for their family (all dark themes → `'dark'`; `lightCanvas` and `lightMinimal` → `'light'`). Each preset encodes a family-specific `font.htmlFamily` font stack that expresses that family's typographic personality; the stacks differ meaningfully across families so that overlay typography is visually differentiated. The standard `fontSize` scale is shared across families — consumers override as needed:

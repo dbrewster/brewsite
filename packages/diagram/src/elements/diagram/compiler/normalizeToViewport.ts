@@ -22,10 +22,11 @@ export type NormalizeToViewportResult = {
   readonly normalizedGroups: Map<string, GroupBounds>;
   readonly contentAspect: number;
   /**
-   * The diagram's horizontal span in content units (before normalization).
-   * Used by compile.ts to normalize thickness-type values (edge tube radius,
-   * group border width) from diagram-content-units to [0..1] NVS fractions,
-   * keeping them proportional to the diagram's rendered size.
+   * The larger of the diagram's horizontal and vertical spans in content units
+   * (before normalization). Used by compile.ts to normalize thickness-type
+   * values (edge tube radius, group border width) from diagram-content-units
+   * to [0..1] NVS fractions, keeping them proportional to the diagram's
+   * rendered size regardless of aspect ratio.
    */
   readonly safeSpan: number;
 };
@@ -125,5 +126,5 @@ export function normalizeToViewport(
     });
   }
 
-  return { normalizedPositions, normalizedSizes, normalizedGroups, contentAspect: safeSpanX / safeSpanY, safeSpan: safeSpanX };
+  return { normalizedPositions, normalizedSizes, normalizedGroups, contentAspect: safeSpanX / safeSpanY, safeSpan: Math.max(safeSpanX, safeSpanY) };
 }

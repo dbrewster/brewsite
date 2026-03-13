@@ -18,7 +18,7 @@ import {
   NumberedList,
 } from '../dsl';
 // DSL imports from @brewsite/core — used to construct <Scene> children
-import { TextBox, Scene, ProgressManager } from '@brewsite/core';
+import { TextBox, Scene, ProgressManager, Floor, Background, Lighting, Ambient } from '@brewsite/core';
 import { SlideMetaDsl } from '../plugin';
 
 // ─── Internal Types ───────────────────────────────────────────────────────────
@@ -306,6 +306,14 @@ export function buildSceneElements(
       Scene,
       { key: slideSpec.key, id: slideSpec.key },
       React.createElement(ProgressManager, { key: 'pm', scrollUnits: slideSpec.scrollUnits }),
+      // Inject scene environment: disable floor, set background from theme, provide ambient light.
+      // Without these, the default floor (enabled grid) and missing background would render
+      // unwanted 3D artefacts behind the slide overlay.
+      React.createElement(Floor, { key: 'floor', enabled: false }),
+      React.createElement(Background, { key: 'bg', color: spec.theme.background.color }),
+      React.createElement(Lighting, { key: 'lighting' },
+        React.createElement(Ambient, { key: 'ambient', intensity: 1, color: '#ffffff' }),
+      ),
       React.createElement(SlideMetaDsl, {
         key: `meta-${slideSpec.key}`,
         id: `slide-meta-${slideSpec.key}`,

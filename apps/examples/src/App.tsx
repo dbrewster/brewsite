@@ -12,6 +12,7 @@ const SlidesDemoPage = lazy(() => import('./slides-demo/SlidesDemoPage'));
 const WhiteboardArchPage = lazy(() => import('./whiteboard-arch/WhiteboardArchPage'));
 const ThemeGalleryPage = lazy(() => import('./theme-gallery/ThemeGalleryPage'));
 const ViewDemoPage = lazy(() => import('./views/ViewDemoPage'));
+const InputShowcasePage = lazy(() => import('./input-showcase/InputShowcasePage'));
 
 function Loading(): JSX.Element {
   return <div style={{ padding: '2rem' }}>Loading example...</div>;
@@ -31,6 +32,7 @@ export default function ExamplesApp(): JSX.Element {
         <Route path="/whiteboard-arch" element={<WhiteboardArchPage />} />
         <Route path="/theme-gallery" element={<ThemeGalleryPage />} />
         <Route path="/views" element={<ViewDemoPage />} />
+        <Route path="/input-showcase" element={<InputShowcasePage />} />
         <Route
           path="/"
           element={
@@ -47,6 +49,7 @@ export default function ExamplesApp(): JSX.Element {
                 <li><a href="/examples/whiteboard-arch">Whiteboard Architecture</a></li>
                 <li><a href="/examples/theme-gallery">Theme Family Gallery (all 12 variants)</a></li>
                 <li><a href="/examples/views">View/ViewLayout Demo</a></li>
+                <li><a href="/examples/input-showcase">Input Options Showcase</a></li>
               </ul>
             </div>
           }

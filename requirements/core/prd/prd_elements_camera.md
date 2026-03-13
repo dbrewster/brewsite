@@ -597,7 +597,7 @@ If `ICameraInteractionDriver` gains a required method, that is a breaking change
 - `compile.ts` unit tests cover: `orbitToWorld` conversion, `fovFromFocalLength` computation, cross-mode descriptor resolution (orbit → world lerp), and exposure interpolation.
 - `CameraWidget` tick lifecycle (apply → onTick → interaction → dispose) is covered by integration tests using `FakeInteractionDriver` with no Three.js dependency.
 - `FitBotHeight` framing is covered by an integration test that asserts the computed camera position produces the correct viewport framing for a known model height and FOV.
-- At least one example scene in `apps/examples/` demonstrates each of the four descriptor modes in a multi-scene sequence.
+- At least one example scene in `apps/examples/` demonstrates each of the five descriptor modes in a multi-scene sequence.
 - At least one example scene demonstrates interactive camera controls with orbit, dolly, constraints, and reset.
 - `packages/core/README.md` documents the `<Camera>` props table and the four descriptor modes with inline examples.
 - `ICameraInteractionDriver` is documented as a stable interface that consumers may implement for custom camera control schemes.

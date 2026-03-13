@@ -3,11 +3,14 @@ title: "BrewSite Diagram — Interaction System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-02
+last_updated: 2026-03-13
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Initial PRD created. Comprehensive documentation of the @brewsite/diagram interaction system as implemented."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "Audit correction: all interaction plumbing (raycasting, hover, click, focus region publish/clear) now lives in DiagramWidget, not DiagramCanvasWidget. DiagramCanvasWidget was removed in the NVS release. Updated Overview, Goals, Functional Requirements, API Design (raycasting pipeline, group path traversal, interaction dispatch), and all usage examples to reflect DiagramWidget ownership. Corrected publishDiagramFocusGroup/Canvas signatures — they accept Pick<DiagramState,'id'>, not Pick<DiagramCanvasState,'id'>. Corrected focusRegion.ts architecture: IFocusRegionService interface and DiagramFocusRegionService class are now the primary implementation; module-level functions are backwards-compatible wrappers. Corrected widget registration Usage example to use DiagramWidget. Removed all DiagramCanvasWidget references from active requirements."
 ---
 
 # BrewSite Diagram — Interaction System
@@ -16,13 +19,15 @@ change_history:
 
 The interaction system in `@brewsite/diagram` enables real-time user interaction with diagram nodes and groups during scene playback. It provides hover enter/leave events on nodes and groups, click events on `clickable` nodes, hover-driven visual controls for ephemeral emissive overrides, and a cross-component focus region system based on custom DOM events. All interaction is opt-in — diagrams with no `onMouseEnter`/`onMouseLeave` callbacks and no `clickable` nodes have zero interaction overhead. This feature lives entirely in `@brewsite/diagram`; `@brewsite/core` has no knowledge of hover, click, or focus region concepts.
 
+Affected package: `@brewsite/diagram`.
+
 ## Problem Statement
 
 Diagram scenes in marketing and demo contexts benefit from real-time user interaction: hovering a group highlights it, clicking a node triggers navigation, and drilling into a group fires camera focus changes. Without a managed interaction system, consumers must implement their own raycasting pipeline, manage enter/leave state across frames, and build ad-hoc bridges from Three.js hit detection to React component state. This produces fragile, redundant code that is tightly coupled to rendering internals.
 
 The interaction system solves this by providing:
 
-1. A **raycasting pipeline** managed by `DiagramCanvasWidget` that fires typed enter/leave events only when the hover target changes.
+1. A **raycasting pipeline** owned by `DiagramWidget` that fires typed enter/leave events only when the hover target changes.
 2. **Hover controls** — a safe surface for making ephemeral visual state changes (emissive highlights, light toggles) from callback code without going through the compile/playback pipeline.
 3. A **focus region system** — a pub/sub mechanism based on DOM custom events that bridges diagram widget events to React component state, enabling drill-down navigation patterns.
 
@@ -31,7 +36,7 @@ The interaction system solves this by providing:
 **Primary metrics:**
 - A consumer can make a group highlight on hover with two callbacks (`onMouseEnter`, `onMouseLeave`) and zero knowledge of Three.js raycasting.
 - A consumer can implement a drill-down navigation pattern — hover a group, fire a React state update, re-render the UI — using `useDiagramFocusRegion` without polling or ref bridging.
-- `clickable` nodes fire click events with correct `diagramId` and `nodeId` through `DiagramCanvasWidget.onInteraction`.
+- `clickable` nodes fire click events with correct `diagramId` and `nodeId` through `DiagramWidget.onInteraction`.
 
 **Guardrail metrics:**
 - Raycasting runs only on pointer-move events, not on every animation frame.
@@ -58,16 +63,16 @@ The interaction system solves this by providing:
 
 ## Functional Requirements
 
-1. `DiagramCanvasWidget` shall attach `mousemove`, `click`, and `mouseleave` event listeners to `renderer.domElement` in `initialize()` and remove them in `dispose()`.
-2. On each `mousemove` event, `DiagramCanvasWidget` shall raycast against all registered node meshes (`InteractionRegistry`) and group meshes (`GroupInteractionRegistry`) and compute a `HoverTarget` describing the current hit.
+1. `DiagramWidget` shall attach `mousemove`, `click`, and `mouseleave` event listeners to `renderer.domElement` in `initialize()` and remove them in `dispose()`.
+2. On each `mousemove` event, `DiagramWidget` shall raycast against all registered node meshes (`InteractionRegistry` via `renderer.interactionRegistry`) and group meshes (`GroupInteractionRegistry` via `renderer.groupInteractionRegistry`) and compute a `HoverTarget` describing the current hit.
 3. Hover enter/leave callbacks (`onMouseEnter`, `onMouseLeave`) shall fire only when the `HoverTarget` changes between frames — not on every `mousemove` event.
 4. Node hover callbacks shall receive a `DiagramNodeHoverEvent` with `type: 'node-mouse-enter'` or `'node-mouse-leave'`. Group hover callbacks shall receive a `DiagramGroupHoverEvent` with `type: 'group-mouse-enter'` or `'group-mouse-leave'`.
 5. Group hover events shall be dispatched in parent-to-child order on enter and child-to-parent order on leave, traversing the group path from root to leaf.
 6. Calling `event.stopPropagation()` on a group hover event shall prevent further parent or ancestor group callbacks from firing for that hover transition.
 7. Emissive overrides applied via `DiagramHoverControls.setNodeEmissive()` or `setGroupNodesEmissive()` are ephemeral. They are cleared on the next `IRenderable.apply()` call when the renderer reapplies compiled state.
 8. Nodes with `clickable: false` (the default) must not be registered with `InteractionRegistry`. The raycaster must not test against any mesh for a non-clickable, non-hoverable node.
-9. Click detection fires on `click` DOM events (not pointer-down/up). The click handler raycasts against `InteractionRegistry` meshes and fires `onInteraction` with `type: 'node-click'` when a registered mesh is hit.
-10. `publishDiagramFocusGroup(canvas, diagramId, groupId)` and `publishDiagramFocusCanvas(canvas)` shall update a module-level current focus state and dispatch a `CustomEvent` on `window` with event type `DIAGRAM_FOCUS_REGION_EVENT`.
+9. Click detection fires on `click` DOM events (not pointer-down/up). The click handler raycasts against `InteractionRegistry` meshes and fires `onInteraction` with `type: 'node-click'` when a registered mesh is hit. `DiagramWidget` only fires events for nodes that belong to its own `widgetId` diagram.
+10. `publishDiagramFocusGroup(diagram, diagramId, groupId)` and `publishDiagramFocusCanvas(diagram)` accept `Pick<DiagramState, 'id'>` and delegate to the `IFocusRegionService` implementation. They update the current focus state and dispatch a `CustomEvent` on `window` with event type `DIAGRAM_FOCUS_REGION_EVENT`.
 11. `useDiagramFocusRegion(options?)` shall subscribe to `DIAGRAM_FOCUS_REGION_EVENT` on `window` and update React state when the event fires, filtered by `options.canvasId` when provided.
 12. `useDiagramFocusRegion` shall initialize its React state synchronously from `getDiagramFocusRegion()` to capture any focus state that was published before the component mounted.
 13. `clearDiagramFocusRegion(canvasId?)` shall set the current focus state to `null` and dispatch the event. If `canvasId` is provided, the clear is a no-op when `currentFocusRegion.canvasId !== canvasId`.
@@ -217,6 +222,8 @@ export class GroupInteractionRegistry implements IGroupInteractionRegistry {
 
 ### Focus Region System
 
+The focus region system is implemented as a class-based service with a production singleton. `IFocusRegionService` is the interface; `DiagramFocusRegionService` is the implementation. Module-level functions are backwards-compatible wrappers that delegate to a shared singleton.
+
 ```typescript
 // packages/diagram/src/elements/diagram/focusRegion.ts
 
@@ -224,6 +231,10 @@ export type DiagramFocusRegionKind = 'group' | 'canvas';
 
 export interface DiagramFocusRegionState {
   readonly kind: DiagramFocusRegionKind;
+  /**
+   * The widget ID of the DiagramWidget that published this event.
+   * Named 'canvasId' for backwards compatibility with useDiagramFocusRegion.
+   */
   readonly canvasId: string;
   /** Non-null when kind === 'group'. null when kind === 'canvas'. */
   readonly diagramId: string | null;
@@ -237,40 +248,53 @@ export interface DiagramFocusRegionState {
 export const DIAGRAM_FOCUS_REGION_EVENT = 'brewsite:diagram-focus-region';
 
 /**
- * Returns the current focus region state synchronously.
- * Returns null when no focus is active.
+ * Interface contract for the focus region service.
+ * Allows per-instance creation for isolated testing without singleton bleed.
  */
-export declare const getDiagramFocusRegion: () => DiagramFocusRegionState | null;
+export interface IFocusRegionService {
+  getDiagramFocusRegion(): DiagramFocusRegionState | null;
+  publishDiagramFocusGroup(
+    diagram: Pick<DiagramState, 'id'>,
+    diagramId: string,
+    groupId: string,
+  ): void;
+  publishDiagramFocusCanvas(diagram: Pick<DiagramState, 'id'>): void;
+  clearDiagramFocusRegion(canvasId?: string): void;
+}
+
+/** Class-based implementation — instantiatable per test to avoid singleton bleed. */
+export class DiagramFocusRegionService implements IFocusRegionService {
+  getDiagramFocusRegion(): DiagramFocusRegionState | null;
+  publishDiagramFocusGroup(
+    diagram: Pick<DiagramState, 'id'>,
+    diagramId: string,
+    groupId: string,
+  ): void;
+  publishDiagramFocusCanvas(diagram: Pick<DiagramState, 'id'>): void;
+  clearDiagramFocusRegion(canvasId?: string): void;
+}
+
+/** Production singleton delegated to by all module-level functions. */
+export const diagramFocusRegionService: IFocusRegionService;
+
+// Backwards-compatible module-level wrappers:
+
+export const getDiagramFocusRegion: () => DiagramFocusRegionState | null;
 
 /**
- * Publishes a group-level focus event.
- * Updates the module-level current state and dispatches DIAGRAM_FOCUS_REGION_EVENT
- * on window with the new DiagramFocusRegionState as the CustomEvent detail.
- *
- * @param canvas - Canvas state (or any object with an id property).
- * @param diagramId - The diagram containing the focused group.
- * @param groupId - The focused group id.
+ * @param diagram - The DiagramState or any object with an 'id' string property.
+ *   Use the DiagramWidget's state object or { id: widgetId }.
+ *   Note: accepts Pick<DiagramState, 'id'>, NOT Pick<DiagramCanvasState, 'id'>.
  */
-export declare const publishDiagramFocusGroup: (
-  canvas: Pick<DiagramCanvasState, 'id'>,
+export const publishDiagramFocusGroup: (
+  diagram: Pick<DiagramState, 'id'>,
   diagramId: string,
   groupId: string,
 ) => void;
 
-/**
- * Publishes a canvas-level focus event (zoom-out / reset).
- * diagramId and groupId are null on the resulting state.
- */
-export declare const publishDiagramFocusCanvas: (
-  canvas: Pick<DiagramCanvasState, 'id'>,
-) => void;
+export const publishDiagramFocusCanvas: (diagram: Pick<DiagramState, 'id'>) => void;
 
-/**
- * Clears the current focus region and dispatches the event with detail=null.
- * If canvasId is provided, the clear is a no-op when the current focus belongs
- * to a different canvas.
- */
-export declare const clearDiagramFocusRegion: (canvasId?: string) => void;
+export const clearDiagramFocusRegion: (canvasId?: string) => void;
 ```
 
 ### Focus Region React Hook
@@ -387,50 +411,58 @@ window.addEventListener(DIAGRAM_FOCUS_REGION_EVENT, (event) => {
 });
 
 // Publish programmatically (e.g. from ActionInputController callback):
-publishDiagramFocusGroup({ id: 'system-canvas' }, 'architecture', 'data-tier');
+// NOTE: first argument is Pick<DiagramState, 'id'> — use the diagram widget's id, not a canvas state.
+publishDiagramFocusGroup({ id: 'my-diagram-widget-id' }, 'architecture', 'data-tier');
 ```
 
 ### Usage — Click Events
 
+When using `diagramPlugin({ diagrams: [...] })`, `DiagramWidget` instances are created automatically. Access the widget from the registry after the engine initializes, or use the `onInteraction` callback pattern via plugin setup:
+
 ```typescript
-// In widgetSetup.ts, after constructing DiagramCanvasWidget:
+// The DiagramWidget is created by diagramPlugin. Access it after engine startup:
+const widget = registry.get('my-diagram') as DiagramWidget | undefined;
+if (widget) {
+  widget.onInteraction = (event) => {
+    if (event.type === 'node-click') {
+      console.log(`Clicked node ${event.nodeId} in diagram ${event.diagramId}`);
+      // Trigger scene advance, URL navigation, or React state update:
+      scrollEngine.advanceToNextStop();
+    }
+  };
+}
+```
 
-const canvasWidget = new DiagramCanvasWidget(
-  'system-canvas',
-  compileCanvas({ id: 'system-canvas' }, [], []),
-);
+For manual widget construction (advanced use case):
 
-canvasWidget.onInteraction = (event) => {
-  if (event.type === 'node-click') {
-    console.log(`Clicked node ${event.nodeId} in diagram ${event.diagramId}`);
-    // Trigger scene advance, URL navigation, or React state update:
-    scrollEngine.advanceToNextStop();
-  }
-};
+```typescript
+import { DiagramWidget } from '@brewsite/diagram';
 
-registry.register(canvasWidget);
+const widget = new DiagramWidget('my-diagram', makeDefaultDiagramState('my-diagram'));
+widget.onInteraction = (event) => { /* ... */ };
+registry.register(widget);
 ```
 
 ## Technical Considerations
 
 ### Raycasting Pipeline
 
-`DiagramCanvasWidget` maintains a `THREE.Raycaster` and `THREE.Vector2` (NDC pointer position) as instance fields. The pipeline runs in the `mousemove` DOM event handler attached to `renderer.domElement`:
+`DiagramWidget` maintains a `THREE.Raycaster` and `THREE.Vector2` (NDC pointer position) as instance fields, reused across events to avoid per-event allocation. The pipeline runs in the `mousemove` DOM event handler attached to `renderer.domElement`:
 
 1. Compute NDC from `event.clientX`/`clientY` relative to `canvas.getBoundingClientRect()`.
-2. Call `raycaster.setFromCamera(this.ndc, cam)` where `cam` is the `THREE.PerspectiveCamera` stored in `scene.userData['__brewsite_camera']`.
-3. Raycast separately against node meshes (`Array.from(renderer.getInteractionMeshes())`) and group meshes (`Array.from(renderer.getGroupInteractionMeshes())`).
-4. Node hits take priority over group hits. If a node hit is found, the `HoverTarget` includes `nodeId` and a derived `groupPath` from the node's `groupId`.
-5. If no node hit, group hits are processed: all hit group meshes are sorted by `GroupInteractionRegistry.lookup` depth (group path length), and the deepest (most specific) group is selected as the primary hit.
-6. The resulting `HoverTarget` (`{ diagramId, groupPath, nodeId?, point }`) is compared to the previous frame's `HoverTarget`. If they differ, `transitionHover(prev, next)` fires the appropriate leave/enter event sequence.
+2. Call `raycaster.setFromCamera(this.ndc, cam)` where `cam` is the main `THREE.PerspectiveCamera` stored on `this.mainCamera` (injected from `WidgetInitContext.camera`).
+3. Raycast against node meshes (`Array.from(this.renderer.interactionRegistry.meshes)`) and group meshes (`Array.from(this.renderer.groupInteractionRegistry.meshes)`) separately.
+4. Node hits take priority over group hits. If a node hit is found and its `diagramId` matches this widget's `widgetId`, the `HoverTarget` includes `nodeId` and a derived `groupPath` built from the node's `groupId` via `buildGroupPath(lastState, groupId)`.
+5. If no qualifying node hit, group hits are processed: for each hit group mesh, `buildGroupPath(lastState, groupId)` determines its depth. The deepest group is selected as the most specific hit.
+6. The resulting `HoverTarget | null` is compared to `this.hovered`. If they differ, `computeHoverTransitionEvents(prev, next, lastState)` from `compiler/hoverStateMachine.ts` produces the ordered event sequence, which is then dispatched via node/group callbacks.
 
-The pipeline runs only when `lastState` is non-null (i.e., `apply()` has been called at least once). The camera is read from `scene.userData['__brewsite_camera']` — if the camera is absent, the handler returns early.
+The pipeline runs only when `this.lastState` is non-null (i.e., `apply()` has been called at least once).
 
 ### Group Path Traversal
 
-Groups in a diagram can be nested. `DiagramCanvasWidget.buildGroupPath(diagram, leafGroupId)` returns the group ids from root to leaf by traversing `group.parentId` links. The resulting array (e.g., `['cloud-tier', 'api-layer', 'gateway-cluster']`) is stored on `HoverTarget.groupPath`.
+Groups in a diagram can be nested. `buildGroupPath(state, leafGroupId)` from `compiler/hoverStateMachine.ts` returns the group ids from root to leaf by traversing `group.parentId` links in the `DiagramState`. The resulting array (e.g., `['cloud-tier', 'api-layer', 'gateway-cluster']`) is stored on `HoverTarget.groupPath`.
 
-`transitionHover(prev, next)` uses these paths to compute the shared prefix between the previous and next hover targets:
+`computeHoverTransitionEvents(prev, next, state)` from `compiler/hoverStateMachine.ts` uses these paths to compute the shared prefix between the previous and next hover targets:
 
 - Walk the shared prefix to find where the paths diverge.
 - Fire `leave` events for the previous path from the divergence point to the leaf (in reverse order: leaf first, then parent).
@@ -458,15 +490,14 @@ The `setGroupNodesEmissive` implementation in `DiagramCanvasWidget.createHoverCo
 
 ### Widget Disposal Sequence
 
-`DiagramCanvasWidget.dispose()` follows this sequence to prevent use-after-free:
+`DiagramWidget.dispose()` follows this sequence to prevent use-after-free:
 
 1. Remove `click`, `mousemove`, `mouseleave` DOM listeners from `canvasElement`.
 2. Set `canvasElement`, `clickHandler`, `mouseMoveHandler`, `mouseLeaveHandler` to null.
 3. Call `clearHover()` to fire any pending leave events against `lastState` (which is still non-null at this point).
-4. Call `renderer.dispose(widgetId, scene)` to remove all Three.js objects.
-5. Set `scene` and `lastState` to null.
-6. Reset `inputTranslation` and `inputRotation` to zero.
-7. Call `clearDiagramFocusRegion(this.widgetId)` to clear any active focus region on this canvas.
+4. Remove the `diagramGroup` from the `THREE.Scene` and call `renderer.dispose(widgetId, diagramGroup)` to release all Three.js objects.
+5. Set `scene`, `mainCamera`, and `lastState` to null.
+6. Call `clearDiagramFocusRegion(this.widgetId)` to clear any active focus region associated with this widget.
 
 Step 3 runs before `lastState` is nulled so that leave callbacks have access to the final state when the widget is torn down.
 
@@ -485,13 +516,14 @@ Consumers who do not add any of the above have zero behavior change — the inte
 
 ## Dependencies
 
-- `@brewsite/core`: `setSceneLightEnabled` (consumed by `DiagramHoverControls.setLightEnabled`), `IRenderable`, `ISceneElement`, `AnimationTickContext`, `WidgetInitContext`, `WidgetRenderContext`.
+- `@brewsite/core`: `IRenderable`, `ISceneElement`, `ILoadable`, `IDslComposite`, `ILightingOverride`, `INVSBounded`, `WidgetInitContext`, `WidgetRenderContext`.
 - `packages/diagram/src/elements/diagram/types.ts`: All hover event types, `DiagramHoverControls`, `DiagramInteractionEvent`, `DiagramNodeMouseHandler`, `DiagramGroupMouseHandler`.
+- `packages/diagram/src/elements/diagram/compiler/hoverStateMachine.ts`: `computeHoverTransitionEvents`, `buildGroupPath`, `collectGroupIds`, `HoverTarget`, `HoverEvent`.
 - `packages/diagram/src/elements/diagram/rendering/InteractionRegistry.ts`: `InteractionRegistry`, `IInteractionRegistry`.
 - `packages/diagram/src/elements/diagram/rendering/GroupInteractionRegistry.ts`: `GroupInteractionRegistry`, `IGroupInteractionRegistry`.
-- `packages/diagram/src/elements/diagram/focusRegion.ts`: `publishDiagramFocusGroup`, `publishDiagramFocusCanvas`, `clearDiagramFocusRegion`, `getDiagramFocusRegion`, `DIAGRAM_FOCUS_REGION_EVENT`.
+- `packages/diagram/src/elements/diagram/focusRegion.ts`: `IFocusRegionService`, `DiagramFocusRegionService`, `diagramFocusRegionService`, `publishDiagramFocusGroup`, `publishDiagramFocusCanvas`, `clearDiagramFocusRegion`, `getDiagramFocusRegion`, `DIAGRAM_FOCUS_REGION_EVENT`.
 - React (hook layer only): `useEffect`, `useMemo`, `useState`.
-- Three.js (widget layer only): `THREE.Raycaster`, `THREE.Vector2`, `THREE.Box3`, `THREE.Vector3`, `THREE.PerspectiveCamera`.
+- Three.js (widget layer only): `THREE.Raycaster`, `THREE.Vector2`, `THREE.PerspectiveCamera`.
 
 ## Risks & Mitigations
 
@@ -517,5 +549,5 @@ None. The interaction system is fully implemented and all design decisions are r
 - `focusRegion.ts` has unit tests covering `publishDiagramFocusGroup`, `publishDiagramFocusCanvas`, `clearDiagramFocusRegion`, and `getDiagramFocusRegion`.
 - `useDiagramFocusRegion` has a test asserting that the hook initializes from `getDiagramFocusRegion()` synchronously and that it cleans up its event listener on unmount.
 - At least one example in `apps/examples/` demonstrates hover callbacks with `setGroupNodesEmissive` and uses `useDiagramFocusRegion` in a UI component.
-- All exported types and functions (`DiagramInteractionEvent`, `DiagramNodeHoverEvent`, `DiagramGroupHoverEvent`, `DiagramHoverControls`, `DiagramNodeMouseHandler`, `DiagramGroupMouseHandler`, `DiagramFocusRegionState`, `DiagramFocusRegionKind`, `DIAGRAM_FOCUS_REGION_EVENT`, `publishDiagramFocusGroup`, `publishDiagramFocusCanvas`, `clearDiagramFocusRegion`, `getDiagramFocusRegion`, `useDiagramFocusRegion`, `InteractionRegistry`, `GroupInteractionRegistry`) are present in `packages/diagram/src/index.ts`.
+- All exported types and functions (`DiagramInteractionEvent`, `DiagramNodeHoverEvent`, `DiagramGroupHoverEvent`, `DiagramHoverControls`, `DiagramNodeMouseHandler`, `DiagramGroupMouseHandler`, `DiagramFocusRegionState`, `DiagramFocusRegionKind`, `DIAGRAM_FOCUS_REGION_EVENT`, `getDiagramFocusRegion`, `clearDiagramFocusRegion`, `useDiagramFocusRegion`) are present in `packages/diagram/src/index.ts`. Note: `publishDiagramFocusGroup` and `publishDiagramFocusCanvas` are not directly exported from the package index (they are used internally by `DiagramWidget`); `InteractionRegistry` and `GroupInteractionRegistry` are rendering-layer classes not exported from the package root.
 - CHANGELOG entry written for `@brewsite/diagram`.

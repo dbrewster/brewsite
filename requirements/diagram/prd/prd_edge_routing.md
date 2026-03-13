@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Edge Routing System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-10
+last_updated: 2026-03-13
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -17,6 +17,9 @@ change_history:
   - date: 2026-03-10
     author: "Toolkit Product"
     summary: "Updated the `flow` routing contract to use orthogonal visibility-graph planning with joint source/destination port-pair evaluation, explicit group-perimeter ingress behavior, acute/reversal-aware scoring, and rounded orthogonal path materialization."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "Audit corrections: updated EdgeRoutingRequest to include all flow-routing configuration fields from DiagramThemeEdgeConfig (flowTurnRadius, flowFaceStub, flowBundleStrength, flowTargetApproachBias, allowUnderpass — and the new flowObstaclePadding, flowUnderpassDepth, flowUnderpassClearance, flowTurnPenalty, flowPunchthroughPenalty, flowUnderpassPenalty fields). Corrected the Lexicographic Candidate Selection Technical Considerations section — the rank key is 8 elements (matching EdgeCandidateRankKey), not 6."
 ---
 
 ## Overview
@@ -146,7 +149,13 @@ export type EdgeRoutingRequest = {
   readonly flowTurnRadius: number;
   readonly flowFaceStub: number;
   readonly flowBundleStrength: number;
+  readonly flowObstaclePadding: number;
   readonly flowTargetApproachBias: number;
+  readonly flowUnderpassDepth: number;
+  readonly flowUnderpassClearance: number;
+  readonly flowTurnPenalty: number;
+  readonly flowPunchthroughPenalty: number;
+  readonly flowUnderpassPenalty: number;
   readonly allowUnderpass: boolean;
 };
 
@@ -309,16 +318,18 @@ Routing is decomposed into a sequence of pure data transformations. All four alg
 
 ### Lexicographic Candidate Selection
 
-`edgeCandidateScorer.ts` produces a structured `EdgeCandidateScore` — not a single scalar. `edgeCandidateSelector.ts` projects this into an `EdgeCandidateRankKey` (a 6-tuple) and compares candidates in strict tuple order:
+`edgeCandidateScorer.ts` produces a structured `EdgeCandidateScore` — not a single scalar. `edgeCandidateSelector.ts` projects this into an `EdgeCandidateRankKey` (an 8-tuple) and compares candidates in strict tuple order:
 
 1. Lowest blocker penalty
 2. Lowest overshoot penalty
-3. Fewest bends
-4. Shortest path length
-5. Best shared-path compatibility
-6. Lowest heuristic penalty
+3. Lowest acute-turn penalty
+4. Lowest reversal penalty
+5. Fewest bends
+6. Shortest path length
+7. Best shared-path compatibility
+8. Lowest heuristic penalty
 
-Shared-path compatibility and heuristic preferences (aesthetic face bias, near-edge penalties) are only tie-breakers — they cannot override a more direct or less-bent route. This is a hard requirement: no stage may collapse the rank key into a weighted sum for final selection.
+Acute-turn and reversal penalties are architectural-level disqualifiers that rank before bend count. Shared-path compatibility and heuristic preferences (aesthetic face bias, near-edge penalties) are only tie-breakers — they cannot override a more direct or less-bent route. This is a hard requirement: no stage may collapse the rank key into a weighted sum for final selection.
 
 ### Bundle Hint Inference
 

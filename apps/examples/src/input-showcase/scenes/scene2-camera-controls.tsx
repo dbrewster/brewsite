@@ -1,0 +1,245 @@
+// Scene 2: Camera Controls — every camera.orbit / camera.dolly / camera.reset binding.
+// Demonstrates: PointerMap(drag left/right), WheelMap, PinchMap, KeyMap, modifier keys.
+import type { JSX } from 'react';
+import {
+  Action,
+  Ambient,
+  Camera,
+  Directional,
+  Floor,
+  InputController,
+  KeyMap,
+  Lighting,
+  PinchMap,
+  PointerMap,
+  ProgressManager,
+  Scene,
+  TextBox,
+  View,
+  WheelMap,
+} from '@brewsite/core';
+import {
+  BarChart,
+  ChartAxis,
+  ChartData,
+  ChartSeries,
+  useChartTheme,
+} from '@brewsite/charts';
+
+const CAM_POS: [number, number, number] = [0, 1.5, 7];
+const CAM_TGT: [number, number, number] = [0, 0, 0];
+
+const cameraBindingData = [
+  { action: 'Orbit', maps: 3 },
+  { action: 'Dolly', maps: 4 },
+  { action: 'Reset', maps: 2 },
+];
+
+// Color key for kbd elements in the reference card
+const C_CAMERA = '#5090e0';
+const C_MODIFIER = '#c050e0';
+const C_RESET = '#e07050';
+const C_SCENE = '#c06040';
+
+interface KbdProps {
+  children: string;
+  color?: string;
+}
+function Kbd({ children, color = C_CAMERA }: KbdProps): JSX.Element {
+  return (
+    <kbd
+      style={{
+        background: color + '22',
+        border: `1px solid ${color}55`,
+        borderRadius: 5,
+        padding: '2px 7px',
+        fontFamily: 'monospace',
+        fontSize: 10,
+        color,
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </kbd>
+  );
+}
+
+interface BindingRowProps {
+  label: string;
+  keys: Array<{ text: string; color?: string }>;
+  desc: string;
+}
+function BindingRow({ label, keys, desc }: BindingRowProps): JSX.Element {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', marginBottom: 9 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap', marginBottom: 2 }}>
+        <span style={{ fontSize: 11, color: 'rgba(160,200,255,0.6)', minWidth: 50 }}>{label}</span>
+        {keys.map((k, i) => (
+          <Kbd key={i} color={k.color}>{k.text}</Kbd>
+        ))}
+      </div>
+      <span style={{ fontSize: 10, color: 'rgba(140,180,240,0.55)', paddingLeft: 54 }}>{desc}</span>
+    </div>
+  );
+}
+
+export const CameraControlsScene = (): JSX.Element => {
+  const chartTheme = useChartTheme();
+  return (
+    <Scene id="input-camera">
+      <ProgressManager scrollUnits={800} />
+      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={48} />
+      <Lighting intensityScale={1}>
+        <Ambient intensity={0.5} color="#d7e8ff" />
+        <Directional intensity={1.3} color="#b0ccff" position={[-5, 10, 8]} />
+        <Directional intensity={0.7} color="#ffd8b0" position={[8, 6, 6]} />
+      </Lighting>
+      <Floor variant="grid" negativeZExtent={18} />
+
+      <InputController scope="canvas">
+        {/* Orbit — primary (left drag) */}
+        <Action id="orbit" type="camera.orbit">
+          <PointerMap event="drag" button="left" axis="xy" />
+        </Action>
+        {/* Orbit — alt speed variants */}
+        <Action id="orbit-alt" type="camera.orbit" speed={0.8}>
+          <PointerMap event="drag" button="right" axis="xy" />
+          <PointerMap event="drag" button="left" modifiers={['alt']} axis="xy" />
+        </Action>
+        {/* Dolly — wheel */}
+        <Action id="dolly" type="camera.dolly">
+          <WheelMap axis="y" />
+          <PinchMap direction="both" threshold={1} />
+        </Action>
+        {/* Dolly — precision (ctrl+wheel) */}
+        <Action id="dolly-precision" type="camera.dolly" speed={0.25}>
+          <WheelMap axis="y" modifiers={['ctrl']} />
+        </Action>
+        {/* Reset */}
+        <Action id="reset" type="camera.reset">
+          <KeyMap keyName="r" />
+          <PointerMap event="click" modifiers={['alt']} />
+        </Action>
+        {/* Scene navigation */}
+        <Action id="scene-next" type="scene.next">
+          <KeyMap keyName="ArrowRight" />
+        </Action>
+        <Action id="scene-prev" type="scene.prev">
+          <KeyMap keyName="ArrowLeft" />
+        </Action>
+      </InputController>
+
+      {/* Chart view */}
+      <View id="cam-chart-view" x={0.05} y={0.08} w={0.58} h={0.82}>
+        <BarChart
+          id="is-camera-binding-chart"
+          data={cameraBindingData}
+          theme={chartTheme}
+          x={0} y={0} w={1} h={1}
+          depth={0.3}
+        >
+          <ChartData keyField="action" />
+          <ChartAxis axis="x" field="action" label="Action Type" />
+          <ChartAxis axis="y" field="maps" label="Input Maps Bound" />
+          <ChartSeries field="maps" label="Bindings" />
+        </BarChart>
+      </View>
+
+      {/* Controls reference card */}
+      <TextBox id="cam-ref" x={0.66} y={0.06} w={0.32} h={0.88} layer={3}>
+        <div
+          style={{
+            height: '100%',
+            overflowY: 'auto',
+            padding: '14px 16px',
+            background: 'rgba(4, 12, 28, 0.88)',
+            backdropFilter: 'blur(14px)',
+            borderRadius: 10,
+            border: '1px solid rgba(70, 130, 220, 0.3)',
+            boxSizing: 'border-box',
+          }}
+        >
+          <h3 style={{ margin: '0 0 12px', fontSize: 14, color: '#c8deff', fontWeight: 600 }}>
+            Camera Controls
+          </h3>
+
+          <div style={{ fontSize: 10, color: 'rgba(120,160,220,0.5)', textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 8 }}>
+            Orbit
+          </div>
+          <BindingRow
+            label="orbit"
+            keys={[{ text: 'Left Drag', color: C_CAMERA }]}
+            desc="Primary orbit (full speed)"
+          />
+          <BindingRow
+            label="orbit ×0.8"
+            keys={[{ text: 'Right Drag', color: C_CAMERA }, { text: 'Alt', color: C_MODIFIER }, { text: '+ Left Drag', color: C_CAMERA }]}
+            desc="Slower orbit — right button or Alt+drag"
+          />
+
+          <div style={{ fontSize: 10, color: 'rgba(120,160,220,0.5)', textTransform: 'uppercase', letterSpacing: '0.12em', margin: '10px 0 8px' }}>
+            Dolly
+          </div>
+          <BindingRow
+            label="dolly"
+            keys={[{ text: 'Scroll', color: C_CAMERA }]}
+            desc="Wheel scroll — full speed"
+          />
+          <BindingRow
+            label="dolly"
+            keys={[{ text: 'Pinch', color: C_CAMERA }]}
+            desc="Pinch in/out — full speed"
+          />
+          <BindingRow
+            label="dolly ×0.25"
+            keys={[{ text: 'Ctrl', color: C_MODIFIER }, { text: '+ Scroll', color: C_CAMERA }]}
+            desc="Precision dolly — 4× slower"
+          />
+
+          <div style={{ fontSize: 10, color: 'rgba(120,160,220,0.5)', textTransform: 'uppercase', letterSpacing: '0.12em', margin: '10px 0 8px' }}>
+            Reset
+          </div>
+          <BindingRow
+            label="reset"
+            keys={[{ text: 'R', color: C_RESET }]}
+            desc="Keyboard reset"
+          />
+          <BindingRow
+            label="reset"
+            keys={[{ text: 'Alt', color: C_MODIFIER }, { text: '+ Click', color: C_RESET }]}
+            desc="Alt+click reset"
+          />
+
+          <div style={{ fontSize: 10, color: 'rgba(120,160,220,0.5)', textTransform: 'uppercase', letterSpacing: '0.12em', margin: '10px 0 8px' }}>
+            Scene Nav
+          </div>
+          <BindingRow
+            label="next"
+            keys={[{ text: '→', color: C_SCENE }]}
+            desc="Next scene"
+          />
+          <BindingRow
+            label="prev"
+            keys={[{ text: '←', color: C_SCENE }]}
+            desc="Previous scene"
+          />
+
+          <div
+            style={{
+              marginTop: 12,
+              padding: '8px 10px',
+              background: 'rgba(80, 144, 224, 0.1)',
+              borderRadius: 6,
+              border: '1px solid rgba(80, 144, 224, 0.2)',
+              fontSize: 10,
+              color: 'rgba(160, 200, 255, 0.65)',
+              lineHeight: 1.5,
+            }}
+          >
+            scope="canvas" — input fires only when cursor is over the canvas area.
+          </div>
+        </div>
+      </TextBox>
+    </Scene>
+  );
+};

@@ -3,11 +3,14 @@ title: "BrewSite Core — Background Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-04
+last_updated: 2026-03-13
 change_history:
   - date: 2026-03-04
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents the extended Background element as implemented: gradient fill support, CSS filter, overlay gradient layer (second DOM element), backdropFilter, and SceneTheme integration via CUSTOM_NODE_HANDLER."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "PRD audit: added BackgroundLayer component documentation — the React component that renders the background DOM element in the composable player layout. BackgroundLayer is mounted by the consumer as a child of ScrollStage (or equivalent layout container) alongside SceneCanvas and EngineOverlayHost. Updated last_updated."
 ---
 
 # BrewSite Core — Background Element
@@ -193,6 +196,24 @@ const brandTheme: SceneTheme = {
   <Background theme={darkSceneTheme} cssFilter="blur(2px)" /> {/* filter overrides theme */}
 </Scene>
 ```
+
+---
+
+### 7.7 BackgroundLayer Component (`player/BackgroundLayer.tsx`)
+
+`BackgroundLayer` is the React component that renders the background DOM element in the composable player layout. It provides the DOM elements that `BackgroundWidget` manipulates each tick.
+
+```tsx
+import { BackgroundLayer, SceneCanvas, EngineOverlayHost } from '@brewsite/core';
+
+<ScrollStage ...>
+  <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+  <SceneCanvas />
+  <EngineOverlayHost />
+</ScrollStage>
+```
+
+`BackgroundLayer` registers its DOM element with the engine context so that `BackgroundWidget.apply()` can set CSS properties on it each tick. The component accepts standard `div` props (`className`, `style`) for positioning within the consumer's layout.
 
 ---
 

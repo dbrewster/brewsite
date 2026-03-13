@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-12
+last_updated: 2026-03-13
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -29,6 +29,9 @@ change_history:
   - date: 2026-03-12
     author: "Toolkit Product"
     summary: "Theme family art direction: all six polarity-variant DiagramTheme presets promoted from @internal placeholders to production-ready public exports. Each polarity variant carries fully designed node/edge PBR material profiles, label colors, palette, and motion/interaction parameters distinct to its family and polarity — no sibling-theme reuse. DIAGRAM_THEME_PAIRS and DIAGRAM_THEMES both export all 12 variants. Added Technical Considerations section covering per-family node and edge material profiles and per-family motion and interaction profile ranges."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "Audit corrections: DiagramThemeNodeConfig gains nodeEnvMapIntensity (optional, default 0.15), defaultBoxColor (optional), defaultLabelPadding (required). DiagramThemeEdgeConfig gains many flow routing fields: flowTurnRadius, flowFaceStub, flowBundleStrength, flowObstaclePadding, flowTargetApproachBias, flowUnderpassDepth, flowUnderpassClearance, flowTurnPenalty, flowPunchthroughPenalty, flowUnderpassPenalty. DiagramThemeRenderConfig gains nodeEnvMapIntensity, nodeSdfGlyphSize, nodeLabelPadding. DiagramTheme gains sdfGlyphSize (optional). Corrected custom theme example — routing: 'orthogonal' is not valid; corrected to routing: 'flow'. Input defaults section corrected — input is now forwarded to DiagramWidget/diagramPlugin, not DiagramCanvasWidget."
 ---
 
 ## Overview
@@ -186,6 +189,13 @@ export interface DiagramTheme {
    * label colors.
    */
   readonly sceneTheme?: SceneTheme;
+  /**
+   * SDF glyph size for troika-three-text atlas tiles (pixels per glyph).
+   * Controls how many unique glyphs fit in the shared troika SDF atlas.
+   * When absent, themeResolver defaults to 32, which gives ~4096 glyph slots.
+   * Set to 64 only when maximum per-glyph sharpness is required at large font sizes.
+   */
+  readonly sdfGlyphSize?: number;
 }
 ```
 
@@ -216,8 +226,19 @@ The `defaultDiagramCanvasInputActions` constant exported from `@brewsite/diagram
 ```typescript
 export interface DiagramThemeNodeConfig {
   readonly defaultColor: string;
+  /**
+   * Optional default side/box color (CSS hex) for node side faces.
+   * When absent, compile.ts derives it from defaultColor via sideColorDarkenFactor.
+   */
+  readonly defaultBoxColor?: string;
   readonly defaultMetalness: number;
   readonly defaultRoughness: number;
+  /**
+   * Per-node environment map reflection intensity [0–1].
+   * Applied to each node's MeshStandardMaterial.envMapIntensity.
+   * Optional — defaults to 0.15 when absent.
+   */
+  readonly nodeEnvMapIntensity?: number;
   readonly defaultEmissiveIntensity: number;
   readonly defaultThickness: number;
   /** Default node width and height in diagram units for AutoLayout. ManualLayout always requires explicit size. */
@@ -254,6 +275,12 @@ export interface DiagramThemeNodeConfig {
   readonly labelFontSizeBase: number;
   /** Base coefficient for sublabel font size. Final size = contentH × sublabelFontSizeBase × sublabelSizeFactor × sceneTheme.fontSize.caption. */
   readonly sublabelFontSizeBase: number;
+  /**
+   * Default label padding as a fraction of the node's content height [0–1].
+   * Positive values shift labels downward; negative values shift upward.
+   * 0 = no offset (default position). darkGlass default: 0.
+   */
+  readonly defaultLabelPadding: number;
 }
 
 export interface DiagramThemeEdgeConfig {
@@ -274,6 +301,26 @@ export interface DiagramThemeEdgeConfig {
   readonly organicVariation: number;
   /** Peak brightness multiplier applied to the flow pulse shader. Range: 0–2. Default: 0.9. */
   readonly flowPulseIntensity: number;
+  /** Default turn radius for canonical flow routing in diagram units. */
+  readonly flowTurnRadius: number;
+  /** Default outward face-normal stub distance for flow routing. */
+  readonly flowFaceStub: number;
+  /** Controls how long compatible sibling flow edges share a common trunk before splitting. */
+  readonly flowBundleStrength: number;
+  /** Default obstacle padding used by flow routing. */
+  readonly flowObstaclePadding: number;
+  /** Bias toward direct target ingress after splitting from a flow trunk. */
+  readonly flowTargetApproachBias: number;
+  /** Default depth below the authored diagram plane for underpass routing. */
+  readonly flowUnderpassDepth: number;
+  /** Default vertical clearance used when entering and leaving an underpass. */
+  readonly flowUnderpassClearance: number;
+  /** Cost penalty multiplier for turns in the flow visibility search. */
+  readonly flowTurnPenalty: number;
+  /** Cost penalty applied when the flow router must puncture an obstacle. */
+  readonly flowPunchthroughPenalty: number;
+  /** Cost penalty applied when the flow router uses a Z underpass. */
+  readonly flowUnderpassPenalty: number;
 }
 
 export interface DiagramThemeGroupConfig {
@@ -345,6 +392,12 @@ export interface DiagramThemeRenderConfig {
   readonly envMapIntensity: number;
   readonly skyColor: string;
   readonly horizonColor: string;
+  /**
+   * Per-node environment map reflection intensity [0–1].
+   * Applied to each node's MeshStandardMaterial.envMapIntensity.
+   * Source: theme.node.nodeEnvMapIntensity ?? 0.15.
+   */
+  readonly nodeEnvMapIntensity: number;
   readonly nodeGlowIntensity: number;
   /** Resolved from DiagramThemeNodeConfig.glowSpread. Controls glow sprite radius multiplier. */
   readonly nodeGlowSpread: number;
@@ -386,6 +439,18 @@ export interface DiagramThemeRenderConfig {
    * Effective sublabel size factor = theme.node.sublabelSizeFactor x (sceneTheme?.fontSize.caption ?? 1.0).
    */
   readonly effectiveSublabelSizeFactor?: number;
+  /**
+   * SDF glyph size for troika-three-text atlas tiles.
+   * Source: theme.sdfGlyphSize ?? 32.
+   * 32 gives ~4096 glyph slots; 64 gives ~1024 with maximum per-glyph sharpness.
+   */
+  readonly nodeSdfGlyphSize: number;
+  /**
+   * Default label padding as a fraction of content height [0–1].
+   * Source: theme.node.defaultLabelPadding.
+   * Applied as a vertical Y offset to all node label positions.
+   */
+  readonly nodeLabelPadding: number;
 }
 ```
 
@@ -448,7 +513,7 @@ const brandTheme: DiagramTheme = {
   edge: {
     ...darkGlassTheme.edge,
     defaultColor: '#ff6b35',
-    routing: 'orthogonal',
+    routing: 'flow',
   },
   environment: {
     ...darkGlassTheme.environment,
@@ -527,12 +592,7 @@ All six families' preset `DiagramTheme` values for motion parameters are defined
 
 ### Input defaults in theme
 
-`DiagramTheme.input` carries default input action configuration for a `<DiagramCanvas>`. At compile time, the `DiagramCanvas` compiler handler reads `theme.input.defaultActions`, injects `canvasId` (from the `<DiagramCanvas id="...">` prop) into each action spec, and stores the result as `DiagramCanvasState.defaultInputActions`. This compiled value is consumed at runtime by `DiagramCanvasWidget`, which implements `IInputDefaultProvider` from `@brewsite/core`. The player layer reads all `IInputDefaultProvider` widgets each frame via `WidgetRegistry.getInputDefaultProviders()` and applies their actions when no explicit `<InputController>` is present in the current scene.
-
-**Scope constraint:** `input` is only effective on a `<DiagramCanvas theme={...}>` — not on a child `<Diagram>` or a standalone `<Diagram>`. The compiler emits a `IGNORED_INPUT_CONFIG` warning in both invalid cases:
-
-- `<Diagram id="...">` nested inside a `<DiagramCanvas>` has `theme.input` — the diagram-level input is ignored; move it to the `<DiagramCanvas theme={...}>`.
-- A standalone `<Diagram>` (not wrapped in `<DiagramCanvas>`) has `theme.input` — ignored; only a canvas can dispatch default input actions.
+`DiagramTheme.input` is reserved for future canvas-level default input configuration. As of the current implementation, a standalone `<Diagram>` that declares `theme.input` will receive an `IGNORED_INPUT_CONFIG` compiler warning. The field exists in the type for forward-compatibility but is not consumed by `DiagramWidget` or the current compiler handler. Scene authors should use `<InputController>` with `<Action type="diagram-canvas.*">` for canvas interaction instead.
 
 The `IGNORED_INPUT_CONFIG` warning is surfaced via `SceneTrack.warnings` and forwarded to any `onCompileWarning` handler registered on `ScenePlayer`.
 
@@ -604,6 +664,13 @@ const myTheme = {
 - `DiagramThemeRenderConfig` gains `nodeGlowSpread`, `edgeTubeRadialSegments`, `groupBorderMetalness`, `groupBorderRoughness`, `groupBorderSideDarken`, `groupBorderEdgeDarken` — consumers who construct `DiagramThemeRenderConfig` directly will fail TypeScript; the only supported path is via `buildThemeRenderConfig(theme)`.
 
 **All six preset themes (`darkGlassTheme`, `midnightTheme`, `neonCyberTheme`, `enterpriseTheme`, `lightCanvasTheme`, `lightMinimalTheme`) include explicit values for every required field.** Custom themes that spread from any preset and override only specific sub-configs compile correctly without modification (spread semantics preserve all required fields).
+
+**Post-2026-03-08 additions (additional required and optional fields):**
+- New required field on `DiagramThemeNodeConfig`: `defaultLabelPadding` — any custom theme constructed from scratch (not spread from a preset) must add this field.
+- New optional fields on `DiagramThemeNodeConfig`: `nodeEnvMapIntensity`, `defaultBoxColor` — spread-based themes inherit defaults; no migration required.
+- New required fields on `DiagramThemeEdgeConfig`: `flowTurnRadius`, `flowFaceStub`, `flowBundleStrength`, `flowObstaclePadding`, `flowTargetApproachBias`, `flowUnderpassDepth`, `flowUnderpassClearance`, `flowTurnPenalty`, `flowPunchthroughPenalty`, `flowUnderpassPenalty` — custom themes constructed from scratch must add these fields.
+- New optional field on `DiagramTheme`: `sdfGlyphSize` — no migration required.
+- New fields on `DiagramThemeRenderConfig`: `nodeEnvMapIntensity`, `nodeSdfGlyphSize`, `nodeLabelPadding` — consumers constructing `DiagramThemeRenderConfig` directly (which is not a supported pattern) must add these; use `buildThemeRenderConfig(theme)` instead.
 
 **String name API addition (non-breaking):** The `theme?` prop on `DiagramProps` changed from `DiagramTheme | undefined` to `DiagramThemeName | DiagramTheme | undefined`. This is a union widening — existing call sites that pass a `DiagramTheme` object compile identically. TypeScript discriminates the union cleanly: string literals satisfy `DiagramThemeName`; objects satisfy `DiagramTheme`.
 

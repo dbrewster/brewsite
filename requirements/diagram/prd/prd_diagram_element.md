@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Diagram Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-10
+last_updated: 2026-03-13
 change_history:
   - date: 2026-03-10
     author: "Toolkit Product"
@@ -11,6 +11,9 @@ change_history:
   - date: 2026-03-10
     author: "Toolkit Product"
     summary: "Module architecture redesign: ghost node merge logic extracted to compiler/ghostNodeMerge.ts; hover state machine extracted to compiler/hoverStateMachine.ts; coordinate normalization extracted to compiler/normalizeToViewport.ts; node label arithmetic extracted to rendering/nodeLabelLayout.ts; IFocusRegionService interface + DiagramFocusRegionService class added to focusRegion.ts; DiagramRenderer now accepts optional IIconLoader injection; global dispose() side effect removed from render.ts. Updated Compilation Pipeline, Ghost Node Inheritance, Rendering Architecture, DiagramWidget Contract, and Technical Considerations sections."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "Audit corrections: DiagramWidget implements ILightingOverride (not IAnimationController — IAnimationController was removed, tickPriority and onTick() do not exist). DiagramWidget implements IDslComposite, ILoadable, INVSBounded, ILightingOverride. FlowLayout added to childDslComponents. DiagramNodeProps and DiagramEdgeProps gain new fields: labelPadding, boxColor (node-level boxColor), and per-edge flow routing overrides (flowTurnRadius, flowFaceStub, flowBundleStrength, flowTargetApproachBias, allowUnderpass). DiagramState gains contentAspect field. Camera auto-framing description removed — DiagramWidget does not implement IAnimationController and no longer performs auto-framing via onTick()."
   - date: 2026-03-09
     author: "Toolkit Product"
     summary: "NVS Universal Coordinate System: DiagramCanvas removed — <Diagram> is now the top-level authoring element. DiagramProps.viewportBounds (NVSRect) replaced by flat x/y/w/h props. DiagramProps.tilt changed from Vec3 to scalar (pitch only). DiagramWidget now implements ILoadable (env map) + INVSBounded. Overview updated to remove DiagramCanvasWidget reference. Non-Goals updated to remove DiagramCanvas/DiagramPipe mention. DSL section updated with new DiagramProps. Consumer integration updated to diagramPlugin({ diagrams: [...] }) pattern. Breaking change assessment updated to major."
@@ -158,9 +161,11 @@ export interface DiagramNodeProps {
   thickness?: number;
   /** Front-face fill color (CSS hex). Default: from theme */
   color?: string;
-  /** Side/edge faces color (CSS hex). Default: derived from color (darker) */
+  /** Side/box faces color (CSS hex). Default: derived from color via theme sideColorDarkenFactor */
+  boxColor?: string;
+  /** Legacy alias for boxColor. Both are accepted; boxColor is preferred. */
   sideColor?: string;
-  /** Border outline color (CSS hex). Default: derived from color (lighter) */
+  /** Border outline color (CSS hex). Default: derived from color via theme borderColorLightenFactor */
   borderColor?: string;
   /** PBR metalness [0–1]. Default: from theme (darkGlass: 0.40) */
   metalness?: number;
@@ -180,6 +185,12 @@ export interface DiagramNodeProps {
   labelColor?: string;
   /** Sublabel text color (CSS hex). Default: '#a0a8c0' */
   sublabelColor?: string;
+  /**
+   * Label padding as a fraction of the node's content height [0–1].
+   * Positive values shift labels downward; negative values shift upward.
+   * Default: from theme (defaultLabelPadding, typically 0).
+   */
+  labelPadding?: number;
   /** Node opacity [0–1]. Default: 1 */
   opacity?: number;
   /** Whether node responds to click/raycast interaction. Default: false */
@@ -251,6 +262,16 @@ export interface DiagramEdgeProps {
   fromPort?: DiagramEdgePort;      // 'top' | 'bottom' | 'left' | 'right' | 'front' | 'back'
   /** Explicit attachment port at the destination node. */
   toPort?: DiagramEdgePort;
+  /** Per-edge override for canonical flow turn radius. Only applies when routing='flow'. */
+  flowTurnRadius?: number;
+  /** Per-edge override for canonical flow face stub length. Only applies when routing='flow'. */
+  flowFaceStub?: number;
+  /** Per-edge override for how long sibling flow edges remain bundled before splitting. */
+  flowBundleStrength?: number;
+  /** Per-edge override for how strongly a flow edge prefers direct target ingress after splitting. */
+  flowTargetApproachBias?: number;
+  /** Enables the flow router's Z underpass escape hatch for this edge. Default: from theme. */
+  allowUnderpass?: boolean;
 }
 ```
 
@@ -507,6 +528,12 @@ export interface DiagramState {
    */
   readonly tiltRotation: readonly [number, number, number];
   /**
+   * Aspect ratio of the diagram's content space (width / height).
+   * Derived from the compiled viewportBounds and used by DiagramRenderer
+   * to correctly scale node geometry in world space.
+   */
+  readonly contentAspect: number;
+  /**
    * Compiled exit behaviour. undefined = default fade (no position animation).
    * Applied by exitFn in functionalDiagramTransitionSpec.
    */
@@ -585,20 +612,21 @@ Four rendering classes collaborate to produce the Three.js scene. All live in `p
 // packages/diagram/src/elements/diagram/widget.ts
 
 class DiagramWidget
-  implements ISceneElement<DiagramState>, IRenderable<DiagramState>, IAnimationController, IDslComposite
+  implements
+    ISceneElement<DiagramState>,
+    IRenderable<DiagramState>,
+    ILoadable,
+    INVSBounded,
+    IDslComposite,
+    ILightingOverride
 {
   readonly widgetId: string;
   readonly defaultState: DiagramState;
   readonly transitionSpec = functionalDiagramTransitionSpec;
   readonly DslComponent = Diagram;
-  readonly childDslComponents: IDslComposite['childDslComponents']; // DiagramNode, DiagramEdge, DiagramGroup, DiagramExit, DiagramEnter, GridLayout, HierarchicalLayout, ManualLayout
-
-  /**
-   * tickPriority = 1: runs after CameraWidget (tickPriority = 0).
-   * Ensures the scene camera has been positioned before DiagramWidget evaluates
-   * whether camera auto-framing is needed.
-   */
-  readonly tickPriority = 1;
+  readonly childDslComponents: IDslComposite['childDslComponents'];
+  // DiagramNode, DiagramEdge, DiagramGroup, DiagramExit, DiagramEnter,
+  // GridLayout, HierarchicalLayout, ManualLayout, FlowLayout
 
   /**
    * Assign after construction to receive node-click events:
@@ -615,23 +643,41 @@ class DiagramWidget
   mergeSnapshot(prev: DiagramState | undefined, next: DiagramState | undefined): DiagramState | undefined;
 
   // IRenderable
-  // apply: calls DiagramRenderer.update(state, scene) on every engine tick
+  // apply: positions the diagramGroup via NVS coords, then calls DiagramRenderer.update()
   apply(state: DiagramState, context: WidgetRenderContext): void;
 
-  // IAnimationController
-  // onTick: auto-frames the scene camera from DiagramState.bounds when no Camera widget is active
-  onTick(context: AnimationTickContext): void;
+  // ILoadable
+  // load: loads the HDR environment map via DiagramRenderer.loadEnvMap()
+  async load(manifest: AssetManifest | null): Promise<void>;
+  get isLoaded(): boolean;
+
+  // INVSBounded
+  // nvsBounds: returns lastState.viewportBounds (or defaultState if not yet applied)
+  get nvsBounds(): NVSRect;
+
+  // ILightingOverride
+  // getLightingOverride: returns null (DiagramWidget does not suppress scene lights)
+  getLightingOverride(): { disableAll: boolean } | null;
+  // receiveLightController: stores the per-light setter for use in hover callbacks
+  receiveLightController(setter: (lightId: string, enabled: boolean) => void): void;
 
   // IDslComposite
-  // childDslComponents: array of {component, displayName, topLevelError} for all child DSL types
+  // childDslComponents: registered child component types
+
+  // Canvas action (from diagramPlugin's ActionInputExtension)
+  applyCanvasAction(
+    action: 'move' | 'rotate' | 'focus' | 'reset',
+    dx: number,
+    dy: number,
+    speed: number,
+    focusCenter?: [number, number],
+  ): void;
 
   // Lifecycle
   initialize(context: WidgetInitContext): void;
   dispose(): void;
 }
 ```
-
-**Camera auto-framing (`onTick`).** When the current tick's `CameraState.enabled` is `false` (or no Camera widget is present), `DiagramWidget.onTick` computes a framing camera position from `DiagramState.viewportBounds` and `tiltRotation`. It reads the scene camera from `scene.userData['__brewsite_camera']`. This ensures diagrams are always visible even without an explicit `<Camera>` DSL element in the scene.
 
 **Hover event bubbling.** Mouse-move events bubble from the node level up through the group hierarchy. The pure hover state machine logic is implemented in `compiler/hoverStateMachine.ts` — it computes which nodes and groups have entered or left the hover path given the previous and next hovered IDs, and returns a list of events to dispatch. `widget.ts` calls this function and fires the resulting events; no hover logic lives in `widget.ts` itself. When the cursor moves from one node to another, `node-mouse-leave` fires on the old node then `node-mouse-enter` fires on the new node. Group hover events follow the same bubbling path: `group-mouse-leave` fires on groups no longer in the path; `group-mouse-enter` fires on newly entered groups. `stopPropagation()` on any event halts further dispatching in that cycle.
 
