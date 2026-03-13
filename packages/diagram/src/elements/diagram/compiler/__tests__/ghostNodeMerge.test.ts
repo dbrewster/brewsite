@@ -23,6 +23,7 @@ function makeNode(overrides: Partial<DiagramNodeState> & { id: string }): Diagra
     cornerRadius: 0.06,
     labelColor: '#ffffff',
     sublabelColor: '#aaaaaa',
+    labelPadding: 0,
     opacity: 1,
     clickable: false,
     enabled: true,

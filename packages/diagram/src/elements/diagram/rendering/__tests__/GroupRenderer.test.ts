@@ -10,6 +10,7 @@ const themeConfig: DiagramThemeRenderConfig = {
   envMapIntensity: 1,
   skyColor: '#000',
   horizonColor: '#000',
+  nodeEnvMapIntensity: 0.15,
   nodeGlowIntensity: 0,
   nodeGlowSpread: 2.2,
   nodeCornerRadius: 0,

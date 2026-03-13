@@ -8,11 +8,11 @@ import type { DiagramTheme } from '../types';
 export const lightCanvasTheme: DiagramTheme = {
   node: {
     defaultColor: '#FFFFFF',
-    defaultBoxColor: '#F1F4F8',
+    defaultBoxColor: '#DDE3EC',
     defaultMetalness: 0.04,
     defaultRoughness: 0.58,
     defaultEmissiveIntensity: 0.0,
-    defaultThickness: 0.20,
+    defaultThickness: 0.5,
     cornerRadius: 0.09,
     glowIntensity: 0.0,
     defaultLabelColor: '#1D2A3D',
@@ -29,6 +29,7 @@ export const lightCanvasTheme: DiagramTheme = {
     borderColorLightenFactor: 0.15,
     labelFontSizeBase: 0.28,
     sublabelFontSizeBase: 0.18,
+    defaultLabelPadding: 0,
   },
   edge: {
     defaultColor: '#4768C9',

@@ -66,6 +66,7 @@ export function compileNode(
     cornerRadius: dsl.cornerRadius ?? nd.cornerRadius,
     labelColor: dsl.labelColor ?? nd.labelColor,
     sublabelColor: dsl.sublabelColor ?? nd.sublabelColor,
+    labelPadding: dsl.labelPadding ?? nd.labelPadding,
     opacity: dsl.opacity ?? nd.opacity,
     clickable: dsl.clickable ?? nd.clickable,
     enabled: dsl.enabled ?? nd.enabled,

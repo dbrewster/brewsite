@@ -8,7 +8,7 @@ export const lightCanvasDarkTheme: DiagramTheme = {
   node: {
     ...lightCanvasTheme.node,
     defaultColor: '#232F40',
-    defaultBoxColor: '#2E3C4F',
+    defaultBoxColor: '#3A4D65',
     defaultLabelColor: '#E8EEF7',
     defaultSublabelColor: '#A8B4C4',
     defaultMetalness: 0.16,

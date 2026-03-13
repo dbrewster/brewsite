@@ -49,13 +49,16 @@ export function ensureText(
     fitRatio?: number;
   };
 
+  // Capture change flags BEFORE mutation so we can detect what needs resetting.
+  const textValueChanged = text.text !== value;
+  const fontChanged = layout.fontUrl !== undefined && text.font !== layout.fontUrl;
   const baseChanged = userData.baseFontSize !== baseFontSize;
   const nextRatio = maxWidth !== undefined ? maxWidth / baseFontSize : undefined;
   const ratioChanged =
     nextRatio !== undefined &&
     (userData.fitRatio === undefined || Math.abs(nextRatio - userData.fitRatio) > 1e-3);
   const layoutChanged =
-    text.text !== value ||
+    textValueChanged ||
     text.color !== color ||
     text.anchorX !== nextAnchorX ||
     text.anchorY !== nextAnchorY ||
@@ -69,6 +72,14 @@ export function ensureText(
     text.font !== (layout.fontUrl ?? text.font) ||  // font change triggers re-sync
     text.sdfGlyphSize !== (layout.sdfGlyphSize ?? text.sdfGlyphSize);  // glyph size change triggers re-sync
 
+  // When text content or font changes and shrink-to-fit is active, the old fitScale
+  // is stale — it was computed for a different string or different font metrics.
+  // Reset to undefined so the hide-until-fit mechanism activates and the text is
+  // re-measured at baseFontSize. Font metric changes are especially important: the
+  // same text at the same fontSize can have very different widths across fonts, so a
+  // fitScale calibrated to the old font would produce wrong sizing with the new font.
+  const fitInvalidated = (textValueChanged || fontChanged) && shrinkToFit && maxWidth !== undefined;
+
   if (layoutChanged) {
     // Set font URL before sync — must happen before text.sync() call
     if (layout.fontUrl !== undefined && text.font !== layout.fontUrl) {
@@ -80,7 +91,12 @@ export function ensureText(
     }
     text.text = value;
     text.color = color;
-    if (baseChanged) {
+
+    if (fitInvalidated) {
+      userData.fitScale = undefined;
+    }
+
+    if (baseChanged || fitInvalidated) {
       const initialScale = userData.fitScale ?? 1;
       text.fontSize = baseFontSize * initialScale;
     }
@@ -97,7 +113,7 @@ export function ensureText(
     userData.maxWidth = maxWidth;
     userData.shrinkToFit = shrinkToFit;
     userData.fitRatio = nextRatio;
-    userData.needsFit = shrinkToFit && maxWidth !== undefined && ratioChanged;
+    userData.needsFit = shrinkToFit && maxWidth !== undefined && (ratioChanged || textValueChanged || fontChanged);
     text.sync();
   }
 
@@ -111,6 +127,11 @@ export function ensureText(
 
   if (shrinkToFit && maxWidth !== undefined) {
     if (!userData.needsFit) return;
+    // When text content or font just changed, textRenderInfo still holds stale bounds
+    // from the PREVIOUS text/font. text.sync() was just called but troika's async worker
+    // hasn't completed yet. Skip the bounds check this frame — the next frame will see
+    // fresh bounds once troika finishes the sync.
+    if (fitInvalidated && layoutChanged) return;
     const info = text.textRenderInfo as { blockBounds?: [number, number, number, number] } | undefined;
     const bounds = info?.blockBounds;
     if (bounds) {

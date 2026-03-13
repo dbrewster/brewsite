@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import type { GroupRenderEntry, TextWithLayout } from './types';
 import type { DiagramGroupState, DiagramThemeRenderConfig } from '../types';
-import { ensureText, disposeText } from '@brewsite/core';
+import { ensureText, disposeText, parseHexColor } from '@brewsite/core';
 import { Text } from 'troika-three-text';
 import type { IGroupInteractionRegistry } from './GroupInteractionRegistry';
 import { GROUP_BORDER_PX_TO_UNITS, GROUP_RENDER_Z } from '../compiler/diagramRenderConstants';
@@ -54,11 +54,12 @@ export class GroupRenderer {
   private createGroup(state: DiagramGroupState, diagramId: string, themeConfig: DiagramThemeRenderConfig): GroupRenderEntry {
     const group = new THREE.Group();
     const geometry = new THREE.PlaneGeometry(state.bounds.w, state.bounds.h);
+    const fillParsed = parseHexColor(state.color);
     const fill = new THREE.Mesh(
       geometry,
       new THREE.MeshBasicMaterial({
-        color: state.color,
-        opacity: state.fillOpacity,
+        color: fillParsed.rgb,
+        opacity: state.fillOpacity * fillParsed.alpha,
         transparent: true,
         side: THREE.DoubleSide,
       }),
@@ -156,12 +157,12 @@ export class GroupRenderer {
     }
 
     const fillMat = entry.fill.material as THREE.MeshBasicMaterial;
-    fillMat.color.set(state.color);
-    fillMat.opacity = state.fillOpacity;
+    const fillParsed = parseHexColor(state.color);
+    fillMat.color.set(fillParsed.rgb);
+    const rawFillOp = state.variant === 'container' ? 0 : state.fillOpacity;
+    fillMat.opacity = rawFillOp * fillParsed.alpha;
     fillMat.transparent = true;
     entry.fill.visible = true;
-    fillMat.opacity = state.variant === 'container' ? 0 : state.fillOpacity;
-    fillMat.transparent = true;
 
     if (state.variant === 'container' || state.borderStyle === 'none') {
       this.removeBorder(entry);
@@ -185,31 +186,34 @@ export class GroupRenderer {
       }
 
       if (entry.border) {
+        const borderParsed = parseHexColor(state.borderColor);
+        const borderEmissiveParsed = parseHexColor(state.borderEmissiveColor);
+        const effectiveBorderOp = state.borderOpacity * borderParsed.alpha;
         entry.border.traverse((obj) => {
           if (obj instanceof THREE.Mesh) {
             const mats = Array.isArray(obj.material)
               ? obj.material as THREE.MeshStandardMaterial[]
               : [obj.material as THREE.MeshStandardMaterial];
             if (mats[0]) {
-              mats[0].color.set(state.borderColor);
-              mats[0].opacity = state.borderOpacity;
+              mats[0].color.set(borderParsed.rgb);
+              mats[0].opacity = effectiveBorderOp;
               mats[0].transparent = true;
-              mats[0].emissive.set(state.borderEmissiveColor);
+              mats[0].emissive.set(borderEmissiveParsed.rgb);
               mats[0].emissiveIntensity = state.borderEmissiveIntensity;
             }
             if (mats[1]) {
-              mats[1].color.set(new THREE.Color(state.borderColor).multiplyScalar(themeConfig.groupBorderSideDarken));
-              mats[1].opacity = state.borderOpacity;
+              mats[1].color.set(new THREE.Color(borderParsed.rgb).multiplyScalar(themeConfig.groupBorderSideDarken));
+              mats[1].opacity = effectiveBorderOp;
               mats[1].transparent = true;
-              mats[1].emissive.set(state.borderEmissiveColor);
+              mats[1].emissive.set(borderEmissiveParsed.rgb);
               mats[1].emissiveIntensity = state.borderEmissiveIntensity;
             }
             return;
           }
           if (obj instanceof THREE.LineSegments) {
             const edgeMat = obj.material as THREE.LineBasicMaterial;
-            edgeMat.color.set(new THREE.Color(state.borderColor).multiplyScalar(themeConfig.groupBorderEdgeDarken));
-            edgeMat.opacity = Math.min(1, state.borderOpacity + 0.1);
+            edgeMat.color.set(new THREE.Color(borderParsed.rgb).multiplyScalar(themeConfig.groupBorderEdgeDarken));
+            edgeMat.opacity = Math.min(1, effectiveBorderOp + 0.1);
             edgeMat.transparent = true;
           }
         });
@@ -249,12 +253,13 @@ export class GroupRenderer {
     const labelInsetX = Math.max(0.02, state.bounds.w * 0.08);
     const labelMaxWidth = Math.max(labelFontSize, state.bounds.w - labelInsetX * 2);
     if (state.label) {
+      const labelParsed = parseHexColor(state.labelColor);
       ensureText(
         entry.label,
         state.label,
-        state.labelColor,
+        labelParsed.rgb,
         labelFontSize,
-        1,
+        labelParsed.alpha,
         labelMaxWidth,
         true,
         { anchorX: 'left', anchorY: 'middle', textAlign: 'left', fontUrl: themeConfig.fontUrl, sdfGlyphSize: themeConfig.nodeSdfGlyphSize },
@@ -266,7 +271,9 @@ export class GroupRenderer {
         titleY,
         0.05,
       );
-      entry.label.visible = true;
+      // Visibility is controlled by ensureText's hide-until-fit mechanism —
+      // do NOT override it here. ensureText hides the text during async troika
+      // measurement and reveals it once the correct fitScale is computed.
     } else {
       entry.label.visible = false;
     }
@@ -297,22 +304,25 @@ export class GroupRenderer {
     const h = Math.max(0.01, state.bounds.h);
     const halfW = w / 2;
     const halfH = h / 2;
+    const borderParsed = parseHexColor(state.borderColor);
+    const borderEmissiveParsed = parseHexColor(state.borderEmissiveColor);
+    const effectiveBorderOp = state.borderOpacity * borderParsed.alpha;
     const faceMat = new THREE.MeshStandardMaterial({
-      color: state.borderColor,
-      opacity: state.borderOpacity,
+      color: borderParsed.rgb,
+      opacity: effectiveBorderOp,
       transparent: true,
       metalness: themeConfig.groupBorderMetalness,
       roughness: themeConfig.groupBorderRoughness,
-      emissive: new THREE.Color(state.borderEmissiveColor),
+      emissive: new THREE.Color(borderEmissiveParsed.rgb),
       emissiveIntensity: state.borderEmissiveIntensity,
     });
     const sideMat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(state.borderColor).multiplyScalar(themeConfig.groupBorderSideDarken),
-      opacity: state.borderOpacity,
+      color: new THREE.Color(borderParsed.rgb).multiplyScalar(themeConfig.groupBorderSideDarken),
+      opacity: effectiveBorderOp,
       transparent: true,
       metalness: themeConfig.groupBorderMetalness,
       roughness: themeConfig.groupBorderRoughness,
-      emissive: new THREE.Color(state.borderEmissiveColor),
+      emissive: new THREE.Color(borderEmissiveParsed.rgb),
       emissiveIntensity: state.borderEmissiveIntensity,
     });
 
@@ -343,8 +353,8 @@ export class GroupRenderer {
     const edgeLines = new THREE.LineSegments(
       new THREE.EdgesGeometry(geom),
       new THREE.LineBasicMaterial({
-        color: new THREE.Color(state.borderColor).multiplyScalar(themeConfig.groupBorderEdgeDarken),
-        opacity: Math.min(1, state.borderOpacity + 0.1),
+        color: new THREE.Color(borderParsed.rgb).multiplyScalar(themeConfig.groupBorderEdgeDarken),
+        opacity: Math.min(1, effectiveBorderOp + 0.1),
         transparent: true,
       }),
     );
@@ -357,9 +367,10 @@ export class GroupRenderer {
     if (!spec || spec.lights.length === 0) return undefined;
     const group = new THREE.Group();
     for (const lightState of spec.lights) {
+      const lightParsed = parseHexColor(lightState.color);
       const light = new THREE.PointLight(
-        lightState.color,
-        spec.intensity,
+        lightParsed.rgb,
+        spec.intensity * lightParsed.alpha,
         spec.distance,
         spec.decay,
       );

@@ -8,11 +8,12 @@ import type { DiagramTheme } from '../types';
 export const lightMinimalTheme: DiagramTheme = {
   node: {
     defaultColor: '#F3F6FB',
-    defaultBoxColor: '#E7EDF6',
+    defaultBoxColor: '#D6DEE9',
     defaultMetalness: 0.08,
     defaultRoughness: 0.60,
+    nodeEnvMapIntensity: 0.0,
     defaultEmissiveIntensity: 0.0,
-    defaultThickness: 0.20,
+    defaultThickness: 0.30,
     cornerRadius: 0.08,
     glowIntensity: 0.0,
     defaultLabelColor: '#223248',
@@ -29,6 +30,7 @@ export const lightMinimalTheme: DiagramTheme = {
     borderColorLightenFactor: 0.20,
     labelFontSizeBase: 0.28,
     sublabelFontSizeBase: 0.18,
+    defaultLabelPadding: 0,
   },
   edge: {
     defaultColor: '#6A94CD',

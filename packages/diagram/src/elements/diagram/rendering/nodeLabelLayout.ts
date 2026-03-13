@@ -36,6 +36,7 @@ export type NodeLabelLayout = {
  * @param sublabelFontSizeBase  Base sublabel font size as a fraction of contentH (from theme).
  * @param labelSizeFactor       Multiplier applied to label base size (from theme).
  * @param sublabelSizeFactor    Multiplier applied to sublabel base size (from theme).
+ * @param labelPadding          Vertical offset as a fraction of contentH [0–1]. Positive = downward shift.
  */
 export function computeNodeLabelLayout(
   contentW: number,
@@ -48,6 +49,7 @@ export function computeNodeLabelLayout(
   sublabelFontSizeBase: number,
   labelSizeFactor: number,
   sublabelSizeFactor: number,
+  labelPadding: number = 0,
 ): NodeLabelLayout {
   const labelFontSize = contentH * labelFontSizeBase * labelSizeFactor;
   const sublabelFontSize = hasSublabel ? contentH * sublabelFontSizeBase * sublabelSizeFactor : undefined;
@@ -70,6 +72,14 @@ export function computeNodeLabelLayout(
   } else if (hasSublabel) {
     labelY = contentH * 0.1;
     sublabelY = labelY - (labelLine / 2 + sublabelLine / 2 + lineGap);
+  }
+
+  // Apply label padding: shift all label Y positions by -labelPadding * contentH.
+  // In the Y-up coordinate system, positive labelPadding moves labels downward (negative Y).
+  const paddingOffset = labelPadding * contentH;
+  labelY -= paddingOffset;
+  if (sublabelY !== undefined) {
+    sublabelY -= paddingOffset;
   }
 
   // contentW is accepted as a parameter for future use (e.g., text wrapping width),

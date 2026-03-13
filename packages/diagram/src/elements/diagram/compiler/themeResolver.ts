@@ -19,6 +19,7 @@ export function buildThemeRenderConfig(theme: DiagramTheme): DiagramThemeRenderC
     envMapIntensity:  theme.environment.envMapIntensity,
     skyColor:         theme.environment.skyColor,
     horizonColor:     theme.environment.horizonColor,
+    nodeEnvMapIntensity: theme.node.nodeEnvMapIntensity ?? 0.15,
     nodeGlowIntensity: theme.node.glowIntensity,
     nodeGlowSpread:    theme.node.glowSpread,
     nodeCornerRadius:  theme.node.cornerRadius,
@@ -45,6 +46,7 @@ export function buildThemeRenderConfig(theme: DiagramTheme): DiagramThemeRenderC
     // Lower values (e.g. 32) increase atlas capacity but risk overflow when combined
     // with improper disposal — prefer correct disposal over reduced glyph size.
     nodeSdfGlyphSize: theme.sdfGlyphSize ?? 64,
+    nodeLabelPadding: theme.node.defaultLabelPadding,
   };
 }
 

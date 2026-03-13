@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { scaleLinear } from 'd3-scale';
 import { extent } from 'd3-array';
 import { interpolateViridis, interpolatePlasma, interpolateBlues, interpolateReds } from 'd3-scale-chromatic';
+import { parseHexColor } from '@brewsite/core';
 import { AxesRenderer } from '../shared/AxesRenderer';
 import { LegendRenderer } from '../shared/LegendRenderer';
 import type { IChartRenderer, ChartRenderContext, ChartHitInfo, ChartHitMeta } from '../shared/IChartRenderer';
@@ -168,7 +169,8 @@ export class ScatterRenderer implements IChartRenderer {
         )
       : null;
 
-    const baseColor = new THREE.Color(theme.series[0]?.color ?? '#00d4ff');
+    const parsedBaseColor = parseHexColor(theme.series[0]?.color ?? '#00d4ff');
+    const baseColor = new THREE.Color(parsedBaseColor.rgb);
 
     for (let i = 0; i < count; i++) {
       const row = data.rows[i] as Record<string, unknown>;
@@ -210,7 +212,8 @@ export class ScatterRenderer implements IChartRenderer {
         if (isColorOrdinal && ordinalColorMap) {
           const colorIdx = ordinalColorMap.get(String(row[colorField])) ?? 0;
           const tokens = theme.series[colorIdx % theme.series.length]!;
-          color = new THREE.Color(tokens.color);
+          const parsedOrdinal = parseHexColor(tokens.color);
+          color = new THREE.Color(parsedOrdinal.rgb);
         } else if (!isColorOrdinal) {
           const rawVal = ctx.accessors?.colorAccessor
             ? Number(ctx.accessors.colorAccessor(row))

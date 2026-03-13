@@ -7,6 +7,7 @@ import {
   interpolateViridis,
   interpolatePlasma,
 } from 'd3-scale-chromatic';
+import { parseHexColor } from '@brewsite/core';
 import type { ChartTheme } from '../../themes/types';
 import type { ScatterChartOptions } from './IChartRenderer';
 
@@ -32,7 +33,8 @@ export class ChartMaterialFactory {
     const cached = this.cache.get(key);
     if (cached instanceof THREE.MeshPhysicalMaterial) return cached;
 
-    const color = new THREE.Color(tokens.color);
+    const parsed = parseHexColor(tokens.color);
+    const color = new THREE.Color(parsed.rgb);
     const mat = new THREE.MeshPhysicalMaterial({
       color,
       emissive: color,
@@ -40,7 +42,8 @@ export class ChartMaterialFactory {
       metalness: tokens.metalness,
       roughness: tokens.roughness,
       transmission: tokens.transmission,
-      transparent: tokens.transmission > 0,
+      transparent: tokens.transmission > 0 || parsed.alpha < 1,
+      opacity: parsed.alpha,
       flatShading,
       side: THREE.FrontSide,
     });
@@ -54,10 +57,11 @@ export class ChartMaterialFactory {
     const cached = this.cache.get(key);
     if (cached instanceof THREE.LineBasicMaterial) return cached;
 
+    const axisParsed = parseHexColor(theme.axis.lineColor);
     const mat = new THREE.LineBasicMaterial({
-      color: new THREE.Color(theme.axis.lineColor),
+      color: new THREE.Color(axisParsed.rgb),
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.8 * axisParsed.alpha,
     });
     this.cache.set(key, mat);
     return mat;
@@ -70,10 +74,12 @@ export class ChartMaterialFactory {
     const cached = this.cache.get(key);
     if (cached instanceof THREE.MeshStandardMaterial) return cached;
 
+    const floorParsed = parseHexColor(theme.background.planeColor);
+    const floorOp = theme.background.planeOpacity * floorParsed.alpha;
     const mat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color(theme.background.planeColor),
-      transparent: theme.background.planeOpacity < 1,
-      opacity: theme.background.planeOpacity,
+      color: new THREE.Color(floorParsed.rgb),
+      transparent: floorOp < 1,
+      opacity: floorOp,
       side: THREE.FrontSide,
       metalness: 0,
       roughness: 0.9,

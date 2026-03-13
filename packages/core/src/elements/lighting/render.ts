@@ -5,6 +5,7 @@
 
 import * as THREE from 'three';
 import type { SceneLighting } from './types';
+import { parseHexColor } from '../../math';
 
 export type LightingThreeRefs = {
   scene: THREE.Scene;
@@ -89,8 +90,9 @@ export function applyLighting(state: SceneLighting, refs: LightingThreeRefs): vo
     scene.add(cache.ambient);
   }
   const ambientEnabled = isLightEnabled(cache, state.ambient.id ?? 'ambient-0');
-  cache.ambient.color.set(state.ambient.color);
-  cache.ambient.intensity = (ambientEnabled ? state.ambient.intensity : 0) * intensityScale;
+  const ambientParsed = parseHexColor(state.ambient.color);
+  cache.ambient.color.set(ambientParsed.rgb);
+  cache.ambient.intensity = (ambientEnabled ? state.ambient.intensity : 0) * intensityScale * ambientParsed.alpha;
 
   // Apply directional lights — keyed by id.
   // Index 0 is the primary (shadow-casting) light; subsequent lights are fill lights only.
@@ -118,8 +120,9 @@ export function applyLighting(state: SceneLighting, refs: LightingThreeRefs): vo
       cache.directionals.set(directionalId, light);
       scene.add(light);
     }
-    light.color.set(spec.color);
-    light.intensity = (directionalEnabled ? spec.intensity : 0) * intensityScale;
+    const dirParsed = parseHexColor(spec.color);
+    light.color.set(dirParsed.rgb);
+    light.intensity = (directionalEnabled ? spec.intensity : 0) * intensityScale * dirParsed.alpha;
     light.position.set(spec.position[0], spec.position[1], spec.position[2]);
     // Only update shadow camera for the primary (index 0) light.
     if (i === 0 && light.castShadow) {
@@ -143,8 +146,9 @@ export function applyLighting(state: SceneLighting, refs: LightingThreeRefs): vo
       cache.glowPoint.castShadow = false;
       scene.add(cache.glowPoint);
     }
-    cache.glowPoint.color.set(state.glowPoint.color);
-    cache.glowPoint.intensity = (glowPointEnabled ? state.glowPoint.intensity : 0) * intensityScale;
+    const glowParsed = parseHexColor(state.glowPoint.color);
+    cache.glowPoint.color.set(glowParsed.rgb);
+    cache.glowPoint.intensity = (glowPointEnabled ? state.glowPoint.intensity : 0) * intensityScale * glowParsed.alpha;
     cache.glowPoint.position.set(
       state.glowPoint.position[0],
       state.glowPoint.position[1],
@@ -240,8 +244,9 @@ export function applyLighting(state: SceneLighting, refs: LightingThreeRefs): vo
         local = [point[0] + shapeOffset[0], point[1] + shapeOffset[1], point[2] + shapeOffset[2]];
       }
       const strandLight = lights[i]!;
-      strandLight.color.set(strand.color);
-      strandLight.intensity = (strandEnabled ? strand.intensity : 0) * intensityScale;
+      const strandParsed = parseHexColor(strand.color);
+      strandLight.color.set(strandParsed.rgb);
+      strandLight.intensity = (strandEnabled ? strand.intensity : 0) * intensityScale * strandParsed.alpha;
       strandLight.distance = strand.distance ?? 0;
       strandLight.decay = strand.decay ?? 1;
       strandLight.position.set(
@@ -273,8 +278,9 @@ export function applyLighting(state: SceneLighting, refs: LightingThreeRefs): vo
       cache.points.set(pointId, pointLight);
       scene.add(pointLight);
     }
-    pointLight.color.set(pointSpec.color);
-    pointLight.intensity = (pointEnabled ? pointSpec.intensity : 0) * intensityScale;
+    const pointParsed = parseHexColor(pointSpec.color);
+    pointLight.color.set(pointParsed.rgb);
+    pointLight.intensity = (pointEnabled ? pointSpec.intensity : 0) * intensityScale * pointParsed.alpha;
     pointLight.position.set(pointSpec.position[0], pointSpec.position[1], pointSpec.position[2]);
     pointLight.visible = pointLight.intensity > 0;
   }
@@ -306,8 +312,9 @@ export function applyLighting(state: SceneLighting, refs: LightingThreeRefs): vo
     }
     const spotLight = entry.light;
     const target = entry.target;
-    spotLight.color.set(spotSpec.color);
-    spotLight.intensity = (spotEnabled ? spotSpec.intensity : 0) * intensityScale;
+    const spotParsed = parseHexColor(spotSpec.color);
+    spotLight.color.set(spotParsed.rgb);
+    spotLight.intensity = (spotEnabled ? spotSpec.intensity : 0) * intensityScale * spotParsed.alpha;
     spotLight.position.set(spotSpec.position[0], spotSpec.position[1], spotSpec.position[2]);
     target.position.set(spotSpec.target[0], spotSpec.target[1], spotSpec.target[2]);
     spotLight.angle = spotSpec.angle;
@@ -353,7 +360,9 @@ export function applyLighting(state: SceneLighting, refs: LightingThreeRefs): vo
       const panelLight = panelLights.pop();
       if (panelLight) scene.remove(panelLight);
     }
-    const baseColor = new THREE.Color(panelSpec.color ?? '#ffffff');
+    const panelColorParsed = parseHexColor(panelSpec.color ?? '#ffffff');
+    const baseColor = new THREE.Color(panelColorParsed.rgb);
+    const panelBaseAlpha = panelColorParsed.alpha;
     const matrix = panelSpec.matrix ?? [];
     let panelIndex = 0;
     for (let row = 0; row < panelSpec.rows; row += 1) {
@@ -364,7 +373,7 @@ export function applyLighting(state: SceneLighting, refs: LightingThreeRefs): vo
         const z = panelSpec.origin[2] + col * panelSpec.spacing[2];
 
         let panelLightColor = baseColor;
-        let panelIntensity = panelSpec.intensity * intensityScale;
+        let panelIntensity = panelSpec.intensity * intensityScale * panelBaseAlpha;
 
         if (matrix[index] !== undefined) {
           const value = matrix[index] as number;

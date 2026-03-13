@@ -11,6 +11,10 @@ type RawSize = readonly [number, number];
  * Output of `normalizeToViewport`. All positions, sizes, and group bounds are
  * expressed in [0..1] NVS (Normalized Viewport Space) with the Y axis pointing down
  * (NVS y=0 = top, NVS y=1 = bottom).
+ *
+ * Normalization maps the diagram's bounding box to fill [0..1] in both axes
+ * independently. The view's aspect ratio determines the final rendered shape —
+ * the diagram fills its view bounds completely, same as charts.
  */
 export type NormalizeToViewportResult = {
   readonly normalizedPositions: Map<string, RawPosition>;
@@ -19,16 +23,19 @@ export type NormalizeToViewportResult = {
   readonly contentAspect: number;
   /**
    * The diagram's horizontal span in content units (before normalization).
-   * Needed by compile.ts to normalize thickness-type values (edge tube radius,
+   * Used by compile.ts to normalize thickness-type values (edge tube radius,
    * group border width) from diagram-content-units to [0..1] NVS fractions,
    * keeping them proportional to the diagram's rendered size.
    */
-  readonly safeSpanX: number;
+  readonly safeSpan: number;
 };
 
 /**
  * Converts diagram-unit node positions and group bounds to [0..1] NVS space.
  * Y axis is flipped: Cartesian +Y (up) → NVS y=0 (top).
+ *
+ * Each axis is normalized independently — the bounding box fills [0..1] in both X and Y.
+ * The view's w/h determines the final rendered aspect ratio; the diagram stretches to fill.
  *
  * @param nodes     Node list with diagram-unit positions (Cartesian Y-up)
  * @param groups    Group bounds map in diagram units (GroupBounds.y = Cartesian bottom)
@@ -70,7 +77,7 @@ export function normalizeToViewport(
       normalizedSizes: new Map(),
       normalizedGroups: new Map(),
       contentAspect: 1.0,
-      safeSpanX: 1,
+      safeSpan: 1,
     };
   }
 
@@ -85,6 +92,7 @@ export function normalizeToViewport(
   const safeSpanY = spanY > 0 ? spanY : 1;
 
   // Step 3: Normalize node positions (with Y-flip: Cartesian Y-up → NVS Y-down)
+  // Each axis normalized independently — fills [0..1] in both dimensions.
   const normalizedPositions = new Map<string, RawPosition>();
   const normalizedSizes = new Map<string, RawSize>();
   for (const node of nodes) {
@@ -117,5 +125,5 @@ export function normalizeToViewport(
     });
   }
 
-  return { normalizedPositions, normalizedSizes, normalizedGroups, contentAspect: safeSpanX / safeSpanY, safeSpanX };
+  return { normalizedPositions, normalizedSizes, normalizedGroups, contentAspect: safeSpanX / safeSpanY, safeSpan: safeSpanX };
 }

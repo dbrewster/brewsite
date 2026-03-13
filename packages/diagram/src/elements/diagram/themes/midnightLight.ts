@@ -8,7 +8,7 @@ export const midnightLightTheme: DiagramTheme = {
   node: {
     ...midnightTheme.node,
     defaultColor: '#FFF9EE',
-    defaultBoxColor: '#F2E6D5',
+    defaultBoxColor: '#E5D4BF',
     defaultLabelColor: '#3A2A1B',
     defaultSublabelColor: '#7B664C',
     defaultMetalness: 0.12,

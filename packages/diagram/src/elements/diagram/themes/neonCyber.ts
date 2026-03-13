@@ -8,9 +8,10 @@ import type { DiagramTheme } from '../types';
 export const neonCyberTheme: DiagramTheme = {
   node: {
     defaultColor: '#0C183A',
-    defaultBoxColor: '#10224C',
+    defaultBoxColor: '#1A3366',
     defaultMetalness: 0.64,
     defaultRoughness: 0.14,
+    nodeEnvMapIntensity: 0.18,
     defaultEmissiveIntensity: 0.24,
     defaultThickness: 0.22,
     cornerRadius: 0.04,
@@ -29,6 +30,7 @@ export const neonCyberTheme: DiagramTheme = {
     borderColorLightenFactor: 0.25,
     labelFontSizeBase: 0.28,
     sublabelFontSizeBase: 0.18,
+    defaultLabelPadding: 0,
   },
   edge: {
     defaultColor: '#8A3DFF',

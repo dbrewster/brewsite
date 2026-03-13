@@ -201,16 +201,16 @@ export function compileDiagram(
   let normalizedSizes: Map<string, RawSize>;
   let normalizedGroups: Map<string, GroupBounds>;
   let contentAspect: number;
-  // safeSpanX: the diagram's horizontal extent in content units.
+  // safeSpan: the uniform normalization divisor (max of X and Y content spans).
   // Used to normalize thickness-type values (edge tube radius, group border width)
   // from diagram-content-units to [0..1] NVS fractions.
   // For ManualLayout, content is already in NVS (span = 1).
-  let safeSpanX: number;
+  let safeSpan: number;
 
   if (rootLayout.kind !== 'manual') {
-    // Auto-layout: normalize diagram-unit positions to [0..1] NVS.
+    // Auto-layout: normalize diagram-unit positions to [0..1] NVS (uniform scaling).
     const resolvedPadding = (rootLayout as ResolvedLayout).groupPadding[0];
-    ({ normalizedPositions, normalizedSizes, normalizedGroups, contentAspect, safeSpanX } = normalizeToViewport(
+    ({ normalizedPositions, normalizedSizes, normalizedGroups, contentAspect, safeSpan } = normalizeToViewport(
       nodesPreNorm,
       groupBoundsMap,
       resolvedPadding,
@@ -223,7 +223,7 @@ export function compileDiagram(
     normalizedGroups = groupBoundsMap;
     // ManualLayout positions are already in NVS fractions — no AR correction needed.
     contentAspect = 1.0;
-    safeSpanX = 1;
+    safeSpan = 1;
   }
 
   // Warn when a ManualLayout diagram contains a node whose size dimension exceeds 1.5 —
@@ -250,7 +250,7 @@ export function compileDiagram(
       size: normalizedSizes.get(node.id) ?? node.size,
       // Normalize node Z-depth from diagram-content-units to NVS fraction.
       // The renderer multiplies by uniformWorldW to convert to world units.
-      thickness: node.thickness / safeSpanX,
+      thickness: node.thickness / safeSpan,
     }))
     .sort((a, b) => a.position[2] - b.position[2]);
 
@@ -322,7 +322,7 @@ export function compileDiagram(
     // Normalize edge thickness from diagram-content-units to NVS fraction.
     // The renderer multiplies by uniformWorldW to convert to world units,
     // keeping tube radius proportional to the diagram's rendered size.
-    return { ...compiled, thickness: compiled.thickness / safeSpanX };
+    return { ...compiled, thickness: compiled.thickness / safeSpan };
   });
   const edges = optimizeSharedFlowTrunks(rawEdges);
 
@@ -336,8 +336,8 @@ export function compileDiagram(
       // to world units, keeping the border proportional to the diagram's size.
       return {
         ...compiled,
-        borderWidth: compiled.borderWidth / safeSpanX,
-        borderHeight: compiled.borderHeight / safeSpanX,
+        borderWidth: compiled.borderWidth / safeSpan,
+        borderHeight: compiled.borderHeight / safeSpan,
       };
     })
     .filter((group): group is NonNullable<typeof group> => !!group)

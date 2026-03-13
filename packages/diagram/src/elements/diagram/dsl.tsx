@@ -119,6 +119,15 @@ export interface DiagramNodeProps {
   labelColor?: string;
   /** Sublabel text color (CSS hex). Default: '#a0a8c0' */
   sublabelColor?: string;
+  /**
+   * Label padding as a fraction of node content height [0–1].
+   * Controls the vertical offset applied to all label/sublabel positions within
+   * the node's front face. Positive values shift labels downward (toward the
+   * bottom of the node); negative values shift upward.
+   * 0 = labels use default centered/stacked positions.
+   * Default: from theme (defaultLabelPadding, typically 0).
+   */
+  labelPadding?: number;
   /** Node opacity [0–1]. Default: 1 */
   opacity?: number;
   /** Whether node responds to click/raycast. Default: false */

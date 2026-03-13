@@ -18,6 +18,7 @@ const makeNode = (id: string, z: number, opacity = 1): DiagramNodeState => ({
   roughness: 0.65,
   labelColor: '#ffffff',
   sublabelColor: '#a0a8c0',
+  labelPadding: 0,
   opacity,
   clickable: false,
   enabled: true,

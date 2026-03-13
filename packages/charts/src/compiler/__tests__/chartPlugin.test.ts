@@ -43,11 +43,12 @@ vi.mock('three', () => {
     intersectObjects = vi.fn().mockReturnValue([]);
   }
   class Color { constructor(_?: unknown) {} set(_: unknown) {} }
+  class Quaternion { x = 0; y = 0; z = 0; w = 1; }
   const FrontSide = 0;
   return {
     Vector3, Object3D, Scene, Group, BufferGeometry,
     MeshPhysicalMaterial, LineBasicMaterial, MeshStandardMaterial,
-    Mesh, Camera, PerspectiveCamera, Raycaster, Color, FrontSide,
+    Mesh, Camera, PerspectiveCamera, Raycaster, Color, FrontSide, Quaternion,
   };
 });
 

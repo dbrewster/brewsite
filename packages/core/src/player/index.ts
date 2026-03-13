@@ -81,6 +81,16 @@ export { CameraInteractionInfoDialog } from './CameraInteractionInfoDialog';
 export { SceneInspector } from './SceneInspector';
 export type { SceneInspectorProps } from './SceneInspector';
 
+// ─── SpotlightRig Element ─────────────────────────────────────────────────────
+export { SpotlightRig, SpotlightRigWidget } from '../elements/spotlight-rig';
+export type { SpotlightRigProps, SpotlightRigTheme, SpotlightRigState } from '../elements/spotlight-rig';
+export {
+  mergeSpotlightRigTheme, DEFAULT_SPOTLIGHT_RIG_THEME,
+  moviePremiereTheme, concertStageTheme,
+  spotlightDarkGlassTheme, spotlightEnterpriseTheme,
+  spotlightNeonCyberTheme, spotlightLightMinimalTheme,
+} from '../elements/spotlight-rig';
+
 // ─── REMOVED from v1 (not re-exported, not shim-exported): ───────────────────
 // EngineProvider, EngineInputRegion, ScrollCaptureSection
 // useEngineScroll, useEngineInput, UseEngineScrollOptions, UseEngineInputOptions

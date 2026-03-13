@@ -63,6 +63,13 @@ vi.mock('../../shared/LegendRenderer', () => ({
   LegendRenderer: class { update = vi.fn(); dispose = vi.fn(); },
 }));
 
+vi.mock('@brewsite/core', () => ({
+  parseHexColor: (hex: string) => ({
+    rgb: hex.length === 9 && hex[0] === '#' ? hex.slice(0, 7) : hex,
+    alpha: hex.length === 9 && hex[0] === '#' ? parseInt(hex.slice(7, 9), 16) / 255 : 1,
+  }),
+}));
+
 import * as THREE from 'three';
 import { AreaRenderer } from '../AreaRenderer';
 import { darkGlassChartTheme } from '../../../themes/darkGlass';

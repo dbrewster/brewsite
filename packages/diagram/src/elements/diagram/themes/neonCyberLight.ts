@@ -8,7 +8,7 @@ export const neonCyberLightTheme: DiagramTheme = {
   node: {
     ...neonCyberTheme.node,
     defaultColor: '#F8FBFF',
-    defaultBoxColor: '#EAF2FF',
+    defaultBoxColor: '#D4E2F8',
     defaultLabelColor: '#1E2F5A',
     defaultSublabelColor: '#516498',
     defaultMetalness: 0.28,

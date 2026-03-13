@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import type { EdgeRenderEntry } from './types';
 import type { IEdgeMaterialFactory } from './EdgeMaterialFactory';
+import { parseHexColor } from '@brewsite/core';
 import type {
   DiagramEdgePathCommand,
   DiagramEdgePathState,
@@ -179,9 +180,10 @@ export class EdgeRenderer {
       this.tubeRadialSegments,
       false,
     );
+    const edgeParsed = parseHexColor(edge.color);
     const tubeMaterial = this.materialFactory.createMaterial(
-      edge.color,
-      edge.opacity,
+      edgeParsed.rgb,
+      edge.opacity * edgeParsed.alpha,
       edge.style ?? 'solid',
       this.edgeMetalness,
       this.edgeRoughness,
@@ -237,18 +239,21 @@ export class EdgeRenderer {
       prev.style !== edge.style ||
       prev.thickness !== edge.thickness;
     if (edgeMaterialRebuild) {
+      const rebuildParsed = parseHexColor(edge.color);
       (entry.tube.material as THREE.Material).dispose();
       entry.tube.material = this.materialFactory.createMaterial(
-        edge.color,
-        edge.opacity,
+        rebuildParsed.rgb,
+        edge.opacity * rebuildParsed.alpha,
         edge.style ?? 'solid',
         this.edgeMetalness,
         this.edgeRoughness,
       );
     } else if (prev && prev.opacity !== edge.opacity) {
       const mat = entry.tube.material as THREE.MeshStandardMaterial;
-      mat.opacity = edge.opacity;
-      mat.transparent = edge.opacity < 1 || edge.style !== 'solid';
+      const colorAlpha = parseHexColor(edge.color).alpha;
+      const effectiveOp = edge.opacity * colorAlpha;
+      mat.opacity = effectiveOp;
+      mat.transparent = effectiveOp < 1 || edge.style !== 'solid';
     }
 
     const mat = entry.tube.material as THREE.MeshStandardMaterial;
@@ -279,16 +284,18 @@ export class EdgeRenderer {
 
         const arrowH = edge.thickness * 9;
         const arrowW = edge.thickness * 7;
+        const arrowParsed = parseHexColor(edge.color);
+        const arrowOp = edge.opacity * arrowParsed.alpha;
         if (this.use3DArrows) {
           if (arrow.geometry) arrow.geometry.dispose();
           arrow.geometry = new THREE.ConeGeometry(arrowW * 0.5, arrowH, 14, 1);
           if (arrow.material) (arrow.material as THREE.Material).dispose();
           arrow.material = new THREE.MeshStandardMaterial({
-            color: edge.color,
+            color: arrowParsed.rgb,
             metalness: this.edgeMetalness,
             roughness: this.edgeRoughness,
-            transparent: edge.opacity < 1,
-            opacity: edge.opacity,
+            transparent: arrowOp < 1,
+            opacity: arrowOp,
           });
         } else {
           const arrowShape = new THREE.Shape();
@@ -300,9 +307,9 @@ export class EdgeRenderer {
           arrow.geometry = new THREE.ShapeGeometry(arrowShape);
           if (arrow.material) (arrow.material as THREE.Material).dispose();
           arrow.material = new THREE.MeshBasicMaterial({
-            color: edge.color,
-            transparent: edge.opacity < 1,
-            opacity: edge.opacity,
+            color: arrowParsed.rgb,
+            transparent: arrowOp < 1,
+            opacity: arrowOp,
             side: THREE.DoubleSide,
             depthWrite: false,
           });
@@ -390,7 +397,7 @@ export class EdgeRenderer {
     if (wantsPulse && !existing) {
       const uniforms = {
         uTime: { value: 0 },
-        uPulseColor: { value: new THREE.Color(edge.flowColor ?? edge.color) },
+        uPulseColor: { value: new THREE.Color(parseHexColor(edge.flowColor ?? edge.color).rgb) },
         uPulseSpeed: { value: this.flowSpeed },
         uPulseWidth: { value: this.flowWidth },
         uPulseIntensity: { value: 1.6 },
@@ -450,7 +457,7 @@ export class EdgeRenderer {
 
     const uniforms = pulseData.uniforms;
     uniforms.uTime.value = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
-    uniforms.uPulseColor.value = new THREE.Color(edge.flowColor ?? edge.color);
+    uniforms.uPulseColor.value = new THREE.Color(parseHexColor(edge.flowColor ?? edge.color).rgb);
     uniforms.uPulseSpeed.value = this.flowSpeed;
     uniforms.uPulseWidth.value = this.flowWidth;
     uniforms.uPulseDir.value = flow === 'backward' ? -1 : 1;

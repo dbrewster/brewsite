@@ -86,9 +86,10 @@ export class DiagramRenderer {
     this.lastEdgeThemeKey = edgeThemeKey(initialThemeConfig);
   }
 
-  /** Store renderer reference for potential env map PMREM generation. */
+  /** Store renderer reference for PMREM env map generation. */
   initialize(renderer: THREE.WebGLRenderer | undefined): void {
     this.rendererRef = renderer;
+    this.envMapManager.setRenderer(renderer);
   }
 
   /**

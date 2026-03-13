@@ -32,7 +32,7 @@ describe('normalizeToViewport — empty inputs', () => {
 
 describe('normalizeToViewport — single node', () => {
   it('single node at Cartesian origin with size [2,2] maps to NVS [0.5, 0.5, 0]', () => {
-    // bbox: minX=-1, maxX=1, minY=-1, maxY=1 → spanX=2, spanY=2 → nx=ny=0.5
+    // bbox: minX=-1, maxX=1, minY=-1, maxY=1 → spanX=2, spanY=2 → square → centered at 0.5
     const nodes = [{ id: 'a', position: [0, 0, 0] as const, size: [2, 2] as const }];
     const result = normalizeToViewport(nodes, new Map(), 0);
     const pos = result.normalizedPositions.get('a')!;
@@ -47,9 +47,58 @@ describe('normalizeToViewport — single node', () => {
     expect(result.normalizedPositions.get('a')![2]).toBe(3.5);
   });
 
-  it('single node size fraction equals full span fraction', () => {
-    // node size [2,2], bbox [-1,1] x [-1,1], spanX=2, spanY=2 → size = [1.0, 1.0]
+  it('single node size fraction equals full span fraction (square bbox)', () => {
+    // node size [2,2], bbox [-1,1] x [-1,1], safeSpan=2 → size = [1.0, 1.0]
     const nodes = [{ id: 'a', position: [0, 0, 0] as const, size: [2, 2] as const }];
+    const result = normalizeToViewport(nodes, new Map(), 0);
+    const sz = result.normalizedSizes.get('a')!;
+    expect(sz[0]).toBeCloseTo(1.0, 5);
+    expect(sz[1]).toBeCloseTo(1.0, 5);
+  });
+});
+
+// ─── Uniform scaling ─────────────────────────────────────────────────────────
+
+describe('normalizeToViewport — uniform scaling', () => {
+  it('wide bounding box: Y axis centered, X fills [0..1]', () => {
+    // Two nodes at x=-4 and x=+4, each size [2,2] → spanX=10, spanY=2.
+    // safeSpan=10. X fills [0..1]. Y centered.
+    const nodes = [
+      { id: 'l', position: [-4, 0, 0] as const, size: [2, 2] as const },
+      { id: 'r', position: [4, 0, 0] as const, size: [2, 2] as const },
+    ];
+    const result = normalizeToViewport(nodes, new Map(), 0);
+    const l = result.normalizedPositions.get('l')!;
+    const r = result.normalizedPositions.get('r')!;
+    // X positions should be symmetric around 0.5
+    expect(l[0]).toBeLessThan(0.5);
+    expect(r[0]).toBeGreaterThan(0.5);
+    // Y should be centered at 0.5 (both nodes at same Cartesian Y)
+    expect(l[1]).toBeCloseTo(r[1], 5);
+    expect(l[1]).toBeCloseTo(0.5, 3);
+  });
+
+  it('tall bounding box: X axis centered, Y fills [0..1]', () => {
+    // Two nodes at y=-4 and y=+4, each size [2,2] → spanX=2, spanY=10.
+    // safeSpan=10. Y fills [0..1]. X centered.
+    const nodes = [
+      { id: 'b', position: [0, -4, 0] as const, size: [2, 2] as const },
+      { id: 't', position: [0, 4, 0] as const, size: [2, 2] as const },
+    ];
+    const result = normalizeToViewport(nodes, new Map(), 0);
+    const t = result.normalizedPositions.get('t')!;
+    const b = result.normalizedPositions.get('b')!;
+    // Y should span: top node has smaller NVS y (Y-flip)
+    expect(t[1]).toBeLessThan(b[1]);
+    // X should be centered at 0.5
+    expect(t[0]).toBeCloseTo(0.5, 3);
+    expect(b[0]).toBeCloseTo(0.5, 3);
+  });
+
+  it('rectangular bounding box: each axis fills [0..1] independently', () => {
+    // Node at origin with size [4, 2]. spanX=4, spanY=2.
+    // Non-uniform: sizeX = 4/4 = 1.0, sizeY = 2/2 = 1.0 — each axis fills fully.
+    const nodes = [{ id: 'a', position: [0, 0, 0] as const, size: [4, 2] as const }];
     const result = normalizeToViewport(nodes, new Map(), 0);
     const sz = result.normalizedSizes.get('a')!;
     expect(sz[0]).toBeCloseTo(1.0, 5);
@@ -61,8 +110,6 @@ describe('normalizeToViewport — single node', () => {
 
 describe('normalizeToViewport — Y-axis flip', () => {
   it('node at Cartesian y=+2 (top) maps to NVS y < 0.5 (top half)', () => {
-    // Two nodes: a at y=+2 (Cartesian top), b at y=0 (Cartesian bottom).
-    // After Y-flip, a should be in NVS top half (y < 0.5), b in bottom half (y > 0.5).
     const nodes = [
       { id: 'a', position: [0, 2, 0] as const, size: [1, 1] as const },
       { id: 'b', position: [0, 0, 0] as const, size: [1, 1] as const },
@@ -90,8 +137,6 @@ describe('normalizeToViewport — Y-axis flip', () => {
 
 describe('normalizeToViewport — group bounds expansion', () => {
   it('a far-away group shifts the node away from NVS center', () => {
-    // Without the group, the single node maps to [0.5, 0.5].
-    // A group at x=5, y=5, w=1, h=1 expands the bounding box, pushing the node away from center.
     const nodes = [{ id: 'n', position: [0, 0, 0] as const, size: [1, 1] as const }];
     const groups = new Map([['g', makeGroup(5, 5, 1, 1)]]);
 
@@ -101,7 +146,6 @@ describe('normalizeToViewport — group bounds expansion', () => {
     const nxWithout = withoutGroup.normalizedPositions.get('n')![0];
     const nxWith = withGroup.normalizedPositions.get('n')![0];
 
-    // The far group pushes the node's NVS x closer to 0 (toward the left edge)
     expect(nxWith).toBeLessThan(nxWithout);
   });
 
@@ -117,8 +161,6 @@ describe('normalizeToViewport — group bounds expansion', () => {
 
 describe('normalizeToViewport — padding', () => {
   it('padding reduces node size fractions (more space around nodes)', () => {
-    // Single node at origin, size=[2,2]. Without padding: sizeFraction=[1,1].
-    // With padding=1: spanX = 2 + 2 = 4 → sizeFraction = 2/4 = 0.5.
     const nodes = [{ id: 'a', position: [0, 0, 0] as const, size: [2, 2] as const }];
 
     const noPad = normalizeToViewport(nodes, new Map(), 0);
@@ -131,7 +173,6 @@ describe('normalizeToViewport — padding', () => {
   });
 
   it('padding keeps a symmetric single node centered at NVS [0.5, 0.5]', () => {
-    // Symmetric expansion means the node stays at the center regardless of padding.
     const nodes = [{ id: 'a', position: [0, 0, 0] as const, size: [2, 2] as const }];
     const result = normalizeToViewport(nodes, new Map(), 2);
     const pos = result.normalizedPositions.get('a')!;
@@ -140,9 +181,6 @@ describe('normalizeToViewport — padding', () => {
   });
 
   it('two nodes: with padding they are pulled inward from the NVS edges', () => {
-    // Two nodes at x=-1 and x=+1, size=[0.5, 0.5], no Y separation.
-    // Without padding: left node NVS x ≈ 0 (at edge), right ≈ 1 (at edge).
-    // With padding=0.5: nodes are no longer at the edges.
     const nodes = [
       { id: 'l', position: [-1, 0, 0] as const, size: [0.5, 0.5] as const },
       { id: 'r', position: [1, 0, 0] as const, size: [0.5, 0.5] as const },
@@ -155,9 +193,7 @@ describe('normalizeToViewport — padding', () => {
     const rxNoPad = noPad.normalizedPositions.get('r')![0];
     const rxWithPad = withPad.normalizedPositions.get('r')![0];
 
-    // With padding, left node shifts right (away from edge 0)
     expect(lxWithPad).toBeGreaterThan(lxNoPad);
-    // With padding, right node shifts left (away from edge 1)
     expect(rxWithPad).toBeLessThan(rxNoPad);
   });
 });
@@ -166,53 +202,40 @@ describe('normalizeToViewport — padding', () => {
 
 describe('normalizeToViewport — group bounds Y-flip', () => {
   it('Cartesian group top edge (y+h) becomes NVS top edge (group.y in output)', () => {
-    // Group at Cartesian: x=-1, y=0 (bottom), w=2, h=2 → Cartesian top = 2.
-    // Node at [0,1,0] size=[0,0] (point node, Cartesian center of group).
-    // After normalization: group.y (NVS top) should be at 0 (top of viewport).
+    // Group at Cartesian: x=-1, y=0, w=2, h=2 → square bbox → safeSpan=2.
     const nodes = [{ id: 'n', position: [0, 1, 0] as const, size: [0, 0] as const }];
     const groups = new Map([['g', makeGroup(-1, 0, 2, 2)]]);
     const result = normalizeToViewport(nodes, groups, 0);
 
-    // Group expanded bbox to fill the full viewport → NVS group covers [0..1] x [0..1]
     const g = result.normalizedGroups.get('g')!;
-    expect(g.y).toBeCloseTo(0, 5);           // NVS top = top of viewport
-    expect(g.y + g.h).toBeCloseTo(1, 5);     // NVS bottom = bottom of viewport
+    expect(g.y).toBeCloseTo(0, 5);
+    expect(g.y + g.h).toBeCloseTo(1, 5);
   });
 
   it('group with Cartesian top > center: NVS top of group < 0.5', () => {
-    // Group occupying the top half of diagram space: Cartesian y=1 (bottom), h=1 → top=2.
-    // Another group occupying the bottom half: Cartesian y=0 (bottom), h=1 → top=1.
-    // Both have x=-0.5, w=1.
-    // Combined bbox: x=[-0.5, 0.5], y=[0, 2], spanX=1, spanY=2.
-    // Top group: NVS top = 1 - (2-0)/2 = 0  → spans [0, 0.5]
-    // Bottom group: NVS top = 1 - (1-0)/2 = 0.5 → spans [0.5, 1.0]
     const nodes: never[] = [];
     const groups = new Map([
-      ['top', makeGroup(-0.5, 1, 1, 1)],    // Cartesian y=1 (bottom), top=2
-      ['bot', makeGroup(-0.5, 0, 1, 1)],    // Cartesian y=0 (bottom), top=1
+      ['top', makeGroup(-0.5, 1, 1, 1)],
+      ['bot', makeGroup(-0.5, 0, 1, 1)],
     ]);
     const result = normalizeToViewport(nodes, groups, 0);
 
     const topGroup = result.normalizedGroups.get('top')!;
     const botGroup = result.normalizedGroups.get('bot')!;
-    // 'top' group (Cartesian top-half): NVS y (top edge) should be less than 'bot' group's NVS y
     expect(topGroup.y).toBeLessThan(botGroup.y);
-    // The top group sits in the NVS top half (y + h ≤ 0.5)
-    expect(topGroup.y + topGroup.h).toBeCloseTo(0.5, 5);
   });
 
-  it('group padding is normalized proportionally to span', () => {
-    // Group with padding=[1,1,1,1] in diagram units, spanning a total of 4 units in each axis.
+  it('group padding is normalized uniformly by safeSpan', () => {
+    // Group with padding=[1,1,1,1], spanning 4x4 → safeSpan=4.
+    // All padding values normalized by safeSpan → 1/4 = 0.25.
     const nodes: never[] = [];
     const groups = new Map([['g', { x: 0, y: 0, w: 4, h: 4, padding: [1, 1, 1, 1] as [number, number, number, number], titleGap: 0 }]]);
     const result = normalizeToViewport(nodes, groups, 0);
 
     const g = result.normalizedGroups.get('g')!;
-    // padding[0] (top) and padding[2] (bottom) are divided by safeSpanY=4 → 0.25
     expect(g.padding[0]).toBeCloseTo(0.25, 5);
-    expect(g.padding[2]).toBeCloseTo(0.25, 5);
-    // padding[1] (right) and padding[3] (left) are divided by safeSpanX=4 → 0.25
     expect(g.padding[1]).toBeCloseTo(0.25, 5);
+    expect(g.padding[2]).toBeCloseTo(0.25, 5);
     expect(g.padding[3]).toBeCloseTo(0.25, 5);
   });
 });
@@ -227,8 +250,6 @@ describe('normalizeToViewport — contentAspect', () => {
   });
 
   it('wide bounding box produces contentAspect > 1.0', () => {
-    // Two nodes 4 units apart horizontally, 0 units apart vertically (same size).
-    // spanX >> spanY → contentAspect > 1.
     const nodes = [
       { id: 'l', position: [-2, 0, 0] as const, size: [0.5, 0.5] as const },
       { id: 'r', position: [2, 0, 0] as const, size: [0.5, 0.5] as const },
@@ -247,53 +268,40 @@ describe('normalizeToViewport — contentAspect', () => {
   });
 });
 
-// ─── safeSpanX ───────────────────────────────────────────────────────────────
+// ─── safeSpan ────────────────────────────────────────────────────────────────
 
-describe('normalizeToViewport — safeSpanX', () => {
-  it('returns safeSpanX=1 when nodes is empty', () => {
+describe('normalizeToViewport — safeSpan', () => {
+  it('returns safeSpan=1 when nodes is empty', () => {
     const result = normalizeToViewport([], new Map(), 0);
-    expect(result.safeSpanX).toBe(1);
+    expect(result.safeSpan).toBe(1);
   });
 
-  it('returns safeSpanX equal to the horizontal content span (no padding)', () => {
+  it('returns safeSpan equal to the larger of the two content spans', () => {
     // Two nodes at x=-3 and x=+3, each with size [2, 2].
-    // Outer edges: -3 - 1 = -4 and +3 + 1 = +4. spanX = 8.
+    // Outer edges: x=[-4, 4] → spanX=8, y=[-1, 1] → spanY=2. safeSpan=8.
     const nodes = [
       { id: 'l', position: [-3, 0, 0] as const, size: [2, 2] as const },
       { id: 'r', position: [3, 0, 0] as const, size: [2, 2] as const },
     ];
     const result = normalizeToViewport(nodes, new Map(), 0);
-    expect(result.safeSpanX).toBeCloseTo(8, 5);
+    expect(result.safeSpan).toBeCloseTo(8, 5);
   });
 
-  it('safeSpanX includes padding on both sides', () => {
-    // Single node at origin, size [4, 2]. spanX = 4, padding = 1.
-    // safeSpanX = 4 + 2 * 1 = 6.
-    const nodes = [{ id: 'a', position: [0, 0, 0] as const, size: [4, 2] as const }];
+  it('safeSpan includes padding on both sides', () => {
+    // Single node at origin, size [4, 4] → square bbox, span=4, padding=1.
+    // safeSpan = 4 + 2*1 = 6.
+    const nodes = [{ id: 'a', position: [0, 0, 0] as const, size: [4, 4] as const }];
     const result = normalizeToViewport(nodes, new Map(), 1);
-    expect(result.safeSpanX).toBeCloseTo(6, 5);
+    expect(result.safeSpan).toBeCloseTo(6, 5);
   });
 
-  it('safeSpanX is consistent with contentAspect (safeSpanX / safeSpanY)', () => {
-    // Two nodes creating a rectangular bounding box.
-    const nodes = [
-      { id: 'a', position: [-2, -1, 0] as const, size: [1, 1] as const },
-      { id: 'b', position: [2, 1, 0] as const, size: [1, 1] as const },
-    ];
-    const result = normalizeToViewport(nodes, new Map(), 0);
-    // spanX = (2+0.5) - (-2-0.5) = 5, spanY = (1+0.5) - (-1-0.5) = 3
-    // contentAspect = 5/3, safeSpanX = 5
-    const safeSpanY = result.safeSpanX / result.contentAspect;
-    expect(result.safeSpanX).toBeCloseTo(5, 5);
-    expect(safeSpanY).toBeCloseTo(3, 5);
-  });
-
-  it('safeSpanX expands to include group bounds', () => {
-    // Node at origin with size [2,2] → spanX = 2.
-    // Group at x=3, w=2 → extends to x=5 → spanX = 5 - (-1) = 6.
+  it('safeSpan expands to include group bounds', () => {
+    // Node at origin with size [2,2] → spanX=2, spanY=2.
+    // Group at x=3, w=2 → extends to x=5 → spanX = 5-(-1) = 6, spanY stays 2.
+    // safeSpan = max(6, 2) = 6.
     const nodes = [{ id: 'n', position: [0, 0, 0] as const, size: [2, 2] as const }];
     const groups = new Map([['g', makeGroup(3, 0, 2, 2)]]);
     const result = normalizeToViewport(nodes, groups, 0);
-    expect(result.safeSpanX).toBeCloseTo(6, 5);
+    expect(result.safeSpan).toBeCloseTo(6, 5);
   });
 });

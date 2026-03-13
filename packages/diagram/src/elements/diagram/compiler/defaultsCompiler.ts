@@ -26,6 +26,7 @@ export interface NodeDefaults {
   readonly iconScale: number;
   readonly iconStyle: SvgIcon3DStyle;
   readonly iconDepthFactor: number;
+  readonly labelPadding: number;
   readonly sideColorDarkenFactor: number;
   readonly borderColorLightenFactor: number;
 }
@@ -86,6 +87,7 @@ export function buildNodeDefaults(theme: DiagramTheme): NodeDefaults {
     iconScale:                theme.node.defaultIconScale,
     iconStyle:                theme.node.defaultIconStyle,
     iconDepthFactor:          theme.node.defaultIconDepthFactor,
+    labelPadding:             theme.node.defaultLabelPadding,
     sideColorDarkenFactor:    theme.node.sideColorDarkenFactor,
     borderColorLightenFactor: theme.node.borderColorLightenFactor,
   };

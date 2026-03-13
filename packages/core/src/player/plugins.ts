@@ -10,6 +10,7 @@ import { FloorWidget } from '../elements/floor/FloorWidget';
 import { CameraWidget } from '../elements/camera/CameraWidget';
 import { SceneMetaWidget } from './SceneMetaWidget';
 import { isLightingOverride } from '../widget/WidgetRegistry';
+import { SpotlightRigWidget } from '../elements/spotlight-rig/SpotlightRigWidget';
 
 export interface CorePluginOptions {
   onSceneChange?: (sceneId: string, sceneIndex: number) => void;
@@ -37,11 +38,13 @@ export function corePlugin(options?: CorePluginOptions): WidgetPlugin {
   const floorWidget = new FloorWidget();
   const cameraWidget = new CameraWidget();
   const sceneMetaWidget = new SceneMetaWidget({ onSceneChange: options?.onSceneChange });
+  const spotlightRigWidget = new SpotlightRigWidget();
 
   return {
     createWidgets() {
       return [lightingWidget, backgroundWidget, environmentWidget,
-              floorWidget, cameraWidget, sceneMetaWidget];
+              floorWidget, cameraWidget, sceneMetaWidget,
+              spotlightRigWidget];
     },
     registerHandlers() {
       registerCoreHandlers();

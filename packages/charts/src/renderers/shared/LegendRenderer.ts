@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import { Text } from 'troika-three-text';
-import { ensureText, disposeText } from '@brewsite/core';
+import { ensureText, disposeText, parseHexColor } from '@brewsite/core';
 import type { TextWithLayout } from '@brewsite/core';
 import type { ChartSeriesState, ChartLegendState } from './IChartRenderer';
 import type { ChartTheme } from '../../themes/types';
@@ -54,7 +54,9 @@ export class LegendRenderer {
     const swatchSize = theme.legend.swatchSize;
     const rowHeight = theme.legend.spacing;
     // V2.1: textOpacity multiplied with scene opacity for label text
-    const labelTextOpacity = (theme.legend.textOpacity ?? 1.0) * opacity;
+    const parsedTextColor = parseHexColor(theme.legend.textColor);
+    const legendTextColor = parsedTextColor.rgb;
+    const labelTextOpacity = (theme.legend.textOpacity ?? 1.0) * opacity * parsedTextColor.alpha;
     const titleOffset = title ? rowHeight * 1.2 : 0;
     const effectiveColumns = horizontal && columns > 1 ? columns : 1;
 
@@ -73,8 +75,9 @@ export class LegendRenderer {
       let entry = this.entries[i];
       if (!entry) {
         // Create swatch
+        const parsedSwatch = parseHexColor(color);
         const swatchGeo = new THREE.BoxGeometry(swatchSize, swatchSize, 0.04);
-        const swatchMat = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(color) });
+        const swatchMat = new THREE.MeshPhysicalMaterial({ color: new THREE.Color(parsedSwatch.rgb), transparent: parsedSwatch.alpha < 1, opacity: parsedSwatch.alpha });
         const swatch = new THREE.Mesh(swatchGeo, swatchMat);
         swatch.position.set(x, y, 0);
         this.legendGroup.add(swatch);
@@ -90,9 +93,11 @@ export class LegendRenderer {
       }
 
       // Update swatch
-      (entry.swatch.material as THREE.MeshPhysicalMaterial).color.set(new THREE.Color(color));
-      (entry.swatch.material as THREE.MeshPhysicalMaterial).opacity = opacity;
-      (entry.swatch.material as THREE.MeshPhysicalMaterial).transparent = opacity < 1;
+      const parsedSwatchUpdate = parseHexColor(color);
+      const swatchMat = entry.swatch.material as THREE.MeshPhysicalMaterial;
+      swatchMat.color.set(new THREE.Color(parsedSwatchUpdate.rgb));
+      swatchMat.opacity = opacity * parsedSwatchUpdate.alpha;
+      swatchMat.transparent = (opacity * parsedSwatchUpdate.alpha) < 1;
       entry.swatch.position.set(x, y, 0);
 
       // Update label
@@ -101,7 +106,7 @@ export class LegendRenderer {
       ensureText(
         entry.label,
         s.label ?? s.field,
-        theme.legend.textColor,
+        legendTextColor,
         theme.legend.fontSize,
         labelTextOpacity,
         undefined,
@@ -123,9 +128,9 @@ export class LegendRenderer {
       ensureText(
         this.titleLabel,
         title,
-        theme.legend.textColor,
+        legendTextColor,
         theme.legend.fontSize * 1.1,
-        opacity,
+        opacity * parsedTextColor.alpha,
         undefined,
         false,
         { anchorX: 'left', anchorY: 'bottom', fontUrl },
@@ -152,9 +157,9 @@ export class LegendRenderer {
       ensureText(
         this.moreLabel,
         `${remaining} more...`,
-        theme.legend.textColor,
+        legendTextColor,
         theme.legend.fontSize * 0.85,
-        opacity * 0.7,
+        opacity * 0.7 * parsedTextColor.alpha,
         undefined,
         false,
         { anchorX: 'left', anchorY: 'middle', fontUrl },

@@ -101,6 +101,32 @@ describe('compileGroup — labelColor from defaults', () => {
     expect(state.labelColor).toBe('#ff0000');
   });
 
+// ─── compileNode — labelPadding propagation ──────────────────────────────────
+
+describe('compileNode — labelPadding from defaults', () => {
+  it('uses theme default labelPadding when dsl.labelPadding is not set', () => {
+    const theme = {
+      ...darkGlassTheme,
+      node: { ...darkGlassTheme.node, defaultLabelPadding: 0.15 },
+    };
+    const dsl: DiagramNodeDSL = { id: 'n1', label: 'Node 1' };
+    const node = compileNode(dsl, [0, 0, 0], undefined, theme);
+    expect(node.labelPadding).toBe(0.15);
+  });
+
+  it('uses dsl.labelPadding when explicitly set, overriding theme default', () => {
+    const dsl: DiagramNodeDSL = { id: 'n1', label: 'Node 1', labelPadding: 0.25 };
+    const node = compileNode(dsl, [0, 0, 0], undefined, darkGlassTheme);
+    expect(node.labelPadding).toBe(0.25);
+  });
+
+  it('defaults to 0 with darkGlass theme', () => {
+    const dsl: DiagramNodeDSL = { id: 'n1', label: 'Node 1' };
+    const node = compileNode(dsl, [0, 0, 0], undefined, darkGlassTheme);
+    expect(node.labelPadding).toBe(0);
+  });
+});
+
   it('different themes produce different labelColors via defaults', () => {
     const themeA = {
       ...darkGlassTheme,

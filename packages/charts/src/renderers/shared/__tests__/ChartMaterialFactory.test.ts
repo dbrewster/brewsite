@@ -15,7 +15,7 @@ vi.mock('three', () => {
     }
     // Handle hex format
     const h = input.replace('#', '');
-    if (h.length === 6) {
+    if (h.length === 6 || h.length === 8) {
       return {
         r: parseInt(h.substring(0, 2), 16) / 255,
         g: parseInt(h.substring(2, 4), 16) / 255,
@@ -92,6 +92,13 @@ vi.mock('three', () => {
 
   return { Color, MeshPhysicalMaterial, LineBasicMaterial, MeshStandardMaterial, FrontSide };
 });
+
+vi.mock('@brewsite/core', () => ({
+  parseHexColor: (hex: string) => ({
+    rgb: hex.length === 9 && hex[0] === '#' ? hex.slice(0, 7) : hex,
+    alpha: hex.length === 9 && hex[0] === '#' ? parseInt(hex.slice(7, 9), 16) / 255 : 1,
+  }),
+}));
 
 import * as THREE from 'three';
 import { ChartMaterialFactory } from '../ChartMaterialFactory';

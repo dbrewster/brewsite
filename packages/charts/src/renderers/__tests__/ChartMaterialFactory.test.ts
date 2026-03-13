@@ -29,6 +29,13 @@ vi.mock('three', () => {
   return { MeshPhysicalMaterial, LineBasicMaterial, MeshStandardMaterial, Color, FrontSide };
 });
 
+vi.mock('@brewsite/core', () => ({
+  parseHexColor: (hex: string) => ({
+    rgb: hex.length === 9 && hex[0] === '#' ? hex.slice(0, 7) : hex,
+    alpha: hex.length === 9 && hex[0] === '#' ? parseInt(hex.slice(7, 9), 16) / 255 : 1,
+  }),
+}));
+
 import { vi } from 'vitest';
 
 describe('ChartMaterialFactory', () => {

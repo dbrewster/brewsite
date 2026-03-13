@@ -3,7 +3,7 @@ import type { NodeRenderEntry, TextWithLayout } from './types';
 import type { DiagramNodeState, DiagramThemeRenderConfig } from '../types';
 import type { IIconLoader } from './IconLoader';
 import type { IInteractionRegistry } from './InteractionRegistry';
-import { ensureText, disposeText } from '@brewsite/core';
+import { ensureText, disposeText, parseHexColor } from '@brewsite/core';
 import { createShapeGeometry, createShapeOutlineGeometry, isRectangularShape, getContentRect } from '../shapes/geometryFactory';
 import { createGlow, computeGlowScale, disposeGlowSprite } from '../../_shared/glowSprite';
 import { Text } from 'troika-three-text';
@@ -17,60 +17,89 @@ const resolveEffectiveEmissiveIntensity = (
   return emissiveEnabled ? state.emissiveIntensity : 0;
 };
 
+/**
+ * Side-face env map intensity multiplier relative to the node's front-face envMapIntensity.
+ * Side faces point perpendicular to the camera, so env map reflections on them produce
+ * the natural 3D depth cue that makes the box shape apparent. Front faces use a low
+ * envMapIntensity to avoid HDR artifacts; side faces need a higher value to catch light.
+ */
+const SIDE_ENV_MAP_INTENSITY_MULTIPLIER = 4.0;
+
+/**
+ * Side-face roughness reduction. Side faces benefit from slightly lower roughness
+ * (shinier surface) to catch specular highlights from directional lights at glancing
+ * angles. This creates a visible sheen on the edges that reinforces the 3D shape.
+ */
+const SIDE_ROUGHNESS_REDUCTION = 0.12;
+
 const createBoxMaterials = (
   state: DiagramNodeState,
   materialCount: 2 | 6,
   effectiveEmissiveIntensity: number,
+  nodeEnvMapIntensity: number,
 ): THREE.MeshStandardMaterial[] => {
-  // Use transparent=true only when opacity < 1, matching the chart renderer convention.
-  // Opaque nodes (opacity=1) are rendered in the opaque pass so they correctly depth-sort
-  // against other opaque elements (chart bars, models, etc.) at the same world Z.
-  const isTransparent = state.opacity < 1;
+  // Extract per-color alpha channels. These compose with the element-level opacity.
+  const frontParsed = parseHexColor(state.color);
+  const sideParsed = parseHexColor(state.sideColor);
+  const emissiveParsed = parseHexColor(state.emissiveColor ?? state.color);
+
+  const frontOpacity = state.opacity * frontParsed.alpha;
+  const sideOpacity = state.opacity * sideParsed.alpha;
+
+  // Side faces get higher env map intensity and lower roughness so the node reads as 3D.
+  // Front faces keep low envMapIntensity to avoid HDR reflection artifacts.
+  const sideEnvMapIntensity = Math.min(1, nodeEnvMapIntensity * SIDE_ENV_MAP_INTENSITY_MULTIPLIER);
+  const sideRoughness = Math.max(0.05, state.roughness - SIDE_ROUGHNESS_REDUCTION);
+
   if (materialCount === 2) {
     const caps = new THREE.MeshStandardMaterial({
-      color: state.color,
+      color: frontParsed.rgb,
       metalness: state.metalness,
       roughness: state.roughness,
-      emissive: new THREE.Color(state.emissiveColor ?? state.color),
+      emissive: new THREE.Color(emissiveParsed.rgb),
       emissiveIntensity: effectiveEmissiveIntensity,
-      transparent: isTransparent,
-      opacity: state.opacity,
+      envMapIntensity: nodeEnvMapIntensity,
+      transparent: frontOpacity < 1,
+      opacity: frontOpacity,
     });
     const sides = new THREE.MeshStandardMaterial({
-      color: state.sideColor,
+      color: sideParsed.rgb,
       metalness: state.metalness,
-      roughness: state.roughness,
-      transparent: isTransparent,
-      opacity: state.opacity,
+      roughness: sideRoughness,
+      envMapIntensity: sideEnvMapIntensity,
+      transparent: sideOpacity < 1,
+      opacity: sideOpacity,
     });
     return [caps, sides];
   }
 
   const side = new THREE.MeshStandardMaterial({
-    color: state.sideColor,
+    color: sideParsed.rgb,
     metalness: state.metalness,
-    roughness: state.roughness,
-    transparent: isTransparent,
-    opacity: state.opacity,
+    roughness: sideRoughness,
+    envMapIntensity: sideEnvMapIntensity,
+    transparent: sideOpacity < 1,
+    opacity: sideOpacity,
   });
   const top = side.clone();
-  // Top-face sub-emissive: 0.05 gives a faint upward-light highlight calibrated to the
-  // default lighting rig (ambient + directional from above). Bottom: 0.02 is near-zero,
+  // Top-face emissive: 0.08 gives a visible upward-light highlight calibrated to the
+  // default lighting rig (ambient + directional from above). Bottom: 0.03 is subtle,
   // producing an ambient shadow effect. These are aesthetic calibrations for the default
   // node lighting setup — not theme-exposed (four-condition principle: they co-vary with
   // scene lighting, which is not a diagram-element concern, and are not independently
   // composable outside the node geometry context).
-  top.emissive = new THREE.Color(state.sideColor).multiplyScalar(0.05);
+  top.emissive = new THREE.Color(sideParsed.rgb).multiplyScalar(0.08);
   const bottom = side.clone();
-  bottom.emissive = new THREE.Color(state.sideColor).multiplyScalar(0.02);
+  bottom.emissive = new THREE.Color(sideParsed.rgb).multiplyScalar(0.03);
   const front = new THREE.MeshStandardMaterial({
-    color: state.color,
+    color: frontParsed.rgb,
     metalness: state.metalness,
     roughness: state.roughness,
-    emissive: new THREE.Color(state.emissiveColor ?? state.color),
+    emissive: new THREE.Color(emissiveParsed.rgb),
     emissiveIntensity: effectiveEmissiveIntensity,
-    transparent: isTransparent,
-    opacity: state.opacity,
+    envMapIntensity: nodeEnvMapIntensity,
+    transparent: frontOpacity < 1,
+    opacity: frontOpacity,
   });
   const back = side.clone();
   return [side, side.clone(), top, bottom, front, back];
@@ -163,21 +192,27 @@ export class NodeRenderer {
     );
     const emissiveOverride = this.emissiveOverrides.get(this.key(diagramId, state.id));
     const effectiveEmissiveIntensity = resolveEffectiveEmissiveIntensity(state, emissiveOverride);
-    const materials = createBoxMaterials(state, materialCount, effectiveEmissiveIntensity);
+    const materials = createBoxMaterials(state, materialCount, effectiveEmissiveIntensity, themeConfig.nodeEnvMapIntensity);
     const boxMesh = new THREE.Mesh(geometry, materials);
     boxMesh.castShadow = true;
-    boxMesh.receiveShadow = true;
+    // receiveShadow is intentionally false: the node's own top lip casts a shadow
+    // onto its front face via the directional light shadow map, creating a visible
+    // dark band artifact (self-shadowing). Nodes cast shadows onto the floor/background
+    // but should not self-shadow.
+    boxMesh.receiveShadow = false;
 
     // Use EdgesGeometry only for flat-cornered rectangle/square — it shows exactly
     // the 12 box edges and is visually clean. For all other shapes (polygon prisms,
     // special 2D shapes, or rounded rectangles) use a LineLoop with createShapeOutlineGeometry
     // so the border traces the correct silhouette.
     const useEdgesGeo = isRectangularShape(state.shape) && state.cornerRadius <= 0;
+    const borderParsed = parseHexColor(state.borderColor);
+    const borderOpacity = Math.min(1, state.opacity * borderParsed.alpha);
     const border = new THREE.LineSegments(
       new THREE.EdgesGeometry(useEdgesGeo ? geometry : new THREE.BoxGeometry(0, 0, 0)),
       new THREE.LineBasicMaterial({
-        color: state.borderColor,
-        opacity: Math.min(1, state.opacity),
+        color: borderParsed.rgb,
+        opacity: borderOpacity,
         transparent: true,
       }),
     );
@@ -190,8 +225,8 @@ export class NodeRenderer {
           state.shape, state.size[0], state.size[1], state.thickness, state.cornerRadius,
         ),
         new THREE.LineBasicMaterial({
-          color: state.borderColor,
-          opacity: Math.min(1, state.opacity),
+          color: borderParsed.rgb,
+          opacity: borderOpacity,
           transparent: true,
         }),
       );
@@ -209,7 +244,7 @@ export class NodeRenderer {
     let glow: THREE.Sprite | undefined;
     if (themeConfig.nodeGlowIntensity > 0) {
       glow = createGlow(
-        state.color,
+        parseHexColor(state.color).rgb,
         state.size[0],
         state.size[1],
         themeConfig.nodeGlowSpread,
@@ -312,18 +347,27 @@ export class NodeRenderer {
       const oldMats = Array.isArray(entry.boxMesh.material)
         ? (entry.boxMesh.material as THREE.Material[])
         : [entry.boxMesh.material as THREE.Material];
-      entry.boxMesh.material = createBoxMaterials(state, entry.materialCount, effectiveEmissiveIntensity);
+      entry.boxMesh.material = createBoxMaterials(state, entry.materialCount, effectiveEmissiveIntensity, themeConfig.nodeEnvMapIntensity);
       oldMats.forEach((m) => m.dispose());
     } else {
       this.applyEmissiveToEntry(entry, state, emissiveOverride);
     }
 
-    if (prev && prev.opacity !== state.opacity) {
+    if (prev && (prev.opacity !== state.opacity || prev.color !== state.color || prev.sideColor !== state.sideColor)) {
       const mats = Array.isArray(entry.boxMesh.material)
         ? (entry.boxMesh.material as THREE.MeshStandardMaterial[])
         : [entry.boxMesh.material as THREE.MeshStandardMaterial];
-      const op = state.opacity;
-      mats.forEach((m) => { m.opacity = op; m.transparent = op < 1; });
+      // Re-parse color alphas so opacity changes compose correctly with per-color alpha.
+      const fAlpha = parseHexColor(state.color).alpha;
+      const sAlpha = parseHexColor(state.sideColor).alpha;
+      for (let i = 0; i < mats.length; i++) {
+        // In the 6-material layout, index 4 is the front face; all others are side-derived.
+        const isFront = entry.materialCount === 6 ? i === 4 : i === 0;
+        const alpha = isFront ? fAlpha : sAlpha;
+        const op = state.opacity * alpha;
+        mats[i]!.opacity = op;
+        mats[i]!.transparent = op < 1;
+      }
     }
 
     if (
@@ -356,14 +400,16 @@ export class NodeRenderer {
     ) as THREE.LineBasicMaterial;
 
     if (!prev || prev.borderColor !== state.borderColor) {
-      activeBorderMat.color.set(state.borderColor);
-      (entry.border.material as THREE.LineBasicMaterial).color.set(state.borderColor);
+      const borderParsed = parseHexColor(state.borderColor);
+      activeBorderMat.color.set(borderParsed.rgb);
+      (entry.border.material as THREE.LineBasicMaterial).color.set(borderParsed.rgb);
       if (entry.roundedBorder) {
-        (entry.roundedBorder.material as THREE.LineBasicMaterial).color.set(state.borderColor);
+        (entry.roundedBorder.material as THREE.LineBasicMaterial).color.set(borderParsed.rgb);
       }
     }
-    if (!prev || prev.opacity !== state.opacity) {
-      const op = Math.min(1, state.opacity);
+    if (!prev || prev.opacity !== state.opacity || prev.borderColor !== state.borderColor) {
+      const borderAlpha = parseHexColor(state.borderColor).alpha;
+      const op = Math.min(1, state.opacity * borderAlpha);
       activeBorderMat.opacity = op;
       activeBorderMat.transparent = op < 1;
       if (entry.roundedBorder) {
@@ -375,7 +421,7 @@ export class NodeRenderer {
     if (glowEnabled) {
       if (!entry.glow) {
         entry.glow = createGlow(
-          state.color,
+          parseHexColor(state.color).rgb,
           state.size[0],
           state.size[1],
           themeConfig.nodeGlowSpread,
@@ -385,7 +431,7 @@ export class NodeRenderer {
       } else {
         entry.glow.material.opacity = themeConfig.nodeGlowIntensity * state.opacity;
         if (!prev || prev.color !== state.color) {
-          entry.glow.material.color.set(state.color);
+          entry.glow.material.color.set(parseHexColor(state.color).rgb);
         }
         if (!prev || prev.size[0] !== state.size[0] || prev.size[1] !== state.size[1]) {
           const [glowW, glowH] = computeGlowScale(state.size[0], state.size[1], themeConfig.nodeGlowSpread);
@@ -414,14 +460,16 @@ export class NodeRenderer {
       themeConfig.nodeSublabelFontSizeBase,
       themeConfig.effectiveLabelSizeFactor ?? 1.0,
       themeConfig.effectiveSublabelSizeFactor ?? 1.0,
+      state.labelPadding,
     );
 
+    const labelParsed = parseHexColor(state.labelColor);
     ensureText(
       entry.label,
       state.label ?? '',
-      state.labelColor,
+      labelParsed.rgb,
       labelLayout.labelFontSize,
-      state.opacity,
+      state.opacity * labelParsed.alpha,
       contentW * 0.85,
       true,
       { fontUrl: themeConfig.fontUrl, sdfGlyphSize: themeConfig.nodeSdfGlyphSize },
@@ -434,12 +482,13 @@ export class NodeRenderer {
         entry.sublabel.renderOrder = 1;
         entry.group.add(entry.sublabel);
       }
+      const sublabelParsed = parseHexColor(state.sublabelColor);
       ensureText(
         entry.sublabel,
         state.sublabel,
-        state.sublabelColor,
+        sublabelParsed.rgb,
         labelLayout.sublabelFontSize ?? 0,
-        state.opacity,
+        state.opacity * sublabelParsed.alpha,
         contentW * 0.85,
         true,
         { fontUrl: themeConfig.fontUrl, sdfGlyphSize: themeConfig.nodeSdfGlyphSize },
@@ -490,7 +539,7 @@ export class NodeRenderer {
           obj.traverse((child) => {
             if (child instanceof THREE.Mesh) {
               child.castShadow = true;
-              child.receiveShadow = true;
+              child.receiveShadow = false;
             }
           });
           holder.clear();
@@ -518,15 +567,16 @@ export class NodeRenderer {
       ? (entry.boxMesh.material as THREE.MeshStandardMaterial[])
       : [entry.boxMesh.material as THREE.MeshStandardMaterial];
     const effectiveEmissiveIntensity = resolveEffectiveEmissiveIntensity(state, emissiveOverride);
+    const emissiveRgb = parseHexColor(state.emissiveColor ?? state.color).rgb;
     if (entry.materialCount === 2) {
       if (mats[0]) {
-        mats[0].emissive.set(state.emissiveColor ?? state.color);
+        mats[0].emissive.set(emissiveRgb);
         mats[0].emissiveIntensity = effectiveEmissiveIntensity;
       }
       return;
     }
     if (mats[4]) {
-      mats[4].emissive.set(state.emissiveColor ?? state.color);
+      mats[4].emissive.set(emissiveRgb);
       mats[4].emissiveIntensity = effectiveEmissiveIntensity;
     }
   }

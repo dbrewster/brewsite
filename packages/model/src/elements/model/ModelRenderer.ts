@@ -17,6 +17,7 @@ import type { Vec3, ModelPartSpec, ModelSubpartSpec, CustomAnimation, CustomAnim
 import type { ModelRenderInstanceState } from './_renderTypes';
 import type { CompiledAnimation } from './compile';
 import type { WidgetRenderContext } from '@brewsite/core';
+import { parseHexColor } from '@brewsite/core';
 import { applyModelTransform } from './render';
 import type { IRenderable as RenderInterface } from './render';
 import type { AssetManifest, AnimationEntry, ModelMeta } from './metadata';
@@ -902,7 +903,13 @@ export class ModelRenderer {
         }
       }
       if ('color' in mat && overrides.color) {
-        (mat as THREE.MeshStandardMaterial).color = new THREE.Color(overrides.color);
+        const colorParsed = parseHexColor(overrides.color);
+        (mat as THREE.MeshStandardMaterial).color = new THREE.Color(colorParsed.rgb);
+        if (colorParsed.alpha < 1) {
+          (mat as THREE.MeshStandardMaterial).transparent = true;
+          (mat as THREE.MeshStandardMaterial).opacity =
+            ((mat as THREE.MeshStandardMaterial).opacity ?? 1) * colorParsed.alpha;
+        }
       }
       if (typeof overrides.opacity === 'number') {
         (mat as THREE.MeshStandardMaterial).transparent = true;

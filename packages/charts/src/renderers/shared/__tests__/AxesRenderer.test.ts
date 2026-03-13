@@ -116,6 +116,10 @@ vi.mock('@brewsite/core', () => ({
   disposeText: vi.fn((text: { dispose?: () => void }) => {
     text.dispose?.();
   }),
+  parseHexColor: (hex: string) => ({
+    rgb: hex.length === 9 && hex[0] === '#' ? hex.slice(0, 7) : hex,
+    alpha: hex.length === 9 && hex[0] === '#' ? parseInt(hex.slice(7, 9), 16) / 255 : 1,
+  }),
 }));
 
 import * as THREE from 'three';

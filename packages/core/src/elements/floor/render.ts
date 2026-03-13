@@ -6,6 +6,7 @@
 import type { FloorSurfaceMirror, FloorSurfacePhysical, SceneFloor } from './types';
 import * as THREE from 'three';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
+import { parseHexColor } from '../../math';
 
 export type FloorThreeRefs = {
   scene: THREE.Scene;
@@ -558,13 +559,16 @@ const ensureGridLines = (
   const estimatedDivisions = Math.round((FLOOR_SIZE * effectiveScale) / gridCellSize);
   const divisions = Math.max(2, Math.min(800, estimatedDivisions));
 
-  const minorColor = new THREE.Color(state.gridColor ?? '#3b4a5e');
-  const majorColor = new THREE.Color(state.gridMajorColor ?? '#6a7f98');
+  const minorParsed = parseHexColor(state.gridColor ?? '#3b4a5e');
+  const majorParsed = parseHexColor(state.gridMajorColor ?? '#6a7f98');
+  const minorColor = new THREE.Color(minorParsed.rgb);
+  const majorColor = new THREE.Color(majorParsed.rgb);
   const lineOpacityRaw = state.gridLineOpacity ?? 0.95;
-  const lineOpacity =
+  const baseLineOpacity =
     Number.isFinite(lineOpacityRaw)
       ? clamp01(lineOpacityRaw)
       : 0.95;
+  const lineOpacity = baseLineOpacity * Math.min(minorParsed.alpha, majorParsed.alpha);
   const key = `${divisions}|${majorEvery}|${minorColor.getHexString()}|${majorColor.getHexString()}|${lineOpacity.toFixed(3)}`;
 
   if (instance.gridLinesKey === key && instance.gridLines) {
@@ -644,14 +648,14 @@ const getOrCreateFloor = (
   let shadowCatcher: THREE.Mesh<THREE.PlaneGeometry, THREE.ShadowMaterial> | undefined;
 
   if (wantsMirror) {
-    const mirrorColor = surface.mirrorColor ?? '#111111';
+    const mirrorColorParsed = parseHexColor(surface.mirrorColor ?? '#111111');
     mesh = new Reflector(geometry, {
-      color: mirrorColor,
+      color: mirrorColorParsed.rgb,
       textureWidth: mirrorResolution,
       textureHeight: mirrorResolution,
       clipBias: mirrorClipBias,
     }) as unknown as THREE.Mesh<THREE.PlaneGeometry, THREE.Material>;
-    const mirrorOpacity = typeof surface.mirrorOpacity === 'number' ? surface.mirrorOpacity : 1;
+    const mirrorOpacity = (typeof surface.mirrorOpacity === 'number' ? surface.mirrorOpacity : 1) * mirrorColorParsed.alpha;
     ensureMirrorOpacityShader(mesh.material);
     mesh.material.transparent = mirrorOpacity < 1;
     mesh.material.depthWrite = mirrorOpacity >= 1;
@@ -839,14 +843,14 @@ export function applyFloor(state: SceneFloor, refs: FloorThreeRefs): void {
     userData.__brewsite_mirror.envIntensity =
       typeof surface.mirrorEnvironmentIntensity === 'number' ? surface.mirrorEnvironmentIntensity : null;
 
-    const mirrorOpacity = typeof surface.mirrorOpacity === 'number' ? surface.mirrorOpacity : 1;
+    const applyMirrorParsed = parseHexColor(surface.mirrorColor ?? '#111111');
+    const mirrorOpacity = (typeof surface.mirrorOpacity === 'number' ? surface.mirrorOpacity : 1) * applyMirrorParsed.alpha;
     floor.mesh.material.transparent = mirrorOpacity < 1;
     floor.mesh.material.depthWrite = mirrorOpacity >= 1;
     floor.mesh.material.opacity = mirrorOpacity;
-    const mirrorColor = surface.mirrorColor ?? '#111111';
     const material = floor.mesh.material as THREE.ShaderMaterial;
     if (material?.uniforms?.['color']?.value) {
-      material.uniforms['color'].value.set(mirrorColor);
+      material.uniforms['color'].value.set(applyMirrorParsed.rgb);
     }
     if (material?.uniforms?.['opacity']) {
       material.uniforms['opacity'].value = mirrorOpacity;
@@ -867,9 +871,10 @@ export function applyFloor(state: SceneFloor, refs: FloorThreeRefs): void {
 
   if (surface.type !== 'physical') return;
   const material = floor.mesh.material as THREE.MeshPhysicalMaterial;
-  material.color.set(surface.color ?? '#1a222d');
+  const surfaceColorParsed = parseHexColor(surface.color ?? '#1a222d');
+  material.color.set(surfaceColorParsed.rgb);
   material.toneMapped = true;
-  const opacity = typeof surface.opacity === 'number' ? surface.opacity : 1;
+  const opacity = (typeof surface.opacity === 'number' ? surface.opacity : 1) * surfaceColorParsed.alpha;
   material.opacity = opacity;
   material.transparent = opacity < 1;
   material.depthWrite = opacity >= 1;
@@ -879,8 +884,9 @@ export function applyFloor(state: SceneFloor, refs: FloorThreeRefs): void {
   material.clearcoat = typeof surface.clearcoat === 'number' ? surface.clearcoat : material.clearcoat;
   material.clearcoatRoughness =
     typeof surface.clearcoatRoughness === 'number' ? surface.clearcoatRoughness : material.clearcoatRoughness;
-  material.emissive.set(surface.emissive ?? '#000000');
-  material.emissiveIntensity = typeof surface.emissiveIntensity === 'number' ? surface.emissiveIntensity : 1;
+  const emissiveParsed = parseHexColor(surface.emissive ?? '#000000');
+  material.emissive.set(emissiveParsed.rgb);
+  material.emissiveIntensity = (typeof surface.emissiveIntensity === 'number' ? surface.emissiveIntensity : 1) * emissiveParsed.alpha;
   material.envMapIntensity = surface.pattern === 'grid'
     ? 0
     : typeof surface.envMapIntensity === 'number'
@@ -904,9 +910,9 @@ export function applyFloor(state: SceneFloor, refs: FloorThreeRefs): void {
     }
     // Grid fill should stay color-faithful (not light-tinted) and non-reflective.
     // Shadows are rendered by a dedicated ShadowMaterial catcher mesh.
-    const fillColor = surface.color ?? '#1a222d';
+    const fillColorParsed = parseHexColor(surface.color ?? '#1a222d');
     material.color.set('#000000');
-    material.emissive.set(fillColor);
+    material.emissive.set(fillColorParsed.rgb);
     material.emissiveIntensity = 1;
     material.toneMapped = false;
     material.metalness = 0;
@@ -920,7 +926,7 @@ export function applyFloor(state: SceneFloor, refs: FloorThreeRefs): void {
     const fillOpacityRaw = surface.gridFillOpacity ?? surface.opacity ?? 0;
     const fillOpacity =
       Number.isFinite(fillOpacityRaw)
-        ? clamp01(fillOpacityRaw)
+        ? clamp01(fillOpacityRaw) * fillColorParsed.alpha
         : 0;
     material.transparent = fillOpacity < 1;
     material.opacity = fillOpacity;

@@ -274,3 +274,154 @@ describe('computeNodeLabelLayout — edge cases', () => {
     expect(Number.isFinite(result.sublabelY!)).toBe(true);
   });
 });
+
+describe('computeNodeLabelLayout — labelPadding', () => {
+  it('labelPadding=0 produces the same result as omitting the parameter', () => {
+    const withZero = computeNodeLabelLayout(
+      BASE.contentW, BASE.contentH, BASE.thickness,
+      false, false,
+      BASE.iconScale,
+      BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
+      BASE.labelSizeFactor, BASE.sublabelSizeFactor,
+      0,
+    );
+    const withDefault = computeNodeLabelLayout(
+      BASE.contentW, BASE.contentH, BASE.thickness,
+      false, false,
+      BASE.iconScale,
+      BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
+      BASE.labelSizeFactor, BASE.sublabelSizeFactor,
+    );
+    expect(withZero.labelY).toBe(withDefault.labelY);
+  });
+
+  it('positive labelPadding shifts labelY downward (more negative)', () => {
+    const baseline = computeNodeLabelLayout(
+      BASE.contentW, BASE.contentH, BASE.thickness,
+      false, false,
+      BASE.iconScale,
+      BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
+      BASE.labelSizeFactor, BASE.sublabelSizeFactor,
+      0,
+    );
+    const padded = computeNodeLabelLayout(
+      BASE.contentW, BASE.contentH, BASE.thickness,
+      false, false,
+      BASE.iconScale,
+      BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
+      BASE.labelSizeFactor, BASE.sublabelSizeFactor,
+      0.2,
+    );
+    expect(padded.labelY).toBeLessThan(baseline.labelY);
+  });
+
+  it('labelPadding offset is proportional to contentH', () => {
+    const padded = computeNodeLabelLayout(
+      BASE.contentW, BASE.contentH, BASE.thickness,
+      false, false,
+      BASE.iconScale,
+      BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
+      BASE.labelSizeFactor, BASE.sublabelSizeFactor,
+      0.1,
+    );
+    const baseline = computeNodeLabelLayout(
+      BASE.contentW, BASE.contentH, BASE.thickness,
+      false, false,
+      BASE.iconScale,
+      BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
+      BASE.labelSizeFactor, BASE.sublabelSizeFactor,
+      0,
+    );
+    const expectedOffset = 0.1 * BASE.contentH;
+    expect(baseline.labelY - padded.labelY).toBeCloseTo(expectedOffset, 10);
+  });
+
+  it('negative labelPadding shifts labelY upward (more positive)', () => {
+    const baseline = computeNodeLabelLayout(
+      BASE.contentW, BASE.contentH, BASE.thickness,
+      false, false,
+      BASE.iconScale,
+      BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
+      BASE.labelSizeFactor, BASE.sublabelSizeFactor,
+      0,
+    );
+    const padded = computeNodeLabelLayout(
+      BASE.contentW, BASE.contentH, BASE.thickness,
+      false, false,
+      BASE.iconScale,
+      BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
+      BASE.labelSizeFactor, BASE.sublabelSizeFactor,
+      -0.15,
+    );
+    expect(padded.labelY).toBeGreaterThan(baseline.labelY);
+  });
+
+  it('applies labelPadding to sublabelY when sublabel is present', () => {
+    const baseline = computeNodeLabelLayout(
+      BASE.contentW, BASE.contentH, BASE.thickness,
+      false, true,
+      BASE.iconScale,
+      BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
+      BASE.labelSizeFactor, BASE.sublabelSizeFactor,
+      0,
+    );
+    const padded = computeNodeLabelLayout(
+      BASE.contentW, BASE.contentH, BASE.thickness,
+      false, true,
+      BASE.iconScale,
+      BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
+      BASE.labelSizeFactor, BASE.sublabelSizeFactor,
+      0.2,
+    );
+    expect(padded.sublabelY).toBeDefined();
+    expect(padded.sublabelY!).toBeLessThan(baseline.sublabelY!);
+    // Both should shift by the same amount
+    const labelShift = baseline.labelY - padded.labelY;
+    const sublabelShift = baseline.sublabelY! - padded.sublabelY!;
+    expect(labelShift).toBeCloseTo(sublabelShift, 10);
+  });
+
+  it('applies labelPadding when icon is present', () => {
+    const baseline = computeNodeLabelLayout(
+      BASE.contentW, BASE.contentH, BASE.thickness,
+      true, false,
+      BASE.iconScale,
+      BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
+      BASE.labelSizeFactor, BASE.sublabelSizeFactor,
+      0,
+    );
+    const padded = computeNodeLabelLayout(
+      BASE.contentW, BASE.contentH, BASE.thickness,
+      true, false,
+      BASE.iconScale,
+      BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
+      BASE.labelSizeFactor, BASE.sublabelSizeFactor,
+      0.1,
+    );
+    const expectedOffset = 0.1 * BASE.contentH;
+    expect(baseline.labelY - padded.labelY).toBeCloseTo(expectedOffset, 10);
+  });
+
+  it('does not affect font sizes or Z positions', () => {
+    const baseline = computeNodeLabelLayout(
+      BASE.contentW, BASE.contentH, BASE.thickness,
+      false, true,
+      BASE.iconScale,
+      BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
+      BASE.labelSizeFactor, BASE.sublabelSizeFactor,
+      0,
+    );
+    const padded = computeNodeLabelLayout(
+      BASE.contentW, BASE.contentH, BASE.thickness,
+      false, true,
+      BASE.iconScale,
+      BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
+      BASE.labelSizeFactor, BASE.sublabelSizeFactor,
+      0.3,
+    );
+    expect(padded.labelFontSize).toBe(baseline.labelFontSize);
+    expect(padded.sublabelFontSize).toBe(baseline.sublabelFontSize);
+    expect(padded.labelZ).toBe(baseline.labelZ);
+    expect(padded.sublabelZ).toBe(baseline.sublabelZ);
+  });
+});

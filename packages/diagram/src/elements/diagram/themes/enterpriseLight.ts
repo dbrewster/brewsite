@@ -7,8 +7,8 @@ export const enterpriseLightTheme: DiagramTheme = {
   ...enterpriseTheme,
   node: {
     ...enterpriseTheme.node,
-    defaultColor: '#FFFFFF',
-    defaultBoxColor: '#E8EEF6',
+    defaultColor: '#dcdce6',
+    defaultBoxColor: '#D5DFED',
     defaultLabelColor: '#1F334E',
     defaultSublabelColor: '#5A6D86',
     defaultMetalness: 0.08,
@@ -18,11 +18,11 @@ export const enterpriseLightTheme: DiagramTheme = {
   edge: {
     ...enterpriseTheme.edge,
     defaultColor: '#5E7EA9',
-    defaultFlowColor: '#5A8A92',
-    defaultFlowSpeed: 0.04,
-    defaultMetalness: 0.08,
+    defaultFlowColor: '#b84ef4',
+    defaultFlowSpeed: 0.24,
+    defaultMetalness: 0.28,
     defaultRoughness: 0.60,
-    flowPulseIntensity: 0.22,
+    flowPulseIntensity: 0.62,
   },
   group: {
     ...enterpriseTheme.group,

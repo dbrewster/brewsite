@@ -233,3 +233,53 @@ export const decomposeMatrix = (matrix: Mat4): { position: Vec3; rotation: Vec3;
 };
 
 export const copyVec3 = (value: Vec3): Vec3 => [value[0], value[1], value[2]];
+
+// ─── Color alpha parsing ──────────────────────────────────────────────────────
+
+/**
+ * Result of parsing a hex color string that may contain an alpha channel.
+ * `rgb` is always a 7-character `#RRGGBB` string suitable for `THREE.Color`.
+ * `alpha` is [0..1], defaulting to 1 when no alpha channel is present.
+ */
+export type ParsedColor = { readonly rgb: string; readonly alpha: number };
+
+/**
+ * Parses a CSS hex color string, extracting the optional alpha channel.
+ *
+ * Accepted formats:
+ * - `#RGB`      → expands to `#RRGGBB`, alpha = 1
+ * - `#RGBA`     → expands to `#RRGGBB`, alpha from A
+ * - `#RRGGBB`   → unchanged, alpha = 1
+ * - `#RRGGBBAA` → rgb = `#RRGGBB`, alpha from AA
+ *
+ * Any unrecognised format is returned as-is with alpha = 1.
+ */
+export const parseHexColor = (hex: string): ParsedColor => {
+  if (hex.length === 9 && hex[0] === '#') {
+    // #RRGGBBAA
+    return {
+      rgb: hex.slice(0, 7),
+      alpha: parseInt(hex.slice(7, 9), 16) / 255,
+    };
+  }
+  if (hex.length === 5 && hex[0] === '#') {
+    // #RGBA → expand to #RRGGBB + alpha
+    const r = hex[1]!;
+    const g = hex[2]!;
+    const b = hex[3]!;
+    const a = hex[4]!;
+    return {
+      rgb: `#${r}${r}${g}${g}${b}${b}`,
+      alpha: parseInt(`${a}${a}`, 16) / 255,
+    };
+  }
+  if (hex.length === 4 && hex[0] === '#') {
+    // #RGB → expand to #RRGGBB, no alpha
+    const r = hex[1]!;
+    const g = hex[2]!;
+    const b = hex[3]!;
+    return { rgb: `#${r}${r}${g}${g}${b}${b}`, alpha: 1 };
+  }
+  // #RRGGBB or unknown — pass through
+  return { rgb: hex, alpha: 1 };
+};

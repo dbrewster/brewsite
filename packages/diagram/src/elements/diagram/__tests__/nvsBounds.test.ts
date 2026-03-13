@@ -13,6 +13,7 @@ const testThemeConfig: DiagramThemeRenderConfig = {
   envMapIntensity: 1,
   skyColor: '#000000',
   horizonColor: '#000000',
+  nodeEnvMapIntensity: 0.15,
   nodeGlowIntensity: 0,
   nodeGlowSpread: 2.2,
   nodeCornerRadius: 0,

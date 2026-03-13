@@ -9,11 +9,12 @@ import type { DiagramTheme } from '../types';
 export const darkGlassTheme: DiagramTheme = {
   node: {
     defaultColor: '#1E1412',
-    defaultBoxColor: '#2A1D1A',
+    defaultBoxColor: '#372620',
     defaultMetalness: 0.64,
     defaultRoughness: 0.28,
+    nodeEnvMapIntensity: 0.12,
     defaultEmissiveIntensity: 0.07,
-    defaultThickness: 0.58,
+    defaultThickness: 1,
     cornerRadius: 0.06,
     glowIntensity: 0.10,
     defaultLabelColor: '#F2E6DE',
@@ -30,6 +31,7 @@ export const darkGlassTheme: DiagramTheme = {
     borderColorLightenFactor: 0.20,
     labelFontSizeBase: 0.28,
     sublabelFontSizeBase: 0.18,
+    defaultLabelPadding: 0,
   },
   edge: {
     defaultColor: '#B33A2B',

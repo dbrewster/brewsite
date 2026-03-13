@@ -1,4 +1,5 @@
 // Loads and caches HDR environment maps; applies to THREE.Scene.
+// Uses PMREMGenerator to prefilter HDR textures for high-quality PBR reflections.
 import * as THREE from 'three';
 import { HDRLoader } from './HDRLoader';
 
@@ -7,6 +8,16 @@ export class EnvMapManager {
   private readonly pending = new Map<string, Array<{ scene: THREE.Scene; intensity: number }>>();
   private readonly loader = new HDRLoader();
   private readonly devCacheBustToken = Date.now();
+  private renderer: THREE.WebGLRenderer | undefined;
+
+  /**
+   * Sets the WebGLRenderer used by PMREMGenerator for prefiltering HDR textures.
+   * Must be called before apply() to enable high-quality environment reflections.
+   * When no renderer is set, raw equirectangular mapping is used as a fallback.
+   */
+  setRenderer(renderer: THREE.WebGLRenderer | undefined): void {
+    this.renderer = renderer;
+  }
 
   private isDevRuntime(): boolean {
     const injected = (globalThis as { __BREWSITE_ENV__?: { DEV?: boolean } }).__BREWSITE_ENV__;
@@ -44,7 +55,6 @@ export class EnvMapManager {
 
     const cached = this.cache.get(url);
     if (cached) {
-      cached.mapping = THREE.EquirectangularReflectionMapping;
       scene.environment = cached;
       (scene as THREE.Scene & { environmentIntensity?: number }).environmentIntensity = intensity;
       return;
@@ -61,12 +71,29 @@ export class EnvMapManager {
     this.loader.load(
       this.buildRequestUrl(url),
       (tex: THREE.Texture) => {
-        tex.mapping = THREE.EquirectangularReflectionMapping;
-        this.cache.set(url, tex);
+        // Prefilter through PMREMGenerator for proper PBR mip-chain reflections.
+        // Without this, MeshStandardMaterial receives a raw equirectangular texture
+        // that the GPU cannot properly sample at different roughness levels, producing
+        // blocky/low-resolution reflection artifacts on node surfaces.
+        let envMap: THREE.Texture;
+        if (this.renderer) {
+          const pmrem = new THREE.PMREMGenerator(this.renderer);
+          pmrem.compileEquirectangularShader();
+          envMap = pmrem.fromEquirectangular(tex).texture;
+          pmrem.dispose();
+          tex.dispose();
+        } else {
+          // Fallback: use raw equirectangular mapping when no renderer is available
+          // (e.g. in test environments).
+          tex.mapping = THREE.EquirectangularReflectionMapping;
+          envMap = tex;
+        }
+
+        this.cache.set(url, envMap);
         const waiting = this.pending.get(url) ?? [];
         this.pending.delete(url);
         waiting.forEach(({ scene: waitingScene, intensity: waitingIntensity }) => {
-          waitingScene.environment = tex;
+          waitingScene.environment = envMap;
           (waitingScene as THREE.Scene & { environmentIntensity?: number }).environmentIntensity = waitingIntensity;
         });
       },

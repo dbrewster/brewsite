@@ -8,7 +8,7 @@ export const darkGlassLightTheme: DiagramTheme = {
   node: {
     ...darkGlassTheme.node,
     defaultColor: '#FFF9F5',
-    defaultBoxColor: '#F4EAE3',
+    defaultBoxColor: '#E2D4CA',
     defaultLabelColor: '#2B1F1A',
     defaultSublabelColor: '#6E5750',
     defaultMetalness: 0.40,
@@ -18,7 +18,7 @@ export const darkGlassLightTheme: DiagramTheme = {
   },
   edge: {
     ...darkGlassTheme.edge,
-    defaultColor: '#9F4637',
+    defaultColor: '#B33A2B',
     defaultFlowColor: '#C96A3F',
     defaultFlowSpeed: 0.24,
     defaultMetalness: 0.26,

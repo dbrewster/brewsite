@@ -188,6 +188,13 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
   });
 
   // ─── Widget registry ────────────────────────────────────────────────────────
+  // IMPORTANT: configureRegistry() calls registerNode() which mutates a global
+  // handler map. React 18 StrictMode double-calls useMemo initializers in dev —
+  // the first result is kept, but the second call's registerNode overwrites global
+  // handlers with closures that capture the discarded second registry instance.
+  // To prevent this mismatch, we store the registry in a ref and re-run
+  // configureRegistry after useMemo to ensure the global handlers always capture
+  // the same registry instance that useMemo returned.
   const widgetRegistry = useMemo(() => {
     for (const plugin of resolvedPlugins) {
       plugin.registerHandlers();
@@ -202,6 +209,18 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
     return reg;
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resolvedPlugins, manifest]);
+
+  // Re-run configureRegistry outside useMemo to ensure the global node handlers
+  // capture the KEPT registry instance (not the discarded StrictMode duplicate).
+  // configureRegistry is idempotent for widget registration (guards are already
+  // overwritten), but the registerNode() calls inside it re-bind the closures
+  // to the correct registry reference.
+  useMemo(() => {
+    for (const plugin of resolvedPlugins) {
+      plugin.configureRegistry?.(widgetRegistry, manifest);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widgetRegistry]);
 
   // ─── Viewport-relative scroll source detection ──────────────────────────────
   // Detect viewport-relative scroll source.

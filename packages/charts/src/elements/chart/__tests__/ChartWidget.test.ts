@@ -52,6 +52,7 @@ vi.mock('three', () => {
     intersectObjects = vi.fn().mockReturnValue([]);
   }
   class Color { constructor(_?: unknown) {} set(_: unknown) {} }
+  class Quaternion { x = 0; y = 0; z = 0; w = 1; }
   const FrontSide = 0;
   const MathUtils = {
     degToRad: (deg: number) => deg * (Math.PI / 180),
@@ -79,7 +80,7 @@ vi.mock('three', () => {
   return {
     Vector3, Vector2, Object3D, Scene, Group, BufferGeometry,
     MeshPhysicalMaterial, LineBasicMaterial, MeshStandardMaterial,
-    Mesh, Camera, PerspectiveCamera, Raycaster, Color, FrontSide, MathUtils,
+    Mesh, Camera, PerspectiveCamera, Raycaster, Color, FrontSide, MathUtils, Quaternion,
     BoxGeometry, PlaneGeometry, SphereGeometry, CylinderGeometry, EdgesGeometry,
     InstancedMesh, Line, Matrix4,
   };
@@ -104,6 +105,17 @@ vi.mock('../../renderers/scatter/ScatterRenderer', () => ({
 vi.mock('../../renderers/heatmap/HeatmapRenderer', () => ({
   HeatmapRenderer: class { update = vi.fn(); dispose = vi.fn(); getInteractiveObjects = vi.fn().mockReturnValue([]); resolveHoverInfo = vi.fn().mockReturnValue(null); },
 }));
+
+vi.mock('@brewsite/core', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@brewsite/core')>();
+  return {
+    ...actual,
+    parseHexColor: (hex: string) => ({
+      rgb: hex.length === 9 && hex[0] === '#' ? hex.slice(0, 7) : hex,
+      alpha: hex.length === 9 && hex[0] === '#' ? parseInt(hex.slice(7, 9), 16) / 255 : 1,
+    }),
+  };
+});
 
 import * as THREE from 'three';
 import { ChartWidget } from '../ChartWidget';

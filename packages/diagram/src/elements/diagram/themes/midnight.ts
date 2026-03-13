@@ -8,11 +8,11 @@ import type { DiagramTheme } from '../types';
 export const midnightTheme: DiagramTheme = {
   node: {
     defaultColor: '#261A13',
-    defaultBoxColor: '#332319',
+    defaultBoxColor: '#3D2E22',
     defaultMetalness: 0.28,
     defaultRoughness: 0.50,
     defaultEmissiveIntensity: 0.05,
-    defaultThickness: 0.38,
+    defaultThickness: 1.4,
     cornerRadius: 0.06,
     glowIntensity: 0.0,
     defaultLabelColor: '#F2E7D4',
@@ -29,6 +29,7 @@ export const midnightTheme: DiagramTheme = {
     borderColorLightenFactor: 0.20,
     labelFontSizeBase: 0.28,
     sublabelFontSizeBase: 0.18,
+    defaultLabelPadding: 0,
   },
   edge: {
     defaultColor: '#E2A33A',

@@ -8,7 +8,7 @@ export const lightMinimalDarkTheme: DiagramTheme = {
   node: {
     ...lightMinimalTheme.node,
     defaultColor: '#252C35',
-    defaultBoxColor: '#2F3945',
+    defaultBoxColor: '#3C4856',
     defaultLabelColor: '#E8EDF5',
     defaultSublabelColor: '#A8B2C2',
     defaultMetalness: 0.14,

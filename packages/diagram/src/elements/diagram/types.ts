@@ -47,6 +47,15 @@ export interface DiagramThemeNodeConfig {
   readonly defaultMetalness: number;
   /** PBR roughness [0–1]. ~0.25 = glossy, ~0.65 = matte */
   readonly defaultRoughness: number;
+  /**
+   * Per-node environment map reflection intensity [0–1].
+   * Controls how much the scene's IBL environment map is visible on node surfaces.
+   * Independent of the scene-level envMapIntensity (which controls overall IBL brightness).
+   * 0 = no environment reflection on nodes; 1 = full reflection.
+   * Typical values: 0.08–0.20 to show subtle lighting without dominating the base color.
+   * Optional — defaults to 0.15 when absent.
+   */
+  readonly nodeEnvMapIntensity?: number;
   /** Emissive intensity on the front face [0–1], tinted to node color */
   readonly defaultEmissiveIntensity: number;
   /**
@@ -127,6 +136,15 @@ export interface DiagramThemeNodeConfig {
    * Final size = contentH × sublabelFontSizeBase × sublabelSizeFactor × sceneTheme.fontSize.caption.
    */
   readonly sublabelFontSizeBase: number;
+  /**
+   * Default label padding as a fraction of the node's content height [0–1].
+   * Controls the vertical offset applied to all label/sublabel positions within
+   * the node's front face. Positive values shift labels downward (toward the
+   * bottom of the node); negative values shift upward.
+   * 0 = labels use default centered/stacked positions; 0.1 = 10% of contentH downward offset.
+   * darkGlass default: 0
+   */
+  readonly defaultLabelPadding: number;
 }
 
 /** Edge/connector appearance and routing defaults within a theme. */
@@ -397,6 +415,12 @@ export interface DiagramThemeRenderConfig {
   readonly skyColor: string;
   /** Gradient sky horizon color (CSS hex) */
   readonly horizonColor: string;
+  /**
+   * Per-node environment map reflection intensity [0–1].
+   * Applied to each node's MeshStandardMaterial.envMapIntensity.
+   * Source: theme.node.nodeEnvMapIntensity ?? 0.15.
+   */
+  readonly nodeEnvMapIntensity: number;
   /** Glow sprite intensity for all nodes [0–1]. 0 = disabled */
   readonly nodeGlowIntensity: number;
   /** Corner radius in diagram units for rect nodes. 0 = BoxGeometry */
@@ -452,6 +476,12 @@ export interface DiagramThemeRenderConfig {
    * Lower = more glyph slots in the atlas; 32 gives ~4096 slots vs 64's ~1024.
    */
   readonly nodeSdfGlyphSize: number;
+  /**
+   * Default label padding as a fraction of content height [0–1].
+   * Source: theme.node.defaultLabelPadding.
+   * Applied as a vertical Y offset to all node label positions.
+   */
+  readonly nodeLabelPadding: number;
 }
 
 // ─── Node ───────────────────────────────────────────────────────────────────
@@ -786,6 +816,14 @@ export interface DiagramNodeState {
 
   /** CSS hex color for sublabel text */
   readonly sublabelColor: string;
+
+  /**
+   * Label padding as a fraction of the node's content height [0–1].
+   * Controls the vertical offset applied to all label/sublabel positions.
+   * Positive values shift labels downward; negative values shift upward.
+   * 0 = labels use default centered/stacked positions.
+   */
+  readonly labelPadding: number;
 
   /** Node opacity [0–1] */
   readonly opacity: number;
@@ -1243,6 +1281,11 @@ export interface DiagramNodeDSL {
   readonly cornerRadius?: number;
   readonly labelColor?: string;
   readonly sublabelColor?: string;
+  /**
+   * Label padding as a fraction of node content height [0–1].
+   * Overrides theme.node.defaultLabelPadding for this node.
+   */
+  readonly labelPadding?: number;
   readonly opacity?: number;
   readonly clickable?: boolean;
   readonly enabled?: boolean;

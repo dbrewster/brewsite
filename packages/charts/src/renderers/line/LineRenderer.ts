@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { scaleLinear } from 'd3-scale';
 import { extent } from 'd3-array';
+import { parseHexColor } from '@brewsite/core';
 import { AxesRenderer } from '../shared/AxesRenderer';
 import { LegendRenderer } from '../shared/LegendRenderer';
 import { ChartMaterialFactory } from '../shared/ChartMaterialFactory';
@@ -199,10 +200,11 @@ export class LineRenderer implements IChartRenderer {
         const linePoints = curve.getPoints(segments);
         const geo = new THREE.BufferGeometry().setFromPoints(linePoints);
         const tokens = theme.series[si % theme.series.length]!;
+        const parsedLineColor = parseHexColor(tokens.color);
         const mat = new THREE.LineBasicMaterial({
-          color: new THREE.Color(tokens.color),
-          transparent: opacity < 1,
-          opacity,
+          color: new THREE.Color(parsedLineColor.rgb),
+          transparent: (opacity * parsedLineColor.alpha) < 1,
+          opacity: opacity * parsedLineColor.alpha,
         });
         const line = new THREE.Line(geo, mat);
         seriesGroup.add(line);
@@ -228,13 +230,15 @@ export class LineRenderer implements IChartRenderer {
       if (showPoints) {
         const sphereGeo = new THREE.SphereGeometry(0.04, 8, 8);
         const tokens = theme.series[si % theme.series.length]!;
+        const parsedPointColor = parseHexColor(tokens.color);
         for (const pt of points) {
+          const pointOpacity = opacity * parsedPointColor.alpha;
           const mat = new THREE.MeshPhysicalMaterial({
-            color: new THREE.Color(tokens.color),
+            color: new THREE.Color(parsedPointColor.rgb),
             metalness: tokens.metalness,
             roughness: tokens.roughness,
-            transparent: opacity < 1,
-            opacity,
+            transparent: pointOpacity < 1,
+            opacity: pointOpacity,
           });
           const sphere = new THREE.Mesh(sphereGeo, mat);
           sphere.position.copy(pt);
@@ -277,8 +281,9 @@ export class LineRenderer implements IChartRenderer {
     const xScale = scaleLinear().domain([0, n - 1]).range([0, bounds.width]);
 
     for (const refLine of ctx.referenceLines) {
-      const color = new THREE.Color(refLine.color ?? theme.axis.lineColor);
-      const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: opacity * 0.8 });
+      const parsedRefColor = parseHexColor(refLine.color ?? theme.axis.lineColor);
+      const color = new THREE.Color(parsedRefColor.rgb);
+      const mat = new THREE.LineBasicMaterial({ color, transparent: true, opacity: opacity * 0.8 * parsedRefColor.alpha });
       let points: THREE.Vector3[];
 
       if (refLine.axis === 'y') {

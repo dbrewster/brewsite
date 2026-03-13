@@ -4,7 +4,8 @@ const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
 
 const hexToRgb = (hex: string): [number, number, number] => {
   const normalized = hex.startsWith('#') ? hex.slice(1) : hex;
-  if (normalized.length !== 6) {
+  // Accept both 6-digit (#RRGGBB) and 8-digit (#RRGGBBAA) hex — alpha is ignored here.
+  if (normalized.length !== 6 && normalized.length !== 8) {
     throw new Error(`Invalid hex color: ${hex}`);
   }
   const r = Number.parseInt(normalized.slice(0, 2), 16);

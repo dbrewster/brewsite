@@ -13,6 +13,9 @@ type NodeDimensions = readonly [number, number, number];
 
 const toMutableVec3 = (v: Vec3): [number, number, number] => [v[0], v[1], v[2]];
 
+/** Linear interpolation for a single number. */
+const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
+
 export function blendDiagramNodes(
   fromNodes: ReadonlyArray<DiagramNodeState>,
   toNodes: ReadonlyArray<DiagramNodeState>,
@@ -33,6 +36,13 @@ export function blendDiagramNodes(
       ...toNode,
       position: blendVec3(toMutableVec3(fromNode.position), toMutableVec3(toNode.position), t) ?? toNode.position,
       opacity: blendOpacity(fromNode.opacity, toNode.opacity, t) ?? toNode.opacity,
+      // Interpolate geometric properties to prevent snapping when scenes have
+      // different safeSpan values (different NVS normalization denominators).
+      size: [
+        lerp(fromNode.size[0], toNode.size[0], t),
+        lerp(fromNode.size[1], toNode.size[1], t),
+      ] as readonly [number, number],
+      thickness: lerp(fromNode.thickness, toNode.thickness, t),
     };
   });
 

@@ -32,6 +32,7 @@ const makeNode = (id: string, overrides: Partial<DiagramNodeState> = {}): Diagra
   cornerRadius: 0,
   labelColor: '#000000',
   sublabelColor: '#000000',
+  labelPadding: 0,
   opacity: 1,
   clickable: false,
   enabled: true,

@@ -2,7 +2,7 @@
 
 import * as THREE from 'three';
 import { Text } from 'troika-three-text';
-import { ensureText, disposeText } from '@brewsite/core';
+import { ensureText, disposeText, parseHexColor } from '@brewsite/core';
 import type { TextWithLayout } from '@brewsite/core';
 import type { ChartAxisState, FittedMargins } from './IChartRenderer';
 import type { ChartTheme } from '../../themes/types';
@@ -79,7 +79,8 @@ export class AxesRenderer {
     opacity: number,
     seriesDepth: number,
   ): void {
-    const floorOpacity = theme.background.planeOpacity * opacity;
+    const parsedPlane = theme.background.planeColor ? parseHexColor(theme.background.planeColor) : null;
+    const floorOpacity = theme.background.planeOpacity * opacity * (parsedPlane?.alpha ?? 1);
     if (!theme.background.planeColor || floorOpacity <= 0) {
       this.removeFloorPlane();
       return;
@@ -88,7 +89,7 @@ export class AxesRenderer {
     if (!this.floorPlane) {
       const geo = new THREE.PlaneGeometry(width, height);
       const mat = new THREE.MeshStandardMaterial({
-        color: new THREE.Color(theme.background.planeColor),
+        color: new THREE.Color(parsedPlane!.rgb),
         transparent: floorOpacity < 1,
         opacity: floorOpacity,
         side: THREE.FrontSide,
@@ -99,7 +100,7 @@ export class AxesRenderer {
       this.axesGroup.add(this.floorPlane);
     } else {
       const mat = this.floorPlane.material as THREE.MeshStandardMaterial;
-      mat.color.set(theme.background.planeColor);
+      mat.color.set(parsedPlane!.rgb);
       mat.opacity = floorOpacity;
       mat.transparent = floorOpacity < 1;
       const floorZ = -(Math.max(0, seriesDepth) + 0.01);
@@ -122,8 +123,9 @@ export class AxesRenderer {
     theme: ChartTheme,
     opacity: number,
   ): void {
-    const color = new THREE.Color(theme.axis.lineColor);
-    const lineOpacity = opacity * theme.axis.lineOpacity;
+    const parsedLine = parseHexColor(theme.axis.lineColor);
+    const color = new THREE.Color(parsedLine.rgb);
+    const lineOpacity = opacity * theme.axis.lineOpacity * parsedLine.alpha;
 
     if (!this.axisLineX) {
       const geo = new THREE.BufferGeometry().setFromPoints([
@@ -165,12 +167,14 @@ export class AxesRenderer {
     fittedMargins?: FittedMargins,
   ): void {
     const tickLen = theme.axis.tickLength;
-    const color = new THREE.Color(theme.axis.lineColor);
-    const labelColor = theme.axis.labelColor;
-    const labelOpacity = opacity * theme.axis.labelOpacity;
+    const parsedTickLine = parseHexColor(theme.axis.lineColor);
+    const color = new THREE.Color(parsedTickLine.rgb);
+    const parsedLabel = parseHexColor(theme.axis.labelColor);
+    const labelColor = parsedLabel.rgb;
+    const labelOpacity = opacity * theme.axis.labelOpacity * parsedLabel.alpha;
     const fontSize = theme.axis.fontSize;
     const titleFontSize = theme.axis.titleFontSize ?? fontSize * 1.1;
-    const tickOpacity = opacity * theme.axis.tickOpacity;
+    const tickOpacity = opacity * theme.axis.tickOpacity * parsedTickLine.alpha;
     const axisGap = theme.axis.gap;
 
     this.syncTickObjects(xTicks.length + yTicks.length, color, tickOpacity);
@@ -287,8 +291,9 @@ export class AxesRenderer {
     if (!showGridlines) return;
 
     // V2.1: read all tokens from theme.gridlines — color fallback chain, opacity, dash support
-    const gridColor = new THREE.Color(theme.gridlines?.color ?? theme.background.gridColor ?? '#4a6080');
-    const gridOpacity = (theme.gridlines?.opacity ?? 0.15) * opacity;
+    const parsedGrid = parseHexColor(theme.gridlines?.color ?? theme.background.gridColor ?? '#4a6080');
+    const gridColor = new THREE.Color(parsedGrid.rgb);
+    const gridOpacity = (theme.gridlines?.opacity ?? 0.15) * opacity * parsedGrid.alpha;
     const dashSize = theme.gridlines?.dashSize;
     const gapSize = theme.gridlines?.gapSize ?? dashSize; // default gapSize equals dashSize
 
