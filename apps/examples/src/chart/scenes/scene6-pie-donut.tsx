@@ -4,11 +4,9 @@ import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { ChartAxis, ChartLegend, ChartSeries, PieChart } from '@brewsite/charts';
 import { productRevenue } from '../data/productData';
 import { PIE_CAM_FOV, PIE_CAM_POS, PIE_CAM_TGT, PIE_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
-import { useChartTheme } from '@brewsite/charts';
 
 // Scene 6a — Pie chart (innerRadius=0)
 export const Scene6a = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s6a">
     <ProgressManager scrollUnits={1200} />
@@ -18,7 +16,6 @@ export const Scene6a = (): JSX.Element => {
     <PieChart
       id="product-split"
       data={productRevenue}
-      theme={chartTheme}
       innerRadius={0}
       pieTilt={0}
       x={PIE_LAYOUT.x}
@@ -40,7 +37,6 @@ export const Scene6a = (): JSX.Element => {
 
 // Scene 6b — Donut (innerRadius=0.5)
 export const Scene6b = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s6b">
     <ProgressManager scrollUnits={1200} />
@@ -50,7 +46,6 @@ export const Scene6b = (): JSX.Element => {
     <PieChart
       id="product-split"
       data={productRevenue}
-      theme={chartTheme}
       innerRadius={0.5}
       pieTilt={0}
       x={PIE_LAYOUT.x}
@@ -72,7 +67,6 @@ export const Scene6b = (): JSX.Element => {
 
 // Scene 6c — Exploded slice (Core Platform pushed outward)
 export const Scene6c = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s6c">
     <ProgressManager scrollUnits={1000} />
@@ -82,7 +76,6 @@ export const Scene6c = (): JSX.Element => {
     <PieChart
       id="product-split"
       data={productRevenue}
-      theme={chartTheme}
       innerRadius={0.5}
       pieTilt={0}
       explodeSlice="Core Platform"

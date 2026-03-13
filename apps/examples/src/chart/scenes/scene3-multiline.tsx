@@ -5,7 +5,6 @@ import { ProgressManager, Scene } from '@brewsite/core';
 import { ChartAxis, ChartData, ChartLegend, ChartSeries, ChartTooltip, LineChart, ReferenceLine } from '@brewsite/charts';
 import { saasMetrics24Months } from '../data/saasMetrics';
 import { CHART_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
-import { useChartTheme } from '@brewsite/charts';
 
 const saasMetrics24MonthsAdjusted = saasMetrics24Months.map((row, idx) => {
   const swing = idx % 3 === 0 ? 1.14 : idx % 3 === 1 ? 0.92 : 1.06;
@@ -19,7 +18,6 @@ const saasMetrics24MonthsAdjusted = saasMetrics24Months.map((row, idx) => {
 });
 
 export const Scene3a = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s3a" >
     <ProgressManager scrollUnits={1400} />
@@ -28,7 +26,6 @@ export const Scene3a = (): JSX.Element => {
     <LineChart
       id="arr-trend"
       data={saasMetrics24Months}
-      theme={chartTheme}
       lineShape="circle"
       lineSmoothness={0.5}
       showPoints={true}
@@ -56,7 +53,6 @@ export const Scene3a = (): JSX.Element => {
 };
 
 export const Scene3b = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s3b">
     <ProgressManager scrollUnits={1400} />
@@ -65,7 +61,6 @@ export const Scene3b = (): JSX.Element => {
     <LineChart
       id="arr-trend"
       data={saasMetrics24MonthsAdjusted}
-      theme={chartTheme}
       lineShape="circle"
       lineSmoothness={0.5}
       showPoints={true}

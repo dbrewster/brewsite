@@ -2,7 +2,6 @@
 
 import { describe, it, expect } from 'vitest';
 import { createChartTheme } from '../createChartTheme';
-import { CHART_THEMES } from '../index';
 import { darkGlassChartTheme } from '../darkGlass';
 import { darkGlassLightChartTheme } from '../darkGlassLight';
 import { enterpriseChartTheme } from '../enterprise';
@@ -88,7 +87,7 @@ describe('createChartTheme', () => {
   });
 
   it('interaction partial override merges correctly', () => {
-    const result = createChartTheme('enterprise', {
+    const result = createChartTheme('default', {
       interaction: { hoverColor: '#ff00ff' },
     });
     expect(result.interaction.hoverColor).toBe('#ff00ff');
@@ -175,7 +174,7 @@ describe('createChartTheme', () => {
   });
 
   it('dataLabels partial override merges correctly', () => {
-    const result = createChartTheme('enterprise', {
+    const result = createChartTheme('default', {
       dataLabels: { fontSize: 0.06, color: '#ff4400' },
     });
     expect(result.dataLabels?.fontSize).toBe(0.06);
@@ -183,7 +182,7 @@ describe('createChartTheme', () => {
   });
 
   it('dataLabels pass through unchanged when no override', () => {
-    const result = createChartTheme('enterprise');
+    const result = createChartTheme('default');
     expect(result.dataLabels?.fontSize).toBe(enterpriseChartTheme.dataLabels?.fontSize);
     expect(result.dataLabels?.color).toBe(enterpriseChartTheme.dataLabels?.color);
   });
@@ -199,7 +198,7 @@ describe('createChartTheme', () => {
   });
 
   it('legend textOpacity override merges correctly', () => {
-    const result = createChartTheme('enterprise', {
+    const result = createChartTheme('default', {
       legend: { textOpacity: 0.6 },
     });
     expect(result.legend.textOpacity).toBe(0.6);
@@ -283,43 +282,38 @@ describe('All 12 preset themes: tooltip + projection tokens', () => {
   }
 });
 
-describe('CHART_THEMES registry completeness', () => {
-  it('CHART_THEMES contains exactly 6 keys', () => {
-    expect(Object.keys(CHART_THEMES)).toHaveLength(6);
+describe('chart theme preset completeness', () => {
+  it('midnightChartTheme has name "midnight"', () => {
+    expect(midnightChartTheme).toBeDefined();
+    expect(midnightChartTheme.name).toBe('midnight');
   });
 
-  it('CHART_THEMES.midnight resolves to midnightChartTheme', () => {
-    expect(CHART_THEMES.midnight).toBeDefined();
-    expect(CHART_THEMES.midnight.name).toBe('midnight');
+  it('lightCanvasChartTheme has name "lightCanvas"', () => {
+    expect(lightCanvasChartTheme).toBeDefined();
+    expect(lightCanvasChartTheme.name).toBe('lightCanvas');
   });
 
-  it('CHART_THEMES.lightCanvas resolves to lightCanvasChartTheme', () => {
-    expect(CHART_THEMES.lightCanvas).toBeDefined();
-    expect(CHART_THEMES.lightCanvas.name).toBe('lightCanvas');
-  });
-
-  it('CHART_THEMES contains all 6 canonical keys', () => {
-    expect(CHART_THEMES).toHaveProperty('darkGlass');
-    expect(CHART_THEMES).toHaveProperty('midnight');
-    expect(CHART_THEMES).toHaveProperty('neonCyber');
-    expect(CHART_THEMES).toHaveProperty('enterprise');
-    expect(CHART_THEMES).toHaveProperty('lightCanvas');
-    expect(CHART_THEMES).toHaveProperty('lightMinimal');
+  it('all 6 canonical preset themes are defined', () => {
+    expect(darkGlassChartTheme).toBeDefined();
+    expect(midnightChartTheme).toBeDefined();
+    expect(neonCyberChartTheme).toBeDefined();
+    expect(enterpriseChartTheme).toBeDefined();
+    expect(lightCanvasChartTheme).toBeDefined();
+    expect(lightMinimalChartTheme).toBeDefined();
   });
 });
 
 describe('neonCyber stepped emissive intensities', () => {
   it('neonCyber chart theme series emissive intensities are stepped (not uniform)', () => {
-    const theme = CHART_THEMES.neonCyber;
-    expect(theme.series[0]!.emissiveIntensity).toBeGreaterThan(theme.series[7]!.emissiveIntensity);
+    expect(neonCyberChartTheme.series[0]!.emissiveIntensity).toBeGreaterThan(neonCyberChartTheme.series[7]!.emissiveIntensity);
   });
 
   it('neonCyber series[0] emissiveIntensity is exactly 0.95', () => {
-    expect(CHART_THEMES.neonCyber.series[0]!.emissiveIntensity).toBe(0.95);
+    expect(neonCyberChartTheme.series[0]!.emissiveIntensity).toBe(0.95);
   });
 
   it('neonCyber series[7] emissiveIntensity is exactly 0.58', () => {
-    expect(CHART_THEMES.neonCyber.series[7]!.emissiveIntensity).toBe(0.58);
+    expect(neonCyberChartTheme.series[7]!.emissiveIntensity).toBe(0.58);
   });
 });
 

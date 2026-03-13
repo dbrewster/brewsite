@@ -219,15 +219,19 @@ export type SceneTheme = {
 };
 
 /**
- * Canonical theme family names. All six names have matching presets in
+ * Canonical theme family names. All names have matching presets in
  * @brewsite/diagram (DiagramThemeName) and @brewsite/charts (ChartThemeName).
  * This type is the single source of truth for the cross-package theme name vocabulary.
+ *
+ * 'default' maps to the enterprise aesthetic and is always pre-registered in
+ * sceneThemeRegistry — no explicit registration required.
  */
 export type ThemeFamily =
+  | 'default'
+  | 'enterprise'
   | 'darkGlass'
   | 'midnight'
   | 'neonCyber'
-  | 'enterprise'
   | 'lightCanvas'
   | 'lightMinimal';
 
@@ -235,10 +239,11 @@ export type ThemeFamily =
 export type ThemePolarity = 'dark' | 'light';
 
 /**
- * A light+dark pair of SceneTheme presets for a single ThemeFamily.
- * The entry type for SCENE_THEME_PAIRS.
+ * The active theme selection for a SceneEngine instance.
+ * Passed via `<SceneEngine theme={...}>` to select a theme family and polarity.
+ * Replaces the older `themeFamily` / `themePolarity` props.
  */
-export type SceneThemePair = {
-  readonly dark: SceneTheme;
-  readonly light: SceneTheme;
-};
+export interface ActiveTheme {
+  readonly family: ThemeFamily;
+  readonly polarity: 'dark' | 'light';
+}

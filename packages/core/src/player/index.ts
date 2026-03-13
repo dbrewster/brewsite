@@ -60,6 +60,7 @@ export { corePlugin } from './plugins';
 export type { CorePluginOptions } from './plugins';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+export type { ActiveTheme } from '../theme/types';
 export type { EngineFrameState, EngineState } from './engineTypes';
 export type { EngineTimingProfile, InternalSceneSpec } from './engineTypes';
 // Types only — consumers need ViewportRelativeScrollSource to type their refs when
@@ -86,14 +87,13 @@ export type { SceneInspectorProps } from './SceneInspector';
 export { SpotlightRig, Spotlight, SpotlightRigWidget } from '../elements/spotlight-rig';
 export type {
   SpotlightRigProps, SpotlightProps,
-  SpotlightRigTheme, SpotlightRigState, SpotlightLightState,
+  SpotlightRigPreset, SpotlightRigState, SpotlightLightState,
   OrbitFn,
 } from '../elements/spotlight-rig';
 export {
-  mergeSpotlightRigTheme, DEFAULT_SPOTLIGHT_RIG_THEME, DEFAULT_SPOTLIGHT_RIG_STATE,
-  moviePremiereTheme, concertStageTheme,
-  spotlightDarkGlassTheme, spotlightEnterpriseTheme,
-  spotlightNeonCyberTheme, spotlightLightMinimalTheme,
+  DEFAULT_SPOTLIGHT_RIG_THEME, DEFAULT_SPOTLIGHT_RIG_STATE,
+  moviePremierePreset, moviePremiereTheme,
+  concertStagePreset, concertStageTheme,
 } from '../elements/spotlight-rig';
 
 // ─── REMOVED from v1 (not re-exported, not shim-exported): ───────────────────

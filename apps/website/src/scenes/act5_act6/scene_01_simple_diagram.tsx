@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
-import { Diagram, DiagramNode, DiagramEdge, ManualLayout, neonCyberTheme } from '@brewsite/diagram';
+import { Diagram, DiagramNode, DiagramEdge, ManualLayout } from '@brewsite/diagram';
 import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
 import { isMobile } from '../../utils/viewport';
 import type { Vec3 } from '@brewsite/core';
@@ -33,7 +33,7 @@ export const scene01SimpleDiagram: JSX.Element = (
       <Directional intensity={0.5} color="#aaccff" position={[0, 20, 30]} />
       <Directional intensity={0.3} color="#00aaff" position={[-10, 10, 10]} />
     </Lighting>
-    <Diagram id="tech-stack" x={0} y={0} w={1} h={1} tilt={-Math.PI / 12} scale={isMobile ? 1.0 : 1.3} theme={neonCyberTheme}>
+    <Diagram id="tech-stack" x={0} y={0} w={1} h={1} tilt={-Math.PI / 12} scale={isMobile ? 1.0 : 1.3}>
         <ManualLayout />
         <DiagramNode id="frontend" label="React App"   icon="ui:globe-alt"    position={[0.500, 0.136, 0]} />
         <DiagramNode id="api"      label="API Gateway" icon="aws:api-gateway"  position={[0.500, 0.500, 0]} />

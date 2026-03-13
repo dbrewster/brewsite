@@ -230,7 +230,8 @@ export type ChartState = {
   readonly series: readonly ChartSeriesState[];
   readonly referenceLines?: ReadonlyArray<ReferenceLineState>;
   readonly legend: ChartLegendState | null;
-  readonly theme: ChartThemeName | ChartTheme;
+  /** Resolved ChartTheme object — always a concrete theme, never a name string. */
+  readonly theme: ChartTheme;
   readonly opacity: number;
   readonly interactive: boolean;
   /**
@@ -289,30 +290,6 @@ export type ChartState = {
   readonly tooltip: import('./tooltip/types').ChartTooltipState | null;
 };
 
-/** Default compiled state. opacity = 1 so charts are visible by default. */
-export const DEFAULT_CHART_STATE: ChartState = {
-  type: 'bar',
-  nvsX: 0.5,
-  nvsY: 0.5,
-  z: 0,
-  rotation: [0, 0, 0],
-  bounds: { width: 1.0, height: 1.0, depth: 0.4 },
-  dataSource: { type: 'named', name: '' },
-  transforms: [],
-  xAxis: null,
-  yAxis: null,
-  series: [],
-  legend: null,
-  theme: 'darkGlass',
-  opacity: 1,
-  interactive: false,
-  sceneTheme: undefined,
-  nvsBounds: { x: 0, y: 0, w: 1, h: 1 },
-  typeConfig: { kind: 'bar', options: {} },
-  animateEntry: false,
-  animationDuration: 0.4,
-  tooltip: null,
-};
 
 // ─── ChartRenderInput (V2.1 — moved here from render.ts) ────────────────────
 

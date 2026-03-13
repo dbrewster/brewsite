@@ -10,19 +10,19 @@ import {
   ScrollStage,
 } from '@brewsite/core';
 import {createMultiUserPlugins} from './widgetSetup';
-import {sceneHero} from './scenes/scene_hero';
-import {sceneProblems} from './scenes/scene_problems';
-import {sceneSessionHierarchy} from './scenes/scene_session_hierarchy';
-import {sceneEpisodicPartition} from './scenes/scene_episodic_partition';
-import {sceneNeocortexScopes} from './scenes/scene_neocortex_scopes';
-import {sceneDreamingCloud} from './scenes/scene_dreaming_cloud';
-import {sceneExpertRoles} from './scenes/scene_expert_roles';
-import {sceneDebateRounds} from './scenes/scene_debate_rounds';
-import {sceneConvergence} from './scenes/scene_convergence';
-import {sceneFractal} from './scenes/scene_fractal';
-import {sceneCrossUserFlow} from './scenes/scene_crossuser_flow';
-import {sceneConflict} from './scenes/scene_conflict';
-import {sceneSummary} from './scenes/scene_summary';
+import {SceneHero} from './scenes/scene_hero';
+import {SceneProblems} from './scenes/scene_problems';
+import {SceneSessionHierarchy} from './scenes/scene_session_hierarchy';
+import {SceneEpisodicPartition} from './scenes/scene_episodic_partition';
+import {SceneNeocortexScopes} from './scenes/scene_neocortex_scopes';
+import {SceneDreamingCloud} from './scenes/scene_dreaming_cloud';
+import {SceneExpertRoles} from './scenes/scene_expert_roles';
+import {SceneDebateRounds} from './scenes/scene_debate_rounds';
+import {SceneConvergence} from './scenes/scene_convergence';
+import {SceneFractal} from './scenes/scene_fractal';
+import {SceneCrossUserFlow} from './scenes/scene_crossuser_flow';
+import {SceneConflict} from './scenes/scene_conflict';
+import {SceneSummary} from './scenes/scene_summary';
 
 const SCENE_SCROLL_REGISTRY = [
   { sceneId: 'bfmu-hero',         scrollUnits: 800  },
@@ -43,24 +43,24 @@ const SCENE_SCROLL_REGISTRY = [
 const TOTAL_SCROLL_HEIGHT = SCENE_SCROLL_REGISTRY.reduce((s, r) => s + r.scrollUnits, 0);
 
 export default function MultiUserPage(): JSX.Element {
-  const { plugins } = useMemo(() => createMultiUserPlugins(), []);
+  const { plugins, theme } = useMemo(() => createMultiUserPlugins(), []);
 
   return (
     <div style={{ background: '#080b14', width: '100vw', height: '100vh', overflow: 'hidden', minWidth: '100vw', fontSize: '18px' }}>
-      <SceneEngine plugins={plugins}>
-        {sceneHero}
-        {sceneProblems}
-        {/*{sceneSessionHierarchy}*/}
-        {/*{sceneEpisodicPartition}*/}
-        {/*{sceneNeocortexScopes}*/}
-        {/*{sceneDreamingCloud}*/}
-        {/*{sceneExpertRoles}*/}
-        {/*{sceneDebateRounds}*/}
-        {/*{sceneConvergence}*/}
-        {/*{sceneFractal}*/}
-        {/*{sceneCrossUserFlow}*/}
-        {/*{sceneConflict}*/}
-        {/*{sceneSummary}*/}
+      <SceneEngine plugins={plugins} theme={theme}>
+        <SceneHero />
+        <SceneProblems />
+        {/*<SceneSessionHierarchy />*/}
+        {/*<SceneEpisodicPartition />*/}
+        {/*<SceneNeocortexScopes />*/}
+        {/*<SceneDreamingCloud />*/}
+        {/*<SceneExpertRoles />*/}
+        {/*<SceneDebateRounds />*/}
+        {/*<SceneConvergence />*/}
+        {/*<SceneFractal />*/}
+        {/*<SceneCrossUserFlow />*/}
+        {/*<SceneConflict />*/}
+        {/*<SceneSummary />*/}
         <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={TOTAL_SCROLL_HEIGHT / SCENE_SCROLL_REGISTRY.length}>
           <EngineARContainer aspectRatio={9/9} scaleMode="fit-height" referenceWidth={1920}>
             <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />

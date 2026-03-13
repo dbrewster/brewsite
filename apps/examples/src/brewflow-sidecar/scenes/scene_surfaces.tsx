@@ -7,7 +7,6 @@ import {
   TextBox,
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -18,7 +17,7 @@ export const SceneSurfaces = () => (
     <Camera mode="world" position={[0, 6, 22]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <Diagram id="surfaces-diagram" x={0} y={0} w={1} h={0.58} tilt={-0.15} scale={config.diagramScale} theme={brewflowTheme}>
+    <Diagram id="surfaces-diagram" x={0} y={0} w={1} h={0.58} tilt={-0.15} scale={config.diagramScale}>
         <HierarchicalLayout direction="top-down" spacing={[2, 2]} />
 
         <DiagramNode

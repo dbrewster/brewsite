@@ -29,12 +29,12 @@ export const Lights = () => (
 
 // ─── Theme families available for selection ──────────────────────────────────
 const THEME_FAMILIES: ThemeFamily[] = [
-  'darkGlass', 'enterprise', 'midnight', 'neonCyber', 'lightCanvas', 'lightMinimal',
+  'darkGlass', 'midnight', 'neonCyber', 'lightCanvas', 'lightMinimal',
 ];
 
 const FAMILY_LABELS: Record<ThemeFamily, string> = {
+  default: 'Default',
   darkGlass: 'Dark Glass',
-  enterprise: 'Enterprise',
   midnight: 'Midnight',
   neonCyber: 'Neon Cyber',
   lightCanvas: 'Light Canvas',

@@ -18,14 +18,14 @@ import { diagramPlugin } from '@brewsite/diagram';
 import type { SceneDefinition } from '@brewsite/core/compiler/sceneTypes';
 import type { SceneTrack } from '@brewsite/core/compiler/sceneTrackTypes';
 
-// Architecture scenes export raw JSX elements — safe to use as SceneDefinition.getFrame.
+// Architecture scenes are functional components — instantiate inline for getFrame.
 import {
-  sceneCoreAngledArch,
-  sceneCoreArch,
+  SceneCoreAngledArch,
+  SceneCoreArch,
 } from '../architecture/scenes/scene_core';
 import {
-  sceneDiagramAngledArch,
-  sceneDiagramArch,
+  SceneDiagramAngledArch,
+  SceneDiagramArch,
 } from '../architecture/scenes/scene_diagram';
 
 // ─── Custom snapshot serializer ───────────────────────────────────────────────
@@ -96,8 +96,8 @@ function sampleAtMidpoints(track: SceneTrack): Array<{ sceneId: string; widgets:
 describe('snapshotBaseline — architecture (core+diagram) scenes', () => {
   it('arch-core-angled scene widgets are stable', () => {
     const sceneDefs: SceneDefinition[] = [
-      { id: 'arch-core-angled', getFrame: () => sceneCoreAngledArch },
-      { id: 'arch-core', getFrame: () => sceneCoreArch },
+      { id: 'arch-core-angled', getFrame: SceneCoreAngledArch },
+      { id: 'arch-core', getFrame: SceneCoreArch },
     ];
     const track = buildTrack(sceneDefs);
     const samples = sampleAtMidpoints(track);
@@ -109,8 +109,8 @@ describe('snapshotBaseline — architecture (core+diagram) scenes', () => {
 
   it('arch-diagram scenes widgets are stable', () => {
     const sceneDefs: SceneDefinition[] = [
-      { id: 'arch-diagram-angled', getFrame: () => sceneDiagramAngledArch },
-      { id: 'arch-diagram', getFrame: () => sceneDiagramArch },
+      { id: 'arch-diagram-angled', getFrame: SceneDiagramAngledArch },
+      { id: 'arch-diagram', getFrame: SceneDiagramArch },
     ];
     const track = buildTrack(sceneDefs);
     const samples = sampleAtMidpoints(track);
@@ -122,10 +122,10 @@ describe('snapshotBaseline — architecture (core+diagram) scenes', () => {
 
   it('all four arch scenes together — transitions between scenes are stable', () => {
     const sceneDefs: SceneDefinition[] = [
-      { id: 'arch-core-angled', getFrame: () => sceneCoreAngledArch },
-      { id: 'arch-core', getFrame: () => sceneCoreArch },
-      { id: 'arch-diagram-angled', getFrame: () => sceneDiagramAngledArch },
-      { id: 'arch-diagram', getFrame: () => sceneDiagramArch },
+      { id: 'arch-core-angled', getFrame: SceneCoreAngledArch },
+      { id: 'arch-core', getFrame: SceneCoreArch },
+      { id: 'arch-diagram-angled', getFrame: SceneDiagramAngledArch },
+      { id: 'arch-diagram', getFrame: SceneDiagramArch },
     ];
     const track = buildTrack(sceneDefs);
 
@@ -158,10 +158,10 @@ describe('snapshotBaseline — architecture (core+diagram) scenes', () => {
 describe('snapshotBaseline — ProgressManager profile is stable', () => {
   it('progressProfile scroll segments are stable across arch scenes', () => {
     const sceneDefs: SceneDefinition[] = [
-      { id: 'arch-core-angled', getFrame: () => sceneCoreAngledArch },
-      { id: 'arch-core', getFrame: () => sceneCoreArch },
-      { id: 'arch-diagram-angled', getFrame: () => sceneDiagramAngledArch },
-      { id: 'arch-diagram', getFrame: () => sceneDiagramArch },
+      { id: 'arch-core-angled', getFrame: SceneCoreAngledArch },
+      { id: 'arch-core', getFrame: SceneCoreArch },
+      { id: 'arch-diagram-angled', getFrame: SceneDiagramAngledArch },
+      { id: 'arch-diagram', getFrame: SceneDiagramArch },
     ];
     const track = buildTrack(sceneDefs);
 

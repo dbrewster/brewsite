@@ -18,11 +18,11 @@ const MANIFEST_URL = '/scene-manifest.json';
 const scenes = whiteboardArchScenes;
 
 export default function WhiteboardArchPage(): JSX.Element {
-  const { plugins } = useMemo(() => createWhiteboardArchPlugins(), []);
+  const { plugins, theme } = useMemo(() => createWhiteboardArchPlugins(), []);
 
   return (
     <div style={{ background: '#0d1117', height: '100vh', overflow: 'hidden' }}>
-      <SceneEngine plugins={plugins}>
+      <SceneEngine plugins={plugins} theme={theme}>
         {scenes}
         <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1400}>
           <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width" referenceWidth={1920}>

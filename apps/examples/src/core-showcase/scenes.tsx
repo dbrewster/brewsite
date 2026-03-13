@@ -23,7 +23,6 @@ import {
   WheelMap,
 } from '@brewsite/core';
 import {
-  darkGlassTheme,
   Diagram,
   DiagramEdge,
   DiagramGroup,
@@ -35,7 +34,6 @@ import {
   ChartAxis,
   ChartData,
   ChartSeries,
-  useChartTheme,
 } from '@brewsite/charts';
 import { frameworkDataA, frameworkDataB } from './data';
 
@@ -165,7 +163,6 @@ export const OverviewScene = (): JSX.Element => (
         h={1}
         tilt={-Math.PI / 12}
         scale={1.0}
-        theme={darkGlassTheme}
       >
         <ManualLayout />
 
@@ -291,7 +288,6 @@ export const SceneDslScene = (): JSX.Element => (
         h={0.82}
         tilt={-Math.PI / 14}
         scale={0.9}
-        theme={darkGlassTheme}
       >
         <ManualLayout />
 
@@ -363,7 +359,6 @@ export const SceneTransitionScene = (): JSX.Element => (
         h={0.82}
         tilt={-Math.PI / 32}
         scale={1.1}
-        theme={darkGlassTheme}
       >
         <ManualLayout />
 
@@ -442,7 +437,6 @@ export const CompilerScene = (): JSX.Element => (
         h={0.82}
         tilt={-Math.PI / 14}
         scale={1.0}
-        theme={darkGlassTheme}
       >
         <ManualLayout />
 
@@ -583,7 +577,6 @@ export const LightingSoftScene = (): JSX.Element => (
         h={0.82}
         tilt={-Math.PI / 12}
         scale={1.0}
-        theme={darkGlassTheme}
       >
         <ManualLayout />
         <DiagramNode id="lt-ambient" label="Ambient" sublabel="0.8 intensity · #d7e8ff" sublabelColor="#b8c8e8" icon="ui:light-bulb" position={[0.2, 0.35, 0]} size={[0.16, 0.12]} />
@@ -630,7 +623,6 @@ export const LightingDramaticScene = (): JSX.Element => (
         h={0.82}
         tilt={-Math.PI / 12}
         scale={1.0}
-        theme={darkGlassTheme}
       >
         <ManualLayout />
         <DiagramNode id="lt-ambient" label="Ambient" sublabel="0.15 intensity · #0a0a20" sublabelColor="#ffccaa" icon="ui:light-bulb" position={[0.2, 0.35, 0]} size={[0.16, 0.12]} />
@@ -656,7 +648,6 @@ export const LightingDramaticScene = (): JSX.Element => (
 // ─── SCENE 10: Charts — Year A ──────────────────────────────────────────────
 
 export const ChartAScene = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
     <Scene id="cs-chart-a">
       <ProgressManager scrollUnits={1200} />
@@ -673,7 +664,6 @@ export const ChartAScene = (): JSX.Element => {
         <BarChart
           id="framework-adoption"
           data={frameworkDataA}
-          theme={chartTheme}
           x={0.10}
           y={0.18}
           w={0.80}
@@ -703,7 +693,6 @@ export const ChartAScene = (): JSX.Element => {
 // ─── SCENE 11: Charts — Year B (morph!) ─────────────────────────────────────
 
 export const ChartBScene = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
     <Scene id="cs-chart-b">
       <ProgressManager scrollUnits={1200} />
@@ -715,7 +704,6 @@ export const ChartBScene = (): JSX.Element => {
         <BarChart
           id="framework-adoption"
           data={frameworkDataB}
-          theme={chartTheme}
           x={0.10}
           y={0.18}
           w={0.80}
@@ -778,7 +766,6 @@ export const InputScene = (): JSX.Element => (
         h={0.82}
         tilt={-Math.PI / 8}
         scale={1.0}
-        theme={darkGlassTheme}
       >
         <ManualLayout />
         <DiagramGroup id="input-group" label="InputController + Action — gesture-to-action mapping" variant="swimlane">
@@ -821,7 +808,6 @@ export const ThemingScene = (): JSX.Element => (
         h={1}
         tilt={-Math.PI / 14}
         scale={0.85}
-        theme={darkGlassTheme}
       >
         <ManualLayout />
         <DiagramNode id="thm-engine" label="SceneEngine" sublabel="themeFamily · themePolarity" sublabelColor="#b8c8e8" icon="ui:cpu-chip" position={[0.5, 0.2, 0]} size={[0.35, 0.14]} color="#1a3060" glow={{ intensity: 0.15 }} />

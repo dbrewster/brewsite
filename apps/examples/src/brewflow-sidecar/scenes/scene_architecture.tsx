@@ -7,7 +7,6 @@ import {
   TextBox,
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, ManualLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -19,7 +18,7 @@ export const SceneArchitecture = () => (
     <Background color="#080b14" />
 
     {/* claude-flow block */}
-    <Diagram id="bf-arch-cf" x={0} y={0} w={1} h={0.203} tilt={-0.12} scale={config.diagramScale} theme={brewflowTheme}>
+    <Diagram id="bf-arch-cf" x={0} y={0} w={1} h={0.203} tilt={-0.12} scale={config.diagramScale}>
       <ManualLayout />
       <DiagramGroup id="cf-group" label="claude-flow" variant="boundary" color="#0d1525" borderColor="#2a3a60">
         <DiagramNode
@@ -40,7 +39,7 @@ export const SceneArchitecture = () => (
     </Diagram>
 
     {/* sidecar block */}
-    <Diagram id="bf-arch-sidecar" x={0} y={0.203} w={1} h={0.377} tilt={-0.12} scale={config.diagramScale} theme={brewflowTheme}>
+    <Diagram id="bf-arch-sidecar" x={0} y={0.203} w={1} h={0.377} tilt={-0.12} scale={config.diagramScale}>
       <ManualLayout />
       <DiagramGroup id="sidecar-group" label="BrewFlow Memory Sidecar" variant="boundary" color="#0d0f1e" borderColor="#3a4080">
         <DiagramNode

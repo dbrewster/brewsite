@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type { SceneFrame } from './sceneTrackTypes';
 import type { VariableStoreReader, JsonPrimitive } from '../widget/VariableStore';
+import type { ThemeFamily } from '../theme/types';
 
 export type SceneSnapshotContext = {
   /** 0-based index of this scene in the scene array. */
@@ -13,6 +14,17 @@ export type SceneSnapshotContext = {
   variables?: VariableStoreReader;
   /** Viewport dimensions — for viewport-responsive DSL layout. */
   viewport?: { width: number; height: number; aspectRatio: number };
+  /**
+   * Active theme family for this engine instance.
+   * Passed from SceneEngine.theme into every NodeHandler via CompileApi.context.
+   * Defaults to 'default' when no theme is configured.
+   */
+  themeFamily: ThemeFamily;
+  /**
+   * Active theme polarity for this engine instance.
+   * Defaults to 'dark' when no theme is configured.
+   */
+  themePolarity: 'dark' | 'light';
 };
 
 /**

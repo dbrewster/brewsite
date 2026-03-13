@@ -13,7 +13,9 @@ import {
   functionalChartTransitionSpec,
   compileTooltipDsl,
 } from '../compile';
-import { DEFAULT_CHART_STATE } from '../types';
+import { DEFAULT_CHART_STATE } from '../compile';
+import { enterpriseChartTheme } from '../../../themes/enterprise';
+import { neonCyberChartTheme } from '../../../themes/neonCyber';
 import type { BaseChartDSL, BarChartDSL, LineChartDSL } from '../dsl';
 import type { ChartTypeOptions } from '../types';
 
@@ -251,14 +253,15 @@ describe('compileChart', () => {
     expect(state.type).toBe('bar');
   });
 
-  it('defaults theme to darkGlass when not specified', () => {
+  it('defaults theme to enterpriseChartTheme when resolvedTheme is not provided', () => {
     const state = compileChart(baseDsl(), 'bar', barTypeOptions, null, [], [], null, null, []);
-    expect(state.theme).toBe('darkGlass');
+    expect(state.theme).toBe(enterpriseChartTheme);
+    expect(typeof state.theme).toBe('object');
   });
 
-  it('uses provided theme', () => {
-    const state = compileChart(baseDsl({ theme: 'neonCyber' }), 'line', lineTypeOptions, null, [], [], null, null, []);
-    expect(state.theme).toBe('neonCyber');
+  it('uses the provided resolvedTheme object', () => {
+    const state = compileChart(baseDsl(), 'line', lineTypeOptions, null, [], [], null, null, [], null, neonCyberChartTheme);
+    expect(state.theme).toBe(neonCyberChartTheme);
   });
 
   it('compiles xAxis from ChartAxisDSL', () => {
@@ -369,11 +372,6 @@ describe('compileChart', () => {
   it('produces empty series when no ChartSeries provided', () => {
     const state = compileChart(baseDsl(), 'bar', barTypeOptions, null, [], [], null, null, []);
     expect(state.series).toHaveLength(0);
-  });
-
-  it('passes sceneTheme through when provided', () => {
-    const state = compileChart(baseDsl({ sceneTheme: mockSceneTheme }), 'bar', barTypeOptions, null, [], [], null, null, []);
-    expect(state.sceneTheme).toBe(mockSceneTheme);
   });
 
   it('produces undefined sceneTheme when not specified', () => {
@@ -648,7 +646,7 @@ describe('compileChart', () => {
       w: r.w * 0.8,
       h: r.h * 0.8,
     });
-    const state = compileChart(baseDsl(), 'bar', barTypeOptions, null, [], [], null, null, [], null, compose);
+    const state = compileChart(baseDsl(), 'bar', barTypeOptions, null, [], [], null, null, [], null, DEFAULT_CHART_STATE.theme, compose);
     expect(state.nvsBounds).toEqual({ x: 0.1, y: 0.1, w: 0.8, h: 0.8 });
     expect(state.nvsX).toBeCloseTo(0.5);
     expect(state.nvsY).toBeCloseTo(0.5);
@@ -666,7 +664,7 @@ describe('compileChart', () => {
     });
     const state = compileChart(
       baseDsl({ x: 0, y: 0, w: 1, h: 1 }),
-      'bar', barTypeOptions, null, [], [], null, null, [], null, compose,
+      'bar', barTypeOptions, null, [], [], null, null, [], null, DEFAULT_CHART_STATE.theme, compose,
     );
     // Composed: { x: 0.5, y: 0, w: 0.5, h: 0.5 } → center at (0.75, 0.25)
     expect(state.nvsBounds).toEqual({ x: 0.5, y: 0, w: 0.5, h: 0.5 });

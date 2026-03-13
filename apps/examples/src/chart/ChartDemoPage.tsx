@@ -1,6 +1,6 @@
 // Chart demo page — 10-scene V2 showcase.
 import type { JSX } from 'react';
-import { useState, useMemo, useRef, type RefObject } from 'react';
+import { useMemo, useRef } from 'react';
 import {
   InputCoordinator,
   BackgroundLayer,
@@ -11,8 +11,6 @@ import {
   ScrollStage,
   type ScrollStageHandle,
   clearSceneTrackCache,
-  type ThemeFamily,
-  type ThemePolarity,
 } from '@brewsite/core';
 import { ChartTooltipHost } from '@brewsite/charts';
 import { createChartDemoPlugins } from './widgetSetup';
@@ -33,13 +31,10 @@ import { Scene7 } from './scenes/scene7-heatmap';
 import { Scene8 } from './scenes/scene8-async';
 import { Scene9a, Scene9b, Scene9c, Scene9d } from './scenes/scene9-switcher';
 import { Scene10 } from './scenes/scene10-linked-brush';
-import {ChartProgressIndicator, ThemeToggle} from "../Lights";
+import {ChartProgressIndicator} from "../Lights";
 
 export default function ChartDemoPage(): JSX.Element {
-  const [family, setFamily] = useState<ThemeFamily>('enterprise');
-  const [polarity, setPolarity] = useState<ThemePolarity>('light');
-
-  const { plugins } = useMemo(() => createChartDemoPlugins(), []);
+  const { plugins, theme } = useMemo(() => createChartDemoPlugins(), []);
   const scrollStageRef = useRef<ScrollStageHandle | null>(null);
 
   return (
@@ -50,20 +45,12 @@ export default function ChartDemoPage(): JSX.Element {
         flexFlow: 'column',
         height: '100vh',
         overflow: 'hidden',
-        background: polarity === 'light'
-          ? 'radial-gradient(circle at 50% 0%, #f2f4f3 0%, #dadada 42%, #c2c8c2 72%, #d6d3d6 100%)'
-          : 'radial-gradient(circle at 50% 0%, #12345d 0%, #061326 42%, #020812 72%, #01040a 100%)',
+        background: 'radial-gradient(circle at 50% 0%, #f2f4f3 0%, #dadada 42%, #c2c8c2 72%, #d6d3d6 100%)',
       }}
     >
-      <ThemeToggle
-        onPolarityChange={setPolarity}
-        onFamilyChange={setFamily}
-        persist
-      />
-
       <SceneEngine
         plugins={plugins}
-        themeFamily={family} themePolarity={polarity}
+        theme={theme}
       >
         {/* Scene 1: Animated bar morphing (2 sub-scenes, same chart ID) */}
         <Scene1a />
@@ -112,7 +99,7 @@ export default function ChartDemoPage(): JSX.Element {
           </EngineARContainer>
           <InputCoordinator inertiaSensitivity={0.010} inertiaDecay={0.82} />
         </ScrollStage>
-        <ChartProgressIndicator scrollStageRef={scrollStageRef} polarity={polarity} />
+        <ChartProgressIndicator scrollStageRef={scrollStageRef} polarity="light" />
       </SceneEngine>
     </div>
   );

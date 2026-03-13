@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@brewsite/core": ["../core/src/index.ts"],
+      "@brewsite/diagram": ["../diagram/src/index.ts"],
+      "@brewsite/charts": ["../charts/src/index.ts"]
+    },
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": [
+    "src",
+    "../core/src/types/process.d.ts",
+    "../diagram/src/troika-three-text.d.ts"
+  ],
+  "exclude": ["node_modules", "dist", "**/__tests__/**", "**/*.test.*"]
+}

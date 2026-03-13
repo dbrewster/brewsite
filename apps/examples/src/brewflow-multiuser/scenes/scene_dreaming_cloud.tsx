@@ -12,7 +12,6 @@ import {
   WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -35,7 +34,7 @@ export const SceneDreamingCloud = () => (
     <Camera mode="world" position={[0, 5, 30]} target={[0, 0, 0]} fov={54} />
     <Background color="#080b14" />
 
-    <Diagram id="dream-diagram" theme={brewflowTheme}>
+    <Diagram id="dream-diagram">
         <ManualLayout />
         <DiagramEnter fade />
 

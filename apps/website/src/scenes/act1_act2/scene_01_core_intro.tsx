@@ -7,7 +7,6 @@ import {
     DiagramEdge,
     HierarchicalLayout,
     DiagramEnter,
-    neonCyberTheme
 } from '@brewsite/diagram';
 import {dwellFn} from '../../utils/pacing';
 import {isMobile} from '../../utils/viewport';
@@ -17,7 +16,7 @@ import {NeonSign} from "../../widgets/neon-sign";
 // Hard cut at transition boundary so each slide starts at its own 0.
 const LATE_FADE = {exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number]};
 
-const snippetCode = `<DiagramCanvas theme={neonCyberTheme}>
+const snippetCode = `<DiagramCanvas>
   <Diagram id="presentation">
     <HierarchicalLayout direction="top-down" />
     <DiagramNode id="problem"  label="Problem"  icon="ui:exclamation-triangle" />
@@ -44,7 +43,7 @@ export const scene01CoreIntro: JSX.Element = (
 
         <NeonSign enabled={false} opacity={1} intensity={.8} position={[0, 0, -12]}/>
 
-        <Diagram id="presentation-arc" x={0} y={0} w={1} h={1} tilt={-Math.PI / 11} scale={isMobile ? 1.0 : 1.25} theme={neonCyberTheme}>
+        <Diagram id="presentation-arc" x={0} y={0} w={1} h={1} tilt={-Math.PI / 11} scale={isMobile ? 1.0 : 1.25}>
                 <HierarchicalLayout direction="top-down" spacing={[2.5, 2.4]}/>
                 <DiagramEnter from={[-1, 0.5, 0]} fade easing="ease-out" />
 

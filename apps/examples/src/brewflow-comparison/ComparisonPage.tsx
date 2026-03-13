@@ -33,11 +33,11 @@ const SCENE_SCROLL_REGISTRY = [
 const TOTAL_SCROLL_HEIGHT = SCENE_SCROLL_REGISTRY.reduce((s, r) => s + r.scrollUnits, 0);
 
 export default function ComparisonPage(): JSX.Element {
-  const {plugins} = useMemo(() => createComparisonPlugins(), []);
+  const { plugins, theme } = useMemo(() => createComparisonPlugins(), []);
 
   return (
     <div style={{background: '#080b14', height: '100vh', overflow: 'hidden', fontSize: '18px'}}>
-      <SceneEngine plugins={plugins}>
+      <SceneEngine plugins={plugins} theme={theme}>
         <SceneHero/>
         <SceneCfOverview/>
         <SceneBfOverview/>

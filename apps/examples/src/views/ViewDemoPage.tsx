@@ -1,6 +1,5 @@
 // View/ViewLayout demo page — showcases standalone views, stack, carousel, and nested views.
 import {JSX, type RefObject, useCallback, useMemo, useRef, useState} from 'react';
-import {WidgetPlugin} from '@brewsite/core';
 import {
   InputCoordinator,
   BackgroundLayer,
@@ -13,11 +12,14 @@ import {
   type ScrollStageHandle,
   type ThemeFamily,
   type ThemePolarity,
+  type ActiveTheme,
+  type WidgetPlugin,
   TimelineWidget,
   useSceneEngineContext,
 } from '@brewsite/core';
 import {chartPlugin} from '@brewsite/charts';
 import {diagramPlugin} from '@brewsite/diagram';
+import { themesPlugin } from '@brewsite/themes';
 
 import {StandaloneViewsScene} from './scenes/scene1-standalone-views';
 import {StackLayoutScene} from './scenes/scene2-stack-layout';
@@ -33,6 +35,7 @@ function createViewDemoPlugins(): { plugins: WidgetPlugin[] } {
       corePlugin(),
       chartPlugin(),
       diagramPlugin({ diagrams: ['cf-overview-2'] }),
+      themesPlugin(),
     ],
   };
 }
@@ -41,8 +44,10 @@ export default function ViewDemoPage(): JSX.Element {
   const { plugins } = useMemo(() => createViewDemoPlugins(), []);
   const scrollStageRef = useRef<ScrollStageHandle | null>(null);
 
-  const [family, setFamily] = useState<ThemeFamily>('enterprise');
-  const [polarity, setPolarity] = useState<ThemePolarity>('light');
+  const [family, setFamily] = useState<ThemeFamily>('darkGlass');
+  const [polarity, setPolarity] = useState<ThemePolarity>('dark');
+
+  const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
 
   return (
     <div
@@ -63,8 +68,7 @@ export default function ViewDemoPage(): JSX.Element {
         persist
       />
 
-      <SceneEngine plugins={plugins} themeFamily={family} themePolarity={polarity}
-                   invalidateCacheToken={`${family}-${polarity}`}>
+      <SceneEngine plugins={plugins} theme={theme}>
         {/* Scene 1: Two standalone views (side-by-side) */}
         <StandaloneViewsScene />
 

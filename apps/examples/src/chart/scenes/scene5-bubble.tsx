@@ -6,10 +6,8 @@ import {ProgressManager, Scene} from '@brewsite/core';
 import {ChartAxis, ChartData, ChartLegend, ChartSeries, ScatterPlotChart} from '@brewsite/charts';
 import { teamPerformance } from '../data/teamData';
 import {CHART_LAYOUT, SceneLighting, SceneTitleBox} from './sceneShared';
-import { useChartTheme } from '@brewsite/charts';
 
 export const Scene5 = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s5">
     <ProgressManager scrollUnits={1400} />
@@ -18,7 +16,6 @@ export const Scene5 = (): JSX.Element => {
     <ScatterPlotChart
       id="team-bubble"
       data={teamPerformance}
-      theme={chartTheme}
       sizeField="headcount_sqrt"
       colorField="region"
       sizeScale={{ min: 0.28, max: 0.85 }}

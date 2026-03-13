@@ -1,12 +1,12 @@
-// concertStageTheme — fast sweeping warm-white beams for concert stage aesthetics.
+// concertStagePreset — fast sweeping warm-white beams for concert stage aesthetics.
 
-import type { SpotlightRigTheme } from '../types';
+import type { SpotlightRigPreset } from '../types';
 
 /**
  * Concert stage: fast sweeping warm-white beams, wider cone,
  * more visible beam with optional halo.
  */
-export const concertStageTheme: SpotlightRigTheme = {
+export const concertStagePreset: SpotlightRigPreset = {
   color: '#fff5e0',
   intensity: 150,
   speed: 1.2,
@@ -26,3 +26,6 @@ export const concertStageTheme: SpotlightRigTheme = {
   haloOpacity: 0.35,
   haloSize: 10,
 };
+
+/** @deprecated Use concertStagePreset */
+export const concertStageTheme = concertStagePreset;

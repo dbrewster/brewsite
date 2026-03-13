@@ -1,18 +1,21 @@
-import type {WidgetPlugin} from '@brewsite/core';
-import {corePlugin} from '@brewsite/core';
-import {diagramPlugin} from '@brewsite/diagram';
+import type { WidgetPlugin, ActiveTheme } from '@brewsite/core';
+import { corePlugin } from '@brewsite/core';
+import { diagramPlugin } from '@brewsite/diagram';
+import { themesPlugin, themes } from '@brewsite/themes';
 
 /**
- * Creates the WidgetPlugin array for the architecture diagram scenes.
+ * Creates the WidgetPlugin array and active theme for the architecture diagram scenes.
  * No GLTF models — only core engine + diagram canvas.
  */
-export function createArchitecturePlugins(): { plugins: WidgetPlugin[] } {
+export function createArchitecturePlugins(): { plugins: WidgetPlugin[]; theme: ActiveTheme } {
   return {
     plugins: [
       corePlugin(),
       diagramPlugin({
         diagrams: ['arch-content'],
       }),
+      themesPlugin(),
     ],
+    theme: themes.darkGlass.dark,
   };
 }

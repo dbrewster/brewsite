@@ -17,26 +17,36 @@ const makeContext = () => ({
   sceneIndex: 0,
   numScenes: 1,
   assetsReady: false,
+  themeFamily: 'default' as const,
+  themePolarity: 'dark' as const,
 });
 
 describe('registerDiagramHandlers', () => {
   it('compiles diagram/image-panel/screen widgets into frame state', () => {
     const registry = new WidgetRegistry();
+    registerCoreHandlers();
     registerDiagramHandlers();
 
+    // Multiple spatial elements require <View> wrappers — wrap each in a View
+    // inside a ViewLayout so the core compiler can handle them correctly.
     const tree = (
       <Scene id="diagram-test">
-        <Diagram id="diagram-basic">
-          <ManualLayout />
-          <DiagramGroup id="group-1" label="Group">
-            <DiagramNode id="n1" label="Node 1" position={[0, 0, 0]} />
-          </DiagramGroup>
-          <DiagramNode id="n2" label="Node 2" position={[4, 0, 0]} />
-          <DiagramEdge from="n1" to="n2" />
-        </Diagram>
-
-        <ImagePanel id="panel-1" src="/mock.png" />
-        <Screen id="screen-1" src="https://example.com" />
+        <View id="v-diagram">
+          <Diagram id="diagram-basic">
+            <ManualLayout />
+            <DiagramGroup id="group-1" label="Group">
+              <DiagramNode id="n1" label="Node 1" position={[0, 0, 0]} />
+            </DiagramGroup>
+            <DiagramNode id="n2" label="Node 2" position={[4, 0, 0]} />
+            <DiagramEdge from="n1" to="n2" />
+          </Diagram>
+        </View>
+        <View id="v-panel">
+          <ImagePanel id="panel-1" src="/mock.png" />
+        </View>
+        <View id="v-screen">
+          <Screen id="screen-1" src="https://example.com" />
+        </View>
       </Scene>
     );
 
@@ -168,13 +178,13 @@ describe('Diagram handler composition through View', () => {
     expect(diagram.z).toBeCloseTo(0.5, 5);
   });
 
-  it('composes opacity into node and edge opacities when viewOpacity < 1', () => {
+  it('carousel children compile with opacity=1 (ViewWidget controls fade at runtime)', () => {
     const registry = new WidgetRegistry();
     registerCoreHandlers();
     registerDiagramHandlers();
 
-    // Loop carousel with fadeMin < 1 applies opacity fade to non-active views.
-    // (Non-loop carousel always returns opacity=1.)
+    // Carousel fade (fadeMin) is now applied by ViewWidget at runtime, not baked in at
+    // compile time. All carousel children compile with opacity=1 regardless of fadeMin.
     const tree = (
       <Scene id="opacity-test">
         <ViewLayout kind="carousel" loop activeIndex={0} fadeMin={0.2}>
@@ -198,20 +208,18 @@ describe('Diagram handler composition through View', () => {
     const active = frame.widgets['d-active'] as DiagramState;
     const inactive = frame.widgets['d-inactive'] as DiagramState;
 
-    // Active view (index 0) has opacity 1 → node opacity unchanged.
+    // Both views compile with opacity=1; runtime ViewWidget applies the fadeMin fade.
     expect(active.nodes[0]!.opacity).toBeCloseTo(1, 2);
-
-    // Inactive view has opacity < 1 (from loop carousel fade) → node opacity reduced.
-    expect(inactive.nodes[0]!.opacity).toBeLessThan(1);
-    expect(inactive.nodes[0]!.opacity).toBeGreaterThan(0);
+    expect(inactive.nodes[0]!.opacity).toBeCloseTo(1, 2);
   });
 
-  it('composes opacity into group fillOpacity and borderOpacity', () => {
+  it('carousel group children compile with full opacity (ViewWidget controls fade at runtime)', () => {
     const registry = new WidgetRegistry();
     registerCoreHandlers();
     registerDiagramHandlers();
 
-    // Loop carousel with fadeMin < 1 applies opacity fade to non-active views.
+    // Carousel fade is applied by ViewWidget at runtime. Groups in both active and
+    // inactive carousel views compile with their default fill/border opacities.
     const tree = (
       <Scene id="group-opacity-test">
         <ViewLayout kind="carousel" loop activeIndex={0} fadeMin={0.2}>
@@ -239,8 +247,8 @@ describe('Diagram handler composition through View', () => {
     const activeGroup = (frame.widgets['d-active'] as DiagramState).groups[0]!;
     const inactiveGroup = (frame.widgets['d-inactive'] as DiagramState).groups[0]!;
 
-    // Inactive group should have reduced fillOpacity and borderOpacity.
-    expect(inactiveGroup.fillOpacity).toBeLessThan(activeGroup.fillOpacity);
-    expect(inactiveGroup.borderOpacity).toBeLessThan(activeGroup.borderOpacity);
+    // Both views compile with full opacity; runtime ViewWidget applies the fadeMin fade.
+    expect(inactiveGroup.fillOpacity).toBeCloseTo(activeGroup.fillOpacity, 5);
+    expect(inactiveGroup.borderOpacity).toBeCloseTo(activeGroup.borderOpacity, 5);
   });
 });

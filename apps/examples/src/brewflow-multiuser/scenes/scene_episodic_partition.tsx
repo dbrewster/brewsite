@@ -12,7 +12,6 @@ import {
   WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -35,7 +34,7 @@ export const SceneEpisodicPartition = () => (
     <Camera mode="world" position={[0, 5, 22]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <Diagram id="ep-diagram" theme={brewflowTheme}>
+    <Diagram id="ep-diagram">
         <ManualLayout />
         <DiagramEnter fade />
 

@@ -7,7 +7,6 @@ import {
   TextBox,
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -16,7 +15,7 @@ export const SceneSensitiveDataGuard = () => (
   <Scene key="bfm-guard" id="bfm-guard">
     <ProgressManager scrollUnits={2000} fn={DWELL_FN} />
 
-    <Diagram id="guard-diagram" x={0} y={0} w={1} h={0.52} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
+    <Diagram id="guard-diagram" x={0} y={0} w={1} h={0.52} tilt={config.diagramRotationX} scale={config.diagramScale}>
         <HierarchicalLayout direction="left-right" spacing={[3, 2]} />
 
         {/* Guard hub + 4 directives */}

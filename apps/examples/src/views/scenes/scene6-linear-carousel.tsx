@@ -17,9 +17,7 @@ import {
   ChartData,
   ChartAxis,
   ChartSeries,
-  useChartTheme,
   LineChart,
-  type ChartTheme,
 } from '@brewsite/charts';
 
 const CAM_POS: [number, number, number] = [0, 1, 6.6];
@@ -61,11 +59,11 @@ const dataEpsilon = [
 ];
 
 /** Shared views for all linear carousel scenes — only activeIndex changes. */
-function LinearCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefined }): JSX.Element {
+function LinearCarouselViews(): JSX.Element {
   return (
     <>
       <View id="lc1" w={0.4} h={0.5}>
-        <BarChart id="lin-chart-1" data={dataAlpha} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="lin-chart-1" data={dataAlpha} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="value" label="Alpha" />
@@ -74,7 +72,7 @@ function LinearCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefine
       </View>
 
       <View id="lc2" w={0.4} h={0.5}>
-        <BarChart id="lin-chart-2" data={dataBeta} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="lin-chart-2" data={dataBeta} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="value" label="Beta" />
@@ -83,7 +81,7 @@ function LinearCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefine
       </View>
 
       <View id="lc3" w={0.4} h={0.5}>
-        <LineChart id="lin-chart-3" data={dataGamma} theme={chartTheme} x={0} y={0} w={1} h={1}
+        <LineChart id="lin-chart-3" data={dataGamma} x={0} y={0} w={1} h={1}
                    lineShape="circle" lineSmoothness={0.5} showPoints={true} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
@@ -93,7 +91,7 @@ function LinearCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefine
       </View>
 
       <View id="lc4" w={0.4} h={0.5}>
-        <BarChart id="lin-chart-4" data={dataDelta} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="lin-chart-4" data={dataDelta} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="value" label="Delta" />
@@ -102,7 +100,7 @@ function LinearCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefine
       </View>
 
       <View id="lc5" w={0.4} h={0.5}>
-        <BarChart id="lin-chart-5" data={dataEpsilon} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="lin-chart-5" data={dataEpsilon} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="value" label="Epsilon" />
@@ -115,7 +113,6 @@ function LinearCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefine
 
 /** Linear carousel — activeIndex 0 (first view centered, rest fan right). */
 export const LinearCarouselScene1 = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
     <Scene id="linear-carousel-1">
       <ProgressManager scrollUnits={800} />
@@ -125,7 +122,7 @@ export const LinearCarouselScene1 = (): JSX.Element => {
         <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
       </Lighting>
       <ViewLayout kind="carousel" activeIndex={0} inactiveScale={0.75} zStep={8}>
-        <LinearCarouselViews chartTheme={chartTheme} />
+        <LinearCarouselViews />
       </ViewLayout>
     </Scene>
   );
@@ -133,7 +130,6 @@ export const LinearCarouselScene1 = (): JSX.Element => {
 
 /** Linear carousel — activeIndex 1 (second view centered). */
 export const LinearCarouselScene2 = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
     <Scene id="linear-carousel-2">
       <ProgressManager scrollUnits={800} />
@@ -143,7 +139,7 @@ export const LinearCarouselScene2 = (): JSX.Element => {
         <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
       </Lighting>
       <ViewLayout kind="carousel" activeIndex={1} inactiveScale={0.75} zStep={8}>
-        <LinearCarouselViews chartTheme={chartTheme} />
+        <LinearCarouselViews />
       </ViewLayout>
     </Scene>
   );
@@ -151,7 +147,6 @@ export const LinearCarouselScene2 = (): JSX.Element => {
 
 /** Linear carousel — activeIndex 2 (middle view centered). */
 export const LinearCarouselScene3 = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
     <Scene id="linear-carousel-3">
       <ProgressManager scrollUnits={800} />
@@ -161,7 +156,7 @@ export const LinearCarouselScene3 = (): JSX.Element => {
         <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
       </Lighting>
       <ViewLayout kind="carousel" activeIndex={2} inactiveScale={0.75} zStep={8}>
-        <LinearCarouselViews chartTheme={chartTheme} />
+        <LinearCarouselViews />
       </ViewLayout>
     </Scene>
   );

@@ -17,10 +17,13 @@ import { TextBox } from '../../elements/text-box';
 import { ProgressManager } from '../primitives/progressManager';
 import { resetCoreHandlerRegistrationForTesting } from '../coreHandlers';
 
-const makeContext = (): SceneSnapshotContext => ({
+const makeContext = (overrides?: Partial<SceneSnapshotContext>): SceneSnapshotContext => ({
   sceneIndex: 0,
   numScenes: 1,
   assetsReady: false,
+  themeFamily: 'default',
+  themePolarity: 'dark',
+  ...overrides,
 });
 
 describe('sceneDslCompiler', () => {
@@ -216,6 +219,45 @@ describe('sceneDslCompiler', () => {
     });
   });
 
+  // ─── themeFamily / themePolarity context propagation ─────────────────────────
+
+  describe('themeFamily context propagation', () => {
+    it('themeFamily defaults to "default" when no active theme is set', () => {
+      registerNode(Scene, (node, api, helpers) => {
+        helpers.compileChildren(node, api);
+      });
+      const ctx = makeContext();
+      expect(ctx.themeFamily).toBe('default');
+      expect(ctx.themePolarity).toBe('dark');
+    });
+
+    it('themeFamily is passed through to NodeHandlers via api.context', () => {
+      const ThemeReader = (_props: Record<string, never>) => null;
+      let capturedFamily: string | undefined;
+      let capturedPolarity: string | undefined;
+      registerNode(ThemeReader, (_node, api) => {
+        capturedFamily = api.context.themeFamily;
+        capturedPolarity = api.context.themePolarity;
+      });
+      registerNode(Scene, (node, api, helpers) => {
+        helpers.compileChildren(node, api);
+      });
+
+      const tree = (
+        <Scene id="themed">
+          <ThemeReader />
+        </Scene>
+      );
+      resolveSceneFromDsl(
+        tree,
+        makeContext({ themeFamily: 'darkGlass', themePolarity: 'dark' }),
+        new WidgetRegistry(),
+      );
+      expect(capturedFamily).toBe('darkGlass');
+      expect(capturedPolarity).toBe('dark');
+    });
+  });
+
   // ─── MISSING_KEY warning tests ────────────────────────────────────────────────
   // These tests verify that keyless overlay elements produce a MISSING_KEY warning
   // with an elementAncestry chain. NODE_ENV=test (set by Vitest) satisfies the
@@ -236,7 +278,7 @@ describe('sceneDslCompiler', () => {
       );
       resolveSceneFromDsl(
         tree,
-        { sceneIndex: 0, numScenes: 1, assetsReady: true },
+        makeContext({ assetsReady: true }),
         new WidgetRegistry(),
         (w) => warnings.push(w),
       );
@@ -252,7 +294,7 @@ describe('sceneDslCompiler', () => {
       );
       resolveSceneFromDsl(
         tree,
-        { sceneIndex: 0, numScenes: 1, assetsReady: true },
+        makeContext({ assetsReady: true }),
         new WidgetRegistry(),
         (w) => warnings.push(w),
       );
@@ -274,7 +316,7 @@ describe('sceneDslCompiler', () => {
       );
       resolveSceneFromDsl(
         tree,
-        { sceneIndex: 0, numScenes: 1, assetsReady: true },
+        makeContext({ assetsReady: true }),
         new WidgetRegistry(),
         (w) => warnings.push(w),
       );
@@ -298,13 +340,13 @@ describe('sceneDslCompiler', () => {
 
       resolveSceneFromDsl(
         tree1,
-        { sceneIndex: 0, numScenes: 2, assetsReady: true },
+        makeContext({ numScenes: 2, assetsReady: true }),
         new WidgetRegistry(),
         (w) => warnings1.push(w),
       );
       resolveSceneFromDsl(
         tree2,
-        { sceneIndex: 1, numScenes: 2, assetsReady: true },
+        makeContext({ sceneIndex: 1, numScenes: 2, assetsReady: true }),
         new WidgetRegistry(),
         (w) => warnings2.push(w),
       );

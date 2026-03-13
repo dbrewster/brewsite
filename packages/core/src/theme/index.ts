@@ -9,28 +9,54 @@ export type {
   SceneThemeBackground,
   SceneThemeFloorGrid,
   SceneThemeFloor,
-  // NEW:
   ThemeFamily,
   ThemePolarity,
-  SceneThemePair,
+  // NEW: replaces SceneThemePair + the old themeFamily/themePolarity prop pair
+  ActiveTheme,
 } from './types';
 export { ThemeContext, useTheme } from './ThemeContext';
+
+/**
+ * @deprecated ThemeKeyContext is superseded by the compile-time theme path via
+ * `<SceneEngine theme={...}>`. It will be removed in the next major release.
+ */
 export { ThemeKeyContext, useThemeKey } from './ThemeKeyContext';
+/**
+ * @deprecated ThemeKey is superseded by ActiveTheme. Use `ActiveTheme` instead.
+ */
 export type { ThemeKey } from './ThemeKeyContext';
+
 export {
   darkSceneTheme,
   lightSceneTheme,
   darkGlassSceneTheme,
   midnightSceneTheme,
   neonCyberSceneTheme,
-  enterpriseSceneTheme,
   lightCanvasSceneTheme,
   lightMinimalSceneTheme,
   darkGlassLightSceneTheme,
   midnightLightSceneTheme,
   neonCyberLightSceneTheme,
-  enterpriseLightSceneTheme,
   lightCanvasDarkSceneTheme,
   lightMinimalDarkSceneTheme,
+  /**
+   * @deprecated Use registerSceneThemePair / resolveSceneTheme from sceneThemeRegistry instead.
+   * SCENE_THEME_PAIRS no longer includes the 'enterprise' key — use 'default' instead.
+   */
   SCENE_THEME_PAIRS,
+  /**
+   * @deprecated The enterprise aesthetic is now registered as 'default' in sceneThemeRegistry.
+   */
+  enterpriseSceneTheme,
+  /**
+   * @deprecated The enterprise aesthetic is now registered as 'default' in sceneThemeRegistry.
+   */
+  enterpriseLightSceneTheme,
 } from './presets';
+
+// ─── Scene Theme Registry ────────────────────────────────────────────────────
+export {
+  registerSceneThemePair,
+  resolveSceneTheme,
+  _resetSceneThemeRegistryForTesting,
+} from './sceneThemeRegistry';

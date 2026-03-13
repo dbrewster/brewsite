@@ -13,6 +13,26 @@ const withSharedDeckTokens = (theme: DeckTheme): DeckTheme => ({
 });
 
 export const DECK_THEME_PAIRS: Record<ThemeFamily, DeckThemePair> = {
+  default: {
+    dark: withSharedDeckTokens({
+      fonts: { heading: '"Inter", sans-serif', body: '"Inter", sans-serif' },
+      colorMode: 'dark',
+      accentColor: '#4F76B8',
+      background: { color: '#0A1424', gradient: 'linear-gradient(180deg, #0A1424 0%, #15253A 100%)' },
+      colors: { heading: '#E5EEFA', body: '#A8B8CF', surface: '#1E324F', muted: '#5A6D86' },
+      spacing: { slide: '8%', stack: '1.5rem' },
+      border: { radius: '0.5rem' },
+    }),
+    light: withSharedDeckTokens({
+      fonts: { heading: '"Inter", sans-serif', body: '"Inter", sans-serif' },
+      colorMode: 'light',
+      accentColor: '#5E7EA9',
+      background: { color: '#F3F6FA', gradient: 'linear-gradient(180deg, #F3F6FA 0%, #E7EDF5 100%)' },
+      colors: { heading: '#1F334E', body: '#5A6D86', surface: '#FFFFFF', muted: '#A8B8CF' },
+      spacing: { slide: '8%', stack: '1.5rem' },
+      border: { radius: '0.5rem' },
+    }),
+  },
   darkGlass: {
     dark: withSharedDeckTokens({
       fonts: { heading: '"Sora", "Inter", sans-serif', body: '"Sora", "Inter", sans-serif' },
@@ -116,42 +136,6 @@ export const DECK_THEME_PAIRS: Record<ThemeFamily, DeckThemePair> = {
         body: '#516498',
         surface: '#F8FBFF',
         muted: '#9688D6',
-      },
-      spacing: { slide: '8%', stack: '1.5rem' },
-      border: { radius: '0.5rem' },
-    }),
-  },
-  enterprise: {
-    dark: withSharedDeckTokens({
-      fonts: { heading: '"IBM Plex Sans", "Inter", sans-serif', body: '"IBM Plex Sans", "Inter", sans-serif' },
-      colorMode: 'dark',
-      accentColor: '#4F76B8',
-      background: {
-        color: '#0A1424',
-        gradient: 'linear-gradient(180deg, #0A1424 0%, #15253A 100%)',
-      },
-      colors: {
-        heading: '#E5EEFA',
-        body: '#A8B8CF',
-        surface: '#1E324F',
-        muted: '#5A6D86',
-      },
-      spacing: { slide: '8%', stack: '1.5rem' },
-      border: { radius: '0.5rem' },
-    }),
-    light: withSharedDeckTokens({
-      fonts: { heading: '"IBM Plex Sans", "Inter", sans-serif', body: '"IBM Plex Sans", "Inter", sans-serif' },
-      colorMode: 'light',
-      accentColor: '#5E7EA9',
-      background: {
-        color: '#F3F6FA',
-        gradient: 'linear-gradient(180deg, #F3F6FA 0%, #E7EDF5 100%)',
-      },
-      colors: {
-        heading: '#1F334E',
-        body: '#5A6D86',
-        surface: '#FFFFFF',
-        muted: '#A8B8CF',
       },
       spacing: { slide: '8%', stack: '1.5rem' },
       border: { radius: '0.5rem' },

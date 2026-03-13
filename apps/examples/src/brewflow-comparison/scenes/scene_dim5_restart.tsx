@@ -12,7 +12,6 @@ import {
     WheelMap,
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramNode, GridLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -21,7 +20,7 @@ export const SceneDim5Restart = () => (
   <Scene key="bfc-dim5-restart" id="bfc-dim5-restart">
     <ProgressManager scrollUnits={2800} fn={DWELL_FN} />
 
-    <Diagram id="restart-diagram" x={0} y={0} w={1} h={0.56} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
+    <Diagram id="restart-diagram" x={0} y={0} w={1} h={0.56} tilt={config.diagramRotationX} scale={config.diagramScale}>
         <GridLayout columns={2} spacing={[3, 2]} />
 
         {/* Left — claude-flow process recovery */}

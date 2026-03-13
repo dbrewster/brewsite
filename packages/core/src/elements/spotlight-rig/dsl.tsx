@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import type { SceneSnapshotContext } from '../../compiler/sceneTypes';
-import type { SpotlightRigTheme, SpotlightRigState, SpotlightLightState, Vec3Tuple, OrbitFn } from './types';
+import type { SpotlightRigState, SpotlightLightState, Vec3Tuple, OrbitFn } from './types';
 
 type Resolvable<T> = T | ((context: SceneSnapshotContext) => T);
 
@@ -81,12 +81,6 @@ export type SpotlightRigProps = {
   showHelper?: boolean;
 
   // ── Theme + per-rig override ──────────────────────────────────────────────────
-  /**
-   * Base theme object. Individual props below override matching theme fields.
-   * Per-light <Spotlight> props override rig-level props.
-   */
-  theme?: SpotlightRigTheme;
-
   color?: Resolvable<string>;
   intensity?: Resolvable<number>;
   speed?: Resolvable<number>;
@@ -111,4 +105,4 @@ export type SpotlightRigProps = {
 };
 
 // Re-export so consumers import from dsl.tsx without touching types.ts directly.
-export type { SpotlightRigTheme, SpotlightRigState, SpotlightLightState, Vec3Tuple, OrbitFn };
+export type { SpotlightRigState, SpotlightLightState, Vec3Tuple, OrbitFn };

@@ -23,7 +23,6 @@ import {
   ChartData,
   ChartSeries,
   LineChart,
-  useChartTheme,
 } from '@brewsite/charts';
 import { isMac, pk } from '../platformKeys';
 
@@ -97,7 +96,6 @@ const codeStyle: React.CSSProperties = {
 };
 
 export const ScrollableTextScene = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
     <Scene id="input-scrollable-text">
       <ProgressManager scrollUnits={900} />
@@ -131,7 +129,6 @@ export const ScrollableTextScene = (): JSX.Element => {
         <LineChart
           id="is-monthly-interactions"
           data={monthlyData}
-          theme={chartTheme}
           x={0} y={0} w={1} h={1}
           lineShape="circle"
           lineSmoothness={0.5}

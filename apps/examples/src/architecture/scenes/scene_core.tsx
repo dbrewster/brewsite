@@ -9,7 +9,6 @@ import {
     TextBox,
 } from '@brewsite/core';
 import {
-    darkGlassTheme,
     Diagram,
     DiagramEdge,
     DiagramGroup,
@@ -25,7 +24,7 @@ const angledFn = (t: number): number => (t < 0.5 ? 0 : (t - 0.5) / 0.5);
 
 function makeCoreCanvasDiagram(tilt: number, scale: number): JSX.Element {
   return (
-    <Diagram id="arch-content" x={0} y={0} w={1} h={1} tilt={tilt} scale={scale} theme={darkGlassTheme}>
+    <Diagram id="arch-content" x={0} y={0} w={1} h={1} tilt={tilt} scale={scale}>
       <ManualLayout />
 
       {/* ── COLUMN 1: Author (DSL) ── */}

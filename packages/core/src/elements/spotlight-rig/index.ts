@@ -2,19 +2,17 @@
 export { SpotlightRig, Spotlight, SpotlightRigWidget } from './SpotlightRigWidget';
 export type { SpotlightRigProps, SpotlightProps } from './dsl';
 export type {
-  SpotlightRigTheme,
+  SpotlightRigPreset,
   SpotlightRigState,
   SpotlightLightState,
   OrbitFn,
   Vec3Tuple as SpotlightRigVec3,
 } from './types';
 export {
-  mergeSpotlightRigTheme,
   DEFAULT_SPOTLIGHT_RIG_THEME,
   DEFAULT_SPOTLIGHT_RIG_STATE,
 } from './compile';
 export {
-  moviePremiereTheme, concertStageTheme,
-  spotlightDarkGlassTheme, spotlightEnterpriseTheme,
-  spotlightNeonCyberTheme, spotlightLightMinimalTheme,
+  moviePremierePreset, moviePremiereTheme,
+  concertStagePreset, concertStageTheme,
 } from './themes';

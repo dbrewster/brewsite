@@ -32,11 +32,11 @@ import {
 } from './scenes';
 
 export default function CoreShowcasePage(): JSX.Element {
-  const { plugins } = useMemo(() => createCoreShowcasePlugins(), []);
+  const { plugins, theme } = useMemo(() => createCoreShowcasePlugins(), []);
 
   return (
     <div style={{ height: '100vh', overflow: 'hidden', background: '#030510' }}>
-      <SceneEngine plugins={plugins} themeFamily="darkGlass" themePolarity="dark">
+      <SceneEngine plugins={plugins} theme={theme}>
 
         {/* ── Scene declarations ──────────────────────────────────────────── */}
         {/* Act 1: Introduction */}

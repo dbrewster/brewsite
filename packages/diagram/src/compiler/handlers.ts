@@ -4,6 +4,7 @@ import type { ReactElement } from 'react';
 import { registerNode } from '@brewsite/core';
 import type { CompileApi, CompileHelpers } from '@brewsite/core';
 import { compileDiagram } from '../elements/diagram/compile';
+import { resolveDiagramTheme } from '../elements/diagram/themeRegistry';
 import { compileImagePanel } from '../elements/image-panel/compile';
 import { compileScreen } from '../elements/screen/compile';
 import type {
@@ -13,7 +14,6 @@ import type {
   DiagramGroupDSL,
   DiagramExitDSL,
   DiagramEnterDSL,
-  DiagramTheme,
   DiagramWarnFn,
   LayoutDSL,
 } from '../elements/diagram/types';
@@ -44,7 +44,6 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?:
   let exitDSL: DiagramExitDSL | undefined;
   let enterDSL: DiagramEnterDSL | undefined;
   let layoutDSL: LayoutDSL | undefined;
-  const theme = props.theme as DiagramTheme | undefined;
 
   const allChildren = helpers.collectChildren(node);
 
@@ -233,7 +232,6 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?:
     scale: props.scale as number | undefined,
     exit: exitDSL,
     enter: enterDSL,
-    theme,
   };
 };
 
@@ -267,13 +265,11 @@ export const registerDiagramHandlers = (): void => {
     const onWarn = makeWarnFn(api);
     const dsl = extractDiagramDSL(node, helpers, onWarn);
 
-    // Warn if theme has input — input is now handled at DiagramWidget level, not canvas level.
-    if (dsl.theme?.input !== undefined) {
-      onWarn(
-        'IGNORED_INPUT_CONFIG',
-        `<Diagram id="${dsl.id}">: theme.input is not yet supported on standalone <Diagram>.`,
-      );
-    }
+    // Resolve theme from engine context via registry.
+    const resolvedTheme = resolveDiagramTheme(
+      api.context.themeFamily,
+      api.context.themePolarity,
+    );
 
     // Compose local [0..1] bounds and Z through the parent NVS context.
     // This is essential when <Diagram> is nested inside a <View> or other scoped
@@ -291,7 +287,7 @@ export const registerDiagramHandlers = (): void => {
 
     let diagramState = compileDiagram(
       { ...dsl, x: composedBounds.x, y: composedBounds.y, w: composedBounds.w, h: composedBounds.h, z: composedZ },
-      undefined,
+      resolvedTheme,
       onWarn,
     );
 

@@ -10,6 +10,9 @@ change_history:
     summary: "Comprehensive rewrite replacing outdated BrewFlow-era vision document. Updated product name to BrewSite, corrected all API surface details against actual source, expanded Widget SDK section, added SSR safety contract, aligned all type references with live codebase."
   - date: 2026-03-13
     author: "Toolkit Product"
+    summary: "Centralized theme system: added @brewsite/themes to the published packages table (§1) and dependency rule (§5.1). Updated §3.9 Cross-Package Theming to document the new `theme?: ActiveTheme` prop on SceneEngine, `themesPlugin()` registration pattern, ThemeBundle, and the deprecated themeFamily/themePolarity/sceneTheme props. Updated §4.1 SceneEngine component signature to show `theme={ActiveTheme}`. Updated §4.5 Plugin-Based Widget Registration example to include `themesPlugin()`. Updated §4.9 Theming to document ActiveTheme as the primary selector type and the themes namespace from @brewsite/themes. Updated §6.5 Plugin System example to include themesPlugin."
+  - date: 2026-03-13
+    author: "Toolkit Product"
     summary: "Scene Child Constraint: updated §3.6 (NVS) with a paragraph on the scene child constraint as a first-class authoring model rule — ambient elements configure global environment; spatial elements inside Views define positioned 3D regions. Updated §4.4 DSL Authoring Components to add Scene child constraint rules to the <View> and <ViewLayout> entries."
   - date: 2026-03-13
     author: "Toolkit Product"
@@ -28,7 +31,7 @@ The package solves a specific and painful problem: creating scroll-driven or int
 
 A consuming developer describes their scenes as pure JSX snapshots — what objects should look like at each scene stop — and the toolkit handles all transition math, interpolation, camera animation, input handling, and React/Three.js integration. The output is a `<SceneEngine>` context provider composed with layout primitives (`ScrollStage`, `SceneCanvas`, `EngineOverlayHost`) that runs the animation against user scroll, pointer interaction, or programmatic control.
 
-The monorepo publishes four packages:
+The monorepo publishes five packages:
 
 | Package | Role |
 |---|---|
@@ -36,8 +39,9 @@ The monorepo publishes four packages:
 | `@brewsite/diagram` | 3D diagram, image-panel, and screen elements |
 | `@brewsite/model` | GLTF model loading, animation, and 3D-tracked label system |
 | `@brewsite/charts` | 3D chart element library |
+| `@brewsite/themes` | Centralized cross-package theme bundles and `themesPlugin()` registration |
 
-`@brewsite/diagram`, `@brewsite/model`, and `@brewsite/charts` may import from `@brewsite/core`. `@brewsite/core` must never import from any of them.
+`@brewsite/diagram`, `@brewsite/model`, `@brewsite/charts`, and `@brewsite/themes` may import from `@brewsite/core`. `@brewsite/core` must never import from any of them.
 
 ---
 
@@ -69,7 +73,7 @@ This boundary enforces testability: the compiler pipeline and widget state machi
 
 Every renderable concept in the toolkit — cameras, lighting, backgrounds, floors, environment maps, spotlight rigs, text boxes — is a widget. The Widget SDK defines a set of interfaces (`IWidget`, `ISceneElement`, `IRenderable`, `ILoadable`, etc.) that widgets implement. The runtime does not know about specific elements — it knows about widgets. Adding a new renderable concept to the toolkit, or to a consuming application, requires no changes to the runtime: implement the interface, register the widget via a plugin.
 
-Widget registration uses a plugin pattern. `corePlugin()` registers all built-in core widgets (Camera, Lighting, Background, Environment, Floor, SpotlightRig, TextBox, SceneMeta). `modelPlugin()` from `@brewsite/model` registers model and label widgets. `diagramPlugin()` from `@brewsite/diagram` registers diagram, image-panel, and screen widgets. `chartPlugin()` from `@brewsite/charts` registers chart widgets.
+Widget registration uses a plugin pattern. `corePlugin()` registers all built-in core widgets (Camera, Lighting, Background, Environment, Floor, SpotlightRig, TextBox, SceneMeta). `modelPlugin()` from `@brewsite/model` registers model and label widgets. `diagramPlugin()` from `@brewsite/diagram` registers diagram, image-panel, and screen widgets. `chartPlugin()` from `@brewsite/charts` registers chart widgets. `themesPlugin()` from `@brewsite/themes` registers cross-package theme bundles into the per-package theme registries — it uses the `configureRegistry()` hook and has no widget instances of its own.
 
 ### 2.5 Interface-Based Testing
 
@@ -168,7 +172,13 @@ The Widget SDK (`widget/`) is the extension mechanism for all renderable and beh
 
 ### 3.9 Cross-Package Theming
 
-The `SceneTheme` token system provides unified visual styling across all four packages. Six theme families (`darkGlass`, `midnight`, `neonCyber`, `enterprise`, `lightCanvas`, `lightMinimal`) each have dark and light polarity variants. `SceneEngine` accepts a `sceneTheme` prop; `EngineOverlayHost` injects CSS custom properties and polarity classes on its container.
+The centralized theme system provides unified visual styling across all five packages. Six theme families (`darkGlass`, `midnight`, `neonCyber`, `default`, `lightCanvas`, `lightMinimal`) each have dark and light polarity variants.
+
+Theme selection is controlled by a single `theme?: ActiveTheme` prop on `<SceneEngine>`, sourced from `@brewsite/themes`. Themes are registered at engine startup via `themesPlugin()`, which populates per-package theme registries (`sceneThemeRegistry`, `diagramThemeRegistry`, `chartThemeRegistry`) from `ThemeBundle` objects. Each `ThemeBundle` carries the full dark/light preset pair for one family across all three rendering packages.
+
+`EngineOverlayHost` injects CSS custom properties and polarity classes onto its container from the resolved `SceneTheme`. Spatial elements (`DiagramCanvas`, `Chart`) resolve their theme at compile time from `api.context.themeFamily` and `api.context.themePolarity` — no per-element `theme=` prop is required or supported.
+
+The `themeFamily`/`themePolarity`/`sceneTheme` props on `SceneEngine` are deprecated in favor of the unified `theme` prop. See `@brewsite/themes` for the full authoring pattern.
 
 ---
 
@@ -180,7 +190,7 @@ The following is the complete public surface of `@brewsite/core`. All symbols li
 
 ```typescript
 // Primary integration — pure context provider with zero DOM output
-<SceneEngine id={string} plugins={WidgetPlugin[]} sceneTheme={SceneTheme}>
+<SceneEngine id={string} plugins={WidgetPlugin[]} theme={ActiveTheme}>
   <Scene key="intro">...</Scene>
   {/* Layout primitives, input components, canvas, overlays */}
 </SceneEngine>
@@ -364,13 +374,19 @@ interface AnimationTickContext {
 ```typescript
 import { SceneEngine, corePlugin } from '@brewsite/core';
 import { modelPlugin } from '@brewsite/model';
+import { diagramPlugin } from '@brewsite/diagram';
+import { chartPlugin } from '@brewsite/charts';
+import { themesPlugin, themes } from '@brewsite/themes';
 
 const PLUGINS = [
   corePlugin({ onSceneChange: (id) => console.log(id) }),
   modelPlugin({ manifestUrl: '/manifest.json' }),
+  diagramPlugin({ manifestUrl: '/manifest.json' }),
+  chartPlugin(),
+  themesPlugin(),   // registers all five named ThemeBundles into per-package registries
 ];
 
-<SceneEngine plugins={PLUGINS}>
+<SceneEngine plugins={PLUGINS} theme={themes.darkGlass.dark}>
   <Scene key="hero">...</Scene>
 </SceneEngine>
 ```
@@ -382,6 +398,8 @@ const PLUGINS = [
 `diagramPlugin()` from `@brewsite/diagram` registers: `DiagramWidget`, `ImagePanelWidget`, `ScreenWidget`.
 
 `chartPlugin()` from `@brewsite/charts` registers: `ChartWidget`.
+
+`themesPlugin()` from `@brewsite/themes` registers no widgets — it populates the per-package theme registries via its `configureRegistry()` hook so that `DiagramWidget`, `ChartWidget`, and core elements resolve their visual style from `SceneEngine.theme` at compile time.
 
 ### 4.6 Transition Utilities (Re-exported from compiler)
 
@@ -451,7 +469,28 @@ function validateNVSPosition(pos: NVSPosition): boolean
 
 ### 4.9 Theming
 
+Theme selection uses `ActiveTheme` — a plain `{ family, polarity }` selector passed to `<SceneEngine theme={...}>`. Theme data (colors, typography, material tokens) is registered separately via `themesPlugin()` from `@brewsite/themes` and looked up at compile time.
+
+**From `@brewsite/core`:**
+
 ```typescript
+// Primary selector type — passed to SceneEngine.theme
+interface ActiveTheme {
+  readonly family: ThemeFamily;
+  readonly polarity: 'dark' | 'light';
+}
+
+type ThemeFamily =
+  | 'default'       // enterprise aesthetic; always pre-registered, no themesPlugin() required
+  | 'darkGlass'
+  | 'midnight'
+  | 'neonCyber'
+  | 'lightCanvas'
+  | 'lightMinimal'
+
+type ThemePolarity = 'dark' | 'light'
+
+// Low-level SceneTheme token set (CSS vars, font tokens, background/floor presets)
 type SceneTheme = {
   readonly colorMode: SceneColorMode
   readonly font: SceneThemeFontTokens
@@ -459,24 +498,45 @@ type SceneTheme = {
   readonly background?: SceneThemeBackground
   readonly floor?: SceneThemeFloor
 }
-
-type ThemeFamily = 'darkGlass' | 'midnight' | 'neonCyber' | 'enterprise' | 'lightCanvas' | 'lightMinimal'
-type ThemePolarity = 'dark' | 'light'
 type SceneThemePair = { readonly dark: SceneTheme; readonly light: SceneTheme }
 
-const SCENE_THEME_PAIRS: Record<ThemeFamily, SceneThemePair>
-function resolveThemeFamily(sceneTheme: SceneTheme): ThemeFamily | undefined
+// Registry functions (called by themesPlugin internally — consumers rarely call these directly)
+function registerSceneThemePair(family: ThemeFamily, pair: SceneThemePair): void
 
-// Named presets (12 total — 6 families × 2 polarities)
+// @deprecated — use SceneEngine.theme prop; direct SceneTheme construction is unnecessary
 const darkGlassSceneTheme, darkGlassLightSceneTheme: SceneTheme
 const midnightSceneTheme, midnightLightSceneTheme: SceneTheme
-const neonCyberSceneTheme, neonCyberLightSceneTheme: SceneTheme
-const enterpriseSceneTheme, enterpriseLightSceneTheme: SceneTheme
-const lightCanvasSceneTheme, lightCanvasDarkSceneTheme: SceneTheme
-const lightMinimalSceneTheme, lightMinimalDarkSceneTheme: SceneTheme
+// ... all 12 named presets available for backward compatibility
+const darkSceneTheme, lightSceneTheme: SceneTheme  // generic aliases
+```
 
-// Backward-compatible generic presets
-const darkSceneTheme, lightSceneTheme: SceneTheme
+**From `@brewsite/themes`:**
+
+```typescript
+// Plugin — registers ThemeBundles into per-package registries at engine startup
+function themesPlugin(bundles?: ThemeBundle[]): WidgetPlugin
+
+// ThemeBundle — complete cross-package theme data for one family
+interface ThemeBundle {
+  readonly family: ThemeFamily;
+  readonly scene:   { readonly dark: SceneTheme;   readonly light: SceneTheme };
+  readonly diagram: { readonly dark: DiagramTheme; readonly light: DiagramTheme };
+  readonly chart:   { readonly dark: ChartTheme;   readonly light: ChartTheme };
+}
+
+// Pre-built ActiveTheme selectors — the idiomatic way to pick a theme
+import { themes } from '@brewsite/themes';
+const activeTheme = themes.darkGlass.dark;   // { family: 'darkGlass', polarity: 'dark' }
+const activeTheme = themes.midnight.light;   // { family: 'midnight', polarity: 'light' }
+// Available: darkGlass, midnight, neonCyber, lightCanvas, lightMinimal, defaultTheme
+
+// Pre-built ThemeBundle objects — pass to themesPlugin() for selective registration
+import { bundles } from '@brewsite/themes';
+themesPlugin([bundles.darkGlass])  // only register darkGlass for bundle-size optimization
+
+// Bundle customization
+import { mergeThemeBundle } from '@brewsite/themes';
+const custom = mergeThemeBundle(bundles.darkGlass, { scene: { dark: { ... } } });
 ```
 
 ---
@@ -488,10 +548,11 @@ const darkSceneTheme, lightSceneTheme: SceneTheme
 ```
 @brewsite/diagram  ─┐
 @brewsite/model    ─┼─ may import from ─→ @brewsite/core
-@brewsite/charts   ─┘
+@brewsite/charts   ─┤
+@brewsite/themes   ─┘
 ```
 
-`@brewsite/core` must never import from any downstream package. This is a hard constraint enforced at build time.
+`@brewsite/core` must never import from any downstream package. This is a hard constraint enforced at build time. `@brewsite/themes` imports from `@brewsite/core`, `@brewsite/diagram`, and `@brewsite/charts` — it is a leaf package with no downstream dependents within the monorepo.
 
 ### 5.2 Layer Dependency Rule Within Core
 
@@ -640,12 +701,15 @@ The `WidgetRegistry` maintains two registries:
 `corePlugin(options?)` is the standard entry point for built-in widget registration. Plugins are passed to `SceneEngine` via the `plugins` prop. Each plugin implements `IWidgetPlugin.register(registry, manifest)`.
 
 ```typescript
+import { themesPlugin, themes } from '@brewsite/themes';
+
 const PLUGINS = [
   corePlugin({ onSceneChange: (id, index) => { ... } }),
   modelPlugin({ manifestUrl: '/manifest.json' }),
+  themesPlugin(),   // registers ThemeBundles via configureRegistry()
 ];
 
-<SceneEngine plugins={PLUGINS}>...</SceneEngine>
+<SceneEngine plugins={PLUGINS} theme={themes.darkGlass.dark}>...</SceneEngine>
 ```
 
 ---

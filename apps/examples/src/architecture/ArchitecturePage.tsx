@@ -13,11 +13,11 @@ import {createArchitecturePlugins} from './widgetSetup';
 import {architectureFlowScenes} from './flow';
 
 export default function ArchitecturePage(): JSX.Element {
-  const { plugins } = useMemo(() => createArchitecturePlugins(), []);
+  const { plugins, theme } = useMemo(() => createArchitecturePlugins(), []);
 
   return (
     <div style={{ background: '#030508', height: '100vh', overflow: 'hidden' }}>
-      <SceneEngine plugins={plugins}>
+      <SceneEngine plugins={plugins} theme={theme}>
         {architectureFlowScenes}
         <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1400}>
           <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width" referenceWidth={1920}>

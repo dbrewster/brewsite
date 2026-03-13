@@ -1,21 +1,17 @@
-// Page component rendering all 12 theme family × polarity variants side-by-side for visual review.
+// Page component rendering all theme family × polarity variants side-by-side for visual review.
 import { Fragment } from 'react';
 import type { JSX } from 'react';
-import { CHART_THEME_PAIRS } from '@brewsite/charts';
-import { DIAGRAM_THEME_PAIRS } from '@brewsite/diagram';
+import { bundles } from '@brewsite/themes';
 import { ThemeSwatchCard } from './ThemeSwatchCard';
-import type { ThemeFamily } from '@brewsite/core';
 
-const FAMILIES: ThemeFamily[] = [
-  'darkGlass', 'midnight', 'neonCyber', 'enterprise', 'lightCanvas', 'lightMinimal',
-];
+const FAMILIES = Object.keys(bundles) as (keyof typeof bundles)[];
 
 export default function ThemeGalleryPage(): JSX.Element {
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui', background: '#1a1a1a', minHeight: '100vh' }}>
       <h1 style={{ color: '#fff', fontSize: 20, marginBottom: 8 }}>Theme Family Gallery</h1>
       <p style={{ color: '#aaa', fontSize: 13, marginBottom: 24 }}>
-        All 12 family × polarity variants. Dark polarity left, light polarity right.
+        All family × polarity variants. Dark polarity left, light polarity right.
         Projection bar = projection.color. Card border = tooltip.borderColor.
       </p>
 
@@ -23,8 +19,8 @@ export default function ThemeGalleryPage(): JSX.Element {
       <h2 style={{ color: '#ccc', fontSize: 14, marginBottom: 12 }}>@brewsite/charts</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, maxWidth: 520, marginBottom: 40 }}>
         {FAMILIES.map((family) => {
-          const dark = CHART_THEME_PAIRS[family].dark;
-          const light = CHART_THEME_PAIRS[family].light;
+          const dark = bundles[family].chart.dark;
+          const light = bundles[family].chart.light;
           return (
             <Fragment key={family}>
               <ThemeSwatchCard
@@ -52,8 +48,8 @@ export default function ThemeGalleryPage(): JSX.Element {
       <h2 style={{ color: '#ccc', fontSize: 14, marginBottom: 12 }}>@brewsite/diagram</h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, maxWidth: 520 }}>
         {FAMILIES.map((family) => {
-          const dark = DIAGRAM_THEME_PAIRS[family].dark;
-          const light = DIAGRAM_THEME_PAIRS[family].light;
+          const dark = bundles[family].diagram.dark;
+          const light = bundles[family].diagram.light;
           return (
             <Fragment key={`diag-${family}`}>
               <ThemeSwatchCard

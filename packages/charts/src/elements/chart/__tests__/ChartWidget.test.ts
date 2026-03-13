@@ -16,11 +16,24 @@ vi.mock('three', () => {
   }
   class Object3D {
     children: Object3D[] = [];
+    parent: Object3D | null = null;
     position = new Vector3();
     rotation = { set: vi.fn(), x: 0, y: 0, z: 0 };
     userData: Record<string, unknown> = {};
-    add(...objs: Object3D[]) { this.children.push(...objs); }
-    remove(obj: Object3D) { const i = this.children.indexOf(obj); if (i >= 0) this.children.splice(i, 1); }
+    add(...objs: Object3D[]) {
+      for (const obj of objs) {
+        if (obj.parent) obj.parent.remove(obj);
+        obj.parent = this;
+        this.children.push(obj);
+      }
+    }
+    remove(obj: Object3D) {
+      const i = this.children.indexOf(obj);
+      if (i >= 0) {
+        this.children.splice(i, 1);
+        obj.parent = null;
+      }
+    }
   }
   class Scene extends Object3D {
     override userData: Record<string, unknown> = {};
@@ -120,7 +133,7 @@ vi.mock('@brewsite/core', async (importOriginal) => {
 import * as THREE from 'three';
 import { ChartWidget } from '../ChartWidget';
 import { ChartDataStore } from '../../../data/ChartDataStore';
-import { DEFAULT_CHART_STATE } from '../types';
+import { DEFAULT_CHART_STATE } from '../compile';
 import type { ChartState, InlineDataSource, ChartRenderInput } from '../types';
 import type { WidgetInitContext, WidgetRenderContext, NVSCoordService } from '@brewsite/core';
 import { createNVSCoordService } from '@brewsite/core';
@@ -129,6 +142,7 @@ import { createNVSCoordService } from '@brewsite/core';
 // Interface-conforming test double for ChartRenderer — records last update() input.
 
 class ChartRendererDouble {
+  readonly chartGroup = new THREE.Group();
   lastInput: ChartRenderInput | null = null;
   lastWidgetId: string | null = null;
   mountCalls = 0;
@@ -138,8 +152,14 @@ class ChartRendererDouble {
     this.lastInput = input;
     this.lastWidgetId = widgetId;
   }
-  mount(_scene: unknown): void { this.mountCalls++; }
-  dispose(_scene: unknown): void { this.disposeCalls++; }
+  mount(scene: unknown): void {
+    (scene as THREE.Scene).add(this.chartGroup);
+    this.mountCalls++;
+  }
+  dispose(scene: unknown): void {
+    (scene as THREE.Scene).remove(this.chartGroup);
+    this.disposeCalls++;
+  }
   updateHeatmapSlice(_sliceIndex: number, _input: ChartRenderInput, _widgetId: string): void {}
   getInteractiveObjects(): unknown[] { return []; }
   resolveHoverInfo(): null { return null; }
@@ -365,6 +385,89 @@ describe('ChartWidget', () => {
     expect(chartGroup.position.x).toBeCloseTo(-worldW / 2, 1);
     expect(chartGroup.position.y).toBeCloseTo(-worldH / 2, 1);
     expect(state.bounds.depth).toBe(0.4);
+  });
+
+  describe('ViewWidget reparent guard (double-positioning fix)', () => {
+    it('freezes position after reparent — uses first-tick values when chartGroup parent changes', () => {
+      const rendererDouble = new ChartRendererDouble();
+      const rWidget = new ChartWidget('rp-chart', store, undefined, rendererDouble as never);
+      const scene = new THREE.Scene();
+      rWidget.initialize({ scene, renderer: null, camera: null } as unknown as WidgetInitContext);
+
+      const coords = makeCoords();
+      const ctx = { coords } as unknown as WidgetRenderContext;
+
+      // First apply — captures frozen position
+      const state1 = makeState({ nvsX: 0.5, nvsY: 0.5, z: 0 });
+      rWidget.apply(state1, ctx);
+      const firstPos = rendererDouble.lastInput!.position;
+      const firstW = rendererDouble.lastInput!.bounds.width;
+
+      // Simulate reparent: move chartGroup into a ViewWidget group
+      const viewGroup = new THREE.Group();
+      scene.add(viewGroup);
+      viewGroup.add(rendererDouble.chartGroup);
+      expect(rendererDouble.chartGroup.parent).toBe(viewGroup);
+
+      // Second apply with DIFFERENT nvsX/nvsY/z — should still use frozen values
+      const state2 = makeState({ nvsX: 0.15, nvsY: 0.5, z: -15, bounds: { width: 0.3, height: 0.375, depth: 0.4 } });
+      rWidget.apply(state2, ctx);
+
+      expect(rendererDouble.lastInput!.position).toEqual(firstPos);
+      expect(rendererDouble.lastInput!.bounds.width).toBe(firstW);
+    });
+
+    it('updates position normally when NOT reparented (no ViewWidget group)', () => {
+      const rendererDouble = new ChartRendererDouble();
+      const rWidget = new ChartWidget('free-chart', store, undefined, rendererDouble as never);
+      const scene = new THREE.Scene();
+      rWidget.initialize({ scene, renderer: null, camera: null } as unknown as WidgetInitContext);
+
+      const coords = makeCoords();
+      const ctx = { coords } as unknown as WidgetRenderContext;
+
+      // First apply
+      const state1 = makeState({ nvsX: 0.5, nvsY: 0.5, z: 0 });
+      rWidget.apply(state1, ctx);
+      const pos1 = rendererDouble.lastInput!.position;
+
+      // Second apply with different NVS — position SHOULD update (no reparent)
+      const state2 = makeState({ nvsX: 0.3, nvsY: 0.4, z: -5 });
+      rWidget.apply(state2, ctx);
+      const pos2 = rendererDouble.lastInput!.position;
+
+      expect(pos2).not.toEqual(pos1);
+    });
+
+    it('dispose resets frozen state so next lifecycle starts fresh', () => {
+      const rendererDouble = new ChartRendererDouble();
+      const rWidget = new ChartWidget('reset-chart', store, undefined, rendererDouble as never);
+      const scene = new THREE.Scene();
+      rWidget.initialize({ scene, renderer: null, camera: null } as unknown as WidgetInitContext);
+
+      const coords = makeCoords();
+      const ctx = { coords } as unknown as WidgetRenderContext;
+
+      // Apply, reparent, apply again
+      rWidget.apply(makeState({ nvsX: 0.5, nvsY: 0.5, z: 0 }), ctx);
+      const viewGroup = new THREE.Group();
+      scene.add(viewGroup);
+      viewGroup.add(rendererDouble.chartGroup);
+      rWidget.apply(makeState({ nvsX: 0.2, nvsY: 0.5, z: -10 }), ctx);
+
+      // Dispose resets everything
+      rWidget.dispose();
+
+      // Re-initialize: chartGroup gets re-added to scene (by mount)
+      const scene2 = new THREE.Scene();
+      rWidget.initialize({ scene: scene2, renderer: null, camera: null } as unknown as WidgetInitContext);
+      rWidget.apply(makeState({ nvsX: 0.7, nvsY: 0.3, z: 5 }), ctx);
+
+      // Should use the new position (not frozen from previous lifecycle)
+      const [wcx, wcy] = coords.toWorld(0.7, 0.3, 5);
+      const [ww, wh] = coords.toWorldSize(1, 1);
+      expect(rendererDouble.lastInput!.position[0]).toBeCloseTo(wcx - ww / 2, 3);
+    });
   });
 
   it('getCamera returns null before initialize', () => {

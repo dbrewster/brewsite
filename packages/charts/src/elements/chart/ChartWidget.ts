@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import { functionalChartTransitionSpec } from './compile';
 import { ChartRenderer } from './render';
 import type { ChartState, ChartStateDataSource, DataRow, ChartRenderInput } from './types';
-import { DEFAULT_CHART_STATE } from './types';
+import { DEFAULT_CHART_STATE } from './compile';
 import type { ChartDataStore } from '../../data/ChartDataStore';
 import { normalizeDataInput, parseCsv } from '../../data/transforms';
 import { validateNVSScalar } from '@brewsite/core';
@@ -27,8 +27,7 @@ import type { ChartHitInfo, ChartAccessorFunctions } from '../../renderers/share
 import type { ChartTheme } from '../../themes/types';
 import type { ChartTooltipState } from './tooltip/types';
 import { chartTooltipStore } from './tooltip/ChartTooltipStore';
-import { resolveChartTheme } from '../../themes/resolveTheme';
-import { darkGlassChartTheme } from '../../themes/darkGlass';
+import { enterpriseChartTheme } from '../../themes/enterprise';
 import { projectNdcToNvsPixels } from './tooltip/projectUtils';
 import {
   BarChart,
@@ -203,6 +202,25 @@ export class ChartWidget
    */
   private readonly unsubscribeDeregister: () => void;
 
+  // ── ViewWidget reparent guard ──────────────────────────────────────────
+
+  /**
+   * Frozen world-space position from first apply().
+   * When chartGroup is reparented into a ViewWidget group, this frozen value
+   * is used instead of recomputing absolute world coords each tick.
+   * ViewWidget's delta transform is the sole source of movement.
+   */
+  private frozenWorldPos: readonly [number, number, number] | null = null;
+
+  /** Frozen world-space width from first apply(). */
+  private frozenWorldW: number | null = null;
+
+  /** Frozen world-space height from first apply(). */
+  private frozenWorldH: number | null = null;
+
+  /** True once chartGroup has been reparented out of the scene root. */
+  private isReparented = false;
+
   // ─────────────────────────────────────────────────────────────────────────
 
   /**
@@ -280,7 +298,7 @@ export class ChartWidget
   apply(state: ChartState, ctx: WidgetRenderContext): void {
     this.lastState = state;
     this.lastCoords = ctx.coords;
-    this.lastEffectiveTheme = resolveChartTheme(state.theme);
+    this.lastEffectiveTheme = state.theme;
     this.lastTooltipState = state.tooltip ?? null;
     if (!this.scene) {
       console.error(`[ChartWidget] apply() called but scene is null for id="${this.widgetId}" — widget not initialized`);
@@ -333,8 +351,8 @@ export class ChartWidget
 
     // ── Stable world scale (locked to NVS bounds, immune to camera zoom) ──
     // Cache world-space dimensions and only recompute when the NVS bounds change
-    // (scene transition), NOT when the camera zooms. This ensures charts are
-    // fixed 3D objects that scale naturally with the camera like diagrams/models.
+    // (scene transition / View layout), NOT when the camera zooms. This ensures
+    // charts are fixed 3D objects that scale naturally with the camera.
     const cached = this.cachedWorldScale;
     let worldW: number;
     let worldH: number;
@@ -347,20 +365,50 @@ export class ChartWidget
         nvsW: state.bounds.width, nvsH: state.bounds.height,
         worldW, worldH,
       };
+      // Bounds changed — invalidate frozen pos/size so they're re-captured this tick
+      // with the correct new dimensions. Without this, a chart that first appears
+      // during the absentDefault phase (bounds=1.0×1.0) freezes at full viewport
+      // size and stays wrong for all subsequent renders inside a ViewWidget group.
+      this.frozenWorldPos = null;
+      this.frozenWorldW = null;
+      this.frozenWorldH = null;
     }
 
     // Chart content starts at group-local (0, 0) and extends to (worldW, worldH).
     // Subtract half-bounds to center it on the NVS position.
-    const worldPos: readonly [number, number, number] = [
+    const computedPos: readonly [number, number, number] = [
       wcx - worldW / 2,
       wcy - worldH / 2,
       wcz,
     ];
 
+    // ── ViewWidget reparent guard ─────────────────────────────────────────
+    // When a ViewWidget reparents chartGroup into its group, chartGroup.position
+    // becomes LOCAL to that group. ViewWidget already applies delta position,
+    // scale ratio, Z offset, and opacity. If we also recompute absolute world
+    // coordinates every tick, both transforms compound (double-positioning).
+    //
+    // Fix: capture the first-tick world position and size with stable bounds.
+    // Once reparented, hold those values steady — ViewWidget group is the sole
+    // source of movement. frozenWorldPos is reset above whenever bounds change,
+    // so the freeze always captures the correct dimensions for the current scene.
+    if (!this.isReparented && this.chartRenderer.chartGroup.parent !== this.scene) {
+      this.isReparented = true;
+    }
+    if (this.frozenWorldPos === null) {
+      this.frozenWorldPos = computedPos;
+      this.frozenWorldW = worldW;
+      this.frozenWorldH = worldH;
+    }
+
+    const effectivePos = this.isReparented ? this.frozenWorldPos : computedPos;
+    const effectiveW = this.isReparented ? this.frozenWorldW! : worldW;
+    const effectiveH = this.isReparented ? this.frozenWorldH! : worldH;
+
     const renderInput: ChartRenderInput = {
       ...state,
-      bounds: { width: worldW, height: worldH, depth: state.bounds.depth },
-      position: worldPos,
+      bounds: { width: effectiveW, height: effectiveH, depth: state.bounds.depth },
+      position: effectivePos,
       // V2.1: pass entryT only when animation is in progress (< 1.0)
       entryT: this.currentEntryT < 1.0 ? this.currentEntryT : undefined,
       // V2.1: pass function accessors from useChartAccessors() registry
@@ -412,22 +460,27 @@ export class ChartWidget
       totalSlices - 1,
     );
 
-    // Compute world-space position (same as apply()) — use cached world scale.
-    const [wcx, wcy, wcz] = this.lastCoords.toWorld(state.nvsX, state.nvsY, state.z);
-    const cws = this.cachedWorldScale;
-    const worldW = cws?.worldW ?? this.lastCoords.toWorldSize(state.bounds.width, state.bounds.height)[0];
-    const worldH = cws?.worldH ?? this.lastCoords.toWorldSize(state.bounds.width, state.bounds.height)[1];
-    const worldPos: readonly [number, number, number] = [
-      wcx - worldW / 2,
-      wcy - worldH / 2,
-      wcz,
-    ];
+    // Use frozen position/size when reparented (same guard as apply()).
+    let worldPos: readonly [number, number, number];
+    let heatW: number;
+    let heatH: number;
+    if (this.isReparented && this.frozenWorldPos) {
+      worldPos = this.frozenWorldPos;
+      heatW = this.frozenWorldW!;
+      heatH = this.frozenWorldH!;
+    } else {
+      const [wcx, wcy, wcz] = this.lastCoords.toWorld(state.nvsX, state.nvsY, state.z);
+      const cws = this.cachedWorldScale;
+      heatW = cws?.worldW ?? this.lastCoords.toWorldSize(state.bounds.width, state.bounds.height)[0];
+      heatH = cws?.worldH ?? this.lastCoords.toWorldSize(state.bounds.width, state.bounds.height)[1];
+      worldPos = [wcx - heatW / 2, wcy - heatH / 2, wcz];
+    }
 
     this.chartRenderer.updateHeatmapSlice(
       sliceIndex,
       {
         ...state,
-        bounds: { width: worldW, height: worldH, depth: state.bounds.depth },
+        bounds: { width: heatW, height: heatH, depth: state.bounds.depth },
         position: worldPos,
       },
       this.widgetId,
@@ -451,6 +504,10 @@ export class ChartWidget
       this.lastMorphFromRowsRef = null;
     }
     this.cachedWorldScale = null;
+    this.frozenWorldPos = null;
+    this.frozenWorldW = null;
+    this.frozenWorldH = null;
+    this.isReparented = false;
     this.lastEffectiveTheme = null;
     this.lastTooltipState = null;
   }
@@ -501,7 +558,7 @@ export class ChartWidget
         chartTooltipStore.clear(this.widgetId);
       }
       if (this.lastTooltipState?.projection) {
-        this.chartRenderer.updateProjection(null, this.lastEffectiveTheme ?? darkGlassChartTheme);
+        this.chartRenderer.updateProjection(null, this.lastEffectiveTheme ?? enterpriseChartTheme);
       }
       this.onHover?.(null);
     };
@@ -558,7 +615,7 @@ export class ChartWidget
 
   private handleMouseMove(e: MouseEvent, dom: HTMLElement): void {
     const info = this.raycast(e, dom);
-    const theme = this.lastEffectiveTheme ?? darkGlassChartTheme;
+    const theme = this.lastEffectiveTheme ?? enterpriseChartTheme;
 
     if (info) {
       // Only publish to tooltip store when <ChartTooltip> is present in DSL

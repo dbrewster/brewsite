@@ -1,8 +1,4 @@
-// SpotlightRig theme presets — re-exports all six preset themes.
+// SpotlightRig theme presets — re-exports named presets and deprecated aliases.
 
-export { moviePremiereTheme } from './moviePremiere';
-export { concertStageTheme } from './concertStage';
-export { spotlightDarkGlassTheme } from './darkGlass';
-export { spotlightEnterpriseTheme } from './enterprise';
-export { spotlightNeonCyberTheme } from './neonCyber';
-export { spotlightLightMinimalTheme } from './lightMinimal';
+export { moviePremierePreset, moviePremiereTheme } from './moviePremiere';
+export { concertStagePreset, concertStageTheme } from './concertStage';

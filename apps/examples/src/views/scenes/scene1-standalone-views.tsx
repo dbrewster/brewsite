@@ -16,7 +16,6 @@ import {
   ChartData,
   ChartAxis,
   ChartSeries,
-  useChartTheme,
 } from '@brewsite/charts';
 
 const dataLeft = [
@@ -37,7 +36,6 @@ const CAM_POS: [number, number, number] = [0, 0, 6.6];
 const CAM_TGT: [number, number, number] = [0, 0, 0];
 
 export const StandaloneViewsScene = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="standalone-views">
     <ProgressManager scrollUnits={1200} />
@@ -52,7 +50,6 @@ export const StandaloneViewsScene = (): JSX.Element => {
       <BarChart
         id="chart-left"
         data={dataLeft}
-        theme={chartTheme}
         x={0}
         y={0}
         w={1}
@@ -72,7 +69,6 @@ export const StandaloneViewsScene = (): JSX.Element => {
       <BarChart
         id="chart-right"
         data={dataRight}
-        theme={chartTheme}
         x={0}
         y={0}
         w={1}

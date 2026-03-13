@@ -24,8 +24,6 @@ import {
   ChartAxis,
   ChartData,
   ChartSeries,
-  useChartTheme,
-  type ChartTheme,
 } from '@brewsite/charts';
 import { pk } from '../platformKeys';
 
@@ -106,11 +104,10 @@ function SceneNavInput(): JSX.Element {
 // ─── Shared chart stack ────────────────────────────────────────────────────────
 
 interface StackChartsProps {
-  chartTheme: ChartTheme | undefined;
   variant: 'a' | 'b';
 }
 
-function StackCharts({ chartTheme, variant }: StackChartsProps): JSX.Element {
+function StackCharts({ variant }: StackChartsProps): JSX.Element {
   const dataSet = variant === 'a'
     ? [teamAData, teamBData, teamCData]
     : [teamDData, teamEData, teamFData];
@@ -128,7 +125,6 @@ function StackCharts({ chartTheme, variant }: StackChartsProps): JSX.Element {
           <BarChart
             id={ids[i]}
             data={data}
-            theme={chartTheme}
             x={0} y={0} w={1} h={1}
             depth={0.3}
           >
@@ -184,7 +180,6 @@ function InfoBar({ text }: InfoBarProps): JSX.Element {
 // ─── Exported scene components ────────────────────────────────────────────────
 
 export const SceneNavAScene = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
     <Scene id="input-scene-nav-a">
       <ProgressManager scrollUnits={800} />
@@ -197,13 +192,12 @@ export const SceneNavAScene = (): JSX.Element => {
       <Floor variant="grid" negativeZExtent={18} />
       <SceneNavInput />
       <InfoBar text={`Scene Nav (Part 1 of 2) — Arrow keys, Click, or Scroll to move scenes. ${pk('Shift')}+Arrow skips 2.`} />
-      <StackCharts chartTheme={chartTheme} variant="a" />
+      <StackCharts variant="a" />
     </Scene>
   );
 };
 
 export const SceneNavBScene = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
     <Scene id="input-scene-nav-b">
       <ProgressManager scrollUnits={800} />
@@ -216,7 +210,7 @@ export const SceneNavBScene = (): JSX.Element => {
       <Floor variant="grid" negativeZExtent={18} />
       <SceneNavInput />
       <InfoBar text="Scene Nav (Part 2 of 2) — You arrived here by navigating from Scene Nav A." />
-      <StackCharts chartTheme={chartTheme} variant="b" />
+      <StackCharts variant="b" />
     </Scene>
   );
 };

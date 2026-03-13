@@ -1,5 +1,6 @@
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { SceneTrack } from './sceneTrackTypes';
+import type { ActiveTheme } from '../theme/types';
 
 const trackCache = new Map<string, SceneTrack>();
 
@@ -13,13 +14,15 @@ export const buildSceneTrackKey = (options: {
   blockSize: number;
   prefersReducedMotion: boolean;
   invalidateCacheToken?: number | string;
+  activeTheme?: ActiveTheme;
 }): string => {
   const contentKeys = options.scenes.map((s) => s.contentKey).join('|');
   const blockKey = `b:${options.blockSize}`;
   const widgetKey = `w:${options.widgetRegistry.buildCacheKey()}`;
   const rmKey = `rm:${options.prefersReducedMotion ? 1 : 0}`;
   const tokenKey = `tok:${options.invalidateCacheToken ?? ''}`;
-  return [contentKeys, blockKey, widgetKey, rmKey, tokenKey].join('::');
+  const themeKey = `th:${options.activeTheme?.family ?? 'default'}:${options.activeTheme?.polarity ?? 'dark'}`;
+  return [contentKeys, blockKey, widgetKey, rmKey, tokenKey, themeKey].join('::');
 };
 
 /**

@@ -7,7 +7,6 @@ import {
   TextBox,
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, ManualLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -16,7 +15,7 @@ export const SceneClsTheory = () => (
   <Scene key="bfm-cls" id="bfm-cls">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
 
-    <Diagram id="cls-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
+    <Diagram id="cls-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale}>
         <ManualLayout />
         <DiagramEnter fade />
 

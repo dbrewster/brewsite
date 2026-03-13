@@ -4,10 +4,8 @@ import { ProgressManager, Scene } from '@brewsite/core';
 import { AreaChart, ChartAxis, ChartData, ChartLegend, ChartSeries } from '@brewsite/charts';
 import { regionalRevenue } from '../data/saasMetrics';
 import { CHART_LAYOUT, NeonLighting, SceneTitleBox } from './sceneShared';
-import { useChartTheme } from '@brewsite/charts';
 
 export const Scene4 = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s4">
     <ProgressManager scrollUnits={1400} />
@@ -16,7 +14,6 @@ export const Scene4 = (): JSX.Element => {
     <AreaChart
       id="regional-area"
       data={regionalRevenue}
-      theme={chartTheme}
       stackMode="stacked"
       fillOpacity={0.72}
       x={CHART_LAYOUT.x}

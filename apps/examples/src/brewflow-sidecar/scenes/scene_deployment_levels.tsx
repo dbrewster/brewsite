@@ -7,7 +7,6 @@ import {
   TextBox,
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramNode, FlowLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -18,7 +17,7 @@ export const SceneDeploymentLevels = () => (
     <Camera mode="world" position={[0, 5, 26]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <Diagram id="levels-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={.7} theme={brewflowTheme}>
+    <Diagram id="levels-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={.7}>
         <FlowLayout direction="top-down" gap={2} />
 
         <DiagramNode

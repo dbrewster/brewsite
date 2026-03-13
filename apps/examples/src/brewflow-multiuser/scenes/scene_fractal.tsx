@@ -12,7 +12,6 @@ import {
   WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, FlowLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -35,7 +34,7 @@ export const SceneFractal = () => (
     <Camera mode="world" position={[0, 5, 22]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <Diagram id="frac-diagram" theme={brewflowTheme}>
+    <Diagram id="frac-diagram">
         <FlowLayout direction="top-down" gap={2} />
         <DiagramEnter fade />
 

@@ -12,7 +12,6 @@ import {
     WheelMap,
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramNode, GridLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -21,7 +20,7 @@ export const SceneDim6Gating = () => (
   <Scene key="bfc-dim6-gate" id="bfc-dim6-gate">
     <ProgressManager scrollUnits={2400} fn={DWELL_FN} />
 
-    <Diagram id="gate-diagram" x={0} y={0} w={1} h={0.56} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
+    <Diagram id="gate-diagram" x={0} y={0} w={1} h={0.56} tilt={config.diagramRotationX} scale={config.diagramScale}>
         <GridLayout columns={2} spacing={[3, 2]} />
 
         {/* Left — claude-flow consensus votes */}

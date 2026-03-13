@@ -7,6 +7,12 @@ last_updated: 2026-03-13
 change_history:
   - date: 2026-03-13
     author: "Toolkit Product"
+    summary: "Centralized theme system: added §11.3 documenting `themesPlugin()` from `@brewsite/themes`. Documents ThemeBundle, registerSceneThemePair/registerDiagramThemePair/registerChartThemePair as the registration API, and the configureRegistry() hook usage. Updated standard integration pattern in §11 to show themesPlugin() in the plugins array."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "Carousel rendering bug fixes: (1) ChartWidget freeze-on-reparent — documented in §7.19: ChartWidget captures frozenWorldPos on first apply(), detects reparenting (_chartGroup.parent !== scene), and freezes _chartGroup.position at that value thereafter; ViewWidget's Group transform becomes the sole source of carousel movement, preventing double-positioning. (2) Opacity single-writer contract — ViewWidget.applyOpacity() sets mat.opacity directly (no base-opacity multiplication) and runs last in the tick loop (registers after ChartWidget via reconcileCompiledTrack); it is the sole opacity controller for carousel view children. Carousel views (layoutId present) pass childOpacityScale=1 to createChildApi so children compile with intrinsic opacity=1.0. Added known edge case note: opacity-animated charts inside standalone (non-carousel) Views will have their opacity suppressed to ViewState.opacity each frame by ViewWidget."
+  - date: 2026-03-13
+    author: "Toolkit Product"
     summary: "View Widget Carousel Rendering: added IGroupOwner interface (§7.19) — capability interface for widgets that expose their root THREE.Group for ViewWidget reparenting. Added isGroupOwner duck-type guard to §8.2. Added functional requirement 8c. Updated corePlugin description (§14) to document reconcileCompiledTrack creating ViewWidgets lazily from the compiled track; documented full delta transform math including Z delta (G_z = state.z - originalZ, prevents double-offset). Updated WidgetPlugin interface documentation to show reconcileCompiledTrack. ChartWidget now implements IGroupOwner."
   - date: 2026-03-13
     author: "Toolkit Product"
@@ -511,7 +517,9 @@ Implemented by widgets whose 3D content must move as a unit when a carousel step
 
 `IGroupOwner` is a capability interface — it does not extend `ISceneElement` or `IRenderable`. Any widget that has a stable root `Object3D` may implement it, regardless of its other interface participation.
 
-`ChartWidget` in `@brewsite/charts` implements `IGroupOwner`, exposing its internal chart group. `DiagramWidget` in `@brewsite/diagram` may implement it in a follow-up to support carousel Views containing diagram elements.
+`ChartWidget` in `@brewsite/charts` implements `IGroupOwner`, exposing its internal `_chartGroup`. `DiagramWidget` in `@brewsite/diagram` may implement it in a follow-up to support carousel Views containing diagram elements.
+
+**ChartWidget reparent freeze.** When `ViewWidget` reparents `_chartGroup` into its `THREE.Group`, `_chartGroup` moves from being a direct child of the scene to a child of the View Group. If `ChartWidget.apply()` continued setting `_chartGroup.position` to absolute world coordinates each tick, the View Group delta and the chart's self-positioning would compound (double-positioning). To prevent this, `ChartWidget` captures `frozenWorldPos` on first `apply()`, detects when `_chartGroup.parent !== scene` (i.e., it has been reparented), and freezes `_chartGroup.position` at `frozenWorldPos` thereafter. The View Group transform then becomes the sole source of carousel movement. Widgets implementing `IGroupOwner` must apply the same freeze pattern to avoid double-positioning after reparenting.
 
 The type guard `isGroupOwner` in `widget/WidgetRegistry.ts` uses a duck-type check (not `instanceof`), since `widget/types.ts` uses type-only Three.js imports:
 
@@ -522,6 +530,10 @@ export function isGroupOwner(widget: IWidget): widget is IGroupOwner {
 ```
 
 `IGroupOwner` and `isGroupOwner` are exported from `@brewsite/core` via `widget/index.ts`.
+
+**ViewWidget opacity single-writer contract.** `ViewWidget.applyOpacity()` sets `mat.opacity = opacity` directly — it does not multiply against a base opacity from the child widget's compiled state. `corePlugin().reconcileCompiledTrack` registers `ViewWidget` instances after all other widgets (including `ChartWidget`), so `ViewWidget` is always the last writer of `mat.opacity` in the tick loop for carousel view children. Carousel views (those with a `layoutId` in `ViewState`) pass `childOpacityScale = 1` to `createChildApi`, so their child elements compile with `opacity = 1.0` (intrinsic). Non-carousel views bake `viewOpacity` into compiled child state as before, and `ViewWidget.applyOpacity()` is effectively a no-op (setting opacity to 1.0 on an already-1.0 value).
+
+> **Known edge case:** If a chart inside a standalone (non-carousel) `<View>` has its own independent opacity animation authored separately from the View opacity, `ViewWidget` will override it to `ViewState.opacity` (typically 1.0) each frame, since `ViewWidget` runs last in the tick loop. Authors should be aware that opacity-animated charts inside standalone Views will have their opacity suppressed by `ViewWidget`. This limitation does not affect carousel views — their children compile with `opacity = 1.0` and `ViewWidget` owns opacity entirely by design.
 
 ---
 
@@ -860,6 +872,87 @@ const myModelPlugin = modelPlugin({ manifestUrl: '/assets/manifest.json' });
 >
   {scene01}
 </SceneEngine>
+```
+
+### 11.3 themesPlugin() — `@brewsite/themes`
+
+`themesPlugin()` is the centralized theme registration plugin. It uses the `configureRegistry()` hook to populate the per-package theme registries at engine startup — before any compilation or rendering occurs.
+
+```typescript
+import { themesPlugin, bundles } from '@brewsite/themes';
+import type { ThemeBundle } from '@brewsite/themes';
+```
+
+**`ThemeBundle`** is the complete cross-package theme data for a single theme family:
+
+```typescript
+interface ThemeBundle {
+  readonly family: ThemeFamily;
+  readonly scene:   { readonly dark: SceneTheme;   readonly light: SceneTheme };
+  readonly diagram: { readonly dark: DiagramTheme; readonly light: DiagramTheme };
+  readonly chart:   { readonly dark: ChartTheme;   readonly light: ChartTheme };
+}
+```
+
+**Registration API** — the three per-package registry functions called by `configureRegistry()`:
+
+```typescript
+// @brewsite/core — registers a SceneThemePair for a ThemeFamily key
+registerSceneThemePair(family: ThemeFamily, pair: SceneThemePair): void
+
+// @brewsite/diagram — registers a DiagramThemePair for a ThemeFamily key
+registerDiagramThemePair(family: ThemeFamily, pair: DiagramThemePair): void
+
+// @brewsite/charts — registers a ChartThemePair for a ThemeFamily key
+registerChartThemePair(family: ThemeFamily, pair: ChartThemePair): void
+```
+
+**`configureRegistry()` usage:** `themesPlugin()` implements the optional `configureRegistry(registry, manifest)` hook on `WidgetPlugin`. For each `ThemeBundle` in the configured list, it calls all three registration functions in sequence. This hook runs once per engine instance at startup, before compilation begins, ensuring the per-package registries are populated before any `NodeHandler` calls `resolveTheme()`.
+
+```typescript
+// themesPlugin implements WidgetPlugin:
+function themesPlugin(bundles?: ThemeBundle[]): WidgetPlugin {
+  return {
+    createWidgets() { return []; },
+    registerHandlers() {},
+    configureRegistry(_registry, _manifest) {
+      for (const bundle of bundles ?? ALL_BUNDLES) {
+        registerSceneThemePair(bundle.family, bundle.scene);
+        registerDiagramThemePair(bundle.family, bundle.diagram);
+        registerChartThemePair(bundle.family, bundle.chart);
+      }
+    },
+  };
+}
+```
+
+**Standard pattern with themes:**
+
+```tsx
+import { corePlugin } from '@brewsite/core';
+import { diagramPlugin } from '@brewsite/diagram';
+import { chartPlugin } from '@brewsite/charts';
+import { themesPlugin, themes } from '@brewsite/themes';
+
+<SceneEngine
+  plugins={[
+    corePlugin(),
+    diagramPlugin({ /* ... */ }),
+    chartPlugin(),
+    themesPlugin(),             // registers all five named bundles
+  ]}
+  theme={themes.darkGlass.dark} // ActiveTheme selector
+>
+  {scene01}
+</SceneEngine>
+```
+
+**Selective registration** — only include bundles used by the app to optimize tree-shaking:
+
+```tsx
+import { themesPlugin, bundles } from '@brewsite/themes';
+
+themesPlugin([bundles.darkGlass])   // only darkGlass is included in the bundle
 ```
 
 ---

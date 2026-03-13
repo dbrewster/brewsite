@@ -10,8 +10,6 @@ import type {
   ReferenceLineDSL,
   ChartLineShape,
 } from './types';
-import type { ChartTheme, ChartThemeName } from '../../themes/types';
-import type { SceneTheme } from '@brewsite/core';
 import type { DataInput } from '../../data/types';
 
 // Suppress unused import warning — React is required for JSX context in .tsx files
@@ -29,10 +27,8 @@ export type BaseChartDSL = {
   readonly data?: DataInput;
   /** URL for async JSON/CSV fetch. Mutually exclusive with data. */
   readonly dataUrl?: string;
-  readonly theme?: ChartThemeName | ChartTheme;
   readonly opacity?: number;
   readonly interactive?: boolean;
-  readonly sceneTheme?: SceneTheme;
   readonly x?: number;
   readonly y?: number;
   readonly w?: number;

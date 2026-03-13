@@ -9,13 +9,11 @@ import type {
   DiagramEdgeState,
   DiagramEasing,
   DiagramTheme,
-  DiagramThemeName,
   DiagramWarnFn,
 } from './types';
 import type { FunctionalTransitionSpec, NVSRect } from '@brewsite/core';
 import { blendOpacity, blendVec3, lerp, validateNVSRect, validateNVSPosition } from '@brewsite/core';
 import { darkGlassTheme } from './themes/darkGlass';
-import { DIAGRAM_THEMES } from './themes/index';
 import { resolveLayout, resolveLayoutWithGroups, computeBounds } from './compiler/layoutAlgorithms';
 import { routeEdges, routeEdgesYDown } from './compiler/edgeRouter';
 import { compileNode, compileEdge } from './compiler/nodeCompiler';
@@ -78,25 +76,14 @@ type RawSize = readonly [number, number];
 // ─── Theme Resolution ─────────────────────────────────────────────────────────
 
 /**
- * Resolves a DiagramThemeName string, DiagramTheme object, or undefined
- * to a concrete DiagramTheme. Unknown string names fall back to darkGlassTheme
- * with a console.warn.
+ * Resolves a DiagramTheme object or undefined to a concrete DiagramTheme.
+ * Returns the fallback when raw is undefined.
  */
 function resolveTheme(
-  raw: DiagramThemeName | DiagramTheme | undefined,
+  raw: DiagramTheme | undefined,
   fallback: DiagramTheme,
 ): DiagramTheme {
-  if (raw === undefined) return fallback;
-  if (typeof raw === 'string') {
-    const named = DIAGRAM_THEMES[raw];
-    if (!named) {
-      // DEBT: Replace console.warn with onWarn callback for side-effect-free compilation
-      console.warn(`[Diagram] Unknown theme name "${raw}" — falling back to darkGlass.`);
-      return fallback;
-    }
-    return named;
-  }
-  return raw;
+  return raw ?? fallback;
 }
 
 // ─── compileDiagram ───────────────────────────────────────────────────────────

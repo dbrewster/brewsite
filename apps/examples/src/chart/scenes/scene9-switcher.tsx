@@ -6,13 +6,11 @@ import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { AreaChart, BarChart, ChartAxis, ChartLegend, ChartSeries, LineChart, ScatterPlotChart } from '@brewsite/charts';
 import { saasMetrics24Months } from '../data/saasMetrics';
 import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, CHART_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
-import { useChartTheme } from '@brewsite/charts';
 
 const SWITCHER_DATA = saasMetrics24Months.slice(0, 12); // 12 months for compact view
 
 // Scene 9a — Bar view
 export const Scene9a = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s9a">
     <ProgressManager scrollUnits={1000} />
@@ -21,7 +19,6 @@ export const Scene9a = (): JSX.Element => {
     <BarChart
       id="switcher-demo"
       data={SWITCHER_DATA}
-      theme={chartTheme}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
       w={CHART_LAYOUT.w}
@@ -42,7 +39,6 @@ export const Scene9a = (): JSX.Element => {
 
 // Scene 9b — Line view (same chart ID)
 export const Scene9b = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s9b">
     <ProgressManager scrollUnits={1000} />
@@ -52,7 +48,6 @@ export const Scene9b = (): JSX.Element => {
     <LineChart
       id="switcher-demo"
       data={SWITCHER_DATA}
-      theme={chartTheme}
       showPoints={true}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
@@ -74,7 +69,6 @@ export const Scene9b = (): JSX.Element => {
 
 // Scene 9c — Area view (same chart ID)
 export const Scene9c = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s9c">
     <ProgressManager scrollUnits={1000} />
@@ -84,7 +78,6 @@ export const Scene9c = (): JSX.Element => {
     <AreaChart
       id="switcher-demo"
       data={SWITCHER_DATA}
-      theme={chartTheme}
       fillOpacity={0.6}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
@@ -106,7 +99,6 @@ export const Scene9c = (): JSX.Element => {
 
 // Scene 9d — Scatter view (same chart ID)
 export const Scene9d = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s9d">
     <ProgressManager scrollUnits={1000} />
@@ -116,7 +108,6 @@ export const Scene9d = (): JSX.Element => {
     <ScatterPlotChart
       id="switcher-demo"
       data={SWITCHER_DATA}
-      theme={chartTheme}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
       w={CHART_LAYOUT.w}

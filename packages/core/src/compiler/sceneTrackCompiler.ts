@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { SceneInputControllerSpec } from '../input/types';
 import type { SceneDefinition } from './sceneTypes';
+import type { ActiveTheme } from '../theme/types';
 import type {
   SceneFrame,
   SceneTrack,
@@ -30,6 +31,8 @@ export type CompileSceneTrackOptions = {
    */
   blockSize: number;
   prefersReducedMotion?: boolean;
+  /** Active theme selection — propagated into SceneSnapshotContext for NodeHandlers. */
+  activeTheme?: ActiveTheme;
 };
 
 /**
@@ -357,6 +360,8 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
       sceneIndex: i,
       numScenes: scenes.length,
       assetsReady: true,
+      themeFamily:   options.activeTheme?.family   ?? 'default' as const,
+      themePolarity: options.activeTheme?.polarity ?? 'dark' as const,
     };
     const raw = scene.getFrame(context);
     if (raw && typeof raw === 'object' && '$$typeof' in raw) {

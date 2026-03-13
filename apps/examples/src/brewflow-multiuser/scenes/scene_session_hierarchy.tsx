@@ -12,7 +12,6 @@ import {
     WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -35,7 +34,7 @@ export const SceneSessionHierarchy = () => (
     <Camera mode="world" position={[0, 5, 20]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <Diagram id="sess-diagram" theme={brewflowTheme}>
+    <Diagram id="sess-diagram">
         <HierarchicalLayout direction="top-down" spacing={[2, 2]} />
         <DiagramEnter fade />
 

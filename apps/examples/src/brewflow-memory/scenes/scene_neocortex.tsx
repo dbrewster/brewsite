@@ -12,7 +12,6 @@ import {
     DiagramNode,
     HierarchicalLayout,
 } from '@brewsite/diagram';
-import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from '../../settings';
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -24,7 +23,7 @@ export const SceneNeocortex = () => (
         <ProgressManager scrollUnits={3200} fn={DWELL_FN}/>
 
         {/* Left tree: Card Types — what kinds of knowledge Neocortex stores */}
-        <Diagram id="neo-types" x={0} y={0} w={.5} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
+        <Diagram id="neo-types" x={0} y={0} w={.5} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale}>
             <HierarchicalLayout direction="top-down" spacing={[3, 2]}/>
 
             <DiagramNode id="neo-core" label="Neocortex" sublabel="typed · versioned · provenance-backed"
@@ -51,7 +50,7 @@ export const SceneNeocortex = () => (
         </Diagram>
 
         {/* Right tree: Lifecycle — how a memory card moves from proposal to terminal state */}
-        <Diagram id="neo-lifecycle" x={0.5} y={0} w={0.5} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
+        <Diagram id="neo-lifecycle" x={0.5} y={0} w={0.5} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale}>
             <HierarchicalLayout direction="top-down" spacing={[3, 2]}/>
 
             <DiagramNode id="lc-candidate" label="candidate" sublabel="LLM proposed · unvalidated"

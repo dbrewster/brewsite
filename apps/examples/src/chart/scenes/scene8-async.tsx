@@ -4,10 +4,8 @@ import type { JSX } from 'react';
 import { ProgressManager, Scene } from '@brewsite/core';
 import {ChartAxis, ChartData, ChartLegend, ChartSeries, LineChart} from '@brewsite/charts';
 import { CHART_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
-import { useChartTheme } from '@brewsite/charts';
 
 export const Scene8 = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s8">
     <ProgressManager scrollUnits={1400} />
@@ -16,7 +14,6 @@ export const Scene8 = (): JSX.Element => {
     <LineChart
       id="remote-chart"
       dataUrl="/data/metrics.json"
-      theme={chartTheme}
       lineShape="circle"
       showPoints={true}
       x={CHART_LAYOUT.x}

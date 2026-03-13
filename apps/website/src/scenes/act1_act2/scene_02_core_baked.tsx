@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
 import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
-import { Diagram, DiagramNode, DiagramEdge, DiagramGroup, HierarchicalLayout, DiagramEnter, neonCyberTheme } from '@brewsite/diagram';
+import { Diagram, DiagramNode, DiagramEdge, DiagramGroup, HierarchicalLayout, DiagramEnter } from '@brewsite/diagram';
 import { dwellFn } from '../../utils/pacing';
 import { isMobile } from '../../utils/viewport';
 import type { Vec3 } from '@brewsite/core';
@@ -37,7 +37,7 @@ export const scene02CoreBaked: JSX.Element = (
       <Directional intensity={0.3} color="#00aaff" position={[-10, 10, 8]} />
     </Lighting>
 
-    <Diagram id="presentation-arc" x={0} y={0} w={1} h={1} tilt={-Math.PI / 12} scale={isMobile ? 1.0 : 1.35} theme={neonCyberTheme}>
+    <Diagram id="presentation-arc" x={0} y={0} w={1} h={1} tilt={-Math.PI / 12} scale={isMobile ? 1.0 : 1.35}>
         <HierarchicalLayout direction="top-down" spacing={[2.2, 2.3]} />
         <DiagramEnter from={[-1, 0.5, 0]} fade easing="ease-out" />
 

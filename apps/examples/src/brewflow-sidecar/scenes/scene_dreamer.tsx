@@ -7,7 +7,6 @@ import {
   TextBox,
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -18,7 +17,7 @@ export const SceneDreamer = () => (
     <Camera mode="world" position={[0, 5, 22]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <Diagram id="dreamer-flow" theme={brewflowTheme}>
+    <Diagram id="dreamer-flow">
         <HierarchicalLayout direction="left-right" spacing={[3, 3]} />
 
         <DiagramNode

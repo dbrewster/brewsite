@@ -109,8 +109,8 @@ export { ScreenRenderer } from './elements/screen/render';
 export { darkGlassTheme, midnightTheme, neonCyberTheme, enterpriseTheme, lightCanvasTheme, lightMinimalTheme } from './elements/diagram/themes';
 // Polarity variants
 export { darkGlassLightTheme, midnightLightTheme, neonCyberLightTheme, enterpriseLightTheme, lightCanvasDarkTheme, lightMinimalDarkTheme } from './elements/diagram/themes';
-// Theme registries and pair utilities
-export { DIAGRAM_THEMES, DIAGRAM_THEME_PAIRS } from './elements/diagram/themes';
+// Theme registry functions
+export { registerDiagramThemePair, resolveDiagramTheme, _resetDiagramThemeRegistryForTesting } from './elements/diagram/themes';
 export type { DiagramThemePair } from './elements/diagram/themes';
 // Theme composition helpers
 export { mergeTheme, withColorMode } from './elements/diagram/themes/mergeTheme';

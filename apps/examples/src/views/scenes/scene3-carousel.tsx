@@ -21,11 +21,9 @@ import {
   ChartData,
   ChartAxis,
   ChartSeries,
-  useChartTheme,
   LineChart,
-  type ChartTheme,
 } from '@brewsite/charts';
-import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, FlowLayout, GridLayout, useDiagramTheme, type DiagramTheme} from "@brewsite/diagram";
+import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, FlowLayout, GridLayout} from "@brewsite/diagram";
 
 const CAM_POS: [number, number, number] = [0, 1, 6.6];
 const CAM_TGT: [number, number, number] = [0, 0, 0];
@@ -107,21 +105,16 @@ function SharedEnv(): JSX.Element {
 }
 
 /** The views are identical across carousel scenes — only activeIndex changes.
- *  Themes are passed as props (not via hooks) because the compiler expands this
- *  component as a plain function call — hooks would throw outside React's render.
  *
  *  View order (indices 0–6): chart, DIAGRAM, chart, chart, chart, chart, chart.
  *  Placing the diagram at index 1 keeps it within one ring step of the chart
  *  scenes (activeIndex 0 and 2), giving z ≈ −2.82 instead of −12.18. */
-function CarouselViews({ chartTheme, diagramTheme }: {
-  chartTheme: ChartTheme | undefined;
-  diagramTheme: DiagramTheme | undefined;
-}): JSX.Element {
+function CarouselViews(): JSX.Element {
   return (
     <>
       {/* index 0 */}
       <View id="cv1" w={0.4} h={0.5}>
-        <BarChart id="carousel-chart-1" data={dataA} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="carousel-chart-1" data={dataA} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="category" />
           <ChartAxis axis="x" field="category" label="Category" />
           <ChartAxis axis="y" field="score" label="Score A" />
@@ -130,7 +123,7 @@ function CarouselViews({ chartTheme, diagramTheme }: {
       </View>
       {/* index 1 — diagram adjacent to charts; ring z-offset ≈−2.8 instead of ≈−12.2 */}
       <View id="cv5" w={0.4} h={0.5}>
-        <Diagram id="cf-overview-2" x={0} y={0} w={1} h={1} theme={diagramTheme} scale={1.4}>
+        <Diagram id="cf-overview-2" x={0} y={0} w={1} h={1} scale={1.4}>
           <FlowLayout direction="top-down" gap={1.05} />
 
           <DiagramNode
@@ -181,7 +174,7 @@ function CarouselViews({ chartTheme, diagramTheme }: {
       </View>
       {/* index 2 */}
       <View id="cv2" w={0.4} h={0.5}>
-        <BarChart id="carousel-chart-2" data={dataB} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="carousel-chart-2" data={dataB} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="category" />
           <ChartAxis axis="x" field="category" label="Category" />
           <ChartAxis axis="y" field="score" label="Score B" />
@@ -190,7 +183,7 @@ function CarouselViews({ chartTheme, diagramTheme }: {
       </View>
       {/* index 3 */}
       <View id="cv3" w={0.4} h={0.5}>
-        <BarChart id="carousel-chart-3" data={dataC} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="carousel-chart-3" data={dataC} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="category" />
           <ChartAxis axis="x" field="category" label="Category" />
           <ChartAxis axis="y" field="score" label="Score C" />
@@ -199,7 +192,7 @@ function CarouselViews({ chartTheme, diagramTheme }: {
       </View>
       {/* index 4 */}
       <View id="cv4" w={0.4} h={0.5}>
-        <BarChart id="carousel-chart-4" data={dataC} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="carousel-chart-4" data={dataC} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="category" />
           <ChartAxis axis="x" field="category" label="Category" />
           <ChartAxis axis="y" field="score" label="Score C" />
@@ -208,7 +201,7 @@ function CarouselViews({ chartTheme, diagramTheme }: {
       </View>
       {/* index 5 */}
       <View id="cv6" w={0.4} h={0.5}>
-        <BarChart id="carousel-chart-6" orientation={'horizontal'} data={dataC} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="carousel-chart-6" orientation={'horizontal'} data={dataC} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="category" />
           <ChartAxis axis="x" field="category" label="Category" />
           <ChartAxis axis="y" field="score" label="Score C" />
@@ -217,7 +210,7 @@ function CarouselViews({ chartTheme, diagramTheme }: {
       </View>
       {/* index 6 */}
       <View id="cv7" w={0.4} h={0.5}>
-        <LineChart id="carousel-chart-7" data={dataC} theme={chartTheme} x={0} y={0} w={1} h={1}
+        <LineChart id="carousel-chart-7" data={dataC} x={0} y={0} w={1} h={1}
                    lineShape="circle"
                    lineSmoothness={0.5}
                    showPoints={true}
@@ -238,39 +231,33 @@ function CarouselViews({ chartTheme, diagramTheme }: {
 // not ≈−12.2 (four steps apart as it was before).
 
 export const CarouselScene1 = (): JSX.Element => {
-  const chartTheme = useChartTheme();
-  const diagramTheme = useDiagramTheme();
   return (
     <Scene id="carousel-1">
       <SharedEnv />
       <ViewLayout kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={.7} >
-        <CarouselViews chartTheme={chartTheme} diagramTheme={diagramTheme} />
+        <CarouselViews />
       </ViewLayout>
     </Scene>
   );
 };
 
 export const CarouselScene2 = (): JSX.Element => {
-  const chartTheme = useChartTheme();
-  const diagramTheme = useDiagramTheme();
   return (
     <Scene id="carousel-2">
       <SharedEnv />
       <ViewLayout kind="carousel" loop activeIndex={1} zStep={15} fadeMin={0.15} spread={.7}>
-        <CarouselViews chartTheme={chartTheme} diagramTheme={diagramTheme} />
+        <CarouselViews />
       </ViewLayout>
     </Scene>
   );
 };
 
 export const CarouselScene3 = (): JSX.Element => {
-  const chartTheme = useChartTheme();
-  const diagramTheme = useDiagramTheme();
   return (
     <Scene id="carousel-3">
       <SharedEnv />
       <ViewLayout kind="carousel" loop activeIndex={2} zStep={15} fadeMin={0.15} spread={.7}>
-        <CarouselViews chartTheme={chartTheme} diagramTheme={diagramTheme} />
+        <CarouselViews />
       </ViewLayout>
     </Scene>
   );
@@ -278,13 +265,11 @@ export const CarouselScene3 = (): JSX.Element => {
 
 
 export const CarouselScene4 = (): JSX.Element => {
-  const chartTheme = useChartTheme();
-  const diagramTheme = useDiagramTheme();
   return (
     <Scene id="carousel-4">
       <SharedEnv />
       <ViewLayout kind="carousel" loop activeIndex={3} zStep={15} fadeMin={0.15} spread={.7}>
-        <CarouselViews chartTheme={chartTheme} diagramTheme={diagramTheme} />
+        <CarouselViews />
       </ViewLayout>
     </Scene>
   );
@@ -295,8 +280,6 @@ export const CarouselScene4 = (): JSX.Element => {
  *  carousel.prev: ArrowLeft to go back one slide.
  *  The ViewLayout id="demo-carousel" matches the layoutId on each Action. */
 export const CarouselScene = (): JSX.Element => {
-  const chartTheme = useChartTheme();
-  const diagramTheme = useDiagramTheme();
   return (
     <Scene id="carousel-interactive">
       <ProgressManager scrollUnits={800} />
@@ -315,7 +298,7 @@ export const CarouselScene = (): JSX.Element => {
         </Action>
       </InputController>
       <ViewLayout id="demo-carousel" kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={0.7}>
-        <CarouselViews chartTheme={chartTheme} diagramTheme={diagramTheme} />
+        <CarouselViews />
       </ViewLayout>
     </Scene>
   );

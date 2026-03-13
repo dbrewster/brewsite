@@ -6,7 +6,7 @@ const FAMILIES: ThemeFamily[] = [
   'darkGlass',
   'midnight',
   'neonCyber',
-  'enterprise',
+  'default',
   'lightCanvas',
   'lightMinimal',
 ];
@@ -43,8 +43,8 @@ describe('Theme family deck helpers', () => {
   });
 
   it('createDeckThemeForFamily returns a cloned object graph', () => {
-    const cloned = createDeckThemeForFamily('enterprise', 'light');
-    const shared = DECK_THEME_PAIRS.enterprise.light;
+    const cloned = createDeckThemeForFamily('default', 'light');
+    const shared = DECK_THEME_PAIRS.default.light;
     expect(cloned).not.toBe(shared);
     expect(cloned.colors).not.toBe(shared.colors);
     expect(cloned.colors.heading).toBe(shared.colors.heading);

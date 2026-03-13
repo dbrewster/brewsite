@@ -82,6 +82,8 @@ import {
   compileScatterChartOptions,
 } from '../../elements/chart/compile';
 import { resetChartHandlerRegistrationForTesting } from '../handlers';
+import { enterpriseChartTheme } from '../../themes/enterprise';
+import { neonCyberChartTheme } from '../../themes/neonCyber';
 import type { ChartState } from '../../elements/chart/types';
 
 describe('chartPlugin', () => {
@@ -153,6 +155,8 @@ describe('chartPlugin', () => {
       null,
       null,
       [],
+      null,
+      enterpriseChartTheme,
     );
 
     plugin.reconcileCompiledTrack?.(registry, {
@@ -185,6 +189,8 @@ describe('chartPlugin', () => {
       null,
       null,
       [],
+      null,
+      enterpriseChartTheme,
     );
 
     plugin.reconcileCompiledTrack?.(registry, {
@@ -211,7 +217,7 @@ describe('compileChart via chartPlugin', () => {
   it('compiles BarChart with all children into correct V2 ChartState', () => {
     const typeOptions = { kind: 'bar' as const, options: compileBarChartOptions({ id: 'revenue' }) };
     const state: ChartState = compileChart(
-      { id: 'revenue', opacity: 0.8, theme: 'neonCyber' },
+      { id: 'revenue', opacity: 0.8 },
       'bar',
       typeOptions,
       { source: 'sales', transforms: [{ type: 'filter', field: 'year', op: 'eq', value: 2025 }] },
@@ -226,6 +232,8 @@ describe('compileChart via chartPlugin', () => {
       { visible: true, position: 'right' },
       null,
       [],
+      null,
+      neonCyberChartTheme,
     );
 
     expect(state.type).toBe('bar');
@@ -238,7 +246,7 @@ describe('compileChart via chartPlugin', () => {
     expect(state.series).toHaveLength(2);
     expect(state.legend?.visible).toBe(true);
     expect(state.legend?.position).toBe('right');
-    expect(state.theme).toBe('neonCyber');
+    expect(state.theme).toBe(neonCyberChartTheme);
     expect(state.opacity).toBe(0.8);
   });
 

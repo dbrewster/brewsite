@@ -14,6 +14,7 @@ import {
   SCENE_THEME_PAIRS,
   darkGlassLightSceneTheme,
   lightCanvasDarkSceneTheme,
+  enterpriseLightSceneTheme,
 } from '../presets';
 import type { ThemeFamily } from '../types';
 
@@ -89,7 +90,7 @@ describe('new named presets', () => {
     });
   });
 
-  it('enterpriseSceneTheme has colorMode dark and gradient background', () => {
+  it('enterpriseSceneTheme (the default aesthetic) has colorMode dark and gradient background', () => {
     expect(enterpriseSceneTheme.colorMode).toBe('dark');
     expect(enterpriseSceneTheme.background?.fill).toEqual({
       kind: 'gradient',
@@ -116,7 +117,7 @@ describe('new named presets', () => {
     });
   });
 
-  it('all 6 new presets have all required fontSize scale keys', () => {
+  it('all 6 named presets have all required fontSize scale keys', () => {
     const presets = [
       darkGlassSceneTheme,
       midnightSceneTheme,
@@ -134,7 +135,7 @@ describe('new named presets', () => {
     }
   });
 
-  it('all 6 new presets have font.htmlFamily set', () => {
+  it('all 6 named presets have font.htmlFamily set', () => {
     const presets = [
       darkGlassSceneTheme,
       midnightSceneTheme,
@@ -148,7 +149,7 @@ describe('new named presets', () => {
     }
   });
 
-  it('all 6 new presets include floor.grid tokens', () => {
+  it('all 6 named presets include floor.grid tokens', () => {
     const presets = [
       darkGlassSceneTheme,
       midnightSceneTheme,
@@ -170,7 +171,7 @@ describe('new named presets', () => {
 
 describe('SCENE_THEME_PAIRS', () => {
   const EXPECTED_FAMILIES: ThemeFamily[] = [
-    'darkGlass', 'midnight', 'neonCyber', 'enterprise', 'lightCanvas', 'lightMinimal',
+    'default', 'darkGlass', 'midnight', 'neonCyber', 'lightCanvas', 'lightMinimal',
   ];
 
   it('contains all six theme families', () => {
@@ -189,6 +190,14 @@ describe('SCENE_THEME_PAIRS', () => {
     for (const family of EXPECTED_FAMILIES) {
       expect(SCENE_THEME_PAIRS[family].light.colorMode).toBe('light');
     }
+  });
+
+  it('dark entry for default is enterpriseSceneTheme by reference', () => {
+    expect(SCENE_THEME_PAIRS['default'].dark).toBe(enterpriseSceneTheme);
+  });
+
+  it('light entry for default is enterpriseLightSceneTheme by reference', () => {
+    expect(SCENE_THEME_PAIRS['default'].light).toBe(enterpriseLightSceneTheme);
   });
 
   it('dark entry for darkGlass is the existing darkGlassSceneTheme by reference', () => {

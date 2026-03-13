@@ -576,7 +576,7 @@ describe('viewLayoutHandler — auto-generated id', () => {
   });
 });
 
-describe('loop carousel — composeOpacity flows to child widgets', () => {
+describe('carousel views — children compile with opacity=1 (ViewWidget controls fade at runtime)', () => {
   // Register a probe widget that records api.composeOpacity(1) in its widget state.
   const Probe = (_props: { id: string }): null => null;
   Probe.displayName = 'Probe';
@@ -588,7 +588,7 @@ describe('loop carousel — composeOpacity flows to child widgets', () => {
     });
   });
 
-  it('active view child gets opacity 1, back view child gets fadeMin-range opacity', () => {
+  it('both active and inactive carousel view children compile with opacity=1', () => {
     const tree = (
       <Scene id="s1">
         <ViewLayout kind="carousel" loop activeIndex={0} zStep={4} fadeMin={0}>
@@ -604,30 +604,14 @@ describe('loop carousel — composeOpacity flows to child widgets', () => {
     const widgets = compile(tree);
     const p1 = widgets['probe1'] as { composedOpacity: number };
     const p2 = widgets['probe2'] as { composedOpacity: number };
-    // View 0 is active → opacity=1, probe composeOpacity(1) = 1*1 = 1
+    // Both views have layoutId — children compile with opacity=1; ViewWidget controls fade
     expect(p1.composedOpacity).toBe(1);
-    // View 1 is directly behind (N=2, angle=π) → opacity≈0 (fadeMin=0)
-    expect(p2.composedOpacity).toBeCloseTo(0);
+    expect(p2.composedOpacity).toBe(1);
   });
 
-  it('changing activeIndex changes which child gets full opacity', () => {
-    const tree0 = (
+  it('all carousel children compile with opacity=1 regardless of activeIndex', () => {
+    const tree = (
       <Scene id="s1">
-        <ViewLayout kind="carousel" loop activeIndex={0} zStep={4} fadeMin={0.1}>
-          <View id="v1" w={0.3} h={0.5}>
-            <Probe id="p1" />
-          </View>
-          <View id="v2" w={0.3} h={0.5}>
-            <Probe id="p2" />
-          </View>
-          <View id="v3" w={0.3} h={0.5}>
-            <Probe id="p3" />
-          </View>
-        </ViewLayout>
-      </Scene>
-    );
-    const tree1 = (
-      <Scene id="s2">
         <ViewLayout kind="carousel" loop activeIndex={1} zStep={4} fadeMin={0.1}>
           <View id="v1" w={0.3} h={0.5}>
             <Probe id="p1" />
@@ -641,21 +625,59 @@ describe('loop carousel — composeOpacity flows to child widgets', () => {
         </ViewLayout>
       </Scene>
     );
-    const w0 = compile(tree0);
-    const w1 = compile(tree1);
+    const widgets = compile(tree);
+    expect((widgets['p1'] as { composedOpacity: number }).composedOpacity).toBe(1);
+    expect((widgets['p2'] as { composedOpacity: number }).composedOpacity).toBe(1);
+    expect((widgets['p3'] as { composedOpacity: number }).composedOpacity).toBe(1);
+  });
+});
 
-    // Scene 1 (active=0): p1 full opacity, p2/p3 faded
-    expect((w0['p1'] as { composedOpacity: number }).composedOpacity).toBe(1);
-    expect((w0['p2'] as { composedOpacity: number }).composedOpacity).toBeLessThan(1);
+describe('viewHandler — child opacity: layoutId present vs absent', () => {
+  const Probe = (_props: { id: string }): null => null;
+  Probe.displayName = 'ProbeLayoutId';
 
-    // Scene 2 (active=1): p2 full opacity, p1/p3 faded
-    expect((w1['p2'] as { composedOpacity: number }).composedOpacity).toBe(1);
-    expect((w1['p1'] as { composedOpacity: number }).composedOpacity).toBeLessThan(1);
+  beforeEach(() => {
+    registerNode(Probe, (node, api) => {
+      const id = (node.props as { id: string }).id;
+      api.setWidgetState(id, { composedOpacity: api.composeOpacity(1) });
+    });
+  });
 
-    // p1 opacity should be different between scenes
-    expect((w0['p1'] as { composedOpacity: number }).composedOpacity).not.toBeCloseTo(
-      (w1['p1'] as { composedOpacity: number }).composedOpacity,
+  it('view WITH layoutId compiles children with opacity=1.0 (unscaled)', () => {
+    // loop + fadeMin=0 ensures inactive view gets opacity < 1 from layout
+    const tree = (
+      <Scene id="s1">
+        <ViewLayout kind="carousel" loop activeIndex={0} zStep={4} fadeMin={0}>
+          <View id="v1" w={0.4} h={0.6}>
+            <Probe id="probe1" />
+          </View>
+          <View id="v2" w={0.4} h={0.6}>
+            <Probe id="probe2" />
+          </View>
+        </ViewLayout>
+      </Scene>
     );
+    const widgets = compile(tree);
+    // v2 is an inactive carousel view — its viewOpacity < 1, but children compile with 1
+    const v2 = widgets['v2'] as ViewState;
+    expect(v2.layoutId).toBeDefined();
+    expect(v2.opacity).toBeLessThan(1); // layout assigned a faded opacity
+    expect((widgets['probe2'] as { composedOpacity: number }).composedOpacity).toBe(1);
+  });
+
+  it('view WITHOUT layoutId (standalone) compiles children with viewOpacity baked in', () => {
+    // Standalone views always have viewOpacity=1; children inherit opacity=1
+    const tree = (
+      <Scene id="s1">
+        <View id="standalone">
+          <Probe id="probe" />
+        </View>
+      </Scene>
+    );
+    const widgets = compile(tree);
+    const viewState = widgets['standalone'] as ViewState;
+    expect(viewState.layoutId).toBeUndefined();
+    expect((widgets['probe'] as { composedOpacity: number }).composedOpacity).toBe(1);
   });
 });
 

@@ -7,6 +7,12 @@ last_updated: 2026-03-13
 change_history:
   - date: 2026-03-13
     author: "Toolkit Product"
+    summary: "Centralized theme system: added `SceneSnapshotContext` type definition to Section 4 with `themeFamily: ThemeFamily` and `themePolarity: 'dark' | 'light'` fields. Updated Step 1 description to document that the context is now constructed with `themeFamily` and `themePolarity` sourced from `SceneEngine.theme`. These values default to `'default'` / `'dark'` when no theme is configured. Element node handlers access them via `api.context.themeFamily` and `api.context.themePolarity`."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "Carousel rendering bug fix — opacity double-counting: documented childOpacityScale branching in viewHandlers.ts (Section 14 viewHandlers.ts key behaviors). Carousel views (layoutId present) pass childOpacityScale=1 to createChildApi so child elements compile with opacity=1.0 intrinsic — prevents ViewWidget.applyOpacity() from double-multiplying against a baked-in opacity. Non-carousel views continue to bake viewOpacity into compiled child state as before."
+  - date: 2026-03-13
+    author: "Toolkit Product"
     summary: "View Widget Carousel Rendering: added childWidgetIds to ViewState type (Section 14 ViewState definition). Updated ViewState storage note to reflect that ViewWidget is now registered for view IDs via corePlugin.reconcileCompiledTrack. Updated createChildApi description in Section 14 View compilation to document childWidgetIds tracking. The ViewWidget captures originalNvsCenter, originalScale, and originalZ from the first apply() call (not hardcoded) to compute correct delta transforms for all carousel view positions."
   - date: 2026-03-13
     author: "Toolkit Product"
@@ -147,8 +153,38 @@ The pipeline executes seven sequential steps. Each step is described below with 
 **Input:** `SceneDefinition[]`, `WidgetRegistry`, `SceneSnapshotContext` (one per scene).
 **Output:** `SceneFrame[]` — one snapshot per scene, each containing the widget states authored by that scene's DSL tree.
 
+The `SceneSnapshotContext` type passed to each scene's `getFrame`:
+
+```typescript
+// packages/core/src/compiler/sceneTypes.ts
+export type SceneSnapshotContext = {
+  /** 0-based index of this scene in the ordered array. */
+  sceneIndex: number;
+  /** Total number of scenes. */
+  numScenes: number;
+  /** Whether model/texture assets have finished loading. Always true during compilation. */
+  assetsReady: boolean;
+  /** Runtime variable store — for variable-driven DSL content. */
+  variables?: VariableStoreReader;
+  /** Viewport dimensions — for viewport-responsive DSL layout. */
+  viewport?: { width: number; height: number; aspectRatio: number };
+  /**
+   * Active theme family for this engine instance.
+   * Sourced from `SceneEngine.theme.family`. Defaults to `'default'` when no theme is configured.
+   * Accessible to every NodeHandler via `api.context.themeFamily`.
+   */
+  themeFamily: ThemeFamily;
+  /**
+   * Active theme polarity for this engine instance.
+   * Sourced from `SceneEngine.theme.polarity`. Defaults to `'dark'` when no theme is configured.
+   * Accessible to every NodeHandler via `api.context.themePolarity`.
+   */
+  themePolarity: 'dark' | 'light';
+};
+```
+
 For each scene in the ordered array:
-1. Construct a `SceneSnapshotContext` with `sceneIndex`, `numScenes`, and `assetsReady: true`.
+1. Construct a `SceneSnapshotContext` with `sceneIndex`, `numScenes`, `assetsReady: true`, and `themeFamily`/`themePolarity` from the resolved `ActiveTheme` (defaults `'default'`/`'dark'` when none is configured).
 2. Call `scene.getFrame(context)`.
 3. If the result is a React element (detected by `$$typeof`), pass it to `resolveSceneFromDsl(tree, context, widgetRegistry)`.
 4. If the result is a plain `SceneFrame` object (detected by the presence of `id`, `scrollProgress`, and `widgets` fields), use it directly.
@@ -1059,6 +1095,7 @@ Key behaviors:
 - **Standalone `<View>`** (no parent `<ViewLayout>`): resolves absolute bounds via `api.composeBounds(localBounds)`. Sets `layer = 0`, `scale = 1.0`.
 - **Managed `<View>`** (inside `<ViewLayout>`): bounds, layer, and scale are pre-computed by the parent `viewLayoutHandler` via `resolveLayout(config, container, sizeHints)` and injected via the WeakMap context. The `x`/`y` props are ignored (a console warning is emitted).
 - **Child scoping**: after resolving bounds and padding, each `<View>` creates a scoped child `CompileApi` via `createChildApi(api, contentBounds)` (defined in `compiler/childApi.ts`). The child API's `composeBounds` is configured to map local [0..1] coordinates into the view's content bounds. Its `setWidgetState` is wrapped to record the widget ID in a `childWidgetIds` accumulator. After child compilation completes, `childWidgetIds` is stored on `ViewState`. All DSL children of `<View>` are compiled using this scoped api, so elements like `<Chart>` or `<DiagramCanvas>` inside a view automatically inherit absolute bounds and are tracked as children without any knowledge of the nesting.
+- **childOpacityScale branching**: `viewHandler` passes a `childOpacityScale` parameter to `createChildApi`. For carousel views (those whose `ViewState.layoutId` is set — i.e., they are children of a `<ViewLayout kind="carousel">`), `childOpacityScale = 1` is passed, so all child element states compile with `opacity = 1.0` regardless of what the carousel layout's active/inactive scale might suggest. This ensures `ViewWidget.applyOpacity()` is the sole opacity controller for carousel children at runtime (no double-counting against a baked-in fractional opacity). For standalone views (no `layoutId`), `childOpacityScale` is the view's own opacity (default 1.0), and the existing behavior of baking `viewOpacity` into compiled child state is preserved.
 
 `ViewState` and `ViewLayoutState` (from `compiler/viewTypes.ts`) are stored via `api.setWidgetState(id, state)` on the parent CompileApi, ensuring they appear in `SceneFrame.widgets` alongside all other element states.
 

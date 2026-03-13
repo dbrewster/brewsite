@@ -7,7 +7,6 @@ import {
   TextBox,
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramNode, FlowLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -16,7 +15,7 @@ export const SceneInjector = () => (
   <Scene key="bfm-injector" id="bfm-injector">
     <ProgressManager scrollUnits={2800} fn={DWELL_FN} />
 
-    <Diagram id="inject-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
+    <Diagram id="inject-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale}>
         <FlowLayout direction="top-down" gap={2} />
 
         {/* Core + serving modes */}

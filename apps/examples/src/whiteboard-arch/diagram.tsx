@@ -1,7 +1,6 @@
 // Shared diagram tree for the whiteboard architecture slide deck — used by every scene.
 import type {JSX} from 'react';
 import {
-    darkGlassTheme,
     Diagram,
     DiagramEdge,
     DiagramGroup,
@@ -12,7 +11,7 @@ import {
 /** Returns the full whiteboard architecture <Diagram> JSX tree. */
 export function makeWhiteboardDiagram(): JSX.Element {
     return (
-        <Diagram id="whiteboard-arch-diagram" x={0} y={0} w={1} h={1} tilt={0} scale={1.0} theme={darkGlassTheme}>
+        <Diagram id="whiteboard-arch-diagram" x={0} y={0} w={1} h={1} tilt={0} scale={1.0}>
             <ManualLayout/>
 
             {/* ── Standalone nodes ── */}

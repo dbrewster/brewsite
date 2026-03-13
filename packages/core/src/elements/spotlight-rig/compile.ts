@@ -5,6 +5,7 @@ import type { FunctionalTransitionSpec } from '../../compiler/transitions/transi
 import { blendNumber, blendColor } from '../../compiler/transitions/transitionTypes';
 import type { SpotlightRigTheme, SpotlightRigState, SpotlightLightState, Vec3Tuple } from './types';
 import type { SpotlightRigProps, SpotlightProps } from './dsl';
+import type { ThemeFamily } from '../../theme/types';
 
 /**
  * Default theme values for SpotlightRig.
@@ -37,6 +38,32 @@ const DEFAULT_SPOTLIGHT_RIG_COUNT = 3;
 
 /** Default center of the rig orbit. Element-only, not in theme. */
 export const DEFAULT_SPOTLIGHT_RIG_CENTER: Vec3Tuple = [0, 0, 0];
+
+/** Per-theme-family spotlight presets. Falls back to DEFAULT_SPOTLIGHT_RIG_THEME for unregistered families. */
+const SPOTLIGHT_PRESETS: Partial<Record<ThemeFamily, SpotlightRigTheme>> = {
+  darkGlass: {
+    color: '#FFD0A0', intensity: 100, speed: 0.3, radius: 16, height: 28,
+    targetY: 0, angle: Math.PI / 18, penumbra: 0.20, decay: 2.0, distance: 65,
+    castShadow: false, shadowMapSize: 1024,
+    showBeam: true, beamOpacity: 0.11, beamColor: '#FFE8CC',
+    showHalo: false, haloOpacity: 0.25, haloSize: 7,
+  },
+  neonCyber: {
+    color: '#00E7FF', intensity: 160, speed: 1.4, radius: 14, height: 24,
+    targetY: 0, angle: Math.PI / 20, penumbra: 0.12, decay: 2.0, distance: 55,
+    castShadow: false, shadowMapSize: 1024,
+    showBeam: true, beamOpacity: 0.18, beamColor: '#80F4FF',
+    showHalo: true, haloOpacity: 0.40, haloSize: 9,
+  },
+  lightCanvas: {
+    color: '#FFF8F0', intensity: 25, speed: 0.25, radius: 20, height: 30,
+    targetY: 0, angle: Math.PI / 8, penumbra: 0.7, decay: 2.0, distance: 70,
+    castShadow: false, shadowMapSize: 1024,
+    showBeam: false, beamOpacity: 0.0, beamColor: '#ffffff',
+    showHalo: false, haloOpacity: 0.0, haloSize: 6,
+  },
+  // 'default', 'midnight' → no entry, falls back to DEFAULT_SPOTLIGHT_RIG_THEME
+};
 
 /**
  * Resolves a single <Spotlight> child's props into a SpotlightLightState.
@@ -96,8 +123,8 @@ export function resolveSpotlightRig(
   lightPropsList: SpotlightProps[],
   context: SceneSnapshotContext,
 ): SpotlightRigState {
-  const base = DEFAULT_SPOTLIGHT_RIG_THEME;
-  const theme: SpotlightRigTheme = rigProps.theme ? { ...base, ...rigProps.theme } : base;
+  const familyPreset = SPOTLIGHT_PRESETS[context.themeFamily];
+  const theme: SpotlightRigTheme = familyPreset ?? DEFAULT_SPOTLIGHT_RIG_THEME;
 
   const r = <T>(v: T | ((ctx: SceneSnapshotContext) => T) | undefined): T | undefined =>
     typeof v === 'function' ? (v as (c: SceneSnapshotContext) => T)(context) : v;
@@ -112,17 +139,6 @@ export function resolveSpotlightRig(
   });
 
   return { center, target, showHelper, enabled: true, lights };
-}
-
-/**
- * Shallow-merges overrides onto base, producing a new SpotlightRigTheme.
- * Neither argument is mutated.
- */
-export function mergeSpotlightRigTheme(
-  base: SpotlightRigTheme,
-  overrides: Partial<SpotlightRigTheme>,
-): SpotlightRigTheme {
-  return { ...base, ...overrides };
 }
 
 // ─── Transition Spec Internals ────────────────────────────────────────────────

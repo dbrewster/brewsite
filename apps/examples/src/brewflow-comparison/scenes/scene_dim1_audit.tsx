@@ -1,6 +1,5 @@
 import {Background, ProgressManager, Scene, TextBox,} from '@brewsite/core';
 import {Diagram, DiagramNode, GridLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -11,7 +10,7 @@ export const SceneDim1Audit = () => (
     <Background color="#080b14" />
 
     {/* Left side — claude-flow */}
-    <Diagram id="audit-cf" x={0} y={0} w={1} h={0.56} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
+    <Diagram id="audit-cf" x={0} y={0} w={1} h={0.56} tilt={config.diagramRotationX} scale={config.diagramScale}>
         <GridLayout columns={2} spacing={[3, 2]} />
 
         <DiagramNode id="cf-events-node" label="events table" sublabel="generic rows · timestamp · label · no global order · no lineage" size={[7, 2.8]} color="#1a1520" />

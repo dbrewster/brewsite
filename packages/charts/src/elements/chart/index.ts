@@ -18,4 +18,4 @@ export type {
   ChartSeriesDSL,
   ChartLegendDSL,
 } from './types';
-export { DEFAULT_CHART_STATE } from './types';
+export { DEFAULT_CHART_STATE } from './compile';

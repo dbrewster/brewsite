@@ -15,10 +15,12 @@ import {
   type ScrollStageHandle,
   type ThemeFamily,
   type ThemePolarity,
+  type ActiveTheme,
   type WidgetPlugin,
 } from '@brewsite/core';
 import { chartPlugin } from '@brewsite/charts';
 import { ThemeToggle } from '../Lights';
+import { themesPlugin } from '@brewsite/themes';
 
 import { WelcomeScene } from './scenes/scene1-welcome';
 import { CameraControlsScene } from './scenes/scene2-camera-controls';
@@ -40,6 +42,7 @@ function createPlugins(): { plugins: WidgetPlugin[] } {
         diagrams: [
           'cf-overview',
           ]}),
+      themesPlugin(),
       ]
   };
 }
@@ -88,6 +91,8 @@ export default function InputShowcasePage(): JSX.Element {
   const [family, setFamily] = useState<ThemeFamily>('darkGlass');
   const [polarity, setPolarity] = useState<ThemePolarity>('dark');
 
+  const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
+
   return (
     <div
       style={{
@@ -109,9 +114,7 @@ export default function InputShowcasePage(): JSX.Element {
 
       <SceneEngine
         plugins={plugins}
-        themeFamily={family}
-        themePolarity={polarity}
-        invalidateCacheToken={`${family}-${polarity}`}
+        theme={theme}
       >
         {/* ── Scene declarations ───────────────────────────────────────────── */}
         <WelcomeScene />

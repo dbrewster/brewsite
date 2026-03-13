@@ -14,7 +14,6 @@ import {
     FlowLayout,
     GridLayout,
 } from '@brewsite/diagram';
-import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -23,7 +22,7 @@ export const SceneSomniocortex = () => (
     <Scene key="bfm-somniocortex" id="bfm-somniocortex">
         <ProgressManager scrollUnits={3200} fn={DWELL_FN}/>
 
-        <Diagram id="somno-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={0.7} theme={brewflowTheme}>
+        <Diagram id="somno-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={0.7}>
                 <FlowLayout direction="top-down" gap={2}/>
 
                 <DiagramNode id="in-episodic" label="EpisodicStore" sublabel="raw episodes"

@@ -17,6 +17,8 @@ export type OrbitFn = (wallTimeSeconds: number) => Vec3Tuple;
  * All cinematic settings live here AND on the DSL element.
  * Element-level props override corresponding theme values.
  * `center`, `target`, `showHelper` are intentionally absent — they are element-only.
+ *
+ * @internal Use SpotlightRigPreset for the public API.
  */
 export type SpotlightRigTheme = {
   /** CSS hex/rgb color string for the spotlight sources. */
@@ -56,6 +58,12 @@ export type SpotlightRigTheme = {
   /** Diameter of the ground halo sprite in world units. */
   haloSize: number;
 };
+
+/**
+ * Public API alias for SpotlightRigTheme.
+ * Use this type when building and passing preset objects to SpotlightRig.
+ */
+export type SpotlightRigPreset = SpotlightRigTheme;
 
 /**
  * Compiled runtime state for one individual spotlight within a SpotlightRig.

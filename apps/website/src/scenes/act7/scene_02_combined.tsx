@@ -4,7 +4,7 @@ import {
   Floor, FloorMirror, ProgressManager,
 } from '@brewsite/core';
 import { ModelRouter, Playback, Animation } from '@brewsite/model';
-import { Diagram, DiagramNode, DiagramEdge, ManualLayout, darkGlassTheme } from '@brewsite/diagram';
+import { Diagram, DiagramNode, DiagramEdge, ManualLayout } from '@brewsite/diagram';
 import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
 import { isMobile } from '../../utils/viewport';
 import type { Vec3 } from '@brewsite/core';
@@ -18,7 +18,7 @@ const snippetCode = `<ModelRouter type="Worker" id="character"
     <Animation clipName="idle" weight={1} />
   </Playback>
 </ModelRouter>
-<DiagramCanvas theme={darkGlassTheme}>
+<DiagramCanvas>
   <DiagramNode id="api" label="API Server" icon="aws:api-gateway" />
   <DiagramEdge from="api" to="db" flow="forward" />
 </DiagramCanvas>`;
@@ -68,7 +68,7 @@ export const scene02Combined: JSX.Element = (
     </ModelRouter>
 
     {/* Architecture diagram — right, slightly elevated and angled */}
-    <Diagram id="full-arch" x={0} y={0} w={1} h={1} tilt={-Math.PI / 10} scale={1.1} theme={darkGlassTheme}>
+    <Diagram id="full-arch" x={0} y={0} w={1} h={1} tilt={-Math.PI / 10} scale={1.1}>
         <ManualLayout />
         <DiagramNode id="ui"  label="Web App"    icon="ui:globe-alt"    position={[0.500, 0.167, 0]} />
         <DiagramNode id="api" label="API Server" icon="aws:api-gateway" position={[0.500, 0.500, 0]} />

@@ -35,11 +35,11 @@ const SCENE_SCROLL_REGISTRY = [
 const TOTAL_SCROLL_HEIGHT = SCENE_SCROLL_REGISTRY.reduce((s, r) => s + r.scrollUnits, 0);
 
 export default function MemorySubsystemPage(): JSX.Element {
-  const { plugins } = useMemo(() => createMemoryPlugins(), []);
+  const { plugins, theme } = useMemo(() => createMemoryPlugins(), []);
 
   return (
     <div style={{ background: '#080b14', height: '100vh', overflow: 'hidden', fontSize: '20px' }}>
-      <SceneEngine plugins={plugins}>
+      <SceneEngine plugins={plugins} theme={theme}>
         <SceneHero/>
         <SceneClsTheory/>
         <SceneEpisodicStore/>

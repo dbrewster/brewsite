@@ -6,18 +6,20 @@ import {
   resolveSpotlightRig,
   resolveSpotlightLightState,
   spotlightRigTransitionSpec,
-  mergeSpotlightRigTheme,
 } from '../compile';
 import type { SpotlightRigProps, SpotlightProps } from '../dsl';
 import type { SpotlightRigState, SpotlightLightState } from '../types';
 import type { SceneSnapshotContext } from '../../../compiler/sceneTypes';
+import type { ThemeFamily } from '../../../theme/types';
 import { makeSimpleContext } from '../../../compiler/transitions/transitionResolver';
 
 /** Minimal valid SceneSnapshotContext for testing Resolvable props. */
-const makeContext = (sceneIndex = 0): SceneSnapshotContext => ({
+const makeContext = (sceneIndex = 0, family: ThemeFamily = 'default'): SceneSnapshotContext => ({
   sceneIndex,
   numScenes: 3,
   assetsReady: true,
+  themeFamily: family,
+  themePolarity: 'dark',
 });
 
 // ─── resolveSpotlightRig — no children ────────────────────────────────────────
@@ -48,24 +50,32 @@ describe('resolveSpotlightRig — no children', () => {
     expect(state.enabled).toBe(true);
   });
 
-  it('props.theme applies theme values to resolved lights', () => {
-    const lightProps: SpotlightProps = {};
-    const rigProps: SpotlightRigProps = {
-      theme: { ...DEFAULT_SPOTLIGHT_RIG_THEME, color: '#FF0000', intensity: 200 },
-    };
-    const state = resolveSpotlightRig(rigProps, [lightProps], makeContext());
-    expect(state.lights[0]!.color).toBe('#FF0000');
-    expect(state.lights[0]!.intensity).toBe(200);
-    // Un-overridden theme fields carry default values
-    expect(state.lights[0]!.speed).toBe(DEFAULT_SPOTLIGHT_RIG_THEME.speed);
-  });
-
   it('rig-level color override applies to all generated lights', () => {
     const lightPropsList: SpotlightProps[] = [{}, {}, {}];
     const state = resolveSpotlightRig({ color: '#AABBCC' }, lightPropsList, makeContext());
     for (const light of state.lights) {
       expect(light.color).toBe('#AABBCC');
     }
+  });
+});
+
+// ─── resolveSpotlightRig — themeFamily preset lookup ─────────────────────────
+
+describe('resolveSpotlightRig — themeFamily preset', () => {
+  it('themeFamily darkGlass applies darkGlass spotlight preset', () => {
+    const state = resolveSpotlightRig({}, [{}], makeContext(0, 'darkGlass'));
+    expect(state.lights[0]!.color).toBe('#FFD0A0');
+  });
+
+  it('themeFamily neonCyber applies neonCyber preset', () => {
+    const state = resolveSpotlightRig({}, [{}], makeContext(0, 'neonCyber'));
+    expect(state.lights[0]!.color).toBe('#00E7FF');
+    expect(state.lights[0]!.showHalo).toBe(true);
+  });
+
+  it('default themeFamily uses DEFAULT_SPOTLIGHT_RIG_THEME', () => {
+    const state = resolveSpotlightRig({}, [{}], makeContext(0, 'default'));
+    expect(state.lights[0]!.color).toBe(DEFAULT_SPOTLIGHT_RIG_THEME.color);
   });
 });
 
@@ -90,15 +100,6 @@ describe('resolveSpotlightRig — with children', () => {
     const state = resolveSpotlightRig({ color: '#RIG' }, lightPropsList, makeContext());
     expect(state.lights[0]!.color).toBe('#LIGHT0');
     expect(state.lights[1]!.color).toBe('#LIGHT1');
-  });
-
-  it('per-light color override wins over theme color', () => {
-    const lightPropsList: SpotlightProps[] = [{ color: '#LIGHT_OVERRIDE' }];
-    const rigProps: SpotlightRigProps = {
-      theme: { ...DEFAULT_SPOTLIGHT_RIG_THEME, color: '#THEME_COLOR' },
-    };
-    const state = resolveSpotlightRig(rigProps, lightPropsList, makeContext());
-    expect(state.lights[0]!.color).toBe('#LIGHT_OVERRIDE');
   });
 
   it('rig-level color applies to lights that do not override it', () => {
@@ -362,29 +363,5 @@ describe('spotlightRigTransitionSpec.interpolateFn', () => {
     const fn = spotlightRigTransitionSpec.interpolateFn(from, to);
     const result = fn(makeSimpleContext(0.5));
     expect(result.target![2]).toBeCloseTo(-6);
-  });
-});
-
-// ─── mergeSpotlightRigTheme ───────────────────────────────────────────────────
-
-describe('mergeSpotlightRigTheme', () => {
-  it('produces merged object with overrides applied', () => {
-    const merged = mergeSpotlightRigTheme(DEFAULT_SPOTLIGHT_RIG_THEME, { color: '#AABBCC', intensity: 55 });
-    expect(merged.color).toBe('#AABBCC');
-    expect(merged.intensity).toBe(55);
-    // Non-overridden fields preserved
-    expect(merged.speed).toBe(DEFAULT_SPOTLIGHT_RIG_THEME.speed);
-  });
-
-  it('does not mutate the base theme', () => {
-    const original = { ...DEFAULT_SPOTLIGHT_RIG_THEME };
-    mergeSpotlightRigTheme(DEFAULT_SPOTLIGHT_RIG_THEME, { color: '#000000' });
-    expect(DEFAULT_SPOTLIGHT_RIG_THEME.color).toBe(original.color);
-  });
-
-  it('does not mutate the overrides object', () => {
-    const overrides: Partial<typeof DEFAULT_SPOTLIGHT_RIG_THEME> = { color: '#000000' };
-    mergeSpotlightRigTheme(DEFAULT_SPOTLIGHT_RIG_THEME, overrides);
-    expect(overrides.color).toBe('#000000');
   });
 });

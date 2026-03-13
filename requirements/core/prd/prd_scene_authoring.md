@@ -7,6 +7,12 @@ last_updated: 2026-03-13
 change_history:
   - date: 2026-03-13
     author: "Toolkit Product"
+    summary: "Centralized theme system: documented the new `theme?: ActiveTheme` prop on `<SceneEngine>` (sourced from `@brewsite/themes`). Added Section 8.14 on the centralized theme authoring pattern. Updated Section 7.1 SceneSnapshotContext to include `themeFamily` and `themePolarity` fields. Updated examples in Sections 8.12 and 8.13 to remove deprecated per-element `theme=` string props — themes are now resolved automatically from engine context via the registered ThemeBundles."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: "Carousel rendering bug fixes: documented carousel opacity single-writer contract in Section 15 — carousel views (layoutId present) compile children with opacity=1.0 intrinsic (childOpacityScale=1); ViewWidget.applyOpacity() sets mat.opacity directly and runs last in the tick loop, making it the sole opacity controller for carousel view children. Documented known edge case: opacity-animated charts inside standalone (non-carousel) Views will have their opacity suppressed by ViewWidget."
+  - date: 2026-03-13
+    author: "Toolkit Product"
     summary: "View Widget Carousel Rendering: updated carousel.next/carousel.prev action type descriptions from 'forward-declared' to active — runtime handler now implemented via ViewWidget. Updated carousel rendering behavior description in Section 15 View/ViewLayout Architecture to document the full Group-based delta transform math (XY: G = P_new - P_old * S; Z: G_z = state.z - originalZ delta to prevent double-offset; scale ratio). Documented that originalNvsCenter, originalScale, and originalZ are all captured from first apply() — not hardcoded. Updated risks table entry. Added childWidgetIds to ViewState field description."
   - date: 2026-03-13
     author: "Toolkit Product"
@@ -203,6 +209,17 @@ export type SceneSnapshotContext = {
   variables?: VariableStoreReader;
   /** Viewport dimensions — for viewport-responsive DSL layout. */
   viewport?: { width: number; height: number; aspectRatio: number };
+  /**
+   * Active theme family for this engine instance.
+   * Passed from SceneEngine.theme into every NodeHandler via CompileApi.context.
+   * Defaults to 'default' when no theme is configured.
+   */
+  themeFamily: ThemeFamily;
+  /**
+   * Active theme polarity for this engine instance.
+   * Defaults to 'dark' when no theme is configured.
+   */
+  themePolarity: 'dark' | 'light';
 };
 ```
 
@@ -1001,7 +1018,7 @@ import { View } from '@brewsite/core';
 <Scene key="overview">
   <Camera descriptor={{ mode: 'world', position: [0, 0.5, 8], target: [0, 0, 0] }} />
   <View id="chart-panel" x={0.53} y={0.05} w={0.44} h={0.60} padding={0.02}>
-    <Chart id="revenue-chart" type="bar" data={salesData} theme="darkGlass" />
+    <Chart id="revenue-chart" type="bar" data={salesData} />
   </View>
 </Scene>
 ```
@@ -1017,10 +1034,10 @@ import { View, ViewLayout } from '@brewsite/core';
 <Scene key="comparison">
   <ViewLayout kind="stack" direction="horizontal" x={0.05} y={0.1} w={0.9} h={0.7} gap={0.03}>
     <View id="view-left">
-      <Chart id="chart-left" type="bar" data={q1Data} theme="enterprise" />
+      <Chart id="chart-left" type="bar" data={q1Data} />
     </View>
     <View id="view-right">
-      <Chart id="chart-right" type="line" data={q2Data} theme="enterprise" />
+      <Chart id="chart-right" type="line" data={q2Data} />
     </View>
   </ViewLayout>
 </Scene>
@@ -1138,7 +1155,7 @@ The single `<DiagramCanvas>` is a spatial element. The auto-wrap fires silently:
   <Lighting ambient={{ color: '#ffffff', intensity: 0.8 }} />
   <Background color="#0a0a1a" />
   {/* Single spatial element — auto-wrapped to __scene_root__ full-screen View */}
-  <DiagramCanvas id="arch-diagram" nodes={nodes} edges={edges} theme="darkGlass" />
+  <DiagramCanvas id="arch-diagram" nodes={nodes} edges={edges} />
 </Scene>
 ```
 
@@ -1153,10 +1170,10 @@ Two spatial elements require explicit `<View>` wrappers. Use `<ViewLayout kind="
   <Lighting ambient={{ color: '#ffffff', intensity: 0.9 }} />
   <ViewLayout kind="stack" direction="horizontal" x={0.05} y={0.1} w={0.9} h={0.75} gap={0.03}>
     <View id="chart-left">
-      <Chart id="revenue" type="bar" data={revenueData} theme="enterprise" />
+      <Chart id="revenue" type="bar" data={revenueData} />
     </View>
     <View id="chart-right">
-      <Chart id="cost" type="line" data={costData} theme="enterprise" />
+      <Chart id="cost" type="line" data={costData} />
     </View>
   </ViewLayout>
 </Scene>
@@ -1172,12 +1189,103 @@ Two spatial elements require explicit `<View>` wrappers. Use `<ViewLayout kind="
   <Camera descriptor={{ mode: 'nvsViewport', worldScale: 10, zRange: [0.1, 100] }} />
   <Background color="#0d0d1a" />
   {/* Spatial — auto-wrapped to full-screen */}
-  <DiagramCanvas id="flow" nodes={nodes} edges={edges} theme="darkGlass" />
+  <DiagramCanvas id="flow" nodes={nodes} edges={edges} />
   {/* Ambient — not subject to the spatial constraint */}
   <TextBox id="caption" x={0.05} y={0.82} w={0.5} h={0.12}>
     <p>Your infrastructure, visualized.</p>
   </TextBox>
 </Scene>
+```
+
+### 8.14 Centralized Theme Authoring
+
+Theme selection for all packages (`@brewsite/core`, `@brewsite/diagram`, `@brewsite/charts`) is controlled by a single `theme?: ActiveTheme` prop on `<SceneEngine>`. The theme is sourced from `@brewsite/themes`, which provides the `themesPlugin()` to register cross-package theme data and a `themes` namespace with pre-built `ActiveTheme` selector objects.
+
+Per-element `theme=` string props on `<Chart>`, `<DiagramCanvas>`, and other spatial elements are deprecated. Theme data is now injected globally via `SceneEngine.theme` and resolved automatically inside each element's compile function from the registered `ThemeBundle` registries.
+
+**Standard integration pattern:**
+
+```tsx
+// widgetSetup.ts
+import { corePlugin } from '@brewsite/core';
+import { diagramPlugin } from '@brewsite/diagram';
+import { chartPlugin } from '@brewsite/charts';
+import { themesPlugin, themes } from '@brewsite/themes';
+
+export const plugins = [
+  corePlugin(),
+  diagramPlugin({ /* ... */ }),
+  chartPlugin(),
+  themesPlugin(),   // registers all five named ThemeBundles into the per-package registries
+];
+
+export const theme = themes.darkGlass.dark; // ActiveTheme selector
+```
+
+```tsx
+// page.tsx
+import { SceneEngine, ScrollStage, SceneCanvas } from '@brewsite/core';
+import { plugins, theme } from './widgetSetup';
+
+export function ProductPage() {
+  return (
+    <SceneEngine plugins={plugins} theme={theme}>
+      <ScrollStage>
+        <SceneCanvas />
+      </ScrollStage>
+      {scene01}
+      {scene02}
+    </SceneEngine>
+  );
+}
+```
+
+```tsx
+// scenes/scene01.tsx — no theme props on elements; all resolved from engine context
+import { Scene, Camera, Background } from '@brewsite/core';
+import { DiagramCanvas } from '@brewsite/diagram';
+
+export const scene01 = (
+  <Scene key="overview">
+    <Camera descriptor={{ mode: 'nvsViewport', worldScale: 10, zRange: [0.1, 100] }} />
+    <Background color="#0a0a1a" />
+    <DiagramCanvas id="arch" nodes={nodes} edges={edges} />
+  </Scene>
+);
+```
+
+**Selective bundle registration** — For bundle-size-conscious deployments that use only one theme:
+
+```tsx
+import { themesPlugin, bundles } from '@brewsite/themes';
+
+// Only register the darkGlass bundle — other families are tree-shaken
+themesPlugin([bundles.darkGlass])
+```
+
+**Available theme families:** `darkGlass`, `midnight`, `neonCyber`, `lightCanvas`, `lightMinimal`. Each has `.dark` and `.light` polarity variants in the `themes` namespace.
+
+**Custom/merged themes** — Use `mergeThemeBundle` to override specific token values within a family:
+
+```tsx
+import { mergeThemeBundle, bundles, themes } from '@brewsite/themes';
+
+const myBundle = mergeThemeBundle(bundles.darkGlass, {
+  scene: { dark: { background: { color: '#050505' } } },
+});
+
+plugins = [corePlugin(), themesPlugin([myBundle])];
+theme   = themes.darkGlass.dark;
+```
+
+**Theme-aware node handlers** — Custom widget authors who need to compile theme-dependent state can read `api.context.themeFamily` and `api.context.themePolarity` inside their `NodeHandler`:
+
+```tsx
+function myHandler(node: ReactElement, api: CompileApi, helpers: CompileHelpers) {
+  const { themeFamily, themePolarity } = api.context;
+  const resolvedTheme = lookupMyTheme(themeFamily, themePolarity);
+  api.setWidgetState('my-widget', { color: resolvedTheme.accentColor });
+}
 ```
 
 ---
@@ -1214,12 +1322,16 @@ export type SceneSnapshotContext = {
     height: number;
     aspectRatio: number;
   };
+  themeFamily: ThemeFamily;    // Active theme family — from SceneEngine.theme. Defaults to 'default'.
+  themePolarity: 'dark' | 'light'; // Active polarity — from SceneEngine.theme. Defaults to 'dark'.
 };
 ```
 
 **`sceneIndex`** — Available via the context-function form only. Authors who need the current scene index at authoring time can use `(ctx) => ctx.sceneIndex`. There is no runtime equivalent at JSX authoring time — each `<Scene>` element is written individually and the author knows which scene they're in.
 
 **`assetsReady`** — The compiler runs twice internally: once before assets load (`false`) for a loading state, once after (`true`) for the final track. This is used by the player to trigger recompilation via `useSceneRuntime`. See Section 10.2.
+
+**`themeFamily` / `themePolarity`** — Injected by the player from `SceneEngine.theme` before each compilation pass. DSL node handlers (custom widget authors) read these via `api.context.themeFamily` and `api.context.themePolarity` to resolve theme-dependent compiled state. Scene authors using the standard element library do not read these directly — theme resolution happens inside element widget compile functions automatically.
 
 ### 10.2 useSceneRuntime Hook
 
@@ -1394,6 +1506,10 @@ Tree-shaking: because each element's DSL component and handler live in the same 
 - **Scale:** `G_scale = state.scale / originalScale` (ratio from compile-time scale, also captured on first `apply()`)
 
 `originalNvsCenter`, `originalScale`, and `originalZ` are all captured from the first `apply()` call, not hardcoded — this correctly handles both active (scale=1.0) and inactive (scale<1.0) carousel views at tick 0. Child 3D widgets move automatically because they are parented under the Group. `ViewWidget` does not implement `ISceneElement` — it has no DSL component and does not participate in the compiler's transition interpolation pipeline.
+
+**ViewWidget owns opacity for carousel view children.** `ViewWidget.applyOpacity()` sets child material `opacity` directly (no multiplication against base-opacity from compiled state). `ViewWidget` registers after `ChartWidget` via `reconcileCompiledTrack`, so it is always the last opacity writer in the tick loop. Carousel views — those whose `ViewState.layoutId` is set — compile their children with `childOpacityScale = 1`, meaning children have intrinsic compiled opacity of `1.0`. `ViewWidget` then drives all opacity changes for those children exclusively. Non-carousel views bake the view's opacity into compiled child state and `ViewWidget.applyOpacity()` is a no-op (setting opacity to 1.0 on an already-1.0 value).
+
+> **Known edge case — standalone View opacity override:** If a chart or other widget inside a standalone (non-carousel) `<View>` has its own independent opacity animation authored separately from the View, `ViewWidget` will write `ViewState.opacity` (typically 1.0) to `mat.opacity` each frame, suppressing the widget's own opacity curve. This is a natural consequence of ViewWidget running last in the tick loop. Authors who need independent opacity on a widget inside a standalone View should author the opacity on the View itself, not directly on the child element.
 
 **No transition interpolation for view bounds between scenes.** When `activeIndex` changes in a carousel `<ViewLayout>` between two authored scenes, the `ViewState.bounds` values are discrete — they snap at the scene transition midpoint, not interpolate. Elements inside the views interpolate their own state (e.g., chart data values) normally. For runtime carousel interactions (`carousel.next`/`carousel.prev`), `ViewWidget` applies the delta transform immediately when the patched bounds arrive — smooth lerp animation is a follow-up concern.
 

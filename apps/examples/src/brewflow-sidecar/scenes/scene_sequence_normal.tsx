@@ -7,7 +7,6 @@ import {
   TextBox,
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramNode, FlowLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -18,7 +17,7 @@ export const SceneSequenceNormal = () => (
     <Camera mode="world" position={[0, 5, 24]} target={[0, 0, 0]} fov={54} />
     <Background color="#080b14" />
 
-    <Diagram id="seq-normal" theme={brewflowTheme}>
+    <Diagram id="seq-normal">
         <FlowLayout direction="top-down" gap={3} />
 
         <DiagramNode

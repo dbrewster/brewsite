@@ -103,7 +103,11 @@ export const viewHandler: NodeHandler = (node, api, helpers) => {
   // Create child api with composeBounds scoped to this view's content bounds,
   // composeZ accumulating this view's Z offset, and composeOpacity multiplying
   // through the view's layout-assigned opacity.
-  const childApi = createChildApi(api, contentBounds, zOffset, viewOpacity);
+  //
+  // Carousel (layoutId present): compile children with opacity=1 so ViewWidget
+  // controls fade at runtime. Non-carousel views keep the baked-in opacity.
+  const childOpacityScale = layoutId !== undefined ? 1 : viewOpacity;
+  const childApi = createChildApi(api, contentBounds, zOffset, childOpacityScale);
 
   // Compile children using the scoped child api.
   // Use compileChildrenSeparated so non-DSL children (e.g. <TextBox>, HTML elements)

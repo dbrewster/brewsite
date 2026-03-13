@@ -22,7 +22,7 @@ import type { AssetManifest } from '../widget/types';
 import type { CameraOverrideState } from '../elements/camera/types';
 import { SceneProgressMapper } from './SceneProgressMapper';
 import { formatBreadcrumbChain } from '../compiler/dslSourceInfo';
-import type { SceneTheme } from '../theme/types';
+import type { SceneTheme, ActiveTheme } from '../theme/types';
 import { clamp01 } from '../math';
 const SCENE_THEME_USERDATA_KEY = '__brewsite_scene_theme';
 
@@ -32,6 +32,8 @@ export type UseSceneEngineOptions = {
   plugins?: WidgetPlugin[];
   manifest: AssetManifest | null;
   sceneTheme?: SceneTheme | null;
+  /** Active theme selection — propagated into scene compilation for NodeHandlers. */
+  activeTheme?: ActiveTheme;
   timingProfile?: EngineTimingProfile;
   maxAnimBoostPerFrame?: number;
   invalidateCacheToken?: number | string;
@@ -489,6 +491,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       blockSize,
       prefersReducedMotion,
       invalidateCacheToken: options.invalidateCacheToken,
+      activeTheme: options.activeTheme,
     });
     const cached = getCachedTrack(key);
     if (cached) {
@@ -501,6 +504,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       widgetRegistry: options.widgetRegistry,
       blockSize,
       prefersReducedMotion,
+      activeTheme: options.activeTheme,
     });
     if (compiled.warnings?.length) {
       for (const warning of compiled.warnings) {

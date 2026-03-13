@@ -12,7 +12,6 @@ import type { ChartDataStore } from '../../data/ChartDataStore';
 import type { ResolvedDataFrame } from '../../data/types';
 import type { ChartState, ChartType, ChartStateDataSource, ChartRenderInput } from './types';
 import type { ChartTheme } from '../../themes/types';
-import { resolveChartTheme } from '../../themes/resolveTheme';
 import { computeChartLayout } from './layout';
 import type { ChartLayout } from './layout';
 import { ChartProjectionRenderer, DEFAULT_PROJECTION_TOKENS } from './projection/ChartProjectionRenderer';
@@ -87,9 +86,9 @@ export class ChartRenderer {
 
     this.lastData = data;
 
-    const effectiveTheme: ChartTheme = resolveChartTheme(state.theme);
+    const effectiveTheme: ChartTheme = state.theme;
 
-    // Resolve sceneTheme: state.sceneTheme (DSL prop) takes precedence over theme.sceneTheme
+    // Resolve sceneTheme: state.sceneTheme (legacy field) takes precedence over theme.sceneTheme
     const resolvedSceneTheme = state.sceneTheme ?? effectiveTheme.sceneTheme;
 
     // Derive font URL from sceneTheme
@@ -163,7 +162,7 @@ export class ChartRenderer {
     const sourceName = this.resolveSourceName(state.dataSource, widgetId);
     const data = this.store.getTimeSlice(sourceName, opts.timeField, sliceIndex);
 
-    const effectiveTheme: ChartTheme = resolveChartTheme(state.theme);
+    const effectiveTheme: ChartTheme = state.theme;
 
     const resolvedSceneTheme = state.sceneTheme ?? effectiveTheme.sceneTheme;
     const fontUrl = resolvedSceneTheme?.font.webglFontUrl;

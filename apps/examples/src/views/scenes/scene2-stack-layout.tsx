@@ -16,7 +16,6 @@ import {
   ChartData,
   ChartAxis,
   ChartSeries,
-  useChartTheme,
 } from '@brewsite/charts';
 
 const CAM_POS: [number, number, number] = [0, 1.5, 6.6];
@@ -41,7 +40,6 @@ const dataC = [
 ];
 
 export const StackLayoutScene = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="stack-layout">
     <ProgressManager scrollUnits={1200} />
@@ -53,7 +51,7 @@ export const StackLayoutScene = (): JSX.Element => {
 
     <ViewLayout kind="stack" direction="horizontal" gap={0.02} y={.2} h={.7}>
       <View id="v1">
-        <BarChart id="stack-chart-1" data={dataA} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="stack-chart-1" data={dataA} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="month" />
           <ChartAxis axis="x" field="month" label="Month" />
           <ChartAxis axis="y" field="value" label="Sales" />
@@ -62,7 +60,7 @@ export const StackLayoutScene = (): JSX.Element => {
       </View>
 
       <View id="v2">
-        <BarChart id="stack-chart-2" data={dataB} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="stack-chart-2" data={dataB} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="month" />
           <ChartAxis axis="x" field="month" label="Month" />
           <ChartAxis axis="y" field="value" label="Traffic" />
@@ -71,7 +69,7 @@ export const StackLayoutScene = (): JSX.Element => {
       </View>
 
       <View id="v3">
-        <BarChart id="stack-chart-3" data={dataC} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="stack-chart-3" data={dataC} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="month" />
           <ChartAxis axis="x" field="month" label="Month" />
           <ChartAxis axis="y" field="value" label="Signups" />

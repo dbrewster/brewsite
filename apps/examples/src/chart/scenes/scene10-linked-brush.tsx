@@ -15,11 +15,9 @@ import {Camera, ProgressManager, Scene, View} from '@brewsite/core';
 import {BarChart, ChartAxis, ChartData, ChartLegend, ChartSeries, HeatMapChart, ScatterPlotChart} from '@brewsite/charts';
 import { teamPerformance } from '../data/teamData';
 import {CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, DASH_LAYOUT_LEFT, DASH_LAYOUT_RIGHT, SceneLighting, SceneTitleBox} from './sceneShared';
-import { useChartTheme } from '@brewsite/charts';
 import {activityHeatmap} from "../data/heatmapData";
 
 export const Scene10 = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s10">
     <ProgressManager scrollUnits={1600} />
@@ -33,7 +31,6 @@ export const Scene10 = (): JSX.Element => {
       <BarChart
         id="ops-bar"
         data={teamPerformance}
-        theme={chartTheme}
         interactive={true}
         x={DASH_LAYOUT_LEFT.x}
         y={.4}
@@ -54,7 +51,6 @@ export const Scene10 = (): JSX.Element => {
       <ScatterPlotChart
         id="ops-scatter"
         data={teamPerformance}
-        theme={chartTheme}
         interactive={true}
         sizeField="headcount"
         colorField='region'
@@ -76,7 +72,6 @@ export const Scene10 = (): JSX.Element => {
       <HeatMapChart
         id="ops-heat"
         data={teamPerformance}
-        theme={chartTheme}
         timeField="teamSize"
         heightField="revenue"
         colorInterpolator="viridis"

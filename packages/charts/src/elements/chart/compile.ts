@@ -28,7 +28,8 @@ import type {
   ChartDataDSL,
   ChartTooltipDSL,
 } from './types';
-import { DEFAULT_CHART_STATE } from './types';
+import type { ChartTheme } from '../../themes/types';
+import { enterpriseChartTheme } from '../../themes/enterprise';
 import type { ChartTooltipState } from './tooltip/types';
 import type {
   BaseChartDSL,
@@ -39,6 +40,31 @@ import type {
   AreaChartDSL,
   HeatMapChartDSL,
 } from './dsl';
+
+/** Default compiled state. opacity = 1 so charts are visible by default. */
+export const DEFAULT_CHART_STATE: ChartState = {
+  type: 'bar',
+  nvsX: 0.5,
+  nvsY: 0.5,
+  z: 0,
+  rotation: [0, 0, 0],
+  bounds: { width: 1.0, height: 1.0, depth: 0.4 },
+  dataSource: { type: 'named', name: '' },
+  transforms: [],
+  xAxis: null,
+  yAxis: null,
+  series: [],
+  legend: null,
+  theme: enterpriseChartTheme,
+  opacity: 1,
+  interactive: false,
+  sceneTheme: undefined,
+  nvsBounds: { x: 0, y: 0, w: 1, h: 1 },
+  typeConfig: { kind: 'bar', options: {} },
+  animateEntry: false,
+  animationDuration: 0.4,
+  tooltip: null,
+};
 
 // ─── Internal Helpers ─────────────────────────────────────────────────────────
 
@@ -211,6 +237,8 @@ export function compileHeatMapChartOptions(dsl: HeatMapChartDSL): HeatMapChartOp
  * @param dataLabelsDsl     <ChartDataLabels> child props, or null
  * @param referenceLineDsls All <ReferenceLine> children props
  * @param tooltipDsl        <ChartTooltip> child props, or null
+ * @param resolvedTheme     Resolved ChartTheme object — passed in from the NodeHandler via chartThemeRegistry.
+ *                          Defaults to DEFAULT_CHART_STATE.theme (enterpriseChartTheme) when absent.
  * @param composeBoundsFn   Optional function to compose local NVS rect into parent view/region space.
  *                          When absent, local bounds are used as-is (identity behavior).
  * @param composeZFn        Optional function to compose local Z into accumulated parent Z offset.
@@ -229,6 +257,7 @@ export function compileChart(
   dataLabelsDsl: ChartDataLabelsDSL | null,
   referenceLineDsls: readonly ReferenceLineDSL[],
   tooltipDsl: ChartTooltipDSL | null = null,
+  resolvedTheme: ChartTheme = DEFAULT_CHART_STATE.theme,
   composeBoundsFn?: (localRect: NVSRect) => NVSRect,
   composeZFn?: (localZ: number) => number,
   composeOpacityFn?: (localOpacity: number) => number,
@@ -312,10 +341,9 @@ export function compileChart(
     series,
     referenceLines,
     legend,
-    theme: dsl.theme ?? 'darkGlass',
+    theme: resolvedTheme,
     opacity: composedOpacity,
     interactive: dsl.interactive ?? false,
-    sceneTheme: dsl.sceneTheme,
     nvsBounds,
     typeConfig: typeOptions,
     dataLabels,

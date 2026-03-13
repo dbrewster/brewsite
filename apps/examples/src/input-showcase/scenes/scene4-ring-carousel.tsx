@@ -26,8 +26,6 @@ import {
   ChartData,
   ChartSeries,
   LineChart,
-  useChartTheme,
-  type ChartTheme,
 } from '@brewsite/charts';
 import { pk } from '../platformKeys';
 
@@ -122,11 +120,11 @@ const ringData6 = [
 
 // ─── Shared views ─────────────────────────────────────────────────────────────
 
-function RingCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefined }): JSX.Element {
+function RingCarouselViews(): JSX.Element {
   return (
     <>
       <View id="rc1" w={0.42} h={0.52}>
-        <BarChart id="is-ring-chart-1" data={ringData1} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="is-ring-chart-1" data={ringData1} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="metric" />
           <ChartAxis axis="x" field="metric" label="Interface" />
           <ChartAxis axis="y" field="interactions" label="Interactions" />
@@ -135,7 +133,7 @@ function RingCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefined 
       </View>
 
       <View id="rc2" w={0.42} h={0.52}>
-        <LineChart id="is-ring-chart-2" data={ringData2} theme={chartTheme} x={0} y={0} w={1} h={1}
+        <LineChart id="is-ring-chart-2" data={ringData2} x={0} y={0} w={1} h={1}
           lineShape="circle" lineSmoothness={0.5} showPoints depth={0.3}>
           <ChartData keyField="month" />
           <ChartAxis axis="x" field="month" label="Month" />
@@ -145,7 +143,7 @@ function RingCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefined 
       </View>
 
       <View id="rc3" w={0.42} h={0.52}>
-        <BarChart id="is-ring-chart-3" data={ringData3} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="is-ring-chart-3" data={ringData3} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="region" />
           <ChartAxis axis="x" field="region" label="Region" />
           <ChartAxis axis="y" field="throughput" label="Throughput %" />
@@ -154,7 +152,7 @@ function RingCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefined 
       </View>
 
       <View id="rc4" w={0.42} h={0.52}>
-        <BarChart id="is-ring-chart-4" data={ringData4} theme={chartTheme} x={0} y={0} w={1} h={1}
+        <BarChart id="is-ring-chart-4" data={ringData4} x={0} y={0} w={1} h={1}
           orientation="horizontal" depth={0.3}>
           <ChartData keyField="tier" />
           <ChartAxis axis="x" field="tier" label="Tier" />
@@ -164,7 +162,7 @@ function RingCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefined 
       </View>
 
       <View id="rc5" w={0.42} h={0.52}>
-        <BarChart id="is-ring-chart-5" data={ringData5} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="is-ring-chart-5" data={ringData5} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="week" />
           <ChartAxis axis="x" field="week" label="Week" />
           <ChartAxis axis="y" field="deploys" label="Deploys" />
@@ -173,7 +171,7 @@ function RingCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefined 
       </View>
 
       <View id="rc6" w={0.42} h={0.52}>
-        <LineChart id="is-ring-chart-6" data={ringData6} theme={chartTheme} x={0} y={0} w={1} h={1}
+        <LineChart id="is-ring-chart-6" data={ringData6} x={0} y={0} w={1} h={1}
           lineShape="hexagon" lineSmoothness={0.3} showPoints depth={0.3}>
           <ChartData keyField="day" />
           <ChartAxis axis="x" field="day" label="Day" />
@@ -188,7 +186,6 @@ function RingCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefined 
 // ─── Scene component ──────────────────────────────────────────────────────────
 
 export const RingCarouselScene = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
     <Scene id="input-ring-carousel">
       <ProgressManager scrollUnits={800} />
@@ -227,7 +224,7 @@ export const RingCarouselScene = (): JSX.Element => {
       </InputController>
 
       <ViewLayout id={LAYOUT_ID} kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={0.7}>
-        <RingCarouselViews chartTheme={chartTheme} />
+        <RingCarouselViews />
       </ViewLayout>
 
       {/* Title */}

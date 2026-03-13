@@ -7,7 +7,6 @@ import {
   TextBox,
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -18,7 +17,7 @@ export const SceneMcp = () => (
     <Camera mode="world" position={[0, 4, 20]} target={[0, 0, 0]} fov={52} />
     <Background color="#080b14" />
 
-    <Diagram id="mcp-tools" theme={brewflowTheme}>
+    <Diagram id="mcp-tools">
         <HierarchicalLayout direction="left-right" spacing={[3, 2]} />
 
         <DiagramNode

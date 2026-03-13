@@ -28,8 +28,6 @@ import {
   ChartData,
   ChartSeries,
   LineChart,
-  useChartTheme,
-  type ChartTheme,
 } from '@brewsite/charts';
 import { pk } from '../platformKeys';
 
@@ -117,11 +115,11 @@ const amData5 = [
 
 // ─── Views ────────────────────────────────────────────────────────────────────
 
-function AllMapsViews({ chartTheme }: { chartTheme: ChartTheme | undefined }): JSX.Element {
+function AllMapsViews(): JSX.Element {
   return (
     <>
       <View id="am-v1" w={0.38} h={0.48}>
-        <BarChart id="is-am-chart-1" data={amData1} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="is-am-chart-1" data={amData1} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="product" />
           <ChartAxis axis="x" field="product" label="Product" />
           <ChartAxis axis="y" field="revenue" label="Revenue ($k)" />
@@ -130,7 +128,7 @@ function AllMapsViews({ chartTheme }: { chartTheme: ChartTheme | undefined }): J
       </View>
 
       <View id="am-v2" w={0.38} h={0.48}>
-        <LineChart id="is-am-chart-2" data={amData2} theme={chartTheme} x={0} y={0} w={1} h={1}
+        <LineChart id="is-am-chart-2" data={amData2} x={0} y={0} w={1} h={1}
           lineShape="circle" lineSmoothness={0.5} showPoints depth={0.3}>
           <ChartData keyField="month" />
           <ChartAxis axis="x" field="month" label="Quarter" />
@@ -140,7 +138,7 @@ function AllMapsViews({ chartTheme }: { chartTheme: ChartTheme | undefined }): J
       </View>
 
       <View id="am-v3" w={0.38} h={0.48}>
-        <BarChart id="is-am-chart-3" data={amData3} theme={chartTheme} x={0} y={0} w={1} h={1}
+        <BarChart id="is-am-chart-3" data={amData3} x={0} y={0} w={1} h={1}
           orientation="horizontal" depth={0.3}>
           <ChartData keyField="layer" />
           <ChartAxis axis="x" field="layer" label="Layer" />
@@ -150,7 +148,7 @@ function AllMapsViews({ chartTheme }: { chartTheme: ChartTheme | undefined }): J
       </View>
 
       <View id="am-v4" w={0.38} h={0.48}>
-        <LineChart id="is-am-chart-4" data={amData4} theme={chartTheme} x={0} y={0} w={1} h={1}
+        <LineChart id="is-am-chart-4" data={amData4} x={0} y={0} w={1} h={1}
           lineShape="hexagon" lineSmoothness={0.3} showPoints depth={0.3}>
           <ChartData keyField="sprint" />
           <ChartAxis axis="x" field="sprint" label="Sprint" />
@@ -160,7 +158,7 @@ function AllMapsViews({ chartTheme }: { chartTheme: ChartTheme | undefined }): J
       </View>
 
       <View id="am-v5" w={0.38} h={0.48}>
-        <BarChart id="is-am-chart-5" data={amData5} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="is-am-chart-5" data={amData5} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="region" />
           <ChartAxis axis="x" field="region" label="Region" />
           <ChartAxis axis="y" field="active" label="Active Users" />
@@ -204,7 +202,6 @@ const C_MOD = '#c050e0';
 // ─── Scene component ──────────────────────────────────────────────────────────
 
 export const AllMapsScene = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
     <Scene id="input-all-maps">
       <ProgressManager scrollUnits={1000} />
@@ -274,7 +271,7 @@ export const AllMapsScene = (): JSX.Element => {
       </InputController>
 
       <ViewLayout id={LAYOUT_ID} kind="carousel" loop activeIndex={0} zStep={12} fadeMin={0.2} spread={0.65}>
-        <AllMapsViews chartTheme={chartTheme} />
+        <AllMapsViews />
       </ViewLayout>
 
       {/* Title panel */}

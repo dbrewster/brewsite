@@ -1,12 +1,12 @@
-// moviePremiereTheme — tall slow-sweeping blue-white beams for red-carpet aesthetics.
+// moviePremierePreset — tall slow-sweeping blue-white beams for red-carpet aesthetics.
 
-import type { SpotlightRigTheme } from '../types';
+import type { SpotlightRigPreset } from '../types';
 
 /**
  * Movie premiere / red-carpet look: tall slow-sweeping blue-white beams,
  * dramatic narrow cone, subtle beam opacity.
  */
-export const moviePremiereTheme: SpotlightRigTheme = {
+export const moviePremierePreset: SpotlightRigPreset = {
   color: '#d0e8ff',
   intensity: 120,
   speed: 0.35,
@@ -26,3 +26,6 @@ export const moviePremiereTheme: SpotlightRigTheme = {
   haloOpacity: 0.25,
   haloSize: 8,
 };
+
+/** @deprecated Use moviePremierePreset */
+export const moviePremiereTheme = moviePremierePreset;

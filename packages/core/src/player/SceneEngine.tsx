@@ -22,10 +22,8 @@ import { VariableStoreContext } from '../widget/VariableStoreContext';
 import { SceneRegistrationContext } from '../compiler/SceneRegistrationContext';
 import type { SceneRegistrationValue } from '../compiler/SceneRegistrationContext';
 import { ThemeContext } from '../theme/ThemeContext';
-import { ThemeKeyContext } from '../theme/ThemeKeyContext';
-import type { ThemeKey } from '../theme/ThemeKeyContext';
-import type { SceneTheme, ThemeFamily, ThemePolarity } from '../theme/types';
-import { SCENE_THEME_PAIRS } from '../theme/presets';
+import type { SceneTheme, ThemeFamily, ThemePolarity, ActiveTheme } from '../theme/types';
+import { resolveSceneTheme } from '../theme/sceneThemeRegistry';
 import { serializeJsx } from './serializeJsx';
 import {
   setSceneRuntimeState,
@@ -79,20 +77,27 @@ export interface SceneEngineProps {
   /** Cap on animation-seconds that may advance in a single frame. Default: 2. */
   maxAnimBoostPerFrame?: number;
 
-  /** Scene theme token set for cross-package visual styling. */
+  /**
+   * Active theme selection for this engine instance.
+   * Replaces the older `themeFamily` / `themePolarity` / `sceneTheme` props.
+   */
+  theme?: ActiveTheme;
+
+  /**
+   * Scene theme token set for cross-package visual styling.
+   * @deprecated Use `theme` prop instead.
+   */
   sceneTheme?: SceneTheme;
 
   /**
-   * Theme family key. When set (with optional themePolarity), auto-resolves
-   * sceneTheme from SCENE_THEME_PAIRS and provides ThemeKeyContext so child
-   * components can resolve chart/diagram themes via useThemeKey().
-   * Overridden by explicit sceneTheme prop if both are provided.
+   * Theme family key.
+   * @deprecated Use `theme` prop instead: `theme={{ family: 'darkGlass', polarity: 'dark' }}`.
    */
   themeFamily?: ThemeFamily;
 
   /**
    * Theme polarity ('dark' | 'light'). Defaults to 'dark' when themeFamily is set.
-   * Ignored when themeFamily is not set.
+   * @deprecated Use `theme` prop instead.
    */
   themePolarity?: ThemePolarity;
 
@@ -121,24 +126,22 @@ export interface SceneEngineProps {
  * scene compilation, RAF loop, and context provision. Replaces EngineProvider.
  */
 export const SceneEngine = (props: SceneEngineProps): ReactElement => {
-  // ─── Theme key resolution ──────────────────────────────────────────────────
-  // When themeFamily is provided, auto-resolve sceneTheme from SCENE_THEME_PAIRS
-  // and build a ThemeKey for child components to consume via useThemeKey().
-  const resolvedSceneTheme = useMemo((): SceneTheme | undefined => {
-    if (props.sceneTheme) return props.sceneTheme;
-    if (props.themeFamily) {
-      const polarity = props.themePolarity ?? 'dark';
-      return SCENE_THEME_PAIRS[props.themeFamily]?.[polarity];
-    }
-    return undefined;
-  }, [props.sceneTheme, props.themeFamily, props.themePolarity]);
-
-  const themeKey = useMemo((): ThemeKey | null => {
+  // ─── Theme resolution ──────────────────────────────────────────────────────
+  // Compute resolved ActiveTheme from the new `theme` prop or deprecated legacy props.
+  const resolvedActiveTheme = useMemo((): ActiveTheme => {
+    if (props.theme) return props.theme;
     if (props.themeFamily) {
       return { family: props.themeFamily, polarity: props.themePolarity ?? 'dark' };
     }
-    return null;
-  }, [props.themeFamily, props.themePolarity]);
+    return { family: 'default', polarity: 'dark' };
+  }, [props.theme, props.themeFamily, props.themePolarity]);
+
+  // Resolve the SceneTheme for ThemeContext (CSS variable injection via EngineOverlayHost).
+  const resolvedSceneTheme = useMemo((): SceneTheme => {
+    if (props.sceneTheme) return props.sceneTheme;
+    return resolveSceneTheme(resolvedActiveTheme.family, resolvedActiveTheme.polarity);
+  }, [props.sceneTheme, resolvedActiveTheme]);
+
 
   // ─── Plugin resolution ──────────────────────────────────────────────────────
   const inheritedPlugins = useContext(PluginInheritanceContext);
@@ -237,7 +240,8 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
     widgetRegistry,
     plugins: resolvedPlugins,
     manifest,
-    sceneTheme: resolvedSceneTheme ?? null,
+    sceneTheme: resolvedSceneTheme,
+    activeTheme: resolvedActiveTheme,
     timingProfile: props.timingProfile,
     maxAnimBoostPerFrame: props.maxAnimBoostPerFrame,
     invalidateCacheToken: props.invalidateCacheToken,
@@ -348,21 +352,12 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
   // Three.js and RAF loop are guarded inside useSceneEngine. SceneCanvas renders
   // null on server. Children always render for SSR layout correctness.
 
-  // ThemeKeyContext is provided inside innerContent (via EngineContext tree) rather than
-  // wrapping SceneRegistrationContext, to avoid changing the provider tree structure
-  // which can cause React reconciliation issues with scene registration.
-  const wrappedContent = themeKey ? (
-    <ThemeKeyContext.Provider value={themeKey}>
-      {innerContent}
-    </ThemeKeyContext.Provider>
-  ) : innerContent;
-
   return (
-    <ThemeContext.Provider value={resolvedSceneTheme ?? null}>
+    <ThemeContext.Provider value={resolvedSceneTheme}>
       <SceneRegistrationContext.Provider value={registrationContextValue}>
         <VariableStoreContext.Provider value={engine.variableStore}>
           <PluginInheritanceContext.Provider value={resolvedPlugins}>
-            {wrappedContent}
+            {innerContent}
           </PluginInheritanceContext.Provider>
         </VariableStoreContext.Provider>
       </SceneRegistrationContext.Provider>

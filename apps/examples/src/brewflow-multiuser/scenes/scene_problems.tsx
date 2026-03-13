@@ -12,7 +12,6 @@ import {
   WheelMap
 } from '@brewsite/core';
 import {Diagram, DiagramEnter, DiagramNode, GridLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -35,7 +34,7 @@ export const SceneProblems = () => (
     <Camera mode="world" position={[0, 4, 2]} target={[0, 0, 0]} fov={20} />
     <Background color="#080b14" />
 
-    <Diagram id="prob-diagram" theme={brewflowTheme}>
+    <Diagram id="prob-diagram">
         <GridLayout columns={2} spacing={[3, 3]} />
         <DiagramEnter fade />
 

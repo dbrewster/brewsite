@@ -21,8 +21,6 @@ import {
   ChartAxis,
   ChartData,
   ChartSeries,
-  useChartTheme,
-  type ChartTheme,
 } from '@brewsite/charts';
 import { pk } from '../platformKeys';
 
@@ -69,11 +67,11 @@ const productEpsilonData = [
 
 // ─── Shared views ─────────────────────────────────────────────────────────────
 
-function LinearCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefined }): JSX.Element {
+function LinearCarouselViews(): JSX.Element {
   return (
     <>
       <View id="lc-is-1" w={0.4} h={0.5}>
-        <BarChart id="is-lin-chart-1" data={productAlphaData} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="is-lin-chart-1" data={productAlphaData} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="sales" label="Alpha Sales" />
@@ -82,7 +80,7 @@ function LinearCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefine
       </View>
 
       <View id="lc-is-2" w={0.4} h={0.5}>
-        <BarChart id="is-lin-chart-2" data={productBetaData} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="is-lin-chart-2" data={productBetaData} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="sales" label="Beta Sales" />
@@ -91,7 +89,7 @@ function LinearCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefine
       </View>
 
       <View id="lc-is-3" w={0.4} h={0.5}>
-        <BarChart id="is-lin-chart-3" data={productGammaData} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="is-lin-chart-3" data={productGammaData} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="sales" label="Gamma Sales" />
@@ -100,7 +98,7 @@ function LinearCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefine
       </View>
 
       <View id="lc-is-4" w={0.4} h={0.5}>
-        <BarChart id="is-lin-chart-4" data={productDeltaData} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="is-lin-chart-4" data={productDeltaData} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="sales" label="Delta Sales" />
@@ -109,7 +107,7 @@ function LinearCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefine
       </View>
 
       <View id="lc-is-5" w={0.4} h={0.5}>
-        <BarChart id="is-lin-chart-5" data={productEpsilonData} theme={chartTheme} x={0} y={0} w={1} h={1} depth={0.3}>
+        <BarChart id="is-lin-chart-5" data={productEpsilonData} x={0} y={0} w={1} h={1} depth={0.3}>
           <ChartData keyField="quarter" />
           <ChartAxis axis="x" field="quarter" label="Quarter" />
           <ChartAxis axis="y" field="sales" label="Epsilon Sales" />
@@ -123,7 +121,6 @@ function LinearCarouselViews({ chartTheme }: { chartTheme: ChartTheme | undefine
 // ─── Scene component ──────────────────────────────────────────────────────────
 
 export const LinearCarouselScene = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
     <Scene id="input-linear-carousel">
       <ProgressManager scrollUnits={800} />
@@ -161,7 +158,7 @@ export const LinearCarouselScene = (): JSX.Element => {
       </InputController>
 
       <ViewLayout id={LAYOUT_ID} kind="carousel" activeIndex={0} inactiveScale={0.75} zStep={8}>
-        <LinearCarouselViews chartTheme={chartTheme} />
+        <LinearCarouselViews />
       </ViewLayout>
 
       {/* Info banner */}

@@ -5,11 +5,9 @@ import {Camera, Floor, FloorPhysical, ProgressManager, Scene, SceneTheme, useThe
 import { BarChart, ChartAxis, ChartData, ChartDataLabels, ChartLegend, ChartSeries, ChartTooltip } from '@brewsite/charts';
 import { saasMetricsYearA, saasMetricsYearB } from '../data/saasMetrics';
 import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, CHART_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
-import { useChartTheme } from '@brewsite/charts';
 
 // Scene 1a — Year A data (inline)
 export const Scene1a = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   const theme = useTheme()
   const myTheme: SceneTheme = {...theme!, floor: {...theme?.floor, grid: {...theme?.floor?.grid, spacing: 1}}}
   return (
@@ -22,7 +20,6 @@ export const Scene1a = (): JSX.Element => {
     <BarChart
       id="revenue-comparison"
       data={saasMetricsYearA}
-      theme={chartTheme}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
       w={CHART_LAYOUT.w}
@@ -48,7 +45,6 @@ export const Scene1a = (): JSX.Element => {
 
 // Scene 1b — Same chart ID, Year B data — triggers datum-level bar morphing
 export const Scene1b = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s1b">
     <ProgressManager scrollUnits={1200} />
@@ -58,7 +54,6 @@ export const Scene1b = (): JSX.Element => {
     <BarChart
       id="revenue-comparison"
       data={saasMetricsYearB}
-      theme={chartTheme}
       x={CHART_LAYOUT.x}
       y={CHART_LAYOUT.y}
       w={CHART_LAYOUT.w}

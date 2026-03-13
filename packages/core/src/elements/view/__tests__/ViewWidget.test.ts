@@ -293,7 +293,7 @@ describe('ViewWidget', () => {
     expect(mat.transparent).toBe(true);
   });
 
-  it('applyOpacity preserves material base opacity via _viewBaseOpacity', () => {
+  it('applyOpacity sets mat.opacity directly from state.opacity, ignoring material base opacity', () => {
     const mat = new THREE.MeshBasicMaterial({ opacity: 0.8, transparent: true });
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(), mat);
 
@@ -303,8 +303,27 @@ describe('ViewWidget', () => {
     const state = makeViewState('v5b', FULL_BOUNDS, { childWidgetIds: ['m1'], opacity: 0.5 });
     widget.apply(state, makeRenderContext());
 
-    // Base opacity 0.8 × view opacity 0.5 = 0.4
-    expect(mat.opacity).toBeCloseTo(0.4);
+    // Opacity set directly from state — no multiplication by material base opacity
+    expect(mat.opacity).toBeCloseTo(0.5);
+  });
+
+  it('materials reach full opacity after transitioning from 0.15 to 1.0 (no stuck-at-0.15)', () => {
+    const mat = new THREE.MeshBasicMaterial({ opacity: 1, transparent: true });
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(), mat);
+
+    const widget = new ViewWidget('v5e', (id) => (id === 'm1' ? mesh : null));
+    widget.initialize(makeInitContext({ scene, widgetId: 'v5e' }));
+
+    // First apply with faded opacity (inactive carousel item)
+    const fadedState = makeViewState('v5e', FULL_BOUNDS, { childWidgetIds: ['m1'], opacity: 0.15 });
+    widget.apply(fadedState, makeRenderContext());
+    expect(mat.opacity).toBeCloseTo(0.15);
+
+    // Apply with full opacity (active carousel item) — must NOT be stuck at 0.15
+    const activeState = makeViewState('v5e', FULL_BOUNDS, { childWidgetIds: ['m1'], opacity: 1.0 });
+    widget.apply(activeState, makeRenderContext());
+    expect(mat.opacity).toBeCloseTo(1.0);
+    expect(mat.transparent).toBe(false);
   });
 
   it('applyOpacity short-circuits when opacity is unchanged', () => {

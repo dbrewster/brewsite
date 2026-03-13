@@ -7,7 +7,6 @@ import {
   TextBox,
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramNode, HierarchicalLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -16,7 +15,7 @@ export const SceneEpisodicStore = () => (
   <Scene key="bfm-episodic" id="bfm-episodic">
     <ProgressManager scrollUnits={3000} fn={DWELL_FN} />
 
-    <Diagram id="episodic-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
+    <Diagram id="episodic-diagram" x={0} y={0} w={1} h={0.58} tilt={config.diagramRotationX} scale={config.diagramScale}>
         <HierarchicalLayout direction="left-right" spacing={[2, 2]} />
 
         {/* Hub */}

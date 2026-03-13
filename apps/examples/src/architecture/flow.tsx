@@ -1,17 +1,16 @@
 import type {JSX} from 'react';
-import {Fragment} from 'react';
-import {sceneCoreAngledArch, sceneCoreArch} from './scenes/scene_core';
-import {sceneDiagramAngledArch, sceneDiagramArch} from './scenes/scene_diagram';
-import {sceneModelAngledArch, sceneModelArch} from './scenes/scene_model';
-import {sceneChartsAngledArch, sceneChartsArch} from './scenes/scene_charts';
+import {SceneCoreAngledArch, SceneCoreArch} from './scenes/scene_core';
+import {SceneDiagramAngledArch, SceneDiagramArch} from './scenes/scene_diagram';
+import {SceneModelAngledArch, SceneModelArch} from './scenes/scene_model';
+import {SceneChartsAngledArch, SceneChartsArch} from './scenes/scene_charts';
 
 export const architectureFlowScenes: JSX.Element[] = [
-  <Fragment key="arch-core-angled">{sceneCoreAngledArch}</Fragment>,
-  <Fragment key="arch-core">{sceneCoreArch}</Fragment>,
-  <Fragment key="arch-diagram-angled">{sceneDiagramAngledArch}</Fragment>,
-  <Fragment key="arch-diagram">{sceneDiagramArch}</Fragment>,
-  <Fragment key="arch-model-angled">{sceneModelAngledArch}</Fragment>,
-  <Fragment key="arch-model">{sceneModelArch}</Fragment>,
-  <Fragment key="arch-charts-angled">{sceneChartsAngledArch}</Fragment>,
-  <Fragment key="arch-charts">{sceneChartsArch}</Fragment>,
+  <SceneCoreAngledArch key="arch-core-angled" />,
+  <SceneCoreArch key="arch-core" />,
+  <SceneDiagramAngledArch key="arch-diagram-angled" />,
+  <SceneDiagramArch key="arch-diagram" />,
+  <SceneModelAngledArch key="arch-model-angled" />,
+  <SceneModelArch key="arch-model" />,
+  <SceneChartsAngledArch key="arch-charts-angled" />,
+  <SceneChartsArch key="arch-charts" />,
 ];

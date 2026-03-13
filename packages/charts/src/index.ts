@@ -38,7 +38,7 @@ export type {
   ColumnarData,
   DataInput,
 } from './elements/chart/types';
-export { DEFAULT_CHART_STATE } from './elements/chart/types';
+export { DEFAULT_CHART_STATE } from './elements/chart/compile';
 
 import type { ChartType } from './elements/chart/types';
 import type { FilterOp } from './data/types';
@@ -123,9 +123,6 @@ export { useChartTooltipConfig } from './elements/chart/tooltip/useChartTooltipC
 // Host component
 export { ChartTooltipHost } from './elements/chart/tooltip/ChartTooltipHost';
 
-// resolveChartTheme for consumers who build custom themes
-export { resolveChartTheme } from './themes/resolveTheme';
-
 // ─── Themes ───────────────────────────────────────────────────────────────────
 // Primary (canonical) presets
 export { darkGlassChartTheme }    from './themes/darkGlass';
@@ -142,9 +139,7 @@ export { enterpriseLightChartTheme }  from './themes/enterpriseLight';
 export { lightCanvasDarkChartTheme }  from './themes/lightCanvasDark';
 export { lightMinimalDarkChartTheme } from './themes/lightMinimalDark';
 export { createChartTheme } from './themes/createChartTheme';
-export { CHART_THEMES, CHART_THEME_PAIRS } from './themes/index';
 export type { ChartThemeOverrides } from './themes/createChartTheme';
-export type { ChartThemePair } from './themes/index';
 export type {
   ChartTheme,
   ChartThemeName,
@@ -159,6 +154,13 @@ export type {
   ChartTooltipTokens,
   ChartProjectionTokens,
 } from './themes/types';
+
+// ─── Theme registry ───────────────────────────────────────────────────────────
+export {
+  registerChartThemePair,
+  resolveChartTheme,
+  _resetChartThemeRegistryForTesting,
+} from './themes/chartThemeRegistry';
 
 // ─── Convenience hooks ───────────────────────────────────────────────────────
 export { useChartTheme } from './hooks/useChartTheme';

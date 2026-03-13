@@ -17,8 +17,6 @@ type ThemeOption = {
 };
 
 const THEME_OPTIONS: ThemeOption[] = [
-  { label: 'Enterprise Dark', family: 'enterprise', polarity: 'dark' },
-  { label: 'Enterprise Light', family: 'enterprise', polarity: 'light' },
   { label: 'Midnight Dark', family: 'midnight', polarity: 'dark' },
   { label: 'Midnight Light', family: 'midnight', polarity: 'light' },
   { label: 'Neon Cyber', family: 'neonCyber', polarity: 'dark' },

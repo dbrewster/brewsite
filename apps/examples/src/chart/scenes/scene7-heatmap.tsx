@@ -4,10 +4,8 @@ import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { ChartAxis, ChartData, ChartLegend, HeatMapChart } from '@brewsite/charts';
 import { activityHeatmap } from '../data/heatmapData';
 import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, SceneLighting, SceneTitleBox } from './sceneShared';
-import { useChartTheme } from '@brewsite/charts';
 
 export const Scene7 = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s7">
     <ProgressManager scrollUnits={1800} fn={(t) => Math.min(1, t * 2.5)} />
@@ -17,7 +15,6 @@ export const Scene7 = (): JSX.Element => {
     <HeatMapChart
       id="activity-heat"
       data={activityHeatmap}
-      theme={chartTheme}
       timeField="day"
       heightField="calls"
       colorInterpolator="viridis"

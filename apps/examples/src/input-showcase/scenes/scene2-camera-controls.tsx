@@ -23,12 +23,10 @@ import {
   ChartAxis,
   ChartData,
   ChartSeries,
-  useChartTheme,
 } from '@brewsite/charts';
 import { pk } from '../platformKeys';
-import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, FlowLayout, GridLayout, useDiagramTheme} from "@brewsite/diagram";
+import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, FlowLayout, GridLayout} from "@brewsite/diagram";
 import {config} from "../../settings";
-import {brewflowTheme} from "../../brewflow-sidecar/theme";
 
 const CAM_POS: [number, number, number] = [0, 1.5, 7];
 const CAM_TGT: [number, number, number] = [0, 0, 0];
@@ -88,8 +86,6 @@ function BindingRow({ label, keys, desc }: BindingRowProps): JSX.Element {
 }
 
 export const CameraControlsScene = (): JSX.Element => {
-  const theme = useDiagramTheme();
-  const chartTheme = useChartTheme();
   return (
     <Scene id="input-camera">
       <ProgressManager scrollUnits={800} />
@@ -136,7 +132,7 @@ export const CameraControlsScene = (): JSX.Element => {
 
       {/* Chart view */}
       <View id="cam-diagram-view" x={0.05} y={0.48} w={0.58} h={0.42}>
-        <Diagram id="cf-overview" x={0} y={0} w={1} h={1} theme={theme}>
+        <Diagram id="cf-overview" x={0} y={0} w={1} h={1} scale={1.4}>
           <FlowLayout direction="top-down" gap={1.05} />
 
           <DiagramNode
@@ -144,39 +140,38 @@ export const CameraControlsScene = (): JSX.Element => {
             label=".swarm/memory.db"
             sublabel="SQLite · single file · 12 tables"
             size={[8.8, 2.5]}
-            color="#1a2030"
             glow={{ intensity: 0.12 }}
           />
 
           <DiagramGroup id="cf-categories" variant="container">
-            <GridLayout columns={2} spacing={[1.9, 1.1]} />
+            <GridLayout columns={2} spacing={[2.4, 1.1]} />
 
             <DiagramGroup id="cf-core" label="Core Storage" variant="cluster">
               <FlowLayout direction="top-down" gap={0.72} />
-              <DiagramNode id="cf-memstore" label="memory_store" sublabel="key-value · namespace · TTL" size={[5.0, 1.55]} color="#101828" />
-              <DiagramNode id="cf-sessions" label="sessions" sublabel="cross-session context" size={[5.0, 1.55]} color="#101828" />
-              <DiagramNode id="cf-agents" label="agents" sublabel="registry · config · state" size={[5.0, 1.55]} color="#101828" />
-              <DiagramNode id="cf-tasks" label="tasks" sublabel="tracking · deps · status" size={[5.0, 1.55]} color="#101828" />
+              <DiagramNode id="cf-memstore" label="memory_store" sublabel="key-value · namespace · TTL" size={[5.0, 1.55]}  />
+              <DiagramNode id="cf-sessions" label="sessions" sublabel="cross-session context" size={[5.0, 1.55]}  />
+              <DiagramNode id="cf-agents" label="agents" sublabel="registry · config · state" size={[5.0, 1.55]}  />
+              <DiagramNode id="cf-tasks" label="tasks" sublabel="tracking · deps · status" size={[5.0, 1.55]}  />
             </DiagramGroup>
 
             <DiagramGroup id="cf-coord" label="Coordination" variant="cluster">
               <FlowLayout direction="top-down" gap={0.72} />
-              <DiagramNode id="cf-shared" label="shared_state" sublabel="cross-agent blackboard · versioned" size={[5.0, 1.55]} color="#101828" />
-              <DiagramNode id="cf-agmem" label="agent_memory" sublabel="per-agent state" size={[5.0, 1.55]} color="#101828" />
-              <DiagramNode id="cf-events" label="events" sublabel="audit log" size={[5.0, 1.55]} color="#101828" />
-              <DiagramNode id="cf-topology" label="swarm_topology" sublabel="agent relationships" size={[5.0, 1.55]} color="#101828" />
+              <DiagramNode id="cf-shared" label="shared_state" sublabel="cross-agent blackboard · versioned" size={[5.0, 1.55]}  />
+              <DiagramNode id="cf-agmem" label="agent_memory" sublabel="per-agent state" size={[5.0, 1.55]}  />
+              <DiagramNode id="cf-events" label="events" sublabel="audit log" size={[5.0, 1.55]}  />
+              <DiagramNode id="cf-topology" label="swarm_topology" sublabel="agent relationships" size={[5.0, 1.55]}  />
             </DiagramGroup>
 
             <DiagramGroup id="cf-intel" label="Intelligence" variant="cluster">
               <FlowLayout direction="top-down" gap={0.72} />
-              <DiagramNode id="cf-patterns" label="patterns" sublabel="usage_count · confidence" size={[5.0, 1.55]} color="#101828" />
-              <DiagramNode id="cf-perf" label="performance_metrics" sublabel="latency · throughput" size={[5.0, 1.55]} color="#101828" />
+              <DiagramNode id="cf-patterns" label="patterns" sublabel="usage_count · confidence" size={[5.0, 1.55]}  />
+              <DiagramNode id="cf-perf" label="performance_metrics" sublabel="latency · throughput" size={[5.0, 1.55]}  />
             </DiagramGroup>
 
             <DiagramGroup id="cf-recov" label="Recovery" variant="cluster">
               <FlowLayout direction="top-down" gap={0.72} />
-              <DiagramNode id="cf-workflow" label="workflow_state" sublabel="crash-recovery checkpoints" size={[5.0, 1.55]} color="#101828" />
-              <DiagramNode id="cf-consensus" label="consensus_state" sublabel="quorum voting · ≥2 acceptors" size={[5.0, 1.55]} color="#101828" />
+              <DiagramNode id="cf-workflow" label="workflow_state" sublabel="crash-recovery checkpoints" size={[5.0, 1.55]}  />
+              <DiagramNode id="cf-consensus" label="consensus_state" sublabel="quorum voting · ≥2 acceptors" size={[5.0, 1.55]}  />
             </DiagramGroup>
           </DiagramGroup>
 
@@ -190,7 +185,6 @@ export const CameraControlsScene = (): JSX.Element => {
         <BarChart
           id="is-camera-binding-chart"
           data={cameraBindingData}
-          theme={chartTheme}
           x={0} y={0} w={1} h={1}
           depth={0.3}
         >

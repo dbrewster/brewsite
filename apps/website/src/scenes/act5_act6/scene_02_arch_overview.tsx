@@ -1,6 +1,6 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, Floor, FloorMirror, ProgressManager } from '@brewsite/core';
-import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, HierarchicalLayout, darkGlassTheme, GridLayout} from '@brewsite/diagram';
+import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, HierarchicalLayout, GridLayout} from '@brewsite/diagram';
 import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
 import { isMobile } from '../../utils/viewport';
 import type { Vec3 } from '@brewsite/core';
@@ -44,7 +44,7 @@ export const scene02ArchOverview: JSX.Element = (
       <Directional intensity={0.5} color="#ffefef" position={[0, 30, 50]} />
       <Directional intensity={0.6} color="#aaccff" position={[-20, 10, 20]} />
     </Lighting>
-    <Diagram id="system-arch" x={0} y={0} w={1} h={1} tilt={-Math.PI / 8} scale={isMobile ? 1.0 : 1.4} theme={darkGlassTheme}>
+    <Diagram id="system-arch" x={0} y={0} w={1} h={1} tilt={-Math.PI / 8} scale={isMobile ? 1.0 : 1.4}>
         <GridLayout />
 
         <DiagramGroup id="frontend" label="Client Tier" variant="swimlane">

@@ -149,12 +149,8 @@ export class ViewWidget implements IRenderable<ViewState> {
       const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
       for (const mat of materials) {
         if (!('opacity' in mat)) continue;
-        // Capture base opacity on first encounter so future calls can scale correctly.
-        if (mat.userData._viewBaseOpacity === undefined) {
-          mat.userData._viewBaseOpacity = mat.opacity;
-        }
-        mat.opacity = opacity * (mat.userData._viewBaseOpacity as number);
-        mat.transparent = mat.opacity < 1;
+        (mat as THREE.Material & { opacity: number; transparent: boolean }).opacity = opacity;
+        (mat as THREE.Material & { transparent: boolean }).transparent = opacity < 1;
       }
     });
   }

@@ -2,8 +2,9 @@
 title: "Centralized Theme System"
 doc_type: plan
 owner: architect
-status: draft
+status: complete
 updated: 2026-03-13
+revision: 2 (post-debate gaps resolved)
 ---
 
 # Centralized Theme System
@@ -80,6 +81,10 @@ packages/diagram/src/elements/diagram/themeRegistry.ts
 
 # @brewsite/charts — workspace
 packages/charts/src/themes/index.ts
+packages/charts/src/elements/chart/types.ts      (ChartState.theme type change + DEFAULT_CHART_STATE removal)
+packages/charts/src/elements/chart/compile.ts    (compileChart signature + DEFAULT_CHART_STATE moved here)
+packages/charts/src/elements/chart/render.ts     (drop resolveChartTheme calls, use state.theme directly)
+packages/charts/src/player/chartPlugin.ts        (NodeHandlers resolve theme from chartThemeRegistry)
 
 # NEW in charts
 packages/charts/src/themes/chartThemeRegistry.ts
@@ -125,6 +130,7 @@ apps/examples/src/core-showcase/CoreShowcasePage.tsx
 apps/examples/src/whiteboard-arch/widgetSetup.ts
 apps/examples/src/whiteboard-arch/WhiteboardArchPage.tsx
 apps/examples/src/whiteboard-arch/scenes/*.tsx
+apps/examples/src/theme-gallery/ThemeGalleryPage.tsx
 ```
 
 ### Files to delete
@@ -134,6 +140,7 @@ packages/core/src/elements/spotlight-rig/themes/enterprise.ts
 packages/core/src/elements/spotlight-rig/themes/darkGlass.ts
 packages/core/src/elements/spotlight-rig/themes/neonCyber.ts
 packages/core/src/elements/spotlight-rig/themes/lightMinimal.ts
+packages/charts/src/themes/resolveTheme.ts      (deleted: resolveChartTheme(name) has no callers after Step 13)
 ```
 
 The `moviePremiere.ts` and `concertStage.ts` files stay — they are renamed exports.
@@ -302,6 +309,19 @@ export function resolveSceneTheme(
 ): SceneTheme {
   const pair = registry.get(family) ?? registry.get('default')!;
   return pair[polarity];
+}
+
+/**
+ * Resets the registry to its initial state (only 'default' pre-loaded).
+ * For use in tests only — never call in production code.
+ * @internal
+ */
+export function _resetSceneThemeRegistryForTesting(): void {
+  registry.clear();
+  registry.set('default', {
+    dark: enterpriseSceneTheme,
+    light: enterpriseLightSceneTheme,
+  });
 }
 ```
 
@@ -490,9 +510,21 @@ const compiled = compileSceneTrack({
 
 The cache key must also incorporate `activeTheme` so theme changes invalidate the compiled track:
 
-**File: `packages/core/src/compiler/sceneTrackCache.ts`** (or wherever `buildSceneTrackKey` lives):
+**File: `packages/core/src/compiler/sceneTrackCache.ts`** — the `buildSceneTrackKey` function (line 10).
 
-Add `activeTheme?: ActiveTheme` to the key options. Serialize it as `${family}:${polarity}` appended to the key string.
+Add `activeTheme?: ActiveTheme` to the options type, then add a `themeKey` segment to the join array:
+
+```typescript
+// Add to the options type:
+activeTheme?: ActiveTheme;
+
+// Add inside buildSceneTrackKey before the return:
+const themeKey = `th:${options.activeTheme?.family ?? 'default'}:${options.activeTheme?.polarity ?? 'dark'}`;
+return [contentKeys, blockKey, widgetKey, rmKey, tokenKey, themeKey].join('::');
+// Example output: "sceneA|sceneB::b:60::w:widget-key::rm:0::tok:::th:darkGlass:dark"
+```
+
+**Call site in `useSceneEngine.ts`** — the `buildSceneTrackKey(...)` call at line 486 (search for `const key = buildSceneTrackKey`). Add `activeTheme: options.activeTheme` to the options object passed to `buildSceneTrackKey`.
 
 **Summary of the compile chain:**
 ```
@@ -554,6 +586,7 @@ return (
    - `ActiveTheme` (type export from `types.ts`)
    - `registerSceneThemePair` (from `sceneThemeRegistry.ts`)
    - `resolveSceneTheme` (from `sceneThemeRegistry.ts`)
+   - `_resetSceneThemeRegistryForTesting` (from `sceneThemeRegistry.ts`) — test-only, but must be in the package exports so `@brewsite/themes` tests can call it via the `@brewsite/core` import path
 
 2. Keep existing exports for one cycle (deprecation), then remove:
    - `ThemeKeyContext`, `useThemeKey`, `ThemeKey` — keep exported but mark as deprecated via JSDoc `@deprecated`
@@ -600,6 +633,19 @@ export function resolveDiagramTheme(
 ): DiagramTheme {
   const pair = registry.get(family) ?? registry.get('default')!;
   return pair[polarity];
+}
+
+/**
+ * Resets the registry to its initial state (only 'default' pre-loaded).
+ * For use in tests only — never call in production code.
+ * @internal
+ */
+export function _resetDiagramThemeRegistryForTesting(): void {
+  registry.clear();
+  registry.set('default', {
+    dark: enterpriseTheme,
+    light: enterpriseLightTheme,
+  });
 }
 ```
 
@@ -667,7 +713,11 @@ export { enterpriseLightTheme }  from './enterpriseLight';
 export { lightCanvasDarkTheme }  from './lightCanvasDark';
 export { lightMinimalDarkTheme } from './lightMinimalDark';
 export { mergeTheme, withColorMode } from './mergeTheme';
-export { registerDiagramThemePair, resolveDiagramTheme } from '../themeRegistry';
+export {
+  registerDiagramThemePair,
+  resolveDiagramTheme,
+  _resetDiagramThemeRegistryForTesting,
+} from '../themeRegistry';
 ```
 
 The package-level `packages/diagram/src/index.ts` (or wherever `registerDiagramThemePair` should be public) must re-export `registerDiagramThemePair` and `resolveDiagramTheme`. Check the existing diagram `index.ts` and add these exports there.
@@ -710,9 +760,22 @@ export function resolveChartTheme(
   const pair = registry.get(family) ?? registry.get('default')!;
   return pair[polarity];
 }
+
+/**
+ * Resets the registry to its initial state (only 'default' pre-loaded).
+ * For use in tests only — never call in production code.
+ * @internal
+ */
+export function _resetChartThemeRegistryForTesting(): void {
+  registry.clear();
+  registry.set('default', {
+    dark: enterpriseChartTheme,
+    light: enterpriseLightChartTheme,
+  });
+}
 ```
 
-Note: This `resolveChartTheme` function has a different signature than the existing `resolveChartTheme` in `packages/charts/src/themes/resolveTheme.ts` (which accepts `ChartThemeName | ChartTheme`). The existing function is used by chart rendering internals that read from the DSL `theme` prop. After `BaseChartDSL.theme` is removed, the chart compile handler will use the registry version instead. Rename the old `resolveTheme.ts` function to `resolveChartThemeByName` or delete it once no callsites remain.
+Note: The old `resolveChartTheme(name: ChartThemeName | ChartTheme): ChartTheme` in `packages/charts/src/themes/resolveTheme.ts` is **deleted entirely** in this step — it has no remaining callers after Step 13 removes `BaseChartDSL.theme` and updates `render.ts`. Delete `resolveTheme.ts` and remove its re-export from `themes/index.ts`.
 
 ### Step 13 — `@brewsite/charts`: Remove `BaseChartDSL.theme` and `BaseChartDSL.sceneTheme`
 
@@ -724,7 +787,67 @@ readonly theme?: ChartThemeName | ChartTheme;   // REMOVE
 readonly sceneTheme?: SceneTheme;               // REMOVE
 ```
 
-The chart compile handler (find it in `packages/charts/src/` — likely `compiler/chartHandler.ts` or similar) must be updated to resolve the chart theme from `chartThemeRegistry` using `api.context.themeFamily` and `api.context.themePolarity` instead of reading `dsl.theme`.
+**Architecture note on current vs. new chart theme flow:**
+
+Currently (before this change), theme resolution happens in `render.ts` — NOT in a compile handler. `chartPlugin.ts` stores `dsl.theme ?? 'darkGlass'` as a string into `ChartState.theme`, and `render.ts` calls `resolveChartTheme(state.theme)` at lines 90 and 166. After this step, theme resolution moves to compile time.
+
+**Changes required (all of these are mandatory, in order):**
+
+**1. `packages/charts/src/elements/chart/types.ts`:**
+- Change `ChartState.theme: ChartThemeName | ChartTheme` → `ChartState.theme: ChartTheme`
+- `ChartRenderInput` (which is `Omit<ChartState, ...>`) inherits this change automatically
+- Remove `DEFAULT_CHART_STATE` from this file entirely — move it to `compile.ts` (see below)
+
+**2. `packages/charts/src/elements/chart/compile.ts`:**
+- Add `DEFAULT_CHART_STATE` here (moved from `types.ts`). Import `enterpriseChartTheme` from `'../../themes/enterprise'` and use it as the default theme:
+```typescript
+import { enterpriseChartTheme } from '../../themes/enterprise';
+// ...
+export const DEFAULT_CHART_STATE: ChartState = {
+  // ...all existing fields unchanged...
+  theme: enterpriseChartTheme,    // was 'darkGlass' string; now resolved object
+  // ...
+};
+```
+- Add `resolvedTheme: ChartTheme` as a new parameter to `compileChart()`, positioned before the optional `composeBoundsFn/composeZFn/composeOpacityFn` params:
+```typescript
+export function compileChart(
+  dsl: BaseChartDSL,
+  kind: ChartType,
+  typeOptions: ChartTypeOptions,
+  dataDsl: ChartDataDSL | null,
+  axisDsls: readonly ChartAxisDSL[],
+  seriesDsls: readonly ChartSeriesDSL[],
+  legendDsl: ChartLegendDSL | null,
+  dataLabelsDsl: ChartDataLabelsDSL | null,
+  referenceLineDsls: readonly ReferenceLineDSL[],
+  tooltipDsl: ChartTooltipDSL | null,
+  resolvedTheme: ChartTheme,          // NEW — passed in from NodeHandler
+  composeBoundsFn?: (localRect: NVSRect) => NVSRect,
+  composeZFn?: (localZ: number) => number,
+  composeOpacityFn?: (localOpacity: number) => number,
+): ChartState
+```
+- Inside `compileChart`, replace `theme: dsl.theme ?? 'darkGlass'` with `theme: resolvedTheme`
+- Remove any import of `ChartThemeName` if it becomes unused in this file
+
+**3. `packages/charts/src/player/chartPlugin.ts`:**
+- Add import at the top: `import { resolveChartTheme } from '../themes/chartThemeRegistry';`
+- In **all 6 NodeHandlers** (BarChart, LineChart, ScatterPlotChart, PieChart, AreaChart, HeatMapChart), add before each `compileChart(...)` call:
+```typescript
+const resolvedTheme = resolveChartTheme(api.context.themeFamily, api.context.themePolarity);
+```
+- Pass `resolvedTheme` to `compileChart(...)` as the new `resolvedTheme` argument (before `api.composeBounds, api.composeZ, api.composeOpacity`)
+
+**4. `packages/charts/src/elements/chart/render.ts`:**
+- Line 90: change `const effectiveTheme: ChartTheme = resolveChartTheme(state.theme)` → `const effectiveTheme: ChartTheme = state.theme`
+- Line 166 (in `updateHeatmapSlice`): same change
+- Remove `import { resolveChartTheme } from '../../themes/resolveTheme'`
+- Remove `import type { ChartTheme } from '../../themes/types'` only if it becomes unused (it likely stays — `ChartTheme` is still referenced for `updateProjection` and `tickProjection` method signatures)
+
+**5. `packages/charts/src/themes/resolveTheme.ts`:** Delete the entire file.
+
+**6. `packages/charts/src/themes/index.ts`:** Remove any re-export of `resolveChartTheme` from `resolveTheme.ts`.
 
 ### Step 14 — `@brewsite/charts`: Update `themes/index.ts`
 
@@ -734,7 +857,8 @@ The chart compile handler (find it in `packages/charts/src/` — likely `compile
 2. Remove the `_darkGlassDark`, etc. computed pairs and `import { SCENE_THEME_PAIRS }`.
 3. Keep individual preset exports (`darkGlassChartTheme`, etc.) — needed by `@brewsite/themes`.
 4. Keep `createChartTheme` export — it stays in charts for custom theme creation.
-5. Add export of `registerChartThemePair` and `resolveChartTheme` from `chartThemeRegistry.ts`.
+5. Add exports of `registerChartThemePair`, `resolveChartTheme`, and `_resetChartThemeRegistryForTesting` from `chartThemeRegistry.ts`.
+6. Remove any re-export of the old `resolveChartTheme` from `resolveTheme.ts` — that file is deleted.
 
 ### Step 15 — `@brewsite/core`: SpotlightRig cleanup
 
@@ -1232,7 +1356,7 @@ function deepMerge<T extends object>(base: T, overrides: DeepPartial<T>): T {
 **New file: `packages/themes/src/plugin.ts`**
 
 ```typescript
-import type { WidgetPlugin } from '@brewsite/core';
+import type { WidgetPlugin, WidgetRegistry, AssetManifest } from '@brewsite/core';
 import { registerSceneThemePair } from '@brewsite/core';
 import { registerDiagramThemePair } from '@brewsite/diagram';
 import { registerChartThemePair } from '@brewsite/charts';
@@ -1286,7 +1410,7 @@ export function themesPlugin(bundles?: ThemeBundle[]): WidgetPlugin {
     registerHandlers(): void {
       // No DSL handlers — themes are pure data.
     },
-    configureRegistry(): void {
+    configureRegistry(_registry: WidgetRegistry, _manifest: AssetManifest | null): void {
       for (const bundle of toRegister) {
         registerBundle(bundle);
       }
@@ -1501,6 +1625,10 @@ packages/charts/src/themes/__tests__/chartThemePairs.test.ts
 
 packages/charts/src/themes/__tests__/createChartTheme.test.ts
   — Keep intact (createChartTheme stays in @brewsite/charts)
+
+packages/charts/src/themes/__tests__/resolveTheme.test.ts
+  — If this file exists, delete it entirely — the resolveChartTheme(name) function it tests is removed with resolveTheme.ts.
+  — (Confirmed: does not exist at time of writing, but developer should grep to verify before skipping.)
 ```
 
 ### Tests to update
@@ -1567,74 +1695,126 @@ it('SCENE_THEME_PAIRS does not have enterprise family', () => {
 
 Update any test context objects to include `themeFamily: 'default'` and `themePolarity: 'dark'` since `SceneSnapshotContext` now requires these fields.
 
+**`packages/core/src/compiler/__tests__/sceneTrackCache.test.ts`**
+
+Add `activeTheme` to any `buildSceneTrackKey(...)` calls in this test file. The new key format includes a `th:${family}:${polarity}` segment; tests that assert on the exact key string must be updated to include it. Add a new test:
+```typescript
+it('buildSceneTrackKey includes themeFamily and themePolarity', () => {
+  const keyA = buildSceneTrackKey({ ...baseOptions, activeTheme: { family: 'darkGlass', polarity: 'dark' } });
+  const keyB = buildSceneTrackKey({ ...baseOptions, activeTheme: { family: 'darkGlass', polarity: 'light' } });
+  const keyC = buildSceneTrackKey({ ...baseOptions }); // no activeTheme — defaults to default:dark
+  expect(keyA).not.toBe(keyB);
+  expect(keyA).not.toBe(keyC);
+  expect(keyA).toContain('th:darkGlass:dark');
+  expect(keyB).toContain('th:darkGlass:light');
+  expect(keyC).toContain('th:default:dark');
+});
+```
+
 ### New tests to create
 
 **`packages/core/src/theme/__tests__/sceneThemeRegistry.test.ts`**
 
+Each test must call `_resetSceneThemeRegistryForTesting()` in `beforeEach` to ensure the module-scoped registry singleton is in a known state before each test.
+
 ```typescript
 import { describe, it, expect, beforeEach } from 'vitest';
-import { registerSceneThemePair, resolveSceneTheme } from '../sceneThemeRegistry';
-import { darkGlassSceneTheme } from '../presets';
+import {
+  registerSceneThemePair,
+  resolveSceneTheme,
+  _resetSceneThemeRegistryForTesting,
+} from '../sceneThemeRegistry';
+import { darkGlassSceneTheme, enterpriseSceneTheme } from '../presets';
 
 describe('sceneThemeRegistry', () => {
+  beforeEach(() => {
+    _resetSceneThemeRegistryForTesting();
+  });
+
   it('resolves default dark without any registration', () => {
     const theme = resolveSceneTheme('default', 'dark');
     expect(theme.colorMode).toBe('dark');
   });
 
-  it('falls back to default for unknown family', () => {
-    const theme = resolveSceneTheme('darkGlass' as never, 'dark');
-    // darkGlass is not registered in isolation — falls back to default
-    // After themesPlugin runs, this would resolve to darkGlass
+  it('falls back to default for unregistered family', () => {
+    // darkGlass is not registered after reset — falls back to 'default'
+    const theme = resolveSceneTheme('darkGlass', 'dark');
+    expect(theme).toBe(enterpriseSceneTheme); // 'default' maps to enterprise preset
   });
 
-  it('registered family overrides default fallback', () => {
+  it('registered family is returned instead of default fallback', () => {
     registerSceneThemePair('darkGlass', {
       dark: darkGlassSceneTheme,
-      light: darkGlassSceneTheme, // light not tested here
+      light: darkGlassSceneTheme,
     });
     const theme = resolveSceneTheme('darkGlass', 'dark');
     expect(theme.background?.fill).toEqual(darkGlassSceneTheme.background?.fill);
+  });
+
+  it('polarity light returns light variant', () => {
+    const theme = resolveSceneTheme('default', 'light');
+    expect(theme.colorMode).toBe('light');
   });
 });
 ```
 
 **`packages/themes/src/__tests__/plugin.test.ts`**
 
+Note: Do NOT use `vi.spyOn` on barrel re-exports from ESM packages — spies on named exports from `import * as X from '@brewsite/core'` are unreliable with ESM module resolution. Use behavioral assertions (check the registry's resolved output) instead.
+
 ```typescript
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { themesPlugin } from '../plugin';
-import * as coreRegistry from '@brewsite/core';
-import * as diagramRegistry from '@brewsite/diagram';
-import * as chartsRegistry from '@brewsite/charts';
+import {
+  resolveSceneTheme,
+  _resetSceneThemeRegistryForTesting,
+} from '@brewsite/core';
+import {
+  resolveDiagramTheme,
+  _resetDiagramThemeRegistryForTesting,
+} from '@brewsite/diagram';
+import {
+  resolveChartTheme,
+  _resetChartThemeRegistryForTesting,
+} from '@brewsite/charts';
+import type { WidgetRegistry, AssetManifest } from '@brewsite/core';
+
+const mockReg = {} as WidgetRegistry;
 
 describe('themesPlugin', () => {
+  beforeEach(() => {
+    _resetSceneThemeRegistryForTesting();
+    _resetDiagramThemeRegistryForTesting();
+    _resetChartThemeRegistryForTesting();
+  });
+
   it('registerHandlers is a no-op', () => {
     const plugin = themesPlugin();
     expect(() => plugin.registerHandlers()).not.toThrow();
   });
 
   it('createWidgets returns empty array', () => {
-    const plugin = themesPlugin();
-    expect(plugin.createWidgets()).toHaveLength(0);
+    expect(themesPlugin().createWidgets()).toHaveLength(0);
   });
 
-  it('configureRegistry calls registerSceneThemePair for all 5 families', () => {
-    const spy = vi.spyOn(coreRegistry, 'registerSceneThemePair');
-    const mockReg = {} as never;
-    themesPlugin().configureRegistry!(mockReg, null);
-    expect(spy).toHaveBeenCalledTimes(5);
-    expect(spy).toHaveBeenCalledWith('darkGlass', expect.any(Object));
+  it('configureRegistry registers all 5 families — scene themes resolvable', () => {
+    themesPlugin().configureRegistry!(mockReg, null as AssetManifest | null);
+    expect(resolveSceneTheme('darkGlass', 'dark').colorMode).toBe('dark');
+    expect(resolveSceneTheme('midnight', 'dark').colorMode).toBe('dark');
+    expect(resolveSceneTheme('neonCyber', 'dark').colorMode).toBe('dark');
+    expect(resolveSceneTheme('lightCanvas', 'light').colorMode).toBe('light');
+    expect(resolveSceneTheme('lightMinimal', 'light').colorMode).toBe('light');
   });
 
-  it('configureRegistry with explicit bundle list registers only those families', () => {
-    const spy = vi.spyOn(coreRegistry, 'registerSceneThemePair');
-    spy.mockClear();
+  it('configureRegistry with explicit bundle list registers only that family', async () => {
     const { darkGlassBundle } = await import('../bundles/darkGlass');
-    const mockReg = {} as never;
-    themesPlugin([darkGlassBundle]).configureRegistry!(mockReg, null);
-    expect(spy).toHaveBeenCalledTimes(1);
-    expect(spy).toHaveBeenCalledWith('darkGlass', expect.any(Object));
+    themesPlugin([darkGlassBundle]).configureRegistry!(mockReg, null as AssetManifest | null);
+    // darkGlass is registered — resolves to the actual darkGlass theme, not default
+    expect(resolveSceneTheme('darkGlass', 'dark').colorMode).toBe('dark');
+    // midnight was NOT registered — falls back to 'default' (enterprise)
+    const midnight = resolveSceneTheme('midnight', 'dark');
+    const defaultDark = resolveSceneTheme('default', 'dark');
+    expect(midnight).toBe(defaultDark); // same object reference: registry fallback to 'default'
   });
 });
 ```
@@ -1812,21 +1992,48 @@ The `DiagramTheme.sceneTheme` field itself is NOT removed from the type — it i
 
 ---
 
-## 12. Chart Compile Handler Integration
+## 12. Chart Theme Resolution — Compile-Time Architecture
 
-The chart compile handler (find via `grep -r 'BaseChartDSL\|resolveChartTheme' packages/charts/src/` — it is likely in `packages/charts/src/elements/chart/compiler.ts` or a similar file) currently reads `dsl.theme` and calls `resolveChartTheme(dsl.theme)` to get the concrete `ChartTheme`. After `BaseChartDSL.theme` is removed:
+**Current behavior (before this plan):** Theme resolution happens in `render.ts`, NOT in a compile handler. `chartPlugin.ts` NodeHandlers store `dsl.theme ?? 'darkGlass'` as a string name into `ChartState.theme`, and `render.ts` calls `resolveChartTheme(state.theme)` at runtime.
 
+**After this plan:** Theme is resolved at compile time (Option A). `ChartState.theme` is always a resolved `ChartTheme` object. `render.ts` uses `state.theme` directly.
+
+**The NodeHandlers live in `packages/charts/src/player/chartPlugin.ts`** — the `configureRegistry` function. They use `api.context` (already available as `CompileApi` has `context: SceneSnapshotContext`).
+
+Before/after for each NodeHandler:
 ```typescript
-// Before
-import { resolveChartTheme } from '../../themes/resolveTheme';
-const chartTheme = resolveChartTheme(dsl.theme ?? 'darkGlass');
+// Before (in chartPlugin.ts NodeHandler, pattern for all 6 types)
+const state = compileChart(
+  props, 'bar', typeOptions, dataDsl, axisDsls, seriesDsls,
+  legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
+  api.composeBounds, api.composeZ, api.composeOpacity,
+);
 
 // After
-import { resolveChartTheme } from '../../themes/chartThemeRegistry';
-const chartTheme = resolveChartTheme(api.context.themeFamily, api.context.themePolarity);
+import { resolveChartTheme } from '../themes/chartThemeRegistry';
+// (import at top of chartPlugin.ts)
+//
+// Inside each NodeHandler:
+const resolvedTheme = resolveChartTheme(api.context.themeFamily, api.context.themePolarity);
+const state = compileChart(
+  props, 'bar', typeOptions, dataDsl, axisDsls, seriesDsls,
+  legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
+  null,           // tooltipDsl
+  resolvedTheme,  // NEW — resolved at compile time
+  api.composeBounds, api.composeZ, api.composeOpacity,
+);
 ```
 
-The chart compile handler must receive `api.context` — confirm it already has `api: CompileApi` in scope. Since all NodeHandlers receive `(node, api, helpers)`, this is already available.
+Before/after for `render.ts`:
+```typescript
+// Before (lines 90 and 166 in render.ts)
+const effectiveTheme: ChartTheme = resolveChartTheme(state.theme);
+
+// After
+const effectiveTheme: ChartTheme = state.theme;  // already resolved
+```
+
+All full specification is in Step 13.
 
 ---
 
@@ -1920,8 +2127,13 @@ from the workspace root to register `@brewsite/themes` in the workspace and crea
 | `BaseChartDSL.sceneTheme` | Exists | Removed |
 | `CHART_THEMES` | Exported | Removed |
 | `CHART_THEME_PAIRS` | Exported | Removed |
-| `registerChartThemePair` | Does not exist | Exported |
-| `resolveChartTheme` (registry) | Does not exist | Exported (new signature) |
+| `ChartState.theme` | `ChartThemeName \| ChartTheme` | `ChartTheme` (always resolved) |
+| `BaseChartDSL.theme` | Exists | Removed |
+| `BaseChartDSL.sceneTheme` | Exists | Removed |
+| `DEFAULT_CHART_STATE` | Exported from `types.ts` | Moved to `compile.ts`; `theme` field is now `enterpriseChartTheme` object |
+| `registerChartThemePair` | Does not exist | Exported from `chartThemeRegistry.ts` |
+| `resolveChartTheme` (registry) | Does not exist | Exported from `chartThemeRegistry.ts` (new signature: `(family, polarity) => ChartTheme`) |
+| `resolveChartTheme` (old, by name) | Exported from `resolveTheme.ts` | Deleted (file removed) |
 
 ### `@brewsite/themes` public surface
 
@@ -1941,3 +2153,20 @@ from the workspace root to register `@brewsite/themes` in the workspace and crea
 | `themes.defaultTheme.dark` | `ActiveTheme` |
 | `themes.defaultTheme.light` | `ActiveTheme` |
 | `mergeThemeBundle(base, overrides)` | `ThemeBundle` |
+
+---
+
+## 17. Version Bump Requirements (Breaking Change)
+
+Removing `'enterprise'` from the `ThemeFamily` union in `@brewsite/core` is a **breaking API change**. Any consumer code that contains `themeFamily: 'enterprise'` (as a TypeScript string literal) will get a compile error. Any runtime code that references `SCENE_THEME_PAIRS['enterprise']` will get `undefined` silently. `ChartThemeName` and `DiagramThemeName` (both `type X = ThemeFamily`) inherit this break automatically.
+
+These packages are pre-1.0 (`0.x.y`). Per semver convention for pre-1.0 packages, breaking changes increment the **minor** version. Coordinate the following bumps as a single synchronized release:
+
+| Package | Action |
+|---------|--------|
+| `@brewsite/core` | Minor version bump (e.g. `0.5.x` → `0.6.0`) |
+| `@brewsite/diagram` | Minor version bump (peer-dep on core changes; `DiagramProps.theme` removed) |
+| `@brewsite/charts` | Minor version bump (`ChartThemeName` changes; `BaseChartDSL.theme`/`sceneTheme` removed) |
+| `@brewsite/themes` | Initial publish at `0.6.0` (aligned with the release cohort) |
+
+**Do not publish these packages individually.** They must ship together — a consumer who upgrades `@brewsite/core` without `@brewsite/themes` will have no theme registry populated. Use `pnpm publish:core-diagram` (the existing publish script) after all packages are built and tests pass.

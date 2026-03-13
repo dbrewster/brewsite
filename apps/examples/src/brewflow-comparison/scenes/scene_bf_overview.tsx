@@ -12,7 +12,6 @@ import {
     WheelMap,
 } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramEnter, DiagramNode, FlowLayout,} from '@brewsite/diagram';
-import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -21,7 +20,7 @@ export const SceneBfOverview = () => (
   <Scene key="bfc-bf-overview" id="bfc-bf-overview">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
 
-    <Diagram id="bf-overview" x={0} y={0} w={1} h={0.56} scale={config.diagramScale} theme={brewflowTheme}>
+    <Diagram id="bf-overview" x={0} y={0} w={1} h={0.56} scale={config.diagramScale}>
         <FlowLayout direction="top-down" gap={2} />
         <DiagramEnter fade />
 

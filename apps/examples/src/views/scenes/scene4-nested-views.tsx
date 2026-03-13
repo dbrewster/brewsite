@@ -15,7 +15,6 @@ import {
   ChartData,
   ChartAxis,
   ChartSeries,
-  useChartTheme,
 } from '@brewsite/charts';
 
 const CAM_POS: [number, number, number] = [0, 1.5, 6.6];
@@ -29,7 +28,6 @@ const nestedData = [
 ];
 
 export const NestedViewsScene = (): JSX.Element => {
-  const chartTheme = useChartTheme();
   return (
   <Scene id="nested-views">
     <ProgressManager scrollUnits={1200} />
@@ -46,7 +44,6 @@ export const NestedViewsScene = (): JSX.Element => {
         <BarChart
           id="nested-chart"
           data={nestedData}
-          theme={chartTheme}
           x={0}
           y={0}
           w={1}

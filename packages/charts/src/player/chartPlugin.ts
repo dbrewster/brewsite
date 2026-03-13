@@ -10,6 +10,7 @@ import { registerNode } from '@brewsite/core';
 import type { CompileApi, CompileHelpers } from '@brewsite/core';
 import { ChartDataStore } from '../data/ChartDataStore';
 import { ChartStoreContext } from '../data/ChartStoreContext';
+import { resolveChartTheme } from '../themes/chartThemeRegistry';
 import {
   Chart, ChartData, ChartAxis, ChartSeries, ChartLegend, ChartDataLabels, ReferenceLine,
   BarChart, LineChart, ScatterPlotChart, PieChart, AreaChart, HeatMapChart, ChartTooltip,
@@ -201,9 +202,11 @@ export function chartPlugin(): ChartPluginInstance {
           options: compileBarChartOptions(props),
         };
 
+        const resolvedTheme = resolveChartTheme(api.context.themeFamily, api.context.themePolarity);
         const state = compileChart(
           props, 'bar', typeOptions, dataDsl, axisDsls, seriesDsls,
           legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
+          resolvedTheme,
           api.composeBounds,
           api.composeZ,
           api.composeOpacity,
@@ -226,9 +229,11 @@ export function chartPlugin(): ChartPluginInstance {
           options: compileLineChartOptions(props),
         };
 
+        const resolvedTheme = resolveChartTheme(api.context.themeFamily, api.context.themePolarity);
         const state = compileChart(
           props, 'line', typeOptions, dataDsl, axisDsls, seriesDsls,
           legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
+          resolvedTheme,
           api.composeBounds,
           api.composeZ,
           api.composeOpacity,
@@ -251,9 +256,11 @@ export function chartPlugin(): ChartPluginInstance {
           options: compileScatterChartOptions(props),
         };
 
+        const resolvedTheme = resolveChartTheme(api.context.themeFamily, api.context.themePolarity);
         const state = compileChart(
           props, 'scatter', typeOptions, dataDsl, axisDsls, seriesDsls,
           legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
+          resolvedTheme,
           api.composeBounds,
           api.composeZ,
           api.composeOpacity,
@@ -276,9 +283,11 @@ export function chartPlugin(): ChartPluginInstance {
           options: compilePieChartOptions(props),
         };
 
+        const resolvedTheme = resolveChartTheme(api.context.themeFamily, api.context.themePolarity);
         const state = compileChart(
           props, 'pie', typeOptions, dataDsl, axisDsls, seriesDsls,
           legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
+          resolvedTheme,
           api.composeBounds,
           api.composeZ,
           api.composeOpacity,
@@ -301,9 +310,11 @@ export function chartPlugin(): ChartPluginInstance {
           options: compileAreaChartOptions(props),
         };
 
+        const resolvedTheme = resolveChartTheme(api.context.themeFamily, api.context.themePolarity);
         const state = compileChart(
           props, 'area', typeOptions, dataDsl, axisDsls, seriesDsls,
           legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
+          resolvedTheme,
           api.composeBounds,
           api.composeZ,
           api.composeOpacity,
@@ -326,9 +337,11 @@ export function chartPlugin(): ChartPluginInstance {
           options: compileHeatMapChartOptions(props),
         };
 
+        const resolvedTheme = resolveChartTheme(api.context.themeFamily, api.context.themePolarity);
         const state = compileChart(
           props, 'heatmap', typeOptions, dataDsl, axisDsls, seriesDsls,
           legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
+          resolvedTheme,
           api.composeBounds,
           api.composeZ,
           api.composeOpacity,
@@ -393,9 +406,11 @@ export function chartPlugin(): ChartPluginInstance {
             break;
         }
 
+        const resolvedTheme = resolveChartTheme(api.context.themeFamily, api.context.themePolarity);
         const state = compileChart(
           dsl, kind, typeOptions, dataDsl, axisDsls, seriesDsls,
           legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
+          resolvedTheme,
           api.composeBounds,
           api.composeZ,
           api.composeOpacity,

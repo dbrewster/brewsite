@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ChartDataStore } from '../../../data/ChartDataStore';
 import type { ChartRenderInput, DataRow } from '../types';
 import { ChartRenderer } from '../render';
+import { darkGlassChartTheme } from '../../../themes/darkGlass';
 
 const { barUpdateCalls } = vi.hoisted(() => ({
   barUpdateCalls: [] as unknown[],
@@ -70,7 +71,7 @@ const makeInput = (overrides?: Partial<ChartRenderInput>): ChartRenderInput => (
   yAxis: { axis: 'y', field: 'revenue' },
   series: [{ field: 'revenue' }, { field: 'costs' }, { field: 'profit' }],
   legend: null,
-  theme: 'darkGlass',
+  theme: darkGlassChartTheme,
   opacity: 1,
   interactive: false,
   nvsBounds: { x: 0, y: 0, w: 1, h: 1 },

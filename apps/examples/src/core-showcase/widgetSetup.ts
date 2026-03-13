@@ -1,17 +1,19 @@
-import type { WidgetPlugin } from '@brewsite/core';
+import type { WidgetPlugin, ActiveTheme } from '@brewsite/core';
 import { corePlugin } from '@brewsite/core';
 import { diagramPlugin } from '@brewsite/diagram';
 import { chartPlugin } from '@brewsite/charts';
 import type { ChartPluginInstance } from '@brewsite/charts';
+import { themesPlugin, themes } from '@brewsite/themes';
 
 /**
- * Creates the WidgetPlugin array for the Core Showcase.
+ * Creates the WidgetPlugin array and active theme for the Core Showcase.
  * Registers corePlugin, diagramPlugin (for all diagram IDs used in scenes),
- * and chartPlugin (for bar chart morphing demo).
+ * chartPlugin (for bar chart morphing demo), and themesPlugin.
  */
 export function createCoreShowcasePlugins(): {
   plugins: WidgetPlugin[];
   chartsPlugin: ChartPluginInstance;
+  theme: ActiveTheme;
 } {
   const chartsPlugin = chartPlugin();
   return {
@@ -25,7 +27,9 @@ export function createCoreShowcasePlugins(): {
         ],
       }),
       chartsPlugin,
+      themesPlugin(),
     ],
     chartsPlugin,
+    theme: themes.darkGlass.dark,
   };
 }

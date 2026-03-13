@@ -10,8 +10,6 @@ import type {
   DiagramOrientation,
   DiagramEasing,
   SvgIcon3DStyle,
-  DiagramTheme,
-  DiagramThemeName,
   EdgeRoutingAlgorithm,
   DiagramEdgePort,
   LayoutAlignment,
@@ -342,15 +340,6 @@ export interface DiagramProps {
   z?: number;
   /** World-space geometry scale. Default: 1. */
   scale?: number;
-  /**
-   * Visual + behavioral theme for this diagram.
-   * Falls back to darkGlassTheme when omitted.
-   * Per-node / per-edge props take precedence over all theme values.
-   *
-   * @example
-   * import { darkGlassTheme, lightMinimalTheme, enterpriseTheme, neonCyberTheme } from '@brewsite/diagram';
-   */
-  theme?: DiagramThemeName | DiagramTheme;
   children?: React.ReactNode;
 }
 

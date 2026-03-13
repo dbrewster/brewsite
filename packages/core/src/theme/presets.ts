@@ -4,10 +4,12 @@
 import {
   SceneTheme,
   ThemeFamily,
-  SceneThemePair,
   SceneThemeFloorGrid,
   SceneThemeFloor,
 } from './types';
+
+// Internal pair type — no longer exported from the public surface.
+type SceneThemePair = { readonly dark: SceneTheme; readonly light: SceneTheme };
 
 const defaultFontSize = {
   heading: 1.5,
@@ -254,10 +256,11 @@ export const lightMinimalDarkSceneTheme: SceneTheme = createFamilySceneTheme({
 
 /** Registry of SceneTheme presets keyed by ThemeFamily and ThemePolarity. */
 export const SCENE_THEME_PAIRS: Record<ThemeFamily, SceneThemePair> = {
-  darkGlass: { dark: darkGlassSceneTheme, light: darkGlassLightSceneTheme },
-  midnight: { dark: midnightSceneTheme, light: midnightLightSceneTheme },
-  neonCyber: { dark: neonCyberSceneTheme, light: neonCyberLightSceneTheme },
-  enterprise: { dark: enterpriseSceneTheme, light: enterpriseLightSceneTheme },
-  lightCanvas: { dark: lightCanvasDarkSceneTheme, light: lightCanvasSceneTheme },
+  default:      { dark: enterpriseSceneTheme,      light: enterpriseLightSceneTheme },
+  enterprise:   { dark: enterpriseSceneTheme,      light: enterpriseLightSceneTheme },
+  darkGlass:    { dark: darkGlassSceneTheme,        light: darkGlassLightSceneTheme },
+  midnight:     { dark: midnightSceneTheme,         light: midnightLightSceneTheme },
+  neonCyber:    { dark: neonCyberSceneTheme,        light: neonCyberLightSceneTheme },
+  lightCanvas:  { dark: lightCanvasDarkSceneTheme,  light: lightCanvasSceneTheme },
   lightMinimal: { dark: lightMinimalDarkSceneTheme, light: lightMinimalSceneTheme },
 } as const;

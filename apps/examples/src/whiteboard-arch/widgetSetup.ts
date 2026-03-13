@@ -1,19 +1,22 @@
 // WidgetPlugin factory for the whiteboard architecture slide deck.
-import type { WidgetPlugin } from '@brewsite/core';
+import type { WidgetPlugin, ActiveTheme } from '@brewsite/core';
 import { corePlugin } from '@brewsite/core';
 import { diagramPlugin } from '@brewsite/diagram';
+import { themesPlugin, themes } from '@brewsite/themes';
 
 /**
- * Creates the WidgetPlugin array for the whiteboard architecture scenes.
+ * Creates the WidgetPlugin array and active theme for the whiteboard architecture scenes.
  * No GLTF models — only core engine + diagram canvas.
  */
-export function createWhiteboardArchPlugins(): { plugins: WidgetPlugin[] } {
+export function createWhiteboardArchPlugins(): { plugins: WidgetPlugin[]; theme: ActiveTheme } {
   return {
     plugins: [
       corePlugin(),
       diagramPlugin({
         diagrams: ['whiteboard-arch-diagram'],
       }),
+      themesPlugin(),
     ],
+    theme: themes.darkGlass.dark,
   };
 }

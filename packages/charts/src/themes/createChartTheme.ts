@@ -22,10 +22,11 @@ import type {
 } from './types';
 
 const PRESET_MAP: Record<ChartThemeName, ChartTheme> = {
+  default:      enterpriseChartTheme,
+  enterprise:   enterpriseChartTheme,
   darkGlass:    darkGlassChartTheme,
   midnight:     midnightChartTheme,
   neonCyber:    neonCyberChartTheme,
-  enterprise:   enterpriseChartTheme,
   lightCanvas:  lightCanvasChartTheme,
   lightMinimal: lightMinimalChartTheme,
 };

@@ -4,7 +4,13 @@ import { getNodeHandler as getNodeHandlerFromBarrel } from '../../index';
 import type { CompileApi } from '../sceneDslTypes';
 
 const fakeApi: CompileApi = {
-  context: {} as CompileApi['context'],
+  context: {
+    sceneIndex: 0,
+    numScenes: 1,
+    assetsReady: false,
+    themeFamily: 'default',
+    themePolarity: 'dark',
+  } as CompileApi['context'],
   state: { id: '', scrollProgress: 0, widgets: {} },
   setWidgetState: () => {},
   setSceneMeta: (meta) => {

@@ -12,7 +12,6 @@ import {
     FlowLayout,
     GridLayout,
 } from '@brewsite/diagram';
-import {brewflowTheme} from '../../brewflow-sidecar/theme';
 import {config} from "../../settings";
 
 const DWELL_FN = (t: number): number => Math.min(1, t * 4);
@@ -21,7 +20,7 @@ export const SceneCfOverview = () => (
   <Scene key="bfc-cf-overview" id="bfc-cf-overview">
     <ProgressManager scrollUnits={2600} fn={DWELL_FN} />
 
-    <Diagram id="cf-overview" x={0} y={0} w={1} h={0.60} tilt={config.diagramRotationX} scale={config.diagramScale} theme={brewflowTheme}>
+    <Diagram id="cf-overview" x={0} y={0} w={1} h={0.60} tilt={config.diagramRotationX} scale={config.diagramScale}>
         <FlowLayout direction="top-down" gap={1.05} />
 
         <DiagramNode
