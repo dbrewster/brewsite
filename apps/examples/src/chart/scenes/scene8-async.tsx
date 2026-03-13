@@ -4,12 +4,12 @@ import type { JSX } from 'react';
 import { ProgressManager, Scene } from '@brewsite/core';
 import {ChartAxis, ChartData, ChartLegend, ChartSeries, LineChart} from '@brewsite/charts';
 import { CHART_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
-import { useDemoChartTheme } from './sceneShared';
+import { useChartTheme } from '@brewsite/charts';
 
 export const Scene8 = (): JSX.Element => {
-  const chartTheme = useDemoChartTheme();
+  const chartTheme = useChartTheme();
   return (
-  <Scene id="chart-s8" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
+  <Scene id="chart-s8">
     <ProgressManager scrollUnits={1400} />
     <SceneLighting />
 

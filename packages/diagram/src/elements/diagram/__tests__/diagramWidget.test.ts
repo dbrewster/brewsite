@@ -130,6 +130,9 @@ describe('DiagramWidget — initialize and apply', () => {
 
     // Center of viewportBounds { x:0.25, y:0.25, w:0.5, h:0.5 } is at NVS (0.5, 0.5)
     // which maps to world (0, 0, 0) with this camera.
+    // The root group sits at state.z (matching chart front-face alignment).
+    // Internal Z layering (groups at local 0, nodes at +NODE_RENDER_Z_OFFSET) is
+    // applied within DiagramRenderer.update(), not at the root group level.
     const [expectedX, expectedY, expectedZ] = coords.toWorld(0.5, 0.5, 0);
     expect(group.position.x).toBeCloseTo(expectedX, 3);
     expect(group.position.y).toBeCloseTo(expectedY, 3);

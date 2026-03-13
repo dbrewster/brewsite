@@ -44,11 +44,13 @@ export function validateNVSRect(rect: NVSRect, context: string): boolean {
   ok = validateNVSScalar(rect.w, 'w', context) && ok;
   ok = validateNVSScalar(rect.h, 'h', context) && ok;
   if (rect.x + rect.w > 1.0001) {
-    console.error(`[NVS] ${context}: x+w = ${rect.x + rect.w} exceeds 1.`);
+    // commented this out because it is spamming logs.
+    // console.error(`[NVS] ${context}: x+w = ${rect.x + rect.w} exceeds 1.`);
     ok = false;
   }
   if (rect.y + rect.h > 1.0001) {
-    console.error(`[NVS] ${context}: y+h = ${rect.y + rect.h} exceeds 1.`);
+    // commented this out because it is spamming logs.
+    // console.error(`[NVS] ${context}: y+h = ${rect.y + rect.h} exceeds 1.`);
     ok = false;
   }
   return ok;

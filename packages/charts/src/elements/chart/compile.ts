@@ -341,10 +341,9 @@ export function compileChart(
  */
 export const functionalChartTransitionSpec: FunctionalTransitionSpec<ChartState> = {
   /**
-   * enter: [0,0] — new charts appear immediately at the start of the transition block
-   *   (zero-length window resolves to ctx.t=1 via resolveProgress, so enterFn returns full opacity).
-   * exit: [0.9,1.0] — leaving charts fade out in the last 10% of the transition block
-   *   (non-zero window avoids the zero-length resolveProgress=1 → opacity=0 trap).
+   * exit: [0.9,1.0] — leaving charts fade out in the last 10% of the transition block.
+   * enter: [0,0] — redundant (degenerate windows are treated as unset by the compiler,
+   *   falling through to the system default [0.9,1.0] for a cross-dissolve).
    * These defaults apply only when the scene has no explicit transition={{ exit:[…], enter:[…] }}.
    * Charts present in both adjacent scenes use interpolateFn over [0,1] — defaultWindow has no effect.
    */

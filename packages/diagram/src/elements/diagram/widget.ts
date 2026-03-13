@@ -289,7 +289,10 @@ export class DiagramWidget
     const cy = state.viewportBounds.y + state.viewportBounds.h / 2 + this._canvasPan.y;
     const [worldCX, worldCY, worldCZ] = context.coords.toWorld(cx, cy, state.z);
 
-    // Apply world position, tilt (plus accumulated delta), and scale to the group.
+    // Apply world position, keeping the root group at exactly state.z so the diagram
+    // aligns with chart front faces at the same carousel/view slot.
+    // Internal Z layering (groups at local 0, nodes at local +NODE_RENDER_Z_OFFSET)
+    // is handled by render.ts — the root group position stays at the NVS-composed Z.
     this.diagramGroup.position.set(worldCX, worldCY, worldCZ);
     this.diagramGroup.rotation.set(
       state.tiltRotation[0] + this._tiltDelta.x,

@@ -32,6 +32,10 @@ export type ActionProps = {
   focusCenter?: [number, number] | [number, number, number];
   speed?: number;
   stepScenes?: number;
+  /** Target ViewLayout ID for carousel actions. */
+  layoutId?: string;
+  /** Number of slides to advance per carousel step. Default: 1. */
+  stepSlides?: number;
   children?: ReactNode;
 };
 
@@ -199,6 +203,8 @@ const parseAction = (node: ReactElement, helpers: CompileHelpers, api: CompileAp
     focusCenter: props.focusCenter,
     speed: props.speed,
     stepScenes: props.stepScenes,
+    layoutId: props.layoutId,
+    stepSlides: props.stepSlides,
     maps,
   };
 };

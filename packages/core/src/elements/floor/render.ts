@@ -32,6 +32,8 @@ type FloorInstance = {
   isUsingGridPattern?: boolean;
   gridLines?: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial>;
   gridLinesKey?: string;
+  /** DEBUG: bright line marking world Z=0 on the grid floor. */
+  debugZeroLine?: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>;
 };
 
 const FLOOR_KEY = '__brewsite_floor';
@@ -420,12 +422,55 @@ const clearPhysicalMaps = (material: THREE.MeshPhysicalMaterial): void => {
 };
 
 const disposeGridLines = (instance: FloorInstance): void => {
+  if (instance.debugZeroLine) {
+    instance.mesh.remove(instance.debugZeroLine);
+    instance.debugZeroLine.geometry.dispose();
+    instance.debugZeroLine.material.dispose();
+    instance.debugZeroLine = undefined;
+  }
   if (!instance.gridLines) return;
   instance.mesh.remove(instance.gridLines);
   instance.gridLines.geometry.dispose();
   instance.gridLines.material.dispose();
   instance.gridLines = undefined;
   instance.gridLinesKey = undefined;
+};
+
+/**
+ * DEBUG: draws a bright red line across the floor at world Z=0.
+ *
+ * The floor mesh has rotation.x = -PI/2, so local (x, y, 0) → world (x+px, py, -y+pz).
+ * World Z=0 therefore maps to local Y = mesh.position.z.
+ * The line runs the full floor width at that local Y, sitting 0.002 above the grid at 0.001.
+ */
+const ensureDebugZeroLine = (instance: FloorInstance): void => {
+  const half = FLOOR_SIZE / 2;
+  // World Z=0 is at local Y = mesh.position.z (see rotation derivation above).
+  const localY = instance.mesh.position.z;
+  const z = 0.002; // just above the grid lines at 0.001
+
+  if (!instance.debugZeroLine) {
+    const geo = new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(-half, localY, z),
+      new THREE.Vector3(half, localY, z),
+    ]);
+    const mat = new THREE.LineBasicMaterial({
+      color: new THREE.Color('#ff2020'),
+      depthWrite: false,
+      toneMapped: false,
+    });
+    const line = new THREE.Line(geo, mat);
+    line.name = 'FloorDebugZeroLine';
+    (line.userData as { [key: string]: unknown })[FLOOR_PART_KEY] = true;
+    instance.mesh.add(line);
+    instance.debugZeroLine = line as THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>;
+  } else {
+    // Recompute if the mesh has moved (e.g. floor placement changed).
+    instance.debugZeroLine.geometry.setFromPoints([
+      new THREE.Vector3(-half, localY, z),
+      new THREE.Vector3(half, localY, z),
+    ]);
+  }
 };
 
 const buildGridLines = (
@@ -891,6 +936,7 @@ export function applyFloor(state: SceneFloor, refs: FloorThreeRefs): void {
     if (floor.gridLines) {
       setFloorDepthEdgeMaterialState(floor.gridLines.material, depthEdge);
     }
+    ensureDebugZeroLine(floor);
     return;
   }
 

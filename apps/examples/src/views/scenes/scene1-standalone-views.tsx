@@ -33,8 +33,8 @@ const dataRight = [
   { quarter: 'Q4', users: 810, sessions: 3100 },
 ];
 
-const CAM_POS: [number, number, number] = [0, 1.5, 6.6];
-const CAM_TGT: [number, number, number] = [0, 0.08, 0];
+const CAM_POS: [number, number, number] = [0, 0, 6.6];
+const CAM_TGT: [number, number, number] = [0, 0, 0];
 
 export const StandaloneViewsScene = (): JSX.Element => {
   const chartTheme = useChartTheme();

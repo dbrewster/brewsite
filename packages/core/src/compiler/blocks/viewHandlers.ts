@@ -187,6 +187,7 @@ export const viewLayoutHandler: NodeHandler = (node, api, helpers) => {
     kind,
     bounds: composedContainerBounds,
     viewIds,
+    ...(kind === 'carousel' ? { layoutConfig, childSizeHints } : {}),
   };
   api.setWidgetState(layoutId, viewLayoutState);
 };

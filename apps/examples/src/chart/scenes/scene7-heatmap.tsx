@@ -4,12 +4,12 @@ import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { ChartAxis, ChartData, ChartLegend, HeatMapChart } from '@brewsite/charts';
 import { activityHeatmap } from '../data/heatmapData';
 import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, SceneLighting, SceneTitleBox } from './sceneShared';
-import { useDemoChartTheme } from './sceneShared';
+import { useChartTheme } from '@brewsite/charts';
 
 export const Scene7 = (): JSX.Element => {
-  const chartTheme = useDemoChartTheme();
+  const chartTheme = useChartTheme();
   return (
-  <Scene id="chart-s7" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
+  <Scene id="chart-s7">
     <ProgressManager scrollUnits={1800} fn={(t) => Math.min(1, t * 2.5)} />
     <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={CHART_CAM_FOV} />
     <SceneLighting />

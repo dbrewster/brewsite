@@ -97,7 +97,7 @@ describe('computeNodeLabelLayout — font size arithmetic', () => {
 });
 
 describe('computeNodeLabelLayout — labelZ', () => {
-  it('places labelZ in front of the box face with sufficient depth-buffer margin', () => {
+  it('places labelZ in front of the box face (Z=0) with sufficient depth-buffer margin', () => {
     const result = computeNodeLabelLayout(
       BASE.contentW, BASE.contentH, BASE.thickness,
       false, false,
@@ -105,8 +105,8 @@ describe('computeNodeLabelLayout — labelZ', () => {
       BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
       BASE.labelSizeFactor, BASE.sublabelSizeFactor,
     );
-    // Must be strictly in front of the box face (thickness/2) with at least 0.05 offset
-    expect(result.labelZ).toBeGreaterThanOrEqual(BASE.thickness / 2 + 0.05);
+    // Front face is at Z=0. Label must be at a positive Z with at least 0.05 clearance.
+    expect(result.labelZ).toBeGreaterThanOrEqual(0.05);
   });
 
   it('sublabelZ equals labelZ', () => {
@@ -120,26 +120,28 @@ describe('computeNodeLabelLayout — labelZ', () => {
     expect(result.sublabelZ).toBeCloseTo(result.labelZ, 10);
   });
 
-  it('labelZ scales with thickness', () => {
+  it('labelZ scales with thickness once proportional term exceeds the floor', () => {
+    // labelZOffset = max(0.05, thickness * 0.05). The proportional term exceeds
+    // the floor when thickness > 1.0. Use 0.5 (floor) vs 2.0 (proportional=0.10).
     const thin = computeNodeLabelLayout(
-      BASE.contentW, BASE.contentH, 0.1,
+      BASE.contentW, BASE.contentH, 0.5,
       false, false,
       BASE.iconScale,
       BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
       BASE.labelSizeFactor, BASE.sublabelSizeFactor,
     );
     const thick = computeNodeLabelLayout(
-      BASE.contentW, BASE.contentH, 0.8,
+      BASE.contentW, BASE.contentH, 2.0,
       false, false,
       BASE.iconScale,
       BASE.labelFontSizeBase, BASE.sublabelFontSizeBase,
       BASE.labelSizeFactor, BASE.sublabelSizeFactor,
     );
-    // Thicker nodes have labels farther from origin (higher Z)
+    // 2.0 * 0.05 = 0.10 > floor 0.05, so thick.labelZ > thin.labelZ.
     expect(thick.labelZ).toBeGreaterThan(thin.labelZ);
-    // Both must be in front of their respective box faces
-    expect(thin.labelZ).toBeGreaterThan(0.1 / 2);
-    expect(thick.labelZ).toBeGreaterThan(0.8 / 2);
+    // Both must be positive (in front of the front face at Z=0).
+    expect(thin.labelZ).toBeGreaterThan(0);
+    expect(thick.labelZ).toBeGreaterThan(0);
   });
 });
 

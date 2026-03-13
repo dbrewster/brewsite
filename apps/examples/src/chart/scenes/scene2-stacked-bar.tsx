@@ -5,11 +5,11 @@ import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { BarChart, ChartAxis, ChartDataLabels, ChartLegend, ChartSeries } from '@brewsite/charts';
 import { regionalRevenue } from '../data/saasMetrics';
 import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, CHART_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
-import { useDemoChartTheme } from './sceneShared';
+import { useChartTheme } from '@brewsite/charts';
 
 // Scene 2a — Stacked vertical bars
 export const Scene2a = (): JSX.Element => {
-  const chartTheme = useDemoChartTheme();
+  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s2a" >
     <ProgressManager scrollUnits={1200} />
@@ -42,7 +42,7 @@ export const Scene2a = (): JSX.Element => {
 
 // Scene 2b — Same chart, horizontal orientation
 export const Scene2b = (): JSX.Element => {
-  const chartTheme = useDemoChartTheme();
+  const chartTheme = useChartTheme();
   return (
   <Scene id="chart-s2b" >
     <ProgressManager scrollUnits={1200} />

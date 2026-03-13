@@ -22,9 +22,9 @@ import {diagramPlugin} from '@brewsite/diagram';
 
 import {StandaloneViewsScene} from './scenes/scene1-standalone-views';
 import {StackLayoutScene} from './scenes/scene2-stack-layout';
-import {CarouselScene1, CarouselScene2, CarouselScene3} from './scenes/scene3-carousel';
+import {CarouselScene, CarouselScene1, CarouselScene2, CarouselScene3} from './scenes/scene3-carousel';
 import {NestedViewsScene} from './scenes/scene4-nested-views';
-import {ThemeToggle} from "../Lights";
+import {ChartProgressIndicator, ThemeToggle} from "../Lights";
 
 function createViewDemoPlugins(): { plugins: WidgetPlugin[] } {
   return {
@@ -36,45 +36,12 @@ function createViewDemoPlugins(): { plugins: WidgetPlugin[] } {
   };
 }
 
-type ChartProgressIndicatorProps = {
-  scrollStageRef: RefObject<ScrollStageHandle | null>;
-  polarity: ThemePolarity;
-};
-
-function ChartProgressIndicator({ scrollStageRef, polarity }: ChartProgressIndicatorProps): JSX.Element {
-  const engine = useSceneEngineContext();
-  const handleSeek = useCallback((progress: number): void => {
-    const rawProgress = engine.progressMapper ? engine.progressMapper.inverse(progress) : progress;
-    if (scrollStageRef.current) {
-      scrollStageRef.current.scrollToProgress(rawProgress);
-      return;
-    }
-    engine.setProgress(progress);
-  }, [engine, scrollStageRef]);
-
-  return (
-    <TimelineWidget
-      engine={engine}
-      theme={polarity === 'light' ? 'light' : 'dark'}
-      position="bottom"
-      thickness={36}
-      majorTicks="scene"
-      minorTicksPerScene={10}
-      showSceneLabels={false}
-      showProgress
-      scrubEnabled
-      onSeek={handleSeek}
-      style={{ zIndex: 20, left: 0, right: 0, bottom: 0, borderRadius: 10 }}
-    />
-  );
-}
-
 export default function ViewDemoPage(): JSX.Element {
   const { plugins } = useMemo(() => createViewDemoPlugins(), []);
   const scrollStageRef = useRef<ScrollStageHandle | null>(null);
 
   const [family, setFamily] = useState<ThemeFamily>('enterprise');
-  const [polarity, setPolarity] = useState<ThemePolarity>('dark');
+  const [polarity, setPolarity] = useState<ThemePolarity>('light');
 
   return (
     <div
@@ -92,12 +59,11 @@ export default function ViewDemoPage(): JSX.Element {
       <ThemeToggle
         onPolarityChange={setPolarity}
         onFamilyChange={setFamily}
-        initialFamily={family}
-        initialPolarity={polarity}
         persist
       />
 
-      <SceneEngine plugins={plugins} themeFamily={family} themePolarity={polarity}>
+      <SceneEngine plugins={plugins} themeFamily={family} themePolarity={polarity}
+                   invalidateCacheToken={`${family}-${polarity}`}>
         {/* Scene 1: Two standalone views (side-by-side) */}
         <StandaloneViewsScene />
 
@@ -108,6 +74,9 @@ export default function ViewDemoPage(): JSX.Element {
         <CarouselScene1 />
         <CarouselScene2 />
         <CarouselScene3 />
+
+        {/* Scene 3b: Interactive carousel — arrow keys / click to advance slides */}
+        <CarouselScene />
 
         {/* Scene 4: Nested views with padding */}
         <NestedViewsScene />

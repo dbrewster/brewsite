@@ -47,7 +47,7 @@ export const lightMinimalChartTheme: ChartTheme = {
     subdivisions: 5,
   },
   pie: {
-    tilt: -0.35,
+    tilt: 0,
   },
   interaction: {
     hoverColor: '#6A94CD',

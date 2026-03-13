@@ -246,6 +246,373 @@ describe('functional transitions', () => {
     expect(track.ticks[0]?.state.widgets[widgetId]).toBeUndefined();
   });
 
+  // ── defaultWindow tests ─────────────────────────────────────────────────────
+  // These tests verify the compiler's closure-wrapping for functional specs
+  // with a widget-level defaultWindow (the fallback when no scene-level
+  // transitionWindow is set on the SceneFrame).
+
+  describe('defaultWindow exit/enter coordination', () => {
+    // Simulates the chart-style config: exit [0.9,1.0], enter [0.0,0.0].
+    // Widget A is in scene 1 only → EXIT path.
+    // Widget B is in scene 2 only → ENTER path.
+    const widgetAId = 'exitWidget';
+    const widgetBId = 'enterWidget';
+
+    type OpState = { opacity: number };
+
+    const specWithDefaultWindow: FunctionalTransitionSpec<OpState> = {
+      defaultWindow: { exit: [0.9, 1.0], enter: [0.0, 0.0] },
+      exitFn: (from) => (ctx) => ({ opacity: from.opacity * (1 - ctx.t) }),
+      enterFn: (to) => (ctx) => ({ opacity: to.opacity * ctx.t }),
+      interpolateFn: (from, to) => (ctx) => ({
+        opacity: from.opacity + (to.opacity - from.opacity) * ctx.t,
+      }),
+    };
+
+    const makeOpWidget = (id: string): ISceneElement<OpState> => ({
+      widgetId: id,
+      defaultState: { opacity: 0 },
+      transitionSpec: specWithDefaultWindow,
+      DslComponent: (() => null) as never,
+      disableWhenAbsent: true,
+    });
+
+    const makeOpScene = (id: string, widgets: Record<string, OpState>): SceneDefinition => ({
+      id,
+      getFrame: (): SceneFrame => ({
+        id,
+        scrollProgress: 0,
+        widgets,
+      }),
+    });
+
+    it('exit closure: widget at full opacity before exit window, fades during [0.9, 1.0]', () => {
+      const registry = new WidgetRegistry()
+        .register(makeOpWidget(widgetAId))
+        .register(makeOpWidget(widgetBId));
+      const scenes = [
+        makeOpScene('s1', { [widgetAId]: { opacity: 1 } }),
+        makeOpScene('s2', { [widgetBId]: { opacity: 1 } }),
+      ];
+      const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 10 });
+      const exitFn = track.transitionBlocks?.[0]?.widgetFns[widgetAId];
+      expect(exitFn?.kind).toBe('exit');
+
+      // Before exit window: exitFn runs but ctx.t=0 → opacity stays at fromState value.
+      const atZero = exitFn?.fn(0) as OpState;
+      expect(atZero.opacity).toBe(1);
+
+      const atMid = exitFn?.fn(0.5) as OpState;
+      expect(atMid.opacity).toBe(1); // Still before [0.9, 1.0] window
+
+      const at85 = exitFn?.fn(0.85) as OpState;
+      expect(at85.opacity).toBe(1); // Still before window start
+
+      // Inside exit window: fading
+      const at95 = exitFn?.fn(0.95) as OpState;
+      expect(at95.opacity).toBeCloseTo(0.5); // Midway through [0.9, 1.0]
+
+      // At/past exit window end: absentDefault (opacity=0)
+      const atEnd = exitFn?.fn(1.0) as OpState;
+      expect(atEnd.opacity).toBe(0);
+    });
+
+    it('enter closure with [0.0,0.0]: degenerate window falls through to system default', () => {
+      const registry = new WidgetRegistry()
+        .register(makeOpWidget(widgetAId))
+        .register(makeOpWidget(widgetBId));
+      const scenes = [
+        makeOpScene('s1', { [widgetAId]: { opacity: 1 } }),
+        makeOpScene('s2', { [widgetBId]: { opacity: 1 } }),
+      ];
+      const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 10 });
+      const enterFn = track.transitionBlocks?.[0]?.widgetFns[widgetBId];
+      expect(enterFn?.kind).toBe('enter');
+
+      // [0,0] is degenerate → treated as unset → system default [0.9, 1.0] applies.
+      // Widget is absent before bp=0.9, then fades in from 0.9→1.0.
+      const atZero = enterFn?.fn(0) as OpState;
+      expect(atZero.opacity).toBe(0); // absent before enter window
+
+      const atMid = enterFn?.fn(0.5) as OpState;
+      expect(atMid.opacity).toBe(0); // still absent
+
+      const at95 = enterFn?.fn(0.95) as OpState;
+      expect(at95.opacity).toBeCloseTo(0.5); // midway through [0.9, 1.0]
+
+      const atEnd = enterFn?.fn(1.0) as OpState;
+      expect(atEnd.opacity).toBe(1); // fully entered
+    });
+
+    it('degenerate enter [0,0] is treated as unset — falls through to system default', () => {
+      // A degenerate window (start >= end) should be treated the same as "not specified"
+      // and fall through to the system default. This prevents the "painted over" overlap
+      // where the entering widget appears at bp=0 while the exiting widget hasn't faded.
+      const specDegenerate: FunctionalTransitionSpec<OpState> = {
+        defaultWindow: { exit: [0.9, 1.0], enter: [0.0, 0.0] },
+        exitFn: specWithDefaultWindow.exitFn,
+        enterFn: specWithDefaultWindow.enterFn,
+        interpolateFn: specWithDefaultWindow.interpolateFn,
+      };
+      const makeDegWidget = (id: string): ISceneElement<OpState> => ({
+        widgetId: id,
+        defaultState: { opacity: 0 },
+        transitionSpec: specDegenerate,
+        DslComponent: (() => null) as never,
+        disableWhenAbsent: true,
+      });
+
+      const registry = new WidgetRegistry()
+        .register(makeDegWidget(widgetAId))
+        .register(makeDegWidget(widgetBId));
+      const scenes = [
+        makeOpScene('s1', { [widgetAId]: { opacity: 1 } }),
+        makeOpScene('s2', { [widgetBId]: { opacity: 1 } }),
+      ];
+      const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 10 });
+      const exitFn = track.transitionBlocks?.[0]?.widgetFns[widgetAId]?.fn;
+      const enterFn = track.transitionBlocks?.[0]?.widgetFns[widgetBId]?.fn;
+
+      // enter [0,0] is degenerate → falls through to system default [0.9, 1.0].
+      // exit [0.9, 1.0] is valid → cross-dissolve in the [0.9, 1.0] window.
+
+      // At bp=0: exiting at full opacity, entering absent (before enter window).
+      expect((exitFn?.(0) as OpState).opacity).toBe(1);
+      expect((enterFn?.(0) as OpState).opacity).toBe(0);
+
+      // At bp=0.5: still only exiting visible.
+      expect((exitFn?.(0.5) as OpState).opacity).toBe(1);
+      expect((enterFn?.(0.5) as OpState).opacity).toBe(0);
+
+      // At bp=0.95: cross-dissolve — exiting at 50%, entering at 50%.
+      expect((exitFn?.(0.95) as OpState).opacity).toBeCloseTo(0.5);
+      expect((enterFn?.(0.95) as OpState).opacity).toBeCloseTo(0.5);
+
+      // At bp=1.0: exiting gone, entering full.
+      expect((exitFn?.(1.0) as OpState).opacity).toBe(0);
+      expect((enterFn?.(1.0) as OpState).opacity).toBe(1);
+    });
+
+    it('degenerate exit [0,0] is treated as unset — falls through to system default', () => {
+      // Same principle for exit: [0,0] on exit should not cause instant disappearance
+      // at bp=0. It should fall through to the system default [0.8, 0.9].
+      const specDegExit: FunctionalTransitionSpec<OpState> = {
+        defaultWindow: { exit: [0.0, 0.0], enter: [0.9, 1.0] },
+        exitFn: specWithDefaultWindow.exitFn,
+        enterFn: specWithDefaultWindow.enterFn,
+        interpolateFn: specWithDefaultWindow.interpolateFn,
+      };
+      const makeDegExitWidget = (id: string): ISceneElement<OpState> => ({
+        widgetId: id,
+        defaultState: { opacity: 0 },
+        transitionSpec: specDegExit,
+        DslComponent: (() => null) as never,
+        disableWhenAbsent: true,
+      });
+
+      const registry = new WidgetRegistry()
+        .register(makeDegExitWidget(widgetAId))
+        .register(makeDegExitWidget(widgetBId));
+      const scenes = [
+        makeOpScene('s1', { [widgetAId]: { opacity: 1 } }),
+        makeOpScene('s2', { [widgetBId]: { opacity: 1 } }),
+      ];
+      const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 10 });
+      const exitFn = track.transitionBlocks?.[0]?.widgetFns[widgetAId]?.fn;
+
+      // exit [0,0] is degenerate → falls through to system default [0.8, 0.9].
+      // At bp=0: exiting widget at full opacity (before [0.8, 0.9] window).
+      expect((exitFn?.(0) as OpState).opacity).toBe(1);
+
+      // At bp=0.85: midway through exit fade.
+      expect((exitFn?.(0.85) as OpState).opacity).toBeCloseTo(0.5);
+
+      // At bp=0.9: exit complete → absent.
+      expect((exitFn?.(0.9) as OpState).opacity).toBe(0);
+    });
+
+    it('without defaultWindow, system defaults [0.8,0.9]+[0.9,1.0] produce sequential handoff', () => {
+      // Same setup but spec has NO defaultWindow → system defaults apply.
+      const specNoWindow: FunctionalTransitionSpec<OpState> = {
+        exitFn: specWithDefaultWindow.exitFn,
+        enterFn: specWithDefaultWindow.enterFn,
+        interpolateFn: specWithDefaultWindow.interpolateFn,
+      };
+      const makeNoWindowWidget = (id: string): ISceneElement<OpState> => ({
+        widgetId: id,
+        defaultState: { opacity: 0 },
+        transitionSpec: specNoWindow,
+        DslComponent: (() => null) as never,
+        disableWhenAbsent: true,
+      });
+
+      const registry = new WidgetRegistry()
+        .register(makeNoWindowWidget(widgetAId))
+        .register(makeNoWindowWidget(widgetBId));
+      const scenes = [
+        makeOpScene('s1', { [widgetAId]: { opacity: 1 } }),
+        makeOpScene('s2', { [widgetBId]: { opacity: 1 } }),
+      ];
+      const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 10 });
+      const exitFn = track.transitionBlocks?.[0]?.widgetFns[widgetAId]?.fn;
+      const enterFn = track.transitionBlocks?.[0]?.widgetFns[widgetBId]?.fn;
+
+      // System defaults: exit [0.8, 0.9], enter [0.9, 1.0].
+      // Exit: full opacity at bp=0, fades from 0.8→0.9, absent at bp>=0.9.
+      // Enter: absent before bp=0.9, fades in from 0.9→1.0.
+
+      // At bp=0: only exiting widget visible.
+      expect((exitFn?.(0) as OpState).opacity).toBe(1);
+      expect((enterFn?.(0) as OpState).opacity).toBe(0); // absent
+
+      // At bp=0.5: still only exiting widget.
+      expect((exitFn?.(0.5) as OpState).opacity).toBe(1);
+      expect((enterFn?.(0.5) as OpState).opacity).toBe(0);
+
+      // At bp=0.85: exiting widget fading (midway through [0.8, 0.9]).
+      const exitAt85 = exitFn?.(0.85) as OpState;
+      expect(exitAt85.opacity).toBeCloseTo(0.5);
+      expect((enterFn?.(0.85) as OpState).opacity).toBe(0); // still absent
+
+      // At bp=0.9: exiting widget gone, entering starts from 0.
+      expect((exitFn?.(0.9) as OpState).opacity).toBe(0);
+      expect((enterFn?.(0.9) as OpState).opacity).toBeCloseTo(0);
+
+      // At bp=0.95: entering fading in.
+      expect((enterFn?.(0.95) as OpState).opacity).toBeCloseTo(0.5);
+
+      // At bp=1.0: entering at full opacity.
+      expect((enterFn?.(1.0) as OpState).opacity).toBe(1);
+    });
+
+    it('defaultWindow with only exit set falls through to system enter default [0.9, 1.0]', () => {
+      // When defaultWindow provides exit but NOT enter, enter should fall through
+      // to the system default [0.9, 1.0], producing a cross-dissolve in [0.9, 1.0].
+      const specExitOnly: FunctionalTransitionSpec<OpState> = {
+        defaultWindow: { exit: [0.9, 1.0] },
+        exitFn: specWithDefaultWindow.exitFn,
+        enterFn: specWithDefaultWindow.enterFn,
+        interpolateFn: specWithDefaultWindow.interpolateFn,
+      };
+      const makeExitOnlyWidget = (id: string): ISceneElement<OpState> => ({
+        widgetId: id,
+        defaultState: { opacity: 0 },
+        transitionSpec: specExitOnly,
+        DslComponent: (() => null) as never,
+        disableWhenAbsent: true,
+      });
+
+      const registry = new WidgetRegistry()
+        .register(makeExitOnlyWidget(widgetAId))
+        .register(makeExitOnlyWidget(widgetBId));
+      const scenes = [
+        makeOpScene('s1', { [widgetAId]: { opacity: 1 } }),
+        makeOpScene('s2', { [widgetBId]: { opacity: 1 } }),
+      ];
+      const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 10 });
+      const exitFn = track.transitionBlocks?.[0]?.widgetFns[widgetAId]?.fn;
+      const enterFn = track.transitionBlocks?.[0]?.widgetFns[widgetBId]?.fn;
+
+      // exit: [0.9, 1.0] from spec. enter: [0.9, 1.0] from system default.
+      // Cross-dissolve: both fade simultaneously in [0.9, 1.0].
+
+      // Before transition window: only exiting visible.
+      expect((exitFn?.(0) as OpState).opacity).toBe(1);
+      expect((enterFn?.(0) as OpState).opacity).toBe(0);
+
+      // At bp=0.85: still only exiting.
+      expect((exitFn?.(0.85) as OpState).opacity).toBe(1);
+      expect((enterFn?.(0.85) as OpState).opacity).toBe(0);
+
+      // At bp=0.95: cross-dissolve — exiting at 50%, entering at 50%.
+      expect((exitFn?.(0.95) as OpState).opacity).toBeCloseTo(0.5);
+      expect((enterFn?.(0.95) as OpState).opacity).toBeCloseTo(0.5);
+
+      // At bp=1.0: exiting gone, entering full.
+      expect((exitFn?.(1.0) as OpState).opacity).toBe(0);
+      expect((enterFn?.(1.0) as OpState).opacity).toBe(1);
+    });
+  });
+
+  // ── Lazy widget registration (chartPlugin pattern) ──────────────────────────
+  // Charts register their widgets DURING compilation (via node handlers in Step 1),
+  // not before. This test verifies that widgets lazily added to the WidgetRegistry
+  // during snapshot evaluation are still picked up by Step 3 (transition block filling).
+
+  describe('lazy widget registration during compilation', () => {
+    type OpState = { opacity: number; z: number };
+
+    const lazySpec: FunctionalTransitionSpec<OpState> = {
+      exitFn: (from) => (ctx) => ({ opacity: from.opacity * (1 - ctx.t), z: from.z }),
+      enterFn: (to) => (ctx) => ({ opacity: to.opacity * ctx.t, z: to.z }),
+      interpolateFn: (from, to) => (ctx) => ({
+        opacity: from.opacity + (to.opacity - from.opacity) * ctx.t,
+        z: from.z + (to.z - from.z) * ctx.t,
+      }),
+    };
+
+    const makeLazyWidget = (id: string): ISceneElement<OpState> => ({
+      widgetId: id,
+      defaultState: { opacity: 0, z: 0 },
+      transitionSpec: lazySpec,
+      DslComponent: (() => null) as never,
+      disableWhenAbsent: true,
+    });
+
+    it('widget registered during getFrame() is included in transition blocks', () => {
+      const registry = new WidgetRegistry();
+      // Widget is NOT registered upfront — it gets registered during getFrame().
+      const lazyWidgetId = 'lazy-chart';
+
+      const scenes: SceneDefinition[] = [
+        {
+          id: 's1',
+          getFrame: (): SceneFrame => {
+            // Mimic chartPlugin: register widget on first encounter during compilation.
+            if (!registry.get(lazyWidgetId)) {
+              registry.register(makeLazyWidget(lazyWidgetId));
+            }
+            return {
+              id: 's1',
+              scrollProgress: 0,
+              widgets: { [lazyWidgetId]: { opacity: 1, z: 0 } },
+            };
+          },
+        },
+        {
+          id: 's2',
+          getFrame: (): SceneFrame => ({
+            id: 's2',
+            scrollProgress: 0,
+            widgets: { [lazyWidgetId]: { opacity: 0.15, z: -15 } },
+          }),
+        },
+      ];
+
+      const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 10 });
+
+      // The lazily-registered widget should have a functional transition closure.
+      const fn = track.transitionBlocks?.[0]?.widgetFns[lazyWidgetId];
+      expect(fn).toBeDefined();
+      expect(fn?.kind).toBe('interpolate');
+
+      // At bp=0: fully in scene 1 state.
+      const at0 = fn?.fn(0) as OpState;
+      expect(at0.opacity).toBe(1);
+      expect(at0.z).toBe(0);
+
+      // At bp=0.5: intermediate — NOT stuck on scene 1.
+      const atMid = fn?.fn(0.5) as OpState;
+      expect(atMid.opacity).toBeCloseTo(0.575);
+      expect(atMid.z).toBeCloseTo(-7.5);
+
+      // At bp=1: fully in scene 2 state.
+      const at1 = fn?.fn(1) as OpState;
+      expect(at1.opacity).toBeCloseTo(0.15);
+      expect(at1.z).toBe(-15);
+    });
+  });
+
   it('blockProgress boundary: terminal tick has no functional override', () => {
     const registry = new WidgetRegistry().register(makeTestWidget(widgetId, testFunctionalSpec));
     const scenes = [

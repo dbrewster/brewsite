@@ -4,12 +4,12 @@ import { ProgressManager, Scene } from '@brewsite/core';
 import { AreaChart, ChartAxis, ChartData, ChartLegend, ChartSeries } from '@brewsite/charts';
 import { regionalRevenue } from '../data/saasMetrics';
 import { CHART_LAYOUT, NeonLighting, SceneTitleBox } from './sceneShared';
-import { useDemoChartTheme } from './sceneShared';
+import { useChartTheme } from '@brewsite/charts';
 
 export const Scene4 = (): JSX.Element => {
-  const chartTheme = useDemoChartTheme();
+  const chartTheme = useChartTheme();
   return (
-  <Scene id="chart-s4" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
+  <Scene id="chart-s4">
     <ProgressManager scrollUnits={1400} />
     <NeonLighting />
 

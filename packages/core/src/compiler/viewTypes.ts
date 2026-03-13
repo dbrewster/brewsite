@@ -2,7 +2,7 @@
 // No Three.js, no React, no runtime.
 
 import type { NVSRect } from '../layout/types';
-import type { ViewLayoutKind, NormalizedPadding } from '../layout/regionTypes';
+import type { ViewLayoutKind, NormalizedPadding, ViewLayoutConfig } from '../layout/regionTypes';
 
 /**
  * Compiled state for a single View, stored on SceneFrame.widgets
@@ -40,4 +40,14 @@ export type ViewLayoutState = {
   readonly bounds: NVSRect;
   /** Ordered list of child view IDs. */
   readonly viewIds: readonly string[];
+  /**
+   * Full layout configuration. Only populated for carousel kind.
+   * Used by the carousel scrubbing runtime to drive active-index interpolation.
+   */
+  readonly layoutConfig?: ViewLayoutConfig;
+  /**
+   * Per-child size hints (w, h in NVS units). Only populated for carousel kind.
+   * Used by the carousel scrubbing runtime to compute slide metrics.
+   */
+  readonly childSizeHints?: ReadonlyArray<{ readonly w: number; readonly h: number }>;
 };

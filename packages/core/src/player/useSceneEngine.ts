@@ -437,12 +437,21 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   }, [
     canvas,
     options.widgetRegistry,
-    options.sceneTheme,
+    // options.sceneTheme intentionally excluded — theme changes do not require
+    // tearing down the Three.js scene/camera/widgets. The lightweight sync effect
+    // below updates scene.userData, and scene recompilation (driven by sceneDefs
+    // changes when scene components re-render with new theme props) flows through
+    // driver.setSceneTrack() in the RAF loop effect.
     options.onError,
     options.manifest,
     options.maxAnimBoostPerFrame,
     variableStore,
-    sceneTrack,
+    // Use boolean sentinel (!!sceneTrack) instead of the track object itself.
+    // The lifecycle needs to fire when sceneTrack transitions null↔non-null
+    // (initial creation / full teardown), but subsequent track recompilations
+    // (theme change, content edit) are handled by driver.setSceneTrack() in the
+    // RAF loop effect — no driver rebuild needed.
+    !!sceneTrack,
   ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep scene-level theme userData in sync for already-initialized scenes.
@@ -482,6 +491,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       setSceneTrack(reconcileCompiledTrack(cached));
       return;
     }
+
     const compiled = compileSceneTrack({
       scenes: sceneDefs,
       widgetRegistry: options.widgetRegistry,

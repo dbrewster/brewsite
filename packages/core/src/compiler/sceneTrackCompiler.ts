@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import type { WidgetRegistry } from '../widget/WidgetRegistry';
+import { type WidgetRegistry, isSceneElement } from '../widget/WidgetRegistry';
+import type { ISceneElement } from '../widget/types';
 import type { SceneInputControllerSpec } from '../input/types';
 import type { SceneDefinition } from './sceneTypes';
 import type {
@@ -488,6 +489,25 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
   const transitionBlocks: SceneTrackTransitionBlock[] = [];
 
   // ── Step 3: Fill each transition block via widget batch methods ──────────────
+  // Build a comprehensive scene element list that includes widgets registered lazily
+  // during Step 1 (e.g. chartPlugin registers ChartWidgets during DSL evaluation).
+  // Start with the registry's known scene elements, then scan snapshots for widget IDs
+  // that appeared during compilation but might not be in getSceneElements() due to
+  // timing or registry-mutation visibility issues.
+  const step3SceneElements = widgetRegistry.getSceneElements();
+  const step3WidgetIds = new Set(step3SceneElements.map(w => w.widgetId));
+  for (const snap of snapshots) {
+    for (const wid of Object.keys(snap.widgets)) {
+      if (!step3WidgetIds.has(wid)) {
+        const w = widgetRegistry.get(wid);
+        if (w && isSceneElement(w)) {
+          step3SceneElements.push(w as ISceneElement<unknown>);
+          step3WidgetIds.add(wid);
+        }
+      }
+    }
+  }
+
   for (let n = 0; n < numTransitions; n++) {
     const blockStart = n * blockSize;
     const block = frames.slice(blockStart, blockStart + blockSize);
@@ -497,7 +517,7 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
 
     if (!fromSnap || !toSnap) continue;
 
-    for (const widget of widgetRegistry.getSceneElements()) {
+    for (const widget of step3SceneElements) {
       const { widgetId, defaultState, transitionSpec } = widget;
       const absentDefault = widget.disableWhenAbsent === true
         ? makeDisabledDefault(defaultState)
@@ -529,11 +549,18 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
         // This path only fires for FunctionalTransitionSpec widgets with no scene-level
         // transitionWindow AND no defaultWindow on their spec. After the DSL-layer change,
         // most scenes resolve and store a transitionWindow at compile time.
+        //
+        // Degenerate windows (start >= end, e.g. [0,0]) are treated as "unset" and
+        // fall through to the next level in the chain. A zero-length window would
+        // otherwise cause resolveProgress to return 1 instantly, producing overlap
+        // artifacts where entering widgets appear before exiting widgets fade.
         const specDefault = transitionSpec.defaultWindow;
+        const validWindow = (w: [number, number] | undefined): [number, number] | undefined =>
+          w && w[0] < w[1] ? w : undefined;
         const sceneExit: [number, number] =
-          fromSnap.transitionWindow?.exit ?? specDefault?.exit ?? [0.8, 0.9];
+          validWindow(fromSnap.transitionWindow?.exit) ?? validWindow(specDefault?.exit) ?? [0.8, 0.9];
         const sceneEnter: [number, number] =
-          toSnap.transitionWindow?.enter ?? specDefault?.enter ?? [0.9, 1.0];
+          validWindow(toSnap.transitionWindow?.enter) ?? validWindow(specDefault?.enter) ?? [0.9, 1.0];
 
         // Ensure a block entry exists for index n
         const tBlock: SceneTrackTransitionBlock = transitionBlocks[n] ?? { blockIndex: n, widgetFns: {} };
@@ -607,7 +634,7 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
   const terminalTick = frames[totalFrames - 1];
   const terminalSnap = snapshots[scenes.length - 1];
   if (terminalTick && terminalSnap) {
-    for (const widget of widgetRegistry.getSceneElements()) {
+    for (const widget of step3SceneElements) {
       const absentDefault = widget.disableWhenAbsent === true
         ? makeDisabledDefault(widget.defaultState)
         : widget.defaultState;

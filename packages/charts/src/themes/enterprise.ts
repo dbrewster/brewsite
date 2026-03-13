@@ -46,7 +46,7 @@ export const enterpriseChartTheme: ChartTheme = {
     smoothness: 0.0,
     subdivisions: 3,
   },
-  pie: { tilt: -0.35 },
+  pie: { tilt: 0 },
   interaction: {
     hoverColor: '#4F76B8',
     hoverEmissiveIntensity: 0.25,

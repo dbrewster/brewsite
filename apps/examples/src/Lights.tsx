@@ -1,6 +1,16 @@
-import {Ambient, clearSceneTrackCache, Directional, Lighting, type ThemeFamily, type ThemePolarity} from "@brewsite/core";
+import {
+  Ambient,
+  clearSceneTrackCache,
+  Directional,
+  Lighting,
+  type ScrollStageHandle,
+  type ThemeFamily,
+  type ThemePolarity,
+  TimelineWidget,
+  useSceneEngineContext
+} from "@brewsite/core";
 import {config} from "./settings";
-import {useCallback, useState} from "react";
+import {JSX, RefObject, useCallback, useEffect, useMemo, useRef, useState} from "react";
 
 export const Lights = () => (
   <Lighting intensityScale={1}>
@@ -64,6 +74,19 @@ export const ThemeToggle = ({
   const [family, setFamily] = useState<ThemeFamily>(
     initialFamily ?? (localStorage.getItem('themeFamily') as ThemeFamily) ?? 'darkGlass',
   );
+
+  useEffect(() => {
+    if (!initialPolarity) {
+      const pol = (localStorage.getItem('themePolarity') as ThemePolarity) || 'light'
+      onPolarityChange(pol)
+      setPolarity(pol)
+    }
+    if (!initialFamily) {
+      const fam = (localStorage.getItem('themeFamily') as ThemeFamily) || 'darkGlass'
+      onFamilyChange(fam)
+      setFamily(fam)
+    }
+  }, [initialPolarity, initialFamily])
 
   const handlePolarityToggle = useCallback((): void => {
     clearSceneTrackCache();
@@ -161,14 +184,22 @@ export const ThemeToggle = ({
 
 // ─── Legacy toggle (backward compat) ─────────────────────────────────────────
 
-export interface LightDarToggleProps {
+export interface LightDarkToggleProps {
   setPolarity: (polarity: ThemePolarity) => void;
   initialPolarity?: ThemePolarity;
   savePolarityInLocalStorage: boolean;
 }
 
-export const LightDarkToggle = ({initialPolarity, setPolarity, savePolarityInLocalStorage}: LightDarToggleProps) => {
+export const LightDarkToggle = ({initialPolarity, setPolarity, savePolarityInLocalStorage}: LightDarkToggleProps) => {
   const [polarity, setThemePolarity] = useState<ThemePolarity>(initialPolarity || (localStorage.getItem('themePolarity') as ThemePolarity) || 'light');
+
+  useEffect(() => {
+    if (!initialPolarity) {
+      const pol = (localStorage.getItem('themePolarity') as ThemePolarity) || 'light'
+      setThemePolarity(pol)
+      setPolarity(pol)
+    }
+  }, [initialPolarity])
 
   const handlePolarityToggle = useCallback((): void => {
     clearSceneTrackCache();
@@ -190,7 +221,7 @@ export const LightDarkToggle = ({initialPolarity, setPolarity, savePolarityInLoc
         position: 'absolute',
         top: 12,
         right: 16,
-        zIndex: 100,
+        zIndex: 1000,
         background: polarity === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
         border: polarity === 'dark' ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.15)',
         borderRadius: 8,
@@ -224,4 +255,38 @@ export const LightDarkToggle = ({initialPolarity, setPolarity, savePolarityInLoc
       )}
     </button>
   )
+}
+
+
+type ChartProgressIndicatorProps = {
+  scrollStageRef: RefObject<ScrollStageHandle | null>;
+  polarity: ThemePolarity;
+};
+
+export function ChartProgressIndicator({ scrollStageRef, polarity }: ChartProgressIndicatorProps): JSX.Element {
+  const engine = useSceneEngineContext();
+  const handleSeek = useCallback((progress: number): void => {
+    const rawProgress = engine.progressMapper ? engine.progressMapper.inverse(progress) : progress;
+    if (scrollStageRef.current) {
+      scrollStageRef.current.scrollToProgress(rawProgress);
+      return;
+    }
+    engine.setProgress(progress);
+  }, [engine, scrollStageRef]);
+
+  return (
+    <TimelineWidget
+      engine={engine}
+      theme={polarity === 'light' ? 'light' : 'dark'}
+      position="bottom"
+      thickness={36}
+      majorTicks="scene"
+      minorTicksPerScene={10}
+      showSceneLabels={false}
+      showProgress
+      scrubEnabled
+      onSeek={handleSeek}
+      style={{ zIndex: 20, left: 0, right: 0, bottom: 0, borderRadius: 10 }}
+    />
+  );
 }

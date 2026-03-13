@@ -152,9 +152,9 @@ describe('createShapeOutlineGeometry', () => {
     const geo = createShapeOutlineGeometry('rectangle', 4, 2, 0.4, 0);
     const positions = geo.getAttribute('position') as THREE.BufferAttribute;
     expect(positions.count).toBeGreaterThanOrEqual(3);
-    // All points should be at Z = depth/2 + 0.005 = 0.205
+    // All points should be at Z = 0.005 (just in front of the front face at Z=0).
     for (let i = 0; i < positions.count; i++) {
-      expect(positions.getZ(i)).toBeCloseTo(0.205, 3);
+      expect(positions.getZ(i)).toBeCloseTo(0.005, 3);
     }
   });
 

@@ -32,6 +32,7 @@ describe('ActionInputController', () => {
     onCameraOrbit: () => {},
     onCameraDolly: () => {},
     onCameraReset: () => {},
+    onCarouselStep: () => {},
     ...overrides,
   });
 
@@ -596,6 +597,121 @@ describe('ActionInputController', () => {
     expect(onCameraReset).toHaveBeenNthCalledWith(1, 'camera');
     expect(warn).toHaveBeenCalledTimes(1);
     warn.mockRestore();
+  });
+
+  describe('carousel dispatch', () => {
+    it('routes carousel.next key to onCarouselStep with direction +1', () => {
+      const spec = makeSpec();
+      spec.actions.push({
+        id: 'carousel-next',
+        type: 'carousel.next',
+        layoutId: 'my-carousel',
+        stepSlides: 2,
+        maps: [{ kind: 'key', key: 'ArrowRight' }],
+      });
+
+      const onCarouselStep = vi.fn();
+      const target = document.createElement('div');
+      const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCarouselStep }), target);
+
+      ctrl.attach();
+      target.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+      ctrl.detach();
+
+      expect(onCarouselStep).toHaveBeenCalledTimes(1);
+      expect(onCarouselStep).toHaveBeenCalledWith('my-carousel', 1, 2);
+    });
+
+    it('routes carousel.prev key to onCarouselStep with direction -1', () => {
+      const spec = makeSpec();
+      spec.actions.push({
+        id: 'carousel-prev',
+        type: 'carousel.prev',
+        layoutId: 'my-carousel',
+        stepSlides: 1,
+        maps: [{ kind: 'key', key: 'ArrowLeft' }],
+      });
+
+      const onCarouselStep = vi.fn();
+      const target = document.createElement('div');
+      const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCarouselStep }), target);
+
+      ctrl.attach();
+      target.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }));
+      ctrl.detach();
+
+      expect(onCarouselStep).toHaveBeenCalledTimes(1);
+      expect(onCarouselStep).toHaveBeenCalledWith('my-carousel', -1, 1);
+    });
+
+    it('routes carousel.next click to onCarouselStep', () => {
+      const spec = makeSpec();
+      spec.actions.push({
+        id: 'carousel-next',
+        type: 'carousel.next',
+        layoutId: 'slides',
+        stepSlides: 1,
+        maps: [{ kind: 'pointer', event: 'click', button: 'left' }],
+      });
+
+      const onCarouselStep = vi.fn();
+      const target = document.createElement('div');
+      const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCarouselStep }), target);
+
+      ctrl.attach();
+      target.dispatchEvent(new MouseEvent('click', { button: 0, bubbles: true, cancelable: true }));
+      ctrl.detach();
+
+      expect(onCarouselStep).toHaveBeenCalledTimes(1);
+      expect(onCarouselStep).toHaveBeenCalledWith('slides', 1, 1);
+    });
+
+    it('warns and does not call onCarouselStep when layoutId is missing', () => {
+      const spec = makeSpec();
+      spec.actions.push({
+        id: 'carousel-next',
+        type: 'carousel.next',
+        // no layoutId
+        maps: [{ kind: 'key', key: 'ArrowRight' }],
+      });
+
+      const onCarouselStep = vi.fn();
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const target = document.createElement('div');
+      const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCarouselStep }), target);
+
+      ctrl.attach();
+      target.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+      ctrl.detach();
+
+      expect(onCarouselStep).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]![0]).toContain('carousel-next');
+      expect(warn.mock.calls[0]![0]).toContain('carousel.next');
+      expect(warn.mock.calls[0]![0]).toContain('layoutId');
+      warn.mockRestore();
+    });
+
+    it('defaults stepSlides to 1 when absent', () => {
+      const spec = makeSpec();
+      spec.actions.push({
+        id: 'carousel-next',
+        type: 'carousel.next',
+        layoutId: 'demo',
+        // no stepSlides
+        maps: [{ kind: 'key', key: 'ArrowRight' }],
+      });
+
+      const onCarouselStep = vi.fn();
+      const target = document.createElement('div');
+      const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCarouselStep }), target);
+
+      ctrl.attach();
+      target.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+      ctrl.detach();
+
+      expect(onCarouselStep).toHaveBeenCalledWith('demo', 1, 1);
+    });
   });
 
   it('resets sticky wheel lock after configured idle timeout', () => {

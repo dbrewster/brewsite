@@ -329,17 +329,24 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
   // Three.js and RAF loop are guarded inside useSceneEngine. SceneCanvas renders
   // null on server. Children always render for SSR layout correctness.
 
+  // ThemeKeyContext is provided inside innerContent (via EngineContext tree) rather than
+  // wrapping SceneRegistrationContext, to avoid changing the provider tree structure
+  // which can cause React reconciliation issues with scene registration.
+  const wrappedContent = themeKey ? (
+    <ThemeKeyContext.Provider value={themeKey}>
+      {innerContent}
+    </ThemeKeyContext.Provider>
+  ) : innerContent;
+
   return (
     <ThemeContext.Provider value={resolvedSceneTheme ?? null}>
-      <ThemeKeyContext.Provider value={themeKey}>
       <SceneRegistrationContext.Provider value={registrationContextValue}>
         <VariableStoreContext.Provider value={engine.variableStore}>
           <PluginInheritanceContext.Provider value={resolvedPlugins}>
-            {innerContent}
+            {wrappedContent}
           </PluginInheritanceContext.Provider>
         </VariableStoreContext.Provider>
       </SceneRegistrationContext.Provider>
-      </ThemeKeyContext.Provider>
     </ThemeContext.Provider>
   );
 };

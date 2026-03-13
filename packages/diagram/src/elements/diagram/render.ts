@@ -15,6 +15,7 @@ import { sharedIconLoader } from './rendering/IconLoader';
 import type { IIconLoader } from './rendering/IconLoader';
 import { GroupInteractionRegistry } from './rendering/GroupInteractionRegistry';
 import type { DiagramThemeRenderConfig } from './types';
+import { NODE_RENDER_Z_OFFSET } from './constants';
 
 /**
  * Computes a cache key from the EdgeRenderer construction-time params.
@@ -150,15 +151,20 @@ export class DiagramRenderer {
       state.z,
     );
 
-    // Compute uniform fit scaling to preserve the diagram's natural bounding-box AR.
-    // Diagram-local NVS positions [0..1] map to world space via uniformWorldW/H
-    // rather than independently scaling X by vp.w and Y by vp.h, which would distort
-    // any diagram whose contentAspect != (vp.w / vp.h) * (visibleWorldWidth / visibleWorldHeight).
-    const availableWorldW = vp.w * coords.visibleWorldWidth;
-    const availableWorldH = vp.h * coords.visibleWorldHeight;
-    const fitByWidth = availableWorldW / state.contentAspect;
-    const uniformWorldH = Math.min(fitByWidth, availableWorldH);
-    const uniformWorldW = uniformWorldH * state.contentAspect;
+    // Map the diagram's NVS [0..1] positions directly to the view's world-space bounds.
+    // The view's w/h defines the AR — the diagram fills it fully, same as charts do.
+    // Node sizes are already NVS-normalized by normalizeToViewport, so mapping through
+    // the view bounds preserves the proportions established during layout compilation.
+    const uniformWorldW = vp.w * coords.visibleWorldWidth;
+    const uniformWorldH = vp.h * coords.visibleWorldHeight;
+
+    // Quantize uniformWorldW for thickness/border scaling to prevent per-frame
+    // geometry rebuilds during transitions. Sub-renderers compare thickness values
+    // for change detection — continuous floating-point changes trigger expensive
+    // TubeGeometry/ExtrudeGeometry recreation on every node/edge/group every frame.
+    // Quantizing to 0.1 precision limits rebuilds to ~3 per transition while keeping
+    // visual error below 5% of tube thickness (sub-pixel).
+    const thicknessScale = Math.round(uniformWorldW * 10) / 10 || 0.1;
 
     // ─── Groups ───────────────────────────────────────────────────────────────
 
@@ -212,10 +218,10 @@ export class DiagramRenderer {
       // Compute left and bottom edges from center and half-extents.
       const convertedGroup: DiagramGroupState = {
         ...groupState,
-        // Convert borderWidth and borderHeight from NVS fraction to world units —
-        // same scaling applied to node sizes. Keeps border proportional to diagram size.
-        borderWidth: groupState.borderWidth * uniformWorldW,
-        borderHeight: groupState.borderHeight * uniformWorldW,
+        // Convert borderWidth and borderHeight from NVS fraction to world units via
+        // quantized scale to avoid per-frame geometry rebuilds during transitions.
+        borderWidth: groupState.borderWidth * thicknessScale,
+        borderHeight: groupState.borderHeight * thicknessScale,
         bounds: {
           x: localGCX - worldGW / 2,  // left edge (GroupRenderer: centerX = bounds.x + bounds.w/2)
           y: localGCY - worldGH / 2,  // bottom edge Y-up (GroupRenderer: centerY = bounds.y + bounds.h/2)
@@ -248,12 +254,12 @@ export class DiagramRenderer {
               from: [
                 (command.from[0] - 0.5) * uniformWorldW,
                 -(command.from[1] - 0.5) * uniformWorldH,
-                command.from[2],
+                command.from[2] + NODE_RENDER_Z_OFFSET,
               ] as const,
               to: [
                 (command.to[0] - 0.5) * uniformWorldW,
                 -(command.to[1] - 0.5) * uniformWorldH,
-                command.to[2],
+                command.to[2] + NODE_RENDER_Z_OFFSET,
               ] as const,
             };
           }
@@ -262,36 +268,36 @@ export class DiagramRenderer {
             p0: [
               (command.p0[0] - 0.5) * uniformWorldW,
               -(command.p0[1] - 0.5) * uniformWorldH,
-              command.p0[2],
+              command.p0[2] + NODE_RENDER_Z_OFFSET,
             ] as const,
             p1: [
               (command.p1[0] - 0.5) * uniformWorldW,
               -(command.p1[1] - 0.5) * uniformWorldH,
-              command.p1[2],
+              command.p1[2] + NODE_RENDER_Z_OFFSET,
             ] as const,
             p2: [
               (command.p2[0] - 0.5) * uniformWorldW,
               -(command.p2[1] - 0.5) * uniformWorldH,
-              command.p2[2],
+              command.p2[2] + NODE_RENDER_Z_OFFSET,
             ] as const,
             p3: [
               (command.p3[0] - 0.5) * uniformWorldW,
               -(command.p3[1] - 0.5) * uniformWorldH,
-              command.p3[2],
+              command.p3[2] + NODE_RENDER_Z_OFFSET,
             ] as const,
           };
         }),
       };
       const convertedEdge: DiagramEdgeState = {
         ...edgeState,
-        // Convert edge thickness from NVS fraction to world units — same scaling
-        // applied to node sizes. Keeps tube radius proportional to diagram size.
-        thickness: edgeState.thickness * uniformWorldW,
+        // Convert edge thickness from NVS fraction to world units via quantized
+        // scale to avoid per-frame geometry rebuilds during transitions.
+        thickness: edgeState.thickness * thicknessScale,
         path: convertedPath,
         controlPoints: edgeState.controlPoints.map((cp) => {
           const localCpX = (cp[0] - 0.5) * uniformWorldW;
           const localCpY = -(cp[1] - 0.5) * uniformWorldH;
-          return [localCpX, localCpY, cp[2]] as readonly [number, number, number];
+          return [localCpX, localCpY, cp[2] + NODE_RENDER_Z_OFFSET] as readonly [number, number, number];
         }),
       };
       this.edgeRenderer.getOrCreate(
@@ -316,7 +322,7 @@ export class DiagramRenderer {
       // Uses uniform scaling to preserve contentAspect (avoids X/Y axis distortion).
       const localX = (nodeState.position[0] - 0.5) * uniformWorldW;
       const localY = -(nodeState.position[1] - 0.5) * uniformWorldH; // Y-flip: NVS 0=top, Three.js +Y=up
-      const localZ = nodeState.position[2]; // world-space Z offset for layering
+      const localZ = nodeState.position[2] + NODE_RENDER_Z_OFFSET; // world-space Z offset for layering (groups are at Z=0)
 
       // Node size: NVS fractions → world units via uniform scaling.
       const worldW = nodeState.size[0] * uniformWorldW;
@@ -336,8 +342,9 @@ export class DiagramRenderer {
         ...nodeState,
         position: [localX, localY, localZ],
         size: [worldW, worldH],
-        // Convert node Z-depth from NVS fraction to world units.
-        thickness: nodeState.thickness * uniformWorldW,
+        // Convert node Z-depth from NVS fraction to world units via quantized
+        // scale to avoid per-frame geometry rebuilds during transitions.
+        thickness: nodeState.thickness * thicknessScale,
       };
       this.nodeRenderer.getOrCreate(convertedNode, state.id, tc, group);
     }

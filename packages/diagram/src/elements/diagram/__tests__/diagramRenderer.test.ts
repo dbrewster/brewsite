@@ -247,9 +247,10 @@ describe('DiagramRenderer — edge control point NVS → world-space conversion 
     renderer.dispose('testDiagram', group);
   });
 
-  it('square diagram (contentAspect=1) on 16:9 viewport produces equal |X| and |Y| for corner NVS (0,0)', () => {
-    // A square diagram (contentAspect=1.0) on a 16:9 viewport is height-constrained.
-    // uniformWorldW = uniformWorldH, so NVS (0,0) → |localX| ≈ |localY|.
+  it('diagram fills view bounds directly — |X| > |Y| on 16:9 viewport regardless of contentAspect', () => {
+    // The diagram maps NVS [0..1] to the full view bounds (same as charts).
+    // On a 16:9 viewport with full-screen viewportBounds (w=1,h=1),
+    // uniformWorldW > uniformWorldH, so NVS (0,0) → |localX| > |localY|.
     const renderer = new DiagramRenderer(minimalThemeConfig);
     const group = new THREE.Group();
     const coords = make16x9Coords();
@@ -257,7 +258,6 @@ describe('DiagramRenderer — edge control point NVS → world-space conversion 
       [makeEdgeState([[0, 0, 0], [1, 1, 0]])],
       [],
     );
-    // contentAspect: 1.0 from makeDiagramState — square diagram
 
     renderer.update(state, group, coords);
 
@@ -266,27 +266,7 @@ describe('DiagramRenderer — edge control point NVS → world-space conversion 
     const geom = tube.geometry as THREE.TubeGeometry;
     const points = getPathPoints(geom);
 
-    // With uniform fit: height limits scale → uniformWorldW = uniformWorldH → |X| = |Y|
-    expect(Math.abs(points[0]!.x)).toBeCloseTo(Math.abs(points[0]!.y), 3);
-
-    renderer.dispose('testDiagram', group);
-  });
-
-  it('wide diagram (contentAspect=16/9) on 16:9 viewport produces larger |X| than |Y| for corner NVS (0,0)', () => {
-    // A diagram whose AR matches the 16:9 viewport fills the viewport exactly.
-    // uniformWorldW > uniformWorldH, so NVS (0,0) → |localX| > |localY|.
-    const renderer = new DiagramRenderer(minimalThemeConfig);
-    const group = new THREE.Group();
-    const coords = make16x9Coords();
-    const state = { ...makeDiagramState([makeEdgeState([[0, 0, 0], [1, 1, 0]])], []), contentAspect: 16 / 9 };
-
-    renderer.update(state, group, coords);
-
-    const edgeGroup = group.children[0] as THREE.Group;
-    const tube = edgeGroup.children[0] as THREE.Mesh;
-    const geom = tube.geometry as THREE.TubeGeometry;
-    const points = getPathPoints(geom);
-
+    // View is 16:9 → uniformWorldW = 16/9 × uniformWorldH → |X| > |Y|
     expect(Math.abs(points[0]!.x)).toBeGreaterThan(Math.abs(points[0]!.y));
 
     renderer.dispose('testDiagram', group);

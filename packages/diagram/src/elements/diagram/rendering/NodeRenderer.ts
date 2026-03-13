@@ -22,6 +22,10 @@ const createBoxMaterials = (
   materialCount: 2 | 6,
   effectiveEmissiveIntensity: number,
 ): THREE.MeshStandardMaterial[] => {
+  // Use transparent=true only when opacity < 1, matching the chart renderer convention.
+  // Opaque nodes (opacity=1) are rendered in the opaque pass so they correctly depth-sort
+  // against other opaque elements (chart bars, models, etc.) at the same world Z.
+  const isTransparent = state.opacity < 1;
   if (materialCount === 2) {
     const caps = new THREE.MeshStandardMaterial({
       color: state.color,
@@ -29,14 +33,14 @@ const createBoxMaterials = (
       roughness: state.roughness,
       emissive: new THREE.Color(state.emissiveColor ?? state.color),
       emissiveIntensity: effectiveEmissiveIntensity,
-      transparent: true,
+      transparent: isTransparent,
       opacity: state.opacity,
     });
     const sides = new THREE.MeshStandardMaterial({
       color: state.sideColor,
       metalness: state.metalness,
       roughness: state.roughness,
-      transparent: true,
+      transparent: isTransparent,
       opacity: state.opacity,
     });
     return [caps, sides];
@@ -46,7 +50,7 @@ const createBoxMaterials = (
     color: state.sideColor,
     metalness: state.metalness,
     roughness: state.roughness,
-    transparent: true,
+    transparent: isTransparent,
     opacity: state.opacity,
   });
   const top = side.clone();
@@ -65,7 +69,7 @@ const createBoxMaterials = (
     roughness: state.roughness,
     emissive: new THREE.Color(state.emissiveColor ?? state.color),
     emissiveIntensity: effectiveEmissiveIntensity,
-    transparent: true,
+    transparent: isTransparent,
     opacity: state.opacity,
   });
   const back = side.clone();
@@ -319,7 +323,7 @@ export class NodeRenderer {
         ? (entry.boxMesh.material as THREE.MeshStandardMaterial[])
         : [entry.boxMesh.material as THREE.MeshStandardMaterial];
       const op = state.opacity;
-      mats.forEach((m) => { m.opacity = op; m.transparent = true; });
+      mats.forEach((m) => { m.opacity = op; m.transparent = op < 1; });
     }
 
     if (
@@ -335,11 +339,11 @@ export class NodeRenderer {
           if (Array.isArray(mat)) {
             (mat as THREE.MeshStandardMaterial[]).forEach((m) => {
               m.opacity = op;
-              m.transparent = true;
+              m.transparent = op < 1;
             });
           } else if (mat instanceof THREE.MeshStandardMaterial) {
             (mat as THREE.MeshStandardMaterial).opacity = op;
-            (mat as THREE.MeshStandardMaterial).transparent = true;
+            (mat as THREE.MeshStandardMaterial).transparent = op < 1;
           }
         }
       });
@@ -361,7 +365,7 @@ export class NodeRenderer {
     if (!prev || prev.opacity !== state.opacity) {
       const op = Math.min(1, state.opacity);
       activeBorderMat.opacity = op;
-      activeBorderMat.transparent = true;
+      activeBorderMat.transparent = op < 1;
       if (entry.roundedBorder) {
         (entry.roundedBorder.material as THREE.LineBasicMaterial).opacity = op;
       }
@@ -494,7 +498,8 @@ export class NodeRenderer {
         });
       }
       if (entry.iconHolder) {
-        entry.iconHolder.position.set(0, contentH * 0.2, state.thickness / 2 + 0.01);
+        // Icon sits just in front of the node face at Z=0.
+        entry.iconHolder.position.set(0, contentH * 0.2, 0.01);
       }
     } else if (entry.iconHolder) {
       entry.group.remove(entry.iconHolder);

@@ -12,6 +12,9 @@ import type { UseSceneEngineResult } from '../useSceneEngine';
 import type { SceneTrackTick } from '../../compiler/sceneTrackTypes';
 import type { SceneInputControllerSpec } from '../../input/types';
 import type { ActionInputExtension } from '../ActionInputExtensionContext';
+import { VariableStore } from '../../widget/VariableStore';
+import type { ViewLayoutState, ViewState } from '../../compiler/viewTypes';
+import type { NVSRect } from '../../layout/types';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -325,5 +328,400 @@ describe('ActionInput', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
     // sceneCount <= 1 → onSceneStep returns early without calling advanceProgress.
     expect(engine.advanceProgress).not.toHaveBeenCalled();
+  });
+});
+
+// ─── Carousel onCarouselStep tests ────────────────────────────────────────────
+
+/** Build a SceneInputControllerSpec with carousel.next (ArrowRight) and carousel.prev (ArrowLeft). */
+const makeCarouselSpec = (layoutId: string, stepSlides = 1): SceneInputControllerSpec => ({
+  id: 'ctrl',
+  scope: 'window',
+  actions: [
+    {
+      id: 'carousel-next',
+      type: 'carousel.next',
+      layoutId,
+      stepSlides,
+      maps: [{ kind: 'key', key: 'ArrowRight' }],
+    },
+    {
+      id: 'carousel-prev',
+      type: 'carousel.prev',
+      layoutId,
+      stepSlides,
+      maps: [{ kind: 'key', key: 'ArrowLeft' }],
+    },
+  ],
+});
+
+/** Build a ViewLayoutState for a carousel with N views. */
+const makeCarouselLayoutState = (
+  layoutId: string,
+  viewIds: string[],
+  activeIndex: number,
+  loop: boolean,
+): ViewLayoutState => ({
+  id: layoutId,
+  kind: 'carousel',
+  bounds: { x: 0, y: 0, w: 1, h: 1 },
+  viewIds,
+  layoutConfig: { kind: 'carousel', activeIndex, loop },
+  childSizeHints: viewIds.map(() => ({ w: 0.3, h: 0.5 })),
+});
+
+/** Build a minimal ViewState for a child view. */
+const makeViewState = (id: string, bounds: NVSRect = { x: 0, y: 0, w: 0.3, h: 0.5 }): ViewState => ({
+  id,
+  bounds,
+  padding: [0, 0, 0, 0],
+  contentBounds: bounds,
+  layer: 0,
+  scale: 1,
+  z: 0,
+  opacity: 1,
+});
+
+type CarouselEngineOptions = {
+  layoutId: string;
+  layoutState: ViewLayoutState;
+  viewStates: Record<string, ViewState>;
+  variableStore: VariableStore;
+  patchWidgetStates: ReturnType<typeof vi.fn>;
+  canvasEl?: HTMLElement | null;
+};
+
+/** Build a UseSceneEngineResult-shaped object for carousel tests. */
+const makeCarouselEngine = (opts: CarouselEngineOptions): UseSceneEngineResult => {
+  const { layoutId, layoutState, viewStates, variableStore, patchWidgetStates, canvasEl = null } = opts;
+  const spec = makeCarouselSpec(layoutId);
+  const tick: SceneTrackTick = {
+    index: 0,
+    progress: 0,
+    sceneId: 'scene-1',
+    sceneIndex: 0,
+    blockProgress: 0,
+    sceneProgress: 0,
+    state: {
+      id: 'scene-1',
+      scrollProgress: 0,
+      widgets: {
+        '__input_controller': spec,
+        [layoutId]: layoutState,
+        ...viewStates,
+      },
+    },
+    deltaForward: {},
+    deltaBackward: {},
+  };
+  return {
+    frameState: {
+      tickIndex: 0,
+      progress: 0,
+      sceneId: 'scene-1',
+      sceneIndex: 0,
+      sceneProgress: 0,
+      tick,
+    },
+    sceneCount: 3,
+    primaryCameraId: 'camera',
+    primaryCanvasActionTargetId: '',
+    canvasRef: { current: canvasEl },
+    variableStore,
+    patchWidgetStates,
+    sceneTrack: null,
+    advanceProgress: vi.fn(),
+    applyCameraOrbit: vi.fn(),
+    applyCameraDolly: vi.fn(),
+    applyCameraReset: vi.fn(),
+    setCameraOverride: vi.fn(),
+  } as unknown as UseSceneEngineResult;
+};
+
+describe('ActionInput — onCarouselStep', () => {
+  const LAYOUT_ID = 'my-carousel';
+  const VIEW_IDS = ['v1', 'v2', 'v3'];
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('(1) linear clamping at min: loop=false, activeIndex=0, step -1 → no-op', async () => {
+    const variableStore = new VariableStore();
+    const patchWidgetStates = vi.fn();
+    const layoutState = makeCarouselLayoutState(LAYOUT_ID, VIEW_IDS, 0, false);
+    const viewStates = Object.fromEntries(VIEW_IDS.map((id) => [id, makeViewState(id)]));
+    const canvas = document.createElement('canvas');
+    const engine = makeCarouselEngine({ layoutId: LAYOUT_ID, layoutState, viewStates, variableStore, patchWidgetStates, canvasEl: canvas });
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <ActionInput target={canvas} />
+        </EngineContext.Provider>,
+      );
+    });
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+
+    // Already at index 0 with no loop — newIndex === currentIndex, so no patch.
+    expect(patchWidgetStates).not.toHaveBeenCalled();
+    expect(variableStore.get('carousel', `${LAYOUT_ID}.activeIndex`)).toBeUndefined();
+  });
+
+  it('(2) linear clamping at max: loop=false, activeIndex=N-1, step +1 → no-op', async () => {
+    const variableStore = new VariableStore();
+    const patchWidgetStates = vi.fn();
+    const layoutState = makeCarouselLayoutState(LAYOUT_ID, VIEW_IDS, VIEW_IDS.length - 1, false);
+    const viewStates = Object.fromEntries(VIEW_IDS.map((id) => [id, makeViewState(id)]));
+    const canvas = document.createElement('canvas');
+    const engine = makeCarouselEngine({ layoutId: LAYOUT_ID, layoutState, viewStates, variableStore, patchWidgetStates, canvasEl: canvas });
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <ActionInput target={canvas} />
+        </EngineContext.Provider>,
+      );
+    });
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+
+    expect(patchWidgetStates).not.toHaveBeenCalled();
+  });
+
+  it('(3) loop wrap forward: loop=true, activeIndex=N-1, step +1 → wraps to 0', async () => {
+    const variableStore = new VariableStore();
+    const patchWidgetStates = vi.fn();
+    const maxIndex = VIEW_IDS.length - 1;
+    const layoutState = makeCarouselLayoutState(LAYOUT_ID, VIEW_IDS, maxIndex, true);
+    const viewStates = Object.fromEntries(VIEW_IDS.map((id) => [id, makeViewState(id)]));
+    const canvas = document.createElement('canvas');
+    const engine = makeCarouselEngine({ layoutId: LAYOUT_ID, layoutState, viewStates, variableStore, patchWidgetStates, canvasEl: canvas });
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <ActionInput target={canvas} />
+        </EngineContext.Provider>,
+      );
+    });
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+
+    expect(patchWidgetStates).toHaveBeenCalledOnce();
+    const patches = patchWidgetStates.mock.calls[0][0] as Record<string, unknown>;
+    const patchedLayout = patches[LAYOUT_ID] as ViewLayoutState;
+    expect((patchedLayout.layoutConfig as { activeIndex: number }).activeIndex).toBe(0);
+    expect(variableStore.get('carousel', `${LAYOUT_ID}.activeIndex`)).toBe(0);
+  });
+
+  it('(4) loop wrap backward: loop=true, activeIndex=0, step -1 → wraps to N-1', async () => {
+    const variableStore = new VariableStore();
+    const patchWidgetStates = vi.fn();
+    const layoutState = makeCarouselLayoutState(LAYOUT_ID, VIEW_IDS, 0, true);
+    const viewStates = Object.fromEntries(VIEW_IDS.map((id) => [id, makeViewState(id)]));
+    const canvas = document.createElement('canvas');
+    const engine = makeCarouselEngine({ layoutId: LAYOUT_ID, layoutState, viewStates, variableStore, patchWidgetStates, canvasEl: canvas });
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <ActionInput target={canvas} />
+        </EngineContext.Provider>,
+      );
+    });
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+
+    expect(patchWidgetStates).toHaveBeenCalledOnce();
+    const patches = patchWidgetStates.mock.calls[0][0] as Record<string, unknown>;
+    const patchedLayout = patches[LAYOUT_ID] as ViewLayoutState;
+    expect((patchedLayout.layoutConfig as { activeIndex: number }).activeIndex).toBe(VIEW_IDS.length - 1);
+    expect(variableStore.get('carousel', `${LAYOUT_ID}.activeIndex`)).toBe(VIEW_IDS.length - 1);
+  });
+
+  it('(5) stepSlides > 1: 7 children, loop=true, index=5, stepSlides=3 → index=(5+3)%7=1', async () => {
+    const variableStore = new VariableStore();
+    const patchWidgetStates = vi.fn();
+    const sevenViews = ['v1', 'v2', 'v3', 'v4', 'v5', 'v6', 'v7'];
+    const layoutState = makeCarouselLayoutState(LAYOUT_ID, sevenViews, 5, true);
+    const viewStates = Object.fromEntries(sevenViews.map((id) => [id, makeViewState(id)]));
+    const canvas = document.createElement('canvas');
+
+    // Build the engine with a 3-slide step spec.
+    const spec = makeCarouselSpec(LAYOUT_ID, 3);
+    const tick: SceneTrackTick = {
+      index: 0, progress: 0, sceneId: 'scene-1', sceneIndex: 0, blockProgress: 0, sceneProgress: 0,
+      state: { id: 'scene-1', scrollProgress: 0, widgets: { '__input_controller': spec, [LAYOUT_ID]: layoutState, ...viewStates } },
+      deltaForward: {}, deltaBackward: {},
+    };
+    const engine = {
+      frameState: { tickIndex: 0, progress: 0, sceneId: 'scene-1', sceneIndex: 0, sceneProgress: 0, tick },
+      sceneCount: 3, primaryCameraId: 'camera', primaryCanvasActionTargetId: '',
+      canvasRef: { current: canvas }, variableStore, patchWidgetStates, sceneTrack: null,
+      advanceProgress: vi.fn(), applyCameraOrbit: vi.fn(), applyCameraDolly: vi.fn(),
+      applyCameraReset: vi.fn(), setCameraOverride: vi.fn(),
+    } as unknown as UseSceneEngineResult;
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <ActionInput target={canvas} />
+        </EngineContext.Provider>,
+      );
+    });
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+
+    expect(patchWidgetStates).toHaveBeenCalledOnce();
+    const patches = patchWidgetStates.mock.calls[0][0] as Record<string, unknown>;
+    const patchedLayout = patches[LAYOUT_ID] as ViewLayoutState;
+    // (5 + 3) % 7 = 1
+    expect((patchedLayout.layoutConfig as { activeIndex: number }).activeIndex).toBe(1);
+    expect(variableStore.get('carousel', `${LAYOUT_ID}.activeIndex`)).toBe(1);
+  });
+
+  it('(6) missing layoutConfig: warns and does not patch', async () => {
+    const variableStore = new VariableStore();
+    const patchWidgetStates = vi.fn();
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    // ViewLayoutState without layoutConfig.
+    const layoutState: ViewLayoutState = {
+      id: LAYOUT_ID,
+      kind: 'carousel',
+      bounds: { x: 0, y: 0, w: 1, h: 1 },
+      viewIds: VIEW_IDS,
+      // layoutConfig intentionally absent
+    };
+    const viewStates = Object.fromEntries(VIEW_IDS.map((id) => [id, makeViewState(id)]));
+    const canvas = document.createElement('canvas');
+    const engine = makeCarouselEngine({ layoutId: LAYOUT_ID, layoutState, viewStates, variableStore, patchWidgetStates, canvasEl: canvas });
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <ActionInput target={canvas} />
+        </EngineContext.Provider>,
+      );
+    });
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+
+    expect(patchWidgetStates).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('missing layoutConfig'));
+  });
+
+  it('(7) empty children: viewIds.length === 0 → no-op', async () => {
+    const variableStore = new VariableStore();
+    const patchWidgetStates = vi.fn();
+    const layoutState = makeCarouselLayoutState(LAYOUT_ID, [], 0, false);
+    const canvas = document.createElement('canvas');
+    const engine = makeCarouselEngine({ layoutId: LAYOUT_ID, layoutState, viewStates: {}, variableStore, patchWidgetStates, canvasEl: canvas });
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <ActionInput target={canvas} />
+        </EngineContext.Provider>,
+      );
+    });
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+
+    expect(patchWidgetStates).not.toHaveBeenCalled();
+  });
+
+  it('(8) VariableStore fallback: first step reads compiled activeIndex when VariableStore is empty', async () => {
+    const variableStore = new VariableStore();
+    const patchWidgetStates = vi.fn();
+    // Compiled activeIndex = 1.
+    const layoutState = makeCarouselLayoutState(LAYOUT_ID, VIEW_IDS, 1, false);
+    const viewStates = Object.fromEntries(VIEW_IDS.map((id) => [id, makeViewState(id)]));
+    const canvas = document.createElement('canvas');
+    const engine = makeCarouselEngine({ layoutId: LAYOUT_ID, layoutState, viewStates, variableStore, patchWidgetStates, canvasEl: canvas });
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <ActionInput target={canvas} />
+        </EngineContext.Provider>,
+      );
+    });
+
+    // VariableStore has no entry — handler falls back to compiled activeIndex=1.
+    expect(variableStore.get('carousel', `${LAYOUT_ID}.activeIndex`)).toBeUndefined();
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+
+    // currentIndex was 1 (from compiled fallback), newIndex=2.
+    expect(patchWidgetStates).toHaveBeenCalledOnce();
+    const patches = patchWidgetStates.mock.calls[0][0] as Record<string, unknown>;
+    const patchedLayout = patches[LAYOUT_ID] as ViewLayoutState;
+    expect((patchedLayout.layoutConfig as { activeIndex: number }).activeIndex).toBe(2);
+    expect(variableStore.get('carousel', `${LAYOUT_ID}.activeIndex`)).toBe(2);
+  });
+
+  it('(9) VariableStore persistence: second step reads VariableStore value, not compiled value', async () => {
+    const variableStore = new VariableStore();
+    const patchWidgetStates = vi.fn();
+    // Compiled activeIndex = 0.
+    const layoutState = makeCarouselLayoutState(LAYOUT_ID, VIEW_IDS, 0, false);
+    const viewStates = Object.fromEntries(VIEW_IDS.map((id) => [id, makeViewState(id)]));
+    const canvas = document.createElement('canvas');
+    const engine = makeCarouselEngine({ layoutId: LAYOUT_ID, layoutState, viewStates, variableStore, patchWidgetStates, canvasEl: canvas });
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <ActionInput target={canvas} />
+        </EngineContext.Provider>,
+      );
+    });
+
+    // Step 1: compiled=0 → newIndex=1.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(patchWidgetStates).toHaveBeenCalledTimes(1);
+    expect(variableStore.get('carousel', `${LAYOUT_ID}.activeIndex`)).toBe(1);
+
+    // Step 2: VariableStore=1 (not compiled=0) → newIndex=2.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(patchWidgetStates).toHaveBeenCalledTimes(2);
+    const patches2 = patchWidgetStates.mock.calls[1][0] as Record<string, unknown>;
+    const patchedLayout2 = patches2[LAYOUT_ID] as ViewLayoutState;
+    expect((patchedLayout2.layoutConfig as { activeIndex: number }).activeIndex).toBe(2);
+    expect(variableStore.get('carousel', `${LAYOUT_ID}.activeIndex`)).toBe(2);
+  });
+
+  it('(10) out-of-bounds compiled activeIndex: activeIndex=99, 3 children → clamps, then step is clamped no-op', async () => {
+    const variableStore = new VariableStore();
+    const patchWidgetStates = vi.fn();
+    // Compiled activeIndex=99 with only 3 children — clamps to 2.
+    const layoutState = makeCarouselLayoutState(LAYOUT_ID, VIEW_IDS, 99, false);
+    const viewStates = Object.fromEntries(VIEW_IDS.map((id) => [id, makeViewState(id)]));
+    const canvas = document.createElement('canvas');
+    const engine = makeCarouselEngine({ layoutId: LAYOUT_ID, layoutState, viewStates, variableStore, patchWidgetStates, canvasEl: canvas });
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <ActionInput target={canvas} />
+        </EngineContext.Provider>,
+      );
+    });
+
+    // currentIndex = clamp(99, 0, 2) = 2; step +1 → newIndex = clamp(3, 0, 2) = 2 → no-op.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(patchWidgetStates).not.toHaveBeenCalled();
+
+    // step -1: currentIndex=2 → newIndex=1 → patch called.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(patchWidgetStates).toHaveBeenCalledOnce();
+    const patches = patchWidgetStates.mock.calls[0][0] as Record<string, unknown>;
+    const patchedLayout = patches[LAYOUT_ID] as ViewLayoutState;
+    expect((patchedLayout.layoutConfig as { activeIndex: number }).activeIndex).toBe(1);
+    expect(variableStore.get('carousel', `${LAYOUT_ID}.activeIndex`)).toBe(1);
   });
 });

@@ -6,15 +6,15 @@ import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { AreaChart, BarChart, ChartAxis, ChartLegend, ChartSeries, LineChart, ScatterPlotChart } from '@brewsite/charts';
 import { saasMetrics24Months } from '../data/saasMetrics';
 import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, CHART_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
-import { useDemoChartTheme } from './sceneShared';
+import { useChartTheme } from '@brewsite/charts';
 
 const SWITCHER_DATA = saasMetrics24Months.slice(0, 12); // 12 months for compact view
 
 // Scene 9a — Bar view
 export const Scene9a = (): JSX.Element => {
-  const chartTheme = useDemoChartTheme();
+  const chartTheme = useChartTheme();
   return (
-  <Scene id="chart-s9a" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
+  <Scene id="chart-s9a">
     <ProgressManager scrollUnits={1000} />
     <SceneLighting />
 
@@ -42,9 +42,9 @@ export const Scene9a = (): JSX.Element => {
 
 // Scene 9b — Line view (same chart ID)
 export const Scene9b = (): JSX.Element => {
-  const chartTheme = useDemoChartTheme();
+  const chartTheme = useChartTheme();
   return (
-  <Scene id="chart-s9b" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
+  <Scene id="chart-s9b">
     <ProgressManager scrollUnits={1000} />
     <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={CHART_CAM_FOV} />
     <SceneLighting />
@@ -74,9 +74,9 @@ export const Scene9b = (): JSX.Element => {
 
 // Scene 9c — Area view (same chart ID)
 export const Scene9c = (): JSX.Element => {
-  const chartTheme = useDemoChartTheme();
+  const chartTheme = useChartTheme();
   return (
-  <Scene id="chart-s9c" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
+  <Scene id="chart-s9c">
     <ProgressManager scrollUnits={1000} />
     <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={CHART_CAM_FOV} />
     <SceneLighting />
@@ -106,9 +106,9 @@ export const Scene9c = (): JSX.Element => {
 
 // Scene 9d — Scatter view (same chart ID)
 export const Scene9d = (): JSX.Element => {
-  const chartTheme = useDemoChartTheme();
+  const chartTheme = useChartTheme();
   return (
-  <Scene id="chart-s9d" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
+  <Scene id="chart-s9d">
     <ProgressManager scrollUnits={1000} />
     <Camera mode="world" position={CHART_CAM_POS} target={CHART_CAM_TGT} fov={CHART_CAM_FOV} />
     <SceneLighting />

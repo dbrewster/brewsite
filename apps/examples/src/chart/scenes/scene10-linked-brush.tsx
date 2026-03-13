@@ -5,13 +5,13 @@ import {Camera, ProgressManager, Scene} from '@brewsite/core';
 import {BarChart, ChartAxis, ChartData, ChartLegend, ChartSeries, HeatMapChart, ScatterPlotChart} from '@brewsite/charts';
 import { teamPerformance } from '../data/teamData';
 import {CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, DASH_LAYOUT_LEFT, DASH_LAYOUT_RIGHT, SceneLighting, SceneTitleBox} from './sceneShared';
-import { useDemoChartTheme } from './sceneShared';
+import { useChartTheme } from '@brewsite/charts';
 import {activityHeatmap} from "../data/heatmapData";
 
 export const Scene10 = (): JSX.Element => {
-  const chartTheme = useDemoChartTheme();
+  const chartTheme = useChartTheme();
   return (
-  <Scene id="chart-s10" transition={{ exit: [0.7, 1.0], enter: [0.0, 0.0] }}>
+  <Scene id="chart-s10">
     <ProgressManager scrollUnits={1600} />
     <SceneLighting />
 

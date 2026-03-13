@@ -46,7 +46,7 @@ export const midnightChartTheme: ChartTheme = {
     smoothness: 0.70,
     subdivisions: 8,
   },
-  pie: { tilt: -0.35 },
+  pie: { tilt: 0 },
   interaction: {
     hoverColor: '#E2A33A',
     hoverEmissiveIntensity: 0.5,

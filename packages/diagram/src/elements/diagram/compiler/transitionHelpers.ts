@@ -6,7 +6,7 @@ import type { EdgeRoutingAlgorithm, EdgeLandingAlgorithm } from '../types';
 import { blendOpacity, blendVec3 } from '@brewsite/core';
 import { routeEdges, routeEdgesYDown } from './edgeRouter';
 import { optimizeSharedFlowTrunks } from './edgeRenderOptimizer';
-import { GROUP_BORDER_PX_TO_UNITS, GROUP_RENDER_Z } from './diagramRenderConstants';
+import { GROUP_BORDER_PX_TO_UNITS } from './diagramRenderConstants';
 
 type Vec3 = readonly [number, number, number];
 type NodeDimensions = readonly [number, number, number];

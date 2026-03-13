@@ -35,11 +35,12 @@ function createRegularPolygonShape(sides: number, r: number): THREE.Shape {
   return shape;
 }
 
-/** Extrudes a regular polygon shape, centered along Z. materialCount: 2. */
+/** Extrudes a regular polygon shape, front face at Z=0, depth into -Z. materialCount: 2. */
 function polygonGeo(sides: number, r: number, depth: number): ShapeGeometrySpec {
   const polyShape = createRegularPolygonShape(sides, r);
   const geo = new THREE.ExtrudeGeometry(polyShape, { depth, bevelEnabled: false });
-  geo.translate(0, 0, -depth / 2);
+  // ExtrudeGeometry extrudes from Z=0 to Z=depth; shift so front face is at Z=0 and depth goes into -Z.
+  geo.translate(0, 0, -depth);
   return { geometry: geo, materialCount: 2 };
 }
 
@@ -140,9 +141,9 @@ export function createRoundedRectShape(w: number, h: number, cornerRadius: numbe
 
 /**
  * Creates a LineLoop-compatible BufferGeometry tracing the 2D front-face outline
- * of any DiagramNodeShape. Points lie at Z = depth/2 + 0.005 (just in front of the
- * node face). Used by NodeRenderer for all shapes except flat-cornered rectangle/square
- * (which use EdgesGeometry on the BoxGeometry directly).
+ * of any DiagramNodeShape. Points lie at Z = 0.005 (just in front of the
+ * node face at Z = 0). Used by NodeRenderer for all shapes except flat-cornered
+ * rectangle/square (which use EdgesGeometry on the BoxGeometry directly).
  */
 export function createShapeOutlineGeometry(
   shape: DiagramNodeShape,
@@ -151,7 +152,7 @@ export function createShapeOutlineGeometry(
   depth: number,
   cornerRadius: number,
 ): THREE.BufferGeometry {
-  const z = depth / 2 + 0.005;
+  const z = 0.005;
 
   /** Convert a THREE.Shape path to a closed array of 3D points at the given Z. */
   const shapeToPoints = (s: THREE.Shape, segs = 48): THREE.Vector3[] => {
@@ -345,32 +346,39 @@ export function createShapeGeometry(
     // ── Special 2D shapes ────────────────────────────────────────────────────
     case 'diamond': {
       // Rotated box — diamond vertices at top/bottom/left/right extremes.
+      // Translate after rotate: front face at Z=0, depth into -Z.
       const geometry = new THREE.BoxGeometry(width, height, depth);
       geometry.rotateZ(Math.PI / 4);
+      geometry.translate(0, 0, -depth / 2);
       return { geometry, materialCount: 6 };
     }
     case 'oval': {
       // Scaled unit sphere — ellipsoidal prism.
+      // Translate after scale: front face at Z=0, depth into -Z.
       const geometry = new THREE.SphereGeometry(0.5, 24, 16);
       geometry.scale(width, height, depth);
+      geometry.translate(0, 0, -depth / 2);
       return { geometry, materialCount: 6 };
     }
     case 'cloud': {
       const cloudShape = createCloudShape(width, height);
       const geo = new THREE.ExtrudeGeometry(cloudShape, { depth, bevelEnabled: false });
-      geo.translate(0, 0, -depth / 2);
+      // Front face at Z=0, depth into -Z.
+      geo.translate(0, 0, -depth);
       return { geometry: geo, materialCount: 2 };
     }
     case 'document': {
       const docShape = createDocumentShape(width, height);
       const geo = new THREE.ExtrudeGeometry(docShape, { depth, bevelEnabled: false });
-      geo.translate(0, 0, -depth / 2);
+      // Front face at Z=0, depth into -Z.
+      geo.translate(0, 0, -depth);
       return { geometry: geo, materialCount: 2 };
     }
     case 'parallelogram': {
       const paraShape = createParallelogramShape(width, height);
       const geo = new THREE.ExtrudeGeometry(paraShape, { depth, bevelEnabled: false });
-      geo.translate(0, 0, -depth / 2);
+      // Front face at Z=0, depth into -Z.
+      geo.translate(0, 0, -depth);
       return { geometry: geo, materialCount: 2 };
     }
 
@@ -386,11 +394,14 @@ export function createShapeGeometry(
           depth,
           bevelEnabled: false,
         });
-        // ExtrudeGeometry extrudes from Z=0 to Z=depth; center along Z axis.
-        extrudeGeo.translate(0, 0, -depth / 2);
+        // ExtrudeGeometry extrudes from Z=0 to Z=depth; shift so front face is at Z=0 and depth goes into -Z.
+        extrudeGeo.translate(0, 0, -depth);
         return { geometry: extrudeGeo, materialCount: 2 };
       }
-      return { geometry: new THREE.BoxGeometry(width, height, depth), materialCount: 6 };
+      // BoxGeometry is centered; translate so front face is at Z=0 and depth goes into -Z.
+      const boxGeo = new THREE.BoxGeometry(width, height, depth);
+      boxGeo.translate(0, 0, -depth / 2);
+      return { geometry: boxGeo, materialCount: 6 };
     }
 
     default: {

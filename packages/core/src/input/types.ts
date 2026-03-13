@@ -27,6 +27,8 @@ export type InputActionType =
   | 'canvas.pan'
   | 'scene.next'
   | 'scene.prev'
+  | 'carousel.next'
+  | 'carousel.prev'
   | (string & {}); // open union — allows downstream extension
 
 export type InputPointerMap = {
@@ -91,6 +93,10 @@ export type InputActionSpec = {
   focusCenter?: [number, number] | [number, number, number];
   speed?: number;
   stepScenes?: number;
+  /** Target ViewLayout ID for carousel actions. Required when type is 'carousel.next'/'carousel.prev'. */
+  layoutId?: string;
+  /** Number of slides to advance per carousel step. Default: 1. */
+  stepSlides?: number;
   maps: InputActionMap[];
 };
 

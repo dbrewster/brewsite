@@ -232,20 +232,22 @@ export class GroupRenderer {
     const availableHalfBand = Math.max(0.2, Math.min(titleInset, topPadding - titleInset));
     // Group title label layout constants.
     // 0.08 = label font-size as fraction of group height h (unclamped size: h × 0.08).
-    // 0.35 = minimum font-size floor in diagram units (prevents unreadably small labels).
+    // 0.35 = minimum font-size floor (prevents unreadably small labels at large scales).
     // 1.6  = ceiling scale on availableHalfBand (max font-size proportional to title band).
-    //        Clamped: clamp(h × 0.08, 0.35, availableHalfBand × 1.6)
-    // 0.7  = horizontal inset from group border to label text edge (labelInsetX, diagram units).
+    //        Clamped: clamp(h × 0.08, min, availableHalfBand × 1.6)
+    // labelInsetX = 8% of group width — proportional horizontal inset from border to text edge.
     //
     // These are geometry calibration constants for the group title band. Theme scaling is
     // applied via effectiveLabelSizeFactor. The raw ratios are not theme-exposed — they
     // are calibrated together to keep labels proportional as groups scale in size and are
     // not independently composable (four-condition principle).
+    const minFontSize = Math.max(0.05, state.bounds.h * 0.02);
     const labelFontSize = Math.max(
-      0.35,
+      minFontSize,
       Math.min(state.bounds.h * 0.08, availableHalfBand * 1.6),
     ) * (themeConfig.effectiveLabelSizeFactor ?? 1.0);
-    const labelInsetX = 0.7;
+    const labelInsetX = Math.max(0.02, state.bounds.w * 0.08);
+    const labelMaxWidth = Math.max(labelFontSize, state.bounds.w - labelInsetX * 2);
     if (state.label) {
       ensureText(
         entry.label,
@@ -253,7 +255,7 @@ export class GroupRenderer {
         state.labelColor,
         labelFontSize,
         1,
-        state.bounds.w - labelInsetX * 2,
+        labelMaxWidth,
         true,
         { anchorX: 'left', anchorY: 'middle', textAlign: 'left', fontUrl: themeConfig.fontUrl, sdfGlyphSize: themeConfig.nodeSdfGlyphSize },
       );

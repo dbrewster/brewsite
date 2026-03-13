@@ -78,7 +78,7 @@ export function computeNodeLabelLayout(
   void contentW;
 
   // Z offset must be large enough to avoid depth-buffer fighting with the box
-  // front face at z = thickness/2. A fixed 0.02 is not reliably resolvable in a
+  // front face at z = 0. A fixed 0.02 is not reliably resolvable in a
   // 24-bit depth buffer at typical camera distances — use a proportional offset
   // (5% of thickness) with a floor of 0.05 to guarantee separation.
   const labelZOffset = Math.max(0.05, thickness * 0.05);
@@ -88,7 +88,7 @@ export function computeNodeLabelLayout(
     sublabelY,
     labelFontSize,
     sublabelFontSize,
-    labelZ: thickness / 2 + labelZOffset,
-    sublabelZ: thickness / 2 + labelZOffset,
+    labelZ: labelZOffset,
+    sublabelZ: labelZOffset,
   };
 }

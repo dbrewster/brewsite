@@ -46,7 +46,7 @@ export const neonCyberChartTheme: ChartTheme = {
     smoothness: 0.82,
     subdivisions: 7,
   },
-  pie: { tilt: -0.35 },
+  pie: { tilt: 0 },
   interaction: {
     hoverColor: '#00E7FF',
     hoverEmissiveIntensity: 1.2,

@@ -37,6 +37,16 @@ export type ActionInputHandler = {
   onCameraDolly: (cameraId: string, delta: number, speed: number) => void;
   onCameraReset: (cameraId: string) => void;
   /**
+   * Advance a carousel layout by stepSlides in the given direction.
+   * Required because carousel.next/carousel.prev are core-dispatched action
+   * types (explicit InputActionType members), not extension types.
+   *
+   * @param layoutId   - The target ViewLayout widget ID.
+   * @param direction  - +1 = next, -1 = prev.
+   * @param stepSlides - Number of slides to advance. Default: 1.
+   */
+  onCarouselStep: (layoutId: string, direction: 1 | -1, stepSlides: number) => void;
+  /**
    * Dispatches an action type not handled by core to any registered extension handler.
    * @brewsite/diagram provides its diagram-canvas.* handling via this callback.
    *
@@ -155,6 +165,22 @@ export class ActionInputController {
 
   private actionStepScenes(action: InputActionSpec): number {
     return Math.max(1, Math.round(action.stepScenes ?? 1));
+  }
+
+  private actionStepSlides(action: InputActionSpec): number {
+    return Math.max(1, Math.round(action.stepSlides ?? 1));
+  }
+
+  private dispatchCarousel(action: InputActionSpec): void {
+    if (!action.layoutId) {
+      console.warn(
+        `[ActionInputController] Action "${action.id}" has type "${action.type}" but no layoutId. ` +
+        `Add layoutId="<ViewLayout id>" to the <Action> to target a carousel.`,
+      );
+      return;
+    }
+    const direction: 1 | -1 = action.type === 'carousel.next' ? 1 : -1;
+    this.handler.onCarouselStep(action.layoutId, direction, this.actionStepSlides(action));
   }
 
   private nowMs(): number {
@@ -380,6 +406,10 @@ export class ActionInputController {
       case 'scene.prev':
         this.handler.onSceneStep(-1, this.actionStepScenes(action));
         return;
+      case 'carousel.next':
+      case 'carousel.prev':
+        this.dispatchCarousel(action);
+        return;
       default:
         this.handler.onUnknownAction?.(action.type, action.canvasId, e, {
           speed: action.speed,
@@ -401,6 +431,10 @@ export class ActionInputController {
       case 'scene.prev':
         this.handler.onSceneStep(-1, this.actionStepScenes(action));
         return;
+      case 'carousel.next':
+      case 'carousel.prev':
+        this.dispatchCarousel(action);
+        return;
       default:
         this.handler.onUnknownAction?.(action.type, action.canvasId, e, {
           speed: action.speed,
@@ -416,6 +450,10 @@ export class ActionInputController {
         return;
       case 'scene.prev':
         this.handler.onSceneStep(-1, this.actionStepScenes(action));
+        return;
+      case 'carousel.next':
+      case 'carousel.prev':
+        this.dispatchCarousel(action);
         return;
       default:
         this.handler.onUnknownAction?.(action.type, action.canvasId, e, {

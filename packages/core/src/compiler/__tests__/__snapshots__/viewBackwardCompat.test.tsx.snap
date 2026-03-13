@@ -10,6 +10,7 @@ exports[`viewBackwardCompat — InputController state unchanged > stores inputCo
       "canvasId": undefined,
       "focusCenter": undefined,
       "id": "next",
+      "layoutId": undefined,
       "maps": [
         {
           "key": "ArrowRight",
@@ -19,6 +20,7 @@ exports[`viewBackwardCompat — InputController state unchanged > stores inputCo
       ],
       "speed": undefined,
       "stepScenes": undefined,
+      "stepSlides": undefined,
       "type": "scene.next",
     },
     {
@@ -26,6 +28,7 @@ exports[`viewBackwardCompat — InputController state unchanged > stores inputCo
       "canvasId": undefined,
       "focusCenter": undefined,
       "id": "prev",
+      "layoutId": undefined,
       "maps": [
         {
           "key": "ArrowLeft",
@@ -35,6 +38,7 @@ exports[`viewBackwardCompat — InputController state unchanged > stores inputCo
       ],
       "speed": undefined,
       "stepScenes": undefined,
+      "stepSlides": undefined,
       "type": "scene.prev",
     },
   ],

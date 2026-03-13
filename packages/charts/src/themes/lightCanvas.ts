@@ -46,7 +46,7 @@ export const lightCanvasChartTheme: ChartTheme = {
     smoothness: 0.5,
     subdivisions: 6,
   },
-  pie: { tilt: -0.35 },
+  pie: { tilt: 0 },
   interaction: {
     hoverColor: '#4768C9',
     hoverEmissiveIntensity: 0.15,
