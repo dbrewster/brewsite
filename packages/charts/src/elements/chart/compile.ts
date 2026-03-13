@@ -381,6 +381,10 @@ export const functionalChartTransitionSpec: FunctionalTransitionSpec<ChartState>
           opacity: blendOpacity(from.opacity, to.opacity, ctx.t) ?? to.opacity,
           // Internal: inject t so ChartRenderer can build MorphContext for datum-level morphing
           _morphT: ctx.t,
+          // Internal: carry the "from" scene's data source so ChartRenderer can resolve
+          // morph origin data regardless of scroll direction (fixes reverse morph bug)
+          _morphFromDataSource: from.dataSource,
+          _morphFromTransforms: from.transforms,
         };
       }
 

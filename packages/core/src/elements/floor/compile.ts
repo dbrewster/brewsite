@@ -47,6 +47,7 @@ export const DEFAULT_PHYSICAL_SURFACE: FloorSurfacePhysical = {
 
 export const DEFAULT_FLOOR: SceneFloor = {
   enabled: true,
+  debug: false,
   placement: 'sceneBase',
   position: [0, 0, 0],
   rotation: undefined,
@@ -72,6 +73,7 @@ export const floorTransitionSpec: ElementTransitionSpec<SceneFloor> = {
         negativeZEdge: fromState.negativeZEdge,
         negativeZFadeDistance: fromState.negativeZFadeDistance,
         surface: fromState.surface,
+        debug: fromState.debug,
         enabled: fromState.enabled && t < 1,
       };
     }
@@ -89,6 +91,7 @@ export const floorTransitionSpec: ElementTransitionSpec<SceneFloor> = {
         negativeZEdge: toState.negativeZEdge,
         negativeZFadeDistance: toState.negativeZFadeDistance,
         surface: toState.surface,
+        debug: toState.debug,
         enabled: toState.enabled && t > 0,
       };
     }
@@ -108,6 +111,7 @@ export const floorTransitionSpec: ElementTransitionSpec<SceneFloor> = {
         negativeZFadeDistance:
           t < 0.5 ? fromState.negativeZFadeDistance : toState.negativeZFadeDistance,
         surface: t < 0.5 ? fromState.surface : toState.surface,
+        debug: t < 0.5 ? fromState.debug : toState.debug,
         enabled: (fromState.enabled && t < 1) || (toState.enabled && t > 0),
       };
     }
@@ -125,6 +129,7 @@ export const functionalFloorTransitionSpec: FunctionalTransitionSpec<SceneFloor>
     negativeZEdge: from.negativeZEdge,
     negativeZFadeDistance: from.negativeZFadeDistance,
     surface: from.surface,
+    debug: from.debug,
     enabled: from.enabled && ctx.t < 1,
   }),
   enterFn: (to) => (ctx) => ({
@@ -137,6 +142,7 @@ export const functionalFloorTransitionSpec: FunctionalTransitionSpec<SceneFloor>
     negativeZEdge: to.negativeZEdge,
     negativeZFadeDistance: to.negativeZFadeDistance,
     surface: to.surface,
+    debug: to.debug,
     enabled: to.enabled && ctx.t > 0,
   }),
   interpolateFn: (from, to) => (ctx) => ({
@@ -150,6 +156,7 @@ export const functionalFloorTransitionSpec: FunctionalTransitionSpec<SceneFloor>
     negativeZFadeDistance:
       ctx.t < 0.5 ? from.negativeZFadeDistance : to.negativeZFadeDistance,
     surface: ctx.t < 0.5 ? from.surface : to.surface,
+    debug: ctx.t < 0.5 ? from.debug : to.debug,
     enabled: (from.enabled && ctx.t < 1) || (to.enabled && ctx.t > 0),
   }),
 };

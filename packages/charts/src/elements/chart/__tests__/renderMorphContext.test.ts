@@ -113,7 +113,7 @@ describe('ChartRenderer morph context', () => {
     barUpdateCalls.length = 0;
   });
 
-  it('keeps morph fromData pinned to pre-transition data for every morph frame', () => {
+  it('resolves morph fromData from _morphFromDataSource for every morph frame', () => {
     const store = new ChartDataStore();
     const renderer = new ChartRenderer(store);
 
@@ -126,17 +126,71 @@ describe('ChartRenderer morph context', () => {
       { quarter: 'Q2', revenue: 218, costs: 135, profit: 83 },
     ];
 
+    // Scene A steady state
     store.registerInline(widgetId, yearA);
     renderer.update(makeInput(), widgetId);
 
+    // Transition: to=B data in inline source, from=A data in morph-from source
     store.registerInline(widgetId, yearB);
-    renderer.update(makeInput({ _morphT: 0.2 }), widgetId);
-    renderer.update(makeInput({ _morphT: 0.7 }), widgetId);
+    store.register(`__morph_from__${widgetId}`, yearA);
+    renderer.update(makeInput({
+      _morphT: 0.2,
+      _morphFromDataSource: { type: 'inline', rows: yearA, keyField: 'quarter' },
+      _morphFromTransforms: [],
+    }), widgetId);
+    renderer.update(makeInput({
+      _morphT: 0.7,
+      _morphFromDataSource: { type: 'inline', rows: yearA, keyField: 'quarter' },
+      _morphFromTransforms: [],
+    }), widgetId);
 
     const firstMorphCtx = (barUpdateCalls[1] as { morphCtx?: { fromData?: { rows: ReadonlyArray<DataRow> } } })?.morphCtx;
     const secondMorphCtx = (barUpdateCalls[2] as { morphCtx?: { fromData?: { rows: ReadonlyArray<DataRow> } } })?.morphCtx;
 
     expect(firstMorphCtx?.fromData?.rows).toEqual(yearA);
     expect(secondMorphCtx?.fromData?.rows).toEqual(yearA);
+  });
+
+  it('resolves correct morph fromData during reverse scrolling (B→A)', () => {
+    const store = new ChartDataStore();
+    const renderer = new ChartRenderer(store);
+
+    const yearA: ReadonlyArray<DataRow> = [
+      { quarter: 'Q1', revenue: 128, costs: 87, profit: 41 },
+      { quarter: 'Q2', revenue: 184, costs: 115, profit: 69 },
+    ];
+    const yearB: ReadonlyArray<DataRow> = [
+      { quarter: 'Q1', revenue: 165, costs: 102, profit: 63 },
+      { quarter: 'Q2', revenue: 218, costs: 135, profit: 83 },
+    ];
+
+    // Scene B steady state (scrolled past A→B transition)
+    store.registerInline(widgetId, yearB);
+    renderer.update(makeInput({ dataSource: { type: 'inline', rows: yearB, keyField: 'quarter' } }), widgetId);
+
+    // Scroll backward: same interpolateFn closure (from=A, to=B), t goes 1→0
+    // _morphFromDataSource carries A's data; state.dataSource carries B's data
+    store.register(`__morph_from__${widgetId}`, yearA);
+    renderer.update(makeInput({
+      _morphT: 0.8,
+      _morphFromDataSource: { type: 'inline', rows: yearA, keyField: 'quarter' },
+      _morphFromTransforms: [],
+    }), widgetId);
+    renderer.update(makeInput({
+      _morphT: 0.3,
+      _morphFromDataSource: { type: 'inline', rows: yearA, keyField: 'quarter' },
+      _morphFromTransforms: [],
+    }), widgetId);
+
+    const firstMorphCtx = (barUpdateCalls[1] as { morphCtx?: { fromData?: { rows: ReadonlyArray<DataRow> } } })?.morphCtx;
+    const secondMorphCtx = (barUpdateCalls[2] as { morphCtx?: { fromData?: { rows: ReadonlyArray<DataRow> } } })?.morphCtx;
+
+    // fromData must be yearA (the "from" scene), NOT yearB (the "to" / current data)
+    expect(firstMorphCtx?.fromData?.rows).toEqual(yearA);
+    expect(secondMorphCtx?.fromData?.rows).toEqual(yearA);
+
+    // Verify t values are passed through correctly
+    expect(firstMorphCtx?.t).toBeCloseTo(0.8);
+    expect(secondMorphCtx?.t).toBeCloseTo(0.3);
   });
 });

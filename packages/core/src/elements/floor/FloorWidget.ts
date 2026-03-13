@@ -177,6 +177,7 @@ export class FloorWidget
     const resolved: SceneFloor = {
       ...base,
       enabled: helpers.resolveValue(props.enabled, api.context) ?? base.enabled,
+      debug: helpers.resolveValue(props.debug, api.context) ?? base.debug,
       placement: helpers.resolveValue(props.placement, api.context) ?? base.placement,
       position: helpers.resolveValue(props.position, api.context) ?? base.position,
       rotation: helpers.resolveValue(props.rotation, api.context) ?? base.rotation,

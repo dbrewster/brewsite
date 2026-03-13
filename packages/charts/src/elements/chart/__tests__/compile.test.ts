@@ -812,6 +812,36 @@ describe('functionalChartTransitionSpec', () => {
     expect(fn(makeSimpleContext(0)).opacity).toBeCloseTo(0);
     expect(fn(makeSimpleContext(1)).opacity).toBeCloseTo(1);
   });
+
+  it('interpolateFn carries _morphFromDataSource from the "from" state', () => {
+    const fromDataSource = { type: 'inline' as const, rows: [{ id: 1, v: 10 }], keyField: 'id' };
+    const toDataSource = { type: 'inline' as const, rows: [{ id: 1, v: 20 }], keyField: 'id' };
+    const from = { ...DEFAULT_CHART_STATE, dataSource: fromDataSource, transforms: [] };
+    const to = { ...DEFAULT_CHART_STATE, dataSource: toDataSource, transforms: [] };
+    const fn = functionalChartTransitionSpec.interpolateFn(from, to);
+
+    const at0 = fn(makeSimpleContext(0));
+    const atMid = fn(makeSimpleContext(0.5));
+    const at1 = fn(makeSimpleContext(1));
+
+    // _morphFromDataSource always references "from" state's data source
+    expect(at0._morphFromDataSource).toBe(fromDataSource);
+    expect(atMid._morphFromDataSource).toBe(fromDataSource);
+    expect(at1._morphFromDataSource).toBe(fromDataSource);
+
+    // dataSource (via ...to spread) always references "to" state's data source
+    expect(at0.dataSource).toBe(toDataSource);
+    expect(atMid.dataSource).toBe(toDataSource);
+    expect(at1.dataSource).toBe(toDataSource);
+  });
+
+  it('interpolateFn does not set _morphFromDataSource for structural changes', () => {
+    const from = { ...DEFAULT_CHART_STATE, type: 'bar' as const };
+    const to = { ...DEFAULT_CHART_STATE, type: 'line' as const };
+    const fn = functionalChartTransitionSpec.interpolateFn(from, to);
+
+    expect(fn(makeSimpleContext(0.5))._morphFromDataSource).toBeUndefined();
+  });
 });
 
 // ─── compileTooltipDsl ────────────────────────────────────────────────────────

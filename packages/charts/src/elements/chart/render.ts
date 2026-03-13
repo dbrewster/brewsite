@@ -36,10 +36,6 @@ export class ChartRenderer {
   private activeRenderer: IChartRenderer | null = null;
   private lastType: ChartType | null = null;
   private lastData: ResolvedDataFrame = { rows: [], fields: [] };
-  /** Snapshot of pre-transition data pinned for all frames in the current morph block. */
-  private pinnedMorphFromData: ResolvedDataFrame | null = null;
-  /** Tracks whether the previous update was inside a morph transition block. */
-  private wasMorphing = false;
   /** Cached layout from last update() call — reused by updateHeatmapSlice(). */
   private lastLayout: ChartLayout | null = null;
 
@@ -71,22 +67,15 @@ export class ChartRenderer {
     const data = this.resolveData(state.dataSource, state.transforms, widgetId);
 
     // Build MorphContext — sole construction site (Q3 resolution).
-    // Pin the pre-transition data once when morphing starts so every morph frame
-    // uses the same fromData baseline.
+    // Resolve the "from" data source explicitly from _morphFromDataSource (injected by
+    // interpolateFn) so morph origin data is correct regardless of scroll direction.
+    // Previous approach (pinnedMorphFromData) was direction-dependent and broke on reverse.
     let morphCtx: MorphContext | undefined;
     const isMorphing = state._morphT !== undefined && Boolean(state.dataSource.keyField);
-    if (isMorphing) {
-      if (!this.wasMorphing) {
-        this.pinnedMorphFromData = this.lastData;
-      }
-      this.wasMorphing = true;
-    } else {
-      this.wasMorphing = false;
-      this.pinnedMorphFromData = null;
-    }
-    if (isMorphing && state.dataSource.keyField && this.pinnedMorphFromData) {
+    if (isMorphing && state.dataSource.keyField && state._morphFromDataSource) {
+      const fromData = this.resolveMorphFromData(state._morphFromDataSource, state._morphFromTransforms ?? [], widgetId);
       morphCtx = {
-        fromData: this.pinnedMorphFromData,
+        fromData,
         // toData intentionally absent — renderers use ctx.data for the to-state (Challenge 11)
         t: state._morphT,
         keyField: state.dataSource.keyField,
@@ -249,6 +238,23 @@ export class ChartRenderer {
       case 'inline': return `__inline__${widgetId}`;
       case 'named':  return dataSource.name;
       case 'async':  return `__async__${widgetId}`;
+    }
+  }
+
+  /**
+   * Resolves morph-from data from the "from" scene's data source.
+   * Inline sources are registered under __morph_from__${widgetId} by ChartWidget.apply().
+   * Named/async sources resolve directly from their store key.
+   */
+  private resolveMorphFromData(
+    morphFromDataSource: ChartStateDataSource,
+    morphFromTransforms: readonly import('../../data/types').DataTransform[],
+    widgetId: string,
+  ): ResolvedDataFrame {
+    switch (morphFromDataSource.type) {
+      case 'inline': return this.store.resolve(`__morph_from__${widgetId}`, morphFromTransforms);
+      case 'named':  return this.store.resolve(morphFromDataSource.name, morphFromTransforms);
+      case 'async':  return this.store.resolve(`__async__${widgetId}`, morphFromTransforms);
     }
   }
 

@@ -10,6 +10,11 @@ export type FloorNegativeZEdge = 'hard' | 'fade';
 export type SceneFloor = {
   enabled: boolean;
   /**
+   * When true, renders a bright red line at world Z=0 on the grid floor
+   * for debugging floor placement and depth clipping.
+   */
+  debug?: boolean;
+  /**
    * Placement mode for resolving the floor Y origin.
    * - 'origin': floor Y uses world origin directly.
    * - 'sceneBase': floor Y snaps to the lowest visible scene geometry each frame.

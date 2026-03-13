@@ -258,6 +258,18 @@ export type ChartState = {
   // DEBT: Move to separate internal state type
   readonly _morphT?: number;
   /**
+   * Internal: the "from" scene's data source, injected by interpolateFn.
+   * Used by ChartRenderer to resolve the morph origin data independently of scroll direction.
+   * Without this, reverse scrolling would pin B's data as both from and to (no visible morph).
+   * @internal
+   */
+  readonly _morphFromDataSource?: ChartStateDataSource;
+  /**
+   * Internal: the "from" scene's data transforms, paired with _morphFromDataSource.
+   * @internal
+   */
+  readonly _morphFromTransforms?: readonly DataTransform[];
+  /**
    * V2.1: Whether bars animate upward from y=0 on scene entry.
    * Driven by blockProgress via ChartWidget.onTick(). Currently scoped to BarRenderer only.
    * @default false

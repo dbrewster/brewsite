@@ -808,6 +808,14 @@ export const disposeFloor = (scene: THREE.Scene): void => {
   delete scene.userData[FLOOR_KEY];
 };
 
+const disposeDebugZeroLine = (instance: FloorInstance): void => {
+  if (!instance.debugZeroLine) return;
+  instance.mesh.remove(instance.debugZeroLine);
+  instance.debugZeroLine.geometry.dispose();
+  instance.debugZeroLine.material.dispose();
+  instance.debugZeroLine = undefined;
+};
+
 export function applyFloor(state: SceneFloor, refs: FloorThreeRefs): void {
   const surface = state.surface;
   if (!state.enabled || !surface) {
@@ -940,7 +948,11 @@ export function applyFloor(state: SceneFloor, refs: FloorThreeRefs): void {
     if (floor.gridLines) {
       setFloorDepthEdgeMaterialState(floor.gridLines.material, depthEdge);
     }
-    ensureDebugZeroLine(floor);
+    if (state.debug) {
+      ensureDebugZeroLine(floor);
+    } else {
+      disposeDebugZeroLine(floor);
+    }
     return;
   }
 

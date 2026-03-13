@@ -160,6 +160,8 @@ export class ChartWidget
 
   /** Reference to the last registered inline rows array — used for reference-equality guard. */
   private lastInlineRowsRef: ReadonlyArray<DataRow> | null = null;
+  /** Reference to the last registered morph-from inline rows — dedup guard. */
+  private lastMorphFromRowsRef: ReadonlyArray<Readonly<Record<string, unknown>>> | null = null;
 
   // ── V2.1: Entry animation ─────────────────────────────────────────────────
 
@@ -288,6 +290,23 @@ export class ChartWidget
       }
     }
 
+    // ── Morph-from inline data registration ──────────────────────────────────
+    // During transitions, interpolateFn injects _morphFromDataSource carrying the
+    // "from" scene's data source. For inline sources, register these rows under a
+    // separate store key so ChartRenderer can resolve morph origin data regardless
+    // of scroll direction. Without this, reverse scrolling would pin the "to" data
+    // as both from and to, producing no visible morph.
+    if (state._morphFromDataSource?.type === 'inline') {
+      if (state._morphFromDataSource.rows !== this.lastMorphFromRowsRef) {
+        this.store.register(`__morph_from__${this.widgetId}`, state._morphFromDataSource.rows);
+        this.lastMorphFromRowsRef = state._morphFromDataSource.rows;
+      }
+    } else if (this.lastMorphFromRowsRef !== null) {
+      // Morphing ended or from source is not inline — clean up the store key
+      this.store.unregister(`__morph_from__${this.widgetId}`);
+      this.lastMorphFromRowsRef = null;
+    }
+
     // Convert NVS position to world-space center using the live NVSCoordService.
     const [wcx, wcy, wcz] = ctx.coords.toWorld(state.nvsX, state.nvsY, state.z);
 
@@ -389,6 +408,10 @@ export class ChartWidget
     this.camera = null;
     this.lastCoords = null;
     this.lastInlineRowsRef = null;
+    if (this.lastMorphFromRowsRef !== null) {
+      this.store.unregister(`__morph_from__${this.widgetId}`);
+      this.lastMorphFromRowsRef = null;
+    }
     this.lastEffectiveTheme = null;
     this.lastTooltipState = null;
   }

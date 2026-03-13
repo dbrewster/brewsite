@@ -8,6 +8,11 @@ import type { SceneTheme } from '../../theme/types';
 
 export type FloorProps = {
   enabled?: boolean;
+  /**
+   * When true, renders a bright red debug line at world Z=0 on the grid floor.
+   * Useful for verifying floor placement and depth clipping during development.
+   */
+  debug?: boolean;
   /** Optional SceneTheme to derive grid-floor tokens from. */
   theme?: SceneTheme;
   /**
