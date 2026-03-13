@@ -1,71 +1,73 @@
-// Tests for the DIAGRAM_THEMES and DIAGRAM_THEME_PAIRS registries in themes/index.ts.
+// Tests for the diagram theme defaults and registry.
 
-import { describe, it, expect } from 'vitest';
-import { DIAGRAM_THEMES, DIAGRAM_THEME_PAIRS } from '../index';
-import { SCENE_THEME_PAIRS } from '@brewsite/core';
-import type { ThemeFamily } from '@brewsite/core';
+import { describe, it, expect, beforeEach } from 'vitest';
+import {
+  enterpriseTheme,
+  enterpriseLightTheme,
+  defaultDiagramTheme,
+  defaultLightDiagramTheme,
+  registerDiagramThemePair,
+  resolveDiagramTheme,
+  _resetDiagramThemeRegistryForTesting,
+} from '../index';
+import type { DiagramTheme } from '../../types';
 
-describe('DIAGRAM_THEMES registry completeness', () => {
-  it('DIAGRAM_THEMES contains exactly 6 keys', () => {
-    expect(Object.keys(DIAGRAM_THEMES)).toHaveLength(6);
+describe('default diagram theme exports', () => {
+  it('defaultDiagramTheme is the enterprise theme by reference', () => {
+    expect(defaultDiagramTheme).toBe(enterpriseTheme);
   });
 
-  it('DIAGRAM_THEMES contains all canonical theme names', () => {
-    expect(DIAGRAM_THEMES).toHaveProperty('darkGlass');
-    expect(DIAGRAM_THEMES).toHaveProperty('midnight');
-    expect(DIAGRAM_THEMES).toHaveProperty('neonCyber');
-    expect(DIAGRAM_THEMES).toHaveProperty('enterprise');
-    expect(DIAGRAM_THEMES).toHaveProperty('lightCanvas');
-    expect(DIAGRAM_THEMES).toHaveProperty('lightMinimal');
+  it('defaultLightDiagramTheme is the enterprise light theme by reference', () => {
+    expect(defaultLightDiagramTheme).toBe(enterpriseLightTheme);
   });
 
-  it('DIAGRAM_THEMES.midnight is a valid DiagramTheme with expected node defaultColor', () => {
-    expect(DIAGRAM_THEMES.midnight.node.defaultColor).toBe('#261A13');
+  it('defaultDiagramTheme has expected node defaultColor', () => {
+    expect(enterpriseTheme.node.defaultColor).toBe('#172029FF');
   });
 
-  it('DIAGRAM_THEMES.lightCanvas is a valid DiagramTheme with expected node defaultColor', () => {
-    expect(DIAGRAM_THEMES.lightCanvas.node.defaultColor.toLowerCase()).toBe('#ffffff');
+  it('enterpriseLightTheme has light node colors', () => {
+    expect(enterpriseLightTheme.node.defaultLabelColor).toBe('#1F334E');
   });
 });
 
-const FAMILIES: ThemeFamily[] = [
-  'darkGlass', 'midnight', 'neonCyber', 'enterprise', 'lightCanvas', 'lightMinimal',
-];
+describe('diagram theme registry', () => {
+  const testDark: DiagramTheme = {
+    ...enterpriseTheme,
+    node: { ...enterpriseTheme.node, defaultColor: '#111111' },
+  } as DiagramTheme;
+  const testLight: DiagramTheme = {
+    ...enterpriseLightTheme,
+    node: { ...enterpriseLightTheme.node, defaultColor: '#ffffff' },
+  } as DiagramTheme;
 
-describe('DIAGRAM_THEME_PAIRS', () => {
-  it('contains all six theme families', () => {
-    for (const family of FAMILIES) {
-      expect(DIAGRAM_THEME_PAIRS[family]).toBeDefined();
-    }
+  beforeEach(() => {
+    _resetDiagramThemeRegistryForTesting();
   });
 
-  it('each dark entry has sceneTheme.colorMode === "dark"', () => {
-    for (const family of FAMILIES) {
-      expect(DIAGRAM_THEME_PAIRS[family].dark.sceneTheme?.colorMode).toBe('dark');
-    }
+  it('resolves "default" dark to defaultDiagramTheme', () => {
+    expect(resolveDiagramTheme('default', 'dark')).toBe(defaultDiagramTheme);
   });
 
-  it('each light entry has sceneTheme.colorMode === "light"', () => {
-    for (const family of FAMILIES) {
-      expect(DIAGRAM_THEME_PAIRS[family].light.sceneTheme?.colorMode).toBe('light');
-    }
+  it('resolves "default" light to defaultLightDiagramTheme', () => {
+    expect(resolveDiagramTheme('default', 'light')).toBe(defaultLightDiagramTheme);
   });
 
-  it('dark entry sceneTheme is the same object as SCENE_THEME_PAIRS[family].dark', () => {
-    for (const family of FAMILIES) {
-      expect(DIAGRAM_THEME_PAIRS[family].dark.sceneTheme).toBe(SCENE_THEME_PAIRS[family].dark);
-    }
+  it('resolves "enterprise" dark to defaultDiagramTheme (alias)', () => {
+    expect(resolveDiagramTheme('enterprise', 'dark')).toBe(defaultDiagramTheme);
   });
 
-  it('light entry sceneTheme is the same object as SCENE_THEME_PAIRS[family].light', () => {
-    for (const family of FAMILIES) {
-      expect(DIAGRAM_THEME_PAIRS[family].light.sceneTheme).toBe(SCENE_THEME_PAIRS[family].light);
-    }
+  it('falls back to default for an unregistered family', () => {
+    const theme = resolveDiagramTheme('darkGlass', 'dark');
+    expect(theme).toBe(defaultDiagramTheme);
   });
 
-  it('DIAGRAM_THEMES is unchanged — existing flat registry still works', () => {
-    for (const family of FAMILIES) {
-      expect(DIAGRAM_THEMES[family]).toBeDefined();
-    }
+  it('registered family overrides the fallback', () => {
+    registerDiagramThemePair('darkGlass', { dark: testDark, light: testLight });
+    expect(resolveDiagramTheme('darkGlass', 'dark')).toBe(testDark);
+  });
+
+  it('registered family light polarity resolves correctly', () => {
+    registerDiagramThemePair('darkGlass', { dark: testDark, light: testLight });
+    expect(resolveDiagramTheme('darkGlass', 'light')).toBe(testLight);
   });
 });

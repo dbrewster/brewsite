@@ -89,13 +89,14 @@ export type { IInteractionRegistry } from './rendering/InteractionRegistry';
 // DiagramWidget is kept as an internal implementation detail but removed from public API.
 export {
   enterpriseTheme,
-  darkGlassTheme,
-  lightMinimalTheme,
-  neonCyberTheme,
-  midnightTheme,
-  lightCanvasTheme,
-  DIAGRAM_THEMES,
+  enterpriseLightTheme,
+  defaultDiagramTheme,
+  defaultLightDiagramTheme,
+  registerDiagramThemePair,
+  resolveDiagramTheme,
+  _resetDiagramThemeRegistryForTesting,
 } from './themes';
+export type { DiagramThemePair } from './themes';
 export { mergeTheme } from './themes/mergeTheme';
 export {
   DIAGRAM_FOCUS_REGION_EVENT,

@@ -14,8 +14,8 @@ import type {
 } from './types';
 import type { FunctionalTransitionSpec, NVSRect } from '@brewsite/core';
 import { blendOpacity, blendVec3, lerp, validateNVSRect, validateNVSPosition } from '@brewsite/core';
-import { darkGlassTheme } from './themes/darkGlass';
-import { DIAGRAM_THEMES } from './themes/index';
+import { defaultDiagramTheme } from './themes/enterprise';
+import { resolveDiagramTheme } from './themeRegistry';
 import { resolveLayout, resolveLayoutWithGroups, computeBounds } from './compiler/layoutAlgorithms';
 import { routeEdges, routeEdgesYDown } from './compiler/edgeRouter';
 import { compileNode, compileEdge } from './compiler/nodeCompiler';
@@ -79,7 +79,7 @@ type RawSize = readonly [number, number];
 
 /**
  * Resolves a DiagramThemeName string, DiagramTheme object, or undefined
- * to a concrete DiagramTheme. Unknown string names fall back to darkGlassTheme
+ * to a concrete DiagramTheme. Unknown string names fall back to the default (enterprise) theme
  * with a console.warn.
  */
 function resolveTheme(
@@ -88,13 +88,8 @@ function resolveTheme(
 ): DiagramTheme {
   if (raw === undefined) return fallback;
   if (typeof raw === 'string') {
-    const named = DIAGRAM_THEMES[raw];
-    if (!named) {
-      // DEBT: Replace console.warn with onWarn callback for side-effect-free compilation
-      console.warn(`[Diagram] Unknown theme name "${raw}" — falling back to darkGlass.`);
-      return fallback;
-    }
-    return named;
+    // Resolve from the registry — falls back to 'default' (enterprise aesthetic) if not registered.
+    return resolveDiagramTheme(raw, 'dark');
   }
   return raw;
 }
@@ -107,7 +102,7 @@ function resolveTheme(
  */
 export function compileDiagram(
   dsl: DiagramDSL,
-  fallbackTheme: DiagramTheme = darkGlassTheme,
+  fallbackTheme: DiagramTheme = defaultDiagramTheme,
   onWarn?: DiagramWarnFn,
 ): DiagramState {
   const theme: DiagramTheme = resolveTheme(dsl.theme, fallbackTheme);

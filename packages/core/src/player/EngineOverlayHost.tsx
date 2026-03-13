@@ -3,8 +3,7 @@
 
 import { useEffect, type CSSProperties, type ReactElement, type ReactNode } from 'react';
 import { useTheme } from '../theme/ThemeContext';
-import { SCENE_THEME_PAIRS } from '../theme/presets';
-import type { ThemeFamily } from '../theme/types';
+import { resolveSceneThemeFamilyByRef } from '../theme/sceneThemeRegistry';
 import type { SceneTheme } from '../theme/types';
 import { useSceneEngineContext } from './EngineContext';
 
@@ -20,17 +19,11 @@ const injectOverlayAnimation = () => {
 };
 
 /**
- * Resolves the ThemeFamily name for a SceneTheme by reference equality lookup
- * through SCENE_THEME_PAIRS. Returns undefined for custom (non-registry) themes.
- * O(12) lookup — 6 families × 2 polarities.
+ * Resolves the theme family name for a SceneTheme by reference equality lookup
+ * through the scene theme registry. Returns undefined for custom (non-registry) themes.
  */
-function resolveThemeFamily(theme: SceneTheme): ThemeFamily | undefined {
-  for (const [family, pair] of Object.entries(SCENE_THEME_PAIRS) as Array<[string, { dark: SceneTheme; light: SceneTheme }]>) {
-    if (pair.dark === theme || pair.light === theme) {
-      return family as ThemeFamily;
-    }
-  }
-  return undefined;
+function resolveThemeFamily(theme: SceneTheme): string | undefined {
+  return resolveSceneThemeFamilyByRef(theme);
 }
 
 /**
@@ -42,7 +35,7 @@ function resolveThemeFamily(theme: SceneTheme): ThemeFamily | undefined {
  *   --brewsite-color-mode, --brewsite-text-primary, --brewsite-text-secondary,
  *   --brewsite-background-color, --brewsite-surface-elevated, --brewsite-border-subtle,
  *   --brewsite-radius-base
- * - Adds CSS classes: bw-theme-{family} (when theme is from SCENE_THEME_PAIRS),
+ * - Adds CSS classes: bw-theme-{family} (when theme is registered in the scene theme registry),
  *   bw-dark or bw-light (from colorMode)
  *
  * NOTE: --brewsite-background-color is for HTML overlay content only.

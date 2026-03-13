@@ -9,7 +9,6 @@ export type {
   SceneThemeBackground,
   SceneThemeFloorGrid,
   SceneThemeFloor,
-  // NEW:
   ThemeFamily,
   ThemePolarity,
   SceneThemePair,
@@ -18,19 +17,11 @@ export { ThemeContext, useTheme } from './ThemeContext';
 export { ThemeKeyContext, useThemeKey } from './ThemeKeyContext';
 export type { ThemeKey } from './ThemeKeyContext';
 export {
-  darkSceneTheme,
-  lightSceneTheme,
-  darkGlassSceneTheme,
-  midnightSceneTheme,
-  neonCyberSceneTheme,
-  enterpriseSceneTheme,
-  lightCanvasSceneTheme,
-  lightMinimalSceneTheme,
-  darkGlassLightSceneTheme,
-  midnightLightSceneTheme,
-  neonCyberLightSceneTheme,
-  enterpriseLightSceneTheme,
-  lightCanvasDarkSceneTheme,
-  lightMinimalDarkSceneTheme,
-  SCENE_THEME_PAIRS,
+  defaultSceneTheme,
+  defaultLightSceneTheme,
 } from './presets';
+export {
+  registerSceneThemePair,
+  resolveSceneTheme,
+  _resetSceneThemeRegistryForTesting,
+} from './sceneThemeRegistry';
