@@ -1,13 +1,33 @@
 // @vitest-environment jsdom
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeEach } from 'vitest';
 import React from 'react';
 import { cleanup, render } from '@testing-library/react';
 import { EngineOverlayHost } from '../EngineOverlayHost';
 import { EngineContext } from '../EngineContext';
 import { ThemeContext } from '../../theme/ThemeContext';
-import { darkGlassSceneTheme, lightCanvasSceneTheme, SCENE_THEME_PAIRS } from '../../theme/presets';
+import { registerSceneThemePair, _resetSceneThemeRegistryForTesting } from '../../theme/sceneThemeRegistry';
 import type { UseSceneEngineResult } from '../useSceneEngine';
 import type { SceneTheme } from '../../theme/types';
+
+// Custom test themes for registry-based class resolution tests.
+const testDarkGlassSceneTheme: SceneTheme = {
+  colorMode: 'dark',
+  font: { htmlFamily: '"Sora", "Inter", sans-serif' },
+  fontSize: { heading: 1.5, body: 1.0, label: 0.85, caption: 0.7, annotation: 0.6 },
+  background: { fill: { kind: 'gradient', value: 'linear-gradient(180deg, #070504 0%, #130B08 100%)' } },
+};
+const testDarkGlassLightSceneTheme: SceneTheme = {
+  colorMode: 'light',
+  font: { htmlFamily: '"Sora", "Inter", sans-serif' },
+  fontSize: { heading: 1.5, body: 1.0, label: 0.85, caption: 0.7, annotation: 0.6 },
+  background: { fill: { kind: 'gradient', value: 'linear-gradient(180deg, #F8F3EF 0%, #EFE6DE 100%)' } },
+};
+const testLightCanvasSceneTheme: SceneTheme = {
+  colorMode: 'light',
+  font: { htmlFamily: '"Plus Jakarta Sans", "Inter", sans-serif' },
+  fontSize: { heading: 1.5, body: 1.0, label: 0.85, caption: 0.7, annotation: 0.6 },
+  background: { fill: { kind: 'gradient', value: 'linear-gradient(180deg, #FFFFFF 0%, #F1F4F8 100%)' } },
+};
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -203,8 +223,8 @@ describe('EngineOverlayHost — new CSS variables (theming-overhaul)', () => {
   afterEach(() => { cleanup(); });
 
   it('injects --brewsite-background-color fallback for non-color fills', () => {
-    // darkGlassSceneTheme uses a gradient fill, so the overlay variable falls back by colorMode.
-    const view = renderHost({ theme: darkGlassSceneTheme });
+    // testDarkGlassSceneTheme uses a gradient fill, so the overlay variable falls back by colorMode.
+    const view = renderHost({ theme: testDarkGlassSceneTheme });
     const overlay = view.container.firstChild as HTMLDivElement;
     expect(overlay.style.getPropertyValue('--brewsite-background-color')).toBe('#0a0a14');
   });
@@ -224,25 +244,25 @@ describe('EngineOverlayHost — new CSS variables (theming-overhaul)', () => {
   });
 
   it('injects --brewsite-radius-base as 6px for any theme', () => {
-    const view = renderHost({ theme: darkGlassSceneTheme });
+    const view = renderHost({ theme: testDarkGlassSceneTheme });
     const overlay = view.container.firstChild as HTMLDivElement;
     expect(overlay.style.getPropertyValue('--brewsite-radius-base')).toBe('6px');
   });
 
   it('injects --brewsite-surface-elevated with dark rgba value for dark colorMode', () => {
-    const view = renderHost({ theme: darkGlassSceneTheme });
+    const view = renderHost({ theme: testDarkGlassSceneTheme });
     const overlay = view.container.firstChild as HTMLDivElement;
     expect(overlay.style.getPropertyValue('--brewsite-surface-elevated')).toBe('rgba(255,255,255,0.06)');
   });
 
   it('injects --brewsite-surface-elevated with light rgba value for light colorMode', () => {
-    const view = renderHost({ theme: lightCanvasSceneTheme });
+    const view = renderHost({ theme: testLightCanvasSceneTheme });
     const overlay = view.container.firstChild as HTMLDivElement;
     expect(overlay.style.getPropertyValue('--brewsite-surface-elevated')).toBe('rgba(0,0,0,0.04)');
   });
 
   it('injects --brewsite-border-subtle with dark rgba value for dark colorMode', () => {
-    const view = renderHost({ theme: darkGlassSceneTheme });
+    const view = renderHost({ theme: testDarkGlassSceneTheme });
     const overlay = view.container.firstChild as HTMLDivElement;
     expect(overlay.style.getPropertyValue('--brewsite-border-subtle')).toBe('rgba(255,255,255,0.12)');
   });
@@ -256,35 +276,43 @@ describe('EngineOverlayHost — new CSS variables (theming-overhaul)', () => {
 });
 
 describe('EngineOverlayHost — CSS class injection (theming-overhaul)', () => {
-  afterEach(() => { cleanup(); });
+  beforeEach(() => {
+    _resetSceneThemeRegistryForTesting();
+    registerSceneThemePair('darkGlass', { dark: testDarkGlassSceneTheme, light: testDarkGlassLightSceneTheme });
+    registerSceneThemePair('lightCanvas', { dark: testLightCanvasSceneTheme, light: testLightCanvasSceneTheme });
+  });
+  afterEach(() => {
+    cleanup();
+    _resetSceneThemeRegistryForTesting();
+  });
 
-  it('adds bw-theme-darkGlass class when darkGlassSceneTheme is active (registry match)', () => {
-    const view = renderHost({ theme: darkGlassSceneTheme });
+  it('adds bw-theme-darkGlass class when testDarkGlassSceneTheme is active (registry match)', () => {
+    const view = renderHost({ theme: testDarkGlassSceneTheme });
     const overlay = view.container.firstChild as HTMLDivElement;
     expect(overlay.classList.contains('bw-theme-darkGlass')).toBe(true);
   });
 
   it('adds bw-dark class for dark colorMode', () => {
-    const view = renderHost({ theme: darkGlassSceneTheme });
+    const view = renderHost({ theme: testDarkGlassSceneTheme });
     const overlay = view.container.firstChild as HTMLDivElement;
     expect(overlay.classList.contains('bw-dark')).toBe(true);
   });
 
   it('adds bw-light class for light colorMode', () => {
-    const view = renderHost({ theme: lightCanvasSceneTheme });
+    const view = renderHost({ theme: testLightCanvasSceneTheme });
     const overlay = view.container.firstChild as HTMLDivElement;
     expect(overlay.classList.contains('bw-light')).toBe(true);
   });
 
-  it('adds bw-theme-lightCanvas class for lightCanvasSceneTheme (registry match)', () => {
-    const view = renderHost({ theme: lightCanvasSceneTheme });
+  it('adds bw-theme-lightCanvas class for testLightCanvasSceneTheme (registry match)', () => {
+    const view = renderHost({ theme: testLightCanvasSceneTheme });
     const overlay = view.container.firstChild as HTMLDivElement;
     expect(overlay.classList.contains('bw-theme-lightCanvas')).toBe(true);
   });
 
   it('does NOT add bw-theme-* class for a custom spread theme not in registry', () => {
     // Object spread creates a new reference — resolveThemeFamily returns undefined.
-    const customTheme: SceneTheme = { ...darkGlassSceneTheme };
+    const customTheme: SceneTheme = { ...testDarkGlassSceneTheme };
     const view = renderHost({ theme: customTheme });
     const overlay = view.container.firstChild as HTMLDivElement;
     const hasThemeClass = [...overlay.classList].some(c => c.startsWith('bw-theme-'));
@@ -292,14 +320,14 @@ describe('EngineOverlayHost — CSS class injection (theming-overhaul)', () => {
   });
 
   it('custom spread theme still gets bw-dark from colorMode', () => {
-    const customTheme: SceneTheme = { ...darkGlassSceneTheme };
+    const customTheme: SceneTheme = { ...testDarkGlassSceneTheme };
     const view = renderHost({ theme: customTheme });
     const overlay = view.container.firstChild as HTMLDivElement;
     expect(overlay.classList.contains('bw-dark')).toBe(true);
   });
 
   it('preserves consumer-provided className alongside injected theme classes', () => {
-    const view = renderHost({ theme: darkGlassSceneTheme, className: 'my-overlay' });
+    const view = renderHost({ theme: testDarkGlassSceneTheme, className: 'my-overlay' });
     const overlay = view.container.firstChild as HTMLDivElement;
     expect(overlay.classList.contains('my-overlay')).toBe(true);
     expect(overlay.classList.contains('bw-theme-darkGlass')).toBe(true);
@@ -313,8 +341,8 @@ describe('EngineOverlayHost — CSS class injection (theming-overhaul)', () => {
   });
 
   it('the light polarity entry for darkGlass family also resolves to bw-theme-darkGlass', () => {
-    // SCENE_THEME_PAIRS.darkGlass.light is in the registry by reference.
-    const view = renderHost({ theme: SCENE_THEME_PAIRS.darkGlass.light });
+    // testDarkGlassLightSceneTheme is registered in beforeEach — resolves by reference.
+    const view = renderHost({ theme: testDarkGlassLightSceneTheme });
     const overlay = view.container.firstChild as HTMLDivElement;
     expect(overlay.classList.contains('bw-theme-darkGlass')).toBe(true);
     expect(overlay.classList.contains('bw-light')).toBe(true);

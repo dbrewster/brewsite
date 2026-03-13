@@ -3,11 +3,12 @@
 //       lightCanvasDarkTheme/lightCanvasDarkSceneTheme are the DARK polarity.
 
 import type { ThemeBundle } from '../types';
-import { lightCanvasSceneTheme, lightCanvasDarkSceneTheme } from '@brewsite/core';
-import { lightCanvasTheme as diagramLight }     from '@brewsite/diagram';
-import { lightCanvasDarkTheme as diagramDark }   from '@brewsite/diagram';
-import { lightCanvasChartTheme as chartLight }   from '@brewsite/charts';
-import { lightCanvasDarkChartTheme as chartDark } from '@brewsite/charts';
+
+import { lightCanvasSceneTheme, lightCanvasDarkSceneTheme } from '../presets/scene/lightCanvas';
+import { lightCanvasTheme as diagramLight }     from '../presets/diagram/lightCanvas';
+import { lightCanvasDarkTheme as diagramDark }   from '../presets/diagram/lightCanvasDark';
+import { lightCanvasChartTheme as chartLight }   from '../presets/chart/lightCanvas';
+import { lightCanvasDarkChartTheme as chartDark } from '../presets/chart/lightCanvasDark';
 
 const diagramDarkFull  = { ...diagramDark,  sceneTheme: lightCanvasDarkSceneTheme };
 const diagramLightFull = { ...diagramLight, sceneTheme: lightCanvasSceneTheme };

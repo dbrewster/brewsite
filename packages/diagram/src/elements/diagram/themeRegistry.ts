@@ -1,30 +1,27 @@
-// Internal registry for DiagramTheme presets keyed by ThemeFamily.
-// The 'default' pair is pre-loaded at module init from the enterprise preset.
+// Internal registry for DiagramTheme presets keyed by theme family name.
+// The 'default' and 'enterprise' pairs are pre-loaded at module init from the enterprise preset.
 // Other families are registered by @brewsite/themes at app startup.
 
-import type { ThemeFamily } from '@brewsite/core';
 import type { DiagramTheme } from './types';
-import { enterpriseTheme } from './themes/enterprise';
-import { enterpriseLightTheme } from './themes/enterpriseLight';
+import { defaultDiagramTheme } from './themes/enterprise';
+import { defaultLightDiagramTheme } from './themes/enterpriseLight';
 
 /** A pair of DiagramTheme presets for dark and light polarities. */
 export type DiagramThemePair = { dark: DiagramTheme; light: DiagramTheme };
 
-const registry = new Map<ThemeFamily, DiagramThemePair>();
+const registry = new Map<string, DiagramThemePair>();
 
-// Pre-load 'default' from the enterprise aesthetic.
-registry.set('default', {
-  dark: enterpriseTheme,
-  light: enterpriseLightTheme,
-});
+// Pre-load 'default' and 'enterprise' from the enterprise aesthetic.
+registry.set('default',    { dark: defaultDiagramTheme, light: defaultLightDiagramTheme });
+registry.set('enterprise', { dark: defaultDiagramTheme, light: defaultLightDiagramTheme });
 
 /**
- * Registers a DiagramTheme pair under the given ThemeFamily.
+ * Registers a DiagramTheme pair under the given family name.
  * Call this during app startup (before any scene compilation) to make
  * a theme family available to all diagram elements.
  */
 export function registerDiagramThemePair(
-  family: ThemeFamily,
+  family: string,
   pair: DiagramThemePair,
 ): void {
   registry.set(family, pair);
@@ -35,7 +32,7 @@ export function registerDiagramThemePair(
  * Falls back to 'default' if the family is not registered.
  */
 export function resolveDiagramTheme(
-  family: ThemeFamily,
+  family: string,
   polarity: 'dark' | 'light',
 ): DiagramTheme {
   const pair = registry.get(family) ?? registry.get('default')!;
@@ -43,14 +40,12 @@ export function resolveDiagramTheme(
 }
 
 /**
- * Resets the registry to its initial state (only 'default' pre-loaded).
+ * Resets the registry to its initial state (only 'default' and 'enterprise' pre-loaded).
  * For use in tests only — never call in production code.
  * @internal
  */
 export function _resetDiagramThemeRegistryForTesting(): void {
   registry.clear();
-  registry.set('default', {
-    dark: enterpriseTheme,
-    light: enterpriseLightTheme,
-  });
+  registry.set('default',    { dark: defaultDiagramTheme, light: defaultLightDiagramTheme });
+  registry.set('enterprise', { dark: defaultDiagramTheme, light: defaultLightDiagramTheme });
 }

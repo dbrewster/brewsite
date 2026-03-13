@@ -1,72 +1,73 @@
-// Tests for the diagram themeRegistry (registerDiagramThemePair, resolveDiagramTheme).
+// Tests for the diagram theme defaults and registry.
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
+  enterpriseTheme,
+  enterpriseLightTheme,
+  defaultDiagramTheme,
+  defaultLightDiagramTheme,
   registerDiagramThemePair,
   resolveDiagramTheme,
   _resetDiagramThemeRegistryForTesting,
 } from '../index';
-import { darkGlassTheme } from '../darkGlass';
-import { darkGlassLightTheme } from '../darkGlassLight';
-import { enterpriseTheme } from '../enterprise';
-import { enterpriseLightTheme } from '../enterpriseLight';
+import type { DiagramTheme } from '../../types';
 
-beforeEach(() => {
-  _resetDiagramThemeRegistryForTesting();
-});
-
-describe('resolveDiagramTheme — default family', () => {
-  it('resolves dark polarity to enterpriseTheme by default', () => {
-    const result = resolveDiagramTheme('default', 'dark');
-    expect(result).toBe(enterpriseTheme);
+describe('default diagram theme exports', () => {
+  it('defaultDiagramTheme is the enterprise theme by reference', () => {
+    expect(defaultDiagramTheme).toBe(enterpriseTheme);
   });
 
-  it('resolves light polarity to enterpriseLightTheme by default', () => {
-    const result = resolveDiagramTheme('default', 'light');
-    expect(result).toBe(enterpriseLightTheme);
+  it('defaultLightDiagramTheme is the enterprise light theme by reference', () => {
+    expect(defaultLightDiagramTheme).toBe(enterpriseLightTheme);
   });
 
-  it('falls back to default when family is not registered', () => {
-    const result = resolveDiagramTheme('darkGlass', 'dark');
-    expect(result).toBe(enterpriseTheme);
+  it('defaultDiagramTheme has expected node defaultColor', () => {
+    expect(enterpriseTheme.node.defaultColor).toBe('#172029FF');
+  });
+
+  it('enterpriseLightTheme has light node colors', () => {
+    expect(enterpriseLightTheme.node.defaultLabelColor).toBe('#1F334E');
   });
 });
 
-describe('registerDiagramThemePair', () => {
-  it('registered dark theme is returned by resolveDiagramTheme', () => {
-    registerDiagramThemePair('darkGlass', { dark: darkGlassTheme, light: darkGlassLightTheme });
-    expect(resolveDiagramTheme('darkGlass', 'dark')).toBe(darkGlassTheme);
-  });
+describe('diagram theme registry', () => {
+  const testDark: DiagramTheme = {
+    ...enterpriseTheme,
+    node: { ...enterpriseTheme.node, defaultColor: '#111111' },
+  } as DiagramTheme;
+  const testLight: DiagramTheme = {
+    ...enterpriseLightTheme,
+    node: { ...enterpriseLightTheme.node, defaultColor: '#ffffff' },
+  } as DiagramTheme;
 
-  it('registered light theme is returned by resolveDiagramTheme', () => {
-    registerDiagramThemePair('darkGlass', { dark: darkGlassTheme, light: darkGlassLightTheme });
-    expect(resolveDiagramTheme('darkGlass', 'light')).toBe(darkGlassLightTheme);
-  });
-
-  it('overwriting a family replaces the prior registration', () => {
-    registerDiagramThemePair('darkGlass', { dark: darkGlassTheme, light: darkGlassLightTheme });
-    registerDiagramThemePair('darkGlass', { dark: enterpriseTheme, light: enterpriseLightTheme });
-    expect(resolveDiagramTheme('darkGlass', 'dark')).toBe(enterpriseTheme);
-  });
-
-  it('registering one family does not affect resolution of another', () => {
-    registerDiagramThemePair('darkGlass', { dark: darkGlassTheme, light: darkGlassLightTheme });
-    // 'midnight' is still unregistered — falls back to default
-    expect(resolveDiagramTheme('midnight', 'dark')).toBe(enterpriseTheme);
-  });
-});
-
-describe('_resetDiagramThemeRegistryForTesting', () => {
-  it('removes registered families after reset', () => {
-    registerDiagramThemePair('darkGlass', { dark: darkGlassTheme, light: darkGlassLightTheme });
+  beforeEach(() => {
     _resetDiagramThemeRegistryForTesting();
-    // darkGlass is gone — falls back to default
-    expect(resolveDiagramTheme('darkGlass', 'dark')).toBe(enterpriseTheme);
   });
 
-  it('default pair is still available after reset', () => {
-    _resetDiagramThemeRegistryForTesting();
-    expect(resolveDiagramTheme('default', 'dark')).toBe(enterpriseTheme);
-    expect(resolveDiagramTheme('default', 'light')).toBe(enterpriseLightTheme);
+  it('resolves "default" dark to defaultDiagramTheme', () => {
+    expect(resolveDiagramTheme('default', 'dark')).toBe(defaultDiagramTheme);
+  });
+
+  it('resolves "default" light to defaultLightDiagramTheme', () => {
+    expect(resolveDiagramTheme('default', 'light')).toBe(defaultLightDiagramTheme);
+  });
+
+  it('resolves "enterprise" dark to defaultDiagramTheme (alias)', () => {
+    expect(resolveDiagramTheme('enterprise', 'dark')).toBe(defaultDiagramTheme);
+  });
+
+  it('falls back to default for an unregistered family', () => {
+    const theme = resolveDiagramTheme('darkGlass', 'dark');
+    expect(theme).toBe(defaultDiagramTheme);
+  });
+
+  it('registered family overrides the fallback', () => {
+    registerDiagramThemePair('darkGlass', { dark: testDark, light: testLight });
+    expect(resolveDiagramTheme('darkGlass', 'dark')).toBe(testDark);
+  });
+
+  it('registered family light polarity resolves correctly', () => {
+    registerDiagramThemePair('darkGlass', { dark: testDark, light: testLight });
+    expect(resolveDiagramTheme('darkGlass', 'light')).toBe(testLight);
   });
 });

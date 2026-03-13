@@ -27,31 +27,8 @@ export { ThemeKeyContext, useThemeKey } from './ThemeKeyContext';
 export type { ThemeKey } from './ThemeKeyContext';
 
 export {
-  darkSceneTheme,
-  lightSceneTheme,
-  darkGlassSceneTheme,
-  midnightSceneTheme,
-  neonCyberSceneTheme,
-  lightCanvasSceneTheme,
-  lightMinimalSceneTheme,
-  darkGlassLightSceneTheme,
-  midnightLightSceneTheme,
-  neonCyberLightSceneTheme,
-  lightCanvasDarkSceneTheme,
-  lightMinimalDarkSceneTheme,
-  /**
-   * @deprecated Use registerSceneThemePair / resolveSceneTheme from sceneThemeRegistry instead.
-   * SCENE_THEME_PAIRS no longer includes the 'enterprise' key — use 'default' instead.
-   */
-  SCENE_THEME_PAIRS,
-  /**
-   * @deprecated The enterprise aesthetic is now registered as 'default' in sceneThemeRegistry.
-   */
-  enterpriseSceneTheme,
-  /**
-   * @deprecated The enterprise aesthetic is now registered as 'default' in sceneThemeRegistry.
-   */
-  enterpriseLightSceneTheme,
+  defaultSceneTheme,
+  defaultLightSceneTheme,
 } from './presets';
 
 // ─── Scene Theme Registry ────────────────────────────────────────────────────

@@ -31,7 +31,7 @@ import type {
 import { functionalDiagramTransitionSpec } from './compile';
 import { DiagramRenderer } from './render';
 import { buildThemeRenderConfig } from './compiler/themeResolver';
-import { darkGlassTheme } from './themes';
+import { defaultDiagramTheme } from './themes';
 import type {
   DiagramInteractionEvent,
   DiagramNodeHoverEvent,
@@ -200,7 +200,7 @@ export class DiagramWidget
    */
   public onInteraction: ((event: DiagramInteractionEvent) => void) | undefined = undefined;
 
-  private renderer = new DiagramRenderer(buildThemeRenderConfig(darkGlassTheme));
+  private renderer = new DiagramRenderer(buildThemeRenderConfig(defaultDiagramTheme));
   private scene: THREE.Scene | null = null;
 
   // Canvas action overrides — accumulated by applyCanvasAction(), composed in apply().

@@ -2,16 +2,11 @@
 
 import type { ThemeBundle } from '../types';
 
-// Scene presets
-import { darkGlassSceneTheme, darkGlassLightSceneTheme } from '@brewsite/core';
-
-// Diagram presets
-import { darkGlassTheme as diagramDark }      from '@brewsite/diagram';
-import { darkGlassLightTheme as diagramLight } from '@brewsite/diagram';
-
-// Chart presets
-import { darkGlassChartTheme as chartDark }      from '@brewsite/charts';
-import { darkGlassLightChartTheme as chartLight } from '@brewsite/charts';
+import { darkGlassSceneTheme, darkGlassLightSceneTheme } from '../presets/scene/darkGlass';
+import { darkGlassTheme as diagramDark }      from '../presets/diagram/darkGlass';
+import { darkGlassLightTheme as diagramLight } from '../presets/diagram/darkGlassLight';
+import { darkGlassChartTheme as chartDark }      from '../presets/chart/darkGlass';
+import { darkGlassLightChartTheme as chartLight } from '../presets/chart/darkGlassLight';
 
 // Wire sceneTheme into diagram and chart themes at bundle assembly time.
 const diagramDarkFull  = { ...diagramDark,  sceneTheme: darkGlassSceneTheme };

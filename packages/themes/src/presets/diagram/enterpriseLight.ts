@@ -1,6 +1,6 @@
-// Enterprise theme — light polarity variant.
+// Enterprise DiagramTheme preset — light polarity variant.
 
-import type { DiagramTheme } from '../types';
+import type { DiagramTheme } from '@brewsite/diagram';
 import { enterpriseTheme } from './enterprise';
 
 export const enterpriseLightTheme: DiagramTheme = {
@@ -37,6 +37,3 @@ export const enterpriseLightTheme: DiagramTheme = {
     horizonColor: '#E7EDF5',
   },
 } as const;
-
-/** Default light DiagramTheme — enterprise aesthetic. Used as the pre-loaded registry fallback. */
-export const defaultLightDiagramTheme: DiagramTheme = enterpriseLightTheme;

@@ -1,10 +1,8 @@
-// Enterprise theme — board-ready strategic clarity with restrained motion.
+// Enterprise DiagramTheme preset — board-ready strategic clarity with restrained motion.
 
-// SHARED ACCENT PALETTE — must match packages/charts/src/themes/enterprise.ts
-// '#4F76B8', '#3F7F73', '#C9843F', '#6D5D8E', '#3B7E8D', '#8A6C47', '#5A724E', '#8B4A54'
+import type { DiagramTheme } from '@brewsite/diagram';
 
-import type { DiagramTheme } from '../types';
-
+/** Enterprise DiagramTheme — board-ready strategic clarity, dark polarity. */
 export const enterpriseTheme: DiagramTheme = {
   node: {
     defaultColor: '#172029FF',
@@ -48,7 +46,6 @@ export const enterpriseTheme: DiagramTheme = {
     organicVariation: 0.8,
     flowTurnRadius: 0.035,
     flowFaceStub: 0.05,
-
     flowBundleStrength: 1.0,
     flowObstaclePadding: 0.025,
     flowTargetApproachBias: 1.35,
@@ -105,6 +102,3 @@ export const enterpriseTheme: DiagramTheme = {
   },
   palette: ['#4F76B8', '#3F7F73', '#C9843F', '#6D5D8E', '#3B7E8D', '#8A6C47', '#5A724E', '#8B4A54'],
 } as const;
-
-/** Default DiagramTheme — enterprise aesthetic. Used as the pre-loaded registry fallback. */
-export const defaultDiagramTheme: DiagramTheme = enterpriseTheme;

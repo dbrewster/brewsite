@@ -7,7 +7,20 @@ import {
   resolveSceneTheme,
   _resetSceneThemeRegistryForTesting,
 } from '../sceneThemeRegistry';
-import { darkGlassSceneTheme, darkGlassLightSceneTheme, enterpriseSceneTheme, enterpriseLightSceneTheme } from '../presets';
+import { defaultSceneTheme, defaultLightSceneTheme } from '../presets';
+import type { SceneTheme } from '../types';
+
+// Test-only theme objects — distinct references to verify registration.
+const testDarkTheme: SceneTheme = {
+  colorMode: 'dark',
+  font: { htmlFamily: 'Test-Dark, sans-serif' },
+  fontSize: { heading: 1.5, body: 1.0, label: 0.85, caption: 0.7, annotation: 0.6 },
+};
+const testLightTheme: SceneTheme = {
+  colorMode: 'light',
+  font: { htmlFamily: 'Test-Light, sans-serif' },
+  fontSize: { heading: 1.5, body: 1.0, label: 0.85, caption: 0.7, annotation: 0.6 },
+};
 
 describe('sceneThemeRegistry', () => {
   beforeEach(() => {
@@ -24,14 +37,19 @@ describe('sceneThemeRegistry', () => {
     expect(theme.colorMode).toBe('light');
   });
 
-  it('default dark theme is enterpriseSceneTheme by reference', () => {
+  it('default dark theme is defaultSceneTheme by reference', () => {
     const theme = resolveSceneTheme('default', 'dark');
-    expect(theme).toBe(enterpriseSceneTheme);
+    expect(theme).toBe(defaultSceneTheme);
   });
 
-  it('default light theme is enterpriseLightSceneTheme by reference', () => {
+  it('default light theme is defaultLightSceneTheme by reference', () => {
     const theme = resolveSceneTheme('default', 'light');
-    expect(theme).toBe(enterpriseLightSceneTheme);
+    expect(theme).toBe(defaultLightSceneTheme);
+  });
+
+  it('enterprise dark theme is defaultSceneTheme by reference (alias)', () => {
+    const theme = resolveSceneTheme('enterprise', 'dark');
+    expect(theme).toBe(defaultSceneTheme);
   });
 
   it('falls back to default for an unregistered family', () => {
@@ -39,45 +57,44 @@ describe('sceneThemeRegistry', () => {
     const theme = resolveSceneTheme('darkGlass', 'dark');
     expect(theme).toBeDefined();
     expect(theme.colorMode).toBe('dark');
-    // Should be the default (enterprise) aesthetic
-    expect(theme).toBe(enterpriseSceneTheme);
+    expect(theme).toBe(defaultSceneTheme);
   });
 
   it('registered family overrides the fallback', () => {
     registerSceneThemePair('darkGlass', {
-      dark: darkGlassSceneTheme,
-      light: darkGlassLightSceneTheme,
+      dark: testDarkTheme,
+      light: testLightTheme,
     });
     const theme = resolveSceneTheme('darkGlass', 'dark');
-    expect(theme).toBe(darkGlassSceneTheme);
+    expect(theme).toBe(testDarkTheme);
   });
 
   it('registered family light polarity resolves correctly', () => {
     registerSceneThemePair('darkGlass', {
-      dark: darkGlassSceneTheme,
-      light: darkGlassLightSceneTheme,
+      dark: testDarkTheme,
+      light: testLightTheme,
     });
     const theme = resolveSceneTheme('darkGlass', 'light');
-    expect(theme).toBe(darkGlassLightSceneTheme);
+    expect(theme).toBe(testLightTheme);
   });
 
   it('unregistered family after reset falls back again', () => {
     registerSceneThemePair('darkGlass', {
-      dark: darkGlassSceneTheme,
-      light: darkGlassLightSceneTheme,
+      dark: testDarkTheme,
+      light: testLightTheme,
     });
     _resetSceneThemeRegistryForTesting();
     // After reset, darkGlass is no longer registered — falls back to default
     const theme = resolveSceneTheme('darkGlass', 'dark');
-    expect(theme).toBe(enterpriseSceneTheme);
+    expect(theme).toBe(defaultSceneTheme);
   });
 
   it('registering "default" overwrites the pre-loaded pair', () => {
     registerSceneThemePair('default', {
-      dark: darkGlassSceneTheme,
-      light: darkGlassLightSceneTheme,
+      dark: testDarkTheme,
+      light: testLightTheme,
     });
     const theme = resolveSceneTheme('default', 'dark');
-    expect(theme).toBe(darkGlassSceneTheme);
+    expect(theme).toBe(testDarkTheme);
   });
 });

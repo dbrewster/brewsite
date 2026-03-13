@@ -1,21 +1,13 @@
-// Barrel re-export for all built-in DiagramTheme presets and theme utilities.
+// Barrel re-export for the built-in default DiagramTheme presets and theme utilities.
+// Named presets (darkGlass, midnight, etc.) live in @brewsite/themes.
 
-export { darkGlassTheme }      from './darkGlass';
-export { midnightTheme }       from './midnight';
-export { neonCyberTheme }      from './neonCyber';
-export { enterpriseTheme }     from './enterprise';
-export { lightCanvasTheme }    from './lightCanvas';
-export { lightMinimalTheme }   from './lightMinimal';
-export { darkGlassLightTheme }   from './darkGlassLight';
-export { midnightLightTheme }    from './midnightLight';
-export { neonCyberLightTheme }   from './neonCyberLight';
-export { enterpriseLightTheme }  from './enterpriseLight';
-export { lightCanvasDarkTheme }  from './lightCanvasDark';
-export { lightMinimalDarkTheme } from './lightMinimalDark';
+export { enterpriseTheme, defaultDiagramTheme } from './enterprise';
+export { enterpriseLightTheme, defaultLightDiagramTheme } from './enterpriseLight';
 export { mergeTheme, withColorMode } from './mergeTheme';
+
+export type { DiagramThemePair } from '../themeRegistry';
 export {
   registerDiagramThemePair,
   resolveDiagramTheme,
   _resetDiagramThemeRegistryForTesting,
 } from '../themeRegistry';
-export type { DiagramThemePair } from '../themeRegistry';

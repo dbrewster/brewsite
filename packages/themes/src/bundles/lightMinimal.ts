@@ -3,11 +3,12 @@
 //       lightMinimalDarkTheme/lightMinimalDarkSceneTheme are the DARK polarity.
 
 import type { ThemeBundle } from '../types';
-import { lightMinimalSceneTheme, lightMinimalDarkSceneTheme } from '@brewsite/core';
-import { lightMinimalTheme as diagramLight }     from '@brewsite/diagram';
-import { lightMinimalDarkTheme as diagramDark }   from '@brewsite/diagram';
-import { lightMinimalChartTheme as chartLight }   from '@brewsite/charts';
-import { lightMinimalDarkChartTheme as chartDark } from '@brewsite/charts';
+
+import { lightMinimalSceneTheme, lightMinimalDarkSceneTheme } from '../presets/scene/lightMinimal';
+import { lightMinimalTheme as diagramLight }     from '../presets/diagram/lightMinimal';
+import { lightMinimalDarkTheme as diagramDark }   from '../presets/diagram/lightMinimalDark';
+import { lightMinimalChartTheme as chartLight }   from '../presets/chart/lightMinimal';
+import { lightMinimalDarkChartTheme as chartDark } from '../presets/chart/lightMinimalDark';
 
 const diagramDarkFull  = { ...diagramDark,  sceneTheme: lightMinimalDarkSceneTheme };
 const diagramLightFull = { ...diagramLight, sceneTheme: lightMinimalSceneTheme };

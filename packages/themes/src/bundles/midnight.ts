@@ -1,11 +1,12 @@
 // ThemeBundle for the midnight family — deep indigo/dark blue aesthetic.
 
 import type { ThemeBundle } from '../types';
-import { midnightSceneTheme, midnightLightSceneTheme } from '@brewsite/core';
-import { midnightTheme as diagramDark }      from '@brewsite/diagram';
-import { midnightLightTheme as diagramLight } from '@brewsite/diagram';
-import { midnightChartTheme as chartDark }      from '@brewsite/charts';
-import { midnightLightChartTheme as chartLight } from '@brewsite/charts';
+
+import { midnightSceneTheme, midnightLightSceneTheme } from '../presets/scene/midnight';
+import { midnightTheme as diagramDark }      from '../presets/diagram/midnight';
+import { midnightLightTheme as diagramLight } from '../presets/diagram/midnightLight';
+import { midnightChartTheme as chartDark }      from '../presets/chart/midnight';
+import { midnightLightChartTheme as chartLight } from '../presets/chart/midnightLight';
 
 const diagramDarkFull  = { ...diagramDark,  sceneTheme: midnightSceneTheme };
 const diagramLightFull = { ...diagramLight, sceneTheme: midnightLightSceneTheme };

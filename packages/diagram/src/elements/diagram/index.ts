@@ -90,12 +90,13 @@ export type { IInteractionRegistry } from './rendering/InteractionRegistry';
 export {
   enterpriseTheme,
   enterpriseLightTheme,
-  darkGlassTheme,
-  lightMinimalTheme,
-  neonCyberTheme,
-  midnightTheme,
-  lightCanvasTheme,
+  defaultDiagramTheme,
+  defaultLightDiagramTheme,
+  registerDiagramThemePair,
+  resolveDiagramTheme,
+  _resetDiagramThemeRegistryForTesting,
 } from './themes';
+export type { DiagramThemePair } from './themes';
 export { mergeTheme } from './themes/mergeTheme';
 export {
   DIAGRAM_FOCUS_REGION_EVENT,

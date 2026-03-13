@@ -1,11 +1,12 @@
 // ThemeBundle for the neonCyber family — high-contrast neon/cyberpunk aesthetic.
 
 import type { ThemeBundle } from '../types';
-import { neonCyberSceneTheme, neonCyberLightSceneTheme } from '@brewsite/core';
-import { neonCyberTheme as diagramDark }      from '@brewsite/diagram';
-import { neonCyberLightTheme as diagramLight } from '@brewsite/diagram';
-import { neonCyberChartTheme as chartDark }      from '@brewsite/charts';
-import { neonCyberLightChartTheme as chartLight } from '@brewsite/charts';
+
+import { neonCyberSceneTheme, neonCyberLightSceneTheme } from '../presets/scene/neonCyber';
+import { neonCyberTheme as diagramDark }      from '../presets/diagram/neonCyber';
+import { neonCyberLightTheme as diagramLight } from '../presets/diagram/neonCyberLight';
+import { neonCyberChartTheme as chartDark }      from '../presets/chart/neonCyber';
+import { neonCyberLightChartTheme as chartLight } from '../presets/chart/neonCyberLight';
 
 const diagramDarkFull  = { ...diagramDark,  sceneTheme: neonCyberSceneTheme };
 const diagramLightFull = { ...diagramLight, sceneTheme: neonCyberLightSceneTheme };
