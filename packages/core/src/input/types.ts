@@ -1,5 +1,6 @@
 // Input system type contracts. No DOM, Three.js, or React imports.
 
+// DEBT: These types should be defined here, not imported from camera element
 import type { ModifierKey, KeyCombo } from '../elements/camera/types';
 export type { ModifierKey, KeyCombo };
 

@@ -3,13 +3,10 @@
 // Fully WebGL — supports tilt, lighting, and MeshPhysicalMaterial gloss.
 // For a live interactive website, use <Screen> instead.
 
-/**
- * Bezel frame style for ImagePanel.
- * Identical to ScreenBezelVariant and BezelVariant in _shared/bezelGeometry.ts —
- * typed separately here to keep element types self-contained (no cross-element imports).
- * If the union ever diverges, update both types independently.
- */
-export type ImagePanelBezelVariant = 'none' | 'thin' | 'dark' | 'light' | 'chrome';
+import type { BezelVariant } from '../_shared/bezelGeometry';
+
+/** Bezel frame style for ImagePanel. */
+export type ImagePanelBezelVariant = BezelVariant;
 
 /**
  * Fully resolved state for an ImagePanel element.

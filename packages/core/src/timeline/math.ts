@@ -1,7 +1,8 @@
+import { clamp01, lerp } from '../math';
+
 export type EaseFn = (t: number) => number;
 
-export const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
-export const lerp = (from: number, to: number, t: number) => from + (to - from) * t;
+export { clamp01, lerp } from '../math';
 
 export const invLerp = (value: number, start: number, end: number) => {
   if (start === end) return value >= end ? 1 : 0;

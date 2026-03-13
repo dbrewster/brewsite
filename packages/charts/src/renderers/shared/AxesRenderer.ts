@@ -87,6 +87,7 @@ export class AxesRenderer {
     }
 
     if (!this.floorPlane) {
+      // DEBT: Use ChartMaterialFactory.createFloorMaterial() instead of inline material creation
       const geo = new THREE.PlaneGeometry(width, height);
       const mat = new THREE.MeshStandardMaterial({
         color: new THREE.Color(parsedPlane!.rgb),

@@ -5,8 +5,6 @@
 export { BarChart, LineChart, ScatterPlotChart, PieChart, AreaChart, HeatMapChart } from './elements/chart/stubs';
 // V2: Shared child components
 export { ChartData, ChartAxis, ChartSeries, ChartLegend, ChartDataLabels, ReferenceLine } from './elements/chart/stubs';
-// Deprecated: generic V1 Chart component
-export { Chart } from './elements/chart/stubs';
 
 // V2 prop types
 export type {
@@ -56,6 +54,7 @@ export const FILTER_OPS = [
 ] as const satisfies readonly FilterOp[];
 
 // ─── Compiler ────────────────────────────────────────────────────────────────
+/** @internal */
 export {
   compileChart,
   compileTooltipDsl,
@@ -82,8 +81,6 @@ export { useChartAccessors } from './player/useChartAccessors';
 // ─── Player components ────────────────────────────────────────────────────────
 export { ChartProvider } from './player/ChartProvider';
 export type { ChartProviderProps } from './player/ChartProvider';
-export { ChartTooltipOverlay } from './player/ChartTooltipOverlay';
-export type { ChartTooltipOverlayProps } from './player/ChartTooltipOverlay';
 
 // ─── Data layer ───────────────────────────────────────────────────────────────
 export { ChartDataStore } from './data/ChartDataStore';
@@ -166,6 +163,3 @@ export type {
 // ─── Convenience hooks ───────────────────────────────────────────────────────
 export { useChartTheme } from './hooks/useChartTheme';
 
-// V1 deprecated type exports (migration compat)
-/** @deprecated V1 type. Use BarChartDSL, LineChartDSL, etc. from specific imports. */
-export type { ChartDSL, ChartDataDSL, ChartAxisDSL, ChartSeriesDSL, ChartLegendDSL } from './elements/chart/types';

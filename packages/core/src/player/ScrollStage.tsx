@@ -18,6 +18,7 @@ import { ViewportScaleContext } from './EngineARContainer';
 import { ScrollNavigatorContext } from './ScrollNavigatorContext';
 import { ScrollDriverContext } from './ScrollDriverContext';
 import type { IScrollSource } from './scrollSourceTypes';
+import { clamp01 } from '../math';
 
 export interface ScrollStageProps {
   /**
@@ -68,8 +69,6 @@ export interface ScrollStageHandle {
   scrollToProgress(rawProgress: number, behavior?: ScrollBehavior): void;
   subscribe(listener: (snapshot: ScrollStageSnapshot) => void): () => void;
 }
-
-const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
 
 /**
  * ScrollStage — contained native scroll container for scene playback.

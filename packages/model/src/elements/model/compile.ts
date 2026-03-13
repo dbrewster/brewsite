@@ -381,6 +381,7 @@ const blendPoseGroups = (
   return Object.keys(result).length > 0 ? result : undefined;
 };
 
+// DEBT: Extract generic blendArrayById<T>() to reduce duplication with blendMotionScenes/blendCustomAnimations
 const blendCommands = (
   from?: MotionCommand[],
   to?: MotionCommand[],
@@ -652,12 +653,8 @@ export const compileAnimation = (
 /** Fullscreen NVS bounds — the default when no region is specified. */
 const FULLSCREEN_NVS_BOUNDS: NVSRect = { x: 0, y: 0, w: 1, h: 1 };
 
-const cloneIdentityState = (state: SceneModelInstanceState): SceneModelInstanceState => {
-  if (typeof structuredClone === 'function') {
-    return structuredClone(state) as SceneModelInstanceState;
-  }
-  return JSON.parse(JSON.stringify(state)) as SceneModelInstanceState;
-};
+const cloneIdentityState = (state: SceneModelInstanceState): SceneModelInstanceState =>
+  structuredClone(state) as SceneModelInstanceState;
 
 export function createDefaultModelInstanceState(
   _modelId: string,
@@ -705,6 +702,7 @@ export const applyModelInterpolate = (
   enabled: (to.enabled ?? from.enabled ?? true) && t < 1,
 });
 
+/** @deprecated Use functionalInstanceTransitionSpec instead. This will be removed in a future version. */
 export const instanceTransitionSpec: ElementTransitionSpec<SceneModelInstanceState> = {
   exit: (frames, widgetId, fromState) => {
     for (let i = 0; i < frames.length; i++) {

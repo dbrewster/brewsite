@@ -3,32 +3,15 @@
 import * as THREE from 'three';
 import { scaleLinear } from 'd3-scale';
 import { extent } from 'd3-array';
-import { interpolateViridis, interpolatePlasma, interpolateBlues, interpolateReds } from 'd3-scale-chromatic';
-import { parseHexColor } from '@brewsite/core';
+import { parseHexColor, lerp } from '@brewsite/core';
 import { AxesRenderer } from '../shared/AxesRenderer';
 import { LegendRenderer } from '../shared/LegendRenderer';
+import { getInterpolator } from '../shared/colorUtils';
 import type { IChartRenderer, ChartRenderContext, ChartHitInfo, ChartHitMeta } from '../shared/IChartRenderer';
 import type { ResolvedDataFrame } from '../../data/types';
 
 const _dummy = new THREE.Object3D();
 const SCATTER_Z_OFFSET = -0.2;
-
-/** Returns a d3 color interpolator function for the named palette. */
-function getInterpolator(name: 'blues' | 'reds' | 'viridis' | 'plasma' | undefined): (t: number) => string {
-  switch (name) {
-    case 'blues': return interpolateBlues;
-    case 'reds': return interpolateReds;
-    case 'plasma': return interpolatePlasma;
-    case 'viridis':
-    default:
-      return interpolateViridis;
-  }
-}
-
-/** Linearly interpolates between a and b at t. */
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
 
 /**
  * Renders scatter plots as InstancedMesh of spheres.
@@ -50,6 +33,8 @@ export class ScatterRenderer implements IChartRenderer {
   private cachedXField = '';
   private cachedSizeField: string | undefined = undefined;
   private cachedColorField: string | undefined = undefined;
+  private lastBoundsWidth = -1;
+  private lastBoundsHeight = -1;
 
   update(ctx: ChartRenderContext): void {
     const { seriesGroup, axesGroup, legendGroup, data, xAxis, yAxis, series, bounds, theme, opacity, fontUrl } = ctx;
@@ -101,7 +86,9 @@ export class ScatterRenderer implements IChartRenderer {
       data !== this.lastDataFrame ||
       count !== this.lastCount ||
       sizeField !== this.lastSizeField ||
-      colorField !== this.lastColorField;
+      colorField !== this.lastColorField ||
+      bounds.width !== this.lastBoundsWidth ||
+      bounds.height !== this.lastBoundsHeight;
 
     if (needsRebuild) {
       this.clearMesh();
@@ -127,6 +114,8 @@ export class ScatterRenderer implements IChartRenderer {
       this.lastCount = count;
       this.lastSizeField = sizeField;
       this.lastColorField = colorField;
+      this.lastBoundsWidth = bounds.width;
+      this.lastBoundsHeight = bounds.height;
       this.lastDataFrame = data;
     }
 

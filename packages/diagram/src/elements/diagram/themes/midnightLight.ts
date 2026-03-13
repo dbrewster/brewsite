@@ -14,6 +14,7 @@ export const midnightLightTheme: DiagramTheme = {
     defaultMetalness: 0.12,
     defaultRoughness: 0.58,
     defaultEmissiveIntensity: 0.01,
+    nodeEnvMapIntensity: 0,
   },
   edge: {
     ...midnightTheme.edge,

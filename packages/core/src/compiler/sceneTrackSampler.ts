@@ -8,7 +8,6 @@ export type SceneTrackSampler = {
 
 /**
  * Creates a sampler for scene track with O(1) lookup at any progress.
- * Stub - implemented in Phase 4
  */
 export const createSceneTrackSampler = (track: SceneTrack): SceneTrackSampler => {
   const maxIndex = track.subTickCount - 1;

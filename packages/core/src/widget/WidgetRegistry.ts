@@ -51,25 +51,29 @@ export interface IHasCustomDslHandler extends IWidget {
 export const hasCustomDslHandler = (widget: IWidget): widget is IHasCustomDslHandler =>
   CUSTOM_NODE_HANDLER in widget;
 
-const hashString = (input: string): string => {
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < input.length; i++) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
+// Stable function identity: assigns a unique numeric ID to each function the first
+// time it is seen, avoiding fn.toString() which is unstable under minification.
+let nextCacheId = 0;
+const fnIdMap = new WeakMap<Function, number>();
+const stableFnId = (fn: Function): number => {
+  let id = fnIdMap.get(fn);
+  if (id === undefined) {
+    id = nextCacheId++;
+    fnIdMap.set(fn, id);
   }
-  return (hash >>> 0).toString(16);
+  return id;
 };
 
 const buildFunctionalTransitionSignature = (spec: Record<string, unknown>): string => {
   const fnNames = ['exitFn', 'enterFn', 'interpolateFn'] as const;
-  const fnSource = fnNames
+  const fnIds = fnNames
     .map((name) => {
       const fn = spec[name];
-      return typeof fn === 'function' ? `${name}:${fn.toString()}` : `${name}:`;
+      return typeof fn === 'function' ? `${name}:${stableFnId(fn)}` : `${name}:`;
     })
     .join('|');
   const defaultWindow = JSON.stringify(spec['defaultWindow'] ?? null);
-  return hashString(`${fnSource}|defaultWindow:${defaultWindow}`);
+  return `${fnIds}|defaultWindow:${defaultWindow}`;
 };
 
 export class WidgetRegistry {
@@ -158,6 +162,7 @@ export class WidgetRegistry {
     return this;
   }
 
+  // DEBT: The typeFactory handler block inside register() partially duplicates registerTypeFactory() routing logic
   register(widget: IWidget): this {
     if (this.frozen) {
       throw new Error(

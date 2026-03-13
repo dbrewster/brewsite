@@ -15,6 +15,7 @@ import type {
 import { transitionT } from '../../compiler/transitions/transitionTypes';
 import { makeSimpleContext } from '../../compiler/transitions/transitionResolver';
 import { smoothstep } from '../../timeline/math';
+import { lerpVec3 } from '../../math';
 
 // tan(22.5°): used to derive camera distance from worldScale at fov=45.
 // cameraZ = worldScale / (2 * TAN_22_5) ≈ worldScale * 1.2071
@@ -44,6 +45,7 @@ export function compileNvsViewportCamera(
 ): SceneCamera {
   let worldScale = worldScaleIn ?? 10;
   if (!Number.isFinite(worldScale) || worldScale <= 0) {
+    // DEBT: Use structured warning/return instead of console.error in pure function
     console.error(
       `[Camera mode="nvsViewport"] worldScale must be a positive finite number, ` +
       `got ${worldScale}. Falling back to default worldScale=10.`,
@@ -109,13 +111,7 @@ export const DEFAULT_CAMERA: SceneCamera = {
   lens: { fov: 45, near: 0.01, far: 100 },
 };
 
-// ─── Vec3 interpolation helpers ────────────────────────────────────────────
-
-const lerpVec3 = (a: Vec3, b: Vec3, t: number): Vec3 => [
-  a[0] + (b[0] - a[0]) * t,
-  a[1] + (b[1] - a[1]) * t,
-  a[2] + (b[2] - a[2]) * t,
-];
+// ─── Interpolation helpers ────────────────────────────────────────────────
 
 const lerpNum = (a: number | undefined, b: number | undefined, t: number): number | undefined => {
   if (a === undefined || b === undefined) return t < 0.5 ? a : b;

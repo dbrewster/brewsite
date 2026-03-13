@@ -23,6 +23,7 @@ let coreHandlersRegistered = false;
  * without warnings when used as a direct child of <Scene>. Widget-level
  * CUSTOM_NODE_HANDLERs collect and process <Transition> children themselves.
  */
+// DEBT: Inner getNodeHandler() checks are redundant with the coreHandlersRegistered guard
 export function registerCoreHandlers(): void {
   if (coreHandlersRegistered) return;
   coreHandlersRegistered = true;

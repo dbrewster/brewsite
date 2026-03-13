@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import React from 'react';
-import { renderLabels } from '../render';
 import { Label, Labels } from '../../elements/model/ModelWidget';
 import { resolveSceneFromDsl, Scene } from '@brewsite/core';
 import { registerNode } from '@brewsite/core';
@@ -45,12 +44,5 @@ describe('label compile + dsl', () => {
     expect(Labels.displayName).toBe('Labels');
     expect(Label({ id: 'l1', text: 'A' })).toBeNull();
     expect(Labels({})).toBeNull();
-  });
-});
-
-describe('label render', () => {
-  it('renderLabels is a no-op stub that does not throw', () => {
-    const canvas = document.createElement('canvas');
-    expect(() => renderLabels([], canvas)).not.toThrow();
   });
 });

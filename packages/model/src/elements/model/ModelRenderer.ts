@@ -22,6 +22,9 @@ import { applyModelTransform } from './render';
 import type { IRenderable as RenderInterface } from './render';
 import type { AssetManifest, AnimationEntry, ModelMeta } from './metadata';
 
+const applyMultiplier = (value: number | undefined, multiplier: number): number | undefined =>
+  typeof value === 'number' ? value * multiplier : value;
+
 type MaterialBase = {
   color?: THREE.Color;
   opacity?: number;
@@ -84,6 +87,8 @@ export class ModelRenderer {
   private attachedParts = new Map<string, ContainedInstance>();
 
   private static gltfCache = new Map<string, Promise<CachedGltf>>();
+
+  static clearCache(): void { ModelRenderer.gltfCache.clear(); }
 
   private static ktx2Loaders = new WeakMap<THREE.WebGLRenderer, KTX2Loader>();
   private static getKtx2Loader(renderer: THREE.WebGLRenderer): KTX2Loader {
@@ -295,7 +300,7 @@ export class ModelRenderer {
   // Internal helpers
   // ────────────────────────────────────────────────────────────────────────────
 
-  private ingestModel(group: THREE.Group, clips: THREE.AnimationClip[]): void {
+  protected ingestModel(group: THREE.Group, clips: THREE.AnimationClip[]): void {
     if (this.model) {
       this.scene.remove(this.model);
       this.disposeObject3D(this.model);
@@ -406,6 +411,7 @@ export class ModelRenderer {
     }
   }
 
+  // DEBT: Expose bone root remap table as configurable via ModelMeta/LoadOptions
   private remapClipTrackNames(clip: THREE.AnimationClip): void {
     const remap = new Map<string, string>();
     if (!this.nodeByName.has('CC_Base_BoneRoot')) {
@@ -445,8 +451,6 @@ export class ModelRenderer {
     this.bodyPartMeshMap.clear();
     const metalnessMultiplier = state.model.metalnessMultiplier ?? 1;
     const roughnessMultiplier = state.model.roughnessMultiplier ?? 1;
-    const applyMultiplier = (value: number | undefined, multiplier: number) =>
-      typeof value === 'number' ? value * multiplier : value;
     const baseMetalness = applyMultiplier(state.model.metalness, metalnessMultiplier);
     const baseRoughness = applyMultiplier(state.model.roughness, roughnessMultiplier);
     const modelOpacity = modelOpacityOverride ?? state.model.opacity;
@@ -825,8 +829,6 @@ export class ModelRenderer {
     roughnessMultiplier = 1,
   ): void {
     const opacityScale = typeof modelOpacity === 'number' ? modelOpacity : undefined;
-    const applyMultiplier = (value: number | undefined, multiplier: number) =>
-      typeof value === 'number' ? value * multiplier : value;
     group.traverse((obj) => {
       if (!((obj as THREE.Mesh).isMesh || obj.type === 'Mesh')) return;
       const mesh = obj as THREE.Mesh;

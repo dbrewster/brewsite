@@ -2,6 +2,7 @@
 
 import * as THREE from 'three';
 import type { SpotlightRigState } from './types';
+import type { OrbitFn } from './types';
 import { parseHexColor } from '../../math';
 
 // ─── Data Structures ──────────────────────────────────────────────────────────
@@ -151,13 +152,17 @@ const _CONE_AXIS = new THREE.Vector3(0, -1, 0);
  * Applies SpotlightRigState to the Three.js scene for the given wall-clock time.
  * Called once per frame from SpotlightRigWidget.onTick().
  *
- * Manages the light pool (grow/shrink), positions each light on its circular orbit,
- * updates beam cone orientation, manages SpotLightHelpers, and updates the halo sprite.
+ * @param state           - Current per-light compiled state from SceneTrack.
+ * @param refs            - Scene + cache references from widget instance.
+ * @param wallTimeSeconds - Monotonically increasing wall clock (not scene-relative).
+ * @param orbitFns        - Optional sparse array of custom orbit functions, indexed
+ *                          by light index. Undefined entries use default circular orbit.
  */
 export function applySpotlightRig(
   state: SpotlightRigState,
   refs: SpotlightRigRefs,
   wallTimeSeconds: number,
+  orbitFns?: (OrbitFn | undefined)[],
 ): void {
   const { scene, cache } = refs;
 
@@ -172,7 +177,7 @@ export function applySpotlightRig(
     return;
   }
 
-  const count = Math.max(1, Math.round(state.count));
+  const count = state.lights.length;
 
   // ── Resize pool ─────────────────────────────────────────────────────────────
   while (cache.entries.length > count) {
@@ -185,105 +190,123 @@ export function applySpotlightRig(
     (entry.beam.material as THREE.MeshBasicMaterial).dispose();
   }
   while (cache.entries.length < count) {
-    const light = new THREE.SpotLight();
+    const lightState = state.lights[cache.entries.length]!;
+    const threeLight = new THREE.SpotLight();
     const target = new THREE.Object3D();
-    const geo = buildBeamGeometry(state.angle, state.distance || 60);
-    const mat = buildBeamMaterial(state.beamColor, state.beamOpacity);
+    const geo = buildBeamGeometry(lightState.angle, lightState.distance || 60);
+    const mat = buildBeamMaterial(lightState.beamColor, lightState.beamOpacity);
     const beam = new THREE.Mesh(geo, mat);
     // Mark all objects as floor-excluded infrastructure so beam bounding boxes
     // don't shift the floor plane downward via computeSceneBaseY().
-    markAsFloorPart(light);
+    markAsFloorPart(threeLight);
     markAsFloorPart(target);
     markAsFloorPart(beam);
-    scene.add(light);
+    scene.add(threeLight);
     scene.add(target);
     scene.add(beam);
-    light.target = target;
+    threeLight.target = target;
     cache.entries.push({
-      light, target, beam, helper: null,
-      builtAngle: state.angle,
-      builtDistance: state.distance,
+      light: threeLight, target, beam, helper: null,
+      builtAngle: lightState.angle,
+      builtDistance: lightState.distance,
     });
   }
 
   // ── Per-light update ─────────────────────────────────────────────────────────
-  const TWO_PI = Math.PI * 2;
   for (let i = 0; i < count; i++) {
     const entry = cache.entries[i]!;
-    const { light, target, beam } = entry;
+    const light = state.lights[i]!;
+    const { light: threeLight, target: threeTarget, beam } = entry;
 
-    const phase = (TWO_PI * i) / count;
-    const theta = wallTimeSeconds * state.speed + phase;
-
-    // Light source position (elevated, orbiting around state.center)
-    const cx = state.center[0];
-    const cy = state.center[1];
-    const cz = state.center[2];
-    light.position.set(
-      cx + Math.sin(theta) * state.radius,
-      cy + state.height,
-      cz + Math.cos(theta) * state.radius,
-    );
-
-    // Target position: fixed point when state.target is set, otherwise straight-down orbit
-    if (state.target) {
-      target.position.set(state.target[0], state.target[1], state.target[2]);
+    // Position computation
+    const orbitFn = orbitFns?.[i];
+    let lightPos: [number, number, number];
+    if (orbitFn) {
+      // Custom orbit function — evaluate at wall time and offset by rig center.
+      const raw = orbitFn(wallTimeSeconds);
+      lightPos = [
+        state.center[0] + raw[0],
+        state.center[1] + raw[1],
+        state.center[2] + raw[2],
+      ];
     } else {
-      target.position.set(
-        cx + Math.sin(theta) * state.radius,
-        cy + state.targetY,
-        cz + Math.cos(theta) * state.radius,
-      );
+      // Default circular orbit: phase from light.phase, speed from light.speed.
+      const theta = wallTimeSeconds * light.speed + light.phase;
+      lightPos = [
+        state.center[0] + Math.sin(theta) * light.radius,
+        state.center[1] + light.height,
+        state.center[2] + Math.cos(theta) * light.radius,
+      ];
     }
-    target.updateMatrixWorld();
+    threeLight.position.set(lightPos[0], lightPos[1], lightPos[2]);
 
-    // Light properties
-    const colorParsed = parseHexColor(state.color);
-    light.color.set(colorParsed.rgb);
-    light.intensity = state.intensity * colorParsed.alpha;
-    light.angle = state.angle;
-    light.penumbra = state.penumbra;
-    light.decay = state.decay;
-    light.distance = state.distance;
+    // Target computation
+    // Priority: per-light target > rig-level target > auto-aim below source
+    const effectiveTarget = light.target ?? state.target;
+    if (effectiveTarget) {
+      threeTarget.position.set(effectiveTarget[0], effectiveTarget[1], effectiveTarget[2]);
+    } else {
+      // Auto-aim: straight down to targetY
+      if (orbitFn) {
+        threeTarget.position.set(lightPos[0], state.center[1] + light.targetY, lightPos[2]);
+      } else {
+        const theta = wallTimeSeconds * light.speed + light.phase;
+        threeTarget.position.set(
+          state.center[0] + Math.sin(theta) * light.radius,
+          state.center[1] + light.targetY,
+          state.center[2] + Math.cos(theta) * light.radius,
+        );
+      }
+    }
+    threeTarget.updateMatrixWorld();
+
+    // Per-light properties
+    const colorParsed = parseHexColor(light.color);
+    threeLight.color.set(colorParsed.rgb);
+    threeLight.intensity = light.intensity * colorParsed.alpha;
+    threeLight.angle = light.angle;
+    threeLight.penumbra = light.penumbra;
+    threeLight.decay = light.decay;
+    threeLight.distance = light.distance;
 
     // castShadow: only update if changed — toggling castShadow is expensive
     // (forces a shadow map re-upload). Shadow map size is set once at creation time.
-    if (light.castShadow !== state.castShadow) {
-      light.castShadow = state.castShadow;
-      if (state.castShadow) {
-        light.shadow.mapSize.set(state.shadowMapSize, state.shadowMapSize);
-        light.shadow.needsUpdate = true;
+    if (threeLight.castShadow !== light.castShadow) {
+      threeLight.castShadow = light.castShadow;
+      if (light.castShadow) {
+        threeLight.shadow.mapSize.set(light.shadowMapSize, light.shadowMapSize);
+        threeLight.shadow.needsUpdate = true;
       }
     }
 
     // Beam geometry rebuild: if angle or distance changed, rebuild the cone.
-    if (entry.builtAngle !== state.angle || entry.builtDistance !== state.distance) {
+    if (entry.builtAngle !== light.angle || entry.builtDistance !== light.distance) {
       entry.beam.geometry.dispose();
-      entry.beam.geometry = buildBeamGeometry(state.angle, state.distance || 60);
-      entry.builtAngle = state.angle;
-      entry.builtDistance = state.distance;
+      entry.beam.geometry = buildBeamGeometry(light.angle, light.distance || 60);
+      entry.builtAngle = light.angle;
+      entry.builtDistance = light.distance;
     }
 
-    // Beam cone: position at light, orient using quaternion from +Y to direction vector.
-    beam.visible = state.showBeam && state.beamOpacity > 0;
+    // Beam cone: position at light, orient using quaternion from -Y axis to direction vector.
+    beam.visible = light.showBeam && light.beamOpacity > 0;
     if (beam.visible) {
-      beam.position.copy(light.position);
+      beam.position.set(lightPos[0], lightPos[1], lightPos[2]);
       // Align cone axis (-Y, where the base/opening extends) to the light→target direction.
       // setFromUnitVectors avoids the lookAt + rotateX(π/2) pattern which has
       // gimbal edge cases at straight-down alignment.
-      _tmpVec.subVectors(target.position, light.position).normalize();
+      _tmpVec.subVectors(threeTarget.position, threeLight.position).normalize();
       _tmpQuat.setFromUnitVectors(_CONE_AXIS, _tmpVec);
       beam.quaternion.copy(_tmpQuat);
 
       const mat = beam.material as THREE.MeshBasicMaterial;
-      const beamParsed = parseHexColor(state.beamColor);
+      const beamParsed = parseHexColor(light.beamColor);
       mat.color.set(beamParsed.rgb);
-      mat.opacity = state.beamOpacity * beamParsed.alpha;
+      mat.opacity = light.beamOpacity * beamParsed.alpha;
     }
 
-    // SpotLightHelper: add when showHelper enabled, remove when disabled.
+    // SpotLightHelper: rig-level flag (not per-light). Add when enabled, remove when disabled.
     if (state.showHelper && !entry.helper) {
-      entry.helper = new THREE.SpotLightHelper(light);
+      entry.helper = new THREE.SpotLightHelper(threeLight);
       markAsFloorPart(entry.helper);
       scene.add(entry.helper);
     } else if (!state.showHelper && entry.helper) {
@@ -297,9 +320,13 @@ export function applySpotlightRig(
     }
   }
 
-  // ── Halo sprite (single, centered at origin at targetY) ──────────────────────
-  // V1: Single halo at world origin at targetY. Phase 2: per-light halos.
-  if (state.showHalo && state.haloOpacity > 0) {
+  // ── Halo sprite (single, centered at rig center at targetY) ──────────────────
+  // DEBT: Halo sprite is still a single centered sprite (one per rig, not per light).
+  // The original V1 comment ("Phase 2: per-light halos") has been preserved.
+  // Per-light halos require SpotlightRigCache to hold a halo sprite per entry
+  // rather than a single haloSprite on the top-level cache. Deferred.
+  const firstLight = state.lights[0];
+  if (firstLight && firstLight.showHalo && firstLight.haloOpacity > 0) {
     if (!cache.haloSprite) {
       cache.haloTex = buildHaloTexture();
       cache.haloSprite = new THREE.Sprite(
@@ -314,9 +341,13 @@ export function applySpotlightRig(
       scene.add(cache.haloSprite);
     }
     cache.haloSprite.visible = true;
-    cache.haloSprite.position.set(state.center[0], state.center[1] + state.targetY + 0.01, state.center[2]);
-    cache.haloSprite.scale.set(state.haloSize, state.haloSize, 1);
-    (cache.haloSprite.material as THREE.SpriteMaterial).opacity = state.haloOpacity;
+    cache.haloSprite.position.set(
+      state.center[0],
+      state.center[1] + firstLight.targetY + 0.01,
+      state.center[2],
+    );
+    cache.haloSprite.scale.set(firstLight.haloSize, firstLight.haloSize, 1);
+    (cache.haloSprite.material as THREE.SpriteMaterial).opacity = firstLight.haloOpacity;
   } else if (cache.haloSprite) {
     cache.haloSprite.visible = false;
   }

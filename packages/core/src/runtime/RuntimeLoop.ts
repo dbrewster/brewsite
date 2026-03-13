@@ -44,7 +44,6 @@ const defaultClock: RuntimeLoopClock = {
 
 /**
  * Runtime loop that drives tick and render cycles.
- * Stub - implemented in Phase 6
  */
 export class RuntimeLoop {
   private driver: RuntimeDriver;
@@ -56,7 +55,6 @@ export class RuntimeLoop {
   private wallTimeSeconds = 0;
   private wallTimeOverride: number | null = null;
   private prevGlobalProgress: number = 0;
-  private active = true;
   private running = false;
   private rafId: RuntimeLoopFrameHandle | null = null;
   private readonly fpsCap: number | null = null;
@@ -179,11 +177,6 @@ export class RuntimeLoop {
   }
 
   private runStep(nowMs: number, force: boolean): void {
-    if (!this.active) {
-      this.lastMs = nowMs;
-      return;
-    }
-
     let deltaMs = 0;
     if (this.lastMs === null) {
       this.lastMs = nowMs;

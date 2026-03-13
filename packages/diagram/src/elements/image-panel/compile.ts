@@ -3,13 +3,7 @@
 
 import type { ImagePanelDSL, ImagePanelState } from './types';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
-import { blendNumber, blendOpacity, blendVec3, validateNVSScalar } from '@brewsite/core';
-
-const toMutableVec3 = (value: readonly [number, number, number]): [number, number, number] => [
-  value[0],
-  value[1],
-  value[2],
-];
+import { blendNumber, blendOpacity, blendVec3, copyVec3, validateNVSScalar } from '@brewsite/core';
 
 /**
  * Compiles an ImagePanelDSL into a fully resolved ImagePanelState by applying defaults.
@@ -80,7 +74,7 @@ export const functionalImagePanelTransitionSpec: FunctionalTransitionSpec<ImageP
     nvsHeight: from.nvsHeight !== undefined && to.nvsHeight !== undefined
       ? (blendNumber(from.nvsHeight, to.nvsHeight, ctx.t) ?? to.nvsHeight)
       : to.nvsHeight,
-    rotation: blendVec3(toMutableVec3(from.rotation), toMutableVec3(to.rotation), ctx.t) ?? to.rotation,
+    rotation: blendVec3(copyVec3(from.rotation), copyVec3(to.rotation), ctx.t) ?? to.rotation,
     scale: blendNumber(from.scale, to.scale, ctx.t) ?? to.scale,
     opacity: blendOpacity(from.opacity, to.opacity, ctx.t) ?? to.opacity,
     gloss: blendNumber(from.gloss, to.gloss, ctx.t) ?? to.gloss,

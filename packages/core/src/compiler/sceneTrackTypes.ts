@@ -352,6 +352,8 @@ export type SceneTrackTick = {
    *
    * Optional (not present in tracks compiled before this field was added).
    * Defaults to blockProgress when absent at runtime.
+   *
+   * DEBT: Make this required in next major version
    */
   sceneProgress?: number;
   state: SceneFrame;

@@ -78,13 +78,13 @@ export function modelPlugin(options: ModelPluginOptions = {}): WidgetPlugin & {
    * them to labelPositioner.setContainerSize() on every resize. Defined once per
    * modelPlugin() call so the component type is stable across renders.
    */
+  // DEBT: Add tests for configureRegistry error paths, fetchManifest non-ok HTTP, LabelPositionerSyncer
   const LabelPositionerSyncer = (): ReactElement | null => {
     const { containerWidth, containerHeight } = useContext(ViewportScaleContext);
+    const currentBounds = modelWidgets.find(w => w.nvsBounds != null)?.nvsBounds ?? undefined;
     useEffect(() => {
-      const widget = modelWidgets[0];
-      const nvsBounds = widget?.nvsBounds ?? undefined;
-      labelPositioner.setContainerSize(containerWidth, containerHeight, nvsBounds);
-    }, [containerWidth, containerHeight, modelWidgets[0]?.nvsBounds]);
+      labelPositioner.setContainerSize(containerWidth, containerHeight, currentBounds);
+    }, [containerWidth, containerHeight, currentBounds]);
     return null;
   };
 

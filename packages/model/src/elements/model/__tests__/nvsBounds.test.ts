@@ -1,4 +1,5 @@
 // Tests for NVS bounds compilation and ModelWidget.nvsBounds getter.
+// DEBT: Move makeIdentity/makeModelMeta/makeConfig to elementTestMocks.ts
 
 import { describe, it, expect, vi } from 'vitest';
 import { createDefaultModelInstanceState } from '../compile';

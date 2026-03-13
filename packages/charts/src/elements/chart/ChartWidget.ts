@@ -213,6 +213,7 @@ export class ChartWidget
    * Configures the widget for async data loading.
    * Must be called before load() — typically by chartPlugin during track reconciliation.
    */
+  // DEBT: Drop underscore prefix or make truly internal via plugin interface
   _configureAsync(url: string, format?: 'json' | 'csv'): void {
     this.asyncUrl = url;
     this.asyncFormat = format ?? 'json';
@@ -555,6 +556,7 @@ import type React from 'react';
 // Re-export stubs for backward-compat with importers that still reference them from ChartWidget.
 // The canonical location is ./stubs — these re-exports will be removed once all callers migrate.
 export {
+  /** @deprecated @internal */
   Chart,
   BarChart,
   LineChart,

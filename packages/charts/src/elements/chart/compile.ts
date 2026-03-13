@@ -90,6 +90,7 @@ export function compileTooltipDsl(dsl: ChartTooltipDSL | null): ChartTooltipStat
  * Normalizes DSL inline/url/named data props into ChartStateDataSource.
  * Handles columnar→row transposition for inline data.
  * Priority: data > dataUrl > dataDsl.source > empty named.
+ * @internal
  */
 export function compileDataSource(
   dsl: BaseChartDSL,

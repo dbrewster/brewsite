@@ -100,6 +100,7 @@ const expandNode = (node: unknown): unknown[] => {
     try {
       next = (element.type as (props: Record<string, unknown>) => unknown)(props);
     } catch {
+      // DEBT: Route through api.pushWarning for structured diagnostics
       // Component cannot be called outside React render (e.g., it uses hooks, context,
       // or other React-only APIs). Treat it as opaque overlay content — preserve the
       // element as-is so EngineOverlayHost renders it correctly in the React tree.

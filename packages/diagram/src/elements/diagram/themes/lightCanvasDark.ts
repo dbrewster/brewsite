@@ -14,6 +14,7 @@ export const lightCanvasDarkTheme: DiagramTheme = {
     defaultMetalness: 0.16,
     defaultRoughness: 0.42,
     defaultEmissiveIntensity: 0.02,
+    nodeEnvMapIntensity: 0.15,
   },
   edge: {
     ...lightCanvasTheme.edge,

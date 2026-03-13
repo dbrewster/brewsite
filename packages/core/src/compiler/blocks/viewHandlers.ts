@@ -14,6 +14,7 @@ import type { ViewLayoutProps } from './viewLayoutDsl';
 import { resolveLayout } from '../../layout/regionLayout';
 import { normalizePadding, applyPaddingToRect } from '../../layout/regionNormalize';
 
+// DEBT: Replace this invisible side-channel with an explicit parameter on CompileApi
 // Module-level WeakMap — not on CompileApi, avoids polluting the SDK type.
 // Keyed by CompileApi instance, stores the active layout context for view-child compilation.
 type ViewLayoutContext = {

@@ -1,4 +1,5 @@
 // Tests for ModelWidget CUSTOM_NODE_HANDLER bounds composition via api.composeBounds.
+// DEBT: Move makeIdentity/makeModelMeta/makeConfig to elementTestMocks.ts
 
 import { describe, it, expect, vi } from 'vitest';
 import { ModelWidget, type ModelWidgetConfig } from '../ModelWidget';

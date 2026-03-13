@@ -1,8 +1,18 @@
 // SpotlightRig element — public surface.
-export { SpotlightRig, SpotlightRigWidget } from './SpotlightRigWidget';
-export type { SpotlightRigProps } from './dsl';
-export type { SpotlightRigTheme, SpotlightRigState, Vec3Tuple as SpotlightRigVec3 } from './types';
-export { mergeSpotlightRigTheme, DEFAULT_SPOTLIGHT_RIG_THEME } from './compile';
+export { SpotlightRig, Spotlight, SpotlightRigWidget } from './SpotlightRigWidget';
+export type { SpotlightRigProps, SpotlightProps } from './dsl';
+export type {
+  SpotlightRigTheme,
+  SpotlightRigState,
+  SpotlightLightState,
+  OrbitFn,
+  Vec3Tuple as SpotlightRigVec3,
+} from './types';
+export {
+  mergeSpotlightRigTheme,
+  DEFAULT_SPOTLIGHT_RIG_THEME,
+  DEFAULT_SPOTLIGHT_RIG_STATE,
+} from './compile';
 export {
   moviePremiereTheme, concertStageTheme,
   spotlightDarkGlassTheme, spotlightEnterpriseTheme,

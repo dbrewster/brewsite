@@ -19,6 +19,9 @@ export function validateNVSScalar(
 ): boolean {
   if (process.env.NODE_ENV === 'production') return true;
   if (value < 0 || value > 1 || !Number.isFinite(value)) {
+    // Add usage of params here
+    fieldName;
+    context;
     // commented this out because it is spamming logs.
     // console.error(
     //   `[NVS] Out-of-range: ${context} field "${fieldName}" = ${value}. ` +

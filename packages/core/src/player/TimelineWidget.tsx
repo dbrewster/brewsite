@@ -3,8 +3,7 @@
 import type {ReactElement} from 'react';
 import React, {useCallback, useRef, useState} from 'react';
 import type {TimelineWidgetProps} from './TimelineWidgetTypes';
-
-const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
+import { clamp01 } from '../math';
 
 const THEMES = {
   dark: {
@@ -31,6 +30,7 @@ const THEMES = {
   },
 };
 
+// DEBT: TimelineWidget takes an explicit engine prop instead of using useSceneEngineContext()
 export const TimelineWidget = ({
                                  engine,
                                  scenes,
@@ -130,10 +130,9 @@ export const TimelineWidget = ({
 
   const trackPad = 16;   // px padding on each end of track
   const handleSize = 14; // px diameter of scrub handle
-  const tickAreaHeight = showSceneLabels ? 20 : 0; // px above/beside track for labels
+  const _tickAreaHeight = showSceneLabels ? 20 : 0; // px above/beside track for labels
   const trackHeight = 22; // px height of the track bar itself
 
-  void tickAreaHeight;
   const horizontalTicksUp = isHorizontal && position === 'bottom';
 
   const anchorStyle: React.CSSProperties = isHorizontal

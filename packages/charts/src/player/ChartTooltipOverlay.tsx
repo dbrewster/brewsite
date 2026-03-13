@@ -5,7 +5,6 @@ import * as THREE from 'three';
 import type { NVSRect } from '@brewsite/core';
 import type { ChartHoverInfo } from '../elements/chart/ChartWidget';
 import type { ChartWidget } from '../elements/chart/ChartWidget';
-export { projectNdcToNvsPixels } from '../elements/chart/tooltip/projectUtils';
 
 /**
  * @deprecated Since v2.2. Use `<ChartTooltip>` inside the chart DSL and

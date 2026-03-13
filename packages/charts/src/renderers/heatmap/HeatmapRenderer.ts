@@ -2,25 +2,13 @@
 
 import * as THREE from 'three';
 import { extent } from 'd3-array';
-import { interpolateViridis, interpolatePlasma, interpolateBlues, interpolateReds } from 'd3-scale-chromatic';
 import { AxesRenderer } from '../shared/AxesRenderer';
+import { getInterpolator } from '../shared/colorUtils';
 import type { IChartRenderer, ChartRenderContext, ChartHitInfo, ChartHitMeta } from '../shared/IChartRenderer';
 import type { ResolvedDataFrame } from '../../data/types';
 
 const _dummy = new THREE.Object3D();
 const HEATMAP_FRONT_Z = -0.01;
-
-/** Returns a d3 color interpolator function for the named palette. */
-function getInterpolator(name: 'blues' | 'reds' | 'viridis' | 'plasma' | undefined): (t: number) => string {
-  switch (name) {
-    case 'blues': return interpolateBlues;
-    case 'reds': return interpolateReds;
-    case 'plasma': return interpolatePlasma;
-    case 'viridis':
-    default:
-      return interpolateViridis;
-  }
-}
 
 /**
  * Renders heatmaps as InstancedMesh of PlaneGeometry (or BoxGeometry when heightField is used).
@@ -213,7 +201,6 @@ export class HeatmapRenderer implements IChartRenderer {
     }
 
     this.hitMap.clear();
-    let instanceIdx = 0;
     for (let yi = 0; yi < yCount; yi++) {
       for (let xi = 0; xi < xCount; xi++) {
         const idx = yi * xCount + xi;
@@ -249,7 +236,6 @@ export class HeatmapRenderer implements IChartRenderer {
             columnLabel: xCategories[xi] ?? '',
           });
         }
-        instanceIdx++;
       }
     }
 

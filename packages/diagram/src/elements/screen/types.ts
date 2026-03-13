@@ -4,12 +4,10 @@
 // Does NOT support significant tilt — the iframe is always a flat 2D rectangle.
 // For a static image displayed in 3D, use <ImagePanel> instead.
 
-/**
- * Bezel frame style for the Screen element.
- * Identical union to ImagePanelBezelVariant and BezelVariant in _shared/bezelGeometry.ts.
- * Typed separately here to keep screen/types.ts self-contained (no cross-element imports).
- */
-export type ScreenBezelVariant = 'none' | 'thin' | 'dark' | 'light' | 'chrome';
+import type { BezelVariant } from '../_shared/bezelGeometry';
+
+/** Bezel frame style for the Screen element. */
+export type ScreenBezelVariant = BezelVariant;
 
 /**
  * Fully resolved state for a Screen element.

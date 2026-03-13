@@ -76,16 +76,23 @@ export { TimelineWidget } from './TimelineWidget';
 export type { TimelineWidgetProps, TimelineTickStyle, TimelineTheme } from './TimelineWidgetTypes';
 
 // ─── Dev Tools ────────────────────────────────────────────────────────────────
+/** @internal Dev-tools component. Not part of the stable public API. */
 export { CameraControlPanel } from './CameraControlPanel';
+/** @internal Dev-tools component. Not part of the stable public API. */
 export { CameraInteractionInfoDialog } from './CameraInteractionInfoDialog';
+/** @internal Dev-tools component. Not part of the stable public API. */
 export { SceneInspector } from './SceneInspector';
 export type { SceneInspectorProps } from './SceneInspector';
 
 // ─── SpotlightRig Element ─────────────────────────────────────────────────────
-export { SpotlightRig, SpotlightRigWidget } from '../elements/spotlight-rig';
-export type { SpotlightRigProps, SpotlightRigTheme, SpotlightRigState } from '../elements/spotlight-rig';
+export { SpotlightRig, Spotlight, SpotlightRigWidget } from '../elements/spotlight-rig';
+export type {
+  SpotlightRigProps, SpotlightProps,
+  SpotlightRigTheme, SpotlightRigState, SpotlightLightState,
+  OrbitFn,
+} from '../elements/spotlight-rig';
 export {
-  mergeSpotlightRigTheme, DEFAULT_SPOTLIGHT_RIG_THEME,
+  mergeSpotlightRigTheme, DEFAULT_SPOTLIGHT_RIG_THEME, DEFAULT_SPOTLIGHT_RIG_STATE,
   moviePremiereTheme, concertStageTheme,
   spotlightDarkGlassTheme, spotlightEnterpriseTheme,
   spotlightNeonCyberTheme, spotlightLightMinimalTheme,

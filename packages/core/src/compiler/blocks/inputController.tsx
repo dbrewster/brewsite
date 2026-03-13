@@ -16,7 +16,7 @@ import type {
   SceneInputControllerSpec,
 } from '../../input/types';
 
-const INPUT_CONTROLLER_WIDGET_ID = '__input_controller';
+export const INPUT_CONTROLLER_WIDGET_ID = '__input_controller';
 
 export type InputControllerProps = {
   id?: string;

@@ -4,11 +4,19 @@
 export type Vec3Tuple = [number, number, number];
 
 /**
+ * Custom orbit function for a single spotlight.
+ * Receives wall-clock time in seconds, returns world-space [x, y, z] position
+ * relative to the rig center.
+ * Stored on the widget instance — not serialized into SceneTrack.
+ */
+export type OrbitFn = (wallTimeSeconds: number) => Vec3Tuple;
+
+/**
  * Theming contract for SpotlightRig.
  *
- * All "reel" / cinematic settings live here AND on the DSL element.
+ * All cinematic settings live here AND on the DSL element.
  * Element-level props override corresponding theme values.
- * `count`, `showHelper`, and `center` are intentionally absent — they are element-only.
+ * `center`, `target`, `showHelper` are intentionally absent — they are element-only.
  */
 export type SpotlightRigTheme = {
   /** CSS hex/rgb color string for the spotlight sources. */
@@ -21,7 +29,7 @@ export type SpotlightRigTheme = {
   radius: number;
   /** World-space Y position of the spotlight source origins. */
   height: number;
-  /** World-space Y position of the target ground plane. */
+  /** World-space Y position of the target ground plane (used when no per-light or rig-level target is set). */
   targetY: number;
   /** Spotlight cone half-angle in radians (Three.js SpotLight.angle). Max π/2. */
   angle: number;
@@ -50,23 +58,80 @@ export type SpotlightRigTheme = {
 };
 
 /**
+ * Compiled runtime state for one individual spotlight within a SpotlightRig.
+ * All properties are concrete resolved values — no Resolvable<T> here.
+ *
+ * `phase` and `orbit` are not part of SpotlightRigTheme because they are
+ * per-light structural concerns, not visual theme values.
+ */
+export type SpotlightLightState = {
+  /** Resolved light color. */
+  color: string;
+  /** Resolved intensity. */
+  intensity: number;
+  /** Radians per second for circular orbit. Negative = counter-clockwise. */
+  speed: number;
+  /** Radius of circular orbit in world units. */
+  radius: number;
+  /** World-space Y of the light source origin. */
+  height: number;
+  /** Y of the target ground plane (only used when no per-light target and no rig target). */
+  targetY: number;
+  /** Cone half-angle in radians. */
+  angle: number;
+  /** Penumbra softness (0–1). */
+  penumbra: number;
+  /** Decay exponent. */
+  decay: number;
+  /** Max reach in world units. */
+  distance: number;
+  /** Whether this light casts shadows. */
+  castShadow: boolean;
+  /** Shadow map size in pixels. */
+  shadowMapSize: number;
+  /** Whether the beam cone mesh is visible. */
+  showBeam: boolean;
+  /** Beam cone mesh opacity. */
+  beamOpacity: number;
+  /** Beam cone CSS color. */
+  beamColor: string;
+  /** Whether the ground halo is rendered. */
+  showHalo: boolean;
+  /** Halo sprite opacity. */
+  haloOpacity: number;
+  /** Halo sprite diameter in world units. */
+  haloSize: number;
+  /**
+   * Explicit angular phase offset for circular orbit, in radians.
+   * When provided, overrides the auto-distributed phase (2π × i / count).
+   * Not part of the theme — structural per-light position control.
+   */
+  phase: number;
+  /**
+   * Per-light world-space target point override.
+   * When null, falls back to the rig-level target, then targetY below the source.
+   */
+  target: Vec3Tuple | null;
+};
+
+/**
  * Compiled runtime state for one SpotlightRig.
  * Flows through the SceneTrack and is sampled each tick by the RuntimeDriver.
+ *
+ * `lights` replaces the old flat `SpotlightRigTheme` spread — each light is
+ * fully resolved with its own color, intensity, speed, radius, etc.
  */
-export type SpotlightRigState = SpotlightRigTheme & {
+export type SpotlightRigState = {
   /** World-space center of the circular orbit. Default: [0, 0, 0]. Element-only — not in theme. */
   center: Vec3Tuple;
   /**
-   * World-space target point that all spotlights aim at. Default: null (each light targets straight down).
-   * When set, all lights converge on this point regardless of their orbital position.
+   * World-space rig-level target point. Fallback when a light has no per-light target.
+   * When null and per-light target is also null, each light targets below itself at targetY.
    */
   target: Vec3Tuple | null;
-  /** Number of individual spotlights in the rig. Element-only — not interpolated. */
-  count: number;
   /**
    * Whether to add Three.js SpotLightHelpers to the scene.
    * Element-only debug flag — not interpolated between scenes.
-   * Only respected in development; ignored in production builds if desired.
    */
   showHelper: boolean;
   /**
@@ -74,4 +139,9 @@ export type SpotlightRigState = SpotlightRigTheme & {
    * Controlled by disableWhenAbsent = true on the widget.
    */
   enabled: boolean;
+  /**
+   * Per-light resolved states. Length determines the number of active spotlights.
+   * Replaces the old `count` + flat theme approach.
+   */
+  lights: SpotlightLightState[];
 };

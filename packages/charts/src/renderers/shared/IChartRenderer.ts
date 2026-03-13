@@ -39,137 +39,24 @@ export type FittedMargins = {
   readonly bottom: number;
 };
 
-// ─── Re-exported axis/series state (canonical definitions — elements/chart/types imports these) ─
-
-/** Axis state — pre-computed scale domain/range for one axis. V2 adds scale control fields. */
-export type ChartAxisState = {
-  readonly axis: 'x' | 'y';
-  readonly field: string;
-  readonly label?: string;
-  readonly format?: string;
-  readonly domain?: readonly [number | string, number | string];
-  // V2 additions:
-  readonly scaleType?: 'linear' | 'log' | 'time' | 'band' | 'sqrt';
-  readonly tickCount?: number;
-  readonly nice?: boolean;
-  readonly clamp?: boolean;
-  readonly reverse?: boolean;
-  readonly gridlines?: boolean;
-  readonly gridlineOpacity?: number;
-};
-
-/** State for one data series within a chart. V2 adds bandField for area band variant. */
-export type ChartSeriesState = {
-  readonly field: string;
-  readonly label?: string;
-  readonly color?: string;
-  /** For area band variant: name of the lower-bound field. */
-  readonly bandField?: string;
-};
-
-// ─── Legend ──────────────────────────────────────────────────────────────────
-
-/** Legend position. */
-export type LegendPosition = 'right' | 'bottom' | 'top' | 'left';
-
-/**
- * Compiled legend state — V2 adds title, columns, maxItems.
- */
-export type ChartLegendState = {
-  readonly visible: boolean;
-  readonly position: LegendPosition;
-  readonly title?: string;
-  readonly columns?: number;
-  readonly maxItems?: number;
-};
-
-// ─── Type-specific options (Q7/Q8 resolution) ─────────────────────────────
-
-/** Rendered profile shape for line charts. */
-export type ChartLineShape = 'circle' | 'triangle' | 'hexagon' | 'heptagon' | 'octagon' | 'line';
-
-/** Bar chart type-specific options. */
-export type BarChartOptions = {
-  readonly orientation?: 'vertical' | 'horizontal';
-  readonly stackMode?: 'grouped' | 'stacked';
-  /** Padding ratio between bar groups [0..1]. Default from theme. */
-  readonly barPadding?: number;
-};
-
-/** Line chart type-specific options. */
-export type LineChartOptions = {
-  readonly lineShape?: ChartLineShape;
-  readonly lineSmoothness?: number;
-  readonly lineSubdivisions?: number;
-  readonly showPoints?: boolean;
-};
-
-/** Scatter plot type-specific options. */
-export type ScatterChartOptions = {
-  readonly sizeField?: string;
-  readonly colorField?: string;
-  readonly pointShape?: 'sphere' | 'cube' | 'cylinder';
-  /** World-space radius scale range for sizeField encoding. */
-  readonly sizeScale?: { readonly min: number; readonly max: number };
-  /** Color interpolator for continuous numeric colorField values. */
-  readonly colorInterpolator?: 'blues' | 'reds' | 'viridis' | 'plasma';
-};
-
-/** Pie/donut chart type-specific options. */
-export type PieChartOptions = {
-  /** [0..1] — 0 = pie, >0 = donut. Default: 0. */
-  readonly innerRadius?: number;
-  readonly pieTilt?: number;
-  /** x-axis field value of the slice to push outward. */
-  readonly explodeSlice?: string;
-};
-
-/** Area chart type-specific options. */
-export type AreaChartOptions = {
-  readonly stackMode?: 'none' | 'stacked';
-  readonly fillOpacity?: number;
-};
-
-/** Heatmap chart type-specific options. */
-export type HeatMapChartOptions = {
-  readonly timeField?: string;
-  readonly heightField?: string;
-  readonly colorInterpolator?: 'blues' | 'reds' | 'viridis' | 'plasma';
-};
-
-/**
- * Discriminated union of per-chart-type options.
- * `kind` matches ChartState.type. Renderers pattern-match on `kind`.
- */
-export type ChartTypeOptions =
-  | { readonly kind: 'bar';     readonly options: BarChartOptions }
-  | { readonly kind: 'line';    readonly options: LineChartOptions }
-  | { readonly kind: 'scatter'; readonly options: ScatterChartOptions }
-  | { readonly kind: 'pie';     readonly options: PieChartOptions }
-  | { readonly kind: 'area';    readonly options: AreaChartOptions }
-  | { readonly kind: 'heatmap'; readonly options: HeatMapChartOptions };
-
-// ─── Data labels (Q8 resolution) ─────────────────────────────────────────
-
-/** Position of data value labels relative to geometry. */
-export type DataLabelsPosition = 'top' | 'center' | 'outside';
-
-/** Compiled data label display state. */
-export type ChartDataLabelsState = {
-  readonly position: DataLabelsPosition;
-  /** d3-format string. Default: '.0f'. */
-  readonly format?: string;
-};
-
-// ─── Reference lines ──────────────────────────────────────────────────────
-
-/** A single reference line drawn on one axis at a given value. */
-export type ReferenceLineState = {
-  readonly axis: 'x' | 'y';
-  readonly value: number;
-  readonly label?: string;
-  readonly color?: string;
-};
+// ─── Re-exported from elements/chart/types.ts (single source of truth) ────────
+export type {
+  ChartAxisState,
+  ChartSeriesState,
+  LegendPosition,
+  ChartLegendState,
+  ChartLineShape,
+  BarChartOptions,
+  LineChartOptions,
+  ScatterChartOptions,
+  PieChartOptions,
+  AreaChartOptions,
+  HeatMapChartOptions,
+  ChartTypeOptions,
+  DataLabelsPosition,
+  ChartDataLabelsState,
+  ReferenceLineState,
+} from '../../elements/chart/types';
 
 // ─── Morph context (Q3 resolution) ───────────────────────────────────────
 

@@ -1,3 +1,4 @@
+// DEBT: Use { ...DEFAULT_FLOW_ROUTING_CONFIG } spread instead of repeating flow config values
 // Dark Glass theme — obsidian/burgundy control-room look with ember accents.
 
 // SHARED ACCENT PALETTE — must match packages/charts/src/themes/darkGlass.ts

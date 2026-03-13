@@ -1,4 +1,6 @@
+// DEBT: This file should be split into types-only, blend helpers, and math primitives
 import type { SceneTrackTick, TransitionWindow } from '../sceneTrackTypes';
+import { clamp01 as _clamp01, lerp as _lerp, lerpVec3 as _lerpVec3 } from '../../math';
 
 // Compiler transition contract — batch-fill model.
 // The compiler calls exactly one method per widget per transition block.
@@ -162,22 +164,13 @@ export const isFunctionalSpec = <T>(
 ): spec is FunctionalTransitionSpec<T> => 'interpolateFn' in spec;
 
 // ====================
-// Math Utilities
+// Math Utilities — re-exported from canonical math module
 // ====================
 
-export const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
-
-export const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
-
-export const lerpVec3 = (
-  a: [number, number, number],
-  b: [number, number, number],
-  t: number,
-): [number, number, number] => [
-  lerp(a[0], b[0], t),
-  lerp(a[1], b[1], t),
-  lerp(a[2], b[2], t),
-];
+export { clamp01, lerp, lerpVec3 } from '../../math';
+const clamp01 = _clamp01;
+const lerp = _lerp;
+const lerpVec3 = _lerpVec3;
 
 // ====================
 // Quaternion Utilities

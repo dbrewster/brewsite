@@ -267,7 +267,6 @@ export function resolveLoopCarouselLayout(
   // Z radius (depth): front-to-back distance = zStep.
   // cos goes from +1 (front) to -1 (back), so full range is 2 × radiusZ.
   // We want front=0, back=-zStep, so radiusZ = zStep / 2.
-  const radiusZ = zStep / 2;
 
   const TWO_PI = 2 * Math.PI;
 

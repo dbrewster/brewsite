@@ -20,6 +20,7 @@ export type {
   Vec3,
   ClipMeta,
 } from './elements/model/types';
+export type { NVSRect } from '@brewsite/core';
 export { ModelWidget } from './elements/model/ModelWidget';
 export type { ModelWidgetConfig } from './elements/model/ModelWidget';
 export type { AssetManifest, ModelMeta, AnimationEntry } from './elements/model/metadata';

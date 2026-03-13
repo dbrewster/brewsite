@@ -7,19 +7,7 @@ import type {
   RoutedEdgeCandidate,
   Vec3,
 } from './routingTypes';
-
-// ─── Geometry helpers ─────────────────────────────────────────────────────────
-
-const getFaceNormalLocal = (face: FaceId): Vec3 => {
-  switch (face) {
-    case 'left':   return [-1, 0, 0];
-    case 'right':  return [1, 0, 0];
-    case 'top':    return [0, 1, 0];
-    case 'bottom': return [0, -1, 0];
-    case 'front':  return [0, 0, 1];
-    case 'back':   return [0, 0, -1];
-  }
-};
+import { getFaceNormal } from './edgeRouter';
 
 // ─── Scoring sub-metrics ──────────────────────────────────────────────────────
 
@@ -80,8 +68,8 @@ function computeEndpointAlignmentPenalty(
   const dstLen = Math.sqrt(dstInX ** 2 + dstInY ** 2 + dstInZ ** 2) || 1;
   const dstIn: Vec3 = [dstInX / dstLen, dstInY / dstLen, dstInZ / dstLen];
 
-  const srcNormal = getFaceNormalLocal(srcFace);
-  const dstNormal = getFaceNormalLocal(dstFace);
+  const srcNormal = getFaceNormal(srcFace);
+  const dstNormal = getFaceNormal(dstFace);
   const srcAlign = Math.max(-1, Math.min(1, srcDir[0] * srcNormal[0] + srcDir[1] * srcNormal[1] + srcDir[2] * srcNormal[2]));
   const dstAlign = Math.max(-1, Math.min(1, dstIn[0] * dstNormal[0] + dstIn[1] * dstNormal[1] + dstIn[2] * dstNormal[2]));
   return (1 - srcAlign) + (1 - dstAlign);
@@ -98,8 +86,8 @@ function computeFaceDirectionPenalty(
   const dz = toPos[2] - fromPos[2];
   const len = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
   const dir: Vec3 = [dx / len, dy / len, dz / len];
-  const srcNormal = getFaceNormalLocal(srcFace);
-  const dstNormal = getFaceNormalLocal(dstFace);
+  const srcNormal = getFaceNormal(srcFace);
+  const dstNormal = getFaceNormal(dstFace);
   const srcToward = srcNormal[0] * dir[0] + srcNormal[1] * dir[1] + srcNormal[2] * dir[2];
   const dstToward = dstNormal[0] * -dir[0] + dstNormal[1] * -dir[1] + dstNormal[2] * -dir[2];
   return (1 - Math.max(0, srcToward)) + (1 - Math.max(0, dstToward));

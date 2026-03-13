@@ -30,6 +30,7 @@ export const midnightTheme: DiagramTheme = {
     labelFontSizeBase: 0.28,
     sublabelFontSizeBase: 0.18,
     defaultLabelPadding: 0,
+    nodeEnvMapIntensity: 0.15,
   },
   edge: {
     defaultColor: '#E2A33A',

@@ -69,9 +69,6 @@ export class ChartRenderer {
 
     // Resolve data from store via discriminated source type
     const data = this.resolveData(state.dataSource, state.transforms, widgetId);
-    if (data.rows.length === 0) {
-
-    }
 
     // Build MorphContext — sole construction site (Q3 resolution).
     // Pin the pre-transition data once when morphing starts so every morph frame

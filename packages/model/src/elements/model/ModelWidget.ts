@@ -102,6 +102,7 @@ type ModelAuthoredFlags = {
 
 const hasProp = (props: Record<string, unknown>, key: string): boolean =>
   Object.prototype.hasOwnProperty.call(props, key);
+// DEBT: Add test covering the displayName/name fallback path
 const isComponent = (el: ReactElement, component: React.ComponentType<any>): boolean => {
   if (el.type === component) return true;
   const a = el.type as { displayName?: string; name?: string };
@@ -461,6 +462,7 @@ export class ModelWidget
     }
     this.anchorTargets = config.modelMeta.anchorTargets ?? {};
 
+    // DEBT: Extract CUSTOM_NODE_HANDLER body into a standalone compileModelNode() function in compile.ts
     // Register CUSTOM_NODE_HANDLER for complex child DSL processing.
     // WidgetRegistry's routing handler calls this when it encounters
     // <Model type="<this.modelType>" id="<this.widgetId>"> in a scene, allowing full child traversal.
@@ -674,6 +676,7 @@ export class ModelWidget
         nvsBounds,
       };
 
+      // DEBT: Replace with WeakMap<SceneModelInstanceState, ModelAuthoredFlags> to avoid type-system bypass
       (state as SceneModelInstanceState & { __authored?: ModelAuthoredFlags }).__authored = authored;
       api.setWidgetState(this.widgetId, state);
     };

@@ -3,18 +3,13 @@
 
 import type { DiagramNodeState, DiagramEdgeState, DiagramGroupState } from '../types';
 import type { EdgeRoutingAlgorithm, EdgeLandingAlgorithm } from '../types';
-import { blendOpacity, blendVec3 } from '@brewsite/core';
+import { blendOpacity, blendVec3, copyVec3, lerp } from '@brewsite/core';
 import { routeEdges, routeEdgesYDown } from './edgeRouter';
 import { optimizeSharedFlowTrunks } from './edgeRenderOptimizer';
 import { GROUP_BORDER_PX_TO_UNITS } from './diagramRenderConstants';
 
 type Vec3 = readonly [number, number, number];
 type NodeDimensions = readonly [number, number, number];
-
-const toMutableVec3 = (v: Vec3): [number, number, number] => [v[0], v[1], v[2]];
-
-/** Linear interpolation for a single number. */
-const lerp = (a: number, b: number, t: number): number => a + (b - a) * t;
 
 export function blendDiagramNodes(
   fromNodes: ReadonlyArray<DiagramNodeState>,
@@ -34,7 +29,7 @@ export function blendDiagramNodes(
     }
     return {
       ...toNode,
-      position: blendVec3(toMutableVec3(fromNode.position), toMutableVec3(toNode.position), t) ?? toNode.position,
+      position: blendVec3(copyVec3(fromNode.position), copyVec3(toNode.position), t) ?? toNode.position,
       opacity: blendOpacity(fromNode.opacity, toNode.opacity, t) ?? toNode.opacity,
       // Interpolate geometric properties to prevent snapping when scenes have
       // different safeSpan values (different NVS normalization denominators).

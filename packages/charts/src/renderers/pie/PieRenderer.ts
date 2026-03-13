@@ -6,8 +6,7 @@ import { LegendRenderer } from '../shared/LegendRenderer';
 import { ChartMaterialFactory } from '../shared/ChartMaterialFactory';
 import type { IChartRenderer, ChartRenderContext, ChartHitInfo, ChartHitMeta, DataLabelEntry } from '../shared/IChartRenderer';
 import type { ResolvedDataFrame } from '../../data/types';
-// DataLabelRenderer from S4 — import path correct; resolves at merge time.
-import type { DataLabelRenderer } from '../shared/DataLabelRenderer';
+import { DataLabelRenderer } from '../shared/DataLabelRenderer';
 
 type SliceEntry = {
   mesh: THREE.Mesh;
@@ -37,9 +36,9 @@ export class PieRenderer implements IChartRenderer {
   private lastDataFrame: ResolvedDataFrame | null = null;
   private lastDataLength = -1;
   private lastInnerRadius = -1;
+  private lastBoundsWidth = -1;
+  private lastBoundsHeight = -1;
   private hoveredIndex = -1;
-  // DataLabelRenderer instance — created on demand when ctx.dataLabels is non-null.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private dataLabelRenderer: DataLabelRenderer | null = null;
 
   update(ctx: ChartRenderContext): void {
@@ -63,7 +62,9 @@ export class PieRenderer implements IChartRenderer {
     const needsRebuild =
       data !== this.lastDataFrame ||
       data.rows.length !== this.lastDataLength ||
-      innerRadiusRatio !== this.lastInnerRadius;
+      innerRadiusRatio !== this.lastInnerRadius ||
+      bounds.width !== this.lastBoundsWidth ||
+      bounds.height !== this.lastBoundsHeight;
 
     if (needsRebuild) {
       this.clearSlices();
@@ -91,10 +92,14 @@ export class PieRenderer implements IChartRenderer {
 
     // Data labels
     if (ctx.dataLabels) {
-      const entries = this.computeDataLabelEntries(data, valueField, labelField, ctx.dataLabels.position, explodeSlice, bounds);
-      if (this.dataLabelRenderer) {
-        this.dataLabelRenderer.update(entries, theme, opacity, fontUrl);
+      if (!this.dataLabelRenderer) {
+        this.dataLabelRenderer = new DataLabelRenderer(seriesGroup);
       }
+      const entries = this.computeDataLabelEntries(data, valueField, labelField, ctx.dataLabels.position, explodeSlice, bounds);
+      this.dataLabelRenderer.update(entries, theme, opacity, fontUrl);
+    } else if (this.dataLabelRenderer) {
+      this.dataLabelRenderer.dispose();
+      this.dataLabelRenderer = null;
     }
 
     if (!this.legendRenderer) this.legendRenderer = new LegendRenderer(legendGroup);

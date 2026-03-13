@@ -33,8 +33,7 @@ export type RealtimeClock = {
 
 // ─── Vec3 ─────────────────────────────────────────────────────────────────────
 
-/** Three-component vector. Structurally identical to Vec3 in math/. */
-export type Vec3 = [number, number, number];
+export type { Vec3 } from '../math';
 
 // ─── Scene-Graph Node ─────────────────────────────────────────────────────────
 

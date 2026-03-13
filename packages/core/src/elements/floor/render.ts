@@ -6,7 +6,7 @@
 import type { FloorSurfaceMirror, FloorSurfacePhysical, SceneFloor } from './types';
 import * as THREE from 'three';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
-import { parseHexColor } from '../../math';
+import { clamp01, parseHexColor } from '../../math';
 
 export type FloorThreeRefs = {
   scene: THREE.Scene;
@@ -67,8 +67,6 @@ type FloorDepthMaterialUserData = {
   __brewFloorDepthSettings?: FloorDepthEdgeConfig;
   __brewFloorDepthUniforms?: FloorDepthShaderUniformRefs;
 };
-
-const clamp01 = (value: number): number => Math.max(0, Math.min(1, value));
 
 const resolveFloorRotation = (state: SceneFloor): [number, number, number] => {
   if (state.rotationRelative) {

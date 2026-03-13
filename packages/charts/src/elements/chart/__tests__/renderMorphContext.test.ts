@@ -81,6 +81,33 @@ const makeInput = (overrides?: Partial<ChartRenderInput>): ChartRenderInput => (
   ...overrides,
 });
 
+describe('ChartRenderer empty-data passthrough', () => {
+  beforeEach(() => {
+    barUpdateCalls.length = 0;
+  });
+
+  it('still calls the renderer when data has no rows (scene exit with opacity 0)', () => {
+    const store = new ChartDataStore();
+    const renderer = new ChartRenderer(store);
+
+    // First frame with real data
+    const rows: ReadonlyArray<DataRow> = [
+      { quarter: 'Q1', revenue: 128 },
+    ];
+    store.registerInline(widgetId, rows);
+    renderer.update(makeInput({ opacity: 1 }), widgetId);
+
+    // Second frame: empty data (chart exited scene) with opacity 0
+    store.registerInline(widgetId, []);
+    renderer.update(makeInput({ opacity: 0 }), widgetId);
+
+    // Renderer must be called both times — the second call applies opacity 0
+    // to hide the chart. Without it, the chart stays visible from the first frame.
+    expect(barUpdateCalls).toHaveLength(2);
+    expect((barUpdateCalls[1] as { opacity: number }).opacity).toBe(0);
+  });
+});
+
 describe('ChartRenderer morph context', () => {
   beforeEach(() => {
     barUpdateCalls.length = 0;

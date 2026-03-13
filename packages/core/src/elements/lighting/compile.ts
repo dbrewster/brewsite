@@ -9,6 +9,7 @@ import type {
 } from '../../compiler/transitions/transitionTypes';
 import { blendColor, blendNumber, blendVec3, transitionT } from '../../compiler/transitions/transitionTypes';
 
+// DEBT: blendLightArray and blendSpots implement nearly identical id-keyed blend logic — unify via typed generic
 const blendLightArray = <T extends { id?: string; intensity: number; color: string; position: [number, number, number] }>(
   from: T[] | undefined,
   to: T[] | undefined,

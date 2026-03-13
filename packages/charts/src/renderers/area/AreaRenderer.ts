@@ -4,16 +4,12 @@ import * as THREE from 'three';
 import { scaleLinear } from 'd3-scale';
 import { extent } from 'd3-array';
 import { stack, stackOrderNone, stackOffsetNone } from 'd3-shape';
+import { lerp } from '@brewsite/core';
 import { AxesRenderer } from '../shared/AxesRenderer';
 import { LegendRenderer } from '../shared/LegendRenderer';
 import { ChartMaterialFactory } from '../shared/ChartMaterialFactory';
 import type { IChartRenderer, ChartRenderContext, ChartHitInfo, ChartHitMeta, MorphContext } from '../shared/IChartRenderer';
 import type { ResolvedDataFrame } from '../../data/types';
-
-/** Linearly interpolates between a and b at progress t. */
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
 
 /**
  * Renders area charts as extruded Three.js shapes.
@@ -28,7 +24,8 @@ export class AreaRenderer implements IChartRenderer {
   private legendRenderer: LegendRenderer | null = null;
   private readonly areaMeshes: THREE.Mesh[] = [];
   private seriesGroupRef: THREE.Group | null = null;
-  private lastBoundsWidth = 1;
+  private lastBoundsWidth = -1;
+  private lastBoundsHeight = -1;
   private lastDataFrame: ResolvedDataFrame | null = null;
   private cachedChartPositionX = 0;
   private cachedPlotFrameOffsetX = 0;
@@ -78,6 +75,8 @@ export class AreaRenderer implements IChartRenderer {
       data.rows.length !== this.lastDataLength ||
       effectiveSeries.length !== this.lastSeriesCount ||
       stackMode !== this.lastStackMode ||
+      bounds.width !== this.lastBoundsWidth ||
+      bounds.height !== this.lastBoundsHeight ||
       ctx.morphCtx !== undefined; // always rebuild during morph transitions
 
     if (needsRebuild) {
@@ -93,6 +92,8 @@ export class AreaRenderer implements IChartRenderer {
       this.lastDataLength = data.rows.length;
       this.lastSeriesCount = effectiveSeries.length;
       this.lastStackMode = stackMode;
+      this.lastBoundsWidth = bounds.width;
+      this.lastBoundsHeight = bounds.height;
     } else {
       for (const mesh of this.areaMeshes) {
         const mat = mesh.material as THREE.MeshPhysicalMaterial;

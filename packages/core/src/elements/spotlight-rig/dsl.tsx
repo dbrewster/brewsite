@@ -1,43 +1,89 @@
 // SpotlightRig DSL prop types — no runtime logic, no Three.js.
 
+import type { ReactNode } from 'react';
 import type { SceneSnapshotContext } from '../../compiler/sceneTypes';
-import type { SpotlightRigTheme, SpotlightRigState, Vec3Tuple } from './types';
+import type { SpotlightRigTheme, SpotlightRigState, SpotlightLightState, Vec3Tuple, OrbitFn } from './types';
 
 type Resolvable<T> = T | ((context: SceneSnapshotContext) => T);
 
 /**
- * DSL props for <SpotlightRig>.
+ * DSL props for a single <Spotlight> child of <SpotlightRig>.
  *
  * Priority chain (highest wins):
- *   individual prop override > props.theme > DEFAULT_SPOTLIGHT_RIG_THEME
+ *   individual prop > parent <SpotlightRig> prop > theme > DEFAULT_SPOTLIGHT_RIG_THEME
  *
- * Element-only (no theme equivalent): count, showHelper.
- * All SpotlightRigTheme keys are individually overridable.
+ * All SpotlightRigTheme keys are individually overridable per-light.
+ * Additional per-light-only props: phase, orbit, target.
+ */
+export type SpotlightProps = {
+  // ── Per-light-only ───────────────────────────────────────────────────────────
+  /**
+   * Explicit angular phase offset for circular orbit, in radians.
+   * When omitted, defaults to auto-distributed phase: (2π × lightIndex / totalLights).
+   * NOT in theme.
+   */
+  phase?: number;
+  /**
+   * Custom orbit function. When provided, overrides the default circular orbit
+   * computation for this light. Evaluated at tick time — not baked into SceneTrack.
+   * NOT in theme. NOT Resolvable — must be a plain function reference.
+   */
+  orbit?: OrbitFn;
+  /**
+   * Per-light target point. Overrides the rig-level `target` for this light only.
+   * Default: null (uses rig-level target or auto-aim).
+   */
+  target?: Resolvable<Vec3Tuple | null>;
+
+  // ── Theme + per-light override ───────────────────────────────────────────────
+  color?: Resolvable<string>;
+  intensity?: Resolvable<number>;
+  speed?: Resolvable<number>;
+  radius?: Resolvable<number>;
+  height?: Resolvable<number>;
+  targetY?: Resolvable<number>;
+  angle?: Resolvable<number>;
+  penumbra?: Resolvable<number>;
+  decay?: Resolvable<number>;
+  distance?: Resolvable<number>;
+  castShadow?: Resolvable<boolean>;
+  shadowMapSize?: Resolvable<number>;
+  showBeam?: Resolvable<boolean>;
+  beamOpacity?: Resolvable<number>;
+  beamColor?: Resolvable<string>;
+  showHalo?: Resolvable<boolean>;
+  haloOpacity?: Resolvable<number>;
+  haloSize?: Resolvable<number>;
+};
+
+/**
+ * DSL props for <SpotlightRig>.
+ *
+ * Priority chain (highest wins per theme field):
+ *   individual <Spotlight> prop > rig-level prop > props.theme > DEFAULT_SPOTLIGHT_RIG_THEME
+ *
+ * <Spotlight> children are required — each light must be explicitly declared.
+ * <SpotlightRig> with zero children produces zero lights.
  */
 export type SpotlightRigProps = {
-  // ── Element-only ──────────────────────────────────────────────────────────
+  // ── Element-only ──────────────────────────────────────────────────────────────
   /** World-space center of the circular orbit. Default: [0, 0, 0]. NOT in theme. */
   center?: Resolvable<Vec3Tuple>;
   /**
-   * World-space target point that all spotlights aim at.
+   * Rig-level world-space target that all spotlights aim at (unless overridden per-light).
    * Default: null (each light targets straight down below itself at `targetY`).
-   * When set, all lights converge on this point.
    */
   target?: Resolvable<Vec3Tuple | null>;
-  /** Number of individual spotlights. Default: 3. NOT in theme. */
-  count?: Resolvable<number>;
   /**
    * Render Three.js SpotLightHelpers for all lights.
-   * NOT Resolvable — consumed at initialize()/apply() time, not baked into SceneTrack.
-   * NOT in theme.
+   * NOT Resolvable — consumed at tick time. NOT in theme.
    */
   showHelper?: boolean;
 
-  // ── Theme + per-element override ──────────────────────────────────────────
+  // ── Theme + per-rig override ──────────────────────────────────────────────────
   /**
    * Base theme object. Individual props below override matching theme fields.
-   * Build custom themes with the provided preset + override pattern:
-   *   theme={mergeSpotlightRigTheme(moviePremiereTheme, { speed: 0.8 })}
+   * Per-light <Spotlight> props override rig-level props.
    */
   theme?: SpotlightRigTheme;
 
@@ -59,7 +105,10 @@ export type SpotlightRigProps = {
   showHalo?: Resolvable<boolean>;
   haloOpacity?: Resolvable<number>;
   haloSize?: Resolvable<number>;
+
+  /** <Spotlight> children. Each child defines one light in the rig. */
+  children?: ReactNode;
 };
 
 // Re-export so consumers import from dsl.tsx without touching types.ts directly.
-export type { SpotlightRigTheme, SpotlightRigState, Vec3Tuple };
+export type { SpotlightRigTheme, SpotlightRigState, SpotlightLightState, Vec3Tuple, OrbitFn };

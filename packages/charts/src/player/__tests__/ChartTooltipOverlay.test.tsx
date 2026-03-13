@@ -1,7 +1,7 @@
 // Tests for the pure projectNdcToNvsPixels function exported from ChartTooltipOverlay.
 
 import { describe, it, expect } from 'vitest';
-import { projectNdcToNvsPixels } from '../ChartTooltipOverlay';
+import { projectNdcToNvsPixels } from '../../elements/chart/tooltip/projectUtils';
 import type { NVSRect } from '@brewsite/core';
 
 const FULLSCREEN: NVSRect = { x: 0, y: 0, w: 1, h: 1 };

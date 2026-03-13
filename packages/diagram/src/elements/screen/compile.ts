@@ -3,15 +3,9 @@
 
 import type { ScreenDSL, ScreenState } from './types';
 import type { FunctionalTransitionSpec } from '@brewsite/core';
-import { blendNumber, blendOpacity, blendVec3, validateNVSScalar } from '@brewsite/core';
+import { blendNumber, blendOpacity, blendVec3, copyVec3, validateNVSScalar } from '@brewsite/core';
 
 export const SCREEN_ROTATION_WARNING_THRESHOLD_RAD = 0.1;
-
-const toMutableVec3 = (value: readonly [number, number, number]): [number, number, number] => [
-  value[0],
-  value[1],
-  value[2],
-];
 
 /**
  * Compiles a ScreenDSL into a fully resolved ScreenState by applying defaults.
@@ -31,6 +25,7 @@ export function compileScreen(dsl: ScreenDSL): ScreenState {
     Math.abs(rotation[1]) > SCREEN_ROTATION_WARNING_THRESHOLD_RAD ||
     Math.abs(rotation[2]) > SCREEN_ROTATION_WARNING_THRESHOLD_RAD
   ) {
+    // DEBT: Replace console.warn with onWarn callback for side-effect-free compilation
     console.warn(
       `Screen compileScreen: rotation ${rotation.join(', ')} may misalign the iframe overlay. ` +
         'Use <ImagePanel> for tilted content.',
@@ -94,7 +89,7 @@ export const functionalScreenTransitionSpec: FunctionalTransitionSpec<ScreenStat
     z: (blendNumber(from.z, to.z, ctx.t) ?? to.z),
     nvsWidth: ctx.t < 0.5 ? from.nvsWidth : to.nvsWidth,
     nvsHeight: ctx.t < 0.5 ? from.nvsHeight : to.nvsHeight,
-    rotation: blendVec3(toMutableVec3(from.rotation), toMutableVec3(to.rotation), ctx.t) ?? to.rotation,
+    rotation: blendVec3(copyVec3(from.rotation), copyVec3(to.rotation), ctx.t) ?? to.rotation,
     scale: blendNumber(from.scale, to.scale, ctx.t) ?? to.scale,
     opacity: blendOpacity(from.opacity, to.opacity, ctx.t) ?? to.opacity,
     glowOpacity: blendNumber(from.glowOpacity, to.glowOpacity, ctx.t) ?? to.glowOpacity,

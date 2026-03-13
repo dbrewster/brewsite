@@ -3,18 +3,13 @@
 import * as THREE from 'three';
 import { scaleLinear } from 'd3-scale';
 import { extent } from 'd3-array';
-import { parseHexColor } from '@brewsite/core';
+import { parseHexColor, lerp } from '@brewsite/core';
 import { AxesRenderer } from '../shared/AxesRenderer';
 import { LegendRenderer } from '../shared/LegendRenderer';
 import { ChartMaterialFactory } from '../shared/ChartMaterialFactory';
 import type { IChartRenderer, ChartRenderContext, ChartHitInfo, ChartHitMeta, MorphContext, ChartAccessorFunctions } from '../shared/IChartRenderer';
 import type { DataRow, ResolvedDataFrame } from '../../data/types';
 import type { ChartLineShape } from '../../elements/chart/types';
-
-/** Linearly interpolates between a and b at progress t. */
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
 
 /**
  * Renders line charts as CatmullRom spline tubes in Three.js.
@@ -45,6 +40,8 @@ export class LineRenderer implements IChartRenderer {
   private lastLineSmoothness = -1;
   private lastLineSubdivisions = -1;
   private lastShowPoints = false;
+  private lastBoundsWidth = -1;
+  private lastBoundsHeight = -1;
   private chartPosition: readonly [number, number, number] = [0, 0, 0];
 
   update(ctx: ChartRenderContext): void {
@@ -83,6 +80,8 @@ export class LineRenderer implements IChartRenderer {
       lineSmoothness !== this.lastLineSmoothness ||
       lineSubdivisions !== this.lastLineSubdivisions ||
       showPoints !== this.lastShowPoints ||
+      bounds.width !== this.lastBoundsWidth ||
+      bounds.height !== this.lastBoundsHeight ||
       ctx.morphCtx !== undefined; // always rebuild during morph transitions
 
     if (needsRebuild) {
@@ -94,6 +93,8 @@ export class LineRenderer implements IChartRenderer {
       this.lastLineSmoothness = lineSmoothness;
       this.lastLineSubdivisions = lineSubdivisions;
       this.lastShowPoints = showPoints;
+      this.lastBoundsWidth = bounds.width;
+      this.lastBoundsHeight = bounds.height;
       this.lastDataFrame = data;
     } else {
       this.updateOpacity(opacity);

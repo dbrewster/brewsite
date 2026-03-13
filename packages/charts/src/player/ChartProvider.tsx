@@ -16,6 +16,7 @@ export type DataSourceConfig = {
  * - ReadonlyArray<Row>: flat shorthand (no filter group)
  * - DataSourceConfig: object form with optional filterGroup
  */
+// DEBT: Rename to ChartProviderDataInput to avoid collision with public DataInput type
 export type DataInput = ReadonlyArray<Row> | DataSourceConfig;
 
 export type ChartProviderProps = {

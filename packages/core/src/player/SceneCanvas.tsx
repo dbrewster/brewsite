@@ -49,6 +49,7 @@ export const SceneCanvas = forwardRef<HTMLCanvasElement, SceneCanvasProps>(
       if (!el) return;
 
       if (engineId) {
+        // DEBT: This RAF retry loop has no timeout — add a max retry count (~300 frames / ~5s) with console.warn
         // Poll for the canvas binding via a RAF retry loop until the engine mounts.
         let rafId: number;
         const tryBind = () => {

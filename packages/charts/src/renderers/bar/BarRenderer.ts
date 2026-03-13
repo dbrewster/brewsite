@@ -8,9 +8,9 @@ import { AxesRenderer } from '../shared/AxesRenderer';
 import { LegendRenderer } from '../shared/LegendRenderer';
 import { ChartMaterialFactory } from '../shared/ChartMaterialFactory';
 import type { IChartRenderer, ChartRenderContext, ChartHitInfo, ChartHitMeta, DataLabelEntry, MorphContext, ChartAccessorFunctions } from '../shared/IChartRenderer';
+import { lerp } from '@brewsite/core';
 import type { DataRow, ResolvedDataFrame } from '../../data/types';
-// DataLabelRenderer from S4 — import path correct; resolves at merge time.
-import type { DataLabelRenderer } from '../shared/DataLabelRenderer';
+import { DataLabelRenderer } from '../shared/DataLabelRenderer';
 
 /** Cubic ease-out: fast at start, decelerates to final value. */
 function easeOutCubic(t: number): number {
@@ -26,11 +26,6 @@ type BarHitEntry = {
   /** Stack mode at render time. */
   stackMode?: 'grouped' | 'stacked';
 };
-
-/** Linearly interpolates between a and b at progress t. */
-function lerp(a: number, b: number, t: number): number {
-  return a + (b - a) * t;
-}
 
 /**
  * Renders grouped, stacked, or horizontal bar charts with morphing support.
@@ -54,9 +49,9 @@ export class BarRenderer implements IChartRenderer {
   private lastSeriesCount = -1;
   private lastStackMode: 'grouped' | 'stacked' = 'grouped';
   private lastOrientation: 'vertical' | 'horizontal' = 'vertical';
-  // DataLabelRenderer instance — created on demand when ctx.dataLabels is non-null.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private dataLabelRenderer: any | null = null;
+  private lastBoundsWidth = -1;
+  private lastBoundsHeight = -1;
+  private dataLabelRenderer: DataLabelRenderer | null = null;
 
   update(ctx: ChartRenderContext): void {
     const { seriesGroup, axesGroup, legendGroup, data, xAxis, yAxis, series, bounds, theme, opacity, fontUrl } = ctx;
@@ -93,6 +88,8 @@ export class BarRenderer implements IChartRenderer {
       effectiveSeries.length !== this.lastSeriesCount ||
       stackMode !== this.lastStackMode ||
       orientation !== this.lastOrientation ||
+      bounds.width !== this.lastBoundsWidth ||
+      bounds.height !== this.lastBoundsHeight ||
       ctx.morphCtx !== undefined; // always rebuild during morph transitions
 
     if (needsRebuild) {
@@ -107,6 +104,8 @@ export class BarRenderer implements IChartRenderer {
       this.lastSeriesCount = effectiveSeries.length;
       this.lastStackMode = stackMode;
       this.lastOrientation = orientation;
+      this.lastBoundsWidth = bounds.width;
+      this.lastBoundsHeight = bounds.height;
     } else {
       // Incremental update — only opacity
       for (const mesh of this.barMeshes) {
@@ -132,10 +131,14 @@ export class BarRenderer implements IChartRenderer {
 
     // Data labels
     if (ctx.dataLabels) {
-      const entries = this.computeDataLabelEntries(effectiveSeries, bounds, orientation, stackMode);
-      if (this.dataLabelRenderer) {
-        this.dataLabelRenderer.update(entries, theme, opacity, fontUrl);
+      if (!this.dataLabelRenderer) {
+        this.dataLabelRenderer = new DataLabelRenderer(seriesGroup);
       }
+      const entries = this.computeDataLabelEntries(effectiveSeries, bounds, orientation, stackMode);
+      this.dataLabelRenderer.update(entries, theme, opacity, fontUrl);
+    } else if (this.dataLabelRenderer) {
+      this.dataLabelRenderer.dispose();
+      this.dataLabelRenderer = null;
     }
 
     // Axes

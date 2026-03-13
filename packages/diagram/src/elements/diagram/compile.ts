@@ -1,3 +1,4 @@
+// DEBT: Split this file — extract exit/enter helpers to transitionHelpers.ts, resolveTheme to themeResolver.ts
 // Pure transformation pipeline: DiagramDSL → DiagramState.
 // No Three.js. No React. No side effects.
 
@@ -12,7 +13,7 @@ import type {
   DiagramWarnFn,
 } from './types';
 import type { FunctionalTransitionSpec, NVSRect } from '@brewsite/core';
-import { blendOpacity, blendVec3, validateNVSRect, validateNVSPosition } from '@brewsite/core';
+import { blendOpacity, blendVec3, lerp, validateNVSRect, validateNVSPosition } from '@brewsite/core';
 import { darkGlassTheme } from './themes/darkGlass';
 import { DIAGRAM_THEMES } from './themes/index';
 import { resolveLayout, resolveLayoutWithGroups, computeBounds } from './compiler/layoutAlgorithms';
@@ -89,6 +90,7 @@ function resolveTheme(
   if (typeof raw === 'string') {
     const named = DIAGRAM_THEMES[raw];
     if (!named) {
+      // DEBT: Replace console.warn with onWarn callback for side-effect-free compilation
       console.warn(`[Diagram] Unknown theme name "${raw}" — falling back to darkGlass.`);
       return fallback;
     }
@@ -393,15 +395,14 @@ export function compileDiagram(
 
 // ─── Functional Transition Spec ───────────────────────────────────────────────
 
-const lerpNum = (a: number, b: number, t: number): number => a + (b - a) * t;
-
 const lerpNVSRect = (a: NVSRect, b: NVSRect, t: number): NVSRect => ({
-  x: lerpNum(a.x, b.x, t),
-  y: lerpNum(a.y, b.y, t),
-  w: lerpNum(a.w, b.w, t),
-  h: lerpNum(a.h, b.h, t),
+  x: lerp(a.x, b.x, t),
+  y: lerp(a.y, b.y, t),
+  w: lerp(a.w, b.w, t),
+  h: lerp(a.h, b.h, t),
 });
 
+// DEBT: These fade helpers duplicate logic in transitionHelpers.ts — consolidate
 const fadeNodesOut = (
   nodes: ReadonlyArray<DiagramNodeState>,
   t: number,
@@ -552,8 +553,8 @@ export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramSt
 
       return {
         ...to,
-        z: lerpNum(from.z, to.z, t),
-        scale: lerpNum(from.scale, to.scale, t),
+        z: lerp(from.z, to.z, t),
+        scale: lerp(from.scale, to.scale, t),
         contentAspect: to.contentAspect,  // structural property — pass through, do not lerp
         viewportBounds: lerpNVSRect(from.viewportBounds, to.viewportBounds, t),
         tiltRotation: blendVec3(

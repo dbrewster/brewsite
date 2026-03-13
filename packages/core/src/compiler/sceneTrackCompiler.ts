@@ -19,8 +19,7 @@ import { isFunctionalSpec } from './transitions/transitionTypes';
 import type { WithTransitionConfig } from './transitions/transitionTypes';
 import { makeResolver } from './transitions/transitionResolver';
 import { IDENTITY_FN } from './identityFn';
-
-const INPUT_CONTROLLER_WIDGET_ID = '__input_controller';
+import { INPUT_CONTROLLER_WIDGET_ID } from './blocks/inputController';
 
 export type CompileSceneTrackOptions = {
   scenes: SceneDefinition[];

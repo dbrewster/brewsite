@@ -23,9 +23,7 @@ import type { CameraOverrideState } from '../elements/camera/types';
 import { SceneProgressMapper } from './SceneProgressMapper';
 import { formatBreadcrumbChain } from '../compiler/dslSourceInfo';
 import type { SceneTheme } from '../theme/types';
-
-/** Clamp value to [0, 1]. */
-const clamp01 = (v: number): number => Math.max(0, Math.min(1, v));
+import { clamp01 } from '../math';
 const SCENE_THEME_USERDATA_KEY = '__brewsite_scene_theme';
 
 export type UseSceneEngineOptions = {
@@ -354,7 +352,12 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     rendererRef.current = renderer;
     options.widgetRegistry.notifyRendererCreated(renderer);
     const onContextLost = (event: Event) => { event.preventDefault(); };
-    const onContextRestored = () => {};
+    const onContextRestored = () => {
+      console.warn('[SceneEngine] WebGL context restored — reinitializing renderer.');
+      // DEBT: Full renderer re-initialization not yet implemented. The engine will not
+      // recover from GPU context loss. RuntimeLoop handles pause/resume via its own
+      // webglcontextlost/webglcontextrestored listeners on the canvas element.
+    };
     canvas.addEventListener('webglcontextlost', onContextLost);
     canvas.addEventListener('webglcontextrestored', onContextRestored);
     const { width, height } = viewportRef.current;
@@ -372,6 +375,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   // ─── Background widget DOM wiring ───────────────────────────────────────────
   useEffect(() => {
     const backgroundWidget = options.widgetRegistry.get('background');
+    // DEBT: Replace with typed IHasDomElement interface
     const backgroundWithDom = backgroundWidget as unknown as { setDomElement?: (el: HTMLElement | null) => void } | undefined;
     if (!backgroundWithDom || typeof backgroundWithDom.setDomElement !== 'function') return;
     backgroundWithDom.setDomElement(backgroundElement);

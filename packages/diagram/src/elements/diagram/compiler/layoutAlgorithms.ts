@@ -37,6 +37,7 @@ export function resolveLayout(
 ): Map<string, readonly [number, number, number]> {
   const layoutKind = (layout as { kind?: string }).kind;
   if (layoutKind !== 'manual' && layoutKind !== 'grid' && layoutKind !== 'hierarchical' && layoutKind !== 'flow') {
+    // DEBT: Replace console.warn with onWarn callback for side-effect-free compilation
     console.warn(`Diagram resolveLayout: unknown layout kind "${String(layoutKind)}". Falling back to default grid.`);
     return resolveLayout(nodes, edges, DEFAULT_RESOLVED_GRID, onWarn);
   }

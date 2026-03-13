@@ -113,8 +113,6 @@ export function getFaceNormal(face: FaceId): Vec3 {
   }
 }
 
-const directionSign = (value: number): number => (value >= 0 ? 1 : -1);
-
 /**
  * Returns the anchor point for a numbered port slot on a node face.
  * Port slots are evenly distributed across the face span.
@@ -132,11 +130,9 @@ export function getFacePortAnchor(
   const dx = targetPos[0] - x;
   const dy = targetPos[1] - y;
   const dz = targetPos[2] - z;
-  const sx = directionSign(dx);
   const useVerticalOffset = Math.abs(dy) > Math.abs(dz) * 0.5;
   const useHorizontalOffset = Math.abs(dx) > Math.abs(dz) * 0.5;
   const yOffset = useVerticalOffset ? (dy > 0 ? h / 2 : -h / 2) : 0;
-  void sx;
 
   switch (face) {
     case 'front':
@@ -212,6 +208,7 @@ function nearestFaceForNodePair(
   if (face === 'front' || face === 'back') {
     return target[0] >= origin[0] ? 'right' : 'left';
   }
+  // DEBT: Remove unused targetSize parameter
   void targetSize;
   return face;
 }
@@ -276,6 +273,7 @@ const EMPTY_ROUTE: import('./routingTypes').EdgeRouteState = {
   controlPoints: [],
 };
 
+// DEBT: Remove debug infrastructure or move behind build-time conditional
 const ROUTE_DEBUG_ENABLED = false;
 const ROUTE_DEBUG_FILTER: string | undefined = undefined;
 

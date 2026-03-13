@@ -30,6 +30,7 @@ export const lightCanvasTheme: DiagramTheme = {
     labelFontSizeBase: 0.28,
     sublabelFontSizeBase: 0.18,
     defaultLabelPadding: 0,
+    nodeEnvMapIntensity: 0,
   },
   edge: {
     defaultColor: '#4768C9',

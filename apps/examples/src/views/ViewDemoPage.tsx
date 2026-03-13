@@ -22,7 +22,7 @@ import {diagramPlugin} from '@brewsite/diagram';
 
 import {StandaloneViewsScene} from './scenes/scene1-standalone-views';
 import {StackLayoutScene} from './scenes/scene2-stack-layout';
-import {CarouselScene, CarouselScene1, CarouselScene2, CarouselScene3} from './scenes/scene3-carousel';
+import {CarouselScene, CarouselScene1, CarouselScene2, CarouselScene3, CarouselScene4} from './scenes/scene3-carousel';
 import {NestedViewsScene} from './scenes/scene4-nested-views';
 import {ChartProgressIndicator, ThemeToggle} from "../Lights";
 
@@ -74,9 +74,7 @@ export default function ViewDemoPage(): JSX.Element {
         <CarouselScene1 />
         <CarouselScene2 />
         <CarouselScene3 />
-
-        {/* Scene 3b: Interactive carousel — arrow keys / click to advance slides */}
-        <CarouselScene />
+        <CarouselScene4 />
 
         {/* Scene 4: Nested views with padding */}
         <NestedViewsScene />

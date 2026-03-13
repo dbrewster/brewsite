@@ -1,13 +1,8 @@
 // Material factory for chart renderers — caches MeshPhysicalMaterial by token key.
 
 import * as THREE from 'three';
-import {
-  interpolateBlues,
-  interpolateReds,
-  interpolateViridis,
-  interpolatePlasma,
-} from 'd3-scale-chromatic';
 import { parseHexColor } from '@brewsite/core';
+import { getInterpolator } from './colorUtils';
 import type { ChartTheme } from '../../themes/types';
 import type { ScatterChartOptions } from './IChartRenderer';
 
@@ -113,23 +108,8 @@ export class ChartMaterialFactory {
     normalizedValue: number,
     interpolator: ScatterChartOptions['colorInterpolator'],
   ): THREE.Color {
-    let cssColor: string;
-    switch (interpolator) {
-      case 'blues':
-        cssColor = interpolateBlues(normalizedValue);
-        break;
-      case 'reds':
-        cssColor = interpolateReds(normalizedValue);
-        break;
-      case 'plasma':
-        cssColor = interpolatePlasma(normalizedValue);
-        break;
-      case 'viridis':
-      default:
-        cssColor = interpolateViridis(normalizedValue);
-        break;
-    }
-    return new THREE.Color(cssColor);
+    const interp = getInterpolator(interpolator);
+    return new THREE.Color(interp(normalizedValue));
   }
 
   /** Apply opacity to all cached MeshPhysicalMaterial instances. */

@@ -1,4 +1,5 @@
 // @brewsite/diagram — 3D immersive diagram and screen elements
+// Handler registration runs as a side-effect on first import. This is intentional — all diagram DSL components must be registered before any scene compilation.
 import './register';
 
 // ─── Diagram element ─────────────────────────────────────────────────────────
@@ -63,15 +64,12 @@ export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, DiagramExit, DiagramEn
 export type { DiagramExitProps, DiagramEnterProps, GridLayoutProps, HierarchicalLayoutProps, ManualLayoutProps, FlowLayoutProps } from './elements/diagram/dsl';
 export {
   compileDiagram,
-  resolveLayout,
-  routeEdges,
-  compileNode,
-  compileEdge,
-  compileGroup,
   applyDiagramExit,
   applyDiagramEnter,
   functionalDiagramTransitionSpec,
 } from './elements/diagram/compile';
+/** @internal Pipeline-internal — not a stable extension point. */
+export { resolveLayout, routeEdges, compileNode, compileEdge, compileGroup } from './elements/diagram/compile';
 export { DiagramRenderer } from './elements/diagram/render';
 export { diagramPlugin } from './player/diagramPlugin';
 export type { DiagramPluginOptions } from './player/diagramPlugin';
@@ -96,17 +94,15 @@ export type {
 
 // ─── ImagePanel element ─────────────────────────────────────────────────────
 export type { ImagePanelState, ImagePanelDSL, ImagePanelBezelVariant } from './elements/image-panel/types';
-export { ImagePanel } from './elements/image-panel/widget';
+export { ImagePanel, ImagePanelWidget } from './elements/image-panel/widget';
 export { compileImagePanel, functionalImagePanelTransitionSpec } from './elements/image-panel/compile';
 export { ImagePanelRenderer } from './elements/image-panel/render';
-export { ImagePanelWidget } from './elements/image-panel/widget';
 
 // ─── Screen element ─────────────────────────────────────────────────────────
 export type { ScreenState, ScreenDSL, ScreenBezelVariant } from './elements/screen/types';
-export { Screen } from './elements/screen/widget';
+export { Screen, ScreenWidget } from './elements/screen/widget';
 export { compileScreen, functionalScreenTransitionSpec } from './elements/screen/compile';
 export { ScreenRenderer } from './elements/screen/render';
-export { ScreenWidget } from './elements/screen/widget';
 
 // ─── Diagram themes ───────────────────────────────────────────────────────────
 // Primary (canonical) dark presets

@@ -13,7 +13,8 @@ import {
   ProgressManager,
   Scene,
   View,
-  ViewLayout, Floor, SpotlightRig,
+  ViewLayout, Floor, SpotlightRig, Spotlight,
+  type OrbitFn,
 } from '@brewsite/core';
 import {
   BarChart,
@@ -28,6 +29,47 @@ import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, FlowLayout, GridLayout,
 
 const CAM_POS: [number, number, number] = [0, 1, 6.6];
 const CAM_TGT: [number, number, number] = [0, 0, 0];
+
+// ─── Random spotlight configs — computed once, stable across hot reloads ──────
+
+/** Seeded pseudo-random so values are stable across hot reloads. */
+const seeded = (seed: number) => {
+  let s = seed;
+  return () => { s = (s * 16807 + 0) % 2147483647; return s / 2147483647; };
+};
+const rng = seeded(42);
+
+const randColor = (): string => {
+  const h = rng() * 360;
+  const s = 70 + rng() * 30;
+  const l = 50 + rng() * 20;
+  const a = s / 100 * Math.min(l / 100, 1 - l / 100);
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12;
+    const c = l / 100 - a * Math.max(Math.min(k - 3, 9 - k, 1), -1);
+    return Math.round(255 * c).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+};
+
+type SpotlightDef = Pick<import('@brewsite/core').SpotlightProps, 'color' | 'intensity' | 'angle' | 'orbit'>;
+
+const spotlights: SpotlightDef[] = Array.from({ length: 7 }, () => {
+  const fX = 0.2 + rng() * 0.6, fY = 0.25 + rng() * 0.5, fZ = 0.15 + rng() * 0.4;
+  const aX = 3 + rng() * 5, aY = 2 + rng() * 3, aZ = 1 + rng() * 3;
+  const oY = 1 + rng() * 3;
+  const pX = rng() * Math.PI * 2, pY = rng() * Math.PI * 2, pZ = rng() * Math.PI * 2;
+  return {
+    color:     randColor(),
+    intensity: 60 + rng() * 50,
+    angle:     Math.PI / 28 + rng() * Math.PI / 10,
+    orbit:     ((t: number): [number, number, number] => [
+      Math.sin(t * fX + pX) * aX,
+      Math.sin(t * fY + pY) * aY + oY,
+      Math.cos(t * fZ + pZ) * aZ,
+    ]) as OrbitFn,
+  };
+});
 
 const dataA = [
   { category: 'Alpha', score: 72 },
@@ -54,22 +96,9 @@ function SharedEnv(): JSX.Element {
       <ProgressManager scrollUnits={800} />
       <Floor variant='grid' negativeZExtent={20}/>
       <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
-      <SpotlightRig
-        count={5}
-        center={[0, 0, 10]}          // orbit circle centered at z=4
-        target={[0, 0, -20]}         // all beams converge toward z=-4
-        height={1}                   // light sources at y=6 (above center)
-        radius={7}                   // orbit spread — 5 lights in a 4-unit ring
-        speed={0.9}                  // your existing speed
-        angle={Math.PI / 4}        // ~7.5° half-angle — tight beams
-        penumbra={0.4}               // soft falloff at edges
-        intensity={100}              // bright enough to visibly illuminate
-        distance={20}                // reach: sqrt(8² + 6²) ≈ 10, give headroom
-        castShadow
-        shadowMapSize={2048}
-        beamOpacity={0.00}           // subtle visible cones
-        beamColor="#e8f0ff"          // cool white
-      />
+      <SpotlightRig center={[0, 0, 4]} target={[0, 0, -5]} height={1} showBeam={false} distance={0} decay={1} penumbra={0.5}>
+        {spotlights.map((s, i) => <Spotlight key={i} {...s} />)}
+      </SpotlightRig>
       <Lighting intensityScale={1.2}>
         <Ambient intensity={.9} color="#d7e5ff" />
       </Lighting>
@@ -241,6 +270,20 @@ export const CarouselScene3 = (): JSX.Element => {
     <Scene id="carousel-3">
       <SharedEnv />
       <ViewLayout kind="carousel" loop activeIndex={2} zStep={15} fadeMin={0.15} spread={.7}>
+        <CarouselViews chartTheme={chartTheme} diagramTheme={diagramTheme} />
+      </ViewLayout>
+    </Scene>
+  );
+};
+
+
+export const CarouselScene4 = (): JSX.Element => {
+  const chartTheme = useChartTheme();
+  const diagramTheme = useDiagramTheme();
+  return (
+    <Scene id="carousel-4">
+      <SharedEnv />
+      <ViewLayout kind="carousel" loop activeIndex={3} zStep={15} fadeMin={0.15} spread={.7}>
         <CarouselViews chartTheme={chartTheme} diagramTheme={diagramTheme} />
       </ViewLayout>
     </Scene>

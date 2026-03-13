@@ -94,6 +94,7 @@ export const floorTransitionSpec: ElementTransitionSpec<SceneFloor> = {
     }
   },
   interpolate: (frames, widgetId, fromState, toState) => {
+    // Floor surfaces cannot be visually blended — hard-switch at midpoint is intentional.
     for (let i = 0; i < frames.length; i++) {
       const t = transitionT(i, frames.length);
       frames[i]!.state.widgets[widgetId] = {

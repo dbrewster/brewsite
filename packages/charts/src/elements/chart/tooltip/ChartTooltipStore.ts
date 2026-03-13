@@ -120,6 +120,7 @@ export class ChartTooltipStoreImpl {
   }
 }
 
+// DEBT: Add injection seam for testing — ChartWidget should accept store via constructor
 /** Module-level singleton store. Shared across all chart widgets in the engine. */
 export const chartTooltipStore = new ChartTooltipStoreImpl();
 

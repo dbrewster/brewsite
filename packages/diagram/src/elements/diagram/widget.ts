@@ -1,3 +1,4 @@
+// DEBT: Extract DOM interaction/hover logic into DiagramInteractionHandler
 // DiagramWidget — implements ISceneElement<DiagramState>, IRenderable, ILoadable, INVSBounded.
 
 import * as THREE from 'three';

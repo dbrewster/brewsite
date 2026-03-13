@@ -15,6 +15,7 @@ import type { DiagramState } from '../elements/diagram/types';
  * instances are created before the runtime is constructed. This ensures
  * initialize() is called on each widget at engine startup.
  */
+// DEBT: DiagramPluginOptions.diagrams requires manual ID duplication — consider auto-discovery from compiled scene track
 export type DiagramPluginOptions = {
   /**
    * The widget IDs of every <Diagram> used in the scene DSL.

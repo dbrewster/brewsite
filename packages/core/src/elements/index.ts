@@ -49,6 +49,7 @@ export {
 } from './sceneKeys';
 
 // Camera
+// DEBT: Missing exports for ICameraHost, CameraInteractionDefaults, FitBotHeightCamera, FitFloorDepthCamera, WorldSpaceCamera, OrbitCamera
 export type {
   SceneCamera,
   CameraPositionDescriptor,

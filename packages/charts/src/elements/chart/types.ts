@@ -255,6 +255,7 @@ export type ChartState = {
    * Used by ChartRenderer to build MorphContext. Not part of the public API.
    * @internal
    */
+  // DEBT: Move to separate internal state type
   readonly _morphT?: number;
   /**
    * V2.1: Whether bars animate upward from y=0 on scene entry.

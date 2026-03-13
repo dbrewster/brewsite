@@ -14,6 +14,7 @@ import { lightMinimalChartTheme }      from './lightMinimal';
 import { lightMinimalDarkChartTheme }  from './lightMinimalDark';
 import type { ChartTheme, ChartThemeName } from './types';
 
+// DEBT: Consolidate FULL_THEME_MAP, PRESET_MAP (createChartTheme.ts), and CHART_THEMES (index.ts) into single source
 /** Complete map of all 12 built-in theme presets — used by resolveChartTheme(). */
 const FULL_THEME_MAP: Record<string, ChartTheme> = {
   darkGlass:         darkGlassChartTheme,

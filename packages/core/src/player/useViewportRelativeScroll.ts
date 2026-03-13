@@ -3,6 +3,7 @@
 
 import { useEffect, useRef } from 'react';
 import type { ViewportRelativeScrollSource } from './engineTypes';
+import { clamp01 } from '../math';
 
 export type UseViewportRelativeScrollOptions = {
   /**
@@ -17,8 +18,6 @@ export type UseViewportRelativeScrollOptions = {
    */
   onProgress: ((progress: number) => void) | null;
 };
-
-const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
 
 function computePanelProgress(containerEl: HTMLElement): number {
   const panelHeight = containerEl.offsetHeight;

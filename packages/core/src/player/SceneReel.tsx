@@ -10,6 +10,7 @@ import { BackgroundLayer } from './BackgroundLayer';
 import { EngineOverlayHost } from './EngineOverlayHost';
 import { EngineARContainerContext } from './EngineARContainer';
 
+// DEBT: SceneReel does not accept or forward themeFamily, themePolarity, or scrollSource props
 export interface SceneReelProps {
   // ── Layout ──────────────────────────────────────────────────────────────────
   /** CSS width. Default: '100%'. */
