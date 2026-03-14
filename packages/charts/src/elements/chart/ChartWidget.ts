@@ -218,6 +218,13 @@ export class ChartWidget
   /** Frozen world-space height from first apply(). */
   private frozenWorldH: number | null = null;
 
+  /**
+   * True when frozenWorldPos was captured during an invisible (opacity=0) absentDefault
+   * state. A provisional freeze is replaced on the next visible (opacity>0) apply so
+   * charts don't permanently lock to the full-viewport absentDefault bounds.
+   */
+  private frozenWorldPosIsProvisional = false;
+
   /** True once chartGroup has been reparented out of the scene root. */
   private isReparented = false;
 
@@ -365,13 +372,15 @@ export class ChartWidget
         nvsW: state.bounds.width, nvsH: state.bounds.height,
         worldW, worldH,
       };
-      // Bounds changed — invalidate frozen pos/size so they're re-captured this tick
-      // with the correct new dimensions. Without this, a chart that first appears
-      // during the absentDefault phase (bounds=1.0×1.0) freezes at full viewport
-      // size and stays wrong for all subsequent renders inside a ViewWidget group.
-      this.frozenWorldPos = null;
-      this.frozenWorldW = null;
-      this.frozenWorldH = null;
+      // Bounds changed. If the current frozen position was captured during an invisible
+      // absentDefault state (opacity=0, bounds=1.0×1.0), it's provisional and must be
+      // replaced now that we have real bounds. If it was captured during a visible state
+      // it's stable — ViewWidget owns all subsequent motion and we must not reset it.
+      if (this.frozenWorldPosIsProvisional) {
+        this.frozenWorldPos = null;
+        this.frozenWorldW = null;
+        this.frozenWorldH = null;
+      }
     }
 
     // Chart content starts at group-local (0, 0) and extends to (worldW, worldH).
@@ -399,6 +408,9 @@ export class ChartWidget
       this.frozenWorldPos = computedPos;
       this.frozenWorldW = worldW;
       this.frozenWorldH = worldH;
+      // Mark as provisional if captured during an invisible state (absentDefault, opacity=0).
+      // The next visible apply will replace it with stable real-bounds values.
+      this.frozenWorldPosIsProvisional = state.opacity === 0;
     }
 
     const effectivePos = this.isReparented ? this.frozenWorldPos : computedPos;
@@ -507,6 +519,7 @@ export class ChartWidget
     this.frozenWorldPos = null;
     this.frozenWorldW = null;
     this.frozenWorldH = null;
+    this.frozenWorldPosIsProvisional = false;
     this.isReparented = false;
     this.lastEffectiveTheme = null;
     this.lastTooltipState = null;

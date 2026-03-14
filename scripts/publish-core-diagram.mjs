@@ -18,6 +18,7 @@ const packages = [
   { name: "@brewsite/diagram", dir: path.join(repoRoot, "packages/diagram") },
   { name: "@brewsite/model",   dir: path.join(repoRoot, "packages/model") },
   { name: "@brewsite/charts",  dir: path.join(repoRoot, "packages/charts") },
+  { name: "@brewsite/screens", dir: path.join(repoRoot, "packages/screens") },
 ];
 
 const usage = [

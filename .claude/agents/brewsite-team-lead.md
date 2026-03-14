@@ -267,3 +267,7 @@ When you make a sequencing or routing decision that is non-obvious, record it br
 - "Scene-author is blocked until developer lands the new DSL prop — dependency captured in task blockedBy."
 
 This makes the coordination transparent and lets the user course-correct if a routing decision was wrong.
+
+## Deferred Work
+When a PM or architect makes a decision that requires a follow-up task or they defer work, 
+you should STOP the process, gather what was deferred including details, and report back to the user for clarification and guidance.
