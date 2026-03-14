@@ -4,10 +4,11 @@ import { diagramPlugin } from '@brewsite/diagram';
 import { chartPlugin } from '@brewsite/charts';
 import type { ChartPluginInstance } from '@brewsite/charts';
 import { themesPlugin, themes } from '@brewsite/themes';
+import {modelPlugin} from "@brewsite/model";
 
 /**
  * Creates the WidgetPlugin array and active theme for the Core Showcase.
- * Registers corePlugin, diagramPlugin (for all diagram IDs used in scenes),
+ * Registers corePlugin, diagramPlugin (lazy widget creation per DSL encounter),
  * chartPlugin (for bar chart morphing demo), and themesPlugin.
  */
 export function createCoreShowcasePlugins(): {
@@ -19,14 +20,9 @@ export function createCoreShowcasePlugins(): {
   return {
     plugins: [
       corePlugin(),
-      diagramPlugin({
-        diagrams: [
-          'cs-overview-diagram',
-          'cs-scene-dsl-diagram',
-          'cs-compiler-diagram',
-        ],
-      }),
+      diagramPlugin(),
       chartsPlugin,
+      modelPlugin(),
       themesPlugin(),
     ],
     chartsPlugin,

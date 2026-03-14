@@ -1,61 +1,64 @@
 // Factory for the @brewsite/diagram WidgetPlugin.
-// Creates DiagramWidget instances for each declared diagram ID.
+// DiagramWidget instances are created lazily on first DSL encounter during compilation.
 
-import type { WidgetPlugin } from '@brewsite/core';
+import type { WidgetPlugin, WidgetRegistry } from '@brewsite/core';
 import { registerDiagramHandlers } from '../compiler/handlers';
 import { DiagramWidget } from '../elements/diagram/widget';
-import { buildThemeRenderConfig } from '../elements/diagram/compiler/themeResolver';
-import { defaultDiagramTheme } from '../elements/diagram/themes';
-import type { DiagramState } from '../elements/diagram/types';
 
 /**
  * Options for the @brewsite/diagram WidgetPlugin.
- *
- * Declare every diagram ID used in the scene DSL so that DiagramWidget
- * instances are created before the runtime is constructed. This ensures
- * initialize() is called on each widget at engine startup.
  */
-// DEBT: DiagramPluginOptions.diagrams requires manual ID duplication — consider auto-discovery from compiled scene track
 export type DiagramPluginOptions = {
   /**
-   * The widget IDs of every <Diagram> used in the scene DSL.
-   * A DiagramWidget is created for each ID.
+   * @deprecated Since v0.x. DiagramWidget instances are now created lazily on
+   * first DSL encounter during compilation. This field is no longer needed and
+   * will be removed in a future major release.
    *
-   * Use the id prop value exactly as written in the JSX:
-   *   <Diagram id="my-diagram"> → diagrams: ['my-diagram']
+   * Remove the `diagrams` array from your diagramPlugin() call:
+   *   Before: diagramPlugin({ diagrams: ['my-diagram'] })
+   *   After:  diagramPlugin()
    */
-  diagrams: readonly string[];
+  diagrams?: readonly string[];
 };
 
 /**
  * WidgetPlugin for @brewsite/diagram.
  *
- * Pass the id of every <Diagram> used in your scene DSL.
- * The plugin creates one DiagramWidget per ID.
+ * No configuration required. DiagramWidget instances are created automatically
+ * for each <Diagram id="..."> encountered in the scene DSL during compilation.
  *
  * @example
  * plugins={[
  *   corePlugin(),
  *   modelPlugin({ manifestUrl: '...' }),
- *   diagramPlugin({ diagrams: ['my-diagram', 'detail-diagram'] }),
+ *   diagramPlugin(),
  * ]}
  */
-export function diagramPlugin(options: DiagramPluginOptions): WidgetPlugin {
+export function diagramPlugin(options: DiagramPluginOptions = {}): WidgetPlugin {
+  if (options.diagrams && options.diagrams.length > 0) {
+    console.warn(
+      '[diagramPlugin] The `diagrams` option is deprecated and no longer needed. ' +
+        'DiagramWidget instances are now created automatically on first DSL encounter. ' +
+        'Remove the `diagrams` array from your diagramPlugin() call.',
+    );
+  }
+
   return {
     createWidgets(): DiagramWidget[] {
-      return options.diagrams.map((id) => {
-        const defaultState = makeDefaultDiagramState(id);
-        return new DiagramWidget(id, defaultState);
-      });
+      // DiagramWidget instances are created lazily via the Diagram node handler
+      // in configureRegistry(). No pre-declaration of diagram IDs is required.
+      return [];
     },
 
     registerHandlers(): void {
-      registerDiagramHandlers();
+      registerDiagramHandlers(); // baseline handler + child component handlers, no registry
     },
 
-    configureRegistry(): void {
-      // No-op. Handler registration happened in registerHandlers().
-      // Widgets are created in createWidgets() and already in the registry.
+    configureRegistry(registry: WidgetRegistry): void {
+      // Re-register the Diagram handler with registry access for lazy widget creation.
+      // registerNode() overwrites the baseline handler installed by registerHandlers()
+      // (or register.ts side-effect) with this registry-aware version.
+      registerDiagramHandlers(registry);
     },
 
     getActionInputExtension(registry) {
@@ -89,26 +92,5 @@ export function diagramPlugin(options: DiagramPluginOptions): WidgetPlugin {
         },
       };
     },
-  };
-}
-
-/**
- * Creates a default DiagramState for use as the DiagramWidget's initial state.
- * All fields are set to safe defaults; the actual state comes from compiled DSL.
- */
-function makeDefaultDiagramState(id: string): DiagramState {
-  return {
-    id,
-    viewportBounds: { x: 0, y: 0, w: 1, h: 1 },
-    tiltRotation: [0, 0, 0],
-    z: 0,
-    scale: 1,
-    contentAspect: 1.0,
-    nodes: [],
-    edges: [],
-    groups: [],
-    exit: undefined,
-    enter: undefined,
-    themeConfig: buildThemeRenderConfig(defaultDiagramTheme),
   };
 }

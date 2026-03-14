@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   modelTransitionSpec,
   playbackTransitionSpec,
-  instanceTransitionSpec,
   compileAnimation,
   resolveClipRangeSeconds,
   applyModelTransform,
@@ -12,7 +11,6 @@ import {
 import {
   modelTransitionSpec as DIRECT_MODEL_SPEC,
   playbackTransitionSpec as DIRECT_PLAYBACK_SPEC,
-  instanceTransitionSpec as DIRECT_INSTANCE_SPEC,
   compileAnimation as DIRECT_COMPILE,
   resolveClipRangeSeconds as DIRECT_RESOLVE,
 } from '../compile';
@@ -23,7 +21,6 @@ describe('model index re-exports', () => {
   it('re-exports compile helpers', () => {
     expect(modelTransitionSpec).toBe(DIRECT_MODEL_SPEC);
     expect(playbackTransitionSpec).toBe(DIRECT_PLAYBACK_SPEC);
-    expect(instanceTransitionSpec).toBe(DIRECT_INSTANCE_SPEC);
     expect(compileAnimation).toBe(DIRECT_COMPILE);
     expect(resolveClipRangeSeconds).toBe(DIRECT_RESOLVE);
   });

@@ -11,67 +11,52 @@ import { DiagramWidget } from '../../elements/diagram/widget';
 import { Diagram, DiagramNode, ManualLayout } from '../../elements/diagram/widget';
 import { Scene } from '@brewsite/core';
 import type { DiagramState } from '../../elements/diagram/types';
+import { buildThemeRenderConfig } from '../../elements/diagram/compiler/themeResolver';
+import { defaultDiagramTheme } from '../../elements/diagram/themes';
 
 beforeEach(() => {
   clearRegistry();
   resetCoreHandlerRegistrationForTesting();
 });
 
+/** Creates a minimal DiagramState suitable for constructing a DiagramWidget in tests. */
+function makeTestDiagramState(id: string): DiagramState {
+  return {
+    id,
+    viewportBounds: { x: 0, y: 0, w: 1, h: 1 },
+    tiltRotation: [0, 0, 0],
+    z: 0,
+    scale: 1,
+    contentAspect: 1.0,
+    nodes: [],
+    edges: [],
+    groups: [],
+    exit: undefined,
+    enter: undefined,
+    themeConfig: buildThemeRenderConfig(defaultDiagramTheme),
+  };
+}
+
 describe('diagramPlugin', () => {
   describe('createWidgets()', () => {
-    it('returns one DiagramWidget per diagram ID', () => {
-      const plugin = diagramPlugin({ diagrams: ['diag-a', 'diag-b'] });
-      const widgets = plugin.createWidgets();
-
-      expect(widgets).toHaveLength(2);
-    });
-
-    it('returns DiagramWidget instances', () => {
-      const plugin = diagramPlugin({ diagrams: ['diag-a', 'diag-b'] });
-      const widgets = plugin.createWidgets();
-
-      expect(widgets[0]).toBeInstanceOf(DiagramWidget);
-      expect(widgets[1]).toBeInstanceOf(DiagramWidget);
-    });
-
-    it('sets widgetId to the diagram ID on each widget', () => {
-      const plugin = diagramPlugin({ diagrams: ['diag-a', 'diag-b'] });
-      const widgets = plugin.createWidgets();
-
-      expect(widgets[0]!.widgetId).toBe('diag-a');
-      expect(widgets[1]!.widgetId).toBe('diag-b');
-    });
-
-    it('sets defaultState.id to the diagram ID on each widget', () => {
-      const plugin = diagramPlugin({ diagrams: ['diag-a', 'diag-b'] });
-      const widgets = plugin.createWidgets();
-
-      const w0 = widgets[0] as DiagramWidget;
-      const w1 = widgets[1] as DiagramWidget;
-      expect(w0.defaultState.id).toBe('diag-a');
-      expect(w1.defaultState.id).toBe('diag-b');
-    });
-
-    it('returns an empty array when diagrams is empty', () => {
-      const plugin = diagramPlugin({ diagrams: [] });
-      const widgets = plugin.createWidgets();
-
-      expect(widgets).toHaveLength(0);
+    it('returns an empty array (widgets are created lazily during compilation)', () => {
+      const plugin = diagramPlugin();
+      expect(plugin.createWidgets()).toHaveLength(0);
     });
   });
 
   describe('registerHandlers()', () => {
     it('is callable without error', () => {
-      const plugin = diagramPlugin({ diagrams: [] });
+      const plugin = diagramPlugin();
       expect(() => plugin.registerHandlers()).not.toThrow();
     });
   });
 
   describe('getActionInputExtension()', () => {
     it('returns an object with an onUnknownAction callback', () => {
-      const plugin = diagramPlugin({ diagrams: ['canvas-1'] });
+      const plugin = diagramPlugin();
       const registry = new WidgetRegistry();
-      for (const w of plugin.createWidgets()) registry.register(w);
+      registry.register(new DiagramWidget('canvas-1', makeTestDiagramState('canvas-1')));
 
       const ext = plugin.getActionInputExtension!(registry);
 
@@ -80,10 +65,9 @@ describe('diagramPlugin', () => {
     });
 
     it('calls applyCanvasAction("move") with correct args for diagram-canvas.move', () => {
-      const plugin = diagramPlugin({ diagrams: ['canvas-1'] });
+      const plugin = diagramPlugin();
       const registry = new WidgetRegistry();
-      const widgets = plugin.createWidgets();
-      const widget = widgets[0] as DiagramWidget;
+      const widget = new DiagramWidget('canvas-1', makeTestDiagramState('canvas-1'));
       registry.register(widget);
 
       const calls: Array<[string, number, number, number, [number, number] | undefined]> = [];
@@ -99,10 +83,9 @@ describe('diagramPlugin', () => {
     });
 
     it('calls applyCanvasAction("rotate") for diagram-canvas.rotate', () => {
-      const plugin = diagramPlugin({ diagrams: ['canvas-1'] });
+      const plugin = diagramPlugin();
       const registry = new WidgetRegistry();
-      const widgets = plugin.createWidgets();
-      const widget = widgets[0] as DiagramWidget;
+      const widget = new DiagramWidget('canvas-1', makeTestDiagramState('canvas-1'));
       registry.register(widget);
 
       const calls: Array<[string, number, number, number]> = [];
@@ -118,10 +101,9 @@ describe('diagramPlugin', () => {
     });
 
     it('calls applyCanvasAction("focus") with focusCenter for diagram-canvas.focus', () => {
-      const plugin = diagramPlugin({ diagrams: ['canvas-1'] });
+      const plugin = diagramPlugin();
       const registry = new WidgetRegistry();
-      const widgets = plugin.createWidgets();
-      const widget = widgets[0] as DiagramWidget;
+      const widget = new DiagramWidget('canvas-1', makeTestDiagramState('canvas-1'));
       registry.register(widget);
 
       const calls: Array<[string, number, number, number, [number, number] | undefined]> = [];
@@ -138,10 +120,9 @@ describe('diagramPlugin', () => {
     });
 
     it('calls applyCanvasAction("reset") for diagram-canvas.reset', () => {
-      const plugin = diagramPlugin({ diagrams: ['canvas-1'] });
+      const plugin = diagramPlugin();
       const registry = new WidgetRegistry();
-      const widgets = plugin.createWidgets();
-      const widget = widgets[0] as DiagramWidget;
+      const widget = new DiagramWidget('canvas-1', makeTestDiagramState('canvas-1'));
       registry.register(widget);
 
       const calls: Array<[string, number, number, number]> = [];
@@ -157,9 +138,9 @@ describe('diagramPlugin', () => {
     });
 
     it('silently ignores when canvasId is undefined', () => {
-      const plugin = diagramPlugin({ diagrams: ['canvas-1'] });
+      const plugin = diagramPlugin();
       const registry = new WidgetRegistry();
-      for (const w of plugin.createWidgets()) registry.register(w);
+      registry.register(new DiagramWidget('canvas-1', makeTestDiagramState('canvas-1')));
 
       const ext = plugin.getActionInputExtension!(registry);
       expect(() =>
@@ -168,9 +149,9 @@ describe('diagramPlugin', () => {
     });
 
     it('silently ignores when the widget is not found in the registry', () => {
-      const plugin = diagramPlugin({ diagrams: ['canvas-1'] });
+      const plugin = diagramPlugin();
       const registry = new WidgetRegistry();
-      for (const w of plugin.createWidgets()) registry.register(w);
+      registry.register(new DiagramWidget('canvas-1', makeTestDiagramState('canvas-1')));
 
       const ext = plugin.getActionInputExtension!(registry);
       expect(() =>
@@ -179,10 +160,9 @@ describe('diagramPlugin', () => {
     });
 
     it('silently ignores unknown action types', () => {
-      const plugin = diagramPlugin({ diagrams: ['canvas-1'] });
+      const plugin = diagramPlugin();
       const registry = new WidgetRegistry();
-      const widgets = plugin.createWidgets();
-      const widget = widgets[0] as DiagramWidget;
+      const widget = new DiagramWidget('canvas-1', makeTestDiagramState('canvas-1'));
       registry.register(widget);
 
       const calls: string[] = [];
@@ -197,8 +177,7 @@ describe('diagramPlugin', () => {
 
   describe('DiagramWidget.applyCanvasAction()', () => {
     it('accumulates pan delta for move action', () => {
-      const plugin = diagramPlugin({ diagrams: ['d1'] });
-      const widget = plugin.createWidgets()[0] as DiagramWidget;
+      const widget = new DiagramWidget('d1', makeTestDiagramState('d1'));
 
       // Two consecutive moves should accumulate.
       widget.applyCanvasAction('move', 100, 0, 1);
@@ -211,8 +190,7 @@ describe('diagramPlugin', () => {
     });
 
     it('accumulates tilt delta for rotate action', () => {
-      const plugin = diagramPlugin({ diagrams: ['d1'] });
-      const widget = plugin.createWidgets()[0] as DiagramWidget;
+      const widget = new DiagramWidget('d1', makeTestDiagramState('d1'));
 
       widget.applyCanvasAction('rotate', 0, 200, 1);
 
@@ -222,8 +200,7 @@ describe('diagramPlugin', () => {
     });
 
     it('resets pan and tilt deltas on reset action', () => {
-      const plugin = diagramPlugin({ diagrams: ['d1'] });
-      const widget = plugin.createWidgets()[0] as DiagramWidget;
+      const widget = new DiagramWidget('d1', makeTestDiagramState('d1'));
 
       widget.applyCanvasAction('move', 100, 100, 1);
       widget.applyCanvasAction('rotate', 50, 50, 1);
@@ -240,12 +217,13 @@ describe('diagramPlugin', () => {
 
   describe('DSL compilation — state written by diagram ID', () => {
     it('writes DiagramState keyed by diagram ID into compiled SceneTrack ticks', () => {
-      const plugin = diagramPlugin({ diagrams: [] });
+      const plugin = diagramPlugin();
 
       // Register handlers so compileSceneTrack can process diagram DSL nodes.
       plugin.registerHandlers();
 
       const registry = new WidgetRegistry();
+      plugin.configureRegistry!(registry, null);
 
       const scenes = [
         {

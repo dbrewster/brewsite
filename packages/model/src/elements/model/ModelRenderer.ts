@@ -4,8 +4,9 @@
  * Responsibilities:
  * - Load GLB models (primary + contained models)
  * - Apply model state (position, rotation, scale)
- * - Manage animation playback
- * - Apply material overrides + contained model attachments
+ * - Orchestrate animation playback via ModelAnimationPlayer
+ * - Apply material overrides via ModelMaterialManager
+ * - Manage contained model attachments and pose overrides
  */
 
 import * as THREE from 'three';
@@ -13,26 +14,18 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/examples/jsm/loaders/KTX2Loader.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { MeshoptDecoder } from 'meshoptimizer';
-import type { Vec3, ModelPartSpec, ModelSubpartSpec, CustomAnimation, CustomAnimationOp } from './types';
+import type { Vec3, ModelPartSpec, ModelSubpartSpec } from './types';
 import type { ModelRenderInstanceState } from './_renderTypes';
 import type { CompiledAnimation } from './compile';
 import type { WidgetRenderContext } from '@brewsite/core';
-import { parseHexColor } from '@brewsite/core';
 import { applyModelTransform } from './render';
 import type { IRenderable as RenderInterface } from './render';
 import type { AssetManifest, AnimationEntry, ModelMeta } from './metadata';
+import { ModelAnimationPlayer } from './ModelAnimationPlayer';
+import { ModelMaterialManager } from './ModelMaterialManager';
 
 const applyMultiplier = (value: number | undefined, multiplier: number): number | undefined =>
   typeof value === 'number' ? value * multiplier : value;
-
-type MaterialBase = {
-  color?: THREE.Color;
-  opacity?: number;
-  transparent?: boolean;
-  depthWrite?: boolean;
-  metalness?: number;
-  roughness?: number;
-};
 
 type LoadOptions = {
   anchorTargets?: Record<string, string>;
@@ -57,13 +50,9 @@ export class ModelRenderer {
   private scene: THREE.Scene;
   private renderer?: THREE.WebGLRenderer;
   private model: THREE.Group | null = null;
-  private mixer: THREE.AnimationMixer | null = null;
-  private animationClips = new Map<string, THREE.AnimationClip>();
-  private activeClip: THREE.AnimationClip | null = null;
+  private animationPlayer!: ModelAnimationPlayer;
+  private materialManager!: ModelMaterialManager;
   private baseRotation: Vec3 | null = null;
-  private lastGlobalProgress: number | null = null;
-  private lastAnimationSignature: string | null = null;
-  private initialStartOffsets = new Map<string, number>();
   private warnedMissingPoseTargets = new Set<string>();
   private warnedMissingMeshes = new Set<string>();
   private warnedMissingContainedModels = new Set<string>();
@@ -79,9 +68,6 @@ export class ModelRenderer {
   private boneByName = new Map<string, THREE.Object3D>();
   private meshByName = new Map<string, THREE.Mesh>();
   private boneByNormalizedName = new Map<string, THREE.Object3D>();
-  private materialBase = new Map<string, MaterialBase>();
-  private filteredClips = new Map<string, THREE.AnimationClip>();
-  private rangedClips = new Map<string, THREE.AnimationClip>();
 
   private containedModelTemplates = new Map<string, THREE.Group>();
   private attachedParts = new Map<string, ContainedInstance>();
@@ -212,19 +198,8 @@ export class ModelRenderer {
       state.model.roughnessMultiplier ?? 1,
     );
 
-    if (animation?.enabled && animation.clipName) {
-      const animationSignature = this.getAnimationSignature(state, animation);
-      const resetDueToProgress = this.shouldResetOnProgress(ctx?.globalProgress, animationSignature);
-      this.applyAnimation(state, animation, ctx, resetDueToProgress);
-    } else {
-      this.clearActiveAnimation();
-    }
-
-    // Apply custom animations (if any)
-    const customAnimations = state.playback.motion.customAnimations ?? [];
-    if (customAnimations.length > 0) {
-      this.applyCustomAnimations(customAnimations, ctx);
-    }
+    // Delegate all animation and custom animation to the player
+    this.animationPlayer.apply(state, animation, ctx, this.nodeByName);
 
     // Apply body part pose overrides last so they are visible on top of animations.
     this.applyBodyPartPoseOverrides(state);
@@ -276,22 +251,16 @@ export class ModelRenderer {
       this.disposeObject3D(this.model);
       this.model = null;
     }
-    if (this.mixer) {
-      this.mixer.stopAllAction();
-      this.mixer = null;
+    if (this.animationPlayer) {
+      this.animationPlayer.dispose();
     }
-    this.animationClips.clear();
-    this.activeClip = null;
+    if (this.materialManager) {
+      this.materialManager.disposeMaterials();
+    }
     this.nodeByName.clear();
     this.boneByName.clear();
     this.boneByNormalizedName.clear();
     this.meshByName.clear();
-    this.materialBase.clear();
-    this.filteredClips.clear();
-    this.rangedClips.clear();
-    this.initialStartOffsets.clear();
-    this.lastGlobalProgress = null;
-    this.lastAnimationSignature = null;
     this.clearContainedModels();
     this.bodyPartMeshMap.clear();
   }
@@ -307,18 +276,14 @@ export class ModelRenderer {
     }
     this.model = group;
     this.scene.add(group);
-    this.mixer = new THREE.AnimationMixer(group);
 
     this.nodeByName.clear();
     this.boneByName.clear();
     this.meshByName.clear();
-    this.materialBase.clear();
-    this.animationClips.clear();
-    this.filteredClips.clear();
-    this.rangedClips.clear();
-    this.initialStartOffsets.clear();
-    this.lastGlobalProgress = null;
-    this.lastAnimationSignature = null;
+
+    // Instantiate fresh managers for this model instance
+    this.animationPlayer = new ModelAnimationPlayer(group);
+    this.materialManager = new ModelMaterialManager();
 
     group.traverse((obj) => {
       if (!obj.name) return;
@@ -339,14 +304,11 @@ export class ModelRenderer {
           mesh.material = mesh.material.clone();
         }
         this.meshByName.set(mesh.name, mesh);
-        this.cacheMaterialBase(mesh.material);
+        this.materialManager.cacheMaterial(mesh.material);
       }
     });
 
-    clips.forEach((clip) => {
-      if (!clip.name) return;
-      this.animationClips.set(clip.name, clip);
-    });
+    this.animationPlayer.addClips(clips);
   }
 
   private static getGltfCacheKey(glbUrl: string, hasRenderer: boolean): string {
@@ -406,7 +368,7 @@ export class ModelRenderer {
         const normalized = clip.clone();
         normalized.name = result.entry.clipName;
         this.remapClipTrackNames(normalized);
-        this.animationClips.set(result.entry.clipName, normalized);
+        this.animationPlayer.addRemappedClip(result.entry.clipName, normalized);
       }
     }
   }
@@ -458,7 +420,7 @@ export class ModelRenderer {
     for (const mesh of this.meshByName.values()) {
       mesh.castShadow = true;
       mesh.receiveShadow = true;
-      this.applyMaterialOverrides(mesh.material, {
+      this.materialManager.applyOverrides(mesh.material, {
         opacity: modelOpacity,
         metalness: baseMetalness,
         roughness: baseRoughness,
@@ -505,7 +467,7 @@ export class ModelRenderer {
         override.roughness !== undefined
           ? applyMultiplier(override.roughness, roughnessMultiplier)
           : baseRoughness;
-      this.applyMaterialOverrides(mesh.material, {
+      this.materialManager.applyOverrides(mesh.material, {
         color: override.color,
         opacity,
         metalness: overrideMetalness,
@@ -775,7 +737,7 @@ export class ModelRenderer {
         } else if (mesh.material) {
           mesh.material = mesh.material.clone();
         }
-        this.cacheMaterialBase(mesh.material);
+        this.materialManager.cacheMaterial(mesh.material);
       }
     });
     const instance = { modelId: part.modelId ?? '', group: wrapper, model: clone };
@@ -838,7 +800,7 @@ export class ModelRenderer {
         typeof opacityScale === 'number'
           ? (typeof part.opacity === 'number' ? part.opacity : 1) * opacityScale
           : part.opacity;
-      this.applyMaterialOverrides(mesh.material, {
+      this.materialManager.applyOverrides(mesh.material, {
         metalness: applyMultiplier(part.metalness, metalnessMultiplier),
         roughness: applyMultiplier(part.roughness, roughnessMultiplier),
         opacity,
@@ -865,7 +827,7 @@ export class ModelRenderer {
         const baseOpacity = spec.enabled === false ? 0 : subOpacity;
         const opacity =
           typeof opacityScale === 'number' ? baseOpacity * opacityScale : baseOpacity;
-        this.applyMaterialOverrides(mesh.material, {
+        this.materialManager.applyOverrides(mesh.material, {
           color: spec.color,
           opacity,
           metalness: applyMultiplier(spec.metalness, metalnessMultiplier),
@@ -873,265 +835,6 @@ export class ModelRenderer {
         });
         mesh.visible = spec.enabled !== false && opacity > 0;
       }
-    }
-  }
-
-  private applyMaterialOverrides(
-    material: THREE.Material | THREE.Material[],
-    overrides: { color?: string; opacity?: number; metalness?: number; roughness?: number },
-  ): void {
-    const materials = Array.isArray(material) ? material : [material];
-    materials.forEach((mat) => {
-      if (!mat) return;
-      const base = this.materialBase.get(mat.uuid);
-      if (base) {
-        if ('color' in mat && base.color) {
-          (mat as THREE.MeshStandardMaterial).color.copy(base.color);
-        }
-        if (typeof base.opacity === 'number') {
-          (mat as THREE.MeshStandardMaterial).opacity = base.opacity;
-        }
-        if (typeof base.transparent === 'boolean') {
-          (mat as THREE.MeshStandardMaterial).transparent = base.transparent;
-        }
-        if (typeof base.depthWrite === 'boolean') {
-          (mat as THREE.MeshStandardMaterial).depthWrite = base.depthWrite;
-        }
-        if (typeof base.metalness === 'number') {
-          (mat as THREE.MeshStandardMaterial).metalness = base.metalness;
-        }
-        if (typeof base.roughness === 'number') {
-          (mat as THREE.MeshStandardMaterial).roughness = base.roughness;
-        }
-      }
-      if ('color' in mat && overrides.color) {
-        const colorParsed = parseHexColor(overrides.color);
-        (mat as THREE.MeshStandardMaterial).color = new THREE.Color(colorParsed.rgb);
-        if (colorParsed.alpha < 1) {
-          (mat as THREE.MeshStandardMaterial).transparent = true;
-          (mat as THREE.MeshStandardMaterial).opacity =
-            ((mat as THREE.MeshStandardMaterial).opacity ?? 1) * colorParsed.alpha;
-        }
-      }
-      if (typeof overrides.opacity === 'number') {
-        (mat as THREE.MeshStandardMaterial).transparent = true;
-        (mat as THREE.MeshStandardMaterial).opacity = overrides.opacity;
-        const baseDepthWrite = base?.depthWrite ?? true;
-        (mat as THREE.MeshStandardMaterial).depthWrite =
-          overrides.opacity < 1 ? false : baseDepthWrite;
-      }
-      if (typeof overrides.metalness === 'number' && 'metalness' in mat) {
-        (mat as THREE.MeshStandardMaterial).metalness = overrides.metalness;
-      }
-      if (typeof overrides.roughness === 'number' && 'roughness' in mat) {
-        (mat as THREE.MeshStandardMaterial).roughness = overrides.roughness;
-      }
-    });
-  }
-
-  private cacheMaterialBase(material: THREE.Material | THREE.Material[]): void {
-    const materials = Array.isArray(material) ? material : [material];
-    materials.forEach((mat) => {
-      if (!mat || this.materialBase.has(mat.uuid)) return;
-      const base: MaterialBase = {};
-      if ('color' in mat && (mat as THREE.MeshStandardMaterial).color) {
-        base.color = (mat as THREE.MeshStandardMaterial).color.clone();
-      }
-      if ('opacity' in mat) base.opacity = (mat as THREE.MeshStandardMaterial).opacity;
-      if ('transparent' in mat) base.transparent = (mat as THREE.MeshStandardMaterial).transparent;
-      if ('depthWrite' in mat) base.depthWrite = (mat as THREE.MeshStandardMaterial).depthWrite;
-      if ('metalness' in mat) base.metalness = (mat as THREE.MeshStandardMaterial).metalness;
-      if ('roughness' in mat) base.roughness = (mat as THREE.MeshStandardMaterial).roughness;
-      this.materialBase.set(mat.uuid, base);
-    });
-  }
-
-  private applyAnimation(
-    state: ModelRenderInstanceState,
-    animation: CompiledAnimation,
-    ctx?: WidgetRenderContext,
-    resetDueToProgress = false,
-  ): void {
-    if (!this.mixer) {
-      console.warn('[ModelRenderer] missing mixer, cannot apply animation');
-      return;
-    }
-    const baseClip = this.animationClips.get(animation.clipName ?? '');
-    if (!baseClip) return;
-    const allowScale = state.playback.animation.allowScale === true;
-    const allowRotation = state.playback.animation.allowRotation !== false;
-    const filteredClip = this.getFilteredClip(baseClip, allowScale, allowRotation);
-    const clip = this.getRangedClip(filteredClip, animation.range);
-    if (!clip) return;
-
-    const shouldReset = resetDueToProgress || state.playback.animation.reset === true;
-    if (shouldReset && this.activeClip === clip) {
-      this.clearActiveAnimation();
-    }
-
-    const repeat = state.playback.animation.clipRepeat !== false;
-    const action = this.mixer.clipAction(clip);
-    if (this.activeClip !== clip) {
-      this.clearActiveAnimation();
-      const fadeIn = state.playback.animation.fadeInSeconds ?? 0;
-      action.reset();
-      if (fadeIn > 0) action.fadeIn(fadeIn);
-      action.play();
-      action.setLoop(repeat ? THREE.LoopRepeat : THREE.LoopOnce, repeat ? Infinity : 1);
-      action.clampWhenFinished = !repeat;
-      this.activeClip = clip;
-
-      const initialOffset = this.getInitialStartOffset(clip, state);
-      if (initialOffset > 0) {
-        action.time = Math.min(initialOffset, Math.max(0, clip.duration));
-        this.mixer.update(0);
-      }
-    }
-
-    const weight = state.playback.animation.weight ?? 1;
-    action.setEffectiveWeight(weight);
-    const deltaSeconds = ctx?.effectiveDeltaSeconds ?? 0;
-    this.mixer.update(deltaSeconds);
-  }
-
-  private clearActiveAnimation(): void {
-    if (!this.mixer || !this.activeClip) return;
-    this.mixer.clipAction(this.activeClip).stop();
-    this.activeClip = null;
-  }
-
-  // (debug pose diff helpers removed)
-
-  private shouldResetOnProgress(globalProgress: number | undefined, animationSignature: string | null): boolean {
-    if (typeof globalProgress !== 'number') return false;
-    const last = this.lastGlobalProgress;
-    const lastSignature = this.lastAnimationSignature;
-    this.lastGlobalProgress = globalProgress;
-    this.lastAnimationSignature = animationSignature;
-    if (last === null) return false;
-    const wentBackward = globalProgress < last - 1e-4;
-    if (!wentBackward) return false;
-    return animationSignature !== lastSignature;
-  }
-
-  private getAnimationSignature(
-    state: ModelRenderInstanceState,
-    animation?: CompiledAnimation,
-  ): string | null {
-    if (!animation?.enabled || !animation.clipName) return null;
-    const range = animation.range;
-    const rangeKey = range
-      ? `${range.startSeconds.toFixed(4)}-${range.endSeconds.toFixed(4)}`
-      : 'full';
-    const repeat = state.playback.animation.clipRepeat !== false;
-    const allowScale = state.playback.animation.allowScale === true;
-    const allowRotation = state.playback.animation.allowRotation !== false;
-    return `${animation.clipName}|${rangeKey}|r:${repeat ? 1 : 0}|s:${allowScale ? 1 : 0}|rot:${allowRotation ? 1 : 0}`;
-  }
-
-  private getInitialStartOffset(
-    clip: THREE.AnimationClip,
-    state: ModelRenderInstanceState,
-  ): number {
-    const specifiedOffset = state.playback.animation.clipStartOnce;
-    if (typeof specifiedOffset !== 'number') return 0;
-    const offset = this.resolveClipOffsetSeconds(
-      specifiedOffset,
-      clip.duration,
-      state.playback.animation.clipRangeUnit,
-    );
-    const key = `${clip.name}|${clip.duration}`;
-    const existing = this.initialStartOffsets.get(key);
-    if (typeof existing === 'number') return existing;
-    this.initialStartOffsets.set(key, offset);
-    return offset;
-  }
-
-  private resolveClipOffsetSeconds(
-    offset: number,
-    spanSeconds: number,
-    unit?: 'seconds' | 'percent',
-  ): number {
-    if (unit === 'percent') {
-      const pct = offset > 1 ? offset / 100 : offset;
-      return pct * spanSeconds;
-    }
-    if (offset < 0) return 0;
-    if (offset > spanSeconds) return Math.max(0, spanSeconds);
-    return offset;
-  }
-
-  private getFilteredClip(
-    baseClip: THREE.AnimationClip,
-    allowScale: boolean,
-    allowRotation: boolean,
-  ): THREE.AnimationClip {
-    const key = `${baseClip.name}|s:${allowScale ? 1 : 0}|r:${allowRotation ? 1 : 0}`;
-    const cached = this.filteredClips.get(key);
-    if (cached) return cached;
-
-    const tracks = allowScale
-      ? baseClip.tracks
-      : baseClip.tracks.filter((track) => !/\.scale(\b|\[)/.test(track.name));
-    const filteredTracks = allowRotation
-      ? tracks
-      : tracks.filter((track) =>
-        !/\.quaternion(\b|\[)/.test(track.name) && !/\.rotation(\b|\[)/.test(track.name));
-    const clip = new THREE.AnimationClip(baseClip.name, baseClip.duration, filteredTracks);
-    clip.optimize();
-    this.filteredClips.set(key, clip);
-    return clip;
-  }
-
-  private getRangedClip(
-    baseClip: THREE.AnimationClip,
-    range?: { startSeconds: number; endSeconds: number; span: number },
-  ): THREE.AnimationClip {
-    if (!range) return baseClip;
-    const start = Math.max(0, range.startSeconds);
-    const end = Math.max(start, range.endSeconds);
-    const key = `${baseClip.uuid}|${start}|${end}`;
-    const cached = this.rangedClips.get(key);
-    if (cached) return cached;
-
-    const duration = Math.max(1e-4, end - start);
-    const tracks = baseClip.tracks.map((track) => {
-      const clone = track.clone();
-      clone.trim(start, end);
-      clone.shift(-start);
-      return clone;
-    });
-    const clip = new THREE.AnimationClip(`${baseClip.name}|${start}-${end}`, duration, tracks);
-    clip.optimize();
-    this.rangedClips.set(key, clip);
-    return clip;
-  }
-
-  private applyCustomAnimations(customAnimations: CustomAnimation[], ctx?: WidgetRenderContext): void {
-    if (!this.model) return;
-    const base = this.capturePose();
-    const context = {
-      tickTimeSeconds: ctx?.effectiveDeltaSeconds ?? 0,
-      wallTimeSeconds: ctx?.clock?.wallTimeSeconds ?? 0,
-      sceneProgress: ctx?.globalProgress ?? 0,
-      globalProgress: ctx?.globalProgress ?? 0,
-      getBaseTransform: (name: string) => {
-        const snapshot = base.get(name);
-        if (!snapshot) return null;
-        return {
-          position: [snapshot.position[0], snapshot.position[1], snapshot.position[2]] as Vec3,
-          rotation: [snapshot.rotation[0], snapshot.rotation[1], snapshot.rotation[2]] as Vec3,
-          scale: [snapshot.scale[0], snapshot.scale[1], snapshot.scale[2]] as Vec3,
-        };
-      },
-    };
-
-    for (const animation of customAnimations) {
-      if (!animation.enabled) continue;
-      const ops = animation.apply(context);
-      if (!ops?.length) continue;
-      const weight = animation.weight ?? 1;
-      this.applyCustomOps(ops, weight);
     }
   }
 
@@ -1157,46 +860,6 @@ export class ModelRenderer {
       node.position.set(snapshot.position[0], snapshot.position[1], snapshot.position[2]);
       node.rotation.set(snapshot.rotation[0], snapshot.rotation[1], snapshot.rotation[2]);
       node.scale.set(snapshot.scale[0], snapshot.scale[1], snapshot.scale[2]);
-    }
-  }
-
-  private applyCustomOps(ops: CustomAnimationOp[], weight: number): void {
-    for (const op of ops) {
-      const node = this.nodeByName.get(op.targetName);
-      if (!node) continue;
-      const opWeight = (op.weight ?? 1) * weight;
-      if (opWeight <= 0) continue;
-      if (op.type === 'rotation') {
-        if (op.mode === 'set') {
-          node.rotation.set(op.value[0], op.value[1], op.value[2]);
-        } else {
-          node.rotation.set(
-            node.rotation.x + op.value[0] * opWeight,
-            node.rotation.y + op.value[1] * opWeight,
-            node.rotation.z + op.value[2] * opWeight,
-          );
-        }
-      } else if (op.type === 'position') {
-        if (op.mode === 'set') {
-          node.position.set(op.value[0], op.value[1], op.value[2]);
-        } else {
-          node.position.set(
-            node.position.x + op.value[0] * opWeight,
-            node.position.y + op.value[1] * opWeight,
-            node.position.z + op.value[2] * opWeight,
-          );
-        }
-      } else if (op.type === 'scale') {
-        if (op.mode === 'set') {
-          node.scale.set(op.value[0], op.value[1], op.value[2]);
-        } else {
-          node.scale.set(
-            node.scale.x + op.value[0] * opWeight,
-            node.scale.y + op.value[1] * opWeight,
-            node.scale.z + op.value[2] * opWeight,
-          );
-        }
-      }
     }
   }
 }

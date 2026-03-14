@@ -10,8 +10,8 @@ import {
   functionalInstanceTransitionSpec,
   modelTransitionSpec,
   playbackTransitionSpec,
-  poseGroupTransition,
 } from '../compile';
+import { poseGroupTransition } from '../modelBlend';
 import type {
   CustomAnimation,
   MotionCommand,
@@ -1454,5 +1454,103 @@ describe('model nvsX/nvsY from bounds', () => {
     expect(result.nvsX).toBeCloseTo(0.5, 5);
     expect(result.nvsY).toBeCloseTo(0.5, 5);
     expect(result.z).toBeCloseTo(1.0, 5);
+  });
+
+  // ─── Plan §4C gap cases ────────────────────────────────────────────────────
+
+  it('resolveClipRangeSeconds with negative clipEnd resolves to duration + clipEnd', () => {
+    // Direct test of resolveClipRangeSeconds with negative clipEnd (without going via compileAnimation)
+    const result = resolveClipRangeSeconds(
+      { enabled: true, clipStart: 0.1, clipEnd: -0.5 },
+      4.0,
+    );
+    // endSeconds = max(0, 4.0 + (-0.5)) = 3.5
+    expect(result.startSeconds).toBeCloseTo(0.1);
+    expect(result.endSeconds).toBeCloseTo(3.5);
+    expect(result.span).toBeCloseTo(3.4);
+  });
+
+  it('resolveClipRangeSeconds with clipRangeUnit=percent divides values >1 by 100', () => {
+    // percent mode: values > 1 get divided by 100 before multiplying by duration
+    const result = resolveClipRangeSeconds(
+      { enabled: true, clipStart: 10, clipEnd: 80, clipRangeUnit: 'percent' },
+      5.0,
+    );
+    // startPct = 10/100 = 0.1, endPct = 80/100 = 0.8
+    expect(result.startSeconds).toBeCloseTo(0.5);  // 0.1 * 5
+    expect(result.endSeconds).toBeCloseTo(4.0);    // 0.8 * 5
+    expect(result.span).toBeCloseTo(3.5);
+  });
+
+  it('compileAnimation when clipMeta is empty returns disabled with clipName', () => {
+    // Confirm no warning when clipMeta is empty (expectsLoadedClip check)
+    const anim: SceneAnimation = { enabled: true, clipName: 'idle' };
+    const result = compileAnimation(anim, [], false);
+    expect(result.enabled).toBe(false);
+    expect(result.clipName).toBe('idle');
+  });
+
+  it('compileAnimation with gltfUrl provided skips clipMeta lookup', () => {
+    // gltfUrl means clip is loaded externally — enabled=false until loaded clip is available
+    const anim: SceneAnimation = { enabled: true, gltfUrl: '/external.glb', gltfClipName: 'wave' };
+    const result = compileAnimation(anim, [], false);
+    // gltfUrl set → expectsLoadedClip=false → no warning, returns disabled with clipName
+    expect(result.enabled).toBe(false);
+    expect(result.clipName).toBe('wave');
+  });
+
+  it('applyModelExit at t=0 keeps enabled state unchanged', () => {
+    const from: SceneModelInstanceState = {
+      model: { scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true, opacity: 1 },
+      playback: { motion: { commands: [], scenes: [] }, animation: { enabled: false } },
+      enabled: true,
+    };
+    const result = applyModelExit(from, 0);
+    // At t=0, should NOT be disabled
+    expect(result.enabled).toBe(true);
+    // opacity should still be close to 1
+    expect(result.model.opacity).toBeCloseTo(1);
+  });
+
+  it('applyModelExit at t=1 disables model and zeroes opacity', () => {
+    const from: SceneModelInstanceState = {
+      model: { scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true, opacity: 1 },
+      playback: { motion: { commands: [], scenes: [] }, animation: { enabled: false } },
+      enabled: true,
+    };
+    const result = applyModelExit(from, 1);
+    expect(result.enabled).toBe(false);
+    expect(result.model.opacity ?? 0).toBeCloseTo(0);
+  });
+
+  it('applyModelEnter at t=0 keeps enabled as-is (not forced to true)', () => {
+    // At t=0, enabled check: t > 0 is false → uses to.enabled (not forced true)
+    const to: SceneModelInstanceState = {
+      model: { scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true },
+      playback: { motion: { commands: [], scenes: [] }, animation: { enabled: false } },
+      enabled: false,
+    };
+    const result = applyModelEnter(to, 0);
+    // t=0: t > 0 is false → enabled = to.enabled = false
+    expect(result.enabled).toBe(false);
+    // opacity should be 0 at t=0
+    expect(result.model.opacity ?? 0).toBeCloseTo(0);
+  });
+
+  it('modelTransitionSpec.interpolate with undefined metalness/roughness uses available side', () => {
+    // Plan §4C: interpolate with undefined optional fields
+    const from: SceneModel = {
+      scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true,
+      metalness: 0.4,
+      roughness: 0.6,
+    };
+    const to: SceneModel = {
+      scale: 1, nvsX: 0.5, nvsY: 0.5, z: 0, rotation: [0, 0, 0], enabled: true,
+      // metalness and roughness omitted (undefined)
+    };
+    const result = modelTransitionSpec.interpolate(from, to, 0.5);
+    // blendNumber(0.4, undefined, 0.5) returns undefined → falls back to to.metalness ?? from.metalness = from.metalness
+    expect(result.metalness).toBeCloseTo(0.4);
+    expect(result.roughness).toBeCloseTo(0.6);
   });
 });

@@ -197,6 +197,18 @@ export type ScenePlayback = {
 // ─── Model base state ───────────────────────────────────────────────────────
 
 export type SceneModel = {
+  /**
+   * Viewport-relative scale factor.
+   * The world-space scale applied to the model's Object3D is:
+   *   worldScale = scale * context.coords.visibleWorldHeight
+   *
+   * A value of 1.0 = model unit equals viewport height in world space.
+   * A value of 0.06 is typical for a human figure (≈ 6% of viewport height).
+   *
+   * BREAKING CHANGE from pre-refactor: scale was previously a raw world-unit value.
+   * Divide old world-unit values by the scene's visibleWorldHeight to obtain
+   * the equivalent NVS scale.
+   */
   scale: number;
   /**
    * NVS horizontal center position [0..1]. 0 = left, 1 = right.

@@ -50,6 +50,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   private defaultStateById: Map<string, unknown>;
   private threeScene: ThreeScene | null = null;
   private camera: PerspectiveCamera | null = null;
+  private renderer: WebGLRenderer | null = null;
   private viewportWidth = 0;
   private viewportHeight = 0;
   private cameraFocusTarget: ICameraFocusTarget | null = null;
@@ -113,6 +114,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   initialize(threeScene: ThreeScene, camera?: PerspectiveCamera, renderer?: WebGLRenderer): void {
     this.threeScene = threeScene;
     this.camera = camera ?? null;
+    this.renderer = renderer ?? null;
 
     // Re-read widget lists so lazily-registered widgets (e.g. ChartWidgets registered during
     // scene compilation, after this driver was constructed) are included.
@@ -206,6 +208,91 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   setSceneTrack(track: SceneTrack): void {
     this.sampler = createSceneTrackSampler(track);
     this.track = track;
+
+    // Re-read widget lists — compilation may have lazily registered new widgets
+    // via type factories (e.g. ModelWidget created on first <Model> encounter).
+    // Any new renderables discovered here need to be initialized and loaded.
+    this._refreshWidgetLists();
+  }
+
+  /**
+   * Re-reads widget lists from the registry, initializes any newly discovered
+   * IRenderable widgets, and starts asset loading for new ILoadable widgets.
+   * Called from setSceneTrack() to pick up widgets registered during compilation.
+   */
+  private _refreshWidgetLists(): void {
+    // Snapshot which widgets were already initialized before re-reading the registry.
+    const prevRenderableIds = new Set(this.renderables.map((r) => r.widgetId));
+
+    // Re-read all widget lists from the live registry. Compilation may have
+    // lazily registered new widgets via type factories.
+    this.sceneElements = this.widgetRegistry.getSceneElements();
+    this.renderables = this.widgetRegistry.getRenderables();
+    this.animationControllers = this.widgetRegistry.getAnimationControllers();
+    this.sceneLifecycleWidgets = this.widgetRegistry.getSceneLifecycleWidgets();
+    this.defaultStateById = new Map(
+      this.sceneElements.map((el) => [el.widgetId, el.defaultState as unknown]),
+    );
+
+    // Re-resolve camera focus target (new widgets may implement ICameraFocusTarget).
+    this.cameraFocusTarget = null;
+    for (const widget of this.widgetRegistry.getAllWidgets()) {
+      if (isCameraFocusTarget(widget)) {
+        this.cameraFocusTarget = widget;
+        break;
+      }
+    }
+
+    // Discover newly registered renderables that need initialization + loading.
+    const newRenderableIds = new Set<string>();
+    if (this.threeScene) {
+      for (const renderable of this.renderables) {
+        if (prevRenderableIds.has(renderable.widgetId)) continue;
+        newRenderableIds.add(renderable.widgetId);
+        try {
+          renderable.initialize({
+            scene: this.threeScene,
+            widgetId: renderable.widgetId,
+            renderer: this.renderer ?? undefined,
+            camera: this.camera ?? undefined,
+          });
+        } catch (e) {
+          const err = e instanceof Error ? e : new Error(String(e));
+          this.loadErroredWidgets.add(renderable.widgetId);
+          this.onWidgetError?.(renderable.widgetId, err);
+        }
+      }
+    }
+
+    // Load assets for the newly discovered widgets only.
+    if (newRenderableIds.size > 0) {
+      const newLoadables = this.widgetRegistry.getLoadables()
+        .filter((l) => newRenderableIds.has(l.widgetId));
+      if (newLoadables.length > 0) {
+        void this._loadNewWidgets(newLoadables);
+      }
+    }
+  }
+
+  /**
+   * Loads assets for newly discovered widgets and fires onAssetsReady when complete.
+   */
+  private async _loadNewWidgets(
+    loadables: Array<import('../widget/types').ILoadable>,
+  ): Promise<void> {
+    this.assetsReady = false;
+    await Promise.all(
+      loadables.map((w) =>
+        w.load(this.manifest).catch((e: unknown) => {
+          const err = e instanceof Error ? e : new Error(String(e));
+          this.loadErroredWidgets.add(w.widgetId);
+          this.onWidgetError?.(w.widgetId, err);
+        }),
+      ),
+    );
+    this.attachContainedRenderables();
+    this.assetsReady = true;
+    this.onAssetsReady?.();
   }
 
   tick(options: {

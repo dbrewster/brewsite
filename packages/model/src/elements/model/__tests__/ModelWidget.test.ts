@@ -23,6 +23,7 @@ import {
 import { CUSTOM_NODE_HANDLER } from '@brewsite/core/widget/WidgetRegistry';
 import { createNVSCoordService, nvsToWorldWithCamera } from '@brewsite/core';
 import { makeInitContext, makeRenderContext } from '../../__tests__/elementTestMocks';
+import { setModelAuthoredFlagsForTest } from '../modelDslHandler';
 
 vi.mock('../ModelRenderer', () => {
   class MockModelRenderer {
@@ -325,7 +326,7 @@ describe('ModelWidget', () => {
       },
       enabled: false,
     };
-    const next: SceneModelInstanceState & { __authored?: unknown } = {
+    const next: SceneModelInstanceState = {
       ...widget.defaultState,
       model: { ...widget.defaultState.model, reset: true, scale: 3 },
       nvsBounds: { x: 0.3, y: 0.1, w: 0.4, h: 0.8 },
@@ -335,12 +336,12 @@ describe('ModelWidget', () => {
         motion: { ...widget.defaultState.playback.motion, reset: true },
       },
       enabled: true,
-      __authored: {
-        model: { reset: true, scale: true },
-        playback: { reset: true, animation: { reset: true, clipName: true, enabled: true } },
-        enabled: true,
-      },
     };
+    setModelAuthoredFlagsForTest(next, {
+      model: { reset: true, scale: true },
+      playback: { reset: true, animation: { reset: true, clipName: true, enabled: true } },
+      enabled: true,
+    });
     const merged = widget.mergeSnapshot(prev, next) as SceneModelInstanceState;
     expect(merged.model.scale).toBe(3);
     // nvsX/nvsY derived from merged nvsBounds: x=0.3 + w=0.4/2 = 0.5, y=0.1 + h=0.8/2 = 0.5
@@ -421,6 +422,105 @@ describe('ModelWidget', () => {
     expect(widget.getAnchorBoneName('mixamorig:Head')).toBe('head');
     expect(widget.getBoneWorldPositions()).toBeInstanceOf(Map);
     expect(widget.getTargetColors()).toBeInstanceOf(Map);
+  });
+
+  it('mergeSnapshot with prev=undefined uses defaultState as base (first scene)', () => {
+    const widget = new ModelWidget(makeConfig('bot'));
+    const next: SceneModelInstanceState = {
+      ...widget.defaultState,
+      model: { ...widget.defaultState.model, scale: 0.5 },
+      enabled: true,
+    };
+    setModelAuthoredFlagsForTest(next, {
+      model: { scale: true },
+      enabled: true,
+    });
+    const merged = widget.mergeSnapshot(undefined, next) as SceneModelInstanceState;
+    expect(merged.model.scale).toBe(0.5);
+    expect(merged.enabled).toBe(true);
+  });
+
+  it('mergeSnapshot with playback.reset=true resets playback to defaultState', () => {
+    const widget = new ModelWidget(makeConfig('bot'));
+    const prev: SceneModelInstanceState = {
+      ...widget.defaultState,
+      playback: {
+        ...widget.defaultState.playback,
+        animation: { enabled: true, clipName: 'run', weight: 0.8 },
+      },
+    };
+    const next: SceneModelInstanceState = {
+      ...widget.defaultState,
+      playback: {
+        reset: true,
+        motion: { ...widget.defaultState.playback.motion, reset: true },
+        animation: { ...widget.defaultState.playback.animation, reset: true },
+      },
+    };
+    setModelAuthoredFlagsForTest(next, {
+      playback: { reset: true },
+    });
+    const merged = widget.mergeSnapshot(prev, next) as SceneModelInstanceState;
+    // Playback reset → animation reverts to defaultState.animation (enabled: false, no clipName)
+    expect(merged.playback.animation.enabled).toBe(false);
+    expect(merged.playback.animation.clipName).toBeUndefined();
+  });
+
+  it('mergeSnapshot respects individual animation authored flags', () => {
+    const widget = new ModelWidget(makeConfig('bot'));
+    const prev: SceneModelInstanceState = {
+      ...widget.defaultState,
+      playback: {
+        ...widget.defaultState.playback,
+        animation: { enabled: true, clipName: 'idle', weight: 1, fadeInSeconds: 0.5 },
+      },
+    };
+    const next: SceneModelInstanceState = {
+      ...widget.defaultState,
+      playback: {
+        ...widget.defaultState.playback,
+        animation: { enabled: true, clipName: 'walk', weight: 0.5 },
+      },
+    };
+    setModelAuthoredFlagsForTest(next, {
+      playback: {
+        animation: {
+          // Only clipName and weight authored — fadeInSeconds NOT authored
+          enabled: true,
+          clipName: true,
+          weight: true,
+        },
+      },
+    });
+    const merged = widget.mergeSnapshot(prev, next) as SceneModelInstanceState;
+    expect(merged.playback.animation.clipName).toBe('walk');
+    expect(merged.playback.animation.weight).toBe(0.5);
+    // fadeInSeconds was not authored in next → carries from prev
+    expect(merged.playback.animation.fadeInSeconds).toBe(0.5);
+  });
+
+  it('apply() world scale = state.model.scale * context.coords.visibleWorldHeight', () => {
+    const widget = new ModelWidget(makeConfig('bot'));
+    widget.initialize(makeInitContext({ widgetId: widget.widgetId }));
+
+    // Build a controlled camera to get a predictable visibleWorldHeight
+    const camera = new THREE.PerspectiveCamera(45, 16 / 9, 0.01, 100);
+    camera.position.set(0, 0, 12.07);
+    const coords = createNVSCoordService(camera, 1920, 1080);
+    const renderCtx = makeRenderContext({ coords });
+
+    const modelScale = 0.06;
+    const state: SceneModelInstanceState = {
+      ...widget.defaultState,
+      model: { ...widget.defaultState.model, nvsX: 0.5, nvsY: 0.5, scale: modelScale },
+    };
+
+    const mockRenderer = (widget as unknown as { renderer: { apply: ReturnType<typeof vi.fn> } }).renderer;
+    widget.apply(state, renderCtx);
+
+    const callArg = mockRenderer.apply.mock.calls[0][0] as { model: { scale: number } };
+    const expectedWorldScale = modelScale * coords.visibleWorldHeight;
+    expect(callArg.model.scale).toBeCloseTo(expectedWorldScale, 5);
   });
 
   it('apply() via NVSCoordService produces the same world position as the old nvsToWorldWithCamera path (§9.5b regression)', () => {

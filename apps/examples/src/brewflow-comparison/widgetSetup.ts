@@ -11,20 +11,7 @@ export function createComparisonPlugins(): { plugins: WidgetPlugin[]; theme: Act
   return {
     plugins: [
       corePlugin(),
-      diagramPlugin({
-        diagrams: [
-          'cf-overview',
-          'bf-overview',
-          'audit-cf',
-          'learn-diagram',
-          'ctx-diagram',
-          'coord-diagram',
-          'restart-diagram',
-          'gate-diagram',
-          'safety-diagram',
-          'mature-diagram',
-        ],
-      }),
+      diagramPlugin(),
       themesPlugin(),
     ],
     theme: themes.darkGlass.dark,

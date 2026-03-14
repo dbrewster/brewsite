@@ -36,8 +36,11 @@ export type {
 } from './types';
 
 // Compilation
-export { modelTransitionSpec, playbackTransitionSpec, instanceTransitionSpec, compileAnimation, resolveClipRangeSeconds } from './compile';
+export { modelTransitionSpec, playbackTransitionSpec, compileAnimation, resolveClipRangeSeconds } from './compile';
 export type { CompiledAnimation } from './compile';
+
+// Blend helpers (public API for consumers that need custom transition composition)
+export { poseGroupTransition, blendBodyOverrides } from './modelBlend';
 
 // Metadata
 export type { AnimationEntry, AnchorTargetMap, BodyPartGroup, ModelMeta, AssetManifest } from './metadata';

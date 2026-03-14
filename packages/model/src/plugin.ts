@@ -8,7 +8,7 @@ import { ViewportScaleContext } from '@brewsite/core';
 import type { AssetManifest } from './elements/model/metadata';
 import type { SceneModel } from './elements/model/types';
 import { clipMetaFromManifest, assertManifestValid } from './elements/model/metadata';
-import { ModelRouter } from './elements/model/ModelWidget';
+import { Model } from './elements/model/ModelWidget';
 import { ModelWidget } from './elements/model/ModelWidget';
 import { ModelRenderer } from './elements/model/ModelRenderer';
 import { registerModelHandlers } from './handlers';
@@ -118,7 +118,7 @@ export function modelPlugin(options: ModelPluginOptions = {}): WidgetPlugin & {
     configureRegistry(reg: WidgetRegistry, manifest: AssetManifest | null): void {
       if (!manifest) return;
       const clipMeta = clipMetaFromManifest(manifest);
-      reg.registerTypeFactory(ModelRouter, (props) => {
+      reg.registerTypeFactory(Model, (props) => {
         const type = typeof props['type'] === 'string' ? props['type'] : null;
         const id = typeof props['id'] === 'string' ? props['id'] : null;
         if (!type || !id) {

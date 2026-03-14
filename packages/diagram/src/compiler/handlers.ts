@@ -2,7 +2,7 @@
 
 import type { ReactElement } from 'react';
 import { registerNode } from '@brewsite/core';
-import type { CompileApi, CompileHelpers } from '@brewsite/core';
+import type { CompileApi, CompileHelpers, WidgetRegistry } from '@brewsite/core';
 import { compileDiagram } from '../elements/diagram/compile';
 import { resolveDiagramTheme } from '../elements/diagram/themeRegistry';
 import type {
@@ -14,6 +14,7 @@ import type {
   DiagramEnterDSL,
   DiagramWarnFn,
   LayoutDSL,
+  DiagramState,
 } from '../elements/diagram/types';
 import {
   Diagram,
@@ -26,7 +27,10 @@ import {
   HierarchicalLayout,
   ManualLayout,
   FlowLayout,
+  DiagramWidget,
 } from '../elements/diagram/widget';
+import { buildThemeRenderConfig } from '../elements/diagram/compiler/themeResolver';
+import { defaultDiagramTheme } from '../elements/diagram/themes';
 
 
 const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?: DiagramWarnFn): DiagramDSL => {
@@ -230,13 +234,38 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?:
 };
 
 /**
+ * Creates a default DiagramState for use as the DiagramWidget's initial state.
+ * All fields are set to safe defaults; the actual state comes from compiled DSL.
+ */
+function makeDefaultDiagramState(id: string): DiagramState {
+  return {
+    id,
+    viewportBounds: { x: 0, y: 0, w: 1, h: 1 },
+    tiltRotation: [0, 0, 0],
+    z: 0,
+    scale: 1,
+    contentAspect: 1.0,
+    nodes: [],
+    edges: [],
+    groups: [],
+    exit: undefined,
+    enter: undefined,
+    themeConfig: buildThemeRenderConfig(defaultDiagramTheme),
+  };
+}
+
+/**
  * @internal
  * Registers all diagram DSL node handlers with the @brewsite/core compiler registry.
  * Called automatically at module-load time via packages/diagram/src/register.ts.
  * Not part of the public @brewsite/diagram API.
  * Test files that call clearRegistry() must import and re-call this directly.
+ *
+ * @param registry - When provided, the Diagram handler will lazily register a
+ *   DiagramWidget into the registry on first DSL encounter. This is used by
+ *   diagramPlugin.configureRegistry() to enable zero-config widget creation.
  */
-export const registerDiagramHandlers = (): void => {
+export const registerDiagramHandlers = (registry?: WidgetRegistry): void => {
   const makeWarnFn = (api: CompileApi): DiagramWarnFn => (code, message) => {
     const warnApi = api as CompileApi & {
       pushWarning?: (w: { code: string; message: string; sceneIndex?: number }) => void;
@@ -296,6 +325,12 @@ export const registerDiagramHandlers = (): void => {
           borderOpacity: g.borderOpacity * viewOpacity,
         })),
       };
+    }
+
+    // Lazily create and register a DiagramWidget when the plugin provides a registry
+    // and no widget for this ID has been registered yet.
+    if (registry && !registry.get(dsl.id)) {
+      registry.register(new DiagramWidget(dsl.id, makeDefaultDiagramState(dsl.id)));
     }
 
     api.setWidgetState(dsl.id, diagramState);

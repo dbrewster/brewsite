@@ -2,8 +2,8 @@
 title: "@brewsite/model — Package Refactor: Simplification, NVS Alignment, Coverage & Example"
 doc_type: plan
 owner: Toolkit Architecture
-status: ready
-updated: 2026-03-13
+status: complete
+updated: 2026-03-14
 ---
 
 # @brewsite/model — Package Refactor

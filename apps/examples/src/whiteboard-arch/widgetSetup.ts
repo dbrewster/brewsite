@@ -12,9 +12,7 @@ export function createWhiteboardArchPlugins(): { plugins: WidgetPlugin[]; theme:
   return {
     plugins: [
       corePlugin(),
-      diagramPlugin({
-        diagrams: ['whiteboard-arch-diagram'],
-      }),
+      diagramPlugin(),
       themesPlugin(),
     ],
     theme: themes.darkGlass.dark,

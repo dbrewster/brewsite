@@ -11,21 +11,7 @@ export function createMultiUserPlugins(): { plugins: WidgetPlugin[]; theme: Acti
   return {
     plugins: [
       corePlugin(),
-      diagramPlugin({
-        diagrams: [
-          'prob-diagram',
-          'sess-diagram',
-          'ep-diagram',
-          'neo-diagram',
-          'dream-diagram',
-          'exp-diagram',
-          'deb-diagram',
-          'conv-diagram',
-          'frac-diagram',
-          'cross-diagram',
-          'conf-diagram',
-        ],
-      }),
+      diagramPlugin(),
       themesPlugin(),
     ],
     theme: themes.darkGlass.dark,

@@ -42,6 +42,7 @@ import type {
 } from './engineTypes';
 import { useViewportRelativeScroll } from './useViewportRelativeScroll';
 import type { CompileWarning } from '../compiler/sceneTrackTypes';
+import type { AssetManifest } from '../widget/types';
 
 export interface SceneEngineProps {
   /**
@@ -160,7 +161,31 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
   const registrationsRef = useRef(new Map<string, ReactElement>());
   const lastContentKeyRef = useRef('');
   const [scenes, setScenes] = useState<InternalSceneSpec[]>([]);
-  const [manifest] = useState(null);
+  const [manifest, setManifest] = useState<AssetManifest | null>(null);
+
+  // Fetch manifests from any plugin that needs remote data (e.g. model manifest JSON).
+  // Runs once per plugin set. When any plugin resolves a non-null manifest, the
+  // widgetRegistry useMemo re-runs with the actual data and configureRegistry()
+  // is called again — this time with the manifest, completing type factory registration.
+  useEffect(() => {
+    const pluginsWithFetch = resolvedPlugins.filter((p) => p.fetchManifest != null);
+    if (pluginsWithFetch.length === 0) return;
+    let cancelled = false;
+    Promise.all(pluginsWithFetch.map((p) => p.fetchManifest!()))
+      .then((manifests) => {
+        if (cancelled) return;
+        const resolved = manifests.find((m) => m != null) ?? null;
+        if (resolved) setManifest(resolved);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
+        console.error('[SceneEngine] Failed to fetch plugin manifest:', err);
+        props.onError?.(err instanceof Error ? err : new Error(String(err)));
+      });
+    return () => { cancelled = true; };
+  // resolvedPlugins is stable (useMemo) — only re-fetch if the plugin set changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resolvedPlugins]);
 
   const register = useCallback((id: string, element: ReactElement) => {
     registrationsRef.current.set(id, element);

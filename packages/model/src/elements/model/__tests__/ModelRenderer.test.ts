@@ -320,8 +320,9 @@ describe('ModelRenderer', () => {
       extra: undefined,
     });
 
-    const mixer = (renderer as any).mixer as THREE.AnimationMixer;
-    const activeClip = (renderer as any).activeClip as THREE.AnimationClip;
+    const animationPlayer = (renderer as any).animationPlayer;
+    const mixer = animationPlayer.mixer as THREE.AnimationMixer;
+    const activeClip = animationPlayer.activeClip as THREE.AnimationClip;
     const action = mixer.clipAction(activeClip);
     const resetSpy = vi.spyOn(action, 'reset');
 
@@ -363,8 +364,9 @@ describe('ModelRenderer', () => {
       extra: undefined,
     });
 
-    const mixer = (renderer as any).mixer as THREE.AnimationMixer;
-    const activeClip = (renderer as any).activeClip as THREE.AnimationClip;
+    const animationPlayer = (renderer as any).animationPlayer;
+    const mixer = animationPlayer.mixer as THREE.AnimationMixer;
+    const activeClip = animationPlayer.activeClip as THREE.AnimationClip;
     const action = mixer.clipAction(activeClip);
     const resetSpy = vi.spyOn(action, 'reset');
 

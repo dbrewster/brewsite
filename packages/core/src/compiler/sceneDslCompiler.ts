@@ -216,17 +216,28 @@ function createHelpers(): { helpers: CompileHelpers; getBreadcrumbs: () => reado
           // React will call the component normally when EngineOverlayHost renders it.
           // After Children.toArray, developer-supplied keys are prefixed with '.$'.
           // A key NOT starting with '.$' means the element had no key in the source.
-          if (process.env.NODE_ENV !== 'production' && !childEl.key?.startsWith('.$')) {
-            api.pushWarning({
-              code: 'MISSING_KEY',
-              message:
-                `An overlay element <${getComponentName(childEl)}> has no key. ` +
-                'Add a key prop to prevent React reconciliation warnings. ' +
-                `Ancestry: ${formatBreadcrumbChain([...stack])}`,
-              sceneIndex: api.context.sceneIndex,
-            });
+          // If the element has no key but carries an `id` prop, use it as the React
+          // key automatically — `id` is the BrewSite identity contract for DSL elements
+          // and the author should not have to set both.
+          const hasKey = childEl.key?.startsWith('.$');
+          const idProp = typeof (childEl.props as Record<string, unknown>)?.['id'] === 'string'
+            ? (childEl.props as Record<string, unknown>)['id'] as string
+            : undefined;
+          if (!hasKey && idProp) {
+            overlayNodes.push(React.cloneElement(childEl, { key: idProp }));
+          } else {
+            if (process.env.NODE_ENV !== 'production' && !hasKey) {
+              api.pushWarning({
+                code: 'MISSING_KEY',
+                message:
+                  `An overlay element <${getComponentName(childEl)}> has no key. ` +
+                  'Add a key prop to prevent React reconciliation warnings. ' +
+                  `Ancestry: ${formatBreadcrumbChain([...stack])}`,
+                sceneIndex: api.context.sceneIndex,
+              });
+            }
+            overlayNodes.push(childEl);
           }
-          overlayNodes.push(childEl);
         }
       }
     }

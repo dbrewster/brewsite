@@ -11,18 +11,7 @@ export function createMemoryPlugins(): { plugins: WidgetPlugin[]; theme: ActiveT
   return {
     plugins: [
       corePlugin(),
-      diagramPlugin({
-        diagrams: [
-          'cls-diagram',
-          'episodic-diagram',
-          'somno-diagram',
-          'neo-types',
-          'neo-lifecycle',
-          'inject-diagram',
-          'loop-diagram',
-          'guard-diagram',
-        ],
-      }),
+      diagramPlugin(),
       themesPlugin(),
     ],
     theme: themes.darkGlass.dark,

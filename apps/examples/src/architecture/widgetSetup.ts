@@ -11,9 +11,7 @@ export function createArchitecturePlugins(): { plugins: WidgetPlugin[]; theme: A
   return {
     plugins: [
       corePlugin(),
-      diagramPlugin({
-        diagrams: ['arch-content'],
-      }),
+      diagramPlugin(),
       themesPlugin(),
     ],
     theme: themes.darkGlass.dark,

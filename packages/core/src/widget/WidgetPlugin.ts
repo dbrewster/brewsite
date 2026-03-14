@@ -40,12 +40,24 @@ export interface WidgetPlugin {
   registerHandlers(): void;
 
   /**
+   * Optional: fetches any external assets this plugin needs (e.g. a model
+   * manifest JSON). Called once by SceneEngine on mount, before the first
+   * compilation. The resolved manifest is passed to configureRegistry().
+   *
+   * Implement this when your plugin needs remote data before widgets can be
+   * registered. If the fetch fails, throw — SceneEngine will surface the error
+   * via onError. Return null if no manifest is needed.
+   */
+  fetchManifest?(): Promise<AssetManifest | null>;
+
+  /**
    * Optional: performs plugin-specific WidgetRegistry configuration after all
    * widgets from this plugin have been registered. Use to install type factories,
    * set up inter-widget cross-references, or apply manifest-derived configuration.
    *
-   * Called by EngineProvider immediately after this plugin's createWidgets() results
-   * are registered. `manifest` is null when no manifest has been fetched yet.
+   * Called by SceneEngine immediately after this plugin's createWidgets() results
+   * are registered. `manifest` is null when no manifest has been fetched yet;
+   * called again once fetchManifest() resolves with the actual data.
    */
   configureRegistry?(registry: WidgetRegistry, manifest: AssetManifest | null): void;
 

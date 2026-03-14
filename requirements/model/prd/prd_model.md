@@ -3,7 +3,7 @@ title: "@brewsite/model — GLTF Model & Label System"
 doc_type: prd
 status: approved
 owner: Toolkit Product
-last_updated: 2026-03-13
+last_updated: 2026-03-14
 change_history:
   - date: 2026-03-07
     author: "Toolkit Product"
@@ -20,6 +20,9 @@ change_history:
   - date: 2026-03-13
     author: "Toolkit Product"
     summary: "Comprehensive audit against actual codebase. Corrected SceneModel coordinate system (nvsX/nvsY/z replace position Vec3). Corrected SceneAnimation shape (many new fields: gltfClipName, fbxClipName, fbxRetarget, clipStart, clipEnd, clipRangeUnit, clipRepeat, clipStartOnce, trimStartKeyframes, trimEndKeyframes, holdStartPose, allowRotation, allowScale). Corrected SceneMotion shape (commands/scenes/customAnimations/pose/reset). Corrected MotionCommand shape (groupId, rotate, translate, weight, space — replaces old discriminated union). Added MotionScene, PoseGroup, ModelPose, CustomAnimation, CustomAnimationContext, CustomAnimationOp, BodyPartOverride. Documented ModelPartSpec correctly. Corrected ModelPluginOptions (manifestUrl and defaultModelStates replace widgetDefaults). Corrected LabelPositionerContext API (provides LabelPositioner instance directly, not a subscribe-based map). Corrected LabelItem API (takes label: LabelResolved prop, not id string). Corrected IContainedModel interface (extends IContainedRenderable from core, not IContainedModel standalone). Added IAttachmentHost, IRenderContributor, IHasCustomDslHandler to ModelWidget's interface list. Corrected ModelWidget implements IDslComposite via childDslComponents. Documented mergeSnapshot() method. Added AssetManifest v2 schema. Corrected wrapProvider pattern (LabelPositionerContext provides LabelPositioner instance directly). Added modelPlugin.getManifest() and fetchManifest() methods. Corrected label placement rule (Label must be under BodyPart or Subpart, not direct Model child). Added compileLabels() from compiler/labelCompiler.ts. Corrected LabelStyle.color/lineColor as LabelColor union ('target-color' | string). Added target-color inheritance behavior."
+  - date: 2026-03-14
+    author: "Toolkit Product"
+    summary: "Package refactor documentation update. Documented viewport-relative scale semantics (worldScale = scale * visibleWorldHeight). Removed instanceTransitionSpec (no longer exported). Replaced __authored type-bypass description with WeakMap pattern in modelDslHandler.ts. Added Module Structure table to Section 8. Added NVS Scale sub-section. Updated launch criteria: 5-scene model-showcase, ≥80% branch coverage, instanceTransitionSpec absent from codebase."
 ---
 
 # @brewsite/model — GLTF Model & Label System
@@ -351,6 +354,11 @@ export type ScenePlayback = {
 // ─── Model base state ───────────────────────────────────────────────────────
 
 export type SceneModel = {
+  /**
+   * Viewport-relative scale factor. The world-space scale applied to the model's Object3D is:
+   * `worldScale = scale * context.coords.visibleWorldHeight`. A value of `0.06` is typical
+   * for a human figure (≈ 6% of viewport height).
+   */
   scale: number;
   /**
    * NVS horizontal center position [0..1]. 0 = left, 1 = right.
@@ -588,17 +596,15 @@ export type ModelWidgetConfig = {
 };
 ```
 
+> **Authored flags:** Authored flags are stored in a module-level WeakMap in `modelDslHandler.ts`. `SceneModelInstanceState` objects are clean — no string-property pollution, no unsafe casts. `buildModelNodeHandler`, `getModelAuthoredFlags`, and `ModelAuthoredFlags` are internal to the package and not exported from the package barrel.
+
 ### Transition Functions
 
 ```typescript
 // packages/model/src/elements/model/compile.ts
 
-// Functional transition spec (preferred — evaluates at runtime for infinite easing fidelity)
+// Functional transition spec — evaluates at runtime for infinite easing fidelity
 export const functionalInstanceTransitionSpec: FunctionalTransitionSpec<SceneModelInstanceState>;
-
-// Imperative transition spec (deprecated — kept for backward compatibility)
-/** @deprecated Use functionalInstanceTransitionSpec instead. */
-export const instanceTransitionSpec: ElementTransitionSpec<SceneModelInstanceState>;
 
 // Component transition helpers (exported for testing and custom transitions)
 export const modelTransitionSpec: {
@@ -816,11 +822,30 @@ const LabelPositionerSyncer = (): ReactElement | null => {
 
 ## 8. Technical Considerations
 
+### Module Structure
+
+| File | Responsibility |
+|---|---|
+| `types.ts` | State types and shape contracts |
+| `dsl.tsx` | DSL prop interfaces |
+| `modelBlend.ts` | Pure blend/interpolation helpers |
+| `compile.ts` | Transition specs and animation compilation |
+| `modelDslHandler.ts` | CUSTOM_NODE_HANDLER factory, DSL merge helpers, authored-flags WeakMap |
+| `render.ts` | Stateless world-space transform application |
+| `ModelMaterialManager.ts` | Material base caching and override application |
+| `ModelAnimationPlayer.ts` | AnimationMixer management and clip application |
+| `ModelRenderer.ts` | GLTF loading, scene management, apply() orchestrator |
+| `ModelWidget.ts` | IWidget implementation — bridges compile state to render |
+
 ### NVS Coordinate System
 
 `SceneModel` does not use a world-space `position: Vec3`. Instead it uses `nvsX` (horizontal center [0..1]), `nvsY` (vertical center [0..1]), and `z` (world-space depth). These are computed in the `CUSTOM_NODE_HANDLER` from the `<Model x= y= w= h=>` props via `api.composeBounds()`, then stored in `SceneModelInstanceState`. At render time, `ModelWidget.apply()` converts `(nvsX, nvsY, z)` to world space using `context.coords.toWorld(nvsX, nvsY, z)` — a live NVS coordinate service injected by the engine.
 
 This design means `SceneModel` is free of Three.js camera math. All camera-dependent coordinate conversion happens in the render layer.
+
+### NVS Scale
+
+`SceneModel.scale` is a viewport-relative factor. The world-space scale applied to the model's Object3D is always: `worldScale = scale * context.coords.visibleWorldHeight`. A value of `0.06` is typical for a human figure (≈ 6% of viewport height). This matches how diagram sizes geometry, ensuring models appear at a consistent visual size across viewport dimensions.
 
 ### ModelWidget Registration Pattern
 
@@ -828,7 +853,7 @@ This design means `SceneModel` is free of Three.js camera math. All camera-depen
 
 ### mergeSnapshot Pattern
 
-`ModelWidget` implements `mergeSnapshot(prev, next)` to perform authored-flag-aware state merging. The `CUSTOM_NODE_HANDLER` attaches a `__authored` flags object to the compiled state, and `mergeSnapshot` uses those flags to determine which fields were explicitly set by the DSL author (versus inherited from the previous scene's state). This enables per-field scene inheritance: an author can set only `animation.clipName` in a scene and inherit all other state from the previous scene.
+`ModelWidget` implements `mergeSnapshot(prev, next)` to perform authored-flag-aware state merging. Authored flags are stored in a module-level WeakMap in `modelDslHandler.ts` — `SceneModelInstanceState` objects are clean with no string-property pollution. `mergeSnapshot` retrieves flags via `getModelAuthoredFlags(state)` to determine which fields were explicitly set by the DSL author (versus inherited from the previous scene's state). This enables per-field scene inheritance: an author can set only `animation.clipName` in a scene and inherit all other state from the previous scene.
 
 ### DSL Stub Co-location
 
@@ -860,7 +885,7 @@ Inside the `CUSTOM_NODE_HANDLER`, the model calls `api.composeBounds(localBounds
 
 **Semver impact: None** for current consumers. The existing DSL surface (`<Model>`, `<BodyPart>`, `<Animation>`, `<Motion>`) is stable. The `SceneModel` type changed its coordinate representation from `position: Vec3` to `nvsX/nvsY/z` (scalars) — this was an internal migration and `SceneModelInstanceState` is not expected to be constructed directly by consumers (they use DSL props).
 
-`instanceTransitionSpec` is deprecated in favor of `functionalInstanceTransitionSpec`. It remains exported for backward compatibility. Consumers using `instanceTransitionSpec` in custom scenes should migrate to `functionalInstanceTransitionSpec`.
+`instanceTransitionSpec` has been removed. Consumers must use `functionalInstanceTransitionSpec` instead.
 
 ---
 
@@ -899,6 +924,8 @@ None. All design decisions are resolved in the current implementation.
 - `modelPlugin()` registers `ModelWidget` instances lazily and mounts `LabelPositionerSyncer` correctly.
 - All types are importable from `@brewsite/core` or `@brewsite/model` main barrels.
 - Tests pass: `ModelWidget` unit tests, `LabelPositioner` unit tests, `AnimationTrackMapping` tests, `labelCompiler` tests.
-- `apps/examples/` contains at least one scene using `modelPlugin()` with a GLTF model and labels.
+- `apps/examples/src/model-showcase/` exists with **5 scenes**: idle intro, animation, body part labels, model in a View, and a three-model carousel.
+- Branch coverage for `packages/model/src` is ≥ 80% (excluding render.ts files).
+- `instanceTransitionSpec` does not appear anywhere in the codebase.
 - `pnpm build:lib` passes with zero TypeScript errors.
 - `pnpm test` passes for `@brewsite/model` with coverage targets met.
