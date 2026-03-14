@@ -29,13 +29,13 @@ type ScreenEntry = {
 export class MediaScreenRenderer {
   private screens = new Map<string, ScreenEntry>();
 
-  update(state: MediaScreenRenderInput, scene: THREE.Scene): void {
+  update(state: MediaScreenRenderInput, container: THREE.Object3D): void {
     const prev = this.screens.get(state.id)?.lastState;
     let entry = this.screens.get(state.id);
     if (!entry) {
       entry = this.createScreen(state);
       this.screens.set(state.id, entry);
-      scene.add(entry.group);
+      container.add(entry.group);
     }
 
     entry.group.position.set(state.position[0], state.position[1], state.position[2]);
@@ -71,7 +71,12 @@ export class MediaScreenRenderer {
     mat.opacity = state.opacity;
     mat.transparent = state.opacity < 1;
     mat.needsUpdate = true;
-    entry.texture.needsUpdate = true;
+    // Only request texture upload when the video element has frame data.
+    // Forcing needsUpdate before readyState >= HAVE_CURRENT_DATA (2) produces
+    // a WebGL INVALID_VALUE: texImage2D error every frame until the video loads.
+    if (entry.video.readyState >= 2) {
+      entry.texture.needsUpdate = true;
+    }
 
     if (state.width !== prev?.width || state.height !== prev?.height) {
       entry.screenMesh.geometry.dispose();
@@ -111,10 +116,10 @@ export class MediaScreenRenderer {
     entry.lastState = state;
   }
 
-  dispose(id: string, scene: THREE.Scene): void {
+  dispose(id: string, container: THREE.Object3D): void {
     const entry = this.screens.get(id);
     if (!entry) return;
-    scene.remove(entry.group);
+    container.remove(entry.group);
     entry.screenMesh.geometry.dispose();
     entry.texture.dispose();
     (entry.screenMesh.material as THREE.Material).dispose();

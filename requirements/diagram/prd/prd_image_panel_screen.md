@@ -1,14 +1,28 @@
 ---
 title: "BrewSite Diagram — ImagePanel and Screen Elements"
 doc_type: prd
-status: active
+status: deprecated
 owner: brewsite-product-manager
-last_updated: 2026-03-02
+last_updated: 2026-03-13
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
     summary: "Initial PRD created. Comprehensive documentation of the @brewsite/diagram ImagePanel and Screen elements as implemented."
+  - date: 2026-03-13
+    author: "Toolkit Product"
+    summary: >
+      Screen, ImagePanel, and bezelGeometry have been extracted from @brewsite/diagram
+      into the new @brewsite/screens package (v0.1.0). All three elements — Screen,
+      MediaScreen (new), and ImagePanel — now live in @brewsite/screens and are registered
+      via screensPlugin(). bezelGeometry was moved to @brewsite/screens/_shared/. glowSprite.ts
+      was retained in @brewsite/diagram (used internally by NodeRenderer; not a public export).
+      This PRD is now deprecated. The authoritative reference is
+      requirements/screens/prd/prd_screens-package.md.
 ---
+
+> **Deprecated.** Screen and ImagePanel were moved to `@brewsite/screens` in v0.1.0 (2026-03-13).
+> This document is retained for historical reference only.
+> The authoritative PRD is [`requirements/screens/prd/prd_screens-package.md`](../../screens/prd/prd_screens-package.md).
 
 # BrewSite Diagram — ImagePanel and Screen Elements
 

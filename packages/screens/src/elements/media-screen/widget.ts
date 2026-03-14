@@ -2,7 +2,7 @@
 // Static stream registry bridges live MediaStream objects into the compiled scene tick.
 
 import * as THREE from 'three';
-import type { IRenderable, ISceneElement, WidgetInitContext, WidgetRenderContext } from '@brewsite/core';
+import type { IGroupOwner, IRenderable, ISceneElement, WidgetInitContext, WidgetRenderContext } from '@brewsite/core';
 import { validateNVSScalar } from '@brewsite/core';
 import type { MediaScreenProps } from './dsl';
 import { compileMediaScreen, functionalMediaScreenTransitionSpec } from './compile';
@@ -13,11 +13,18 @@ import type { MediaScreenState } from './types';
 export function MediaScreen(_props: MediaScreenProps): null { return null; }
 
 /** Widget for WebGL video-texture screens with optional MediaStream support. */
-export class MediaScreenWidget implements ISceneElement<MediaScreenState>, IRenderable<MediaScreenState> {
+export class MediaScreenWidget implements ISceneElement<MediaScreenState>, IRenderable<MediaScreenState>, IGroupOwner {
   readonly widgetId: string;
   readonly defaultState: MediaScreenState;
   readonly transitionSpec = functionalMediaScreenTransitionSpec;
   readonly DslComponent = MediaScreen;
+
+  /**
+   * Root Group for this widget's 3D content. Exposed as IGroupOwner.rootGroup so that
+   * ViewWidget can re-parent it into a carousel/layout group, enabling carousel navigation
+   * to visually reposition MediaScreen panels.
+   */
+  readonly rootGroup = new THREE.Group();
 
   private renderer = new MediaScreenRenderer();
   private scene: THREE.Scene | null = null;
@@ -65,6 +72,10 @@ export class MediaScreenWidget implements ISceneElement<MediaScreenState>, IRend
 
   initialize({ scene }: WidgetInitContext): void {
     this.scene = scene as THREE.Scene;
+    // Add the root group to the scene. The renderer will parent screen geometry
+    // under this group. ViewWidget re-parents rootGroup into its carousel group
+    // on the first apply() call, which makes carousel nav reposition the panel.
+    this.scene.add(this.rootGroup);
   }
 
   apply(state: MediaScreenState, context: WidgetRenderContext): void {
@@ -101,12 +112,13 @@ export class MediaScreenWidget implements ISceneElement<MediaScreenState>, IRend
       width: worldW,
       height: worldH,
       resolvedStream,
-    }, this.scene);
+    }, this.rootGroup);
   }
 
   dispose(): void {
     if (!this.scene) return;
-    this.renderer.dispose(this.widgetId, this.scene);
+    this.renderer.dispose(this.widgetId, this.rootGroup);
+    this.scene.remove(this.rootGroup);
     this.scene = null;
     this.cachedWorldScale = null;
   }

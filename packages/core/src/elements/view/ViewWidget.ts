@@ -145,7 +145,10 @@ export class ViewWidget implements IRenderable<ViewState> {
 
   private applyOpacity(opacity: number): void {
     this.group.traverse((obj) => {
-      if (!(obj instanceof THREE.Mesh) || !obj.material) return;
+      // Apply to both Mesh and Sprite so glow sprites on inactive carousel panels
+      // are faded out together with screen meshes and bezel geometry.
+      const hasMaterial = (obj instanceof THREE.Mesh || obj instanceof THREE.Sprite) && obj.material;
+      if (!hasMaterial) return;
       const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
       for (const mat of materials) {
         if (!('opacity' in mat)) continue;

@@ -14,6 +14,7 @@ const ThemeGalleryPage = lazy(() => import('./theme-gallery/ThemeGalleryPage'));
 const ViewDemoPage = lazy(() => import('./views/ViewDemoPage'));
 const InputShowcasePage = lazy(() => import('./input-showcase/InputShowcasePage'));
 const CoreShowcasePage = lazy(() => import('./core-showcase/CoreShowcasePage'));
+const MediaScreenDemoPage = lazy(() => import('./media-screen-demo/MediaScreenDemoPage'));
 
 function Loading(): JSX.Element {
   return <div style={{ padding: '2rem' }}>Loading example...</div>;
@@ -35,6 +36,7 @@ export default function ExamplesApp(): JSX.Element {
         <Route path="/views" element={<ViewDemoPage />} />
         <Route path="/input-showcase" element={<InputShowcasePage />} />
         <Route path="/core-showcase" element={<CoreShowcasePage />} />
+        <Route path="/media-screen-demo" element={<MediaScreenDemoPage />} />
         <Route
           path="/"
           element={
@@ -53,6 +55,7 @@ export default function ExamplesApp(): JSX.Element {
                 <li><a href="/examples/views">View/ViewLayout Demo</a></li>
                 <li><a href="/examples/input-showcase">Input Options Showcase</a></li>
                 <li><a href="/examples/core-showcase">Core Showcase — @brewsite/core Features</a></li>
+                <li><a href="/examples/media-screen-demo">MediaScreen Demo — @brewsite/screens</a></li>
               </ul>
             </div>
           }

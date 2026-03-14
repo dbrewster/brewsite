@@ -26,7 +26,8 @@
     "@brewsite/core": "workspace:*",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "three": "^0.183.1"
+    "three": "^0.183.1",
+    "troika-three-text": "^0.52.4"
   },
   "dependencies": {
     "d3-array": "^3.2.4",
@@ -34,11 +35,11 @@
     "d3-scale": "^4.0.2",
     "d3-scale-chromatic": "^3.1.0",
     "d3-shape": "^3.2.0",
-    "d3-time-format": "^4.1.0",
-    "troika-three-text": "^0.52.4"
+    "d3-time-format": "^4.1.0"
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",
+    "troika-three-text": "^0.52.4",
     "@types/d3-array": "^3.2.1",
     "@types/d3-format": "^3.0.4",
     "@types/d3-scale": "^4.0.8",

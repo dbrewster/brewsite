@@ -10,6 +10,8 @@
       "@brewsite/diagram/*": ["../packages/diagram/src/*"],
       "@brewsite/charts": ["../packages/charts/src/index.ts"],
       "@brewsite/charts/*": ["../packages/charts/src/*"],
+      "@brewsite/screens": ["../packages/screens/src/index.ts"],
+      "@brewsite/screens/*": ["../packages/screens/src/*"],
       "@brewsite/slides": ["../packages/slides/src/index.ts"],
       "@brewsite/slides/*": ["../packages/slides/src/*"],
       "@brewsite/themes": ["../packages/themes/src/index.ts"],
@@ -40,6 +42,9 @@
     "./website/src/**/*.tsx",
     "./examples/src/**/*.ts",
     "./examples/src/**/*.tsx",
+    "../packages/core/src/types/process.d.ts",
+    "../packages/diagram/src/types/troika-three-text.d.ts",
+    "../packages/charts/src/types/troika-three-text.d.ts"
   ],
   "exclude": [
     "node_modules",

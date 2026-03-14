@@ -23,7 +23,8 @@
   "include": [
     "src",
     "../core/src/types/process.d.ts",
-    "../diagram/src/troika-three-text.d.ts"
+    "../diagram/src/types/troika-three-text.d.ts",
+    "../charts/src/types/troika-three-text.d.ts"
   ],
   "exclude": ["node_modules", "dist", "**/__tests__/**", "**/*.test.*"]
 }

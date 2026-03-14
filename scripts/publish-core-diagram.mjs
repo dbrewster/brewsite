@@ -162,6 +162,7 @@ run("pnpm", ["--filter", "@brewsite/core", "build"]);
 run("pnpm", ["--filter", "@brewsite/diagram", "build"]);
 run("pnpm", ["--filter", "@brewsite/model", "build"]);
 run("pnpm", ["--filter", "@brewsite/charts", "build"]);
+run("pnpm", ["--filter", "@brewsite/screens", "build"]);
 
 // ─── Step 6: Publish ──────────────────────────────────────────────────────────
 

@@ -13,7 +13,8 @@ export function compileMediaScreen(dsl: MediaScreenDSL): MediaScreenState {
   const hasStreamId = Boolean(dsl.streamId?.length);
 
   if (process.env.NODE_ENV !== 'production') {
-    if (!hasSrc && !hasStreamId)
+    // Skip source-presence warning for disabled placeholders (e.g. initial widget registration).
+    if (!hasSrc && !hasStreamId && dsl.enabled !== false)
       console.warn(`<MediaScreen id="${dsl.id}">: no src or streamId. Will render black.`);
     if (hasSrc && hasStreamId)
       console.warn(`<MediaScreen id="${dsl.id}">: both src and streamId set. src takes precedence.`);
