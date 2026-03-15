@@ -1,7 +1,6 @@
 // ModelShowcasePage.tsx — Model showcase example page.
 
-import { type JSX, useRef } from 'react';
-import { useMemo } from 'react';
+import { type JSX, useRef, useMemo, useState } from 'react';
 import {
   BackgroundLayer,
   corePlugin,
@@ -11,6 +10,9 @@ import {
   SceneEngine,
   ScrollStage,
   type ScrollStageHandle,
+  type ThemeFamily,
+  type ThemePolarity,
+  type ActiveTheme,
 } from '@brewsite/core';
 import { LabelItem } from '@brewsite/model';
 import { modelShowcasePlugin } from './widgetSetup';
@@ -20,15 +22,24 @@ import { Scene02Animation } from './scenes/scene02_animation';
 import { Scene03Labels } from './scenes/scene03_labels';
 import { Scene04View } from './scenes/scene04_view';
 import { Scene05Carousel } from './scenes/scene05_carousel';
-import { ChartProgressIndicator } from '../Lights';
+import { ChartProgressIndicator, ThemeToggle } from '../Lights';
 
 export default function ModelShowcasePage(): JSX.Element {
   const plugins = useMemo(() => [corePlugin(), modelShowcasePlugin], []);
   const scrollStageRef = useRef<ScrollStageHandle | null>(null);
 
+  const [family, setFamily] = useState<ThemeFamily>('darkGlass');
+  const [polarity, setPolarity] = useState<ThemePolarity>('dark');
+  const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
+
   return (
-    <div style={{ height: '100vh', overflow: 'hidden', background: '#030510' }}>
-      <SceneEngine plugins={plugins}>
+    <div style={{ position: 'relative', height: '100vh', overflow: 'hidden', background: '#030510' }}>
+      <ThemeToggle
+        onPolarityChange={setPolarity}
+        onFamilyChange={setFamily}
+        persist
+      />
+      <SceneEngine plugins={plugins} theme={theme}>
 
         {/* Scene declarations */}
         <Scene01Intro />

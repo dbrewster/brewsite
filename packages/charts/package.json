@@ -13,7 +13,11 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "LICENSE", "README.md"],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "build:lib": "tsc -p tsconfig.build.json",
@@ -39,19 +43,20 @@
   },
   "devDependencies": {
     "@testing-library/react": "^16.3.2",
-    "troika-three-text": "^0.52.4",
     "@types/d3-array": "^3.2.1",
     "@types/d3-format": "^3.0.4",
     "@types/d3-scale": "^4.0.8",
     "@types/d3-scale-chromatic": "^3.1.0",
     "@types/d3-shape": "^3.1.6",
     "@types/d3-time-format": "^4.0.3",
+    "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.183.1",
     "@vitejs/plugin-react": "^4.7.0",
     "@vitest/coverage-v8": "^2.1.9",
     "jsdom": "^24.0.0",
+    "troika-three-text": "^0.52.4",
     "typescript": "^5.9.3",
     "vitest": "^2.1.9"
   }

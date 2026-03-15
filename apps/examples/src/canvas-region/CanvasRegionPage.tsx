@@ -1,10 +1,10 @@
 // CanvasRegionPage.tsx — Canvas Region embedding mode example.
 
-import { type JSX, useMemo } from 'react';
-import { SceneReel, InputCoordinator } from '@brewsite/core';
-import { themes } from '@brewsite/themes';
+import { type JSX, useMemo, useState } from 'react';
+import { SceneReel, InputCoordinator, type ThemeFamily, type ThemePolarity, type ActiveTheme } from '@brewsite/core';
 import { createCanvasRegionPlugins } from './widgetSetup';
 import { ViewerScene } from './scenes/viewerScene';
+import { ThemeToggle } from '../Lights';
 
 const PAGE_STYLES = {
   wrapper: {
@@ -53,8 +53,17 @@ const PAGE_STYLES = {
 export default function CanvasRegionPage(): JSX.Element {
   const plugins = useMemo(() => createCanvasRegionPlugins(), []);
 
+  const [family, setFamily] = useState<ThemeFamily>('darkGlass');
+  const [polarity, setPolarity] = useState<ThemePolarity>('dark');
+  const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
+
   return (
-    <div style={PAGE_STYLES.wrapper}>
+    <div style={{ ...PAGE_STYLES.wrapper, position: 'relative' }}>
+      <ThemeToggle
+        onPolarityChange={setPolarity}
+        onFamilyChange={setFamily}
+        persist
+      />
       {/* Left sidebar — prose content */}
       <aside style={PAGE_STYLES.sidebar}>
         <h1 style={PAGE_STYLES.heading}>Canvas Region</h1>
@@ -86,7 +95,7 @@ export default function CanvasRegionPage(): JSX.Element {
         <SceneReel
           height="100vh"
           plugins={plugins}
-          theme={themes.darkGlass.dark}
+          theme={theme}
           defaultTransitionDuration={500}
         >
           <ViewerScene />

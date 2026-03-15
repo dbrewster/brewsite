@@ -25,11 +25,11 @@ export function ViewerScene(): JSX.Element {
         <Action id="orbit" type="camera.orbit">
           <PointerMap event="drag" button="left" />
         </Action>
-        <Action id="dolly" type="camera.dolly">
+        <Action id="dolly" type="camera.zoom">
           <WheelMap />
           <PinchMap />
         </Action>
-        <Action id="pan" type="canvas.pan">
+        <Action id="pan" type="camera.pan">
           <PointerMap event="drag" button="left" modifiers={['shift']} />
         </Action>
         <Action id="reset" type="camera.reset">

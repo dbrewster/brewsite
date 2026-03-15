@@ -2,9 +2,7 @@
   "mcpServers": {
     "brewsite-docs": {
       "command": "node",
-      "args": [
-        ".claude/mcp-servers/brewsite-docs.js"
-      ]
+      "args": [".claude/mcp-servers/brewsite-docs.js"]
     }
   }
 }

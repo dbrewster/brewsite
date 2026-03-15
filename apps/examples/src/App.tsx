@@ -3,13 +3,7 @@ import {lazy, Suspense} from 'react';
 import {Route, Routes} from 'react-router';
 
 const ChartDemoPage = lazy(() => import('./chart/ChartDemoPage'));
-const ArchitecturePage = lazy(() => import('./architecture/ArchitecturePage'));
-const SidecarNotePage = lazy(() => import('./brewflow-sidecar/SidecarNotePage'));
-const MemorySubsystemPage = lazy(() => import('./brewflow-memory/MemorySubsystemPage'));
-const ComparisonPage = lazy(() => import('./brewflow-comparison/ComparisonPage'));
-const MultiUserPage = lazy(() => import('./brewflow-multiuser/MultiUserPage'));
 const SlidesDemoPage = lazy(() => import('./slides-demo/SlidesDemoPage'));
-const WhiteboardArchPage = lazy(() => import('./whiteboard-arch/WhiteboardArchPage'));
 const ThemeGalleryPage = lazy(() => import('./theme-gallery/ThemeGalleryPage'));
 const ViewDemoPage = lazy(() => import('./views/ViewDemoPage'));
 const InputShowcasePage = lazy(() => import('./input-showcase/InputShowcasePage'));

@@ -2,7 +2,7 @@
 // Canvas fills the full viewport. TopChrome and BottomChrome are fixed overlays
 // outside the canvas but inside SceneEngine (so they can use engine hooks).
 import type { JSX } from 'react';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import {
   InputCoordinator,
   BackgroundLayer,
@@ -10,9 +10,13 @@ import {
   SceneCanvas,
   SceneEngine,
   ScrollStage,
+  type ThemeFamily,
+  type ThemePolarity,
+  type ActiveTheme,
 } from '@brewsite/core';
 import { ChartTooltipHost } from '@brewsite/charts';
 import { createCoreShowcasePlugins } from './widgetSetup';
+import { ThemeToggle } from '../Lights';
 import { TopChrome, BottomChrome } from './overlays';
 import {
   HeroScene,
@@ -32,10 +36,19 @@ import {
 } from './scenes';
 
 export default function CoreShowcasePage(): JSX.Element {
-  const { plugins, theme } = useMemo(() => createCoreShowcasePlugins(), []);
+  const { plugins } = useMemo(() => createCoreShowcasePlugins(), []);
+
+  const [family, setFamily] = useState<ThemeFamily>('darkGlass');
+  const [polarity, setPolarity] = useState<ThemePolarity>('dark');
+  const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
 
   return (
-    <div style={{ height: '100vh', overflow: 'hidden', background: '#030510' }}>
+    <div style={{ position: 'relative', height: '100vh', overflow: 'hidden', background: '#030510' }}>
+      <ThemeToggle
+        onPolarityChange={setPolarity}
+        onFamilyChange={setFamily}
+        persist
+      />
       <SceneEngine plugins={plugins} theme={theme}>
 
         {/* ── Scene declarations ──────────────────────────────────────────── */}

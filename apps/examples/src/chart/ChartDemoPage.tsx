@@ -1,6 +1,6 @@
 // Chart demo page — 10-scene V2 showcase.
 import type { JSX } from 'react';
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   InputCoordinator,
   BackgroundLayer,
@@ -10,10 +10,14 @@ import {
   SceneEngine,
   ScrollStage,
   type ScrollStageHandle,
+  type ThemeFamily,
+  type ThemePolarity,
+  type ActiveTheme,
   clearSceneTrackCache,
 } from '@brewsite/core';
 import { ChartTooltipHost } from '@brewsite/charts';
 import { createChartDemoPlugins } from './widgetSetup';
+import { ThemeToggle } from '../Lights';
 
 // Bust the compiled SceneTrack cache whenever this module is re-evaluated by Vite HMR.
 // This ensures changes to transition specs (functionalChartTransitionSpec, etc.) take effect
@@ -34,8 +38,12 @@ import { Scene10 } from './scenes/scene10-linked-brush';
 import {ChartProgressIndicator} from "../Lights";
 
 export default function ChartDemoPage(): JSX.Element {
-  const { plugins, theme } = useMemo(() => createChartDemoPlugins(), []);
+  const { plugins } = useMemo(() => createChartDemoPlugins(), []);
   const scrollStageRef = useRef<ScrollStageHandle | null>(null);
+
+  const [family, setFamily] = useState<ThemeFamily>('lightCanvas');
+  const [polarity, setPolarity] = useState<ThemePolarity>('light');
+  const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
 
   return (
     <div
@@ -45,9 +53,18 @@ export default function ChartDemoPage(): JSX.Element {
         flexFlow: 'column',
         height: '100vh',
         overflow: 'hidden',
-        background: 'radial-gradient(circle at 50% 0%, #f2f4f3 0%, #dadada 42%, #c2c8c2 72%, #d6d3d6 100%)',
+        background: polarity === 'light'
+          ? 'radial-gradient(circle at 50% 0%, #f2f4f3 0%, #dadada 42%, #c2c8c2 72%, #d6d3d6 100%)'
+          : 'radial-gradient(circle at 50% 0%, #0a1830 0%, #04091a 42%, #020610 72%, #010408 100%)',
       }}
     >
+      <ThemeToggle
+        onPolarityChange={setPolarity}
+        onFamilyChange={setFamily}
+        initialFamily="lightCanvas"
+        initialPolarity="light"
+        persist
+      />
       <SceneEngine
         plugins={plugins}
         theme={theme}
