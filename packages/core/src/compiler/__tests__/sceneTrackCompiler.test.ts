@@ -635,4 +635,90 @@ describe('compileSceneTrack', () => {
     const block = track.ticks.slice(0, 4).map((tick) => tick.state.widgets['__input_controller']);
     expect(block).toEqual([fromInputSpec, fromInputSpec, fromInputSpec, fromInputSpec]);
   });
+
+  // ─── Stream D: default input spec injection ──────────────────────────────────
+
+  it('injects createDefaultInputSpec when no scene declares an <InputController>', () => {
+    const widget = makeWidget({
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+    });
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [makeScene('s1', { w: 1 }), makeScene('s2', { w: 2 })];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+
+    const spec = track.ticks[0]!.state.widgets['__input_controller'] as Record<string, unknown>;
+    expect(spec).toBeDefined();
+    // Default spec uses 'canvas' scope (not 'window').
+    expect(spec.scope).toBe('canvas');
+    // Default spec includes arrow navigation and carousel sentinel actions.
+    const actions = spec.actions as Array<{ type: string; layoutId?: string }>;
+    expect(actions.some((a) => a.type === 'scene.next')).toBe(true);
+    expect(actions.some((a) => a.type === 'scene.prev')).toBe(true);
+    expect(actions.some((a) => a.type === 'carousel.next')).toBe(true);
+    // Carousel actions use the sentinel layoutId.
+    const carouselNext = actions.find((a) => a.type === 'carousel.next');
+    expect(carouselNext?.layoutId).toBe('__primary_carousel__');
+  });
+
+  it('does NOT inject default spec when a scene already declares __input_controller', () => {
+    const widget = makeWidget({
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+    });
+    const registry = new WidgetRegistry().register(widget);
+    const customSpec = { id: 'custom', scope: 'window', actions: [] };
+    const scenes = [
+      makeScene('s1', { w: 1, __input_controller: customSpec }),
+      makeScene('s2', { w: 2 }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+
+    // Custom spec must be preserved, not overwritten.
+    const spec = track.ticks[0]!.state.widgets['__input_controller'] as Record<string, unknown>;
+    expect(spec.id).toBe('custom');
+    expect(spec.scope).toBe('window');
+  });
+
+  // ─── Stream D: primaryCarouselId propagation ─────────────────────────────────
+
+  it('propagates primaryCarouselId from SceneFrame to each tick state', () => {
+    const widget = makeWidget({
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+    });
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      {
+        id: 's1',
+        getFrame: () => ({ id: 's1', scrollProgress: 0, widgets: { w: 1 }, primaryCarouselId: 'carousel-layout' }),
+      },
+      makeScene('s2', { w: 2 }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+
+    // All ticks in scene s1's window should carry primaryCarouselId.
+    const tick0 = track.ticks[0]!.state;
+    expect((tick0 as { primaryCarouselId?: string }).primaryCarouselId).toBe('carousel-layout');
+  });
+
+  it('does not carry primaryCarouselId to ticks from a scene without it', () => {
+    const widget = makeWidget({
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+    });
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      makeScene('s1', { w: 1 }),
+      makeScene('s2', { w: 2 }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+
+    const tick0 = track.ticks[0]!.state;
+    expect((tick0 as { primaryCarouselId?: string }).primaryCarouselId).toBeUndefined();
+  });
 });

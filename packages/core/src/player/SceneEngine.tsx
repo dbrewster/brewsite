@@ -110,6 +110,18 @@ export interface SceneEngineProps {
    */
   scrollSource?: ScrollSource;
 
+  /**
+   * Default duration (ms) for programmatic scene transition animations triggered
+   * by keyboard/button input. Default: 400ms.
+   */
+  defaultTransitionDuration?: number;
+
+  /**
+   * Default easing function for programmatic scene transition animations.
+   * Default: cubic ease-in-out.
+   */
+  defaultTransitionEasing?: import('../input/transitionAnimator').TransitionEasing;
+
   onReady?: () => void;
   onError?: (error: Error) => void;
   onWidgetError?: (widgetId: string, error: Error) => void;
@@ -163,14 +175,22 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
   const [scenes, setScenes] = useState<InternalSceneSpec[]>([]);
   const [manifest, setManifest] = useState<AssetManifest | null>(null);
 
-  // Fetch manifests from any plugin that needs remote data (e.g. model manifest JSON).
-  // Runs once per plugin set. When any plugin resolves a non-null manifest, the
-  // widgetRegistry useMemo re-runs with the actual data and configureRegistry()
-  // is called again — this time with the manifest, completing type factory registration.
+  // True when no plugin needs a manifest, or after all manifests have been fetched.
+  // While false, scenes are withheld from useSceneEngine so compilation doesn't
+  // run until the registry has full capabilities (type factories, etc.).
+  const needsManifest = useMemo(
+    () => resolvedPlugins.some((p) => p.fetchManifest != null),
+    [resolvedPlugins],
+  );
+  const manifestReady = !needsManifest || manifest !== null;
+
+  // Fetch manifests from plugins that declare fetchManifest(). Runs once per
+  // plugin set. When resolved, setManifest triggers a single widgetRegistry
+  // rebuild and compilation — no double-compile.
   useEffect(() => {
-    const pluginsWithFetch = resolvedPlugins.filter((p) => p.fetchManifest != null);
-    if (pluginsWithFetch.length === 0) return;
+    if (!needsManifest) return;
     let cancelled = false;
+    const pluginsWithFetch = resolvedPlugins.filter((p) => p.fetchManifest != null);
     Promise.all(pluginsWithFetch.map((p) => p.fetchManifest!()))
       .then((manifests) => {
         if (cancelled) return;
@@ -183,9 +203,8 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
         props.onError?.(err instanceof Error ? err : new Error(String(err)));
       });
     return () => { cancelled = true; };
-  // resolvedPlugins is stable (useMemo) — only re-fetch if the plugin set changes.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedPlugins]);
+  }, [resolvedPlugins, needsManifest]);
 
   const register = useCallback((id: string, element: ReactElement) => {
     registrationsRef.current.set(id, element);
@@ -260,8 +279,11 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
       : null;
 
   // ─── Engine hook ────────────────────────────────────────────────────────────
+  // Withhold scenes until the manifest is ready so the first (and only)
+  // compilation has full registry capabilities — no wasted double-compile.
+  const readyScenes = manifestReady ? scenes : [];
   const engine = useSceneEngine({
-    scenes,
+    scenes: readyScenes,
     widgetRegistry,
     plugins: resolvedPlugins,
     manifest,
@@ -272,6 +294,8 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
     invalidateCacheToken: props.invalidateCacheToken,
     primaryCameraId: props.primaryCameraId,
     primaryCanvasActionTargetId: props.primaryCanvasActionTargetId,
+    defaultTransitionDuration: props.defaultTransitionDuration,
+    defaultTransitionEasing: props.defaultTransitionEasing,
     onReady: props.onReady,
     onError: props.onError,
     onWidgetError: props.onWidgetError,

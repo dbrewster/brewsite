@@ -1,4 +1,5 @@
 import type {
+  ActionInputHandler,
   InputActionMap,
   InputActionSpec,
   ModifierKey,
@@ -30,38 +31,33 @@ const buttonMatches = (eventButton: number, expected?: MouseButton): boolean => 
   return eventButton === idx;
 };
 
-export type ActionInputHandler = {
-  getSceneCount: () => number;
-  onSceneStep: (direction: 1 | -1, stepScenes: number) => void;
-  onCameraOrbit: (cameraId: string, dx: number, dy: number, speed: number) => void;
-  onCameraDolly: (cameraId: string, delta: number, speed: number) => void;
-  onCameraReset: (cameraId: string) => void;
-  /**
-   * Advance a carousel layout by stepSlides in the given direction.
-   * Required because carousel.next/carousel.prev are core-dispatched action
-   * types (explicit InputActionType members), not extension types.
-   *
-   * @param layoutId   - The target ViewLayout widget ID.
-   * @param direction  - +1 = next, -1 = prev.
-   * @param stepSlides - Number of slides to advance. Default: 1.
-   */
-  onCarouselStep: (layoutId: string, direction: 1 | -1, stepSlides: number) => void;
-  /**
-   * Dispatches an action type not handled by core to any registered extension handler.
-   * @brewsite/diagram provides its diagram-canvas.* handling via this callback.
-   *
-   * @param type      - The action type string (e.g. 'diagram-canvas.move').
-   * @param canvasId  - The target canvas widget ID (from action.canvasId).
-   * @param event     - The originating DOM event.
-   * @param extra     - Additional action-spec fields (speed, focusCenter, dx, dy, etc.).
-   */
-  onUnknownAction?: (
-    type: string,
-    canvasId: string | undefined,
-    event: PointerEvent | WheelEvent | KeyboardEvent | MouseEvent,
-    extra: Record<string, unknown>,
-  ) => void;
+// ActionInputHandler has moved to types.ts. Re-exported for backwards compatibility.
+export type { ActionInputHandler } from './types';
+
+/**
+ * Detail payload included with every action-fired event.
+ * Fields are optional and vary by action type.
+ */
+export type ActionFiredDetail = {
+  cameraId?: string;
+  canvasId?: string;
+  layoutId?: string;
+  direction?: 1 | -1;
+  dx?: number;
+  dy?: number;
+  delta?: number;
+  speed?: number;
 };
+
+/**
+ * Callback invoked synchronously after every action dispatch.
+ * Receives the action type, action id, and a detail payload.
+ */
+export type ActionFiredListener = (
+  actionType: string,
+  actionId: string,
+  detail: ActionFiredDetail,
+) => void;
 
 type ActiveDrag = {
   action: InputActionSpec;
@@ -113,6 +109,7 @@ export class ActionInputController {
   private readonly wheelLockIdleMs: number;
   private readonly onUnclaimedWheel: ((event: WheelEvent) => void) | null;
   private warnedLegacyCameraId = false;
+  private readonly actionFiredListeners: ActionFiredListener[] = [];
 
   private readonly onPointerDown: (e: PointerEvent) => void;
   private readonly onPointerMove: (e: PointerEvent) => void;
@@ -165,6 +162,30 @@ export class ActionInputController {
     this.activeWheelLock = null;
     this.touchPoints.clear();
     this.activePinchDistance = null;
+    this.actionFiredListeners.length = 0;
+  }
+
+  /**
+   * Subscribe to all dispatched actions.
+   * The listener is called synchronously after every successful action dispatch.
+   * Returns an unsubscribe function.
+   */
+  onActionFired(listener: ActionFiredListener): () => void {
+    this.actionFiredListeners.push(listener);
+    return () => {
+      const idx = this.actionFiredListeners.indexOf(listener);
+      if (idx >= 0) this.actionFiredListeners.splice(idx, 1);
+    };
+  }
+
+  private fireActionEvent(
+    actionType: string,
+    actionId: string,
+    detail: ActionFiredDetail,
+  ): void {
+    for (const listener of this.actionFiredListeners) {
+      listener(actionType, actionId, detail);
+    }
   }
 
   private actionSpeed(action: InputActionSpec): number {
@@ -189,6 +210,7 @@ export class ActionInputController {
     }
     const direction: 1 | -1 = action.type === 'carousel.next' ? 1 : -1;
     this.handler.onCarouselStep(action.layoutId, direction, this.actionStepSlides(action));
+    this.fireActionEvent(action.type, action.id, { layoutId: action.layoutId, direction });
   }
 
   private nowMs(): number {
@@ -301,8 +323,9 @@ export class ActionInputController {
     const speed = this.actionSpeed(action);
     const cameraId = this.resolveCameraId(action);
     switch (action.type) {
-      case 'camera.dolly':
-        this.handler.onCameraDolly(cameraId, pinchDelta, speed);
+      case 'camera.zoom':
+        this.handler.onCameraZoom(cameraId, pinchDelta, speed);
+        this.fireActionEvent(action.type, action.id, { cameraId, delta: pinchDelta, speed });
         return;
       default:
         return;
@@ -365,16 +388,25 @@ export class ActionInputController {
     const filtered = this.applyAxisToDelta(mapAxis, lockAxis, dx, dy);
 
     switch (action.type) {
-      case 'camera.orbit':
-        this.handler.onCameraOrbit(this.resolveCameraId(action), filtered.dx, filtered.dy, speed);
+      case 'camera.orbit': {
+        const cameraId = this.resolveCameraId(action);
+        this.handler.onCameraOrbit(cameraId, filtered.dx, filtered.dy, speed);
+        this.fireActionEvent(action.type, action.id, { cameraId, dx: filtered.dx, dy: filtered.dy, speed });
         return;
-      case 'camera.dolly':
-        this.handler.onCameraDolly(
-          this.resolveCameraId(action),
-          this.pointerDelta(mapAxis, filtered.dx, filtered.dy),
-          speed,
-        );
+      }
+      case 'camera.zoom': {
+        const cameraId = this.resolveCameraId(action);
+        const delta = this.pointerDelta(mapAxis, filtered.dx, filtered.dy);
+        this.handler.onCameraZoom(cameraId, delta, speed);
+        this.fireActionEvent(action.type, action.id, { cameraId, delta, speed });
         return;
+      }
+      case 'camera.pan': {
+        const cameraId = this.resolveCameraId(action);
+        this.handler.onCameraPan(cameraId, filtered.dx, filtered.dy, speed);
+        this.fireActionEvent(action.type, action.id, { cameraId, dx: filtered.dx, dy: filtered.dy, speed });
+        return;
+      }
       default:
         this.handler.onUnknownAction?.(action.type, action.canvasId, e, {
           speed: action.speed,
@@ -399,20 +431,37 @@ export class ActionInputController {
     const mainDelta = this.pointerDelta(mapAxis, filtered.dx, filtered.dy);
 
     switch (action.type) {
-      case 'camera.orbit':
-        this.handler.onCameraOrbit(this.resolveCameraId(action), filtered.dx, filtered.dy, speed * 0.4);
+      case 'camera.orbit': {
+        const cameraId = this.resolveCameraId(action);
+        this.handler.onCameraOrbit(cameraId, filtered.dx, filtered.dy, speed * 0.4);
+        this.fireActionEvent(action.type, action.id, { cameraId, dx: filtered.dx, dy: filtered.dy, speed: speed * 0.4 });
         return;
-      case 'camera.dolly':
-        this.handler.onCameraDolly(this.resolveCameraId(action), mainDelta, speed);
+      }
+      case 'camera.zoom': {
+        const cameraId = this.resolveCameraId(action);
+        this.handler.onCameraZoom(cameraId, mainDelta, speed);
+        this.fireActionEvent(action.type, action.id, { cameraId, delta: mainDelta, speed });
         return;
-      case 'camera.reset':
-        this.handler.onCameraReset(this.resolveCameraId(action));
+      }
+      case 'camera.pan': {
+        const cameraId = this.resolveCameraId(action);
+        this.handler.onCameraPan(cameraId, filtered.dx, filtered.dy, speed);
+        this.fireActionEvent(action.type, action.id, { cameraId, dx: filtered.dx, dy: filtered.dy, speed });
         return;
+      }
+      case 'camera.reset': {
+        const cameraId = this.resolveCameraId(action);
+        this.handler.onCameraReset(cameraId);
+        this.fireActionEvent(action.type, action.id, { cameraId });
+        return;
+      }
       case 'scene.next':
         this.handler.onSceneStep(1, this.actionStepScenes(action));
+        this.fireActionEvent(action.type, action.id, { direction: 1 });
         return;
       case 'scene.prev':
         this.handler.onSceneStep(-1, this.actionStepScenes(action));
+        this.fireActionEvent(action.type, action.id, { direction: -1 });
         return;
       case 'carousel.next':
       case 'carousel.prev':
@@ -430,14 +479,19 @@ export class ActionInputController {
 
   private dispatchKey(action: InputActionSpec, e: KeyboardEvent): void {
     switch (action.type) {
-      case 'camera.reset':
-        this.handler.onCameraReset(this.resolveCameraId(action));
+      case 'camera.reset': {
+        const cameraId = this.resolveCameraId(action);
+        this.handler.onCameraReset(cameraId);
+        this.fireActionEvent(action.type, action.id, { cameraId });
         return;
+      }
       case 'scene.next':
         this.handler.onSceneStep(1, this.actionStepScenes(action));
+        this.fireActionEvent(action.type, action.id, { direction: 1 });
         return;
       case 'scene.prev':
         this.handler.onSceneStep(-1, this.actionStepScenes(action));
+        this.fireActionEvent(action.type, action.id, { direction: -1 });
         return;
       case 'carousel.next':
       case 'carousel.prev':
@@ -455,9 +509,11 @@ export class ActionInputController {
     switch (action.type) {
       case 'scene.next':
         this.handler.onSceneStep(1, this.actionStepScenes(action));
+        this.fireActionEvent(action.type, action.id, { direction: 1 });
         return;
       case 'scene.prev':
         this.handler.onSceneStep(-1, this.actionStepScenes(action));
+        this.fireActionEvent(action.type, action.id, { direction: -1 });
         return;
       case 'carousel.next':
       case 'carousel.prev':

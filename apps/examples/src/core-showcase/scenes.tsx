@@ -752,7 +752,7 @@ export const InputScene = (): JSX.Element => (
       <Action id="cs-orbit" type="camera.orbit">
         <PointerMap event="drag" button="left" axis="xy" />
       </Action>
-      <Action id="cs-dolly" type="camera.dolly">
+      <Action id="cs-dolly" type="camera.zoom">
         <WheelMap axis="y" />
       </Action>
       <Action id="cs-reset" type="camera.reset">
@@ -773,7 +773,7 @@ export const InputScene = (): JSX.Element => (
         <ManualLayout />
         <DiagramGroup id="input-group" label="InputController + Action — gesture-to-action mapping" variant="swimlane">
           <DiagramNode id="inp-drag" label="Drag → orbit" sublabel="<Action type='camera.orbit'>" sublabelColor="#b8c8e8" icon="ui:arrow-path" position={[0.2, 0.4, 0]} size={[0.18, 0.13]} />
-          <DiagramNode id="inp-wheel" label="Wheel → dolly" sublabel="<Action type='camera.dolly'>" sublabelColor="#b8c8e8" icon="ui:arrows-pointing-out" position={[0.5, 0.4, 0]} size={[0.18, 0.13]} />
+          <DiagramNode id="inp-wheel" label="Wheel → zoom" sublabel="<Action type='camera.zoom'>" sublabelColor="#b8c8e8" icon="ui:arrows-pointing-out" position={[0.5, 0.4, 0]} size={[0.18, 0.13]} />
           <DiagramNode id="inp-key" label="'r' → reset" sublabel="<Action type='camera.reset'>" sublabelColor="#b8c8e8" icon="ui:arrow-path" position={[0.8, 0.4, 0]} size={[0.18, 0.13]} />
         </DiagramGroup>
         <DiagramNode id="inp-camera" label="CameraWidget" sublabel="receives dispatched actions" sublabelColor="#b8c8e8" icon="ui:eye" position={[0.5, 0.75, 0]} size={[0.22, 0.14]} color="#1a3060" glow={{ intensity: 0.15 }} />

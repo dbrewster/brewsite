@@ -381,6 +381,11 @@ export const Scene = (props: {
    * Multiplier applied to base roughness for all model materials in this scene.
    */
   roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
+  /**
+   * Widget ID of the primary carousel layout for this scene.
+   * Enables the `'__primary_carousel__'` sentinel in carousel input actions.
+   */
+  primaryCarouselId?: string;
   children?: React.ReactNode;
 } & SceneTransitionProps): null => {
   const registration = useContext(SceneRegistrationContext);
@@ -424,6 +429,7 @@ export function createSceneRootHandler(deps: SceneRootHandlerDeps): NodeHandler 
       roughnessMultiplier?: number | ((context: SceneSnapshotContext) => number);
       transition?: SceneTransitionProp;
       exitStart?: number;
+      primaryCarouselId?: string;
     };
     // Children.toArray() prefixes keys with ".$" (e.g. "arch-auto" -> ".$arch-auto").
     // Strip the prefix defensively for any direct-element fallback path.
@@ -444,6 +450,9 @@ export function createSceneRootHandler(deps: SceneRootHandlerDeps): NodeHandler 
     }
     if (props.roughnessMultiplier !== undefined) {
       api.state.materialRoughnessMultiplier = helpers.resolveValue(props.roughnessMultiplier, api.context);
+    }
+    if (props.primaryCarouselId !== undefined) {
+      api.state.primaryCarouselId = props.primaryCarouselId;
     }
     if (props.transition !== undefined || props.exitStart !== undefined) {
       api.state.transitionWindow = resolveSceneTransition(props.transition, props.exitStart);

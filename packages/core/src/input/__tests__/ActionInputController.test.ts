@@ -30,7 +30,8 @@ describe('ActionInputController', () => {
     getSceneCount: () => 2,
     onSceneStep: () => {},
     onCameraOrbit: () => {},
-    onCameraDolly: () => {},
+    onCameraZoom: () => {},
+    onCameraPan: () => {},
     onCameraReset: () => {},
     onCarouselStep: () => {},
     ...overrides,
@@ -308,22 +309,22 @@ describe('ActionInputController', () => {
   it('inverts wheel Y deltas for wheel mappings', () => {
     const spec = makeSpec();
     spec.actions.push({
-      id: 'dolly-wheel',
-      type: 'camera.dolly',
+      id: 'zoom-wheel',
+      type: 'camera.zoom',
       cameraId: 'camera',
       maps: [{ kind: 'wheel', axis: 'y' }],
     });
 
-    const onCameraDolly = vi.fn();
+    const onCameraZoom = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraDolly }), target);
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraZoom }), target);
 
     ctrl.attach();
     target.dispatchEvent(new WheelEvent('wheel', { deltaY: 12, bubbles: true, cancelable: true }));
     ctrl.detach();
 
-    expect(onCameraDolly).toHaveBeenCalledTimes(1);
-    expect(onCameraDolly).toHaveBeenCalledWith('camera', -12, 1);
+    expect(onCameraZoom).toHaveBeenCalledTimes(1);
+    expect(onCameraZoom).toHaveBeenCalledWith('camera', -12, 1);
   });
 
   it('keeps wheel sticky lock axis across a continuous wheel gesture', () => {
@@ -381,18 +382,18 @@ describe('ActionInputController', () => {
     expect(type).toBe('diagram-canvas.rotate');
   });
 
-  it('dispatches camera dolly for pinch out mapping', () => {
+  it('dispatches camera.zoom for pinch out mapping', () => {
     const spec = makeSpec();
     spec.actions.push({
-      id: 'pinch-out-dolly',
-      type: 'camera.dolly',
+      id: 'pinch-out-zoom',
+      type: 'camera.zoom',
       cameraId: 'camera',
       maps: [{ kind: 'pinch', direction: 'out', threshold: 1 }],
     });
 
-    const onCameraDolly = vi.fn();
+    const onCameraZoom = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraDolly }), target);
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraZoom }), target);
 
     ctrl.attach();
     target.dispatchEvent(makeTouchPointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0, bubbles: true, cancelable: true }));
@@ -402,22 +403,22 @@ describe('ActionInputController', () => {
     target.dispatchEvent(makeTouchPointerEvent('pointerup', { pointerId: 2, clientX: 20, clientY: 0, bubbles: true, cancelable: true }));
     ctrl.detach();
 
-    expect(onCameraDolly).toHaveBeenCalledTimes(1);
-    expect(onCameraDolly).toHaveBeenCalledWith('camera', 10, 1);
+    expect(onCameraZoom).toHaveBeenCalledTimes(1);
+    expect(onCameraZoom).toHaveBeenCalledWith('camera', 10, 1);
   });
 
   it('does not dispatch pinch out action when pinch direction is in', () => {
     const spec = makeSpec();
     spec.actions.push({
-      id: 'pinch-in-dolly',
-      type: 'camera.dolly',
+      id: 'pinch-in-zoom',
+      type: 'camera.zoom',
       cameraId: 'camera',
       maps: [{ kind: 'pinch', direction: 'in', threshold: 1 }],
     });
 
-    const onCameraDolly = vi.fn();
+    const onCameraZoom = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraDolly }), target);
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraZoom }), target);
 
     ctrl.attach();
     target.dispatchEvent(makeTouchPointerEvent('pointerdown', { pointerId: 1, clientX: 0, clientY: 0, bubbles: true, cancelable: true }));
@@ -427,21 +428,21 @@ describe('ActionInputController', () => {
     target.dispatchEvent(makeTouchPointerEvent('pointerup', { pointerId: 2, clientX: 20, clientY: 0, bubbles: true, cancelable: true }));
     ctrl.detach();
 
-    expect(onCameraDolly).toHaveBeenCalledTimes(0);
+    expect(onCameraZoom).toHaveBeenCalledTimes(0);
   });
 
   it('dispatches pinch map from ctrl+wheel trackpad pinch signal', () => {
     const spec = makeSpec();
     spec.actions.push({
-      id: 'pinch-out-dolly',
-      type: 'camera.dolly',
+      id: 'pinch-out-zoom',
+      type: 'camera.zoom',
       cameraId: 'camera',
       maps: [{ kind: 'pinch', direction: 'out', threshold: 1 }],
     });
 
-    const onCameraDolly = vi.fn();
+    const onCameraZoom = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraDolly }), target);
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraZoom }), target);
 
     ctrl.attach();
     const ev = new WheelEvent('wheel', { ctrlKey: true, deltaY: 12, bubbles: true, cancelable: true });
@@ -449,28 +450,28 @@ describe('ActionInputController', () => {
     ctrl.detach();
 
     expect(ev.defaultPrevented).toBe(true);
-    expect(onCameraDolly).toHaveBeenCalledTimes(1);
-    expect(onCameraDolly).toHaveBeenCalledWith('camera', 12, 1);
+    expect(onCameraZoom).toHaveBeenCalledTimes(1);
+    expect(onCameraZoom).toHaveBeenCalledWith('camera', 12, 1);
   });
 
   it('does not let wheel map consume ctrl+wheel pinch when pinch map exists', () => {
     const spec = makeSpec();
     spec.actions.push({
-      id: 'wheel-dolly',
-      type: 'camera.dolly',
+      id: 'wheel-zoom',
+      type: 'camera.zoom',
       cameraId: 'camera',
       maps: [{ kind: 'wheel', modifiers: ['ctrl'], axis: 'y' }],
     });
     spec.actions.push({
-      id: 'pinch-out-dolly',
-      type: 'camera.dolly',
+      id: 'pinch-out-zoom',
+      type: 'camera.zoom',
       cameraId: 'camera',
       maps: [{ kind: 'pinch', direction: 'out', threshold: 1 }],
     });
 
-    const onCameraDolly = vi.fn();
+    const onCameraZoom = vi.fn();
     const target = document.createElement('div');
-    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraDolly }), target);
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraZoom }), target);
 
     ctrl.attach();
     const ev = new WheelEvent('wheel', { ctrlKey: true, deltaY: 15, bubbles: true, cancelable: true });
@@ -478,8 +479,8 @@ describe('ActionInputController', () => {
     ctrl.detach();
 
     expect(ev.defaultPrevented).toBe(true);
-    expect(onCameraDolly).toHaveBeenCalledTimes(1);
-    expect(onCameraDolly).toHaveBeenCalledWith('camera', 15, 1);
+    expect(onCameraZoom).toHaveBeenCalledTimes(1);
+    expect(onCameraZoom).toHaveBeenCalledWith('camera', 15, 1);
   });
 
   it('consumes ctrl+wheel pinch exclusively even below pinch threshold', () => {
@@ -491,19 +492,19 @@ describe('ActionInputController', () => {
       maps: [{ kind: 'wheel', modifiers: ['ctrl'], axis: 'xy' }],
     });
     spec.actions.push({
-      id: 'pinch-out-dolly',
-      type: 'camera.dolly',
+      id: 'pinch-out-zoom',
+      type: 'camera.zoom',
       cameraId: 'camera',
       maps: [{ kind: 'pinch', direction: 'out', threshold: 999 }],
     });
 
-    const onCameraDolly = vi.fn();
+    const onCameraZoom = vi.fn();
     const onUnknownAction = vi.fn();
     const target = document.createElement('div');
     const ctrl = new ActionInputController(
       target,
       () => spec,
-      makeHandler({ onCameraDolly, onUnknownAction }),
+      makeHandler({ onCameraZoom, onUnknownAction }),
       target,
     );
 
@@ -513,7 +514,7 @@ describe('ActionInputController', () => {
     ctrl.detach();
 
     expect(ev.defaultPrevented).toBe(true);
-    expect(onCameraDolly).toHaveBeenCalledTimes(0);
+    expect(onCameraZoom).toHaveBeenCalledTimes(0);
     expect(onUnknownAction).toHaveBeenCalledTimes(0);
   });
 
@@ -757,13 +758,13 @@ describe('ActionInputController', () => {
   it('isOverScrollableContent: yields when wheel is over scrollable ancestor with room to scroll', () => {
     const spec = makeSpec();
     spec.actions.push({
-      id: 'dolly',
-      type: 'camera.dolly',
+      id: 'zoom',
+      type: 'camera.zoom',
       cameraId: 'camera',
       maps: [{ kind: 'wheel', axis: 'y' }],
     });
 
-    const onCameraDolly = vi.fn();
+    const onCameraZoom = vi.fn();
     const target = document.createElement('div');
     document.body.appendChild(target);
 
@@ -775,7 +776,7 @@ describe('ActionInputController', () => {
     scrollableChild.style.overflowY = 'auto';
     target.appendChild(scrollableChild);
 
-    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraDolly }), target);
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraZoom }), target);
     ctrl.attach();
 
     // Wheel event targeting the scrollable child — should NOT reach the action.
@@ -786,8 +787,8 @@ describe('ActionInputController', () => {
     ctrl.detach();
     document.body.removeChild(target);
 
-    // Camera dolly must NOT have fired — the event was yielded to native scroll.
-    expect(onCameraDolly).not.toHaveBeenCalled();
+    // Camera zoom must NOT have fired — the event was yielded to native scroll.
+    expect(onCameraZoom).not.toHaveBeenCalled();
     // The event must NOT have been prevented (native scroll is allowed).
     expect(ev.defaultPrevented).toBe(false);
   });
@@ -818,5 +819,199 @@ describe('ActionInputController', () => {
 
     expect(onUnclaimedWheel).toHaveBeenCalledOnce();
     expect(onUnclaimedWheel).toHaveBeenCalledWith(ev);
+  });
+});
+
+// ─── Stream B: onActionFired, camera.zoom, camera.pan ────────────────────────
+
+describe('ActionInputController — onActionFired subscription', () => {
+  const makePointerEvent = (type: string, options: MouseEventInit & { pointerId?: number } = {}) => {
+    const event = new MouseEvent(type, options) as PointerEvent;
+    Object.defineProperty(event, 'pointerId', { value: options.pointerId ?? 1 });
+    return event;
+  };
+
+  const makeHandler = (overrides: Partial<Parameters<typeof ActionInputController>[2]> = {}) => ({
+    getSceneCount: () => 2,
+    onSceneStep: () => {},
+    onCameraOrbit: () => {},
+    onCameraZoom: () => {},
+    onCameraPan: () => {},
+    onCameraReset: () => {},
+    onCarouselStep: () => {},
+    ...overrides,
+  });
+
+  it('onActionFired listener receives event after camera.zoom wheel dispatch', () => {
+    const spec: SceneInputControllerSpec = {
+      id: 'main',
+      scope: 'canvas',
+      actions: [{
+        id: 'zoom-action',
+        type: 'camera.zoom',
+        cameraId: 'cam',
+        maps: [{ kind: 'wheel', axis: 'y' }],
+      }],
+    };
+    const target = document.createElement('div');
+    const ctrl = new ActionInputController(target, () => spec, makeHandler(), target);
+    ctrl.attach();
+
+    const fired: Array<{ type: string; id: string }> = [];
+    ctrl.onActionFired((type, id) => fired.push({ type, id }));
+
+    target.dispatchEvent(new WheelEvent('wheel', { deltaY: 20, bubbles: true, cancelable: true }));
+    ctrl.detach();
+
+    expect(fired).toHaveLength(1);
+    expect(fired[0]!.type).toBe('camera.zoom');
+    expect(fired[0]!.id).toBe('zoom-action');
+  });
+
+  it('onActionFired detail includes cameraId, delta, and speed for camera.zoom', () => {
+    const spec: SceneInputControllerSpec = {
+      id: 'main',
+      scope: 'canvas',
+      actions: [{
+        id: 'zoom-action',
+        type: 'camera.zoom',
+        cameraId: 'primary-cam',
+        maps: [{ kind: 'wheel', axis: 'y' }],
+      }],
+    };
+    const target = document.createElement('div');
+    const ctrl = new ActionInputController(target, () => spec, makeHandler(), target);
+    ctrl.attach();
+
+    let detail: Parameters<Parameters<typeof ctrl.onActionFired>[0]>[2] | undefined;
+    ctrl.onActionFired((_type, _id, d) => { detail = d; });
+
+    target.dispatchEvent(new WheelEvent('wheel', { deltaY: 40, bubbles: true, cancelable: true }));
+    ctrl.detach();
+
+    expect(detail).toBeDefined();
+    expect(detail!.cameraId).toBe('primary-cam');
+    expect(detail!.delta).toBe(-40); // Y inverted
+    expect(detail!.speed).toBe(1);
+  });
+
+  it('onActionFired listener receives event after camera.pan drag dispatch', () => {
+    const spec: SceneInputControllerSpec = {
+      id: 'main',
+      scope: 'canvas',
+      actions: [{
+        id: 'pan-action',
+        type: 'camera.pan',
+        cameraId: 'cam',
+        maps: [{ kind: 'pointer', event: 'drag', button: 'middle', axis: 'xy' }],
+      }],
+    };
+    // Helper to create pointer events with pointerId set (required for drag tracking).
+    const makeEv = (type: string, opts: MouseEventInit) => {
+      const ev = new MouseEvent(type, opts) as PointerEvent;
+      Object.defineProperty(ev, 'pointerId', { value: 1 });
+      return ev;
+    };
+    const target = document.createElement('div');
+    const onCameraPan = vi.fn();
+    const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraPan }), target);
+    ctrl.attach();
+
+    const fired: Array<{ type: string; id: string }> = [];
+    ctrl.onActionFired((type, id) => fired.push({ type, id }));
+
+    target.dispatchEvent(makeEv('pointerdown', { button: 1, clientX: 0, clientY: 0, bubbles: true, cancelable: true }));
+    target.dispatchEvent(makeEv('pointermove', { button: 1, clientX: 15, clientY: 8, bubbles: true, cancelable: true }));
+    ctrl.detach();
+
+    expect(onCameraPan).toHaveBeenCalledTimes(1);
+    expect(onCameraPan).toHaveBeenCalledWith('cam', 15, 8, 1);
+    expect(fired).toHaveLength(1);
+    expect(fired[0]!.type).toBe('camera.pan');
+  });
+
+  it('onActionFired unsubscribe stops delivery', () => {
+    const spec: SceneInputControllerSpec = {
+      id: 'main',
+      scope: 'canvas',
+      actions: [{
+        id: 'zoom-action',
+        type: 'camera.zoom',
+        cameraId: 'cam',
+        maps: [{ kind: 'wheel', axis: 'y' }],
+      }],
+    };
+    const target = document.createElement('div');
+    const ctrl = new ActionInputController(target, () => spec, makeHandler(), target);
+    ctrl.attach();
+
+    let callCount = 0;
+    const unsub = ctrl.onActionFired(() => { callCount += 1; });
+
+    target.dispatchEvent(new WheelEvent('wheel', { deltaY: 10, bubbles: true, cancelable: true }));
+    expect(callCount).toBe(1);
+
+    unsub();
+    target.dispatchEvent(new WheelEvent('wheel', { deltaY: 10, bubbles: true, cancelable: true }));
+    expect(callCount).toBe(1); // no additional calls after unsubscribe
+
+    ctrl.detach();
+  });
+
+  it('detach() clears all action-fired listeners', () => {
+    const spec: SceneInputControllerSpec = {
+      id: 'main',
+      scope: 'canvas',
+      actions: [{
+        id: 'zoom-action',
+        type: 'camera.zoom',
+        cameraId: 'cam',
+        maps: [{ kind: 'wheel', axis: 'y' }],
+      }],
+    };
+    const target = document.createElement('div');
+    const ctrl = new ActionInputController(target, () => spec, makeHandler(), target);
+    ctrl.attach();
+
+    let callCount = 0;
+    ctrl.onActionFired(() => { callCount += 1; });
+    ctrl.onActionFired(() => { callCount += 1; });
+
+    // Fire one event before detach — both listeners should run.
+    target.dispatchEvent(new WheelEvent('wheel', { deltaY: 10, bubbles: true, cancelable: true }));
+    expect(callCount).toBe(2);
+
+    ctrl.detach();
+    ctrl.attach();
+
+    // Fire after detach+re-attach — listeners were cleared.
+    target.dispatchEvent(new WheelEvent('wheel', { deltaY: 10, bubbles: true, cancelable: true }));
+    expect(callCount).toBe(2); // unchanged
+
+    ctrl.detach();
+  });
+
+  it('multiple listeners all receive the same event', () => {
+    const spec: SceneInputControllerSpec = {
+      id: 'main',
+      scope: 'canvas',
+      actions: [{
+        id: 'scene-next',
+        type: 'scene.next',
+        maps: [{ kind: 'key', key: 'ArrowDown' }],
+      }],
+    };
+    const target = document.createElement('div');
+    const ctrl = new ActionInputController(target, () => spec, makeHandler(), target);
+    ctrl.attach();
+
+    const received: string[] = [];
+    ctrl.onActionFired((type) => received.push(`a:${type}`));
+    ctrl.onActionFired((type) => received.push(`b:${type}`));
+
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    ctrl.detach();
+
+    expect(received).toEqual(['a:scene.next', 'b:scene.next']);
   });
 });

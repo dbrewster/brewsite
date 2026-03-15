@@ -24,6 +24,14 @@ import { SceneProgressMapper } from './SceneProgressMapper';
 import { formatBreadcrumbChain } from '../compiler/dslSourceInfo';
 import type { SceneTheme, ActiveTheme } from '../theme/types';
 import { clamp01 } from '../math';
+import {
+  createTransitionAnimatorState,
+  beginTransition as beginTransitionFn,
+  interruptTransition as interruptTransitionFn,
+  redirectTransition as redirectTransitionFn,
+  getTransitionProgress,
+} from '../input/transitionAnimator';
+import type { TransitionEasing } from '../input/transitionAnimator';
 const SCENE_THEME_USERDATA_KEY = '__brewsite_scene_theme';
 
 export type UseSceneEngineOptions = {
@@ -41,6 +49,10 @@ export type UseSceneEngineOptions = {
   primaryCameraId?: string;
   /** Widget ID of the primary canvas action target. Used by ActionInput for unknown action dispatch. */
   primaryCanvasActionTargetId?: string;
+  /** Default duration (ms) for programmatic scene transition animations. Default: 400ms. */
+  defaultTransitionDuration?: number;
+  /** Default easing for programmatic scene transition animations. Default: easeInOut. */
+  defaultTransitionEasing?: TransitionEasing;
   onReady?: () => void;
   onError?: (error: Error) => void;
   onWidgetError?: (widgetId: string, error: Error) => void;
@@ -132,8 +144,39 @@ export type UseSceneEngineResult = {
    */
   applyCameraDolly(cameraId: string, delta: number, speed: number): void;
 
+  /**
+   * Apply a zoom delta. Alias for applyCameraDolly — wired to the 'camera.zoom' action type.
+   */
+  applyCameraZoom(cameraId: string, delta: number, speed: number): void;
+
+  /**
+   * Apply a pan delta in the camera's local XY plane. Delegates to CameraWidget.applyCameraPan().
+   * No-op with console.warn if the camera widget is not found or does not support pan.
+   */
+  applyCameraPan(cameraId: string, dx: number, dy: number, speed: number): void;
+
   /** Reset the camera override. Equivalent to setCameraOverride(null). */
   applyCameraReset(cameraId: string): void;
+
+  /**
+   * Begin a programmatic scene transition animation from the current engine progress
+   * to `toProgress` over `durationMs` milliseconds.
+   * If a transition is already active, it is interrupted and the new transition starts
+   * from the current interpolated progress.
+   */
+  beginTransition(toProgress: number, durationMs?: number, easing?: TransitionEasing): void;
+
+  /**
+   * Interrupt the active transition. Engine progress stays at the current value.
+   * No-op when no transition is active.
+   */
+  interruptTransition(): void;
+
+  /**
+   * Redirect an active transition to a new target without restarting the easing curve.
+   * If no transition is active, starts a new transition from the current progress.
+   */
+  redirectTransition(newToProgress: number, durationMs?: number, easing?: TransitionEasing): void;
 
   /**
    * Apply per-widget state patches that override compiled SceneTrack state for this tick.
@@ -206,6 +249,17 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   const rawProgressRef = useRef(0);
   const progressMapperRef = useRef<SceneProgressMapper | null>(null);
 
+  // ─── Transition animator state ──────────────────────────────────────────────
+  // Mutable state for programmatic scene transition animations.
+  // Owned by this hook; read each frame in getGlobalProgress().
+  const transitionRef = useRef(createTransitionAnimatorState());
+
+  // Keep option refs for getGlobalProgress closure (avoids stale captures)
+  const defaultTransitionDurationRef = useRef(options.defaultTransitionDuration);
+  defaultTransitionDurationRef.current = options.defaultTransitionDuration;
+  const defaultTransitionEasingRef = useRef(options.defaultTransitionEasing);
+  defaultTransitionEasingRef.current = options.defaultTransitionEasing;
+
   // ─── Progress mapper ────────────────────────────────────────────────────────
   const progressMapper = useMemo<SceneProgressMapper | null>(() => {
     if (!sceneTrack?.progressProfile || sceneTrack.progressProfile.isUniform) {
@@ -262,7 +316,19 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   }, [setProgress]);
 
   // ─── getGlobalProgress: read by RuntimeLoop every frame ─────────────────────
-  const getGlobalProgress = useCallback((): number => progressRef.current, []);
+  // Also advances any active transition animation by sampling the transition state.
+  const getGlobalProgress = useCallback((): number => {
+    const transitionProgress = getTransitionProgress(transitionRef.current, performance.now());
+    if (transitionProgress !== null) {
+      // Transition is active — update progressRef so all callers see the animated value.
+      const clamped = clamp01(transitionProgress);
+      progressRef.current = clamped;
+      rawProgressRef.current = progressMapperRef.current
+        ? progressMapperRef.current.inverse(clamped)
+        : clamped;
+    }
+    return progressRef.current;
+  }, []);
 
   const setCameraOverrideInternal = useCallback((next: CameraOverrideState | null) => {
     cameraOverrideRef.current = next;
@@ -609,9 +675,62 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     (widget as { applyCameraDolly: (delta: number, speed: number) => void }).applyCameraDolly(delta, speed);
   }, [options.widgetRegistry]);
 
+  const applyCameraZoom = useCallback((cameraId: string, delta: number, speed: number) => {
+    // camera.zoom maps to the same underlying dolly operation.
+    const widget = options.widgetRegistry.get(cameraId);
+    if (!widget || !('applyCameraDolly' in widget)) {
+      console.warn(`[ActionInput] Camera widget "${cameraId}" not found or does not support zoom.`);
+      return;
+    }
+    (widget as { applyCameraDolly: (delta: number, speed: number) => void }).applyCameraDolly(delta, speed);
+  }, [options.widgetRegistry]);
+
+  const applyCameraPan = useCallback((cameraId: string, dx: number, dy: number, speed: number) => {
+    const widget = options.widgetRegistry.get(cameraId);
+    if (!widget || !('applyCameraPan' in widget)) {
+      console.warn(`[ActionInput] Camera widget "${cameraId}" not found or does not support pan.`);
+      return;
+    }
+    (widget as { applyCameraPan: (dx: number, dy: number, speed: number) => void }).applyCameraPan(dx, dy, speed);
+  }, [options.widgetRegistry]);
+
   const applyCameraReset = useCallback((_cameraId: string) => {
     setCameraOverrideInternal(null);
   }, [setCameraOverrideInternal]);
+
+  const handleBeginTransition = useCallback((
+    toProgress: number,
+    durationMs?: number,
+    easing?: TransitionEasing,
+  ) => {
+    beginTransitionFn(
+      transitionRef.current,
+      progressRef.current,
+      toProgress,
+      performance.now(),
+      durationMs ?? defaultTransitionDurationRef.current,
+      easing ?? defaultTransitionEasingRef.current,
+    );
+  }, []);
+
+  const handleInterruptTransition = useCallback(() => {
+    interruptTransitionFn(transitionRef.current);
+  }, []);
+
+  const handleRedirectTransition = useCallback((
+    newToProgress: number,
+    durationMs?: number,
+    easing?: TransitionEasing,
+  ) => {
+    redirectTransitionFn(
+      transitionRef.current,
+      progressRef.current,
+      newToProgress,
+      performance.now(),
+      durationMs ?? defaultTransitionDurationRef.current,
+      easing ?? defaultTransitionEasingRef.current,
+    );
+  }, []);
 
   const patchWidgetStates = useCallback((patches: Record<string, unknown>) => {
     driverRef.current?.setWidgetStatePatches(patches);
@@ -643,7 +762,12 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     primaryCanvasActionTargetId: options.primaryCanvasActionTargetId ?? '',
     applyCameraOrbit,
     applyCameraDolly,
+    applyCameraZoom,
+    applyCameraPan,
     applyCameraReset,
+    beginTransition: handleBeginTransition,
+    interruptTransition: handleInterruptTransition,
+    redirectTransition: handleRedirectTransition,
     patchWidgetStates,
     sceneTrack,
     sceneCount,

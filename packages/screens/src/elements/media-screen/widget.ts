@@ -2,7 +2,7 @@
 // Static stream registry bridges live MediaStream objects into the compiled scene tick.
 
 import * as THREE from 'three';
-import type { IGroupOwner, IRenderable, ISceneElement, WidgetInitContext, WidgetRenderContext } from '@brewsite/core';
+import type { IViewChild, IRenderable, ISceneElement, WidgetInitContext, WidgetRenderContext } from '@brewsite/core';
 import { validateNVSScalar } from '@brewsite/core';
 import type { MediaScreenProps } from './dsl';
 import { compileMediaScreen, functionalMediaScreenTransitionSpec } from './compile';
@@ -13,18 +13,18 @@ import type { MediaScreenState } from './types';
 export function MediaScreen(_props: MediaScreenProps): null { return null; }
 
 /** Widget for WebGL video-texture screens with optional MediaStream support. */
-export class MediaScreenWidget implements ISceneElement<MediaScreenState>, IRenderable<MediaScreenState>, IGroupOwner {
+export class MediaScreenWidget implements ISceneElement<MediaScreenState>, IRenderable<MediaScreenState>, IViewChild {
   readonly widgetId: string;
   readonly defaultState: MediaScreenState;
   readonly transitionSpec = functionalMediaScreenTransitionSpec;
   readonly DslComponent = MediaScreen;
 
   /**
-   * Root Group for this widget's 3D content. Exposed as IGroupOwner.rootGroup so that
-   * ViewWidget can re-parent it into a carousel/layout group, enabling carousel navigation
-   * to visually reposition MediaScreen panels.
+   * Internal root group for this widget's 3D content.
+   * Not exposed publicly — IGroupOwner has been removed.
+   * ViewWidget applies opacity via applyViewOpacity() instead of reparenting.
    */
-  readonly rootGroup = new THREE.Group();
+  private readonly rootGroup = new THREE.Group();
 
   private renderer = new MediaScreenRenderer();
   private scene: THREE.Scene | null = null;
@@ -72,9 +72,8 @@ export class MediaScreenWidget implements ISceneElement<MediaScreenState>, IRend
 
   initialize({ scene }: WidgetInitContext): void {
     this.scene = scene as THREE.Scene;
-    // Add the root group to the scene. The renderer will parent screen geometry
-    // under this group. ViewWidget re-parents rootGroup into its carousel group
-    // on the first apply() call, which makes carousel nav reposition the panel.
+    // Add the root group to the scene. The renderer parents screen geometry
+    // under this group. Position is controlled by NVS state each tick.
     this.scene.add(this.rootGroup);
   }
 
@@ -113,6 +112,24 @@ export class MediaScreenWidget implements ISceneElement<MediaScreenState>, IRend
       height: worldH,
       resolvedStream,
     }, this.rootGroup);
+  }
+
+  /**
+   * Applies view-level opacity to all 3D content owned by this widget.
+   * Called by ViewWidget when carousel or scene-transition opacity changes.
+   */
+  applyViewOpacity(opacity: number): void {
+    this.rootGroup.visible = opacity > 0;
+    this.rootGroup.traverse((obj) => {
+      const hasMaterial = (obj instanceof THREE.Mesh || obj instanceof THREE.Sprite) && obj.material;
+      if (!hasMaterial) return;
+      const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
+      for (const mat of materials) {
+        if (!('opacity' in mat)) continue;
+        (mat as THREE.Material & { opacity: number; transparent: boolean }).opacity = opacity;
+        (mat as THREE.Material & { transparent: boolean }).transparent = opacity < 1;
+      }
+    });
   }
 
   dispose(): void {

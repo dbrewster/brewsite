@@ -6,6 +6,7 @@ import {
   Ambient,
   Camera,
   Directional,
+  formatModifier,
   InputController,
   KeyMap,
   Lighting,
@@ -22,7 +23,6 @@ import {
   ChartData,
   ChartSeries,
 } from '@brewsite/charts';
-import { pk } from '../platformKeys';
 
 const CAM_POS: [number, number, number] = [0, 1, 6.6];
 const CAM_TGT: [number, number, number] = [0, 0, 0];
@@ -122,7 +122,7 @@ function LinearCarouselViews(): JSX.Element {
 
 export const LinearCarouselScene = (): JSX.Element => {
   return (
-    <Scene id="input-linear-carousel">
+    <Scene id="input-linear-carousel" primaryCarouselId={LAYOUT_ID}>
       <ProgressManager scrollUnits={800} />
       <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
       <Lighting intensityScale={1.2}>
@@ -152,7 +152,7 @@ export const LinearCarouselScene = (): JSX.Element => {
         <Action id="scene-prev" type="scene.prev">
           <KeyMap keyName="ArrowUp" />
         </Action>
-        <Action id="dolly" type="camera.dolly">
+        <Action id="dolly" type="camera.zoom">
           <PinchMap direction="both" threshold={1} />
         </Action>
       </InputController>
@@ -186,7 +186,7 @@ export const LinearCarouselScene = (): JSX.Element => {
             <kbd style={{ background: '#50c08022', border: '1px solid #50c08055', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#50c080' }}>→</kbd>{' / '}
             <kbd style={{ background: '#50c08022', border: '1px solid #50c08055', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#50c080' }}>Space</kbd>{' '}
             jump 2 positions{' · '}
-            <kbd style={{ background: '#c050e022', border: '1px solid #c050e055', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#c050e0' }}>{pk('Shift+→')}</kbd>{' '}
+            <kbd style={{ background: '#c050e022', border: '1px solid #c050e055', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#c050e0' }}>{formatModifier('shift')}+→</kbd>{' '}
             move 1{' · '}
             <kbd style={{ background: '#50c08022', border: '1px solid #50c08055', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#50c080' }}>←</kbd>{' '}
             go back

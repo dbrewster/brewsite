@@ -179,7 +179,7 @@ const sceneB = <Scene key="b"><Diagram id="my-diagram" tilt={-Math.PI/12} /></Sc
   <Action id="orbit" type="camera.orbit">
     <PointerMap event="drag" button="left" axis="xy" />
   </Action>
-  <Action id="dolly" type="camera.dolly">
+  <Action id="dolly" type="camera.zoom">
     <WheelMap axis="y" />
   </Action>
   <Action id="reset" type="camera.reset">

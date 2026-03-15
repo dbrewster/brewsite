@@ -48,7 +48,7 @@ export function Scene05Carousel(): JSX.Element {
           <Model
             type="Robot"
             id="robot-carousel-a"
-            scale={0.06}
+            scale={0.001}
             x={0} y={0} w={1} h={1}
             opacity={1}
             z={0}
@@ -70,7 +70,7 @@ export function Scene05Carousel(): JSX.Element {
           <Model
             type="Robot"
             id="robot-carousel-b"
-            scale={0.06}
+            scale={0.001}
             x={0} y={0} w={1} h={1}
             opacity={1}
             z={0}
@@ -92,7 +92,7 @@ export function Scene05Carousel(): JSX.Element {
           <Model
             type="Robot"
             id="robot-carousel-c"
-            scale={0.06}
+            scale={0.001}
             x={0} y={0} w={1} h={1}
             opacity={1}
             z={0}

@@ -1,75 +1,79 @@
-// ViewWidget — IRenderable<ViewState> that owns a THREE.Group for carousel repositioning.
-// Runtime-only widget: state is produced by viewHandler, not by a dedicated DSL component.
-// Does NOT implement ISceneElement — no DslComponent, no defaultState, no transitionSpec.
+// ViewWidget — IRenderable<ViewState> that applies delta transforms and opacity
+// to child widgets via IViewChild, without reparenting or group ownership.
 
 import * as THREE from 'three';
-import type { IRenderable, WidgetInitContext, WidgetRenderContext } from '../../widget/types';
+import type { IRenderable, IViewChild, IWidget, WidgetInitContext, WidgetRenderContext } from '../../widget/types';
+import { isViewChild } from '../../widget/WidgetRegistry';
 import type { ViewState } from '../../compiler/viewTypes';
 
 /**
- * IRenderable widget that owns a THREE.Group used to apply delta transforms
- * for carousel repositioning. Child 3D widgets are re-parented under this
- * Group after initialization so they move as a unit when carousel bounds change.
+ * IRenderable widget for ViewLayout carousel repositioning.
  *
- * Created lazily by corePlugin.reconcileCompiledTrack — never constructed directly
- * by scene authors.
+ * Created lazily by corePlugin.reconcileCompiledTrack.
+ *
+ * Key change from previous implementation: no THREE.Group, no reparenting.
+ * Position/scale transforms are applied as deltas to each child widget's
+ * root Object3D. Opacity is delegated via IViewChild.applyViewOpacity().
  */
 export class ViewWidget implements IRenderable<ViewState> {
   readonly widgetId: string;
   private scene: THREE.Scene | null = null;
-  private readonly group = new THREE.Group();
 
   /** Compile-time View center in NVS coords — captured on first apply(). */
   private originalNvsCenter: { x: number; y: number } | null = null;
-
-  /**
-   * Compile-time scale — captured on first apply(). Not hardcoded to 1.0 because
-   * inactive carousel views can start with scale !== 1.0 (inactiveScale^distance).
-   */
+  /** Compile-time scale — captured on first apply(). */
   private originalScale: number | null = null;
-
-  /**
-   * Compile-time Z position — captured on first apply(). Children's compiled Z
-   * positions already include the view's Z offset via composeZ(), so the group
-   * must apply only the delta (state.z - originalZ) to avoid double-counting.
-   */
+  /** Compile-time Z — captured on first apply(). */
   private originalZ: number | null = null;
-
-  /** Last opacity value — used to short-circuit applyOpacity traversal. */
+  /** Last opacity value — for short-circuiting. */
   private lastAppliedOpacity: number | null = null;
 
-  /** Child widget IDs — populated on first apply() from ViewState. */
+  /** Resolved IViewChild widgets, populated lazily. */
+  private viewChildren: IViewChild[] = [];
+  private resolvedChildren = false;
+
+  /** Child widget IDs from compiled state. */
   private childWidgetIds: readonly string[] = [];
-  private reparented = false;
 
   /**
-   * Callback to look up a child widget's root THREE.Object3D.
+   * Callback to look up a child widget by ID.
    * Passed at construction time by corePlugin's reconcileCompiledTrack.
    */
-  private readonly resolveChildRoot: (widgetId: string) => THREE.Object3D | null;
+  private readonly resolveChildWidget: (widgetId: string) => IWidget | undefined;
+
+  /**
+   * Callback to look up a child widget's root THREE.Object3D for positioning.
+   * This is NOT IGroupOwner — it uses the runtime's widget-to-object mapping.
+   */
+  private readonly resolveChildObject: (widgetId: string) => THREE.Object3D | null;
+
+  /**
+   * Per-child original world positions, captured on first apply for delta computation.
+   */
+  private childOriginalPositions = new Map<string, THREE.Vector3>();
 
   constructor(
     viewId: string,
-    resolveChildRoot: (widgetId: string) => THREE.Object3D | null,
+    resolveChildWidget: (widgetId: string) => IWidget | undefined,
+    resolveChildObject: (widgetId: string) => THREE.Object3D | null,
   ) {
     this.widgetId = viewId;
-    this.resolveChildRoot = resolveChildRoot;
-    this.group.name = `view-group-${viewId}`;
+    this.resolveChildWidget = resolveChildWidget;
+    this.resolveChildObject = resolveChildObject;
   }
 
   initialize({ scene }: WidgetInitContext): void {
     this.scene = scene;
-    scene.add(this.group);
   }
 
   apply(state: ViewState, ctx: WidgetRenderContext): void {
-    // Lazy reparent: on first apply with childWidgetIds, move children into group.
-    if (!this.reparented && state.childWidgetIds.length > 0) {
+    // Lazy resolve children on first apply with childWidgetIds.
+    if (!this.resolvedChildren && state.childWidgetIds.length > 0) {
       this.childWidgetIds = state.childWidgetIds;
-      this.reparentChildren();
+      this.resolveViewChildren();
     }
 
-    // Capture original center and scale on first valid apply.
+    // Capture original center, scale, Z on first valid apply.
     if (!this.originalNvsCenter) {
       this.originalNvsCenter = {
         x: state.bounds.x + state.bounds.w / 2,
@@ -85,13 +89,11 @@ export class ViewWidget implements IRenderable<ViewState> {
 
     const scaleRatio = state.scale / this.originalScale;
 
-    // Current NVS center
+    // Compute world-space delta from NVS center shift.
     const newCenterNvs = {
       x: state.bounds.x + state.bounds.w / 2,
       y: state.bounds.y + state.bounds.h / 2,
     };
-
-    // Convert NVS centers to world space
     const [newCx, newCy] = ctx.coords.toWorld(newCenterNvs.x, newCenterNvs.y, 0);
     const [oldCx, oldCy] = ctx.coords.toWorld(
       this.originalNvsCenter.x,
@@ -99,62 +101,60 @@ export class ViewWidget implements IRenderable<ViewState> {
       0,
     );
 
-    // G = P_new - P_old * S
-    this.group.position.set(
-      newCx - oldCx * scaleRatio,
-      newCy - oldCy * scaleRatio,
-      state.z - this.originalZ,   // delta, not direct — avoids double-counting with composeZ()
-    );
-    this.group.scale.set(scaleRatio, scaleRatio, 1);
-    this.group.visible = state.opacity > 0;
+    // Apply delta position and scale to each child object.
+    const deltaX = newCx - oldCx * scaleRatio;
+    const deltaY = newCy - oldCy * scaleRatio;
+    const deltaZ = state.z - this.originalZ;
 
-    // Apply opacity to all mesh materials in the group.
-    // Short-circuit when opacity hasn't changed to avoid per-frame traversal cost.
+    for (const childId of this.childWidgetIds) {
+      const obj = this.resolveChildObject(childId);
+      if (!obj) continue;
+
+      // Capture original position on first encounter.
+      if (!this.childOriginalPositions.has(childId)) {
+        this.childOriginalPositions.set(childId, obj.position.clone());
+      }
+      const orig = this.childOriginalPositions.get(childId)!;
+
+      obj.position.set(
+        orig.x * scaleRatio + deltaX,
+        orig.y * scaleRatio + deltaY,
+        orig.z + deltaZ,
+      );
+      obj.scale.set(scaleRatio, scaleRatio, 1);
+      obj.visible = state.opacity > 0;
+    }
+
+    // Delegate opacity to IViewChild widgets.
     if (state.opacity !== this.lastAppliedOpacity) {
-      this.applyOpacity(state.opacity);
+      for (const child of this.viewChildren) {
+        child.applyViewOpacity(state.opacity);
+      }
       this.lastAppliedOpacity = state.opacity;
     }
   }
 
   dispose(): void {
-    // Do NOT reparent children back to the scene root. When the Group has a
-    // non-identity transform (G≠0, S≠1), Three.js preserves children's local
-    // positions on reparent, causing a world-transform jump. Since dispose() is
-    // called during teardown, children are destroyed with the group — no
-    // reparenting needed.
-    this.scene?.remove(this.group);
     this.scene = null;
-    this.reparented = false;
+    this.viewChildren = [];
+    this.resolvedChildren = false;
     this.originalNvsCenter = null;
     this.originalScale = null;
     this.originalZ = null;
     this.lastAppliedOpacity = null;
+    this.childOriginalPositions.clear();
   }
 
   // ── Private ──────────────────────────────────────────────────────────────
 
-  private reparentChildren(): void {
+  private resolveViewChildren(): void {
+    this.viewChildren = [];
     for (const childId of this.childWidgetIds) {
-      const obj = this.resolveChildRoot(childId);
-      if (obj && obj.parent !== this.group) {
-        this.group.add(obj); // Three.js auto-removes from previous parent
+      const widget = this.resolveChildWidget(childId);
+      if (widget && isViewChild(widget)) {
+        this.viewChildren.push(widget);
       }
     }
-    this.reparented = true;
-  }
-
-  private applyOpacity(opacity: number): void {
-    this.group.traverse((obj) => {
-      // Apply to both Mesh and Sprite so glow sprites on inactive carousel panels
-      // are faded out together with screen meshes and bezel geometry.
-      const hasMaterial = (obj instanceof THREE.Mesh || obj instanceof THREE.Sprite) && obj.material;
-      if (!hasMaterial) return;
-      const materials = Array.isArray(obj.material) ? obj.material : [obj.material];
-      for (const mat of materials) {
-        if (!('opacity' in mat)) continue;
-        (mat as THREE.Material & { opacity: number; transparent: boolean }).opacity = opacity;
-        (mat as THREE.Material & { transparent: boolean }).transparent = opacity < 1;
-      }
-    });
+    this.resolvedChildren = true;
   }
 }

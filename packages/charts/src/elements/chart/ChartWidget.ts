@@ -15,7 +15,6 @@ import type {
   IDslComposite,
   ILoadable,
   INVSBounded,
-  IGroupOwner,
   NVSCoordService,
   NVSRect,
   WidgetInitContext,
@@ -80,8 +79,7 @@ export class ChartWidget
     IAnimationController,
     IDslComposite,
     ILoadable,
-    INVSBounded,
-    IGroupOwner
+    INVSBounded
 {
   readonly widgetId: string;
   readonly defaultState: ChartState = DEFAULT_CHART_STATE;
@@ -123,13 +121,6 @@ export class ChartWidget
    */
   get nvsBounds(): NVSRect {
     return this.lastState?.nvsBounds ?? DEFAULT_CHART_STATE.nvsBounds;
-  }
-
-  // ── IGroupOwner ───────────────────────────────────────────────────────────
-
-  /** Root Three.js Group — exposed for ViewWidget to re-parent this chart into a View Group. */
-  get rootGroup(): THREE.Group {
-    return this.chartRenderer.chartGroup;
   }
 
   // ── Interaction callbacks ─────────────────────────────────────────────────
@@ -201,32 +192,6 @@ export class ChartWidget
    * Called in dispose() to prevent stale callbacks after widget is destroyed.
    */
   private readonly unsubscribeDeregister: () => void;
-
-  // ── ViewWidget reparent guard ──────────────────────────────────────────
-
-  /**
-   * Frozen world-space position from first apply().
-   * When chartGroup is reparented into a ViewWidget group, this frozen value
-   * is used instead of recomputing absolute world coords each tick.
-   * ViewWidget's delta transform is the sole source of movement.
-   */
-  private frozenWorldPos: readonly [number, number, number] | null = null;
-
-  /** Frozen world-space width from first apply(). */
-  private frozenWorldW: number | null = null;
-
-  /** Frozen world-space height from first apply(). */
-  private frozenWorldH: number | null = null;
-
-  /**
-   * True when frozenWorldPos was captured during an invisible (opacity=0) absentDefault
-   * state. A provisional freeze is replaced on the next visible (opacity>0) apply so
-   * charts don't permanently lock to the full-viewport absentDefault bounds.
-   */
-  private frozenWorldPosIsProvisional = false;
-
-  /** True once chartGroup has been reparented out of the scene root. */
-  private isReparented = false;
 
   // ─────────────────────────────────────────────────────────────────────────
 
@@ -372,50 +337,19 @@ export class ChartWidget
         nvsW: state.bounds.width, nvsH: state.bounds.height,
         worldW, worldH,
       };
-      // Bounds changed. If the current frozen position was captured during an invisible
-      // absentDefault state (opacity=0, bounds=1.0×1.0), it's provisional and must be
-      // replaced now that we have real bounds. If it was captured during a visible state
-      // it's stable — ViewWidget owns all subsequent motion and we must not reset it.
-      if (this.frozenWorldPosIsProvisional) {
-        this.frozenWorldPos = null;
-        this.frozenWorldW = null;
-        this.frozenWorldH = null;
-      }
     }
 
     // Chart content starts at group-local (0, 0) and extends to (worldW, worldH).
     // Subtract half-bounds to center it on the NVS position.
-    const computedPos: readonly [number, number, number] = [
+    // Position is always computed live from interpolated state.nvsX/nvsY/z so that
+    // interpolateFn blending of these fields produces smooth scene transition animation.
+    const effectivePos: readonly [number, number, number] = [
       wcx - worldW / 2,
       wcy - worldH / 2,
       wcz,
     ];
-
-    // ── ViewWidget reparent guard ─────────────────────────────────────────
-    // When a ViewWidget reparents chartGroup into its group, chartGroup.position
-    // becomes LOCAL to that group. ViewWidget already applies delta position,
-    // scale ratio, Z offset, and opacity. If we also recompute absolute world
-    // coordinates every tick, both transforms compound (double-positioning).
-    //
-    // Fix: capture the first-tick world position and size with stable bounds.
-    // Once reparented, hold those values steady — ViewWidget group is the sole
-    // source of movement. frozenWorldPos is reset above whenever bounds change,
-    // so the freeze always captures the correct dimensions for the current scene.
-    if (!this.isReparented && this.chartRenderer.chartGroup.parent !== this.scene) {
-      this.isReparented = true;
-    }
-    if (this.frozenWorldPos === null) {
-      this.frozenWorldPos = computedPos;
-      this.frozenWorldW = worldW;
-      this.frozenWorldH = worldH;
-      // Mark as provisional if captured during an invisible state (absentDefault, opacity=0).
-      // The next visible apply will replace it with stable real-bounds values.
-      this.frozenWorldPosIsProvisional = state.opacity === 0;
-    }
-
-    const effectivePos = this.isReparented ? this.frozenWorldPos : computedPos;
-    const effectiveW = this.isReparented ? this.frozenWorldW! : worldW;
-    const effectiveH = this.isReparented ? this.frozenWorldH! : worldH;
+    const effectiveW = worldW;
+    const effectiveH = worldH;
 
     const renderInput: ChartRenderInput = {
       ...state,
@@ -472,21 +406,14 @@ export class ChartWidget
       totalSlices - 1,
     );
 
-    // Use frozen position/size when reparented (same guard as apply()).
     let worldPos: readonly [number, number, number];
     let heatW: number;
     let heatH: number;
-    if (this.isReparented && this.frozenWorldPos) {
-      worldPos = this.frozenWorldPos;
-      heatW = this.frozenWorldW!;
-      heatH = this.frozenWorldH!;
-    } else {
-      const [wcx, wcy, wcz] = this.lastCoords.toWorld(state.nvsX, state.nvsY, state.z);
-      const cws = this.cachedWorldScale;
-      heatW = cws?.worldW ?? this.lastCoords.toWorldSize(state.bounds.width, state.bounds.height)[0];
-      heatH = cws?.worldH ?? this.lastCoords.toWorldSize(state.bounds.width, state.bounds.height)[1];
-      worldPos = [wcx - heatW / 2, wcy - heatH / 2, wcz];
-    }
+    const [wcx, wcy, wcz] = this.lastCoords.toWorld(state.nvsX, state.nvsY, state.z);
+    const cws = this.cachedWorldScale;
+    heatW = cws?.worldW ?? this.lastCoords.toWorldSize(state.bounds.width, state.bounds.height)[0];
+    heatH = cws?.worldH ?? this.lastCoords.toWorldSize(state.bounds.width, state.bounds.height)[1];
+    worldPos = [wcx - heatW / 2, wcy - heatH / 2, wcz];
 
     this.chartRenderer.updateHeatmapSlice(
       sliceIndex,
@@ -516,11 +443,6 @@ export class ChartWidget
       this.lastMorphFromRowsRef = null;
     }
     this.cachedWorldScale = null;
-    this.frozenWorldPos = null;
-    this.frozenWorldW = null;
-    this.frozenWorldH = null;
-    this.frozenWorldPosIsProvisional = false;
-    this.isReparented = false;
     this.lastEffectiveTheme = null;
     this.lastTooltipState = null;
   }

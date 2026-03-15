@@ -23,9 +23,9 @@ export type InputControllerScope = 'canvas' | 'window';
  */
 export type InputActionType =
   | 'camera.orbit'
-  | 'camera.dolly'
+  | 'camera.zoom'      // was 'camera.dolly'
+  | 'camera.pan'       // was 'canvas.pan'
   | 'camera.reset'
-  | 'canvas.pan'
   | 'scene.next'
   | 'scene.prev'
   | 'carousel.next'
@@ -105,4 +105,29 @@ export type SceneInputControllerSpec = {
   id: string;
   scope: InputControllerScope;
   actions: InputActionSpec[];
+};
+
+/**
+ * Handler interface dispatched by ActionInputController.
+ * Implemented by InputCoordinator (or equivalent player-layer coordinator).
+ *
+ * Moved here from ActionInputController.ts so that player-layer code and
+ * test doubles can import the type without pulling in the full controller.
+ */
+export type ActionInputHandler = {
+  getSceneCount: () => number;
+  onSceneStep: (direction: 1 | -1, stepScenes: number) => void;
+  onCameraOrbit: (cameraId: string, dx: number, dy: number, speed: number) => void;
+  /** Renamed from onCameraDolly. Applies zoom delta to the target camera. */
+  onCameraZoom: (cameraId: string, delta: number, speed: number) => void;
+  /** New. Applies pan delta to the target camera, using camera.up for correct axis. */
+  onCameraPan: (cameraId: string, dx: number, dy: number, speed: number) => void;
+  onCameraReset: (cameraId: string) => void;
+  onCarouselStep: (layoutId: string, direction: 1 | -1, stepSlides: number) => void;
+  onUnknownAction?: (
+    type: string,
+    canvasId: string | undefined,
+    event: PointerEvent | WheelEvent | KeyboardEvent | MouseEvent,
+    extra: Record<string, unknown>,
+  ) => void;
 };

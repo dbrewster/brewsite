@@ -1,3 +1,4 @@
+import * as THREE from 'three';
 import type { PerspectiveCamera, Scene as ThreeScene, WebGLRenderer } from 'three';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { VariableStore } from '../widget/VariableStore';
@@ -140,6 +141,10 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     for (const renderable of this.renderables) {
       try {
         renderable.initialize({ scene: threeScene, widgetId: renderable.widgetId, renderer, camera });
+        // Register root Object3D for widgets that expose one (e.g. ViewWidget position delta).
+        if ('rootObject' in renderable && renderable.rootObject instanceof THREE.Object3D) {
+          this.widgetRegistry.setWidgetObject(renderable.widgetId, renderable.rootObject as THREE.Object3D);
+        }
       } catch (e) {
         const err = e instanceof Error ? e : new Error(String(e));
         this.onError?.(err);

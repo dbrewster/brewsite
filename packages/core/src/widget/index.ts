@@ -6,7 +6,7 @@ export type {
   ISceneLifecycle,
   IInputDefaultProvider,
   ICameraFocusTarget, ILightingOverride, IExtraRenderPass,
-  IGroupOwner,
+  IViewChild,
   CompileExtraContext, WidgetInitContext, WidgetRenderContext, AnimationTickContext, NVSCoordService,
   VariableStoreReader, AssetManifest,
 } from './types';
@@ -19,7 +19,7 @@ export {
   isSceneLifecycle,
   isInputDefaultProvider,
   isCameraFocusTarget, isLightingOverride, isExtraRenderPass,
-  isGroupOwner,
+  isViewChild,
 } from './WidgetRegistry';
 export type { IHasCustomDslHandler } from './WidgetRegistry';
 export { VariableStore } from './VariableStore';

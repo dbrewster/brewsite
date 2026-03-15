@@ -9,8 +9,9 @@ import { ScrollNavigatorContext } from './ScrollNavigatorContext';
 import { ScrollRegionContext } from './ScrollRegionContext';
 import { ScrollDriverContext } from './ScrollDriverContext';
 import { ActionInputController } from '../input/ActionInputController';
-import type { ActionInputHandler } from '../input/ActionInputController';
+import type { ActionInputHandler } from '../input/types';
 import type { SceneInputControllerSpec } from '../input/types';
+import { PRIMARY_CAROUSEL_SENTINEL } from '../input/defaultInputSpec';
 import { resolveLayout } from '../layout/regionLayout';
 import type { ViewLayoutState, ViewState } from '../compiler/viewTypes';
 import type { CarouselLayoutConfig, ViewLayoutConfig } from '../layout/regionTypes';
@@ -84,6 +85,36 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
   const rawProgressRef = useRef(0);
   const rafRef = useRef<number>(0);
 
+  // ── Axis arbitration state ─────────────────────────────────────────────────
+  // 'none' = not locked, 'x' = horizontal (carousel), 'y' = vertical (scroll).
+  // Sticky lock: first significant wheel delta within 200ms idle window wins.
+  type InertiaAxisLock = 'none' | 'x' | 'y';
+  const axisLockRef = useRef<InertiaAxisLock>('none');
+  const lastWheelTimestampRef = useRef(0);
+  /** Minimum pixel delta before sticky axis is committed. */
+  const AXIS_LOCK_THRESHOLD = 3;
+  /** Idle time in ms before axis lock resets to 'none'. */
+  const AXIS_LOCK_RESET_MS = 200;
+
+  // ── X-inertia accumulator (for carousel horizontal scroll) ────────────────
+  const xInertiaVelocityRef = useRef(0);
+  const xInertiaDeltaRef = useRef(0);
+  /** X-progress accumulator: fractional carousel steps from horizontal scroll. */
+  const xInertiaAccumulatorRef = useRef(0);
+  /** Threshold in carousel fractional steps before firing onCarouselStep. */
+  const X_INERTIA_CAROUSEL_THRESHOLD = 0.5;
+  /** Sensitivity for x-inertia: pixels → fractional steps. */
+  const X_INERTIA_SENSITIVITY = 0.003;
+  /** Inertia decay for x-axis. */
+  const X_INERTIA_DECAY = 0.85;
+
+  /**
+   * Carousel step callback set by the ActionInputController effect.
+   * Used by the X-inertia RAF loop to fire carousel steps without duplicating
+   * the full carousel logic. Signature matches handleCarouselStep: (layoutId, direction, stepSlides).
+   */
+  const carouselStepFnRef = useRef<((layoutId: string, direction: 1 | -1, stepSlides: number) => void) | null>(null);
+
   // ── Refs for per-frame prop reads (avoids RAF loop re-registration) ────────
   const inertiaSensitivityRef = useRef(props.inertiaSensitivity ?? 0.01);
   inertiaSensitivityRef.current = props.inertiaSensitivity ?? 0.01;
@@ -128,6 +159,7 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
   // ── RAF inertia loop ──────────────────────────────────────────────────────
   useEffect(() => {
     const tick = () => {
+      // ── Y-axis inertia (scroll navigation) ──
       const sensitivity = inertiaSensitivityRef.current / 1000.0;
       const decay = inertiaDecayRef.current;
       const result = computeInertiaStep(
@@ -143,6 +175,43 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
 
       if (result.progress !== rawProgressRef.current) {
         emitProgress(result.progress);
+      }
+
+      // ── X-axis inertia (carousel navigation) ──
+      if (xInertiaDeltaRef.current !== 0 || Math.abs(xInertiaVelocityRef.current) > 0.001) {
+        const xResult = computeInertiaStep(
+          xInertiaVelocityRef.current,
+          xInertiaDeltaRef.current,
+          X_INERTIA_SENSITIVITY,
+          X_INERTIA_DECAY,
+          xInertiaAccumulatorRef.current,
+        );
+        xInertiaDeltaRef.current = 0;
+        xInertiaVelocityRef.current = xResult.velocity;
+
+        const prevAcc = xInertiaAccumulatorRef.current;
+        xInertiaAccumulatorRef.current = xResult.progress;
+
+        const delta = xInertiaAccumulatorRef.current - prevAcc;
+        if (Math.abs(delta) > 0 && carouselStepFnRef.current) {
+          // Check if accumulator has crossed the threshold in either direction.
+          const acc = xInertiaAccumulatorRef.current;
+          if (acc >= X_INERTIA_CAROUSEL_THRESHOLD) {
+            const steps = Math.floor(acc / X_INERTIA_CAROUSEL_THRESHOLD);
+            xInertiaAccumulatorRef.current -= steps * X_INERTIA_CAROUSEL_THRESHOLD;
+            carouselStepFnRef.current(PRIMARY_CAROUSEL_SENTINEL, 1, steps);
+          } else if (acc <= -X_INERTIA_CAROUSEL_THRESHOLD) {
+            const steps = Math.floor(-acc / X_INERTIA_CAROUSEL_THRESHOLD);
+            xInertiaAccumulatorRef.current += steps * X_INERTIA_CAROUSEL_THRESHOLD;
+            carouselStepFnRef.current(PRIMARY_CAROUSEL_SENTINEL, -1, steps);
+          }
+        }
+      }
+
+      // ── Axis lock reset after idle ──
+      const now = performance.now();
+      if (axisLockRef.current !== 'none' && (now - lastWheelTimestampRef.current) > AXIS_LOCK_RESET_MS) {
+        axisLockRef.current = 'none';
       }
 
       rafRef.current = requestAnimationFrame(tick);
@@ -174,6 +243,125 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
       return (tick.state.widgets['__input_controller'] as SceneInputControllerSpec) ?? null;
     };
 
+    // Helper: resolve '__primary_carousel__' sentinel to the current scene's primaryCarouselId.
+    const resolvePrimaryCarouselId = (): string | null => {
+      const tick = engineRef.current.frameState.tick;
+      if (!tick) return null;
+      const primaryId = (tick.state as { primaryCarouselId?: string }).primaryCarouselId;
+      return primaryId ?? null;
+    };
+
+    // Shared carousel step logic — used by both handler.onCarouselStep and X-inertia RAF loop.
+    const handleCarouselStep = (layoutId: string, direction: 1 | -1, stepSlides: number): void => {
+      // Resolve sentinel layoutId.
+      const resolvedLayoutId = layoutId === PRIMARY_CAROUSEL_SENTINEL
+        ? resolvePrimaryCarouselId()
+        : layoutId;
+      if (!resolvedLayoutId) return; // sentinel with no primaryCarouselId → silent no-op.
+
+      // 1. Read the compiled ViewLayoutState for this layout.
+      const tick = engineRef.current.frameState.tick;
+      if (!tick) return;
+
+      const layoutState = tick.state.widgets[resolvedLayoutId] as ViewLayoutState | undefined;
+      if (!layoutState || layoutState.kind !== 'carousel') {
+        // Only warn if not from sentinel (sentinel no-op is intentional).
+        if (layoutId !== PRIMARY_CAROUSEL_SENTINEL) {
+          console.warn(
+            `[InputCoordinator] onCarouselStep: ViewLayout "${resolvedLayoutId}" not found or not a carousel.`,
+          );
+        }
+        return;
+      }
+      if (!layoutState.layoutConfig || !layoutState.childSizeHints) {
+        console.warn(
+          `[InputCoordinator] onCarouselStep: ViewLayout "${resolvedLayoutId}" missing layoutConfig or childSizeHints. ` +
+          `Ensure the scene was compiled with carousel scrubbing support.`,
+        );
+        return;
+      }
+
+      const childCount = layoutState.viewIds.length;
+      if (childCount === 0) return;
+
+      const config = layoutState.layoutConfig as CarouselLayoutConfig;
+      const loop = config.loop ?? false;
+
+      // 2. Read current activeIndex from VariableStore (falls back to compiled value).
+      const variableStore = engineRef.current.variableStore;
+      const storedIndex = variableStore.get('carousel', `${resolvedLayoutId}.activeIndex`);
+      const currentIndex = typeof storedIndex === 'number'
+        ? storedIndex
+        : Math.max(0, Math.min(childCount - 1, config.activeIndex));
+
+      // 3. Compute new index.
+      const rawNext = currentIndex + direction * stepSlides;
+      let newIndex: number;
+      if (loop) {
+        newIndex = ((rawNext % childCount) + childCount) % childCount;
+      } else {
+        newIndex = Math.max(0, Math.min(childCount - 1, rawNext));
+      }
+
+      // 4. No-op if index didn't change (e.g., clamped at boundary).
+      if (newIndex === currentIndex) return;
+
+      // 5. Write new index to VariableStore.
+      variableStore.set('carousel', `${resolvedLayoutId}.activeIndex`, newIndex);
+
+      // 6. Recompute layout with updated activeIndex.
+      const updatedConfig: ViewLayoutConfig = { ...config, activeIndex: newIndex };
+      const layoutResults = resolveLayout(
+        updatedConfig,
+        layoutState.bounds,
+        layoutState.childSizeHints,
+      );
+
+      // 7. Build patches: ViewLayoutState override + each child ViewState override.
+      const patches: Record<string, unknown> = {};
+
+      const patchedLayoutState: ViewLayoutState = {
+        ...layoutState,
+        layoutConfig: updatedConfig,
+      };
+      patches[resolvedLayoutId] = patchedLayoutState;
+
+      for (let i = 0; i < layoutState.viewIds.length; i++) {
+        const viewId = layoutState.viewIds[i]!;
+        const result = layoutResults[i];
+        if (!result) continue;
+
+        const existingViewState = tick.state.widgets[viewId] as ViewState | undefined;
+        if (!existingViewState) continue;
+
+        // Recompute contentBounds from new bounds + existing padding.
+        const [pt, pr, pb, pl] = existingViewState.padding;
+        const newContentBounds = {
+          x: result.bounds.x + pl * result.bounds.w,
+          y: result.bounds.y + pt * result.bounds.h,
+          w: result.bounds.w * (1 - pl - pr),
+          h: result.bounds.h * (1 - pt - pb),
+        };
+
+        const patchedViewState: ViewState = {
+          ...existingViewState,
+          bounds: result.bounds,
+          contentBounds: newContentBounds,
+          layer: result.layer,
+          scale: result.scale,
+          z: result.z,
+          opacity: result.opacity,
+        };
+        patches[viewId] = patchedViewState;
+      }
+
+      // 8. Apply patches.
+      engineRef.current.patchWidgetStates(patches);
+    };
+
+    // Expose handleCarouselStep to the X-inertia RAF loop via ref.
+    carouselStepFnRef.current = handleCarouselStep;
+
     const handler: ActionInputHandler = {
       getSceneCount: () => engineRef.current.sceneCount,
 
@@ -183,7 +371,7 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
         const delta = direction * (stepScenes / (count - 1));
         const newProgress = Math.max(0, Math.min(1, engineRef.current.progress + delta));
         // When a scroll source is present, route through ScrollNavigatorContext so
-        // the scroll source's internal state stays in sync.
+        // the scroll source's internal state stays in sync — no transition animation.
         const navigator = scrollNavigatorRef.current;
         if (navigator) {
           const rawProgress = engineRef.current.progressMapper
@@ -191,7 +379,13 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
             : newProgress;
           navigator.scrollTo(rawProgress);
         } else {
-          engineRef.current.advanceProgress(delta);
+          // Keyboard/button navigation: use transition animation when available.
+          const eng = engineRef.current;
+          if ('beginTransition' in eng && typeof eng.beginTransition === 'function') {
+            eng.beginTransition(newProgress);
+          } else {
+            eng.advanceProgress(delta);
+          }
         }
       },
 
@@ -199,8 +393,12 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
         engineRef.current.applyCameraOrbit(cameraId, dx, dy, speed);
       },
 
-      onCameraDolly: (cameraId, delta, speed) => {
-        engineRef.current.applyCameraDolly(cameraId, delta, speed);
+      onCameraZoom: (cameraId, delta, speed) => {
+        engineRef.current.applyCameraZoom(cameraId, delta, speed);
+      },
+
+      onCameraPan: (cameraId, dx, dy, speed) => {
+        engineRef.current.applyCameraPan(cameraId, dx, dy, speed);
       },
 
       onCameraReset: (cameraId) => {
@@ -208,114 +406,51 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
       },
 
       onCarouselStep: (layoutId, direction, stepSlides) => {
-        // 1. Read the compiled ViewLayoutState for this layout.
-        const tick = engineRef.current.frameState.tick;
-        if (!tick) return;
-
-        const layoutState = tick.state.widgets[layoutId] as ViewLayoutState | undefined;
-        if (!layoutState || layoutState.kind !== 'carousel') {
-          console.warn(
-            `[InputCoordinator] onCarouselStep: ViewLayout "${layoutId}" not found or not a carousel.`,
-          );
-          return;
-        }
-        if (!layoutState.layoutConfig || !layoutState.childSizeHints) {
-          console.warn(
-            `[InputCoordinator] onCarouselStep: ViewLayout "${layoutId}" missing layoutConfig or childSizeHints. ` +
-            `Ensure the scene was compiled with carousel scrubbing support.`,
-          );
-          return;
-        }
-
-        const childCount = layoutState.viewIds.length;
-        if (childCount === 0) return;
-
-        const config = layoutState.layoutConfig as CarouselLayoutConfig;
-        const loop = config.loop ?? false;
-
-        // 2. Read current activeIndex from VariableStore (falls back to compiled value).
-        const variableStore = engineRef.current.variableStore;
-        const storedIndex = variableStore.get('carousel', `${layoutId}.activeIndex`);
-        const currentIndex = typeof storedIndex === 'number'
-          ? storedIndex
-          : Math.max(0, Math.min(childCount - 1, config.activeIndex));
-
-        // 3. Compute new index.
-        const rawNext = currentIndex + direction * stepSlides;
-        let newIndex: number;
-        if (loop) {
-          newIndex = ((rawNext % childCount) + childCount) % childCount;
-        } else {
-          newIndex = Math.max(0, Math.min(childCount - 1, rawNext));
-        }
-
-        // 4. No-op if index didn't change (e.g., clamped at boundary).
-        if (newIndex === currentIndex) return;
-
-        // 5. Write new index to VariableStore.
-        variableStore.set('carousel', `${layoutId}.activeIndex`, newIndex);
-
-        // 6. Recompute layout with updated activeIndex.
-        const updatedConfig: ViewLayoutConfig = { ...config, activeIndex: newIndex };
-        const layoutResults = resolveLayout(
-          updatedConfig,
-          layoutState.bounds,
-          layoutState.childSizeHints,
-        );
-
-        // 7. Build patches: ViewLayoutState override + each child ViewState override.
-        const patches: Record<string, unknown> = {};
-
-        const patchedLayoutState: ViewLayoutState = {
-          ...layoutState,
-          layoutConfig: updatedConfig,
-        };
-        patches[layoutId] = patchedLayoutState;
-
-        for (let i = 0; i < layoutState.viewIds.length; i++) {
-          const viewId = layoutState.viewIds[i]!;
-          const result = layoutResults[i];
-          if (!result) continue;
-
-          const existingViewState = tick.state.widgets[viewId] as ViewState | undefined;
-          if (!existingViewState) continue;
-
-          // Recompute contentBounds from new bounds + existing padding.
-          const [pt, pr, pb, pl] = existingViewState.padding;
-          const newContentBounds = {
-            x: result.bounds.x + pl * result.bounds.w,
-            y: result.bounds.y + pt * result.bounds.h,
-            w: result.bounds.w * (1 - pl - pr),
-            h: result.bounds.h * (1 - pt - pb),
-          };
-
-          const patchedViewState: ViewState = {
-            ...existingViewState,
-            bounds: result.bounds,
-            contentBounds: newContentBounds,
-            layer: result.layer,
-            scale: result.scale,
-            z: result.z,
-            opacity: result.opacity,
-          };
-          patches[viewId] = patchedViewState;
-        }
-
-        // 8. Apply patches.
-        engineRef.current.patchWidgetStates(patches);
+        handleCarouselStep(layoutId, direction, stepSlides);
       },
 
       onUnknownAction: pluginExtension ?? undefined,
     };
 
+    // Cleanup: unregister carousel step callback when effect tears down.
+    const cleanupCarouselFn = () => { carouselStepFnRef.current = null; };
+
     // Keyboard defaults to document for broadest compatibility.
     const keyboardTarget = props.keyboardTarget ?? document;
 
-    // onUnclaimedWheel connects waterfall step 4 to the inertia accumulator.
+    // onUnclaimedWheel connects waterfall step 4 to the inertia accumulators.
+    // Implements sticky axis arbitration: first significant delta within 200ms idle
+    // window locks to X (carousel) or Y (scroll) axis until idle resets.
     // Only wire it when we have a scroll driver (i.e., inside a ScrollStage).
     const onUnclaimedWheel = scrollDriver
       ? (e: WheelEvent) => {
-          pendingWheelDeltaRef.current += e.deltaY;
+          const now = performance.now();
+          lastWheelTimestampRef.current = now;
+
+          const absDx = Math.abs(e.deltaX);
+          const absDy = Math.abs(e.deltaY);
+
+          // Determine or update axis lock.
+          if (axisLockRef.current === 'none') {
+            if (absDx >= AXIS_LOCK_THRESHOLD || absDy >= AXIS_LOCK_THRESHOLD) {
+              axisLockRef.current = absDx >= absDy ? 'x' : 'y';
+            }
+          }
+
+          const lock = axisLockRef.current;
+
+          if (lock === 'x') {
+            // Horizontal: accumulate for X-inertia (carousel).
+            xInertiaDeltaRef.current += e.deltaX;
+          } else if (lock === 'y' || lock === 'none') {
+            // Vertical (or undecided): accumulate for Y-inertia (scroll).
+            // If transition is active, interrupt it on user scroll.
+            if ((engineRef.current as { interruptTransition?: () => void }).interruptTransition) {
+              (engineRef.current as { interruptTransition: () => void }).interruptTransition();
+            }
+            pendingWheelDeltaRef.current += e.deltaY;
+          }
+
           e.preventDefault();
         }
       : undefined;
@@ -360,6 +495,7 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
     return () => {
       controller.detach();
       removeScrollGuard?.();
+      cleanupCarouselFn();
     };
   }, [props.target, props.keyboardTarget, pluginExtension, scrollRegion, scrollDriver]); // engine intentionally NOT in deps — use engineRef instead
 

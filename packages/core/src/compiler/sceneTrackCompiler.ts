@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
-import type { SceneInputControllerSpec } from '../input/types';
 import type { SceneDefinition } from './sceneTypes';
 import type { ActiveTheme } from '../theme/types';
 import type {
@@ -21,6 +20,7 @@ import type { WithTransitionConfig } from './transitions/transitionTypes';
 import { makeResolver } from './transitions/transitionResolver';
 import { IDENTITY_FN } from './identityFn';
 import { INPUT_CONTROLLER_WIDGET_ID } from './blocks/inputController';
+import { createDefaultInputSpec } from '../input/defaultInputSpec';
 
 export type CompileSceneTrackOptions = {
   scenes: SceneDefinition[];
@@ -210,6 +210,8 @@ export function buildProgressProfile(
     const resolvedSpec: ProgressManagerSpec = { scrollUnits: lastScrollUnits, fn: lastFn };
     if (declared?.autoAdvance !== undefined) resolvedSpec.autoAdvance = declared.autoAdvance;
     if (declared?.animationTimeScale !== undefined) resolvedSpec.animationTimeScale = declared.animationTimeScale;
+    if (declared?.transitionDuration !== undefined) resolvedSpec.transitionDuration = declared.transitionDuration;
+    if (declared?.transitionEasing !== undefined) resolvedSpec.transitionEasing = declared.transitionEasing;
     resolved.push(resolvedSpec);
   }
 
@@ -225,7 +227,9 @@ export function buildProgressProfile(
       spec.scrollUnits === firstUnit &&
       spec.fn === IDENTITY_FN &&
       spec.autoAdvance === undefined &&
-      spec.animationTimeScale === undefined,
+      spec.animationTimeScale === undefined &&
+      spec.transitionDuration === undefined &&
+      spec.transitionEasing === undefined,
   );
 
   if (isUniform) return undefined;  // identity mapping — no profile needed
@@ -308,6 +312,14 @@ export function buildProgressProfile(
 
     if (spec.animationTimeScale !== undefined) {
       seg.animationTimeScale = spec.animationTimeScale;
+    }
+
+    if (spec.transitionDuration !== undefined) {
+      seg.transitionDuration = spec.transitionDuration;
+    }
+
+    if (spec.transitionEasing !== undefined) {
+      seg.transitionEasing = spec.transitionEasing;
     }
 
     segments.push(seg);
@@ -411,36 +423,14 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     prevInputController = mergedInputController;
   }
 
-  // If no scene declares an <InputController>, inject default keyboard navigation bindings.
-  // Uses scope: 'window' so keyboard events register on document — matching the old
-  // InputController class behavior. Default bindings: ArrowRight/Down = scene.next,
-  // ArrowLeft/Up = scene.prev.
+  // If no scene declares an <InputController>, inject the full default input spec.
+  // Includes keyboard scene navigation, camera orbit/zoom/pan/reset, and carousel
+  // navigation using the '__primary_carousel__' sentinel (resolved at runtime).
   const anyHasInput = snapshots.some((s) => s.widgets[INPUT_CONTROLLER_WIDGET_ID] != null);
   if (!anyHasInput) {
-    const DEFAULT_INPUT_SPEC: SceneInputControllerSpec = {
-      id: '__default',
-      scope: 'window',
-      actions: [
-        {
-          id: '__scene_next',
-          type: 'scene.next',
-          maps: [
-            { kind: 'key', key: 'ArrowRight' },
-            { kind: 'key', key: 'ArrowDown' },
-          ],
-        },
-        {
-          id: '__scene_prev',
-          type: 'scene.prev',
-          maps: [
-            { kind: 'key', key: 'ArrowLeft' },
-            { kind: 'key', key: 'ArrowUp' },
-          ],
-        },
-      ],
-    };
+    const defaultSpec = createDefaultInputSpec();
     for (const snapshot of snapshots) {
-      snapshot.widgets[INPUT_CONTROLLER_WIDGET_ID] = DEFAULT_INPUT_SPEC;
+      snapshot.widgets[INPUT_CONTROLLER_WIDGET_ID] = defaultSpec;
     }
   }
 
@@ -640,6 +630,12 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     const activeExtra = fromExtra;
     for (const [widgetId, state] of Object.entries(activeExtra)) {
       frame.state.widgets[widgetId] = state;
+    }
+
+    // Propagate primaryCarouselId from the scene snapshot to the tick state.
+    const snapshot = snapshots[blockIdx];
+    if (snapshot?.primaryCarouselId !== undefined) {
+      (frame.state as { primaryCarouselId?: string }).primaryCarouselId = snapshot.primaryCarouselId;
     }
   }
 

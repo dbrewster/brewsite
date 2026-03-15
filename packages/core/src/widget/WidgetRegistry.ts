@@ -6,9 +6,9 @@ import type {
   IRendererLifecycle, IRenderContributor, IContainedRenderable, IAttachmentHost,
   ISceneLifecycle, IInputDefaultProvider,
   ICameraFocusTarget, ILightingOverride, IExtraRenderPass,
-  IGroupOwner,
+  IViewChild,
 } from './types';
-import type { WebGLRenderer } from 'three';
+import type { WebGLRenderer, Object3D } from 'three';
 import type { ReactElement } from 'react';
 import { registerNode, getNodeHandler } from '../compiler/registry';
 import type { NodeHandler, CompileApi, CompileHelpers, NodeHandlerCategory } from '../compiler/sceneDslTypes';
@@ -82,6 +82,7 @@ export class WidgetRegistry {
   private typeFactories = new Map<unknown, (props: Record<string, unknown>) => IWidget>();
   private readonly strict: boolean;
   private frozen = false;
+  private widgetObjects = new Map<string, Object3D>();
 
   constructor(options: WidgetRegistryOptions = {}) {
     this.strict = options.strict ?? false;
@@ -364,8 +365,23 @@ export class WidgetRegistry {
     }
   }
 
+  /** Stores the root Object3D created during IRenderable.initialize(). Called by RuntimeDriverImpl. */
+  setWidgetObject(widgetId: string, obj: Object3D): void {
+    this.widgetObjects.set(widgetId, obj);
+  }
+
+  /** Returns the root Object3D for an initialized IRenderable widget, or undefined. */
+  getWidgetObject(widgetId: string): Object3D | undefined {
+    return this.widgetObjects.get(widgetId);
+  }
+
+  /** Clears widget object mapping. Called during widget dispose. */
+  clearWidgetObject(widgetId: string): void {
+    this.widgetObjects.delete(widgetId);
+  }
+
   buildCacheKey(): string {
-    return Array.from(this.widgets.values())
+    const widgetPart = Array.from(this.widgets.values())
       .map((w) => {
         // For widgets using FunctionalTransitionSpec, include a hash of transition
         // function sources so cache invalidation tracks real code changes, not length.
@@ -380,6 +396,12 @@ export class WidgetRegistry {
       })
       .sort()
       .join('|');
+    // Include type factory count so registries with different lazy-widget
+    // capabilities (e.g. manifest loaded vs not) produce different cache keys.
+    const factoryPart = this.typeFactories.size > 0
+      ? `tf:${this.typeFactories.size}`
+      : '';
+    return factoryPart ? `${widgetPart}::${factoryPart}` : widgetPart;
   }
 }
 
@@ -436,7 +458,7 @@ export const isLightingOverride = (w: IWidget): w is ILightingOverride =>
 export const isExtraRenderPass = (w: IWidget): w is IExtraRenderPass =>
   typeof (w as IExtraRenderPass).renderPass === 'function';
 
-/** Type guard: returns true if widget implements IGroupOwner (duck-type, not instanceof). */
-export function isGroupOwner(widget: IWidget): widget is IGroupOwner {
-  return 'rootGroup' in widget && (widget as IGroupOwner).rootGroup != null;
+/** Type guard: widget implements IViewChild (view-level opacity delegation). */
+export function isViewChild(widget: IWidget): widget is IViewChild {
+  return 'applyViewOpacity' in widget && typeof (widget as IViewChild).applyViewOpacity === 'function';
 }

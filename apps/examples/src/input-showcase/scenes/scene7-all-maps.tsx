@@ -7,6 +7,7 @@ import {
   Camera,
   Directional,
   Floor,
+  formatModifier,
   InputController,
   KeyMap,
   Lighting,
@@ -29,7 +30,6 @@ import {
   ChartSeries,
   LineChart,
 } from '@brewsite/charts';
-import { pk } from '../platformKeys';
 
 const CAM_POS: [number, number, number] = [0, 1.5, 9];
 const CAM_TGT: [number, number, number] = [0, 0, 0];
@@ -203,7 +203,7 @@ const C_MOD = '#c050e0';
 
 export const AllMapsScene = (): JSX.Element => {
   return (
-    <Scene id="input-all-maps">
+    <Scene id="input-all-maps" primaryCarouselId={LAYOUT_ID}>
       <ProgressManager scrollUnits={1000} />
       <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={45} />
       <Lighting intensityScale={1}>
@@ -228,18 +228,18 @@ export const AllMapsScene = (): JSX.Element => {
         <Action id="orbit-mod" type="camera.orbit" speed={0.6}>
           <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
         </Action>
-        {/* Camera dolly — wheel + pinch */}
-        <Action id="dolly" type="camera.dolly">
+        {/* Camera zoom — wheel + pinch */}
+        <Action id="dolly" type="camera.zoom">
           <WheelMap axis="y" />
           <PinchMap direction="both" threshold={1} />
         </Action>
-        <Action id="dolly-precision" type="camera.dolly" speed={0.2}>
+        <Action id="dolly-precision" type="camera.zoom" speed={0.2}>
           <WheelMap axis="y" modifiers={['ctrl']} />
         </Action>
-        <Action id="dolly-pinch-in" type="camera.dolly" speed={1.5}>
+        <Action id="dolly-pinch-in" type="camera.zoom" speed={1.5}>
           <PinchMap direction="in" threshold={2} />
         </Action>
-        <Action id="dolly-pinch-out" type="camera.dolly" speed={1.5}>
+        <Action id="dolly-pinch-out" type="camera.zoom" speed={1.5}>
           <PinchMap direction="out" threshold={2} />
         </Action>
         {/* Camera reset */}
@@ -322,12 +322,12 @@ export const AllMapsScene = (): JSX.Element => {
           </p>
           <div style={{ fontSize: 11, fontWeight: 600, color: '#a0c8ff', marginBottom: 6 }}>Modifier combos:</div>
           {[
-            { combo: 'No modifier', desc: 'Left Drag = Orbit · Scroll = Dolly · Click = Carousel Next' },
-            { combo: pk('Mod'), desc: `${pk('Mod')}+Drag = Slow Orbit (×0.6)` },
-            { combo: pk('Ctrl'), desc: `${pk('Ctrl')}+Scroll = Precision Dolly (×0.2)` },
+            { combo: 'No modifier', desc: 'Left Drag = Orbit · Scroll = Zoom · Click = Carousel Next' },
+            { combo: formatModifier('meta'), desc: `${formatModifier('meta')}+Drag = Slow Orbit (×0.6)` },
+            { combo: formatModifier('ctrl'), desc: `${formatModifier('ctrl')}+Scroll = Precision Zoom (×0.2)` },
             { combo: 'Right button', desc: 'Right Drag = Orbit (×0.7)' },
             { combo: 'Middle click', desc: 'Reset camera position' },
-            { combo: pk('Shift'), desc: `${pk('Shift')}+→ = Jump 3 slides · ${pk('Shift')}+← = Back 3` },
+            { combo: formatModifier('shift'), desc: `${formatModifier('shift')}+→ = Jump 3 slides · ${formatModifier('shift')}+← = Back 3` },
           ].map(({ combo, desc }) => (
             <div key={combo} style={{ marginBottom: 7 }}>
               <div style={{ fontSize: 10, fontWeight: 600, color: '#7ab4ff', marginBottom: 2 }}>{combo}</div>
@@ -357,16 +357,16 @@ export const AllMapsScene = (): JSX.Element => {
             {[
               { kbd: 'Left Drag', desc: 'Orbit camera', color: C_CAM },
               { kbd: 'Right Drag', desc: 'Orbit ×0.7', color: C_CAM },
-              { kbd: pk('Mod+Left Drag'), desc: 'Orbit ×0.6', color: C_MOD },
-              { kbd: 'Scroll', desc: 'Dolly camera', color: C_CAM },
-              { kbd: pk('Ctrl+Scroll'), desc: 'Dolly ×0.2', color: C_MOD },
-              { kbd: 'Pinch', desc: 'Dolly (in/out)', color: C_CAM },
+              { kbd: `${formatModifier('meta')}+Left Drag`, desc: 'Orbit ×0.6', color: C_MOD },
+              { kbd: 'Scroll', desc: 'Zoom camera', color: C_CAM },
+              { kbd: `${formatModifier('ctrl')}+Scroll`, desc: 'Zoom ×0.2', color: C_MOD },
+              { kbd: 'Pinch', desc: 'Zoom (in/out)', color: C_CAM },
               { kbd: 'R', desc: 'Reset camera', color: '#e07050' },
               { kbd: 'Middle Click', desc: 'Reset camera', color: '#e07050' },
               { kbd: '→ / Click', desc: 'Carousel +1', color: C_CAR },
-              { kbd: pk('Shift+→'), desc: 'Carousel +3', color: C_MOD },
+              { kbd: `${formatModifier('shift')}+→`, desc: 'Carousel +3', color: C_MOD },
               { kbd: '←', desc: 'Carousel −1', color: C_CAR },
-              { kbd: pk('Shift+←'), desc: 'Carousel −3', color: C_MOD },
+              { kbd: `${formatModifier('shift')}+←`, desc: 'Carousel −3', color: C_MOD },
               { kbd: '↓', desc: 'Next scene', color: C_SCENE },
               { kbd: '↑', desc: 'Prev scene', color: C_SCENE },
             ].map(({ kbd, desc, color }) => (

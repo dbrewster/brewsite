@@ -2,7 +2,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { corePlugin } from '../plugins';
-import { WidgetRegistry, isGroupOwner } from '../../widget/WidgetRegistry';
+import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import { ViewWidget } from '../../elements/view/ViewWidget';
 import type { SceneTrack, SceneTrackTick } from '../../compiler/sceneTrackTypes';
 import type { IWidget } from '../../widget/types';
@@ -142,20 +142,15 @@ describe('corePlugin.reconcileCompiledTrack', () => {
     expect(registry.getAll()).toHaveLength(0);
   });
 
-  it('resolveChildRoot returns rootGroup for IGroupOwner children registered in the same registry', () => {
+  it('resolveChildObject returns object from registry.getWidgetObject when set', () => {
     const plugin = corePlugin();
     const registry = new WidgetRegistry();
 
-    // Register a mock child widget that implements IGroupOwner before reconcile.
-    const fakeRootGroup = { name: 'mock-group' } as unknown as Object3D;
-    const mockChild: IWidget & { rootGroup: Object3D } = {
-      widgetId: 'child-1',
-      rootGroup: fakeRootGroup,
-    };
-    registry.register(mockChild);
-
-    // Verify the mock is recognized as IGroupOwner by the duck-type guard.
-    expect(isGroupOwner(registry.get('child-1')!)).toBe(true);
+    // Pre-register a child widget and store its root Object3D.
+    const childWidget: IWidget = { widgetId: 'child-1' };
+    const fakeObj = { uuid: 'fake-obj' } as unknown as Object3D;
+    registry.register(childWidget);
+    registry.setWidgetObject('child-1', fakeObj);
 
     const track = makeTrack([
       makeTick({ v1: makeViewStateLike('v1', ['child-1']) }),
@@ -164,16 +159,11 @@ describe('corePlugin.reconcileCompiledTrack', () => {
 
     // ViewWidget is registered.
     expect(registry.get('v1')).toBeInstanceOf(ViewWidget);
-
-    // The child's rootGroup is accessible through the registry + isGroupOwner,
-    // which is exactly what the resolveChildRoot closure calls.
-    const child = registry.get('child-1');
-    expect(child).toBeDefined();
-    expect(isGroupOwner(child!)).toBe(true);
-    expect((child as typeof mockChild).rootGroup).toBe(fakeRootGroup);
+    // The stored object is retrievable through the registry.
+    expect(registry.getWidgetObject('child-1')).toBe(fakeObj);
   });
 
-  it('resolveChildRoot returns null for children not in registry', () => {
+  it('resolveChildObject returns null for children not in registry', () => {
     const plugin = corePlugin();
     const registry = new WidgetRegistry();
 
@@ -188,13 +178,13 @@ describe('corePlugin.reconcileCompiledTrack', () => {
     expect(registry.get('missing-child')).toBeUndefined();
   });
 
-  it('resolveChildRoot returns null for children that do not implement IGroupOwner', () => {
+  it('resolveChildObject returns null for registered children with no stored Object3D', () => {
     const plugin = corePlugin();
     const registry = new WidgetRegistry();
 
-    // Register a widget without rootGroup — does not implement IGroupOwner.
-    const nonGroupOwner: IWidget = { widgetId: 'plain-widget' };
-    registry.register(nonGroupOwner);
+    // Register a plain widget without calling setWidgetObject.
+    const plainWidget: IWidget = { widgetId: 'plain-widget' };
+    registry.register(plainWidget);
 
     const track = makeTrack([
       makeTick({ v1: makeViewStateLike('v1', ['plain-widget']) }),
@@ -202,6 +192,7 @@ describe('corePlugin.reconcileCompiledTrack', () => {
     plugin.reconcileCompiledTrack!(registry, track);
 
     expect(registry.get('v1')).toBeInstanceOf(ViewWidget);
-    expect(isGroupOwner(nonGroupOwner)).toBe(false);
+    // No Object3D was stored — getWidgetObject returns undefined.
+    expect(registry.getWidgetObject('plain-widget')).toBeUndefined();
   });
 });

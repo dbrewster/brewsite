@@ -1,11 +1,11 @@
-// Tests for isGroupOwner (WidgetRegistry) and isViewStateLike (plugins.ts, tested indirectly).
-// isGroupOwner: duck-type check ('rootGroup' in widget && widget.rootGroup != null).
+// Tests for isViewChild (WidgetRegistry) and isViewStateLike (plugins.ts, tested indirectly).
+// isViewChild: duck-type check ('applyViewOpacity' in widget && typeof fn === 'function').
 // isViewStateLike: local in plugins.ts; exercised via corePlugin().reconcileCompiledTrack().
 
 import { describe, it, expect } from 'vitest';
-import { isGroupOwner, WidgetRegistry } from '../WidgetRegistry';
+import { isViewChild, WidgetRegistry } from '../WidgetRegistry';
 import { corePlugin } from '../../player/plugins';
-import type { IWidget } from '../types';
+import type { IWidget, IViewChild } from '../types';
 import type { SceneTrack } from '../../compiler/sceneTrackTypes';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -36,30 +36,63 @@ const validViewState = {
   childWidgetIds: ['child-a'],
 };
 
-// ─── isGroupOwner ──────────────────────────────────────────────────────────────
+// ─── isViewChild ───────────────────────────────────────────────────────────────
 
-describe('isGroupOwner', () => {
-  it('returns true for a widget with a non-null rootGroup property', () => {
-    const widget: IWidget & { rootGroup: object } = {
+describe('isViewChild', () => {
+  it('returns true for a widget with an applyViewOpacity function', () => {
+    const widget: IViewChild = {
       widgetId: 'w1',
-      rootGroup: { uuid: 'fake-group', isObject3D: true },
+      applyViewOpacity: (_opacity: number) => {},
     };
-    expect(isGroupOwner(widget)).toBe(true);
+    expect(isViewChild(widget)).toBe(true);
   });
 
-  it('returns false for a plain IWidget without rootGroup property', () => {
+  it('returns false for a plain IWidget without applyViewOpacity', () => {
     const widget: IWidget = { widgetId: 'w1' };
-    expect(isGroupOwner(widget)).toBe(false);
+    expect(isViewChild(widget)).toBe(false);
   });
 
-  it('returns false when rootGroup is null', () => {
-    const widget = { widgetId: 'w1', rootGroup: null } as IWidget;
-    expect(isGroupOwner(widget)).toBe(false);
+  it('returns false when applyViewOpacity is not a function', () => {
+    const widget = { widgetId: 'w1', applyViewOpacity: 'not-a-function' } as unknown as IWidget;
+    expect(isViewChild(widget)).toBe(false);
   });
 
-  it('returns false when rootGroup is undefined', () => {
-    const widget = { widgetId: 'w1', rootGroup: undefined } as IWidget;
-    expect(isGroupOwner(widget)).toBe(false);
+  it('returns false when applyViewOpacity is null', () => {
+    const widget = { widgetId: 'w1', applyViewOpacity: null } as unknown as IWidget;
+    expect(isViewChild(widget)).toBe(false);
+  });
+});
+
+// ─── WidgetRegistry.getWidgetObject / setWidgetObject / clearWidgetObject ─────
+
+describe('WidgetRegistry widget object map', () => {
+  it('getWidgetObject returns the stored object after setWidgetObject', () => {
+    const registry = new WidgetRegistry();
+    const obj = { uuid: 'test-obj', isObject3D: true } as unknown as import('three').Object3D;
+    registry.setWidgetObject('widget-1', obj);
+    expect(registry.getWidgetObject('widget-1')).toBe(obj);
+  });
+
+  it('getWidgetObject returns undefined for an unknown widgetId', () => {
+    const registry = new WidgetRegistry();
+    expect(registry.getWidgetObject('nonexistent')).toBeUndefined();
+  });
+
+  it('clearWidgetObject removes the stored object', () => {
+    const registry = new WidgetRegistry();
+    const obj = { uuid: 'test-obj', isObject3D: true } as unknown as import('three').Object3D;
+    registry.setWidgetObject('widget-1', obj);
+    registry.clearWidgetObject('widget-1');
+    expect(registry.getWidgetObject('widget-1')).toBeUndefined();
+  });
+
+  it('setWidgetObject overwrites an existing entry for the same widgetId', () => {
+    const registry = new WidgetRegistry();
+    const obj1 = { uuid: 'obj-1' } as unknown as import('three').Object3D;
+    const obj2 = { uuid: 'obj-2' } as unknown as import('three').Object3D;
+    registry.setWidgetObject('widget-1', obj1);
+    registry.setWidgetObject('widget-1', obj2);
+    expect(registry.getWidgetObject('widget-1')).toBe(obj2);
   });
 });
 
@@ -122,11 +155,9 @@ describe('isViewStateLike — indirect via reconcileCompiledTrack', () => {
   it('skips a view state for an already-registered widgetId', () => {
     const plugin = corePlugin();
     const registry = new WidgetRegistry();
-    // Pre-register a plain widget with the same id
     const preExisting: IWidget = { widgetId: 'view-1' };
     registry.register(preExisting);
     plugin.reconcileCompiledTrack!(registry, buildTrack({ 'view-1': validViewState }));
-    // Should still be the original pre-existing widget
     expect(registry.get('view-1')).toBe(preExisting);
   });
 });

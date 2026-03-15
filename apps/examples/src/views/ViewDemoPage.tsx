@@ -34,7 +34,7 @@ function createViewDemoPlugins(): { plugins: WidgetPlugin[] } {
     plugins: [
       corePlugin(),
       chartPlugin(),
-      diagramPlugin({ diagrams: ['cf-overview-2'] }),
+      diagramPlugin(),
       themesPlugin(),
     ],
   };

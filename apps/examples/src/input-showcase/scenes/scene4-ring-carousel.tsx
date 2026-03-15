@@ -6,6 +6,7 @@ import {
   Ambient,
   Camera,
   Floor,
+  formatModifier,
   InputController,
   KeyMap,
   Lighting,
@@ -27,7 +28,6 @@ import {
   ChartSeries,
   LineChart,
 } from '@brewsite/charts';
-import { pk } from '../platformKeys';
 
 const CAM_POS: [number, number, number] = [0, 1, 6.6];
 const CAM_TGT: [number, number, number] = [0, 0, 0];
@@ -187,7 +187,7 @@ function RingCarouselViews(): JSX.Element {
 
 export const RingCarouselScene = (): JSX.Element => {
   return (
-    <Scene id="input-ring-carousel">
+    <Scene id="input-ring-carousel" primaryCarouselId={LAYOUT_ID}>
       <ProgressManager scrollUnits={800} />
       <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
       <Lighting intensityScale={1.2}>
@@ -218,7 +218,7 @@ export const RingCarouselScene = (): JSX.Element => {
         <Action id="scene-prev" type="scene.prev">
           <KeyMap keyName="ArrowUp" />
         </Action>
-        <Action id="dolly" type="camera.dolly">
+        <Action id="dolly" type="camera.zoom">
           <PinchMap direction="both" threshold={1} />
         </Action>
       </InputController>
@@ -267,9 +267,9 @@ export const RingCarouselScene = (): JSX.Element => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {[
               { keys: '→ / Click', desc: 'Rotate forward (×1)' },
-              { keys: pk('Shift+→'), desc: 'Jump 2 positions' },
+              { keys: `${formatModifier('shift')}+→`, desc: 'Jump 2 positions' },
               { keys: '←', desc: 'Rotate back (×1)' },
-              { keys: pk('Shift+←'), desc: 'Jump back 2' },
+              { keys: `${formatModifier('shift')}+←`, desc: 'Jump back 2' },
               { keys: '↑ / ↓', desc: 'Change scene' },
             ].map(({ keys, desc }) => (
               <div key={keys} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10 }}>

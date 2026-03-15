@@ -281,7 +281,7 @@ export const CarouselScene4 = (): JSX.Element => {
  *  The ViewLayout id="demo-carousel" matches the layoutId on each Action. */
 export const CarouselScene = (): JSX.Element => {
   return (
-    <Scene id="carousel-interactive">
+    <Scene id="carousel-interactive" primaryCarouselId="demo-carousel">
       <ProgressManager scrollUnits={800} />
       <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
       <Lighting intensityScale={1.2}>

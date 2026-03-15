@@ -78,6 +78,7 @@ const makeEngine = (
       sceneProgress: 0,
       tick,
     },
+    progress: 0,
     sceneCount,
     primaryCameraId: 'camera',
     primaryCanvasActionTargetId: '',
@@ -85,7 +86,12 @@ const makeEngine = (
     advanceProgress: vi.fn(),
     applyCameraOrbit: vi.fn(),
     applyCameraDolly: vi.fn(),
+    applyCameraZoom: vi.fn(),
+    applyCameraPan: vi.fn(),
     applyCameraReset: vi.fn(),
+    beginTransition: vi.fn(),
+    interruptTransition: vi.fn(),
+    redirectTransition: vi.fn(),
     setCameraOverride: vi.fn(),
   } as unknown as UseSceneEngineResult;
 };
@@ -181,9 +187,10 @@ describe('InputCoordinator', () => {
     const event = new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true });
     document.dispatchEvent(event);
 
-    expect(engine.advanceProgress).toHaveBeenCalledTimes(1);
-    // sceneCount=3, so delta = 1 / (3-1) = 0.5
-    expect(engine.advanceProgress).toHaveBeenCalledWith(0.5);
+    // scene.next now uses beginTransition for animated navigation (no scroll source).
+    // sceneCount=3, delta = 1 / (3-1) = 0.5, newProgress = 0 + 0.5 = 0.5.
+    expect(engine.beginTransition).toHaveBeenCalledTimes(1);
+    expect(engine.beginTransition).toHaveBeenCalledWith(0.5);
   });
 
   it('dispatches scene.prev on ArrowLeft keydown when spec is present', async () => {
@@ -203,7 +210,8 @@ describe('InputCoordinator', () => {
     const event = new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true });
     document.dispatchEvent(event);
 
-    expect(engine.advanceProgress).toHaveBeenCalledWith(-0.5);
+    // scene.prev: delta = -0.5, newProgress = max(0, 0 + (-0.5)) = 0.
+    expect(engine.beginTransition).toHaveBeenCalledWith(0);
   });
 
   it('does NOT dispatch when spec is null (tick has no __input_controller)', async () => {
@@ -239,14 +247,14 @@ describe('InputCoordinator', () => {
       ),
     );
 
-    // Confirm attach works: first keydown dispatches.
+    // Confirm attach works: first keydown dispatches via beginTransition.
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-    expect(engine.advanceProgress).toHaveBeenCalledTimes(1);
+    expect(engine.beginTransition).toHaveBeenCalledTimes(1);
 
     // Unmount and verify no further dispatches.
     unmount();
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-    expect(engine.advanceProgress).toHaveBeenCalledTimes(1); // unchanged
+    expect(engine.beginTransition).toHaveBeenCalledTimes(1); // unchanged
   });
 
   it('reads __input_controller spec from tick state via getSpec() closure', async () => {
@@ -271,7 +279,7 @@ describe('InputCoordinator', () => {
 
     // getSpec() closure reads from engine.frameState.tick on each event — no re-mount needed.
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
-    expect(engine.advanceProgress).toHaveBeenCalledTimes(1);
+    expect(engine.beginTransition).toHaveBeenCalledTimes(1);
   });
 
   it('passes onUnknownAction from ActionInputExtensionContext to the controller', async () => {
@@ -347,8 +355,8 @@ const makeWheelSpec = (): SceneInputControllerSpec => ({
   scope: 'canvas',
   actions: [
     {
-      id: 'dolly',
-      type: 'camera.dolly',
+      id: 'zoom',
+      type: 'camera.zoom',
       maps: [{ kind: 'wheel', axis: 'y' }],
     },
   ],
@@ -389,8 +397,8 @@ describe('InputCoordinator — wheel waterfall', () => {
     // Dispatch wheel event to target.
     target.dispatchEvent(new WheelEvent('wheel', { deltaY: 100, bubbles: true, cancelable: true }));
 
-    // Camera dolly must have fired.
-    expect(engine.applyCameraDolly).toHaveBeenCalledTimes(1);
+    // Camera zoom must have fired (camera.zoom action type → applyCameraZoom).
+    expect(engine.applyCameraZoom).toHaveBeenCalledTimes(1);
 
     // Progress must NOT have changed synchronously — the WheelMap claimed the event,
     // so the inertia accumulator was not fed. Progress stays at 0.
@@ -863,5 +871,192 @@ describe('InputCoordinator — onCarouselStep', () => {
     const patchedLayout = patches[LAYOUT_ID] as ViewLayoutState;
     expect((patchedLayout.layoutConfig as { activeIndex: number }).activeIndex).toBe(1);
     expect(variableStore.get('carousel', `${LAYOUT_ID}.activeIndex`)).toBe(1);
+  });
+});
+
+// ─── Stream D: transition-based scene navigation, sentinel resolution ──────────
+
+describe('InputCoordinator — Stream D: beginTransition navigation', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('onSceneStep uses beginTransition when no scroll navigator is present', async () => {
+    const spec: SceneInputControllerSpec = {
+      id: 'ctrl',
+      scope: 'canvas',
+      actions: [
+        { id: 'next', type: 'scene.next', maps: [{ kind: 'key', key: 'ArrowDown' }] },
+      ],
+    };
+    const tick = makeTick(spec);
+    const engine = makeEngine({ tick, sceneCount: 5 });
+    const canvas = document.createElement('canvas');
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <InputCoordinator target={canvas} />
+        </EngineContext.Provider>,
+      );
+    });
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+
+    // sceneCount=5, delta = 1 / (5-1) = 0.25, newProgress = 0.25.
+    expect(engine.beginTransition).toHaveBeenCalledWith(0.25);
+    expect(engine.advanceProgress).not.toHaveBeenCalled();
+  });
+
+  it('onSceneStep falls back to advanceProgress when beginTransition is absent', async () => {
+    const spec: SceneInputControllerSpec = {
+      id: 'ctrl',
+      scope: 'canvas',
+      actions: [
+        { id: 'next', type: 'scene.next', maps: [{ kind: 'key', key: 'ArrowDown' }] },
+      ],
+    };
+    const tick = makeTick(spec);
+    // Build engine without beginTransition to test fallback path.
+    const engine = makeEngine({ tick, sceneCount: 3 });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (engine as any).beginTransition;
+    const canvas = document.createElement('canvas');
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <InputCoordinator target={canvas} />
+        </EngineContext.Provider>,
+      );
+    });
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
+    expect(engine.advanceProgress).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('InputCoordinator — Stream D: carousel sentinel resolution', () => {
+  const LAYOUT_ID = 'carousel-layout';
+
+  const makeSentinelSpec = (): SceneInputControllerSpec => ({
+    id: 'ctrl',
+    scope: 'canvas',
+    actions: [
+      {
+        id: 'carousel-next',
+        type: 'carousel.next',
+        layoutId: '__primary_carousel__',
+        maps: [{ kind: 'key', key: 'ArrowRight' }],
+      },
+      {
+        id: 'carousel-prev',
+        type: 'carousel.prev',
+        layoutId: '__primary_carousel__',
+        maps: [{ kind: 'key', key: 'ArrowLeft' }],
+      },
+    ],
+  });
+
+  const makeCarouselTick = (spec: SceneInputControllerSpec, primaryCarouselId?: string): SceneTrackTick => ({
+    index: 0,
+    progress: 0,
+    sceneId: 'scene-1',
+    sceneIndex: 0,
+    blockProgress: 0,
+    sceneProgress: 0,
+    state: {
+      id: 'scene-1',
+      scrollProgress: 0,
+      widgets: spec ? { '__input_controller': spec } : {},
+      ...(primaryCarouselId ? { primaryCarouselId } : {}),
+    },
+    deltaForward: {},
+    deltaBackward: {},
+  });
+
+  const makeCarouselLayout = (activeIndex: number): ViewLayoutState => ({
+    kind: 'carousel',
+    viewIds: ['v0', 'v1', 'v2'],
+    bounds: { x: 0, y: 0, w: 1, h: 1 },
+    layoutConfig: { kind: 'carousel', activeIndex, loop: false },
+    childSizeHints: [
+      { x: 0, y: 0, w: 1, h: 1 },
+      { x: 0, y: 0, w: 1, h: 1 },
+      { x: 0, y: 0, w: 1, h: 1 },
+    ],
+  });
+
+  const makeViewState = (): ViewState => ({
+    kind: 'view',
+    bounds: { x: 0, y: 0, w: 1, h: 1 },
+    contentBounds: { x: 0, y: 0, w: 1, h: 1 },
+    padding: [0, 0, 0, 0] as [number, number, number, number],
+    layer: 0,
+    scale: 1,
+    z: 0,
+    opacity: 1,
+    enabled: true,
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  it('sentinel resolves to primaryCarouselId and fires carousel step', async () => {
+    const spec = makeSentinelSpec();
+    const tick = makeCarouselTick(spec, LAYOUT_ID);
+    const patchWidgetStates = vi.fn();
+    const variableStore = new VariableStore();
+    const canvas = document.createElement('canvas');
+
+    // Inject carousel layout + view states into the tick.
+    tick.state.widgets[LAYOUT_ID] = makeCarouselLayout(0);
+    tick.state.widgets['v0'] = makeViewState();
+    tick.state.widgets['v1'] = makeViewState();
+    tick.state.widgets['v2'] = makeViewState();
+
+    const engine = makeEngine({ tick, sceneCount: 1 });
+    (engine as unknown as { patchWidgetStates: typeof patchWidgetStates }).patchWidgetStates = patchWidgetStates;
+    (engine as unknown as { variableStore: VariableStore }).variableStore = variableStore;
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <InputCoordinator target={canvas} />
+        </EngineContext.Provider>,
+      );
+    });
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(patchWidgetStates).toHaveBeenCalledOnce();
+    const patches = patchWidgetStates.mock.calls[0][0] as Record<string, unknown>;
+    const layout = patches[LAYOUT_ID] as ViewLayoutState;
+    expect((layout.layoutConfig as { activeIndex: number }).activeIndex).toBe(1);
+  });
+
+  it('sentinel is silent no-op when tick has no primaryCarouselId', async () => {
+    const spec = makeSentinelSpec();
+    // No primaryCarouselId in tick state.
+    const tick = makeCarouselTick(spec, undefined);
+    const patchWidgetStates = vi.fn();
+    const canvas = document.createElement('canvas');
+
+    const engine = makeEngine({ tick, sceneCount: 1 });
+    (engine as unknown as { patchWidgetStates: typeof patchWidgetStates }).patchWidgetStates = patchWidgetStates;
+
+    await act(async () => {
+      render(
+        <EngineContext.Provider value={engine}>
+          <InputCoordinator target={canvas} />
+        </EngineContext.Provider>,
+      );
+    });
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    // No carousel layout to resolve → silent no-op.
+    expect(patchWidgetStates).not.toHaveBeenCalled();
   });
 });

@@ -265,12 +265,29 @@ export interface IAttachmentHost extends IWidget {
 }
 
 /**
- * Widget that exposes its root Three.js Group for external parenting.
- * Implement this to allow ViewWidget to re-parent the widget's 3D content
- * into a View Group for carousel/layout transforms.
+ * Widget that accepts view-level opacity from ViewWidget.
+ *
+ * Implement this when a widget owns 3D content (meshes, sprites, text)
+ * that should fade in/out as part of a ViewLayout carousel transition
+ * or scene-level opacity animation.
+ *
+ * ViewWidget calls applyViewOpacity() on every child widget that implements
+ * IViewChild. Widgets that do NOT implement IViewChild are not affected by
+ * ViewWidget opacity — they remain fully opaque.
  */
-export interface IGroupOwner extends IWidget {
-  readonly rootGroup: Object3D;
+export interface IViewChild extends IWidget {
+  /**
+   * Applies the view-level opacity to this widget's 3D content.
+   * Called by ViewWidget.apply() whenever opacity changes.
+   *
+   * @param opacity — Value in [0, 1]. 0 = fully transparent, 1 = fully opaque.
+   *
+   * Implementation notes:
+   * - Set material.opacity and material.transparent on all owned meshes/sprites.
+   * - Set object.visible = (opacity > 0) on root objects to avoid GPU cost.
+   * - Cache the last-applied value to short-circuit when unchanged.
+   */
+  applyViewOpacity(opacity: number): void;
 }
 
 /**

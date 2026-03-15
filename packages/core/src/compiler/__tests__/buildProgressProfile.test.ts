@@ -460,4 +460,43 @@ describe('buildProgressProfile', () => {
     // Segment 2 would be (c has no outgoing transition) — only 2 segments for 3 scenes
     expect(profile!.segments).toHaveLength(2);
   });
+
+  // ─── Stream D: transitionDuration / transitionEasing propagation ─────────────
+
+  it('propagates transitionDuration from ProgressManagerSpec to segment', () => {
+    const frames = [
+      makeFrame('a', { scrollUnits: 2, fn: IDENTITY_FN, transitionDuration: 600 }),
+      makeFrame('b', { scrollUnits: 1, fn: IDENTITY_FN }),
+      makeFrame('c'),
+    ];
+    const { profile } = collectWarnings(frames);
+    expect(profile).not.toBeUndefined();
+    expect(profile!.segments[0]!.transitionDuration).toBe(600);
+    expect(profile!.segments[1]!.transitionDuration).toBeUndefined();
+  });
+
+  it('propagates transitionEasing from ProgressManagerSpec to segment', () => {
+    const customEasing = (t: number) => t * t;
+    const frames = [
+      makeFrame('a', { scrollUnits: 2, fn: IDENTITY_FN, transitionEasing: customEasing }),
+      makeFrame('b', { scrollUnits: 1, fn: IDENTITY_FN }),
+      makeFrame('c'),
+    ];
+    const { profile } = collectWarnings(frames);
+    expect(profile).not.toBeUndefined();
+    expect(profile!.segments[0]!.transitionEasing).toBe(customEasing);
+    expect(profile!.segments[1]!.transitionEasing).toBeUndefined();
+  });
+
+  it('carries forward transitionDuration when next scene has no ProgressManager', () => {
+    // Carry-forward: if scene c has no PM, it inherits from b (which has transitionDuration=300).
+    const frames = [
+      makeFrame('a', { scrollUnits: 2, fn: IDENTITY_FN }),
+      makeFrame('b', { scrollUnits: 1, fn: IDENTITY_FN, transitionDuration: 300 }),
+      makeFrame('c'), // no PM — inherits b's spec
+    ];
+    const { profile } = collectWarnings(frames);
+    // Segment 1 is the outgoing transition from b (index 1). b has transitionDuration=300.
+    expect(profile!.segments[1]!.transitionDuration).toBe(300);
+  });
 });

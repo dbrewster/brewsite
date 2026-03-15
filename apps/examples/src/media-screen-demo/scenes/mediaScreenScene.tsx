@@ -19,7 +19,7 @@ import { MediaScreen } from '@brewsite/screens';
 const CAROUSEL_ID = 'ms-carousel';
 
 export const MediaScreenScene = (): JSX.Element => (
-  <Scene id="ms-demo">
+  <Scene id="ms-demo" primaryCarouselId={CAROUSEL_ID}>
     <Camera mode="world" position={[0, 0.3, 5]} target={[0, 0, 0]} fov={50} />
     <Lighting intensityScale={1}>
       <Ambient intensity={0.4} color="#1a1a40" />

@@ -9,7 +9,8 @@ import { EnvironmentWidget } from '../elements/environment/EnvironmentWidget';
 import { FloorWidget } from '../elements/floor/FloorWidget';
 import { CameraWidget } from '../elements/camera/CameraWidget';
 import { SceneMetaWidget } from './SceneMetaWidget';
-import { isLightingOverride, isGroupOwner } from '../widget/WidgetRegistry';
+import { isLightingOverride } from '../widget/WidgetRegistry';
+import type { Object3D } from 'three';
 import { SpotlightRigWidget } from '../elements/spotlight-rig/SpotlightRigWidget';
 import { ViewWidget } from '../elements/view/ViewWidget';
 import type { ViewState } from '../compiler/viewTypes';
@@ -76,12 +77,13 @@ export function corePlugin(options?: CorePluginOptions): WidgetPlugin {
       for (const tick of track.ticks) {
         for (const [widgetId, state] of Object.entries(tick.state.widgets)) {
           if (isViewStateLike(state) && !registry.get(widgetId)) {
-            const resolveChildRoot = (childId: string) => {
-              const child = registry.get(childId);
-              if (child && isGroupOwner(child)) return child.rootGroup;
-              return null;
+            const resolveChildWidget = (childId: string) => registry.get(childId);
+
+            const resolveChildObject = (childId: string): Object3D | null => {
+              return registry.getWidgetObject(childId) ?? null;
             };
-            const viewWidget = new ViewWidget(widgetId, resolveChildRoot);
+
+            const viewWidget = new ViewWidget(widgetId, resolveChildWidget, resolveChildObject);
             registry.register(viewWidget);
           }
         }

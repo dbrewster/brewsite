@@ -28,7 +28,7 @@ export function Scene04View(): JSX.Element {
         <Model
           type="Robot"
           id="robot"
-          scale={0.06}
+          scale={0.001}
           x={0} y={0} w={1} h={1}
           opacity={1}
           z={0}

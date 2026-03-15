@@ -7,6 +7,8 @@ import {
   Ambient,
   Camera,
   Directional,
+  detectPlatform,
+  formatModifier,
   InputController,
   KeyMap,
   Lighting,
@@ -24,7 +26,8 @@ import {
   ChartSeries,
   LineChart,
 } from '@brewsite/charts';
-import { isMac, pk } from '../platformKeys';
+
+const isMac = detectPlatform() === 'mac';
 
 const CAM_POS: [number, number, number] = [0, 1.5, 7];
 const CAM_TGT: [number, number, number] = [0, 0, 0];
@@ -109,7 +112,7 @@ export const ScrollableTextScene = (): JSX.Element => {
         <Action id="orbit" type="camera.orbit">
           <PointerMap event="drag" button="left" axis="xy" />
         </Action>
-        <Action id="dolly" type="camera.dolly">
+        <Action id="dolly" type="camera.zoom">
           <WheelMap axis="y" modifiers={['ctrl']} />
           <PinchMap direction="both" />
         </Action>
@@ -117,10 +120,10 @@ export const ScrollableTextScene = (): JSX.Element => {
           <KeyMap keyName="r" />
         </Action>
         <Action id="scene-next" type="scene.next">
-          <KeyMap keyName="ArrowRight" />
+          <KeyMap keyName="ArrowDown" />
         </Action>
         <Action id="scene-prev" type="scene.prev">
-          <KeyMap keyName="ArrowLeft" />
+          <KeyMap keyName="ArrowUp" />
         </Action>
       </InputController>
 
@@ -164,7 +167,7 @@ export const ScrollableTextScene = (): JSX.Element => {
             TextBox Scrollable Content
           </h2>
           <p style={{ ...bodyStyle, fontSize: 11, color: 'rgba(140,180,240,0.55)', marginBottom: 14 }}>
-            Scroll this panel with a normal scroll gesture. {pk('Ctrl')}+Scroll is reserved for the 3D camera dolly.
+            Scroll this panel with a normal scroll gesture. {formatModifier('ctrl')}+Scroll is reserved for the 3D camera zoom.
           </p>
 
           {/* InputController */}
@@ -214,7 +217,7 @@ export const ScrollableTextScene = (): JSX.Element => {
           <h3 style={sectionStyle}>WheelMap — Scroll Wheel &amp; Trackpad</h3>
           <p style={bodyStyle}>
             Responds to the wheel event (mouse scroll wheel or trackpad two-finger swipe). Modifier keys allow
-            separate bindings for plain scroll vs {pk('Ctrl')}+scroll.
+            separate bindings for plain scroll vs {formatModifier('ctrl')}+scroll.
           </p>
           <table style={tableStyle}>
             <thead>
@@ -226,7 +229,7 @@ export const ScrollableTextScene = (): JSX.Element => {
             </thead>
             <tbody>
               {[
-                ['modifiers', 'ModifierKey[]', `Required modifier keys (e.g. ["ctrl"] for ${pk('Ctrl')}+scroll)`],
+                ['modifiers', 'ModifierKey[]', `Required modifier keys (e.g. ["ctrl"] for ${formatModifier('ctrl')}+scroll)`],
                 ['axis', '"x" | "y" | "xy"', 'Scroll axis. Default: "y"'],
                 ['lockAxis', '"sticky" | "free"', 'Axis lock behaviour'],
               ].map(([prop, type, desc]) => (
@@ -316,14 +319,14 @@ export const ScrollableTextScene = (): JSX.Element => {
             All four standard modifier keys are supported and can be combined in the <code style={codeStyle}>modifiers</code> array:
           </p>
           <ul style={{ margin: '0 0 10px', paddingLeft: 20, ...bodyStyle }}>
-            <li><code style={codeStyle}>"alt"</code> — {pk('Alt')} {isMac ? '' : '(Option on macOS)'}</li>
-            <li><code style={codeStyle}>"ctrl"</code> — {pk('Ctrl')} {isMac ? '(Control)' : ''}</li>
-            <li><code style={codeStyle}>"meta"</code> — {pk('Meta')} {isMac ? '(Command)' : '(Windows key on Windows)'}</li>
-            <li><code style={codeStyle}>"shift"</code> — {pk('Shift')}</li>
+            <li><code style={codeStyle}>"alt"</code> — {formatModifier('alt')} {isMac ? '' : '(Option on macOS)'}</li>
+            <li><code style={codeStyle}>"ctrl"</code> — {formatModifier('ctrl')} {isMac ? '(Control)' : ''}</li>
+            <li><code style={codeStyle}>"meta"</code> — {formatModifier('meta')} {isMac ? '(Command)' : '(Windows key on Windows)'}</li>
+            <li><code style={codeStyle}>"shift"</code> — {formatModifier('shift')}</li>
           </ul>
           <p style={bodyStyle}>
             Multiple modifiers in the array must all be held simultaneously. Example:
-            <code style={codeStyle}>{' modifiers={["ctrl", "shift"]}'}</code> requires both {pk('Ctrl')} and {pk('Shift')}.
+            <code style={codeStyle}>{' modifiers={["ctrl", "shift"]}'}</code> requires both {formatModifier('ctrl')} and {formatModifier('shift')}.
           </p>
 
           {/* Action Types */}
@@ -334,13 +337,13 @@ export const ScrollableTextScene = (): JSX.Element => {
           </p>
           <ul style={{ margin: '0 0 10px', paddingLeft: 20, ...bodyStyle }}>
             <li><code style={codeStyle}>"camera.orbit"</code> — Rotates the camera around its target</li>
-            <li><code style={codeStyle}>"camera.dolly"</code> — Moves the camera toward or away from the target</li>
+            <li><code style={codeStyle}>"camera.zoom"</code> — Moves the camera toward or away from the target</li>
             <li><code style={codeStyle}>"camera.reset"</code> — Resets the camera to its scene-declared position</li>
             <li><code style={codeStyle}>"scene.next"</code> — Advances to the next scene. Use <code style={codeStyle}>stepScenes</code> to skip multiple.</li>
             <li><code style={codeStyle}>"scene.prev"</code> — Goes to the previous scene. Use <code style={codeStyle}>stepScenes</code> to jump back.</li>
             <li><code style={codeStyle}>"carousel.next"</code> — Advances the active index in a ViewLayout carousel. Requires <code style={codeStyle}>layoutId</code>.</li>
             <li><code style={codeStyle}>"carousel.prev"</code> — Decrements the active index in a ViewLayout carousel. Requires <code style={codeStyle}>layoutId</code>.</li>
-            <li><code style={codeStyle}>"canvas.pan"</code> — Pans a diagram canvas in 2D</li>
+            <li><code style={codeStyle}>"camera.pan"</code> — Pans the camera in 2D</li>
           </ul>
 
           {/* Footer */}
@@ -356,9 +359,9 @@ export const ScrollableTextScene = (): JSX.Element => {
               lineHeight: 1.6,
             }}
           >
-            Tip: In this scene, normal scroll goes to this text panel (OS-native scroll). {pk('Ctrl')}+Scroll zooms the 3D
+            Tip: In this scene, normal scroll goes to this text panel (OS-native scroll). {formatModifier('ctrl')}+Scroll zooms the 3D
             camera. This is configured by binding <code style={codeStyle}>WheelMap modifiers={["ctrl"]}</code> to
-            <code style={codeStyle}> camera.dolly</code> and leaving plain scroll unbound (allowing it to reach the DOM).
+            <code style={codeStyle}> camera.zoom</code> and leaving plain scroll unbound (allowing it to reach the DOM).
           </div>
         </div>
       </TextBox>

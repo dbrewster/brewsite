@@ -91,6 +91,7 @@ export class CameraWidget
   private _lastKnownTarget: [number, number, number] = [0, 0, 0];
   private static readonly ORBIT_SENSITIVITY = 0.005;
   private static readonly DOLLY_SENSITIVITY = 0.01;
+  private static readonly PAN_SENSITIVITY = 0.01;
   private static readonly MIN_POLAR = -Math.PI / 2 + 0.05;
   private static readonly MAX_POLAR = Math.PI / 2 - 0.05;
 
@@ -416,6 +417,83 @@ export class CameraWidget
       enabled: true,
       position: [newX, newY, newZ],
       target,
+      up: [camera.up.x, camera.up.y, camera.up.z],
+      fov: camera.fov,
+      near: camera.near,
+      far: camera.far,
+    };
+  }
+
+  /**
+   * Applies a pan delta in the camera's local XY plane (truck left/right, pedestal up/down).
+   * Sets a pending focus override that is applied on the next onTick().
+   *
+   * @param dx - Horizontal pixel delta. Positive pans right.
+   * @param dy - Vertical pixel delta. Positive pans down in screen space.
+   * @param speed - Multiplier applied to the sensitivity constant.
+   */
+  applyCameraPan(dx: number, dy: number, speed: number): void {
+    const camera = this.cameraRef;
+    if (!camera) return;
+
+    const target = this._lastKnownTarget;
+
+    // Compute camera-right and camera-up vectors.
+    // right = normalize(forward × up)
+    const forward = {
+      x: target[0] - camera.position.x,
+      y: target[1] - camera.position.y,
+      z: target[2] - camera.position.z,
+    };
+    const upVec = { x: camera.up.x, y: camera.up.y, z: camera.up.z };
+
+    // right = forward × up
+    const right = {
+      x: forward.y * upVec.z - forward.z * upVec.y,
+      y: forward.z * upVec.x - forward.x * upVec.z,
+      z: forward.x * upVec.y - forward.y * upVec.x,
+    };
+    const rightLen = Math.sqrt(right.x * right.x + right.y * right.y + right.z * right.z);
+    if (rightLen < 1e-6) return;
+    right.x /= rightLen;
+    right.y /= rightLen;
+    right.z /= rightLen;
+
+    // Re-compute camera-up from right × forward (orthonormal).
+    const cameraUp = {
+      x: right.y * (-forward.z) - right.z * (-forward.y),
+      y: right.z * (-forward.x) - right.x * (-forward.z),
+      z: right.x * (-forward.y) - right.y * (-forward.x),
+    };
+    const upLen = Math.sqrt(cameraUp.x * cameraUp.x + cameraUp.y * cameraUp.y + cameraUp.z * cameraUp.z);
+    if (upLen > 1e-6) {
+      cameraUp.x /= upLen;
+      cameraUp.y /= upLen;
+      cameraUp.z /= upLen;
+    }
+
+    const panScale = speed * CameraWidget.PAN_SENSITIVITY;
+
+    // Pan camera + target together (strafe, not orbit).
+    const offsetX = -dx * panScale * right.x + dy * panScale * cameraUp.x;
+    const offsetY = -dx * panScale * right.y + dy * panScale * cameraUp.y;
+    const offsetZ = -dx * panScale * right.z + dy * panScale * cameraUp.z;
+
+    const newPos: [number, number, number] = [
+      camera.position.x + offsetX,
+      camera.position.y + offsetY,
+      camera.position.z + offsetZ,
+    ];
+    const newTarget: [number, number, number] = [
+      target[0] + offsetX,
+      target[1] + offsetY,
+      target[2] + offsetZ,
+    ];
+
+    this._pendingFocusOverride = {
+      enabled: true,
+      position: newPos,
+      target: newTarget,
       up: [camera.up.x, camera.up.y, camera.up.z],
       fov: camera.fov,
       near: camera.near,

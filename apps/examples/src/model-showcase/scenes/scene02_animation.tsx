@@ -18,7 +18,7 @@ export function Scene02Animation(): JSX.Element {
       <Model
         type="Robot"
         id="robot"
-        scale={0.06}
+        scale={0.001}
         x={0.25} y={0} w={0.5} h={1}
         opacity={1}
         z={0}

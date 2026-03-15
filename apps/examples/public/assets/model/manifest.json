@@ -101,7 +101,7 @@
       "bodyParts": ["Head", "Eyes", "Chest"],
       "identity": {
         "model": {
-          "scale": 0.06,
+          "scale": 0.001,
           "nvsX": 0.5,
           "nvsY": 0.5,
           "z": 0,

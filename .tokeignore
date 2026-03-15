@@ -1,0 +1,14 @@
+**/Core/**
+**/Drivers/**
+**/Middlewares/**
+**/USB_DEVICE/**
+**/USB_HOST/**
+**/builds/**
+**/generated/**
+**/vendor/**
+**/dist/**
+**/cmake-*/**
+**/data/**
+**/coverage/**
+**/dist/**
+**/third_party/**

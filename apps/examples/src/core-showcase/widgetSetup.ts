@@ -4,7 +4,6 @@ import { diagramPlugin } from '@brewsite/diagram';
 import { chartPlugin } from '@brewsite/charts';
 import type { ChartPluginInstance } from '@brewsite/charts';
 import { themesPlugin, themes } from '@brewsite/themes';
-import {modelPlugin} from "@brewsite/model";
 
 /**
  * Creates the WidgetPlugin array and active theme for the Core Showcase.
@@ -22,7 +21,6 @@ export function createCoreShowcasePlugins(): {
       corePlugin(),
       diagramPlugin(),
       chartsPlugin,
-      modelPlugin(),
       themesPlugin(),
     ],
     chartsPlugin,

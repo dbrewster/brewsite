@@ -5,6 +5,7 @@
 import type { NodeHandler } from '../sceneDslTypes';
 import { IDENTITY_FN } from '../identityFn';
 import type { ProgressManagerSpec } from '../sceneTrackTypes';
+import type { TransitionEasing } from '../../input/transitionAnimator';
 
 export interface ProgressManagerProps {
   /**
@@ -53,6 +54,19 @@ export interface ProgressManagerProps {
    * Undefined = no boost (always 1× real-time). Recommended range: 2–12.
    */
   animationTimeScale?: number;
+
+  /**
+   * Duration in milliseconds for programmatic scene transition animations
+   * (keyboard/button navigation). When set, overrides the engine-level default.
+   * Only affects transitions originating from this scene. Default: engine default (400ms).
+   */
+  transitionDuration?: number;
+
+  /**
+   * Easing function for programmatic scene transition animations.
+   * When set, overrides the engine-level default for transitions from this scene.
+   */
+  transitionEasing?: TransitionEasing;
 }
 
 /**
@@ -103,6 +117,14 @@ export const progressManagerHandler: NodeHandler = (node, api) => {
 
   if (props.animationTimeScale !== undefined) {
     spec.animationTimeScale = props.animationTimeScale;
+  }
+
+  if (props.transitionDuration !== undefined) {
+    spec.transitionDuration = props.transitionDuration;
+  }
+
+  if (props.transitionEasing !== undefined) {
+    spec.transitionEasing = props.transitionEasing;
   }
 
   api.state.progressManager = spec;

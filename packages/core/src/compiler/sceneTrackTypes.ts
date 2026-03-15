@@ -3,6 +3,7 @@
 
 import type { ReactNode } from 'react';
 import type { JsonPrimitive } from '../widget/VariableStore';
+import type { TransitionEasing } from '../input/transitionAnimator';
 
 /**
  * Per-scene transition window configuration.
@@ -134,6 +135,18 @@ export type ProgressManagerSpec = {
    * Formula: effectiveDelta = max(deltaSeconds, min(deltaProgress × animationTimeScale, maxAnimBoostPerFrame))
    */
   animationTimeScale?: number;
+
+  /**
+   * Duration in milliseconds for programmatic scene transition animations
+   * triggered by keyboard/button input (not scroll). Overrides engine default.
+   */
+  transitionDuration?: number;
+
+  /**
+   * Easing function for programmatic scene transition animations.
+   * Overrides engine default.
+   */
+  transitionEasing?: TransitionEasing;
 };
 
 /**
@@ -186,6 +199,18 @@ export type SceneProgressSegment = {
    * Undefined = no boost (always 1× real-time).
    */
   animationTimeScale?: number;
+
+  /**
+   * Duration in milliseconds for programmatic scene transition animations
+   * when navigating away from this scene. Overrides ProgressManagerSpec value.
+   */
+  transitionDuration?: number;
+
+  /**
+   * Easing function for programmatic scene transition animations.
+   * Overrides ProgressManagerSpec value.
+   */
+  transitionEasing?: TransitionEasing;
 };
 
 /**
@@ -265,6 +290,12 @@ export type SceneFrame = {
    * buildProgressProfile resolves it.
    */
   progressManager?: ProgressManagerSpec;
+  /**
+   * The widget ID of the primary carousel layout for this scene.
+   * Used by `InputCoordinator` to resolve the `'__primary_carousel__'` sentinel
+   * when a carousel action does not specify an explicit layoutId.
+   */
+  primaryCarouselId?: string;
   /**
    * Non-DSL JSX children extracted from the <Scene> by compileChildrenSeparated.
    * Contains React elements such as <TextBox> that render as DOM overlays.

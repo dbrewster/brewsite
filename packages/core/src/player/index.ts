@@ -70,6 +70,14 @@ export type { EngineTimingProfile, InternalSceneSpec } from './engineTypes';
 export type { ViewportRelativeScrollSource, EngineInternalScrollSource, ScrollSource } from './engineTypes';
 export type { SceneEngineSnapshot } from './ScenePlayerRegistry';
 
+// ─── InputHud ─────────────────────────────────────────────────────────────────
+export { InputHud } from '../hud/InputHud';
+export type { InputHudProps } from '../hud/InputHud';
+export type { InputHudHint, InputHudState } from '../hud/inputHudTypes';
+
+// ─── Transition Easing ────────────────────────────────────────────────────────
+export type { TransitionEasing } from '../input/transitionAnimator';
+
 // ─── UI Components (stable public API) ────────────────────────────────────────
 export { TimelineWidget } from './TimelineWidget';
 export type { TimelineWidgetProps, TimelineTickStyle, TimelineTheme } from './TimelineWidgetTypes';
