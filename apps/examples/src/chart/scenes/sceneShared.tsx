@@ -31,14 +31,14 @@ export const PIE_CAM_POS: [number, number, number] = [0, 2.12, 7.3];
 export const PIE_CAM_TGT: [number, number, number] = [0, 0.08, 0];
 export const PIE_CAM_FOV = 42;
 
-export const TITLE_LAYOUT = { x: 0.08, y: 0.05, w: 0.48, h: 0.14 } as const;
-// CHART_LAYOUT: center (0.5, 0.47) — geometry 0.40 × 0.30
-export const CHART_LAYOUT = { x: 0.30, y: 0.32, w: 0.40, h: 0.30 } as const;
-// PIE_LAYOUT: center (0.50, 0.48) — geometry 0.40 × 0.40
-export const PIE_LAYOUT   = { x: 0.30, y: 0.28, w: 0.40, h: 0.40 } as const;
-// DASH_LAYOUT: two side-by-side charts, center-left (0.26, 0.47), center-right (0.74, 0.47)
-export const DASH_LAYOUT_LEFT  = { x: 0.32, y: 0.33, w: 0.35, h: 0.28 } as const;
-export const DASH_LAYOUT_RIGHT = { x: 0.6, y: 0.33, w: 0.35, h: 0.28 } as const;
+export const TITLE_LAYOUT = { x: 0.05, y: 0.03, w: 0.52, h: 0.11 } as const;
+// CHART_LAYOUT: center (0.50, 0.42) — geometry 0.62 × 0.52 (fills most of the canvas)
+export const CHART_LAYOUT = { x: 0.19, y: 0.16, w: 0.62, h: 0.52 } as const;
+// PIE_LAYOUT: center (0.50, 0.41) — tall square area for pie/donut geometry
+export const PIE_LAYOUT   = { x: 0.21, y: 0.10, w: 0.58, h: 0.62 } as const;
+// DASH_LAYOUT: two side-by-side charts filling most of the canvas
+export const DASH_LAYOUT_LEFT  = { x: 0.04, y: 0.28, w: 0.45, h: 0.43 } as const;
+export const DASH_LAYOUT_RIGHT = { x: 0.53, y: 0.28, w: 0.45, h: 0.43 } as const;
 
 export const SceneLighting = (): JSX.Element => (
   <Lighting intensityScale={1.35}>

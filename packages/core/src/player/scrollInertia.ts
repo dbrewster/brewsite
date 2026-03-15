@@ -22,6 +22,26 @@
  */
 const VELOCITY_DEAD_ZONE = 1e-6;
 
+/**
+ * Computes a single unclamped inertia step.
+ *
+ * Identical to computeInertiaStep but does NOT clamp progress to [0, 1]
+ * and does NOT zero velocity at boundaries. Used for the X-axis carousel
+ * accumulator which must swing freely in both directions.
+ */
+export function computeUnclampedInertiaStep(
+  velocity: number,
+  pendingDelta: number,
+  inertiaSensitivity: number,
+  inertiaDecay: number,
+  currentProgress: number,
+): { velocity: number; progress: number } {
+  let newVelocity = (velocity + pendingDelta * inertiaSensitivity) * inertiaDecay;
+  if (Math.abs(newVelocity) < VELOCITY_DEAD_ZONE) newVelocity = 0;
+  const newProgress = currentProgress + newVelocity;
+  return { velocity: newVelocity, progress: newProgress };
+}
+
 export function computeInertiaStep(
   velocity: number,
   pendingDelta: number,

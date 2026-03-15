@@ -162,7 +162,7 @@ export const LinearCarouselScene = (): JSX.Element => {
       </ViewLayout>
 
       {/* Info banner */}
-      <TextBox id="lin-info" x={0.3} y={0.04} w={0.4} h={0.14} layer={3}>
+      <TextBox id="lin-info" x={0.3} y={0.06} w={0.4} h={0.14} layer={3}>
         <div
           style={{
             height: '100%',
@@ -183,6 +183,12 @@ export const LinearCarouselScene = (): JSX.Element => {
             Linear Carousel
           </div>
           <div style={{ fontSize: 11, color: 'rgba(160, 200, 255, 0.7)', lineHeight: 1.5 }}>
+            <kbd style={{ background: '#50c08022', border: '1px solid #50c08055', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#50c080' }}>Scroll X</kbd>{' '}
+            move carousel{' · '}
+            <kbd style={{ background: '#50c08022', border: '1px solid #50c08055', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#50c080' }}>Scroll Y</kbd>{' '}
+            change scene
+          </div>
+          <div style={{ fontSize: 11, color: 'rgba(160, 200, 255, 0.7)', lineHeight: 1.5, marginTop: 2 }}>
             <kbd style={{ background: '#50c08022', border: '1px solid #50c08055', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#50c080' }}>→</kbd>{' / '}
             <kbd style={{ background: '#50c08022', border: '1px solid #50c08055', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13, color: '#50c080' }}>Space</kbd>{' '}
             jump 2 positions{' · '}

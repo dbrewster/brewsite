@@ -15,7 +15,7 @@ import { PRIMARY_CAROUSEL_SENTINEL } from '../input/defaultInputSpec';
 import { resolveLayout } from '../layout/regionLayout';
 import type { ViewLayoutState, ViewState } from '../compiler/viewTypes';
 import type { CarouselLayoutConfig, ViewLayoutConfig } from '../layout/regionTypes';
-import { computeInertiaStep } from './scrollInertia';
+import { computeInertiaStep, computeUnclampedInertiaStep } from './scrollInertia';
 import { usePauseWhenHidden } from './usePauseWhenHidden';
 import type { PauseWhenHiddenOptions } from './usePauseWhenHidden';
 import type { IScrollSource } from './scrollSourceTypes';
@@ -179,7 +179,7 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
 
       // ── X-axis inertia (carousel navigation) ──
       if (xInertiaDeltaRef.current !== 0 || Math.abs(xInertiaVelocityRef.current) > 0.001) {
-        const xResult = computeInertiaStep(
+        const xResult = computeUnclampedInertiaStep(
           xInertiaVelocityRef.current,
           xInertiaDeltaRef.current,
           X_INERTIA_SENSITIVITY,
@@ -470,6 +470,117 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
     );
     controller.attach();
 
+    // ── Touch scroll handling (iOS / mobile) ────────────────────────────────
+    // On touch devices, wheel events never fire. Single-finger touch feeds the
+    // same inertia accumulators that onUnclaimedWheel uses on desktop.
+    // Multi-finger gestures are left to AIC for pinch handling.
+    // Only wired when a scroll driver is present (inside a ScrollStage).
+    let touchCleanup: (() => void) | null = null;
+    if (scrollDriver) {
+      /** Scale factor for touch deltas. Touch produces smaller per-event deltas
+       *  than wheel (continuous vs bursty), so we scale up to match feel. */
+      const TOUCH_SENSITIVITY_SCALE = 2.5;
+      /** Minimum px of movement before committing to an axis. */
+      const TOUCH_AXIS_LOCK_THRESHOLD = 8;
+
+      let activeTouchId: number | null = null;
+      let touchPrevX = 0;
+      let touchPrevY = 0;
+      let touchAxisLock: 'none' | 'x' | 'y' = 'none';
+
+      /** Check if the touch target is inside a natively-scrollable overlay element. */
+      const isTouchOverScrollable = (e: TouchEvent): boolean => {
+        const container = targetEl instanceof HTMLElement ? targetEl : null;
+        let el = e.target as HTMLElement | null;
+        while (el && el !== container) {
+          if (el.scrollHeight > el.clientHeight) {
+            const style = getComputedStyle(el);
+            if (style.overflowY === 'auto' || style.overflowY === 'scroll') return true;
+          }
+          if (el.scrollWidth > el.clientWidth) {
+            const style = getComputedStyle(el);
+            if (style.overflowX === 'auto' || style.overflowX === 'scroll') return true;
+          }
+          el = el.parentElement;
+        }
+        return false;
+      };
+
+      const onTouchStart = (e: TouchEvent): void => {
+        // Only handle single-finger; multi-finger is pinch (AIC handles it).
+        if (e.touches.length !== 1 || isTouchOverScrollable(e)) {
+          activeTouchId = null;
+          return;
+        }
+        const t = e.touches[0]!;
+        activeTouchId = t.identifier;
+        touchPrevX = t.clientX;
+        touchPrevY = t.clientY;
+        touchAxisLock = 'none';
+      };
+
+      const onTouchMove = (e: TouchEvent): void => {
+        if (activeTouchId === null) return;
+        // If a second finger appeared, stop scrolling (pinch takes over).
+        if (e.touches.length !== 1) {
+          activeTouchId = null;
+          return;
+        }
+        const t = Array.from(e.touches).find((touch) => touch.identifier === activeTouchId);
+        if (!t) return;
+
+        const dx = t.clientX - touchPrevX;
+        const dy = t.clientY - touchPrevY;
+        touchPrevX = t.clientX;
+        touchPrevY = t.clientY;
+
+        // Axis lock — commit once movement exceeds threshold.
+        if (touchAxisLock === 'none') {
+          if (Math.abs(dx) >= TOUCH_AXIS_LOCK_THRESHOLD || Math.abs(dy) >= TOUCH_AXIS_LOCK_THRESHOLD) {
+            touchAxisLock = Math.abs(dx) >= Math.abs(dy) ? 'x' : 'y';
+          }
+        }
+
+        // Prevent native scroll / rubber-band as soon as a touch is tracked.
+        // InputCoordinator IS the scroll source — native scroll is disabled.
+        e.preventDefault();
+
+        if (touchAxisLock === 'x') {
+          // Horizontal: carousel. Finger-left = positive deltaX for carousel.next.
+          xInertiaDeltaRef.current += -dx * TOUCH_SENSITIVITY_SCALE;
+        } else if (touchAxisLock === 'y') {
+          // Vertical: scene scroll. Finger-up = positive delta for scroll-down.
+          // Interrupt any active programmatic transition.
+          if ((engineRef.current as { interruptTransition?: () => void }).interruptTransition) {
+            (engineRef.current as { interruptTransition: () => void }).interruptTransition();
+          }
+          pendingWheelDeltaRef.current += -dy * TOUCH_SENSITIVITY_SCALE;
+        }
+
+        // Keep the axis-lock idle timer alive during touch.
+        lastWheelTimestampRef.current = performance.now();
+      };
+
+      const onTouchEnd = (e: TouchEvent): void => {
+        if (e.touches.length === 0) {
+          activeTouchId = null;
+          touchAxisLock = 'none';
+        }
+      };
+
+      targetEl.addEventListener('touchstart', onTouchStart, { passive: true });
+      targetEl.addEventListener('touchmove', onTouchMove, { passive: false });
+      targetEl.addEventListener('touchend', onTouchEnd, { passive: true });
+      targetEl.addEventListener('touchcancel', onTouchEnd, { passive: true });
+
+      touchCleanup = () => {
+        targetEl.removeEventListener('touchstart', onTouchStart);
+        targetEl.removeEventListener('touchmove', onTouchMove);
+        targetEl.removeEventListener('touchend', onTouchEnd);
+        targetEl.removeEventListener('touchcancel', onTouchEnd);
+      };
+    }
+
     // When inside a ScrollStage, add a capture-phase keydown guard on the container
     // so arrow keys don't trigger native scroll before our document-level handler runs.
     const scrollContainer = scrollRegion?.containerRef.current ?? null;
@@ -494,6 +605,7 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
 
     return () => {
       controller.detach();
+      touchCleanup?.();
       removeScrollGuard?.();
       cleanupCarouselFn();
     };

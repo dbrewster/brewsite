@@ -1,10 +1,23 @@
 // CanvasRegionPage.tsx — Canvas Region embedding mode example.
 
-import { type JSX, useMemo, useState } from 'react';
+import { type JSX, useEffect, useMemo, useState } from 'react';
 import { SceneReel, InputCoordinator, type ThemeFamily, type ThemePolarity, type ActiveTheme } from '@brewsite/core';
 import { createCanvasRegionPlugins } from './widgetSetup';
 import { ViewerScene } from './scenes/viewerScene';
 import { ThemeToggle } from '../Lights';
+
+/** Returns true when the viewport is narrower than `breakpoint` px, updates on resize. */
+function useIsMobile(breakpoint = 700): boolean {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < breakpoint,
+  );
+  useEffect(() => {
+    const handler = (): void => setIsMobile(window.innerWidth < breakpoint);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, [breakpoint]);
+  return isMobile;
+}
 
 const PAGE_STYLES = {
   wrapper: {
@@ -15,17 +28,11 @@ const PAGE_STYLES = {
     color: '#e0e0e8',
     overflow: 'hidden',
   },
-  sidebar: {
-    width: 'clamp(220px, 28vw, 360px)',
-    flexShrink: 0,
-    padding: '2rem',
-    overflowY: 'auto' as const,
-    borderRight: '1px solid rgba(255, 255, 255, 0.08)',
-  },
   canvasColumn: {
     flex: 1,
     position: 'relative' as const,
     minWidth: 0,
+    minHeight: 0,
   },
   heading: {
     fontSize: '1.5rem',
@@ -52,20 +59,30 @@ const PAGE_STYLES = {
 
 export default function CanvasRegionPage(): JSX.Element {
   const plugins = useMemo(() => createCanvasRegionPlugins(), []);
+  const isMobile = useIsMobile();
 
   const [family, setFamily] = useState<ThemeFamily>('darkGlass');
   const [polarity, setPolarity] = useState<ThemePolarity>('dark');
   const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
 
   return (
-    <div style={{ ...PAGE_STYLES.wrapper, position: 'relative' }}>
+    <div style={{ ...PAGE_STYLES.wrapper, position: 'relative', flexDirection: isMobile ? 'column' : 'row' }}>
       <ThemeToggle
         onPolarityChange={setPolarity}
         onFamilyChange={setFamily}
         persist
       />
-      {/* Left sidebar — prose content */}
-      <aside style={PAGE_STYLES.sidebar}>
+      {/* Sidebar — top on mobile, left on desktop */}
+      <aside style={{
+        width: isMobile ? '100%' : 'clamp(220px, 28vw, 360px)',
+        flexShrink: 0,
+        padding: isMobile ? '1rem 1.5rem 1rem 1.5rem' : '2rem',
+        paddingTop: isMobile ? '3rem' : undefined, // clear ThemeToggle on mobile
+        overflowY: 'auto',
+        maxHeight: isMobile ? '38vh' : 'none',
+        borderRight: isMobile ? 'none' : '1px solid rgba(255, 255, 255, 0.08)',
+        borderBottom: isMobile ? '1px solid rgba(255, 255, 255, 0.08)' : 'none',
+      }}>
         <h1 style={PAGE_STYLES.heading}>Canvas Region</h1>
         <p style={PAGE_STYLES.paragraph}>
           This example demonstrates the <strong>Canvas Region</strong> embedding
@@ -93,7 +110,7 @@ export default function CanvasRegionPage(): JSX.Element {
       {/* Right column — 3D canvas */}
       <div style={PAGE_STYLES.canvasColumn}>
         <SceneReel
-          height="100vh"
+          height={isMobile ? '100%' : '100vh'}
           plugins={plugins}
           theme={theme}
           defaultTransitionDuration={500}

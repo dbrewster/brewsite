@@ -143,7 +143,7 @@ export default function InputShowcasePage(): JSX.Element {
             */}
             <EngineOverlayHost passthroughPointerEvents />
           </EngineARContainer>
-          <InputCoordinator inertiaSensitivity={0.012} inertiaDecay={0.85} />
+          <InputCoordinator inertiaSensitivity={0.06} inertiaDecay={0.85} />
         </ScrollStage>
 
         {/* ── Timeline scrubber ────────────────────────────────────────────── */}

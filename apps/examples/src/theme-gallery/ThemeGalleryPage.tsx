@@ -19,6 +19,20 @@ const DIAGRAM_THEME_PAIRS = Object.fromEntries(
 export default function ThemeGalleryPage(): JSX.Element {
   return (
     <div style={{ padding: '2rem', fontFamily: 'system-ui', background: '#1a1a1a', minHeight: '100vh' }}>
+      <style>{`
+        .theme-gallery-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 12px;
+          max-width: 520px;
+        }
+        @media (max-width: 540px) {
+          .theme-gallery-grid {
+            grid-template-columns: 1fr;
+            max-width: 100%;
+          }
+        }
+      `}</style>
       <h1 style={{ color: '#fff', fontSize: 20, marginBottom: 8 }}>Theme Family Gallery</h1>
       <p style={{ color: '#aaa', fontSize: 13, marginBottom: 24 }}>
         All family × polarity variants. Dark polarity left, light polarity right.
@@ -27,7 +41,7 @@ export default function ThemeGalleryPage(): JSX.Element {
 
       {/* Chart themes grid */}
       <h2 style={{ color: '#ccc', fontSize: 14, marginBottom: 12 }}>@brewsite/charts</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, maxWidth: 520, marginBottom: 40 }}>
+      <div className="theme-gallery-grid" style={{ marginBottom: 40 }}>
         {FAMILIES.map((family) => {
           const dark = bundles[family].chart.dark;
           const light = bundles[family].chart.light;
@@ -56,7 +70,7 @@ export default function ThemeGalleryPage(): JSX.Element {
 
       {/* Diagram themes grid */}
       <h2 style={{ color: '#ccc', fontSize: 14, marginBottom: 12 }}>@brewsite/diagram</h2>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, maxWidth: 520 }}>
+      <div className="theme-gallery-grid">
         {FAMILIES.map((family) => {
           const dark = bundles[family].diagram.dark;
           const light = bundles[family].diagram.light;

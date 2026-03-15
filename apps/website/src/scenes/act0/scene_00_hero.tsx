@@ -1,5 +1,5 @@
 import type {JSX} from 'react';
-import {Background, Camera, Floor, FloorMirror, Lighting, ProgressManager, Scene} from '@brewsite/core';
+import {Ambient, Background, Camera, Directional, Floor, FloorMirror, Lighting, ProgressManager, Scene} from '@brewsite/core';
 import {NeonSign} from '../../widgets/neon-sign';
 import {HeroBezel} from '../../landing/hero/HeroBezel';
 import {ScrollIndicator} from '../../landing/hero/ScrollIndicator';
@@ -16,9 +16,17 @@ export const scene00Hero = (
       autoAdvance={{ duration: 3, max: 0.80, pauseOnScroll: true }}
       animationTimeScale={10}
     />
-    <Camera mode="world" position={[0, 7, 17]} target={[0, 0, 0]} fov={52} />
+    <Camera
+      mode="world"
+      position={isMobile ? [0, 2, 12] : [0, 2, 10]}
+      target={[0, 1.5, 0]}
+      fov={isMobile ? 60 : 52}
+    />
 
     <Lighting intensityScale={1}>
+      <Ambient intensity={0.25} color="#0a1020" />
+      <Directional intensity={0.6} color="#4488ff" position={[-8, 12, 10]} />
+      <Directional intensity={0.3} color="#00d8ff" position={[10, 6, 8]} />
     </Lighting>
     <Background color="#050910" opacity={1} cssSize="cover" cssPosition="center" />
     <Floor enabled position={[0, 0, 0]}>
@@ -33,9 +41,9 @@ export const scene00Hero = (
       enabled
       text="BrewSite"
       fontUrl="/fonts/DancingScript-Bold.woff"
-      x={0.2} y={0.35} w={0.6} h={0.3}
-      z={0}
-      tilt={-Math.PI / 8}
+      x={0.1} y={0.2} w={0.8} h={0.35}
+      z={-2}
+      tilt={-Math.PI / 10}
       color="#00f5ff"
       emissiveColor="#00d8ff"
       intensity={1.3}

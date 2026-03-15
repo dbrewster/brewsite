@@ -110,7 +110,7 @@ const M_MOTIONS: [string, number][] = [
 ];
 
 const ACTOR_POOL: ActorDefn[] = [
-  {type: 'FemaleDummy', gender: 'female'},
+  // {type: 'FemaleDummy', gender: 'female'},
   // { type: 'businessF0057', gender: 'female', footRotation: -0.5 },
   // { type: 'businessF0060', gender: 'female' },
   // { type: 'businessF0061', gender: 'female', footRotation: -0.5 },

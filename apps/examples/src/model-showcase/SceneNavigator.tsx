@@ -13,7 +13,7 @@ const SCENE_LABELS: Record<string, string> = {
 
 const containerStyle: React.CSSProperties = {
   position: 'absolute',
-  bottom: 24,
+  bottom: 52, // clears the 36px ChartProgressIndicator timeline bar
   left: '50%',
   transform: 'translateX(-50%)',
   zIndex: 100,

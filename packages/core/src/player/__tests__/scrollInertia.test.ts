@@ -1,6 +1,6 @@
 // scrollInertia.test.ts — Unit tests for the pure spring-inertia math functions.
 import { describe, it, expect } from 'vitest';
-import { computeInertiaStep } from '../scrollInertia';
+import { computeInertiaStep, computeUnclampedInertiaStep } from '../scrollInertia';
 
 describe('computeInertiaStep', () => {
   const DECAY = 0.88;
@@ -63,5 +63,40 @@ describe('computeInertiaStep', () => {
     const { progress: pHigh } = computeInertiaStep(1000, 0, SENSITIVITY, DECAY, 0.5);
     expect(pLow).toBeGreaterThanOrEqual(0);
     expect(pHigh).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('computeUnclampedInertiaStep', () => {
+  const DECAY = 0.88;
+  const SENSITIVITY = 0.003;
+
+  it('allows progress to go negative', () => {
+    // Large negative delta from progress=0 should produce negative progress
+    const { progress, velocity } = computeUnclampedInertiaStep(0, -200, SENSITIVITY, DECAY, 0);
+    expect(progress).toBeLessThan(0);
+    expect(velocity).toBeLessThan(0);
+  });
+
+  it('allows progress to exceed 1', () => {
+    const { progress } = computeUnclampedInertiaStep(0, 500, SENSITIVITY, DECAY, 0.9);
+    expect(progress).toBeGreaterThan(1);
+  });
+
+  it('does not zero velocity at boundaries', () => {
+    // At progress=0, negative velocity should persist
+    const { velocity } = computeUnclampedInertiaStep(-0.1, 0, SENSITIVITY, DECAY, 0);
+    expect(velocity).not.toBe(0);
+    expect(velocity).toBeCloseTo(-0.1 * DECAY, 10);
+  });
+
+  it('decays velocity the same as the clamped version', () => {
+    const { velocity: clamped } = computeInertiaStep(0.01, 0, SENSITIVITY, DECAY, 0.5);
+    const { velocity: unclamped } = computeUnclampedInertiaStep(0.01, 0, SENSITIVITY, DECAY, 0.5);
+    expect(unclamped).toBeCloseTo(clamped, 10);
+  });
+
+  it('snaps micro-velocities to zero (dead zone)', () => {
+    const { velocity } = computeUnclampedInertiaStep(1e-7, 0, SENSITIVITY, DECAY, 0);
+    expect(velocity).toBe(0);
   });
 });

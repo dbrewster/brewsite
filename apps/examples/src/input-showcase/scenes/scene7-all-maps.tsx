@@ -275,7 +275,7 @@ export const AllMapsScene = (): JSX.Element => {
       </ViewLayout>
 
       {/* Title panel */}
-      <TextBox id="am-title" x={0.01} y={0.04} w={0.38} h={0.14} layer={5}>
+      <TextBox id="am-title" x={0.01} y={0.06} w={0.38} h={0.14} layer={5}>
         <div
           style={{
             height: '100%',
@@ -299,7 +299,7 @@ export const AllMapsScene = (): JSX.Element => {
       </TextBox>
 
       {/* Scope explanation */}
-      <TextBox id="am-scope" x={0.01} y={0.2} w={0.38} h={0.4} layer={5}>
+      <TextBox id="am-scope" x={0.01} y={0.22} w={0.38} h={0.38} layer={5}>
         <div
           style={{
             height: '100%',
@@ -338,7 +338,7 @@ export const AllMapsScene = (): JSX.Element => {
       </TextBox>
 
       {/* Full cheatsheet */}
-      <TextBox id="am-cheatsheet" x={0.01} y={0.62} w={0.38} h={0.35} layer={5}>
+      <TextBox id="am-cheatsheet" x={0.01} y={0.62} w={0.38} h={0.32} layer={5}>
         <div
           style={{
             height: '100%',

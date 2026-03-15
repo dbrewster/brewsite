@@ -44,7 +44,7 @@ function DisplayCaptureControls(): JSX.Element {
           type="button"
           onClick={() => void startCapture()}
           style={{
-            padding: '10px 20px',
+            padding: '12px 20px', // 44px tap target
             background: 'rgba(255, 100, 68, 0.85)',
             color: '#fff',
             border: '1px solid rgba(255, 140, 100, 0.6)',
@@ -63,7 +63,7 @@ function DisplayCaptureControls(): JSX.Element {
           type="button"
           onClick={stopCapture}
           style={{
-            padding: '10px 20px',
+            padding: '12px 20px', // 44px tap target
             background: 'rgba(60, 60, 80, 0.85)',
             color: '#fff',
             border: '1px solid rgba(120, 120, 150, 0.5)',

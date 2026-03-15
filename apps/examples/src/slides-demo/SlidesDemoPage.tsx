@@ -58,6 +58,10 @@ export default function SlidesDemoPage(): JSX.Element {
       flexDirection: 'column',
       overflow: 'hidden',
     }}>
+      {/* Hide keyboard-only hints on touch/narrow screens */}
+      <style>{`
+        @media (max-width: 640px) { .slides-keyboard-hint { display: none !important; } }
+      `}</style>
       {/* Toolbar */}
       {showControls && (
         <div style={{
@@ -131,7 +135,7 @@ export default function SlidesDemoPage(): JSX.Element {
 
           <div style={{ flex: 1 }} />
 
-          <span style={{ fontSize: '0.7rem', color: theme.colors.muted }}>
+          <span className="slides-keyboard-hint" style={{ fontSize: '0.7rem', color: theme.colors.muted }}>
             Arrow keys / Click / Swipe to navigate &middot; F for fullscreen &middot; Press H to toggle this bar
           </span>
         </div>

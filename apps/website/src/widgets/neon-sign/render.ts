@@ -163,9 +163,6 @@ export class NeonSignRenderer {
   private loadedFontUrl = '';
   private lastText = '';
   private signLight: THREE.PointLight | null = null;
-  private warmLight: THREE.PointLight | null = null;
-  private coolLight: THREE.PointLight | null = null;
-  private fadeMaterials: THREE.MeshPhysicalMaterial[] = [];
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -198,8 +195,7 @@ export class NeonSignRenderer {
     // Scale to fit the desired NVS width in world units
     const [targetWorldWidth] = coords.toWorldSize(state.w, state.h);
     // FONT_SIZE is the geometry width at scale=1; divide target by it to get the uniform scale
-    const geometryWidth = FONT_SIZE;
-    this.root.scale.setScalar(targetWorldWidth / geometryWidth);
+    this.root.scale.setScalar(targetWorldWidth / FONT_SIZE);
 
     if (this.font && this.lastText !== state.text) {
       this.rebuildText(state.text);
@@ -207,10 +203,6 @@ export class NeonSignRenderer {
 
     const pulse = 0.88 + Math.sin(wallTimeSeconds * 1.7) * 0.06;
     const intensity = state.intensity * pulse * opacity;
-
-    for (const material of this.fadeMaterials) {
-      material.opacity = opacity;
-    }
 
     if (this.textMaterial) {
       this.textMaterial.emissive = new THREE.Color(state.emissiveColor);
@@ -224,12 +216,6 @@ export class NeonSignRenderer {
     if (this.signLight) {
       this.signLight.color = new THREE.Color(state.color);
       this.signLight.intensity = intensity * 1.4;
-    }
-    if (this.warmLight) {
-      this.warmLight.intensity = (3.2 + Math.sin(wallTimeSeconds * 7.2) * 0.2) * opacity;
-    }
-    if (this.coolLight) {
-      this.coolLight.intensity = (2.2 + Math.sin(wallTimeSeconds * 5.5) * 0.1) * opacity;
     }
   }
 
@@ -249,73 +235,25 @@ export class NeonSignRenderer {
     }
     this.signGroup = null;
     this.signLight = null;
-    this.warmLight = null;
-    this.coolLight = null;
     this.textMaterial = null;
     this.haloMaterial = null;
-    this.fadeMaterials = [];
   }
 
   private createRoot(): void {
     this.root = new THREE.Group();
     this.scene.add(this.root);
 
-    const room = new THREE.Group();
-    this.root.add(room);
-
-    const wallMat = new THREE.MeshPhysicalMaterial({
-      color: 0x0a0e18,
-      metalness: 0.88,
-      roughness: 0.32,
-      transparent: true,
-      opacity: 1,
-    });
-    const floorMat = new THREE.MeshPhysicalMaterial({
-      color: 0x060910,
-      metalness: 0.97,
-      roughness: 0.04,
-      transparent: true,
-      opacity: 1,
-    });
-    this.fadeMaterials.push(wallMat, floorMat);
-
-    const backWall = new THREE.Mesh(new THREE.PlaneGeometry(80, 40), wallMat);
-    backWall.position.set(0, 4, -16);
-    room.add(backWall);
-
-    const sideGeo = new THREE.PlaneGeometry(36, 40);
-    const leftWall = new THREE.Mesh(sideGeo, wallMat);
-    leftWall.rotation.y = Math.PI / 2;
-    leftWall.position.set(-24, 4, 0);
-    room.add(leftWall);
-
-    const rightWall = new THREE.Mesh(sideGeo, wallMat);
-    rightWall.rotation.y = -Math.PI / 2;
-    rightWall.position.set(24, 4, 0);
-    room.add(rightWall);
-
-    const floor = new THREE.Mesh(new THREE.PlaneGeometry(80, 55), floorMat);
-    floor.rotation.x = -Math.PI / 2;
-    floor.position.y = -7;
-    room.add(floor);
-
+    // Sign group: offset so text (baseline at y=0, ascending to ~FONT_SIZE) is
+    // vertically centred around the NVS anchor position.  The text geometry is
+    // already horizontally centred (x=0) by the halfWidth calculation.
     this.signGroup = new THREE.Group();
-    this.signGroup.position.set(0, 1.4, 0);
+    this.signGroup.position.set(0, -FONT_SIZE * 0.4, 0);
     this.root.add(this.signGroup);
 
-    const ambient = new THREE.AmbientLight(0x080d16, 2.2);
-    this.root.add(ambient);
-
-    this.warmLight = new THREE.PointLight(0xff7700, 3.2, 70, 1.4);
-    this.warmLight.position.set(-18, 16, 6);
-    this.root.add(this.warmLight);
-
-    this.coolLight = new THREE.PointLight(0x0044cc, 2.2, 60, 1.4);
-    this.coolLight.position.set(18, 12, 5);
-    this.root.add(this.coolLight);
-
+    // A single point light positioned in front of the sign to cast the neon glow
+    // onto nearby geometry.  Intensity is driven by the emissive pulse in update().
     this.signLight = new THREE.PointLight(0x00c8ff, 0, 22, 2);
-    this.signLight.position.set(0, 1.4, 0);
+    this.signLight.position.set(0, 0, 3);
     this.root.add(this.signLight);
   }
 

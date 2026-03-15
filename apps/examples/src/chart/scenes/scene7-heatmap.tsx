@@ -3,7 +3,7 @@ import type { JSX } from 'react';
 import { Camera, ProgressManager, Scene } from '@brewsite/core';
 import { ChartAxis, ChartData, ChartLegend, HeatMapChart } from '@brewsite/charts';
 import { activityHeatmap } from '../data/heatmapData';
-import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, SceneLighting, SceneTitleBox } from './sceneShared';
+import { CHART_CAM_FOV, CHART_CAM_POS, CHART_CAM_TGT, CHART_LAYOUT, SceneLighting, SceneTitleBox } from './sceneShared';
 
 export const Scene7 = (): JSX.Element => {
   return (
@@ -18,10 +18,10 @@ export const Scene7 = (): JSX.Element => {
       timeField="day"
       heightField="calls"
       colorInterpolator="viridis"
-      x={0.25}
-      y={0.31}
-      w={0.50}
-      h={0.32}
+      x={CHART_LAYOUT.x}
+      y={CHART_LAYOUT.y}
+      w={CHART_LAYOUT.w}
+      h={CHART_LAYOUT.h}
       depth={0.25}
     >
       <ChartData />

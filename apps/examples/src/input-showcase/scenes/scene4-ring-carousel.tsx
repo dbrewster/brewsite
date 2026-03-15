@@ -228,7 +228,7 @@ export const RingCarouselScene = (): JSX.Element => {
       </ViewLayout>
 
       {/* Title */}
-      <TextBox id="ring-title" x={0.02} y={0.04} w={0.38} h={0.12} layer={3}>
+      <TextBox id="ring-title" x={0.02} y={0.06} w={0.38} h={0.12} layer={3}>
         <div
           style={{
             height: '100%',
@@ -249,7 +249,7 @@ export const RingCarouselScene = (): JSX.Element => {
       </TextBox>
 
       {/* Controls reference */}
-      <TextBox id="ring-controls" x={0.02} y={0.78} w={0.38} h={0.2} layer={3}>
+      <TextBox id="ring-controls" x={0.02} y={0.74} w={0.38} h={0.20} layer={3}>
         <div
           style={{
             height: '100%',
@@ -266,6 +266,8 @@ export const RingCarouselScene = (): JSX.Element => {
           <div style={{ fontWeight: 600, marginBottom: 6, color: '#c8deff' }}>Controls</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {[
+              { keys: 'Scroll X', desc: 'Rotate carousel' },
+              { keys: 'Scroll Y', desc: 'Change scene' },
               { keys: '→ / Click', desc: 'Rotate forward (×1)' },
               { keys: `${formatModifier('shift')}+→`, desc: 'Jump 2 positions' },
               { keys: '←', desc: 'Rotate back (×1)' },

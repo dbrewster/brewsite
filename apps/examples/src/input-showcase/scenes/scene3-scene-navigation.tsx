@@ -119,7 +119,7 @@ function StackCharts({ variant }: StackChartsProps): JSX.Element {
     : ['is-sn-chart-b1', 'is-sn-chart-b2', 'is-sn-chart-b3'];
 
   return (
-    <ViewLayout kind="stack" direction="horizontal" x={0.05} y={0.12} w={0.9} h={0.72} gap={0.04}>
+    <ViewLayout kind="stack" direction="horizontal" x={0.05} y={0.15} w={0.9} h={0.72} gap={0.04}>
       {dataSet.map((data, i) => (
         <View id={`sn-v${variant}${i}`} key={ids[i]}>
           <BarChart
@@ -147,7 +147,7 @@ interface InfoBarProps {
 
 function InfoBar({ text }: InfoBarProps): JSX.Element {
   return (
-    <TextBox id="sn-info" x={0.05} y={0.04} w={0.9} h={0.07} layer={2}>
+    <TextBox id="sn-info" x={0.05} y={0.06} w={0.9} h={0.07} layer={2}>
       <div
         style={{
           height: '100%',

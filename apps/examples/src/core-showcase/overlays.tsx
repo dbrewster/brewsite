@@ -244,7 +244,8 @@ export function TopChrome(): JSX.Element {
         top: 0,
         left: 0,
         right: 0,
-        padding: '20px 32px',
+        // Right padding clears the ThemeToggle (~172px wide at right:16)
+        padding: '20px 200px 20px 32px',
         pointerEvents: 'none',
         zIndex: 100,
         background: 'linear-gradient(rgba(3,5,12,0.55), transparent)',
@@ -280,7 +281,7 @@ export function BottomChrome(): JSX.Element {
         bottom: 0,
         left: 0,
         right: 0,
-        maxHeight: '42vh',
+        maxHeight: 'min(42vh, 260px)',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'flex-end',
@@ -300,7 +301,7 @@ export function BottomChrome(): JSX.Element {
           margin: 0,
           overflowY: 'auto',
           overflowX: 'hidden',
-          maxHeight: 'calc(42vh - 44px)',
+          maxHeight: 'calc(min(42vh, 260px) - 44px)',
         }}
       >
         {code}

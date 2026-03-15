@@ -136,7 +136,7 @@ export const CameraControlsScene = (): JSX.Element => {
       </InputController>
 
       {/* Chart view */}
-      <View id="cam-diagram-view" x={0.05} y={0.48} w={0.58} h={0.42}>
+      <View id="cam-diagram-view" x={0.05} y={0.50} w={0.58} h={0.40}>
         <Diagram id="cf-overview" x={0} y={0} w={1} h={1} scale={1.4}>
           <FlowLayout direction="top-down" gap={1.05} />
 
@@ -186,7 +186,7 @@ export const CameraControlsScene = (): JSX.Element => {
           <DiagramEdge from="cf-db" to="cf-recov" routing="flow" arrowEnd="none" color="#3a5070" flow='forward' />
         </Diagram>
       </View>
-      <View id="cam-chart-view" x={0.05} y={0.08} w={0.58} h={0.42}>
+      <View id="cam-chart-view" x={0.05} y={0.09} w={0.58} h={0.39}>
         <BarChart
           id="is-camera-binding-chart"
           data={cameraBindingData}
@@ -201,7 +201,7 @@ export const CameraControlsScene = (): JSX.Element => {
       </View>
 
       {/* Controls reference card */}
-      <TextBox id="cam-ref" x={0.66} y={0.06} w={0.32} h={0.88} layer={3}>
+      <TextBox id="cam-ref" x={0.66} y={0.08} w={0.32} h={0.86} layer={3}>
         <div
           style={{
             height: '100%',

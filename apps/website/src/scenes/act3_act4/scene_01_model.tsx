@@ -9,12 +9,12 @@ import { dwellFn } from '../../utils/pacing';
 
 const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
-const snippetCode = `<Model type="Worker" id="worker" scale={0.001}
+const snippetCode = `<MaleDummy id="worker" scale={0.001}
   x={0.15} y={0} w={0.7} h={1}>
   <Playback>
-    <Animation clipName="idle" weight={1} />
+    <Animation clipName="chat-talkandlaugh-m" weight={1} />
   </Playback>
-</Model>`;
+</MaleDummy>`;
 
 export const scene01ModelWide: JSX.Element = (
   <Scene id="website-model-01" transition={LATE_FADE}>

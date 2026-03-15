@@ -128,7 +128,7 @@ export const ScrollableTextScene = (): JSX.Element => {
       </InputController>
 
       {/* Left: line chart */}
-      <View id="st-chart-view" x={0.02} y={0.06} w={0.45} h={0.88}>
+      <View id="st-chart-view" x={0.02} y={0.06} w={0.45} h={0.86}>
         <LineChart
           id="is-monthly-interactions"
           data={monthlyData}
@@ -149,7 +149,7 @@ export const ScrollableTextScene = (): JSX.Element => {
            pointerEvents:'auto' opts this content back in so the native scroll
            gesture reaches the DOM (the overlay container is pointer-events:none
            via passthroughPointerEvents on EngineOverlayHost). */}
-      <TextBox id="st-docs" x={0.49} y={0.04} w={0.49} h={0.92} overflow="hidden" layer={2}>
+      <TextBox id="st-docs" x={0.49} y={0.06} w={0.49} h={0.88} overflow="hidden" layer={2}>
         <div
           style={{
             height: '100%',

@@ -28,7 +28,6 @@ export function ThemeSwatchCard({
       display: 'flex',
       flexDirection: 'column',
       gap: 8,
-      minWidth: 200,
     }}>
       <div style={{ color: textColor, fontSize: 11, fontFamily: 'system-ui', fontWeight: 600 }}>
         {label}
