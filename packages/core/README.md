@@ -52,7 +52,11 @@ import { SceneReel, TimeInput, Scene, corePlugin } from '@brewsite/core';
 
 export function DemoWidget() {
   return (
-    <SceneReel height={400} plugins={[corePlugin()]}>
+    <SceneReel
+      height={400}
+      plugins={[corePlugin()]}
+      defaultTransitionDuration={500}
+    >
       <Scene id="step1">...</Scene>
       <Scene id="step2">...</Scene>
       <TimeInput duration={4} loop pauseWhenHidden={{ y: 0.5 }} />

@@ -1,0 +1,29 @@
+{
+  "name": "create-brewsite",
+  "version": "0.6.0",
+  "private": false,
+  "type": "module",
+  "bin": {
+    "create-brewsite": "./dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "templates/"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:lib": "echo 'no build:lib for create-brewsite'",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@clack/prompts": "^0.10.0",
+    "@types/node": "^22.15.0",
+    "esbuild": "^0.25.2",
+    "@vitest/coverage-v8": "^2.1.9",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}

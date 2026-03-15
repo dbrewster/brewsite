@@ -32,6 +32,17 @@ beforeEach(() => {
   }));
   window.requestAnimationFrame = vi.fn().mockReturnValue(1);
   window.cancelAnimationFrame = vi.fn();
+  // Stub IntersectionObserver for scrollSource tests
+  globalThis.IntersectionObserver = class IntersectionObserver {
+    constructor(_cb: IntersectionObserverCallback, _opts?: IntersectionObserverInit) {}
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords(): IntersectionObserverEntry[] { return []; }
+    readonly root = null;
+    readonly rootMargin = '';
+    readonly thresholds = [0];
+  } as unknown as typeof globalThis.IntersectionObserver;
 });
 
 afterEach(() => vi.restoreAllMocks());
@@ -164,6 +175,48 @@ describe('SceneReel', () => {
 
     const outerDiv = container.firstChild as HTMLElement;
     expect(outerDiv.style.height).toBe('480px');
+  });
+
+  it('accepts theme prop without error', () => {
+    const { container } = render(
+      <SceneReel height={400} plugins={[makePlugin()]} theme={{ family: 'darkGlass', polarity: 'dark' }}>
+        <div />
+      </SceneReel>,
+    );
+    expect(container.firstChild).toBeTruthy();
+  });
+
+  it('accepts scrollSource prop without error', () => {
+    const containerRef = { current: document.createElement('div') };
+    const canvasRef = { current: document.createElement('canvas') };
+    const { container } = render(
+      <SceneReel
+        height={400}
+        plugins={[makePlugin()]}
+        scrollSource={{ kind: 'viewport-relative', containerRef, canvasRef }}
+      >
+        <div />
+      </SceneReel>,
+    );
+    expect(container.firstChild).toBeTruthy();
+  });
+
+  it('accepts defaultTransitionDuration prop without error', () => {
+    const { container } = render(
+      <SceneReel height={400} plugins={[makePlugin()]} defaultTransitionDuration={600}>
+        <div />
+      </SceneReel>,
+    );
+    expect(container.firstChild).toBeTruthy();
+  });
+
+  it('accepts defaultTransitionEasing prop without error', () => {
+    const { container } = render(
+      <SceneReel height={400} plugins={[makePlugin()]} defaultTransitionEasing={(t: number) => t}>
+        <div />
+      </SceneReel>,
+    );
+    expect(container.firstChild).toBeTruthy();
   });
 
   it('uses height prop when EngineARContainerContext computedArHeight is zero', () => {

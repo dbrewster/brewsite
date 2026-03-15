@@ -7,13 +7,13 @@ const GITHUB_URL = 'https://github.com/brewsite/brewsite';
 
 export const scene01Github: JSX.Element = (
   <Scene id="website-github-01" transition={LATE_FADE}>
-    <Camera mode="world" position={[0, 0, 10]} target={[0, 0, 0]} fov={70} />
+    <Camera mode="nvsViewport" worldScale={50} />
 
     <Lighting intensityScale={1}>
       <Ambient intensity={0.2} color="#08101d" />
       <Directional intensity={0.35} color="#00aaff" position={[4, 8, 6]} />
     </Lighting>
-    <div style={{
+    <div key="github-overlay" style={{
       position: 'absolute',
       inset: 0,
       display: 'flex',

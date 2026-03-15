@@ -2,7 +2,7 @@
 title: "PM Note: @brewsite/claude-author Package"
 doc_type: note
 owner: Toolkit Product
-status: draft
+status: implemented
 last_updated: 2026-03-15
 change_history:
   - date: 2026-03-15
@@ -186,9 +186,18 @@ The build script lives at `packages/claude-author/scripts/build-index.mjs` and i
 
 The `orama-index.json` file is committed to the repository. It is a generated artifact, but committing it means no developer cloning the repo needs to run a build step to have a working package. Add a note in `CONTRIBUTING.md` that it must be regenerated before publishing whenever docs change.
 
-**Git hygiene:** The generated `orama-index.json` will be large (potentially several MB) and produce noisy diffs. The architect must add a `.gitattributes` entry marking it as `linguist-generated` and binary diff to prevent it from polluting pull request diffs:
+**Git LFS (required):** The ONNX model file (`model_quantized.onnx`) is ~65MB. GitHub warns at 50MB and hard-blocks at 100MB. The file must be tracked with Git LFS. The architect must add the following to the repo's `.gitattributes` before committing the model:
+
 ```
-packages/claude-author/index/orama-index.json linguist-generated=true binary
+packages/claude-author/models/**/*.onnx filter=lfs diff=lfs merge=lfs -text
+```
+
+Git LFS must be initialised in the repo (`git lfs install`) and the LFS tracking must be in place before the ONNX file is first added. If the file is committed to regular git history first it must be purged with `git lfs migrate` — doing it in the wrong order is painful.
+
+**Git hygiene for the index:** The generated `orama-index.json` is several MB but well under the 50MB threshold so it does not need LFS. It will however produce noisy diffs. Add a `.gitattributes` entry to suppress diff output:
+
+```
+packages/claude-author/index/orama-index.json linguist-generated=true -diff
 ```
 
 ---

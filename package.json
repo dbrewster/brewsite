@@ -1,5 +1,5 @@
 {
-  "name": "brewsite",
+  "name": "brewsite-monorepo",
   "version": "0.0.0",
   "private": true,
   "packageManager": "pnpm@10.30.3",
@@ -16,7 +16,7 @@
     "gen:scene-dsl": "turbo gen:scene-dsl --filter=@brewsite/apps",
     "sync:icons": "node scripts/sync-icons.mjs",
     "sync:icons:force": "node scripts/sync-icons.mjs --force",
-    "publish:core-diagram": "node scripts/publish-core-diagram.mjs"
+    "publish:all": "node scripts/publish-all.mjs"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "^0.78.0",

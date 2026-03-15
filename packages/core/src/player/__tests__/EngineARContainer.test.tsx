@@ -3,7 +3,7 @@
 import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import React from 'react';
 import { cleanup, render, act } from '@testing-library/react';
-import { computeContainerDims, EngineARContainer } from '../EngineARContainer';
+import { computeContainerDims, EngineARContainer, ViewportScaleContainer } from '../EngineARContainer';
 
 // ─── ResizeObserver polyfill for jsdom ────────────────────────────────────────
 
@@ -165,6 +165,12 @@ describe('computeContainerDims', () => {
 });
 
 // ─── EngineARContainer — DOM integration tests ────────────────────────────────
+
+describe('ViewportScaleContainer alias', () => {
+  it('ViewportScaleContainer is the same component as EngineARContainer', () => {
+    expect(ViewportScaleContainer).toBe(EngineARContainer);
+  });
+});
 
 describe('EngineARContainer', () => {
   it('renders children inside the AR container', () => {

@@ -1,2 +1,4 @@
+packages/claude-author/models/**/*.onnx filter=lfs diff=lfs merge=lfs -text
+packages/claude-author/index/orama-index.json linguist-generated=true -diff
 *.onnx filter=lfs diff=lfs merge=lfs -text
 *.glb filter=lfs diff=lfs merge=lfs -text

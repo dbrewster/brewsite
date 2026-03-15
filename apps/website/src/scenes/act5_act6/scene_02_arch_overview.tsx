@@ -1,12 +1,7 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, Floor, FloorMirror, ProgressManager } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, HierarchicalLayout, GridLayout} from '@brewsite/diagram';
-import { darkGlassBundle } from '@brewsite/themes';
-import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
-
-const darkGlassTheme = darkGlassBundle.diagram.dark;
 import { isMobile } from '../../utils/viewport';
-import type { Vec3 } from '@brewsite/core';
 import { dwellFn } from '../../utils/pacing';
 
 const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
@@ -27,14 +22,9 @@ export const scene02ArchOverview: JSX.Element = (
       fn={dwellFn}
       autoAdvance={{ duration: 7, max: 0.85, pauseOnScroll: true }}
     />
-    <Camera
-      mode="world"
-      position={(isMobile ? [0, 8, 38] : [0, 10, 50]) as Vec3}
-      target={[0, 0, 0]}
-      fov={isMobile ? 65 : 55}
-    />
+    <Camera mode="nvsViewport" worldScale={50} />
 
-    <Floor enabled position={[0, -20, 0]}>
+    <Floor enabled position={[0, 0, 0]}>
       <FloorMirror
         mirrorColor="#08101e"
         mirrorOpacity={0.2}
@@ -82,44 +72,36 @@ export const scene02ArchOverview: JSX.Element = (
       </Diagram>
 
     {/* Top-right: stat only — no eyebrow label */}
-    <div style={{ position: 'absolute', top: '6%', right: '5%', textAlign: 'right', maxWidth: 300 }}>
-      <MidFade duration={1200}>
-        <div style={{ fontSize: 'clamp(16px, 2.2vw, 20px)', fontWeight: 600, color: '#f0f6fc' }}>
-          16 nodes · 4 tiers · 8 edges
-        </div>
-      </MidFade>
+    <div key="arch-overview-stats" style={{ position: 'absolute', top: '6%', right: '5%', textAlign: 'right', maxWidth: 300 }}>
+      <div style={{ fontSize: 'clamp(16px, 2.2vw, 20px)', fontWeight: 600, color: '#f0f6fc' }}>
+        16 nodes · 4 tiers · 8 edges
+      </div>
     </div>
 
     {/* Bottom-left: headline + code snippet + body */}
-    <div style={{ position: 'absolute', bottom: '8%', left: '5%', maxWidth: 420 }}>
-      <ScrollOn duration={1000} delay={100}>
-        <div style={{ fontSize: 'clamp(18px, 2.5vw, 22px)', fontWeight: 600, color: '#f0f6fc', lineHeight: 1.3, marginBottom: 16 }}>
-          Your production<br />architecture,<br />in a scene.
-        </div>
-      </ScrollOn>
-      <ScrollOn duration={700} delay={160}>
-        <pre style={{
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: 'clamp(11px, 1.2vw, 13px)',
-          lineHeight: 1.7,
-          color: '#00f5ff',
-          background: 'rgba(0,245,255,0.04)',
-          border: '1px solid rgba(0,245,255,0.15)',
-          borderRadius: 6,
-          padding: 16,
-          maxWidth: 400,
-          margin: '0 0 14px',
-          whiteSpace: 'pre-wrap',
-        }}>
-          {snippetCode}
-        </pre>
-      </ScrollOn>
-      <ScrollOn duration={800} delay={220}>
-        <div style={{ fontSize: 'clamp(13px, 1.5vw, 15px)', color: 'rgba(240,246,252,0.6)', lineHeight: 1.6 }}>
-          Groups, swimlanes, nested tiers — all declared.<br />
-          Ready for your next deck, demo, or keynote.
-        </div>
-      </ScrollOn>
+    <div key="arch-overview-content" style={{ position: 'absolute', bottom: '8%', left: '5%', maxWidth: 420 }}>
+      <div style={{ fontSize: 'clamp(18px, 2.5vw, 22px)', fontWeight: 600, color: '#f0f6fc', lineHeight: 1.3, marginBottom: 16 }}>
+        Your production<br />architecture,<br />in a scene.
+      </div>
+      <pre style={{
+        fontFamily: 'JetBrains Mono, monospace',
+        fontSize: 'clamp(11px, 1.2vw, 13px)',
+        lineHeight: 1.7,
+        color: '#00f5ff',
+        background: 'rgba(0,245,255,0.04)',
+        border: '1px solid rgba(0,245,255,0.15)',
+        borderRadius: 6,
+        padding: 16,
+        maxWidth: 400,
+        margin: '0 0 14px',
+        whiteSpace: 'pre-wrap',
+      }}>
+        {snippetCode}
+      </pre>
+      <div style={{ fontSize: 'clamp(13px, 1.5vw, 15px)', color: 'rgba(240,246,252,0.6)', lineHeight: 1.6 }}>
+        Groups, swimlanes, nested tiers — all declared.<br />
+        Ready for your next deck, demo, or keynote.
+      </div>
     </div>
   </Scene>
 );

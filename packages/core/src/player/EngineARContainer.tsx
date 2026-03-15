@@ -276,3 +276,15 @@ export const EngineARContainer = ({
     </div>
   );
 };
+
+/**
+ * Alias for EngineARContainer. Provides a clearer name for the component's
+ * purpose: a container that manages viewport scaling, aspect ratio locking,
+ * and --scene-scale CSS variable injection.
+ *
+ * Use whichever name is clearer in your context. Both names are stable.
+ */
+export const ViewportScaleContainer = EngineARContainer;
+
+/** Props for ViewportScaleContainer (alias of EngineARContainerProps). */
+export type ViewportScaleContainerProps = EngineARContainerProps;

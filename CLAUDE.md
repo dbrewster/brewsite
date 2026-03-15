@@ -14,7 +14,7 @@ pnpm typecheck                    # turbo typecheck
 pnpm test                         # turbo test (all packages)
 pnpm coverage                     # turbo coverage
 pnpm sync:icons                   # sync heroicons + simple-icons into diagram package assets
-pnpm publish:core-diagram         # publish all four BrewSite library packages to npm
+pnpm publish:all                  # publish all BrewSite packages to npm
 ```
 
 ### Per-package
@@ -35,7 +35,7 @@ pnpm --filter @brewsite/diagram vitest run src/elements/diagram/__tests__/compil
 
 ## Workspace Structure
 
-This is a **pnpm + Turborepo monorepo** with four published packages and one private app:
+This is a **pnpm + Turborepo monorepo** with published packages and private apps:
 
 | Package | Name | Role |
 |---|---|---|
@@ -43,9 +43,12 @@ This is a **pnpm + Turborepo monorepo** with four published packages and one pri
 | `packages/diagram` | `@brewsite/diagram` | Diagram + screen element library (published) |
 | `packages/model` | `@brewsite/model` | GLTF model + label system (published) |
 | `packages/charts` | `@brewsite/charts` | 3D chart element library (published) |
+| `packages/claude-author` | `@brewsite/claude-author` | MCP server + docs search for AI-assisted scene authoring (published) |
+| `packages/create-brewsite` | `create-brewsite` | Project scaffolder CLI (`npm create brewsite`) (published) |
+| `packages/brewsite` | `brewsite` | Utility CLI (`npx brewsite add ...`) (published) |
 | `apps/` | `@brewsite/apps` | Dev/demo apps (private) |
 
-**Dependency rule:** `@brewsite/diagram`, `@brewsite/model`, and `@brewsite/charts` may import from `@brewsite/core`. `@brewsite/core` must never import from any of them. The apps may import from all packages.
+**Dependency rule:** `@brewsite/diagram`, `@brewsite/model`, and `@brewsite/charts` may import from `@brewsite/core`. `@brewsite/core` must never import from any of them. The three new CLI/tooling packages (`claude-author`, `create-brewsite`, `brewsite`) are standalone — they have no cross-package build dependencies. The apps may import from all packages.
 
 ---
 
@@ -175,7 +178,7 @@ Model/animation changes go through `scripts/` at the repo root:
 - `gen-diagram-envmap.mjs` — generate HDR environment map for diagram rendering
 - `extract-model-metadata.mjs` — extract metadata from GLTF at build time
 - `prune-dist.mjs` — post-build artifact cleanup
-- `publish-core-diagram.mjs` — publish all four BrewSite library packages (`core`, `diagram`, `model`, `charts`)
+- `publish-all.mjs` — publish all BrewSite packages (`core`, `diagram`, `model`, `charts`, `screens`, `claude-author`, `create-brewsite`, `brewsite`)
 
 Prefer these helpers over ad-hoc pipelines for any asset-processing work.
 

@@ -7,6 +7,21 @@
       "inputs": ["src/**", "tsconfig*.json", "vite.config.ts", "package.json"],
       "outputs": ["dist/**"]
     },
+    "@brewsite/claude-author#build": {
+      "dependsOn": [],
+      "inputs": ["src/**", "docs/**", "scripts/**", "models/**", "package.json"],
+      "outputs": ["dist/**", "index/**"]
+    },
+    "create-brewsite#build": {
+      "dependsOn": [],
+      "inputs": ["src/**", "package.json"],
+      "outputs": ["dist/**"]
+    },
+    "brewsite#build": {
+      "dependsOn": [],
+      "inputs": ["src/**", "package.json"],
+      "outputs": ["dist/**"]
+    },
     "build:lib": {
       "dependsOn": ["^build:lib"],
       "inputs": ["src/**", "tsconfig*.json", "package.json"],

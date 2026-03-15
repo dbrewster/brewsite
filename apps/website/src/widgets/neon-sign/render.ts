@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import opentype from 'opentype.js';
+import type { NVSCoordService } from '@brewsite/core/widget/types';
 import type { NeonSignState } from './types';
 
 type Pt = { x: number; y: number };
@@ -179,7 +180,7 @@ export class NeonSignRenderer {
     this.lastText = '';
   }
 
-  update(state: NeonSignState, wallTimeSeconds: number): void {
+  update(state: NeonSignState, wallTimeSeconds: number, coords: NVSCoordService): void {
     if (!this.root) this.createRoot();
     if (!this.root || !this.signGroup) return;
 
@@ -187,9 +188,18 @@ export class NeonSignRenderer {
     this.root.visible = state.enabled && opacity > 0.001;
     if (!this.root.visible) return;
 
-    this.root.position.set(state.position[0], state.position[1], state.position[2]);
-    this.root.rotation.set(state.rotation[0], state.rotation[1], state.rotation[2]);
-    this.root.scale.setScalar(state.scale);
+    // Convert NVS center to world position
+    const centerX = state.x + state.w / 2;
+    const centerY = state.y + state.h / 2;
+    const [worldX, worldY] = coords.toWorld(centerX, centerY, state.z);
+    this.root.position.set(worldX, worldY, state.z);
+    this.root.rotation.set(state.tilt, state.yRotation, 0);
+
+    // Scale to fit the desired NVS width in world units
+    const [targetWorldWidth] = coords.toWorldSize(state.w, state.h);
+    // FONT_SIZE is the geometry width at scale=1; divide target by it to get the uniform scale
+    const geometryWidth = FONT_SIZE;
+    this.root.scale.setScalar(targetWorldWidth / geometryWidth);
 
     if (this.font && this.lastText !== state.text) {
       this.rebuildText(state.text);

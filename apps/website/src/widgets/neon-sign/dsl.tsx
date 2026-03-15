@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react';
-import type { Vec3 } from './types';
 
 export type NeonSignProps = {
   enabled?: boolean;
@@ -9,9 +8,13 @@ export type NeonSignProps = {
   emissiveColor?: string;
   intensity?: number;
   opacity?: number;
-  position?: Vec3;
-  rotation?: Vec3;
-  scale?: number;
+  x?: number;
+  y?: number;
+  w?: number;
+  h?: number;
+  z?: number;
+  tilt?: number;
+  yRotation?: number;
   children?: ReactNode;
 };
 

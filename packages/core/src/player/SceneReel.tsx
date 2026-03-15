@@ -10,7 +10,6 @@ import { BackgroundLayer } from './BackgroundLayer';
 import { EngineOverlayHost } from './EngineOverlayHost';
 import { EngineARContainerContext } from './EngineARContainer';
 
-// DEBT: SceneReel does not accept or forward themeFamily, themePolarity, or scrollSource props
 export interface SceneReelProps {
   // ── Layout ──────────────────────────────────────────────────────────────────
   /** CSS width. Default: '100%'. */
@@ -29,6 +28,27 @@ export interface SceneReelProps {
   invalidateCacheToken?: number | string;
   maxAnimBoostPerFrame?: number;
   sceneTheme?: SceneEngineProps['sceneTheme'];
+
+  /** Active theme for this engine. Supersedes deprecated sceneTheme. */
+  theme?: SceneEngineProps['theme'];
+
+  /**
+   * Scroll source for viewport-relative context lifecycle management.
+   * Forwarded to SceneEngine.
+   */
+  scrollSource?: SceneEngineProps['scrollSource'];
+
+  /**
+   * Default duration (ms) for programmatic scene transition animations.
+   * Forwarded to SceneEngine. Default: 400ms.
+   */
+  defaultTransitionDuration?: SceneEngineProps['defaultTransitionDuration'];
+
+  /**
+   * Default easing for programmatic scene transition animations.
+   * Forwarded to SceneEngine.
+   */
+  defaultTransitionEasing?: SceneEngineProps['defaultTransitionEasing'];
 
   // ── Lifecycle ───────────────────────────────────────────────────────────────
   onReady?: () => void;
@@ -84,6 +104,10 @@ export function SceneReel(props: SceneReelProps): ReactElement {
         invalidateCacheToken={props.invalidateCacheToken}
         maxAnimBoostPerFrame={props.maxAnimBoostPerFrame}
         sceneTheme={props.sceneTheme}
+        theme={props.theme}
+        scrollSource={props.scrollSource}
+        defaultTransitionDuration={props.defaultTransitionDuration}
+        defaultTransitionEasing={props.defaultTransitionEasing}
         onReady={props.onReady}
         onError={props.onError}
         onWidgetError={props.onWidgetError}

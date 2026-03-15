@@ -3,7 +3,7 @@ title: "BrewSite Core — Player & Runtime"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-12
+last_updated: 2026-03-15
 change_history:
   - date: 2026-03-09
     author: "Toolkit Product"
@@ -53,6 +53,9 @@ change_history:
   - date: 2026-03-01
     author: "Toolkit Product"
     summary: "Annotated LabelPositioner and labelPrimitives as model-specific concepts moving to @brewsite/model per plan_core_modularization."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Embedding modes cleanup: (1) SceneEngineProps gains theme (ActiveTheme), scrollSource, defaultTransitionDuration, defaultTransitionEasing. (2) SceneReel now accepts and forwards all four new SceneEngine props — DEBT resolved. SceneReel embedded reel examples updated to show defaultTransitionDuration. (3) ViewportScaleContainer exported as stable alias for EngineARContainer; ViewportScaleContainerProps type alias also exported. Both names stable, no deprecation. Section 7A.4 updated. (4) Canvas Region example at apps/examples/src/canvas-region/ demonstrates embedded 3D viewer mode with SceneReel, default input spec, and two-column layout."
   - date: 2026-03-12
     author: "Toolkit Product"
     summary: "Input unification (plan_input-unification.md implemented): ActionInput component added as the DSL-to-runtime bridge for <InputController> scene authoring. PointerInput and ScrollInput components removed — scroll is handled natively by ScrollStage; pointer/keyboard/wheel action-based input is handled by ActionInput. KeyboardInput is now focus management only (no inputMap prop). Default keyboard nav (ArrowRight/Down = scene.next, ArrowLeft/Up = scene.prev) is compiler-injected when no scene authors <InputController>. UseSceneEngineResult gains applyCameraOrbit, applyCameraDolly, applyCameraReset, and patchWidgetStates. UseSceneEngineOptions loses inputMap (SceneNavInputMap removed). ActionInputExtensionContext documented as the mechanism for plugins to extend action dispatch. diagramPlugin.getActionInputExtension() wires diagram-canvas actions to DiagramWidget.applyCanvasAction(). carousel.next/carousel.prev are forward-declared InputActionType values."
@@ -194,7 +197,7 @@ export default function DocArticle() {
   return (
     <article>
       <p>Intro text...</p>
-      <SceneReel height={400} plugins={PLUGINS}>
+      <SceneReel height={400} plugins={PLUGINS} defaultTransitionDuration={500}>
         <Scene key="demo">...</Scene>
         <TimeInput duration={4} loop pauseWhenHidden={{ y: 0.5 }} />
       </SceneReel>
@@ -303,8 +306,35 @@ type SceneEngineProps = {
    * Optional scene theme token set for cross-package visual styling.
    * EngineOverlayHost reads the theme via ThemeContext and injects CSS custom properties.
    * See requirements/core/prd/prd_theming.md for full documentation.
+   * @deprecated Use `theme` instead.
    */
   sceneTheme?: SceneTheme;
+
+  /**
+   * Active theme for this engine. Supersedes deprecated sceneTheme.
+   * Provides the ActiveTheme object (family + polarity) to all widgets and overlays.
+   */
+  theme?: ActiveTheme;
+
+  /**
+   * Scroll source for viewport-relative context lifecycle management.
+   * Used in multi-panel layouts where the engine container is not the window scroll root.
+   */
+  scrollSource?: ScrollSourceProp;
+
+  /**
+   * Default duration (ms) for programmatic scene transition animations.
+   * Applied when navigating via useGoToScene or ActionInput scene.next/scene.prev
+   * and no per-call duration is specified. Default: 400ms.
+   */
+  defaultTransitionDuration?: number;
+
+  /**
+   * Default easing function for programmatic scene transition animations.
+   * Applied when navigating via useGoToScene or ActionInput scene.next/scene.prev
+   * and no per-call easing is specified.
+   */
+  defaultTransitionEasing?: (t: number) => number;
 
   onReady?: () => void;
   onError?: (error: Error) => void;
@@ -494,6 +524,16 @@ export type EngineARContainerProps = {
 };
 
 export const EngineARContainer: React.FC<EngineARContainerProps>;
+
+/**
+ * Alias for EngineARContainer. Provides a clearer name aligned with the
+ * ViewportScale naming family (ViewportScaleContext, ViewportScaleContextValue).
+ * Both names are stable — use whichever is clearer in context.
+ */
+export const ViewportScaleContainer: React.FC<EngineARContainerProps>;
+
+/** Props alias for ViewportScaleContainer. */
+export type ViewportScaleContainerProps = EngineARContainerProps;
 ```
 
 **`--scene-scale` CSS variable:**
@@ -587,7 +627,7 @@ In v2, embedding an animation on a page is handled by `SceneReel`, which provide
 import { SceneReel, TimeInput } from '@brewsite/core';
 
 // Auto-playing inline animation — no input config required
-<SceneReel height={400} plugins={PLUGINS}>
+<SceneReel height={400} plugins={PLUGINS} defaultTransitionDuration={500}>
   <Scene key="demo">
     <Camera descriptor={{ mode: 'world', position: [0, 1, 5], target: [0, 0, 0] }} />
   </Scene>
@@ -595,12 +635,14 @@ import { SceneReel, TimeInput } from '@brewsite/core';
 </SceneReel>
 ```
 
+`SceneReel` accepts and forwards the following `SceneEngine` props: `theme`, `scrollSource`, `defaultTransitionDuration`, `defaultTransitionEasing`, plus all props documented in Section 7A.1 (`plugins`, `id`, `timingProfile`, `primaryCameraId`, `primaryCanvasActionTargetId`, `cameraInteractionDefaults`, `invalidateCacheToken`, `maxAnimBoostPerFrame`, `sceneTheme`, and all lifecycle callbacks).
+
 **`SceneReel` with externally controlled progress:**
 
 ```tsx
 const [progress, setProgress] = useState(0);
 
-<SceneReel height={400} plugins={PLUGINS}>
+<SceneReel height={400} plugins={PLUGINS} defaultTransitionDuration={500}>
   <Scene key="demo">...</Scene>
   <ControlledInput value={progress} onChange={setProgress} />
 </SceneReel>
@@ -1648,5 +1690,6 @@ For any release that modifies the Player or Runtime public API:
 - SSR render of `<SceneEngine>` with `<EngineGate>` produces no Three.js errors and matches the placeholder output.
 - At least one example in `apps/examples/` demonstrates `SceneEngine` + `EngineARContainer` + `SceneCanvas` + `EngineOverlayHost` with a `TextBox` overlay element.
 - At least one example demonstrates `SceneReel` with `TimeInput`.
+- At least one example demonstrates the Canvas Region embedding mode: `SceneReel` with default input spec camera interaction, no scene navigation, embedded in a normal page layout.
 - `CHANGELOG.md` in `packages/core` has an entry for every changed exported symbol.
 - `packages/core/README.md` reflects the current `SceneEngineProps` interface and documents `SceneEngine`, `SceneReel`, `ScrollStage`, `EngineGate`, `SceneCanvas`, `EngineOverlayHost`, `ActionInput`, `KeyboardInput`, `TimeInput`, `ControlledInput`, and `useGoToScene`.

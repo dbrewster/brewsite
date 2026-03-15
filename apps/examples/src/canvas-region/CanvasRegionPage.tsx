@@ -1,0 +1,101 @@
+// CanvasRegionPage.tsx — Canvas Region embedding mode example.
+
+import { type JSX, useMemo } from 'react';
+import { SceneReel, InputCoordinator } from '@brewsite/core';
+import { themes } from '@brewsite/themes';
+import { createCanvasRegionPlugins } from './widgetSetup';
+import { ViewerScene } from './scenes/viewerScene';
+
+const PAGE_STYLES = {
+  wrapper: {
+    display: 'flex',
+    height: '100vh',
+    fontFamily: 'system-ui, -apple-system, sans-serif',
+    background: '#0a0a1a',
+    color: '#e0e0e8',
+    overflow: 'hidden',
+  },
+  sidebar: {
+    width: '360px',
+    flexShrink: 0,
+    padding: '2rem',
+    overflowY: 'auto' as const,
+    borderRight: '1px solid rgba(255, 255, 255, 0.08)',
+  },
+  canvasColumn: {
+    flex: 1,
+    position: 'relative' as const,
+    minWidth: 0,
+  },
+  heading: {
+    fontSize: '1.5rem',
+    fontWeight: 600,
+    marginBottom: '1rem',
+    color: '#fff',
+  },
+  paragraph: {
+    fontSize: '0.9rem',
+    lineHeight: 1.7,
+    marginBottom: '1rem',
+    opacity: 0.75,
+  },
+  hint: {
+    fontSize: '0.8rem',
+    lineHeight: 1.5,
+    padding: '0.75rem 1rem',
+    borderRadius: '8px',
+    background: 'rgba(255, 255, 255, 0.05)',
+    border: '1px solid rgba(255, 255, 255, 0.08)',
+    marginTop: '1.5rem',
+  },
+} as const;
+
+export default function CanvasRegionPage(): JSX.Element {
+  const plugins = useMemo(() => createCanvasRegionPlugins(), []);
+
+  return (
+    <div style={PAGE_STYLES.wrapper}>
+      {/* Left sidebar — prose content */}
+      <aside style={PAGE_STYLES.sidebar}>
+        <h1 style={PAGE_STYLES.heading}>Canvas Region</h1>
+        <p style={PAGE_STYLES.paragraph}>
+          This example demonstrates the <strong>Canvas Region</strong> embedding
+          mode — a self-contained interactive 3D viewer embedded within a normal
+          page layout.
+        </p>
+        <p style={PAGE_STYLES.paragraph}>
+          The 3D canvas occupies only part of the page. There is no scene
+          navigation — the viewer shows a single scene with full camera
+          interaction.
+        </p>
+        <p style={PAGE_STYLES.paragraph}>
+          All input bindings are provided automatically by the default input
+          spec. No hand-authored <code>&lt;InputController&gt;</code> is needed.
+        </p>
+        <div style={PAGE_STYLES.hint}>
+          <strong>Controls</strong>
+          <br />
+          Drag to orbit &middot; Shift+drag to pan
+          <br />
+          Pinch to zoom &middot; Press <kbd>R</kbd> to reset
+        </div>
+      </aside>
+
+      {/* Right column — 3D canvas */}
+      <div style={PAGE_STYLES.canvasColumn}>
+        <SceneReel
+          height="100vh"
+          plugins={plugins}
+          theme={themes.darkGlass.dark}
+          defaultTransitionDuration={500}
+        >
+          <ViewerScene />
+          {/* InputCoordinator processes the compiled input spec at runtime —
+              without it, pointer/keyboard events are not dispatched to the
+              ActionInputController and camera interaction is inert. */}
+          <InputCoordinator />
+        </SceneReel>
+      </div>
+    </div>
+  );
+}

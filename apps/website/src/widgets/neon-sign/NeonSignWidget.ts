@@ -36,9 +36,13 @@ export class NeonSignWidget
         emissiveColor: props.emissiveColor ?? base.emissiveColor,
         intensity: props.intensity ?? base.intensity,
         opacity: props.opacity ?? base.opacity,
-        position: props.position ?? base.position,
-        rotation: props.rotation ?? base.rotation,
-        scale: props.scale ?? base.scale,
+        x: props.x ?? base.x,
+        y: props.y ?? base.y,
+        w: props.w ?? base.w,
+        h: props.h ?? base.h,
+        z: props.z ?? base.z,
+        tilt: props.tilt ?? base.tilt,
+        yRotation: props.yRotation ?? base.yRotation,
       };
       api.setWidgetState(this.widgetId, next);
     };
@@ -60,7 +64,7 @@ export class NeonSignWidget
   }
 
   apply(state: NeonSignState, context: WidgetRenderContext): void {
-    this.renderer?.update(state, context.clock.wallTimeSeconds);
+    this.renderer?.update(state, context.clock.wallTimeSeconds, context.coords);
   }
 
   mergeSnapshot(

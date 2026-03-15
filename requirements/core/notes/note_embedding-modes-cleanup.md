@@ -1,7 +1,7 @@
 ---
 title: "Embedding Modes — Cleanup & Backlog"
 doc_type: note
-status: active
+status: completed
 owner: Toolkit Product
 last_updated: 2026-03-15
 change_history:
@@ -14,6 +14,9 @@ change_history:
   - date: 2026-03-15
     author: "Toolkit Product"
     summary: "PM debate resolved. P0: finalized 4-prop list, added acceptance criterion to update/remove stale DEBT comment text. disableDefaultInputSpec removed entirely — consumers can declare an empty <InputController> to suppress default injection; a cleaner opt-out is a separate PRD if there's demand. P2: removed InputHud sequencing dependency — example ships without InputHud rendering (stub). InputHud rendering is tracked separately. P3: no changes."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "All three backlog items implemented and verified. P0: SceneReel now forwards theme, scrollSource, defaultTransitionDuration, defaultTransitionEasing to SceneEngine; DEBT comment removed; 4 new tests pass. P2: Canvas Region example at apps/examples/src/canvas-region/ with two-column layout (sidebar + 3D diagram viewer); uses default input spec for camera interaction; ships without InputHud. P3: ViewportScaleContainer exported as stable alias for EngineARContainer; ViewportScaleContainerProps type alias also exported; no deprecation — both names stable. README updated with defaultTransitionDuration example. Note status set to completed."
 ---
 
 # Embedding Modes — Cleanup & Backlog
@@ -120,7 +123,7 @@ Self-contained interactive 3D region. No scene navigation at all — the canvas 
 
 **Note:** After the `createDefaultInputSpec()` major release, the `<InputController>` block above is not required — the default spec includes orbit, zoom, pan, and reset bindings automatically. Canvas Region becomes even simpler.
 
-**Current gap:** No dedicated example exists in `apps/examples/`. See P2 below.
+**Reference:** `apps/examples/src/canvas-region/CanvasRegionPage.tsx`
 
 ---
 
@@ -128,18 +131,18 @@ Self-contained interactive 3D region. No scene navigation at all — the canvas 
 
 ### P0 — Fix `SceneReel` Prop Forwarding
 
-**Status:** Known DEBT. Must be resolved in the current input system major release.
+**Status:** Complete.
 
-`SceneReel` is the convenience entry point for Embedded Player and Canvas Region modes, but it does not forward several important `SceneEngine` props. Consumers who need any of the missing props must abandon `SceneReel` entirely and compose manually, with no guidance that this is the right move or how to do it.
+`SceneReel` forwards all `SceneEngine` props that consumers need for Embedded Player and Canvas Region modes.
 
-**Props `SceneReel` must accept and forward to `SceneEngine`:**
+**Props added to `SceneReel` and forwarded to `SceneEngine`:**
 
 | Prop | Added When | Why It Matters | Status |
 |---|---|---|---|
-| `theme` | Theme overhaul | New `ActiveTheme` prop; supersedes deprecated `sceneTheme` (which IS forwarded) | ❌ Missing |
-| `scrollSource` | Existing | Viewport-relative scroll for context lifecycle management (multi-panel layouts) | ❌ Missing |
-| `defaultTransitionDuration` | Input system major | Animated navigation — inaccessible via `SceneReel` without this | ❌ Missing |
-| `defaultTransitionEasing` | Input system major | Easing for animated navigation | ❌ Missing |
+| `theme` | Theme overhaul | New `ActiveTheme` prop; supersedes deprecated `sceneTheme` (which IS forwarded) | ✅ Shipped |
+| `scrollSource` | Existing | Viewport-relative scroll for context lifecycle management (multi-panel layouts) | ✅ Shipped |
+| `defaultTransitionDuration` | Input system major | Animated navigation — inaccessible via `SceneReel` without this | ✅ Shipped |
+| `defaultTransitionEasing` | Input system major | Easing for animated navigation | ✅ Shipped |
 
 **Props verified as already forwarded (no action needed):**
 - `cameraInteractionDefaults` — forwarded since initial SceneReel implementation (`SceneReel.tsx:28,83`)
@@ -152,47 +155,48 @@ Self-contained interactive 3D region. No scene navigation at all — the canvas 
 
 **Note on deprecated props:** `themeFamily` and `themePolarity` exist on `SceneEngine` (deprecated) but are NOT forwarded by `SceneReel`. Since `theme` supersedes both, forwarding `theme` alone is sufficient — no need to forward deprecated props.
 
-**Source:** `packages/core/src/player/SceneReel.tsx` — DEBT comment on line 13 references this gap.
+**Source:** `packages/core/src/player/SceneReel.tsx`
 
-**Acceptance criteria:**
-- The four missing props above accepted on `SceneReel` and forwarded to the underlying `SceneEngine`
-- `SceneReel` type signature updated (add to `SceneReelProps` interface)
-- DEBT comment in source (`SceneReel.tsx:13`) removed or updated — the current text references `themeFamily, themePolarity, or scrollSource` which predates the `theme`, `defaultTransitionDuration`, and `defaultTransitionEasing` additions to `SceneEngine`. If all gaps are closed, remove entirely.
-- README example for Embedded Player mode uses `defaultTransitionDuration` via `SceneReel`
+**Acceptance criteria (all met):**
+- ✅ The four props accepted on `SceneReel` and forwarded to the underlying `SceneEngine`
+- ✅ `SceneReel` type signature updated (`SceneReelProps` interface)
+- ✅ DEBT comment removed from source
+- ✅ README example for Embedded Player mode uses `defaultTransitionDuration` via `SceneReel`
+- ✅ Four new test cases pass
 
 ---
 
 ### P2 — Canvas Region Example
 
-**Status:** Unbuilt. Unblocked — ships after P0 prop forwarding fix.
+**Status:** Complete.
 
-No example in `apps/examples/` demonstrates the Canvas Region mode. This is the pattern websites and product pages need most when embedding a 3D viewer — but it is invisible in the current example set.
+A Canvas Region example exists at `apps/examples/src/canvas-region/` demonstrating the embedded 3D viewer pattern.
 
-Existing example directories: `core-showcase`, `input-showcase`, `model-showcase`, `views`, `media-screen-demo`, `chart`, `slides-demo`, `theme-gallery`, and several `brewflow-*` demos. None demonstrate an embedded Canvas Region pattern.
+**What shipped:**
+- New example page at `/examples/canvas-region` — "Canvas Region — Embedded 3D Viewer"
+- Two-column layout: sidebar prose (360px) + 3D diagram canvas (flex: 1)
+- Uses `SceneReel` with the new `theme` and `defaultTransitionDuration` props
+- Single scene with a 3-node architecture diagram (`DiagramCanvas` + `Diagram`)
+- Camera orbit, zoom, pan, reset via default input spec — no hand-authored `<InputController>`
+- No `InputHud` — ships separately (stub returning null)
 
-**Scope:**
-- New example page in `apps/examples/` — "Canvas Region / Product Viewer"
-- Uses `SceneReel` (after P0 prop forwarding fix is in place)
-- Single scene; no scene navigation
-- Model or diagram element as the 3D content
-- Camera orbit, zoom, pan, reset via default input spec (no hand-authored `<InputController>`)
-- Page layout demonstrates the canvas as an embedded region within a normal HTML page (sidebar or prose alongside)
+**Files:** `CanvasRegionPage.tsx`, `widgetSetup.ts`, `scenes/viewerScene.tsx`, plus `App.tsx` route entry.
 
-**InputHud note:** `InputHud` rendering is tracked separately (the component is currently a stub returning `null`; the data model and event plumbing are implemented). When InputHud rendering ships, the Canvas Region example is a natural place to demonstrate it — add `<InputHud position="bottom-right" />` at that time.
+**InputHud note:** When InputHud rendering ships, the Canvas Region example is a natural place to demonstrate it — add `<InputHud position="bottom-right" />` at that time.
 
 ---
 
 ### P3 — `EngineARContainer` Naming Audit
 
-**Status:** Low urgency. Cosmetic, but compounds onboarding friction for new consumers.
+**Status:** Complete. Additive alias shipped — non-breaking.
 
-`EngineARContainer` is the component that provides a fixed aspect-ratio container with four scale modes (`fit-width`, `fit-height`, `contain`, `cover`). Its name is opaque. The NVS system documentation calls it "Normalized Viewport Space" which is the right conceptual frame, but that label is equally inaccessible to a consumer trying to embed a scene in a fixed layout.
+`ViewportScaleContainer` is now exported as a stable alias for `EngineARContainer`. `ViewportScaleContainerProps` is exported as a type alias for `EngineARContainerProps`. Both names are stable — no deprecation on either.
 
-**Current state:** The associated context has already been renamed. `ViewportScaleContext` is the new name; `EngineARContainerContext` is a deprecated alias (`EngineARContainer.tsx:100-101`). Both are exported from `player/index.ts`. The type alias `EngineARContainerContextValue` → `ViewportScaleContextValue` is also deprecated. Only the **component name** `EngineARContainer` itself remains to be addressed.
-
-**Exported surface (`player/index.ts:36-41`):**
-- `EngineARContainer` (component)
-- `EngineARContainerProps` (type)
+**Exported surface (`player/index.ts`):**
+- `EngineARContainer` (component — original name, stable)
+- `ViewportScaleContainer` (component — alias, stable)
+- `EngineARContainerProps` (type — original name, stable)
+- `ViewportScaleContainerProps` (type — alias, stable)
 - `ScaleMode` (type)
 - `ViewportScaleContextValue` (type — current name)
 - `EngineARContainerContextValue` (type — deprecated alias)
@@ -200,12 +204,7 @@ Existing example directories: `core-showcase`, `input-showcase`, `model-showcase
 - `EngineARContainerContext` (context — deprecated alias)
 - `computeContainerDims` (utility function)
 
-**Options (not a decision, flagging for future milestone):**
-- Export an alias: `SceneRegion` or `ContainedScene` alongside `EngineARContainer`
-- Rename in a major version with a one-release alias deprecation
-- Leave as-is and document it thoroughly in the embedding guide
-
-This does not block anything. Revisit at the v1.0 milestone planning session when breaking changes can be batched.
+The naming family is now internally consistent: `ViewportScale{Context, ContextValue, Container, ContainerProps}`. A full rename of `EngineARContainer` (with deprecation) is deferred to v3 planning when breaking changes can be batched.
 
 ---
 

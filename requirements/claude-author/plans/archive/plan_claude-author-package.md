@@ -1,0 +1,2035 @@
+---
+title: "Implementation Plan: @brewsite/claude-author Package"
+doc_type: plan
+owner: Architecture
+status: complete
+updated: 2026-03-15
+---
+
+# Implementation Plan: `@brewsite/claude-author` Package
+
+This plan covers the full implementation of three new npm packages (`@brewsite/claude-author`, `create-brewsite`, `brewsite`), their monorepo integration, and all supporting infrastructure. It is based on the finalized feature note at `requirements/claude-author/notes/note_claude-author-package.md`.
+
+---
+
+## Table of Contents
+
+1. [Monorepo Prerequisites](#1-monorepo-prerequisites)
+2. [Package: @brewsite/claude-author](#2-package-brewsiteclaude-author)
+3. [Package: create-brewsite](#3-package-create-brewsite)
+4. [Package: brewsite](#4-package-brewsite)
+5. [Publish Script & Monorepo Integration](#5-publish-script--monorepo-integration)
+6. [Data Types](#6-data-types)
+7. [MCP Server Implementation](#7-mcp-server-implementation)
+8. [Build Index Script](#8-build-index-script)
+9. [CLI: claude-author init](#9-cli-claude-author-init)
+10. [CLI: create-brewsite](#10-cli-create-brewsite)
+11. [CLI: brewsite add](#11-cli-brewsite-add)
+12. [Template Contents](#12-template-contents)
+13. [Test Strategy](#13-test-strategy)
+14. [Implementation Schedule](#14-implementation-schedule)
+
+---
+
+## 1. Monorepo Prerequisites
+
+These changes must land **before** any package work begins. They are blocking prerequisites.
+
+### 1.1 Rename root package
+
+**File:** `package.json` (repo root)
+
+Change:
+```json
+"name": "brewsite"
+```
+To:
+```json
+"name": "brewsite-monorepo"
+```
+
+This prevents a pnpm workspace name collision with the new `packages/brewsite/` package (npm name `brewsite`).
+
+### 1.2 Rename publish script
+
+**File:** `scripts/publish-core-diagram.mjs` → rename to `scripts/publish-all.mjs`
+
+**File:** `package.json` (repo root) — update script reference:
+```json
+"publish:all": "node scripts/publish-all.mjs"
+```
+Remove the old `publish:core-diagram` key.
+
+### 1.3 Add turbo.json package-specific override
+
+**File:** `turbo.json` — add package task override for `@brewsite/claude-author#build`:
+
+```json
+{
+  "$schema": "https://turbo.build/schema.json",
+  "ui": "tui",
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "tsconfig*.json", "vite.config.ts", "package.json"],
+      "outputs": ["dist/**"]
+    },
+    "@brewsite/claude-author#build": {
+      "dependsOn": [],
+      "inputs": ["src/**", "docs/**", "scripts/**", "models/**", "package.json"],
+      "outputs": ["dist/**", "index/**"]
+    },
+    "create-brewsite#build": {
+      "dependsOn": [],
+      "inputs": ["src/**", "package.json"],
+      "outputs": ["dist/**"]
+    },
+    "brewsite#build": {
+      "dependsOn": [],
+      "inputs": ["src/**", "package.json"],
+      "outputs": ["dist/**"]
+    },
+    "build:lib": {
+      "dependsOn": ["^build:lib"],
+      "inputs": ["src/**", "tsconfig*.json", "package.json"],
+      "outputs": ["dist/**"]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "inputs": ["src/**", "tsconfig*.json"]
+    },
+    "test": {
+      "dependsOn": [],
+      "inputs": ["src/**", "vitest.config.ts"],
+      "outputs": []
+    },
+    "coverage": {
+      "dependsOn": [],
+      "inputs": ["src/**", "vitest.config.ts"],
+      "outputs": ["coverage/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "gen:scene-dsl": {
+      "inputs": ["siteResources.ts", "public/**", "examples/siteResources.ts", "examples/public/**"],
+      "outputs": ["generated/**", "public/scene-manifest.json", "examples/generated/**", "examples/public/scene-manifest.json"]
+    }
+  }
+}
+```
+
+Key decisions:
+- `@brewsite/claude-author#build` has `dependsOn: []` — it has no cross-package build dependencies.
+- `create-brewsite#build` and `brewsite#build` also have `dependsOn: []` — they are standalone CLI tools.
+- `inputs` for claude-author includes `docs/**` and `models/**` because the index build reads them.
+- `outputs` for claude-author includes `index/**` alongside `dist/**`.
+
+### 1.4 Add .gitattributes entry
+
+**File:** `.gitattributes` (repo root, create if absent)
+
+```
+packages/claude-author/index/orama-index.json linguist-generated=true binary
+```
+
+### 1.5 Update CLAUDE.md
+
+**File:** `CLAUDE.md` (repo root)
+
+Update the following:
+- Change `publish:core-diagram` to `publish:all` in the Commands section.
+- Add `packages/claude-author`, `packages/create-brewsite`, and `packages/brewsite` to the Workspace Structure table.
+- Add a note about the three new packages in the Architecture Overview section.
+
+---
+
+## 2. Package: `@brewsite/claude-author`
+
+### 2.1 Directory Structure
+
+```
+packages/claude-author/
+├── docs/                            <- already exists (31 markdown files, ~7800 lines)
+├── models/
+│   └── nomic-embed-text-v1.5/
+│       ├── onnx/
+│       │   └── model_quantized.onnx
+│       ├── tokenizer.json
+│       ├── tokenizer_config.json
+│       └── config.json
+├── index/
+│   └── orama-index.json             <- generated by build-index.mjs
+├── templates/
+│   ├── brewsite-docs.js             <- MCP entry point template
+│   └── brewsite-scene-author.md     <- agent definition template
+├── src/
+│   ├── server.ts                    <- MCP server implementation
+│   ├── search.ts                    <- Orama index loading + hybrid search
+│   ├── embedder.ts                  <- Query-time embedding via @huggingface/transformers
+│   ├── types.ts                     <- Shared type definitions
+│   └── bin/
+│       └── init.ts                  <- CLI init command
+├── scripts/
+│   ├── build.mjs                    <- esbuild bundler script
+│   └── build-index.mjs             <- index build script
+├── __tests__/
+│   ├── search.test.ts               <- search module tests
+│   ├── init.test.ts                 <- init CLI tests
+│   └── chunker.test.ts             <- doc chunking tests
+├── package.json
+├── tsconfig.json
+├── tsconfig.build.json
+├── vitest.config.ts
+└── README.md
+```
+
+### 2.2 package.json
+
+**File:** `packages/claude-author/package.json`
+
+```json
+{
+  "name": "@brewsite/claude-author",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "bin": {
+    "brewsite-author": "./dist/bin/init.js"
+  },
+  "files": [
+    "dist/",
+    "models/",
+    "index/",
+    "templates/"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs && node scripts/build-index.mjs",
+    "build:lib": "echo 'no build:lib for claude-author'",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@orama/orama": "^3.1.5",
+    "@huggingface/transformers": "^3.4.1",
+    "onnxruntime-node": "^1.22.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.2",
+    "@vitest/coverage-v8": "^2.1.9",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}
+```
+
+### 2.3 tsconfig.json
+
+**File:** `packages/claude-author/tsconfig.json`
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "__tests__"]
+}
+```
+
+### 2.4 tsconfig.build.json
+
+**File:** `packages/claude-author/tsconfig.build.json`
+
+```json
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "declaration": false,
+    "noEmit": true
+  }
+}
+```
+
+Note: tsc is used only for type-checking in this package. The actual build is done by esbuild. The `build` script in package.json invokes `scripts/build.mjs`, not tsc.
+
+### 2.5 vitest.config.ts
+
+**File:** `packages/claude-author/vitest.config.ts`
+
+```typescript
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    environment: 'node',
+    include: ['__tests__/**/*.test.ts'],
+    testTimeout: 30000,
+  },
+});
+```
+
+The 30s timeout accounts for embedding model loading in integration tests.
+
+---
+
+## 3. Package: `create-brewsite`
+
+### 3.1 Directory Structure
+
+```
+packages/create-brewsite/
+├── src/
+│   ├── index.ts                     <- CLI entry point
+│   ├── prompts.ts                   <- Interactive prompt flow
+│   ├── scaffold.ts                  <- File writing + package installation
+│   └── types.ts                     <- Config types
+├── templates/
+│   ├── starter-scene.tsx            <- Starter scene template
+│   └── tsconfig.json               <- tsconfig template
+├── __tests__/
+│   └── scaffold.test.ts            <- scaffold logic tests
+├── scripts/
+│   └── build.mjs                   <- esbuild bundler script
+├── package.json
+├── tsconfig.json
+├── vitest.config.ts
+└── README.md
+```
+
+### 3.2 package.json
+
+**File:** `packages/create-brewsite/package.json`
+
+```json
+{
+  "name": "create-brewsite",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "bin": {
+    "create-brewsite": "./dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "templates/"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:lib": "echo 'no build:lib for create-brewsite'",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@clack/prompts": "^0.10.0",
+    "esbuild": "^0.25.2",
+    "@vitest/coverage-v8": "^2.1.9",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}
+```
+
+`@clack/prompts` is a devDependency because esbuild bundles it into the self-contained `dist/index.js` — no need to install it at download time.
+
+**Prompt library selection:** `@clack/prompts` — it has zero native dependencies, excellent UX with spinners and styled select/multiselect, and is designed for CLI scaffolders (used by SvelteKit, Astro, etc.). It is sub-100KB.
+
+### 3.3 tsconfig.json
+
+**File:** `packages/create-brewsite/tsconfig.json`
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": false,
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist", "__tests__"]
+}
+```
+
+### 3.4 vitest.config.ts
+
+**File:** `packages/create-brewsite/vitest.config.ts`
+
+```typescript
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    environment: 'node',
+    include: ['__tests__/**/*.test.ts'],
+  },
+});
+```
+
+---
+
+## 4. Package: `brewsite`
+
+### 4.1 Directory Structure
+
+```
+packages/brewsite/
+├── src/
+│   ├── index.ts                     <- CLI entry point (parses subcommand)
+│   ├── add.ts                       <- `brewsite add` implementation
+│   └── types.ts                     <- Config types
+├── __tests__/
+│   └── add.test.ts                 <- add command tests
+├── scripts/
+│   └── build.mjs                   <- esbuild bundler script
+├── package.json
+├── tsconfig.json
+├── vitest.config.ts
+└── README.md
+```
+
+### 4.2 package.json
+
+**File:** `packages/brewsite/package.json`
+
+```json
+{
+  "name": "brewsite",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "bin": {
+    "brewsite": "./dist/index.js"
+  },
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:lib": "echo 'no build:lib for brewsite'",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "@clack/prompts": "^0.10.0",
+    "esbuild": "^0.25.2",
+    "@vitest/coverage-v8": "^2.1.9",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}
+```
+
+`@clack/prompts` is a devDependency because esbuild bundles it into the self-contained `dist/index.js`.
+
+### 4.3 tsconfig.json
+
+**File:** `packages/brewsite/tsconfig.json`
+
+Same as `create-brewsite/tsconfig.json` (identical content).
+
+### 4.4 vitest.config.ts
+
+Same as `create-brewsite/vitest.config.ts` (identical content).
+
+---
+
+## 5. Publish Script & Monorepo Integration
+
+### 5.1 Updated publish script
+
+**File:** `scripts/publish-all.mjs` (renamed from `publish-core-diagram.mjs`)
+
+Changes to the existing script:
+
+**Package list** — replace the current `packages` array:
+
+```javascript
+const packages = [
+  { name: "@brewsite/core",          dir: path.join(repoRoot, "packages/core") },
+  { name: "@brewsite/diagram",       dir: path.join(repoRoot, "packages/diagram") },
+  { name: "@brewsite/model",         dir: path.join(repoRoot, "packages/model") },
+  { name: "@brewsite/charts",        dir: path.join(repoRoot, "packages/charts") },
+  { name: "@brewsite/screens",       dir: path.join(repoRoot, "packages/screens") },
+  { name: "@brewsite/claude-author", dir: path.join(repoRoot, "packages/claude-author") },
+  { name: "create-brewsite",         dir: path.join(repoRoot, "packages/create-brewsite") },
+  { name: "brewsite",                dir: path.join(repoRoot, "packages/brewsite") },
+];
+```
+
+**Version pinning** — after the existing core version pinning block (Step 2), add:
+
+```javascript
+// Pin @brewsite/screens — peer dependency
+const { packageJsonPath: screensPath, packageJson: screensJson } =
+  readPackageJson(packages[4].dir);
+screensJson.peerDependencies = screensJson.peerDependencies ?? {};
+screensJson.peerDependencies["@brewsite/core"] = `^${coreVersion}`;
+writePackageJson(screensPath, screensJson);
+console.log(`  @brewsite/screens peerDependencies["@brewsite/core"] -> ^${coreVersion}`);
+```
+
+Note: `@brewsite/claude-author` has no dependencies on other `@brewsite/*` packages, so no version pinning is needed for it. `create-brewsite` and `brewsite` do not import `@brewsite/claude-author` — they install it dynamically at runtime via `npx`. No cross-package version pinning is required for the three new packages.
+
+**Build step** — add the three new packages to the build sequence:
+
+```javascript
+console.log("\nBuilding packages...");
+run("pnpm", ["--filter", "@brewsite/core", "build"]);
+run("pnpm", ["--filter", "@brewsite/diagram", "build"]);
+run("pnpm", ["--filter", "@brewsite/model", "build"]);
+run("pnpm", ["--filter", "@brewsite/charts", "build"]);
+run("pnpm", ["--filter", "@brewsite/screens", "build"]);
+run("pnpm", ["--filter", "@brewsite/claude-author", "build"]);
+run("pnpm", ["--filter", "create-brewsite", "build"]);
+run("pnpm", ["--filter", "brewsite", "build"]);
+```
+
+**Usage/header comments** — update to reference `publish-all.mjs` and all eight packages.
+
+### 5.2 pnpm-workspace.yaml
+
+**File:** `pnpm-workspace.yaml`
+
+No changes needed. The existing `packages: ['packages/*']` glob already matches all three new directories.
+
+---
+
+## 6. Data Types
+
+### 6.1 Shared types for claude-author
+
+**File:** `packages/claude-author/src/types.ts`
+
+```typescript
+// Shared type definitions for the @brewsite/claude-author package.
+
+/** Metadata stored alongside each documentation chunk in the Orama index. */
+export interface DocChunkMeta {
+  /** Relative path from docs/, e.g. "core/input-dsl.md" */
+  filePath: string;
+  /** The exact ## section heading text, e.g. "WheelMap" */
+  heading: string;
+  /** The top-level # document title, e.g. "Input DSL" */
+  title: string;
+  /** Topic area derived from directory, e.g. "core", "diagram", "charts" */
+  topic: string;
+}
+
+/** A single documentation chunk ready for indexing. */
+export interface DocChunk {
+  /** Unique chunk identifier: "{filePath}#{heading}" */
+  id: string;
+  /** The raw markdown text content of the chunk (without task prefix). */
+  content: string;
+  /** Metadata for provenance tracking. */
+  meta: DocChunkMeta;
+}
+
+/** The Orama document schema shape (mirrors what is stored in the index). */
+export interface OramaDocSchema {
+  /** Unique chunk identifier. */
+  id: string;
+  /** Full text content for BM25 search. */
+  content: string;
+  /** Pre-computed embedding vector for vector search. */
+  embedding: number[];
+  /** Relative file path. */
+  filePath: string;
+  /** Section heading. */
+  heading: string;
+  /** Document title. */
+  title: string;
+  /** Topic area. */
+  topic: string;
+}
+
+/** Result returned from a search query. */
+export interface SearchResult {
+  /** Chunk ID. */
+  id: string;
+  /** Matched content. */
+  content: string;
+  /** Relevance score (0-1, higher is better). */
+  score: number;
+  /** Source metadata. */
+  meta: DocChunkMeta;
+}
+
+/** Available topic areas for listing. */
+export type TopicArea = 'core' | 'diagram' | 'model' | 'charts' | 'screens' | 'guides';
+
+/** MCP tool input schemas (used by the MCP server tool registration). */
+export interface SearchDocsInput {
+  /** Natural language search query. */
+  query: string;
+  /** Optional topic filter. */
+  topic?: TopicArea;
+  /** Maximum results to return. Default: 5. */
+  limit?: number;
+}
+
+export interface GetDocInput {
+  /** Document chunk ID (format: "{filePath}#{heading}"). */
+  id: string;
+}
+
+export interface ListTopicsInput {
+  // No parameters — lists all available topic areas.
+}
+
+/** Configuration for the init command. */
+export interface InitConfig {
+  /** Absolute path to the target project root. */
+  projectRoot: string;
+}
+```
+
+### 6.2 Orama Index Schema
+
+The Orama database is created with the following schema definition (used in both `build-index.mjs` and `search.ts`):
+
+```typescript
+import { create } from '@orama/orama';
+
+const db = await create({
+  schema: {
+    id: 'string',
+    content: 'string',
+    embedding: 'vector[768]',   // nomic-embed-text-v1.5 produces 768-dim vectors
+    filePath: 'string',
+    heading: 'string',
+    title: 'string',
+    topic: 'string',
+  } as const,
+});
+```
+
+**Vector dimensions:** `nomic-embed-text-v1.5` outputs 768-dimensional float vectors. The Orama schema declares `'vector[768]'`.
+
+---
+
+## 7. MCP Server Implementation
+
+### 7.1 Server entry point
+
+**File:** `packages/claude-author/src/server.ts`
+
+This file is the main MCP server. It:
+1. Creates a `StdioServerTransport`
+2. Creates an `McpServer` with metadata
+3. Registers three tools
+4. Connects transport to server
+
+```typescript
+#!/usr/bin/env node
+// MCP server for BrewSite documentation search.
+
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { z } from 'zod';  // Note: z is re-exported from @modelcontextprotocol/sdk
+import { loadIndex, searchDocs, getDocById, listTopics } from './search.js';
+import { initEmbedder } from './embedder.js';
+
+const server = new McpServer({
+  name: 'brewsite-docs',
+  version: '0.1.0',
+});
+
+// --- Tool: brewsite_search ---
+server.tool(
+  'brewsite_search',
+  'Search BrewSite documentation by natural language query. Uses hybrid BM25 + vector search for best results. Returns ranked documentation chunks with source provenance.',
+  {
+    query: z.string().describe('Natural language search query, e.g. "how do camera transitions work"'),
+    topic: z.enum(['core', 'diagram', 'model', 'charts', 'screens', 'guides']).optional()
+      .describe('Optional topic filter to narrow results to a specific package area'),
+    limit: z.number().int().min(1).max(20).default(5)
+      .describe('Maximum number of results to return (default: 5)'),
+  },
+  async ({ query, topic, limit }) => {
+    const results = await searchDocs(query, { topic, limit });
+    const formatted = results.map((r, i) =>
+      `### Result ${i + 1} (score: ${r.score.toFixed(3)})\n` +
+      `**Source:** \`${r.meta.filePath}\` → \`## ${r.meta.heading}\`\n` +
+      `**Document:** ${r.meta.title}\n\n` +
+      r.content
+    ).join('\n\n---\n\n');
+
+    return {
+      content: [{ type: 'text', text: formatted || 'No results found.' }],
+    };
+  },
+);
+
+// --- Tool: brewsite_get_doc ---
+server.tool(
+  'brewsite_get_doc',
+  'Retrieve a specific documentation section by its chunk ID. Use this after brewsite_search to get the full content of a known section.',
+  {
+    id: z.string().describe('Document chunk ID in format "filePath#heading", e.g. "core/input-dsl.md#WheelMap"'),
+  },
+  async ({ id }) => {
+    const doc = getDocById(id);
+    if (!doc) {
+      return {
+        content: [{ type: 'text', text: `No document found with ID: ${id}` }],
+        isError: true,
+      };
+    }
+    return {
+      content: [{
+        type: 'text',
+        text: `**Source:** \`${doc.meta.filePath}\` → \`## ${doc.meta.heading}\`\n` +
+              `**Document:** ${doc.meta.title}\n\n` +
+              doc.content,
+      }],
+    };
+  },
+);
+
+// --- Tool: brewsite_list_topics ---
+server.tool(
+  'brewsite_list_topics',
+  'List all available documentation topic areas and the number of sections in each. Use this for discovery before searching.',
+  {},
+  async () => {
+    const topics = listTopics();
+    const formatted = topics.map(t =>
+      `- **${t.topic}** — ${t.count} section${t.count === 1 ? '' : 's'}: ${t.description}`
+    ).join('\n');
+    return {
+      content: [{ type: 'text', text: formatted }],
+    };
+  },
+);
+
+// --- Startup ---
+async function main(): Promise<void> {
+  await loadIndex();
+  await initEmbedder();
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}
+
+main().catch((err) => {
+  console.error('brewsite-docs MCP server failed to start:', err);
+  process.exit(1);
+});
+```
+
+**Design decisions:**
+- `z` (Zod) is used for tool input schemas — `@modelcontextprotocol/sdk` re-exports it, so no additional dependency is needed.
+- Tools are named with `brewsite_` prefix to avoid collisions with other MCP servers.
+- The server calls `loadIndex()` and `initEmbedder()` before connecting the transport — this means Claude Code waits for startup but the server is fully ready on first tool call.
+- Error in `brewsite_get_doc` returns `isError: true` so Claude knows the lookup failed.
+
+### 7.2 Search module
+
+**File:** `packages/claude-author/src/search.ts`
+
+```typescript
+// Orama index loading and hybrid search implementation.
+
+import { restore, search as oramaSearch, getByID } from '@orama/orama';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import { embedQuery } from './embedder.js';
+import type { SearchResult, TopicArea, OramaDocSchema } from './types.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// The Orama database instance, loaded once at startup.
+let db: Awaited<ReturnType<typeof restore>> | null = null;
+
+/**
+ * Load the pre-built Orama index from disk into memory.
+ * Must be called once at server startup before any search operations.
+ */
+export async function loadIndex(): Promise<void> {
+  // When running from dist/server.js, the index is at ../index/orama-index.json
+  // When running from the template entry point, it resolves through node_modules
+  const indexPath = join(__dirname, '..', 'index', 'orama-index.json');
+  const raw = readFileSync(indexPath, 'utf-8');
+  const data = JSON.parse(raw);
+  db = await restore('json', data);
+}
+
+/**
+ * Perform hybrid search (BM25 + vector) on the documentation index.
+ */
+export async function searchDocs(
+  query: string,
+  options: { topic?: TopicArea; limit?: number } = {},
+): Promise<SearchResult[]> {
+  if (!db) throw new Error('Index not loaded. Call loadIndex() first.');
+
+  const limit = options.limit ?? 5;
+  const queryEmbedding = await embedQuery(query);
+
+  // Build filter if topic is specified
+  const where = options.topic ? { topic: options.topic } : undefined;
+
+  const results = await oramaSearch(db, {
+    term: query,
+    vector: {
+      value: queryEmbedding,
+      property: 'embedding',
+    },
+    mode: 'hybrid',
+    limit,
+    ...(where ? { where } : {}),
+  });
+
+  return results.hits.map((hit) => {
+    const doc = hit.document as unknown as OramaDocSchema;
+    return {
+      id: doc.id,
+      content: doc.content,
+      score: hit.score,
+      meta: {
+        filePath: doc.filePath,
+        heading: doc.heading,
+        title: doc.title,
+        topic: doc.topic as TopicArea,
+      },
+    };
+  });
+}
+
+/**
+ * Retrieve a specific document chunk by its ID.
+ * Returns null if not found.
+ */
+export function getDocById(id: string): SearchResult | null {
+  if (!db) throw new Error('Index not loaded. Call loadIndex() first.');
+
+  const doc = getByID(db, id) as OramaDocSchema | undefined;
+  if (!doc) return null;
+
+  return {
+    id: doc.id,
+    content: doc.content,
+    score: 1.0,
+    meta: {
+      filePath: doc.filePath,
+      heading: doc.heading,
+      title: doc.title,
+      topic: doc.topic as TopicArea,
+    },
+  };
+}
+
+/** Topic metadata for the listing tool. */
+interface TopicInfo {
+  topic: string;
+  count: number;
+  description: string;
+}
+
+const TOPIC_DESCRIPTIONS: Record<string, string> = {
+  core: 'Scene DSL, camera, lighting, background, floor, environment, input controllers, HUD overlays',
+  diagram: 'Diagram nodes, edges, groups, canvas, image panels, screens',
+  model: 'GLTF model loading, animations, labels, bone annotations',
+  charts: 'Bar, line, area, scatter, pie, heatmap charts with 3D rendering',
+  screens: 'Media screen element for embedding video/image content',
+  guides: 'Transitions, embedding modes, NVS spatial model, advanced patterns, common gotchas',
+};
+
+// Pre-computed topic counts, populated by loadIndex().
+const topicCounts = new Map<string, number>();
+
+/**
+ * Load the pre-built Orama index from disk into memory.
+ * Must be called once at server startup before any search operations.
+ * Also pre-computes topic counts for listTopics().
+ */
+// NOTE: This population logic runs inside the loadIndex() function above.
+// After `db = await restore(...)`, iterate all documents to build counts:
+//
+//   topicCounts.clear();
+//   // Use Orama's getByID or search to iterate docs and count per-topic.
+//   // The simplest approach: run a term-only search per topic with high limit,
+//   // or iterate the internal document store if Orama exposes it.
+//   for (const topic of Object.keys(TOPIC_DESCRIPTIONS)) {
+//     const results = await oramaSearch(db, { term: '', where: { topic }, limit: 1 });
+//     topicCounts.set(topic, results.count);
+//   }
+
+/**
+ * List all topic areas with section counts.
+ * Reads from the pre-computed topic count map built at loadIndex() time.
+ */
+export function listTopics(): TopicInfo[] {
+  if (!db) throw new Error('Index not loaded. Call loadIndex() first.');
+
+  return Object.keys(TOPIC_DESCRIPTIONS).map((topic) => ({
+    topic,
+    count: topicCounts.get(topic) ?? 0,
+    description: TOPIC_DESCRIPTIONS[topic] ?? '',
+  }));
+}
+```
+
+The `topicCounts` map is populated inside `loadIndex()` after `db = await restore(...)`. The implementer must add the counting loop at the end of `loadIndex()` — iterate each topic key and query Orama with `where: { topic }` to get the count, storing results in the module-level map.
+
+### 7.3 Embedder module
+
+**File:** `packages/claude-author/src/embedder.ts`
+
+```typescript
+// Query-time embedding using nomic-embed-text-v1.5 via @huggingface/transformers.
+
+import { env, pipeline, type FeatureExtractionPipeline } from '@huggingface/transformers';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+let embedPipeline: FeatureExtractionPipeline | null = null;
+
+/**
+ * Initialize the embedding pipeline.
+ * Loads the bundled nomic-embed-text-v1.5 model from disk.
+ * Must be called once at server startup.
+ */
+export async function initEmbedder(): Promise<void> {
+  // Point to bundled model — prevent any network calls
+  const modelDir = join(__dirname, '..', 'models', 'nomic-embed-text-v1.5');
+  env.localModelPath = modelDir;
+  env.allowRemoteModels = false;
+
+  embedPipeline = await pipeline('feature-extraction', modelDir, {
+    dtype: 'q4',                    // int4 quantized
+    device: 'cpu',                  // onnxruntime-node provides native CPU inference
+  });
+}
+
+/**
+ * Embed a search query string into a 768-dimensional vector.
+ * Automatically prepends the required "search_query: " task prefix.
+ */
+export async function embedQuery(query: string): Promise<number[]> {
+  if (!embedPipeline) {
+    throw new Error('Embedder not initialized. Call initEmbedder() first.');
+  }
+
+  // Task prefix required by nomic-embed-text-v1.5 for query embedding
+  const prefixedQuery = `search_query: ${query}`;
+  const output = await embedPipeline(prefixedQuery, {
+    pooling: 'mean',
+    normalize: true,
+  });
+
+  // output is a Tensor — convert to plain number array
+  return Array.from(output.data as Float32Array);
+}
+```
+
+**Key constraints enforced:**
+- `env.localModelPath` points to the bundled model directory.
+- `env.allowRemoteModels = false` — prevents any HuggingFace Hub network calls.
+- `search_query: ` prefix is prepended to every query (required by nomic-embed-text-v1.5).
+- Output is 768-dimensional (matching the index schema `vector[768]`).
+
+---
+
+## 8. Build Index Script
+
+**File:** `packages/claude-author/scripts/build-index.mjs`
+
+```javascript
+#!/usr/bin/env node
+// Builds the Orama search index from documentation markdown files.
+// Reads docs/, chunks by ## heading, embeds each chunk, serializes to index/orama-index.json.
+
+import { create, insert, save } from '@orama/orama';
+import { pipeline, env } from '@huggingface/transformers';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { join, relative, dirname, basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const PKG_ROOT = join(__dirname, '..');
+const DOCS_DIR = join(PKG_ROOT, 'docs');
+const INDEX_DIR = join(PKG_ROOT, 'index');
+const MODEL_DIR = join(PKG_ROOT, 'models', 'nomic-embed-text-v1.5');
+
+// ─── Step 1: Discover all markdown files ─────────────────────────────────────
+
+function findMarkdownFiles(dir) {
+  const results = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...findMarkdownFiles(fullPath));
+    } else if (entry.name.endsWith('.md') && entry.name !== 'README.md') {
+      results.push(fullPath);
+    }
+  }
+  return results;
+}
+
+// ─── Step 2: Chunk by ## heading ─────────────────────────────────────────────
+
+/**
+ * Parse a markdown file into chunks split on ## headings.
+ * Each chunk carries metadata: filePath, heading, title, topic.
+ */
+function chunkMarkdown(filePath, docsRoot) {
+  const raw = readFileSync(filePath, 'utf-8');
+  const relPath = relative(docsRoot, filePath);
+  const topic = relPath.split('/')[0]; // e.g. "core", "diagram"
+
+  // Extract front matter title if present
+  let title = basename(filePath, '.md');
+  const fmMatch = raw.match(/^---\n[\s\S]*?title:\s*["']?(.+?)["']?\s*\n[\s\S]*?---/);
+  if (fmMatch) {
+    title = fmMatch[1];
+  }
+
+  // Also check for a top-level # heading
+  const h1Match = raw.match(/^#\s+(.+)$/m);
+  if (h1Match) {
+    title = h1Match[1];
+  }
+
+  // Split on ## headings
+  const lines = raw.split('\n');
+  const chunks = [];
+  let currentHeading = '(introduction)';
+  let currentLines = [];
+
+  // Skip front matter
+  let i = 0;
+  if (lines[0] === '---') {
+    i = 1;
+    while (i < lines.length && lines[i] !== '---') i++;
+    i++; // skip closing ---
+  }
+
+  for (; i < lines.length; i++) {
+    const line = lines[i];
+    const h2Match = line.match(/^##\s+(.+)$/);
+    if (h2Match) {
+      // Save previous chunk if it has content
+      const content = currentLines.join('\n').trim();
+      if (content.length > 0) {
+        chunks.push({
+          id: `${relPath}#${currentHeading}`,
+          content,
+          meta: { filePath: relPath, heading: currentHeading, title, topic },
+        });
+      }
+      currentHeading = h2Match[1];
+      currentLines = [];
+    } else {
+      currentLines.push(line);
+    }
+  }
+
+  // Don't forget the last chunk
+  const lastContent = currentLines.join('\n').trim();
+  if (lastContent.length > 0) {
+    chunks.push({
+      id: `${relPath}#${currentHeading}`,
+      content: lastContent,
+      meta: { filePath: relPath, heading: currentHeading, title, topic },
+    });
+  }
+
+  return chunks;
+}
+
+// ─── Step 3: Build index ─────────────────────────────────────────────────────
+
+async function main() {
+  console.log('Building Orama index...');
+
+  // Discover and chunk all docs
+  const mdFiles = findMarkdownFiles(DOCS_DIR);
+  console.log(`Found ${mdFiles.length} markdown files.`);
+
+  const allChunks = [];
+  for (const file of mdFiles) {
+    allChunks.push(...chunkMarkdown(file, DOCS_DIR));
+  }
+  console.log(`Produced ${allChunks.length} chunks.`);
+
+  // Initialize embedding model
+  console.log('Loading embedding model...');
+  env.localModelPath = MODEL_DIR;
+  env.allowRemoteModels = false;
+
+  const embedder = await pipeline('feature-extraction', MODEL_DIR, {
+    dtype: 'q4',
+    device: 'cpu',
+  });
+
+  // Embed all chunks with search_document: prefix
+  console.log('Embedding chunks...');
+  const embeddings = [];
+  for (let i = 0; i < allChunks.length; i++) {
+    const chunk = allChunks[i];
+    const prefixed = `search_document: ${chunk.content}`;
+    const output = await embedder(prefixed, { pooling: 'mean', normalize: true });
+    embeddings.push(Array.from(output.data));
+
+    if ((i + 1) % 10 === 0 || i === allChunks.length - 1) {
+      console.log(`  Embedded ${i + 1}/${allChunks.length}`);
+    }
+  }
+
+  // Create Orama database
+  console.log('Creating Orama index...');
+  const db = await create({
+    schema: {
+      id: 'string',
+      content: 'string',
+      embedding: 'vector[768]',
+      filePath: 'string',
+      heading: 'string',
+      title: 'string',
+      topic: 'string',
+    },
+  });
+
+  // Insert all documents
+  for (let i = 0; i < allChunks.length; i++) {
+    const chunk = allChunks[i];
+    await insert(db, {
+      id: chunk.id,
+      content: chunk.content,
+      embedding: embeddings[i],
+      filePath: chunk.meta.filePath,
+      heading: chunk.meta.heading,
+      title: chunk.meta.title,
+      topic: chunk.meta.topic,
+    });
+  }
+
+  // Serialize to JSON
+  mkdirSync(INDEX_DIR, { recursive: true });
+  const serialized = await save(db, 'json');
+  const outputPath = join(INDEX_DIR, 'orama-index.json');
+  writeFileSync(outputPath, JSON.stringify(serialized));
+
+  const sizeMB = (Buffer.byteLength(JSON.stringify(serialized)) / (1024 * 1024)).toFixed(2);
+  console.log(`Index written to ${outputPath} (${sizeMB} MB, ${allChunks.length} documents)`);
+}
+
+main().catch((err) => {
+  console.error('Index build failed:', err);
+  process.exit(1);
+});
+```
+
+**Key constraints enforced:**
+- `search_document: ` prefix on every chunk before embedding.
+- `README.md` files excluded from indexing (they are metadata, not searchable docs).
+- Front matter is stripped before chunking content.
+- `nomic-embed-text-v1.5` with `env.allowRemoteModels = false`.
+- Uses `save(db, 'json')` — Orama's native JSON serialization format.
+
+---
+
+## 9. CLI: `claude-author init`
+
+**File:** `packages/claude-author/src/bin/init.ts`
+
+```typescript
+#!/usr/bin/env node
+// CLI command: npx @brewsite/claude-author init
+// Writes Claude Code integration files into the current project.
+
+import { writeFileSync, readFileSync, mkdirSync, existsSync, copyFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Resolve template directory relative to the built dist/bin/init.js
+const TEMPLATES_DIR = join(__dirname, '..', '..', 'templates');
+
+interface McpConfig {
+  mcpServers?: Record<string, { command: string; args: string[] }>;
+}
+
+function run(projectRoot: string): void {
+  console.log('Setting up BrewSite documentation for Claude Code...\n');
+
+  // 1. Write .claude/mcp-servers/brewsite-docs.js
+  const mcpServersDir = join(projectRoot, '.claude', 'mcp-servers');
+  const mcpServerFile = join(mcpServersDir, 'brewsite-docs.js');
+  mkdirSync(mcpServersDir, { recursive: true });
+
+  if (!existsSync(mcpServerFile)) {
+    copyFileSync(join(TEMPLATES_DIR, 'brewsite-docs.js'), mcpServerFile);
+    console.log('  Created .claude/mcp-servers/brewsite-docs.js');
+  } else {
+    console.log('  Skipped .claude/mcp-servers/brewsite-docs.js (already exists)');
+  }
+
+  // 2. Write .claude/agents/brewsite-scene-author.md
+  const agentsDir = join(projectRoot, '.claude', 'agents');
+  const agentFile = join(agentsDir, 'brewsite-scene-author.md');
+  mkdirSync(agentsDir, { recursive: true });
+
+  if (!existsSync(agentFile)) {
+    copyFileSync(join(TEMPLATES_DIR, 'brewsite-scene-author.md'), agentFile);
+    console.log('  Created .claude/agents/brewsite-scene-author.md');
+  } else {
+    console.log('  Skipped .claude/agents/brewsite-scene-author.md (already exists)');
+  }
+
+  // 3. Write or merge .mcp.json
+  const mcpJsonPath = join(projectRoot, '.mcp.json');
+  const mcpEntry = {
+    command: 'node',
+    args: ['.claude/mcp-servers/brewsite-docs.js'],
+  };
+
+  if (existsSync(mcpJsonPath)) {
+    // Merge: read existing, add/update brewsite-docs entry, write back
+    const existing: McpConfig = JSON.parse(readFileSync(mcpJsonPath, 'utf-8'));
+    existing.mcpServers = existing.mcpServers ?? {};
+    if (existing.mcpServers['brewsite-docs']) {
+      console.log('  Skipped .mcp.json (brewsite-docs entry already exists)');
+    } else {
+      existing.mcpServers['brewsite-docs'] = mcpEntry;
+      writeFileSync(mcpJsonPath, JSON.stringify(existing, null, 2) + '\n');
+      console.log('  Updated .mcp.json (added brewsite-docs entry)');
+    }
+  } else {
+    const mcpConfig: McpConfig = {
+      mcpServers: {
+        'brewsite-docs': mcpEntry,
+      },
+    };
+    writeFileSync(mcpJsonPath, JSON.stringify(mcpConfig, null, 2) + '\n');
+    console.log('  Created .mcp.json');
+  }
+
+  // 4. Version control guidance
+  console.log('\n  Files to commit to version control:');
+  console.log('    .mcp.json');
+  console.log('    .claude/agents/brewsite-scene-author.md');
+  console.log('    .claude/mcp-servers/brewsite-docs.js');
+  console.log('\n  These files have no secrets and enable Claude Code for all team members.\n');
+
+  console.log('Done! Restart Claude Code to activate the BrewSite documentation server.');
+}
+
+// Entry point
+const projectRoot = process.cwd();
+run(projectRoot);
+```
+
+**Idempotency rules:**
+- `.claude/mcp-servers/brewsite-docs.js` — skip if exists.
+- `.claude/agents/brewsite-scene-author.md` — skip if exists.
+- `.mcp.json` — merge if exists, skip `brewsite-docs` entry if already present.
+
+---
+
+## 10. CLI: `create-brewsite`
+
+### 10.1 Entry point
+
+**File:** `packages/create-brewsite/src/index.ts`
+
+```typescript
+#!/usr/bin/env node
+// CLI: npx create-brewsite@latest
+// Interactive scaffolder for new BrewSite projects.
+
+import { intro, outro, multiselect, confirm, spinner, isCancel, cancel } from '@clack/prompts';
+import { scaffoldProject } from './scaffold.js';
+import type { ProjectConfig } from './types.js';
+
+async function main(): Promise<void> {
+  intro('create-brewsite');
+
+  // Step 1: Select optional packages
+  const optionalPackages = await multiselect({
+    message: 'Which BrewSite packages do you want to install?',
+    options: [
+      { value: '@brewsite/diagram', label: '@brewsite/diagram', hint: '3D diagrams, nodes, edges, groups' },
+      { value: '@brewsite/model', label: '@brewsite/model', hint: 'GLTF model loading, labels, animations' },
+      { value: '@brewsite/charts', label: '@brewsite/charts', hint: '3D bar, line, pie, scatter charts' },
+      { value: '@brewsite/screens', label: '@brewsite/screens', hint: 'Media screen elements' },
+    ],
+    required: false,
+    initialValues: ['@brewsite/diagram', '@brewsite/model'],
+  });
+
+  if (isCancel(optionalPackages)) {
+    cancel('Setup cancelled.');
+    process.exit(0);
+  }
+
+  // Step 2: Confirm claude-author installation
+  const installClaudeAuthor = await confirm({
+    message: 'Install @brewsite/claude-author for AI-powered documentation in Claude Code?',
+    initialValue: true,
+  });
+
+  if (isCancel(installClaudeAuthor)) {
+    cancel('Setup cancelled.');
+    process.exit(0);
+  }
+
+  const config: ProjectConfig = {
+    projectRoot: process.cwd(),
+    packages: ['@brewsite/core', ...(optionalPackages as string[])],
+    installClaudeAuthor: installClaudeAuthor as boolean,
+  };
+
+  const s = spinner();
+  s.start('Installing packages...');
+  await scaffoldProject(config);
+  s.stop('Packages installed.');
+
+  outro('BrewSite project ready! Run `pnpm dev` to start.');
+}
+
+main().catch((err) => {
+  console.error('create-brewsite failed:', err);
+  process.exit(1);
+});
+```
+
+### 10.2 Types
+
+**File:** `packages/create-brewsite/src/types.ts`
+
+```typescript
+// Type definitions for the create-brewsite CLI.
+
+export interface ProjectConfig {
+  /** Absolute path to the target project root. */
+  projectRoot: string;
+  /** List of @brewsite/* packages to install as dependencies. */
+  packages: string[];
+  /** Whether to install @brewsite/claude-author as a dev dependency. */
+  installClaudeAuthor: boolean;
+}
+```
+
+### 10.3 Scaffold logic
+
+**File:** `packages/create-brewsite/src/scaffold.ts`
+
+```typescript
+// Project scaffolding: installs packages, writes starter files, runs claude-author init.
+
+import { execSync } from 'node:child_process';
+import { writeFileSync, existsSync, readFileSync, copyFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import type { ProjectConfig } from './types.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const TEMPLATES_DIR = join(__dirname, '..', 'templates');
+
+/**
+ * Detect the package manager in the current project.
+ * Falls back to npm if none detected.
+ */
+function detectPackageManager(projectRoot: string): 'pnpm' | 'npm' | 'yarn' {
+  if (existsSync(join(projectRoot, 'pnpm-lock.yaml'))) return 'pnpm';
+  if (existsSync(join(projectRoot, 'yarn.lock'))) return 'yarn';
+  return 'npm';
+}
+
+/**
+ * Install packages using the detected package manager.
+ */
+function installPackages(
+  projectRoot: string,
+  packages: string[],
+  opts: { dev?: boolean } = {},
+): void {
+  const pm = detectPackageManager(projectRoot);
+  const devFlag = opts.dev ? (pm === 'npm' ? '--save-dev' : '-D') : '';
+  const cmd = pm === 'pnpm'
+    ? `pnpm add ${devFlag} ${packages.join(' ')}`
+    : pm === 'yarn'
+    ? `yarn add ${devFlag} ${packages.join(' ')}`
+    : `npm install ${devFlag} ${packages.join(' ')}`;
+
+  execSync(cmd, { cwd: projectRoot, stdio: 'inherit' });
+}
+
+/**
+ * Scaffold a new BrewSite project.
+ */
+export async function scaffoldProject(config: ProjectConfig): Promise<void> {
+  const { projectRoot, packages, installClaudeAuthor } = config;
+
+  // 1. Install selected @brewsite/* packages as dependencies
+  if (packages.length > 0) {
+    installPackages(projectRoot, packages);
+  }
+
+  // 2. Install @brewsite/claude-author as a dev dependency
+  if (installClaudeAuthor) {
+    installPackages(projectRoot, ['@brewsite/claude-author'], { dev: true });
+  }
+
+  // 3. Write starter scene if no scenes directory exists
+  const scenesDir = join(projectRoot, 'src', 'scenes');
+  const starterPath = join(scenesDir, 'intro.tsx');
+  if (!existsSync(starterPath)) {
+    const { mkdirSync } = await import('node:fs');
+    mkdirSync(scenesDir, { recursive: true });
+    copyFileSync(join(TEMPLATES_DIR, 'starter-scene.tsx'), starterPath);
+    console.log('  Created src/scenes/intro.tsx');
+  }
+
+  // 4. Write tsconfig.json if not present
+  const tsconfigPath = join(projectRoot, 'tsconfig.json');
+  if (!existsSync(tsconfigPath)) {
+    copyFileSync(join(TEMPLATES_DIR, 'tsconfig.json'), tsconfigPath);
+    console.log('  Created tsconfig.json');
+  }
+
+  // 5. Run claude-author init (shells out — no direct dependency)
+  if (installClaudeAuthor) {
+    console.log('\nSetting up Claude Code integration...');
+    execSync('npx @brewsite/claude-author init', {
+      cwd: projectRoot,
+      stdio: 'inherit',
+    });
+  }
+}
+```
+
+### 10.4 Prompts
+
+**File:** `packages/create-brewsite/src/prompts.ts`
+
+This file is reserved for future prompt customization. Initially, all prompts live inline in `index.ts`. If the prompt flow grows beyond the current 2-step flow (package selection + claude-author confirmation), prompts should be extracted here. For v1, this file is not needed and should not be created.
+
+### 10.5 esbuild script
+
+**File:** `packages/create-brewsite/scripts/build.mjs`
+
+```javascript
+#!/usr/bin/env node
+// Bundles create-brewsite CLI into a single dist/index.js file.
+
+import { build } from 'esbuild';
+
+await build({
+  entryPoints: ['src/index.ts'],
+  bundle: true,
+  platform: 'node',
+  target: 'node18',
+  format: 'esm',
+  outfile: 'dist/index.js',
+  banner: {
+    js: '#!/usr/bin/env node',
+  },
+  // No externals — bundle everything for a self-contained CLI
+});
+
+console.log('create-brewsite built to dist/index.js');
+```
+
+---
+
+## 11. CLI: `brewsite add`
+
+### 11.1 Entry point
+
+**File:** `packages/brewsite/src/index.ts`
+
+```typescript
+#!/usr/bin/env node
+// CLI: npx brewsite <command>
+// Currently supports: brewsite add <package>
+
+import { runAdd } from './add.js';
+
+const args = process.argv.slice(2);
+const command = args[0];
+
+if (command === 'add') {
+  const packages = args.slice(1);
+  if (packages.length === 0) {
+    console.error('Usage: brewsite add <package> [package...]');
+    console.error('');
+    console.error('Available packages:');
+    console.error('  core           @brewsite/core (always required)');
+    console.error('  diagram        @brewsite/diagram');
+    console.error('  model          @brewsite/model');
+    console.error('  charts         @brewsite/charts');
+    console.error('  screens        @brewsite/screens');
+    console.error('  claude-author  @brewsite/claude-author');
+    process.exit(1);
+  }
+  await runAdd(packages);
+} else {
+  console.error(`Unknown command: ${command ?? '(none)'}`);
+  console.error('Usage: brewsite add <package> [package...]');
+  process.exit(1);
+}
+```
+
+### 11.2 Add command
+
+**File:** `packages/brewsite/src/add.ts`
+
+```typescript
+// Implementation of `brewsite add <package>`.
+
+import { execSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+
+/** Map of shorthand names to npm package names. */
+const PACKAGE_MAP: Record<string, { npm: string; dev: boolean }> = {
+  'core':          { npm: '@brewsite/core', dev: false },
+  'diagram':       { npm: '@brewsite/diagram', dev: false },
+  'model':         { npm: '@brewsite/model', dev: false },
+  'charts':        { npm: '@brewsite/charts', dev: false },
+  'screens':       { npm: '@brewsite/screens', dev: false },
+  'claude-author': { npm: '@brewsite/claude-author', dev: true },
+};
+
+function detectPackageManager(projectRoot: string): 'pnpm' | 'npm' | 'yarn' {
+  if (existsSync(join(projectRoot, 'pnpm-lock.yaml'))) return 'pnpm';
+  if (existsSync(join(projectRoot, 'yarn.lock'))) return 'yarn';
+  return 'npm';
+}
+
+function install(
+  projectRoot: string,
+  npmName: string,
+  opts: { dev?: boolean } = {},
+): void {
+  const pm = detectPackageManager(projectRoot);
+  const devFlag = opts.dev ? (pm === 'npm' ? '--save-dev' : '-D') : '';
+  const cmd = `${pm} ${pm === 'npm' ? 'install' : 'add'} ${devFlag} ${npmName}`;
+  execSync(cmd, { cwd: projectRoot, stdio: 'inherit' });
+}
+
+export async function runAdd(shortNames: string[]): Promise<void> {
+  const projectRoot = process.cwd();
+  let needsClaudeAuthorInit = false;
+
+  for (const name of shortNames) {
+    const entry = PACKAGE_MAP[name];
+    if (!entry) {
+      console.error(`Unknown package: ${name}`);
+      console.error(`Available: ${Object.keys(PACKAGE_MAP).join(', ')}`);
+      process.exit(1);
+    }
+
+    console.log(`Installing ${entry.npm}...`);
+    install(projectRoot, entry.npm, { dev: entry.dev });
+
+    if (name === 'claude-author') {
+      needsClaudeAuthorInit = true;
+    }
+  }
+
+  // Run claude-author init if it was added
+  if (needsClaudeAuthorInit) {
+    console.log('\nSetting up Claude Code integration...');
+    execSync('npx @brewsite/claude-author init', {
+      cwd: projectRoot,
+      stdio: 'inherit',
+    });
+  }
+
+  console.log('\nDone!');
+}
+```
+
+### 11.3 Types
+
+**File:** `packages/brewsite/src/types.ts`
+
+```typescript
+// Type definitions for the brewsite CLI. Reserved for future expansion.
+export {};
+```
+
+### 11.4 esbuild script
+
+**File:** `packages/brewsite/scripts/build.mjs`
+
+```javascript
+#!/usr/bin/env node
+// Bundles brewsite CLI into a single dist/index.js file.
+
+import { build } from 'esbuild';
+
+await build({
+  entryPoints: ['src/index.ts'],
+  bundle: true,
+  platform: 'node',
+  target: 'node18',
+  format: 'esm',
+  outfile: 'dist/index.js',
+  banner: {
+    js: '#!/usr/bin/env node',
+  },
+});
+
+console.log('brewsite built to dist/index.js');
+```
+
+---
+
+## 12. Template Contents
+
+### 12.1 MCP server entry point
+
+**File:** `packages/claude-author/templates/brewsite-docs.js`
+
+```javascript
+#!/usr/bin/env node
+// BrewSite documentation MCP server entry point.
+// This file is auto-generated by @brewsite/claude-author init.
+// It starts the pre-built MCP server from the installed package.
+import('@brewsite/claude-author/server');
+```
+
+Dynamic `import()` is used because `@brewsite/claude-author` is `"type": "module"` (ESM). `require()` cannot load ESM modules (`ERR_REQUIRE_ESM`). Dynamic `import()` works in both CJS and ESM host projects regardless of the host project's `type` field.
+
+### 12.2 Agent definition
+
+**File:** `packages/claude-author/templates/brewsite-scene-author.md`
+
+This is the scene authoring agent definition. The implementer should copy the content from the existing `.claude/agents/brewsite-scene-author.md` in this repository. The template ships as-is inside the npm package and is copied verbatim by `init`.
+
+To source the initial content:
+```
+cp .claude/agents/brewsite-scene-author.md packages/claude-author/templates/brewsite-scene-author.md
+```
+
+### 12.3 Starter scene
+
+**File:** `packages/create-brewsite/templates/starter-scene.tsx`
+
+```tsx
+import { Scene } from '@brewsite/core/compiler';
+import { Camera, Background, Lighting, Ambient, Directional } from '@brewsite/core/elements';
+
+export function IntroScene(): JSX.Element {
+  return (
+    <Scene id="intro">
+      <Camera
+        x={0.5}
+        y={0.5}
+        w={1}
+        h={1}
+        fov={45}
+        lookAtX={0}
+        lookAtY={1}
+        lookAtZ={0}
+        distance={5}
+        azimuth={0}
+        polar={70}
+      />
+      <Background color="#0f172a" />
+      <Lighting>
+        <Ambient intensity={0.4} />
+        <Directional intensity={0.8} x={5} y={10} z={5} />
+      </Lighting>
+    </Scene>
+  );
+}
+```
+
+**Constraints met:**
+- Imports only from `@brewsite/core` (the one required package).
+- `Scene` from `@brewsite/core/compiler` (DSL authoring surface). Element DSL components (`Camera`, `Background`, `Lighting`, `Ambient`, `Directional`) from `@brewsite/core/elements`.
+- Renders a valid scene with background + camera + lighting (all core elements).
+- TypeScript `.tsx` file placed at `src/scenes/intro.tsx`.
+- Demonstrates the basic DSL pattern with props.
+
+### 12.4 tsconfig template
+
+**File:** `packages/create-brewsite/templates/tsconfig.json`
+
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "jsx": "react-jsx",
+    "resolveJsonModule": true,
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}
+```
+
+---
+
+## 13. Test Strategy
+
+### 13.1 `packages/claude-author/__tests__/`
+
+#### `chunker.test.ts`
+
+Tests the markdown chunking logic extracted from `build-index.mjs`. Since the chunking is in an `.mjs` build script and harder to import directly, **extract the chunking function into a shared module**:
+
+**File:** `packages/claude-author/src/chunker.ts`
+
+```typescript
+// Markdown document chunking for the search index.
+// Used by both build-index.mjs (at build time) and tests.
+
+import { readFileSync } from 'node:fs';
+import { relative, basename } from 'node:path';
+import type { DocChunk } from './types.js';
+
+/**
+ * Parse a markdown file into chunks split on ## headings.
+ * Each chunk carries metadata: filePath, heading, title, topic.
+ */
+export function chunkMarkdownFile(filePath: string, docsRoot: string): DocChunk[] {
+  const raw = readFileSync(filePath, 'utf-8');
+  return chunkMarkdownContent(raw, relative(docsRoot, filePath));
+}
+
+/**
+ * Chunk raw markdown content. Exposed for testing without file I/O.
+ */
+export function chunkMarkdownContent(raw: string, relPath: string): DocChunk[] {
+  // ... same algorithm as in build-index.mjs (Section 8)
+  // The implementer must factor the algorithm into this function
+  // and have build-index.mjs import from here.
+}
+```
+
+**Update `build-index.mjs`:** Import `chunkMarkdownFile` from `../src/chunker.ts` (via a pre-build tsc step or by writing `chunker.ts` as pure ESM that Node can resolve). Alternatively, `build-index.mjs` can inline the chunking and the test module can duplicate it for verification — but the shared module approach is preferred.
+
+**Implementation decision (PM-approved):** The `build` script in package.json runs `node scripts/build.mjs` first (which compiles all source including `chunker.ts` to `dist/chunker.js`), then `node scripts/build-index.mjs` imports the chunker from the compiled output. The import path in `build-index.mjs` is:
+
+```javascript
+import { chunkMarkdownFile } from '../dist/chunker.js';
+```
+
+This two-phase build (`esbuild → index build`) avoids code duplication and enables proper testing of the chunking logic via `src/chunker.ts`.
+
+**Test cases for `chunker.test.ts`:**
+- Chunks a simple markdown file with 3 `##` sections into 3 chunks
+- Extracts front matter `title` field correctly
+- Falls back to `#` heading as title when no front matter
+- Assigns correct `topic` from directory structure
+- Generates correct chunk IDs in `filePath#heading` format
+- Handles file with no `##` headings (single introduction chunk)
+- Handles file with front matter correctly (strips it from content)
+- Handles empty sections (skips them)
+
+#### `search.test.ts`
+
+Tests the search module's `loadIndex`, `searchDocs`, `getDocById`, and `listTopics` functions.
+
+**Approach:** Create a small test index at test setup time. Write 5-10 test documents into a temporary Orama database, serialize it to a temp file, then test loading and searching against it.
+
+**Test cases:**
+- `loadIndex()` loads a serialized Orama index from disk
+- `searchDocs()` returns results ranked by relevance
+- `searchDocs()` with topic filter returns only matching topic
+- `searchDocs()` with limit parameter caps results
+- `getDocById()` returns the correct document
+- `getDocById()` returns null for unknown ID
+- `listTopics()` returns all topic areas with counts
+
+**Note:** These tests require a running embedder for the vector search portion. They can be split into:
+- Unit tests (BM25-only, no embedder) — fast, always run
+- Integration tests (hybrid search with embedder) — slower, marked with `test.skip` in CI if model is not available
+
+#### `init.test.ts`
+
+Tests the init CLI's file writing and merging logic.
+
+**Approach:** Use a temporary directory as the project root. Run the init logic (imported as a function, not via `execSync`) and assert file existence and content.
+
+**Test cases:**
+- Creates `.mcp.json` when none exists
+- Creates `.claude/mcp-servers/brewsite-docs.js` when none exists
+- Creates `.claude/agents/brewsite-scene-author.md` when none exists
+- Merges into existing `.mcp.json` without overwriting other entries
+- Skips `brewsite-docs` entry if already present in `.mcp.json`
+- Skips files that already exist (idempotency)
+
+**Refactoring for testability:** Extract the `run()` function from `init.ts` into an exported function that accepts `projectRoot` as a parameter. The `if (import.meta.url === ...)` or direct call at the bottom remains for CLI invocation. Tests call the extracted function directly.
+
+### 13.2 `packages/create-brewsite/__tests__/`
+
+#### `scaffold.test.ts`
+
+Tests the scaffold logic without actually running `npm install` or `npx`.
+
+**Approach:** Mock `execSync` to capture commands without executing them. Use a temp directory for file writes.
+
+**Test cases:**
+- Detects pnpm from `pnpm-lock.yaml` presence
+- Detects npm as fallback
+- Generates correct install command for selected packages
+- Writes starter scene when `src/scenes/` doesn't exist
+- Skips starter scene when it already exists
+- Writes tsconfig.json when not present
+- Calls `npx @brewsite/claude-author init` when `installClaudeAuthor` is true
+- Does not call `npx @brewsite/claude-author init` when `installClaudeAuthor` is false
+
+### 13.3 `packages/brewsite/__tests__/`
+
+#### `add.test.ts`
+
+Tests the add command's package resolution and install logic.
+
+**Approach:** Mock `execSync` to capture commands. Test the package name mapping and command generation.
+
+**Test cases:**
+- Maps shorthand `diagram` to `@brewsite/diagram`
+- Maps shorthand `claude-author` to `@brewsite/claude-author` with `--save-dev`
+- Rejects unknown package names
+- Calls `npx @brewsite/claude-author init` after installing `claude-author`
+- Does not call init for non-claude-author packages
+
+### 13.4 Test file locations summary
+
+| File | Package | Tests |
+|---|---|---|
+| `packages/claude-author/__tests__/chunker.test.ts` | claude-author | Markdown chunking |
+| `packages/claude-author/__tests__/search.test.ts` | claude-author | Index loading, hybrid search, getById, listTopics |
+| `packages/claude-author/__tests__/init.test.ts` | claude-author | Init CLI file writing and merging |
+| `packages/create-brewsite/__tests__/scaffold.test.ts` | create-brewsite | Scaffold file writing, install commands |
+| `packages/brewsite/__tests__/add.test.ts` | brewsite | Add command, package mapping |
+
+---
+
+## 14. Implementation Schedule
+
+### Work Stream Summary
+
+| Stream | Owner | Files Created/Modified | Blocked By |
+|---|---|---|---|
+| **WS-1: Monorepo Prerequisites** | Dev 1 | `package.json` (root), `scripts/publish-all.mjs`, `turbo.json`, `.gitattributes`, `CLAUDE.md` | None |
+| **WS-2: claude-author Package Skeleton + Init CLI** | Dev 2 | `packages/claude-author/package.json`, `tsconfig.json`, `tsconfig.build.json`, `vitest.config.ts`, `src/types.ts`, `src/bin/init.ts`, `src/chunker.ts`, `templates/*`, `__tests__/init.test.ts`, `__tests__/chunker.test.ts` | None |
+| **WS-3: MCP Server + Search + Embedder** | Dev 3 | `packages/claude-author/src/server.ts`, `src/search.ts`, `src/embedder.ts`, `__tests__/search.test.ts` | None |
+| **WS-4: Build Scripts (esbuild + index)** | Dev 4 | `packages/claude-author/scripts/build.mjs`, `scripts/build-index.mjs` | WS-2 (needs `src/types.ts`, `src/chunker.ts`) |
+| **WS-5: CLI Packages (create-brewsite + brewsite)** | Dev 5 | All files in `packages/create-brewsite/` and `packages/brewsite/` | WS-1 (needs root rename) |
+
+### Detailed Sequencing
+
+```
+Timeline (phases):
+
+Phase 1 (parallel — no blockers):
+  WS-1: Monorepo prerequisites (root rename, publish script, turbo.json)
+  WS-2: claude-author skeleton (package.json, types, init CLI, templates, chunker)
+  WS-3: MCP server + search + embedder modules
+
+Phase 2 (after Phase 1):
+  WS-4: Build scripts — needs WS-2 complete (imports chunker.ts from compiled output)
+         Also needs WS-3 complete (build.mjs bundles server.ts, search.ts, embedder.ts)
+  WS-5: CLI packages — needs WS-1 complete (root package.json rename)
+         Can start package skeleton in parallel with Phase 1, but install testing
+         needs the workspace to be clean.
+
+Phase 3 (after Phase 2):
+  Integration: Full end-to-end test
+    - Build all three packages: `pnpm build --filter @brewsite/claude-author --filter create-brewsite --filter brewsite`
+    - Run index build: verify orama-index.json is generated
+    - Run `npx @brewsite/claude-author init` in a temp directory
+    - Run MCP server manually and verify tool responses
+    - Dry-run publish: `npm pack --dry-run` for each package to verify size
+```
+
+### File Ownership Matrix (No Conflicts)
+
+| File | WS-1 | WS-2 | WS-3 | WS-4 | WS-5 |
+|---|---|---|---|---|---|
+| `package.json` (root) | W | | | | |
+| `turbo.json` | W | | | | |
+| `.gitattributes` | W | | | | |
+| `CLAUDE.md` | W | | | | |
+| `scripts/publish-all.mjs` | W | | | | |
+| `packages/claude-author/package.json` | | W | | | |
+| `packages/claude-author/tsconfig*.json` | | W | | | |
+| `packages/claude-author/vitest.config.ts` | | W | | | |
+| `packages/claude-author/src/types.ts` | | W | | | |
+| `packages/claude-author/src/chunker.ts` | | W | | | |
+| `packages/claude-author/src/bin/init.ts` | | W | | | |
+| `packages/claude-author/templates/*` | | W | | | |
+| `packages/claude-author/__tests__/init.test.ts` | | W | | | |
+| `packages/claude-author/__tests__/chunker.test.ts` | | W | | | |
+| `packages/claude-author/src/server.ts` | | | W | | |
+| `packages/claude-author/src/search.ts` | | | W | | |
+| `packages/claude-author/src/embedder.ts` | | | W | | |
+| `packages/claude-author/__tests__/search.test.ts` | | | W | | |
+| `packages/claude-author/scripts/build.mjs` | | | | W | |
+| `packages/claude-author/scripts/build-index.mjs` | | | | W | |
+| `packages/create-brewsite/**` | | | | | W |
+| `packages/brewsite/**` | | | | | W |
+
+W = writes/creates the file. No cell has two W's — no file conflicts.
+
+### ONNX Model Procurement
+
+The `nomic-embed-text-v1.5` model files must be downloaded from HuggingFace and committed to `packages/claude-author/models/nomic-embed-text-v1.5/` before WS-4 can run `build-index.mjs`. This is a manual step:
+
+```bash
+# Download int4 quantized ONNX model
+cd packages/claude-author/models/nomic-embed-text-v1.5
+# Download from: https://huggingface.co/nomic-ai/nomic-embed-text-v1.5
+# Required files:
+#   onnx/model_quantized.onnx   (~65MB)
+#   tokenizer.json
+#   tokenizer_config.json
+#   config.json
+```
+
+This should be done by whichever developer is assigned WS-4, as part of their setup.
+
+---
+
+## Appendix A: esbuild Config for claude-author
+
+**File:** `packages/claude-author/scripts/build.mjs`
+
+```javascript
+#!/usr/bin/env node
+// Bundles @brewsite/claude-author source into dist/ using esbuild.
+// Two entry points: server.ts (MCP server) and bin/init.ts (CLI).
+
+import { build } from 'esbuild';
+
+await build({
+  entryPoints: [
+    'src/server.ts',
+    'src/bin/init.ts',
+    'src/chunker.ts',
+  ],
+  bundle: true,
+  platform: 'node',
+  target: 'node18',
+  format: 'esm',
+  outdir: 'dist',
+  // Preserve directory structure in output:
+  //   dist/server.js, dist/bin/init.js, dist/chunker.js
+  external: [
+    'onnxruntime-node',
+    '@huggingface/transformers',
+  ],
+  banner: {
+    js: '',  // Shebang added only to bin/init.ts via a post-step — see below
+  },
+});
+
+// Add shebang to bin/init.js
+import { readFileSync, writeFileSync } from 'node:fs';
+const initPath = 'dist/bin/init.js';
+const initContent = readFileSync(initPath, 'utf-8');
+if (!initContent.startsWith('#!')) {
+  writeFileSync(initPath, `#!/usr/bin/env node\n${initContent}`);
+}
+
+console.log('claude-author built to dist/');
+```
+
+**Key decisions:**
+- Three entry points: `server.ts`, `bin/init.ts`, `chunker.ts`.
+- `chunker.ts` is included so `build-index.mjs` can import `dist/chunker.js`.
+- `onnxruntime-node` and `@huggingface/transformers` are external — they contain native bindings and dynamic requires that esbuild cannot bundle.
+- `format: 'esm'` matches `"type": "module"` in package.json.
+- `platform: 'node'` enables Node.js built-in resolution.
+- Shebang is added to `bin/init.js` in a post-step since esbuild doesn't support per-entry-point banners.
+
+---
+
+## Appendix B: Package Export Map for claude-author
+
+**File:** `packages/claude-author/package.json` — `exports` field:
+
+```json
+{
+  "exports": {
+    "./server": "./dist/server.js"
+  }
+}
+```
+
+This clean alias allows the template entry point (`brewsite-docs.js`) to import via `@brewsite/claude-author/server` without leaking internal `dist/` paths. If the build output structure changes, the export alias absorbs it. No other exports are needed — this is a dev tool, not a library.
+
+---
+
+## Appendix C: Manual Setup Documentation
+
+The README for `@brewsite/claude-author` must include a manual setup section:
+
+**File:** `packages/claude-author/README.md`
+
+The implementer should write a README that includes:
+
+1. **What it does** — one paragraph
+2. **Automatic setup** — `npx create-brewsite@latest` or `npx brewsite add claude-author`
+3. **Manual setup** — step-by-step:
+   - `npm install -D @brewsite/claude-author`
+   - Create `.claude/mcp-servers/brewsite-docs.js` with the one-liner content
+   - Create `.mcp.json` with the server registration
+   - Optionally copy the agent definition to `.claude/agents/`
+4. **Available MCP tools** — `brewsite_search`, `brewsite_get_doc`, `brewsite_list_topics`
+5. **Package size note** — ~70-80MB due to bundled ONNX model
+6. **Version control guidance** — commit `.mcp.json`, `.claude/agents/`, `.claude/mcp-servers/`
+
+---
+
+## Resolved Questions (from PM Review)
+
+All three open questions from the initial draft were resolved during PM-2 review on 2026-03-15:
+
+1. **Template entry point module format** — **Use dynamic `import()`**. `require()` cannot load ESM modules. Dynamic `import()` works in both CJS and ESM host projects. Applied in Section 12.1.
+
+2. **Starter scene import paths** — **`Scene` from `@brewsite/core/compiler`, elements from `@brewsite/core/elements`**. Verified against core's export map and `elements/index.ts`. Applied in Section 12.3.
+
+3. **build-index.mjs and chunker.ts coupling** — **Two-phase build confirmed**. `src/chunker.ts` compiled by esbuild to `dist/chunker.js`, then imported by `build-index.mjs` via `../dist/chunker.js`. Applied in Section 13.1.

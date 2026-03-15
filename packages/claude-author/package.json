@@ -1,0 +1,40 @@
+{
+  "name": "@brewsite/claude-author",
+  "version": "0.6.0",
+  "private": false,
+  "type": "module",
+  "bin": {
+    "brewsite-author": "./dist/bin/init.js"
+  },
+  "exports": {
+    "./server": "./dist/server.js"
+  },
+  "files": [
+    "dist/",
+    "models/",
+    "index/",
+    "templates/"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs && node scripts/build-index.mjs",
+    "build:lib": "echo 'no build:lib for claude-author'",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "@orama/orama": "^3.1.5",
+    "@huggingface/transformers": "^3.4.1",
+    "onnxruntime-node": "^1.22.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "esbuild": "^0.25.2",
+    "typescript": "^5.9.3",
+    "vitest": "^2.1.9"
+  }
+}

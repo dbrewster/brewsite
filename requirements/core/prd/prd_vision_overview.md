@@ -3,8 +3,11 @@ title: "BrewSite Core — Vision & Overview"
 doc_type: prd
 owner: brewsite-product-manager
 status: active
-updated: 2026-03-13
+updated: 2026-03-15
 change_history:
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Embedding modes cleanup: updated §4.1 SceneReel component signature to show theme and defaultTransitionDuration props. Updated §3.4 EngineARContainer reference to note ViewportScaleContainer alias."
   - date: 2026-02-28
     author: brewsite-product-manager
     summary: "Comprehensive rewrite replacing outdated BrewFlow-era vision document. Updated product name to BrewSite, corrected all API surface details against actual source, expanded Widget SDK section, added SSR safety contract, aligned all type references with live codebase."
@@ -136,7 +139,7 @@ The `InputController` DSL component and its `Action` children define the action 
 
 ### 3.4 Overlay System
 
-Scene overlay content is authored via the `<TextBox>` DSL element inside `<Scene>`. TextBox declares NVS-positioned HTML content that is rendered by `EngineOverlayHost` over the Three.js canvas. The `EngineARContainer` provides the aspect-ratio-locked spatial frame against which NVS coordinates resolve to pixel positions.
+Scene overlay content is authored via the `<TextBox>` DSL element inside `<Scene>`. TextBox declares NVS-positioned HTML content that is rendered by `EngineOverlayHost` over the Three.js canvas. The `EngineARContainer` (also exported as `ViewportScaleContainer`) provides the aspect-ratio-locked spatial frame against which NVS coordinates resolve to pixel positions.
 
 The previous HUD system (`<Hud>`, `<HudItem>`, `hudCompiler`, `HudOverlay`, `HudPhaseContext`, `hud/animejs/`) has been removed. See `prd_hud.md` for migration guidance.
 
@@ -204,7 +207,7 @@ The following is the complete public surface of `@brewsite/core`. All symbols li
 <EngineOverlayHost className={string} passthroughPointerEvents={boolean} />
 
 // Convenience wrapper for embedded/inline animations
-<SceneReel height={number} plugins={WidgetPlugin[]} />
+<SceneReel height={number} plugins={WidgetPlugin[]} theme={ActiveTheme} defaultTransitionDuration={number} />
 
 // Input components
 <ActionInput />

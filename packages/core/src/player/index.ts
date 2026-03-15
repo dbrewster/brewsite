@@ -33,9 +33,10 @@ export type {
 // ─── Unchanged Components ─────────────────────────────────────────────────────
 export { EngineOverlayHost } from './EngineOverlayHost';
 export type { EngineOverlayHostProps } from './EngineOverlayHost';
-export { EngineARContainer } from './EngineARContainer';
+export { EngineARContainer, ViewportScaleContainer } from './EngineARContainer';
 export type {
-  EngineARContainerProps, ScaleMode, ViewportScaleContextValue, EngineARContainerContextValue,
+  EngineARContainerProps, ViewportScaleContainerProps,
+  ScaleMode, ViewportScaleContextValue, EngineARContainerContextValue,
 } from './EngineARContainer';
 export { ViewportScaleContext, EngineARContainerContext } from './EngineARContainer';
 export { computeContainerDims } from './EngineARContainer';

@@ -1,13 +1,8 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
-import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
 import { Diagram, DiagramNode, DiagramEdge, DiagramGroup, HierarchicalLayout, DiagramEnter } from '@brewsite/diagram';
-import { neonCyberBundle } from '@brewsite/themes';
 import { dwellFn } from '../../utils/pacing';
-
-const neonCyberTheme = neonCyberBundle.diagram.dark;
 import { isMobile } from '../../utils/viewport';
-import type { Vec3 } from '@brewsite/core';
 
 const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
@@ -27,12 +22,7 @@ export const scene02CoreBaked: JSX.Element = (
       fn={dwellFn}
       autoAdvance={{ duration: 8, max: 0.82, pauseOnScroll: true }}
     />
-    <Camera
-      mode="world"
-      position={(isMobile ? [0, 9, 34] : [0, 8, 45]) as Vec3}
-      target={[0, -3, 0]}
-      fov={isMobile ? 66 : 56}
-    />
+    <Camera mode="nvsViewport" worldScale={50} />
 
     <Lighting intensityScale={1}>
       <Ambient intensity={0.9} color="#ffffff" />
@@ -78,7 +68,7 @@ export const scene02CoreBaked: JSX.Element = (
         <DiagramEdge from="decision" to="owners" label="assign" flow="forward" style="dashed" />
       </Diagram>
 
-    <div style={{
+    <div key="core-baked-overlay" style={{
       position: 'absolute',
       bottom: '12%',
       left: '50%',
@@ -87,76 +77,66 @@ export const scene02CoreBaked: JSX.Element = (
       maxWidth: 820,
       textAlign: 'center',
     }}>
-      <MidFade duration={700}>
-        <div style={{
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: 11,
-          letterSpacing: '0.28em',
-          textTransform: 'uppercase',
-          color: 'rgba(0,245,255,0.58)',
-          marginBottom: 12,
-        }}>
-          @brewsite/core
-        </div>
-      </MidFade>
-      <ScrollOn duration={800} delay={80}>
-        <p style={{
-          fontSize: 'clamp(20px, 2.5vw, 30px)',
-          fontWeight: 600,
-          color: '#f0f6fc',
-          lineHeight: 1.3,
-          marginBottom: 12,
-        }}>
-          Describe the state.<br />Ship the transition.
-        </p>
-      </ScrollOn>
-      <ScrollOn duration={700} delay={130}>
-        <p style={{
-          fontSize: 'clamp(14px, 1.6vw, 16px)',
-          color: 'rgba(240,246,252,0.6)',
-          lineHeight: 1.6,
-          marginBottom: 16,
-        }}>
-          Author each scene as a JSX snapshot.<br />
-          BrewSite animates everything between them.
-        </p>
-      </ScrollOn>
-      <ScrollOn duration={700} delay={170}>
-        <pre style={{
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: 'clamp(11px, 1.2vw, 13px)',
-          lineHeight: 1.7,
-          color: '#00f5ff',
-          background: 'rgba(0,245,255,0.04)',
-          border: '1px solid rgba(0,245,255,0.15)',
-          borderRadius: 6,
-          padding: 16,
-          maxWidth: 400,
-          margin: '0 auto 16px',
-          textAlign: 'left',
-          whiteSpace: 'pre-wrap',
-        }}>
-          {snippetCode}
-        </pre>
-      </ScrollOn>
-      <ScrollOn duration={700} delay={220}>
-        <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 10 }}>
-          {tags.map((tag) => (
-            <span key={tag} style={{
-              padding: '5px 14px',
-              borderRadius: 4,
-              border: '1px solid rgba(0,245,255,0.28)',
-              background: 'rgba(0,245,255,0.07)',
-              fontSize: 11,
-              fontFamily: 'JetBrains Mono, monospace',
-              letterSpacing: '0.07em',
-              color: '#00f5ff',
-            }}>
-              {tag}
-            </span>
-          ))}
-        </div>
-      </ScrollOn>
+      <div style={{
+        fontFamily: 'JetBrains Mono, monospace',
+        fontSize: 11,
+        letterSpacing: '0.28em',
+        textTransform: 'uppercase',
+        color: 'rgba(0,245,255,0.58)',
+        marginBottom: 12,
+      }}>
+        @brewsite/core
+      </div>
+      <p style={{
+        fontSize: 'clamp(20px, 2.5vw, 30px)',
+        fontWeight: 600,
+        color: '#f0f6fc',
+        lineHeight: 1.3,
+        marginBottom: 12,
+      }}>
+        Describe the state.<br />Ship the transition.
+      </p>
+      <p style={{
+        fontSize: 'clamp(14px, 1.6vw, 16px)',
+        color: 'rgba(240,246,252,0.6)',
+        lineHeight: 1.6,
+        marginBottom: 16,
+      }}>
+        Author each scene as a JSX snapshot.<br />
+        BrewSite animates everything between them.
+      </p>
+      <pre style={{
+        fontFamily: 'JetBrains Mono, monospace',
+        fontSize: 'clamp(11px, 1.2vw, 13px)',
+        lineHeight: 1.7,
+        color: '#00f5ff',
+        background: 'rgba(0,245,255,0.04)',
+        border: '1px solid rgba(0,245,255,0.15)',
+        borderRadius: 6,
+        padding: 16,
+        maxWidth: 400,
+        margin: '0 auto 16px',
+        textAlign: 'left',
+        whiteSpace: 'pre-wrap',
+      }}>
+        {snippetCode}
+      </pre>
+      <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: 10 }}>
+        {tags.map((tag) => (
+          <span key={tag} style={{
+            padding: '5px 14px',
+            borderRadius: 4,
+            border: '1px solid rgba(0,245,255,0.28)',
+            background: 'rgba(0,245,255,0.07)',
+            fontSize: 11,
+            fontFamily: 'JetBrains Mono, monospace',
+            letterSpacing: '0.07em',
+            color: '#00f5ff',
+          }}>
+            {tag}
+          </span>
+        ))}
+      </div>
     </div>
   </Scene>
 );

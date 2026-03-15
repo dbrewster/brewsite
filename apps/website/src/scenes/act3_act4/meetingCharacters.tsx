@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { Animation, BodyPart, BodyParts, ModelRouter, Playback, Pose } from '@brewsite/model';
+import { Animation, BodyPart, BodyParts, Model, Playback, Pose } from '@brewsite/model';
 import { isMobile } from '../../utils/viewport';
 
 interface BodyPartProp {
@@ -19,8 +19,8 @@ interface ActorDefn {
 interface ActorProps {
   idBase: string;
   type: string;
-  xPosition: number;
-  zPosition: number;
+  x: number;
+  y: number;
   yRotation: number;
   distance: number;
   animationBase: [string, number];
@@ -31,31 +31,33 @@ interface ActorProps {
 }
 
 const Actor = ({
-  idBase, type, zPosition, xPosition, distance, animationBase, clipStartOnce,
+  idBase, type, x, y, distance, animationBase, clipStartOnce,
   yRotation, facing, raiseFoot, extraBodyPartProps,
 }: ActorProps) => {
+  // Compute NVS offset for each member of the pair
+  // distance is in NVS units (small fraction of viewport)
   const halfDistance = distance / 2;
   const dirX = Math.cos(yRotation);
-  const dirZ = Math.sin(yRotation);
-  const pairYaw = Math.atan2(dirX, dirZ);
+  const pairYaw = Math.atan2(Math.cos(yRotation), Math.sin(yRotation));
 
-  let xPos: number, zPos: number, yRot: number;
+  let actorX: number, yRot: number;
   if (facing === 'left') {
-    xPos = xPosition - dirX * halfDistance;
-    zPos = zPosition - dirZ * halfDistance;
+    actorX = x - dirX * halfDistance;
     yRot = pairYaw;
   } else {
-    xPos = xPosition + dirX * halfDistance;
-    zPos = zPosition + dirZ * halfDistance;
+    actorX = x + dirX * halfDistance;
     yRot = pairYaw + Math.PI;
   }
 
   return (
-    <ModelRouter
+    <Model
       type={type}
       id={idBase}
-      scale={6}
-      z={zPos}
+      x={actorX}
+      y={y}
+      w={0.08}
+      h={0.15}
+      scale={0.001}
       rotation={[0, yRot + animationBase[1], 0]}
       metalnessMultiplier={0.4}
       roughnessMultiplier={2}
@@ -85,7 +87,7 @@ const Actor = ({
           clipEnd={-0.4}
         />
       </Playback>
-    </ModelRouter>
+    </Model>
   );
 };
 
@@ -146,24 +148,28 @@ function randomBetween(min: number, max: number): number {
 }
 
 // ── Pair layout ───────────────────────────────────────────────────────────────
+// NVS: x in [0..1] (left to right), y in [0..1] (top to bottom)
 const PAIR_COUNT = isMobile ? 4 : 10;
-const PAIR_DISTANCE = 5;
-const PAIR_SPREAD_X = 48;
-const PAIR_SPREAD_Z = 38;
-const PAIR_MIN_SEPARATION = 16;
+// distance between pair members in NVS units
+const PAIR_DISTANCE = 0.05;
+// spread across NVS viewport
+const PAIR_SPREAD_X = 0.8;
+const PAIR_SPREAD_Y = 0.6;
+// minimum separation between pair centers in NVS units
+const PAIR_MIN_SEPARATION = 0.22;
 
-function generatePairCenters(count: number): Array<{ x: number; z: number }> {
-  const centers: Array<{ x: number; z: number }> = [];
+function generatePairCenters(count: number): Array<{ x: number; y: number }> {
+  const centers: Array<{ x: number; y: number }> = [];
   const attempts = count * 30;
   for (let i = 0; i < attempts && centers.length < count; i++) {
     const candidate = {
-      x: randomBetween(-PAIR_SPREAD_X / 2, PAIR_SPREAD_X / 2),
-      z: randomBetween(-PAIR_SPREAD_Z / 2, PAIR_SPREAD_Z / 2),
+      x: randomBetween(0.1 + (1 - PAIR_SPREAD_X) / 2, 0.9 - (1 - PAIR_SPREAD_X) / 2),
+      y: randomBetween(0.3, 0.3 + PAIR_SPREAD_Y),
     };
-    const isClear = centers.every(({ x, z }) => {
+    const isClear = centers.every(({ x, y }) => {
       const dx = candidate.x - x;
-      const dz = candidate.z - z;
-      return Math.hypot(dx, dz) >= PAIR_MIN_SEPARATION;
+      const dy = candidate.y - y;
+      return Math.hypot(dx, dy) >= PAIR_MIN_SEPARATION;
     });
     if (isClear) centers.push(candidate);
   }
@@ -180,9 +186,9 @@ const actorProps = pairCenters.flatMap((center, index) => {
   const makeProps = (actor: ActorDefn, facing: 'left' | 'right'): ActorProps => ({
     idBase: `${actor.id ?? actor.type}-pair-${index}-${facing}`,
     type: actor.type,
-    xPosition: center.x,
-    zPosition: center.z,
-    distance: randomBetween(PAIR_DISTANCE - 2, PAIR_DISTANCE + 2),
+    x: center.x,
+    y: center.y,
+    distance: randomBetween(PAIR_DISTANCE - 0.01, PAIR_DISTANCE + 0.01),
     yRotation,
     animationBase: actor.gender === 'female'
       ? randomChoice<[string, number]>(F_MOTIONS)

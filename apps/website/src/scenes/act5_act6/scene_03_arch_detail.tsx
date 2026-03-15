@@ -1,12 +1,7 @@
 import type { JSX } from 'react';
 import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
 import { Diagram, DiagramEdge, DiagramNode, DiagramEnter, ManualLayout } from '@brewsite/diagram';
-import { darkGlassBundle } from '@brewsite/themes';
-import { MidFade, ScrollOn } from '@brewsite/core/hud/animejs';
-
-const darkGlassTheme = darkGlassBundle.diagram.dark;
 import { isMobile } from '../../utils/viewport';
-import type { Vec3 } from '@brewsite/core';
 import { dwellFn } from '../../utils/pacing';
 
 const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
@@ -26,12 +21,7 @@ export const scene03ArchDetail: JSX.Element = (
       fn={dwellFn}
       autoAdvance={{ duration: 7, max: 0.85, pauseOnScroll: true }}
     />
-    <Camera
-      mode="world"
-      position={(isMobile ? [0, 8, 35] : [0, 8, 45]) as Vec3}
-      target={[0, -5, 0]}
-      fov={isMobile ? 65 : 55}
-    />
+    <Camera mode="nvsViewport" worldScale={50} />
 
     <Lighting intensityScale={1}>
       <Ambient intensity={1.0} color="#ffffff" />
@@ -42,13 +32,13 @@ export const scene03ArchDetail: JSX.Element = (
         <DiagramEnter from={[-1, 0.5, 0]} fade easing="ease-in" />
 
         {/* Ghost nodes from previous scene — carry position/shape but fade to 30% */}
-        <DiagramNode id="cdn"    position={[0.618, 0.083, -25]}   opacity={0.3} />
-        <DiagramNode id="alb"    position={[0.618, 0.250, -25]}  opacity={0.3} />
-        <DiagramNode id="api"    position={[0.618, 0.417, -25]}  opacity={0.3} />
-        <DiagramNode id="lambda" position={[0.912, 0.639, -25]}  opacity={0.3} />
-        <DiagramNode id="rds"    position={[0.324, 0.917, -25]} opacity={0.3} />
-        <DiagramNode id="cache"  position={[0.618, 0.917, -25]} opacity={0.3} />
-        <DiagramNode id="s3"     position={[0.912, 0.917, -25]} opacity={0.3} />
+        <DiagramNode id="cdn"    position={[0.618, 0.083, -25]}  size={[0.15, 0.08]} opacity={0.3} />
+        <DiagramNode id="alb"    position={[0.618, 0.250, -25]}  size={[0.15, 0.08]} opacity={0.3} />
+        <DiagramNode id="api"    position={[0.618, 0.417, -25]}  size={[0.15, 0.08]} opacity={0.3} />
+        <DiagramNode id="lambda" position={[0.912, 0.639, -25]}  size={[0.15, 0.08]} opacity={0.3} />
+        <DiagramNode id="rds"    position={[0.324, 0.917, -25]}  size={[0.15, 0.08]} opacity={0.3} />
+        <DiagramNode id="cache"  position={[0.618, 0.917, -25]}  size={[0.15, 0.08]} opacity={0.3} />
+        <DiagramNode id="s3"     position={[0.912, 0.917, -25]}  size={[0.15, 0.08]} opacity={0.3} />
 
         {/* ECS detail drill-down */}
         <DiagramNode
@@ -72,54 +62,46 @@ export const scene03ArchDetail: JSX.Element = (
       </Diagram>
 
     {/* Right-aligned overlay: eyebrow + headline + snippet + body */}
-    <div style={{ position: 'absolute', bottom: '8%', right: '5%', textAlign: 'right', maxWidth: 340 }}>
-      <MidFade duration={1000}>
-        <div style={{
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: 10,
-          letterSpacing: '0.3em',
-          textTransform: 'uppercase',
-          color: 'rgba(0,245,255,0.55)',
-          marginBottom: 12,
-        }}>
-          Drill down. Stay in the scene.
-        </div>
-      </MidFade>
-      <ScrollOn duration={800} delay={80}>
-        <div style={{
-          fontSize: 'clamp(18px, 2.5vw, 22px)',
-          fontWeight: 600,
-          color: '#f0f6fc',
-          lineHeight: 1.35,
-          marginBottom: 16,
-        }}>
-          Click a group.<br />Zoom to the detail.<br />Ghost the rest.
-        </div>
-      </ScrollOn>
-      <ScrollOn duration={700} delay={140}>
-        <pre style={{
-          fontFamily: 'JetBrains Mono, monospace',
-          fontSize: 'clamp(11px, 1.2vw, 13px)',
-          lineHeight: 1.7,
-          color: '#00f5ff',
-          background: 'rgba(0,245,255,0.04)',
-          border: '1px solid rgba(0,245,255,0.15)',
-          borderRadius: 6,
-          padding: 16,
-          maxWidth: 340,
-          margin: '0 0 14px',
-          textAlign: 'left',
-          whiteSpace: 'pre-wrap',
-        }}>
-          {snippetCode}
-        </pre>
-      </ScrollOn>
-      <ScrollOn duration={800} delay={200}>
-        <div style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', color: 'rgba(240,246,252,0.65)', lineHeight: 1.6 }}>
-          The context stays visible. The focus shifts.<br />
-          One scene system. Infinite depth.
-        </div>
-      </ScrollOn>
+    <div key="arch-detail-overlay" style={{ position: 'absolute', bottom: '8%', right: '5%', textAlign: 'right', maxWidth: 340 }}>
+      <div style={{
+        fontFamily: 'JetBrains Mono, monospace',
+        fontSize: 10,
+        letterSpacing: '0.3em',
+        textTransform: 'uppercase',
+        color: 'rgba(0,245,255,0.55)',
+        marginBottom: 12,
+      }}>
+        Drill down. Stay in the scene.
+      </div>
+      <div style={{
+        fontSize: 'clamp(18px, 2.5vw, 22px)',
+        fontWeight: 600,
+        color: '#f0f6fc',
+        lineHeight: 1.35,
+        marginBottom: 16,
+      }}>
+        Click a group.<br />Zoom to the detail.<br />Ghost the rest.
+      </div>
+      <pre style={{
+        fontFamily: 'JetBrains Mono, monospace',
+        fontSize: 'clamp(11px, 1.2vw, 13px)',
+        lineHeight: 1.7,
+        color: '#00f5ff',
+        background: 'rgba(0,245,255,0.04)',
+        border: '1px solid rgba(0,245,255,0.15)',
+        borderRadius: 6,
+        padding: 16,
+        maxWidth: 340,
+        margin: '0 0 14px',
+        textAlign: 'left',
+        whiteSpace: 'pre-wrap',
+      }}>
+        {snippetCode}
+      </pre>
+      <div style={{ fontSize: 'clamp(14px, 1.8vw, 16px)', color: 'rgba(240,246,252,0.65)', lineHeight: 1.6 }}>
+        The context stays visible. The focus shifts.<br />
+        One scene system. Infinite depth.
+      </div>
     </div>
   </Scene>
 );
