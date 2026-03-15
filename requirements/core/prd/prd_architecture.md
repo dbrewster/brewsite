@@ -3,7 +3,7 @@ title: "BrewSite Core — Architecture Reference"
 doc_type: prd
 owner: brewsite-product-manager
 status: active
-updated: 2026-03-12
+updated: 2026-03-15
 change_history:
   - date: 2026-03-12
     author: "Toolkit Product"
@@ -38,6 +38,9 @@ change_history:
   - date: 2026-03-07
     author: "Toolkit Product"
     summary: "Core cleanup release: eliminated scene.userData inter-widget bus (ICameraFocusTarget + ICameraHost replace stringly-typed __brewsite_* keys); added ILightingOverride interface so downstream packages opt into lighting override without calling render-layer functions; added ViewportScaleContext (EngineARContainerContext deprecated as alias); all five scene widget ID constants (SCENE_CAMERA_KEY, SCENE_LIGHTING_KEY, SCENE_BACKGROUND_KEY, SCENE_ENVIRONMENT_KEY, SCENE_FLOOR_KEY) exported from @brewsite/core; disableWhenAbsent replaces duck-typed useDefaultStateWhenAbsent on ISceneElement; stateEquals optional hook added to ISceneElement for compiler change detection; resolvedState and setCameraOverride added to AnimationTickContext; InputActionType is now an open string union — diagram-canvas.* action types removed from core and owned by @brewsite/diagram; manifestUrl on EngineProvider is now optional and deprecated in favour of plugin-supplied manifests; animejs HUD presets removed from core bundle (moved to apps/examples/ as copy-paste recipes); CameraControlPanel, CameraInteractionInfoDialog, SceneInspector moved to @brewsite/core/devtools subpath; clearRegistry and test doubles available via @brewsite/core/testing subpath."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Major alignment pass against live codebase. Section 2: expanded monorepo table to include all published packages (model, charts, screens, slides, themes, claude-author, create-brewsite, brewsite CLI). Section 3.1: replaced EngineProvider with SceneEngine, removed deleted exports (EngineInputRegion, LabelPositioner, useEngineScroll, useEngineInput, createDefaultWidgetRegistry), added current exports (SceneReel, BackgroundLayer, EngineARContainer, ViewportScaleContainer, ScrollStage, InputCoordinator, TimeInput, ControlledInput, StageScrollSources), corrected context provider tree. Section 3.2: fixed RuntimeDriver interface (added deltaProgress, setCameraOverride, initialize camera param; replaced getBoneWorldPositions/getTargetColors with collectRenderContributions). Section 3.3: corrected compiler/index.ts exports (removed SceneGroup, Hud, HudItem; added actual DSL exports), removed hudCompiler/labelCompiler references, added missing compiler files. Section 3.4: removed model/ from core elements, added spotlight-rig/, text-box/, view/; expanded lighting sub-types. Section 3.5: fixed WidgetRegistry API (get/getAll/getAllWidgets, removed getFactory, added all query methods, freeze, renderer lifecycle, widget object management, buildCacheKey), fixed useVariable signature, replaced isContainedModel with isContainedRenderable, added all current type guards, corrected all context types (WidgetInitContext, WidgetRenderContext, CompileExtraContext, AnimationTickContext). Section 3.6: HUD system removed — documented stub state. Section 3.7: labels moved to @brewsite/model. Section 3.8: replaced ActionInput with InputCoordinator. Sections 4.1/4.2/4.6/4.7: removed HUD/label fields, added current SceneFrame fields, added sceneProgress/warnings/progressProfile/sceneOverlays. Section 5.6: removed HUD/label compilation step. Section 7: removed HUD/label overlay flow, updated to collectRenderContributions model."
 ---
 
 # BrewSite Core — Architecture Reference
@@ -64,22 +67,31 @@ This document is the authoritative architecture reference for `@brewsite/core`. 
 
 ## 2. Monorepo Structure
 
-This is a `pnpm` + Turborepo monorepo. Three workspaces:
+This is a `pnpm` + Turborepo monorepo. Published packages and private apps:
 
 | Path | Package name | Role | Published |
 |---|---|---|---|
 | `packages/core` | `@brewsite/core` | Animation engine library | Yes |
 | `packages/diagram` | `@brewsite/diagram` | Diagram + screen element library | Yes |
+| `packages/model` | `@brewsite/model` | GLTF model + label system | Yes |
+| `packages/charts` | `@brewsite/charts` | 3D chart element library | Yes |
+| `packages/screens` | `@brewsite/screens` | Screen element library | Yes |
+| `packages/slides` | `@brewsite/slides` | Slide presentation element library | Yes |
+| `packages/themes` | `@brewsite/themes` | Theme definitions | Yes |
+| `packages/claude-author` | `@brewsite/claude-author` | MCP server + docs search for AI-assisted scene authoring | Yes |
+| `packages/npx/create-brewsite` | `create-brewsite` | Project scaffolder CLI (`npm create brewsite`) | Yes |
+| `packages/npx/brewsite` | `brewsite` | Utility CLI (`npx brewsite add ...`) | Yes |
 | `apps/examples` | `@brewsite/examples` | Dev/demo app | No (private) |
 
-**Package dependency rule:** `@brewsite/diagram` may import from `@brewsite/core`. `@brewsite/core` must never import from `@brewsite/diagram`. `apps/examples` may import from both. This rule is absolute. Violating it creates circular dependency and prevents independent publishing.
+**Package dependency rule:** `@brewsite/diagram`, `@brewsite/model`, `@brewsite/charts`, `@brewsite/screens`, `@brewsite/slides`, and `@brewsite/themes` may import from `@brewsite/core`. `@brewsite/core` must never import from any of them. The three CLI/tooling packages (`claude-author`, `create-brewsite`, `brewsite`) are standalone — they have no cross-package build dependencies. The apps may import from all packages. This rule is absolute. Violating it creates circular dependency and prevents independent publishing.
 
 **Build tooling:**
 - `@brewsite/core` builds with Vite (library mode) + tsc for type declarations.
 - `@brewsite/diagram` builds with tsc only.
+- Other published packages build with tsc only.
 - `apps/examples` builds with Vite (app mode).
 
-**Peer dependencies:** React, react-dom, and Three.js are peers for both published packages. Neither package pins peers to narrow version ranges. New peer dependencies require explicit justification — they impose a constraint on every consumer.
+**Peer dependencies:** React, react-dom, and Three.js are peers for the published packages. Neither package pins peers to narrow version ranges. New peer dependencies require explicit justification — they impose a constraint on every consumer.
 
 ---
 
@@ -88,22 +100,21 @@ This is a `pnpm` + Turborepo monorepo. Three workspaces:
 The `packages/core/src/` source tree is organized as a strict top-to-bottom dependency stack. Higher layers depend on lower layers. Lower layers never depend on higher layers.
 
 ```
-player/      ← React integration surface (top)
-  ↓
-runtime/     ← Generic tick loop + widget dispatch
-  ↓
-compiler/    ← Pure DSL-to-SceneTrack pipeline
-  ↓
-elements/    ← Renderable element modules
-  ↓
-widget/      ← Plugin interfaces + registry
-  ↓
-hud/         ← HUD overlay types + compiler (no Three.js)
-labels/      ← Label types + projection math
-input/       ← Input controller abstractions
-timeline/    ← Timeline algebra
-layout/      ← Region types + spatial composition utilities
-math/        ← Pure math utilities (bottom)
+player/      <- React integration surface (top)
+  |
+runtime/     <- Generic tick loop + widget dispatch
+  |
+compiler/    <- Pure DSL-to-SceneTrack pipeline
+  |
+elements/    <- Renderable element modules
+  |
+widget/      <- Plugin interfaces + registry
+  |
+hud/         <- InputHud stub (legacy HUD system removed)
+input/       <- Input controller abstractions
+timeline/    <- Timeline algebra
+layout/      <- Region types + spatial composition utilities
+math/        <- Pure math utilities (bottom)
 ```
 
 ### 3.1 Player (`player/`)
@@ -111,15 +122,21 @@ math/        ← Pure math utilities (bottom)
 The React integration surface. The public entry point for pages and routes. Owns the WebGL renderer lifecycle, the React context tree, and all consumer-facing React components and hooks.
 
 **Key exports:**
-- `EngineProvider` — primary component. Establishes the engine context tree and manages the `WebGLRenderer` lifecycle. Compose with `EngineGate`, `EngineInputRegion`, `SceneCanvas`, and `EngineOverlayHost` for a complete integration.
+- `SceneEngine` — primary component. Pure React context provider with zero DOM output. Owns plugin wiring, scene compilation, RAF loop, and context provision. Compose with `EngineGate`, `SceneCanvas`, `EngineOverlayHost`, `InputCoordinator`, `ScrollStage`, and `BackgroundLayer` for a complete integration.
 - `EngineGate` — loading gate component. Renders `placeholder` until the engine produces its first frame (`tickIndex >= 0`), then renders children.
-- `EngineFrameDriver` — the `requestAnimationFrame` driver. Converts frame timestamps to progress deltas and calls `RuntimeDriver.tick()`.
-- `EngineInputRegion` — input capture region. Reads layout and engine state from `EngineContext` — no `engine` prop required. Routes pointer, scroll, and keyboard events to scene navigation controllers.
 - `SceneCanvas` — renders the Three.js `<canvas>` element and registers it with the engine via `EngineContext`.
-- `EngineOverlayHost` — renders HUD and label overlays positioned over the canvas. Reads the current scene overlay from `EngineContext`.
-- `LabelPositioner` — bridges the Three.js render loop with React label rendering. Reads bone world positions from `RuntimeDriver.getBoneWorldPositions()`, projects through camera matrix, updates CSS positions on `LabelItem` DOM nodes.
+- `EngineOverlayHost` — renders overlay content positioned over the canvas. Reads the current scene overlay from `EngineContext`.
+- `ScrollStage` — scroll container component that drives scene progress via scroll position. Provides scroll source integration for `SceneEngine`.
+- `BackgroundLayer` — background rendering layer component.
+- `SceneReel` — multi-scene reel component for sequential scene playback.
+- `EngineARContainer` — aspect-ratio container for the engine viewport.
+- `ViewportScaleContainer` — viewport-aware scaling container.
+- `InputCoordinator` — the unified input bridge component. Reads `__input_controller` from the current tick and manages `ActionInputController` lifecycle. Replaces the deleted `ActionInput`, `KeyboardInput`, and `InertiaScrollSource` components.
+- `TimeInput` — time-based input driver for auto-playing scenes.
+- `ControlledInput` — programmatic input driver for externally controlled progress.
+- `CustomScrollSource` / `ElementScrollSource` — scroll source components from `StageScrollSources`.
 - `TimelineWidget` — debug/dev overlay showing scene timeline, tick index, and progress scrubber.
-- `SceneMetaWidget` — built-in widget that fires `onSceneChange` when the current scene index changes. Registered by `corePlugin()`.
+- `corePlugin(options?)` — plugin factory that registers core built-in widgets (Lighting, Background, Environment, Floor, Camera, SceneMeta) into the engine.
 
 **Dev-only exports (`@brewsite/core/devtools` subpath — not part of the main bundle):**
 - `CameraControlPanel` — debug camera state inspector.
@@ -137,21 +154,33 @@ Import these from `@brewsite/core/devtools` to keep them out of production bundl
 - `SCENE_BACKGROUND_KEY` — widget ID for the built-in BackgroundWidget (`'background'`)
 - `SCENE_ENVIRONMENT_KEY` — widget ID for the built-in EnvironmentWidget (`'environment'`)
 - `SCENE_FLOOR_KEY` — widget ID for the built-in FloorWidget (`'floor'`)
-- `corePlugin(options?)` — plugin factory that registers core built-in widgets (Lighting, Background, Environment, Floor, Camera, SceneMeta) into the engine.
 
-**Context providers (all established by `EngineProvider`):**
-- `EngineStateContext` — `EngineFrameState` updated on every animation frame. Consumed by hooks.
+**Context providers (all established by `SceneEngine`):**
+```
+ThemeContext.Provider
+  SceneRegistrationContext.Provider
+    VariableStoreContext.Provider
+      PluginInheritanceContext.Provider
+        ActionInputExtensionContext.Provider
+          EngineStateContext.Provider
+            EngineContext.Provider
+```
+- `ThemeContext` — resolved `SceneTheme` for CSS variable injection.
+- `SceneRegistrationContext` — scene registration callbacks for `<Scene>` children.
 - `VariableStoreContext` — stable `VariableStore` reference. Never recreated.
-- `LabelPositionerContext` — stable `LabelPositioner` instance.
-- `EngineContext` — stable `RuntimeDriver` instance after initialization.
+- `PluginInheritanceContext` — plugin list for nested `SceneEngine` inheritance.
+- `ActionInputExtensionContext` — merged `onUnknownAction` handler from all plugins.
+- `EngineStateContext` — `EngineFrameState` updated on every animation frame. Consumed by hooks.
+- `EngineContext` — stable engine result reference after initialization.
 
 **Consumer hooks:**
-- `useSceneEngine()` — access the `RuntimeDriver` and current `EngineState`.
-- `useEngineScroll()` — subscribe to scroll-based progress.
-- `useEngineInput(spec)` — return a ref for an input region that feeds the engine.
+- `useSceneEngine()` — access the engine result (RuntimeDriver, progress controls, etc.).
+- `useEngineState()` — subscribe to engine frame state updates.
 - `useEngineScrubber()` — read and control progress directly.
 - `useSceneProgress()` — read current scene-local progress [0, 1].
 - `useCurrentScene()` — read current scene id and index.
+- `useSceneRuntime(id)` — read runtime state for a named engine from the global registry.
+- `useGoToScene()` — programmatic scene navigation.
 
 **Key types from `player/engineTypes.ts`:**
 ```typescript
@@ -179,12 +208,11 @@ The generic, widget-based execution coordinator. Has no Three.js, no React, no s
 **`RuntimeDriverImpl`** — the primary implementation of `RuntimeDriver`. Responsibilities:
 1. Holds the `WidgetRegistry` and queries it for `IRenderable` and `ILoadable` widgets.
 2. Waits for all `ILoadable.load()` promises to resolve before setting `assetsReady = true`.
-3. On each `tick()` call: samples the `SceneTrack` by progress → `SceneTrackTick`, dispatches the tick's `state.widgets` entries to each `IRenderable` widget via `apply()`, calls `IAnimationController` widgets in `tickPriority` order, and calls `IVariableProvider` widgets to publish to the `VariableStore`.
+3. On each `tick()` call: samples the `SceneTrack` by progress, dispatches the tick's `state.widgets` entries to each `IRenderable` widget via `apply()`, calls `IAnimationController` widgets in `tickPriority` order, and calls `IVariableProvider` widgets to publish to the `VariableStore`.
 4. For ticks within a `FunctionalTransitionSpec` block: evaluates `FunctionalWidgetTransition.fn(tick.blockProgress)` to get the widget state, then dispatches it.
-5. Maintains `getBoneWorldPositions()` by aggregating world-space positions reported by `IRenderable` widgets each frame.
-6. Maintains `getTargetColors()` for label color inheritance.
+5. Aggregates world-space positions and target colors via `collectRenderContributions()` by calling `contributeRenderData()` on all `IRenderContributor` widgets each frame.
 
-**`RuntimeLoop`** — owns `requestAnimationFrame`. Calls `RuntimeDriverImpl.tick()` each frame with `deltaSeconds` and `globalProgress`. Can be paused, resumed, and disposed. Designed to be replaceable in tests with the mock loop from `runtime/mocks/`.
+**`RuntimeLoop`** — owns `requestAnimationFrame`. Calls `RuntimeDriverImpl.tick()` each frame with `deltaSeconds`, `globalProgress`, and `deltaProgress`. Can be paused, resumed, and disposed. Designed to be replaceable in tests with the mock loop from `runtime/mocks/`.
 
 **`runtime/types.ts`** — the `RuntimeDriver` interface contract:
 ```typescript
@@ -192,16 +220,26 @@ type RuntimeDriver = {
   assetsReady: boolean;
   setAssetsReady(ready: boolean): void;
   setSceneTrack(track: SceneTrack): void;
-  tick(options: { deltaSeconds: number; globalProgress: number; wallTimeSeconds?: number }): void;
-  getBoneWorldPositions(): Map<string, [number, number, number]>;
-  getTargetColors(): Map<string, string>;
+  initialize(scene: ThreeScene, camera?: PerspectiveCamera, renderer?: WebGLRenderer): void;
+  setCameraOverride(override: RuntimeCameraOverride | null): void;
+  tick(options: {
+    deltaSeconds: number;
+    globalProgress: number;
+    deltaProgress: number;
+    wallTimeSeconds?: number;
+  }): void;
+  collectRenderContributions(): RenderContribution;
   getCurrentTick(): SceneTrackTick | null;
   getWallTimeSeconds(): number;
   dispose(): void;
 };
 ```
 
-Also defined in `runtime/types.ts`: `Vec3`, `Node`, `PoseSnapshot`, `PoseSnapshotMap`, `AnimationTrack`.
+`initialize()` is synchronous. It accepts the Three.js scene and optional camera/renderer references. Synchronously initializes all `IRenderable` widgets and resolves `ICameraFocusTarget`. Asset loading is started internally as a fire-and-forget operation.
+
+`collectRenderContributions()` replaces the previous `getBoneWorldPositions()` and `getTargetColors()` methods. It aggregates named world positions and target colors from all `IRenderContributor` widgets into a single `RenderContribution` object.
+
+Also defined in `runtime/types.ts`: `RealtimeClock`, `Vec3`, `Node`, `PoseSnapshot`, `PoseSnapshotMap`, `AnimationTrack`.
 
 **`runtime/mocks/`** — interface-conforming test doubles. Used in unit tests for layers that depend on `RuntimeDriver`. These are full behavioral implementations with controllable state, not jest spies.
 
@@ -214,11 +252,20 @@ Output: `SceneTrack` — a flat pre-baked array of `SceneTrackTick` values index
 
 **`compiler/index.ts`** — exports **only** the DSL authoring surface:
 ```typescript
-export { Scene, SceneGroup } from './blocks/sceneDsl';
-export { Hud, HudItem } from './blocks/hudBlocks';
-export { InputController, Action } from './blocks/inputController';
-// Primitive element DSL components (Background, Camera, Environment, Floor, Lighting)
-// are exported directly from @brewsite/core — the compiler/primitives/ barrel was removed.
+export { Scene, resolveSceneFromDsl } from './sceneDslCompiler';
+export { ProgressManager } from './primitives/progressManager';
+export { InputController, Action, PointerMap, WheelMap, PinchMap, KeyMap } from './blocks/inputController';
+export { Transition } from './blocks/transition';
+export { View } from './blocks/viewDsl';
+export { ViewLayout } from './blocks/viewLayoutDsl';
+export { registerNode } from './registry';
+// Plus: type exports for SceneSnapshotContext, CompileApi, CompileHelpers, NodeHandler,
+//   InputControllerProps, ActionProps, PointerMapProps, WheelMapProps, PinchMapProps, KeyMapProps,
+//   TransitionProps, ViewProps, ViewLayoutProps, ViewState, ViewLayoutState,
+//   EaseFn, TransitionContext, CompiledTransitionGroup, WithTransitionConfig, TransitionPhase,
+//   TransitionWindow, TransitionName, SceneTransitionProp
+// Plus: transition functions (easeLinear, easeOutCubic, easeOutExpo, easeInOutSine, etc.)
+//   resolveSceneTransition, makeResolver, makeSimpleContext
 ```
 
 Infrastructure types (`SceneTrack`, `compileSceneTrack`, `sceneTrackCache`, etc.) are **not** re-exported through `compiler/index.ts`. They are imported directly from their source files by the player layer:
@@ -229,50 +276,59 @@ import type { SceneTrack, SceneTrackTick } from '../compiler/sceneTrackTypes';
 import { getSceneTrackCache, setSceneTrackCache } from '../compiler/sceneTrackCache';
 ```
 
-**Compiler sub-directories:**
-- `blocks/` — DSL block components: `hudBlocks.tsx` (Hud, HudItem), `inputController.tsx` (InputController, Action), `sceneDsl.tsx` (Scene, SceneGroup), `viewDsl.tsx` (`<View>` DSL component and `ViewProps`), `viewLayoutDsl.tsx` (`<ViewLayout>` DSL component and `ViewLayoutProps`), `viewHandlers.ts` (NodeHandler implementations for `<View>` and `<ViewLayout>`).
-- `transitions/` — Transition type system: `transitionTypes.ts` defines `ElementTransitionSpec<T>`, `FunctionalTransitionSpec<T>`, `isFunctionalSpec()`, and the full set of blend/math utilities.
-- `primitives/` — Contains only `progressManager.ts`. The `compiler/primitives/` barrel (`primitives/index.ts`) has been removed; element DSL components are exported directly from `@brewsite/core`.
+**Compiler source files:**
+- `blocks/` — DSL block components: `inputController.tsx` (InputController, Action, PointerMap, WheelMap, PinchMap, KeyMap), `transition.tsx` (Transition), `viewDsl.tsx` (`<View>` DSL component), `viewLayoutDsl.tsx` (`<ViewLayout>` DSL component), `viewHandlers.ts` (NodeHandler implementations for `<View>` and `<ViewLayout>`).
+- `transitions/` — Transition type system: `transitionTypes.ts` defines `ElementTransitionSpec<T>`, `FunctionalTransitionSpec<T>`, `isFunctionalSpec()`, and the full set of blend/math utilities. `transitionPresets.ts` defines named transition types and easing functions. `transitionResolver.ts` provides `makeResolver` and `makeSimpleContext`.
+- `primitives/` — Contains only `progressManager.ts`.
 - `registry.ts` — The global node handler registry (`registerNode`, `getNodeHandler`, `isPrimitiveComponent`, `clearRegistry`).
+- `coreHandlers.ts` — Core DSL node handlers registered by the compiler.
+- `childApi.ts` — Child traversal API used during DSL compilation.
+- `dslSourceInfo.ts` — Source location extraction for DSL breadcrumb trails.
+- `identityFn.ts` — Identity function utility for transition specs.
+- `sceneViewConstraint.ts` — View-level constraint enforcement during compilation.
 - `viewTypes.ts` — Compiler state contracts for `<View>` and `<ViewLayout>`: `ViewState` and `ViewLayoutState`. Stored in `SceneFrame.widgets` keyed by the view/layout id. No Three.js, no React.
-- `sceneTrackTypes.ts` — Core data contracts: `SceneFrame`, `SceneFrameDelta`, `SceneTrackTick`, `SceneTrack`, `SceneWindow`, `FunctionalWidgetTransition`, `SceneTrackTransitionBlock`.
-- `sceneTrackCompiler.ts` — The main `compileSceneTrack()` function. Seven-step algorithm described in Section 5.
+- `sceneTrackTypes.ts` — Core data contracts: `SceneFrame`, `SceneFrameDelta`, `SceneTrackTick`, `SceneTrack`, `SceneWindow`, `FunctionalWidgetTransition`, `SceneTrackTransitionBlock`, `CompileWarning`, `ProgressManagerSpec`, `SceneProgressProfile`.
+- `sceneTrackCompiler.ts` — The main `compileSceneTrack()` function.
 - `sceneTrackSampler.ts` — O(1) `SceneTrackSampler.sample(progress)` implementation.
 - `sceneTrackCache.ts` — Optional compile-time cache for `SceneTrack` keyed by a scene hash.
-- `hudCompiler.ts` — Compiles `HudItemDefinition` arrays into `HudItemResolved` arrays per tick.
-- `labelCompiler.ts` — Compiles `LabelResolved` arrays per tick.
-- `sceneTypes.ts` — Shared scene DSL type definitions.
+- `SceneRegistrationContext.ts` — React context for scene registration in `SceneEngine`.
+- `sceneDslCompiler.ts` — DSL-to-SceneFrame compiler (`Scene`, `resolveSceneFromDsl`).
 - `sceneDslTypes.ts` — `NodeHandler` type and related DSL infrastructure types. Contains `CompileApi` (including `composeBounds`) and `CompileHelpers`.
+- `sceneTypes.ts` — Shared scene DSL type definitions (`SceneSnapshotContext`).
 
 ### 3.4 Elements (`elements/`)
 
 Core renderable element modules. Each element is a self-contained module that can be used, tested, and maintained independently.
 
 **Built-in elements:**
-- `model/` — GLTF model loading, animation clip playback, position/rotation/opacity control, contained sub-models.
 - `camera/` — Camera state, four positioning modes (world, orbit, fitBotHeight, fitFloorDepth), trackpad/mouse orbit controls.
 - `background/` — Scene background color or gradient.
-- `lighting/` — Ambient, directional, and point light configuration.
+- `lighting/` — Scene lighting with sub-elements: `<Ambient>`, `<Directional>`, `<Point>`, `<Spot>`, `<GlowPoint>` (sprite-based pseudo-light), `<Panel>` (grid of point lights), `<LightStrand>` (string of point lights along a curve with `<Wave>`, `<Circle>`, `<Rectangle>` child shape components).
 - `floor/` — Reflective floor plane with opacity and blur.
 - `environment/` — HDR environment map.
+- `spotlight-rig/` — Animated spotlight rig system with presets (moviePremiere, concertStage). Includes `SpotlightRig`, `Spotlight` DSL components and `SpotlightRigWidget`.
+- `text-box/` — Text overlay element for scene-embedded text content. Authored via DSL and rendered as DOM overlays via `EngineOverlayHost`.
+- `view/` — View element for layout composition. Implements the `<View>` and `<ViewLayout>` DSL components' runtime behavior, including carousel transitions and opacity delegation to `IViewChild` widgets.
+
+Note: The `model/` element has been moved to the `@brewsite/model` package. Labels have also been moved to `@brewsite/model`.
 
 **Mandatory module pattern.** Every element directory must contain exactly these files in this dependency order:
 
 ```
 types.ts
-  ↓
+  |
 dsl.tsx
-  ↓
+  |
 compile.ts
-  ↓
+  |
 render.ts
-  ↓
+  |
 {Name}Widget.ts
-  ↓
+  |
 index.ts
 ```
 
-**`types.ts`** — Interface contracts only. No runtime imports, no Three.js, no React. Defines the state shape that flows through the compile/playback pipeline (e.g., `CameraState`, `ModelState`, `LightingState`).
+**`types.ts`** — Interface contracts only. No runtime imports, no Three.js, no React. Defines the state shape that flows through the compile/playback pipeline (e.g., `CameraState`, `LightingState`).
 
 **`dsl.tsx`** — Prop type interfaces only. No React component function declarations, no Three.js. Defines the prop shapes (`XxxProps`) that authors use when writing scene definitions. DSL stub functions (null-returning components like `<Camera />`, `<Background />`, etc.) are defined in `{Name}Widget.ts`, not here.
 
@@ -289,122 +345,174 @@ index.ts
 The plugin system for extending the runtime with new renderable and behavioral concepts.
 
 **`WidgetRegistry`** — Two internal registries:
-1. Instance registry: maps `widgetId` string → `IWidget` instance. Used for singleton widgets.
-2. Type-factory registry: maps DSL component function → `(props) => IWidget` factory. Used for multi-instance widgets like models where each DSL node creates a distinct widget instance.
+1. Instance registry: maps `widgetId` string to `IWidget` instance. Used for singleton widgets.
+2. Type-factory registry: maps DSL component function to `(props) => IWidget` factory. Used for multi-instance widgets like models where each DSL node creates a distinct widget instance.
 
 ```typescript
 class WidgetRegistry {
+  constructor(options?: { strict?: boolean });
+
+  // Registration (throws after freeze())
   register(widget: IWidget): this;
   registerTypeFactory(
     component: unknown,
     factory: (props: Record<string, unknown>) => IWidget
   ): this;
-  getWidget(id: string): IWidget | undefined;
-  getFactory(component: unknown): ((props: Record<string, unknown>) => IWidget) | undefined;
-  getAllWidgets(): IWidget[];
+  freeze(): void;
+
+  // Lookup
+  get(id: string): IWidget | undefined;
+  getAll(): IWidget[];
+  getAllWidgets(): IterableIterator<IWidget>;
+
+  // Interface-filtered queries
+  getSceneElements(): Array<ISceneElement<unknown>>;
+  getRenderables(): Array<IRenderable<unknown>>;
+  getAnimationControllers(): IAnimationController[];  // sorted by tickPriority
+  getLoadables(): ILoadable[];
+  getDslComposites(): IDslComposite[];
+  getSceneLifecycleWidgets(): ISceneLifecycle[];
+  getContainedRenderables(): IContainedRenderable[];
+  getAttachmentHosts(): IAttachmentHost[];
+  getInputDefaultProviders(): IInputDefaultProvider[];
+  getExtraRenderPassWidgets(): IExtraRenderPass[];
+
+  // Renderer lifecycle broadcasts
+  notifyRendererCreated(renderer: WebGLRenderer): void;
+  notifyRendererDisposing(renderer: WebGLRenderer): void;
+
+  // Widget object management (root Object3D per widget)
+  setWidgetObject(widgetId: string, obj: Object3D): void;
+  getWidgetObject(widgetId: string): Object3D | undefined;
+  clearWidgetObject(widgetId: string): void;
+
+  // Cache key for compile-time invalidation
+  buildCacheKey(): string;
 }
 ```
 
-**`VariableStore`** — Reactive key-value store with `JsonPrimitive` values (`string | number | boolean | null`). Synchronous get/set. Subscription model for React integration via `useVariable`.
+**`CUSTOM_NODE_HANDLER`** — Symbol key for widgets that override default DSL node routing. Set on widget instances that implement `IHasCustomDslHandler`. The routing handler installed by `WidgetRegistry` calls the widget's `[CUSTOM_NODE_HANDLER]` method when the widget's `DslComponent` is encountered in a scene DSL tree.
+
+**`VariableStore`** — Reactive key-value store with namespace-scoped `JsonPrimitive` values (`string | number | boolean | null`). Synchronous get/set. Subscription model for React integration via `useVariable`.
 
 ```typescript
 type JsonPrimitive = string | number | boolean | null;
 
-class VariableStore {
-  set(key: string, value: JsonPrimitive): void;
-  get(key: string): JsonPrimitive | undefined;
-  subscribe(key: string, listener: (value: JsonPrimitive | undefined) => void): () => void;
+type VariableStoreReader = {
+  get(namespace: string, key: string): JsonPrimitive | undefined;
+  getNamespace(namespace: string): Readonly<Record<string, JsonPrimitive>>;
+};
+
+class VariableStore implements VariableStoreReader {
+  set(namespace: string, key: string, value: JsonPrimitive): void;
+  get(namespace: string, key: string): JsonPrimitive | undefined;
+  getNamespace(namespace: string): Readonly<Record<string, JsonPrimitive>>;
+  subscribe(key: string, listener: () => void): () => void;
 }
 ```
 
-**`useVariable<T>(store, key)`** — React hook. Subscribes to a `VariableStore` key and returns the current value. Re-renders the component when the value changes. Returns `undefined` if the key has no value.
+**`useVariable<T>(namespace, key)`** — React hook. Reads from `VariableStoreContext` (no explicit store parameter). Subscribes to a `VariableStore` key and returns the current value. Re-renders the component when the value changes. Returns `undefined` if the key has no value. Must be used inside `<SceneEngine>`.
 
-**Type guards** — exported from `widget/index.ts`:
+**Widget interfaces** — the `IWidget` hierarchy:
+- `IWidget` — base interface. `{ readonly widgetId: string }`.
+- `ISceneElement<TState, TExtra>` — declarative widget with compiled state, transition spec, and DSL component.
+- `IRenderable<TState, TExtra>` — widget with Three.js lifecycle: `initialize(context)`, `apply(state, context)`, `dispose()`.
+- `ILoadable` — async asset loading: `load(manifest)`, `isLoaded`.
+- `IAnimationController` — per-frame tick: `onTick(context)`, optional `tickPriority`.
+- `IDslComposite` — widget with child DSL components.
+- `IVariableProvider` — publishes to VariableStore: `variableNamespace`, `variableKeys`.
+- `ICameraActionTarget` (deprecated) — camera action target: `applyOrbit`, `applyDolly`, `applyReset`.
+- `IRendererLifecycle` — WebGLRenderer lifecycle: `onRendererCreated`, `onRendererDisposing`.
+- `IRenderContributor` — per-frame render data: `contributeRenderData(): RenderContribution`.
+- `IContainedRenderable` — widget parented to an attachment host: `anchorWidgetId`, `anchorKey`, `rootObject`.
+- `IAttachmentHost` — exposes named attachment points: `getAttachmentPoint(key)`.
+- `ISceneLifecycle` — scene transition events: `onSceneEnter`, `onSceneExit`.
+- `IInputDefaultProvider` — exposes default input actions: `getDefaultInputActions()`.
+- `ICameraFocusTarget` — accepts camera focus requests: `requestFocus(position, target, smooth?)`.
+- `ILightingOverride` — suppresses core scene lighting: `getLightingOverride()`, optional `receiveLightController`.
+- `IExtraRenderPass` — additional WebGL render passes: `renderPass(renderer, width, height)`.
+- `IViewChild` — accepts view-level opacity: `applyViewOpacity(opacity)`.
+
+**Type guards** — exported from `widget/WidgetRegistry.ts`:
 ```typescript
-function isSceneElement(w: IWidget): w is ISceneElement
-function isRenderable(w: IWidget): w is IRenderable
-function isLoadable(w: IWidget): w is ILoadable
-function isContainedModel(w: IWidget): w is IContainedModel
-function isDslComposite(w: IWidget): w is IDslComposite
-function isAnimationController(w: IWidget): w is IAnimationController
-function isVariableProvider(w: IWidget): w is IVariableProvider
+function isSceneElement(w: IWidget): w is ISceneElement<unknown>;
+function isRenderable(w: IWidget): w is IRenderable<unknown, unknown>;
+function isLoadable(w: IWidget): w is ILoadable;
+function isAnimationController(w: IWidget): w is IAnimationController;
+function isCameraActionTarget(w: IWidget): w is ICameraActionTarget;
+function isVariableProvider(w: IWidget): w is IVariableProvider;
+function isDslComposite(w: IWidget): w is IDslComposite;
+function isRendererLifecycle(w: IWidget): w is IRendererLifecycle;
+function isSceneLifecycle(w: IWidget): w is ISceneLifecycle;
+function isRenderContributor(w: IWidget): w is IRenderContributor;
+function isContainedRenderable(w: IWidget): w is IContainedRenderable;
+function isAttachmentHost(w: IWidget): w is IAttachmentHost;
+function isInputDefaultProvider(w: IWidget): w is IInputDefaultProvider;
+function isCameraFocusTarget(w: IWidget): w is ICameraFocusTarget;
+function isLightingOverride(w: IWidget): w is ILightingOverride;
+function isExtraRenderPass(w: IWidget): w is IExtraRenderPass;
+function isViewChild(w: IWidget): w is IViewChild;
 ```
 
 **Context types** — the argument types passed to widget lifecycle methods:
 
 ```typescript
 type WidgetInitContext = {
-  scene: THREE.Scene;
-  renderer: THREE.WebGLRenderer;
-  variableStore: VariableStore;
+  scene: ThreeScene;
+  widgetId: string;
+  renderer?: WebGLRenderer;
+  camera?: PerspectiveCamera;
 };
 
-type WidgetRenderContext = {
-  tick: SceneTrackTick;
-  camera: THREE.Camera;
-  renderer: THREE.WebGLRenderer;
-  variableStore: VariableStore;
-  deltaSeconds: number;
-  wallTimeSeconds: number;
+type WidgetRenderContext<TExtra = unknown> = {
+  clock: RealtimeClock;
+  effectiveDeltaSeconds: number;
+  globalProgress: number;
+  variables: VariableStoreReader;
+  extra: TExtra;
+  tick?: SceneTrackTick | null;
+  coords: NVSCoordService;
 };
 
 type CompileExtraContext = {
-  ticks: SceneTrackTick[];
-  scenes: SceneFrame[];
-  timeline: SceneTimeline;
+  blockProgress: number;
+  globalProgress: number;
+  prefersReducedMotion: boolean;
 };
 
 type AnimationTickContext = {
-  deltaSeconds: number;
-  wallTimeSeconds: number;
-  currentTick: SceneTrackTick | null;
+  clock: RealtimeClock;
+  effectiveDeltaSeconds: number;
+  scene: ThreeScene;
+  variables: VariableStore;
+  tick: SceneTrackTick | null;
+  track: SceneTrack | null;
+  resolvedState: unknown;
+  cameraFocusTarget: ICameraFocusTarget | null;
+  cameraOverride: RuntimeCameraOverride | null;
+  setCameraOverride: (override: RuntimeCameraOverride | null) => void;
 };
 ```
+
+`RealtimeClock` provides `wallTimeSeconds` (absolute time since page load) and `deltaSeconds` (real-time elapsed since last frame). Both fields are synchronized — every widget receives identical values each frame.
+
+`NVSCoordService` provides `toWorld(nvsX, nvsY, z?)` and `toWorldSize(nvsW, nvsH)` for converting NVS [0..1] viewport coordinates to Three.js world-space, plus `canvasAspect`, `visibleWorldHeight`, `visibleWorldWidth`, `viewportWidth`, and `viewportHeight`.
 
 ### 3.6 HUD (`hud/`)
 
-The heads-up display overlay system. Renders React content synchronized to scene progress over the Three.js canvas.
+The HUD system has been removed. The `hud/` directory contains only stub files:
+- `InputHud.tsx` — a stub component returning null. Exported from `player/index.ts` for backward compatibility.
+- `inputHudTypes.ts` — type definitions for `InputHudHint` and `InputHudState`.
 
-**`hud/types.ts`** — Type definitions:
-- `HudItemDefinition` — the authored form, declared in scene DSL inside `<Hud>/<HudItem>`.
-- `HudItemResolved` — the compiled form, stored in `SceneTrackTick.hudPrimitives`. Contains resolved CSS, content, and visibility state.
-- `HudPhaseContext` — React context providing the current HUD phase to child components.
+Overlay content is now authored via the `<TextBox>` DSL element (in `elements/text-box/`) and rendered through `EngineOverlayHost` using `SceneTrack.sceneOverlays`.
 
-**`hudCompiler.ts`** — Pure compilation function. Called once per scene during track baking. Transforms `HudItemDefinition[]` into `HudItemResolved[]` for each tick. No Three.js or React.
+### 3.7 Labels
 
-**`HudOverlay`** — React component rendered in the `EngineOverlayHost` overlay tier. Reads `hudPrimitives` from the current `EngineFrameState` tick and renders each `HudItemResolved` as a positioned React element with CSS-based styling and animation.
-
-**`hud/animejs/`** — Removed. The `Fade`, `MidFade`, `SlideUp`, `SlideDown`, `ScrollOn`, `ScrollOff` preset components and `useScrollTimeline` have been removed from `@brewsite/core`. They are available as copy-paste recipes in `apps/examples/`. The `animejs` package is no longer a production dependency of `@brewsite/core`.
-
-### 3.7 Labels (`labels/`)
-
-The 3D-tracked label system. Renders React label components positioned at 3D world-space coordinates in the Three.js scene.
-
-**`labels/types.ts`** — `LabelResolved` type:
-```typescript
-type LabelResolved = {
-  id: string;
-  target: string;            // bone or node name to track
-  text?: string;
-  css?: Record<string, string | number>;
-  offsetPx?: [number, number];
-  colorFromTarget?: boolean;
-};
-```
-
-**`labelCompiler.ts`** — Pure compilation function. Compiles label definitions into `LabelResolved[]` per tick. No Three.js or React.
-
-**`LabelPositioner`** — React component in the player layer. Each animation frame:
-1. Reads `labelPrimitives` from the current tick.
-2. Calls `RuntimeDriver.getBoneWorldPositions()` to get Three.js object positions keyed by target name.
-3. Projects each world position through `camera.projectionMatrix × camera.matrixWorldInverse`.
-4. Updates `<LabelItem>` DOM nodes to the resulting CSS pixel coordinates.
-
-**`LabelItem`** — React component. Renders a single label with CSS positioning. Accepts `LabelResolved` data plus a computed `{ x, y }` screen coordinate.
+Labels have been moved entirely to the `@brewsite/model` package. `LabelItem`, `LabelPositioner`, and all label compilation logic live in `packages/model/src/`. `@brewsite/core` has no label-related code.
 
 ### 3.8 Input (`input/`)
 
-Scene navigation and action-based input. The input system is unified: a single declarative `<InputController>` DSL element covers all keyboard, pointer, and wheel-based input. The compiled spec is read at runtime by the `<ActionInput>` React component, which bridges it to `ActionInputController`.
+Scene navigation and action-based input. The input system is unified: a single declarative `<InputController>` DSL element covers all keyboard, pointer, and wheel-based input. The compiled spec is read at runtime by `InputCoordinator`, which bridges it to `ActionInputController`.
 
 **`ActionInputController`** — The sole runtime input controller. Maps pointer, wheel, pinch, and keyboard events to named actions. Actions are dispatched to typed handlers:
 
@@ -436,10 +544,10 @@ type InputActionSpec = {
 
 When no scene authors an `<InputController>`, the compiler injects a default spec at compile time:
 - `scope: 'window'`, id `'__default'`
-- ArrowRight / ArrowDown → `scene.next`
-- ArrowLeft / ArrowUp → `scene.prev`
+- ArrowRight / ArrowDown to `scene.next`
+- ArrowLeft / ArrowUp to `scene.prev`
 
-**`ActionInput`** (player layer, `player/ActionInput.tsx`) — The React bridge component. Reads `__input_controller` from the current tick on every DOM event (no re-mount on scene change), constructs an `ActionInputController`, and keeps it attached for the component lifetime. Dispatches recognized actions to engine methods and unknown actions to `ActionInputExtensionContext`. Render null.
+**`InputCoordinator`** (player layer, `player/InputCoordinator.tsx`) — The React bridge component. Replaces the deleted `ActionInput`, `KeyboardInput`, and `InertiaScrollSource` components. Reads `__input_controller` from the current tick on every DOM event (no re-mount on scene change), constructs an `ActionInputController`, and keeps it attached for the component lifetime. Dispatches recognized actions to engine methods and unknown actions to `ActionInputExtensionContext`. Renders null.
 
 **`input/types.ts`** — All input type definitions. Exported from `input/index.ts`.
 
@@ -608,12 +716,14 @@ The declared state of a scene at a single point in time. Produced by the DSL com
 type SceneFrame = {
   id: string;
   scrollProgress: number;
-  widgets: Record<string, unknown>;         // widgetId → compiled widget state
+  widgets: Record<string, unknown>;              // widgetId -> compiled widget state
   meta?: Record<string, JsonPrimitive>;
   materialMetalnessMultiplier?: number;
   materialRoughnessMultiplier?: number;
-  hudItems?: HudItemDefinition[];           // HUD items declared for this scene
-  labels?: LabelResolved[];                 // Label definitions for this scene
+  transitionWindow?: TransitionWindow;           // per-scene transition window config
+  progressManager?: ProgressManagerSpec;         // per-scene scroll weight and pacing
+  primaryCarouselId?: string;                    // primary carousel layout widget ID
+  sceneOverlay?: ReactNode;                      // non-DSL JSX overlay content (e.g. <TextBox>)
 };
 ```
 
@@ -621,13 +731,11 @@ Each entry in `widgets` is typed as `unknown` at the frame level because each wi
 
 ### 4.2 SceneFrameDelta
 
-A sparse diff between two `SceneFrame` states. Fields are only present when the value changed between the previous tick and this one. Used by `EngineProvider` to skip unnecessary React re-renders.
+A sparse diff between two `SceneFrame` states. Fields are only present when the value changed between the previous tick and this one. Used by the runtime to skip unnecessary `IRenderable.apply()` calls for widgets that did not change.
 
 ```typescript
 type SceneFrameDelta = {
   widgets?: Record<string, unknown>;
-  hudItems?: HudItemDefinition[];
-  labels?: SceneFrame['labels'];
 };
 ```
 
@@ -651,7 +759,7 @@ A compiled functional transition closure for one widget in one transition block.
 ```typescript
 type FunctionalWidgetTransition = {
   /**
-   * Evaluate this widget's state at blockProgress ∈ [0, 1].
+   * Evaluate this widget's state at blockProgress in [0, 1].
    * Half-block remapping for exit/enter is already baked into this closure.
    */
   fn: (blockProgress: number) => unknown;
@@ -678,20 +786,21 @@ A single pre-baked frame in the scene track. The atomic unit of playback. Indexe
 ```typescript
 type SceneTrackTick = {
   index: number;
-  progress: number;         // [0, 1] global progress
+  progress: number;             // [0, 1] global progress
   sceneId: string;
   sceneIndex: number;
-  blockProgress: number;    // [0, 1] progress within the current transition block
-  state: SceneFrame;        // fully resolved widget states for this tick
-  hudPrimitives?: HudItemResolved[];   // resolved HUD items for this tick
-  labelPrimitives?: LabelResolved[];   // resolved labels for this tick
-  deltaForward: SceneFrameDelta;       // diff from previous tick
-  deltaBackward: SceneFrameDelta;      // diff from next tick
-  widgetExtras?: Record<string, unknown>;  // per-widget compiled extras (e.g., clip metadata)
+  blockProgress: number;        // [0, 1] progress within the current transition block
+  sceneProgress?: number;       // [0, 1] progress within the current scene
+  state: SceneFrame;            // fully resolved widget states for this tick
+  deltaForward: SceneFrameDelta;    // diff from previous tick
+  deltaBackward: SceneFrameDelta;   // diff from next tick
+  widgetExtras?: Record<string, unknown>;  // per-widget compiled extras
 };
 ```
 
 `blockProgress` is the coordinate passed to `FunctionalWidgetTransition.fn()`. For ticks outside transition blocks (steady-state), `blockProgress` is `0` (start of scene) or `1` (end of scene).
+
+`sceneProgress` is normalized progress within the current scene [0, 1]. At the first tick of a scene, `sceneProgress = 0`. At the terminal tick of the final scene, `sceneProgress = 1`. This field is optional for backward compatibility; it defaults to `blockProgress` when absent at runtime.
 
 ### 4.7 SceneTrack
 
@@ -700,14 +809,20 @@ The compiled output of the entire scene definition. A flat array of `SceneTrackT
 ```typescript
 type SceneTrack = {
   ticks: SceneTrackTick[];
-  tickStep: number;          // 1 / (totalTicks - 1) — progress increment per tick
-  subTickCount: number;      // total tick count
+  tickStep: number;              // 1 / (totalTicks - 1) — progress increment per tick
+  subTickCount: number;          // total tick count
   sceneWindows: SceneWindow[];
   /**
    * Present only when at least one widget uses FunctionalTransitionSpec.
-   * Length ≤ numScenes - 1 (one entry per transition block that has functional closures).
+   * Length <= numScenes - 1 (one entry per transition block that has functional closures).
    */
   transitionBlocks?: SceneTrackTransitionBlock[];
+  /** Warnings accumulated during compilation. Empty/undefined when no issues. */
+  warnings?: CompileWarning[];
+  /** Per-scene scroll weights and pacing curves. Undefined when no <ProgressManager> was declared. */
+  progressProfile?: SceneProgressProfile;
+  /** Keyed by scene id. Non-DSL JSX overlay content rendered by EngineOverlayHost. */
+  sceneOverlays?: Map<string, ReactNode>;
 };
 ```
 
@@ -721,7 +836,7 @@ The compiler runs once at scene load time (or build time with caching) and produ
 
 ### 5.1 Step 1: Evaluate DSL to SceneFrame[]
 
-Each scene's JSX is evaluated once. The JSX evaluation traverses the React element tree, calling the compiler registry's `getNodeHandler()` for each recognized DSL component. Each handler transforms JSX props into a widget state entry and writes it into a `SceneFrame.widgets` record. HUD blocks and label blocks are compiled to their respective collections.
+Each scene's JSX is evaluated once. The JSX evaluation traverses the React element tree, calling the compiler registry's `getNodeHandler()` for each recognized DSL component. Each handler transforms JSX props into a widget state entry and writes it into a `SceneFrame.widgets` record.
 
 The result is a `SceneFrame[]` — one `SceneFrame` per scene, representing the declared state at that scene stop.
 
@@ -735,7 +850,7 @@ A flat `SceneTrackTick[]` array of this size is allocated. Each tick is pre-popu
 
 ### 5.3 Step 3: Fill Transition Blocks via Widget Batch Methods
 
-For each pair of adjacent scenes (block index N → scene N+1), the compiler iterates over the union of widget IDs present in either scene and calls one of three dispatch paths:
+For each pair of adjacent scenes (block index N to scene N+1), the compiler iterates over the union of widget IDs present in either scene and calls one of three dispatch paths:
 
 **Path A — ElementTransitionSpec (batch-fill discrete):**
 The widget fills its own frame slots by writing `frames[i].state.widgets[widgetId]` for every frame in the transition block. The compiler passes a slice of the tick array:
@@ -757,15 +872,11 @@ The final tick (`index = totalTicks - 1`, `progress = 1.0`) is filled with the l
 
 ### 5.5 Step 5: Run compileExtra()
 
-Each `ISceneElement` widget that implements `compileExtra(context: CompileExtraContext)` is called once. This pass allows widgets to write into `SceneTrackTick.widgetExtras` — for example, `ModelWidget` bakes animation clip metadata (durations, start/end times) into `widgetExtras` so the runtime has this data available at tick time without recomputing it.
+Each `ISceneElement` widget that implements `compileExtra(context: CompileExtraContext)` is called once per tick. This pass allows widgets to write into `SceneTrackTick.widgetExtras` — for example, model widgets bake animation clip metadata (durations, start/end times) into `widgetExtras` so the runtime has this data available at tick time without recomputing it.
 
-### 5.6 Step 6: Compile HUD and Labels Per Tick
+### 5.6 Step 6: Compute Forward and Backward Deltas
 
-`hudCompiler.ts` and `labelCompiler.ts` are called once per tick to resolve their respective definitions into `hudPrimitives` and `labelPrimitives` arrays. The compilation resolves any progress-gated visibility, merges theme styles, and produces the final resolved form consumed by the React overlay.
-
-### 5.7 Step 7: Compute Forward and Backward Deltas
-
-For each tick, the compiler computes `deltaForward` (diff from the previous tick) and `deltaBackward` (diff from the next tick). Deltas are sparse: only widget IDs whose state changed from one tick to the next appear in the delta. These deltas allow `EngineProvider` to skip `IRenderable.apply()` calls for widgets that did not change, and to skip React re-renders for HUD items that did not change.
+For each tick, the compiler computes `deltaForward` (diff from the previous tick) and `deltaBackward` (diff from the next tick). Deltas are sparse: only widget IDs whose state changed from one tick to the next appear in the delta. These deltas allow the runtime to skip `IRenderable.apply()` calls for widgets that did not change.
 
 ---
 
@@ -779,7 +890,7 @@ type ElementTransitionSpec<T> = {
    * Widget is leaving (present in scene N, absent from scene N+1).
    * frames is the first half of the transition block.
    * Write frames[i].state.widgets[widgetId] for every i.
-   * Use transitionT(i, frames.length) for normalized 0→1 progress.
+   * Use transitionT(i, frames.length) for normalized 0->1 progress.
    */
   exit(frames: SceneTrackTick[], widgetId: string, fromState: T): void;
 
@@ -810,7 +921,7 @@ const transitionT = (i: number, len: number): number => (len > 1 ? i / (len - 1)
 type FunctionalTransitionSpec<T> = {
   /**
    * Called once with fromState at compile time.
-   * Returns a pure function: t ∈ [0, 1] → T.
+   * Returns a pure function: t in [0, 1] -> T.
    * Active over the configured exit window.
    * t = 0: widget at fromState. t = 1: widget fully absent.
    */
@@ -818,7 +929,7 @@ type FunctionalTransitionSpec<T> = {
 
   /**
    * Called once with toState at compile time.
-   * Returns a pure function: t ∈ [0, 1] → T.
+   * Returns a pure function: t in [0, 1] -> T.
    * Active over the configured enter window.
    * t = 0: widget fully absent. t = 1: widget at toState.
    */
@@ -826,8 +937,8 @@ type FunctionalTransitionSpec<T> = {
 
   /**
    * Called once with (fromState, toState) at compile time.
-   * Returns a pure function: t ∈ [0, 1] → T.
-   * Active over full block (blockProgress ∈ [0, 1]).
+   * Returns a pure function: t in [0, 1] -> T.
+   * Active over full block (blockProgress in [0, 1]).
    * t = 0: widget at fromState. t = 1: widget at toState.
    */
   interpolateFn(fromState: T, toState: T): (t: number) => T;
@@ -853,44 +964,48 @@ The complete lifecycle from compile output to Three.js draw call:
 
 ```
 Scene DSL (JSX)
-  ↓ compileSceneTrack()
+  | compileSceneTrack()
 SceneTrack (flat pre-baked array)
-  ↓ SceneTrackSampler.sample(globalProgress)
+  | SceneTrackSampler.sample(globalProgress)
 SceneTrackTick (O(1) index lookup)
-  ↓ RuntimeDriverImpl.tick()
-  │
-  ├── For each IRenderable widget where state changed (deltaForward/deltaBackward):
-  │     widget.apply(tick.state.widgets[id], context)
-  │       ↓ render.ts functions
-  │     Three.js object mutations (position, material, visibility, etc.)
-  │
-  ├── For each widget in SceneTrack.transitionBlocks[blockIndex]:
-  │     state = transitionBlock.widgetFns[id].fn(tick.blockProgress)
-  │     widget.apply(state, context)
-  │
-  ├── For each IAnimationController widget (sorted by tickPriority):
-  │     widget.tick(animContext)
-  │       ↓ advances Three.js AnimationMixer
-  │
-  └── For each IVariableProvider widget:
+  | RuntimeDriverImpl.tick()
+  |
+  +-- For each IRenderable widget where state changed (deltaForward/deltaBackward):
+  |     widget.apply(tick.state.widgets[id], context)
+  |       | render.ts functions
+  |     Three.js object mutations (position, material, visibility, etc.)
+  |
+  +-- For each widget in SceneTrack.transitionBlocks[blockIndex]:
+  |     state = transitionBlock.widgetFns[id].fn(tick.blockProgress)
+  |     widget.apply(state, context)
+  |
+  +-- For each IAnimationController widget (sorted by tickPriority):
+  |     widget.onTick(animContext)
+  |       | advances Three.js AnimationMixer
+  |
+  +-- For each IVariableProvider widget:
         widget.publishVariables(store, context)
-          ↓ store.set(key, value)
-        → triggers useVariable() re-renders in React overlay
-  ↓
+          | store.set(namespace, key, value)
+        -> triggers useVariable() re-renders in React overlay
+  |
 THREE.WebGLRenderer.render(scene, camera)
-  ↓
+  |
+RuntimeDriverImpl.collectRenderContributions()
+  | aggregates namedPositions + targetColors from all IRenderContributor widgets
+  -> consumed by LabelPositioner (@brewsite/model) for 3D-to-CSS projection
+  |
 canvas frame
 ```
 
-The React overlay layer runs in parallel (same frame, via React's `useLayoutEffect` / `useEffect` for label positioning):
+The React overlay layer runs in parallel (same frame, via React's `useLayoutEffect` / `useEffect`):
 
 ```
 SceneTrackTick
-  ↓ tick.hudPrimitives
-HudOverlay (React) renders resolved HUD items with CSS animation
-  ↓ tick.labelPrimitives + RuntimeDriver.getBoneWorldPositions()
-LabelPositioner projects 3D coordinates → CSS pixel positions
-  ↓ updates LabelItem DOM nodes
+  | SceneTrack.sceneOverlays[sceneId]
+EngineOverlayHost (React) renders scene overlay content (e.g. TextBox)
+  | collectRenderContributions().namedPositions
+LabelPositioner (@brewsite/model) projects 3D coordinates -> CSS pixel positions
+  | updates LabelItem DOM nodes
 ```
 
 ---
@@ -904,19 +1019,21 @@ The compiler uses a global node handler registry to route DSL JSX nodes to their
 2. `nodeRegistryByName: Map<string, NodeHandler>` — keyed by `component.displayName ?? component.name`. This fallback enables registry lookups after module bundler mangling.
 
 ```typescript
-function registerNode(component: unknown, handler: NodeHandler): void;
+function registerNode(component: unknown, handler: NodeHandler, options?: { category: NodeHandlerCategory }): void;
 function getNodeHandler(component: unknown): NodeHandler | undefined;
 function isPrimitiveComponent(component: unknown): boolean;
 function clearRegistry(): void;  // test utility
 ```
 
-Each element's `compile.ts` calls `registerNode()` with its DSL component function and a handler:
+`NodeHandlerCategory` is `'spatial' | 'ambient'`. Ambient widgets (Camera, Lighting, etc.) are exempt from scene view constraint enforcement. Defaults to `'spatial'` if not specified.
+
+Each element's widget registration calls `registerNode()` (via `WidgetRegistry.register()`) with its DSL component function and a handler:
 
 ```typescript
-type NodeHandler = (props: Record<string, unknown>, children: unknown[]) => Partial<SceneFrame>;
+type NodeHandler = (node: ReactElement, api: CompileApi, helpers: CompileHelpers) => void;
 ```
 
-The compiler evaluates a scene by traversing the JSX tree and calling `getNodeHandler(element.type)` for each node. If a handler is found, it is called with the element's props and children, and the result is merged into the current `SceneFrame`. Unrecognized nodes are ignored (they may be React layout components or custom consumer components).
+The compiler evaluates a scene by traversing the JSX tree and calling `getNodeHandler(element.type)` for each node. If a handler is found, it is called with the element, compile API, and helpers. The handler uses `api.setWidgetState()` to write into the current `SceneFrame`. Unrecognized nodes are ignored (they may be React layout components or custom consumer components).
 
 ---
 
@@ -938,13 +1055,13 @@ All code in `@brewsite/core` satisfies the following invariants:
 
 1. **No top-level browser global access.** No module-level access to `window`, `document`, `navigator`, `performance`, or `requestAnimationFrame`. All browser-dependent code is inside function bodies, component mount callbacks, or `useEffect`/`useLayoutEffect`.
 
-2. **Three.js instantiation is deferred to mount.** `WebGLRenderer`, `Scene`, `PerspectiveCamera`, and all Three.js instances are created in `EngineFrameDriver` mount lifecycle, never at module import time.
+2. **Three.js instantiation is deferred to mount.** `WebGLRenderer`, `Scene`, `PerspectiveCamera`, and all Three.js instances are created in mount lifecycle, never at module import time.
 
-3. **EngineProvider renders safely on the server.** The component defers all WebGL initialization to client-side effects. `EngineGate` renders the `placeholder` prop (or null) until the engine's first client-side frame rather than attempting to create a WebGL context.
+3. **SceneEngine renders safely on the server.** The component defers all WebGL initialization to client-side effects. `EngineGate` renders the `placeholder` prop (or null) until the engine's first client-side frame rather than attempting to create a WebGL context.
 
 4. **Compiler is SSR-safe and build-time safe.** `compileSceneTrack()` is a pure function. It runs in Node.js, Vitest, or browser environments without modification.
 
-5. **All hooks are no-ops during SSR.** `useEngineScroll`, `useEngineInput`, `useEngineScrubber`, and all other hooks return safe initial values during server rendering and initialize their listeners on client mount.
+5. **All hooks are no-ops during SSR.** `useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, and all other hooks return safe initial values during server rendering and initialize their listeners on client mount.
 
 ---
 
@@ -960,8 +1077,10 @@ Tests live in `__tests__/` directories co-located with the code they test. Test 
 
 **Coverage targets.** `vitest` coverage is configured to instrument:
 ```
-packages/core/src/{compiler,elements,runtime,widget,player,hud,labels,input,timeline,math}/**/*.ts
+packages/core/src/{compiler,elements,runtime,widget,player,hud,input,timeline,math}/**/*.ts
 packages/diagram/src/**/*.ts
+packages/model/src/**/*.ts
+packages/charts/src/**/*.ts
 ```
 
 Coverage excludes:
@@ -982,7 +1101,7 @@ These rules are non-negotiable. Any change that violates them requires a corresp
 
 3. **`compiler/index.ts` exports only DSL authoring surface.** Infrastructure types (`SceneTrack`, `compileSceneTrack`, cache utilities) are imported directly from their source files, not re-exported through the compiler index.
 
-4. **`@brewsite/diagram` may import from `@brewsite/core`, never vice versa.** This is a hard dependency direction constraint. `@brewsite/core` must remain publishable and usable without `@brewsite/diagram`.
+4. **`@brewsite/diagram` may import from `@brewsite/core`, never vice versa.** This is a hard dependency direction constraint. `@brewsite/core` must remain publishable and usable without `@brewsite/diagram`. The same rule applies to `@brewsite/model`, `@brewsite/charts`, `@brewsite/screens`, `@brewsite/slides`, and `@brewsite/themes`.
 
 5. **Widget classes are the runtime integration contract.** New renderable or behavioral concepts are added by implementing `IWidget` (and relevant sub-interfaces) and registering with `WidgetRegistry`. The runtime and compiler are not modified to accommodate new concepts.
 
@@ -990,7 +1109,7 @@ These rules are non-negotiable. Any change that violates them requires a corresp
 
 7. **Lower layers never import from higher layers.** `math/` does not import from `compiler/`. `compiler/` does not import from `runtime/`. `elements/` does not import from `player/`.
 
-8. **The mandatory element module pattern is not optional.** Every new element module must contain `types.ts → dsl.tsx → compile.ts → render.ts → {Name}Widget.ts → index.ts` in that dependency order. `dsl.tsx` contains only prop type interfaces; DSL stub functions live in `{Name}Widget.ts`. Files that don't fit this pattern belong in a shared utility layer, not in an element module.
+8. **The mandatory element module pattern is not optional.** Every new element module must contain `types.ts -> dsl.tsx -> compile.ts -> render.ts -> {Name}Widget.ts -> index.ts` in that dependency order. `dsl.tsx` contains only prop type interfaces; DSL stub functions live in `{Name}Widget.ts`. Files that don't fit this pattern belong in a shared utility layer, not in an element module.
 
 9. **No new peer dependencies without justification.** React, react-dom, and Three.js are the established peers. Adding a new peer imposes a constraint on every consumer of the package. Any proposed new peer dependency requires explicit evaluation of its bundle impact, version range constraint, and alternative approaches.
 

@@ -3,7 +3,7 @@ title: "@brewsite/charts V2 — Charts Package"
 doc_type: prd
 status: current
 owner: brewsite-product-manager
-last_updated: 2026-03-13
+last_updated: 2026-03-15
 change_history:
   - date: 2026-03-12
     author: "Toolkit Product"
@@ -17,6 +17,9 @@ change_history:
   - date: 2026-03-13
     author: "Toolkit Product"
     summary: "Codebase audit sync. Corrected BaseChartDSL.bounds — bounds.width/height are @deprecated (no effect); top-level depth prop added. Added ChartState.tooltip, _morphFromDataSource, _morphFromTransforms fields to ChartState spec. Corrected ChartTooltipOverlay API: requires both widget and nvsBounds props (not nvsBounds alone); marked @deprecated since v2.2 per codebase JSDoc. Documented <ChartTooltip> DSL child + ChartTooltipHost as the current tooltip pattern. Added useLiveChartData options.filterGroup parameter. Corrected compileChart() parameter list (composeZ, composeOpacity). Marked all V2.1 launch criteria as complete. Added ChartTooltip, CHART_TYPES, and FILTER_OPS to exported symbols."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Codebase alignment audit. Fixed ChartState.theme type: actual is always ChartTheme (resolved object), never a ChartThemeName | ChartTheme union — the compiler resolves named theme strings to concrete theme objects at compile time. Fixed BaseChartDSL: does NOT have theme or sceneTheme props (those only exist on the deprecated V1 ChartDSL compat type). Updated ChartTooltipOverlay status: still exported from barrel as deprecated, not yet removed. Clarified named preset theme availability: only enterprise presets on the barrel, others via registry."
 ---
 
 # @brewsite/charts V2 — Charts Package
@@ -204,10 +207,8 @@ type BaseChartDSL = {
   readonly data?: DataInput;
   /** URL for async JSON/CSV fetch. Mutually exclusive with data. */
   readonly dataUrl?: string;
-  readonly theme?: ChartThemeName | ChartTheme;
   readonly opacity?: number;
   readonly interactive?: boolean;
-  readonly sceneTheme?: SceneTheme;
   readonly x?: number;   // NVS left edge [0, 1]
   readonly y?: number;   // NVS top edge [0, 1]
   readonly w?: number;   // NVS width [0, 1]
@@ -343,7 +344,8 @@ type ChartState = {
   readonly series: readonly ChartSeriesState[];
   readonly referenceLines?: ReadonlyArray<ReferenceLineState>;
   readonly legend: ChartLegendState | null;
-  readonly theme: ChartThemeName | ChartTheme;
+  /** Resolved ChartTheme object — always a concrete theme, never a name string. */
+  readonly theme: ChartTheme;
   readonly opacity: number;
   readonly interactive: boolean;
   readonly sceneTheme?: SceneTheme;

@@ -3,7 +3,7 @@ title: "BrewSite Core — Compiler Pipeline"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-13
+last_updated: 2026-03-15
 change_history:
   - date: 2026-03-13
     author: "Toolkit Product"
@@ -50,6 +50,9 @@ change_history:
   - date: 2026-03-03
     author: "Toolkit Product"
     summary: "API hardening updates: removed ScenePlayer.onCompileWarning prop reference from SceneTrack.warnings doc (warnings are now consumed internally by EngineProvider); updated cache scope description from ScenePlayer to EngineProvider instances; updated compiler/primitives/ section to reflect that Background, Camera, Environment, Floor, and Lighting primitive files are deleted — only progressManager.ts remains active."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Codebase alignment audit. §3: fixed compiler/index.ts exports — removed SceneGroup/SceneDefinition (internal types), fixed ProgressManager path from ./blocks/ to ./primitives/, added Transition/View/ViewLayout/viewTypes exports, added full transition utility exports (easing functions, makeResolver, makeSimpleContext, presets). §4: fixed CompileSceneTrackOptions — replaced clipMeta with activeTheme. §5: fixed SceneTrackTick (added sceneProgress, removed labelPrimitives), SceneFrame (added transitionWindow, primaryCarouselId, sceneOverlay, removed labels), SceneFrameDelta (removed labels), SceneTrack (added sceneOverlays). §6: replaced label compilation with scene overlay extraction pass. §11: fixed CompileExtraContext — renamed sceneProgress to blockProgress, removed clipMeta."
 ---
 
 # BrewSite Core — Compiler Pipeline
@@ -85,14 +88,14 @@ The DSL authoring surface — everything a scene author needs to import — is c
 
 // DSL root and resolver
 export { Scene, resolveSceneFromDsl } from './sceneDslCompiler';
-export type { SceneGroup, SceneDefinition, SceneSnapshotContext } from './sceneTypes';
+export type { SceneSnapshotContext } from './sceneTypes';
 
 // Compile API types (for widget implementers and external element authors)
 export type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
 
 // ProgressManager DSL component
-export { ProgressManager } from './blocks/progressManager';
-export type { ProgressManagerProps } from './blocks/progressManager';
+export { ProgressManager } from './primitives/progressManager';
+export type { ProgressManagerProps } from './primitives/progressManager';
 
 // Input controller DSL components
 export { InputController, Action, PointerMap, WheelMap, PinchMap, KeyMap } from './blocks/inputController';
@@ -105,22 +108,45 @@ export type {
   KeyMapProps,
 } from './blocks/inputController';
 
-// View and ViewLayout DSL components (View/Region Architecture)
+// Transition DSL component
+export { Transition } from './blocks/transition';
+export type { TransitionProps } from './blocks/transition';
+
+// View and ViewLayout DSL components
 export { View } from './blocks/viewDsl';
 export type { ViewProps } from './blocks/viewDsl';
 export { ViewLayout } from './blocks/viewLayoutDsl';
 export type { ViewLayoutProps } from './blocks/viewLayoutDsl';
+export type { ViewState, ViewLayoutState } from './viewTypes';
 
 // Node registration (for external packages extending the DSL surface)
 export { registerNode } from './registry';
+
+// Transition control types — used in FunctionalTransitionSpec closures and DSL authoring
+export type {
+  EaseFn, TransitionContext, CompiledTransitionGroup,
+  WithTransitionConfig, TransitionPhase,
+} from './transitions/transitionTypes';
+export type { TransitionWindow } from './sceneTrackTypes';
+export { makeResolver, makeSimpleContext } from './transitions/transitionResolver';
+
+// Named transition types, resolver function, and easing functions
+export type { TransitionName, SceneTransitionProp } from './transitions/transitionPresets';
+export { resolveSceneTransition } from './transitions/transitionPresets';
+export {
+  easeLinear, easeOutCubic, easeOutExpo,
+  easeInOutSine, easeInOutCubic, easeInSquared, easeOutQuart,
+} from './transitions/transitionPresets';
 ```
+
+Note: `SceneGroup` and `SceneDefinition` from `sceneTypes.ts` are internal types and are intentionally **not** exported from `compiler/index.ts`.
 
 Infrastructure that is intentionally absent from this index:
 - `SceneTrack`, `SceneTrackTick`, `SceneFrame`, `SceneFrameDelta` — imported from `./sceneTrackTypes` by consumers who need them.
 - `compileSceneTrack`, `CompileSceneTrackOptions` — imported from `./sceneTrackCompiler`.
 - `buildSceneTrackKey`, `getCachedTrack`, `setCachedTrack`, `clearCache` — imported from `./sceneTrackCache`.
 - `createSceneTrackSampler` — imported from `./sceneTrackSampler`.
-- `ElementTransitionSpec`, `FunctionalTransitionSpec`, `transitionT` and blend helpers — imported from `./transitions/transitionTypes` by element implementers.
+- `ElementTransitionSpec`, `FunctionalTransitionSpec`, blend helpers — imported from `./transitions/transitionTypes` by element implementers.
 
 ---
 
@@ -139,8 +165,9 @@ export type CompileSceneTrackOptions = {
    * Determined by the engine layer as: numSubTicks * numFramesPerSubTick.
    */
   blockSize: number;
-  clipMeta?: ClipMeta[];
   prefersReducedMotion?: boolean;
+  /** Active theme selection — propagated into SceneSnapshotContext for NodeHandlers. */
+  activeTheme?: ActiveTheme;
 };
 
 export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack;
@@ -317,14 +344,14 @@ widget.compileExtra(state, context: CompileExtraContext): TExtra
 
 For functional-path widgets, the compiler evaluates the functional closure to obtain the frame's state before calling `compileExtra`, since `frame.state.widgets[widgetId]` is absent for frames within a functional transition block.
 
-### Step 6: Label Compilation
+### Step 6: Scene Overlay Extraction
 
-**Input:** Filled `SceneTrackTick[]`, scene snapshots with `labels`.
-**Output:** `SceneTrackTick.labelPrimitives` populated per-frame.
+**Input:** Filled `SceneFrame[]` snapshots.
+**Output:** `SceneTrack.sceneOverlays?: Map<string, ReactNode>`.
 
-**Labels** are interpolated across the transition block using `compileLabels(fromLabels, toLabels, { sceneProgress: frame.blockProgress })`. `labelPrimitives` is set on the frame only when at least one label definition is present in either snapshot.
+Non-DSL JSX children (including `<TextBox>` components) extracted from each `<Scene>` during compilation are carried on `SceneFrame.sceneOverlay`. After all compilation passes complete, the compiler builds the `sceneOverlays` map from these fields and attaches it to the final `SceneTrack`. `EngineOverlayHost` reads this map at runtime to render overlay content for the current scene.
 
-Scene overlay content is no longer stored on `SceneFrame` or `SceneTrack`. DOM overlay content is authored via `<TextBox>` DSL elements, which are compiled into widget state and written to the VariableStore by `TextBoxWidget` at tick time. `compileChildrenSeparated` emits a compiler warning for any non-DSL children it encounters and returns an empty array.
+Label compilation (`labelCompiler.ts`) and HUD compilation (`hudCompiler.ts`) have been removed from `@brewsite/core`. Labels now live entirely in `@brewsite/model`.
 
 ### Step 7: Delta Computation
 
@@ -336,7 +363,6 @@ Deltas are sparse diffs between adjacent frames, serialized via `JSON.stringify`
 ```typescript
 type SceneFrameDelta = {
   widgets?: Record<string, unknown>;
-  labels?: SceneFrame['labels'];
 };
 ```
 
@@ -419,6 +445,12 @@ export type SceneTrack = {
    * constructs a SceneProgressMapper from this profile.
    */
   progressProfile?: SceneProgressProfile;
+  /**
+   * Keyed by scene id. Contains non-DSL JSX overlay content (e.g. <TextBox>)
+   * extracted from each <Scene> during compilation. Rendered by EngineOverlayHost.
+   * Only present when at least one scene has overlay content.
+   */
+  sceneOverlays?: Map<string, ReactNode>;
 };
 
 export type SceneWindow = {
@@ -441,10 +473,10 @@ export type SceneTrackTick = {
   sceneIndex: number;
   /** Normalized position within the current transition block [0, 1]. */
   blockProgress: number;
+  /** Normalized progress within this scene [0, 1]. Equals blockProgress for non-terminal ticks; 1 for the terminal tick of the final scene. */
+  sceneProgress?: number;
   /** Widget states for this tick. Filled by transition spec methods and terminal frame pass. */
   state: SceneFrame;
-  /** Resolved label primitives for this tick. model-specific field; will move to @brewsite/model in Phase 4 of plan_core_modularization. */
-  labelPrimitives?: LabelResolved[];
   /** Forward delta: what changed from tick N-1 → N. */
   deltaForward: SceneFrameDelta;
   /** Backward delta: what changed from tick N+1 → N. */
@@ -460,17 +492,21 @@ export type SceneFrame = {
   meta?: Record<string, JsonPrimitive>;
   materialMetalnessMultiplier?: number;
   materialRoughnessMultiplier?: number;
-  labels?: LabelResolved[];
+  /** Transition window for this scene's fade behavior. Set by resolveSceneTransition(). */
+  transitionWindow?: TransitionWindow;
   /**
    * Compiled ProgressManager spec for this scene.
    * Absent when the scene (and all prior scenes via carry-forward) declare no ProgressManager.
    */
   progressManager?: ProgressManagerSpec;
+  /** Widget ID of the primary carousel layout for this scene. */
+  primaryCarouselId?: string;
+  /** Non-DSL JSX overlay content extracted from <Scene>. Carried to SceneTrack.sceneOverlays. */
+  sceneOverlay?: ReactNode;
 };
 
 export type SceneFrameDelta = {
   widgets?: Record<string, unknown>;
-  labels?: SceneFrame['labels'];
 };
 ```
 
@@ -920,24 +956,24 @@ Labels target 3D attachment points within Model elements. They carry 3D world-sp
 `compileExtra` on `ISceneElement` receives a `CompileExtraContext` providing per-frame metadata for derived computation.
 
 ```typescript
-// Defined in sceneTrackCompiler.ts, consumed by ISceneElement implementers
+// Defined in packages/core/src/widget/types.ts, consumed by ISceneElement implementers
 
 export type CompileExtraContext = {
-  /** Normalized position within the current transition block [0, 1]. */
-  sceneProgress: number;
+  /**
+   * Block-level progress within the current transition block: 0 at block start,
+   * 1 at block end. Renamed from `sceneProgress` (which was misleading — the
+   * value was always block-level, not scene-level).
+   */
+  blockProgress: number;
   /** Normalized global progress [0, 1]. */
   globalProgress: number;
-  /** Animation clip metadata for all clips registered with the widget. */
-  clipMeta: ClipMeta[];
   /** Whether the consumer has indicated a preference for reduced motion. */
   prefersReducedMotion: boolean;
+  // clipMeta removed — @brewsite/model manages its own clip metadata.
 };
 ```
 
-> **Note:** `ClipMeta` is model-specific and will be removed from `@brewsite/core` compiler
-> types when `@brewsite/model` is extracted (plan_core_modularization Phase 4).
-
-`ClipMeta` carries animation clip name, total duration in seconds, and optional trim boundaries (`clipStart`, `clipEnd`). Widget implementations use this at `compileExtra` time to pre-compute per-frame animation clock values (current time within clip, playback direction, loop count) rather than computing them on every render tick.
+Widget implementations use `blockProgress` at `compileExtra` time to pre-compute per-frame derived data that would be expensive to compute at runtime every frame.
 
 ---
 

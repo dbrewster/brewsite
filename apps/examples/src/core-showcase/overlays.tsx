@@ -280,6 +280,10 @@ export function BottomChrome(): JSX.Element {
         bottom: 0,
         left: 0,
         right: 0,
+        maxHeight: '42vh',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'flex-end',
         padding: '20px 32px 24px',
         pointerEvents: 'none',
         zIndex: 100,
@@ -294,7 +298,9 @@ export function BottomChrome(): JSX.Element {
           lineHeight: 1.6,
           whiteSpace: 'pre-wrap',
           margin: 0,
-          overflowX: 'auto',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          maxHeight: 'calc(42vh - 44px)',
         }}
       >
         {code}

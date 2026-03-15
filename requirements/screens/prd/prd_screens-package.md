@@ -3,7 +3,7 @@ title: "@brewsite/screens Package"
 doc_type: prd
 owner: Toolkit Product
 status: current
-updated: 2026-03-13
+updated: 2026-03-15
 version_history:
   - version: "0.1.0"
     date: 2026-03-13
@@ -13,6 +13,15 @@ version_history:
       element. Introduced screensPlugin() lazy WidgetPlugin factory and useDisplayCapture
       hook. bezelGeometry moved to package-local _shared/; glowSprite retained in diagram
       (used internally by NodeRenderer).
+  - version: "0.1.0-fix"
+    date: 2026-03-15
+    summary: >
+      PRD codebase alignment audit. Fixed Screen rendering architecture: uses CSS3DRenderer
+      (not CSS pixel projection), full 3D rotation IS supported. Removed rotation constraint
+      claims and console.warn for rotation. Fixed positioning: all three elements use NVS
+      fractions (nvsX, nvsY, nvsWidth, nvsHeight) not world-unit position/width/height.
+      Fixed shared overlay: uses CSS3DRenderer div from acquireCSS3DContext(), not a
+      data-brewsite-screen-overlay div. Updated all prop tables and code examples.
 ---
 
 # @brewsite/screens Package
@@ -53,18 +62,18 @@ Before this package, `Screen` and `ImagePanel` lived inside `@brewsite/diagram`.
 - As a toolkit consumer, I want to show a product screenshot at any tilt angle with gloss and glow so that the image panel feels physically present in the scene.
 - As a toolkit consumer, I want to register all three screen element types with a single `screensPlugin()` call so that I do not need to enumerate widget IDs upfront.
 - As a toolkit consumer, I want a hook that manages the `getDisplayMedia()` lifecycle — including user gesture gating, track-ended cleanup, and unmount safety — so that I do not write this boilerplate myself.
-- As a toolkit consumer, I want `<Screen>` to warn me at compile time if I set a rotation that will misalign the iframe with the bezel, so I catch the error at authoring time.
+- As a toolkit consumer, I want `<Screen>` to support full 3D rotation via CSS3DRenderer so that I can create carousel layouts and angled perspective views of live websites.
 
 ## Functional Requirements
 
 1. `screensPlugin()` must register `Screen`, `MediaScreen`, and `ImagePanel` DSL node handlers via `configureRegistry`. Widget instances must be created lazily on first compile encounter — no ID enumeration is required from the consumer.
-2. `<Screen>` must render a live interactive `<iframe>` element positioned over the Three.js canvas using CSS pixel projection. The bezel and glow are Three.js WebGL objects that track the iframe's world position each frame.
-3. `compileScreen()` must emit `console.warn` at compile time when `Math.abs(rotation[i]) > 0.1` rad for any axis.
+2. `<Screen>` must render a live interactive `<iframe>` element as a `CSS3DObject` placed in a shared `CSS3DRenderer` scene. The `CSS3DRenderer` is acquired via `acquireCSS3DContext()` from `css3dSetup.ts`, which creates a singleton `CSS3DRenderer` instance per canvas parent element with reference counting. Full 3D rotation is supported — the iframe tilts in 3D space via CSS3D transforms.
+3. `compileScreen()` must apply NVS validation in development mode using `validateNVSScalar()` for `nvsX`, `nvsY`, and `nvsWidth`. No rotation warnings are emitted — full 3D rotation is supported.
 4. `<MediaScreen>` must support two mutually exclusive source modes: a video file URL (`src`) and a live `MediaStream` referenced by registry key (`streamId`).
 5. `MediaScreenWidget.registerStream(key, stream)` and `MediaScreenWidget.unregisterStream(key)` must be static methods that accept `MediaStream` objects from any source (file, camera, display capture).
 6. `useDisplayCapture(streamId, options?)` must: call `navigator.mediaDevices.getDisplayMedia()` only in response to a user gesture (consumer calls `startCapture()` from a click handler); automatically call `unregisterStream` when the video track ends or the component unmounts; expose `isCapturing`, `error`, `startCapture`, and `stopCapture`.
 7. `<ImagePanel>` must infer panel height from the loaded texture's aspect ratio when `height` is not specified in the DSL. The panel renders at a 1:1 fallback height until the texture loads.
-8. `ScreenWidget.initialize()` must create or reuse a single shared overlay `<div data-brewsite-screen-overlay>` as a sibling of the WebGL canvas. Multiple `ScreenWidget` instances on the same page share this container.
+8. `ScreenWidget.initialize()` must acquire a `CSS3DContext` via `acquireCSS3DContext(canvasParent)`. The `CSS3DContext` contains a `CSS3DRenderer` instance, a `THREE.Scene` for CSS3D objects, and a frame-deduplication counter. Multiple `ScreenWidget` instances on the same page share this context via reference counting. On dispose, `releaseCSS3DContext()` decrements the ref count and removes the CSS3D renderer's DOM element when the last widget is disposed.
 9. All three elements must use `bezelGeometry.ts` (`createBezel` / `disposeBezel`) from `elements/_shared/` for bezel frame construction.
 10. All three elements must participate in the `SceneTrack` transition model via `FunctionalTransitionSpec`. Continuously interpolated fields and stepped fields are specified per-element (see API Design).
 
@@ -104,7 +113,7 @@ Widget instances are created lazily on first DSL compilation. There is no upfron
 
 ### `<Screen>` — Live Interactive Website
 
-Renders a live `<iframe>` backed by a Three.js bezel + glow. The iframe is a real DOM element; users can click, scroll, and type normally.
+Renders a live `<iframe>` as a `CSS3DObject` in 3D space, backed by a Three.js bezel + glow. The iframe is a real DOM element positioned in 3D via `CSS3DRenderer`; users can click, scroll, and type normally. Full 3D rotation is supported.
 
 ```tsx
 import { Screen } from '@brewsite/screens';
@@ -112,10 +121,11 @@ import { Screen } from '@brewsite/screens';
 <Screen
   id="product-demo"
   src="https://app.example.com/demo"
-  position={[0, 0, 0]}
-  rotation={[0, 0.05, 0]}   // keep near [0,0,0] — see rotation constraint below
-  width={12}
-  height={7.5}
+  x={0.5}
+  y={0.5}
+  z={0}
+  rotation={[0, 0.2, 0]}   // full 3D rotation supported via CSS3DRenderer
+  width={0.625}
   bezel="dark"
   glow
   glowColor="#88ccff"
@@ -128,11 +138,13 @@ import { Screen } from '@brewsite/screens';
 |------|------|---------|-------|
 | `id` | `string` | required | Stable across scenes |
 | `src` | `string` | required | iframe URL |
-| `position` | `[x,y,z]` | `[0,0,0]` | World-space |
-| `rotation` | `[x,y,z]` rad | `[0,0,0]` | Keep `\|axis\| < 0.1` or the iframe will misalign |
+| `x` | `number` | `0.5` | NVS horizontal center [0..1] |
+| `y` | `number` | `0.5` | NVS vertical center [0..1] |
+| `z` | `number` | `0` | World-space depth |
+| `rotation` | `[x,y,z]` rad | `[0,0,0]` | Full 3D rotation via CSS3DRenderer |
 | `scale` | `number` | `1` | |
-| `width` | `number` | `12` | World units |
-| `height` | `number` | `7.5` | World units (16:9 at default width) |
+| `width` | `number` | `0.625` | NVS width fraction [0..1] |
+| `height` | `number` | `undefined` | NVS height fraction [0..1]; derived from 16:9 if omitted |
 | `bezel` | `ScreenBezelVariant` | `'dark'` | `'none' \| 'thin' \| 'dark' \| 'light' \| 'chrome'` |
 | `bezelThickness` | `number` | `0.3` | World units |
 | `opacity` | `number` | `1` | Applies to bezel + iframe |
@@ -142,11 +154,9 @@ import { Screen } from '@brewsite/screens';
 | `glowOpacity` | `number` | `0.35` | |
 | `enabled` | `boolean` | `true` | `false` hides bezel + sets iframe `display:none` |
 
-**Rotation constraint:** `Screen` is a DOM iframe overlaid onto a Three.js scene using CSS pixel projection. The iframe cannot tilt — it is always a flat rectangle in screen space. Rotations near zero produce correct alignment. Rotations above ~0.1 rad on any axis will visibly misalign the iframe from the Three.js bezel. `compileScreen()` emits `console.warn` when this threshold is exceeded. **For tilted display surfaces, use `<ImagePanel>` or `<MediaScreen>` instead.**
-
 **Transition behavior:**
-- Continuously interpolated: `position`, `rotation`, `scale`, `opacity`, `glowOpacity`
-- Stepped at `t=0.5`: `src`, `bezel`, `width`, `height` (iframe resize causes DOM reflow; stepping prevents per-frame reflow)
+- Continuously interpolated: `nvsX`, `nvsY`, `z`, `rotation`, `scale`, `opacity`, `glowOpacity`
+- Stepped at `t=0.5`: `src`, `bezel`, `nvsWidth`, `nvsHeight`
 
 ### `<MediaScreen>` — Video File or Live MediaStream
 
@@ -191,8 +201,8 @@ import { MediaScreen } from '@brewsite/screens';
 | `x` | `number` | `0.5` | Normalized viewport X (0–1) |
 | `y` | `number` | `0.5` | Normalized viewport Y (0–1) |
 | `z` | `number` | `0` | World-space Z |
-| `width` | `number` | `10` | World units |
-| `height` | `number` | `undefined` | Inferred from video aspect ratio if omitted |
+| `width` | `number` | `0.5` | NVS width fraction [0..1] |
+| `height` | `number` | `undefined` | NVS height fraction [0..1]; inferred from video aspect ratio if omitted |
 | `rotation` | `[x,y,z]` rad | `[0,0,0]` | Fully supported — pure WebGL |
 | `scale` | `number` | `1` | |
 | `autoPlay` | `boolean` | `true` | |
@@ -239,9 +249,11 @@ import { ImagePanel } from '@brewsite/screens';
 <ImagePanel
   id="product-screenshot"
   src="/images/dashboard-dark.webp"
-  position={[0, 0, 0]}
+  x={0.5}
+  y={0.5}
+  z={0}
   rotation={[0, 0.2, 0]}
-  width={10}
+  width={0.6}
   bezel="chrome"
   gloss={0.6}
   selfIllumination={0.2}
@@ -257,11 +269,13 @@ import { ImagePanel } from '@brewsite/screens';
 |------|------|---------|-------|
 | `id` | `string` | required | Stable across scenes |
 | `src` | `string` | required | Image URL (PNG, JPG, WebP) |
-| `position` | `[x,y,z]` | `[0,0,0]` | World-space |
+| `x` | `number` | `0.5` | NVS horizontal center [0..1] |
+| `y` | `number` | `0.5` | NVS vertical center [0..1] |
+| `z` | `number` | `0` | World-space depth |
 | `rotation` | `[x,y,z]` rad | `[0,0,0]` | Fully supported — pure WebGL. Tilt freely |
 | `scale` | `number` | `1` | |
-| `width` | `number` | `12` | World units |
-| `height` | `number` | `undefined` | Inferred from texture aspect ratio when omitted |
+| `width` | `number` | `0.6` | NVS width fraction [0..1] |
+| `height` | `number` | `undefined` | NVS height fraction [0..1]; inferred from texture aspect ratio when omitted |
 | `bezel` | `ImagePanelBezelVariant` | `'dark'` | `'none' \| 'thin' \| 'dark' \| 'light' \| 'chrome'` |
 | `bezelThickness` | `number` | `0.3` | World units |
 | `opacity` | `number` | `1` | |
@@ -274,7 +288,7 @@ import { ImagePanel } from '@brewsite/screens';
 | `glowOpacity` | `number` | `0.35` | |
 | `enabled` | `boolean` | `true` | |
 
-**`height` inference:** When `height` is omitted, `ImagePanelRenderer` uses a 1:1 fallback until the texture loads, then rebuilds the plane geometry with the correct aspect ratio. Provide `height` explicitly when the aspect ratio is known at authoring time to prevent layout shift.
+**`height` inference:** When `height` is omitted, `ImagePanelRenderer` uses a 1:1 fallback based on `nvsWidth` until the texture loads, then rebuilds the plane geometry with the correct aspect ratio derived from the loaded texture. Provide `height` explicitly when the aspect ratio is known at authoring time to prevent layout shift.
 
 **Transition behavior:**
 - Continuously interpolated: `position`, `rotation`, `scale`, `opacity`, `gloss`, `selfIllumination`, `glowOpacity`
@@ -372,9 +386,9 @@ export type { UseDisplayCaptureOptions, UseDisplayCaptureResult } from '@brewsit
 
 ### Rendering Architecture
 
-**`<Screen>`** uses CSS pixel projection — not CSS3DRenderer. On each frame, `ScreenRenderer` projects the bezel's world-space center through the Three.js camera matrices and the canvas `getBoundingClientRect()` to CSS pixel coordinates. An absolutely-positioned iframe div receives matching `left`, `top`, `width`, `height` CSS properties. Opacity is synchronized to both the WebGL bezel material and the iframe's CSS `opacity` property.
+**`<Screen>`** uses `CSS3DRenderer` from Three.js (`three/examples/jsm/renderers/CSS3DRenderer.js`). The iframe is wrapped in a `CSS3DObject` and placed in a dedicated `THREE.Scene` managed by the `CSS3DContext`. Full 3D rotation is supported — the CSS3DRenderer applies CSS 3D transforms to match the Three.js camera perspective.
 
-A shared overlay container (`<div data-brewsite-screen-overlay style="position:absolute; inset:0; pointer-events:none; z-index:3">`) is created once per WebGL canvas parent and reused by all `ScreenWidget` instances on the page. Individual iframe divs have `pointer-events: auto`.
+A shared `CSS3DContext` (containing a `CSS3DRenderer` instance, a `THREE.Scene`, and a frame-deduplication counter) is acquired via `acquireCSS3DContext(canvasParent)` from `css3dSetup.ts`. The CSS3DRenderer's DOM element is appended as the last child of the canvas parent with `position:absolute; inset:0; pointer-events:none; overflow:hidden`. Multiple `ScreenWidget` instances on the same page share this context via reference counting. Individual iframe elements within the CSS3DObject have `pointer-events: auto`. The `renderCSS3DContext()` function renders at most once per WebGL frame, guarded by a frame counter comparison.
 
 **`<MediaScreen>`** uses a `THREE.VideoTexture` on a `MeshPhysicalMaterial` plane — the same material path as `<ImagePanel>`. When the source is a file URL, a managed `<video>` element is created with `crossOrigin = 'anonymous'`. When the source is a `MediaStream`, the video element's `srcObject` is set from the static stream registry keyed by `streamId`.
 
@@ -465,7 +479,7 @@ None. All design decisions are resolved.
 
 ## Launch Criteria
 
-- `compileScreen`, `compileMediaScreen`, and `compileImagePanel` have unit tests asserting default resolution and, for `compileScreen`, the rotation warning behavior.
+- `compileScreen`, `compileMediaScreen`, and `compileImagePanel` have unit tests asserting default resolution and NVS validation behavior.
 - `_shared/bezelGeometry.ts` and `_shared/glowSprite.ts` have unit tests covering `computeGlowScale` and `createBezel` variant dispatch.
 - `useDisplayCapture` exports are present in `packages/screens/src/index.ts`.
 - All exported types and classes are present in `packages/screens/src/index.ts`.

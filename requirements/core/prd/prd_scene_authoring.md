@@ -3,7 +3,7 @@ title: "BrewSite Core — Scene Authoring DSL"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-13
+last_updated: 2026-03-15
 change_history:
   - date: 2026-03-13
     author: "Toolkit Product"
@@ -62,6 +62,9 @@ change_history:
   - date: 2026-03-03
     author: "Toolkit Product"
     summary: "Transition timing redesign (major version bump). Replaced transition?: { easing?: EasingName } with SceneTransitionProps discriminated union (exitStart + transition string/window). Added exitStart prop, TransitionName type ('dissolve'|'crossfade'), and resolveSceneTransition(). Removed five TRANSITION_* constant exports. Default changed from [0,0.5]/[0.5,1.0] to dissolve-through-black (exitStart=0.8). Updated Scene component signature, handler description, and section 8.6."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Codebase alignment audit. FR #1: replaced <EngineProvider> with <SceneEngine>. §7.1: fixed InternalSceneSpec file reference from ScenePlayer.tsx to engineTypes.ts. Fixed duplicate FR #13 (renumbered to #14). §7.4: removed pushLabel from CompileApi (labels moved to @brewsite/model); added pushWarning. §7.5 <Action>: documented child-based map composition (PointerMap, WheelMap, PinchMap, KeyMap as children), added layoutId/stepSlides props. §7.5 <PointerMap>: documented event prop replacing deprecated drag/click booleans. §7.6 ActionProps: added layoutId, stepSlides fields. §7.6 PointerMapProps: added event field."
 ---
 
 # BrewSite Core — Scene Authoring DSL
@@ -130,8 +133,8 @@ Without a clear, stable, well-typed authoring surface, consumer adoption is bloc
 
 ## 6. Functional Requirements
 
-1. Consumers must be able to define a collection of scenes by passing `<Scene key="...">` elements as direct children of `<EngineProvider>`. No intermediate wrapper type or factory function is required.
-2. Each scene must be uniquely identified by its React `key` prop within an `<EngineProvider>`. The `key` is read from `element.key` by the compiler's `sceneRootHandler`. The `id` prop is retained as a backward-compat fallback. Duplicate keys within the same provider are a compiler warning.
+1. Consumers must be able to define a collection of scenes by passing `<Scene key="...">` elements as direct children of `<SceneEngine>`. No intermediate wrapper type or factory function is required.
+2. Each scene must be uniquely identified by its React `key` prop within a `<SceneEngine>`. The `key` is read from `element.key` by the compiler's `sceneRootHandler`. The `id` prop is retained as a backward-compat fallback. Duplicate keys within the same provider are a compiler warning.
 3. Scene order — the top-to-bottom order of `<Scene>` children — determines playback order. The first scene has no entry transition; the last scene has no exit transition.
 4. Scene JSX elements are authored as plain `ReactElement` values (exported from scene files as constants). They are not wrapped in a factory function for normal static authoring. Dynamic values (viewport dimensions, asset-ready state, runtime variables) flow into scene JSX via React state in the parent component, using `useSceneRuntime()` if engine-internal values are needed.
 5. The `<Scene>` DSL component must accept `key` (React standard), `id` (backward-compat fallback), `meta`, `metalnessMultiplier`, `roughnessMultiplier`, and the `SceneTransitionProps` discriminated union (`exitStart` + `transition`). `exitStart` is only valid when `transition` is absent or `"dissolve"` — TypeScript enforces this at authoring time.
@@ -143,8 +146,8 @@ Without a clear, stable, well-typed authoring surface, consumer adoption is bloc
 11. `<Scene>` children must consist exclusively of registered DSL components (`<Camera>`, `<Lighting>`, `<TextBox>`, etc.), `<ProgressManager>`, and `<InputController>`. Raw HTML elements and non-registered React components are not valid children of `<Scene>` and will be ignored by the compiler with a warning. Overlay content must be authored via the `<TextBox>` DSL element, which is compiled into widget state and rendered by `EngineOverlayHost` via the VariableStore. `SceneFrame` has no `sceneOverlay` field.
 12. The `<ProgressManager>` component must be usable as a child of `<Scene>` to declare scroll budget and input pacing for that scene. Carry-forward merge semantics apply: a scene that omits `<ProgressManager>` inherits the prior scene's spec.
 13. The `<InputController>` component must be usable within a `<Scene>` tree to declare input action mappings. Only one `<InputController>` is permitted per `<Scene>`.
-13. Custom widgets implementing `IDslComposite` must be able to declare child DSL components that are protected from accidental top-level usage with a descriptive error.
-14. Widgets with the `CUSTOM_NODE_HANDLER` symbol set receive full control over DSL compilation, bypassing the default shallow-merge behavior.
+14. Custom widgets implementing `IDslComposite` must be able to declare child DSL components that are protected from accidental top-level usage with a descriptive error.
+14a. Widgets with the `CUSTOM_NODE_HANDLER` symbol set (via the `IHasCustomDslHandler` interface) receive full control over DSL compilation, bypassing the default shallow-merge behavior.
 15. The compiler must enforce the following scene child constraint on direct children of `<Scene>` that are not `<View>` or `<ViewLayout>`:
     - **Zero spatial children** (ambient-only or empty `<Scene>`): compiles normally; no implicit View is created.
     - **Exactly one spatial child**: the compiler silently auto-wraps it in an implicit full-screen `<View id="__scene_root__" x={0} y={0} w={1} h={1}>`. The author does not declare this View. Its `ViewState` appears in `SceneFrame.widgets` under `__scene_root__`.
@@ -174,8 +177,8 @@ export type SceneDefinition = {
 ```
 
 ```typescript
-// packages/core/src/player/ScenePlayer.tsx
-// Internal to the player layer — not exported.
+// packages/core/src/player/engineTypes.ts
+// Exported from player/index.ts as a type.
 
 type InternalSceneSpec = {
   /** React key from the <Scene> element, or index-derived fallback. */
@@ -330,8 +333,8 @@ export type CompileApi = {
   context: SceneSnapshotContext;
   /** The mutable SceneFrame being built. Handlers write into this directly. */
   state: SceneFrame;
-  /** Push a resolved label onto state.labels. */
-  pushLabel: (label: LabelResolved) => void;
+  /** Emit a compile warning. */
+  pushWarning: (warning: CompileWarning) => void;
   /** Set the compiled state for a widget by its stable widgetId. */
   setWidgetState: (widgetId: string, state: unknown) => void;
   /** Set scene-level metadata (id and meta map) on the frame. */
@@ -502,14 +505,14 @@ type ViewLayoutProps = {
 - **Default keyboard navigation:** When no scene in the group authors an `<InputController>`, the compiler injects a default spec with `scope: 'window'` that maps ArrowRight/ArrowDown → `scene.next` and ArrowLeft/ArrowUp → `scene.prev`. Authoring an `<InputController>` in any scene overrides this default for all scenes (the authored spec carry-forwards via the normal passthrough semantics).
 - An **empty `<InputController>`** (no `<Action>` children) is valid. It overrides the default keyboard nav spec with an empty action set — effectively disabling all default input bindings for scenes where it is carried forward.
 
-**`<Action>`** — A single named input action within `<InputController>`.
+**`<Action>`** — A single named input action within `<InputController>`. Uses child-based map composition — input mappings are declared as child elements, not via a `maps` prop.
 - Required props: `id` (string), `type` (string — one of the `InputActionType` values).
-- Optional props: `cameraId`, `canvasId`, `focusCenter`, `speed`, `stepScenes`, `children`.
+- Optional props: `cameraId`, `canvasId`, `focusCenter`, `speed`, `stepScenes`, `layoutId`, `stepSlides`, `children`.
 - Children must be one or more input mapping elements: `<PointerMap>`, `<WheelMap>`, `<PinchMap>`, `<KeyMap>`.
-- At least one mapping is required. An action with no mappings throws at compile time.
+- At least one mapping child is required. An action with no mappings throws at compile time.
 
 **`<PointerMap>`** — Maps pointer (mouse/touch) events to an action.
-- Props: `drag`, `click` (boolean), `button`, `modifiers`, `axis`, `lockAxis`, `lockThreshold`.
+- Props: `event` (`'drag'` | `'click'`, default `'drag'`), `button`, `modifiers`, `axis`, `lockAxis`, `lockThreshold`. The `drag` and `click` boolean props are deprecated in favor of the `event` prop.
 
 **`<WheelMap>`** — Maps wheel scroll events to an action.
 - Props: `modifiers`, `axis`, `lockAxis`.
@@ -560,11 +563,18 @@ export type ActionProps = {
   focusCenter?: [number, number] | [number, number, number];
   speed?: number;
   stepScenes?: number;
+  /** Target ViewLayout ID for carousel actions. */
+  layoutId?: string;
+  /** Number of slides to advance per carousel step. Default: 1. */
+  stepSlides?: number;
   children?: ReactNode;
 };
 
 export type PointerMapProps = {
+  event?: 'drag' | 'click';
+  /** @deprecated Use event="drag" instead. */
   drag?: boolean;
+  /** @deprecated Use event="click" instead. */
   click?: boolean;
   button?: MouseButton;
   modifiers?: ModifierKey[];

@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Interaction System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-13
+last_updated: 2026-03-15
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -11,6 +11,9 @@ change_history:
   - date: 2026-03-13
     author: "Toolkit Product"
     summary: "Audit correction: all interaction plumbing (raycasting, hover, click, focus region publish/clear) now lives in DiagramWidget, not DiagramCanvasWidget. DiagramCanvasWidget was removed in the NVS release. Updated Overview, Goals, Functional Requirements, API Design (raycasting pipeline, group path traversal, interaction dispatch), and all usage examples to reflect DiagramWidget ownership. Corrected publishDiagramFocusGroup/Canvas signatures — they accept Pick<DiagramState,'id'>, not Pick<DiagramCanvasState,'id'>. Corrected focusRegion.ts architecture: IFocusRegionService interface and DiagramFocusRegionService class are now the primary implementation; module-level functions are backwards-compatible wrappers. Corrected widget registration Usage example to use DiagramWidget. Removed all DiagramCanvasWidget references from active requirements."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Minor drift correction: replaced remaining DiagramCanvasWidget references in Technical Considerations (group interaction hit selection, emissive override architecture) with DiagramWidget. Corrected Pick<DiagramCanvasState,'id'> to Pick<DiagramState,'id'> in focus region implementation section. Replaced DiagramCanvasRenderer reference with DiagramRenderer via DiagramWidget."
 ---
 
 # BrewSite Diagram — Interaction System
@@ -49,7 +52,7 @@ The interaction system solves this by providing:
 - The interaction system does not implement tooltip rendering. Hover events deliver the data; consumers implement their own tooltip layer.
 - Hover and click events are not recorded or replayed as part of the SceneTrack. They are runtime-only ephemeral events.
 - The focus region system tracks at most one focused group per canvas at a time. Multi-selection is not supported.
-- Group hover does not automatically trigger camera movement. The `DiagramCanvasWidget.applyInputFocus()` method moves the camera, but it is called separately (typically from a `Cmd+click` handler configured by the consumer's `ActionInputController` setup).
+- Group hover does not automatically trigger camera movement. The `DiagramWidget.applyInputFocus()` method moves the camera, but it is called separately (typically from a `Cmd+click` handler configured by the consumer's `ActionInputController` setup).
 - The interaction system does not support touch events. Pointer events are mouse-only.
 
 ## Consumer Stories
@@ -87,7 +90,7 @@ The interaction system solves this by providing:
 
 /**
  * Emitted when a clickable diagram node is clicked.
- * Dispatched to DiagramCanvasWidget.onInteraction callback.
+ * Dispatched to DiagramWidget.onInteraction callback.
  */
 export interface DiagramInteractionEvent {
   readonly type: 'node-click';
@@ -472,19 +475,19 @@ Groups in a diagram can be nested. `buildGroupPath(state, leafGroupId)` from `co
 
 ### Group Interaction Hit Selection
 
-When multiple group meshes are hit by the same ray (which happens when groups are nested — the ray passes through outer and inner group borders), `DiagramCanvasWidget.handleMouseMove` selects the deepest group using path depth as the discriminator. The hit with the longest group path is considered the most specific target. This matches natural user intent: hovering a nested group should fire the inner group's callbacks, not the outer group's.
+When multiple group meshes are hit by the same ray (which happens when groups are nested — the ray passes through outer and inner group borders), `DiagramWidget.handleMouseMove` selects the deepest group using path depth as the discriminator. The hit with the longest group path is considered the most specific target. This matches natural user intent: hovering a nested group should fire the inner group's callbacks, not the outer group's.
 
 ### Emissive Override Architecture
 
-`DiagramHoverControls.setNodeEmissive()` calls `renderer.setNodeEmissiveOverride(diagramId, nodeId, enabled)` on the `DiagramCanvasRenderer`. This method is a pass-through to the per-diagram `DiagramRenderer`, which maintains a `Map<string, boolean>` of active emissive overrides keyed by node id. On the next `IRenderable.apply()` call, `DiagramCanvasRenderer.update()` applies the compiled `DiagramCanvasState` to each `DiagramRenderer`. At the end of each `DiagramRenderer.update()`, emissive overrides are read from the override map and applied directly to the node material's `emissive` and `emissiveIntensity` uniforms. The override map is not cleared by `apply()` — it persists until explicitly cleared by a leave callback. This is intentional: a rapid mouse move could cause `apply()` to run between the enter and leave callbacks. The renderer applies overrides on top of compiled state every frame, so the visual state stays correct regardless of tick ordering.
+`DiagramHoverControls.setNodeEmissive()` calls `renderer.setNodeEmissiveOverride(nodeId, enabled)` on the `DiagramRenderer` via the `DiagramWidget`. The `DiagramRenderer` maintains a `Map<string, boolean>` of active emissive overrides keyed by node id. On the next `IRenderable.apply()` call, `DiagramRenderer.update()` applies the compiled `DiagramState`. At the end of each `DiagramRenderer.update()`, emissive overrides are read from the override map and applied directly to the node material's `emissive` and `emissiveIntensity` uniforms. The override map is not cleared by `apply()` — it persists until explicitly cleared by a leave callback. This is intentional: a rapid mouse move could cause `apply()` to run between the enter and leave callbacks. The renderer applies overrides on top of compiled state every frame, so the visual state stays correct regardless of tick ordering.
 
-The `setGroupNodesEmissive` implementation in `DiagramCanvasWidget.createHoverControls()` collects all node ids in the target group (and optionally descendants, via BFS over the child group map) and calls `setNodeEmissive` for each.
+The `setGroupNodesEmissive` implementation in `DiagramWidget.createHoverControls()` collects all node ids in the target group (and optionally descendants, via BFS over the child group map) and calls `setNodeEmissive` for each.
 
 ### Focus Region Implementation
 
 `focusRegion.ts` uses a module-level `let currentFocusRegion: DiagramFocusRegionState | null = null` variable. This is a deliberate singleton pattern — there is at most one active focus region across all canvases in the page at a time (not per-canvas). The `canvasId` field on `DiagramFocusRegionState` allows consumers to filter events by canvas.
 
-`publishDiagramFocusGroup` and `publishDiagramFocusCanvas` accept a `Pick<DiagramCanvasState, 'id'>` argument rather than a plain string. This enforces that callers always have access to the canvas state object (typically `this.defaultState` in widget code), preventing id typos.
+`publishDiagramFocusGroup` and `publishDiagramFocusCanvas` accept a `Pick<DiagramState, 'id'>` argument rather than a plain string. This enforces that callers always have access to the diagram state object (typically `this.defaultState` in widget code), preventing id typos.
 
 `useDiagramFocusRegion` subscribes to `window` (not `document` or a custom event emitter) to maximize compatibility with iframe-based apps and server-side rendering guards (`typeof window !== 'undefined'`). The hook memo-izes `options` by `canvasId` string to prevent unnecessary re-subscriptions.
 
@@ -509,7 +512,7 @@ This is the initial implementation of the interaction system. No existing `@brew
 
 1. Add `onMouseEnter`/`onMouseLeave` props to `DiagramNode` or `DiagramGroup` DSL elements.
 2. Add `clickable={true}` to nodes that should respond to click.
-3. Assign `DiagramCanvasWidget.onInteraction` callback in `widgetSetup.ts`.
+3. Assign `DiagramWidget.onInteraction` callback in `widgetSetup.ts`.
 4. Use `useDiagramFocusRegion()` in React components or `addEventListener(DIAGRAM_FOCUS_REGION_EVENT, ...)` outside React.
 
 Consumers who do not add any of the above have zero behavior change — the interaction system is entirely opt-in.

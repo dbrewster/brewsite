@@ -105,8 +105,8 @@ function TitleOverlay(): JSX.Element {
       style={{
         position: 'absolute',
         top: 20,
-        left: 0,
-        right: 0,
+        left: 16,
+        right: 176, // leave room for the ThemeToggle (select ~130px + button ~34px + gap + margin)
         textAlign: 'center',
         zIndex: 10,
         pointerEvents: 'none',

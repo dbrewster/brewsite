@@ -3,7 +3,7 @@ title: "@brewsite/model — GLTF Model & Label System"
 doc_type: prd
 status: approved
 owner: Toolkit Product
-last_updated: 2026-03-14
+last_updated: 2026-03-15
 change_history:
   - date: 2026-03-07
     author: "Toolkit Product"
@@ -23,6 +23,9 @@ change_history:
   - date: 2026-03-14
     author: "Toolkit Product"
     summary: "Package refactor documentation update. Documented viewport-relative scale semantics (worldScale = scale * visibleWorldHeight). Removed instanceTransitionSpec (no longer exported). Replaced __authored type-bypass description with WeakMap pattern in modelDslHandler.ts. Added Module Structure table to Section 8. Added NVS Scale sub-section. Updated launch criteria: 5-scene model-showcase, ≥80% branch coverage, instanceTransitionSpec absent from codebase."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Codebase alignment audit. Documented BodyPartProps as exported from barrel alongside BodyPartByIdProps. Documented registerModelHandlers as exported but previously undocumented. Documented types NOT on the barrel that are internal: AxisRotation, AxisTranslation, PoseGroup, ModelPose, CustomAnimationContext, CustomAnimationOp, LabelColor, SceneMotion — these require sub-path imports. Clarified the distinction between barrel-exported and internal types."
 ---
 
 # @brewsite/model — GLTF Model & Label System
@@ -48,7 +51,7 @@ Separating model/label concerns into `@brewsite/model` keeps the `@brewsite/core
 **Primary metrics:**
 - Consumers can load a GLTF model, author its NVS position/rotation/scale per scene, and play back named animation clips via a simple DSL without writing Three.js code.
 - Consumers can attach HTML labels to named bone groups; labels track the bone's world-space position in real time via direct DOM transform updates.
-- All types required to author scenes and extend the package are importable from the `@brewsite/core` and `@brewsite/model` main barrels — no sub-path imports.
+- All types required for standard scene authoring and plugin integration are importable from the `@brewsite/core` and `@brewsite/model` main barrels. Advanced internal types (`AxisRotation`, `AxisTranslation`, `PoseGroup`, `ModelPose`, `CustomAnimationContext`, `CustomAnimationOp`, `LabelColor`, `SceneMotion`) require sub-path imports.
 
 **Guardrail metrics:**
 - `@brewsite/model` does not import from `@brewsite/diagram`, `@brewsite/charts`, or any non-peer package not listed in its own `package.json`.
@@ -91,7 +94,7 @@ Separating model/label concerns into `@brewsite/model` keeps the `@brewsite/core
 10. `modelPlugin()` shall expose `getManifest()` and `fetchManifest()` methods in addition to the `WidgetPlugin` interface, enabling the host application to inspect or pre-load the manifest.
 11. `modelPlugin()` shall wrap the provider tree in `LabelPositionerContext.Provider`, providing the `LabelPositioner` instance.
 12. `<Label>` shall be valid only as a direct child of `<BodyPart>` or `<Subpart>` DSL elements. Placing `<Label>` directly under `<Model>` or anywhere else shall throw a compile-time error.
-13. All types required to integrate `@brewsite/model` shall be importable from `@brewsite/core` or `@brewsite/model` main barrels. No sub-path imports are required.
+13. All types required to integrate `@brewsite/model` in standard consumer scenarios shall be importable from `@brewsite/core` or `@brewsite/model` main barrels. The following types are intentionally NOT on the barrel and require sub-path imports for advanced use cases: `AxisRotation`, `AxisTranslation`, `PoseGroup`, `ModelPose`, `CustomAnimationContext`, `CustomAnimationOp`, `LabelColor`, `SceneMotion`. These are internal implementation types used by the compiler and widget internals.
 14. `LabelStyle.color` and `LabelStyle.lineColor` shall support the special value `'target-color'`, which causes the label to inherit the resolved color of its target body part at runtime.
 
 ---
@@ -135,6 +138,21 @@ Register via `EngineProvider.plugins`:
 <EngineProvider plugins={[corePlugin(), modelPlugin({ manifestUrl: '/assets/manifest.json' })]}>
   {/* scenes */}
 </EngineProvider>
+```
+
+### Handler Registration
+
+```typescript
+// packages/model/src/handlers.ts
+
+/**
+ * Registers DSL NodeHandlers for all @brewsite/model DSL components.
+ * Idempotent — safe to call multiple times. Must be called before any scene
+ * that uses <Model>, <Label>, or related components is compiled.
+ * Typically called automatically by modelPlugin().registerHandlers(),
+ * but exported for consumers who need to register handlers without the full plugin.
+ */
+export function registerModelHandlers(): void;
 ```
 
 The `modelPlugin()` factory:
@@ -426,17 +444,22 @@ export type ModelProps = {
   children?: ReactNode;
 };
 
-export type BodyPartByIdProps = {
-  id: string;
-  targetKind?: 'bone' | 'mesh';
-  boneId?: string;
-  meshId?: string;
+export type BodyPartProps = {
   opacity?: Resolvable<number>;
   color?: Resolvable<string>;
   metalness?: Resolvable<number>;
   roughness?: Resolvable<number>;
   reset?: Resolvable<boolean>;
   children?: ReactNode;
+};
+
+export type BodyPartByIdProps = BodyPartProps & {
+  id: string;
+  targetKind?: 'bone' | 'mesh';
+  /** When set, this bone ID is used for pose lookups (enables unified bone+mesh component). */
+  boneId?: string;
+  /** When set, this mesh ID is used for material lookups (enables unified bone+mesh component). */
+  meshId?: string;
 };
 
 export type PoseProps = {
@@ -922,7 +945,7 @@ None. All design decisions are resolved in the current implementation.
 ## 13. Launch Criteria
 
 - `modelPlugin()` registers `ModelWidget` instances lazily and mounts `LabelPositionerSyncer` correctly.
-- All types are importable from `@brewsite/core` or `@brewsite/model` main barrels.
+- All consumer-facing types are importable from `@brewsite/core` or `@brewsite/model` main barrels. Internal types (`AxisRotation`, `AxisTranslation`, `PoseGroup`, `ModelPose`, `CustomAnimationContext`, `CustomAnimationOp`, `LabelColor`, `SceneMotion`) are available via sub-path imports for advanced use.
 - Tests pass: `ModelWidget` unit tests, `LabelPositioner` unit tests, `AnimationTrackMapping` tests, `labelCompiler` tests.
 - `apps/examples/src/model-showcase/` exists with **5 scenes**: idle intro, animation, body part labels, model in a View, and a three-model carousel.
 - Branch coverage for `packages/model/src` is ≥ 80% (excluding render.ts files).

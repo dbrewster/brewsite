@@ -3,7 +3,7 @@ title: "BrewSite Core — Input System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-13
+last_updated: 2026-03-15
 change_history:
   - date: 2026-02-28
     author: "Toolkit Product"
@@ -23,6 +23,9 @@ change_history:
   - date: 2026-03-13
     author: "Toolkit Product"
     summary: "Full PRD rewrite to match v2 codebase. Removed all references to deleted APIs (useEngineInput, EngineInputRegion, SceneNavInputMap, InputModePolicy, ScrollInput, PointerInput). Rewrote InputActionSpec with current type shape (id, type, maps[], cameraId, canvasId, focusCenter, speed, stepScenes, layoutId, stepSlides). Rewrote InputActionMap discriminated union (InputPointerMap, InputWheelMap, InputPinchMap, InputKeyMap with kind discriminant). Updated ActionInputController API. Documented ActionInput component, default keyboard navigation injection, ActionInputExtensionContext, and ScrollStage scroll handling."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Codebase alignment: InputActionType 'camera.dolly' renamed to 'camera.zoom', 'canvas.pan' renamed to 'camera.pan'. ActionInput and KeyboardInput replaced by InputCoordinator throughout. ActionInputController constructor updated to use getter function for spec with attach()/detach() lifecycle. ActionInputExtension updated to plain function type (NonNullable<ActionInputHandler['onUnknownAction']>). Default keyboard nav updated to ArrowDown/ArrowUp only (ArrowRight/ArrowLeft are carousel actions). Component table updated to reflect InputCoordinator replacing ActionInput and KeyboardInput."
 ---
 
 # BrewSite Core — Input System
@@ -33,11 +36,11 @@ The Input system handles two distinct concerns: navigating between scenes (advan
 
 **Scene navigation** is handled by composable input components and layout primitives:
 - `ScrollStage` — full-page scroll drives scene progress via native `window.scrollY` with spring-physics inertia.
-- `KeyboardInput` — focus management for keyboard navigation. Default keyboard bindings (`scene.next` on ArrowRight/ArrowDown, `scene.prev` on ArrowLeft/ArrowUp) are compiler-injected when no `<InputController>` is authored.
+- `InputCoordinator` — unified input coordinator that replaces the former `ActionInput`, `KeyboardInput`, and `InertiaScrollSource` components. Handles action dispatch, keyboard navigation, inertia scroll, and focus management in a single null-rendering component with a priority waterfall for wheel events.
 - `TimeInput` — wall-clock auto-advance with configurable duration, loop, and pause-when-hidden.
 - `ControlledInput` — external `value` prop drives progress directly.
 
-**Action input** is authored through the `<InputController>` and `<Action>` DSL components compiled into the `SceneTrack`. At runtime, `ActionInput` (a React component) reads the baked action spec and wires it to `ActionInputController`, which routes pointer, wheel, pinch, and keyboard events to registered named-action handlers on widgets.
+**Action input** is authored through the `<InputController>` and `<Action>` DSL components compiled into the `SceneTrack`. At runtime, `InputCoordinator` (a React component) reads the baked action spec from the current tick state and wires it to `ActionInputController`, which routes pointer, wheel, pinch, and keyboard events to registered named-action handlers on widgets.
 
 Affects: `@brewsite/core`.
 
@@ -99,11 +102,11 @@ The Input system eliminates consumer duplication with a typed, composable API th
 
 1. The `<InputController>` DSL component shall compile to a `SceneInputControllerSpec` stored in `SceneFrame.inputController` at each frame where the scene is active.
 2. The `ActionInputController` shall read the compiled `SceneInputControllerSpec` at each tick and route events to registered action handlers.
-3. The `wheelGuard` mechanism shall prevent scene navigation wheel events from firing while a `'camera.dolly'` action is in progress.
+3. The `wheelGuard` mechanism shall prevent scene navigation wheel events from firing while a `'camera.zoom'` action is in progress.
 4. Each `InputActionSpec` shall route matching events to the handler registered for `type` on the current `ActionInputController`.
 5. Custom action type strings (not in the named `InputActionType` set) shall be routed to handlers registered by consumer widgets or plugin extensions.
-6. The `ActionInput` React component shall bridge compiled `<InputController>` DSL to the `ActionInputController` runtime. It renders no DOM — it is a pure React effect that reads the current spec from context and wires event listeners.
-7. `KeyboardInput` shall provide focus management for keyboard events. Default keyboard navigation (`scene.next` on ArrowRight/ArrowDown, `scene.prev` on ArrowLeft/ArrowUp) is compiler-injected by the engine when no `<InputController>` is authored in any scene.
+6. The `InputCoordinator` React component shall bridge compiled `<InputController>` DSL to the `ActionInputController` runtime. It renders no DOM — it is a pure React effect that reads the current spec from the tick state and wires event listeners. It also manages inertia scroll and carousel X-axis inertia when inside a `ScrollStage`.
+7. Default keyboard navigation (`scene.next` on ArrowDown, `scene.prev` on ArrowUp, `carousel.next` on ArrowRight, `carousel.prev` on ArrowLeft) is compiler-injected by the engine when no `<InputController>` is authored in any scene.
 8. Modifier key matching in `InputPointerMap.modifiers`, `InputWheelMap.modifiers`, and `InputKeyMap.modifiers` shall be evaluated from the event's `ctrlKey`, `metaKey`, `altKey`, and `shiftKey` properties.
 9. `InputController` scope `'canvas'` shall attach listeners to the canvas element. Scope `'window'` shall attach listeners to the `window` object.
 10. All wheel event listeners shall use `{ passive: false }` to allow `preventDefault()`. Pointer events use `{ passive: true }`.
@@ -119,9 +122,9 @@ The Input system eliminates consumer duplication with a typed, composable API th
 ```typescript
 export type InputActionType =
   | 'camera.orbit'      // pointer delta → CameraWidget orbit handler
-  | 'camera.dolly'      // wheel/pinch delta → CameraWidget dolly handler
+  | 'camera.zoom'       // wheel/pinch delta → CameraWidget zoom (dolly) handler
+  | 'camera.pan'        // pointer delta → CameraWidget pan handler
   | 'camera.reset'      // key → CameraWidget reset handler
-  | 'canvas.pan'        // pointer delta → canvas pan handler
   | 'scene.next'        // advance to the next scene
   | 'scene.prev'        // retreat to the previous scene
   | 'carousel.next'     // advance carousel ViewLayout
@@ -211,16 +214,19 @@ DSL usage:
       maps={[{ kind: 'pointer', event: 'drag', button: 'left' }]}
     />
     <Action
-      type="camera.dolly"
-      maps={[{ kind: 'wheel' }, { kind: 'pinch' }]}
+      type="camera.zoom"
+      maps={[{ kind: 'pinch', direction: 'both' }]}
+    />
+    <Action
+      type="camera.pan"
+      maps={[
+        { kind: 'pointer', event: 'drag', button: 'left', modifiers: ['shift'], axis: 'xy' },
+        { kind: 'pointer', event: 'drag', button: 'middle', axis: 'xy' },
+      ]}
     />
     <Action
       type="camera.reset"
       maps={[{ kind: 'key', key: 'r' }]}
-    />
-    <Action
-      type="canvas.pan"
-      maps={[{ kind: 'pointer', event: 'drag', button: 'middle' }]}
     />
   </InputController>
 </Scene>
@@ -229,81 +235,159 @@ DSL usage:
 ### 7.5 ActionInputController (`input/ActionInputController.ts`)
 
 ```typescript
-export class ActionInputController {
-  constructor(element: HTMLElement, spec: SceneInputControllerSpec)
+export type ActionInputHandler = {
+  getSceneCount: () => number;
+  onSceneStep: (direction: 1 | -1, stepScenes: number) => void;
+  onCameraOrbit: (cameraId: string, dx: number, dy: number, speed: number) => void;
+  onCameraZoom: (cameraId: string, delta: number, speed: number) => void;
+  onCameraPan: (cameraId: string, dx: number, dy: number, speed: number) => void;
+  onCameraReset: (cameraId: string) => void;
+  onCarouselStep: (layoutId: string, direction: 1 | -1, stepSlides: number) => void;
+  onUnknownAction?: (
+    type: string,
+    canvasId: string | undefined,
+    event: PointerEvent | WheelEvent | KeyboardEvent | MouseEvent,
+    extra: Record<string, unknown>,
+  ) => void;
+};
 
-  registerHandler(actionType: InputActionType, handler: ActionHandler): () => void
-  unregisterHandler(actionType: InputActionType): void
-  setSpec(spec: SceneInputControllerSpec): void
-  dispose(): void
+export type ActionInputControllerOptions = {
+  idDefaults?: {
+    cameraId: string;
+    canvasId: string;
+  };
+  wheelLockIdleMs?: number;
+  onUnclaimedWheel?: (event: WheelEvent) => void;
+};
+
+export class ActionInputController {
+  constructor(
+    target: HTMLElement | Window,
+    getSpec: () => SceneInputControllerSpec | null,
+    handler: ActionInputHandler,
+    keyboardTarget?: HTMLElement | Document | Window,
+    options?: ActionInputControllerOptions,
+  )
+
+  attach(): void
+  detach(): void
+  onActionFired(listener: ActionFiredListener): () => void
 }
 ```
 
-`ActionInputController` is instantiated by the `ActionInput` React component. Its `setSpec()` method is called each frame tick with the current `SceneFrame.inputController` value, allowing the active action map to change as scenes transition without recreating the controller.
+`ActionInputController` is instantiated by the `InputCoordinator` React component. The `getSpec` getter is called on each event to read the current `SceneInputControllerSpec` from the tick state, allowing the active action map to change as scenes transition without recreating the controller. The `handler` callback object routes dispatched actions to the engine. `attach()` registers all DOM event listeners; `detach()` removes them and clears internal state.
 
-### 7.6 ActionInput Component (`player/ActionInput.tsx`)
+The `onUnclaimedWheel` option connects the wheel priority waterfall: when no `WheelMap` in the current spec claims a wheel event, the event is forwarded to the `InputCoordinator`'s inertia accumulator for scene scroll.
+
+### 7.6 InputCoordinator Component (`player/InputCoordinator.tsx`)
 
 ```typescript
-export function ActionInput(): null;
+export interface InputCoordinatorProps {
+  /** Inertia scroll sensitivity. Higher = faster scene scroll per wheel tick. Default: 0.01. */
+  inertiaSensitivity?: number;
+  /** Inertia decay factor per frame (0..1). Higher = more momentum. Default: 0.85. */
+  inertiaDecay?: number;
+  /** DOM element that receives pointer/wheel events. Defaults to ScrollStage container or canvas. */
+  target?: HTMLElement | null;
+  /** DOM element or document that receives keyboard events. Defaults to document. */
+  keyboardTarget?: HTMLElement | Document | Window | null;
+  /** Pause engine rendering when the stage falls below the visibility threshold. */
+  pauseWhenHidden?: PauseWhenHiddenOptions;
+}
+
+export function InputCoordinator(props: InputCoordinatorProps): ReactElement | null;
 ```
 
-`ActionInput` is a null-rendering React component that bridges the compiled `<InputController>` DSL to the `ActionInputController` runtime. It:
+`InputCoordinator` is a null-rendering React component that unifies all input concerns into a single component. It replaces the former `ActionInput`, `KeyboardInput`, and `InertiaScrollSource` components. It:
 
-1. Reads the current `SceneInputControllerSpec` from `EngineStateContext`.
-2. Creates an `ActionInputController` bound to the canvas element.
-3. Registers built-in action handlers for `camera.orbit`, `camera.dolly`, `camera.reset`, `canvas.pan`, `scene.next`, `scene.prev`, `carousel.next`, `carousel.prev`.
-4. Calls `controller.setSpec()` on each tick.
-5. Reads `ActionInputExtensionContext` to wire plugin-provided action handlers (e.g., `diagram-canvas.*` from `@brewsite/diagram`).
-6. Disposes the controller on unmount.
+1. Reads the current `SceneInputControllerSpec` from `tick.state.widgets['__input_controller']` via a getter function passed to `ActionInputController`.
+2. Creates an `ActionInputController` bound to the target element (ScrollStage container, or canvas as fallback).
+3. Implements the `ActionInputHandler` interface, routing built-in action types (`camera.orbit`, `camera.zoom`, `camera.pan`, `camera.reset`, `scene.next`, `scene.prev`, `carousel.next`, `carousel.prev`) to the engine.
+4. Reads `ActionInputExtensionContext` to wire plugin-provided `onUnknownAction` handlers (e.g., `diagram-canvas.*` from `@brewsite/diagram`).
+5. When inside a `ScrollStage`, implements a Y-axis inertia scroll loop that converts unclaimed wheel events into scene progress with spring-physics momentum.
+6. Implements X-axis inertia for horizontal wheel events, routed to carousel step actions via sticky axis arbitration.
+7. Calls `controller.attach()` on mount and `controller.detach()` on unmount.
 
-### 7.7 Default Keyboard Navigation
+**Priority waterfall for wheel events:**
+1. Scrollable overlay content -- yield to native DOM scroll.
+2. `ctrl+wheel` with pinch maps -- dispatch pinch action.
+3. `WheelMap` match -- dispatch action (scene scroll does NOT also fire).
+4. Scroll driver registered -- accumulate for inertia (Y-axis) or carousel (X-axis).
+5. Nothing matched -- browser default.
 
-When no scene in the composition authors an `<InputController>`, the compiler injects a default action spec:
+### 7.7 Default Input Spec
+
+When no scene in the composition authors an `<InputController>`, the compiler injects a comprehensive default action spec via `createDefaultInputSpec()` from `input/defaultInputSpec.ts`:
 
 ```typescript
 // Compiler-injected defaults (not authored in DSL)
 [
-  { id: '__default_next', type: 'scene.next', maps: [
-    { kind: 'key', key: 'ArrowRight' },
-    { kind: 'key', key: 'ArrowDown' },
+  // Scene navigation (keyboard)
+  { id: 'default-scene-next', type: 'scene.next', maps: [{ kind: 'key', key: 'ArrowDown' }] },
+  { id: 'default-scene-prev', type: 'scene.prev', maps: [{ kind: 'key', key: 'ArrowUp' }] },
+
+  // Camera orbit (pointer drag)
+  { id: 'default-camera-orbit', type: 'camera.orbit', cameraId, maps: [
+    { kind: 'pointer', event: 'drag', button: 'left', axis: 'xy' },
   ]},
-  { id: '__default_prev', type: 'scene.prev', maps: [
-    { kind: 'key', key: 'ArrowLeft' },
-    { kind: 'key', key: 'ArrowUp' },
+
+  // Camera zoom (pinch)
+  { id: 'default-camera-zoom', type: 'camera.zoom', cameraId, maps: [
+    { kind: 'pinch', direction: 'both' },
   ]},
+
+  // Camera pan (shift+drag or middle-button drag)
+  { id: 'default-camera-pan', type: 'camera.pan', cameraId, maps: [
+    { kind: 'pointer', event: 'drag', button: 'left', modifiers: ['shift'], axis: 'xy' },
+    { kind: 'pointer', event: 'drag', button: 'middle', axis: 'xy' },
+  ]},
+
+  // Camera reset ('r' key)
+  { id: 'default-camera-reset', type: 'camera.reset', cameraId, maps: [{ kind: 'key', key: 'r' }] },
+
+  // Carousel navigation (keyboard) — uses '__primary_carousel__' sentinel layoutId
+  { id: 'default-carousel-next', type: 'carousel.next', layoutId: '__primary_carousel__',
+    maps: [{ kind: 'key', key: 'ArrowRight' }] },
+  { id: 'default-carousel-prev', type: 'carousel.prev', layoutId: '__primary_carousel__',
+    maps: [{ kind: 'key', key: 'ArrowLeft' }] },
 ]
 ```
 
-This ensures scenes are keyboard-navigable by default without any DSL authoring.
+This ensures scenes are keyboard-navigable, camera-interactive, and carousel-navigable by default without any DSL authoring. The `'__primary_carousel__'` sentinel layoutId is resolved at runtime by `InputCoordinator` to the current scene's `primaryCarouselId`. When no carousel exists, carousel actions are silent no-ops.
 
 ### 7.8 ActionInputExtensionContext
 
 Plugin packages extend the action dispatch system via `ActionInputExtensionContext`:
 
 ```typescript
-export type ActionInputExtension = {
-  registerHandlers(controller: ActionInputController): () => void;
-};
+/** Merged onUnknownAction callback from all WidgetPlugin.getActionInputExtension() results. */
+export type ActionInputExtension = NonNullable<ActionInputHandler['onUnknownAction']>;
+// Equivalent to:
+// (type: string, canvasId: string | undefined,
+//  event: PointerEvent | WheelEvent | KeyboardEvent | MouseEvent,
+//  extra: Record<string, unknown>) => void;
 
 export const ActionInputExtensionContext = React.createContext<ActionInputExtension | null>(null);
 ```
 
-`diagramPlugin.getActionInputExtension()` returns an extension that registers handlers for `diagram-canvas.move`, `diagram-canvas.rotate`, `diagram-canvas.reset`, and `diagram-canvas.focus` — routing them to `DiagramWidget.applyCanvasAction()`.
+`ActionInputExtension` is a plain function, not an object with `registerHandlers`. `SceneEngine` collects `getActionInputExtension()` from each registered plugin and merges all `onUnknownAction` handlers into a single function provided via this context. `InputCoordinator` passes this function as the `handler.onUnknownAction` to `ActionInputController`.
+
+`diagramPlugin.getActionInputExtension()` returns an extension that handles `diagram-canvas.move`, `diagram-canvas.rotate`, `diagram-canvas.reset`, and `diagram-canvas.focus` — routing them to `DiagramWidget.applyCanvasAction()`.
 
 ### 7.9 Scene Navigation Components
 
 | Component | Purpose |
 |---|---|
-| `ScrollStage` | Full-page scroll layout. Drives progress from native `window.scrollY` with spring-physics inertia. Renders a sticky-canvas container. |
-| `KeyboardInput` | Focus management for keyboard events. Does NOT own key-to-action routing — that is handled by `ActionInput` via compiled `InputActionSpec`. |
+| `ScrollStage` | Full-page scroll layout. Renders a tall container with a sticky-positioned inner viewport. |
+| `InputCoordinator` | Unified input coordinator. Bridges compiled `<InputController>` DSL to `ActionInputController`, manages inertia scroll, carousel X-axis inertia, keyboard event routing, and pauseWhenHidden. Replaces former `ActionInput`, `KeyboardInput`, and `InertiaScrollSource`. |
 | `TimeInput` | Wall-clock auto-advance with configurable `duration`, `loop`, and `pauseWhenHidden`. Yields to user input. |
 | `ControlledInput` | External `value` prop drives progress. Highest priority — overrides all other input. |
 
 ### 7.10 wheelGuard
 
-When `'camera.dolly'` is the matched action for a wheel event, `ActionInputController` activates a wheel guard that prevents scroll-based scene navigation from also consuming the wheel delta. The guard activates on the first wheel event matching the dolly action and deactivates after a debounce timeout. This prevents the user from inadvertently advancing scenes while dollying the camera.
+When `'camera.zoom'` (or any other action) is the matched action for a wheel event, `ActionInputController` claims the event via `preventDefault()` and does not forward it to the `onUnclaimedWheel` callback. This prevents scene scroll from also consuming the wheel delta. The wheel lock uses a sticky axis mechanism with a configurable idle timeout (`wheelLockIdleMs`, default 180ms) — once a wheel action is locked to a specific action and modifier signature, subsequent wheel events within the idle window continue dispatching to the same action without re-matching.
 
-The guard is an internal mechanism — not part of the public API.
+The wheel lock is an internal mechanism — not part of the public API.
 
 ---
 
@@ -331,9 +415,9 @@ Modifier key matching evaluates `event.ctrlKey || event.metaKey` for `'ctrl'` on
 
 `InputPinchMap` is recognized through `pointerdown` / `pointermove` events on touch devices by tracking two simultaneous pointer IDs. The `ActionInputController` maintains a `Map<number, PointerEvent>` of active pointers. When two pointers are active and moving, it computes the distance change and dispatches an action event with `type: 'pinch'` and the distance delta. Single-pointer drag and two-pointer pinch are mutually exclusive within one gesture.
 
-### 8.6 Action Spec Change Detection
+### 8.6 Action Spec Resolution
 
-`ActionInputController.setSpec()` is called every frame tick. It compares the incoming spec to the previously active spec using deep equality. If unchanged, `setSpec()` is a no-op — no event listener re-registration occurs.
+`ActionInputController` reads the spec via its `getSpec()` getter function on each input event (not per frame). The getter returns `null` when no tick has been produced yet. The controller does not store the spec — it evaluates the getter on demand. Event listeners are registered once via `attach()` and remain active for the controller's lifetime; only the action matching logic reads the current spec per event.
 
 ### 8.7 Sticky Axis Lock
 
@@ -345,12 +429,12 @@ Modifier key matching evaluates `event.ctrlKey || event.metaKey` for `'ctrl'` on
 
 **Semver impact: Major** — v2 removed `useEngineInput`, `useEngineScroll`, `EngineInputRegion`, `ScrollCaptureSection`, `ScrollInput`, `PointerInput`, `SceneNavInputMap`, and `InputModePolicy`. These are all breaking deletions documented in `MIGRATION.md`.
 
-The current API surface (`InputActionType`, `InputActionSpec`, `InputActionMap`, `SceneInputControllerSpec`, `ActionInputController`, `ActionInput`, `KeyboardInput`, `TimeInput`, `ControlledInput`, `ScrollStage`) is stable.
+The current API surface (`InputActionType`, `InputActionSpec`, `InputActionMap`, `SceneInputControllerSpec`, `ActionInputController`, `InputCoordinator`, `TimeInput`, `ControlledInput`, `ScrollStage`) is stable.
 
 Future breaking change risk:
 - `InputActionType` is an open string union. Adding new named values is backward-compatible. Removing named values is a major change.
 - `InputActionSpec.maps` using a discriminated union on `kind` is flexible — new `kind` values are additive.
-- `ActionInputExtensionContext` is an internal API consumed by plugin packages. Changes are breaking for plugin authors but not for scene authors.
+- `ActionInputExtensionContext` is consumed by plugin packages. The `ActionInputExtension` type changed from an object with `registerHandlers` to a plain function — this was a breaking change for plugin authors but not for scene authors.
 
 ---
 
@@ -385,11 +469,11 @@ Future breaking change risk:
 
 ## 13. Launch Criteria
 
-- `ActionInputController` has unit tests covering: action routing for drag, wheel, pinch, click, and key events; modifier key matching; `wheelGuard` activation/deactivation; `setSpec()` no-op on unchanged spec; sticky axis lock behavior.
+- `ActionInputController` has unit tests covering: action routing for drag, wheel, pinch, click, and key events; modifier key matching; wheel lock activation/idle timeout; sticky axis lock behavior; `onUnclaimedWheel` callback invocation when no wheel map matches.
 - `InputController` and `Action` DSL compilation has unit tests covering: spec extraction, `type` validation, and invalid children warning.
 - Default keyboard navigation injection is covered by a compiler test.
-- At least one example scene in `apps/examples/` demonstrates `InputController` with `camera.orbit`, `camera.dolly`, and `camera.reset` actions configured.
-- `InputActionSpec`, `InputActionType`, `InputActionMap`, `InputPointerMap`, `InputWheelMap`, `InputPinchMap`, `InputKeyMap`, `SceneInputControllerSpec`, and `ActionInputController` are all exported from `packages/core/src/index.ts`.
+- At least one example scene in `apps/examples/` demonstrates `InputController` with `camera.orbit`, `camera.zoom`, and `camera.reset` actions configured.
+- `InputActionSpec`, `InputActionType`, `InputActionMap`, `InputPointerMap`, `InputWheelMap`, `InputPinchMap`, `InputKeyMap`, `SceneInputControllerSpec`, `ActionInputController`, and `InputCoordinator` are all exported from `packages/core/src/index.ts`.
 - `CHANGELOG.md` entry written for the release.
 - `pnpm build:lib` passes with zero TypeScript errors.
 - `pnpm test` passes for `@brewsite/core` with coverage targets met for all files in `src/input/`.

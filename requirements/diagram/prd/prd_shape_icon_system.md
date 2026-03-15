@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Shape and Icon System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-08
+last_updated: 2026-03-15
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -11,6 +11,9 @@ change_history:
   - date: 2026-03-08
     author: "Toolkit Product"
     summary: "Model/diagram overhaul: iconDepth renamed to iconDepthFactor in SvgIcon3DStyle descriptions — depth is now expressed as a fraction of node thickness [0..1], making it coordinate-system-invariant across AutoLayout and ManualLayout."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Codebase alignment: corrected circle shape from '64-sided smooth approximation' to '32-sided smooth prism' per shapeVariants.ts source. Updated theme example: replaced darkGlassTheme references with enterpriseTheme (only enterpriseTheme, enterpriseLightTheme, defaultDiagramTheme, and defaultLightDiagramTheme are exported from the package barrel)."
 ---
 
 ## Overview
@@ -79,7 +82,7 @@ Diagram nodes in a 3D scene need to communicate semantics visually beyond color 
 
 export type DiagramNodeShape =
   // Regular polygon prisms (ExtrudeGeometry of N-sided shape)
-  | 'circle'        // 64-sided smooth approximation
+  | 'circle'        // 32-sided smooth prism
   | 'triangle'      // 3-sided
   | 'square'        // 4-sided, equal-axis
   | 'rectangle'     // 4-sided free-aspect — DEFAULT
@@ -219,7 +222,7 @@ export type SvgIcon3DStyle = 'flat' | 'extruded' | 'layered' | 'embossed';
 - **`layered`** — Multi-layer extrusion; each SVG path group extruded at a different Z offset for depth separation. Best for multi-color cloud provider icons.
 - **`embossed`** — Icon raised from the node face surface; depth derived from `iconDepthFactor × node.thickness`. Icon merges visually with the node geometry rather than floating above it.
 
-Theme default: `darkGlassTheme.node.defaultIconStyle = 'extruded'`; `enterpriseTheme` and `lightMinimalTheme` default to `'flat'`.
+Theme default: `enterpriseTheme.node.defaultIconStyle = 'flat'`. The `enterpriseTheme` and `enterpriseLightTheme` are the only theme presets exported from the package barrel (along with their aliases `defaultDiagramTheme` and `defaultLightDiagramTheme`). Internal theme presets like `darkGlass`, `neonCyber`, and `lightMinimal` exist in the `themes/` directory but are not exported from `@brewsite/diagram`.
 
 ### Full namespace membership
 

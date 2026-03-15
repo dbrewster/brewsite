@@ -3,7 +3,7 @@ title: "BrewSite Core — Cross-Package Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-13
+last_updated: 2026-03-15
 change_history:
   - date: 2026-03-04
     author: "Toolkit Product"
@@ -20,15 +20,18 @@ change_history:
   - date: 2026-03-13
     author: "Toolkit Product"
     summary: "PRD audit: added SceneThemeFloor and SceneThemeFloorGrid types to Section 7.1 (floor grid visual tokens for <Floor variant='grid'> integration). Added SceneTheme.floor optional field. Added ThemeKeyContext documentation. Updated SceneTheme type definition to include floor field. Updated named preset exports to include polarity-variant names (darkGlassLightSceneTheme, midnightLightSceneTheme, etc.). Updated last_updated."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Codebase alignment: ThemeFamily now includes 'default' (7 members). SCENE_THEME_PAIRS replaced by mutable Map registry with registerSceneThemePair() and resolveSceneTheme(). resolveThemeFamily() replaced by resolveSceneThemeFamilyByRef(). Named preset exports reduced to defaultSceneTheme, defaultLightSceneTheme, plus internal enterpriseSceneTheme/enterpriseLightSceneTheme aliases. Other family presets live in @brewsite/themes. ActiveTheme type documented as primary theming prop on SceneEngine. ThemeKeyContext and useThemeKey documented as deprecated. useTheme() marked as public export. SceneEngine.sceneTheme deprecated in favor of theme prop."
 ---
 
 # BrewSite Core — Cross-Package Theming System
 
 ## 1. Overview
 
-The cross-package theming system introduces `SceneTheme` — a unified token object in `@brewsite/core` that serves as the single source of truth for visual styling across `@brewsite/core`, `@brewsite/diagram`, `@brewsite/charts`, and `@brewsite/model`. Scene authors pass a `SceneTheme` to `EngineProvider` once; the engine injects CSS custom properties into `EngineOverlayHost` and makes the token available for opt-in consumption by diagram and chart elements. The result: changing a scene family from dark presentation to light documentation requires changing a single prop.
+The cross-package theming system introduces `SceneTheme` — a unified token object in `@brewsite/core` that serves as the single source of truth for visual styling across `@brewsite/core`, `@brewsite/diagram`, `@brewsite/charts`, and `@brewsite/model`. Scene authors pass an `ActiveTheme` (or deprecated `SceneTheme`) to `SceneEngine` once; the engine resolves a `SceneTheme` from the registry and injects CSS custom properties into `EngineOverlayHost`, making the token available for opt-in consumption by diagram and chart elements. The result: changing a scene family from dark presentation to light documentation requires changing a single prop.
 
-Affects: `@brewsite/core` (types, ThemeContext, EngineProvider, EngineOverlayHost, Background element). Integration surfaces in `@brewsite/diagram`, `@brewsite/charts`, and `@brewsite/model` are documented in their respective package PRDs.
+Affects: `@brewsite/core` (types, ThemeContext, SceneEngine, EngineOverlayHost, Background element). Integration surfaces in `@brewsite/diagram`, `@brewsite/charts`, and `@brewsite/model` are documented in their respective package PRDs.
 
 ---
 
@@ -43,13 +46,13 @@ Additionally, the Background element supported only solid color and image fills 
 ## 3. Goals & Success Metrics
 
 **Primary goals:**
-- A consumer can establish the visual character of an entire scene family by passing one `SceneTheme` to `EngineProvider`.
+- A consumer can establish the visual character of an entire scene family by passing one `ActiveTheme` (or `SceneTheme`) to `SceneEngine`.
 - CSS variables for font family, font size scale, color mode, and text colors are available to all overlay content without per-element style props.
 - Diagram and chart elements can inherit font URL and color mode defaults from `SceneTheme` without requiring full theme replacement.
 - The system is fully additive — existing scenes with no `SceneTheme` behave identically to before.
 
 **Success metrics:**
-- Zero TypeScript errors in strict mode for any code that constructs a `SceneTheme` or uses any of the six named `SceneTheme` presets.
+- Zero TypeScript errors in strict mode for any code that constructs a `SceneTheme` or uses the named `SceneTheme` presets.
 - CSS variables injected by `EngineOverlayHost` are measurable in browser DevTools on the overlay container element when `sceneTheme` is provided.
 - Switching a demo scene from dark to light requires ≤ 2 code edits (sceneTheme prop change + DiagramTheme/ChartTheme adjustment if applicable).
 
@@ -66,7 +69,7 @@ Additionally, the Background element supported only solid color and image fills 
 - `prefers-color-scheme` media query auto-detection
 - Font file bundling — consumers must host their own MSDF-encoded font files
 - Per-scene CSS variable switching — `ThemeContext` is static for the player lifetime
-- A `useSceneTheme()` hook (CSS variables are sufficient for overlay authors in v1)
+- ~~A `useSceneTheme()` hook~~ -- Resolved: `useTheme()` is exported from `@brewsite/core` and returns the current `SceneTheme | null` from `ThemeContext`
 - Animated theme transitions between polarity variants (CSS transitions on overlay content may occur naturally; no explicit animation is built)
 - `prefers-color-scheme` auto-detection (remains a Non-Goal — polarity toggle is manual UI only)
 - Per-scene CSS variable switching (ThemeContext remains player-scoped, not scene-scoped)
@@ -78,10 +81,10 @@ Additionally, the Background element supported only solid color and image fills 
 
 ## 5. Consumer Stories
 
-- As a toolkit consumer, I want to pass a single `SceneTheme` to `EngineProvider` so that all HTML overlay content in my scenes adopts a consistent font family and color system without inline style management.
+- As a toolkit consumer, I want to pass a single `ActiveTheme` to `SceneEngine` so that all HTML overlay content in my scenes adopts a consistent font family and color system without inline style management.
 - As a toolkit consumer, I want `--brewsite-font-family` and `--brewsite-font-size-*` CSS variables available inside my overlay JSX so that I can write CSS-variable-driven overlay styles that update with a prop change.
 - As a toolkit consumer, I want to specify a WebGL font URL once in `SceneTheme` and have it flow into my `DiagramTheme` and `ChartTheme` automatically so that I don't repeat the font URL in multiple theme objects.
-- As a toolkit consumer, I want `darkSceneTheme` and `lightSceneTheme` presets ready to use so that I can adopt the system without authoring a full `SceneTheme` object.
+- As a toolkit consumer, I want `defaultSceneTheme` and `defaultLightSceneTheme` presets ready to use so that I can adopt the system without authoring a full `SceneTheme` object.
 - As a toolkit consumer, I want per-scene `<Background>` elements to support gradient fills, CSS filters, and overlay gradients so that I can create rich background effects without leaving the DSL.
 
 ---
@@ -89,26 +92,26 @@ Additionally, the Background element supported only solid color and image fills 
 ## 6. Functional Requirements
 
 1. The `SceneTheme` type and all its sub-types (`SceneColorMode`, `SceneThemeFontTokens`, `SceneThemeFontSizeScale`, `SceneThemeBackgroundFill`, `SceneThemeBackgroundEffects`, `SceneThemeBackground`, `SceneThemeFloor`, `SceneThemeFloorGrid`) shall be exported from `@brewsite/core/src/index.ts`. `SceneTheme` does not include an `accentColor` field.
-2. `EngineProvider` shall accept an optional `sceneTheme?: SceneTheme` prop and provide it via `ThemeContext`.
+2. `SceneEngine` shall accept an optional `theme?: ActiveTheme` prop (preferred) or deprecated `sceneTheme?: SceneTheme` prop. The resolved `SceneTheme` is provided via `ThemeContext`.
 3. `EngineOverlayHost` shall read from `ThemeContext` and, when a theme is present, inject CSS custom properties on its root `<div>` element.
 4. CSS variable injection shall cover: `--brewsite-font-family`, `--brewsite-font-size-heading`, `--brewsite-font-size-body`, `--brewsite-font-size-label`, `--brewsite-font-size-caption`, `--brewsite-font-size-annotation`, `--brewsite-color-mode`, `--brewsite-text-primary`, `--brewsite-text-secondary`. `--brewsite-accent-color` is not injected by the engine; consumers who need this variable must set it directly in their own stylesheet.
 5. CSS font size variables shall use `calc(1rem * <scale>)` values — they do not depend on a `--brewsite-base-font-size` variable.
 6. `ThemeContext` shall hold a single static value for the player lifetime; it shall not change per scene.
 7. `fontFamily: 'var(--brewsite-font-family)'` shall be set as an inline style on the `EngineOverlayHost` container so that CSS inheritance propagates to all overlay children and label DOM elements without requiring each child to opt in.
-8. Six named `SceneTheme` preset constants shall be exported from `@brewsite/core`: `darkGlassSceneTheme`, `midnightSceneTheme`, `neonCyberSceneTheme`, `enterpriseSceneTheme`, `lightCanvasSceneTheme`, `lightMinimalSceneTheme`. The generic `darkSceneTheme` and `lightSceneTheme` constants remain exported for backward compatibility.
+8. Two named `SceneTheme` preset constants shall be exported from `@brewsite/core`: `defaultSceneTheme` (dark polarity) and `defaultLightSceneTheme` (light polarity). `enterpriseSceneTheme` and `enterpriseLightSceneTheme` are `@internal` aliases for these. Family-specific presets (darkGlass, midnight, neonCyber, lightCanvas, lightMinimal) are provided by `@brewsite/themes` and registered via `registerSceneThemePair()` at app startup.
 9. All `SceneTheme` fields shall be `readonly`. The type shall have no runtime dependencies — it is pure TypeScript data.
-10. `ThemeContext` shall export a `useTheme(): SceneTheme | null` hook consumed internally by `EngineOverlayHost`.
-11. When `sceneTheme` is absent from `EngineProvider`, `EngineOverlayHost` shall inject no CSS variables and apply no theme styles — overlay behavior is unchanged from pre-theming behavior.
-12. A `ThemeFamily` union type (`'darkGlass' | 'midnight' | 'neonCyber' | 'enterprise' | 'lightCanvas' | 'lightMinimal'`) shall be exported from `@brewsite/core`. This is the canonical shared union used by `@brewsite/diagram` and `@brewsite/charts` as a type alias for their respective theme name types.
+10. `ThemeContext` shall export a `useTheme(): SceneTheme | null` hook. It is exported from `@brewsite/core` via `theme/index.ts` and is available to consumers who need direct access to the resolved `SceneTheme`. Primary internal consumer is `EngineOverlayHost`.
+11. When no `theme` or `sceneTheme` is provided to `SceneEngine`, it defaults to `{ family: 'default', polarity: 'dark' }` and resolves the default enterprise `SceneTheme` via `resolveSceneTheme('default', 'dark')`. CSS variables are always injected when any theme is resolved.
+12. A `ThemeFamily` union type (`'default' | 'enterprise' | 'darkGlass' | 'midnight' | 'neonCyber' | 'lightCanvas' | 'lightMinimal'`) shall be exported from `@brewsite/core`. The `'default'` member maps to the enterprise aesthetic and is always pre-registered in the scene theme registry. This is the canonical shared union used by `@brewsite/diagram` and `@brewsite/charts` as a type alias for their respective theme name types.
 13. A `ThemePolarity` union type (`'dark' | 'light'`) shall be exported from `@brewsite/core`.
 14. A `SceneThemePair` type (`{ readonly dark: SceneTheme; readonly light: SceneTheme }`) shall be exported from `@brewsite/core`.
-15. A `SCENE_THEME_PAIRS: Record<ThemeFamily, SceneThemePair>` constant shall be exported from `@brewsite/core`, providing both dark and light `SceneTheme` presets for all six theme families.
-16. A `resolveThemeFamily(sceneTheme: SceneTheme): ThemeFamily | undefined` utility shall be exported from `@brewsite/core`. It performs reverse-lookup by reference equality against all entries in `SCENE_THEME_PAIRS` and returns the matching `ThemeFamily`, or `undefined` if the `SceneTheme` is a custom object not present in the registry.
-17. When `sceneTheme` is provided to `EngineProvider`, `EngineOverlayHost` shall inject `.bw-theme-{family}` and `.bw-dark` or `.bw-light` classes on its root `<div>`. The family class is derived via `resolveThemeFamily(sceneTheme)`. When `resolveThemeFamily` returns `undefined` (custom theme), no `.bw-theme-*` class is injected; the polarity class (`.bw-dark` or `.bw-light`) is still injected based on `sceneTheme.colorMode`.
+15. A mutable runtime registry shall store `SceneThemePair` entries keyed by family name. The `'default'` and `'enterprise'` families are pre-loaded at module init with the enterprise aesthetic. Other families are registered at app startup via `registerSceneThemePair(family, pair)`. The `SCENE_THEME_PAIRS` constant does not exist as a static export — the registry is populated dynamically by `@brewsite/themes`.
+16. A `resolveSceneTheme(family: string, polarity: 'dark' | 'light'): SceneTheme` utility shall be exported from `@brewsite/core`. It looks up the requested family in the registry, falling back to the `'default'` pair if the family is not registered, and returns the theme for the given polarity. A `resolveSceneThemeFamilyByRef(theme: SceneTheme): string | undefined` utility performs reverse-lookup by reference equality across all registered pairs.
+17. When `sceneTheme` is provided to `SceneEngine`, `EngineOverlayHost` shall inject `.bw-theme-{family}` and `.bw-dark` or `.bw-light` classes on its root `<div>`. The family class is derived via `resolveSceneThemeFamilyByRef(sceneTheme)`. When the function returns `undefined` (custom theme), no `.bw-theme-*` class is injected; the polarity class (`.bw-dark` or `.bw-light`) is still injected based on `sceneTheme.colorMode`.
 18. `EngineOverlayHost` shall inject four additional CSS custom properties when `sceneTheme` is present: `--brewsite-background-color`, `--brewsite-surface-elevated`, `--brewsite-border-subtle`, and `--brewsite-radius-base`. Values are derived from `SceneTheme.background` where applicable and from per-family constants otherwise.
-19. All twelve `SceneTheme` presets in `SCENE_THEME_PAIRS` — the six canonical presets and their six opposite-polarity counterparts — shall be publicly exported from `@brewsite/core`. Every entry carries production-quality aesthetic values; no polarity variant uses placeholder colors or reuses an adjacent family's values as a substitute for intentional design.
+19. All registered `SceneThemePair` entries in the scene theme registry shall carry production-quality aesthetic values for both dark and light polarities. The `'default'` and `'enterprise'` families are pre-loaded in `@brewsite/core`; other families are registered by `@brewsite/themes`.
 20. Each named `SceneTheme` preset shall specify a family-specific `font.htmlFamily` value that expresses the typographic personality of that theme family. A generic system-font-only stack (`system-ui, sans-serif`) is not acceptable for a named preset; each family differentiates its overlay typography through a distinct, curated font stack.
-21. For every `ThemeFamily` in `SCENE_THEME_PAIRS`, both the canonical and opposite-polarity `SceneTheme` entries shall satisfy the global quality bar: fully designed neutral palette, gradient scene background, overlay color tokens, and a primary text color that maintains ≥4.5:1 contrast against the family's scene background color. Neither polarity may be a structural placeholder.
+21. For every registered theme family, both the dark and light `SceneTheme` entries shall satisfy the global quality bar: fully designed neutral palette, gradient scene background, overlay color tokens, and a primary text color that maintains >= 4.5:1 contrast against the family's scene background color. Neither polarity may be a structural placeholder.
 
 ---
 
@@ -186,79 +189,128 @@ export type SceneTheme = {
 };
 ```
 
-### 7.1a ThemeFamily, ThemePolarity, SceneThemePair, SCENE_THEME_PAIRS (`packages/core/src/theme/types.ts` and `packages/core/src/theme/presets.ts`)
+### 7.1a ThemeFamily, ThemePolarity, ActiveTheme, Scene Theme Registry (`packages/core/src/theme/types.ts` and `packages/core/src/theme/sceneThemeRegistry.ts`)
 
 ```typescript
 /**
- * Canonical union of the six theme family names shared across all BrewSite packages.
- * @brewsite/diagram and @brewsite/charts import this type and alias their respective
- * theme name types to it for cross-package consistency.
+ * Canonical union of the seven theme family names shared across all BrewSite packages.
+ * 'default' maps to the enterprise aesthetic and is always pre-registered.
  */
 export type ThemeFamily =
+  | 'default'
+  | 'enterprise'
   | 'darkGlass'
   | 'midnight'
   | 'neonCyber'
-  | 'enterprise'
   | 'lightCanvas'
   | 'lightMinimal';
 
-/** Polarity of a SceneTheme within a ThemeFamily — dark-background or light-background. */
+/** Light or dark background polarity for a theme variant. */
 export type ThemePolarity = 'dark' | 'light';
 
-/** A dark/light pair of SceneTheme presets for a single ThemeFamily. */
-export type SceneThemePair = {
-  readonly dark: SceneTheme;
-  readonly light: SceneTheme;
-};
-
 /**
- * Registry of SceneTheme pairs for all six theme families.
- * Each entry's dark/light SceneThemes carry production-quality aesthetic values.
- * Both polarities are publicly exported and production-ready for use in shipped scenes.
- *
- * @example
- * const sceneTheme = SCENE_THEME_PAIRS['darkGlass']['light'];
+ * The active theme selection for a SceneEngine instance.
+ * Passed via `<SceneEngine theme={...}>` to select a theme family and polarity.
+ * Replaces the older `sceneTheme` / `themeFamily` / `themePolarity` props.
  */
-export const SCENE_THEME_PAIRS: Record<ThemeFamily, SceneThemePair>;
+export interface ActiveTheme {
+  readonly family: ThemeFamily;
+  readonly polarity: 'dark' | 'light';
+}
+```
+
+**Scene Theme Registry** (`packages/core/src/theme/sceneThemeRegistry.ts`):
+
+The registry is a mutable `Map<string, SceneThemePair>` populated at runtime. It is NOT a static `Record<ThemeFamily, SceneThemePair>` constant. The `'default'` and `'enterprise'` pairs are pre-loaded at module init with the enterprise aesthetic.
+
+```typescript
+/** A dark/light pair of SceneTheme presets for a single theme family. */
+type SceneThemePair = { dark: SceneTheme; light: SceneTheme };
 
 /**
- * Reverse-lookup: given a SceneTheme reference, return its ThemeFamily if it is
- * a registered preset in SCENE_THEME_PAIRS. Returns undefined for custom themes.
+ * Register a SceneTheme pair for a given theme family name.
+ * Called by @brewsite/themes at app startup to populate the registry
+ * beyond the built-in 'default' pair.
+ */
+export function registerSceneThemePair(family: string, pair: SceneThemePair): void;
+
+/**
+ * Resolve a SceneTheme for the given family and polarity.
+ * Falls back to the 'default' pair if the requested family is not registered.
+ */
+export function resolveSceneTheme(family: string, polarity: 'dark' | 'light'): SceneTheme;
+
+/**
+ * Reverse-lookup: given a SceneTheme reference, return its family name if it is
+ * a registered preset. Returns undefined for custom themes.
  * Uses reference equality — spread copies do not match.
  */
-export function resolveThemeFamily(sceneTheme: SceneTheme): ThemeFamily | undefined;
+export function resolveSceneThemeFamilyByRef(theme: SceneTheme): string | undefined;
 ```
 
 ### 7.2 ThemeContext (`packages/core/src/theme/ThemeContext.ts`)
 
 ```typescript
 export const ThemeContext = React.createContext<SceneTheme | null>(null);
-export function useTheme(): SceneTheme | null;
+export const useTheme = (): SceneTheme | null => useContext(ThemeContext);
 ```
 
-`ThemeContext` is populated by `EngineProvider`. It is not part of the public consumer API — consumers never call `useTheme()` directly. It is consumed internally by `EngineOverlayHost`.
+`ThemeContext` is populated by `SceneEngine`. `useTheme()` is exported from `@brewsite/core` via `theme/index.ts` and IS part of the public API. It is consumed internally by `EngineOverlayHost` for CSS variable injection, and can be used by consumers who need direct access to the resolved `SceneTheme` for custom overlay logic.
 
-### 7.3 EngineProvider `sceneTheme` prop
+### 7.2a ThemeKeyContext (deprecated) (`packages/core/src/theme/ThemeKeyContext.ts`)
 
 ```typescript
-export type EngineProviderProps = {
+export interface ThemeKey {
+  readonly family: ThemeFamily;
+  readonly polarity: ThemePolarity;
+}
+
+export const ThemeKeyContext = React.createContext<ThemeKey | null>(null);
+export const useThemeKey = (): ThemeKey | null => useContext(ThemeKeyContext);
+```
+
+`ThemeKeyContext` is deprecated and superseded by the compile-time theme path via `<SceneEngine theme={...}>`. It will be removed in the next major release. `ThemeKey` is superseded by `ActiveTheme`.
+
+### 7.3 SceneEngine Theme Props
+
+```typescript
+export interface SceneEngineProps {
   // ... existing props ...
+
   /**
+   * Active theme for this engine. Provides the ActiveTheme object (family + polarity)
+   * to all widgets and overlays. SceneEngine resolves this to a SceneTheme via
+   * resolveSceneTheme(family, polarity) for ThemeContext injection.
+   */
+  theme?: ActiveTheme;
+
+  /**
+   * @deprecated Use `theme` prop instead.
    * Optional scene theme token set for cross-package visual styling.
-   *
-   * When provided: CSS variables (font family, font sizes, color mode, text colors) are
-   * injected by EngineOverlayHost via ThemeContext. Affects all HTML overlay content.
-   *
-   * CSS variables are static for the player lifetime — they do not change per scene.
-   * For per-scene background changes, use <Background theme={...} />.
-   *
-   * WebGL font URL (sceneTheme.font.webglFontUrl) is NOT automatically plumbed to
-   * WebGL renderers. Pass sceneTheme explicitly to DiagramTheme.sceneTheme or
-   * ChartTheme.sceneTheme (or ChartDSL.sceneTheme).
+   * When provided, overrides the theme-resolved SceneTheme in ThemeContext.
    */
   sceneTheme?: SceneTheme;
-};
+
+  /**
+   * @deprecated Use `theme` prop instead.
+   * Theme family key.
+   */
+  themeFamily?: ThemeFamily;
+
+  /**
+   * @deprecated Use `theme` prop instead.
+   * Theme polarity ('dark' | 'light'). Defaults to 'dark' when themeFamily is set.
+   */
+  themePolarity?: ThemePolarity;
+}
 ```
+
+**Theme resolution precedence in SceneEngine:**
+1. If `theme` prop is set, use it as the `ActiveTheme`.
+2. Else if `themeFamily` is set, construct `{ family: themeFamily, polarity: themePolarity ?? 'dark' }`.
+3. Else default to `{ family: 'default', polarity: 'dark' }`.
+
+The resolved `ActiveTheme` is passed to compilation via `useSceneEngine({ activeTheme })`. The `SceneTheme` for `ThemeContext` is resolved via `resolveSceneTheme(family, polarity)`, unless `sceneTheme` prop is explicitly set (which overrides the registry lookup).
 
 ### 7.4 CSS Variables Injected by EngineOverlayHost
 
@@ -286,7 +338,7 @@ Additionally, `fontFamily: 'var(--brewsite-font-family)'` is set as an inline st
 
 When `sceneTheme` is provided, `EngineOverlayHost` adds the following classes to its root `<div>`:
 
-- `.bw-theme-{family}` — e.g. `.bw-theme-darkGlass`, `.bw-theme-lightCanvas`. Derived via `resolveThemeFamily(sceneTheme)`. Not injected when `resolveThemeFamily` returns `undefined` (custom theme object not in the registry).
+- `.bw-theme-{family}` — e.g. `.bw-theme-darkGlass`, `.bw-theme-lightCanvas`. Derived via `resolveSceneThemeFamilyByRef(sceneTheme)`. Not injected when the function returns `undefined` (custom theme object not in the registry).
 - `.bw-dark` or `.bw-light` — derived from `sceneTheme.colorMode`. Always injected when a `sceneTheme` is present.
 
 These classes enable theme-scoped and polarity-scoped CSS override targeting for HTML overlay content without any code change:
@@ -314,37 +366,44 @@ These classes enable theme-scoped and polarity-scoped CSS override targeting for
 
 ### 7.5 Preset Themes (`packages/core/src/theme/presets.ts`)
 
-Six named presets correspond to the six canonical theme names across `@brewsite/diagram` and `@brewsite/charts`. Each preset captures the `colorMode`, default system font, and standard font size scale appropriate for that theme family:
+`@brewsite/core` exports only the default (enterprise) presets. Named family presets (darkGlass, midnight, neonCyber, lightCanvas, lightMinimal) live in the `@brewsite/themes` package and are registered at app startup via `registerSceneThemePair()`.
 
 ```typescript
-// Generic dark/light presets (backward-compatible):
-export const darkSceneTheme: SceneTheme;
-export const lightSceneTheme: SceneTheme;
+// packages/core/src/theme/presets.ts
 
-// Six canonical named presets — one per theme family:
-export const darkGlassSceneTheme: SceneTheme;    // dark, deep navy
-export const midnightSceneTheme: SceneTheme;     // dark, warm amber
-export const neonCyberSceneTheme: SceneTheme;    // dark, electric violet/cyan
-export const enterpriseSceneTheme: SceneTheme;   // dark, professional slate-blue
-export const lightCanvasSceneTheme: SceneTheme;  // light, premium product docs
-export const lightMinimalSceneTheme: SceneTheme; // light, flat documentation
+/** Default scene theme — enterprise aesthetic, dark polarity. */
+export const defaultSceneTheme: SceneTheme;
 
-// Six opposite-polarity variants:
-export const darkGlassLightSceneTheme: SceneTheme;    // light polarity of darkGlass family
-export const midnightLightSceneTheme: SceneTheme;     // light polarity of midnight family
-export const neonCyberLightSceneTheme: SceneTheme;    // light polarity of neonCyber family
-export const enterpriseLightSceneTheme: SceneTheme;   // light polarity of enterprise family
-export const lightCanvasDarkSceneTheme: SceneTheme;   // dark polarity of lightCanvas family
-export const lightMinimalDarkSceneTheme: SceneTheme;  // dark polarity of lightMinimal family
+/** Default scene theme — enterprise aesthetic, light polarity. */
+export const defaultLightSceneTheme: SceneTheme;
+
+/** @internal Enterprise-named aliases for the default presets. */
+export const enterpriseSceneTheme: SceneTheme;       // === defaultSceneTheme
+export const enterpriseLightSceneTheme: SceneTheme;   // === defaultLightSceneTheme
 ```
 
-Named presets carry the correct `colorMode` for their family (all dark themes → `'dark'`; `lightCanvas` and `lightMinimal` → `'light'`). Each preset encodes a family-specific `font.htmlFamily` font stack that expresses that family's typographic personality; the stacks differ meaningfully across families so that overlay typography is visually differentiated. The standard `fontSize` scale is shared across families — consumers override as needed:
+The default presets use `'"IBM Plex Sans", "Inter", sans-serif'` for `font.htmlFamily` and a standard font size scale (`heading: 1.5, body: 1.0, label: 0.85, caption: 0.7, annotation: 0.6`). The background is a gradient (`linear-gradient(180deg, #0A1424 0%, #15253A 100%)` for dark, `linear-gradient(180deg, #F3F6FA 0%, #E7EDF5 100%)` for light). Both include floor grid theme tokens.
+
+**Consuming family-specific presets from `@brewsite/themes`:**
 
 ```typescript
-import { darkGlassSceneTheme } from '@brewsite/core';
+import { registerSceneThemePair, resolveSceneTheme } from '@brewsite/core';
+import { darkGlassPair } from '@brewsite/themes';
+
+// At app startup:
+registerSceneThemePair('darkGlass', darkGlassPair);
+
+// At usage:
+const theme = resolveSceneTheme('darkGlass', 'dark');
+```
+
+**Custom theme override:**
+
+```typescript
+import { defaultSceneTheme } from '@brewsite/core';
 
 const brandTheme: SceneTheme = {
-  ...darkGlassSceneTheme,
+  ...defaultSceneTheme,
   font: {
     htmlFamily: 'Inter, system-ui, sans-serif',
     webglFontUrl: 'https://cdn.example.com/fonts/inter-msdf.ttf',
@@ -355,20 +414,25 @@ const brandTheme: SceneTheme = {
 ### 7.6 Usage Pattern
 
 ```tsx
-import { EngineProvider, EngineOverlayHost, darkSceneTheme } from '@brewsite/core';
+import { SceneEngine, EngineOverlayHost, SceneCanvas, EngineGate, corePlugin } from '@brewsite/core';
 
-// Global theme on the player:
-<EngineProvider sceneTheme={darkSceneTheme} manifestUrl="/manifest.json" plugins={[...]}>
-  <SceneCanvas />
-  <EngineOverlayHost />  {/* injects CSS variables */}
+// Using ActiveTheme prop (preferred):
+<SceneEngine theme={{ family: 'enterprise', polarity: 'dark' }} plugins={[corePlugin()]}>
   <Scene key="hero">
-    <Background theme={darkSceneTheme} />
-    {/* Overlay content can use CSS variables: */}
-    <div style={{ fontFamily: 'var(--brewsite-font-family)', color: 'var(--brewsite-text-primary)' }}>
-      Hero headline
-    </div>
+    <Camera descriptor={{ mode: 'world', position: [0, 1, 5], target: [0, 0, 0] }} />
   </Scene>
-</EngineProvider>
+  <EngineGate>
+    <SceneCanvas />
+    <EngineOverlayHost />  {/* injects CSS variables from resolved SceneTheme */}
+  </EngineGate>
+</SceneEngine>
+
+// Using deprecated sceneTheme prop (backward-compatible):
+import { defaultSceneTheme } from '@brewsite/core';
+
+<SceneEngine sceneTheme={defaultSceneTheme} plugins={[corePlugin()]}>
+  ...
+</SceneEngine>
 ```
 
 ---
@@ -377,23 +441,25 @@ import { EngineProvider, EngineOverlayHost, darkSceneTheme } from '@brewsite/cor
 
 ### ThemeContext is static per player lifetime
 
-`ThemeContext` holds the value provided to `EngineProvider.sceneTheme` for the entire player lifetime. It does not update between scenes. This is intentional: updating CSS variables per scene would trigger a React re-render cascade from every consumer of the context on every scene transition — a performance anti-pattern on a hot render path.
+`ThemeContext` holds the `SceneTheme` resolved by `SceneEngine` for the entire player lifetime. It does not update between scenes. This is intentional: updating CSS variables per scene would trigger a React re-render cascade from every consumer of the context on every scene transition — a performance anti-pattern on a hot render path.
 
 Per-scene background visual changes (gradient fill, CSS filter, overlay gradient) are handled by `BackgroundWidget` DOM manipulation — the widget applies CSS values to the background DOM element on each frame tick when the compiled `SceneBackground` state changes. This is the correct pattern: CSS variables control layout-level constants (font, color mode); DOM widget state controls scene-level animation values.
 
 ### WebGL font URL is not auto-plumbed
 
-`sceneTheme.font.webglFontUrl` on `EngineProvider` does NOT automatically configure diagram or chart WebGL renderers. The font URL must be provided to `DiagramTheme.sceneTheme` or `ChartTheme.sceneTheme` (or `ChartDSL.sceneTheme`) for it to affect WebGL-rendered text. This is by design: `EngineProvider` knows nothing about diagram or chart elements; plumbing the font URL through the engine would couple core to its dependents, violating the package dependency rule.
+`sceneTheme.font.webglFontUrl` on `SceneEngine` does NOT automatically configure diagram or chart WebGL renderers. The font URL must be provided to `DiagramTheme.sceneTheme` or `ChartTheme.sceneTheme` (or `ChartDSL.sceneTheme`) for it to affect WebGL-rendered text. This is by design: `SceneEngine` knows nothing about diagram or chart elements; plumbing the font URL through the engine would couple core to its dependents, violating the package dependency rule.
 
 ### Module location
 
-`packages/core/src/theme/` is a new directory containing:
-- `types.ts` — all `SceneTheme` type contracts (no runtime, no React, no Three.js)
+`packages/core/src/theme/` contains:
+- `types.ts` — all type contracts: `SceneTheme`, `ThemeFamily`, `ThemePolarity`, `ActiveTheme`, and all sub-types (no runtime, no React, no Three.js)
 - `ThemeContext.ts` — React context + `useTheme` hook
-- `presets.ts` — `darkSceneTheme`, `lightSceneTheme` constants
-- `index.ts` — re-exports for use within the core package
+- `ThemeKeyContext.ts` — deprecated React context + `useThemeKey` hook (superseded by `ActiveTheme`)
+- `presets.ts` — `defaultSceneTheme`, `defaultLightSceneTheme`, and enterprise aliases
+- `sceneThemeRegistry.ts` — mutable runtime registry with `registerSceneThemePair()`, `resolveSceneTheme()`, `resolveSceneThemeFamilyByRef()`
+- `index.ts` — public re-exports
 
-All public types and presets are re-exported from `packages/core/src/index.ts`.
+All public types, presets, and registry functions are re-exported from `packages/core/src/index.ts` via `theme/index.ts`.
 
 ---
 
@@ -421,11 +487,14 @@ All public types and presets are re-exported from `packages/core/src/index.ts`.
 
 ## 11. Dependencies
 
-- `packages/core/src/theme/types.ts` — new module
-- `packages/core/src/theme/ThemeContext.ts` — new module
-- `packages/core/src/theme/presets.ts` — new module
-- `packages/core/src/player/EngineProvider.tsx` — modified: new `sceneTheme` prop, `ThemeContext.Provider` wrapping
-- `packages/core/src/player/EngineOverlayHost.tsx` — modified: reads `ThemeContext`, injects CSS variables
+- `packages/core/src/theme/types.ts` — type contracts (SceneTheme, ThemeFamily, ActiveTheme, etc.)
+- `packages/core/src/theme/ThemeContext.ts` — React context + `useTheme` hook
+- `packages/core/src/theme/ThemeKeyContext.ts` — deprecated React context + `useThemeKey` hook
+- `packages/core/src/theme/presets.ts` — default enterprise presets
+- `packages/core/src/theme/sceneThemeRegistry.ts` — mutable runtime registry
+- `packages/core/src/theme/index.ts` — public re-exports
+- `packages/core/src/player/SceneEngine.tsx` — `theme`, `sceneTheme`, `themeFamily`, `themePolarity` props; `ThemeContext.Provider` wrapping
+- `packages/core/src/player/EngineOverlayHost.tsx` — reads `ThemeContext`, injects CSS variables and classes
 - No new external npm dependencies
 
 ---
@@ -434,29 +503,29 @@ All public types and presets are re-exported from `packages/core/src/index.ts`.
 
 **API regret on CSS variable names:** The variable names (`--brewsite-font-family`, `--brewsite-text-primary`, etc.) are now injected into consumer DOM. Renaming them is a breaking change for consumer CSS. Mitigation: names are prefixed with `--brewsite-` to signal toolkit ownership; they follow a stable, predictable naming convention.
 
-**Missing `EngineOverlayHost` in consumer layout:** Consumers who compose `EngineProvider` + `SceneCanvas` manually without `EngineOverlayHost` will not receive CSS variable injection. This is expected — `EngineOverlayHost` is the injection point. If a consumer uses a custom overlay host, they can read `ThemeContext` via `useTheme()` and inject variables themselves.
+**Missing `EngineOverlayHost` in consumer layout:** Consumers who compose `SceneEngine` + `SceneCanvas` manually without `EngineOverlayHost` will not receive CSS variable injection. This is expected — `EngineOverlayHost` is the injection point. If a consumer uses a custom overlay host, they can read `ThemeContext` via `useTheme()` and inject variables themselves.
 
 ---
 
 ## 13. Launch Criteria
 
 **Shipped (original theming system):**
-- [x] `SceneTheme`, `SceneColorMode`, `SceneThemeFontTokens`, `SceneThemeFontSizeScale`, `SceneThemeBackgroundFill`, `SceneThemeBackgroundEffects`, `SceneThemeBackground`, `darkSceneTheme`, `lightSceneTheme`, `darkGlassSceneTheme`, `midnightSceneTheme`, `neonCyberSceneTheme`, `enterpriseSceneTheme`, `lightCanvasSceneTheme`, `lightMinimalSceneTheme` exported from `packages/core/src/index.ts`.
-- [x] `EngineProvider` `sceneTheme` prop typed and documented in JSDoc.
+- [x] `SceneTheme`, `SceneColorMode`, `SceneThemeFontTokens`, `SceneThemeFontSizeScale`, `SceneThemeBackgroundFill`, `SceneThemeBackgroundEffects`, `SceneThemeBackground`, `ThemeFamily`, `ThemePolarity`, `ActiveTheme`, `defaultSceneTheme`, `defaultLightSceneTheme`, `registerSceneThemePair`, `resolveSceneTheme`, `useTheme` exported from `packages/core/src/index.ts`.
+- [x] `SceneEngine` `theme` prop (ActiveTheme) typed and documented in JSDoc. Deprecated `sceneTheme`, `themeFamily`, `themePolarity` props retained with `@deprecated` annotation.
 - [x] `EngineOverlayHost` tests cover: CSS variables present when theme provided; no CSS variables when theme absent.
 - [x] TypeScript strict-mode typecheck passes on `packages/core/src/theme/`.
-- [x] At least one example in `apps/examples/` demonstrates `sceneTheme` on `EngineProvider` with CSS variable usage in overlay content.
+- [x] At least one example in `apps/examples/` demonstrates `theme` on `SceneEngine` with CSS variable usage in overlay content.
 - [x] `pnpm test` passes for `@brewsite/core` with coverage on `src/theme/`.
 
 **Shipped (theming overhaul — polarity pairs and CSS class injection):**
-- [x] `ThemeFamily`, `ThemePolarity`, `SceneThemePair`, `SCENE_THEME_PAIRS`, `resolveThemeFamily` exported from `packages/core/src/index.ts`.
+- [x] `registerSceneThemePair`, `resolveSceneTheme`, `resolveSceneThemeFamilyByRef` exported from `packages/core/src/index.ts`.
 - [x] `EngineOverlayHost` injects `.bw-theme-{family}` and `.bw-dark`/`.bw-light` classes on its root div.
 - [x] `EngineOverlayHost` injects `--brewsite-background-color`, `--brewsite-surface-elevated`, `--brewsite-border-subtle`, `--brewsite-radius-base` CSS custom properties.
 - [x] `EngineOverlayHost` tests updated to cover class injection for known theme families and custom themes.
 - [x] `pnpm test` passes for `@brewsite/core` with updated theme coverage.
 
 **Shipped (theme family art direction — polarity variants and typography):**
-- [x] All six opposite-polarity `SceneTheme` presets carry production-quality aesthetic values; no placeholder values remain. All 12 `SCENE_THEME_PAIRS` entries are publicly exported.
+- [x] Default enterprise presets (defaultSceneTheme, defaultLightSceneTheme) carry production-quality aesthetic values. Registry supports runtime registration of additional families.
 - [x] Each named `SceneTheme` preset encodes a family-specific `font.htmlFamily` font stack differentiating overlay typography across families.
 - [x] Theme gallery example page (`apps/examples/src/theme-gallery/`) demonstrates all 12 presets.
 

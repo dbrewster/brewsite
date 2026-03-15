@@ -8,6 +8,9 @@ change_history:
   - date: 2026-03-15
     author: "Toolkit Product"
     summary: "Initial PRD created post-implementation. Documents the shipped v0.1.0 feature: MCP server, CLI tooling, search stack, build pipeline, and monorepo integration."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Codebase alignment audit. Fixed brewsite_search tool: added topic parameter (optional enum: 'core' | 'diagram' | 'model' | 'charts' | 'screens' | 'guides'). Fixed brewsite_get_doc tool: parameter is id (not path), format is '{filePath}#{heading}' compound key, retrieves individual ##-level chunks. Fixed brewsite_list_topics return type: actual returns TopicInfo { topic, count, description }, not TopicEntry { category, title, path }. Fixed SearchResult type: actual has nested meta object { filePath, heading, title, topic }, not flat fields."
 ---
 
 # `@brewsite/claude-author` — AI-Assisted Scene Authoring Tooling
@@ -73,16 +76,16 @@ Developers integrating the BrewSite toolkit work with a non-trivial API surface:
 2. The server exposes three tools:
 
    **`brewsite_search`** — Hybrid semantic + full-text search over the documentation corpus.
-   - Input: `query` (string, required), `limit` (number, optional, default 5)
-   - Returns: Array of matching document chunks with `filePath`, `heading`, `title`, `content`, and `score`
+   - Input: `query` (string, required), `topic` (optional enum: `'core' | 'diagram' | 'model' | 'charts' | 'screens' | 'guides'`), `limit` (number, optional, default 5, max 20)
+   - Returns: Array of `SearchResult` objects with `id`, `content`, `score`, and `meta: { filePath, heading, title, topic }`
 
-   **`brewsite_get_doc`** — Retrieve a specific document or section by path identifier.
-   - Input: `path` (string, required)
-   - Returns: Full document content with metadata
+   **`brewsite_get_doc`** — Retrieve a specific documentation chunk by its compound ID.
+   - Input: `id` (string, required) — format is `"{filePath}#{heading}"`, e.g. `"core/input-dsl.md#WheelMap"`
+   - Returns: Single `SearchResult` with full chunk content, or error if not found. Retrieves individual `##`-level chunks, not entire documents.
 
    **`brewsite_list_topics`** — List available documentation topic areas for discovery.
    - Input: none
-   - Returns: Array of topic objects with `category`, `title`, and `path`
+   - Returns: Array of `TopicInfo` objects with `topic` (string), `count` (number), and `description` (string)
 
 3. The server loads a pre-built Orama index (`index/orama-index.json`) at startup. No index building occurs at runtime.
 4. Query embedding uses `nomic-embed-text-v1.5` (int4 quantized ONNX, ~65MB) bundled in the package under `models/nomic-embed-text-v1.5/`.
@@ -123,29 +126,48 @@ Developers integrating the BrewSite toolkit work with a non-trivial API surface:
 ### MCP Tool Signatures
 
 ```typescript
-// brewsite_search
-interface SearchInput {
-  query: string;
-  limit?: number; // default 5
-}
-interface SearchResult {
+// ─── Shared types (packages/claude-author/src/types.ts) ─────────────────────
+
+/** Available topic areas for filtering. */
+type TopicArea = 'core' | 'diagram' | 'model' | 'charts' | 'screens' | 'guides';
+
+/** Metadata stored alongside each documentation chunk. */
+interface DocChunkMeta {
   filePath: string;   // e.g. "core/input-dsl.md"
   heading: string;    // e.g. "WheelMap"
   title: string;      // document-level title
+  topic: string;      // e.g. "core", "diagram", "charts"
+}
+
+/** Result returned from search or getDocById. */
+interface SearchResult {
+  id: string;         // compound key: "{filePath}#{heading}"
   content: string;    // chunk text
-  score: number;      // relevance score
+  score: number;      // relevance score (0-1, higher is better)
+  meta: DocChunkMeta; // source metadata (nested object)
 }
 
-// brewsite_get_doc
+// ─── brewsite_search ─────────────────────────────────────────────────────────
+interface SearchDocsInput {
+  query: string;           // natural language search query
+  topic?: TopicArea;       // optional topic filter
+  limit?: number;          // default 5, max 20
+}
+// Returns: SearchResult[]
+
+// ─── brewsite_get_doc ────────────────────────────────────────────────────────
 interface GetDocInput {
-  path: string;       // e.g. "core/input-dsl.md"
+  id: string;              // "{filePath}#{heading}" compound key
 }
+// Returns: SearchResult (single chunk) or error
 
-// brewsite_list_topics
-interface TopicEntry {
-  category: string;   // e.g. "core", "diagram", "guides"
-  title: string;
-  path: string;
+// ─── brewsite_list_topics ────────────────────────────────────────────────────
+// Input: {} (no parameters)
+// Returns: TopicInfo[]
+interface TopicInfo {
+  topic: string;           // e.g. "core", "diagram"
+  count: number;           // number of indexed sections
+  description: string;     // human-readable topic summary
 }
 ```
 

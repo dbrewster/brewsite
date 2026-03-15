@@ -16,7 +16,7 @@ const PAGE_STYLES = {
     overflow: 'hidden',
   },
   sidebar: {
-    width: '360px',
+    width: 'clamp(220px, 28vw, 360px)',
     flexShrink: 0,
     padding: '2rem',
     overflowY: 'auto' as const,

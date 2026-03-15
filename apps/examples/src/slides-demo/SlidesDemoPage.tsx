@@ -3,12 +3,12 @@
 // dark theme, bar progress indicator, and full navigation controls.
 
 import { useEffect, useRef, useState, type JSX } from 'react';
-import { SlidePlayer, getDeckThemeForFamily } from '@brewsite/slides';
+import { SlidePlayer, getDeckThemeForFamily, DECK_THEME_PAIRS } from '@brewsite/slides';
 import type { DeckTheme, ProgressStyle } from '@brewsite/slides';
 import type { ThemeFamily } from '@brewsite/core';
 import { demoSlides } from './deck';
 
-// ─── Theme options ──────────────────────────────────────────────────────────
+// ─── Theme options — derived dynamically from DECK_THEME_PAIRS ───────────────
 
 type ThemeOption = {
   label: string;
@@ -16,14 +16,22 @@ type ThemeOption = {
   polarity: 'dark' | 'light';
 };
 
-const THEME_OPTIONS: ThemeOption[] = [
-  { label: 'Midnight Dark', family: 'midnight', polarity: 'dark' },
-  { label: 'Midnight Light', family: 'midnight', polarity: 'light' },
-  { label: 'Neon Cyber', family: 'neonCyber', polarity: 'dark' },
-  { label: 'Dark Glass', family: 'darkGlass', polarity: 'dark' },
-  { label: 'Light Canvas', family: 'lightCanvas', polarity: 'light' },
-  { label: 'Light Minimal', family: 'lightMinimal', polarity: 'light' },
-];
+/** Convert a camelCase family key to a readable label (e.g. "darkGlass" → "Dark Glass"). */
+function formatFamilyLabel(family: string): string {
+  return family
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/^./, (c) => c.toUpperCase())
+    .trim();
+}
+
+const THEME_OPTIONS: ThemeOption[] = (
+  Object.keys(DECK_THEME_PAIRS) as ThemeFamily[]
+)
+  .filter((f) => f !== 'default') // 'default' is an alias for 'enterprise' — exclude duplicate
+  .flatMap((family) => [
+    { label: `${formatFamilyLabel(family)} · Dark`, family, polarity: 'dark' as const },
+    { label: `${formatFamilyLabel(family)} · Light`, family, polarity: 'light' as const },
+  ]);
 
 const PROGRESS_OPTIONS: { label: string; value: ProgressStyle }[] = [
   { label: 'Bar', value: 'bar' },
@@ -55,6 +63,7 @@ export default function SlidesDemoPage(): JSX.Element {
         <div style={{
           display: 'flex',
           alignItems: 'center',
+          flexWrap: 'wrap',
           gap: '1rem',
           padding: '0.5rem 1rem',
           background: theme.colorMode === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)',

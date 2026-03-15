@@ -3,7 +3,7 @@ title: "BrewSite Charts — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-13
+last_updated: 2026-03-15
 change_history:
   - date: 2026-03-04
     author: "Toolkit Product"
@@ -29,13 +29,16 @@ change_history:
   - date: 2026-03-13
     author: "Toolkit Product"
     summary: "Codebase audit sync. Corrected ChartAxisTokens, ChartLegendTokens, and ChartInteractionTokens API Design entries to include all fields present in the implementation (lineOpacity, tickOpacity, labelOpacity, gap for axis; swatchSize, spacing, gap for legend; selectedColor for interaction). Updated Section 7.6 usage pattern to use <BarChart> instead of deprecated <Chart type='bar'>. Marked all V2.1 token group launch criteria as complete — ChartBarTokens, ChartAreaTokens, ChartGridlinesTokens, ChartDataLabelsTokens, ChartReferenceLineTokens are shipped and exported."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Codebase alignment audit. Fixed CHART_THEMES type: actual is Partial<Record<ChartThemeName, ChartTheme>> with only 'enterprise' entry (not all six). Removed CHART_THEME_PAIRS from public API — it is not exported from the barrel. Named preset exports limited to enterpriseChartTheme, defaultChartTheme, enterpriseLightChartTheme, defaultLightChartTheme. Other family presets (darkGlass, midnight, neonCyber, lightCanvas, lightMinimal) are registered at runtime by @brewsite/themes via registerChartThemePair(), not exported from @brewsite/charts. Fixed createChartTheme() ChartThemeOverrides: does NOT include tooltip or projection as override-able fields. Updated functional requirements, API design, and launch criteria to match the actual registry-based architecture."
 ---
 
 # BrewSite Charts — Theming System
 
 ## 1. Overview
 
-The theming system in `@brewsite/charts` provides the complete design language for 3D chart visualization. A `ChartTheme` is a plain TypeScript object that configures series material tokens, axis styling, background plane tokens, legend styling, and interaction feedback colors for all elements within a chart. Six preset themes ship with the package, matching the six canonical `ChartThemeName` values (`darkGlass`, `midnight`, `neonCyber`, `enterprise`, `lightCanvas`, `lightMinimal`) that correspond to the paired presets in `@brewsite/diagram`. Each preset carries an 8-color series palette coordinated with its diagram counterpart. The `ChartTheme` accepts an optional `sceneTheme?: SceneTheme` field from `@brewsite/core` that provides cross-package font URL and color-mode defaults.
+The theming system in `@brewsite/charts` provides the complete design language for 3D chart visualization. A `ChartTheme` is a plain TypeScript object that configures series material tokens, axis styling, background plane tokens, legend styling, and interaction feedback colors for all elements within a chart. The `@brewsite/charts` barrel exports two built-in preset themes (`enterpriseChartTheme` / `defaultChartTheme` for dark polarity, `enterpriseLightChartTheme` / `defaultLightChartTheme` for light polarity). Additional named family presets (`darkGlass`, `midnight`, `neonCyber`, `lightCanvas`, `lightMinimal`) are registered at runtime by `@brewsite/themes` via the `registerChartThemePair()` API and resolved through `resolveChartTheme(family, polarity)`. The `ChartThemeName` type is an alias for `ThemeFamily` from `@brewsite/core`. Each preset carries an 8-color series palette coordinated with its `@brewsite/diagram` counterpart. The `ChartTheme` accepts an optional `sceneTheme?: SceneTheme` field from `@brewsite/core` that provides cross-package font URL and color-mode defaults.
 
 Affects: `@brewsite/charts`.
 
@@ -96,8 +99,8 @@ Chart rendering via troika-three-text used the troika built-in default font unco
 ## 6. Functional Requirements
 
 1. The `ChartTheme` type shall be a plain TypeScript object type with no runtime dependencies.
-2. Six preset themes — `darkGlassChartTheme`, `midnightChartTheme`, `neonCyberChartTheme`, `enterpriseChartTheme`, `lightCanvasChartTheme`, `lightMinimalChartTheme` — shall be exported as named constants from `@brewsite/charts`. The `ChartThemeName` union type shall be a type alias for `ThemeFamily` from `@brewsite/core`, maintaining backward compatibility while tying it to the cross-package canonical union. The `CHART_THEMES: Record<ChartThemeName, ChartTheme>` registry shall include all six entries.
-2a. A `ChartThemePair` type (`{ readonly dark: ChartTheme; readonly light: ChartTheme }`) and `CHART_THEME_PAIRS: Record<ThemeFamily, ChartThemePair>` registry shall be exported from `@brewsite/charts`. Each entry is pre-wired with the corresponding `SceneTheme` from `SCENE_THEME_PAIRS`. All 12 entries carry production-quality aesthetic values; both polarities for every family are publicly exported.
+2. Two preset theme pairs shall be exported as named constants from the `@brewsite/charts` barrel: `enterpriseChartTheme` / `defaultChartTheme` (dark polarity) and `enterpriseLightChartTheme` / `defaultLightChartTheme` (light polarity). The `ChartThemeName` union type shall be a type alias for `ThemeFamily` from `@brewsite/core`, maintaining backward compatibility while tying it to the cross-package canonical union. The `CHART_THEMES: Partial<Record<ChartThemeName, ChartTheme>>` registry shall include the `enterprise` entry. Additional family presets (`darkGlass`, `midnight`, `neonCyber`, `lightCanvas`, `lightMinimal`) are internal files not on the public barrel — they are registered at runtime by `@brewsite/themes` via `registerChartThemePair()`.
+2a. A `ChartThemePairEntry` type (`{ dark: ChartTheme; light: ChartTheme }`) shall be exported from `@brewsite/charts`. A deprecated `ChartThemePair` type (`{ readonly dark: ChartTheme; readonly light: ChartTheme }`) shall also be exported for backward compatibility. The `registerChartThemePair(family, pair)` function and `resolveChartTheme(family, polarity)` function shall be exported from `@brewsite/charts` to enable external packages (e.g., `@brewsite/themes`) to register and resolve theme pairs at runtime. The registry is pre-loaded with `'default'` and `'enterprise'` entries at module initialization.
 3. `ChartTheme` shall accept an optional `sceneTheme?: SceneTheme` field (imported from `@brewsite/core`).
 4. When `sceneTheme.font.webglFontUrl` is set, the chart render context shall pass it to troika-three-text for all axis tick labels, axis title labels, and legend labels.
 5. When `sceneTheme.colorMode` is `'dark'` and no explicit `ChartAxisTokens.labelColor` override is set, the chart renderer shall use a light-appropriate label color as a fallback default. Explicit theme values take precedence.
@@ -110,7 +113,7 @@ Chart rendering via troika-three-text used the troika built-in default font unco
 12. **V2.1:** When `ChartGridlinesTokens` is present, it takes precedence over `ChartBackgroundTokens.gridColor`. The fallback chain in `AxesRenderer` is: `theme.gridlines?.color ?? theme.background.gridColor ?? '#4a6080'`.
 13. **V2.1:** `ChartGridlinesTokens.dashSize` and `gapSize` enable dashed gridlines via `LineDashedMaterial`. When absent, gridlines use `LineBasicMaterial` (solid). WebGL1 linewidth cap (1px) applies to both — dashed gridlines are decorative.
 14. **V2.1:** `ChartReferenceLineTokens.lineWidth` is a world-space width applied to a thin `BoxGeometry` plane, not a `Three.js linewidth` property. This avoids the WebGL1 1px linewidth cap for reference lines.
-15. **V2.1:** `createChartTheme(base, overrides)` shall support deep-merging all new optional token groups via `ChartThemeOverrides`. Partial overrides of nested groups are supported (e.g., overriding only `bar.padding`).
+15. **V2.1:** `createChartTheme(base, overrides)` shall support deep-merging optional token groups via `ChartThemeOverrides`. The override-able fields are: `name`, `series`, `axis`, `background`, `legend`, `line`, `pie`, `interaction`, `bar`, `area`, `gridlines`, `dataLabels`, `referenceLines`. Note: `tooltip` and `projection` are NOT included in `ChartThemeOverrides` — consumers who need custom tooltip or projection tokens must construct a full `ChartTheme` object or spread onto the result of `createChartTheme()`. Partial overrides of nested groups are supported (e.g., overriding only `bar.padding`).
 16. **V2.1:** All six built-in preset themes shall include explicit values for all new optional token groups. New `ChartThemeOverrides` callers that don't specify new groups inherit the preset's explicit values.
 17. `ChartTheme` shall accept two new optional token groups: `tooltip?: ChartTooltipTokens` and `projection?: ChartProjectionTokens`. All 12 built-in preset themes (6 base + 6 polarity variants) include explicit values for both groups.
 18. `<ChartTooltip>` shall be a valid DSL child of all chart types (`BarChart`, `LineChart`, `AreaChart`, `ScatterChart`, `PieChart`, `HeatmapChart`). It shall compile to `ChartState.tooltip: ChartTooltipState | null`.
@@ -122,7 +125,7 @@ Chart rendering via troika-three-text used the troika built-in default font unco
 24. `ChartTooltipOverlay` is deprecated. Consumers must migrate to `<ChartTooltip>` + `<ChartTooltipHost />`. `ChartTooltipOverlay` will be removed in the next minor version.
 25. When `theme.tooltip` or `theme.projection` is absent (consumer custom theme without these optional groups), `ChartTooltipHost` and `ChartProjectionRenderer` use `darkGlass` token values as compile-time fallback constants.
 26. Each built-in `ChartTheme` preset shall define a family-specific series material profile in `theme.series[]` — covering `metalness`, `roughness`, `transmission`, and `emissiveIntensity` — that reflects the rendering character of that family and polarity. Dark-polarity variants use elevated emissive intensity and higher metalness relative to light-polarity variants of the same family. Light-polarity variants use near-matte materials with minimal emission to avoid visual noise on pale scene backgrounds.
-27. For every `ThemeFamily` in `CHART_THEME_PAIRS`, both the canonical and opposite-polarity `ChartTheme` entries shall carry fully designed values across all token groups: series materials, axis/legend colors, interaction tokens, tooltip tokens, and projection tokens. Neither polarity may reuse the other polarity's token values as a substitute for intentional design.
+27. For every `ThemeFamily` registered via `registerChartThemePair()`, both the dark and light polarity `ChartTheme` entries shall carry fully designed values across all token groups: series materials, axis/legend colors, interaction tokens, tooltip tokens, and projection tokens. Neither polarity may reuse the other polarity's token values as a substitute for intentional design.
 
 ---
 
@@ -483,7 +486,7 @@ useChartTooltipConfig('revenue', {
 });
 ```
 
-### 7.2a ChartThemeName, ChartThemePair, and CHART_THEME_PAIRS
+### 7.2a ChartThemeName, Theme Registry, and CHART_THEMES
 
 ```typescript
 // packages/charts/src/themes/types.ts
@@ -494,38 +497,60 @@ useChartTooltipConfig('revenue', {
  */
 import type { ThemeFamily } from '@brewsite/core';
 export type ChartThemeName = ThemeFamily;
+```
 
-/** Dark/light pair of ChartTheme presets for a single ThemeFamily. */
-export type ChartThemePair = {
-  readonly dark: ChartTheme;
-  readonly light: ChartTheme;
-};
+```typescript
+// packages/charts/src/themes/chartThemeRegistry.ts
+
+/** A light+dark pair of ChartTheme presets for a single theme family. */
+export type ChartThemePairEntry = { dark: ChartTheme; light: ChartTheme };
+
+/**
+ * Registers a ChartTheme pair under the given family name.
+ * Called by @brewsite/themes at app startup to populate the registry
+ * beyond the built-in 'default' pair.
+ */
+export function registerChartThemePair(family: string, pair: ChartThemePairEntry): void;
+
+/**
+ * Resolves the ChartTheme for the given family and polarity.
+ * Falls back to the 'default' pair if the requested family is not registered.
+ */
+export function resolveChartTheme(family: string, polarity: 'dark' | 'light'): ChartTheme;
 ```
 
 ```typescript
 // packages/charts/src/themes/index.ts
 
 /**
- * Registry of ChartTheme pairs for all six ThemeFamily values.
- * Each entry's dark/light ChartThemes are pre-wired with the matching SceneTheme
- * from @brewsite/core's SCENE_THEME_PAIRS — consumers need not manually attach sceneTheme.
- *
- * All twelve entries carry production-quality aesthetic values. Both polarities for every
- * ThemeFamily are publicly exported and production-ready for use in shipped scenes.
- *
- * @example
- * import { SCENE_THEME_PAIRS } from '@brewsite/core';
- * import { DIAGRAM_THEME_PAIRS } from '@brewsite/diagram';
- * import { CHART_THEME_PAIRS } from '@brewsite/charts';
- *
- * const family = 'darkGlass';
- * const polarity = isDarkMode ? 'dark' : 'light';
- *
- * const sceneTheme   = SCENE_THEME_PAIRS[family][polarity];
- * const diagramTheme = DIAGRAM_THEME_PAIRS[family][polarity]; // sceneTheme pre-wired
- * const chartTheme   = CHART_THEME_PAIRS[family][polarity];   // sceneTheme pre-wired
+ * Built-in preset themes keyed by canonical name.
+ * Only 'enterprise' is available in @brewsite/charts.
+ * Named families (darkGlass, midnight, etc.) are registered via @brewsite/themes
+ * at app startup using registerChartThemePair().
  */
-export const CHART_THEME_PAIRS: Record<ThemeFamily, ChartThemePair>;
+export const CHART_THEMES: Partial<Record<ChartThemeName, ChartTheme>> = {
+  enterprise: enterpriseChartTheme,
+} as const;
+
+/** @deprecated Use registerChartThemePair / resolveChartTheme instead. */
+export type ChartThemePair = {
+  readonly dark: ChartTheme;
+  readonly light: ChartTheme;
+};
+```
+
+**Usage pattern for cross-package theme coordination:**
+
+```typescript
+import { resolveChartTheme, registerChartThemePair } from '@brewsite/charts';
+
+// At app startup, @brewsite/themes registers all family presets:
+// registerChartThemePair('darkGlass', { dark: darkGlassChartTheme, light: darkGlassLightChartTheme });
+
+// At render time, resolve the theme for the active family and polarity:
+const family = 'darkGlass';
+const polarity = isDarkMode ? 'dark' : 'light';
+const chartTheme = resolveChartTheme(family, polarity);
 ```
 
 ### 7.3 ChartDSL `sceneTheme` Prop
@@ -628,7 +653,7 @@ Material profiles vary by family intent and polarity:
 
 Series colors (`ChartSeriesMaterialTokens.color`) are shared across polarities within a family — the same eight accent hex values are used for both dark and light entries. Only the material rendering parameters (`metalness`, `roughness`, `transmission`, `emissiveIntensity`) differ by polarity.
 
-Cross-package coordination: the series color palette is specified to match the 8-color accent palette used in the paired `DiagramTheme` (accessible via the cross-package comment block present in each preset theme file). When `DIAGRAM_THEME_PAIRS` and `CHART_THEME_PAIRS` entries for the same family are used together, the series colors and diagram node/edge accent colors form a coherent palette in side-by-side scenes.
+Cross-package coordination: the series color palette is specified to match the 8-color accent palette used in the paired `DiagramTheme` (accessible via the cross-package comment block present in each preset theme file). When diagram and chart theme pairs for the same family are resolved from their respective registries and used together, the series colors and diagram node/edge accent colors form a coherent palette in side-by-side scenes.
 
 ### NVS Sub-Region Support
 
@@ -707,7 +732,7 @@ These fallbacks are only used when the resolved `ChartTheme` has no explicit `ax
 
 3. **Font is chart-wide, not per-axis.** A single `webglFontUrl` applies to all troika-rendered text in the chart (both axes, legend, any internally rendered text). Per-axis font customization is not supported in v1.
 
-4. **`sceneTheme.colorMode` has no effect on series material parameters.** `sceneTheme.colorMode` influences axis/legend label color fallbacks (when explicit values are absent) but does not adjust series `metalness`, `roughness`, or `emissiveIntensity`. For a fully correct polarity-switched chart, use a `CHART_THEME_PAIRS` entry rather than attempting to construct a polarity variant via `sceneTheme` alone — the pair entry carries the intentionally designed material profile for that polarity.
+4. **`sceneTheme.colorMode` has no effect on series material parameters.** `sceneTheme.colorMode` influences axis/legend label color fallbacks (when explicit values are absent) but does not adjust series `metalness`, `roughness`, or `emissiveIntensity`. For a fully correct polarity-switched chart, use `resolveChartTheme(family, polarity)` to get the correct polarity variant rather than attempting to construct one via `sceneTheme` alone — the registered pair carries the intentionally designed material profile for that polarity.
 
 5. **Polarity toggle in the examples app requires full player remount.** `ChartDemoPage` implements the polarity toggle via `clearSceneTrackCache()` + `engineKey` increment, causing `SceneEngine` to unmount and remount. This produces ~100–300ms latency. This is acceptable for a demo button. A lightweight CSS-variables-only update path (without remount) is possible for overlay content changes but does not address Three.js material color changes, which always require recompilation.
 
@@ -788,15 +813,16 @@ Any consumer code that passes `camera` or `domElement` to `ChartTooltipOverlay` 
 - [x] `pnpm test` passes for `@brewsite/charts`.
 
 **Shipped (theme redesign):**
-- [x] All six `ChartTheme` preset constants (`darkGlassChartTheme`, `midnightChartTheme`, `neonCyberChartTheme`, `enterpriseChartTheme`, `lightCanvasChartTheme`, `lightMinimalChartTheme`) exported from `@brewsite/charts`.
-- [x] `ChartThemeName` union includes `midnight` and `lightCanvas`.
-- [x] `CHART_THEMES` registry includes all six entries.
+- [x] `enterpriseChartTheme`, `defaultChartTheme`, `enterpriseLightChartTheme`, `defaultLightChartTheme` exported from `@brewsite/charts` barrel.
+- [x] Additional family presets (darkGlass, midnight, neonCyber, lightCanvas, lightMinimal) exist as internal files and are registered at runtime by `@brewsite/themes` via `registerChartThemePair()`.
+- [x] `ChartThemeName` union includes all families via `ThemeFamily` alias.
+- [x] `CHART_THEMES` registry includes `enterprise` entry. Other families are runtime-registered.
 - [x] Each preset theme file contains the cross-package palette comment block matching the paired `@brewsite/diagram` theme file.
 
-**Shipped (theming overhaul — polarity pairs and examples toggle):**
+**Shipped (theming overhaul — registry and examples toggle):**
 - [x] `ChartThemeName` is a type alias for `ThemeFamily` from `@brewsite/core`. Backward compat: all existing `ChartThemeName` usages compile without change.
-- [x] `ChartThemePair` type and `CHART_THEME_PAIRS` registry exported from `@brewsite/charts`.
-- [x] All six `CHART_THEME_PAIRS` entries pre-wired with corresponding `SceneTheme` from `SCENE_THEME_PAIRS`.
+- [x] `ChartThemePairEntry` type, `registerChartThemePair()`, and `resolveChartTheme()` exported from `@brewsite/charts`.
+- [x] `'default'` and `'enterprise'` entries pre-loaded in the registry at module init.
 - [x] `ChartDemoThemeContext` and `useDemoChartTheme()` hook implemented in `apps/examples/src/chart/scenes/sceneShared.tsx`.
 - [x] `ChartDemoPage` adds sun/moon polarity toggle button; all 11 chart scenes consume `useDemoChartTheme()`.
 - [x] Polarity toggle calls `clearSceneTrackCache()` and increments `engineKey` for player remount.
@@ -823,20 +849,20 @@ Any consumer code that passes `camera` or `domElement` to `ChartTooltipOverlay` 
 
 **Shipped (theme family art direction — polarity variants and series materials):**
 - [x] All six polarity-variant `ChartTheme` presets carry production-quality aesthetic values; no placeholder or sibling-theme reuse remains.
-- [x] All 12 `ChartTheme` variants (6 canonical + 6 opposite-polarity) publicly exported from `@brewsite/charts`.
+- [x] All 12 `ChartTheme` variants (6 canonical + 6 opposite-polarity) available via `resolveChartTheme()` after `@brewsite/themes` registration. Enterprise presets directly exported from the barrel.
 - [x] Each polarity variant carries a fully designed series material profile (metalness, roughness, transmission, emissiveIntensity) distinct from its family sibling.
 - [x] Tooltip and projection token values for all 12 presets are spec-authoritative, coordinated with family neutral palette and accent identity.
 
 **Follow-on (not yet shipped — tracked separately):**
 - [ ] DiagramDemoPage and SimpleDemoPage polarity toggles (no pages exist yet).
-- [ ] README documents `CHART_THEME_PAIRS` usage pattern with cross-package consumer example.
+- [ ] README documents `resolveChartTheme()` / `registerChartThemePair()` usage pattern with cross-package consumer example.
 - [ ] `ChartTooltipOverlay` removed (scheduled for next minor version after deprecation cycle).
 
 **V2.1 (shipped):**
 - [x] Five new optional token group types exported from `@brewsite/charts`: `ChartBarTokens`, `ChartAreaTokens`, `ChartGridlinesTokens`, `ChartDataLabelsTokens`, `ChartReferenceLineTokens`.
 - [x] `ChartAxisTokens.titleFontSize` and `ChartLegendTokens.textOpacity` optional fields present and typed.
 - [x] All six built-in themes include explicit values for all new token groups.
-- [x] `createChartTheme()` `ChartThemeOverrides` accepts and deep-merges all new token groups.
+- [x] `createChartTheme()` `ChartThemeOverrides` accepts and deep-merges token groups: `name`, `series`, `axis`, `background`, `legend`, `line`, `pie`, `interaction`, `bar`, `area`, `gridlines`, `dataLabels`, `referenceLines`. Note: `tooltip` and `projection` are not part of `ChartThemeOverrides`.
 - [x] `AxesRenderer` uses `titleFontSize ?? fontSize * 1.1` for axis title rendering.
 - [x] `LegendRenderer` applies `textOpacity ?? 1.0` to legend label material/text opacity.
 - [x] `AxesRenderer` gridline rendering uses the three-level fallback chain for color, plus `LineDashedMaterial` branch when `dashSize` is set.

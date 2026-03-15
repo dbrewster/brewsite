@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Layout System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-10
+last_updated: 2026-03-15
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -17,6 +17,9 @@ change_history:
   - date: 2026-03-10
     author: "Toolkit Product"
     summary: "Module architecture redesign: the 1,078-line layoutAlgorithms.ts split into a 120-line orchestrator plus four extracted algorithm modules under compiler/layout/ (bounds.ts, flowLayout.ts, gridLayout.ts, hierarchicalLayout.ts). Each algorithm module has its own co-located __tests__/ suite. Updated Goals & Success Metrics, Module Location, and Technical Considerations to reference the new file structure."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Codebase alignment: removed DEFAULT_NODE_SIZE from diagramLayoutConstants.ts exports list. The actual exports are: DEFAULT_GROUP_PADDING, DEFAULT_TITLE_GAP, DEFAULT_MANUAL_GROUP_PADDING, DEFAULT_MANUAL_TITLE_GAP."
 ---
 
 # BrewSite Diagram — Layout System

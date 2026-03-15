@@ -7,6 +7,9 @@ updated: 2026-03-15
 change_history:
   - date: 2026-03-15
     author: "Toolkit Product"
+    summary: "Codebase alignment audit. Package table: added @brewsite/screens, @brewsite/claude-author, create-brewsite, brewsite CLI. Camera modes: removed nvsViewport (DSL-only concept compiled to world; only 4 runtime modes exist). Input: replaced ActionInput/KeyboardInput with InputCoordinator. TextBox: corrected description to match actual implementation (simple React component rendering position:absolute div; no TextBoxWidget, no VariableStore pipeline). Widget SDK signatures: fixed ISceneLifecycle (both methods non-optional, take sceneId+sceneIndex), ICameraFocusTarget.requestFocus (position+target+smooth), ILightingOverride.getLightingOverride (returns {disableAll}|null), IAttachmentHost.getAttachmentPoint (returns Object3D|null), NVSCoordService.toWorldSize (returns tuple), WidgetRenderContext.variables (VariableStoreReader), AnimationTickContext.resolvedState (unknown). ThemeFamily: added 'enterprise'. Context provider tree: corrected order from source. CameraControlPanel: exported from @brewsite/core with @internal tag, not a devtools subpath."
+  - date: 2026-03-15
+    author: "Toolkit Product"
     summary: "Embedding modes cleanup: updated §4.1 SceneReel component signature to show theme and defaultTransitionDuration props. Updated §3.4 EngineARContainer reference to note ViewportScaleContainer alias."
   - date: 2026-02-28
     author: brewsite-product-manager
@@ -34,7 +37,7 @@ The package solves a specific and painful problem: creating scroll-driven or int
 
 A consuming developer describes their scenes as pure JSX snapshots — what objects should look like at each scene stop — and the toolkit handles all transition math, interpolation, camera animation, input handling, and React/Three.js integration. The output is a `<SceneEngine>` context provider composed with layout primitives (`ScrollStage`, `SceneCanvas`, `EngineOverlayHost`) that runs the animation against user scroll, pointer interaction, or programmatic control.
 
-The monorepo publishes five packages:
+The monorepo publishes nine packages:
 
 | Package | Role |
 |---|---|
@@ -42,9 +45,13 @@ The monorepo publishes five packages:
 | `@brewsite/diagram` | 3D diagram, image-panel, and screen elements |
 | `@brewsite/model` | GLTF model loading, animation, and 3D-tracked label system |
 | `@brewsite/charts` | 3D chart element library |
+| `@brewsite/screens` | Screen element library |
 | `@brewsite/themes` | Centralized cross-package theme bundles and `themesPlugin()` registration |
+| `@brewsite/claude-author` | MCP server and docs search for AI-assisted scene authoring |
+| `create-brewsite` | Project scaffolder CLI (`npm create brewsite`) |
+| `brewsite` | Utility CLI (`npx brewsite add ...`) |
 
-`@brewsite/diagram`, `@brewsite/model`, `@brewsite/charts`, and `@brewsite/themes` may import from `@brewsite/core`. `@brewsite/core` must never import from any of them.
+`@brewsite/diagram`, `@brewsite/model`, `@brewsite/charts`, `@brewsite/screens`, and `@brewsite/themes` may import from `@brewsite/core`. `@brewsite/core` must never import from any of them. The three CLI/tooling packages (`claude-author`, `create-brewsite`, `brewsite`) are standalone with no cross-package build dependencies.
 
 ---
 
@@ -99,13 +106,13 @@ Consumers using frameworks like Next.js can import the package without `next/dyn
 The core capability: animate cameras, lighting rigs, environment settings, and text overlays across multiple scene stops. Authors describe each scene as a JSX snapshot. The compiler interpolates between scenes using registered widget transition handlers. The player plays back against any scroll or input signal.
 
 Built-in core elements:
-- **Camera** — Perspective camera with five positioning modes: `world`, `orbit`, `fitBotHeight`, `fitFloorDepth`, and `nvsViewport`. Interactive trackpad orbit/dolly/pan controls.
+- **Camera** — Perspective camera with four positioning modes: `world`, `orbit`, `fitBotHeight`, and `fitFloorDepth`. Interactive trackpad orbit/dolly/pan controls.
 - **Lighting** — Ambient, directional, point, spot, panel (RectAreaLight), glow point, and light strand lights with color, intensity, and position control.
 - **Background** — Scene background via DOM element: solid colors, images, CSS gradients, CSS filters, overlay gradients, and backdrop-filter effects.
 - **Environment** — HDR environment maps (HDRI, EXR, CubeTexture) for physically-based rendering.
 - **Floor** — Reflective floor plane with physical and mirror modes, optional grid overlay.
 - **SpotlightRig** — Themed spotlight arrays for dramatic scene lighting.
-- **TextBox** — NVS-positioned HTML overlay content rendered by `EngineOverlayHost`.
+- **TextBox** — Simple React component that renders a `position: absolute` div at NVS-percentage coordinates. Used inside `<Scene>` overlay content rendered by `EngineOverlayHost`. There is no `TextBoxWidget` — `TextBox` is a pure presentational component in `elements/text-box/dsl.tsx`.
 
 Elements provided by companion packages:
 - **Model** (`@brewsite/model`) — GLTF models with animation clip control, bone-tracked labels, part overrides.
@@ -115,21 +122,21 @@ Elements provided by companion packages:
 
 ### 3.2 Camera Modes
 
-The camera element supports five positioning modes:
+The camera element supports four positioning modes (the `CameraPositionDescriptor` discriminated union):
 
 - `world` — Position and target as absolute world-space Vec3 coordinates. Maximum author control.
 - `orbit` — Spherical coordinates (azimuth, polar, distance) around a target point. Natural for turntable and rotation animations.
 - `fitBotHeight` — Auto-frame a specified model height. Useful for model showcase scenes.
 - `fitFloorDepth` — Auto-frame a floor-level depth area. Legacy mode; prefer `world` for new scenes.
-- `nvsViewport` — NVS-first camera for diagram/chart scenes. Declares `worldScale` and `zRange`; compiler derives camera position and FOV for near-orthographic appearance. Resolved to `world` at compile time.
+
+The DSL supports an `nvsViewport` convenience concept for diagram/chart scenes that declares `worldScale` and `zRange`. This is resolved to a `world`-mode descriptor at compile time — it is not a distinct runtime camera mode.
 
 ### 3.3 Input and Navigation
 
 Scene navigation is handled by composable input components rendered as children of `SceneEngine` or `SceneReel`:
 
 - **ScrollStage** — Full-page scroll drives scene progress via native `window.scrollY`. Provides the sticky-canvas scroll layout pattern.
-- **ActionInput** — Bridges compiled `<InputController>` DSL to the `ActionInputController` runtime. Handles pointer, wheel, pinch, and keyboard action dispatch.
-- **KeyboardInput** — Focus management for keyboard navigation. Arrow keys advance/retreat scenes by default when no `<InputController>` is authored.
+- **InputCoordinator** — Unified input component that bridges compiled `<InputController>` DSL to the `ActionInputController` runtime. Handles pointer, wheel, pinch, and keyboard action dispatch, including focus management and default keyboard navigation (ArrowRight/ArrowDown = scene.next, ArrowLeft/ArrowUp = scene.prev when no `<InputController>` is authored).
 - **TimeInput** — Wall-clock auto-advance with configurable duration, looping, and pause-when-hidden.
 - **ControlledInput** — External `value` prop drives progress directly for programmatic control.
 - **useEngineScrubber** — Hook for imperative progress read/write.
@@ -139,7 +146,7 @@ The `InputController` DSL component and its `Action` children define the action 
 
 ### 3.4 Overlay System
 
-Scene overlay content is authored via the `<TextBox>` DSL element inside `<Scene>`. TextBox declares NVS-positioned HTML content that is rendered by `EngineOverlayHost` over the Three.js canvas. The `EngineARContainer` (also exported as `ViewportScaleContainer`) provides the aspect-ratio-locked spatial frame against which NVS coordinates resolve to pixel positions.
+Scene overlay content is authored via the `<TextBox>` component inside `<Scene>`. `TextBox` is a simple React component (in `elements/text-box/dsl.tsx`) that renders a `position: absolute` div at NVS-percentage coordinates (`left`, `top`, `width`, `height` as percentages). It is rendered by `EngineOverlayHost` over the Three.js canvas. The `EngineARContainer` (also exported as `ViewportScaleContainer`) provides the aspect-ratio-locked spatial frame against which NVS coordinates resolve to pixel positions.
 
 The previous HUD system (`<Hud>`, `<HudItem>`, `hudCompiler`, `HudOverlay`, `HudPhaseContext`, `hud/animejs/`) has been removed. See `prd_hud.md` for migration guidance.
 
@@ -171,11 +178,11 @@ The `timeline/` module provides the algebra for converting a scene list into a t
 
 The Widget SDK (`widget/`) is the extension mechanism for all renderable and behavioral concepts. The `WidgetRegistry` routes DSL node types to widget instances. The `VariableStore` is a reactive key-value store for sharing state across widgets — a model widget can publish bone positions; a `TextBox` widget reads them for overlay positioning.
 
-`CUSTOM_NODE_HANDLER` is a Symbol that a widget implements to register its own DSL node handler inline, enabling tight coupling between a widget and its DSL component without going through the global registry.
+`CUSTOM_NODE_HANDLER` is a Symbol that a widget implements via the `IHasCustomDslHandler` interface to register its own DSL node handler inline, enabling tight coupling between a widget and its DSL component without going through the global registry. The `hasCustomDslHandler(widget)` type guard checks for this symbol.
 
 ### 3.9 Cross-Package Theming
 
-The centralized theme system provides unified visual styling across all five packages. Six theme families (`darkGlass`, `midnight`, `neonCyber`, `default`, `lightCanvas`, `lightMinimal`) each have dark and light polarity variants.
+The centralized theme system provides unified visual styling across all packages. Seven theme families (`default`, `enterprise`, `darkGlass`, `midnight`, `neonCyber`, `lightCanvas`, `lightMinimal`) each have dark and light polarity variants.
 
 Theme selection is controlled by a single `theme?: ActiveTheme` prop on `<SceneEngine>`, sourced from `@brewsite/themes`. Themes are registered at engine startup via `themesPlugin()`, which populates per-package theme registries (`sceneThemeRegistry`, `diagramThemeRegistry`, `chartThemeRegistry`) from `ThemeBundle` objects. Each `ThemeBundle` carries the full dark/light preset pair for one family across all three rendering packages.
 
@@ -210,15 +217,14 @@ The following is the complete public surface of `@brewsite/core`. All symbols li
 <SceneReel height={number} plugins={WidgetPlugin[]} theme={ActiveTheme} defaultTransitionDuration={number} />
 
 // Input components
-<ActionInput />
-<KeyboardInput />
+<InputCoordinator />
 <TimeInput duration={number} loop pauseWhenHidden={{ y: number }} />
 <ControlledInput value={number} />
 
-// Dev tools
+// Dev tools (@internal — not part of the stable public API)
 <TimelineWidget />
-<CameraControlPanel />   // @brewsite/core/devtools subpath
-<SceneInspector />        // @brewsite/core/devtools subpath
+<CameraControlPanel />
+<SceneInspector />
 ```
 
 ### 4.2 React Hooks
@@ -260,20 +266,20 @@ const runtimeState = useSceneRuntime(id: string): SceneRuntimeState | null
 interface IWidget { readonly widgetId: string }
 interface ISceneElement<TState, TExtra> extends IWidget { /* DSL compilation */ }
 interface IRenderable<TState, TExtra> extends IWidget { /* Three.js state application */ }
-interface ILoadable extends IWidget { load(manifest: AssetManifest): Promise<void> }
-interface IDslComposite extends IWidget { [CUSTOM_NODE_HANDLER]: NodeHandler }
+interface ILoadable extends IWidget { load(manifest: AssetManifest | null): Promise<void>; readonly isLoaded: boolean }
+interface IDslComposite extends IWidget { readonly childDslComponents: ReadonlyArray<{ component: React.ComponentType<unknown>; displayName: string; topLevelError?: boolean }> }
 interface IAnimationController extends IWidget { onTick(ctx: AnimationTickContext): void; tickPriority: number }
-interface ISceneLifecycle extends IWidget { onSceneEnter?(sceneId: string): void; onSceneExit?(sceneId: string): void }
-interface IVariableProvider extends IWidget { variableNamespace: string; variableKeys: string[] }
+interface ISceneLifecycle extends IWidget { onSceneEnter(sceneId: string, sceneIndex: number): void; onSceneExit(sceneId: string, sceneIndex: number): void }
+interface IVariableProvider extends IWidget { variableNamespace: string; variableKeys: readonly string[] }
 
 // Extended interfaces
 interface IContainedRenderable extends IWidget { anchorWidgetId: string; anchorKey: string; rootObject: THREE.Object3D }
-interface IAttachmentHost extends IWidget { getAttachmentPoint(key: string): THREE.Object3D | undefined }
+interface IAttachmentHost extends IWidget { getAttachmentPoint(key: string): THREE.Object3D | null }
 interface IRenderContributor extends IWidget { contributeRenderData(): RenderContribution }
-interface IRendererLifecycle extends IWidget { onRendererCreated(renderer: THREE.WebGLRenderer): void }
+interface IRendererLifecycle extends IWidget { onRendererCreated(renderer: THREE.WebGLRenderer): void; onRendererDisposing(renderer: THREE.WebGLRenderer): void }
 interface IInputDefaultProvider extends IWidget { getDefaultInputActions(): InputActionSpec[] }
-interface ICameraFocusTarget extends IWidget { requestFocus(target: Vec3, duration?: number): void }
-interface ILightingOverride extends IWidget { getLightingOverride(): Partial<SceneLighting> | undefined }
+interface ICameraFocusTarget extends IWidget { requestFocus(position: readonly [number, number, number], target: readonly [number, number, number], smooth?: boolean): void }
+interface ILightingOverride extends IWidget { getLightingOverride(): { readonly disableAll: boolean } | null }
 interface IExtraRenderPass extends IWidget { renderPass(renderer: THREE.WebGLRenderer, w: number, h: number): void }
 
 // Registry
@@ -312,9 +318,9 @@ interface WidgetRenderContext<TExtra> {
   clock: RealtimeClock
   effectiveDeltaSeconds: number
   globalProgress: number
-  variables: VariableStore
+  variables: VariableStoreReader
   extra: TExtra
-  tick: SceneTrackTick
+  tick?: SceneTrackTick | null
   coords: NVSCoordService  // NVS → world coordinate conversion
 }
 
@@ -323,12 +329,12 @@ interface AnimationTickContext {
   effectiveDeltaSeconds: number
   scene: THREE.Scene
   variables: VariableStore
-  tick: SceneTrackTick
-  track: SceneTrack
-  resolvedState: Map<string, unknown>
-  cameraFocusTarget: ICameraFocusTarget | undefined
-  cameraOverride: CameraOverride | undefined
-  setCameraOverride(override: CameraOverride | undefined): void
+  tick: SceneTrackTick | null
+  track: SceneTrack | null
+  resolvedState: unknown
+  cameraFocusTarget: ICameraFocusTarget | null
+  cameraOverride: RuntimeCameraOverride | null
+  setCameraOverride: (override: RuntimeCameraOverride | null) => void
 }
 ```
 
@@ -347,7 +353,7 @@ interface AnimationTickContext {
 <SpotlightRig theme={SpotlightRigTheme}>
   <Spotlight position={Vec3} target={Vec3} intensity={number} />
 </SpotlightRig>
-<TextBox id={string} x={number} y={number} w={number} h={number}>
+<TextBox x={number} y={number} w={number} h={number} layer={number} overflow={'hidden' | 'visible'}>
   {/* HTML overlay content */}
 </TextBox>
 
@@ -394,7 +400,7 @@ const PLUGINS = [
 </SceneEngine>
 ```
 
-`corePlugin()` registers: `CameraWidget`, `LightingWidget`, `BackgroundWidget`, `EnvironmentWidget`, `FloorWidget`, `SpotlightRigWidget`, `TextBoxWidget`, `SceneMetaWidget`.
+`corePlugin()` registers: `CameraWidget`, `LightingWidget`, `BackgroundWidget`, `EnvironmentWidget`, `FloorWidget`, `SpotlightRigWidget`, `SceneMetaWidget`. It also implements `reconcileCompiledTrack` to lazily create `ViewWidget` instances for view IDs found in the compiled `SceneTrack`.
 
 `modelPlugin()` from `@brewsite/model` registers: `ModelWidget` (with factory from manifest), `LabelPositioner`.
 
@@ -451,7 +457,7 @@ interface INVSBounded { nvsBounds: NVSRect }
 // NVS coordinate service (provided in WidgetRenderContext.coords)
 interface NVSCoordService {
   toWorld(nvsX: number, nvsY: number, z?: number): Vec3
-  toWorldSize(nvsW: number, nvsH: number): { width: number; height: number }
+  toWorldSize(nvsW: number, nvsH: number): readonly [number, number]
   canvasAspect: number
   visibleWorldHeight: number
   visibleWorldWidth: number
@@ -485,6 +491,7 @@ interface ActiveTheme {
 
 type ThemeFamily =
   | 'default'       // enterprise aesthetic; always pre-registered, no themesPlugin() required
+  | 'enterprise'    // distinct enterprise variant
   | 'darkGlass'
   | 'midnight'
   | 'neonCyber'
@@ -550,8 +557,9 @@ const custom = mergeThemeBundle(bundles.darkGlass, { scene: { dark: { ... } } })
 
 ```
 @brewsite/diagram  ─┐
-@brewsite/model    ─┼─ may import from ─→ @brewsite/core
-@brewsite/charts   ─┤
+@brewsite/model    ─┤
+@brewsite/charts   ─┼─ may import from ─→ @brewsite/core
+@brewsite/screens  ─┤
 @brewsite/themes   ─┘
 ```
 
@@ -619,8 +627,8 @@ interface IRenderable<TState, TExtra = void> extends IWidget {
 interface ILoadable extends IWidget {
   // Async asset loading. Runtime awaits all ILoadable.load() calls
   // before transitioning to the ready state.
-  load(manifest: AssetManifest): Promise<void>;
-  isLoaded(): boolean;
+  load(manifest: AssetManifest | null): Promise<void>;
+  readonly isLoaded: boolean;
 }
 
 interface IAnimationController extends IWidget {
@@ -632,8 +640,8 @@ interface IAnimationController extends IWidget {
 interface ISceneLifecycle extends IWidget {
   // Notified on scene transitions for cleanup/setup that cannot
   // be expressed as compiled state.
-  onSceneEnter?(sceneId: string): void;
-  onSceneExit?(sceneId: string): void;
+  onSceneEnter(sceneId: string, sceneIndex: number): void;
+  onSceneExit(sceneId: string, sceneIndex: number): void;
 }
 ```
 
@@ -649,7 +657,7 @@ interface IContainedRenderable extends IWidget {
 
 interface IAttachmentHost extends IWidget {
   // Provides named attachment points for IContainedRenderable widgets.
-  getAttachmentPoint(key: string): THREE.Object3D | undefined;
+  getAttachmentPoint(key: string): THREE.Object3D | null;
 }
 
 interface IRenderContributor extends IWidget {
@@ -661,7 +669,7 @@ interface IRenderContributor extends IWidget {
 interface IRendererLifecycle extends IWidget {
   // Notified when the WebGLRenderer is created or destroyed.
   onRendererCreated(renderer: THREE.WebGLRenderer): void;
-  onRendererDisposing?(): void;
+  onRendererDisposing(renderer: THREE.WebGLRenderer): void;
 }
 
 interface IInputDefaultProvider extends IWidget {
@@ -671,12 +679,13 @@ interface IInputDefaultProvider extends IWidget {
 
 interface ICameraFocusTarget extends IWidget {
   // Receives focus requests from action dispatch.
-  requestFocus(target: Vec3, duration?: number): void;
+  requestFocus(position: readonly [number, number, number], target: readonly [number, number, number], smooth?: boolean): void;
 }
 
 interface ILightingOverride extends IWidget {
-  // Overrides scene lighting for specific rendering contexts.
-  getLightingOverride(): Partial<SceneLighting> | undefined;
+  // Suppresses core scene lighting when a widget manages its own.
+  getLightingOverride(): { readonly disableAll: boolean } | null;
+  receiveLightController?(setter: (lightId: string, enabled: boolean) => void): void;
 }
 
 interface IExtraRenderPass extends IWidget {
@@ -693,7 +702,7 @@ The `WidgetRegistry` maintains two registries:
 
 ### 6.3 VariableStore
 
-`VariableStore` is a synchronous reactive key-value store. Widgets implementing `IVariableProvider` publish named values each tick. React components call `useVariable(key)` to subscribe and re-render when the value changes. `TextBoxWidget` uses the `VariableStore` to publish overlay state that `EngineOverlayHost` reads for rendering.
+`VariableStore` is a synchronous reactive key-value store. Widgets implementing `IVariableProvider` publish named values each tick. React components call `useVariable(key)` to subscribe and re-render when the value changes.
 
 ### 6.4 CUSTOM_NODE_HANDLER
 
@@ -701,7 +710,7 @@ The `WidgetRegistry` maintains two registries:
 
 ### 6.5 Plugin System
 
-`corePlugin(options?)` is the standard entry point for built-in widget registration. Plugins are passed to `SceneEngine` via the `plugins` prop. Each plugin implements `IWidgetPlugin.register(registry, manifest)`.
+`corePlugin(options?)` is the standard entry point for built-in widget registration. Plugins are passed to `SceneEngine` via the `plugins` prop. Each plugin implements the `WidgetPlugin` interface with required methods `createWidgets()` and `registerHandlers()`, and optional hooks `configureRegistry?()`, `reconcileCompiledTrack?()`, `wrapProvider?()`, `fetchManifest?()`, and `getActionInputExtension?()`.
 
 ```typescript
 import { themesPlugin, themes } from '@brewsite/themes';
@@ -725,22 +734,26 @@ const PLUGINS = [
 The `<canvas>` element rendered by `SceneCanvas`, managed by `WebGLRenderer`. All 3D objects (lighting, floor, environment, models, diagrams, charts) render here. The canvas fills the `EngineARContainer` with `position: absolute; inset: 0`.
 
 **Tier 2: React Overlay**
-`EngineOverlayHost` renders a `<div>` positioned `absolute, inset: 0` over the canvas. It reads `TextBoxState` entries from the `VariableStore` and renders them as absolutely positioned HTML content. CSS custom properties from `SceneTheme` are injected on the overlay container for styling.
+`EngineOverlayHost` renders a `<div>` positioned `absolute, inset: 0` over the canvas. It renders scene overlay content (including `<TextBox>` components from the compiled `SceneTrack.sceneOverlays` map) as absolutely positioned HTML. CSS custom properties from `SceneTheme` are injected on the overlay container for styling.
 
 The two tiers share the same `EngineContext`. `EngineARContainer` provides the spatial reference frame: NVS coordinates `[0, 0]` to `[1, 1]` map to the AR-locked container bounds, enabling resolution-independent overlay positioning.
 
 ### 7.1 Context Providers
 
-`SceneEngine` establishes the following React context tree:
+`SceneEngine` establishes the following React context tree (outermost to innermost):
 
 ```
-VariableStoreContext.Provider
-  LabelPositionerContext.Provider
-    EngineStateContext.Provider
-      EngineContext.Provider
-        ThemeContext.Provider
-          {children}
+ThemeContext.Provider
+  SceneRegistrationContext.Provider
+    VariableStoreContext.Provider
+      PluginInheritanceContext.Provider
+        ActionInputExtensionContext.Provider          ← plugin wrapProvider chain applied here
+          EngineStateContext.Provider
+            EngineContext.Provider
+              {children}
 ```
+
+Plugin `wrapProvider` hooks (e.g., `modelPlugin` providing `LabelPositionerContext`) are applied between the `PluginInheritanceContext` layer and the `ActionInputExtensionContext` layer, wrapping the inner content in reverse plugin order so the first plugin is outermost.
 
 All player hooks (`useCurrentScene`, `useSceneProgress`, `useVariable`, `useEngineState`, `useSceneEngineContext`) require a `SceneEngine` ancestor.
 

@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Architecture Reference"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-13
+last_updated: 2026-03-15
 change_history:
   - date: 2026-03-09
     author: "Toolkit Product"
@@ -32,6 +32,9 @@ change_history:
   - date: 2026-03-13
     author: "Toolkit Product"
     summary: "Audit against codebase: corrected diagramPlugin() — it requires an explicit diagrams: string[] option, not auto-discovery. Updated Widget Registration section, Goals, and all code examples accordingly. Corrected DiagramWidget interface list to include IDslComposite and ILightingOverride. Corrected focusRegion.ts API — publishDiagramFocusGroup/Canvas accept Pick<DiagramState,'id'> not Pick<DiagramCanvasState,'id'>. Documented api.composeBounds/composeZ/composeOpacity usage in the Diagram handler. Corrected the useDiagramTheme hook export. Noted DiagramNodeGlowConfig export."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Codebase alignment: diagramPlugin() no longer requires diagrams param — the field is deprecated, createWidgets() returns [], configureRegistry() is the new hook for lazy widget creation via registerDiagramHandlers(registry). Removed DEBT paragraph about manual ID duplication. Updated RoutingProfileContext type to match routingTypes.ts (added groupIds, obstacleGroupIds, fromId, toId, allowUnderpass, organicVariation fields). Noted diagramRenderConstants.ts is a deprecated shim re-exporting from ../constants. Corrected theme exports: only enterpriseTheme, enterpriseLightTheme, defaultDiagramTheme, defaultLightDiagramTheme are exported from package barrel. Removed darkGlass, neonCyber, lightMinimal from implied exports. Corrected diagramLayoutConstants.ts exports (removed DEFAULT_NODE_SIZE — actual exports are DEFAULT_GROUP_PADDING, DEFAULT_TITLE_GAP, DEFAULT_MANUAL_GROUP_PADDING, DEFAULT_MANUAL_TITLE_GAP). Moved RoutingProfile and RoutingProfileContext types from edgeRoutingProfiles.ts to routingTypes.ts to match source."
 ---
 
 # BrewSite Diagram — Architecture Reference
@@ -50,7 +53,7 @@ Affected packages: `@brewsite/diagram` (primary). `@brewsite/core` is a peer dep
 
 **Primary metrics:**
 - Consumers can author, compile, and play back a multi-scene diagram with zero Three.js code in their scene files.
-- Adding `@brewsite/diagram` to a project requires calling `diagramPlugin({ diagrams: [...] })` in the `plugins` array passed to `EngineProvider` — no manual widget pre-registration is needed beyond listing diagram IDs.
+- Adding `@brewsite/diagram` to a project requires calling `diagramPlugin()` in the `plugins` array passed to `EngineProvider` — no manual widget pre-registration or diagram ID listing is needed.
 - All compile functions (`compileDiagram`, `compileImagePanel`, `compileScreen`) pass their full test suites with real DSL inputs and asserted real outputs.
 
 **Guardrail metrics:**
@@ -71,7 +74,7 @@ Affected packages: `@brewsite/diagram` (primary). `@brewsite/core` is a peer dep
 - As a toolkit consumer, I want diagrams across multiple scenes to transition smoothly — nodes moving, edges rerouting, and new nodes fading in.
 - As a toolkit consumer, I want to group related nodes visually using swimlanes, boundaries, or clusters without changing my layout strategy.
 - As a toolkit consumer, I want to place multiple `<Diagram>` elements as siblings in the same scene, each with independent `x/y/w/h` NVS bounds, so that I can compose multi-diagram layouts without a container element.
-- As a toolkit consumer, I want to list my diagram IDs once in `diagramPlugin({ diagrams: [...] })` and have `DiagramWidget` instances created automatically, so I do not need to construct them manually in `widgetSetup.ts`.
+- As a toolkit consumer, I want to call `diagramPlugin()` once and have `DiagramWidget` instances created automatically for each `<Diagram>` in my scenes, so I do not need to list diagram IDs or construct widgets manually.
 - As a toolkit consumer, I want to display a static 3D image frame or a live iframe screen alongside diagram content.
 
 ## Package Overview
@@ -108,8 +111,8 @@ packages/diagram/src/
     │   ├── index.ts
     │   ├── compiler/      ← pure sub-compilers; all files are Three.js-free and React-free
     │   │   ├── defaultsCompiler.ts       ← NodeDefaults, EdgeDefaults, GroupDefaults; buildNodeDefaults/buildEdgeDefaults/buildGroupDefaults
-    │   │   ├── diagramLayoutConstants.ts ← canonical layout constants (DEFAULT_NODE_SIZE, DEFAULT_GROUP_PADDING, DEFAULT_TITLE_GAP)
-    │   │   ├── diagramRenderConstants.ts ← legacy render constants; prefer constants.ts for new imports
+    │   │   ├── diagramLayoutConstants.ts ← canonical layout constants (DEFAULT_GROUP_PADDING, DEFAULT_TITLE_GAP, DEFAULT_MANUAL_GROUP_PADDING, DEFAULT_MANUAL_TITLE_GAP)
+    │   │   ├── diagramRenderConstants.ts ← deprecated shim; re-exports from ../constants. Will be removed.
     │   │   ├── ghostNodeMerge.ts         ← pure ghost node inheritance logic extracted from widget.ts
     │   │   ├── groupCompiler.ts          ← imports unionBounds from @brewsite/core layout module
     │   │   ├── hoverStateMachine.ts      ← pure hover event computation extracted from widget.ts
@@ -130,7 +133,7 @@ packages/diagram/src/
     │   ├── rendering/     ← Three.js renderers (NodeRenderer, EdgeRenderer, GroupRenderer, ...)
     │   │   └── nodeLabelLayout.ts        ← pure label position arithmetic extracted from NodeRenderer; NodeLabelLayout type
     │   ├── shapes/        ← geometry factory, icon registry, shape variants
-    │   └── themes/        ← theme presets (darkGlass, enterprise, neonCyber, lightMinimal)
+    │   └── themes/        ← theme presets; package barrel exports enterpriseTheme, enterpriseLightTheme, defaultDiagramTheme, defaultLightDiagramTheme
     ├── image-panel/       ← ImagePanel element (3D image frame with bezel and glow)
     ├── screen/            ← Screen element (3D iframe frame)
     └── _shared/           ← bezelGeometry, glowSprite (shared Three.js geometry)
@@ -199,7 +202,7 @@ import './register';
 
 ## Widget Registration via diagramPlugin()
 
-`diagramPlugin()` is the primary integration pattern. It returns a `WidgetPlugin` that creates one `DiagramWidget` per diagram ID listed in the `options.diagrams` array. All IDs that appear in any `<Diagram id="...">` DSL element across all scenes must be listed here — the plugin creates widgets upfront so `initialize()` is called at engine startup.
+`diagramPlugin()` is the primary integration pattern. It returns a `WidgetPlugin` that automatically creates `DiagramWidget` instances lazily on first DSL encounter during compilation. No diagram IDs need to be listed upfront.
 
 ```typescript
 import { useMemo } from 'react';
@@ -207,10 +210,7 @@ import { EngineProvider, corePlugin } from '@brewsite/core';
 import { diagramPlugin } from '@brewsite/diagram';
 
 function App() {
-  const diagPlugin = useMemo(
-    () => diagramPlugin({ diagrams: ['system-overview', 'detail-view'] }),
-    [],
-  );
+  const diagPlugin = useMemo(() => diagramPlugin(), []);
   return (
     <EngineProvider
       manifestUrl="/assets/manifest.json"
@@ -230,11 +230,17 @@ import { diagramPlugin } from '@brewsite/diagram';
 
 <ScenePlayer
   sceneGroup={sceneGroup}
-  plugins={[corePlugin(), diagramPlugin({ diagrams: ['my-diagram'] })]}
+  plugins={[corePlugin(), diagramPlugin()]}
 />
 ```
 
-The `DiagramPluginOptions.diagrams` field accepts the exact `id` string values used in the scene DSL. A `DiagramWidget` is constructed per ID; each calls `initialize()` once at engine startup. There is a known DEBT: this requires manual ID duplication between the DSL and the plugin options — auto-discovery from the compiled SceneTrack is a future improvement.
+The plugin lifecycle has three hooks:
+
+- **`createWidgets()`** — Returns `[]`. DiagramWidget instances are not pre-created; they are created lazily during compilation.
+- **`registerHandlers()`** — Calls `registerDiagramHandlers()` to install baseline DSL node handlers (without registry access).
+- **`configureRegistry(registry)`** — Re-registers the Diagram handler with `WidgetRegistry` access by calling `registerDiagramHandlers(registry)`. This overwrites the baseline handler with a registry-aware version that creates `DiagramWidget` instances on first encounter of each `<Diagram id="...">` during compilation.
+
+The `DiagramPluginOptions.diagrams` field is **deprecated**. Passing it emits a console warning. The field is no longer needed because widget instances are created automatically when the Diagram node handler encounters a new `id` during compilation.
 
 For `ImagePanel` and `Screen` elements, widget instances must still be registered explicitly (they require asset loading configuration that cannot be auto-inferred from the DSL alone).
 
@@ -245,20 +251,24 @@ For `ImagePanel` and `Screen` elements, widget instances must still be registere
 ```typescript
 // packages/diagram/src/player/diagramPlugin.ts
 
-export function diagramPlugin(options: DiagramPluginOptions): WidgetPlugin {
+export function diagramPlugin(options: DiagramPluginOptions = {}): WidgetPlugin {
   return {
     createWidgets(): DiagramWidget[] {
-      return options.diagrams.map((id) => {
-        const defaultState = makeDefaultDiagramState(id);
-        return new DiagramWidget(id, defaultState);
-      });
+      // DiagramWidget instances are created lazily via the Diagram node handler
+      // in configureRegistry(). No pre-declaration of diagram IDs is required.
+      return [];
     },
 
     registerHandlers(): void {
-      registerDiagramHandlers();
+      registerDiagramHandlers(); // baseline handler + child component handlers, no registry
     },
 
-    getActionInputExtension(registry: WidgetRegistry) {
+    configureRegistry(registry: WidgetRegistry): void {
+      // Re-register the Diagram handler with registry access for lazy widget creation.
+      registerDiagramHandlers(registry);
+    },
+
+    getActionInputExtension(registry) {
       return {
         onUnknownAction: (type, canvasId, _event, extra) => {
           if (!canvasId) return;
@@ -277,8 +287,10 @@ export function diagramPlugin(options: DiagramPluginOptions): WidgetPlugin {
               (widget as DiagramWidget).applyCanvasAction('rotate', dx, dy, speed);
               break;
             case 'diagram-canvas.focus':
-              (widget as DiagramWidget).applyCanvasAction('focus', 0, 0, 1,
-                extra['focusCenter'] as [number, number] | undefined);
+              (widget as DiagramWidget).applyCanvasAction(
+                'focus', 0, 0, 1,
+                extra['focusCenter'] as [number, number] | undefined,
+              );
               break;
             case 'diagram-canvas.reset':
               (widget as DiagramWidget).applyCanvasAction('reset', 0, 0, 1);
@@ -429,7 +441,7 @@ Key architectural-level breaking changes (from initial 2026-03-08 overhaul throu
 - **`DiagramRenderer` constructor signature changed** — now requires `DiagramThemeRenderConfig` as second argument. Code constructing `DiagramRenderer` directly must pass the resolved config.
 - **`DiagramPivot` type deleted** — the exported type and its DSL usage no longer exist. Any `import { DiagramPivot }` from `@brewsite/diagram` will fail to compile.
 - **5 group edge light types added to package root exports** — `DiagramGroupSide`, `DiagramGroupEdgeLightColorResolver`, `DiagramGroupEdgeLightState`, `DiagramGroupEdgeLightsState`, `DiagramGroupEdgeLightsDSL` are now exported from `@brewsite/diagram`. This is a minor-compatible addition.
-- **`diagramPlugin()` requires `diagrams: string[]`** — callers that pass no arguments or omit `diagrams` will fail TypeScript. List every diagram ID used in the scene DSL.
+- **`diagramPlugin()` no longer requires `diagrams: string[]`** — the `diagrams` option is deprecated and emits a console warning if provided. `DiagramWidget` instances are created lazily during compilation via `configureRegistry()`. Callers should remove the `diagrams` array.
 - **`publishDiagramFocusGroup/Canvas` parameter type changed** — these functions now accept `Pick<DiagramState, 'id'>` (not `Pick<DiagramCanvasState, 'id'>`). Callers using canvas state objects must update to use the diagram widget's `DiagramState`.
 - **`DiagramWidget` implements `IDslComposite` and `ILightingOverride`** — code narrowing on `DiagramWidget`'s interface list must account for these new contracts.
 

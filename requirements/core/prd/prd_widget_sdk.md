@@ -3,7 +3,7 @@ title: "BrewSite Core — Widget SDK"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-13
+last_updated: 2026-03-15
 change_history:
   - date: 2026-03-13
     author: "Toolkit Product"
@@ -56,6 +56,9 @@ change_history:
   - date: 2026-03-03
     author: "Toolkit Product"
     summary: "Added IInputDefaultProvider interface (widget/types.ts), isInputDefaultProvider type guard, and WidgetRegistry.getInputDefaultProviders() method. The player layer uses these to supply default input actions from DiagramCanvasWidget when no explicit <InputController> is authored for the current scene."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Codebase alignment audit. §8.2 Type Guards: replaced isContainedModel with isContainedRenderable, added all missing type guards (isCameraActionTarget, isSceneLifecycle, isRendererLifecycle, isRenderContributor, isContainedRenderable, isAttachmentHost, isCameraFocusTarget, isLightingOverride, isExtraRenderPass, isViewChild, hasCustomDslHandler). §7.3: removed getBoneWorldPositions/getTargetColors from IRenderable — replaced by IRenderContributor.contributeRenderData(). §7.6: marked IContainedModel as @deprecated. §7.15: fixed IAttachmentHost.getAttachmentPoint return type (Object3D | null, not undefined). §7.16: fixed RenderContribution type (namedPositions: ReadonlyMap, not bonePositions: Map). §7.17: fixed IRendererLifecycle.onRendererDisposing signature (takes renderer param, non-optional). §7.18: fixed ISceneLifecycle signatures (both non-optional, take sceneId + sceneIndex). §9: documented IHasCustomDslHandler interface and hasCustomDslHandler type guard for CUSTOM_NODE_HANDLER. §11 WidgetPlugin: added fetchManifest, getActionInputExtension, onRendererCreated methods. FR #15: updated type guard list to match all exported guards."
 ---
 
 # BrewSite Core — Widget SDK
@@ -139,7 +142,7 @@ The Widget SDK solves this by defining a stable, versioned interface set that wi
 12. `VariableStore` shall be a reactive key-value store partitioned by namespace. Consumers may subscribe to individual keys (`namespace.key`) or an entire namespace.
 13. The `VariableStoreReader` read-only view shall be the only variable access surface provided to `IRenderable` widgets via `WidgetRenderContext`. Full read-write `VariableStore` access is provided to `IAnimationController` widgets via `AnimationTickContext`.
 14. `corePlugin()` shall provide the standard set of built-in core widgets (`LightingWidget`, `BackgroundWidget`, `EnvironmentWidget`, `FloorWidget`, `CameraWidget`, `SceneMetaWidget`, `SpotlightRigWidget`) and register their DSL node handlers. It shall also implement `reconcileCompiledTrack` to lazily create and register `ViewWidget` instances for every view ID found in the compiled `SceneTrack`. `modelPlugin()` from `@brewsite/model` shall provide `ModelWidget` (via a type factory) and register model DSL handlers. Both are passed as entries in the `plugins` prop of `SceneEngine`.
-15. All type guard functions (`isSceneElement`, `isRenderable`, `isLoadable`, `isContainedModel`, `isDslComposite`, `isAnimationController`, `isVariableProvider`, `isGroupOwner`) shall be exported from the `widget` module for use by the runtime and by custom registry implementations.
+15. All type guard functions (`isSceneElement`, `isRenderable`, `isLoadable`, `isDslComposite`, `isAnimationController`, `isVariableProvider`, `isGroupOwner`, `isCameraActionTarget`, `isSceneLifecycle`, `isRendererLifecycle`, `isRenderContributor`, `isContainedRenderable`, `isAttachmentHost`, `isInputDefaultProvider`, `isCameraFocusTarget`, `isLightingOverride`, `isExtraRenderPass`, `isViewChild`, `hasCustomDslHandler`) shall be exported from the `widget` module for use by the runtime and by custom registry implementations.
 
 ---
 
@@ -240,9 +243,7 @@ interface IRenderable<TState> extends IWidget {
 
 **`dispose()`** — Called by `RuntimeDriverImpl.dispose()` on cleanup (component unmount, HMR update). Remove Three.js objects from the scene, dispose geometries and materials, and release any external resources. Errors in `dispose()` are swallowed by the runtime to prevent cleanup cascade failures.
 
-An `IRenderable` widget may also optionally expose `getBoneWorldPositions(): Map<string, [number, number, number]>` — when present, the runtime collects these positions each frame and provides them to the `LabelPositioner` for 3D-to-screen projection.
-
-An `IRenderable` widget may also optionally expose `getTargetColors(): Map<string, string>` — when present, the runtime collects color mappings for label styling when `style.color === 'target-color'` is used.
+Widgets that need to expose bone world positions or target colors to the label system implement `IRenderContributor` (see Section 7.16) instead of adding ad-hoc methods to `IRenderable`. The `contributeRenderData()` method replaces the removed `getBoneWorldPositions()` and `getTargetColors()` methods.
 
 ---
 
@@ -284,11 +285,11 @@ Widgets that need to run per-frame logic independent of scene-track state — sp
 
 ---
 
-### 7.6 IContainedModel\<TState\>
+### 7.6 IContainedModel\<TState\> (deprecated)
 
-> **Note:** `IContainedModel` is a model-specific interface. It will be removed from
-> `@brewsite/core/widget/types` and relocated to `@brewsite/model` in plan_core_modularization
-> Phase 4. Current core consumers using `IContainedModel` directly should plan migration.
+> **@deprecated:** `IContainedModel` is a model-specific interface. It will be removed from
+> `@brewsite/core/widget/types` and relocated to `@brewsite/model`. Current core consumers
+> using `IContainedModel` directly should migrate to `IContainedRenderable` (Section 7.14).
 
 ```typescript
 interface IContainedModel<TState> extends IRenderable<TState> {
@@ -455,11 +456,11 @@ Implemented by widgets that are spatially attached to another widget's skeleton 
 
 ```typescript
 interface IAttachmentHost extends IWidget {
-  getAttachmentPoint(key: string): THREE.Object3D | undefined;
+  getAttachmentPoint(key: string): THREE.Object3D | null;
 }
 ```
 
-Implemented by widgets that expose named attachment points for `IContainedRenderable` children. `ModelWidget` implements this — it returns bone `Object3D` references by name. The runtime calls `getAttachmentPoint(anchorKey)` on the host widget and re-parents the contained widget's `rootObject` under the returned object.
+Implemented by widgets that expose named attachment points for `IContainedRenderable` children. `ModelWidget` implements this — it returns bone `Object3D` references by name, or `null` if the key is not found or the host is not yet initialized. The runtime calls `getAttachmentPoint(anchorKey)` on the host widget and re-parents the contained widget's `rootObject` under the returned object.
 
 ### 7.16 IRenderContributor
 
@@ -469,8 +470,8 @@ interface IRenderContributor extends IWidget {
 }
 
 type RenderContribution = {
-  bonePositions?: Map<string, Vec3>;
-  targetColors?: Map<string, string>;
+  namedPositions?: ReadonlyMap<string, [number, number, number]>;
+  targetColors?: ReadonlyMap<string, string>;
 };
 ```
 
@@ -483,7 +484,7 @@ Implemented by widgets that publish render-time data for consumption by other sy
 ```typescript
 interface IRendererLifecycle extends IWidget {
   onRendererCreated(renderer: THREE.WebGLRenderer): void;
-  onRendererDisposing?(): void;
+  onRendererDisposing(renderer: THREE.WebGLRenderer): void;
 }
 ```
 
@@ -493,12 +494,12 @@ Implemented by widgets that need a reference to the `WebGLRenderer` for setup or
 
 ```typescript
 interface ISceneLifecycle extends IWidget {
-  onSceneEnter?(sceneId: string): void;
-  onSceneExit?(sceneId: string): void;
+  onSceneEnter(sceneId: string, sceneIndex: number): void;
+  onSceneExit(sceneId: string, sceneIndex: number): void;
 }
 ```
 
-Implemented by widgets that need to perform side effects on scene transitions that cannot be expressed as compiled state changes. `SceneMetaWidget` implements this to fire the `onSceneChange` callback. The runtime calls `onSceneExit()` on the outgoing scene and `onSceneEnter()` on the incoming scene during tick processing when the active scene ID changes.
+Implemented by widgets that need to perform side effects on scene transitions that cannot be expressed as compiled state changes. Both methods are required (non-optional). `SceneMetaWidget` implements this to fire the `onSceneChange` callback. The runtime calls `onSceneExit(sceneId, sceneIndex)` on the outgoing scene and `onSceneEnter(sceneId, sceneIndex)` on the incoming scene during tick processing when the active scene ID changes.
 
 ### 7.19 IGroupOwner
 
@@ -630,16 +631,31 @@ When `WidgetRegistry.register(widget)` installs a widget's DSL handler via `regi
 The following type guard functions are exported from the `widget` module:
 
 ```typescript
+// Core type guards
 const isSceneElement = (w: IWidget): w is ISceneElement<unknown>
 const isRenderable = (w: IWidget): w is IRenderable<unknown>
 const isLoadable = (w: IWidget): w is ILoadable
 const isAnimationController = (w: IWidget): w is IAnimationController
 const isVariableProvider = (w: IWidget): w is IVariableProvider
-const isContainedModel = (w: IWidget): w is IContainedModel<unknown>
 const isDslComposite = (w: IWidget): w is IDslComposite
 const isInputDefaultProvider = (w: IWidget): w is IInputDefaultProvider
 const isGroupOwner = (w: IWidget): w is IGroupOwner  // duck-type: 'rootGroup' in w
+
+// Extended type guards
+const isCameraActionTarget = (w: IWidget): w is ICameraActionTarget  // @deprecated
+const isSceneLifecycle = (w: IWidget): w is ISceneLifecycle
+const isRendererLifecycle = (w: IWidget): w is IRendererLifecycle
+const isRenderContributor = (w: IWidget): w is IRenderContributor
+const isContainedRenderable = (w: IWidget): w is IContainedRenderable
+const isAttachmentHost = (w: IWidget): w is IAttachmentHost
+const isCameraFocusTarget = (w: IWidget): w is ICameraFocusTarget
+const isLightingOverride = (w: IWidget): w is ILightingOverride
+const isExtraRenderPass = (w: IWidget): w is IExtraRenderPass
+const isViewChild = (w: IWidget): w is IViewChild
+const hasCustomDslHandler = (w: IWidget): w is IHasCustomDslHandler
 ```
+
+> **Note:** `isContainedModel` is no longer exported from the widget module. Use `isContainedRenderable` instead. `IContainedModel` is `@deprecated` and will be removed when it moves to `@brewsite/model`.
 
 These are structural type guards (duck-typed on the expected property names) rather than `instanceof` checks. This allows widgets to pass interface compliance without extending a base class. `isGroupOwner` specifically avoids `instanceof Object3D` because `widget/types.ts` uses type-only Three.js imports — the `Object3D` class is not available as a runtime value at that import site.
 
@@ -651,15 +667,21 @@ These are structural type guards (duck-typed on the expected property names) rat
 export const CUSTOM_NODE_HANDLER = Symbol('customNodeHandler');
 ```
 
-`CUSTOM_NODE_HANDLER` is a well-known symbol used to give a widget its own DSL node compilation logic. When the `WidgetRegistry` routing handler encounters a widget that has `[CUSTOM_NODE_HANDLER]` set, it calls that function instead of the default state-merge path.
+`CUSTOM_NODE_HANDLER` is a well-known symbol used to give a widget its own DSL node compilation logic. Widgets that need custom compilation implement the `IHasCustomDslHandler` interface exported from `WidgetRegistry.ts`. The `hasCustomDslHandler(widget)` type guard checks for the symbol's presence. When the `WidgetRegistry` routing handler encounters a widget that implements `IHasCustomDslHandler`, it calls the widget's `[CUSTOM_NODE_HANDLER]` method instead of the default state-merge path.
+
+```typescript
+interface IHasCustomDslHandler extends IWidget {
+  readonly [CUSTOM_NODE_HANDLER]: NodeHandler;
+}
+```
 
 The custom handler signature matches the compiler's `NodeHandler` type:
 
 ```typescript
 type NodeHandler = (
-  node: SceneDslNode,
-  api: SceneFrameApi,
-  helpers: CompilerHelpers,
+  node: ReactElement,
+  api: CompileApi,
+  helpers: CompileHelpers,
 ) => void;
 ```
 
@@ -764,8 +786,13 @@ Widget registration follows the composable plugin model. Plugins are passed as a
 
 ```typescript
 interface WidgetPlugin {
+  /** Returns widget instances to register. Called once before first compilation. */
   createWidgets(): IWidget[];
+  /** Registers DSL NodeHandlers. Must be idempotent. */
   registerHandlers(): void;
+  /** Optional: fetches external assets (e.g. model manifest). */
+  fetchManifest?(): Promise<AssetManifest | null>;
+  /** Optional: performs plugin-specific registry configuration after widget registration. */
   configureRegistry?(registry: WidgetRegistry, manifest: AssetManifest | null): void;
   /**
    * Optional: reconcile a compiled SceneTrack back into the live WidgetRegistry.
@@ -777,7 +804,13 @@ interface WidgetPlugin {
    * view ID found in the compiled track — after scene DSL compilation completes.
    */
   reconcileCompiledTrack?(registry: WidgetRegistry, track: SceneTrack): void;
+  /** Optional: wraps the engine subtree with plugin React context providers. */
   wrapProvider?(children: ReactNode): ReactNode;
+  /** Optional: returns ActionInputHandler extensions for custom action types. */
+  getActionInputExtension?(registry: WidgetRegistry): Partial<Pick<ActionInputHandler, 'onUnknownAction'>>;
+  /** Optional: called when a WebGLRenderer is created. */
+  onRendererCreated?(renderer: WebGLRenderer): void;
+  /** Optional: called before a WebGLRenderer is disposed. */
   onRendererDisposing?(renderer: WebGLRenderer): void;
 }
 ```

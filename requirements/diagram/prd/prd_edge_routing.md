@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Edge Routing System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-13
+last_updated: 2026-03-15
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -20,6 +20,9 @@ change_history:
   - date: 2026-03-13
     author: "Toolkit Product"
     summary: "Audit corrections: updated EdgeRoutingRequest to include all flow-routing configuration fields from DiagramThemeEdgeConfig (flowTurnRadius, flowFaceStub, flowBundleStrength, flowTargetApproachBias, allowUnderpass — and the new flowObstaclePadding, flowUnderpassDepth, flowUnderpassClearance, flowTurnPenalty, flowPunchthroughPenalty, flowUnderpassPenalty fields). Corrected the Lexicographic Candidate Selection Technical Considerations section — the rank key is 8 elements (matching EdgeCandidateRankKey), not 6."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "Codebase alignment: corrected EdgeRoutingRequest — flow-routing bulk config fields (flowObstaclePadding, flowUnderpassDepth, flowUnderpassClearance, flowTurnPenalty, flowPunchthroughPenalty, flowUnderpassPenalty) live on FlowRoutingConfig, not EdgeRoutingRequest. The request only carries: flowTurnRadius, flowFaceStub, flowBundleStrength, flowTargetApproachBias, allowUnderpass. Updated RoutingProfileContext to match routingTypes.ts (added groupIds, obstacleGroupIds, fromId, toId, allowUnderpass, organicVariation). Moved RoutingProfile and RoutingProfileContext type definitions to routingTypes.ts (not edgeRoutingProfiles.ts). Added flowVisibilityGraph.ts and edgeRenderOptimizer.ts to Dependencies section."
 ---
 
 ## Overview
@@ -149,13 +152,7 @@ export type EdgeRoutingRequest = {
   readonly flowTurnRadius: number;
   readonly flowFaceStub: number;
   readonly flowBundleStrength: number;
-  readonly flowObstaclePadding: number;
   readonly flowTargetApproachBias: number;
-  readonly flowUnderpassDepth: number;
-  readonly flowUnderpassClearance: number;
-  readonly flowTurnPenalty: number;
-  readonly flowPunchthroughPenalty: number;
-  readonly flowUnderpassPenalty: number;
   readonly allowUnderpass: boolean;
 };
 
@@ -244,12 +241,28 @@ export type ScoredEdgeCandidate = RoutedEdgeCandidate & {
 All four routing algorithms implement the same profile contract. Only `ROUTING_PROFILES` is exported from `edgeRoutingProfiles.ts`; the individual profile objects are non-exported implementation details.
 
 ```typescript
-// packages/diagram/src/elements/diagram/compiler/edgeRoutingProfiles.ts
+// packages/diagram/src/elements/diagram/compiler/routingTypes.ts
 
 export type RoutingProfileContext = {
+  /** Full node map in router Y-up space. Required by the flow profile for obstacle model. */
   readonly nodeMap: RoutingNodeMap;
+  /** Explicit set of routing IDs that represent diagram groups. */
+  readonly groupIds: ReadonlySet<string>;
+  /** Subset of groupIds that should behave as routing obstacles. */
+  readonly obstacleGroupIds: ReadonlySet<string>;
+  /** Routing configuration parameters (turn radius, face stub, padding, penalties). */
   readonly config: FlowRoutingConfig;
+  /** Edge ID, forwarded to warnings and debug output only. */
   readonly edgeId: string;
+  /** Source node ID, required by the flow profile for obstacle model construction. */
+  readonly fromId: string;
+  /** Destination node ID, required by the flow profile for obstacle model construction. */
+  readonly toId: string;
+  /** Whether this edge allows underpass routing (flow profile only). */
+  readonly allowUnderpass: boolean;
+  /** Organic variation magnitude for the organic profile. */
+  readonly organicVariation: number;
+  /** Optional warn callback for non-fatal routing events. */
   readonly onWarn?: DiagramWarnFn;
 };
 
@@ -265,8 +278,11 @@ export type RoutingProfile = {
   ): EdgeRouteState;
 };
 
+// packages/diagram/src/elements/diagram/compiler/edgeRoutingProfiles.ts
 export const ROUTING_PROFILES: Record<EdgeRoutingAlgorithm, RoutingProfile>;
 ```
+
+Note: `FlowRoutingConfig` is a separate type in `routingTypes.ts` that carries the bulk flow-routing configuration parameters (`flowObstaclePadding`, `flowUnderpassDepth`, `flowUnderpassClearance`, `flowTurnPenalty`, `flowPunchthroughPenalty`, `flowUnderpassPenalty`, `flowTurnRadius`, `flowFaceStub`, `flowBundleStrength`, `flowTargetApproachBias`). These fields live on `FlowRoutingConfig`, not on `EdgeRoutingRequest`.
 
 ### Lower-level face utilities (exported for testing)
 
@@ -399,6 +415,8 @@ The new compiler modules (`routingTypes.ts`, `routingSpace.ts`, `edgeCandidatePl
 - `compiler/flowRouter.ts` — obstacle-aware routing for the `flow` profile
 - `compiler/flowPathBuilder.ts` — explicit path command construction for the `flow` profile
 - `compiler/flowObstacleModel.ts` — obstacle geometry for flow routing
+- `compiler/flowVisibilityGraph.ts` — orthogonal visibility graph construction for `flow` routing
+- `compiler/edgeRenderOptimizer.ts` — post-routing edge path optimization (simplification, smoothing)
 - `elements/diagram/types.ts` — `EdgeRoutingAlgorithm`, `EdgeLandingAlgorithm`, `DiagramEdgePort`
 - No external npm packages
 

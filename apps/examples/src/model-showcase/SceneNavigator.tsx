@@ -29,6 +29,9 @@ const containerStyle: React.CSSProperties = {
   fontSize: 13,
   userSelect: 'none',
   pointerEvents: 'auto',
+  maxWidth: 'calc(100vw - 32px)',
+  boxSizing: 'border-box' as const,
+  whiteSpace: 'nowrap',
 };
 
 const btnStyle: React.CSSProperties = {
@@ -58,7 +61,7 @@ export function SceneNavigator(): JSX.Element {
       >
         ← Prev
       </button>
-      <span style={{ minWidth: 130, textAlign: 'center' }}>{label}</span>
+      <span style={{ textAlign: 'center' }}>{label}</span>
       <button
         style={{ ...btnStyle, opacity: idx >= total - 1 ? 0.3 : 1 }}
         disabled={idx >= total - 1}
