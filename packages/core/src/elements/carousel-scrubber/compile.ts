@@ -51,8 +51,7 @@ export function compileCarouselScrubber(
 ): CarouselScrubberState {
   // Strip undefined values from props.style before merging — undefined from
   // a spread (e.g. { baseColor: trayProps.color } when color is not set)
-  // would overwrite the default, breaking resolveThemedStyle's "is this
-  // explicitly set?" comparison downstream.
+  // would overwrite the default with undefined, producing an invalid state.
   const definedStyle: Partial<CarouselScrubberStyle> = {};
   if (props.style) {
     for (const [k, v] of Object.entries(props.style)) {
