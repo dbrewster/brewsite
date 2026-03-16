@@ -10,9 +10,6 @@ import {
   TextBox,
   ViewLayout,
   View,
-  InputController,
-  Action,
-  KeyMap,
 } from '@brewsite/core';
 import { MediaScreen } from '@brewsite/screens';
 
@@ -27,15 +24,6 @@ export const MediaScreenScene = (): JSX.Element => (
       <Directional intensity={0.5} color="#4060ff" position={[-6, 3, 8]} />
     </Lighting>
     <Background color="#06081a" />
-
-    <InputController scope="window">
-      <Action id="carousel-next" type="carousel.next" layoutId={CAROUSEL_ID} stepSlides={1}>
-        <KeyMap keyName="ArrowRight" />
-      </Action>
-      <Action id="carousel-prev" type="carousel.prev" layoutId={CAROUSEL_ID} stepSlides={1}>
-        <KeyMap keyName="ArrowLeft" />
-      </Action>
-    </InputController>
 
     <ViewLayout id={CAROUSEL_ID} kind="carousel">
       {/* Panel 1 — Video File */}

@@ -10,15 +10,12 @@ import {
   formatModifier,
   InputController,
   InputHud,
-  KeyMap,
   Lighting,
-  PinchMap,
   PointerMap,
   ProgressManager,
   Scene,
   TextBox,
   View,
-  WheelMap,
   type InputHudState,
 } from '@brewsite/core';
 import {
@@ -103,35 +100,18 @@ export const CameraControlsScene = (): JSX.Element => {
       <Floor variant="grid" negativeZExtent={18} />
 
       <InputController scope="canvas">
-        {/* Orbit — primary (left drag) */}
-        <Action id="orbit" type="camera.orbit">
+        {/* Opt-in: left-drag orbit for this teaching scene */}
+        <Action id="drag-orbit" type="camera.orbit">
           <PointerMap event="drag" button="left" axis="xy" />
         </Action>
-        {/* Orbit — modifier speed variants (⌘/Ctrl+drag) */}
-        <Action id="orbit-mod" type="camera.orbit" speed={0.8}>
+        {/* Additional: right-drag and meta+drag slower orbit */}
+        <Action id="orbit-slow" type="camera.orbit" speed={0.8}>
           <PointerMap event="drag" button="right" axis="xy" />
           <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
         </Action>
-        {/* Zoom — wheel */}
-        <Action id="dolly" type="camera.zoom">
-          <WheelMap axis="y" />
-          <PinchMap direction="both" threshold={1} />
-        </Action>
-        {/* Zoom — precision (ctrl+wheel) */}
-        <Action id="dolly-precision" type="camera.zoom" speed={0.25}>
-          <WheelMap axis="y" modifiers={['ctrl']} />
-        </Action>
-        {/* Reset */}
-        <Action id="reset" type="camera.reset">
-          <KeyMap keyName="r" />
+        {/* Additional: meta+click reset */}
+        <Action id="meta-reset" type="camera.reset">
           <PointerMap event="click" modifiers={['meta']} />
-        </Action>
-        {/* Scene navigation */}
-        <Action id="scene-next" type="scene.next">
-          <KeyMap keyName="ArrowDown" />
-        </Action>
-        <Action id="scene-prev" type="scene.prev">
-          <KeyMap keyName="ArrowUp" />
         </Action>
       </InputController>
 
@@ -223,8 +203,13 @@ export const CameraControlsScene = (): JSX.Element => {
           </div>
           <BindingRow
             label="orbit"
+            keys={[{ text: formatModifier('meta'), color: C_MODIFIER }, { text: '+ Scroll', color: C_CAMERA }]}
+            desc={`Default: ${formatModifier('meta')}+scroll orbit`}
+          />
+          <BindingRow
+            label="orbit"
             keys={[{ text: 'Left Drag', color: C_CAMERA }]}
-            desc="Primary orbit (full speed)"
+            desc="Custom override: left-drag orbit (this scene only)"
           />
           <BindingRow
             label="orbit ×0.8"
@@ -233,22 +218,12 @@ export const CameraControlsScene = (): JSX.Element => {
           />
 
           <div style={{ fontSize: 10, color: 'rgba(120,160,220,0.5)', textTransform: 'uppercase', letterSpacing: '0.12em', margin: '10px 0 8px' }}>
-            Dolly
+            Zoom
           </div>
           <BindingRow
-            label="dolly"
-            keys={[{ text: 'Scroll', color: C_CAMERA }]}
-            desc="Wheel scroll — full speed"
-          />
-          <BindingRow
-            label="dolly"
+            label="zoom"
             keys={[{ text: 'Pinch', color: C_CAMERA }]}
-            desc="Pinch in/out — full speed"
-          />
-          <BindingRow
-            label="zoom ×0.25"
-            keys={[{ text: formatModifier('ctrl'), color: C_MODIFIER }, { text: '+ Scroll', color: C_CAMERA }]}
-            desc="Precision zoom — 4× slower"
+            desc="Pinch in/out (default)"
           />
 
           <div style={{ fontSize: 10, color: 'rgba(120,160,220,0.5)', textTransform: 'uppercase', letterSpacing: '0.12em', margin: '10px 0 8px' }}>
@@ -257,12 +232,12 @@ export const CameraControlsScene = (): JSX.Element => {
           <BindingRow
             label="reset"
             keys={[{ text: 'R', color: C_RESET }]}
-            desc="Keyboard reset"
+            desc="Keyboard reset (default)"
           />
           <BindingRow
             label="reset"
             keys={[{ text: formatModifier('meta'), color: C_MODIFIER }, { text: '+ Click', color: C_RESET }]}
-            desc={`${formatModifier('meta')}+click reset`}
+            desc={`${formatModifier('meta')}+click reset (custom override)`}
           />
 
           <div style={{ fontSize: 10, color: 'rgba(120,160,220,0.5)', textTransform: 'uppercase', letterSpacing: '0.12em', margin: '10px 0 8px' }}>
@@ -270,13 +245,13 @@ export const CameraControlsScene = (): JSX.Element => {
           </div>
           <BindingRow
             label="next"
-            keys={[{ text: '↓', color: C_SCENE }]}
-            desc="Next scene"
+            keys={[{ text: 'Scroll ↓', color: C_SCENE }, { text: '↓', color: C_SCENE }]}
+            desc="Next scene (default)"
           />
           <BindingRow
             label="prev"
-            keys={[{ text: '↑', color: C_SCENE }]}
-            desc="Previous scene"
+            keys={[{ text: 'Scroll ↑', color: C_SCENE }, { text: '↑', color: C_SCENE }]}
+            desc="Previous scene (default)"
           />
 
           <div

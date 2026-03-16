@@ -13,8 +13,17 @@ export type {
   InputWheelMap,
   InputPinchMap,
   InputKeyMap,
+  InputSpecMergeMode,
   ActionInputHandler,
 } from './types';
+
+export { mergeInputSpecs } from './inputSpecMerger';
+
+export { computeCarouselStep } from './carouselStepper';
+export type { CarouselStepInput } from './carouselStepper';
+
+export { resolveInputTargets } from './scopeResolver';
+export type { ResolvedTargets } from './scopeResolver';
 
 export type {
   ActionFiredListener,

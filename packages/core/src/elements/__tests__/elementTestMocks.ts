@@ -3,6 +3,7 @@ import type { SceneTrackTick } from '../../compiler/sceneTrackTypes';
 import type { WidgetInitContext, WidgetRenderContext } from '../../widget/types';
 import { VariableStore } from '../../widget/VariableStore';
 import { createNVSCoordService } from '../../layout/nvsCoordService';
+import type { NVSCameraParams } from '../../layout/nvsCoordService';
 
 export const makeFrameSlice = (count: number, sceneId = 'scene'): SceneTrackTick[] =>
   Array.from({ length: count }, (_value, index) => ({
@@ -16,9 +17,8 @@ export const makeFrameSlice = (count: number, sceneId = 'scene'): SceneTrackTick
     deltaBackward: {},
   }));
 
-/** Default camera used by makeRenderContext. Positioned for worldScale=10 (cameraZ≈12.07, fov=45). */
-const _defaultTestCamera = new THREE.PerspectiveCamera(45, 16 / 9, 0.01, 100);
-_defaultTestCamera.position.set(0, 0, 12.07);
+/** Default NVS camera params used by makeRenderContext. Matches worldScale=10 (distance≈12.07, fov=45). */
+const _defaultTestCamera: NVSCameraParams = { distance: 12.07, fovDeg: 45 };
 
 export const makeRenderContext = (
   overrides: Partial<WidgetRenderContext> = {},

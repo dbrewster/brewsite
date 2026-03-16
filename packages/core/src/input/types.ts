@@ -37,6 +37,12 @@ export type InputPointerMap = {
   event: 'drag' | 'click';
   button?: MouseButton;
   modifiers?: ModifierKey[];
+  /**
+   * Number of simultaneous touch points required (touch-only).
+   * When omitted, the map matches mouse/stylus input only (backward compatible).
+   * When set, `button` is ignored.
+   */
+  touches?: number;
   axis?: 'x' | 'y' | 'xy';
   /**
    * Axis lock behavior for drag gestures.
@@ -101,10 +107,15 @@ export type InputActionSpec = {
   maps: InputActionMap[];
 };
 
+/** Controls how a scene's input spec combines with the default spec during compilation. */
+export type InputSpecMergeMode = 'merge' | 'replace';
+
 export type SceneInputControllerSpec = {
   id: string;
   scope: InputControllerScope;
   actions: InputActionSpec[];
+  /** How this spec combines with the default input spec. Default: 'merge'. */
+  mergeMode?: InputSpecMergeMode;
 };
 
 /**

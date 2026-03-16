@@ -96,6 +96,12 @@ export type ActionInputControllerOptions = {
 const LEGACY_CAMERA_ID = 'camera';
 const DEFAULT_WHEEL_LOCK_IDLE_MS = 180;
 
+/**
+ * Set to true to enable detailed wheel/input event logging to the console.
+ * Useful for diagnosing why scroll events are not reaching the expected handler.
+ */
+const DEBUG_INPUT = false;
+
 export class ActionInputController {
   private activeDrag: ActiveDrag | null = null;
   private activeWheelLock: ActiveWheelLock | null = null;
@@ -656,11 +662,19 @@ export class ActionInputController {
   }
 
   private handleWheel(e: WheelEvent): void {
+    if (DEBUG_INPUT) {
+      console.log(`[AIC:wheel] dX=${e.deltaX.toFixed(1)} dY=${e.deltaY.toFixed(1)} ctrl=${e.ctrlKey} meta=${e.metaKey} shift=${e.shiftKey} target=${(e.target as HTMLElement)?.tagName}`);
+    }
+
     // [Waterfall step 1] Yield to scrollable overlay content.
-    if (this.isOverScrollableContent(e)) return; // no preventDefault
+    if (this.isOverScrollableContent(e)) {
+      if (DEBUG_INPUT) console.log('[AIC:wheel] → YIELDED to scrollable overlay content');
+      return; // no preventDefault
+    }
 
     const spec = this.resolveSpec();
     if (!spec) {
+      if (DEBUG_INPUT) console.log('[AIC:wheel] → NO SPEC, calling onUnclaimedWheel:', !!this.onUnclaimedWheel);
       // No spec; fall through to unclaimed handler (scene scroll).
       this.onUnclaimedWheel?.(e);
       return;
@@ -676,7 +690,10 @@ export class ActionInputController {
         // Pinch signal is exclusive when pinch mappings are present: always
         // consume so browser zoom / wheel mappings do not also run.
         e.preventDefault();
-        const pinchDelta = e.deltaY;
+        // Negate deltaY: browser pinch-to-zoom-in (spread fingers) sends negative
+        // deltaY on macOS trackpads. We want positive = spread = zoom in, matching
+        // the touch pinch convention where positive delta = increasing finger distance.
+        const pinchDelta = -e.deltaY;
         if (pinchDelta !== 0) {
           const direction = pinchDelta > 0 ? 'out' : 'in';
           const pinchMatch = this.findBestPinchMatch(spec, e, direction, { wheelPinch: true });
@@ -708,9 +725,11 @@ export class ActionInputController {
     }
     if (!best) {
       // [Waterfall step 4] No action claimed it — fall through to scroll.
+      if (DEBUG_INPUT) console.log('[AIC:wheel] → NO WheelMap match, calling onUnclaimedWheel:', !!this.onUnclaimedWheel);
       this.onUnclaimedWheel?.(e);
       return;
     }
+    if (DEBUG_INPUT) console.log(`[AIC:wheel] → CLAIMED by action "${best.action.id}" (type=${best.action.type})`);
     e.preventDefault();
     const currentTs = this.nowMs();
     const modifierSignature = this.eventModifierSignature(e);

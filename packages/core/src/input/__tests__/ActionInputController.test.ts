@@ -445,7 +445,9 @@ describe('ActionInputController', () => {
     const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraZoom }), target);
 
     ctrl.attach();
-    const ev = new WheelEvent('wheel', { ctrlKey: true, deltaY: 12, bubbles: true, cancelable: true });
+    // Browser trackpad pinch-out (spread fingers) sends negative deltaY.
+    // After negation in the controller, pinchDelta becomes positive → direction 'out'.
+    const ev = new WheelEvent('wheel', { ctrlKey: true, deltaY: -12, bubbles: true, cancelable: true });
     target.dispatchEvent(ev);
     ctrl.detach();
 
@@ -474,7 +476,8 @@ describe('ActionInputController', () => {
     const ctrl = new ActionInputController(target, () => spec, makeHandler({ onCameraZoom }), target);
 
     ctrl.attach();
-    const ev = new WheelEvent('wheel', { ctrlKey: true, deltaY: 15, bubbles: true, cancelable: true });
+    // Trackpad pinch-out (spread) → negative deltaY. Negated to positive in controller.
+    const ev = new WheelEvent('wheel', { ctrlKey: true, deltaY: -15, bubbles: true, cancelable: true });
     target.dispatchEvent(ev);
     ctrl.detach();
 
@@ -509,7 +512,8 @@ describe('ActionInputController', () => {
     );
 
     ctrl.attach();
-    const ev = new WheelEvent('wheel', { ctrlKey: true, deltaY: 10, deltaX: 2, bubbles: true, cancelable: true });
+    // Trackpad pinch-out → negative deltaY. Negated pinchDelta = 10 (below threshold 999).
+    const ev = new WheelEvent('wheel', { ctrlKey: true, deltaY: -10, deltaX: 2, bubbles: true, cancelable: true });
     target.dispatchEvent(ev);
     ctrl.detach();
 

@@ -35,6 +35,16 @@ export const lightCanvasSceneTheme: SceneTheme = {
       majorEvery: 1,
     },
   },
+  carouselTray: {
+    color: '#E0E6EE',
+    opacity: 0.90,
+    accentColor: '#3D63D9',
+    metalness: 0.08,
+    roughness: 0.72,
+    edgeStyle: 'matte',
+    surfacePattern: 'none',
+    surfaceIntensity: 0,
+  },
 };
 
 /** lightCanvas family, dark polarity. */
@@ -69,5 +79,15 @@ export const lightCanvasDarkSceneTheme: SceneTheme = {
       fillOpacity: 0,
       majorEvery: 1,
     },
+  },
+  carouselTray: {
+    color: '#1E2838',
+    opacity: 0.80,
+    accentColor: '#5D7194',
+    metalness: 0.18,
+    roughness: 0.62,
+    edgeStyle: 'matte',
+    surfacePattern: 'grain',
+    surfaceIntensity: 0.15,
   },
 };

@@ -648,49 +648,56 @@ Controls how much scroll real estate each scene's transition consumes and the pa
 
 ## Input Control: `<InputController>`
 
-Declares per-scene input action mappings. Carry-forward semantics: once declared, it persists until overridden. Place inside `<Scene>`.
+Every scene gets comprehensive default input bindings automatically: Cmd/Ctrl+scroll orbit, pinch zoom, Shift+scroll pan, R key reset, ArrowUp/Down scene nav, ArrowLeft/Right carousel nav. Plain scroll is always reserved for scene/carousel navigation.
 
-Each `<InputController>` contains `<Action>` children. Each `<Action>` contains one or more input mapping children (`<PointerMap>`, `<WheelMap>`, `<KeyMap>`, `<PinchMap>`).
+**Most scenes need no `<InputController>` at all.** Only declare one when you need custom bindings.
+
+When you do declare `<InputController>`, it **merges** with defaults by default. Actions with an `id` matching a default action replace that default; new actions are appended. Use `mode="replace"` for full control.
 
 ```tsx
+{/* Merge mode (default): add left-drag orbit on top of all defaults */}
 <Scene id="camera-explore">
   <InputController scope="canvas">
-    <Action id="orbit" type="camera.orbit">
-      <PointerMap event="drag" />
-    </Action>
-    <Action id="dolly" type="camera.dolly">
-      <WheelMap />
-    </Action>
-    <Action id="reset" type="camera.reset">
-      <KeyMap keyName="Escape" />
+    <Action id="drag-orbit" type="camera.orbit">
+      <PointerMap event="drag" button="left" />
     </Action>
   </InputController>
   <Camera mode="orbit" target={[0, 1, 0]} azimuth={0} polar={1.0} distance={8} />
 </Scene>
 ```
 
+Carry-forward semantics: once declared, an `<InputController>` persists until overridden. Place inside `<Scene>`.
+
 **`<InputController>` props:**
-- `scope`: `'canvas'` (default) | `'window'` — where to attach event listeners.
+- `scope`: `'canvas'` (default) | `'window'` — where to attach event listeners. `'canvas'` is focus-gated to the stage.
+- `mode`: `'merge'` (default) | `'replace'` — how to combine with defaults. `'merge'` preserves unoverridden defaults.
 
 **`<Action>` props:**
-- `id` (required) — unique stable action identifier within the controller.
+- `id` (required) — unique stable action identifier. Use a default ID (e.g. `'default-camera-orbit'`) to override that default in merge mode.
 - `type` (required) — one of the `InputActionType` values (see below).
 - `speed?: number` — input sensitivity multiplier.
 - `cameraId?: string` — target camera widget ID (for `camera.*` actions; defaults to the scene camera).
 - `canvasId?: string` — target canvas widget ID (for `diagram-canvas.*` actions).
 - `stepScenes?: number` — number of scenes to advance for `scene.next` / `scene.prev`.
+- `layoutId?: string` — target ViewLayout ID for `carousel.next` / `carousel.prev`.
+- `stepSlides?: number` — slides to advance per carousel step (default 1).
 
 **Available `InputActionType` values:**
-`'camera.orbit'`, `'camera.dolly'`, `'camera.reset'`, `'canvas.pan'`, `'diagram-canvas.move'`, `'diagram-canvas.rotate'`, `'diagram-canvas.reset'`, `'diagram-canvas.focus'`, `'scene.next'`, `'scene.prev'`
+`'camera.orbit'`, `'camera.zoom'`, `'camera.pan'`, `'camera.reset'`, `'scene.next'`, `'scene.prev'`, `'carousel.next'`, `'carousel.prev'`, `'diagram-canvas.move'`, `'diagram-canvas.rotate'`, `'diagram-canvas.reset'`, `'diagram-canvas.focus'`
+
+**Default action IDs** (use these to override defaults in merge mode):
+`'default-camera-orbit'`, `'default-camera-zoom'`, `'default-camera-pan'`, `'default-camera-reset'`, `'default-scene-next'`, `'default-scene-prev'`, `'default-carousel-next'`, `'default-carousel-prev'`
 
 **`<PointerMap>` props:**
 - `event`: `'drag'` (default) | `'click'`
-- `button?: MouseButton`
+- `button?: MouseButton` — ignored when `touches` is set
 - `modifiers?: ModifierKey[]`
+- `touches?: number` — exact touch point count (touch-only); omit for mouse/stylus
 - `axis?: 'x' | 'y' | 'xy'`
 - `lockAxis?: 'sticky' | 'free'`
 
 **`<WheelMap>` props:** `modifiers?`, `axis?`, `lockAxis?`
+> A `<WheelMap>` without modifiers captures ALL scroll and breaks scene navigation. Use modifiers (e.g. `modifiers={['meta']}`) to keep plain scroll free.
 
 **`<KeyMap>` props:** `keyName` (required, maps to `KeyboardEvent.key`), `modifiers?`
 > Use `keyName` not `key` — React's reserved `key` prop is deprecated for this purpose.
@@ -954,17 +961,33 @@ Read these when you need more detail than this cheat sheet provides. All paths a
 // ✗ Wrong: InputController with PointerMap/WheelMap directly as children (old API)
 <InputController scope="canvas">
   <PointerMap action="camera.orbit" speed={1.5} />
-  <WheelMap action="camera.dolly" />
+  <WheelMap action="camera.zoom" />
 </InputController>
 // Fix: use Action children with mapping children
 <InputController scope="canvas">
   <Action id="orbit" type="camera.orbit">
     <PointerMap event="drag" />
   </Action>
-  <Action id="dolly" type="camera.dolly">
-    <WheelMap />
+  <Action id="zoom" type="camera.zoom">
+    <PinchMap direction="both" />
   </Action>
 </InputController>
+
+// ✗ Wrong: Using camera.dolly or canvas.pan (renamed)
+<Action id="dolly" type="camera.dolly">  // camera.dolly is now camera.zoom
+<Action id="pan" type="canvas.pan">      // canvas.pan is now camera.pan
+// Fix: use the current type names
+<Action id="zoom" type="camera.zoom">
+<Action id="pan" type="camera.pan">
+
+// ✗ Wrong: Unmodified WheelMap on camera zoom (breaks scene scroll navigation)
+<Action id="zoom" type="camera.zoom">
+  <WheelMap />  // This captures ALL scroll — scene navigation stops working
+</Action>
+// Fix: use PinchMap for zoom, or add modifiers to WheelMap
+<Action id="zoom" type="camera.zoom">
+  <PinchMap direction="both" />
+</Action>
 
 // ✗ Wrong: <Hud> / <HudItem> (removed)
 <Scene id="hero">

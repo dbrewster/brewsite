@@ -7,6 +7,9 @@ updated: 2026-03-15
 change_history:
   - date: 2026-03-15
     author: "Toolkit Product"
+    summary: "NVS zoom-instability fix: updated NVS section (3.6) and API signatures (4.8) to reflect createNVSCoordService now accepts NVSCameraParams instead of THREE.PerspectiveCamera. Added NVSCameraParams type and resolveNVSParamsFromCameraState function. Updated NVSCoordService description to note mapping is pinned to compiled camera state."
+  - date: 2026-03-15
+    author: "Toolkit Product"
     summary: "Codebase alignment audit. Package table: added @brewsite/screens, @brewsite/claude-author, create-brewsite, brewsite CLI. Camera modes: removed nvsViewport (DSL-only concept compiled to world; only 4 runtime modes exist). Input: replaced ActionInput/KeyboardInput with InputCoordinator. TextBox: corrected description to match actual implementation (simple React component rendering position:absolute div; no TextBoxWidget, no VariableStore pipeline). Widget SDK signatures: fixed ISceneLifecycle (both methods non-optional, take sceneId+sceneIndex), ICameraFocusTarget.requestFocus (position+target+smooth), ILightingOverride.getLightingOverride (returns {disableAll}|null), IAttachmentHost.getAttachmentPoint (returns Object3D|null), NVSCoordService.toWorldSize (returns tuple), WidgetRenderContext.variables (VariableStoreReader), AnimationTickContext.resolvedState (unknown). ThemeFamily: added 'enterprise'. Context provider tree: corrected order from source. CameraControlPanel: exported from @brewsite/core with @internal tag, not a devtools subpath."
   - date: 2026-03-15
     author: "Toolkit Product"
@@ -158,7 +161,7 @@ Labels, `LabelPositioner`, `LabelItem`, `LabelPositionerContext`, and all label 
 
 ### 3.6 Normalized Viewport Space (NVS)
 
-The NVS coordinate system provides a resolution-independent positioning model for scene elements. NVS coordinates range from `[0, 0]` (top-left) to `[1, 1]` (bottom-right) of the viewport. The `layout/` module provides `NVSCoordService` which converts NVS positions to world-space coordinates at runtime using the active camera's projection.
+The NVS coordinate system provides a resolution-independent positioning model for scene elements. NVS coordinates range from `[0, 0]` (top-left) to `[1, 1]` (bottom-right) of the viewport. The `layout/` module provides `NVSCoordService` which converts NVS positions to world-space coordinates at runtime using the **compiled camera state** and canvas dimensions. NVS mapping is pinned to the scene author's intended viewport — user camera interaction (orbit, zoom, pan) does not affect NVS positions.
 
 Elements that declare NVS bounds (`x`, `y`, `w`, `h` props) implement `INVSBounded`. The `View` and `ViewLayout` DSL components provide spatial composition — stack and carousel layouts that partition the NVS viewport among child views.
 
@@ -321,7 +324,7 @@ interface WidgetRenderContext<TExtra> {
   variables: VariableStoreReader
   extra: TExtra
   tick?: SceneTrackTick | null
-  coords: NVSCoordService  // NVS → world coordinate conversion
+  coords: NVSCoordService  // NVS → world coordinate conversion (compiled camera state)
 }
 
 interface AnimationTickContext {
@@ -465,10 +468,19 @@ interface NVSCoordService {
   viewportHeight: number
 }
 
+// NVS camera params — pure math, no Three.js dependency
+type NVSCameraParams = {
+  distance: number     // camera distance to target in world units
+  fovDeg: number       // vertical FOV in degrees
+  centerX?: number     // world-space X of viewport center (default 0)
+  centerY?: number     // world-space Y of viewport center (default 0)
+}
+
 // Coordinate conversion utilities
 function nvsToWorldAnalytic(nvsX: number, nvsY: number, worldH: number, aspect: number): Vec3
 function worldToNvsAnalytic(worldX: number, worldY: number, worldH: number, aspect: number): NVSPosition
-function createNVSCoordService(camera: THREE.PerspectiveCamera, width: number, height: number): NVSCoordService
+function createNVSCoordService(camera: NVSCameraParams, width: number, height: number): NVSCoordService
+function resolveNVSParamsFromCameraState(state: SceneCamera): NVSCameraParams | null
 
 // Validation
 function validateNVSScalar(value: number, name: string): boolean

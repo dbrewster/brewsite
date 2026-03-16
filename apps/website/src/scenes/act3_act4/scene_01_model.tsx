@@ -28,7 +28,7 @@ export const scene01ModelWide: JSX.Element = (
       mode="world"
       position={isMobile ? [0, 2, 7] : [0, 1.5, 5]}
       target={[0, 0, 0]}
-      fov={isMobile ? 60 : 48}
+      fov={isMobile ? 55 : 48}
     />
     <Floor enabled position={[0, 0, 0]}>
       <FloorMirror

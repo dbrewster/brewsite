@@ -748,7 +748,7 @@ export const InputScene = (): JSX.Element => (
     <SoftLighting />
     <Background color="#040810" />
 
-    <InputController scope="canvas">
+    <InputController scope="canvas" mode="replace">
       <Action id="cs-orbit" type="camera.orbit">
         <PointerMap event="drag" button="left" axis="xy" />
       </Action>
@@ -785,7 +785,7 @@ export const InputScene = (): JSX.Element => (
       <TextBox id="cs-input-caption" x={0.02} y={0.0} w={0.96} h={0.16}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
           <p style={{ fontSize: 'clamp(12px, 1.4vw, 15px)', color: 'rgba(190, 215, 255, 0.8)', lineHeight: 1.6, margin: 0, maxWidth: 620 }}>
-            Try it: <strong>drag to orbit</strong>, <strong>scroll to dolly</strong>, <strong>press R to reset</strong>. The <code style={{ fontFamily: 'monospace' }}>&lt;InputController&gt;</code> DSL maps gestures to named actions.
+            Try it: <strong>drag to orbit</strong>, <strong>scroll to dolly</strong>, <strong>press R to reset</strong>. This scene uses <code style={{ fontFamily: 'monospace' }}>mode="replace"</code> to override all defaults. Merge mode (the default) preserves standard bindings automatically.
           </p>
         </div>
       </TextBox>

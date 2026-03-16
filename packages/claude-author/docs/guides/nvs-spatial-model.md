@@ -71,18 +71,24 @@ Props:
 
 `ScrollStage` and `SceneReel` both detect `EngineARContainerContext` and use `computedArHeight` for their sticky stage height automatically.
 
+## NVS Stability Under Camera Interaction
+
+NVS-positioned content (Diagrams, Charts, Screens, Models, Views) is stable under camera interaction. When a user zooms, orbits, or pans the camera via `InputController` actions or the legacy `interaction` prop, NVS-positioned elements do not shift in world space. The NVS coordinate mapping uses the scene author's compiled camera state, not the live Three.js camera. This means you can freely enable camera orbit, zoom, and pan on scenes with NVS-positioned content without worrying about elements drifting.
+
+The NVS center point (`toWorld(0.5, 0.5)`) maps to the camera's look-at target point. For `nvsViewport` cameras (the standard for diagrams and charts), the target is at the origin, so center mapping is identical to world origin. For `world` and `orbit` mode cameras, NVS center tracks the authored `target` position.
+
 ## What Happens on Resize
 
-When the viewport resizes, the engine recomputes all world-space coordinates via `createNVSCoordService`. The NVS→world transform is:
+When the viewport resizes, the engine recomputes all world-space coordinates via the NVS coordinate service. The service takes an `NVSCameraParams` object (distance, FOV, and optional center offset) derived from the compiled camera state — not the live Three.js camera. The NVS-to-world transform is:
 
 ```
-worldX = (nvsX - 0.5) * visibleWorldWidth
-worldY = -(nvsY - 0.5) * visibleWorldHeight   // Y-flip here
+worldX = (nvsX - 0.5) * visibleWorldWidth  + centerX
+worldY = -(nvsY - 0.5) * visibleWorldHeight + centerY   // Y-flip here
 ```
 
-`visibleWorldWidth` and `visibleWorldHeight` come from the camera FOV and distance. Widgets receive a fresh `NVSCoordService` each frame so element positions are always pixel-accurate.
+`visibleWorldWidth` and `visibleWorldHeight` come from the camera FOV and distance. `centerX` and `centerY` come from the camera's look-at target. Distance is computed as full 3D distance from camera position to target, not just the Z component — orbit-mode cameras at any azimuth angle produce correct NVS mappings. Widgets receive a fresh `NVSCoordService` each frame so element positions are always pixel-accurate.
 
-You do not need to think about this conversion. NVS values you write in DSL are stable across window sizes. An element at `x={0.5} y={0.5}` is always centered, regardless of whether the viewport is 800px or 1920px wide.
+You do not need to think about this conversion. NVS values you write in DSL are stable across window sizes and stable under camera interaction. An element at `x={0.5} y={0.5}` is always centered, regardless of whether the viewport is 800px or 1920px wide, and regardless of whether the user has orbited or zoomed the camera.
 
 ## Common Layout Patterns
 

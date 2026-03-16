@@ -90,7 +90,7 @@ export class CameraWidget
   /** Last known look-at target; updated from scene state in onTick. Used for orbit/dolly. */
   private _lastKnownTarget: [number, number, number] = [0, 0, 0];
   private static readonly ORBIT_SENSITIVITY = 0.005;
-  private static readonly DOLLY_SENSITIVITY = 0.01;
+  private static readonly DOLLY_SENSITIVITY = 0.020;
   private static readonly PAN_SENSITIVITY = 0.01;
   private static readonly MIN_POLAR = -Math.PI / 2 + 0.05;
   private static readonly MAX_POLAR = Math.PI / 2 - 0.05;
@@ -405,7 +405,12 @@ export class CameraWidget
     const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
     if (dist < 1e-6) return;
 
-    const move = delta * speed * CameraWidget.DOLLY_SENSITIVITY;
+    // Distance-proportional zoom: move faster when far, slower when close.
+    // This matches the natural expectation (like Google Maps) and ensures the
+    // camera feels responsive at any zoom level. Floor at 0.5 prevents stalling
+    // when very close to the target.
+    const distanceFactor = Math.max(0.5, dist);
+    const move = delta * speed * CameraWidget.DOLLY_SENSITIVITY * distanceFactor;
     // Clamp so camera cannot pass through the target or retreat excessively.
     const clampedMove = Math.max(-dist * 2, Math.min(dist * 0.9, move));
 

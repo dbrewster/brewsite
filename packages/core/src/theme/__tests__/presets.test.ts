@@ -36,6 +36,16 @@ describe('defaultSceneTheme', () => {
     expect(defaultSceneTheme.floor?.negativeZEdge).toBe('hard');
     expect(defaultSceneTheme.floor?.negativeZFadeDistance).toBe(24);
   });
+  it('has carouselTray with enterprise dark defaults', () => {
+    expect(defaultSceneTheme.carouselTray).toBeDefined();
+    expect(defaultSceneTheme.carouselTray?.color).toBe('#1E2F44');
+    expect(defaultSceneTheme.carouselTray?.opacity).toBe(0.82);
+    expect(defaultSceneTheme.carouselTray?.edgeStyle).toBe('knurled');
+    expect(defaultSceneTheme.carouselTray?.metalness).toBe(0.35);
+    expect(defaultSceneTheme.carouselTray?.roughness).toBe(0.6);
+    expect(defaultSceneTheme.carouselTray?.surfacePattern).toBe('brushed');
+    expect(defaultSceneTheme.carouselTray?.surfaceIntensity).toBe(0.25);
+  });
 });
 
 describe('defaultLightSceneTheme', () => {
@@ -52,5 +62,15 @@ describe('defaultLightSceneTheme', () => {
   it('has floor grid tokens with lineOpacity of 0.15', () => {
     expect(defaultLightSceneTheme.floor?.grid?.lineOpacity).toBe(0.15);
     expect(defaultLightSceneTheme.floor?.negativeZExtent).toBe(200);
+  });
+  it('has carouselTray with enterprise light defaults', () => {
+    expect(defaultLightSceneTheme.carouselTray).toBeDefined();
+    expect(defaultLightSceneTheme.carouselTray?.color).toBe('#D0DAE4');
+    expect(defaultLightSceneTheme.carouselTray?.opacity).toBe(0.88);
+    expect(defaultLightSceneTheme.carouselTray?.edgeStyle).toBe('knurled');
+    expect(defaultLightSceneTheme.carouselTray?.metalness).toBe(0.25);
+    expect(defaultLightSceneTheme.carouselTray?.roughness).toBe(0.55);
+    expect(defaultLightSceneTheme.carouselTray?.surfacePattern).toBe('brushed');
+    expect(defaultLightSceneTheme.carouselTray?.surfaceIntensity).toBe(0.15);
   });
 });

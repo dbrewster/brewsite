@@ -88,13 +88,14 @@ export const ThemeToggle = ({
 
   const handlePolarityToggle = useCallback((): void => {
     clearSceneTrackCache();
-    setPolarity((prev) => {
-      const next: ThemePolarity = prev === 'dark' ? 'light' : 'dark';
-      onPolarityChange(next);
-      if (persist) localStorage.setItem('themePolarity', next);
-      return next;
-    });
-  }, [onPolarityChange, persist]);
+    // Compute next outside the updater to avoid calling parent setState
+    // (onPolarityChange) from inside a child setState updater — React 19
+    // flags that as "setState during render".
+    const next: ThemePolarity = polarity === 'dark' ? 'light' : 'dark';
+    setPolarity(next);
+    onPolarityChange(next);
+    if (persist) localStorage.setItem('themePolarity', next);
+  }, [polarity, onPolarityChange, persist]);
 
   const handleFamilyChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>): void => {
     clearSceneTrackCache();

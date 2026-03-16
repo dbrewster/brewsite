@@ -17,7 +17,8 @@ import { DemoScene } from '../shared/DemoScene';
 export const CODE = `
 // <InputController> wires up action-mapped camera interactions for a scene.
 // <Action> defines a named action type; input event maps are specified as children.
-// Note: orbit and dolly require camera.interaction.enabled=true on the Camera.
+// Note: orbit and zoom require camera.interaction.enabled=true on the Camera.
+// mode="replace" overrides all defaults; merge mode (the default) preserves standard bindings.
 <Scene key="scene" id="scene">
   <Camera
     mode="orbit"
@@ -27,11 +28,11 @@ export const CODE = `
     distance={6}
     interaction={{ enabled: true }}
   />
-  <InputController>
+  <InputController mode="replace">
     <Action id="orbit" type="camera.orbit">
       <PointerMap event="drag" button="left" />
     </Action>
-    <Action id="dolly" type="camera.dolly">
+    <Action id="zoom" type="camera.zoom">
       <WheelMap />
     </Action>
     <Action id="reset" type="camera.reset">
@@ -62,11 +63,11 @@ export default function InputActionsDemo(): JSX.Element {
         <Floor enabled>
           <FloorPhysical opacity={0.5} metalness={0.4} roughness={0.6} />
         </Floor>
-        <InputController>
+        <InputController mode="replace">
           <Action id="orbit" type="camera.orbit">
             <PointerMap event="drag" button="left" />
           </Action>
-          <Action id="dolly" type="camera.dolly">
+          <Action id="zoom" type="camera.zoom">
             <WheelMap />
           </Action>
           <Action id="reset" type="camera.reset">

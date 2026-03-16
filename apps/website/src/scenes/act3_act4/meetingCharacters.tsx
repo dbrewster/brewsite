@@ -20,7 +20,7 @@ interface ActorProps {
   idBase: string;
   type: string;
   x: number;
-  y: number;
+  z: number;
   yRotation: number;
   distance: number;
   animationBase: [string, number];
@@ -30,12 +30,38 @@ interface ActorProps {
   facing: 'left' | 'right';
 }
 
+// ── Camera-aligned floor placement ────────────────────────────────────────────
+// Scene camera: position=[0, 1.5, 5], target=[0, 0, 0], fov=48
+// For a character at world z=z_val to stand on the floor (world y=0), the NVS y
+// (top-left corner of its bounding box) must be computed from the perspective
+// projection of the floor plane at that z depth.
+
+const ACTOR_H = 0.14;
+const ACTOR_W = 0.08;
+
+// fov=48 → half-angle=24°, tan(24°)≈0.4452
+// Camera look direction length: sqrt(1.5²+5²)=5.22
+// dy/dz on center ray = 1.5/5 = 0.3
+// depth along look axis at world z=z_val: 5.2206 - 0.9579*z_val
+const CAM_DY_DZ = 0.3;
+const CAM_DEPTH_BASE = 5.2206;
+const CAM_DEPTH_DZ = 0.9579;
+const TAN_HALF_FOV = 0.4452;
+
+/** NVS y prop (top-left of bounding box) that places the model's origin at world y=0 (floor). */
+function floorY(worldZ: number): number {
+  const worldYAtCenter = CAM_DY_DZ * worldZ;
+  const depthAtZ = CAM_DEPTH_BASE - CAM_DEPTH_DZ * worldZ;
+  const visibleFullHeight = 2 * TAN_HALF_FOV * depthAtZ;
+  const nvsYCenter = 0.5 + worldYAtCenter / visibleFullHeight;
+  return nvsYCenter - ACTOR_H / 2;
+}
+
 const Actor = ({
-  idBase, type, x, y, distance, animationBase, clipStartOnce,
+  idBase, type, x, z, distance, animationBase, clipStartOnce,
   yRotation, facing, raiseFoot, extraBodyPartProps,
 }: ActorProps) => {
-  // Compute NVS offset for each member of the pair
-  // distance is in NVS units (small fraction of viewport)
+  // Pair member positions: offset each actor from the pair center along the pair axis
   const halfDistance = distance / 2;
   const dirX = Math.cos(yRotation);
   const pairYaw = Math.atan2(Math.cos(yRotation), Math.sin(yRotation));
@@ -54,9 +80,10 @@ const Actor = ({
       type={type}
       id={idBase}
       x={actorX}
-      y={y}
-      w={0.08}
-      h={0.15}
+      y={floorY(z)}
+      w={ACTOR_W}
+      h={ACTOR_H}
+      z={z}
       scale={0.001}
       rotation={[0, yRot + animationBase[1], 0]}
       metalnessMultiplier={0.4}
@@ -93,39 +120,15 @@ const Actor = ({
 
 // ── Animation pools ───────────────────────────────────────────────────────────
 const F_MOTIONS: [string, number][] = [
-  // ['chat-listen-f', 0.0],
-  // ['chat-relax-f', 0.0],
   ['chat-talkandlaugh-f', 0.0],
-  // ['chat-response-f', 0.0],
-  // ['discuss-respond-f', 0.0],
 ];
 
 const M_MOTIONS: [string, number][] = [
-  // ['chat-relax-m', 0.0],
   ['chat-talkandlaugh-m', 0.0],
-  // ['discuss-query-m', 0.0],
-  // ['discuss-whisper-m', 0.0],
-  // ['standing_chat_m_270753', -Math.PI / 3],
-  // ['standing_discuss_m_270744', 0.0],
 ];
 
 const ACTOR_POOL: ActorDefn[] = [
-  // {type: 'FemaleDummy', gender: 'female'},
-  // { type: 'businessF0057', gender: 'female', footRotation: -0.5 },
-  // { type: 'businessF0060', gender: 'female' },
-  // { type: 'businessF0061', gender: 'female', footRotation: -0.5 },
-  // { type: 'businessF0062', gender: 'female', footRotation: -0.5 },
-  // { type: 'businessF0063', gender: 'female', footRotation: -0.5 },
-  // { type: 'businessF0064', gender: 'female', footRotation: -0.5 },
-  // { type: 'businessF0065', gender: 'female' },
   { type: 'MaleDummy', gender: 'male' },
-  // { type: 'businessM0079', gender: 'male' },
-  // { type: 'businessM0080', gender: 'male' },
-  // { type: 'businessM0081', gender: 'male' },
-  // { type: 'businessM0082', gender: 'male' },
-  // { type: 'businessM0083', gender: 'male' },
-  // { type: 'businessM0084', gender: 'male' },
-  // { type: 'businessM0085', gender: 'male' },
 ];
 
 // ── Deterministic pseudo-random seeding ──────────────────────────────────────
@@ -148,37 +151,40 @@ function randomBetween(min: number, max: number): number {
 }
 
 // ── Pair layout ───────────────────────────────────────────────────────────────
-// NVS: x in [0..1] (left to right), y in [0..1] (top to bottom)
+// Pairs are placed in (NVS x, world z) space.
+// x: NVS [0..1] horizontal position of pair center
+// z: world-space Z depth, negative = farther from camera
 const PAIR_COUNT = isMobile ? 4 : 10;
-// distance between pair members in NVS units
-const PAIR_DISTANCE = 0.05;
-// spread across NVS viewport
-const PAIR_SPREAD_X = 0.8;
-const PAIR_SPREAD_Y = 0.6;
-// minimum separation between pair centers in NVS units
-const PAIR_MIN_SEPARATION = 0.22;
+const PAIR_DISTANCE = 0.05; // distance between pair members in NVS x units
 
-function generatePairCenters(count: number): Array<{ x: number; y: number }> {
-  const centers: Array<{ x: number; y: number }> = [];
-  const attempts = count * 30;
-  for (let i = 0; i < attempts && centers.length < count; i++) {
+// Minimum x separation between pair centers to avoid overlap
+const PAIR_MIN_SEP_X = 0.18;
+// Minimum z separation (world units)
+const PAIR_MIN_SEP_Z = 0.8;
+
+function generatePairPositions(
+  count: number,
+): Array<{ x: number; z: number }> {
+  const positions: Array<{ x: number; z: number }> = [];
+  const attempts = count * 40;
+  for (let i = 0; i < attempts && positions.length < count; i++) {
     const candidate = {
-      x: randomBetween(0.1 + (1 - PAIR_SPREAD_X) / 2, 0.9 - (1 - PAIR_SPREAD_X) / 2),
-      y: randomBetween(0.3, 0.3 + PAIR_SPREAD_Y),
+      x: randomBetween(0.08, 0.88),
+      z: randomBetween(-4, 0),
     };
-    const isClear = centers.every(({ x, y }) => {
-      const dx = candidate.x - x;
-      const dy = candidate.y - y;
-      return Math.hypot(dx, dy) >= PAIR_MIN_SEPARATION;
+    const isClear = positions.every(({ x, z }) => {
+      const dx = Math.abs(candidate.x - x);
+      const dz = Math.abs(candidate.z - z);
+      return dx >= PAIR_MIN_SEP_X || dz >= PAIR_MIN_SEP_Z;
     });
-    if (isClear) centers.push(candidate);
+    if (isClear) positions.push(candidate);
   }
-  return centers;
+  return positions;
 }
 
 // ── Build actors once (compile-time) ─────────────────────────────────────────
-const pairCenters = generatePairCenters(PAIR_COUNT);
-const actorProps = pairCenters.flatMap((center, index) => {
+const pairPositions = generatePairPositions(PAIR_COUNT);
+const actorProps = pairPositions.flatMap((pos, index) => {
   const leftActor = randomChoice(ACTOR_POOL);
   const rightActor = randomChoice(ACTOR_POOL);
   const yRotation = randomBetween(-Math.PI / 2, Math.PI / 2);
@@ -186,8 +192,8 @@ const actorProps = pairCenters.flatMap((center, index) => {
   const makeProps = (actor: ActorDefn, facing: 'left' | 'right'): ActorProps => ({
     idBase: `${actor.id ?? actor.type}-pair-${index}-${facing}`,
     type: actor.type,
-    x: center.x,
-    y: center.y,
+    x: pos.x,
+    z: pos.z,
     distance: randomBetween(PAIR_DISTANCE - 0.01, PAIR_DISTANCE + 0.01),
     yRotation,
     animationBase: actor.gender === 'female'

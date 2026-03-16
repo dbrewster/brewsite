@@ -9,6 +9,8 @@ import { Transition } from './blocks/transition';
 import { View } from './blocks/viewDsl';
 import { ViewLayout } from './blocks/viewLayoutDsl';
 import { viewHandler, viewLayoutHandler } from './blocks/viewHandlers';
+import { CarouselScrubber, carouselScrubberNodeHandler } from '../elements/carousel-scrubber/CarouselScrubberWidget';
+import { CarouselTray } from '../elements/carousel-scrubber/dsl';
 
 let coreHandlersRegistered = false;
 
@@ -52,6 +54,16 @@ export function registerCoreHandlers(): void {
     // Category is 'ambient' by convention; constraint enforcement matches View/ViewLayout
     // by type reference, not category.
     registerNode(ViewLayout, viewLayoutHandler, { category: 'ambient' });
+  }
+  if (!getNodeHandler(CarouselScrubber)) {
+    // 'ambient' category: the scrubber manages its own 3D world positioning
+    // and must not be forced inside a <View> when <ViewLayout> is present.
+    registerNode(CarouselScrubber, carouselScrubberNodeHandler, { category: 'ambient' });
+  }
+  if (!getNodeHandler(CarouselTray)) {
+    // No-op: <CarouselTray> is consumed by viewLayoutHandler as a child component.
+    // This guard prevents "unregistered DSL component" warnings.
+    registerNode(CarouselTray, (_node, _api, _helpers) => {}, { category: 'ambient' });
   }
 }
 

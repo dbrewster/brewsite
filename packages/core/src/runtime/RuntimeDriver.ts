@@ -16,7 +16,8 @@ import type {
   AssetManifest,
 } from '../widget/types';
 import { isAttachmentHost, isRenderContributor, isCameraFocusTarget } from '../widget/WidgetRegistry';
-import { createNVSCoordService } from '../layout/nvsCoordService';
+import { createNVSCoordService, resolveNVSParamsFromCameraState } from '../layout/nvsCoordService';
+import type { SceneCamera } from '../elements/camera/types';
 
 export type SceneTrackSampler = ReturnType<typeof createSceneTrackSampler>;
 
@@ -362,6 +363,19 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     // in RuntimeLoop.runStep(). All widgets receive the same value this frame.
     const clock: RealtimeClock = { wallTimeSeconds, deltaSeconds };
 
+    // ── Step 3.5: Build NVS from compiled camera state ──────────────────────
+    // Must run BEFORE animation controllers (Step 4), because CameraWidget.onTick()
+    // modifies the live Three.js camera for interaction overrides (orbit/dolly/pan).
+    // NVS positions are derived from the scene author's intended camera — user
+    // camera interaction changes the view, not the content positions.
+    const compiledCameraState = this.resolveWidgetState('camera', tick) as SceneCamera | null;
+    const nvsParams = compiledCameraState
+      ? resolveNVSParamsFromCameraState(compiledCameraState)
+      : null;
+    const coords = nvsParams
+      ? createNVSCoordService(nvsParams, this.viewportWidth || 1920, this.viewportHeight || 1080)
+      : this._makeDefaultCoords();
+
     // ── Step 4: Tick animation controllers ──────────────────────────────────
     // Build a shared context template; resolvedState is overridden per-widget below.
     const animCtxBase = {
@@ -390,9 +404,6 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
     }
 
     // ── Step 5: Apply renderable widgets ────────────────────────────────────
-    const coords = this.camera
-      ? createNVSCoordService(this.camera, this.viewportWidth || 1920, this.viewportHeight || 1080)
-      : this._makeDefaultCoords();
     const renderCtx: WidgetRenderContext = {
       clock,
       effectiveDeltaSeconds,

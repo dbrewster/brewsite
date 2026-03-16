@@ -134,7 +134,7 @@ export default function InputShowcasePage(): JSX.Element {
         >
           <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width">
             <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
-            <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
+            <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1, top: '300px' }} />
             {/*
               passthroughPointerEvents makes the overlay container pointer-events:none
               so pointer/wheel/click events pass through to the canvas where
@@ -143,7 +143,7 @@ export default function InputShowcasePage(): JSX.Element {
             */}
             <EngineOverlayHost passthroughPointerEvents />
           </EngineARContainer>
-          <InputCoordinator inertiaSensitivity={0.06} inertiaDecay={0.85} />
+          <InputCoordinator inertiaSensitivity={0.012} inertiaDecay={0.85} />
         </ScrollStage>
 
         {/* ── Timeline scrubber ────────────────────────────────────────────── */}

@@ -6,6 +6,11 @@ import type { IRenderable, IViewChild, IWidget, WidgetInitContext, WidgetRenderC
 import { isViewChild } from '../../widget/WidgetRegistry';
 import type { ViewState } from '../../compiler/viewTypes';
 
+/** Lerp factor per frame for smooth carousel transitions. 0.12 ≈ 60fps ease. */
+const LERP_FACTOR = 0.12;
+/** Snap-to-target threshold. When distance to target is below this, snap instantly. */
+const SNAP_THRESHOLD = 0.001;
+
 /**
  * IRenderable widget for ViewLayout carousel repositioning.
  *
@@ -14,6 +19,10 @@ import type { ViewState } from '../../compiler/viewTypes';
  * Key change from previous implementation: no THREE.Group, no reparenting.
  * Position/scale transforms are applied as deltas to each child widget's
  * root Object3D. Opacity is delegated via IViewChild.applyViewOpacity().
+ *
+ * Carousel transitions are animated: position, scale, z, and opacity lerp
+ * smoothly toward the target state each frame, producing a fluid ring/fan
+ * rotation effect instead of hard snaps.
  */
 export class ViewWidget implements IRenderable<ViewState> {
   readonly widgetId: string;
@@ -52,6 +61,15 @@ export class ViewWidget implements IRenderable<ViewState> {
    */
   private childOriginalPositions = new Map<string, THREE.Vector3>();
 
+  /**
+   * Current interpolated position/scale/z per child for smooth animation.
+   * Keys: childId → { x, y, z, scaleRatio }.
+   */
+  private childCurrentState = new Map<string, { x: number; y: number; z: number; scaleRatio: number }>();
+
+  /** Current interpolated opacity. */
+  private currentOpacity: number | null = null;
+
   constructor(
     viewId: string,
     resolveChildWidget: (widgetId: string) => IWidget | undefined,
@@ -87,9 +105,9 @@ export class ViewWidget implements IRenderable<ViewState> {
       this.originalZ = state.z;
     }
 
-    const scaleRatio = state.scale / this.originalScale;
+    const targetScaleRatio = state.scale / this.originalScale;
 
-    // Compute world-space delta from NVS center shift.
+    // Compute world-space target from NVS center shift.
     const newCenterNvs = {
       x: state.bounds.x + state.bounds.w / 2,
       y: state.bounds.y + state.bounds.h / 2,
@@ -101,11 +119,12 @@ export class ViewWidget implements IRenderable<ViewState> {
       0,
     );
 
-    // Apply delta position and scale to each child object.
-    const deltaX = newCx - oldCx * scaleRatio;
-    const deltaY = newCy - oldCy * scaleRatio;
-    const deltaZ = state.z - this.originalZ;
+    const targetDeltaX = newCx - oldCx * targetScaleRatio;
+    const targetDeltaY = newCy - oldCy * targetScaleRatio;
+    const targetDeltaZ = state.z - this.originalZ;
+    const targetOpacity = state.opacity;
 
+    // Apply with lerp animation to each child object.
     for (const childId of this.childWidgetIds) {
       const obj = this.resolveChildObject(childId);
       if (!obj) continue;
@@ -116,21 +135,47 @@ export class ViewWidget implements IRenderable<ViewState> {
       }
       const orig = this.childOriginalPositions.get(childId)!;
 
-      obj.position.set(
-        orig.x * scaleRatio + deltaX,
-        orig.y * scaleRatio + deltaY,
-        orig.z + deltaZ,
-      );
-      obj.scale.set(scaleRatio, scaleRatio, 1);
-      obj.visible = state.opacity > 0;
+      // Compute target position.
+      const targetX = orig.x * targetScaleRatio + targetDeltaX;
+      const targetY = orig.y * targetScaleRatio + targetDeltaY;
+      const targetZ = orig.z + targetDeltaZ;
+
+      // Get or initialize current interpolated state.
+      let current = this.childCurrentState.get(childId);
+      if (!current) {
+        // First frame for this child: snap to target immediately (no lerp).
+        current = { x: targetX, y: targetY, z: targetZ, scaleRatio: targetScaleRatio };
+        this.childCurrentState.set(childId, current);
+      } else {
+        // Subsequent frames: lerp toward target for smooth carousel animation.
+        current.x += (targetX - current.x) * LERP_FACTOR;
+        current.y += (targetY - current.y) * LERP_FACTOR;
+        current.z += (targetZ - current.z) * LERP_FACTOR;
+        current.scaleRatio += (targetScaleRatio - current.scaleRatio) * LERP_FACTOR;
+      }
+
+      obj.position.set(current.x, current.y, current.z);
+      obj.scale.set(current.scaleRatio, current.scaleRatio, 1);
+      obj.visible = targetOpacity > 0;
     }
 
-    // Delegate opacity to IViewChild widgets.
-    if (state.opacity !== this.lastAppliedOpacity) {
+    // Lerp opacity toward target. First frame snaps; subsequent frames lerp.
+    if (this.currentOpacity === null) {
+      this.currentOpacity = targetOpacity;
+    } else if (this.currentOpacity !== targetOpacity) {
+      this.currentOpacity += (targetOpacity - this.currentOpacity) * LERP_FACTOR;
+    }
+
+    // Only update opacity delegates when the value actually changed.
+    const snappedOpacity = Math.abs(this.currentOpacity - targetOpacity) < 0.01
+      ? targetOpacity
+      : this.currentOpacity;
+
+    if (snappedOpacity !== this.lastAppliedOpacity) {
       for (const child of this.viewChildren) {
-        child.applyViewOpacity(state.opacity);
+        child.applyViewOpacity(snappedOpacity);
       }
-      this.lastAppliedOpacity = state.opacity;
+      this.lastAppliedOpacity = snappedOpacity;
     }
   }
 
@@ -142,7 +187,9 @@ export class ViewWidget implements IRenderable<ViewState> {
     this.originalScale = null;
     this.originalZ = null;
     this.lastAppliedOpacity = null;
+    this.currentOpacity = null;
     this.childOriginalPositions.clear();
+    this.childCurrentState.clear();
   }
 
   // ── Private ──────────────────────────────────────────────────────────────

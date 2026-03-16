@@ -35,6 +35,16 @@ export const enterpriseSceneTheme: SceneTheme = {
       majorEvery: 1,
     },
   },
+  carouselTray: {
+    color: '#1E2F44',
+    opacity: 0.82,
+    accentColor: '#5090e0',
+    metalness: 0.35,
+    roughness: 0.6,
+    edgeStyle: 'knurled',
+    surfacePattern: 'brushed',
+    surfaceIntensity: 0.25,
+  },
 };
 
 /** Enterprise family, light polarity. */
@@ -69,5 +79,15 @@ export const enterpriseLightSceneTheme: SceneTheme = {
       fillOpacity: 0,
       majorEvery: 1,
     },
+  },
+  carouselTray: {
+    color: '#D0DAE4',
+    opacity: 0.88,
+    accentColor: '#3A6DB5',
+    metalness: 0.25,
+    roughness: 0.55,
+    edgeStyle: 'knurled',
+    surfacePattern: 'brushed',
+    surfaceIntensity: 0.15,
   },
 };

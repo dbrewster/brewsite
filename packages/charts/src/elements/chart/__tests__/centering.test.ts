@@ -10,16 +10,8 @@
 import { describe, it, expect } from 'vitest';
 import { createNVSCoordService } from '@brewsite/core';
 
-// Build a minimal THREE.PerspectiveCamera-compatible object for createNVSCoordService.
-function makeCamera(posZ: number, fovDeg: number): import('three').PerspectiveCamera {
-  return {
-    position: { x: 0, y: 0, z: posZ },
-    fov: fovDeg,
-  } as unknown as import('three').PerspectiveCamera;
-}
-
 describe('NVSCoordService centering math — worldScale=10 camera (z=12.07, fov=45, 1920x1080)', () => {
-  const coords = createNVSCoordService(makeCamera(12.07, 45), 1920, 1080);
+  const coords = createNVSCoordService({ distance: 12.07, fovDeg: 45 }, 1920, 1080);
   // visibleWorldHeight ≈ 10.0, visibleWorldWidth ≈ 17.78
 
   it('visibleWorldHeight is approximately 10.0', () => {

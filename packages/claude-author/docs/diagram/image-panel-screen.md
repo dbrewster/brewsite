@@ -323,11 +323,13 @@ export const SceneScreenshotCarousel = () => (
     </Lighting>
     <Background color="#06081a" />
 
-    <InputController scope="window">
-      <Action id="next" type="carousel.next" layoutId={CAROUSEL_ID} stepSlides={1}>
+    {/* Default carousel bindings (ArrowRight/Left + scroll X) work automatically
+        when primaryCarouselId is set. Override here to use explicit layoutId: */}
+    <InputController>
+      <Action id="default-carousel-next" type="carousel.next" layoutId={CAROUSEL_ID} stepSlides={1}>
         <KeyMap keyName="ArrowRight" />
       </Action>
-      <Action id="prev" type="carousel.prev" layoutId={CAROUSEL_ID} stepSlides={1}>
+      <Action id="default-carousel-prev" type="carousel.prev" layoutId={CAROUSEL_ID} stepSlides={1}>
         <KeyMap keyName="ArrowLeft" />
       </Action>
     </InputController>

@@ -5,6 +5,9 @@ status: active
 owner: brewsite-product-manager
 last_updated: 2026-03-15
 change_history:
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "NVS zoom-instability fix: updated Section 12.3 and 12.7 to reflect that NVSCoordService is now computed from compiled camera state (not live THREE.PerspectiveCamera). createNVSCoordService accepts NVSCameraParams (pure math, no Three.js). resolveNVSParamsFromCameraState companion function documented. NVS mapping is stable under camera interaction. Test examples updated to use NVSCameraParams instead of THREE.PerspectiveCamera."
   - date: 2026-03-13
     author: "Toolkit Product"
     summary: "Centralized theme system: added §11.3 documenting `themesPlugin()` from `@brewsite/themes`. Documents ThemeBundle, registerSceneThemePair/registerDiagramThemePair/registerChartThemePair as the registration API, and the configureRegistry() hook usage. Updated standard integration pattern in §11 to show themesPlugin() in the plugins array."
@@ -1030,8 +1033,10 @@ type WidgetRenderContext = {
   /**
    * Per-frame NVS coordinate conversion service.
    * Converts NVS [0..1] viewport positions to Three.js world-space
-   * using the live camera and live canvas dimensions.
+   * using the compiled camera state and live canvas dimensions.
    *
+   * NVS mapping is pinned to the scene author's compiled camera state —
+   * user camera interaction (orbit, zoom, pan) does not affect NVS positions.
    * Widgets that place geometry in the main scene MUST use this service
    * instead of holding camera references or using hardcoded aspect-ratio
    * constants. Available from the first apply() call onward. Non-null.
@@ -1042,7 +1047,7 @@ type WidgetRenderContext = {
 };
 ```
 
-Passed to `IRenderable.apply` on every frame. `extra` is the value returned by `compileExtra` for this widget at this tick (or `undefined` if `compileExtra` is not implemented). `variables` is the read-only view of the `VariableStore`. `tick` is the current `SceneTrackTick` — useful for accessing label primitives or per-tick metadata. `coords` is the live coordinate conversion service injected by the engine from the current camera state.
+Passed to `IRenderable.apply` on every frame. `extra` is the value returned by `compileExtra` for this widget at this tick (or `undefined` if `compileExtra` is not implemented). `variables` is the read-only view of the `VariableStore`. `tick` is the current `SceneTrackTick` — useful for accessing label primitives or per-tick metadata. `coords` is the NVS coordinate conversion service computed from the compiled camera state and canvas dimensions. NVS mapping is stable under camera interaction — user zoom, orbit, and pan do not affect NVS positions.
 
 `clock.wallTimeSeconds` is the canonical source for time-based oscillations and ambient animations. `effectiveDeltaSeconds` is the correct delta to pass to GLTF `AnimationMixer` and camera controls damping — it is scroll-speed-boosted when `animationTimeScale` is declared on `<ProgressManager>`, and equals `clock.deltaSeconds` during idle. See Section 12.5 for the `RealtimeClock` type definition.
 
@@ -1050,7 +1055,7 @@ Passed to `IRenderable.apply` on every frame. `extra` is the value returned by `
 
 NVS (Normalized Viewport Space) is the canonical coordinate language for all authored positions, sizes, and bounds across the BrewSite toolkit. NVS values are `[0..1]` fractions of the viewport: `x=0` is the left edge, `x=1` is the right edge, `y=0` is the top, `y=1` is the bottom.
 
-`NVSCoordService` is a per-frame service injected into every `WidgetRenderContext`. It converts NVS positions to Three.js world-space using the live camera and live canvas dimensions. The engine computes this service at the start of each tick from the current `PerspectiveCamera` state and canvas pixel dimensions.
+`NVSCoordService` is a per-frame service injected into every `WidgetRenderContext`. It converts NVS positions to Three.js world-space using the **compiled camera state** and live canvas dimensions. The engine computes this service at Step 3.5 of the tick sequence from the current tick's compiled `SceneCamera` state (via `resolveNVSParamsFromCameraState`) and the canvas pixel dimensions. User camera interaction (orbit, zoom, pan) does not affect NVS positions — the mapping is pinned to the scene author's intended viewport.
 
 ```typescript
 // packages/core/src/widget/types.ts
@@ -1059,6 +1064,7 @@ export interface NVSCoordService {
   /**
    * Convert NVS [0..1] viewport position to Three.js world-space XYZ.
    * Projects onto the world Z-plane at the given depth.
+   * NVS center (0.5, 0.5) maps to the compiled camera's look-at target.
    * @param nvsX  Horizontal position [0=left, 1=right].
    * @param nvsY  Vertical position [0=top, 1=bottom].
    * @param z     World-space Z depth of the target plane. Default: 0.
@@ -1067,7 +1073,7 @@ export interface NVSCoordService {
 
   /**
    * Convert NVS width/height fractions to Three.js world-space units.
-   * Based on the visible world size at z=0 (the camera look-at plane).
+   * Based on the visible world size at the camera look-at plane.
    * @param nvsW  Width as fraction of viewport [0..1].
    * @param nvsH  Height as fraction of viewport [0..1].
    */
@@ -1077,12 +1083,12 @@ export interface NVSCoordService {
   readonly canvasAspect: number;
 
   /**
-   * Visible world height at z=0 (the camera look-at plane).
+   * Visible world height at the camera look-at plane.
    * Equals 2 * cameraDistance * tan(fov/2).
    */
   readonly visibleWorldHeight: number;
 
-  /** Visible world width at z=0. Equals visibleWorldHeight * canvasAspect. */
+  /** Visible world width at the look-at plane. Equals visibleWorldHeight * canvasAspect. */
   readonly visibleWorldWidth: number;
 
   /** Canvas width in CSS pixels. Updated each frame. */
@@ -1093,16 +1099,39 @@ export interface NVSCoordService {
 }
 ```
 
-The `createNVSCoordService(camera, width, height)` factory is exported from `@brewsite/core` for test environments where a real engine is not running:
+#### NVSCameraParams and createNVSCoordService
+
+The `createNVSCoordService` factory accepts a pure-math `NVSCameraParams` object (no Three.js dependency) and is exported from `@brewsite/core` for test environments and advanced use:
+
+```typescript
+// packages/core/src/layout/nvsCoordService.ts
+
+export type NVSCameraParams = {
+  distance: number;    // camera distance to target in world units
+  fovDeg: number;      // vertical FOV in degrees
+  centerX?: number;    // world-space X of viewport center (default 0)
+  centerY?: number;    // world-space Y of viewport center (default 0)
+};
+
+createNVSCoordService(camera: NVSCameraParams, viewportWidth: number, viewportHeight: number): NVSCoordService
+```
+
+The companion function `resolveNVSParamsFromCameraState` extracts `NVSCameraParams` from a compiled `SceneCamera` state. The engine uses this internally at Step 3.5 of the tick sequence.
+
+```typescript
+resolveNVSParamsFromCameraState(state: SceneCamera): NVSCameraParams | null
+```
+
+Test usage (no Three.js required):
 
 ```typescript
 import { createNVSCoordService } from '@brewsite/core';
-import * as THREE from 'three';
 
-const cam = new THREE.PerspectiveCamera(45, 16/9, 0.01, 100);
-cam.position.set(0, 0, 5);
-cam.updateProjectionMatrix();
-const coords = createNVSCoordService(cam, 1920, 1080);
+const coords = createNVSCoordService(
+  { distance: 5, fovDeg: 45, centerX: 0, centerY: 0 },
+  1920,
+  1080,
+);
 const [x, y, z] = coords.toWorld(0.5, 0.5, 0); // center of viewport at z=0
 ```
 

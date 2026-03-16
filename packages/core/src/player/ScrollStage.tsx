@@ -263,6 +263,16 @@ export const ScrollStage = forwardRef<ScrollStageHandle, ScrollStageProps>(
           <ScrollNavigatorContext.Provider value={scrollNavigatorValue}>
             <div
               ref={containerRef}
+              tabIndex={0}
+              onPointerEnter={(e) => {
+                // Only auto-focus on mouse hover, not touch tap.
+                // On mobile, touch pointerenter would dismiss on-screen keyboards.
+                if (e.pointerType !== 'mouse') return;
+                if (document.activeElement !== e.currentTarget &&
+                    !e.currentTarget.contains(document.activeElement)) {
+                  e.currentTarget.focus({ preventScroll: true });
+                }
+              }}
               className={props.className}
               style={{
                 position: 'relative',
@@ -273,6 +283,7 @@ export const ScrollStage = forwardRef<ScrollStageHandle, ScrollStageProps>(
                 overflowY: customSource ? 'hidden' : 'auto',
                 overflowX: 'hidden',
                 overscrollBehavior: 'none',
+                outline: 'none',
                 ...props.style,
               }}
             >

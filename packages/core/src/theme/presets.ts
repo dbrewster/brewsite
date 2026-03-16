@@ -64,6 +64,16 @@ export const defaultSceneTheme: SceneTheme = {
     },
   },
   floor: defaultDarkFloorTheme,
+  carouselTray: {
+    color: '#1E2F44',
+    opacity: 0.82,
+    accentColor: '#5090e0',
+    metalness: 0.35,
+    roughness: 0.6,
+    edgeStyle: 'knurled',
+    surfacePattern: 'brushed',
+    surfaceIntensity: 0.25,
+  },
 };
 
 /** Default scene theme — enterprise aesthetic, light polarity. Used as the built-in fallback. */
@@ -80,6 +90,16 @@ export const defaultLightSceneTheme: SceneTheme = {
     },
   },
   floor: defaultLightFloorTheme,
+  carouselTray: {
+    color: '#D0DAE4',
+    opacity: 0.88,
+    accentColor: '#3A6DB5',
+    metalness: 0.25,
+    roughness: 0.55,
+    edgeStyle: 'knurled',
+    surfacePattern: 'brushed',
+    surfaceIntensity: 0.15,
+  },
 };
 
 /**

@@ -256,3 +256,94 @@ import { ChartWidget, chartsPlugin } from '@brewsite/charts';
 - `@brewsite/model` — `Model`, `Playback`, `Animation`, `LabelItem`, `LabelPositioner`, `modelPlugin`
 - `@brewsite/diagram` — `Diagram`, `DiagramCanvas`, `ImagePanel`, `Screen`, `diagramPlugin`
 - `@brewsite/charts` — chart elements, `chartsPlugin`
+
+---
+
+## Theme Resolution at Render Time Instead of Compile Time
+
+**Symptom:** Theme changes appear to work on the first toggle but stop updating when toggling back to a previously-seen polarity. The element gets stuck on the old theme colors even though the rest of the scene updates correctly.
+
+**Cause:** Reading theme from `scene.userData.__brewsite_scene_theme` at render time. The scene theme registry (`resolveSceneTheme`) returns the same constant object reference for a given `family + polarity` pair. When toggling polarity back to a previously-visited value, React effects with `[sceneTheme]` deps use `Object.is` comparison and silently skip because the object reference is the same as before.
+
+**Rule:** Resolve theme at compile time in the NodeHandler using `resolveSceneTheme(api.context.themeFamily, api.context.themePolarity)`. Bake themed values into the compiled state. When the theme changes, scene components re-render, the compiler re-runs, and the widget receives fresh state via `apply()`.
+
+**Wrong:**
+```typescript
+// In render.ts or applyMyWidget():
+const theme = scene.userData.__brewsite_scene_theme as SceneTheme;
+const color = theme?.myElement?.color ?? '#default';
+mesh.material.color.set(color);
+```
+
+**Correct:**
+```typescript
+// In the NodeHandler (viewHandlers.ts or your handlers.ts):
+const sceneTheme = resolveSceneTheme(api.context.themeFamily, api.context.themePolarity);
+const elementTheme = sceneTheme.myElement;
+const state = compileMyElement({
+  color: dslProps.color ?? elementTheme?.color,
+  // ... priority: DSL props > theme values > compiled defaults
+});
+api.setWidgetState(widgetId, state);
+
+// In render.ts — just use state.color directly, already theme-resolved:
+mesh.material.color.set(state.color);
+```
+
+The carousel tray, diagrams, and charts all follow this compile-time pattern.
+
+---
+
+## Ghost Widgets from mergeSnapshot Returning Stale State
+
+**Symptom:** A widget from a previous scene remains visible as a "ghost" on a scene that does not use it. The element persists through scene transitions and never disappears.
+
+**Cause:** The widget's `mergeSnapshot()` returns `prev` unchanged when `next` is `undefined`. The runtime merges `prev` into the transition, so the widget keeps its last-known visible state indefinitely.
+
+**Rule:** When `next` is `undefined` (the widget's scene is exiting and no new scene declares it), return a state that hides the element. Set `showBase: false`, `opacity: 0`, `visible: false`, or whatever makes the widget invisible in `apply()`.
+
+**Wrong:**
+```typescript
+mergeSnapshot(prev, next) {
+  if (!prev) return next;
+  if (!next) return prev; // Ghost! Stale state persists.
+  return { ...prev, ...next };
+}
+```
+
+**Correct:**
+```typescript
+mergeSnapshot(prev, next) {
+  if (!prev && !next) return undefined;
+  if (!next && prev) return { ...prev, showBase: false }; // Hide on exit
+  if (!prev) return next;
+  return { ...prev, ...next };
+}
+```
+
+---
+
+## Missing composeBounds Call Makes Element Ignore View Positioning
+
+**Symptom:** A spatial element renders at fixed viewport coordinates regardless of which `<View>` contains it. Moving the View or resizing it has no effect on the element's position.
+
+**Cause:** The element's NodeHandler does not call `api.composeBounds(localBounds)` to transform local NVS coordinates into the parent View's coordinate space.
+
+**Rule:** Every spatial element's NodeHandler must call `api.composeBounds()`, `api.composeZ()`, and `api.composeOpacity()` to participate in the View coordinate chain. Without these calls, the element uses raw local coordinates that ignore all parent Views and ViewLayouts.
+
+**Wrong:**
+```typescript
+// NodeHandler that ignores View context:
+const bounds = { x: props.x ?? 0, y: props.y ?? 0, w: props.w ?? 1, h: props.h ?? 1 };
+api.setWidgetState(widgetId, { ...state, bounds }); // Raw local coords
+```
+
+**Correct:**
+```typescript
+// NodeHandler that composes into parent View:
+const localBounds = { x: props.x ?? 0, y: props.y ?? 0, w: props.w ?? 1, h: props.h ?? 1 };
+const bounds = api.composeBounds(localBounds);
+const z = api.composeZ(props.z ?? 0);
+const opacity = api.composeOpacity(props.opacity ?? 1);
+api.setWidgetState(widgetId, { ...state, bounds, z, opacity });
+```

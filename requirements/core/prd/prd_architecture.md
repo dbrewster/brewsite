@@ -5,6 +5,9 @@ owner: brewsite-product-manager
 status: active
 updated: 2026-03-15
 change_history:
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "NVS zoom-instability fix: updated section 3.5 NVSCoordService description to note mapping is pinned to compiled camera state via NVSCameraParams, no longer uses live THREE.PerspectiveCamera."
   - date: 2026-03-12
     author: "Toolkit Product"
     summary: "Input unification: rewrote section 3.8 Input to describe the unified system. SceneNavInputController (InputController class) and SceneNavInputMap removed. ActionInput (React component) added as the DSL-to-runtime bridge. Default spec injection (ArrowRight/Down = scene.next, ArrowLeft/Up = scene.prev) documented. ActionInputExtensionContext mechanism for plugin extensions documented."
@@ -496,7 +499,7 @@ type AnimationTickContext = {
 
 `RealtimeClock` provides `wallTimeSeconds` (absolute time since page load) and `deltaSeconds` (real-time elapsed since last frame). Both fields are synchronized — every widget receives identical values each frame.
 
-`NVSCoordService` provides `toWorld(nvsX, nvsY, z?)` and `toWorldSize(nvsW, nvsH)` for converting NVS [0..1] viewport coordinates to Three.js world-space, plus `canvasAspect`, `visibleWorldHeight`, `visibleWorldWidth`, `viewportWidth`, and `viewportHeight`.
+`NVSCoordService` provides `toWorld(nvsX, nvsY, z?)` and `toWorldSize(nvsW, nvsH)` for converting NVS [0..1] viewport coordinates to Three.js world-space, plus `canvasAspect`, `visibleWorldHeight`, `visibleWorldWidth`, `viewportWidth`, and `viewportHeight`. The NVS mapping is pinned to the compiled camera state (via `NVSCameraParams`) — user camera interaction (orbit, zoom, pan) does not affect NVS positions. `createNVSCoordService` accepts `NVSCameraParams` (pure math, no Three.js dependency) rather than a live `THREE.PerspectiveCamera`.
 
 ### 3.6 HUD (`hud/`)
 

@@ -24,6 +24,10 @@ export { ViewLayout } from './blocks/viewLayoutDsl';
 export type { ViewLayoutProps } from './blocks/viewLayoutDsl';
 export type { ViewState, ViewLayoutState } from './viewTypes';
 export { registerNode } from './registry';
+export { CarouselScrubber } from '../elements/carousel-scrubber/CarouselScrubberWidget';
+export type { CarouselScrubberProps } from '../elements/carousel-scrubber/dsl';
+export { CarouselTray } from '../elements/carousel-scrubber/dsl';
+export type { CarouselTrayProps } from '../elements/carousel-scrubber/dsl';
 
 // Transition control types — used in FunctionalTransitionSpec closures and DSL authoring.
 export type {

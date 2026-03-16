@@ -8,6 +8,9 @@ change_history:
   - date: 2026-03-09
     author: "Toolkit Product"
     summary: "v2 player API (major breaking change — @brewsite/core v2.0.0): EngineProvider, EngineInputRegion, ScenePlayer, and ScrollCaptureSection are deleted. useEngineScroll and useEngineInput hooks deleted. SceneEngine replaces EngineProvider as the primary integration component. ScrollStage replaces EngineInputRegion for the full-page scroll pattern. SceneReel introduced for embedded/docs/slides use cases. Composable input components (ScrollInput, TimeInput, KeyboardInput, PointerInput, ControlledInput) replace all input mode configuration. useEngineState(id) unifies useEngineState and deleted useSceneEngineState. useGoToScene hook added for programmatic scene navigation. IScrollSource / ScrollSourceProp replace deleted ScrollSource type. Spring-physics inertia model replaces DOM-scroll inertia. BackgroundLayer extracted as standalone component. SceneCanvas gains engineId prop for cross-tree binding. All section 7 EngineProvider documentation rewritten for SceneEngine. All apps migrated; MIGRATION.md published."
+  - date: 2026-03-15
+    author: "Toolkit Product"
+    summary: "NVS zoom-instability fix: updated tick sequence (section 9.3) to reflect new ordering — SceneTrack sampling (Step 1) before animation controllers (Step 2), NVS computation at Step 3.5 from compiled camera state, then apply (Step 4). Updated functional requirement 9 and WidgetRenderContext shape to include coords field. createNVSCoordService now accepts NVSCameraParams instead of THREE.PerspectiveCamera. NVS positions are stable under camera interaction."
   - date: 2026-03-09
     author: "Toolkit Product"
     summary: "NVS Universal Coordinate System: WidgetRenderContext gains required coords: NVSCoordService field. RuntimeDriverImpl computes NVSCoordService from the live PerspectiveCamera and canvas dimensions at the start of each tick and injects it into every apply() call. This is a breaking change — @brewsite/core major version bump. See prd_widget_sdk.md Section 12.3 for the full NVSCoordService interface and Section 12.7 for usage patterns."
@@ -139,7 +142,7 @@ The Runtime layer solves the per-frame orchestration problem: widgets must tick 
 6. `SceneEngine` shall support Vite HMR automatically via content-hash compilation. When Vite HMR causes a parent component re-render, the `<Scene>` JSX elements are re-created. `serializeJsx` produces a new `contentKey` if any prop changed. If the `sceneContentKey` changes, `useMemo` fires and recompilation is triggered naturally. No manual `import.meta.hot` subscription, `hmrVersion` state counter, or `clearRegistry` call is needed or present.
 7. `useSceneEngine` shall create a `THREE.WebGLRenderer` once the canvas DOM element is available, and dispose it on unmount.
 8. `useSceneEngine` shall compile the `SceneTrack` via `compileSceneTrack` when `sceneGroup`, `widgetRegistry`, or `clipMeta` changes. Compiled tracks shall be cached by `buildSceneTrackKey` to avoid recompilation on unrelated re-renders.
-9. `RuntimeDriverImpl.tick` shall execute in this order per frame: (1) tick all `IAnimationController` widgets in priority order, (2) sample the scene track, (3) apply state to all `IRenderable` widgets.
+9. `RuntimeDriverImpl.tick` shall execute in this order per frame: (1) sample the scene track, (2) tick all `IAnimationController` widgets in priority order, (3) compute NVS coordinate service from compiled camera state (Step 3.5), (4) apply state to all `IRenderable` widgets. NVS computation precedes `IRenderable.apply()` so that all widgets receive stable NVS positions unaffected by camera interaction overrides from animation controllers.
 10. `RuntimeLoop` shall throttle frames to `fpsCap` frames per second when the option is configured. When `fpsCap` is not set, the loop runs at the native animation frame rate.
 11. `RuntimeLoop` shall clamp `deltaSeconds` to prevent large delta spikes when the browser tab returns from background.
 12. `EngineStateContext` shall be updated at most once per animation frame, only when `tickIndex` changes. It shall not update on every `requestAnimationFrame` invocation.
@@ -1000,7 +1003,7 @@ At construction time, `RuntimeDriverImpl` reads the sorted widget collections fr
 
 `initialize(scene, camera?, renderer?)` is **synchronous** and performs:
 
-1. **Widget initialization:** Calls `renderable.initialize({ scene, widgetId, renderer })` for every `IRenderable` in order. If any widget throws, the error is forwarded to `onError` and re-thrown (halting initialization). The optional `camera` parameter is stored for NVS coordinate service computation.
+1. **Widget initialization:** Calls `renderable.initialize({ scene, widgetId, renderer })` for every `IRenderable` in order. If any widget throws, the error is forwarded to `onError` and re-thrown (halting initialization).
 
 2. **Parallel asset loading (fire-and-forget):** Calls `w.load(manifest)` on all `ILoadable` widgets via `Promise.all` internally. Each load call is individually wrapped in a try/catch -- a widget that fails to load is added to `erroredWidgets` and `onWidgetError` is fired, but the promise resolves (not rejects) so the parallel chain continues. On all resolutions, sets `assetsReady = true` and fires `onAssetsReady`.
 
@@ -1031,21 +1034,28 @@ type WidgetRenderContext = {
   variables: VariableStoreReader;
   extra: unknown;
   tick?: SceneTrackTick | null;
+  coords: NVSCoordService;       // NVS → world conversion, pinned to compiled camera state
 };
 ```
 
 See Section 7C for the `RealtimeClock` type definition and widget authoring guidance.
 
 ```
-1. For each IAnimationController (ascending tickPriority):
+1. Sample SceneTrack:
+   currentTick = sampler.sample(globalProgress)  // O(1) array index lookup
+
+2. For each IAnimationController (ascending tickPriority):
    — Skip if widgetId is in erroredWidgets
    — try { controller.onTick({ clock, effectiveDeltaSeconds, ... }) } catch → add to erroredWidgets, fire onWidgetError
 
-2. Sample SceneTrack:
-   currentTick = sampler.sample(globalProgress)  // O(1) array index lookup
-
 3. Apply per-block easing to blockProgress (if SceneTrack.transitionEasings[sceneIndex] set):
    bp = getEasingFn(easingName)(tick.blockProgress)
+
+3.5. Compute NVS coordinate service:
+   nvsParams = resolveNVSParamsFromCameraState(currentTick.state.camera)
+   coords = createNVSCoordService(nvsParams, viewportWidth, viewportHeight)
+   // NVS is pinned to compiled camera state — CameraWidget.onTick() interaction
+   // overrides (orbit/zoom/pan) do NOT affect NVS positions.
 
 4. For each IRenderable:
    — Skip if widgetId is in erroredWidgets
@@ -1053,7 +1063,7 @@ See Section 7C for the `RealtimeClock` type definition and widget authoring guid
       - If present: state = functionalBlock.widgetFns[widgetId].fn(bp)
    b. Else: state = tick.state.widgets[widgetId] ?? defaultState
    c. extra = tick.widgetExtras?.[widgetId]
-   — try { renderable.apply(state, { clock, effectiveDeltaSeconds, ..., tick }) } catch → add to erroredWidgets, fire onWidgetError
+   — try { renderable.apply(state, { clock, effectiveDeltaSeconds, ..., coords, tick }) } catch → add to erroredWidgets, fire onWidgetError
 ```
 
 After the tick sequence, the `RuntimeLoop` calls `render()` (Three.js renderer draw call) and then `onAfterTick` (which routes to `EngineFrameDriver.handleTick`).
@@ -1609,7 +1619,7 @@ For hooks (`useSceneProgress`, `useCurrentScene`, `useEngineState`, `useGoToScen
 
 ## 24. Breaking Change Assessment
 
-**Current semver status:** `@brewsite/core` v2.0.0 — major release. The following symbols are deleted entirely with no compatibility shims: `EngineProvider`, `EngineInputRegion`, `ScenePlayer`, `ScrollCaptureSection`, `useEngineScroll`, `useEngineInput`, `useSceneEngineState`, `InputModePolicy`, `ScrollSource`. `scrollToProgress` renamed to `setProgress` on `UseSceneEngineResult`. `WidgetRenderContext.coords: NVSCoordService` is now required. See `packages/core/MIGRATION.md` for full migration table.
+**Current semver status:** `@brewsite/core` v2.0.0 — major release. The following symbols are deleted entirely with no compatibility shims: `EngineProvider`, `EngineInputRegion`, `ScenePlayer`, `ScrollCaptureSection`, `useEngineScroll`, `useEngineInput`, `useSceneEngineState`, `InputModePolicy`, `ScrollSource`. `scrollToProgress` renamed to `setProgress` on `UseSceneEngineResult`. `WidgetRenderContext.coords: NVSCoordService` is now required. `createNVSCoordService` accepts `NVSCameraParams` (pure math) instead of `THREE.PerspectiveCamera`. See `packages/core/MIGRATION.md` for full migration table.
 
 **Guardrail:** `SceneEngineProps` fields must not be removed or renamed in minor versions. New optional fields can be added freely. `SceneEngineProps`, `ScrollStageProps`, and all input component prop types are the stable public API surface.
 

@@ -5,12 +5,12 @@ import {
   Action,
   Ambient,
   Camera,
+  CarouselTray,
   Directional,
   formatModifier,
   InputController,
   KeyMap,
   Lighting,
-  PinchMap,
   ProgressManager,
   Scene,
   TextBox,
@@ -132,11 +132,11 @@ export const LinearCarouselScene = (): JSX.Element => {
 
       <InputController scope="canvas">
         {/* Default: jump 2 positions at a time */}
-        <Action id="carousel-next" type="carousel.next" layoutId={LAYOUT_ID} stepSlides={2}>
+        <Action id="default-carousel-next" type="carousel.next" layoutId={LAYOUT_ID} stepSlides={2}>
           <KeyMap keyName="ArrowRight" />
           <KeyMap keyName=" " />
         </Action>
-        <Action id="carousel-prev" type="carousel.prev" layoutId={LAYOUT_ID} stepSlides={2}>
+        <Action id="default-carousel-prev" type="carousel.prev" layoutId={LAYOUT_ID} stepSlides={2}>
           <KeyMap keyName="ArrowLeft" />
         </Action>
         {/* Shift variant: single position */}
@@ -146,19 +146,11 @@ export const LinearCarouselScene = (): JSX.Element => {
         <Action id="carousel-prev-single" type="carousel.prev" layoutId={LAYOUT_ID} stepSlides={1}>
           <KeyMap keyName="ArrowLeft" modifiers={['shift']} />
         </Action>
-        <Action id="scene-next" type="scene.next">
-          <KeyMap keyName="ArrowDown" />
-        </Action>
-        <Action id="scene-prev" type="scene.prev">
-          <KeyMap keyName="ArrowUp" />
-        </Action>
-        <Action id="dolly" type="camera.zoom">
-          <PinchMap direction="both" threshold={1} />
-        </Action>
       </InputController>
 
       <ViewLayout id={LAYOUT_ID} kind="carousel" activeIndex={0} inactiveScale={0.75} zStep={8}>
         <LinearCarouselViews />
+        <CarouselTray />
       </ViewLayout>
 
       {/* Info banner */}

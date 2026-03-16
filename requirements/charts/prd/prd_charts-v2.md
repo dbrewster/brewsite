@@ -659,7 +659,7 @@ No breaking changes. All additions are additive:
 
 ## 10. Dependencies
 
-- `@brewsite/core` — `SceneTheme`, `NVSRect`, `INVSBounded`, `NVSCoordService`, `IAnimationController` type and value imports.
+- `@brewsite/core` — `SceneTheme`, `NVSRect`, `INVSBounded`, `NVSCoordService`, `NVSCameraParams`, `IAnimationController` type and value imports. `NVSCoordService` is computed from compiled camera state via `NVSCameraParams` (no Three.js dependency in the service).
 - `d3-scale-chromatic` — runtime dependency for color interpolators (added in V2.0).
 - `d3-array`, `d3-scale`, `d3-shape`, `d3-format`, `d3-time-format` — existing runtime dependencies (unchanged).
 - `troika-three-text` — WebGL text rendering (unchanged peer dependency chain).

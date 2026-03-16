@@ -21,6 +21,8 @@ import { makeResolver } from './transitions/transitionResolver';
 import { IDENTITY_FN } from './identityFn';
 import { INPUT_CONTROLLER_WIDGET_ID } from './blocks/inputController';
 import { createDefaultInputSpec } from '../input/defaultInputSpec';
+import { mergeInputSpecs } from '../input/inputSpecMerger';
+import type { SceneInputControllerSpec } from '../input/types';
 
 export type CompileSceneTrackOptions = {
   scenes: SceneDefinition[];
@@ -423,13 +425,18 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
     prevInputController = mergedInputController;
   }
 
-  // If no scene declares an <InputController>, inject the full default input spec.
-  // Includes keyboard scene navigation, camera orbit/zoom/pan/reset, and carousel
-  // navigation using the '__primary_carousel__' sentinel (resolved at runtime).
-  const anyHasInput = snapshots.some((s) => s.widgets[INPUT_CONTROLLER_WIDGET_ID] != null);
-  if (!anyHasInput) {
-    const defaultSpec = createDefaultInputSpec();
-    for (const snapshot of snapshots) {
+  // Carry-forward already ran above — each snapshot has either its own spec,
+  // an inherited spec from a previous scene, or undefined.
+  // Now merge each scene's spec with the defaults.
+  const defaultSpec = createDefaultInputSpec();
+  for (const snapshot of snapshots) {
+    const sceneSpec = snapshot.widgets[INPUT_CONTROLLER_WIDGET_ID] as SceneInputControllerSpec | undefined;
+    if (sceneSpec) {
+      // Scene has a spec (declared or carried forward) — merge with defaults.
+      const mergeMode = sceneSpec.mergeMode ?? 'merge';
+      snapshot.widgets[INPUT_CONTROLLER_WIDGET_ID] = mergeInputSpecs(defaultSpec, sceneSpec, mergeMode);
+    } else {
+      // No spec at all — use defaults as-is.
       snapshot.widgets[INPUT_CONTROLLER_WIDGET_ID] = defaultSpec;
     }
   }

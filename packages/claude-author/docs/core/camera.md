@@ -18,7 +18,7 @@ Import from `@brewsite/core`:
 import { Camera } from '@brewsite/core';
 ```
 
-The camera integrates with `<InputController>` actions (`camera.orbit`, `camera.dolly`, `camera.reset`) when `interaction.enabled: true` or when action bindings are declared via `<InputController>`.
+The camera integrates with `<InputController>` actions (`camera.orbit`, `camera.zoom`, `camera.pan`, `camera.reset`). Default bindings provide Cmd/Ctrl+scroll orbit, pinch zoom, Shift+scroll pan, and R key reset with no DSL required. Custom bindings can be added via `<InputController>` in merge mode.
 
 ---
 
@@ -314,45 +314,26 @@ The compiler detects that both scenes have a `camera` widget and bakes the inter
 
 ## Camera with InputController
 
-To wire interactive orbit/dolly/reset to the camera, use `<InputController>` with `type="camera.orbit"`, `type="camera.dolly"`, and `type="camera.reset"` actions. The `<InputController>` must be a sibling of `<Camera>` inside the same `<Scene>`.
+Default input bindings provide Cmd/Ctrl+scroll orbit, pinch zoom, Shift+scroll pan, and R key reset for every scene automatically. Most scenes need no `<InputController>` at all.
+
+To add custom camera bindings (e.g., left-drag orbit) on top of the defaults, use `<InputController>` in merge mode. The `<InputController>` must be a sibling of `<Camera>` inside the same `<Scene>`.
 
 ```tsx
-import { Camera, InputController, Action, PointerMap, WheelMap, PinchMap, KeyMap } from '@brewsite/core';
+import { Camera, InputController, Action, PointerMap, KeyMap } from '@brewsite/core';
 
 export function InteractiveScene() {
   return (
     <Scene id="interactive">
       <Camera mode="world" position={[0, 1.5, 7]} target={[0, 0, 0]} fov={48} />
 
+      {/* Merge mode (default) — add left-drag orbit on top of all defaults */}
       <InputController scope="canvas">
-        {/* Orbit — left drag */}
-        <Action id="orbit" type="camera.orbit">
+        <Action id="drag-orbit" type="camera.orbit">
           <PointerMap event="drag" button="left" axis="xy" />
         </Action>
-
-        {/* Dolly — wheel and pinch */}
-        <Action id="dolly" type="camera.dolly">
-          <WheelMap axis="y" />
-          <PinchMap direction="both" threshold={1} />
-        </Action>
-
-        {/* Precision dolly — ctrl+wheel */}
-        <Action id="dolly-precision" type="camera.dolly" speed={0.25}>
-          <WheelMap axis="y" modifiers={['ctrl']} />
-        </Action>
-
-        {/* Reset — R key or cmd+click */}
-        <Action id="reset" type="camera.reset">
-          <KeyMap keyName="r" />
+        {/* Meta+click reset (in addition to default R key reset) */}
+        <Action id="meta-reset" type="camera.reset">
           <PointerMap event="click" modifiers={['meta']} />
-        </Action>
-
-        {/* Scene navigation alongside camera control */}
-        <Action id="scene-next" type="scene.next">
-          <KeyMap keyName="ArrowRight" />
-        </Action>
-        <Action id="scene-prev" type="scene.prev">
-          <KeyMap keyName="ArrowLeft" />
         </Action>
       </InputController>
     </Scene>
@@ -360,7 +341,7 @@ export function InteractiveScene() {
 }
 ```
 
-`scope="canvas"` means input only fires when the pointer is over the canvas area.
+`scope="canvas"` means pointer/wheel events only fire when over the canvas area, and keyboard events are focus-gated to the `ScrollStage` container.
 
 The `<SceneEngine>` must have `primaryCameraId` set to the camera widget ID if there are multiple cameras:
 

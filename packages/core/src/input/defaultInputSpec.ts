@@ -49,6 +49,8 @@ export function createDefaultInputSpec(options?: DefaultInputSpecOptions): Scene
 
   const actions: InputActionSpec[] = [
     // ── Scene navigation (keyboard) ──
+    // Scroll Y is handled by the unclaimed-wheel -> inertia path (ALWAYS).
+    // Arrow keys provide discrete scene stepping.
     {
       id: 'default-scene-next',
       type: 'scene.next',
@@ -60,15 +62,22 @@ export function createDefaultInputSpec(options?: DefaultInputSpecOptions): Scene
       maps: [{ kind: 'key', key: 'ArrowUp' }],
     },
 
-    // ── Camera orbit (pointer drag) ──
+    // ── Camera orbit (Cmd/Ctrl+scroll + 2-finger touch) ──
+    // Desktop: Cmd+scroll (Meta modifier). Touch: 2-finger drag.
+    // Left drag is intentionally FREE — no default consumes it.
+    // This keeps overlays, text selection, and future interactions unblocked.
     {
       id: 'default-camera-orbit',
       type: 'camera.orbit',
       cameraId,
-      maps: [{ kind: 'pointer', event: 'drag', button: 'left', axis: 'xy' }],
+      maps: [
+        { kind: 'wheel', modifiers: ['meta'], axis: 'xy' },
+        { kind: 'pointer', event: 'drag', touches: 2, axis: 'xy' },
+      ],
     },
 
-    // ── Camera zoom (pinch + wheel) ──
+    // ── Camera zoom (pinch only) ──
+    // Pinch (touch or trackpad) for zoom. No plain wheel — scroll is sacred.
     {
       id: 'default-camera-zoom',
       type: 'camera.zoom',
@@ -78,14 +87,16 @@ export function createDefaultInputSpec(options?: DefaultInputSpecOptions): Scene
       ],
     },
 
-    // ── Camera pan (pointer drag + shift) ──
+    // ── Camera pan (Shift+scroll + middle-drag + 3-finger touch) ──
+    // Desktop: Shift+scroll. Touch: 3-finger drag.
     {
       id: 'default-camera-pan',
       type: 'camera.pan',
       cameraId,
       maps: [
-        { kind: 'pointer', event: 'drag', button: 'left', modifiers: ['shift'], axis: 'xy' },
+        { kind: 'wheel', modifiers: ['shift'], axis: 'xy' },
         { kind: 'pointer', event: 'drag', button: 'middle', axis: 'xy' },
+        { kind: 'pointer', event: 'drag', touches: 3, axis: 'xy' },
       ],
     },
 
@@ -98,19 +109,23 @@ export function createDefaultInputSpec(options?: DefaultInputSpecOptions): Scene
     },
 
     // ── Carousel navigation (keyboard) ──
-    // Always present using sentinel layoutId. InputCoordinator resolves the
-    // sentinel to primaryCarouselId at runtime. No-op when no carousel exists.
+    // Scroll X is handled by the unclaimed-wheel -> X-inertia path (ALWAYS).
+    // Arrow keys provide discrete stepping.
     {
       id: 'default-carousel-next',
       type: 'carousel.next',
       layoutId: PRIMARY_CAROUSEL_SENTINEL,
-      maps: [{ kind: 'key', key: 'ArrowRight' }],
+      maps: [
+        { kind: 'key', key: 'ArrowRight' },
+      ],
     },
     {
       id: 'default-carousel-prev',
       type: 'carousel.prev',
       layoutId: PRIMARY_CAROUSEL_SENTINEL,
-      maps: [{ kind: 'key', key: 'ArrowLeft' }],
+      maps: [
+        { kind: 'key', key: 'ArrowLeft' },
+      ],
     },
   ];
 

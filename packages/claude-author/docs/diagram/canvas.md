@@ -38,6 +38,8 @@ These action types are handled by `diagramPlugin`'s `getActionInputExtension`. T
 
 **Standard pan + orbit + reset wiring:**
 
+Diagram canvas actions (`diagram-canvas.move`, `diagram-canvas.rotate`, `diagram-canvas.reset`, `diagram-canvas.focus`) are handled by the `diagramPlugin`'s action input extension. Declare them in `<InputController>` which merges with the default input spec:
+
 ```tsx
 import {
   Scene, ProgressManager, Camera, Background, Lighting, Ambient, Directional,
@@ -57,14 +59,13 @@ export const SceneInteractive = () => (
       <Directional intensity={0.5} color="#aaccff" position={[0, 20, 30]} />
     </Lighting>
 
-    {/* Canvas input wiring — scope="canvas" restricts events to the diagram area */}
+    {/* Merge mode (default) — diagram actions are appended to defaults.
+        All default camera/scene/carousel nav bindings are preserved. */}
     <InputController scope="canvas">
       <Action id="pan" type="diagram-canvas.move" canvasId={CANVAS_ID}>
         <PointerMap event="drag" axis="xy" />
-        <WheelMap axis="xy" />
       </Action>
       <Action id="rotate" type="diagram-canvas.rotate" canvasId={CANVAS_ID}>
-        {/* Meta+drag to rotate */}
         <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />
       </Action>
       <Action id="reset" type="diagram-canvas.reset" canvasId={CANVAS_ID}>
@@ -91,8 +92,8 @@ export const SceneInteractive = () => (
 ```
 
 **InputController scope options:**
-- `scope="canvas"` — events captured only when pointer is over the 3D canvas area
-- `scope="window"` — events captured globally (useful for keyboard shortcuts)
+- `scope="canvas"` — pointer/wheel events captured on the canvas container; keyboard events focus-gated to the `ScrollStage`
+- `scope="window"` — pointer/wheel events on `window`; keyboard events on `document` (global)
 
 **`diagram-canvas.focus` with explicit center:**
 
@@ -226,10 +227,10 @@ export const SceneInteractiveArch = (): JSX.Element => (
       <Directional intensity={0.3} color="#6688cc" position={[-20, 10, 10]} />
     </Lighting>
 
+    {/* Merge mode — diagram actions appended to defaults */}
     <InputController scope="canvas">
       <Action id="pan" type="diagram-canvas.move" canvasId={CANVAS_ID}>
         <PointerMap event="drag" axis="xy" />
-        <WheelMap axis="xy" />
       </Action>
       <Action id="orbit" type="diagram-canvas.rotate" canvasId={CANVAS_ID}>
         <PointerMap event="drag" button="left" modifiers={['meta']} axis="xy" />

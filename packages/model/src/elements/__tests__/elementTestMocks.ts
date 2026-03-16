@@ -15,9 +15,8 @@ export const makeFrameSlice = (count: number, sceneId = 'scene'): SceneTrackTick
     deltaBackward: {},
   }));
 
-/** Default camera used by makeRenderContext. Positioned for worldScale=10 (cameraZ≈12.07, fov=45). */
-const _defaultTestCamera = new THREE.PerspectiveCamera(45, 16 / 9, 0.01, 100);
-_defaultTestCamera.position.set(0, 0, 12.07);
+/** Default NVS camera params used by makeRenderContext. Matches worldScale=10 (distance≈12.07, fov=45). */
+const _defaultTestCamera = { distance: 12.07, fovDeg: 45 };
 
 export const makeRenderContext = (
   overrides: Partial<WidgetRenderContext> = {},

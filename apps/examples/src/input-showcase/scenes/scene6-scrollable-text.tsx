@@ -3,22 +3,16 @@
 // ctrl+scroll is reserved for 3D dolly; plain scroll goes to the textbox native scroll.
 import type { JSX } from 'react';
 import {
-  Action,
   Ambient,
   Camera,
   Directional,
   detectPlatform,
   formatModifier,
-  InputController,
-  KeyMap,
   Lighting,
-  PinchMap,
-  PointerMap,
   ProgressManager,
   Scene,
   TextBox,
   View,
-  WheelMap,
 } from '@brewsite/core';
 import {
   ChartAxis,
@@ -107,25 +101,6 @@ export const ScrollableTextScene = (): JSX.Element => {
         <Ambient intensity={0.5} color="#d7e8ff" />
         <Directional intensity={1.2} color="#b0ccff" position={[-4, 10, 8]} />
       </Lighting>
-
-      <InputController scope="canvas">
-        <Action id="orbit" type="camera.orbit">
-          <PointerMap event="drag" button="left" axis="xy" />
-        </Action>
-        <Action id="dolly" type="camera.zoom">
-          <WheelMap axis="y" modifiers={['ctrl']} />
-          <PinchMap direction="both" />
-        </Action>
-        <Action id="reset" type="camera.reset">
-          <KeyMap keyName="r" />
-        </Action>
-        <Action id="scene-next" type="scene.next">
-          <KeyMap keyName="ArrowDown" />
-        </Action>
-        <Action id="scene-prev" type="scene.prev">
-          <KeyMap keyName="ArrowUp" />
-        </Action>
-      </InputController>
 
       {/* Left: line chart */}
       <View id="st-chart-view" x={0.02} y={0.06} w={0.45} h={0.86}>

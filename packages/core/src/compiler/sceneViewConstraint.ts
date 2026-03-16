@@ -9,7 +9,18 @@ import type { CompileApi, CompileHelpers, NodeHandler } from './sceneDslTypes';
 import { getHandlerCategory, isPrimitiveComponent } from './registry';
 import type { ViewProps } from './blocks/viewDsl';
 
-/** The reserved id used for the auto-generated implicit root View. */
+/**
+ * The reserved id used for the auto-generated implicit root View.
+ *
+ * When a Scene has exactly one spatial element and no explicit `<View>` wrappers,
+ * the compiler auto-wraps that element in a full-screen View with this ID:
+ * `<View id="__scene_root__" x={0} y={0} w={1} h={1}>`. This is transparent
+ * to the element — it receives composed bounds as if the View were authored
+ * explicitly. The auto-wrap happens in `enforceSceneChildConstraint` Case 3.
+ *
+ * The `__...__` naming pattern is reserved for compiler-generated views.
+ * Scene authors who use this pattern on their own View IDs will get a warning.
+ */
 export const IMPLICIT_SCENE_ROOT_VIEW_ID = '__scene_root__';
 
 /**
@@ -29,6 +40,14 @@ export type ConstraintResult = {
  *
  * Uses the same `collectChildrenShallow` output that `compileChildrenSeparated`
  * uses, ensuring reference equality between classified and compiled children.
+ *
+ * Four cases:
+ * - Case 1: Spatial + View children mixed — error, skip spatial children.
+ * - Case 2: Multiple spatial children, no Views — error, skip all spatial.
+ * - Case 3: Single spatial child, no Views — auto-wrap in implicit full-screen
+ *   View (id = `__scene_root__`, bounds 0,0,1,1). The element receives composed
+ *   bounds via the View's child CompileApi as if the author wrote the View explicitly.
+ * - Case 4: No spatial children — nothing to do, all children compile normally.
  *
  * Design decisions:
  * - HTML string elements (<div>, <h1>, etc.) are skipped — they are overlay content

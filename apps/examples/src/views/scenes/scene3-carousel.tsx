@@ -2,14 +2,10 @@
 // Three separate <Scene> elements cycle activeIndex 0 → 1 → 2.
 import type { JSX } from 'react';
 import {
-  Action,
   Camera,
-  InputController,
-  KeyMap,
   Lighting,
   Ambient,
   Directional,
-  PointerMap,
   ProgressManager,
   Scene,
   View,
@@ -232,9 +228,9 @@ function CarouselViews(): JSX.Element {
 
 export const CarouselScene1 = (): JSX.Element => {
   return (
-    <Scene id="carousel-1">
+    <Scene id="carousel-1" primaryCarouselId="carousel-1-layout">
       <SharedEnv />
-      <ViewLayout kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={.7} >
+      <ViewLayout id="carousel-1-layout" kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={.7} >
         <CarouselViews />
       </ViewLayout>
     </Scene>
@@ -243,9 +239,9 @@ export const CarouselScene1 = (): JSX.Element => {
 
 export const CarouselScene2 = (): JSX.Element => {
   return (
-    <Scene id="carousel-2">
+    <Scene id="carousel-2" primaryCarouselId="carousel-2-layout">
       <SharedEnv />
-      <ViewLayout kind="carousel" loop activeIndex={1} zStep={15} fadeMin={0.15} spread={.7}>
+      <ViewLayout id="carousel-2-layout" kind="carousel" loop activeIndex={1} zStep={15} fadeMin={0.15} spread={.7}>
         <CarouselViews />
       </ViewLayout>
     </Scene>
@@ -254,9 +250,9 @@ export const CarouselScene2 = (): JSX.Element => {
 
 export const CarouselScene3 = (): JSX.Element => {
   return (
-    <Scene id="carousel-3">
+    <Scene id="carousel-3" primaryCarouselId="carousel-3-layout">
       <SharedEnv />
-      <ViewLayout kind="carousel" loop activeIndex={2} zStep={15} fadeMin={0.15} spread={.7}>
+      <ViewLayout id="carousel-3-layout" kind="carousel" loop activeIndex={2} zStep={15} fadeMin={0.15} spread={.7}>
         <CarouselViews />
       </ViewLayout>
     </Scene>
@@ -266,9 +262,9 @@ export const CarouselScene3 = (): JSX.Element => {
 
 export const CarouselScene4 = (): JSX.Element => {
   return (
-    <Scene id="carousel-4">
+    <Scene id="carousel-4" primaryCarouselId="carousel-4-layout">
       <SharedEnv />
-      <ViewLayout kind="carousel" loop activeIndex={3} zStep={15} fadeMin={0.15} spread={.7}>
+      <ViewLayout id="carousel-4-layout" kind="carousel" loop activeIndex={3} zStep={15} fadeMin={0.15} spread={.7}>
         <CarouselViews />
       </ViewLayout>
     </Scene>
@@ -288,15 +284,6 @@ export const CarouselScene = (): JSX.Element => {
         <Ambient intensity={.9} color="#d7e5ff" />
         <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
       </Lighting>
-      <InputController scope="canvas">
-        <Action id="carousel-next" type="carousel.next" layoutId="demo-carousel" stepSlides={1}>
-          <KeyMap keyName="ArrowRight" />
-          <PointerMap event="click" />
-        </Action>
-        <Action id="carousel-prev" type="carousel.prev" layoutId="demo-carousel" stepSlides={1}>
-          <KeyMap keyName="ArrowLeft" />
-        </Action>
-      </InputController>
       <ViewLayout id="demo-carousel" kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={0.7}>
         <CarouselViews />
       </ViewLayout>

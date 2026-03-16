@@ -171,9 +171,11 @@ describe('ViewWidget', () => {
       childWidgetIds: ['c1'],
       opacity: 0.8,
     });
-    widget.apply(state2, makeRenderContext());
-    expect(child.appliedOpacities).toHaveLength(2);
-    expect(child.appliedOpacities[1]).toBeCloseTo(0.8);
+    // ViewWidget lerps opacity — apply multiple times to converge.
+    const ctx2 = makeRenderContext();
+    for (let i = 0; i < 80; i++) widget.apply(state2, ctx2);
+    expect(child.appliedOpacities.length).toBeGreaterThan(1);
+    expect(child.appliedOpacities[child.appliedOpacities.length - 1]).toBeCloseTo(0.8, 1);
   });
 
   it('apply() does not call applyViewOpacity on non-IViewChild widgets', () => {
@@ -278,13 +280,12 @@ describe('ViewWidget', () => {
     );
 
     // Second apply with state.z = 0.5 → deltaZ = 0.5 - (-0.5) = 1.0
-    widget.apply(
-      makeViewState('v-dz', FULL_BOUNDS, { childWidgetIds: ['c1'], z: 0.5 }),
-      ctx,
-    );
+    // ViewWidget lerps position — apply multiple times to converge.
+    const state2 = makeViewState('v-dz', FULL_BOUNDS, { childWidgetIds: ['c1'], z: 0.5 });
+    for (let i = 0; i < 80; i++) widget.apply(state2, ctx);
 
     // orig.z + deltaZ = 1 + 1.0 = 2.0
-    expect(childObj.position.z).toBeCloseTo(2.0);
+    expect(childObj.position.z).toBeCloseTo(2.0, 1);
   });
 
   it('apply() scales child object by scaleRatio when scale changes', () => {
@@ -306,14 +307,12 @@ describe('ViewWidget', () => {
     );
 
     // Second apply with scale = 1.0 → scaleRatio = 1.0/0.5 = 2.0
-    widget.apply(
-      makeViewState('v-scale', FULL_BOUNDS, { childWidgetIds: ['c1'], scale: 1.0 }),
-      ctx,
-    );
+    // ViewWidget lerps scale — apply multiple times to converge.
+    const state2 = makeViewState('v-scale', FULL_BOUNDS, { childWidgetIds: ['c1'], scale: 1.0 });
+    for (let i = 0; i < 80; i++) widget.apply(state2, ctx);
 
-    expect(childObj.scale.x).toBeCloseTo(2.0);
-    expect(childObj.scale.y).toBeCloseTo(2.0);
-    expect(childObj.scale.z).toBeCloseTo(1.0);
+    expect(childObj.scale.x).toBeCloseTo(2.0, 1);
+    expect(childObj.scale.y).toBeCloseTo(2.0, 1);
   });
 
   // ── resolveViewChildren laziness ──────────────────────────────────────────

@@ -209,11 +209,11 @@ function PresentationPlayer() {
 
 ## Canvas Region Mode
 
-A self-contained 3D viewport with no scene sequencing — just a single "scene" (or a fixed scene) with camera orbit/dolly/pan enabled via `InputController`. Use this for interactive product viewers, inline 3D illustrations, or any context where you want the user to freely explore a 3D scene.
+A self-contained 3D viewport with no scene sequencing — just a single "scene" (or a fixed scene) with camera orbit/zoom/pan enabled. Use this for interactive product viewers, inline 3D illustrations, or any context where you want the user to freely explore a 3D scene.
 
-Use `SceneReel` for the layout and add an `InputCoordinator` for action-based camera control. Keep a single `<Scene>` with an `<InputController>` that maps pointer and wheel events to `camera.orbit` and `camera.zoom` actions.
+Use `SceneReel` for the layout and add an `InputCoordinator` for action-based camera control. Default input bindings provide Cmd/Ctrl+scroll orbit, pinch zoom, Shift+scroll pan, and R key reset automatically. No `<InputController>` is needed for the common case.
 
-### Complete Example
+### Complete Example (Using Defaults)
 
 ```tsx
 import { corePlugin, InputCoordinator, SceneReel } from '@brewsite/core';
@@ -231,7 +231,6 @@ function ProductViewer() {
       height={500}
       plugins={plugins}
       primaryCameraId="main-camera"
-      primaryCanvasActionTargetId="main-camera"
     >
       <ProductViewerScene />
       <InputCoordinator />
@@ -239,7 +238,25 @@ function ProductViewer() {
   );
 }
 
-// In ProductViewerScene:
+// In ProductViewerScene — no InputController needed:
+function ProductViewerScene() {
+  return (
+    <Scene id="product-viewer">
+      <Camera id="main-camera" mode="world" position={[0, 1, 3]} target={[0, 0.5, 0]} />
+      <Lighting>...</Lighting>
+      <Background color="#111" />
+      <Model id="product" type="ProductModel" x={0.5} y={0.5} w={0.8} h={0.8} />
+      {/* Defaults provide: Cmd+scroll orbit, pinch zoom, Shift+scroll pan, R reset */}
+    </Scene>
+  );
+}
+```
+
+### With Left-Drag Orbit (Merge Override)
+
+For a canvas-region viewer where left-drag orbit and wheel zoom are desired (overriding the "scroll is sacred" principle since there is no scene navigation):
+
+```tsx
 function ProductViewerScene() {
   return (
     <Scene id="product-viewer">
@@ -248,15 +265,14 @@ function ProductViewerScene() {
       <Background color="#111" />
       <Model id="product" type="ProductModel" x={0.5} y={0.5} w={0.8} h={0.8} />
       <InputController>
-        <Action id="orbit" type="camera.orbit">
+        {/* Add left-drag orbit (appended to defaults) */}
+        <Action id="drag-orbit" type="camera.orbit">
           <PointerMap event="drag" button="left" />
         </Action>
-        <Action id="zoom" type="camera.zoom">
+        {/* Override default zoom to add wheel (ok since single scene, no scroll nav needed) */}
+        <Action id="default-camera-zoom" type="camera.zoom">
           <WheelMap />
           <PinchMap direction="both" />
-        </Action>
-        <Action id="reset" type="camera.reset">
-          <KeyMap keyName="r" />
         </Action>
       </InputController>
     </Scene>
@@ -264,7 +280,7 @@ function ProductViewerScene() {
 }
 ```
 
-`primaryCameraId` and `primaryCanvasActionTargetId` on `SceneReel` are forwarded to `SceneEngine` and tell `InputCoordinator` which camera to target when `cameraId` is omitted from an `<Action>`.
+`primaryCameraId` on `SceneReel` is forwarded to `SceneEngine` and tells `InputCoordinator` which camera to target when `cameraId` is omitted from an `<Action>`.
 
 ---
 

@@ -49,16 +49,12 @@ const minimalThemeConfig: DiagramThemeRenderConfig = {
 
 /** Build a real NVSCoordService from a camera at z=12.07, fov=45, 1:1 aspect. */
 function makeSquareCoords(): NVSCoordService {
-  const cam = new THREE.PerspectiveCamera(45, 1, 0.01, 100);
-  cam.position.set(0, 0, 12.07);
-  return createNVSCoordService(cam, 1000, 1000); // 1:1 aspect
+  return createNVSCoordService({ distance: 12.07, fovDeg: 45 }, 1000, 1000); // 1:1 aspect
 }
 
 /** Build a real NVSCoordService with 16:9 aspect. */
 function make16x9Coords(): NVSCoordService {
-  const cam = new THREE.PerspectiveCamera(45, 16 / 9, 0.01, 100);
-  cam.position.set(0, 0, 12.07);
-  return createNVSCoordService(cam, 1920, 1080);
+  return createNVSCoordService({ distance: 12.07, fovDeg: 45 }, 1920, 1080);
 }
 
 /** Build a minimal DiagramEdgeState with custom NVS control points. */

@@ -5,12 +5,12 @@ import {
   Action,
   Ambient,
   Camera,
+  CarouselTray,
   Floor,
   formatModifier,
   InputController,
   KeyMap,
   Lighting,
-  PinchMap,
   PointerMap,
   ProgressManager,
   Scene,
@@ -63,8 +63,8 @@ const spotlights: SpotlightDef[] = Array.from({ length: 5 }, () => {
   const pX = rng() * Math.PI * 2, pY = rng() * Math.PI * 2, pZ = rng() * Math.PI * 2;
   return {
     color: randColor(),
-    intensity: 60 + rng() * 50,
-    angle: Math.PI / 28 + rng() * Math.PI / 10,
+    intensity: 20 + rng() * 30,
+    angle: Math.PI / 20 + rng() * Math.PI / 8,
     orbit: ((t: number): [number, number, number] => [
       Math.sin(t * fX + pX) * aX,
       Math.sin(t * fY + pY) * aY + oY,
@@ -194,37 +194,29 @@ export const RingCarouselScene = (): JSX.Element => {
         <Ambient intensity={0.8} color="#d7e5ff" />
       </Lighting>
       <Floor variant="grid" negativeZExtent={20} />
-      <SpotlightRig center={[0, 0, 4]} target={[0, 0, -5]} height={1} showBeam={false} distance={0} decay={1} penumbra={0.5}>
+      <SpotlightRig center={[0, 0, 3]} target={[0, 0, -7]} height={3} showBeam={false} distance={0} decay={.5} penumbra={0.5}>
         {spotlights.map((s, i) => <Spotlight key={i} {...s} />)}
       </SpotlightRig>
 
       <InputController scope="canvas">
-        <Action id="carousel-next" type="carousel.next" layoutId={LAYOUT_ID} stepSlides={1}>
+        <Action id="default-carousel-next" type="carousel.next" layoutId={LAYOUT_ID} stepSlides={1}>
           <KeyMap keyName="ArrowRight" />
           <PointerMap event="click" />
         </Action>
         <Action id="carousel-next-skip" type="carousel.next" layoutId={LAYOUT_ID} stepSlides={2}>
           <KeyMap keyName="ArrowRight" modifiers={['shift']} />
         </Action>
-        <Action id="carousel-prev" type="carousel.prev" layoutId={LAYOUT_ID} stepSlides={1}>
+        <Action id="default-carousel-prev" type="carousel.prev" layoutId={LAYOUT_ID} stepSlides={1}>
           <KeyMap keyName="ArrowLeft" />
         </Action>
         <Action id="carousel-prev-skip" type="carousel.prev" layoutId={LAYOUT_ID} stepSlides={2}>
           <KeyMap keyName="ArrowLeft" modifiers={['shift']} />
         </Action>
-        <Action id="scene-next" type="scene.next">
-          <KeyMap keyName="ArrowDown" />
-        </Action>
-        <Action id="scene-prev" type="scene.prev">
-          <KeyMap keyName="ArrowUp" />
-        </Action>
-        <Action id="dolly" type="camera.zoom">
-          <PinchMap direction="both" threshold={1} />
-        </Action>
       </InputController>
 
       <ViewLayout id={LAYOUT_ID} kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={0.7}>
         <RingCarouselViews />
+        <CarouselTray surfacePattern='brushed'/>
       </ViewLayout>
 
       {/* Title */}
@@ -249,7 +241,7 @@ export const RingCarouselScene = (): JSX.Element => {
       </TextBox>
 
       {/* Controls reference */}
-      <TextBox id="ring-controls" x={0.02} y={0.74} w={0.38} h={0.20} layer={3}>
+      <TextBox id="ring-controls" x={0.42} y={0.14} w={0.38} h={0.20} layer={3}>
         <div
           style={{
             height: '100%',

@@ -56,7 +56,7 @@ export default function ModelShowcasePage(): JSX.Element {
             <LabelItem label={{ id: 'head-label', text: 'Sensor Array', targetPartId: 'Head' }} />
             <SceneNavigator />
           </EngineOverlayHost>
-          <InputCoordinator inertiaSensitivity={0.010} inertiaDecay={0.82} />
+          <InputCoordinator inertiaSensitivity={0.012} inertiaDecay={0.85} />
         </ScrollStage>
         <ChartProgressIndicator scrollStageRef={scrollStageRef} polarity="light" />
 

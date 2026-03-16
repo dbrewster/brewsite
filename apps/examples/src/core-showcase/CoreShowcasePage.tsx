@@ -96,7 +96,7 @@ export default function CoreShowcasePage(): JSX.Element {
           <EngineOverlayHost passthroughPointerEvents>
             <ChartTooltipHost />
           </EngineOverlayHost>
-          <InputCoordinator inertiaSensitivity={0.008} inertiaDecay={0.85} />
+          <InputCoordinator inertiaSensitivity={0.012} inertiaDecay={0.85} />
         </ScrollStage>
 
         {/* ── Overlay chrome ──────────────────────────────────────────────── */}

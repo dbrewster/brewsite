@@ -3,7 +3,7 @@ title: "View/Region Architecture for Cross-Module Composition"
 doc_type: note
 status: draft
 owner: Toolkit Product
-last_updated: 2026-03-12
+last_updated: 2026-03-15
 change_history:
   - date: 2026-03-12
     author: Toolkit Product
@@ -41,7 +41,8 @@ Before proposing new region/view primitives, the existing shared NVS infrastruct
 - `INVSBounded { readonly nvsBounds: NVSRect }` — widget SDK interface for widgets declaring sub-viewport regions. Implemented by `DiagramCanvasWidget`, `ChartWidget`, `ModelWidget`.
 
 **Coordinate bridge** (`packages/core/src/layout/nvsCoordService.ts`):
-- `NVSCoordService` — injected per-frame into `WidgetRenderContext`. Converts NVS → world-space via `toWorld(nvsX, nvsY, z)` and `toWorldSize(nvsW, nvsH)`. Camera-dependent.
+- `NVSCoordService` — injected per-frame into `WidgetRenderContext`. Converts NVS → world-space via `toWorld(nvsX, nvsY, z)` and `toWorldSize(nvsW, nvsH)`. Pinned to compiled camera state via `NVSCameraParams` — user camera interaction does not affect NVS positions.
+- `createNVSCoordService(camera: NVSCameraParams, width, height)` — pure-math factory, no Three.js dependency. `resolveNVSParamsFromCameraState(state)` extracts params from compiled `SceneCamera`.
 - All three consumer packages (chart, model, diagram) use this service in their render/apply paths.
 
 **Pure analytic bridge** (`packages/core/src/layout/nvsWorldBridge.ts`):

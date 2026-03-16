@@ -197,10 +197,9 @@ function makeInitCtx(): WidgetInitContext {
   } as unknown as WidgetInitContext;
 }
 
-/** Build a real NVSCoordService for a worldScale=10 camera (position z=12.07, fov=45, 1920×1080). */
+/** Build a real NVSCoordService for a worldScale=10 camera (distance=12.07, fov=45, 1920×1080). */
 function makeCoords(): NVSCoordService {
-  const camera = { position: { x: 0, y: 0, z: 12.07 }, fov: 45 };
-  return createNVSCoordService(camera as unknown as import('three').PerspectiveCamera, 1920, 1080);
+  return createNVSCoordService({ distance: 12.07, fovDeg: 45 }, 1920, 1080);
 }
 
 function makeRenderCtx(): WidgetRenderContext {

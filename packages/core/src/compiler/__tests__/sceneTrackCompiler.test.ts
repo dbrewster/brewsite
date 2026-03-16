@@ -6,6 +6,8 @@ import { compileSceneTrack } from '../sceneTrackCompiler';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import type { FunctionalTransitionSpec } from '../transitions/transitionTypes';
 import type { SceneTrackTick } from '../sceneTrackTypes';
+import type { SceneInputControllerSpec } from '../../input/types';
+import { createDefaultInputSpec } from '../../input/defaultInputSpec';
 
 const makeScene = (id: string, widgetStates: Record<string, unknown>): SceneDefinition => ({
   id,
@@ -596,7 +598,7 @@ describe('compileSceneTrack', () => {
       transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
     });
     const registry = new WidgetRegistry().register(widget);
-    const inputSpec = {
+    const inputSpec: SceneInputControllerSpec = {
       id: 'main',
       scope: 'canvas',
       actions: [
@@ -614,7 +616,14 @@ describe('compileSceneTrack', () => {
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
     const terminal = track.ticks[track.ticks.length - 1]!;
-    expect(terminal.state.widgets['__input_controller']).toEqual(inputSpec);
+    // After merge logic, the carried-forward spec is merged with defaults.
+    const spec = terminal.state.widgets['__input_controller'] as SceneInputControllerSpec;
+    expect(spec.actions.some(a => a.id === 'scene-next')).toBe(true);
+    // Defaults should also be present via merge
+    const defaultActions = createDefaultInputSpec().actions;
+    for (const da of defaultActions) {
+      expect(spec.actions.some(a => a.id === da.id)).toBe(true);
+    }
   });
 
   it('keeps source-scene passthrough state across the block', () => {
@@ -624,8 +633,8 @@ describe('compileSceneTrack', () => {
       transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
     });
     const registry = new WidgetRegistry().register(widget);
-    const fromInputSpec = { id: 'from', scope: 'canvas', actions: [] };
-    const toInputSpec = { id: 'to', scope: 'window', actions: [] };
+    const fromInputSpec: SceneInputControllerSpec = { id: 'from', scope: 'canvas', actions: [] };
+    const toInputSpec: SceneInputControllerSpec = { id: 'to', scope: 'window', actions: [] };
 
     const scenes = [
       makeScene('s1', { w: 1, __input_controller: fromInputSpec }),
@@ -633,7 +642,17 @@ describe('compileSceneTrack', () => {
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 4 });
     const block = track.ticks.slice(0, 4).map((tick) => tick.state.widgets['__input_controller']);
-    expect(block).toEqual([fromInputSpec, fromInputSpec, fromInputSpec, fromInputSpec]);
+    // After merge, the from spec is merged with defaults. All block ticks use the from scene's spec.
+    const defaultActions = createDefaultInputSpec().actions;
+    const mergedFromSpec = block[0] as SceneInputControllerSpec;
+    expect(mergedFromSpec.id).toBe('from');
+    expect(mergedFromSpec.scope).toBe('canvas');
+    // With empty scene actions, all defaults are preserved
+    expect(mergedFromSpec.actions).toHaveLength(defaultActions.length);
+    // All 4 ticks in the block should be structurally identical (same merged spec)
+    expect(block[0]).toEqual(block[1]);
+    expect(block[1]).toEqual(block[2]);
+    expect(block[2]).toEqual(block[3]);
   });
 
   // ─── Stream D: default input spec injection ──────────────────────────────────
@@ -662,24 +681,27 @@ describe('compileSceneTrack', () => {
     expect(carouselNext?.layoutId).toBe('__primary_carousel__');
   });
 
-  it('does NOT inject default spec when a scene already declares __input_controller', () => {
+  it('merges scene spec with defaults when a scene declares __input_controller', () => {
     const widget = makeWidget({
       widgetId: 'w',
       defaultState: 0,
       transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
     });
     const registry = new WidgetRegistry().register(widget);
-    const customSpec = { id: 'custom', scope: 'window', actions: [] };
+    const customSpec: SceneInputControllerSpec = { id: 'custom', scope: 'window', actions: [] };
     const scenes = [
       makeScene('s1', { w: 1, __input_controller: customSpec }),
       makeScene('s2', { w: 2 }),
     ];
     const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
 
-    // Custom spec must be preserved, not overwritten.
-    const spec = track.ticks[0]!.state.widgets['__input_controller'] as Record<string, unknown>;
+    // Scene id and scope are preserved from the custom spec.
+    const spec = track.ticks[0]!.state.widgets['__input_controller'] as SceneInputControllerSpec;
     expect(spec.id).toBe('custom');
     expect(spec.scope).toBe('window');
+    // With empty scene actions and merge mode, all defaults are included.
+    const defaultActions = createDefaultInputSpec().actions;
+    expect(spec.actions).toHaveLength(defaultActions.length);
   });
 
   // ─── Stream D: primaryCarouselId propagation ─────────────────────────────────
@@ -720,5 +742,152 @@ describe('compileSceneTrack', () => {
 
     const tick0 = track.ticks[0]!.state;
     expect((tick0 as { primaryCarouselId?: string }).primaryCarouselId).toBeUndefined();
+  });
+
+  // ─── Input spec merge logic ─────────────────────────────────────────────────
+
+  it('merges scene InputController with defaults when mode is merge', () => {
+    const widget = makeWidget({
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+    });
+    const registry = new WidgetRegistry().register(widget);
+    const customSpec: SceneInputControllerSpec = {
+      id: 'main',
+      scope: 'canvas',
+      actions: [
+        { id: 'custom-action', type: 'scene.next', maps: [{ kind: 'key', key: 'Space' }] },
+      ],
+      mergeMode: 'merge',
+    };
+    const scenes = [
+      makeScene('s1', { w: 1, __input_controller: customSpec }),
+      makeScene('s2', { w: 2 }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+
+    const spec = track.ticks[0]!.state.widgets['__input_controller'] as SceneInputControllerSpec;
+    // Should have defaults + custom action
+    const defaultActions = createDefaultInputSpec().actions;
+    expect(spec.actions.length).toBe(defaultActions.length + 1);
+    expect(spec.actions.some(a => a.id === 'custom-action')).toBe(true);
+    // All default actions should still be present
+    for (const da of defaultActions) {
+      expect(spec.actions.some(a => a.id === da.id)).toBe(true);
+    }
+  });
+
+  it('replaces defaults entirely when mode is replace', () => {
+    const widget = makeWidget({
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+    });
+    const registry = new WidgetRegistry().register(widget);
+    const customSpec: SceneInputControllerSpec = {
+      id: 'custom',
+      scope: 'window',
+      actions: [
+        { id: 'only-action', type: 'camera.orbit', maps: [{ kind: 'key', key: 'o' }] },
+      ],
+      mergeMode: 'replace',
+    };
+    const scenes = [
+      makeScene('s1', { w: 1, __input_controller: customSpec }),
+      makeScene('s2', { w: 2 }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+
+    const spec = track.ticks[0]!.state.widgets['__input_controller'] as SceneInputControllerSpec;
+    // Replace mode: only the scene's actions, no defaults
+    expect(spec.actions).toHaveLength(1);
+    expect(spec.actions[0]!.id).toBe('only-action');
+    expect(spec.scope).toBe('window');
+  });
+
+  it('injects full defaults when no scene declares InputController', () => {
+    const widget = makeWidget({
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+    });
+    const registry = new WidgetRegistry().register(widget);
+    const scenes = [
+      makeScene('s1', { w: 1 }),
+      makeScene('s2', { w: 2 }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+
+    const spec = track.ticks[0]!.state.widgets['__input_controller'] as SceneInputControllerSpec;
+    const defaultActions = createDefaultInputSpec().actions;
+    expect(spec.actions).toHaveLength(defaultActions.length);
+    expect(spec.scope).toBe('canvas');
+  });
+
+  it('carry-forward: scene 1 declares InputController, scene 2 inherits and merges with defaults', () => {
+    const widget = makeWidget({
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+    });
+    const registry = new WidgetRegistry().register(widget);
+    const customSpec: SceneInputControllerSpec = {
+      id: 'main',
+      scope: 'canvas',
+      actions: [
+        { id: 'my-action', type: 'camera.orbit', maps: [{ kind: 'key', key: 'x' }] },
+      ],
+    };
+    const scenes = [
+      makeScene('s1', { w: 1, __input_controller: customSpec }),
+      makeScene('s2', { w: 2 }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+
+    // Scene 2 (terminal tick) should also have the carried-forward spec merged with defaults
+    const terminal = track.ticks[track.ticks.length - 1]!;
+    const spec = terminal.state.widgets['__input_controller'] as SceneInputControllerSpec;
+    expect(spec.actions.some(a => a.id === 'my-action')).toBe(true);
+    // Defaults should also be present
+    const defaultActions = createDefaultInputSpec().actions;
+    for (const da of defaultActions) {
+      expect(spec.actions.some(a => a.id === da.id)).toBe(true);
+    }
+  });
+
+  it('action id override: scene action with same id as default replaces the default', () => {
+    const widget = makeWidget({
+      widgetId: 'w',
+      defaultState: 0,
+      transitionSpec: { exit: () => {}, enter: () => {}, interpolate: () => {} },
+    });
+    const registry = new WidgetRegistry().register(widget);
+    const customSpec: SceneInputControllerSpec = {
+      id: 'main',
+      scope: 'canvas',
+      actions: [
+        {
+          id: 'default-camera-orbit',
+          type: 'camera.orbit',
+          cameraId: 'custom-cam',
+          maps: [{ kind: 'pointer', event: 'drag', button: 'right', axis: 'xy' }],
+        },
+      ],
+    };
+    const scenes = [
+      makeScene('s1', { w: 1, __input_controller: customSpec }),
+      makeScene('s2', { w: 2 }),
+    ];
+    const track = compileSceneTrack({ scenes, widgetRegistry: registry, blockSize: 2 });
+
+    const spec = track.ticks[0]!.state.widgets['__input_controller'] as SceneInputControllerSpec;
+    // Should have same total count as defaults (override, not add)
+    const defaultActions = createDefaultInputSpec().actions;
+    expect(spec.actions).toHaveLength(defaultActions.length);
+    // The orbit action should be the scene's version, not the default
+    const orbitAction = spec.actions.find(a => a.id === 'default-camera-orbit');
+    expect(orbitAction).toBeDefined();
+    expect(orbitAction!.cameraId).toBe('custom-cam');
   });
 });

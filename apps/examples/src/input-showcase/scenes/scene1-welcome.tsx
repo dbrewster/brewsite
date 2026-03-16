@@ -2,21 +2,15 @@
 // Demonstrates basic scene.next / scene.prev scene navigation.
 import type { JSX } from 'react';
 import {
-  Action,
   Ambient,
   Camera,
   Directional,
   Floor,
   formatModifier,
-  InputController,
-  KeyMap,
   Lighting,
-  PinchMap,
-  PointerMap,
   ProgressManager,
   Scene,
   TextBox,
-  WheelMap,
 } from '@brewsite/core';
 
 const CAM_POS: [number, number, number] = [0, 2.5, 9];
@@ -47,20 +41,6 @@ export const WelcomeScene = (): JSX.Element => (
       <Directional intensity={0.9} color="#ffd8b0" position={[6, 5, 8]} />
     </Lighting>
     <Floor variant="grid" negativeZExtent={20} />
-
-    <InputController scope="canvas">
-      <Action id="scene-next" type="scene.next">
-        <KeyMap keyName="ArrowDown" />
-        <PointerMap event="click" />
-        <WheelMap axis="y" />
-      </Action>
-      <Action id="scene-prev" type="scene.prev">
-        <KeyMap keyName="ArrowUp" />
-      </Action>
-      <Action id="dolly" type="camera.zoom">
-        <PinchMap direction="both" threshold={1} />
-      </Action>
-    </InputController>
 
     {/* Hero title bar */}
     <TextBox id="welcome-title" x={0.05} y={0.07} w={0.82} h={0.17} layer={2}>
@@ -165,9 +145,8 @@ export const WelcomeScene = (): JSX.Element => (
     {/* Navigation hint */}
     <TextBox id="welcome-hint" x={0.22} y={0.90} w={0.44} h={0.06} layer={2}>
       <div style={{ textAlign: 'center', fontSize: 11, color: 'rgba(120,160,220,0.6)' }}>
-        Press <kbd style={{ background: 'rgba(80,144,224,0.2)', border: '1px solid rgba(80,144,224,0.4)', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13 }}>↓</kbd>{' '}
-        or <kbd style={{ background: 'rgba(80,144,224,0.2)', border: '1px solid rgba(80,144,224,0.4)', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13 }}>Click</kbd>{' '}
-        or scroll / swipe to advance
+        Scroll, <kbd style={{ background: 'rgba(80,144,224,0.2)', border: '1px solid rgba(80,144,224,0.4)', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13 }}>↑</kbd><kbd style={{ background: 'rgba(80,144,224,0.2)', border: '1px solid rgba(80,144,224,0.4)', borderRadius: 4, padding: '2px 8px', fontFamily: 'monospace', fontSize: 13 }}>↓</kbd>{' '}
+        keys, or swipe to navigate
       </div>
     </TextBox>
   </Scene>

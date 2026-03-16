@@ -85,6 +85,9 @@ export class ChartWidget
   readonly defaultState: ChartState = DEFAULT_CHART_STATE;
   readonly disableWhenAbsent = true;
   readonly transitionSpec = functionalChartTransitionSpec;
+
+  /** Root Three.js Group for external parenting by ViewWidget carousel positioning. */
+  get rootObject(): THREE.Group { return this.chartRenderer.chartGroup; }
   readonly DslComponent = BarChart;
   readonly tickPriority = 2; // after CameraWidget(0) and DiagramWidget(1)
 

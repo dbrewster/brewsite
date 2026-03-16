@@ -53,8 +53,6 @@ function makeDefaultState(overrides: Partial<DiagramState> = {}): DiagramState {
 }
 
 function makeRenderContext(): WidgetRenderContext {
-  const cam = new THREE.PerspectiveCamera(45, 16 / 9, 0.01, 100);
-  cam.position.set(0, 0, 12.07);
   return {
     clock: {
       deltaSeconds: 0.016,
@@ -68,7 +66,7 @@ function makeRenderContext(): WidgetRenderContext {
     },
     extra: undefined,
     tick: null,
-    coords: createNVSCoordService(cam, 1920, 1080),
+    coords: createNVSCoordService({ distance: 12.07, fovDeg: 45 }, 1920, 1080),
   };
 }
 

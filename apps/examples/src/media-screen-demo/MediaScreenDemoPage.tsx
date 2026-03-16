@@ -163,7 +163,7 @@ export default function MediaScreenDemoPage(): JSX.Element {
           <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
           <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
           <EngineOverlayHost passthroughPointerEvents />
-          <InputCoordinator />
+          <InputCoordinator inertiaSensitivity={0.012} inertiaDecay={0.85} />
         </ScrollStage>
 
         {/* Hidden canvas for Panel 2 — stream registered via captureCanvasStream */}

@@ -114,14 +114,14 @@ function LinearCarouselViews(): JSX.Element {
 /** Linear carousel — activeIndex 0 (first view centered, rest fan right). */
 export const LinearCarouselScene1 = (): JSX.Element => {
   return (
-    <Scene id="linear-carousel-1">
+    <Scene id="linear-carousel-1" primaryCarouselId="lin-carousel-1-layout">
       <ProgressManager scrollUnits={800} />
       <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
       <Lighting intensityScale={1.2}>
         <Ambient intensity={0.9} color="#d7e5ff" />
         <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
       </Lighting>
-      <ViewLayout kind="carousel" activeIndex={0} inactiveScale={0.75} zStep={8}>
+      <ViewLayout id="lin-carousel-1-layout" kind="carousel" activeIndex={0} inactiveScale={0.75} zStep={8}>
         <LinearCarouselViews />
       </ViewLayout>
     </Scene>
@@ -131,14 +131,14 @@ export const LinearCarouselScene1 = (): JSX.Element => {
 /** Linear carousel — activeIndex 1 (second view centered). */
 export const LinearCarouselScene2 = (): JSX.Element => {
   return (
-    <Scene id="linear-carousel-2">
+    <Scene id="linear-carousel-2" primaryCarouselId="lin-carousel-2-layout">
       <ProgressManager scrollUnits={800} />
       <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
       <Lighting intensityScale={1.2}>
         <Ambient intensity={0.9} color="#d7e5ff" />
         <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
       </Lighting>
-      <ViewLayout kind="carousel" activeIndex={1} inactiveScale={0.75} zStep={8}>
+      <ViewLayout id="lin-carousel-2-layout" kind="carousel" activeIndex={1} inactiveScale={0.75} zStep={8}>
         <LinearCarouselViews />
       </ViewLayout>
     </Scene>
@@ -148,14 +148,14 @@ export const LinearCarouselScene2 = (): JSX.Element => {
 /** Linear carousel — activeIndex 2 (middle view centered). */
 export const LinearCarouselScene3 = (): JSX.Element => {
   return (
-    <Scene id="linear-carousel-3">
+    <Scene id="linear-carousel-3" primaryCarouselId="lin-carousel-3-layout">
       <ProgressManager scrollUnits={800} />
       <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
       <Lighting intensityScale={1.2}>
         <Ambient intensity={0.9} color="#d7e5ff" />
         <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
       </Lighting>
-      <ViewLayout kind="carousel" activeIndex={2} inactiveScale={0.75} zStep={8}>
+      <ViewLayout id="lin-carousel-3-layout" kind="carousel" activeIndex={2} inactiveScale={0.75} zStep={8}>
         <LinearCarouselViews />
       </ViewLayout>
     </Scene>

@@ -35,6 +35,16 @@ export const darkGlassSceneTheme: SceneTheme = {
       majorEvery: 1,
     },
   },
+  carouselTray: {
+    color: '#1C100C',
+    opacity: 0.88,
+    accentColor: '#E36A2E',
+    metalness: 0.3,
+    roughness: 0.35,
+    edgeStyle: 'smooth',
+    surfacePattern: 'grain',
+    surfaceIntensity: 0.20,
+  },
 };
 
 /** darkGlass family, light polarity. */
@@ -69,5 +79,15 @@ export const darkGlassLightSceneTheme: SceneTheme = {
       fillOpacity: 0,
       majorEvery: 1,
     },
+  },
+  carouselTray: {
+    color: '#EDE3DB',
+    opacity: 0.90,
+    accentColor: '#C4704A',
+    metalness: 0.2,
+    roughness: 0.4,
+    edgeStyle: 'smooth',
+    surfacePattern: 'grain',
+    surfaceIntensity: 0.12,
   },
 };

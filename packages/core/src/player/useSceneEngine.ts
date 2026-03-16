@@ -400,7 +400,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       camera.aspect = width / Math.max(1, height);
       camera.updateProjectionMatrix();
     }
-    // Propagate to RuntimeDriverImpl so createNVSCoordService uses the real
+    // Propagate to RuntimeDriverImpl so the NVS coordinate service uses the real
     // canvas dimensions instead of the 1920×1080 fallback.
     driverRef.current?.setViewportSize(width, height);
   }, []);
@@ -482,7 +482,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     });
     driverRef.current = driver;
 
-    // Seed the driver with the current viewport size so createNVSCoordService
+    // Seed the driver with the current viewport size so the NVS coordinate service
     // uses real canvas dimensions from the very first tick.
     driver.setViewportSize(initialViewport.width, initialViewport.height);
 
@@ -527,6 +527,22 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Keep scene-level theme userData in sync for already-initialized scenes.
+  // This is used by FloorWidget and potentially other elements that read theme
+  // from scene.userData at render time. The carousel tray resolves its theme
+  // at compile time (baked into compiled state) and does NOT read from here.
+  //
+  // KNOWN LIMITATION: This effect uses Object.is reference equality on
+  // options.sceneTheme. The scene theme registry (resolveSceneTheme) returns
+  // the same constant object reference for a given family+polarity pair.
+  // When toggling polarity back to a previously-seen value, this effect
+  // fires (the options.sceneTheme prop reference changes from the caller),
+  // but downstream useEffect deps on scene.userData[theme] may NOT fire
+  // if they captured the same object reference previously.
+  //
+  // Elements that need reliable theme updates should resolve theme at compile
+  // time (via resolveSceneTheme in their NodeHandler), not at render time via
+  // scene.userData. The carousel tray was migrated to compile-time resolution
+  // for exactly this reason. See viewHandlers.ts CarouselTray detection block.
   useEffect(() => {
     if (!sceneRef.current) return;
     (

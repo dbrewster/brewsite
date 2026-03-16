@@ -11,14 +11,11 @@ import {
   InputController,
   KeyMap,
   Lighting,
-  PinchMap,
-  PointerMap,
   ProgressManager,
   Scene,
   TextBox,
   View,
   ViewLayout,
-  WheelMap,
 } from '@brewsite/core';
 import {
   BarChart,
@@ -80,22 +77,11 @@ const teamFData = [
 function SceneNavInput(): JSX.Element {
   return (
     <InputController scope="canvas">
-      <Action id="scene-next" type="scene.next">
-        <KeyMap keyName="ArrowDown" />
-        <PointerMap event="click" />
-        <WheelMap axis="y" />
-      </Action>
-      <Action id="scene-prev" type="scene.prev">
-        <KeyMap keyName="ArrowUp" />
-      </Action>
       <Action id="skip-next" type="scene.next" stepScenes={2}>
         <KeyMap keyName="ArrowDown" modifiers={['shift']} />
       </Action>
       <Action id="skip-prev" type="scene.prev" stepScenes={2}>
         <KeyMap keyName="ArrowUp" modifiers={['shift']} />
-      </Action>
-      <Action id="dolly" type="camera.zoom">
-        <PinchMap direction="both" threshold={1} />
       </Action>
     </InputController>
   );

@@ -35,6 +35,16 @@ export const neonCyberSceneTheme: SceneTheme = {
       majorEvery: 1,
     },
   },
+  carouselTray: {
+    color: '#0C0C30',
+    opacity: 0.80,
+    accentColor: '#8A3DFF',
+    metalness: 0.3,
+    roughness: 0.45,
+    edgeStyle: 'ridged',
+    surfacePattern: 'crosshatch',
+    surfaceIntensity: 0.35,
+  },
 };
 
 /** neonCyber family, light polarity. */
@@ -69,5 +79,15 @@ export const neonCyberLightSceneTheme: SceneTheme = {
       fillOpacity: 0,
       majorEvery: 1,
     },
+  },
+  carouselTray: {
+    color: '#D8E0F4',
+    opacity: 0.86,
+    accentColor: '#6E55D1',
+    metalness: 0.35,
+    roughness: 0.35,
+    edgeStyle: 'ridged',
+    surfacePattern: 'crosshatch',
+    surfaceIntensity: 0.20,
   },
 };

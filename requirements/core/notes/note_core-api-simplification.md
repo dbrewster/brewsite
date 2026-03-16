@@ -3,7 +3,7 @@ title: "@brewsite/core Public API Simplification Recommendations"
 doc_type: note
 status: draft
 owner: Toolkit Product
-last_updated: 2026-03-09
+last_updated: 2026-03-15
 change_history:
   - date: 2026-03-09
     author: Toolkit Product (PM-2 draft)
@@ -475,12 +475,13 @@ implementation detail that leaked?"
 
 ---
 
-### 7.3 Keep: `NVSRect`, `NVSPosition`, `INVSBounded`, `createNVSCoordService`
+### 7.3 Keep: `NVSRect`, `NVSPosition`, `INVSBounded`, `NVSCameraParams`, `createNVSCoordService`, `resolveNVSParamsFromCameraState`
 
-- **What**: The NVS type definitions and coord service factory.
+- **What**: The NVS type definitions, camera params type, and coord service factory.
 - **Why keep**: These ARE used by widget authors to declare NVS-bounded elements and create
-  coordinate services. They should remain accessible, either on the main barrel or in
-  `@brewsite/core/plugin`.
+  coordinate services. `createNVSCoordService` accepts `NVSCameraParams` (pure math, no Three.js)
+  and `resolveNVSParamsFromCameraState` extracts params from compiled `SceneCamera` state.
+  They should remain accessible, either on the main barrel or in `@brewsite/core/plugin`.
 
 ---
 

@@ -10,6 +10,7 @@ import type {
   InputKeyMap,
   InputPinchMap,
   InputPointerMap,
+  InputSpecMergeMode,
   InputWheelMap,
   ModifierKey,
   MouseButton,
@@ -21,6 +22,8 @@ export const INPUT_CONTROLLER_WIDGET_ID = '__input_controller';
 export type InputControllerProps = {
   id?: string;
   scope?: InputControllerScope;
+  /** Controls how this spec combines with the default input spec. Default: 'merge'. */
+  mode?: InputSpecMergeMode;
   children?: ReactNode;
 };
 
@@ -51,6 +54,12 @@ export type PointerMapProps = {
   click?: boolean;
   button?: MouseButton;
   modifiers?: ModifierKey[];
+  /**
+   * Number of simultaneous touch points required (touch-only).
+   * When omitted, the map matches mouse/stylus input only.
+   * When set, `button` is ignored.
+   */
+  touches?: number;
   axis?: 'x' | 'y' | 'xy';
   lockAxis?: 'sticky' | 'free';
   lockThreshold?: number;
@@ -116,6 +125,7 @@ const parseActionMap = (node: ReactElement, helpers: CompileHelpers, api: Compil
       event: eventType,
       button: props.button,
       modifiers: props.modifiers,
+      touches: props.touches,
       axis: props.axis,
       lockAxis: props.lockAxis,
       lockThreshold: props.lockThreshold,
@@ -233,6 +243,7 @@ const inputControllerHandler: NodeHandler = (node, api, helpers) => {
     id: typeof props.id === 'string' && props.id.length > 0 ? props.id : 'main',
     scope: props.scope ?? 'canvas',
     actions,
+    ...(props.mode !== undefined ? { mergeMode: props.mode } : {}),
   };
   api.setWidgetState(INPUT_CONTROLLER_WIDGET_ID, spec);
 };

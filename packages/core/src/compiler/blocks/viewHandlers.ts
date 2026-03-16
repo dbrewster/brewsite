@@ -7,12 +7,16 @@ import type { CompileApi, NodeHandler } from '../sceneDslTypes';
 import { createChildApi } from '../childApi';
 import { IMPLICIT_SCENE_ROOT_VIEW_ID } from '../sceneViewConstraint';
 import type { NVSRect } from '../../layout/types';
-import type { ViewLayoutConfig, ViewLayoutResult } from '../../layout/regionTypes';
+import type { ViewLayoutConfig, ViewLayoutResult, CarouselLayoutConfig } from '../../layout/regionTypes';
 import type { ViewState, ViewLayoutState } from '../viewTypes';
 import type { ViewProps } from './viewDsl';
 import { View } from './viewDsl';
 import type { ViewLayoutProps } from './viewLayoutDsl';
 import { resolveLayout } from '../../layout/regionLayout';
+import { CarouselTray } from '../../elements/carousel-scrubber/dsl';
+import type { CarouselTrayProps } from '../../elements/carousel-scrubber/dsl';
+import { compileCarouselScrubber } from '../../elements/carousel-scrubber/compile';
+import { resolveSceneTheme } from '../../theme/sceneThemeRegistry';
 import { normalizePadding, applyPaddingToRect } from '../../layout/regionNormalize';
 
 // DEBT: Replace this invisible side-channel with an explicit parameter on CompileApi
@@ -180,9 +184,10 @@ export const viewLayoutHandler: NodeHandler = (node, api, helpers) => {
   for (const child of children) {
     if (!isValidElement(child)) continue;
     const childEl = child as ReactElement;
+    if (childEl.type === CarouselTray) continue; // handled separately below
     if (childEl.type !== View) {
       console.warn(
-        `[ViewLayout] ViewLayout '${layoutId}' contains non-View child; only <View> children are supported.`,
+        `[ViewLayout] ViewLayout '${layoutId}' (scene '${api.state.id}') contains non-View child <${(childEl.type as { displayName?: string })?.displayName ?? 'unknown'}>; only <View> and <CarouselTray> children are supported.`,
       );
       continue;
     }
@@ -239,4 +244,89 @@ export const viewLayoutHandler: NodeHandler = (node, api, helpers) => {
     ...(kind === 'carousel' ? { layoutConfig, childSizeHints } : {}),
   };
   api.setWidgetState(layoutId, viewLayoutState);
+
+  // ── CarouselTray detection ──────────────────────────────────────────────
+  // If a <CarouselTray> child is present inside a carousel ViewLayout,
+  // automatically emit a CarouselScrubberState derived from the layout bounds.
+  // The tray sizes and positions itself automatically from the carousel config.
+  //
+  // THEME RESOLUTION AT COMPILE TIME (not render time):
+  // The theme is resolved HERE via resolveSceneTheme() and baked into the
+  // compiled state. This is the same pattern used by diagrams and charts.
+  //
+  // WHY NOT RENDER TIME? The scene.userData.__brewsite_scene_theme approach
+  // (used by FloorWidget) suffers from an Object.is reference equality problem:
+  // resolveSceneTheme() returns the same constant object reference for a given
+  // family+polarity pair. When a polarity toggle returns to a previously-seen
+  // value, React effects with [sceneTheme] deps silently skip because the
+  // reference hasn't changed. Compile-time resolution avoids this entirely —
+  // when the theme changes, scenes re-render, the compiler re-runs, and the
+  // widget receives fresh theme-resolved state via apply().
+  if (kind === 'carousel') {
+    for (const child of children) {
+      if (!isValidElement(child)) continue;
+      const childEl = child as ReactElement;
+      if (childEl.type !== CarouselTray) continue;
+
+      const trayProps = childEl.props as CarouselTrayProps;
+      const carouselConfig = layoutConfig as CarouselLayoutConfig;
+      const isLoop = carouselConfig.loop ?? false;
+      const trayDepth = trayProps.depth ?? 0.36;
+
+      // Compute the actual NVS extent of all resolved views (tight bounding box).
+      // This is the real footprint of the carousel content, NOT the container.
+      let extMinX = Infinity;
+      let extMinY = Infinity;
+      let extMaxX = -Infinity;
+      let extMaxY = -Infinity;
+      for (const vid of viewIds) {
+        const vs = api.state.widgets[vid] as { bounds?: { x: number; y: number; w: number; h: number } } | undefined;
+        if (!vs?.bounds) continue;
+        extMinX = Math.min(extMinX, vs.bounds.x);
+        extMinY = Math.min(extMinY, vs.bounds.y);
+        extMaxX = Math.max(extMaxX, vs.bounds.x + vs.bounds.w);
+        extMaxY = Math.max(extMaxY, vs.bounds.y + vs.bounds.h);
+      }
+      const viewExtent = Number.isFinite(extMinX)
+        ? { x: extMinX, y: extMinY, w: extMaxX - extMinX, h: extMaxY - extMinY }
+        : composedContainerBounds;
+
+      // Resolve theme at compile time — same pattern as diagrams and charts.
+      // The compiled state bakes in the theme-resolved style values so the tray
+      // updates immediately when the scene track recompiles on theme change.
+      // DSL props override theme values; theme values override compiled defaults.
+      const sceneTheme = resolveSceneTheme(api.context.themeFamily, api.context.themePolarity);
+      const trayTheme = sceneTheme.carouselTray;
+
+      const trayWidgetId = `${layoutId}__tray`;
+      const trayState = compileCarouselScrubber(
+        {
+          id: trayWidgetId,
+          layoutId,
+          showBase: true,
+          trayDepth,
+          gap: trayProps.gap ?? trayTheme?.gap,
+          style: {
+            baseColor: trayProps.color ?? trayTheme?.color,
+            baseOpacity: trayProps.opacity ?? trayTheme?.opacity,
+            accentColor: trayProps.accentColor ?? trayTheme?.accentColor,
+            metalness: trayProps.metalness ?? trayTheme?.metalness,
+            roughness: trayProps.roughness ?? trayTheme?.roughness,
+            edgeStyle: trayProps.edgeStyle ?? trayTheme?.edgeStyle,
+            surfacePattern: trayProps.surfacePattern ?? trayTheme?.surfacePattern,
+            surfaceIntensity: trayProps.surfaceIntensity ?? trayTheme?.surfaceIntensity,
+            surfaceMapUrl: trayProps.surfaceMapUrl ?? trayTheme?.surfaceMapUrl,
+          },
+        },
+        carouselConfig.activeIndex,
+        viewIds.length,
+        isLoop,
+        composedContainerBounds,
+        { zStep: carouselConfig.zStep, spread: carouselConfig.spread },
+        viewExtent,
+      );
+      api.setWidgetState(trayWidgetId, trayState);
+      break; // only one CarouselTray per ViewLayout
+    }
+  }
 };

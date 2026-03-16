@@ -16,6 +16,10 @@ import { ViewWidget } from '../elements/view/ViewWidget';
 import type { ViewState } from '../compiler/viewTypes';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { SceneTrack } from '../compiler/sceneTrackTypes';
+import {
+  CarouselScrubberWidget,
+  isCarouselScrubberStateLike,
+} from '../elements/carousel-scrubber/CarouselScrubberWidget';
 
 /** Duck-type guard for ViewState — checks structural fields without instanceof. */
 function isViewStateLike(state: unknown): state is ViewState {
@@ -85,6 +89,10 @@ export function corePlugin(options?: CorePluginOptions): WidgetPlugin {
 
             const viewWidget = new ViewWidget(widgetId, resolveChildWidget, resolveChildObject);
             registry.register(viewWidget);
+          }
+          if (isCarouselScrubberStateLike(state) && !registry.get(widgetId)) {
+            const scrubberWidget = new CarouselScrubberWidget(widgetId);
+            registry.register(scrubberWidget);
           }
         }
       }

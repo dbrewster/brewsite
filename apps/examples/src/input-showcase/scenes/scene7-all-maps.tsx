@@ -216,8 +216,8 @@ export const AllMapsScene = (): JSX.Element => {
         {spotlights.map((s, i) => <Spotlight key={i} {...s} />)}
       </SpotlightRig>
 
-      {/* scope="window" — fires even outside canvas */}
-      <InputController scope="window">
+      {/* scope="window" + mode="replace" — this scene demonstrates every possible binding */}
+      <InputController scope="window" mode="replace">
         {/* Camera orbit — three variants */}
         <Action id="orbit" type="camera.orbit">
           <PointerMap event="drag" button="left" axis="xy" />

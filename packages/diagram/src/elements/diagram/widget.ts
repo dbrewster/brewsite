@@ -200,6 +200,9 @@ export class DiagramWidget
    */
   public onInteraction: ((event: DiagramInteractionEvent) => void) | undefined = undefined;
 
+  /** Root Three.js Group for external parenting by ViewWidget carousel positioning. */
+  get rootObject(): THREE.Group | null { return this.diagramGroup; }
+
   private renderer = new DiagramRenderer(buildThemeRenderConfig(defaultDiagramTheme));
   private scene: THREE.Scene | null = null;
 

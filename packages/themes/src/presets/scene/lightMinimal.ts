@@ -35,6 +35,16 @@ export const lightMinimalSceneTheme: SceneTheme = {
       majorEvery: 1,
     },
   },
+  carouselTray: {
+    color: '#E8EBF0',
+    opacity: 0.92,
+    accentColor: '#AAB8CB',
+    metalness: 0.04,
+    roughness: 0.82,
+    edgeStyle: 'matte',
+    surfacePattern: 'none',
+    surfaceIntensity: 0,
+  },
 };
 
 /** lightMinimal family, dark polarity. */
@@ -69,5 +79,15 @@ export const lightMinimalDarkSceneTheme: SceneTheme = {
       fillOpacity: 0,
       majorEvery: 1,
     },
+  },
+  carouselTray: {
+    color: '#1C2128',
+    opacity: 0.78,
+    accentColor: '#647488',
+    metalness: 0.12,
+    roughness: 0.68,
+    edgeStyle: 'matte',
+    surfacePattern: 'none',
+    surfaceIntensity: 0,
   },
 };

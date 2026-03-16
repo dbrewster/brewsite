@@ -4,7 +4,6 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import React from 'react';
-import * as THREE from 'three';
 import { ModelWidget, type ModelWidgetConfig } from '../ModelWidget';
 import type { ModelMeta } from '../metadata';
 import type { SceneModelInstanceState } from '../types';
@@ -503,10 +502,8 @@ describe('ModelWidget', () => {
     const widget = new ModelWidget(makeConfig('bot'));
     widget.initialize(makeInitContext({ widgetId: widget.widgetId }));
 
-    // Build a controlled camera to get a predictable visibleWorldHeight
-    const camera = new THREE.PerspectiveCamera(45, 16 / 9, 0.01, 100);
-    camera.position.set(0, 0, 12.07);
-    const coords = createNVSCoordService(camera, 1920, 1080);
+    // Build a controlled NVS coord service to get a predictable visibleWorldHeight
+    const coords = createNVSCoordService({ distance: 12.07, fovDeg: 45 }, 1920, 1080);
     const renderCtx = makeRenderContext({ coords });
 
     const modelScale = 0.06;
@@ -524,11 +521,8 @@ describe('ModelWidget', () => {
   });
 
   it('apply() via NVSCoordService produces the same world position as the old nvsToWorldWithCamera path (§9.5b regression)', () => {
-    // Build a known camera — same parameters as the old analytic fallback defaults.
-    const camera = new THREE.PerspectiveCamera(45, 16 / 9, 0.01, 100);
-    camera.position.set(0, 0, 12.07);
-
-    const coords = createNVSCoordService(camera, 1920, 1080);
+    // Build a known NVS coord service — same parameters as the old analytic fallback defaults.
+    const coords = createNVSCoordService({ distance: 12.07, fovDeg: 45 }, 1920, 1080);
     const renderCtx = makeRenderContext({ coords });
 
     const widget = new ModelWidget(makeConfig('bot'));
@@ -549,7 +543,8 @@ describe('ModelWidget', () => {
 
     widget.apply(state, renderCtx);
 
-    // Expected: old nvsToWorldWithCamera path with the same camera.
+    // Expected: old nvsToWorldWithCamera path with the same camera parameters.
+    const camera = { fov: 45, aspect: 1920 / 1080, position: { x: 0, y: 0, z: 12.07 } };
     const expected = nvsToWorldWithCamera(nvsX, nvsY, camera, z);
 
     expect(mockRenderer.apply).toHaveBeenCalledOnce();

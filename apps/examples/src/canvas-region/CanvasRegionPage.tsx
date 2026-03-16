@@ -101,7 +101,7 @@ export default function CanvasRegionPage(): JSX.Element {
         <div style={PAGE_STYLES.hint}>
           <strong>Controls</strong>
           <br />
-          Drag to orbit &middot; Shift+drag to pan
+          {'\u2318'}/Ctrl+Scroll to orbit &middot; Shift+Scroll to pan
           <br />
           Pinch to zoom &middot; Press <kbd>R</kbd> to reset
         </div>

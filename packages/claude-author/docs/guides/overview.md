@@ -30,7 +30,7 @@ Scene DSL (JSX) → resolveSceneFromDsl() → SceneFrame[]
 - **Scroll-driven** — a `ScrollStage` containing the canvas; window or container scroll drives scene progression. Best for landing pages where users scroll through a story.
 - **Embedded player** — `SceneReel` convenience wrapper with `TimeInput` for auto-advance. Best for docs pages, presentations, and fixed-size embeds that run on their own.
 - **Programmatic / controlled** — external UI (buttons, tabs) drives a `ControlledInput` value or calls `useGoToScene()`. Best when you need nav buttons, step indicators, or external state controlling the scene.
-- **Canvas region** — `SceneReel` with `InputController` for camera orbit/dolly/pan only. Best for interactive product viewers or standalone 3D regions with no scene sequencing.
+- **Canvas region** — `SceneReel` with `InputCoordinator` for camera orbit/zoom/pan. Default bindings work out of the box. Best for interactive product viewers or standalone 3D regions with no scene sequencing.
 
 Full details for each mode: search for `embedding-modes`.
 

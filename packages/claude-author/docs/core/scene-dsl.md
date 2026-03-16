@@ -230,20 +230,22 @@ import { View, ViewLayout } from '@brewsite/core';
     </View>
   </ViewLayout>
 
-  {/* Carousel step actions */}
+  {/* No InputController needed — defaults provide ArrowRight/ArrowLeft carousel nav
+      and horizontal scroll carousel via the __primary_carousel__ sentinel.
+      Override only if you need custom bindings like click-to-advance: */}
   <InputController>
-    <Action id="carousel-next" type="carousel.next" layoutId="main-carousel">
+    <Action id="default-carousel-next" type="carousel.next" layoutId="main-carousel">
       <KeyMap keyName="ArrowRight" />
       <PointerMap event="click" button="right" />
     </Action>
-    <Action id="carousel-prev" type="carousel.prev" layoutId="main-carousel">
+    <Action id="default-carousel-prev" type="carousel.prev" layoutId="main-carousel">
       <KeyMap keyName="ArrowLeft" />
     </Action>
   </InputController>
 </Scene>
 ```
 
-Set `primaryCarouselId` on the `<Scene>` to enable the `'__primary_carousel__'` sentinel in input actions — this lets `InputCoordinator` route horizontal scroll to the carousel automatically.
+Set `primaryCarouselId` on the `<Scene>` to enable the `'__primary_carousel__'` sentinel in input actions — this lets `InputCoordinator` route horizontal scroll and default ArrowRight/ArrowLeft keys to the carousel automatically. In most cases, setting `primaryCarouselId` alone is sufficient and no `<InputController>` is needed.
 
 ---
 

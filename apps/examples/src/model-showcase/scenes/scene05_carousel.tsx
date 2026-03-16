@@ -26,7 +26,7 @@ import { Animation, Model, Playback } from '@brewsite/model';
 
 export function Scene05Carousel(): JSX.Element {
   return (
-    <Scene id="model-carousel">
+    <Scene id="model-carousel" primaryCarouselId="model-carousel-layout">
       <Camera mode="world" position={[0, 1.2, 4.5]} target={[0, 1.0, 0]} fov={45} />
       <Lighting intensityScale={1.1}>
         <Ambient intensity={0.7} color="#d0e4ff" />
@@ -35,6 +35,7 @@ export function Scene05Carousel(): JSX.Element {
       </Lighting>
       <Background color="#030510" />
       <ViewLayout
+        id="model-carousel-layout"
         kind="carousel"
         activeIndex={1}
         inactiveScale={0.72}

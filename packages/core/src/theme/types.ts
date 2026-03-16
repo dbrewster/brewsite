@@ -190,6 +190,38 @@ export type SceneThemeFloor = {
 };
 
 /**
+ * Theme tokens for the carousel tray rendered beneath ViewLayout carousels.
+ *
+ * All fields are optional. When a DSL prop is set on <CarouselTray>, it
+ * takes precedence over the theme value. When neither is set, the compiled
+ * default applies.
+ */
+export type SceneThemeCarouselTray = {
+  /** Tray base color. */
+  readonly color?: string;
+  /** Tray base opacity [0-1]. */
+  readonly opacity?: number;
+  /** Accent/highlight color. */
+  readonly accentColor?: string;
+  /** Depth (thickness) of the tray in world units. */
+  readonly depth?: number;
+  /** Gap between tray bottom and floor top in world units. */
+  readonly gap?: number;
+  /** Material metalness [0-1]. */
+  readonly metalness?: number;
+  /** Material roughness [0-1]. */
+  readonly roughness?: number;
+  /** Front-edge surface treatment style. */
+  readonly edgeStyle?: 'smooth' | 'knurled' | 'ridged' | 'matte';
+  /** Surface texture pattern. */
+  readonly surfacePattern?: 'brushed' | 'radial' | 'crosshatch' | 'grain' | 'none';
+  /** Surface texture intensity [0-1]. */
+  readonly surfaceIntensity?: number;
+  /** URL to a custom normal map texture. Overrides surfacePattern when set. */
+  readonly surfaceMapUrl?: string;
+};
+
+/**
  * Unified scene theme token set.
  *
  * Defined in @brewsite/core; imported and consumed by all packages.
@@ -216,6 +248,8 @@ export type SceneTheme = {
   readonly background?: SceneThemeBackground;
   /** Optional floor configuration. */
   readonly floor?: SceneThemeFloor;
+  /** Optional carousel tray visual tokens. */
+  readonly carouselTray?: SceneThemeCarouselTray;
 };
 
 /**

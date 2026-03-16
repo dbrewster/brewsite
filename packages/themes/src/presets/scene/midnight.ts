@@ -35,6 +35,16 @@ export const midnightSceneTheme: SceneTheme = {
       majorEvery: 1,
     },
   },
+  carouselTray: {
+    color: '#1E150F',
+    opacity: 0.82,
+    accentColor: '#E2A33A',
+    metalness: 0.3,
+    roughness: 0.5,
+    edgeStyle: 'knurled',
+    surfacePattern: 'brushed',
+    surfaceIntensity: 0.30,
+  },
 };
 
 /** midnight family, light polarity. */
@@ -69,5 +79,15 @@ export const midnightLightSceneTheme: SceneTheme = {
       fillOpacity: 0,
       majorEvery: 1,
     },
+  },
+  carouselTray: {
+    color: '#EDE2D0',
+    opacity: 0.88,
+    accentColor: '#C39B52',
+    metalness: 0.35,
+    roughness: 0.42,
+    edgeStyle: 'knurled',
+    surfacePattern: 'brushed',
+    surfaceIntensity: 0.18,
   },
 };

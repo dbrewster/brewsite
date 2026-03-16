@@ -2,7 +2,8 @@
 export type { NVSRect, NVSPosition, INVSBounded } from './types';
 export { nvsToWorldAnalytic, worldToNvsAnalytic, nvsToWorldWithCamera, worldToNvsWithCamera, computeWorldDimensions, computeWorldDimensionsFromCamera } from './nvsWorldBridge';
 export { validateNVSScalar, validateNVSRect, validateNVSPosition } from './nvsValidation';
-export { createNVSCoordService } from './nvsCoordService';
+export type { NVSCameraParams } from './nvsCoordService';
+export { createNVSCoordService, resolveNVSParamsFromCameraState } from './nvsCoordService';
 
 // Region types
 export type {

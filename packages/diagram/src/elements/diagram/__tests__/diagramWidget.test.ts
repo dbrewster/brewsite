@@ -56,12 +56,7 @@ function makeDefaultDiagramState(id: string, overrides: Partial<DiagramState> = 
   };
 }
 
-function makeRenderContext(cam?: THREE.PerspectiveCamera): WidgetRenderContext {
-  const camera = cam ?? (() => {
-    const c = new THREE.PerspectiveCamera(45, 16 / 9, 0.01, 100);
-    c.position.set(0, 0, 12.07);
-    return c;
-  })();
+function makeRenderContext(): WidgetRenderContext {
   return {
     clock: { deltaSeconds: 0.016, wallTimeSeconds: 0 },
     effectiveDeltaSeconds: 0.016,
@@ -69,7 +64,7 @@ function makeRenderContext(cam?: THREE.PerspectiveCamera): WidgetRenderContext {
     variables: { get: () => undefined, getNamespace: () => ({}) },
     extra: undefined,
     tick: null,
-    coords: createNVSCoordService(camera, 1920, 1080),
+    coords: createNVSCoordService({ distance: 12.07, fovDeg: 45 }, 1920, 1080),
   };
 }
 
@@ -107,9 +102,7 @@ function makeState(
 
 describe('DiagramWidget — initialize and apply', () => {
   it('apply() positions diagramGroup at world coords for viewportBounds center', () => {
-    const cam = new THREE.PerspectiveCamera(45, 16 / 9, 0.01, 100);
-    cam.position.set(0, 0, 12.07);
-    const coords = createNVSCoordService(cam, 1920, 1080);
+    const coords = createNVSCoordService({ distance: 12.07, fovDeg: 45 }, 1920, 1080);
 
     const state = makeDefaultDiagramState('d1', {
       viewportBounds: { x: 0.25, y: 0.25, w: 0.5, h: 0.5 },
@@ -123,7 +116,7 @@ describe('DiagramWidget — initialize and apply', () => {
 
     expect(scene.children).toHaveLength(1); // diagramGroup added
 
-    const ctx = makeRenderContext(cam);
+    const ctx = makeRenderContext();
     widget.apply(state, ctx);
 
     // diagramGroup should be the first child.

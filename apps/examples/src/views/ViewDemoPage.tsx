@@ -98,7 +98,7 @@ export default function ViewDemoPage(): JSX.Element {
             <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
             <EngineOverlayHost />
           </EngineARContainer>
-          <InputCoordinator inertiaSensitivity={0.010} inertiaDecay={0.82} />
+          <InputCoordinator inertiaSensitivity={0.012} inertiaDecay={0.85} />
         </ScrollStage>
         <ChartProgressIndicator scrollStageRef={scrollStageRef} polarity={polarity} />
       </SceneEngine>
