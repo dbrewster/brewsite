@@ -1,6 +1,6 @@
 // Scene 4: Ring Carousel — looping 3D ring driven by carousel.next / carousel.prev.
 // Demonstrates: stepSlides=1 and stepSlides=2, SpotlightRig, loop=true ViewLayout.
-import type { JSX } from 'react';
+import type {JSX} from 'react';
 import {
   Action,
   Ambient,
@@ -11,23 +11,19 @@ import {
   InputController,
   KeyMap,
   Lighting,
+  Directional,
+  type OrbitFn,
   PointerMap,
   ProgressManager,
   Scene,
   Spotlight,
   SpotlightRig,
   TextBox,
+  useCarouselState,
   View,
   ViewLayout,
-  type OrbitFn,
 } from '@brewsite/core';
-import {
-  BarChart,
-  ChartAxis,
-  ChartData,
-  ChartSeries,
-  LineChart,
-} from '@brewsite/charts';
+import {BarChart, ChartAxis, ChartData, ChartSeries, LineChart,} from '@brewsite/charts';
 
 const CAM_POS: [number, number, number] = [0, 1, 6.6];
 const CAM_TGT: [number, number, number] = [0, 0, 0];
@@ -191,7 +187,8 @@ export const RingCarouselScene = (): JSX.Element => {
       <ProgressManager scrollUnits={800} />
       <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
       <Lighting intensityScale={1.2}>
-        <Ambient intensity={0.8} color="#d7e5ff" />
+        <Ambient intensity={2.8} color="#d7e5ff" />
+        <Directional intensity={0} color='#ffffff' position={[0, 0, 0]}/>
       </Lighting>
       <Floor variant="grid" negativeZExtent={20} />
       <SpotlightRig center={[0, 0, 3]} target={[0, 0, -7]} height={3} showBeam={false} distance={0} decay={.5} penumbra={0.5}>
@@ -216,7 +213,7 @@ export const RingCarouselScene = (): JSX.Element => {
 
       <ViewLayout id={LAYOUT_ID} kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={0.7}>
         <RingCarouselViews />
-        <CarouselTray surfacePattern='brushed'/>
+        <CarouselTray  metalness={.1}/>
       </ViewLayout>
 
       {/* Title */}
