@@ -43,7 +43,7 @@ const mimeTypeByExtension: Record<string, string> = {
  * likely to be missing or mis-pathed and hard to diagnose otherwise.
  * Routine assets (css, html, png, svg) are intentionally excluded.
  */
-const VERBOSE_EXTENSIONS = new Set(['.glb', '.hdr', '.wasm', '.json']);
+const VERBOSE_EXTENSIONS = new Set(['.glb', '.hdr', '.wasm', '.json', '.png', '.jpg']);
 
 const TAG = '[brewsite-static-assets]';
 

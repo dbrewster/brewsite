@@ -147,6 +147,16 @@ export class CarouselScrubberWidget
 
   apply(state: CarouselScrubberState, ctx: WidgetRenderContext): void {
     if (!this.cache || !this.threeScene) return;
+
+    // Hide ghost tray widgets that have no active layout.
+    // During transitions a tray widget can persist with empty layoutId
+    // and default style — if not hidden it overlaps the real tray mesh
+    // causing z-fighting interference patterns.
+    if (!state.layoutId || state.childCount === 0) {
+      this.cache.root.visible = false;
+      return;
+    }
+
     applyCarouselScrubber(state, this.cache, this.threeScene, ctx.coords);
   }
 

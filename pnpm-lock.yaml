@@ -287,7 +287,10 @@ importers:
         version: 19.2.4(react@19.2.4)
       three:
         specifier: ^0.183.1
-        version: 0.183.1
+        version: 0.183.2
+      three-custom-shader-material:
+        specifier: ^6.4.0
+        version: 6.4.0(react@19.2.4)(three@0.183.2)
     devDependencies:
       '@babel/parser':
         specifier: ^7.29.0
@@ -3135,6 +3138,18 @@ packages:
   text-hex@1.0.0:
     resolution: {integrity: sha512-uuVGNWzgJ4yhRaNSiubPY7OjISw4sw4E5Uv0wbjp+OzcbmVU/rsT8ujgcXJhn9ypzsgr5vlzpPqP+MBBKcGvbg==}
 
+  three-custom-shader-material@6.4.0:
+    resolution: {integrity: sha512-dIbkwX1P4DcHMOZrywW+/TDp5qJhlyU6NP/2kmHw91UqC+TrK4JSBtAV3qGc6UnkqSOmR1i0O+Yz5EnTp2aQ1g==}
+    peerDependencies:
+      '@react-three/fiber': '>=8.0'
+      react: '>=18.0'
+      three: '>=0.159'
+    peerDependenciesMeta:
+      '@react-three/fiber':
+        optional: true
+      react:
+        optional: true
+
   three@0.183.1:
     resolution: {integrity: sha512-Psv6bbd3d/M/01MT2zZ+VmD0Vj2dbWTNhfe4CuSg7w5TuW96M3NOyCVuh9SZQ05CpGmD7NEcJhZw4GVjhCYxfQ==}
 
@@ -5916,6 +5931,12 @@ snapshots:
       minimatch: 9.0.5
 
   text-hex@1.0.0: {}
+
+  three-custom-shader-material@6.4.0(react@19.2.4)(three@0.183.2):
+    dependencies:
+      three: 0.183.2
+    optionalDependencies:
+      react: 19.2.4
 
   three@0.183.1: {}
 

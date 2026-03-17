@@ -333,8 +333,9 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
 
       if (DEBUG_SCROLL) console.log(`[IC:carouselStep] ✅ ${currentIndex} → ${newIndex} (${childCount} children, loop=${loop})`);
 
-      // 5. Write new index to VariableStore.
+      // 5. Write new index and child count to VariableStore.
       variableStore.set('carousel', `${resolvedLayoutId}.activeIndex`, newIndex);
+      variableStore.set('carousel', `${resolvedLayoutId}.childCount`, childCount);
 
       // 6. Recompute layout with updated activeIndex.
       const updatedConfig: ViewLayoutConfig = { ...config, activeIndex: newIndex };

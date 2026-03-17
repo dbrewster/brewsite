@@ -2,6 +2,7 @@
 // Excluded from test coverage — Three.js rendering logic.
 
 import * as THREE from 'three';
+import CustomShaderMaterial from 'three-custom-shader-material/vanilla';
 import type { CarouselScrubberState, CarouselScrubberStyle, CarouselTrayEdgeStyle, CarouselTraySurfacePattern } from './types';
 import type { NVSCoordService } from '../../widget/types';
 import { generateSurfaceNormalMap, loadCustomSurfaceMap } from './surfaceTexture';
@@ -40,6 +41,8 @@ export type CarouselScrubberCache = {
   lastStyleKey: string;
   /** Current interpolated rotation (radians). null = not yet initialized. */
   currentRotation: number | null;
+  /** Whether onyx textures have been loaded and applied. */
+  onyxTexturesApplied: boolean;
 };
 
 const CACHE_KEY = '__brewsite_carousel_scrubber';
@@ -266,6 +269,7 @@ export function getOrCreateCache(
     normalMapTexture: null,
     lastStyleKey: '',
     currentRotation: null,
+    onyxTexturesApplied: false,
   };
 
   scene.userData[key] = cache;
@@ -306,13 +310,107 @@ function ensureBase(
       style.edgeStyle,
     );
 
-    const material = new THREE.MeshStandardMaterial({
+    // -- Onyx stone material using CustomShaderMaterial (CSM) --
+    // Triplanar projection in the shader ensures seamless texture across
+    // cap, bevel, and bottom faces. CSM extends MeshStandardMaterial so
+    // all PBR features (lighting, env map, shadows) work normally.
+    cache.onyxTexturesApplied = true;
+
+    const loader = new THREE.TextureLoader();
+    const texBasePath = '/examples/assets/Onyx001_1K-PNG/Onyx001_1K-PNG';
+    const TEX_SCALE = 0.12; // world units per texture repeat
+
+    const prepTex = (tex: THREE.Texture): THREE.Texture => {
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      return tex;
+    };
+
+    // Uniforms for the triplanar shader — textures loaded async.
+    const onyxUniforms = {
+      u_colorMap: { value: new THREE.Texture() },
+      u_normalMap: { value: new THREE.Texture() },
+      u_roughnessMap: { value: new THREE.Texture() },
+      u_bumpMap: { value: new THREE.Texture() },
+      u_texScale: { value: TEX_SCALE },
+      u_normalStrength: { value: 0.5 },
+      u_bumpStrength: { value: 0.02 },
+    };
+
+    // Triplanar helper + vertex/fragment shaders
+    const triplanarVertex = /* glsl */`
+      varying vec3 v_objPos;
+      varying vec3 v_objNormal;
+      void main() {
+        v_objPos = position;
+        v_objNormal = normal;
+      }
+    `;
+
+    const triplanarFragment = /* glsl */`
+      uniform sampler2D u_colorMap;
+      uniform float u_texScale;
+
+      varying vec3 v_objPos;
+      varying vec3 v_objNormal;
+
+      vec4 triplanarSample(sampler2D tex, vec3 pos, vec3 norm, float scale) {
+        vec3 bf = pow(abs(norm), vec3(4.0));
+        bf /= (bf.x + bf.y + bf.z);
+        vec4 cX = texture2D(tex, pos.yz * scale);
+        vec4 cY = texture2D(tex, pos.xz * scale);
+        vec4 cZ = texture2D(tex, pos.xy * scale);
+        return cX * bf.x + cY * bf.y + cZ * bf.z;
+      }
+
+      void main() {
+        vec4 col = triplanarSample(u_colorMap, v_objPos, v_objNormal, u_texScale);
+        csm_DiffuseColor = col;
+      }
+    `;
+
+    const material = new CustomShaderMaterial({
+      baseMaterial: THREE.MeshStandardMaterial,
+      vertexShader: triplanarVertex,
+      fragmentShader: triplanarFragment,
+      uniforms: onyxUniforms,
       color: style.baseColor,
       opacity: style.baseOpacity,
       transparent: style.baseOpacity < 1,
       metalness: style.metalness,
       roughness: style.roughness,
-      side: THREE.DoubleSide,
+      side: THREE.FrontSide,
+    });
+
+    // Load textures async into uniforms
+    loader.load(`${texBasePath}_Color.png`, (tex) => {
+      prepTex(tex);
+      tex.colorSpace = THREE.SRGBColorSpace;
+      onyxUniforms.u_colorMap.value = tex;
+      material.needsUpdate = true;
+    });
+
+    // CSM types don't expose base material props — cast to MeshStandardMaterial.
+    const baseMat = material as unknown as THREE.MeshStandardMaterial;
+
+    loader.load(`${texBasePath}_NormalGL.png`, (tex) => {
+      prepTex(tex);
+      baseMat.normalMap = tex;
+      baseMat.normalScale.set(0.5, 0.5);
+      baseMat.needsUpdate = true;
+    });
+
+    loader.load(`${texBasePath}_Roughness.png`, (tex) => {
+      prepTex(tex);
+      baseMat.roughnessMap = tex;
+      baseMat.needsUpdate = true;
+    });
+
+    loader.load(`${texBasePath}_Displacement.png`, (tex) => {
+      prepTex(tex);
+      baseMat.bumpMap = tex;
+      baseMat.bumpScale = 0.02;
+      baseMat.needsUpdate = true;
     });
 
     const base = new THREE.Mesh(geometry, material);
@@ -321,64 +419,69 @@ function ensureBase(
     base.castShadow = true;
 
     cache.root.add(base);
-    cache.base = base as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+    cache.base = base as unknown as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
     cache.lastGeoKey = geoKey;
   }
 
   cache.base!.visible = true;
-  cache.base!.material.color.set(style.baseColor);
-  cache.base!.material.opacity = style.baseOpacity;
-  cache.base!.material.metalness = style.metalness;
-  cache.base!.material.roughness = style.roughness;
 
-  // Detect style changes (from theme switch or DSL prop change) and force
-  // material recompile for render pass re-sorting.
-  const styleKey = `${style.baseColor}|${style.baseOpacity}|${style.metalness}|${style.roughness}|${style.edgeStyle}`;
-  if (styleKey !== cache.lastStyleKey) {
-    cache.base!.material.needsUpdate = true;
-    cache.lastStyleKey = styleKey;
+  // When onyx textures are applied, the base color still tints the texture.
+  // Update it every frame so theme/style changes are reflected.
+  if (cache.onyxTexturesApplied) {
+    cache.base!.material.color.set(style.baseColor);
   }
 
-  // -- Surface texture (normal map) --
-  const wantedPattern = style.surfacePattern;
-  const wantedMapUrl = style.surfaceMapUrl;
-  const patternChanged = cache.lastSurfacePattern !== wantedPattern;
-  const mapUrlChanged = cache.lastSurfaceMapUrl !== wantedMapUrl;
+  // Skip normal/roughness/surface-pattern overrides when onyx textures are active.
+  if (!cache.onyxTexturesApplied) {
+    cache.base!.material.color.set(style.baseColor);
+    cache.base!.material.metalness = style.metalness;
+    cache.base!.material.roughness = style.roughness;
 
-  if (patternChanged || mapUrlChanged || needsRecreate) {
-    // Dispose old normal map if we created it (procedural textures are cached
-    // globally in surfaceTexture.ts, so we only null out the local reference).
-    cache.normalMapTexture = null;
-    cache.base!.material.normalMap = null;
-
-    if (wantedMapUrl) {
-      // Custom URL: async load
-      loadCustomSurfaceMap(wantedMapUrl).then((tex) => {
-        if (cache.base && cache.lastSurfaceMapUrl === wantedMapUrl) {
-          cache.base.material.normalMap = tex;
-          cache.base.material.normalScale.set(style.surfaceIntensity, style.surfaceIntensity);
-          cache.base.material.needsUpdate = true;
-          cache.normalMapTexture = tex;
-        }
-      });
-    } else {
-      // Procedural pattern
-      const tex = generateSurfaceNormalMap(wantedPattern);
-      cache.normalMapTexture = tex;
-      cache.base!.material.normalMap = tex;
+    // Detect style changes (from theme switch or DSL prop change) and force
+    // material recompile for render pass re-sorting.
+    const styleKey = `${style.baseColor}|${style.baseOpacity}|${style.metalness}|${style.roughness}|${style.edgeStyle}`;
+    if (styleKey !== cache.lastStyleKey) {
       cache.base!.material.needsUpdate = true;
+      cache.lastStyleKey = styleKey;
     }
 
-    cache.lastSurfacePattern = wantedPattern;
-    cache.lastSurfaceMapUrl = wantedMapUrl;
+    // -- Surface texture (normal map) --
+    const wantedPattern = style.surfacePattern;
+    const wantedMapUrl = style.surfaceMapUrl;
+    const patternChanged = cache.lastSurfacePattern !== wantedPattern;
+    const mapUrlChanged = cache.lastSurfaceMapUrl !== wantedMapUrl;
+
+    if (patternChanged || mapUrlChanged || needsRecreate) {
+      cache.normalMapTexture = null;
+      cache.base!.material.normalMap = null;
+
+      if (wantedMapUrl) {
+        loadCustomSurfaceMap(wantedMapUrl).then((tex) => {
+          if (cache.base && cache.lastSurfaceMapUrl === wantedMapUrl) {
+            cache.base.material.normalMap = tex;
+            cache.base.material.normalScale.set(style.surfaceIntensity, style.surfaceIntensity);
+            cache.base.material.needsUpdate = true;
+            cache.normalMapTexture = tex;
+          }
+        });
+      } else {
+        const tex = generateSurfaceNormalMap(wantedPattern);
+        cache.normalMapTexture = tex;
+        cache.base!.material.normalMap = tex;
+        cache.base!.material.needsUpdate = true;
+      }
+
+      cache.lastSurfacePattern = wantedPattern;
+      cache.lastSurfaceMapUrl = wantedMapUrl;
+    }
+
+    if (cache.base!.material.normalMap) {
+      cache.base!.material.normalScale.set(style.surfaceIntensity, style.surfaceIntensity);
+    }
   }
 
-  // Always update normalScale (intensity may change between frames via theme)
-  if (cache.base!.material.normalMap) {
-    cache.base!.material.normalScale.set(style.surfaceIntensity, style.surfaceIntensity);
-  }
-
-  // -- Transparency safety --
+  // Opacity and transparency always apply (even with onyx textures).
+  cache.base!.material.opacity = style.baseOpacity;
   const transparentNow = style.baseOpacity < 1;
   if (cache.base!.material.transparent !== transparentNow) {
     cache.base!.material.transparent = transparentNow;
@@ -510,10 +613,8 @@ export function applyCarouselScrubber(
     const targetRotation = computeRingRotation(state.activeIndex, state.childCount);
 
     if (cache.currentRotation === null) {
-      // First frame: snap to target (no animation on mount).
       cache.currentRotation = targetRotation;
     } else {
-      // Shortest-path angular delta: wrap difference into (-π, π].
       let delta = targetRotation - cache.currentRotation;
       delta = delta - Math.round(delta / (Math.PI * 2)) * Math.PI * 2;
 
@@ -529,6 +630,7 @@ export function applyCarouselScrubber(
     cache.root.rotation.y = 0;
     cache.currentRotation = null;
   }
+
 }
 
 /** Disposes all Three.js resources created by the carousel scrubber. */
