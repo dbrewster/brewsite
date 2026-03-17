@@ -4,6 +4,7 @@
 // For a live interactive website, use <Screen> instead.
 
 import type { BezelVariant } from '../_shared/bezelGeometry';
+import type { MaterialApplication } from '@brewsite/core';
 
 /** Bezel frame style for ImagePanel. */
 export type ImagePanelBezelVariant = BezelVariant;
@@ -117,6 +118,11 @@ export interface ImagePanelState {
 
   /** Whether the panel is rendered. Allows hide/show via scene transitions. Default: true */
   readonly enabled: boolean;
+
+  /** Named material preset for the bezel (e.g. 'onyx', 'steel'). Undefined = no preset. */
+  readonly bezelMaterial?: string;
+  /** Application controls for the bezel material preset. */
+  readonly bezelMaterialApplication?: MaterialApplication;
 }
 
 /** Raw DSL props from <ImagePanel> before compile.ts applies defaults. */
@@ -146,4 +152,6 @@ export interface ImagePanelDSL {
   readonly glowScale?: number;
   readonly glowOpacity?: number;
   readonly enabled?: boolean;
+  readonly bezelMaterial?: string;
+  readonly bezelMaterialApplication?: MaterialApplication;
 }

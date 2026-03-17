@@ -156,7 +156,7 @@ export function chartPlugin(): ChartPluginInstance {
       return existing;
     }
 
-    const widget = new ChartWidget(chartId, store, accessorRegistry);
+    const widget = new ChartWidget(chartId, store, accessorRegistry, undefined, registry);
     widgetMap.set(chartId, widget);
     const originalDispose = widget.dispose.bind(widget);
     widget.dispose = () => {

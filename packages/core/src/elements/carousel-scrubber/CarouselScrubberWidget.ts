@@ -10,6 +10,7 @@ import type {
   WidgetInitContext,
   WidgetRenderContext,
 } from '../../widget/types';
+import type { WidgetRegistry } from '../../widget/WidgetRegistry';
 import type { NodeHandler } from '../../compiler/sceneDslTypes';
 import type { CarouselScrubberState } from './types';
 import type { CarouselScrubberProps } from './dsl';
@@ -131,8 +132,11 @@ export class CarouselScrubberWidget
 
   // -- Constructor ------------------------------------------------------------
 
-  constructor(widgetId: string) {
+  private registry: WidgetRegistry | null;
+
+  constructor(widgetId: string, registry?: WidgetRegistry) {
     this.widgetId = widgetId;
+    this.registry = registry ?? null;
   }
 
   // -- IRenderable ------------------------------------------------------------
@@ -157,7 +161,16 @@ export class CarouselScrubberWidget
       return;
     }
 
-    applyCarouselScrubber(state, this.cache, this.threeScene, ctx.coords);
+    const materialLoader = this.registry?.getMaterialLoader();
+    const materialManifest = this.registry?.getMaterialManifest() ?? undefined;
+    applyCarouselScrubber(
+      state,
+      this.cache,
+      this.threeScene,
+      ctx.coords,
+      materialLoader,
+      materialManifest,
+    );
   }
 
   dispose(): void {

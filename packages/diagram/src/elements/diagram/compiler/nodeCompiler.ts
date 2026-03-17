@@ -78,6 +78,8 @@ export function compileNode(
     onMouseEnter: dsl.onMouseEnter,
     onMouseLeave: dsl.onMouseLeave,
     positionInherited: positionInherited || undefined,
+    surfaceMaterial: dsl.surfaceMaterial ?? theme.node.surfaceMaterial,
+    materialApplication: dsl.materialApplication ?? theme.node.materialApplication,
   };
 }
 

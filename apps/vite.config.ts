@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { defineConfig, type Plugin, type ViteDevServer } from 'vite';
 import react from '@vitejs/plugin-react';
+import { viteBrewsiteTextures } from '../packages/textures/src/vite';
 
 const appsRoot = __dirname;
 
@@ -183,7 +184,7 @@ const staticAssetsPlugin: Plugin = {
 
 export default defineConfig({
   root: appsRoot,
-  plugins: [react(), staticAssetsPlugin],
+  plugins: [react(), staticAssetsPlugin, viteBrewsiteTextures()],
   resolve: {
     dedupe: ['react', 'react-dom', 'three'],
     alias: [
@@ -200,6 +201,7 @@ export default defineConfig({
       { find: /^@brewsite\/slides\/(.*)$/,  replacement: path.resolve(__dirname, '../packages/slides/src/$1') },
       { find: /^@brewsite\/themes\/(.*)$/,  replacement: path.resolve(__dirname, '../packages/themes/src/$1') },
       { find: /^@brewsite\/screens\/(.*)$/, replacement: path.resolve(__dirname, '../packages/screens/src/$1') },
+      { find: /^@brewsite\/textures\/(.*)$/, replacement: path.resolve(__dirname, '../packages/textures/src/$1') },
       // Top-level package imports resolve to each package's TS entry point.
       { find: '@brewsite/core',    replacement: path.resolve(__dirname, '../packages/core/src/index.ts') },
       { find: '@brewsite/diagram', replacement: path.resolve(__dirname, '../packages/diagram/src/index.ts') },
@@ -208,6 +210,7 @@ export default defineConfig({
       { find: '@brewsite/slides',  replacement: path.resolve(__dirname, '../packages/slides/src/index.ts') },
       { find: '@brewsite/themes',  replacement: path.resolve(__dirname, '../packages/themes/src/index.ts') },
       { find: '@brewsite/screens', replacement: path.resolve(__dirname, '../packages/screens/src/index.ts') },
+      { find: '@brewsite/textures', replacement: path.resolve(__dirname, '../packages/textures/src/index.ts') },
       { find: '@brewsite/docs',    replacement: path.resolve(__dirname, '../packages/docs/src/index.ts') },
     ],
   },

@@ -1,5 +1,36 @@
 // CarouselScrubber element types -- interface contracts only.
 
+import type { MaterialApplication } from '../../widget/materialTypes';
+
+/**
+ * Highlight mode for a view on the carousel tray.
+ * 'glow'        — Flat emissive rectangle in XZ plane above the tray.
+ * 'holographic' — Vertical volumetric beam + optional smoke ring.
+ * 'none'        — No highlight (default).
+ */
+export type ViewHighlightMode = 'glow' | 'holographic' | 'none';
+
+/**
+ * Per-view highlight configuration. One entry per carousel child view.
+ * Built at compile time from DSL props + theme defaults.
+ */
+export type ViewHighlight = {
+  /** View widget ID this highlight targets. */
+  readonly viewId: string;
+  /** NVS bounds of the view (copied from ViewState.bounds). */
+  readonly bounds: { x: number; y: number; w: number; h: number };
+  /** Highlight mode. Default: 'none'. */
+  readonly mode: ViewHighlightMode;
+  /** Highlight color. Falls through: DSL -> theme -> accentColor. */
+  readonly color: string;
+  /** Glow/beam opacity [0-1]. Default: 0.5 for glow, 0.35 for holographic. */
+  readonly intensity: number;
+  /** Beam height in world units (holographic only). Default: 1.5. */
+  readonly beamHeight?: number;
+  /** Enable smoke/mist ring at base (holographic only). Default: false. */
+  readonly smoke?: boolean;
+};
+
 /**
  * Front-edge surface treatment style for the carousel tray.
  * Applied as vertex displacement on the front face (+Z) of the tray geometry.
@@ -42,6 +73,10 @@ export type CarouselScrubberStyle = {
   surfaceIntensity: number;
   /** Optional URL to a custom normal map texture. Overrides surfacePattern when set. */
   surfaceMapUrl: string | null;
+  /** Named material preset from the MaterialManifest. */
+  surfaceMaterial: string | null;
+  /** Application controls for the material preset. */
+  materialApplication: MaterialApplication;
 };
 
 /** Compiled state for the 3D carousel scrubber. */
@@ -76,4 +111,6 @@ export type CarouselScrubberState = {
   zStep: number;
   /** Carousel spread -- used to compute ring X radius for disc sizing (legacy compat). */
   spread: number;
+  /** Per-view highlight effects. Empty array = no highlights. */
+  readonly viewHighlights: readonly ViewHighlight[];
 };

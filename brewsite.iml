@@ -2,7 +2,25 @@
 <module type="WEB_MODULE" version="4">
   <component name="NewModuleRootManager" inherit-compiler-output="true">
     <exclude-output />
-    <content url="file://$MODULE_DIR$" />
+    <content url="file://$MODULE_DIR$">
+      <excludeFolder url="file://$MODULE_DIR$/.claude/worktrees" />
+      <excludeFolder url="file://$MODULE_DIR$/.turbo" />
+      <excludeFolder url="file://$MODULE_DIR$/apps/.turbo" />
+      <excludeFolder url="file://$MODULE_DIR$/apps/docs/src/generated" />
+      <excludeFolder url="file://$MODULE_DIR$/coverage" />
+      <excludeFolder url="file://$MODULE_DIR$/docs/.turbo" />
+      <excludeFolder url="file://$MODULE_DIR$/docs/src/generated" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/claude-author/.turbo" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/docs/.turbo" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/npx/brewsite/.turbo" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/npx/create-brewsite/.turbo" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/screens/.turbo" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/slides/.turbo" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/slides/coverage" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/textures/.turbo" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/textures/assets-raw" />
+      <excludeFolder url="file://$MODULE_DIR$/packages/themes/.turbo" />
+    </content>
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>

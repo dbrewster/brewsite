@@ -43,7 +43,9 @@ export const neonCyberSceneTheme: SceneTheme = {
     roughness: 0.45,
     edgeStyle: 'ridged',
     surfacePattern: 'crosshatch',
-    surfaceIntensity: 0.35,
+    surfaceIntensity: 0.5,
+    surfaceMaterial: 'copper',
+    materialApplication: { colorMix: 0.6, iridescence: 0.2, brightness: .3, iridescenceIOR: 0.8 },
   },
 };
 
@@ -81,13 +83,14 @@ export const neonCyberLightSceneTheme: SceneTheme = {
     },
   },
   carouselTray: {
-    color: '#D8E0F4',
-    opacity: 0.86,
+    color: '#C0C8E0',
+    opacity: 0.88,
     accentColor: '#6E55D1',
     metalness: 0.35,
     roughness: 0.35,
-    edgeStyle: 'ridged',
     surfacePattern: 'crosshatch',
-    surfaceIntensity: 0.20,
+    surfaceIntensity: 0.50,
+    surfaceMaterial: 'gold',
+    materialApplication: { colorMix: 0.6, brightness: 0.85, saturation: 1.4, iridescence: 0.75 },
   },
 };

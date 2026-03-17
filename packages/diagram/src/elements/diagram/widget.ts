@@ -233,6 +233,16 @@ export class DiagramWidget
   }
 
   /**
+   * Injects the WidgetRegistry reference for material context access.
+   * Called by registerDiagramHandlers() when lazy-creating widgets.
+   */
+  setRegistry(registry: import('@brewsite/core').WidgetRegistry): void {
+    const loader = registry.getMaterialLoader();
+    const manifest = registry.getMaterialManifest();
+    this.renderer.setMaterialContext(loader, manifest);
+  }
+
+  /**
    * ILightingOverride — DiagramWidget does not suppress all lights.
    * Only the per-light setter matters here (receiveLightController).
    */

@@ -13,6 +13,8 @@ import type {SceneTheme} from '../../theme/types';
 import type {IHasCustomDslHandler} from '../../widget/index';
 import {CUSTOM_NODE_HANDLER} from '../../widget/index';
 import type {NodeHandler} from '../../compiler/index';
+import type {WidgetRegistry} from '../../widget/WidgetRegistry';
+import type {MaterialApplication} from '../../widget/materialTypes';
 
 /**
  * Floor element.
@@ -32,6 +34,39 @@ export const FloorMirror = (_props: FloorMirrorProps) => null;
 FloorMirror.displayName = 'FloorMirror';
 
 const SCENE_THEME_USERDATA_KEY = '__brewsite_scene_theme';
+
+/**
+ * Gathers MaterialApplication shorthand props from resolved FloorProps.
+ * Returns undefined if no shorthand props are set.
+ */
+const gatherMaterialApplicationFromResolved = (
+  resolved: Record<string, unknown>,
+): MaterialApplication | undefined => {
+  const colorMix = resolved['colorMix'] as number | undefined;
+  const brightness = resolved['brightness'] as number | undefined;
+  const saturation = resolved['saturation'] as number | undefined;
+  const contrast = resolved['contrast'] as number | undefined;
+  const depthMix = resolved['depthMix'] as number | undefined;
+  const roughnessMix = resolved['roughnessMix'] as number | undefined;
+  const tint = resolved['tint'] as string | undefined;
+  const texScale = resolved['texScale'] as number | undefined;
+  const iridescence = resolved['iridescence'] as number | undefined;
+  const iridescenceIOR = resolved['iridescenceIOR'] as number | undefined;
+  const iridescenceThicknessRange = resolved['iridescenceThicknessRange'] as readonly [number, number] | undefined;
+
+  const hasAny =
+    colorMix !== undefined || brightness !== undefined || saturation !== undefined ||
+    contrast !== undefined || depthMix !== undefined || roughnessMix !== undefined ||
+    tint !== undefined || texScale !== undefined || iridescence !== undefined ||
+    iridescenceIOR !== undefined || iridescenceThicknessRange !== undefined;
+
+  if (!hasAny) return undefined;
+
+  return {
+    colorMix, brightness, saturation, contrast, depthMix, roughnessMix,
+    tint, texScale, iridescence, iridescenceIOR, iridescenceThicknessRange,
+  };
+};
 
 const resolveThemedFloorState = (
   state: SceneFloor,
@@ -199,6 +234,30 @@ export class FloorWidget
         floorTheme?.negativeZFadeDistance ??
         base.negativeZFadeDistance,
       surface: surface ?? fallbackSurface,
+    };
+
+    // Apply material preset from FloorProps shorthand → surfaceMaterial on the physical surface.
+    const resolvedSurface = resolved.surface;
+    if (resolvedSurface && resolvedSurface.type === 'physical') {
+      const dslSurface = helpers.resolveValue(props.surface, api.context) as string | undefined;
+      const surfaceMaterial = dslSurface ?? floorTheme?.surfaceMaterial ?? resolvedSurface.surfaceMaterial;
+      const resolvedMaterialProps = helpers.resolveObjectValues(
+        { colorMix: props.colorMix, brightness: props.brightness, saturation: props.saturation,
+          contrast: props.contrast, depthMix: props.depthMix, roughnessMix: props.roughnessMix,
+          tint: props.tint, texScale: props.texScale, iridescence: props.iridescence,
+          iridescenceIOR: props.iridescenceIOR, iridescenceThicknessRange: props.iridescenceThicknessRange },
+        api.context,
+      );
+      const dslMaterialApp = gatherMaterialApplicationFromResolved(resolvedMaterialProps as Record<string, unknown>);
+      const materialApplication = dslMaterialApp ?? floorTheme?.materialApplication ?? resolvedSurface.materialApplication;
+
+      if (surfaceMaterial || materialApplication) {
+        resolved.surface = {
+          ...resolvedSurface,
+          ...(surfaceMaterial !== undefined ? { surfaceMaterial } : {}),
+          ...(materialApplication !== undefined ? { materialApplication } : {}),
+        };
+      }
     }
 
     api.setWidgetState(this.widgetId, resolved);
@@ -220,9 +279,15 @@ export class FloorWidget
   }
 
   private threeScene: THREE.Scene | null = null;
+  private registryRef: WidgetRegistry | null = null;
   private lastThemeRef: SceneTheme | null | undefined = undefined;
   private lastInputStateRef: SceneFloor | undefined;
   private lastResolvedStateRef: SceneFloor | undefined;
+
+  /** Set by corePlugin.configureRegistry() to provide material loader/manifest access. */
+  setRegistry(registry: WidgetRegistry): void {
+    this.registryRef = registry;
+  }
 
   initialize({scene}: WidgetInitContext): void {
     this.threeScene = scene as THREE.Scene;
@@ -244,7 +309,11 @@ export class FloorWidget
     this.lastInputStateRef = state;
     this.lastThemeRef = sceneTheme;
     this.lastResolvedStateRef = themedState;
-    applyFloor(themedState, {scene: this.threeScene});
+    applyFloor(themedState, {
+      scene: this.threeScene,
+      materialLoader: this.registryRef?.getMaterialLoader(),
+      materialManifest: this.registryRef?.getMaterialManifest(),
+    });
   }
 
   dispose(): void {
@@ -252,6 +321,7 @@ export class FloorWidget
       disposeFloor(this.threeScene as THREE.Scene);
     }
     this.threeScene = null;
+    this.registryRef = null;
     this.lastThemeRef = undefined;
     this.lastInputStateRef = undefined;
     this.lastResolvedStateRef = undefined;

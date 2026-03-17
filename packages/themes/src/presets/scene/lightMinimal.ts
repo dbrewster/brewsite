@@ -44,6 +44,8 @@ export const lightMinimalSceneTheme: SceneTheme = {
     edgeStyle: 'matte',
     surfacePattern: 'none',
     surfaceIntensity: 0,
+    surfaceMaterial: 'white-marble',
+    materialApplication: { colorMix: 0.15, brightness: 1.2, saturation: 0.2, depthMix: 0.2 },
   },
 };
 
@@ -89,5 +91,7 @@ export const lightMinimalDarkSceneTheme: SceneTheme = {
     edgeStyle: 'matte',
     surfacePattern: 'none',
     surfaceIntensity: 0,
+    surfaceMaterial: 'white-marble',
+    materialApplication: { colorMix: 0.25, brightness: 1.1, saturation: 0.3, depthMix: 0.3 },
   },
 };

@@ -1,5 +1,6 @@
 // Contract layer for MediaScreen. No runtime, no Three.js, no React.
 import type { BezelVariant } from '../_shared/bezelGeometry';
+import type { MaterialApplication } from '@brewsite/core';
 
 /** Bezel variant type alias for MediaScreen. */
 export type MediaScreenBezelVariant = BezelVariant;
@@ -34,6 +35,11 @@ export interface MediaScreenState {
   readonly glowScale: number;
   readonly glowOpacity: number;
   readonly enabled: boolean;
+
+  /** Named material preset for the bezel (e.g. 'onyx', 'steel'). Undefined = no preset. */
+  readonly bezelMaterial?: string;
+  /** Application controls for the bezel material preset. */
+  readonly bezelMaterialApplication?: MaterialApplication;
 }
 
 /** DSL input interface — all fields optional except id. */
@@ -62,4 +68,6 @@ export interface MediaScreenDSL {
   readonly glowScale?: number;
   readonly glowOpacity?: number;
   readonly enabled?: boolean;
+  readonly bezelMaterial?: string;
+  readonly bezelMaterialApplication?: MaterialApplication;
 }

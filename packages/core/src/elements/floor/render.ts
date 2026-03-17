@@ -7,9 +7,17 @@ import type { FloorSurfaceMirror, FloorSurfacePhysical, SceneFloor } from './typ
 import * as THREE from 'three';
 import { Reflector } from 'three/examples/jsm/objects/Reflector.js';
 import { clamp01, parseHexColor } from '../../math';
+import type { MaterialManifest } from '../../widget/materialTypes';
+import type { MaterialLoader } from '../../widget/MaterialLoader';
+import { createPresetMaterial, applyMaterialApplication } from '../_shared/materialFactory';
+import type CustomShaderMaterial from 'three-custom-shader-material/vanilla';
 
 export type FloorThreeRefs = {
   scene: THREE.Scene;
+  /** Material loader for preset textures. */
+  materialLoader?: MaterialLoader;
+  /** Material manifest for preset lookup. */
+  materialManifest?: MaterialManifest | null;
 };
 
 type FloorInstance = {
@@ -35,6 +43,12 @@ type FloorInstance = {
   gridLinesKey?: string;
   /** DEBUG: bright line marking world Z=0 on the grid floor. */
   debugZeroLine?: THREE.Line<THREE.BufferGeometry, THREE.LineBasicMaterial>;
+  /** CSM preset material instance (null = using fallback). */
+  presetMaterial?: CustomShaderMaterial | null;
+  /** Last surface material name for change detection. */
+  lastSurfaceMaterial?: string | null;
+  /** Set of preset names already warned about (missing from manifest). */
+  warnedPresets?: Set<string>;
 };
 
 const FLOOR_KEY = '__brewsite_floor';
@@ -816,6 +830,98 @@ const disposeDebugZeroLine = (instance: FloorInstance): void => {
   instance.debugZeroLine = undefined;
 };
 
+const disposePresetMaterial = (instance: FloorInstance): void => {
+  if (instance.presetMaterial) {
+    instance.presetMaterial.dispose();
+    instance.presetMaterial = null;
+  }
+};
+
+/**
+ * Attempts to apply a preset material to the floor.
+ * Returns true if the preset material was successfully applied (or is loading).
+ * Returns false if the preset is not in manifest (fallback to base color).
+ */
+const applyFloorPresetMaterial = (
+  floor: FloorInstance,
+  surface: FloorSurfacePhysical,
+  refs: FloorThreeRefs,
+): boolean => {
+  const presetName = surface.surfaceMaterial;
+  if (!presetName) return false;
+
+  const manifest = refs.materialManifest;
+  const loader = refs.materialLoader;
+
+  // Case: no manifest or no loader — can't load presets.
+  if (!manifest || !loader) return false;
+
+  const preset = manifest.presets[presetName];
+  if (!preset) {
+    // Case: preset name not in manifest — warn once, fall back to base color.
+    if (!floor.warnedPresets) floor.warnedPresets = new Set();
+    if (!floor.warnedPresets.has(presetName)) {
+      console.warn(
+        `[FloorWidget] Material preset "${presetName}" not found in manifest. ` +
+        `Falling back to base color.`,
+      );
+      floor.warnedPresets.add(presetName);
+    }
+    if (floor.presetMaterial) {
+      disposePresetMaterial(floor);
+      floor.lastSurfaceMaterial = null;
+    }
+    return false;
+  }
+
+  // Don't retry presets that have permanently failed to load.
+  if (loader.isPresetFailed(preset, manifest.basePath)) return false;
+
+  // Check if textures are already loaded (sync cache hit).
+  const loaded = loader.getLoadedPresetByKey(preset, manifest.basePath);
+
+  if (!loaded) {
+    // Case: preset in manifest but still loading — kick off load, use existing material.
+    // loadPreset returns null on failure; MaterialLoader caches the failure internally.
+    void loader.loadPreset(preset, manifest.basePath);
+    return false;
+  }
+
+  // Case: preset loaded — create or update CSM material.
+  const presetChanged = floor.lastSurfaceMaterial !== presetName;
+  if (presetChanged || !floor.presetMaterial) {
+    disposePresetMaterial(floor);
+    const baseColor = surface.color ?? '#151a24';
+    const baseOpacity = typeof surface.opacity === 'number' ? surface.opacity : 1;
+    const csmMaterial = createPresetMaterial({
+      textures: loaded.textures,
+      defaults: loaded.defaults,
+      projection: 'uv',
+      application: surface.materialApplication,
+      baseColor,
+      baseOpacity,
+      metalness: surface.metalness,
+      roughness: surface.roughness,
+    });
+    csmMaterial.transparent = baseOpacity < 1;
+    csmMaterial.depthWrite = baseOpacity >= 1;
+    floor.mesh.material = csmMaterial;
+    floor.presetMaterial = csmMaterial;
+    floor.lastSurfaceMaterial = presetName;
+  } else {
+    // Same preset, update application controls (uniform-only, no recompile).
+    if (surface.materialApplication) {
+      applyMaterialApplication(floor.presetMaterial, surface.materialApplication, surface.color);
+    }
+    // Update base opacity.
+    const baseOpacity = typeof surface.opacity === 'number' ? surface.opacity : 1;
+    floor.presetMaterial.transparent = baseOpacity < 1;
+    floor.presetMaterial.depthWrite = baseOpacity >= 1;
+    floor.presetMaterial.opacity = baseOpacity;
+  }
+  return true;
+};
+
 export function applyFloor(state: SceneFloor, refs: FloorThreeRefs): void {
   const surface = state.surface;
   if (!state.enabled || !surface) {
@@ -964,6 +1070,18 @@ export function applyFloor(state: SceneFloor, refs: FloorThreeRefs): void {
     disposeShadowCatcher(floor, refs.scene);
   }
   floor.mesh.receiveShadow = true;
+
+  // --- Material preset handling ---
+  const presetName = surface.surfaceMaterial;
+  if (presetName) {
+    const presetApplied = applyFloorPresetMaterial(floor, surface, refs);
+    if (presetApplied) return;
+    // Preset not ready yet — fall through to existing material path.
+  } else if (floor.presetMaterial) {
+    // surfaceMaterial was removed — dispose preset material and revert.
+    disposePresetMaterial(floor);
+    floor.lastSurfaceMaterial = null;
+  }
 
   const loader = new THREE.TextureLoader();
 

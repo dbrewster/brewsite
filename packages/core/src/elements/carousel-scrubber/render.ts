@@ -2,9 +2,12 @@
 // Excluded from test coverage — Three.js rendering logic.
 
 import * as THREE from 'three';
-import CustomShaderMaterial from 'three-custom-shader-material/vanilla';
-import type { CarouselScrubberState, CarouselScrubberStyle, CarouselTrayEdgeStyle, CarouselTraySurfacePattern } from './types';
+import type CustomShaderMaterial from 'three-custom-shader-material/vanilla';
+import type { CarouselScrubberState, CarouselScrubberStyle, CarouselTrayEdgeStyle, CarouselTraySurfacePattern, ViewHighlight, ViewHighlightMode } from './types';
 import type { NVSCoordService } from '../../widget/types';
+import type { MaterialManifest, LoadedMaterialPreset } from '../../widget/materialTypes';
+import type { MaterialLoader } from '../../widget/MaterialLoader';
+import { createPresetMaterial, applyMaterialApplication, updatePresetTextures } from '../_shared/materialFactory';
 import { generateSurfaceNormalMap, loadCustomSurfaceMap } from './surfaceTexture';
 import {
   resolveTrayShapeKind,
@@ -19,10 +22,31 @@ import {
   type TrayGeometryParams,
 } from './geometry';
 import { computeTrayPosition, computeTrayWorldWidth, computeRingRotation, type TrayCoordService } from './trayPosition';
+import { beamVertexShader, beamFragmentShader } from './highlightShader';
+import {
+  initParticle,
+  advanceParticle,
+  particleRingPosition,
+  particleOpacity,
+  DEFAULT_PARTICLE_COUNT,
+  type ParticleState,
+} from './highlightParticles';
 
 /** Three.js refs for the carousel scrubber renderer. */
 export type CarouselScrubberRefs = {
   scene: THREE.Scene;
+};
+
+/** Cached meshes for a single view highlight. */
+type HighlightMeshSet = {
+  group: THREE.Group;
+  glowPlane: THREE.Mesh | null;
+  beamMesh: THREE.Mesh | null;
+  smokeMesh: THREE.Points | null;
+  smokeParticles: ParticleState[] | null;
+  currentOpacity: number;
+  mode: ViewHighlightMode;
+  lastTime: number;
 };
 
 /** Internal cache structure stored on scene.userData. */
@@ -41,8 +65,16 @@ export type CarouselScrubberCache = {
   lastStyleKey: string;
   /** Current interpolated rotation (radians). null = not yet initialized. */
   currentRotation: number | null;
-  /** Whether onyx textures have been loaded and applied. */
-  onyxTexturesApplied: boolean;
+  /** Loaded material preset (null = not yet loaded or no preset configured). */
+  loadedPreset: LoadedMaterialPreset | null;
+  /** The CSM preset material instance (null = using fallback). */
+  presetMaterial: CustomShaderMaterial | null;
+  /** Set of preset names already warned about (missing from manifest). */
+  warnedPresets: Set<string>;
+  /** Last surface material name for change detection. */
+  lastSurfaceMaterial: string | null;
+  /** Per-view highlight mesh groups, keyed by viewId. */
+  highlightMeshes: Map<string, HighlightMeshSet>;
 };
 
 const CACHE_KEY = '__brewsite_carousel_scrubber';
@@ -269,11 +301,68 @@ export function getOrCreateCache(
     normalMapTexture: null,
     lastStyleKey: '',
     currentRotation: null,
-    onyxTexturesApplied: false,
+    loadedPreset: null,
+    presetMaterial: null,
+    warnedPresets: new Set(),
+    lastSurfaceMaterial: null,
+    highlightMeshes: new Map(),
   };
 
   scene.userData[key] = cache;
   return cache;
+}
+
+/**
+ * Resolves a preset material from the manifest and kicks off async loading
+ * if the textures haven't been loaded yet.
+ */
+function resolvePresetMaterial(
+  cache: CarouselScrubberCache,
+  style: CarouselScrubberStyle,
+  materialLoader: MaterialLoader,
+  materialManifest: MaterialManifest,
+): void {
+  const presetName = style.surfaceMaterial;
+  if (!presetName) return;
+
+  // Detect preset name change — reset material state.
+  if (cache.lastSurfaceMaterial !== presetName) {
+    cache.loadedPreset = null;
+    cache.presetMaterial = null;
+    cache.lastSurfaceMaterial = presetName;
+  }
+
+  // Lookup preset in manifest.
+  const preset = materialManifest.presets[presetName];
+  if (!preset) {
+    // Warn once per unknown preset name per widget instance.
+    if (!cache.warnedPresets.has(presetName)) {
+      console.warn(
+        `[CarouselScrubber] Material preset '${presetName}' not found in manifest. Falling back to base color.`,
+      );
+      cache.warnedPresets.add(presetName);
+    }
+    return;
+  }
+
+  // Don't retry presets that have permanently failed to load.
+  if (materialLoader.isPresetFailed(preset, materialManifest.basePath)) return;
+
+  // Check sync cache hit first.
+  const alreadyLoaded = materialLoader.getLoadedPresetByKey(preset, materialManifest.basePath);
+  if (alreadyLoaded && !cache.loadedPreset) {
+    cache.loadedPreset = alreadyLoaded;
+  }
+
+  // Kick off async load if not yet loaded.
+  if (!cache.loadedPreset) {
+    materialLoader.loadPreset(preset, materialManifest.basePath).then((loaded) => {
+      if (!loaded) return; // Load failed — MaterialLoader already logged the warning.
+      cache.loadedPreset = loaded;
+      // Invalidate preset material so it gets recreated with textures.
+      cache.presetMaterial = null;
+    });
+  }
 }
 
 /** Ensures the base mesh is correct for the current shape/size/visibility. */
@@ -282,10 +371,18 @@ function ensureBase(
   showBase: boolean,
   geoParams: TrayGeometryParams,
   style: CarouselScrubberStyle,
+  materialLoader?: MaterialLoader,
+  materialManifest?: MaterialManifest,
 ): void {
   if (!showBase) {
     if (cache.base) cache.base.visible = false;
     return;
+  }
+
+  // -- Preset material resolution (async, non-blocking) --
+  const usePreset = style.surfaceMaterial !== null && materialLoader !== undefined && materialManifest !== undefined;
+  if (usePreset) {
+    resolvePresetMaterial(cache, style, materialLoader, materialManifest);
   }
 
   const geoKey = computeGeometryKey(geoParams);
@@ -297,6 +394,8 @@ function ensureBase(
       cache.base.geometry.dispose();
       cache.base.material.dispose();
     }
+    // Reset preset material when geometry changes — it's tied to the old mesh.
+    cache.presetMaterial = null;
 
     const geometry = createTrayGeometry(
       geoParams.worldWidth,
@@ -310,70 +409,9 @@ function ensureBase(
       style.edgeStyle,
     );
 
-    // -- Onyx stone material using CustomShaderMaterial (CSM) --
-    // Triplanar projection in the shader ensures seamless texture across
-    // cap, bevel, and bottom faces. CSM extends MeshStandardMaterial so
-    // all PBR features (lighting, env map, shadows) work normally.
-    cache.onyxTexturesApplied = true;
-
-    const loader = new THREE.TextureLoader();
-    const texBasePath = '/examples/assets/Onyx001_1K-PNG/Onyx001_1K-PNG';
-    const TEX_SCALE = 0.12; // world units per texture repeat
-
-    const prepTex = (tex: THREE.Texture): THREE.Texture => {
-      tex.wrapS = THREE.RepeatWrapping;
-      tex.wrapT = THREE.RepeatWrapping;
-      return tex;
-    };
-
-    // Uniforms for the triplanar shader — textures loaded async.
-    const onyxUniforms = {
-      u_colorMap: { value: new THREE.Texture() },
-      u_normalMap: { value: new THREE.Texture() },
-      u_roughnessMap: { value: new THREE.Texture() },
-      u_bumpMap: { value: new THREE.Texture() },
-      u_texScale: { value: TEX_SCALE },
-      u_normalStrength: { value: 0.5 },
-      u_bumpStrength: { value: 0.02 },
-    };
-
-    // Triplanar helper + vertex/fragment shaders
-    const triplanarVertex = /* glsl */`
-      varying vec3 v_objPos;
-      varying vec3 v_objNormal;
-      void main() {
-        v_objPos = position;
-        v_objNormal = normal;
-      }
-    `;
-
-    const triplanarFragment = /* glsl */`
-      uniform sampler2D u_colorMap;
-      uniform float u_texScale;
-
-      varying vec3 v_objPos;
-      varying vec3 v_objNormal;
-
-      vec4 triplanarSample(sampler2D tex, vec3 pos, vec3 norm, float scale) {
-        vec3 bf = pow(abs(norm), vec3(4.0));
-        bf /= (bf.x + bf.y + bf.z);
-        vec4 cX = texture2D(tex, pos.yz * scale);
-        vec4 cY = texture2D(tex, pos.xz * scale);
-        vec4 cZ = texture2D(tex, pos.xy * scale);
-        return cX * bf.x + cY * bf.y + cZ * bf.z;
-      }
-
-      void main() {
-        vec4 col = triplanarSample(u_colorMap, v_objPos, v_objNormal, u_texScale);
-        csm_DiffuseColor = col;
-      }
-    `;
-
-    const material = new CustomShaderMaterial({
-      baseMaterial: THREE.MeshStandardMaterial,
-      vertexShader: triplanarVertex,
-      fragmentShader: triplanarFragment,
-      uniforms: onyxUniforms,
+    // Start with a plain MeshStandardMaterial. If a preset is loaded, it will
+    // be swapped to a CSM material below (or on the next frame once loaded).
+    const material = new THREE.MeshStandardMaterial({
       color: style.baseColor,
       opacity: style.baseOpacity,
       transparent: style.baseOpacity < 1,
@@ -382,110 +420,440 @@ function ensureBase(
       side: THREE.FrontSide,
     });
 
-    // Load textures async into uniforms
-    loader.load(`${texBasePath}_Color.png`, (tex) => {
-      prepTex(tex);
-      tex.colorSpace = THREE.SRGBColorSpace;
-      onyxUniforms.u_colorMap.value = tex;
-      material.needsUpdate = true;
-    });
-
-    // CSM types don't expose base material props — cast to MeshStandardMaterial.
-    const baseMat = material as unknown as THREE.MeshStandardMaterial;
-
-    loader.load(`${texBasePath}_NormalGL.png`, (tex) => {
-      prepTex(tex);
-      baseMat.normalMap = tex;
-      baseMat.normalScale.set(0.5, 0.5);
-      baseMat.needsUpdate = true;
-    });
-
-    loader.load(`${texBasePath}_Roughness.png`, (tex) => {
-      prepTex(tex);
-      baseMat.roughnessMap = tex;
-      baseMat.needsUpdate = true;
-    });
-
-    loader.load(`${texBasePath}_Displacement.png`, (tex) => {
-      prepTex(tex);
-      baseMat.bumpMap = tex;
-      baseMat.bumpScale = 0.02;
-      baseMat.needsUpdate = true;
-    });
-
     const base = new THREE.Mesh(geometry, material);
     base.name = 'CarouselScrubberBase';
     base.receiveShadow = true;
     base.castShadow = true;
 
     cache.root.add(base);
-    cache.base = base as unknown as THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial>;
+    cache.base = base;
     cache.lastGeoKey = geoKey;
   }
 
   cache.base!.visible = true;
 
-  // When onyx textures are applied, the base color still tints the texture.
-  // Update it every frame so theme/style changes are reflected.
-  if (cache.onyxTexturesApplied) {
-    cache.base!.material.color.set(style.baseColor);
-  }
+  // -- Material update: preset CSM or procedural fallback --
+  if (usePreset && cache.loadedPreset) {
+    // Create or update the CSM preset material.
+    if (!cache.presetMaterial) {
+      const csm = createPresetMaterial({
+        textures: cache.loadedPreset.textures,
+        defaults: cache.loadedPreset.defaults,
+        projection: 'triplanar',
+        application: style.materialApplication,
+        baseColor: style.baseColor,
+        baseOpacity: style.baseOpacity,
+        metalness: style.metalness,
+        roughness: style.roughness,
+      });
+      cache.presetMaterial = csm;
+      cache.base!.material.dispose();
+      cache.base!.material = csm as unknown as THREE.MeshStandardMaterial;
+    }
 
-  // Skip normal/roughness/surface-pattern overrides when onyx textures are active.
-  if (!cache.onyxTexturesApplied) {
+    // Per-frame uniform updates (animatable MaterialApplication controls).
+    applyMaterialApplication(cache.presetMaterial, style.materialApplication, style.baseColor);
+  } else if (!usePreset || !cache.loadedPreset) {
+    // Procedural fallback path: no preset, or preset not yet loaded.
+    // Update base material properties every frame.
     cache.base!.material.color.set(style.baseColor);
     cache.base!.material.metalness = style.metalness;
     cache.base!.material.roughness = style.roughness;
 
-    // Detect style changes (from theme switch or DSL prop change) and force
-    // material recompile for render pass re-sorting.
+    // Detect style changes and force material recompile for render pass re-sorting.
     const styleKey = `${style.baseColor}|${style.baseOpacity}|${style.metalness}|${style.roughness}|${style.edgeStyle}`;
     if (styleKey !== cache.lastStyleKey) {
       cache.base!.material.needsUpdate = true;
       cache.lastStyleKey = styleKey;
     }
 
-    // -- Surface texture (normal map) --
-    const wantedPattern = style.surfacePattern;
-    const wantedMapUrl = style.surfaceMapUrl;
-    const patternChanged = cache.lastSurfacePattern !== wantedPattern;
-    const mapUrlChanged = cache.lastSurfaceMapUrl !== wantedMapUrl;
+    // -- Surface texture (normal map) — procedural fallback only --
+    if (!usePreset) {
+      const wantedPattern = style.surfacePattern;
+      const wantedMapUrl = style.surfaceMapUrl;
+      const patternChanged = cache.lastSurfacePattern !== wantedPattern;
+      const mapUrlChanged = cache.lastSurfaceMapUrl !== wantedMapUrl;
 
-    if (patternChanged || mapUrlChanged || needsRecreate) {
-      cache.normalMapTexture = null;
-      cache.base!.material.normalMap = null;
+      if (patternChanged || mapUrlChanged || needsRecreate) {
+        cache.normalMapTexture = null;
+        cache.base!.material.normalMap = null;
 
-      if (wantedMapUrl) {
-        loadCustomSurfaceMap(wantedMapUrl).then((tex) => {
-          if (cache.base && cache.lastSurfaceMapUrl === wantedMapUrl) {
-            cache.base.material.normalMap = tex;
-            cache.base.material.normalScale.set(style.surfaceIntensity, style.surfaceIntensity);
-            cache.base.material.needsUpdate = true;
-            cache.normalMapTexture = tex;
-          }
-        });
-      } else {
-        const tex = generateSurfaceNormalMap(wantedPattern);
-        cache.normalMapTexture = tex;
-        cache.base!.material.normalMap = tex;
-        cache.base!.material.needsUpdate = true;
+        if (wantedMapUrl) {
+          loadCustomSurfaceMap(wantedMapUrl).then((tex) => {
+            if (cache.base && cache.lastSurfaceMapUrl === wantedMapUrl) {
+              cache.base.material.normalMap = tex;
+              cache.base.material.normalScale.set(style.surfaceIntensity, style.surfaceIntensity);
+              cache.base.material.needsUpdate = true;
+              cache.normalMapTexture = tex;
+            }
+          });
+        } else {
+          const tex = generateSurfaceNormalMap(wantedPattern);
+          cache.normalMapTexture = tex;
+          cache.base!.material.normalMap = tex;
+          cache.base!.material.needsUpdate = true;
+        }
+
+        cache.lastSurfacePattern = wantedPattern;
+        cache.lastSurfaceMapUrl = wantedMapUrl;
       }
 
-      cache.lastSurfacePattern = wantedPattern;
-      cache.lastSurfaceMapUrl = wantedMapUrl;
-    }
-
-    if (cache.base!.material.normalMap) {
-      cache.base!.material.normalScale.set(style.surfaceIntensity, style.surfaceIntensity);
+      if (cache.base!.material.normalMap) {
+        cache.base!.material.normalScale.set(style.surfaceIntensity, style.surfaceIntensity);
+      }
     }
   }
 
-  // Opacity and transparency always apply (even with onyx textures).
+  // Opacity and transparency always apply.
   cache.base!.material.opacity = style.baseOpacity;
   const transparentNow = style.baseOpacity < 1;
   if (cache.base!.material.transparent !== transparentNow) {
     cache.base!.material.transparent = transparentNow;
     cache.base!.material.needsUpdate = true;
+  }
+}
+
+/** Opacity lerp factor for highlight fade transitions. */
+const HIGHLIGHT_FADE_LERP = 0.08;
+/** Opacity threshold below which highlights are hidden. */
+const HIGHLIGHT_OPACITY_THRESHOLD = 0.01;
+
+/**
+ * Creates a soft radial gradient canvas texture for glow highlights.
+ * Bright center, transparent edges.
+ */
+function createGlowTexture(color: string): THREE.CanvasTexture {
+  const size = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx2d = canvas.getContext('2d')!;
+
+  const gradient = ctx2d.createRadialGradient(
+    size / 2, size / 2, 0,
+    size / 2, size / 2, size / 2,
+  );
+  gradient.addColorStop(0, color);
+  gradient.addColorStop(0.4, color);
+  gradient.addColorStop(1, 'rgba(0,0,0,0)');
+
+  ctx2d.fillStyle = gradient;
+  ctx2d.fillRect(0, 0, size, size);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+/**
+ * Creates a soft circle canvas texture for smoke particles.
+ */
+function createSoftCircleTexture(): THREE.CanvasTexture {
+  const size = 32;
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  const ctx2d = canvas.getContext('2d')!;
+
+  const gradient = ctx2d.createRadialGradient(
+    size / 2, size / 2, 0,
+    size / 2, size / 2, size / 2,
+  );
+  gradient.addColorStop(0, 'rgba(255,255,255,1)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+
+  ctx2d.fillStyle = gradient;
+  ctx2d.fillRect(0, 0, size, size);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+/**
+ * Creates or updates the glow plane mesh for a highlight entry.
+ */
+function createGlowPlane(
+  worldW: number,
+  worldH: number,
+  color: string,
+  intensity: number,
+): THREE.Mesh {
+  const geometry = new THREE.PlaneGeometry(worldW, worldH);
+  geometry.rotateX(-Math.PI / 2); // Lie flat in XZ plane
+
+  const texture = createGlowTexture(color);
+  const material = new THREE.MeshBasicMaterial({
+    color,
+    map: texture,
+    transparent: true,
+    opacity: intensity,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = 'HighlightGlow';
+  return mesh;
+}
+
+/**
+ * Creates a holographic beam cylinder mesh.
+ */
+function createBeamMesh(
+  radius: number,
+  beamHeight: number,
+  color: string,
+  intensity: number,
+): THREE.Mesh {
+  const radiusTop = radius * 0.6;
+  const geometry = new THREE.CylinderGeometry(radiusTop, radius, beamHeight, 32, 1, true);
+  // Move origin to base of cylinder (default is center)
+  geometry.translate(0, beamHeight / 2, 0);
+
+  const threeColor = new THREE.Color(color);
+  const material = new THREE.ShaderMaterial({
+    vertexShader: beamVertexShader,
+    fragmentShader: beamFragmentShader,
+    uniforms: {
+      u_color: { value: threeColor },
+      u_intensity: { value: intensity },
+      u_time: { value: 0 },
+      u_radius: { value: radius },
+    },
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    side: THREE.DoubleSide,
+  });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = 'HighlightBeam';
+  return mesh;
+}
+
+/**
+ * Creates the smoke ring Points mesh for holographic highlights.
+ */
+function createSmokeMesh(
+  radius: number,
+  color: string,
+  particleCount: number,
+): { points: THREE.Points; particles: ParticleState[] } {
+  const particles: ParticleState[] = [];
+  const positions = new Float32Array(particleCount * 3);
+  const opacities = new Float32Array(particleCount);
+
+  for (let i = 0; i < particleCount; i++) {
+    const p = initParticle(Math.random);
+    particles.push(p);
+    const [x, z] = particleRingPosition(p.angle, radius * 0.7);
+    positions[i * 3] = x;
+    positions[i * 3 + 1] = p.yOffset;
+    positions[i * 3 + 2] = z;
+    opacities[i] = 0;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geometry.setAttribute('opacity', new THREE.BufferAttribute(opacities, 1));
+
+  const texture = createSoftCircleTexture();
+  const material = new THREE.PointsMaterial({
+    size: 0.06,
+    map: texture,
+    transparent: true,
+    blending: THREE.AdditiveBlending,
+    depthWrite: false,
+    color,
+    opacity: 0.3,
+  });
+
+  const points = new THREE.Points(geometry, material);
+  points.name = 'HighlightSmoke';
+  return { points, particles };
+}
+
+/**
+ * Updates smoke particle positions and opacities each frame.
+ */
+function updateSmokeParticles(
+  meshSet: HighlightMeshSet,
+  radius: number,
+  dt: number,
+): void {
+  if (!meshSet.smokeMesh || !meshSet.smokeParticles) return;
+
+  const posAttr = meshSet.smokeMesh.geometry.getAttribute('position');
+  const particles = meshSet.smokeParticles;
+
+  for (let i = 0; i < particles.length; i++) {
+    particles[i] = advanceParticle(particles[i], dt, Math.random);
+    const p = particles[i];
+    const [x, z] = particleRingPosition(p.angle, radius * 0.7);
+    posAttr.setXYZ(i, x, p.yOffset, z);
+  }
+
+  posAttr.needsUpdate = true;
+}
+
+/**
+ * Disposes all Three.js resources in a HighlightMeshSet.
+ */
+function disposeHighlightMeshSet(meshSet: HighlightMeshSet): void {
+  if (meshSet.glowPlane) {
+    meshSet.glowPlane.geometry.dispose();
+    const mat = meshSet.glowPlane.material as THREE.MeshBasicMaterial;
+    if (mat.map) mat.map.dispose();
+    mat.dispose();
+  }
+  if (meshSet.beamMesh) {
+    meshSet.beamMesh.geometry.dispose();
+    (meshSet.beamMesh.material as THREE.ShaderMaterial).dispose();
+  }
+  if (meshSet.smokeMesh) {
+    meshSet.smokeMesh.geometry.dispose();
+    const mat = meshSet.smokeMesh.material as THREE.PointsMaterial;
+    if (mat.map) mat.map.dispose();
+    mat.dispose();
+  }
+  meshSet.group.parent?.remove(meshSet.group);
+}
+
+/**
+ * Applies per-view highlight effects above the carousel tray.
+ * Called at the end of applyCarouselScrubber() each frame.
+ */
+function applyViewHighlights(
+  highlights: readonly ViewHighlight[],
+  cache: CarouselScrubberCache,
+  trayTopY: number,
+  coords: NVSCoordService,
+): void {
+  const now = Date.now();
+  const activeViewIds = new Set<string>();
+
+  for (const hl of highlights) {
+    activeViewIds.add(hl.viewId);
+
+    let meshSet = cache.highlightMeshes.get(hl.viewId);
+
+    // Convert NVS bounds to world coordinates
+    const cx = hl.bounds.x + hl.bounds.w / 2;
+    const cy = hl.bounds.y + hl.bounds.h / 2;
+    const [worldX] = coords.toWorld(cx, cy, 0);
+    const [worldW, worldH] = coords.toWorldSize(hl.bounds.w, hl.bounds.h);
+
+    const targetOpacity = hl.mode !== 'none' ? hl.intensity : 0;
+
+    if (!meshSet) {
+      // Create new mesh set
+      const group = new THREE.Group();
+      group.name = `Highlight_${hl.viewId}`;
+      cache.root.add(group);
+
+      meshSet = {
+        group,
+        glowPlane: null,
+        beamMesh: null,
+        smokeMesh: null,
+        smokeParticles: null,
+        currentOpacity: 0,
+        mode: 'none',
+        lastTime: now,
+      };
+      cache.highlightMeshes.set(hl.viewId, meshSet);
+    }
+
+    const dt = Math.min((now - meshSet.lastTime) / 1000, 0.1); // cap at 100ms
+    meshSet.lastTime = now;
+
+    // Mode change: tear down old meshes, create new ones
+    if (meshSet.mode !== hl.mode) {
+      if (meshSet.glowPlane) {
+        meshSet.group.remove(meshSet.glowPlane);
+        meshSet.glowPlane.geometry.dispose();
+        (meshSet.glowPlane.material as THREE.MeshBasicMaterial).dispose();
+        meshSet.glowPlane = null;
+      }
+      if (meshSet.beamMesh) {
+        meshSet.group.remove(meshSet.beamMesh);
+        meshSet.beamMesh.geometry.dispose();
+        (meshSet.beamMesh.material as THREE.ShaderMaterial).dispose();
+        meshSet.beamMesh = null;
+      }
+      if (meshSet.smokeMesh) {
+        meshSet.group.remove(meshSet.smokeMesh);
+        meshSet.smokeMesh.geometry.dispose();
+        (meshSet.smokeMesh.material as THREE.PointsMaterial).dispose();
+        meshSet.smokeMesh = null;
+        meshSet.smokeParticles = null;
+      }
+
+      if (hl.mode === 'glow') {
+        meshSet.glowPlane = createGlowPlane(worldW, worldH, hl.color, hl.intensity);
+        meshSet.group.add(meshSet.glowPlane);
+      } else if (hl.mode === 'holographic') {
+        const radius = Math.max(worldW, worldH) * 0.5;
+        const beamHeight = hl.beamHeight ?? 1.5;
+        meshSet.beamMesh = createBeamMesh(radius, beamHeight, hl.color, hl.intensity);
+        meshSet.group.add(meshSet.beamMesh);
+
+        if (hl.smoke) {
+          const { points, particles } = createSmokeMesh(radius, hl.color, DEFAULT_PARTICLE_COUNT);
+          meshSet.smokeMesh = points;
+          meshSet.smokeParticles = particles;
+          meshSet.group.add(points);
+        }
+      }
+
+      meshSet.mode = hl.mode;
+    }
+
+    // Position the highlight group in the tray root's local space.
+    // trayTopY is in world space, but the group is a child of cache.root
+    // which is already offset by root.position.y.
+    const localTopY = trayTopY - cache.root.position.y + 0.01;
+    meshSet.group.position.set(worldX, localTopY, 0);
+
+    // Fade transition
+    meshSet.currentOpacity += (targetOpacity - meshSet.currentOpacity) * HIGHLIGHT_FADE_LERP;
+    if (Math.abs(meshSet.currentOpacity - targetOpacity) < HIGHLIGHT_OPACITY_THRESHOLD) {
+      meshSet.currentOpacity = targetOpacity;
+    }
+
+    const visible = meshSet.currentOpacity > HIGHLIGHT_OPACITY_THRESHOLD;
+    meshSet.group.visible = visible;
+
+    if (!visible) continue;
+
+    // Update glow opacity
+    if (meshSet.glowPlane) {
+      (meshSet.glowPlane.material as THREE.MeshBasicMaterial).opacity = meshSet.currentOpacity;
+    }
+
+    // Update beam uniforms
+    if (meshSet.beamMesh) {
+      const uniforms = (meshSet.beamMesh.material as THREE.ShaderMaterial).uniforms;
+      uniforms['u_intensity'].value = meshSet.currentOpacity;
+      uniforms['u_time'].value = now / 1000;
+    }
+
+    // Update smoke particles
+    if (meshSet.smokeMesh && meshSet.smokeParticles) {
+      const radius = Math.max(worldW, worldH) * 0.5;
+      updateSmokeParticles(meshSet, radius, dt);
+      (meshSet.smokeMesh.material as THREE.PointsMaterial).opacity = meshSet.currentOpacity * 0.3;
+    }
+  }
+
+  // Remove highlight meshes for views no longer in the highlight list
+  for (const [viewId, meshSet] of cache.highlightMeshes) {
+    if (!activeViewIds.has(viewId)) {
+      disposeHighlightMeshSet(meshSet);
+      cache.highlightMeshes.delete(viewId);
+    }
   }
 }
 
@@ -523,6 +891,8 @@ export function applyCarouselScrubber(
   cache: CarouselScrubberCache,
   scene: THREE.Scene,
   coords?: NVSCoordService,
+  materialLoader?: MaterialLoader,
+  materialManifest?: MaterialManifest,
 ): void {
   if (state.childCount === 0 || state.layoutId === '') {
     cache.root.visible = false;
@@ -599,7 +969,7 @@ export function applyCarouselScrubber(
     bevelSegments: 5,
   };
 
-  ensureBase(cache, state.showBase, geoParams, style);
+  ensureBase(cache, state.showBase, geoParams, style, materialLoader, materialManifest);
 
   // -- Tray rotation for ring carousels --
   // Smooth-lerp the tray group Y rotation so it tracks the ring carousel
@@ -631,6 +1001,25 @@ export function applyCarouselScrubber(
     cache.currentRotation = null;
   }
 
+  // -- View highlights ---------------------------------------------------------
+  // TEMP DIAGNOSTIC — remove after debugging
+  if (!cache.lastGeoKey.startsWith('__hl_diag')) {
+    const activeHl = state.viewHighlights.filter(h => h.mode !== 'none');
+    console.warn('[CarouselScrubber] viewHighlights:', state.viewHighlights.length, 'total,', activeHl.length, 'active', activeHl.length > 0 ? activeHl[0] : '(none)');
+    // only log once by marking the cache
+    cache.lastGeoKey = '__hl_diag' + cache.lastGeoKey;
+  }
+  if (coords && state.viewHighlights.length > 0) {
+    const highlightTopY = trayPos ? trayPos.topY : 0;
+    applyViewHighlights(state.viewHighlights, cache, highlightTopY, coords);
+  } else if (cache.highlightMeshes.size > 0) {
+    // Clean up highlights when none are active
+    for (const [, meshSet] of cache.highlightMeshes) {
+      disposeHighlightMeshSet(meshSet);
+    }
+    cache.highlightMeshes.clear();
+  }
+
 }
 
 /** Disposes all Three.js resources created by the carousel scrubber. */
@@ -644,9 +1033,20 @@ export function disposeCarouselScrubber(
     cache.base.geometry.dispose();
     cache.base.material.dispose();
   }
+  if (cache.presetMaterial) {
+    cache.presetMaterial.dispose();
+    cache.presetMaterial = null;
+  }
   // Normal map textures from the procedural cache are shared — do not dispose.
   // Custom URL textures are also shared via the URL cache.
+  // LoadedMaterialPreset textures are owned by MaterialLoader — do not dispose here.
   cache.normalMapTexture = null;
+  cache.loadedPreset = null;
+  // Dispose all highlight meshes.
+  for (const [, meshSet] of cache.highlightMeshes) {
+    disposeHighlightMeshSet(meshSet);
+  }
+  cache.highlightMeshes.clear();
   scene.remove(cache.root);
   delete scene.userData[`${CACHE_KEY}_${widgetId}`];
 }

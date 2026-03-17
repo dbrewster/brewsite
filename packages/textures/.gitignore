@@ -1,0 +1,3 @@
+# Downloaded source textures (230MB+ of JPGs and zips) — regenerate with:
+#   bash scripts/download-textures.sh
+assets-raw/

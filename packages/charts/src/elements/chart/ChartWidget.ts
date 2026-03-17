@@ -22,6 +22,7 @@ import type {
   AnimationTickContext,
   AssetManifest,
 } from '@brewsite/core';
+import { WidgetRegistry } from '@brewsite/core';
 import type { ChartHitInfo, ChartAccessorFunctions } from '../../renderers/shared/IChartRenderer';
 import type { ChartTheme } from '../../themes/types';
 import type { ChartTooltipState } from './tooltip/types';
@@ -140,6 +141,8 @@ export class ChartWidget
   private readonly store: ChartDataStore;
   /** V2.1: Accessor registry passed from chartPlugin. Null when not provided. */
   private readonly accessorRegistry: Map<string, ChartAccessorFunctions> | null;
+  /** WidgetRegistry reference for material loader/manifest access. */
+  private widgetRegistry: WidgetRegistry | null = null;
   private scene: THREE.Scene | null = null;
   private rendererDom: HTMLElement | null = null;
   private camera: THREE.Camera | null = null;
@@ -203,16 +206,19 @@ export class ChartWidget
    * @param store          The ChartDataStore owned by the chartPlugin() instance.
    * @param accessorRegistry Optional accessor registry from chartPlugin() for useChartAccessors().
    * @param rendererOverride Optional renderer override — used by tests to inject a ChartRendererDouble.
+   * @param registry       Optional WidgetRegistry reference for material loader/manifest access.
    */
   constructor(
     widgetId: string,
     store: ChartDataStore,
     accessorRegistry?: Map<string, ChartAccessorFunctions>,
     rendererOverride?: ChartRendererLike,
+    registry?: WidgetRegistry,
   ) {
     this.widgetId = widgetId;
     this.store = store;
     this.accessorRegistry = accessorRegistry ?? null;
+    this.widgetRegistry = registry ?? null;
     this.chartRenderer = rendererOverride ?? new ChartRenderer(store);
 
     // Register cleanup callback — store calls this when deregisterInline() fires.
@@ -362,6 +368,9 @@ export class ChartWidget
       entryT: this.currentEntryT < 1.0 ? this.currentEntryT : undefined,
       // V2.1: pass function accessors from useChartAccessors() registry
       accessors: this.accessorRegistry?.get(this.widgetId),
+      // Material preset support — thread registry references for BarRenderer.
+      materialLoader: this.widgetRegistry?.getMaterialLoader(),
+      materialManifest: this.widgetRegistry?.getMaterialManifest(),
     };
 
     this.chartRenderer.update(renderInput, this.widgetId);

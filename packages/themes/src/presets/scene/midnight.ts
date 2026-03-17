@@ -44,6 +44,8 @@ export const midnightSceneTheme: SceneTheme = {
     edgeStyle: 'knurled',
     surfacePattern: 'brushed',
     surfaceIntensity: 0.30,
+    surfaceMaterial: 'dark-marble',
+    materialApplication: { colorMix: 0.5, brightness: 0.7, saturation: 0.8 },
   },
 };
 
@@ -89,5 +91,7 @@ export const midnightLightSceneTheme: SceneTheme = {
     edgeStyle: 'knurled',
     surfacePattern: 'brushed',
     surfaceIntensity: 0.18,
+    surfaceMaterial: 'dark-marble',
+    materialApplication: { colorMix: 0.35, brightness: 1.0 },
   },
 };

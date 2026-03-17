@@ -1,12 +1,24 @@
 // Material factory for chart renderers — caches MeshPhysicalMaterial by token key.
 
 import * as THREE from 'three';
-import { parseHexColor } from '@brewsite/core';
+import { parseHexColor, createPresetMaterial, applyMaterialApplication } from '@brewsite/core';
+import type { MaterialLoader, MaterialManifest, MaterialApplication, LoadedMaterialPreset } from '@brewsite/core';
 import { getInterpolator } from './colorUtils';
 import type { ChartTheme } from '../../themes/types';
+import type { ChartSeriesMaterialTokens } from '../../themes/types';
 import type { ScatterChartOptions } from './IChartRenderer';
+import type CustomShaderMaterial from 'three-custom-shader-material/vanilla';
 
 type MaterialKey = string;
+
+/**
+ * Tracks per-series preset material state for async loading and warn-once.
+ */
+type PresetState = {
+  loadedPreset: LoadedMaterialPreset | null;
+  presetMaterial: CustomShaderMaterial | null;
+  lastPresetName: string | null;
+};
 
 /**
  * Caches MeshPhysicalMaterial instances by a composite token key.
@@ -15,6 +27,10 @@ type MaterialKey = string;
  */
 export class ChartMaterialFactory {
   private readonly cache = new Map<MaterialKey, THREE.Material>();
+  /** Per-series preset state for async loading. */
+  private readonly presetStates = new Map<number, PresetState>();
+  /** Set of preset names already warned about (missing from manifest). */
+  private readonly warnedPresets = new Set<string>();
 
   /** Returns a cached (or new) material for the given series index. */
   getSeriesMaterial(
@@ -24,7 +40,7 @@ export class ChartMaterialFactory {
   ): THREE.MeshPhysicalMaterial {
     const tokens = theme.series[seriesIndex % theme.series.length]!;
     const flatShading = options?.flatShading === true;
-    const key = `${tokens.color}|${tokens.metalness}|${tokens.roughness}|${tokens.transmission}|${tokens.emissiveIntensity}|${flatShading}`;
+    const key = `${tokens.color}|${tokens.metalness}|${tokens.roughness}|${tokens.transmission}|${tokens.emissiveIntensity}|${flatShading}|${tokens.surfaceMaterial ?? ''}`;
     const cached = this.cache.get(key);
     if (cached instanceof THREE.MeshPhysicalMaterial) return cached;
 
@@ -44,6 +60,87 @@ export class ChartMaterialFactory {
     });
     this.cache.set(key, mat);
     return mat;
+  }
+
+  /**
+   * Returns a CSM preset material for the given series if a preset is configured and loaded.
+   * Returns null if no preset is configured, preset is not in manifest, or preset is still loading.
+   * Caller falls back to getSeriesMaterial() when null is returned.
+   */
+  getPresetMaterial(
+    tokens: ChartSeriesMaterialTokens,
+    seriesIndex: number,
+    materialLoader: MaterialLoader,
+    materialManifest: MaterialManifest,
+  ): CustomShaderMaterial | null {
+    const presetName = tokens.surfaceMaterial;
+    if (!presetName) return null;
+
+    // Ensure per-series preset state exists.
+    let ps = this.presetStates.get(seriesIndex);
+    if (!ps) {
+      ps = { loadedPreset: null, presetMaterial: null, lastPresetName: null };
+      this.presetStates.set(seriesIndex, ps);
+    }
+
+    // Detect preset name change — reset.
+    if (ps.lastPresetName !== presetName) {
+      if (ps.presetMaterial) ps.presetMaterial.dispose();
+      ps.loadedPreset = null;
+      ps.presetMaterial = null;
+      ps.lastPresetName = presetName;
+    }
+
+    // Lookup in manifest.
+    const preset = materialManifest.presets[presetName];
+    if (!preset) {
+      if (!this.warnedPresets.has(presetName)) {
+        console.warn(
+          `[ChartMaterialFactory] Material preset '${presetName}' not found in manifest. Falling back to base color.`,
+        );
+        this.warnedPresets.add(presetName);
+      }
+      return null;
+    }
+
+    // Sync cache hit.
+    const alreadyLoaded = materialLoader.getLoadedPresetByKey(preset, materialManifest.basePath);
+    if (alreadyLoaded && !ps.loadedPreset) {
+      ps.loadedPreset = alreadyLoaded;
+    }
+
+    // Kick off async load.
+    if (!ps.loadedPreset) {
+      materialLoader.loadPreset(preset, materialManifest.basePath).then((loaded) => {
+        ps!.loadedPreset = loaded;
+        // Invalidate so it gets recreated next frame.
+        if (ps!.presetMaterial) {
+          ps!.presetMaterial.dispose();
+          ps!.presetMaterial = null;
+        }
+      });
+      return null; // Still loading — use fallback.
+    }
+
+    // Create CSM material if not yet created.
+    if (!ps.presetMaterial) {
+      const parsed = parseHexColor(tokens.color);
+      ps.presetMaterial = createPresetMaterial({
+        textures: ps.loadedPreset.textures,
+        defaults: ps.loadedPreset.defaults,
+        projection: 'triplanar',
+        application: tokens.materialApplication,
+        baseColor: tokens.color,
+        baseOpacity: parsed.alpha,
+      });
+    }
+
+    // Per-frame uniform updates.
+    if (tokens.materialApplication) {
+      applyMaterialApplication(ps.presetMaterial, tokens.materialApplication, tokens.color);
+    }
+
+    return ps.presetMaterial;
   }
 
   /** Returns a cached (or new) material for axis lines. */
@@ -137,5 +234,10 @@ export class ChartMaterialFactory {
       mat.dispose();
     }
     this.cache.clear();
+    for (const ps of this.presetStates.values()) {
+      if (ps.presetMaterial) ps.presetMaterial.dispose();
+    }
+    this.presetStates.clear();
+    this.warnedPresets.clear();
   }
 }

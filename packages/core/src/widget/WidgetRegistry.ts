@@ -12,6 +12,8 @@ import type { WebGLRenderer, Object3D } from 'three';
 import type { ReactElement } from 'react';
 import { registerNode, getNodeHandler } from '../compiler/registry';
 import type { NodeHandler, CompileApi, CompileHelpers, NodeHandlerCategory } from '../compiler/sceneDslTypes';
+import type { MaterialManifest } from './materialTypes';
+import { MaterialLoader } from './MaterialLoader';
 
 export type WidgetRegistryOptions = {
   /**
@@ -83,6 +85,8 @@ export class WidgetRegistry {
   private readonly strict: boolean;
   private frozen = false;
   private widgetObjects = new Map<string, Object3D>();
+  private materialManifest: MaterialManifest | null = null;
+  private materialLoader: MaterialLoader | null = null;
 
   constructor(options: WidgetRegistryOptions = {}) {
     this.strict = options.strict ?? false;
@@ -363,6 +367,9 @@ export class WidgetRegistry {
     for (const widget of this.widgets.values()) {
       if (isRendererLifecycle(widget)) widget.onRendererDisposing(renderer);
     }
+    if (this.materialLoader) {
+      this.materialLoader.disposeForRenderer(renderer);
+    }
   }
 
   /** Stores the root Object3D created during IRenderable.initialize(). Called by RuntimeDriverImpl. */
@@ -378,6 +385,24 @@ export class WidgetRegistry {
   /** Clears widget object mapping. Called during widget dispose. */
   clearWidgetObject(widgetId: string): void {
     this.widgetObjects.delete(widgetId);
+  }
+
+  /** Called by texturesPlugin.configureRegistry(). */
+  setMaterialManifest(manifest: MaterialManifest): void {
+    this.materialManifest = manifest;
+  }
+
+  /** Returns the registered manifest, or null if @brewsite/textures is not installed. */
+  getMaterialManifest(): MaterialManifest | null {
+    return this.materialManifest;
+  }
+
+  /** Returns the shared MaterialLoader. Created lazily on first access. */
+  getMaterialLoader(): MaterialLoader {
+    if (!this.materialLoader) {
+      this.materialLoader = new MaterialLoader();
+    }
+    return this.materialLoader;
   }
 
   buildCacheKey(): string {

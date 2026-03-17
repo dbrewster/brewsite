@@ -36,14 +36,14 @@ export const enterpriseSceneTheme: SceneTheme = {
     },
   },
   carouselTray: {
-    color: '#1E2F44',
-    opacity: 0.82,
+    // color: '#1E2F44',
+    opacity: 1,
     accentColor: '#5090e0',
     metalness: 0.35,
     roughness: 0.6,
-    edgeStyle: 'knurled',
-    surfacePattern: 'brushed',
     surfaceIntensity: 0.25,
+    surfaceMaterial: 'steel',
+    materialApplication: { colorMix: 0.1, brightness: 1.0, saturation: 0.7 },
   },
 };
 
@@ -89,5 +89,7 @@ export const enterpriseLightSceneTheme: SceneTheme = {
     edgeStyle: 'knurled',
     surfacePattern: 'brushed',
     surfaceIntensity: 0.15,
+    surfaceMaterial: 'steel',
+    materialApplication: { colorMix: 0.35, brightness: 1.2 },
   },
 };

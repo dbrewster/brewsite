@@ -3,7 +3,11 @@ import type { NodeRenderEntry, TextWithLayout } from './types';
 import type { DiagramNodeState, DiagramThemeRenderConfig } from '../types';
 import type { IIconLoader } from './IconLoader';
 import type { IInteractionRegistry } from './InteractionRegistry';
-import { ensureText, disposeText, parseHexColor } from '@brewsite/core';
+import {
+  ensureText, disposeText, parseHexColor,
+  createPresetMaterial, applyMaterialApplication, updatePresetTextures,
+} from '@brewsite/core';
+import type { MaterialLoader, MaterialApplication, MaterialManifest, LoadedMaterialPreset } from '@brewsite/core';
 import { createShapeGeometry, createShapeOutlineGeometry, isRectangularShape, getContentRect } from '../shapes/geometryFactory';
 import { createGlow, computeGlowScale, disposeGlowSprite } from '../../_shared/glowSprite';
 import { Text } from 'troika-three-text';
@@ -108,11 +112,21 @@ const createBoxMaterials = (
 export class NodeRenderer {
   private readonly entries = new Map<string, NodeRenderEntry>();
   private readonly emissiveOverrides = new Map<string, boolean>();
+  private materialLoader: MaterialLoader | null = null;
+  private materialManifest: MaterialManifest | null = null;
+  /** Tracks preset names that have already warned about missing manifest entries. */
+  private warnedPresets = new Set<string>();
 
   constructor(
     private readonly iconLoader: IIconLoader,
     private readonly registry: IInteractionRegistry,
   ) {}
+
+  /** Injects the shared material context for CSM preset material support. */
+  setMaterialContext(loader: MaterialLoader | null, manifest: MaterialManifest | null): void {
+    this.materialLoader = loader;
+    this.materialManifest = manifest;
+  }
 
   private key(diagramId: string, nodeId: string): string {
     return `${diagramId}::${nodeId}`;
@@ -348,10 +362,18 @@ export class NodeRenderer {
         ? (entry.boxMesh.material as THREE.Material[])
         : [entry.boxMesh.material as THREE.Material];
       entry.boxMesh.material = createBoxMaterials(state, entry.materialCount, effectiveEmissiveIntensity, themeConfig.nodeEnvMapIntensity);
-      oldMats.forEach((m) => m.dispose());
+      oldMats.forEach((m) => {
+        // Don't dispose the CSM preset material here — it's tracked separately.
+        if (m !== entry.presetFrontMaterial) m.dispose();
+      });
+      // Re-apply preset material after box material rebuild.
+      entry.appliedPresetName = undefined;
     } else {
       this.applyEmissiveToEntry(entry, state, emissiveOverride);
     }
+
+    // Apply CSM preset material to front face when surfaceMaterial is set.
+    this.applyPresetToFrontFace(entry, state);
 
     if (prev && (prev.opacity !== state.opacity || prev.color !== state.color || prev.sideColor !== state.sideColor)) {
       const mats = Array.isArray(entry.boxMesh.material)
@@ -581,12 +603,136 @@ export class NodeRenderer {
     }
   }
 
+  /**
+   * Applies a CSM preset material to the front face of a node's box mesh.
+   * Three-case error handling:
+   *   (a) surfaceMaterial undefined → existing path (no-op)
+   *   (b) not in manifest → console.warn once + existing material
+   *   (c) loading → existing material until ready, then applied on next update
+   */
+  private applyPresetToFrontFace(entry: NodeRenderEntry, state: DiagramNodeState): void {
+    const presetName = state.surfaceMaterial;
+
+    // (a) No preset → remove any existing CSM material and restore original.
+    if (!presetName) {
+      if (entry.presetFrontMaterial) {
+        this.removePresetFromEntry(entry);
+      }
+      return;
+    }
+
+    // Already applied and preset hasn't changed — just update application uniforms.
+    if (entry.appliedPresetName === presetName && entry.presetFrontMaterial) {
+      if (state.materialApplication) {
+        applyMaterialApplication(
+          entry.presetFrontMaterial as Parameters<typeof applyMaterialApplication>[0],
+          state.materialApplication,
+          state.color,
+        );
+      }
+      return;
+    }
+
+    const manifest = this.materialManifest;
+    const loader = this.materialLoader;
+
+    // No manifest or loader → skip (textures package not installed).
+    if (!manifest || !loader) return;
+
+    const preset = manifest.presets[presetName];
+
+    // (b) Not in manifest → warn once and use existing material.
+    if (!preset) {
+      if (!this.warnedPresets.has(presetName)) {
+        console.warn(
+          `[NodeRenderer] Material preset "${presetName}" not found in manifest. ` +
+          `Using existing material. Ensure @brewsite/textures is configured with this preset.`,
+        );
+        this.warnedPresets.add(presetName);
+      }
+      return;
+    }
+
+    // (c) Check sync cache for loaded preset.
+    const loaded = loader.getLoadedPresetByKey(preset, manifest.basePath);
+    if (!loaded) {
+      // Fire-and-forget async load — will be applied on next frame when available.
+      void loader.loadPreset(preset, manifest.basePath);
+      return;
+    }
+
+    // Apply the loaded preset to the front face.
+    this.applyLoadedPresetToEntry(entry, state, loaded);
+    entry.appliedPresetName = presetName;
+  }
+
+  /** Creates a CSM material and replaces the front-face material on the box mesh. */
+  private applyLoadedPresetToEntry(
+    entry: NodeRenderEntry,
+    state: DiagramNodeState,
+    loaded: LoadedMaterialPreset,
+  ): void {
+    // Dispose previous CSM material if present.
+    if (entry.presetFrontMaterial) {
+      entry.presetFrontMaterial.dispose();
+    }
+
+    const frontParsed = parseHexColor(state.color);
+    const frontOpacity = state.opacity * frontParsed.alpha;
+
+    const csm = createPresetMaterial({
+      textures: loaded.textures,
+      defaults: loaded.defaults,
+      projection: 'uv',
+      application: state.materialApplication,
+      baseColor: state.color,
+      baseOpacity: frontOpacity,
+    });
+    // CSM wraps a base MeshStandardMaterial — access PBR properties via cast.
+    const baseMat = csm as unknown as THREE.MeshStandardMaterial;
+    baseMat.metalness = state.metalness;
+    baseMat.roughness = state.roughness;
+    csm.transparent = frontOpacity < 1;
+    csm.opacity = frontOpacity;
+
+    entry.presetFrontMaterial = csm;
+
+    // Replace the front-face material in the mesh material array.
+    const mats = Array.isArray(entry.boxMesh.material)
+      ? (entry.boxMesh.material as THREE.Material[])
+      : [entry.boxMesh.material as THREE.Material];
+
+    // In 6-material layout: index 4 is front face. In 2-material layout: index 0 is caps/front.
+    const frontIndex = entry.materialCount === 6 ? 4 : 0;
+    if (mats[frontIndex]) {
+      mats[frontIndex].dispose();
+      mats[frontIndex] = csm;
+    }
+
+    entry.boxMesh.material = mats;
+  }
+
+  /** Removes the CSM preset material from a node entry, restoring the original. */
+  private removePresetFromEntry(entry: NodeRenderEntry): void {
+    if (!entry.presetFrontMaterial || !entry.lastState) return;
+    entry.presetFrontMaterial.dispose();
+    entry.presetFrontMaterial = undefined;
+    entry.appliedPresetName = undefined;
+    // The next material rebuild cycle will restore the original MeshStandardMaterial.
+  }
+
   private disposeEntry(entry: NodeRenderEntry): void {
     entry.boxMesh.geometry.dispose();
     const mats = Array.isArray(entry.boxMesh.material)
       ? (entry.boxMesh.material as THREE.Material[])
       : [entry.boxMesh.material as THREE.Material];
     mats.forEach((m) => m.dispose());
+    if (entry.presetFrontMaterial) {
+      // Preset material may already be disposed if it was in the mats array.
+      // THREE.Material.dispose() is safe to call multiple times.
+      entry.presetFrontMaterial.dispose();
+      entry.presetFrontMaterial = undefined;
+    }
     entry.border.geometry.dispose();
     (entry.border.material as THREE.Material).dispose();
     entry.roundedBorder?.geometry.dispose();

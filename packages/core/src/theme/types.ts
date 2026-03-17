@@ -187,6 +187,10 @@ export type SceneThemeFloor = {
    * Maps to FloorProps.negativeZFadeDistance.
    */
   readonly negativeZFadeDistance?: number;
+  /** Named material preset. When set, PBR textures from the manifest are applied. */
+  readonly surfaceMaterial?: string;
+  /** Application controls for the material preset. */
+  readonly materialApplication?: import('../widget/materialTypes').MaterialApplication;
 };
 
 /**
@@ -219,6 +223,20 @@ export type SceneThemeCarouselTray = {
   readonly surfaceIntensity?: number;
   /** URL to a custom normal map texture. Overrides surfacePattern when set. */
   readonly surfaceMapUrl?: string;
+  /** Named material preset from the MaterialManifest. */
+  readonly surfaceMaterial?: string;
+  /** Application controls for the material preset. */
+  readonly materialApplication?: import('../widget/materialTypes').MaterialApplication;
+  /** Default highlight mode for the active carousel item. */
+  readonly highlightActive?: import('../elements/carousel-scrubber/types').ViewHighlightMode;
+  /** Default highlight color. Falls back to accentColor. */
+  readonly highlightColor?: string;
+  /** Default highlight intensity [0-1]. */
+  readonly highlightIntensity?: number;
+  /** Default beam height for holographic mode [world units]. */
+  readonly highlightBeamHeight?: number;
+  /** Enable smoke ring for holographic highlights. */
+  readonly highlightSmoke?: boolean;
 };
 
 /**

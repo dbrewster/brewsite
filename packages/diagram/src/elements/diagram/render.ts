@@ -104,6 +104,12 @@ export class DiagramRenderer {
     this.envMapManager.setRenderer(renderer);
   }
 
+  /** Injects the shared material context for CSM preset material support. */
+  setMaterialContext(loader: import('@brewsite/core').MaterialLoader | null, manifest: import('@brewsite/core').MaterialManifest | null): void {
+    this.nodeRenderer.setMaterialContext(loader, manifest);
+    this.groupRenderer.setMaterialContext(loader, manifest);
+  }
+
   /**
    * ILoadable delegation — env maps load lazily; resolves immediately.
    * This method exists to satisfy ILoadable; no async work is needed here.

@@ -48,6 +48,12 @@ export {
   SCENE_ENVIRONMENT_KEY, SCENE_FLOOR_KEY,
 } from './sceneKeys';
 
+// Shared material factory (CSM preset materials for downstream packages)
+export {
+  createPresetMaterial, applyMaterialApplication, updatePresetTextures,
+} from './_shared/materialFactory';
+export type { PresetMaterialOptions, PresetMaterialProjection } from './_shared/materialFactory';
+
 // Camera
 // DEBT: Missing exports for ICameraHost, CameraInteractionDefaults, FitBotHeightCamera, FitFloorDepthCamera, WorldSpaceCamera, OrbitCamera
 export type {

@@ -36,14 +36,16 @@ export const darkGlassSceneTheme: SceneTheme = {
     },
   },
   carouselTray: {
-    color: '#1C100C',
-    opacity: 0.88,
+    color: '#0A0608',
+    opacity: 0.92,
     accentColor: '#E36A2E',
-    metalness: 0.3,
-    roughness: 0.35,
+    metalness: 0.6,
+    roughness: 0.1,
     edgeStyle: 'smooth',
     surfacePattern: 'grain',
-    surfaceIntensity: 0.20,
+    surfaceIntensity: 0.10,
+    surfaceMaterial: 'obsidian',
+    materialApplication: { colorMix: 0.7, brightness: 0.5, saturation: 0.6, depthMix: 0.8 },
   },
 };
 
@@ -89,5 +91,7 @@ export const darkGlassLightSceneTheme: SceneTheme = {
     edgeStyle: 'smooth',
     surfacePattern: 'grain',
     surfaceIntensity: 0.12,
+    surfaceMaterial: 'onyx',
+    materialApplication: { colorMix: 0.4, brightness: 1.1 },
   },
 };

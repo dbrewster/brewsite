@@ -6,12 +6,12 @@ import {
   Ambient,
   Camera,
   CarouselTray,
+  Directional,
   Floor,
   formatModifier,
   InputController,
   KeyMap,
   Lighting,
-  Directional,
   type OrbitFn,
   PointerMap,
   ProgressManager,
@@ -19,7 +19,6 @@ import {
   Spotlight,
   SpotlightRig,
   TextBox,
-  useCarouselState,
   View,
   ViewLayout,
 } from '@brewsite/core';
@@ -33,7 +32,7 @@ const LAYOUT_ID = 'ring-carousel-layout';
 
 const seeded = (seed: number) => {
   let s = seed;
-  return () => { s = (s * 16807 + 0) % 2147483647; return s / 2147483647; };
+  return () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
 };
 const rng = seeded(17);
 
@@ -211,9 +210,13 @@ export const RingCarouselScene = (): JSX.Element => {
         </Action>
       </InputController>
 
-      <ViewLayout id={LAYOUT_ID} kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={0.7}>
+      <ViewLayout id={LAYOUT_ID} kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={0.7} x={.1} w={.8}>
         <RingCarouselViews />
-        <CarouselTray  metalness={.1}/>
+        <CarouselTray metalness={.1}
+                      highlightActive="holographic"
+                      highlightColor="#E36A2E"
+                      highlightSmoke
+        />
       </ViewLayout>
 
       {/* Title */}

@@ -312,6 +312,16 @@ export type ChartRenderInput = Omit<ChartState, 'nvsX' | 'nvsY' | 'z'> & {
    * @default undefined
    */
   readonly accessors?: ChartAccessorFunctions;
+  /**
+   * Material loader for PBR preset textures. Absent when no @brewsite/textures plugin is active.
+   * @default undefined
+   */
+  readonly materialLoader?: import('@brewsite/core').MaterialLoader;
+  /**
+   * Material manifest for preset lookup. Absent when no @brewsite/textures plugin is active.
+   * @default undefined
+   */
+  readonly materialManifest?: import('@brewsite/core').MaterialManifest | null;
 };
 
 // ─── DSL prop types ─────────────────────────────────────────────────────────

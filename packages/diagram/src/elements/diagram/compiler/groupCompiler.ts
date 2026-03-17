@@ -243,5 +243,7 @@ export function compileGroup(
     onMouseLeave: dsl.onMouseLeave,
     edgeLights,
     labelColor: dsl.labelColor ?? gd.labelColor,
+    surfaceMaterial: dsl.surfaceMaterial,
+    materialApplication: dsl.materialApplication,
   };
 }

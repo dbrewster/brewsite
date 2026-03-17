@@ -2,7 +2,7 @@
 // Tests the seam where DSL props, theme tokens, and compiled defaults merge.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { compileTrayFromViewLayout, computeViewExtent, type TrayViewBounds } from '../compileTray';
+import { compileTrayFromViewLayout, computeViewExtent, resolveHighlightMode, buildViewHighlights, type TrayViewBounds } from '../compileTray';
 import { DEFAULT_CAROUSEL_SCRUBBER_STYLE } from '../compile';
 import type { CarouselTrayProps } from '../dsl';
 import type { CarouselLayoutConfig } from '../../../layout/regionTypes';
@@ -487,5 +487,241 @@ describe('computeViewExtent', () => {
     // Only v1 and v3 contribute: x=[0.1,0.8], y=[0.15,0.6]
     expect(result.x).toBeCloseTo(0.1, 5);
     expect(result.y).toBeCloseTo(0.15, 5);
+  });
+});
+
+// ─── resolveHighlightMode ──────────────────────────────────────────────────
+
+describe('resolveHighlightMode', () => {
+  it('returns glow for boolean true', () => {
+    expect(resolveHighlightMode(true, undefined)).toBe('glow');
+  });
+
+  it('returns none for boolean false', () => {
+    expect(resolveHighlightMode(false, undefined)).toBe('none');
+  });
+
+  it('returns the explicit mode when provided', () => {
+    expect(resolveHighlightMode('holographic', undefined)).toBe('holographic');
+    expect(resolveHighlightMode('glow', undefined)).toBe('glow');
+    expect(resolveHighlightMode('none', undefined)).toBe('none');
+  });
+
+  it('falls back to theme when DSL is undefined', () => {
+    expect(resolveHighlightMode(undefined, 'holographic')).toBe('holographic');
+  });
+
+  it('returns none when both DSL and theme are undefined', () => {
+    expect(resolveHighlightMode(undefined, undefined)).toBe('none');
+  });
+
+  it('DSL true overrides theme holographic', () => {
+    expect(resolveHighlightMode(true, 'holographic')).toBe('glow');
+  });
+
+  it('DSL false overrides theme glow', () => {
+    expect(resolveHighlightMode(false, 'glow')).toBe('none');
+  });
+});
+
+// ─── buildViewHighlights ───────────────────────────────────────────────────
+
+describe('buildViewHighlights', () => {
+  it('returns empty array when mode resolves to none', () => {
+    const result = buildViewHighlights(
+      {}, undefined, '#5090e0', 0, viewIds, viewStates,
+    );
+    expect(result).toEqual([]);
+  });
+
+  it('builds highlights with glow mode for active view only', () => {
+    const result = buildViewHighlights(
+      { highlightActive: 'glow' }, undefined, '#5090e0', 1, viewIds, viewStates,
+    );
+    expect(result).toHaveLength(3);
+    expect(result[0].mode).toBe('none');
+    expect(result[1].mode).toBe('glow');
+    expect(result[1].viewId).toBe('v2');
+    expect(result[2].mode).toBe('none');
+  });
+
+  it('uses default glow intensity of 0.5', () => {
+    const result = buildViewHighlights(
+      { highlightActive: 'glow' }, undefined, '#5090e0', 0, viewIds, viewStates,
+    );
+    expect(result[0].intensity).toBe(0.5);
+  });
+
+  it('uses default holographic intensity of 0.35', () => {
+    const result = buildViewHighlights(
+      { highlightActive: 'holographic' }, undefined, '#5090e0', 0, viewIds, viewStates,
+    );
+    expect(result[0].intensity).toBe(0.35);
+  });
+
+  it('uses DSL color over theme color', () => {
+    const result = buildViewHighlights(
+      { highlightActive: 'glow', highlightColor: '#ff0000' },
+      { highlightColor: '#00ff00' },
+      '#5090e0', 0, viewIds, viewStates,
+    );
+    expect(result[0].color).toBe('#ff0000');
+  });
+
+  it('falls back to theme color when DSL color is absent', () => {
+    const result = buildViewHighlights(
+      { highlightActive: 'glow' },
+      { highlightColor: '#00ff00' },
+      '#5090e0', 0, viewIds, viewStates,
+    );
+    expect(result[0].color).toBe('#00ff00');
+  });
+
+  it('falls back to accentColor when both DSL and theme colors are absent', () => {
+    const result = buildViewHighlights(
+      { highlightActive: 'glow' }, undefined, '#5090e0', 0, viewIds, viewStates,
+    );
+    expect(result[0].color).toBe('#5090e0');
+  });
+
+  it('uses DSL intensity override', () => {
+    const result = buildViewHighlights(
+      { highlightActive: 'glow', highlightIntensity: 0.8 },
+      undefined, '#5090e0', 0, viewIds, viewStates,
+    );
+    expect(result[0].intensity).toBe(0.8);
+  });
+
+  it('uses theme intensity when DSL is absent', () => {
+    const result = buildViewHighlights(
+      { highlightActive: 'glow' },
+      { highlightIntensity: 0.7 },
+      '#5090e0', 0, viewIds, viewStates,
+    );
+    expect(result[0].intensity).toBe(0.7);
+  });
+
+  it('includes beamHeight and smoke for holographic mode', () => {
+    const result = buildViewHighlights(
+      { highlightActive: 'holographic', highlightBeamHeight: 2.0, highlightSmoke: true },
+      undefined, '#5090e0', 0, viewIds, viewStates,
+    );
+    expect(result[0].beamHeight).toBe(2.0);
+    expect(result[0].smoke).toBe(true);
+  });
+
+  it('uses default beamHeight=1.5 and smoke=false for holographic mode', () => {
+    const result = buildViewHighlights(
+      { highlightActive: 'holographic' }, undefined, '#5090e0', 0, viewIds, viewStates,
+    );
+    expect(result[0].beamHeight).toBe(1.5);
+    expect(result[0].smoke).toBe(false);
+  });
+
+  it('does not include beamHeight or smoke for glow mode', () => {
+    const result = buildViewHighlights(
+      { highlightActive: 'glow' }, undefined, '#5090e0', 0, viewIds, viewStates,
+    );
+    expect(result[0].beamHeight).toBeUndefined();
+    expect(result[0].smoke).toBeUndefined();
+  });
+
+  it('copies view bounds from viewStates', () => {
+    const result = buildViewHighlights(
+      { highlightActive: 'glow' }, undefined, '#5090e0', 0, viewIds, viewStates,
+    );
+    expect(result[0].bounds).toEqual({ x: 0.1, y: 0.2, w: 0.3, h: 0.4 });
+  });
+
+  it('uses zero bounds for views not in viewStates', () => {
+    const result = buildViewHighlights(
+      { highlightActive: 'glow' }, undefined, '#5090e0', 0,
+      ['missing'], new Map(),
+    );
+    expect(result[0].bounds).toEqual({ x: 0, y: 0, w: 0, h: 0 });
+  });
+
+  it('inactive views have intensity 0', () => {
+    const result = buildViewHighlights(
+      { highlightActive: 'glow' }, undefined, '#5090e0', 0, viewIds, viewStates,
+    );
+    expect(result[1].intensity).toBe(0);
+    expect(result[2].intensity).toBe(0);
+  });
+
+  it('uses theme highlightActive when DSL is absent', () => {
+    const result = buildViewHighlights(
+      {}, { highlightActive: 'holographic' }, '#5090e0', 0, viewIds, viewStates,
+    );
+    expect(result[0].mode).toBe('holographic');
+  });
+
+  it('uses theme beamHeight and smoke when DSL is absent', () => {
+    const result = buildViewHighlights(
+      {},
+      { highlightActive: 'holographic', highlightBeamHeight: 2.5, highlightSmoke: true },
+      '#5090e0', 0, viewIds, viewStates,
+    );
+    expect(result[0].beamHeight).toBe(2.5);
+    expect(result[0].smoke).toBe(true);
+  });
+});
+
+// ─── compileTrayFromViewLayout — highlight integration ──────────────────────
+
+describe('compileTrayFromViewLayout highlight integration', () => {
+  it('produces empty viewHighlights when no highlight props set', () => {
+    const trayProps: CarouselTrayProps = {};
+    const state = compileTrayFromViewLayout(
+      trayProps, 'layout-1', baseCarouselConfig, viewIds,
+      containerBounds, viewStates, 'default', 'dark',
+    );
+    expect(state.viewHighlights).toEqual([]);
+  });
+
+  it('produces viewHighlights from DSL highlightActive prop', () => {
+    const trayProps: CarouselTrayProps = { highlightActive: 'glow' };
+    const config: CarouselLayoutConfig = { ...baseCarouselConfig, activeIndex: 1 };
+    const state = compileTrayFromViewLayout(
+      trayProps, 'layout-1', config, viewIds,
+      containerBounds, viewStates, 'default', 'dark',
+    );
+    expect(state.viewHighlights).toHaveLength(3);
+    expect(state.viewHighlights[1].mode).toBe('glow');
+    expect(state.viewHighlights[0].mode).toBe('none');
+    expect(state.viewHighlights[2].mode).toBe('none');
+  });
+
+  it('produces viewHighlights from theme highlightActive', () => {
+    // Register a theme with highlight tokens
+    const hlTheme: SceneTheme = {
+      colorMode: 'dark',
+      font: { htmlFamily: 'Inter' },
+      fontSize: { heading: 1.5, body: 1.0, label: 0.85, caption: 0.7, annotation: 0.6 },
+      carouselTray: {
+        highlightActive: 'holographic',
+        highlightColor: '#E36A2E',
+      },
+    };
+    registerSceneThemePair('hlTheme' as ThemeFamily, { dark: hlTheme, light: hlTheme });
+
+    const trayProps: CarouselTrayProps = {};
+    const state = compileTrayFromViewLayout(
+      trayProps, 'layout-1', baseCarouselConfig, viewIds,
+      containerBounds, viewStates, 'hlTheme' as ThemeFamily, 'dark',
+    );
+    expect(state.viewHighlights).toHaveLength(3);
+    expect(state.viewHighlights[0].mode).toBe('holographic');
+    expect(state.viewHighlights[0].color).toBe('#E36A2E');
+  });
+
+  it('uses resolved accentColor as highlight color fallback', () => {
+    const trayProps: CarouselTrayProps = { highlightActive: 'glow', accentColor: '#AABBCC' };
+    const state = compileTrayFromViewLayout(
+      trayProps, 'layout-1', baseCarouselConfig, viewIds,
+      containerBounds, viewStates, 'default', 'dark',
+    );
+    // accentColor from DSL is '#AABBCC', used as highlight color fallback
+    expect(state.viewHighlights[0].color).toBe('#AABBCC');
   });
 });

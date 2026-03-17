@@ -330,7 +330,9 @@ export const registerDiagramHandlers = (registry?: WidgetRegistry): void => {
     // Lazily create and register a DiagramWidget when the plugin provides a registry
     // and no widget for this ID has been registered yet.
     if (registry && !registry.get(dsl.id)) {
-      registry.register(new DiagramWidget(dsl.id, makeDefaultDiagramState(dsl.id)));
+      const widget = new DiagramWidget(dsl.id, makeDefaultDiagramState(dsl.id));
+      widget.setRegistry(registry);
+      registry.register(widget);
     }
 
     api.setWidgetState(dsl.id, diagramState);

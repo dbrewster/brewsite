@@ -3,7 +3,7 @@
 // pipeline testable in isolation.
 
 import type {CarouselTrayProps} from './dsl';
-import type {CarouselScrubberState} from './types';
+import type {CarouselScrubberState, ViewHighlight, ViewHighlightMode} from './types';
 import type {CarouselLayoutConfig} from '../../layout/index';
 import type {NVSRect} from '../../layout/types';
 import type {ThemeFamily} from '../../theme/types';
@@ -52,7 +52,7 @@ export function compileTrayFromViewLayout(
   const trayTheme = sceneTheme.carouselTray;
 
   const trayWidgetId = `${layoutId}__tray`;
-  return compileCarouselScrubber(
+  const baseState = compileCarouselScrubber(
     {
       id: trayWidgetId,
       layoutId,
@@ -69,6 +69,21 @@ export function compileTrayFromViewLayout(
         surfacePattern: trayProps.surfacePattern ?? trayTheme?.surfacePattern,
         surfaceIntensity: trayProps.surfaceIntensity ?? trayTheme?.surfaceIntensity,
         surfaceMapUrl: trayProps.surfaceMapUrl ?? trayTheme?.surfaceMapUrl,
+        surfaceMaterial: trayProps.surface ?? trayTheme?.surfaceMaterial,
+        materialApplication: {
+          ...trayTheme?.materialApplication,
+          ...(trayProps.colorMix !== undefined ? { colorMix: trayProps.colorMix } : {}),
+          ...(trayProps.brightness !== undefined ? { brightness: trayProps.brightness } : {}),
+          ...(trayProps.saturation !== undefined ? { saturation: trayProps.saturation } : {}),
+          ...(trayProps.contrast !== undefined ? { contrast: trayProps.contrast } : {}),
+          ...(trayProps.depthMix !== undefined ? { depthMix: trayProps.depthMix } : {}),
+          ...(trayProps.roughnessMix !== undefined ? { roughnessMix: trayProps.roughnessMix } : {}),
+          ...(trayProps.tint !== undefined ? { tint: trayProps.tint } : {}),
+          ...(trayProps.texScale !== undefined ? { texScale: trayProps.texScale } : {}),
+          ...(trayProps.iridescence !== undefined ? { iridescence: trayProps.iridescence } : {}),
+          ...(trayProps.iridescenceIOR !== undefined ? { iridescenceIOR: trayProps.iridescenceIOR } : {}),
+          ...(trayProps.iridescenceThicknessRange !== undefined ? { iridescenceThicknessRange: trayProps.iridescenceThicknessRange } : {}),
+        },
       },
     },
     carouselConfig.activeIndex,
@@ -78,6 +93,21 @@ export function compileTrayFromViewLayout(
     {zStep: carouselConfig.zStep, spread: carouselConfig.spread},
     viewExtent,
   );
+
+  // -- View highlights: build per-view highlight array from DSL + theme ------
+  const viewHighlights = buildViewHighlights(
+    trayProps,
+    trayTheme,
+    baseState.style.accentColor,
+    carouselConfig.activeIndex,
+    viewIds,
+    viewStates,
+  );
+
+  return {
+    ...baseState,
+    viewHighlights,
+  };
 }
 
 /**
@@ -109,4 +139,87 @@ export function computeViewExtent(
   return Number.isFinite(extMinX)
     ? {x: extMinX, y: extMinY, w: extMaxX - extMinX, h: extMaxY - extMinY}
     : fallback;
+}
+
+/** Default intensity for glow highlights. */
+const DEFAULT_GLOW_INTENSITY = 0.5;
+/** Default intensity for holographic highlights. */
+const DEFAULT_HOLOGRAPHIC_INTENSITY = 0.35;
+/** Default beam height for holographic highlights in world units. */
+const DEFAULT_BEAM_HEIGHT = 1.5;
+
+/**
+ * Resolves the highlight mode from DSL prop (which accepts boolean shorthand)
+ * and theme fallback.
+ *
+ * - `true` -> `'glow'`
+ * - `false` -> `'none'`
+ * - `undefined` -> theme fallback -> `'none'`
+ *
+ * Exported for testing.
+ */
+export function resolveHighlightMode(
+  dslProp: ViewHighlightMode | boolean | undefined,
+  themeFallback: ViewHighlightMode | undefined,
+): ViewHighlightMode {
+  if (dslProp === true) return 'glow';
+  if (dslProp === false) return 'none';
+  if (dslProp !== undefined) return dslProp;
+  return themeFallback ?? 'none';
+}
+
+/**
+ * Builds the per-view highlight array from DSL props, theme tokens, and view bounds.
+ * Only the view at `activeIndex` receives the highlight; all others get mode 'none'.
+ *
+ * Returns an empty array when highlight mode resolves to 'none'.
+ *
+ * Exported for testing.
+ */
+export function buildViewHighlights(
+  trayProps: CarouselTrayProps,
+  trayTheme: import('../../theme/types').SceneThemeCarouselTray | undefined,
+  resolvedAccentColor: string,
+  activeIndex: number,
+  viewIds: readonly string[],
+  viewStates: ReadonlyMap<string, TrayViewBounds>,
+): readonly ViewHighlight[] {
+  const mode = resolveHighlightMode(trayProps.highlightActive, trayTheme?.highlightActive);
+  if (mode === 'none') return [];
+
+  const color = trayProps.highlightColor ?? trayTheme?.highlightColor ?? resolvedAccentColor;
+  const defaultIntensity = mode === 'glow' ? DEFAULT_GLOW_INTENSITY : DEFAULT_HOLOGRAPHIC_INTENSITY;
+  const intensity = trayProps.highlightIntensity ?? trayTheme?.highlightIntensity ?? defaultIntensity;
+  const beamHeight = trayProps.highlightBeamHeight ?? trayTheme?.highlightBeamHeight ?? DEFAULT_BEAM_HEIGHT;
+  const smoke = trayProps.highlightSmoke ?? trayTheme?.highlightSmoke ?? false;
+
+  const highlights: ViewHighlight[] = [];
+
+  for (let i = 0; i < viewIds.length; i++) {
+    const viewId = viewIds[i];
+    const vs = viewStates.get(viewId);
+    const bounds = vs?.bounds ?? { x: 0, y: 0, w: 0, h: 0 };
+
+    if (i === activeIndex) {
+      const highlight: ViewHighlight = {
+        viewId,
+        bounds,
+        mode,
+        color,
+        intensity,
+        ...(mode === 'holographic' ? { beamHeight, smoke } : {}),
+      };
+      highlights.push(highlight);
+    } else {
+      highlights.push({
+        viewId,
+        bounds,
+        mode: 'none',
+        color,
+        intensity: 0,
+      });
+    }
+  }
+
+  return highlights;
 }

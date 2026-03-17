@@ -1,7 +1,7 @@
 // Contract layer for the diagram element. No runtime imports, no Three.js, no React.
 
 import type { DiagramNodeShape, DiagramIconVariant } from './shapes/shapeVariants';
-import type { InputActionSpec, SceneTheme, NVSRect, ThemeFamily } from '@brewsite/core';
+import type { InputActionSpec, SceneTheme, NVSRect, ThemeFamily, MaterialApplication } from '@brewsite/core';
 
 // ─── Theming ─────────────────────────────────────────────────────────────────
 
@@ -145,6 +145,10 @@ export interface DiagramThemeNodeConfig {
    * darkGlass default: 0
    */
   readonly defaultLabelPadding: number;
+  /** Default PBR material preset name for node front faces. Applied via CSM UV projection. */
+  readonly surfaceMaterial?: string;
+  /** Default material application controls for node front-face preset materials. */
+  readonly materialApplication?: MaterialApplication;
 }
 
 /** Edge/connector appearance and routing defaults within a theme. */
@@ -885,6 +889,11 @@ export interface DiagramNodeState {
   readonly onMouseEnter?: DiagramNodeMouseHandler;
   /** Runtime hover leave callback for this node. */
   readonly onMouseLeave?: DiagramNodeMouseHandler;
+
+  /** Named PBR material preset applied to the front face via CSM UV projection. */
+  readonly surfaceMaterial?: string;
+  /** Material application controls for the front-face preset material. */
+  readonly materialApplication?: MaterialApplication;
 }
 
 // ─── Edge ───────────────────────────────────────────────────────────────────
@@ -1106,6 +1115,11 @@ export interface DiagramGroupState {
    * From DiagramGroupDSL.labelColor ?? theme.group.defaultLabelColor.
    */
   readonly labelColor: string;
+
+  /** Named PBR material preset applied to the group fill plane via CSM UV projection. */
+  readonly surfaceMaterial?: string;
+  /** Material application controls for the fill-plane preset material. */
+  readonly materialApplication?: MaterialApplication;
 }
 
 export interface DiagramGroupEdgeLightState {
@@ -1302,6 +1316,10 @@ export interface DiagramNodeDSL {
   readonly groupId?: string;
   readonly onMouseEnter?: DiagramNodeMouseHandler;
   readonly onMouseLeave?: DiagramNodeMouseHandler;
+  /** Named PBR material preset for the node front face. Overrides theme.node.surfaceMaterial. */
+  readonly surfaceMaterial?: string;
+  /** Material application controls for the front-face preset. Overrides theme.node.materialApplication. */
+  readonly materialApplication?: MaterialApplication;
 }
 
 /** Raw DSL data extracted from a <DiagramEdge> component by the compiler. */
@@ -1366,6 +1384,10 @@ export interface DiagramGroupDSL {
   readonly edgeLights?: DiagramGroupEdgeLightsDSL;
   /** Per-group override for the title label text color. Falls back to theme.group.defaultLabelColor. */
   readonly labelColor?: string;
+  /** Named PBR material preset for the group fill plane. */
+  readonly surfaceMaterial?: string;
+  /** Material application controls for the fill-plane preset. */
+  readonly materialApplication?: MaterialApplication;
   readonly nodeIds: ReadonlyArray<string>;
   readonly childGroupIds?: ReadonlyArray<string>;
   /**

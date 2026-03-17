@@ -20,6 +20,7 @@ const packages = [
   { name: "@brewsite/model",         dir: path.join(repoRoot, "packages/model") },
   { name: "@brewsite/charts",        dir: path.join(repoRoot, "packages/charts") },
   { name: "@brewsite/screens",       dir: path.join(repoRoot, "packages/screens") },
+  { name: "@brewsite/textures",      dir: path.join(repoRoot, "packages/textures") },
   { name: "@brewsite/claude-author", dir: path.join(repoRoot, "packages/claude-author") },
   { name: "create-brewsite",         dir: path.join(repoRoot, "packages/npx/create-brewsite") },
   { name: "brewsite",                dir: path.join(repoRoot, "packages/npx/brewsite") },
@@ -142,6 +143,14 @@ screensJson.peerDependencies["@brewsite/core"] = `^${coreVersion}`;
 writePackageJson(screensPath, screensJson);
 console.log(`  @brewsite/screens peerDependencies["@brewsite/core"] -> ^${coreVersion}`);
 
+// @brewsite/textures — peer dependency
+const { packageJsonPath: texturesPath, packageJson: texturesJson } =
+  readPackageJson(packages[5].dir);
+texturesJson.peerDependencies = texturesJson.peerDependencies ?? {};
+texturesJson.peerDependencies["@brewsite/core"] = `^${coreVersion}`;
+writePackageJson(texturesPath, texturesJson);
+console.log(`  @brewsite/textures peerDependencies["@brewsite/core"] -> ^${coreVersion}`);
+
 // ─── Step 3: Confirm versions ─────────────────────────────────────────────────
 
 console.log("\nVersions:");
@@ -175,6 +184,7 @@ run("pnpm", ["--filter", "@brewsite/diagram", "build"]);
 run("pnpm", ["--filter", "@brewsite/model", "build"]);
 run("pnpm", ["--filter", "@brewsite/charts", "build"]);
 run("pnpm", ["--filter", "@brewsite/screens", "build"]);
+run("pnpm", ["--filter", "@brewsite/textures", "build"]);
 run("pnpm", ["--filter", "@brewsite/claude-author", "build"]);
 run("pnpm", ["--filter", "create-brewsite", "build"]);
 run("pnpm", ["--filter", "brewsite", "build"]);

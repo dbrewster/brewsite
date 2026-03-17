@@ -1,5 +1,6 @@
 // DEBT: This file should be split into types-only, blend helpers, and math primitives
 import type { SceneTrackTick, TransitionWindow } from '../sceneTrackTypes';
+import type { MaterialApplication } from '../../widget/materialTypes';
 import { lerp, lerpVec3 } from '../../math';
 
 // Compiler transition contract — batch-fill model.
@@ -517,3 +518,42 @@ export const resolveTransitionOpacity = (opacity?: number, enabled?: boolean): n
  */
 export const resolveEnabledByOpacity = (opacity: number | undefined, fallback = true): boolean =>
   typeof opacity === 'number' ? opacity > 0 : fallback;
+
+// ====================
+// Material Application Blending
+// ====================
+
+/**
+ * Blends two MaterialApplication objects at progress t.
+ * Numeric fields lerp. String fields (tint) snap at t=0.5.
+ * Undefined fields inherit from the target side.
+ */
+export const blendMaterialApplication = (
+  from: MaterialApplication | undefined,
+  to: MaterialApplication | undefined,
+  t: number,
+): MaterialApplication | undefined => {
+  if (!from && !to) return undefined;
+  if (!from) return to;
+  if (!to) return from;
+
+  return {
+    colorMix: blendNumber(from.colorMix, to.colorMix, t),
+    brightness: blendNumber(from.brightness, to.brightness, t),
+    saturation: blendNumber(from.saturation, to.saturation, t),
+    contrast: blendNumber(from.contrast, to.contrast, t),
+    depthMix: blendNumber(from.depthMix, to.depthMix, t),
+    roughnessMix: blendNumber(from.roughnessMix, to.roughnessMix, t),
+    tint: blendColor(from.tint, to.tint, t),
+    texScale: blendNumber(from.texScale, to.texScale, t),
+    iridescence: blendNumber(from.iridescence, to.iridescence, t),
+    iridescenceIOR: blendNumber(from.iridescenceIOR, to.iridescenceIOR, t),
+    iridescenceThicknessRange:
+      from.iridescenceThicknessRange && to.iridescenceThicknessRange
+        ? [
+            lerp(from.iridescenceThicknessRange[0], to.iridescenceThicknessRange[0], t),
+            lerp(from.iridescenceThicknessRange[1], to.iridescenceThicknessRange[1], t),
+          ] as const
+        : from.iridescenceThicknessRange ?? to.iridescenceThicknessRange,
+  };
+};

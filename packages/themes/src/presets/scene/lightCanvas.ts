@@ -44,6 +44,8 @@ export const lightCanvasSceneTheme: SceneTheme = {
     edgeStyle: 'matte',
     surfacePattern: 'none',
     surfaceIntensity: 0,
+    surfaceMaterial: 'light-marble',
+    materialApplication: { colorMix: 0.2, brightness: 1.2, saturation: 0.4 },
   },
 };
 
@@ -89,5 +91,7 @@ export const lightCanvasDarkSceneTheme: SceneTheme = {
     edgeStyle: 'matte',
     surfacePattern: 'grain',
     surfaceIntensity: 0.15,
+    surfaceMaterial: 'light-marble',
+    materialApplication: { colorMix: 0.3, brightness: 1.1, saturation: 0.5 },
   },
 };

@@ -54,7 +54,7 @@ export class BarRenderer implements IChartRenderer {
   private dataLabelRenderer: DataLabelRenderer | null = null;
 
   update(ctx: ChartRenderContext): void {
-    const { seriesGroup, axesGroup, legendGroup, data, xAxis, yAxis, series, bounds, theme, opacity, fontUrl } = ctx;
+    const { seriesGroup, axesGroup, legendGroup, data, xAxis, yAxis, series, bounds, theme, opacity, fontUrl, materialLoader, materialManifest } = ctx;
 
     const barOptions = ctx.typeOptions.kind === 'bar' ? ctx.typeOptions.options : {};
     const orientation = barOptions.orientation ?? 'vertical';
@@ -95,9 +95,9 @@ export class BarRenderer implements IChartRenderer {
     if (needsRebuild) {
       this.clearBars();
       if (stackMode === 'stacked') {
-        this.buildStackedBars(seriesGroup, data, xField, effectiveSeries, bounds, theme, opacity, orientation, barPadding, ctx.morphCtx);
+        this.buildStackedBars(seriesGroup, data, xField, effectiveSeries, bounds, theme, opacity, orientation, barPadding, ctx.morphCtx, materialLoader, materialManifest);
       } else {
-        this.buildGroupedBars(seriesGroup, data, xField, effectiveSeries, bounds, theme, opacity, orientation, barPadding, ctx.morphCtx, ctx.accessors);
+        this.buildGroupedBars(seriesGroup, data, xField, effectiveSeries, bounds, theme, opacity, orientation, barPadding, ctx.morphCtx, ctx.accessors, materialLoader, materialManifest);
       }
       this.lastDataFrame = data;
       this.lastDataLength = data.rows.length;
@@ -199,6 +199,8 @@ export class BarRenderer implements IChartRenderer {
     barPadding: number,
     morphCtx: MorphContext | undefined,
     accessors: ChartAccessorFunctions | undefined,
+    materialLoader?: import('@brewsite/core').MaterialLoader,
+    materialManifest?: import('@brewsite/core').MaterialManifest | null,
   ): void {
     const isHorizontal = orientation === 'horizontal';
 
@@ -239,7 +241,14 @@ export class BarRenderer implements IChartRenderer {
     for (let si = 0; si < series.length; si++) {
       const s = series[si]!;
       const tokens = theme.series[si % theme.series.length]!;
-      const mat = this.materialFactory.getSeriesMaterial(theme, si);
+
+      // Try CSM preset material first; fall back to standard MeshPhysicalMaterial.
+      const presetMat = (materialLoader && materialManifest)
+        ? this.materialFactory.getPresetMaterial(tokens, si, materialLoader, materialManifest)
+        : null;
+      const mat = presetMat
+        ? (presetMat as unknown as THREE.MeshPhysicalMaterial)
+        : this.materialFactory.getSeriesMaterial(theme, si);
       mat.opacity = opacity;
       mat.transparent = opacity < 1;
       if (mat.userData.baseEmissiveIntensity === undefined) {
@@ -314,6 +323,8 @@ export class BarRenderer implements IChartRenderer {
     orientation: 'vertical' | 'horizontal',
     barPadding: number,
     morphCtx: MorphContext | undefined,
+    materialLoader?: import('@brewsite/core').MaterialLoader,
+    materialManifest?: import('@brewsite/core').MaterialManifest | null,
   ): void {
     const isHorizontal = orientation === 'horizontal';
     const categories = (data.rows as Array<Record<string, unknown>>).map((r) => String(r[xField]));
@@ -343,7 +354,14 @@ export class BarRenderer implements IChartRenderer {
     for (let si = 0; si < stackedData.length; si++) {
       const layer = stackedData[si]!;
       const tokens = theme.series[si % theme.series.length]!;
-      const mat = this.materialFactory.getSeriesMaterial(theme, si);
+
+      // Try CSM preset material first; fall back to standard MeshPhysicalMaterial.
+      const presetMat = (materialLoader && materialManifest)
+        ? this.materialFactory.getPresetMaterial(tokens, si, materialLoader, materialManifest)
+        : null;
+      const mat = presetMat
+        ? (presetMat as unknown as THREE.MeshPhysicalMaterial)
+        : this.materialFactory.getSeriesMaterial(theme, si);
       mat.opacity = opacity;
       mat.transparent = opacity < 1;
       if (mat.userData.baseEmissiveIntensity === undefined) {

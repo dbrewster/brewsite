@@ -419,6 +419,11 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     renderer.shadowMap.enabled = true;
     rendererRef.current = renderer;
     options.widgetRegistry.notifyRendererCreated(renderer);
+    // Notify plugins so they can initialize GPU resources (e.g. texturesPlugin
+    // initializes MaterialLoader with its custom transcoderPath here).
+    for (const plugin of options.plugins ?? []) {
+      plugin.onRendererCreated?.(renderer);
+    }
     const onContextLost = (event: Event) => { event.preventDefault(); };
     const onContextRestored = () => {
       console.warn('[SceneEngine] WebGL context restored — reinitializing renderer.');
@@ -434,6 +439,9 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     return () => {
       canvas.removeEventListener('webglcontextlost', onContextLost);
       canvas.removeEventListener('webglcontextrestored', onContextRestored);
+      for (const plugin of options.plugins ?? []) {
+        plugin.onRendererDisposing?.(renderer);
+      }
       options.widgetRegistry.notifyRendererDisposing(renderer);
       renderer.dispose();
       rendererRef.current = null;

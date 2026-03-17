@@ -3,7 +3,7 @@
 import type { CarouselScrubberState, CarouselScrubberStyle } from './types';
 import type { CarouselScrubberProps } from './dsl';
 import type { FunctionalTransitionSpec } from '../../compiler/transitions/transitionTypes';
-import { blendNumber, blendColor } from '../../compiler/transitions/transitionTypes';
+import { blendNumber, blendColor, blendMaterialApplication } from '../../compiler/transitions/transitionTypes';
 
 /** Default visual style for the carousel scrubber. */
 export const DEFAULT_CAROUSEL_SCRUBBER_STYLE: CarouselScrubberStyle = {
@@ -16,6 +16,8 @@ export const DEFAULT_CAROUSEL_SCRUBBER_STYLE: CarouselScrubberStyle = {
   surfacePattern: 'brushed',
   surfaceIntensity: 0.25,
   surfaceMapUrl: null,
+  surfaceMaterial: null,
+  materialApplication: {},
 };
 
 /** Default compiled state used by the widget when no scene declares a CarouselScrubber. */
@@ -32,6 +34,7 @@ export const DEFAULT_CAROUSEL_SCRUBBER_STATE: CarouselScrubberState = {
   viewExtent: { x: 0, y: 0, w: 1, h: 1 },
   zStep: 0,
   spread: 0.45,
+  viewHighlights: [],
 };
 
 /**
@@ -81,6 +84,7 @@ export function compileCarouselScrubber(
     viewExtent: viewExtent ?? bounds,
     zStep: carouselConfig?.zStep ?? 0,
     spread: carouselConfig?.spread ?? 0.45,
+    viewHighlights: [],
   };
 }
 
@@ -102,6 +106,8 @@ function blendStyle(
     surfacePattern: t < 0.5 ? from.surfacePattern : to.surfacePattern,
     surfaceIntensity: blendNumber(from.surfaceIntensity, to.surfaceIntensity, t) ?? to.surfaceIntensity,
     surfaceMapUrl: t < 0.5 ? from.surfaceMapUrl : to.surfaceMapUrl,
+    surfaceMaterial: t < 0.5 ? from.surfaceMaterial : to.surfaceMaterial,
+    materialApplication: blendMaterialApplication(from.materialApplication, to.materialApplication, t) ?? to.materialApplication,
   };
 }
 
@@ -115,6 +121,7 @@ export const carouselScrubberTransitionSpec: FunctionalTransitionSpec<CarouselSc
       ...from.style,
       baseOpacity: blendNumber(from.style.baseOpacity, 0, t) ?? 0,
     },
+    viewHighlights: from.viewHighlights,
   }),
   enterFn: (to) => ({ t }) => ({
     ...to,
@@ -122,6 +129,7 @@ export const carouselScrubberTransitionSpec: FunctionalTransitionSpec<CarouselSc
       ...to.style,
       baseOpacity: blendNumber(0, to.style.baseOpacity, t) ?? to.style.baseOpacity,
     },
+    viewHighlights: to.viewHighlights,
   }),
   interpolateFn: (from, to) => ({ t }) => ({
     layoutId: t < 0.5 ? from.layoutId : to.layoutId,
@@ -146,5 +154,6 @@ export const carouselScrubberTransitionSpec: FunctionalTransitionSpec<CarouselSc
     },
     zStep: blendNumber(from.zStep, to.zStep, t) ?? to.zStep,
     spread: blendNumber(from.spread, to.spread, t) ?? to.spread,
+    viewHighlights: t < 0.5 ? from.viewHighlights : to.viewHighlights,
   }),
 };

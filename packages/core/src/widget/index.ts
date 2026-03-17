@@ -28,3 +28,9 @@ export { useVariable } from './useVariable';
 export { useCarouselState } from './useCarouselIndex';
 export type { WidgetPlugin } from './WidgetPlugin';
 export type { INVSBounded, NVSRect, NVSPosition } from '../layout/types';
+export type {
+  MaterialPreset, MaterialPresetMaps, MaterialPresetDefaults,
+  MaterialManifest, MaterialApplication,
+  LoadedMaterialTextures, LoadedMaterialPreset,
+} from './materialTypes';
+export { MaterialLoader } from './MaterialLoader';

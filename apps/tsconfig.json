@@ -12,6 +12,8 @@
       "@brewsite/charts/*": ["../packages/charts/src/*"],
       "@brewsite/screens": ["../packages/screens/src/index.ts"],
       "@brewsite/screens/*": ["../packages/screens/src/*"],
+      "@brewsite/textures": ["../packages/textures/src/index.ts"],
+      "@brewsite/textures/*": ["../packages/textures/src/*"],
       "@brewsite/slides": ["../packages/slides/src/index.ts"],
       "@brewsite/slides/*": ["../packages/slides/src/*"],
       "@brewsite/themes": ["../packages/themes/src/index.ts"],

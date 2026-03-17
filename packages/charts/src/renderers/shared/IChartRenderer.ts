@@ -260,6 +260,16 @@ export type ChartRenderContext = {
    * @default undefined — renderers that don't need it ignore this field
    */
   readonly plotFrameOffset?: { readonly x: number; readonly y: number };
+  /**
+   * Material loader for PBR preset textures. Absent when no @brewsite/textures plugin is active.
+   * @default undefined
+   */
+  readonly materialLoader?: import('@brewsite/core').MaterialLoader;
+  /**
+   * Material manifest for preset lookup. Absent when no @brewsite/textures plugin is active.
+   * @default undefined
+   */
+  readonly materialManifest?: import('@brewsite/core').MaterialManifest | null;
 };
 
 // ─── Interface ────────────────────────────────────────────────────────────

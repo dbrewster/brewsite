@@ -6,6 +6,9 @@ import * as THREE from 'three';
 import type { ImagePanelState } from './types';
 import { createBezel, disposeBezel } from '../_shared/bezelGeometry';
 import { createGlow, disposeGlowSprite } from '../_shared/glowSprite';
+import type { MaterialLoader, MaterialManifest, LoadedMaterialPreset } from '@brewsite/core';
+import { createPresetMaterial, applyMaterialApplication } from '@brewsite/core';
+import type CustomShaderMaterial from 'three-custom-shader-material/vanilla';
 
 /**
  * World-space render input for ImagePanelRenderer.
@@ -19,6 +22,10 @@ export type ImagePanelRenderInput = Omit<ImagePanelState, 'nvsX' | 'nvsY' | 'z' 
   readonly width: number;
   /** Panel height in world units. Undefined = compute from image aspect ratio. */
   readonly height: number | undefined;
+  /** Material loader for preset textures. */
+  readonly materialLoader?: MaterialLoader;
+  /** Material manifest for preset lookup. */
+  readonly materialManifest?: MaterialManifest | null;
 };
 
 type PanelEntry = {
@@ -27,6 +34,14 @@ type PanelEntry = {
   bezelGroup: THREE.Group;
   glowSprite?: THREE.Sprite;
   lastState?: ImagePanelRenderInput;
+  /** CSM preset material for bezel (null = using standard material). */
+  bezelPresetMaterial?: CustomShaderMaterial | null;
+  /** Loaded preset for bezel. */
+  bezelLoadedPreset?: LoadedMaterialPreset | null;
+  /** Last bezel material name for change detection. */
+  lastBezelMaterial?: string | null;
+  /** Set of bezel preset names already warned about. */
+  bezelWarnedPresets?: Set<string>;
 };
 
 const textureLoader = new THREE.TextureLoader();
@@ -113,6 +128,9 @@ export class ImagePanelRenderer {
       }
     });
 
+    // Apply bezel material preset (async, non-blocking).
+    this.applyBezelPreset(entry, state);
+
     if (state.glow) {
       if (!entry.glowSprite || state.glowColor !== prev?.glowColor || state.glowScale !== prev?.glowScale) {
         if (entry.glowSprite) {
@@ -148,6 +166,7 @@ export class ImagePanelRenderer {
     (entry.imageMesh.material as THREE.Material).dispose();
     disposeBezel(entry.bezelGroup);
     if (entry.glowSprite) disposeGlowSprite(entry.glowSprite);
+    if (entry.bezelPresetMaterial) entry.bezelPresetMaterial.dispose();
     this.panels.delete(panelId);
     this.lastState.delete(panelId);
   }
@@ -177,5 +196,83 @@ export class ImagePanelRenderer {
   private updateGeometry(entry: PanelEntry, width: number, height: number): void {
     entry.imageMesh.geometry.dispose();
     entry.imageMesh.geometry = new THREE.PlaneGeometry(width, height);
+  }
+
+  /**
+   * Resolves and applies bezel material preset for an image panel.
+   * Async-loads textures on first encounter; applies CSM material once ready.
+   */
+  private applyBezelPreset(entry: PanelEntry, state: ImagePanelRenderInput): void {
+    const presetName = state.bezelMaterial;
+    const materialLoader = state.materialLoader;
+    const materialManifest = state.materialManifest;
+
+    if (!presetName || !materialLoader || !materialManifest) return;
+
+    // Init warn set.
+    if (!entry.bezelWarnedPresets) entry.bezelWarnedPresets = new Set();
+
+    // Detect preset name change — reset.
+    if (entry.lastBezelMaterial !== presetName) {
+      if (entry.bezelPresetMaterial) entry.bezelPresetMaterial.dispose();
+      entry.bezelLoadedPreset = null;
+      entry.bezelPresetMaterial = null;
+      entry.lastBezelMaterial = presetName;
+    }
+
+    // Manifest lookup.
+    const preset = materialManifest.presets[presetName];
+    if (!preset) {
+      if (!entry.bezelWarnedPresets.has(presetName)) {
+        console.warn(
+          `[ImagePanelRenderer] Material preset '${presetName}' not found in manifest. Falling back to standard bezel.`,
+        );
+        entry.bezelWarnedPresets.add(presetName);
+      }
+      return;
+    }
+
+    // Sync cache hit.
+    const alreadyLoaded = materialLoader.getLoadedPresetByKey(preset, materialManifest.basePath);
+    if (alreadyLoaded && !entry.bezelLoadedPreset) {
+      entry.bezelLoadedPreset = alreadyLoaded;
+    }
+
+    // Async load.
+    if (!entry.bezelLoadedPreset) {
+      materialLoader.loadPreset(preset, materialManifest.basePath).then((loaded) => {
+        entry.bezelLoadedPreset = loaded;
+        if (entry.bezelPresetMaterial) {
+          entry.bezelPresetMaterial.dispose();
+          entry.bezelPresetMaterial = null;
+        }
+      });
+      return;
+    }
+
+    // Create CSM material if not yet created.
+    if (!entry.bezelPresetMaterial) {
+      entry.bezelPresetMaterial = createPresetMaterial({
+        textures: entry.bezelLoadedPreset.textures,
+        defaults: entry.bezelLoadedPreset.defaults,
+        projection: 'triplanar',
+        application: state.bezelMaterialApplication,
+      });
+    }
+
+    // Per-frame uniform update.
+    if (state.bezelMaterialApplication) {
+      applyMaterialApplication(entry.bezelPresetMaterial, state.bezelMaterialApplication);
+    }
+
+    // Apply CSM material to bezel meshes.
+    entry.bezelGroup.traverse((obj) => {
+      if ((obj as THREE.Mesh).isMesh) {
+        const mesh = obj as THREE.Mesh;
+        if (mesh.material !== entry.bezelPresetMaterial) {
+          mesh.material = entry.bezelPresetMaterial as unknown as THREE.Material;
+        }
+      }
+    });
   }
 }

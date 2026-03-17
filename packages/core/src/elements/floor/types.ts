@@ -2,6 +2,8 @@
  * Floor element types.
  */
 
+import type { MaterialApplication } from '../../widget/materialTypes';
+
 export type FloorVariant = 'grid' | 'mirror' | 'physical';
 
 export type FloorPlacement = 'origin' | 'sceneBase';
@@ -103,6 +105,10 @@ export type FloorSurfacePhysical = {
   alphaMapUrl?: string;
   emissiveMapUrl?: string;
   wireframe?: boolean;
+  /** Named material preset. When set, PBR textures from the manifest are applied. */
+  surfaceMaterial?: string;
+  /** Application controls for the material preset. */
+  materialApplication?: MaterialApplication;
 };
 
 export type FloorSurfaceMirror = {

@@ -1,7 +1,7 @@
 // Tests for CarouselScrubber compile.ts — pure function tests with real inputs.
 
 import { describe, it, expect } from 'vitest';
-import type { CarouselScrubberState } from '../types';
+import type { CarouselScrubberState, ViewHighlight } from '../types';
 import {
   compileCarouselScrubber,
   DEFAULT_CAROUSEL_SCRUBBER_STATE,
@@ -83,6 +83,34 @@ describe('compileCarouselScrubber', () => {
     expect(state.style.edgeStyle).toBe('knurled');
   });
 
+  it('defaults surfaceMaterial to null', () => {
+    const state = compileCarouselScrubber(minimalProps, 0, 0, false);
+    expect(state.style.surfaceMaterial).toBeNull();
+    expect(state.style.materialApplication).toEqual({});
+  });
+
+  it('applies explicit surfaceMaterial', () => {
+    const props: CarouselScrubberProps = {
+      ...minimalProps,
+      style: { surfaceMaterial: 'onyx' },
+    };
+    const state = compileCarouselScrubber(props, 0, 3, false);
+    expect(state.style.surfaceMaterial).toBe('onyx');
+  });
+
+  it('applies materialApplication fields', () => {
+    const props: CarouselScrubberProps = {
+      ...minimalProps,
+      style: {
+        materialApplication: { colorMix: 0.5, brightness: 0.8, iridescence: 0.3 },
+      },
+    };
+    const state = compileCarouselScrubber(props, 0, 3, false);
+    expect(state.style.materialApplication.colorMix).toBe(0.5);
+    expect(state.style.materialApplication.brightness).toBe(0.8);
+    expect(state.style.materialApplication.iridescence).toBe(0.3);
+  });
+
   it('defaults surfacePattern to brushed', () => {
     const state = compileCarouselScrubber(minimalProps, 0, 0, false);
     expect(state.style.surfacePattern).toBe('brushed');
@@ -116,6 +144,11 @@ describe('compileCarouselScrubber', () => {
     const state = compileCarouselScrubber(props, 0, 3, false);
     expect(state.style.surfaceMapUrl).toBe('/textures/custom.png');
   });
+
+  it('produces empty viewHighlights by default', () => {
+    const state = compileCarouselScrubber(minimalProps, 0, 3, false);
+    expect(state.viewHighlights).toEqual([]);
+  });
 });
 
 // -- DEFAULT_CAROUSEL_SCRUBBER_STATE -----------------------------------------
@@ -130,6 +163,10 @@ describe('DEFAULT_CAROUSEL_SCRUBBER_STATE', () => {
     expect(DEFAULT_CAROUSEL_SCRUBBER_STATE.trayDepth).toBe(0.36);
     expect(DEFAULT_CAROUSEL_SCRUBBER_STATE.gap).toBe(0.02);
     expect(DEFAULT_CAROUSEL_SCRUBBER_STATE.style.edgeStyle).toBe('knurled');
+  });
+
+  it('has empty viewHighlights by default', () => {
+    expect(DEFAULT_CAROUSEL_SCRUBBER_STATE.viewHighlights).toEqual([]);
   });
 });
 
@@ -274,6 +311,49 @@ describe('carouselScrubberTransitionSpec', () => {
       expect(fn(makeCtx(0.7)).style.surfaceMapUrl).toBe('/b.png');
     });
 
+    it('switches surfaceMaterial at midpoint', () => {
+      const from = makeState({
+        style: { ...DEFAULT_CAROUSEL_SCRUBBER_STYLE, surfaceMaterial: 'onyx' },
+      });
+      const to = makeState({
+        style: { ...DEFAULT_CAROUSEL_SCRUBBER_STYLE, surfaceMaterial: 'steel' },
+      });
+      const fn = carouselScrubberTransitionSpec.interpolateFn(from, to);
+      expect(fn(makeCtx(0.3)).style.surfaceMaterial).toBe('onyx');
+      expect(fn(makeCtx(0.7)).style.surfaceMaterial).toBe('steel');
+    });
+
+    it('blends materialApplication numeric fields', () => {
+      const from = makeState({
+        style: {
+          ...DEFAULT_CAROUSEL_SCRUBBER_STYLE,
+          materialApplication: { colorMix: 0.2, brightness: 0.5 },
+        },
+      });
+      const to = makeState({
+        style: {
+          ...DEFAULT_CAROUSEL_SCRUBBER_STYLE,
+          materialApplication: { colorMix: 0.8, brightness: 1.5 },
+        },
+      });
+      const fn = carouselScrubberTransitionSpec.interpolateFn(from, to);
+      const mid = fn(makeCtx(0.5));
+      expect(mid.style.materialApplication.colorMix).toBeCloseTo(0.5, 2);
+      expect(mid.style.materialApplication.brightness).toBeCloseTo(1.0, 2);
+    });
+
+    it('preserves materialApplication when both sides are empty', () => {
+      const from = makeState({
+        style: { ...DEFAULT_CAROUSEL_SCRUBBER_STYLE, materialApplication: {} },
+      });
+      const to = makeState({
+        style: { ...DEFAULT_CAROUSEL_SCRUBBER_STYLE, materialApplication: {} },
+      });
+      const fn = carouselScrubberTransitionSpec.interpolateFn(from, to);
+      const result = fn(makeCtx(0.5));
+      expect(result.style.materialApplication).toBeDefined();
+    });
+
     it('blends style numeric values', () => {
       const from = makeState({
         style: { ...DEFAULT_CAROUSEL_SCRUBBER_STYLE, baseOpacity: 0.2, metalness: 0.0 },
@@ -285,6 +365,39 @@ describe('carouselScrubberTransitionSpec', () => {
       const result = fn(makeCtx(0.5));
       expect(result.style.baseOpacity).toBeCloseTo(0.6, 5);
       expect(result.style.metalness).toBeCloseTo(0.5, 5);
+    });
+
+    it('snaps viewHighlights at midpoint (from before, to after)', () => {
+      const fromHighlights: readonly ViewHighlight[] = [
+        { viewId: 'v1', bounds: { x: 0, y: 0, w: 0.5, h: 0.5 }, mode: 'glow', color: '#ff0000', intensity: 0.5 },
+      ];
+      const toHighlights: readonly ViewHighlight[] = [
+        { viewId: 'v2', bounds: { x: 0.5, y: 0, w: 0.5, h: 0.5 }, mode: 'holographic', color: '#00ff00', intensity: 0.35 },
+      ];
+      const from = makeState({ viewHighlights: fromHighlights });
+      const to = makeState({ viewHighlights: toHighlights });
+      const fn = carouselScrubberTransitionSpec.interpolateFn(from, to);
+
+      expect(fn(makeCtx(0.3)).viewHighlights).toBe(fromHighlights);
+      expect(fn(makeCtx(0.7)).viewHighlights).toBe(toHighlights);
+    });
+
+    it('preserves viewHighlights through exitFn', () => {
+      const highlights: readonly ViewHighlight[] = [
+        { viewId: 'v1', bounds: { x: 0, y: 0, w: 1, h: 1 }, mode: 'glow', color: '#fff', intensity: 0.5 },
+      ];
+      const from = makeState({ viewHighlights: highlights });
+      const fn = carouselScrubberTransitionSpec.exitFn(from);
+      expect(fn(makeCtx(0.5)).viewHighlights).toBe(highlights);
+    });
+
+    it('preserves viewHighlights through enterFn', () => {
+      const highlights: readonly ViewHighlight[] = [
+        { viewId: 'v1', bounds: { x: 0, y: 0, w: 1, h: 1 }, mode: 'holographic', color: '#fff', intensity: 0.35 },
+      ];
+      const to = makeState({ viewHighlights: highlights });
+      const fn = carouselScrubberTransitionSpec.enterFn(to);
+      expect(fn(makeCtx(0.5)).viewHighlights).toBe(highlights);
     });
   });
 });

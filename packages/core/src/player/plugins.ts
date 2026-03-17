@@ -75,6 +75,8 @@ export function corePlugin(options?: CorePluginOptions): WidgetPlugin {
       // Called after all plugins' createWidgets() have run.
       const overrideWidgets = [...reg.getAllWidgets()].filter(isLightingOverride);
       lightingWidget.setLightingOverrides(overrideWidgets);
+      // Wire material loader/manifest access for floor preset materials.
+      floorWidget.setRegistry(reg);
     },
 
     reconcileCompiledTrack(registry: WidgetRegistry, track: SceneTrack): void {
@@ -91,7 +93,7 @@ export function corePlugin(options?: CorePluginOptions): WidgetPlugin {
             registry.register(viewWidget);
           }
           if (isCarouselScrubberStateLike(state) && !registry.get(widgetId)) {
-            const scrubberWidget = new CarouselScrubberWidget(widgetId);
+            const scrubberWidget = new CarouselScrubberWidget(widgetId, registry);
             registry.register(scrubberWidget);
           }
         }

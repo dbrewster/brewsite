@@ -12,7 +12,9 @@ import {
   blendStyleValuesPartial,
   resolveTransitionOpacity,
   resolveEnabledByOpacity,
+  blendMaterialApplication,
 } from '../transitions/transitionTypes';
+import type { MaterialApplication } from '../../widget/materialTypes';
 import { resolveSceneTransition } from '../transitions/transitionPresets';
 import type { TransitionWindow } from '../sceneTrackTypes';
 
@@ -193,5 +195,102 @@ describe('resolveSceneTransition', () => {
       const raw: TransitionWindow = {};
       expect(resolveSceneTransition(raw, undefined)).toBe(raw);
     });
+  });
+});
+
+describe('blendMaterialApplication', () => {
+  it('returns undefined when both sides are undefined', () => {
+    expect(blendMaterialApplication(undefined, undefined, 0.5)).toBeUndefined();
+  });
+
+  it('returns to when from is undefined', () => {
+    const to: MaterialApplication = { colorMix: 0.8, brightness: 1.2 };
+    expect(blendMaterialApplication(undefined, to, 0.5)).toBe(to);
+  });
+
+  it('returns from when to is undefined', () => {
+    const from: MaterialApplication = { colorMix: 0.3 };
+    expect(blendMaterialApplication(from, undefined, 0.5)).toBe(from);
+  });
+
+  it('lerps numeric fields correctly at t=0', () => {
+    const from: MaterialApplication = { colorMix: 0, brightness: 1.0 };
+    const to: MaterialApplication = { colorMix: 1, brightness: 2.0 };
+    const result = blendMaterialApplication(from, to, 0)!;
+    expect(result.colorMix).toBe(0);
+    expect(result.brightness).toBe(1.0);
+  });
+
+  it('lerps numeric fields correctly at t=0.5', () => {
+    const from: MaterialApplication = { colorMix: 0, brightness: 1.0, saturation: 0.5 };
+    const to: MaterialApplication = { colorMix: 1, brightness: 2.0, saturation: 1.5 };
+    const result = blendMaterialApplication(from, to, 0.5)!;
+    expect(result.colorMix).toBe(0.5);
+    expect(result.brightness).toBe(1.5);
+    expect(result.saturation).toBe(1.0);
+  });
+
+  it('lerps numeric fields correctly at t=1', () => {
+    const from: MaterialApplication = { colorMix: 0, contrast: -0.5 };
+    const to: MaterialApplication = { colorMix: 1, contrast: 0.5 };
+    const result = blendMaterialApplication(from, to, 1)!;
+    expect(result.colorMix).toBe(1);
+    expect(result.contrast).toBe(0.5);
+  });
+
+  it('blends tint color via blendColor (interpolation)', () => {
+    const from: MaterialApplication = { tint: '#ff0000' };
+    const to: MaterialApplication = { tint: '#00ff00' };
+    const result = blendMaterialApplication(from, to, 0.5)!;
+    expect(result.tint).toBe('#808000');
+  });
+
+  it('snaps tint from one defined side when other is undefined', () => {
+    const from: MaterialApplication = { tint: '#ff0000' };
+    const to: MaterialApplication = {};
+    const result = blendMaterialApplication(from, to, 0.3)!;
+    expect(result.tint).toBe('#ff0000');
+  });
+
+  it('inherits undefined fields from the defined side', () => {
+    const from: MaterialApplication = { colorMix: 0.5 };
+    const to: MaterialApplication = { brightness: 1.5 };
+    const result = blendMaterialApplication(from, to, 0.5)!;
+    // colorMix: only from has it → blendNumber(0.5, undefined) → 0.5
+    expect(result.colorMix).toBe(0.5);
+    // brightness: only to has it → blendNumber(undefined, 1.5) → 1.5
+    expect(result.brightness).toBe(1.5);
+  });
+
+  it('leaves fields undefined when neither side defines them', () => {
+    const from: MaterialApplication = { colorMix: 0.5 };
+    const to: MaterialApplication = { colorMix: 1.0 };
+    const result = blendMaterialApplication(from, to, 0.5)!;
+    expect(result.saturation).toBeUndefined();
+    expect(result.depthMix).toBeUndefined();
+    expect(result.tint).toBeUndefined();
+  });
+
+  it('lerps iridescence fields', () => {
+    const from: MaterialApplication = { iridescence: 0, iridescenceIOR: 1.0 };
+    const to: MaterialApplication = { iridescence: 1, iridescenceIOR: 2.0 };
+    const result = blendMaterialApplication(from, to, 0.5)!;
+    expect(result.iridescence).toBe(0.5);
+    expect(result.iridescenceIOR).toBe(1.5);
+  });
+
+  it('lerps iridescenceThicknessRange when both defined', () => {
+    const from: MaterialApplication = { iridescenceThicknessRange: [100, 200] };
+    const to: MaterialApplication = { iridescenceThicknessRange: [300, 500] };
+    const result = blendMaterialApplication(from, to, 0.5)!;
+    expect(result.iridescenceThicknessRange![0]).toBe(200);
+    expect(result.iridescenceThicknessRange![1]).toBe(350);
+  });
+
+  it('inherits iridescenceThicknessRange from defined side', () => {
+    const from: MaterialApplication = { iridescenceThicknessRange: [100, 400] };
+    const to: MaterialApplication = {};
+    const result = blendMaterialApplication(from, to, 0.7)!;
+    expect(result.iridescenceThicknessRange).toEqual([100, 400]);
   });
 });

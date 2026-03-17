@@ -137,6 +137,8 @@ export class ChartRenderer {
       accessors: state.accessors,        // V2.1 — pass through from ChartWidget.apply()
       fittedMargins: layout.fittedMargins, // V2.1 — for axis title positioning in AxesRenderer
       plotFrameOffset: { x: layout.plotFrame.x, y: layout.plotFrame.y },
+      materialLoader: state.materialLoader,
+      materialManifest: state.materialManifest,
     });
 
     // Update legend group visibility/position based on state

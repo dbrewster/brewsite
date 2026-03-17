@@ -39,6 +39,10 @@ export type NodeRenderEntry = {
   diagramId: string;
   materialCount: 2 | 6;
   lastState?: DiagramNodeState;
+  /** CSM material applied to the front face when a surfaceMaterial preset is active. */
+  presetFrontMaterial?: THREE.Material;
+  /** Preset name currently applied. Used to detect changes. */
+  appliedPresetName?: string;
 };
 
 /**
@@ -74,4 +78,8 @@ export type GroupRenderEntry = {
   edgeLights?: THREE.Group;
   label: TextWithLayout;
   lastState?: DiagramGroupState;
+  /** CSM material applied to the fill plane when a surfaceMaterial preset is active. */
+  presetFillMaterial?: THREE.Material;
+  /** Preset name currently applied. Used to detect changes. */
+  appliedPresetName?: string;
 };

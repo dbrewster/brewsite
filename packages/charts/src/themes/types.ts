@@ -1,6 +1,6 @@
 // Chart theme type contracts — no Three.js, no React.
 
-import type { SceneTheme, ThemeFamily } from '@brewsite/core';
+import type { SceneTheme, ThemeFamily, MaterialApplication } from '@brewsite/core';
 import type { ChartLineShape } from '../elements/chart/types';
 
 /**
@@ -23,6 +23,10 @@ export type ChartSeriesMaterialTokens = {
   readonly emissiveIntensity: number;
   /** Depth for extruded geometry (bar/area). */
   readonly depth: number;
+  /** Named material preset from the material manifest. When set, PBR textures are applied. */
+  readonly surfaceMaterial?: string;
+  /** Application controls for the material preset (colorMix, brightness, etc.). */
+  readonly materialApplication?: MaterialApplication;
 };
 
 /** Axis line, tick, and label styling tokens. */

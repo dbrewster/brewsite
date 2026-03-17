@@ -20,6 +20,7 @@ import type {
   DiagramGroupMouseHandler,
   DiagramNodeGlowConfig,
 } from './types';
+import type { MaterialApplication } from '@brewsite/core';
 
 // ─── <DiagramNode> ────────────────────────────────────────────────────────────
 
@@ -151,6 +152,15 @@ export interface DiagramNodeProps {
   onMouseEnter?: DiagramNodeMouseHandler;
   /** Runtime mouse-leave handler for this node. */
   onMouseLeave?: DiagramNodeMouseHandler;
+  /**
+   * Named PBR material preset applied to the node's front face via CSM UV projection.
+   * Requires @brewsite/textures to be installed and configured. If the preset is not
+   * found in the material manifest, a console.warn is emitted and the existing
+   * MeshStandardMaterial is used as fallback.
+   */
+  surfaceMaterial?: string;
+  /** Controls how the material preset textures are applied. See MaterialApplication. */
+  materialApplication?: MaterialApplication;
 }
 
 // ─── <DiagramEdge> ────────────────────────────────────────────────────────────
@@ -247,6 +257,13 @@ export interface DiagramGroupProps {
   edgeLights?: DiagramGroupEdgeLightsDSL;
   /** Per-group override for title label text color. Falls back to theme.group.defaultLabelColor. */
   labelColor?: string;
+  /**
+   * Named PBR material preset applied to the group fill plane via CSM UV projection.
+   * Requires @brewsite/textures to be installed and configured.
+   */
+  surfaceMaterial?: string;
+  /** Controls how the material preset textures are applied. See MaterialApplication. */
+  materialApplication?: MaterialApplication;
   /**
    * Child <DiagramNode> and <DiagramGroup> elements that belong to this group.
    * Group bounds are computed from the union of child node positions + sizes.

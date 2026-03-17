@@ -64,6 +64,33 @@ export type FloorProps = {
    */
   negativeZFadeDistance?: number;
   /**
+   * Named material preset from the MaterialManifest.
+   * When set, PBR textures are applied to the physical floor surface.
+   */
+  surface?: string;
+  /** How much the texture color replaces the base color [0-1]. */
+  colorMix?: number;
+  /** Texture brightness multiplier [0-2+]. */
+  brightness?: number;
+  /** Texture saturation multiplier [0-2+]. */
+  saturation?: number;
+  /** Texture contrast adjustment [-1 to 1]. */
+  contrast?: number;
+  /** How much the texture's normal/bump detail shows [0-1]. */
+  depthMix?: number;
+  /** How much the texture's roughness map overrides base roughness [0-1]. */
+  roughnessMix?: number;
+  /** Tint color multiplied into the texture color before mixing. */
+  tint?: string;
+  /** Texture coordinate scale override. */
+  texScale?: number;
+  /** Thin-film iridescence strength [0-1]. */
+  iridescence?: number;
+  /** Iridescence film refractive index [1.0-2.33]. */
+  iridescenceIOR?: number;
+  /** Thin-film thickness range in nanometers [min, max]. */
+  iridescenceThicknessRange?: readonly [number, number];
+  /**
    * Floor surface definition.
    * Only `<FloorPhysical>` and `<FloorMirror>` children are compiled.
    * When `enabled` is true and no surface child is provided, no visible floor

@@ -1,15 +1,28 @@
 import * as THREE from 'three';
 import type { GroupRenderEntry, TextWithLayout } from './types';
 import type { DiagramGroupState, DiagramThemeRenderConfig } from '../types';
-import { ensureText, disposeText, parseHexColor } from '@brewsite/core';
+import {
+  ensureText, disposeText, parseHexColor,
+  createPresetMaterial, applyMaterialApplication,
+} from '@brewsite/core';
+import type { MaterialLoader, MaterialManifest, LoadedMaterialPreset } from '@brewsite/core';
 import { Text } from 'troika-three-text';
 import type { IGroupInteractionRegistry } from './GroupInteractionRegistry';
 import { GROUP_BORDER_PX_TO_UNITS, GROUP_RENDER_Z } from '../compiler/diagramRenderConstants';
 
 export class GroupRenderer {
   private readonly entries = new Map<string, GroupRenderEntry>();
+  private materialLoader: MaterialLoader | null = null;
+  private materialManifest: MaterialManifest | null = null;
+  private warnedPresets = new Set<string>();
 
   constructor(private readonly registry: IGroupInteractionRegistry) {}
+
+  /** Injects the shared material context for CSM preset material support. */
+  setMaterialContext(loader: MaterialLoader | null, manifest: MaterialManifest | null): void {
+    this.materialLoader = loader;
+    this.materialManifest = manifest;
+  }
 
   private key(diagramId: string, groupId: string): string {
     return `${diagramId}::${groupId}`;
@@ -282,13 +295,119 @@ export class GroupRenderer {
       entry.label.visible = false;
     }
 
+    // Apply CSM preset material to fill plane.
+    this.applyPresetToFill(entry, state);
+
     entry.lastState = state;
+  }
+
+  /**
+   * Applies a CSM preset material to the group fill plane.
+   * Same 3-case error handling as NodeRenderer.
+   */
+  private applyPresetToFill(entry: GroupRenderEntry, state: DiagramGroupState): void {
+    const presetName = state.surfaceMaterial;
+
+    if (!presetName) {
+      if (entry.presetFillMaterial) {
+        this.removePresetFromEntry(entry);
+      }
+      return;
+    }
+
+    if (entry.appliedPresetName === presetName && entry.presetFillMaterial) {
+      if (state.materialApplication) {
+        applyMaterialApplication(
+          entry.presetFillMaterial as Parameters<typeof applyMaterialApplication>[0],
+          state.materialApplication,
+          state.color,
+        );
+      }
+      return;
+    }
+
+    const manifest = this.materialManifest;
+    const loader = this.materialLoader;
+    if (!manifest || !loader) return;
+
+    const preset = manifest.presets[presetName];
+    if (!preset) {
+      if (!this.warnedPresets.has(presetName)) {
+        console.warn(
+          `[GroupRenderer] Material preset "${presetName}" not found in manifest. ` +
+          `Using existing material. Ensure @brewsite/textures is configured with this preset.`,
+        );
+        this.warnedPresets.add(presetName);
+      }
+      return;
+    }
+
+    const loaded = loader.getLoadedPresetByKey(preset, manifest.basePath);
+    if (!loaded) {
+      void loader.loadPreset(preset, manifest.basePath);
+      return;
+    }
+
+    this.applyLoadedPresetToEntry(entry, state, loaded);
+    entry.appliedPresetName = presetName;
+  }
+
+  private applyLoadedPresetToEntry(
+    entry: GroupRenderEntry,
+    state: DiagramGroupState,
+    loaded: LoadedMaterialPreset,
+  ): void {
+    if (entry.presetFillMaterial) {
+      entry.presetFillMaterial.dispose();
+    }
+
+    const fillParsed = parseHexColor(state.color);
+    const fillOpacity = state.fillOpacity * fillParsed.alpha;
+
+    const csm = createPresetMaterial({
+      textures: loaded.textures,
+      defaults: loaded.defaults,
+      projection: 'uv',
+      application: state.materialApplication,
+      baseColor: state.color,
+      baseOpacity: fillOpacity,
+    });
+    csm.transparent = true;
+    csm.opacity = fillOpacity;
+    csm.side = THREE.DoubleSide;
+
+    const oldMat = entry.fill.material as THREE.Material;
+    if (oldMat !== entry.presetFillMaterial) {
+      oldMat.dispose();
+    }
+    entry.fill.material = csm;
+    entry.presetFillMaterial = csm;
+  }
+
+  private removePresetFromEntry(entry: GroupRenderEntry): void {
+    if (!entry.presetFillMaterial || !entry.lastState) return;
+    entry.presetFillMaterial.dispose();
+    entry.presetFillMaterial = undefined;
+    entry.appliedPresetName = undefined;
+    // Restore basic fill material.
+    const state = entry.lastState;
+    const fillParsed = parseHexColor(state.color);
+    entry.fill.material = new THREE.MeshBasicMaterial({
+      color: fillParsed.rgb,
+      opacity: state.fillOpacity * fillParsed.alpha,
+      transparent: true,
+      side: THREE.DoubleSide,
+    });
   }
 
   private disposeGroup(entry: GroupRenderEntry): void {
     this.registry.unregister(entry.fill);
     entry.fill.geometry.dispose();
     (entry.fill.material as THREE.Material).dispose();
+    if (entry.presetFillMaterial) {
+      entry.presetFillMaterial.dispose();
+      entry.presetFillMaterial = undefined;
+    }
     if (entry.border) {
       this.disposeBorder(entry.border);
     }

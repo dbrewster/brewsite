@@ -19,6 +19,7 @@ import {
   type WidgetPlugin,
 } from '@brewsite/core';
 import { chartPlugin } from '@brewsite/charts';
+import { texturesPlugin } from '@brewsite/textures';
 import { ThemeToggle } from '../Lights';
 import { themesPlugin } from '@brewsite/themes';
 
@@ -42,6 +43,7 @@ function createPlugins(): { plugins: WidgetPlugin[] } {
         diagrams: [
           'cf-overview',
           ]}),
+      texturesPlugin(),
       themesPlugin(),
       ]
   };
