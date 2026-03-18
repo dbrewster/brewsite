@@ -3,7 +3,7 @@ title: Floor Element DSL Reference
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-18
 ---
 
 ## Floor Overview
@@ -64,6 +64,59 @@ import { Floor, FloorPhysical, FloorMirror } from '@brewsite/core';
 
 ---
 
+## Floor Material Presets
+
+The `<Floor>` element supports a named material preset system that applies PBR textures to the physical floor surface. Set the `surface` prop to a named preset from the MaterialManifest, then fine-tune blending with the mixing props.
+
+```tsx
+<Floor
+  enabled
+  variant="physical"
+  surface="dark-concrete"
+  colorMix={0.6}
+  brightness={1.2}
+  roughnessMix={0.8}
+  depthMix={0.5}
+  texScale={2}
+  tint="#1a1a2e"
+/>
+```
+
+All material preset props are optional and only take effect when `surface` is set.
+
+| Prop | Type | Description |
+|---|---|---|
+| `surface` | `string` | Named material preset from the MaterialManifest. When set, PBR textures are applied to the floor |
+| `colorMix` | `number` | How much the texture color replaces the base color [0-1] |
+| `brightness` | `number` | Texture brightness multiplier [0-2+] |
+| `saturation` | `number` | Texture saturation multiplier [0-2+] |
+| `contrast` | `number` | Texture contrast adjustment [-1 to 1] |
+| `depthMix` | `number` | How much the texture's normal/bump detail shows [0-1] |
+| `roughnessMix` | `number` | How much the texture's roughness map overrides base roughness [0-1] |
+| `tint` | `string` | Tint color multiplied into the texture color before mixing |
+| `texScale` | `number` | Texture coordinate scale override |
+| `iridescence` | `number` | Thin-film iridescence strength [0-1] |
+| `iridescenceIOR` | `number` | Iridescence film refractive index [1.0-2.33] |
+| `iridescenceThicknessRange` | `readonly [number, number]` | Thin-film thickness range in nanometers [min, max] |
+
+Use `colorMix` to control how much the preset texture overrides the floor's base color. A `colorMix` of 0 keeps the base color; 1.0 fully replaces it with the texture. `depthMix` and `roughnessMix` work the same way for normal and roughness maps respectively.
+
+```tsx
+{/* Iridescent floor with material preset */}
+<Floor
+  enabled
+  variant="physical"
+  surface="brushed-metal"
+  colorMix={0.8}
+  brightness={0.9}
+  iridescence={0.6}
+  iridescenceIOR={1.8}
+  iridescenceThicknessRange={[200, 600]}
+/>
+```
+
+---
+
 ### `<FloorPhysical>`
 
 A full PBR physical floor. Accepts the same material properties as Three.js `MeshPhysicalMaterial`. When `pattern='grid'`, a procedural grid is generated as a texture overlay.
@@ -118,13 +171,25 @@ Key `<FloorPhysical>` props:
 | `clearcoatRoughness` | `number` | — | Clearcoat roughness |
 | `envMapIntensity` | `number` | — | Environment map contribution (ignored when `pattern='grid'`) |
 | `textureUrl` | `string` | — | Base color texture URL |
+| `textureRepeat` | `[number, number]` | — | Texture UV repeat [u, v] |
+| `textureOffset` | `[number, number]` | — | Texture UV offset [u, v] |
+| `textureRotation` | `number` | — | Texture rotation in radians |
 | `normalMapUrl` | `string` | — | Normal map URL |
+| `normalScale` | `[number, number]` | — | Normal map intensity [x, y] |
 | `roughnessMapUrl` | `string` | — | Roughness map URL |
 | `metalnessMapUrl` | `string` | — | Metalness map URL |
 | `aoMapUrl` | `string` | — | Ambient occlusion map URL |
+| `aoMapIntensity` | `number` | — | Ambient occlusion map intensity |
+| `displacementMapUrl` | `string` | — | Displacement map URL |
+| `displacementScale` | `number` | — | Displacement map scale |
+| `displacementBias` | `number` | — | Displacement map bias offset |
+| `alphaMapUrl` | `string` | — | Alpha (transparency) map URL |
 | `emissive` | `string` | — | Emissive color |
 | `emissiveIntensity` | `number` | — | Emissive intensity |
+| `emissiveMapUrl` | `string` | — | Emissive map URL |
 | `wireframe` | `boolean` | — | Render as wireframe |
+
+Note: Default values for `<FloorPhysical>` props like `color`, grid colors, and grid sizes shown above are render-layer defaults applied by the floor renderer, not DSL-level defaults. The DSL type defines all these props as optional with no explicit defaults.
 
 ---
 

@@ -62,10 +62,10 @@ export async function scaffoldProject(config: ProjectConfig): Promise<void> {
     installPackages(projectRoot, packages);
   }
 
-  // 2. Install @brewsite/claude-author as a dev dependency
-  if (installClaudeAuthor) {
-    installPackages(projectRoot, ['@brewsite/claude-author'], { dev: true });
-  }
+  // 2. Install dev dependencies (type definitions, and optionally claude-author)
+  const devDeps = ['@types/three', '@types/react', '@types/react-dom', 'typescript'];
+  if (installClaudeAuthor) devDeps.push('@brewsite/claude-author');
+  installPackages(projectRoot, devDeps, { dev: true });
 
   // 3. Write starter scene if no scenes directory exists
   const scenesDir = join(projectRoot, 'src', 'scenes');

@@ -26,6 +26,8 @@ export { VariableStore } from './VariableStore';
 export type { JsonPrimitive } from './VariableStore';
 export { useVariable } from './useVariable';
 export { useCarouselState } from './useCarouselState';
+export { useCarouselSelection } from './useCarouselSelection';
+export { clearCarouselSelection } from './clearCarouselSelection';
 export type { WidgetPlugin } from './WidgetPlugin';
 export type { INVSBounded, NVSRect, NVSPosition } from '../layout/types';
 export type {

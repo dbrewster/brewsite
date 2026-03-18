@@ -3,7 +3,7 @@ title: "@brewsite/screens — ImagePanel, Screen, and MediaScreen"
 doc_type: note
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-18
 ---
 
 ## Package Clarification
@@ -44,7 +44,7 @@ interface ImagePanelProps {
   rotation?: [number, number, number]; // Euler [x, y, z] in radians. Default: [0, 0, 0]
   scale?: number;           // Uniform scale. Default: 1
   bezel?: ImagePanelBezelVariant; // 'none' | 'thin' | 'dark' | 'light' | 'chrome'. Default: 'dark'
-  bezelThickness?: number;  // World units. Defaults: 0 ('none'), 0.15 ('thin'), 0.35 (others)
+  bezelThickness?: number;  // World units. Default: 0.3
   opacity?: number;         // Overall opacity [0–1]. Default: 1
   gloss?: number;           // MeshPhysicalMaterial clearcoat [0–1]. Default: 0.5
   glossRoughness?: number;  // Clearcoat roughness [0–1]. Default: 0.05
@@ -174,7 +174,7 @@ interface ScreenProps {
   rotation?: [number, number, number]; // Euler [x, y, z] radians. Default: [0, 0, 0]
   scale?: number;           // Uniform scale. Default: 1
   bezel?: ScreenBezelVariant; // 'none' | 'thin' | 'dark' | 'light' | 'chrome'. Default: 'dark'
-  bezelThickness?: number;
+  bezelThickness?: number;  // World units. Default: 0.3
   opacity?: number;         // Bezel, glow, and iframe div opacity [0–1]. Default: 1
   glow?: boolean;           // Default: true
   glowColor?: string;       // Default: '#88ccff'
@@ -212,27 +212,27 @@ interface MediaScreenProps {
   id: string;
   src?: string;             // Video file URL (mp4, webm). Mutually exclusive with streamId.
   streamId?: string;        // Registry key for a live MediaStream. Mutually exclusive with src.
-  autoPlay?: boolean;
-  loop?: boolean;
-  muted?: boolean;
+  autoPlay?: boolean;       // Auto-play video on load. Default: true
+  loop?: boolean;           // Loop video playback. Default: true
+  muted?: boolean;          // Mute video audio. Default: true (important for browser autoplay policies)
   x?: number;               // NVS center X. Default: 0.5
   y?: number;               // NVS center Y. Default: 0.5
   z?: number;               // World-space depth. Default: 0
-  width?: number;
-  height?: number;
-  rotation?: [number, number, number];
-  scale?: number;
-  bezel?: MediaScreenBezelVariant; // 'none' | 'thin' | 'dark' | 'light' | 'chrome'
-  bezelThickness?: number;
-  opacity?: number;
-  gloss?: number;
-  glossRoughness?: number;
-  selfIllumination?: number;
-  glow?: boolean;
-  glowColor?: string;
-  glowScale?: number;
-  glowOpacity?: number;
-  enabled?: boolean;
+  width?: number;           // NVS width fraction [0..1]. Default: 0.625
+  height?: number;          // NVS height fraction [0..1]. Derived from aspect ratio if omitted.
+  rotation?: [number, number, number]; // Euler [x, y, z] radians. Default: [0, 0, 0]
+  scale?: number;           // Uniform scale. Default: 1
+  bezel?: MediaScreenBezelVariant; // 'none' | 'thin' | 'dark' | 'light' | 'chrome'. Default: 'dark'
+  bezelThickness?: number;  // World units. Default: 0.3
+  opacity?: number;         // [0–1]. Default: 1
+  gloss?: number;           // MeshPhysicalMaterial clearcoat [0–1]. Default: 0.5
+  glossRoughness?: number;  // Clearcoat roughness [0–1]. Default: 0.05
+  selfIllumination?: number; // Emissive intensity [0–1]. Default: 0.3
+  glow?: boolean;           // Render glow halo sprite. Default: true
+  glowColor?: string;       // CSS hex. Default: '#88ccff'
+  glowScale?: number;       // Multiplier relative to screen size. Default: 1.4
+  glowOpacity?: number;     // Glow sprite opacity [0–1]. Default: 0.35
+  enabled?: boolean;        // Whether rendered. Default: true
 }
 ```
 
@@ -258,15 +258,14 @@ interface MediaScreenProps {
 />
 ```
 
-**Live MediaStream (canvas capture, display capture):** Register the stream before the scene renders using `MediaScreenWidget.registerStream(key, stream)`, then reference it via `streamId`:
+**Live MediaStream (canvas capture, display capture):** Use `captureCanvasStream(canvas, streamId, frameRate?)` to capture a same-origin canvas and auto-register it with `MediaScreenWidget`. The function takes three arguments: the canvas element, the stream ID key (matching `<MediaScreen streamId="...">`), and an optional frame rate (default: 30). It returns the created `MediaStream`. No separate `MediaScreenWidget.registerStream` call is needed — `captureCanvasStream` handles registration internally.
 
 ```tsx
-import { MediaScreenWidget, captureCanvasStream } from '@brewsite/screens';
+import { captureCanvasStream } from '@brewsite/screens';
 
 // In your app bootstrap:
 const canvasEl = document.getElementById('my-canvas') as HTMLCanvasElement;
-const stream = captureCanvasStream(canvasEl, 30); // 30fps
-MediaScreenWidget.registerStream('my-canvas-stream', stream);
+const stream = captureCanvasStream(canvasEl, 'my-canvas-stream', 30); // auto-registers
 
 // In the scene DSL:
 <MediaScreen
@@ -298,6 +297,28 @@ function MyApp() {
   return <button onClick={start}>Share screen</button>;
 }
 ```
+
+**`muted` default and browser autoplay:** `muted` defaults to `true`. This is important because most browsers block autoplay of unmuted video. If you set `muted={false}`, the browser may prevent `autoPlay` from working until the user interacts with the page. Keep `muted={true}` (the default) for reliable autoplay behavior.
+
+**`stopCaptureStream(streamId, stream)` — cleanup function:**
+
+When tearing down a canvas capture (e.g. on component unmount or scene teardown), call `stopCaptureStream` to stop all tracks and unregister the stream from `MediaScreenWidget`:
+
+```tsx
+import { captureCanvasStream, stopCaptureStream } from '@brewsite/screens';
+
+// Setup:
+const stream = captureCanvasStream(canvasEl, 'my-stream', 30);
+
+// Cleanup (e.g. in useEffect return, or scene teardown):
+stopCaptureStream('my-stream', stream);
+```
+
+`stopCaptureStream` takes two arguments:
+- `streamId: string` — the same key used in `captureCanvasStream` and `<MediaScreen streamId="...">`
+- `stream: MediaStream` — the `MediaStream` instance returned by `captureCanvasStream`
+
+It calls `stream.getTracks().forEach(t => t.stop())` and then `MediaScreenWidget.unregisterStream(streamId)`.
 
 ---
 

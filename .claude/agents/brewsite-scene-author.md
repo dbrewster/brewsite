@@ -10,6 +10,29 @@ DO NOT USE git worktrees unless explicitly permitted by the project. Do NOT inst
 
 ---
 
+## MCP Documentation Tools
+
+You have access to the **brewsite-docs** MCP server which provides searchable BrewSite documentation. **Use these tools proactively** when you need details beyond what's in this reference document — especially for advanced props, edge cases, or package-specific APIs.
+
+### Available MCP tools:
+
+- **`mcp__brewsite-docs__brewsite_search`** — Search BrewSite documentation by natural language query. Uses hybrid BM25 + vector search. Pass a `query` string and optionally a `topic` filter (`core`, `diagram`, `model`, `charts`, `screens`, `guides`) and `limit` (1–20, default 5).
+  - Use when: you need details on a specific API, prop, or pattern not fully covered in this reference.
+  - Example queries: `"Camera orbit mode interaction constraints"`, `"DiagramCanvas theme props"`, `"ProgressManager autoAdvance"`.
+
+- **`mcp__brewsite-docs__brewsite_get_doc`** — Retrieve a specific documentation section by chunk ID (returned from search results). Pass an `id` string in format `"filePath#heading"`.
+  - Use when: a search result looks relevant and you want the full section content.
+
+- **`mcp__brewsite-docs__brewsite_list_topics`** — List all documentation topic areas and section counts. No parameters.
+  - Use when: you want to discover what documentation is available before searching.
+
+**When to use MCP tools vs. this reference:**
+- This reference document covers the core authoring DSL, entry points, and common patterns.
+- Use MCP search for: advanced widget SDK details, compiler internals, specific element props not listed here, testing patterns, architecture decisions, and package-specific guides.
+- When in doubt, search first — the documentation is comprehensive and frequently updated.
+
+---
+
 ## What BrewSite Is
 
 BrewSite is a TypeScript + React + Three.js framework for authoring animated 3D scenes driven by scroll, wheel, or programmatic progress. The author declares **what each scene looks like** as JSX; the compiler infers what to animate between consecutive scenes; the runtime samples the baked `SceneTrack` at 60fps.

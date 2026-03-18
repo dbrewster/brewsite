@@ -23,6 +23,10 @@ The canvas sticks to the viewport while the user scrolls a tall spacer div. Scro
 | `pixelsPerScrollUnit` | `number` | `1` | Pixels per scroll unit when using `scroll-units` mode |
 | `scrollHeightPx` | `number` | — | Exact override; ignores mode calculation |
 | `stageHeight` | `string \| number` | auto | Explicit height for the sticky stage region |
+| `className` | `string` | — | CSS class on the outer scroll container div |
+| `style` | `CSSProperties` | — | Inline styles merged onto the outer scroll container |
+| `stageClassName` | `string` | — | CSS class on the inner sticky stage div |
+| `stageStyle` | `CSSProperties` | — | Inline styles merged onto the inner sticky stage div |
 
 Use `scrollHeightMode="scroll-units"` with `ProgressManager.scrollUnits` to give some scenes more scroll travel than others.
 
@@ -92,14 +96,29 @@ Fixed-size container that auto-advances via wall-clock time. Best for docs pages
 |---|---|---|---|
 | `height` | `string \| number` | required | CSS height of the container |
 | `width` | `string \| number` | `'100%'` | CSS width of the container |
+| `className` | `string` | — | CSS class on the outer container div |
 | `plugins` | `WidgetPlugin[]` | — | Forwarded to `SceneEngine` |
 | `id` | `string` | — | Engine registry id |
+| `timingProfile` | `SceneEngineProps['timingProfile']` | — | Timing profile forwarded to `SceneEngine` |
 | `primaryCameraId` | `string` | — | Widget id of the primary camera |
 | `primaryCanvasActionTargetId` | `string` | — | Widget id for action input |
+| `cameraInteractionDefaults` | `SceneEngineProps['cameraInteractionDefaults']` | — | Default camera interaction config |
+| `invalidateCacheToken` | `number \| string` | — | Cache invalidation token forwarded to engine |
+| `maxAnimBoostPerFrame` | `number` | — | Max animation boost per frame |
+| `theme` | `SceneEngineProps['theme']` | — | Active theme for this engine |
+| `sceneTheme` | `SceneEngineProps['sceneTheme']` | — | Direct SceneTheme injection |
+| `scrollSource` | `SceneEngineProps['scrollSource']` | — | Scroll source for viewport-relative lifecycle |
+| `defaultTransitionDuration` | `SceneEngineProps['defaultTransitionDuration']` | `400` | Duration (ms) for programmatic scene transitions |
+| `defaultTransitionEasing` | `SceneEngineProps['defaultTransitionEasing']` | — | Easing for programmatic scene transitions |
 | `onReady` | `() => void` | — | Called when assets are ready |
 | `onError` | `(err: Error) => void` | — | Error handler |
+| `onWidgetError` | `(widgetId: string, error: Error) => void` | — | Per-widget error handler |
+| `onCompileWarning` | `SceneEngineProps['onCompileWarning']` | — | Compile warning callback |
+| `children` | `ReactNode` | — | Scene declarations, input components, overlay content |
 
 ### TimeInput Props
+
+> **Deprecated.** `TimeInput` has no known consumers in current packages or apps and will be removed in a future version. Use `InputCoordinator` with `ProgressManager` `autoAdvance` instead (see replacement pattern below).
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
@@ -109,7 +128,27 @@ Fixed-size container that auto-advances via wall-clock time. Best for docs pages
 | `resetOnExit` | `boolean` | `true` | Reset to 0 when element leaves viewport |
 | `pauseWhenHidden` | `PauseWhenHiddenOptions` | — | Pause when element leaves viewport |
 
-### Complete Example
+**Recommended replacement** -- use `ProgressManager` with `autoAdvance` inside each scene and `InputCoordinator` for input handling:
+
+```tsx
+import { corePlugin, SceneReel, InputCoordinator, Scene, ProgressManager } from '@brewsite/core';
+
+function EmbeddedDemo() {
+  const plugins = useMemo(() => [corePlugin()], []);
+
+  return (
+    <SceneReel height={450} width="100%" plugins={plugins}>
+      <Scene id="intro">
+        <ProgressManager autoAdvance={{ duration: 8, max: 1.0 }} />
+        {/* ... scene content */}
+      </Scene>
+      <InputCoordinator />
+    </SceneReel>
+  );
+}
+```
+
+### Legacy Example (using deprecated TimeInput)
 
 ```tsx
 import { corePlugin, SceneReel, TimeInput } from '@brewsite/core';
@@ -289,6 +328,6 @@ function ProductViewerScene() {
 Ask these questions in order:
 
 1. **Should the user scroll to progress through scenes?** → Scroll-driven mode (`ScrollStage` + `InputCoordinator`)
-2. **Should it play automatically without user interaction?** → Embedded player mode (`SceneReel` + `TimeInput`)
+2. **Should it play automatically without user interaction?** → Embedded player mode (`SceneReel` + `InputCoordinator` with `ProgressManager` `autoAdvance`)
 3. **Does external UI (buttons, tabs, routing) control which scene is shown?** → Programmatic mode (`SceneReel` or raw `SceneEngine` + `useGoToScene` / `ControlledInput`)
 4. **Is it a single interactive 3D region with no scene progression?** → Canvas region mode (`SceneReel` + `InputController` in DSL)

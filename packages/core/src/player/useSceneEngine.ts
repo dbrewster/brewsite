@@ -22,6 +22,9 @@ import type { CameraOverrideState } from '../elements/camera/types';
 import { SceneProgressMapper } from './SceneProgressMapper';
 import { formatBreadcrumbChain } from '../compiler/dslSourceInfo';
 import type { SceneTheme, ActiveTheme } from '../theme/types';
+import { getSceneProgressFromTrack } from '../compiler/sceneTrackHelpers';
+import { extractInteractionCallbacks } from '../compiler/extractInteractionCallbacks';
+import type { InteractionCallbackRegistry } from '../compiler/interactionCallbackRegistry';
 import { clamp01 } from '../math';
 import {
   createTransitionAnimatorState,
@@ -108,6 +111,14 @@ export type UseSceneEngineResult = {
    * Equivalent to setProgress(currentProgress + delta).
    */
   advanceProgress(delta: number): void;
+
+  // ── Scene progress lookup ───────────────────────────────────────────────────
+  /**
+   * Returns the engine progress value [0..1] corresponding to the start of the named scene.
+   * Delegates to getSceneProgressFromTrack using the compiled sceneTrack.
+   * Throws if sceneId is not found or no sceneTrack is compiled yet.
+   */
+  getSceneProgress(sceneId: string): number;
 
   // ── Compiled scene info ───────────────────────────────────────────────────────
   /** The compiled SceneTrack. Null until the first compile completes. */
@@ -198,6 +209,14 @@ export type UseSceneEngineResult = {
   getCameraOverride(): CameraOverrideState | null;
   setAutoAdvancePaused(paused: boolean): void;
 
+  // ── Interaction callbacks ────────────────────────────────────────────────────
+  /**
+   * Ref to the current InteractionCallbackRegistry, updated synchronously on every render.
+   * Used by InputCoordinator to look up onSelect handlers for carousel selection dispatch.
+   * Null when no scenes are provided or no onSelect callbacks exist.
+   */
+  interactionCallbacksRef: MutableRefObject<InteractionCallbackRegistry | null>;
+
   // ── Overlay content ───────────────────────────────────────────────────────────
   sceneOverlays: Map<string, ReactNode>;
 
@@ -285,6 +304,18 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     [sceneTrack],
   );
 
+  // ─── getSceneProgress ─────────────────────────────────────────────────────
+  const getSceneProgress = useCallback((sceneId: string): number => {
+    const track = sceneTrack;
+    if (!track) {
+      throw new Error(
+        `[getSceneProgress] No compiled scene track available. ` +
+        `Ensure scenes are provided before calling getSceneProgress.`,
+      );
+    }
+    return getSceneProgressFromTrack(track, sceneId);
+  }, [sceneTrack]);
+
   // ─── Progress write methods ─────────────────────────────────────────────────
 
   /**
@@ -365,6 +396,14 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       })),
     [options.scenes],
   );
+
+  // ─── Interaction callback extraction (synchronous on every render) ──────────
+  // Runs independently of SceneTrack caching. Closures must always reflect the
+  // latest React state to avoid stale-closure bugs.
+  const interactionCallbacksRef = useRef<InteractionCallbackRegistry | null>(null);
+  interactionCallbacksRef.current = sceneDefs.length > 0
+    ? extractInteractionCallbacks(sceneDefs)
+    : null;
 
   // ─── Reduced motion media query ─────────────────────────────────────────────
   useEffect(() => {
@@ -856,6 +895,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     redirectTransition: handleRedirectTransition,
     patchWidgetStates,
     resolveWidgetState,
+    getSceneProgress,
     sceneTrack,
     sceneCount,
     compiledScenes,
@@ -865,6 +905,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     setCameraOverride,
     getCameraOverride,
     setAutoAdvancePaused,
+    interactionCallbacksRef,
     sceneOverlays: sceneTrack?.sceneOverlays ?? new Map(),
     debug: {
       assetsReady,

@@ -78,7 +78,10 @@ export type StackLayoutConfig = {
  */
 export type CarouselLayoutConfig = {
   readonly kind: 'carousel';
-  /** 0-indexed active view. */
+  /**
+   * Internal active index. Maps to the DSL's `focusedIndex` (or deprecated `activeIndex`).
+   * The DSL-to-internal mapping happens in viewLayoutHandler.
+   */
   readonly activeIndex: number;
   /** NVS gap between adjacent views (linear mode only). Default: 0.04. */
   readonly gap?: number;

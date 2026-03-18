@@ -43,6 +43,10 @@ This is a **pnpm + Turborepo monorepo** with published packages and private apps
 | `packages/diagram` | `@brewsite/diagram` | Diagram + screen element library (published) |
 | `packages/model` | `@brewsite/model` | GLTF model + label system (published) |
 | `packages/charts` | `@brewsite/charts` | 3D chart element library (published) |
+| `packages/screens` | `@brewsite/screens` | 3D screen element library (published) |
+| `packages/textures` | `@brewsite/textures` | PBR material texture presets (published) |
+| `packages/slides` | `@brewsite/slides` | Slide deck presentation system (published) |
+| `packages/themes` | `@brewsite/themes` | Theme bundles for scenes, diagrams, charts (published) |
 | `packages/claude-author` | `@brewsite/claude-author` | MCP server + docs search for AI-assisted scene authoring (published) |
 | `packages/create-brewsite` | `create-brewsite` | Project scaffolder CLI (`npm create brewsite`) (published) |
 | `packages/brewsite` | `brewsite` | Utility CLI (`npx brewsite add ...`) (published) |
@@ -178,7 +182,7 @@ Model/animation changes go through `scripts/` at the repo root:
 - `gen-diagram-envmap.mjs` — generate HDR environment map for diagram rendering
 - `extract-model-metadata.mjs` — extract metadata from GLTF at build time
 - `prune-dist.mjs` — post-build artifact cleanup
-- `publish-all.mjs` — publish all BrewSite packages (`core`, `diagram`, `model`, `charts`, `screens`, `claude-author`, `create-brewsite`, `brewsite`)
+- `publish-all.mjs` — publish all BrewSite packages (`core`, `diagram`, `model`, `charts`, `screens`, `textures`, `slides`, `themes`, `claude-author`, `create-brewsite`, `brewsite`)
 
 Prefer these helpers over ad-hoc pipelines for any asset-processing work.
 

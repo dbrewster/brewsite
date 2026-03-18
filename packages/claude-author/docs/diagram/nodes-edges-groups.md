@@ -3,7 +3,7 @@ title: "@brewsite/diagram — Nodes, Edges, and Groups"
 doc_type: note
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-18
 ---
 
 ## Diagram Element Overview
@@ -82,7 +82,7 @@ interface DiagramNodeProps {
   borderColor?: string;                 // Border outline CSS hex
   metalness?: number;                   // PBR metalness [0–1]. Default: from theme (~0.40)
   roughness?: number;                   // PBR roughness [0–1]. Default: from theme (~0.30)
-  glow?: boolean | { intensity?: number; color?: string };  // Glow config
+  glow?: boolean | DiagramNodeGlowConfig;  // Glow config (see below)
   cornerRadius?: number;                // Corner radius for rect shapes. Default: from theme
   labelColor?: string;                  // Label text CSS hex
   sublabelColor?: string;               // Sublabel text CSS hex. Default: '#a0a8c0'
@@ -140,12 +140,25 @@ All icon values are namespaced strings. Main namespaces:
 - `'layered'` — Most impactful for cloud icons; multiple depth layers
 - `'embossed'` — Shallow relief
 
-**Glow prop:**
+**Glow prop — `boolean | DiagramNodeGlowConfig`:**
+
+The `glow` prop controls emissive lighting on the node. It accepts `boolean` or `DiagramNodeGlowConfig`:
+
+```tsx
+// DiagramNodeGlowConfig type (exported from @brewsite/diagram):
+type DiagramNodeGlowConfig = {
+  intensity?: number;  // Emissive intensity [0–1]. Default: from theme.
+  color?: string;      // Emissive color (CSS hex). Default: node face color.
+};
+```
+
+Usage:
 
 ```tsx
 <DiagramNode id="critical" glow={{ intensity: 0.4, color: '#ff4444' }} />
-<DiagramNode id="normal" glow={true} />      // theme-default intensity
+<DiagramNode id="normal" glow={true} />      // theme-default intensity and node face color
 <DiagramNode id="plain" glow={false} />      // suppress theme glow
+<DiagramNode id="default" />                  // omit: inherit from theme (recommended)
 ```
 
 **Position and size for ManualLayout:**
@@ -164,13 +177,13 @@ With auto-layout (GridLayout, HierarchicalLayout, FlowLayout), do not specify `p
 
 ## Edge DSL
 
-`<DiagramEdge>` declares a connector between two nodes. The `from` and `to` values must exactly match sibling `<DiagramNode id="...">` values.
+`<DiagramEdge>` declares a connector between two nodes or groups. The `from` and `to` values must exactly match a sibling `<DiagramNode id="...">` or `<DiagramGroup id="...">` value. When an edge targets a group, the renderer connects to the group's boundary.
 
 ```tsx
 interface DiagramEdgeProps {
   id?: string;                          // Optional unique ID
-  from: string;                         // Source node id
-  to: string;                           // Destination node id
+  from: string;                         // Source node or group id
+  to: string;                           // Destination node or group id
   label?: string;                       // Label at edge midpoint
   style?: DiagramEdgeStyle;            // 'solid' | 'dashed' | 'dotted'. Default: 'solid'
   arrowStart?: DiagramArrowVariant;    // 'none' | 'open' | 'filled' | 'diamond' | 'circle'. Default: 'none'

@@ -70,7 +70,7 @@ When a `<Model>` is nested inside a `<View>`, the NVS props are relative to the 
 
 ```tsx
 <View id="right-panel" x={0.38} y={0} w={0.62} h={1} padding={[0.05, 0.04]}>
-  <Model type="Robot" id="robot" scale={0.001} x={0} y={0} w={1} h={1} />
+  <Model type="Robot" id="robot" scale={0.06} x={0} y={0} w={1} h={1} />
 </View>
 ```
 
@@ -83,7 +83,7 @@ Animations are defined in the asset manifest's `animations` array. Each animatio
 Use `<Playback>` and `<Animation>` as children of `<Model>`:
 
 ```tsx
-<Model type="Robot" id="robot" scale={0.001} x={0.15} y={0} w={0.7} h={1}>
+<Model type="Robot" id="robot" scale={0.06} x={0.15} y={0} w={0.7} h={1}>
   <Playback>
     <Animation
       enabled
@@ -127,14 +127,14 @@ To change the animation when a new scene enters, simply use a different `clipNam
 
 ```tsx
 // Scene A — idle
-<Model type="Robot" id="robot" scale={0.001} x={0.25} y={0} w={0.5} h={1}>
+<Model type="Robot" id="robot" scale={0.06} x={0.25} y={0} w={0.5} h={1}>
   <Playback>
     <Animation enabled clipName="idle" weight={1} clipRepeat />
   </Playback>
 </Model>
 
 // Scene B — talking animation, shifted left
-<Model type="Robot" id="robot" scale={0.001} x={0.1} y={0} w={0.5} h={1}>
+<Model type="Robot" id="robot" scale={0.06} x={0.1} y={0} w={0.5} h={1}>
   <Playback>
     <Animation enabled clipName="chat-relax-f" weight={1} fadeInSeconds={0.4} clipRepeat />
   </Playback>
@@ -148,7 +148,7 @@ The model smoothly moves from its Scene A position to Scene B position during th
 `<Motion>` applies real-time bone overrides using `commands` (instantaneous) or `scenes` (time-coded). These run on top of animation clips each frame.
 
 ```tsx
-<Model type="Robot" id="robot" scale={0.001} x={0} y={0} w={1} h={1}>
+<Model type="Robot" id="robot" scale={0.06} x={0} y={0} w={1} h={1}>
   <Playback>
     <Animation enabled clipName="idle" clipRepeat />
     <Motion
@@ -177,7 +177,7 @@ Entry transitions (fade in from a starting state) can be authored by setting `op
 
 ```tsx
 <Scene id="intro" transition={{ enter: [0, 0.3] }}>
-  <Model type="Robot" id="robot" scale={0.001} x={0.15} y={0} w={0.7} h={1} opacity={1} />
+  <Model type="Robot" id="robot" scale={0.06} x={0.15} y={0} w={0.7} h={1} opacity={1} />
 </Scene>
 ```
 
@@ -196,7 +196,7 @@ When the model appears for the first time (no prior scene had it), it uses its m
 `<BodyPart>` overrides material and pose properties on a named bone or mesh. Nest them inside `<BodyParts>`:
 
 ```tsx
-<Model type="Robot" id="robot" scale={0.001} x={0} y={0} w={1} h={1}>
+<Model type="Robot" id="robot" scale={0.06} x={0} y={0} w={1} h={1}>
   <BodyParts>
     {/* Highlight the head with an accent color */}
     <BodyPart id="Head" color="#7ffcff" opacity={1}>
@@ -219,6 +219,7 @@ When the model appears for the first time (no prior scene had it), it uses its m
 | `metalness` | `Resolvable<number>` | Material metalness override [0..1]. |
 | `roughness` | `Resolvable<number>` | Material roughness override [0..1]. |
 | `targetKind` | `'bone' \| 'mesh'` | Forces lookup to bone or mesh. Auto-detected when absent. |
+| `pose` | `PoseGroup` | Declarative bone rotation/translation for this part. `PoseGroup = { rotate?: AxisRotation; translate?: AxisTranslation; reset?: boolean }`. |
 | `boneId` | `string` | Use this bone ID for pose lookups (when different from `id`). |
 | `meshId` | `string` | Use this mesh ID for material lookups (when different from `id`). |
 | `reset` | `Resolvable<boolean>` | Reset this part to defaults before applying overrides. |
@@ -269,7 +270,7 @@ function SceneIntro() {
       <Model
         type="Robot"
         id="robot"
-        scale={0.001}
+        scale={0.06}
         x={0.15} y={0} w={0.7} h={1}
         opacity={1}
       />
@@ -291,7 +292,7 @@ function SceneAnimation() {
       <Model
         type="Robot"
         id="robot"
-        scale={0.001}
+        scale={0.06}
         x={0.25} y={0} w={0.5} h={1}
         opacity={1}
       >
@@ -323,7 +324,7 @@ function SceneLabels() {
       <Model
         type="Robot"
         id="robot"
-        scale={0.001}
+        scale={0.06}
         x={0.1} y={0} w={0.8} h={1}
         opacity={1}
       >

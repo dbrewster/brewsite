@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // CLI: npx brewsite <command>
 // Currently supports: brewsite add <package>
 

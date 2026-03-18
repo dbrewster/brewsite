@@ -3,7 +3,7 @@ title: "@brewsite/diagram — Overview"
 doc_type: note
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-18
 ---
 
 ## What @brewsite/diagram Provides
@@ -103,28 +103,36 @@ export default function MyPage() {
 - `DIAGRAM_FOCUS_REGION_EVENT` — CustomEvent type string dispatched on `window`
 
 **Types (exported for authoring):**
-- `DiagramTheme`, `DiagramThemeName`, `DiagramThemePair`
+- `DiagramTheme`, `DiagramThemePair`
+- `DiagramThemeRenderConfig`, `DiagramThemeNodeConfig`, `DiagramThemeEdgeConfig`, `DiagramThemeGroupConfig`, `DiagramThemeEnvironmentConfig`, `DiagramThemeLayoutConfig`
+- `DiagramCanvasInputConfig`
 - `DiagramNodeShape`, `DiagramIconVariant`
 - `DiagramEdgeStyle`, `DiagramArrowVariant`, `DiagramEdgeFlow`
 - `DiagramGroupVariant`, `DiagramOrientation`
+- `DiagramGroupSide`, `DiagramGroupEdgeLightColorResolver`, `DiagramGroupEdgeLightState`, `DiagramGroupEdgeLightsState`, `DiagramGroupEdgeLightsDSL`
 - `DiagramEasing`
+- `DiagramNodeGlowConfig`
 - `EdgeRoutingAlgorithm`, `EdgeLandingAlgorithm`, `DiagramEdgePort`
 - `SvgIcon3DStyle`
 - `DiagramFocusRegionState`, `DiagramFocusRegionKind`
+- `UseDiagramFocusRegionOptions`
 - `LayoutPadding`, `LayoutAlignment`, `LayoutDisconnected`
-- All `DiagramDSL`, `DiagramNodeDSL`, `DiagramEdgeDSL`, `DiagramGroupDSL` state types
+- `DiagramNodeShape` constant: `DEFAULT_NODE_SHAPE` (value: `'rectangle'`)
+- All DSL prop types: `DiagramProps`, `DiagramNodeProps`, `DiagramEdgeProps`, `DiagramGroupProps`, `DiagramExitProps`, `DiagramEnterProps`, `GridLayoutProps`, `HierarchicalLayoutProps`, `ManualLayoutProps`, `FlowLayoutProps`
+- All state types: `DiagramDSL`, `DiagramNodeDSL`, `DiagramEdgeDSL`, `DiagramGroupDSL`, `DiagramState`, `DiagramNodeState`, `DiagramEdgeState`, `DiagramGroupState`
+- Interaction types: `DiagramInteractionEvent`, `DiagramHoverControls`, `DiagramHoverEventBase`, `DiagramNodeHoverEvent`, `DiagramGroupHoverEvent`, `DiagramNodeMouseHandler`, `DiagramGroupMouseHandler`
+- Transition types: `DiagramExitConfig`, `DiagramEnterConfig`, `DiagramExitDSL`, `DiagramEnterDSL`
+- Edge path types: `DiagramEdgePathCommand`, `DiagramEdgePathState`, `DiagramEdgePathDebug`
 
 **Icon shape namespaces (for `DiagramNode icon` prop):**
-- `FlowIconShape` (`flow:*`) — legacy flow shapes
-- `UiShape` (`ui:*`) — Heroicons 24/outline (compute, users, security, data, monitoring, code, etc.)
-- `TechShape` (`tech:*`) — Simple Icons (languages, databases, CI/CD, containers, etc.)
-- `SecurityShape` (`security:*`) — security-concept icons
-- `DataShape` (`data:*`) — data pipeline/analytics concept icons
-- `AwsShape` (`aws:*`) — AWS service icons
-- `GcpShape` (`gcp:*`) — Google Cloud service icons
-- `AzureShape` (`azure:*`) — Azure service icons
-- `NetworkShape` (`net:*`) — network topology icons
+- `FlowIconShape` (`flow:*`) — legacy flow shapes (exported)
+- `AwsShape` (`aws:*`) — AWS service icons (exported)
+- `GcpShape` (`gcp:*`) — Google Cloud service icons (exported)
+- `AzureShape` (`azure:*`) — Azure service icons (exported)
+- `NetworkShape` (`net:*`) — network topology icons (exported)
 - `custom:${string}` — escape hatch for custom resolver integrations
+
+Note: `UiShape` (`ui:*`), `TechShape` (`tech:*`), `SecurityShape` (`security:*`), and `DataShape` (`data:*`) are internal types not exported from the package index. The icon string values (e.g. `"ui:server"`, `"tech:docker"`) are still valid for the `icon` prop — they are accepted by the `DiagramIconVariant` union type. Only the named shape union types are not re-exported.
 
 ## Diagram vs DiagramCanvas
 

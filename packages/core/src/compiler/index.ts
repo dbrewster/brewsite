@@ -40,6 +40,9 @@ export type {
   TransitionPhase,
 } from './transitions/transitionTypes';
 
+// Carousel selection types — used by onSelect handlers in ViewLayout.
+export type { CarouselSelectEvent, CarouselSelectSource, CarouselSelectHandler } from '../input/carouselSelectTypes';
+
 // TransitionWindow lives in sceneTrackTypes (shared with SceneFrame.transitionWindow).
 export type { TransitionWindow } from './sceneTrackTypes';
 

@@ -73,7 +73,7 @@ export const enterpriseTheme: DiagramTheme = {
     borderEdgeDarken: 0.55,
   },
   environment: {
-    envMapUrl: '/assets/envmaps/diagram-default.hdr',
+    envMapUrl: 'none',
     envMapIntensity: 0.55,
     skyColor: '#0A1424',
     horizonColor: '#15253A',

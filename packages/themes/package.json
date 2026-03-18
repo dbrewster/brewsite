@@ -1,6 +1,6 @@
 {
   "name": "@brewsite/themes",
-  "version": "0.6.0",
+  "version": "0.6.4",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -14,7 +14,11 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "LICENSE", "README.md"],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "build:lib": "tsc -p tsconfig.build.json",
@@ -24,9 +28,9 @@
     "coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@brewsite/core": "workspace:*",
-    "@brewsite/diagram": "workspace:*",
-    "@brewsite/charts": "workspace:*"
+    "@brewsite/core": "0.6.4",
+    "@brewsite/diagram": "0.6.4",
+    "@brewsite/charts": "0.6.4"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",

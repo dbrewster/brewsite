@@ -75,7 +75,7 @@ export const darkGlassTheme: DiagramTheme = {
     borderEdgeDarken: 0.46,
   },
   environment: {
-    envMapUrl: '/assets/envmaps/diagram-default.hdr',
+    envMapUrl: 'none',
     envMapIntensity: 0.85,
     skyColor: '#100A09',
     horizonColor: '#2A1B18',

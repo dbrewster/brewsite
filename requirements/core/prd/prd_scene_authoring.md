@@ -7,6 +7,9 @@ last_updated: 2026-03-18
 change_history:
   - date: 2026-03-18
     author: "Toolkit Product"
+    summary: "Carousel selection region: ViewLayout gains `focusedIndex` (replaces deprecated `activeIndex`) and `onSelect` callback prop. Added `CarouselSelectEvent`, `CarouselSelectHandler`, `CarouselSelectSource` types to DSL elements list. Updated ViewLayoutProps type. Added carousel selection example to Section 8.12. Documented `activeIndex` deprecation with migration guide."
+  - date: 2026-03-18
+    author: "Toolkit Product"
     summary: "Core over-engineering audit: updated <Model> transition description to reflect that ElementTransitionSpec is deprecated — all built-in and external widgets now use FunctionalTransitionSpec exclusively. Updated CompileApi type to document new layoutContext field (replaces WeakMap side-channel for view handler communication). Noted CP9 deprecations (TimeInput, ControlledInput, useNativeScrollSource, CustomScrollSource, ElementScrollSource, useSceneRuntime)."
   - date: 2026-03-18
     author: "Toolkit Product"
@@ -486,10 +489,12 @@ type ViewProps = {
 - Required props: `kind` (`'stack'` | `'carousel'`).
 - Optional props: `id` (string — if absent, auto-generated from `kind` + scene index), `x`, `y`, `w`, `h` (container bounds in NVS, default: full viewport), `gap` (NVS gap between views).
 - Stack-specific: `direction` (`'horizontal'` | `'vertical'`, default: `'horizontal'`).
-- Carousel-specific: `activeIndex` (0-indexed active view, default: 0), `inactiveScale` (scale factor for non-active views, default: 0.75), `zStep` (NVS z-depth per position from active, default: 0.1).
+- Carousel-specific: `focusedIndex` (0-indexed focused/front view, default: 0), `inactiveScale` (scale factor for non-focused views, default: 0.75), `zStep` (NVS z-depth per position from focused, default: 0.1), `onSelect` (callback fired when a carousel item is selected via pointer click, keyboard Enter/Space, or programmatic trigger — receives a `CarouselSelectEvent`).
+- **Deprecated:** `activeIndex` is deprecated in favor of `focusedIndex`. It continues to work with a runtime console deprecation warning and will be removed in the next major version.
 - `children`: `<View>` elements, plus optional `<CarouselTray>` and `<Highlight>` siblings (carousel layouts only). Other non-`<View>` children emit a console warning and are ignored.
 - Compiled into `ViewLayoutState` (stored in `SceneFrame.widgets[layoutId]`).
-- The `activeIndex` prop can be changed scene-to-scene to animate the carousel's active item. Because `ViewState.bounds` changes between scenes when `activeIndex` changes, elements inside those views will reposition.
+- The `focusedIndex` prop can be changed scene-to-scene to animate the carousel's focused item. Because `ViewState.bounds` changes between scenes when `focusedIndex` changes, elements inside those views will reposition.
+- The `onSelect` callback is extracted at compile time via `extractInteractionCallbacks()` and stored in the `InteractionCallbackRegistry` (a React ref on `useSceneEngine`). At runtime, `InputCoordinator` resolves the handler by `layoutId` and dispatches a `CarouselSelectEvent` on pointer click or keyboard Enter/Space within carousel bounds. Calling `event.preventDefault()` suppresses the normal `ActionInputController` click dispatch waterfall.
 - Source: `packages/core/src/compiler/blocks/viewLayoutDsl.tsx`
 
 ```typescript
@@ -501,9 +506,12 @@ type ViewLayoutProps = {
   // stack-only:
   direction?: 'horizontal' | 'vertical';
   // carousel-only:
+  focusedIndex?: number;
+  /** @deprecated Use `focusedIndex` instead. Will be removed in the next major version. */
   activeIndex?: number;
   inactiveScale?: number;
   zStep?: number;
+  onSelect?: CarouselSelectHandler;
   children?: React.ReactNode;
 };
 ```
@@ -515,7 +523,7 @@ type ViewLayoutProps = {
 - Source: `packages/core/src/elements/carousel-scrubber/dsl.tsx`
 
 ```tsx
-<ViewLayout kind="carousel" activeIndex={0}>
+<ViewLayout kind="carousel" focusedIndex={0} onSelect={(e) => console.log('Selected:', e.viewId)}>
   <CarouselTray surface="onyx" edgeStyle="knurled" />
   <Highlight active mode="holographic" color="#5090e0" />
   <View id="chart-1"><Chart ... /></View>
@@ -1128,16 +1136,16 @@ import { View, ViewLayout } from '@brewsite/core';
 
 Each `<View>` receives equal horizontal space (minus the gap) computed by the stack layout algorithm. The charts inside each view use the full [0..1] NVS space within their allocated region.
 
-**Carousel layout — active item cycling across scenes with highlights:**
+**Carousel layout — focused item cycling across scenes with highlights:**
 
 ```tsx
 import { View, ViewLayout, CarouselTray, Highlight } from '@brewsite/core';
 // <Chart> requires @brewsite/charts
 
-// Scene 1: first chart active with holographic highlight
+// Scene 1: first chart focused with holographic highlight
 export const sceneCarousel1 = (
   <Scene key="carousel-1">
-    <ViewLayout kind="carousel" activeIndex={0} inactiveScale={0.7} zStep={0.08}>
+    <ViewLayout kind="carousel" focusedIndex={0} inactiveScale={0.7} zStep={0.08}>
       <View id="chart-a"><Chart id="rev" type="bar" data={revData} /></View>
       <View id="chart-b"><Chart id="cost" type="line" data={costData} /></View>
       <View id="chart-c"><Chart id="margin" type="area" data={marginData} /></View>
@@ -1147,10 +1155,10 @@ export const sceneCarousel1 = (
   </Scene>
 );
 
-// Scene 2: second chart active — carousel advances, bounds recalculate
+// Scene 2: second chart focused — carousel advances, bounds recalculate
 export const sceneCarousel2 = (
   <Scene key="carousel-2">
-    <ViewLayout kind="carousel" activeIndex={1} inactiveScale={0.7} zStep={0.08}>
+    <ViewLayout kind="carousel" focusedIndex={1} inactiveScale={0.7} zStep={0.08}>
       <View id="chart-a"><Chart id="rev" type="bar" data={revData} /></View>
       <View id="chart-b"><Chart id="cost" type="line" data={costData} /></View>
       <View id="chart-c"><Chart id="margin" type="area" data={marginData} /></View>
@@ -1161,7 +1169,42 @@ export const sceneCarousel2 = (
 );
 ```
 
-When `activeIndex` changes between scenes, the `ViewState.bounds` for each view changes. Elements inside the views — which read their bounds from `composeBounds()` — automatically reposition. The transition between scenes animates the chart positions and scales as the `ViewLayoutState` changes.
+When `focusedIndex` changes between scenes, the `ViewState.bounds` for each view changes. Elements inside the views — which read their bounds from `composeBounds()` — automatically reposition. The transition between scenes animates the chart positions and scales as the `ViewLayoutState` changes.
+
+**Carousel selection — responding to user clicks with scene navigation:**
+
+```tsx
+import { View, ViewLayout, CarouselTray, Highlight } from '@brewsite/core';
+
+// Navigate to a specific scene when a carousel item is selected
+const handleSelect = (e: CarouselSelectEvent) => {
+  const sceneMap: Record<string, string> = {
+    'chart-a': 'detail-revenue',
+    'chart-b': 'detail-cost',
+    'chart-c': 'detail-margin',
+  };
+  const targetScene = sceneMap[e.viewId];
+  if (targetScene) {
+    const progress = engine.getSceneProgress(targetScene);
+    engine.beginTransition(progress, { duration: 800 });
+    e.preventDefault(); // suppress normal click dispatch
+  }
+};
+
+export const sceneCarouselSelect = (
+  <Scene key="overview">
+    <ViewLayout kind="carousel" focusedIndex={0} onSelect={handleSelect}>
+      <View id="chart-a"><Chart id="rev" type="bar" data={revData} /></View>
+      <View id="chart-b"><Chart id="cost" type="line" data={costData} /></View>
+      <View id="chart-c"><Chart id="margin" type="area" data={marginData} /></View>
+      <CarouselTray surface="onyx" />
+      <Highlight active variant="primary" />
+    </ViewLayout>
+  </Scene>
+);
+```
+
+The `onSelect` callback receives a `CarouselSelectEvent` with `index`, `viewId`, `layoutId`, `childCount`, NVS `position`, and `source` (`'pointer'` | `'keyboard'` | `'programmatic'`). Calling `e.preventDefault()` prevents the click from propagating to the `ActionInputController` click dispatch waterfall.
 
 **Nested views:**
 
@@ -1598,7 +1641,7 @@ Tree-shaking: because each element's DSL component and handler live in the same 
 
 > **Known edge case — standalone View opacity override:** If a chart or other widget inside a standalone (non-carousel) `<View>` has its own independent opacity animation authored separately from the View, `ViewWidget` will write `ViewState.opacity` (typically 1.0) to `mat.opacity` each frame, suppressing the widget's own opacity curve. This is a natural consequence of ViewWidget running last in the tick loop. Authors who need independent opacity on a widget inside a standalone View should author the opacity on the View itself, not directly on the child element.
 
-**No transition interpolation for view bounds between scenes.** When `activeIndex` changes in a carousel `<ViewLayout>` between two authored scenes, the `ViewState.bounds` values are discrete — they snap at the scene transition midpoint, not interpolate. Elements inside the views interpolate their own state (e.g., chart data values) normally. For runtime carousel interactions (`carousel.next`/`carousel.prev`), `ViewWidget` applies the delta transform immediately when the patched bounds arrive — smooth lerp animation is a follow-up concern.
+**No transition interpolation for view bounds between scenes.** When `focusedIndex` changes in a carousel `<ViewLayout>` between two authored scenes, the `ViewState.bounds` values are discrete — they snap at the scene transition midpoint, not interpolate. Elements inside the views interpolate their own state (e.g., chart data values) normally. For runtime carousel interactions (`carousel.next`/`carousel.prev`), `ViewWidget` applies the delta transform immediately when the patched bounds arrive — smooth lerp animation is a follow-up concern.
 
 **`<ViewLayout>` children must all be `<View>` elements.** Non-`<View>` elements inside `<ViewLayout>` emit a console warning and are ignored. This constraint keeps the layout algorithm simple and avoids ambiguous behavior when non-spatial elements appear in a spatial layout container.
 
@@ -1631,6 +1674,10 @@ Any future change to the following constitutes a breaking change requiring a maj
 - Changing `CompileApi.composeBounds` signature or semantics — this would break all downstream element handlers that call it.
 - Removing or renaming any prop on `View` or `ViewLayout` that has been consumed in published scenes.
 
+### Deprecations (current release, minor bump)
+
+- **`activeIndex` on `<ViewLayout>`** — Deprecated in favor of `focusedIndex`. Both props are accepted; when both are provided, `focusedIndex` takes precedence. `activeIndex` emits a runtime `console.warn` deprecation message. Removal planned for the next major version.
+
 ### Backward compatible additions (no semver bump required)
 
 The following additions are backward compatible:
@@ -1638,6 +1685,13 @@ The following additions are backward compatible:
 - `CompileApi.composeBounds` is a new field on `CompileApi`. Existing handlers that do not call it are unaffected; `composeBounds` is the identity at the root level.
 - `ViewState` and `ViewLayoutState` in `SceneFrame.widgets` only appear when `<View>` or `<ViewLayout>` are used. Existing scenes have no such entries.
 - The addition of `childWidgetIds` to `ViewState` is backward compatible — all producers are in the same codebase and compile together. Consumer code reading `ViewState` from `tick.state.widgets` must be updated to acknowledge the new required field, but this is an additive change.
+- `focusedIndex` on `<ViewLayout>` — new optional prop. Existing scenes using `activeIndex` are unaffected; the deprecated prop continues to work identically.
+- `onSelect` on `<ViewLayout>` — new optional callback prop. Scenes that do not use it are unaffected. The callback is extracted at compile time and stored in the `InteractionCallbackRegistry`; it does not appear in the baked `SceneTrack`.
+- `CarouselSelectEvent`, `CarouselSelectHandler`, `CarouselSelectSource` — new exported types. Additive; no effect on existing code.
+- `useCarouselSelection(layoutId)` — new React hook. Additive.
+- `clearCarouselSelection(layoutId, store)` — new imperative function. Additive.
+- `getSceneProgress(sceneId)` on `UseSceneEngineResult` — new convenience method. Additive.
+- `getSceneProgressFromTrack(track, sceneId)` — new pure function export. Additive.
 
 ---
 

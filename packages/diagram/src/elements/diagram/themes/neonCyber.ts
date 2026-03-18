@@ -73,7 +73,7 @@ export const neonCyberTheme: DiagramTheme = {
     borderEdgeDarken: 0.40,
   },
   environment: {
-    envMapUrl: '/assets/envmaps/diagram-default.hdr',
+    envMapUrl: 'none',
     envMapIntensity: 0.68,
     skyColor: '#02030D',
     horizonColor: '#09122A',

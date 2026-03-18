@@ -142,7 +142,7 @@ export function ModelScene() {
       <Environment intensity={0.6}>
         <EnvironmentHdri url="/assets/env/studio.hdr" />
       </Environment>
-      <Model type="Robot" id="robot" scale={0.001} x={0.5} y={0} w={0.5} h={1} />
+      <Model type="Robot" id="robot" scale={0.06} x={0.5} y={0} w={0.5} h={1} />
     </Scene>
   );
 }

@@ -37,6 +37,8 @@ import {
   type AxisArbiterConfig,
 } from '../input/axisArbiter';
 import { computeCarouselStep } from '../input/carouselStepper';
+import { createCarouselSelectEvent } from '../input/carouselSelectTypes';
+import type { CarouselSelectSource } from '../input/carouselSelectTypes';
 
 export interface InputCoordinatorProps {
   /**
@@ -334,6 +336,7 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
 
       // 5. Write new index and child count to VariableStore.
       variableStore.set('carousel', `${resolvedLayoutId}.activeIndex`, newIndex);
+      variableStore.set('carousel', `${resolvedLayoutId}.focusedIndex`, newIndex);
       variableStore.set('carousel', `${resolvedLayoutId}.childCount`, childCount);
 
       // 6. Recompute layout with updated activeIndex.
@@ -451,6 +454,75 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
 
       onCarouselStep: (layoutId, direction, stepSlides) => {
         handleCarouselStep(layoutId, direction, stepSlides);
+      },
+
+      onCarouselSelect: (layoutId, source, clientX, clientY) => {
+        // Read from the ref on every invocation — always gets the latest closures
+        const interactionCallbacks = engineRef.current.interactionCallbacksRef.current;
+        if (!interactionCallbacks) return false;
+
+        // Resolve '__primary_carousel__' sentinel if needed
+        const resolvedLayoutId = layoutId === PRIMARY_CAROUSEL_SENTINEL
+          ? resolvePrimaryCarouselId()
+          : layoutId;
+        if (!resolvedLayoutId) return false;
+
+        const selectHandler = interactionCallbacks.getSelectHandler(resolvedLayoutId);
+        if (!selectHandler) return false;
+
+        // Read current focused index from VariableStore
+        const variableStore = engineRef.current.variableStore;
+        const storedFocusedIndex = variableStore.get('carousel', `${resolvedLayoutId}.focusedIndex`)
+          ?? variableStore.get('carousel', `${resolvedLayoutId}.activeIndex`)
+          ?? 0;
+        const focusedIndex = typeof storedFocusedIndex === 'number' ? storedFocusedIndex : 0;
+
+        // Read view IDs from compiled widget state
+        const tick = engineRef.current.frameState.tick;
+        if (!tick) return false;
+        const layoutState = tick.state.widgets[resolvedLayoutId] as
+          | { kind: string; viewIds: readonly string[] }
+          | undefined;
+        if (!layoutState || layoutState.kind !== 'carousel') return false;
+
+        const viewIds = layoutState.viewIds;
+        const childCount = viewIds.length;
+        if (childCount === 0) return false;
+
+        const viewId = viewIds[focusedIndex] ?? viewIds[0] ?? '';
+
+        // Build the event — convert client coords to NVS for the public API
+        let position: { x: number; y: number } | null = null;
+        if (clientX !== null && clientY !== null) {
+          const canvasEl = engineRef.current.canvasRef.current;
+          if (canvasEl) {
+            const rect = canvasEl.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+              position = {
+                x: (clientX - rect.left) / rect.width,
+                y: (clientY - rect.top) / rect.height,
+              };
+            }
+          }
+        }
+
+        const event = createCarouselSelectEvent(
+          focusedIndex,
+          viewId,
+          resolvedLayoutId,
+          childCount,
+          position,
+          source as CarouselSelectSource,
+        );
+
+        // Invoke the handler
+        selectHandler(event);
+
+        // Write selectedIndex to VariableStore for reactive consumers
+        variableStore.set('carousel', `${resolvedLayoutId}.selectedIndex`, focusedIndex);
+
+        // Return whether the event was consumed
+        return event.defaultPrevented;
       },
 
       onUnknownAction: pluginExtension ?? undefined,

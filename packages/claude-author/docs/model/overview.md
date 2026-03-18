@@ -112,7 +112,7 @@ Use `manifestUrl` in production — the plugin fetches and validates the manifes
 |---|---|
 | `modelPlugin(options)` | Creates the `WidgetPlugin` instance. Call once per `<SceneEngine>`. |
 | `registerModelHandlers()` | Registers model DSL node handlers into the compiler registry. Called internally by `modelPlugin`. |
-| `ModelRouter` | Model routing utility for resolving model types to widget instances. |
+| `ModelRouter` | Null-returning DSL component (same props as `<Model>`). Used as an alternative DSL tag for model declarations. |
 
 ### Widget Configuration
 
@@ -170,9 +170,12 @@ type ModelMeta = {
   glb: string;               // URL path to the .glb file
   bones: string[];           // All bone node names in the GLB
   meshes: string[];          // All mesh node names in the GLB
+  subparts?: string[];       // Node names for contained-model use cases
+  footOffsetY?: number;      // Y offset from origin to feet (scale=1), computed at build time
   anchorTargets: Record<string, string>; // anchor key → bone node name
   bodyParts?: string[];
   bodyPartGroups?: BodyPartGroup[];
+  baseRotation?: [number, number, number]; // Optional base rotation (radians) for the model root
   identity: SceneModelInstanceState; // Default state derived from GLB
 };
 
@@ -181,6 +184,8 @@ type AnimationEntry = {
   glb: string;               // URL to the animation GLB
   clipName: string;          // Clip name inside the GLB
   duration: number;          // Duration in seconds
+  clipStart?: number;        // Optional start offset within the clip
+  clipEnd?: number;          // Optional end offset within the clip
 };
 ```
 

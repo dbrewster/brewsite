@@ -1,6 +1,6 @@
 {
   "name": "@brewsite/textures",
-  "version": "0.6.0",
+  "version": "0.6.4",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -18,7 +18,12 @@
     },
     "./assets/*": "./assets/*"
   },
-  "files": ["dist", "assets", "LICENSE", "README.md"],
+  "files": [
+    "dist",
+    "assets",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "build:lib": "tsc -p tsconfig.build.json",
@@ -29,8 +34,8 @@
     "download": "bash scripts/download-textures.sh"
   },
   "peerDependencies": {
-    "@brewsite/core": "workspace:*",
-    "three": "^0.183.1"
+    "@brewsite/core": "^0.6.4",
+    "three": ">=0.170.0"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

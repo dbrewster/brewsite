@@ -3,6 +3,10 @@
 import { useVariable } from './useVariable';
 
 /**
+ * @deprecated Use `useCarouselSelection(layoutId)` instead, which provides
+ * `focusedIndex`, `selectedIndex`, `childCount`, and `clearSelection()`.
+ * This hook will be removed in the next major version.
+ *
  * Returns the current active index and child count of a carousel ViewLayout.
  * Re-renders whenever the carousel advances or retreats.
  *
@@ -19,7 +23,11 @@ import { useVariable } from './useVariable';
  * ```
  */
 export function useCarouselState(layoutId: string): [activeIndex: number, childCount: number] {
-  const activeIndex = useVariable<number>('carousel', `${layoutId}.activeIndex`) ?? 0;
+  // Read focusedIndex first, fall back to activeIndex for compat
+  const focusedIndex = useVariable<number>('carousel', `${layoutId}.focusedIndex`);
+  const activeIndex = useVariable<number>('carousel', `${layoutId}.activeIndex`);
   const childCount = useVariable<number>('carousel', `${layoutId}.childCount`) ?? 0;
-  return [activeIndex, childCount];
+  const resolved = (typeof focusedIndex === 'number' ? focusedIndex : undefined)
+    ?? (typeof activeIndex === 'number' ? activeIndex : 0);
+  return [resolved, childCount];
 }

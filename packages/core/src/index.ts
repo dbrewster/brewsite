@@ -20,6 +20,9 @@ export type { IHasCustomDslHandler } from './widget/WidgetRegistry';
 export type { ISceneLifecycle } from './widget/types';
 export { isSceneLifecycle } from './widget/WidgetRegistry';
 
+// ─── Scene track helpers ────────────────────────────────────────────────────────
+export { getSceneProgressFromTrack } from './compiler/sceneTrackHelpers';
+
 // ─── Dev utilities ─────────────────────────────────────────────────────────────
 export { clearCache as clearSceneTrackCache } from './compiler/sceneTrackCache';
 

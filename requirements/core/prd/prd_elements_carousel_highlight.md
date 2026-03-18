@@ -7,6 +7,9 @@ last_updated: 2026-03-18
 change_history:
   - date: 2026-03-18
     author: "Toolkit Product"
+    summary: "Carousel selection region: updated `active` targeting description to reference `focusedIndex` instead of deprecated `activeIndex`. Updated migration examples to use `focusedIndex`."
+  - date: 2026-03-18
+    author: "Toolkit Product"
     summary: "Initial PRD created. Documents the <Highlight> DSL component, HighlightProps type, theme integration (SceneThemeHighlightDefaults, SceneThemeHighlightPalette), programmatic API (useCarouselHighlight, createCarouselHighlightController), runtime highlight override behavior, deprecation of highlight* props on <CarouselTray>, and migration guide."
 ---
 
@@ -237,7 +240,7 @@ The resolution chain is:
 
 1. `props.variant` → look up `SceneTheme.highlightPalette[variant]`
 2. For each field: `props.{field} ?? variant.{field} ?? SceneTheme.highlightDefaults.{field} ?? constant default`
-3. `active` targets the view at `carousel.activeIndex`; `viewId` targets the named view
+3. `active` targets the view at `carousel.focusedIndex`; `viewId` targets the named view
 
 This resolution runs in both the compiled path (`buildViewHighlights` in `compileTray.ts`) and the runtime path (`resolveRuntimeHighlight` in `compileTray.ts`).
 
@@ -316,7 +319,7 @@ export type { ViewHighlightMode, ViewHighlightConfig, ViewHighlight } from './ca
 
 **Before:**
 ```tsx
-<ViewLayout kind="carousel" id="metrics" loop activeIndex={0} zStep={15}>
+<ViewLayout kind="carousel" id="metrics" loop focusedIndex={0} zStep={15}>
   <View id="chart-1"><RevenueChart /></View>
   <View id="chart-2"><CostChart /></View>
   <CarouselTray
@@ -330,7 +333,7 @@ export type { ViewHighlightMode, ViewHighlightConfig, ViewHighlight } from './ca
 
 **After:**
 ```tsx
-<ViewLayout kind="carousel" id="metrics" loop activeIndex={0} zStep={15}>
+<ViewLayout kind="carousel" id="metrics" loop focusedIndex={0} zStep={15}>
   <View id="chart-1"><RevenueChart /></View>
   <View id="chart-2"><CostChart /></View>
   <CarouselTray metalness={0.1} />
@@ -363,7 +366,7 @@ export type { ViewHighlightMode, ViewHighlightConfig, ViewHighlight } from './ca
 ### Theme-only usage
 
 ```tsx
-<ViewLayout kind="carousel" id="metrics" loop activeIndex={0} zStep={15}>
+<ViewLayout kind="carousel" id="metrics" loop focusedIndex={0} zStep={15}>
   <View id="chart-1"><RevenueChart /></View>
   <View id="chart-2"><CostChart /></View>
   <CarouselTray />
@@ -398,7 +401,7 @@ const theme: SceneTheme = {
 // Scene: declarative layout with default highlight
 const MonitoringScene = () => (
   <Scene>
-    <ViewLayout kind="carousel" id="metrics" loop activeIndex={0} zStep={15}>
+    <ViewLayout kind="carousel" id="metrics" loop focusedIndex={0} zStep={15}>
       <View id="cpu"><CpuChart /></View>
       <View id="memory"><MemoryChart /></View>
       <View id="network"><NetworkChart /></View>

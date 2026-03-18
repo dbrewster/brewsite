@@ -3,7 +3,7 @@ title: HUD and Overlay System Reference
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-18
 ---
 
 ## HUD System Overview
@@ -53,11 +53,14 @@ The outer `SceneEngine` container must have `position: relative` so the `inset: 
 **Theme injection:** When `SceneEngine` has a `theme` prop, `EngineOverlayHost` injects CSS custom properties onto the overlay div:
 - `--brewsite-font-family`
 - `--brewsite-font-size-heading/body/label/caption/annotation`
+- `--brewsite-color-mode` — the active color mode (`'dark'` or `'light'`)
 - `--brewsite-text-primary`, `--brewsite-text-secondary`
 - `--brewsite-background-color`, `--brewsite-surface-elevated`, `--brewsite-border-subtle`
 - `--brewsite-radius-base`
 
 CSS classes added: `bw-theme-{family}` (e.g. `bw-theme-darkGlass`), `bw-dark` or `bw-light`.
+
+The overlay container has `zIndex: 10`. Ensure the `SceneCanvas` uses a lower `zIndex` (e.g. `zIndex: 1`) so the overlay renders above the canvas.
 
 ---
 
@@ -238,7 +241,7 @@ export function HeroScene() {
 
       {/* Model occupies right 55% */}
       <View id="model-area" x={0.42} y={0} w={0.55} h={1}>
-        <Model type="Robot" id="robot" scale={0.001} x={0} y={0} w={1} h={1} />
+        <Model type="Robot" id="robot" scale={0.06} x={0} y={0} w={1} h={1} />
       </View>
 
       {/* Headline — top-left */}

@@ -3,7 +3,7 @@ title: Camera Element DSL Reference
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-18
 ---
 
 ## Camera Overview
@@ -122,6 +122,28 @@ Auto-frames a target model's height within the viewport.
 
 Auto-frames a floor depth span. Deprecated — prefer `mode: 'world'` for new scenes.
 
+```tsx
+<Camera
+  mode="fitFloorDepth"
+  floorY={0}
+  floorZMin={-2}
+  floorZMax={2}
+  lookAtZ={0}
+  cameraX={0}
+  cameraY={1.5}
+/>
+```
+
+| Prop | Type | Required | Description |
+|---|---|---|---|
+| `mode` | `'fitFloorDepth'` | yes | |
+| `floorY` | `number` | yes | Floor Y position in world space |
+| `floorZMin` | `number` | yes | Minimum Z extent of the floor |
+| `floorZMax` | `number` | yes | Maximum Z extent of the floor |
+| `lookAtZ` | `number` | no | Z coordinate the camera looks at |
+| `cameraX` | `number` | no | Camera X position in world space |
+| `cameraY` | `number` | no | Camera Y position. When omitted, derived from `floorY + (floorZMax - floorZMin) * 0.4`. **Deprecated** — supply explicitly. The auto-derived fallback is a best-effort heuristic not calibrated for 1-unit world scenes |
+
 ---
 
 ### Shared Lens Props
@@ -186,12 +208,16 @@ All modes accept these optional lens props (flat, map to `CameraLens`):
 | `maxDistance` | `number` | 50 | Maximum camera distance |
 | `minPolarAngle` | `number` | 0 | Minimum polar angle (radians from top) |
 | `maxPolarAngle` | `number` | Math.PI | Maximum polar angle |
-| `reset` | `{ key: string; modifiers?: string[] } \| false` | `{ key: 'r' }` | Keyboard shortcut to reset camera to scene position |
+| `wheelLockIdleMs` | `number` | 160 | Wheel sticky-lock idle timeout in milliseconds. After this duration of no wheel events, the axis lock resets |
+| `wheelAxisDominance` | `number` | 1.2 | Axis dominance ratio for sticky wheel locking. The dominant axis delta must exceed the other by this ratio to lock |
+| `wheelAxisActivationThreshold` | `number` | 10 | Total cumulative wheel delta threshold before committing to an axis lock |
+| `reset` | `KeyCombo \| false` | `{ key: 'r' }` | Keyboard shortcut to reset camera to scene position. `KeyCombo` is `{ key: string; modifiers?: ModifierKey[] }` where `ModifierKey = 'alt' \| 'ctrl' \| 'meta' \| 'shift'` |
 | `resetOnSceneChange` | `boolean` | `true` | Smooth reset when user navigates to a new scene |
 
 **Modifier-key bindings summary:**
 - `Ctrl + drag` → orbit
 - `Cmd + drag` → orbit (macOS)
+- `Cmd+Shift + drag` → orbit axis lock (horizontal OR vertical, macOS)
 - `Shift + drag` → pan
 - `Alt + drag` → dolly
 - `Shift + wheel` → pan

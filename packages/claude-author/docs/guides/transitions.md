@@ -140,7 +140,7 @@ Auto-advance pauses whenever the user scrolls. Setting `pauseOnScroll: false` ma
 
 ## Per-Element Transition Props via `<Transition>`
 
-The `<Transition>` DSL component is a child of renderable elements (`<Model>`, `<ImagePanel>`, `<Screen>`, `<Diagram>`, `<ChartWidget>`, etc.). It declares per-channel timing and easing for that element's transition behavior.
+The `<Transition>` DSL component is a child of renderable elements (`<Model>`, `<ImagePanel>`, `<Screen>`, `<Diagram>`, `<BarChart>`, `<LineChart>`, `<PieChart>`, `<AreaChart>`, `<ScatterPlotChart>`, `<HeatMapChart>`, etc.). It declares per-channel timing and easing for that element's transition behavior.
 
 ```tsx
 import { Transition, easeOutCubic } from '@brewsite/core';

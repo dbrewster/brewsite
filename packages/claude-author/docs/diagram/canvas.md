@@ -3,7 +3,7 @@ title: "@brewsite/diagram — Interactive Canvas"
 doc_type: note
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-18
 ---
 
 ## DiagramCanvas Overview
@@ -126,9 +126,17 @@ interface DiagramFocusRegionState {
 }
 ```
 
-**`useDiagramFocusRegion` hook:**
+**`useDiagramFocusRegion(options?)` hook:**
 
-Subscribe to focus region changes in any React component:
+Subscribe to focus region changes in any React component. The hook accepts an optional `UseDiagramFocusRegionOptions` argument:
+
+```tsx
+// UseDiagramFocusRegionOptions type (exported from @brewsite/diagram):
+interface UseDiagramFocusRegionOptions {
+  readonly canvasId?: string;  // Filter to a specific diagram by its id.
+                                // If omitted, receives focus events from all diagrams.
+}
+```
 
 ```tsx
 import { useDiagramFocusRegion } from '@brewsite/diagram';
@@ -146,7 +154,7 @@ function FocusIndicator() {
 }
 ```
 
-The hook returns `null` when no focus region is active. It re-renders whenever the focus region changes via the `brewsite:diagram-focus-region` window event.
+The hook returns `DiagramFocusRegionState | null`. It returns `null` when no focus region is active (or when the active focus belongs to a different `canvasId` than the one specified in options). It re-renders whenever the focus region changes via the `brewsite:diagram-focus-region` window event.
 
 **Programmatic focus region access:**
 

@@ -3,8 +3,11 @@ title: "BrewSite Core — Input System"
 doc_type: prd
 status: active
 owner: Toolkit Product
-last_updated: 2026-03-17
+last_updated: 2026-03-18
 change_history:
+  - date: 2026-03-18
+    author: "Toolkit Product"
+    summary: "Carousel selection region: documented carousel selection dispatch in ActionInputController (Section 7.7) and InputCoordinator (Section 7.8). Added `carousel.select` as an implicit action. Pointer click and keyboard Enter/Space within carousel bounds dispatch `CarouselSelectEvent` to the `onSelect` handler registered via `<ViewLayout onSelect={...}>`. When `event.preventDefault()` is called, the normal click dispatch waterfall is suppressed. New types: `CarouselSelectEvent`, `CarouselSelectHandler`, `CarouselSelectSource`."
   - date: 2026-03-17
     author: "Toolkit Product"
     summary: "v1 release readiness audit: removed deprecated PointerMapProps.drag, PointerMapProps.click, and KeyMapProps.key fields. PointerMap event is specified via the 'event' prop. KeyMap keys are specified via the 'keys' prop (avoiding conflict with React's reserved 'key' prop)."
@@ -113,6 +116,7 @@ The Input system solves these with a typed, composable API where plain scroll is
 - As a toolkit consumer, I want mobile visitors to orbit the camera with 2-finger drag and zoom with pinch without any extra configuration.
 - As a toolkit consumer, I want keyboard events to only fire when the BrewSite stage has focus, so that multiple instances on a page do not conflict.
 - As a toolkit consumer, I want all event listeners to be cleaned up automatically when I unmount the player.
+- As a toolkit consumer, I want to respond to pointer clicks and keyboard Enter/Space on carousel items via an `onSelect` callback on `<ViewLayout>`, so I can build interactive product selectors and drill-down carousels.
 
 ---
 
@@ -134,6 +138,8 @@ The Input system solves these with a typed, composable API where plain scroll is
 14. The `touches` field on `InputPointerMap` specifies the exact number of simultaneous touch points required. When omitted, the map matches mouse/stylus only (backward compatible). When set, `button` is ignored.
 15. Multi-touch pointer drag computes centroid movement from all tracked touch points. A finger settle window (80ms) allows additional fingers to arrive before committing to a finger count.
 16. Default keyboard navigation (`scene.next` on ArrowDown, `scene.prev` on ArrowUp, `carousel.next` on ArrowRight, `carousel.prev` on ArrowLeft) is always present in the merged default spec.
+17. When a pointer `click` event occurs within carousel bounds, `ActionInputController` shall resolve the clicked view index via hit testing and dispatch a `CarouselSelectEvent` to the `onSelect` handler registered on the `<ViewLayout>`. If the handler calls `event.preventDefault()`, the click does not propagate to the normal `PointerMap` click dispatch waterfall. Keyboard Enter and Space keys within a focused carousel follow the same dispatch path with `source: 'keyboard'`.
+18. The `InteractionCallbackRegistry` (a React ref on `useSceneEngine`) stores `onSelect` handlers keyed by `layoutId`. Handlers are extracted from the JSX tree at compile time by `extractInteractionCallbacks()` and are not baked into the `SceneTrack`.
 
 ---
 

@@ -7,6 +7,9 @@ last_updated: 2026-03-18
 change_history:
   - date: 2026-03-18
     author: "Toolkit Product"
+    summary: "Carousel selection region: deprecated `useCarouselState` in favor of `useCarouselSelection(layoutId)`. Added Section 10.6 `useCarouselSelection` hook documentation and Section 10.7 `clearCarouselSelection` imperative function. Updated Section 10.5 with @deprecated annotation and migration note."
+  - date: 2026-03-18
+    author: "Toolkit Product"
     summary: "Core over-engineering audit: ISceneElement.transitionSpec type narrowed to FunctionalTransitionSpec only (ElementTransitionSpec deprecated). Updated Section 7.2 transitionSpec description. Updated Section 14 compile.ts example to use FunctionalTransitionSpec instead of ElementTransitionSpec. CP9: noted TimeInput, ControlledInput, useNativeScrollSource, CustomScrollSource, ElementScrollSource, and useSceneRuntime as @deprecated exports."
   - date: 2026-03-17
     author: "Toolkit Product"
@@ -840,16 +843,57 @@ const sceneIndex = useVariable<number>('scene', 'index');
 | `scene.progress` | `number` | `blockProgress` [0, 1] within current transition |
 | `scene.[meta.*]` | `JsonPrimitive` | Any keys from `tick.state.meta` (scene-authored metadata) |
 
-### 10.5 useCarouselState Hook
+### 10.5 useCarouselState Hook (@deprecated)
 
 ```typescript
-export function useCarouselState(layoutId: string): {
-  activeIndex: number;
-  totalSlides: number;
-} | null;
+/** @deprecated Use `useCarouselSelection(layoutId)` instead. Will be removed in the next major version. */
+export function useCarouselState(layoutId: string): [activeIndex: number, childCount: number];
 ```
 
-Returns the current carousel state (active index and total slides) for a given `ViewLayout` carousel, or `null` if the layout is not found. Reads from the `VariableStore` reactively. Source: `widget/useCarouselIndex.ts`.
+Returns the current focused index and child count of a carousel `ViewLayout` as a tuple. Reads from `VariableStore` reactively. Internally reads the `focusedIndex` variable (with `activeIndex` fallback for backward compatibility). Source: `widget/useCarouselState.ts`.
+
+**Migration:** Replace `useCarouselState` with `useCarouselSelection`, which provides richer state including `selectedIndex`, `focusedIndex`, `childCount`, and a `clearSelection()` method.
+
+### 10.6 useCarouselSelection Hook
+
+```typescript
+export function useCarouselSelection(layoutId: string): {
+  /** Index of the selected item, or null if nothing is selected. */
+  selectedIndex: number | null;
+  /** Index of the currently focused (front) carousel item. */
+  focusedIndex: number;
+  /** Number of child views in the carousel. */
+  childCount: number;
+  /** Programmatically clear the selection. Triggers reactive updates. */
+  clearSelection: () => void;
+};
+```
+
+Returns the current selection and focus state of a carousel `ViewLayout`. Re-renders whenever `focusedIndex`, `selectedIndex`, or `childCount` changes. Must be called inside `<SceneEngine>` (reads from `VariableStoreContext`). Source: `widget/useCarouselSelection.ts`.
+
+`selectedIndex` is `null` when no item has been selected. It becomes non-null when a `CarouselSelectEvent` is dispatched (pointer click, keyboard Enter/Space, or programmatic trigger) and the `onSelect` handler does not call `preventDefault()`. `clearSelection()` resets `selectedIndex` to `null`.
+
+```tsx
+const { selectedIndex, focusedIndex, childCount, clearSelection } = useCarouselSelection('products');
+if (selectedIndex !== null) {
+  // Show detail overlay for the selected item
+}
+```
+
+### 10.7 clearCarouselSelection Function
+
+```typescript
+export function clearCarouselSelection(layoutId: string, store: VariableStore): void;
+```
+
+Programmatically clears the carousel selection for non-React contexts (widget implementations, event handlers without hook access). Triggers reactive updates in any component using `useCarouselSelection`. For React consumers, prefer the `clearSelection()` method from `useCarouselSelection`. Source: `widget/clearCarouselSelection.ts`.
+
+```typescript
+import { clearCarouselSelection } from '@brewsite/core';
+
+// In a widget or event handler:
+clearCarouselSelection('products', engine.variableStore);
+```
 
 ---
 

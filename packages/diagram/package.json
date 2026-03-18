@@ -1,6 +1,6 @@
 {
   "name": "@brewsite/diagram",
-  "version": "0.6.0",
+  "version": "0.6.4",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -38,7 +38,7 @@
     "@brewsite/core": "workspace:*",
     "react": "^18.0.0 || ^19.0.0",
     "react-dom": "^18.0.0 || ^19.0.0",
-    "three": "^0.170.0",
+    "three": ">=0.170.0",
     "troika-three-text": "^0.52.4"
   },
   "devDependencies": {
@@ -54,5 +54,8 @@
     "vite": "^5.4.21",
     "vite-node": "^5.3.0",
     "vitest": "^2.1.9"
+  },
+  "dependencies": {
+    "@brewsite/core": "0.6.4"
   }
 }

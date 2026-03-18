@@ -73,7 +73,7 @@ export const midnightTheme: DiagramTheme = {
     borderEdgeDarken: 0.50,
   },
   environment: {
-    envMapUrl: '/assets/envmaps/diagram-default.hdr',
+    envMapUrl: 'none',
     envMapIntensity: 0.55,
     skyColor: '#1A120D',
     horizonColor: '#332319',

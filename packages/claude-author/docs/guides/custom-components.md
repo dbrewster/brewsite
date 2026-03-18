@@ -251,7 +251,7 @@ export const carouselScrubberTransitionSpec: FunctionalTransitionSpec<CarouselSc
 
 Use `blendNumber` for numeric fields, `blendColor` for hex color strings. Discrete fields (booleans, enums, string IDs) flip at `t < 0.5`: use `from` in the first half, `to` in the second half.
 
-Use `ElementTransitionSpec<T>` (batch-fill model) when you need to write state directly into each `SceneTrackTick` in a slice at compile time. This is used by elements where the transition behavior is complex or data-dependent (e.g., diagram node layout animations). Most simple elements use `FunctionalTransitionSpec`.
+**`ElementTransitionSpec<T>` is deprecated.** It pre-bakes state into SceneTrack ticks at compile time, preventing per-frame window/ease resolution. The compiler emits a `console.warn` for any remaining `ElementTransitionSpec` implementations and fills with `absentDefault`. Use `FunctionalTransitionSpec<T>` for all new elements.
 
 ## render.ts — The Three.js Layer
 

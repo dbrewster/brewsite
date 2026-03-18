@@ -2,6 +2,7 @@
 // Null-returning component consumed by the compiler.
 
 import type { ViewLayoutKind } from '../../layout/regionTypes';
+import type { CarouselSelectHandler } from '../../input/carouselSelectTypes';
 
 export type ViewLayoutProps = {
   /** Stable layout identity. Default: auto-generated from kind + scene index. */
@@ -24,8 +25,29 @@ export type ViewLayoutProps = {
   direction?: 'horizontal' | 'vertical';
 
   // Carousel-specific:
-  /** 0-indexed active view. Only used when kind='carousel'. Default: 0. */
+  /**
+   * 0-indexed active (front) view. Only used when kind='carousel'. Default: 0.
+   * @deprecated Use `focusedIndex` instead. Will be removed in the next major version.
+   */
   activeIndex?: number;
+
+  /** 0-indexed focused (front) view. Only used when kind='carousel'. Default: 0. */
+  focusedIndex?: number;
+
+  /**
+   * Called when a carousel item is selected via pointer click, keyboard Enter/Space,
+   * or programmatic trigger. Only used when kind='carousel'.
+   *
+   * The callback receives a CarouselSelectEvent with the selected item's index,
+   * viewId, layoutId, pointer position (if applicable), and trigger source.
+   *
+   * Call event.preventDefault() to stop the event from propagating to the
+   * ActionInputController's normal click dispatch waterfall.
+   *
+   * NOTE: This callback is extracted during compilation and stored in the
+   * InteractionCallbackRegistry. It is NOT baked into the SceneTrack.
+   */
+  onSelect?: CarouselSelectHandler;
   /** Scale factor for inactive views. Only used when kind='carousel'. Default: 0.75. */
   inactiveScale?: number;
   /** World-space Z depth. Linear: per-position step. Loop: total front-to-back depth. Only used when kind='carousel'. Default: 0. */

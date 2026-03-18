@@ -11,6 +11,7 @@ const CoreShowcasePage = lazy(() => import('./core-showcase/CoreShowcasePage'));
 const MediaScreenDemoPage = lazy(() => import('./media-screen-demo/MediaScreenDemoPage'));
 const ModelShowcasePage = lazy(() => import('./model-showcase/ModelShowcasePage'));
 const CanvasRegionPage = lazy(() => import('./canvas-region/CanvasRegionPage'));
+const CarouselSelectionPage = lazy(() => import('./carousel-selection/CarouselSelectionPage'));
 
 function Loading(): JSX.Element {
   return <div style={{ padding: '2rem' }}>Loading example...</div>;
@@ -29,6 +30,7 @@ export default function ExamplesApp(): JSX.Element {
         <Route path="/media-screen-demo" element={<MediaScreenDemoPage />} />
         <Route path="/model-showcase" element={<ModelShowcasePage />} />
         <Route path="/canvas-region" element={<CanvasRegionPage />} />
+        <Route path="/carousel-selection" element={<CarouselSelectionPage />} />
         <Route
           path="/"
           element={
@@ -44,6 +46,7 @@ export default function ExamplesApp(): JSX.Element {
                 <li><a href="/examples/media-screen-demo">MediaScreen Demo — @brewsite/screens</a></li>
                 <li><a href="/examples/model-showcase">Model Showcase — @brewsite/model</a></li>
                 <li><a href="/examples/canvas-region">Canvas Region — Embedded 3D Viewer</a></li>
+                <li><a href="/examples/carousel-selection">Carousel Selection — onSelect + Full Screen Patterns</a></li>
               </ul>
             </div>
           }

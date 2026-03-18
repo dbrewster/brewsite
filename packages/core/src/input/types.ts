@@ -30,6 +30,7 @@ export type InputActionType =
   | 'scene.prev'
   | 'carousel.next'
   | 'carousel.prev'
+  | 'carousel.select'
   | (string & {}); // open union — allows downstream extension
 
 export type InputPointerMap = {
@@ -140,6 +141,20 @@ export type ActionInputHandler = {
    * Used by ActionInputController for spatial gating of carousel events.
    */
   getLayoutBounds?: (layoutId: string) => { x: number; y: number; w: number; h: number } | null;
+  /**
+   * Called when a carousel selection event is triggered (click within bounds
+   * or keyboard Enter/Space). Returns true if the event was consumed
+   * (preventDefault was called), false otherwise.
+   *
+   * When true is returned, ActionInputController skips its normal click
+   * dispatch for this event.
+   */
+  onCarouselSelect?: (
+    layoutId: string,
+    source: 'pointer' | 'keyboard',
+    clientX: number | null,
+    clientY: number | null,
+  ) => boolean;
   onUnknownAction?: (
     type: string,
     canvasId: string | undefined,

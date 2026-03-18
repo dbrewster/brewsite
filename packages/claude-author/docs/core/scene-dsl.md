@@ -3,7 +3,7 @@ title: Scene DSL
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-18
 ---
 
 ## Scene Component
@@ -29,9 +29,9 @@ function Scene01Hero(): JSX.Element {
 
 | Prop | Type | Description |
 |---|---|---|
-| `id` | `string` | Required. Unique identifier within one engine. |
+| `id` | `string` | Unique identifier within one engine. Recommended. If omitted, the compiler falls back to the React `key` prop. If neither is present, a warning is logged and a default `'scene'` id is used. Explicitly setting `id` is strongly recommended for stable scene identity. |
 | `transition` | `'dissolve' \| 'crossfade' \| TransitionWindow` | Transition type for entering this scene. Default: `'dissolve'`. |
-| `exitStart` | `number` | Block progress [0, 0.99] at which the outgoing scene begins fading. Only valid when `transition` is `'dissolve'` or omitted. Default: `0.8`. |
+| `exitStart` | `number` | Block progress [0, 0.99] at which the outgoing scene begins fading. Default: `0.8`. Only valid when `transition` is `'dissolve'` or omitted — providing `exitStart` with `'crossfade'` or a `TransitionWindow` is a TypeScript compile error. |
 | `meta` | `Record<string, JsonPrimitive>` | Arbitrary metadata attached to the compiled frame. |
 | `primaryCarouselId` | `string` | Widget id of the primary carousel layout for this scene. Enables the `'__primary_carousel__'` sentinel in carousel actions. |
 | `metalnessMultiplier` | `number` | Multiplier applied to base metalness for all model materials in this scene. |
@@ -102,8 +102,8 @@ import { ProgressManager, Scene } from '@brewsite/core';
 
 | Prop | Type | Default | Description |
 |---|---|---|---|
-| `scrollUnits` | `number` | `1` | Proportional scroll budget. Unitless — relative to all scenes. `scrollUnits={2}` = twice the scroll travel. |
-| `fn` | `(t: number) => number` | identity | Input pacing curve mapping local raw progress to engine progress. Must satisfy `f(0)=0`, `f(1)=1`, monotonically non-decreasing. |
+| `scrollUnits` | `number` | `1` | Proportional scroll budget. Unitless — relative to all scenes. `scrollUnits={2}` = twice the scroll travel. Values <= 0 are silently clamped to 0.001. |
+| `fn` | `(localT: number) => number` | identity | Input pacing curve mapping local raw progress to engine progress. Must satisfy `fn(0)=0`, `fn(1)=1`, monotonically non-decreasing. |
 | `animationTimeScale` | `number` | — | Total animation-seconds played when user scrolls through this scene's full window in one pass. Useful range: 2–12. |
 | `autoAdvance` | `{ duration: number; max?: number; pauseOnScroll?: boolean }` | — | Automatically advance the scene on a wall-clock timer while the user is idle. |
 | `transitionDuration` | `number` | engine default (400ms) | Duration in ms for programmatic (keyboard/button) transitions *from* this scene. |

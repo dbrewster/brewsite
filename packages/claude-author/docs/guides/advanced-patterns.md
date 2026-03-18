@@ -37,7 +37,7 @@ export function Scene1() {
         <Directional intensity={1.0} color="#ffffff" position={[3, 8, 6]} />
       </Lighting>
       <Background color="#030510" />
-      <Model type="Robot" id="robot" scale={0.001} x={0.5} y={0} w={0.5} h={1} />
+      <Model type="Robot" id="robot" scale={0.06} x={0.5} y={0} w={0.5} h={1} />
     </Scene>
   );
 }
@@ -61,7 +61,7 @@ export function Scene2() {
       </Lighting>
       <Background color="#040812" />
       {/* Same id "robot" — NVS x/y/w/h and opacity all interpolate */}
-      <Model type="Robot" id="robot" scale={0.001} x={0.25} y={0} w={0.5} h={1} />
+      <Model type="Robot" id="robot" scale={0.06} x={0.25} y={0} w={0.5} h={1} />
     </Scene>
   );
 }
@@ -82,9 +82,9 @@ import { View } from '@brewsite/core';
 
 // Right 60% panel, full height, with 5% padding on all sides
 <View id="right-panel" x={0.4} y={0} w={0.6} h={1} padding={[0.05, 0.04]}>
-  <Model type="Robot" id="robot" scale={0.001} x={0} y={0} w={1} h={1} />
+  <Model type="Robot" id="robot" scale={0.06} x={0} y={0} w={1} h={1} />
   {/* TextBox inside View is also relative to the View's bounds */}
-  <TextBox key="caption" x={0.05} y={0.88} w={0.9} h={0.10}>
+  <TextBox id="caption" x={0.05} y={0.88} w={0.9} h={0.10}>
     <p style={{ color: 'white', margin: 0 }}>Caption</p>
   </TextBox>
 </View>
@@ -139,13 +139,13 @@ The active view is centered at the front. Inactive views scale down and move bac
   h={1}
 >
   <View id="panel-a" w={0.38} h={0.88}>
-    <Model type="Robot" id="robot-a" scale={0.001} x={0} y={0} w={1} h={1} />
+    <Model type="Robot" id="robot-a" scale={0.06} x={0} y={0} w={1} h={1} />
   </View>
   <View id="panel-b" w={0.38} h={0.88}>
-    <Model type="Robot" id="robot-b" scale={0.001} x={0} y={0} w={1} h={1} />
+    <Model type="Robot" id="robot-b" scale={0.06} x={0} y={0} w={1} h={1} />
   </View>
   <View id="panel-c" w={0.38} h={0.88}>
-    <Model type="Robot" id="robot-c" scale={0.001} x={0} y={0} w={1} h={1} />
+    <Model type="Robot" id="robot-c" scale={0.06} x={0} y={0} w={1} h={1} />
   </View>
 </ViewLayout>
 ```
@@ -455,7 +455,7 @@ import { EngineARContainer } from '@brewsite/core';
 **`--scene-scale`:** injected on every resize as `containerWidth / referenceWidth`. Use in TextBox content for proportional font sizing:
 
 ```tsx
-<TextBox key="title" x={0.04} y={0.1} w={0.5} h={0.15}>
+<TextBox id="title" x={0.04} y={0.1} w={0.5} h={0.15}>
   <h1 style={{ fontSize: `calc(2.5rem * var(--scene-scale, 1))` }}>
     Scaled Heading
   </h1>

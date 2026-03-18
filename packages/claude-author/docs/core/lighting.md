@@ -3,7 +3,7 @@ title: Lighting Element DSL Reference
 doc_type: reference
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-18
 ---
 
 ## Lighting Overview
@@ -12,7 +12,7 @@ The `<Lighting>` element is an ambient DSL component that configures all light s
 
 Lighting affects GLTF model materials (PBR — specular, diffuse, shadows), diagram element surfaces, and the floor plane. The `intensityScale` prop scales all child lights' intensities by a global multiplier, making it easy to dim or brighten a scene without editing each light individually.
 
-`<GlowPoint>` renders as a `THREE.PointLight` that illuminates nearby surfaces. It does NOT cast shadows. It is a real dynamic light with GPU cost proportional to the scene's geometry. Only ONE `<GlowPoint>` per `<Lighting>` component is supported — the `SceneLighting` type has a singular `glowPoint?` field, not an array.
+`<GlowPoint>` is a sprite-based pseudo-light that renders as a visible glowing orb. It does NOT illuminate surfaces, cast shadows, or participate in PBR material calculations — it is a visual effect only. For actual scene illumination, use `<Point>` instead. Only ONE `<GlowPoint>` per `<Lighting>` component is supported — the `SceneLighting` type has a singular `glowPoint?` field, not an array.
 
 Import from `@brewsite/core`:
 
@@ -95,22 +95,35 @@ Three.js `PointLight`. Illuminates nearby geometry in all directions from a worl
 
 ### `<GlowPoint>`
 
-Non-shadow-casting point light. Renders as a `THREE.PointLight` with `castShadow = false`. Illuminates nearby surfaces but does not participate in shadow maps. GPU cost is proportional to the scene's geometry, like any real dynamic light.
+A sprite-based pseudo-light that renders as a visible glowing orb. It does NOT illuminate surfaces, cast shadows, or participate in PBR material calculations. It is a visual effect only — a billboard sprite with a glow texture. Use for decorative light sources, UI indicators, or ambient atmosphere effects. For actual scene illumination, use `<Point>` instead.
 
-**Limitation:** Only ONE `<GlowPoint>` per `<Lighting>` component is supported. The compiled `SceneLighting` type has a singular `glowPoint?` field. If you need multiple point lights, use `<Point>` instead.
+**Limitation:** Only ONE `<GlowPoint>` per `<Lighting>` component is supported. The compiled `SceneLighting` type has a singular `glowPoint?` field. If you need multiple illuminating point lights, use `<Point>` instead.
 
 ```tsx
+{/* Decorative glow orb — does NOT illuminate surfaces */}
 <GlowPoint intensity={2.5} color="#ff4020" position={[4, 3, 2]} distance={8} decay={2} />
 ```
 
 | Prop | Type | Required | Description |
 |---|---|---|---|
 | `id` | `string` | no | Optional stable ID |
-| `intensity` | `number` | yes | Light intensity |
-| `color` | `string` | yes | Light color |
-| `position` | `Vec3` | yes | World-space position |
-| `distance` | `number` | no | Light falloff distance |
-| `decay` | `number` | no | Light falloff decay rate |
+| `intensity` | `number` | yes | Glow brightness |
+| `color` | `string` | yes | Glow color |
+| `position` | `Vec3` | yes | World-space position of the glow sprite |
+| `distance` | `number` | no | Visual falloff distance |
+| `decay` | `number` | no | Visual falloff decay rate |
+
+**Point vs GlowPoint:**
+
+| | `<Point>` | `<GlowPoint>` |
+|---|---|---|
+| Illuminates surfaces | Yes | No |
+| Casts shadows | Yes | No |
+| PBR interactions | Yes (specular, diffuse) | None |
+| Visual appearance | Invisible (light source only) | Visible glowing orb sprite |
+| GPU cost | Higher (real light) | Lower (sprite only) |
+| Max per scene | Unlimited | 1 |
+| Use case | Scene illumination | Decorative glow, atmosphere |
 
 ---
 
@@ -133,6 +146,7 @@ Three.js `SpotLight`. Cone of light aimed at a target. Cast shadows, participate
 
 | Prop | Type | Required | Description |
 |---|---|---|---|
+| `id` | `string` | no | Optional stable ID for transition targeting |
 | `intensity` | `number` | yes | Light intensity |
 | `color` | `string` | yes | Light color |
 | `position` | `Vec3` | yes | World-space spotlight source |
@@ -170,6 +184,7 @@ A strand of point lights arranged in a geometric shape. Used for decorative ligh
 | `position` | `Vec3` | no | World-space offset applied to the strand's origin |
 | `distance` | `number` | no | Point light range |
 | `decay` | `number` | no | Falloff rate |
+| `curve` | `SceneLightStrandCurve` | no | **Deprecated.** Inline wave-curve definition. Use a `<Wave>` child component instead — the child-component API is more expressive and composable. This prop will be removed in a future major version |
 | `children` | `ReactNode` | no | `<Wave>`, `<Circle>`, or `<Rectangle>` shape definition |
 
 **`<Circle>` props:** `radius` (required), `axis?: 'xy' | 'xz' | 'yz'` (default `'xz'`), `offset?: Vec3`
@@ -248,7 +263,7 @@ Good default for GLTF models. The cool-tinted ambient (`#d7e8ff`) lifts shadow f
 </Lighting>
 ```
 
-Very low ambient pushes the scene dark. Two strong, opposing-color directionals create harsh cross-lighting. The `<GlowPoint>` adds a non-shadow-casting fill light. Note: only one `<GlowPoint>` is supported per `<Lighting>`. For additional point lights, use `<Point>`.
+Very low ambient pushes the scene dark. Two strong, opposing-color directionals create harsh cross-lighting. The `<GlowPoint>` adds a visible glowing orb as a decorative accent — it does not illuminate surfaces. For actual fill lighting, use `<Point>` instead. Only one `<GlowPoint>` is supported per `<Lighting>`.
 
 ### Neutral/light mode
 

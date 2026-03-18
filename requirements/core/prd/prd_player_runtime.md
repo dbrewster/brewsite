@@ -10,6 +10,9 @@ change_history:
     summary: "v2 player API (major breaking change — @brewsite/core v2.0.0): EngineProvider, EngineInputRegion, ScenePlayer, and ScrollCaptureSection are deleted. useEngineScroll and useEngineInput hooks deleted. SceneEngine replaces EngineProvider as the primary integration component. ScrollStage replaces EngineInputRegion for the full-page scroll pattern. SceneReel introduced for embedded/docs/slides use cases. Composable input components (ScrollInput, TimeInput, KeyboardInput, PointerInput, ControlledInput) replace all input mode configuration. useEngineState(id) unifies useEngineState and deleted useSceneEngineState. useGoToScene hook added for programmatic scene navigation. IScrollSource / ScrollSourceProp replace deleted ScrollSource type. Spring-physics inertia model replaces DOM-scroll inertia. BackgroundLayer extracted as standalone component. SceneCanvas gains engineId prop for cross-tree binding. All section 7 EngineProvider documentation rewritten for SceneEngine. All apps migrated; MIGRATION.md published."
   - date: 2026-03-18
     author: "Toolkit Product"
+    summary: "Carousel selection region: added `getSceneProgress(sceneId)` to UseSceneEngineResult (Section 8.2). Documents the convenience method and the underlying pure function `getSceneProgressFromTrack(track, sceneId)` exported from `@brewsite/core`."
+  - date: 2026-03-18
+    author: "Toolkit Product"
     summary: "Core over-engineering audit: EngineFrameDriver class removed — tick-index dedup logic inlined into useSceneEngine.ts as a simple ref-based closure. Section 11 rewritten to document the inline pattern. Section 1 overview and Section 8.4 Phase 3 updated to remove EngineFrameDriver references. CP9 deprecations noted: TimeInput, ControlledInput, useNativeScrollSource, CustomScrollSource, ElementScrollSource, useSceneRuntime marked @deprecated."
   - date: 2026-03-15
     author: "Toolkit Product"
@@ -925,6 +928,8 @@ type UseSceneEngineResult = {
 **`applyCameraOrbit` / `applyCameraDolly` / `applyCameraZoom` / `applyCameraPan` / `applyCameraReset`** — Camera interaction dispatch methods. Called by `InputCoordinator` on action dispatch. `applyCameraZoom` is an alias for `applyCameraDolly` (both delegate to the same camera widget method).
 
 **`beginTransition` / `interruptTransition` / `redirectTransition`** — Programmatic scene transition animation control. `beginTransition` starts an animated transition from the current progress to a target. `interruptTransition` stops at the current interpolated value. `redirectTransition` changes the target of an active transition.
+
+**`getSceneProgress(sceneId)`** — Returns the global progress value `[0..1]` at which the given scene begins. Throws if `sceneId` is not found in the compiled track. Delegates to `getSceneProgressFromTrack(track, sceneId)`, a pure function also exported from `@brewsite/core` for use outside of React hooks. This is the primary mechanism for carousel `onSelect` handlers that navigate to a specific scene via `engine.beginTransition(engine.getSceneProgress('detail-scene'), { duration: 800 })`.
 
 **`patchWidgetStates(patches)`** — Apply per-widget state overrides for the current tick. Used by carousel scrubbing. Cleared by calling with `{}`.
 

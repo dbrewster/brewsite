@@ -7,6 +7,9 @@ last_updated: 2026-03-18
 change_history:
   - date: 2026-03-18
     author: "Toolkit Product"
+    summary: "Carousel selection region: viewLayoutDsl.tsx updated to document `focusedIndex` (replaces deprecated `activeIndex`) and `onSelect` callback prop. Added `extractInteractionCallbacks.ts` and `interactionCallbackRegistry.ts` to compiler files list. Updated ViewLayoutState type to include `focusedIndex` field. Documented `getSceneProgressFromTrack` pure function in `sceneTrackHelpers.ts`."
+  - date: 2026-03-18
+    author: "Toolkit Product"
     summary: "Core over-engineering audit: ElementTransitionSpec deprecated — Section 7.1 updated to mark as deprecated type alias with no active implementations. Section 5.3 discrete fill path removed (all widgets use FunctionalTransitionSpec). Transition module files updated: transitionTypes.ts is now types-only; blend helpers live in transitionBlendHelpers.ts; quaternion math in rotationMath.ts. CompileApi gains layoutContext field. Section 3 infrastructure imports updated."
   - date: 2026-03-13
     author: "Toolkit Product"
@@ -640,6 +643,8 @@ export type ViewLayoutState = {
   readonly bounds: NVSRect;
   /** Ordered list of child view IDs. */
   readonly viewIds: readonly string[];
+  /** 0-based index of the focused (front) carousel item. Replaces deprecated `activeIndex`. */
+  readonly focusedIndex: number;
 };
 ```
 
@@ -1075,7 +1080,13 @@ Hosts DSL block components that are not element-specific but still require handl
 
 **`viewDsl.tsx`:** `<View>` DSL component and `ViewProps`. A null-returning component registered with `viewHandler` at module load time. Defines `id` (required), `x`, `y`, `w`, `h`, and `padding` props.
 
-**`viewLayoutDsl.tsx`:** `<ViewLayout>` DSL component and `ViewLayoutProps`. A null-returning component registered with `viewLayoutHandler` at module load time. Defines `id` (optional — auto-generated when absent), `kind`, container geometry (`x`, `y`, `w`, `h`), and layout-policy-specific props (`direction` for stack; `activeIndex`, `inactiveScale`, `zStep` for carousel).
+**`viewLayoutDsl.tsx`:** `<ViewLayout>` DSL component and `ViewLayoutProps`. A null-returning component registered with `viewLayoutHandler` at module load time. Defines `id` (optional — auto-generated when absent), `kind`, container geometry (`x`, `y`, `w`, `h`), and layout-policy-specific props (`direction` for stack; `focusedIndex`, `inactiveScale`, `zStep`, `onSelect` for carousel). The deprecated `activeIndex` prop is accepted with a runtime deprecation warning; `focusedIndex` takes precedence when both are provided.
+
+**`extractInteractionCallbacks.ts`:** Pure utility that walks the compiled JSX tree and extracts `onSelect` callback functions from `<ViewLayout>` elements. Returns an `InteractionCallbackMap` (keyed by `layoutId`). Called by `useSceneEngine` after compilation; the result is stored in a React ref (`InteractionCallbackRegistry`) that `InputCoordinator` reads at runtime to dispatch `CarouselSelectEvent`s. This separation ensures function-valued props (which cannot be serialized) are never baked into the `SceneTrack`.
+
+**`interactionCallbackRegistry.ts`:** Type definitions for `InteractionCallbackRegistry` and `InteractionCallbackMap`. The registry is a plain object with `onSelect: Map<string, CarouselSelectHandler>`.
+
+**`sceneTrackHelpers.ts`:** Pure helper functions for querying the compiled `SceneTrack`. Exports `getSceneProgressFromTrack(track, sceneId): number` — returns the global progress `[0..1]` at which the given scene begins by looking up the scene's `SceneWindow.start` value. Throws if `sceneId` is not found. Used by `useSceneEngine.getSceneProgress()` and available as a standalone pure-function export from `@brewsite/core`.
 
 **`viewHandlers.ts`:** `viewHandler` and `viewLayoutHandler` — the `NodeHandler` implementations for `<View>` and `<ViewLayout>`. Both are pure: no Three.js, no side effects beyond `api.setWidgetState` calls and `helpers.compileChildren`. The handler coordination mechanism uses a module-level `WeakMap<CompileApi, ViewLayoutContext>` to pass pre-computed bounds from `viewLayoutHandler` to the child `viewHandler` instances it spawns, without polluting the `CompileApi` interface. Nested `<ViewLayout>` nesting is supported via save/restore of the previous layout context before and after `helpers.compileChildren`.
 

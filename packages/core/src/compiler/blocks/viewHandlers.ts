@@ -159,7 +159,7 @@ export const viewHandler: NodeHandler = (node, api, helpers) => {
  */
 export const viewLayoutHandler: NodeHandler = (node, api, helpers) => {
   const props = node.props as ViewLayoutProps;
-  const { id: explicitId, kind, x, y, w, h, gap, direction, activeIndex, inactiveScale, zStep, loop, spread, fadeMin } = props;
+  const { id: explicitId, kind, x, y, w, h, gap, direction, activeIndex: deprecatedActiveIndex, focusedIndex: explicitFocusedIndex, inactiveScale, zStep, loop, spread, fadeMin } = props;
 
   // Generate layout id if not provided
   const layoutId = explicitId ?? `__viewLayout_${kind}_${api.context.sceneIndex}`;
@@ -194,12 +194,26 @@ export const viewLayoutHandler: NodeHandler = (node, api, helpers) => {
     childSizeHints.push({ w: childProps.w ?? 0, h: childProps.h ?? 0 });
   }
 
+  // Resolve focusedIndex with deprecation shim
+  let resolvedFocusedIndex: number;
+  if (explicitFocusedIndex !== undefined) {
+    resolvedFocusedIndex = explicitFocusedIndex;
+  } else if (deprecatedActiveIndex !== undefined) {
+    console.warn(
+      `[ViewLayout] "${layoutId}": \`activeIndex\` is deprecated. Use \`focusedIndex\` instead. ` +
+      `\`activeIndex\` will be removed in the next major version.`,
+    );
+    resolvedFocusedIndex = deprecatedActiveIndex;
+  } else {
+    resolvedFocusedIndex = 0;
+  }
+
   // Build layout config from props
   let layoutConfig: ViewLayoutConfig;
   if (kind === 'stack') {
     layoutConfig = { kind: 'stack', direction: direction ?? 'horizontal', gap };
   } else {
-    layoutConfig = { kind: 'carousel', activeIndex: activeIndex ?? 0, gap, inactiveScale, zStep, loop, spread, fadeMin };
+    layoutConfig = { kind: 'carousel', activeIndex: resolvedFocusedIndex, gap, inactiveScale, zStep, loop, spread, fadeMin };
   }
 
   // Resolve layout for all children

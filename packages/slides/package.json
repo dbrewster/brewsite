@@ -1,6 +1,6 @@
 {
   "name": "@brewsite/slides",
-  "version": "0.6.0",
+  "version": "0.6.4",
   "private": false,
   "type": "module",
   "main": "./dist/index.js",
@@ -14,7 +14,11 @@
       "default": "./dist/index.js"
     }
   },
-  "files": ["dist", "LICENSE", "README.md"],
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "build:lib": "tsc -p tsconfig.build.json",
@@ -24,18 +28,24 @@
     "coverage": "vitest run --coverage"
   },
   "peerDependencies": {
-    "@brewsite/core": "workspace:*",
+    "@brewsite/core": "^0.6.4",
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19",
-    "three": "^0.170.0",
-    "@brewsite/diagram": "workspace:*",
-    "@brewsite/model": "workspace:*",
-    "@brewsite/charts": "workspace:*"
+    "three": ">=0.170.0",
+    "@brewsite/diagram": "^0.6.4",
+    "@brewsite/model": "^0.6.4",
+    "@brewsite/charts": "^0.6.4"
   },
   "peerDependenciesMeta": {
-    "@brewsite/diagram": { "optional": true },
-    "@brewsite/model": { "optional": true },
-    "@brewsite/charts": { "optional": true }
+    "@brewsite/diagram": {
+      "optional": true
+    },
+    "@brewsite/model": {
+      "optional": true
+    },
+    "@brewsite/charts": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@brewsite/core": "workspace:*",

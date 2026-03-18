@@ -41,7 +41,7 @@ DSL elements accept `x`, `y`, `w`, `h`, and `z` props. These are all NVS values 
 
 There is no separate "scale=1 means X world units" rule to memorize. Scale is always relative to the viewport: a `w={0.5}` element is half the viewport width regardless of window size. The engine recomputes world coordinates on every resize.
 
-For `Model` elements, there is an additional `scale` prop that is a raw Three.js scale multiplier applied to the GLTF geometry itself (e.g., `scale={0.001}` for a model authored in millimeters). This is distinct from the NVS `w`/`h` region that controls placement.
+For `Model` elements, there is an additional `scale` prop that is a viewport-relative scale factor. The world-space scale applied to the model is `scale * visibleWorldHeight`. A value of `0.06` is typical for a human figure (6% of viewport height). This is distinct from the NVS `w`/`h` region that controls placement.
 
 ## The EngineARContainer and Aspect Ratio
 
@@ -150,4 +150,4 @@ In `ViewLayout kind="carousel"`, `zStep` pushes inactive panels back in Z automa
 
 **`w` and `h` are extents, not coordinates.** An element at `x={0.5} w={0.4}` spans from `x=0.3` to `x=0.7` (centered at 0.5, half-width 0.2 on each side). Whether the element is center-anchored or edge-anchored depends on the element type.
 
-**Scale is applied before NVS placement.** For `Model`, `scale` is a raw geometry multiplier. It does not affect NVS bounding box calculations; `w` and `h` define the placement region independently.
+**Scale is applied before NVS placement.** For `Model`, `scale` is a viewport-relative factor (`worldScale = scale * visibleWorldHeight`). It does not affect NVS bounding box calculations; `w` and `h` define the placement region independently.

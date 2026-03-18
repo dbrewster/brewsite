@@ -3,7 +3,7 @@ title: Input DSL
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-18
 ---
 
 ## Two Input Systems
@@ -210,6 +210,7 @@ Each `<Action>` declares one type of interaction with one or more input maps. An
 | `type` | `InputActionType` | Required. Action type string. See InputActionType Values below. |
 | `cameraId` | `string` | Target camera widget id for camera actions. Falls back to `primaryCameraId` on `SceneEngine`. |
 | `canvasId` | `string` | Target canvas widget id for canvas-specific actions (used by diagram plugin extensions). |
+| `focusCenter` | `[number, number] \| [number, number, number]` | Focus center point for the action. 2D `[x, y]` or 3D `[x, y, z]` coordinates. |
 | `speed` | `number` | Speed multiplier dispatched with the action. Default: `1`. |
 | `stepScenes` | `number` | Number of scenes to advance per step for `scene.next`/`scene.prev`. Default: `1`. |
 | `layoutId` | `string` | Target `ViewLayout` id for `carousel.next`/`carousel.prev`. Required for carousel actions. |
@@ -284,7 +285,7 @@ Maps mouse wheel or trackpad scroll to an action.
 |---|---|---|---|
 | `modifiers` | `ModifierKey[]` | — | Required modifier keys. |
 | `axis` | `'x' \| 'y' \| 'xy'` | — | Axis filter. |
-| `lockAxis` | `'sticky' \| 'free'` | — | Sticky axis lock within a 180ms idle window. |
+| `lockAxis` | `'sticky' \| 'free'` | — | Sticky: locks to the dominant axis after initial movement. Free: no axis lock. |
 
 A `<WheelMap>` without modifiers matches **all** unmodified wheel events. When a wheel event matches a `WheelMap`, it is consumed — it does NOT also drive scene scroll. This is why the default input spec uses modifier-only `WheelMap` entries (meta for orbit, shift for pan) — plain scroll is never consumed.
 
@@ -299,10 +300,10 @@ Maps a keyboard key to an action.
 <KeyMap keyName="r" modifiers={['shift']} />
 ```
 
-| Prop | Type | Description |
-|---|---|---|
-| `keyName` | `string` | Required. Value of `KeyboardEvent.key` (e.g., `'ArrowRight'`, `'r'`, `' '`). |
-| `modifiers` | `ModifierKey[]` | Required modifier keys. |
+| Prop | Type | Required | Description |
+|---|---|---|---|
+| `keyName` | `string` | no | Value of `KeyboardEvent.key` (e.g., `'ArrowRight'`, `'r'`, `' '`). Optional in the type, but the compiler throws an error if empty or omitted. |
+| `modifiers` | `ModifierKey[]` | no | Required modifier keys. |
 
 Use `keyName`, not `key`. The `key` prop on JSX elements is React's special reconciliation prop; using it causes a deprecation warning and unreliable behavior.
 
@@ -356,7 +357,6 @@ Trackpad pinch-to-zoom arrives as `ctrl+wheel` in browsers. When a `PinchMap` is
 |---|---|---|---|
 | `inertiaSensitivity` | `number` | `0.01` | Wheel scroll sensitivity. Higher = faster scene scroll. |
 | `inertiaDecay` | `number` | `0.85` | Momentum decay per frame. Higher = more momentum after scroll. |
-| `touchSensitivityScale` | `number` | `3.5` | Scale factor for touch deltas relative to wheel. |
 | `target` | `HTMLElement \| null` | scroll container | DOM element receiving pointer/wheel events. Overrides scope resolution. |
 | `keyboardTarget` | `HTMLElement \| Document \| Window \| null` | `document` | DOM element receiving keyboard events. Overrides scope resolution. |
 | `pauseWhenHidden` | `PauseWhenHiddenOptions` | — | Pause rendering when stage visibility drops below threshold. |

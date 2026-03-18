@@ -130,7 +130,7 @@ type LabelStyle = {
   fontFamily?: string;
 };
 
-type LabelColor = 'target-color' | string; // CSS color or 'target-color'
+type LabelColor = 'target-color' | (string & {}); // 'target-color' literal or any CSS color string
 ```
 
 The special value `'target-color'` for `color` or `lineColor` causes the label to inherit the resolved color of its parent `<BodyPart>` at runtime. This is useful when the part color changes across scenes — the label stays color-matched.
@@ -220,7 +220,7 @@ export function SceneWithLabels() {
       <Model
         type="Robot"
         id="robot"
-        scale={0.001}
+        scale={0.06}
         x={0.1} y={0} w={0.8} h={1}
         opacity={1}
       >

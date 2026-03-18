@@ -890,15 +890,46 @@ export class ActionInputController {
   }
 
   private handleClick(e: MouseEvent): void {
-    // Priority: if an interactive overlay element exists at this position,
-    // forward the click to it and let the AIC skip its own processing.
-    // This handles the passthroughPointerEvents case where the browser delivers
-    // the click to the canvas instead of the overlay element.
+    // Priority 1: Forward to interactive overlay elements.
     if (this.forwardClickToOverlayElement(e)) return;
 
     const spec = this.resolveSpec();
     if (!spec) return;
 
+    // Priority 2: Carousel selection — check if click is within any carousel
+    // layout bounds that has an onSelect handler registered.
+    if (this.handler.onCarouselSelect) {
+      for (const action of spec.actions) {
+        if (action.type !== 'carousel.next' && action.type !== 'carousel.prev') continue;
+        if (!action.layoutId) continue;
+        // Check spatial gating
+        if (this.handler.getLayoutBounds) {
+          const bounds = this.handler.getLayoutBounds(action.layoutId);
+          if (bounds) {
+            const nvsPoint = this.clientToNvs(e.clientX, e.clientY);
+            if (nvsPoint && this.isInsideBounds(nvsPoint, bounds)) {
+              const consumed = this.handler.onCarouselSelect(
+                action.layoutId,
+                'pointer',
+                e.clientX,
+                e.clientY,
+              );
+              if (consumed) {
+                e.preventDefault();
+                this.fireActionEvent('carousel.select', action.id, {
+                  layoutId: action.layoutId,
+                });
+                return; // Short-circuit — do not process other click actions
+              }
+              // If not consumed, fall through to normal click processing
+              break; // Only check the first matching carousel layout
+            }
+          }
+        }
+      }
+    }
+
+    // Priority 3: Normal click action matching
     let best:
       | { action: InputActionSpec; map: Extract<InputActionMap, { kind: 'pointer' }>; modifierCount: number; order: number }
       | null = null;
@@ -924,6 +955,30 @@ export class ActionInputController {
     const spec = this.resolveSpec();
     if (!spec) return;
 
+    // Priority 1: Carousel selection via Enter/Space (ARIA listbox pattern)
+    if ((e.key === 'Enter' || e.key === ' ') && this.handler.onCarouselSelect) {
+      // Find the first carousel layout in the spec
+      for (const action of spec.actions) {
+        if (action.type !== 'carousel.next' && action.type !== 'carousel.prev') continue;
+        if (!action.layoutId) continue;
+        const consumed = this.handler.onCarouselSelect(
+          action.layoutId,
+          'keyboard',
+          null,
+          null,
+        );
+        if (consumed) {
+          e.preventDefault();
+          this.fireActionEvent('carousel.select', action.id, {
+            layoutId: action.layoutId,
+          });
+          return;
+        }
+        break; // Only check the first matching carousel layout
+      }
+    }
+
+    // Priority 2: Normal key action matching
     const matches: Array<{ action: InputActionSpec; map: Extract<InputActionMap, { kind: 'key' }>; modifierCount: number; order: number }> = [];
     let order = 0;
     for (const action of spec.actions) {
