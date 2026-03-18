@@ -345,4 +345,24 @@ for (const pkg of packages) {
 }
 
 console.log(`\nPublish hashes saved to ${path.relative(repoRoot, HASH_FILE)}`);
-console.log("Done.");
+
+// ─── Step 7: Git tag and commit ──────────────────────────────────────────────
+// Commit the version bumps and publish hashes, then tag for changelog generation.
+
+const tagName = `v${coreVersion}`;
+console.log(`\nCommitting version bumps and tagging ${tagName}...`);
+
+// Stage all package.json changes and the publish hashes file
+run("git", ["add", "-A", "packages/*/package.json", "packages/npx/*/package.json", HASH_FILE]);
+const commitResult = spawnSync("git", ["commit", "-m", `Release ${tagName}`], {
+  cwd: repoRoot, stdio: "inherit",
+});
+// commit may fail if nothing changed (e.g. --force re-publish at same version) — that's ok
+if (commitResult.status === 0) {
+  run("git", ["tag", "-a", tagName, "-m", `Release ${tagName}`]);
+  console.log(`Tagged ${tagName}. Push with: git push && git push --tags`);
+} else {
+  console.warn("No changes to commit — skipping tag.");
+}
+
+console.log("\nDone.");
