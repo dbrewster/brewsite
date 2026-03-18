@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import React from 'react';
 import { cleanup, render, screen } from '@testing-library/react';
-import { EngineARContainerContext } from '../EngineARContainer';
+import { ViewportScaleContext } from '../EngineARContainer';
 import type { WidgetPlugin } from '../../widget/WidgetPlugin';
 
 // ─── Stub SceneCanvas and EngineOverlayHost to avoid Three.js WebGL in jsdom ──
@@ -156,7 +156,7 @@ describe('SceneReel', () => {
     expect(screen.getByTestId('consumer-child')).toBeTruthy();
   });
 
-  it('EngineARContainerContext computedArHeight overrides height prop when non-zero', () => {
+  it('ViewportScaleContext computedArHeight overrides height prop when non-zero', () => {
     const arContextValue = {
       containerWidth: 1200,
       containerHeight: 675,
@@ -166,11 +166,11 @@ describe('SceneReel', () => {
     };
 
     const { container } = render(
-      <EngineARContainerContext.Provider value={arContextValue}>
+      <ViewportScaleContext.Provider value={arContextValue}>
         <SceneReel height={300} plugins={[makePlugin()]}>
           <div />
         </SceneReel>
-      </EngineARContainerContext.Provider>,
+      </ViewportScaleContext.Provider>,
     );
 
     const outerDiv = container.firstChild as HTMLElement;
@@ -219,7 +219,7 @@ describe('SceneReel', () => {
     expect(container.firstChild).toBeTruthy();
   });
 
-  it('uses height prop when EngineARContainerContext computedArHeight is zero', () => {
+  it('uses height prop when ViewportScaleContext computedArHeight is zero', () => {
     const arContextValue = {
       containerWidth: 1200,
       containerHeight: 675,
@@ -229,11 +229,11 @@ describe('SceneReel', () => {
     };
 
     const { container } = render(
-      <EngineARContainerContext.Provider value={arContextValue}>
+      <ViewportScaleContext.Provider value={arContextValue}>
         <SceneReel height={300} plugins={[makePlugin()]}>
           <div />
         </SceneReel>
-      </EngineARContainerContext.Provider>,
+      </ViewportScaleContext.Provider>,
     );
 
     const outerDiv = container.firstChild as HTMLElement;

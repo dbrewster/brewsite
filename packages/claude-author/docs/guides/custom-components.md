@@ -346,9 +346,20 @@ The widget class implements `IWidget` sub-interfaces and bridges compiled state 
 | `ISceneElement<TState>` | Always. Provides `defaultState`, `transitionSpec`, `DslComponent`. |
 | `IRenderable<TState>` | When your element creates Three.js objects. Provides `initialize`, `apply`, `dispose`. |
 | `ILoadable` | When your element needs async asset loading (GLTF models, textures). |
-| `IAnimationController` | When your element runs per-tick animation (e.g., model playback). |
-| `IVariableProvider` | When your element exposes reactive state to other widgets. |
+| `IAnimationController` | When your element runs per-tick animation (e.g., model playback). Opt into the per-frame tick loop. |
+| `IVariableProvider` | When your element exposes reactive state to other widgets via the VariableStore. |
 | `IDslComposite` | When your widget's DSL component has children that need custom compilation. |
+| `ISceneLifecycle` | When your widget needs scene enter/leave callbacks to reset per-scene state or restart animations. |
+| `ICameraActionTarget` | **Deprecated.** Camera action response. Migrate to ActionInputController's onUnknownAction callback. |
+| `IRendererLifecycle` | When your widget manages GPU resources (loaders, render targets) tied to a specific WebGLRenderer instance. |
+| `IRenderContributor` | When your widget contributes named 3D world positions or per-target color overrides after each rendered frame. |
+| `IContainedRenderable` | When your widget's rootObject should be parented to a named attachment point on another widget's scene graph. |
+| `IAttachmentHost` | When your widget exposes named Three.js Object3D attachment points for other widgets to parent into. |
+| `IViewChild` | When your widget should receive view-level opacity from ViewWidget (e.g., carousel fade transitions). |
+| `IInputDefaultProvider` | When your widget provides default input action bindings from its compiled state. |
+| `ICameraFocusTarget` | When your widget accepts camera focus requests from peer widgets. Implemented by CameraWidget. |
+| `ILightingOverride` | When your widget can temporarily suppress core scene lighting (e.g., diagram canvas with its own HDR lighting). |
+| `IExtraRenderPass` | When your widget needs additional WebGL render passes after the main scene pass (e.g., scissored sub-viewport). |
 
 The lifecycle: `initialize()` creates Three.js objects. `apply()` is called every frame with the compiled state. `dispose()` releases all resources.
 

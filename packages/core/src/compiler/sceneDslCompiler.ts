@@ -439,7 +439,7 @@ export function createSceneRootHandler(deps: SceneRootHandlerDeps): NodeHandler 
     const sceneId = props.id ?? rawKey ?? null;
     if (sceneId === null) {
       console.warn(
-        '[EngineProvider] A <Scene> element has no id. ' +
+        '[SceneEngine] A <Scene> element has no id. ' +
         'Assign id="..." to every <Scene> for stable scene identity.',
       );
     }
@@ -516,7 +516,7 @@ export const ensureSceneRegistry = (): void => {
 
 // NOTE: Module-scope auto-registration removed.
 // registerCoreHandlers() in coreHandlers.ts handles all registrations.
-// Called by EngineProvider, ScenePlayer, or corePlugin().registerHandlers().
+// Called by SceneEngine, ScenePlayer, or corePlugin().registerHandlers().
 
 export const resolveSceneFromDsl = (
   tree: unknown,
@@ -526,7 +526,7 @@ export const resolveSceneFromDsl = (
 ): ResolvedScene => {
   // Ensure core handlers are registered before attempting DSL compilation.
   // This is a backward-compat fallback for tests and direct callers that don't
-  // go through corePlugin().registerHandlers() or EngineProvider.
+  // go through corePlugin().registerHandlers() or SceneEngine.
   // In production, plugins register handlers explicitly before compilation.
   ensureSceneRegistry();
 

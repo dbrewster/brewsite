@@ -546,6 +546,11 @@ export class ActionInputController {
       return;
     }
 
+    // Yield to interactive overlay elements (passthroughPointerEvents case).
+    // If an interactive element exists at this position, do not start a drag —
+    // let the click reach the overlay element via forwardClickToOverlayElement.
+    if (this.hasInteractiveOverlayElement(e.clientX, e.clientY, e.target as Element | null)) return;
+
     let best:
       | { action: InputActionSpec; map: Extract<InputActionMap, { kind: 'pointer' }>; modifierCount: number; order: number }
       | null = null;
@@ -632,6 +637,82 @@ export class ActionInputController {
     }
     if (!this.activeDrag || e.pointerId !== this.activeDrag.pointerId) return;
     this.activeDrag = null;
+  }
+
+  /**
+   * Returns the first interactive overlay element at (x, y) that lives inside
+   * a `pointer-events: none` container, or `null` if none exists.
+   *
+   * An element is considered interactive if it has `cursor: pointer`,
+   * `role="button"`, is a `<button>` or `<a>`, or has explicit
+   * `style.pointerEvents = 'auto'`.
+   *
+   * @param eventTarget  The browser's native hit-test target for this event.
+   *                     Skipped during the search to avoid forwarding to the
+   *                     element that already received the event.
+   */
+  private findInteractiveOverlayElement(
+    x: number,
+    y: number,
+    eventTarget: Element | null,
+  ): HTMLElement | null {
+    if (typeof document === 'undefined' || typeof document.elementsFromPoint !== 'function') return null;
+    const elements = document.elementsFromPoint(x, y);
+    for (const el of elements) {
+      if (!(el instanceof HTMLElement)) continue;
+      // Skip the element the browser already targeted.
+      if (el === eventTarget) continue;
+      // Check for interactive signals.
+      const isInteractive =
+        el.tagName === 'BUTTON' ||
+        el.tagName === 'A' ||
+        el.getAttribute('role') === 'button' ||
+        el.style.pointerEvents === 'auto' ||
+        el.style.cursor === 'pointer';
+      if (!isInteractive) continue;
+      // Walk ancestors to confirm this element is inside a pointer-events:none
+      // overlay (the passthroughPointerEvents case). Without this guard we
+      // might forward to a random absolutely-positioned element.
+      let parent = el.parentElement;
+      while (parent) {
+        const pe = parent.style.pointerEvents || getComputedStyle(parent).pointerEvents;
+        if (pe === 'none') return el;
+        parent = parent.parentElement;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Returns `true` if an interactive overlay element exists at the given
+   * coordinates.  Used by `handlePointerDown` to avoid starting a drag when
+   * the user is clicking on an overlay button.
+   */
+  private hasInteractiveOverlayElement(
+    x: number,
+    y: number,
+    eventTarget: Element | null,
+  ): boolean {
+    return this.findInteractiveOverlayElement(x, y, eventTarget) !== null;
+  }
+
+  /**
+   * Checks whether there is an interactive overlay element at the click
+   * coordinates and, if so, dispatches a synthetic click to it.
+   *
+   * With `pointer-events: none` on the overlay host (passthroughPointerEvents),
+   * the browser delivers pointer/click events to the canvas below, so overlay
+   * elements with `pointer-events: auto` never receive them natively. This
+   * method bridges the gap by using `elementsFromPoint` to discover those
+   * elements and forwarding the click.
+   *
+   * Returns `true` if a click was forwarded (caller should bail out).
+   */
+  private forwardClickToOverlayElement(e: MouseEvent): boolean {
+    const el = this.findInteractiveOverlayElement(e.clientX, e.clientY, e.target as Element | null);
+    if (!el) return false;
+    el.click();
+    return true;
   }
 
   private isOverScrollableContent(e: WheelEvent): boolean {
@@ -765,6 +846,12 @@ export class ActionInputController {
   }
 
   private handleClick(e: MouseEvent): void {
+    // Priority: if an interactive overlay element exists at this position,
+    // forward the click to it and let the AIC skip its own processing.
+    // This handles the passthroughPointerEvents case where the browser delivers
+    // the click to the canvas instead of the overlay element.
+    if (this.forwardClickToOverlayElement(e)) return;
+
     const spec = this.resolveSpec();
     if (!spec) return;
 

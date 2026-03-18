@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import {
   Scene, Camera, Lighting, Ambient, Directional,
-  Floor, FloorMirror, ProgressManager,
+  Floor, FloorMirror, ProgressManager, TextBox,
 } from '@brewsite/core';
 import { Model, Playback, Animation } from '@brewsite/model';
 import { Diagram, DiagramNode, DiagramEdge, ManualLayout } from '@brewsite/diagram';
@@ -80,7 +80,7 @@ export const scene02Combined: JSX.Element = (
         <DiagramEdge from="api" to="cdn" flow="forward" style="dashed" />
       </Diagram>
 
-    <div key="combined-overlay" style={{ position: 'absolute', bottom: '8%', left: '5%', maxWidth: 420 }}>
+    <TextBox key="combined-overlay" x={0.03} y={0.58} w={0.35} h={0.40} overflow="visible">
       <div style={{
         fontFamily: 'JetBrains Mono, monospace',
         fontSize: 10,
@@ -113,6 +113,6 @@ export const scene02Combined: JSX.Element = (
         One EngineProvider. Everything compiled.<br />
         TypeScript end to end.
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

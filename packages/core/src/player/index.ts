@@ -36,9 +36,9 @@ export type { EngineOverlayHostProps } from './EngineOverlayHost';
 export { EngineARContainer, ViewportScaleContainer } from './EngineARContainer';
 export type {
   EngineARContainerProps, ViewportScaleContainerProps,
-  ScaleMode, ViewportScaleContextValue, EngineARContainerContextValue,
+  ScaleMode, ViewportScaleContextValue,
 } from './EngineARContainer';
-export { ViewportScaleContext, EngineARContainerContext } from './EngineARContainer';
+export { ViewportScaleContext } from './EngineARContainer';
 export { computeContainerDims } from './EngineARContainer';
 export { EngineGate } from './EngineGate';
 export type { EngineGateProps } from './EngineGate';
@@ -62,7 +62,8 @@ export type { CorePluginOptions } from './plugins';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export type { ActiveTheme } from '../theme/types';
-export type { EngineFrameState, EngineState } from './engineTypes';
+export type { EngineFrameState } from './engineTypes';
+export type { SceneTrack, SceneTrackTick, SceneFrame } from '../compiler/sceneTrackTypes';
 export type { EngineTimingProfile, InternalSceneSpec } from './engineTypes';
 // Types only — consumers need ViewportRelativeScrollSource to type their refs when
 // constructing scrollSource={{ kind: 'viewport-relative', containerRef, canvasRef }}.
@@ -83,14 +84,6 @@ export type { TransitionEasing } from '../input/transitionAnimator';
 export { TimelineWidget } from './TimelineWidget';
 export type { TimelineWidgetProps, TimelineTickStyle, TimelineTheme } from './TimelineWidgetTypes';
 
-// ─── Dev Tools ────────────────────────────────────────────────────────────────
-/** @internal Dev-tools component. Not part of the stable public API. */
-export { CameraControlPanel } from './CameraControlPanel';
-/** @internal Dev-tools component. Not part of the stable public API. */
-export { CameraInteractionInfoDialog } from './CameraInteractionInfoDialog';
-/** @internal Dev-tools component. Not part of the stable public API. */
-export { SceneInspector } from './SceneInspector';
-export type { SceneInspectorProps } from './SceneInspector';
 
 // ─── SpotlightRig Element ─────────────────────────────────────────────────────
 export { SpotlightRig, Spotlight, SpotlightRigWidget } from '../elements/spotlight-rig';
@@ -106,7 +99,7 @@ export {
 } from '../elements/spotlight-rig';
 
 // ─── REMOVED from v1 (not re-exported, not shim-exported): ───────────────────
-// EngineProvider, EngineInputRegion, ScrollCaptureSection
+// SceneEngine (was EngineProvider), EngineInputRegion, ScrollCaptureSection
 // useEngineScroll, useEngineInput, UseEngineScrollOptions, UseEngineInputOptions
 // InputModePolicy, ScrollSource
 // useSceneEngineState (replaced by useEngineState(id))

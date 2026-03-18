@@ -8,7 +8,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 // ─── Mock @brewsite/core ──────────────────────────────────────────────────────
-// EngineProvider, SceneCanvas, EngineOverlayHost require Three.js and DOM which
+// SceneEngine, SceneCanvas, EngineOverlayHost require Three.js and DOM which
 // are not available in node test environment. We replace them with lightweight stubs.
 
 vi.mock('@brewsite/core', async () => {

@@ -18,7 +18,7 @@ export type PresenterViewProps = {
  * Collapsible presenter panel rendered as an overlay at the bottom of the engine container.
  * Shows the current slide number and speaker notes authored via <Slide notes="..."/>.
  *
- * Must be used inside an EngineProvider subtree.
+ * Must be used inside an SceneEngine subtree.
  */
 export const PresenterView = ({ total, defaultCollapsed = false }: PresenterViewProps): ReactElement => {
   const [collapsed, setCollapsed] = useState(defaultCollapsed);

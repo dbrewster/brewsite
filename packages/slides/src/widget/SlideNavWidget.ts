@@ -13,7 +13,7 @@ import type { IWidget } from '@brewsite/core';
  * Actual navigation (keyboard, pointer, touch) is implemented at the React layer
  * inside `SlidePlayerInner` via `useSlideNavigation` — it calls
  * `engine.scrollToProgress()`, not any Three.js action. `<InputController>` DSL
- * is not used because `EngineProvider` runs with `inputModePolicy="direct"` in
+ * is not used because `SceneEngine` runs with `inputModePolicy="direct"` in
  * `SlidePlayer`, disabling the engine's scroll-based scene advancement pipeline.
  */
 export class SlideNavWidget implements IWidget {

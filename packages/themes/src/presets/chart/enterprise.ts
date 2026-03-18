@@ -20,10 +20,10 @@ export const enterpriseChartTheme: ChartTheme = {
     tickOpacity: 0.85,
     labelColor: '#E3ECF8',
     labelOpacity: 0.94,
-    fontSize: 0.05,
+    fontSize: 0.08,
     tickLength: 0.08,
     gap: 0.18,
-    titleFontSize: 0.055,
+    titleFontSize: 0.1,
   },
   background: {
     planeColor: '#0A1424',
@@ -32,7 +32,7 @@ export const enterpriseChartTheme: ChartTheme = {
   },
   legend: {
     textColor: '#E3ECF8',
-    fontSize: 0.09,
+    fontSize: 0.15,
     swatchSize: 0.08,
     spacing: 0.14,
     gap: 0.28,
@@ -52,7 +52,7 @@ export const enterpriseChartTheme: ChartTheme = {
   bar: { padding: 0.25 },
   area: { fillOpacity: 0.60 },
   gridlines: { color: '#354A67', opacity: 0.20, visible: false },
-  dataLabels: { fontSize: 0.045, color: '#E3ECF8' },
+  dataLabels: { fontSize: 0.1, color: '#E3ECF8' },
   referenceLines: { defaultColor: '#6D5D8E', lineWidth: 0.004, lineOpacity: 0.80 },
   tooltip: {
     background: 'rgba(10,20,36,0.94)',

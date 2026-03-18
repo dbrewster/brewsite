@@ -46,6 +46,7 @@ Explicit world-space position and target. Most common for model and diagram scen
 | `position` | `Vec3` | yes | Camera position in world space |
 | `target` | `Vec3` | yes | Point camera looks at |
 | `up` | `Vec3` | no | Up vector. Default `[0, 1, 0]` |
+| `nvsTarget` | `readonly [number, number]` | no | NVS-space look-at point override. Pins the camera's look-at X,Y to an NVS location; target Z is still taken from `target[2]` |
 
 ---
 
@@ -72,6 +73,7 @@ Spherical coordinates around a target. Good for turntable views and rotate-aroun
 | `polar` | `number` | yes | Vertical angle from horizontal plane. 0 = equator, PI/2 = top-down |
 | `distance` | `number` | yes | Distance from target in world units |
 | `up` | `Vec3` | no | Up vector. Default `[0, 1, 0]` |
+| `nvsTarget` | `readonly [number, number]` | no | NVS-space look-at point override. Pins the orbit center X,Y to an NVS location; target Z is still taken from `target[2]` |
 
 ---
 

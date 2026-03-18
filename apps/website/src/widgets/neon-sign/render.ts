@@ -95,6 +95,8 @@ type TextMeshSet = {
   meshes: THREE.Mesh[];
   tubeMaterial: THREE.MeshPhysicalMaterial;
   haloMaterial: THREE.MeshBasicMaterial;
+  /** Actual geometry width in local units (used for NVS scaling). */
+  textWidth: number;
 };
 
 const createTextMeshes = (font: opentype.Font, text: string): TextMeshSet => {
@@ -149,7 +151,7 @@ const createTextMeshes = (font: opentype.Font, text: string): TextMeshSet => {
     penX += (glyph.advanceWidth ?? 0) * scale;
   }
 
-  return { meshes, tubeMaterial, haloMaterial };
+  return { meshes, tubeMaterial, haloMaterial, textWidth: totalWidth * scale };
 };
 
 export class NeonSignRenderer {
@@ -162,6 +164,8 @@ export class NeonSignRenderer {
   private font: opentype.Font | null = null;
   private loadedFontUrl = '';
   private lastText = '';
+  /** Actual geometry width of the current text in local units. */
+  private textWidth = FONT_SIZE;
   private signLight: THREE.PointLight | null = null;
 
   constructor(scene: THREE.Scene) {
@@ -194,8 +198,8 @@ export class NeonSignRenderer {
 
     // Scale to fit the desired NVS width in world units
     const [targetWorldWidth] = coords.toWorldSize(state.w, state.h);
-    // FONT_SIZE is the geometry width at scale=1; divide target by it to get the uniform scale
-    this.root.scale.setScalar(targetWorldWidth / FONT_SIZE);
+    // Divide target world width by the actual text geometry width to get the uniform scale
+    this.root.scale.setScalar(targetWorldWidth / this.textWidth);
 
     if (this.font && this.lastText !== state.text) {
       this.rebuildText(state.text);
@@ -265,6 +269,7 @@ export class NeonSignRenderer {
     this.textMeshes = built.meshes;
     this.textMaterial = built.tubeMaterial;
     this.haloMaterial = built.haloMaterial;
+    this.textWidth = built.textWidth > 0 ? built.textWidth : FONT_SIZE;
 
     for (const mesh of this.textMeshes) {
       mesh.position.z = 0;
@@ -284,5 +289,6 @@ export class NeonSignRenderer {
     this.haloMaterial?.dispose();
     this.textMaterial = null;
     this.haloMaterial = null;
+    this.textWidth = FONT_SIZE;
   }
 }

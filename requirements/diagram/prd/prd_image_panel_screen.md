@@ -3,7 +3,7 @@ title: "BrewSite Diagram — ImagePanel and Screen Elements"
 doc_type: prd
 status: deprecated
 owner: brewsite-product-manager
-last_updated: 2026-03-13
+last_updated: 2026-03-17
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -18,6 +18,9 @@ change_history:
       was retained in @brewsite/diagram (used internally by NodeRenderer; not a public export).
       This PRD is now deprecated. The authoritative reference is
       requirements/screens/prd/prd_screens-package.md.
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Audit confirmed: deprecation notice is accurate. @brewsite/screens package and its PRD (requirements/screens/prd/prd_screens-package.md) exist. No content changes needed."
 ---
 
 > **Deprecated.** Screen and ImagePanel were moved to `@brewsite/screens` in v0.1.0 (2026-03-13).

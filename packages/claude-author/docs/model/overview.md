@@ -106,11 +106,20 @@ Use `manifestUrl` in production — the plugin fetches and validates the manifes
 | `LabelPositionerContext` | React context providing the `LabelPositioner` instance. |
 | `useLabelPositioner` | Hook to read the `LabelPositioner` from context. |
 
-### Plugin Factory
+### Plugin Factory and Registration
 
 | Export | Description |
 |---|---|
 | `modelPlugin(options)` | Creates the `WidgetPlugin` instance. Call once per `<SceneEngine>`. |
+| `registerModelHandlers()` | Registers model DSL node handlers into the compiler registry. Called internally by `modelPlugin`. |
+| `ModelRouter` | Model routing utility for resolving model types to widget instances. |
+
+### Widget Configuration
+
+| Export | Description |
+|---|---|
+| `ModelWidgetConfig` | Configuration type for model widget instances. |
+| `IContainedModel` | Interface for models that attach to a named anchor point on a parent model. |
 
 ### Types
 

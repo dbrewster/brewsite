@@ -183,7 +183,6 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
       // ── X-axis inertia (carousel navigation) ──
       const xState = xInertiaRef.current;
       if (xState.pendingDelta !== 0 || Math.abs(xState.velocity) > 0.001) {
-        const prevProg = xState.progress;
         tickUnclamped(xState, X_INERTIA_CONFIG);
 
         if (carouselStepFnRef.current) {

@@ -11,7 +11,7 @@ import { SLIDE_META_NAMESPACE } from '../widget/SlideMetaWidget';
  * Reads the speaker notes for the slide with the given key.
  * Returns undefined when no notes were authored.
  *
- * Must be used inside an EngineProvider subtree.
+ * Must be used inside an SceneEngine subtree.
  * Reactively re-renders when the notes value changes in VariableStore.
  *
  * @param slideKey - The stable slide key (= Scene id) used to look up notes.

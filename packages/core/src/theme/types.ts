@@ -227,6 +227,8 @@ export type SceneThemeCarouselTray = {
   readonly surfaceMaterial?: string;
   /** Application controls for the material preset. */
   readonly materialApplication?: import('../widget/materialTypes').MaterialApplication;
+  /** Extra border around the tray edge beyond the view extent, in NVS units. */
+  readonly outerMargin?: number;
   /** Default highlight mode for the active carousel item. */
   readonly highlightActive?: import('../elements/carousel-scrubber/types').ViewHighlightMode;
   /** Default highlight color. Falls back to accentColor. */
@@ -237,6 +239,78 @@ export type SceneThemeCarouselTray = {
   readonly highlightBeamHeight?: number;
   /** Enable smoke ring for holographic highlights. */
   readonly highlightSmoke?: boolean;
+  /** Z offset for highlights in world units. Negative = push back. */
+  readonly highlightZOffset?: number;
+  /**
+   * Default highlight backdrop color.
+   * Auto-resolved from polarity when not set (dark=#000000, light=#e8e4e0).
+   */
+  readonly highlightBackdropColor?: string;
+  /** Target a specific view by ID instead of the active item. */
+  readonly highlightViewId?: string;
+};
+
+/**
+ * Semantic highlight variant name.
+ * Used to reference a pre-defined highlight style from the theme palette.
+ */
+export type HighlightVariantName =
+  | 'primary'
+  | 'secondary'
+  | 'tertiary'
+  | 'error'
+  | 'warning'
+  | 'success'
+  | 'info';
+
+/**
+ * A single highlight variant definition — all visual parameters for
+ * a named highlight variant. Resolved from SceneTheme.highlightPalette
+ * at compile time.
+ *
+ * Any field not set falls through to the highlight's explicit prop,
+ * then to the carousel tray's default.
+ */
+export type SceneThemeHighlightVariant = {
+  /** Highlight color. */
+  readonly color: string;
+  /** Highlight mode. Default: 'holographic'. */
+  readonly mode?: import('../elements/carousel-scrubber/types').ViewHighlightMode;
+  /** Intensity [0-1]. */
+  readonly intensity?: number;
+  /** Blending mode. Auto-resolved from polarity when not set. */
+  readonly blendMode?: 'additive' | 'normal';
+  /** Backdrop opacity [0-1]. 0 = no backdrop. */
+  readonly backdropOpacity?: number;
+  /**
+   * Backdrop color. Tints the semi-transparent backdrop cylinder behind the beam.
+   * Auto-resolved from polarity when not set:
+   * - dark scenes default to '#000000' (black dim)
+   * - light scenes default to '#e8e4e0' (smokey warm white)
+   */
+  readonly backdropColor?: string;
+  /** Beam height in world units. */
+  readonly beamHeight?: number;
+  /** Enable smoke particles. */
+  readonly smoke?: boolean;
+  /** Enable volumetric dust motes. */
+  readonly dust?: boolean;
+};
+
+/**
+ * Highlight palette — named variants of highlight styles.
+ * Defined per-theme, tuned for the theme's polarity and color scheme.
+ *
+ * Usage in DSL:
+ * ```tsx
+ * highlights={[{ viewId: 'chart-1', series: 'error' }]}
+ * ```
+ *
+ * The compile step resolves the series name to concrete visual params
+ * from this palette.
+ */
+export type SceneThemeHighlightPalette = {
+  readonly [K in HighlightVariantName]?: SceneThemeHighlightVariant;
 };
 
 /**
@@ -247,7 +321,7 @@ export type SceneThemeCarouselTray = {
  * identically to today.
  *
  * Injection points:
- * - Player level: `<EngineProvider sceneTheme={theme}>` → CSS variables via ThemeContext
+ * - Player level: `<SceneEngine theme={theme}>` → CSS variables via ThemeContext
  * - Per-scene background: `<Background theme={theme} />` → DOM fill and effects
  * - Per-diagram: `DiagramTheme.sceneTheme` → font URL and label color polarity fallbacks
  * - Per-chart: `ChartTheme.sceneTheme` or `ChartDSL.sceneTheme` → font URL and color defaults
@@ -268,6 +342,8 @@ export type SceneTheme = {
   readonly floor?: SceneThemeFloor;
   /** Optional carousel tray visual tokens. */
   readonly carouselTray?: SceneThemeCarouselTray;
+  /** Semantic highlight palette — named highlight variants. */
+  readonly highlightPalette?: SceneThemeHighlightPalette;
 };
 
 /**
@@ -297,5 +373,5 @@ export type ThemePolarity = 'dark' | 'light';
  */
 export interface ActiveTheme {
   readonly family: ThemeFamily;
-  readonly polarity: 'dark' | 'light';
+  readonly polarity: ThemePolarity;
 }

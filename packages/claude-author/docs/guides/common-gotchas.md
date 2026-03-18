@@ -248,14 +248,14 @@ import { corePlugin } from '@brewsite/diagram'; // corePlugin is in @brewsite/co
 import { Scene, ProgressManager, corePlugin, SceneEngine } from '@brewsite/core';
 import { Model, modelPlugin } from '@brewsite/model';
 import { Diagram, diagramPlugin } from '@brewsite/diagram';
-import { ChartWidget, chartsPlugin } from '@brewsite/charts';
+import { chartPlugin } from '@brewsite/charts';
 ```
 
 **Package map:**
 - `@brewsite/core` — scene DSL (`Scene`, `View`, `ViewLayout`, `InputController`, `Action`, `Transition`, `ProgressManager`), lighting, camera, background, environment, floor, all player components
 - `@brewsite/model` — `Model`, `Playback`, `Animation`, `LabelItem`, `LabelPositioner`, `modelPlugin`
 - `@brewsite/diagram` — `Diagram`, `DiagramCanvas`, `ImagePanel`, `Screen`, `diagramPlugin`
-- `@brewsite/charts` — chart elements, `chartsPlugin`
+- `@brewsite/charts` — chart elements, `chartPlugin`
 
 ---
 

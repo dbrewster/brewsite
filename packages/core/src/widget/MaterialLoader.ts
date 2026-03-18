@@ -147,7 +147,7 @@ export class MaterialLoader {
    * Returns a previously loaded preset by name, or null if not yet loaded.
    * Sync cache hit for use in render loops.
    */
-  getLoadedPreset(presetName: string): LoadedMaterialPreset | null {
+  getLoadedPreset(_presetName: string): LoadedMaterialPreset | null {
     for (const [, preset] of this.presetCache) {
       // The presetCache is keyed by resolved URL; search by value is acceptable
       // because the number of loaded presets is small (typically < 20).

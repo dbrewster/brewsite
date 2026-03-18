@@ -1,6 +1,128 @@
 // darkGlass SceneTheme presets — obsidian/burgundy control-room look with ember accents.
 
-import type { SceneTheme } from '@brewsite/core';
+import type { SceneTheme, SceneThemeHighlightPalette } from '@brewsite/core';
+
+// -- Highlight palettes tuned for the darkGlass family --
+
+const darkGlassDarkHighlights: SceneThemeHighlightPalette = {
+  primary: {
+    color: '#E06828',
+    mode: 'holographic',
+    intensity: 0.55,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  secondary: {
+    color: '#C04A4A',
+    mode: 'holographic',
+    intensity: 0.45,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  tertiary: {
+    color: '#D4A040',
+    mode: 'glow',
+    intensity: 0.5,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  error: {
+    color: '#BB2222',
+    mode: 'holographic',
+    intensity: 0.6,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+    smoke: true,
+  },
+  warning: {
+    color: '#D4A030',
+    mode: 'holographic',
+    intensity: 0.5,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  success: {
+    color: '#38AA6E',
+    mode: 'glow',
+    intensity: 0.5,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  info: {
+    color: '#D08848',
+    mode: 'glow',
+    intensity: 0.45,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+};
+
+const darkGlassLightHighlights: SceneThemeHighlightPalette = {
+  primary: {
+    color: '#B85520',
+    mode: 'holographic',
+    intensity: 0.38,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  secondary: {
+    color: '#8A3535',
+    mode: 'holographic',
+    intensity: 0.32,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  tertiary: {
+    color: '#A07828',
+    mode: 'glow',
+    intensity: 0.35,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  error: {
+    color: '#991818',
+    mode: 'holographic',
+    intensity: 0.42,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+    smoke: true,
+  },
+  warning: {
+    color: '#AA7A18',
+    mode: 'holographic',
+    intensity: 0.35,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  success: {
+    color: '#227A4A',
+    mode: 'glow',
+    intensity: 0.35,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  info: {
+    color: '#A06838',
+    mode: 'glow',
+    intensity: 0.3,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+};
 
 /** darkGlass family, dark polarity. */
 export const darkGlassSceneTheme: SceneTheme = {
@@ -47,6 +169,7 @@ export const darkGlassSceneTheme: SceneTheme = {
     surfaceMaterial: 'obsidian',
     materialApplication: { colorMix: 0.7, brightness: 0.5, saturation: 0.6, depthMix: 0.8 },
   },
+  highlightPalette: darkGlassDarkHighlights,
 };
 
 /** darkGlass family, light polarity. */
@@ -94,4 +217,5 @@ export const darkGlassLightSceneTheme: SceneTheme = {
     surfaceMaterial: 'onyx',
     materialApplication: { colorMix: 0.4, brightness: 1.1 },
   },
+  highlightPalette: darkGlassLightHighlights,
 };

@@ -1,6 +1,6 @@
 import {isValidElement} from 'react';
 import type {NodeHandler} from '@brewsite/core/compiler/sceneDslTypes';
-import type {ILoadable, IRenderable, ISceneElement, WidgetInitContext, WidgetRenderContext,} from '@brewsite/core/widget/types';
+import type {AssetManifest, ILoadable, IRenderable, ISceneElement, WidgetInitContext, WidgetRenderContext,} from '@brewsite/core/widget/types';
 import {CUSTOM_NODE_HANDLER} from '@brewsite/core/widget/WidgetRegistry';
 import {DEFAULT_NEON_SIGN_STATE, neonSignTransitionSpec} from './compile';
 import type {NeonSignProps} from './dsl';
@@ -52,7 +52,7 @@ export class NeonSignWidget
     this.renderer = new NeonSignRenderer(context.scene);
   }
 
-  async load(_manifest: { version: number; models: unknown[]; animations: unknown[] } | null): Promise<void> {
+  async load(_manifest: AssetManifest | null): Promise<void> {
     if (!this.renderer) return;
     try {
       await this.renderer.loadFont(this.defaultState.fontUrl);

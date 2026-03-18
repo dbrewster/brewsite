@@ -3,17 +3,25 @@
 
 import * as THREE from 'three';
 import type CustomShaderMaterial from 'three-custom-shader-material/vanilla';
-import type { CarouselScrubberState, CarouselScrubberStyle, CarouselTrayEdgeStyle, CarouselTraySurfacePattern, ViewHighlight, ViewHighlightMode } from './types';
+import type {CarouselScrubberState, CarouselScrubberStyle, CarouselTrayEdgeStyle, CarouselTraySurfacePattern, ViewHighlight, ViewHighlightMode} from './types';
+import {
+  HL_DEFAULT_BACKDROP_OPACITY, HL_DEFAULT_BACKDROP_COLOR_DARK, HL_DEFAULT_BACKDROP_COLOR_LIGHT,
+  HL_DEFAULT_BEAM_HEIGHT,
+  HL_FADE_LERP, HL_POSITION_LERP, HL_OPACITY_THRESHOLD, HL_Y_OFFSET,
+  HL_BEAM_SCALE, HL_GLOW_SCALE, HL_BACKDROP_SCALE,
+  HL_DUST_PARTICLE_COUNT, HL_DUST_POINT_SIZE, HL_DUST_OPACITY, HL_SMOKE_OPACITY,
+  HL_HOLOGRAPHIC_GLOW_FACTOR, HL_GLOW_MODE_SCALE, HL_SMOKE_POINT_SIZE,
+} from './highlightConstants';
+import { resolveRuntimeHighlight } from './compileTray';
 import type { NVSCoordService } from '../../widget/types';
 import type { MaterialManifest, LoadedMaterialPreset } from '../../widget/materialTypes';
 import type { MaterialLoader } from '../../widget/MaterialLoader';
-import { createPresetMaterial, applyMaterialApplication, updatePresetTextures } from '../_shared/materialFactory';
+import { createPresetMaterial, applyMaterialApplication } from '../_shared/materialFactory';
 import { generateSurfaceNormalMap, loadCustomSurfaceMap } from './surfaceTexture';
 import {
   resolveTrayShapeKind,
   generateEllipsePoints,
   generateParabolicPoints,
-  generateRoundedRectPoints,
   computeParabolicBandWidth,
   computeLinearMaxDepth,
   computeBevelRadius,
@@ -22,12 +30,10 @@ import {
   type TrayGeometryParams,
 } from './geometry';
 import { computeTrayPosition, computeTrayWorldWidth, computeRingRotation, type TrayCoordService } from './trayPosition';
-import { beamVertexShader, beamFragmentShader } from './highlightShader';
 import {
   initParticle,
   advanceParticle,
   particleRingPosition,
-  particleOpacity,
   DEFAULT_PARTICLE_COUNT,
   type ParticleState,
 } from './highlightParticles';
@@ -40,13 +46,29 @@ export type CarouselScrubberRefs = {
 /** Cached meshes for a single view highlight. */
 type HighlightMeshSet = {
   group: THREE.Group;
-  glowPlane: THREE.Mesh | null;
+  glowPlane: THREE.Group | null;
   beamMesh: THREE.Mesh | null;
+  /** Semi-transparent backdrop behind the beam to dim background content. */
+  backdropMesh: THREE.Mesh | null;
+  /** Volumetric dust particles filling the beam. */
+  dustMesh: THREE.Points | null;
+  dustParticles: DustParticle[] | null;
   smokeMesh: THREE.Points | null;
   smokeParticles: ParticleState[] | null;
   currentOpacity: number;
   mode: ViewHighlightMode;
   lastTime: number;
+  /** LERP'd position for smooth tracking. null = not yet initialized (snap on first frame). */
+  currentX: number | null;
+  currentZ: number | null;
+};
+
+/** Simple dust mote state for volumetric beam fill. */
+type DustParticle = {
+  x: number; y: number; z: number;
+  driftX: number; driftY: number; driftZ: number;
+  age: number; lifetime: number;
+  baseOpacity: number;
 };
 
 /** Internal cache structure stored on scene.userData. */
@@ -222,12 +244,12 @@ function createTrayGeometry(
   const shapeKind = resolveTrayShapeKind(isRing, zStep);
 
   if (shapeKind === 'ellipse') {
-    const points = generateEllipsePoints(width * 0.5, zDepth * 0.5);
+    const points = generateEllipsePoints(width * 0.5, zDepth * 0.5, 128);
     shape = pointsToThreeShape(points);
   } else if (shapeKind === 'parabolic') {
     const maxDepth = computeLinearMaxDepth(childCount, zStep);
     const bandWidth = computeParabolicBandWidth(zStep, width);
-    const points = generateParabolicPoints(width * 0.5, maxDepth, bandWidth, 32);
+    const points = generateParabolicPoints(width * 0.5, maxDepth, bandWidth, 64);
     shape = pointsToThreeShape(points);
     shape.closePath();
   } else {
@@ -241,6 +263,7 @@ function createTrayGeometry(
     bevelThickness: bevelRadius,
     bevelSize: bevelRadius,
     bevelSegments,
+    curveSegments: 64,
   });
 
   // Normalize UVs so the pattern center aligns with the geometry center.
@@ -513,16 +536,18 @@ function ensureBase(
   }
 }
 
-/** Opacity lerp factor for highlight fade transitions. */
-const HIGHLIGHT_FADE_LERP = 0.08;
-/** Opacity threshold below which highlights are hidden. */
-const HIGHLIGHT_OPACITY_THRESHOLD = 0.01;
+// Highlight constants imported from types.ts — single source of truth.
+
+/** Resolves a highlight blendMode string to the Three.js blending constant. */
+function resolveBlending(mode: 'additive' | 'normal'): THREE.Blending {
+  return mode === 'additive' ? THREE.AdditiveBlending : THREE.NormalBlending;
+}
 
 /**
  * Creates a soft radial gradient canvas texture for glow highlights.
  * Bright center, transparent edges.
  */
-function createGlowTexture(color: string): THREE.CanvasTexture {
+function createGlowTexture(_color: string): THREE.CanvasTexture {
   const size = 128;
   const canvas = document.createElement('canvas');
   canvas.width = size;
@@ -533,9 +558,11 @@ function createGlowTexture(color: string): THREE.CanvasTexture {
     size / 2, size / 2, 0,
     size / 2, size / 2, size / 2,
   );
-  gradient.addColorStop(0, color);
-  gradient.addColorStop(0.4, color);
-  gradient.addColorStop(1, 'rgba(0,0,0,0)');
+  // Gentle gradient — even brightness with soft edge fade
+  gradient.addColorStop(0, 'rgba(255,255,255,0.8)');
+  gradient.addColorStop(0.6, 'rgba(255,255,255,0.6)');
+  gradient.addColorStop(0.85, 'rgba(255,255,255,0.2)');
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
 
   ctx2d.fillStyle = gradient;
   ctx2d.fillRect(0, 0, size, size);
@@ -571,59 +598,97 @@ function createSoftCircleTexture(): THREE.CanvasTexture {
 }
 
 /**
- * Creates or updates the glow plane mesh for a highlight entry.
+ * Creates a glow group with stacked additive planes for visible glow
+ * against both dark and light/textured surfaces.
+ *
+ * Three layers:
+ * 1. Large soft outer glow (1.4× size, low opacity) — ambient halo
+ * 2. Medium core glow (1.0× size, full opacity) — main highlight
+ * 3. Small bright hot center (0.5× size, high opacity) — focal point
+ *
+ * All use AdditiveBlending so they compound on each other.
  */
 function createGlowPlane(
   worldW: number,
   worldH: number,
   color: string,
   intensity: number,
-): THREE.Mesh {
-  const geometry = new THREE.PlaneGeometry(worldW, worldH);
-  geometry.rotateX(-Math.PI / 2); // Lie flat in XZ plane
+  blendMode: 'additive' | 'normal' = 'additive',
+): THREE.Group {
+  const group = new THREE.Group();
+  group.name = 'HighlightGlow';
 
   const texture = createGlowTexture(color);
-  const material = new THREE.MeshBasicMaterial({
+  const blend = resolveBlending(blendMode);
+
+  // Single glow plane — no stacking, no rings
+  const geo = new THREE.PlaneGeometry(worldW, worldH);
+  geo.rotateX(-Math.PI / 2);
+  const mat = new THREE.MeshBasicMaterial({
     color,
     map: texture,
     transparent: true,
     opacity: intensity,
-    blending: THREE.AdditiveBlending,
+    blending: blend,
     depthWrite: false,
     side: THREE.DoubleSide,
   });
+  const mesh = new THREE.Mesh(geo, mat);
+  group.add(mesh);
 
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.name = 'HighlightGlow';
-  return mesh;
+  return group;
+}
+
+/**
+ * Creates a vertical gradient canvas texture for the beam — bright at bottom, fading to top.
+ */
+function createBeamGradientTexture(_color: string): THREE.CanvasTexture {
+  const w = 1;
+  const h = 128;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx2d = canvas.getContext('2d')!;
+
+  // Gradient from bottom (bright) to top (transparent)
+  const gradient = ctx2d.createLinearGradient(0, h, 0, 0);
+  gradient.addColorStop(0, 'rgba(255,255,255,1.0)');
+  gradient.addColorStop(0.15, 'rgba(255,255,255,0.8)');
+  gradient.addColorStop(0.4, 'rgba(255,255,255,0.3)');
+  gradient.addColorStop(0.7, 'rgba(255,255,255,0.08)');
+  gradient.addColorStop(1.0, 'rgba(255,255,255,0.0)');
+  ctx2d.fillStyle = gradient;
+  ctx2d.fillRect(0, 0, w, h);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
 }
 
 /**
  * Creates a holographic beam cylinder mesh.
+ * Uses MeshBasicMaterial with a vertical gradient texture for reliable
+ * additive-blended visibility across all lighting conditions.
  */
 function createBeamMesh(
   radius: number,
   beamHeight: number,
   color: string,
-  intensity: number,
+  _intensity: number,
+  blendMode: 'additive' | 'normal' = 'additive',
 ): THREE.Mesh {
-  const radiusTop = radius * 0.6;
-  const geometry = new THREE.CylinderGeometry(radiusTop, radius, beamHeight, 32, 1, true);
-  // Move origin to base of cylinder (default is center)
+  // Gentle taper — mostly cylindrical, slightly narrower at top
+  const geometry = new THREE.CylinderGeometry(radius, radius, beamHeight, 64, 1, true);
+  // Move origin to base of cylinder so Y=0 is the base (sits on tray surface)
   geometry.translate(0, beamHeight / 2, 0);
 
-  const threeColor = new THREE.Color(color);
-  const material = new THREE.ShaderMaterial({
-    vertexShader: beamVertexShader,
-    fragmentShader: beamFragmentShader,
-    uniforms: {
-      u_color: { value: threeColor },
-      u_intensity: { value: intensity },
-      u_time: { value: 0 },
-      u_radius: { value: radius },
-    },
+  const texture = createBeamGradientTexture(color);
+  const material = new THREE.MeshBasicMaterial({
+    color,
+    map: texture,
     transparent: true,
-    blending: THREE.AdditiveBlending,
+    opacity: 1.0,
+    blending: resolveBlending(blendMode),
     depthWrite: false,
     side: THREE.DoubleSide,
   });
@@ -634,12 +699,177 @@ function createBeamMesh(
 }
 
 /**
+ * Creates a semi-transparent backdrop cylinder just outside the beam.
+ * Uses BackSide rendering so it only dims what's seen THROUGH it from outside —
+ * neighboring views behind/beside the highlighted one. The highlighted chart
+ * inside the beam is unaffected because you're looking at its front faces.
+ *
+ * Tightly hugs the beam (1.05× scale) so it reads as the beam's edge
+ * rather than a separate shape.
+ */
+/**
+ * Creates a vertical alpha gradient texture for the backdrop.
+ * Opaque at bottom (UV.y=0), transparent at top (UV.y=1).
+ */
+function createBackdropGradientTexture(color: string): THREE.CanvasTexture {
+  const w = 1;
+  const h = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx2d = canvas.getContext('2d')!;
+
+  // CylinderGeometry UV.y: 0 = bottom, 1 = top.
+  // Canvas Y: 0 = top of canvas, h = bottom of canvas.
+  // So canvas top (y=0) = UV.y=1 (cylinder top) = transparent.
+  // Canvas bottom (y=h) = UV.y=0 (cylinder bottom) = opaque.
+  //
+  // Hold full opacity from base to 80% height, then fade to transparent.
+  // Canvas stops: 0.0 = cylinder top, 1.0 = cylinder bottom.
+  // 80% height = 20% from top in canvas space = stop 0.2.
+  const gradient = ctx2d.createLinearGradient(0, 0, 0, h);
+  gradient.addColorStop(0, 'rgba(0,0,0,0)');       // cylinder top: transparent
+  gradient.addColorStop(0.1, `${color}22`);         // 90% height: nearly gone
+  gradient.addColorStop(0.2, `${color}FF`);         // 80% height: full
+  gradient.addColorStop(1.0, `${color}FF`);         // cylinder base: full
+  ctx2d.fillStyle = gradient;
+  ctx2d.fillRect(0, 0, w, h);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.needsUpdate = true;
+  return texture;
+}
+
+function createBackdropMesh(
+  beamHeight: number,
+  backdropOpacity: number,
+  blendMode: 'additive' | 'normal' = 'additive',
+  backdropColor?: string,
+): THREE.Mesh {
+  const geometry = new THREE.CylinderGeometry(1.0, 1.0, beamHeight, 64, 1, true);
+  geometry.translate(0, beamHeight / 2, 0);
+
+  const resolvedColor = backdropColor ?? (blendMode === 'normal' ? HL_DEFAULT_BACKDROP_COLOR_LIGHT : HL_DEFAULT_BACKDROP_COLOR_DARK);
+  const texture = createBackdropGradientTexture(resolvedColor);
+
+  const material = new THREE.MeshBasicMaterial({
+    map: texture,
+    transparent: true,
+    opacity: backdropOpacity,
+    blending: THREE.NormalBlending,
+    depthWrite: false,
+    side: THREE.BackSide,
+  });
+
+  const mesh = new THREE.Mesh(geometry, material);
+  mesh.name = 'HighlightBackdrop';
+  return mesh;
+}
+
+// Dust particle count from HL_DUST_PARTICLE_COUNT in types.ts.
+
+/** Initializes a dust mote at a random position inside the beam volume. */
+function initDustParticle(radiusX: number, radiusZ: number, beamHeight: number): DustParticle {
+  // Random position inside an elliptical cylinder
+  const angle = Math.random() * Math.PI * 2;
+  const r = Math.sqrt(Math.random()); // sqrt for uniform distribution in disc
+  return {
+    x: Math.cos(angle) * r * radiusX,
+    y: Math.random() * beamHeight,
+    z: Math.sin(angle) * r * radiusZ,
+    driftX: (Math.random() - 0.5) * 0.06,
+    driftY: 0.05 + Math.random() * 0.15, // upward drift
+    driftZ: (Math.random() - 0.5) * 0.06,
+    age: Math.random() * 4.0, // stagger
+    lifetime: 2.0 + Math.random() * 3.0,
+    baseOpacity: 0.2 + Math.random() * 0.5,
+  };
+}
+
+/**
+ * Creates volumetric dust particles that fill the beam volume.
+ * Motes drift slowly upward with slight horizontal wander,
+ * simulating dust caught in a light beam.
+ */
+function createDustMesh(
+  radiusX: number,
+  radiusZ: number,
+  beamHeight: number,
+  color: string,
+  blendMode: 'additive' | 'normal' = 'additive',
+): { points: THREE.Points; particles: DustParticle[] } {
+  const particles: DustParticle[] = [];
+  const positions = new Float32Array(HL_DUST_PARTICLE_COUNT * 3);
+
+  for (let i = 0; i < HL_DUST_PARTICLE_COUNT; i++) {
+    const p = initDustParticle(radiusX, radiusZ, beamHeight);
+    particles.push(p);
+    positions[i * 3] = p.x;
+    positions[i * 3 + 1] = p.y;
+    positions[i * 3 + 2] = p.z;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+  const texture = createSoftCircleTexture();
+  const material = new THREE.PointsMaterial({
+    size: HL_DUST_POINT_SIZE,
+    map: texture,
+    transparent: true,
+    blending: resolveBlending(blendMode),
+    depthWrite: false,
+    color,
+    opacity: HL_DUST_OPACITY,
+  });
+
+  const points = new THREE.Points(geometry, material);
+  points.name = 'HighlightDust';
+  return { points, particles };
+}
+
+/** Advances dust particles — drift upward, recycle at top or end of life. */
+function updateDustParticles(
+  meshSet: HighlightMeshSet,
+  radiusX: number,
+  radiusZ: number,
+  beamHeight: number,
+  dt: number,
+): void {
+  if (!meshSet.dustMesh || !meshSet.dustParticles) return;
+
+  const posAttr = meshSet.dustMesh.geometry.getAttribute('position');
+  const particles = meshSet.dustParticles;
+
+  for (let i = 0; i < particles.length; i++) {
+    const p = particles[i];
+    p.x += p.driftX * dt;
+    p.y += p.driftY * dt;
+    p.z += p.driftZ * dt;
+    p.age += dt;
+
+    // Recycle if above beam or past lifetime
+    if (p.y > beamHeight || p.age > p.lifetime) {
+      const newP = initDustParticle(radiusX, radiusZ, beamHeight);
+      newP.y = 0; // start at base
+      particles[i] = newP;
+      posAttr.setXYZ(i, newP.x, newP.y, newP.z);
+    } else {
+      posAttr.setXYZ(i, p.x, p.y, p.z);
+    }
+  }
+
+  posAttr.needsUpdate = true;
+}
+
+/**
  * Creates the smoke ring Points mesh for holographic highlights.
  */
 function createSmokeMesh(
   radius: number,
   color: string,
   particleCount: number,
+  blendMode: 'additive' | 'normal' = 'additive',
 ): { points: THREE.Points; particles: ParticleState[] } {
   const particles: ParticleState[] = [];
   const positions = new Float32Array(particleCount * 3);
@@ -661,13 +891,13 @@ function createSmokeMesh(
 
   const texture = createSoftCircleTexture();
   const material = new THREE.PointsMaterial({
-    size: 0.06,
+    size: HL_SMOKE_POINT_SIZE,
     map: texture,
     transparent: true,
-    blending: THREE.AdditiveBlending,
+    blending: resolveBlending(blendMode),
     depthWrite: false,
     color,
-    opacity: 0.3,
+    opacity: HL_SMOKE_OPACITY,
   });
 
   const points = new THREE.Points(geometry, material);
@@ -678,9 +908,17 @@ function createSmokeMesh(
 /**
  * Updates smoke particle positions and opacities each frame.
  */
+/**
+ * Updates smoke particle positions each frame.
+ * Particles wander randomly within the beam's elliptical XZ boundary
+ * while drifting upward. Uses the angle from advanceParticle for orbital
+ * motion combined with a random radial offset for natural dispersion.
+ */
 function updateSmokeParticles(
   meshSet: HighlightMeshSet,
-  radius: number,
+  radiusX: number,
+  radiusZ: number,
+  beamHeight: number,
   dt: number,
 ): void {
   if (!meshSet.smokeMesh || !meshSet.smokeParticles) return;
@@ -691,77 +929,187 @@ function updateSmokeParticles(
   for (let i = 0; i < particles.length; i++) {
     particles[i] = advanceParticle(particles[i], dt, Math.random);
     const p = particles[i];
-    const [x, z] = particleRingPosition(p.angle, radius * 0.7);
-    posAttr.setXYZ(i, x, p.yOffset, z);
+
+    // Compute XZ from orbital angle with random radial variation.
+    // Each particle gets a unique radial factor based on its index
+    // so they spread across the disc rather than clustering on the ring.
+    const radialFactor = 0.2 + ((i * 7 + 3) % 10) / 10 * 0.8; // 0.2–1.0, deterministic per particle
+    const wanderX = Math.sin(p.age * 0.5 + i) * radiusX * 0.15; // slow lateral wander
+    const wanderZ = Math.cos(p.age * 0.7 + i * 1.3) * radiusZ * 0.15;
+
+    const x = Math.cos(p.angle) * radiusX * radialFactor + wanderX;
+    const z = Math.sin(p.angle) * radiusZ * radialFactor + wanderZ;
+
+    // Clamp to ellipse boundary
+    const normDist = (x * x) / (radiusX * radiusX) + (z * z) / (radiusZ * radiusZ);
+    const clampFactor = normDist > 1 ? 1 / Math.sqrt(normDist) : 1;
+
+    // Y wraps around beam height
+    const y = p.yOffset % beamHeight;
+
+    posAttr.setXYZ(i, x * clampFactor, y, z * clampFactor);
   }
 
   posAttr.needsUpdate = true;
 }
 
+/** Disposes all meshes inside a glow group (stacked additive planes). */
+function disposeGlowGroup(glowGroup: THREE.Group): void {
+  for (const child of glowGroup.children) {
+    if (child instanceof THREE.Mesh) {
+      child.geometry.dispose();
+      const mat = child.material as THREE.MeshBasicMaterial;
+      if (mat.map) mat.map.dispose();
+      mat.dispose();
+    }
+  }
+}
+
+/** Updates opacity on all meshes in a glow group. */
+function updateGlowGroupOpacity(glowGroup: THREE.Group, opacity: number): void {
+  for (const child of glowGroup.children) {
+    if (child instanceof THREE.Mesh) {
+      const mat = child.material as THREE.MeshBasicMaterial;
+      // Scale each layer's opacity relative to its original ratio.
+      // The layers were created with different base opacities — preserve the ratios.
+      mat.opacity = opacity;
+    }
+  }
+}
+
+/** Disposes and removes a single Mesh or Points from its parent. */
+function disposeMesh3D(obj: THREE.Mesh | THREE.Points): void {
+  obj.geometry.dispose();
+  const mat = obj.material as THREE.MeshBasicMaterial | THREE.PointsMaterial;
+  if ('map' in mat && mat.map) mat.map.dispose();
+  mat.dispose();
+  obj.parent?.remove(obj);
+}
+
 /**
- * Disposes all Three.js resources in a HighlightMeshSet.
+ * Tears down all child meshes in a HighlightMeshSet, resetting them to null.
+ * The containing group is kept alive for reuse. Call this before rebuilding
+ * meshes for a mode change.
  */
-function disposeHighlightMeshSet(meshSet: HighlightMeshSet): void {
+function clearHighlightMeshes(meshSet: HighlightMeshSet): void {
   if (meshSet.glowPlane) {
-    meshSet.glowPlane.geometry.dispose();
-    const mat = meshSet.glowPlane.material as THREE.MeshBasicMaterial;
-    if (mat.map) mat.map.dispose();
-    mat.dispose();
+    disposeGlowGroup(meshSet.glowPlane);
+    meshSet.group.remove(meshSet.glowPlane);
+    meshSet.glowPlane = null;
   }
   if (meshSet.beamMesh) {
-    meshSet.beamMesh.geometry.dispose();
-    (meshSet.beamMesh.material as THREE.ShaderMaterial).dispose();
+    disposeMesh3D(meshSet.beamMesh);
+    meshSet.beamMesh = null;
+  }
+  if (meshSet.backdropMesh) {
+    disposeMesh3D(meshSet.backdropMesh);
+    meshSet.backdropMesh = null;
+  }
+  if (meshSet.dustMesh) {
+    disposeMesh3D(meshSet.dustMesh);
+    meshSet.dustMesh = null;
+    meshSet.dustParticles = null;
   }
   if (meshSet.smokeMesh) {
-    meshSet.smokeMesh.geometry.dispose();
-    const mat = meshSet.smokeMesh.material as THREE.PointsMaterial;
-    if (mat.map) mat.map.dispose();
-    mat.dispose();
+    disposeMesh3D(meshSet.smokeMesh);
+    meshSet.smokeMesh = null;
+    meshSet.smokeParticles = null;
   }
+}
+
+/**
+ * Disposes all Three.js resources in a HighlightMeshSet and removes its
+ * group from the scene graph.
+ */
+function disposeHighlightMeshSet(meshSet: HighlightMeshSet): void {
+  clearHighlightMeshes(meshSet);
   meshSet.group.parent?.remove(meshSet.group);
 }
 
 /**
  * Applies per-view highlight effects above the carousel tray.
  * Called at the end of applyCarouselScrubber() each frame.
+ *
+ * Highlights are parented to the scene (not the tray root) and positioned
+ * at the layout container center — where the active view always sits.
+ * The layout resolver always places the active view at the center of
+ * the container bounds, so the highlight stays locked to the active view
+ * regardless of which index is active.
  */
 function applyViewHighlights(
   highlights: readonly ViewHighlight[],
   cache: CarouselScrubberCache,
+  scene: THREE.Scene,
   trayTopY: number,
   coords: NVSCoordService,
+  nvsBounds: { x: number; y: number; w: number; h: number },
+  registry: import('../../widget/WidgetRegistry').WidgetRegistry | null,
 ): void {
   const now = Date.now();
   const activeViewIds = new Set<string>();
 
-  for (const hl of highlights) {
+  // The active view is always centered in the layout container.
+  const containerCenterX = nvsBounds.x + nvsBounds.w / 2;
+  const containerCenterY = nvsBounds.y + nvsBounds.h / 2;
+  const [activeCenterWorldX] = coords.toWorld(containerCenterX, containerCenterY, 0);
+
+  for (let hlIdx = 0; hlIdx < highlights.length; hlIdx++) {
+    const hl = highlights[hlIdx];
     activeViewIds.add(hl.viewId);
 
     let meshSet = cache.highlightMeshes.get(hl.viewId);
 
-    // Convert NVS bounds to world coordinates
-    const cx = hl.bounds.x + hl.bounds.w / 2;
-    const cy = hl.bounds.y + hl.bounds.h / 2;
-    const [worldX] = coords.toWorld(cx, cy, 0);
-    const [worldW, worldH] = coords.toWorldSize(hl.bounds.w, hl.bounds.h);
+    // Resolve world position:
+    // - followView: look up the view's live ViewState from the current tick
+    //   to get NVS bounds (X position) and Z offset. The view moves along
+    //   the ring ellipse as activeIndex changes; the tick state reflects this.
+    // - default: use the container center (active view is always there)
+    let worldX = 0;
+    let worldZ = 0;
+    let worldW = 0;
+    let worldH = 0;
+
+    if (hl.followView && hl.mode !== 'none' && registry) {
+      // Read the ViewWidget's live world center directly.
+      // ViewWidget.currentWorldCenter is updated each frame in apply()
+      // with the NVS-to-world conversion of the current layout bounds.
+      const viewWidget = registry.get(hl.viewId) as
+        { currentWorldCenter?: { x: number; y: number; z: number } } | undefined;
+      if (viewWidget?.currentWorldCenter) {
+        worldX = viewWidget.currentWorldCenter.x;
+        worldZ = viewWidget.currentWorldCenter.z;
+      } else {
+        worldX = activeCenterWorldX;
+      }
+      [worldW, worldH] = coords.toWorldSize(hl.bounds.w, hl.bounds.h);
+    } else {
+      worldX = hl.mode !== 'none' ? activeCenterWorldX : 0;
+      [worldW, worldH] = coords.toWorldSize(hl.bounds.w, hl.bounds.h);
+    }
 
     const targetOpacity = hl.mode !== 'none' ? hl.intensity : 0;
 
     if (!meshSet) {
-      // Create new mesh set
+      // Create new mesh set — parented to the scene, not the tray root,
+      // so highlights don't rotate with the disc on ring carousels.
       const group = new THREE.Group();
       group.name = `Highlight_${hl.viewId}`;
-      cache.root.add(group);
+      scene.add(group);
 
       meshSet = {
         group,
         glowPlane: null,
         beamMesh: null,
+        backdropMesh: null,
+        dustMesh: null,
+        dustParticles: null,
         smokeMesh: null,
         smokeParticles: null,
         currentOpacity: 0,
         mode: 'none',
         lastTime: now,
+        currentX: null,
+        currentZ: null,
       };
       cache.highlightMeshes.set(hl.viewId, meshSet);
     }
@@ -771,37 +1119,50 @@ function applyViewHighlights(
 
     // Mode change: tear down old meshes, create new ones
     if (meshSet.mode !== hl.mode) {
-      if (meshSet.glowPlane) {
-        meshSet.group.remove(meshSet.glowPlane);
-        meshSet.glowPlane.geometry.dispose();
-        (meshSet.glowPlane.material as THREE.MeshBasicMaterial).dispose();
-        meshSet.glowPlane = null;
-      }
-      if (meshSet.beamMesh) {
-        meshSet.group.remove(meshSet.beamMesh);
-        meshSet.beamMesh.geometry.dispose();
-        (meshSet.beamMesh.material as THREE.ShaderMaterial).dispose();
-        meshSet.beamMesh = null;
-      }
-      if (meshSet.smokeMesh) {
-        meshSet.group.remove(meshSet.smokeMesh);
-        meshSet.smokeMesh.geometry.dispose();
-        (meshSet.smokeMesh.material as THREE.PointsMaterial).dispose();
-        meshSet.smokeMesh = null;
-        meshSet.smokeParticles = null;
-      }
+      clearHighlightMeshes(meshSet);
+
+      const blend = hl.blendMode;
 
       if (hl.mode === 'glow') {
-        meshSet.glowPlane = createGlowPlane(worldW, worldH, hl.color, hl.intensity);
+        meshSet.glowPlane = createGlowPlane(worldW * HL_GLOW_MODE_SCALE, worldH * HL_GLOW_MODE_SCALE, hl.color, hl.intensity, blend);
         meshSet.group.add(meshSet.glowPlane);
       } else if (hl.mode === 'holographic') {
-        const radius = Math.max(worldW, worldH) * 0.5;
-        const beamHeight = hl.beamHeight ?? 1.5;
-        meshSet.beamMesh = createBeamMesh(radius, beamHeight, hl.color, hl.intensity);
+        const unitRadius = 1.0;
+        const beamHeight = hl.beamHeight ?? HL_DEFAULT_BEAM_HEIGHT;
+        const scaleX = worldW * HL_BEAM_SCALE;
+        const scaleZ = worldH * HL_BEAM_SCALE;
+
+        // Beam cylinder — elliptical
+        meshSet.beamMesh = createBeamMesh(unitRadius, beamHeight, hl.color, hl.intensity, blend);
+        meshSet.beamMesh.scale.set(scaleX, 1, scaleZ);
         meshSet.group.add(meshSet.beamMesh);
 
+        // Backdrop — cylinder matching beam, dims neighbors
+        const bdOpacity = hl.backdropOpacity ?? HL_DEFAULT_BACKDROP_OPACITY;
+        if (bdOpacity > 0) {
+          meshSet.backdropMesh = createBackdropMesh(beamHeight, bdOpacity, blend, hl.backdropColor);
+          meshSet.backdropMesh.scale.set(scaleX * HL_BACKDROP_SCALE, 1, scaleZ * HL_BACKDROP_SCALE);
+          meshSet.group.add(meshSet.backdropMesh);
+        }
+
+        // Surface glow
+        meshSet.glowPlane = createGlowPlane(worldW * HL_GLOW_SCALE, worldH * HL_GLOW_SCALE, hl.color, hl.intensity * HL_HOLOGRAPHIC_GLOW_FACTOR, blend);
+        meshSet.group.add(meshSet.glowPlane);
+
+        // Volumetric dust motes — optional
+        if (hl.dust) {
+          const { points: dustPts, particles: dustParts } = createDustMesh(
+            scaleX, scaleZ, beamHeight, hl.color, blend,
+          );
+          meshSet.dustMesh = dustPts;
+          meshSet.dustParticles = dustParts;
+          meshSet.group.add(dustPts);
+        }
+
+        // Optional base smoke ring
         if (hl.smoke) {
-          const { points, particles } = createSmokeMesh(radius, hl.color, DEFAULT_PARTICLE_COUNT);
+          const smokeRadius = Math.max(worldW, worldH) * 0.45;
+          const { points, particles } = createSmokeMesh(smokeRadius, hl.color, DEFAULT_PARTICLE_COUNT, blend);
           meshSet.smokeMesh = points;
           meshSet.smokeParticles = particles;
           meshSet.group.add(points);
@@ -814,37 +1175,75 @@ function applyViewHighlights(
     // Position the highlight group in the tray root's local space.
     // trayTopY is in world space, but the group is a child of cache.root
     // which is already offset by root.position.y.
-    const localTopY = trayTopY - cache.root.position.y + 0.01;
-    meshSet.group.position.set(worldX, localTopY, 0);
+    // Smooth-lerp position to match the ViewWidget's LERP animation (0.12).
+    // First frame snaps to target; subsequent frames lerp for fluid tracking.
+    const POSITION_LERP = HL_POSITION_LERP;
+    const zAdj = hl.zOffset ?? 0;
+    const targetX = worldX;
+    const targetZ = worldZ + zAdj;
+
+    if (meshSet.currentX === null || meshSet.currentZ === null) {
+      meshSet.currentX = targetX;
+      meshSet.currentZ = targetZ;
+    } else {
+      meshSet.currentX += (targetX - meshSet.currentX) * POSITION_LERP;
+      meshSet.currentZ += (targetZ - meshSet.currentZ) * POSITION_LERP;
+    }
+
+    // Position above the tray surface. trayTopY is the world Y of the tray's
+    // logical top edge. Add enough offset to clear the bevel and sit visibly
+    // above the tray geometry.
+    meshSet.group.position.set(meshSet.currentX, trayTopY + HL_Y_OFFSET, meshSet.currentZ);
 
     // Fade transition
-    meshSet.currentOpacity += (targetOpacity - meshSet.currentOpacity) * HIGHLIGHT_FADE_LERP;
-    if (Math.abs(meshSet.currentOpacity - targetOpacity) < HIGHLIGHT_OPACITY_THRESHOLD) {
+    meshSet.currentOpacity += (targetOpacity - meshSet.currentOpacity) * HL_FADE_LERP;
+    if (Math.abs(meshSet.currentOpacity - targetOpacity) < HL_OPACITY_THRESHOLD) {
       meshSet.currentOpacity = targetOpacity;
     }
 
-    const visible = meshSet.currentOpacity > HIGHLIGHT_OPACITY_THRESHOLD;
+    const visible = meshSet.currentOpacity > HL_OPACITY_THRESHOLD;
     meshSet.group.visible = visible;
 
     if (!visible) continue;
 
-    // Update glow opacity
+    // Update glow opacity — apply the holographic glow factor for holographic mode
     if (meshSet.glowPlane) {
-      (meshSet.glowPlane.material as THREE.MeshBasicMaterial).opacity = meshSet.currentOpacity;
+      const glowFactor = hl.mode === 'holographic' ? HL_HOLOGRAPHIC_GLOW_FACTOR : 1.0;
+      const glowFade = meshSet.currentOpacity / Math.max(hl.intensity, 0.01);
+      updateGlowGroupOpacity(meshSet.glowPlane, glowFade * hl.intensity * glowFactor);
     }
 
-    // Update beam uniforms
+    // Update beam opacity
     if (meshSet.beamMesh) {
-      const uniforms = (meshSet.beamMesh.material as THREE.ShaderMaterial).uniforms;
-      uniforms['u_intensity'].value = meshSet.currentOpacity;
-      uniforms['u_time'].value = now / 1000;
+      (meshSet.beamMesh.material as THREE.MeshBasicMaterial).opacity = meshSet.currentOpacity;
     }
 
-    // Update smoke particles
+    // Update backdrop opacity — scale by the fade transition
+    if (meshSet.backdropMesh) {
+      const bdTarget = hl.backdropOpacity ?? HL_DEFAULT_BACKDROP_OPACITY;
+      (meshSet.backdropMesh.material as THREE.MeshBasicMaterial).opacity =
+        (meshSet.currentOpacity / Math.max(hl.intensity, 0.01)) * bdTarget;
+    }
+
+    // Update volumetric dust
+    if (meshSet.dustMesh && meshSet.dustParticles) {
+      const scaleX = worldW * 0.7;
+      const scaleZ = worldH * 0.7;
+      const beamH = hl.beamHeight ?? HL_DEFAULT_BEAM_HEIGHT;
+      updateDustParticles(meshSet, scaleX, scaleZ, beamH, dt);
+      // Scale opacity by fade transition. HL_DUST_OPACITY is the target; currentOpacity/intensity normalizes the fade.
+      const dustFade = meshSet.currentOpacity / Math.max(hl.intensity, 0.01);
+      (meshSet.dustMesh.material as THREE.PointsMaterial).opacity = dustFade * HL_DUST_OPACITY;
+    }
+
+    // Update smoke ring particles
     if (meshSet.smokeMesh && meshSet.smokeParticles) {
-      const radius = Math.max(worldW, worldH) * 0.5;
-      updateSmokeParticles(meshSet, radius, dt);
-      (meshSet.smokeMesh.material as THREE.PointsMaterial).opacity = meshSet.currentOpacity * 0.3;
+      const smokeRX = worldW * HL_BEAM_SCALE;
+      const smokeRZ = worldH * HL_BEAM_SCALE;
+      const smokeH = hl.beamHeight ?? HL_DEFAULT_BEAM_HEIGHT;
+      updateSmokeParticles(meshSet, smokeRX, smokeRZ, smokeH, dt);
+      const smokeFade = meshSet.currentOpacity / Math.max(hl.intensity, 0.01);
+      (meshSet.smokeMesh.material as THREE.PointsMaterial).opacity = smokeFade * HL_SMOKE_OPACITY;
     }
   }
 
@@ -893,6 +1292,9 @@ export function applyCarouselScrubber(
   coords?: NVSCoordService,
   materialLoader?: MaterialLoader,
   materialManifest?: MaterialManifest,
+  _tickWidgetStates?: Record<string, unknown> | null,
+  runtimeHighlights?: ReadonlyMap<string, import('./types').ViewHighlightConfig> | null,
+  runtimeRegistry?: import('../../widget/WidgetRegistry').WidgetRegistry | null,
 ): void {
   if (state.childCount === 0 || state.layoutId === '') {
     cache.root.visible = false;
@@ -941,6 +1343,14 @@ export function applyCarouselScrubber(
     const diameter = Math.max(worldWidth, zDepth);
     worldWidth = diameter;
     zDepth = diameter;
+  }
+
+  // Outer margin: author-controlled NVS border beyond the view extent.
+  // Converts NVS to world units and adds uniformly to all edges.
+  if (trayCoords && state.outerMargin > 0) {
+    const [marginWorld] = trayCoords.toWorldSize(state.outerMargin, 0);
+    worldWidth += marginWorld * 2;
+    zDepth += marginWorld * 2;
   }
   const centerZ = trayPos?.centerZ ?? (state.loop && zStep > 0 ? -zStep / 2 : 0);
 
@@ -1002,16 +1412,28 @@ export function applyCarouselScrubber(
   }
 
   // -- View highlights ---------------------------------------------------------
-  // TEMP DIAGNOSTIC — remove after debugging
-  if (!cache.lastGeoKey.startsWith('__hl_diag')) {
-    const activeHl = state.viewHighlights.filter(h => h.mode !== 'none');
-    console.warn('[CarouselScrubber] viewHighlights:', state.viewHighlights.length, 'total,', activeHl.length, 'active', activeHl.length > 0 ? activeHl[0] : '(none)');
-    // only log once by marking the cache
-    cache.lastGeoKey = '__hl_diag' + cache.lastGeoKey;
+  // Merge compiled highlights with runtime (programmatic) highlights.
+  // Runtime highlights override compiled ones for the same viewId.
+  let mergedHighlights = state.viewHighlights;
+  if (runtimeHighlights && runtimeHighlights.size > 0) {
+    const merged = [...state.viewHighlights];
+    for (const [viewId, cfg] of runtimeHighlights) {
+      const existingIdx = merged.findIndex(h => h.viewId === viewId);
+      const fallbackBounds = existingIdx >= 0 ? merged[existingIdx].bounds : { x: 0, y: 0, w: 0, h: 0 };
+      const rtHighlight = resolveRuntimeHighlight(cfg, fallbackBounds, state.style.accentColor);
+      if (existingIdx >= 0) {
+        merged[existingIdx] = rtHighlight;
+      } else {
+        merged.push(rtHighlight);
+      }
+    }
+    mergedHighlights = merged;
   }
-  if (coords && state.viewHighlights.length > 0) {
+
+  const hasHighlights = mergedHighlights.some(h => h.mode !== 'none');
+  if (coords && hasHighlights) {
     const highlightTopY = trayPos ? trayPos.topY : 0;
-    applyViewHighlights(state.viewHighlights, cache, highlightTopY, coords);
+    applyViewHighlights(mergedHighlights, cache, scene, highlightTopY, coords, state.nvsBounds, runtimeRegistry ?? null);
   } else if (cache.highlightMeshes.size > 0) {
     // Clean up highlights when none are active
     for (const [, meshSet] of cache.highlightMeshes) {

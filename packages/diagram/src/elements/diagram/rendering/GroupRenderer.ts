@@ -8,7 +8,7 @@ import {
 import type { MaterialLoader, MaterialManifest, LoadedMaterialPreset } from '@brewsite/core';
 import { Text } from 'troika-three-text';
 import type { IGroupInteractionRegistry } from './GroupInteractionRegistry';
-import { GROUP_BORDER_PX_TO_UNITS, GROUP_RENDER_Z } from '../compiler/diagramRenderConstants';
+import { GROUP_BORDER_PX_TO_UNITS, GROUP_RENDER_Z } from '../constants';
 
 export class GroupRenderer {
   private readonly entries = new Map<string, GroupRenderEntry>();

@@ -81,7 +81,7 @@ export type DeckTheme = {
  * Produced by themeCompiler.ts. Never authored directly.
  */
 export type ResolvedDeckTheme = Required<DeckTheme> & {
-  /** Pre-derived SceneTheme for injection into EngineProvider.sceneTheme. */
+  /** Pre-derived SceneTheme for injection into SceneEngine.sceneTheme. */
   sceneTheme: SceneTheme;
   /** CSS custom property map injected into EngineOverlayHost via SlideMetaWidget. */
   cssVars: Record<string, string>;

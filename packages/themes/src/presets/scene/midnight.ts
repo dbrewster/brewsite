@@ -1,6 +1,128 @@
 // midnight SceneTheme presets — warm cinematic tone with bronze/amber authority.
 
-import type { SceneTheme } from '@brewsite/core';
+import type { SceneTheme, SceneThemeHighlightPalette } from '@brewsite/core';
+
+// -- Highlight palettes tuned for the midnight family --
+
+const midnightDarkHighlights: SceneThemeHighlightPalette = {
+  primary: {
+    color: '#D4A040',
+    mode: 'holographic',
+    intensity: 0.5,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  secondary: {
+    color: '#A08050',
+    mode: 'holographic',
+    intensity: 0.45,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  tertiary: {
+    color: '#C07848',
+    mode: 'glow',
+    intensity: 0.45,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  error: {
+    color: '#CC3322',
+    mode: 'holographic',
+    intensity: 0.55,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+    smoke: true,
+  },
+  warning: {
+    color: '#D4A030',
+    mode: 'holographic',
+    intensity: 0.5,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  success: {
+    color: '#44AA66',
+    mode: 'glow',
+    intensity: 0.45,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  info: {
+    color: '#B89050',
+    mode: 'glow',
+    intensity: 0.4,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+};
+
+const midnightLightHighlights: SceneThemeHighlightPalette = {
+  primary: {
+    color: '#A07828',
+    mode: 'holographic',
+    intensity: 0.35,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  secondary: {
+    color: '#7A6040',
+    mode: 'holographic',
+    intensity: 0.3,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  tertiary: {
+    color: '#8A5A30',
+    mode: 'glow',
+    intensity: 0.32,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  error: {
+    color: '#AA2218',
+    mode: 'holographic',
+    intensity: 0.4,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+    smoke: true,
+  },
+  warning: {
+    color: '#AA7A18',
+    mode: 'holographic',
+    intensity: 0.35,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  success: {
+    color: '#2A7A44',
+    mode: 'glow',
+    intensity: 0.32,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  info: {
+    color: '#8A6838',
+    mode: 'glow',
+    intensity: 0.28,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+};
 
 /** midnight family, dark polarity. */
 export const midnightSceneTheme: SceneTheme = {
@@ -47,6 +169,7 @@ export const midnightSceneTheme: SceneTheme = {
     surfaceMaterial: 'dark-marble',
     materialApplication: { colorMix: 0.5, brightness: 0.7, saturation: 0.8 },
   },
+  highlightPalette: midnightDarkHighlights,
 };
 
 /** midnight family, light polarity. */
@@ -94,4 +217,5 @@ export const midnightLightSceneTheme: SceneTheme = {
     surfaceMaterial: 'dark-marble',
     materialApplication: { colorMix: 0.35, brightness: 1.0 },
   },
+  highlightPalette: midnightLightHighlights,
 };

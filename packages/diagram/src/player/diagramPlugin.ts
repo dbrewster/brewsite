@@ -6,22 +6,6 @@ import { registerDiagramHandlers } from '../compiler/handlers';
 import { DiagramWidget } from '../elements/diagram/widget';
 
 /**
- * Options for the @brewsite/diagram WidgetPlugin.
- */
-export type DiagramPluginOptions = {
-  /**
-   * @deprecated Since v0.x. DiagramWidget instances are now created lazily on
-   * first DSL encounter during compilation. This field is no longer needed and
-   * will be removed in a future major release.
-   *
-   * Remove the `diagrams` array from your diagramPlugin() call:
-   *   Before: diagramPlugin({ diagrams: ['my-diagram'] })
-   *   After:  diagramPlugin()
-   */
-  diagrams?: readonly string[];
-};
-
-/**
  * WidgetPlugin for @brewsite/diagram.
  *
  * No configuration required. DiagramWidget instances are created automatically
@@ -34,15 +18,7 @@ export type DiagramPluginOptions = {
  *   diagramPlugin(),
  * ]}
  */
-export function diagramPlugin(options: DiagramPluginOptions = {}): WidgetPlugin {
-  if (options.diagrams && options.diagrams.length > 0) {
-    console.warn(
-      '[diagramPlugin] The `diagrams` option is deprecated and no longer needed. ' +
-        'DiagramWidget instances are now created automatically on first DSL encounter. ' +
-        'Remove the `diagrams` array from your diagramPlugin() call.',
-    );
-  }
-
+export function diagramPlugin(): WidgetPlugin {
   return {
     createWidgets(): DiagramWidget[] {
       // DiagramWidget instances are created lazily via the Diagram node handler

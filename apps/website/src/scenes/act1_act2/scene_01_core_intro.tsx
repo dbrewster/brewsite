@@ -1,5 +1,5 @@
 import type {JSX} from 'react';
-import {Scene, Camera, Lighting, Ambient, Directional, ProgressManager} from '@brewsite/core';
+import {Scene, Camera, Lighting, Ambient, Directional, ProgressManager, TextBox} from '@brewsite/core';
 import {
     Diagram,
     DiagramNode,
@@ -67,15 +67,8 @@ export const scene01CoreIntro: JSX.Element = (
                 />
             </Diagram>
 
-        <div key="core-intro-overlay" style={{
-            position: 'absolute',
-            inset: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '8% 6%',
-        }}>
-            <div style={{maxWidth: 420}}>
+        <TextBox key="core-intro-overlay" x={0.04} y={0.15} w={0.38} h={0.70} overflow="visible">
+            <div>
                 <div style={{
                     fontFamily: 'JetBrains Mono, monospace',
                     fontSize: 11,
@@ -125,6 +118,6 @@ export const scene01CoreIntro: JSX.Element = (
                     You write the story. BrewSite makes it move.
                 </p>
             </div>
-        </div>
+        </TextBox>
     </Scene>
 );

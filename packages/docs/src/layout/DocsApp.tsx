@@ -87,7 +87,7 @@ export interface DocsAppProps {
  */
 export function DocsApp({ nav, engineConfig, children }: DocsAppProps): ReactElement {
   const [activeId, setActiveId] = useState<string>('');
-  // columnRef is kept for future use (e.g., injecting EngineProvider context)
+  // columnRef is kept for future use (e.g., injecting SceneEngine context)
   // but is NOT passed as the IntersectionObserver root.
   const columnRef = useRef<HTMLDivElement>(null);
 
@@ -155,8 +155,8 @@ export function DocsApp({ nav, engineConfig, children }: DocsAppProps): ReactEle
   };
 
   // The content column: either a plain docs column or an engine-driven column.
-  // When engineConfig is provided, EngineProvider wraps the content. Since
-  // EngineProvider has no DOM output (context only), ScrollCaptureSection and
+  // When engineConfig is provided, SceneEngine wraps the content. Since
+  // SceneEngine has no DOM output (context only), ScrollCaptureSection and
   // DocsMainColumn would both become direct grid children. A wrapper div
   // keeps them in a single second-column block.
   const contentColumn: ReactNode = engineConfig ? (

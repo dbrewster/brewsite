@@ -61,18 +61,26 @@ export type {
 export type { DiagramNodeShape, DiagramIconVariant } from './elements/diagram/shapes/shapeVariants';
 export { DEFAULT_NODE_SHAPE } from './elements/diagram/shapes/shapeVariants';
 export { Diagram, DiagramNode, DiagramEdge, DiagramGroup, DiagramExit, DiagramEnter, GridLayout, HierarchicalLayout, ManualLayout, FlowLayout, DiagramWidget } from './elements/diagram/widget';
-export type { DiagramExitProps, DiagramEnterProps, GridLayoutProps, HierarchicalLayoutProps, ManualLayoutProps, FlowLayoutProps } from './elements/diagram/dsl';
+export type {
+  DiagramProps,
+  DiagramNodeProps,
+  DiagramEdgeProps,
+  DiagramGroupProps,
+  DiagramExitProps,
+  DiagramEnterProps,
+  GridLayoutProps,
+  HierarchicalLayoutProps,
+  ManualLayoutProps,
+  FlowLayoutProps,
+} from './elements/diagram/dsl';
 export {
   compileDiagram,
   applyDiagramExit,
   applyDiagramEnter,
   functionalDiagramTransitionSpec,
 } from './elements/diagram/compile';
-/** @internal Pipeline-internal — not a stable extension point. */
-export { resolveLayout, routeEdges, compileNode, compileEdge, compileGroup } from './elements/diagram/compile';
 export { DiagramRenderer } from './elements/diagram/render';
 export { diagramPlugin } from './player/diagramPlugin';
-export type { DiagramPluginOptions } from './player/diagramPlugin';
 export {
   DIAGRAM_FOCUS_REGION_EVENT,
   getDiagramFocusRegion,
@@ -99,7 +107,6 @@ export { enterpriseTheme, enterpriseLightTheme, defaultDiagramTheme, defaultLigh
 export {
   registerDiagramThemePair,
   resolveDiagramTheme,
-  _resetDiagramThemeRegistryForTesting,
 } from './elements/diagram/themes';
 export type { DiagramThemePair } from './elements/diagram/themes';
 // Theme composition helpers

@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
+import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager, TextBox } from '@brewsite/core';
 import { Diagram, DiagramNode, DiagramEdge, ManualLayout } from '@brewsite/diagram';
 import { isMobile } from '../../utils/viewport';
 import { dwellFn } from '../../utils/pacing';
@@ -37,7 +37,7 @@ export const scene01SimpleDiagram: JSX.Element = (
         <DiagramEdge from="api"      to="db"    label="SQL"   flow="forward" />
         <DiagramEdge from="api"      to="cache" label="Cache" flow="forward" style="dashed" />
       </Diagram>
-    <div key="simple-diagram-overlay" style={{ position: 'absolute', bottom: '10%', left: '5%', maxWidth: 420 }}>
+    <TextBox key="simple-diagram-overlay" x={0.03} y={0.52} w={0.38} h={0.45} overflow="visible">
       <div style={{
         fontFamily: 'JetBrains Mono, monospace',
         fontSize: 10,
@@ -70,6 +70,6 @@ export const scene01SimpleDiagram: JSX.Element = (
         Declare nodes and edges in JSX.<br />
         20+ icon namespaces. Auto-layout. Routed edges.
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

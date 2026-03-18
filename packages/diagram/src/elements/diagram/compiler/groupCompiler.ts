@@ -12,7 +12,7 @@ import { unionBounds } from '@brewsite/core';
 import { buildGroupDefaults } from './defaultsCompiler';
 import { computeBounds } from './layoutAlgorithms';
 import type { ResolvedLayout } from './layoutResolver';
-import { GROUP_BORDER_PX_TO_UNITS } from './diagramRenderConstants';
+import { GROUP_BORDER_PX_TO_UNITS } from '../constants';
 import { DEFAULT_GROUP_PADDING, DEFAULT_TITLE_GAP } from './diagramLayoutConstants';
 
 /**

@@ -326,41 +326,6 @@ export type ChartRenderInput = Omit<ChartState, 'nvsX' | 'nvsY' | 'z'> & {
 
 // ─── DSL prop types ─────────────────────────────────────────────────────────
 
-/**
- * V1 generic chart DSL props — kept for the deprecated <Chart type="..."> component.
- * @deprecated Use BarChartDSL, LineChartDSL, etc.
- */
-export type ChartDSL = {
-  readonly id: string;
-  readonly type?: ChartType;
-  readonly rotation?: readonly [number, number, number];
-  readonly bounds?: {
-    readonly width?: number;
-    readonly height?: number;
-    readonly depth?: number;
-  };
-  readonly theme?: ChartThemeName | ChartTheme;
-  readonly opacity?: number;
-  readonly interactive?: boolean;
-  readonly sceneTheme?: SceneTheme;
-  readonly x?: number;
-  readonly y?: number;
-  readonly w?: number;
-  readonly h?: number;
-  readonly z?: number;
-  readonly gridlines?: boolean;
-  // V1 flat per-type props — accepted by the deprecated <Chart> and mapped to typeConfig
-  readonly lineShape?: ChartLineShape;
-  readonly lineSmoothness?: number;
-  readonly lineSubdivisions?: number;
-  readonly innerRadius?: number;
-  readonly pieTilt?: number;
-  readonly timeField?: string;
-  readonly axisGap?: number;
-  readonly legendGap?: number;
-  readonly dataSource?: string; // V1 flat source name
-};
-
 /** Updated V2 ChartDataDSL — source is now optional (inline/async paths don't need it). */
 export type ChartDataDSL = {
   readonly source?: string;

@@ -1,6 +1,128 @@
 // neonCyber SceneTheme presets — high-contrast neon/cyberpunk aesthetic.
 
-import type { SceneTheme } from '@brewsite/core';
+import type { SceneTheme, SceneThemeHighlightPalette } from '@brewsite/core';
+
+// -- Highlight palettes tuned for the neonCyber family --
+
+const neonCyberDarkHighlights: SceneThemeHighlightPalette = {
+  primary: {
+    color: '#A855FF',
+    mode: 'holographic',
+    intensity: 0.6,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  secondary: {
+    color: '#00E7FF',
+    mode: 'holographic',
+    intensity: 0.55,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  tertiary: {
+    color: '#FF6ECB',
+    mode: 'glow',
+    intensity: 0.6,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  error: {
+    color: '#FF2277',
+    mode: 'holographic',
+    intensity: 0.4,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+    smoke: true,
+  },
+  warning: {
+    color: '#EEFF22',
+    mode: 'holographic',
+    intensity: 0.55,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  success: {
+    color: '#22FF66',
+    mode: 'glow',
+    intensity: 0.55,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  info: {
+    color: '#44CCFF',
+    mode: 'glow',
+    intensity: 0.5,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+};
+
+const neonCyberLightHighlights: SceneThemeHighlightPalette = {
+  primary: {
+    color: '#7733CC',
+    mode: 'holographic',
+    intensity: 0.38,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  secondary: {
+    color: '#0099AA',
+    mode: 'holographic',
+    intensity: 0.35,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  tertiary: {
+    color: '#CC4488',
+    mode: 'glow',
+    intensity: 0.38,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  error: {
+    color: '#CC1155',
+    mode: 'holographic',
+    intensity: 0.42,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+    smoke: true,
+  },
+  warning: {
+    color: '#AA9900',
+    mode: 'holographic',
+    intensity: 0.35,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  success: {
+    color: '#119944',
+    mode: 'glow',
+    intensity: 0.38,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  info: {
+    color: '#2288BB',
+    mode: 'glow',
+    intensity: 0.32,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+};
 
 /** neonCyber family, dark polarity. */
 export const neonCyberSceneTheme: SceneTheme = {
@@ -47,6 +169,7 @@ export const neonCyberSceneTheme: SceneTheme = {
     surfaceMaterial: 'copper',
     materialApplication: { colorMix: 0.6, iridescence: 0.2, brightness: .3, iridescenceIOR: 0.8 },
   },
+  highlightPalette: neonCyberDarkHighlights,
 };
 
 /** neonCyber family, light polarity. */
@@ -93,4 +216,5 @@ export const neonCyberLightSceneTheme: SceneTheme = {
     surfaceMaterial: 'gold',
     materialApplication: { colorMix: 0.6, brightness: 0.85, saturation: 1.4, iridescence: 0.75 },
   },
+  highlightPalette: neonCyberLightHighlights,
 };

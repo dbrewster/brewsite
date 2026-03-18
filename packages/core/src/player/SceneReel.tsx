@@ -8,7 +8,7 @@ import type { SceneEngineProps } from './SceneEngine';
 import { SceneCanvas } from './SceneCanvas';
 import { BackgroundLayer } from './BackgroundLayer';
 import { EngineOverlayHost } from './EngineOverlayHost';
-import { EngineARContainerContext } from './EngineARContainer';
+import { ViewportScaleContext } from './EngineARContainer';
 
 export interface SceneReelProps {
   // ── Layout ──────────────────────────────────────────────────────────────────
@@ -27,10 +27,10 @@ export interface SceneReelProps {
   cameraInteractionDefaults?: SceneEngineProps['cameraInteractionDefaults'];
   invalidateCacheToken?: number | string;
   maxAnimBoostPerFrame?: number;
-  sceneTheme?: SceneEngineProps['sceneTheme'];
-
-  /** Active theme for this engine. Supersedes deprecated sceneTheme. */
+  /** Active theme for this engine. */
   theme?: SceneEngineProps['theme'];
+  /** Direct SceneTheme injection. Forwarded to SceneEngine. */
+  sceneTheme?: SceneEngineProps['sceneTheme'];
 
   /**
    * Scroll source for viewport-relative context lifecycle management.
@@ -70,7 +70,7 @@ export interface SceneReelProps {
  * a sized, overflow-hidden container. Add input components as children.
  */
 export function SceneReel(props: SceneReelProps): ReactElement {
-  const arCtx = useContext(EngineARContainerContext);
+  const arCtx = useContext(ViewportScaleContext);
 
   // Resolve height: AR container overrides when computedArHeight > 0
   const resolvedHeight: string =
@@ -103,8 +103,8 @@ export function SceneReel(props: SceneReelProps): ReactElement {
         cameraInteractionDefaults={props.cameraInteractionDefaults}
         invalidateCacheToken={props.invalidateCacheToken}
         maxAnimBoostPerFrame={props.maxAnimBoostPerFrame}
-        sceneTheme={props.sceneTheme}
         theme={props.theme}
+        sceneTheme={props.sceneTheme}
         scrollSource={props.scrollSource}
         defaultTransitionDuration={props.defaultTransitionDuration}
         defaultTransitionEasing={props.defaultTransitionEasing}

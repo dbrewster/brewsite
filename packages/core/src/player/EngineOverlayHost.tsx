@@ -29,7 +29,7 @@ function resolveThemeFamily(theme: SceneTheme): string | undefined {
 /**
  * Host element for scene overlay content rendered above the Three.js canvas.
  *
- * When a SceneTheme is active via ThemeContext (from EngineProvider.sceneTheme),
+ * When a SceneTheme is active via ThemeContext (from SceneEngine.sceneTheme),
  * this component:
  * - Injects CSS custom properties: --brewsite-font-family, --brewsite-font-size-*,
  *   --brewsite-color-mode, --brewsite-text-primary, --brewsite-text-secondary,

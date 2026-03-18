@@ -1,29 +1,27 @@
 // View/ViewLayout demo page — showcases standalone views, stack, carousel, and nested views.
-import {JSX, type RefObject, useCallback, useMemo, useRef, useState} from 'react';
+import {JSX, useMemo, useRef, useState} from 'react';
 import {
-  InputCoordinator,
+  type ActiveTheme,
   BackgroundLayer,
   corePlugin,
   EngineARContainer,
   EngineOverlayHost,
+  InputCoordinator,
   SceneCanvas,
   SceneEngine,
   ScrollStage,
   type ScrollStageHandle,
   type ThemeFamily,
   type ThemePolarity,
-  type ActiveTheme,
   type WidgetPlugin,
-  TimelineWidget,
-  useSceneEngineContext,
 } from '@brewsite/core';
 import {chartPlugin} from '@brewsite/charts';
 import {diagramPlugin} from '@brewsite/diagram';
-import { themesPlugin } from '@brewsite/themes';
+import {themesPlugin} from '@brewsite/themes';
 
 import {StandaloneViewsScene} from './scenes/scene1-standalone-views';
 import {StackLayoutScene} from './scenes/scene2-stack-layout';
-import {CarouselScene, CarouselScene1, CarouselScene2, CarouselScene3, CarouselScene4} from './scenes/scene3-carousel';
+import {CarouselScene1} from './scenes/scene3-carousel';
 import {NestedViewsScene} from './scenes/scene4-nested-views';
 import {StackVerticalScene} from './scenes/scene5-stack-vertical';
 import {LinearCarouselScene1, LinearCarouselScene2, LinearCarouselScene3} from './scenes/scene6-linear-carousel';
@@ -41,13 +39,13 @@ function createViewDemoPlugins(): { plugins: WidgetPlugin[] } {
 }
 
 export default function ViewDemoPage(): JSX.Element {
-  const { plugins } = useMemo(() => createViewDemoPlugins(), []);
+  const {plugins} = useMemo(() => createViewDemoPlugins(), []);
   const scrollStageRef = useRef<ScrollStageHandle | null>(null);
 
   const [family, setFamily] = useState<ThemeFamily>('darkGlass');
   const [polarity, setPolarity] = useState<ThemePolarity>('dark');
 
-  const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
+  const theme = useMemo((): ActiveTheme => ({family, polarity}), [family, polarity]);
 
   return (
     <div
@@ -70,37 +68,34 @@ export default function ViewDemoPage(): JSX.Element {
 
       <SceneEngine plugins={plugins} theme={theme}>
         {/* Scene 1: Two standalone views (side-by-side) */}
-        <StandaloneViewsScene />
+        <StandaloneViewsScene/>
 
         {/* Scene 2: Horizontal stack layout with three charts */}
-        <StackLayoutScene />
+        <StackLayoutScene/>
 
         {/* Scene 3: Vertical stack layout with three charts */}
-        <StackVerticalScene />
+        <StackVerticalScene/>
 
         {/* Scene 4: Loop carousel cycling through views */}
-        <CarouselScene1 />
-        <CarouselScene2 />
-        <CarouselScene3 />
-        <CarouselScene4 />
+        <CarouselScene1/>
 
         {/* Scene 5: Linear (non-loop) carousel — fan-out with scale decay */}
-        <LinearCarouselScene1 />
-        <LinearCarouselScene2 />
-        <LinearCarouselScene3 />
+        <LinearCarouselScene1/>
+        <LinearCarouselScene2/>
+        <LinearCarouselScene3/>
 
         {/* Scene 6: Nested views with padding */}
-        <NestedViewsScene />
+        <NestedViewsScene/>
 
         <ScrollStage ref={scrollStageRef} scrollHeightMode="scene-count" pixelsPerScene={500}>
           <EngineARContainer aspectRatio={9 / 9} scaleMode="fit-width">
-            <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
-            <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
-            <EngineOverlayHost />
+            <BackgroundLayer style={{position: 'absolute', inset: 0, zIndex: 0}}/>
+            <SceneCanvas style={{position: 'absolute', inset: 0, zIndex: 1}}/>
+            <EngineOverlayHost/>
           </EngineARContainer>
-          <InputCoordinator inertiaSensitivity={0.012} inertiaDecay={0.85} />
+          <InputCoordinator inertiaSensitivity={0.012} inertiaDecay={0.85}/>
         </ScrollStage>
-        <ChartProgressIndicator scrollStageRef={scrollStageRef} polarity={polarity} />
+        <ChartProgressIndicator scrollStageRef={scrollStageRef} polarity={polarity}/>
       </SceneEngine>
     </div>
   );

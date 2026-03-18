@@ -471,7 +471,7 @@ function buildSceneCfOverview(): ReactElement {
 }
 
 async function compileCfOverview(): Promise<DiagramState> {
-  const plugin = diagramPlugin({ diagrams: ['cf-overview'] });
+  const plugin = diagramPlugin();
   plugin.registerHandlers();
   const sceneCfOverview = buildSceneCfOverview();
 
@@ -861,7 +861,7 @@ function buildSceneDim7Safety(): ReactElement {
 }
 
 async function compileDim7Safety(): Promise<DiagramState> {
-  const plugin = diagramPlugin({ diagrams: ['safety-diagram'] });
+  const plugin = diagramPlugin();
   plugin.registerHandlers();
   const scene = buildSceneDim7Safety();
 

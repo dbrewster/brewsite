@@ -190,9 +190,9 @@ export const RingCarouselScene = (): JSX.Element => {
         <Directional intensity={0} color='#ffffff' position={[0, 0, 0]}/>
       </Lighting>
       <Floor variant="grid" negativeZExtent={20} />
-      <SpotlightRig center={[0, 0, 3]} target={[0, 0, -7]} height={3} showBeam={false} distance={0} decay={.5} penumbra={0.5}>
-        {spotlights.map((s, i) => <Spotlight key={i} {...s} />)}
-      </SpotlightRig>
+      {/*<SpotlightRig center={[0, 0, 3]} target={[0, 0, -7]} height={3} showBeam={false} distance={0} decay={.5} penumbra={0.5}>*/}
+      {/*  {spotlights.map((s, i) => <Spotlight key={i} {...s} />)}*/}
+      {/*</SpotlightRig>*/}
 
       <InputController scope="canvas">
         <Action id="default-carousel-next" type="carousel.next" layoutId={LAYOUT_ID} stepSlides={1}>
@@ -213,9 +213,11 @@ export const RingCarouselScene = (): JSX.Element => {
       <ViewLayout id={LAYOUT_ID} kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={0.7} x={.1} w={.8}>
         <RingCarouselViews />
         <CarouselTray metalness={.1}
-                      highlightActive="holographic"
-                      highlightColor="#E36A2E"
-                      highlightSmoke
+                      highlights={[
+                        {viewId: 'rc1', mode: 'holographic', variant: 'primary', smoke: true, beamHeight: 4},
+                        {viewId: 'rc3', mode: 'glow', variant: 'success', intensity: 0.5, smoke: true},
+                        {viewId: 'rc5', mode: 'holographic', variant: 'error', smoke: true, beamHeight: 4},
+                      ]}
         />
       </ViewLayout>
 

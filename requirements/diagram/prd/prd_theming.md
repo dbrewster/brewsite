@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-13
+last_updated: 2026-03-17
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -32,11 +32,14 @@ change_history:
   - date: 2026-03-13
     author: "Toolkit Product"
     summary: "Audit corrections: DiagramThemeNodeConfig gains nodeEnvMapIntensity (optional, default 0.15), defaultBoxColor (optional), defaultLabelPadding (required). DiagramThemeEdgeConfig gains many flow routing fields: flowTurnRadius, flowFaceStub, flowBundleStrength, flowObstaclePadding, flowTargetApproachBias, flowUnderpassDepth, flowUnderpassClearance, flowTurnPenalty, flowPunchthroughPenalty, flowUnderpassPenalty. DiagramThemeRenderConfig gains nodeEnvMapIntensity, nodeSdfGlyphSize, nodeLabelPadding. DiagramTheme gains sdfGlyphSize (optional). Corrected custom theme example — routing: 'orthogonal' is not valid; corrected to routing: 'flow'. Input defaults section corrected — input is now forwarded to DiagramWidget/diagramPlugin, not DiagramCanvasWidget."
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Major rewrite: theming architecture corrected from flat DIAGRAM_THEMES/DIAGRAM_THEME_PAIRS constants to actual registration-based model (registerDiagramThemePair/resolveDiagramTheme in themeRegistry.ts). DiagramThemeName is NOT exported from package root index.ts. Only four theme exports from barrel: enterpriseTheme, enterpriseLightTheme, defaultDiagramTheme, defaultLightDiagramTheme. Additional themes (darkGlass, midnight, neonCyber, lightCanvas, lightMinimal and their polarity variants) live in the themes/ directory but are registered at runtime by @brewsite/themes, not exported from the @brewsite/diagram barrel. Removed DIAGRAM_THEMES and DIAGRAM_THEME_PAIRS constant references. Removed claim that six preset themes are exported directly. Updated functional requirements, API design, tree-shaking, and launch criteria sections."
 ---
 
 ## Overview
 
-The theming system in `@brewsite/diagram` provides the complete design language for diagram visualization. A `DiagramTheme` is a plain TypeScript object — no React, no Three.js — that configures default colors, PBR material properties, layout behavior, edge routing algorithms, environment map, and optional cross-package scene theme integration for all elements within a diagram. Six preset themes ship with the package, corresponding to the six canonical `DiagramThemeName` values: `darkGlass`, `midnight`, `neonCyber`, `enterprise`, `lightCanvas`, and `lightMinimal`. Consumers can reference presets by string name (`<Diagram theme="darkGlass">`) or by importing the full theme object. Custom themes are authored by spreading a preset and overriding specific sub-configs. The `withColorMode()` utility creates a theme variant with colorMode-derived label colors. The system affects `@brewsite/diagram`.
+The theming system in `@brewsite/diagram` provides the complete design language for diagram visualization. A `DiagramTheme` is a plain TypeScript object — no React, no Three.js — that configures default colors, PBR material properties, layout behavior, edge routing algorithms, environment map, and optional cross-package scene theme integration for all elements within a diagram. The package ships with two default theme presets: `enterpriseTheme` (dark) and `enterpriseLightTheme` (light), which are also aliased as `defaultDiagramTheme` and `defaultLightDiagramTheme`. Additional preset themes (darkGlass, midnight, neonCyber, lightCanvas, lightMinimal and their polarity variants) are defined in `@brewsite/diagram`'s `themes/` directory and registered at runtime by `@brewsite/themes` via the `registerDiagramThemePair()` API. The `resolveDiagramTheme(family, polarity)` function resolves a theme by family name and polarity. Custom themes are authored by spreading a preset and overriding specific sub-configs. The `withColorMode()` utility creates a theme variant with colorMode-derived label colors. The system affects `@brewsite/diagram`.
 
 ## Problem Statement
 
@@ -53,7 +56,7 @@ Diagram elements expose dozens of configurable properties across nodes, edges, a
 **Success metrics:**
 - All six presets pass a visual smoke test (screenshot comparison) in the CI pipeline
 - TypeScript strict-mode type check passes on all theme exports
-- Switching between any two preset themes in a demo scene requires only a prop change to `<Diagram theme="...">` (string name) or `<Diagram theme={themeObject}>`
+- Switching between any two preset themes in a demo scene requires only a prop or `resolveDiagramTheme()` call change
 
 **Guardrail metrics:**
 - Adding a new optional field to any sub-config is a minor version bump; removing or renaming a field is a major version bump
@@ -68,7 +71,7 @@ Diagram elements expose dozens of configurable properties across nodes, edges, a
 
 ## Consumer Stories
 
-- As a toolkit consumer, I want to pass a theme name string to `<Diagram theme="darkGlass">` so that all my nodes, edges, and groups adopt a consistent visual style without importing or constructing a theme object.
+- As a toolkit consumer, I want to resolve a theme by family name and polarity via `resolveDiagramTheme('darkGlass', 'dark')` so that all my nodes, edges, and groups adopt a consistent visual style without manually constructing a theme object.
 - As a toolkit consumer, I want to spread a preset and override specific fields so that I can create a brand-aligned custom theme with minimal boilerplate.
 - As a toolkit consumer, I want to specify a custom HDR URL in a theme so that my diagram uses my own lighting environment without forking the theme.
 - As a toolkit consumer, I want themes to be individually importable so that my bundle only includes the preset I use.
@@ -76,11 +79,11 @@ Diagram elements expose dozens of configurable properties across nodes, edges, a
 ## Functional Requirements
 
 1. The `DiagramTheme` type shall be a plain TypeScript interface with no runtime dependencies.
-2. The six preset themes (`darkGlassTheme`, `midnightTheme`, `neonCyberTheme`, `enterpriseTheme`, `lightCanvasTheme`, `lightMinimalTheme`) shall be exported as named constants from `@brewsite/diagram`.
+2. The `@brewsite/diagram` package barrel exports four theme constants: `enterpriseTheme`, `enterpriseLightTheme`, `defaultDiagramTheme`, and `defaultLightDiagramTheme`. Additional preset theme files (darkGlass, midnight, neonCyber, lightCanvas, lightMinimal and their polarity variants) exist in the `themes/` directory and are registered at runtime by `@brewsite/themes` via `registerDiagramThemePair()`.
 3. Each preset shall be declared `as const` so that TypeScript infers narrow literal types.
-4a. A `DiagramThemeName` union type (`'darkGlass' | 'midnight' | 'neonCyber' | 'enterprise' | 'lightCanvas' | 'lightMinimal'`) shall be exported from `@brewsite/diagram`.
-4b. A `DIAGRAM_THEMES: Record<DiagramThemeName, DiagramTheme>` keyed registry shall be exported from `@brewsite/diagram`, enabling compile-time and runtime lookup by name.
-4c. The `theme?` prop on `DiagramProps` (the `<Diagram>` DSL element) shall accept `DiagramThemeName | DiagramTheme`. String name inputs are resolved to the full `DiagramTheme` object via `DIAGRAM_THEMES` at compile time. Existing call sites that pass a `DiagramTheme` object are unaffected.
+4a. `DiagramThemeName` is a type alias for `ThemeFamily` defined in `types.ts`. It is NOT exported from the `@brewsite/diagram` package root `index.ts`. It is available only to internal consumers who import directly from the types module.
+4b. Theme lookup is registration-based via `registerDiagramThemePair(family, pair)` and `resolveDiagramTheme(family, polarity)` in `themeRegistry.ts`. The registry pre-loads `'default'` and `'enterprise'` families at module init. Other families (darkGlass, midnight, neonCyber, lightCanvas, lightMinimal) are registered by `@brewsite/themes` at app startup.
+4c. The `theme?` prop on `DiagramDSL` (in `types.ts`) accepts `DiagramTheme`. Note: the `theme` prop is on the internal `DiagramDSL` type, not on `DiagramProps` in `dsl.tsx`. The compiler handler extracts the theme from the DSL during `extractDiagramDSL()`.
 4. The `DiagramThemeRenderConfig` struct shall be derived from `DiagramTheme` at compile time by `buildThemeRenderConfig()` in `compiler/themeResolver.ts`.
 5. `render.ts` and `EdgeRenderer` shall read only `DiagramThemeRenderConfig` — never the full `DiagramTheme`.
 6. Theme resolution shall run once per diagram compile call, not per frame.
@@ -91,63 +94,66 @@ Diagram elements expose dozens of configurable properties across nodes, edges, a
 
 ## API Design
 
-### DiagramThemeName, DIAGRAM_THEMES, and DIAGRAM_THEME_PAIRS
+### DiagramThemeName (internal type)
 
 ```typescript
 // packages/diagram/src/elements/diagram/types.ts
 
 /**
  * Type alias for ThemeFamily from @brewsite/core.
- * Maintained for backward compatibility — existing code referencing DiagramThemeName compiles identically.
- * The union values and their string literals are unchanged.
+ * NOT exported from the package root index.ts — internal only.
  */
 import type { ThemeFamily } from '@brewsite/core';
 export type DiagramThemeName = ThemeFamily;
 ```
 
+### Theme Registry: registerDiagramThemePair / resolveDiagramTheme
+
 ```typescript
-// packages/diagram/src/elements/diagram/themes/index.ts
+// packages/diagram/src/elements/diagram/themeRegistry.ts
 
-export const DIAGRAM_THEMES: Record<DiagramThemeName, DiagramTheme>;
-
-/**
- * Dark/light pair type for a DiagramTheme family.
- * Each entry is a complete DiagramTheme pre-wired with its corresponding SceneTheme
- * from SCENE_THEME_PAIRS — consumers need not manually attach sceneTheme.
- */
-export type DiagramThemePair = {
-  readonly dark: DiagramTheme;
-  readonly light: DiagramTheme;
-};
+/** A pair of DiagramTheme presets for dark and light polarities. */
+export type DiagramThemePair = { dark: DiagramTheme; light: DiagramTheme };
 
 /**
- * Registry of DiagramTheme pairs for all six ThemeFamily values.
- * Each entry's dark/light DiagramThemes are pre-wired with the matching SceneTheme
- * from @brewsite/core's SCENE_THEME_PAIRS.
- *
- * All twelve entries carry production-quality aesthetic values. Both polarities for every
- * ThemeFamily are publicly exported and production-ready for use in shipped scenes.
- * Each polarity variant has a fully designed node/edge material profile and palette;
- * no entry reuses a sibling-theme's values as a placeholder.
- *
- * @example
- * import { DIAGRAM_THEME_PAIRS } from '@brewsite/diagram';
- * const theme = DIAGRAM_THEME_PAIRS['darkGlass']['light'];
- * // theme.sceneTheme is pre-wired — no manual attachment needed
+ * Registers a DiagramTheme pair under the given family name.
+ * Call this during app startup (before any scene compilation) to make
+ * a theme family available to all diagram elements.
  */
-export const DIAGRAM_THEME_PAIRS: Record<ThemeFamily, DiagramThemePair>;
+export function registerDiagramThemePair(family: string, pair: DiagramThemePair): void;
+
+/**
+ * Resolves the DiagramTheme for the given family and polarity.
+ * Falls back to 'default' if the family is not registered.
+ */
+export function resolveDiagramTheme(family: string, polarity: 'dark' | 'light'): DiagramTheme;
+
+/**
+ * Resets the registry to its initial state. For use in tests only.
+ * @internal
+ */
+export function _resetDiagramThemeRegistryForTesting(): void;
 ```
 
-The `<Diagram>` DSL `theme` prop accepts either form:
+The registry pre-loads `'default'` and `'enterprise'` families at module init from the enterprise preset. Additional families (darkGlass, midnight, neonCyber, lightCanvas, lightMinimal) are registered by `@brewsite/themes` at app startup via `registerDiagramThemePair()`.
 
-```tsx
-// String name (resolved via DIAGRAM_THEMES at compile time):
-<Diagram theme="darkGlass">...</Diagram>
+### Package barrel theme exports
 
-// Full object (existing pattern — still valid):
-import { darkGlassTheme } from '@brewsite/diagram';
-<Diagram theme={darkGlassTheme}>...</Diagram>
+```typescript
+// packages/diagram/src/index.ts — theme section
+
+// Default presets (enterprise aesthetic)
+export { enterpriseTheme, enterpriseLightTheme, defaultDiagramTheme, defaultLightDiagramTheme } from './elements/diagram/themes';
+// Theme registry
+export { registerDiagramThemePair, resolveDiagramTheme, _resetDiagramThemeRegistryForTesting } from './elements/diagram/themes';
+export type { DiagramThemePair } from './elements/diagram/themes';
+// Theme composition helpers
+export { mergeTheme, withColorMode } from './elements/diagram/themes/mergeTheme';
+// Convenience hooks
+export { useDiagramTheme } from './hooks/useDiagramTheme';
 ```
+
+The `theme` prop is on `DiagramDSL` (in `types.ts`), not on `DiagramProps` (in `dsl.tsx`). The compiler handler passes the theme through internally.
 
 ### DiagramTheme
 
@@ -560,7 +566,7 @@ These derivation functions are pure (no Three.js) and run at compile time. Expli
 
 ### Tree-shaking
 
-Each preset theme is in its own file (`themes/darkGlass.ts`, `themes/midnight.ts`, `themes/neonCyber.ts`, `themes/enterprise.ts`, `themes/lightCanvas.ts`, `themes/lightMinimal.ts`). The barrel `themes/index.ts` re-exports all six alongside the `DIAGRAM_THEMES` registry. Consumers importing a single preset directly from their source path allow bundlers to tree-shake unused presets. Each preset is a `const` object with no side effects. Each preset file contains a cross-package palette comment block listing the 8 shared accent colors, enabling code review to detect diagram/chart palette divergence.
+Each preset theme is in its own file under the `themes/` directory (e.g., `themes/darkGlass.ts`, `themes/enterprise.ts`, `themes/enterpriseLight.ts`, plus polarity variants like `themes/darkGlassLight.ts`). The barrel `themes/index.ts` re-exports only the enterprise presets (`enterpriseTheme`, `enterpriseLightTheme`, `defaultDiagramTheme`, `defaultLightDiagramTheme`), the theme registry functions, and composition helpers. Non-enterprise theme files (darkGlass, midnight, neonCyber, lightCanvas, lightMinimal and their polarity variants) exist in the directory but are not re-exported from the barrel — they are registered at runtime by `@brewsite/themes` via `registerDiagramThemePair()`. Each preset is a `const` object with no side effects. Each preset file contains a cross-package palette comment block listing the 8 shared accent colors, enabling code review to detect diagram/chart palette divergence.
 
 ### Per-Family Node and Edge Material Profiles
 
@@ -651,7 +657,7 @@ const myTheme = {
 
 3. **`DiagramTheme.background` field is deferred to v2.** The scene background must be configured separately via `<Background>`.
 
-4. **`withColorMode()` produces colorMode-appropriate label colors only.** Node PBR material values (metalness, roughness, emissive intensity, glow) are not adjusted by `withColorMode()` — it only updates `defaultLabelColor` and `defaultSublabelColor`. For a fully correct polarity-switched theme, use a `DIAGRAM_THEME_PAIRS` entry rather than `withColorMode()` on a preset, as the pair entry carries a fully designed material profile for the opposite polarity.
+4. **`withColorMode()` produces colorMode-appropriate label colors only.** Node PBR material values (metalness, roughness, emissive intensity, glow) are not adjusted by `withColorMode()` — it only updates `defaultLabelColor` and `defaultSublabelColor`. For a fully correct polarity-switched theme, use `resolveDiagramTheme(family, polarity)` rather than `withColorMode()` on a preset, as the resolved pair entry carries a fully designed material profile for the opposite polarity.
 
 ## Breaking Change Assessment
 
@@ -672,7 +678,7 @@ const myTheme = {
 - New optional field on `DiagramTheme`: `sdfGlyphSize` — no migration required.
 - New fields on `DiagramThemeRenderConfig`: `nodeEnvMapIntensity`, `nodeSdfGlyphSize`, `nodeLabelPadding` — consumers constructing `DiagramThemeRenderConfig` directly (which is not a supported pattern) must add these; use `buildThemeRenderConfig(theme)` instead.
 
-**String name API addition (non-breaking):** The `theme?` prop on `DiagramProps` changed from `DiagramTheme | undefined` to `DiagramThemeName | DiagramTheme | undefined`. This is a union widening — existing call sites that pass a `DiagramTheme` object compile identically. TypeScript discriminates the union cleanly: string literals satisfy `DiagramThemeName`; objects satisfy `DiagramTheme`.
+**Theme registry migration:** The flat `DIAGRAM_THEMES` and `DIAGRAM_THEME_PAIRS` constants have been replaced by the registration-based `registerDiagramThemePair()` / `resolveDiagramTheme()` API. Non-enterprise themes are no longer directly exported from the `@brewsite/diagram` barrel — they are registered at runtime by `@brewsite/themes`.
 
 **Visual breaking change:** The palette values for `darkGlass`, `neonCyber`, and `enterprise` themes have changed. Scenes tuned to the previous preset colors will see different visual output after upgrade. `DiagramTheme` preset palette values are product content, not API contracts; visual changes are documented in the CHANGELOG but do not require code migration.
 
@@ -703,23 +709,22 @@ For future changes:
 ## Launch Criteria
 
 **Shipped (original theming system and redesign):**
-- [x] All six preset themes exported from `@brewsite/diagram` package `index.ts`; `DiagramThemeName` and `DIAGRAM_THEMES` also exported.
+- [x] Enterprise preset themes (`enterpriseTheme`, `enterpriseLightTheme`, `defaultDiagramTheme`, `defaultLightDiagramTheme`) exported from `@brewsite/diagram` package `index.ts`.
+- [x] Registration-based theme API (`registerDiagramThemePair`, `resolveDiagramTheme`, `DiagramThemePair` type) exported from `@brewsite/diagram`.
 - [x] `DiagramTheme`, `DiagramThemeNodeConfig`, `DiagramThemeEdgeConfig`, `DiagramThemeGroupConfig`, `DiagramThemeEnvironmentConfig`, `DiagramThemeLayoutConfig`, `DiagramThemeRenderConfig` all exported from `@brewsite/diagram`.
 - [x] `buildThemeRenderConfig` unit tested in `compiler/__tests__/themeResolver.test.ts`.
 - [x] At least one example scene in `apps/examples/` demonstrates switching between two presets.
 - [x] TypeScript strict-mode typecheck passes on the themes package directory.
 
 **Shipped (theming overhaul — polarity pairs):**
-- [x] `DiagramThemeName` is a type alias for `ThemeFamily` from `@brewsite/core`. Backward compat: all existing `DiagramThemeName` usages compile without change.
-- [x] `DiagramThemePair` type and `DIAGRAM_THEME_PAIRS` registry exported from `@brewsite/diagram`.
-- [x] All six `DIAGRAM_THEME_PAIRS` entries are pre-wired with corresponding `SceneTheme` from `SCENE_THEME_PAIRS`.
-- [x] TypeScript strict-mode typecheck passes for all new theme files.
+- [x] `DiagramThemeName` is a type alias for `ThemeFamily` from `@brewsite/core` (internal to types.ts, not exported from package root).
+- [x] `DiagramThemePair` type, `registerDiagramThemePair`, and `resolveDiagramTheme` exported from `@brewsite/diagram`.
+- [x] 'default' and 'enterprise' theme families pre-loaded in the registry at module init.
+- [x] TypeScript strict-mode typecheck passes for all theme files.
 
 **Shipped (theme family art direction — polarity variants):**
-- [x] All six polarity-variant `DiagramTheme` presets carry production-quality aesthetic values; no placeholder or sibling-theme reuse remains.
-- [x] All 12 `DiagramTheme` variants (6 canonical + 6 opposite-polarity) publicly exported from `@brewsite/diagram`.
+- [x] All six polarity-variant `DiagramTheme` preset files carry production-quality aesthetic values; no placeholder or sibling-theme reuse remains.
+- [x] All 12 `DiagramTheme` variants (6 canonical + 6 opposite-polarity) exist as files in the themes/ directory.
+- [x] Non-enterprise themes are registered at runtime by `@brewsite/themes` via `registerDiagramThemePair()`.
 - [x] Each polarity variant carries a fully designed node/edge PBR material profile and palette distinct from its family sibling.
 - [x] Per-family motion and interaction parameter targets (flow speed, pulse intensity, glow) are reflected in preset values.
-
-**Follow-on (not yet shipped — tracked separately):**
-- [ ] README documents `DIAGRAM_THEME_PAIRS` usage pattern with cross-package consumer example.

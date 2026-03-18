@@ -91,8 +91,10 @@ interface DiagramNodeProps {
   clickable?: boolean;                  // Enable click/raycast. Default: false
   enabled?: boolean;                    // Whether rendered. Default: true
   iconScale?: number;                   // Icon scale relative to face [0–1]
-  iconStyle?: SvgIcon3DStyle;           // '\'flat\'' | '\'extruded\'' | '\'layered\'' | '\'embossed\''
+  iconStyle?: SvgIcon3DStyle;           // 'flat' | 'extruded' | 'layered' | 'embossed'
   iconDepthFactor?: number;             // Icon extrusion depth as fraction of node thickness [0..1]
+  surfaceMaterial?: string;              // Named material preset to apply
+  materialApplication?: MaterialApplication; // How the material is applied
   onMouseEnter?: DiagramNodeMouseHandler;
   onMouseLeave?: DiagramNodeMouseHandler;
 }
@@ -105,7 +107,7 @@ Regular polygon prisms: `'circle'` (32-sided), `'triangle'`, `'square'`, `'recta
 Special extruded shapes: `'diamond'`, `'oval'`, `'cloud'`, `'document'`, `'parallelogram'`
 
 ```tsx
-<DiagramNode id="db" label="Database" shape="cylinder" icon="flow:cylinder" />
+<DiagramNode id="db" label="Database" shape="rectangle" icon="flow:cylinder" />
 <DiagramNode id="decision" label="Route?" shape="diamond" color="#4a3a10" />
 <DiagramNode id="service" label="API" shape="hexagon" icon="tech:nodejs" />
 ```
@@ -229,6 +231,8 @@ interface DiagramGroupProps {
   borderEmissiveIntensity?: number;        // Border emissive intensity [0–1+]. Default: 0
   labelColor?: string;                     // Title label CSS hex. Default: from theme
   edgeLights?: DiagramGroupEdgeLightsDSL; // Point lights around group border
+  surfaceMaterial?: string;              // Named material preset to apply
+  materialApplication?: MaterialApplication; // How the material is applied
   onMouseEnter?: DiagramGroupMouseHandler;
   onMouseLeave?: DiagramGroupMouseHandler;
   children?: ReactNode;

@@ -61,22 +61,23 @@ function SalesPage() {
 ## 4. Plugin Setup
 
 `chartPlugin()` returns a `WidgetPlugin` that registers chart DSL handlers and
-provides a per-engine `ChartDataStore`. Create one instance per `EngineProvider`:
+provides a per-engine `ChartDataStore`. Create one instance per `SceneEngine`:
 
 ```tsx
 import { useMemo } from 'react';
-import { EngineProvider, corePlugin } from '@brewsite/core';
+import { SceneEngine, SceneCanvas, EngineOverlayHost, corePlugin } from '@brewsite/core';
 import { chartPlugin } from '@brewsite/charts';
 
 function App() {
   const charts = useMemo(() => chartPlugin(), []);
   return (
-    <EngineProvider
-      manifestUrl="/assets/manifest.json"
+    <SceneEngine
       plugins={[corePlugin(), charts]}
+      getFrame={() => <MyScene />}
     >
-      {/* scenes and layout here */}
-    </EngineProvider>
+      <SceneCanvas />
+      <EngineOverlayHost />
+    </SceneEngine>
   );
 }
 ```

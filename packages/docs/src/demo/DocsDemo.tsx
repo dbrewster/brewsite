@@ -17,7 +17,7 @@ export interface DocsDemoProps {
   /** Optional title displayed above the demo canvas. */
   title?: string;
   /**
-   * Demo content. The engine context is provided by the ancestor EngineProvider
+   * Demo content. The engine context is provided by the ancestor SceneEngine
    * (now at DocsApp level). No DemoEngine needed inside DocsDemo.
    */
   children: ReactNode;
@@ -42,7 +42,7 @@ function resolveHeight(height: number | string): string {
  * No wheel event capture. No independent engine. No IntersectionObserver.
  *
  * The scene engine powering demo canvases is provided by the ancestor
- * EngineProvider (mounted at the DocsApp level). Scene transitions are driven
+ * SceneEngine (mounted at the DocsApp level). Scene transitions are driven
  * by window scroll via ScrollCaptureSection.
  */
 export function DocsDemo({

@@ -24,14 +24,14 @@ varying float vHeight;
 varying float vRadial;
 
 void main() {
-  // Vertical falloff: bright at base, transparent at top
-  float vertFade = 1.0 - smoothstep(0.0, 0.85, vHeight);
-  // Radial softness: bright center, soft edges
-  float radFade = 1.0 - smoothstep(0.3, 1.0, vRadial);
+  // Vertical falloff: strong at base, fading toward top
+  float vertFade = 1.0 - smoothstep(0.1, 1.0, vHeight);
+  // Radial softness: wide bright core, soft edges
+  float radFade = 1.0 - smoothstep(0.5, 1.0, vRadial);
   // Subtle pulse animation
-  float pulse = 0.95 + 0.05 * sin(u_time * 2.0 + vHeight * 3.0);
+  float pulse = 0.92 + 0.08 * sin(u_time * 2.0 + vHeight * 3.0);
 
-  float alpha = vertFade * radFade * u_intensity * pulse;
+  float alpha = vertFade * radFade * u_intensity * pulse * 1.5;
   gl_FragColor = vec4(u_color, alpha);
 }
 `;

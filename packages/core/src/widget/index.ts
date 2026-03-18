@@ -1,6 +1,6 @@
 export type {
   IWidget, ISceneElement, IRenderable, ILoadable,
-  IDslComposite, IAnimationController, ICameraActionTarget, IVariableProvider,
+  IDslComposite, IAnimationController, IVariableProvider,
   IRendererLifecycle, IRenderContributor, RenderContribution,
   IContainedRenderable, IAttachmentHost,
   ISceneLifecycle,
@@ -15,7 +15,7 @@ export {
   CUSTOM_NODE_HANDLER, hasCustomDslHandler,
   isSceneElement, isRenderable, isLoadable,
   isRendererLifecycle, isRenderContributor, isContainedRenderable, isAttachmentHost,
-  isDslComposite, isAnimationController, isCameraActionTarget, isVariableProvider,
+  isDslComposite, isAnimationController, isVariableProvider,
   isSceneLifecycle,
   isInputDefaultProvider,
   isCameraFocusTarget, isLightingOverride, isExtraRenderPass,

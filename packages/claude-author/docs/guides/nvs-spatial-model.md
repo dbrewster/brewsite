@@ -48,13 +48,17 @@ For `Model` elements, there is an additional `scale` prop that is a raw Three.js
 `EngineARContainer` is an optional but recommended wrapper that maintains a fixed aspect ratio regardless of the viewport size. All NVS coordinates are computed relative to the AR-locked container, not the raw window.
 
 ```tsx
-<EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width">
-  <SceneEngine plugins={plugins}>
-    {/* scenes */}
-    <SceneCanvas style={{ width: '100%', height: '100%' }} />
-    <EngineOverlayHost />
-  </SceneEngine>
-</EngineARContainer>
+<SceneEngine plugins={plugins}>
+  {/* scenes */}
+  <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={800}>
+    <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width">
+      <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+      <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
+      <EngineOverlayHost />
+    </EngineARContainer>
+    <InputCoordinator />
+  </ScrollStage>
+</SceneEngine>
 ```
 
 Props:

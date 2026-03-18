@@ -1,6 +1,6 @@
 // CarouselTray — DSL child component for ViewLayout carousel tray.
 
-import type { CarouselScrubberStyle, ViewHighlightMode } from './types';
+import type { CarouselScrubberStyle, ViewHighlightMode, ViewHighlightConfig } from './types';
 
 /**
  * Props for the <CarouselTray> DSL component.
@@ -23,6 +23,14 @@ export type CarouselTrayProps = {
   depth?: number;
   /** Gap between tray bottom edge and floor in world units. Default: 0.02. */
   gap?: number;
+  /**
+   * Extra border around the outside of the tray beyond the view extent,
+   * in NVS coordinates. Applied uniformly to all edges.
+   * Default: 0 (tray hugs the views with only the built-in 5% padding).
+   *
+   * @example outerMargin={0.1}  // 10% of viewport width per side
+   */
+  outerMargin?: number;
   /** Material metalness [0-1]. Default: 0.4. */
   metalness?: number;
   /** Material roughness [0-1]. Default: 0.55. */
@@ -66,6 +74,12 @@ export type CarouselTrayProps = {
    */
   highlightActive?: ViewHighlightMode | boolean;
   /**
+   * Semantic variant name for the active highlight.
+   * Resolves color, mode, intensity, etc. from the theme's highlightPalette.
+   * Explicit highlight* props override variant values.
+   */
+  highlightVariant?: import('../../theme/types').HighlightVariantName;
+  /**
    * Highlight color override. Falls back to theme -> accentColor.
    */
   highlightColor?: string;
@@ -81,6 +95,28 @@ export type CarouselTrayProps = {
    * Enable smoke ring for holographic highlights.
    */
   highlightSmoke?: boolean;
+  /**
+   * Z offset for highlights in world units. Negative = push back (away from camera).
+   */
+  highlightZOffset?: number;
+  /**
+   * Target a specific view by ID instead of the active item.
+   * The highlight will follow this view as it moves around the carousel.
+   * Overrides highlightActive — the highlight always shows on this view.
+   */
+  highlightViewId?: string;
+  /**
+   * Explicit per-view highlight configurations.
+   * Each entry targets a specific view by ID with its own mode, color, intensity.
+   * Merged with highlightActive — both can be used simultaneously.
+   *
+   * @example
+   * highlights={[
+   *   { viewId: 'chart-1', mode: 'holographic', color: '#ff0000' },
+   *   { viewId: 'chart-3', mode: 'glow', color: '#00ff00', intensity: 0.8 },
+   * ]}
+   */
+  highlights?: readonly ViewHighlightConfig[];
 };
 
 /** Null-returning DSL stub. Consumed by viewLayoutHandler, not rendered directly. */
@@ -94,5 +130,6 @@ export type CarouselScrubberProps = {
   showBase?: boolean;
   trayDepth?: number;
   gap?: number;
+  outerMargin?: number;
   style?: Partial<CarouselScrubberStyle>;
 };

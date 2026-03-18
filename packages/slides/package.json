@@ -27,7 +27,7 @@
     "@brewsite/core": "workspace:*",
     "react": "^18 || ^19",
     "react-dom": "^18 || ^19",
-    "three": "^0.183.1",
+    "three": "^0.170.0",
     "@brewsite/diagram": "workspace:*",
     "@brewsite/model": "workspace:*",
     "@brewsite/charts": "workspace:*"

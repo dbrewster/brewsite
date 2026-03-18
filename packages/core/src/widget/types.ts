@@ -156,17 +156,6 @@ export interface ISceneLifecycle extends IWidget {
   onSceneEnter(sceneId: string, sceneIndex: number): void;
 }
 
-/**
- * @deprecated No built-in widget implements this interface. If your custom widget
- * uses ICameraActionTarget, migrate to ActionInputController's onUnknownAction callback
- * pattern. This interface will be removed in v3.
- */
-export interface ICameraActionTarget extends IWidget {
-  applyOrbit(dx: number, dy: number, speed: number): void;
-  applyDolly(delta: number, speed: number): void;
-  applyReset(): void;
-}
-
 export interface IVariableProvider extends IWidget {
   readonly variableNamespace: string;
   readonly variableKeys: readonly string[];
@@ -521,7 +510,7 @@ export interface IExtraRenderPass extends IWidget {
   ): void;
 }
 
-export type AnimationTickContext = {
+export type AnimationTickContext<TState = unknown> = {
   /**
    * Synchronized real-time clock. Same values every widget sees every frame.
    * Use clock.wallTimeSeconds for ambient oscillations.
@@ -553,7 +542,7 @@ export type AnimationTickContext = {
    * Typed as unknown; cast to TState inside the widget's onTick() body.
    * Null when the widget has no compiled state for this tick.
    */
-  resolvedState: unknown;
+  resolvedState: TState;
   /**
    * The registered ICameraFocusTarget, if any.
    *

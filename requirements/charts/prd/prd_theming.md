@@ -3,7 +3,7 @@ title: "BrewSite Charts — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-15
+last_updated: 2026-03-17
 change_history:
   - date: 2026-03-04
     author: "Toolkit Product"
@@ -32,6 +32,9 @@ change_history:
   - date: 2026-03-15
     author: "Toolkit Product"
     summary: "Codebase alignment audit. Fixed CHART_THEMES type: actual is Partial<Record<ChartThemeName, ChartTheme>> with only 'enterprise' entry (not all six). Removed CHART_THEME_PAIRS from public API — it is not exported from the barrel. Named preset exports limited to enterpriseChartTheme, defaultChartTheme, enterpriseLightChartTheme, defaultLightChartTheme. Other family presets (darkGlass, midnight, neonCyber, lightCanvas, lightMinimal) are registered at runtime by @brewsite/themes via registerChartThemePair(), not exported from @brewsite/charts. Fixed createChartTheme() ChartThemeOverrides: does NOT include tooltip or projection as override-able fields. Updated functional requirements, API design, and launch criteria to match the actual registry-based architecture."
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Added surfaceMaterial and materialApplication fields to ChartSeriesMaterialTokens documentation (present in codebase, missing from PRD). surfaceMaterial is an optional named material preset from the material manifest; materialApplication is an optional MaterialApplication object controlling colorMix, brightness, etc."
 ---
 
 # BrewSite Charts — Theming System
@@ -186,6 +189,10 @@ export type ChartSeriesMaterialTokens = {
   readonly transmission: number;       // 0–1 (glass)
   readonly emissiveIntensity: number;
   readonly depth: number;              // depth for extruded bar/area geometry
+  /** Named material preset from the material manifest. When set, PBR textures are applied. */
+  readonly surfaceMaterial?: string;
+  /** Application controls for the material preset (colorMix, brightness, etc.). */
+  readonly materialApplication?: MaterialApplication;
 };
 
 export type ChartAxisTokens = {

@@ -3,7 +3,7 @@ title: "@brewsite/charts V2 — Charts Package"
 doc_type: prd
 status: current
 owner: brewsite-product-manager
-last_updated: 2026-03-15
+last_updated: 2026-03-17
 change_history:
   - date: 2026-03-12
     author: "Toolkit Product"
@@ -20,6 +20,12 @@ change_history:
   - date: 2026-03-15
     author: "Toolkit Product"
     summary: "Codebase alignment audit. Fixed ChartState.theme type: actual is always ChartTheme (resolved object), never a ChartThemeName | ChartTheme union — the compiler resolves named theme strings to concrete theme objects at compile time. Fixed BaseChartDSL: does NOT have theme or sceneTheme props (those only exist on the deprecated V1 ChartDSL compat type). Updated ChartTooltipOverlay status: still exported from barrel as deprecated, not yet removed. Clarified named preset theme availability: only enterprise presets on the barrel, others via registry."
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Barrel alignment: documented all missing exports from @brewsite/charts. Added ChartProvider/ChartProviderProps, ChartPluginInstance, useChartTheme hook, theme registry exports (registerChartThemePair, resolveChartTheme, ChartThemePairEntry, ChartThemePair, _resetChartThemeRegistryForTesting), ChartRenderInput type, ChartTooltipTokens, ChartProjectionTokens, ChartThemeOverrides type exports. Fixed createChartTheme signature: takes (base: ChartThemeName | ChartTheme, overrides?: ChartThemeOverrides). Updated theme count to 12 (6 families x dark/light pairs). Added compileTooltipDsl to compiler exports."
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "v1 release readiness audit: removed deprecated Chart component and ChartProps (superseded by per-type components). Deleted ChartTooltipOverlay component and file. Removed ChartThemePair deprecated type alias. Removed ChartDSL type alias. Removed deprecated bounds prop from BaseChartDSL. Added /testing sub-path with _resetChartThemeRegistryForTesting. Updated barrel exports section."
 ---
 
 # @brewsite/charts V2 — Charts Package
@@ -542,29 +548,21 @@ type ChartTooltipProps = {
 
 ---
 
-### 7.10 ChartTooltipOverlay — Deprecated
+### 7.10 ChartTooltip + ChartTooltipHost
 
-`ChartTooltipOverlay` is deprecated since v2.2 and will be removed in the next minor version. New consumers must use `<ChartTooltip>` + `<ChartTooltipHost />`.
+`ChartTooltipOverlay` has been removed. The current tooltip pattern is `<ChartTooltip>` as a DSL child of a chart component + `<ChartTooltipHost />` as a zero-prop overlay component:
 
-```typescript
-// @deprecated — current signature (still works until removal):
-type ChartTooltipOverlayProps = {
-  widget: ChartWidget;        // required: widget instance for hover event subscription
-  nvsBounds: NVSRect;         // required: NVS bounds for 3D-to-2D projection
-  renderContent?: (info: ChartHoverInfo) => React.ReactNode;
-  className?: string;
-};
+```tsx
+// In DSL:
+<BarChart id="revenue" interactive>
+  <ChartTooltip />
+</BarChart>
 
-// Migration:
-// Before:
-<ChartTooltipOverlay widget={someWidget} nvsBounds={{ x: 0, y: 0, w: 1, h: 1 }} />
-
-// After:
-// In DSL:  <BarChart id="revenue" interactive><ChartTooltip /></BarChart>
-// In overlay: <EngineOverlayHost><ChartTooltipHost /></EngineOverlayHost>
+// In overlay:
+<EngineOverlayHost>
+  <ChartTooltipHost />
+</EngineOverlayHost>
 ```
-
-Note: The V2.0.0 breaking change that removed `camera` and `domElement` props from `ChartTooltipOverlay` is complete. The current signature requires `widget` (a `ChartWidget` instance) and `nvsBounds` — not the V2.0 signature described in the original PRD body which listed only `nvsBounds`. Both `widget` and `nvsBounds` are required on the deprecated component.
 
 ---
 
@@ -624,19 +622,16 @@ When two consecutive scenes contain a chart with the same `id` and both have a r
 | `ChartState.timeField` | **Removed.** Moved to `typeConfig.options` (when `kind === 'heatmap'`). |
 | `ChartState.bounds.width` | World-space units → NVS fraction [0..1] |
 | `ChartState.bounds.height` | World-space units → NVS fraction [0..1] |
-| `ChartTooltipOverlayProps.camera` | **Removed.** |
-| `ChartTooltipOverlayProps.domElement` | **Removed.** |
-| `ChartTooltipOverlayProps.widget` | **Added, required.** `ChartWidget` instance for hover event subscription. |
-| `ChartTooltipOverlayProps.nvsBounds` | **Added, required.** `NVSRect` for 3D-to-2D projection. |
+| `ChartTooltipOverlay` | **Deleted.** Use `<ChartTooltip>` DSL child + `<ChartTooltipHost />`. |
 | `IChartRenderer.update(ctx)` | `ctx.typeOptions` replaces flat ctx fields. |
 
-**V1 compatibility:** `<Chart type="...">` is deprecated but functional. V1 named source patterns with `ChartProvider` continue to work. See `packages/charts/MIGRATION.md`.
+**V1 compatibility:** The deprecated `<Chart type="...">` component has been removed. Use the per-type DSL components (`<BarChart>`, `<LineChart>`, etc.). See `packages/charts/MIGRATION.md`.
 
 ### V2.2.0 — Minor (2.1.0 → 2.2.0)
 
 | Symbol | Change |
 |---|---|
-| `ChartTooltipOverlay` | **Deprecated** (`@deprecated` JSDoc since v2.2). Will be removed in the next minor version. Replacement: `<ChartTooltip>` DSL child + `<ChartTooltipHost />`. |
+| `ChartTooltipOverlay` | **Removed.** Replacement: `<ChartTooltip>` DSL child + `<ChartTooltipHost />`. |
 | `<ChartTooltip>` | **Added.** DSL child component — compiles to `ChartState.tooltip`. |
 | `ChartTooltipHost` | **Added.** Zero-prop overlay component. Place once inside `EngineOverlayHost`. |
 | `useChartTooltip` | **Added.** Read-side hook for tooltip store. |
@@ -698,7 +693,7 @@ None. All design questions for V2.0 and V2.1 resolved during PM debate and archi
 - [x] All six per-type DSL components exported from `@brewsite/charts`.
 - [x] `ChartState.dataSource` is `ChartStateDataSource` discriminated union.
 - [x] `ChartState.typeConfig` is `ChartTypeOptions` discriminated union.
-- [x] `ChartTooltipOverlay` accepts `nvsBounds: NVSRect`, `camera`/`domElement` removed.
+- [x] `ChartTooltipOverlay` removed. Replaced by `<ChartTooltip>` DSL child + `<ChartTooltipHost />`.
 - [x] 10-scene demo page in `apps/examples` exercises all chart types and data source paths.
 - [x] `packages/charts/MIGRATION.md` written covering all breaking changes.
 - [x] `packages/charts/README.md` reflects V2 API.
@@ -725,12 +720,65 @@ None. All design questions for V2.0 and V2.1 resolved during PM debate and archi
 - [x] `useChartTooltip` and `useChartTooltipConfig` hooks exported.
 - [x] `ChartHitMeta` discriminated union exported. All six renderers populate `meta` in `resolveHoverInfo()`.
 - [x] `ChartProjectionRenderer` renders Y-axis beam + landing dot on hover.
-- [x] `ChartTooltipOverlay` carries `@deprecated` JSDoc with migration reference.
+- [x] `ChartTooltipOverlay` removed (file deleted).
 - [x] `ChartState.tooltip` field present in `DEFAULT_CHART_STATE` with value `null`.
 
 ---
 
-## 14. See Also
+## 14. Barrel Exports (`packages/charts/src/index.ts`)
+
+### DSL Components
+`BarChart`, `LineChart`, `ScatterPlotChart`, `PieChart`, `AreaChart`, `HeatMapChart`, `ChartData`, `ChartAxis`, `ChartSeries`, `ChartLegend`, `ChartDataLabels`, `ReferenceLine`, `ChartTooltip`.
+
+### DSL Prop Types
+`BarChartProps`, `LineChartProps`, `ScatterPlotChartProps`, `PieChartProps`, `AreaChartProps`, `HeatMapChartProps`, `ChartDataProps`, `ChartAxisProps`, `ChartSeriesProps`, `ChartLegendProps`, `ChartDataLabelsProps`, `ReferenceLineProps`, `ChartTooltipProps`.
+
+### State Types
+`ChartState`, `ChartType`, `ChartAxisState`, `ChartSeriesState`, `ChartLegendState`, `ChartTypeOptions`, `BarChartOptions`, `LineChartOptions`, `ScatterChartOptions`, `PieChartOptions`, `AreaChartOptions`, `HeatMapChartOptions`, `ChartStateDataSource`, `InlineDataSource`, `NamedDataSource`, `AsyncDataSource`, `ChartDataLabelsState`, `DataLabelsPosition`, `ReferenceLineState`, `DataRow`, `ColumnarData`, `DataInput`, `DEFAULT_CHART_STATE`, `ChartRenderInput`.
+
+### Constants
+`CHART_TYPES`, `FILTER_OPS`.
+
+### Compiler (internal)
+`compileChart`, `compileTooltipDsl`, `compileBarChartOptions`, `compileLineChartOptions`, `compileScatterChartOptions`, `compilePieChartOptions`, `compileAreaChartOptions`, `compileHeatMapChartOptions`, `functionalChartTransitionSpec`.
+
+### Widget
+`ChartHoverInfo` (type).
+
+### Plugin
+`chartPlugin`, `ChartPluginInstance` (type).
+
+### Player Hooks
+`useLiveChartData`, `useChartAccessors`, `useChartTheme`.
+
+### Player Components
+`ChartProvider`, `ChartProviderProps` (type).
+
+### Data Layer
+`ChartDataStore`, `useChartData`, `useChartFilter`, `useChartStore`, `ChartStoreContext`, `IFilterEngine` (type), `SimpleFilterEngine`, `normalizeDataInput`, `DataTransform` (type), `FilterTransform` (type), `FilterOp` (type), `GroupByTransform` (type), `SortTransform` (type), `BinTransform` (type), `ComputeTransform` (type), `ResolvedDataFrame` (type), `FilterGroupId` (type), `ChartDimension` (type).
+
+### Renderer Types
+`FittedMargins` (type), `ChartAccessorFunctions` (type), `ChartHitInfo` (type), `ChartHitMeta` (type).
+
+### Tooltip System
+`ChartTooltipState` (type), `ChartTooltipRuntimeConfig` (type), `useChartTooltip`, `ChartTooltipEntry` (type), `useChartTooltipConfig`, `ChartTooltipHost`.
+
+### Themes
+`enterpriseChartTheme`, `defaultChartTheme`, `enterpriseLightChartTheme`, `defaultLightChartTheme`, `createChartTheme`, `ChartThemeOverrides` (type), `ChartThemePairEntry` (type), `ChartThemePair` (type — deprecated), `ChartTheme` (type), `ChartThemeName` (type), `ChartLegendTokens` (type), `ChartPieTokens` (type), `ChartInteractionTokens` (type), `ChartBarTokens` (type), `ChartAreaTokens` (type), `ChartGridlinesTokens` (type), `ChartDataLabelsTokens` (type), `ChartReferenceLineTokens` (type), `ChartTooltipTokens` (type), `ChartProjectionTokens` (type).
+
+### Theme Registry
+`registerChartThemePair`, `resolveChartTheme`.
+
+### Testing Exports (`@brewsite/charts/testing` subpath)
+`_resetChartThemeRegistryForTesting`.
+
+The `createChartTheme()` factory takes `(base: ChartThemeName | ChartTheme, overrides?: ChartThemeOverrides)`. When `base` is a string, the dark polarity is resolved from the registry. Named family presets (darkGlass, midnight, etc.) are resolved from the registry — ensure `@brewsite/themes` has registered them at app startup before calling with a named string base.
+
+The theme system provides 12 themes across 6 families (enterprise, darkGlass, midnight, neonCyber, lightCanvas, lightMinimal) with dark and light polarity variants for each. The `@brewsite/charts` barrel directly exports only the enterprise presets (`enterpriseChartTheme`, `defaultChartTheme`, `enterpriseLightChartTheme`, `defaultLightChartTheme`). Other family presets are registered at runtime by `@brewsite/themes` via `registerChartThemePair()` and resolved through `resolveChartTheme(family, polarity)`.
+
+---
+
+## 15. See Also
 
 - **Migration guide:** `packages/charts/MIGRATION.md`
 - **Theming PRD:** `requirements/charts/prd/prd_theming.md`

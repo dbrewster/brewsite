@@ -3,6 +3,7 @@ import type { JSX } from 'react';
 import {
   InputCoordinator,
   BackgroundLayer,
+  EngineARContainer,
   EngineOverlayHost,
   SceneCanvas,
   SceneEngine,
@@ -47,10 +48,12 @@ function WebsiteLayout({
           Loading BrewSite flow…
         </div>
       )}
-      <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
-      <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
+      <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width">
+        <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
+        <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
+        <EngineOverlayHost passthroughPointerEvents />
+      </EngineARContainer>
       <InputCoordinator />
-      <EngineOverlayHost />
     </ScrollStage>
   );
 }

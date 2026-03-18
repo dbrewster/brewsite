@@ -1,4 +1,4 @@
-// React context for SceneTheme — populated by EngineProvider, consumed by EngineOverlayHost.
+// React context for SceneTheme — populated by SceneEngine, consumed by EngineOverlayHost.
 // ThemeContext holds a static player-level value. It does not update per scene.
 
 import { createContext, useContext } from 'react';

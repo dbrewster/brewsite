@@ -35,8 +35,3 @@ export const CHART_THEMES: Partial<Record<ChartThemeName, ChartTheme>> = {
   enterprise: enterpriseChartTheme,
 } as const;
 
-/** @deprecated Use registerChartThemePair / resolveChartTheme instead. */
-export type ChartThemePair = {
-  readonly dark: ChartTheme;
-  readonly light: ChartTheme;
-};

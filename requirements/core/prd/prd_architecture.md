@@ -3,8 +3,14 @@ title: "BrewSite Core — Architecture Reference"
 doc_type: prd
 owner: brewsite-product-manager
 status: active
-updated: 2026-03-15
+updated: 2026-03-17
 change_history:
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "v1 release readiness audit complete. Plugin system (corePlugin) is the sole entry point — createDefaultWidgetRegistry removed. Export surface cleaned: test-reset functions moved to /testing sub-path, DevTools components removed from main entry, DofConfig placeholder removed. /testing and /devtools sub-paths formalized as the only paths for test and dev utilities."
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Codebase alignment: renamed camera.dolly to camera.zoom. Added carousel-scrubber to core elements list. Added material system (materialTypes.ts, MaterialLoader.ts) and useCarouselState hook to widget layer description. Updated InputHud description to reflect current state (deferred component with data model). All widget interfaces (IViewChild, IInputDefaultProvider, IExtraRenderPass) already present in prior revision."
   - date: 2026-03-15
     author: "Toolkit Product"
     summary: "NVS zoom-instability fix: updated section 3.5 NVSCoordService description to note mapping is pinned to compiled camera state via NVSCameraParams, no longer uses live THREE.PerspectiveCamera."
@@ -149,7 +155,10 @@ Import these from `@brewsite/core/devtools` to keep them out of production bundl
 
 **Testing exports (`@brewsite/core/testing` subpath):**
 - `clearRegistry` — resets the global compiler node registry between tests.
+- `_resetSceneThemeRegistryForTesting` — resets the scene theme registry between tests.
 - Test doubles (e.g. `createMockSceneElementWidget`) for compiler and runtime unit testing.
+
+Test-reset functions are never exported from the main `@brewsite/core` entry point. They are exclusively available via the `/testing` sub-path.
 
 **Scene widget ID constants (exported from `@brewsite/core`):**
 - `SCENE_CAMERA_KEY` — widget ID for the built-in CameraWidget (`'__brewsite_camera'`)
@@ -312,6 +321,7 @@ Core renderable element modules. Each element is a self-contained module that ca
 - `spotlight-rig/` — Animated spotlight rig system with presets (moviePremiere, concertStage). Includes `SpotlightRig`, `Spotlight` DSL components and `SpotlightRigWidget`.
 - `text-box/` — Text overlay element for scene-embedded text content. Authored via DSL and rendered as DOM overlays via `EngineOverlayHost`.
 - `view/` — View element for layout composition. Implements the `<View>` and `<ViewLayout>` DSL components' runtime behavior, including carousel transitions and opacity delegation to `IViewChild` widgets.
+- `carousel-scrubber/` — 3D tray base rendered beneath `ViewLayout` carousels. Authored via `<CarouselTray>` as a child of `<ViewLayout kind="carousel">`. Supports material presets, surface textures, edge styles, and per-view highlight effects (glow, holographic). Includes geometry generation, highlight particles, highlight shader, and tray compilation.
 
 Note: The `model/` element has been moved to the `@brewsite/model` package. Labels have also been moved to `@brewsite/model`.
 
@@ -501,13 +511,23 @@ type AnimationTickContext = {
 
 `NVSCoordService` provides `toWorld(nvsX, nvsY, z?)` and `toWorldSize(nvsW, nvsH)` for converting NVS [0..1] viewport coordinates to Three.js world-space, plus `canvasAspect`, `visibleWorldHeight`, `visibleWorldWidth`, `viewportWidth`, and `viewportHeight`. The NVS mapping is pinned to the compiled camera state (via `NVSCameraParams`) — user camera interaction (orbit, zoom, pan) does not affect NVS positions. `createNVSCoordService` accepts `NVSCameraParams` (pure math, no Three.js dependency) rather than a live `THREE.PerspectiveCamera`.
 
+**Material system** — the widget layer includes a material preset system for loading and applying PBR texture sets:
+- `materialTypes.ts` — defines `MaterialPreset` (named texture set with maps for color, normal, roughness, metalness, AO), `MaterialPresetMaps` (URL references to texture files), `MaterialPresetDefaults` (default PBR property overrides), `MaterialManifest` (collection of named presets), `MaterialApplication` (runtime application controls — colorMix, brightness, saturation, contrast, depthMix, roughnessMix, tint, texScale), `LoadedMaterialTextures`, and `LoadedMaterialPreset`.
+- `MaterialLoader.ts` — runtime texture loader that fetches and caches material preset textures. Used by `FloorWidget` and `CarouselScrubberWidget` to apply named material presets (e.g., 'onyx', 'steel') to their surfaces.
+
+**Hooks** — the widget layer exports:
+- `useVariable(namespace, key)` — reactive hook for reading VariableStore values from React components.
+- `useCarouselState(layoutId)` — reactive hook that returns the current carousel state (active index, total slides) for a given `ViewLayout` carousel.
+
 ### 3.6 HUD (`hud/`)
 
-The HUD system has been removed. The `hud/` directory contains only stub files:
-- `InputHud.tsx` — a stub component returning null. Exported from `player/index.ts` for backward compatibility.
-- `inputHudTypes.ts` — type definitions for `InputHudHint` and `InputHudState`.
+The legacy compiled HUD pipeline (`<Hud>`, `<HudItem>`, `hudCompiler.ts`, `HudOverlay.tsx`) has been removed. The `hud/` directory contains the InputHud system:
 
-Overlay content is now authored via the `<TextBox>` DSL element (in `elements/text-box/`) and rendered through `EngineOverlayHost` using `SceneTrack.sceneOverlays`.
+- `InputHud.tsx` — Deferred `InputHud` component. Returns null (rendering not yet implemented). Accepts `InputHudProps` with `state: InputHudState` and `visible?: boolean`. The data model and event plumbing (`onActionFired` from `ActionInputController`) are implemented.
+- `inputHudTypes.ts` — Data model for the InputHud overlay. Defines `InputHudHint` (action ID, type, human-readable trigger descriptions, original maps) and `InputHudState` (sorted hints array, detected platform).
+- `__tests__/` — Tests for the InputHud module.
+
+Overlay content is authored via the `<TextBox>` DSL element (in `elements/text-box/`) and rendered through `EngineOverlayHost`.
 
 ### 3.7 Labels
 
@@ -519,7 +539,7 @@ Scene navigation and action-based input. The input system is unified: a single d
 
 **`ActionInputController`** — The sole runtime input controller. Maps pointer, wheel, pinch, and keyboard events to named actions. Actions are dispatched to typed handlers:
 
-- `camera.orbit` / `camera.dolly` / `camera.reset` — delegated to `CameraWidget` methods via `UseSceneEngineResult`
+- `camera.orbit` / `camera.zoom` / `camera.reset` — delegated to `CameraWidget` methods via `UseSceneEngineResult`
 - `scene.next` / `scene.prev` — call `engine.advanceProgress(delta)` to step through scenes
 - `carousel.next` / `carousel.prev` — forward-declared; runtime handler is a follow-on plan
 - Unknown action types — forwarded to `onUnknownAction` from `ActionInputExtensionContext` (used by `@brewsite/diagram` to handle `diagram-canvas.*` actions)

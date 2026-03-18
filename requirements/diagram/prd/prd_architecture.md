@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Architecture Reference"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-15
+last_updated: 2026-03-17
 change_history:
   - date: 2026-03-09
     author: "Toolkit Product"
@@ -35,6 +35,12 @@ change_history:
   - date: 2026-03-15
     author: "Toolkit Product"
     summary: "Codebase alignment: diagramPlugin() no longer requires diagrams param — the field is deprecated, createWidgets() returns [], configureRegistry() is the new hook for lazy widget creation via registerDiagramHandlers(registry). Removed DEBT paragraph about manual ID duplication. Updated RoutingProfileContext type to match routingTypes.ts (added groupIds, obstacleGroupIds, fromId, toId, allowUnderpass, organicVariation fields). Noted diagramRenderConstants.ts is a deprecated shim re-exporting from ../constants. Corrected theme exports: only enterpriseTheme, enterpriseLightTheme, defaultDiagramTheme, defaultLightDiagramTheme are exported from package barrel. Removed darkGlass, neonCyber, lightMinimal from implied exports. Corrected diagramLayoutConstants.ts exports (removed DEFAULT_NODE_SIZE — actual exports are DEFAULT_GROUP_PADDING, DEFAULT_TITLE_GAP, DEFAULT_MANUAL_GROUP_PADDING, DEFAULT_MANUAL_TITLE_GAP). Moved RoutingProfile and RoutingProfileContext types from edgeRoutingProfiles.ts to routingTypes.ts to match source."
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "v1 release readiness audit: @brewsite/core moved to peerDependencies (prevents duplicate copies with module-level state). Removed @internal pipeline exports (resolveLayout, routeEdges, compileNode, compileEdge, compileGroup) from public barrel. Added /testing sub-path with _resetDiagramThemeRegistryForTesting. Removed deprecated DiagramPluginOptions.diagrams field."
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Audit pass: confirmed no remaining DIAGRAM_THEMES/DIAGRAM_THEME_PAIRS references, no DiagramThemeName export claims, and no theme prop on DiagramProps claims. All corrections from 2026-03-15 are accurate. No content changes needed."
 ---
 
 # BrewSite Diagram — Architecture Reference
@@ -85,7 +91,7 @@ Affected packages: `@brewsite/diagram` (primary). `@brewsite/core` is a peer dep
 |---|---|
 | Package name | `@brewsite/diagram` |
 | Build tooling | `tsc` only (no Vite library mode) |
-| Peer dependencies | `react`, `react-dom`, `three`, `@brewsite/core` |
+| Peer dependencies | `react ^18\|\|^19`, `react-dom ^18\|\|^19`, `three ^0.170.0`, `@brewsite/core` |
 | Dependency rule | May import from `@brewsite/core`; `@brewsite/core` must never import from this package |
 | Published artifacts | `dist/` (ESM + type declarations) |
 
@@ -240,7 +246,7 @@ The plugin lifecycle has three hooks:
 - **`registerHandlers()`** — Calls `registerDiagramHandlers()` to install baseline DSL node handlers (without registry access).
 - **`configureRegistry(registry)`** — Re-registers the Diagram handler with `WidgetRegistry` access by calling `registerDiagramHandlers(registry)`. This overwrites the baseline handler with a registry-aware version that creates `DiagramWidget` instances on first encounter of each `<Diagram id="...">` during compilation.
 
-The `DiagramPluginOptions.diagrams` field is **deprecated**. Passing it emits a console warning. The field is no longer needed because widget instances are created automatically when the Diagram node handler encounters a new `id` during compilation.
+The `DiagramPluginOptions.diagrams` field has been removed. Widget instances are created automatically when the Diagram node handler encounters a new `id` during compilation.
 
 For `ImagePanel` and `Screen` elements, widget instances must still be registered explicitly (they require asset loading configuration that cannot be auto-inferred from the DSL alone).
 
@@ -447,7 +453,7 @@ Key architectural-level breaking changes (from initial 2026-03-08 overhaul throu
 
 ## Dependencies
 
-- `@brewsite/core` (peer, `^0.x`) — compiler registry, widget SDK interfaces, runtime, math utilities, layout helpers. `groupCompiler.ts` imports `unionBounds` from `@brewsite/core`'s `layout/regionNormalize` module rather than maintaining a local copy. This ensures group bounds computation stays consistent with the View/Region architecture used by other packages.
+- `@brewsite/core` (peer) — compiler registry, widget SDK interfaces, runtime, math utilities, layout helpers. `groupCompiler.ts` imports `unionBounds` from `@brewsite/core`'s `layout/regionNormalize` module rather than maintaining a local copy. This ensures group bounds computation stays consistent with the View/Region architecture used by other packages.
 - `react` (peer) — DSL component definitions
 - `react-dom` (peer) — implied by react usage
 - `three` (peer) — Three.js rendering in `render.ts` files

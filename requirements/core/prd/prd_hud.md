@@ -1,10 +1,13 @@
 ---
 title: "BrewSite Core — HUD Overlay System"
 doc_type: prd
-status: deprecated
+status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-07
+last_updated: 2026-03-17
 change_history:
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Updated to reflect current hud/ module state. The directory contains InputHud.tsx (deferred component returning null), inputHudTypes.ts (InputHudHint and InputHudState types), and __tests__/. The InputHud data model and ActionInputController.onActionFired event plumbing are implemented; rendering is deferred."
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents the full HUD overlay system for @brewsite/core: two-tier architecture, DSL authoring surface, compiled primitives, HudPhaseContext, HudOverlay renderer, anime.js preset sub-module, contentSlots, and authoring patterns."
@@ -16,13 +19,44 @@ change_history:
     summary: "hud/animejs/ sub-module fully removed from @brewsite/core. The Fade, MidFade, SlideUp, SlideDown, ScrollOn, ScrollOff preset components and useScrollTimeline have been deleted from packages/core/src/hud/animejs/. The animejs package is no longer a production dependency of @brewsite/core. These utilities are available as copy-paste recipes in apps/examples/. Consumers who were importing from @brewsite/core/hud/animejs must migrate to a local copy or use a standalone animation library."
 ---
 
-# BrewSite Core — HUD Overlay System (Deprecated)
+# BrewSite Core — HUD Overlay System
 
 ## Status
 
-This feature is deprecated. The compiled HUD pipeline — `<Hud>`, `<HudItem>`, `hudCompiler.ts`, `HudOverlay.tsx`, `HudPhaseContext`, and all related types — has been removed from `@brewsite/core`.
+The compiled HUD pipeline (`<Hud>`, `<HudItem>`, `hudCompiler.ts`, `HudOverlay.tsx`, `HudPhaseContext`) has been removed from `@brewsite/core`. The `hud/animejs/` sub-module has also been removed.
 
-Scene overlay content is authored as plain HTML children directly inside `<Scene>` and rendered by the `EngineOverlayHost` player primitive. The `hud/animejs/` sub-module has also been removed — see Section 2.
+Scene overlay content is authored via the `<TextBox>` DSL element and rendered by the `EngineOverlayHost` player primitive.
+
+The `hud/` directory contains the **InputHud** system — a deferred overlay that displays available input actions to the user. The data model and event plumbing are implemented; the rendering component is a null-returning stub pending future implementation.
+
+### Current Module Contents
+
+**`InputHud.tsx`** — Deferred `InputHud` React component. Returns `null`. Accepts `InputHudProps`:
+```typescript
+type InputHudProps = {
+  state: InputHudState;
+  visible?: boolean;
+};
+```
+
+**`inputHudTypes.ts`** — Data model for the InputHud overlay:
+```typescript
+type InputHudHint = {
+  actionId: string;           // Action ID from InputActionSpec
+  actionType: string;         // Human-readable action type
+  triggers: string[];         // Human-readable input trigger descriptions
+  maps: InputActionMap[];     // Original maps for custom rendering
+};
+
+type InputHudState = {
+  hints: InputHudHint[];      // All action hints, sorted by action type
+  platform: 'mac' | 'windows' | 'linux' | 'unknown';
+};
+```
+
+**`__tests__/`** — Tests for the InputHud module.
+
+The `ActionInputController.onActionFired()` listener provides the event source for populating `InputHudState` at runtime. The InputHud component, once rendering is implemented, displays a discoverable overlay of all currently available input bindings derived from the compiled `SceneInputControllerSpec`.
 
 See `prd_scene_authoring.md` for the current overlay authoring surface and `prd_player_runtime.md` for `EngineOverlayHost` documentation.
 

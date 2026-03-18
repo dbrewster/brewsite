@@ -94,7 +94,7 @@ describe('viewBackwardCompat — no ViewState in pre-existing scenes', () => {
       <Scene id="s1">
         <InputController id="main" scope="canvas">
           <Action id="next" type="scene.next">
-            <KeyMap key="ArrowRight" />
+            <KeyMap keyName="ArrowRight" />
           </Action>
         </InputController>
       </Scene>,
@@ -159,10 +159,10 @@ describe('viewBackwardCompat — InputController state unchanged', () => {
       <Scene id="s1">
         <InputController id="main" scope="canvas">
           <Action id="next" type="scene.next">
-            <KeyMap key="ArrowRight" />
+            <KeyMap keyName="ArrowRight" />
           </Action>
           <Action id="prev" type="scene.prev">
-            <KeyMap key="ArrowLeft" />
+            <KeyMap keyName="ArrowLeft" />
           </Action>
         </InputController>
       </Scene>,

@@ -19,12 +19,25 @@ export type {
   CustomAnimation,
   Vec3,
   ClipMeta,
+  AxisRotation,
+  AxisTranslation,
+  ModelPartId,
+  ModelPartAnchor,
+  ModelPartOverrides,
+  PoseGroup,
+  ModelPose,
+  MotionGroupLimits,
+  CustomAnimationContext,
+  CustomAnimationOp,
+  SceneMotion,
+  ModelSubpartId,
 } from './elements/model/types';
+export type { CompiledAnimation } from './elements/model/compile';
 export type { NVSRect } from '@brewsite/core';
 export { ModelWidget } from './elements/model/ModelWidget';
 export type { ModelWidgetConfig } from './elements/model/ModelWidget';
 export type { AssetManifest, ModelMeta, AnimationEntry } from './elements/model/metadata';
-export { clipMetaFromManifest, assertManifestValid, findModelMeta } from './elements/model/metadata';
+export { clipMetaFromManifest, assertManifestValid, findModelMeta, ASSET_MANIFEST_VERSION } from './elements/model/metadata';
 
 // Model DSL components
 export {

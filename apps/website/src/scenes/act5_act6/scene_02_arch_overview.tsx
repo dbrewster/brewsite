@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { Scene, Camera, Lighting, Ambient, Directional, Floor, FloorMirror, ProgressManager } from '@brewsite/core';
+import { Scene, Camera, Lighting, Ambient, Directional, Floor, FloorMirror, ProgressManager, TextBox } from '@brewsite/core';
 import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, HierarchicalLayout, GridLayout} from '@brewsite/diagram';
 import { isMobile } from '../../utils/viewport';
 import { dwellFn } from '../../utils/pacing';
@@ -72,14 +72,16 @@ export const scene02ArchOverview: JSX.Element = (
       </Diagram>
 
     {/* Top-right: stat only — no eyebrow label */}
-    <div key="arch-overview-stats" style={{ position: 'absolute', top: '6%', right: '5%', textAlign: 'right', maxWidth: 300 }}>
-      <div style={{ fontSize: 'clamp(16px, 2.2vw, 20px)', fontWeight: 600, color: '#f0f6fc' }}>
-        16 nodes · 4 tiers · 8 edges
+    <TextBox key="arch-overview-stats" x={0.65} y={0.04} w={0.32} h={0.08} overflow="visible">
+      <div style={{ textAlign: 'right' }}>
+        <div style={{ fontSize: 'clamp(16px, 2.2vw, 20px)', fontWeight: 600, color: '#f0f6fc' }}>
+          16 nodes · 4 tiers · 8 edges
+        </div>
       </div>
-    </div>
+    </TextBox>
 
     {/* Bottom-left: headline + code snippet + body */}
-    <div key="arch-overview-content" style={{ position: 'absolute', bottom: '8%', left: '5%', maxWidth: 420 }}>
+    <TextBox key="arch-overview-content" x={0.03} y={0.52} w={0.38} h={0.45} overflow="visible">
       <div style={{ fontSize: 'clamp(18px, 2.5vw, 22px)', fontWeight: 600, color: '#f0f6fc', lineHeight: 1.3, marginBottom: 16 }}>
         Your production<br />architecture,<br />in a scene.
       </div>
@@ -102,6 +104,6 @@ export const scene02ArchOverview: JSX.Element = (
         Groups, swimlanes, nested tiers — all declared.<br />
         Ready for your next deck, demo, or keynote.
       </div>
-    </div>
+    </TextBox>
   </Scene>
 );

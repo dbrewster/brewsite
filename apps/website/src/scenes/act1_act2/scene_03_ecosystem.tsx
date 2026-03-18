@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
+import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager, TextBox } from '@brewsite/core';
 import { dwellFn } from '../../utils/pacing';
 
 const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
@@ -46,16 +46,11 @@ export const scene03Ecosystem: JSX.Element = (
       <Directional intensity={0.2} color="#00aaff" position={[-5, 4, 3]} />
     </Lighting>
 
-    <div key="ecosystem-overlay" style={{
-      position: 'absolute',
-      inset: 0,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '0 20px',
-      boxSizing: 'border-box',
-    }}>
+    <TextBox key="ecosystem-overlay" x={0.02} y={0.05} w={0.96} h={0.90} overflow="visible">
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        width: '100%', height: '100%', boxSizing: 'border-box',
+      }}>
       <div style={{
         fontFamily: 'JetBrains Mono, monospace',
         fontSize: 10,
@@ -106,5 +101,6 @@ export const scene03Ecosystem: JSX.Element = (
         Install only what you need. All packages share the same declarative scene model.
       </p>
     </div>
+    </TextBox>
   </Scene>
 );

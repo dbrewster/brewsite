@@ -1,5 +1,5 @@
 // packages/slides/src/player/SlidePlayer.tsx
-// Primary SlidePlayer component. Assembles EngineProvider + full slide stack.
+// Primary SlidePlayer component. Assembles SceneEngine + full slide stack.
 
 import React, {
   forwardRef,
@@ -107,7 +107,7 @@ export const SlideContentWithProgress = ({
 SlideContentWithProgress.displayName = 'SlideContentWithProgress';
 
 // ─── SlidePlayerInner ─────────────────────────────────────────────────────────
-// Separated so it can use hooks (must be inside EngineProvider).
+// Separated so it can use hooks (must be inside SceneEngine).
 
 type SlidePlayerInnerProps = {
   spec: ReturnType<typeof compileDeck>;
@@ -118,7 +118,7 @@ type SlidePlayerInnerProps = {
 };
 
 /**
- * Inner component rendered inside `EngineProvider`. Attaches keyboard, pointer,
+ * Inner component rendered inside `SceneEngine`. Attaches keyboard, pointer,
  * and touch navigation handlers. Exposes the imperative handle via `imperativeRef`.
  */
 const SlidePlayerInner = ({
@@ -302,7 +302,7 @@ export type SlidePlayerProps = {
 /**
  * Primary slide deck player component.
  *
- * Owns the full engine stack: `EngineProvider` → `EngineARContainer` →
+ * Owns the full engine stack: `SceneEngine` → `EngineARContainer` →
  * `EngineInputRegion` → `SceneCanvas` + `EngineOverlayHost`.
  *
  * @example

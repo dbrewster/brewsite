@@ -52,7 +52,7 @@ export type SlidesPluginOptions = {
  *
  * Usage:
  * ```tsx
- * <EngineProvider
+ * <SceneEngine
  *   plugins={[corePlugin(), slidesPlugin({ theme: resolvedTheme })]}
  * />
  * ```
@@ -88,7 +88,7 @@ export function slidesPlugin(options: SlidesPluginOptions): WidgetPlugin {
       //
       // 1. Slide navigation is a pure React concern — it calls engine.scrollToProgress(),
       //    not a Three.js camera action.
-      // 2. EngineProvider uses inputModePolicy="direct", so the engine's scroll-based
+      // 2. SceneEngine uses inputModePolicy="direct", so the engine's scroll-based
       //    scene advancement is disabled. No InputController actions needed.
       // 3. <InputController> speaks in terms of camera actions (orbit, dolly, focus).
       //    "next slide" is not a camera action — it is a React navigation callback.

@@ -3,11 +3,14 @@
 // pipeline testable in isolation.
 
 import type {CarouselTrayProps} from './dsl';
-import type {CarouselScrubberState, ViewHighlight, ViewHighlightMode} from './types';
+import type {CarouselScrubberState, ViewHighlight, ViewHighlightConfig, ViewHighlightMode} from './types';
+import {HL_DEFAULT_GLOW_INTENSITY, HL_DEFAULT_HOLOGRAPHIC_INTENSITY, HL_DEFAULT_BEAM_HEIGHT} from './highlightConstants';
 import type {CarouselLayoutConfig} from '../../layout/index';
 import type {NVSRect} from '../../layout/types';
-import type {ThemeFamily} from '../../theme/types';
+import type {ThemeFamily, SceneThemeHighlightVariant, HighlightVariantName} from '../../theme/types';
+import type {MaterialApplication} from '../../widget/materialTypes';
 import {resolveSceneTheme} from '../../theme/index';
+import {darkHighlightPalette, lightHighlightPalette} from '../../theme/highlightPalettes';
 import {compileCarouselScrubber} from './compile';
 
 /**
@@ -17,6 +20,35 @@ import {compileCarouselScrubber} from './compile';
 export type TrayViewBounds = {
   readonly bounds: NVSRect;
 };
+
+/**
+ * Builds a MaterialApplication by layering DSL prop overrides on top of
+ * theme defaults. Only defined DSL values are applied — undefined props
+ * do not clobber theme values.
+ */
+function buildMaterialApplication(
+  trayProps: CarouselTrayProps,
+  themeBase: MaterialApplication | undefined,
+): MaterialApplication {
+  const result: Record<string, unknown> = { ...themeBase };
+  const overrides: Record<string, unknown> = {
+    colorMix: trayProps.colorMix,
+    brightness: trayProps.brightness,
+    saturation: trayProps.saturation,
+    contrast: trayProps.contrast,
+    depthMix: trayProps.depthMix,
+    roughnessMix: trayProps.roughnessMix,
+    tint: trayProps.tint,
+    texScale: trayProps.texScale,
+    iridescence: trayProps.iridescence,
+    iridescenceIOR: trayProps.iridescenceIOR,
+    iridescenceThicknessRange: trayProps.iridescenceThicknessRange,
+  };
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value !== undefined) result[key] = value;
+  }
+  return result as MaterialApplication;
+}
 
 /**
  * Compiles a <CarouselTray> child component into a fully theme-resolved
@@ -59,6 +91,7 @@ export function compileTrayFromViewLayout(
       showBase: true,
       trayDepth,
       gap: trayProps.gap ?? trayTheme?.gap,
+      outerMargin: trayProps.outerMargin ?? trayTheme?.outerMargin,
       style: {
         baseColor: trayProps.color ?? trayTheme?.color,
         baseOpacity: trayProps.opacity ?? trayTheme?.opacity,
@@ -70,20 +103,7 @@ export function compileTrayFromViewLayout(
         surfaceIntensity: trayProps.surfaceIntensity ?? trayTheme?.surfaceIntensity,
         surfaceMapUrl: trayProps.surfaceMapUrl ?? trayTheme?.surfaceMapUrl,
         surfaceMaterial: trayProps.surface ?? trayTheme?.surfaceMaterial,
-        materialApplication: {
-          ...trayTheme?.materialApplication,
-          ...(trayProps.colorMix !== undefined ? { colorMix: trayProps.colorMix } : {}),
-          ...(trayProps.brightness !== undefined ? { brightness: trayProps.brightness } : {}),
-          ...(trayProps.saturation !== undefined ? { saturation: trayProps.saturation } : {}),
-          ...(trayProps.contrast !== undefined ? { contrast: trayProps.contrast } : {}),
-          ...(trayProps.depthMix !== undefined ? { depthMix: trayProps.depthMix } : {}),
-          ...(trayProps.roughnessMix !== undefined ? { roughnessMix: trayProps.roughnessMix } : {}),
-          ...(trayProps.tint !== undefined ? { tint: trayProps.tint } : {}),
-          ...(trayProps.texScale !== undefined ? { texScale: trayProps.texScale } : {}),
-          ...(trayProps.iridescence !== undefined ? { iridescence: trayProps.iridescence } : {}),
-          ...(trayProps.iridescenceIOR !== undefined ? { iridescenceIOR: trayProps.iridescenceIOR } : {}),
-          ...(trayProps.iridescenceThicknessRange !== undefined ? { iridescenceThicknessRange: trayProps.iridescenceThicknessRange } : {}),
-        },
+        materialApplication: buildMaterialApplication(trayProps, trayTheme?.materialApplication),
       },
     },
     carouselConfig.activeIndex,
@@ -95,6 +115,10 @@ export function compileTrayFromViewLayout(
   );
 
   // -- View highlights: build per-view highlight array from DSL + theme ------
+  // Use the theme's palette if defined, otherwise fall back to the
+  // polarity-appropriate default palette.
+  const highlightPalette = sceneTheme.highlightPalette
+    ?? (themePolarity === 'light' ? lightHighlightPalette : darkHighlightPalette);
   const viewHighlights = buildViewHighlights(
     trayProps,
     trayTheme,
@@ -102,6 +126,8 @@ export function compileTrayFromViewLayout(
     carouselConfig.activeIndex,
     viewIds,
     viewStates,
+    themePolarity,
+    highlightPalette,
   );
 
   return {
@@ -141,12 +167,7 @@ export function computeViewExtent(
     : fallback;
 }
 
-/** Default intensity for glow highlights. */
-const DEFAULT_GLOW_INTENSITY = 0.5;
-/** Default intensity for holographic highlights. */
-const DEFAULT_HOLOGRAPHIC_INTENSITY = 0.35;
-/** Default beam height for holographic highlights in world units. */
-const DEFAULT_BEAM_HEIGHT = 1.5;
+// Highlight defaults imported from types.ts — single source of truth.
 
 /**
  * Resolves the highlight mode from DSL prop (which accepts boolean shorthand)
@@ -169,6 +190,39 @@ export function resolveHighlightMode(
 }
 
 /**
+ * Resolves a highlight variant name to its theme definition.
+ * Returns undefined if the variant is not in the palette.
+ */
+function resolveHighlightVariant(
+  variantName: HighlightVariantName | undefined,
+  palette: import('../../theme/types').SceneThemeHighlightPalette | undefined,
+): SceneThemeHighlightVariant | undefined {
+  if (!variantName || !palette) return undefined;
+  return palette[variantName];
+}
+
+/** Resolves the default intensity based on highlight mode. */
+function defaultIntensityForMode(mode: ViewHighlightMode): number {
+  return mode === 'glow' ? HL_DEFAULT_GLOW_INTENSITY : HL_DEFAULT_HOLOGRAPHIC_INTENSITY;
+}
+
+/** Resolves the default blend mode based on polarity. */
+function defaultBlendForPolarity(polarity: 'dark' | 'light'): 'additive' | 'normal' {
+  return polarity === 'light' ? 'normal' : 'additive';
+}
+
+/** Assembles holographic-specific fields when the mode requires them. */
+function holographicFields(
+  mode: ViewHighlightMode,
+  beamHeight: number,
+  smoke: boolean,
+  dust: boolean,
+): Partial<ViewHighlight> {
+  if (mode !== 'holographic') return {};
+  return { beamHeight, smoke, dust };
+}
+
+/**
  * Builds the per-view highlight array from DSL props, theme tokens, and view bounds.
  * Only the view at `activeIndex` receives the highlight; all others get mode 'none'.
  *
@@ -183,15 +237,30 @@ export function buildViewHighlights(
   activeIndex: number,
   viewIds: readonly string[],
   viewStates: ReadonlyMap<string, TrayViewBounds>,
+  polarity: 'dark' | 'light' = 'dark',
+  palette?: import('../../theme/types').SceneThemeHighlightPalette,
 ): readonly ViewHighlight[] {
-  const mode = resolveHighlightMode(trayProps.highlightActive, trayTheme?.highlightActive);
-  if (mode === 'none') return [];
+  const activeMode = resolveHighlightMode(trayProps.highlightActive, trayTheme?.highlightActive);
+  const explicitHighlights = trayProps.highlights;
+  const hasActiveHighlight = activeMode !== 'none';
+  const hasExplicit = explicitHighlights && explicitHighlights.length > 0;
 
-  const color = trayProps.highlightColor ?? trayTheme?.highlightColor ?? resolvedAccentColor;
-  const defaultIntensity = mode === 'glow' ? DEFAULT_GLOW_INTENSITY : DEFAULT_HOLOGRAPHIC_INTENSITY;
-  const intensity = trayProps.highlightIntensity ?? trayTheme?.highlightIntensity ?? defaultIntensity;
-  const beamHeight = trayProps.highlightBeamHeight ?? trayTheme?.highlightBeamHeight ?? DEFAULT_BEAM_HEIGHT;
-  const smoke = trayProps.highlightSmoke ?? trayTheme?.highlightSmoke ?? false;
+  if (!hasActiveHighlight && !hasExplicit) return [];
+
+  // Build a lookup of explicit per-view configs (last one wins for a given viewId).
+  const explicitByViewId = new Map<string, ViewHighlightConfig>();
+  if (hasExplicit) {
+    for (const cfg of explicitHighlights) {
+      explicitByViewId.set(cfg.viewId, cfg);
+    }
+  }
+
+  // Shared defaults resolved from DSL > theme > constants.
+  const defaultColor = trayProps.highlightColor ?? trayTheme?.highlightColor ?? resolvedAccentColor;
+  const defaultBeamHeight = trayProps.highlightBeamHeight ?? trayTheme?.highlightBeamHeight ?? HL_DEFAULT_BEAM_HEIGHT;
+  const defaultSmoke = trayProps.highlightSmoke ?? trayTheme?.highlightSmoke ?? false;
+  const defaultZOffset = trayProps.highlightZOffset ?? trayTheme?.highlightZOffset ?? 0;
+  const targetViewId = trayProps.highlightViewId ?? trayTheme?.highlightViewId;
 
   const highlights: ViewHighlight[] = [];
 
@@ -200,26 +269,108 @@ export function buildViewHighlights(
     const vs = viewStates.get(viewId);
     const bounds = vs?.bounds ?? { x: 0, y: 0, w: 0, h: 0 };
 
-    if (i === activeIndex) {
-      const highlight: ViewHighlight = {
+    const explicit = explicitByViewId.get(viewId);
+    const isActiveTarget = hasActiveHighlight && (
+      targetViewId ? viewId === targetViewId : i === activeIndex
+    );
+
+    if (explicit) {
+      // Explicit config takes priority over highlightActive.
+      // Variant values fill in anything the explicit config doesn't set.
+      const series = resolveHighlightVariant(explicit.variant, palette);
+      const mode = explicit.mode ?? series?.mode ?? 'glow';
+      const color = explicit.color ?? series?.color ?? defaultColor;
+      const intensity = explicit.intensity ?? series?.intensity ?? defaultIntensityForMode(mode);
+      const blendMode = explicit.blendMode ?? series?.blendMode ?? defaultBlendForPolarity(polarity);
+      const bdOpacity = explicit.backdropOpacity ?? series?.backdropOpacity;
+      const bdColor = explicit.backdropColor ?? series?.backdropColor;
+      highlights.push({
         viewId,
         bounds,
         mode,
         color,
         intensity,
-        ...(mode === 'holographic' ? { beamHeight, smoke } : {}),
-      };
-      highlights.push(highlight);
+        blendMode,
+        ...holographicFields(
+          mode,
+          explicit.beamHeight ?? series?.beamHeight ?? defaultBeamHeight,
+          explicit.smoke ?? series?.smoke ?? defaultSmoke,
+          explicit.dust ?? series?.dust ?? false,
+        ),
+        ...(explicit.zOffset !== undefined ? { zOffset: explicit.zOffset } : defaultZOffset !== 0 ? { zOffset: defaultZOffset } : {}),
+        ...(bdOpacity !== undefined ? { backdropOpacity: bdOpacity } : {}),
+        ...(bdColor !== undefined ? { backdropColor: bdColor } : {}),
+        followView: true,
+      });
+    } else if (isActiveTarget) {
+      // Active target: resolve from highlightVariant DSL prop if set.
+      const variant = resolveHighlightVariant(trayProps.highlightVariant, palette);
+      const mode = variant?.mode ?? activeMode;
+      const color = trayProps.highlightColor ?? variant?.color ?? trayTheme?.highlightColor ?? resolvedAccentColor;
+      const intensity = trayProps.highlightIntensity ?? variant?.intensity ?? trayTheme?.highlightIntensity
+        ?? defaultIntensityForMode(activeMode);
+      const blendMode = variant?.blendMode ?? defaultBlendForPolarity(polarity);
+      highlights.push({
+        viewId,
+        bounds,
+        mode,
+        color,
+        intensity,
+        blendMode,
+        ...holographicFields(
+          mode,
+          trayProps.highlightBeamHeight ?? variant?.beamHeight ?? defaultBeamHeight,
+          trayProps.highlightSmoke ?? variant?.smoke ?? defaultSmoke,
+          variant?.dust ?? false,
+        ),
+        ...(defaultZOffset !== 0 ? { zOffset: defaultZOffset } : {}),
+        ...(variant?.backdropOpacity !== undefined ? { backdropOpacity: variant.backdropOpacity } : {}),
+        ...(variant?.backdropColor !== undefined ? { backdropColor: variant.backdropColor } : {}),
+        ...(targetViewId ? { followView: true } : {}),
+      });
     } else {
       highlights.push({
         viewId,
         bounds,
         mode: 'none',
-        color,
+        color: defaultColor,
         intensity: 0,
+        blendMode: 'additive',
       });
     }
   }
 
   return highlights;
+}
+
+/**
+ * Resolves a runtime (programmatic) ViewHighlightConfig into a fully concrete
+ * ViewHighlight suitable for the render layer.
+ *
+ * Extracted from render.ts to make this pure compilation logic testable.
+ * The render layer calls this when merging runtime highlights with compiled ones.
+ *
+ * @param cfg - The programmatic highlight configuration.
+ * @param fallbackBounds - NVS bounds to use (typically from the compiled highlight for the same viewId).
+ * @param fallbackColor - Fallback color when cfg.color is not set (typically accentColor).
+ */
+export function resolveRuntimeHighlight(
+  cfg: ViewHighlightConfig,
+  fallbackBounds: { x: number; y: number; w: number; h: number },
+  fallbackColor: string,
+): ViewHighlight {
+  const mode = cfg.mode ?? 'glow';
+  return {
+    viewId: cfg.viewId,
+    bounds: fallbackBounds,
+    mode,
+    color: cfg.color ?? fallbackColor,
+    intensity: cfg.intensity ?? (mode === 'holographic' ? HL_DEFAULT_HOLOGRAPHIC_INTENSITY : HL_DEFAULT_GLOW_INTENSITY),
+    ...(mode === 'holographic' ? { beamHeight: cfg.beamHeight ?? HL_DEFAULT_BEAM_HEIGHT, smoke: cfg.smoke ?? false, dust: cfg.dust ?? false } : {}),
+    ...(cfg.zOffset !== undefined ? { zOffset: cfg.zOffset } : {}),
+    ...(cfg.backdropOpacity !== undefined ? { backdropOpacity: cfg.backdropOpacity } : {}),
+    ...(cfg.backdropColor !== undefined ? { backdropColor: cfg.backdropColor } : {}),
+    blendMode: cfg.blendMode ?? 'additive',
+    followView: true,
+  };
 }

@@ -14,14 +14,7 @@ export function createWebsitePlugins(manifestUrl: string): WidgetPlugin[] {
   return [
     corePlugin(),
     modelPlugin({ manifestUrl }),
-    diagramPlugin({
-      diagrams: [
-        'presentation-arc',
-        'tech-stack',
-        'system-arch',
-        'full-arch',
-      ],
-    }),
+    diagramPlugin(),
     {
       createWidgets: () => [
         new NeonSignWidget(),

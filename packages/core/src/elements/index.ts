@@ -55,7 +55,6 @@ export {
 export type { PresetMaterialOptions, PresetMaterialProjection } from './_shared/materialFactory';
 
 // Camera
-// DEBT: Missing exports for ICameraHost, CameraInteractionDefaults, FitBotHeightCamera, FitFloorDepthCamera, WorldSpaceCamera, OrbitCamera
 export type {
   SceneCamera,
   CameraPositionDescriptor,
@@ -67,5 +66,15 @@ export type {
   EaseFnName,
   CameraTransitionInterpolation,
   CameraOverrideState,
+  WorldSpaceCamera,
+  OrbitCamera,
+  FitBotHeightCamera,
+  FitFloorDepthCamera,
+  ICameraHost,
+  CameraInteractionDefaults,
 } from './camera';
 export { Camera } from './camera';
+
+// Carousel highlights
+export type { ViewHighlightMode, ViewHighlightConfig } from './carousel-scrubber';
+export { useCarouselHighlight, createCarouselHighlightController } from './carousel-scrubber';

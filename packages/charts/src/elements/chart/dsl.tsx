@@ -1,7 +1,6 @@
 // Chart DSL stub component prop types — never rendered, only compiled by NodeHandlers.
 import React from 'react';
 import type {
-  ChartDSL,
   ChartDataDSL,
   ChartAxisDSL,
   ChartSeriesDSL,
@@ -41,19 +40,6 @@ export type BaseChartDSL = {
    * @default 0.4
    */
   readonly depth?: number;
-  /**
-   * @deprecated Use `depth` for the 3D extrusion depth. `bounds.width` and `bounds.height`
-   * are ignored — chart geometry width/height are always derived from the `w`/`h` NVS layout props.
-   * `bounds.depth` still works but prefer top-level `depth` prop instead.
-   */
-  readonly bounds?: {
-    /** @deprecated Use top-level `depth` prop instead. */
-    readonly depth?: number;
-    /** @deprecated Has no effect. Use `w` to set chart geometry width. */
-    readonly width?: number;
-    /** @deprecated Has no effect. Use `h` to set chart geometry height. */
-    readonly height?: number;
-  };
   /** Per-chart gridlines override. */
   readonly gridlines?: boolean;
   /**
@@ -144,7 +130,3 @@ export type ChartTooltipProps = {
   readonly format?: string;
 };
 
-// ─── V1 Compat (deprecated) ──────────────────────────────────────────────────
-
-/** @deprecated Use BarChartProps, LineChartProps, etc. instead. */
-export type ChartProps = ChartDSL & { children?: React.ReactNode };

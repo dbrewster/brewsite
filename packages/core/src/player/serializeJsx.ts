@@ -22,7 +22,7 @@ import type { ReactElement, ReactNode } from 'react';
  * change, not a function reference change. A callback defined inline (e.g.
  * `onFoo={() => doThing()}`) always produces '[fn]' and will never trigger recompilation
  * even if the callback body changes. When function closures must trigger recompilation,
- * bump ScenePlayer/EngineProvider `invalidateCacheToken`.
+ * bump SceneEngine `invalidateCacheToken`.
  */
 export const serializeJsx = (value: unknown, depth = 0): string => {
   if (depth > 15) return '[deep]';

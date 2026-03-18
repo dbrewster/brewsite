@@ -54,11 +54,15 @@ describe('init CLI', () => {
     expect(readFileSync(join(agentsDir, 'brewsite-scene-author.md'), 'utf-8')).toBe('existing agent');
   });
 
-  it('does not create .mcp.json', () => {
+  it('creates .mcp.json at project root', () => {
     run(tempDir);
 
     const mcpJsonPath = join(tempDir, '.mcp.json');
-    expect(existsSync(mcpJsonPath)).toBe(false);
+    expect(existsSync(mcpJsonPath)).toBe(true);
+
+    const content = JSON.parse(readFileSync(mcpJsonPath, 'utf-8'));
+    expect(content.mcpServers).toBeDefined();
+    expect(content.mcpServers['brewsite-docs']).toBeDefined();
   });
 
   it('agent template contains mcpServers in frontmatter', () => {

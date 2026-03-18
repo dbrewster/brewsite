@@ -12,7 +12,7 @@ The `<Lighting>` element is an ambient DSL component that configures all light s
 
 Lighting affects GLTF model materials (PBR — specular, diffuse, shadows), diagram element surfaces, and the floor plane. The `intensityScale` prop scales all child lights' intensities by a global multiplier, making it easy to dim or brighten a scene without editing each light individually.
 
-`<GlowPoint>` is a visual-only billboard sprite — it does not illuminate surfaces or cast shadows. Use it for atmosphere, decorative glow, or UI indicators. For actual illumination, use `<Point>` or `<Directional>`.
+`<GlowPoint>` renders as a `THREE.PointLight` that illuminates nearby surfaces. It does NOT cast shadows. It is a real dynamic light with GPU cost proportional to the scene's geometry. Only ONE `<GlowPoint>` per `<Lighting>` component is supported — the `SceneLighting` type has a singular `glowPoint?` field, not an array.
 
 Import from `@brewsite/core`:
 
@@ -95,7 +95,9 @@ Three.js `PointLight`. Illuminates nearby geometry in all directions from a worl
 
 ### `<GlowPoint>`
 
-Sprite-based pseudo-light. Renders as a visible glowing billboard orb. Does NOT illuminate surfaces, cast shadows, or participate in PBR calculations. Zero GPU cost beyond the billboard quad. Use for decorative atmosphere, not actual illumination.
+Non-shadow-casting point light. Renders as a `THREE.PointLight` with `castShadow = false`. Illuminates nearby surfaces but does not participate in shadow maps. GPU cost is proportional to the scene's geometry, like any real dynamic light.
+
+**Limitation:** Only ONE `<GlowPoint>` per `<Lighting>` component is supported. The compiled `SceneLighting` type has a singular `glowPoint?` field. If you need multiple point lights, use `<Point>` instead.
 
 ```tsx
 <GlowPoint intensity={2.5} color="#ff4020" position={[4, 3, 2]} distance={8} decay={2} />
@@ -104,11 +106,11 @@ Sprite-based pseudo-light. Renders as a visible glowing billboard orb. Does NOT 
 | Prop | Type | Required | Description |
 |---|---|---|---|
 | `id` | `string` | no | Optional stable ID |
-| `intensity` | `number` | yes | Visual glow intensity (billboard scale/opacity) |
-| `color` | `string` | yes | Glow color |
+| `intensity` | `number` | yes | Light intensity |
+| `color` | `string` | yes | Light color |
 | `position` | `Vec3` | yes | World-space position |
-| `distance` | `number` | no | Falloff distance (visual only) |
-| `decay` | `number` | no | Falloff decay rate (visual only) |
+| `distance` | `number` | no | Light falloff distance |
+| `decay` | `number` | no | Light falloff decay rate |
 
 ---
 
@@ -243,11 +245,10 @@ Good default for GLTF models. The cool-tinted ambient (`#d7e8ff`) lifts shadow f
   <Directional intensity={2.0} color="#ff6030" position={[8, 12, 4]} />
   <Directional intensity={0.8} color="#3060ff" position={[-8, 2, 6]} />
   <GlowPoint intensity={2.5} color="#ff4020" position={[4, 3, 2]} />
-  <GlowPoint intensity={1.8} color="#2040ff" position={[-4, 2, 2]} />
 </Lighting>
 ```
 
-Very low ambient pushes the scene dark. Two strong, opposing-color directionals create harsh cross-lighting. `<GlowPoint>` orbs add visible light sources at zero PBR cost.
+Very low ambient pushes the scene dark. Two strong, opposing-color directionals create harsh cross-lighting. The `<GlowPoint>` adds a non-shadow-casting fill light. Note: only one `<GlowPoint>` is supported per `<Lighting>`. For additional point lights, use `<Point>`.
 
 ### Neutral/light mode
 

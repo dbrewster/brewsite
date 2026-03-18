@@ -1,6 +1,128 @@
 // lightMinimal SceneTheme presets — minimal light/pastel aesthetic.
 
-import type { SceneTheme } from '@brewsite/core';
+import type { SceneTheme, SceneThemeHighlightPalette } from '@brewsite/core';
+
+// -- Highlight palettes tuned for the lightMinimal family --
+
+const lightMinimalLightHighlights: SceneThemeHighlightPalette = {
+  primary: {
+    color: '#4070A8',
+    mode: 'holographic',
+    intensity: 0.28,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  secondary: {
+    color: '#6080A0',
+    mode: 'holographic',
+    intensity: 0.25,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  tertiary: {
+    color: '#3A8888',
+    mode: 'glow',
+    intensity: 0.28,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  error: {
+    color: '#AA2828',
+    mode: 'holographic',
+    intensity: 0.35,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+    smoke: true,
+  },
+  warning: {
+    color: '#997018',
+    mode: 'holographic',
+    intensity: 0.28,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  success: {
+    color: '#2A7A50',
+    mode: 'glow',
+    intensity: 0.28,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+  info: {
+    color: '#3068A0',
+    mode: 'glow',
+    intensity: 0.25,
+    blendMode: 'normal',
+    backdropOpacity: 0.7,
+    backdropColor: '#e8e4e0',
+  },
+};
+
+const lightMinimalDarkHighlights: SceneThemeHighlightPalette = {
+  primary: {
+    color: '#6098C8',
+    mode: 'holographic',
+    intensity: 0.42,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  secondary: {
+    color: '#8098B0',
+    mode: 'holographic',
+    intensity: 0.38,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  tertiary: {
+    color: '#50A0A0',
+    mode: 'glow',
+    intensity: 0.42,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  error: {
+    color: '#CC3838',
+    mode: 'holographic',
+    intensity: 0.5,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+    smoke: true,
+  },
+  warning: {
+    color: '#C89828',
+    mode: 'holographic',
+    intensity: 0.42,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  success: {
+    color: '#3A9960',
+    mode: 'glow',
+    intensity: 0.42,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+  info: {
+    color: '#5088BB',
+    mode: 'glow',
+    intensity: 0.38,
+    blendMode: 'additive',
+    backdropOpacity: 0.7,
+    backdropColor: '#000000',
+  },
+};
 
 /** lightMinimal family, light polarity. */
 export const lightMinimalSceneTheme: SceneTheme = {
@@ -47,6 +169,7 @@ export const lightMinimalSceneTheme: SceneTheme = {
     surfaceMaterial: 'white-marble',
     materialApplication: { colorMix: 0.15, brightness: 1.2, saturation: 0.2, depthMix: 0.2 },
   },
+  highlightPalette: lightMinimalLightHighlights,
 };
 
 /** lightMinimal family, dark polarity. */
@@ -94,4 +217,5 @@ export const lightMinimalDarkSceneTheme: SceneTheme = {
     surfaceMaterial: 'white-marble',
     materialApplication: { colorMix: 0.25, brightness: 1.1, saturation: 0.3, depthMix: 0.3 },
   },
+  highlightPalette: lightMinimalDarkHighlights,
 };

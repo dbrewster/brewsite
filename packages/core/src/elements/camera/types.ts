@@ -1,5 +1,6 @@
 // Camera element — pure type contracts. No runtime or Three.js imports.
 
+import type { PerspectiveCamera } from 'three';
 import type { Vec3 } from '../../math';
 export type { Vec3 } from '../../math';
 
@@ -114,12 +115,6 @@ export type CameraPositionDescriptor =
 
 // ─── Lens / Optics ──────────────────────────────────────────────────────────
 
-// Phase 2 (deferred): DofConfig and full bokeh post-processing via EffectComposer.
-// Implementing DoF requires calling composer.render() instead of renderer.render()
-// which is a runtime loop change out of scope for this plan. The type is reserved
-// here as a placeholder so scene authors can wire it up in a future phase without
-// a breaking change to SceneCamera.
-export type DofConfig = never; // Phase 2 — not yet implemented
 
 /**
  * Lens properties for the Three.js PerspectiveCamera.
@@ -279,17 +274,15 @@ export type CameraInteractionDefaults = {
  * Production implementation: CameraControlsDriver (in render.ts, uses camera-controls).
  * Test implementation: FakeInteractionDriver (in __tests__/, plain class, no Three.js).
  *
- * The `cameraObject` parameter is typed as `unknown` to keep this interface free of
- * Three.js imports. Implementors cast to THREE.PerspectiveCamera internally.
- *
- * All methods take and return only plain types (Vec3, numbers, booleans, HTMLElement).
+ * All methods take and return only plain types (Vec3, numbers, booleans, HTMLElement)
+ * plus PerspectiveCamera for attach().
  */
 export interface ICameraInteractionDriver {
   /**
    * Attach the driver to a camera and DOM element. Called once when entering
    * interaction mode. Implementations add their own event listeners here.
    */
-  attach(cameraObject: unknown, domElement: HTMLElement, config: TrackpadCameraConfig): void;
+  attach(cameraObject: PerspectiveCamera, domElement: HTMLElement, config: TrackpadCameraConfig): void;
 
   /**
    * Sync the driver's internal look-at state to world-space position and target.
@@ -334,7 +327,7 @@ export interface ICameraInteractionDriver {
  * Tests inject a FakeInteractionDriver factory.
  */
 export type CameraInteractionDriverFactory = (
-  cameraObject: unknown,
+  cameraObject: PerspectiveCamera,
   domElement: HTMLElement,
   config: TrackpadCameraConfig,
 ) => ICameraInteractionDriver;

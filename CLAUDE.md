@@ -59,8 +59,8 @@ This is a **pnpm + Turborepo monorepo** with published packages and private apps
 ### `packages/core/src/` — Layer Map (top-to-bottom)
 
 1. **Player** (`player/`) — React integration surface. The public entry point for pages/routes.
-   - Exports: `ScenePlayer`, `useSceneEngine`, `useEngineScroll`, `useEngineInput`, `useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `EngineFrameDriver`, `EngineScrollRegion`, `EngineInputRegion`, `createDefaultWidgetRegistry`, `TimelineWidget`, `CameraControlPanel`.
-   - `createDefaultWidgetRegistry(manifest)` wires the built-in core widgets (Lighting, Background, Environment, Floor, Camera, SceneMeta). Model and label widgets are registered separately via `@brewsite/model`.
+   - Exports: `SceneEngine`, `SceneCanvas`, `EngineOverlayHost`, `ScrollStage`, `InputCoordinator`, `useSceneEngine`, `useEngineState`, `useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `corePlugin`, `TimelineWidget`, `EngineGate`, `BackgroundLayer`.
+   - `corePlugin()` is the plugin factory that wires the built-in core widgets (Lighting, Background, Environment, Floor, Camera, SceneMeta). Model and label widgets are registered separately via `@brewsite/model` using `modelPlugin()`.
 
 2. **Runtime** (`runtime/`) — Generic widget-based execution coordinator.
    - `RuntimeDriverImpl` drives the tick loop: it holds a `WidgetRegistry`, samples the `SceneTrack`, and dispatches state to each registered widget each frame.

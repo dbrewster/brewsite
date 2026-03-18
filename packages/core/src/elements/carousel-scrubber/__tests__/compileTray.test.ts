@@ -2,7 +2,7 @@
 // Tests the seam where DSL props, theme tokens, and compiled defaults merge.
 
 import { describe, it, expect, beforeEach } from 'vitest';
-import { compileTrayFromViewLayout, computeViewExtent, resolveHighlightMode, buildViewHighlights, type TrayViewBounds } from '../compileTray';
+import { compileTrayFromViewLayout, computeViewExtent, resolveHighlightMode, buildViewHighlights, resolveRuntimeHighlight, type TrayViewBounds } from '../compileTray';
 import { DEFAULT_CAROUSEL_SCRUBBER_STYLE } from '../compile';
 import type { CarouselTrayProps } from '../dsl';
 import type { CarouselLayoutConfig } from '../../../layout/regionTypes';
@@ -545,18 +545,18 @@ describe('buildViewHighlights', () => {
     expect(result[2].mode).toBe('none');
   });
 
-  it('uses default glow intensity of 0.5', () => {
+  it('uses default glow intensity of 0.8', () => {
     const result = buildViewHighlights(
       { highlightActive: 'glow' }, undefined, '#5090e0', 0, viewIds, viewStates,
     );
-    expect(result[0].intensity).toBe(0.5);
+    expect(result[0].intensity).toBe(0.8);
   });
 
-  it('uses default holographic intensity of 0.35', () => {
+  it('uses default holographic intensity', () => {
     const result = buildViewHighlights(
       { highlightActive: 'holographic' }, undefined, '#5090e0', 0, viewIds, viewStates,
     );
-    expect(result[0].intensity).toBe(0.35);
+    expect(result[0].intensity).toBe(0.5);
   });
 
   it('uses DSL color over theme color', () => {
@@ -610,11 +610,11 @@ describe('buildViewHighlights', () => {
     expect(result[0].smoke).toBe(true);
   });
 
-  it('uses default beamHeight=1.5 and smoke=false for holographic mode', () => {
+  it('uses default beamHeight and smoke=false for holographic mode', () => {
     const result = buildViewHighlights(
       { highlightActive: 'holographic' }, undefined, '#5090e0', 0, viewIds, viewStates,
     );
-    expect(result[0].beamHeight).toBe(1.5);
+    expect(result[0].beamHeight).toBe(5.0);
     expect(result[0].smoke).toBe(false);
   });
 
@@ -723,5 +723,159 @@ describe('compileTrayFromViewLayout highlight integration', () => {
     );
     // accentColor from DSL is '#AABBCC', used as highlight color fallback
     expect(state.viewHighlights[0].color).toBe('#AABBCC');
+  });
+});
+
+// ─── buildViewHighlights — backdropColor ────────────────────────────────────
+
+describe('buildViewHighlights backdropColor', () => {
+  it('threads explicit backdropColor through to compiled highlight', () => {
+    const result = buildViewHighlights(
+      {
+        highlights: [{ viewId: 'v1', mode: 'holographic', backdropColor: '#ff0000' }],
+      },
+      undefined, '#5090e0', 0, viewIds, viewStates, 'dark',
+    );
+    const v1 = result.find(h => h.viewId === 'v1')!;
+    expect(v1.backdropColor).toBe('#ff0000');
+  });
+
+  it('threads variant backdropColor through to compiled highlight', () => {
+    const palette = {
+      primary: { color: '#4A88D0', backdropColor: '#112233', backdropOpacity: 0.7 },
+    };
+    const result = buildViewHighlights(
+      {
+        highlights: [{ viewId: 'v1', variant: 'primary' }],
+      },
+      undefined, '#5090e0', 0, viewIds, viewStates, 'dark', palette,
+    );
+    const v1 = result.find(h => h.viewId === 'v1')!;
+    expect(v1.backdropColor).toBe('#112233');
+  });
+
+  it('explicit backdropColor overrides variant backdropColor', () => {
+    const palette = {
+      primary: { color: '#4A88D0', backdropColor: '#112233' },
+    };
+    const result = buildViewHighlights(
+      {
+        highlights: [{ viewId: 'v1', variant: 'primary', backdropColor: '#aabbcc' }],
+      },
+      undefined, '#5090e0', 0, viewIds, viewStates, 'dark', palette,
+    );
+    const v1 = result.find(h => h.viewId === 'v1')!;
+    expect(v1.backdropColor).toBe('#aabbcc');
+  });
+
+  it('threads variant backdropColor for active-target highlights', () => {
+    const palette = {
+      error: { color: '#CC3333', backdropColor: '#334455' },
+    };
+    const result = buildViewHighlights(
+      { highlightActive: 'holographic', highlightVariant: 'error' },
+      undefined, '#5090e0', 0, viewIds, viewStates, 'dark', palette,
+    );
+    expect(result[0].backdropColor).toBe('#334455');
+  });
+
+  it('omits backdropColor when neither explicit nor variant sets it', () => {
+    const result = buildViewHighlights(
+      { highlightActive: 'glow' },
+      undefined, '#5090e0', 0, viewIds, viewStates, 'dark',
+    );
+    expect(result[0].backdropColor).toBeUndefined();
+  });
+});
+
+// ─── resolveRuntimeHighlight ────────────────────────────────────────────────
+
+describe('resolveRuntimeHighlight', () => {
+  const zeroBounds = { x: 0, y: 0, w: 0, h: 0 };
+  const realBounds = { x: 0.1, y: 0.2, w: 0.3, h: 0.4 };
+
+  it('produces a glow highlight with fallback color', () => {
+    const hl = resolveRuntimeHighlight(
+      { viewId: 'v1' },
+      realBounds,
+      '#5090e0',
+    );
+    expect(hl.viewId).toBe('v1');
+    expect(hl.mode).toBe('glow');
+    expect(hl.color).toBe('#5090e0');
+    expect(hl.intensity).toBe(0.8); // HL_DEFAULT_GLOW_INTENSITY
+    expect(hl.blendMode).toBe('additive');
+    expect(hl.followView).toBe(true);
+    expect(hl.bounds).toEqual(realBounds);
+  });
+
+  it('uses explicit mode and color', () => {
+    const hl = resolveRuntimeHighlight(
+      { viewId: 'v1', mode: 'holographic', color: '#ff0000' },
+      zeroBounds,
+      '#5090e0',
+    );
+    expect(hl.mode).toBe('holographic');
+    expect(hl.color).toBe('#ff0000');
+    expect(hl.intensity).toBe(0.5); // HL_DEFAULT_HOLOGRAPHIC_INTENSITY
+    expect(hl.beamHeight).toBe(5.0);
+    expect(hl.smoke).toBe(false);
+    expect(hl.dust).toBe(false);
+  });
+
+  it('threads backdropColor through', () => {
+    const hl = resolveRuntimeHighlight(
+      { viewId: 'v1', backdropColor: '#e8e4e0' },
+      zeroBounds,
+      '#5090e0',
+    );
+    expect(hl.backdropColor).toBe('#e8e4e0');
+  });
+
+  it('threads backdropOpacity through', () => {
+    const hl = resolveRuntimeHighlight(
+      { viewId: 'v1', backdropOpacity: 0.7 },
+      zeroBounds,
+      '#5090e0',
+    );
+    expect(hl.backdropOpacity).toBe(0.7);
+  });
+
+  it('omits backdropColor when not specified', () => {
+    const hl = resolveRuntimeHighlight(
+      { viewId: 'v1' },
+      zeroBounds,
+      '#5090e0',
+    );
+    expect(hl.backdropColor).toBeUndefined();
+  });
+
+  it('omits holographic fields for glow mode', () => {
+    const hl = resolveRuntimeHighlight(
+      { viewId: 'v1', mode: 'glow' },
+      zeroBounds,
+      '#5090e0',
+    );
+    expect(hl.beamHeight).toBeUndefined();
+    expect(hl.smoke).toBeUndefined();
+    expect(hl.dust).toBeUndefined();
+  });
+
+  it('threads zOffset through', () => {
+    const hl = resolveRuntimeHighlight(
+      { viewId: 'v1', zOffset: -2.5 },
+      zeroBounds,
+      '#5090e0',
+    );
+    expect(hl.zOffset).toBe(-2.5);
+  });
+
+  it('uses explicit blendMode', () => {
+    const hl = resolveRuntimeHighlight(
+      { viewId: 'v1', blendMode: 'normal' },
+      zeroBounds,
+      '#5090e0',
+    );
+    expect(hl.blendMode).toBe('normal');
   });
 });

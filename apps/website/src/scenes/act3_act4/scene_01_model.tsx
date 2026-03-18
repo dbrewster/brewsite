@@ -1,7 +1,7 @@
 import type { JSX } from 'react';
 import {
   Scene, Camera, Lighting, Ambient, Directional,
-  Floor, FloorMirror, ProgressManager,
+  Floor, FloorMirror, ProgressManager, TextBox,
 } from '@brewsite/core';
 import { isMobile } from '../../utils/viewport';
 import { actorElements } from './meetingCharacters';
@@ -46,7 +46,7 @@ export const scene01ModelWide: JSX.Element = (
       <Directional intensity={0.25} color="#aaccff" position={[-10, 8, 5]} />
     </Lighting>
 
-    <div key="model-overlay" style={{ position: 'absolute', bottom: '8%', left: '5%', maxWidth: 420 }}>
+    <TextBox key="model-overlay" x={0.03} y={0.58} w={0.35} h={0.40} overflow="visible">
       <div style={{
         fontFamily: 'JetBrains Mono, monospace',
         fontSize: 10,
@@ -89,7 +89,7 @@ export const scene01ModelWide: JSX.Element = (
         Materials, shadows, environment — the renderer handles all of it.<br />
         Drop any GLTF. Animate the world.
       </div>
-    </div>
+    </TextBox>
 
     {actorElements}
   </Scene>

@@ -25,37 +25,42 @@ describe('initParticle', () => {
   });
 
   it('staggers initial age within lifetime range', () => {
-    const random = makeSeededRandom([0.3, 0.7, 0.5, 0.5, 0.5]);
+    // Call order: angle(0.3), yOffset(0.7), age(0.5), angularSpeed(0.5), driftSpeed(0.5), lifetime(0.5)
+    const random = makeSeededRandom([0.3, 0.7, 0.5, 0.5, 0.5, 0.5]);
     const p = initParticle(random);
-    // Second call to random (index 1) is 0.7, staggered age = 0.7 * LIFETIME_RANGE[1]
-    expect(p.age).toBeCloseTo(0.7 * LIFETIME_RANGE[1], 5);
+    // Third call (index 2) is 0.5, staggered age = 0.5 * LIFETIME_RANGE[1]
+    expect(p.age).toBeCloseTo(0.5 * LIFETIME_RANGE[1], 5);
   });
 
   it('sets angularSpeed within ANGULAR_SPEED_RANGE', () => {
-    const random = makeSeededRandom([0, 0, 0.5, 0.5, 0.5]);
+    // Call order: angle, yOffset, age, angularSpeed(0.5), driftSpeed, lifetime
+    const random = makeSeededRandom([0, 0, 0, 0.5, 0.5, 0.5]);
     const p = initParticle(random);
     const expected = ANGULAR_SPEED_RANGE[0] + 0.5 * (ANGULAR_SPEED_RANGE[1] - ANGULAR_SPEED_RANGE[0]);
     expect(p.angularSpeed).toBeCloseTo(expected, 5);
   });
 
   it('sets driftSpeed within DRIFT_SPEED_RANGE', () => {
-    const random = makeSeededRandom([0, 0, 0, 0.5, 0.5]);
+    // Call order: angle, yOffset, age, angularSpeed, driftSpeed(0.5), lifetime
+    const random = makeSeededRandom([0, 0, 0, 0, 0.5, 0.5]);
     const p = initParticle(random);
     const expected = DRIFT_SPEED_RANGE[0] + 0.5 * (DRIFT_SPEED_RANGE[1] - DRIFT_SPEED_RANGE[0]);
     expect(p.driftSpeed).toBeCloseTo(expected, 5);
   });
 
   it('sets lifetime within LIFETIME_RANGE', () => {
-    const random = makeSeededRandom([0, 0, 0, 0, 0.5]);
+    // Call order: angle, yOffset, age, angularSpeed, driftSpeed, lifetime(0.5)
+    const random = makeSeededRandom([0, 0, 0, 0, 0, 0.5]);
     const p = initParticle(random);
     const expected = LIFETIME_RANGE[0] + 0.5 * (LIFETIME_RANGE[1] - LIFETIME_RANGE[0]);
     expect(p.lifetime).toBeCloseTo(expected, 5);
   });
 
-  it('starts yOffset at 0', () => {
-    const random = makeSeededRandom([0]);
+  it('randomizes initial yOffset', () => {
+    // Call order: angle(0), yOffset(0.5), age, ...
+    const random = makeSeededRandom([0, 0.5, 0, 0, 0, 0]);
     const p = initParticle(random);
-    expect(p.yOffset).toBe(0);
+    expect(p.yOffset).toBeCloseTo(0.5 * 5.0, 5);
   });
 });
 

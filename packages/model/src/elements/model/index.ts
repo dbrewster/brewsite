@@ -1,7 +1,7 @@
 /**
  * Model element public API.
  */
-// DEBT: Audit which symbols here should be promoted to the public src/index.ts barrel
+
 
 // Widget class
 export { ModelWidget } from './ModelWidget';

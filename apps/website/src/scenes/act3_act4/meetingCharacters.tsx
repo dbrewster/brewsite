@@ -20,7 +20,9 @@ interface ActorProps {
   idBase: string;
   type: string;
   x: number;
+  y: number;
   z: number;
+  h: number;
   yRotation: number;
   distance: number;
   animationBase: [string, number];
@@ -30,35 +32,10 @@ interface ActorProps {
   facing: 'left' | 'right';
 }
 
-// ── Camera-aligned floor placement ────────────────────────────────────────────
-// Scene camera: position=[0, 1.5, 5], target=[0, 0, 0], fov=48
-// For a character at world z=z_val to stand on the floor (world y=0), the NVS y
-// (top-left corner of its bounding box) must be computed from the perspective
-// projection of the floor plane at that z depth.
-
-const ACTOR_H = 0.14;
 const ACTOR_W = 0.08;
 
-// fov=48 → half-angle=24°, tan(24°)≈0.4452
-// Camera look direction length: sqrt(1.5²+5²)=5.22
-// dy/dz on center ray = 1.5/5 = 0.3
-// depth along look axis at world z=z_val: 5.2206 - 0.9579*z_val
-const CAM_DY_DZ = 0.3;
-const CAM_DEPTH_BASE = 5.2206;
-const CAM_DEPTH_DZ = 0.9579;
-const TAN_HALF_FOV = 0.4452;
-
-/** NVS y prop (top-left of bounding box) that places the model's origin at world y=0 (floor). */
-function floorY(worldZ: number): number {
-  const worldYAtCenter = CAM_DY_DZ * worldZ;
-  const depthAtZ = CAM_DEPTH_BASE - CAM_DEPTH_DZ * worldZ;
-  const visibleFullHeight = 2 * TAN_HALF_FOV * depthAtZ;
-  const nvsYCenter = 0.5 + worldYAtCenter / visibleFullHeight;
-  return nvsYCenter - ACTOR_H / 2;
-}
-
 const Actor = ({
-  idBase, type, x, z, distance, animationBase, clipStartOnce,
+  idBase, type, x, y, z, h, distance, animationBase, clipStartOnce,
   yRotation, facing, raiseFoot, extraBodyPartProps,
 }: ActorProps) => {
   // Pair member positions: offset each actor from the pair center along the pair axis
@@ -80,9 +57,9 @@ const Actor = ({
       type={type}
       id={idBase}
       x={actorX}
-      y={floorY(z)}
+      y={y}
       w={ACTOR_W}
-      h={ACTOR_H}
+      h={h}
       z={z}
       scale={0.001}
       rotation={[0, yRot + animationBase[1], 0]}
@@ -150,6 +127,18 @@ function randomBetween(min: number, max: number): number {
   return min + rng() * (max - min);
 }
 
+// ── NVS placement helpers ─────────────────────────────────────────────────────
+// Characters closer to camera (z near 0) sit near the bottom (y ≈ 0.88).
+// Characters farther back (z near -4) sit higher up (y ≈ 0.55), simulating perspective.
+function nvsYFromZ(z: number): number {
+  return 0.88 + (z / 4) * 0.33;
+}
+
+// Near characters are taller (h ≈ 0.35), far characters smaller (h ≈ 0.20).
+function nvsHFromZ(z: number): number {
+  return 0.35 + (z / 4) * 0.15;
+}
+
 // ── Pair layout ───────────────────────────────────────────────────────────────
 // Pairs are placed in (NVS x, world z) space.
 // x: NVS [0..1] horizontal position of pair center
@@ -169,7 +158,7 @@ function generatePairPositions(
   const attempts = count * 40;
   for (let i = 0; i < attempts && positions.length < count; i++) {
     const candidate = {
-      x: randomBetween(0.08, 0.88),
+      x: randomBetween(0.08, 0.92),
       z: randomBetween(-4, 0),
     };
     const isClear = positions.every(({ x, z }) => {
@@ -193,7 +182,9 @@ const actorProps = pairPositions.flatMap((pos, index) => {
     idBase: `${actor.id ?? actor.type}-pair-${index}-${facing}`,
     type: actor.type,
     x: pos.x,
+    y: nvsYFromZ(pos.z),
     z: pos.z,
+    h: nvsHFromZ(pos.z),
     distance: randomBetween(PAIR_DISTANCE - 0.01, PAIR_DISTANCE + 0.01),
     yRotation,
     animationBase: actor.gender === 'female'

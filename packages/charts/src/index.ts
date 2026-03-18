@@ -53,19 +53,6 @@ export const FILTER_OPS = [
   'eq', 'neq', 'gt', 'gte', 'lt', 'lte', 'in',
 ] as const satisfies readonly FilterOp[];
 
-// ─── Compiler ────────────────────────────────────────────────────────────────
-/** @internal */
-export {
-  compileChart,
-  compileTooltipDsl,
-  compileBarChartOptions,
-  compileLineChartOptions,
-  compileScatterChartOptions,
-  compilePieChartOptions,
-  compileAreaChartOptions,
-  compileHeatMapChartOptions,
-  functionalChartTransitionSpec,
-} from './elements/chart/compile';
 
 // ─── Widget ──────────────────────────────────────────────────────────────────
 export type { ChartHoverInfo } from './elements/chart/ChartWidget';
@@ -130,10 +117,12 @@ export { enterpriseLightChartTheme, defaultLightChartTheme } from './themes/ente
 export { createChartTheme } from './themes/createChartTheme';
 export type { ChartThemeOverrides } from './themes/createChartTheme';
 export type { ChartThemePairEntry } from './themes/chartThemeRegistry';
-export type { ChartThemePair } from './themes/index';
 export type {
   ChartTheme,
   ChartThemeName,
+  ChartSeriesMaterialTokens,
+  ChartAxisTokens,
+  ChartBackgroundTokens,
   ChartLegendTokens,
   ChartPieTokens,
   ChartInteractionTokens,
@@ -150,7 +139,6 @@ export type {
 export {
   registerChartThemePair,
   resolveChartTheme,
-  _resetChartThemeRegistryForTesting,
 } from './themes/chartThemeRegistry';
 
 // ─── Convenience hooks ───────────────────────────────────────────────────────

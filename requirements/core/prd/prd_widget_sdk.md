@@ -3,8 +3,14 @@ title: "BrewSite Core — Widget SDK"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-15
+last_updated: 2026-03-17
 change_history:
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "v1 release readiness audit: removed ICameraActionTarget interface and isCameraActionTarget type guard (deprecated, superseded by ICameraInteractionDriver). AnimationTickContext.resolvedState is now generic — AnimationTickContext<TState = unknown> with resolvedState: TState | null. DslComponent intentional 'any' annotated with eslint-disable."
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Codebase alignment: added IExtraRenderPass (Section 7.20) and IViewChild (Section 7.21) interface documentation. Added material system types (Section 10A) — MaterialPreset, MaterialPresetMaps, MaterialPresetDefaults, MaterialManifest, MaterialApplication, LoadedMaterialTextures, LoadedMaterialPreset, MaterialLoader. Added useCarouselState hook (Section 10.5). Full widget/index.ts export list verified against code."
   - date: 2026-03-15
     author: "Toolkit Product"
     summary: "NVS zoom-instability fix: updated Section 12.3 and 12.7 to reflect that NVSCoordService is now computed from compiled camera state (not live THREE.PerspectiveCamera). createNVSCoordService accepts NVSCameraParams (pure math, no Three.js). resolveNVSParamsFromCameraState companion function documented. NVS mapping is stable under camera interaction. Test examples updated to use NVSCameraParams instead of THREE.PerspectiveCamera."
@@ -535,6 +541,59 @@ export function isGroupOwner(widget: IWidget): widget is IGroupOwner {
 
 `IGroupOwner` and `isGroupOwner` are exported from `@brewsite/core` via `widget/index.ts`.
 
+### 7.20 IExtraRenderPass
+
+```typescript
+/**
+ * Widget that issues additional WebGL render passes after the main scene pass.
+ *
+ * Called once per frame by the render loop after `renderer.render(scene, camera)`
+ * completes. Implement for widgets that require scissored sub-viewport passes
+ * (e.g. DiagramCanvasWidget) or post-processing effects that must composite
+ * on top of the main 3D scene.
+ *
+ * The main scene pass has already rendered when `renderPass()` is called.
+ * The implementation must restore renderer state (scissor, viewport) to its
+ * pre-call state before returning.
+ */
+interface IExtraRenderPass extends IWidget {
+  renderPass(
+    renderer: WebGLRenderer,
+    viewportWidth: number,
+    viewportHeight: number,
+  ): void;
+}
+```
+
+`DiagramCanvasWidget` in `@brewsite/diagram` implements `IExtraRenderPass` to render its orthographic diagram scene into a scissored sub-viewport after the main perspective scene pass completes.
+
+### 7.21 IViewChild
+
+```typescript
+/**
+ * Widget that accepts view-level opacity from ViewWidget.
+ *
+ * Implement this when a widget owns 3D content (meshes, sprites, text)
+ * that should fade in/out as part of a ViewLayout carousel transition
+ * or scene-level opacity animation.
+ *
+ * ViewWidget calls applyViewOpacity() on every child widget that implements
+ * IViewChild. Widgets that do NOT implement IViewChild are not affected by
+ * ViewWidget opacity — they remain fully opaque.
+ */
+interface IViewChild extends IWidget {
+  /**
+   * Applies the view-level opacity to this widget's 3D content.
+   * Called by ViewWidget.apply() whenever opacity changes.
+   *
+   * @param opacity — Value in [0, 1]. 0 = fully transparent, 1 = fully opaque.
+   */
+  applyViewOpacity(opacity: number): void;
+}
+```
+
+Implemented by `ChartWidget` and `DiagramWidget` to participate in carousel opacity transitions. The implementation sets `material.opacity` and `material.transparent` on all owned meshes/sprites, and sets `object.visible = (opacity > 0)` on root objects to avoid GPU cost when fully transparent.
+
 **ViewWidget opacity single-writer contract.** `ViewWidget.applyOpacity()` sets `mat.opacity = opacity` directly — it does not multiply against a base opacity from the child widget's compiled state. `corePlugin().reconcileCompiledTrack` registers `ViewWidget` instances after all other widgets (including `ChartWidget`), so `ViewWidget` is always the last writer of `mat.opacity` in the tick loop for carousel view children. Carousel views (those with a `layoutId` in `ViewState`) pass `childOpacityScale = 1` to `createChildApi`, so their child elements compile with `opacity = 1.0` (intrinsic). Non-carousel views bake `viewOpacity` into compiled child state as before, and `ViewWidget.applyOpacity()` is effectively a no-op (setting opacity to 1.0 on an already-1.0 value).
 
 > **Known edge case:** If a chart inside a standalone (non-carousel) `<View>` has its own independent opacity animation authored separately from the View opacity, `ViewWidget` will override it to `ViewState.opacity` (typically 1.0) each frame, since `ViewWidget` runs last in the tick loop. Authors should be aware that opacity-animated charts inside standalone Views will have their opacity suppressed by `ViewWidget`. This limitation does not affect carousel views — their children compile with `opacity = 1.0` and `ViewWidget` owns opacity entirely by design.
@@ -645,7 +704,6 @@ const isInputDefaultProvider = (w: IWidget): w is IInputDefaultProvider
 const isGroupOwner = (w: IWidget): w is IGroupOwner  // duck-type: 'rootGroup' in w
 
 // Extended type guards
-const isCameraActionTarget = (w: IWidget): w is ICameraActionTarget  // @deprecated
 const isSceneLifecycle = (w: IWidget): w is ISceneLifecycle
 const isRendererLifecycle = (w: IWidget): w is IRendererLifecycle
 const isRenderContributor = (w: IWidget): w is IRenderContributor
@@ -780,6 +838,87 @@ const sceneIndex = useVariable<number>('scene', 'index');
 | `scene.index` | `number` | Zero-based scene index |
 | `scene.progress` | `number` | `blockProgress` [0, 1] within current transition |
 | `scene.[meta.*]` | `JsonPrimitive` | Any keys from `tick.state.meta` (scene-authored metadata) |
+
+### 10.5 useCarouselState Hook
+
+```typescript
+export function useCarouselState(layoutId: string): {
+  activeIndex: number;
+  totalSlides: number;
+} | null;
+```
+
+Returns the current carousel state (active index and total slides) for a given `ViewLayout` carousel, or `null` if the layout is not found. Reads from the `VariableStore` reactively. Source: `widget/useCarouselIndex.ts`.
+
+---
+
+## 10A. Material System
+
+The widget layer includes a material preset system for loading and applying PBR texture sets to widget surfaces.
+
+### 10A.1 Material Types (`widget/materialTypes.ts`)
+
+```typescript
+/** Named PBR texture set with map URLs and default material properties. */
+export type MaterialPreset = {
+  name: string;
+  maps: MaterialPresetMaps;
+  defaults?: MaterialPresetDefaults;
+};
+
+/** URL references to PBR texture files. All fields optional. */
+export type MaterialPresetMaps = {
+  colorMap?: string;
+  normalMap?: string;
+  roughnessMap?: string;
+  metalnessMap?: string;
+  aoMap?: string;
+};
+
+/** Default PBR property overrides applied when the preset is loaded. */
+export type MaterialPresetDefaults = {
+  metalness?: number;
+  roughness?: number;
+  envMapIntensity?: number;
+};
+
+/** Collection of named presets. */
+export type MaterialManifest = {
+  presets: MaterialPreset[];
+};
+
+/** Runtime application controls for tuning how a material preset is displayed. */
+export type MaterialApplication = {
+  colorMix?: number;       // How much texture color shows [0-1]. Default: 1.0.
+  brightness?: number;     // Texture brightness [0-2+]. Default: 1.0.
+  saturation?: number;     // Texture saturation [0-2+]. Default: 1.0.
+  contrast?: number;       // Texture contrast [-1 to 1]. Default: 0.
+  depthMix?: number;       // Normal/bump depth intensity [0-1]. Default: 1.0.
+  roughnessMix?: number;   // Roughness map mix [0-1]. Default: 1.0.
+  tint?: string;           // Tint color multiplied into texture.
+  texScale?: number;       // Texture scale override.
+};
+
+export type LoadedMaterialTextures = { /* loaded THREE.Texture instances */ };
+export type LoadedMaterialPreset = { /* resolved preset with loaded textures */ };
+```
+
+### 10A.2 MaterialLoader (`widget/MaterialLoader.ts`)
+
+```typescript
+export class MaterialLoader {
+  /** Load a named preset from the manifest. Caches loaded textures. */
+  load(presetName: string, manifest: MaterialManifest): Promise<LoadedMaterialPreset>;
+  /** Check if a preset is already loaded. */
+  has(presetName: string): boolean;
+  /** Get a previously loaded preset. */
+  get(presetName: string): LoadedMaterialPreset | undefined;
+  /** Dispose all cached textures. */
+  dispose(): void;
+}
+```
+
+`MaterialLoader` is used by `FloorWidget` (via `FloorSurfacePhysical.surfaceMaterial`) and `CarouselScrubberWidget` (via `CarouselTrayProps.surface`) to apply named material presets to their surfaces.
 
 ---
 
@@ -1165,7 +1304,7 @@ apply(state: MyState, ctx: WidgetRenderContext): void {
 ### 12.4 AnimationTickContext
 
 ```typescript
-type AnimationTickContext = {
+type AnimationTickContext<TState = unknown> = {
   clock: RealtimeClock;          // synchronized real-time clock
   effectiveDeltaSeconds: number; // scroll-boosted delta; equals clock.deltaSeconds when idle
   scene: THREE.Scene;
@@ -1177,10 +1316,9 @@ type AnimationTickContext = {
    * For FunctionalTransitionSpec widgets: the runtime evaluates the closure at
    * tick.blockProgress and places the result here, so IAnimationController
    * implementors do not need to duplicate the runtime's state resolution.
-   * Cast to TState inside the widget's onTick() body.
    * Null when the widget has no compiled state for this tick.
    */
-  resolvedState: unknown;
+  resolvedState: TState | null;
   /**
    * The registered ICameraFocusTarget, if any.
    * Use this to request camera focus operations (e.g. on node double-click)

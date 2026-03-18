@@ -42,15 +42,15 @@ function isDataSourceConfig(v: DataInput): v is DataSourceConfig {
 /**
  * Registers data sources into the ChartDataStore provided by chartPlugin().wrapProvider().
  *
- * Must be placed inside the EngineProvider that includes chartPlugin().
+ * Must be placed inside the SceneEngine that includes chartPlugin().
  * Data is registered on mount and unregistered on unmount.
  *
  * @example
- * <EngineProvider plugins={[corePlugin(), chartsPlugin]}>
+ * <SceneEngine plugins={[corePlugin(), chartsPlugin]} getFrame={() => <MyScene />}>
  *   <ChartProvider data={{ sales: salesRows }}>
- *     <ScenePlayer ... />
+ *     <SceneCanvas />
  *   </ChartProvider>
- * </EngineProvider>
+ * </SceneEngine>
  */
 export function ChartProvider({ data, children }: ChartProviderProps): ReactNode {
   const store = useChartStore();

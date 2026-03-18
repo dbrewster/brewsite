@@ -11,21 +11,14 @@ export type EngineFrameState = {
   tick?: SceneTrackTick | null;
 };
 
-/**
- * @deprecated Use EngineFrameState instead.
- * EngineState was a subset of EngineFrameState differing only in the absence
- * of the `tick` field. EngineFrameState now has `tick` as optional.
- */
-export type EngineState = EngineFrameState;
-
 // Re-export CameraInteractionDefaults from canonical location (elements/camera/types).
-// useSceneEngine.ts and EngineProvider.tsx import this from './engineTypes' — the re-export
+// useSceneEngine.ts and SceneEngine.tsx import this from './engineTypes' — the re-export
 // keeps those imports working without modification.
 export type { CameraInteractionDefaults } from '../elements/camera/types';
 
 /**
  * Internal scene spec linking a scene registration key to its compiled content.
- * Shared between ScenePlayer, EngineProvider, and useSceneEngine.
+ * Shared between ScenePlayer, SceneEngine, and useSceneEngine.
  */
 export type InternalSceneSpec = {
   readonly sceneKey: string;

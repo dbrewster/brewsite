@@ -1,5 +1,5 @@
 // @brewsite/screens — Screen, MediaScreen, and ImagePanel elements for the BrewSite toolkit.
-// Handler registration is NOT automatic — use screensPlugin() with EngineProvider.
+// Handler registration is NOT automatic — use screensPlugin() with SceneEngine.
 
 // ─── Plugin ───────────────────────────────────────────────────────────────────
 export { screensPlugin } from './plugin';

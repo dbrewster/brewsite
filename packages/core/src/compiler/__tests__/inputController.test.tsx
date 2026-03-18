@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import React from 'react';
 import { Scene, resolveSceneFromDsl } from '../sceneDslCompiler';
 import {
@@ -24,7 +24,7 @@ describe('inputController compiler', () => {
       <Scene id="s1">
         <InputController id="main" scope="canvas">
           <Action id="focus-canvas" type="diagram-canvas.focus" canvasId="llm-canvas">
-            <PointerMap click button="left" modifiers={['meta']} />
+            <PointerMap event="click" button="left" modifiers={['meta']} />
           </Action>
         </InputController>
       </Scene>
@@ -42,7 +42,7 @@ describe('inputController compiler', () => {
     });
   });
 
-  it('compiles PointerMap event=\"click\" to click event', () => {
+  it('compiles PointerMap event="click" to click event', () => {
     const registry = new WidgetRegistry();
     const tree = (
       <Scene id="s1">
@@ -63,23 +63,20 @@ describe('inputController compiler', () => {
     });
   });
 
-  it('warns when PointerMap click boolean prop is used', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it('defaults PointerMap event to drag when not specified', () => {
     const registry = new WidgetRegistry();
     const tree = (
       <Scene id="s1">
         <InputController id="main" scope="canvas">
-          <Action id="focus-canvas" type="diagram-canvas.focus" canvasId="llm-canvas">
-            <PointerMap click />
+          <Action id="orbit" type="camera.orbit" cameraId="camera">
+            <PointerMap button="left" axis="xy" />
           </Action>
         </InputController>
       </Scene>
     );
     const { frame } = resolveSceneFromDsl(tree, context, registry);
     const spec = frame.widgets['__input_controller'] as SceneInputControllerSpec;
-    expect(spec.actions[0]?.maps[0]).toMatchObject({ kind: 'pointer', event: 'click' });
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('deprecated'));
-    warnSpy.mockRestore();
+    expect(spec.actions[0]?.maps[0]).toMatchObject({ kind: 'pointer', event: 'drag' });
   });
 
   it('compiles an Action with a PinchMap child', () => {
@@ -104,10 +101,9 @@ describe('inputController compiler', () => {
     });
   });
 
-  it('compiles KeyMap keyName and warns for React key fallback', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it('compiles KeyMap with keyName', () => {
     const registry = new WidgetRegistry();
-    const keyNameTree = (
+    const tree = (
       <Scene id="s1">
         <InputController id="main" scope="canvas">
           <Action id="step-next" type="scene.step">
@@ -116,23 +112,8 @@ describe('inputController compiler', () => {
         </InputController>
       </Scene>
     );
-    const keyFallbackTree = (
-      <Scene id="s1">
-        <InputController id="main" scope="canvas">
-          <Action id="step-next" type="scene.step">
-            {/* React key prop fallback path */}
-            <KeyMap key="ArrowRight" />
-          </Action>
-        </InputController>
-      </Scene>
-    );
-
-    const keyNameSpec = resolveSceneFromDsl(keyNameTree, context, registry).frame.widgets['__input_controller'] as SceneInputControllerSpec;
-    expect(keyNameSpec.actions[0]?.maps[0]).toMatchObject({ kind: 'key', key: 'ArrowRight' });
-
-    const fallbackSpec = resolveSceneFromDsl(keyFallbackTree, context, registry).frame.widgets['__input_controller'] as SceneInputControllerSpec;
-    expect(fallbackSpec.actions[0]?.maps[0]).toMatchObject({ kind: 'key', key: 'ArrowRight' });
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('reserved \"key\" prop'));
-    warnSpy.mockRestore();
+    const { frame } = resolveSceneFromDsl(tree, context, registry);
+    const spec = frame.widgets['__input_controller'] as SceneInputControllerSpec;
+    expect(spec.actions[0]?.maps[0]).toMatchObject({ kind: 'key', key: 'ArrowRight' });
   });
 });

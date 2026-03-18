@@ -40,7 +40,7 @@ async function main(): Promise<void> {
 
   const config: ProjectConfig = {
     projectRoot: process.cwd(),
-    packages: ['@brewsite/core', ...(optionalPackages as string[])],
+    packages: ['@brewsite/core', 'camera-controls', ...(optionalPackages as string[])],
     installClaudeAuthor: installClaudeAuthor as boolean,
   };
 

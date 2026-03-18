@@ -6,7 +6,7 @@ import { defaultDeckTheme } from '../theme';
 
 /**
  * Merges the provided DeckTheme with defaults and derives:
- *  - A SceneTheme for injection into EngineProvider.sceneTheme
+ *  - A SceneTheme for injection into SceneEngine.sceneTheme
  *  - A CSS variable map for the --slide-* namespace injected by SlideMetaWidget
  *
  * This function is pure: same inputs always produce the same output.

@@ -105,7 +105,7 @@ export default function Page() {
 ```ts
 import { diagramPlugin } from '@brewsite/diagram';
 
-// Pass to EngineProvider or ScenePlayer plugins prop
+// Pass to SceneEngine plugins prop
 const plugin = diagramPlugin();
 ```
 

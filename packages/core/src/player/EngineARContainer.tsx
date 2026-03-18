@@ -65,8 +65,8 @@ export type EngineARContainerProps = {
  * Consumed by @brewsite/model's LabelPositioner to compute correct label
  * screen positions regardless of the enclosing layout component.
  *
- * Replaces EngineARContainerContext as the label-positioning contract so that
- * custom layouts (not just EngineARContainer) can provide it.
+ * Label-positioning contract that custom layouts (not just EngineARContainer)
+ * can provide.
  */
 export type ViewportScaleContextValue = {
   containerWidth: number;
@@ -83,9 +83,6 @@ export type ViewportScaleContextValue = {
   scaleMode: ScaleMode;
 };
 
-/** @deprecated Use ViewportScaleContextValue. Alias will be removed in v3. */
-export type EngineARContainerContextValue = ViewportScaleContextValue;
-
 /**
  * Context exported so children can read container dimensions if needed.
  */
@@ -96,9 +93,6 @@ export const ViewportScaleContext = createContext<ViewportScaleContextValue>({
   referenceWidth: 1920,
   scaleMode: 'fit-width',
 });
-
-/** @deprecated Use ViewportScaleContext. Alias will be removed in v3. */
-export const EngineARContainerContext = ViewportScaleContext;
 
 /**
  * Computes the --scene-scale value and container pixel dimensions
@@ -214,7 +208,7 @@ function computeContainerStyle(
 /**
  * AR-locked container that maintains a fixed aspect ratio, injects the
  * `--scene-scale` CSS custom property on every resize, and provides
- * container dimensions to children via EngineARContainerContext.
+ * container dimensions to children via ViewportScaleContext.
  *
  * The outer div fills its parent (width: 100%; height: 100%; position: relative).
  * The inner div is sized according to the scaleMode and centered as needed.

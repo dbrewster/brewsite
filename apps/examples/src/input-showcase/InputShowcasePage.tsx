@@ -39,10 +39,7 @@ function createPlugins(): { plugins: WidgetPlugin[] } {
     plugins: [
       corePlugin(),
       chartPlugin(),
-      diagramPlugin({
-        diagrams: [
-          'cf-overview',
-          ]}),
+      diagramPlugin(),
       texturesPlugin(),
       themesPlugin(),
       ]
@@ -136,7 +133,7 @@ export default function InputShowcasePage(): JSX.Element {
         >
           <EngineARContainer aspectRatio={16 / 9} scaleMode="fit-width">
             <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
-            <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1, top: '300px' }} />
+            <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1, top: '300px', height: '100%' }} />
             {/*
               passthroughPointerEvents makes the overlay container pointer-events:none
               so pointer/wheel/click events pass through to the canvas where

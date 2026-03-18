@@ -12,7 +12,7 @@ import { ChartDataStore } from '../data/ChartDataStore';
 import { ChartStoreContext } from '../data/ChartStoreContext';
 import { resolveChartTheme } from '../themes/chartThemeRegistry';
 import {
-  Chart, ChartData, ChartAxis, ChartSeries, ChartLegend, ChartDataLabels, ReferenceLine,
+  ChartData, ChartAxis, ChartSeries, ChartLegend, ChartDataLabels, ReferenceLine,
   BarChart, LineChart, ScatterPlotChart, PieChart, AreaChart, HeatMapChart, ChartTooltip,
 } from '../elements/chart/stubs';
 import {
@@ -27,7 +27,6 @@ import {
 import { ChartWidget } from '../elements/chart/ChartWidget';
 import { registerChartHandlers } from '../compiler/handlers';
 import type {
-  ChartDSL,
   ChartDataDSL,
   ChartSeriesDSL,
   ChartLegendDSL,
@@ -133,16 +132,16 @@ function extractChartChildren(
  * Creates a WidgetPlugin for @brewsite/charts.
  *
  * Each call creates a fully isolated plugin + ChartDataStore instance.
- * Use one instance per EngineProvider.
+ * Use one instance per SceneEngine.
  *
  * @example
  * const chartsPlugin = useMemo(() => chartPlugin(), []);
  * // In JSX:
- * <EngineProvider plugins={[corePlugin(), chartsPlugin]}>
+ * <SceneEngine plugins={[corePlugin(), chartsPlugin]} getFrame={() => <MyScene />}>
  *   <ChartProvider data={{ sales: [...] }}>
- *     <ScenePlayer ... />
+ *     <SceneCanvas />
  *   </ChartProvider>
- * </EngineProvider>
+ * </SceneEngine>
  */
 export function chartPlugin(): ChartPluginInstance {
   const store = new ChartDataStore();
@@ -349,74 +348,6 @@ export function chartPlugin(): ChartPluginInstance {
         api.setWidgetState(chartId, state);
       });
 
-      // ─── Deprecated V1 Chart handler ──────────────────────────────────────
-      // Maps V1 flat props to V2 typeConfig structure.
-      registerNode(Chart, (node: ReactElement, api: CompileApi, helpers: CompileHelpers) => {
-        const props = node.props as Record<string, unknown>;
-        const chartId = typeof props['id'] === 'string' ? props['id'] : null;
-        if (!chartId) throw new Error('<Chart> requires a string "id" prop.');
-
-        if (!registry.get(chartId)) registerChartWidget(registry, chartId);
-
-        const dsl = props as ChartDSL;
-        const kind = (dsl.type ?? 'bar') as ChartState['type'];
-
-        const children = helpers.collectChildren(node);
-        const { dataDsl, axisDsls, seriesDsls, legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl } =
-          extractChartChildren(children);
-
-        // Build typeOptions from V1 flat props — V1→V2 compat shim
-        let typeOptions: ChartTypeOptions;
-        switch (kind) {
-          case 'line':
-            typeOptions = {
-              kind: 'line',
-              options: {
-                lineShape: dsl.lineShape,
-                lineSmoothness: dsl.lineSmoothness,
-                lineSubdivisions: dsl.lineSubdivisions,
-              },
-            };
-            break;
-          case 'pie':
-            typeOptions = {
-              kind: 'pie',
-              options: {
-                innerRadius: dsl.innerRadius,
-                pieTilt: dsl.pieTilt,
-              },
-            };
-            break;
-          case 'heatmap':
-            typeOptions = {
-              kind: 'heatmap',
-              options: {
-                timeField: dsl.timeField,
-              },
-            };
-            break;
-          case 'scatter':
-            typeOptions = { kind: 'scatter', options: {} };
-            break;
-          case 'area':
-            typeOptions = { kind: 'area', options: {} };
-            break;
-          default:
-            typeOptions = { kind: 'bar', options: {} };
-            break;
-        }
-
-        const resolvedTheme = resolveChartTheme(api.context.themeFamily, api.context.themePolarity);
-        const state = compileChart(
-          dsl, kind, typeOptions, dataDsl, axisDsls, seriesDsls,
-          legendDsl, dataLabelsDsl, referenceLineDsls, tooltipDsl,
-          resolvedTheme,
-          api.composeBounds,
-          api.composeZ,
-          api.composeOpacity,
-        );
-        api.setWidgetState(chartId, state);
-      });
     },
 
     reconcileCompiledTrack: (

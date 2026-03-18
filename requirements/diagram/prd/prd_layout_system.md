@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Layout System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-15
+last_updated: 2026-03-17
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -20,6 +20,9 @@ change_history:
   - date: 2026-03-15
     author: "Toolkit Product"
     summary: "Codebase alignment: removed DEFAULT_NODE_SIZE from diagramLayoutConstants.ts exports list. The actual exports are: DEFAULT_GROUP_PADDING, DEFAULT_TITLE_GAP, DEFAULT_MANUAL_GROUP_PADDING, DEFAULT_MANUAL_TITLE_GAP."
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Clarified titleGap default behavior: the package-level DEFAULT_TITLE_GAP constant is 1, but the enterprise theme (which is the default/fallback theme) overrides titleGap to 0.75 for grid, hierarchical, and manual layouts. Added note in BaseLayoutDSL, ManualLayoutDSL, and FlowLayoutDSL type documentation to clarify the effective default consumers see. Updated DSL component type comments to match dsl.tsx (Grid/Hierarchical/Manual: 0.75, Flow: 1)."
 ---
 
 # BrewSite Diagram — Layout System
@@ -92,7 +95,7 @@ export interface ManualLayoutDSL {
   readonly kind: 'manual';
   /** Padding inside group boundary boxes in diagram units (CSS shorthand). Default: 1.5 */
   readonly groupPadding?: LayoutPadding;
-  /** Vertical gap between group title label and content area. Default: 1 */
+  /** Vertical gap between group title label and content area. Package default: 1; enterprise theme overrides to 0.75. */
   readonly titleGap?: number;
 }
 ```
@@ -102,6 +105,7 @@ export interface ManualLayoutDSL {
 ```typescript
 export interface ManualLayoutProps {
   groupPadding?: LayoutPadding;
+  /** Gap between group title and content. Default: 0.75 (enterprise theme override of package constant 1) */
   titleGap?: number;
 }
 
@@ -159,7 +163,7 @@ export interface BaseLayoutDSL {
   readonly margin?: number | readonly [number, number];
   /** Padding inside group boundary boxes in diagram units (CSS shorthand). Default: 1.5 */
   readonly groupPadding?: LayoutPadding;
-  /** Gap between group title label and content area. Default: 1 */
+  /** Gap between group title label and content area. Package default: 1; enterprise theme overrides to 0.75. */
   readonly titleGap?: number;
   /**
    * Alignment of nodes within a row.
@@ -186,6 +190,7 @@ export interface GridLayoutProps {
   spacing?: [number, number];
   margin?: number | [number, number];
   groupPadding?: LayoutPadding;
+  /** Gap between group title and content. Default: 0.75 (enterprise theme override of package constant 1) */
   titleGap?: number;
   alignment?: LayoutAlignment;
   disconnected?: LayoutDisconnected;
@@ -202,14 +207,16 @@ export interface ResolvedGridLayout extends ResolvedBaseLayout {
   readonly columns: number | 'auto';  // 'auto' resolves to 4 inside the algorithm
 }
 
-// Package-level defaults:
+// Package-level defaults (before theme override):
+// Note: the enterprise theme (default fallback) overrides titleGap to 0.75.
+// Consumers effectively see titleGap: 0.75 unless they override it explicitly.
 export const DEFAULT_RESOLVED_GRID: ResolvedGridLayout = {
   kind: 'grid',
   columns: 'auto',         // → 4
   spacing: [2, 2],
   margin: [0, 0],
   groupPadding: [1.5, 1.5, 1.5, 1.5],
-  titleGap: 1,
+  titleGap: 1,             // effective: 0.75 with enterprise theme
   alignment: 'left',
   disconnected: 'next-to',
 };
@@ -258,6 +265,7 @@ export interface HierarchicalLayoutProps {
   spacing?: [number, number];
   margin?: number | [number, number];
   groupPadding?: LayoutPadding;
+  /** Gap between group title and content. Default: 0.75 (enterprise theme override of package constant 1) */
   titleGap?: number;
   alignment?: LayoutAlignment;
   disconnected?: LayoutDisconnected;
@@ -274,14 +282,14 @@ export interface ResolvedHierarchicalLayout extends ResolvedBaseLayout {
   readonly direction: 'top-down' | 'left-right';
 }
 
-// Package-level defaults:
+// Package-level defaults (before theme override):
 export const DEFAULT_RESOLVED_HIERARCHICAL: ResolvedHierarchicalLayout = {
   kind: 'hierarchical',
   direction: 'top-down',
   spacing: [1.5, 1.5],    // [within-level gap, between-level gap]
   margin: [0, 0],
   groupPadding: [1.5, 1.5, 1.5, 1.5],
-  titleGap: 1,
+  titleGap: 1,             // effective: 0.75 with enterprise theme
   alignment: 'center',
   disconnected: 'next-to',
 };

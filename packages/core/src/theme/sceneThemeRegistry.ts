@@ -2,7 +2,7 @@
 // The 'default' and 'enterprise' pairs are pre-loaded at module init;
 // other families are registered by @brewsite/themes at app startup.
 
-import type { SceneTheme } from './types';
+import type { SceneTheme, ThemeFamily } from './types';
 import { enterpriseSceneTheme, enterpriseLightSceneTheme } from './presets';
 
 /** A light+dark pair of SceneTheme presets for a single theme family. */
@@ -20,7 +20,7 @@ registry.set('enterprise', { dark: enterpriseSceneTheme, light: enterpriseLightS
  * beyond the built-in 'default' pair.
  */
 export function registerSceneThemePair(
-  family: string,
+  family: ThemeFamily | (string & {}),
   pair: SceneThemePair,
 ): void {
   registry.set(family, pair);
@@ -31,7 +31,7 @@ export function registerSceneThemePair(
  * Falls back to the 'default' pair if the requested family is not registered.
  */
 export function resolveSceneTheme(
-  family: string,
+  family: ThemeFamily | (string & {}),
   polarity: 'dark' | 'light',
 ): SceneTheme {
   const pair = registry.get(family) ?? registry.get('default')!;

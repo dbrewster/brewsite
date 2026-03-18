@@ -1,17 +1,11 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { themesPlugin } from '../plugin';
-import {
-  resolveSceneTheme,
-  _resetSceneThemeRegistryForTesting,
-} from '@brewsite/core';
-import {
-  resolveDiagramTheme,
-  _resetDiagramThemeRegistryForTesting,
-} from '@brewsite/diagram';
-import {
-  resolveChartTheme,
-  _resetChartThemeRegistryForTesting,
-} from '@brewsite/charts';
+import { resolveSceneTheme } from '@brewsite/core';
+import { _resetSceneThemeRegistryForTesting } from '@brewsite/core/testing';
+import { resolveDiagramTheme } from '@brewsite/diagram';
+import { _resetDiagramThemeRegistryForTesting } from '@brewsite/diagram/testing';
+import { resolveChartTheme } from '@brewsite/charts';
+import { _resetChartThemeRegistryForTesting } from '@brewsite/charts/testing';
 import type { WidgetRegistry, AssetManifest } from '@brewsite/core';
 
 const mockReg = {} as WidgetRegistry;

@@ -68,7 +68,7 @@ export const hasRegisteredPlayer = (id: string): boolean => states.has(id);
 
 // ─── Engine Snapshot Registry ─────────────────────────────────────────────────
 // Provides frame-level engine state accessible from anywhere in the React tree
-// via useSceneEngineState(id) — no EngineProvider ancestor required.
+// via useSceneEngineState(id) — no SceneEngine ancestor required.
 
 export type SceneEngineSnapshot = {
   readonly sceneId: string;

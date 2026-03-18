@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
+import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager, TextBox } from '@brewsite/core';
 import { Diagram, DiagramNode, DiagramEdge, DiagramGroup, HierarchicalLayout, DiagramEnter } from '@brewsite/diagram';
 import { dwellFn } from '../../utils/pacing';
 import { isMobile } from '../../utils/viewport';
@@ -68,15 +68,8 @@ export const scene02CoreBaked: JSX.Element = (
         <DiagramEdge from="decision" to="owners" label="assign" flow="forward" style="dashed" />
       </Diagram>
 
-    <div key="core-baked-overlay" style={{
-      position: 'absolute',
-      bottom: '12%',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      width: '90%',
-      maxWidth: 820,
-      textAlign: 'center',
-    }}>
+    <TextBox key="core-baked-overlay" x={0.05} y={0.52} w={0.9} h={0.45} overflow="visible">
+      <div style={{ textAlign: 'center' }}>
       <div style={{
         fontFamily: 'JetBrains Mono, monospace',
         fontSize: 11,
@@ -137,6 +130,7 @@ export const scene02CoreBaked: JSX.Element = (
           </span>
         ))}
       </div>
-    </div>
+      </div>
+    </TextBox>
   </Scene>
 );

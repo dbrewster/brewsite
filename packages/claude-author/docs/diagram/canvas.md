@@ -169,19 +169,14 @@ window.addEventListener(DIAGRAM_FOCUS_REGION_EVENT, (event) => {
 });
 ```
 
-The focus region is published by `DiagramWidget` internally when a user interacts with groups (if `clickable` is set on group nodes and the diagram has hover handlers wired). It can also be published by your own event handlers:
+The focus region is published by `DiagramWidget` internally when a user interacts with groups (if `clickable` is set on group nodes and the diagram has hover handlers wired).
 
-```tsx
-import { publishDiagramFocusGroup, publishDiagramFocusCanvas } from '@brewsite/diagram';
+**Note:** `publishDiagramFocusGroup` and `publishDiagramFocusCanvas` are internal functions and are NOT exported from the `@brewsite/diagram` package index. The public API for focus regions is:
 
-// In a DiagramNode onMouseEnter handler — focus a specific group:
-onMouseEnter={() => {
-  publishDiagramFocusGroup({ id: 'my-diagram' }, 'my-diagram', 'backend-group');
-}}
-
-// Focus the whole canvas (zoom out):
-publishDiagramFocusCanvas({ id: 'my-diagram' });
-```
+- `getDiagramFocusRegion()` — read current focus state
+- `clearDiagramFocusRegion(canvasId?)` — clear focus
+- `DIAGRAM_FOCUS_REGION_EVENT` — event name for `window.addEventListener`
+- `useDiagramFocusRegion(options?)` — React hook for subscribing to focus changes
 
 ## Complete DiagramCanvas Example
 

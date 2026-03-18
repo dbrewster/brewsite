@@ -76,14 +76,22 @@ export async function scaffoldProject(config: ProjectConfig): Promise<void> {
     console.log('  Created src/scenes/intro.tsx');
   }
 
-  // 4. Write tsconfig.json if not present
+  // 4. Write App.tsx if not present
+  const appPath = join(projectRoot, 'src', 'App.tsx');
+  if (!existsSync(appPath)) {
+    mkdirSync(join(projectRoot, 'src'), { recursive: true });
+    copyFileSync(join(TEMPLATES_DIR, 'App.tsx'), appPath);
+    console.log('  Created src/App.tsx');
+  }
+
+  // 6. Write tsconfig.json if not present
   const tsconfigPath = join(projectRoot, 'tsconfig.json');
   if (!existsSync(tsconfigPath)) {
     copyFileSync(join(TEMPLATES_DIR, 'tsconfig.json'), tsconfigPath);
     console.log('  Created tsconfig.json');
   }
 
-  // 5. Run claude-author init (shells out — no direct dependency)
+  // 7. Run claude-author init (shells out — no direct dependency)
   if (installClaudeAuthor) {
     console.log('\nSetting up Claude Code integration...');
     execSync('npx @brewsite/claude-author init', {

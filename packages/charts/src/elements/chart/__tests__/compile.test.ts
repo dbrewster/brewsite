@@ -415,8 +415,8 @@ describe('compileChart', () => {
     expect(state.bounds.height).toBe(1);
   });
 
-  it('bounds.width is always derived from dsl.w (bounds.width override ignored)', () => {
-    const state = compileChart(baseDsl({ w: 0.8, bounds: { width: 0.5 } }), 'bar', barTypeOptions, null, [], [], null, null, []);
+  it('bounds.width is derived from dsl.w', () => {
+    const state = compileChart(baseDsl({ w: 0.8 }), 'bar', barTypeOptions, null, [], [], null, null, []);
     expect(state.bounds.width).toBe(0.8);
   });
 
@@ -426,7 +426,7 @@ describe('compileChart', () => {
   });
 
   it('explicit bounds.depth overrides default', () => {
-    const state = compileChart(baseDsl({ bounds: { depth: 0.8 } }), 'bar', barTypeOptions, null, [], [], null, null, []);
+    const state = compileChart(baseDsl({ depth: 0.8 }), 'bar', barTypeOptions, null, [], [], null, null, []);
     expect(state.bounds.depth).toBe(0.8);
   });
 

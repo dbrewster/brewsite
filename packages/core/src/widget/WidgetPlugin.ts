@@ -10,17 +10,17 @@ import type * as THREE from 'three';
 /**
  * Contract for a composable widget package.
  *
- * Passed to EngineProvider via the `plugins` prop. Each plugin is responsible
+ * Passed to SceneEngine via the `plugins` prop. Each plugin is responsible
  * for registering its own widgets and DSL NodeHandlers. Plugins are initialized
  * in the order they appear in the plugins array.
  *
  * Design rules:
- * - createWidgets() is called once when EngineProvider mounts.
+ * - createWidgets() is called once when SceneEngine mounts.
  * - registerHandlers() must be idempotent (safe to call multiple times).
  * - Plugins must not import from each other — use shared core interfaces only.
  *
  * @example
- * // In EngineProvider / ScenePlayer:
+ * // In SceneEngine / ScenePlayer:
  * plugins={[corePlugin(), modelPlugin({ manifestUrl: '/assets/manifest.json' })]}
  */
 export interface WidgetPlugin {
@@ -69,8 +69,8 @@ export interface WidgetPlugin {
   reconcileCompiledTrack?(registry: WidgetRegistry, track: SceneTrack): void;
 
   /**
-   * Optional: wraps EngineProvider's rendered subtree with this plugin's React
-   * context providers. Called by EngineProvider during render. The returned JSX
+   * Optional: wraps SceneEngine's rendered subtree with this plugin's React
+   * context providers. Called by SceneEngine during render. The returned JSX
    * replaces `children` as the inner content.
    *
    * Use to install React context that plugin components (e.g. LabelItem) consume.

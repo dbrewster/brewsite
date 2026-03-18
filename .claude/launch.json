@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "brewsite-apps",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@brewsite/apps", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "brewsite-docs-app",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@brewsite/docs-app", "dev"],
+      "port": 5175
+    },
+    {
+      "name": "brewsite-core-watch",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@brewsite/core", "dev"],
+      "port": null
+    }
+  ]
+}

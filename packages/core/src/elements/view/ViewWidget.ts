@@ -8,8 +8,6 @@ import type { ViewState } from '../../compiler/viewTypes';
 
 /** Lerp factor per frame for smooth carousel transitions. 0.12 ≈ 60fps ease. */
 const LERP_FACTOR = 0.12;
-/** Snap-to-target threshold. When distance to target is below this, snap instantly. */
-const SNAP_THRESHOLD = 0.001;
 
 /**
  * IRenderable widget for ViewLayout carousel repositioning.
@@ -26,7 +24,6 @@ const SNAP_THRESHOLD = 0.001;
  */
 export class ViewWidget implements IRenderable<ViewState> {
   readonly widgetId: string;
-  private scene: THREE.Scene | null = null;
 
   /** Compile-time View center in NVS coords — captured on first apply(). */
   private originalNvsCenter: { x: number; y: number } | null = null;
@@ -70,6 +67,13 @@ export class ViewWidget implements IRenderable<ViewState> {
   /** Current interpolated opacity. */
   private currentOpacity: number | null = null;
 
+  /**
+   * Current world-space center of this view, updated each apply().
+   * Exposed for other widgets (e.g., carousel highlight) that need to
+   * track this view's live position without reading child Object3D offsets.
+   */
+  currentWorldCenter: { x: number; y: number; z: number } = { x: 0, y: 0, z: 0 };
+
   constructor(
     viewId: string,
     resolveChildWidget: (widgetId: string) => IWidget | undefined,
@@ -80,8 +84,8 @@ export class ViewWidget implements IRenderable<ViewState> {
     this.resolveChildObject = resolveChildObject;
   }
 
-  initialize({ scene }: WidgetInitContext): void {
-    this.scene = scene;
+  initialize(_ctx: WidgetInitContext): void {
+    // Scene ref not currently needed — children manage their own scene objects.
   }
 
   apply(state: ViewState, ctx: WidgetRenderContext): void {
@@ -123,6 +127,9 @@ export class ViewWidget implements IRenderable<ViewState> {
     const targetDeltaY = newCy - oldCy * targetScaleRatio;
     const targetDeltaZ = state.z - this.originalZ;
     const targetOpacity = state.opacity;
+
+    // Expose the current world center for external consumers (e.g., highlights).
+    this.currentWorldCenter = { x: newCx, y: newCy, z: state.z };
 
     // Apply with lerp animation to each child object.
     for (const childId of this.childWidgetIds) {
@@ -180,7 +187,6 @@ export class ViewWidget implements IRenderable<ViewState> {
   }
 
   dispose(): void {
-    this.scene = null;
     this.viewChildren = [];
     this.resolvedChildren = false;
     this.originalNvsCenter = null;

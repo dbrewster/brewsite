@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager } from '@brewsite/core';
+import { Scene, Camera, Lighting, Ambient, Directional, ProgressManager, TextBox } from '@brewsite/core';
 import { Diagram, DiagramEdge, DiagramNode, DiagramEnter, ManualLayout } from '@brewsite/diagram';
 import { isMobile } from '../../utils/viewport';
 import { dwellFn } from '../../utils/pacing';
@@ -62,7 +62,8 @@ export const scene03ArchDetail: JSX.Element = (
       </Diagram>
 
     {/* Right-aligned overlay: eyebrow + headline + snippet + body */}
-    <div key="arch-detail-overlay" style={{ position: 'absolute', bottom: '8%', right: '5%', textAlign: 'right', maxWidth: 340 }}>
+    <TextBox key="arch-detail-overlay" x={0.60} y={0.48} w={0.37} h={0.48} overflow="visible">
+      <div style={{ textAlign: 'right' }}>
       <div style={{
         fontFamily: 'JetBrains Mono, monospace',
         fontSize: 10,
@@ -103,5 +104,6 @@ export const scene03ArchDetail: JSX.Element = (
         One scene system. Infinite depth.
       </div>
     </div>
+    </TextBox>
   </Scene>
 );

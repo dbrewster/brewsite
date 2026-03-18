@@ -13,18 +13,12 @@ export type {
   ThemePolarity,
   // NEW: replaces SceneThemePair + the old themeFamily/themePolarity prop pair
   ActiveTheme,
+  HighlightVariantName,
+  SceneThemeHighlightVariant,
+  SceneThemeHighlightPalette,
 } from './types';
 export { ThemeContext, useTheme } from './ThemeContext';
-
-/**
- * @deprecated ThemeKeyContext is superseded by the compile-time theme path via
- * `<SceneEngine theme={...}>`. It will be removed in the next major release.
- */
-export { ThemeKeyContext, useThemeKey } from './ThemeKeyContext';
-/**
- * @deprecated ThemeKey is superseded by ActiveTheme. Use `ActiveTheme` instead.
- */
-export type { ThemeKey } from './ThemeKeyContext';
+export { darkHighlightPalette, lightHighlightPalette } from './highlightPalettes';
 
 export {
   defaultSceneTheme,
@@ -35,5 +29,4 @@ export {
 export {
   registerSceneThemePair,
   resolveSceneTheme,
-  _resetSceneThemeRegistryForTesting,
 } from './sceneThemeRegistry';

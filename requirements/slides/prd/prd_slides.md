@@ -3,11 +3,14 @@ title: "@brewsite/slides — Slide Deck Package"
 doc_type: prd
 owner: brewsite-product-manager
 status: current
-updated: 2026-03-05
+updated: 2026-03-17
 change_history:
   - date: 2026-03-05
     author: "brewsite-product-manager"
     summary: "Initial PRD created for v0.1.0 release. Documents the full feature set, public API surface, composition architecture, v1.0 vs v1.1 scope boundary, version history, and known limitations for the @brewsite/slides package."
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Codebase alignment audit. Fixed useSlideNotes signature: takes (slideKey: string) parameter, not zero args. PresenterView and SlidePrintLayout are now implemented as internal components but NOT exported from the package barrel. Added theme family system exports: DECK_THEME_PAIRS, getDeckThemeForFamily, createDeckThemeForFamily (from themeFamily.ts). Added SlideTransitionWrapper and SlideProgressIndicator as internal player components. Fixed compileDeckTheme function reference: actual function is compileDeckTheme() in compiler/themeCompiler.ts. Updated v1.0/v1.1 scope to reflect current implementation state."
 ---
 
 # @brewsite/slides — Slide Deck Package
@@ -104,7 +107,7 @@ These are internal infrastructure functions. They are not exported from `@brewsi
 | Export | Description |
 |---|---|
 | `useSlideNavigation` | Hook for reading and controlling the current slide. Returns `SlideNavigationState`. |
-| `useSlideNotes` | Hook for reading the active slide's speaker notes from VariableStore. Returns `string | undefined`. |
+| `useSlideNotes` | Hook for reading speaker notes for a given slide key from VariableStore. Takes `(slideKey: string)` parameter. Returns `string | undefined`. |
 | `computeSlideStartProgress` | Pure utility function. Computes the global engine progress for the start of slide index `i` given the `scrollUnits` array. |
 | `SlideNavigationState` | Return type of `useSlideNavigation`. |
 
@@ -131,6 +134,14 @@ These are internal infrastructure functions. They are not exported from `@brewsi
 | `defaultDeckTheme` | Built-in light-mode deck theme. |
 | `darkDeckTheme` | Built-in dark-mode deck theme. |
 | `createDeckTheme` | Factory for merging partial `DeckTheme` values with `defaultDeckTheme`. |
+
+### 3.9 Theme Family System
+
+| Export | Description |
+|---|---|
+| `DECK_THEME_PAIRS` | `Record<ThemeFamily, DeckThemePair>` — dark/light pairs for all 7 theme families (`default`, `enterprise`, `darkGlass`, `midnight`, `neonCyber`, `lightCanvas`, `lightMinimal`). |
+| `getDeckThemeForFamily` | `(family: ThemeFamily, polarity: ThemePolarity) => DeckTheme` — resolves the deck theme for a family and polarity. |
+| `createDeckThemeForFamily` | `(family: ThemeFamily, polarity: ThemePolarity) => DeckTheme` — returns a shallow-cloned DeckTheme for mutation-safe use. |
 
 ---
 
@@ -272,8 +283,8 @@ Configured via `SlidePlayer.progressIndicator`.
 Notes are authored as a prop on `<Slide notes="...">`. They are stored in the VariableStore by `SlideMetaWidget` under the key `slide-meta:{slideKey}.notes`. The `useSlideNotes` hook reads and returns the active slide's notes.
 
 ```typescript
-// Read active slide's notes
-const notes = useSlideNotes(); // string | undefined
+// Read speaker notes for a specific slide
+const notes = useSlideNotes('my-slide-key'); // string | undefined
 ```
 
 Notes are surfaced in the v1.1 `<PresenterView>` component. In v1.0, they are accessible via `useSlideNotes` for custom presenter integrations.
@@ -300,7 +311,7 @@ type DeckTheme = {
 };
 ```
 
-`compileDeckTheme(partial?: Partial<DeckTheme>)` merges the provided partial with `defaultDeckTheme` and derives:
+`compileDeckTheme(theme?: Partial<DeckTheme>)` (in `compiler/themeCompiler.ts`) merges the provided partial with `defaultDeckTheme` and derives:
 1. A `SceneTheme` for injection into `EngineProvider.sceneTheme` (maps `fonts.heading` → `SceneTheme.font.htmlFamily`, `colorMode`, `accentColor`).
 2. A `cssVars` map of `--slide-*` CSS custom properties injected into `EngineOverlayHost` by `SlideMetaWidget`.
 
@@ -436,12 +447,19 @@ The single non-trivial change to `@brewsite/core` made for this package is the a
 - `useSlideNavigation`, `useSlideNotes`, `computeSlideStartProgress`
 - 3D content embedding via `<SlideContent>` escape hatch with raw DSL
 
-### v1.1 (defined, deferred)
+### v1.1 (partially implemented)
 
+**Implemented but NOT exported from the package barrel:**
+- `PresenterView` (`player/PresenterView.tsx`) — same-tab collapsible sidebar. Reads engine state via `useSceneEngineState(id)`. Multi-window presenter view is not in scope. Implemented as an internal component; not yet part of the public API.
+- `SlidePrintLayout` (`player/SlidePrintLayout.tsx`) — CSS `@page` print component consuming `captureSlideSnapshots()`. Implemented as an internal component; not yet part of the public API.
+
+**Internal player components (not exported):**
+- `SlideTransitionWrapper` (`player/SlideTransitionWrapper.tsx`) — manages slide transition animations.
+- `SlideProgressIndicator` (`player/SlideProgressIndicator.tsx`) — renders the configurable progress indicator overlay.
+
+**Remaining v1.1 scope (not yet implemented):**
 - `<MediaLayout>` — first-class NVS partitioning for text + 3D sub-regions. Requires stable dual-constraint NVS solution.
-- `<PresenterView>` — same-tab collapsible sidebar. Reads engine state via `useSceneEngineState(id)`. Multi-window presenter view is not in scope.
 - `<SlideOverview>` — thumbnail grid panel.
-- `<SlidePrintLayout>` — CSS `@page` print component consuming `captureSlideSnapshots()`.
 - Additional text primitives: `<Code>`, `<Callout>`, `<Caption>`.
 - Additional slide transitions: `'slide-left'`, `'slide-right'`, `'zoom-in'`, `'zoom-out'`.
 - `scope: 'canvas'` for keyboard navigation (full implementation; v1.0 falls back to window).
@@ -479,11 +497,11 @@ Only `'dissolve'` and `'none'` are supported. Directional and zoom transitions a
 **L3 — Keyboard scope falls back to window.**
 `SlideNavigationConfig.scope: 'canvas'` is declared but not fully implemented. All keyboard events are attached to `window` in v1.0. Full canvas-scoped keyboard handling requires forwarding a `containerRef` into `SlidePlayerInner` and is deferred to v1.1.
 
-**L4 — No `<PresenterView>` in v1.0.**
-Speaker notes are accessible via `useSlideNotes` but there is no built-in presenter UI. Authors build custom presenter interfaces using `useSlideNotes` and `useSlideNavigation`. The `<PresenterView>` component ships in v1.1.
+**L4 — `PresenterView` implemented but not exported.**
+`PresenterView` is implemented in `player/PresenterView.tsx` but is not yet exported from the package barrel. Authors can use `useSlideNotes(slideKey)` and `useSlideNavigation` to build custom presenter interfaces. `PresenterView` will be promoted to the public API in a future release.
 
-**L5 — `SlidePrintLayout` deferred to v1.1.**
-`captureSlideSnapshots()` is available in v1.0 for custom print flows. The pre-built `<SlidePrintLayout>` component is v1.1. No server-side/headless PDF path is planned.
+**L5 — `SlidePrintLayout` implemented but not exported.**
+`SlidePrintLayout` is implemented in `player/SlidePrintLayout.tsx` but is not yet exported from the package barrel. `captureSlideSnapshots()` is available for custom print flows. `SlidePrintLayout` will be promoted to the public API in a future release. No server-side/headless PDF path is planned.
 
 **L6 — Empty manifest workaround.**
 `EngineProvider.manifestUrl` is required. When no GLTF assets are used, `SlidePlayer` passes a data-URL sentinel (`EMPTY_MANIFEST_URL`). This is an internal detail but reflects a DX gap in `@brewsite/core` (manifestUrl should be optional when no assets are needed). Flagged for core team review.

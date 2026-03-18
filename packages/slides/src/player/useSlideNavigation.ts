@@ -46,7 +46,7 @@ export function computeSlideStartProgress(scrollUnits: number[], index: number):
 
 /**
  * Reads the current slide index and provides navigation actions.
- * Must be used inside an EngineProvider subtree.
+ * Must be used inside an SceneEngine subtree.
  *
  * With Decision A = Option C, sceneIndex equals logical slide index always
  * (one scene per slide). If multi-scene expansion were ever used (Option A),

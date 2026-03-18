@@ -3,8 +3,14 @@ title: "BrewSite Core — Input System"
 doc_type: prd
 status: active
 owner: Toolkit Product
-last_updated: 2026-03-15
+last_updated: 2026-03-17
 change_history:
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "v1 release readiness audit: removed deprecated PointerMapProps.drag, PointerMapProps.click, and KeyMapProps.key fields. PointerMap event is specified via the 'event' prop. KeyMap keys are specified via the 'keys' prop (avoiding conflict with React's reserved 'key' prop)."
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Codebase alignment: removed touchSensitivityScale from InputCoordinatorProps (does not exist in code). Removed touchGestureClassifier.ts file references (file does not exist; touch gesture classification is inline in InputCoordinator). Fixed modifier matching description: ctrlKey maps to 'ctrl' and metaKey maps to 'meta' independently with no platform-specific Cmd-as-Ctrl mapping."
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents the full input system for @brewsite/core: SceneNavInputMap for scene navigation, InputController DSL for action-mapped input, ActionInputController runtime, useEngineInput hook, wheelGuard, keyboard defaults, and composability model."
@@ -119,7 +125,7 @@ The Input system solves these with a typed, composable API where plain scroll is
 5. The carry-forward mechanism is preserved: if scene N declares `<InputController>`, scene N+1 inherits that spec if N+1 has no `<InputController>`. Merge with defaults happens after carry-forward.
 6. The `ActionInputController` reads the spec via its `getSpec()` getter function on each input event. Event listeners are registered once via `attach()` and remain active for the controller's lifetime.
 7. The `wheelGuard` mechanism prevents scene navigation wheel events from firing while a modifier+scroll action (orbit, pan) is in progress.
-8. Modifier key matching evaluates `event.ctrlKey || event.metaKey` for `'ctrl'` on macOS (where Cmd key is `metaKey`). The `'meta'` modifier matches `metaKey` exclusively.
+8. Modifier key matching maps `event.ctrlKey` to `'ctrl'` and `event.metaKey` to `'meta'` independently. There is no platform-specific Cmd-as-Ctrl mapping — `'ctrl'` matches only `ctrlKey`, and `'meta'` matches only `metaKey`. To match the platform modifier on macOS (Cmd), use `'meta'` in the modifier list. To match Ctrl on all platforms, use `'ctrl'`.
 9. `InputController` scope `'canvas'` attaches pointer/wheel listeners to the canvas container and keyboard listeners to the stage container (focus-gated). Scope `'window'` attaches pointer/wheel to `window` and keyboard to `document`.
 10. All wheel event listeners use `{ passive: false }` to allow `preventDefault()`. Pointer events use `{ passive: true }`.
 11. Plugin packages extend action dispatch via `ActionInputExtensionContext`. `diagramPlugin.getActionInputExtension()` wires `diagram-canvas.*` actions to `DiagramWidget.applyCanvasAction()`.
@@ -332,7 +338,6 @@ export class ActionInputController {
 export interface InputCoordinatorProps {
   inertiaSensitivity?: number;        // default: 0.01
   inertiaDecay?: number;              // default: 0.85
-  touchSensitivityScale?: number;     // default: 3.5
   target?: HTMLElement | null;
   keyboardTarget?: HTMLElement | Document | Window | null;
   pauseWhenHidden?: PauseWhenHiddenOptions;
@@ -349,7 +354,7 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
 4. Routes built-in action types to the engine.
 5. Reads `ActionInputExtensionContext` for plugin-provided `onUnknownAction` handlers.
 6. Manages Y-axis inertia scroll (scene navigation) and X-axis inertia (carousel navigation) for unclaimed wheel events.
-7. Delegates to pure extracted modules: `inertiaAccumulator`, `axisArbiter`, `carouselStepper`, `touchGestureClassifier`.
+7. Delegates to pure extracted modules: `inertiaAccumulator`, `axisArbiter`, `carouselStepper`.
 
 **Priority waterfall for wheel events:**
 1. Scrollable overlay content -- yield to native DOM scroll.
@@ -377,7 +382,7 @@ export function resolveInputTargets(
 - `scope="window"`: pointer events on `window`, keyboard on `document`.
 - Explicit `target` / `keyboardTarget` props on `InputCoordinator` override scope resolution.
 
-### 7.10 Touch Gesture Classifier (`input/touchGestureClassifier.ts`)
+### 7.10 Touch Gesture Classifier
 
 ```typescript
 export type TouchGestureIntent =
@@ -389,7 +394,7 @@ export type TouchGestureIntent =
   | 'undecided';
 ```
 
-Pure state machine that classifies multi-touch gestures. 1-finger swipe is axis-arbitrated to scroll or carousel-swipe. 2-finger gestures are disambiguated as pinch (inter-finger distance change) or drag (centroid translation). 3+ fingers are always drag-3 (pan).
+Conceptual state machine that classifies multi-touch gestures. Touch gesture classification is handled inline within `InputCoordinator` rather than as a standalone extracted module. 1-finger swipe is axis-arbitrated to scroll or carousel-swipe. 2-finger gestures are disambiguated as pinch (inter-finger distance change) or drag (centroid translation). 3+ fingers are always drag-3 (pan).
 
 ### 7.11 ActionInputExtensionContext
 
@@ -418,7 +423,7 @@ The following pure, testable modules were extracted from `InputCoordinator` to r
 | `input/inertiaAccumulator.ts` | Stateful inertia math: accumulate deltas, decay velocity, emit progress. |
 | `input/axisArbiter.ts` | Sticky axis-lock state machine for wheel/touch X vs Y arbitration. |
 | `input/carouselStepper.ts` | Pure carousel index computation with loop/clamp behavior. |
-| `input/touchGestureClassifier.ts` | Multi-touch gesture classification (scroll, carousel-swipe, drag-2, pinch, drag-3). |
+| Touch gesture classification | Multi-touch gesture classification (scroll, carousel-swipe, drag-2, pinch, drag-3) is handled inline within `InputCoordinator`. |
 | `input/inputSpecMerger.ts` | Merges scene input spec with default spec by action `id`. |
 | `input/scopeResolver.ts` | Resolves `scope` field to concrete DOM target elements. |
 
@@ -442,11 +447,11 @@ Pointer events use `{ passive: true }`.
 
 ### 8.4 ModifierKey Matching
 
-Modifier key matching evaluates `event.ctrlKey || event.metaKey` for `'ctrl'` on macOS (where Cmd key is `metaKey`). `'ctrl'` in a modifier list matches the platform's primary modifier key. The `'meta'` modifier matches `metaKey` exclusively.
+Modifier key matching maps each DOM event modifier flag to a distinct modifier name: `event.altKey` -> `'alt'`, `event.ctrlKey` -> `'ctrl'`, `event.metaKey` -> `'meta'`, `event.shiftKey` -> `'shift'`. There is no platform-specific merging — `'ctrl'` matches only `ctrlKey` and `'meta'` matches only `metaKey`. On macOS, the Cmd key fires `metaKey`, so use `'meta'` in the modifier list to match it. The matching function requires that the set of pressed modifiers exactly equals the set of required modifiers (no extra, no missing).
 
 ### 8.5 Touch Gesture Handling
 
-Multi-touch gestures are classified by the `touchGestureClassifier` state machine. When a `PointerMap` has `touches: N`, it matches when exactly N touch points are active. The `ActionInputController` tracks a `Map<number, PointerEvent>` of active pointers. When `touches` count matches, it computes drag delta from the centroid of all tracked touch points.
+Multi-touch gestures are classified by touch gesture classification logic within `InputCoordinator`. When a `PointerMap` has `touches: N`, it matches when exactly N touch points are active. The `ActionInputController` tracks a `Map<number, PointerEvent>` of active pointers. When `touches` count matches, it computes drag delta from the centroid of all tracked touch points.
 
 A finger settle window (80ms from `TouchClassifierConfig.fingerSettleMs`) allows additional fingers to arrive before committing. During settle, no drag events are dispatched. After the window expires or movement exceeds the axis lock threshold, the finger count is committed.
 
@@ -521,7 +526,7 @@ Future breaking change risk:
 - `ActionInputController` has unit tests covering: action routing for drag, wheel, pinch, click, and key events; modifier key matching; wheel lock activation/idle timeout; sticky axis lock behavior; `onUnclaimedWheel` callback invocation; `touches` matching and centroid drag.
 - `InputController` and `Action` DSL compilation has unit tests covering: spec extraction, `type` validation, merge mode propagation, and invalid children warning.
 - Default input spec has unit tests verifying: no unmodified WheelMap, no left-drag pointer, meta+wheel orbit, shift+wheel pan, pinch zoom, 2-finger touch orbit, 3-finger touch pan.
-- Pure extracted modules (`inertiaAccumulator`, `axisArbiter`, `carouselStepper`, `touchGestureClassifier`, `inputSpecMerger`, `scopeResolver`) each have comprehensive unit tests.
+- Pure extracted modules (`inertiaAccumulator`, `axisArbiter`, `carouselStepper`, `inputSpecMerger`, `scopeResolver`) each have comprehensive unit tests.
 - Default keyboard navigation injection and merge with scene-authored specs are covered by compiler tests.
 - At least one example scene in `apps/examples/` demonstrates merge mode with custom overrides alongside defaults.
 - `InputActionSpec`, `InputActionType`, `InputActionMap`, `InputPointerMap`, `InputWheelMap`, `InputPinchMap`, `InputKeyMap`, `SceneInputControllerSpec`, `InputSpecMergeMode`, `ActionInputController`, and `InputCoordinator` are all exported from `packages/core/src/index.ts`.

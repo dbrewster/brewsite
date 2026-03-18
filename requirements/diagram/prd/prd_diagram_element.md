@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Diagram Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-13
+last_updated: 2026-03-17
 change_history:
   - date: 2026-03-10
     author: "Toolkit Product"
@@ -29,6 +29,9 @@ change_history:
   - date: 2026-03-08
     author: "Toolkit Product"
     summary: "Coordinate system migration and group label propagation: DiagramProps position/rotation/scale/pivot replaced with viewportBounds (NVSRect) and tilt ([number,number,number]); DiagramState position/rotation/scale/pivot/bounds replaced with viewportBounds and tiltRotation; exit/enter changed from null to undefined default; DiagramGroupProps.labelColor added for per-group title color override; DiagramGroupState.labelColor added as resolved field; FlowLayout DSL component added with FlowLayoutProps. All authoring examples updated. Breaking change assessment updated to major."
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Codebase alignment: removed theme? prop from DiagramProps (theme is on DiagramDSL in types.ts, not DiagramProps in dsl.tsx). Added surfaceMaterial and materialApplication props to DiagramNodeProps and DiagramGroupProps documentation. Fixed titleGap defaults in DSL comments: Grid/Hierarchical/Manual layouts default to 0.75 (via enterprise theme override of package constant 1), FlowLayout defaults to 1."
 ---
 
 # BrewSite Diagram — Diagram Element
@@ -114,12 +117,6 @@ export interface DiagramProps {
   z?: number;
   /** World-space geometry scale multiplier. Default: 1. */
   scale?: number;
-  /**
-   * Visual + behavioral theme.
-   * Falls back to darkGlassTheme when absent.
-   * Per-node / per-edge props take precedence over all theme values.
-   */
-  theme?: DiagramTheme;
   children?: React.ReactNode;
 }
 ```
@@ -218,6 +215,13 @@ export interface DiagramNodeProps {
   onMouseEnter?: DiagramNodeMouseHandler;
   /** Runtime mouse-leave handler */
   onMouseLeave?: DiagramNodeMouseHandler;
+  /**
+   * Named PBR material preset applied to the node's front face via CSM UV projection.
+   * Requires @brewsite/textures to be installed and configured.
+   */
+  surfaceMaterial?: string;
+  /** Controls how the material preset textures are applied. See MaterialApplication. */
+  materialApplication?: MaterialApplication;
 }
 ```
 
@@ -315,6 +319,13 @@ export interface DiagramGroupProps {
   edgeLights?: DiagramGroupEdgeLightsDSL;
   /** Per-group override for title label text color. Falls back to theme.group.defaultLabelColor. */
   labelColor?: string;
+  /**
+   * Named PBR material preset applied to the group fill plane via CSM UV projection.
+   * Requires @brewsite/textures to be installed and configured.
+   */
+  surfaceMaterial?: string;
+  /** Controls how the material preset textures are applied. See MaterialApplication. */
+  materialApplication?: MaterialApplication;
   /**
    * Child <DiagramNode> and <DiagramGroup> elements that belong to this group.
    * Group bounds are computed from the union of child node positions + sizes.

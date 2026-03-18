@@ -3,7 +3,7 @@ title: "@brewsite/claude-author — AI-Assisted Scene Authoring Tooling"
 doc_type: prd
 status: active
 owner: Toolkit Product
-last_updated: 2026-03-15
+last_updated: 2026-03-17
 change_history:
   - date: 2026-03-15
     author: "Toolkit Product"
@@ -11,6 +11,9 @@ change_history:
   - date: 2026-03-15
     author: "Toolkit Product"
     summary: "Codebase alignment audit. Fixed brewsite_search tool: added topic parameter (optional enum: 'core' | 'diagram' | 'model' | 'charts' | 'screens' | 'guides'). Fixed brewsite_get_doc tool: parameter is id (not path), format is '{filePath}#{heading}' compound key, retrieves individual ##-level chunks. Fixed brewsite_list_topics return type: actual returns TopicInfo { topic, count, description }, not TopicEntry { category, title, path }. Fixed SearchResult type: actual has nested meta object { filePath, heading, title, topic }, not flat fields."
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Fixed package paths: create-brewsite and brewsite CLI packages live under packages/npx/ (packages/npx/create-brewsite/ and packages/npx/brewsite/), not packages/create-brewsite/ and packages/brewsite/. Fixed TopicInfo type location: defined locally in search.ts, not in types.ts. Noted ListTopicsInput exists in types.ts but is not used by the server (server uses empty zod schema directly)."
 ---
 
 # `@brewsite/claude-author` — AI-Assisted Scene Authoring Tooling
@@ -24,8 +27,8 @@ This PRD covers three published packages and their monorepo integration:
 | Package | npm Name | Role |
 |---|---|---|
 | `packages/claude-author/` | `@brewsite/claude-author` | MCP server + docs search + init CLI |
-| `packages/create-brewsite/` | `create-brewsite` | Interactive project scaffolder |
-| `packages/brewsite/` | `brewsite` | Utility CLI (`npx brewsite add`) |
+| `packages/npx/create-brewsite/` | `create-brewsite` | Interactive project scaffolder |
+| `packages/npx/brewsite/` | `brewsite` | Utility CLI (`npx brewsite add`) |
 
 All three are developer tooling packages. None are imported into application runtime code.
 
@@ -126,7 +129,9 @@ Developers integrating the BrewSite toolkit work with a non-trivial API surface:
 ### MCP Tool Signatures
 
 ```typescript
-// ─── Shared types (packages/claude-author/src/types.ts) ─────────────────────
+// ─── Shared types ────────────────────────────────────────────────────────────
+// Most types live in packages/claude-author/src/types.ts.
+// TopicInfo is defined locally in packages/claude-author/src/search.ts.
 
 /** Available topic areas for filtering. */
 type TopicArea = 'core' | 'diagram' | 'model' | 'charts' | 'screens' | 'guides';
@@ -162,8 +167,14 @@ interface GetDocInput {
 // Returns: SearchResult (single chunk) or error
 
 // ─── brewsite_list_topics ────────────────────────────────────────────────────
-// Input: {} (no parameters)
+// Input: {} (no parameters — server uses empty zod schema)
 // Returns: TopicInfo[]
+//
+// Note: ListTopicsInput is defined in types.ts as an empty interface for type
+// completeness, but the server does not reference it — it uses an inline empty
+// zod schema `{}` directly.
+
+// Defined in packages/claude-author/src/search.ts (not types.ts):
 interface TopicInfo {
   topic: string;           // e.g. "core", "diagram"
   count: number;           // number of indexed sections

@@ -3,8 +3,14 @@ title: "BrewSite Core — Cross-Package Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-15
+last_updated: 2026-03-17
 change_history:
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "v1 release readiness audit: removed ThemeKeyContext, useThemeKey, and ThemeKey — superseded by ActiveTheme. ThemeFamily type is used in the registry. ThemePolarity is used in ActiveTheme. Removed Section 7.2a (ThemeKeyContext) and all references to the deprecated context. Removed ThemeKeyContext.ts from module listing and dependencies."
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Codebase alignment: added SceneThemeCarouselTray type with all fields (color, opacity, material, highlight, etc.). Added SceneThemeHighlightPalette, SceneThemeHighlightVariant, HighlightVariantName types. Added darkHighlightPalette and lightHighlightPalette exports. Added surfaceMaterial and materialApplication fields to SceneThemeFloor. Fixed SceneThemePair to reflect it is an internal type (not publicly exported). Fixed resolveSceneThemeFamilyByRef to reflect it is internal (not publicly exported). Added highlightPalettes.ts to module listing."
   - date: 2026-03-04
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents the complete SceneTheme cross-package theming system as implemented: types module, ThemeContext, CSS variable injection in EngineOverlayHost, sceneTheme prop on EngineProvider, darkSceneTheme/lightSceneTheme presets, and per-package integration surface."
@@ -91,7 +97,7 @@ Additionally, the Background element supported only solid color and image fills 
 
 ## 6. Functional Requirements
 
-1. The `SceneTheme` type and all its sub-types (`SceneColorMode`, `SceneThemeFontTokens`, `SceneThemeFontSizeScale`, `SceneThemeBackgroundFill`, `SceneThemeBackgroundEffects`, `SceneThemeBackground`, `SceneThemeFloor`, `SceneThemeFloorGrid`) shall be exported from `@brewsite/core/src/index.ts`. `SceneTheme` does not include an `accentColor` field.
+1. The `SceneTheme` type and all its sub-types (`SceneColorMode`, `SceneThemeFontTokens`, `SceneThemeFontSizeScale`, `SceneThemeBackgroundFill`, `SceneThemeBackgroundEffects`, `SceneThemeBackground`, `SceneThemeFloor`, `SceneThemeFloorGrid`, `SceneThemeCarouselTray`, `SceneThemeHighlightPalette`, `SceneThemeHighlightVariant`, `HighlightVariantName`) shall be exported from `@brewsite/core/src/index.ts`. `SceneTheme` does not include an `accentColor` field.
 2. `SceneEngine` shall accept an optional `theme?: ActiveTheme` prop (preferred) or deprecated `sceneTheme?: SceneTheme` prop. The resolved `SceneTheme` is provided via `ThemeContext`.
 3. `EngineOverlayHost` shall read from `ThemeContext` and, when a theme is present, inject CSS custom properties on its root `<div>` element.
 4. CSS variable injection shall cover: `--brewsite-font-family`, `--brewsite-font-size-heading`, `--brewsite-font-size-body`, `--brewsite-font-size-label`, `--brewsite-font-size-caption`, `--brewsite-font-size-annotation`, `--brewsite-color-mode`, `--brewsite-text-primary`, `--brewsite-text-secondary`. `--brewsite-accent-color` is not injected by the engine; consumers who need this variable must set it directly in their own stylesheet.
@@ -104,9 +110,9 @@ Additionally, the Background element supported only solid color and image fills 
 11. When no `theme` or `sceneTheme` is provided to `SceneEngine`, it defaults to `{ family: 'default', polarity: 'dark' }` and resolves the default enterprise `SceneTheme` via `resolveSceneTheme('default', 'dark')`. CSS variables are always injected when any theme is resolved.
 12. A `ThemeFamily` union type (`'default' | 'enterprise' | 'darkGlass' | 'midnight' | 'neonCyber' | 'lightCanvas' | 'lightMinimal'`) shall be exported from `@brewsite/core`. The `'default'` member maps to the enterprise aesthetic and is always pre-registered in the scene theme registry. This is the canonical shared union used by `@brewsite/diagram` and `@brewsite/charts` as a type alias for their respective theme name types.
 13. A `ThemePolarity` union type (`'dark' | 'light'`) shall be exported from `@brewsite/core`.
-14. A `SceneThemePair` type (`{ readonly dark: SceneTheme; readonly light: SceneTheme }`) shall be exported from `@brewsite/core`.
+14. A `SceneThemePair` type (`{ dark: SceneTheme; light: SceneTheme }`) is used internally by `sceneThemeRegistry.ts`. It is not exported from `theme/index.ts` as a public type — consumers interact with the registry via `registerSceneThemePair()` and `resolveSceneTheme()` functions.
 15. A mutable runtime registry shall store `SceneThemePair` entries keyed by family name. The `'default'` and `'enterprise'` families are pre-loaded at module init with the enterprise aesthetic. Other families are registered at app startup via `registerSceneThemePair(family, pair)`. The `SCENE_THEME_PAIRS` constant does not exist as a static export — the registry is populated dynamically by `@brewsite/themes`.
-16. A `resolveSceneTheme(family: string, polarity: 'dark' | 'light'): SceneTheme` utility shall be exported from `@brewsite/core`. It looks up the requested family in the registry, falling back to the `'default'` pair if the family is not registered, and returns the theme for the given polarity. A `resolveSceneThemeFamilyByRef(theme: SceneTheme): string | undefined` utility performs reverse-lookup by reference equality across all registered pairs.
+16. A `resolveSceneTheme(family: string, polarity: 'dark' | 'light'): SceneTheme` utility shall be exported from `@brewsite/core`. It looks up the requested family in the registry, falling back to the `'default'` pair if the family is not registered, and returns the theme for the given polarity. The `resolveSceneThemeFamilyByRef` function exists in `sceneThemeRegistry.ts` as an internal utility but is not re-exported from `theme/index.ts` — it is not part of the public API.
 17. When `sceneTheme` is provided to `SceneEngine`, `EngineOverlayHost` shall inject `.bw-theme-{family}` and `.bw-dark` or `.bw-light` classes on its root `<div>`. The family class is derived via `resolveSceneThemeFamilyByRef(sceneTheme)`. When the function returns `undefined` (custom theme), no `.bw-theme-*` class is injected; the polarity class (`.bw-dark` or `.bw-light`) is still injected based on `sceneTheme.colorMode`.
 18. `EngineOverlayHost` shall inject four additional CSS custom properties when `sceneTheme` is present: `--brewsite-background-color`, `--brewsite-surface-elevated`, `--brewsite-border-subtle`, and `--brewsite-radius-base`. Values are derived from `SceneTheme.background` where applicable and from per-family constants otherwise.
 19. All registered `SceneThemePair` entries in the scene theme registry shall carry production-quality aesthetic values for both dark and light polarities. The `'default'` and `'enterprise'` families are pre-loaded in `@brewsite/core`; other families are registered by `@brewsite/themes`.
@@ -178,6 +184,52 @@ export type SceneThemeFloor = {
   readonly negativeZExtent?: number;           // world-space reach in negative Z
   readonly negativeZEdge?: 'hard' | 'fade';    // back-edge behavior
   readonly negativeZFadeDistance?: number;      // fade distance when edge='fade'
+  readonly surfaceMaterial?: string;            // named material preset
+  readonly materialApplication?: MaterialApplication; // application controls
+};
+
+export type SceneThemeCarouselTray = {
+  readonly color?: string;
+  readonly opacity?: number;
+  readonly accentColor?: string;
+  readonly depth?: number;
+  readonly gap?: number;
+  readonly metalness?: number;
+  readonly roughness?: number;
+  readonly edgeStyle?: 'smooth' | 'knurled' | 'ridged' | 'matte';
+  readonly surfacePattern?: 'brushed' | 'radial' | 'crosshatch' | 'grain' | 'none';
+  readonly surfaceIntensity?: number;
+  readonly surfaceMapUrl?: string;
+  readonly surfaceMaterial?: string;
+  readonly materialApplication?: MaterialApplication;
+  readonly highlightActive?: ViewHighlightMode;
+  readonly highlightColor?: string;
+  readonly highlightIntensity?: number;
+  readonly highlightBeamHeight?: number;
+  readonly highlightSmoke?: boolean;
+  readonly highlightZOffset?: number;
+  readonly highlightBackdropColor?: string;
+  readonly highlightViewId?: string;
+};
+
+export type HighlightVariantName =
+  | 'primary' | 'secondary' | 'tertiary'
+  | 'error' | 'warning' | 'success' | 'info';
+
+export type SceneThemeHighlightVariant = {
+  readonly color: string;
+  readonly mode?: ViewHighlightMode;
+  readonly intensity?: number;
+  readonly blendMode?: 'additive' | 'normal';
+  readonly backdropOpacity?: number;
+  readonly backdropColor?: string;
+  readonly beamHeight?: number;
+  readonly smoke?: boolean;
+  readonly dust?: boolean;
+};
+
+export type SceneThemeHighlightPalette = {
+  readonly [K in HighlightVariantName]?: SceneThemeHighlightVariant;
 };
 
 export type SceneTheme = {
@@ -186,6 +238,8 @@ export type SceneTheme = {
   readonly fontSize: SceneThemeFontSizeScale;
   readonly background?: SceneThemeBackground;
   readonly floor?: SceneThemeFloor;
+  readonly carouselTray?: SceneThemeCarouselTray;
+  readonly highlightPalette?: SceneThemeHighlightPalette;
 };
 ```
 
@@ -240,12 +294,9 @@ export function registerSceneThemePair(family: string, pair: SceneThemePair): vo
  */
 export function resolveSceneTheme(family: string, polarity: 'dark' | 'light'): SceneTheme;
 
-/**
- * Reverse-lookup: given a SceneTheme reference, return its family name if it is
- * a registered preset. Returns undefined for custom themes.
- * Uses reference equality — spread copies do not match.
- */
-export function resolveSceneThemeFamilyByRef(theme: SceneTheme): string | undefined;
+// resolveSceneThemeFamilyByRef() exists internally but is NOT exported.
+// It performs reverse-lookup by reference equality and is used by EngineOverlayHost
+// for CSS class injection. Not part of the public API.
 ```
 
 ### 7.2 ThemeContext (`packages/core/src/theme/ThemeContext.ts`)
@@ -256,20 +307,6 @@ export const useTheme = (): SceneTheme | null => useContext(ThemeContext);
 ```
 
 `ThemeContext` is populated by `SceneEngine`. `useTheme()` is exported from `@brewsite/core` via `theme/index.ts` and IS part of the public API. It is consumed internally by `EngineOverlayHost` for CSS variable injection, and can be used by consumers who need direct access to the resolved `SceneTheme` for custom overlay logic.
-
-### 7.2a ThemeKeyContext (deprecated) (`packages/core/src/theme/ThemeKeyContext.ts`)
-
-```typescript
-export interface ThemeKey {
-  readonly family: ThemeFamily;
-  readonly polarity: ThemePolarity;
-}
-
-export const ThemeKeyContext = React.createContext<ThemeKey | null>(null);
-export const useThemeKey = (): ThemeKey | null => useContext(ThemeKeyContext);
-```
-
-`ThemeKeyContext` is deprecated and superseded by the compile-time theme path via `<SceneEngine theme={...}>`. It will be removed in the next major release. `ThemeKey` is superseded by `ActiveTheme`.
 
 ### 7.3 SceneEngine Theme Props
 
@@ -452,11 +489,11 @@ Per-scene background visual changes (gradient fill, CSS filter, overlay gradient
 ### Module location
 
 `packages/core/src/theme/` contains:
-- `types.ts` — all type contracts: `SceneTheme`, `ThemeFamily`, `ThemePolarity`, `ActiveTheme`, and all sub-types (no runtime, no React, no Three.js)
+- `types.ts` — all type contracts: `SceneTheme`, `ThemeFamily`, `ThemePolarity`, `ActiveTheme`, `SceneThemeCarouselTray`, `SceneThemeHighlightPalette`, `SceneThemeHighlightVariant`, `HighlightVariantName`, and all sub-types (no runtime, no React, no Three.js)
 - `ThemeContext.ts` — React context + `useTheme` hook
-- `ThemeKeyContext.ts` — deprecated React context + `useThemeKey` hook (superseded by `ActiveTheme`)
 - `presets.ts` — `defaultSceneTheme`, `defaultLightSceneTheme`, and enterprise aliases
-- `sceneThemeRegistry.ts` — mutable runtime registry with `registerSceneThemePair()`, `resolveSceneTheme()`, `resolveSceneThemeFamilyByRef()`
+- `highlightPalettes.ts` — `darkHighlightPalette` and `lightHighlightPalette` default highlight palette constants for dark and light polarities
+- `sceneThemeRegistry.ts` — mutable runtime registry with `registerSceneThemePair()`, `resolveSceneTheme()`, internal `resolveSceneThemeFamilyByRef()`
 - `index.ts` — public re-exports
 
 All public types, presets, and registry functions are re-exported from `packages/core/src/index.ts` via `theme/index.ts`.
@@ -489,7 +526,6 @@ All public types, presets, and registry functions are re-exported from `packages
 
 - `packages/core/src/theme/types.ts` — type contracts (SceneTheme, ThemeFamily, ActiveTheme, etc.)
 - `packages/core/src/theme/ThemeContext.ts` — React context + `useTheme` hook
-- `packages/core/src/theme/ThemeKeyContext.ts` — deprecated React context + `useThemeKey` hook
 - `packages/core/src/theme/presets.ts` — default enterprise presets
 - `packages/core/src/theme/sceneThemeRegistry.ts` — mutable runtime registry
 - `packages/core/src/theme/index.ts` — public re-exports
@@ -518,7 +554,7 @@ All public types, presets, and registry functions are re-exported from `packages
 - [x] `pnpm test` passes for `@brewsite/core` with coverage on `src/theme/`.
 
 **Shipped (theming overhaul — polarity pairs and CSS class injection):**
-- [x] `registerSceneThemePair`, `resolveSceneTheme`, `resolveSceneThemeFamilyByRef` exported from `packages/core/src/index.ts`.
+- [x] `registerSceneThemePair`, `resolveSceneTheme` exported from `packages/core/src/index.ts`. `darkHighlightPalette`, `lightHighlightPalette` exported from `packages/core/src/index.ts`.
 - [x] `EngineOverlayHost` injects `.bw-theme-{family}` and `.bw-dark`/`.bw-light` classes on its root div.
 - [x] `EngineOverlayHost` injects `--brewsite-background-color`, `--brewsite-surface-elevated`, `--brewsite-border-subtle`, `--brewsite-radius-base` CSS custom properties.
 - [x] `EngineOverlayHost` tests updated to cover class injection for known theme families and custom themes.

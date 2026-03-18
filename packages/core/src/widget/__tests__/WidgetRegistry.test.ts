@@ -24,7 +24,6 @@ import type {
 import type { IWidget } from '../types';
 import {
   isRendererLifecycle,
-  isCameraActionTarget,
   isRenderContributor,
   isContainedRenderable,
   isAttachmentHost,
@@ -451,20 +450,6 @@ describe('WidgetRegistry', () => {
       contributeRenderData: () => ({ namedPositions: new Map(), targetColors: new Map() }),
     };
     expect(isRenderContributor(contributor)).toBe(true);
-  });
-
-  it('isCameraActionTarget returns true only for widgets with camera action methods', () => {
-    const plain: IWidget = { widgetId: 'plain' };
-    expect(isCameraActionTarget(plain)).toBe(false);
-
-    const target = {
-      widgetId: 'camera-target',
-      applyOrbit: () => {},
-      applyDolly: () => {},
-      applyReset: () => {},
-    } as IWidget;
-    expect(isCameraActionTarget(target)).toBe(true);
-    expect(isCameraActionTarget({ widgetId: 'x', applyOrbit: () => {}, applyDolly: () => {} } as IWidget)).toBe(false);
   });
 
   it('isContainedRenderable returns true only for widgets with anchorWidgetId, anchorKey, rootObject', () => {

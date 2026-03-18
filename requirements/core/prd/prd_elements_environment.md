@@ -3,8 +3,11 @@ title: "BrewSite Core — Environment Elements"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-15
+last_updated: 2026-03-17
 change_history:
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Codebase alignment: added surfaceMaterial (string — named material preset) and materialApplication (MaterialApplication) fields to FloorSurfacePhysical type and DSL props documentation. Updated module pattern listing to note these fields."
   - date: 2026-02-28
     author: "Toolkit Product"
     summary: "Initial PRD created. Documents the full authoring surface, compiled state types, widget contracts, and transition behavior for Background, Lighting, Floor, and Environment (HDR) elements in @brewsite/core."
@@ -405,6 +408,10 @@ export type FloorSurfacePhysical = {
   alphaMapUrl?: string;
   emissiveMapUrl?: string;
   wireframe?: boolean;
+  /** Named material preset. When set, PBR textures from the manifest are applied. */
+  surfaceMaterial?: string;
+  /** Application controls for the material preset. */
+  materialApplication?: MaterialApplication;
 };
 
 export type FloorSurfaceMirror = {
@@ -474,7 +481,7 @@ The Floor DSL uses a container `<Floor>` component with optional `<FloorPhysical
 Key DSL prop types:
 
 - `<Floor>`: `enabled?` (boolean), `debug?`, `theme?` (SceneTheme), `variant?` (FloorVariant), `placement?`, `position?`, `rotation?`, `rotationRelative?`, `scale?`, `negativeZExtent?`, `negativeZEdge?`, `negativeZFadeDistance?`, `children?`
-- `<FloorPhysical>`: `pattern?`, `textureUrl?`, `color?`, `gridColor?`, `gridMajorColor?`, `gridCellSize?`, `gridMajorEvery?`, `gridLineOpacity?`, `gridFillOpacity?`, `opacity?`, `metalness?`, `roughness?`, `reflectivity?`, `clearcoat?`, `clearcoatRoughness?`, `emissive?`, `emissiveIntensity?`, `envMapIntensity?`, `textureRepeat?`, `textureOffset?`, `textureRotation?`, `normalMapUrl?`, `normalScale?`, `roughnessMapUrl?`, `metalnessMapUrl?`, `aoMapUrl?`, `aoMapIntensity?`, `displacementMapUrl?`, `displacementScale?`, `displacementBias?`, `alphaMapUrl?`, `emissiveMapUrl?`, `wireframe?`
+- `<FloorPhysical>`: `pattern?`, `textureUrl?`, `color?`, `gridColor?`, `gridMajorColor?`, `gridCellSize?`, `gridMajorEvery?`, `gridLineOpacity?`, `gridFillOpacity?`, `opacity?`, `metalness?`, `roughness?`, `reflectivity?`, `clearcoat?`, `clearcoatRoughness?`, `emissive?`, `emissiveIntensity?`, `envMapIntensity?`, `textureRepeat?`, `textureOffset?`, `textureRotation?`, `normalMapUrl?`, `normalScale?`, `roughnessMapUrl?`, `metalnessMapUrl?`, `aoMapUrl?`, `aoMapIntensity?`, `displacementMapUrl?`, `displacementScale?`, `displacementBias?`, `alphaMapUrl?`, `emissiveMapUrl?`, `wireframe?`, `surfaceMaterial?` (string — named material preset), `materialApplication?` (MaterialApplication — runtime application controls)
 - `<FloorMirror>`: `mirrorColor?`, `mirrorOpacity?`, `shadowOpacity?`, `mirrorResolution?`, `mirrorClipBias?`, `mirrorUseEnvironmentBackground?`, `mirrorEnvironmentIntensity?`
 
 #### Transition Behavior
@@ -586,7 +593,8 @@ elements/lighting/
   index.ts        — re-exports only
 
 elements/floor/
-  types.ts        — SceneFloor, FloorSurfacePhysical (type: 'physical'),
+  types.ts        — SceneFloor, FloorSurfacePhysical (type: 'physical', includes
+                     surfaceMaterial and materialApplication fields),
                      FloorSurfaceMirror (type: 'mirror'), FloorSurface, FloorVariant,
                      FloorPlacement, FloorNegativeZEdge
   dsl.tsx         — <Floor>, <FloorPhysical>, <FloorMirror> DSL components

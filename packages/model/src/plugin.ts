@@ -19,7 +19,7 @@ export interface ModelPluginOptions {
   /**
    * URL to fetch the asset manifest JSON from (e.g. '/assets/manifest.json').
    * Mutually exclusive with `manifest`. When provided, the plugin fetches the
-   * manifest asynchronously during EngineProvider mount.
+   * manifest asynchronously during SceneEngine mount.
    */
   manifestUrl?: string;
 
@@ -59,7 +59,7 @@ export function modelPlugin(options: ModelPluginOptions = {}): WidgetPlugin & {
   getManifest(): AssetManifest | null;
   /**
    * Fetches and validates the manifest from manifestUrl.
-   * Called internally by EngineProvider on mount when manifestUrl is set.
+   * Called internally by SceneEngine on mount when manifestUrl is set.
    * No-op when manifest is provided directly.
    */
   fetchManifest(): Promise<AssetManifest | null>;

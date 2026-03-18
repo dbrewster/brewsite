@@ -11,6 +11,7 @@ import {
   ProgressManager,
   Scene,
   TextBox,
+  useGoToScene,
 } from '@brewsite/core';
 
 const CAM_POS: [number, number, number] = [0, 2.5, 9];
@@ -18,18 +19,88 @@ const CAM_TGT: [number, number, number] = [0, 0, 0];
 
 interface SceneCard {
   num: number;
+  sceneId: string;
   title: string;
   desc: string;
 }
 
 const SCENE_CARDS: SceneCard[] = [
-  { num: 2, title: 'Camera Controls', desc: 'Orbit, dolly, and reset bindings — drag, wheel, pinch, and keyboard.' },
-  { num: 3, title: 'Scene Navigation', desc: 'Arrow keys, click, scroll, and multi-step scene jumping (stepScenes).' },
-  { num: 4, title: 'Ring Carousel', desc: 'Scroll X / swipe horizontally to rotate. → or Click to advance. ← to go back.' },
-  { num: 5, title: 'Linear Carousel', desc: `Scroll X / swipe horizontally to move. → or Space jumps 2. ${formatModifier('shift')}+→ moves 1.` },
-  { num: 6, title: 'Scrollable Text', desc: `TextBox with overflowY:auto inner div. ${formatModifier('ctrl')}+Scroll reserved for zoom.` },
-  { num: 7, title: 'All Input Maps', desc: 'scope="window" + every map type, all modifier combos, and multi-step actions.' },
+  { num: 2, sceneId: 'input-camera', title: 'Camera Controls', desc: 'Orbit, dolly, and reset bindings — drag, wheel, pinch, and keyboard.' },
+  { num: 3, sceneId: 'input-scene-nav-a', title: 'Scene Navigation', desc: 'Arrow keys, click, scroll, and multi-step scene jumping (stepScenes).' },
+  { num: 4, sceneId: 'input-ring-carousel', title: 'Ring Carousel', desc: 'Scroll X / swipe horizontally to rotate. → or Click to advance. ← to go back.' },
+  { num: 5, sceneId: 'input-linear-carousel', title: 'Linear Carousel', desc: `Scroll X / swipe horizontally to move. → or Space jumps 2. ${formatModifier('shift')}+→ moves 1.` },
+  { num: 6, sceneId: 'input-scrollable-text', title: 'Scrollable Text', desc: `TextBox with overflowY:auto inner div. ${formatModifier('ctrl')}+Scroll reserved for zoom.` },
+  { num: 7, sceneId: 'input-all-maps', title: 'All Input Maps', desc: 'scope="window" + every map type, all modifier combos, and multi-step actions.' },
 ];
+
+/** Rendered inside the overlay host — has access to engine context via hooks. */
+function SceneCardGrid(): JSX.Element {
+  const goToScene = useGoToScene();
+
+  return (
+    <div className="welcome-cards-grid" style={{ height: '100%' }}>
+      {SCENE_CARDS.map((card) => (
+        <div
+          key={card.num}
+          role="button"
+          tabIndex={0}
+          style={{
+            background: 'rgba(20, 40, 80, 0.6)',
+            borderRadius: 8,
+            border: '1px solid rgba(70, 130, 220, 0.2)',
+            padding: '10px 12px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            transition: 'border-color 0.15s, background 0.15s',
+            pointerEvents: 'auto',
+          }}
+          onClick={() => goToScene(card.sceneId)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              goToScene(card.sceneId);
+            }
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(80, 144, 224, 0.6)';
+            e.currentTarget.style.background = 'rgba(30, 55, 110, 0.7)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = 'rgba(70, 130, 220, 0.2)';
+            e.currentTarget.style.background = 'rgba(20, 40, 80, 0.6)';
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                background: 'rgba(80, 144, 224, 0.3)',
+                border: '1px solid rgba(80, 144, 224, 0.5)',
+                fontSize: 10,
+                fontWeight: 700,
+                color: '#7ab4ff',
+                flexShrink: 0,
+              }}
+            >
+              {card.num}
+            </span>
+            <span style={{ fontSize: 'clamp(10px, 1.1vw, 13px)', fontWeight: 600, color: '#c8deff' }}>{card.title}</span>
+          </div>
+          <p style={{ margin: 0, fontSize: 'clamp(9px, 0.9vw, 11px)', color: 'rgba(160, 200, 255, 0.7)', lineHeight: 1.5 }}>
+            {card.desc}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export const WelcomeScene = (): JSX.Element => (
   <Scene id="input-welcome">
@@ -98,47 +169,7 @@ export const WelcomeScene = (): JSX.Element => (
           overflowY: 'auto',
         }}
       >
-        <div className="welcome-cards-grid" style={{ height: '100%' }}>
-          {SCENE_CARDS.map((card) => (
-            <div
-              key={card.num}
-              style={{
-                background: 'rgba(20, 40, 80, 0.6)',
-                borderRadius: 8,
-                border: '1px solid rgba(70, 130, 220, 0.2)',
-                padding: '10px 12px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'center',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: 20,
-                    height: 20,
-                    borderRadius: '50%',
-                    background: 'rgba(80, 144, 224, 0.3)',
-                    border: '1px solid rgba(80, 144, 224, 0.5)',
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: '#7ab4ff',
-                    flexShrink: 0,
-                  }}
-                >
-                  {card.num}
-                </span>
-                <span style={{ fontSize: 'clamp(10px, 1.1vw, 13px)', fontWeight: 600, color: '#c8deff' }}>{card.title}</span>
-              </div>
-              <p style={{ margin: 0, fontSize: 'clamp(9px, 0.9vw, 11px)', color: 'rgba(160, 200, 255, 0.7)', lineHeight: 1.5 }}>
-                {card.desc}
-              </p>
-            </div>
-          ))}
-        </div>
+        <SceneCardGrid />
       </div>
     </TextBox>
 

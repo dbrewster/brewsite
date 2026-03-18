@@ -10,14 +10,14 @@ import type { ChartDataStore } from './ChartDataStore';
 export const ChartStoreContext = createContext<ChartDataStore | null>(null);
 
 /**
- * Access the per-engine ChartDataStore from within an EngineProvider tree.
+ * Access the per-engine ChartDataStore from within a SceneEngine tree.
  * Throws if called outside a tree that includes chartPlugin().
  */
 export function useChartStore(): ChartDataStore {
   const store = useContext(ChartStoreContext);
   if (!store) {
     throw new Error(
-      '[ChartStoreContext] useChartStore() must be called inside an EngineProvider with chartPlugin().',
+      '[ChartStoreContext] useChartStore() must be called inside a <SceneEngine> with chartPlugin().',
     );
   }
   return store;

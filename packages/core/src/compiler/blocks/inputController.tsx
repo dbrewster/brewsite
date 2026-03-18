@@ -48,10 +48,6 @@ export type PointerMapProps = {
    * @default 'drag'
    */
   event?: 'drag' | 'click';
-  /** @deprecated Use event=\"drag\" instead. */
-  drag?: boolean;
-  /** @deprecated Use event=\"click\" instead. */
-  click?: boolean;
   button?: MouseButton;
   modifiers?: ModifierKey[];
   /**
@@ -82,10 +78,6 @@ export type KeyMapProps = {
    * Canonical keyboard key prop, mapped to KeyboardEvent.key.
    */
   keyName?: string;
-  /**
-   * @deprecated React's key prop is reserved. Use keyName instead.
-   */
-  key?: string;
   modifiers?: ModifierKey[];
 };
 
@@ -110,16 +102,7 @@ KeyMap.displayName = 'KeyMap';
 const parseActionMap = (node: ReactElement, helpers: CompileHelpers, api: CompileApi): InputActionMap | null => {
   if (node.type === PointerMap) {
     const props = helpers.resolveObjectValues(node.props as PointerMapProps & Record<string, unknown>, api.context);
-    let eventType: 'drag' | 'click' = 'drag';
-    if (typeof props.event === 'string') {
-      eventType = props.event;
-    } else if (props.click === true || props.drag === true) {
-      console.warn(
-        '[BrewSite] <PointerMap drag> and <PointerMap click> are deprecated. ' +
-        'Use <PointerMap event=\"drag\"> or <PointerMap event=\"click\"> instead.',
-      );
-      eventType = props.click === true ? 'click' : 'drag';
-    }
+    const eventType: 'drag' | 'click' = props.event ?? 'drag';
     const map: InputPointerMap = {
       kind: 'pointer',
       event: eventType,
@@ -146,21 +129,9 @@ const parseActionMap = (node: ReactElement, helpers: CompileHelpers, api: Compil
 
   if (node.type === KeyMap) {
     const props = helpers.resolveObjectValues(node.props as KeyMapProps & Record<string, unknown>, api.context);
-    const reactKey = typeof node.key === 'string'
-      ? node.key.replace(/^\.\$/, '')
-      : null;
-    const usingKeyNameProp = typeof props.keyName === 'string' && props.keyName.length > 0;
-    const usingKeyPropFallback = !usingKeyNameProp && typeof reactKey === 'string' && reactKey.length > 0;
-    if (usingKeyPropFallback) {
-      console.warn(
-        `[BrewSite] <KeyMap key=\"${reactKey}\"> uses React's reserved \"key\" prop as a fallback. ` +
-        `Use <KeyMap keyName=\"${reactKey}\"> instead.`,
-      );
-    }
-    const resolvedKey =
-      (usingKeyNameProp ? props.keyName : undefined) ??
-      (typeof props.key === 'string' && props.key.length > 0 ? props.key : undefined) ??
-      (reactKey && reactKey.length > 0 ? reactKey : undefined);
+    const resolvedKey = typeof props.keyName === 'string' && props.keyName.length > 0
+      ? props.keyName
+      : undefined;
     if (!resolvedKey) {
       throw new Error('<KeyMap> requires a non-empty "keyName" prop.');
     }

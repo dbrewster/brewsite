@@ -3,8 +3,11 @@ title: "BrewSite Core — Vision & Overview"
 doc_type: prd
 owner: brewsite-product-manager
 status: active
-updated: 2026-03-15
+updated: 2026-03-17
 change_history:
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Codebase alignment: renamed camera.dolly to camera.zoom; added carousel-scrubber element to core elements listing; added material preset system description to widget layer; added highlight palette system to theming section."
   - date: 2026-03-15
     author: "Toolkit Product"
     summary: "NVS zoom-instability fix: updated NVS section (3.6) and API signatures (4.8) to reflect createNVSCoordService now accepts NVSCameraParams instead of THREE.PerspectiveCamera. Added NVSCameraParams type and resolveNVSParamsFromCameraState function. Updated NVSCoordService description to note mapping is pinned to compiled camera state."
@@ -116,6 +119,7 @@ Built-in core elements:
 - **Floor** — Reflective floor plane with physical and mirror modes, optional grid overlay.
 - **SpotlightRig** — Themed spotlight arrays for dramatic scene lighting.
 - **TextBox** — Simple React component that renders a `position: absolute` div at NVS-percentage coordinates. Used inside `<Scene>` overlay content rendered by `EngineOverlayHost`. There is no `TextBoxWidget` — `TextBox` is a pure presentational component in `elements/text-box/dsl.tsx`.
+- **CarouselScrubber** — 3D tray base rendered beneath `ViewLayout` carousels. Authored via `<CarouselTray>` as a child of `<ViewLayout kind="carousel">`. Supports material presets, surface textures (brushed, radial, crosshatch, grain), edge styles (smooth, knurled, ridged, matte), and per-view highlight effects (glow, holographic). Themed via `SceneTheme.carouselTray`.
 
 Elements provided by companion packages:
 - **Model** (`@brewsite/model`) — GLTF models with animation clip control, bone-tracked labels, part overrides.
@@ -183,6 +187,8 @@ The Widget SDK (`widget/`) is the extension mechanism for all renderable and beh
 
 `CUSTOM_NODE_HANDLER` is a Symbol that a widget implements via the `IHasCustomDslHandler` interface to register its own DSL node handler inline, enabling tight coupling between a widget and its DSL component without going through the global registry. The `hasCustomDslHandler(widget)` type guard checks for this symbol.
 
+The widget layer includes a **material preset system** (`MaterialLoader`, `MaterialPreset`, `MaterialManifest`, `MaterialApplication`) for loading and applying PBR texture sets to widgets. Material presets define named texture bundles (color, normal, roughness, metalness, AO maps) that are loaded once and applied to floor surfaces, carousel trays, and other elements via the `surfaceMaterial` and `materialApplication` fields.
+
 ### 3.9 Cross-Package Theming
 
 The centralized theme system provides unified visual styling across all packages. Seven theme families (`default`, `enterprise`, `darkGlass`, `midnight`, `neonCyber`, `lightCanvas`, `lightMinimal`) each have dark and light polarity variants.
@@ -190,6 +196,8 @@ The centralized theme system provides unified visual styling across all packages
 Theme selection is controlled by a single `theme?: ActiveTheme` prop on `<SceneEngine>`, sourced from `@brewsite/themes`. Themes are registered at engine startup via `themesPlugin()`, which populates per-package theme registries (`sceneThemeRegistry`, `diagramThemeRegistry`, `chartThemeRegistry`) from `ThemeBundle` objects. Each `ThemeBundle` carries the full dark/light preset pair for one family across all three rendering packages.
 
 `EngineOverlayHost` injects CSS custom properties and polarity classes onto its container from the resolved `SceneTheme`. Spatial elements (`DiagramCanvas`, `Chart`) resolve their theme at compile time from `api.context.themeFamily` and `api.context.themePolarity` — no per-element `theme=` prop is required or supported.
+
+The theme system includes a **highlight palette** (`SceneThemeHighlightPalette`) with named semantic variants (`primary`, `secondary`, `tertiary`, `error`, `warning`, `success`, `info`). Each variant defines color, mode (glow/holographic), intensity, blend mode, and backdrop settings. Default palettes (`darkHighlightPalette`, `lightHighlightPalette`) are exported from `@brewsite/core` for dark and light polarities respectively. Theme presets in `@brewsite/themes` can override individual variants.
 
 The `themeFamily`/`themePolarity`/`sceneTheme` props on `SceneEngine` are deprecated in favor of the unified `theme` prop. See `@brewsite/themes` for the full authoring pattern.
 
@@ -363,7 +371,7 @@ interface AnimationTickContext {
 // Input controller — defines action input map for a scene
 <InputController scope="canvas">
   <Action drag={PointerMap} onAction="camera.orbit" />
-  <Action wheel={WheelMap} onAction="camera.dolly" />
+  <Action wheel={WheelMap} onAction="camera.zoom" />
 </InputController>
 
 // Transition control

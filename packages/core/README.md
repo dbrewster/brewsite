@@ -8,7 +8,7 @@ The core animation engine for the BrewSite Scene Toolkit. Provides a TypeScript 
 npm install @brewsite/core react react-dom three
 ```
 
-Peer dependencies: `react ^19`, `react-dom ^19`, `three ^0.183`.
+Peer dependencies: `react ^18 || ^19`, `react-dom ^18 || ^19`, `three ^0.183`, `camera-controls ^2`.
 
 ## Overview
 
@@ -21,7 +21,7 @@ Scene authors declare state in a typed JSX DSL. The compiler pre-bakes those dec
 ```tsx
 import {
   SceneEngine, ScrollStage, BackgroundLayer, SceneCanvas, EngineOverlayHost,
-  ScrollInput, KeyboardInput, corePlugin, Scene,
+  InputCoordinator, corePlugin, Scene,
 } from '@brewsite/core';
 import { modelPlugin } from '@brewsite/model';
 
@@ -36,8 +36,7 @@ export default function LandingPage() {
       <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1400}>
         <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
         <SceneCanvas style={{ width: '100%', height: '100%' }} />
-        <ScrollInput source="window" />
-        <KeyboardInput />
+        <InputCoordinator />
         <EngineOverlayHost />
       </ScrollStage>
     </SceneEngine>
@@ -68,14 +67,14 @@ export function DemoWidget() {
 ### Slide deck (keyboard navigation)
 
 ```tsx
-import { SceneReel, KeyboardInput, Scene, corePlugin } from '@brewsite/core';
+import { SceneReel, InputCoordinator, Scene, corePlugin } from '@brewsite/core';
 
 export function SlideDeck() {
   return (
     <SceneReel height={600} plugins={[corePlugin()]}>
       <Scene id="slide1">...</Scene>
       <Scene id="slide2">...</Scene>
-      <KeyboardInput />
+      <InputCoordinator />
     </SceneReel>
   );
 }
@@ -84,7 +83,7 @@ export function SlideDeck() {
 ### Complex layout with sidebar nav
 
 ```tsx
-import { SceneEngine, SceneCanvas, ScrollInput, useGoToScene, corePlugin, Scene } from '@brewsite/core';
+import { SceneEngine, SceneCanvas, InputCoordinator, useGoToScene, corePlugin, Scene } from '@brewsite/core';
 
 function Sidebar() {
   const goToScene = useGoToScene();
@@ -101,7 +100,7 @@ export function DocsLayout() {
     <SceneEngine plugins={[corePlugin()]}>
       <Scene id="overview">...</Scene>
       <Scene id="features">...</Scene>
-      <ScrollInput source="inertia" />
+      <InputCoordinator />
 
       <div style={{ display: 'flex' }}>
         <Sidebar />
@@ -166,19 +165,9 @@ function ProductPage() {
 
 | Export | Description |
 |---|---|
-| `ScrollInput` | Drives engine progress from scroll (inertia, window, element, or custom `IScrollSource`) |
+| `InputCoordinator` | Unified input handler for scroll, keyboard, and pointer input — replaces separate input components |
 | `TimeInput` | Drives engine progress via wall-clock auto-advance |
-| `KeyboardInput` | Keyboard scene navigation (arrow keys, space) |
-| `PointerInput` | Click-to-advance or hover-to-scrub pointer input |
 | `ControlledInput` | Drives engine progress from an external `value` prop (highest priority) |
-
-### Scroll Source
-
-| Export | Description |
-|---|---|
-| `useNativeScrollSource` | Creates a hidden off-screen native scroll container returning `IScrollSource` |
-| `IScrollSource` | Interface for custom scroll source implementations (Lenis, Virtual Scroll, etc.) |
-| `ScrollSourceProp` | Union type for the `source` prop on `<ScrollInput>` |
 
 ### Hooks
 
@@ -234,7 +223,7 @@ function ProductPage() {
 See [MIGRATION.md](./MIGRATION.md) for a complete v1 → v2 upgrade guide.
 
 **Summary of breaking changes:**
-- `EngineProvider` deleted → use `SceneEngine`
+- `SceneEngine` replaces the deprecated `EngineProvider`
 - `EngineInputRegion` deleted → use `ScrollStage` + `ScrollInput` (scroll mode) or `SceneReel` (embedded mode)
 - `ScrollCaptureSection` deleted → use `ScrollStage`
 - `useEngineScroll` / `useEngineInput` deleted → functionality internalized in input components

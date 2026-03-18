@@ -1,24 +1,25 @@
 // Scene 3: <ViewLayout kind="carousel"> with three views.
 // Three separate <Scene> elements cycle activeIndex 0 → 1 → 2.
-import type { JSX } from 'react';
+import type {JSX} from 'react';
 import {
-  Camera,
-  Lighting,
+  Action,
   Ambient,
-  Directional,
+  Camera,
+  CarouselTray,
+  Floor,
+  InputController,
+  KeyMap,
+  Lighting,
+  type OrbitFn,
+  PointerMap,
   ProgressManager,
   Scene,
+  Spotlight,
+  SpotlightRig,
   View,
-  ViewLayout, Floor, SpotlightRig, Spotlight,
-  type OrbitFn,
+  ViewLayout,
 } from '@brewsite/core';
-import {
-  BarChart,
-  ChartData,
-  ChartAxis,
-  ChartSeries,
-  LineChart,
-} from '@brewsite/charts';
+import {BarChart, ChartAxis, ChartData, ChartSeries, LineChart,} from '@brewsite/charts';
 import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, FlowLayout, GridLayout} from "@brewsite/diagram";
 
 const CAM_POS: [number, number, number] = [0, 1, 6.6];
@@ -29,7 +30,7 @@ const CAM_TGT: [number, number, number] = [0, 0, 0];
 /** Seeded pseudo-random so values are stable across hot reloads. */
 const seeded = (seed: number) => {
   let s = seed;
-  return () => { s = (s * 16807 + 0) % 2147483647; return s / 2147483647; };
+  return () => { s = (s * 16807) % 2147483647; return s / 2147483647; };
 };
 const rng = seeded(42);
 
@@ -230,62 +231,29 @@ export const CarouselScene1 = (): JSX.Element => {
   return (
     <Scene id="carousel-1" primaryCarouselId="carousel-1-layout">
       <SharedEnv />
+      <InputController scope="canvas">
+        <Action id="default-carousel-next" type="carousel.next" layoutId='carousel-1-layout' stepSlides={1}>
+          <KeyMap keyName="ArrowRight" />
+          <PointerMap event="click" />
+        </Action>
+        <Action id="carousel-next-skip" type="carousel.next" layoutId={'carousel-1-layout'} stepSlides={2}>
+          <KeyMap keyName="ArrowRight" modifiers={['shift']} />
+        </Action>
+        <Action id="default-carousel-prev" type="carousel.prev" layoutId={'carousel-1-layout'} stepSlides={1}>
+          <KeyMap keyName="ArrowLeft" />
+        </Action>
+        <Action id="carousel-prev-skip" type="carousel.prev" layoutId={'carousel-1-layout'} stepSlides={2}>
+          <KeyMap keyName="ArrowLeft" modifiers={['shift']} />
+        </Action>
+      </InputController>
+
       <ViewLayout id="carousel-1-layout" kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={.7} >
         <CarouselViews />
-      </ViewLayout>
-    </Scene>
-  );
-};
-
-export const CarouselScene2 = (): JSX.Element => {
-  return (
-    <Scene id="carousel-2" primaryCarouselId="carousel-2-layout">
-      <SharedEnv />
-      <ViewLayout id="carousel-2-layout" kind="carousel" loop activeIndex={1} zStep={15} fadeMin={0.15} spread={.7}>
-        <CarouselViews />
-      </ViewLayout>
-    </Scene>
-  );
-};
-
-export const CarouselScene3 = (): JSX.Element => {
-  return (
-    <Scene id="carousel-3" primaryCarouselId="carousel-3-layout">
-      <SharedEnv />
-      <ViewLayout id="carousel-3-layout" kind="carousel" loop activeIndex={2} zStep={15} fadeMin={0.15} spread={.7}>
-        <CarouselViews />
-      </ViewLayout>
-    </Scene>
-  );
-};
-
-
-export const CarouselScene4 = (): JSX.Element => {
-  return (
-    <Scene id="carousel-4" primaryCarouselId="carousel-4-layout">
-      <SharedEnv />
-      <ViewLayout id="carousel-4-layout" kind="carousel" loop activeIndex={3} zStep={15} fadeMin={0.15} spread={.7}>
-        <CarouselViews />
-      </ViewLayout>
-    </Scene>
-  );
-};
-
-/** Interactive carousel scene — arrow keys and clicks advance/rewind slides.
- *  carousel.next: ArrowRight or click to advance one slide.
- *  carousel.prev: ArrowLeft to go back one slide.
- *  The ViewLayout id="demo-carousel" matches the layoutId on each Action. */
-export const CarouselScene = (): JSX.Element => {
-  return (
-    <Scene id="carousel-interactive" primaryCarouselId="demo-carousel">
-      <ProgressManager scrollUnits={800} />
-      <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
-      <Lighting intensityScale={1.2}>
-        <Ambient intensity={.9} color="#d7e5ff" />
-        <Directional intensity={1.0} color="#edf4ff" position={[0, 2, 10]} />
-      </Lighting>
-      <ViewLayout id="demo-carousel" kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={0.7}>
-        <CarouselViews />
+        <CarouselTray metalness={.1}
+                      highlightActive="holographic"
+                      highlightColor="#E36A2E"
+                      highlightSmoke
+        />
       </ViewLayout>
     </Scene>
   );

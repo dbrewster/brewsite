@@ -33,7 +33,7 @@ import {
   rerouteLiveEdges,
   blendDiagramEdges,
 } from './compiler/transitionHelpers';
-import { GROUP_BORDER_PX_TO_UNITS } from './compiler/diagramRenderConstants';
+import { GROUP_BORDER_PX_TO_UNITS } from './constants';
 
 /**
  * Maps a linear t ∈ [0,1] through the given easing curve.

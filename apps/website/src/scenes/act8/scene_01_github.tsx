@@ -1,5 +1,5 @@
 import type { JSX } from 'react';
-import { Scene, Camera, Lighting, Ambient, Directional } from '@brewsite/core';
+import { Scene, Camera, Lighting, Ambient, Directional, TextBox } from '@brewsite/core';
 
 const LATE_FADE = { exit: [1.0, 1.0] as [number, number], enter: [1.0, 1.0] as [number, number] };
 
@@ -13,14 +13,11 @@ export const scene01Github: JSX.Element = (
       <Ambient intensity={0.2} color="#08101d" />
       <Directional intensity={0.35} color="#00aaff" position={[4, 8, 6]} />
     </Lighting>
-    <div key="github-overlay" style={{
-      position: 'absolute',
-      inset: 0,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      pointerEvents: 'auto',
-    }}>
+    <TextBox key="github-overlay" x={0.05} y={0.1} w={0.9} h={0.8} overflow="visible">
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        width: '100%', height: '100%', pointerEvents: 'auto',
+      }}>
       <section className="github-section">
         <div className="terminal-card">
           <div className="terminal-card__bar">
@@ -62,5 +59,6 @@ export const scene01Github: JSX.Element = (
         </div>
       </section>
     </div>
+    </TextBox>
   </Scene>
 );

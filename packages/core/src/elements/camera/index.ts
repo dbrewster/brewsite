@@ -23,5 +23,5 @@ export { DEFAULT_CAMERA, DEFAULT_CAMERA_DESCRIPTOR, cameraTransitionSpec, functi
 export { applyCamera } from './render';
 export { CameraWidget } from './CameraWidget';
 export { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
-export type { ICameraHost } from './types';
+export type { ICameraHost, CameraInteractionDefaults } from './types';
 export { SCENE_CAMERA_KEY } from './cameraKeys';

@@ -3,10 +3,10 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { EngineGate } from '../EngineGate';
 import { EngineStateContext } from '../EngineStateContext';
-import type { EngineState } from '../engineTypes';
+import type { EngineFrameState } from '../engineTypes';
 
-// EngineState includes tickIndex after the fix in §3.7. No tick field — that is EngineFrameState.
-const makeState = (tickIndex: number): EngineState => ({
+// EngineFrameState includes tickIndex after the fix in §3.7. No tick field — that is EngineFrameState.
+const makeState = (tickIndex: number): EngineFrameState => ({
   tickIndex,
   progress: 0,
   sceneId: 'scene-0',

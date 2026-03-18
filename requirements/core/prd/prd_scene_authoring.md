@@ -3,8 +3,11 @@ title: "BrewSite Core — Scene Authoring DSL"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-15
+last_updated: 2026-03-17
 change_history:
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Codebase alignment: renamed camera.dolly to camera.zoom, canvas.pan to camera.pan, applyCameraDolly to applyCameraZoom throughout. Replaced EngineProvider with SceneEngine in code examples. Added CarouselTray/CarouselScrubber to built-in DSL elements list with full prop documentation."
   - date: 2026-03-13
     author: "Toolkit Product"
     summary: "Centralized theme system: documented the new `theme?: ActiveTheme` prop on `<SceneEngine>` (sourced from `@brewsite/themes`). Added Section 8.14 on the centralized theme authoring pattern. Updated Section 7.1 SceneSnapshotContext to include `themeFamily` and `themePolarity` fields. Updated examples in Sections 8.12 and 8.13 to remove deprecated per-element `theme=` string props — themes are now resolved automatically from engine context via the registered ThemeBundles."
@@ -392,7 +395,7 @@ export type NodeHandler = (
 
 The following DSL components are available at the `<Scene>` level. Each is a null-returning React component registered with the node handler system. Detailed prop contracts live in element-specific PRDs.
 
-**Elements from `@brewsite/core`:** `<Camera>`, `<Lighting>`, `<Background>`, `<Floor>`, `<Environment>`, `<TextBox>`, `<View>`, `<ViewLayout>`, `<ProgressManager>`, `<InputController>`, `<Action>`, `<PointerMap>`, `<WheelMap>`, `<PinchMap>`, `<KeyMap>`.
+**Elements from `@brewsite/core`:** `<Camera>`, `<Lighting>`, `<Background>`, `<Floor>`, `<Environment>`, `<TextBox>`, `<View>`, `<ViewLayout>`, `<CarouselTray>`, `<ProgressManager>`, `<InputController>`, `<Action>`, `<PointerMap>`, `<WheelMap>`, `<PinchMap>`, `<KeyMap>`.
 
 **Elements from companion packages:** `<Model>` (from `@brewsite/model`), `<DiagramCanvas>` (from `@brewsite/diagram`), `<Chart>` (from `@brewsite/charts`).
 
@@ -492,6 +495,25 @@ type ViewLayoutProps = {
 };
 ```
 
+**`<CarouselTray>`** — 3D tray base rendered beneath `ViewLayout` carousels. Authored as a child of `<ViewLayout kind="carousel">`.
+- Optional props: `color` (string), `opacity` (number), `accentColor` (string), `depth` (number), `gap` (number), `outerMargin` (number), `metalness` (number), `roughness` (number), `edgeStyle` (`'smooth'` | `'knurled'` | `'ridged'` | `'matte'`), `surfacePattern` (`'brushed'` | `'radial'` | `'crosshatch'` | `'grain'` | `'none'`), `surfaceIntensity` (number), `surfaceMapUrl` (string), `surface` (string — named material preset), `colorMix`, `brightness`, `saturation`, `contrast`, `depthMix`, `roughnessMix`, `tint`, `texScale`, `iridescence`, `iridescenceIOR`, `iridescenceThicknessRange`.
+- Highlight props: `highlightActive` (ViewHighlightMode | boolean), `highlightVariant` (HighlightVariantName), `highlightColor`, `highlightIntensity`, `highlightBeamHeight`, `highlightSmoke`, `highlightZOffset`, `highlightViewId`, `highlights` (per-view highlight configs).
+- All visual settings can be set at the theme level via `SceneTheme.carouselTray`. DSL props override theme values.
+- Source: `packages/core/src/elements/carousel-scrubber/dsl.tsx`
+
+```tsx
+<ViewLayout kind="carousel" activeIndex={0}>
+  <CarouselTray
+    surface="onyx"
+    edgeStyle="knurled"
+    highlightActive="holographic"
+    highlightColor="#5090e0"
+  />
+  <View id="chart-1"><Chart ... /></View>
+  <View id="chart-2"><Chart ... /></View>
+</ViewLayout>
+```
+
 **`<ProgressManager>`** — Scroll budget and input pacing configuration for a scene.
 - Optional props: `scrollUnits` (number, default 1), `fn` (pure pacing curve function), `autoAdvance` (idle cinematic auto-play config), `animationTimeScale` (scroll-to-animation-time multiplier).
 - Carry-forward merge semantics: a scene that omits `<ProgressManager>` inherits the prior scene's spec.
@@ -536,9 +558,9 @@ type ViewLayoutProps = {
  */
 export type InputActionType =
   | 'camera.orbit'       // Orbital rotation delta; delegates to CameraWidget.applyCameraOrbit()
-  | 'camera.dolly'       // Dolly (zoom) delta; delegates to CameraWidget.applyCameraDolly()
+  | 'camera.zoom'       // Zoom (dolly) delta; delegates to CameraWidget.applyCameraZoom()
   | 'camera.reset'       // Reset camera override; delegates to CameraWidget.applyCameraReset()
-  | 'canvas.pan'         // Canvas pan — handled by plugin extension (e.g. diagram-canvas.move)
+  | 'camera.pan'         // Camera pan delta; delegates to CameraWidget.applyCameraPan()
   | 'scene.next'         // Advance to next scene by stepScenes (default 1)
   | 'scene.prev'         // Retreat to previous scene by stepScenes (default 1)
   | 'carousel.next'      // Advance carousel active index. Dispatched to InputCoordinator.onCarouselStep; patches ViewState bounds via engine.patchWidgetStates; ViewWidget applies delta transform.
@@ -702,7 +724,7 @@ ProgressManager.displayName = 'ProgressManager';
 
 ### 8.1 Minimal Single Scene
 
-Scenes are plain JSX constants exported from scene files. They are passed as direct children of `<ScenePlayer>`.
+Scenes are plain JSX constants exported from scene files. They are passed as direct children of `<SceneEngine>`.
 
 ```tsx
 // scene01_intro.tsx
@@ -718,12 +740,11 @@ export const scene01Intro = (
 );
 
 // page.tsx
-<EngineProvider
-  manifestUrl="/manifest.json"
+<SceneEngine
   plugins={[corePlugin(), modelPlugin({ manifestUrl: '/manifest.json' })]}
 >
   {scene01Intro}
-</EngineProvider>
+</SceneEngine>
 ```
 
 ### 8.2 Multi-Scene Interpolation
@@ -749,10 +770,10 @@ export const sceneRight = (
 );
 
 // page.tsx
-<EngineProvider ...>
+<SceneEngine plugins={[corePlugin(), modelPlugin({ manifestUrl: '/manifest.json' })]}>
   {sceneLeft}
   {sceneRight}
-</EngineProvider>
+</SceneEngine>
 ```
 
 ### 8.3 Enter Transition
@@ -933,7 +954,7 @@ export const sceneDetail = (
 );
 ```
 
-The `fn` prop applies only in scroll mode and direct mode. It does not apply when `controlledProgress` is set on `EngineProvider` (controlled-progress mode drives the engine directly).
+The `fn` prop applies only in scroll mode and direct mode. It does not apply when `ControlledInput` drives the engine directly.
 
 `autoAdvance` and `animationTimeScale` apply independently of `fn`. `autoAdvance` drives `rawProgress` forward using wall-clock time while the user is idle; `animationTimeScale` scales the `effectiveDeltaSeconds` passed to GLTF `AnimationMixer` widgets during scroll.
 

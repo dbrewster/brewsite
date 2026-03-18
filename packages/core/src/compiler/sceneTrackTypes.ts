@@ -381,12 +381,8 @@ export type SceneTrackTick = {
    * for animated bullet lists. Other elements may also use this for within-scene
    * progressive reveal effects.
    *
-   * Optional (not present in tracks compiled before this field was added).
-   * Defaults to blockProgress when absent at runtime.
-   *
-   * DEBT: Make this required in next major version
    */
-  sceneProgress?: number;
+  sceneProgress: number;
   state: SceneFrame;
   deltaForward: SceneFrameDelta;
   deltaBackward: SceneFrameDelta;

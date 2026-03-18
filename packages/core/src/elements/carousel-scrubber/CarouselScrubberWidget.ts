@@ -12,7 +12,7 @@ import type {
 } from '../../widget/types';
 import type { WidgetRegistry } from '../../widget/WidgetRegistry';
 import type { NodeHandler } from '../../compiler/sceneDslTypes';
-import type { CarouselScrubberState } from './types';
+import type { CarouselScrubberState, ViewHighlightConfig } from './types';
 import type { CarouselScrubberProps } from './dsl';
 import type { ViewLayoutState } from '../../compiler/viewTypes';
 import type { CarouselLayoutConfig } from '../../layout/regionTypes';
@@ -139,6 +139,48 @@ export class CarouselScrubberWidget
     this.registry = registry ?? null;
   }
 
+  // -- Programmatic highlight API ---------------------------------------------
+
+  /**
+   * Runtime highlight overrides — merged with compiled highlights each frame.
+   * Keyed by viewId. Set via setHighlight() / clearHighlight().
+   */
+  private runtimeHighlights = new Map<string, ViewHighlightConfig>();
+
+  /**
+   * Programmatically highlight a view. Takes effect on the next render frame.
+   * Multiple views can be highlighted simultaneously with different configs.
+   * Overrides any compiled highlight for the same viewId.
+   *
+   * @example
+   * const widget = registry.get('myLayout__tray') as CarouselScrubberWidget;
+   * widget.setHighlight({ viewId: 'chart-3', mode: 'holographic', color: '#ff0000' });
+   */
+  setHighlight(config: ViewHighlightConfig): void {
+    this.runtimeHighlights.set(config.viewId, config);
+  }
+
+  /**
+   * Remove a programmatic highlight from a view.
+   */
+  clearHighlight(viewId: string): void {
+    this.runtimeHighlights.delete(viewId);
+  }
+
+  /**
+   * Remove all programmatic highlights.
+   */
+  clearAllHighlights(): void {
+    this.runtimeHighlights.clear();
+  }
+
+  /**
+   * Returns the current runtime highlights (read-only snapshot).
+   */
+  getHighlights(): ReadonlyMap<string, ViewHighlightConfig> {
+    return this.runtimeHighlights;
+  }
+
   // -- IRenderable ------------------------------------------------------------
 
   private threeScene: THREE.Scene | null = null;
@@ -163,6 +205,9 @@ export class CarouselScrubberWidget
 
     const materialLoader = this.registry?.getMaterialLoader();
     const materialManifest = this.registry?.getMaterialManifest() ?? undefined;
+    // Pass the current tick's widget states so followView highlights can
+    // look up live view bounds at render time.
+    const tickWidgetStates = ctx.tick?.state?.widgets ?? null;
     applyCarouselScrubber(
       state,
       this.cache,
@@ -170,6 +215,9 @@ export class CarouselScrubberWidget
       ctx.coords,
       materialLoader,
       materialManifest,
+      tickWidgetStates,
+      this.runtimeHighlights.size > 0 ? this.runtimeHighlights : null,
+      this.registry,
     );
   }
 

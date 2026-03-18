@@ -274,16 +274,10 @@ export function compileChart(
   // Compose into parent view/region if present. Identity when no parent.
   const nvsBounds: NVSRect = composeBoundsFn ? composeBoundsFn(localBounds) : localBounds;
 
-  const boundsDepth = dsl.depth ?? dsl.bounds?.depth ?? 0.4;
+  const boundsDepth = dsl.depth ?? 0.4;
 
   if (process.env.NODE_ENV !== 'production') {
     validateNVSRect(nvsBounds, `<Chart id="${dsl.id}">`);
-    if (dsl.bounds?.width !== undefined || dsl.bounds?.height !== undefined) {
-      console.warn(
-        `[charts] <Chart id="${dsl.id}"> bounds.width/height are deprecated and have no effect. ` +
-        `Chart geometry width/height are always derived from the w/h props.`,
-      );
-    }
   }
 
   const dataSource = compileDataSource(dsl, dataDsl);

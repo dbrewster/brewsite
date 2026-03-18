@@ -36,7 +36,6 @@ import {
   PieChart,
   AreaChart,
   HeatMapChart,
-  Chart,
   ChartData,
   ChartAxis,
   ChartSeries,
@@ -107,7 +106,6 @@ export class ChartWidget
     { component: PieChart         as React.ComponentType<unknown>, displayName: 'PieChart' },
     { component: AreaChart        as React.ComponentType<unknown>, displayName: 'AreaChart' },
     { component: HeatMapChart     as React.ComponentType<unknown>, displayName: 'HeatMapChart' },
-    { component: Chart            as React.ComponentType<unknown>, displayName: 'Chart' },
     { component: ChartData        as React.ComponentType<unknown>, displayName: 'ChartData' },
     { component: ChartAxis        as React.ComponentType<unknown>, displayName: 'ChartAxis' },
     { component: ChartSeries      as React.ComponentType<unknown>, displayName: 'ChartSeries' },
@@ -622,8 +620,6 @@ import type React from 'react';
 // Re-export stubs for backward-compat with importers that still reference them from ChartWidget.
 // The canonical location is ./stubs — these re-exports will be removed once all callers migrate.
 export {
-  /** @deprecated @internal */
-  Chart,
   BarChart,
   LineChart,
   ScatterPlotChart,

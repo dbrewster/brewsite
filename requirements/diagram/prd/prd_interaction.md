@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Interaction System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-15
+last_updated: 2026-03-17
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -14,6 +14,9 @@ change_history:
   - date: 2026-03-15
     author: "Toolkit Product"
     summary: "Minor drift correction: replaced remaining DiagramCanvasWidget references in Technical Considerations (group interaction hit selection, emissive override architecture) with DiagramWidget. Corrected Pick<DiagramCanvasState,'id'> to Pick<DiagramState,'id'> in focus region implementation section. Replaced DiagramCanvasRenderer reference with DiagramRenderer via DiagramWidget."
+  - date: 2026-03-17
+    author: "Toolkit Product"
+    summary: "Codebase alignment: replaced deprecated diagramPlugin({ diagrams: [...] }) usage in click events example with diagramPlugin() (no args). Removed IAnimationController from Dependencies — DiagramWidget does not import it."
 ---
 
 # BrewSite Diagram — Interaction System
@@ -420,7 +423,7 @@ publishDiagramFocusGroup({ id: 'my-diagram-widget-id' }, 'architecture', 'data-t
 
 ### Usage — Click Events
 
-When using `diagramPlugin({ diagrams: [...] })`, `DiagramWidget` instances are created automatically. Access the widget from the registry after the engine initializes, or use the `onInteraction` callback pattern via plugin setup:
+When using `diagramPlugin()`, `DiagramWidget` instances are created automatically during compilation. Access the widget from the registry after the engine initializes, or use the `onInteraction` callback pattern via plugin setup:
 
 ```typescript
 // The DiagramWidget is created by diagramPlugin. Access it after engine startup:

@@ -48,8 +48,9 @@ export interface CorePluginOptions {
  * @brewsite/model for those.
  *
  * @example
- * <EngineProvider
- *   plugins={[corePlugin(), modelPlugin({ manifestUrl: '/assets/manifest.json' })]}
+ * <SceneEngine
+ *   plugins={[corePlugin(), modelPlugin({ manifest: '/assets/manifest.json' })]}
+ *   getFrame={() => <IntroScene />}
  * />
  */
 export function corePlugin(options?: CorePluginOptions): WidgetPlugin {

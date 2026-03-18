@@ -1,5 +1,5 @@
 // SceneEngine.tsx — Pure React context provider. No DOM output. Owns plugin wiring,
-// scene compilation, RAF loop, and context provision. Replaces EngineProvider.
+// scene compilation, RAF loop, and context provision. The primary engine provider.
 
 import {
   useCallback,
@@ -22,7 +22,7 @@ import { VariableStoreContext } from '../widget/VariableStoreContext';
 import { SceneRegistrationContext } from '../compiler/SceneRegistrationContext';
 import type { SceneRegistrationValue } from '../compiler/SceneRegistrationContext';
 import { ThemeContext } from '../theme/ThemeContext';
-import type { SceneTheme, ThemeFamily, ThemePolarity, ActiveTheme } from '../theme/types';
+import type { SceneTheme, ActiveTheme } from '../theme/types';
 import { resolveSceneTheme } from '../theme/sceneThemeRegistry';
 import { serializeJsx } from './serializeJsx';
 import {
@@ -80,27 +80,15 @@ export interface SceneEngineProps {
 
   /**
    * Active theme selection for this engine instance.
-   * Replaces the older `themeFamily` / `themePolarity` / `sceneTheme` props.
    */
   theme?: ActiveTheme;
 
   /**
-   * Scene theme token set for cross-package visual styling.
-   * @deprecated Use `theme` prop instead.
+   * Direct SceneTheme injection. When provided, bypasses the
+   * theme → resolveSceneTheme() path and uses this object directly
+   * for ThemeContext. Used by SlidePlayer and other programmatic theme builders.
    */
   sceneTheme?: SceneTheme;
-
-  /**
-   * Theme family key.
-   * @deprecated Use `theme` prop instead: `theme={{ family: 'darkGlass', polarity: 'dark' }}`.
-   */
-  themeFamily?: ThemeFamily;
-
-  /**
-   * Theme polarity ('dark' | 'light'). Defaults to 'dark' when themeFamily is set.
-   * @deprecated Use `theme` prop instead.
-   */
-  themePolarity?: ThemePolarity;
 
   /**
    * Optional scroll source for this engine.
@@ -136,18 +124,14 @@ export interface SceneEngineProps {
 
 /**
  * SceneEngine — pure context provider with zero DOM output. Owns plugin wiring,
- * scene compilation, RAF loop, and context provision. Replaces EngineProvider.
+ * scene compilation, RAF loop, and context provision. The primary engine provider.
  */
 export const SceneEngine = (props: SceneEngineProps): ReactElement => {
   // ─── Theme resolution ──────────────────────────────────────────────────────
-  // Compute resolved ActiveTheme from the new `theme` prop or deprecated legacy props.
   const resolvedActiveTheme = useMemo((): ActiveTheme => {
     if (props.theme) return props.theme;
-    if (props.themeFamily) {
-      return { family: props.themeFamily, polarity: props.themePolarity ?? 'dark' };
-    }
     return { family: 'default', polarity: 'dark' };
-  }, [props.theme, props.themeFamily, props.themePolarity]);
+  }, [props.theme]);
 
   // Resolve the SceneTheme for ThemeContext (CSS variable injection via EngineOverlayHost).
   const resolvedSceneTheme = useMemo((): SceneTheme => {
@@ -219,7 +203,7 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
     [register, unregister],
   );
 
-  // Sync scenes on every render (same pattern as EngineProvider)
+  // Sync scenes on every render (same pattern as before)
   useEffect(() => {
     const specs = Array.from(registrationsRef.current.entries()).map(
       ([id, element]): InternalSceneSpec => ({
@@ -397,7 +381,7 @@ export const SceneEngine = (props: SceneEngineProps): ReactElement => {
     }
   }
 
-  // SSR policy: identical to EngineProvider — contexts provide defaults on server;
+  // SSR policy: identical to the original design — contexts provide defaults on server;
   // Three.js and RAF loop are guarded inside useSceneEngine. SceneCanvas renders
   // null on server. Children always render for SSR layout correctness.
 

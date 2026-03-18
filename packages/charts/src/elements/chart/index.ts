@@ -1,7 +1,6 @@
 // Chart element module — public re-exports only.
-/** @deprecated @internal */
-export { Chart, ChartData, ChartAxis, ChartSeries, ChartLegend } from './ChartWidget';
-export type { ChartProps, ChartDataProps, ChartAxisProps, ChartSeriesProps, ChartLegendProps } from './dsl';
+export { ChartData, ChartAxis, ChartSeries, ChartLegend } from './ChartWidget';
+export type { ChartDataProps, ChartAxisProps, ChartSeriesProps, ChartLegendProps } from './dsl';
 export { compileChart, functionalChartTransitionSpec } from './compile';
 export { ChartRenderer } from './render';
 export { ChartWidget } from './ChartWidget';
@@ -12,7 +11,6 @@ export type {
   ChartAxisState,
   ChartSeriesState,
   ChartLegendState,
-  ChartDSL,
   ChartDataDSL,
   ChartAxisDSL,
   ChartSeriesDSL,

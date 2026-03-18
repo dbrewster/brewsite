@@ -14,13 +14,8 @@ import type {
   ChartLegendProps,
   ChartDataLabelsProps,
   ReferenceLineProps,
-  ChartProps,
   ChartTooltipProps,
 } from './dsl';
-
-/** @deprecated Use <BarChart>, <LineChart>, etc. instead. */
-export function Chart(_props: ChartProps): null { return null; }
-Chart.displayName = 'Chart';
 
 /** DSL stub for a bar chart element. */
 export function BarChart(_props: BarChartProps): null { return null; }

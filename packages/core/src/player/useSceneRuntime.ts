@@ -11,8 +11,8 @@ export const useSceneRuntime = (playerId: string): SceneRuntimeState => {
     const timer = setTimeout(() => {
       if (!hasRegisteredPlayer(playerId)) {
         console.warn(
-          `[useSceneRuntime] No <EngineProvider id="${playerId}"> was found after component mount. ` +
-          `Check that the target EngineProvider has id="${playerId}" and is mounted in the tree.`,
+          `[useSceneRuntime] No <SceneEngine id="${playerId}"> was found after component mount. ` +
+          `Check that the target SceneEngine has id="${playerId}" and is mounted in the tree.`,
         );
       }
     }, 1000);

@@ -18,7 +18,7 @@ const SCENE_META: Record<string, SceneMetadata> = {
 
 export default function MyPage() {
   return (
-    <SceneEngine plugins={plugins} themeFamily="darkGlass" themePolarity="dark">
+    <SceneEngine plugins={plugins} theme={{ family: 'darkGlass', polarity: 'dark' }}>
       <MyScene />
       <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1200}>
         <SceneCanvas style={{ position: 'absolute', inset: 0 }} />
@@ -196,8 +196,7 @@ const sceneB = <Scene key="b"><Diagram id="my-diagram" tilt={-Math.PI/12} /></Sc
 
 <SceneEngine
   plugins={plugins}
-  themeFamily="enterprise"   // 'darkGlass' | 'midnight' | 'neonCyber'
-  themePolarity="light"      //   | 'enterprise' | 'lightCanvas' | 'lightMinimal'
+  theme={{ family: 'enterprise', polarity: 'light' }}  // 'darkGlass' | 'midnight' | 'neonCyber' | 'enterprise' | 'lightCanvas' | 'lightMinimal'
 >
   {scenes}
 </SceneEngine>

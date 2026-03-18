@@ -27,8 +27,9 @@ export const LIFETIME_RANGE: readonly [number, number] = [1.5, 3.0];
 /** Default angular speed range [min, max] in radians/second. */
 export const ANGULAR_SPEED_RANGE: readonly [number, number] = [0.2, 0.6];
 
-/** Default upward drift speed range [min, max] in world units/second. */
-export const DRIFT_SPEED_RANGE: readonly [number, number] = [0.05, 0.15];
+/** Default upward drift speed range [min, max] in world units/second.
+ * Tuned for beamHeight ~5.0: particles traverse the full beam in ~3-8 seconds. */
+export const DRIFT_SPEED_RANGE: readonly [number, number] = [0.6, 1.5];
 
 /**
  * Initializes a single particle with randomized properties.
@@ -39,7 +40,7 @@ export const DRIFT_SPEED_RANGE: readonly [number, number] = [0.05, 0.15];
 export function initParticle(random: () => number): ParticleState {
   return {
     angle: random() * Math.PI * 2,
-    yOffset: 0,
+    yOffset: random() * 5.0, // stagger across beam height (scaled by render if needed)
     age: random() * LIFETIME_RANGE[1], // stagger initial ages
     angularSpeed: ANGULAR_SPEED_RANGE[0] + random() * (ANGULAR_SPEED_RANGE[1] - ANGULAR_SPEED_RANGE[0]),
     driftSpeed: DRIFT_SPEED_RANGE[0] + random() * (DRIFT_SPEED_RANGE[1] - DRIFT_SPEED_RANGE[0]),

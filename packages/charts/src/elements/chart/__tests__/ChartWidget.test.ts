@@ -631,22 +631,21 @@ describe('ChartWidget', () => {
 
   // ── V2: childDslComponents ────────────────────────────────────────────────
 
-  it('childDslComponents includes all 12 V2 child components', () => {
+  it('childDslComponents includes all V2 child components', () => {
     const displayNames = widget.childDslComponents.map(c => c.displayName);
     expect(displayNames).toContain('LineChart');
     expect(displayNames).toContain('ScatterPlotChart');
     expect(displayNames).toContain('PieChart');
     expect(displayNames).toContain('AreaChart');
     expect(displayNames).toContain('HeatMapChart');
-    expect(displayNames).toContain('Chart');
     expect(displayNames).toContain('ChartData');
     expect(displayNames).toContain('ChartAxis');
     expect(displayNames).toContain('ChartSeries');
     expect(displayNames).toContain('ChartLegend');
     expect(displayNames).toContain('ChartDataLabels');
     expect(displayNames).toContain('ReferenceLine');
-    // BarChart is DslComponent (not in childDslComponents), total 13 children (includes ChartTooltip)
-    expect(widget.childDslComponents).toHaveLength(13);
+    // BarChart is DslComponent (not in childDslComponents), total 12 children (includes ChartTooltip)
+    expect(widget.childDslComponents).toHaveLength(12);
   });
 
   it('DslComponent is BarChart', () => {

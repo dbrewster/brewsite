@@ -14,7 +14,7 @@ export interface DocsMainColumnProps {
  * - Outer div: grid column cell. No overflow-y, no height — window is the scroll source.
  * - Inner div (.docs-content): max-width + padding + centering. Unchanged from DocsScrollRegion.
  *
- * The ref is forwarded to the outer div for future use (e.g., EngineProvider positioning).
+ * The ref is forwarded to the outer div for future use (e.g., SceneEngine positioning).
  * It is NOT passed to IntersectionObserver as root — the IntersectionObserver root is null (window).
  */
 export const DocsMainColumn = forwardRef<HTMLDivElement, DocsMainColumnProps>(
