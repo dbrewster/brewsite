@@ -3,11 +3,14 @@ title: "BrewSite Core — Player & Runtime"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-15
+last_updated: 2026-03-18
 change_history:
   - date: 2026-03-09
     author: "Toolkit Product"
     summary: "v2 player API (major breaking change — @brewsite/core v2.0.0): EngineProvider, EngineInputRegion, ScenePlayer, and ScrollCaptureSection are deleted. useEngineScroll and useEngineInput hooks deleted. SceneEngine replaces EngineProvider as the primary integration component. ScrollStage replaces EngineInputRegion for the full-page scroll pattern. SceneReel introduced for embedded/docs/slides use cases. Composable input components (ScrollInput, TimeInput, KeyboardInput, PointerInput, ControlledInput) replace all input mode configuration. useEngineState(id) unifies useEngineState and deleted useSceneEngineState. useGoToScene hook added for programmatic scene navigation. IScrollSource / ScrollSourceProp replace deleted ScrollSource type. Spring-physics inertia model replaces DOM-scroll inertia. BackgroundLayer extracted as standalone component. SceneCanvas gains engineId prop for cross-tree binding. All section 7 EngineProvider documentation rewritten for SceneEngine. All apps migrated; MIGRATION.md published."
+  - date: 2026-03-18
+    author: "Toolkit Product"
+    summary: "Core over-engineering audit: EngineFrameDriver class removed — tick-index dedup logic inlined into useSceneEngine.ts as a simple ref-based closure. Section 11 rewritten to document the inline pattern. Section 1 overview and Section 8.4 Phase 3 updated to remove EngineFrameDriver references. CP9 deprecations noted: TimeInput, ControlledInput, useNativeScrollSource, CustomScrollSource, ElementScrollSource, useSceneRuntime marked @deprecated."
   - date: 2026-03-15
     author: "Toolkit Product"
     summary: "NVS zoom-instability fix: updated tick sequence (section 9.3) to reflect new ordering — SceneTrack sampling (Step 1) before animation controllers (Step 2), NVS computation at Step 3.5 from compiled camera state, then apply (Step 4). Updated functional requirement 9 and WidgetRenderContext shape to include coords field. createNVSCoordService now accepts NVSCameraParams instead of THREE.PerspectiveCamera. NVS positions are stable under camera interaction."
@@ -73,7 +76,7 @@ change_history:
 
 The Player layer is the React integration surface for `@brewsite/core`. `SceneEngine` is the primary component that a host application mounts to run an animated 3D scene. It is a pure context provider with zero DOM output, composed with `EngineARContainer` (aspect-ratio-locked container), `EngineGate` (loading gate), `SceneCanvas` (Three.js canvas), `EngineOverlayHost` (overlay tier), and input components (`InputCoordinator`, `TimeInput`, `ControlledInput`) to form the complete integration. `SceneReel` provides a pre-composed convenience wrapper for embedded/docs/slides use cases. The Runtime layer is the frame-by-frame execution engine that drives widget ticking, scene track sampling, Three.js rendering, and state publishing. Together they form the complete playback stack: from JSX scene authoring through compilation, asset loading, frame scheduling, and reactive state propagation to host UI.
 
-This document covers `SceneEngine` and the composable player primitives (`EngineARContainer`, `EngineGate`, `ScrollStage`, `SceneCanvas`, `EngineOverlayHost`, `BackgroundLayer`, `SceneReel`), the composable input components (`InputCoordinator`, `TimeInput`, `ControlledInput`), the `useSceneEngine` hook and its options, `RuntimeDriverImpl` and the per-frame tick sequence, `RuntimeLoop` and the animation frame scheduler, `EngineFrameDriver` and the React state bridge, all consumer hooks (`useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `useEngineState`, `useGoToScene`, `useNativeScrollSource`), all context providers (`EngineStateContext`, `VariableStoreContext`, `LabelPositionerContext`, `EngineContext`, `EngineARContainerContext`), `TimelineWidget` for interactive scrubbing, `CameraControlPanel`, `SceneMetaWidget`, `SceneProgressMapper`, the asset manifest pipeline, the Normalized Viewport Space (NVS) layout system, and the SSR safety contract.
+This document covers `SceneEngine` and the composable player primitives (`EngineARContainer`, `EngineGate`, `ScrollStage`, `SceneCanvas`, `EngineOverlayHost`, `BackgroundLayer`, `SceneReel`), the composable input components (`InputCoordinator`, `TimeInput` (@deprecated), `ControlledInput` (@deprecated)), the `useSceneEngine` hook and its options, `RuntimeDriverImpl` and the per-frame tick sequence, `RuntimeLoop` and the animation frame scheduler, all consumer hooks (`useEngineScrubber`, `useSceneProgress`, `useCurrentScene`, `useEngineState`, `useGoToScene`, `useNativeScrollSource` (@deprecated)), all context providers (`EngineStateContext`, `VariableStoreContext`, `LabelPositionerContext`, `EngineContext`, `EngineARContainerContext`), `TimelineWidget` for interactive scrubbing, `CameraControlPanel`, `SceneMetaWidget`, `SceneProgressMapper`, the asset manifest pipeline, the Normalized Viewport Space (NVS) layout system, and the SSR safety contract.
 
 Affects: `@brewsite/core`.
 
@@ -951,7 +954,7 @@ type EngineFrameState = {
 type EngineState = EngineFrameState;
 ```
 
-`EngineFrameState` is the React state that bridges the animation loop to React rendering. It is updated by `EngineFrameDriver` only when `tickIndex` changes, preventing per-frame React state churn.
+`EngineFrameState` is the React state that bridges the animation loop to React rendering. It is updated by the tick-index dedup logic in `useSceneEngine.ts` only when `tickIndex` changes, preventing per-frame React state churn.
 
 `sceneProgress` maps to `tick.blockProgress` — the normalized position [0, 1] within the current transition block, not the global progress. It is the value evaluated by functional transition closures.
 
@@ -963,7 +966,7 @@ The engine initializes across three separate `useEffect` phases that React sched
 
 **Phase 2 — Driver Initialization:** Triggered when `canvas` becomes available, `widgetRegistry` changes, `manifest` changes, `variableStore` changes, or `sceneTrack` transitions from null to non-null. Creates a `THREE.Scene`, a `THREE.PerspectiveCamera`, and a `RuntimeDriverImpl`. Calls `driver.initialize(scene, camera, renderer)` synchronously. Sets `driverReady = true` on success.
 
-**Phase 3 — Loop Start:** Triggered when `sceneTrack`, `driverReady`, and `getGlobalProgress` are all available. Calls `driver.setSceneTrack(sceneTrack)`, creates an `EngineFrameDriver` and a `RuntimeLoop`, and starts the loop. The loop calls `driver.tick → onAfterTick → render` each frame.
+**Phase 3 — Loop Start:** Triggered when `sceneTrack`, `driverReady`, and `getGlobalProgress` are all available. Calls `driver.setSceneTrack(sceneTrack)`, creates a `RuntimeLoop`, and starts the loop. The loop calls `driver.tick → onAfterTick → render` each frame. The `onAfterTick` callback uses a ref-based tick-index dedup check to fire `setFrameState` only when the tick index changes.
 
 ---
 
@@ -1066,7 +1069,7 @@ See Section 7C for the `RealtimeClock` type definition and widget authoring guid
    — try { renderable.apply(state, { clock, effectiveDeltaSeconds, ..., coords, tick }) } catch → add to erroredWidgets, fire onWidgetError
 ```
 
-After the tick sequence, the `RuntimeLoop` calls `render()` (Three.js renderer draw call) and then `onAfterTick` (which routes to `EngineFrameDriver.handleTick`).
+After the tick sequence, the `RuntimeLoop` calls `render()` (Three.js renderer draw call) and then `onAfterTick` (which performs tick-index dedup and fires `setFrameState` when the index changes).
 
 ### 9.4 Functional Transition Evaluation
 
@@ -1113,7 +1116,7 @@ Each frame, `RuntimeLoop` performs:
 1. Compute `deltaMs` from the clock (clamped to prevent runaway after tab switch).
 2. If `fpsCap` is configured and not enough time has accumulated, skip this frame.
 3. Call `driver.tick({ deltaSeconds, globalProgress, wallTimeSeconds })`.
-4. Call `onAfterTick(frame)` — this triggers `EngineFrameDriver.handleTick`.
+4. Call `onAfterTick(frame)` — this performs tick-index dedup and fires `setFrameState` when the index changes.
 5. Call `render()` — this calls `renderer.render(scene, camera)` and updates `LabelPositioner`.
 
 The loop uses a pluggable `RuntimeLoopClock` abstraction (`now`, `requestFrame`, `cancelFrame`) to support deterministic testing without actual rAF.
@@ -1122,21 +1125,11 @@ The loop uses a pluggable `RuntimeLoopClock` abstraction (`now`, `requestFrame`,
 
 ---
 
-## 11. EngineFrameDriver
+## 11. Frame State Bridge (Tick-Index Dedup)
 
-`EngineFrameDriver` is the bridge between the animation loop and React state. It is deliberately minimal.
+The bridge between the animation loop and React state is implemented inline in `useSceneEngine.ts` using a simple ref-based dedup closure. The former `EngineFrameDriver` class was removed as it was a 29-line wrapper with zero external consumers.
 
-```typescript
-class EngineFrameDriver {
-  constructor(onFrameChange: (state: EngineFrameState) => void);
-  handleTick(tick: SceneTrackTick | null): void;
-  reset(): void;
-}
-```
-
-`handleTick` is called by `RuntimeLoop.onAfterTick` each frame. It compares `tick.index` to `lastIndex`. If the index has not changed (same tick played twice due to non-linear progress), no React state update is triggered. Only when the tick index advances does `onFrameChange(state)` fire, batching a React state update via `setFrameState`.
-
-`reset()` clears `lastIndex` to `-1`, used on HMR updates to ensure the first tick after recompilation triggers a state update.
+The `onAfterTick` callback in the RAF loop effect compares `tick.index` to a `lastTickIndexRef`. If the index has not changed (same tick played twice due to non-linear progress), no React state update is triggered. Only when the tick index advances does `setFrameState` fire. The ref is reset to `-1` on loop cleanup and HMR updates.
 
 This design ensures React re-renders from the animation loop are proportional to actual scene progress changes, not to animation frame rate.
 

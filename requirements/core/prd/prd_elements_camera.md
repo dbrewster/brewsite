@@ -3,8 +3,11 @@ title: "BrewSite Core — Camera Element"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-15
+last_updated: 2026-03-18
 change_history:
+  - date: 2026-03-18
+    author: "Toolkit Product"
+    summary: "Core over-engineering audit: updated internal dependency to note ElementTransitionSpec is deprecated and no longer implemented by the camera element. Camera uses FunctionalTransitionSpec exclusively."
   - date: 2026-03-09
     author: "Toolkit Product"
     summary: "NVS Universal Coordinate System: added nvsViewport as a fifth camera mode (mode: 'nvsViewport'). NVSViewportCamera accepts worldScale and zRange; compiles to an equivalent mode='world' CameraState at compile time — no special runtime handling. Non-Goals updated: removed reference to DiagramCanvas managing its own orthographic camera (DiagramCanvas has been removed from @brewsite/diagram). Breaking change assessment updated to minor (additive mode)."
@@ -738,7 +741,7 @@ If `ICameraInteractionDriver` gains a required method, that is a breaking change
 - No new external dependencies are introduced by this element beyond `camera-controls`.
 - Internal dependency: `packages/core/src/math/` — `Vec3` type, `lerpVec3`.
 - Internal dependency: `packages/core/src/widget/` — `IWidget`, `ISceneElement`, `IRenderable`, `IAnimationController`, `ICameraFocusTarget`, `CUSTOM_NODE_HANDLER`, `WidgetRegistry`.
-- Internal dependency: `packages/core/src/compiler/transitions/` — `ElementTransitionSpec`, `FunctionalTransitionSpec`, `transitionT`, `makeSimpleContext`.
+- Internal dependency: `packages/core/src/compiler/transitions/` — `FunctionalTransitionSpec`, `makeSimpleContext`. (`ElementTransitionSpec` is deprecated and no longer implemented by the camera element.)
 - Internal dependency: `packages/core/src/timeline/math.ts` — `smoothstep` easing function.
 - Internal dependency: `packages/core/src/layout/nvsWorldBridge.ts` — `nvsToWorldAnalytic` (used in `render.ts` for NVS target resolution).
 

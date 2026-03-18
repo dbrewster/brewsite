@@ -2,6 +2,7 @@
 
 import type { EaseFn } from './transitionTypes';
 import type { TransitionWindow } from '../sceneTrackTypes';
+import { clamp } from '../../math';
 
 // ====================
 // Named Transition Types
@@ -63,7 +64,7 @@ export function resolveSceneTransition(
   exitStart?: number,
 ): TransitionWindow {
   if (!prop || prop === 'dissolve') {
-    const eos = Math.min(Math.max(exitStart ?? DEFAULT_EXIT_START, 0), 0.99);
+    const eos = clamp(0, 0.99, exitStart ?? DEFAULT_EXIT_START);
     const mid = (eos + 1.0) / 2;
     return { exit: [eos, mid], enter: [mid, 1.0] };
   }

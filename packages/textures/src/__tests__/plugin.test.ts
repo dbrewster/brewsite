@@ -31,7 +31,7 @@ describe('texturesPlugin', () => {
     expect(manifest).not.toBeNull();
     expect(manifest!.version).toBe(BUILTIN_MANIFEST.version);
     expect(manifest!.basePath).toBe('/assets/materials');
-    expect(Object.keys(manifest!.presets)).toHaveLength(10);
+    expect(Object.keys(manifest!.presets)).toHaveLength(11);
   });
 
   it('basePath override flows through to manifest', () => {
@@ -62,7 +62,7 @@ describe('texturesPlugin', () => {
     plugin.configureRegistry!(registry, null);
 
     const manifest = registry.getMaterialManifest() as MaterialManifest;
-    expect(Object.keys(manifest.presets)).toHaveLength(11);
+    expect(Object.keys(manifest.presets)).toHaveLength(12);
     expect(manifest.presets['custom-material']).toEqual(customPreset);
     // Built-in presets are still present.
     expect(manifest.presets['onyx']).toBeDefined();

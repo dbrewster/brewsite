@@ -23,6 +23,10 @@ function useRegisterScrollSource(source: IScrollSource): void {
   }, [driver, source]);
 }
 
+/**
+ * @deprecated No known consumers in current packages or apps.
+ * This export will be removed in a future version.
+ */
 export function CustomScrollSource({ source }: RegisterableScrollSourceProps): null {
   useRegisterScrollSource(source);
   return null;
@@ -32,6 +36,10 @@ export interface ElementScrollSourceProps {
   elementRef: RefObject<HTMLElement | null>;
 }
 
+/**
+ * @deprecated No known consumers in current packages or apps.
+ * This export will be removed in a future version.
+ */
 export function ElementScrollSource({ elementRef }: ElementScrollSourceProps): null {
   const source = useMemo<IScrollSource>(() => ({
     subscribe(onProgress: (rawProgress: number) => void): () => void {

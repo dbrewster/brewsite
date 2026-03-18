@@ -19,7 +19,7 @@ import { applyBackground } from './render';
 /**
  * Scene background element. Uses CSS background props (`cssPosition`, `cssSize`, `cssRepeat`).
  */
-export const Background = (_props: BackgroundProps) => null;
+export const Background = (_props: BackgroundProps): null => null;
 
 Background.displayName = 'Background';
 

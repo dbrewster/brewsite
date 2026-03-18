@@ -3,7 +3,7 @@ import React from 'react';
 import * as THREE from 'three';
 import { ModelWidget } from '../ModelWidget';
 import {
-  ModelRouter,
+  Model,
   BodyParts,
   BodyPart,
   Pose,
@@ -74,7 +74,7 @@ describe('ModelWidget DSL handler', () => {
 
     const tree = (
       <Scene id="scene">
-        <ModelRouter
+        <Model
           id="bot-instance"
           type="bot"
           scale={() => 0.5}
@@ -106,7 +106,7 @@ describe('ModelWidget DSL handler', () => {
               customAnimations={[{ id: 'c1', enabled: true, apply: () => [] }]}
             />
           </Playback>
-        </ModelRouter>
+        </Model>
       </Scene>
     );
 
@@ -157,7 +157,7 @@ describe('ModelWidget DSL handler', () => {
 
     const tree = (
       <Scene id="scene-flat-pose">
-        <ModelRouter id="bot-pose" type="bot">
+        <Model id="bot-pose" type="bot">
           <BodyPart
             id="RightForeArm"
             boneId="mixamorigRightForeArm"
@@ -166,7 +166,7 @@ describe('ModelWidget DSL handler', () => {
           >
             <Pose yawPct={0.3} pitchPct={0.1} />
           </BodyPart>
-        </ModelRouter>
+        </Model>
       </Scene>
     );
 
@@ -200,7 +200,7 @@ describe('ModelWidget DSL handler', () => {
 
     const tree = (
       <Scene id="scene-linked">
-        <ModelRouter id="bot-linked" type="bot">
+        <Model id="bot-linked" type="bot">
           <BodyPart
             id="LeftHand"
             boneId="mixamorigLeftHand"
@@ -209,7 +209,7 @@ describe('ModelWidget DSL handler', () => {
           >
             <Pose rollPct={0.2} zPct={0.1} />
           </BodyPart>
-        </ModelRouter>
+        </Model>
       </Scene>
     );
 

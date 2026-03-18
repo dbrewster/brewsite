@@ -23,6 +23,7 @@
     "@babel/parser": "^7.28.4",
     "@gltf-transform/core": "^4.2.1",
     "@gltf-transform/extensions": "^4.2.1",
+    "@jetbrains/mcp-proxy": "^1.8.0",
     "adm-zip": "^0.5.16",
     "heroicons": "^2.2.0",
     "hjson": "^3.2.2",

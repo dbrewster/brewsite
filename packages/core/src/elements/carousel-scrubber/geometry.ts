@@ -142,63 +142,77 @@ export function generateRoundedRectPoints(halfW: number, halfZ: number): ShapePo
 }
 
 /**
- * Generates a parabolic-arc outline as a point array.
+ * Generates a closed parabolic tray outline as a point array.
  *
- * The outline (viewed from above) follows two parallel parabolic curves:
- *   Front edge: z = k*x*x - bandWidth/2   (closest to camera at center)
- *   Back edge:  z = k*x*x + bandWidth/2   (recedes at center and edges)
+ * The front edge follows the parabolic curvature of the linear carousel
+ * (items nearest the camera at center, receding at the sides). The back
+ * edge runs flat at the maximum parabolic depth, closing the shape through
+ * the center instead of leaving a horseshoe gap. The result is a closed
+ * platform shape — like a leaf or tongue — that follows the carousel curve
+ * on the front and is filled solid in the middle.
  *
  * After the -pi/2 X rotation, positive shape Y becomes negative world Z
  * (away from camera). The parabola k*x^2 is positive at the edges, which
  * after rotation becomes negative world Z = receding.
  *
- * The parabola covers the FULL POSSIBLE PATH of the carousel — at the edges
- * (x = ±halfWidth), the curve reaches maxDepth. For a linear carousel this
- * is ceil((childCount-1)/2) * zStep, so the tray spans all positions any
- * item could occupy regardless of which item is active.
- *
  * Points are returned in counterclockwise winding: front edge left-to-right,
- * then back edge right-to-left.
+ * right end-cap, back edge right-to-left, left end-cap.
  *
  * @param halfWidth - Half the total tray width along X.
  * @param maxDepth - Total Z depth at the edges (from computeLinearMaxDepth).
  * @param bandWidth - Thickness of the tray band in Z (front-to-back extent).
- * @param segments - Number of segments along each parabolic edge.
+ * @param segments - Number of segments along each edge.
  */
 export function generateParabolicPoints(
   halfWidth: number,
   maxDepth: number,
   bandWidth: number,
   segments = 32,
+  _capSegments = 8,
 ): ShapePoint[] {
-  const k = maxDepth > 0 ? maxDepth / (halfWidth * halfWidth) : 0;
   const points: ShapePoint[] = [];
 
-  // Band width tapers: wider at center (under the active view — should feel
-  // like a platform the front item sits on), widest at edges (visual presence
-  // behind receding items).
-  // Range: center = bandWidth * 0.8, edge = bandWidth * 1.6
-  const bandAt = (x: number): number => {
-    const edgeFraction = Math.abs(x) / Math.max(halfWidth, 0.001);
-    return bandWidth * (0.8 + 0.8 * edgeFraction);
-  };
+  // Front offset: how far the tray extends toward the camera (negative Z)
+  // at x=0. Keep this modest so the tray doesn't protrude too far forward.
+  const frontOffset = bandWidth * 0.5;
 
-  // Front edge: left to right
+  // Front edge: uses a cubic power curve (|x|³) — rounder than x⁴ (which was
+  // too flat) but still flatter than the original x² parabola. The cubic
+  // produces a gentle rounded nose at center that transitions smoothly into
+  // the steeper rise at the sides. Same endpoints as the parabola:
+  // at x=0 → y = -frontOffset (closest to camera)
+  // at x=±hw → y = maxDepth - frontOffset (deepest)
   for (let i = 0; i <= segments; i++) {
     const t = i / segments;
     const x = -halfWidth + t * 2 * halfWidth;
-    const bw = bandAt(x);
-    const z = k * x * x - bw / 2;
+    const normalizedX = halfWidth > 0 ? x / halfWidth : 0; // [-1, 1]
+    const absN = Math.abs(normalizedX);
+    const z = maxDepth * (absN * absN * absN) - frontOffset;
     points.push({ x, y: z });
   }
 
-  // Back edge: right to left
+  // Right side: straight vertical connection from front edge to back edge at
+  // x = +halfWidth. No semicircle cap — eliminates the outward nubs.
+  // (The front edge endpoint is already at x=+halfWidth.)
+  // Just add the back edge start point at the same x.
+  const backY = maxDepth + frontOffset;
+  points.push({ x: halfWidth, y: backY });
+
+  // Back edge: flat straight line at maximum depth, right-to-left.
   for (let i = segments; i >= 0; i--) {
     const t = i / segments;
     const x = -halfWidth + t * 2 * halfWidth;
-    const bw = bandAt(x);
-    const z = k * x * x + bw / 2;
-    points.push({ x, y: z });
+    points.push({ x, y: backY });
+  }
+
+  // Left side: straight vertical connection from back edge to front edge at
+  // x = -halfWidth. Mirrors the right side — no nub.
+  // (The back edge end is already at x=-halfWidth. The close point below
+  // reconnects to the front edge start at x=-halfWidth.)
+
+  // Close: repeat the first point to ensure topological closure.
+  if (points.length > 0) {
+    points.push({ x: points[0].x, y: points[0].y });
   }
 
   return points;

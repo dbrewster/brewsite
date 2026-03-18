@@ -5,38 +5,44 @@ import * as THREE from 'three';
 import type CustomShaderMaterial from 'three-custom-shader-material/vanilla';
 import type {CarouselScrubberState, CarouselScrubberStyle, CarouselTrayEdgeStyle, CarouselTraySurfacePattern, ViewHighlight, ViewHighlightMode} from './types';
 import {
-  HL_DEFAULT_BACKDROP_OPACITY, HL_DEFAULT_BACKDROP_COLOR_DARK, HL_DEFAULT_BACKDROP_COLOR_LIGHT,
+  HL_BACKDROP_SCALE,
+  HL_BEAM_SCALE,
+  HL_BEAM_Z_SQUEEZE,
+  HL_DEFAULT_BACKDROP_COLOR_DARK,
+  HL_DEFAULT_BACKDROP_COLOR_LIGHT,
+  HL_DEFAULT_BACKDROP_OPACITY,
   HL_DEFAULT_BEAM_HEIGHT,
-  HL_FADE_LERP, HL_POSITION_LERP, HL_OPACITY_THRESHOLD, HL_Y_OFFSET,
-  HL_BEAM_SCALE, HL_GLOW_SCALE, HL_BACKDROP_SCALE,
-  HL_DUST_PARTICLE_COUNT, HL_DUST_POINT_SIZE, HL_DUST_OPACITY, HL_SMOKE_OPACITY,
-  HL_HOLOGRAPHIC_GLOW_FACTOR, HL_GLOW_MODE_SCALE, HL_SMOKE_POINT_SIZE,
+  HL_DUST_OPACITY,
+  HL_DUST_PARTICLE_COUNT,
+  HL_DUST_POINT_SIZE,
+  HL_FADE_LERP,
+  HL_GLOW_MODE_SCALE,
+  HL_GLOW_SCALE,
+  HL_HOLOGRAPHIC_GLOW_FACTOR,
+  HL_OPACITY_THRESHOLD,
+  HL_POSITION_LERP,
+  HL_SMOKE_OPACITY,
+  HL_SMOKE_POINT_SIZE,
+  HL_Y_OFFSET,
 } from './highlightConstants';
-import { resolveRuntimeHighlight } from './compileTray';
-import type { NVSCoordService } from '../../widget/types';
-import type { MaterialManifest, LoadedMaterialPreset } from '../../widget/materialTypes';
-import type { MaterialLoader } from '../../widget/MaterialLoader';
-import { createPresetMaterial, applyMaterialApplication } from '../_shared/materialFactory';
-import { generateSurfaceNormalMap, loadCustomSurfaceMap } from './surfaceTexture';
+import {resolveRuntimeHighlight} from './compileTray';
+import type {NVSCoordService} from '../../widget/types';
+import type {LoadedMaterialPreset, MaterialLoader, MaterialManifest} from '../../widget/index';
+import {applyMaterialApplication, createPresetMaterial} from '../_shared/materialFactory';
+import {generateSurfaceNormalMap, loadCustomSurfaceMap} from './surfaceTexture';
 import {
-  resolveTrayShapeKind,
-  generateEllipsePoints,
-  generateParabolicPoints,
-  computeParabolicBandWidth,
-  computeLinearMaxDepth,
   computeBevelRadius,
   computeGeometryKey,
+  computeLinearMaxDepth,
+  computeParabolicBandWidth,
   computeTrayZDepth,
+  generateEllipsePoints,
+  generateParabolicPoints,
+  resolveTrayShapeKind,
   type TrayGeometryParams,
 } from './geometry';
-import { computeTrayPosition, computeTrayWorldWidth, computeRingRotation, type TrayCoordService } from './trayPosition';
-import {
-  initParticle,
-  advanceParticle,
-  particleRingPosition,
-  DEFAULT_PARTICLE_COUNT,
-  type ParticleState,
-} from './highlightParticles';
+import {computeRingRotation, computeTrayPosition, computeTrayWorldWidth, type TrayCoordService} from './trayPosition';
+import {advanceParticle, DEFAULT_PARTICLE_COUNT, initParticle, particleRingPosition, type ParticleState,} from './highlightParticles';
 
 /** Three.js refs for the carousel scrubber renderer. */
 export type CarouselScrubberRefs = {
@@ -75,6 +81,8 @@ type DustParticle = {
 export type CarouselScrubberCache = {
   root: THREE.Group;
   base: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial> | null;
+  /** Back-fade plane that extends the tray and fades to transparent. */
+  fadePlane: THREE.Mesh<THREE.BufferGeometry, THREE.MeshStandardMaterial> | null;
   /** String key encoding all geometry parameters for change detection. */
   lastGeoKey: string;
   /** Last surface pattern used for normal map generation. */
@@ -222,6 +230,69 @@ function normalizeCapUVs(geometry: THREE.ExtrudeGeometry, halfW: number, halfZ: 
   uvAttr.needsUpdate = true;
 }
 
+/** Cached 1D gradient alpha texture — shared across all scrubber instances. */
+let _sharedFadeAlphaTexture: THREE.DataTexture | null = null;
+
+/**
+ * Creates (or returns cached) a 1px-tall gradient texture for the back-fade
+ * alphaMap. The gradient goes from white (alpha=1) at v=0 to black (alpha=0)
+ * at v=1, producing a smooth opacity fade along the V axis.
+ */
+function createFadeAlphaTexture(): THREE.DataTexture {
+  if (_sharedFadeAlphaTexture) return _sharedFadeAlphaTexture;
+  const width = 1;
+  const height = 64;
+  const data = new Uint8Array(width * height);
+  for (let i = 0; i < height; i++) {
+    // Gradient: row 0 = 255 (opaque), row 63 = 0 (transparent)
+    const t = i / (height - 1);
+    // Ease out: faster initial fade, gentle tail
+    const alpha = 1 - t * t;
+    data[i] = Math.round(alpha * 255);
+  }
+  const tex = new THREE.DataTexture(data, width, height, THREE.RedFormat);
+  tex.needsUpdate = true;
+  tex.minFilter = THREE.LinearFilter;
+  tex.magFilter = THREE.LinearFilter;
+  tex.wrapS = THREE.ClampToEdgeWrapping;
+  tex.wrapT = THREE.ClampToEdgeWrapping;
+  _sharedFadeAlphaTexture = tex;
+  return tex;
+}
+
+/**
+ * Creates a flat plane geometry for the back-fade zone behind the tray.
+ * The plane lies in the XZ plane (after rotation) extending into -Z.
+ * UVs are set so V goes from 0 (front, tray edge) to 1 (far back),
+ * which drives the alphaMap fade.
+ *
+ * @param width  - Tray width in world units.
+ * @param depth  - Fade depth (2 * zStep).
+ * @param height - Thickness (same as tray depth for visual continuity).
+ */
+function createBackFadePlane(width: number, depth: number, height: number): THREE.BufferGeometry {
+  // Create a box with the same width/height as the tray, extending `depth` into Z.
+  const geo = new THREE.BoxGeometry(width, height, depth, 1, 1, 8);
+
+  // Remap UVs on the top face (Y+ side) so V maps to Z-depth (fade direction).
+  // The top face normals point +Y. We remap all face UVs but only the top face
+  // is visible (facing the camera from above after the tray's rotation).
+  const uvAttr = geo.getAttribute('uv');
+  const posAttr = geo.getAttribute('position');
+  const halfDepth = depth / 2;
+
+  for (let i = 0; i < uvAttr.count; i++) {
+    // Map V coordinate from position Z: front of fade (z=+halfDepth) → v=0,
+    // back of fade (z=-halfDepth) → v=1.
+    const z = posAttr.getZ(i);
+    const v = 1 - (z + halfDepth) / depth;
+    uvAttr.setY(i, Math.max(0, Math.min(1, v)));
+  }
+  uvAttr.needsUpdate = true;
+
+  return geo;
+}
+
 /**
  * Creates a tray geometry — circular for ring carousels, parabolic for
  * linear carousels with zStep, or rounded-rect for flat linear carousels.
@@ -251,7 +322,6 @@ function createTrayGeometry(
     const bandWidth = computeParabolicBandWidth(zStep, width);
     const points = generateParabolicPoints(width * 0.5, maxDepth, bandWidth, 64);
     shape = pointsToThreeShape(points);
-    shape.closePath();
   } else {
     // Rounded rectangle uses quadratic curves for smooth corners
     shape = roundedRectPointsToThreeShape(width * 0.5, zDepth * 0.5);
@@ -318,6 +388,7 @@ export function getOrCreateCache(
   const cache: CarouselScrubberCache = {
     root,
     base: null,
+    fadePlane: null,
     lastGeoKey: '',
     lastSurfacePattern: null,
     lastSurfaceMapUrl: null,
@@ -399,6 +470,7 @@ function ensureBase(
 ): void {
   if (!showBase) {
     if (cache.base) cache.base.visible = false;
+    if (cache.fadePlane) cache.fadePlane.visible = false;
     return;
   }
 
@@ -451,9 +523,49 @@ function ensureBase(
     cache.root.add(base);
     cache.base = base;
     cache.lastGeoKey = geoKey;
+
+    // ── Back-fade plane ──
+    // Extends from the back edge of the tray further into -Z (away from camera)
+    // fading to transparent over 2 zSteps. Only for parabolic (linear) trays.
+    if (cache.fadePlane) {
+      cache.root.remove(cache.fadePlane);
+      cache.fadePlane.geometry.dispose();
+      cache.fadePlane.material.dispose();
+      cache.fadePlane = null;
+    }
+    if (geoParams.shapeKind === 'parabolic' && geoParams.zStep > 0) {
+      const fadeDepth = geoParams.zStep * 2;
+      const fadeGeo = createBackFadePlane(geoParams.worldWidth, fadeDepth, geoParams.trayDepth);
+      const fadeMat = new THREE.MeshStandardMaterial({
+        color: style.baseColor,
+        transparent: true,
+        opacity: style.baseOpacity * 0.7,
+        metalness: style.metalness,
+        roughness: style.roughness,
+        side: THREE.FrontSide,
+        alphaMap: createFadeAlphaTexture(),
+        depthWrite: false,
+      });
+      const fadeMesh = new THREE.Mesh(fadeGeo, fadeMat);
+      fadeMesh.name = 'CarouselScrubberBackFade';
+      fadeMesh.receiveShadow = true;
+
+      // Position: align fade plane's front face with the tray's back edge.
+      // After -π/2 X rotation, the tray's back edge (shape y = maxDepth + frontOffset)
+      // maps to world z = -(maxDepth + frontOffset) in root-local space.
+      const maxDepth = computeLinearMaxDepth(geoParams.childCount, geoParams.zStep);
+      const fadeBandWidth = computeParabolicBandWidth(geoParams.zStep, geoParams.worldWidth);
+      const fadeFrontOffset = fadeBandWidth * 0.5;
+      const backEdgeZ = -(maxDepth + fadeFrontOffset);
+      fadeMesh.position.set(0, 0, backEdgeZ - fadeDepth / 2);
+
+      cache.fadePlane = fadeMesh;
+      cache.root.add(fadeMesh);
+    }
   }
 
   cache.base!.visible = true;
+  if (cache.fadePlane) cache.fadePlane.visible = true;
 
   // -- Material update: preset CSM or procedural fallback --
   if (usePreset && cache.loadedPreset) {
@@ -483,10 +595,19 @@ function ensureBase(
     cache.base!.material.metalness = style.metalness;
     cache.base!.material.roughness = style.roughness;
 
+    // Sync fade plane material with base style.
+    if (cache.fadePlane) {
+      cache.fadePlane.material.color.set(style.baseColor);
+      cache.fadePlane.material.metalness = style.metalness;
+      cache.fadePlane.material.roughness = style.roughness;
+      cache.fadePlane.material.opacity = style.baseOpacity * 0.7;
+    }
+
     // Detect style changes and force material recompile for render pass re-sorting.
     const styleKey = `${style.baseColor}|${style.baseOpacity}|${style.metalness}|${style.roughness}|${style.edgeStyle}`;
     if (styleKey !== cache.lastStyleKey) {
       cache.base!.material.needsUpdate = true;
+      if (cache.fadePlane) cache.fadePlane.material.needsUpdate = true;
       cache.lastStyleKey = styleKey;
     }
 
@@ -825,7 +946,7 @@ function createDustMesh(
 
   const points = new THREE.Points(geometry, material);
   points.name = 'HighlightDust';
-  return { points, particles };
+  return {points, particles};
 }
 
 /** Advances dust particles — drift upward, recycle at top or end of life. */
@@ -902,7 +1023,7 @@ function createSmokeMesh(
 
   const points = new THREE.Points(geometry, material);
   points.name = 'HighlightSmoke';
-  return { points, particles };
+  return {points, particles};
 }
 
 /**
@@ -1130,7 +1251,7 @@ function applyViewHighlights(
         const unitRadius = 1.0;
         const beamHeight = hl.beamHeight ?? HL_DEFAULT_BEAM_HEIGHT;
         const scaleX = worldW * HL_BEAM_SCALE;
-        const scaleZ = worldH * HL_BEAM_SCALE;
+        const scaleZ = worldH * HL_BEAM_SCALE * HL_BEAM_Z_SQUEEZE;
 
         // Beam cylinder — elliptical
         meshSet.beamMesh = createBeamMesh(unitRadius, beamHeight, hl.color, hl.intensity, blend);
@@ -1146,12 +1267,12 @@ function applyViewHighlights(
         }
 
         // Surface glow
-        meshSet.glowPlane = createGlowPlane(worldW * HL_GLOW_SCALE, worldH * HL_GLOW_SCALE, hl.color, hl.intensity * HL_HOLOGRAPHIC_GLOW_FACTOR, blend);
+        meshSet.glowPlane = createGlowPlane(worldW * HL_GLOW_SCALE, worldH * HL_GLOW_SCALE * HL_BEAM_Z_SQUEEZE, hl.color, hl.intensity * HL_HOLOGRAPHIC_GLOW_FACTOR, blend);
         meshSet.group.add(meshSet.glowPlane);
 
         // Volumetric dust motes — optional
         if (hl.dust) {
-          const { points: dustPts, particles: dustParts } = createDustMesh(
+          const {points: dustPts, particles: dustParts} = createDustMesh(
             scaleX, scaleZ, beamHeight, hl.color, blend,
           );
           meshSet.dustMesh = dustPts;
@@ -1162,7 +1283,7 @@ function applyViewHighlights(
         // Optional base smoke ring
         if (hl.smoke) {
           const smokeRadius = Math.max(worldW, worldH) * 0.45;
-          const { points, particles } = createSmokeMesh(smokeRadius, hl.color, DEFAULT_PARTICLE_COUNT, blend);
+          const {points, particles} = createSmokeMesh(smokeRadius, hl.color, DEFAULT_PARTICLE_COUNT, blend);
           meshSet.smokeMesh = points;
           meshSet.smokeParticles = particles;
           meshSet.group.add(points);
@@ -1195,10 +1316,25 @@ function applyViewHighlights(
     // above the tray geometry.
     meshSet.group.position.set(meshSet.currentX, trayTopY + HL_Y_OFFSET, meshSet.currentZ);
 
-    // Fade transition
-    meshSet.currentOpacity += (targetOpacity - meshSet.currentOpacity) * HL_FADE_LERP;
-    if (Math.abs(meshSet.currentOpacity - targetOpacity) < HL_OPACITY_THRESHOLD) {
-      meshSet.currentOpacity = targetOpacity;
+    // Pulse modulation: cosine wave that breathes the intensity between
+    // `hl.intensity` (peak) and `hl.intensity * (1 - pulseIntensity)` (trough).
+    // Uses wall-clock seconds so the pulse runs at real-time speed regardless
+    // of scroll progress. pulseSpeed=0 or absent → pulseFactor stays 1.
+    let pulseFactor = 1;
+    const pulseSpeed = hl.pulseSpeed ?? 0;
+    const pulseIntensity = hl.pulseIntensity ?? 0;
+    if (pulseSpeed > 0 && pulseIntensity > 0) {
+      const wallSeconds = now / 1000;
+      // Cosine oscillation: 1 at t=0, 0 at t=period/2, 1 at t=period
+      const oscillation = (1 + Math.cos((wallSeconds / pulseSpeed) * Math.PI * 2)) * 0.5;
+      pulseFactor = 1 - pulseIntensity * (1 - oscillation);
+    }
+
+    // Fade transition toward target opacity (capped to authored intensity * pulseFactor)
+    const pulsedTarget = targetOpacity * pulseFactor;
+    meshSet.currentOpacity += (pulsedTarget - meshSet.currentOpacity) * HL_FADE_LERP;
+    if (Math.abs(meshSet.currentOpacity - pulsedTarget) < HL_OPACITY_THRESHOLD) {
+      meshSet.currentOpacity = pulsedTarget;
     }
 
     const visible = meshSet.currentOpacity > HL_OPACITY_THRESHOLD;
@@ -1209,8 +1345,8 @@ function applyViewHighlights(
     // Update glow opacity — apply the holographic glow factor for holographic mode
     if (meshSet.glowPlane) {
       const glowFactor = hl.mode === 'holographic' ? HL_HOLOGRAPHIC_GLOW_FACTOR : 1.0;
-      const glowFade = meshSet.currentOpacity / Math.max(hl.intensity, 0.01);
-      updateGlowGroupOpacity(meshSet.glowPlane, glowFade * hl.intensity * glowFactor);
+      const glowFade = meshSet.currentOpacity / Math.max(hl.intensity * pulseFactor, 0.01);
+      updateGlowGroupOpacity(meshSet.glowPlane, glowFade * hl.intensity * pulseFactor * glowFactor);
     }
 
     // Update beam opacity
@@ -1222,27 +1358,27 @@ function applyViewHighlights(
     if (meshSet.backdropMesh) {
       const bdTarget = hl.backdropOpacity ?? HL_DEFAULT_BACKDROP_OPACITY;
       (meshSet.backdropMesh.material as THREE.MeshBasicMaterial).opacity =
-        (meshSet.currentOpacity / Math.max(hl.intensity, 0.01)) * bdTarget;
+        (meshSet.currentOpacity / Math.max(hl.intensity * pulseFactor, 0.01)) * bdTarget;
     }
 
     // Update volumetric dust
     if (meshSet.dustMesh && meshSet.dustParticles) {
-      const scaleX = worldW * 0.7;
-      const scaleZ = worldH * 0.7;
+      const scaleX = worldW * HL_BEAM_SCALE;
+      const scaleZ = worldH * HL_BEAM_SCALE * HL_BEAM_Z_SQUEEZE;
       const beamH = hl.beamHeight ?? HL_DEFAULT_BEAM_HEIGHT;
       updateDustParticles(meshSet, scaleX, scaleZ, beamH, dt);
       // Scale opacity by fade transition. HL_DUST_OPACITY is the target; currentOpacity/intensity normalizes the fade.
-      const dustFade = meshSet.currentOpacity / Math.max(hl.intensity, 0.01);
+      const dustFade = meshSet.currentOpacity / Math.max(hl.intensity * pulseFactor, 0.01);
       (meshSet.dustMesh.material as THREE.PointsMaterial).opacity = dustFade * HL_DUST_OPACITY;
     }
 
     // Update smoke ring particles
     if (meshSet.smokeMesh && meshSet.smokeParticles) {
       const smokeRX = worldW * HL_BEAM_SCALE;
-      const smokeRZ = worldH * HL_BEAM_SCALE;
+      const smokeRZ = worldH * HL_BEAM_SCALE * HL_BEAM_Z_SQUEEZE;
       const smokeH = hl.beamHeight ?? HL_DEFAULT_BEAM_HEIGHT;
       updateSmokeParticles(meshSet, smokeRX, smokeRZ, smokeH, dt);
-      const smokeFade = meshSet.currentOpacity / Math.max(hl.intensity, 0.01);
+      const smokeFade = meshSet.currentOpacity / Math.max(hl.intensity * pulseFactor, 0.01);
       (meshSet.smokeMesh.material as THREE.PointsMaterial).opacity = smokeFade * HL_SMOKE_OPACITY;
     }
   }
@@ -1419,7 +1555,7 @@ export function applyCarouselScrubber(
     const merged = [...state.viewHighlights];
     for (const [viewId, cfg] of runtimeHighlights) {
       const existingIdx = merged.findIndex(h => h.viewId === viewId);
-      const fallbackBounds = existingIdx >= 0 ? merged[existingIdx].bounds : { x: 0, y: 0, w: 0, h: 0 };
+      const fallbackBounds = existingIdx >= 0 ? merged[existingIdx].bounds : {x: 0, y: 0, w: 0, h: 0};
       const rtHighlight = resolveRuntimeHighlight(cfg, fallbackBounds, state.style.accentColor);
       if (existingIdx >= 0) {
         merged[existingIdx] = rtHighlight;
@@ -1454,6 +1590,12 @@ export function disposeCarouselScrubber(
     cache.root.remove(cache.base);
     cache.base.geometry.dispose();
     cache.base.material.dispose();
+  }
+  if (cache.fadePlane) {
+    cache.root.remove(cache.fadePlane);
+    cache.fadePlane.geometry.dispose();
+    cache.fadePlane.material.dispose();
+    cache.fadePlane = null;
   }
   if (cache.presetMaterial) {
     cache.presetMaterial.dispose();

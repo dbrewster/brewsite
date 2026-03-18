@@ -31,17 +31,17 @@ import { isValidElement } from 'react';
  * - `<EnvironmentExr url="..." />`
  * - `<EnvironmentCube urls={[...]} />`
  */
-export const Environment = (_props: EnvironmentProps) => null;
+export const Environment = (_props: EnvironmentProps): null => null;
 
 Environment.displayName = 'Environment';
 
-export const EnvironmentHdri = (_props: EnvironmentHdriProps) => null;
+export const EnvironmentHdri = (_props: EnvironmentHdriProps): null => null;
 EnvironmentHdri.displayName = 'EnvironmentHdri';
 
-export const EnvironmentExr = (_props: EnvironmentExrProps) => null;
+export const EnvironmentExr = (_props: EnvironmentExrProps): null => null;
 EnvironmentExr.displayName = 'EnvironmentExr';
 
-export const EnvironmentCube = (_props: EnvironmentCubeProps) => null;
+export const EnvironmentCube = (_props: EnvironmentCubeProps): null => null;
 EnvironmentCube.displayName = 'EnvironmentCube';
 import { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';
 import type { IHasCustomDslHandler } from '../../widget/WidgetRegistry';

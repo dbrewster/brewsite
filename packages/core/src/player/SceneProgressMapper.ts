@@ -4,6 +4,7 @@
 
 import type { SceneProgressProfile, SceneProgressSegment } from '../compiler/sceneTrackTypes';
 import { IDENTITY_FN } from '../compiler/identityFn';
+import { clamp01 } from '../math';
 export { IDENTITY_FN };
 
 export class SceneProgressMapper {
@@ -18,7 +19,7 @@ export class SceneProgressMapper {
    * Hot path — called every frame. O(N) where N = scene count (linear scan).
    */
   remap(rawProgress: number): number {
-    const p = Math.max(0, Math.min(1, rawProgress));
+    const p = clamp01(rawProgress);
     const segs = this.segments;
 
     // Edge cases
@@ -31,7 +32,7 @@ export class SceneProgressMapper {
       const seg = segs[i]!;
       if (p <= seg.rawEnd || i === segs.length - 1) {
         const localT = (p - seg.rawStart) / (seg.rawEnd - seg.rawStart);
-        const localEngine = seg.fn(Math.max(0, Math.min(1, localT)));
+        const localEngine = seg.fn(clamp01(localT));
         return seg.engineStart + localEngine * (seg.engineEnd - seg.engineStart);
       }
     }
@@ -45,7 +46,7 @@ export class SceneProgressMapper {
    * Uses binary search for non-identity fn. O(N * log(1/tolerance)).
    */
   inverse(engineProgress: number): number {
-    const ep = Math.max(0, Math.min(1, engineProgress));
+    const ep = clamp01(engineProgress);
     if (ep <= 0) return 0;
     if (ep >= 1) return 1;
 

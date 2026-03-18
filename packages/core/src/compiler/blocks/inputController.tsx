@@ -81,22 +81,22 @@ export type KeyMapProps = {
   modifiers?: ModifierKey[];
 };
 
-export const InputController = (_props: InputControllerProps) => null;
+export const InputController = (_props: InputControllerProps): null => null;
 InputController.displayName = 'InputController';
 
-export const Action = (_props: ActionProps) => null;
+export const Action = (_props: ActionProps): null => null;
 Action.displayName = 'Action';
 
-export const PointerMap = (_props: PointerMapProps) => null;
+export const PointerMap = (_props: PointerMapProps): null => null;
 PointerMap.displayName = 'PointerMap';
 
-export const WheelMap = (_props: WheelMapProps) => null;
+export const WheelMap = (_props: WheelMapProps): null => null;
 WheelMap.displayName = 'WheelMap';
 
-export const PinchMap = (_props: PinchMapProps) => null;
+export const PinchMap = (_props: PinchMapProps): null => null;
 PinchMap.displayName = 'PinchMap';
 
-export const KeyMap = (_props: KeyMapProps) => null;
+export const KeyMap = (_props: KeyMapProps): null => null;
 KeyMap.displayName = 'KeyMap';
 
 const parseActionMap = (node: ReactElement, helpers: CompileHelpers, api: CompileApi): InputActionMap | null => {

@@ -6,6 +6,6 @@ export type {
   EnvironmentSourceCube,
 } from './types';
 export { Environment, EnvironmentHdri, EnvironmentExr, EnvironmentCube } from './EnvironmentWidget';
-export { DEFAULT_ENVIRONMENT, environmentTransitionSpec, functionalEnvironmentTransitionSpec } from './compile';
+export { DEFAULT_ENVIRONMENT, functionalEnvironmentTransitionSpec } from './compile';
 export { applyEnvironment, type EnvironmentThreeRefs } from './render';
 export { EnvironmentWidget } from './EnvironmentWidget';

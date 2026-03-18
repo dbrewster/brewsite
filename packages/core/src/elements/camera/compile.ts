@@ -9,11 +9,9 @@ import type {
   CameraPost,
 } from './types';
 import type {
-  ElementTransitionSpec,
   FunctionalTransitionSpec,
 } from '../../compiler/transitions/transitionTypes';
-import { transitionT } from '../../compiler/transitions/transitionTypes';
-import { makeSimpleContext } from '../../compiler/transitions/transitionResolver';
+import { blendNumber } from '../../compiler/transitions/transitionTypes';
 import { smoothstep } from '../../timeline/math';
 import { lerpVec3 } from '../../math';
 
@@ -109,13 +107,6 @@ export const DEFAULT_CAMERA: SceneCamera = {
   //             Objects at z=0 in a 3.5-unit camera distance occupy >3% of the depth range
   //             (vs. <0.005% with far=2000). No visual impact for content within 100 units.
   lens: { fov: 45, near: 0.01, far: 100 },
-};
-
-// ─── Interpolation helpers ────────────────────────────────────────────────
-
-const lerpNum = (a: number | undefined, b: number | undefined, t: number): number | undefined => {
-  if (a === undefined || b === undefined) return t < 0.5 ? a : b;
-  return a + (b - a) * t;
 };
 
 // ─── Easing functions ─────────────────────────────────────────────────────
@@ -250,8 +241,8 @@ export const interpolateCameraDescriptor = (
           mode: 'orbit',
           target: lerpVec3(from.descriptor.target, to.descriptor.target, easedT),
           azimuth: shortAngle(from.descriptor.azimuth, to.descriptor.azimuth),
-          polar: lerpNum(from.descriptor.polar, to.descriptor.polar, easedT) as number,
-          distance: lerpNum(from.descriptor.distance, to.descriptor.distance, easedT) as number,
+          polar: blendNumber(from.descriptor.polar, to.descriptor.polar, easedT) as number,
+          distance: blendNumber(from.descriptor.distance, to.descriptor.distance, easedT) as number,
         };
       }
       // Fallback to linear world-space
@@ -288,11 +279,11 @@ const interpolateLens = (
   const tl = to.lens;
   if (!fl && !tl) return undefined;
   return {
-    fov: lerpNum(fl?.fov, tl?.fov, t),
-    focalLength: lerpNum(fl?.focalLength, tl?.focalLength, t),
+    fov: blendNumber(fl?.fov, tl?.fov, t),
+    focalLength: blendNumber(fl?.focalLength, tl?.focalLength, t),
     filmGauge: t < 0.5 ? fl?.filmGauge : tl?.filmGauge,
-    near: lerpNum(fl?.near, tl?.near, t),
-    far: lerpNum(fl?.far, tl?.far, t),
+    near: blendNumber(fl?.near, tl?.near, t),
+    far: blendNumber(fl?.far, tl?.far, t),
   };
 };
 
@@ -306,7 +297,7 @@ const interpolatePost = (
   if (!fp && !tp) return undefined;
   // Phase 2: DoF interpolation will be added here alongside EffectComposer support.
   return {
-    exposure: lerpNum(fp?.exposure, tp?.exposure, t),
+    exposure: blendNumber(fp?.exposure, tp?.exposure, t),
   };
 };
 
@@ -329,30 +320,3 @@ export const functionalCameraTransitionSpec: FunctionalTransitionSpec<SceneCamer
   }),
 };
 
-// ─── Discrete transition spec (compat) ─────────────────────────────────────
-// The discrete spec delegates to the functional spec using makeSimpleContext so
-// that both paths share the same interpolation logic.
-
-export const cameraTransitionSpec: ElementTransitionSpec<SceneCamera> = {
-  exit: (frames, widgetId, fromState) => {
-    const fn = functionalCameraTransitionSpec.exitFn(fromState);
-    for (let i = 0; i < frames.length; i++) {
-      const t = transitionT(i, frames.length);
-      frames[i]!.state.widgets[widgetId] = fn(makeSimpleContext(t));
-    }
-  },
-  enter: (frames, widgetId, toState) => {
-    const fn = functionalCameraTransitionSpec.enterFn(toState);
-    for (let i = 0; i < frames.length; i++) {
-      const t = transitionT(i, frames.length);
-      frames[i]!.state.widgets[widgetId] = fn(makeSimpleContext(t));
-    }
-  },
-  interpolate: (frames, widgetId, fromState, toState) => {
-    const fn = functionalCameraTransitionSpec.interpolateFn(fromState, toState);
-    for (let i = 0; i < frames.length; i++) {
-      const t = transitionT(i, frames.length);
-      frames[i]!.state.widgets[widgetId] = fn(makeSimpleContext(t));
-    }
-  },
-};

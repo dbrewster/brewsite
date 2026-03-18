@@ -3,8 +3,14 @@ title: "BrewSite Core — Cross-Package Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-17
+last_updated: 2026-03-18
 change_history:
+  - date: 2026-03-18
+    author: "Toolkit Product"
+    summary: "Core over-engineering audit confirmation: ThemeKeyContext.ts file deleted from codebase (was already removed from PRD documentation in prior v1 readiness audit). Module listing verified — ThemeKeyContext.ts is no longer present in packages/core/src/theme/."
+  - date: 2026-03-18
+    author: "Toolkit Product"
+    summary: "Carousel highlight DSL refactor: added SceneThemeHighlightDefaults type to Section 7.1. Added highlightDefaults field to SceneTheme type. Marked all highlight* fields on SceneThemeCarouselTray as @deprecated (migrated to <Highlight> DSL component). Updated FR #1 to include SceneThemeHighlightDefaults in public exports. Added highlightDefaults to SceneTheme code listing."
   - date: 2026-03-17
     author: "Toolkit Product"
     summary: "v1 release readiness audit: removed ThemeKeyContext, useThemeKey, and ThemeKey — superseded by ActiveTheme. ThemeFamily type is used in the registry. ThemePolarity is used in ActiveTheme. Removed Section 7.2a (ThemeKeyContext) and all references to the deprecated context. Removed ThemeKeyContext.ts from module listing and dependencies."
@@ -97,7 +103,7 @@ Additionally, the Background element supported only solid color and image fills 
 
 ## 6. Functional Requirements
 
-1. The `SceneTheme` type and all its sub-types (`SceneColorMode`, `SceneThemeFontTokens`, `SceneThemeFontSizeScale`, `SceneThemeBackgroundFill`, `SceneThemeBackgroundEffects`, `SceneThemeBackground`, `SceneThemeFloor`, `SceneThemeFloorGrid`, `SceneThemeCarouselTray`, `SceneThemeHighlightPalette`, `SceneThemeHighlightVariant`, `HighlightVariantName`) shall be exported from `@brewsite/core/src/index.ts`. `SceneTheme` does not include an `accentColor` field.
+1. The `SceneTheme` type and all its sub-types (`SceneColorMode`, `SceneThemeFontTokens`, `SceneThemeFontSizeScale`, `SceneThemeBackgroundFill`, `SceneThemeBackgroundEffects`, `SceneThemeBackground`, `SceneThemeFloor`, `SceneThemeFloorGrid`, `SceneThemeCarouselTray`, `SceneThemeHighlightPalette`, `SceneThemeHighlightVariant`, `SceneThemeHighlightDefaults`, `HighlightVariantName`) shall be exported from `@brewsite/core/src/index.ts`. `SceneTheme` does not include an `accentColor` field.
 2. `SceneEngine` shall accept an optional `theme?: ActiveTheme` prop (preferred) or deprecated `sceneTheme?: SceneTheme` prop. The resolved `SceneTheme` is provided via `ThemeContext`.
 3. `EngineOverlayHost` shall read from `ThemeContext` and, when a theme is present, inject CSS custom properties on its root `<div>` element.
 4. CSS variable injection shall cover: `--brewsite-font-family`, `--brewsite-font-size-heading`, `--brewsite-font-size-body`, `--brewsite-font-size-label`, `--brewsite-font-size-caption`, `--brewsite-font-size-annotation`, `--brewsite-color-mode`, `--brewsite-text-primary`, `--brewsite-text-secondary`. `--brewsite-accent-color` is not injected by the engine; consumers who need this variable must set it directly in their own stylesheet.
@@ -202,13 +208,22 @@ export type SceneThemeCarouselTray = {
   readonly surfaceMapUrl?: string;
   readonly surfaceMaterial?: string;
   readonly materialApplication?: MaterialApplication;
+  readonly outerMargin?: number;
+  /** @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Removal planned for next major version. */
   readonly highlightActive?: ViewHighlightMode;
+  /** @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Removal planned for next major version. */
   readonly highlightColor?: string;
+  /** @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Removal planned for next major version. */
   readonly highlightIntensity?: number;
+  /** @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Removal planned for next major version. */
   readonly highlightBeamHeight?: number;
+  /** @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Removal planned for next major version. */
   readonly highlightSmoke?: boolean;
+  /** @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Removal planned for next major version. */
   readonly highlightZOffset?: number;
+  /** @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Removal planned for next major version. */
   readonly highlightBackdropColor?: string;
+  /** @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Removal planned for next major version. */
   readonly highlightViewId?: string;
 };
 
@@ -232,6 +247,21 @@ export type SceneThemeHighlightPalette = {
   readonly [K in HighlightVariantName]?: SceneThemeHighlightVariant;
 };
 
+/**
+ * Default highlight configuration when no variant is specified.
+ * Lives at the `SceneTheme` level alongside `highlightPalette`.
+ */
+export type SceneThemeHighlightDefaults = {
+  /** Default mode when no variant or explicit mode is set. Default: 'glow'. */
+  readonly mode?: ViewHighlightMode;
+  /** Default backdrop opacity [0-1]. */
+  readonly backdropOpacity?: number;
+  /** Default backdrop color. Auto-resolved from polarity when not set. */
+  readonly backdropColor?: string;
+  /** Default beam height [world units]. */
+  readonly beamHeight?: number;
+};
+
 export type SceneTheme = {
   readonly colorMode: SceneColorMode;
   readonly font: SceneThemeFontTokens;
@@ -239,7 +269,10 @@ export type SceneTheme = {
   readonly background?: SceneThemeBackground;
   readonly floor?: SceneThemeFloor;
   readonly carouselTray?: SceneThemeCarouselTray;
+  /** Semantic highlight palette — named highlight variants. */
   readonly highlightPalette?: SceneThemeHighlightPalette;
+  /** Default highlight configuration when no variant is specified. */
+  readonly highlightDefaults?: SceneThemeHighlightDefaults;
 };
 ```
 

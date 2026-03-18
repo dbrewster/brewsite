@@ -367,7 +367,7 @@ describe('carouselScrubberTransitionSpec', () => {
       expect(result.style.metalness).toBeCloseTo(0.5, 5);
     });
 
-    it('snaps viewHighlights at midpoint (from before, to after)', () => {
+    it('cross-fades viewHighlights between scenes (different viewIds)', () => {
       const fromHighlights: readonly ViewHighlight[] = [
         { viewId: 'v1', bounds: { x: 0, y: 0, w: 0.5, h: 0.5 }, mode: 'glow', color: '#ff0000', intensity: 0.5 },
       ];
@@ -378,26 +378,75 @@ describe('carouselScrubberTransitionSpec', () => {
       const to = makeState({ viewHighlights: toHighlights });
       const fn = carouselScrubberTransitionSpec.interpolateFn(from, to);
 
-      expect(fn(makeCtx(0.3)).viewHighlights).toBe(fromHighlights);
-      expect(fn(makeCtx(0.7)).viewHighlights).toBe(toHighlights);
+      // At t=0.3: v1 fading out (0.5 * 0.7 = 0.35), v2 fading in (0.35 * 0.3 = 0.105)
+      const at03 = fn(makeCtx(0.3)).viewHighlights;
+      expect(at03).toHaveLength(2);
+      const v1_03 = at03.find((h) => h.viewId === 'v1')!;
+      const v2_03 = at03.find((h) => h.viewId === 'v2')!;
+      expect(v1_03.intensity).toBeCloseTo(0.35, 5);
+      expect(v2_03.intensity).toBeCloseTo(0.105, 5);
+
+      // At t=0.7: v1 fading out (0.5 * 0.3 = 0.15), v2 fading in (0.35 * 0.7 = 0.245)
+      const at07 = fn(makeCtx(0.7)).viewHighlights;
+      const v1_07 = at07.find((h) => h.viewId === 'v1')!;
+      const v2_07 = at07.find((h) => h.viewId === 'v2')!;
+      expect(v1_07.intensity).toBeCloseTo(0.15, 5);
+      expect(v2_07.intensity).toBeCloseTo(0.245, 5);
     });
 
-    it('preserves viewHighlights through exitFn', () => {
+    it('blends viewHighlights intensity for same viewId', () => {
+      const fromHighlights: readonly ViewHighlight[] = [
+        { viewId: 'v1', bounds: { x: 0, y: 0, w: 1, h: 1 }, mode: 'glow', color: '#ff0000', intensity: 0.8 },
+      ];
+      const toHighlights: readonly ViewHighlight[] = [
+        { viewId: 'v1', bounds: { x: 0, y: 0, w: 1, h: 1 }, mode: 'glow', color: '#ff0000', intensity: 0.2 },
+      ];
+      const from = makeState({ viewHighlights: fromHighlights });
+      const to = makeState({ viewHighlights: toHighlights });
+      const fn = carouselScrubberTransitionSpec.interpolateFn(from, to);
+      const result = fn(makeCtx(0.5)).viewHighlights;
+      expect(result).toHaveLength(1);
+      expect(result[0].intensity).toBeCloseTo(0.5, 5);
+    });
+
+    it('fades viewHighlights out during exitFn', () => {
       const highlights: readonly ViewHighlight[] = [
         { viewId: 'v1', bounds: { x: 0, y: 0, w: 1, h: 1 }, mode: 'glow', color: '#fff', intensity: 0.5 },
       ];
       const from = makeState({ viewHighlights: highlights });
       const fn = carouselScrubberTransitionSpec.exitFn(from);
-      expect(fn(makeCtx(0.5)).viewHighlights).toBe(highlights);
+
+      // At t=0: full intensity
+      expect(fn(makeCtx(0)).viewHighlights[0].intensity).toBeCloseTo(0.5, 5);
+      // At t=0.5: half intensity
+      expect(fn(makeCtx(0.5)).viewHighlights[0].intensity).toBeCloseTo(0.25, 5);
+      // At t=1: zero intensity
+      expect(fn(makeCtx(1)).viewHighlights[0].intensity).toBeCloseTo(0, 5);
     });
 
-    it('preserves viewHighlights through enterFn', () => {
+    it('fades viewHighlights in during enterFn', () => {
       const highlights: readonly ViewHighlight[] = [
         { viewId: 'v1', bounds: { x: 0, y: 0, w: 1, h: 1 }, mode: 'holographic', color: '#fff', intensity: 0.35 },
       ];
       const to = makeState({ viewHighlights: highlights });
       const fn = carouselScrubberTransitionSpec.enterFn(to);
-      expect(fn(makeCtx(0.5)).viewHighlights).toBe(highlights);
+
+      // At t=0: zero intensity
+      expect(fn(makeCtx(0)).viewHighlights[0].intensity).toBeCloseTo(0, 5);
+      // At t=0.5: half of target
+      expect(fn(makeCtx(0.5)).viewHighlights[0].intensity).toBeCloseTo(0.175, 5);
+      // At t=1: full target intensity
+      expect(fn(makeCtx(1)).viewHighlights[0].intensity).toBeCloseTo(0.35, 5);
+    });
+
+    it('returns empty array for empty highlights in exit/enter', () => {
+      const from = makeState({ viewHighlights: [] });
+      const exitFn = carouselScrubberTransitionSpec.exitFn(from);
+      expect(exitFn(makeCtx(0.5)).viewHighlights).toEqual([]);
+
+      const to = makeState({ viewHighlights: [] });
+      const enterFn = carouselScrubberTransitionSpec.enterFn(to);
+      expect(enterFn(makeCtx(0.5)).viewHighlights).toEqual([]);
     });
   });
 });

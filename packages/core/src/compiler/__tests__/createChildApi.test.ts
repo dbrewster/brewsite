@@ -28,7 +28,10 @@ function buildTestApi(overrides?: Partial<CompileApi>): CompileApi & {
   const widgetStateLog: Array<{ widgetId: string; state: unknown }> = [];
   const overlayLog: unknown[] = [];
 
-  const api = {
+  const api: CompileApi & {
+    readonly widgetStateLog: Array<{ widgetId: string; state: unknown }>;
+    readonly overlayLog: unknown[];
+  } = {
     state,
     context,
     widgetStateLog,
@@ -43,6 +46,8 @@ function buildTestApi(overrides?: Partial<CompileApi>): CompileApi & {
     composeZ: (localZ: number): number => localZ,
     composeOpacity: (localOpacity: number): number => localOpacity,
     pushOverlay: (node: unknown): void => { overlayLog.push(node); },
+    layoutContext: undefined,
+    withLayoutContext: (ctx) => ({ ...api, layoutContext: ctx }),
     ...overrides,
   };
   return api;
@@ -226,5 +231,50 @@ describe('createChildApi — context and state pass-through', () => {
     const parent = buildTestApi();
     const childApi = createChildApi(parent, { x: 0, y: 0, w: 1, h: 1 });
     expect(childApi.state).toBe(parent.state);
+  });
+});
+
+describe('withLayoutContext — context propagation without base API mutation', () => {
+  it('returns a new API with layoutContext set; original remains undefined', () => {
+    const parent = buildTestApi();
+    const viewResults = new Map();
+    viewResults.set('v1', { bounds: { x: 0, y: 0, w: 0.5, h: 1 }, layer: 0, scale: 1, z: 0, opacity: 1 });
+
+    const scoped = parent.withLayoutContext({ layoutId: 'layout1', viewResults });
+
+    // Original API remains unaffected
+    expect(parent.layoutContext).toBeUndefined();
+    // Scoped API has the layout context
+    expect(scoped.layoutContext).toBeDefined();
+    expect(scoped.layoutContext!.layoutId).toBe('layout1');
+    expect(scoped.layoutContext!.viewResults.get('v1')).toBeDefined();
+  });
+
+  it('scoped API shares state and context with the original', () => {
+    const parent = buildTestApi();
+    const viewResults = new Map();
+    const scoped = parent.withLayoutContext({ layoutId: 'layout1', viewResults });
+
+    // Same state and context references
+    expect(scoped.state).toBe(parent.state);
+    expect(scoped.context).toBe(parent.context);
+
+    // setWidgetState on scoped API writes to shared state
+    scoped.setWidgetState('w1', { value: true });
+    expect(parent.state.widgets['w1']).toEqual({ value: true });
+  });
+
+  it('withLayoutContext on childApi preserves composeBounds overrides', () => {
+    const parent = buildTestApi();
+    const contentBounds: NVSRect = { x: 0.1, y: 0, w: 0.8, h: 1 };
+    const childApi = createChildApi(parent, contentBounds);
+
+    const viewResults = new Map();
+    const scoped = childApi.withLayoutContext({ layoutId: 'inner', viewResults });
+
+    // composeBounds should still compose through contentBounds
+    const result = scoped.composeBounds({ x: 0, y: 0, w: 1, h: 1 });
+    expect(result.x).toBeCloseTo(0.1);
+    expect(result.w).toBeCloseTo(0.8);
   });
 });

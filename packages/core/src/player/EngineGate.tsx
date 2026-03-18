@@ -2,7 +2,7 @@
 // Use inside SceneEngine to gate rendering on initial engine readiness.
 
 import type { ReactElement, ReactNode } from 'react';
-import { useEngineState } from './EngineStateContext';
+import { useEngineStateContext } from './EngineStateContext';
 
 export type EngineGateProps = {
   /** Content shown before the engine's first tick. Defaults to null. */
@@ -25,7 +25,7 @@ export type EngineGateProps = {
  * </SceneEngine>
  */
 export const EngineGate = ({ placeholder = null, children }: EngineGateProps): ReactElement => {
-  const state = useEngineState();
+  const state = useEngineStateContext();
   if (state.tickIndex < 0) return <>{placeholder}</>;
   return <>{children}</>;
 };

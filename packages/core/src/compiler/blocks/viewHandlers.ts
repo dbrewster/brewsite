@@ -3,7 +3,7 @@
 
 import React, { type ReactElement } from 'react';
 import { isValidElement } from 'react';
-import type { CompileApi, NodeHandler } from '../sceneDslTypes';
+import type { NodeHandler } from '../sceneDslTypes';
 import { createChildApi } from '../childApi';
 import { IMPLICIT_SCENE_ROOT_VIEW_ID } from '../sceneViewConstraint';
 import type { NVSRect } from '../../layout/types';
@@ -15,17 +15,10 @@ import type { ViewLayoutProps } from './viewLayoutDsl';
 import { resolveLayout } from '../../layout/regionLayout';
 import { CarouselTray } from '../../elements/carousel-scrubber/dsl';
 import type { CarouselTrayProps } from '../../elements/carousel-scrubber/dsl';
+import { Highlight } from '../../elements/carousel-scrubber/highlightDsl';
+import type { HighlightProps } from '../../elements/carousel-scrubber/highlightDsl';
 import { compileTrayFromViewLayout, type TrayViewBounds } from '../../elements/carousel-scrubber/compileTray';
 import { normalizePadding, applyPaddingToRect } from '../../layout/regionNormalize';
-
-// DEBT: Replace this invisible side-channel with an explicit parameter on CompileApi
-// Module-level WeakMap — not on CompileApi, avoids polluting the SDK type.
-// Keyed by CompileApi instance, stores the active layout context for view-child compilation.
-type ViewLayoutContext = {
-  layoutId: string;
-  viewResults: Map<string, ViewLayoutResult>;
-};
-const layoutContextMap = new WeakMap<CompileApi, ViewLayoutContext>();
 
 /**
  * NodeHandler for the <View> DSL component.
@@ -63,7 +56,7 @@ export const viewHandler: NodeHandler = (node, api, helpers) => {
   let viewOpacity: number;
   let layoutId: string | undefined;
 
-  const layoutContext = layoutContextMap.get(api);
+  const layoutContext = api.layoutContext;
 
   if (layoutContext) {
     const viewResult = layoutContext.viewResults.get(id);
@@ -161,7 +154,7 @@ export const viewHandler: NodeHandler = (node, api, helpers) => {
 
 /**
  * NodeHandler for the <ViewLayout> DSL component.
- * Resolves layout for all child Views, propagates bounds via WeakMap context,
+ * Resolves layout for all child Views, propagates bounds via CompileApi.layoutContext,
  * and stores ViewLayoutState in api.state.
  */
 export const viewLayoutHandler: NodeHandler = (node, api, helpers) => {
@@ -184,9 +177,10 @@ export const viewLayoutHandler: NodeHandler = (node, api, helpers) => {
     if (!isValidElement(child)) continue;
     const childEl = child as ReactElement;
     if (childEl.type === CarouselTray) continue; // handled separately below
+    if (childEl.type === Highlight) continue; // handled separately below
     if (childEl.type !== View) {
       console.warn(
-        `[ViewLayout] ViewLayout '${layoutId}' (scene '${api.state.id}') contains non-View child <${(childEl.type as { displayName?: string })?.displayName ?? 'unknown'}>; only <View> and <CarouselTray> children are supported.`,
+        `[ViewLayout] ViewLayout '${layoutId}' (scene '${api.state.id}') contains non-View child <${(childEl.type as { displayName?: string })?.displayName ?? 'unknown'}>; only <View>, <CarouselTray>, and <Highlight> children are supported.`,
       );
       continue;
     }
@@ -220,19 +214,13 @@ export const viewLayoutHandler: NodeHandler = (node, api, helpers) => {
     }
   }
 
-  // Save/restore previous layout context for nested ViewLayout support
-  const previousContext = layoutContextMap.get(api);
-  layoutContextMap.set(api, { layoutId, viewResults });
+  // Create a scoped API with layout context — child View handlers read api.layoutContext.
+  // withLayoutContext returns a new API without mutating the original, so nested
+  // ViewLayouts naturally restore the outer context when their scope ends.
+  const scopedApi = api.withLayoutContext({ layoutId, viewResults });
 
-  // Compile child <View> nodes — each view handler reads its bounds from layoutContextMap
-  helpers.compileChildren(node, api);
-
-  // Restore previous context (critical for nested ViewLayouts)
-  if (previousContext) {
-    layoutContextMap.set(api, previousContext);
-  } else {
-    layoutContextMap.delete(api);
-  }
+  // Compile child <View> nodes — each view handler reads its bounds from scopedApi.layoutContext
+  helpers.compileChildren(node, scopedApi);
 
   // Store ViewLayoutState
   const viewLayoutState: ViewLayoutState = {
@@ -244,19 +232,34 @@ export const viewLayoutHandler: NodeHandler = (node, api, helpers) => {
   };
   api.setWidgetState(layoutId, viewLayoutState);
 
-  // ── CarouselTray detection ──────────────────────────────────────────────
+  // ── CarouselTray + Highlight detection ──────────────────────────────────
   // If a <CarouselTray> child is present inside a carousel ViewLayout,
   // compile it via compileTrayFromViewLayout — the extracted pure function
   // that owns theme resolution, view extent computation, and style merging.
   //
+  // <Highlight> children are collected and passed to compileTrayFromViewLayout
+  // as DSL highlight configs. They require a <CarouselTray> sibling to render.
+  //
   // Theme is resolved at compile time (not render time) to avoid the
   // Object.is reference equality bug described in compileTray.ts.
   if (kind === 'carousel') {
+    // Collect <Highlight> children.
+    const highlightConfigs: HighlightProps[] = [];
+    for (const child of children) {
+      if (!isValidElement(child)) continue;
+      const childEl = child as ReactElement;
+      if (childEl.type === Highlight) {
+        highlightConfigs.push(childEl.props as HighlightProps);
+      }
+    }
+
+    let hasTray = false;
     for (const child of children) {
       if (!isValidElement(child)) continue;
       const childEl = child as ReactElement;
       if (childEl.type !== CarouselTray) continue;
 
+      hasTray = true;
       const trayProps = childEl.props as CarouselTrayProps;
       const carouselConfig = layoutConfig as CarouselLayoutConfig;
 
@@ -278,9 +281,17 @@ export const viewLayoutHandler: NodeHandler = (node, api, helpers) => {
         viewBoundsMap,
         api.context.themeFamily,
         api.context.themePolarity,
+        highlightConfigs.length > 0 ? highlightConfigs : undefined,
       );
       api.setWidgetState(`${layoutId}__tray`, trayState);
       break; // only one CarouselTray per ViewLayout
+    }
+
+    // Warn if <Highlight> children exist but no <CarouselTray> sibling.
+    if (highlightConfigs.length > 0 && !hasTray) {
+      console.warn(
+        '[ViewLayout] <Highlight> requires a <CarouselTray> sibling to render. Highlights will be ignored.',
+      );
     }
   }
 };

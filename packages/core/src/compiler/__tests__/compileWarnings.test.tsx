@@ -4,25 +4,13 @@ import type { SceneDefinition } from '../sceneTypes';
 import { compileSceneTrack } from '../sceneTrackCompiler';
 import { Scene } from '../sceneDslCompiler';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
-import type { ElementTransitionSpec } from '../transitions/transitionTypes';
+import type { FunctionalTransitionSpec } from '../transitions/transitionTypes';
 import type { ISceneElement } from '../../widget/types';
 
-const makeNoopSpec = <T,>(): ElementTransitionSpec<T> => ({
-  exit: (frames, widgetId, fromState) => {
-    for (const frame of frames) {
-      frame.state.widgets[widgetId] = fromState;
-    }
-  },
-  enter: (frames, widgetId, toState) => {
-    for (const frame of frames) {
-      frame.state.widgets[widgetId] = toState;
-    }
-  },
-  interpolate: (frames, widgetId, _fromState, toState) => {
-    for (const frame of frames) {
-      frame.state.widgets[widgetId] = toState;
-    }
-  },
+const makeNoopSpec = <T,>(): FunctionalTransitionSpec<T> => ({
+  exitFn: (from) => () => from,
+  enterFn: (to) => () => to,
+  interpolateFn: (_from, to) => () => to,
 });
 
 const Box = (_props: { id?: string }) => null;

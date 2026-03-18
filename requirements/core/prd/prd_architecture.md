@@ -3,8 +3,11 @@ title: "BrewSite Core — Architecture Reference"
 doc_type: prd
 owner: brewsite-product-manager
 status: active
-updated: 2026-03-17
+updated: 2026-03-18
 change_history:
+  - date: 2026-03-18
+    author: "Toolkit Product"
+    summary: "Core over-engineering audit: updated transitions/ module description — transitionTypes.ts is now types-only; blend helpers extracted to transitionBlendHelpers.ts; quaternion math extracted to rotationMath.ts. ElementTransitionSpec marked as @deprecated type alias (all implementations removed). EngineFrameDriver removed from player layer description — inlined into useSceneEngine.ts. CompileApi gains layoutContext field (replaces WeakMap side-channel). CP9 zero-consumer exports marked @deprecated."
   - date: 2026-03-17
     author: "Toolkit Product"
     summary: "v1 release readiness audit complete. Plugin system (corePlugin) is the sole entry point — createDefaultWidgetRegistry removed. Export surface cleaned: test-reset functions moved to /testing sub-path, DevTools components removed from main entry, DofConfig placeholder removed. /testing and /devtools sub-paths formalized as the only paths for test and dev utilities."
@@ -290,7 +293,7 @@ import { getSceneTrackCache, setSceneTrackCache } from '../compiler/sceneTrackCa
 
 **Compiler source files:**
 - `blocks/` — DSL block components: `inputController.tsx` (InputController, Action, PointerMap, WheelMap, PinchMap, KeyMap), `transition.tsx` (Transition), `viewDsl.tsx` (`<View>` DSL component), `viewLayoutDsl.tsx` (`<ViewLayout>` DSL component), `viewHandlers.ts` (NodeHandler implementations for `<View>` and `<ViewLayout>`).
-- `transitions/` — Transition type system: `transitionTypes.ts` defines `ElementTransitionSpec<T>`, `FunctionalTransitionSpec<T>`, `isFunctionalSpec()`, and the full set of blend/math utilities. `transitionPresets.ts` defines named transition types and easing functions. `transitionResolver.ts` provides `makeResolver` and `makeSimpleContext`.
+- `transitions/` — Transition type system: `transitionTypes.ts` defines type contracts (`FunctionalTransitionSpec<T>`, `isFunctionalSpec()`, `ElementTransitionSpec<T>` as a `@deprecated` type alias). `transitionBlendHelpers.ts` exports all blend utilities (`blendNumber`, `blendColor`, `blendVec3`, `blendOpacity`, `blendStyleValues`, etc.). `rotationMath.ts` exports quaternion helpers for `blendAxisRotation` (ZYX intrinsic convention, distinct from `math/index.ts`). `transitionPresets.ts` defines named transition types and easing functions. `transitionResolver.ts` provides `makeResolver` and `makeSimpleContext`.
 - `primitives/` — Contains only `progressManager.ts`.
 - `registry.ts` — The global node handler registry (`registerNode`, `getNodeHandler`, `isPrimitiveComponent`, `clearRegistry`).
 - `coreHandlers.ts` — Core DSL node handlers registered by the compiler.
@@ -305,7 +308,7 @@ import { getSceneTrackCache, setSceneTrackCache } from '../compiler/sceneTrackCa
 - `sceneTrackCache.ts` — Optional compile-time cache for `SceneTrack` keyed by a scene hash.
 - `SceneRegistrationContext.ts` — React context for scene registration in `SceneEngine`.
 - `sceneDslCompiler.ts` — DSL-to-SceneFrame compiler (`Scene`, `resolveSceneFromDsl`).
-- `sceneDslTypes.ts` — `NodeHandler` type and related DSL infrastructure types. Contains `CompileApi` (including `composeBounds`) and `CompileHelpers`.
+- `sceneDslTypes.ts` — `NodeHandler` type and related DSL infrastructure types. Contains `CompileApi` (including `composeBounds` and `layoutContext`) and `CompileHelpers`.
 - `sceneTypes.ts` — Shared scene DSL type definitions (`SceneSnapshotContext`).
 
 ### 3.4 Elements (`elements/`)
@@ -345,7 +348,7 @@ index.ts
 
 **`dsl.tsx`** — Prop type interfaces only. No React component function declarations, no Three.js. Defines the prop shapes (`XxxProps`) that authors use when writing scene definitions. DSL stub functions (null-returning components like `<Camera />`, `<Background />`, etc.) are defined in `{Name}Widget.ts`, not here.
 
-**`compile.ts`** — Pure transformation functions. No React, no Three.js. Contains functions that transform DSL props into the element's `types.ts` state shape. Called by the node handler registered in the compiler registry. May also export an `ElementTransitionSpec<T>` or `FunctionalTransitionSpec<T>` for the compiler to call during track baking.
+**`compile.ts`** — Pure transformation functions. No React, no Three.js. Contains functions that transform DSL props into the element's `types.ts` state shape. Called by the node handler registered in the compiler registry. Exports a `FunctionalTransitionSpec<T>` for the compiler to call during track baking. (`ElementTransitionSpec` is deprecated and no longer implemented by any built-in element.)
 
 **`render.ts`** — Three.js application layer. No React, no compiler imports. Contains the Three.js mutation logic that applies a compiled state object to the live Three.js scene. This is the only file in the element module that may import from `three`.
 
@@ -875,18 +878,12 @@ A flat `SceneTrackTick[]` array of this size is allocated. Each tick is pre-popu
 
 For each pair of adjacent scenes (block index N to scene N+1), the compiler iterates over the union of widget IDs present in either scene and calls one of three dispatch paths:
 
-**Path A — ElementTransitionSpec (batch-fill discrete):**
-The widget fills its own frame slots by writing `frames[i].state.widgets[widgetId]` for every frame in the transition block. The compiler passes a slice of the tick array:
-- `exit()` — widget present in scene N, absent in scene N+1. Receives the first half of the block.
-- `enter()` — widget absent from scene N, present in scene N+1. Receives the second half of the block.
-- `interpolate()` — widget present in both scenes. Receives the full block.
-
-**Path B — FunctionalTransitionSpec (closure capture):**
+**Path A — FunctionalTransitionSpec (closure capture):**
 The compiler calls `exitFn(fromState)`, `enterFn(toState)`, or `interpolateFn(fromState, toState)` once, capturing endpoint state into closures. The returned `(t: number) => T` functions are wrapped with transition-window remapping and stored in `SceneTrack.transitionBlocks[N].widgetFns`.
 
-Path B is selected when `isFunctionalSpec(spec)` returns `true` — i.e., when the spec has `interpolateFn` rather than `interpolate`.
+Path A is the standard path. All built-in and external widgets use `FunctionalTransitionSpec`. The compiler detects functional specs via `isFunctionalSpec(spec)` — i.e., when the spec has `interpolateFn` rather than `interpolate`.
 
-**Path C — No transition spec:**
+**Path B — No transition spec:**
 Widget snaps between states at the midpoint of the transition block. Frames before the midpoint use the `fromState`; frames from the midpoint use `toState`.
 
 ### 5.4 Step 4: Fill Terminal Frame
@@ -905,38 +902,9 @@ For each tick, the compiler computes `deltaForward` (diff from the previous tick
 
 ## 6. Transition Spec Types
 
-### 6.1 ElementTransitionSpec (Discrete Batch-Fill)
+### 6.1 ElementTransitionSpec (Deprecated)
 
-```typescript
-type ElementTransitionSpec<T> = {
-  /**
-   * Widget is leaving (present in scene N, absent from scene N+1).
-   * frames is the first half of the transition block.
-   * Write frames[i].state.widgets[widgetId] for every i.
-   * Use transitionT(i, frames.length) for normalized 0->1 progress.
-   */
-  exit(frames: SceneTrackTick[], widgetId: string, fromState: T): void;
-
-  /**
-   * Widget is arriving (absent from scene N, present in scene N+1).
-   * frames is the second half of the transition block.
-   * Write frames[i].state.widgets[widgetId] for every i.
-   */
-  enter(frames: SceneTrackTick[], widgetId: string, toState: T): void;
-
-  /**
-   * Widget present in both scenes.
-   * frames is the full transition block.
-   * Write frames[i].state.widgets[widgetId] for every i.
-   */
-  interpolate(frames: SceneTrackTick[], widgetId: string, fromState: T, toState: T): void;
-};
-```
-
-The helper `transitionT(i, len)` computes the normalized progress scalar for frame `i` within a slice of length `len`:
-```typescript
-const transitionT = (i: number, len: number): number => (len > 1 ? i / (len - 1) : 1);
-```
+`ElementTransitionSpec<T>` is retained as a `@deprecated` type alias for backward compatibility. No built-in or external widget implements it — all widgets use `FunctionalTransitionSpec` exclusively. The `sceneTrackCompiler.ts` code path for discrete batch-fill has been removed. Consumers who referenced `ElementTransitionSpec` in custom widgets must migrate to `FunctionalTransitionSpec`.
 
 ### 6.2 FunctionalTransitionSpec (Closure-Based)
 
@@ -968,16 +936,14 @@ type FunctionalTransitionSpec<T> = {
 };
 ```
 
-The type guard `isFunctionalSpec<T>(spec)` selects the dispatch path at compile time:
+The type guard `isFunctionalSpec<T>(spec)` identifies functional specs at compile time:
 ```typescript
 const isFunctionalSpec = <T>(
   spec: ElementTransitionSpec<T> | FunctionalTransitionSpec<T>,
 ): spec is FunctionalTransitionSpec<T> => 'interpolateFn' in spec;
 ```
 
-The key behavioral difference between the two specs:
-- `ElementTransitionSpec` fills frame slots at compile time. The runtime simply reads the pre-computed value from `tick.state.widgets[id]` with no additional computation per frame.
-- `FunctionalTransitionSpec` captures closures at compile time. The runtime evaluates `fn(tick.blockProgress)` once per frame for widgets in a functional transition block. This is slightly more CPU work per frame but produces continuous smooth curves without requiring a large tick array.
+`FunctionalTransitionSpec` captures closures at compile time. The runtime evaluates `fn(tick.blockProgress)` once per frame for widgets in a functional transition block, producing continuous smooth curves without requiring a large tick array. This is the only transition dispatch path in active use.
 
 ---
 
@@ -1064,7 +1030,7 @@ The compiler evaluates a scene by traversing the JSX tree and calling `getNodeHa
 
 Entry transitions belong to the **incoming** scene, not the outgoing one.
 
-When the compiler processes the transition block between scenes N and N+1, the transition behavior (easing, duration within the block, animation style) is determined by the widget registration of the element as it appears in scene N+1. If the element declares a custom `ElementTransitionSpec` or `FunctionalTransitionSpec`, that spec governs the entire block including the exit of scene N.
+When the compiler processes the transition block between scenes N and N+1, the transition behavior (easing, duration within the block, animation style) is determined by the widget registration of the element as it appears in scene N+1. If the element declares a `FunctionalTransitionSpec`, that spec governs the entire block including the exit of scene N.
 
 This rule ensures consistent mental model: to change how a scene animates in, the author edits the incoming scene's element declarations.
 

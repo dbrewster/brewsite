@@ -1,6 +1,6 @@
 // Scene 5: Linear Carousel — non-looping carousel with stepSlides=2 (default) and
 // stepSlides=1 Shift+Arrow variant. Demonstrates inactiveScale and zStep.
-import type { JSX } from 'react';
+import type {JSX} from 'react';
 import {
   Action,
   Ambient,
@@ -17,17 +17,10 @@ import {
   View,
   ViewLayout,
 } from '@brewsite/core';
-import {
-  BarChart,
-  ChartAxis,
-  ChartData,
-  ChartSeries,
-} from '@brewsite/charts';
+import {BarChart, ChartAxis, ChartData, ChartSeries,} from '@brewsite/charts';
 
 const CAM_POS: [number, number, number] = [0, 1, 6.6];
 const CAM_TGT: [number, number, number] = [0, 0, 0];
-const LAYOUT_ID = 'linear-carousel-layout';
-
 // ─── Chart data (5 products × 4 quarters) ────────────────────────────────────
 
 const productAlphaData = [
@@ -122,7 +115,7 @@ function LinearCarouselViews(): JSX.Element {
 
 export const LinearCarouselScene = (): JSX.Element => {
   return (
-    <Scene id="input-linear-carousel" primaryCarouselId={LAYOUT_ID}>
+    <Scene id="input-linear-carousel" primaryCarouselId={'linear-carousel-layout'}>
       <ProgressManager scrollUnits={800} />
       <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
       <Lighting intensityScale={1.2}>
@@ -132,23 +125,23 @@ export const LinearCarouselScene = (): JSX.Element => {
 
       <InputController scope="canvas">
         {/* Default: jump 2 positions at a time */}
-        <Action id="default-carousel-next" type="carousel.next" layoutId={LAYOUT_ID} stepSlides={2}>
+        <Action id="default-carousel-next" type="carousel.next" layoutId={'linear-carousel-layout'} stepSlides={2}>
           <KeyMap keyName="ArrowRight" />
           <KeyMap keyName=" " />
         </Action>
-        <Action id="default-carousel-prev" type="carousel.prev" layoutId={LAYOUT_ID} stepSlides={2}>
+        <Action id="default-carousel-prev" type="carousel.prev" layoutId={'linear-carousel-layout'} stepSlides={2}>
           <KeyMap keyName="ArrowLeft" />
         </Action>
         {/* Shift variant: single position */}
-        <Action id="carousel-next-single" type="carousel.next" layoutId={LAYOUT_ID} stepSlides={1}>
+        <Action id="carousel-next-single" type="carousel.next" layoutId={'linear-carousel-layout'} stepSlides={1}>
           <KeyMap keyName="ArrowRight" modifiers={['shift']} />
         </Action>
-        <Action id="carousel-prev-single" type="carousel.prev" layoutId={LAYOUT_ID} stepSlides={1}>
+        <Action id="carousel-prev-single" type="carousel.prev" layoutId={'linear-carousel-layout'} stepSlides={1}>
           <KeyMap keyName="ArrowLeft" modifiers={['shift']} />
         </Action>
       </InputController>
 
-      <ViewLayout id={LAYOUT_ID} kind="carousel" activeIndex={0} inactiveScale={0.75} zStep={8}>
+      <ViewLayout id={'linear-carousel-layout'} kind="carousel" activeIndex={0} inactiveScale={0.75} zStep={8}>
         <LinearCarouselViews />
         <CarouselTray />
       </ViewLayout>

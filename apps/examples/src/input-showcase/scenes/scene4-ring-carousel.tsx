@@ -9,6 +9,7 @@ import {
   Directional,
   Floor,
   formatModifier,
+  Highlight,
   InputController,
   KeyMap,
   Lighting,
@@ -16,8 +17,6 @@ import {
   PointerMap,
   ProgressManager,
   Scene,
-  Spotlight,
-  SpotlightRig,
   TextBox,
   View,
   ViewLayout,
@@ -26,8 +25,6 @@ import {BarChart, ChartAxis, ChartData, ChartSeries, LineChart,} from '@brewsite
 
 const CAM_POS: [number, number, number] = [0, 1, 6.6];
 const CAM_TGT: [number, number, number] = [0, 0, 0];
-const LAYOUT_ID = 'ring-carousel-layout';
-
 // ─── Seeded spotlight rig ─────────────────────────────────────────────────────
 
 const seeded = (seed: number) => {
@@ -182,7 +179,7 @@ function RingCarouselViews(): JSX.Element {
 
 export const RingCarouselScene = (): JSX.Element => {
   return (
-    <Scene id="input-ring-carousel" primaryCarouselId={LAYOUT_ID}>
+    <Scene id="input-ring-carousel" primaryCarouselId={'ring-carousel-layout'}>
       <ProgressManager scrollUnits={800} />
       <Camera mode="world" position={CAM_POS} target={CAM_TGT} fov={42} />
       <Lighting intensityScale={1.2}>
@@ -195,30 +192,27 @@ export const RingCarouselScene = (): JSX.Element => {
       {/*</SpotlightRig>*/}
 
       <InputController scope="canvas">
-        <Action id="default-carousel-next" type="carousel.next" layoutId={LAYOUT_ID} stepSlides={1}>
+        <Action id="default-carousel-next" type="carousel.next" layoutId={'ring-carousel-layout'} stepSlides={1}>
           <KeyMap keyName="ArrowRight" />
           <PointerMap event="click" />
         </Action>
-        <Action id="carousel-next-skip" type="carousel.next" layoutId={LAYOUT_ID} stepSlides={2}>
+        <Action id="carousel-next-skip" type="carousel.next" layoutId={'ring-carousel-layout'} stepSlides={2}>
           <KeyMap keyName="ArrowRight" modifiers={['shift']} />
         </Action>
-        <Action id="default-carousel-prev" type="carousel.prev" layoutId={LAYOUT_ID} stepSlides={1}>
+        <Action id="default-carousel-prev" type="carousel.prev" layoutId={'ring-carousel-layout'} stepSlides={1}>
           <KeyMap keyName="ArrowLeft" />
         </Action>
-        <Action id="carousel-prev-skip" type="carousel.prev" layoutId={LAYOUT_ID} stepSlides={2}>
+        <Action id="carousel-prev-skip" type="carousel.prev" layoutId={'ring-carousel-layout'} stepSlides={2}>
           <KeyMap keyName="ArrowLeft" modifiers={['shift']} />
         </Action>
       </InputController>
 
-      <ViewLayout id={LAYOUT_ID} kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={0.7} x={.1} w={.8}>
+      <ViewLayout id={'ring-carousel-layout'} kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={0.7} x={.1} w={.8}>
         <RingCarouselViews />
-        <CarouselTray metalness={.1}
-                      highlights={[
-                        {viewId: 'rc1', mode: 'holographic', variant: 'primary', smoke: true, beamHeight: 4},
-                        {viewId: 'rc3', mode: 'glow', variant: 'success', intensity: 0.5, smoke: true},
-                        {viewId: 'rc5', mode: 'holographic', variant: 'error', smoke: true, beamHeight: 4},
-                      ]}
-        />
+        <CarouselTray metalness={.1} />
+        <Highlight viewId="rc1" variant="primary" mode="holographic" smoke beamHeight={4} pulseSpeed={1.2} pulseIntensity={0.6} />
+        <Highlight viewId="rc3" variant="error" mode="glow" intensity={0.8} smoke pulseSpeed={1.2} pulseIntensity={0.3} />
+        <Highlight viewId="rc5" variant="warning" mode="holographic" smoke beamHeight={4} />
       </ViewLayout>
 
       {/* Title */}

@@ -3,6 +3,12 @@
     "brewsite-docs": {
       "command": "node",
       "args": [".claude/mcp-servers/brewsite-docs.js"]
+    },
+    "jetbrains": {
+      "command": "npx",
+      "args": [
+        "@jetbrains/mcp-proxy"
+      ]
     }
   }
 }

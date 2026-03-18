@@ -19,7 +19,7 @@ export type {
   CameraOverrideState,
 } from './types';
 export { Camera } from './CameraWidget';
-export { DEFAULT_CAMERA, DEFAULT_CAMERA_DESCRIPTOR, cameraTransitionSpec, functionalCameraTransitionSpec } from './compile';
+export { DEFAULT_CAMERA, DEFAULT_CAMERA_DESCRIPTOR, functionalCameraTransitionSpec } from './compile';
 export { applyCamera } from './render';
 export { CameraWidget } from './CameraWidget';
 export { CUSTOM_NODE_HANDLER } from '../../widget/WidgetRegistry';

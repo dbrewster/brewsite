@@ -32,6 +32,8 @@ function buildTestApi(): CompileApi & { captured: Record<string, unknown> } {
     composeZ: (z) => z,
     composeOpacity: (o) => o,
     pushOverlay: () => {},
+    layoutContext: undefined,
+    withLayoutContext(ctx) { return { ...this, layoutContext: ctx }; },
     captured,
   };
 }

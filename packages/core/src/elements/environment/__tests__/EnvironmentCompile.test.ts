@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Environment } from '../EnvironmentWidget';
-import { DEFAULT_ENVIRONMENT, environmentTransitionSpec, functionalEnvironmentTransitionSpec } from '../compile';
+import { DEFAULT_ENVIRONMENT, functionalEnvironmentTransitionSpec } from '../compile';
 import { applyEnvironment } from '../render';
 import type { SceneEnvironment } from '../types';
 import { makeInitContext } from '../../__tests__/elementTestMocks';
@@ -92,23 +92,6 @@ describe('environment compile + render', () => {
     expect(at75.source?.type).toBe('hdr');
     expect(at25.source && 'url' in at25.source ? at25.source.url : '').toBe('/from.hdr');
     expect(at75.source && 'url' in at75.source ? at75.source.url : '').toBe('/to.hdr');
-  });
-
-  it('discrete transitionSpec.exit writes frames with fading intensity', () => {
-    const frames = Array.from({ length: 3 }, () => ({ state: { widgets: {} as Record<string, unknown> } }));
-    const from: SceneEnvironment = { enabled: true, intensity: 1 };
-    environmentTransitionSpec.exit(frames, 'env', from);
-    expect((frames[0]!.state.widgets['env'] as SceneEnvironment).intensity).toBeCloseTo(1);
-    expect((frames[2]!.state.widgets['env'] as SceneEnvironment).intensity).toBeCloseTo(0);
-  });
-
-  it('discrete transitionSpec.interpolate blends enabled state', () => {
-    const frames = Array.from({ length: 3 }, () => ({ state: { widgets: {} as Record<string, unknown> } }));
-    const from: SceneEnvironment = { enabled: true, intensity: 0.2 };
-    const to: SceneEnvironment = { enabled: false, intensity: 0.8 };
-    environmentTransitionSpec.interpolate(frames, 'env', from, to);
-    const mid = frames[1]!.state.widgets['env'] as SceneEnvironment;
-    expect(mid.enabled).toBe(true);
   });
 
   it('applyEnvironment does not throw without a renderer', () => {

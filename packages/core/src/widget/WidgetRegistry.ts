@@ -104,9 +104,42 @@ export class WidgetRegistry {
   }
 
   /**
+   * Resolves a widget via a type factory: validates required props, creates the widget
+   * if it doesn't exist yet, and dispatches the DSL node. Shared by registerTypeFactory()
+   * and the factory branch of the register() routing handler.
+   */
+  private resolveViaFactory(
+    node: ReactElement,
+    api: CompileApi,
+    helpers: CompileHelpers,
+    factory: (props: Record<string, unknown>) => IWidget,
+    displayName: string,
+  ): void {
+    const props = node.props as Record<string, unknown>;
+    const targetType = typeof props['type'] === 'string' ? props['type'] : undefined;
+    const targetId = typeof props['id'] === 'string' ? props['id'] : undefined;
+    if (!targetType) {
+      throw new Error(`<${displayName}> requires a string "type" prop.`);
+    }
+    if (!targetId) {
+      throw new Error(`<${displayName}> requires a string "id" prop.`);
+    }
+    let target = this.get(targetId);
+    if (!target) {
+      target = factory(props);
+      this.register(target);
+    }
+    if (!target || !isSceneElement(target)) {
+      throw new Error(
+        `[WidgetRegistry] No widget found for DSL component with type="${targetType}" and id="${targetId}"`,
+      );
+    }
+    this.dispatchToWidget(node, api, helpers, target);
+  }
+
+  /**
    * Dispatches a DSL node to the given widget.
    * Calls CUSTOM_NODE_HANDLER if present; otherwise shallow-merges props into widget state.
-   * Extracted from the duplicated routing logic in register() and registerTypeFactory().
    */
   private dispatchToWidget(
     node: ReactElement,
@@ -144,32 +177,12 @@ export class WidgetRegistry {
       const registry = this;
       // No factory-registered components are ambient; category defaults to spatial.
       registerNode(component, (node, api, helpers) => {
-        const props = node.props as Record<string, unknown>;
-        const targetType = typeof props['type'] === 'string' ? props['type'] : undefined;
-        const targetId = typeof props['id'] === 'string' ? props['id'] : undefined;
-        if (!targetType) {
-          throw new Error(`<Model> requires a string "type" prop.`);
-        }
-        if (!targetId) {
-          throw new Error(`<Model> requires a string "id" prop.`);
-        }
-        let target = registry.get(targetId);
-        if (!target) {
-          target = factory(props);
-          registry.register(target);
-        }
-        if (!target || !isSceneElement(target)) {
-          throw new Error(
-            `[WidgetRegistry] No widget found for DSL component with type="${targetType}" and id="${targetId}"`,
-          );
-        }
-        registry.dispatchToWidget(node, api, helpers, target);
+        registry.resolveViaFactory(node, api, helpers, factory, 'Model');
       });
     }
     return this;
   }
 
-  // DEBT: The typeFactory handler block inside register() partially duplicates registerTypeFactory() routing logic
   register(widget: IWidget): this {
     if (this.frozen) {
       throw new Error(
@@ -204,7 +217,6 @@ export class WidgetRegistry {
             : undefined;
         registerNode(widget.DslComponent, (node, api, helpers) => {
           const props = node.props as Record<string, unknown>;
-          const targetType = typeof props['type'] === 'string' ? props['type'] : undefined;
           const targetId = typeof props['id'] === 'string' ? props['id'] : undefined;
           const factory = registry.typeFactories.get(widget.DslComponent);
 
@@ -221,27 +233,7 @@ export class WidgetRegistry {
           }
 
           if (factory) {
-            if (!targetType) {
-              throw new Error(
-                `<${widget.DslComponent.displayName ?? 'Model'}> requires a string "type" prop.`,
-              );
-            }
-            if (!targetId) {
-              throw new Error(
-                `<${widget.DslComponent.displayName ?? 'Model'}> requires a string "id" prop.`,
-              );
-            }
-            let target = registry.get(targetId);
-            if (!target) {
-              target = factory(props);
-              registry.register(target);
-            }
-            if (!target || !isSceneElement(target)) {
-              throw new Error(
-                `[WidgetRegistry] No widget found for DSL component with type="${targetType}" and id="${targetId}"`,
-              );
-            }
-            registry.dispatchToWidget(node, api, helpers, target);
+            registry.resolveViaFactory(node, api, helpers, factory, displayName);
             return;
           }
 
@@ -452,9 +444,8 @@ export const isRendererLifecycle = (w: IWidget): w is IRendererLifecycle =>
 
 // ─── Phase 5 type guards ──────────────────────────────────────────────────────
 
-export const isSceneLifecycle = (widget: IWidget): widget is ISceneLifecycle =>
-  typeof (widget as ISceneLifecycle).onSceneEnter === 'function' &&
-  typeof (widget as ISceneLifecycle).onSceneExit === 'function';
+export const isSceneLifecycle = (w: IWidget): w is ISceneLifecycle =>
+  'onSceneEnter' in w && 'onSceneExit' in w;
 
 export const isRenderContributor = (w: IWidget): w is IRenderContributor =>
   'contributeRenderData' in w && typeof (w as IRenderContributor).contributeRenderData === 'function';
@@ -466,22 +457,20 @@ export const isAttachmentHost = (w: IWidget): w is IAttachmentHost =>
   'getAttachmentPoint' in w && typeof (w as IAttachmentHost).getAttachmentPoint === 'function';
 
 export const isInputDefaultProvider = (w: IWidget): w is IInputDefaultProvider =>
-  'getDefaultInputActions' in w &&
-  typeof (w as IInputDefaultProvider).getDefaultInputActions === 'function';
+  'getDefaultInputActions' in w && typeof (w as IInputDefaultProvider).getDefaultInputActions === 'function';
 
 /** Type guard: returns true if widget implements ICameraFocusTarget. */
 export const isCameraFocusTarget = (w: IWidget): w is ICameraFocusTarget =>
-  typeof (w as ICameraFocusTarget).requestFocus === 'function';
+  'requestFocus' in w && typeof (w as ICameraFocusTarget).requestFocus === 'function';
 
 /** Type guard: returns true if widget implements ILightingOverride. */
 export const isLightingOverride = (w: IWidget): w is ILightingOverride =>
-  typeof (w as ILightingOverride).getLightingOverride === 'function';
+  'getLightingOverride' in w && typeof (w as ILightingOverride).getLightingOverride === 'function';
 
 /** Type guard: returns true if widget implements IExtraRenderPass. */
 export const isExtraRenderPass = (w: IWidget): w is IExtraRenderPass =>
-  typeof (w as IExtraRenderPass).renderPass === 'function';
+  'renderPass' in w && typeof (w as IExtraRenderPass).renderPass === 'function';
 
 /** Type guard: widget implements IViewChild (view-level opacity delegation). */
-export function isViewChild(widget: IWidget): widget is IViewChild {
-  return 'applyViewOpacity' in widget && typeof (widget as IViewChild).applyViewOpacity === 'function';
-}
+export const isViewChild = (w: IWidget): w is IViewChild =>
+  'applyViewOpacity' in w && typeof (w as IViewChild).applyViewOpacity === 'function';

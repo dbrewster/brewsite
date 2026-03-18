@@ -71,44 +71,53 @@ export type CarouselTrayProps = {
    * Highlight the active (front) carousel item. Value is the highlight mode.
    * true = 'glow' (shorthand). false/'none' = disabled.
    * Theme: SceneThemeCarouselTray.highlightActive
+   * @deprecated Use `<Highlight active>` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.
    */
   highlightActive?: ViewHighlightMode | boolean;
   /**
    * Semantic variant name for the active highlight.
    * Resolves color, mode, intensity, etc. from the theme's highlightPalette.
    * Explicit highlight* props override variant values.
+   * @deprecated Use `<Highlight variant="...">` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.
    */
   highlightVariant?: import('../../theme/types').HighlightVariantName;
   /**
    * Highlight color override. Falls back to theme -> accentColor.
+   * @deprecated Use `<Highlight color="...">` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.
    */
   highlightColor?: string;
   /**
    * Highlight intensity override [0-1].
+   * @deprecated Use `<Highlight intensity={...}>` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.
    */
   highlightIntensity?: number;
   /**
    * Beam height for holographic mode [world units].
+   * @deprecated Use `<Highlight beamHeight={...}>` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.
    */
   highlightBeamHeight?: number;
   /**
    * Enable smoke ring for holographic highlights.
+   * @deprecated Use `<Highlight smoke>` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.
    */
   highlightSmoke?: boolean;
   /**
    * Z offset for highlights in world units. Negative = push back (away from camera).
+   * @deprecated Use `<Highlight zOffset={...}>` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.
    */
   highlightZOffset?: number;
   /**
    * Target a specific view by ID instead of the active item.
    * The highlight will follow this view as it moves around the carousel.
    * Overrides highlightActive — the highlight always shows on this view.
+   * @deprecated Use `<Highlight viewId="...">` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.
    */
   highlightViewId?: string;
   /**
    * Explicit per-view highlight configurations.
    * Each entry targets a specific view by ID with its own mode, color, intensity.
    * Merged with highlightActive — both can be used simultaneously.
+   * @deprecated Use multiple `<Highlight>` components as sibling children of `<ViewLayout>` instead. Will be removed in the next major version.
    *
    * @example
    * highlights={[

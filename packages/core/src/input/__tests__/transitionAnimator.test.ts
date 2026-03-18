@@ -5,10 +5,9 @@ import {
   interruptTransition,
   redirectTransition,
   getTransitionProgress,
-  easeInOut,
-  easeLinear,
   DEFAULT_TRANSITION_DURATION_MS,
 } from '../transitionAnimator';
+import { easeInOutCubic, easeLinear } from '../../compiler/transitions/transitionPresets';
 
 describe('createTransitionAnimatorState', () => {
   it('returns an inactive state', () => {
@@ -81,18 +80,18 @@ describe('beginTransition + getTransitionProgress', () => {
     expect(progress).toBeCloseTo(0.5);
   });
 
-  it('returns non-linear midpoint at t=0.5 with easeInOut', () => {
+  it('returns non-linear midpoint at t=0.5 with easeInOutCubic', () => {
     const state = createTransitionAnimatorState();
-    beginTransition(state, 0.0, 1.0, 1000, 400, easeInOut);
+    beginTransition(state, 0.0, 1.0, 1000, 400, easeInOutCubic);
     const progress = getTransitionProgress(state, 1200); // elapsed = 200ms = 50%
-    // easeInOut(0.5) = 0.5 (symmetric), but the curve is non-linear on either side
+    // easeInOutCubic(0.5) = 0.5 (symmetric), but the curve is non-linear on either side
     expect(progress).toBeCloseTo(0.5, 5);
     // verify it's actually using the cubic function by checking at 25%
     const progress25 = getTransitionProgress(
-      { active: true, fromProgress: 0.0, toProgress: 1.0, startTime: 1000, durationMs: 400, easing: easeInOut },
+      { active: true, fromProgress: 0.0, toProgress: 1.0, startTime: 1000, durationMs: 400, easing: easeInOutCubic },
       1100, // elapsed = 100ms = 25% of 400ms
     );
-    // easeInOut(0.25) = 4 * 0.25^3 = 4 * 0.015625 = 0.0625 (not 0.25)
+    // easeInOutCubic(0.25) = 4 * 0.25^3 = 4 * 0.015625 = 0.0625 (not 0.25)
     expect(progress25).toBeCloseTo(0.0625, 3);
   });
 
@@ -196,25 +195,25 @@ describe('redirectTransition', () => {
   });
 });
 
-describe('easeInOut', () => {
+describe('easeInOutCubic', () => {
   it('returns 0 at t=0', () => {
-    expect(easeInOut(0)).toBeCloseTo(0);
+    expect(easeInOutCubic(0)).toBeCloseTo(0);
   });
 
   it('returns 1 at t=1', () => {
-    expect(easeInOut(1)).toBeCloseTo(1);
+    expect(easeInOutCubic(1)).toBeCloseTo(1);
   });
 
   it('returns 0.5 at t=0.5 (symmetric midpoint)', () => {
-    expect(easeInOut(0.5)).toBeCloseTo(0.5);
+    expect(easeInOutCubic(0.5)).toBeCloseTo(0.5);
   });
 
   it('is slower at the start than linear (t=0.25)', () => {
-    expect(easeInOut(0.25)).toBeLessThan(0.25);
+    expect(easeInOutCubic(0.25)).toBeLessThan(0.25);
   });
 
   it('is faster than linear in the middle (t=0.75)', () => {
-    expect(easeInOut(0.75)).toBeGreaterThan(0.75);
+    expect(easeInOutCubic(0.75)).toBeGreaterThan(0.75);
   });
 });
 

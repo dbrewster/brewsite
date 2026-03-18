@@ -31,6 +31,6 @@ describe('Engine state hooks', () => {
   });
 
   it('throws when hooks are used outside provider', () => {
-    expect(() => renderHook(() => useSceneProgress())).toThrow('[useEngineState]');
+    expect(() => renderHook(() => useSceneProgress())).toThrow('[useEngineStateContext]');
   });
 });

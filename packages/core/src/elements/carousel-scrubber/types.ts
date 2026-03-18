@@ -54,6 +54,20 @@ export type ViewHighlightConfig = {
    * 'normal'   — tinted shadow on light backgrounds (default for light scenes).
    */
   readonly blendMode?: 'additive' | 'normal';
+  /**
+   * Pulse oscillation period in seconds. When set (> 0), the highlight's
+   * intensity breathes between `intensity` and `intensity * (1 - pulseIntensity)`
+   * using a cosine wave. Default: 0 (no pulse).
+   */
+  readonly pulseSpeed?: number;
+  /**
+   * How deep the pulse dips [0..1].
+   * 0 = no pulse (constant intensity).
+   * 1 = pulses all the way to 0 at the trough.
+   * 0.5 = pulses to 50% of authored intensity at the trough.
+   * Default: 0.
+   */
+  readonly pulseIntensity?: number;
 };
 
 /**
@@ -87,6 +101,16 @@ export type ViewHighlight = {
   readonly blendMode: 'additive' | 'normal';
   /** When true, this highlight follows a specific view (resolved at render time). */
   readonly followView?: boolean;
+  /**
+   * Pulse oscillation period in seconds. 0 or absent = no pulse.
+   * The highlight intensity breathes using a cosine wave over this period.
+   */
+  readonly pulseSpeed?: number;
+  /**
+   * Pulse depth [0..1]. 0 = no pulse. 1 = pulses to 0 at trough.
+   * Scales how far intensity drops on the downswing.
+   */
+  readonly pulseIntensity?: number;
 };
 
 /**

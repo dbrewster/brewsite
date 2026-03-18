@@ -4,8 +4,11 @@ import { resolve } from 'path';
 export default defineConfig({
   resolve: {
     alias: {
+      '@brewsite/core/testing': resolve(__dirname, '../core/src/testing.ts'),
       '@brewsite/core': resolve(__dirname, '../core/src/index.ts'),
+      '@brewsite/diagram/testing': resolve(__dirname, '../diagram/src/testing.ts'),
       '@brewsite/diagram': resolve(__dirname, '../diagram/src/index.ts'),
+      '@brewsite/charts/testing': resolve(__dirname, '../charts/src/testing.ts'),
       '@brewsite/charts': resolve(__dirname, '../charts/src/index.ts'),
     },
   },

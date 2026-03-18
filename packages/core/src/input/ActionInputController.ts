@@ -206,7 +206,7 @@ export class ActionInputController {
     return Math.max(1, Math.round(action.stepSlides ?? 1));
   }
 
-  private dispatchCarousel(action: InputActionSpec): void {
+  private dispatchCarousel(action: InputActionSpec, clientX?: number, clientY?: number): void {
     if (!action.layoutId) {
       console.warn(
         `[ActionInputController] Action "${action.id}" has type "${action.type}" but no layoutId. ` +
@@ -214,9 +214,53 @@ export class ActionInputController {
       );
       return;
     }
+
+    // Spatial gating: if we have pointer coordinates and the handler can
+    // provide layout bounds, only dispatch when the pointer is within bounds.
+    if (
+      clientX !== undefined &&
+      clientY !== undefined &&
+      this.handler.getLayoutBounds
+    ) {
+      const bounds = this.handler.getLayoutBounds(action.layoutId);
+      if (bounds) {
+        const nvsPoint = this.clientToNvs(clientX, clientY);
+        if (nvsPoint && !this.isInsideBounds(nvsPoint, bounds)) {
+          return;
+        }
+      }
+    }
+
     const direction: 1 | -1 = action.type === 'carousel.next' ? 1 : -1;
     this.handler.onCarouselStep(action.layoutId, direction, this.actionStepSlides(action));
     this.fireActionEvent(action.type, action.id, { layoutId: action.layoutId, direction });
+  }
+
+  /**
+   * Converts client (pixel) coordinates to Normalized Viewport Space [0,1].
+   * Returns null if the target is not an HTMLElement (e.g., Window).
+   */
+  private clientToNvs(clientX: number, clientY: number): { x: number; y: number } | null {
+    if (!(this.target instanceof HTMLElement)) return null;
+    const rect = this.target.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) return null;
+    return {
+      x: (clientX - rect.left) / rect.width,
+      y: (clientY - rect.top) / rect.height,
+    };
+  }
+
+  /** Returns true if the NVS point is inside the given NVS bounds rect. */
+  private isInsideBounds(
+    point: { x: number; y: number },
+    bounds: { x: number; y: number; w: number; h: number },
+  ): boolean {
+    return (
+      point.x >= bounds.x &&
+      point.x <= bounds.x + bounds.w &&
+      point.y >= bounds.y &&
+      point.y <= bounds.y + bounds.h
+    );
   }
 
   private nowMs(): number {
@@ -471,7 +515,7 @@ export class ActionInputController {
         return;
       case 'carousel.next':
       case 'carousel.prev':
-        this.dispatchCarousel(action);
+        this.dispatchCarousel(action, e.clientX, e.clientY);
         return;
       default:
         this.handler.onUnknownAction?.(action.type, action.canvasId, e, {
@@ -523,7 +567,7 @@ export class ActionInputController {
         return;
       case 'carousel.next':
       case 'carousel.prev':
-        this.dispatchCarousel(action);
+        this.dispatchCarousel(action, e.clientX, e.clientY);
         return;
       default:
         this.handler.onUnknownAction?.(action.type, action.canvasId, e, {

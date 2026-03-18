@@ -33,7 +33,7 @@ import {
 import type { ICameraFocusTarget, ILightingOverride } from '../types';
 import type { CompileApi } from '../../compiler/sceneDslTypes';
 import type { NodeHandler } from '../../compiler/sceneDslTypes';
-import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
+import type { FunctionalTransitionSpec } from '../../compiler/transitions/transitionTypes';
 
 // ---------------------------------------------------------------------------
 // Minimal test doubles
@@ -41,22 +41,10 @@ import type { ElementTransitionSpec } from '../../compiler/transitions/transitio
 
 type TestState = { value: number };
 
-const makeNoopSpec = <T,>(): ElementTransitionSpec<T> => ({
-  exit: (frames, widgetId, fromState) => {
-    for (const frame of frames) {
-      frame.state.widgets[widgetId] = fromState;
-    }
-  },
-  enter: (frames, widgetId, toState) => {
-    for (const frame of frames) {
-      frame.state.widgets[widgetId] = toState;
-    }
-  },
-  interpolate: (frames, widgetId, _fromState, toState) => {
-    for (const frame of frames) {
-      frame.state.widgets[widgetId] = toState;
-    }
-  },
+const makeNoopSpec = <T,>(): FunctionalTransitionSpec<T> => ({
+  exitFn: (from) => () => from,
+  enterFn: (to) => () => to,
+  interpolateFn: (_from, to) => () => to,
 });
 
 class TestWidget implements ISceneElement<TestState>, IRenderable<TestState> {

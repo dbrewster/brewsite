@@ -30,6 +30,9 @@ export interface ControlledInputProps {
  * ControlledInput drives engine progress from an external value prop.
  * Provides ControlledProgressContext so KeyboardInput can call onChange.
  * Renders no DOM — context provider only.
+ *
+ * @deprecated No known consumers in current packages or apps.
+ * This export will be removed in a future version.
  */
 export function ControlledInput(props: ControlledInputProps): ReactElement {
   const engine = useSceneEngineContext();

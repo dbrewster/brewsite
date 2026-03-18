@@ -4,6 +4,7 @@ import type { SceneFrame } from './sceneTrackTypes';
 import type { CompileWarning } from './sceneTrackTypes';
 import type { JsonPrimitive } from '../widget/VariableStore';
 import type { NVSRect } from '../layout/types';
+import type { ViewLayoutResult } from '../layout/regionTypes';
 
 export type CompileApi = {
   context: SceneSnapshotContext;
@@ -39,6 +40,20 @@ export type CompileApi = {
    * overlay content collected directly from Scene children.
    */
   pushOverlay: (node: ReactNode) => void;
+  /**
+   * Layout context set by viewLayoutHandler during child compilation.
+   * Present only when a View is being compiled inside a ViewLayout.
+   * Undefined for standalone Views.
+   */
+  readonly layoutContext?: {
+    readonly layoutId: string;
+    readonly viewResults: ReadonlyMap<string, ViewLayoutResult>;
+  };
+  /**
+   * Returns a new CompileApi with the given layout context active.
+   * Used by viewLayoutHandler to scope child View compilation.
+   */
+  withLayoutContext(ctx: { layoutId: string; viewResults: Map<string, ViewLayoutResult> }): CompileApi;
 };
 
 export type CompileHelpers = {

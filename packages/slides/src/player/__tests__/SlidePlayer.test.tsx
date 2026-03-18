@@ -81,6 +81,10 @@ vi.mock('@brewsite/core', async () => {
   /** ProgressManager stub — renders nothing. */
   const ProgressManager = () => null;
 
+  /** BackgroundLayer stub — renders a div. */
+  const BackgroundLayer = (props: Record<string, unknown>) =>
+    R.createElement('div', { 'data-testid': 'background-layer', ...props });
+
   /** DSL element stubs — compiled, not rendered. Return null. */
   const Floor = () => null;
   const Background = () => null;
@@ -99,6 +103,7 @@ vi.mock('@brewsite/core', async () => {
     ProgressManager,
     Floor,
     Background,
+    BackgroundLayer,
     Lighting,
     Ambient,
 

@@ -16,6 +16,8 @@ export type {
   HighlightVariantName,
   SceneThemeHighlightVariant,
   SceneThemeHighlightPalette,
+  SceneThemeHighlightDefaults,
+  SceneThemeCarouselTray,
 } from './types';
 export { ThemeContext, useTheme } from './ThemeContext';
 export { darkHighlightPalette, lightHighlightPalette } from './highlightPalettes';

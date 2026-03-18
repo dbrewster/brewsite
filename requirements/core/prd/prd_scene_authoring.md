@@ -3,8 +3,14 @@ title: "BrewSite Core — Scene Authoring DSL"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-17
+last_updated: 2026-03-18
 change_history:
+  - date: 2026-03-18
+    author: "Toolkit Product"
+    summary: "Core over-engineering audit: updated <Model> transition description to reflect that ElementTransitionSpec is deprecated — all built-in and external widgets now use FunctionalTransitionSpec exclusively. Updated CompileApi type to document new layoutContext field (replaces WeakMap side-channel for view handler communication). Noted CP9 deprecations (TimeInput, ControlledInput, useNativeScrollSource, CustomScrollSource, ElementScrollSource, useSceneRuntime)."
+  - date: 2026-03-18
+    author: "Toolkit Product"
+    summary: "Carousel highlight DSL refactor: added <Highlight> to built-in DSL elements list with full prop documentation and usage examples. Marked highlight* props on <CarouselTray> as @deprecated with migration guide. Updated <ViewLayout> children description to include <Highlight> as a valid child. Updated carousel example to use <Highlight> instead of deprecated tray highlight props."
   - date: 2026-03-17
     author: "Toolkit Product"
     summary: "Codebase alignment: renamed camera.dolly to camera.zoom, canvas.pan to camera.pan, applyCameraDolly to applyCameraZoom throughout. Replaced EngineProvider with SceneEngine in code examples. Added CarouselTray/CarouselScrubber to built-in DSL elements list with full prop documentation."
@@ -355,6 +361,13 @@ export type CompileApi = {
    * composeBounds will render at incorrect positions when placed inside a <View>.
    */
   composeBounds: (localRect: NVSRect) => NVSRect;
+  /**
+   * Layout context for view/layout handler communication.
+   * Set by the <ViewLayout> handler before compiling child <View> elements.
+   * Read by the <View> handler to access carousel layout parameters.
+   * Replaces the former module-level WeakMap side-channel.
+   */
+  layoutContext?: ViewLayoutContext;
 };
 
 export type CompileHelpers = {
@@ -395,7 +408,7 @@ export type NodeHandler = (
 
 The following DSL components are available at the `<Scene>` level. Each is a null-returning React component registered with the node handler system. Detailed prop contracts live in element-specific PRDs.
 
-**Elements from `@brewsite/core`:** `<Camera>`, `<Lighting>`, `<Background>`, `<Floor>`, `<Environment>`, `<TextBox>`, `<View>`, `<ViewLayout>`, `<CarouselTray>`, `<ProgressManager>`, `<InputController>`, `<Action>`, `<PointerMap>`, `<WheelMap>`, `<PinchMap>`, `<KeyMap>`.
+**Elements from `@brewsite/core`:** `<Camera>`, `<Lighting>`, `<Background>`, `<Floor>`, `<Environment>`, `<TextBox>`, `<View>`, `<ViewLayout>`, `<CarouselTray>`, `<Highlight>`, `<ProgressManager>`, `<InputController>`, `<Action>`, `<PointerMap>`, `<WheelMap>`, `<PinchMap>`, `<KeyMap>`.
 
 **Elements from companion packages:** `<Model>` (from `@brewsite/model`), `<DiagramCanvas>` (from `@brewsite/diagram`), `<Chart>` (from `@brewsite/charts`).
 
@@ -407,7 +420,7 @@ The following DSL components are available at the `<Scene>` level. Each is a nul
 
 - Required props: `id` (string), `type` (string — the model variant key registered with `WidgetRegistry.registerTypeFactory`).
 - Optional props: `position`, `rotation`, `scale`, `opacity`, `enabled`, `axisRotation`, `axisTranslation`, and animation-specific props.
-- Transitions: interpolates position/rotation/scale/opacity between scenes. Supports both `ElementTransitionSpec` (pre-baked) and `FunctionalTransitionSpec` (closure-based) depending on the model widget's configuration.
+- Transitions: interpolates position/rotation/scale/opacity between scenes via `FunctionalTransitionSpec` (closure-based). `ElementTransitionSpec` is deprecated and no longer used by any built-in or external widget.
 
 **`<Camera>`** — Camera position and lens descriptor.
 - Required props: `descriptor` — a camera state object specifying `mode`, `position`, `target`, `fov`, and optional post-processing parameters.
@@ -474,7 +487,7 @@ type ViewProps = {
 - Optional props: `id` (string — if absent, auto-generated from `kind` + scene index), `x`, `y`, `w`, `h` (container bounds in NVS, default: full viewport), `gap` (NVS gap between views).
 - Stack-specific: `direction` (`'horizontal'` | `'vertical'`, default: `'horizontal'`).
 - Carousel-specific: `activeIndex` (0-indexed active view, default: 0), `inactiveScale` (scale factor for non-active views, default: 0.75), `zStep` (NVS z-depth per position from active, default: 0.1).
-- `children`: must be `<View>` elements only. Non-`<View>` children emit a console warning and are ignored.
+- `children`: `<View>` elements, plus optional `<CarouselTray>` and `<Highlight>` siblings (carousel layouts only). Other non-`<View>` children emit a console warning and are ignored.
 - Compiled into `ViewLayoutState` (stored in `SceneFrame.widgets[layoutId]`).
 - The `activeIndex` prop can be changed scene-to-scene to animate the carousel's active item. Because `ViewState.bounds` changes between scenes when `activeIndex` changes, elements inside those views will reposition.
 - Source: `packages/core/src/compiler/blocks/viewLayoutDsl.tsx`
@@ -497,22 +510,61 @@ type ViewLayoutProps = {
 
 **`<CarouselTray>`** — 3D tray base rendered beneath `ViewLayout` carousels. Authored as a child of `<ViewLayout kind="carousel">`.
 - Optional props: `color` (string), `opacity` (number), `accentColor` (string), `depth` (number), `gap` (number), `outerMargin` (number), `metalness` (number), `roughness` (number), `edgeStyle` (`'smooth'` | `'knurled'` | `'ridged'` | `'matte'`), `surfacePattern` (`'brushed'` | `'radial'` | `'crosshatch'` | `'grain'` | `'none'`), `surfaceIntensity` (number), `surfaceMapUrl` (string), `surface` (string — named material preset), `colorMix`, `brightness`, `saturation`, `contrast`, `depthMix`, `roughnessMix`, `tint`, `texScale`, `iridescence`, `iridescenceIOR`, `iridescenceThicknessRange`.
-- Highlight props: `highlightActive` (ViewHighlightMode | boolean), `highlightVariant` (HighlightVariantName), `highlightColor`, `highlightIntensity`, `highlightBeamHeight`, `highlightSmoke`, `highlightZOffset`, `highlightViewId`, `highlights` (per-view highlight configs).
+- **Deprecated highlight props** (use `<Highlight>` instead — removal planned for next major version): `highlightActive`, `highlightVariant`, `highlightColor`, `highlightIntensity`, `highlightBeamHeight`, `highlightSmoke`, `highlightZOffset`, `highlightViewId`, `highlights`. Legacy props continue to work with a console deprecation warning; they are converted to equivalent `<Highlight>` config internally.
 - All visual settings can be set at the theme level via `SceneTheme.carouselTray`. DSL props override theme values.
 - Source: `packages/core/src/elements/carousel-scrubber/dsl.tsx`
 
 ```tsx
 <ViewLayout kind="carousel" activeIndex={0}>
-  <CarouselTray
-    surface="onyx"
-    edgeStyle="knurled"
-    highlightActive="holographic"
-    highlightColor="#5090e0"
-  />
+  <CarouselTray surface="onyx" edgeStyle="knurled" />
+  <Highlight active mode="holographic" color="#5090e0" />
   <View id="chart-1"><Chart ... /></View>
   <View id="chart-2"><Chart ... /></View>
 </ViewLayout>
 ```
+
+**`<Highlight>`** — Per-view volumetric highlight effect for carousel layouts. Authored as a child of `<ViewLayout kind="carousel">`, alongside `<CarouselTray>` and `<View>` elements. A `<CarouselTray>` sibling is required — without one, a console warning is emitted and highlights are ignored.
+- Targeting: `active` (boolean — tracks the active carousel item) or `viewId` (string — targets a specific view by ID). These are mutually exclusive. At least one must be set.
+- Variant: `variant` (HighlightVariantName — `'primary'` | `'secondary'` | `'tertiary'` | `'error'` | `'warning'` | `'success'` | `'info'`). Resolves all visual properties from `SceneTheme.highlightPalette[variant]`. Explicit props override variant values.
+- Visual props: `mode` (ViewHighlightMode), `color` (string), `intensity` (number, 0-1), `beamHeight` (number, world units — holographic only), `smoke` (boolean — holographic only), `dust` (boolean — holographic only), `zOffset` (number, world units), `backdropOpacity` (number, 0-1), `backdropColor` (string), `blendMode` (`'additive'` | `'normal'`).
+- Resolution chain: explicit prop → variant palette value → `SceneTheme.highlightDefaults` → constant default.
+- Multiple `<Highlight>` children are supported — each targets a different view or the active item.
+- Source: `packages/core/src/elements/carousel-scrubber/highlightDsl.tsx`
+
+```typescript
+type HighlightProps = {
+  active?: boolean;
+  viewId?: string;
+  variant?: HighlightVariantName;
+  mode?: ViewHighlightMode;
+  color?: string;
+  intensity?: number;
+  beamHeight?: number;
+  smoke?: boolean;
+  dust?: boolean;
+  zOffset?: number;
+  backdropOpacity?: number;
+  backdropColor?: string;
+  blendMode?: 'additive' | 'normal';
+};
+```
+
+```tsx
+{/* Theme-resolved highlight on the active item */}
+<Highlight active variant="primary" />
+
+{/* Explicit holographic beam with smoke on the active item */}
+<Highlight active mode="holographic" color="#E36A2E" smoke />
+
+{/* Per-view error highlight on a specific chart */}
+<Highlight viewId="chart-3" variant="error" smoke />
+```
+
+**Programmatic highlight control** — For runtime use cases (monitoring dashboards, anomaly detection), highlights can be set imperatively via:
+- `useCarouselHighlight(registry, layoutId)` — React hook returning `{ setHighlight, clearHighlight, clearAll }`.
+- `createCarouselHighlightController(registry, layoutId)` — Non-React imperative API with the same return shape.
+- Runtime highlights override compiled highlights for the same `viewId`. When cleared, compiled highlights resume.
+- Source: `packages/core/src/elements/carousel-scrubber/useCarouselHighlight.ts`
 
 **`<ProgressManager>`** — Scroll budget and input pacing configuration for a scene.
 - Optional props: `scrollUnits` (number, default 1), `fn` (pure pacing curve function), `autoAdvance` (idle cinematic auto-play config), `animationTimeScale` (scroll-to-animation-time multiplier).
@@ -1076,19 +1128,21 @@ import { View, ViewLayout } from '@brewsite/core';
 
 Each `<View>` receives equal horizontal space (minus the gap) computed by the stack layout algorithm. The charts inside each view use the full [0..1] NVS space within their allocated region.
 
-**Carousel layout — active item cycling across scenes:**
+**Carousel layout — active item cycling across scenes with highlights:**
 
 ```tsx
-import { View, ViewLayout } from '@brewsite/core';
+import { View, ViewLayout, CarouselTray, Highlight } from '@brewsite/core';
 // <Chart> requires @brewsite/charts
 
-// Scene 1: first chart active
+// Scene 1: first chart active with holographic highlight
 export const sceneCarousel1 = (
   <Scene key="carousel-1">
     <ViewLayout kind="carousel" activeIndex={0} inactiveScale={0.7} zStep={0.08}>
       <View id="chart-a"><Chart id="rev" type="bar" data={revData} /></View>
       <View id="chart-b"><Chart id="cost" type="line" data={costData} /></View>
       <View id="chart-c"><Chart id="margin" type="area" data={marginData} /></View>
+      <CarouselTray surface="onyx" />
+      <Highlight active variant="primary" smoke />
     </ViewLayout>
   </Scene>
 );
@@ -1100,6 +1154,8 @@ export const sceneCarousel2 = (
       <View id="chart-a"><Chart id="rev" type="bar" data={revData} /></View>
       <View id="chart-b"><Chart id="cost" type="line" data={costData} /></View>
       <View id="chart-c"><Chart id="margin" type="area" data={marginData} /></View>
+      <CarouselTray surface="onyx" />
+      <Highlight active variant="primary" smoke />
     </ViewLayout>
   </Scene>
 );

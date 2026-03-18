@@ -148,14 +148,8 @@ export class MaterialLoader {
    * Sync cache hit for use in render loops.
    */
   getLoadedPreset(_presetName: string): LoadedMaterialPreset | null {
-    for (const [, preset] of this.presetCache) {
-      // The presetCache is keyed by resolved URL; search by value is acceptable
-      // because the number of loaded presets is small (typically < 20).
-      // For a direct name lookup, callers should maintain their own mapping.
-      void preset;
-    }
-    // The cache is keyed by resolved URL. For name-based lookup, the caller
-    // must provide the preset + basePath to resolve the key.
+    // Cache is keyed by resolved URL, not preset name. Use getLoadedPresetByKey()
+    // with the full preset + basePath to perform a direct lookup.
     return null;
   }
 

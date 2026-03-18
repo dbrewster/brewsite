@@ -125,7 +125,7 @@ export class CarouselScrubberWidget
     // pattern for any widget that should disappear when its scene exits:
     // return a state that makes the widget invisible rather than returning
     // prev unchanged (which would keep stale visuals rendered).
-    if (!next && prev) return { ...prev, showBase: false };
+    if (!next && prev) return { ...prev, showBase: false, viewHighlights: [] };
     if (!prev) return next;
     return { ...prev, ...next };
   }

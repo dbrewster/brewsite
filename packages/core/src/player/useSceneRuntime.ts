@@ -6,6 +6,10 @@ import {
   type SceneRuntimeState,
 } from './ScenePlayerRegistry';
 
+/**
+ * @deprecated No known consumers in current packages or apps.
+ * This export will be removed in a future version.
+ */
 export const useSceneRuntime = (playerId: string): SceneRuntimeState => {
   useEffect(() => {
     const timer = setTimeout(() => {

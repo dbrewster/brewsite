@@ -1,14 +1,14 @@
-// Tests for BUILTIN_MANIFEST — validates all 10 presets, map coverage, and PBR defaults.
+// Tests for BUILTIN_MANIFEST — validates all 11 presets, map coverage, and PBR defaults.
 
 import { describe, it, expect } from 'vitest';
 import { BUILTIN_MANIFEST } from '../manifest';
 
 const EXPECTED_PRESETS = [
   'onyx', 'dark-marble', 'verde-marble', 'light-marble', 'white-marble',
-  'steel', 'dark-steel', 'gold', 'copper', 'brushed-steel',
+  'steel', 'dark-steel', 'gold', 'copper', 'brushed-steel', 'obsidian',
 ] as const;
 
-const STONE_PRESETS = ['onyx', 'dark-marble', 'verde-marble', 'light-marble', 'white-marble'];
+const STONE_PRESETS = ['onyx', 'dark-marble', 'verde-marble', 'light-marble', 'white-marble', 'obsidian'];
 const METAL_PRESETS = ['steel', 'dark-steel', 'gold', 'copper', 'brushed-steel'];
 
 describe('BUILTIN_MANIFEST', () => {
@@ -16,9 +16,9 @@ describe('BUILTIN_MANIFEST', () => {
     expect(BUILTIN_MANIFEST.version).toBe(1);
   });
 
-  it('contains all 10 presets', () => {
+  it('contains all 11 presets', () => {
     const presetNames = Object.keys(BUILTIN_MANIFEST.presets);
-    expect(presetNames).toHaveLength(10);
+    expect(presetNames).toHaveLength(11);
     for (const name of EXPECTED_PRESETS) {
       expect(BUILTIN_MANIFEST.presets[name]).toBeDefined();
     }
@@ -60,7 +60,7 @@ describe('BUILTIN_MANIFEST', () => {
   });
 
   it('stone presets with displacement have displacement map paths', () => {
-    const withDisplacement = ['onyx', 'dark-marble', 'verde-marble'];
+    const withDisplacement = ['onyx', 'dark-marble', 'verde-marble', 'obsidian'];
     for (const name of withDisplacement) {
       const preset = BUILTIN_MANIFEST.presets[name];
       expect(preset.maps.displacement).toBeTruthy();

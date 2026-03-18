@@ -446,8 +446,13 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   /**
    * Resolves the widget's state for a given tick.
    * Priority order: widgetStatePatches → functional closure → pre-baked discrete state.
+   *
+   * Public so that InputCoordinator (and similar) can read widget state through
+   * the full resolution chain. Reading tick.state.widgets directly misses
+   * functional-closure-only widgets (e.g. CarouselScrubberWidget whose state is
+   * absent from tick.state.widgets during transition blocks).
    */
-  private resolveWidgetState(widgetId: string, tick: SceneTrackTick | null): unknown {
+  resolveWidgetState(widgetId: string, tick: SceneTrackTick | null): unknown {
     if (!tick) return null;
     // Patches from patchWidgetStates() override compiled state.
     if (Object.prototype.hasOwnProperty.call(this._widgetStatePatches, widgetId)) {

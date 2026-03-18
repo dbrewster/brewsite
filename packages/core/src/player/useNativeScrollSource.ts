@@ -25,6 +25,9 @@ export interface UseNativeScrollSourceResult {
 /**
  * Creates a hidden off-screen scroll container that produces native OS scroll physics.
  * The consumer must render the ref div off-screen and wire source to ScrollInput.
+ *
+ * @deprecated No known consumers in current packages or apps.
+ * This export will be removed in a future version.
  */
 export function useNativeScrollSource(
   options: UseNativeScrollSourceOptions,

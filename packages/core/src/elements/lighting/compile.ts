@@ -4,25 +4,25 @@
 
 import type { SceneLighting } from './types';
 import type {
-  ElementTransitionSpec,
   FunctionalTransitionSpec,
 } from '../../compiler/transitions/transitionTypes';
-import { blendColor, blendNumber, blendVec3, transitionT } from '../../compiler/transitions/transitionTypes';
+import { blendColor, blendNumber, blendVec3 } from '../../compiler/transitions/transitionTypes';
 
-// DEBT: blendLightArray and blendSpots implement nearly identical id-keyed blend logic — unify via typed generic
-const blendLightArray = <T extends { id?: string; intensity: number; color: string; position: [number, number, number] }>(
+/** Generic id-keyed array blender for light arrays. */
+const blendIdKeyedArray = <T extends { id?: string; intensity: number }>(
   from: T[] | undefined,
   to: T[] | undefined,
   t: number,
+  blendItem: (prev: T, next: T, t: number) => T,
 ): T[] | undefined => {
   const fromMap = new Map<string, T>();
   const toMap = new Map<string, T>();
-  for (let i = 0; i < (from?.length ?? 0); i += 1) {
+  for (let i = 0; i < (from?.length ?? 0); i++) {
     const prev = from?.[i];
     if (!prev) continue;
     fromMap.set(prev.id ?? `idx-${i}`, prev);
   }
-  for (let i = 0; i < (to?.length ?? 0); i += 1) {
+  for (let i = 0; i < (to?.length ?? 0); i++) {
     const next = to?.[i];
     if (!next) continue;
     toMap.set(next.id ?? `idx-${i}`, next);
@@ -35,87 +35,50 @@ const blendLightArray = <T extends { id?: string; intensity: number; color: stri
     const next = toMap.get(id);
     if (!prev && !next) continue;
     if (prev && next) {
-      result.push({
-        ...next,
-        id: next.id ?? prev.id ?? id,
-        intensity: blendNumber(prev.intensity, next.intensity, t) ?? next.intensity,
-        color: blendColor(prev.color, next.color, t) ?? next.color,
-        position: blendVec3(prev.position ?? [0, 0, 0], next.position ?? [0, 0, 0], t) ?? next.position ?? prev.position,
-      } as T);
+      result.push(blendItem(prev, next, t));
       continue;
     }
     if (prev) {
-      result.push({
-        ...prev,
-        intensity: blendNumber(prev.intensity, 0, t) ?? 0,
-      } as T);
+      result.push({ ...prev, intensity: blendNumber(prev.intensity, 0, t) ?? 0 } as T);
       continue;
     }
     if (next) {
-      result.push({
-        ...next,
-        intensity: blendNumber(0, next.intensity, t) ?? next.intensity,
-      } as T);
+      result.push({ ...next, intensity: blendNumber(0, next.intensity, t) ?? next.intensity } as T);
     }
   }
   return result.length > 0 ? result : undefined;
 };
 
+const blendLightArray = <T extends { id?: string; intensity: number; color: string; position: [number, number, number] }>(
+  from: T[] | undefined,
+  to: T[] | undefined,
+  t: number,
+): T[] | undefined =>
+  blendIdKeyedArray(from, to, t, (prev, next, t2) => ({
+    ...next,
+    id: next.id ?? prev.id,
+    intensity: blendNumber(prev.intensity, next.intensity, t2) ?? next.intensity,
+    color: blendColor(prev.color, next.color, t2) ?? next.color,
+    position: blendVec3(prev.position ?? [0, 0, 0], next.position ?? [0, 0, 0], t2) ?? next.position ?? prev.position,
+  } as T));
+
 const blendSpots = (
   from: SceneLighting['spots'],
   to: SceneLighting['spots'],
   t: number,
-) => {
-  const fromMap = new Map<string, NonNullable<SceneLighting['spots']>[number]>();
-  const toMap = new Map<string, NonNullable<SceneLighting['spots']>[number]>();
-  for (let i = 0; i < (from?.length ?? 0); i += 1) {
-    const prev = from?.[i];
-    if (!prev) continue;
-    fromMap.set(prev.id ?? `idx-${i}`, prev);
-  }
-  for (let i = 0; i < (to?.length ?? 0); i += 1) {
-    const next = to?.[i];
-    if (!next) continue;
-    toMap.set(next.id ?? `idx-${i}`, next);
-  }
-  if (fromMap.size === 0 && toMap.size === 0) return undefined;
-  const result: NonNullable<SceneLighting['spots']> = [];
-  const ids = new Set<string>([...fromMap.keys(), ...toMap.keys()]);
-  for (const id of ids) {
-    const prev = fromMap.get(id);
-    const next = toMap.get(id);
-    if (!prev && !next) continue;
-    if (prev && next) {
-      result.push({
-        ...next,
-        id: next.id ?? prev.id ?? id,
-        intensity: blendNumber(prev.intensity, next.intensity, t) ?? next.intensity,
-        color: blendColor(prev.color, next.color, t) ?? next.color,
-        position: blendVec3(prev.position, next.position, t) ?? next.position,
-        target: blendVec3(prev.target, next.target, t) ?? next.target,
-        angle: blendNumber(prev.angle, next.angle, t) ?? next.angle,
-        penumbra: blendNumber(prev.penumbra, next.penumbra, t) ?? next.penumbra,
-        distance: blendNumber(prev.distance, next.distance, t) ?? next.distance,
-        decay: blendNumber(prev.decay, next.decay, t) ?? next.decay,
-      });
-      continue;
-    }
-    if (prev) {
-      result.push({
-        ...prev,
-        intensity: blendNumber(prev.intensity, 0, t) ?? 0,
-      });
-      continue;
-    }
-    if (next) {
-      result.push({
-        ...next,
-        intensity: blendNumber(0, next.intensity, t) ?? next.intensity,
-      });
-    }
-  }
-  return result.length > 0 ? result : undefined;
-};
+) =>
+  blendIdKeyedArray(from, to, t, (prev, next, t2) => ({
+    ...next,
+    id: next.id ?? prev.id,
+    intensity: blendNumber(prev.intensity, next.intensity, t2) ?? next.intensity,
+    color: blendColor(prev.color, next.color, t2) ?? next.color,
+    position: blendVec3(prev.position, next.position, t2) ?? next.position,
+    target: blendVec3(prev.target, next.target, t2) ?? next.target,
+    angle: blendNumber(prev.angle, next.angle, t2) ?? next.angle,
+    penumbra: blendNumber(prev.penumbra, next.penumbra, t2) ?? next.penumbra,
+    distance: blendNumber(prev.distance, next.distance, t2) ?? next.distance,
+    decay: blendNumber(prev.decay, next.decay, t2) ?? next.decay,
+  }));
 
 const blendGlowPoint = (
   from: SceneLighting['glowPoint'],
@@ -357,27 +320,6 @@ export const applyLightingInterpolate = (from: SceneLighting, to: SceneLighting,
   intensityScale: blendNumber(from.intensityScale, to.intensityScale, t) ?? to.intensityScale,
   color: blendColor(from.color, to.color, t) ?? to.color,
 });
-
-export const lightingTransitionSpec: ElementTransitionSpec<SceneLighting> = {
-  exit: (frames, widgetId, fromState) => {
-    for (let i = 0; i < frames.length; i++) {
-      const t = transitionT(i, frames.length);
-      frames[i]!.state.widgets[widgetId] = applyLightingExit(fromState, t);
-    }
-  },
-  enter: (frames, widgetId, toState) => {
-    for (let i = 0; i < frames.length; i++) {
-      const t = transitionT(i, frames.length);
-      frames[i]!.state.widgets[widgetId] = applyLightingEnter(toState, t);
-    }
-  },
-  interpolate: (frames, widgetId, fromState, toState) => {
-    for (let i = 0; i < frames.length; i++) {
-      const t = transitionT(i, frames.length);
-      frames[i]!.state.widgets[widgetId] = applyLightingInterpolate(fromState, toState, t);
-    }
-  },
-};
 
 export const functionalLightingTransitionSpec: FunctionalTransitionSpec<SceneLighting> = {
   exitFn: (from) => (ctx) => applyLightingExit(from, ctx.t),

@@ -8,7 +8,7 @@ import { RuntimeDriverImpl } from '../RuntimeDriver';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import { VariableStore } from '../../widget/VariableStore';
 import type { SceneTrack, SceneTrackTick } from '../../compiler/sceneTrackTypes';
-import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
+import type { FunctionalTransitionSpec } from '../../compiler/transitions/transitionTypes';
 import type { IAnimationController, ILoadable, IRenderable, ISceneElement, IAttachmentHost, IContainedRenderable, IRenderContributor, RenderContribution } from '../../widget/types';
 
 // ---------------------------------------------------------------------------
@@ -36,22 +36,10 @@ const makeEmptySceneTrack = (): SceneTrack => {
   };
 };
 
-const makeNoopSpec = <T,>(): ElementTransitionSpec<T> => ({
-  exit: (frames, widgetId, fromState) => {
-    for (const frame of frames) {
-      frame.state.widgets[widgetId] = fromState;
-    }
-  },
-  enter: (frames, widgetId, toState) => {
-    for (const frame of frames) {
-      frame.state.widgets[widgetId] = toState;
-    }
-  },
-  interpolate: (frames, widgetId, _fromState, toState) => {
-    for (const frame of frames) {
-      frame.state.widgets[widgetId] = toState;
-    }
-  },
+const makeNoopSpec = <T,>(): FunctionalTransitionSpec<T> => ({
+  exitFn: (from) => () => from,
+  enterFn: (to) => () => to,
+  interpolateFn: (_from, to) => () => to,
 });
 
 const makeTick = (options: {
@@ -394,7 +382,7 @@ describe('RuntimeDriverImpl', () => {
     class BadRenderable implements IRenderable<{ value: number }>, ISceneElement<{ value: number }> {
       readonly widgetId = 'bad';
       readonly defaultState = { value: 1 };
-      readonly transitionSpec: ElementTransitionSpec<{ value: number }> = makeNoopSpec();
+      readonly transitionSpec: FunctionalTransitionSpec<{ value: number }> = makeNoopSpec();
       readonly DslComponent = () => null;
       initialize(): void { throw new Error('init fail'); }
       apply(): void {}
@@ -422,7 +410,7 @@ describe('RuntimeDriverImpl', () => {
     class BadLoadable implements IRenderable<{ value: number }>, ISceneElement<{ value: number }>, ILoadable {
       readonly widgetId = 'bad-load';
       readonly defaultState = { value: 1 };
-      readonly transitionSpec: ElementTransitionSpec<{ value: number }> = makeNoopSpec();
+      readonly transitionSpec: FunctionalTransitionSpec<{ value: number }> = makeNoopSpec();
       readonly DslComponent = () => null;
       isLoaded = false;
       initialize(): void {}
@@ -570,7 +558,7 @@ describe('RuntimeDriverImpl', () => {
     class ContributorWidget implements IRenderable<{ value: number }>, ISceneElement<{ value: number }>, IRenderContributor {
       readonly widgetId = 'p';
       readonly defaultState = { value: 1 };
-      readonly transitionSpec: ElementTransitionSpec<{ value: number }> = makeNoopSpec();
+      readonly transitionSpec: FunctionalTransitionSpec<{ value: number }> = makeNoopSpec();
       readonly DslComponent = () => null;
       initialize(): void {}
       apply(): void {}

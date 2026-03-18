@@ -23,6 +23,9 @@ const resolveProgress = (bp: number, phase: TransitionPhase | undefined, fallbac
  * Used by ElementTransitionSpec implementations that delegate internally to
  * FunctionalTransitionSpec closures for code reuse (e.g., camera's discrete spec).
  * channel() always returns the same scalar t — no per-channel windowing.
+ *
+ * @deprecated Used only by ElementTransitionSpec delegates. Prefer FunctionalTransitionSpec
+ * closures which receive a proper TransitionContext from the compiler's makeResolver.
  */
 export function makeSimpleContext(t: number): TransitionContext {
   return {

@@ -1,4 +1,4 @@
-import { useEngineState } from './EngineStateContext';
+import { useEngineStateContext } from './EngineStateContext';
 
 /**
  * Returns the current scene's local progress [0, 1] — equivalent to blockProgress
@@ -8,6 +8,6 @@ import { useEngineState } from './EngineStateContext';
  * For global progress across all scenes use useEngineState().progress instead.
  */
 export const useSceneProgress = (): number => {
-  const state = useEngineState();
+  const state = useEngineStateContext();
   return state.sceneProgress;
 };

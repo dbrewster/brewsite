@@ -30,6 +30,8 @@ export const HL_Y_OFFSET = 0.25;
 
 /** Beam ellipse X/Z scale relative to view width/height. 0.7 = 140% diameter. */
 export const HL_BEAM_SCALE = 0.7;
+/** Z-axis squeeze factor for beam/backdrop ellipsis. 0.7 = 30% thinner in depth. */
+export const HL_BEAM_Z_SQUEEZE = 0.7;
 /** Glow plane scale relative to view width/height. */
 export const HL_GLOW_SCALE = 1.4;
 /** Surface glow intensity multiplier for holographic mode (relative to hl.intensity). */

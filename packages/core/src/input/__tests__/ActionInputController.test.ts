@@ -717,6 +717,145 @@ describe('ActionInputController', () => {
 
       expect(onCarouselStep).toHaveBeenCalledWith('demo', 1, 1);
     });
+
+    it('blocks wheel carousel dispatch when pointer is outside layout bounds', () => {
+      const spec = makeSpec();
+      spec.actions.push({
+        id: 'carousel-next',
+        type: 'carousel.next',
+        layoutId: 'my-carousel',
+        stepSlides: 1,
+        maps: [{ kind: 'wheel' }],
+      });
+
+      const onCarouselStep = vi.fn();
+      // Layout occupies the left half (NVS: x=0, y=0, w=0.5, h=1)
+      const getLayoutBounds = vi.fn().mockReturnValue({ x: 0, y: 0, w: 0.5, h: 1 });
+      const target = document.createElement('div');
+      // Set target to 100x100 so NVS conversion is 1:1 with percentage
+      Object.defineProperty(target, 'getBoundingClientRect', {
+        value: () => ({ left: 0, top: 0, width: 100, height: 100 }),
+      });
+      const ctrl = new ActionInputController(
+        target,
+        () => spec,
+        makeHandler({ onCarouselStep, getLayoutBounds }),
+        target,
+      );
+
+      ctrl.attach();
+      // Wheel at clientX=80 (NVS 0.8) — outside the 0-0.5 bounds
+      target.dispatchEvent(new WheelEvent('wheel', {
+        deltaY: 10,
+        clientX: 80,
+        clientY: 50,
+        bubbles: true,
+        cancelable: true,
+      }));
+      ctrl.detach();
+
+      expect(getLayoutBounds).toHaveBeenCalledWith('my-carousel');
+      expect(onCarouselStep).not.toHaveBeenCalled();
+    });
+
+    it('allows wheel carousel dispatch when pointer is inside layout bounds', () => {
+      const spec = makeSpec();
+      spec.actions.push({
+        id: 'carousel-next',
+        type: 'carousel.next',
+        layoutId: 'my-carousel',
+        stepSlides: 1,
+        maps: [{ kind: 'wheel' }],
+      });
+
+      const onCarouselStep = vi.fn();
+      const getLayoutBounds = vi.fn().mockReturnValue({ x: 0, y: 0, w: 0.5, h: 1 });
+      const target = document.createElement('div');
+      Object.defineProperty(target, 'getBoundingClientRect', {
+        value: () => ({ left: 0, top: 0, width: 100, height: 100 }),
+      });
+      const ctrl = new ActionInputController(
+        target,
+        () => spec,
+        makeHandler({ onCarouselStep, getLayoutBounds }),
+        target,
+      );
+
+      ctrl.attach();
+      // Wheel at clientX=20 (NVS 0.2) — inside the 0-0.5 bounds
+      target.dispatchEvent(new WheelEvent('wheel', {
+        deltaY: 10,
+        clientX: 20,
+        clientY: 50,
+        bubbles: true,
+        cancelable: true,
+      }));
+      ctrl.detach();
+
+      expect(onCarouselStep).toHaveBeenCalledTimes(1);
+    });
+
+    it('skips spatial gating when getLayoutBounds is not provided', () => {
+      const spec = makeSpec();
+      spec.actions.push({
+        id: 'carousel-next',
+        type: 'carousel.next',
+        layoutId: 'my-carousel',
+        stepSlides: 1,
+        maps: [{ kind: 'wheel' }],
+      });
+
+      const onCarouselStep = vi.fn();
+      const target = document.createElement('div');
+      // No getLayoutBounds — handler doesn't have it
+      const ctrl = new ActionInputController(
+        target,
+        () => spec,
+        makeHandler({ onCarouselStep }),
+        target,
+      );
+
+      ctrl.attach();
+      target.dispatchEvent(new WheelEvent('wheel', {
+        deltaY: 10,
+        clientX: 999,
+        clientY: 999,
+        bubbles: true,
+        cancelable: true,
+      }));
+      ctrl.detach();
+
+      // Should dispatch even though coordinates are far away — no bounds check
+      expect(onCarouselStep).toHaveBeenCalledTimes(1);
+    });
+
+    it('keyboard carousel dispatch is not spatially gated', () => {
+      const spec = makeSpec();
+      spec.actions.push({
+        id: 'carousel-next',
+        type: 'carousel.next',
+        layoutId: 'my-carousel',
+        stepSlides: 1,
+        maps: [{ kind: 'key', key: 'ArrowRight' }],
+      });
+
+      const onCarouselStep = vi.fn();
+      const getLayoutBounds = vi.fn().mockReturnValue({ x: 0, y: 0, w: 0.1, h: 0.1 });
+      const target = document.createElement('div');
+      const ctrl = new ActionInputController(
+        target,
+        () => spec,
+        makeHandler({ onCarouselStep, getLayoutBounds }),
+        target,
+      );
+
+      ctrl.attach();
+      target.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+      ctrl.detach();
+
+      // Key events have no coordinates, so spatial gating does not apply
+      expect(onCarouselStep).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('resets sticky wheel lock after configured idle timeout', () => {

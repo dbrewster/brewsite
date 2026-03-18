@@ -93,6 +93,8 @@ const makeEngine = (
     interruptTransition: vi.fn(),
     redirectTransition: vi.fn(),
     setCameraOverride: vi.fn(),
+    patchWidgetStates: vi.fn(),
+    resolveWidgetState: vi.fn().mockReturnValue(null),
   } as unknown as UseSceneEngineResult;
 };
 
@@ -592,6 +594,7 @@ const makeCarouselEngine = (opts: CarouselEngineOptions): UseSceneEngineResult =
     applyCameraDolly: vi.fn(),
     applyCameraReset: vi.fn(),
     setCameraOverride: vi.fn(),
+    resolveWidgetState: (widgetId: string) => tick.state.widgets[widgetId] ?? null,
   } as unknown as UseSceneEngineResult;
 };
 
@@ -718,6 +721,7 @@ describe('InputCoordinator — onCarouselStep', () => {
       canvasRef: { current: canvas }, variableStore, patchWidgetStates, sceneTrack: null,
       advanceProgress: vi.fn(), applyCameraOrbit: vi.fn(), applyCameraDolly: vi.fn(),
       applyCameraReset: vi.fn(), setCameraOverride: vi.fn(),
+      resolveWidgetState: (widgetId: string) => tick.state.widgets[widgetId] ?? null,
     } as unknown as UseSceneEngineResult;
 
     await act(async () => {

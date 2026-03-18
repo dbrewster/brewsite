@@ -29,8 +29,11 @@ export interface ISceneElement<TState, TExtra = void> extends IWidget {
    * - enter: widget absent in scene N, present in scene N+1
    * - interpolate: widget present in both scenes
    *
-   * ElementTransitionSpec pre-bakes values into SceneTrack ticks at compile time.
    * FunctionalTransitionSpec stores closures evaluated lazily each frame.
+   *
+   * @deprecated The ElementTransitionSpec branch of this union is deprecated.
+   * All new widgets should use FunctionalTransitionSpec exclusively.
+   * The union type is preserved for backward compatibility during the migration period.
    */
   readonly transitionSpec: ElementTransitionSpec<TState> | FunctionalTransitionSpec<TState>;
   /**

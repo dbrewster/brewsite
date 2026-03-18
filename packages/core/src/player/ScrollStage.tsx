@@ -20,6 +20,10 @@ import { ScrollDriverContext } from './ScrollDriverContext';
 import type { IScrollSource } from './scrollSourceTypes';
 import { clamp01 } from '../math';
 
+/** Computes raw scroll progress [0, 1] from scroll position and max scroll range. */
+const computeRawProgress = (scrollTop: number, maxScrollTop: number): number =>
+  maxScrollTop <= 0 ? 0 : clamp01(scrollTop / maxScrollTop);
+
 export interface ScrollStageProps {
   /**
    * How scroll region height is computed.
@@ -121,7 +125,7 @@ export const ScrollStage = forwardRef<ScrollStageHandle, ScrollStageProps>(
         maxScrollTop,
         rawProgress: customSource
           ? clamp01(rawProgressRef.current)
-          : (maxScrollTop <= 0 ? 0 : clamp01(scrollTop / maxScrollTop)),
+          : computeRawProgress(scrollTop, maxScrollTop),
       };
     };
 
@@ -157,7 +161,7 @@ export const ScrollStage = forwardRef<ScrollStageHandle, ScrollStageProps>(
       const handleScroll = () => {
         if (!customSource) {
           const maxScrollTop = Math.max(0, scrollRegionHeightPx - element.clientHeight);
-          rawProgressRef.current = maxScrollTop <= 0 ? 0 : clamp01(element.scrollTop / maxScrollTop);
+          rawProgressRef.current = computeRawProgress(element.scrollTop, maxScrollTop);
           engine.setRawProgress(rawProgressRef.current);
         }
         emitSnapshot();
@@ -173,7 +177,7 @@ export const ScrollStage = forwardRef<ScrollStageHandle, ScrollStageProps>(
       if (!element) return;
       const viewportHeight = element.clientHeight;
       const maxScrollTop = Math.max(0, scrollRegionHeightPx - viewportHeight);
-      const rawProgress = maxScrollTop <= 0 ? 0 : clamp01(element.scrollTop / maxScrollTop);
+      const rawProgress = computeRawProgress(element.scrollTop, maxScrollTop);
       rawProgressRef.current = rawProgress;
       engine.setRawProgress(rawProgress);
       emitSnapshot();

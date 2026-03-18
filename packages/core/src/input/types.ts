@@ -135,6 +135,11 @@ export type ActionInputHandler = {
   onCameraPan: (cameraId: string, dx: number, dy: number, speed: number) => void;
   onCameraReset: (cameraId: string) => void;
   onCarouselStep: (layoutId: string, direction: 1 | -1, stepSlides: number) => void;
+  /**
+   * Returns the NVS bounds of a ViewLayout, or null if not available.
+   * Used by ActionInputController for spatial gating of carousel events.
+   */
+  getLayoutBounds?: (layoutId: string) => { x: number; y: number; w: number; h: number } | null;
   onUnknownAction?: (
     type: string,
     canvasId: string | undefined,

@@ -234,6 +234,50 @@ export const decomposeMatrix = (matrix: Mat4): { position: Vec3; rotation: Vec3;
 
 export const copyVec3 = (value: Readonly<Vec3>): Vec3 => [value[0], value[1], value[2]];
 
+// ─── General-purpose clamp ──────────────────────────────────────────────────
+
+/** Clamps value to [min, max]. */
+export const clamp = (min: number, max: number, value: number): number =>
+  Math.min(max, Math.max(min, value));
+
+// ─── Hex color blending ─────────────────────────────────────────────────────
+
+const hexToRgbInts = (value: string): { r: number; g: number; b: number } | null => {
+  if (!value.startsWith('#')) return null;
+  const normalized = value.length === 4
+    ? `#${value[1]}${value[1]}${value[2]}${value[2]}${value[3]}${value[3]}`
+    : value;
+  const int = Number.parseInt(normalized.slice(1), 16);
+  if (Number.isNaN(int)) return null;
+  return { r: (int >> 16) & 255, g: (int >> 8) & 255, b: int & 255 };
+};
+
+const rgbIntsToHex = (rgb: { r: number; g: number; b: number }): string =>
+  `#${[rgb.r, rgb.g, rgb.b]
+    .map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0'))
+    .join('')}`;
+
+/**
+ * Blends two CSS hex color strings by interpolating RGB components.
+ * Both inputs must be '#RRGGBB' format. Returns undefined if either
+ * input cannot be parsed. Does not handle alpha channels.
+ */
+export const blendHexColors = (
+  from: string | undefined,
+  to: string | undefined,
+  t: number,
+): string | undefined => {
+  if (!from || !to) return to ?? from;
+  const a = hexToRgbInts(from);
+  const b = hexToRgbInts(to);
+  if (!a || !b) return to ?? from;
+  return rgbIntsToHex({
+    r: lerp(a.r, b.r, t),
+    g: lerp(a.g, b.g, t),
+    b: lerp(a.b, b.b, t),
+  });
+};
+
 // ─── Color alpha parsing ──────────────────────────────────────────────────────
 
 /**

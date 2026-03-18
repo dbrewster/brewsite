@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { Background } from '../BackgroundWidget';
-import { DEFAULT_BACKGROUND, backgroundTransitionSpec, functionalBackgroundTransitionSpec } from '../compile';
+import { DEFAULT_BACKGROUND, functionalBackgroundTransitionSpec } from '../compile';
 import { applyBackground } from '../render';
 import type { SceneBackground } from '../types';
 import { makeFakeDomElement } from '../../__tests__/elementTestMocks';
@@ -127,44 +127,6 @@ describe('background compile + render', () => {
     const fn = functionalBackgroundTransitionSpec.interpolateFn(from, to);
     const result = fn(makeSimpleContext(0.6));
     expect(result.cssFilter).toBe('brightness(0.5)');
-  });
-
-  // ─── backgroundTransitionSpec (discrete/element) ──────────────────────────
-
-  it('discrete transitionSpec.exit writes frames with fading opacity', () => {
-    const frames = Array.from({ length: 3 }, () => ({ state: { widgets: {} as Record<string, unknown> } }));
-    const from: SceneBackground = { opacity: 1, imageUrl: '/a.jpg' };
-    backgroundTransitionSpec.exit(frames, 'bg', from);
-    expect((frames[0]!.state.widgets['bg'] as SceneBackground).opacity).toBeCloseTo(1);
-    expect((frames[2]!.state.widgets['bg'] as SceneBackground).opacity).toBeCloseTo(0);
-  });
-
-  it('discrete transitionSpec.enter writes frames with fading in opacity', () => {
-    const frames = Array.from({ length: 3 }, () => ({ state: { widgets: {} as Record<string, unknown> } }));
-    const to: SceneBackground = { opacity: 0.8, imageUrl: '/a.jpg' };
-    backgroundTransitionSpec.enter(frames, 'bg', to);
-    expect((frames[0]!.state.widgets['bg'] as SceneBackground).opacity).toBeCloseTo(0);
-    expect((frames[2]!.state.widgets['bg'] as SceneBackground).opacity).toBeCloseTo(0.8);
-  });
-
-  it('discrete transitionSpec.interpolate switches image at midpoint', () => {
-    const frames = Array.from({ length: 5 }, () => ({ state: { widgets: {} as Record<string, unknown> } }));
-    const from: SceneBackground = { opacity: 1, imageUrl: '/from.jpg' };
-    const to: SceneBackground = { opacity: 1, imageUrl: '/to.jpg' };
-    backgroundTransitionSpec.interpolate(frames, 'bg', from, to);
-    expect((frames[1]!.state.widgets['bg'] as SceneBackground).imageUrl).toBe('/from.jpg');
-    expect((frames[3]!.state.widgets['bg'] as SceneBackground).imageUrl).toBe('/to.jpg');
-  });
-
-  it('discrete transitionSpec.interpolate switches cssFilter at midpoint (t=0.4 → from)', () => {
-    // 5 frames: t values via transitionT are approx 0, 0.25, 0.5, 0.75, 1
-    // Frame index 1 (t≈0.25) → from side; frame index 3 (t≈0.75) → to side
-    const frames = Array.from({ length: 5 }, () => ({ state: { widgets: {} as Record<string, unknown> } }));
-    const from: SceneBackground = { opacity: 1, cssFilter: 'blur(2px)' };
-    const to: SceneBackground = { opacity: 1, cssFilter: 'brightness(0.8)' };
-    backgroundTransitionSpec.interpolate(frames, 'bg', from, to);
-    expect((frames[1]!.state.widgets['bg'] as SceneBackground).cssFilter).toBe('blur(2px)');
-    expect((frames[3]!.state.widgets['bg'] as SceneBackground).cssFilter).toBe('brightness(0.8)');
   });
 
   // ─── applyBackground ──────────────────────────────────────────────────────

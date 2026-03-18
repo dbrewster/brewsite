@@ -1,11 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { compileSceneTrack } from '../sceneTrackCompiler';
-import type { FunctionalTransitionSpec, ElementTransitionSpec } from '../transitions/transitionTypes';
+import type { FunctionalTransitionSpec } from '../transitions/transitionTypes';
 import type { SceneDefinition } from '../sceneTypes';
 import type { SceneFrame } from '../sceneTrackTypes';
 import type { ISceneElement } from '../../widget/types';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
-import { makeSimpleContext } from '../transitions/transitionResolver';
 
 type TestState = { value: number; active: boolean };
 
@@ -55,25 +54,15 @@ describe('functional transitions', () => {
     expect(track.transitionBlocks?.[0]?.widgetFns[widgetId]).toMatchObject({ kind: 'interpolate' });
   });
 
-  it('transitionBlocks is absent when only discrete specs are used', () => {
-    const spec: ElementTransitionSpec<TestState> = {
-      exit: () => {},
-      enter: () => {},
-      interpolate: () => {},
-    };
-    const widget: ISceneElement<TestState> = {
-      widgetId,
-      defaultState: { value: 0, active: false },
-      transitionSpec: spec,
-      DslComponent: (() => null) as any,
-    };
-    const registry = new WidgetRegistry().register(widget);
+  it('transitionBlocks is present for all functional specs', () => {
+    const registry = new WidgetRegistry().register(makeTestWidget(widgetId, testFunctionalSpec));
     const scenes = [
       makeScene('s1', { value: 1, active: true }),
       makeScene('s2', { value: 2, active: true }),
     ];
     const track = compileTrack(scenes, registry);
-    expect(track.transitionBlocks).toBeUndefined();
+    expect(track.transitionBlocks).toBeDefined();
+    expect(track.transitionBlocks).toHaveLength(1);
   });
 
   it('functional closure evaluates correctly at t=0 (interpolate)', () => {
@@ -192,27 +181,21 @@ describe('functional transitions', () => {
     expect(midTick?.widgetExtras?.[widgetId]).toEqual({ summary: 15 });
   });
 
-  it('mixed mode: one functional widget + one discrete widget in same track', () => {
+  it('two functional widgets in same track both produce closures', () => {
     const widgetBId = 'widgetB';
-    const discreteSpec: ElementTransitionSpec<TestState> = {
-      exit: (frames, wid, fromState) => {
-        for (const frame of frames) frame.state.widgets[wid] = fromState;
-      },
-      enter: (frames, wid, toState) => {
-        for (const frame of frames) frame.state.widgets[wid] = toState;
-      },
-      interpolate: (frames, wid, fromState, toState) => {
-        for (const frame of frames) frame.state.widgets[wid] = {
-          value: fromState.value + (toState.value - fromState.value),
-          active: true,
-        };
-      },
+    const specB: FunctionalTransitionSpec<TestState> = {
+      exitFn: (from) => () => from,
+      enterFn: (to) => () => to,
+      interpolateFn: (from, to) => (ctx) => ({
+        value: from.value + (to.value - from.value) * ctx.t,
+        active: true,
+      }),
     };
     const widgetA = makeTestWidget(widgetId, testFunctionalSpec);
     const widgetB: ISceneElement<TestState> = {
       widgetId: widgetBId,
       defaultState: { value: 0, active: false },
-      transitionSpec: discreteSpec,
+      transitionSpec: specB,
       DslComponent: (() => null) as any,
     };
     const registry = new WidgetRegistry().register(widgetA).register(widgetB);
@@ -242,8 +225,10 @@ describe('functional transitions', () => {
     ];
     const track = compileTrack(scenes, registry);
     expect(track.transitionBlocks?.[0]?.widgetFns[widgetId]).toBeDefined();
-    expect(track.ticks[0]?.state.widgets[widgetBId]).toBeDefined();
+    expect(track.transitionBlocks?.[0]?.widgetFns[widgetBId]).toBeDefined();
+    // Functional specs do not pre-bake into tick state
     expect(track.ticks[0]?.state.widgets[widgetId]).toBeUndefined();
+    expect(track.ticks[0]?.state.widgets[widgetBId]).toBeUndefined();
   });
 
   // ── defaultWindow tests ─────────────────────────────────────────────────────

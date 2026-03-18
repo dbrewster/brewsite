@@ -8,10 +8,8 @@ import type {
   SceneFloor,
 } from './types';
 import type {
-  ElementTransitionSpec,
   FunctionalTransitionSpec,
 } from '../../compiler/transitions/transitionTypes';
-import { transitionT } from '../../compiler/transitions/transitionTypes';
 
 export const DEFAULT_GRID_SURFACE: FloorSurfacePhysical = {
   type: 'physical',
@@ -57,65 +55,6 @@ export const DEFAULT_FLOOR: SceneFloor = {
   negativeZEdge: 'hard',
   negativeZFadeDistance: undefined,
   surface: DEFAULT_GRID_SURFACE,
-};
-
-export const floorTransitionSpec: ElementTransitionSpec<SceneFloor> = {
-  exit: (frames, widgetId, fromState) => {
-    for (let i = 0; i < frames.length; i++) {
-      const t = transitionT(i, frames.length);
-      frames[i]!.state.widgets[widgetId] = {
-        placement: fromState.placement,
-        position: fromState.position,
-        rotation: fromState.rotation,
-        rotationRelative: fromState.rotationRelative,
-        scale: fromState.scale,
-        negativeZExtent: fromState.negativeZExtent,
-        negativeZEdge: fromState.negativeZEdge,
-        negativeZFadeDistance: fromState.negativeZFadeDistance,
-        surface: fromState.surface,
-        debug: fromState.debug,
-        enabled: fromState.enabled && t < 1,
-      };
-    }
-  },
-  enter: (frames, widgetId, toState) => {
-    for (let i = 0; i < frames.length; i++) {
-      const t = transitionT(i, frames.length);
-      frames[i]!.state.widgets[widgetId] = {
-        placement: toState.placement,
-        position: toState.position,
-        rotation: toState.rotation,
-        rotationRelative: toState.rotationRelative,
-        scale: toState.scale,
-        negativeZExtent: toState.negativeZExtent,
-        negativeZEdge: toState.negativeZEdge,
-        negativeZFadeDistance: toState.negativeZFadeDistance,
-        surface: toState.surface,
-        debug: toState.debug,
-        enabled: toState.enabled && t > 0,
-      };
-    }
-  },
-  interpolate: (frames, widgetId, fromState, toState) => {
-    // Floor surfaces cannot be visually blended — hard-switch at midpoint is intentional.
-    for (let i = 0; i < frames.length; i++) {
-      const t = transitionT(i, frames.length);
-      frames[i]!.state.widgets[widgetId] = {
-        placement: t < 0.5 ? fromState.placement : toState.placement,
-        position: t < 0.5 ? fromState.position : toState.position,
-        rotation: t < 0.5 ? fromState.rotation : toState.rotation,
-        rotationRelative: t < 0.5 ? fromState.rotationRelative : toState.rotationRelative,
-        scale: t < 0.5 ? fromState.scale : toState.scale,
-        negativeZExtent: t < 0.5 ? fromState.negativeZExtent : toState.negativeZExtent,
-        negativeZEdge: t < 0.5 ? fromState.negativeZEdge : toState.negativeZEdge,
-        negativeZFadeDistance:
-          t < 0.5 ? fromState.negativeZFadeDistance : toState.negativeZFadeDistance,
-        surface: t < 0.5 ? fromState.surface : toState.surface,
-        debug: t < 0.5 ? fromState.debug : toState.debug,
-        enabled: (fromState.enabled && t < 1) || (toState.enabled && t > 0),
-      };
-    }
-  },
 };
 
 export const functionalFloorTransitionSpec: FunctionalTransitionSpec<SceneFloor> = {

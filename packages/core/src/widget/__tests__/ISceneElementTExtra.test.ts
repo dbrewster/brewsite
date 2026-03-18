@@ -10,23 +10,17 @@ import type {
   CompileExtraContext,
   NVSCoordService,
 } from '../types';
-import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
+import type { FunctionalTransitionSpec } from '../../compiler/transitions/transitionTypes';
 
 // ─── Test types ─────────────────────────────────────────────────────────────
 
 type TestState = { value: number };
 type TestExtra = { compiledFrames: number[]; label: string };
 
-const makeNoopSpec = <T,>(): ElementTransitionSpec<T> => ({
-  exit: (frames, widgetId, fromState) => {
-    for (const frame of frames) frame.state.widgets[widgetId] = fromState;
-  },
-  enter: (frames, widgetId, toState) => {
-    for (const frame of frames) frame.state.widgets[widgetId] = toState;
-  },
-  interpolate: (frames, widgetId, _from, toState) => {
-    for (const frame of frames) frame.state.widgets[widgetId] = toState;
-  },
+const makeNoopSpec = <T,>(): FunctionalTransitionSpec<T> => ({
+  exitFn: (from) => () => from,
+  enterFn: (to) => () => to,
+  interpolateFn: (_from, to) => () => to,
 });
 
 // ─── Widget that uses TExtra ──────────────────────────────────────────────────

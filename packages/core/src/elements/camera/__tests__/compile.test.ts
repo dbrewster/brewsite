@@ -5,7 +5,6 @@ import {
   DEFAULT_CAMERA_DESCRIPTOR,
   extractWorldPosFromDescriptor,
   interpolateCameraDescriptor,
-  cameraTransitionSpec,
   compileNvsViewportCamera,
 } from '../compile';
 
@@ -244,18 +243,3 @@ describe('compileNvsViewportCamera', () => {
   });
 });
 
-describe('cameraTransitionSpec', () => {
-  it('writes enter frames with enabled = true at end', () => {
-    const frames = Array.from({ length: 3 }, () => ({ state: { widgets: {} as Record<string, unknown> } }));
-    const to = { enabled: true, descriptor: { mode: 'world', position: [0, 0, 0], target: [0, 0, 0] } } as SceneCamera;
-    cameraTransitionSpec.enter(frames, 'camera', to);
-    expect((frames[2]!.state.widgets['camera'] as SceneCamera).enabled).toBe(true);
-  });
-
-  it('writes exit frames with enabled = false at end', () => {
-    const frames = Array.from({ length: 3 }, () => ({ state: { widgets: {} as Record<string, unknown> } }));
-    const from = { enabled: true, descriptor: { mode: 'world', position: [0, 0, 0], target: [0, 0, 0] } } as SceneCamera;
-    cameraTransitionSpec.exit(frames, 'camera', from);
-    expect((frames[2]!.state.widgets['camera'] as SceneCamera).enabled).toBe(false);
-  });
-});

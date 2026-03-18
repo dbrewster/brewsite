@@ -21,12 +21,13 @@ export type SlideNavigationState = {
 };
 
 /**
- * Computes the normalized global progress [0, 1] for the start of the slide at `index`.
+ * Computes the normalized scroll-space progress [0, 1] for the start of the slide at `index`.
  *
- * Uses cumulative ProgressManager scrollUnits rather than i/(n-1) so that non-uniform
- * scroll budgets (e.g. a title slide with scrollUnits=100 vs body slides with 400) produce
- * correct progress values. The mapping is exact because ProgressManager allocates ticks
- * proportionally to scrollUnits, making global progress piecewise-linear in scrollUnits.
+ * Returns the fraction of total scrollUnits that precede `index`. This is the raw
+ * scroll-space value — it is NOT the same as engine-space progress (which is uniform
+ * at `index / (n-1)` regardless of scrollUnits). Use this only when working with raw
+ * scroll progress (e.g. to sync a custom scroll source). For programmatic navigation
+ * via `engine.beginTransition()`, use `index / (totalSlides - 1)` directly.
  *
  * @param scrollUnits - Array of scrollUnits per slide (one entry per slide, same order).
  * @param index - 0-based target slide index.
@@ -48,37 +49,45 @@ export function computeSlideStartProgress(scrollUnits: number[], index: number):
  * Reads the current slide index and provides navigation actions.
  * Must be used inside an SceneEngine subtree.
  *
- * With Decision A = Option C, sceneIndex equals logical slide index always
- * (one scene per slide). If multi-scene expansion were ever used (Option A),
- * this hook would need to read from VariableStore instead.
+ * Navigation uses engine-space progress: `index / (totalSlides - 1)`. Engine space
+ * is always uniform — each scene occupies the same fraction of [0, 1] regardless of
+ * ProgressManager scrollUnits. The `scrollUnits` parameter is accepted for API
+ * compatibility but is not used for navigation.
+ *
+ * `beginTransition()` is used (not `setProgress()`) so the engine animates through
+ * the SceneTrack's dissolve/crossfade zone between scenes. `setProgress()` would
+ * jump to the target in one frame (16ms), making the transition imperceptible and
+ * the slide change invisible to the user.
  *
  * @param totalSlides - Total number of logical slides in the deck.
- * @param scrollUnits - Array of scrollUnits per slide (for correct progress mapping).
+ * @param scrollUnits - Unused. Kept for API compatibility.
  */
 export function useSlideNavigation(totalSlides: number, scrollUnits: number[]): SlideNavigationState {
+  void scrollUnits; // engine-space navigation does not use scroll-unit proportions
   // useCurrentScene returns { id: string; index: number }
   const { index: sceneIndex } = useCurrentScene();
   const engine = useSceneEngineContext();
 
+  // Engine-space progress: scene i starts at exactly i / (n-1).
+  // This matches the SceneTrack's engineStart values (see sceneTrackCompiler.ts §298).
+  // beginTransition() animates from current progress to the target, passing through the
+  // dissolve zone between scenes and making the slide change visually apparent.
   const goTo = useCallback((index: number) => {
     const clamped = Math.max(0, Math.min(totalSlides - 1, index));
-    // scrollToProgress is the correct API on UseSceneEngineResult.
-    // Navigate by seeking to the global progress value corresponding to the
-    // start of the target slide's scroll window.
-    engine.setProgress(computeSlideStartProgress(scrollUnits, clamped));
-  }, [engine, totalSlides, scrollUnits]);
+    engine.beginTransition(totalSlides > 1 ? clamped / (totalSlides - 1) : 0);
+  }, [engine, totalSlides]);
 
   const next = useCallback(() => {
     if (sceneIndex < totalSlides - 1) {
-      engine.setProgress(computeSlideStartProgress(scrollUnits, sceneIndex + 1));
+      engine.beginTransition((sceneIndex + 1) / (totalSlides - 1));
     }
-  }, [engine, sceneIndex, totalSlides, scrollUnits]);
+  }, [engine, sceneIndex, totalSlides]);
 
   const prev = useCallback(() => {
     if (sceneIndex > 0) {
-      engine.setProgress(computeSlideStartProgress(scrollUnits, sceneIndex - 1));
+      engine.beginTransition((sceneIndex - 1) / Math.max(1, totalSlides - 1));
     }
-  }, [engine, sceneIndex, scrollUnits]);
+  }, [engine, sceneIndex, totalSlides]);
 
   return { current: sceneIndex, total: totalSlides, goTo, next, prev };
 }

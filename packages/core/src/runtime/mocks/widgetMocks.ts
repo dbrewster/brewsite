@@ -10,7 +10,7 @@ import type {
   WidgetRenderContext,
   AnimationTickContext,
 } from '../../widget/types';
-import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
+import type { FunctionalTransitionSpec } from '../../compiler/transitions/transitionTypes';
 
 // ─── MockRenderable ───────────────────────────────────────────────────────────
 
@@ -59,10 +59,10 @@ export const createMockSceneElementWidget = <TState>(
   defaultState: TState,
 ): MockSceneElementWidget<TState> => {
   const appliedStates: TState[] = [];
-  const transitionSpec: ElementTransitionSpec<TState> = {
-    exit: (s) => s,
-    enter: (s) => s,
-    interpolate: (_a, b) => b,
+  const transitionSpec: FunctionalTransitionSpec<TState> = {
+    exitFn: (from) => () => from,
+    enterFn: (to) => () => to,
+    interpolateFn: (_from, to) => () => to,
   };
 
   return {

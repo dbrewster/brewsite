@@ -77,4 +77,6 @@ export { Camera } from './camera';
 
 // Carousel highlights
 export type { ViewHighlightMode, ViewHighlightConfig } from './carousel-scrubber';
+export { Highlight } from './carousel-scrubber';
+export type { HighlightProps } from './carousel-scrubber';
 export { useCarouselHighlight, createCarouselHighlightController } from './carousel-scrubber';

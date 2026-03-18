@@ -12,7 +12,6 @@ import { RuntimeLoop } from '../runtime/RuntimeLoop';
 import { VariableStore } from '../widget/VariableStore';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { WidgetPlugin } from '../widget/WidgetPlugin';
-import { EngineFrameDriver } from './EngineFrameDriver';
 import type {
   EngineFrameState,
   EngineTimingProfile,
@@ -185,6 +184,13 @@ export type UseSceneEngineResult = {
    */
   patchWidgetStates(patches: Record<string, unknown>): void;
 
+  /**
+   * Resolves a widget's state through the full priority chain:
+   * patches → functional closures → pre-baked tick state.
+   * Returns null if the widget has no state in the current tick.
+   */
+  resolveWidgetState(widgetId: string): unknown;
+
   // ── Camera control ────────────────────────────────────────────────────────────
   getCamera(): THREE.PerspectiveCamera | null;
   getRenderer(): THREE.WebGLRenderer | null;
@@ -238,7 +244,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   const cameraOverrideRef = useRef<CameraOverrideState | null>(null);
   const driverRef = useRef<RuntimeDriverImpl | null>(null);
   const loopRef = useRef<RuntimeLoop | null>(null);
-  const frameDriverRef = useRef<EngineFrameDriver | null>(null);
+  const lastTickIndexRef = useRef(-1);
   const readyRef = useRef(false);
   const viewportRef = useRef({ width: 1, height: 1 });
 
@@ -512,7 +518,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       cameraRef.current = null;
       loopRef.current?.stop();
       loopRef.current = null;
-      frameDriverRef.current?.reset();
+      lastTickIndexRef.current = -1;
     };
   }, [
     canvas,
@@ -559,11 +565,28 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   }, [options.sceneTheme]);
 
   // ─── Scene track compilation ────────────────────────────────────────────────
-  // Compiles as soon as scenes are available. Manifest is no longer a prerequisite
-  // for compilation — widget asset loading is handled independently by ILoadable
-  // widgets in each plugin's createWidgets(). The old manifest-null guard has been
-  // removed; keeping it would permanently block compilation in SceneEngine v2
-  // where manifest is always null.
+  // Two-pass compilation strategy:
+  //
+  // Some widgets (ViewWidget, CarouselScrubberWidget) are lazily registered —
+  // their IDs aren't known until their DSL nodes are compiled. These widgets are
+  // discovered by reconcileCompiledTrack() which scans tick states for duck-typed
+  // matches and registers the widgets into the WidgetRegistry.
+  //
+  // Problem: if we compile only once, these widgets aren't in the registry during
+  // compilation. The compiler treats them as "passthrough" widgets — it skips
+  // mergeSnapshot (Step 1.5) and functional transition closures (Step 3), instead
+  // copying the FROM-scene's raw state to ALL frames in a transition block with
+  // zero interpolation. This causes:
+  //   - Highlights sticking (no exit fade — passthrough copies highlighted state)
+  //   - View layouts snapping between scenes (no smooth interpolation)
+  //   - Wrong data shown when jumping to a section (intermediate blocks carry
+  //     source scene's passthrough state)
+  //
+  // Fix: Pass 1 (discovery) compiles to discover lazily-registered widget IDs.
+  // reconcileCompiledTrack() registers them into the WidgetRegistry. The cache
+  // key is computed AFTER this enrichment so it's stable on subsequent renders
+  // (the registry already has the widgets). Pass 2 (authoritative) compiles with
+  // all widgets in the registry, so mergeSnapshot and functional transitions work.
   useEffect(() => {
     if (options.scenes.length === 0) {
       setSceneTrack(null);
@@ -575,6 +598,24 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       }
       return track;
     };
+
+    // ── Pass 1 (discovery): compile to register lazily-discovered widgets ──
+    // The discovery pass result is discarded — only its side effect matters:
+    // reconcileCompiledTrack registers ViewWidget/CarouselScrubberWidget into
+    // the WidgetRegistry so Pass 2 compiles with full widget knowledge.
+    const discoveryTrack = compileSceneTrack({
+      scenes: sceneDefs,
+      widgetRegistry: options.widgetRegistry,
+      blockSize,
+      prefersReducedMotion,
+      activeTheme: options.activeTheme,
+    });
+    reconcileCompiledTrack(discoveryTrack);
+
+    // ── Cache key computed AFTER discovery ──
+    // The enriched registry (with View/Carousel widgets) produces a stable key:
+    // on subsequent renders the widgets are already registered before this effect
+    // runs, so the key is the same as on the first render's post-discovery key.
     const key = buildSceneTrackKey({
       scenes: options.scenes,
       widgetRegistry: options.widgetRegistry,
@@ -589,6 +630,10 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       return;
     }
 
+    // ── Pass 2 (authoritative): all widgets now in registry ──
+    // mergeSnapshot (Step 1.5) and functional transitions (Step 3) apply to
+    // View and CarouselScrubber widgets, producing smooth interpolation and
+    // correct carry-forward/exit behavior.
     const compiled = compileSceneTrack({
       scenes: sceneDefs,
       widgetRegistry: options.widgetRegistry,
@@ -634,8 +679,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     if (!driver || !renderer || !scene || !camera || !sceneTrack || !driverReady) return;
 
     driver.setSceneTrack(sceneTrack);
-    const frameDriver = new EngineFrameDriver((state) => setFrameState(state));
-    frameDriverRef.current = frameDriver;
+    lastTickIndexRef.current = -1;
 
     const loop = new RuntimeLoop({
       driver,
@@ -655,7 +699,18 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
         }
       },
       onAfterTick: () => {
-        frameDriver.handleTick(driver.getCurrentTick());
+        const tick = driver.getCurrentTick();
+        if (!tick) return;
+        if (tick.index === lastTickIndexRef.current) return;
+        lastTickIndexRef.current = tick.index;
+        setFrameState({
+          tickIndex: tick.index,
+          progress: tick.progress,
+          sceneId: tick.sceneId,
+          sceneIndex: tick.sceneIndex,
+          sceneProgress: tick.blockProgress,
+          tick,
+        });
       },
       fpsCap: resolvedFpsCap,
     });
@@ -670,7 +725,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     return () => {
       loop.stop();
       loopRef.current = null;
-      frameDriver.reset();
+      lastTickIndexRef.current = -1;
     };
   }, [sceneTrack, getGlobalProgress, resolvedFpsCap, options.onReady, driverReady]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -760,6 +815,13 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     driverRef.current?.setWidgetStatePatches(patches);
   }, []);
 
+  const resolveWidgetState = useCallback((widgetId: string): unknown => {
+    const driver = driverRef.current;
+    if (!driver) return null;
+    const tick = driver.getCurrentTick();
+    return driver.resolveWidgetState(widgetId, tick);
+  }, []);
+
   const pause = useCallback(() => {
     loopRef.current?.pause();
   }, []);
@@ -793,6 +855,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     interruptTransition: handleInterruptTransition,
     redirectTransition: handleRedirectTransition,
     patchWidgetStates,
+    resolveWidgetState,
     sceneTrack,
     sceneCount,
     compiledScenes,

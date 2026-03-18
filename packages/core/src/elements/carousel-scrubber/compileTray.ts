@@ -3,11 +3,12 @@
 // pipeline testable in isolation.
 
 import type {CarouselTrayProps} from './dsl';
+import type {HighlightProps} from './highlightDsl';
 import type {CarouselScrubberState, ViewHighlight, ViewHighlightConfig, ViewHighlightMode} from './types';
 import {HL_DEFAULT_GLOW_INTENSITY, HL_DEFAULT_HOLOGRAPHIC_INTENSITY, HL_DEFAULT_BEAM_HEIGHT} from './highlightConstants';
 import type {CarouselLayoutConfig} from '../../layout/index';
 import type {NVSRect} from '../../layout/types';
-import type {ThemeFamily, SceneThemeHighlightVariant, HighlightVariantName} from '../../theme/types';
+import type {ThemeFamily, SceneThemeHighlightVariant, SceneThemeHighlightPalette, HighlightVariantName} from '../../theme/types';
 import type {MaterialApplication} from '../../widget/materialTypes';
 import {resolveSceneTheme} from '../../theme/index';
 import {darkHighlightPalette, lightHighlightPalette} from '../../theme/highlightPalettes';
@@ -72,6 +73,7 @@ export function compileTrayFromViewLayout(
   viewStates: ReadonlyMap<string, TrayViewBounds>,
   themeFamily: ThemeFamily,
   themePolarity: 'dark' | 'light',
+  dslHighlightConfigs?: readonly HighlightProps[],
 ): CarouselScrubberState {
   const isLoop = carouselConfig.loop ?? false;
   const trayDepth = trayProps.depth ?? 0.36;
@@ -119,7 +121,26 @@ export function compileTrayFromViewLayout(
   // polarity-appropriate default palette.
   const highlightPalette = sceneTheme.highlightPalette
     ?? (themePolarity === 'light' ? lightHighlightPalette : darkHighlightPalette);
-  const viewHighlights = buildViewHighlights(
+
+  // Emit deprecation warning when legacy highlight* props are used on <CarouselTray>.
+  const hasLegacyHighlightProps = trayProps.highlightActive !== undefined
+    || trayProps.highlightVariant !== undefined
+    || trayProps.highlightColor !== undefined
+    || trayProps.highlightIntensity !== undefined
+    || trayProps.highlightBeamHeight !== undefined
+    || trayProps.highlightSmoke !== undefined
+    || trayProps.highlightZOffset !== undefined
+    || trayProps.highlightViewId !== undefined
+    || (trayProps.highlights !== undefined && trayProps.highlights.length > 0);
+
+  if (hasLegacyHighlightProps) {
+    console.warn(
+      '[CarouselTray] highlight* props on <CarouselTray> are deprecated — use <Highlight> as a sibling child of <ViewLayout>.',
+    );
+  }
+
+  // Build highlights from legacy tray props (backward compat).
+  const legacyHighlights = buildViewHighlights(
     trayProps,
     trayTheme,
     baseState.style.accentColor,
@@ -129,6 +150,23 @@ export function compileTrayFromViewLayout(
     themePolarity,
     highlightPalette,
   );
+
+  // Build highlights from new <Highlight> DSL children.
+  const dslHighlights = dslHighlightConfigs && dslHighlightConfigs.length > 0
+    ? buildViewHighlightsFromDsl(
+      dslHighlightConfigs,
+      baseState.style.accentColor,
+      carouselConfig.activeIndex,
+      viewIds,
+      viewStates,
+      themePolarity,
+      highlightPalette,
+      sceneTheme.highlightDefaults,
+    )
+    : [];
+
+  // Merge both sources: DSL <Highlight> children override legacy for the same viewId.
+  const viewHighlights = mergeHighlightSources(legacyHighlights, dslHighlights);
 
   return {
     ...baseState,
@@ -300,6 +338,8 @@ export function buildViewHighlights(
         ...(explicit.zOffset !== undefined ? { zOffset: explicit.zOffset } : defaultZOffset !== 0 ? { zOffset: defaultZOffset } : {}),
         ...(bdOpacity !== undefined ? { backdropOpacity: bdOpacity } : {}),
         ...(bdColor !== undefined ? { backdropColor: bdColor } : {}),
+        ...(explicit.pulseSpeed !== undefined && explicit.pulseSpeed > 0 ? { pulseSpeed: explicit.pulseSpeed } : {}),
+        ...(explicit.pulseIntensity !== undefined && explicit.pulseIntensity > 0 ? { pulseIntensity: explicit.pulseIntensity } : {}),
         followView: true,
       });
     } else if (isActiveTarget) {
@@ -344,6 +384,107 @@ export function buildViewHighlights(
 }
 
 /**
+ * Converts parsed `<Highlight>` DSL props into concrete `ViewHighlight[]`.
+ *
+ * Resolution chain per highlight:
+ * 1. Resolve variant from `props.variant` → palette[variant]
+ * 2. Each field: `props.{field} ?? variant.{field} ?? highlightDefaults.{field} ?? constant default`
+ * 3. `active` → targets view at `activeIndex`; `viewId` → targets named view; neither → warning
+ *
+ * Exported for testing.
+ */
+export function buildViewHighlightsFromDsl(
+  configs: readonly HighlightProps[],
+  resolvedAccentColor: string,
+  activeIndex: number,
+  viewIds: readonly string[],
+  viewStates: ReadonlyMap<string, TrayViewBounds>,
+  polarity: 'dark' | 'light' = 'dark',
+  palette?: SceneThemeHighlightPalette,
+  highlightDefaults?: import('../../theme/types').SceneThemeHighlightDefaults,
+): readonly ViewHighlight[] {
+  const highlights: ViewHighlight[] = [];
+
+  for (const cfg of configs) {
+    // Determine target viewId.
+    let targetViewId: string | undefined;
+    if (cfg.active) {
+      targetViewId = viewIds[activeIndex];
+    } else if (cfg.viewId) {
+      targetViewId = cfg.viewId;
+    } else {
+      console.warn(
+        '[Highlight] <Highlight> has neither "active" nor "viewId" — highlight has no target and will be ignored.',
+      );
+      continue;
+    }
+
+    if (!targetViewId) continue;
+
+    const vs = viewStates.get(targetViewId);
+    const bounds = vs?.bounds ?? { x: 0, y: 0, w: 0, h: 0 };
+
+    // Resolve variant from palette.
+    const variant = resolveHighlightVariant(cfg.variant, palette);
+
+    // Resolve fields: explicit prop → variant → highlightDefaults → constant default.
+    const mode = cfg.mode ?? variant?.mode ?? highlightDefaults?.mode ?? 'glow';
+    const color = cfg.color ?? variant?.color ?? resolvedAccentColor;
+    const intensity = cfg.intensity ?? variant?.intensity ?? defaultIntensityForMode(mode);
+    const blendMode = cfg.blendMode ?? variant?.blendMode ?? defaultBlendForPolarity(polarity);
+    const beamHeight = cfg.beamHeight ?? variant?.beamHeight ?? highlightDefaults?.beamHeight ?? HL_DEFAULT_BEAM_HEIGHT;
+    const smoke = cfg.smoke ?? variant?.smoke ?? false;
+    const dust = cfg.dust ?? variant?.dust ?? false;
+    const zOffset = cfg.zOffset ?? 0;
+    const bdOpacity = cfg.backdropOpacity ?? variant?.backdropOpacity ?? highlightDefaults?.backdropOpacity;
+    const bdColor = cfg.backdropColor ?? variant?.backdropColor ?? highlightDefaults?.backdropColor;
+    const pulseSpeed = cfg.pulseSpeed;
+    const pulseIntensity = cfg.pulseIntensity;
+
+    highlights.push({
+      viewId: targetViewId,
+      bounds,
+      mode,
+      color,
+      intensity,
+      blendMode,
+      ...holographicFields(mode, beamHeight, smoke, dust),
+      ...(zOffset !== 0 ? { zOffset } : {}),
+      ...(bdOpacity !== undefined ? { backdropOpacity: bdOpacity } : {}),
+      ...(bdColor !== undefined ? { backdropColor: bdColor } : {}),
+      ...(pulseSpeed !== undefined && pulseSpeed > 0 ? { pulseSpeed } : {}),
+      ...(pulseIntensity !== undefined && pulseIntensity > 0 ? { pulseIntensity } : {}),
+      followView: true,
+    });
+  }
+
+  return highlights;
+}
+
+/**
+ * Merges two highlight source arrays. DSL `<Highlight>` entries override legacy
+ * entries for the same viewId. Non-overlapping entries from both sources are kept.
+ */
+function mergeHighlightSources(
+  legacy: readonly ViewHighlight[],
+  dsl: readonly ViewHighlight[],
+): readonly ViewHighlight[] {
+  if (dsl.length === 0) return legacy;
+  if (legacy.length === 0) return dsl;
+
+  // DSL entries win for overlapping viewIds.
+  const dslViewIds = new Set(dsl.map(h => h.viewId));
+  const merged: ViewHighlight[] = [];
+  for (const h of legacy) {
+    if (!dslViewIds.has(h.viewId)) {
+      merged.push(h);
+    }
+  }
+  merged.push(...dsl);
+  return merged;
+}
+
+/**
  * Resolves a runtime (programmatic) ViewHighlightConfig into a fully concrete
  * ViewHighlight suitable for the render layer.
  *
@@ -353,24 +494,32 @@ export function buildViewHighlights(
  * @param cfg - The programmatic highlight configuration.
  * @param fallbackBounds - NVS bounds to use (typically from the compiled highlight for the same viewId).
  * @param fallbackColor - Fallback color when cfg.color is not set (typically accentColor).
+ * @param palette - Optional highlight palette for variant resolution.
+ *   When cfg.variant is set and a palette is provided, variant values fill in
+ *   any fields not explicitly set on cfg.
  */
 export function resolveRuntimeHighlight(
   cfg: ViewHighlightConfig,
   fallbackBounds: { x: number; y: number; w: number; h: number },
   fallbackColor: string,
+  palette?: SceneThemeHighlightPalette,
 ): ViewHighlight {
-  const mode = cfg.mode ?? 'glow';
+  // Resolve variant from palette when provided.
+  const variant = resolveHighlightVariant(cfg.variant, palette);
+  const mode = cfg.mode ?? variant?.mode ?? 'glow';
   return {
     viewId: cfg.viewId,
     bounds: fallbackBounds,
     mode,
-    color: cfg.color ?? fallbackColor,
-    intensity: cfg.intensity ?? (mode === 'holographic' ? HL_DEFAULT_HOLOGRAPHIC_INTENSITY : HL_DEFAULT_GLOW_INTENSITY),
-    ...(mode === 'holographic' ? { beamHeight: cfg.beamHeight ?? HL_DEFAULT_BEAM_HEIGHT, smoke: cfg.smoke ?? false, dust: cfg.dust ?? false } : {}),
+    color: cfg.color ?? variant?.color ?? fallbackColor,
+    intensity: cfg.intensity ?? variant?.intensity ?? (mode === 'holographic' ? HL_DEFAULT_HOLOGRAPHIC_INTENSITY : HL_DEFAULT_GLOW_INTENSITY),
+    ...(mode === 'holographic' ? { beamHeight: cfg.beamHeight ?? variant?.beamHeight ?? HL_DEFAULT_BEAM_HEIGHT, smoke: cfg.smoke ?? variant?.smoke ?? false, dust: cfg.dust ?? variant?.dust ?? false } : {}),
     ...(cfg.zOffset !== undefined ? { zOffset: cfg.zOffset } : {}),
-    ...(cfg.backdropOpacity !== undefined ? { backdropOpacity: cfg.backdropOpacity } : {}),
-    ...(cfg.backdropColor !== undefined ? { backdropColor: cfg.backdropColor } : {}),
-    blendMode: cfg.blendMode ?? 'additive',
+    ...(cfg.backdropOpacity !== undefined ? { backdropOpacity: cfg.backdropOpacity } : variant?.backdropOpacity !== undefined ? { backdropOpacity: variant.backdropOpacity } : {}),
+    ...(cfg.backdropColor !== undefined ? { backdropColor: cfg.backdropColor } : variant?.backdropColor !== undefined ? { backdropColor: variant.backdropColor } : {}),
+    blendMode: cfg.blendMode ?? variant?.blendMode ?? 'additive',
+    ...(cfg.pulseSpeed !== undefined && cfg.pulseSpeed > 0 ? { pulseSpeed: cfg.pulseSpeed } : {}),
+    ...(cfg.pulseIntensity !== undefined && cfg.pulseIntensity > 0 ? { pulseIntensity: cfg.pulseIntensity } : {}),
     followView: true,
   };
 }

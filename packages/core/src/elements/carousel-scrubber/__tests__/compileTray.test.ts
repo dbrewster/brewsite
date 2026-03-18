@@ -1,8 +1,8 @@
 // Integration tests for compileTrayFromViewLayout — the full DSL → theme → compiled state pipeline.
 // Tests the seam where DSL props, theme tokens, and compiled defaults merge.
 
-import { describe, it, expect, beforeEach } from 'vitest';
-import { compileTrayFromViewLayout, computeViewExtent, resolveHighlightMode, buildViewHighlights, resolveRuntimeHighlight, type TrayViewBounds } from '../compileTray';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { compileTrayFromViewLayout, computeViewExtent, resolveHighlightMode, buildViewHighlights, buildViewHighlightsFromDsl, resolveRuntimeHighlight, type TrayViewBounds } from '../compileTray';
 import { DEFAULT_CAROUSEL_SCRUBBER_STYLE } from '../compile';
 import type { CarouselTrayProps } from '../dsl';
 import type { CarouselLayoutConfig } from '../../../layout/regionTypes';
@@ -877,5 +877,296 @@ describe('resolveRuntimeHighlight', () => {
       '#5090e0',
     );
     expect(hl.blendMode).toBe('normal');
+  });
+
+  it('resolves variant mode from palette when cfg.mode is absent', () => {
+    const palette = {
+      error: { color: '#FF4444', mode: 'holographic' as const, intensity: 0.6, smoke: true },
+    };
+    const hl = resolveRuntimeHighlight(
+      { viewId: 'v1', variant: 'error' },
+      realBounds,
+      '#5090e0',
+      palette,
+    );
+    expect(hl.mode).toBe('holographic');
+    expect(hl.color).toBe('#FF4444');
+    expect(hl.intensity).toBe(0.6);
+    expect(hl.smoke).toBe(true);
+  });
+
+  it('explicit cfg fields override variant fields from palette', () => {
+    const palette = {
+      error: { color: '#FF4444', mode: 'holographic' as const, intensity: 0.6 },
+    };
+    const hl = resolveRuntimeHighlight(
+      { viewId: 'v1', variant: 'error', color: '#00FF00', mode: 'glow', intensity: 0.9 },
+      realBounds,
+      '#5090e0',
+      palette,
+    );
+    expect(hl.mode).toBe('glow');
+    expect(hl.color).toBe('#00FF00');
+    expect(hl.intensity).toBe(0.9);
+  });
+
+  it('resolves variant backdropColor and backdropOpacity from palette', () => {
+    const palette = {
+      primary: { color: '#5090e0', backdropColor: '#112233', backdropOpacity: 0.8 },
+    };
+    const hl = resolveRuntimeHighlight(
+      { viewId: 'v1', variant: 'primary' },
+      zeroBounds,
+      '#5090e0',
+      palette,
+    );
+    expect(hl.backdropColor).toBe('#112233');
+    expect(hl.backdropOpacity).toBe(0.8);
+  });
+
+  it('resolves variant blendMode from palette', () => {
+    const palette = {
+      primary: { color: '#5090e0', blendMode: 'normal' as const },
+    };
+    const hl = resolveRuntimeHighlight(
+      { viewId: 'v1', variant: 'primary' },
+      zeroBounds,
+      '#5090e0',
+      palette,
+    );
+    expect(hl.blendMode).toBe('normal');
+  });
+
+  it('falls back to glow mode when variant not found in palette', () => {
+    const palette = {
+      primary: { color: '#5090e0' },
+    };
+    const hl = resolveRuntimeHighlight(
+      { viewId: 'v1', variant: 'error' },
+      zeroBounds,
+      '#5090e0',
+      palette,
+    );
+    // 'error' not in palette → no variant resolution → fallback glow
+    expect(hl.mode).toBe('glow');
+    expect(hl.color).toBe('#5090e0'); // fallbackColor
+  });
+
+  it('ignores variant when no palette is provided', () => {
+    const hl = resolveRuntimeHighlight(
+      { viewId: 'v1', variant: 'error' },
+      zeroBounds,
+      '#5090e0',
+    );
+    // No palette → variant ignored → fallback defaults
+    expect(hl.mode).toBe('glow');
+    expect(hl.color).toBe('#5090e0');
+  });
+});
+
+// ─── buildViewHighlightsFromDsl ─────────────────────────────────────────────
+
+describe('buildViewHighlightsFromDsl', () => {
+  it('returns highlight targeting active view', () => {
+    const result = buildViewHighlightsFromDsl(
+      [{ active: true }],
+      '#5090e0', 1, viewIds, viewStates, 'dark',
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].viewId).toBe('v2');
+    expect(result[0].mode).toBe('glow');
+    expect(result[0].color).toBe('#5090e0');
+    expect(result[0].followView).toBe(true);
+  });
+
+  it('returns highlight targeting specific viewId', () => {
+    const result = buildViewHighlightsFromDsl(
+      [{ viewId: 'v3' }],
+      '#5090e0', 0, viewIds, viewStates, 'dark',
+    );
+    expect(result).toHaveLength(1);
+    expect(result[0].viewId).toBe('v3');
+    expect(result[0].bounds).toEqual({ x: 0.5, y: 0.15, w: 0.3, h: 0.45 });
+  });
+
+  it('emits warning and skips when neither active nor viewId is set', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const result = buildViewHighlightsFromDsl(
+      [{ mode: 'glow' }],
+      '#5090e0', 0, viewIds, viewStates, 'dark',
+    );
+    expect(result).toHaveLength(0);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('has neither "active" nor "viewId"'),
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('resolves variant from palette', () => {
+    const palette = {
+      error: { color: '#FF4444', mode: 'holographic' as const, intensity: 0.6, smoke: true, backdropColor: '#000' },
+    };
+    const result = buildViewHighlightsFromDsl(
+      [{ active: true, variant: 'error' }],
+      '#5090e0', 0, viewIds, viewStates, 'dark', palette,
+    );
+    expect(result[0].mode).toBe('holographic');
+    expect(result[0].color).toBe('#FF4444');
+    expect(result[0].intensity).toBe(0.6);
+    expect(result[0].smoke).toBe(true);
+    expect(result[0].backdropColor).toBe('#000');
+  });
+
+  it('explicit props override variant values', () => {
+    const palette = {
+      error: { color: '#FF4444', mode: 'holographic' as const, intensity: 0.6 },
+    };
+    const result = buildViewHighlightsFromDsl(
+      [{ active: true, variant: 'error', color: '#00FF00', mode: 'glow', intensity: 0.9 }],
+      '#5090e0', 0, viewIds, viewStates, 'dark', palette,
+    );
+    expect(result[0].color).toBe('#00FF00');
+    expect(result[0].mode).toBe('glow');
+    expect(result[0].intensity).toBe(0.9);
+  });
+
+  it('resolves highlightDefaults when no variant', () => {
+    const result = buildViewHighlightsFromDsl(
+      [{ active: true }],
+      '#5090e0', 0, viewIds, viewStates, 'dark', undefined,
+      { mode: 'holographic', backdropOpacity: 0.5, backdropColor: '#222', beamHeight: 3 },
+    );
+    expect(result[0].mode).toBe('holographic');
+    expect(result[0].backdropOpacity).toBe(0.5);
+    expect(result[0].backdropColor).toBe('#222');
+    expect(result[0].beamHeight).toBe(3);
+  });
+
+  it('uses zero bounds for views not in viewStates', () => {
+    const result = buildViewHighlightsFromDsl(
+      [{ viewId: 'missing' }],
+      '#5090e0', 0, viewIds, viewStates, 'dark',
+    );
+    expect(result[0].bounds).toEqual({ x: 0, y: 0, w: 0, h: 0 });
+  });
+
+  it('uses light polarity blend mode', () => {
+    const result = buildViewHighlightsFromDsl(
+      [{ active: true }],
+      '#5090e0', 0, viewIds, viewStates, 'light',
+    );
+    expect(result[0].blendMode).toBe('normal');
+  });
+
+  it('multiple highlights produce multiple entries', () => {
+    const result = buildViewHighlightsFromDsl(
+      [
+        { active: true, mode: 'glow' },
+        { viewId: 'v3', mode: 'holographic', smoke: true },
+      ],
+      '#5090e0', 0, viewIds, viewStates, 'dark',
+    );
+    expect(result).toHaveLength(2);
+    expect(result[0].viewId).toBe('v1');
+    expect(result[0].mode).toBe('glow');
+    expect(result[1].viewId).toBe('v3');
+    expect(result[1].mode).toBe('holographic');
+    expect(result[1].smoke).toBe(true);
+  });
+
+  it('does not include holographic fields for glow mode', () => {
+    const result = buildViewHighlightsFromDsl(
+      [{ active: true, mode: 'glow' }],
+      '#5090e0', 0, viewIds, viewStates, 'dark',
+    );
+    expect(result[0].beamHeight).toBeUndefined();
+    expect(result[0].smoke).toBeUndefined();
+  });
+
+  it('includes holographic fields for holographic mode', () => {
+    const result = buildViewHighlightsFromDsl(
+      [{ active: true, mode: 'holographic', beamHeight: 3, smoke: true, dust: true }],
+      '#5090e0', 0, viewIds, viewStates, 'dark',
+    );
+    expect(result[0].beamHeight).toBe(3);
+    expect(result[0].smoke).toBe(true);
+    expect(result[0].dust).toBe(true);
+  });
+
+  it('includes zOffset when non-zero', () => {
+    const result = buildViewHighlightsFromDsl(
+      [{ active: true, zOffset: -2 }],
+      '#5090e0', 0, viewIds, viewStates, 'dark',
+    );
+    expect(result[0].zOffset).toBe(-2);
+  });
+
+  it('omits zOffset when zero', () => {
+    const result = buildViewHighlightsFromDsl(
+      [{ active: true }],
+      '#5090e0', 0, viewIds, viewStates, 'dark',
+    );
+    expect(result[0].zOffset).toBeUndefined();
+  });
+});
+
+// ─── compileTrayFromViewLayout — DSL <Highlight> integration ────────────────
+
+describe('compileTrayFromViewLayout DSL Highlight integration', () => {
+  it('produces viewHighlights from dslHighlightConfigs', () => {
+    const trayProps = {};
+    const state = compileTrayFromViewLayout(
+      trayProps, 'layout-1', baseCarouselConfig, viewIds,
+      containerBounds, viewStates, 'default', 'dark',
+      [{ active: true, mode: 'holographic', smoke: true }],
+    );
+    expect(state.viewHighlights).toHaveLength(1);
+    expect(state.viewHighlights[0].viewId).toBe('v1');
+    expect(state.viewHighlights[0].mode).toBe('holographic');
+    expect(state.viewHighlights[0].smoke).toBe(true);
+  });
+
+  it('merges DSL <Highlight> with legacy tray props — DSL wins for same viewId', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const trayProps = { highlightActive: 'glow' as const };
+    const state = compileTrayFromViewLayout(
+      trayProps, 'layout-1', baseCarouselConfig, viewIds,
+      containerBounds, viewStates, 'default', 'dark',
+      [{ active: true, mode: 'holographic' }],
+    );
+    // DSL <Highlight> targets v1 (activeIndex=0) with holographic.
+    // Legacy trayProps also targets v1 with glow.
+    // DSL should win for v1.
+    const v1Highlight = state.viewHighlights.find(h => h.viewId === 'v1');
+    expect(v1Highlight).toBeDefined();
+    expect(v1Highlight!.mode).toBe('holographic');
+    warnSpy.mockRestore();
+  });
+
+  it('emits deprecation warning when legacy highlight* props are used', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    compileTrayFromViewLayout(
+      { highlightActive: 'glow' }, 'layout-1', baseCarouselConfig, viewIds,
+      containerBounds, viewStates, 'default', 'dark',
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('highlight* props on <CarouselTray> are deprecated'),
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('does not emit deprecation warning when no legacy highlight props', () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    compileTrayFromViewLayout(
+      {}, 'layout-1', baseCarouselConfig, viewIds,
+      containerBounds, viewStates, 'default', 'dark',
+      [{ active: true }],
+    );
+    // Should not see the deprecation warning (only DSL highlights, no legacy)
+    const deprecationWarnings = warnSpy.mock.calls.filter(([msg]) =>
+      typeof msg === 'string' && msg.includes('deprecated')
+    );
+    expect(deprecationWarnings).toHaveLength(0);
+    warnSpy.mockRestore();
   });
 });

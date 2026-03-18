@@ -151,9 +151,12 @@ const SlidePlayerInner = ({
 
       for (let i = 0; i < spec.slides.length; i++) {
         const slide = spec.slides[i]!;
-        // Compute exact start progress using cumulative scrollUnits (not i/(n-1),
-        // which is wrong for non-uniform budgets like title=100, body=400).
-        const targetProgress = computeSlideStartProgress(scrollUnits, i);
+        // Engine-space: scene i starts at i/(n-1). This is the uniform progress value
+        // that matches SceneTrack's engineStart per scene (see sceneTrackCompiler.ts §298).
+        // setProgress() takes post-mapper engine-space — do NOT use computeSlideStartProgress
+        // here, which returns scroll-space and would navigate to the wrong slide for
+        // non-uniform scroll budgets (e.g. title=100 + body=400).
+        const targetProgress = spec.slides.length > 1 ? i / (spec.slides.length - 1) : 0;
         engine.setProgress(targetProgress);
         // Wait two rAF cycles for Three.js to render the new frame.
         await new Promise<void>((resolve) =>
@@ -447,14 +450,26 @@ export const SlidePlayer = forwardRef<SlidePlayerHandle, SlidePlayerProps>(
         Promise.resolve(new Map()),
     }));
 
+    // Inject --slide-* CSS custom properties and --brewsite-accent-color so that
+    // slide content (TextBox children) can consume them via var(). Custom properties
+    // are inherited — applying them here makes them available to all descendants
+    // including EngineOverlayHost's overlay divs.
+    // NOTE: EngineOverlayHost only injects --brewsite-font-family, --brewsite-font-size-*,
+    // etc. It does NOT inject --slide-* or --brewsite-accent-color; that is done here.
+    const cssVarStyle = {
+      ...resolvedTheme.cssVars,
+      '--brewsite-accent-color': resolvedTheme.accentColor,
+    } as CSSProperties;
+
     const containerStyle: CSSProperties = effectiveFullscreen
       ? {
           position: 'fixed',
           inset: 0,
           zIndex: 9999,
           background: resolvedTheme.background.color,
+          ...cssVarStyle,
         }
-      : { position: 'relative', width: '100%', ...style };
+      : { position: 'relative', width: '100%', height: '100%', ...cssVarStyle, ...style };
 
     return (
       <div ref={containerRef} className={className} style={containerStyle}>
@@ -462,13 +477,22 @@ export const SlidePlayer = forwardRef<SlidePlayerHandle, SlidePlayerProps>(
           id={id}
           plugins={allPlugins}
           sceneTheme={resolvedTheme.sceneTheme}
+          onError={(err) => console.error('[SlidePlayer] Engine error:', err)}
         >
           {/* Inject <Slide>→<Scene> expanded children into the engine's scene registration */}
           {sceneElements}
 
-          <EngineARContainer aspectRatio={aspectRatio} scaleMode="fit-width">
+          <EngineARContainer aspectRatio={aspectRatio} scaleMode="contain">
+            {/*
+             * BackgroundLayer is required for <Background color> DSL to take effect.
+             * BackgroundWidget.apply() is a no-op when no DOM element is wired.
+             * The WebGL renderer uses alpha:true + setClearColor(0,0) = transparent canvas,
+             * so without BackgroundLayer the slide area is completely transparent.
+             * (SceneReel includes this internally; SlidePlayer must add it explicitly.)
+             */}
+            <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
             {/* SceneCanvas uses forwardRef<HTMLCanvasElement> — prop is `ref`, NOT `canvasRef`. */}
-            <SceneCanvas ref={canvasRef} />
+            <SceneCanvas ref={canvasRef} style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
             <EngineOverlayHost
               passthroughPointerEvents
               overlayTransition={

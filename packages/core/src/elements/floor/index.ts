@@ -13,7 +13,6 @@ export {
   DEFAULT_GRID_SURFACE,
   DEFAULT_MIRROR_SURFACE,
   DEFAULT_PHYSICAL_SURFACE,
-  floorTransitionSpec,
   functionalFloorTransitionSpec,
 } from './compile';
 export { applyFloor, type FloorThreeRefs } from './render';

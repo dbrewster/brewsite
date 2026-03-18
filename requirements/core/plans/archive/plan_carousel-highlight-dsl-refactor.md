@@ -2,8 +2,22 @@
 title: "Refactor: Separate Highlight DSL from CarouselTray"
 doc_type: plan
 owner: architect
-status: draft
-updated: 2026-03-17
+status: complete
+updated: 2026-03-18
+change_history:
+  - date: 2026-03-18
+    author: architect
+    summary: "Initial plan created. Defined Phase 0 bug fixes and Phase 1 DSL refactor scope."
+  - date: 2026-03-18
+    author: PM + architect review
+    summary: >
+      Corrected viewHandlers.ts path to compiler/blocks/viewHandlers.ts.
+      Removed incorrect render.ts fix from BUG-1 (mergeSnapshot fix is sufficient).
+      Removed IDslComposite from CarouselScrubberWidget — Highlight detection
+      handled directly in viewLayoutHandler following existing CarouselTray pattern.
+      Added console.warn for Highlight without CarouselTray sibling.
+      Promoted resolveRuntimeHighlight variant resolution from tech debt to Phase 1 step.
+      Added explicit deprecation timeline. Expanded test strategy with integration tests.
 ---
 
 # Refactor: Separate Highlight DSL from CarouselTray
@@ -48,7 +62,7 @@ The theme palette system (`highlightPalette` with semantic variant names) is wel
 2. **Child composition, not props explosion.** The existing pattern in the codebase (Lighting → Ambient/Directional/Spot; Chart → ChartAxis/ChartSeries/ChartLegend) is child-component composition. Highlights should follow the same pattern.
 3. **Highlight is a ViewLayout concern, not a CarouselTray concern.** The tray is optional — you can have a carousel without one. But highlights conceptually apply to views within a layout, regardless of whether there's a tray beneath them.
 4. **Theme defaults still work.** A scene author who just wants "the theme's default highlight on the active item" should not need to specify anything — the theme's `highlightPalette` and a single enable flag should suffice.
-5. **Backward compatible.** The existing `highlightActive`, `highlightColor`, etc. props on `<CarouselTray>` continue to work during a deprecation period.
+5. **Backward compatible.** The existing `highlightActive`, `highlightColor`, etc. props on `<CarouselTray>` continue to work during a deprecation period. Legacy props are deprecated in the minor release that ships this refactor. Planned removal in the next major version.
 
 ---
 
@@ -218,7 +232,7 @@ The following fields are **deprecated** on `SceneThemeCarouselTray` (with backwa
 - `highlightBackdropColor`
 - `highlightViewId`
 
-These were always awkward — they're highlight configuration masquerading as tray configuration.
+These were always awkward — they're highlight configuration masquerading as tray configuration. Deprecated in the minor release that ships this refactor; removed in the next major version.
 
 ### New: `SceneThemeHighlightDefaults`
 
@@ -289,7 +303,7 @@ When `<CarouselTray>` has the old `highlightActive`, `highlightColor`, etc. prop
 
 The only consideration: if a `<ViewLayout>` has `<Highlight>` children but no `<CarouselTray>`, where do the highlights attach? Two options:
 
-**Option A (recommended):** Require `<CarouselTray>` for highlights to render. The tray widget owns the Three.js highlight meshes. A `<Highlight>` without a tray silently does nothing (or warns). This is the current architecture and requires zero render changes.
+**Option A (recommended):** Require `<CarouselTray>` for highlights to render. The tray widget owns the Three.js highlight meshes. A `<Highlight>` without a `<CarouselTray>` sibling emits `console.warn('[ViewLayout] <Highlight> requires a <CarouselTray> sibling to render. Highlights will be ignored.')` and produces no output. This is the current architecture and requires zero render changes.
 
 **Option B (future):** A standalone `HighlightWidget` that renders highlights without a tray. This is a larger change for a future release.
 
@@ -310,25 +324,30 @@ We go with Option A. `<Highlight>` is a configuration component consumed by the 
 | File | Changes |
 |------|---------|
 | `compiler/blocks/viewLayoutDsl.tsx` | No change — `<Highlight>` is a child component, processed by the viewLayout handler |
-| `compiler/viewHandlers.ts` | Detect `<Highlight>` children alongside `<CarouselTray>` children. Collect highlight configs and pass to `compileTrayFromViewLayout()` |
+| `compiler/blocks/viewHandlers.ts` | Detect `<Highlight>` children alongside `<CarouselTray>` children in `viewLayoutHandler`. Collect highlight props, and if no `<CarouselTray>` sibling exists emit `console.warn('[ViewLayout] <Highlight> requires a <CarouselTray> sibling to render. Highlights will be ignored.')`. Pass collected highlight configs to `compileTrayFromViewLayout()` |
 | `elements/carousel-scrubber/dsl.tsx` | Mark `highlightActive`, `highlightColor`, `highlightIntensity`, `highlightBeamHeight`, `highlightSmoke`, `highlightZOffset`, `highlightViewId`, `highlights` as `@deprecated` |
 | `elements/carousel-scrubber/compileTray.ts` | Accept parsed `<Highlight>` configs alongside legacy tray props. Merge both into the same `viewHighlights` array |
-| `elements/carousel-scrubber/CarouselScrubberWidget.ts` | Register `<Highlight>` in `childDslComponents` via `IDslComposite` |
 | `theme/types.ts` | Add `SceneThemeHighlightDefaults` to `SceneTheme`. Deprecate highlight fields on `SceneThemeCarouselTray` |
-| `elements/carousel-scrubber/index.ts` | Export `Highlight` component and `HighlightProps` type |
-| `compiler/index.ts` | Export `Highlight` from the DSL authoring surface |
+| `elements/carousel-scrubber/index.ts` | Export `Highlight` component and `HighlightProps` type. Current exports are already clean (internal geometry/position types were removed in latest commit) |
+| `compiler/index.ts` | Export `Highlight` from the DSL authoring surface (currently exports `CarouselTray` + `CarouselTrayProps`) |
+| `elements/index.ts` | Add `Highlight` + `HighlightProps` to the public re-exports (currently exports `ViewHighlightMode`, `ViewHighlightConfig`, `useCarouselHighlight`, `createCarouselHighlightController`) |
 
 ### Unchanged files
 
 | File | Reason |
 |------|--------|
-| `elements/carousel-scrubber/render.ts` | Consumes `viewHighlights` — no structural change |
-| `elements/carousel-scrubber/types.ts` | `ViewHighlight` and `ViewHighlightConfig` stay as-is |
+| `elements/carousel-scrubber/render.ts` | Consumes `viewHighlights` — no structural change. Beam now uses `MeshBasicMaterial` + canvas gradient texture (no longer uses `highlightShader.ts`). Runtime highlight merge calls `resolveRuntimeHighlight()` from `compileTray.ts` |
+| `elements/carousel-scrubber/types.ts` | Pure type contracts only (constants already extracted to `highlightConstants.ts`). `ViewHighlight` and `ViewHighlightConfig` stay as-is |
 | `elements/carousel-scrubber/compile.ts` | Default state and transition spec unchanged |
 | `elements/carousel-scrubber/highlightConstants.ts` | Constants unchanged |
 | `elements/carousel-scrubber/highlightParticles.ts` | Particle math unchanged |
-| `elements/carousel-scrubber/highlightShader.ts` | Shader unchanged |
 | All theme preset files | `highlightPalette` already lives at the right level |
+
+### Dead code to remove
+
+| File | Reason |
+|------|--------|
+| `elements/carousel-scrubber/highlightShader.ts` | No longer imported anywhere. Beam rendering was rewritten to use `MeshBasicMaterial` + canvas gradient texture instead of the custom vertex/fragment shader. Delete this file during implementation |
 
 ### Scene file updates
 
@@ -342,12 +361,14 @@ We go with Option A. `<Highlight>` is a configuration component consumed by the 
 
 ## Test Strategy
 
+Current test state: `compileTray.test.ts` is 881 lines covering `compileTrayFromViewLayout`, `computeViewExtent`, `resolveHighlightMode`, `buildViewHighlights` (including `backdropColor` threading), and `resolveRuntimeHighlight`. All 1661 core tests pass.
+
 | Module | Tests |
 |--------|-------|
 | `highlightDsl.tsx` | No runtime tests needed — null-returning stub, type-only |
-| `compileTray.ts` | **New tests**: Verify `<Highlight>` parsed configs produce identical `viewHighlights` to the legacy props path. Test: active targeting, viewId targeting, variant resolution, explicit overrides, mixed `<Highlight>` + legacy props (legacy gets deprecation path), no-target warning |
-| `viewHandlers.ts` | **Modify existing tests**: Verify `<Highlight>` children are detected and passed through to `compileTrayFromViewLayout()` |
-| Existing `compileTray.test.ts` | Keep all existing tests (they exercise the legacy path which remains supported). Add parallel tests for the new `<Highlight>` input path |
+| `compileTray.ts` | **New tests**: Add a `buildViewHighlightsFromDsl()` (or similar) function that accepts parsed `<Highlight>` props and produces `ViewHighlight[]`. Test: active targeting, viewId targeting, variant resolution, explicit overrides, mixed `<Highlight>` + legacy props merge, no-target warning. Keep all existing `buildViewHighlights` tests — they exercise the legacy path which remains supported |
+| `compiler/blocks/viewHandlers.ts` | **Integration tests** in `compiler/__tests__/viewHandlers.test.tsx`: (1) Compile a `<ViewLayout kind="carousel">` with `<CarouselTray />` and `<Highlight active variant="primary" smoke />` as children — assert the resulting `CarouselScrubberState.viewHighlights` contains the correct resolved highlight entry. (2) Compile with `<Highlight viewId="chart-3" variant="error" />` — assert viewId targeting. (3) Compile with `<Highlight>` but no `<CarouselTray>` sibling — assert `console.warn` is emitted and no highlight state is produced. (4) Compile with both `<Highlight>` children and legacy `highlightActive` tray props — assert both merge into the same `viewHighlights` array |
+| `resolveRuntimeHighlight` | **Extend existing tests**: Add tests for variant resolution via the new `palette` parameter — `resolveRuntimeHighlight({ viewId: 'x', variant: 'error' }, bounds, accentColor, palette)` must produce the palette's error mode/color/intensity, not the fallback glow |
 
 ---
 
@@ -389,15 +410,31 @@ Optionally adopt `SceneTheme.highlightDefaults` for global non-variant defaults 
 
 ## Implementation Order
 
-1. **`highlightDsl.tsx`** — Create `<Highlight>` component and `HighlightProps` type
-2. **`compiler/viewHandlers.ts`** — Detect and collect `<Highlight>` children
-3. **`compileTray.ts`** — Accept new highlight configs, merge with legacy
-4. **`theme/types.ts`** — Add `SceneThemeHighlightDefaults`
-5. **`CarouselScrubberWidget.ts`** — Register `<Highlight>` in `childDslComponents`
-6. **`compiler/index.ts`** + `index.ts` — Export new component
-7. **Scene files** — Migrate examples
-8. **`dsl.tsx`** + `theme/types.ts` — Add `@deprecated` JSDoc to old fields
-9. **Tests** — Parallel test coverage for new path
+### Parallelization notes
+
+- **Phase 0 and Phase 1 are fully independent** — no file overlap after the IDslComposite removal. They can be implemented in parallel.
+- **Within Phase 0:** ENH-1 and ENH-2 both touch `render.ts` and must be serialized. BUG-1 and BUG-2 touch different files and can run in parallel. ENH-1/ENH-2 can run in parallel with BUG-1/BUG-2.
+- **Within Phase 1:** Steps are sequential (each builds on the prior).
+
+### Phase 0: Bug fixes (ship immediately, before or alongside DSL refactor)
+
+1. **BUG-1: Scene merge** — Fix `mergeSnapshot()` to clear `viewHighlights` on exit (`{ ...prev, showBase: false, viewHighlights: [] }`). No render.ts changes needed. Add tests.
+2. **BUG-2: Scroll spatial gating** — Add NVS hit-test to `ActionInputController.dispatchCarousel()`. Verify mobile touch works.
+3. **ENH-2: Beam Z squeeze** — Add `HL_BEAM_Z_SQUEEZE = 0.7` constant, apply to all highlight mesh Z scales.
+4. **ENH-1: Closed linear tray** — Replace parabolic horseshoe with closed rounded shape. Update geometry tests.
+
+### Phase 1: DSL refactor
+
+5. **`highlightDsl.tsx`** — Create `<Highlight>` component and `HighlightProps` type
+6. **`compiler/blocks/viewHandlers.ts`** — Detect `<Highlight>` children by React element type in `viewLayoutHandler` (same pattern as existing `CarouselTray` detection). Collect highlight props. If `<Highlight>` children exist but no `<CarouselTray>` sibling, emit `console.warn`. Pass collected highlight configs to `compileTrayFromViewLayout()`
+7. **`compileTray.ts`** — Accept new highlight configs, merge with legacy
+8. **`compileTray.ts` (resolveRuntimeHighlight)** — Add `palette` parameter to `resolveRuntimeHighlight()`. Resolve `cfg.variant` against the palette before field resolution, matching the logic in `buildViewHighlights`. This unblocks the programmatic monitoring use case where `setHighlight({ viewId: 'cpu', variant: 'error' })` must resolve to the theme's error palette. Update existing `resolveRuntimeHighlight` tests to cover variant resolution
+9. **`theme/types.ts`** — Add `SceneThemeHighlightDefaults`
+10. **`compiler/index.ts`** + `index.ts` + `elements/index.ts` — Export new component
+11. **Scene files** — Migrate examples
+12. **`dsl.tsx`** + `theme/types.ts` — Add `@deprecated` JSDoc to old fields
+13. **Cleanup** — Delete dead `highlightShader.ts`
+14. **Tests** — Parallel test coverage for new `<Highlight>` input path
 
 ---
 
@@ -485,11 +522,11 @@ The following are **existing capabilities** that should be explicitly called out
 
 4. **Multiple simultaneous highlights.** Each `setHighlight()` call is additive — calling it for `chart-1` and then `chart-3` highlights both. Only `clearHighlight(viewId)` or `clearAll()` removes them.
 
-5. **Variant resolution works at runtime.** `setHighlight({ viewId: 'chart-3', variant: 'error' })` resolves the `error` variant from the theme's `highlightPalette` at render time — the caller doesn't need to specify color, intensity, or backdrop settings.
+5. **Variant resolution in the runtime path — fixed in Phase 1 step 8.** `resolveRuntimeHighlight()` is updated to accept a `palette` parameter and resolve `cfg.variant` against the theme palette, matching the logic in `buildViewHighlights`. After this fix, `setHighlight({ viewId: 'chart-3', variant: 'error' })` correctly resolves to the theme's error palette (e.g., red holographic beam).
 
 6. **Access pattern.** The `WidgetRegistry` is available via:
-   - `useSceneEngineContext().widgetRegistry` — inside `<EngineProvider>` React tree
-   - The `widgetRegistry` option passed to `useSceneEngine()` — for app-level code
+   - `useSceneEngineContext().widgetRegistry` — inside the `<SceneEngine>` React tree (overlay content, HUD components)
+   - The `widgetRegistry` option passed to `useSceneEngine()` — for app-level code that owns the engine
    - Direct widget reference: `registry.get('layoutId__tray') as CarouselScrubberWidget` — for advanced use
 
 ### Typical integration pattern: monitoring dashboard
@@ -546,7 +583,174 @@ The declarative `<Highlight active variant="primary" />` provides baseline visua
 
 ## What this does NOT do
 
-- **Does not change the render layer.** Highlights still render via `CarouselScrubberWidget`. This is a DSL-only refactor.
+- **Does not change the render layer.** Highlights still render via `CarouselScrubberWidget`. Beam uses `MeshBasicMaterial` + canvas gradient (the old `highlightShader.ts` GLSL shader is dead code and should be deleted). This is a DSL-only refactor.
 - **Does not remove `ViewHighlightConfig`.** The programmatic API (`useCarouselHighlight`, `createCarouselHighlightController`) still accepts `ViewHighlightConfig` objects. That's the right shape for imperative code — the DSL refactor is about declarative scene authoring only.
 - **Does not break existing scenes.** Legacy props continue to work with a deprecation warning.
 - **Does not move highlights to `<View>`.** Highlights are an effect rendered by the tray in 3D space above the carousel — they're not a view-level concept. A view doesn't know or care whether it's highlighted. The highlight is an external annotation, like a spotlight on a stage — it belongs to the stage director (the layout), not the actor (the view).
+
+## Bug Fixes (must ship with or before this refactor)
+
+### BUG-1: Scene merge — tray and highlights persist across scene transitions
+
+**Symptom:** When transitioning from a scene with a `<CarouselTray>` + highlights to a scene without one, the tray mesh and highlight beams remain visible as ghosts instead of fading out.
+
+**Root cause:** `mergeSnapshot()` in `CarouselScrubberWidget.ts:115-131` sets `showBase: false` when `next` is undefined, which hides the tray geometry. But it preserves `viewHighlights` from the previous state via `{ ...prev, showBase: false }`. The render layer continues to see the old `viewHighlights` array and keeps the highlight meshes alive.
+
+Note: there is no `showBase` early return in `applyCarouselScrubber()`. The only early return (render.ts:1299) checks `childCount === 0 || layoutId === ''`, which does not trigger here because `prev` had valid values. The `showBase` flag is passed to `ensureBase()` (render.ts:1382) which controls tray mesh visibility but does not return early — execution continues to the highlight section at render.ts:1414+. The stale `viewHighlights` array causes `hasHighlights` to be true, so highlights keep rendering.
+
+**Fix:** When `!next && prev`, return a state that also clears highlights:
+
+```typescript
+// CarouselScrubberWidget.ts — mergeSnapshot
+if (!next && prev) return { ...prev, showBase: false, viewHighlights: [] };
+```
+
+With `viewHighlights: []`, the `hasHighlights` check (render.ts:1433) evaluates to false, and the cleanup branch (render.ts:1437-1443) disposes the highlight meshes. No render.ts changes are needed.
+
+**Files:** `CarouselScrubberWidget.ts`
+**Tests:** Add `mergeSnapshot` tests verifying that `viewHighlights` is cleared when `next` is undefined.
+
+---
+
+### BUG-2: Carousel scroll/wheel events fire globally instead of only over the tray
+
+**Symptom:** Scrolling or swiping anywhere on the canvas triggers `carousel.next`/`carousel.prev` actions, even when the pointer isn't near the carousel. On mobile, a full-screen swipe moves the carousel instead of scrolling the page.
+
+**Root cause:** The `<Action type="carousel.next">` + `<WheelMap>` / `<PointerMap>` DSL captures events on the entire canvas element. There is no hit-test or spatial gating. `ActionInputController.dispatchCarousel()` (ActionInputController.ts:209-220) fires unconditionally — it checks `action.layoutId` but not pointer position.
+
+**Fix approach:** Add a spatial gate to carousel actions. Two options:
+
+**Option A (recommended): NVS hit-test in ActionInputController**
+- When dispatching a `carousel.next`/`carousel.prev` from a pointer/wheel event, check whether the pointer's NVS coordinates fall within the carousel's layout bounds (available from `ViewLayoutState`).
+- The `ActionInputController` already has access to canvas coordinates via the event. Add an NVS conversion (pixel → NVS) and bounds check.
+- For touch/mobile: use `touchstart` coordinates for the active touch, not the center of the viewport.
+
+**Option B: Canvas region zones**
+- Allow `<Action>` to specify an NVS bounding region (`region={{ x, y, w, h }}`) that gates pointer/wheel events. Only fire when the event lands inside the region.
+- More general but higher implementation cost.
+
+**Key requirement:** Mobile must work. Swipe gestures on the carousel area should advance slides; swipes outside should scroll the page (or navigate scenes, depending on `InputController` config).
+
+**Files:** `input/ActionInputController.ts`, potentially `input/types.ts` (for region bounds on `InputActionSpec`)
+**Tests:** Test that carousel actions only fire when pointer is within layout bounds. Test touch events.
+
+---
+
+### ENH-1: Linear carousel tray should be a closed shape
+
+**Symptom:** Linear carousels with `zStep > 0` render a parabolic "horseshoe" shape — an open arc where the front and back edges diverge at the sides. It looks like a banana or a horseshoe when viewed from above.
+
+**Root cause:** `generateParabolicPoints()` in `geometry.ts:168-204` produces two parallel parabolic arcs (front and back edges) that are NOT connected at the endpoints. `render.ts:254` calls `shape.closePath()` which draws a straight line from the last back-edge point to the first front-edge point — creating a visible straight-line seam on the left side and an unclosed gap on the right (or vice versa). The shape is topologically closed but visually open.
+
+**Fix:** Replace the parabolic open arc with a closed stadium/rounded-rect that follows the parabolic curve. Specifically:
+- Compute the parabolic depth curve as today for the center-line
+- Add rounded end-caps (semicircles or quadratic curves) connecting the front and back edges at x = ±halfWidth
+- The result is a smooth closed outline that looks like a rounded rectangle bent along a parabola — not a horseshoe
+
+Alternative simpler fix: use a rounded-rect shape with enough Z depth to cover the parabolic range, and skip the per-vertex parabolic curvature. The parabolic shape was designed to hug the item positions, but a generous rounded rect may look better.
+
+**Files:** `geometry.ts` (shape generation), `render.ts` (tray creation uses the shape)
+**Tests:** Update `geometry.test.ts` — verify the new shape is topologically closed (first point ≈ last point or explicit closePath).
+
+---
+
+### ENH-2: Highlight beam ellipsis — make Z axis 30% thinner
+
+**Symptom:** The holographic beam and backdrop cylinders are too fat in the Z axis (depth direction). They should be elliptical, not circular, with Z squeezed by 30%.
+
+**Current code:** In `render.ts:1132-1133`:
+```typescript
+const scaleX = worldW * HL_BEAM_SCALE;  // HL_BEAM_SCALE = 0.7
+const scaleZ = worldH * HL_BEAM_SCALE;  // same scale for both axes
+```
+
+Both beam, backdrop, dust, and smoke meshes use the same `scaleZ` value. Making Z 30% thinner means multiplying `scaleZ` by `0.7`.
+
+**Fix:** Add a `HL_BEAM_Z_SQUEEZE` constant in `highlightConstants.ts`:
+
+```typescript
+/** Z-axis squeeze factor for beam/backdrop ellipsis. 0.7 = 30% thinner in depth. */
+export const HL_BEAM_Z_SQUEEZE = 0.7;
+```
+
+Apply in render.ts:
+```typescript
+const scaleX = worldW * HL_BEAM_SCALE;
+const scaleZ = worldH * HL_BEAM_SCALE * HL_BEAM_Z_SQUEEZE;
+```
+
+This affects: beam cylinder, backdrop cylinder, dust particle bounds, smoke ring radius, and surface glow plane. All should use the squeezed Z so they visually align.
+
+**Files:** `highlightConstants.ts` (new constant), `render.ts` (apply squeeze to scaleZ in highlight mesh creation and update paths)
+**Tests:** No compile-layer change. Visual verification only (render.ts is excluded from coverage).
+
+---
+
+## Known technical debt (address during or after implementation)
+
+1. **`highlightShader.ts` is dead code.** No imports reference it anywhere in the codebase. The beam was rewritten to use `MeshBasicMaterial` + `createBeamGradientTexture()`. Deleted in Phase 1 step 13.
+
+2. **`render.ts` imports cleaned but still 1474 lines.** The `updatePresetTextures` import, `generateRoundedRectPoints` import, and `computeTrayBorderPadding` import were removed in the latest commit. The highlight beam/backdrop/glow/dust/smoke mesh creation functions (~400 lines) are candidates for future extraction into `highlightMeshes.ts`, but this is not blocking the DSL refactor.
+
+Note: The `resolveRuntimeHighlight()` variant resolution gap was promoted from tech debt to an explicit Phase 1 step (step 8). It is required for the programmatic monitoring use case and must not ship as debt.
+
+## Current codebase state (as of 2026-03-18)
+
+### Module structure
+
+```
+carousel-scrubber/
+  types.ts              (176 lines) — pure type contracts, zero runtime values
+  dsl.tsx               (135 lines) — CarouselTray + CarouselScrubberProps
+  compile.ts            (162 lines) — state resolution + transition spec
+  compileTray.ts        (376 lines) — theme merge, view extent, highlight compilation, resolveRuntimeHighlight
+  render.ts             (1474 lines) — Three.js rendering (tray geometry, material, highlights)
+  CarouselScrubberWidget.ts (231 lines) — widget class + programmatic highlight API
+  highlightConstants.ts (51 lines) — all HL_* constants (extracted from types.ts)
+  highlightParticles.ts (116 lines) — smoke/dust particle math
+  highlightShader.ts    (37 lines) — DEAD CODE: unused GLSL shader
+  geometry.ts           (255 lines) — pure shape math
+  surfaceTexture.ts     (324 lines) — procedural normal map generation
+  trayPosition.ts       (107 lines) — pure position math
+  useCarouselHighlight.ts (90 lines) — React hook + imperative controller
+  index.ts              (13 lines) — public exports (cleaned: no internal types leaked)
+```
+
+### Test coverage
+
+```
+__tests__/compile.test.ts          (403 lines) — core compilation
+__tests__/compileTray.test.ts      (881 lines) — theme merge, highlights, backdropColor, resolveRuntimeHighlight
+__tests__/geometry.test.ts         (321 lines) — shape generation
+__tests__/highlightParticles.test.ts (184 lines) — particle lifecycle
+__tests__/surfaceTexture.test.ts   (121 lines) — normal map generation
+__tests__/trayPosition.test.ts     (115 lines) — position math
+Total: 2025 lines, 1661 passing tests
+```
+
+### Public exports (from `index.ts`)
+
+```typescript
+// Types
+CarouselScrubberState, CarouselScrubberStyle, CarouselTrayEdgeStyle,
+CarouselTraySurfacePattern, ViewHighlightMode, ViewHighlightConfig, ViewHighlight
+
+// Widget + handler
+CarouselScrubberWidget, CarouselScrubber, carouselScrubberNodeHandler,
+isCarouselScrubberStateLike
+
+// Compile defaults
+DEFAULT_CAROUSEL_SCRUBBER_STATE, DEFAULT_CAROUSEL_SCRUBBER_STYLE
+
+// DSL
+CarouselScrubberProps (type)
+
+// Programmatic API
+useCarouselHighlight, createCarouselHighlightController
+```
+
+### DSL surface (from `compiler/index.ts`)
+
+```typescript
+CarouselTray, CarouselTrayProps  // → will add: Highlight, HighlightProps
+```

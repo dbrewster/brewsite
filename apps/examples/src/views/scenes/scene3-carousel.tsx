@@ -7,6 +7,7 @@ import {
   Camera,
   CarouselTray,
   Floor,
+  Highlight,
   InputController,
   KeyMap,
   Lighting,
@@ -249,11 +250,8 @@ export const CarouselScene1 = (): JSX.Element => {
 
       <ViewLayout id="carousel-1-layout" kind="carousel" loop activeIndex={0} zStep={15} fadeMin={0.15} spread={.7} >
         <CarouselViews />
-        <CarouselTray metalness={.1}
-                      highlightActive="holographic"
-                      highlightColor="#E36A2E"
-                      highlightSmoke
-        />
+        <CarouselTray metalness={.1} />
+        <Highlight viewId='cv5' mode="holographic" color="#E36A2E" smoke />
       </ViewLayout>
     </Scene>
   );

@@ -28,6 +28,8 @@ export { CarouselScrubber } from '../elements/carousel-scrubber/CarouselScrubber
 export type { CarouselScrubberProps } from '../elements/carousel-scrubber/dsl';
 export { CarouselTray } from '../elements/carousel-scrubber/dsl';
 export type { CarouselTrayProps } from '../elements/carousel-scrubber/dsl';
+export { Highlight } from '../elements/carousel-scrubber/highlightDsl';
+export type { HighlightProps } from '../elements/carousel-scrubber/highlightDsl';
 
 // Transition control types — used in FunctionalTransitionSpec closures and DSL authoring.
 export type {
@@ -44,6 +46,7 @@ export type { TransitionWindow } from './sceneTrackTypes';
 // makeResolver + makeSimpleContext — resolver for FunctionalTransitionSpec closures.
 // makeResolver: full window/ease resolution from CompiledTransitionGroup[].
 // makeSimpleContext: minimal context from scalar t (for ElementTransitionSpec delegates).
+// @deprecated makeSimpleContext — used only by ElementTransitionSpec delegates.
 export { makeResolver, makeSimpleContext } from './transitions/transitionResolver';
 
 // Named transition types, resolver function, and easing functions for scene authoring.

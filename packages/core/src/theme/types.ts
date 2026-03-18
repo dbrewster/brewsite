@@ -229,24 +229,46 @@ export type SceneThemeCarouselTray = {
   readonly materialApplication?: import('../widget/materialTypes').MaterialApplication;
   /** Extra border around the tray edge beyond the view extent, in NVS units. */
   readonly outerMargin?: number;
-  /** Default highlight mode for the active carousel item. */
+  /**
+   * Default highlight mode for the active carousel item.
+   * @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.
+   */
   readonly highlightActive?: import('../elements/carousel-scrubber/types').ViewHighlightMode;
-  /** Default highlight color. Falls back to accentColor. */
+  /**
+   * Default highlight color. Falls back to accentColor.
+   * @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.
+   */
   readonly highlightColor?: string;
-  /** Default highlight intensity [0-1]. */
+  /**
+   * Default highlight intensity [0-1].
+   * @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.
+   */
   readonly highlightIntensity?: number;
-  /** Default beam height for holographic mode [world units]. */
+  /**
+   * Default beam height for holographic mode [world units].
+   * @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.
+   */
   readonly highlightBeamHeight?: number;
-  /** Enable smoke ring for holographic highlights. */
+  /**
+   * Enable smoke ring for holographic highlights.
+   * @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.
+   */
   readonly highlightSmoke?: boolean;
-  /** Z offset for highlights in world units. Negative = push back. */
+  /**
+   * Z offset for highlights in world units. Negative = push back.
+   * @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.
+   */
   readonly highlightZOffset?: number;
   /**
    * Default highlight backdrop color.
    * Auto-resolved from polarity when not set (dark=#000000, light=#e8e4e0).
+   * @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.
    */
   readonly highlightBackdropColor?: string;
-  /** Target a specific view by ID instead of the active item. */
+  /**
+   * Target a specific view by ID instead of the active item.
+   * @deprecated Use `<Highlight>` as a sibling child of `<ViewLayout>` instead. Will be removed in the next major version.
+   */
   readonly highlightViewId?: string;
 };
 
@@ -314,6 +336,21 @@ export type SceneThemeHighlightPalette = {
 };
 
 /**
+ * Default highlight configuration when no variant is specified.
+ * Lives at the `SceneTheme` level alongside `highlightPalette`.
+ */
+export type SceneThemeHighlightDefaults = {
+  /** Default mode when no variant or explicit mode is set. Default: 'glow'. */
+  readonly mode?: import('../elements/carousel-scrubber/types').ViewHighlightMode;
+  /** Default backdrop opacity [0-1]. */
+  readonly backdropOpacity?: number;
+  /** Default backdrop color. Auto-resolved from polarity when not set. */
+  readonly backdropColor?: string;
+  /** Default beam height [world units]. */
+  readonly beamHeight?: number;
+};
+
+/**
  * Unified scene theme token set.
  *
  * Defined in @brewsite/core; imported and consumed by all packages.
@@ -344,6 +381,8 @@ export type SceneTheme = {
   readonly carouselTray?: SceneThemeCarouselTray;
   /** Semantic highlight palette — named highlight variants. */
   readonly highlightPalette?: SceneThemeHighlightPalette;
+  /** Default highlight configuration when no variant is specified. */
+  readonly highlightDefaults?: SceneThemeHighlightDefaults;
 };
 
 /**

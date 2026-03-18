@@ -49,15 +49,21 @@ export const SceneCanvas = forwardRef<HTMLCanvasElement, SceneCanvasProps>(
       if (!el) return;
 
       if (engineId) {
-        // DEBT: This RAF retry loop has no timeout — add a max retry count (~300 frames / ~5s) with console.warn
-        // Poll for the canvas binding via a RAF retry loop until the engine mounts.
         let rafId: number;
+        let retries = 0;
+        const MAX_RETRIES = 300; // ~5 seconds at 60fps
         const tryBind = () => {
           const binding = getCanvasBinding(engineId);
           if (binding) {
             binding.setCanvasRef(el);
-          } else {
+          } else if (retries < MAX_RETRIES) {
+            retries++;
             rafId = requestAnimationFrame(tryBind);
+          } else {
+            console.warn(
+              `[SceneCanvas] Engine "${engineId}" not found after ${MAX_RETRIES} frames (~5s). ` +
+              `Verify the engine with this ID is mounted and its engineId prop matches.`,
+            );
           }
         };
         rafId = requestAnimationFrame(tryBind);

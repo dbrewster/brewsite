@@ -492,7 +492,6 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
   for (let n = 0; n < numTransitions; n++) {
     const blockStart = n * blockSize;
     const block = frames.slice(blockStart, blockStart + blockSize);
-    const mid = Math.floor(blockSize / 2);
     const fromSnap = snapshots[n];
     const toSnap = snapshots[n + 1];
 
@@ -586,27 +585,13 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
         continue;
       }
 
-      if (inFrom && inTo) {
-        // Widget present in both scenes — interpolate across the full block
-        transitionSpec.interpolate(block, widgetId, fromState as never, toState as never);
-      } else if (inFrom) {
-        // Widget leaving — exit in first half, defaultState in second half
-        transitionSpec.exit(block.slice(0, mid), widgetId, fromState as never);
-        for (let i = mid; i < block.length; i++) {
-          block[i]!.state.widgets[widgetId] = absentDefault;
-        }
-      } else if (inTo) {
-        // Widget arriving — toState in first half (unless disabled when absent), enter in second half
-        const firstHalfState = widget.disableWhenAbsent === true ? absentDefault : toState;
-        for (let i = 0; i < mid; i++) {
-          block[i]!.state.widgets[widgetId] = firstHalfState as never;
-        }
-        transitionSpec.enter(block.slice(mid), widgetId, toState as never);
-      } else {
-        // Widget absent from both scenes — fill with disabled default
-        for (const frame of block) {
-          frame.state.widgets[widgetId] = absentDefault;
-        }
+      // ElementTransitionSpec path — deprecated. Fill with absentDefault and warn.
+      console.warn(
+        `[sceneTrackCompiler] Widget "${widgetId}" uses deprecated ElementTransitionSpec. ` +
+        `Migrate to FunctionalTransitionSpec. Filling transition block with absentDefault.`,
+      );
+      for (const frame of block) {
+        frame.state.widgets[widgetId] = absentDefault;
       }
     }
   }

@@ -133,84 +133,125 @@ describe('computeLinearMaxDepth', () => {
 // -- generateParabolicPoints --------------------------------------------------
 
 describe('generateParabolicPoints', () => {
-  it('front edge y < back edge y at center (x=0)', () => {
+  // Layout: front edge (segments+1) + 1 right corner +
+  //         back edge (segments+1) + closing point
+  // Total: 2*segments + 4
+
+  /** Index of the right corner point (between front edge end and back edge start). */
+  const rightCornerIdx = (segments: number): number => segments + 1;
+  /** Index of the first back edge point (right-to-left). */
+  const backEdgeStart = (segments: number): number => segments + 2;
+
+  it('front edge uses cubic curve, back edge is flat at max depth', () => {
     const halfWidth = 5;
-    const maxDepth = 8; // e.g., 2 items * 4 zStep
+    const maxDepth = 8;
     const bandWidth = 1.5;
+    const frontOffset = bandWidth * 0.5;
     const segments = 32;
     const points = generateParabolicPoints(halfWidth, maxDepth, bandWidth, segments);
 
-    // Front edge center is at index segments/2 (middle of front edge)
+    // Front center (x=0): y = 0^3 * maxDepth - frontOffset = -frontOffset
     const frontCenter = points[segments / 2];
-    // Back edge center is at index segments + 1 + segments/2
-    const backCenter = points[segments + 1 + (segments - segments / 2)];
+    expect(frontCenter.y).toBeCloseTo(-frontOffset, 3);
 
-    // At x=0, front y = k*0 - bw/2 = -bw/2, back y = k*0 + bw/2 = +bw/2
-    // Front should be less than back (front is camera-side = negative shape Y)
+    // Back edge: flat at maxDepth + frontOffset
+    const backStart = backEdgeStart(segments);
+    const backCenter = points[backStart + (segments - segments / 2)];
+    expect(backCenter.y).toBeCloseTo(maxDepth + frontOffset, 3);
+
+    // Front is closer to camera than back — shape is filled
     expect(frontCenter.y).toBeLessThan(backCenter.y);
   });
 
-  it('at edges (x=+-halfWidth), front edge reaches maxDepth with tapered band', () => {
+  it('front edge is cubic (|x|³) — flatter than x² but rounder than x⁴', () => {
     const halfWidth = 5;
     const maxDepth = 8;
     const bandWidth = 1.5;
-    const points = generateParabolicPoints(halfWidth, maxDepth, bandWidth, 32);
+    const frontOffset = bandWidth * 0.5;
+    const segments = 32;
+    const points = generateParabolicPoints(halfWidth, maxDepth, bandWidth, segments);
 
-    // At edge, band = bandWidth * (0.8 + 0.8) = bandWidth * 1.6
-    // Front edge at x=-halfWidth: y = maxDepth - (bandWidth*1.6)/2
-    const edgeBand = bandWidth * 1.6;
-    const frontLeft = points[0];
-    expect(frontLeft.y).toBeCloseTo(maxDepth - edgeBand / 2, 3);
-
-    // At center, band = bandWidth * 0.8
-    // Front edge at x=0: y = 0 - (bandWidth*0.8)/2
-    const centerBand = bandWidth * 0.8;
-    const frontCenter = points[16]; // segments/2
-    expect(frontCenter.y).toBeCloseTo(-centerBand / 2, 3);
-
-    // Edges recede more than center
-    expect(frontLeft.y).toBeGreaterThan(frontCenter.y);
+    // At x=hw/2 (quarter width), cubic = (0.5)^3 = 0.125
+    // vs parabola (0.5)^2 = 0.25 — cubic is half as deep at the same x
+    const quarterIdx = segments * 3 / 4; // 3/4 of the way from -hw to +hw = hw/2
+    const quarterPt = points[quarterIdx];
+    const expectedY = maxDepth * Math.pow(0.5, 3) - frontOffset;
+    expect(quarterPt.y).toBeCloseTo(expectedY, 3);
   });
 
-  it('band width tapers: moderate at center, wider at edges', () => {
+  it('back edge is flat — all back edge points have the same y', () => {
     const halfWidth = 5;
     const maxDepth = 8;
     const bandWidth = 1.5;
     const segments = 32;
     const points = generateParabolicPoints(halfWidth, maxDepth, bandWidth, segments);
 
-    // At center (x=0), band = bandWidth * 0.8
-    const frontCenter = points[segments / 2];
-    const backCenterIdx = (segments + 1) + (segments - segments / 2);
-    const backCenter = points[backCenterIdx];
-    expect(backCenter.x).toBeCloseTo(frontCenter.x, 5);
-    expect(backCenter.y - frontCenter.y).toBeCloseTo(bandWidth * 0.8, 3);
-
-    // At edge (x=halfWidth), band = bandWidth * (0.8 + 0.8) = bandWidth * 1.6
-    const frontEdge = points[segments]; // rightmost point of front edge
-    const backEdgeIdx = (segments + 1); // leftmost point of back edge (right-to-left, so first = rightmost)
-    const backEdge = points[backEdgeIdx];
-    expect(backEdge.x).toBeCloseTo(frontEdge.x, 5);
-    expect(backEdge.y - frontEdge.y).toBeCloseTo(bandWidth * 1.6, 3);
+    const backStart = backEdgeStart(segments);
+    const backY = points[backStart].y;
+    for (let i = 0; i <= segments; i++) {
+      expect(points[backStart + i].y).toBeCloseTo(backY, 5);
+    }
   });
 
-  it('with maxDepth=0, parabola is flat but band still tapers', () => {
+  it('no outward nubs — right side is a straight vertical at x=halfWidth', () => {
+    const halfWidth = 5;
+    const maxDepth = 8;
+    const bandWidth = 1.5;
+    const segments = 32;
+    const points = generateParabolicPoints(halfWidth, maxDepth, bandWidth, segments);
+
+    // Front edge last point is at x=halfWidth
+    expect(points[segments].x).toBeCloseTo(halfWidth, 5);
+    // Right corner point is also at x=halfWidth
+    expect(points[rightCornerIdx(segments)].x).toBeCloseTo(halfWidth, 5);
+    // No points exceed halfWidth in x
+    for (const p of points) {
+      expect(p.x).toBeLessThanOrEqual(halfWidth + 0.001);
+      expect(p.x).toBeGreaterThanOrEqual(-halfWidth - 0.001);
+    }
+  });
+
+  it('at center (x=0), shape is deep — closed in the middle', () => {
+    const halfWidth = 5;
+    const maxDepth = 8;
+    const bandWidth = 1.5;
+    const frontOffset = bandWidth * 0.5;
+    const segments = 32;
+    const points = generateParabolicPoints(halfWidth, maxDepth, bandWidth, segments);
+
+    const frontCenter = points[segments / 2];
+    const backCenter = points[backEdgeStart(segments) + (segments - segments / 2)];
+    const centerGap = backCenter.y - frontCenter.y;
+    // Center gap = (maxDepth + frontOffset) - (-frontOffset) = maxDepth + 2*frontOffset
+    expect(centerGap).toBeCloseTo(maxDepth + 2 * frontOffset, 3);
+  });
+
+  it('with maxDepth=0, creates a thin flat platform', () => {
     const halfWidth = 4;
     const bandWidth = 1.0;
+    const frontOffset = bandWidth * 0.5;
     const points = generateParabolicPoints(halfWidth, 0, bandWidth, 16);
 
-    // At center (x=0), band = 0.8 * bandWidth
-    const frontCenter = points[8]; // middle of front edge
-    expect(frontCenter.y).toBeCloseTo(-bandWidth * 0.8 / 2, 3);
+    const frontCenter = points[8];
+    expect(frontCenter.y).toBeCloseTo(-frontOffset, 3);
 
-    // At edge (x=halfWidth), band = 1.6 * bandWidth
-    const frontEdge = points[16];
-    expect(frontEdge.y).toBeCloseTo(-bandWidth * 1.6 / 2, 3);
+    const backStart = backEdgeStart(16);
+    expect(points[backStart].y).toBeCloseTo(frontOffset, 3);
   });
 
-  it('returns (2 * segments + 2) points total', () => {
+  it('returns 2*segments + 4 points total (no cap segments)', () => {
+    const segments = 32;
+    const points = generateParabolicPoints(5, 8, 1.5, segments);
+    // front (33) + right corner (1) + back (33) + close (1) = 68
+    expect(points).toHaveLength(2 * segments + 4);
+  });
+
+  it('closes the shape — first point matches last point', () => {
     const points = generateParabolicPoints(5, 8, 1.5, 32);
-    expect(points).toHaveLength(2 * 32 + 2);
+    const first = points[0];
+    const last = points[points.length - 1];
+    expect(last.x).toBeCloseTo(first.x, 5);
+    expect(last.y).toBeCloseTo(first.y, 5);
   });
 });
 

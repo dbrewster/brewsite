@@ -3,42 +3,40 @@
 
 import type { NodeHandler, NodeHandlerCategory, RegisterNodeOptions } from './sceneDslTypes';
 
-const nodeRegistry = new Map<unknown, NodeHandler>();
-const nodeRegistryByName = new Map<string, NodeHandler>();
+/** Composite entry combining a handler with its optional category. */
+type RegistryEntry = {
+  readonly handler: NodeHandler;
+  readonly category: NodeHandlerCategory | undefined;
+};
 
-// Parallel map stores the category for each registered component.
-// Components not present default to 'spatial' (the safe default).
-const nodeCategoryRegistry = new Map<unknown, NodeHandlerCategory>();
-const nodeCategoryRegistryByName = new Map<string, NodeHandlerCategory>();
+const nodeRegistry = new Map<unknown, RegistryEntry>();
+const nodeRegistryByName = new Map<string, RegistryEntry>();
+
+/** Extracts the display name or function name from a component reference. */
+const getComponentDisplayName = (component: unknown): string | undefined => {
+  if (typeof component !== 'function') return undefined;
+  return (component as { displayName?: string; name?: string }).displayName
+    ?? (component as { name?: string }).name;
+};
 
 export const registerNode = (
   component: unknown,
   handler: NodeHandler,
   options?: RegisterNodeOptions,
 ): void => {
-  nodeRegistry.set(component, handler);
-  if (options?.category) {
-    nodeCategoryRegistry.set(component, options.category);
-  }
-  if (typeof component === 'function') {
-    const name = (component as { displayName?: string; name?: string }).displayName
-      ?? (component as { name?: string }).name;
-    if (name) {
-      nodeRegistryByName.set(name, handler);
-      if (options?.category) {
-        nodeCategoryRegistryByName.set(name, options.category);
-      }
-    }
+  const entry: RegistryEntry = { handler, category: options?.category };
+  nodeRegistry.set(component, entry);
+  const name = getComponentDisplayName(component);
+  if (name) {
+    nodeRegistryByName.set(name, entry);
   }
 };
 
 export const getNodeHandler = (component: unknown): NodeHandler | undefined => {
-  if (nodeRegistry.has(component)) return nodeRegistry.get(component);
-  if (typeof component === 'function') {
-    const name = (component as { displayName?: string; name?: string }).displayName
-      ?? (component as { name?: string }).name;
-    if (name) return nodeRegistryByName.get(name);
-  }
+  const entry = nodeRegistry.get(component);
+  if (entry) return entry.handler;
+  const name = getComponentDisplayName(component);
+  if (name) return nodeRegistryByName.get(name)?.handler;
   return undefined;
 };
 
@@ -48,15 +46,12 @@ export const getNodeHandler = (component: unknown): NodeHandler | undefined => {
  * has no explicit category set, or for any unregistered component.
  */
 export const getHandlerCategory = (component: unknown): NodeHandlerCategory => {
-  if (nodeCategoryRegistry.has(component)) {
-    return nodeCategoryRegistry.get(component)!;
-  }
-  if (typeof component === 'function') {
-    const name = (component as { displayName?: string; name?: string }).displayName
-      ?? (component as { name?: string }).name;
-    if (name && nodeCategoryRegistryByName.has(name)) {
-      return nodeCategoryRegistryByName.get(name)!;
-    }
+  const entry = nodeRegistry.get(component);
+  if (entry?.category) return entry.category;
+  const name = getComponentDisplayName(component);
+  if (name) {
+    const namedEntry = nodeRegistryByName.get(name);
+    if (namedEntry?.category) return namedEntry.category;
   }
   return 'spatial';
 };
@@ -67,6 +62,4 @@ export const isPrimitiveComponent = (component: unknown): boolean =>
 export const clearRegistry = (): void => {
   nodeRegistry.clear();
   nodeRegistryByName.clear();
-  nodeCategoryRegistry.clear();
-  nodeCategoryRegistryByName.clear();
 };

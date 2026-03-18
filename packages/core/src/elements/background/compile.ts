@@ -4,10 +4,9 @@
 
 import type { SceneBackground } from './types';
 import type {
-  ElementTransitionSpec,
   FunctionalTransitionSpec,
 } from '../../compiler/transitions/transitionTypes';
-import { blendOpacity, transitionT } from '../../compiler/transitions/transitionTypes';
+import { blendOpacity } from '../../compiler/transitions/transitionTypes';
 
 const crossFadeOpacity = (from: SceneBackground, to: SceneBackground, t: number): number => {
   if (from.imageUrl === to.imageUrl) {
@@ -37,45 +36,6 @@ export const DEFAULT_BACKGROUND: SceneBackground = {
   cssFilter: undefined,
   overlayGradient: undefined,
   backdropFilter: undefined,
-};
-
-/** ElementTransitionSpec — batch-fill model for background state. */
-export const backgroundTransitionSpec: ElementTransitionSpec<SceneBackground> = {
-  exit: (frames, widgetId, fromState) => {
-    for (let i = 0; i < frames.length; i++) {
-      const t = transitionT(i, frames.length);
-      frames[i]!.state.widgets[widgetId] = {
-        ...fromState,
-        opacity: blendOpacity(fromState.opacity, 0, t),
-      };
-    }
-  },
-  enter: (frames, widgetId, toState) => {
-    for (let i = 0; i < frames.length; i++) {
-      const t = transitionT(i, frames.length);
-      frames[i]!.state.widgets[widgetId] = {
-        ...toState,
-        opacity: blendOpacity(0, toState.opacity, t),
-      };
-    }
-  },
-  interpolate: (frames, widgetId, fromState, toState) => {
-    for (let i = 0; i < frames.length; i++) {
-      const t = transitionT(i, frames.length);
-      frames[i]!.state.widgets[widgetId] = {
-        imageUrl:        selectImageUrl(fromState.imageUrl, toState.imageUrl, t),
-        opacity:         crossFadeOpacity(fromState, toState, t),
-        color:           selectStr(fromState.color, toState.color, t),
-        gradient:        selectStr(fromState.gradient, toState.gradient, t),
-        cssPosition:     selectStr(fromState.cssPosition, toState.cssPosition, t),
-        cssSize:         selectStr(fromState.cssSize, toState.cssSize, t),
-        cssRepeat:       selectStr(fromState.cssRepeat, toState.cssRepeat, t),
-        cssFilter:       selectStr(fromState.cssFilter, toState.cssFilter, t),
-        overlayGradient: selectStr(fromState.overlayGradient, toState.overlayGradient, t),
-        backdropFilter:  selectStr(fromState.backdropFilter, toState.backdropFilter, t),
-      };
-    }
-  },
 };
 
 /** FunctionalTransitionSpec — closure model for background state. */

@@ -3,8 +3,11 @@ title: "BrewSite Core — Compiler Pipeline"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-15
+last_updated: 2026-03-18
 change_history:
+  - date: 2026-03-18
+    author: "Toolkit Product"
+    summary: "Core over-engineering audit: ElementTransitionSpec deprecated — Section 7.1 updated to mark as deprecated type alias with no active implementations. Section 5.3 discrete fill path removed (all widgets use FunctionalTransitionSpec). Transition module files updated: transitionTypes.ts is now types-only; blend helpers live in transitionBlendHelpers.ts; quaternion math in rotationMath.ts. CompileApi gains layoutContext field. Section 3 infrastructure imports updated."
   - date: 2026-03-13
     author: "Toolkit Product"
     summary: "Centralized theme system: added `SceneSnapshotContext` type definition to Section 4 with `themeFamily: ThemeFamily` and `themePolarity: 'dark' | 'light'` fields. Updated Step 1 description to document that the context is now constructed with `themeFamily` and `themePolarity` sourced from `SceneEngine.theme`. These values default to `'default'` / `'dark'` when no theme is configured. Element node handlers access them via `api.context.themeFamily` and `api.context.themePolarity`."
@@ -146,7 +149,7 @@ Infrastructure that is intentionally absent from this index:
 - `compileSceneTrack`, `CompileSceneTrackOptions` — imported from `./sceneTrackCompiler`.
 - `buildSceneTrackKey`, `getCachedTrack`, `setCachedTrack`, `clearCache` — imported from `./sceneTrackCache`.
 - `createSceneTrackSampler` — imported from `./sceneTrackSampler`.
-- `ElementTransitionSpec`, `FunctionalTransitionSpec`, blend helpers — imported from `./transitions/transitionTypes` by element implementers.
+- `FunctionalTransitionSpec`, blend helpers — imported from `./transitions/transitionTypes` (types) and `./transitions/transitionBlendHelpers` (blend utilities) by element implementers. `ElementTransitionSpec` is a `@deprecated` type alias retained for backward compatibility.
 
 ---
 
@@ -279,15 +282,6 @@ For each adjacent scene pair `(fromSnap, toSnap)` at block index `n`:
 For each registered `ISceneElement` widget:
 - Determine `fromState = fromSnap.widgets[widgetId]` and `toState = toSnap.widgets[widgetId]`.
 - The `absentDefault` is `widget.defaultState` with `enabled: false` set if `useDefaultStateWhenAbsent !== false`.
-
-**Discrete fill path** (`ElementTransitionSpec`):
-
-| Scenario | Block Fill Strategy |
-|----------|---------------------|
-| Widget in both scenes | Call `transitionSpec.interpolate(block, widgetId, fromState, toState)` — fills all `blockSize` frames. |
-| Widget in `fromSnap` only (exit) | Call `transitionSpec.exit(block.slice(0, mid), widgetId, fromState)` for first half. Fill second half with `absentDefault`. |
-| Widget in `toSnap` only (enter) | Fill first half with `toState` (or `absentDefault` if `useDefaultStateWhenAbsent` is false). Call `transitionSpec.enter(block.slice(mid), widgetId, toState)` for second half. |
-| Widget absent from both | Fill all frames with `absentDefault`. |
 
 **Functional closure path** (`FunctionalTransitionSpec`):
 
@@ -706,51 +700,9 @@ The sampler is created once per compiled track and reused for all playback sampl
 
 ## 7. Transition Spec Architecture
 
-### 7.1 ElementTransitionSpec (Discrete Batch-Fill)
+### 7.1 ElementTransitionSpec (Deprecated)
 
-The standard transition contract. The compiler calls the widget's spec methods once per transition block at compile time. The widget fills its own frame slots directly.
-
-```typescript
-// packages/core/src/compiler/transitions/transitionTypes.ts
-
-export type ElementTransitionSpec<T> = {
-  /**
-   * Widget is leaving (in sceneN, absent from sceneN+1).
-   * frames = first half of the transition block.
-   * Write frames[i].state.widgets[widgetId] for every i in [0, frames.length).
-   */
-  exit: (frames: SceneTrackTick[], widgetId: string, fromState: T) => void;
-
-  /**
-   * Widget is arriving (absent from sceneN, in sceneN+1).
-   * frames = second half of the transition block.
-   * Write frames[i].state.widgets[widgetId] for every i in [0, frames.length).
-   */
-  enter: (frames: SceneTrackTick[], widgetId: string, toState: T) => void;
-
-  /**
-   * Widget present in both scenes.
-   * frames = the full transition block.
-   * Write frames[i].state.widgets[widgetId] for every i in [0, frames.length).
-   */
-  interpolate: (frames: SceneTrackTick[], widgetId: string, fromState: T, toState: T) => void;
-};
-```
-
-**`transitionT` helper:**
-
-```typescript
-/**
- * Normalized progress scalar for frame i within a slice of length len.
- * Returns 1 when len === 1 (single-frame edge case).
- */
-export const transitionT = (i: number, len: number): number =>
-  len > 1 ? i / (len - 1) : 1;
-```
-
-All built-in element transition specs use `transitionT(i, frames.length)` within their loop bodies to convert frame index to a [0, 1] normalized value, then call blend helpers to interpolate state fields.
-
-**Suitable for:** position/rotation/scale/opacity blending, animation weight transitions, any state that can be fully pre-baked to discrete frames.
+`ElementTransitionSpec<T>` is retained as a `@deprecated` type alias in `transitionTypes.ts` for backward compatibility. No built-in element or external widget implements it. The `sceneTrackCompiler.ts` discrete batch-fill code path has been removed. All widgets use `FunctionalTransitionSpec` exclusively. Consumers who referenced `ElementTransitionSpec` must migrate to `FunctionalTransitionSpec`.
 
 ### 7.2 FunctionalTransitionSpec (Closure-Based)
 

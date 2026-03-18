@@ -1,22 +1,12 @@
 // transitionAnimator.ts — Pure functions for programmatic scene-transition animation.
 
+import { easeInOutCubic } from '../compiler/transitions/transitionPresets';
+
 /**
  * Easing function type.
  * Accepts t ∈ [0, 1], returns eased value ∈ [0, 1].
  */
 export type TransitionEasing = (t: number) => number;
-
-/** Built-in easing: cubic ease-in-out. */
-export function easeInOut(t: number): number {
-  return t < 0.5
-    ? 4 * t * t * t
-    : 1 - Math.pow(-2 * t + 2, 3) / 2;
-}
-
-/** Built-in easing: linear (identity). */
-export function easeLinear(t: number): number {
-  return t;
-}
 
 /**
  * Mutable state for a single in-flight transition.
@@ -42,7 +32,7 @@ export type TransitionAnimatorState = {
 export const DEFAULT_TRANSITION_DURATION_MS = 400;
 
 /** Default transition easing function. */
-export const DEFAULT_TRANSITION_EASING: TransitionEasing = easeInOut;
+export const DEFAULT_TRANSITION_EASING: TransitionEasing = easeInOutCubic;
 
 /**
  * Creates an initial (inactive) TransitionAnimatorState.

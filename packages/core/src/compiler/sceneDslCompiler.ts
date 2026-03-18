@@ -99,11 +99,12 @@ const expandNode = (node: unknown): unknown[] => {
     let next: unknown;
     try {
       next = (element.type as (props: Record<string, unknown>) => unknown)(props);
-    } catch {
-      // DEBT: Route through api.pushWarning for structured diagnostics
-      // Component cannot be called outside React render (e.g., it uses hooks, context,
-      // or other React-only APIs). Treat it as opaque overlay content — preserve the
-      // element as-is so EngineOverlayHost renders it correctly in the React tree.
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.warn(
+        `[BrewSite] DSL component threw during expansion: ${message}. ` +
+        `Check your scene DSL for invalid JSX props or runtime errors.`,
+      );
       return [node];
     }
     return expandNode(next);
@@ -314,7 +315,7 @@ const createApi = (
     widgets: {},
   };
   const _overlayNodes: ReactNode[] = [];
-  return {
+  const api: CompileApi & { _overlayNodes: ReactNode[] } = {
     context,
     state,
     _overlayNodes,
@@ -339,7 +340,11 @@ const createApi = (
     composeOpacity: (localOpacity) => localOpacity,
     // Push overlay content for collection by the scene root handler.
     pushOverlay: (node) => { _overlayNodes.push(node); },
+    // No layout context at the root level — only set inside ViewLayout.
+    layoutContext: undefined,
+    withLayoutContext: (ctx) => ({ ...api, layoutContext: ctx }),
   };
+  return api;
 };
 
 /**

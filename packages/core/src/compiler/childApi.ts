@@ -3,7 +3,26 @@
 
 import type { CompileApi } from './sceneDslTypes';
 import type { NVSRect } from '../layout/types';
+import type { ViewLayoutResult } from '../layout/regionTypes';
 import { composeBoundsIntoParent } from '../layout/regionNormalize';
+
+/**
+ * Returns a new CompileApi with the given layout context active.
+ * The returned API delegates all other operations to the source API.
+ * Used by viewLayoutHandler to scope child View compilation.
+ */
+export function withLayoutContext(
+  api: CompileApi,
+  ctx: { layoutId: string; viewResults: Map<string, ViewLayoutResult> },
+): CompileApi {
+  return {
+    ...api,
+    layoutContext: ctx,
+    withLayoutContext: (innerCtx: { layoutId: string; viewResults: Map<string, ViewLayoutResult> }): CompileApi => {
+      return withLayoutContext(api, innerCtx);
+    },
+  };
+}
 
 /**
  * Creates a child CompileApi that delegates to the parent but overrides composeBounds
@@ -21,7 +40,7 @@ export function createChildApi(
   opacityScale: number = 1,
 ): CompileApi & { readonly childWidgetIds: string[] } {
   const childWidgetIds: string[] = [];
-  return {
+  const childApi: CompileApi & { readonly childWidgetIds: string[] } = {
     ...parentApi,
     composeBounds: (localRect: NVSRect): NVSRect => {
       const composed = composeBoundsIntoParent(localRect, parentContentBounds);
@@ -34,6 +53,10 @@ export function createChildApi(
       childWidgetIds.push(widgetId);
       parentApi.setWidgetState(widgetId, state);
     },
+    withLayoutContext: (ctx: { layoutId: string; viewResults: Map<string, ViewLayoutResult> }): CompileApi => {
+      return { ...childApi, layoutContext: ctx };
+    },
     childWidgetIds,
   };
+  return childApi;
 }

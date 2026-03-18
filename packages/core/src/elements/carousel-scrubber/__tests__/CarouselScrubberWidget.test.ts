@@ -1,0 +1,121 @@
+// Tests for CarouselScrubberWidget — mergeSnapshot and duck-type guard.
+
+import { describe, it, expect } from 'vitest';
+import type { CarouselScrubberState, ViewHighlight } from '../types';
+import {
+  CarouselScrubberWidget,
+  isCarouselScrubberStateLike,
+} from '../CarouselScrubberWidget';
+import {
+  DEFAULT_CAROUSEL_SCRUBBER_STATE,
+  DEFAULT_CAROUSEL_SCRUBBER_STYLE,
+} from '../compile';
+
+// -- Helper: state with highlights -------------------------------------------
+
+function makeState(overrides?: Partial<CarouselScrubberState>): CarouselScrubberState {
+  return { ...DEFAULT_CAROUSEL_SCRUBBER_STATE, ...overrides };
+}
+
+function makeHighlight(viewId: string): ViewHighlight {
+  return {
+    viewId,
+    bounds: { x: 0, y: 0, w: 0.3, h: 0.5 },
+    mode: 'holographic',
+    color: '#ff0000',
+    intensity: 0.8,
+    beamHeight: 5,
+    smoke: true,
+    blendMode: 'additive',
+  };
+}
+
+// -- mergeSnapshot -----------------------------------------------------------
+
+describe('CarouselScrubberWidget.mergeSnapshot', () => {
+  const widget = new CarouselScrubberWidget('test-tray');
+
+  it('returns undefined when both prev and next are undefined', () => {
+    const result = widget.mergeSnapshot(undefined, undefined);
+    expect(result).toBeUndefined();
+  });
+
+  it('returns next when prev is undefined', () => {
+    const next = makeState({ layoutId: 'layout-1', activeIndex: 2 });
+    const result = widget.mergeSnapshot(undefined, next);
+    expect(result).toBe(next);
+  });
+
+  it('merges next into prev when both are defined', () => {
+    const prev = makeState({ layoutId: 'layout-1', activeIndex: 0 });
+    const next = makeState({ layoutId: 'layout-1', activeIndex: 3 });
+    const result = widget.mergeSnapshot(prev, next);
+    expect(result).toBeDefined();
+    expect(result!.activeIndex).toBe(3);
+  });
+
+  it('sets showBase false when next is undefined and prev exists', () => {
+    const prev = makeState({ layoutId: 'layout-1', showBase: true });
+    const result = widget.mergeSnapshot(prev, undefined);
+    expect(result).toBeDefined();
+    expect(result!.showBase).toBe(false);
+  });
+
+  it('clears viewHighlights when next is undefined and prev has highlights', () => {
+    const highlights = [makeHighlight('view-1'), makeHighlight('view-2')];
+    const prev = makeState({
+      layoutId: 'layout-1',
+      showBase: true,
+      viewHighlights: highlights,
+    });
+    const result = widget.mergeSnapshot(prev, undefined);
+    expect(result).toBeDefined();
+    expect(result!.viewHighlights).toEqual([]);
+    expect(result!.showBase).toBe(false);
+  });
+
+  it('preserves other state fields when clearing highlights on exit', () => {
+    const prev = makeState({
+      layoutId: 'layout-1',
+      activeIndex: 2,
+      childCount: 5,
+      loop: true,
+      viewHighlights: [makeHighlight('view-1')],
+    });
+    const result = widget.mergeSnapshot(prev, undefined);
+    expect(result).toBeDefined();
+    expect(result!.layoutId).toBe('layout-1');
+    expect(result!.activeIndex).toBe(2);
+    expect(result!.childCount).toBe(5);
+    expect(result!.loop).toBe(true);
+    expect(result!.viewHighlights).toEqual([]);
+  });
+
+  it('does not affect viewHighlights when next is defined', () => {
+    const highlights = [makeHighlight('view-1')];
+    const prev = makeState({ viewHighlights: [] });
+    const next = makeState({ viewHighlights: highlights });
+    const result = widget.mergeSnapshot(prev, next);
+    expect(result!.viewHighlights).toEqual(highlights);
+  });
+});
+
+// -- isCarouselScrubberStateLike ---------------------------------------------
+
+describe('isCarouselScrubberStateLike', () => {
+  it('returns true for a valid CarouselScrubberState', () => {
+    expect(isCarouselScrubberStateLike(DEFAULT_CAROUSEL_SCRUBBER_STATE)).toBe(true);
+  });
+
+  it('returns false for null', () => {
+    expect(isCarouselScrubberStateLike(null)).toBe(false);
+  });
+
+  it('returns false for undefined', () => {
+    expect(isCarouselScrubberStateLike(undefined)).toBe(false);
+  });
+
+  it('returns false for a plain object missing required fields', () => {
+    expect(isCarouselScrubberStateLike({ layoutId: 'x' })).toBe(false);
+  });
+});

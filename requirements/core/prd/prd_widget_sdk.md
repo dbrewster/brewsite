@@ -3,8 +3,11 @@ title: "BrewSite Core — Widget SDK"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-17
+last_updated: 2026-03-18
 change_history:
+  - date: 2026-03-18
+    author: "Toolkit Product"
+    summary: "Core over-engineering audit: ISceneElement.transitionSpec type narrowed to FunctionalTransitionSpec only (ElementTransitionSpec deprecated). Updated Section 7.2 transitionSpec description. Updated Section 14 compile.ts example to use FunctionalTransitionSpec instead of ElementTransitionSpec. CP9: noted TimeInput, ControlledInput, useNativeScrollSource, CustomScrollSource, ElementScrollSource, and useSceneRuntime as @deprecated exports."
   - date: 2026-03-17
     author: "Toolkit Product"
     summary: "v1 release readiness audit: removed ICameraActionTarget interface and isCameraActionTarget type guard (deprecated, superseded by ICameraInteractionDriver). AnimationTickContext.resolvedState is now generic — AnimationTickContext<TState = unknown> with resolvedState: TState | null. DslComponent intentional 'any' annotated with eslint-disable."
@@ -175,8 +178,9 @@ interface IWidget {
 interface ISceneElement<TState, TExtra = void> extends IWidget {
   readonly defaultState: TState;
   readonly transitionSpec:
-    | ElementTransitionSpec<TState>
-    | FunctionalTransitionSpec<TState>;
+    | FunctionalTransitionSpec<TState>
+    /** @deprecated ElementTransitionSpec is deprecated. Use FunctionalTransitionSpec. */
+    | ElementTransitionSpec<TState>;
   /**
    * The DSL React component for this widget.
    * Typed as ComponentType<any> because the registry is intentionally heterogeneous —
@@ -221,10 +225,7 @@ interface ISceneElement<TState, TExtra = void> extends IWidget {
 
 **`defaultState`** — The state returned by the compiler when a scene does not reference this widget at all. It is the zero-point for transitions into the first scene that does use the widget.
 
-**`transitionSpec`** — Controls how the compiler bakes transition state between scene snapshots. Two variants are supported:
-
-- `ElementTransitionSpec<TState>` — Discrete: the compiler calls `enter`, `exit`, and `interpolate` to produce pre-baked tick data. State is fully materialized at compile time; the runtime samples it at O(1) with no per-frame closures.
-- `FunctionalTransitionSpec<TState>` — Functional: the compiler stores a closure `fn: (blockProgress: number) => TState`. The runtime evaluates this closure each frame at the current `blockProgress`. Used for transitions that need to reference runtime data (e.g., camera state, spring physics).
+**`transitionSpec`** — Controls how the compiler bakes transition state between scene snapshots. `FunctionalTransitionSpec<TState>` is the standard (and only active) variant: the compiler stores a closure `fn: (blockProgress: number) => TState`, and the runtime evaluates it each frame at the current `blockProgress`. All built-in and external widgets use `FunctionalTransitionSpec`. The union type still accepts `ElementTransitionSpec<TState>` for backward compatibility, but that type is `@deprecated` — all implementations and the compiler code path have been removed.
 
 **`DslComponent`** — The React component used in scene authoring. The `WidgetRegistry` uses this as a key to install a DSL node routing handler. The component itself renders nothing (`return null`) — it is a pure data declaration. Its props shape defines the authoring API for that element type.
 
@@ -1473,7 +1474,8 @@ export type MyElementProps = Partial<MyElementState> & { id?: string };
 **compile.ts:**
 
 ```typescript
-import type { ElementTransitionSpec } from '@brewsite/core/compiler';
+import type { FunctionalTransitionSpec } from '@brewsite/core/compiler';
+import { blendNumber, blendVec3 } from '@brewsite/core/compiler';
 import type { MyElementState } from './types';
 
 export const DEFAULT_STATE: MyElementState = {
@@ -1482,12 +1484,12 @@ export const DEFAULT_STATE: MyElementState = {
   visible: true,
 };
 
-export const myTransitionSpec: ElementTransitionSpec<MyElementState> = {
-  exit: (state) => ({ ...state, opacity: 0 }),
-  enter: (state) => ({ ...state, opacity: 0 }),
-  interpolate: (from, to, t) => ({
-    position: lerpVec3(from.position, to.position, t),
-    opacity: lerp(from.opacity, to.opacity, t),
+export const myTransitionSpec: FunctionalTransitionSpec<MyElementState> = {
+  exitFn: (from) => (t) => ({ ...from, opacity: blendNumber(from.opacity, 0, t) }),
+  enterFn: (to) => (t) => ({ ...to, opacity: blendNumber(0, to.opacity, t) }),
+  interpolateFn: (from, to) => (t) => ({
+    position: blendVec3(from.position, to.position, t),
+    opacity: blendNumber(from.opacity, to.opacity, t),
     visible: t < 0.5 ? from.visible : to.visible,
   }),
 };

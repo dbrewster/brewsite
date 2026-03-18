@@ -8,22 +8,16 @@ import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import { VariableStore } from '../../widget/VariableStore';
 import type { SceneTrack, SceneTrackTick } from '../../compiler/sceneTrackTypes';
 import type { ILoadable, IRenderable, ISceneElement, IAnimationController } from '../../widget/types';
-import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
+import type { FunctionalTransitionSpec } from '../../compiler/transitions/transitionTypes';
 
 // ---------------------------------------------------------------------------
 // Shared helpers
 // ---------------------------------------------------------------------------
 
-const makeNoopSpec = <T,>(): ElementTransitionSpec<T> => ({
-  exit: (frames, widgetId, fromState) => {
-    for (const frame of frames) { frame.state.widgets[widgetId] = fromState; }
-  },
-  enter: (frames, widgetId, toState) => {
-    for (const frame of frames) { frame.state.widgets[widgetId] = toState; }
-  },
-  interpolate: (frames, widgetId, _fromState, toState) => {
-    for (const frame of frames) { frame.state.widgets[widgetId] = toState; }
-  },
+const makeNoopSpec = <T,>(): FunctionalTransitionSpec<T> => ({
+  exitFn: (from) => () => from,
+  enterFn: (to) => () => to,
+  interpolateFn: (_from, to) => () => to,
 });
 
 const makeTick = (sceneIndex: number, progress: number): SceneTrackTick => ({

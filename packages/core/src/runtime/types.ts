@@ -134,6 +134,16 @@ export type RuntimeDriver = {
   /** Returns cumulative wall-clock time at the end of the last tick(). */
   getWallTimeSeconds(): number;
 
+  /**
+   * Resolves a widget's state through the full priority chain:
+   * widgetStatePatches → functional closure → pre-baked discrete state.
+   *
+   * Use this instead of reading tick.state.widgets directly when the widget
+   * may have a FunctionalTransitionSpec (whose state is absent from
+   * tick.state.widgets during transition blocks).
+   */
+  resolveWidgetState(widgetId: string, tick: SceneTrackTick | null): unknown;
+
   /** Dispose all widget resources and release internal state. */
   dispose(): void;
 };

@@ -384,8 +384,12 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
 
       // 7b. Patch the CarouselScrubber tray (if one exists for this layout).
       // The tray widget ID follows the convention established by viewLayoutHandler.
+      // Use resolveWidgetState (not tick.state.widgets directly) because the tray
+      // may have a FunctionalTransitionSpec — widgets with functional transitions are
+      // absent from tick.state.widgets during transition blocks (the compiler skips
+      // writing their state there). resolveWidgetState checks patches → closures → tick.
       const trayWidgetId = `${resolvedLayoutId}__tray`;
-      const existingTrayState = tick.state.widgets[trayWidgetId] as
+      const existingTrayState = engineRef.current.resolveWidgetState(trayWidgetId) as
         | { activeIndex: number; [key: string]: unknown }
         | undefined;
       if (existingTrayState && typeof existingTrayState.activeIndex === 'number') {

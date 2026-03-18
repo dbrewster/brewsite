@@ -36,6 +36,10 @@ export interface TimeInputProps {
 /**
  * TimeInput drives engine progress via wall-clock elapsed time.
  * Renders a zero-size anchor div only.
+ *
+ * @deprecated No known consumers in current packages or apps.
+ * This export will be removed in a future version. Use InputCoordinator
+ * with an appropriate scroll source configuration instead.
  */
 export function TimeInput(props: TimeInputProps): ReactElement {
   const engine = useSceneEngineContext();

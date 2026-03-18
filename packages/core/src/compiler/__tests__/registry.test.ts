@@ -21,6 +21,8 @@ const fakeApi: CompileApi = {
   composeZ: (z) => z,
   composeOpacity: (o) => o,
   pushOverlay: () => {},
+  layoutContext: undefined,
+  withLayoutContext: (ctx) => ({ ...fakeApi, layoutContext: ctx }),
 };
 
 describe('compiler registry', () => {

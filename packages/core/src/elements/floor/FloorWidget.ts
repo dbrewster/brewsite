@@ -23,14 +23,14 @@ import type {MaterialApplication} from '../../widget/materialTypes';
  * - `<FloorPhysical ... />`
  * - `<FloorMirror ... />`
  */
-export const Floor = (_props: FloorProps) => null;
+export const Floor = (_props: FloorProps): null => null;
 
 Floor.displayName = 'Floor';
 
-export const FloorPhysical = (_props: FloorPhysicalProps) => null;
+export const FloorPhysical = (_props: FloorPhysicalProps): null => null;
 FloorPhysical.displayName = 'FloorPhysical';
 
-export const FloorMirror = (_props: FloorMirrorProps) => null;
+export const FloorMirror = (_props: FloorMirrorProps): null => null;
 FloorMirror.displayName = 'FloorMirror';
 
 const SCENE_THEME_USERDATA_KEY = '__brewsite_scene_theme';

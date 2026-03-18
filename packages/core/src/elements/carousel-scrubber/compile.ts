@@ -1,6 +1,6 @@
 // CarouselScrubber element compilation — pure state resolution and transition spec.
 
-import type { CarouselScrubberState, CarouselScrubberStyle } from './types';
+import type { CarouselScrubberState, CarouselScrubberStyle, ViewHighlight } from './types';
 import type { CarouselScrubberProps } from './dsl';
 import type { FunctionalTransitionSpec } from '../../compiler/transitions/transitionTypes';
 import { blendNumber, blendColor, blendMaterialApplication } from '../../compiler/transitions/transitionTypes';
@@ -116,6 +116,84 @@ function blendStyle(
 /**
  * Functional transition spec for CarouselScrubber.
  */
+/**
+ * Fades highlight intensities and backdrop opacities toward zero at progress t.
+ * Returns a new array with all intensities scaled by (1 - t).
+ */
+function fadeHighlightsOut(
+  highlights: readonly ViewHighlight[],
+  t: number,
+): readonly ViewHighlight[] {
+  if (highlights.length === 0) return highlights;
+  const scale = 1 - t;
+  return highlights.map((h) => ({
+    ...h,
+    intensity: (h.intensity ?? 0) * scale,
+    backdropOpacity: (h.backdropOpacity ?? 0) * scale,
+  }));
+}
+
+/**
+ * Fades highlight intensities and backdrop opacities from zero toward their
+ * target values at progress t.
+ */
+function fadeHighlightsIn(
+  highlights: readonly ViewHighlight[],
+  t: number,
+): readonly ViewHighlight[] {
+  if (highlights.length === 0) return highlights;
+  return highlights.map((h) => ({
+    ...h,
+    intensity: (h.intensity ?? 0) * t,
+    backdropOpacity: (h.backdropOpacity ?? 0) * t,
+  }));
+}
+
+/**
+ * Cross-fades between two highlight arrays. The FROM set fades out while the
+ * TO set fades in, with both at half-intensity at the midpoint.
+ */
+function crossFadeHighlights(
+  from: readonly ViewHighlight[],
+  to: readonly ViewHighlight[],
+  t: number,
+): readonly ViewHighlight[] {
+  // Build a merged set keyed by viewId. Where both FROM and TO have the same
+  // viewId, blend intensity/backdrop. Otherwise fade out (FROM) or fade in (TO).
+  const fromMap = new Map(from.map((h) => [h.viewId, h]));
+  const toMap = new Map(to.map((h) => [h.viewId, h]));
+  const allIds = new Set([...fromMap.keys(), ...toMap.keys()]);
+
+  const result: ViewHighlight[] = [];
+  for (const viewId of allIds) {
+    const f = fromMap.get(viewId);
+    const tgt = toMap.get(viewId);
+    if (f && tgt) {
+      // Both present — blend intensity and backdrop
+      result.push({
+        ...(t < 0.5 ? f : tgt),
+        intensity: blendNumber(f.intensity, tgt.intensity, t) ?? tgt.intensity,
+        backdropOpacity: blendNumber(f.backdropOpacity ?? 0, tgt.backdropOpacity ?? 0, t) ?? (tgt.backdropOpacity ?? 0),
+      });
+    } else if (f) {
+      // FROM only — fade out
+      result.push({
+        ...f,
+        intensity: (f.intensity ?? 0) * (1 - t),
+        backdropOpacity: (f.backdropOpacity ?? 0) * (1 - t),
+      });
+    } else if (tgt) {
+      // TO only — fade in
+      result.push({
+        ...tgt,
+        intensity: (tgt.intensity ?? 0) * t,
+        backdropOpacity: (tgt.backdropOpacity ?? 0) * t,
+      });
+    }
+  }
+  return result;
+}
+
 export const carouselScrubberTransitionSpec: FunctionalTransitionSpec<CarouselScrubberState> = {
   exitFn: (from) => ({ t }) => ({
     ...from,
@@ -123,7 +201,7 @@ export const carouselScrubberTransitionSpec: FunctionalTransitionSpec<CarouselSc
       ...from.style,
       baseOpacity: blendNumber(from.style.baseOpacity, 0, t) ?? 0,
     },
-    viewHighlights: from.viewHighlights,
+    viewHighlights: fadeHighlightsOut(from.viewHighlights, t),
   }),
   enterFn: (to) => ({ t }) => ({
     ...to,
@@ -131,7 +209,7 @@ export const carouselScrubberTransitionSpec: FunctionalTransitionSpec<CarouselSc
       ...to.style,
       baseOpacity: blendNumber(0, to.style.baseOpacity, t) ?? to.style.baseOpacity,
     },
-    viewHighlights: to.viewHighlights,
+    viewHighlights: fadeHighlightsIn(to.viewHighlights, t),
   }),
   interpolateFn: (from, to) => ({ t }) => ({
     layoutId: t < 0.5 ? from.layoutId : to.layoutId,
@@ -157,6 +235,6 @@ export const carouselScrubberTransitionSpec: FunctionalTransitionSpec<CarouselSc
     outerMargin: blendNumber(from.outerMargin, to.outerMargin, t) ?? to.outerMargin,
     zStep: blendNumber(from.zStep, to.zStep, t) ?? to.zStep,
     spread: blendNumber(from.spread, to.spread, t) ?? to.spread,
-    viewHighlights: t < 0.5 ? from.viewHighlights : to.viewHighlights,
+    viewHighlights: crossFadeHighlights(from.viewHighlights, to.viewHighlights, t),
   }),
 };

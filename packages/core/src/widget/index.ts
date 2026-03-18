@@ -25,7 +25,7 @@ export type { IHasCustomDslHandler } from './WidgetRegistry';
 export { VariableStore } from './VariableStore';
 export type { JsonPrimitive } from './VariableStore';
 export { useVariable } from './useVariable';
-export { useCarouselState } from './useCarouselIndex';
+export { useCarouselState } from './useCarouselState';
 export type { WidgetPlugin } from './WidgetPlugin';
 export type { INVSBounded, NVSRect, NVSPosition } from '../layout/types';
 export type {

@@ -19,16 +19,16 @@ import type {
 import type { NodeHandler } from '../../compiler/sceneDslTypes';
 import type { CompileApi } from '../../compiler/sceneDslTypes';
 import { clearRegistry, getNodeHandler } from '../../compiler/registry';
-import type { ElementTransitionSpec } from '../../compiler/transitions/transitionTypes';
+import type { FunctionalTransitionSpec } from '../../compiler/transitions/transitionTypes';
 
 // ─── Test doubles ────────────────────────────────────────────────────────────
 
 type SimpleState = { enabled: boolean };
 
-const makeNoopSpec = <T,>(): ElementTransitionSpec<T> => ({
-  exit: (frames, id, fromState) => { for (const f of frames) f.state.widgets[id] = fromState; },
-  enter: (frames, id, toState) => { for (const f of frames) f.state.widgets[id] = toState; },
-  interpolate: (frames, id, _f, toState) => { for (const f of frames) f.state.widgets[id] = toState; },
+const makeNoopSpec = <T,>(): FunctionalTransitionSpec<T> => ({
+  exitFn: (from) => () => from,
+  enterFn: (to) => () => to,
+  interpolateFn: (_from, to) => () => to,
 });
 
 /**

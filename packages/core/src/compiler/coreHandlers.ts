@@ -1,7 +1,7 @@
 // Centralized registration of all built-in core DSL NodeHandlers.
 // Called by corePlugin().registerHandlers() — not at module scope.
 
-import { registerNode, getNodeHandler } from './registry';
+import { registerNode } from './registry';
 import { Scene, createSceneRootHandler } from './sceneDslCompiler';
 import { ensureInputControllerRegistry } from './blocks/inputController';
 import { ProgressManager, progressManagerHandler } from './primitives/progressManager';
@@ -11,6 +11,7 @@ import { ViewLayout } from './blocks/viewLayoutDsl';
 import { viewHandler, viewLayoutHandler } from './blocks/viewHandlers';
 import { CarouselScrubber, carouselScrubberNodeHandler } from '../elements/carousel-scrubber/CarouselScrubberWidget';
 import { CarouselTray } from '../elements/carousel-scrubber/dsl';
+import { Highlight } from '../elements/carousel-scrubber/highlightDsl';
 
 let coreHandlersRegistered = false;
 
@@ -25,46 +26,32 @@ let coreHandlersRegistered = false;
  * without warnings when used as a direct child of <Scene>. Widget-level
  * CUSTOM_NODE_HANDLERs collect and process <Transition> children themselves.
  */
-// DEBT: Inner getNodeHandler() checks are redundant with the coreHandlersRegistered guard
 export function registerCoreHandlers(): void {
   if (coreHandlersRegistered) return;
   coreHandlersRegistered = true;
 
-  if (!getNodeHandler(Scene)) {
-    // Factory pattern — inject viewHandler and DSL component refs into scene root handler.
-    // This avoids a circular import between sceneDslCompiler.ts and viewHandlers.ts.
-    registerNode(Scene, createSceneRootHandler({ viewHandler, View, ViewLayout }), { category: 'ambient' });
-  }
+  // Factory pattern — inject viewHandler and DSL component refs into scene root handler.
+  // This avoids a circular import between sceneDslCompiler.ts and viewHandlers.ts.
+  registerNode(Scene, createSceneRootHandler({ viewHandler, View, ViewLayout }), { category: 'ambient' });
   ensureInputControllerRegistry();
-  if (!getNodeHandler(ProgressManager)) {
-    registerNode(ProgressManager, progressManagerHandler, { category: 'ambient' });
-  }
-  if (!getNodeHandler(Transition)) {
-    // No-op: <Transition> children are consumed by parent widget CUSTOM_NODE_HANDLERs.
-    // This guard prevents "unregistered DSL component" warnings when Transition appears
-    // in unexpected positions.
-    registerNode(Transition, (_node, _api, _helpers) => {}, { category: 'ambient' });
-  }
-  if (!getNodeHandler(View)) {
-    // Category is 'ambient' by convention; constraint enforcement matches View/ViewLayout
-    // by type reference, not category.
-    registerNode(View, viewHandler, { category: 'ambient' });
-  }
-  if (!getNodeHandler(ViewLayout)) {
-    // Category is 'ambient' by convention; constraint enforcement matches View/ViewLayout
-    // by type reference, not category.
-    registerNode(ViewLayout, viewLayoutHandler, { category: 'ambient' });
-  }
-  if (!getNodeHandler(CarouselScrubber)) {
-    // 'ambient' category: the scrubber manages its own 3D world positioning
-    // and must not be forced inside a <View> when <ViewLayout> is present.
-    registerNode(CarouselScrubber, carouselScrubberNodeHandler, { category: 'ambient' });
-  }
-  if (!getNodeHandler(CarouselTray)) {
-    // No-op: <CarouselTray> is consumed by viewLayoutHandler as a child component.
-    // This guard prevents "unregistered DSL component" warnings.
-    registerNode(CarouselTray, (_node, _api, _helpers) => {}, { category: 'ambient' });
-  }
+  registerNode(ProgressManager, progressManagerHandler, { category: 'ambient' });
+  // No-op: <Transition> children are consumed by parent widget CUSTOM_NODE_HANDLERs.
+  // This guard prevents "unregistered DSL component" warnings when Transition appears
+  // in unexpected positions.
+  registerNode(Transition, (_node, _api, _helpers) => {}, { category: 'ambient' });
+  // Category is 'ambient' by convention; constraint enforcement matches View/ViewLayout
+  // by type reference, not category.
+  registerNode(View, viewHandler, { category: 'ambient' });
+  registerNode(ViewLayout, viewLayoutHandler, { category: 'ambient' });
+  // 'ambient' category: the scrubber manages its own 3D world positioning
+  // and must not be forced inside a <View> when <ViewLayout> is present.
+  registerNode(CarouselScrubber, carouselScrubberNodeHandler, { category: 'ambient' });
+  // No-op: <CarouselTray> is consumed by viewLayoutHandler as a child component.
+  // This guard prevents "unregistered DSL component" warnings.
+  registerNode(CarouselTray, (_node, _api, _helpers) => {}, { category: 'ambient' });
+  // No-op: <Highlight> is consumed by viewLayoutHandler as a child component.
+  // This guard prevents "unregistered DSL component" warnings.
+  registerNode(Highlight, (_node, _api, _helpers) => {}, { category: 'ambient' });
 }
 
 /**
