@@ -129,8 +129,8 @@ describe('buildThemeRenderConfig — new Stream C fields', () => {
   it('emits all new DiagramThemeRenderConfig fields from darkGlassTheme', () => {
     const config = buildThemeRenderConfig(darkGlassTheme);
     expect(config.nodeGlowSpread).toBe(2.2);
-    expect(config.nodeLabelFontSizeBase).toBe(0.28);
-    expect(config.nodeSublabelFontSizeBase).toBe(0.18);
+    expect(config.nodeLabelFontSizeBase).toBe(0.32);
+    expect(config.nodeSublabelFontSizeBase).toBe(0.22);
     expect(config.edgeFlowPulseIntensity).toBe(0.68);
     expect(config.groupBorderMetalness).toBe(0.32);
     expect(config.groupBorderRoughness).toBe(0.48);
@@ -140,8 +140,8 @@ describe('buildThemeRenderConfig — new Stream C fields', () => {
 
   it('emits new fields from lightMinimalTheme with distinct values', () => {
     const config = buildThemeRenderConfig(lightMinimalTheme);
-    expect(config.nodeLabelFontSizeBase).toBe(0.28);
-    expect(config.nodeSublabelFontSizeBase).toBe(0.18);
+    expect(config.nodeLabelFontSizeBase).toBe(0.32);
+    expect(config.nodeSublabelFontSizeBase).toBe(0.22);
     expect(config.groupBorderMetalness).toBe(0.08);
     expect(config.groupBorderRoughness).toBe(0.60);
   });

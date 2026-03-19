@@ -190,8 +190,23 @@ export const viewLayoutHandler: NodeHandler = (node, api, helpers) => {
       continue;
     }
     viewIds.push(childProps.id);
-    // Use 0 as sentinel for "no explicit size" — layout algo distributes remaining space equally
-    childSizeHints.push({ w: childProps.w ?? 0, h: childProps.h ?? 0 });
+    // Compose child sizes relative to container bounds so that View w/h are
+    // fractions of the ViewLayout container, not absolute NVS coordinates.
+    // For stack layouts, 0 remains the sentinel for "auto-distribute remaining space".
+    // For carousel layouts, unspecified size defaults to filling the container.
+    const rawW = childProps.w ?? 0;
+    const rawH = childProps.h ?? 0;
+    if (kind === 'carousel') {
+      childSizeHints.push({
+        w: (rawW > 0 ? rawW : 1) * composedContainerBounds.w,
+        h: (rawH > 0 ? rawH : 1) * composedContainerBounds.h,
+      });
+    } else {
+      childSizeHints.push({
+        w: rawW > 0 ? rawW * composedContainerBounds.w : 0,
+        h: rawH > 0 ? rawH * composedContainerBounds.h : 0,
+      });
+    }
   }
 
   // Resolve focusedIndex with deprecation shim

@@ -13,6 +13,7 @@ import { createNVSCoordService } from '@brewsite/core';
 import type { NVSCoordService } from '@brewsite/core';
 import type {
   DiagramState,
+  DiagramNodeState,
   DiagramEdgeState,
   DiagramGroupState,
   DiagramThemeRenderConfig,
@@ -244,10 +245,10 @@ describe('DiagramRenderer — edge control point NVS → world-space conversion 
     renderer.dispose('testDiagram', group);
   });
 
-  it('diagram fills view bounds directly — |X| > |Y| on 16:9 viewport regardless of contentAspect', () => {
-    // The diagram maps NVS [0..1] to the full view bounds (same as charts).
-    // On a 16:9 viewport with full-screen viewportBounds (w=1,h=1),
-    // uniformWorldW > uniformWorldH, so NVS (0,0) → |localX| > |localY|.
+  it('contentAspect=1 on 16:9 viewport produces equal X/Y extents (aspect-corrected positions)', () => {
+    // With contentAspect=1 (square content) on a 16:9 viewport, the aspect
+    // correction shrinks the X axis so that square content renders as square.
+    // Edge from NVS (0,0) to (1,1) should have |X| ≈ |Y| — NOT |X| > |Y|.
     const renderer = new DiagramRenderer(minimalThemeConfig);
     const group = new THREE.Group();
     const coords = make16x9Coords();
@@ -263,8 +264,203 @@ describe('DiagramRenderer — edge control point NVS → world-space conversion 
     const geom = tube.geometry as THREE.TubeGeometry;
     const points = getPathPoints(geom);
 
-    // View is 16:9 → uniformWorldW = 16/9 × uniformWorldH → |X| > |Y|
+    // Square content on 16:9 → sizeScaleX ≈ 0.56 → scaledWorldW ≈ scaledWorldH → |X| ≈ |Y|
+    expect(Math.abs(points[0]!.x)).toBeCloseTo(Math.abs(points[0]!.y), 1);
+
+    renderer.dispose('testDiagram', group);
+  });
+});
+
+// ─── Aspect ratio correction ──────────────────────────────────────────────────
+
+/** Build a minimal DiagramNodeState for aspect ratio tests. */
+function makeNodeState(
+  id: string,
+  nvsSize: readonly [number, number],
+  nvsPosition: readonly [number, number, number] = [0.5, 0.5, 0],
+): DiagramNodeState {
+  return {
+    id,
+    label: id,
+    sublabel: undefined,
+    shape: 'rectangle',
+    position: nvsPosition,
+    size: nvsSize,
+    thickness: 0.4,
+    color: '#dae8fc',
+    sideColor: '#6c8ebf',
+    borderColor: '#6c8ebf',
+    metalness: 0.35,
+    roughness: 0.35,
+    emissiveIntensity: 0.1,
+    emissive: false,
+    emissiveColor: '#dae8fc',
+    cornerRadius: 0.06,
+    labelColor: '#ffffff',
+    sublabelColor: '#cccccc',
+    labelPadding: 0,
+    opacity: 1,
+    clickable: false,
+    enabled: true,
+    iconUrl: undefined,
+    iconScale: 0.6,
+    iconStyle: 'flat',
+    iconDepthFactor: 0.1,
+    groupId: undefined,
+  };
+}
+
+/** Build a DiagramState with nodes for aspect ratio testing. */
+function makeDiagramStateWithNodes(
+  nodes: DiagramNodeState[],
+  contentAspect: number,
+): DiagramState {
+  return {
+    id: 'testDiagram',
+    nodes,
+    edges: [],
+    groups: [],
+    viewportBounds: { x: 0, y: 0, w: 1, h: 1 },
+    tiltRotation: [0, 0, 0],
+    z: 0,
+    scale: 1,
+    contentAspect,
+    exit: undefined,
+    enter: undefined,
+    themeConfig: minimalThemeConfig,
+  };
+}
+
+describe('DiagramRenderer — aspect ratio correction (Fix 1)', () => {
+  beforeEach(() => {
+    // Suppress troika text sync in node environment (no DOM/WebWorker available).
+    vi.spyOn(Text.prototype, 'sync').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('square NVS node produces square world-space geometry when contentAspect=1 on square viewport', () => {
+    // contentAspect=1, square viewport → sizeScaleX=sizeScaleY=1 → no distortion.
+    const renderer = new DiagramRenderer(minimalThemeConfig);
+    const group = new THREE.Group();
+    const coords = makeSquareCoords();
+    const node = makeNodeState('sq', [0.3, 0.3]);
+    const state = makeDiagramStateWithNodes([node], 1.0);
+
+    renderer.update(state, group, coords);
+
+    // Find the node group and check geometry bounding box aspect ratio.
+    const nodeGroup = group.children.find(
+      (c) => c instanceof THREE.Group && c.children.some((ch) => ch instanceof THREE.Mesh),
+    ) as THREE.Group;
+    expect(nodeGroup).toBeDefined();
+
+    const mesh = nodeGroup.children.find((c) => c instanceof THREE.Mesh) as THREE.Mesh;
+    expect(mesh).toBeDefined();
+    mesh.geometry.computeBoundingBox();
+    const bb = mesh.geometry.boundingBox!;
+    const geoW = bb.max.x - bb.min.x;
+    const geoH = bb.max.y - bb.min.y;
+
+    // With contentAspect=1 and square viewport, equal NVS sizes → equal world sizes.
+    expect(geoW).toBeCloseTo(geoH, 3);
+
+    renderer.dispose('testDiagram', group);
+  });
+
+  it('square DSL node renders as square geometry when contentAspect=2 on 16:9 viewport', () => {
+    // Wide diagram (contentAspect=2): a DSL 4×4 node normalized to NVS becomes
+    // size=[4/spanX, 4/spanY] where spanX=2*spanY → nvsW = nvsH/2.
+    // Without correction, worldW would be half worldH. Correction should equalize.
+    const renderer = new DiagramRenderer(minimalThemeConfig);
+    const group = new THREE.Group();
+    const coords = make16x9Coords();
+
+    // Simulate: DSL size [4, 4], spanX=20, spanY=10 (contentAspect=2)
+    // NVS: [4/20, 4/10] = [0.2, 0.4]
+    const node = makeNodeState('sq', [0.2, 0.4]);
+    const state = makeDiagramStateWithNodes([node], 2.0);
+
+    renderer.update(state, group, coords);
+
+    // Find node group.
+    const nodeGroup = group.children.find(
+      (c) => c instanceof THREE.Group && c.children.some((ch) => ch instanceof THREE.Mesh),
+    ) as THREE.Group;
+    expect(nodeGroup).toBeDefined();
+
+    const mesh = nodeGroup.children.find((c) => c instanceof THREE.Mesh) as THREE.Mesh;
+    expect(mesh).toBeDefined();
+    mesh.geometry.computeBoundingBox();
+    const bb = mesh.geometry.boundingBox!;
+    const geoW = bb.max.x - bb.min.x;
+    const geoH = bb.max.y - bb.min.y;
+
+    // After correction, world width and height should be equal (square DSL node → square world geometry).
+    expect(geoW).toBeCloseTo(geoH, 1);
+
+    renderer.dispose('testDiagram', group);
+  });
+
+  it('edge positions are aspect-corrected: contentAspect=2 on 16:9 still has |X| > |Y|', () => {
+    // With contentAspect=2 (wide content) on 16:9 viewport (viewportAspect≈1.78),
+    // aspectRatio = 2/1.78 ≈ 1.12 > 1 → sizeScaleX=1, sizeScaleY≈0.89.
+    // Edge path from (0,0) to (1,1): |X| uses full uniformWorldW,
+    // |Y| shrinks by sizeScaleY. Since uniformWorldW > uniformWorldH on 16:9,
+    // and Y is further shrunk, |X| > |Y| remains true.
+    const renderer = new DiagramRenderer(minimalThemeConfig);
+    const group = new THREE.Group();
+    const coords = make16x9Coords();
+    const state: DiagramState = {
+      ...makeDiagramState(
+        [makeEdgeState([[0, 0, 0], [1, 1, 0]])],
+        [],
+      ),
+      contentAspect: 2.0,
+    };
+
+    renderer.update(state, group, coords);
+
+    const edgeGroup = group.children[0] as THREE.Group;
+    const tube = edgeGroup.children[0] as THREE.Mesh;
+    const geom = tube.geometry as THREE.TubeGeometry;
+    const points = getPathPoints(geom);
+
+    // Wide content on 16:9: X is unshrunk, Y is shrunk → |X| > |Y|.
     expect(Math.abs(points[0]!.x)).toBeGreaterThan(Math.abs(points[0]!.y));
+
+    renderer.dispose('testDiagram', group);
+  });
+
+  it('contentAspect=1 on 16:9 viewport applies X-shrink correction (aspectRatio < 1)', () => {
+    // contentAspect=1 (square content), 16:9 viewport (viewportAspect≈1.78).
+    // aspectRatio = 1/1.78 ≈ 0.56 < 1 → sizeScaleX ≈ 0.56, sizeScaleY = 1.
+    // A square NVS node [0.3, 0.3] should produce worldW < worldH before correction,
+    // but after correction worldW should equal worldH.
+    const renderer = new DiagramRenderer(minimalThemeConfig);
+    const group = new THREE.Group();
+    const coords = make16x9Coords();
+    const node = makeNodeState('sq', [0.3, 0.3]);
+    const state = makeDiagramStateWithNodes([node], 1.0);
+
+    renderer.update(state, group, coords);
+
+    const nodeGroup = group.children.find(
+      (c) => c instanceof THREE.Group && c.children.some((ch) => ch instanceof THREE.Mesh),
+    ) as THREE.Group;
+    expect(nodeGroup).toBeDefined();
+
+    const mesh = nodeGroup.children.find((c) => c instanceof THREE.Mesh) as THREE.Mesh;
+    expect(mesh).toBeDefined();
+    mesh.geometry.computeBoundingBox();
+    const bb = mesh.geometry.boundingBox!;
+    const geoW = bb.max.x - bb.min.x;
+    const geoH = bb.max.y - bb.min.y;
+
+    // Equal NVS sizes with contentAspect=1 means equal DSL sizes → should render square.
+    expect(geoW).toBeCloseTo(geoH, 1);
 
     renderer.dispose('testDiagram', group);
   });

@@ -545,8 +545,9 @@ export class NodeRenderer {
         holder.userData['iconDepthFactor'] = state.iconDepthFactor;
         entry.iconHolder = holder;
         entry.group.add(holder);
-        const iconWidth = contentW * state.iconScale;
-        const iconHeight = contentH * state.iconScale;
+        // Use effectiveIconScale from layout (may be reduced to fit content area).
+        const iconWidth = contentW * labelLayout.effectiveIconScale;
+        const iconHeight = contentH * labelLayout.effectiveIconScale;
         // iconDepthFactor is a fraction of thickness; convert to diagram units for the loader.
         const iconMaxDepth = state.iconDepthFactor * state.thickness;
         this.iconLoader.load(
@@ -569,8 +570,8 @@ export class NodeRenderer {
         });
       }
       if (entry.iconHolder) {
-        // Icon sits just in front of the node face at Z=0.
-        entry.iconHolder.position.set(0, contentH * 0.2, 0.01);
+        // Icon position computed by fit-to-content layout.
+        entry.iconHolder.position.set(0, labelLayout.iconY ?? 0, 0.01);
       }
     } else if (entry.iconHolder) {
       entry.group.remove(entry.iconHolder);

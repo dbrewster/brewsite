@@ -25,8 +25,8 @@ export const lightMinimalTheme: DiagramTheme = {
     glowSpread: 2.2,
     sideColorDarkenFactor: -0.10,
     borderColorLightenFactor: 0.20,
-    labelFontSizeBase: 0.28,
-    sublabelFontSizeBase: 0.18,
+    labelFontSizeBase: 0.32,
+    sublabelFontSizeBase: 0.22,
     defaultLabelPadding: 0,
   },
   edge: {

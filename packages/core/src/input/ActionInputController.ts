@@ -603,6 +603,7 @@ export class ActionInputController {
       for (const map of action.maps) {
         order += 1;
         if (map.kind !== 'pointer' || map.event !== 'drag') continue;
+        if (map.touches !== undefined) continue; // touch-only map — skip for mouse/stylus
         if (!buttonMatches(e.button, map.button)) continue;
         if (!modifiersMatch(e, map.modifiers)) continue;
         const modifierCount = map.modifiers?.length ?? 0;
@@ -896,36 +897,33 @@ export class ActionInputController {
     const spec = this.resolveSpec();
     if (!spec) return;
 
-    // Priority 2: Carousel selection — check if click is within any carousel
-    // layout bounds that has an onSelect handler registered.
+    // Priority 2: Carousel selection
     if (this.handler.onCarouselSelect) {
       for (const action of spec.actions) {
         if (action.type !== 'carousel.next' && action.type !== 'carousel.prev') continue;
         if (!action.layoutId) continue;
-        // Check spatial gating
+
+        // Spatial gating: skip if we can prove the click is outside bounds
         if (this.handler.getLayoutBounds) {
           const bounds = this.handler.getLayoutBounds(action.layoutId);
           if (bounds) {
             const nvsPoint = this.clientToNvs(e.clientX, e.clientY);
-            if (nvsPoint && this.isInsideBounds(nvsPoint, bounds)) {
-              const consumed = this.handler.onCarouselSelect(
-                action.layoutId,
-                'pointer',
-                e.clientX,
-                e.clientY,
-              );
-              if (consumed) {
-                e.preventDefault();
-                this.fireActionEvent('carousel.select', action.id, {
-                  layoutId: action.layoutId,
-                });
-                return; // Short-circuit — do not process other click actions
-              }
-              // If not consumed, fall through to normal click processing
-              break; // Only check the first matching carousel layout
+            if (nvsPoint && !this.isInsideBounds(nvsPoint, bounds)) {
+              continue; // Definitely outside — skip this layout
             }
           }
         }
+
+        // Either no spatial gating available, or click is inside bounds
+        const consumed = this.handler.onCarouselSelect(
+          action.layoutId, 'pointer', e.clientX, e.clientY,
+        );
+        if (consumed) {
+          e.preventDefault();
+          this.fireActionEvent('carousel.select', action.id, { layoutId: action.layoutId });
+          return;
+        }
+        break;
       }
     }
 

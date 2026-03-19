@@ -254,6 +254,128 @@ describe('viewLayoutHandler — carousel layout', () => {
   });
 });
 
+describe('viewLayoutHandler — carousel container-relative sizing', () => {
+  it('View w/h are composed relative to container bounds (not absolute NVS)', () => {
+    // Container is 40% x 40% of viewport. Views authored at w=0.4, h=0.5.
+    // After composition: 0.4 * 0.4 = 0.16 NVS wide, 0.5 * 0.4 = 0.20 NVS tall.
+    const tree = (
+      <Scene id="s1">
+        <ViewLayout kind="carousel" focusedIndex={0} x={0.1} y={0.1} w={0.4} h={0.4}>
+          <View id="v1" w={0.4} h={0.5} />
+        </ViewLayout>
+      </Scene>
+    );
+    const widgets = compile(tree);
+    const v1 = widgets['v1'] as ViewState;
+
+    // Active view should be centered in the container {x:0.1, y:0.1, w:0.4, h:0.4}
+    // Composed size: w = 0.4 * 0.4 = 0.16, h = 0.5 * 0.4 = 0.20
+    // Center of container: x=0.3, y=0.3
+    // View x = 0.3 - 0.16/2 = 0.22, y = 0.3 - 0.20/2 = 0.20
+    expect(v1.bounds.w).toBeCloseTo(0.16);
+    expect(v1.bounds.h).toBeCloseTo(0.20);
+    expect(v1.bounds.x).toBeCloseTo(0.22);
+    expect(v1.bounds.y).toBeCloseTo(0.20);
+  });
+
+  it('View w/h = 1 fills the container in carousel layout', () => {
+    const tree = (
+      <Scene id="s1">
+        <ViewLayout kind="carousel" focusedIndex={0} x={0.2} y={0.2} w={0.6} h={0.6}>
+          <View id="v1" w={1} h={1} />
+        </ViewLayout>
+      </Scene>
+    );
+    const widgets = compile(tree);
+    const v1 = widgets['v1'] as ViewState;
+
+    // w=1 of container 0.6 = 0.6 NVS; h=1 of container 0.6 = 0.6 NVS
+    expect(v1.bounds.w).toBeCloseTo(0.6);
+    expect(v1.bounds.h).toBeCloseTo(0.6);
+    // Centered in container: x = 0.2 + (0.6 - 0.6)/2 = 0.2
+    expect(v1.bounds.x).toBeCloseTo(0.2);
+    expect(v1.bounds.y).toBeCloseTo(0.2);
+  });
+
+  it('carousel View without explicit w/h defaults to filling container', () => {
+    const tree = (
+      <Scene id="s1">
+        <ViewLayout kind="carousel" focusedIndex={0} x={0.1} y={0.1} w={0.5} h={0.5}>
+          <View id="v1" />
+        </ViewLayout>
+      </Scene>
+    );
+    const widgets = compile(tree);
+    const v1 = widgets['v1'] as ViewState;
+
+    // No explicit w/h → defaults to 1 * container = container size
+    expect(v1.bounds.w).toBeCloseTo(0.5);
+    expect(v1.bounds.h).toBeCloseTo(0.5);
+  });
+
+  it('full-viewport container preserves original behavior (no scaling)', () => {
+    // Container at default {x:0, y:0, w:1, h:1} — multiplying by 1 is a no-op.
+    const tree = (
+      <Scene id="s1">
+        <ViewLayout kind="carousel" focusedIndex={1}>
+          <View id="v1" w={0.3} h={0.8} />
+          <View id="v2" w={0.3} h={0.8} />
+          <View id="v3" w={0.3} h={0.8} />
+        </ViewLayout>
+      </Scene>
+    );
+    const widgets = compile(tree);
+    const v2 = widgets['v2'] as ViewState;
+
+    // Active view v2: w = 0.3 * 1 = 0.3
+    expect(v2.bounds.w).toBeCloseTo(0.3);
+    expect(v2.scale).toBe(1.0);
+    // Centered: x = 0.5 - 0.3/2 = 0.35
+    expect(v2.bounds.x).toBeCloseTo(0.35);
+  });
+
+  it('stack layout also composes explicit child sizes relative to container', () => {
+    const tree = (
+      <Scene id="s1">
+        <ViewLayout kind="stack" direction="horizontal" x={0.1} y={0.1} w={0.8} h={0.8}>
+          <View id="v1" w={0.5} h={1} />
+          <View id="v2" w={0.5} h={1} />
+        </ViewLayout>
+      </Scene>
+    );
+    const widgets = compile(tree);
+    const v1 = widgets['v1'] as ViewState;
+    const v2 = widgets['v2'] as ViewState;
+
+    // w=0.5 of container 0.8 = 0.4 NVS; h=1 of container 0.8 = 0.8 NVS
+    expect(v1.bounds.w).toBeCloseTo(0.4);
+    expect(v1.bounds.h).toBeCloseTo(0.8);
+    expect(v1.bounds.x).toBeCloseTo(0.1); // starts at container left edge
+    expect(v2.bounds.x).toBeCloseTo(0.5); // immediately after v1
+    expect(v2.bounds.w).toBeCloseTo(0.4);
+  });
+
+  it('stack layout auto-distribution still works with unspecified sizes in sub-viewport container', () => {
+    const tree = (
+      <Scene id="s1">
+        <ViewLayout kind="stack" direction="horizontal" x={0.1} y={0.1} w={0.8} h={0.8}>
+          <View id="v1" />
+          <View id="v2" />
+        </ViewLayout>
+      </Scene>
+    );
+    const widgets = compile(tree);
+    const v1 = widgets['v1'] as ViewState;
+    const v2 = widgets['v2'] as ViewState;
+
+    // No explicit size → 0 sentinel → auto-distribute: each gets half of 0.8 = 0.4
+    expect(v1.bounds.w).toBeCloseTo(0.4);
+    expect(v2.bounds.w).toBeCloseTo(0.4);
+    expect(v1.bounds.x).toBeCloseTo(0.1);
+    expect(v2.bounds.x).toBeCloseTo(0.5);
+  });
+});
+
 describe('viewLayoutHandler — managed view x/y warning', () => {
   it('emits warning when View inside layout has explicit x or y', () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});

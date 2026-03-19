@@ -1,5 +1,6 @@
-// Type contracts for @brewsite/slides. No runtime, Three.js, or React imports.
+// Type contracts for @brewsite/slides. No runtime or Three.js imports.
 
+import type { ReactNode } from 'react';
 import type { SceneTheme } from '@brewsite/core';
 
 // ─── Layout Variants ──────────────────────────────────────────────────────────
@@ -129,6 +130,20 @@ export type SlideSpec = {
   hasAnimatedList: boolean;
   /** If hasAnimatedList, the total bullet count (for sceneProgress-based reveals). */
   totalBullets: number;
+  /**
+   * Optional additional Scene DSL children (3D elements, camera overrides, lighting overrides).
+   * Injected as siblings of the auto-generated TextBox/environment elements.
+   */
+  sceneDsl?: ReactNode;
+  /**
+   * Where within the scene [0..1] navigation should land when transitioning TO this slide.
+   * 0 = scene start (default). 0.5 = halfway through the scene's blockProgress range.
+   *
+   * Use this to let entry animations (e.g. chart animateEntry) play during the transition.
+   * A value of 0.5 means the transition animates progress from the previous scene to 50%
+   * through this scene, giving blockProgress-driven animations time to complete.
+   */
+  restProgress?: number;
 };
 
 /**

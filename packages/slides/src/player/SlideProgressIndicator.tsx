@@ -29,7 +29,7 @@ export const SlideProgressIndicator = ({ nav, style }: SlideProgressIndicatorPro
 
   if (style === 'dots') {
     return (
-      <div style={{ position: 'absolute', bottom: '2%', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '0.5rem', zIndex: 20 }}>
+      <div style={{ position: 'absolute', bottom: '2%', left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: '0.5rem', zIndex: 40 }}>
         {Array.from({ length: total }, (_, i) => (
           <button
             key={i}
@@ -55,7 +55,7 @@ export const SlideProgressIndicator = ({ nav, style }: SlideProgressIndicatorPro
 
   if (style === 'numbers') {
     return (
-      <div style={{ position: 'absolute', bottom: '2%', right: '3%', zIndex: 20, fontFamily: 'var(--brewsite-font-family)', fontSize: '0.875rem', color: 'var(--slide-color-muted, rgba(128,128,128,0.7))' }}>
+      <div style={{ position: 'absolute', bottom: '2%', right: '3%', zIndex: 40, fontFamily: 'var(--brewsite-font-family)', fontSize: '0.875rem', color: 'var(--slide-color-muted, rgba(128,128,128,0.7))' }}>
         {current + 1} / {total}
       </div>
     );
@@ -64,7 +64,7 @@ export const SlideProgressIndicator = ({ nav, style }: SlideProgressIndicatorPro
   if (style === 'bar') {
     const pct = total > 1 ? ((current + 1) / total) * 100 : 100;
     return (
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', zIndex: 20, background: 'rgba(128,128,128,0.2)' }}>
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', zIndex: 40, background: 'rgba(128,128,128,0.2)' }}>
         <div style={{ height: '100%', width: `${pct}%`, background: 'var(--brewsite-accent-color, #2563eb)', transition: 'width 0.2s ease' }} />
       </div>
     );

@@ -149,9 +149,16 @@ describe('compileLayout', () => {
   });
 
   describe('blank layout', () => {
-    it('returns an empty array', () => {
-      expect(compileLayout({ layout: 'blank', hasTitle: false })).toHaveLength(0);
-      expect(compileLayout({ layout: 'blank', hasTitle: true })).toHaveLength(0);
+    it('returns a single full-size body region', () => {
+      const regions = compileLayout({ layout: 'blank', hasTitle: false });
+      expect(regions).toHaveLength(1);
+      expect(regions[0]).toEqual({ id: 'body', x: 0, y: 0, w: 1, h: 1, layer: 0 });
+    });
+
+    it('returns a single full-size body region even with hasTitle', () => {
+      const regions = compileLayout({ layout: 'blank', hasTitle: true });
+      expect(regions).toHaveLength(1);
+      expect(regions[0]!.id).toBe('body');
     });
   });
 });

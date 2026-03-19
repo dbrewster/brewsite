@@ -253,23 +253,27 @@ export function buildFlowPathState(input: FlowPathBuildInput): DiagramEdgePathSt
       continue;
     }
 
-    const startInset = addVec(current, scaleVec(incomingDir, -radius));
-    const endInset = addVec(current, scaleVec(outgoingDir, radius));
     const handleLength = radius * ARC_KAPPA * clamp(turnAngle / (Math.PI / 2), 0.55, 1.25);
 
-    // Snap the incoming tangent to the nearest exact cardinal axis before using it
-    // for the p1 control point.  normalizeVec() preserves any tiny off-axis residual
-    // that isAxisAligned() tolerates, and that residual scales up by handleLength into
-    // a visible arm deviation (e.g. |p1[1] - p0[1]| ≈ 0.007 on a horizontal arm).
-    // We snap only the tangent direction used for p1 — the inset positions and the
-    // outgoing arm (p2) are untouched so no other geometry is disturbed.
+    // Snap BOTH tangent directions to exact cardinal axes.  normalizeVec()
+    // preserves a tiny off-axis residual that isAxisAligned() tolerates, and
+    // that residual scales up by radius/handleLength into visible kinks:
+    //  - Inset positions (startInset, endInset) shift off-axis, so the line
+    //    segment to startInset is no longer perfectly cardinal.  endInset
+    //    becomes currentCursor for the NEXT segment, propagating the error.
+    //  - Bezier control arms (p1, p2) point slightly off-axis, causing the
+    //    cubic curve to bend away from the intended cardinal-arc shape.
+    // Snapping both directions eliminates both sources of kink artifacts.
     const snapIn = snapToCardinal(incoming);
+    const snapOut = snapToCardinal(outgoing);
+    const startInset = addVec(current, scaleVec(snapIn, -radius));
+    const endInset = addVec(current, scaleVec(snapOut, radius));
     pushLine(rebuilt, currentCursor, startInset);
     rebuilt.push({
       kind: 'cubic',
       p0: startInset,
       p1: addVec(startInset, scaleVec(snapIn, handleLength)),
-      p2: addVec(endInset, scaleVec(outgoingDir, -handleLength)),
+      p2: addVec(endInset, scaleVec(snapOut, -handleLength)),
       p3: endInset,
     });
     currentCursor = endInset;

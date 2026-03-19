@@ -18,7 +18,7 @@ import {
   NumberedList,
 } from '../dsl';
 // DSL imports from @brewsite/core — used to construct <Scene> children
-import { TextBox, Scene, ProgressManager, Floor, Background, Lighting, Ambient } from '@brewsite/core';
+import { TextBox, Scene, ProgressManager, Floor, Background, Lighting, Ambient, View } from '@brewsite/core';
 import { SlideMetaDsl } from '../plugin';
 
 // ─── Internal Types ───────────────────────────────────────────────────────────
@@ -147,6 +147,7 @@ function compileSlide(
   const transition: SlideTransition = (props['transition'] as SlideTransition | undefined) ?? deckTransition;
   const notes = typeof props['notes'] === 'string' ? props['notes'] : undefined;
   const title = typeof props['title'] === 'string' ? props['title'] : undefined;
+  const sceneDsl = props['sceneDsl'] as React.ReactNode | undefined;
 
   // Find the layout child
   const children = Children.toArray(props['children'] as React.ReactNode);
@@ -188,6 +189,7 @@ function compileSlide(
     title: title ?? layoutInfo.title,
     hasAnimatedList,
     totalBullets,
+    sceneDsl: sceneDsl ?? undefined,
   };
 }
 
@@ -285,6 +287,9 @@ export function buildSceneElements(
             {isTwoColumnContent(layoutInfo.contentChildren) ? null : layoutInfo.contentChildren}
           </div>
         );
+      } else if (slideSpec.layout === 'blank') {
+        // Blank layout — author's children fill the entire slide with no chrome.
+        regionContent = isTwoColumnContent(layoutInfo.contentChildren) ? null : layoutInfo.contentChildren;
       }
 
       return React.createElement(
@@ -326,6 +331,28 @@ export function buildSceneElements(
         totalBullets: slideSpec.totalBullets,
       }),
       ...textBoxElements,
+      // Inject author's 3D scene DSL (Diagram, Chart, Camera overrides, etc.)
+      // Wrapped in a fullscreen <View> so the scene view constraint never fires.
+      // Without this, SlideMetaDsl + a spatial element (Diagram, BarChart) would
+      // be two direct Scene children, triggering the "multiple spatial elements"
+      // error. The View is fullscreen (0,0,1,1) so child NVS positions compose
+      // through as-is. Ambient children (Camera, Lighting, Floor) compile normally
+      // inside the View — their NodeHandlers write to api.state which delegates
+      // to the parent scene context.
+      ...(slideSpec.sceneDsl
+        ? [React.createElement(
+            View,
+            {
+              key: `scenedsl-view-${slideSpec.key}`,
+              id: `slide-3d-${slideSpec.key}`,
+              x: 0,
+              y: 0,
+              w: 1,
+              h: 1,
+            },
+            slideSpec.sceneDsl,
+          )]
+        : []),
     );
   });
 }

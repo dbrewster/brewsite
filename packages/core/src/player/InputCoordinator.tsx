@@ -456,6 +456,18 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
         handleCarouselStep(layoutId, direction, stepSlides);
       },
 
+      getLayoutBounds: (layoutId) => {
+        const resolvedId = layoutId === PRIMARY_CAROUSEL_SENTINEL
+          ? resolvePrimaryCarouselId()
+          : layoutId;
+        if (!resolvedId) return null;
+        const tick = engineRef.current.frameState.tick;
+        if (!tick) return null;
+        const layoutState = tick.state.widgets[resolvedId] as ViewLayoutState | undefined;
+        if (!layoutState || !layoutState.bounds) return null;
+        return layoutState.bounds;
+      },
+
       onCarouselSelect: (layoutId, source, clientX, clientY) => {
         // Read from the ref on every invocation — always gets the latest closures
         const interactionCallbacks = engineRef.current.interactionCallbacksRef.current;

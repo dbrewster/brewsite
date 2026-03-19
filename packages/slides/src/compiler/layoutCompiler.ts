@@ -68,8 +68,10 @@ export function compileLayout(input: LayoutInput): SlideRegion[] {
       return [{ id: 'overlay', x, y, w: OVERLAY_W, h: OVERLAY_H, layer: 1 }];
     }
 
-    case 'blank':
-      return [];
+    case 'blank': {
+      // Full-size region — the author's children fill the entire slide.
+      return [{ id: 'body', x: 0, y: 0, w: 1, h: 1, layer: 0 }];
+    }
 
     default:
       return [];

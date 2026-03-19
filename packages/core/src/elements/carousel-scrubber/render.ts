@@ -1512,7 +1512,7 @@ export function applyCarouselScrubber(
     zStep,
     childCount: state.childCount,
     bevelRadius,
-    bevelSegments: 5,
+    bevelSegments: 12,
   };
 
   ensureBase(cache, state.showBase, geoParams, style, materialLoader, materialManifest);

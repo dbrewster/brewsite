@@ -6,7 +6,14 @@ import { useEffect, useRef, useState, type JSX } from 'react';
 import { SlidePlayer, getDeckThemeForFamily, DECK_THEME_PAIRS } from '@brewsite/slides';
 import type { DeckTheme, ProgressStyle } from '@brewsite/slides';
 import type { ThemeFamily } from '@brewsite/core';
+import { diagramPlugin } from '@brewsite/diagram';
+import { chartPlugin } from '@brewsite/charts';
+import { themesPlugin } from '@brewsite/themes';
 import { demoSlides } from './deck';
+
+// Stable plugin instances — must be created outside the component to avoid
+// reference instability that causes infinite driver rebuilds.
+const extraPlugins = [diagramPlugin(), chartPlugin(), themesPlugin()];
 
 // ─── Theme options — derived dynamically from DECK_THEME_PAIRS ───────────────
 
@@ -146,9 +153,10 @@ export default function SlidesDemoPage(): JSX.Element {
         <SlidePlayer
           key={`${selected.family}-${selected.polarity}`}
           theme={theme}
+          plugins={extraPlugins}
           progressIndicator={progressStyle}
           transition="dissolve"
-          aspectRatio={16 / 9}
+          aspectRatio={9 / 9}
           navigation={{ keyboard: true, touch: true, pointer: true }}
           onSlideChange={(index, key) => setSlideInfo({ index, key })}
         >

@@ -3,7 +3,10 @@
 
 /**
  * Computed label layout positions and sizes for a single diagram node.
- * All spatial values are in diagram world units.
+ * All spatial values are in diagram world units, relative to the node center.
+ *
+ * The layout guarantees that icon + label + sublabel fit within the content area
+ * by applying a uniform scale-down when the total demand exceeds contentH.
  */
 export type NodeLabelLayout = {
   /** Y position of the primary label text (group-local). */
@@ -18,6 +21,10 @@ export type NodeLabelLayout = {
   labelZ: number;
   /** Z position for the sublabel (front face + epsilon). */
   sublabelZ: number;
+  /** Y position of the icon center (group-local). Undefined when node has no icon. */
+  iconY: number | undefined;
+  /** Effective icon scale (may be reduced from input iconScale to fit content). */
+  effectiveIconScale: number;
 };
 
 /**
@@ -25,6 +32,11 @@ export type NodeLabelLayout = {
  *
  * All spatial inputs are in diagram world units (post-NVS conversion).
  * Returns positions in group-local coordinates relative to the node center.
+ *
+ * The layout uses a fit-to-content strategy: it computes the total vertical
+ * demand of all elements (icon + gaps + label + sublabel) and applies a
+ * uniform scale-down factor if the demand exceeds contentH. This guarantees
+ * that all content fits within the node's visible interior.
  *
  * @param contentW    Width of the usable interior area (shape-masked bounding box).
  * @param contentH    Height of the usable interior area (shape-masked bounding box).
@@ -51,37 +63,6 @@ export function computeNodeLabelLayout(
   sublabelSizeFactor: number,
   labelPadding: number = 0,
 ): NodeLabelLayout {
-  const labelFontSize = contentH * labelFontSizeBase * labelSizeFactor;
-  const sublabelFontSize = hasSublabel ? contentH * sublabelFontSizeBase * sublabelSizeFactor : undefined;
-  const labelLine = labelFontSize * 1.1;
-  const sublabelLine = sublabelFontSize ? sublabelFontSize * 1.1 : 0;
-  const lineGap = contentH * 0.06;
-
-  let labelY = 0;
-  let sublabelY: number | undefined;
-
-  if (hasIcon) {
-    const iconHeight = contentH * iconScale;
-    const iconCenterY = contentH * 0.2;
-    const iconBottomY = iconCenterY - iconHeight / 2;
-    const textTopY = iconBottomY - contentH * 0.08;
-    labelY = textTopY - labelLine / 2;
-    if (hasSublabel) {
-      sublabelY = labelY - (labelLine / 2 + sublabelLine / 2 + lineGap);
-    }
-  } else if (hasSublabel) {
-    labelY = contentH * 0.1;
-    sublabelY = labelY - (labelLine / 2 + sublabelLine / 2 + lineGap);
-  }
-
-  // Apply label padding: shift all label Y positions by -labelPadding * contentH.
-  // In the Y-up coordinate system, positive labelPadding moves labels downward (negative Y).
-  const paddingOffset = labelPadding * contentH;
-  labelY -= paddingOffset;
-  if (sublabelY !== undefined) {
-    sublabelY -= paddingOffset;
-  }
-
   // contentW is accepted as a parameter for future use (e.g., text wrapping width),
   // but is not used in the position arithmetic. It is intentionally part of the
   // public signature so callers can pass it without a separate getContentRect call.
@@ -93,12 +74,101 @@ export function computeNodeLabelLayout(
   // (5% of thickness) with a floor of 0.05 to guarantee separation.
   const labelZOffset = Math.max(0.05, thickness * 0.05);
 
+  // Guard: zero-height content area — return zero-size layout.
+  if (contentH <= 0) {
+    return {
+      labelY: 0,
+      sublabelY: hasSublabel ? 0 : undefined,
+      labelFontSize: 0,
+      sublabelFontSize: hasSublabel ? 0 : undefined,
+      labelZ: labelZOffset,
+      sublabelZ: labelZOffset,
+      iconY: hasIcon ? 0 : undefined,
+      effectiveIconScale: iconScale,
+    };
+  }
+
+  // ─── Step 1: Compute ideal (unscaled) element heights as fractions of contentH ─
+  // These are the "desired" sizes before any fit-to-content scaling.
+
+  // Vertical padding from edges — 5% top + 5% bottom = 10% total inset
+  const INSET = 0.10;
+
+  // Gap fractions (relative to contentH)
+  const ICON_TO_LABEL_GAP = 0.06;
+  const LABEL_TO_SUBLABEL_GAP = 0.04;
+
+  const iconFraction = hasIcon ? iconScale : 0;
+  const labelFraction = labelFontSizeBase * labelSizeFactor * 1.1; // includes line height
+  const sublabelFraction = hasSublabel ? sublabelFontSizeBase * sublabelSizeFactor * 1.1 : 0;
+
+  const gapIconLabel = hasIcon ? ICON_TO_LABEL_GAP : 0;
+  const gapLabelSublabel = hasSublabel ? LABEL_TO_SUBLABEL_GAP : 0;
+
+  const totalDemand = INSET + iconFraction + gapIconLabel + labelFraction + gapLabelSublabel + sublabelFraction;
+
+  // ─── Step 2: Compute fit scale ──────────────────────────────────────────────
+  // If total demand exceeds 1.0 (= contentH), apply a uniform reduction to all
+  // element sizes so they fit. The INSET is also scaled, but we use a minimum
+  // scale of 0.3 to avoid degenerate micro-layouts.
+  const fitScale = totalDemand > 1.0 ? Math.max(0.3, 1.0 / totalDemand) : 1.0;
+
+  // ─── Step 3: Compute effective sizes in world units ─────────────────────────
+  const effectiveIconH = iconFraction * fitScale * contentH;
+  const effectiveIconScale = iconScale * fitScale;
+  const labelFontSize = contentH * labelFontSizeBase * labelSizeFactor * fitScale;
+  const sublabelFontSize = hasSublabel
+    ? contentH * sublabelFontSizeBase * sublabelSizeFactor * fitScale
+    : undefined;
+  const labelLine = labelFontSize * 1.1;
+  const sublabelLine = sublabelFontSize ? sublabelFontSize * 1.1 : 0;
+  const iconLabelGap = gapIconLabel * fitScale * contentH;
+  const labelSublabelGap = gapLabelSublabel * fitScale * contentH;
+  const insetH = INSET * fitScale * contentH;
+
+  // ─── Step 4: Stack elements top-to-bottom within contentH ───────────────────
+  // Content area extends from +contentH/2 (top) to -contentH/2 (bottom).
+  // Stack downward from (contentH/2 - inset).
+  const stackTop = contentH / 2 - insetH / 2;
+  let cursor = stackTop;
+
+  // Icon
+  let iconY: number | undefined;
+  if (hasIcon) {
+    cursor -= effectiveIconH / 2; // icon center
+    iconY = cursor;
+    cursor -= effectiveIconH / 2; // icon bottom
+    cursor -= iconLabelGap;
+  }
+
+  // Label
+  cursor -= labelLine / 2; // label center
+  const labelY = cursor;
+  cursor -= labelLine / 2; // label bottom
+
+  // Sublabel
+  let sublabelY: number | undefined;
+  if (hasSublabel) {
+    cursor -= labelSublabelGap;
+    cursor -= sublabelLine / 2; // sublabel center
+    sublabelY = cursor;
+  }
+
+  // ─── Step 5: Apply label padding ────────────────────────────────────────────
+  // Positive labelPadding moves labels downward (negative Y direction).
+  const paddingOffset = labelPadding * contentH;
+  const finalLabelY = labelY - paddingOffset;
+  const finalSublabelY = sublabelY !== undefined ? sublabelY - paddingOffset : undefined;
+  const finalIconY = iconY !== undefined ? iconY - paddingOffset : undefined;
+
   return {
-    labelY,
-    sublabelY,
+    labelY: finalLabelY,
+    sublabelY: finalSublabelY,
     labelFontSize,
     sublabelFontSize,
     labelZ: labelZOffset,
     sublabelZ: labelZOffset,
+    iconY: finalIconY,
+    effectiveIconScale,
   };
 }

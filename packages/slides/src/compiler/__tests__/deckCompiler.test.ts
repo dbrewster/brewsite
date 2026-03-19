@@ -2,7 +2,7 @@
 
 import { describe, it, expect } from 'vitest';
 import React from 'react';
-import { compileDeck } from '../deckCompiler';
+import { compileDeck, buildSceneElements } from '../deckCompiler';
 import { compileDeckTheme } from '../themeCompiler';
 import { Slide, TitleLayout, TitleBodyLayout, TwoColumnLayout, FullBleedLayout, BlankLayout, BulletList, NumberedList } from '../../dsl';
 
@@ -114,10 +114,11 @@ describe('compileDeck', () => {
       expect(spec.slides[0]!.regions).toHaveLength(2);
     });
 
-    it('blank layout produces 0 regions', () => {
+    it('blank layout produces 1 full-size body region', () => {
       const slides = [makeSlide('s', React.createElement(BlankLayout, {}))];
       const spec = compileDeck(slides, theme, 'dissolve');
-      expect(spec.slides[0]!.regions).toHaveLength(0);
+      expect(spec.slides[0]!.regions).toHaveLength(1);
+      expect(spec.slides[0]!.regions[0]!.id).toBe('body');
     });
   });
 
@@ -228,6 +229,53 @@ describe('compileDeck', () => {
       ];
       const spec = compileDeck(slides, theme, 'dissolve');
       expect(spec.slides[0]!.title).toBe('Layout Title');
+    });
+  });
+
+  describe('sceneDsl', () => {
+    it('sceneDsl is undefined when not provided', () => {
+      const slides = [makeSlide('s', React.createElement(TitleLayout, { title: 'T' }))];
+      const spec = compileDeck(slides, theme, 'dissolve');
+      expect(spec.slides[0]!.sceneDsl).toBeUndefined();
+    });
+
+    it('carries sceneDsl through when provided', () => {
+      const sceneDslContent = React.createElement('div', null, 'custom 3D content');
+      const slides = [
+        makeSlide('s', React.createElement(BlankLayout, {}), { sceneDsl: sceneDslContent }),
+      ];
+      const spec = compileDeck(slides, theme, 'dissolve');
+      expect(spec.slides[0]!.sceneDsl).toBe(sceneDslContent);
+    });
+
+    it('buildSceneElements wraps sceneDsl in a fullscreen View', () => {
+      const sceneDslContent = React.createElement('div', { key: 'custom-3d' }, 'custom 3D');
+      const slides = [
+        makeSlide('s', React.createElement(BlankLayout, {}), { sceneDsl: sceneDslContent }),
+      ];
+      const spec = compileDeck(slides, theme, 'dissolve');
+      const scenes = buildSceneElements(slides, spec);
+      expect(scenes).toHaveLength(1);
+
+      // The Scene element's children should include the sceneDsl wrapped in a <View>.
+      // Scene children are: ProgressManager, Floor, Background, Lighting, SlideMetaDsl, ...TextBoxes, View(sceneDsl)
+      const sceneChildren = scenes[0]!.props.children as React.ReactElement[];
+      const lastChild = sceneChildren[sceneChildren.length - 1]!;
+      // The wrapper is a <View> with fullscreen bounds
+      expect(lastChild.props).toMatchObject({ id: 'slide-3d-s', x: 0, y: 0, w: 1, h: 1 });
+      // The sceneDsl content is inside the View
+      expect(lastChild.props.children).toBe(sceneDslContent);
+    });
+
+    it('buildSceneElements does not add extra children when sceneDsl is absent', () => {
+      const slides = [
+        makeSlide('s', React.createElement(BlankLayout, {})),
+      ];
+      const spec = compileDeck(slides, theme, 'dissolve');
+      const scenes = buildSceneElements(slides, spec);
+      const sceneChildren = scenes[0]!.props.children as React.ReactNode[];
+      // Without sceneDsl: ProgressManager, Floor, Background, Lighting, SlideMetaDsl, 1 TextBox = 6
+      expect(sceneChildren).toHaveLength(6);
     });
   });
 });

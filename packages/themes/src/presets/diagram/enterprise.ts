@@ -26,8 +26,8 @@ export const enterpriseTheme: DiagramTheme = {
     glowSpread: 2.2,
     sideColorDarkenFactor: -0.15,
     borderColorLightenFactor: 0.25,
-    labelFontSizeBase: 0.28,
-    sublabelFontSizeBase: 0.18,
+    labelFontSizeBase: 0.32,
+    sublabelFontSizeBase: 0.22,
     defaultLabelPadding: 0,
   },
   edge: {

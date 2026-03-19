@@ -3,19 +3,11 @@
 // Showcases all layout variants, animated reveals, rich custom layouts,
 // speaker notes, and styled content primitives.
 
-import type { ReactElement, CSSProperties } from 'react';
-import {
-  BulletList,
-  Body,
-  FullBleedLayout,
-  Heading,
-  NumberedList,
-  Slide,
-  TitleBodyLayout,
-  TitleLayout,
-  TwoColumnLayout,
-  BlankLayout,
-} from '@brewsite/slides';
+import type {CSSProperties, ReactElement} from 'react';
+import {BlankLayout, Body, BulletList, FullBleedLayout, Heading, NumberedList, Slide, TitleBodyLayout, TitleLayout, TwoColumnLayout,} from '@brewsite/slides';
+import {Ambient, Camera, Directional, Floor, Lighting, View} from '@brewsite/core';
+import {Diagram, DiagramEdge, DiagramGroup, DiagramNode, FlowLayout, GridLayout,} from '@brewsite/diagram';
+import {BarChart, ChartAxis, ChartData, ChartLegend, ChartSeries,} from '@brewsite/charts';
 
 // ─── Reusable styled building blocks ────────────────────────────────────────
 
@@ -27,7 +19,7 @@ const muted = 'var(--slide-color-muted)';
 const font = 'var(--brewsite-font-family)';
 
 /** Styled metric card for KPI dashboards */
-function MetricCard({ value, label, delta, positive = true }: {
+function MetricCard({value, label, delta, positive = true}: {
   value: string; label: string; delta?: string; positive?: boolean;
 }): ReactElement {
   return (
@@ -42,14 +34,14 @@ function MetricCard({ value, label, delta, positive = true }: {
       flex: 1,
       minWidth: 0,
     }}>
-      <span style={{ fontFamily: font, fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)', fontWeight: 700, color: heading, lineHeight: 1.1 }}>
+      <span style={{fontFamily: font, fontSize: 'clamp(1.8rem, 3.5vw, 2.8rem)', fontWeight: 700, color: heading, lineHeight: 1.1}}>
         {value}
       </span>
-      <span style={{ fontFamily: font, fontSize: 'clamp(0.75rem, 1.2vw, 0.95rem)', color: muted, letterSpacing: '0.04em', textTransform: 'uppercase' as const }}>
+      <span style={{fontFamily: font, fontSize: 'clamp(0.75rem, 1.2vw, 0.95rem)', color: muted, letterSpacing: '0.04em', textTransform: 'uppercase' as const}}>
         {label}
       </span>
       {delta && (
-        <span style={{ fontFamily: font, fontSize: 'clamp(0.7rem, 1vw, 0.85rem)', color: positive ? '#34D399' : '#F87171', fontWeight: 600 }}>
+        <span style={{fontFamily: font, fontSize: 'clamp(0.7rem, 1vw, 0.85rem)', color: positive ? '#34D399' : '#F87171', fontWeight: 600}}>
           {positive ? '\u25B2' : '\u25BC'} {delta}
         </span>
       )}
@@ -57,57 +49,12 @@ function MetricCard({ value, label, delta, positive = true }: {
   );
 }
 
-/** Styled timeline milestone */
-function TimelineMilestone({ quarter, title, description, active = false }: {
-  quarter: string; title: string; description: string; active?: boolean;
-}): ReactElement {
-  return (
-    <div style={{
-      display: 'flex',
-      gap: 'clamp(0.75rem, 1.5vw, 1.25rem)',
-      alignItems: 'flex-start',
-    }}>
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        flexShrink: 0,
-        gap: '0.25rem',
-      }}>
-        <div style={{
-          width: 'clamp(2rem, 3vw, 2.75rem)',
-          height: 'clamp(2rem, 3vw, 2.75rem)',
-          borderRadius: '50%',
-          background: active ? accent : 'transparent',
-          border: `2px solid ${active ? accent : muted}`,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}>
-          <span style={{ fontFamily: font, fontSize: 'clamp(0.6rem, 0.9vw, 0.75rem)', fontWeight: 700, color: active ? '#fff' : muted }}>
-            {quarter}
-          </span>
-        </div>
-        <div style={{ width: 2, height: 'clamp(1.5rem, 2vw, 2rem)', background: `${muted}44` }} />
-      </div>
-      <div style={{ paddingTop: '0.25rem' }}>
-        <div style={{ fontFamily: font, fontSize: 'clamp(0.9rem, 1.3vw, 1.1rem)', fontWeight: 600, color: active ? heading : body }}>
-          {title}
-        </div>
-        <div style={{ fontFamily: font, fontSize: 'clamp(0.75rem, 1vw, 0.9rem)', color: muted, marginTop: '0.15rem', lineHeight: 1.5 }}>
-          {description}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /** Styled badge/chip */
-function Badge({ children, variant = 'default' }: { children: string; variant?: 'default' | 'success' | 'warning' }): ReactElement {
+function Badge({children, variant = 'default'}: { children: string; variant?: 'default' | 'success' | 'warning' }): ReactElement {
   const colors = {
-    default: { bg: `${accent}22`, fg: accent },
-    success: { bg: '#34D39922', fg: '#34D399' },
-    warning: { bg: '#FBBF2422', fg: '#FBBF24' },
+    default: {bg: `${accent}22`, fg: accent},
+    success: {bg: '#34D39922', fg: '#34D399'},
+    warning: {bg: '#FBBF2422', fg: '#FBBF24'},
   };
   const c = colors[variant];
   return (
@@ -127,22 +74,22 @@ function Badge({ children, variant = 'default' }: { children: string; variant?: 
 }
 
 /** Styled divider with optional label */
-function Divider({ label }: { label?: string }): ReactElement {
+function Divider({label}: { label?: string }): ReactElement {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%' }}>
-      <div style={{ flex: 1, height: 1, background: `${muted}33` }} />
+    <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%'}}>
+      <div style={{flex: 1, height: 1, background: `${muted}33`}}/>
       {label && (
-        <span style={{ fontFamily: font, fontSize: 'clamp(0.6rem, 0.8vw, 0.7rem)', color: muted, letterSpacing: '0.1em', textTransform: 'uppercase' as const, flexShrink: 0 }}>
+        <span style={{fontFamily: font, fontSize: 'clamp(0.6rem, 0.8vw, 0.7rem)', color: muted, letterSpacing: '0.1em', textTransform: 'uppercase' as const, flexShrink: 0}}>
           {label}
         </span>
       )}
-      <div style={{ flex: 1, height: 1, background: `${muted}33` }} />
+      <div style={{flex: 1, height: 1, background: `${muted}33`}}/>
     </div>
   );
 }
 
 /** Styled feature row for comparison tables */
-function FeatureRow({ feature, before, after }: { feature: string; before: string; after: string }): ReactElement {
+function FeatureRow({feature, before, after}: { feature: string; before: string; after: string }): ReactElement {
   const cellBase: CSSProperties = {
     fontFamily: font,
     fontSize: 'clamp(0.75rem, 1vw, 0.9rem)',
@@ -151,26 +98,26 @@ function FeatureRow({ feature, before, after }: { feature: string; before: strin
     lineHeight: 1.4,
   };
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1.5fr', gap: '1rem', alignItems: 'baseline' }}>
-      <span style={{ ...cellBase, color: heading, fontWeight: 500 }}>{feature}</span>
-      <span style={{ ...cellBase, color: muted }}>{before}</span>
-      <span style={{ ...cellBase, color: '#34D399', fontWeight: 500 }}>{after}</span>
+    <div style={{display: 'grid', gridTemplateColumns: '2fr 1.5fr 1.5fr', gap: '1rem', alignItems: 'baseline'}}>
+      <span style={{...cellBase, color: heading, fontWeight: 500}}>{feature}</span>
+      <span style={{...cellBase, color: muted}}>{before}</span>
+      <span style={{...cellBase, color: '#34D399', fontWeight: 500}}>{after}</span>
     </div>
   );
 }
 
 /** Big quote callout */
-function QuoteCallout({ quote, attribution }: { quote: string; attribution: string }): ReactElement {
+function QuoteCallout({quote, attribution}: { quote: string; attribution: string }): ReactElement {
   return (
     <div style={{
       borderLeft: `3px solid ${accent}`,
       paddingLeft: 'clamp(1rem, 2vw, 1.5rem)',
       margin: 'clamp(0.5rem, 1vw, 1rem) 0',
     }}>
-      <p style={{ fontFamily: font, fontSize: 'clamp(1rem, 1.8vw, 1.5rem)', color: heading, fontStyle: 'italic', margin: 0, lineHeight: 1.5 }}>
+      <p style={{fontFamily: font, fontSize: 'clamp(1rem, 1.8vw, 1.5rem)', color: heading, fontStyle: 'italic', margin: 0, lineHeight: 1.5}}>
         &ldquo;{quote}&rdquo;
       </p>
-      <p style={{ fontFamily: font, fontSize: 'clamp(0.7rem, 1vw, 0.85rem)', color: muted, margin: '0.5rem 0 0' }}>
+      <p style={{fontFamily: font, fontSize: 'clamp(0.7rem, 1vw, 0.85rem)', color: muted, margin: '0.5rem 0 0'}}>
         &mdash; {attribution}
       </p>
     </div>
@@ -224,9 +171,9 @@ const marketSlide = (
         animateEntrance
         bulletStyle="arrow"
         items={[
-          'Enterprise data volumes growing 28% YoY \u2014 legacy ETL pipelines cannot keep pace',
+          'Enterprise data volumes growing 28% YoY — legacy ETL pipelines cannot keep pace',
           'Real-time analytics is now table stakes: 73% of Fortune 500 list it as a top-3 priority',
-          'Multi-cloud adoption is accelerating \u2014 67% of enterprises operate across 2+ providers',
+          'Multi-cloud adoption is accelerating — 67% of enterprises operate across 2+ providers',
           'The $47B data infrastructure market is consolidating around platforms, not point solutions',
           'Regulatory pressure (EU AI Act, DORA) demands full data lineage and auditability',
         ]}
@@ -247,10 +194,10 @@ const competitiveLandscapeSlide = (
           <BulletList
             bulletStyle="disc"
             items={[
-              'Snowflake \u2014 strong analytics, weak streaming',
-              'Databricks \u2014 ML-first, complex for ops teams',
-              'Confluent \u2014 streaming-native, no analytics layer',
-              'Fivetran \u2014 batch ELT only, no real-time path',
+              'Snowflake — strong analytics, weak streaming',
+              'Databricks — ML-first, complex for ops teams',
+              'Confluent — streaming-native, no analytics layer',
+              'Fivetran — batch ELT only, no real-time path',
             ]}
           />
         </>
@@ -321,126 +268,111 @@ const visionSlide = (
 // ─── Slide 6: Architecture ──────────────────────────────────────────────────
 
 const architectureSlide = (
-  <Slide key="architecture" title="Platform Architecture" scrollUnits={300}>
-    <BlankLayout>
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        padding: 'var(--slide-padding, 8%)',
-        gap: 'clamp(0.75rem, 1.5vw, 1.25rem)',
-        justifyContent: 'center',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Heading level={2}>Platform Architecture</Heading>
-          <Badge variant="success">v2.4</Badge>
-        </div>
+  <Slide
+    key="architecture"
+    title="Platform Architecture"
+    scrollUnits={300}
+    sceneDsl={<>
+      <Camera mode="world" position={[0, 2.5, 5]} target={[0, 0, 0]} fov={36}/>
+      <Lighting>
+        <Ambient intensity={2.5} color="#d7e5ff"/>
+        <Directional intensity={1.2} color="#ffffff" position={[3, 5, 4]}/>
+      </Lighting>
+      <Floor variant="grid"/>
 
-        {/* Architecture layers */}
-        {[
-          {
-            label: 'Applications',
-            color: '#818CF8',
-            items: ['Analytics Studio', 'Data Catalog', 'Lineage Explorer', 'Alert Console', 'Admin Portal'],
-          },
-          {
-            label: 'API Gateway',
-            color: '#F59E0B',
-            items: ['REST / GraphQL', 'gRPC Streaming', 'WebSocket Events', 'SDK (Python / JS / Go)'],
-          },
-          {
-            label: 'Processing Engine',
-            color: '#34D399',
-            items: ['Stream Processor', 'Batch Scheduler', 'ML Pipeline', 'Query Optimizer', 'Transformation DSL'],
-          },
-          {
-            label: 'Storage Layer',
-            color: '#60A5FA',
-            items: ['Columnar Store', 'Object Lake', 'Time-Series Index', 'Key-Value Cache', 'Graph Index'],
-          },
-          {
-            label: 'Infrastructure',
-            color: '#A78BFA',
-            items: ['Multi-Cloud Fabric', 'Auto-Scaling', 'Encryption at Rest', 'mTLS Mesh', 'Observability'],
-          },
-        ].map((layer) => (
-          <div key={layer.label} style={{
-            display: 'flex',
-            alignItems: 'stretch',
-            gap: 'clamp(0.5rem, 1vw, 0.75rem)',
-            minHeight: 0,
-          }}>
-            {/* Layer label sidebar */}
-            <div style={{
-              width: 'clamp(6rem, 10vw, 9rem)',
-              flexShrink: 0,
-              background: `${layer.color}18`,
-              borderLeft: `3px solid ${layer.color}`,
-              borderRadius: '0.35rem',
-              display: 'flex',
-              alignItems: 'center',
-              padding: '0.4rem 0.6rem',
-            }}>
-              <span style={{ fontFamily: font, fontSize: 'clamp(0.6rem, 0.9vw, 0.8rem)', fontWeight: 700, color: layer.color, letterSpacing: '0.02em' }}>
-                {layer.label}
-              </span>
-            </div>
-            {/* Layer items */}
-            <div style={{ display: 'flex', gap: 'clamp(0.3rem, 0.5vw, 0.5rem)', flex: 1, flexWrap: 'wrap' as const, alignItems: 'center' }}>
-              {layer.items.map((item) => (
-                <div key={item} style={{
-                  background: surface,
-                  borderRadius: '0.35rem',
-                  padding: 'clamp(0.25rem, 0.5vw, 0.4rem) clamp(0.5rem, 0.8vw, 0.75rem)',
-                  fontFamily: font,
-                  fontSize: 'clamp(0.6rem, 0.85vw, 0.78rem)',
-                  color: body,
-                  border: `1px solid ${layer.color}15`,
-                  whiteSpace: 'nowrap' as const,
-                }}>
-                  {item}
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
-      </div>
-    </BlankLayout>
+      <Diagram id="arch-layers" x={0.08} y={0.05} w={0.84} h={0.9} tilt={-0.25}>
+        <FlowLayout direction="top-down" gap={0.9}/>
+
+        <DiagramNode id="apps" label="Applications" sublabel="Analytics · Catalog · Lineage"
+                     shape="rectangle" icon="ui:squares-2x2" size={[3, 3]} thickness={0.2}/>
+
+        <DiagramNode id="api" label="API Gateway" sublabel="REST · gRPC · WebSocket"
+                     shape="hexagon" icon="net:internet" size={[5, 2.5]} thickness={0.2}/>
+
+        <DiagramGroup id="engine" label="Processing Engine" variant="container">
+          <GridLayout columns={3} spacing={[0.8, 0.6]}/>
+          <DiagramNode id="stream" label="Stream" sublabel="Real-time" icon="data:stream" shape="circle" size={[2.8, 2.8]} thickness={0.2}/>
+          <DiagramNode id="batch" label="Batch" sublabel="Scheduled" icon="data:warehouse" shape="circle" size={[2.8, 2.8]} thickness={0.2}/>
+          <DiagramNode id="ml" label="ML Pipeline" sublabel="Inference" icon="ui:cpu-chip" shape="circle" size={[2.8, 2.8]} thickness={0.2}/>
+        </DiagramGroup>
+
+        <DiagramNode id="storage" label="Storage Layer" sublabel="Columnar · Object Lake · KV"
+                     shape="octagon" icon="data:warehouse" size={[5, 2.8]} thickness={0.2}/>
+
+        <DiagramNode id="infra" label="Infrastructure" sublabel="Multi-Cloud · Auto-Scale"
+                     shape="rectangle" icon="security:shield" size={[3, 3]} thickness={0.2}/>
+
+        <DiagramEdge from="apps" to="api" routing="flow" flow="forward"/>
+        <DiagramEdge from="api" to="stream" routing="flow" flow="forward"/>
+        <DiagramEdge from="api" to="batch" routing="flow" flow="forward"/>
+        <DiagramEdge from="api" to="ml" routing="flow" flow="forward"/>
+        <DiagramEdge from="stream" to="storage" routing="flow" flow="forward"/>
+        <DiagramEdge from="batch" to="storage" routing="flow" flow="forward"/>
+        <DiagramEdge from="ml" to="storage" routing="flow" flow="forward"/>
+        <DiagramEdge from="storage" to="infra" routing="flow" flow="forward"/>
+      </Diagram>
+    </>}
+  >
+    <BlankLayout/>
   </Slide>
 );
 
 // ─── Slide 7: Platform Metrics (KPI Dashboard) ─────────────────────────────
 
 const metricsSlide = (
-  <Slide key="metrics" title="Platform Metrics" scrollUnits={200}>
+  <Slide
+    key="metrics"
+    title="Platform Metrics"
+    scrollUnits={200}
+    sceneDsl={<>
+      <Camera mode="world" position={[0, 2.5, 5]} target={[0, 0, 0]} fov={36}/>
+      <Lighting>
+        <Ambient intensity={2.5} color="#d7e5ff"/>
+        <Directional intensity={1.2} color="#ffffff" position={[3, 5, 4]}/>
+      </Lighting>
+      <Floor variant="grid"/>
+
+      <View id='c1' x={0.52} y={0.1} w={0.44} h={0.8}>
+        <BarChart
+          id="metrics-chart"
+          data={[
+            {quarter: 'Q1', events: 1.2, customers: 580, arr: 38},
+            {quarter: 'Q2', events: 1.8, customers: 720, arr: 48},
+            {quarter: 'Q3', events: 2.1, customers: 790, arr: 58},
+            {quarter: 'Q4', events: 2.4, customers: 847, arr: 68},
+          ]}
+          x={0.52} y={0.1} w={0.44} h={0.8}
+          depth={0.4}
+          animateEntry
+        >
+          <ChartData keyField="quarter"/>
+          <ChartAxis axis="x" field="quarter" label="Quarter"/>
+          <ChartAxis axis="y" field="arr" label="ARR ($M)"/>
+          <ChartSeries field="arr" label="ARR"/>
+          <ChartSeries field="events" label="Events/s (M)"/>
+          <ChartLegend visible position="right"/>
+        </BarChart>
+      </View>
+    </>}
+  >
     <BlankLayout>
       <div style={{
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
         padding: 'var(--slide-padding, 8%)',
-        gap: 'clamp(1rem, 2vw, 1.5rem)',
+        gap: 'clamp(0.75rem, 1.5vw, 1rem)',
         justifyContent: 'center',
+        maxWidth: '48%',
       }}>
         <Heading level={2}>Platform Metrics</Heading>
         <Body>Key performance indicators through Q2 2026</Body>
 
-        {/* Top row: big numbers */}
-        <div style={{ display: 'flex', gap: 'clamp(0.5rem, 1vw, 0.75rem)' }}>
-          <MetricCard value="2.4M" label="Events / second" delta="+34% QoQ" positive />
-          <MetricCard value="847" label="Enterprise customers" delta="+127 this quarter" positive />
-          <MetricCard value="$68M" label="ARR" delta="+42% YoY" positive />
-          <MetricCard value="99.997%" label="Uptime (12mo)" delta="5-nines target" positive />
-        </div>
-
-        <Divider label="operational health" />
-
-        {/* Bottom row */}
-        <div style={{ display: 'flex', gap: 'clamp(0.5rem, 1vw, 0.75rem)' }}>
-          <MetricCard value="14ms" label="P95 query latency" delta="-22% from Q1" positive />
-          <MetricCard value="3.2 PB" label="Data under management" delta="+800TB QoQ" positive />
-          <MetricCard value="12" label="NPS score increase" delta="62 \u2192 74" positive />
-          <MetricCard value="4.1x" label="Net revenue retention" delta="vs 3.2x target" positive />
+        <div style={{display: 'flex', flexDirection: 'column', gap: 'clamp(0.5rem, 1vw, 0.75rem)'}}>
+          <MetricCard value="2.4M" label="Events / second" delta="+34% QoQ" positive/>
+          <MetricCard value="847" label="Enterprise customers" delta="+127 this quarter" positive/>
+          <MetricCard value="$68M" label="ARR" delta="+42% YoY" positive/>
+          <MetricCard value="99.997%" label="Uptime (12mo)" delta="5-nines target" positive/>
         </div>
       </div>
     </BlankLayout>
@@ -460,27 +392,35 @@ const performanceSlide = (
         gap: 'clamp(0.5rem, 1vw, 0.75rem)',
         justifyContent: 'center',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem' }}>
+        <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.25rem'}}>
           <Heading level={2}>v2.4 Performance Gains</Heading>
           <Badge variant="success">SHIPPED</Badge>
         </div>
 
         {/* Table header */}
-        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.5fr 1.5fr', gap: '1rem', padding: '0 0 0.25rem' }}>
-          <span style={{ fontFamily: font, fontSize: 'clamp(0.65rem, 0.85vw, 0.75rem)', color: muted, letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>Capability</span>
-          <span style={{ fontFamily: font, fontSize: 'clamp(0.65rem, 0.85vw, 0.75rem)', color: muted, letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>Before (v2.3)</span>
-          <span style={{ fontFamily: font, fontSize: 'clamp(0.65rem, 0.85vw, 0.75rem)', color: '#34D399', letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>After (v2.4)</span>
+        <div style={{display: 'grid', gridTemplateColumns: '2fr 1.5fr 1.5fr', gap: '1rem', padding: '0 0 0.25rem'}}>
+          <span
+            style={{fontFamily: font, fontSize: 'clamp(0.65rem, 0.85vw, 0.75rem)', color: muted, letterSpacing: '0.08em', textTransform: 'uppercase' as const}}>Capability</span>
+          <span
+            style={{fontFamily: font, fontSize: 'clamp(0.65rem, 0.85vw, 0.75rem)', color: muted, letterSpacing: '0.08em', textTransform: 'uppercase' as const}}>Before (v2.3)</span>
+          <span style={{
+            fontFamily: font,
+            fontSize: 'clamp(0.65rem, 0.85vw, 0.75rem)',
+            color: '#34D399',
+            letterSpacing: '0.08em',
+            textTransform: 'uppercase' as const
+          }}>After (v2.4)</span>
         </div>
 
-        <FeatureRow feature="Cold query startup" before="320ms" after="45ms  (\u22127x)" />
-        <FeatureRow feature="Stream ingestion throughput" before="1.8M events/s" after="2.4M events/s" />
-        <FeatureRow feature="Cross-region replication lag" before="850ms" after="120ms" />
-        <FeatureRow feature="Batch job P99 completion" before="47 min" after="12 min" />
-        <FeatureRow feature="Concurrent query capacity" before="2,400" after="8,100" />
-        <FeatureRow feature="Memory footprint per node" before="64 GB" after="38 GB" />
-        <FeatureRow feature="Time to first query (new tenant)" before="14 min" after="90 sec" />
+        <FeatureRow feature="Cold query startup" before="320ms" after="45ms  (\u22127x)"/>
+        <FeatureRow feature="Stream ingestion throughput" before="1.8M events/s" after="2.4M events/s"/>
+        <FeatureRow feature="Cross-region replication lag" before="850ms" after="120ms"/>
+        <FeatureRow feature="Batch job P99 completion" before="47 min" after="12 min"/>
+        <FeatureRow feature="Concurrent query capacity" before="2,400" after="8,100"/>
+        <FeatureRow feature="Memory footprint per node" before="64 GB" after="38 GB"/>
+        <FeatureRow feature="Time to first query (new tenant)" before="14 min" after="90 sec"/>
 
-        <div style={{ marginTop: 'clamp(0.25rem, 0.5vw, 0.5rem)' }}>
+        <div style={{marginTop: 'clamp(0.25rem, 0.5vw, 0.5rem)'}}>
           <QuoteCallout
             quote="The v2.4 cold start improvement alone saved us $1.2M in compute costs last month."
             attribution="Sarah Chen, VP Platform Engineering, Meridian Health"
@@ -510,7 +450,7 @@ const gtmSlide = (
               'Developer advocate content: tutorials, templates, SDKs',
             ]}
           />
-          <div style={{ height: '0.5rem' }} />
+          <div style={{height: '0.5rem'}}/>
           <Heading level={3}>Expand</Heading>
           <BulletList
             bulletStyle="arrow"
@@ -533,7 +473,7 @@ const gtmSlide = (
               'Average deal size: $82K \u2192 $110K',
             ]}
           />
-          <div style={{ height: '0.5rem' }} />
+          <div style={{height: '0.5rem'}}/>
           <Heading level={3}>Key Bets</Heading>
           <BulletList
             bulletStyle="checkmark"
@@ -552,77 +492,37 @@ const gtmSlide = (
 // ─── Slide 10: Roadmap Timeline ─────────────────────────────────────────────
 
 const roadmapSlide = (
-  <Slide key="roadmap" title="Engineering Roadmap" scrollUnits={300}>
-    <BlankLayout>
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        padding: 'var(--slide-padding, 8%)',
-        gap: 'clamp(0.75rem, 1.5vw, 1.25rem)',
-        justifyContent: 'center',
-      }}>
-        <Heading level={2}>Engineering Roadmap</Heading>
+  <Slide
+    key="roadmap"
+    title="Engineering Roadmap"
+    scrollUnits={300}
+    sceneDsl={<>
+      <Camera mode="world" position={[0, 0, 5]} target={[0, 0, 0]} fov={36}/>
+      <Lighting>
+        <Ambient intensity={2.5} color="#d7e5ff"/>
+        <Directional intensity={1.2} color="#ffffff" position={[3, 5, 4]}/>
+      </Lighting>
+      <Floor variant="grid"/>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          gap: 'clamp(1rem, 2vw, 2rem)',
-          marginTop: '0.25rem',
-        }}>
-          {/* Left column: timeline */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <TimelineMilestone
-              quarter="Q2"
-              title="v2.4 \u2014 Performance Release"
-              description="Cold start 7x faster, 3.3x concurrent capacity, 40% smaller memory footprint."
-              active
-            />
-            <TimelineMilestone
-              quarter="Q3"
-              title="v2.5 \u2014 Intelligence Layer"
-              description="AI query optimizer, anomaly detection, auto-schema evolution."
-            />
-            <TimelineMilestone
-              quarter="Q4"
-              title="v3.0 \u2014 Data Mesh GA"
-              description="Federated governance, cross-org data products, marketplace launch."
-            />
-            <TimelineMilestone
-              quarter="Q1 \u201927"
-              title="v3.1 \u2014 Real-Time ML"
-              description="Feature store, model serving, online/offline consistency guarantees."
-            />
-          </div>
+      <Diagram id="roadmap-timeline" x={0.05} y={0.02} w={0.9} h={0.96} tilt={-.25}>
+        <FlowLayout direction="top-down" gap={1.0}/>
 
-          {/* Right column: resource allocation */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 'clamp(0.5rem, 1vw, 0.75rem)' }}>
-            <span style={{ fontFamily: font, fontSize: 'clamp(0.65rem, 0.85vw, 0.75rem)', color: muted, letterSpacing: '0.08em', textTransform: 'uppercase' as const }}>
-              Engineering Allocation (142 engineers)
-            </span>
+        <DiagramNode id="q2" label={"Q2 \u2014 v2.4"} sublabel="Performance Release"
+                     shape="hexagon" icon="ui:cpu-chip" size={[12, 8]} thickness={2} glow={{intensity: 0.2}}/>
+        <DiagramNode id="q3" label={"Q3 \u2014 v2.5"} sublabel="Intelligence Layer"
+                     shape="hexagon" icon="ui:cpu-chip" size={[12, 8]} thickness={2}/>
+        <DiagramNode id="q4" label={"Q4 \u2014 v3.0"} sublabel="Data Mesh GA"
+                     shape="hexagon" icon="data:warehouse" size={[12, 8]} thickness={2}/>
+        <DiagramNode id="q1-27" label={"Q1 '27 \u2014 v3.1"} sublabel="Real-Time ML"
+                     shape="hexagon" icon="data:stream" size={[12, 8]} thickness={2}/>
 
-            {[
-              { team: 'Stream Processing', pct: 28, color: '#818CF8' },
-              { team: 'Query Engine', pct: 22, color: '#34D399' },
-              { team: 'Storage Layer', pct: 18, color: '#60A5FA' },
-              { team: 'Platform & Infra', pct: 14, color: '#F59E0B' },
-              { team: 'AI / ML Runtime', pct: 10, color: '#F472B6' },
-              { team: 'Developer Experience', pct: 8, color: '#A78BFA' },
-            ].map(({ team, pct, color }) => (
-              <div key={team} style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontFamily: font, fontSize: 'clamp(0.7rem, 0.95vw, 0.85rem)', color: body }}>{team}</span>
-                  <span style={{ fontFamily: font, fontSize: 'clamp(0.7rem, 0.95vw, 0.85rem)', color: heading, fontWeight: 600 }}>{pct}%</span>
-                </div>
-                <div style={{ height: 'clamp(0.35rem, 0.5vw, 0.5rem)', background: `${muted}22`, borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', width: `${pct * 2.5}%`, background: color, borderRadius: '4px', transition: 'width 0.4s ease' }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </BlankLayout>
+        <DiagramEdge from="q2" to="q3" routing="flow" flow="forward"/>
+        <DiagramEdge from="q3" to="q4" routing="flow" flow="forward"/>
+        <DiagramEdge from="q4" to="q1-27" routing="flow" flow="forward"/>
+      </Diagram>
+    </>}
+  >
+    <BlankLayout/>
   </Slide>
 );
 
@@ -634,74 +534,34 @@ const caseStudySlide = (
     title="Case Study: Meridian Health"
     scrollUnits={500}
     notes="Meridian is our largest healthcare customer. They migrated from a Snowflake + Kafka + Airflow stack to Nexus in 4 months."
+    sceneDsl={<>
+      <Camera mode="world" position={[0, 2.5, 5]} target={[0, 0, 0]} fov={36}/>
+      <Lighting>
+        <Ambient intensity={2.5} color="#d7e5ff"/>
+        <Directional intensity={1.2} color="#ffffff" position={[3, 5, 4]}/>
+      </Lighting>
+      <Floor variant="grid"/>
+
+      <Diagram id="case-study-migration" x={0.08} y={0.05} w={0.84} h={0.9} tilt={-0.25}>
+        <FlowLayout direction="top-down" gap={2.2}/>
+
+        <DiagramGroup id="before" label="Before: 3 Separate Systems" variant="container">
+          <GridLayout columns={3} spacing={[1.0, 0.6]}/>
+          <DiagramNode id="snowflake" label="Snowflake" sublabel="Analytics" icon="data:warehouse" shape="diamond" size={[4, 4]} thickness={0.2}/>
+          <DiagramNode id="kafka" label="Kafka" sublabel="Streaming" icon="data:stream" shape="diamond" size={[4, 4]} thickness={0.2}/>
+          <DiagramNode id="airflow" label="Airflow" sublabel="Orchestration" icon="ui:arrow-path" shape="diamond" size={[4, 4]} thickness={0.2}/>
+        </DiagramGroup>
+
+        <DiagramNode id="nexus" label="Nexus Platform" sublabel="Unified Infrastructure"
+                     icon="ui:cpu-chip" shape="hexagon" size={[5, 3.5]} thickness={0.3} glow={{intensity: 0.2}}/>
+
+        <DiagramEdge from="snowflake" to="nexus" routing="flow" flow="forward"/>
+        <DiagramEdge from="kafka" to="nexus" routing="flow" flow="forward"/>
+        <DiagramEdge from="airflow" to="nexus" routing="flow" flow="forward"/>
+      </Diagram>
+    </>}
   >
-    <BlankLayout>
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        padding: 'var(--slide-padding, 8%)',
-        gap: 'clamp(0.75rem, 1.5vw, 1rem)',
-        justifyContent: 'center',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <Heading level={2}>Meridian Health</Heading>
-          <Badge>CASE STUDY</Badge>
-        </div>
-        <Body>
-          Meridian Health is a 340-hospital network processing 18M patient events daily.
-          They migrated from a fragmented Snowflake + Kafka + Airflow stack to Nexus Platform in 4 months.
-        </Body>
-
-        <Divider />
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 'clamp(0.75rem, 1.5vw, 1.25rem)' }}>
-          {/* Result cards */}
-          {[
-            {
-              metric: '73%',
-              label: 'Infrastructure cost reduction',
-              detail: '$4.2M \u2192 $1.1M monthly spend',
-            },
-            {
-              metric: '11x',
-              label: 'Faster time to insight',
-              detail: 'Dashboard refresh: 45min \u2192 4min',
-            },
-            {
-              metric: '340',
-              label: 'Hospitals on one platform',
-              detail: 'Previously siloed across 6 systems',
-            },
-          ].map((card) => (
-            <div key={card.label} style={{
-              background: surface,
-              borderRadius: '0.75rem',
-              padding: 'clamp(1rem, 1.5vw, 1.25rem)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.4rem',
-              border: `1px solid ${accent}22`,
-            }}>
-              <span style={{ fontFamily: font, fontSize: 'clamp(2rem, 3.5vw, 3rem)', fontWeight: 700, color: accent, lineHeight: 1 }}>
-                {card.metric}
-              </span>
-              <span style={{ fontFamily: font, fontSize: 'clamp(0.8rem, 1.1vw, 0.95rem)', color: heading, fontWeight: 600 }}>
-                {card.label}
-              </span>
-              <span style={{ fontFamily: font, fontSize: 'clamp(0.7rem, 0.9vw, 0.8rem)', color: muted }}>
-                {card.detail}
-              </span>
-            </div>
-          ))}
-        </div>
-
-        <QuoteCallout
-          quote="Nexus let us retire five separate data systems and gave every clinician real-time visibility into patient flow. That's not a technology win \u2014 it's a patient safety win."
-          attribution="Dr. James Okafor, Chief Data Officer, Meridian Health"
-        />
-      </div>
-    </BlankLayout>
+    <BlankLayout/>
   </Slide>
 );
 
@@ -784,7 +644,7 @@ const resourceAskSlide = (
         <Heading level={2}>Resource Asks</Heading>
         <Body>To hit our Q3 targets, we need approval on three investments.</Body>
 
-        <div style={{ display: 'flex', gap: 'clamp(0.75rem, 1.5vw, 1rem)', marginTop: '0.5rem' }}>
+        <div style={{display: 'flex', gap: 'clamp(0.75rem, 1.5vw, 1rem)', marginTop: '0.5rem'}}>
           {[
             {
               number: '01',
@@ -818,36 +678,36 @@ const resourceAskSlide = (
               flex: 1,
               border: `1px solid ${accent}22`,
             }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <span style={{ fontFamily: font, fontSize: 'clamp(1.5rem, 2.5vw, 2rem)', fontWeight: 700, color: `${accent}66` }}>
+              <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start'}}>
+                <span style={{fontFamily: font, fontSize: 'clamp(1.5rem, 2.5vw, 2rem)', fontWeight: 700, color: `${accent}66`}}>
                   {item.number}
                 </span>
                 <Badge variant={item.badgeVariant}>{item.badge}</Badge>
               </div>
-              <span style={{ fontFamily: font, fontSize: 'clamp(0.85rem, 1.2vw, 1rem)', fontWeight: 600, color: heading }}>
+              <span style={{fontFamily: font, fontSize: 'clamp(0.85rem, 1.2vw, 1rem)', fontWeight: 600, color: heading}}>
                 {item.title}
               </span>
-              <span style={{ fontFamily: font, fontSize: 'clamp(0.7rem, 0.95vw, 0.85rem)', color: muted, lineHeight: 1.5 }}>
+              <span style={{fontFamily: font, fontSize: 'clamp(0.7rem, 0.95vw, 0.85rem)', color: muted, lineHeight: 1.5}}>
                 {item.description}
               </span>
             </div>
           ))}
         </div>
 
-        <Divider />
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontFamily: font, fontSize: 'clamp(0.8rem, 1.1vw, 0.95rem)', color: body }}>
+        <Divider/>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+          <span style={{fontFamily: font, fontSize: 'clamp(0.8rem, 1.1vw, 0.95rem)', color: body}}>
             Total investment ask
           </span>
-          <span style={{ fontFamily: font, fontSize: 'clamp(1.2rem, 2vw, 1.5rem)', fontWeight: 700, color: heading }}>
+          <span style={{fontFamily: font, fontSize: 'clamp(1.2rem, 2vw, 1.5rem)', fontWeight: 700, color: heading}}>
             $10.1M
           </span>
         </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontFamily: font, fontSize: 'clamp(0.8rem, 1.1vw, 0.95rem)', color: body }}>
+        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+          <span style={{fontFamily: font, fontSize: 'clamp(0.8rem, 1.1vw, 0.95rem)', color: body}}>
             Projected Q4 ARR with investment
           </span>
-          <span style={{ fontFamily: font, fontSize: 'clamp(1.2rem, 2vw, 1.5rem)', fontWeight: 700, color: '#34D399' }}>
+          <span style={{fontFamily: font, fontSize: 'clamp(1.2rem, 2vw, 1.5rem)', fontWeight: 700, color: '#34D399'}}>
             $95M &nbsp;(+40% YoY)
           </span>
         </div>
@@ -889,9 +749,9 @@ const closingSlide = (
           maxWidth: '28rem',
           lineHeight: 1.6,
         }}>
-          Questions? Reach the Nexus team at <span style={{ color: accent, fontWeight: 600 }}>platform@nexus.dev</span>
+          Questions? Reach the Nexus team at <span style={{color: accent, fontWeight: 600}}>platform@nexus.dev</span>
         </p>
-        <Divider />
+        <Divider/>
         <p style={{
           fontFamily: font,
           fontSize: 'clamp(0.7rem, 1vw, 0.85rem)',

@@ -64,6 +64,9 @@ export function slidesPlugin(options: SlidesPluginOptions): WidgetPlugin {
     createWidgets: () => [metaWidget, new SlideNavWidget()],
 
     registerHandlers: () => {
+      // category: 'ambient' — SlideMetaDsl is metadata, not spatial geometry.
+      // Without this, the scene view constraint treats it as a spatial element
+      // and errors when a Diagram or BarChart is also present in the same Scene.
       registerNode(SlideMetaDsl, (node, api) => {
         const props = node.props as SlideMetaDslProps;
         api.setWidgetState(metaWidget.widgetId, {
@@ -75,7 +78,7 @@ export function slidesPlugin(options: SlidesPluginOptions): WidgetPlugin {
           hasAnimatedList: props.hasAnimatedList,
           totalBullets: props.totalBullets,
         } satisfies import('./widget/SlideMetaWidget').SlideMetaState);
-      });
+      }, { category: 'ambient' });
     },
 
     configureRegistry: (_registry) => {

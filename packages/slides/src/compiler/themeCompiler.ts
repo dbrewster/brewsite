@@ -34,8 +34,8 @@ export function compileDeckTheme(theme?: Partial<DeckTheme>): ResolvedDeckTheme 
     fontSize: {
       heading: 2.4,
       body: 1.0,
-      label: 0.875,
-      caption: 0.75,
+      label: 1.0,
+      caption: 1.0,
       annotation: 0.7,
     },
     colorMode,

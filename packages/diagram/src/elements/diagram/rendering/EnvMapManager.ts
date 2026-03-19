@@ -71,6 +71,15 @@ export class EnvMapManager {
     this.loader.load(
       this.buildRequestUrl(url),
       (tex: THREE.Texture) => {
+        // Guard: Three.js loaders can invoke onLoad with undefined/null when the
+        // fetch succeeds (200) but the response isn't valid HDR data (e.g. an HTML
+        // error page). Without this check, PMREMGenerator crashes downstream.
+        if (!tex) {
+          this.pending.delete(url);
+          console.warn(`Diagram EnvMapManager: loaded "${url}" but received no texture data — skipping.`);
+          return;
+        }
+
         // Prefilter through PMREMGenerator for proper PBR mip-chain reflections.
         // Without this, MeshStandardMaterial receives a raw equirectangular texture
         // that the GPU cannot properly sample at different roughness levels, producing

@@ -250,7 +250,13 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     () => makeInitialFrameState(options.scenes[0]?.sceneKey ?? ''),
   );
   const [assetsReady, setAssetsReady] = useState(false);
-  const [driverReady, setDriverReady] = useState(false);
+  // driverGeneration is a monotonically increasing counter incremented each time
+  // the RuntimeDriver initializes successfully. The RAF loop effect depends on it
+  // so the loop restarts after every driver rebuild (including React StrictMode
+  // double-fire). A boolean would be batched as true→false→true = no change,
+  // causing the RAF loop effect to skip re-firing after StrictMode cleanup.
+  const [driverGeneration, setDriverGeneration] = useState(0);
+  const driverReady = driverGeneration > 0;
   const [sceneTrack, setSceneTrack] = useState<SceneTrack | null>(null);
   const [canvas, setCanvas] = useState<HTMLCanvasElement | null>(null);
   const [backgroundElement, setBackgroundElement] = useState<HTMLDivElement | null>(null);
@@ -506,7 +512,6 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   useEffect(() => {
     if (typeof window === 'undefined' || !canvas) return;
     readyRef.current = false;
-    setDriverReady(false);
     setAssetsReady(false);
     setFrameState(makeInitialFrameState());
     if (!sceneTrack) return;
@@ -544,7 +549,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       if (cameraOverrideRef.current) {
         driver.setCameraOverride(cameraOverrideRef.current);
       }
-      setDriverReady(true);
+      setDriverGeneration((g) => g + 1);
     } catch (error) {
       const err = error instanceof Error ? error : new Error(String(error));
       options.onError?.(err);
@@ -766,7 +771,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       loopRef.current = null;
       lastTickIndexRef.current = -1;
     };
-  }, [sceneTrack, getGlobalProgress, resolvedFpsCap, options.onReady, driverReady]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sceneTrack, getGlobalProgress, resolvedFpsCap, options.onReady, driverGeneration]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setControlledProgress = useCallback((p: number) => {
     // Update the same ref that getGlobalProgress() reads.

@@ -5,6 +5,8 @@ import { describe, it, expect } from 'vitest';
 import { extractInteractionCallbacks } from '../extractInteractionCallbacks';
 import { ViewLayout } from '../blocks/viewLayoutDsl';
 import { View } from '../blocks/viewDsl';
+import { Scene } from '../sceneDslCompiler';
+import { InputController } from '../blocks/inputController';
 import type { SceneDefinition, SceneSnapshotContext } from '../sceneTypes';
 import type { CarouselSelectEvent } from '../../input/carouselSelectTypes';
 
@@ -131,5 +133,44 @@ describe('extractInteractionCallbacks', () => {
 
     const registry = extractInteractionCallbacks(scenes);
     expect(registry.getSelectHandler('nested-carousel')).toBe(handler);
+  });
+
+  it('handles Scene component wrapping — ViewLayout nested inside Scene element', () => {
+    const handler = (_e: CarouselSelectEvent): void => {};
+    const scenes = [
+      makeScene('s1', (
+        <Scene id="scene-1">
+          <ViewLayout id="wrapped-carousel" kind="carousel" onSelect={handler}>
+            <View id="v1" />
+          </ViewLayout>
+        </Scene>
+      )),
+    ];
+
+    const registry = extractInteractionCallbacks(scenes);
+    expect(registry.getSelectHandler('wrapped-carousel')).toBe(handler);
+  });
+
+  it('handles deeply nested ViewLayout alongside InputController siblings', () => {
+    const handler = (_e: CarouselSelectEvent): void => {};
+    const scenes = [
+      makeScene('s1', (
+        <Scene id="scene-deep">
+          <InputController id="ic" scope="canvas" />
+          <React.Fragment>
+            <div>
+              <ViewLayout id="deep-carousel" kind="carousel" onSelect={handler}>
+                <View id="v1" />
+                <View id="v2" />
+              </ViewLayout>
+            </div>
+          </React.Fragment>
+        </Scene>
+      )),
+    ];
+
+    const registry = extractInteractionCallbacks(scenes);
+    expect(registry.hasAnySelectHandlers()).toBe(true);
+    expect(registry.getSelectHandler('deep-carousel')).toBe(handler);
   });
 });
