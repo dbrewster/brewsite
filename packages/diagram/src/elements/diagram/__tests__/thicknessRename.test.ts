@@ -1,7 +1,7 @@
 // Tests verifying that DiagramNodeState uses 'thickness' (not 'depth') after F9 rename.
-// Thickness values are normalized from diagram-content-units to NVS fractions by
-// dividing by safeSpanX. The raw theme value is NOT the compiled value — the compiled
-// value is proportional to the original, scaled by the diagram's content span.
+// Thickness values are normalized from content-unit scale to NVS fractions by
+// multiplying by thicknessNormFactor (= scaleFactor * max(defaultNodeSize)).
+// The compiled value is smaller than the authored value.
 
 import { it, expect } from 'vitest';
 import { compileDiagram } from '../compile';
@@ -15,7 +15,8 @@ it('DiagramNodeState has thickness field (not depth)', () => {
     groups: [],
   });
   const node = state.nodes.find((n) => n.id === 'a')!;
-  // Thickness is normalized by safeSpanX — verify it's positive and proportional.
+  // Thickness is normalized by thicknessNormFactor (= scaleFactor * max(defaultSize)).
+  // With NVS-scale defaultSize [0.15, 0.08], the factor is ~0.15, so compiled < authored.
   expect(node.thickness).toBeGreaterThan(0);
   expect(node.thickness).toBeLessThan(0.8);
   expect('depth' in node).toBe(false);
@@ -29,7 +30,8 @@ it('DiagramNodeState.thickness defaults from theme.node.defaultThickness', () =>
     groups: [],
   }, darkGlassTheme);
   const node = state.nodes.find((n) => n.id === 'a')!;
-  // Normalized thickness should be less than the raw theme default (divided by safeSpanX > 1).
+  // Thickness is normalized by thicknessNormFactor (= scaleFactor * max(defaultSize)).
+  // With NVS-scale defaultSize [0.15, 0.08], compiled < raw theme default.
   expect(node.thickness).toBeGreaterThan(0);
   expect(node.thickness).toBeLessThan(darkGlassTheme.node.defaultThickness);
 });

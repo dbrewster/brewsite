@@ -28,7 +28,7 @@ describe('resolveGroupBoundsMap', () => {
   });
 
   it('returns padded zero-area bounds for a group with no nodes and no children', () => {
-    // No nodes, no children, no layout override → base {0,0,0,0} + DEFAULT_GROUP_PADDING [1.5,1.5,1.5,1.5]
+    // No nodes, no children, no layout override → base {0,0,0,0} + DEFAULT_GROUP_PADDING [0.035,0.035,0.035,0.035]
     const groups: DiagramGroupDSL[] = [{ id: 'g1', nodeIds: [] }];
     const result = resolveGroupBoundsMap(groups, new Map(), new Map(), new Map());
     const bounds = result.get('g1');
@@ -53,11 +53,11 @@ describe('resolveGroupBoundsMap', () => {
     const bounds = result.get('g1')!;
 
     // node at (0,0) with size (4,2): raw x=-2, y=-1, w=4, h=2
-    // padding [1.5, 1.5, 1.5, 1.5]: x -= pl=1.5, y -= pb=1.5, w += pl+pr=3, h += pb+pt=3
-    expect(bounds.x).toBeCloseTo(-3.5);
-    expect(bounds.y).toBeCloseTo(-2.5);
-    expect(bounds.w).toBeCloseTo(7);
-    expect(bounds.h).toBeCloseTo(5);
+    // padding [0.035, 0.035, 0.035, 0.035]: x -= pl=0.035, y -= pb=0.035, w += pl+pr=0.07, h += pb+pt=0.07
+    expect(bounds.x).toBeCloseTo(-2.035);
+    expect(bounds.y).toBeCloseTo(-1.035);
+    expect(bounds.w).toBeCloseTo(4.07);
+    expect(bounds.h).toBeCloseTo(2.07);
     expect(bounds.padding).toEqual(DEFAULT_GROUP_PADDING);
     expect(bounds.titleGap).toBe(DEFAULT_TITLE_GAP);
   });
@@ -80,10 +80,10 @@ describe('resolveGroupBoundsMap', () => {
     const result = resolveGroupBoundsMap(groups, positions, sizes, layouts);
     const bounds = result.get('g1')!;
 
-    expect(bounds.x).toBeCloseTo(-5.5);   // -4 - 1.5 (pl)
-    expect(bounds.y).toBeCloseTo(-2.5);   // -1 - 1.5 (pb)
-    expect(bounds.w).toBeCloseTo(11);     // 8 + 1.5 + 1.5
-    expect(bounds.h).toBeCloseTo(5);      // 2 + 1.5 + 1.5
+    expect(bounds.x).toBeCloseTo(-4.035);   // -4 - 0.035 (pl)
+    expect(bounds.y).toBeCloseTo(-1.035);   // -1 - 0.035 (pb)
+    expect(bounds.w).toBeCloseTo(8.07);     // 8 + 0.035 + 0.035
+    expect(bounds.h).toBeCloseTo(2.07);     // 2 + 0.035 + 0.035
   });
 
   it('uses custom groupPadding and titleGap from resolved layout', () => {

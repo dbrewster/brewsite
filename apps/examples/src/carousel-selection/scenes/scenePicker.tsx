@@ -63,14 +63,14 @@ export const PickerScene = ({ onSelect }: PickerSceneProps): JSX.Element => (
       <View id="diagram-view" w={0.42} h={0.52}>
         <Diagram id="picker-diagram" x={0} y={0} w={1} h={1} scale={1.2}>
           <FlowLayout direction="top-down" gap={1.0} />
-          <DiagramNode id="api" label="API Gateway" sublabel="REST + gRPC" size={[6, 1.8]} />
+          <DiagramNode id="api" label="API Gateway" sublabel="REST + gRPC" size={[0.22, 0.10]} />
           <DiagramGroup id="services" label="Services" variant="cluster">
             <FlowLayout direction="left-right" gap={0.8} />
-            <DiagramNode id="auth" label="Auth" size={[3.5, 1.5]} />
-            <DiagramNode id="billing" label="Billing" size={[3.5, 1.5]} />
-            <DiagramNode id="notify" label="Notify" size={[3.5, 1.5]} />
+            <DiagramNode id="auth" label="Auth" />
+            <DiagramNode id="billing" label="Billing" />
+            <DiagramNode id="notify" label="Notify" />
           </DiagramGroup>
-          <DiagramNode id="db" label="Database" sublabel="PostgreSQL" size={[6, 1.8]} />
+          <DiagramNode id="db" label="Database" sublabel="PostgreSQL" size={[0.22, 0.10]} />
           <DiagramEdge from="api" to="services" routing="flow" flow="forward" />
           <DiagramEdge from="services" to="db" routing="flow" flow="forward" />
         </Diagram>

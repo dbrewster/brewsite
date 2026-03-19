@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import React from 'react';
 import { resolveSceneFromDsl, Scene } from '@brewsite/core';
+import type { SceneTheme } from '@brewsite/core';
 import { WidgetRegistry } from '@brewsite/core';
 import { registerCoreHandlers } from '../../../../core/src/compiler/coreHandlers';
 import { View } from '../../../../core/src/compiler/blocks/viewDsl';
@@ -232,5 +233,83 @@ describe('Diagram handler composition through View', () => {
     // Both views compile with full opacity; runtime ViewWidget applies the fadeMin fade.
     expect(inactiveGroup.fillOpacity).toBeCloseTo(activeGroup.fillOpacity, 5);
     expect(inactiveGroup.borderOpacity).toBeCloseTo(activeGroup.borderOpacity, 5);
+  });
+});
+
+// ─── SceneTheme Bridging ──────────────────────────────────────────────────────
+
+const testSceneTheme: SceneTheme = {
+  colorMode: 'dark',
+  font: { htmlFamily: 'Inter, sans-serif', webglFontUrl: 'https://example.com/inter.ttf' },
+  fontSize: { heading: 2.4, body: 1.0, label: 1.0, caption: 1.0, annotation: 0.7 },
+};
+
+const makeContextWithTheme = (sceneTheme: SceneTheme) => ({
+  ...makeContext(),
+  sceneTheme,
+});
+
+describe('registerDiagramHandlers — SceneTheme bridging', () => {
+  it('bridges sceneTheme.font.webglFontUrl into themeConfig.fontUrl', () => {
+    const registry = new WidgetRegistry();
+    registerCoreHandlers();
+    registerDiagramHandlers();
+
+    const tree = (
+      <Scene id="test">
+        <Diagram id="d1">
+          <ManualLayout />
+          <DiagramNode id="n1" label="Node" position={[0, 0, 0]} />
+        </Diagram>
+      </Scene>
+    );
+
+    const { frame } = resolveSceneFromDsl(tree, makeContextWithTheme(testSceneTheme), registry);
+    const state = frame.widgets['d1'] as DiagramState;
+    expect(state.themeConfig.fontUrl).toBe('https://example.com/inter.ttf');
+  });
+
+  it('bridges sceneTheme.fontSize.label into effectiveLabelSizeFactor', () => {
+    const registry = new WidgetRegistry();
+    registerCoreHandlers();
+    registerDiagramHandlers();
+
+    const scaledTheme: SceneTheme = {
+      ...testSceneTheme,
+      fontSize: { ...testSceneTheme.fontSize, label: 1.5 },
+    };
+
+    const tree = (
+      <Scene id="test">
+        <Diagram id="d1">
+          <ManualLayout />
+          <DiagramNode id="n1" label="Node" position={[0, 0, 0]} />
+        </Diagram>
+      </Scene>
+    );
+
+    const { frame } = resolveSceneFromDsl(tree, makeContextWithTheme(scaledTheme), registry);
+    const state = frame.widgets['d1'] as DiagramState;
+    // effectiveLabelSizeFactor = theme.node.labelSizeFactor (1.0) * sceneTheme.fontSize.label (1.5)
+    expect(state.themeConfig.effectiveLabelSizeFactor).toBeCloseTo(1.5);
+  });
+
+  it('falls back to undefined fontUrl when no sceneTheme is provided', () => {
+    const registry = new WidgetRegistry();
+    registerCoreHandlers();
+    registerDiagramHandlers();
+
+    const tree = (
+      <Scene id="test">
+        <Diagram id="d1">
+          <ManualLayout />
+          <DiagramNode id="n1" label="Node" position={[0, 0, 0]} />
+        </Diagram>
+      </Scene>
+    );
+
+    const { frame } = resolveSceneFromDsl(tree, makeContext(), registry);
+    const state = frame.widgets['d1'] as DiagramState;
+    expect(state.themeConfig.fontUrl).toBeUndefined();
   });
 });

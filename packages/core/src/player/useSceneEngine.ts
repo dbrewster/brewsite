@@ -653,6 +653,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       blockSize,
       prefersReducedMotion,
       activeTheme: options.activeTheme,
+      sceneTheme: options.sceneTheme ?? undefined,
     });
     reconcileCompiledTrack(discoveryTrack);
 
@@ -667,6 +668,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       prefersReducedMotion,
       invalidateCacheToken: options.invalidateCacheToken,
       activeTheme: options.activeTheme,
+      sceneTheme: options.sceneTheme ?? undefined,
     });
     const cached = getCachedTrack(key);
     if (cached) {
@@ -684,6 +686,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       blockSize,
       prefersReducedMotion,
       activeTheme: options.activeTheme,
+      sceneTheme: options.sceneTheme ?? undefined,
     });
     if (compiled.warnings?.length) {
       for (const warning of compiled.warnings) {
@@ -711,6 +714,7 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     sceneDefs,
     options.invalidateCacheToken,
     options.activeTheme,
+    options.sceneTheme,
     options.onCompileWarning,
   ]);
 

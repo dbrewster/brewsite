@@ -1,11 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { blendNumber } from '../transitions/transitionTypes';
-import type { SceneDefinition } from '../sceneTypes';
+import type { SceneDefinition, SceneSnapshotContext } from '../sceneTypes';
 import { compileSceneTrack } from '../sceneTrackCompiler';
 import { WidgetRegistry } from '../../widget/WidgetRegistry';
 import type { FunctionalTransitionSpec } from '../transitions/transitionTypes';
 import type { SceneInputControllerSpec } from '../../input/types';
 import { createDefaultInputSpec } from '../../input/defaultInputSpec';
+import type { SceneTheme } from '../../theme/types';
 
 const makeScene = (id: string, widgetStates: Record<string, unknown>): SceneDefinition => ({
   id,
@@ -795,5 +796,56 @@ describe('compileSceneTrack', () => {
     const orbitAction = spec.actions.find(a => a.id === 'default-camera-orbit');
     expect(orbitAction).toBeDefined();
     expect(orbitAction!.cameraId).toBe('custom-cam');
+  });
+
+  // ─── SceneTheme bridge ─────────────────────────────────────────────────────
+
+  it('passes sceneTheme from options into SceneSnapshotContext', () => {
+    const mockSceneTheme: SceneTheme = {
+      colorMode: 'dark',
+      font: { htmlFamily: 'Inter, sans-serif', webglFontUrl: 'https://example.com/inter.ttf' },
+      fontSize: { heading: 2.4, body: 1.0, label: 1.0, caption: 1.0, annotation: 0.7 },
+    };
+
+    let capturedContext: SceneSnapshotContext | undefined;
+    const scene: SceneDefinition = {
+      id: 'test-scene',
+      getFrame: (ctx) => {
+        capturedContext = ctx;
+        return { id: 'test-scene', scrollProgress: 0, widgets: {} };
+      },
+    };
+
+    const registry = new WidgetRegistry();
+    compileSceneTrack({
+      scenes: [scene, scene],
+      widgetRegistry: registry,
+      blockSize: 30,
+      sceneTheme: mockSceneTheme,
+    });
+
+    expect(capturedContext).toBeDefined();
+    expect(capturedContext!.sceneTheme).toBe(mockSceneTheme);
+    expect(capturedContext!.sceneTheme?.font.webglFontUrl).toBe('https://example.com/inter.ttf');
+  });
+
+  it('sceneTheme is undefined when not provided in options', () => {
+    let capturedContext: SceneSnapshotContext | undefined;
+    const scene: SceneDefinition = {
+      id: 'test-scene',
+      getFrame: (ctx) => {
+        capturedContext = ctx;
+        return { id: 'test-scene', scrollProgress: 0, widgets: {} };
+      },
+    };
+
+    const registry = new WidgetRegistry();
+    compileSceneTrack({
+      scenes: [scene, scene],
+      widgetRegistry: registry,
+      blockSize: 30,
+    });
+
+    expect(capturedContext!.sceneTheme).toBeUndefined();
   });
 });

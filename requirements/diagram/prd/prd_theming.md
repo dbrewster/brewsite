@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-17
+last_updated: 2026-03-18
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -35,6 +35,9 @@ change_history:
   - date: 2026-03-17
     author: "Toolkit Product"
     summary: "Major rewrite: theming architecture corrected from flat DIAGRAM_THEMES/DIAGRAM_THEME_PAIRS constants to actual registration-based model (registerDiagramThemePair/resolveDiagramTheme in themeRegistry.ts). DiagramThemeName is NOT exported from package root index.ts. Only four theme exports from barrel: enterpriseTheme, enterpriseLightTheme, defaultDiagramTheme, defaultLightDiagramTheme. Additional themes (darkGlass, midnight, neonCyber, lightCanvas, lightMinimal and their polarity variants) live in the themes/ directory but are registered at runtime by @brewsite/themes, not exported from the @brewsite/diagram barrel. Removed DIAGRAM_THEMES and DIAGRAM_THEME_PAIRS constant references. Removed claim that six preset themes are exported directly. Updated functional requirements, API design, tree-shaking, and launch criteria sections."
+  - date: 2026-03-18
+    author: "Toolkit Product"
+    summary: "SceneTheme bridge: documented automatic bridging of SceneTheme from SceneSnapshotContext into DiagramTheme by the diagram compile handler. New optional sceneTheme field on CompileSceneTrackOptions and SceneSnapshotContext in @brewsite/core propagates engine-level font and fontSize tokens into diagram compilation without manual theme wiring. Updated SceneTheme Integration section with automatic bridge documentation. Semver impact: minor (new optional fields only, fully backward-compatible)."
 ---
 
 ## Overview
@@ -603,6 +606,18 @@ All six families' preset `DiagramTheme` values for motion parameters are defined
 The `IGNORED_INPUT_CONFIG` warning is surfaced via `SceneTrack.warnings` and forwarded to any `onCompileWarning` handler registered on `ScenePlayer`.
 
 ## SceneTheme Integration
+
+### Automatic SceneTheme Bridge (Compile Pipeline)
+
+The diagram compile handler in `compiler/handlers.ts` automatically bridges `SceneSnapshotContext.sceneTheme` into the resolved `DiagramTheme` at compile time. When the engine provides a `SceneTheme` via `CompileSceneTrackOptions.sceneTheme` (an optional field on `@brewsite/core`'s compile options), the value propagates through:
+
+1. `CompileSceneTrackOptions.sceneTheme` → `SceneSnapshotContext.sceneTheme` (populated during scene frame compilation)
+2. The diagram handler reads `api.context.sceneTheme` and merges it: `{ ...resolvedTheme, sceneTheme: api.context.sceneTheme }`
+3. The merged theme is passed to `compileDiagram()`, which calls `buildThemeRenderConfig()` to derive font URL and effective font size factors
+
+This means consumers who configure `SceneTheme` at the engine level (via `useSceneEngine({ sceneTheme })` or `ScenePlayer sceneTheme` prop) get automatic font and sizing integration in all diagrams — no manual `DiagramTheme.sceneTheme` wiring required. Manual `sceneTheme` on `DiagramTheme` still works as before and takes precedence if both are present.
+
+The cache key for `SceneTrack` includes `sceneTheme.font.webglFontUrl`, `sceneTheme.fontSize.label`, and `sceneTheme.fontSize.caption` — the three fields that affect diagram compilation output. Changing these values at runtime triggers recompilation.
 
 ### fontUrl fallback chain
 

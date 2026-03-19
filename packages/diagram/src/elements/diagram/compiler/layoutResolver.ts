@@ -2,8 +2,6 @@ import type { DiagramThemeLayoutConfig, LayoutDSL, LayoutPadding } from '../type
 import {
   DEFAULT_GROUP_PADDING,
   DEFAULT_TITLE_GAP,
-  DEFAULT_MANUAL_GROUP_PADDING,
-  DEFAULT_MANUAL_TITLE_GAP,
 } from './diagramLayoutConstants';
 
 // Resolved layout types — all fields required (no optionals).
@@ -39,11 +37,11 @@ export interface ResolvedFlowLayout {
   readonly kind: 'flow';
   /** Primary layout axis. Default: 'top-down'. */
   readonly direction: 'top-down' | 'left-right';
-  /** Edge-to-edge gap between adjacent items in diagram units. Default: 2. */
+  /** Edge-to-edge gap between adjacent items in NVS fractions. Default: 0.06. */
   readonly gap: number;
-  /** Normalized group padding [top, right, bottom, left]. Default: [1.5, 1.5, 1.5, 1.5]. */
+  /** Normalized group padding [top, right, bottom, left] in NVS fractions. Default: [0.035, 0.035, 0.035, 0.035]. */
   readonly groupPadding: readonly [number, number, number, number];
-  /** Gap between group title and content area in diagram units. Default: 1. */
+  /** Gap between group title and content area in NVS fractions. Default: 0.025. */
   readonly titleGap: number;
 }
 
@@ -85,13 +83,8 @@ export function normalizeMargin(
   return typeof m === 'number' ? [m, m] : [m[0], m[1]];
 }
 
-// Diagram-unit padding for auto-layout: applied to diagram-unit bounding boxes,
-// then divided by the total span during normalizeToViewport(). Result: ~0.075–0.15 NVS.
-// ManualLayout: node positions/sizes are already in [0..1] NVS; padding must be NVS fractions.
-// 0.025 ≈ 2.5% of the diagram viewport per side — tight but visually clear group boundary.
-// ManualLayout title gap: NVS fraction of viewport height. 0.025 ≈ 2.5% of canvas height.
-const DEFAULT_GRID_SPACING: readonly [number, number] = [2, 2];
-const DEFAULT_HIERARCHICAL_SPACING: readonly [number, number] = [1.5, 1.5];
+const DEFAULT_GRID_SPACING: readonly [number, number] = [0.06, 0.06];
+const DEFAULT_HIERARCHICAL_SPACING: readonly [number, number] = [0.045, 0.045];
 const DEFAULT_MARGIN: readonly [number, number] = [0, 0];
 
 export const DEFAULT_RESOLVED_GRID: ResolvedGridLayout = {
@@ -118,15 +111,14 @@ export const DEFAULT_RESOLVED_HIERARCHICAL: ResolvedHierarchicalLayout = {
 
 export const DEFAULT_RESOLVED_MANUAL: ResolvedManualLayout = {
   kind: 'manual',
-  // ManualLayout positions are in [0..1] NVS — use NVS-scale padding, not diagram-unit padding.
-  groupPadding: DEFAULT_MANUAL_GROUP_PADDING,
-  titleGap: DEFAULT_MANUAL_TITLE_GAP,
+  groupPadding: DEFAULT_GROUP_PADDING,
+  titleGap: DEFAULT_TITLE_GAP,
 };
 
 export const DEFAULT_RESOLVED_FLOW: ResolvedFlowLayout = {
   kind: 'flow',
   direction: 'top-down',
-  gap: 2,
+  gap: 0.06,
   groupPadding: DEFAULT_GROUP_PADDING,
   titleGap: DEFAULT_TITLE_GAP,
 };

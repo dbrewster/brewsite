@@ -62,7 +62,6 @@ const makeState = (nodes: DiagramNodeState[], edges: DiagramEdgeState[]): Diagra
   tiltRotation: [0, 0, 0],
   z: 0,
   scale: 1,
-  contentAspect: 1.0,
   exit: undefined,
   enter: undefined,
   themeConfig: {} as any,

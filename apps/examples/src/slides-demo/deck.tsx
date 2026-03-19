@@ -284,23 +284,23 @@ const architectureSlide = (
         <FlowLayout direction="top-down" gap={0.9}/>
 
         <DiagramNode id="apps" label="Applications" sublabel="Analytics · Catalog · Lineage"
-                     shape="rectangle" icon="ui:squares-2x2" size={[3, 3]} thickness={0.2}/>
+                     shape="rectangle" icon="ui:squares-2x2" size={[0.15, 0.12]} thickness={0.2}/>
 
         <DiagramNode id="api" label="API Gateway" sublabel="REST · gRPC · WebSocket"
-                     shape="hexagon" icon="net:internet" size={[5, 2.5]} thickness={0.2}/>
+                     shape="hexagon" icon="net:internet" size={[0.18, 0.13]} thickness={0.2}/>
 
         <DiagramGroup id="engine" label="Processing Engine" variant="container">
-          <GridLayout columns={3} spacing={[0.8, 0.6]}/>
-          <DiagramNode id="stream" label="Stream" sublabel="Real-time" icon="data:stream" shape="circle" size={[2.8, 2.8]} thickness={0.2}/>
-          <DiagramNode id="batch" label="Batch" sublabel="Scheduled" icon="data:warehouse" shape="circle" size={[2.8, 2.8]} thickness={0.2}/>
-          <DiagramNode id="ml" label="ML Pipeline" sublabel="Inference" icon="ui:cpu-chip" shape="circle" size={[2.8, 2.8]} thickness={0.2}/>
+          <GridLayout columns={3} spacing={[0.04, 0.03]}/>
+          <DiagramNode id="stream" label="Stream" sublabel="Real-time" icon="data:stream" shape="circle" size={[0.13, 0.13]} thickness={0.2}/>
+          <DiagramNode id="batch" label="Batch" sublabel="Scheduled" icon="data:warehouse" shape="circle" size={[0.13, 0.13]} thickness={0.2}/>
+          <DiagramNode id="ml" label="ML Pipeline" sublabel="Inference" icon="ui:cpu-chip" shape="circle" size={[0.13, 0.13]} thickness={0.2}/>
         </DiagramGroup>
 
         <DiagramNode id="storage" label="Storage Layer" sublabel="Columnar · Object Lake · KV"
-                     shape="octagon" icon="data:warehouse" size={[5, 2.8]} thickness={0.2}/>
+                     shape="octagon" icon="data:warehouse" size={[0.18, 0.13]} thickness={0.2}/>
 
         <DiagramNode id="infra" label="Infrastructure" sublabel="Multi-Cloud · Auto-Scale"
-                     shape="rectangle" icon="security:shield" size={[3, 3]} thickness={0.2}/>
+                     shape="rectangle" icon="security:shield" size={[0.15, 0.12]} thickness={0.2}/>
 
         <DiagramEdge from="apps" to="api" routing="flow" flow="forward"/>
         <DiagramEdge from="api" to="stream" routing="flow" flow="forward"/>
@@ -508,13 +508,13 @@ const roadmapSlide = (
         <FlowLayout direction="top-down" gap={1.0}/>
 
         <DiagramNode id="q2" label={"Q2 \u2014 v2.4"} sublabel="Performance Release"
-                     shape="hexagon" icon="ui:cpu-chip" size={[12, 8]} thickness={2} glow={{intensity: 0.2}}/>
+                     shape="hexagon" icon="ui:cpu-chip" size={[0.40, 0.30]} thickness={2} glow={{intensity: 0.2}}/>
         <DiagramNode id="q3" label={"Q3 \u2014 v2.5"} sublabel="Intelligence Layer"
-                     shape="hexagon" icon="ui:cpu-chip" size={[12, 8]} thickness={2}/>
+                     shape="hexagon" icon="ui:cpu-chip" size={[0.40, 0.30]} thickness={2}/>
         <DiagramNode id="q4" label={"Q4 \u2014 v3.0"} sublabel="Data Mesh GA"
-                     shape="hexagon" icon="data:warehouse" size={[12, 8]} thickness={2}/>
+                     shape="hexagon" icon="data:warehouse" size={[0.40, 0.30]} thickness={2}/>
         <DiagramNode id="q1-27" label={"Q1 '27 \u2014 v3.1"} sublabel="Real-Time ML"
-                     shape="hexagon" icon="data:stream" size={[12, 8]} thickness={2}/>
+                     shape="hexagon" icon="data:stream" size={[0.40, 0.30]} thickness={2}/>
 
         <DiagramEdge from="q2" to="q3" routing="flow" flow="forward"/>
         <DiagramEdge from="q3" to="q4" routing="flow" flow="forward"/>
@@ -546,14 +546,14 @@ const caseStudySlide = (
         <FlowLayout direction="top-down" gap={2.2}/>
 
         <DiagramGroup id="before" label="Before: 3 Separate Systems" variant="container">
-          <GridLayout columns={3} spacing={[1.0, 0.6]}/>
-          <DiagramNode id="snowflake" label="Snowflake" sublabel="Analytics" icon="data:warehouse" shape="diamond" size={[4, 4]} thickness={0.2}/>
-          <DiagramNode id="kafka" label="Kafka" sublabel="Streaming" icon="data:stream" shape="diamond" size={[4, 4]} thickness={0.2}/>
-          <DiagramNode id="airflow" label="Airflow" sublabel="Orchestration" icon="ui:arrow-path" shape="diamond" size={[4, 4]} thickness={0.2}/>
+          <GridLayout columns={3} spacing={[0.04, 0.02]}/>
+          <DiagramNode id="snowflake" label="Snowflake" sublabel="Analytics" icon="data:warehouse" shape="diamond" size={[0.15, 0.15]} thickness={0.2}/>
+          <DiagramNode id="kafka" label="Kafka" sublabel="Streaming" icon="data:stream" shape="diamond" size={[0.15, 0.15]} thickness={0.2}/>
+          <DiagramNode id="airflow" label="Airflow" sublabel="Orchestration" icon="ui:arrow-path" shape="diamond" size={[0.15, 0.15]} thickness={0.2}/>
         </DiagramGroup>
 
         <DiagramNode id="nexus" label="Nexus Platform" sublabel="Unified Infrastructure"
-                     icon="ui:cpu-chip" shape="hexagon" size={[5, 3.5]} thickness={0.3} glow={{intensity: 0.2}}/>
+                     icon="ui:cpu-chip" shape="hexagon" size={[0.18, 0.18]} thickness={0.3} glow={{intensity: 0.2}}/>
 
         <DiagramEdge from="snowflake" to="nexus" routing="flow" flow="forward"/>
         <DiagramEdge from="kafka" to="nexus" routing="flow" flow="forward"/>

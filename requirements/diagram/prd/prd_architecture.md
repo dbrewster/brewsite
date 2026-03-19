@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Architecture Reference"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-17
+last_updated: 2026-03-19
 change_history:
   - date: 2026-03-09
     author: "Toolkit Product"
@@ -41,6 +41,9 @@ change_history:
   - date: 2026-03-17
     author: "Toolkit Product"
     summary: "Audit pass: confirmed no remaining DIAGRAM_THEMES/DIAGRAM_THEME_PAIRS references, no DiagramThemeName export claims, and no theme prop on DiagramProps claims. All corrections from 2026-03-15 are accurate. No content changes needed."
+  - date: 2026-03-18
+    author: "Toolkit Product"
+    summary: "SceneTheme bridge and rendering fixes: documented automatic SceneTheme bridging in diagram handler State Flow (SceneSnapshotContext.sceneTheme → resolved DiagramTheme). Documented aspect ratio correction in DiagramRenderer and fit-to-content node label layout in NodeRenderer. New optional sceneTheme field on CompileSceneTrackOptions and SceneSnapshotContext in @brewsite/core. Semver impact: minor."
 ---
 
 # BrewSite Diagram — Architecture Reference
@@ -366,7 +369,10 @@ DiagramDSL { id, x, y, w, h, tilt, z, scale, nodes[], edges[], groups[], layout,
   ▼ api.composeZ(dsl.z) → composed world-space Z
   ▼ api.composeOpacity(1) → view opacity multiplier (carousel fade)
   │
-  ▼ compileDiagram({ ...dsl, x, y, w, h, z: composedZ }, fallbackTheme?, warnFn?)
+  ▼ SceneTheme bridge: if api.context.sceneTheme is present, merge into resolved theme:
+  │   themedResolvedTheme = { ...resolvedTheme, sceneTheme: api.context.sceneTheme }
+  │
+  ▼ compileDiagram({ ...dsl, x, y, w, h, z: composedZ }, themedResolvedTheme, warnFn?)
   │
 DiagramState { id, viewportBounds, tiltRotation, z, scale, contentAspect,
                nodes[], edges[], groups[], exit, enter, themeConfig }
@@ -380,6 +386,8 @@ SceneTrackTick.state.widgets[widgetId] = blended DiagramState at tick t
   ▼ DiagramWidget.apply(state, context)     (IRenderable contract)
   │
   ▼ DiagramRenderer.update(state, scene)
+  │   ▼ Aspect ratio correction: node world-space X coordinates are divided by contentAspect
+  │   ▼ NodeRenderer: fit-to-content label layout via computeNodeLabelLayout()
   │
 Three.js Scene (NodeRenderer, EdgeRenderer, GroupRenderer)
 ```

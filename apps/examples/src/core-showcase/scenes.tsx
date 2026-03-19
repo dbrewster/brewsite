@@ -181,7 +181,7 @@ export const OverviewScene = (): JSX.Element => (
             sublabelColor="#b8c8e8"
             icon="ui:document-text"
             position={[0.12, 0.5, 0]}
-            size={[0.16, 0.12]}
+            size={[0.16, 0.14]}
           />
         </DiagramGroup>
 
@@ -197,7 +197,7 @@ export const OverviewScene = (): JSX.Element => (
             sublabelColor="#b8c8e8"
             icon="ui:squares-2x2"
             position={[0.37, 0.35, 0]}
-            size={[0.16, 0.12]}
+            size={[0.16, 0.14]}
           />
           <DiagramNode
             id="ov-track"
@@ -206,7 +206,7 @@ export const OverviewScene = (): JSX.Element => (
             sublabelColor="#b8c8e8"
             icon="ui:circle-stack"
             position={[0.37, 0.65, 0]}
-            size={[0.16, 0.12]}
+            size={[0.16, 0.14]}
             color="#1a3060"
             glow={{ intensity: 0.2 }}
           />
@@ -224,7 +224,7 @@ export const OverviewScene = (): JSX.Element => (
             sublabelColor="#b8c8e8"
             icon="ui:cpu-chip"
             position={[0.62, 0.35, 0]}
-            size={[0.16, 0.12]}
+            size={[0.16, 0.14]}
           />
           <DiagramNode
             id="ov-registry"
@@ -233,7 +233,7 @@ export const OverviewScene = (): JSX.Element => (
             sublabelColor="#b8c8e8"
             icon="ui:puzzle-piece"
             position={[0.62, 0.65, 0]}
-            size={[0.16, 0.12]}
+            size={[0.16, 0.14]}
           />
         </DiagramGroup>
 
@@ -249,7 +249,7 @@ export const OverviewScene = (): JSX.Element => (
             sublabelColor="#b8c8e8"
             icon="ui:photo"
             position={[0.88, 0.35, 0]}
-            size={[0.16, 0.12]}
+            size={[0.16, 0.14]}
           />
           <DiagramNode
             id="ov-overlay"
@@ -258,7 +258,7 @@ export const OverviewScene = (): JSX.Element => (
             sublabelColor="#b8c8e8"
             icon="ui:chat-bubble-left-right"
             position={[0.88, 0.65, 0]}
-            size={[0.16, 0.12]}
+            size={[0.16, 0.14]}
           />
         </DiagramGroup>
 
@@ -582,9 +582,9 @@ export const LightingSoftScene = (): JSX.Element => (
         scale={1.0}
       >
         <ManualLayout />
-        <DiagramNode id="lt-ambient" label="Ambient" sublabel="0.8 intensity · #d7e8ff" sublabelColor="#b8c8e8" icon="ui:light-bulb" position={[0.2, 0.35, 0]} size={[0.16, 0.12]} />
-        <DiagramNode id="lt-directional-1" label="Directional A" sublabel="0.9 intensity · #ffffff · [4, 10, 6]" sublabelColor="#b8c8e8" icon="ui:bolt" position={[0.5, 0.35, 0]} size={[0.16, 0.12]} />
-        <DiagramNode id="lt-directional-2" label="Directional B" sublabel="0.4 intensity · #b0ccff · [-6, 4, 8]" sublabelColor="#b8c8e8" icon="ui:bolt" position={[0.8, 0.35, 0]} size={[0.16, 0.12]} />
+        <DiagramNode id="lt-ambient" label="Ambient" sublabel="0.8 intensity · #d7e8ff" sublabelColor="#b8c8e8" icon="ui:light-bulb" position={[0.2, 0.35, 0]} size={[0.16, 0.14]} />
+        <DiagramNode id="lt-directional-1" label="Directional A" sublabel="0.9 intensity · #ffffff · [4, 10, 6]" sublabelColor="#b8c8e8" icon="ui:bolt" position={[0.5, 0.35, 0]} size={[0.16, 0.14]} />
+        <DiagramNode id="lt-directional-2" label="Directional B" sublabel="0.4 intensity · #b0ccff · [-6, 4, 8]" sublabelColor="#b8c8e8" icon="ui:bolt" position={[0.8, 0.35, 0]} size={[0.16, 0.14]} />
         <DiagramNode id="lt-result" label="Soft Result" sublabel="Professional presentation lighting" sublabelColor="#b8c8e8" icon="ui:light-bulb" position={[0.5, 0.72, 0]} size={[0.22, 0.14]} color="#1a3060" glow={{ intensity: 0.1 }} />
         <DiagramEdge from="lt-ambient" to="lt-result" flow="forward" style="dashed" />
         <DiagramEdge from="lt-directional-1" to="lt-result" flow="forward" />
@@ -628,9 +628,9 @@ export const LightingDramaticScene = (): JSX.Element => (
         scale={1.0}
       >
         <ManualLayout />
-        <DiagramNode id="lt-ambient" label="Ambient" sublabel="0.15 intensity · #0a0a20" sublabelColor="#ffccaa" icon="ui:light-bulb" position={[0.2, 0.35, 0]} size={[0.16, 0.12]} />
-        <DiagramNode id="lt-directional-1" label="Directional A" sublabel="2.0 intensity · #ff6030 · warm key" sublabelColor="#ffccaa" icon="ui:bolt" position={[0.5, 0.35, 0]} size={[0.16, 0.12]} color="#3a1808" />
-        <DiagramNode id="lt-directional-2" label="Directional B" sublabel="0.8 intensity · #3060ff · cool fill" sublabelColor="#aac8ff" icon="ui:bolt" position={[0.8, 0.35, 0]} size={[0.16, 0.12]} color="#0a1840" />
+        <DiagramNode id="lt-ambient" label="Ambient" sublabel="0.15 intensity · #0a0a20" sublabelColor="#ffccaa" icon="ui:light-bulb" position={[0.2, 0.35, 0]} size={[0.16, 0.14]} />
+        <DiagramNode id="lt-directional-1" label="Directional A" sublabel="2.0 intensity · #ff6030 · warm key" sublabelColor="#ffccaa" icon="ui:bolt" position={[0.5, 0.35, 0]} size={[0.16, 0.14]} color="#3a1808" />
+        <DiagramNode id="lt-directional-2" label="Directional B" sublabel="0.8 intensity · #3060ff · cool fill" sublabelColor="#aac8ff" icon="ui:bolt" position={[0.8, 0.35, 0]} size={[0.16, 0.14]} color="#0a1840" />
         <DiagramNode id="lt-result" label="Dramatic Result" sublabel="Cinematic warm/cool bi-tone + GlowPoint sprites" sublabelColor="#ffccaa" icon="ui:light-bulb" position={[0.5, 0.72, 0]} size={[0.22, 0.14]} color="#301020" glow={{ intensity: 0.3 }} />
         <DiagramEdge from="lt-ambient" to="lt-result" flow="forward" style="dashed" />
         <DiagramEdge from="lt-directional-1" to="lt-result" flow="forward" />
@@ -772,9 +772,9 @@ export const InputScene = (): JSX.Element => (
       >
         <ManualLayout />
         <DiagramGroup id="input-group" label="InputController + Action — gesture-to-action mapping" variant="swimlane">
-          <DiagramNode id="inp-drag" label="Drag → orbit" sublabel="<Action type='camera.orbit'>" sublabelColor="#b8c8e8" icon="ui:arrow-path" position={[0.2, 0.4, 0]} size={[0.18, 0.13]} />
-          <DiagramNode id="inp-wheel" label="Wheel → zoom" sublabel="<Action type='camera.zoom'>" sublabelColor="#b8c8e8" icon="ui:arrows-pointing-out" position={[0.5, 0.4, 0]} size={[0.18, 0.13]} />
-          <DiagramNode id="inp-key" label="'r' → reset" sublabel="<Action type='camera.reset'>" sublabelColor="#b8c8e8" icon="ui:arrow-path" position={[0.8, 0.4, 0]} size={[0.18, 0.13]} />
+          <DiagramNode id="inp-drag" label="Drag → orbit" sublabel="<Action type='camera.orbit'>" sublabelColor="#b8c8e8" icon="ui:arrow-path" position={[0.2, 0.4, 0]} size={[0.18, 0.15]} />
+          <DiagramNode id="inp-wheel" label="Wheel → zoom" sublabel="<Action type='camera.zoom'>" sublabelColor="#b8c8e8" icon="ui:arrows-pointing-out" position={[0.5, 0.4, 0]} size={[0.18, 0.15]} />
+          <DiagramNode id="inp-key" label="'r' → reset" sublabel="<Action type='camera.reset'>" sublabelColor="#b8c8e8" icon="ui:arrow-path" position={[0.8, 0.4, 0]} size={[0.18, 0.15]} />
         </DiagramGroup>
         <DiagramNode id="inp-camera" label="CameraWidget" sublabel="receives dispatched actions" sublabelColor="#b8c8e8" icon="ui:eye" position={[0.5, 0.75, 0]} size={[0.22, 0.14]} color="#1a3060" glow={{ intensity: 0.15 }} />
         <DiagramEdge from="inp-drag" to="inp-camera" flow="forward" />
@@ -814,9 +814,9 @@ export const ThemingScene = (): JSX.Element => (
       >
         <ManualLayout />
         <DiagramNode id="thm-engine" label="SceneEngine" sublabel="themeFamily · themePolarity" sublabelColor="#b8c8e8" icon="ui:cpu-chip" position={[0.5, 0.2, 0]} size={[0.35, 0.14]} color="#1a3060" glow={{ intensity: 0.15 }} />
-        <DiagramNode id="thm-core" label="@brewsite/core" sublabel="CSS vars · EngineOverlayHost" sublabelColor="#b8c8e8" icon="ui:swatch" position={[0.25, 0.55, 0]} size={[0.28, 0.12]} />
-        <DiagramNode id="thm-diagram" label="@brewsite/diagram" sublabel="node/edge/group materials" sublabelColor="#b8c8e8" icon="ui:squares-2x2" position={[0.75, 0.55, 0]} size={[0.28, 0.12]} />
-        <DiagramNode id="thm-charts" label="@brewsite/charts" sublabel="palette · axis · grid colors" sublabelColor="#b8c8e8" icon="ui:chart-bar" position={[0.5, 0.85, 0]} size={[0.28, 0.12]} />
+        <DiagramNode id="thm-core" label="@brewsite/core" sublabel="CSS vars · EngineOverlayHost" sublabelColor="#b8c8e8" icon="ui:swatch" position={[0.25, 0.55, 0]} size={[0.28, 0.14]} />
+        <DiagramNode id="thm-diagram" label="@brewsite/diagram" sublabel="node/edge/group materials" sublabelColor="#b8c8e8" icon="ui:squares-2x2" position={[0.75, 0.55, 0]} size={[0.28, 0.14]} />
+        <DiagramNode id="thm-charts" label="@brewsite/charts" sublabel="palette · axis · grid colors" sublabelColor="#b8c8e8" icon="ui:chart-bar" position={[0.5, 0.85, 0]} size={[0.28, 0.14]} />
         <DiagramEdge from="thm-engine" to="thm-core" flow="forward" />
         <DiagramEdge from="thm-engine" to="thm-diagram" flow="forward" />
         <DiagramEdge from="thm-core" to="thm-charts" style="dashed" />

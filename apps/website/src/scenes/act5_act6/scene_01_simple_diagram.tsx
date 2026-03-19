@@ -28,10 +28,10 @@ export const scene01SimpleDiagram: JSX.Element = (
     </Lighting>
     <Diagram id="tech-stack" x={0} y={0} w={1} h={1} tilt={-Math.PI / 12} scale={isMobile ? 1.0 : 1.3}>
         <ManualLayout />
-        <DiagramNode id="frontend" label="React App"   icon="ui:globe-alt"    position={[0.500, 0.136, 0]} size={[0.15, 0.08]} />
-        <DiagramNode id="api"      label="API Gateway" icon="aws:api-gateway"  position={[0.500, 0.500, 0]} size={[0.15, 0.08]} />
-        <DiagramNode id="db"       label="PostgreSQL"  icon="aws:rds"          position={[0.167, 0.864, 0]} size={[0.15, 0.08]} />
-        <DiagramNode id="cache"    label="Redis"       icon="aws:elasticache"  position={[0.833, 0.864, 0]} size={[0.15, 0.08]} />
+        <DiagramNode id="frontend" label="React App"   icon="ui:globe-alt"    position={[0.500, 0.136, 0]} size={[0.15, 0.15]} />
+        <DiagramNode id="api"      label="API Gateway" icon="aws:api-gateway"  position={[0.500, 0.500, 0]} size={[0.15, 0.15]} />
+        <DiagramNode id="db"       label="PostgreSQL"  icon="aws:rds"          position={[0.167, 0.864, 0]} size={[0.15, 0.15]} />
+        <DiagramNode id="cache"    label="Redis"       icon="aws:elasticache"  position={[0.833, 0.864, 0]} size={[0.15, 0.15]} />
 
         <DiagramEdge from="frontend" to="api"   label="REST"  flow="forward" />
         <DiagramEdge from="api"      to="db"    label="SQL"   flow="forward" />

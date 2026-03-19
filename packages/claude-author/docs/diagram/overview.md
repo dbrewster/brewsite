@@ -3,7 +3,7 @@ title: "@brewsite/diagram — Overview"
 doc_type: note
 owner: claude-author
 status: active
-updated: 2026-03-18
+updated: 2026-03-19
 ---
 
 ## What @brewsite/diagram Provides
@@ -133,6 +133,26 @@ export default function MyPage() {
 - `custom:${string}` — escape hatch for custom resolver integrations
 
 Note: `UiShape` (`ui:*`), `TechShape` (`tech:*`), `SecurityShape` (`security:*`), and `DataShape` (`data:*`) are internal types not exported from the package index. The icon string values (e.g. `"ui:server"`, `"tech:docker"`) are still valid for the `icon` prop — they are accepted by the `DiagramIconVariant` union type. Only the named shape union types are not re-exported.
+
+## Coordinate Systems in Diagrams
+
+The `<Diagram>` component uses NVS fractions [0..1] throughout — for the diagram viewport and for all node sizes and positions inside it.
+
+**NVS (viewport fractions)** — The `<Diagram>` element's own `x`, `y`, `w`, `h` props position the diagram viewport on screen using NVS [0, 1] coordinates. This is the same system all other elements use.
+
+```tsx
+// Diagram occupies the right 80% of the viewport, nearly full height
+<Diagram id="arch" x={0.1} y={0.05} w={0.8} h={0.9}>
+```
+
+**Node sizes are also NVS** — `<DiagramNode size>` uses NVS fractions [0..1] in all layout modes. A `size={[0.15, 0.08]}` node is 15% of the diagram viewport wide and 8% tall. The theme default is `[0.15, 0.08]`.
+
+```tsx
+// Standard node size — 15% wide, 8% tall relative to diagram viewport
+<DiagramNode id="api" label="API Server" icon="tech:nodejs" size={[0.15, 0.08]} />
+```
+
+For the complete spatial reference including recommended node sizes and layout spacing values, see [layout-spatial-awareness.md](../guides/layout-spatial-awareness.md).
 
 ## Diagram vs DiagramCanvas
 

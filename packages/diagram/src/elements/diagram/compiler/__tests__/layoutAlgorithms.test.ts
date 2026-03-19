@@ -287,7 +287,7 @@ describe('resolveLayout — grid', () => {
     const nodes = [makeNode('a'), makeNode('b')];
     const positions = resolveLayout(nodes, [], grid({ margin: [1, 0] }));
     const dx = Math.abs(positions.get('a')![0] - positions.get('b')![0]);
-    expect(dx).toBeGreaterThan(6);
+    expect(dx).toBeGreaterThan(2);
   });
 
   it('uses consistent horizontal edge gaps for mixed item sizes', () => {
@@ -422,7 +422,7 @@ describe('resolveLayout — hierarchical', () => {
     const edges = [makeEdge('a', 'b')];
     const positions = resolveLayout(nodes, edges, hierarchical({ margin: [0.5, 0.5] }));
     const dy = Math.abs(positions.get('a')![1] - positions.get('b')![1]);
-    expect(dy).toBeGreaterThan(2);
+    expect(dy).toBeGreaterThan(1);
   });
 
   it('top-down: spacing[0] is exact horizontal edge gap for mixed widths in a level', () => {
@@ -691,7 +691,7 @@ describe('resolveLayoutWithGroups', () => {
     const nodes = [makeNode('a'), makeNode('b'), makeNode('c')];
     const sizes = makeSize(nodes);
     const groups = [makeGroup('g1', ['a', 'b'])];
-    const positions = resolveWithGroups(nodes, [], groups, grid(), sizes);
+    const positions = resolveWithGroups(nodes, [], groups, grid({ spacing: [6, 4] }), sizes);
 
     const groupBounds = computeBounds(['a', 'b'], positions, sizes);
     const posC = positions.get('c')!;

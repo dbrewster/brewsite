@@ -21,9 +21,7 @@ import { compileNode, compileEdge } from './compiler/nodeCompiler';
 import { buildNodeDefaults, buildGroupDefaults } from './compiler/defaultsCompiler';
 import { optimizeSharedFlowTrunks } from './compiler/edgeRenderOptimizer';
 import { compileGroup, resolveGroupBoundsMap } from './compiler/groupCompiler';
-import type { GroupBounds } from './compiler/groupCompiler';
 import { normalizeToViewport } from './compiler/normalizeToViewport';
-import type { NormalizeToViewportResult } from './compiler/normalizeToViewport';
 import { buildThemeRenderConfig, compileExitConfig, compileEnterConfig } from './compiler/themeResolver';
 import { resolveEffectiveLayout, resolveGroupLayouts, resolveThemeLayoutDefaults } from './compiler/layoutResolver';
 import type { ResolvedLayout } from './compiler/layoutResolver';
@@ -69,11 +67,6 @@ function groupDepth(
   return depth;
 }
 
-// ─── Normalization Post-Pass ───────────────────────────────────────────────────
-
-type RawPosition = readonly [number, number, number];
-type RawSize = readonly [number, number];
-
 // ─── Theme Resolution ─────────────────────────────────────────────────────────
 
 /**
@@ -106,6 +99,15 @@ export function compileDiagram(
 ): DiagramState {
   const theme: DiagramTheme = resolveTheme(dsl.theme, fallbackTheme);
 
+  // Polygon shapes rendered as N-sided prisms inscribed in r = min(w, h) / 2.
+  // When w ≠ h, the geometry doesn't fill the AABB on the wider axis.
+  // Sizes are clamped to [min, min] before layout so spacing, normalization,
+  // edge routing, and rendering all agree on the node's actual extent.
+  const POLYGON_SHAPES = new Set([
+    'circle', 'triangle', 'pentagon', 'hexagon', 'heptagon',
+    'octagon', 'nonagon', 'decagon',
+  ]);
+
   const layoutDefaults = resolveThemeLayoutDefaults(theme.layout);
   const rootLayout: ResolvedLayout = resolveEffectiveLayout(dsl.layout, undefined, layoutDefaults);
   const groupLayouts = resolveGroupLayouts(dsl.groups, rootLayout, layoutDefaults);
@@ -130,8 +132,14 @@ export function compileDiagram(
   const sizeMap = new Map<string, readonly [number, number]>();
   const sizeWithDepthMap = new Map<string, readonly [number, number, number]>();
   dsl.nodes.forEach((node) => {
-    const size = node.size ?? theme.node.defaultSize;
+    const rawSize = node.size ?? theme.node.defaultSize;
     const thickness = node.thickness ?? nd.thickness;
+    // Clamp polygon shapes to inscribed-circle extent BEFORE layout so that
+    // layout spacing, normalization, and rendering all use the same sizes.
+    const shape = node.shape ?? nd.shape;
+    const size: readonly [number, number] = POLYGON_SHAPES.has(shape)
+      ? [Math.min(rawSize[0], rawSize[1]), Math.min(rawSize[0], rawSize[1])]
+      : rawSize;
     sizeMap.set(node.id, size);
     sizeWithDepthMap.set(node.id, [size[0], size[1], thickness]);
   });
@@ -180,113 +188,51 @@ export function compileDiagram(
     ]);
   });
 
-  // Compile nodes with diagram-unit positions (temporary pre-normalization form)
+  // Compile nodes with diagram-unit positions (temporary pre-normalization form).
+  // Override the compiled size with the shape-clamped size from sizeMap so that
+  // normalization, routing, and rendering all use consistent dimensions.
   const nodesPreNorm = dsl.nodes.map((node) => {
     const positionFromMap = positions.get(node.id);
     const positionInherited = positionFromMap === undefined;
     const position: readonly [number, number, number] = positionFromMap ?? [0, 0, 0];
     const groupId = node.groupId ?? groupMap.get(node.id);
-    return compileNode(node, position, groupId, theme, positionInherited);
+    const compiled = compileNode(node, position, groupId, theme, positionInherited);
+    const clampedSize = sizeMap.get(node.id);
+    return clampedSize ? { ...compiled, size: clampedSize } : compiled;
   });
 
   // ─── Normalization ─────────────────────────────────────────────────────────
-  // Convert diagram-unit positions/sizes to [0..1] NVS.
-  // ManualLayout nodes are ALREADY authored in [0..1] NVS — skip normalization
-  // to prevent double-normalization of [0..1] values against a [0..1] bounding box.
-  let normalizedPositions: Map<string, RawPosition>;
-  let normalizedSizes: Map<string, RawSize>;
-  let normalizedGroups: Map<string, GroupBounds>;
-  let contentAspect: number;
-  // safeSpan: the uniform normalization divisor (max of X and Y content spans).
-  // Used to normalize thickness-type values (edge tube radius, group border width)
-  // from diagram-content-units to [0..1] NVS fractions.
-  // For ManualLayout, content is already in NVS (span = 1).
-  let safeSpan: number;
+  // Convert layout positions/sizes to [0..1] NVS with center + uniform-scale-to-fit + Y-flip.
+  // All layout modes (including ManualLayout) go through the same normalizeToViewport path.
+  const { normalizedPositions, normalizedSizes, normalizedGroups, thicknessNormFactor } =
+    normalizeToViewport(nodesPreNorm, groupBoundsMap, theme.node.defaultSize);
 
-  if (rootLayout.kind !== 'manual') {
-    // Auto-layout: normalize diagram-unit positions to [0..1] NVS (uniform scaling).
-    const resolvedPadding = (rootLayout as ResolvedLayout).groupPadding[0];
-    ({ normalizedPositions, normalizedSizes, normalizedGroups, contentAspect, safeSpan } = normalizeToViewport(
-      nodesPreNorm,
-      groupBoundsMap,
-      resolvedPadding,
-    ));
-  } else {
-    // ManualLayout: positions are [0..1] NVS as authored. Pass through unchanged.
-    // GroupBounds.y in ManualLayout = NVS top edge (smallest Y in Y-down space).
-    normalizedPositions = new Map(nodesPreNorm.map((n) => [n.id, n.position]));
-    normalizedSizes = new Map(nodesPreNorm.map((n) => [n.id, n.size]));
-    normalizedGroups = groupBoundsMap;
-    // ManualLayout positions are already in NVS fractions — no AR correction needed.
-    contentAspect = 1.0;
-
-    // Theme thickness values (node.defaultThickness, edge.defaultThickness, group border
-    // widths) are specified in diagram units — the same coordinate system used by auto-layout
-    // where nodes default to theme.node.defaultSize (e.g. [4, 2] diagram units).
-    // For ManualLayout, positions and sizes are already in NVS [0..1] fractions.
-    // We compute safeSpan as the scale factor between diagram units and NVS by comparing
-    // the theme's default node width to the median NVS node width authored in the layout.
-    // This ensures thickness values remain proportional to node sizes regardless of layout mode.
-    const nvsWidths = nodesPreNorm
-      .map((n) => n.size[0])
-      .filter((w) => w > 0)
-      .sort((a, b) => a - b);
-    const nvsHeights = nodesPreNorm
-      .map((n) => n.size[1])
-      .filter((h) => h > 0)
-      .sort((a, b) => a - b);
-    const medianW = nvsWidths.length > 0
-      ? nvsWidths[Math.floor(nvsWidths.length / 2)]
-      : 0.15;
-    const medianH = nvsHeights.length > 0
-      ? nvsHeights[Math.floor(nvsHeights.length / 2)]
-      : 0.10;
-    const virtualSpanX = theme.node.defaultSize[0] / medianW;
-    const virtualSpanY = theme.node.defaultSize[1] / medianH;
-    safeSpan = Math.max(virtualSpanX, virtualSpanY);
-  }
-
-  // Warn when a ManualLayout diagram contains a node whose size dimension exceeds 1.5 —
-  // this almost always means an AutoLayout diagram-unit value was authored by mistake.
-  // (ManualLayout nodes are [0..1] NVS fractions; [4, 2] is never a valid NVS fraction.)
-  if (rootLayout.kind === 'manual' && onWarn) {
-    for (const node of nodesPreNorm) {
-      const [w, h] = node.size;
-      if (w > 1.5 || h > 1.5) {
-        onWarn(
-          'MANUAL_LAYOUT_NODE_SIZE_SUSPICIOUS',
-          `Diagram "${dsl.id}": node "${node.id}" has size [${w.toFixed(2)}, ${h.toFixed(2)}] in a ManualLayout diagram. ` +
-          `ManualLayout sizes should be [0..1] NVS fractions. Did you mean to use an auto-layout?`,
-        );
-      }
-    }
-  }
-
-  // Apply normalized positions/sizes to nodes
+  // Apply normalized positions/sizes to nodes.
+  // Polygon shapes were already clamped to [min, min] in the sizeMap above,
+  // so normalizedSizes already reflects the inscribed-circle extent.
   const nodes = nodesPreNorm
     .map((node) => ({
       ...node,
       position: normalizedPositions.get(node.id) ?? node.position,
       size: normalizedSizes.get(node.id) ?? node.size,
-      // Normalize node Z-depth from diagram-content-units to NVS fraction.
+      // Normalize node thickness to NVS fraction using the deterministic factor.
       // The renderer multiplies by uniformWorldW to convert to world units.
-      thickness: node.thickness / safeSpan,
+      thickness: node.thickness * thicknessNormFactor,
     }))
     .sort((a, b) => a.position[2] - b.position[2]);
 
-  // Build normalized size map including depth (thickness) for edge routing
+  // Build normalized size map including depth (thickness) for edge routing.
+  // Sizes are already shape-corrected (polygon → inscribed circle) from the
+  // pre-layout clamping, so no additional adjustment is needed here.
   const normalizedSizeWithDepthMap = new Map<string, readonly [number, number, number]>();
   for (const [id, norm] of normalizedSizes) {
     const originalDepth = sizeWithDepthMap.get(id)?.[2] ?? 0.4;
     normalizedSizeWithDepthMap.set(id, [norm[0], norm[1], originalDepth]);
   }
   // Add group entries for edge routing — use normalized group centers as targets.
-  // For ManualLayout, sizeWithDepthMap already has the border-center inset baked in;
-  // use that pre-computed size so edge endpoints land on the border centerline.
   for (const [groupId, normBounds] of normalizedGroups) {
     normalizedPositions.set(groupId, [normBounds.x + normBounds.w / 2, normBounds.y + normBounds.h / 2, 0]);
-    const preNorm = rootLayout.kind === 'manual' ? sizeWithDepthMap.get(groupId) : undefined;
-    normalizedSizeWithDepthMap.set(groupId, preNorm ?? [normBounds.w, normBounds.h, 0.01]);
+    normalizedSizeWithDepthMap.set(groupId, [normBounds.w, normBounds.h, 0.01]);
   }
 
   // Route edges with normalized positions (routing math is scale-invariant)
@@ -339,10 +285,9 @@ export function compileDiagram(
       theme,
       route?.pathDebug,
     );
-    // Normalize edge thickness from diagram-content-units to NVS fraction.
-    // The renderer multiplies by uniformWorldW to convert to world units,
-    // keeping tube radius proportional to the diagram's rendered size.
-    return { ...compiled, thickness: compiled.thickness / safeSpan };
+    // Normalize edge thickness using the deterministic factor.
+    // The renderer multiplies by uniformWorldW to convert to world units.
+    return { ...compiled, thickness: compiled.thickness * thicknessNormFactor };
   });
   const edges = optimizeSharedFlowTrunks(rawEdges);
 
@@ -351,13 +296,12 @@ export function compileDiagram(
       const bounds = normalizedGroups.get(group.id);
       if (!bounds) return null;
       const compiled = compileGroup(group, bounds, theme);
-      // Normalize group borderWidth and borderHeight from diagram-content-units
-      // to NVS fraction. The renderer multiplies by uniformWorldW to convert
-      // to world units, keeping the border proportional to the diagram's size.
+      // Normalize group borderWidth and borderHeight using the deterministic factor.
+      // The renderer multiplies by uniformWorldW to convert to world units.
       return {
         ...compiled,
-        borderWidth: compiled.borderWidth / safeSpan,
-        borderHeight: compiled.borderHeight / safeSpan,
+        borderWidth: compiled.borderWidth * thicknessNormFactor,
+        borderHeight: compiled.borderHeight * thicknessNormFactor,
       };
     })
     .filter((group): group is NonNullable<typeof group> => !!group)
@@ -401,7 +345,6 @@ export function compileDiagram(
     tiltRotation: [dsl.tilt ?? 0, 0, 0],
     z: dsl.z ?? 0,
     scale: dsl.scale ?? 1,
-    contentAspect,
     nodes,
     edges,
     groups,
@@ -573,7 +516,6 @@ export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramSt
         ...to,
         z: lerp(from.z, to.z, t),
         scale: lerp(from.scale, to.scale, t),
-        contentAspect: to.contentAspect,  // structural property — pass through, do not lerp
         viewportBounds: lerpNVSRect(from.viewportBounds, to.viewportBounds, t),
         tiltRotation: blendVec3(
           [from.tiltRotation[0], from.tiltRotation[1], from.tiltRotation[2]],

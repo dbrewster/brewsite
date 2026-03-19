@@ -71,15 +71,11 @@ export interface DiagramNodeProps {
    */
   position?: [number, number, number];
   /**
-   * Node size [width, height].
-   * For AutoLayout (GridLayout, HierarchicalLayout, FlowLayout): diagram units.
-   * The layout algorithm normalizes positions+sizes to [0..1] NVS at compile time.
-   * Default: [4, 2] (diagram units — from theme.node.defaultSize).
-   *
-   * For ManualLayout: [0..1] NVS fractions of the diagram viewport.
-   * Example: [0.15, 0.08] = 15% wide, 8% tall of the canvas.
-   * ManualLayout consumers MUST always specify an explicit size.
-   * The [4, 2] default is in diagram units and is NOT safe for ManualLayout.
+   * Node size as NVS fractions [width, height].
+   * width ∈ [0..1]: fraction of diagram viewport width.
+   * height ∈ [0..1]: fraction of diagram viewport height.
+   * Example: [0.15, 0.08] = 15% wide, 8% tall.
+   * Default: from theme (typically [0.15, 0.08]).
    */
   size?: [number, number];
   /**
@@ -277,13 +273,13 @@ export interface DiagramGroupProps {
 export interface GridLayoutProps {
   /** Number of grid columns, or 'auto' (default 4). Rows expand as needed. */
   columns?: number | 'auto';
-  /** Gap between node footprints [colGap, rowGap]. Default: [2, 2] */
+  /** Gap between node footprints [colGap, rowGap] in NVS fractions. Default: [0.06, 0.06] */
   spacing?: [number, number];
-  /** Per-node margin [h, v] expanding each node's footprint. Default: 0 */
+  /** Per-node margin [h, v] in NVS fractions. Default: 0 */
   margin?: number | [number, number];
-  /** Padding inside group boundary boxes. Default: 1.5 (all sides) */
+  /** Padding inside group boundary boxes in NVS fractions. Default: 0.035 (all sides) */
   groupPadding?: LayoutPadding;
-  /** Gap between group title and content. Default: 0.75 */
+  /** Gap between group title and content in NVS fractions. Default: 0.025 */
   titleGap?: number;
   /** Row alignment. Default: 'left' */
   alignment?: LayoutAlignment;
@@ -296,13 +292,13 @@ export interface GridLayoutProps {
 export interface HierarchicalLayoutProps {
   /** Layout axis direction. Default: 'top-down' */
   direction?: 'top-down' | 'left-right';
-  /** Gap between node footprints [colGap, rowGap]. Default: [2, 2] */
+  /** Gap between node footprints in NVS fractions. Default: [0.045, 0.045] */
   spacing?: [number, number];
-  /** Per-node margin [h, v] expanding each node's footprint. Default: 0 */
+  /** Per-node margin [h, v] in NVS fractions. Default: 0 */
   margin?: number | [number, number];
-  /** Padding inside group boundary boxes. Default: 1.5 (all sides) */
+  /** Padding inside group boundary boxes in NVS fractions. Default: 0.035 (all sides) */
   groupPadding?: LayoutPadding;
-  /** Gap between group title and content. Default: 0.75 */
+  /** Gap between group title and content in NVS fractions. Default: 0.025 */
   titleGap?: number;
   /** Level alignment. Default: 'center' */
   alignment?: LayoutAlignment;
@@ -313,9 +309,9 @@ export interface HierarchicalLayoutProps {
 // ─── <ManualLayout> ───────────────────────────────────────────────────────────
 
 export interface ManualLayoutProps {
-  /** Padding inside group boundary boxes. Default: 1.5 (all sides) */
+  /** Padding inside group boundary boxes in NVS fractions. Default: 0.035 (all sides) */
   groupPadding?: LayoutPadding;
-  /** Gap between group title and content. Default: 0.75 */
+  /** Gap between group title and content in NVS fractions. Default: 0.025 */
   titleGap?: number;
 }
 
@@ -328,13 +324,11 @@ export interface FlowLayoutProps {
    * 'left-right' — items stacked horizontally (increasing X).
    */
   direction?: 'top-down' | 'left-right';
-  /**
-   * Edge-to-edge gap between adjacent items in diagram units. Default: 2.
-   */
+  /** Edge-to-edge gap between adjacent items in NVS fractions. Default: 0.06 */
   gap?: number;
-  /** Padding inside group boundary boxes. Default: 1.5 (all sides) */
+  /** Padding inside group boundary boxes in NVS fractions. Default: 0.035 (all sides) */
   groupPadding?: LayoutPadding;
-  /** Gap between group title and content area. Default: 1 */
+  /** Gap between group title and content in NVS fractions. Default: 0.025 */
   titleGap?: number;
 }
 

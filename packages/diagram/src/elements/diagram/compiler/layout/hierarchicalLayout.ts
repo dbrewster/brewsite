@@ -41,7 +41,7 @@ export function resolveHierarchicalLayout(
   }
 
   const { spacing, margin: rawMargin, alignment, disconnected, direction } = layout;
-  const safeSpacing = ensurePair(spacing, [2, 2]);
+  const safeSpacing = ensurePair(spacing, [0.045, 0.045]);
   const margin = ensurePair(rawMargin, [0, 0]);
 
   const nodeIds = nodes.map((node) => node.id);

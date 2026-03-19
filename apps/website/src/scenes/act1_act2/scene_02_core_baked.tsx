@@ -31,24 +31,24 @@ export const scene02CoreBaked: JSX.Element = (
     </Lighting>
 
     <Diagram id="presentation-arc" x={0} y={0} w={1} h={1} tilt={-Math.PI / 12} scale={isMobile ? 1.0 : 1.35}>
-        <HierarchicalLayout direction="top-down" spacing={[2.2, 2.3]} />
+        <HierarchicalLayout direction="top-down" spacing={[2.8, 2.5]} />
         <DiagramEnter from={[-1, 0.5, 0]} fade easing="ease-out" />
 
         <DiagramGroup id="context" label="Context" variant="boundary">
-          <DiagramNode id="audience" label="Audience" icon="ui:users" />
-          <DiagramNode id="constraints" label="Constraints" icon="ui:adjustments-horizontal" />
+          <DiagramNode id="audience" label="Audience" icon="ui:users" size={[0.15, 0.12]} />
+          <DiagramNode id="constraints" label="Constraints" icon="ui:adjustments-horizontal" size={[0.15, 0.12]} />
         </DiagramGroup>
 
         <DiagramGroup id="narrative" label="Narrative" variant="boundary">
-          <DiagramNode id="problem" label="Problem" icon="ui:exclamation-triangle" />
-          <DiagramNode id="tradeoffs" label="Tradeoffs" />
-          <DiagramNode id="proposal" label="Proposal" icon="ui:sparkles" />
-          <DiagramNode id="decision" label="Decision" icon="ui:check-circle" />
+          <DiagramNode id="problem" label="Problem" icon="ui:exclamation-triangle" size={[0.15, 0.12]} />
+          <DiagramNode id="tradeoffs" label="Tradeoffs" size={[0.15, 0.12]} />
+          <DiagramNode id="proposal" label="Proposal" icon="ui:sparkles" size={[0.15, 0.12]} />
+          <DiagramNode id="decision" label="Decision" icon="ui:check-circle" size={[0.15, 0.12]} />
         </DiagramGroup>
 
         <DiagramGroup id="execution" label="Execution" variant="swimlane">
-          <DiagramNode id="risks" label="Risks" icon="ui:shield-exclamation" />
-          <DiagramNode id="owners" label="Owners" icon="ui:user-group" />
+          <DiagramNode id="risks" label="Risks" icon="ui:shield-exclamation" size={[0.15, 0.12]} />
+          <DiagramNode id="owners" label="Owners" icon="ui:user-group" size={[0.15, 0.12]} />
         </DiagramGroup>
 
         <DiagramEdge from="audience" to="problem" label="frame" flow="forward" />

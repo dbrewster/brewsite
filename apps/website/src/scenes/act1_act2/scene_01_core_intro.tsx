@@ -45,9 +45,9 @@ export const scene01CoreIntro: JSX.Element = (
                 <HierarchicalLayout direction="top-down" spacing={[2.5, 2.4]}/>
                 <DiagramEnter from={[-1, 0.5, 0]} fade easing="ease-out" />
 
-                <DiagramNode id="problem" label="Problem" icon="ui:exclamation-triangle"/>
-                <DiagramNode id="insight" label="Insight" icon="ui:light-bulb"/>
-                <DiagramNode id="decision" label="Decision" icon="ui:check-circle"/>
+                <DiagramNode id="problem" label="Problem" icon="ui:exclamation-triangle" size={[0.12, 0.12]} />
+                <DiagramNode id="insight" label="Insight" icon="ui:light-bulb" size={[0.12, 0.12]} />
+                <DiagramNode id="decision" label="Decision" icon="ui:check-circle" size={[0.12, 0.12]} />
 
                 <DiagramEdge
                     from="problem"

@@ -1,6 +1,6 @@
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { SceneTrack } from './sceneTrackTypes';
-import type { ActiveTheme } from '../theme/types';
+import type { ActiveTheme, SceneTheme } from '../theme/types';
 
 const trackCache = new Map<string, SceneTrack>();
 
@@ -15,6 +15,7 @@ export const buildSceneTrackKey = (options: {
   prefersReducedMotion: boolean;
   invalidateCacheToken?: number | string;
   activeTheme?: ActiveTheme;
+  sceneTheme?: SceneTheme;
 }): string => {
   const contentKeys = options.scenes.map((s) => s.contentKey).join('|');
   const blockKey = `b:${options.blockSize}`;
@@ -22,7 +23,8 @@ export const buildSceneTrackKey = (options: {
   const rmKey = `rm:${options.prefersReducedMotion ? 1 : 0}`;
   const tokenKey = `tok:${options.invalidateCacheToken ?? ''}`;
   const themeKey = `th:${options.activeTheme?.family ?? 'default'}:${options.activeTheme?.polarity ?? 'dark'}`;
-  return [contentKeys, blockKey, widgetKey, rmKey, tokenKey, themeKey].join('::');
+  const stKey = `st:${options.sceneTheme?.font.webglFontUrl ?? ''}:${options.sceneTheme?.fontSize.label ?? ''}:${options.sceneTheme?.fontSize.caption ?? ''}`;
+  return [contentKeys, blockKey, widgetKey, rmKey, tokenKey, themeKey, stKey].join('::');
 };
 
 /**

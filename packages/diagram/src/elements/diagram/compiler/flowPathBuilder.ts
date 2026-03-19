@@ -188,6 +188,50 @@ const eliminateAxisReversals = (points: Vec3[]): Vec3[] => {
   return result;
 };
 
+/**
+ * Collapse micro-segments that are shorter than the turn radius.
+ *
+ * When three consecutive axis-aligned points A → B → C form a turn and the
+ * segment B→C is shorter than `minLength`, C is removed and B is kept.
+ * The arc at B will then use the NEXT segment (B→D) which is longer,
+ * producing a smooth, symmetric turn instead of a tiny micro-arc.
+ *
+ * Only collapses interior points — the first and last points (anchors) are
+ * never removed.
+ */
+const collapseShortLegs = (points: Vec3[], minLength: number): Vec3[] => {
+  if (points.length < 4) return points;
+  const result: Vec3[] = [points[0]!];
+  let i = 1;
+  while (i < points.length - 1) {
+    const prev = result[result.length - 1]!;
+    const current = points[i]!;
+    const next = points[i + 1]!;
+    // Check if current→next is a micro-segment at a turn
+    const legLength = lengthVec(subVec(next, current));
+    const incomingLength = lengthVec(subVec(current, prev));
+    if (
+      legLength < minLength &&
+      legLength < incomingLength * 0.3 &&
+      i + 1 < points.length - 1 // don't collapse the last anchor
+    ) {
+      // Skip the next point (the far end of the micro-segment).
+      // Keep the current point — the arc at this turn will use the segment
+      // to the point AFTER the skipped one, which is longer.
+      result.push(current);
+      i += 2; // skip the micro-segment endpoint
+      continue;
+    }
+    result.push(current);
+    i += 1;
+  }
+  // Always include the last point (anchor)
+  if (points.length > 1) {
+    result.push(points[points.length - 1]!);
+  }
+  return result;
+};
+
 export function buildFlowPathState(input: FlowPathBuildInput): DiagramEdgePathState {
   const rawPointsUnfiltered = [
     input.anchorStart,
@@ -204,7 +248,17 @@ export function buildFlowPathState(input: FlowPathBuildInput): DiagramEdgePathSt
   // Eliminate stub overshoots: when a stub extends past the first route
   // waypoint and then the route reverses direction, the overshoot point
   // is removed to produce a clean monotonic approach.
-  const rawPoints = eliminateAxisReversals(rawPointsUnfiltered);
+  const afterReversals = eliminateAxisReversals(rawPointsUnfiltered);
+
+  // Collapse micro-segments: when two consecutive waypoints at a turn are
+  // closer than the turn radius, the resulting arc would be tiny (visibly
+  // asymmetric compared to arcs on longer segments).  Merge the short-leg
+  // waypoint into its neighbor so both arcs at the turn get full radius.
+  //
+  // Example: points A → B → C → D where B→C = 0.004 (micro) and A→B = 0.07.
+  // Without collapse: arc at B has radius capped by min(0.07, 0.004) = tiny.
+  // After collapse (remove C, keep B): arc at B uses min(0.07, B→D) = full.
+  const rawPoints = collapseShortLegs(afterReversals, input.turnRadius);
 
   if (rawPoints.length < 2) {
     return buildPathStateFromCommands([], input.startTangent, input.endTangent, input.usedUnderpass, input.punctures);
@@ -243,7 +297,11 @@ export function buildFlowPathState(input: FlowPathBuildInput): DiagramEdgePathSt
       continue;
     }
 
-    const radiusCap = Math.min(incomingLength * 0.5, outgoingLength * 0.5);
+    // Allow the turn arc to consume up to 90% of the shorter adjacent segment.
+    // The previous 50% cap was overly conservative — it left half the segment as
+    // a straight stub before the arc, which made turns visibly asymmetric when one
+    // segment was short (e.g., the face stub between anchor and first waypoint).
+    const radiusCap = Math.min(incomingLength * 0.9, outgoingLength * 0.9);
     const radius = Math.min(input.turnRadius, radiusCap);
     if (
       radius < EPSILON

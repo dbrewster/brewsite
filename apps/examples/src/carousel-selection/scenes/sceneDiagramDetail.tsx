@@ -23,22 +23,22 @@ export const DiagramDetailScene = (): JSX.Element => (
     <Diagram id="picker-diagram" x={0.05} y={0.02} w={0.9} h={0.92} scale={1.0}>
       <FlowLayout direction="top-down" gap={1.2} />
 
-      <DiagramNode id="api" label="API Gateway" sublabel="REST + gRPC · rate limiting · auth" size={[9, 2.2]}
+      <DiagramNode id="api" label="API Gateway" sublabel="REST + gRPC · rate limiting · auth" size={[0.32, 0.10]}
         glow={{ intensity: 0.12 }} />
 
       <DiagramGroup id="services" label="Microservices" variant="container">
-        <GridLayout columns={3} spacing={[1.5, 0.9]} />
+        <GridLayout columns={3} spacing={[0.05, 0.03]} />
 
         <DiagramNode id="auth" label="Auth Service"
-          sublabel="OAuth 2.0 · JWT · MFA" size={[5.5, 2.0]} />
+          sublabel="OAuth 2.0 · JWT · MFA" size={[0.20, 0.10]} />
         <DiagramNode id="billing" label="Billing Service"
-          sublabel="Stripe · invoices · usage" size={[5.5, 2.0]} />
+          sublabel="Stripe · invoices · usage" size={[0.20, 0.10]} />
         <DiagramNode id="notify" label="Notification Service"
-          sublabel="email · SMS · push" size={[5.5, 2.0]} />
+          sublabel="email · SMS · push" size={[0.20, 0.10]} />
       </DiagramGroup>
 
       <DiagramNode id="db" label="Database Cluster"
-        sublabel="PostgreSQL · read replicas · connection pooling" size={[9, 2.2]} />
+        sublabel="PostgreSQL · read replicas · connection pooling" size={[0.32, 0.10]} />
 
       <DiagramEdge from="api" to="auth" routing="flow" flow="forward" />
       <DiagramEdge from="api" to="billing" routing="flow" flow="forward" />

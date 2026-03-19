@@ -82,11 +82,10 @@ export interface DiagramThemeNodeConfig {
   /** Default 3D icon rendering style when not specified per-node */
   readonly defaultIconStyle: SvgIcon3DStyle;
   /**
-   * Default node size [width, height] in diagram units for auto-layouts.
-   * AutoLayout compilers read this when no explicit size is provided per-node.
-   * ManualLayout consumers MUST always specify an explicit NVS size — this
-   * default is not safe for ManualLayout where sizes are [0..1] fractions.
-   * darkGlass default: [4, 2]
+   * Default node size as NVS fractions [width, height].
+   * width ∈ [0..1]: fraction of diagram viewport width.
+   * height ∈ [0..1]: fraction of diagram viewport height.
+   * Default: [0.15, 0.08] — 15% wide, 8% tall, 2:1 aspect ratio.
    */
   readonly defaultSize: readonly [number, number];
   /**
@@ -568,13 +567,13 @@ export type LayoutDisconnected = 'next-to' | 'after';
  */
 export interface BaseLayoutDSL {
   /**
-   * Gap between adjacent node footprints [colGap, rowGap] in diagram units.
+   * Gap between adjacent node footprints [colGap, rowGap] in NVS fractions.
    * CSS box model: spacing is the gap between expanded footprints (see margin).
-   * Default: [2, 2]
+   * Default: [0.06, 0.06] for grid, [0.045, 0.045] for hierarchical.
    */
   readonly spacing?: readonly [number, number];
   /**
-   * Per-node breathing room in diagram units.
+   * Per-node breathing room in NVS fractions.
    * Expands each node's claimed bounding box before spacing is applied.
    * number     → uniform margin on all axes
    * [h, v]     → separate horizontal (x) and vertical (y) margin
@@ -582,15 +581,14 @@ export interface BaseLayoutDSL {
    */
   readonly margin?: number | readonly [number, number];
   /**
-   * Padding inside the group boundary box in diagram units (CSS shorthand).
-   * Replaces the hardcoded GROUP_PADDING = 1.5 constant per group.
-   * Default: 1.5 (all sides)
+   * Padding inside the group boundary box in NVS fractions (CSS shorthand).
+   * Default: 0.035 (all sides)
    */
   readonly groupPadding?: LayoutPadding;
   /**
-   * Vertical gap in diagram units between the group title label
+   * Gap in NVS fractions between the group title label
    * and the top of the group's content area.
-   * Default: 0.75
+   * Default: 0.025
    */
   readonly titleGap?: number;
   /**
@@ -641,9 +639,9 @@ export interface HierarchicalLayoutDSL extends BaseLayoutDSL {
  */
 export interface ManualLayoutDSL {
   readonly kind: 'manual';
-  /** Padding inside group boundary boxes. Default: 1.5 */
+  /** Padding inside group boundary boxes in NVS fractions. Default: 0.035 */
   readonly groupPadding?: LayoutPadding;
-  /** Gap between group title label and content area. Default: 0.75 */
+  /** Gap between group title label and content area in NVS fractions. Default: 0.025 */
   readonly titleGap?: number;
 }
 
@@ -663,18 +661,18 @@ export interface FlowLayoutDSL {
    */
   readonly direction?: 'top-down' | 'left-right';
   /**
-   * Edge-to-edge gap between adjacent item footprints in diagram units.
-   * Not center-to-center. Default: 2.
+   * Edge-to-edge gap between adjacent item footprints in NVS fractions.
+   * Not center-to-center. Default: 0.06.
    */
   readonly gap?: number;
   /**
-   * Padding inside group boundary boxes in diagram units (CSS shorthand).
-   * Default: 1.5 (all sides)
+   * Padding inside group boundary boxes in NVS fractions (CSS shorthand).
+   * Default: 0.035 (all sides)
    */
   readonly groupPadding?: LayoutPadding;
   /**
-   * Gap between group title label and group content area in diagram units.
-   * Default: 1
+   * Gap between group title label and group content area in NVS fractions.
+   * Default: 0.025
    */
   readonly titleGap?: number;
 }
@@ -1194,14 +1192,6 @@ export interface DiagramState {
   readonly scale: number;
 
   /**
-   * Natural aspect ratio of the diagram content bounding box, computed at compile time.
-   * Equals spanX / spanY (diagram units). Used by the renderer to apply uniform
-   * world-space scaling that preserves the diagram's authored geometry.
-   * For ManualLayout diagrams this is always 1.0 (positions already in NVS fractions).
-   */
-  readonly contentAspect: number;
-
-  /**
    * Compiled exit behaviour. undefined = default fade (no position animation).
    * Applied by exitFn in functionalDiagramTransitionSpec.
    */
@@ -1435,7 +1425,7 @@ export interface DiagramDSL {
   /**
    * Layout configuration extracted from a <GridLayout>, <HierarchicalLayout>,
    * or <ManualLayout> child element, if present.
-   * Absent = default grid layout (columns: 'auto', spacing: [2,2]).
+   * Absent = default grid layout (columns: 'auto', spacing: [0.06, 0.06]).
    */
   readonly layout?: LayoutDSL;
   readonly nodes: ReadonlyArray<DiagramNodeDSL>;

@@ -45,7 +45,6 @@ function makeDefaultDiagramState(id: string, overrides: Partial<DiagramState> = 
     tiltRotation: [0, 0, 0],
     z: 0,
     scale: 1,
-    contentAspect: 1.0,
     nodes: [],
     edges: [],
     groups: [],

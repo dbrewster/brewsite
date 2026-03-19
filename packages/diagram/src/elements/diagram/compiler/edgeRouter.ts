@@ -64,7 +64,7 @@ type EdgeRoutingInput = {
 // ─── Public constants ─────────────────────────────────────────────────────────
 
 export const DEFAULT_FLOW_ROUTING_CONFIG: import('./routingTypes').FlowRoutingConfig = {
-  flowTurnRadius: 0.035,
+  flowTurnRadius: 0.05,
   flowFaceStub: 0.05,
   flowBundleStrength: 1.0,
   flowObstaclePadding: 0.025,
@@ -434,7 +434,7 @@ export function routeEdges(
   organicVariation: number = 1.6,
   flowConfig: import('./routingTypes').FlowRoutingConfig = DEFAULT_FLOW_ROUTING_CONFIG,
   groupIds: ReadonlySet<string> = new Set(),
-  obstacleGroupIds: ReadonlySet<string> = groupIds,
+  obstacleGroupIds?: ReadonlySet<string>,
 ): Map<string, import('./routingTypes').EdgeRouteState> {
   const effectiveGroupIds = groupIds.size > 0
     ? groupIds
@@ -443,7 +443,12 @@ export function routeEdges(
         .filter(([, size]) => size[2] <= 0.02)
         .map(([id]) => id),
     );
-  const effectiveObstacleGroupIds = obstacleGroupIds.size > 0
+  // When obstacleGroupIds is explicitly provided (including empty set), use it
+  // as-is. An empty set from compile.ts means "all groups are variant=container,
+  // no groups are obstacles" — edges pass through container boundaries freely.
+  // When undefined (caller didn't specify), fall back to effectiveGroupIds so
+  // the depth-heuristic inferred groups are treated as obstacles (backward compat).
+  const effectiveObstacleGroupIds = obstacleGroupIds !== undefined
     ? obstacleGroupIds
     : effectiveGroupIds;
   const resolvedThickness = (edge: EdgeRoutingInput): number => edge.thickness ?? 0.06;
@@ -621,7 +626,7 @@ export function routeEdgesYDown(
   organicVariation: number = 1.6,
   flowConfig: import('./routingTypes').FlowRoutingConfig = DEFAULT_FLOW_ROUTING_CONFIG,
   groupIds: ReadonlySet<string> = new Set(),
-  obstacleGroupIds: ReadonlySet<string> = groupIds,
+  obstacleGroupIds?: ReadonlySet<string>,
 ): Map<string, import('./routingTypes').EdgeRouteState> {
   const routed = routeEdges(
     edges,

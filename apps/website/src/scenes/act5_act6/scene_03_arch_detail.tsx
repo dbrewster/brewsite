@@ -32,13 +32,13 @@ export const scene03ArchDetail: JSX.Element = (
         <DiagramEnter from={[-1, 0.5, 0]} fade easing="ease-in" />
 
         {/* Ghost nodes from previous scene — carry position/shape but fade to 30% */}
-        <DiagramNode id="cdn"    position={[0.618, 0.083, -25]}  size={[0.15, 0.08]} opacity={0.3} />
-        <DiagramNode id="alb"    position={[0.618, 0.250, -25]}  size={[0.15, 0.08]} opacity={0.3} />
-        <DiagramNode id="api"    position={[0.618, 0.417, -25]}  size={[0.15, 0.08]} opacity={0.3} />
-        <DiagramNode id="lambda" position={[0.912, 0.639, -25]}  size={[0.15, 0.08]} opacity={0.3} />
-        <DiagramNode id="rds"    position={[0.324, 0.917, -25]}  size={[0.15, 0.08]} opacity={0.3} />
-        <DiagramNode id="cache"  position={[0.618, 0.917, -25]}  size={[0.15, 0.08]} opacity={0.3} />
-        <DiagramNode id="s3"     position={[0.912, 0.917, -25]}  size={[0.15, 0.08]} opacity={0.3} />
+        <DiagramNode id="cdn"    position={[0.618, 0.083, -25]}  size={[0.15, 0.15]} opacity={0.3} />
+        <DiagramNode id="alb"    position={[0.618, 0.250, -25]}  size={[0.15, 0.15]} opacity={0.3} />
+        <DiagramNode id="api"    position={[0.618, 0.417, -25]}  size={[0.15, 0.15]} opacity={0.3} />
+        <DiagramNode id="lambda" position={[0.912, 0.639, -25]}  size={[0.15, 0.15]} opacity={0.3} />
+        <DiagramNode id="rds"    position={[0.324, 0.917, -25]}  size={[0.15, 0.15]} opacity={0.3} />
+        <DiagramNode id="cache"  position={[0.618, 0.917, -25]}  size={[0.15, 0.15]} opacity={0.3} />
+        <DiagramNode id="s3"     position={[0.912, 0.917, -25]}  size={[0.15, 0.15]} opacity={0.3} />
 
         {/* ECS detail drill-down */}
         <DiagramNode
@@ -48,11 +48,11 @@ export const scene03ArchDetail: JSX.Element = (
           position={[0.324, 0.639, -5]}
           thickness={0.8}
           color="#1a3d5c"
-          size={[0.353, 0.167]}
+          size={[0.30, 0.22]}
         />
-        <DiagramNode id="svc-auth"   label="Auth Service" position={[0.088, 0.528, 8]}  color="#0d3d2b" size={[0.235, 0.111]} />
-        <DiagramNode id="svc-api"    label="API Service"  position={[0.324, 0.528, 8]}  color="#0d3d2b" size={[0.235, 0.111]} />
-        <DiagramNode id="svc-worker" label="Worker"       position={[0.559, 0.528, 8]}  color="#0d3d2b" size={[0.235, 0.111]} />
+        <DiagramNode id="svc-auth"   label="Auth Service" position={[0.088, 0.528, 8]}  color="#0d3d2b" size={[0.18, 0.13]} />
+        <DiagramNode id="svc-api"    label="API Service"  position={[0.324, 0.528, 8]}  color="#0d3d2b" size={[0.18, 0.13]} />
+        <DiagramNode id="svc-worker" label="Worker"       position={[0.559, 0.528, 8]}  color="#0d3d2b" size={[0.18, 0.13]} />
 
         <DiagramEdge from="ecs"      to="svc-auth"   flow="forward" />
         <DiagramEdge from="ecs"      to="svc-api"    flow="forward" />

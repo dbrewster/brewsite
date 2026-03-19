@@ -41,24 +41,24 @@ export const scene02ArchOverview: JSX.Element = (
         <GridLayout />
 
         <DiagramGroup id="frontend" label="Client Tier" variant="swimlane">
-          <DiagramNode id="browser" label="Web Browser" icon="ui:user" />
+          <DiagramNode id="browser" label="Web Browser" icon="ui:user" size={[0.15, 0.12]} />
         </DiagramGroup>
 
         <DiagramGroup id="api-tier" label="API Tier" variant="boundary">
-          <DiagramNode id="cdn" label="CloudFront CDN"  icon="aws:cloudfront" />
-          <DiagramNode id="alb" label="Load Balancer"   icon="aws:alb" />
-          <DiagramNode id="api" label="API Gateway"     icon="aws:api-gateway" />
+          <DiagramNode id="cdn" label="CloudFront CDN"  icon="aws:cloudfront" size={[0.15, 0.12]} />
+          <DiagramNode id="alb" label="Load Balancer"   icon="aws:alb" size={[0.15, 0.12]} />
+          <DiagramNode id="api" label="API Gateway"     icon="aws:api-gateway" size={[0.15, 0.12]} />
         </DiagramGroup>
 
         <DiagramGroup id="compute" label="Compute Tier" variant="boundary">
-          <DiagramNode id="ecs"    label="ECS Cluster" icon="aws:ecs" />
-          <DiagramNode id="lambda" label="Lambda"      icon="aws:lambda" />
+          <DiagramNode id="ecs"    label="ECS Cluster" icon="aws:ecs" size={[0.15, 0.12]} />
+          <DiagramNode id="lambda" label="Lambda"      icon="aws:lambda" size={[0.15, 0.12]} />
         </DiagramGroup>
 
         <DiagramGroup id="data" label="Data Tier" variant="swimlane">
-          <DiagramNode id="rds"   label="RDS PostgreSQL" icon="aws:rds" />
-          <DiagramNode id="cache" label="ElastiCache"    icon="aws:elasticache" />
-          <DiagramNode id="s3"    label="S3 Assets"      icon="aws:s3" />
+          <DiagramNode id="rds"   label="RDS PostgreSQL" icon="aws:rds" size={[0.15, 0.12]} />
+          <DiagramNode id="cache" label="ElastiCache"    icon="aws:elasticache" size={[0.15, 0.12]} />
+          <DiagramNode id="s3"    label="S3 Assets"      icon="aws:s3" size={[0.15, 0.12]} />
         </DiagramGroup>
 
         <DiagramEdge from="browser" to="cdn"    label="HTTPS"    flow="forward" />

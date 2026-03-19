@@ -3,7 +3,7 @@ title: Common Gotchas
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-19
 ---
 
 ## Entry Transition on the Wrong Scene
@@ -319,6 +319,78 @@ mergeSnapshot(prev, next) {
   if (!prev) return next;
   return { ...prev, ...next };
 }
+```
+
+---
+
+## Node Too Small for Icon + Label + Sublabel
+
+**Symptom:** Icon appears tiny or label text is unreadable. The node looks cramped with all content squeezed together.
+
+**Cause:** The node's `size` is too small to fit an icon, label, and sublabel. The fit-to-content layout automatically scales down the icon to prevent overflow, but very small nodes produce unreadable results.
+
+**Rule:** Use the standard recipe sizes as a floor. For icon + label + sublabel rectangles, `[0.15, 0.08]` is the standard starting point. For circles/hexagons use `[0.12, 0.12]` (square). For very content-rich nodes, increase height to `[0.15, 0.10]` or more. See the full sizing table in [layout-spatial-awareness.md](./layout-spatial-awareness.md).
+
+**Wrong:**
+```tsx
+// Too small — icon will be scaled down to near-invisible
+<DiagramNode id="svc" label="Service" sublabel="v2.1" icon="tech:docker" size={[0.05, 0.03]} />
+```
+
+**Correct:**
+```tsx
+// Standard size for icon + label + sublabel rectangle
+<DiagramNode id="svc" label="Service" sublabel="v2.1" icon="tech:docker" size={[0.15, 0.08]} />
+```
+
+---
+
+## Using Old Content-Unit Values for Diagram Node Sizes
+
+**Symptom:** Diagram nodes are enormous (4x the viewport width) or the layout looks completely wrong because you used legacy content-unit values like `[4, 2]` for node sizes.
+
+**Cause:** All diagram node sizes are now **NVS fractions [0..1]** — the same system as the diagram viewport itself. Old content-unit values like `[4, 2]` or `[6, 3]` would set a node to 4x the viewport width, which is far outside the visible area.
+
+**Rule:** All sizes are NVS fractions [0..1]. Both `<Diagram x y w h>` (viewport placement) and `<DiagramNode size>` (node dimensions) use NVS. The standard node size is `[0.15, 0.08]` — 15% wide, 8% tall relative to the diagram viewport.
+
+**Wrong:**
+```tsx
+// Legacy content-unit values — these are now 4x the viewport width!
+<Diagram id="d1" x={0.1} y={0.1} w={0.8} h={0.8}>
+  <GridLayout columns={3} />
+  <DiagramNode id="n1" label="API" size={[4, 2]} />  {/* wrong — old content units */}
+</Diagram>
+```
+
+**Correct:**
+```tsx
+// All sizes are NVS fractions [0..1]
+<Diagram id="d1" x={0.1} y={0.1} w={0.8} h={0.8}>
+  <GridLayout columns={3} />
+  <DiagramNode id="n1" label="API" size={[0.15, 0.08]} />  {/* NVS fractions */}
+</Diagram>
+```
+
+---
+
+## Square Nodes Need Equal Width and Height
+
+**Symptom:** A node intended to be square renders as a rectangle.
+
+**Cause:** Using unequal width and height values in the `size` prop. After the aspect ratio correction, `size={[0.12, 0.12]}` renders as a true square, and `size={[0.15, 0.08]}` renders as a rectangle.
+
+**Rule:** For square nodes, always use equal width and height: `size={[0.12, 0.12]}`. For rectangular nodes, use different values: `size={[0.15, 0.08]}`.
+
+**Wrong:**
+```tsx
+// Intended to be square but renders as rectangle
+<DiagramNode id="icon-node" shape="circle" size={[0.15, 0.08]} />
+```
+
+**Correct:**
+```tsx
+// Equal dimensions = square (or true circle for circle shape)
+<DiagramNode id="icon-node" shape="circle" size={[0.12, 0.12]} />
 ```
 
 ---

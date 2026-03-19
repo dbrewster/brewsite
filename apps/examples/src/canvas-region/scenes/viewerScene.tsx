@@ -37,7 +37,7 @@ export function ViewerScene(): JSX.Element {
             shape="circle"
             icon="ui:circle-stack"
             position={[0.65, 0.5, 0]}
-            size={[0.2, 0.15]}
+            size={[0.2, 0.2]}
           />
         </DiagramGroup>
         <DiagramNode

@@ -124,7 +124,7 @@ export const CameraControlsScene = (): JSX.Element => {
             id="cf-db"
             label=".swarm/memory.db"
             sublabel="SQLite · single file · 12 tables"
-            size={[8.8, 2.5]}
+            size={[0.30, 0.10]}
             glow={{ intensity: 0.12 }}
           />
 
@@ -133,30 +133,30 @@ export const CameraControlsScene = (): JSX.Element => {
 
             <DiagramGroup id="cf-core" label="Core Storage" variant="cluster">
               <FlowLayout direction="top-down" gap={0.72} />
-              <DiagramNode id="cf-memstore" label="memory_store" sublabel="key-value · namespace · TTL" size={[5.0, 1.55]}  />
-              <DiagramNode id="cf-sessions" label="sessions" sublabel="cross-session context" size={[5.0, 1.55]}  />
-              <DiagramNode id="cf-agents" label="agents" sublabel="registry · config · state" size={[5.0, 1.55]}  />
-              <DiagramNode id="cf-tasks" label="tasks" sublabel="tracking · deps · status" size={[5.0, 1.55]}  />
+              <DiagramNode id="cf-memstore" label="memory_store" sublabel="key-value · namespace · TTL" size={[0.18, 0.10]}  />
+              <DiagramNode id="cf-sessions" label="sessions" sublabel="cross-session context" size={[0.18, 0.10]}  />
+              <DiagramNode id="cf-agents" label="agents" sublabel="registry · config · state" size={[0.18, 0.10]}  />
+              <DiagramNode id="cf-tasks" label="tasks" sublabel="tracking · deps · status" size={[0.18, 0.10]}  />
             </DiagramGroup>
 
             <DiagramGroup id="cf-coord" label="Coordination" variant="cluster">
               <FlowLayout direction="top-down" gap={0.72} />
-              <DiagramNode id="cf-shared" label="shared_state" sublabel="cross-agent blackboard · versioned" size={[5.0, 1.55]}  />
-              <DiagramNode id="cf-agmem" label="agent_memory" sublabel="per-agent state" size={[5.0, 1.55]}  />
-              <DiagramNode id="cf-events" label="events" sublabel="audit log" size={[5.0, 1.55]}  />
-              <DiagramNode id="cf-topology" label="swarm_topology" sublabel="agent relationships" size={[5.0, 1.55]}  />
+              <DiagramNode id="cf-shared" label="shared_state" sublabel="cross-agent blackboard · versioned" size={[0.18, 0.10]}  />
+              <DiagramNode id="cf-agmem" label="agent_memory" sublabel="per-agent state" size={[0.18, 0.10]}  />
+              <DiagramNode id="cf-events" label="events" sublabel="audit log" size={[0.18, 0.10]}  />
+              <DiagramNode id="cf-topology" label="swarm_topology" sublabel="agent relationships" size={[0.18, 0.10]}  />
             </DiagramGroup>
 
             <DiagramGroup id="cf-intel" label="Intelligence" variant="cluster">
               <FlowLayout direction="top-down" gap={0.72} />
-              <DiagramNode id="cf-patterns" label="patterns" sublabel="usage_count · confidence" size={[5.0, 1.55]}  />
-              <DiagramNode id="cf-perf" label="performance_metrics" sublabel="latency · throughput" size={[5.0, 1.55]}  />
+              <DiagramNode id="cf-patterns" label="patterns" sublabel="usage_count · confidence" size={[0.18, 0.10]}  />
+              <DiagramNode id="cf-perf" label="performance_metrics" sublabel="latency · throughput" size={[0.18, 0.10]}  />
             </DiagramGroup>
 
             <DiagramGroup id="cf-recov" label="Recovery" variant="cluster">
               <FlowLayout direction="top-down" gap={0.72} />
-              <DiagramNode id="cf-workflow" label="workflow_state" sublabel="crash-recovery checkpoints" size={[5.0, 1.55]}  />
-              <DiagramNode id="cf-consensus" label="consensus_state" sublabel="quorum voting · ≥2 acceptors" size={[5.0, 1.55]}  />
+              <DiagramNode id="cf-workflow" label="workflow_state" sublabel="crash-recovery checkpoints" size={[0.18, 0.10]}  />
+              <DiagramNode id="cf-consensus" label="consensus_state" sublabel="quorum voting · ≥2 acceptors" size={[0.18, 0.10]}  />
             </DiagramGroup>
           </DiagramGroup>
 

@@ -198,51 +198,13 @@ export class DiagramRenderer {
       });
     }
 
-    // ─── Aspect-ratio correction ─────────────────────────────────────────────
-    // NVS normalization scales each axis independently (÷ spanX, ÷ spanY).
-    // The render pass converts back via uniformWorldW/H which have the viewport
-    // aspect ratio baked in. When contentAspect ≠ viewportAspect, DSL-authored
-    // squares render as rectangles.
-    //
-    // Correction: compute a per-axis scale factor that undoes the distortion.
-    // viewportAspect = uniformWorldW / uniformWorldH
-    // contentAspect  = spanX / spanY  (from compiled DiagramState)
-    //
-    // IMPORTANT: The aspect correction is applied to BOTH positions and sizes
-    // uniformly via scaledWorldW/H. This ensures edge anchors (computed by the
-    // router at nodeCenter ± nodeSize/2) match the rendered node surfaces.
-    // Previously only sizes were corrected, causing edges to overshoot past
-    // the rendered node geometry when sizeScale < 1.
-    const viewportAspect = uniformWorldH > 0 ? uniformWorldW / uniformWorldH : 1;
-    const ca = state.contentAspect > 0 ? state.contentAspect : 1;
-    // corrW / corrH = ca / viewportAspect
-    // Set the larger correction to 1.0, shrink the other:
-    const aspectRatio = ca / viewportAspect;
-    let sizeScaleX: number;
-    let sizeScaleY: number;
-    if (aspectRatio <= 1) {
-      // Content is relatively taller than viewport → X is over-stretched, shrink X
-      sizeScaleX = aspectRatio;
-      sizeScaleY = 1;
-    } else {
-      // Content is relatively wider than viewport → Y is over-stretched, shrink Y
-      sizeScaleX = 1;
-      sizeScaleY = 1 / aspectRatio;
-    }
-
-    // Scaled world dimensions: uniform viewport scale × aspect correction.
-    // Used for ALL NVS→world conversions (positions, sizes, edge paths, groups)
-    // so the router's coordinate system matches the rendered geometry exactly.
-    const scaledWorldW = uniformWorldW * sizeScaleX;
-    const scaledWorldH = uniformWorldH * sizeScaleY;
-
     // Quantize uniformWorldW for thickness/border scaling to prevent per-frame
     // geometry rebuilds during transitions. Sub-renderers compare thickness values
     // for change detection — continuous floating-point changes trigger expensive
     // TubeGeometry/ExtrudeGeometry recreation on every node/edge/group every frame.
     // Quantizing to 0.1 precision limits rebuilds to ~3 per transition while keeping
     // visual error below 5% of tube thickness (sub-pixel).
-    const thicknessScale = Math.round(scaledWorldW * 10) / 10 || 0.1;
+    const thicknessScale = Math.round(uniformWorldW * 10) / 10 || 0.1;
 
     // ─── Groups ───────────────────────────────────────────────────────────────
 
@@ -257,23 +219,22 @@ export class DiagramRenderer {
 
     for (const groupState of state.groups) {
       // Compute group center in diagram-local NVS, then map to group-local world coords.
-      // Uses scaledWorldW/H so positions and sizes share the same aspect-corrected scale.
       const gcNvsX = groupState.bounds.x + groupState.bounds.w / 2;
       const gcNvsY = groupState.bounds.y + groupState.bounds.h / 2;
-      const localGCX = (gcNvsX - 0.5) * scaledWorldW;
-      const localGCY = -(gcNvsY - 0.5) * scaledWorldH;
+      const localGCX = (gcNvsX - 0.5) * uniformWorldW;
+      const localGCY = -(gcNvsY - 0.5) * uniformWorldH;
 
-      // Convert group size using aspect-corrected world dimensions.
-      const worldGW = groupState.bounds.w * scaledWorldW;
-      const worldGH = groupState.bounds.h * scaledWorldH;
+      // Convert group size from NVS fractions to world units.
+      const worldGW = groupState.bounds.w * uniformWorldW;
+      const worldGH = groupState.bounds.h * uniformWorldH;
 
-      // Convert padding from NVS fractions to world units using aspect-corrected scaling.
+      // Convert padding from NVS fractions to world units.
       // padding = [top, right, bottom, left] as NVS fractions.
-      const worldPadTop = groupState.bounds.padding[0] * scaledWorldH;
-      const worldPadRight = groupState.bounds.padding[1] * scaledWorldW;
-      const worldPadBottom = groupState.bounds.padding[2] * scaledWorldH;
-      const worldPadLeft = groupState.bounds.padding[3] * scaledWorldW;
-      const worldTitleGap = groupState.bounds.titleGap * scaledWorldH;
+      const worldPadTop = groupState.bounds.padding[0] * uniformWorldH;
+      const worldPadRight = groupState.bounds.padding[1] * uniformWorldW;
+      const worldPadBottom = groupState.bounds.padding[2] * uniformWorldH;
+      const worldPadLeft = groupState.bounds.padding[3] * uniformWorldW;
+      const worldTitleGap = groupState.bounds.titleGap * uniformWorldH;
 
       // Convert edge lights from NVS group-local fractions to world units.
       // Edge light positions are in NVS group-local fractions — convert to world-space half-extents.
@@ -330,13 +291,13 @@ export class DiagramRenderer {
             return {
               kind: 'line' as const,
               from: [
-                (command.from[0] - 0.5) * scaledWorldW,
-                -(command.from[1] - 0.5) * scaledWorldH,
+                (command.from[0] - 0.5) * uniformWorldW,
+                -(command.from[1] - 0.5) * uniformWorldH,
                 command.from[2] + NODE_RENDER_Z_OFFSET,
               ] as const,
               to: [
-                (command.to[0] - 0.5) * scaledWorldW,
-                -(command.to[1] - 0.5) * scaledWorldH,
+                (command.to[0] - 0.5) * uniformWorldW,
+                -(command.to[1] - 0.5) * uniformWorldH,
                 command.to[2] + NODE_RENDER_Z_OFFSET,
               ] as const,
             };
@@ -344,23 +305,23 @@ export class DiagramRenderer {
           return {
             kind: 'cubic' as const,
             p0: [
-              (command.p0[0] - 0.5) * scaledWorldW,
-              -(command.p0[1] - 0.5) * scaledWorldH,
+              (command.p0[0] - 0.5) * uniformWorldW,
+              -(command.p0[1] - 0.5) * uniformWorldH,
               command.p0[2] + NODE_RENDER_Z_OFFSET,
             ] as const,
             p1: [
-              (command.p1[0] - 0.5) * scaledWorldW,
-              -(command.p1[1] - 0.5) * scaledWorldH,
+              (command.p1[0] - 0.5) * uniformWorldW,
+              -(command.p1[1] - 0.5) * uniformWorldH,
               command.p1[2] + NODE_RENDER_Z_OFFSET,
             ] as const,
             p2: [
-              (command.p2[0] - 0.5) * scaledWorldW,
-              -(command.p2[1] - 0.5) * scaledWorldH,
+              (command.p2[0] - 0.5) * uniformWorldW,
+              -(command.p2[1] - 0.5) * uniformWorldH,
               command.p2[2] + NODE_RENDER_Z_OFFSET,
             ] as const,
             p3: [
-              (command.p3[0] - 0.5) * scaledWorldW,
-              -(command.p3[1] - 0.5) * scaledWorldH,
+              (command.p3[0] - 0.5) * uniformWorldW,
+              -(command.p3[1] - 0.5) * uniformWorldH,
               command.p3[2] + NODE_RENDER_Z_OFFSET,
             ] as const,
           };
@@ -373,8 +334,8 @@ export class DiagramRenderer {
         thickness: edgeState.thickness * thicknessScale,
         path: convertedPath,
         controlPoints: edgeState.controlPoints.map((cp) => {
-          const localCpX = (cp[0] - 0.5) * scaledWorldW;
-          const localCpY = -(cp[1] - 0.5) * scaledWorldH;
+          const localCpX = (cp[0] - 0.5) * uniformWorldW;
+          const localCpY = -(cp[1] - 0.5) * uniformWorldH;
           return [localCpX, localCpY, cp[2] + NODE_RENDER_Z_OFFSET] as readonly [number, number, number];
         }),
       };
@@ -397,16 +358,13 @@ export class DiagramRenderer {
 
     for (const nodeState of state.nodes) {
       // Node position: diagram-local NVS [0..1] → group-local world coords.
-      // Uses scaledWorldW/H (aspect-corrected) so positions and sizes share the
-      // same coordinate system. This ensures edge anchors at nodeCenter ± size/2
-      // land exactly on the rendered node surfaces.
-      const localX = (nodeState.position[0] - 0.5) * scaledWorldW;
-      const localY = -(nodeState.position[1] - 0.5) * scaledWorldH; // Y-flip: NVS 0=top, Three.js +Y=up
+      const localX = (nodeState.position[0] - 0.5) * uniformWorldW;
+      const localY = -(nodeState.position[1] - 0.5) * uniformWorldH; // Y-flip: NVS 0=top, Three.js +Y=up
       const localZ = nodeState.position[2] + NODE_RENDER_Z_OFFSET; // world-space Z offset for layering (groups are at Z=0)
 
-      // Node size: NVS fractions → world units via aspect-corrected scaling.
-      const worldW = nodeState.size[0] * scaledWorldW;
-      const worldH = nodeState.size[1] * scaledWorldH;
+      // Node size: NVS fractions → world units.
+      const worldW = nodeState.size[0] * uniformWorldW;
+      const worldH = nodeState.size[1] * uniformWorldH;
 
       if (process.env.NODE_ENV !== 'production') {
         if (!Number.isFinite(localX) || !Number.isFinite(localY)) {

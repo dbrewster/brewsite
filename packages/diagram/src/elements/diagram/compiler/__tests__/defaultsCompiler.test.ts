@@ -10,7 +10,7 @@ describe('buildNodeDefaults — theme-driven defaults', () => {
   it('uses theme.node.defaultSize for size', () => {
     const nd = buildNodeDefaults(darkGlassTheme);
     expect(nd.size).toEqual(darkGlassTheme.node.defaultSize);
-    expect(nd.size).toEqual([4, 2]);
+    expect(nd.size).toEqual([0.15, 0.08]);
   });
 
   it('uses theme.node.defaultSize from a custom theme, not a hardcoded constant', () => {

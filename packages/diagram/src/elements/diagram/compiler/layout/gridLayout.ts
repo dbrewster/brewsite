@@ -40,7 +40,7 @@ export function resolveGridLayout(
   }
 
   const { spacing, margin: rawMargin, columns: rawColumns, alignment, disconnected } = layout;
-  const safeSpacing = ensurePair(spacing, [2, 2]);
+  const safeSpacing = ensurePair(spacing, [0.06, 0.06]);
   const safeMargin = ensurePair(rawMargin, [0, 0]);
   const resolvedCols = rawColumns === 'auto' || rawColumns === undefined ? 4 : rawColumns;
   const cols = !Number.isFinite(resolvedCols) || resolvedCols <= 0 ? 4 : resolvedCols;

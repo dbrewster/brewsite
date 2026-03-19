@@ -33,7 +33,7 @@ export function resolveLayout(
   layout: ResolvedLayout,
   onWarn?: DiagramWarnFn,
   childrenOrder?: ReadonlyArray<string>,
-  defaultNodeSize: readonly [number, number] = [4, 2],
+  defaultNodeSize: readonly [number, number] = [0.15, 0.08],
 ): Map<string, readonly [number, number, number]> {
   const layoutKind = (layout as { kind?: string }).kind;
   if (layoutKind !== 'manual' && layoutKind !== 'grid' && layoutKind !== 'hierarchical' && layoutKind !== 'flow') {
@@ -213,7 +213,7 @@ export function resolveLayoutWithGroups(
   onWarn?: DiagramWarnFn,
   rootChildrenOrder?: ReadonlyArray<string>,
   groupChildrenOrders?: Map<string, ReadonlyArray<string>>,
-  defaultNodeSize: readonly [number, number] = [4, 2],
+  defaultNodeSize: readonly [number, number] = [0.15, 0.08],
 ): Map<string, readonly [number, number, number]> {
   if (rootLayout.kind === 'manual' || groups.length === 0) {
     return resolveLayout(nodes, edges, rootLayout, onWarn, rootChildrenOrder, defaultNodeSize);

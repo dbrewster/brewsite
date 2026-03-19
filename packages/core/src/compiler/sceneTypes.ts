@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { SceneFrame } from './sceneTrackTypes';
 import type { VariableStoreReader, JsonPrimitive } from '../widget/VariableStore';
-import type { ThemeFamily } from '../theme/types';
+import type { ThemeFamily, SceneTheme } from '../theme/types';
 
 export type SceneSnapshotContext = {
   /** 0-based index of this scene in the scene array. */
@@ -25,6 +25,15 @@ export type SceneSnapshotContext = {
    * Defaults to 'dark' when no theme is configured.
    */
   themePolarity: 'dark' | 'light';
+  /**
+   * Optional scene theme tokens for cross-package theming.
+   * Contains font URLs (webglFontUrl), font size scales, and color mode.
+   * Consumed by downstream NodeHandlers — e.g., the diagram handler
+   * bridges this into `DiagramTheme.sceneTheme` for font and sizing integration.
+   *
+   * Optional — existing scenes without a SceneTheme behave identically to before.
+   */
+  sceneTheme?: SceneTheme;
 };
 
 /**

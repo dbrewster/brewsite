@@ -244,7 +244,6 @@ function makeDefaultDiagramState(id: string): DiagramState {
     tiltRotation: [0, 0, 0],
     z: 0,
     scale: 1,
-    contentAspect: 1.0,
     nodes: [],
     edges: [],
     groups: [],
@@ -294,6 +293,12 @@ export const registerDiagramHandlers = (registry?: WidgetRegistry): void => {
       api.context.themePolarity,
     );
 
+    // Bridge engine-level SceneTheme into DiagramTheme so that
+    // buildThemeRenderConfig() can derive fontUrl and fontSize multipliers.
+    const themedResolvedTheme = api.context.sceneTheme
+      ? { ...resolvedTheme, sceneTheme: api.context.sceneTheme }
+      : resolvedTheme;
+
     // Compose local [0..1] bounds and Z through the parent NVS context.
     // This is essential when <Diagram> is nested inside a <View> or other scoped
     // container — without it, viewportBounds ignores the parent coordinate system
@@ -310,7 +315,7 @@ export const registerDiagramHandlers = (registry?: WidgetRegistry): void => {
 
     let diagramState = compileDiagram(
       { ...dsl, x: composedBounds.x, y: composedBounds.y, w: composedBounds.w, h: composedBounds.h, z: composedZ },
-      resolvedTheme,
+      themedResolvedTheme,
       onWarn,
     );
 

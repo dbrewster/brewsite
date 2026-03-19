@@ -71,10 +71,10 @@ export const scene02Combined: JSX.Element = (
     {/* Architecture diagram — right, slightly elevated and angled */}
     <Diagram id="full-arch" x={0} y={0} w={1} h={1} tilt={-Math.PI / 10} scale={1.1}>
         <ManualLayout />
-        <DiagramNode id="ui"  label="Web App"    icon="ui:globe-alt"    position={[0.500, 0.167, 0]} size={[0.15, 0.08]} />
-        <DiagramNode id="api" label="API Server" icon="aws:api-gateway" position={[0.500, 0.500, 0]} size={[0.15, 0.08]} />
-        <DiagramNode id="db"  label="Database"   icon="aws:rds"         position={[0.188, 0.833, 0]} size={[0.15, 0.08]} />
-        <DiagramNode id="cdn" label="CDN"        icon="aws:cloudfront"  position={[0.813, 0.833, 0]} size={[0.15, 0.08]} />
+        <DiagramNode id="ui"  label="Web App"    icon="ui:globe-alt"    position={[0.500, 0.167, 0]} size={[0.15, 0.15]} />
+        <DiagramNode id="api" label="API Server" icon="aws:api-gateway" position={[0.500, 0.500, 0]} size={[0.15, 0.15]} />
+        <DiagramNode id="db"  label="Database"   icon="aws:rds"         position={[0.188, 0.833, 0]} size={[0.15, 0.15]} />
+        <DiagramNode id="cdn" label="CDN"        icon="aws:cloudfront"  position={[0.813, 0.833, 0]} size={[0.15, 0.15]} />
         <DiagramEdge from="ui"  to="api" flow="forward" />
         <DiagramEdge from="api" to="db"  flow="forward" />
         <DiagramEdge from="api" to="cdn" flow="forward" style="dashed" />

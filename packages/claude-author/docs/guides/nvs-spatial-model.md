@@ -3,8 +3,16 @@ title: NVS Spatial Model
 doc_type: guide
 owner: claude-author
 status: active
-updated: 2026-03-15
+updated: 2026-03-19
 ---
+
+> **Complete spatial reference:** For the full spatial guide including diagram node sizing, world coordinates, and a prop-to-coordinate-system quick reference table, see [layout-spatial-awareness.md](./layout-spatial-awareness.md).
+
+## World Coordinates vs NVS
+
+Camera, Lighting, and Floor use **world coordinates** (unbounded Three.js units, typically -10 to +10). Everything else — Diagrams, Models, Charts, ImagePanels, Screens, Views, TextBoxes — uses **NVS** (Normalized Viewport Space, range [0, 1]).
+
+Inside a `<Diagram>`, node `size` props also use NVS fractions [0..1] — the same system as the diagram viewport itself. See the sizing recipes table in [layout-spatial-awareness.md](./layout-spatial-awareness.md) for recommended values.
 
 ## What NVS Is
 
@@ -29,8 +37,8 @@ DSL elements accept `x`, `y`, `w`, `h`, and `z` props. These are all NVS values 
 // Right half of the viewport, full height
 <ImagePanel id="panel" x={0.5} y={0} w={0.5} h={1} z={0} />
 
-// Top-left corner, 30% wide, 20% tall
-<Diagram id="chart" x={0} y={0} w={0.3} h={0.2} z={0} />
+// Full-width diagram, nearly full height (typical for architecture diagrams)
+<Diagram id="arch" x={0.05} y={0.05} w={0.9} h={0.9} z={0} />
 ```
 
 `x` and `y` set the **center** of the element in some elements and the **position** of the bounding box in others — check the specific element's docs. For `Model`, `x` and `y` define the NVS center of the element's bounding region.
@@ -141,6 +149,19 @@ You do not need to think about this conversion. NVS values you write in DSL are 
 `z` controls depth layering. Elements with lower `z` are closer to the camera (rendered in front). Elements with higher `z` are further back. The exact world-space depth of `z={1}` depends on the scene camera distance — use small values (0, 0.1, 0.5) for layering within a scene.
 
 In `ViewLayout kind="carousel"`, `zStep` pushes inactive panels back in Z automatically — you do not manually set Z on carousel children.
+
+## Diagram Node Sizing Recipes
+
+All diagram node sizes are NVS fractions [0..1] — the same system as the diagram viewport. Use these recommended values as a starting point:
+
+| Recipe | Size | Use Case |
+|---|---|---|
+| Standard | `[0.15, 0.08]` | Default. 6-12 node diagrams. |
+| Compact | `[0.10, 0.06]` | Dense diagrams (13+ nodes). |
+| Hero | `[0.25, 0.14]` | Title/header nodes. |
+| Wide | `[0.22, 0.10]` | Nodes with long labels. |
+| Square | `[0.12, 0.12]` | Icon-heavy nodes, circle shapes. |
+| Banner | `[0.35, 0.10]` | Full-width title bars. |
 
 ## Common Gotchas
 

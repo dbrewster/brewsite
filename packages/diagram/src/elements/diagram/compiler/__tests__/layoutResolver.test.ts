@@ -47,16 +47,16 @@ describe('DEFAULT_RESOLVED_FLOW', () => {
     expect(DEFAULT_RESOLVED_FLOW.direction).toBe('top-down');
   });
 
-  it('has default gap: 2', () => {
-    expect(DEFAULT_RESOLVED_FLOW.gap).toBe(2);
+  it('has default gap: 0.06', () => {
+    expect(DEFAULT_RESOLVED_FLOW.gap).toBe(0.06);
   });
 
-  it('has default groupPadding [1.5, 1.5, 1.5, 1.5]', () => {
-    expect(DEFAULT_RESOLVED_FLOW.groupPadding).toEqual([1.5, 1.5, 1.5, 1.5]);
+  it('has default groupPadding [0.035, 0.035, 0.035, 0.035]', () => {
+    expect(DEFAULT_RESOLVED_FLOW.groupPadding).toEqual([0.035, 0.035, 0.035, 0.035]);
   });
 
-  it('has default titleGap: 1', () => {
-    expect(DEFAULT_RESOLVED_FLOW.titleGap).toBe(1);
+  it('has default titleGap: 0.025', () => {
+    expect(DEFAULT_RESOLVED_FLOW.titleGap).toBe(0.025);
   });
 
   it('does not have spacing, margin, alignment, or disconnected fields', () => {
@@ -259,11 +259,11 @@ describe('resolveThemeLayoutDefaults — flow branch', () => {
 describe('dispatch guard — resolveLayout kind=flow', () => {
   it('dispatches to flow layout behavior (not grid fallback)', () => {
     const nodes = [makeNode('a', { size: [4, 2] }), makeNode('b', { size: [4, 2] })];
-    // Flow top-down with default gap=2: a at y=0, b at y=-(h+gap)=-(2+2)=-4
+    // Flow top-down with default gap=0.06: a at y=0, b at y=-(h/2+gap+h/2)=-(1+0.06+1)=-2.06
     // Grid would assign both to y=0 but different x. If flow is dispatched, a is at [0,0,0].
     const result = resolveLayout(nodes, [], DEFAULT_RESOLVED_FLOW, undefined, ['a', 'b']);
     expect(result.get('a')).toEqual([0, 0, 0]);
-    expect(result.get('b')).toEqual([0, -4, 0]);
+    expect(result.get('b')).toEqual([0, -2.06, 0]);
   });
 });
 

@@ -18,7 +18,7 @@ const hierarchical = (overrides: Partial<ResolvedHierarchicalLayout> = {}): Reso
 describe('resolveHierarchicalLayout', () => {
   it('places a single node at origin', () => {
     const nodes = [makeNode('a')];
-    const result = resolveHierarchicalLayout(nodes, [], hierarchical(), [4, 2]);
+    const result = resolveHierarchicalLayout(nodes, [], hierarchical(), [0.15, 0.08]);
     const pos = result.get('a')!;
     expect(pos[0]).toBeDefined();
     expect(pos[1]).toBeDefined();
@@ -27,7 +27,7 @@ describe('resolveHierarchicalLayout', () => {
   it('places source (no in-edges) before sink (has in-edges) in top-down direction', () => {
     const nodes = [makeNode('a'), makeNode('b')];
     const edges = [makeEdge('a', 'b')];
-    const result = resolveHierarchicalLayout(nodes, edges, hierarchical({ direction: 'top-down' }), [4, 2]);
+    const result = resolveHierarchicalLayout(nodes, edges, hierarchical({ direction: 'top-down' }), [0.15, 0.08]);
     const a = result.get('a')!;
     const b = result.get('b')!;
     // top-down: source (a) at higher Y than sink (b)
@@ -37,7 +37,7 @@ describe('resolveHierarchicalLayout', () => {
   it('places source before sink in left-right direction', () => {
     const nodes = [makeNode('a'), makeNode('b')];
     const edges = [makeEdge('a', 'b')];
-    const result = resolveHierarchicalLayout(nodes, edges, hierarchical({ direction: 'left-right' }), [4, 2]);
+    const result = resolveHierarchicalLayout(nodes, edges, hierarchical({ direction: 'left-right' }), [0.15, 0.08]);
     const a = result.get('a')!;
     const b = result.get('b')!;
     // left-right: source (a) at lower X than sink (b)
@@ -47,7 +47,7 @@ describe('resolveHierarchicalLayout', () => {
   it('handles a 3-node DAG: root → mid → leaf', () => {
     const nodes = [makeNode('root'), makeNode('mid'), makeNode('leaf')];
     const edges = [makeEdge('root', 'mid'), makeEdge('mid', 'leaf')];
-    const result = resolveHierarchicalLayout(nodes, edges, hierarchical({ direction: 'top-down' }), [4, 2]);
+    const result = resolveHierarchicalLayout(nodes, edges, hierarchical({ direction: 'top-down' }), [0.15, 0.08]);
     const root = result.get('root')!;
     const mid = result.get('mid')!;
     const leaf = result.get('leaf')!;
@@ -58,7 +58,7 @@ describe('resolveHierarchicalLayout', () => {
   it('handles disconnected nodes placed at level 0 by default', () => {
     const nodes = [makeNode('a'), makeNode('b'), makeNode('isolated')];
     const edges = [makeEdge('a', 'b')];
-    const result = resolveHierarchicalLayout(nodes, edges, hierarchical({ disconnected: 'inline' }), [4, 2]);
+    const result = resolveHierarchicalLayout(nodes, edges, hierarchical({ disconnected: 'inline' }), [0.15, 0.08]);
     // isolated node should still get a position
     expect(result.has('isolated')).toBe(true);
   });
@@ -66,7 +66,7 @@ describe('resolveHierarchicalLayout', () => {
   it('places disconnected nodes after connected ones when disconnected=after', () => {
     const nodes = [makeNode('a'), makeNode('b'), makeNode('iso')];
     const edges = [makeEdge('a', 'b')];
-    const result = resolveHierarchicalLayout(nodes, edges, hierarchical({ direction: 'top-down', disconnected: 'after' }), [4, 2]);
+    const result = resolveHierarchicalLayout(nodes, edges, hierarchical({ direction: 'top-down', disconnected: 'after' }), [0.15, 0.08]);
     const a = result.get('a')!;
     const iso = result.get('iso')!;
     // Disconnected node placed after connected — should have lower Y than the connected nodes
@@ -78,9 +78,9 @@ describe('resolveHierarchicalLayout', () => {
     const edges = [makeEdge('a', 'b'), makeEdge('b', 'a')]; // cycle
     // Should not throw
     expect(() => {
-      resolveHierarchicalLayout(nodes, edges, hierarchical(), [4, 2]);
+      resolveHierarchicalLayout(nodes, edges, hierarchical(), [0.15, 0.08]);
     }).not.toThrow();
-    const result = resolveHierarchicalLayout(nodes, edges, hierarchical(), [4, 2]);
+    const result = resolveHierarchicalLayout(nodes, edges, hierarchical(), [0.15, 0.08]);
     expect(result.has('a')).toBe(true);
     expect(result.has('b')).toBe(true);
   });
@@ -91,7 +91,7 @@ describe('resolveHierarchicalLayout', () => {
       makeNode('b'),
     ];
     const edges = [makeEdge('a', 'b')];
-    const result = resolveHierarchicalLayout(nodes, edges, hierarchical(), [4, 2]);
+    const result = resolveHierarchicalLayout(nodes, edges, hierarchical(), [0.15, 0.08]);
     expect(result.get('a')).toEqual([0, 10, 0]);
   });
 
@@ -100,7 +100,7 @@ describe('resolveHierarchicalLayout', () => {
       makeNode('a', { position: [1, 2, 0] }),
       makeNode('b', { position: [3, 4, 0] }),
     ];
-    const result = resolveHierarchicalLayout(nodes, [], hierarchical(), [4, 2]);
+    const result = resolveHierarchicalLayout(nodes, [], hierarchical(), [0.15, 0.08]);
     expect(result.get('a')).toEqual([1, 2, 0]);
     expect(result.get('b')).toEqual([3, 4, 0]);
   });
@@ -110,9 +110,9 @@ describe('resolveHierarchicalLayout', () => {
     const edges = [makeEdge('a', 'b'), makeEdge('b', 'external')];
     // Should not crash
     expect(() => {
-      resolveHierarchicalLayout(nodes, edges, hierarchical(), [4, 2]);
+      resolveHierarchicalLayout(nodes, edges, hierarchical(), [0.15, 0.08]);
     }).not.toThrow();
-    const result = resolveHierarchicalLayout(nodes, edges, hierarchical(), [4, 2]);
+    const result = resolveHierarchicalLayout(nodes, edges, hierarchical(), [0.15, 0.08]);
     expect(result.has('a')).toBe(true);
     expect(result.has('b')).toBe(true);
   });

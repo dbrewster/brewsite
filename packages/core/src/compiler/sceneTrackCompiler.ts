@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import type { WidgetRegistry } from '../widget/WidgetRegistry';
 import type { SceneDefinition } from './sceneTypes';
-import type { ActiveTheme } from '../theme/types';
+import type { ActiveTheme, SceneTheme } from '../theme/types';
 import type {
   SceneFrame,
   SceneTrack,
@@ -35,6 +35,12 @@ export type CompileSceneTrackOptions = {
   prefersReducedMotion?: boolean;
   /** Active theme selection — propagated into SceneSnapshotContext for NodeHandlers. */
   activeTheme?: ActiveTheme;
+  /**
+   * Optional scene theme tokens — font URLs, font size scales, color mode.
+   * Propagated into SceneSnapshotContext for downstream NodeHandlers
+   * (e.g., diagram handler bridges this into DiagramTheme.sceneTheme).
+   */
+  sceneTheme?: SceneTheme;
 };
 
 /**
@@ -376,6 +382,7 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
       assetsReady: true,
       themeFamily:   options.activeTheme?.family   ?? 'default' as const,
       themePolarity: options.activeTheme?.polarity ?? 'dark' as const,
+      sceneTheme: options.sceneTheme,
     };
     const raw = scene.getFrame(context);
     if (raw && typeof raw === 'object' && '$$typeof' in raw) {

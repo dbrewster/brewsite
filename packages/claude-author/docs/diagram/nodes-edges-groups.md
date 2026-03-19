@@ -3,7 +3,7 @@ title: "@brewsite/diagram — Nodes, Edges, and Groups"
 doc_type: note
 owner: claude-author
 status: active
-updated: 2026-03-18
+updated: 2026-03-19
 ---
 
 ## Diagram Element Overview
@@ -74,7 +74,7 @@ interface DiagramNodeProps {
   shape?: DiagramNodeShape;             // Geometry shape. Default: 'rectangle'
   icon?: DiagramIconVariant;            // SVG icon on the front face
   position?: [number, number, number];  // [x, y, z] in NVS (ManualLayout only)
-  size?: [number, number];              // [width, height] in diagram units (auto) or NVS (manual)
+  size?: [number, number];              // [width, height] as NVS fractions [0..1]. Default: [0.15, 0.08] from theme
   thickness?: number;                   // 3D prism depth. Default: from theme
   color?: string;                       // Front-face CSS hex. Default: '#2a2d3e'
   boxColor?: string;                    // Side/top/bottom/back face CSS hex
@@ -90,7 +90,7 @@ interface DiagramNodeProps {
   opacity?: number;                     // [0–1]. Default: 1
   clickable?: boolean;                  // Enable click/raycast. Default: false
   enabled?: boolean;                    // Whether rendered. Default: true
-  iconScale?: number;                   // Icon scale relative to face [0–1]
+  iconScale?: number;                   // Icon scale relative to face [0–1]. Auto-scaled down by fit-to-content layout when node is small.
   iconStyle?: SvgIcon3DStyle;           // 'flat' | 'extruded' | 'layered' | 'embossed'
   iconDepthFactor?: number;             // Icon extrusion depth as fraction of node thickness [0..1]
   surfaceMaterial?: string;              // Named material preset to apply
@@ -133,6 +133,21 @@ All icon values are namespaced strings. Main namespaces:
 <DiagramNode id="k8s" label="Cluster" icon="tech:kubernetes" iconStyle="layered" />
 ```
 
+### Sizing Guide
+
+Node `size` is always **NVS fractions [width, height]** where each value is in [0..1] — a fraction of the diagram viewport. This applies to all layout modes (GridLayout, HierarchicalLayout, FlowLayout, and ManualLayout). The theme provides a default of `[0.15, 0.08]` when `size` is omitted.
+
+| Recipe | Size | Use Case |
+|---|---|---|
+| Standard | `[0.15, 0.08]` | Default. 6-12 node diagrams. |
+| Compact | `[0.10, 0.06]` | Dense diagrams (13+ nodes). |
+| Hero | `[0.25, 0.14]` | Title/header nodes. |
+| Wide | `[0.22, 0.10]` | Nodes with long labels. |
+| Square | `[0.12, 0.12]` | Icon-heavy nodes, circle shapes. |
+| Banner | `[0.35, 0.10]` | Full-width title bars. |
+
+Nodes that are too small will have their icon automatically scaled down by the fit-to-content layout. Text uses shrink-to-fit. Very small nodes produce unreadable results — use the recipes above as a floor.
+
 **Icon 3D style (`iconStyle`):**
 
 - `'flat'` — ShapeGeometry, unlit (default, lowest cost)
@@ -173,7 +188,7 @@ With `<ManualLayout>`, positions are NVS fractions `[0..1]` where `[0.5, 0.5, 0]
 </Diagram>
 ```
 
-With auto-layout (GridLayout, HierarchicalLayout, FlowLayout), do not specify `position`. The `size` is in diagram units (default `[4, 2]` from theme). Position is auto-assigned and normalized.
+With auto-layout (GridLayout, HierarchicalLayout, FlowLayout), do not specify `position`. The `size` is in NVS fractions (default `[0.15, 0.08]` from theme). Position is auto-assigned and normalized.
 
 ## Edge DSL
 
@@ -282,10 +297,10 @@ Declare exactly one layout element as a direct child of `<Diagram>` (or inside a
 ```tsx
 interface GridLayoutProps {
   columns?: number | 'auto'; // Number of columns. Default: 4
-  spacing?: [number, number]; // [colGap, rowGap] in diagram units. Default: [2, 2]
-  margin?: number | [number, number]; // Per-node margin expanding footprint
-  groupPadding?: LayoutPadding; // Padding inside group boxes. Default: 1.5
-  titleGap?: number;            // Gap between group title and content. Default: 0.75
+  spacing?: [number, number]; // [colGap, rowGap] as NVS fractions. Default: [0.06, 0.06]
+  margin?: number | [number, number]; // Per-node margin expanding footprint (NVS fractions)
+  groupPadding?: LayoutPadding; // Padding inside group boxes (NVS fraction). Default: 0.035
+  titleGap?: number;            // Gap between group title and content (NVS fraction). Default: 0.025
   alignment?: LayoutAlignment;  // 'left' | 'center' | 'right'. Default: 'left'
   disconnected?: LayoutDisconnected; // Placement for disconnected nodes. Default: 'next-to'
 }
@@ -293,7 +308,7 @@ interface GridLayoutProps {
 
 ```tsx
 <Diagram id="services">
-  <GridLayout columns={3} spacing={[3, 2]} />
+  <GridLayout columns={3} spacing={[0.06, 0.06]} />
   <DiagramNode id="svc-a" label="Auth" icon="security:lock" />
   <DiagramNode id="svc-b" label="Users" icon="ui:users" />
   <DiagramNode id="svc-c" label="Billing" icon="ui:credit-card" />
@@ -305,10 +320,10 @@ interface GridLayoutProps {
 ```tsx
 interface HierarchicalLayoutProps {
   direction?: 'top-down' | 'left-right'; // Layout axis. Default: 'top-down'
-  spacing?: [number, number];             // [colGap, rowGap]. Default: [2, 2]
-  margin?: number | [number, number];
-  groupPadding?: LayoutPadding;
-  titleGap?: number;
+  spacing?: [number, number];             // [colGap, rowGap] as NVS fractions. Default: [0.045, 0.045]
+  margin?: number | [number, number];     // Per-node margin (NVS fractions)
+  groupPadding?: LayoutPadding;           // Padding inside group boxes (NVS fraction). Default: 0.035
+  titleGap?: number;                      // Gap between group title and content (NVS fraction). Default: 0.025
   alignment?: LayoutAlignment;           // Default: 'center'
   disconnected?: LayoutDisconnected;
 }
@@ -316,7 +331,7 @@ interface HierarchicalLayoutProps {
 
 ```tsx
 <Diagram id="hierarchy">
-  <HierarchicalLayout direction="top-down" spacing={[2, 3]} />
+  <HierarchicalLayout direction="top-down" spacing={[0.045, 0.06]} />
   <DiagramNode id="ceo" label="CEO" />
   <DiagramNode id="cto" label="CTO" />
   <DiagramNode id="eng" label="Engineering" />
@@ -330,15 +345,15 @@ interface HierarchicalLayoutProps {
 ```tsx
 interface FlowLayoutProps {
   direction?: 'top-down' | 'left-right'; // Default: 'top-down'
-  gap?: number;                           // Edge-to-edge gap in diagram units. Default: 2
-  groupPadding?: LayoutPadding;
-  titleGap?: number;                      // Default: 1
+  gap?: number;                           // Edge-to-edge gap as NVS fraction. Default: 0.05
+  groupPadding?: LayoutPadding;           // Padding inside group boxes (NVS fraction). Default: 0.035
+  titleGap?: number;                      // Gap between group title and content (NVS fraction). Default: 0.025
 }
 ```
 
 ```tsx
 <Diagram id="pipeline">
-  <FlowLayout direction="left-right" gap={3} />
+  <FlowLayout direction="left-right" gap={0.05} />
   <DiagramNode id="ingest" label="Ingest" icon="data:stream" />
   <DiagramNode id="transform" label="Transform" icon="data:etl" />
   <DiagramNode id="load" label="Load" icon="data:warehouse" />
@@ -356,7 +371,7 @@ interface ManualLayoutProps {
 }
 ```
 
-With `<ManualLayout>`, node `position` is `[x, y, z]` where `x=0` is left edge, `x=1` is right edge of the diagram viewport, `y=0` is top, `y=1` is bottom. Node `size` is NVS fractions `[width, height]`. The theme default size `[4, 2]` is in diagram units — it is not valid for ManualLayout. Always provide explicit `size` with ManualLayout.
+With `<ManualLayout>`, node `position` is `[x, y, z]` where `x=0` is left edge, `x=1` is right edge of the diagram viewport, `y=0` is top, `y=1` is bottom. Node `size` is NVS fractions `[width, height]`. Always provide explicit `size` with ManualLayout to avoid relying on the theme default.
 
 ```tsx
 <Diagram id="manual-arch">
@@ -507,7 +522,7 @@ export const SceneCloudArchitecture = (): JSX.Element => (
     <Background color="#080b14" />
 
     <Diagram id="cloud-arch-diagram" x={0.05} y={0.05} w={0.9} h={0.85}>
-      <HierarchicalLayout direction="top-down" spacing={[3, 3]} />
+      <HierarchicalLayout direction="top-down" spacing={[0.045, 0.045]} />
       <DiagramEnter fade />
 
       {/* Entry point */}
@@ -517,7 +532,7 @@ export const SceneCloudArchitecture = (): JSX.Element => (
         icon="ui:users"
         shape="circle"
         color="#1a2040"
-        size={[5, 3]}
+        size={[0.12, 0.12]}
       />
 
       {/* Frontend group */}
@@ -560,7 +575,7 @@ export const SceneCloudArchitecture = (): JSX.Element => (
         icon="aws:aurora"
         shape="rectangle"
         color="#1a1020"
-        size={[5, 2.5]}
+        size={[0.22, 0.10]}
       />
 
       {/* Edges */}
