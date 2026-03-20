@@ -62,10 +62,10 @@ export const PickerScene = ({ onSelect }: PickerSceneProps): JSX.Element => (
       {/* View 1: Diagram preview */}
       <View id="diagram-view" w={0.42} h={0.52}>
         <Diagram id="picker-diagram" x={0} y={0} w={1} h={1} scale={1.2}>
-          <FlowLayout direction="top-down" gap={1.0} />
+          <FlowLayout direction="top-down" gap={0.06} />
           <DiagramNode id="api" label="API Gateway" sublabel="REST + gRPC" size={[0.22, 0.10]} />
           <DiagramGroup id="services" label="Services" variant="cluster">
-            <FlowLayout direction="left-right" gap={0.8} />
+            <FlowLayout direction="left-right" gap={0.05} />
             <DiagramNode id="auth" label="Auth" />
             <DiagramNode id="billing" label="Billing" />
             <DiagramNode id="notify" label="Notify" />

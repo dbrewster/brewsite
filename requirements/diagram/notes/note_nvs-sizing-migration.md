@@ -2,7 +2,7 @@
 title: "Feature Note: Migrate Diagram Node Sizes from Content Units to NVS Fractions"
 doc_type: note
 owner: Toolkit Product
-status: draft
+status: implemented
 updated: 2026-03-19
 change_history:
   - date: 2026-03-19
@@ -11,6 +11,9 @@ change_history:
   - date: 2026-03-19
     author: Toolkit PM (PM-2 review)
     summary: "Debate resolved: Option D rejected due to round-trip flaw. Option C adopted. All layout props migrate simultaneously in one major bump. Added thickness normalization strategy (Section 9b), edge control point analysis (Section 9c), ergonomics caveats for NVS defaults, and NVS equivalents table."
+  - date: 2026-03-19
+    author: Toolkit PM
+    summary: "Marked as implemented. All streams complete, architect-verified, tests passing. Note: the thicknessNormFactor formula in the plan (Section 2.3) was inverted — plan said `scaleFactor / max(defaultNodeSize)` but the correct implementation uses `scaleFactor * max(defaultNodeSize)`. The plan formula would have produced ~200x oversized thickness values (dividing by 0.15 ≈ 6.67x instead of multiplying). The implementation correctly multiplies scaleFactor by the max default size dimension."
 ---
 
 # Migrate Diagram Node Sizes from Content Units to NVS Fractions

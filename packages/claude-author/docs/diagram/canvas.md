@@ -74,7 +74,7 @@ export const SceneInteractive = () => (
     </InputController>
 
     <Diagram id={CANVAS_ID} x={0} y={0} w={1} h={1}>
-      <HierarchicalLayout direction="top-down" spacing={[3, 3]} />
+      <HierarchicalLayout direction="top-down" spacing={[0.08, 0.08]} />
       <DiagramEnter fade />
 
       <DiagramNode id="root" label="Root" icon="ui:server" />

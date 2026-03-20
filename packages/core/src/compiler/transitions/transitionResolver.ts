@@ -85,9 +85,13 @@ export function makeResolver(
   let defaultT: number;
 
   if (phase === 'interpolate') {
-    // Interpolate: no window constraint; apply only the default group's ease (if any).
+    // Interpolate: normalize bp within the fallback window [exitStart, enterEnd].
+    // Before the window, t=0 (hold fromState). After the window, t=1 (hold toState).
+    // This prevents the interpolation from starting at the first frame of the block.
+    const defaultPhase = defaultGroup?.interpolate;
+    const rawT = resolveProgress(bp, defaultPhase, fallbackWindow);
     const ease: EaseFn | undefined = defaultGroup?.interpolate?.ease;
-    defaultT = ease ? ease(bp) : bp;
+    defaultT = ease ? ease(rawT) : rawT;
   } else {
     // Exit or enter: normalize bp within the default group's window or fallback.
     const defaultPhase = phase === 'exit' ? defaultGroup?.exit : defaultGroup?.enter;

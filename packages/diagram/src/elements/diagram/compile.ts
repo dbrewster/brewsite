@@ -31,7 +31,6 @@ import {
   rerouteLiveEdges,
   blendDiagramEdges,
 } from './compiler/transitionHelpers';
-import { GROUP_BORDER_PX_TO_UNITS } from './constants';
 
 /**
  * Maps a linear t ∈ [0,1] through the given easing curve.
@@ -175,7 +174,7 @@ export function compileDiagram(
       : (groupDsl?.borderStyle ?? groupDefaults.borderStyle);
     const borderWidthUnits = borderStyle === 'none'
       ? 0
-      : Math.max(0, groupDefaults.borderWidth * GROUP_BORDER_PX_TO_UNITS);
+      : Math.max(0, groupDefaults.borderWidth);
     const borderCenterInset = borderWidthUnits * 0.5;
     const groupBorderHeight = borderStyle === 'none'
       ? 0.01
@@ -204,7 +203,7 @@ export function compileDiagram(
   // ─── Normalization ─────────────────────────────────────────────────────────
   // Convert layout positions/sizes to [0..1] NVS with center + uniform-scale-to-fit + Y-flip.
   // All layout modes (including ManualLayout) go through the same normalizeToViewport path.
-  const { normalizedPositions, normalizedSizes, normalizedGroups, thicknessNormFactor } =
+  const { normalizedPositions, normalizedSizes, normalizedGroups, scaleFactor } =
     normalizeToViewport(nodesPreNorm, groupBoundsMap, theme.node.defaultSize);
 
   // Apply normalized positions/sizes to nodes.
@@ -217,7 +216,7 @@ export function compileDiagram(
       size: normalizedSizes.get(node.id) ?? node.size,
       // Normalize node thickness to NVS fraction using the deterministic factor.
       // The renderer multiplies by uniformWorldW to convert to world units.
-      thickness: node.thickness * thicknessNormFactor,
+      thickness: node.thickness * scaleFactor,
     }))
     .sort((a, b) => a.position[2] - b.position[2]);
 
@@ -287,7 +286,7 @@ export function compileDiagram(
     );
     // Normalize edge thickness using the deterministic factor.
     // The renderer multiplies by uniformWorldW to convert to world units.
-    return { ...compiled, thickness: compiled.thickness * thicknessNormFactor };
+    return { ...compiled, thickness: compiled.thickness * scaleFactor };
   });
   const edges = optimizeSharedFlowTrunks(rawEdges);
 
@@ -300,8 +299,8 @@ export function compileDiagram(
       // The renderer multiplies by uniformWorldW to convert to world units.
       return {
         ...compiled,
-        borderWidth: compiled.borderWidth * thicknessNormFactor,
-        borderHeight: compiled.borderHeight * thicknessNormFactor,
+        borderWidth: compiled.borderWidth * scaleFactor,
+        borderHeight: compiled.borderHeight * scaleFactor,
       };
     })
     .filter((group): group is NonNullable<typeof group> => !!group)
@@ -512,8 +511,14 @@ export const functionalDiagramTransitionSpec: FunctionalTransitionSpec<DiagramSt
         t,
       );
 
+      // Use `from` as the base when t < 0.5, `to` when t >= 0.5.
+      // Previously `...to` was always the base, which made non-interpolated
+      // fields (groups, contentAspect, themeConfig, exit, enter) show the
+      // DESTINATION scene's metadata for the entire transition block —
+      // even at t=0 when the outgoing scene should be fully visible.
+      const base = t < 0.5 ? from : to;
       return {
-        ...to,
+        ...base,
         z: lerp(from.z, to.z, t),
         scale: lerp(from.scale, to.scale, t),
         viewportBounds: lerpNVSRect(from.viewportBounds, to.viewportBounds, t),

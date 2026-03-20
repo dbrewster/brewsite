@@ -14,7 +14,7 @@ The full DSL structure:
 
 ```tsx
 <Diagram id="my-diagram" x={0} y={0} w={1} h={1}>
-  <GridLayout columns={3} spacing={[2, 2]} />     {/* one layout element */}
+  <GridLayout columns={3} spacing={[0.06, 0.06]} />     {/* one layout element */}
   <DiagramEnter fade />                            {/* optional enter transition */}
   <DiagramExit fade />                             {/* optional exit transition */}
 
@@ -75,7 +75,7 @@ interface DiagramNodeProps {
   icon?: DiagramIconVariant;            // SVG icon on the front face
   position?: [number, number, number];  // [x, y, z] in NVS (ManualLayout only)
   size?: [number, number];              // [width, height] as NVS fractions [0..1]. Default: [0.15, 0.08] from theme
-  thickness?: number;                   // 3D prism depth. Default: from theme
+  thickness?: number;                   // 3D prism Z-depth as NVS fraction of viewport width. Default: from theme. Omit to use theme default.
   color?: string;                       // Front-face CSS hex. Default: '#2a2d3e'
   boxColor?: string;                    // Side/top/bottom/back face CSS hex
   sideColor?: string;                   // Legacy alias for boxColor
@@ -83,7 +83,7 @@ interface DiagramNodeProps {
   metalness?: number;                   // PBR metalness [0–1]. Default: from theme (~0.40)
   roughness?: number;                   // PBR roughness [0–1]. Default: from theme (~0.30)
   glow?: boolean | DiagramNodeGlowConfig;  // Glow config (see below)
-  cornerRadius?: number;                // Corner radius for rect shapes. Default: from theme
+  cornerRadius?: number;                // Corner radius as NVS fraction of viewport width. Default: from theme
   labelColor?: string;                  // Label text CSS hex
   sublabelColor?: string;               // Sublabel text CSS hex. Default: '#a0a8c0'
   labelPadding?: number;                // Vertical label offset fraction [0–1]
@@ -206,7 +206,7 @@ interface DiagramEdgeProps {
   flow?: DiagramEdgeFlow;              // 'none' | 'forward' | 'backward' | 'bidirectional'
   flowColor?: string;                  // CSS hex for flow pulse. Default: edge color
   color?: string;                      // Edge tube CSS hex. Default: from theme
-  thickness?: number;                  // Tube radius in diagram units. Default: from theme
+  thickness?: number;                  // Tube radius as NVS fraction of viewport width. Default: from theme. Omit to use theme default.
   opacity?: number;                    // [0–1]. Default: 1
   routing?: EdgeRoutingAlgorithm;      // 'curved' | 'straight' | 'organic' | 'flow'
   flowTurnRadius?: number;             // Per-edge override for flow routing turn radius
@@ -345,7 +345,7 @@ interface HierarchicalLayoutProps {
 ```tsx
 interface FlowLayoutProps {
   direction?: 'top-down' | 'left-right'; // Default: 'top-down'
-  gap?: number;                           // Edge-to-edge gap as NVS fraction. Default: 0.05
+  gap?: number;                           // Edge-to-edge gap as NVS fraction. Default: 0.06
   groupPadding?: LayoutPadding;           // Padding inside group boxes (NVS fraction). Default: 0.035
   titleGap?: number;                      // Gap between group title and content (NVS fraction). Default: 0.025
 }

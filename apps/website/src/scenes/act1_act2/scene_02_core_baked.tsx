@@ -31,7 +31,7 @@ export const scene02CoreBaked: JSX.Element = (
     </Lighting>
 
     <Diagram id="presentation-arc" x={0} y={0} w={1} h={1} tilt={-Math.PI / 12} scale={isMobile ? 1.0 : 1.35}>
-        <HierarchicalLayout direction="top-down" spacing={[2.8, 2.5]} />
+        <HierarchicalLayout direction="top-down" spacing={[0.12, 0.10]} />
         <DiagramEnter from={[-1, 0.5, 0]} fade easing="ease-out" />
 
         <DiagramGroup id="context" label="Context" variant="boundary">

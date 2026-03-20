@@ -151,7 +151,9 @@ describe('EdgeRenderer', () => {
       controlPoints: [[0, 0, 0], [1, 0, 0], [1.4, 0, 0], [1.6, 1, 0], [2, 1, 0]],
     }), parent);
     const geom = entry.tube.geometry as THREE.TubeGeometry;
-    expect(geom.parameters.path).toBeInstanceOf(THREE.CurvePath);
+    // Multi-command paths are resampled as CatmullRomCurve3 to eliminate
+    // Frenet-frame kinks at line→cubic junctions in TubeGeometry.
+    expect(geom.parameters.path).toBeInstanceOf(THREE.CatmullRomCurve3);
   });
 
   it('renders curved routing as a cubic bezier path', () => {

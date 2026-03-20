@@ -60,11 +60,11 @@ describe('normalizeToViewport', () => {
     expect(g.padding).toEqual([0, 0, 0, 0]);
   });
 
-  it('computes thicknessNormFactor from defaultNodeSize', () => {
+  it('returns scaleFactor = 1.0 when layout fits in [0..1]', () => {
     const nodes = [{ id: 'a', position: [0, 0, 0] as const, size: [0.15, 0.08] as const }];
     const result = normalizeToViewport(nodes, new Map(), [0.15, 0.08]);
-    // factor = scaleFactor * max(0.15, 0.08) = 1.0 * 0.15 = 0.15
-    expect(result.thicknessNormFactor).toBeCloseTo(0.15, 3);
+    // Single node fits easily — scaleFactor is 1.0 (no reduction).
+    expect(result.scaleFactor).toBeCloseTo(1.0, 3);
   });
 
   it('uniformly scales dense layouts that exceed [0..1]', () => {
@@ -123,7 +123,7 @@ describe('normalizeToViewport', () => {
     expect(result.normalizedPositions.size).toBe(0);
     expect(result.normalizedSizes.size).toBe(0);
     expect(result.normalizedGroups.size).toBe(0);
-    // thicknessNormFactor still computed from default node size
-    expect(result.thicknessNormFactor).toBeCloseTo(0.15, 3);
+    // scaleFactor defaults to 1.0 (degenerate case — no layout to scale).
+    expect(result.scaleFactor).toBeCloseTo(1.0, 3);
   });
 });

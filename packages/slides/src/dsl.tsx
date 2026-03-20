@@ -34,7 +34,7 @@ export type SlideProps = {
    * <Slide key="arch" sceneDsl={<>
    *   <Camera mode="world" position={[0, 1.5, 5]} target={[0, 0.3, 0]} fov={38} />
    *   <Diagram id="arch" x={0.5} y={0} w={0.5} h={1}>
-   *     <FlowLayout direction="top-down" gap={1} />
+   *     <FlowLayout direction="top-down" gap={0.06} />
    *     <DiagramNode id="api" label="API Gateway" />
    *   </Diagram>
    * </>}>

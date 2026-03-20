@@ -163,12 +163,12 @@ describe('NVS layout integration', () => {
     expect(b.position[0]).toBeGreaterThan(a.position[0]);
   });
 
-  it('thickness uses fixed normalization factor', () => {
+  it('thickness uses scaleFactor directly (no max(defaultSize) multiplier)', () => {
     const dsl: DiagramDSL = {
       id: 'thickness-nvs',
       layout: { kind: 'grid', columns: 1 },
       nodes: [
-        makeNode('a', { thickness: 0.5 }),
+        makeNode('a', { thickness: 0.075 }),
       ],
       edges: [],
       groups: [],
@@ -177,11 +177,8 @@ describe('NVS layout integration', () => {
     const state = compileDiagram(dsl);
     const node = state.nodes.find((n) => n.id === 'a')!;
 
-    // thicknessNormFactor = scaleFactor * max(defaultNodeSize)
-    // For a single node, scaleFactor = 1.0, max(0.15, 0.08) = 0.15
-    // factor = 1.0 * 0.15 = 0.15
-    // output thickness = 0.5 * 0.15 = 0.075
-    expect(node.thickness).toBeCloseTo(0.5 * 0.15, 3);
+    // scaleFactor = 1.0 for single node → compiled = authored NVS value.
+    expect(node.thickness).toBeCloseTo(0.075, 3);
   });
 
   it('dense grid triggers uniform scale-to-fit', () => {
@@ -258,9 +255,9 @@ describe('NVS layout integration', () => {
     expect(endPt[1]).toBeLessThanOrEqual(dst.position[1] + 0.01);
   });
 
-  it('scale-to-fit adjusts thicknessNormFactor proportionally', () => {
+  it('scale-to-fit adjusts scaleFactor proportionally', () => {
     // Create a wide single-row layout that will trigger scale-to-fit
-    const nodes = Array.from({ length: 8 }, (_, i) => makeNode(`n${i}`, { thickness: 0.4 }));
+    const nodes = Array.from({ length: 8 }, (_, i) => makeNode(`n${i}`, { thickness: 0.060 }));
     const dsl: DiagramDSL = {
       id: 'scale-thickness-nvs',
       layout: { kind: 'grid', columns: 8, spacing: [0.06, 0.06] },
@@ -272,18 +269,17 @@ describe('NVS layout integration', () => {
     const state = compileDiagram(dsl);
 
     // When scale-to-fit activates (scaleFactor < 1), sizes are reduced.
-    // thicknessNormFactor = scaleFactor * max(defaultSize).
-    // Output thickness = raw * scaleFactor * 0.15.
+    // compiled thickness = authored * scaleFactor.
     const node = state.nodes[0]!;
 
     // If scale-to-fit is active, thickness should be proportionally smaller
     if (node.size[0] < 0.15) {
       const scaleFactor = node.size[0] / 0.15;
-      const expectedThickness = 0.4 * scaleFactor * 0.15;
+      const expectedThickness = 0.060 * scaleFactor;
       expect(node.thickness).toBeCloseTo(expectedThickness, 3);
     } else {
-      // No scale-to-fit — thickness uses full factor (1.0 * 0.15 = 0.15)
-      expect(node.thickness).toBeCloseTo(0.4 * 0.15, 3);
+      // No scale-to-fit — scaleFactor = 1.0 → compiled = authored.
+      expect(node.thickness).toBeCloseTo(0.060, 3);
     }
   });
 });

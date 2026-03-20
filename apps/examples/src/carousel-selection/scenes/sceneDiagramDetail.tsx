@@ -21,7 +21,7 @@ export const DiagramDetailScene = (): JSX.Element => (
 
     {/* Same diagram ID as picker — nodes morph from compact to expanded */}
     <Diagram id="picker-diagram" x={0.05} y={0.02} w={0.9} h={0.92} scale={1.0}>
-      <FlowLayout direction="top-down" gap={1.2} />
+      <FlowLayout direction="top-down" gap={0.08} />
 
       <DiagramNode id="api" label="API Gateway" sublabel="REST + gRPC · rate limiting · auth" size={[0.32, 0.10]}
         glow={{ intensity: 0.12 }} />

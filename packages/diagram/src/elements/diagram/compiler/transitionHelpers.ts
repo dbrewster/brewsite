@@ -6,7 +6,6 @@ import type { EdgeRoutingAlgorithm, EdgeLandingAlgorithm } from '../types';
 import { blendOpacity, blendVec3, copyVec3, lerp } from '@brewsite/core';
 import { routeEdges, routeEdgesYDown } from './edgeRouter';
 import { optimizeSharedFlowTrunks } from './edgeRenderOptimizer';
-import { GROUP_BORDER_PX_TO_UNITS } from '../constants';
 
 type Vec3 = readonly [number, number, number];
 type NodeDimensions = readonly [number, number, number];
@@ -27,12 +26,16 @@ export function blendDiagramNodes(
         opacity: blendOpacity(0, toNode.opacity, t) ?? toNode.opacity,
       };
     }
+    // Use fromNode as the base for t < 0.5, toNode for t >= 0.5.
+    // Non-interpolated fields (label, sublabel, color, shape, icon) come from
+    // the base. Previously `...toNode` was always used, which made the incoming
+    // scene's text/color appear for the entire transition — even at t=0 when
+    // the outgoing scene should be fully visible.
+    const base = t < 0.5 ? fromNode : toNode;
     return {
-      ...toNode,
+      ...base,
       position: blendVec3(copyVec3(fromNode.position), copyVec3(toNode.position), t) ?? toNode.position,
       opacity: blendOpacity(fromNode.opacity, toNode.opacity, t) ?? toNode.opacity,
-      // Interpolate geometric properties to prevent snapping when scenes have
-      // different safeSpan values (different NVS normalization denominators).
       size: [
         lerp(fromNode.size[0], toNode.size[0], t),
         lerp(fromNode.size[1], toNode.size[1], t),
@@ -71,7 +74,7 @@ export function buildLiveNodeMaps(
   groups.forEach((group) => {
     const borderWidthUnits = group.borderStyle === 'none'
       ? 0
-      : Math.max(0, group.borderWidth * GROUP_BORDER_PX_TO_UNITS);
+      : Math.max(0, group.borderWidth);
     const borderCenterInset = borderWidthUnits * 0.5;
     const groupDepth = group.borderStyle === 'none'
       ? 0.01

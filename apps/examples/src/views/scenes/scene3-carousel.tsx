@@ -122,7 +122,7 @@ function CarouselViews(): JSX.Element {
       {/* index 1 — diagram adjacent to charts; ring z-offset ≈−2.8 instead of ≈−12.2 */}
       <View id="cv5" w={0.4} h={0.5}>
         <Diagram id="cf-overview-2" x={0} y={0} w={1} h={1} scale={1.4}>
-          <FlowLayout direction="top-down" gap={1.05} />
+          <FlowLayout direction="top-down" gap={0.06} />
 
           <DiagramNode
             id="cf-db"
@@ -133,10 +133,10 @@ function CarouselViews(): JSX.Element {
           />
 
           <DiagramGroup id="cf-categories" variant="container">
-            <GridLayout columns={2} spacing={[2.4, 1.1]} />
+            <GridLayout columns={2} spacing={[0.12, 0.06]} />
 
             <DiagramGroup id="cf-core" label="Core Storage" variant="cluster">
-              <FlowLayout direction="top-down" gap={0.72} />
+              <FlowLayout direction="top-down" gap={0.04} />
               <DiagramNode id="cf-memstore" label="memory_store" sublabel="key-value · namespace · TTL" size={[0.18, 0.10]}  />
               <DiagramNode id="cf-sessions" label="sessions" sublabel="cross-session context" size={[0.18, 0.10]}  />
               <DiagramNode id="cf-agents" label="agents" sublabel="registry · config · state" size={[0.18, 0.10]}  />
@@ -144,7 +144,7 @@ function CarouselViews(): JSX.Element {
             </DiagramGroup>
 
             <DiagramGroup id="cf-coord" label="Coordination" variant="cluster">
-              <FlowLayout direction="top-down" gap={0.72} />
+              <FlowLayout direction="top-down" gap={0.04} />
               <DiagramNode id="cf-shared" label="shared_state" sublabel="cross-agent blackboard · versioned" size={[0.18, 0.10]}  />
               <DiagramNode id="cf-agmem" label="agent_memory" sublabel="per-agent state" size={[0.18, 0.10]}  />
               <DiagramNode id="cf-events" label="events" sublabel="audit log" size={[0.18, 0.10]}  />
@@ -152,13 +152,13 @@ function CarouselViews(): JSX.Element {
             </DiagramGroup>
 
             <DiagramGroup id="cf-intel" label="Intelligence" variant="cluster">
-              <FlowLayout direction="top-down" gap={0.72} />
+              <FlowLayout direction="top-down" gap={0.04} />
               <DiagramNode id="cf-patterns" label="patterns" sublabel="usage_count · confidence" size={[0.18, 0.10]}  />
               <DiagramNode id="cf-perf" label="performance_metrics" sublabel="latency · throughput" size={[0.18, 0.10]}  />
             </DiagramGroup>
 
             <DiagramGroup id="cf-recov" label="Recovery" variant="cluster">
-              <FlowLayout direction="top-down" gap={0.72} />
+              <FlowLayout direction="top-down" gap={0.04} />
               <DiagramNode id="cf-workflow" label="workflow_state" sublabel="crash-recovery checkpoints" size={[0.18, 0.10]}  />
               <DiagramNode id="cf-consensus" label="consensus_state" sublabel="quorum voting · ≥2 acceptors" size={[0.18, 0.10]}  />
             </DiagramGroup>

@@ -8,7 +8,7 @@ import {
 import type { MaterialLoader, MaterialManifest, LoadedMaterialPreset } from '@brewsite/core';
 import { Text } from 'troika-three-text';
 import type { IGroupInteractionRegistry } from './GroupInteractionRegistry';
-import { GROUP_BORDER_PX_TO_UNITS, GROUP_RENDER_Z } from '../constants';
+import { GROUP_RENDER_Z } from '../constants';
 
 export class GroupRenderer {
   private readonly entries = new Map<string, GroupRenderEntry>();
@@ -421,7 +421,7 @@ export class GroupRenderer {
   private createBorder(state: DiagramGroupState, themeConfig: DiagramThemeRenderConfig): THREE.Group | undefined {
     if (state.borderStyle === 'none') return undefined;
     const border = new THREE.Group();
-    const bw = Math.max(0.01, state.borderWidth * GROUP_BORDER_PX_TO_UNITS);
+    const bw = Math.max(0.01, state.borderWidth);
     const bh = Math.max(0.01, state.borderHeight);
     const w = Math.max(0.01, state.bounds.w);
     const h = Math.max(0.01, state.bounds.h);

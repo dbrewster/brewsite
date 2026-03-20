@@ -38,6 +38,9 @@ change_history:
   - date: 2026-03-19
     author: "Toolkit Product"
     summary: "NVS sizing migration: all diagram sizes (node size, spacing, gap, margin, groupPadding, titleGap) are now NVS fractions [0..1]. The dual content-unit / NVS system is eliminated — all layout modes use the same coordinate system. contentAspect field removed from DiagramState. normalizeToViewport() performs center + uniform-scale-to-fit + Y-flip (not per-axis-independent normalization). Dense layouts that exceed [0..1] are uniformly scaled with 2% margin. Node Sizing Guide updated with NVS values. Semver impact: major (breaking: contentAspect removed, size semantics changed)."
+  - date: 2026-03-19
+    author: "Toolkit Product"
+    summary: "NVS thickness migration completed: node thickness, edge thickness, group borderWidth, group borderHeight, and node cornerRadius are now NVS fractions of diagram viewport width. thicknessNormFactor eliminated from normalizeToViewport() (returns scaleFactor only). GROUP_BORDER_PX_TO_UNITS deleted from constants.ts. cornerRadius converted to world units in render.ts. All DSL props, compiled state fields, and theme defaults use NVS fractions. Pipeline: authored_nvs × scaleFactor (compile) × uniformWorldW (render) = world units."
 ---
 
 # BrewSite Diagram — Diagram Element
@@ -166,7 +169,7 @@ export interface DiagramNodeProps {
    * Default: from theme (typically [0.15, 0.08]).
    */
   size?: [number, number];
-  /** Physical box thickness (z-depth of the prism) in diagram units. Default: from theme (darkGlass: 0.4) */
+  /** Node prism Z-depth as an NVS fraction of diagram viewport width. Default: from theme (darkGlass: 0.150). */
   thickness?: number;
   /** Front-face fill color (CSS hex). Default: from theme */
   color?: string;
@@ -188,7 +191,7 @@ export interface DiagramNodeProps {
    * - object: full control over intensity and color
    */
   glow?: boolean | DiagramNodeGlowConfig;
-  /** Corner radius in diagram units for rect shapes. Default: from theme (darkGlass: 0.06) */
+  /** Corner radius as an NVS fraction of diagram viewport width. Default: from theme (darkGlass: 0.009). */
   cornerRadius?: number;
   /** Label text color (CSS hex). Default: from theme */
   labelColor?: string;
@@ -261,7 +264,7 @@ export interface DiagramEdgeProps {
   flowColor?: string;
   /** Edge color (CSS hex). Default: from theme */
   color?: string;
-  /** Tube radius in diagram units. Default: from theme */
+  /** Tube radius as an NVS fraction of diagram viewport width. Default: from theme. */
   thickness?: number;
   /** Edge opacity [0–1]. Default: 1 */
   opacity?: number;
@@ -426,7 +429,7 @@ export interface DiagramNodeState {
   readonly position: readonly [number, number, number];
   /** Node width and height as NVS fractions [0..1]. */
   readonly size: readonly [number, number];
-  /** Physical prism z-depth, normalized by thicknessNormFactor. */
+  /** Physical prism Z-depth as an NVS fraction of diagram viewport width. Converted to world units by render.ts (× uniformWorldW). */
   readonly thickness: number;
   readonly color: string;
   readonly sideColor: string;
@@ -505,9 +508,9 @@ export interface DiagramGroupState {
     readonly y: number;
     readonly w: number;
     readonly h: number;
-    /** Resolved [top, right, bottom, left] padding in diagram units. Already incorporated into x/y/w/h. */
+    /** Resolved [top, right, bottom, left] padding as NVS fractions. Already incorporated into x/y/w/h. */
     readonly padding: readonly [number, number, number, number];
-    /** Gap between group title label and content area in diagram units. */
+    /** Gap between group title label and content area as an NVS fraction. */
     readonly titleGap: number;
   };
   readonly color: string;
@@ -812,7 +815,7 @@ function Scene3() {
 
 - **Group bounds use a synthetic position/size injection.** After `resolveGroupBoundsMap`, each group's center position and border-inset size are injected into the same `positions` and `sizeWithDepthMap` used by `routeEdges`. This allows edges to terminate visually at the group border frame, not at the group center.
 - **Edge control points are recomputed on every interpolation tick.** `rerouteLiveEdges` in `transitionHelpers.ts` re-runs edge routing at each blended position during a scene transition. This is necessary for smooth edge motion as nodes move during interpolation.
-- **Coordinate normalization is a pure, testable module.** `compiler/normalizeToViewport.ts` performs center + uniform-scale-to-fit + Y-flip on NVS-scale layout output. When a dense layout exceeds [0..1] on either axis, all positions and sizes are uniformly scaled by the same factor to fit within 96% usable area (2% margin per side). The function also returns `thicknessNormFactor` for deterministic thickness normalization. It is a pure function with no Three.js or React dependencies and is covered directly by unit tests.
+- **Coordinate normalization is a pure, testable module.** `compiler/normalizeToViewport.ts` performs center + uniform-scale-to-fit + Y-flip on NVS-scale layout output. When a dense layout exceeds [0..1] on either axis, all positions and sizes are uniformly scaled by the same factor to fit within 96% usable area (2% margin per side). The function returns `scaleFactor` (1.0 when no scale-down is needed); the compile pipeline multiplies all NVS dimensional props (thickness, cornerRadius, borderWidth, borderHeight) by `scaleFactor` for proportional down-scaling. It is a pure function with no Three.js or React dependencies and is covered directly by unit tests.
 - **Three.js geometry is reused across frames.** `NodeRenderer`, `EdgeRenderer`, and `GroupRenderer` maintain per-ID geometry caches. Geometry is disposed and recreated only when the corresponding state changes structurally (e.g., node shape changes, edge control point count changes).
 - **`DiagramRenderer` supports optional `IIconLoader` injection.** Passing an `IIconLoader` implementation to the `DiagramRenderer` constructor overrides the default global icon loader. Tests and consumers that need to control icon loading (e.g., stub out network requests) pass a custom `IIconLoader`. The global `dispose()` side effect that previously ran at module-load time has been removed; disposal is now explicit via `DiagramRenderer.dispose()`.
 - **Troika text is loaded asynchronously.** Label text meshes created via `ensureText` (imported directly from `@brewsite/core`) are async. There is no blocking on text load; labels appear as they resolve. This is consistent with the rest of the Three.js rendering model in the toolkit.
@@ -856,6 +859,15 @@ The 2026-03-08 overhaul introduced multiple breaking changes to the public API s
 | Layout `groupPadding` | dual: content units or NVS | NVS fractions (default: `0.035`) |
 | Layout `titleGap` | dual: content units or NVS | NVS fractions (default: `0.025`) |
 | `theme.node.defaultSize` | `[4, 2]` (content units) | `[0.15, 0.08]` (NVS fractions) |
+| `DiagramNodeProps.thickness` | content units (e.g. `1.0`) | NVS fractions (e.g. `0.150`) |
+| `DiagramEdgeProps.thickness` | content units (e.g. `0.065`) | NVS fractions (e.g. `0.00975`) |
+| `theme.node.defaultThickness` | content units | NVS fractions of viewport width |
+| `theme.node.cornerRadius` | content units (raw, no conversion) | NVS fractions of viewport width |
+| `theme.edge.defaultThickness` | content units | NVS fractions of viewport width |
+| `theme.group.defaultBorderWidth` | content units (triple multiplier pipeline) | NVS fractions of viewport width |
+| `theme.group.defaultBorderHeight` | content units | NVS fractions of viewport width |
+| `normalizeToViewport().thicknessNormFactor` | `scaleFactor × max(defaultNodeSize)` | removed; returns `scaleFactor` only |
+| `GROUP_BORDER_PX_TO_UNITS` constant | `0.4` (render-time multiplier) | deleted |
 
 **Migration path.** Replace `position`, `rotation`, `pivot` on `<Diagram>` with `x/y/w/h` NVS props. Move `scale` from `<DiagramCanvas>` to `<Diagram>` directly. Replace `tilt=[x,y,z]` with scalar `tilt` (pitch only). Replace `iconDepth` on `<DiagramNode>` with `iconDepthFactor` (convert world-unit depth to a fraction: `iconDepthFactor = iconDepth / thickness`). Replace null checks on `DiagramState.exit` and `DiagramState.enter` with `undefined` checks. Remove `scaleTo`/`scaleFrom` from `<DiagramExit>`/`<DiagramEnter>` — the equivalent effect is achieved via `to`/`from` with an off-screen NVS coordinate. See `packages/diagram/MIGRATION.md` for step-by-step instructions.
 

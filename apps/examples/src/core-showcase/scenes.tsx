@@ -26,7 +26,7 @@ import {
   Diagram,
   DiagramEdge,
   DiagramGroup,
-  DiagramNode,
+  DiagramNode, FlowLayout,
   ManualLayout,
 } from '@brewsite/diagram';
 import { darkGlassBundle } from '@brewsite/themes';
@@ -45,7 +45,7 @@ import { frameworkDataA, frameworkDataB } from './data';
 // Children use local NVS coords (x=0..1, y=0..1) within the stage.
 // The 6% horizontal margin + 10%/12% vertical margin keeps content
 // comfortably inset from the fixed top/bottom chrome overlays.
-const V = { x: 0.06, y: 0.10, w: 0.88, h: 0.78 } as const;
+const V = { x: 0.15, y: 0.10, w: 0.7, h: 0.78 } as const;
 
 // ─── Shared lighting presets ────────────────────────────────────────────────
 
@@ -167,7 +167,7 @@ export const OverviewScene = (): JSX.Element => (
         tilt={-Math.PI / 12}
         scale={1.0}
       >
-        <ManualLayout />
+        <FlowLayout direction='left-right' gap={.1}/>
 
         <DiagramGroup
           id="layer-author"
@@ -266,7 +266,7 @@ export const OverviewScene = (): JSX.Element => (
         <DiagramEdge from="ov-frames" to="ov-track" label="bake tick[]" flow="forward" />
         <DiagramEdge from="ov-track" to="ov-driver" label="sample(progress)" flow="forward" />
         <DiagramEdge from="ov-driver" to="ov-registry" label="dispatch" flow="forward" />
-        <DiagramEdge from="ov-registry" to="ov-canvas" label="apply()" flow="forward" />
+        <DiagramEdge from="ov-overlay" to="ov-canvas" label="apply()" flow="forward" />
         <DiagramEdge from="ov-registry" to="ov-overlay" style="dashed" arrowEnd="open" />
       </Diagram>
     </View>
@@ -750,10 +750,16 @@ export const InputScene = (): JSX.Element => (
 
     <InputController scope="canvas" mode="replace">
       <Action id="cs-orbit" type="camera.orbit">
-        <PointerMap event="drag" button="left" axis="xy" />
+        <PointerMap event="drag" button="left" axis="y" />
+      </Action>
+      <Action id="cs-pan" type="camera.pan">
+        <WheelMap axis="xy" modifiers={["shift"]}/>
+      </Action>
+      <Action id="cs-orbit-all" type="camera.orbit">
+        <WheelMap axis="xy" modifiers={["meta"]}/>
       </Action>
       <Action id="cs-dolly" type="camera.zoom">
-        <WheelMap axis="y" />
+        <WheelMap axis="xy" modifiers={["ctrl"]}/>
       </Action>
       <Action id="cs-reset" type="camera.reset">
         <KeyMap keyName="r" />
@@ -785,7 +791,7 @@ export const InputScene = (): JSX.Element => (
       <TextBox id="cs-input-caption" x={0.02} y={0.0} w={0.96} h={0.16}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', textAlign: 'center' }}>
           <p style={{ fontSize: 'clamp(12px, 1.4vw, 15px)', color: 'rgba(190, 215, 255, 0.8)', lineHeight: 1.6, margin: 0, maxWidth: 620 }}>
-            Try it: <strong>drag to orbit</strong>, <strong>scroll to dolly</strong>, <strong>press R to reset</strong>. This scene uses <code style={{ fontFamily: 'monospace' }}>mode="replace"</code> to override all defaults. Merge mode (the default) preserves standard bindings automatically.
+            Try it: <strong>drag to orbit in y only</strong>, <strong>control + scroll to zoom</strong>, <strong>shift + scroll to move camera</strong>, <strong>Cmd + scroll to orbit</strong>, <strong>press R to reset</strong>. This scene uses <code style={{ fontFamily: 'monospace' }}>mode="replace"</code> to override all defaults. Merge mode (the default) preserves standard bindings automatically.
           </p>
         </div>
       </TextBox>

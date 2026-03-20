@@ -345,29 +345,29 @@ mergeSnapshot(prev, next) {
 
 ---
 
-## Using Old Content-Unit Values for Diagram Node Sizes
+## Using Old Content-Unit Values for Diagram Node Sizes or Thickness
 
-**Symptom:** Diagram nodes are enormous (4x the viewport width) or the layout looks completely wrong because you used legacy content-unit values like `[4, 2]` for node sizes.
+**Symptom:** Diagram nodes are enormous (4x the viewport width) or the layout looks completely wrong because you used legacy content-unit values like `[4, 2]` for node sizes. Or node thickness values like `1.0` produce absurdly deep blocks.
 
-**Cause:** All diagram node sizes are now **NVS fractions [0..1]** — the same system as the diagram viewport itself. Old content-unit values like `[4, 2]` or `[6, 3]` would set a node to 4x the viewport width, which is far outside the visible area.
+**Cause:** All diagram dimensional props — node `size`, `thickness`, `cornerRadius`, edge `thickness`, group `borderWidth`/`borderHeight`, and layout `gap`/`spacing` — are **NVS fractions [0..1]**, representing fractions of the diagram viewport width. Old content-unit values are far too large in the NVS system.
 
-**Rule:** All sizes are NVS fractions [0..1]. Both `<Diagram x y w h>` (viewport placement) and `<DiagramNode size>` (node dimensions) use NVS. The standard node size is `[0.15, 0.08]` — 15% wide, 8% tall relative to the diagram viewport.
+**Rule:** All dimensional values are NVS fractions [0..1]. The standard node size is `[0.15, 0.08]`. Standard node thickness ranges from `0.033` (thin card) to `0.210` (deep block). Standard edge thickness ranges from `0.008` to `0.011`. Standard cornerRadius ranges from `0.006` to `0.014`.
 
 **Wrong:**
 ```tsx
 // Legacy content-unit values — these are now 4x the viewport width!
 <Diagram id="d1" x={0.1} y={0.1} w={0.8} h={0.8}>
   <GridLayout columns={3} />
-  <DiagramNode id="n1" label="API" size={[4, 2]} />  {/* wrong — old content units */}
+  <DiagramNode id="n1" label="API" size={[4, 2]} thickness={1.0} />  {/* wrong — old content units */}
 </Diagram>
 ```
 
 **Correct:**
 ```tsx
-// All sizes are NVS fractions [0..1]
+// All values are NVS fractions [0..1]
 <Diagram id="d1" x={0.1} y={0.1} w={0.8} h={0.8}>
   <GridLayout columns={3} />
-  <DiagramNode id="n1" label="API" size={[0.15, 0.08]} />  {/* NVS fractions */}
+  <DiagramNode id="n1" label="API" size={[0.15, 0.08]} thickness={0.075} />  {/* NVS fractions */}
 </Diagram>
 ```
 
@@ -391,6 +391,36 @@ mergeSnapshot(prev, next) {
 ```tsx
 // Equal dimensions = square (or true circle for circle shape)
 <DiagramNode id="icon-node" shape="circle" size={[0.12, 0.12]} />
+```
+
+---
+
+## Using Old World-Unit Values for FlowLayout Gap or GridLayout Spacing
+
+**Symptom:** Diagram nodes appear tiny — much smaller than the authored `size` values suggest. A node with `size={[0.15, 0.08]}` (15% of viewport) renders at 2-3% instead. Increasing `size` back to old values like `[8, 8]` produces expected results.
+
+**Cause:** The `gap` or `spacing` value is still in old world units (e.g., `gap={0.9}` or `spacing={[2.4, 1.1]}`). These values are now NVS fractions. A `gap={0.9}` means 90% of the viewport height per gap — the total layout overflows `[0..1]`, and the `normalizeToViewport` pass uniformly scales everything down to fit, shrinking nodes far below their authored size.
+
+**Rule:** All layout spacing props (`gap`, `spacing`, `margin`, `groupPadding`, `titleGap`) are NVS fractions `[0..1]`. FlowLayout default gap is `0.06`. GridLayout default spacing is `[0.06, 0.06]`. The total of all item sizes + gaps along the flow axis should stay ≤ 1.0 to avoid automatic scale-down.
+
+**Wrong:**
+```tsx
+{/* gap=0.9 is 90% of viewport — layout overflows, everything scales to ~25% of authored size */}
+<Diagram id="d1" x={0} y={0} w={1} h={1}>
+  <FlowLayout direction="top-down" gap={0.9} />
+  <DiagramNode id="a" label="Service A" size={[0.15, 0.08]} />
+  <DiagramNode id="b" label="Service B" size={[0.15, 0.08]} />
+</Diagram>
+```
+
+**Correct:**
+```tsx
+{/* gap=0.06 is 6% of viewport — layout fits, nodes render at authored size */}
+<Diagram id="d1" x={0} y={0} w={1} h={1}>
+  <FlowLayout direction="top-down" gap={0.06} />
+  <DiagramNode id="a" label="Service A" size={[0.15, 0.08]} />
+  <DiagramNode id="b" label="Service B" size={[0.15, 0.08]} />
+</Diagram>
 ```
 
 ---

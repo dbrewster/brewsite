@@ -132,8 +132,7 @@ describe('compileDiagram', () => {
     // After normalization, size is a fraction [0..1], not diagram units.
     expect(node.size[0]).toBeGreaterThan(0);
     expect(node.size[1]).toBeGreaterThan(0);
-    // Thickness is normalized by thicknessNormFactor (= scaleFactor / max(defaultSize)).
-    // With NVS-scale defaultSize, compiled thickness > raw theme value.
+    // Thickness is scaled by scaleFactor (1.0 when layout fits).
     expect(node.thickness).toBeGreaterThan(0);
     expect(node.color).toBe(defaultDiagramTheme.node.defaultColor);
   });
@@ -442,7 +441,7 @@ describe('compileDiagram', () => {
       groups: [{ id: 'group-1', nodeIds: ['a'] }],
     };
     const state = compileDiagram(dsl);
-    // borderWidth and borderHeight are normalized by thicknessNormFactor.
+    // borderWidth and borderHeight are scaled by scaleFactor.
     expect(state.groups[0]?.borderWidth).toBeGreaterThan(0);
     expect(state.groups[0]?.borderHeight).toBeGreaterThan(0);
   });
@@ -789,20 +788,19 @@ describe('scale-to-fit integration', () => {
   });
 
   it('thickness normalization accounts for scale factor', () => {
-    // Dense layout with scaleFactor < 1 → thickness = raw * scaleFactor / maxDefaultSize
+    // Dense layout with scaleFactor < 1 → compiled thickness = authored * scaleFactor
     const dsl: DiagramDSL = {
       id: 'diagram',
       layout: { kind: 'grid', columns: 10 },
-      nodes: Array.from({ length: 10 }, (_, i) => makeNode(`n${i}`, { thickness: 0.5 })),
+      nodes: Array.from({ length: 10 }, (_, i) => makeNode(`n${i}`, { thickness: 0.075 })),
       edges: [],
       groups: [],
     };
     const state = compileDiagram(dsl);
-    // Thickness should be positive but less than 0.5 * (1/0.15) ≈ 3.333
-    // because scaleFactor < 1 reduces it further
+    // Thickness should be positive but less than authored (scaleFactor < 1)
     for (const node of state.nodes) {
       expect(node.thickness).toBeGreaterThan(0);
-      expect(node.thickness).toBeLessThan(0.5 * (1 / 0.15));
+      expect(node.thickness).toBeLessThan(0.075);
     }
   });
 });
@@ -902,39 +900,37 @@ describe('string theme name resolution', () => {
 // ─── Thickness / border NVS normalization ────────────────────────────────────
 
 describe('compileDiagram — thickness normalization', () => {
-  it('auto-layout: node thickness is normalized by thicknessNormFactor', () => {
+  it('auto-layout: node thickness is scaled by scaleFactor', () => {
     const dsl: DiagramDSL = {
       id: 'd',
       layout: { kind: 'grid' },
       nodes: [
-        makeNode('a', { thickness: 1.4 }),
-        makeNode('b', { thickness: 1.4 }),
+        makeNode('a', { thickness: 0.150 }),
+        makeNode('b', { thickness: 0.150 }),
       ],
       edges: [],
       groups: [],
     };
     const state = compileDiagram(dsl);
     const nodeA = state.nodes.find((n) => n.id === 'a')!;
-    // thicknessNormFactor = scaleFactor * max(defaultSize) = 1.0 * 0.15 = 0.15
-    // thickness = 1.4 * 0.15 = 0.21
+    // scaleFactor = 1.0 for small layout → compiled = authored NVS value.
     expect(nodeA.thickness).toBeGreaterThan(0);
-    expect(nodeA.thickness).toBeLessThan(1.4);
-    expect(nodeA.thickness).toBeCloseTo(1.4 * 0.15, 2);
+    expect(nodeA.thickness).toBeCloseTo(0.150, 3);
   });
 
-  it('auto-layout: edge thickness is normalized by thicknessNormFactor', () => {
+  it('auto-layout: edge thickness is scaled by scaleFactor', () => {
     const dsl: DiagramDSL = {
       id: 'd',
       layout: { kind: 'grid' },
       nodes: [makeNode('a'), makeNode('b')],
-      edges: [makeEdge('a', 'b', { thickness: 0.07 })],
+      edges: [makeEdge('a', 'b', { thickness: 0.009 })],
       groups: [],
     };
     const state = compileDiagram(dsl);
     const edge = state.edges[0]!;
+    // scaleFactor = 1.0 → compiled = authored NVS value.
     expect(edge.thickness).toBeGreaterThan(0);
-    // 0.07 * 0.15 = 0.0105
-    expect(edge.thickness).toBeLessThan(0.07);
+    expect(edge.thickness).toBeCloseTo(0.009, 4);
   });
 
   it('auto-layout: group borderWidth and borderHeight are normalized', () => {
@@ -951,23 +947,21 @@ describe('compileDiagram — thickness normalization', () => {
     expect(group.borderHeight).toBeGreaterThan(0);
   });
 
-  it('manual-layout: node thickness is normalized by thicknessNormFactor', () => {
+  it('manual-layout: node thickness is scaled by scaleFactor', () => {
     const dsl: DiagramDSL = {
       id: 'd',
       layout: { kind: 'manual' },
-      nodes: [makeNode('a', { position: [0.5, 0.5, 0], size: [0.15, 0.08], thickness: 0.5 })],
+      nodes: [makeNode('a', { position: [0.5, 0.5, 0], size: [0.15, 0.08], thickness: 0.075 })],
       edges: [],
       groups: [],
     };
     const state = compileDiagram(dsl);
     const node = state.nodes[0]!;
-    // thicknessNormFactor = 1.0 * 0.15 = 0.15 (scaleFactor=1 for typical layouts)
-    // thickness = 0.5 * 0.15 = 0.075
-    expect(node.thickness).toBeLessThan(0.5);
-    expect(node.thickness).toBeCloseTo(0.5 * 0.15, 3);
+    // scaleFactor = 1.0 for typical layout → compiled = authored NVS value.
+    expect(node.thickness).toBeCloseTo(0.075, 3);
   });
 
-  it('manual-layout: edge thickness is normalized by thicknessNormFactor', () => {
+  it('manual-layout: edge thickness is scaled by scaleFactor', () => {
     const dsl: DiagramDSL = {
       id: 'd',
       layout: { kind: 'manual' },
@@ -975,12 +969,11 @@ describe('compileDiagram — thickness normalization', () => {
         makeNode('a', { position: [0.2, 0.5, 0], size: [0.15, 0.08] }),
         makeNode('b', { position: [0.8, 0.5, 0], size: [0.15, 0.08] }),
       ],
-      edges: [makeEdge('a', 'b', { thickness: 0.07 })],
+      edges: [makeEdge('a', 'b', { thickness: 0.009 })],
       groups: [],
     };
     const state = compileDiagram(dsl);
-    // thicknessNormFactor = 1.0 * 0.15 = 0.15
-    // thickness = 0.07 * 0.15 = 0.0105
-    expect(state.edges[0]!.thickness).toBeCloseTo(0.07 * 0.15, 3);
+    // scaleFactor = 1.0 → compiled = authored NVS value.
+    expect(state.edges[0]!.thickness).toBeCloseTo(0.009, 4);
   });
 });

@@ -12,7 +12,6 @@ import { unionBounds } from '@brewsite/core';
 import { buildGroupDefaults } from './defaultsCompiler';
 import { computeBounds } from './layoutAlgorithms';
 import type { ResolvedLayout } from './layoutResolver';
-import { GROUP_BORDER_PX_TO_UNITS } from '../constants';
 import { DEFAULT_GROUP_PADDING, DEFAULT_TITLE_GAP } from './diagramLayoutConstants';
 
 /**
@@ -92,7 +91,7 @@ function compileEdgeLights(
   const baseDensity = clampNonNegativeFinite(spec.density ?? DEFAULT_EDGE_LIGHT_DENSITY, 0);
   if (baseDensity <= 0 && !spec.densityBySide) return undefined;
 
-  const borderWidthUnits = Math.max(0, borderWidth * GROUP_BORDER_PX_TO_UNITS);
+  const borderWidthUnits = Math.max(0, borderWidth);
   const centerlineW = bounds.w + borderWidthUnits;
   const centerlineH = bounds.h + borderWidthUnits;
   const halfW = centerlineW / 2;

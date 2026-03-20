@@ -1,7 +1,7 @@
 // Core Showcase — demonstrates @brewsite/core architecture and DSL features.
 // Canvas fills the full viewport. TopChrome and BottomChrome are fixed overlays
 // outside the canvas but inside SceneEngine (so they can use engine hooks).
-import type { JSX } from 'react';
+import {JSX, useRef} from 'react';
 import { useMemo, useState } from 'react';
 import {
   InputCoordinator,
@@ -12,11 +12,11 @@ import {
   ScrollStage,
   type ThemeFamily,
   type ThemePolarity,
-  type ActiveTheme,
+  type ActiveTheme, type ScrollStageHandle,
 } from '@brewsite/core';
 import { ChartTooltipHost } from '@brewsite/charts';
 import { createCoreShowcasePlugins } from './widgetSetup';
-import { ThemeToggle } from '../Lights';
+import {ChartProgressIndicator, ThemeToggle} from '../Lights';
 import { TopChrome, BottomChrome } from './overlays';
 import {
   HeroScene,
@@ -41,6 +41,7 @@ export default function CoreShowcasePage(): JSX.Element {
   const [family, setFamily] = useState<ThemeFamily>('darkGlass');
   const [polarity, setPolarity] = useState<ThemePolarity>('dark');
   const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
+  const scrollStageRef = useRef<ScrollStageHandle | null>(null);
 
   return (
     <div style={{ position: 'relative', height: '100vh', overflow: 'hidden', background: '#030510' }}>
@@ -90,13 +91,14 @@ export default function CoreShowcasePage(): JSX.Element {
           ScrollStage creates the scroll spacer; SceneCanvas fills inset:0.
           EngineOverlayHost layers TextBox and React HTML over the canvas.
         */}
-        <ScrollStage scrollHeightMode="scene-count" pixelsPerScene={1200}>
+        <ScrollStage ref={scrollStageRef} scrollHeightMode="scene-count" pixelsPerScene={1200}>
           <BackgroundLayer style={{ position: 'absolute', inset: 0, zIndex: 0 }} />
           <SceneCanvas style={{ position: 'absolute', inset: 0, zIndex: 1 }} />
           <EngineOverlayHost passthroughPointerEvents>
             <ChartTooltipHost />
           </EngineOverlayHost>
           <InputCoordinator inertiaSensitivity={0.012} inertiaDecay={0.85} />
+          <ChartProgressIndicator scrollStageRef={scrollStageRef} polarity={polarity}/>
         </ScrollStage>
 
         {/* ── Overlay chrome ──────────────────────────────────────────────── */}

@@ -71,6 +71,28 @@ const buildCurvePathFromCommands = (
   return path;
 };
 
+/**
+ * Resample a piecewise CurvePath into a smooth CatmullRomCurve3.
+ *
+ * Three.js TubeGeometry uses the Frenet-Serret frame to orient tube
+ * cross-sections. At junctions between line segments and cubic curves,
+ * the curvature jumps from zero (straight) to non-zero (curve onset),
+ * causing the Frenet normal to rotate abruptly — producing a visible
+ * twist/pinch in the tube even though the path tangent is continuous.
+ *
+ * Resampling into a CatmullRomCurve3 produces a single smooth curve
+ * whose Frenet frame is stable throughout. The sample count is chosen
+ * to preserve detail at curved sections while keeping the straight
+ * sections straight (many samples = high fidelity).
+ */
+const resampleAsCatmullRom = (
+  curvePath: THREE.CurvePath<THREE.Vector3>,
+  sampleCount: number = 64,
+): THREE.CatmullRomCurve3 => {
+  const points = curvePath.getSpacedPoints(sampleCount);
+  return new THREE.CatmullRomCurve3(points, false, 'catmullrom', 0.25);
+};
+
 const buildCurve = (edge: EdgeLike): THREE.Curve<THREE.Vector3> => {
   if (edge.path && edge.path.commands.length > 0) {
     const commands = edge.path.commands;
@@ -94,7 +116,12 @@ const buildCurve = (edge: EdgeLike): THREE.Curve<THREE.Vector3> => {
         toVector3(commands[0].p3),
       );
     }
-    return buildCurvePathFromCommands(commands);
+    // Resample as CatmullRom to eliminate Frenet-frame kinks at
+    // line→cubic junctions. The piecewise CurvePath has tangent-continuous
+    // junctions but curvature discontinuities that make the Frenet normal
+    // flip. CatmullRom resampling produces a single smooth curve.
+    const piecewise = buildCurvePathFromCommands(commands);
+    return resampleAsCatmullRom(piecewise);
   }
 
   const points = toVectorPoints(edge.controlPoints);
@@ -282,8 +309,8 @@ export class EdgeRenderer {
           ? entry.arrowStart ?? new THREE.Mesh()
           : entry.arrowEnd ?? new THREE.Mesh();
 
-        const arrowH = edge.thickness * 9;
-        const arrowW = edge.thickness * 7;
+        const arrowH = edge.thickness * 4;
+        const arrowW = edge.thickness * 4;
         const arrowParsed = parseHexColor(edge.color);
         const arrowOp = edge.opacity * arrowParsed.alpha;
         if (this.use3DArrows) {
@@ -323,15 +350,19 @@ export class EdgeRenderer {
         const tangent = c.getTangentAt(curveT).normalize();
         const dir = kind === 'start' ? tangent.clone().multiplyScalar(-1) : tangent;
 
+        // Position the arrow so its BASE sits at the pipe endpoint and the
+        // TIP extends forward toward/into the destination node. This makes
+        // the arrowhead visually protrude from the pipe end rather than
+        // hiding inside the pipe body.
         if (this.use3DArrows) {
-          // Place cone so its base center sits on the pipe centerline,
-          // slightly ahead of the tube end to avoid embedding.
           const baseCenter = endPoint.clone().addScaledVector(dir, edge.thickness * 0.5);
           const center = baseCenter.clone().addScaledVector(dir, arrowH * 0.5);
           arrow.position.copy(center);
           arrow.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
         } else {
-          arrow.position.copy(endPoint);
+          // Shift forward by arrowH so the base (y=-arrowH in local space)
+          // aligns with the pipe end and the tip (y=0) extends past it.
+          arrow.position.copy(endPoint.clone().addScaledVector(dir, arrowH));
           arrow.rotation.set(0, 0, Math.atan2(-dir.x, dir.y));
         }
 

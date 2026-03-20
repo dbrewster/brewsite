@@ -383,6 +383,7 @@ export class DiagramRenderer {
         // Convert node Z-depth from NVS fraction to world units via quantized
         // scale to avoid per-frame geometry rebuilds during transitions.
         thickness: nodeState.thickness * thicknessScale,
+        cornerRadius: nodeState.cornerRadius * thicknessScale,
       };
       this.nodeRenderer.getOrCreate(convertedNode, state.id, tc, group);
     }

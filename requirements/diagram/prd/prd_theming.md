@@ -3,7 +3,7 @@ title: "BrewSite Diagram — Theming System"
 doc_type: prd
 status: active
 owner: brewsite-product-manager
-last_updated: 2026-03-18
+last_updated: 2026-03-19
 change_history:
   - date: 2026-03-02
     author: "Toolkit Product"
@@ -38,6 +38,12 @@ change_history:
   - date: 2026-03-18
     author: "Toolkit Product"
     summary: "SceneTheme bridge: documented automatic bridging of SceneTheme from SceneSnapshotContext into DiagramTheme by the diagram compile handler. New optional sceneTheme field on CompileSceneTrackOptions and SceneSnapshotContext in @brewsite/core propagates engine-level font and fontSize tokens into diagram compilation without manual theme wiring. Updated SceneTheme Integration section with automatic bridge documentation. Semver impact: minor (new optional fields only, fully backward-compatible)."
+  - date: 2026-03-19
+    author: "Toolkit Product"
+    summary: "NVS sizing migration: all theme layout defaults are now NVS fractions. defaultSize changed from [4, 2] (content units) to [0.15, 0.08] (NVS fractions) across all themes. Grid/hierarchical spacing, groupPadding, titleGap all in NVS. The dual content-unit / NVS default system for manual vs auto layout is eliminated — one set of NVS-fraction defaults for all layout modes. Updated preset theme descriptions, layout defaults section, and DiagramThemeNodeConfig.defaultSize JSDoc. Semver impact: major (theme default values changed)."
+  - date: 2026-03-19
+    author: "Toolkit Product"
+    summary: "NVS thickness migration completed: node defaultThickness, edge defaultThickness, group defaultBorderWidth, group defaultBorderHeight, and node cornerRadius are now NVS fractions of diagram viewport width. All six theme presets updated with migrated values. thicknessNormFactor and GROUP_BORDER_PX_TO_UNITS eliminated from the pipeline. cornerRadius is now converted to world units in render.ts alongside size and thickness. Updated sub-config JSDoc, preset theme descriptions, and layout defaults table."
 ---
 
 ## Overview
@@ -249,9 +255,24 @@ export interface DiagramThemeNodeConfig {
    */
   readonly nodeEnvMapIntensity?: number;
   readonly defaultEmissiveIntensity: number;
+  /**
+   * Default physical thickness (Z-depth) of node prism boxes as an NVS fraction
+   * of the diagram viewport width. Converted to world units by render.ts (× uniformWorldW).
+   * 0.033 = card-like (neonCyber), 0.075 = standard block (enterprise), 0.210 = deep block (midnight).
+   */
   readonly defaultThickness: number;
-  /** Default node width and height in diagram units for AutoLayout. ManualLayout always requires explicit size. */
+  /**
+   * Default node size as NVS fractions [width, height].
+   * Applies to all layout modes (Grid, Hierarchical, Flow, Manual).
+   * Default: [0.15, 0.08] — 15% wide, 8% tall, 2:1 aspect ratio.
+   */
   readonly defaultSize: readonly [number, number];
+  /**
+   * Corner radius as an NVS fraction of the diagram viewport width.
+   * Converted to world units in render.ts alongside size and thickness.
+   * 0 = sharp BoxGeometry; > 0 = rounded box geometry.
+   * Ignored for non-rect shapes (cylinder, oval, hexagon, etc.).
+   */
   readonly cornerRadius: number;
   readonly glowIntensity: number;
   /** Glow sprite size multiplier relative to node bounding box dimensions. Controls halo radius. */
@@ -297,6 +318,7 @@ export interface DiagramThemeEdgeConfig {
   readonly defaultFlowColor?: string;
   readonly defaultFlowSpeed: number;
   readonly defaultFlowWidth: number;
+  /** Default tube radius as an NVS fraction of the diagram viewport width. */
   readonly defaultThickness: number;
   readonly defaultMetalness: number;
   readonly defaultRoughness: number;
@@ -335,7 +357,9 @@ export interface DiagramThemeEdgeConfig {
 export interface DiagramThemeGroupConfig {
   readonly defaultColor: string;
   readonly defaultBorderColor: string;
+  /** Default border width as an NVS fraction of the diagram viewport width. */
   readonly defaultBorderWidth: number;
+  /** Default border height (Z-depth) as an NVS fraction of the diagram viewport width. */
   readonly defaultBorderHeight: number;
   readonly defaultFillOpacity: number;
   readonly defaultBorderOpacity: number;
@@ -410,6 +434,7 @@ export interface DiagramThemeRenderConfig {
   readonly nodeGlowIntensity: number;
   /** Resolved from DiagramThemeNodeConfig.glowSpread. Controls glow sprite radius multiplier. */
   readonly nodeGlowSpread: number;
+  /** Corner radius as NVS fraction. render.ts converts to world units (× uniformWorldW). 0 = BoxGeometry. */
   readonly nodeCornerRadius: number;
   readonly use3DArrows: boolean;
   readonly edgeSmoothness: number;
@@ -597,7 +622,20 @@ All six families' preset `DiagramTheme` values for motion parameters are defined
 
 ### Layout defaults in theme
 
-`DiagramThemeLayoutConfig` provides fallback values for grid, hierarchical, and manual layout when the `<Diagram>` DSL does not specify a layout child. `layoutResolver.ts` merges theme layout defaults with DSL-declared layout props, with DSL values taking precedence. This allows the theme to establish sensible spacing and padding defaults without requiring every diagram DSL to be verbose.
+`DiagramThemeLayoutConfig` provides fallback values for grid, hierarchical, manual, and flow layout when the `<Diagram>` DSL does not specify a layout child. All dimensional values in the theme — layout spacing, node size, thickness, cornerRadius, borderWidth, borderHeight — are NVS fractions of the diagram viewport width. The compile pipeline multiplies by `scaleFactor` (1.0 unless the layout exceeds [0..1]); the render pipeline multiplies by `uniformWorldW` to produce Three.js world units. `layoutResolver.ts` merges theme layout defaults with DSL-declared layout props, with DSL values taking precedence. This allows the theme to establish sensible spacing and padding defaults without requiring every diagram DSL to be verbose.
+
+Default NVS layout values across themes:
+
+| Theme | Grid spacing | Hier spacing | groupPadding | titleGap |
+|---|---|---|---|---|
+| Enterprise | `[0.06, 0.06]` | `[0.045, 0.045]` | `0.035` | `0.025` |
+| DarkGlass | `[0.04, 0.04]` | `[0.045, 0.045]` | `0.035` | `0.03` |
+| NeonCyber | `[0.06, 0.06]` | `[0.045, 0.045]` | `0.035` | `0.025` |
+| Midnight | `[0.05, 0.05]` | `[0.045, 0.045]` | `0.035` | `0.03` |
+| LightMinimal | `[0.06, 0.06]` | `[0.045, 0.045]` | `0.035` | `0.025` |
+| LightCanvas | `[0.06, 0.06]` | `[0.045, 0.045]` | `0.035` | `0.025` |
+
+All themes share: `defaultSize: [0.15, 0.08]`, `margin: 0`, `flow.gap: 0.06`.
 
 ### Input defaults in theme
 

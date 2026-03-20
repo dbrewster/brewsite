@@ -46,7 +46,7 @@ export const scene03ArchDetail: JSX.Element = (
           label="ECS Cluster"
           icon="aws:ecs"
           position={[0.324, 0.639, -5]}
-          thickness={0.8}
+          thickness={0.120}
           color="#1a3d5c"
           size={[0.30, 0.22]}
         />

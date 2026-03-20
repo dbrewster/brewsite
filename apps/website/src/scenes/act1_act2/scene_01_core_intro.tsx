@@ -42,7 +42,7 @@ export const scene01CoreIntro: JSX.Element = (
         <NeonSign enabled={false} opacity={1} intensity={0.8} z={-2} />
 
         <Diagram id="presentation-arc" x={0} y={0} w={1} h={1} tilt={-Math.PI / 11} scale={isMobile ? 1.0 : 1.25}>
-                <HierarchicalLayout direction="top-down" spacing={[2.5, 2.4]}/>
+                <HierarchicalLayout direction="top-down" spacing={[0.10, 0.10]}/>
                 <DiagramEnter from={[-1, 0.5, 0]} fade easing="ease-out" />
 
                 <DiagramNode id="problem" label="Problem" icon="ui:exclamation-triangle" size={[0.12, 0.12]} />

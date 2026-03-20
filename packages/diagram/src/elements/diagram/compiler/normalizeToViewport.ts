@@ -18,13 +18,8 @@ export type NormalizeToViewportResult = {
   readonly normalizedPositions: Map<string, RawPosition>;
   readonly normalizedSizes: Map<string, RawSize>;
   readonly normalizedGroups: Map<string, GroupBounds>;
-  /**
-   * Uniform normalization factor for thickness-type values.
-   * Computed as scaleFactor * max(defaultNodeSize[0], defaultNodeSize[1]).
-   * Converts theme-authored thickness (content-unit scale) to NVS-proportional
-   * values. The renderer multiplies by uniformWorldW to convert to world units.
-   */
-  readonly thicknessNormFactor: number;
+  /** Uniform scale factor applied when layout exceeded [0..1]. 1.0 when no scale-down needed. */
+  readonly scaleFactor: number;
 };
 
 /**
@@ -74,7 +69,7 @@ export function normalizeToViewport(
       normalizedPositions: new Map(),
       normalizedSizes: new Map(),
       normalizedGroups: new Map(),
-      thicknessNormFactor: Math.max(defaultNodeSize[0], defaultNodeSize[1]),
+      scaleFactor: 1.0,
     };
   }
 
@@ -134,6 +129,6 @@ export function normalizeToViewport(
     normalizedPositions,
     normalizedSizes,
     normalizedGroups,
-    thicknessNormFactor: scaleFactor * Math.max(defaultNodeSize[0], defaultNodeSize[1]),
+    scaleFactor,
   };
 }

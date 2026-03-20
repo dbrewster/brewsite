@@ -1,7 +1,6 @@
 // Tests verifying that DiagramNodeState uses 'thickness' (not 'depth') after F9 rename.
-// Thickness values are normalized from content-unit scale to NVS fractions by
-// multiplying by thicknessNormFactor (= scaleFactor * max(defaultNodeSize)).
-// The compiled value is smaller than the authored value.
+// Thickness values are now authored in NVS fractions and scaled by scaleFactor only.
+// When layout fits in [0..1], scaleFactor = 1.0 and compiled = authored.
 
 import { it, expect } from 'vitest';
 import { compileDiagram } from '../compile';
@@ -10,15 +9,14 @@ import { darkGlassTheme } from '../themes/darkGlass';
 it('DiagramNodeState has thickness field (not depth)', () => {
   const state = compileDiagram({
     id: 'test',
-    nodes: [{ id: 'a', label: 'A', thickness: 0.8 }],
+    nodes: [{ id: 'a', label: 'A', thickness: 0.120 }],
     edges: [],
     groups: [],
   });
   const node = state.nodes.find((n) => n.id === 'a')!;
-  // Thickness is normalized by thicknessNormFactor (= scaleFactor * max(defaultSize)).
-  // With NVS-scale defaultSize [0.15, 0.08], the factor is ~0.15, so compiled < authored.
+  // Thickness is now in NVS; scaleFactor = 1.0 for small layout → compiled = authored.
   expect(node.thickness).toBeGreaterThan(0);
-  expect(node.thickness).toBeLessThan(0.8);
+  expect(node.thickness).toBeCloseTo(0.120, 3);
   expect('depth' in node).toBe(false);
 });
 
@@ -30,8 +28,7 @@ it('DiagramNodeState.thickness defaults from theme.node.defaultThickness', () =>
     groups: [],
   }, darkGlassTheme);
   const node = state.nodes.find((n) => n.id === 'a')!;
-  // Thickness is normalized by thicknessNormFactor (= scaleFactor * max(defaultSize)).
-  // With NVS-scale defaultSize [0.15, 0.08], compiled < raw theme default.
+  // Theme defaultThickness is now in NVS. scaleFactor = 1.0 → compiled = theme value.
   expect(node.thickness).toBeGreaterThan(0);
-  expect(node.thickness).toBeLessThan(darkGlassTheme.node.defaultThickness);
+  expect(node.thickness).toBeCloseTo(darkGlassTheme.node.defaultThickness, 3);
 });

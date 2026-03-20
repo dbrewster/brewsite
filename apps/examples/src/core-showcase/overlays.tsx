@@ -277,7 +277,7 @@ export function BottomChrome(): JSX.Element {
     <div
       style={{
         position: 'fixed',
-        bottom: 0,
+        bottom: 100,
         left: 0,
         right: 0,
         maxHeight: 'min(42vh, 260px)',

@@ -5,6 +5,7 @@ import {
   rerouteLiveEdges,
   blendDiagramEdges,
 } from '../transitionHelpers';
+import { functionalDiagramTransitionSpec } from '../../compile';
 import type { DiagramNodeState, DiagramEdgeState, DiagramGroupState } from '../../types';
 
 const linePath = {
@@ -162,8 +163,8 @@ describe('rerouteLiveEdges', () => {
         padding: [0, 0, 0, 0],
         titleGap: 0,
       },
-      borderWidth: 1.25,
-      borderHeight: 1,
+      borderWidth: 0.075,
+      borderHeight: 0.150,
     });
 
     const { positions, sizes, groupIds, obstacleGroupIds } = buildLiveNodeMaps([], [group]);
@@ -171,7 +172,11 @@ describe('rerouteLiveEdges', () => {
     expect(groupIds.has('g1')).toBe(true);
     expect(obstacleGroupIds.has('g1')).toBe(true);
     expect(positions.get('g1')).toEqual([0.45, 0.30000000000000004, 0]);
-    expect(sizes.get('g1')).toEqual([1, 0.9, 1]);
+    // borderCenterInset = 0.075 * 0.5 = 0.0375
+    // size = [0.5 + 0.075, 0.4 + 0.075, 0.150]
+    expect(sizes.get('g1')![0]).toBeCloseTo(0.575, 5);
+    expect(sizes.get('g1')![1]).toBeCloseTo(0.475, 5);
+    expect(sizes.get('g1')![2]).toBeCloseTo(0.150, 5);
   });
 
   it('excludes container groups from obstacle routing ids', () => {
@@ -208,5 +213,88 @@ describe('blendDiagramEdges', () => {
     }]]);
     const { blended } = blendDiagramEdges([], [makeEdge('e1', 'a', 'b')], liveRoutes, 0.5);
     expect(blended[0].controlPoints).toEqual([[1, 1, 1], [2, 2, 2]]);
+  });
+});
+
+// ─── interpolateFn base-object spread ────────────────────────────────────────
+// The interpolateFn must use `from` as the base at t=0 and `to` at t=1.
+// Previously it always spread `...to`, meaning non-interpolated fields like
+// `groups` came from the DESTINATION scene even at t=0, making the outgoing
+// scene's content invisible (the incoming scene's groups/metadata appeared
+// for the entire transition block).
+
+describe('functionalDiagramTransitionSpec.interpolateFn base object', () => {
+
+  const fromGroups: DiagramGroupState[] = [{
+    id: 'g1',
+    label: 'FROM group label',
+    bounds: { x: 0, y: 0, w: 1, h: 1, padding: [0, 0, 0, 0] as readonly [number, number, number, number], titleGap: 0 },
+    color: '#111111',
+    fillColor: '#222222',
+    borderColor: '#333333',
+    fillOpacity: 0.5,
+    borderOpacity: 1,
+    borderWidth: 0.01,
+    borderHeight: 0.01,
+    borderStyle: 'solid',
+    borderEmissiveColor: '#000000',
+    borderEmissiveIntensity: 0,
+  }];
+
+  const toGroups: DiagramGroupState[] = [{
+    id: 'g1',
+    label: 'TO group label',
+    bounds: { x: 0.1, y: 0.1, w: 0.8, h: 0.8, padding: [0, 0, 0, 0] as readonly [number, number, number, number], titleGap: 0 },
+    color: '#aaaaaa',
+    fillColor: '#bbbbbb',
+    borderColor: '#cccccc',
+    fillOpacity: 0.5,
+    borderOpacity: 1,
+    borderWidth: 0.01,
+    borderHeight: 0.01,
+    borderStyle: 'solid',
+    borderEmissiveColor: '#000000',
+    borderEmissiveIntensity: 0,
+  }];
+
+  const makeDiagramState = (id: string, groups: DiagramGroupState[]) => ({
+    id,
+    nodes: [makeNode('n1')],
+    edges: [],
+    groups,
+    viewportBounds: { x: 0, y: 0, w: 1, h: 1 },
+    tiltRotation: [0, 0, 0] as readonly [number, number, number],
+    z: 0,
+    scale: 1,
+    contentAspect: 1,
+    exit: undefined,
+    enter: undefined,
+    themeConfig: {} as any,
+  });
+
+  it('at t=0, groups come from FROM state (not TO)', () => {
+    const from = makeDiagramState('d1', fromGroups);
+    const to = makeDiagramState('d1', toGroups);
+    const ctx = { t: 0, bp: 0, channel: () => 0 };
+
+    const closure = functionalDiagramTransitionSpec.interpolateFn(from, to);
+    const result = closure(ctx);
+
+    expect(
+      result.groups[0]?.label,
+      'At t=0, the group label should be FROM state, not TO state. ' +
+      'The interpolateFn spreads ...to as the base, overwriting from\'s groups.',
+    ).toBe('FROM group label');
+  });
+
+  it('at t=1, groups come from TO state', () => {
+    const from = makeDiagramState('d1', fromGroups);
+    const to = makeDiagramState('d1', toGroups);
+    const ctx = { t: 1, bp: 1, channel: () => 1 };
+
+    const closure = functionalDiagramTransitionSpec.interpolateFn(from, to);
+    const result = closure(ctx);
+
+    expect(result.groups[0]?.label).toBe('TO group label');
   });
 });

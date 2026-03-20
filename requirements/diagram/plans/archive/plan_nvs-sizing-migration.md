@@ -2,7 +2,7 @@
 title: "Implementation Plan: Migrate Diagram Sizes from Content Units to NVS Fractions"
 doc_type: plan
 owner: Architect
-status: approved
+status: complete
 updated: 2026-03-19
 ---
 

@@ -44,6 +44,12 @@ change_history:
   - date: 2026-03-18
     author: "Toolkit Product"
     summary: "SceneTheme bridge and rendering fixes: documented automatic SceneTheme bridging in diagram handler State Flow (SceneSnapshotContext.sceneTheme → resolved DiagramTheme). Documented aspect ratio correction in DiagramRenderer and fit-to-content node label layout in NodeRenderer. New optional sceneTheme field on CompileSceneTrackOptions and SceneSnapshotContext in @brewsite/core. Semver impact: minor."
+  - date: 2026-03-19
+    author: "Toolkit Product"
+    summary: "NVS sizing migration: compiler pipeline no longer has separate ManualLayout vs auto-layout normalization paths — all layouts go through normalizeToViewport(). The safeSpan concept is eliminated. normalizeToViewport() performs center + uniform-scale-to-fit + Y-flip. contentAspect removed from DiagramState and State Flow. Aspect ratio correction removed from DiagramRenderer. Semver impact: major."
+  - date: 2026-03-19
+    author: "Toolkit Product"
+    summary: "NVS thickness migration completed: all five remaining content-unit dimensional props (node thickness, edge thickness, group borderWidth, group borderHeight, node cornerRadius) migrated to NVS fractions. thicknessNormFactor eliminated — normalizeToViewport() returns scaleFactor only. GROUP_BORDER_PX_TO_UNITS constant deleted. cornerRadius now converted to world units in render.ts. Pipeline simplified to: authored_nvs × scaleFactor (compile) × uniformWorldW (render) = world units."
 ---
 
 # BrewSite Diagram — Architecture Reference
@@ -114,7 +120,7 @@ packages/diagram/src/
     │   ├── compile.ts
     │   ├── render.ts      ← DiagramRenderer; accepts optional IIconLoader injection
     │   ├── widget.ts
-    │   ├── constants.ts   ← shared compile/render constants (GROUP_BORDER_PX_TO_UNITS, GROUP_RENDER_Z)
+    │   ├── constants.ts   ← shared compile/render constants (GROUP_RENDER_Z)
     │   ├── focusRegion.ts ← IFocusRegionService interface + DiagramFocusRegionService class; module-level wrappers preserved for backwards compat
     │   ├── useDiagramFocusRegion.ts
     │   ├── index.ts
@@ -128,7 +134,7 @@ packages/diagram/src/
     │   │   ├── layoutAlgorithms.ts       ← 120-line orchestrator; algorithm implementations live in layout/
     │   │   ├── layoutResolver.ts
     │   │   ├── nodeCompiler.ts
-    │   │   ├── normalizeToViewport.ts    ← pure coordinate transformation (diagram units → NVS); directly unit-testable
+    │   │   ├── normalizeToViewport.ts    ← pure coordinate transformation: center + uniform-scale-to-fit + Y-flip; directly unit-testable
     │   │   ├── transitionHelpers.ts
     │   │   ├── themeResolver.ts
     │   │   ├── edgeRouter.ts
@@ -374,7 +380,7 @@ DiagramDSL { id, x, y, w, h, tilt, z, scale, nodes[], edges[], groups[], layout,
   │
   ▼ compileDiagram({ ...dsl, x, y, w, h, z: composedZ }, themedResolvedTheme, warnFn?)
   │
-DiagramState { id, viewportBounds, tiltRotation, z, scale, contentAspect,
+DiagramState { id, viewportBounds, tiltRotation, z, scale,
                nodes[], edges[], groups[], exit, enter, themeConfig }
   │
   ▼ api.setWidgetState(widgetId, state) → stored in SceneFrame.widgets[widgetId]
@@ -386,7 +392,7 @@ SceneTrackTick.state.widgets[widgetId] = blended DiagramState at tick t
   ▼ DiagramWidget.apply(state, context)     (IRenderable contract)
   │
   ▼ DiagramRenderer.update(state, scene)
-  │   ▼ Aspect ratio correction: node world-space X coordinates are divided by contentAspect
+  │   ▼ NVS→world conversion: all dimensional props (positions, sizes, thickness, cornerRadius, borderWidth, borderHeight) × uniformWorldW
   │   ▼ NodeRenderer: fit-to-content label layout via computeNodeLabelLayout()
   │
 Three.js Scene (NodeRenderer, EdgeRenderer, GroupRenderer)
@@ -458,6 +464,7 @@ Key architectural-level breaking changes (from initial 2026-03-08 overhaul throu
 - **`diagramPlugin()` no longer requires `diagrams: string[]`** — the `diagrams` option is deprecated and emits a console warning if provided. `DiagramWidget` instances are created lazily during compilation via `configureRegistry()`. Callers should remove the `diagrams` array.
 - **`publishDiagramFocusGroup/Canvas` parameter type changed** — these functions now accept `Pick<DiagramState, 'id'>` (not `Pick<DiagramCanvasState, 'id'>`). Callers using canvas state objects must update to use the diagram widget's `DiagramState`.
 - **`DiagramWidget` implements `IDslComposite` and `ILightingOverride`** — code narrowing on `DiagramWidget`'s interface list must account for these new contracts.
+- **`DiagramState.contentAspect` removed** — the NVS-native sizing model eliminates the need for aspect ratio correction. All diagram dimensional props are now NVS fractions of viewport width. `normalizeToViewport()` performs uniform scale-to-fit (not per-axis-independent normalization) and returns `scaleFactor` (1.0 when no scale-down is needed). The compile pipeline is: `authored_nvs × scaleFactor` → compiled NVS state. The render pipeline is: `compiled_nvs × uniformWorldW` → world units. `thicknessNormFactor` and `GROUP_BORDER_PX_TO_UNITS` have been eliminated.
 
 ## Dependencies
 

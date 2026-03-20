@@ -59,13 +59,15 @@ export interface DiagramThemeNodeConfig {
   /** Emissive intensity on the front face [0–1], tinted to node color */
   readonly defaultEmissiveIntensity: number;
   /**
-   * Default physical thickness of node prism boxes in diagram units.
-   * 0.28 = card-like, 0.6 = block-like.
+   * Default physical thickness (Z-depth) of node prism boxes as an NVS fraction
+   * of the diagram viewport width.
+   * 0.033 = card-like (neonCyber), 0.075 = standard block (enterprise), 0.210 = deep block (midnight).
    */
   readonly defaultThickness: number;
   /**
-   * Corner radius in diagram units for rect-like shapes.
-   * 0 = sharp BoxGeometry (legacy); > 0 = rounded box geometry.
+   * Corner radius as an NVS fraction of the diagram viewport width.
+   * Converted to world units in render.ts alongside size and thickness.
+   * 0 = sharp BoxGeometry; > 0 = rounded box geometry.
    * Ignored for non-rect shapes (cylinder, oval, hexagon, etc.).
    */
   readonly cornerRadius: number;
@@ -160,7 +162,7 @@ export interface DiagramThemeEdgeConfig {
   readonly defaultFlowSpeed: number;
   /** Default flow pulse width (0–1 along edge UV). */
   readonly defaultFlowWidth: number;
-  /** Default tube radius in diagram units */
+  /** Default tube radius as an NVS fraction of the diagram viewport width. */
   readonly defaultThickness: number;
   /** PBR metalness for edge tubes [0–1] */
   readonly defaultMetalness: number;
@@ -233,9 +235,9 @@ export interface DiagramThemeGroupConfig {
   readonly defaultColor: string;
   /** Default border color (CSS hex) */
   readonly defaultBorderColor: string;
-  /** Default border width in pixels for group outlines. */
+  /** Default border width as an NVS fraction of the diagram viewport width. */
   readonly defaultBorderWidth: number;
-  /** Default border height (depth on Z axis) for 3D group outlines. */
+  /** Default border height (Z-depth) as an NVS fraction of the diagram viewport width. */
   readonly defaultBorderHeight: number;
   /** Default fill opacity [0–1] */
   readonly defaultFillOpacity: number;
@@ -426,7 +428,7 @@ export interface DiagramThemeRenderConfig {
   readonly nodeEnvMapIntensity: number;
   /** Glow sprite intensity for all nodes [0–1]. 0 = disabled */
   readonly nodeGlowIntensity: number;
-  /** Corner radius in diagram units for rect nodes. 0 = BoxGeometry */
+  /** Corner radius as NVS fraction. render.ts converts to world units. 0 = BoxGeometry */
   readonly nodeCornerRadius: number;
   /** Use 3D cone arrowheads (MeshStandardMaterial) instead of flat triangles */
   readonly use3DArrows: boolean;
@@ -773,9 +775,9 @@ export interface DiagramNodeState {
   readonly size: readonly [number, number];
 
   /**
-   * Physical thickness of the 3D prism box in diagram units — how far it protrudes
-   * toward the camera. NOT the same as z-axis depth layering (use `position[2]` for that).
-   * Recommended defaults: 0.4 for standard nodes, 0.8 for hero/expanded nodes.
+   * Physical thickness of the 3D prism box as an NVS fraction of the diagram
+   * viewport width. Converted to world units by render.ts (× uniformWorldW).
+   * NOT the same as z-axis depth layering (use `position[2]` for that).
    */
   readonly thickness: number;
 
@@ -806,10 +808,10 @@ export interface DiagramNodeState {
   readonly emissiveColor: string;
 
   /**
-   * Corner radius in diagram units for rect-like shapes.
+   * Corner radius as an NVS fraction of the diagram viewport width.
+   * Converted to world units by render.ts (× uniformWorldW).
    * 0 = sharp BoxGeometry. > 0 = rounded box via ExtrudeGeometry.
-   * Only applies to flow:rect and other box-based shapes.
-   * Default: 0.06.
+   * Only applies to rect and other box-based shapes.
    */
   readonly cornerRadius: number;
 
@@ -983,8 +985,8 @@ export interface DiagramEdgeState {
   readonly flowColor: string | undefined;
 
   /**
-   * Tube geometry radius in diagram units.
-   * Recommended: 0.04 for standard edges, 0.07 for highlighted/emphasized edges.
+   * Tube geometry radius as an NVS fraction of the diagram viewport width.
+   * Converted to world units by render.ts (× uniformWorldW).
    */
   readonly thickness: number;
 
@@ -1085,9 +1087,9 @@ export interface DiagramGroupState {
   /** CSS hex border color */
   readonly borderColor: string;
 
-  /** Border width in pixels */
+  /** Border width as an NVS fraction of the diagram viewport width. */
   readonly borderWidth: number;
-  /** Border height/depth in diagram units */
+  /** Border height (Z-depth) as an NVS fraction of the diagram viewport width. */
   readonly borderHeight: number;
 
   readonly borderStyle: 'solid' | 'dashed' | 'none';
@@ -1257,6 +1259,7 @@ export interface DiagramNodeDSL {
    */
   readonly position?: readonly [number, number, number];
   readonly size?: readonly [number, number];
+  /** Node prism Z-depth as an NVS fraction of diagram viewport width. Overrides theme default. */
   readonly thickness?: number;
   readonly color?: string;
   /**
@@ -1281,7 +1284,7 @@ export interface DiagramNodeDSL {
    * - object: full control — `{ intensity?: number; color?: string }`
    */
   readonly glow?: boolean | DiagramNodeGlowConfig;
-  /** Corner radius in diagram units. Overrides theme default (theme.node.cornerRadius). */
+  /** Corner radius as an NVS fraction of diagram viewport width. Overrides theme default. */
   readonly cornerRadius?: number;
   readonly labelColor?: string;
   readonly sublabelColor?: string;
@@ -1327,6 +1330,7 @@ export interface DiagramEdgeDSL {
   /** Optional flow pulse color (defaults to edge color) */
   readonly flowColor?: string;
   readonly color?: string;
+  /** Tube radius as an NVS fraction of diagram viewport width. Overrides theme default. */
   readonly thickness?: number;
   readonly opacity?: number;
   /**
