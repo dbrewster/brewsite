@@ -20,6 +20,7 @@ import {ChartProgressIndicator, ThemeToggle} from '../Lights';
 import {ExampleHeader, useFpsCap} from '../ExampleHeader';
 import {StatsOverlay} from '../StatsOverlay';
 import { TopChrome, BottomChrome } from './overlays';
+import { useThemeCss } from '../hooks/useThemeCss';
 import {
   HeroScene,
   OverviewScene,
@@ -45,9 +46,10 @@ export default function CoreShowcasePage(): JSX.Element {
   const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
   const scrollStageRef = useRef<ScrollStageHandle | null>(null);
   const fpsCap = useFpsCap();
+  useThemeCss(family, polarity);
 
   return (
-    <div style={{ position: 'relative', display: 'flex', flexFlow: 'column', height: '100vh', overflow: 'hidden', background: '#030510' }}>
+    <div className="ex-page">
       <ExampleHeader>
         <ThemeToggle
           onPolarityChange={setPolarity}

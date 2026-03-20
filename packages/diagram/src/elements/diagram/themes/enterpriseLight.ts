@@ -14,6 +14,7 @@ export const enterpriseLightTheme: DiagramTheme = {
     defaultMetalness: 0.08,
     defaultRoughness: 0.62,
     defaultEmissiveIntensity: 0.0,
+    defaultBorderColor: '#B8C4D4',
   },
   edge: {
     ...enterpriseTheme.edge,

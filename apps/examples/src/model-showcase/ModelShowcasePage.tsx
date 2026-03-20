@@ -25,6 +25,7 @@ import { Scene05Carousel } from './scenes/scene05_carousel';
 import { ChartProgressIndicator, ThemeToggle } from '../Lights';
 import { ExampleHeader, useFpsCap } from '../ExampleHeader';
 import { StatsOverlay } from '../StatsOverlay';
+import { useThemeCss } from '../hooks/useThemeCss';
 
 export default function ModelShowcasePage(): JSX.Element {
   const plugins = useMemo(() => [corePlugin(), modelShowcasePlugin], []);
@@ -34,9 +35,10 @@ export default function ModelShowcasePage(): JSX.Element {
   const [polarity, setPolarity] = useState<ThemePolarity>('dark');
   const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
   const fpsCap = useFpsCap();
+  useThemeCss(family, polarity);
 
   return (
-    <div style={{ position: 'relative', display: 'flex', flexFlow: 'column', height: '100vh', overflow: 'hidden', background: '#030510' }}>
+    <div className="ex-page">
       <ExampleHeader>
         <ThemeToggle
           onPolarityChange={setPolarity}

@@ -16,6 +16,7 @@ export const darkGlassLightTheme: DiagramTheme = {
     defaultRoughness: 0.46,
     defaultEmissiveIntensity: 0.02,
     glowIntensity: 0.0,
+    defaultBorderColor: '#D4C0B4',
   },
   edge: {
     ...darkGlassTheme.edge,

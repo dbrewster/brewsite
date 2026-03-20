@@ -533,7 +533,7 @@ export class NodeRenderer {
         !entry.iconHolder ||
         entry.iconHolder.userData['iconUrl'] !== state.iconUrl ||
         entry.iconHolder.userData['iconStyle'] !== state.iconStyle ||
-        entry.iconHolder.userData['iconDepthFactor'] !== state.iconDepthFactor;
+        entry.iconHolder.userData['iconDepth'] !== state.iconDepth;
 
       if (needsIconRebuild) {
         if (entry.iconHolder) {
@@ -542,14 +542,14 @@ export class NodeRenderer {
         const holder = new THREE.Group();
         holder.userData['iconUrl'] = state.iconUrl;
         holder.userData['iconStyle'] = state.iconStyle;
-        holder.userData['iconDepthFactor'] = state.iconDepthFactor;
+        holder.userData['iconDepth'] = state.iconDepth;
         entry.iconHolder = holder;
         entry.group.add(holder);
         // Use effectiveIconScale from layout (may be reduced to fit content area).
         const iconWidth = contentW * labelLayout.effectiveIconScale;
         const iconHeight = contentH * labelLayout.effectiveIconScale;
-        // iconDepthFactor is a fraction of thickness; convert to diagram units for the loader.
-        const iconMaxDepth = state.iconDepthFactor * state.thickness;
+        // iconDepth is already in world units after the two-step NVS → world conversion in render.ts.
+        const iconMaxDepth = state.iconDepth;
         this.iconLoader.load(
           state.iconUrl,
           iconWidth,

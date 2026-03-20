@@ -1127,8 +1127,8 @@ describe('computeBounds', () => {
     const positions = new Map([['a', [0, 0, 0] as const]]);
     const sizes = new Map([['a', [2, 2, 1] as const]]);
     const bounds = computeBounds(['a'], positions, sizes);
-    expect(bounds.minZ).toBeCloseTo(-0.5);
-    expect(bounds.maxZ).toBeCloseTo(0.5);
+    expect(bounds.minZ).toBeCloseTo(-1);
+    expect(bounds.maxZ).toBeCloseTo(0);
   });
 });
 

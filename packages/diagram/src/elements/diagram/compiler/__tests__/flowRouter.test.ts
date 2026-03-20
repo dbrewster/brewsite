@@ -50,7 +50,8 @@ describe('routeFlowEdge', () => {
     const result = route({ positions, sizes });
     expect(result.path.punctures).toEqual([]);
     expect(result.path.usedUnderpass).toBe(false);
-    expect(result.controlPoints.some((point) => point[2] < 0)).toBe(false);
+    // Depth alignment: side face centers are at z - d/2, so small negative Z is expected.
+    expect(result.controlPoints.some((point) => point[2] < -1)).toBe(false);
   });
 
   it('avoids puncture fallback in a boxed route when a cleaner alternative exists', () => {
@@ -77,8 +78,9 @@ describe('routeFlowEdge', () => {
       toPos: [0, 8, 0],
     });
 
-    expect(result.controlPoints[0]).toEqual([0, 1, 0]);
-    expect(result.controlPoints.at(-1)).toEqual([0, 7, 0]);
+    // Depth alignment: top/bottom face centers at z - d/2 = 0 - 1/2 = -0.5.
+    expect(result.controlPoints[0]).toEqual([0, 1, -0.5]);
+    expect(result.controlPoints.at(-1)).toEqual([0, 7, -0.5]);
   });
 
   it('applies flowTurnRadius to simple flow routes with only stub elbows', () => {

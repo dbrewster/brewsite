@@ -1,10 +1,11 @@
-// Page component rendering all theme family × polarity variants side-by-side for visual review.
+// Page component rendering all theme family x polarity variants side-by-side for visual review.
 import { Fragment } from 'react';
-import type { ThemeFamily } from '@brewsite/core';
+import type { ThemeFamily, ThemePolarity } from '@brewsite/core';
 import type { JSX } from 'react';
 import { bundles } from '@brewsite/themes';
 import { ThemeSwatchCard } from './ThemeSwatchCard';
 import { ExampleHeader } from '../ExampleHeader';
+import { useThemeCss } from '../hooks/useThemeCss';
 
 const FAMILIES = Object.keys(bundles) as (keyof typeof bundles)[];
 
@@ -18,33 +19,23 @@ const DIAGRAM_THEME_PAIRS = Object.fromEntries(
 ) as Record<ThemeFamily, { dark: (typeof bundles)['enterprise']['diagram']['dark']; light: (typeof bundles)['enterprise']['diagram']['light'] }>;
 
 export default function ThemeGalleryPage(): JSX.Element {
+  const family = (localStorage.getItem('themeFamily') as ThemeFamily) ?? 'darkGlass';
+  const polarity = (localStorage.getItem('themePolarity') as ThemePolarity) ?? 'dark';
+  useThemeCss(family, polarity);
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', fontFamily: 'system-ui', background: '#1a1a1a', minHeight: '100vh', color: '#e0e0e8' }}>
+    <div className="ex-gallery">
       <ExampleHeader />
-      <div style={{ padding: '2rem', overflowY: 'auto', flex: 1 }}>
-      <style>{`
-        .theme-gallery-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
-          max-width: 520px;
-        }
-        @media (max-width: 540px) {
-          .theme-gallery-grid {
-            grid-template-columns: 1fr;
-            max-width: 100%;
-          }
-        }
-      `}</style>
-      <h1 style={{ color: '#fff', fontSize: 20, marginBottom: 8 }}>Theme Family Gallery</h1>
-      <p style={{ color: '#aaa', fontSize: 13, marginBottom: 24 }}>
-        All family × polarity variants. Dark polarity left, light polarity right.
+      <div className="ex-gallery__content">
+      <h1 style={{ fontSize: 20, marginBottom: 8 }}>Theme Family Gallery</h1>
+      <p style={{ opacity: 0.6, fontSize: 13, marginBottom: 24 }}>
+        All family x polarity variants. Dark polarity left, light polarity right.
         Projection bar = projection.color. Card border = tooltip.borderColor.
       </p>
 
       {/* Chart themes grid */}
-      <h2 style={{ color: '#ccc', fontSize: 14, marginBottom: 12 }}>@brewsite/charts</h2>
-      <div className="theme-gallery-grid" style={{ marginBottom: 40 }}>
+      <h2 style={{ opacity: 0.7, fontSize: 14, marginBottom: 12 }}>@brewsite/charts</h2>
+      <div className="ex-gallery__grid" style={{ marginBottom: 40 }}>
         {FAMILIES.map((family) => {
           const dark = bundles[family].chart.dark;
           const light = bundles[family].chart.light;
@@ -72,8 +63,8 @@ export default function ThemeGalleryPage(): JSX.Element {
       </div>
 
       {/* Diagram themes grid */}
-      <h2 style={{ color: '#ccc', fontSize: 14, marginBottom: 12 }}>@brewsite/diagram</h2>
-      <div className="theme-gallery-grid">
+      <h2 style={{ opacity: 0.7, fontSize: 14, marginBottom: 12 }}>@brewsite/diagram</h2>
+      <div className="ex-gallery__grid">
         {FAMILIES.map((family) => {
           const dark = bundles[family].diagram.dark;
           const light = bundles[family].diagram.light;

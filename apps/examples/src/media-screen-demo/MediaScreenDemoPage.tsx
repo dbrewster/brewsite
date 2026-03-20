@@ -19,6 +19,7 @@ import { CanvasAnimation } from './CanvasAnimation';
 import { ThemeToggle } from '../Lights';
 import { ExampleHeader, useFpsCap } from '../ExampleHeader';
 import { StatsOverlay } from '../StatsOverlay';
+import { useThemeCss } from '../hooks/useThemeCss';
 
 // ── Display capture controls (must be inside SceneEngine for hook access) ────
 
@@ -45,18 +46,7 @@ function DisplayCaptureControls(): JSX.Element {
         <button
           type="button"
           onClick={() => void startCapture()}
-          style={{
-            padding: '12px 20px', // 44px tap target
-            background: 'rgba(255, 100, 68, 0.85)',
-            color: '#fff',
-            border: '1px solid rgba(255, 140, 100, 0.6)',
-            borderRadius: 6,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontFamily: 'system-ui, sans-serif',
-            backdropFilter: 'blur(8px)',
-          }}
+          className="ex-btn-primary"
         >
           Start Screen Capture
         </button>
@@ -64,34 +54,13 @@ function DisplayCaptureControls(): JSX.Element {
         <button
           type="button"
           onClick={stopCapture}
-          style={{
-            padding: '12px 20px', // 44px tap target
-            background: 'rgba(60, 60, 80, 0.85)',
-            color: '#fff',
-            border: '1px solid rgba(120, 120, 150, 0.5)',
-            borderRadius: 6,
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: 'pointer',
-            fontFamily: 'system-ui, sans-serif',
-            backdropFilter: 'blur(8px)',
-          }}
+          className="ex-btn-muted"
         >
           Stop Capture
         </button>
       )}
       {error && (
-        <div
-          style={{
-            padding: '6px 12px',
-            background: 'rgba(200, 40, 40, 0.8)',
-            color: '#fff',
-            borderRadius: 4,
-            fontSize: 11,
-            maxWidth: 260,
-            fontFamily: 'system-ui, sans-serif',
-          }}
-        >
+        <div className="ex-error">
           {error.message}
         </div>
       )}
@@ -103,37 +72,11 @@ function DisplayCaptureControls(): JSX.Element {
 
 function TitleOverlay(): JSX.Element {
   return (
-    <div
-      style={{
-        position: 'absolute',
-        top: 68,
-        left: 16,
-        right: 16,
-        textAlign: 'center',
-        zIndex: 10,
-        pointerEvents: 'none',
-      }}
-    >
-      <h1
-        style={{
-          fontSize: 'clamp(14px, 2vw, 20px)',
-          fontWeight: 600,
-          color: 'rgba(200, 220, 255, 0.85)',
-          fontFamily: 'system-ui, sans-serif',
-          margin: 0,
-          letterSpacing: '0.04em',
-        }}
-      >
+    <div className="ex-title-overlay">
+      <h1 className="ex-title-overlay__heading">
         MediaScreen Demo
       </h1>
-      <p
-        style={{
-          fontSize: 'clamp(10px, 1.2vw, 13px)',
-          color: 'rgba(150, 170, 200, 0.6)',
-          fontFamily: 'JetBrains Mono, monospace',
-          margin: '4px 0 0',
-        }}
-      >
+      <p className="ex-title-overlay__subtitle">
         @brewsite/screens
       </p>
     </div>
@@ -149,9 +92,10 @@ export default function MediaScreenDemoPage(): JSX.Element {
   const [polarity, setPolarity] = useState<ThemePolarity>('dark');
   const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
   const fpsCap = useFpsCap();
+  useThemeCss(family, polarity);
 
   return (
-    <div style={{ position: 'relative', display: 'flex', flexFlow: 'column', height: '100vh', overflow: 'hidden', background: '#06081a' }}>
+    <div className="ex-page">
       <ExampleHeader>
         <ThemeToggle
           onPolarityChange={setPolarity}

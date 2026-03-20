@@ -61,13 +61,15 @@ const scaleVec = (v: Vec3, scalar: number): Vec3 => [v[0] * scalar, v[1] * scala
 const getFaceCenter = (pos: Vec3, size: NodeDimensions, face: FaceId): Vec3 => {
   const [x, y, z] = pos;
   const [w, h, d] = size;
+  // Depth alignment model: front face at z, extrudes backward to z - d.
+  // Side faces span [z, z - d], center at z - d/2.
   switch (face) {
-    case 'left': return [x - w / 2, y, z];
-    case 'right': return [x + w / 2, y, z];
-    case 'top': return [x, y + h / 2, z];
-    case 'bottom': return [x, y - h / 2, z];
-    case 'front': return [x, y, z + d / 2];
-    case 'back': return [x, y, z - d / 2];
+    case 'left': return [x - w / 2, y, z - d / 2];
+    case 'right': return [x + w / 2, y, z - d / 2];
+    case 'top': return [x, y + h / 2, z - d / 2];
+    case 'bottom': return [x, y - h / 2, z - d / 2];
+    case 'front': return [x, y, z];
+    case 'back': return [x, y, z - d];
   }
 };
 

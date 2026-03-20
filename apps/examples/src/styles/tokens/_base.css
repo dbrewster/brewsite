@@ -1,0 +1,51 @@
+/* Base tokens — default fallback values + shared non-theme tokens */
+
+:root {
+  /* Z-index scale */
+  --ex-z-canvas: 0;
+  --ex-z-canvas-scene: 1;
+  --ex-z-controls: 10;
+  --ex-z-timeline: 20;
+  --ex-z-chrome: 100;
+  --ex-z-close-btn: 110;
+  --ex-z-header: 200;
+  --ex-z-dropdown: 1000;
+
+  /* Transition timing */
+  --ex-transition-fast: 0.15s ease;
+  --ex-transition-normal: 0.3s ease;
+
+  /* Header height */
+  --ex-header-height: 48px;
+
+  /* Fallback values (dark neutral) — overridden by family tokens */
+  --ex-bg: #0a0a1a;
+  --ex-bg-gradient: none;
+  --ex-text: #e0e0e8;
+  --ex-text-muted: rgba(255,255,255,0.5);
+  --ex-text-code: rgba(190,215,255,0.72);
+  --ex-surface: rgba(255,255,255,0.03);
+  --ex-surface-hover: rgba(255,255,255,0.06);
+  --ex-border: rgba(255,255,255,0.08);
+  --ex-border-hover: rgba(255,255,255,0.15);
+  --ex-accent: #a5b4fc;
+  --ex-accent-text: #a5b4fc;
+  --ex-accent-surface: rgba(99,102,241,0.08);
+  --ex-accent-border: rgba(99,102,241,0.25);
+  --ex-active: #4ade80;
+  --ex-active-surface: rgba(0,255,100,0.1);
+  --ex-active-border: rgba(0,255,100,0.25);
+  --ex-danger: #F87171;
+  --ex-danger-surface: rgba(200,40,40,0.8);
+  --ex-overlay-bg: rgba(0,0,0,0.7);
+  --ex-overlay-surface: rgba(16,16,28,0.97);
+  --ex-chrome-gradient-top: linear-gradient(rgba(3,5,12,0.55), transparent);
+  --ex-chrome-gradient-bottom: linear-gradient(transparent, rgba(2,4,12,0.75));
+  --ex-font: system-ui, -apple-system, sans-serif;
+  --ex-font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+  --ex-radius: 6px;
+  --ex-radius-sm: 3px;
+  --ex-radius-lg: 10px;
+  --ex-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+  --ex-backdrop-blur: blur(12px);
+}

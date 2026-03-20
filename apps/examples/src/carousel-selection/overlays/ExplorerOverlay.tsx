@@ -88,11 +88,7 @@ export const ExplorerOverlay = ({ onClose }: ExplorerOverlayProps): JSX.Element 
   const theme = useMemo((): ActiveTheme => ({ family: 'darkGlass', polarity: 'dark' }), []);
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 100,
-      background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
-      display: 'flex', flexDirection: 'column',
-    }}>
+    <div className="ex-overlay">
       <FullScreenCloseButton onClick={onClose} />
       <div style={{ flex: 1, position: 'relative' }}>
         <SceneEngine plugins={plugins} theme={theme}>

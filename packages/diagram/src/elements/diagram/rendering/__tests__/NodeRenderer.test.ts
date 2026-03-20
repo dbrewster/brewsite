@@ -59,7 +59,7 @@ const makeNode = (overrides: Partial<DiagramNodeState> = {}): DiagramNodeState =
   iconUrl: '',
   iconScale: 0.6,
   iconStyle: 'flat',
-  iconDepthFactor: 0.1,
+  iconDepth: 0.1,
   groupId: undefined,
   positionInherited: undefined,
   ...overrides,

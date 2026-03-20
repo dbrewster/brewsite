@@ -13,7 +13,8 @@ export interface NodeDefaults {
   readonly size: [number, number];
   readonly thickness: number;
   readonly color: string;
-  readonly boxColor: string | undefined;
+  readonly boxColor: string;
+  readonly borderColor: string;
   readonly metalness: number;
   readonly roughness: number;
   readonly emissiveIntensity: number;
@@ -25,10 +26,13 @@ export interface NodeDefaults {
   readonly enabled: boolean;
   readonly iconScale: number;
   readonly iconStyle: SvgIcon3DStyle;
-  readonly iconDepthFactor: number;
+  readonly iconDepth: number;
+  readonly iconColor: string;
   readonly labelPadding: number;
-  readonly sideColorDarkenFactor: number;
-  readonly borderColorLightenFactor: number;
+  readonly sublabelWrap: boolean;
+  readonly sublabelMaxLines: number;
+  readonly borderWidth: number;
+  readonly borderHeight: number;
 }
 
 /** Default values derived from a DiagramTheme for a diagram edge. */
@@ -75,6 +79,7 @@ export function buildNodeDefaults(theme: DiagramTheme): NodeDefaults {
     thickness:                theme.node.defaultThickness,
     color:                    theme.node.defaultColor,
     boxColor:                 theme.node.defaultBoxColor,
+    borderColor:              theme.node.defaultBorderColor,
     metalness:                theme.node.defaultMetalness,
     roughness:                theme.node.defaultRoughness,
     emissiveIntensity:        theme.node.defaultEmissiveIntensity,
@@ -86,10 +91,13 @@ export function buildNodeDefaults(theme: DiagramTheme): NodeDefaults {
     enabled:                  true,
     iconScale:                theme.node.defaultIconScale,
     iconStyle:                theme.node.defaultIconStyle,
-    iconDepthFactor:          theme.node.defaultIconDepthFactor,
+    iconDepth:                theme.node.defaultIconDepth,
+    iconColor:                theme.node.defaultIconColor ?? '#ffffff',
     labelPadding:             theme.node.defaultLabelPadding,
-    sideColorDarkenFactor:    theme.node.sideColorDarkenFactor,
-    borderColorLightenFactor: theme.node.borderColorLightenFactor,
+    sublabelWrap:             false,
+    sublabelMaxLines:         2,
+    borderWidth:              theme.node.defaultNodeBorderWidth ?? 0.005,
+    borderHeight:             theme.node.defaultNodeBorderHeight ?? 0.005,
   };
 }
 

@@ -89,13 +89,15 @@ const scaleVec = (v: Vec3, scalar: number): Vec3 => [v[0] * scalar, v[1] * scala
 export function getFaceCenter(pos: Vec3, size: NodeDimensions, face: FaceId): Vec3 {
   const [x, y, z] = pos;
   const [w, h, d] = size;
+  // Depth alignment model: front face at z, extrudes backward to z - d.
+  // Side faces span [z, z - d], center at z - d/2.
   switch (face) {
-    case 'left':   return [x - w / 2, y,         z];
-    case 'right':  return [x + w / 2, y,         z];
-    case 'top':    return [x,         y + h / 2, z];
-    case 'bottom': return [x,         y - h / 2, z];
-    case 'front':  return [x,         y,         z + d / 2];
-    case 'back':   return [x,         y,         z - d / 2];
+    case 'left':   return [x - w / 2, y,         z - d / 2];
+    case 'right':  return [x + w / 2, y,         z - d / 2];
+    case 'top':    return [x,         y + h / 2, z - d / 2];
+    case 'bottom': return [x,         y - h / 2, z - d / 2];
+    case 'front':  return [x,         y,         z];
+    case 'back':   return [x,         y,         z - d];
   }
 }
 
@@ -134,30 +136,33 @@ export function getFacePortAnchor(
   const useHorizontalOffset = Math.abs(dx) > Math.abs(dz) * 0.5;
   const yOffset = useVerticalOffset ? (dy > 0 ? h / 2 : -h / 2) : 0;
 
+  // Depth alignment model: side faces span [z, z - d], center at z - d/2.
+  const sideZ = z - d / 2;
+
   switch (face) {
     case 'front':
       return portCount === 1
-        ? [x, y + yOffset, z + d / 2]
-        : [x + (useHorizontalOffset ? (portIndex === 0 ? -1 : 1) * w / 2 : 0), y + yOffset, z + d / 2];
+        ? [x, y + yOffset, z]
+        : [x + (useHorizontalOffset ? (portIndex === 0 ? -1 : 1) * w / 2 : 0), y + yOffset, z];
     case 'back':
       return portCount === 1
-        ? [x, y + yOffset, z - d / 2]
-        : [x + (useHorizontalOffset ? (portIndex === 0 ? -1 : 1) * w / 2 : 0), y + yOffset, z - d / 2];
+        ? [x, y + yOffset, z - d]
+        : [x + (useHorizontalOffset ? (portIndex === 0 ? -1 : 1) * w / 2 : 0), y + yOffset, z - d];
     case 'top': {
       const offset = portCount <= 1 ? 0 : -w / 2 + (w / (portCount - 1)) * portIndex;
-      return [x + offset, y + h / 2, z];
+      return [x + offset, y + h / 2, sideZ];
     }
     case 'bottom': {
       const offset = portCount <= 1 ? 0 : -w / 2 + (w / (portCount - 1)) * portIndex;
-      return [x + offset, y - h / 2, z];
+      return [x + offset, y - h / 2, sideZ];
     }
     case 'left': {
       const offset = portCount <= 1 ? 0 : -h / 2 + (h / (portCount - 1)) * portIndex;
-      return [x - w / 2, y + offset, z];
+      return [x - w / 2, y + offset, sideZ];
     }
     case 'right': {
       const offset = portCount <= 1 ? 0 : -h / 2 + (h / (portCount - 1)) * portIndex;
-      return [x + w / 2, y + offset, z];
+      return [x + w / 2, y + offset, sideZ];
     }
     default:
       return getFaceCenter(pos, size, face);
@@ -398,8 +403,11 @@ function routeCenterLanding(
 ): import('./routingTypes').EdgeRouteState {
   const sn = getFaceNormal(nearestFaceForNode(fromPos, toPos, fromSize));
   const dn = getFaceNormal(nearestFaceForNode(toPos, fromPos, toSize));
-  const start = addVec(fromPos, scaleVec(sn, 0.012));
-  const end   = addVec(toPos,   scaleVec(dn, 0.012));
+  // Depth alignment: center landing targets the depth-center of each node (z - d/2).
+  const fromCenter: Vec3 = [fromPos[0], fromPos[1], fromPos[2] - fromSize[2] / 2];
+  const toCenter: Vec3 = [toPos[0], toPos[1], toPos[2] - toSize[2] / 2];
+  const start = addVec(fromCenter, scaleVec(sn, 0.012));
+  const end   = addVec(toCenter,   scaleVec(dn, 0.012));
 
   let controlPoints: ReadonlyArray<Vec3>;
   if (routing === 'straight') {

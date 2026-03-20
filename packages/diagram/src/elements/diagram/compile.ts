@@ -217,6 +217,7 @@ export function compileDiagram(
       // Normalize node thickness to NVS fraction using the deterministic factor.
       // The renderer multiplies by uniformWorldW to convert to world units.
       thickness: node.thickness * scaleFactor,
+      iconDepth: node.iconDepth * scaleFactor,
     }))
     .sort((a, b) => a.position[2] - b.position[2]);
 

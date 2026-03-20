@@ -28,6 +28,7 @@ import {LinearCarouselScene1, LinearCarouselScene2, LinearCarouselScene3} from '
 import {ChartProgressIndicator, ThemeToggle} from "../Lights";
 import {ExampleHeader, useFpsCap} from "../ExampleHeader";
 import {StatsOverlay} from "../StatsOverlay";
+import { useThemeCss } from '../hooks/useThemeCss';
 
 function createViewDemoPlugins(): { plugins: WidgetPlugin[] } {
   return {
@@ -49,20 +50,10 @@ export default function ViewDemoPage(): JSX.Element {
 
   const theme = useMemo((): ActiveTheme => ({family, polarity}), [family, polarity]);
   const fpsCap = useFpsCap();
+  useThemeCss(family, polarity);
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        display: 'flex',
-        flexFlow: 'column',
-        height: '100vh',
-        overflow: 'hidden',
-        background: polarity === 'light'
-          ? 'radial-gradient(circle at 50% 0%, #f2f4f3 0%, #dadada 42%, #c2c8c2 72%, #d6d3d6 100%)'
-          : 'radial-gradient(circle at 50% 0%, #12345d 0%, #061326 42%, #020812 72%, #01040a 100%)',
-      }}
-    >
+    <div className="ex-page">
       <ExampleHeader>
         <ThemeToggle
           onPolarityChange={setPolarity}

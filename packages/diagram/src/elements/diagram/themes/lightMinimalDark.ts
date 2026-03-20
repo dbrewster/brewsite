@@ -15,6 +15,7 @@ export const lightMinimalDarkTheme: DiagramTheme = {
     defaultMetalness: 0.14,
     defaultRoughness: 0.52,
     defaultEmissiveIntensity: 0.01,
+    defaultBorderColor: '#4E5A68',
   },
   edge: {
     ...lightMinimalTheme.edge,

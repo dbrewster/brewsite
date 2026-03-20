@@ -19,7 +19,7 @@ change_history:
     summary: "Cross-package theming integration: added DiagramTheme.sceneTheme optional field; documented themeResolver fallback chain for fontUrl and effectiveLabelSizeFactor/effectiveSublabelSizeFactor on DiagramThemeRenderConfig; added withColorMode() utility; documented known limitation that sceneTheme.colorMode has no effect on built-in preset label colors without withColorMode(); updated buildThemeRenderConfig signature."
   - date: 2026-03-08
     author: "Toolkit Product"
-    summary: "Model/diagram overhaul: added required fields to DiagramThemeNodeConfig (defaultSize, defaultIconScale, defaultIconDepthFactor, glowSpread); added required fields to DiagramThemeEdgeConfig (tubeRadialSegments, organicVariation); added required fields to DiagramThemeGroupConfig (borderMetalness, borderRoughness, borderSideDarken, borderEdgeDarken); added corresponding render-time fields to DiagramThemeRenderConfig (nodeGlowSpread, edgeTubeRadialSegments, groupBorderMetalness, groupBorderRoughness, groupBorderSideDarken, groupBorderEdgeDarken); fontUrl promoted from DiagramThemeNodeConfig to DiagramTheme root level; all four preset themes updated with explicit values for every new required field; resolved both open questions; updated Breaking Change Assessment to major semver impact; removed Known Limitation #2."
+    summary: "Model/diagram overhaul: added required fields to DiagramThemeNodeConfig (defaultSize, defaultIconScale, defaultIconDepth, glowSpread); added required fields to DiagramThemeEdgeConfig (tubeRadialSegments, organicVariation); added required fields to DiagramThemeGroupConfig (borderMetalness, borderRoughness, borderSideDarken, borderEdgeDarken); added corresponding render-time fields to DiagramThemeRenderConfig (nodeGlowSpread, edgeTubeRadialSegments, groupBorderMetalness, groupBorderRoughness, groupBorderSideDarken, groupBorderEdgeDarken); fontUrl promoted from DiagramThemeNodeConfig to DiagramTheme root level; all four preset themes updated with explicit values for every new required field; resolved both open questions; updated Breaking Change Assessment to major semver impact; removed Known Limitation #2."
   - date: 2026-03-11
     author: "Toolkit Product"
     summary: "Theme redesign: expanded canonical theme set from four to six names, adding midnight (warm dark) and lightCanvas (premium light). All four existing presets redesigned with coherent palettes; two new presets added. Introduced DiagramThemeName union type and DIAGRAM_THEMES keyed registry. Added string name API for <Diagram theme='...'> (non-breaking union widening). All six presets carry an 8-color accent palette coordinated with @brewsite/charts via cross-package comment blocks. Version bump: minor."
@@ -286,10 +286,8 @@ export interface DiagramThemeNodeConfig {
   readonly defaultIconScale: number;
   /**
    * Default icon extrusion depth as a fraction of node thickness [0..1].
-   * Only applies when iconStyle !== 'flat'. Coordinate-system-invariant.
+   * Only applies when iconStyle !== 'flat'.
    */
-  readonly defaultIconDepthFactor: number;
-  /** Default 3D icon extrusion depth in canvas world units. Per-node iconDepth overrides this. */
   readonly defaultIconDepth: number;
   /**
    * Addend applied to derive side-face color from front-face color.
@@ -717,7 +715,7 @@ const myTheme = {
 **Semver impact: major.** The 2026-03-08 changes constitute breaking API changes to `DiagramThemeNodeConfig`, `DiagramThemeEdgeConfig`, `DiagramThemeGroupConfig`, `DiagramTheme`, and `DiagramThemeRenderConfig`:
 
 - `fontUrl` removed from `DiagramThemeNodeConfig` and added to `DiagramTheme` root — any custom theme with `node: { ...preset.node, fontUrl: '...' }` must change to `{ ...preset, fontUrl: '...' }`.
-- New **required** fields on `DiagramThemeNodeConfig`: `defaultSize`, `defaultIconScale`, `defaultIconDepthFactor`, `glowSpread` — any custom theme that constructs `node` from scratch rather than spreading a preset will fail TypeScript strict mode.
+- New **required** fields on `DiagramThemeNodeConfig`: `defaultSize`, `defaultIconScale`, `defaultIconDepth`, `glowSpread` — any custom theme that constructs `node` from scratch rather than spreading a preset will fail TypeScript strict mode.
 - New **required** fields on `DiagramThemeEdgeConfig`: `tubeRadialSegments`, `organicVariation`.
 - New **required** fields on `DiagramThemeGroupConfig`: `borderMetalness`, `borderRoughness`, `borderSideDarken`, `borderEdgeDarken`.
 - `DiagramThemeRenderConfig` gains `nodeGlowSpread`, `edgeTubeRadialSegments`, `groupBorderMetalness`, `groupBorderRoughness`, `groupBorderSideDarken`, `groupBorderEdgeDarken` — consumers who construct `DiagramThemeRenderConfig` directly will fail TypeScript; the only supported path is via `buildThemeRenderConfig(theme)`.

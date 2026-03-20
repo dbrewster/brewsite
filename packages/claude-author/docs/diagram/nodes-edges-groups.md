@@ -92,7 +92,7 @@ interface DiagramNodeProps {
   enabled?: boolean;                    // Whether rendered. Default: true
   iconScale?: number;                   // Icon scale relative to face [0–1]. Auto-scaled down by fit-to-content layout when node is small.
   iconStyle?: SvgIcon3DStyle;           // 'flat' | 'extruded' | 'layered' | 'embossed'
-  iconDepthFactor?: number;             // Icon extrusion depth as fraction of node thickness [0..1]
+  iconDepth?: number;                   // Icon extrusion depth in NVS units. Default: from theme (0.15)
   surfaceMaterial?: string;              // Named material preset to apply
   materialApplication?: MaterialApplication; // How the material is applied
   onMouseEnter?: DiagramNodeMouseHandler;

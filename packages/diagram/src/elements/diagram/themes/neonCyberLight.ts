@@ -16,6 +16,7 @@ export const neonCyberLightTheme: DiagramTheme = {
     defaultRoughness: 0.32,
     defaultEmissiveIntensity: 0.03,
     glowIntensity: 0.06,
+    defaultBorderColor: '#C0D0E8',
   },
   edge: {
     ...neonCyberTheme.edge,

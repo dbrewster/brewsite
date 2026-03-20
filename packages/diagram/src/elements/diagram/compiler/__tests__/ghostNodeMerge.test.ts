@@ -31,7 +31,7 @@ function makeNode(overrides: Partial<DiagramNodeState> & { id: string }): Diagra
     iconUrl: undefined,
     iconScale: 0.6,
     iconStyle: 'flat',
-    iconDepthFactor: 0.3,
+    iconDepth: 0.3,
     groupId: undefined,
     onMouseEnter: undefined,
     onMouseLeave: undefined,

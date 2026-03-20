@@ -94,23 +94,25 @@ function getFacePortAnchorLocal(
   const useHorizontalOffset = Math.abs(dx) > Math.abs(dz) * 0.5;
   const yOffset = useVerticalOffset ? (dy > 0 ? h / 2 : -h / 2) : 0;
 
+  // Depth alignment model: side faces span [z, z - d], center at z - d/2.
+  const sideZ = z - d / 2;
   switch (face) {
     case 'front':
       return portCount === 1
-        ? [x, y + yOffset, z + d / 2]
-        : [x + (useHorizontalOffset ? (portIndex === 0 ? -1 : 1) * w / 2 : 0), y + yOffset, z + d / 2];
+        ? [x, y + yOffset, z]
+        : [x + (useHorizontalOffset ? (portIndex === 0 ? -1 : 1) * w / 2 : 0), y + yOffset, z];
     case 'back':
       return portCount === 1
-        ? [x, y + yOffset, z - d / 2]
-        : [x + (useHorizontalOffset ? (portIndex === 0 ? -1 : 1) * w / 2 : 0), y + yOffset, z - d / 2];
+        ? [x, y + yOffset, z - d]
+        : [x + (useHorizontalOffset ? (portIndex === 0 ? -1 : 1) * w / 2 : 0), y + yOffset, z - d];
     case 'top':
-      return [x + resolvePortOffset(portIndex, portCount, w), y + h / 2, z];
+      return [x + resolvePortOffset(portIndex, portCount, w), y + h / 2, sideZ];
     case 'bottom':
-      return [x + resolvePortOffset(portIndex, portCount, w), y - h / 2, z];
+      return [x + resolvePortOffset(portIndex, portCount, w), y - h / 2, sideZ];
     case 'left':
-      return [x - w / 2, y + resolvePortOffset(portIndex, portCount, h), z];
+      return [x - w / 2, y + resolvePortOffset(portIndex, portCount, h), sideZ];
     case 'right':
-      return [x + w / 2, y + resolvePortOffset(portIndex, portCount, h), z];
+      return [x + w / 2, y + resolvePortOffset(portIndex, portCount, h), sideZ];
   }
 }
 
@@ -478,12 +480,14 @@ function getFaceCenterForPort(
 ): Vec3 {
   const [x, y, z] = pos;
   const [w, h, d] = size;
+  // Depth alignment model: front face at z, extrudes backward to z - d.
+  // Side faces span [z, z - d], center at z - d/2.
   switch (face) {
-    case 'left':   return [x - w / 2, y, z];
-    case 'right':  return [x + w / 2, y, z];
-    case 'top':    return [x, y + h / 2, z];
-    case 'bottom': return [x, y - h / 2, z];
-    case 'front':  return [x, y, z + d / 2];
-    case 'back':   return [x, y, z - d / 2];
+    case 'left':   return [x - w / 2, y, z - d / 2];
+    case 'right':  return [x + w / 2, y, z - d / 2];
+    case 'top':    return [x, y + h / 2, z - d / 2];
+    case 'bottom': return [x, y - h / 2, z - d / 2];
+    case 'front':  return [x, y, z];
+    case 'back':   return [x, y, z - d];
   }
 }

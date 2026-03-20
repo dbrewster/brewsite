@@ -1,0 +1,589 @@
+/* Components — all themed component classes */
+
+/* ─── Header ─────────────────────────────────────────────────────── */
+
+.ex-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: var(--ex-header-height);
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--ex-border);
+  background: var(--ex-surface);
+  font-family: var(--ex-font);
+  color: var(--ex-text);
+  position: relative;
+  z-index: var(--ex-z-header);
+}
+
+/* Header menu trigger button */
+.ex-header__menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: transparent;
+  border: none;
+  border-radius: var(--ex-radius);
+  padding: 6px 12px 6px 8px;
+  margin: -6px -12px -6px -8px;
+  cursor: pointer;
+  color: inherit;
+  font-size: 14px;
+  font-family: inherit;
+  transition: background var(--ex-transition-fast);
+}
+
+.ex-header__menu-trigger:hover {
+  background: var(--ex-surface-hover);
+}
+
+.ex-header__menu-trigger[aria-expanded="true"] {
+  background: var(--ex-surface-hover);
+}
+
+.ex-header__title {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.ex-header__chevron {
+  opacity: 0.4;
+  transition: transform 0.2s ease;
+}
+
+.ex-header__chevron--open {
+  transform: rotate(180deg);
+}
+
+.ex-header__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ─── Dropdown Menu ──────────────────────────────────────────────── */
+
+.ex-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: -8px;
+  width: 360px;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  background: var(--ex-overlay-surface);
+  backdrop-filter: var(--ex-backdrop-blur);
+  border: 1px solid var(--ex-border-hover);
+  border-radius: var(--ex-radius-lg);
+  box-shadow: var(--ex-shadow);
+  padding: 6px;
+  z-index: var(--ex-z-dropdown);
+}
+
+.ex-dropdown__header {
+  padding: 10px 12px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--ex-accent-text);
+  opacity: 0.6;
+}
+
+.ex-dropdown__item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: none;
+  border-radius: var(--ex-radius);
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font-family: inherit;
+  transition: background 0.1s ease;
+}
+
+.ex-dropdown__item:hover {
+  background: var(--ex-surface-hover);
+}
+
+.ex-dropdown__item--active {
+  background: var(--ex-accent-surface);
+}
+
+.ex-dropdown__item-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ex-dropdown__item-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ex-border-hover);
+  flex-shrink: 0;
+}
+
+.ex-dropdown__item--active .ex-dropdown__item-dot {
+  background: var(--ex-accent);
+}
+
+.ex-dropdown__item-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ex-text-muted);
+}
+
+.ex-dropdown__item--active .ex-dropdown__item-name {
+  font-weight: 600;
+  color: var(--ex-text);
+}
+
+.ex-dropdown__item-desc {
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--ex-text-muted);
+  opacity: 0.5;
+  padding-left: 12px;
+}
+
+/* ─── Cards ──────────────────────────────────────────────────────── */
+
+.ex-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border-radius: var(--ex-radius);
+  background: var(--ex-surface);
+  border: 1px solid var(--ex-border);
+  text-decoration: none;
+  color: inherit;
+  transition: background var(--ex-transition-fast), border-color var(--ex-transition-fast);
+}
+
+.ex-card:hover {
+  background: var(--ex-accent-surface);
+  border-color: var(--ex-accent-border);
+}
+
+.ex-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ex-card__name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ex-card__desc {
+  font-size: 12px;
+  color: var(--ex-text-muted);
+  line-height: 1.4;
+}
+
+/* ─── Badge ──────────────────────────────────────────────────────── */
+
+.ex-badge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: var(--ex-radius-sm);
+  background: var(--ex-accent-surface);
+  color: var(--ex-accent-text);
+  font-family: var(--ex-font-mono);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* ─── Buttons ────────────────────────────────────────────────────── */
+
+/* Ghost button (stats toggle, toolbar controls) */
+.ex-btn-ghost {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  background: transparent;
+  border: 1px solid var(--ex-border);
+  border-radius: var(--ex-radius);
+  cursor: pointer;
+  color: var(--ex-text-muted);
+  font-size: 11px;
+  font-family: var(--ex-font-mono);
+  font-weight: 500;
+  transition: all var(--ex-transition-fast);
+}
+
+.ex-btn-ghost:hover {
+  border-color: var(--ex-border-hover);
+  color: var(--ex-text);
+}
+
+.ex-btn-ghost--active {
+  background: var(--ex-active-surface);
+  border-color: var(--ex-active-border);
+  color: var(--ex-active);
+}
+
+/* Primary button (capture, action) */
+.ex-btn-primary {
+  padding: 12px 20px;
+  background: var(--ex-accent);
+  color: #fff;
+  border: 1px solid var(--ex-accent-border);
+  border-radius: var(--ex-radius);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--ex-font);
+  backdrop-filter: blur(8px);
+  transition: background var(--ex-transition-fast);
+}
+
+.ex-btn-primary:hover {
+  filter: brightness(1.1);
+}
+
+/* Muted button (stop capture, secondary actions) */
+.ex-btn-muted {
+  padding: 12px 20px;
+  background: var(--ex-surface-hover);
+  color: var(--ex-text);
+  border: 1px solid var(--ex-border-hover);
+  border-radius: var(--ex-radius);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--ex-font);
+  backdrop-filter: blur(8px);
+  transition: background var(--ex-transition-fast);
+}
+
+/* Close button (circular X) */
+.ex-close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: var(--ex-z-close-btn);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--ex-overlay-bg);
+  border: 1px solid var(--ex-border-hover);
+  color: var(--ex-text);
+  font-size: 18px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(8px);
+  transition: background 0.2s;
+}
+
+.ex-close-btn:hover {
+  background: var(--ex-danger-surface);
+}
+
+/* ─── Select / Form Controls ────────────────────────────────────── */
+
+.ex-select {
+  background: var(--ex-surface-hover);
+  border: 1px solid var(--ex-border);
+  border-radius: var(--ex-radius);
+  padding: 4px 6px;
+  color: var(--ex-text);
+  font-size: 11px;
+  font-family: var(--ex-font-mono);
+  cursor: pointer;
+  outline: none;
+}
+
+/* Theme family selector (wider, in header) */
+.ex-select--theme {
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 13px;
+  font-family: var(--ex-font);
+}
+
+/* Polarity toggle button */
+.ex-polarity-toggle {
+  background: var(--ex-surface-hover);
+  border: 1px solid var(--ex-border);
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ex-text);
+  font-size: 18px;
+  line-height: 1;
+  transition: background var(--ex-transition-fast);
+}
+
+.ex-polarity-toggle:hover {
+  background: var(--ex-surface);
+  border-color: var(--ex-border-hover);
+}
+
+/* ─── Overlay / Modal ────────────────────────────────────────────── */
+
+.ex-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--ex-z-chrome);
+  background: var(--ex-overlay-bg);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+}
+
+/* ─── Chrome Bars (Core Showcase) ────────────────────────────────── */
+
+.ex-chrome-top {
+  position: fixed;
+  top: var(--ex-header-height);
+  left: 0;
+  right: 0;
+  padding: 20px 32px;
+  pointer-events: none;
+  z-index: var(--ex-z-chrome);
+  background: var(--ex-chrome-gradient-top);
+}
+
+.ex-chrome-top__section {
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ex-text-code);
+  opacity: 0.75;
+  font-family: var(--ex-font-mono);
+}
+
+.ex-chrome-bottom {
+  position: fixed;
+  bottom: 100px;
+  left: 0;
+  right: 0;
+  max-height: min(42vh, 260px);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 20px 32px 24px;
+  pointer-events: none;
+  z-index: var(--ex-z-chrome);
+  background: var(--ex-chrome-gradient-bottom);
+}
+
+.ex-chrome-bottom__code {
+  font-family: var(--ex-font-mono);
+  font-size: 11px;
+  color: var(--ex-text-code);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  margin: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  max-height: calc(min(42vh, 260px) - 44px);
+}
+
+/* ─── Expandable Panel (Canvas Region) ───────────────────────────── */
+
+.ex-expand-panel {
+  flex-shrink: 0;
+  padding: 14px 24px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--ex-border);
+  background: var(--ex-surface);
+  transition: all var(--ex-transition-normal);
+  user-select: none;
+}
+
+.ex-expand-panel--open {
+  padding: 24px 28px 28px;
+  background: var(--ex-accent-surface);
+}
+
+.ex-expand-panel__trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ex-expand-panel__hint {
+  font-size: 11px;
+  color: var(--ex-text-muted);
+  opacity: 0.4;
+  margin-left: 4px;
+}
+
+/* ─── Code Block ─────────────────────────────────────────────────── */
+
+.ex-code-block {
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 14px 16px;
+  border-radius: var(--ex-radius);
+  background: var(--ex-overlay-bg);
+  border: 1px solid var(--ex-border);
+  margin: 0 0 16px;
+  overflow-x: auto;
+  color: var(--ex-text-code);
+  font-family: var(--ex-font-mono);
+}
+
+/* ─── Hint Panel ─────────────────────────────────────────────────── */
+
+.ex-hint {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  padding: 0.75rem 1rem;
+  border-radius: var(--ex-radius);
+  background: var(--ex-surface);
+  border: 1px solid var(--ex-border);
+  margin-top: 1.5rem;
+}
+
+/* ─── Info Card (layout technique cards) ─────────────────────────── */
+
+.ex-info-card {
+  padding: 12px 14px;
+  border-radius: var(--ex-radius);
+  background: var(--ex-surface);
+  border: 1px solid var(--ex-border);
+}
+
+.ex-info-card--active {
+  background: var(--ex-accent-surface);
+  border-color: var(--ex-accent-border);
+}
+
+.ex-info-card__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ex-text);
+}
+
+.ex-info-card--active .ex-info-card__title {
+  color: var(--ex-accent-text);
+}
+
+.ex-info-card__desc {
+  font-size: 11px;
+  color: var(--ex-text-muted);
+  margin-top: 4px;
+}
+
+/* ─── Error Banner ───────────────────────────────────────────────── */
+
+.ex-error {
+  padding: 6px 12px;
+  background: var(--ex-danger-surface);
+  color: var(--ex-text);
+  border-radius: var(--ex-radius);
+  font-size: 11px;
+  max-width: 260px;
+  font-family: var(--ex-font);
+}
+
+/* ─── Title Overlay (MediaScreen) ────────────────────────────────── */
+
+.ex-title-overlay {
+  position: absolute;
+  top: 68px;
+  left: 16px;
+  right: 16px;
+  text-align: center;
+  z-index: var(--ex-z-controls);
+  pointer-events: none;
+}
+
+.ex-title-overlay__heading {
+  font-size: clamp(14px, 2vw, 20px);
+  font-weight: 600;
+  color: var(--ex-text);
+  font-family: var(--ex-font);
+  margin: 0;
+  letter-spacing: 0.04em;
+  opacity: 0.85;
+}
+
+.ex-title-overlay__subtitle {
+  font-size: clamp(10px, 1.2vw, 13px);
+  color: var(--ex-text-muted);
+  font-family: var(--ex-font-mono);
+  margin: 4px 0 0;
+}
+
+/* ─── Toolbar (Slides demo) ──────────────────────────────────────── */
+
+.ex-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 0.4rem 1rem;
+  background: var(--ex-overlay-surface);
+  backdrop-filter: var(--ex-backdrop-blur);
+  border-bottom: 1px solid var(--ex-border);
+  z-index: var(--ex-z-chrome);
+  flex-shrink: 0;
+  font-family: var(--ex-font);
+  font-size: 0.8rem;
+  color: var(--ex-text);
+}
+
+.ex-toolbar__muted {
+  color: var(--ex-text-muted);
+}
+
+.ex-toolbar__hint {
+  font-size: 0.7rem;
+  color: var(--ex-text-muted);
+}
+
+/* ─── Loading state ──────────────────────────────────────────────── */
+
+.ex-loading {
+  padding: 2rem;
+  color: var(--ex-text);
+  font-family: var(--ex-font);
+}
+
+/* ─── Theme Gallery ──────────────────────────────────────────────── */
+
+.ex-gallery {
+  display: flex;
+  flex-direction: column;
+  font-family: var(--ex-font);
+  background: var(--ex-bg);
+  min-height: 100vh;
+  color: var(--ex-text);
+}
+
+.ex-gallery__content {
+  padding: 2rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.ex-gallery__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  max-width: 520px;
+}
+
+@media (max-width: 540px) {
+  .ex-gallery__grid {
+    grid-template-columns: 1fr;
+    max-width: 100%;
+  }
+}

@@ -12,6 +12,7 @@ import { diagramPlugin } from '@brewsite/diagram';
 import { chartPlugin } from '@brewsite/charts';
 import { themesPlugin } from '@brewsite/themes';
 import { demoSlides } from './deck';
+import { useThemeCss } from '../hooks/useThemeCss';
 
 // Stable plugin instances — must be created outside the component to avoid
 // reference instability that causes infinite driver rebuilds.
@@ -30,6 +31,7 @@ export default function SlidesDemoPage(): JSX.Element {
   const [progressStyle, setProgressStyle] = useState<ProgressStyle>('bar');
   const [showControls, setShowControls] = useState(true);
   const [slideInfo, setSlideInfo] = useState({ index: 0, key: 'title' });
+  useThemeCss(family, polarity);
 
   const theme: DeckTheme = useMemo(
     () => getDeckThemeForFamily(family, polarity),
@@ -37,14 +39,7 @@ export default function SlidesDemoPage(): JSX.Element {
   );
 
   return (
-    <div style={{
-      width: '100vw',
-      height: '100vh',
-      background: theme.background.color,
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-    }}>
+    <div className="ex-page" style={{ width: '100vw' }}>
       <ExampleHeader>
         <ThemeToggle
           onPolarityChange={setPolarity}
@@ -63,36 +58,14 @@ export default function SlidesDemoPage(): JSX.Element {
 
       {/* Toolbar — progress style + slide info */}
       {showControls && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: '1rem',
-          padding: '0.4rem 1rem',
-          background: theme.colorMode === 'dark' ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.8)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: `1px solid ${theme.colorMode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)'}`,
-          zIndex: 100,
-          flexShrink: 0,
-          fontFamily: theme.fonts.heading,
-          fontSize: '0.8rem',
-          color: theme.colors.body,
-        }}>
+        <div className="ex-toolbar">
           {/* Progress style */}
           <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             Progress:
             <select
               value={progressStyle}
               onChange={(e) => setProgressStyle(e.target.value as ProgressStyle)}
-              style={{
-                background: theme.colors.surface,
-                color: theme.colors.heading,
-                border: `1px solid ${theme.colors.muted}44`,
-                borderRadius: '0.25rem',
-                padding: '0.2rem 0.4rem',
-                fontSize: '0.75rem',
-                fontFamily: 'inherit',
-              }}
+              className="ex-select"
             >
               {PROGRESS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -100,14 +73,14 @@ export default function SlidesDemoPage(): JSX.Element {
             </select>
           </label>
 
-          <span style={{ color: theme.colors.muted }}>|</span>
-          <span style={{ fontSize: '0.75rem', color: theme.colors.muted }}>
+          <span className="ex-toolbar__muted">|</span>
+          <span className="ex-toolbar__muted" style={{ fontSize: '0.75rem' }}>
             Slide {slideInfo.index + 1} / {demoSlides.length}
           </span>
 
           <div style={{ flex: 1 }} />
 
-          <span className="slides-keyboard-hint" style={{ fontSize: '0.7rem', color: theme.colors.muted }}>
+          <span className="slides-keyboard-hint ex-toolbar__hint">
             Arrow keys / Click / Swipe to navigate &middot; F for fullscreen &middot; Press H to toggle this bar
           </span>
         </div>

@@ -114,6 +114,10 @@ export interface DiagramNodeProps {
   labelColor?: string;
   /** Sublabel text color (CSS hex). Default: '#a0a8c0' */
   sublabelColor?: string;
+  /** When true, sublabel text wraps at the node content width. Default: false. */
+  sublabelWrap?: boolean;
+  /** Maximum number of wrapped sublabel lines (1–4). Only applies when sublabelWrap is true. Default: 2. */
+  sublabelMaxLines?: number;
   /**
    * Label padding as a fraction of node content height [0–1].
    * Controls the vertical offset applied to all label/sublabel positions within
@@ -137,13 +141,14 @@ export interface DiagramNodeProps {
    * 'layered' is the most visually impactful for AWS/GCP cloud icons.
    */
   iconStyle?: SvgIcon3DStyle;
-  /**
-   * Override for 3D icon extrusion depth as a fraction of node thickness [0..1].
-   * 0.5 = icon extends 50% of node.thickness in Z (coordinate-system-invariant).
-   * Default: from theme (defaultIconDepthFactor, typically 0.5).
-   * Sensible range: 0.2–0.8. Values > 1.0 cause the icon to protrude beyond the node face.
-   */
-  iconDepthFactor?: number;
+  /** Icon extrusion depth in NVS units. Default: from theme (0.15). */
+  iconDepth?: number;
+  /** Override icon fill color for this node (CSS hex). Defaults to theme's defaultIconColor. */
+  iconColor?: string;
+  /** Border line width in NVS units. Default: from theme (0.005). */
+  borderWidth?: number;
+  /** Border frame Z-depth in NVS units. Default: from theme (0.005). */
+  borderHeight?: number;
   /** Runtime mouse-enter handler for this node. */
   onMouseEnter?: DiagramNodeMouseHandler;
   /** Runtime mouse-leave handler for this node. */

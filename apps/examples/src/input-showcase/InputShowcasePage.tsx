@@ -24,6 +24,7 @@ import { ThemeToggle } from '../Lights';
 import { ExampleHeader, useFpsCap } from '../ExampleHeader';
 import { StatsOverlay } from '../StatsOverlay';
 import { themesPlugin } from '@brewsite/themes';
+import { useThemeCss } from '../hooks/useThemeCss';
 
 import { WelcomeScene } from './scenes/scene1-welcome';
 import { CameraControlsScene } from './scenes/scene2-camera-controls';
@@ -94,20 +95,10 @@ export default function InputShowcasePage(): JSX.Element {
 
   const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
   const fpsCap = useFpsCap();
+  useThemeCss(family, polarity);
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        display: 'flex',
-        flexFlow: 'column',
-        height: '100vh',
-        overflow: 'hidden',
-        background: polarity === 'light'
-          ? 'radial-gradient(circle at 50% 0%, #eef2f8 0%, #d8dfe8 42%, #c8d0da 72%, #d4d8e0 100%)'
-          : 'radial-gradient(circle at 50% 0%, #0a1830 0%, #04091a 42%, #020610 72%, #010408 100%)',
-      }}
-    >
+    <div className="ex-page">
       <ExampleHeader>
         <ThemeToggle
           onPolarityChange={setPolarity}

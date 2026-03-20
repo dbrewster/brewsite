@@ -25,7 +25,7 @@ change_history:
     summary: "Breaking DX improvements: depth→thickness prop rename on DiagramNode and DiagramNodeState; emissive/emissiveIntensity/emissiveColor removed, replaced with glow?: boolean|DiagramNodeGlowConfig; Enter/Exit renamed to DiagramEnter/DiagramExit with corresponding prop types DiagramEnterProps/DiagramExitProps; DiagramNodeState.label type changed from string to string|undefined; ghost node trigger changed from label==='' to label===undefined; DiagramWidget removed from public exports. All affected sections updated."
   - date: 2026-03-08
     author: "Toolkit Product"
-    summary: "Model/diagram overhaul: iconDepth renamed to iconDepthFactor (now a fraction of node thickness 0..1, coordinate-system-invariant); DiagramPivot type deleted and pivot prop removed from DiagramProps/DiagramState; iconScale default now sourced from theme (DiagramThemeNodeConfig.defaultIconScale); compilation step 7 (pivot offset) removed; TextRenderer.ts deleted — callers import ensureText/TextWithLayout directly from @brewsite/core. All affected DSL, compiled state, pipeline, and technical sections updated."
+    summary: "Model/diagram overhaul: iconDepth is sole control for icon extrusion depth (NVS units); DiagramPivot type deleted and pivot prop removed from DiagramProps/DiagramState; iconScale default now sourced from theme (DiagramThemeNodeConfig.defaultIconScale); compilation step 7 (pivot offset) removed; TextRenderer.ts deleted — callers import ensureText/TextWithLayout directly from @brewsite/core. All affected DSL, compiled state, pipeline, and technical sections updated."
   - date: 2026-03-08
     author: "Toolkit Product"
     summary: "Coordinate system migration and group label propagation: DiagramProps position/rotation/scale/pivot replaced with viewportBounds (NVSRect) and tilt ([number,number,number]); DiagramState position/rotation/scale/pivot/bounds replaced with viewportBounds and tiltRotation; exit/enter changed from null to undefined default; DiagramGroupProps.labelColor added for per-group title color override; DiagramGroupState.labelColor added as resolved field; FlowLayout DSL component added with FlowLayoutProps. All authoring examples updated. Breaking change assessment updated to major."
@@ -86,7 +86,7 @@ Technical marketing scenes frequently need to visualize system architecture, dat
 ## Functional Requirements
 
 1. The system shall compile a `<Diagram>` JSX element with any combination of `<DiagramNode>`, `<DiagramEdge>`, `<DiagramGroup>`, `<GridLayout>`, `<HierarchicalLayout>`, `<ManualLayout>`, `<DiagramExit>`, and `<DiagramEnter>` children into a `DiagramState` using `compileDiagram(dsl, fallbackTheme?)`.
-2. Consumers must be able to specify per-node `position`, `size`, `thickness`, `color`, `shape`, `icon`, `opacity`, `metalness`, `roughness`, `glow`, `cornerRadius`, `labelColor`, `sublabelColor`, `clickable`, `enabled`, `iconScale`, `iconStyle`, and `iconDepthFactor`.
+2. Consumers must be able to specify per-node `position`, `size`, `thickness`, `color`, `shape`, `icon`, `opacity`, `metalness`, `roughness`, `glow`, `cornerRadius`, `labelColor`, `sublabelColor`, `clickable`, `enabled`, `iconScale`, `iconStyle`, and `iconDepth`.
 3. Consumers must be able to specify per-edge `from`, `to`, `style`, `arrowStart`, `arrowEnd`, `flow`, `flowColor`, `color`, `thickness`, `opacity`, `routing`, `fromPort`, and `toPort`.
 4. Consumers must be able to nest `<DiagramNode>` and child `<DiagramGroup>` elements inside a `<DiagramGroup>` to establish group membership and visual containment.
 5. The system shall resolve all node positions that have no explicit `position` prop using the layout specified by the diagram's layout child element, or the theme's default layout if none is specified.
@@ -219,13 +219,10 @@ export interface DiagramNodeProps {
    */
   iconStyle?: SvgIcon3DStyle;
   /**
-   * 3D icon extrusion depth as a fraction of the node's `thickness` [0..1].
+   * Icon extrusion depth in NVS units. Default: from theme (0.15).
    * Only applies when iconStyle !== 'flat'.
-   * Default: from theme (see DiagramThemeNodeConfig.defaultIconDepthFactor).
-   * Example: 0.5 = icon extrudes to 50% of the node's physical z-depth.
-   * Using a fraction makes this coordinate-system-invariant across AutoLayout and ManualLayout.
    */
-  iconDepthFactor?: number;
+  iconDepth?: number;
   /** Runtime mouse-enter handler */
   onMouseEnter?: DiagramNodeMouseHandler;
   /** Runtime mouse-leave handler */
@@ -458,8 +455,8 @@ export interface DiagramNodeState {
   readonly iconUrl: string | undefined;
   readonly iconScale: number;
   readonly iconStyle: SvgIcon3DStyle;
-  /** Icon extrusion depth as a fraction of node.thickness [0..1]. Coordinate-system-invariant. */
-  readonly iconDepthFactor: number;
+  /** Icon extrusion depth in NVS units. */
+  readonly iconDepth: number;
   readonly groupId: string | undefined;
   readonly onMouseEnter?: DiagramNodeMouseHandler;
   readonly onMouseLeave?: DiagramNodeMouseHandler;
@@ -836,8 +833,7 @@ The 2026-03-08 overhaul introduced multiple breaking changes to the public API s
 | `DiagramProps.tilt` | absent | `number \| undefined` (scalar pitch; was `[number,number,number]` in intermediate form) |
 | `DiagramProps.z` | absent | `number \| undefined` |
 | `DiagramProps.scale` | `number` on `DiagramCanvas` | now on `<Diagram>` directly |
-| `DiagramNodeProps.iconDepth` | `number` (world units) | removed |
-| `DiagramNodeProps.iconDepthFactor` | absent | `number` (fraction of thickness, 0..1) |
+| `DiagramNodeProps.iconDepth` | `number` (NVS units) | `number` (NVS units, absolute depth) |
 | `DiagramState.position` | `readonly [number,number,number]` | removed |
 | `DiagramState.rotation` | `readonly [number,number,number]` | removed |
 | `DiagramState.scale` | `number` | removed |
@@ -869,7 +865,7 @@ The 2026-03-08 overhaul introduced multiple breaking changes to the public API s
 | `normalizeToViewport().thicknessNormFactor` | `scaleFactor × max(defaultNodeSize)` | removed; returns `scaleFactor` only |
 | `GROUP_BORDER_PX_TO_UNITS` constant | `0.4` (render-time multiplier) | deleted |
 
-**Migration path.** Replace `position`, `rotation`, `pivot` on `<Diagram>` with `x/y/w/h` NVS props. Move `scale` from `<DiagramCanvas>` to `<Diagram>` directly. Replace `tilt=[x,y,z]` with scalar `tilt` (pitch only). Replace `iconDepth` on `<DiagramNode>` with `iconDepthFactor` (convert world-unit depth to a fraction: `iconDepthFactor = iconDepth / thickness`). Replace null checks on `DiagramState.exit` and `DiagramState.enter` with `undefined` checks. Remove `scaleTo`/`scaleFrom` from `<DiagramExit>`/`<DiagramEnter>` — the equivalent effect is achieved via `to`/`from` with an off-screen NVS coordinate. See `packages/diagram/MIGRATION.md` for step-by-step instructions.
+**Migration path.** Replace `position`, `rotation`, `pivot` on `<Diagram>` with `x/y/w/h` NVS props. Move `scale` from `<DiagramCanvas>` to `<Diagram>` directly. Replace `tilt=[x,y,z]` with scalar `tilt` (pitch only). `iconDepth` on `<DiagramNode>` is now an absolute NVS value (no longer a fraction of thickness). Replace null checks on `DiagramState.exit` and `DiagramState.enter` with `undefined` checks. Remove `scaleTo`/`scaleFrom` from `<DiagramExit>`/`<DiagramEnter>` — the equivalent effect is achieved via `to`/`from` with an off-screen NVS coordinate. See `packages/diagram/MIGRATION.md` for step-by-step instructions.
 
 ## Open Questions
 

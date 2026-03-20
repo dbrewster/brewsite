@@ -17,6 +17,7 @@ import { ExplorerOverlay } from './overlays/ExplorerOverlay';
 import { FullScreenCloseButton } from './overlays/FullScreenCloseButton';
 import { ExampleHeader, useFpsCap } from '../ExampleHeader';
 import { StatsOverlay } from '../StatsOverlay';
+import { useThemeCss } from '../hooks/useThemeCss';
 
 function createPlugins(): { plugins: WidgetPlugin[] } {
   return {
@@ -81,13 +82,10 @@ export default function CarouselSelectionPage(): JSX.Element {
     family: 'darkGlass', polarity: 'dark',
   }), []);
   const fpsCap = useFpsCap();
+  useThemeCss('darkGlass', 'dark');
 
   return (
-    <div style={{
-      position: 'relative', display: 'flex', flexFlow: 'column',
-      height: '100vh', overflow: 'hidden',
-      background: 'radial-gradient(circle at 50% 0%, #12345d 0%, #061326 42%, #020812 72%, #01040a 100%)',
-    }}>
+    <div className="ex-page">
       <ExampleHeader />
       <SceneEngine plugins={plugins} theme={theme} timingProfile={{ fpsCap }}>
         <SelectionHandler />

@@ -181,55 +181,23 @@ export function ExampleHeader({ children }: ExampleHeaderProps): JSX.Element {
   }, [navigate]);
 
   return (
-    <header style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      padding: '0 20px',
-      height: 48,
-      flexShrink: 0,
-      borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-      background: 'rgba(255, 255, 255, 0.03)',
-      fontFamily: 'system-ui, -apple-system, sans-serif',
-      color: '#e0e0e8',
-      position: 'relative',
-      zIndex: 200,
-    }}>
+    <header className="ex-header">
       {/* Left side — Logo + menu trigger */}
       <div ref={menuRef} style={{ position: 'relative' }}>
         <button
           type="button"
           onClick={() => setMenuOpen((v) => !v)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            background: menuOpen ? 'rgba(255, 255, 255, 0.06)' : 'transparent',
-            border: 'none',
-            borderRadius: 6,
-            padding: '6px 12px 6px 8px',
-            margin: '-6px -12px -6px -8px',
-            cursor: 'pointer',
-            color: 'inherit',
-            fontSize: 14,
-            fontFamily: 'inherit',
-            transition: 'background 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            if (!menuOpen) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)';
-          }}
-          onMouseLeave={(e) => {
-            if (!menuOpen) e.currentTarget.style.background = 'transparent';
-          }}
+          className="ex-header__menu-trigger"
+          aria-expanded={menuOpen}
         >
           {/* BrewSite icon */}
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#a5b4fc" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, opacity: 0.6 }}>
             <path d="M17 8l4 4-4 4" />
             <path d="M3 12h18" />
             <path d="M7 8L3 12l4 4" />
           </svg>
 
-          <span style={{ fontWeight: 600, letterSpacing: '0.02em' }}>
+          <span className="ex-header__title">
             {current?.label ?? 'Examples'}
           </span>
 
@@ -238,11 +206,7 @@ export function ExampleHeader({ children }: ExampleHeaderProps): JSX.Element {
             width="12" height="12" viewBox="0 0 24 24"
             fill="none" stroke="currentColor" strokeWidth="2.5"
             strokeLinecap="round" strokeLinejoin="round"
-            style={{
-              opacity: 0.4,
-              transition: 'transform 0.2s ease',
-              transform: menuOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-            }}
+            className={`ex-header__chevron${menuOpen ? ' ex-header__chevron--open' : ''}`}
           >
             <polyline points="6 9 12 15 18 9" />
           </svg>
@@ -250,30 +214,9 @@ export function ExampleHeader({ children }: ExampleHeaderProps): JSX.Element {
 
         {/* Dropdown menu */}
         {menuOpen && (
-          <div style={{
-            position: 'absolute',
-            top: 'calc(100% + 8px)',
-            left: -8,
-            width: 360,
-            maxHeight: 'calc(100vh - 80px)',
-            overflowY: 'auto',
-            background: 'rgba(16, 16, 28, 0.97)',
-            backdropFilter: 'blur(20px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: 10,
-            boxShadow: '0 16px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.04)',
-            padding: '6px',
-            zIndex: 1000,
-          }}>
+          <div className="ex-dropdown">
             {/* Menu header */}
-            <div style={{
-              padding: '10px 12px 8px',
-              fontSize: 10,
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '0.12em',
-              color: 'rgba(165, 180, 252, 0.6)',
-            }}>
+            <div className="ex-dropdown__header">
               Examples
             </div>
 
@@ -284,65 +227,21 @@ export function ExampleHeader({ children }: ExampleHeaderProps): JSX.Element {
                   key={ex.path}
                   type="button"
                   onClick={() => handleNavigate(ex.path)}
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 3,
-                    width: '100%',
-                    padding: '10px 12px',
-                    background: isActive ? 'rgba(99, 102, 241, 0.12)' : 'transparent',
-                    border: 'none',
-                    borderRadius: 6,
-                    cursor: 'pointer',
-                    textAlign: 'left',
-                    color: 'inherit',
-                    fontFamily: 'inherit',
-                    transition: 'background 0.1s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)';
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) e.currentTarget.style.background = 'transparent';
-                  }}
+                  className={`ex-dropdown__item${isActive ? ' ex-dropdown__item--active' : ''}`}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <div className="ex-dropdown__item-label">
                     {/* Active indicator */}
-                    <div style={{
-                      width: 4,
-                      height: 4,
-                      borderRadius: '50%',
-                      background: isActive ? '#a5b4fc' : 'rgba(255, 255, 255, 0.15)',
-                      flexShrink: 0,
-                    }} />
-                    <span style={{
-                      fontSize: 13,
-                      fontWeight: isActive ? 600 : 500,
-                      color: isActive ? '#e0e8ff' : '#c0c8d8',
-                    }}>
+                    <div className="ex-dropdown__item-dot" />
+                    <span className="ex-dropdown__item-name">
                       {ex.label}
                     </span>
                     {ex.badge && (
-                      <span style={{
-                        fontSize: 10,
-                        padding: '1px 6px',
-                        borderRadius: 3,
-                        background: 'rgba(99, 102, 241, 0.15)',
-                        color: '#8b95cf',
-                        fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
-                        fontWeight: 500,
-                        whiteSpace: 'nowrap',
-                      }}>
+                      <span className="ex-badge">
                         {ex.badge}
                       </span>
                     )}
                   </div>
-                  <span style={{
-                    fontSize: 11,
-                    lineHeight: 1.4,
-                    color: 'rgba(180, 190, 210, 0.5)',
-                    paddingLeft: 12,
-                  }}>
+                  <span className="ex-dropdown__item-desc">
                     {ex.description}
                   </span>
                 </button>
@@ -353,39 +252,13 @@ export function ExampleHeader({ children }: ExampleHeaderProps): JSX.Element {
       </div>
 
       {/* Right side — stats toggle + page controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <div className="ex-header__right">
         {/* Stats toggle button */}
         <button
           type="button"
           onClick={toggleStats}
           title={showStats ? 'Hide renderer stats (S)' : 'Show renderer stats (S)'}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            padding: '5px 10px',
-            background: showStats ? 'rgba(0, 255, 100, 0.1)' : 'transparent',
-            border: showStats ? '1px solid rgba(0, 255, 100, 0.25)' : '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: 6,
-            cursor: 'pointer',
-            color: showStats ? '#4ade80' : 'rgba(255, 255, 255, 0.45)',
-            fontSize: 11,
-            fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
-            fontWeight: 500,
-            transition: 'all 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            if (!showStats) {
-              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
-              e.currentTarget.style.color = 'rgba(255, 255, 255, 0.7)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!showStats) {
-              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-              e.currentTarget.style.color = 'rgba(255, 255, 255, 0.45)';
-            }
-          }}
+          className={`ex-btn-ghost${showStats ? ' ex-btn-ghost--active' : ''}`}
         >
           {/* Activity/pulse icon */}
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -396,28 +269,13 @@ export function ExampleHeader({ children }: ExampleHeaderProps): JSX.Element {
 
         {/* FPS cap selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-          <span style={{
-            fontSize: 11,
-            fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
-            fontWeight: 500,
-            color: 'rgba(255, 255, 255, 0.45)',
-          }}>
+          <span style={{ fontSize: 11, fontFamily: 'var(--ex-font-mono)', fontWeight: 500, color: 'var(--ex-text-muted)' }}>
             FPS
           </span>
           <select
             value={fpsCap === undefined ? '' : String(fpsCap)}
             onChange={(e) => setFpsCap(e.target.value === '' ? undefined : Number(e.target.value))}
-            style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: 5,
-              padding: '4px 6px',
-              color: '#e0e0e8',
-              fontSize: 11,
-              fontFamily: 'ui-monospace, "SF Mono", Menlo, monospace',
-              cursor: 'pointer',
-              outline: 'none',
-            }}
+            className="ex-select"
           >
             {FPS_OPTIONS.map((opt) => (
               <option key={opt.label} value={opt.value === undefined ? '' : opt.value}>

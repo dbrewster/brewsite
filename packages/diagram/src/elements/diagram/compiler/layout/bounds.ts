@@ -34,8 +34,9 @@ export function computeBounds(
     maxX = Math.max(maxX, x + w / 2);
     minY = Math.min(minY, y - h / 2);
     maxY = Math.max(maxY, y + h / 2);
-    minZ = Math.min(minZ, z - d / 2);
-    maxZ = Math.max(maxZ, z + d / 2);
+    // Depth alignment model: front face at z, back face at z - d.
+    minZ = Math.min(minZ, z - d);
+    maxZ = Math.max(maxZ, z);
   });
 
   if (!Number.isFinite(minX) || !Number.isFinite(minY)) {

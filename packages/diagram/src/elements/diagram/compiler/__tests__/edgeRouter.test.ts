@@ -78,7 +78,8 @@ describe('getFacePortAnchor', () => {
     );
     expect(anchor[0]).toBeLessThan(0);
     expect(anchor[1]).toBeGreaterThan(0);
-    expect(anchor[2]).toBeCloseTo(1);
+    // Depth alignment: front face at z=0.
+    expect(anchor[2]).toBeCloseTo(0);
   });
 
   it('returns centered anchor when only one port is available', () => {
@@ -91,7 +92,8 @@ describe('getFacePortAnchor', () => {
       [-1, -5, 0],
     );
     expect(anchor[0]).toBeCloseTo(0);
-    expect(anchor[2]).toBeCloseTo(-1);
+    // Depth alignment: back face at z - d = 0 - 2 = -2.
+    expect(anchor[2]).toBeCloseTo(-2);
   });
 
   it('places top/bottom anchors using horizontal offsets', () => {

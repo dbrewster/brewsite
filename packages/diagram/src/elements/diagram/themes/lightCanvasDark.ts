@@ -16,6 +16,7 @@ export const lightCanvasDarkTheme: DiagramTheme = {
     defaultRoughness: 0.42,
     defaultEmissiveIntensity: 0.02,
     nodeEnvMapIntensity: 0.15,
+    defaultBorderColor: '#506478',
   },
   edge: {
     ...lightCanvasTheme.edge,

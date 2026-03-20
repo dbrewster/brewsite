@@ -12,7 +12,7 @@ interface SceneMetadata {
 
 const SCENE_META: Record<string, SceneMetadata> = {
   'cs-hero': {
-    section: 'Introduction · BrewSite Core',
+    section: 'Introduction \u00b7 BrewSite Core',
     code: `import { SceneEngine, ScrollStage, SceneCanvas,
   EngineOverlayHost, InputCoordinator } from '@brewsite/core';
 
@@ -31,16 +31,16 @@ export default function MyPage() {
   },
 
   'cs-overview': {
-    section: 'Act 1 · Architecture Overview',
+    section: 'Act 1 \u00b7 Architecture Overview',
     code: `// The four-layer mental model:
-// Author (DSL) → Compile → Execute → Output
+// Author (DSL) \u2192 Compile \u2192 Execute \u2192 Output
 //
 // <Scene> JSX is compiled once at startup into a flat SceneTrack.
-// The runtime samples it at O(1) per frame — no diffing, no reconciliation.`,
+// The runtime samples it at O(1) per frame \u2014 no diffing, no reconciliation.`,
   },
 
   'cs-scene-dsl': {
-    section: 'Act 2 · Scene Authoring — Snapshots',
+    section: 'Act 2 \u00b7 Scene Authoring \u2014 Snapshots',
     code: `import { Scene, Camera, Lighting, Ambient, Directional,
   Background, ProgressManager } from '@brewsite/core';
 
@@ -58,32 +58,32 @@ export const sceneIntro = (
   },
 
   'cs-scene-transition': {
-    section: 'Act 2 · Scene Authoring — Auto-Transition',
-    code: `// Same diagram ID across scenes → smooth auto-interpolation.
+    section: 'Act 2 \u00b7 Scene Authoring \u2014 Auto-Transition',
+    code: `// Same diagram ID across scenes \u2192 smooth auto-interpolation.
 // The compiler detects matching IDs and bakes the transition into SceneTrack.
-// You describe the start and end state — the engine handles everything between.
+// You describe the start and end state \u2014 the engine handles everything between.
 
 const sceneA = <Scene key="a"><Diagram id="my-diagram" tilt={-Math.PI/4} /></Scene>;
 const sceneB = <Scene key="b"><Diagram id="my-diagram" tilt={-Math.PI/12} /></Scene>;
-//                                       ^^^^^^^^^^^^ same ID → auto-morph`,
+//                                       ^^^^^^^^^^^^ same ID \u2192 auto-morph`,
   },
 
   'cs-compiler': {
-    section: 'Act 3 · Compiler Pipeline',
+    section: 'Act 3 \u00b7 Compiler Pipeline',
     code: `// The compiler pipeline (pure functions, no Three.js):
 //
 //  Scene JSX
-//    └─► sceneDslCompiler    walks JSX tree, dispatches to NodeHandlers
-//          └─► SceneFrame[]  one snapshot per scene
-//              └─► sceneTrackCompiler   bakes tick[] with transitions pre-interpolated
-//                    └─► SceneTrack    O(1) lookup: sceneTrackSampler(track, progress)
+//    \u2514\u2500\u25ba sceneDslCompiler    walks JSX tree, dispatches to NodeHandlers
+//          \u2514\u2500\u25ba SceneFrame[]  one snapshot per scene
+//              \u2514\u2500\u25ba sceneTrackCompiler   bakes tick[] with transitions pre-interpolated
+//                    \u2514\u2500\u25ba SceneTrack    O(1) lookup: sceneTrackSampler(track, progress)
 //
 // The track is compiled once at mount and never changes.
-// Playback calls sceneTrackSampler(track, progress) — no JSX, no diffing.`,
+// Playback calls sceneTrackSampler(track, progress) \u2014 no JSX, no diffing.`,
   },
 
   'cs-camera-world': {
-    section: 'Act 4 · Camera — World Mode',
+    section: 'Act 4 \u00b7 Camera \u2014 World Mode',
     code: `<Camera
   mode="world"
   position={[0, 2, 8]}   // [x, y, z] in world units
@@ -94,7 +94,7 @@ const sceneB = <Scene key="b"><Diagram id="my-diagram" tilt={-Math.PI/12} /></Sc
   },
 
   'cs-camera-orbit': {
-    section: 'Act 4 · Camera — Orbit Mode',
+    section: 'Act 4 \u00b7 Camera \u2014 Orbit Mode',
     code: `<Camera
   mode="orbit"
   target={[0, 0, 0]}     // pivot point
@@ -113,7 +113,7 @@ const sceneB = <Scene key="b"><Diagram id="my-diagram" tilt={-Math.PI/12} /></Sc
   },
 
   'cs-lighting-soft': {
-    section: 'Act 5 · Lighting — Soft / Professional',
+    section: 'Act 5 \u00b7 Lighting \u2014 Soft / Professional',
     code: `<Lighting intensityScale={1}>
   <Ambient intensity={0.8} color="#d7e8ff" />
   <Directional intensity={0.9} color="#ffffff" position={[4, 10, 6]} />
@@ -122,7 +122,7 @@ const sceneB = <Scene key="b"><Diagram id="my-diagram" tilt={-Math.PI/12} /></Sc
   },
 
   'cs-lighting-dramatic': {
-    section: 'Act 5 · Lighting — Dramatic / Cinematic',
+    section: 'Act 5 \u00b7 Lighting \u2014 Dramatic / Cinematic',
     code: `<Lighting intensityScale={1.2}>
   <Ambient intensity={0.15} color="#0a0a20" />
   <Directional intensity={2.0} color="#ff6030" position={[8, 12, 4]} />
@@ -130,15 +130,15 @@ const sceneB = <Scene key="b"><Diagram id="my-diagram" tilt={-Math.PI/12} /></Sc
   <GlowPoint intensity={2.5} color="#ff4020" position={[4, 3, 2]} />
   <GlowPoint intensity={1.8} color="#2040ff" position={[-4, 2, 2]} />
 </Lighting>
-// <GlowPoint> = sprite billboard glow — zero illumination cost, pure atmosphere.`,
+// <GlowPoint> = sprite billboard glow \u2014 zero illumination cost, pure atmosphere.`,
   },
 
   'cs-chart-a': {
-    section: 'Act 6 · Charts — BarChart DSL',
+    section: 'Act 6 \u00b7 Charts \u2014 BarChart DSL',
     code: `import { BarChart, ChartData, ChartAxis, ChartSeries } from '@brewsite/charts';
 
 <BarChart
-  id="framework-adoption"   // stable ID — same across morphing scenes
+  id="framework-adoption"   // stable ID \u2014 same across morphing scenes
   data={frameworkDataA}
   theme={chartTheme}
   x={0.3} y={0.3} w={0.4} h={0.35}
@@ -153,14 +153,14 @@ const sceneB = <Scene key="b"><Diagram id="my-diagram" tilt={-Math.PI/12} /></Sc
   },
 
   'cs-chart-b': {
-    section: 'Act 6 · Charts — Same ID, Different Data → Auto-Morph',
-    code: `// Scene B — same chart ID "framework-adoption", different data array.
+    section: 'Act 6 \u00b7 Charts \u2014 Same ID, Different Data \u2192 Auto-Morph',
+    code: `// Scene B \u2014 same chart ID "framework-adoption", different data array.
 // The compiler detects the shared ID and bakes datum-level bar morphing
 // into the SceneTrack. No animation code needed.
 
 <BarChart
-  id="framework-adoption"   // ← same ID as Scene A
-  data={frameworkDataB}     // ← different values → bars morph automatically
+  id="framework-adoption"   // \u2190 same ID as Scene A
+  data={frameworkDataB}     // \u2190 different values \u2192 bars morph automatically
   theme={chartTheme}
   x={0.3} y={0.3} w={0.4} h={0.35}
   depth={0.4}
@@ -172,7 +172,7 @@ const sceneB = <Scene key="b"><Diagram id="my-diagram" tilt={-Math.PI/12} /></Sc
   },
 
   'cs-input': {
-    section: 'Act 7 · Input — InputController DSL',
+    section: 'Act 7 \u00b7 Input \u2014 InputController DSL',
     code: `import { InputController, Action, PointerMap, WheelMap, KeyMap } from '@brewsite/core';
 
 <InputController scope="canvas">
@@ -190,7 +190,7 @@ const sceneB = <Scene key="b"><Diagram id="my-diagram" tilt={-Math.PI/12} /></Sc
   },
 
   'cs-theming': {
-    section: 'Act 8 · Theming — 6 Families × 2 Polarities = 12 Presets',
+    section: 'Act 8 \u00b7 Theming \u2014 6 Families \u00d7 2 Polarities = 12 Presets',
     code: `// Themes flow from SceneEngine down to all widgets automatically.
 // No per-element theme wiring needed.
 
@@ -208,13 +208,13 @@ const sceneB = <Scene key="b"><Diagram id="my-diagram" tilt={-Math.PI/12} /></Sc
   },
 
   'cs-summary': {
-    section: 'Act 9 · Summary — Start Building',
+    section: 'Act 9 \u00b7 Summary \u2014 Start Building',
     code: `# Install
 npm install @brewsite/core @brewsite/diagram @brewsite/charts
 
 # Key concepts:
-# 1. Declare <Scene> snapshots — the compiler handles all transitions
-# 2. Same widget ID across scenes → automatic interpolation
+# 1. Declare <Scene> snapshots \u2014 the compiler handles all transitions
+# 2. Same widget ID across scenes \u2192 automatic interpolation
 # 3. <ProgressManager scrollUnits={n}> controls scroll budget per scene
 # 4. <InputController> maps gestures to camera/scene/carousel actions
 # 5. <EngineOverlayHost> layers React HTML over the 3D canvas`,
@@ -237,27 +237,8 @@ export function TopChrome(): JSX.Element {
   const { section } = getSceneMeta(id);
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 48,
-        left: 0,
-        right: 0,
-        padding: '20px 32px 20px 32px',
-        pointerEvents: 'none',
-        zIndex: 100,
-        background: 'linear-gradient(rgba(3,5,12,0.55), transparent)',
-      }}
-    >
-      <div
-        style={{
-          fontSize: '11px',
-          letterSpacing: '0.16em',
-          textTransform: 'uppercase',
-          color: 'rgba(140, 170, 255, 0.75)',
-          fontFamily: 'JetBrains Mono, Fira Code, monospace',
-        }}
-      >
+    <div className="ex-chrome-top">
+      <div className="ex-chrome-top__section">
         {section}
       </div>
     </div>
@@ -273,35 +254,8 @@ export function BottomChrome(): JSX.Element {
   if (!code) return <></>;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        bottom: 100,
-        left: 0,
-        right: 0,
-        maxHeight: 'min(42vh, 260px)',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'flex-end',
-        padding: '20px 32px 24px',
-        pointerEvents: 'none',
-        zIndex: 100,
-        background: 'linear-gradient(transparent, rgba(2,4,12,0.75))',
-      }}
-    >
-      <pre
-        style={{
-          fontFamily: 'JetBrains Mono, Fira Code, monospace',
-          fontSize: '11px',
-          color: 'rgba(190, 215, 255, 0.72)',
-          lineHeight: 1.6,
-          whiteSpace: 'pre-wrap',
-          margin: 0,
-          overflowY: 'auto',
-          overflowX: 'hidden',
-          maxHeight: 'calc(min(42vh, 260px) - 44px)',
-        }}
-      >
+    <div className="ex-chrome-bottom">
+      <pre className="ex-chrome-bottom__code">
         {code}
       </pre>
     </div>

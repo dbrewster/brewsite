@@ -10,7 +10,6 @@ import type {
   DiagramTheme,
 } from '../types';
 import { resolveIconUrl } from '../shapes/iconRegistry';
-import { deriveColor } from '../math/colorUtils';
 import { buildNodeDefaults, buildEdgeDefaults } from './defaultsCompiler';
 
 const edgeIdFor = (edge: DiagramEdgeDSL, index: number): string =>
@@ -26,8 +25,8 @@ export function compileNode(
   const nd = buildNodeDefaults(theme);
   const shape = dsl.shape ?? nd.shape;
   const color = dsl.color ?? nd.color;
-  const sideColor = dsl.boxColor ?? dsl.sideColor ?? nd.boxColor ?? deriveColor(color, nd.sideColorDarkenFactor);
-  const borderColor = dsl.borderColor ?? deriveColor(color, nd.borderColorLightenFactor);
+  const sideColor = dsl.boxColor ?? dsl.sideColor ?? nd.boxColor;
+  const borderColor = dsl.borderColor ?? nd.borderColor;
   const emissiveIntensity = (() => {
     if (dsl.glow === false) return 0;
     if (typeof dsl.glow === 'object' && dsl.glow !== null && dsl.glow.intensity !== undefined) {
@@ -73,7 +72,10 @@ export function compileNode(
     iconUrl: resolveIconUrl(dsl.icon),
     iconScale: dsl.iconScale ?? nd.iconScale,
     iconStyle: dsl.iconStyle ?? nd.iconStyle,
-    iconDepthFactor: dsl.iconDepthFactor ?? nd.iconDepthFactor,
+    iconDepth: dsl.iconDepth ?? nd.iconDepth,
+    iconColor: dsl.iconColor ?? nd.iconColor,
+    sublabelWrap: dsl.sublabelWrap ?? nd.sublabelWrap,
+    sublabelMaxLines: dsl.sublabelMaxLines ?? nd.sublabelMaxLines,
     groupId,
     onMouseEnter: dsl.onMouseEnter,
     onMouseLeave: dsl.onMouseLeave,

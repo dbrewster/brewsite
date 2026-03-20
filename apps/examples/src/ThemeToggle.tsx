@@ -106,16 +106,7 @@ export const ThemeToggle = ({
         value={family}
         onChange={handleFamilyChange}
         aria-label="Theme family"
-        style={{
-          background: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
-          border: isDark ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.15)',
-          borderRadius: 8,
-          padding: '5px 8px',
-          color: isDark ? '#ffffff' : '#111111',
-          fontSize: 13,
-          cursor: 'pointer',
-          outline: 'none',
-        }}
+        className="ex-select ex-select--theme"
       >
         {THEME_FAMILIES.map((f) => (
           <option key={f} value={f}>{familyLabel(f)}</option>
@@ -126,20 +117,7 @@ export const ThemeToggle = ({
       <button
         onClick={handlePolarityToggle}
         aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
-        style={{
-          background: isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
-          border: isDark ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.15)',
-          borderRadius: 8,
-          cursor: 'pointer',
-          padding: '6px 8px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: isDark ? '#ffffff' : '#111111',
-          fontSize: 18,
-          lineHeight: 1,
-          transition: 'background 0.15s ease',
-        }}
+        className="ex-polarity-toggle"
       >
         {isDark ? (
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -198,23 +176,12 @@ export const LightDarkToggle = ({initialPolarity, setPolarity, savePolarityInLoc
     <button
       onClick={handlePolarityToggle}
       aria-label={polarity === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+      className="ex-polarity-toggle"
       style={{
         position: 'absolute',
         top: 12,
         right: 16,
         zIndex: 1000,
-        background: polarity === 'dark' ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
-        border: polarity === 'dark' ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.15)',
-        borderRadius: 8,
-        cursor: 'pointer',
-        padding: '6px 8px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: polarity === 'dark' ? '#ffffff' : '#111111',
-        fontSize: 18,
-        lineHeight: 1,
-        transition: 'background 0.15s ease',
       }}
     >
       {polarity === 'dark' ? (

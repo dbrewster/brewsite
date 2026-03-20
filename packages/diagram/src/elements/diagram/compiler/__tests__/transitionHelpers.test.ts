@@ -40,7 +40,7 @@ const makeNode = (id: string, overrides: Partial<DiagramNodeState> = {}): Diagra
   iconUrl: '',
   iconScale: 0.6,
   iconStyle: 'flat',
-  iconDepthFactor: 0.1,
+  iconDepth: 0.1,
   groupId: undefined,
   positionInherited: undefined,
   ...overrides,

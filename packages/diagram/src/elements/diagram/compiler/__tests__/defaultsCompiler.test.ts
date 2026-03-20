@@ -51,10 +51,10 @@ describe('buildNodeDefaults — theme-driven defaults', () => {
     expect(nd.iconStyle).toBe(darkGlassTheme.node.defaultIconStyle);
   });
 
-  it('reads iconDepthFactor from theme.node.defaultIconDepthFactor', () => {
-    const customTheme = { ...darkGlassTheme, node: { ...darkGlassTheme.node, defaultIconDepthFactor: 0.5 } };
+  it('reads iconDepth from theme.node.defaultIconDepth', () => {
+    const customTheme = { ...darkGlassTheme, node: { ...darkGlassTheme.node, defaultIconDepth: 0.15 } };
     const nd = buildNodeDefaults(customTheme);
-    expect(nd.iconDepthFactor).toBe(0.5);
+    expect(nd.iconDepth).toBe(0.15);
   });
 
   it('reads labelColor from theme.node.defaultLabelColor', () => {
@@ -69,35 +69,35 @@ describe('buildNodeDefaults — theme-driven defaults', () => {
   });
 });
 
-describe('buildNodeDefaults — sideColorDarkenFactor', () => {
-  it('reads sideColorDarkenFactor from theme.node', () => {
+describe('buildNodeDefaults — boxColor', () => {
+  it('reads boxColor from theme.node.defaultBoxColor', () => {
     const theme = {
       ...darkGlassTheme,
-      node: { ...darkGlassTheme.node, sideColorDarkenFactor: -0.25 },
+      node: { ...darkGlassTheme.node, defaultBoxColor: '#223344' },
     };
     const nd = buildNodeDefaults(theme);
-    expect(nd.sideColorDarkenFactor).toBe(-0.25);
+    expect(nd.boxColor).toBe('#223344');
   });
 
-  it('reflects darkGlassTheme.node.sideColorDarkenFactor', () => {
+  it('reflects darkGlassTheme.node.defaultBoxColor', () => {
     const nd = buildNodeDefaults(darkGlassTheme);
-    expect(nd.sideColorDarkenFactor).toBe(darkGlassTheme.node.sideColorDarkenFactor);
+    expect(nd.boxColor).toBe(darkGlassTheme.node.defaultBoxColor);
   });
 });
 
-describe('buildNodeDefaults — borderColorLightenFactor', () => {
-  it('reads borderColorLightenFactor from theme.node', () => {
+describe('buildNodeDefaults — borderColor', () => {
+  it('reads borderColor from theme.node.defaultBorderColor', () => {
     const theme = {
       ...darkGlassTheme,
-      node: { ...darkGlassTheme.node, borderColorLightenFactor: 0.35 },
+      node: { ...darkGlassTheme.node, defaultBorderColor: '#556677' },
     };
     const nd = buildNodeDefaults(theme);
-    expect(nd.borderColorLightenFactor).toBe(0.35);
+    expect(nd.borderColor).toBe('#556677');
   });
 
-  it('reflects darkGlassTheme.node.borderColorLightenFactor', () => {
+  it('reflects darkGlassTheme.node.defaultBorderColor', () => {
     const nd = buildNodeDefaults(darkGlassTheme);
-    expect(nd.borderColorLightenFactor).toBe(darkGlassTheme.node.borderColorLightenFactor);
+    expect(nd.borderColor).toBe(darkGlassTheme.node.defaultBorderColor);
   });
 });
 

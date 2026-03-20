@@ -1,0 +1,48 @@
+/* lightCanvas — warm canvas with emerald accents */
+
+[data-family="lightCanvas"][data-polarity="dark"] {
+  --ex-bg: #0A0D08;
+  --ex-bg-gradient: linear-gradient(180deg, #0A0D08 0%, #141A10 100%);
+  --ex-text: #D4DCC8;
+  --ex-text-muted: rgba(212,220,200,0.5);
+  --ex-text-code: #34D399;
+  --ex-surface: rgba(255,255,255,0.03);
+  --ex-surface-hover: rgba(255,255,255,0.06);
+  --ex-border: rgba(255,255,255,0.08);
+  --ex-border-hover: rgba(255,255,255,0.15);
+  --ex-accent: #059669;
+  --ex-accent-text: #34D399;
+  --ex-accent-surface: rgba(5,150,105,0.1);
+  --ex-accent-border: rgba(5,150,105,0.3);
+  --ex-overlay-bg: rgba(10,13,8,0.85);
+  --ex-overlay-surface: rgba(20,26,16,0.97);
+  --ex-chrome-gradient-top: linear-gradient(rgba(20,26,16,0.65), transparent);
+  --ex-chrome-gradient-bottom: linear-gradient(transparent, rgba(10,13,8,0.75));
+  --ex-shadow: 0 16px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(5,150,105,0.1);
+}
+
+[data-family="lightCanvas"][data-polarity="light"] {
+  --ex-bg: #F7F5F0;
+  --ex-bg-gradient: linear-gradient(180deg, #F7F5F0 0%, #EDE9E0 100%);
+  --ex-text: #1C1E18;
+  --ex-text-muted: rgba(28,30,24,0.5);
+  --ex-text-code: #047857;
+  --ex-surface: rgba(0,0,0,0.03);
+  --ex-surface-hover: rgba(0,0,0,0.06);
+  --ex-border: rgba(0,0,0,0.08);
+  --ex-border-hover: rgba(0,0,0,0.15);
+  --ex-accent: #059669;
+  --ex-accent-text: #047857;
+  --ex-accent-surface: rgba(5,150,105,0.08);
+  --ex-accent-border: rgba(5,150,105,0.2);
+  --ex-active: #16a34a;
+  --ex-active-surface: rgba(22,163,74,0.1);
+  --ex-active-border: rgba(22,163,74,0.25);
+  --ex-danger: #dc2626;
+  --ex-danger-surface: rgba(220,38,38,0.15);
+  --ex-overlay-bg: rgba(247,245,240,0.85);
+  --ex-overlay-surface: rgba(237,233,224,0.97);
+  --ex-chrome-gradient-top: linear-gradient(rgba(247,245,240,0.65), transparent);
+  --ex-chrome-gradient-bottom: linear-gradient(transparent, rgba(237,233,224,0.75));
+  --ex-shadow: 0 16px 48px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.05);
+}

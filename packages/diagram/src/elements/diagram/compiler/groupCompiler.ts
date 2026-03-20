@@ -37,7 +37,6 @@ const isEmptyBounds = (bounds: { w: number; h: number }): boolean =>
   bounds.w === 0 && bounds.h === 0;
 
 const DEFAULT_EDGE_LIGHT_DENSITY = 1;
-const DEFAULT_EDGE_LIGHT_COLOR = '#ffffff';
 const DEFAULT_EDGE_LIGHT_INTENSITY = 0.75;
 const DEFAULT_EDGE_LIGHT_DISTANCE = 3;
 const DEFAULT_EDGE_LIGHT_DECAY = 2;
@@ -82,6 +81,7 @@ function compileEdgeLights(
   borderWidth: number,
   borderHeight: number,
   borderStyle: 'solid' | 'dashed' | 'none',
+  defaultEdgeLightColor: string,
 ): DiagramGroupEdgeLightsState | undefined {
   const spec = dsl.edgeLights;
   if (!spec || spec.enabled === false) return undefined;
@@ -119,7 +119,7 @@ function compileEdgeLights(
         side,
         indexOnSide,
         position: [x, y, z],
-        color: typeof rawColor === 'string' && rawColor.length > 0 ? rawColor : DEFAULT_EDGE_LIGHT_COLOR,
+        color: typeof rawColor === 'string' && rawColor.length > 0 ? rawColor : defaultEdgeLightColor,
       });
       lightIndex += 1;
     }
@@ -217,6 +217,7 @@ export function compileGroup(
     gd.borderWidth,
     gd.borderHeight,
     borderStyle,
+    theme.group.defaultEdgeLightColor ?? '#ffffff',
   );
 
   return {

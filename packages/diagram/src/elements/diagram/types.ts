@@ -40,9 +40,12 @@ export interface DiagramThemeNodeConfig {
   readonly defaultColor: string;
   /**
    * Default box/depth color (CSS hex) for the node's side, top, and bottom faces.
-   * If omitted, compileNode() derives it from defaultColor via sideColorDarkenFactor.
    */
-  readonly defaultBoxColor?: string;
+  readonly defaultBoxColor: string;
+  /**
+   * Default border outline color (CSS hex) for the node frame.
+   */
+  readonly defaultBorderColor: string;
   /** PBR metalness [0–1]. ~0.35 = polished plastic, ~0.7 = brushed metal */
   readonly defaultMetalness: number;
   /** PBR roughness [0–1]. ~0.25 = glossy, ~0.65 = matte */
@@ -97,19 +100,17 @@ export interface DiagramThemeNodeConfig {
    */
   readonly defaultIconScale: number;
   /**
-   * Default icon extrusion depth as a fraction of node thickness [0..1].
-   * 0.5 = icon maximum Z depth is 50% of node.thickness.
-   * This is coordinate-system-invariant (works correctly for both AutoLayout
-   * and ManualLayout). Replaces the old absolute `iconDepth` value.
-   * darkGlass default: 0.5
-   */
-  readonly defaultIconDepthFactor: number;
-  /**
-   * Default 3D icon extrusion depth in canvas world units.
+   * Default 3D icon extrusion depth in NVS units.
    * Per-node iconDepth overrides this.
    * darkGlass default: 0.15
    */
   readonly defaultIconDepth: number;
+  /** Default fill color for SVG icons on nodes. Defaults to '#ffffff' when absent. */
+  readonly defaultIconColor?: string;
+  /** Default border line width in NVS units. Default: 0.005 when absent. */
+  readonly defaultNodeBorderWidth?: number;
+  /** Default border frame Z-depth in NVS units. Default: 0.005 when absent. */
+  readonly defaultNodeBorderHeight?: number;
   /**
    * Glow sprite size as a multiple of the node bounding box [0.5..4].
    * 2.2 = glow is 2.2× the node footprint. Controls glow halo radius.
@@ -117,16 +118,6 @@ export interface DiagramThemeNodeConfig {
    * darkGlass default: 2.2. Set to 1.0 for no visible spread beyond node edge.
    */
   readonly glowSpread: number;
-  /**
-   * Addend passed to deriveColor() when computing the auto-derived side-face color from the
-   * front-face color. Negative values darken. Range: typically -0.3 to 0.
-   */
-  readonly sideColorDarkenFactor: number;
-  /**
-   * Addend passed to deriveColor() when computing the auto-derived border color from the
-   * front-face color. Positive values lighten. Range: typically 0 to 0.5.
-   */
-  readonly borderColorLightenFactor: number;
   /**
    * Base coefficient for node label font size.
    * Final size = contentH × labelFontSizeBase × labelSizeFactor × sceneTheme.fontSize.label.
@@ -275,6 +266,8 @@ export interface DiagramThemeGroupConfig {
    * on the border frame. Typical range: 0.3–0.6.
    */
   readonly borderEdgeDarken: number;
+  /** Default color for edge-light point lights on group borders. Defaults to '#ffffff' when absent. */
+  readonly defaultEdgeLightColor?: string;
 }
 
 /** Environment map / image-based lighting config within a theme. */
@@ -821,6 +814,12 @@ export interface DiagramNodeState {
   /** CSS hex color for sublabel text */
   readonly sublabelColor: string;
 
+  /** When true, sublabel text wraps at the node content width. Default: false. */
+  readonly sublabelWrap: boolean;
+
+  /** Maximum number of wrapped sublabel lines (1–4). Only applies when sublabelWrap is true. Default: 2. */
+  readonly sublabelMaxLines: number;
+
   /**
    * Label padding as a fraction of the node's content height [0–1].
    * Controls the vertical offset applied to all label/sublabel positions.
@@ -877,10 +876,13 @@ export interface DiagramNodeState {
   readonly iconStyle: SvgIcon3DStyle;
 
   /**
-   * 3D icon extrusion depth as a fraction of node thickness [0..1].
-   * The renderer computes: maxDepthUnits = iconDepthFactor × state.thickness.
+   * 3D icon extrusion depth in NVS units (absolute value, not a fraction).
+   * Gets the same two-step conversion as thickness: scaleFactor in compile.ts, thicknessScale in render.ts.
    */
-  readonly iconDepthFactor: number;
+  readonly iconDepth: number;
+
+  /** Fill color for SVG icons on this node (CSS hex). */
+  readonly iconColor: string;
 
   /** ID of the parent DiagramGroup, or undefined if top-level */
   readonly groupId: string | undefined;
@@ -1288,6 +1290,10 @@ export interface DiagramNodeDSL {
   readonly cornerRadius?: number;
   readonly labelColor?: string;
   readonly sublabelColor?: string;
+  /** When true, sublabel text wraps at the node content width. Default: false. */
+  readonly sublabelWrap?: boolean;
+  /** Maximum number of wrapped sublabel lines (1–4). Only applies when sublabelWrap is true. Default: 2. */
+  readonly sublabelMaxLines?: number;
   /**
    * Label padding as a fraction of node content height [0–1].
    * Overrides theme.node.defaultLabelPadding for this node.
@@ -1299,13 +1305,10 @@ export interface DiagramNodeDSL {
   readonly iconScale?: number;
   /** 3D icon rendering style. Default: from theme (typically 'layered'). */
   readonly iconStyle?: SvgIcon3DStyle;
-  /**
-   * Override for 3D icon extrusion depth as a fraction of node thickness [0..1].
-   * 0.5 = icon extends 50% of node.thickness in Z (coordinate-system-invariant).
-   * Default: from theme (defaultIconDepthFactor, typically 0.5).
-   * Sensible range: 0.2–0.8. Values > 1.0 cause the icon to protrude beyond the node face.
-   */
-  readonly iconDepthFactor?: number;
+  /** Icon extrusion depth in NVS units. Default: from theme (0.15). */
+  readonly iconDepth?: number;
+  /** Override icon fill color for this node (CSS hex). Defaults to theme's defaultIconColor. */
+  readonly iconColor?: string;
   readonly groupId?: string;
   readonly onMouseEnter?: DiagramNodeMouseHandler;
   readonly onMouseLeave?: DiagramNodeMouseHandler;

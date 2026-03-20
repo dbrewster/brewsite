@@ -1,0 +1,48 @@
+/* darkGlass — obsidian/burgundy control-room with ember accents */
+
+[data-family="darkGlass"][data-polarity="dark"] {
+  --ex-bg: #070504;
+  --ex-bg-gradient: linear-gradient(180deg, #070504 0%, #130B08 100%);
+  --ex-text: #f0ddd0;
+  --ex-text-muted: rgba(240,221,208,0.5);
+  --ex-text-code: #E8834E;
+  --ex-surface: rgba(255,200,160,0.04);
+  --ex-surface-hover: rgba(255,200,160,0.08);
+  --ex-border: rgba(107,67,56,0.3);
+  --ex-border-hover: rgba(107,67,56,0.5);
+  --ex-accent: #E36A2E;
+  --ex-accent-text: #E8834E;
+  --ex-accent-surface: rgba(227,106,46,0.1);
+  --ex-accent-border: rgba(227,106,46,0.3);
+  --ex-overlay-bg: rgba(7,5,4,0.85);
+  --ex-overlay-surface: rgba(19,11,8,0.97);
+  --ex-chrome-gradient-top: linear-gradient(rgba(19,11,8,0.65), transparent);
+  --ex-chrome-gradient-bottom: linear-gradient(transparent, rgba(7,5,4,0.75));
+  --ex-shadow: 0 16px 48px rgba(0,0,0,0.6), 0 0 0 1px rgba(107,67,56,0.15);
+}
+
+[data-family="darkGlass"][data-polarity="light"] {
+  --ex-bg: #F8F3EF;
+  --ex-bg-gradient: linear-gradient(180deg, #F8F3EF 0%, #EFE6DE 100%);
+  --ex-text: #2a1810;
+  --ex-text-muted: rgba(42,24,16,0.5);
+  --ex-text-code: #ff6800;
+  --ex-surface: rgba(0,0,0,0.04);
+  --ex-surface-hover: rgba(0,0,0,0.07);
+  --ex-border: rgba(0,0,0,0.1);
+  --ex-border-hover: rgba(0,0,0,0.18);
+  --ex-accent: #B85520;
+  --ex-accent-text: #9A4518;
+  --ex-accent-surface: rgba(184,85,32,0.08);
+  --ex-accent-border: rgba(184,85,32,0.2);
+  --ex-active: #16a34a;
+  --ex-active-surface: rgba(22,163,74,0.1);
+  --ex-active-border: rgba(22,163,74,0.25);
+  --ex-danger: #dc2626;
+  --ex-danger-surface: rgba(220,38,38,0.15);
+  --ex-overlay-bg: rgba(248,243,239,0.85);
+  --ex-overlay-surface: rgba(239,230,222,0.97);
+  --ex-chrome-gradient-top: linear-gradient(rgba(248,243,239,0.65), transparent);
+  --ex-chrome-gradient-bottom: linear-gradient(transparent, rgba(239,230,222,0.75));
+  --ex-shadow: 0 16px 48px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.06);
+}

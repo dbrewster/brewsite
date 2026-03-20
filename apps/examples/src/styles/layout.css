@@ -1,0 +1,83 @@
+/* Layout — page containers, sidebar, grid */
+
+/* Page container — used by every page */
+.ex-page {
+  position: relative;
+  display: flex;
+  flex-flow: column;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--ex-bg-gradient, var(--ex-bg));
+  color: var(--ex-text);
+  font-family: var(--ex-font);
+}
+
+/* Canvas positioning (not theme-dependent, but standardized) */
+.ex-canvas-layer {
+  position: absolute;
+  inset: 0;
+}
+
+/* Full-bleed content area below header */
+.ex-content {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+}
+
+@media (max-width: 700px) {
+  .ex-content {
+    flex-direction: column;
+  }
+}
+
+/* Flex column that fills remaining space */
+.ex-fill-column {
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  overflow: hidden;
+}
+
+/* Sidebar — responsive width */
+.ex-sidebar {
+  width: clamp(220px, 28vw, 360px);
+  flex-shrink: 0;
+  padding: 1.5rem 2rem;
+  overflow-y: auto;
+  border-right: 1px solid var(--ex-border);
+}
+
+/* Sidebar in mobile layout */
+@media (max-width: 700px) {
+  .ex-sidebar {
+    width: 100%;
+    max-height: 38vh;
+    padding: 1rem 1.5rem;
+    border-right: none;
+    border-bottom: 1px solid var(--ex-border);
+  }
+}
+
+/* Content scroll area */
+.ex-scroll-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem 2.5rem;
+}
+
+/* Grid for example cards on landing page */
+.ex-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  max-width: 960px;
+}
+
+/* Three-column info grid (canvas-region layout techniques) */
+.ex-info-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 20px 0;
+}

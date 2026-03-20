@@ -20,6 +20,7 @@ import { createChartDemoPlugins } from './widgetSetup';
 import { ThemeToggle } from '../Lights';
 import { ExampleHeader, useFpsCap } from '../ExampleHeader';
 import { StatsOverlay } from '../StatsOverlay';
+import { useThemeCss } from '../hooks/useThemeCss';
 
 // Bust the compiled SceneTrack cache whenever this module is re-evaluated by Vite HMR.
 // This ensures changes to transition specs (functionalChartTransitionSpec, etc.) take effect
@@ -47,20 +48,10 @@ export default function ChartDemoPage(): JSX.Element {
   const [polarity, setPolarity] = useState<ThemePolarity>('light');
   const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
   const fpsCap = useFpsCap();
+  useThemeCss(family, polarity);
 
   return (
-    <div
-      style={{
-        position: 'relative',
-        display: 'flex',
-        flexFlow: 'column',
-        height: '100vh',
-        overflow: 'hidden',
-        background: polarity === 'light'
-          ? 'radial-gradient(circle at 50% 0%, #f2f4f3 0%, #dadada 42%, #c2c8c2 72%, #d6d3d6 100%)'
-          : 'radial-gradient(circle at 50% 0%, #0a1830 0%, #04091a 42%, #020610 72%, #010408 100%)',
-      }}
-    >
+    <div className="ex-page">
       <ExampleHeader>
         <ThemeToggle
           onPolarityChange={setPolarity}
@@ -80,7 +71,7 @@ export default function ChartDemoPage(): JSX.Element {
         <Scene1a />
         <Scene1b />
 
-        {/* Scene 2: Stacked bar chart (2 sub-scenes: stacked → horizontal) */}
+        {/* Scene 2: Stacked bar chart (2 sub-scenes: stacked -> horizontal) */}
         <Scene2a />
         <Scene2b />
 
@@ -94,7 +85,7 @@ export default function ChartDemoPage(): JSX.Element {
         {/* Scene 5: Scatter bubble chart (4D: x/y/size/color) */}
         <Scene5 />
 
-        {/* Scene 6: Pie → Donut → Explode (3 sub-scenes, same chart ID) */}
+        {/* Scene 6: Pie -> Donut -> Explode (3 sub-scenes, same chart ID) */}
         <Scene6a />
         <Scene6b />
         <Scene6c />
