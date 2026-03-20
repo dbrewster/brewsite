@@ -268,6 +268,8 @@ export interface DiagramThemeGroupConfig {
   readonly borderEdgeDarken: number;
   /** Default color for edge-light point lights on group borders. Defaults to '#ffffff' when absent. */
   readonly defaultEdgeLightColor?: string;
+  /** Default back panel color (CSS RGBA hex, e.g. '#1A1210CC'). When absent, no back panel is rendered. */
+  readonly defaultBackColor?: string;
 }
 
 /** Environment map / image-based lighting config within a theme. */
@@ -1123,6 +1125,9 @@ export interface DiagramGroupState {
    */
   readonly labelColor: string;
 
+  /** CSS RGBA hex color for the back panel (e.g. '#1A1210CC'). Undefined means no back panel. */
+  readonly backColor?: string;
+
   /** Named PBR material preset applied to the group fill plane via CSM UV projection. */
   readonly surfaceMaterial?: string;
   /** Material application controls for the fill-plane preset material. */
@@ -1281,6 +1286,10 @@ export interface DiagramNodeDSL {
    */
   readonly sideColor?: string;
   readonly borderColor?: string;
+  /** Border line width in NVS units. Overrides theme default. */
+  readonly borderWidth?: number;
+  /** Border frame Z-depth in NVS units. Overrides theme default. */
+  readonly borderHeight?: number;
   readonly metalness?: number;
   readonly roughness?: number;
   /**
@@ -1386,6 +1395,8 @@ export interface DiagramGroupDSL {
   readonly edgeLights?: DiagramGroupEdgeLightsDSL;
   /** Per-group override for the title label text color. Falls back to theme.group.defaultLabelColor. */
   readonly labelColor?: string;
+  /** Back panel color (CSS RGBA hex, e.g. '#1A1210CC'). Default: from theme. Absent or alpha=0 means no back panel. */
+  readonly backColor?: string;
   /** Named PBR material preset for the group fill plane. */
   readonly surfaceMaterial?: string;
   /** Material application controls for the fill-plane preset. */

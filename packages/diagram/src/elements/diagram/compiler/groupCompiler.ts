@@ -242,6 +242,7 @@ export function compileGroup(
     onMouseEnter: dsl.onMouseEnter,
     onMouseLeave: dsl.onMouseLeave,
     edgeLights,
+    backColor: dsl.backColor ?? gd.backColor,
     labelColor: dsl.labelColor ?? gd.labelColor,
     surfaceMaterial: dsl.surfaceMaterial,
     materialApplication: dsl.materialApplication,

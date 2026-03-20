@@ -69,6 +69,7 @@ export const lightMinimalTheme: DiagramTheme = {
     borderRoughness: 0.60,
     borderSideDarken: 0.70,
     borderEdgeDarken: 0.75,
+    defaultBackColor: '#F2F4F8CC',
   },
   environment: {
     envMapUrl: 'none',

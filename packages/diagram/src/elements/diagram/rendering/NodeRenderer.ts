@@ -118,16 +118,16 @@ function createBorderMesh(state: DiagramNodeState): THREE.Mesh | null {
   if (!geo) return null;
   const borderParsed = parseHexColor(state.borderColor);
   const borderOpacity = Math.min(1, state.opacity * borderParsed.alpha);
-  // Invisible caps to prevent z-fighting with node face
-  const capMat = new THREE.MeshBasicMaterial({ visible: false });
-  const wallMat = new THREE.MeshStandardMaterial({
+  // Single material for both caps and walls — the ring geometry has a hole
+  // so the caps only cover the border ring area, not the node face.
+  const mat = new THREE.MeshStandardMaterial({
     color: borderParsed.rgb,
     metalness: state.metalness * 0.5,
     roughness: Math.max(state.roughness, 0.4),
     transparent: borderOpacity < 1,
     opacity: borderOpacity,
   });
-  const mesh = new THREE.Mesh(geo, [capMat, wallMat]);
+  const mesh = new THREE.Mesh(geo, mat);
   mesh.castShadow = true;
   mesh.receiveShadow = false;
   return mesh;

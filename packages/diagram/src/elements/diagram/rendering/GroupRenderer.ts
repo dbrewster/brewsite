@@ -95,8 +95,12 @@ export class GroupRenderer {
     if (edgeLights) {
       group.add(edgeLights);
     }
+    const backMesh = this.createBackPanel(state);
+    if (backMesh) {
+      group.add(backMesh);
+    }
     this.registry.register(fill, diagramId, state.id);
-    return { group, fill, border, edgeLights, label, lastState: state };
+    return { group, fill, border, edgeLights, backMesh, label, lastState: state };
   }
 
   private disposeBorder(border: THREE.Group): void {
@@ -245,6 +249,21 @@ export class GroupRenderer {
       if (rebuilt) {
         entry.edgeLights = rebuilt;
         entry.group.add(rebuilt);
+      }
+    }
+
+    // Back panel update.
+    const backNeedsRebuild =
+      !prev ||
+      prev.backColor !== state.backColor ||
+      prev.fillOpacity !== state.fillOpacity ||
+      boundsChanged;
+    if (backNeedsRebuild) {
+      this.removeBackPanel(entry);
+      const backMesh = this.createBackPanel(state);
+      if (backMesh) {
+        entry.backMesh = backMesh;
+        entry.group.add(backMesh);
       }
     }
 
@@ -400,6 +419,33 @@ export class GroupRenderer {
     });
   }
 
+  private createBackPanel(state: DiagramGroupState): THREE.Mesh | undefined {
+    if (!state.backColor) return undefined;
+    const backParsed = parseHexColor(state.backColor);
+    if (backParsed.alpha <= 0) return undefined;
+    const w = Math.max(0.01, state.bounds.w);
+    const h = Math.max(0.01, state.bounds.h);
+    const bh = Math.max(0.01, state.borderHeight);
+    const backGeo = new THREE.PlaneGeometry(w, h);
+    const backMat = new THREE.MeshStandardMaterial({
+      color: backParsed.rgb,
+      opacity: state.fillOpacity * backParsed.alpha,
+      transparent: true,
+      side: THREE.DoubleSide,
+    });
+    const backMesh = new THREE.Mesh(backGeo, backMat);
+    backMesh.position.z = NODE_RENDER_Z_OFFSET - bh;
+    return backMesh;
+  }
+
+  private removeBackPanel(entry: GroupRenderEntry): void {
+    if (!entry.backMesh) return;
+    entry.group.remove(entry.backMesh);
+    entry.backMesh.geometry.dispose();
+    (entry.backMesh.material as THREE.Material).dispose();
+    entry.backMesh = undefined;
+  }
+
   private disposeGroup(entry: GroupRenderEntry): void {
     this.registry.unregister(entry.fill);
     entry.fill.geometry.dispose();
@@ -415,6 +461,7 @@ export class GroupRenderer {
       entry.edgeLights.clear();
       entry.edgeLights = undefined;
     }
+    this.removeBackPanel(entry);
     disposeText(entry.label);
   }
 

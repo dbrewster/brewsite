@@ -35,6 +35,7 @@ export const midnightLightTheme: DiagramTheme = {
     defaultBorderHeight: 0.055,
     defaultLabelColor: '#3A2A1B',
     defaultEdgeLightColor: '#B58C5A',
+    defaultBackColor: '#F0E8D8CC',
   },
   environment: {
     ...midnightTheme.environment,

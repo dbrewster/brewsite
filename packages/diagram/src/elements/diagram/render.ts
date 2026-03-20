@@ -498,7 +498,9 @@ export class DiagramRenderer {
         thickness: nodeState.thickness * thicknessScale,
         iconDepth: nodeState.iconDepth * thicknessScale,
         cornerRadius: nodeState.cornerRadius * thicknessScale,
-        borderWidth: nodeState.borderWidth * thicknessScale,
+        // borderWidth is an XY dimension (ring width), scales like size.
+        // borderHeight is a Z dimension (frame depth), scales like thickness.
+        borderWidth: nodeState.borderWidth * uniformWorldW,
         borderHeight: nodeState.borderHeight * thicknessScale,
       };
       this.nodeRenderer.getOrCreate(convertedNode, state.id, tc, group);

@@ -69,6 +69,7 @@ export const neonCyberTheme: DiagramTheme = {
     borderRoughness: 0.20,
     borderSideDarken: 0.35,
     borderEdgeDarken: 0.40,
+    defaultBackColor: '#0C1428CC',
   },
   environment: {
     envMapUrl: 'none',

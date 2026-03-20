@@ -31,6 +31,7 @@ export const lightCanvasDarkTheme: DiagramTheme = {
     defaultColor: '#2E3C4F',
     defaultBorderColor: '#566A86',
     defaultLabelColor: '#E8EEF7',
+    defaultBackColor: '#2E3C4FCC',
   },
   environment: {
     ...lightCanvasTheme.environment,

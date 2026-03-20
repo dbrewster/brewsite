@@ -23,6 +23,8 @@ export const neonCyberTheme: DiagramTheme = {
     defaultIconDepth: 0.05,
     glowSpread: 2.8,
     defaultBorderColor: '#2A4580',
+    defaultNodeBorderWidth: 0.005,
+    defaultNodeBorderHeight: 0.005,
     labelFontSizeBase: 0.32,
     sublabelFontSizeBase: 0.22,
     defaultLabelPadding: 0,
@@ -56,7 +58,7 @@ export const neonCyberTheme: DiagramTheme = {
   group: {
     defaultColor: '#09122A',
     defaultBorderColor: '#8A3DFF',
-    defaultBorderWidth: 0.105,
+    defaultBorderWidth: 0.015,
     defaultBorderHeight: 0.105,
     defaultFillOpacity: 0.07,
     defaultBorderOpacity: 0.80,
@@ -65,6 +67,7 @@ export const neonCyberTheme: DiagramTheme = {
     borderRoughness: 0.20,
     borderSideDarken: 0.35,
     borderEdgeDarken: 0.40,
+    defaultBackColor: '#0C1428CC',
   },
   environment: {
     envMapUrl: '/assets/envmaps/diagram-default.hdr',

@@ -71,6 +71,7 @@ export const darkGlassTheme: DiagramTheme = {
     borderRoughness: 0.48,
     borderSideDarken: 0.42,
     borderEdgeDarken: 0.46,
+    defaultBackColor: '#1A1210CC',
   },
   environment: {
     envMapUrl: 'none',

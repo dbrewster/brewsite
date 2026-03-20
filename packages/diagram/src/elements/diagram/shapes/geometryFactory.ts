@@ -348,8 +348,21 @@ export function createBorderFrameGeometry(
       const innerH = h - borderWidth * 2;
       if (innerW <= 0 || innerH <= 0) return null;
       const innerRadius = Math.max(0, cornerRadius - borderWidth);
-      const inner = createRoundedRectShape(innerW, innerH, innerRadius);
-      outer.holes.push(inner);
+      // Inner hole must wind clockwise (opposite of outer CCW) for Three.js ExtrudeGeometry.
+      const hiw = innerW / 2;
+      const hih = innerH / 2;
+      const ir = Math.min(Math.abs(innerRadius), hiw * 0.499, hih * 0.499);
+      const hole = new THREE.Path();
+      hole.moveTo(-hiw + ir, -hih);
+      hole.quadraticCurveTo(-hiw, -hih, -hiw, -hih + ir);
+      hole.lineTo(-hiw, hih - ir);
+      hole.quadraticCurveTo(-hiw, hih, -hiw + ir, hih);
+      hole.lineTo(hiw - ir, hih);
+      hole.quadraticCurveTo(hiw, hih, hiw, hih - ir);
+      hole.lineTo(hiw, -hih + ir);
+      hole.quadraticCurveTo(hiw, -hih, hiw - ir, -hih);
+      hole.closePath();
+      outer.holes.push(hole);
       const geo = new THREE.ExtrudeGeometry(outer, {
         depth: borderHeight,
         bevelEnabled: false,
@@ -379,8 +392,17 @@ export function createBorderFrameGeometry(
       const innerR = r - borderWidth;
       if (innerR <= 0) return null;
       const outer = createRegularPolygonShape(sides, r);
-      const inner = createRegularPolygonShape(sides, innerR);
-      outer.holes.push(inner);
+      // Inner hole must wind clockwise (opposite of outer CCW).
+      const innerHole = new THREE.Path();
+      for (let i = sides - 1; i >= 0; i--) {
+        const angle = (i / sides) * Math.PI * 2 - Math.PI / 2;
+        const x = Math.cos(angle) * innerR;
+        const y = Math.sin(angle) * innerR;
+        if (i === sides - 1) innerHole.moveTo(x, y);
+        else innerHole.lineTo(x, y);
+      }
+      innerHole.closePath();
+      outer.holes.push(innerHole);
       const geo = new THREE.ExtrudeGeometry(outer, {
         depth: borderHeight,
         bevelEnabled: false,
@@ -401,13 +423,14 @@ export function createBorderFrameGeometry(
       const iHw = hw - borderWidth;
       const iHh = hh - borderWidth;
       if (iHw <= 0 || iHh <= 0) return null;
-      const inner = new THREE.Shape();
-      inner.moveTo(0, iHh);
-      inner.lineTo(iHw, 0);
-      inner.lineTo(0, -iHh);
-      inner.lineTo(-iHw, 0);
-      inner.closePath();
-      outer.holes.push(inner);
+      // Inner hole winds clockwise (opposite of outer CCW).
+      const innerHole = new THREE.Path();
+      innerHole.moveTo(0, iHh);
+      innerHole.lineTo(-iHw, 0);
+      innerHole.lineTo(0, -iHh);
+      innerHole.lineTo(iHw, 0);
+      innerHole.closePath();
+      outer.holes.push(innerHole);
       const geo = new THREE.ExtrudeGeometry(outer, {
         depth: borderHeight,
         bevelEnabled: false,

@@ -36,6 +36,7 @@ export const darkGlassLightTheme: DiagramTheme = {
     defaultBorderHeight: 0.055,
     defaultLabelColor: '#2B1F1A',
     defaultEdgeLightColor: '#B89F92',
+    defaultBackColor: '#F2EAE2CC',
   },
   environment: {
     ...darkGlassTheme.environment,

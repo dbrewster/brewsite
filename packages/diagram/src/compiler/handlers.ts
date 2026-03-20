@@ -138,6 +138,7 @@ const extractDiagramDSL = (node: ReactElement, helpers: CompileHelpers, warnFn?:
       onMouseLeave: elProps.onMouseLeave as DiagramGroupDSL['onMouseLeave'],
       edgeLights:   elProps.edgeLights as DiagramGroupDSL['edgeLights'],
       labelColor:   elProps.labelColor as string | undefined,
+      backColor:    elProps.backColor as string | undefined,
       nodeIds,
       childGroupIds: childGroupIds.length > 0 ? childGroupIds : undefined,
       childrenOrder,

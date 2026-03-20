@@ -23,6 +23,8 @@ export const lightMinimalTheme: DiagramTheme = {
     defaultIconDepth: 0.10,
     glowSpread: 2.2,
     defaultBorderColor: '#C4CDD9',
+    defaultNodeBorderWidth: 0.005,
+    defaultNodeBorderHeight: 0.005,
     labelFontSizeBase: 0.32,
     sublabelFontSizeBase: 0.22,
     defaultLabelPadding: 0,
@@ -56,7 +58,7 @@ export const lightMinimalTheme: DiagramTheme = {
   group: {
     defaultColor: '#E7EDF6',
     defaultBorderColor: '#BFC9D7',
-    defaultBorderWidth: 0.075,
+    defaultBorderWidth: 0.015,
     defaultBorderHeight: 0.105,
     defaultFillOpacity: 0.35,
     defaultBorderOpacity: 0.60,
@@ -65,6 +67,7 @@ export const lightMinimalTheme: DiagramTheme = {
     borderRoughness: 0.60,
     borderSideDarken: 0.70,
     borderEdgeDarken: 0.75,
+    defaultBackColor: '#F2F4F8CC',
   },
   environment: {
     envMapUrl: 'none',

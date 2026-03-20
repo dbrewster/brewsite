@@ -75,6 +75,8 @@ export type GroupRenderEntry = {
   fill: THREE.Mesh;
   border?: THREE.Group;
   edgeLights?: THREE.Group;
+  /** Back panel mesh positioned at the Z-back of the group border. */
+  backMesh?: THREE.Mesh;
   label: TextWithLayout;
   lastState?: DiagramGroupState;
   /** CSM material applied to the fill plane when a surfaceMaterial preset is active. */

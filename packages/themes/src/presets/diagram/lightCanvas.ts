@@ -22,6 +22,8 @@ export const lightCanvasTheme: DiagramTheme = {
     defaultIconDepth: 0.10,
     glowSpread: 2.2,
     defaultBorderColor: '#C8D0DC',
+    defaultNodeBorderWidth: 0.005,
+    defaultNodeBorderHeight: 0.005,
     labelFontSizeBase: 0.32,
     sublabelFontSizeBase: 0.22,
     defaultLabelPadding: 0,
@@ -56,7 +58,7 @@ export const lightCanvasTheme: DiagramTheme = {
   group: {
     defaultColor: '#F1F4F8',
     defaultBorderColor: '#AAB7CA',
-    defaultBorderWidth: 0.075,
+    defaultBorderWidth: 0.015,
     defaultBorderHeight: 0.105,
     defaultFillOpacity: 0.40,
     defaultBorderOpacity: 0.65,
@@ -65,6 +67,7 @@ export const lightCanvasTheme: DiagramTheme = {
     borderRoughness: 0.65,
     borderSideDarken: 0.55,
     borderEdgeDarken: 0.60,
+    defaultBackColor: '#F0F4F0CC',
   },
   environment: {
     envMapUrl: 'none',

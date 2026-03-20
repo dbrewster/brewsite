@@ -69,6 +69,7 @@ export const midnightTheme: DiagramTheme = {
     borderRoughness: 0.54,
     borderSideDarken: 0.45,
     borderEdgeDarken: 0.50,
+    defaultBackColor: '#1E1510CC',
   },
   environment: {
     envMapUrl: 'none',

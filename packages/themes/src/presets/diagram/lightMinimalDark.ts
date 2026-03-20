@@ -30,6 +30,7 @@ export const lightMinimalDarkTheme: DiagramTheme = {
     defaultColor: '#2F3945',
     defaultBorderColor: '#54606E',
     defaultLabelColor: '#E8EDF5',
+    defaultBackColor: '#252C35CC',
   },
   environment: {
     ...lightMinimalTheme.environment,

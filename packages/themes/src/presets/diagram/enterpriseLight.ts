@@ -33,6 +33,7 @@ export const enterpriseLightTheme: DiagramTheme = {
     defaultBorderColor: '#8BA0BA',
     defaultLabelColor: '#1F334E',
     defaultEdgeLightColor: '#8BA0BA',
+    defaultBackColor: '#E8EEF6CC',
   },
   environment: {
     ...enterpriseTheme.environment,

@@ -22,6 +22,8 @@ export const midnightTheme: DiagramTheme = {
     defaultIconDepth: 0.05,
     glowSpread: 2.2,
     defaultBorderColor: '#554538',
+    defaultNodeBorderWidth: 0.005,
+    defaultNodeBorderHeight: 0.005,
     labelFontSizeBase: 0.32,
     sublabelFontSizeBase: 0.22,
     defaultLabelPadding: 0,
@@ -65,6 +67,7 @@ export const midnightTheme: DiagramTheme = {
     borderRoughness: 0.54,
     borderSideDarken: 0.45,
     borderEdgeDarken: 0.50,
+    defaultBackColor: '#1E1510CC',
   },
   environment: {
     envMapUrl: '/assets/envmaps/diagram-default.hdr',

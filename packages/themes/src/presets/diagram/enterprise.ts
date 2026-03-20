@@ -24,6 +24,8 @@ export const enterpriseTheme: DiagramTheme = {
     defaultIconDepth: 0.025,
     glowSpread: 2.2,
     defaultBorderColor: '#4A6B8E',
+    defaultNodeBorderWidth: 0.005,
+    defaultNodeBorderHeight: 0.005,
     labelFontSizeBase: 0.32,
     sublabelFontSizeBase: 0.22,
     defaultLabelPadding: 0,
@@ -66,6 +68,7 @@ export const enterpriseTheme: DiagramTheme = {
     borderRoughness: 0.58,
     borderSideDarken: 0.50,
     borderEdgeDarken: 0.55,
+    defaultBackColor: '#1A2838CC',
   },
   environment: {
     envMapUrl: '/assets/envmaps/diagram-default.hdr',

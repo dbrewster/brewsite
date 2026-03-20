@@ -69,6 +69,7 @@ export const lightCanvasTheme: DiagramTheme = {
     borderRoughness: 0.65,
     borderSideDarken: 0.55,
     borderEdgeDarken: 0.60,
+    defaultBackColor: '#F0F4F0CC',
   },
   environment: {
     envMapUrl: 'none',

@@ -258,6 +258,8 @@ export interface DiagramGroupProps {
   edgeLights?: DiagramGroupEdgeLightsDSL;
   /** Per-group override for title label text color. Falls back to theme.group.defaultLabelColor. */
   labelColor?: string;
+  /** Back panel color (CSS RGBA hex, e.g. '#1A1210CC'). Default: from theme. Absent or alpha=0 means no back panel. */
+  backColor?: string;
   /**
    * Named PBR material preset applied to the group fill plane via CSM UV projection.
    * Requires @brewsite/textures to be installed and configured.

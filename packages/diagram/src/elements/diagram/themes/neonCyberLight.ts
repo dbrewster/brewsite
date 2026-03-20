@@ -32,6 +32,7 @@ export const neonCyberLightTheme: DiagramTheme = {
     defaultColor: '#EAF2FF',
     defaultBorderColor: '#8EA0D8',
     defaultLabelColor: '#1E2F5A',
+    defaultBackColor: '#E8F0FFCC',
   },
   environment: {
     ...neonCyberTheme.environment,

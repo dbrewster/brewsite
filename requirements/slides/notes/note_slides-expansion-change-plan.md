@@ -14,6 +14,9 @@ change_history:
   - date: 2026-03-20
     author: Toolkit Product
     summary: "Introduced two-layer slide customization: SlideTheme (presentation feel — timing, density, typography scale, component sizing) + SlideTemplate (corporate chrome — logos, footers, watermarks). Both inject --slide-* CSS vars. Orthogonal to each other and to SceneTheme."
+  - date: 2026-03-20
+    author: Toolkit Product
+    summary: "Addressed PM review findings: fixed 3 blockers (plugin.ts/SlidesPluginOptions, SlideMetaWidget, CSS var migration mapping), 14 should-fixes (test plans, SlidePlayer rewrite detail, heading/body color mapping, timing value consumption model, ComparisonTable cell types, useStaggeredReveal return shape, additional gotchas, explicit non-goals). Added deferred features section, ImageSlide consolidation, deck-authoring-patterns doc."
 ---
 
 # Slides Expansion — Change Plan
@@ -213,12 +216,66 @@ This is purely additive. Existing presets gain new optional fields. No `ThemeBun
 |------|--------|
 | `packages/slides/src/theme.ts` | **Rewrite** — delete `DeckTheme`, `defaultDeckTheme`, `darkDeckTheme`, `createDeckTheme()`. Replace with `SlideTheme`, `defaultSlideTheme`, `createSlideTheme()`, and named presets |
 | `packages/slides/src/themeFamily.ts` | **Delete entirely** — `DECK_THEME_PAIRS`, `getDeckThemeForFamily()` removed |
-| `packages/slides/src/types.ts` | Remove `DeckTheme`, `ResolvedDeckTheme`. Add `SlideTheme`, `SlideTemplate` |
-| `packages/slides/src/compiler/themeCompiler.ts` | **Rewrite** — resolves `SlideTheme` → `--slide-*` CSS variables |
-| `packages/slides/src/player/SlidePlayer.tsx` | Replace `theme` prop (was DeckTheme) with `slideTheme` prop (SlideTheme) and `template` prop (SlideTemplate). Visual colors/fonts come from `SceneTheme` via `<SceneEngine theme={...}>` |
-| `packages/slides/src/compiler/deckCompiler.tsx` | Remove DeckTheme dependency. Color/font CSS from `--brewsite-*` (core). Timing/density CSS from `--slide-*` (slides) |
-| `packages/slides/src/dsl.tsx` | Remove DeckTheme-related props |
+| `packages/slides/src/types.ts` | Remove `DeckTheme`, `ResolvedDeckTheme`, `DeckSpec.theme`. Add `SlideTheme`, `SlideTemplate`. Preserve `SlideSpec.restProgress` unchanged |
+| `packages/slides/src/compiler/themeCompiler.ts` | **Rewrite** — resolves `SlideTheme` + `SlideTemplate` → `--slide-*` CSS variables (no longer resolves DeckTheme → ResolvedDeckTheme) |
+| `packages/slides/src/plugin.ts` | **Rewrite** — `SlidesPluginOptions` drops the `theme: ResolvedDeckTheme` field. `slidesPlugin()` becomes zero-arg (visual tokens come from `SceneTheme` via core's `ThemeContext`, timing tokens come from `SlideTheme` via SlidePlayer's container CSS vars). The plugin still registers `SlideMetaWidget` and `SlideNavWidget` |
+| `packages/slides/src/player/SlidePlayer.tsx` | **Major rewrite** — see SlidePlayer integration points below |
+| `packages/slides/src/widget/SlideMetaWidget.ts` | **Update** — remove `ResolvedDeckTheme` from state. Widget reads `sceneProgress` and publishes to VariableStore unchanged. If new per-slide `SlideTheme` timing fields need publishing (e.g., `entranceDuration` for hooks), add them to the published metadata |
+| `packages/slides/src/widget/SlideNavWidget.ts` | **No change needed** — registry anchor only, does not reference DeckTheme |
+| `packages/slides/src/compiler/deckCompiler.tsx` | **Rewrite** — remove DeckTheme dependency. Update all CSS variable references per migration mapping below |
+| `packages/slides/src/dsl.tsx` | **Rewrite** — remove DeckTheme-related props. Update `Heading`, `Body`, `BulletList`, `NumberedList` CSS variable references per migration mapping below |
+| `packages/slides/src/player/PresenterView.tsx` | **Update** — remove any `ResolvedDeckTheme` / `DeckTheme` references. Restyle using `--brewsite-*` variables |
+| `packages/slides/src/player/SlidePrintLayout.tsx` | **Update** — remove any `ResolvedDeckTheme` / `DeckTheme` references. Restyle using `--brewsite-*` variables |
 | `packages/slides/src/index.ts` | Remove all DeckTheme exports, add SlideTheme + SlideTemplate exports |
+
+**SlidePlayer.tsx integration points (5 areas that change):**
+
+The current `SlidePlayer.tsx` is 612 lines with five DeckTheme integration points. Each must be addressed:
+
+1. **Theme compilation** (currently line ~413): `compileDeckTheme(theme)` → **Delete.** No DeckTheme to resolve. `SlideTheme` is resolved by `themeCompiler.ts` into `--slide-*` CSS vars.
+2. **SceneEngine sceneTheme prop** (currently line ~540): `<SceneEngine sceneTheme={resolvedTheme.sceneTheme}>` → **Delete.** SceneTheme is now passed by the consumer on `<SceneEngine theme={...}>` outside `SlidePlayer`. SlidePlayer does not set sceneTheme.
+3. **Plugin creation** (currently line ~468): `slidesPlugin({ theme: resolvedTheme, navigation })` → **Change to** `slidesPlugin()` (zero-arg) or `slidesPlugin({ navigation })` if navigation config is still needed.
+4. **CSS var injection** (currently line ~493-496): Injects `--slide-*` vars from `resolvedTheme.cssVars` and manually injects `--brewsite-accent-color` → **Replace.** Inject `--slide-*` vars from resolved `SlideTheme` + `SlideTemplate`. Remove manual `--brewsite-accent-color` injection (now handled by `EngineOverlayHost` after Phase 0A).
+5. **Background color** (currently line ~503): Uses `resolvedTheme.background.color` for fullscreen background → **Delete.** Background comes from `SceneTheme.background` via `<BackgroundLayer>` or `EngineOverlayHost`'s `--brewsite-background-color`.
+
+**CSS variable migration mapping:**
+
+Every `var(--slide-*)` reference in `deckCompiler.tsx` and `dsl.tsx` that uses the old DeckTheme color/font tokens must be updated:
+
+| Old reference | New reference | Source |
+|---------------|---------------|--------|
+| `var(--slide-color-heading)` | `var(--brewsite-text-primary)` | EngineOverlayHost (core) |
+| `var(--slide-color-body)` | `var(--brewsite-text-secondary)` | EngineOverlayHost (core) |
+| `var(--slide-color-surface)` | `var(--brewsite-surface-elevated)` | EngineOverlayHost (core) |
+| `var(--slide-color-muted)` | `var(--brewsite-text-muted)` | EngineOverlayHost (core, new in Phase 0A) |
+| `var(--slide-padding, 8%)` | `var(--slide-content-padding)` | SlideTheme (slides) |
+| `var(--slide-gap, 1.5rem)` | `var(--slide-content-gap)` | SlideTheme (slides) |
+| `var(--slide-border-radius)` | `var(--brewsite-radius-md)` | EngineOverlayHost (core, new in Phase 0A) |
+| `var(--slide-bg-gradient)` | Removed — gradient from `SceneTheme.background.fill` via `BackgroundLayer` | Core |
+| `var(--slide-font-body)` | `var(--brewsite-font-family)` | EngineOverlayHost (core, already exists) |
+| `var(--brewsite-accent-color)` (manual injection in SlidePlayer) | `var(--brewsite-accent-color)` (unchanged, but injection moves to EngineOverlayHost) | EngineOverlayHost (core, new in Phase 0A) |
+
+**Color mapping note:** `--brewsite-text-primary` maps to headings (full-strength text: white in dark mode, #111 in light mode). `--brewsite-text-secondary` maps to body text (60% opacity). Graphics components use `--brewsite-text-primary` for prominent values/headings and `--brewsite-text-secondary` for labels/descriptions. This matches the semantic intent even though the variable names say "primary/secondary" not "heading/body."
+
+**CSS variable consumption model note:** `SlideTheme` timing tokens (`entranceDuration`, `staggerDelay`, `countUpDuration`) are **progress fractions (0-1), not time durations**. They are consumed by JavaScript hooks (`useEntrance`, `useStaggeredReveal`, `useCountUp`) via `useSceneProgress()`, NOT by CSS `transition-duration` or `animation-duration`. They are injected as CSS custom properties for two reasons: (1) so `createSlideTheme()` overrides propagate without prop drilling, and (2) so component CSS can read them via `getComputedStyle()` if needed. Only `--slide-transition-duration` has a CSS time unit (`300ms`) because it IS consumed by CSS `transition-duration` on `SlideTransitionWrapper`.
+
+**Spacing consumption model note:** `--brewsite-spacing-*` tokens (from core Phase 0A) are consumed by graphics components for **internal spacing** — gaps between a stat card's value and label, padding inside a callout box, spacing between timeline items. `--slide-content-padding` (from SlideTheme) is consumed by the layout compiler for **region-level padding** — the outer padding inside each slide region. These are different concerns at different scales.
+
+**Test impact for Phase 1A:**
+
+| Test file | Disposition |
+|-----------|-------------|
+| `__tests__/themeFamily.test.ts` | **Delete** — themeFamily.ts is deleted |
+| `__tests__/themeCompiler.test.ts` | **Rewrite** — test new `SlideTheme` → CSS var resolution |
+| `__tests__/deckCompiler.test.ts` | **Rewrite** — remove DeckTheme args, test with SceneTheme + SlideTheme |
+| `__tests__/types.test.ts` | **Update** — remove DeckTheme type tests, add SlideTheme + SlideTemplate |
+| `__tests__/dsl.test.tsx` | **Update** — verify text primitives use `--brewsite-*` variables |
+| `player/__tests__/SlidePlayer.test.tsx` | **Rewrite** — new props, new theme plumbing |
+| `player/__tests__/SlidePrintLayout.test.tsx` | **Update** — verify no DeckTheme references |
+| `player/__tests__/SlideProgressIndicator.test.tsx` | **No change** — not theme-dependent |
+| `player/__tests__/SlideTransitionWrapper.test.tsx` | **Update** in Phase 1E |
+| `__tests__/layoutCompiler.test.ts` | **Update** in Phase 1B — new layouts |
+| `__tests__/computeSlideStartProgress.test.ts` | **No change** — pure math, not theme-dependent |
 
 **Three-layer theme architecture:**
 
@@ -259,13 +316,13 @@ interface SlideTheme {
 
   /** Content density and spacing */
   density: {
-    /** Padding inside slide regions. Default: '48px' */
+    /** Padding inside slide regions. CSS length string. Default: '48px' */
     contentPadding: string;
-    /** Vertical gap between elements in a region. Default: '16px' */
+    /** Vertical gap between elements in a region. CSS length string. Default: '16px' */
     contentGap: string;
-    /** Title bar height as NVS fraction. Default: 0.18 */
+    /** Title bar height as NVS fraction [0-1] — 0.18 means 18% of viewport. Default: 0.18 */
     titleHeight: number;
-    /** Inter-region gutter as NVS fraction. Default: 0.02 */
+    /** Inter-region gutter as NVS fraction [0-1] — 0.02 means 2% of viewport. Default: 0.02 */
     gutter: number;
   };
 
@@ -371,10 +428,10 @@ Swap `cinematicSlideTheme` → `compactSlideTheme` to change the feel. Swap `acm
 |------|--------|
 | `packages/slides/src/dsl.tsx` | Rewrite — new layout components replace old ones |
 | `packages/slides/src/types.ts` | Rewrite `SlideLayout` union with full archetype set |
-| `packages/slides/src/compiler/layoutCompiler.ts` | Rewrite — region computation for all 20 layouts |
+| `packages/slides/src/compiler/layoutCompiler.ts` | Rewrite — region computation for all 19 layouts |
 | `packages/slides/src/index.ts` | Updated exports |
 
-**Full layout set (20 layouts — 5 existing redesigned + 15 new):**
+**Full layout set (19 layouts — 5 existing redesigned + 14 new):**
 
 | Layout | Component | Regions | Description |
 |--------|-----------|---------|-------------|
@@ -382,8 +439,7 @@ Swap `cinematicSlideTheme` → `compactSlideTheme` to change the feel. Swap `acm
 | `section` | `<SectionSlide>` | 1 centered | Large text section divider for chapter breaks |
 | `content` | `<ContentSlide>` | Title + body | Title bar + single-column content (replaces `TitleBodyLayout`) |
 | `two-column` | `<TwoColumnSlide>` | Title + 2 columns | Optional title + two equal columns (replaces `TwoColumnLayout`) |
-| `image-left` | `<ImageLeftSlide>` | Image + text | Image on left (50-60%), text content on right |
-| `image-right` | `<ImageRightSlide>` | Text + image | Text content on left, image on right (50-60%) |
+| `image` | `<ImageSlide>` | Image + text | Image on one side (50-60%), text on the other. `imagePosition` prop: `'left'` (default) or `'right'` |
 | `full-bleed` | `<FullBleedSlide>` | 1 overlay | Canvas fully visible, optional text overlay |
 | `blank` | `<BlankSlide>` | None | Author-defined via raw children |
 | `big-number` | `<BigNumberSlide>` | 1-4 stat slots | Hero stat with optional supporting context |
@@ -460,6 +516,14 @@ type EntranceType = 'fadeIn' | 'slideUp' | 'slideDown' | 'slideLeft' | 'slideRig
 - Props accept structured data: `<StatCard value={42} label="Users" trend="+12%" />`
 - All components accept `className` and `style` for escape hatches
 - Animation-aware: components accept optional `progress` prop (0-1) to drive entrance animations via `useSceneProgress()`; default timing from `--slide-entrance-duration` and `--slide-stagger-delay`
+- Icons are passed as `ReactNode` (e.g., `icon={<HeroIcon />}`) — no dependency on `@brewsite/diagram`'s icon registry. Consumers bring their own icon library
+
+**Test plan for graphics components:**
+- Unit test per component: renders correct HTML structure with required props
+- Unit test: CSS variable references use correct `var(--brewsite-*)` and `var(--slide-*)` names in computed styles
+- Unit test: `progress` prop at 0, 0.5, and 1 produces correct entrance animation styles (opacity, transform)
+- Unit test: `progress` undefined renders component fully visible (no animation)
+- Unit test: `className` and `style` escape hatches merge correctly with internal styles
 
 **Component API examples:**
 
@@ -505,13 +569,19 @@ interface ComparisonTableProps {
   headers: string[];
   rows: Array<{
     feature: string;
-    values: Array<boolean | string | number>;
+    values: ComparisonCellValue[];
   }>;
   highlightColumn?: number;
   progress?: number;
   className?: string;
   style?: CSSProperties;
 }
+
+/** Discriminated cell type — avoids ambiguity in rendering boolean vs string vs number. */
+type ComparisonCellValue =
+  | { kind: 'check'; value: boolean }    // renders checkmark or cross
+  | { kind: 'text'; value: string }      // renders as text
+  | { kind: 'number'; value: number };   // renders as formatted number
 ```
 
 ---
@@ -554,7 +624,7 @@ function useStaggeredReveal(
     fadeInDuration?: number;  // per-item fade duration (0-1), default: 0.15
     startAfter?: number;      // progress offset before first item appears, default: 0
   }
-): { visible: boolean; opacity: number; style: CSSProperties };
+): { visible: boolean; style: CSSProperties };
 
 /** Progress [0,1] clamped and eased within a sub-window of scene progress. */
 function useProgressWindow(
@@ -576,6 +646,12 @@ function useEntrance(
 ```
 
 All hooks internally call `useSceneProgress()` from `@brewsite/core`.
+
+**Test plan for animation hooks:**
+- `useCountUp`: verify value at progress=0 returns `start`, progress=1 returns `target`, intermediate progress returns correctly eased value. Test with `decimals: 2`. Test with `delay: 0.5` (value stays at `start` until progress > 0.5).
+- `useStaggeredReveal`: verify `visible: false` when progress < item's threshold. Verify correct opacity ramp. Test edge cases: 0 items, 1 item, progress=0, progress=1. Test `startAfter` offset.
+- `useProgressWindow`: verify output is 0 when progress < start, 1 when progress > end, correctly eased between. Test with custom easing function.
+- `useEntrance`: verify returned CSSProperties contain correct `opacity` and `transform` for each `EntranceType`. Test `'none'` returns empty object.
 
 ---
 
@@ -605,6 +681,8 @@ type SlideTransition =
 ```
 
 Implemented as CSS transitions/animations on `SlideTransitionWrapper`. No core engine changes.
+
+`SlideTransitionWrapper` reads `--slide-transition-duration` from CSS (this is the one timing token with a CSS time unit — `300ms`) and applies it to `transition-duration` and `animation-duration` on the wrapper div. Push/zoom transitions use CSS `transform` and `opacity` keyframe animations.
 
 ---
 
@@ -726,7 +804,9 @@ The `packages/claude-author/docs/` directory has no `slides/` subdirectory. The 
 | `docs/slides/transitions.md` | Slide-to-slide transitions — types, per-slide overrides | Available Slide Transitions; Choosing a Transition Type; Per-Slide Transition Overrides |
 | `docs/slides/navigation.md` | Navigation config — keyboard, touch, pointer, progress indicators | Navigation Modes; Configuring Keyboard Navigation; Progress Indicator Styles; Programmatic Navigation via useSlideNavigation |
 | `docs/slides/3d-content.md` | Embedding 3D content in slides via sceneDsl — diagrams, charts, models | Adding a 3D Diagram to a Slide; Adding a 3D Chart to a Slide; Camera and Lighting in Slides; When to Use sceneDsl vs Graphics Components |
-| `docs/slides/speaker-notes.md` | Speaker notes, presenter view, print layout | Adding Speaker Notes; PresenterView Component; Print Layout and Slide Snapshots |
+| `docs/slides/speaker-notes.md` | Speaker notes and presenter view | Adding Speaker Notes; PresenterView Component; useSlideNotes Hook |
+| `docs/slides/print-export.md` | Print layout and slide snapshot capture | Capturing Slide Snapshots; SlidePrintLayout Component; Print Layout with Notes |
+| `docs/slides/deck-patterns.md` | Common corporate deck patterns composed from layouts + graphics | Pitch Deck Pattern (Sequoia format); Quarterly Business Review Pattern; All-Hands / Town Hall Pattern; When to Use Which Deck Pattern |
 
 ### 3B. Section Content Outlines
 
@@ -737,7 +817,7 @@ Below are the key `##` sections with content guidance. Each section follows the 
 **## What @brewsite/slides Provides**
 - One paragraph: slide deck presentations built on @brewsite/core
 - Three-axis customization model: SceneTheme (visual) + SlideTheme (feel) + SlideTemplate (branding)
-- Bullet list of capabilities: 20 layouts, 13 graphics components, 4 animation hooks, CSS transitions, templates, speaker notes, 3D content integration
+- Bullet list of capabilities: 19 layouts, 13 graphics components, 4 animation hooks, CSS transitions, templates, speaker notes, 3D content integration
 
 **## Installation and Plugin Registration**
 ```tsx
@@ -766,9 +846,16 @@ export default function MyDeckPage() {
 - Explain: `slidesPlugin()` takes no arguments, creates SlideMetaWidget + SlideNavWidget
 - `<SlidePlayer>` accepts `slideTheme` and `template` — both optional, sensible defaults
 
-**## Package Exports**
-- Tables for: DSL Components, Layout Components, Graphics Components, Animation Hooks, Theme Presets, Player Components, Types
+**## DSL and Layout Component Exports**
+- Table of: `Slide`, all 19 layout components, text primitives (`Heading`, `Body`, `BulletList`, `NumberedList`)
 - Follow the exact format used in `charts/overview.md`
+
+**## Graphics Component and Animation Exports**
+- Table of: all 13 graphics components, 4 animation hooks, easing re-exports
+- Split from DSL exports so each table is a self-contained retrieval chunk under ~800 tokens
+
+**## Player, Theme, and Template Exports**
+- Table of: `SlidePlayer`, `slidesPlugin`, navigation hooks, `SlideTheme` presets/factory, `SlideTemplate` type, progress indicator types
 
 **## When to Use SlidePlayer vs Raw Scene Authoring**
 - Use SlidePlayer when building a linear slide deck with navigation, progress indicators, and corporate chrome
@@ -812,7 +899,7 @@ Regions: `title` (top 18%), `body` (remaining 80%, 2% gutter).
 - `## When to Use BigNumberSlide vs MetricGridSlide` — 1-2 hero stats vs 3-4 KPI cards
 - `## When to Use TimelineSlide vs ProcessSlide` — chronological events vs sequential steps
 - `## When to Use BentoSlide vs DashboardSlide` — mixed content cards vs data-focused widgets
-- `## When to Use FullBleedSlide vs ImageLeftSlide` — 3D canvas showcase vs image+text split
+- `## When to Use FullBleedSlide vs ImageSlide` — 3D canvas showcase vs image+text split
 
 #### `graphics.md`
 
@@ -878,6 +965,11 @@ Must include:
 - `## SlideTheme CSS Variable Reference` — complete table of `--slide-*` vars, their defaults, and what consumes them
 - `## Three-Axis Customization: SceneTheme vs SlideTheme vs SlideTemplate` — the key decision guide
 
+#### `graphics.md` — additional "when to use" sections
+
+- `## When to Use StatCard vs Inline HTML` — StatCard consumes theme tokens, handles count-up animation, adapts to SlideTheme density. Building it yourself means reimplementing all of that. Use StatCard for themed, animated metric display. Use inline HTML only when StatCard's structure doesn't fit.
+- `## When to Use progress Prop vs Animation Hooks` — Use the component's `progress` prop for simple entrance effects on individual components. Use hooks (`useEntrance`, `useStaggeredReveal`) when composing custom animations across multiple components or building custom graphics not covered by the library.
+
 #### `templates.md`
 
 Must include:
@@ -887,6 +979,24 @@ Must include:
 - `## Master Slide Footer` — text, page numbers, date, positions
 - `## Creating a Corporate Template` — complete real example with brand + master + defaults
 - `## Template Does Not Contain Colors or Fonts` — explicit "when to use" decision: template is branding, SceneTheme is visual, SlideTheme is feel
+
+#### `deck-patterns.md`
+
+Maps common corporate deck structures to recommended layout sequences. High-value for retrieval — queries like "create a pitch deck" or "make a quarterly review" land here.
+
+**## Pitch Deck Pattern (Sequoia Format)**
+- 10-12 slides: TitleSlide → ContentSlide (mission) → ContentSlide (problem) → ContentSlide (solution) → ContentSlide (why now) → BigNumberSlide (market size) → ComparisonSlide (competition) → ImageSlide (product) → ContentSlide (business model) → TeamSlide → MetricGridSlide (financials) → ClosingSlide (ask)
+- Code example showing the full deck structure with real layout components
+
+**## Quarterly Business Review Pattern**
+- 20-30 slides: TitleSlide → AgendaSlide → SectionSlide (per section) → MetricGridSlide (KPIs) → DashboardSlide (charts via sceneDsl) → TimelineSlide (roadmap) → ProcessSlide (action items) → ClosingSlide
+- Emphasize `sceneDsl` for embedding `@brewsite/charts` 3D bar/line charts
+
+**## All-Hands / Town Hall Pattern**
+- 15-20 slides: TitleSlide → AgendaSlide → BigNumberSlide (key metrics) → ContentSlide (team highlights) → TimelineSlide (product roadmap) → QuoteSlide (customer quote) → ClosingSlide (Q&A)
+
+**## When to Use Which Deck Pattern**
+- Decision guide: pitch deck = external fundraising, QBR = internal stakeholder review, all-hands = company-wide communication. Each has different density/pacing (compact for QBR, cinematic for all-hands).
 
 ### 3C. Updates to Existing Guides
 
@@ -917,6 +1027,18 @@ Must include:
 - **Wrong:** `<Slide sceneDsl={<Diagram id="arch"><DiagramNode .../></Diagram>} />`
 - **Correct:** `<Slide sceneDsl={<><Camera mode="world" position={[0,1.5,5]} /><Lighting><Ambient intensity={0.8} /></Lighting><Diagram id="arch"><DiagramNode .../></Diagram></>} />`
 
+**## Graphics Components Must Be Inside Layout Children**
+- **Symptom:** A `<StatCard>` or `<Timeline>` placed directly inside `<Slide>` (not inside a layout component) doesn't appear, or renders as raw overlay content outside slide regions.
+- **Cause:** Graphics components are real React components, but they must be placed as children of a layout component (`<ContentSlide>`, `<BigNumberSlide>`, etc.) so the deck compiler places them into the correct NVS region. Placing them directly inside `<Slide>` bypasses region placement.
+- **Rule:** Always wrap graphics components in a layout. Use `<BlankSlide>` if you want full manual control — but even then, graphics components will render as overlay content at their default position without the layout compiler's region management.
+
+**## SlideTheme Timing Values Are Progress Fractions, Not Milliseconds**
+- **Symptom:** Setting `entranceDuration: 300` on a `SlideTheme` causes elements to never appear (the animation window extends from 0% to 30,000% of progress — effectively infinite).
+- **Cause:** `SlideTheme.timing.entranceDuration`, `.staggerDelay`, and `.countUpDuration` are progress fractions [0-1], not milliseconds. `0.3` means "30% of the slide's progress window."
+- **Rule:** Use values between 0 and 1 for all `SlideTheme.timing` fields except `transitionDuration` (which IS a CSS time string like `'300ms'`).
+- **Wrong:** `createSlideTheme({ timing: { entranceDuration: 300 } })` — 300 is not a valid progress fraction.
+- **Correct:** `createSlideTheme({ timing: { entranceDuration: 0.3 } })` — entrance completes at 30% progress.
+
 **## Entrance Animation Without scrollUnits**
 - **Symptom:** Entrance animations (`entrance` prop on layouts, `animateEntrance` on `<BulletList>`) fire instantly instead of revealing progressively as the user navigates.
 - **Cause:** The slide has no scroll budget — `sceneProgress` jumps from 0 to 1 on entry.
@@ -927,6 +1049,34 @@ Must include:
 Slides docs should be written **after Phase 1 implementation lands** — per the README, docs must be written from source code (`types.ts`, `dsl.tsx`), not from PRDs. However, the section outlines above serve as the spec for what docs must cover.
 
 The docs writer reads the implemented types and produces content that matches the actual API. If any prop names, component names, or type signatures differ from this plan after implementation, the docs follow the code — not this plan.
+
+---
+
+## Explicit Non-Goals / Deferred Features
+
+The following items were identified in the research note but are intentionally out of scope for this plan. They are candidates for a future phase.
+
+**Deferred layouts:**
+
+| Layout | Why Deferred |
+|--------|-------------|
+| Funnel | Tapering stages require custom geometry (not a simple NVS region grid). Better implemented as a graphical component inside a `ContentSlide` or `FullBleedSlide`. |
+| Roadmap / Swimlane | Multi-track timeline with parallel streams is complex — requires a dedicated data model for lanes + time axis. Better treated as a Phase 2+ graphical component. |
+
+**Deferred graphical components:**
+
+| Component | Why Deferred |
+|-----------|-------------|
+| Gauge / Meter | Semicircular SVG with needle animation — moderate complexity. Candidate for Phase 2. |
+| Cycle Diagram | Circular arrows with labeled stages — requires SVG path generation. Candidate for Phase 2. |
+| Funnel Diagram | Tapering SVG stages — pairs with the funnel layout decision above. Candidate for Phase 2. |
+| Bubble / Circle Size Chart | Relative-size circles — overlaps with `@brewsite/charts` scatter plot. Evaluate whether this belongs in slides or charts. |
+
+**Deferred transitions:**
+
+| Transition | Why Deferred |
+|------------|-------------|
+| Morph / Magic Move | Requires shared-key object interpolation between slides — matching objects by ID and smoothly animating position, size, rotation, and opacity. Architecturally complex (PowerPoint's implementation took years). The CSS-based transition approach in this plan cannot support morph. Candidate for a future plan with core engine changes. |
 
 ---
 
@@ -957,19 +1107,19 @@ The docs writer reads the implemented types and produces content that matches th
 0B  Themes: accentColor in scene presets ────────────┤
                                                      │
                                                      ├─→ 1A  Slides: SlideTheme + SceneTheme integration
-                                                     │    1B  Slides: Redesigned layout system (20 layouts)
+                                                     │    1B  Slides: Redesigned layout system (19 layouts)
                                                      │    1C  Slides: Graphics components (13 components)
                                                      │    1D  Slides: Animation hooks
                                                      │    1E  Slides: Expanded transitions
                                                      │
                                                      ├─→ 2A  Slides: SlideTemplate + brand assets
                                                      │
-                                                     └─→ 3A  Claude-author: slides/ docs directory (10 files)
+                                                     └─→ 3A  Claude-author: slides/ docs directory (12 files)
                                                           3B  Claude-author: gotchas + guide updates
 ```
 
 Phase 0 items (0A, 0B) are independent and can be implemented in parallel.
-Phase 1 items: 1A should land first (establishes theme plumbing + `--slide-*` vars). 1B-1E can then be implemented in parallel — they consume the vars 1A sets up.
+Phase 1 items: 1A should land first (establishes theme plumbing + `--slide-*` vars + CSS migration). 1B and 1D-1E can then be implemented in parallel. 1C (graphics components) should begin after 1A's `SlideTheme` type and CSS variable names are finalized — the component CSS needs stable variable names to reference, even if the injection code isn't fully wired yet.
 Phase 2 depends on Phase 1B (templates reference layouts).
 Phase 3 depends on Phases 1 and 2 being implemented — docs are written from source code, not PRDs.
 

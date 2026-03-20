@@ -66,6 +66,7 @@ export interface GroupDefaults {
   readonly borderEmissiveColor: string;
   readonly borderEmissiveIntensity: number;
   readonly labelColor: string;
+  readonly backColor: string | undefined;
 }
 
 /**
@@ -141,5 +142,6 @@ export function buildGroupDefaults(theme: DiagramTheme): GroupDefaults {
     borderEmissiveColor:      theme.group.defaultBorderEmissiveColor ?? theme.group.defaultBorderColor,
     borderEmissiveIntensity:  theme.group.defaultBorderEmissiveIntensity ?? 0,
     labelColor:               theme.group.defaultLabelColor,
+    backColor:                theme.group.defaultBackColor,
   };
 }
