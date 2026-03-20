@@ -16,7 +16,7 @@ export const lightCanvasTheme: DiagramTheme = {
     defaultSublabelColor: '#5F7088',
     labelSizeFactor: 1.0,
     sublabelSizeFactor: 1.0,
-    defaultIconStyle: 'flat',
+    defaultIconStyle: 'extruded',
     defaultSize: [0.15, 0.08] as const,
     defaultIconScale: 0.6,
     defaultIconDepth: 0.10,

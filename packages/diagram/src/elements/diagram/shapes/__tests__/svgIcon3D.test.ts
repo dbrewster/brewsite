@@ -334,8 +334,25 @@ describe('buildSvgIcon3D', () => {
       });
     }).not.toThrow();
     const mat = (result.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial;
-    expect(mat.metalness).toBeCloseTo(0.5, 5);
-    expect(mat.roughness).toBeCloseTo(0.2, 5);
+    // metalness is scaled by 0.3 for non-sunken, roughness is floored at 0.55
+    expect(mat.metalness).toBeCloseTo(0.5 * 0.3, 5);
+    expect(mat.roughness).toBeCloseTo(0.55, 5);
+  });
+
+  it('applies fillColorOverride to all paths when set', () => {
+    const shape = makeShape();
+    let result!: THREE.Group;
+    withFakeShapes(shape, () => {
+      result = buildSvgIcon3D({ paths: makePaths(['#ff0000']) }, {
+        width: 1, height: 1, maxDepth: 0.15, style: 'extruded',
+        fillColorOverride: '#00ff00',
+      });
+    });
+    const mat = (result.children[0] as THREE.Mesh).material as THREE.MeshStandardMaterial;
+    const expected = new THREE.Color('#00ff00');
+    expect(mat.color.r).toBeCloseTo(expected.r, 3);
+    expect(mat.color.g).toBeCloseTo(expected.g, 3);
+    expect(mat.color.b).toBeCloseTo(expected.b, 3);
   });
 
   it('embossed: uses MeshStandardMaterial with BackSide (inverted normals = concave lighting)', () => {
@@ -352,6 +369,7 @@ describe('buildSvgIcon3D', () => {
     // BackSide inverts all normals → top channel walls dark, bottom bright = carved look
     expect(mat.side).toBe(THREE.BackSide);
     // Matte finish: less metallic, higher roughness than standard extruded
-    expect(mat.roughness).toBeGreaterThan(0.45);
+    // embossed metalness = 0.15 * 0.2 = 0.03, roughness = min(1, 0.45 * 1.6) = 0.72
+    expect(mat.roughness).toBeGreaterThan(0.55);
   });
 });

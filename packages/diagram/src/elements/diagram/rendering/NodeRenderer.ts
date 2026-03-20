@@ -8,7 +8,7 @@ import {
   createPresetMaterial, applyMaterialApplication, updatePresetTextures,
 } from '@brewsite/core';
 import type { MaterialLoader, MaterialApplication, MaterialManifest, LoadedMaterialPreset } from '@brewsite/core';
-import { createShapeGeometry, createShapeOutlineGeometry, isRectangularShape, getContentRect } from '../shapes/geometryFactory';
+import { createShapeGeometry, createBorderFrameGeometry, getContentRect } from '../shapes/geometryFactory';
 import { createGlow, computeGlowScale, disposeGlowSprite } from '../../_shared/glowSprite';
 import { Text } from 'troika-three-text';
 import { computeNodeLabelLayout } from './nodeLabelLayout';
@@ -108,6 +108,30 @@ const createBoxMaterials = (
   const back = side.clone();
   return [side, side.clone(), top, bottom, front, back];
 };
+
+/** Creates a 3D extruded frame mesh for node borders, or null if unsupported. */
+function createBorderMesh(state: DiagramNodeState): THREE.Mesh | null {
+  const geo = createBorderFrameGeometry(
+    state.shape, state.size[0], state.size[1],
+    state.borderWidth, state.borderHeight, state.cornerRadius,
+  );
+  if (!geo) return null;
+  const borderParsed = parseHexColor(state.borderColor);
+  const borderOpacity = Math.min(1, state.opacity * borderParsed.alpha);
+  // Invisible caps to prevent z-fighting with node face
+  const capMat = new THREE.MeshBasicMaterial({ visible: false });
+  const wallMat = new THREE.MeshStandardMaterial({
+    color: borderParsed.rgb,
+    metalness: state.metalness * 0.5,
+    roughness: Math.max(state.roughness, 0.4),
+    transparent: borderOpacity < 1,
+    opacity: borderOpacity,
+  });
+  const mesh = new THREE.Mesh(geo, [capMat, wallMat]);
+  mesh.castShadow = true;
+  mesh.receiveShadow = false;
+  return mesh;
+}
 
 export class NodeRenderer {
   private readonly entries = new Map<string, NodeRenderEntry>();
@@ -215,44 +239,15 @@ export class NodeRenderer {
     // but should not self-shadow.
     boxMesh.receiveShadow = false;
 
-    // Use EdgesGeometry only for flat-cornered rectangle/square — it shows exactly
-    // the 12 box edges and is visually clean. For all other shapes (polygon prisms,
-    // special 2D shapes, or rounded rectangles) use a LineLoop with createShapeOutlineGeometry
-    // so the border traces the correct silhouette.
-    const useEdgesGeo = isRectangularShape(state.shape) && state.cornerRadius <= 0;
-    const borderParsed = parseHexColor(state.borderColor);
-    const borderOpacity = Math.min(1, state.opacity * borderParsed.alpha);
-    const border = new THREE.LineSegments(
-      new THREE.EdgesGeometry(useEdgesGeo ? geometry : new THREE.BoxGeometry(0, 0, 0)),
-      new THREE.LineBasicMaterial({
-        color: borderParsed.rgb,
-        opacity: borderOpacity,
-        transparent: true,
-      }),
-    );
-    border.visible = useEdgesGeo;
-
-    let roundedBorder: THREE.LineLoop | undefined;
-    if (!useEdgesGeo) {
-      roundedBorder = new THREE.LineLoop(
-        createShapeOutlineGeometry(
-          state.shape, state.size[0], state.size[1], state.thickness, state.cornerRadius,
-        ),
-        new THREE.LineBasicMaterial({
-          color: borderParsed.rgb,
-          opacity: borderOpacity,
-          transparent: true,
-        }),
-      );
-      group.add(roundedBorder);
-    }
+    const border = createBorderMesh(state);
 
     const label = new Text() as TextWithLayout;
     label.renderOrder = 1;
     const sublabel = state.sublabel ? (new Text() as TextWithLayout) : undefined;
     if (sublabel) sublabel.renderOrder = 1;
 
-    group.add(boxMesh, border, label);
+    group.add(boxMesh, label);
+    if (border) group.add(border);
     if (sublabel) group.add(sublabel);
 
     let glow: THREE.Sprite | undefined;
@@ -267,7 +262,7 @@ export class NodeRenderer {
       group.add(glow);
     }
 
-    return { group, boxMesh, border, roundedBorder, glow, label, sublabel, diagramId, materialCount, lastState: state };
+    return { group, boxMesh, border, glow, label, sublabel, diagramId, materialCount, lastState: state };
   }
 
   private updateEntry(
@@ -277,12 +272,6 @@ export class NodeRenderer {
     themeConfig: DiagramThemeRenderConfig,
   ): void {
     const prev = entry.lastState;
-
-    // "using edges geo" means flat-cornered rectangle/square — the only case where
-    // the sharp LineSegments border (EdgesGeometry) is shown instead of the LineLoop outline.
-    const wasUsingEdgesGeo = isRectangularShape(prev?.shape ?? 'rectangle') && (prev?.cornerRadius ?? 0) <= 0;
-    const isUsingEdgesGeo = isRectangularShape(state.shape) && state.cornerRadius <= 0;
-    const borderTypeChanged = wasUsingEdgesGeo !== isUsingEdgesGeo;
 
     const geometryChanged =
       !prev ||
@@ -302,43 +291,29 @@ export class NodeRenderer {
       entry.boxMesh.geometry.dispose();
       entry.boxMesh.geometry = geometry;
       entry.materialCount = newMaterialCount;
+    }
 
-      // Rebuild the EdgesGeometry border whenever we're staying in (or entering) the
-      // flat-rectangle case. When leaving the flat-rectangle case, swap it for an empty geo.
-      if (borderTypeChanged || isUsingEdgesGeo) {
+    // Border geometry rebuild: detect changes in shape, size, thickness, cornerRadius, borderWidth, borderHeight
+    const borderGeometryChanged =
+      geometryChanged ||
+      !prev ||
+      prev.borderWidth !== state.borderWidth ||
+      prev.borderHeight !== state.borderHeight;
+
+    if (borderGeometryChanged) {
+      // Dispose old border
+      if (entry.border) {
+        entry.group.remove(entry.border);
         entry.border.geometry.dispose();
-        if (isUsingEdgesGeo) {
-          entry.border.geometry = new THREE.EdgesGeometry(geometry);
-          entry.border.visible = true;
-        } else {
-          entry.border.geometry = new THREE.BoxGeometry(0, 0, 0);
-          entry.border.visible = false;
-        }
+        const borderMats = Array.isArray(entry.border.material)
+          ? (entry.border.material as THREE.Material[])
+          : [entry.border.material as THREE.Material];
+        borderMats.forEach((m) => m.dispose());
       }
-
-      // Rebuild the LineLoop outline border for all non-flat-rectangle cases.
-      if (!isUsingEdgesGeo) {
-        const newBorderGeo = createShapeOutlineGeometry(
-          state.shape,
-          state.size[0],
-          state.size[1],
-          state.thickness,
-          state.cornerRadius,
-        );
-        if (entry.roundedBorder) {
-          entry.roundedBorder.geometry.dispose();
-          entry.roundedBorder.geometry = newBorderGeo;
-        } else {
-          const borderMat = (entry.border.material as THREE.LineBasicMaterial).clone();
-          entry.roundedBorder = new THREE.LineLoop(newBorderGeo, borderMat);
-          entry.group.add(entry.roundedBorder);
-        }
-      } else if (entry.roundedBorder) {
-        entry.group.remove(entry.roundedBorder);
-        entry.roundedBorder.geometry.dispose();
-        (entry.roundedBorder.material as THREE.Material).dispose();
-        entry.roundedBorder = undefined;
-      }
+      // Create new border
+      const newBorder = createBorderMesh(state);
+      entry.border = newBorder;
+      if (newBorder) entry.group.add(newBorder);
     }
 
     entry.group.position.set(state.position[0], state.position[1], state.position[2]);
@@ -352,8 +327,7 @@ export class NodeRenderer {
       prev.roughness !== state.roughness ||
       prev.emissiveIntensity !== state.emissiveIntensity ||
       prev.emissive !== state.emissive ||
-      prev.emissiveColor !== state.emissiveColor ||
-      borderTypeChanged;
+      prev.emissiveColor !== state.emissiveColor;
 
     const emissiveOverride = this.emissiveOverrides.get(this.key(diagramId, state.id));
     const effectiveEmissiveIntensity = resolveEffectiveEmissiveIntensity(state, emissiveOverride);
@@ -415,27 +389,18 @@ export class NodeRenderer {
       });
     }
 
-    const activeBorderMat = (
-      !isUsingEdgesGeo && entry.roundedBorder
-        ? entry.roundedBorder.material
-        : entry.border.material
-    ) as THREE.LineBasicMaterial;
-
-    if (!prev || prev.borderColor !== state.borderColor) {
-      const borderParsed = parseHexColor(state.borderColor);
-      activeBorderMat.color.set(borderParsed.rgb);
-      (entry.border.material as THREE.LineBasicMaterial).color.set(borderParsed.rgb);
-      if (entry.roundedBorder) {
-        (entry.roundedBorder.material as THREE.LineBasicMaterial).color.set(borderParsed.rgb);
+    // Update border material color/opacity when not fully rebuilt
+    if (!borderGeometryChanged && entry.border) {
+      const wallMat = (entry.border.material as THREE.Material[])[1] as THREE.MeshStandardMaterial;
+      if (!prev || prev.borderColor !== state.borderColor) {
+        const borderParsed = parseHexColor(state.borderColor);
+        wallMat.color.set(borderParsed.rgb);
       }
-    }
-    if (!prev || prev.opacity !== state.opacity || prev.borderColor !== state.borderColor) {
-      const borderAlpha = parseHexColor(state.borderColor).alpha;
-      const op = Math.min(1, state.opacity * borderAlpha);
-      activeBorderMat.opacity = op;
-      activeBorderMat.transparent = op < 1;
-      if (entry.roundedBorder) {
-        (entry.roundedBorder.material as THREE.LineBasicMaterial).opacity = op;
+      if (!prev || prev.opacity !== state.opacity || prev.borderColor !== state.borderColor) {
+        const borderAlpha = parseHexColor(state.borderColor).alpha;
+        const op = Math.min(1, state.opacity * borderAlpha);
+        wallMat.opacity = op;
+        wallMat.transparent = op < 1;
       }
     }
 
@@ -483,6 +448,9 @@ export class NodeRenderer {
       themeConfig.effectiveLabelSizeFactor ?? 1.0,
       themeConfig.effectiveSublabelSizeFactor ?? 1.0,
       state.labelPadding,
+      state.sublabelWrap ?? false,
+      state.sublabel?.length ?? 0,
+      state.sublabelMaxLines ?? 2,
     );
 
     const labelParsed = parseHexColor(state.labelColor);
@@ -505,6 +473,7 @@ export class NodeRenderer {
         entry.group.add(entry.sublabel);
       }
       const sublabelParsed = parseHexColor(state.sublabelColor);
+      const sublabelWraps = state.sublabelWrap ?? false;
       ensureText(
         entry.sublabel,
         state.sublabel,
@@ -513,7 +482,11 @@ export class NodeRenderer {
         state.opacity * sublabelParsed.alpha,
         contentW * 0.85,
         true,
-        { fontUrl: themeConfig.fontUrl, sdfGlyphSize: themeConfig.nodeSdfGlyphSize },
+        {
+          fontUrl: themeConfig.fontUrl,
+          sdfGlyphSize: themeConfig.nodeSdfGlyphSize,
+          ...(sublabelWraps ? { whiteSpace: 'normal', overflowWrap: 'normal', anchorY: 'top' } : {}),
+        },
       );
       entry.sublabel.position.set(0, labelLayout.sublabelY ?? 0, labelLayout.sublabelZ);
     } else if (entry.sublabel) {
@@ -533,7 +506,8 @@ export class NodeRenderer {
         !entry.iconHolder ||
         entry.iconHolder.userData['iconUrl'] !== state.iconUrl ||
         entry.iconHolder.userData['iconStyle'] !== state.iconStyle ||
-        entry.iconHolder.userData['iconDepth'] !== state.iconDepth;
+        entry.iconHolder.userData['iconDepth'] !== state.iconDepth ||
+        entry.iconHolder.userData['iconColor'] !== state.iconColor;
 
       if (needsIconRebuild) {
         if (entry.iconHolder) {
@@ -543,6 +517,7 @@ export class NodeRenderer {
         holder.userData['iconUrl'] = state.iconUrl;
         holder.userData['iconStyle'] = state.iconStyle;
         holder.userData['iconDepth'] = state.iconDepth;
+        holder.userData['iconColor'] = state.iconColor;
         entry.iconHolder = holder;
         entry.group.add(holder);
         // Use effectiveIconScale from layout (may be reduced to fit content area).
@@ -558,6 +533,7 @@ export class NodeRenderer {
           iconMaxDepth,
           state.metalness,
           state.roughness,
+          state.iconColor,
         ).then((obj) => {
           obj.traverse((child) => {
             if (child instanceof THREE.Mesh) {
@@ -571,7 +547,8 @@ export class NodeRenderer {
       }
       if (entry.iconHolder) {
         // Icon position computed by fit-to-content layout.
-        entry.iconHolder.position.set(0, labelLayout.iconY ?? 0, 0.01);
+        const iconZ = state.iconStyle === 'flat' ? 0.04 : 0.01;
+        entry.iconHolder.position.set(0, labelLayout.iconY ?? 0, iconZ);
       }
     } else if (entry.iconHolder) {
       entry.group.remove(entry.iconHolder);
@@ -734,11 +711,12 @@ export class NodeRenderer {
       entry.presetFrontMaterial.dispose();
       entry.presetFrontMaterial = undefined;
     }
-    entry.border.geometry.dispose();
-    (entry.border.material as THREE.Material).dispose();
-    entry.roundedBorder?.geometry.dispose();
-    if (entry.roundedBorder) {
-      (entry.roundedBorder.material as THREE.Material).dispose();
+    if (entry.border) {
+      entry.border.geometry.dispose();
+      const borderMats = Array.isArray(entry.border.material)
+        ? (entry.border.material as THREE.Material[])
+        : [entry.border.material as THREE.Material];
+      borderMats.forEach((m) => m.dispose());
     }
     disposeText(entry.label);
     if (entry.sublabel) disposeText(entry.sublabel);

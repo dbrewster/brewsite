@@ -8,7 +8,7 @@ import {
 import type { MaterialLoader, MaterialManifest, LoadedMaterialPreset } from '@brewsite/core';
 import { Text } from 'troika-three-text';
 import type { IGroupInteractionRegistry } from './GroupInteractionRegistry';
-import { GROUP_RENDER_Z } from '../constants';
+import { GROUP_RENDER_Z, NODE_RENDER_Z_OFFSET } from '../constants';
 
 export class GroupRenderer {
   private readonly entries = new Map<string, GroupRenderEntry>();
@@ -469,7 +469,11 @@ export class GroupRenderer {
       depth: bh,
       bevelEnabled: false,
     });
-    geom.translate(0, 0, -bh / 2);
+    // Depth alignment: group border front face aligns with node front face.
+    // Nodes render at NODE_RENDER_Z_OFFSET; groups at GROUP_RENDER_Z (0).
+    // ExtrudeGeometry extrudes from z=0 to z=+bh. Translate so front face
+    // (z=+bh) lands at NODE_RENDER_Z_OFFSET, back face at NODE_RENDER_Z_OFFSET - bh.
+    geom.translate(0, 0, NODE_RENDER_Z_OFFSET - bh);
     const frameMesh = new THREE.Mesh(geom, [faceMat, sideMat]);
     frameMesh.castShadow = true;
     frameMesh.receiveShadow = false;

@@ -13,6 +13,7 @@ export interface IIconLoader {
     maxDepth: number,
     metalness: number,
     roughness: number,
+    fillColor?: string,
   ): Promise<THREE.Object3D>;
   disposeAll(): void;
 }
@@ -43,8 +44,9 @@ class IconLoaderImpl implements IIconLoader {
     maxDepth: number,
     metalness: number,
     roughness: number,
+    fillColor?: string,
   ): Promise<THREE.Object3D> {
-    const cacheKey = `${url}|${width}|${height}|${style}|${maxDepth}`;
+    const cacheKey = `${url}|${width}|${height}|${style}|${maxDepth}|${fillColor ?? ''}`;
     let template = this.cache.get(cacheKey);
     if (!template) {
       template = new Promise<THREE.Object3D>((resolve) => {
@@ -53,7 +55,7 @@ class IconLoaderImpl implements IIconLoader {
             this.svgLoader.load(
               url,
               (data) => {
-                resolve(buildSvgIcon3D(data, { width, height, maxDepth, style, metalness, roughness }));
+                resolve(buildSvgIcon3D(data, { width, height, maxDepth, style, metalness, roughness, fillColorOverride: fillColor }));
               },
               undefined,
               (err) => {
@@ -70,12 +72,11 @@ class IconLoaderImpl implements IIconLoader {
                 const paths = data.paths ?? [];
                 paths.forEach((path) => {
                   const s = (path.userData as { style?: { fill?: string } } | undefined)?.style;
-                  const fillColor = s?.fill;
-                  if (fillColor === 'none') return;
-                  const color =
-                    fillColor && fillColor !== ''
-                      ? new THREE.Color(fillColor)
-                      : new THREE.Color(0xffffff);
+                  const pathFill = s?.fill;
+                  if (pathFill === 'none') return;
+                  const color = new THREE.Color(
+                    fillColor ?? (pathFill && pathFill !== '' ? pathFill : 0xffffff),
+                  );
                   const material = new THREE.MeshBasicMaterial({
                     color,
                     transparent: true,

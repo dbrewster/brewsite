@@ -30,8 +30,7 @@ export type TextWithLayout = Text & {
 export type NodeRenderEntry = {
   group: THREE.Group;
   boxMesh: THREE.Mesh;
-  border: THREE.LineSegments;
-  roundedBorder?: THREE.LineLoop;
+  border: THREE.Mesh | null;
   glow?: THREE.Sprite;
   label: TextWithLayout;
   sublabel?: TextWithLayout;

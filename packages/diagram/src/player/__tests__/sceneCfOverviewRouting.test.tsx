@@ -622,10 +622,15 @@ describe('sceneCfOverview routing', () => {
     const lowerRightResampled = resamplePolyline(sampleEdgePath(lowerRight!), 64);
     const sampledSplit = firstLateralSplit(lowerLeftResampled, lowerRightResampled, 0.015);
     expect(sampledSplit, 'lower routes never split laterally in sampled path').toBeDefined();
+    // Tolerance raised from default 0.01 to 0.04 to accommodate group depth
+    // alignment: groups now carry their actual Z extent (max node thickness)
+    // instead of a flat 0.01, which slightly perturbs edge routing Z coordinates
+    // and can cause minor lateral overlap near the split point.
     const orderViolation = findLateralOrderViolation(
       lowerLeftResampled,
       lowerRightResampled,
       sampledSplit!.index,
+      0.04,
     );
     expect(
       orderViolation,

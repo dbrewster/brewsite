@@ -404,12 +404,12 @@ export class DiagramRenderer {
                 from: [
                   (command.from[0] - 0.5) * uniformWorldW,
                   -(command.from[1] - 0.5) * uniformWorldH,
-                  command.from[2] + NODE_RENDER_Z_OFFSET,
+                  command.from[2] * thicknessScale + NODE_RENDER_Z_OFFSET,
                 ] as const,
                 to: [
                   (command.to[0] - 0.5) * uniformWorldW,
                   -(command.to[1] - 0.5) * uniformWorldH,
-                  command.to[2] + NODE_RENDER_Z_OFFSET,
+                  command.to[2] * thicknessScale + NODE_RENDER_Z_OFFSET,
                 ] as const,
               };
             }
@@ -418,22 +418,22 @@ export class DiagramRenderer {
               p0: [
                 (command.p0[0] - 0.5) * uniformWorldW,
                 -(command.p0[1] - 0.5) * uniformWorldH,
-                command.p0[2] + NODE_RENDER_Z_OFFSET,
+                command.p0[2] * thicknessScale + NODE_RENDER_Z_OFFSET,
               ] as const,
               p1: [
                 (command.p1[0] - 0.5) * uniformWorldW,
                 -(command.p1[1] - 0.5) * uniformWorldH,
-                command.p1[2] + NODE_RENDER_Z_OFFSET,
+                command.p1[2] * thicknessScale + NODE_RENDER_Z_OFFSET,
               ] as const,
               p2: [
                 (command.p2[0] - 0.5) * uniformWorldW,
                 -(command.p2[1] - 0.5) * uniformWorldH,
-                command.p2[2] + NODE_RENDER_Z_OFFSET,
+                command.p2[2] * thicknessScale + NODE_RENDER_Z_OFFSET,
               ] as const,
               p3: [
                 (command.p3[0] - 0.5) * uniformWorldW,
                 -(command.p3[1] - 0.5) * uniformWorldH,
-                command.p3[2] + NODE_RENDER_Z_OFFSET,
+                command.p3[2] * thicknessScale + NODE_RENDER_Z_OFFSET,
               ] as const,
             };
           }),
@@ -445,7 +445,7 @@ export class DiagramRenderer {
           controlPoints: edgeState.controlPoints.map((cp) => {
             const localCpX = (cp[0] - 0.5) * uniformWorldW;
             const localCpY = -(cp[1] - 0.5) * uniformWorldH;
-            return [localCpX, localCpY, cp[2] + NODE_RENDER_Z_OFFSET] as readonly [number, number, number];
+            return [localCpX, localCpY, cp[2] * thicknessScale + NODE_RENDER_Z_OFFSET] as readonly [number, number, number];
           }),
         };
       }
@@ -473,7 +473,7 @@ export class DiagramRenderer {
       // Node position: diagram-local NVS [0..1] → group-local world coords.
       const localX = (nodeState.position[0] - 0.5) * uniformWorldW;
       const localY = -(nodeState.position[1] - 0.5) * uniformWorldH; // Y-flip: NVS 0=top, Three.js +Y=up
-      const localZ = nodeState.position[2] + NODE_RENDER_Z_OFFSET; // world-space Z offset for layering (groups are at Z=0)
+      const localZ = nodeState.position[2] + NODE_RENDER_Z_OFFSET;
 
       // Node size: NVS fractions → world units.
       const worldW = nodeState.size[0] * uniformWorldW;
@@ -498,6 +498,8 @@ export class DiagramRenderer {
         thickness: nodeState.thickness * thicknessScale,
         iconDepth: nodeState.iconDepth * thicknessScale,
         cornerRadius: nodeState.cornerRadius * thicknessScale,
+        borderWidth: nodeState.borderWidth * thicknessScale,
+        borderHeight: nodeState.borderHeight * thicknessScale,
       };
       this.nodeRenderer.getOrCreate(convertedNode, state.id, tc, group);
     }

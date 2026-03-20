@@ -20,7 +20,7 @@ export const neonCyberTheme: DiagramTheme = {
     defaultIconStyle: 'extruded',
     defaultSize: [0.15, 0.08] as const,
     defaultIconScale: 0.6,
-    defaultIconDepth: 0.15,
+    defaultIconDepth: 0.05,
     glowSpread: 2.8,
     defaultBorderColor: '#2A4580',
     labelFontSizeBase: 0.32,

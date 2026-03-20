@@ -44,6 +44,8 @@ const makeNode = (overrides: Partial<DiagramNodeState> = {}): DiagramNodeState =
   color: '#ffffff',
   sideColor: '#eeeeee',
   borderColor: '#111111',
+  borderWidth: 0.05,
+  borderHeight: 0.05,
   metalness: 0.2,
   roughness: 0.8,
   emissiveIntensity: 0,
@@ -52,6 +54,8 @@ const makeNode = (overrides: Partial<DiagramNodeState> = {}): DiagramNodeState =
   cornerRadius: 0,
   labelColor: '#000000',
   sublabelColor: '#000000',
+  sublabelWrap: false,
+  sublabelMaxLines: 2,
   labelPadding: 0,
   opacity: 1,
   clickable: false,
@@ -60,6 +64,7 @@ const makeNode = (overrides: Partial<DiagramNodeState> = {}): DiagramNodeState =
   iconScale: 0.6,
   iconStyle: 'flat',
   iconDepth: 0.1,
+  iconColor: '#ffffff',
   groupId: undefined,
   positionInherited: undefined,
   ...overrides,
@@ -123,18 +128,42 @@ describe('NodeRenderer', () => {
     expect(parent.children.length).toBe(0);
   });
 
-  it('cornerRadius toggles rounded border visibility and resources', () => {
-    const entry = renderer.getOrCreate(makeNode({ cornerRadius: 0 }), 'd1', themeConfig, parent);
-    expect(entry.roundedBorder).toBeUndefined();
-    expect(entry.border.visible).toBe(true);
+  it('creates 3D border mesh when borderWidth and borderHeight are positive', () => {
+    const entry = renderer.getOrCreate(
+      makeNode({ borderWidth: 0.05, borderHeight: 0.05 }),
+      'd1', themeConfig, parent,
+    );
+    expect(entry.border).toBeInstanceOf(THREE.Mesh);
+  });
 
-    renderer.getOrCreate(makeNode({ cornerRadius: 0.4 }), 'd1', themeConfig, parent);
-    expect(entry.roundedBorder).toBeDefined();
-    expect(entry.border.visible).toBe(false);
+  it('border is null when borderWidth is zero', () => {
+    const entry = renderer.getOrCreate(
+      makeNode({ borderWidth: 0, borderHeight: 0.05 }),
+      'd1', themeConfig, parent,
+    );
+    expect(entry.border).toBeNull();
+  });
 
-    renderer.getOrCreate(makeNode({ cornerRadius: 0 }), 'd1', themeConfig, parent);
-    expect(entry.roundedBorder).toBeUndefined();
-    expect(entry.border.visible).toBe(true);
+  it('border is null for unsupported shapes like cloud', () => {
+    const entry = renderer.getOrCreate(
+      makeNode({ shape: 'cloud', borderWidth: 0.05, borderHeight: 0.05 }),
+      'd1', themeConfig, parent,
+    );
+    expect(entry.border).toBeNull();
+  });
+
+  it('border geometry is rebuilt when size changes', () => {
+    const entry = renderer.getOrCreate(
+      makeNode({ borderWidth: 0.05, borderHeight: 0.05 }),
+      'd1', themeConfig, parent,
+    );
+    const before = entry.border?.geometry;
+    renderer.getOrCreate(
+      makeNode({ borderWidth: 0.05, borderHeight: 0.05, size: [6, 3] }),
+      'd1', themeConfig, parent,
+    );
+    expect(entry.border).toBeInstanceOf(THREE.Mesh);
+    expect(entry.border!.geometry).not.toBe(before);
   });
 
   it('glow sprite is added, updated, and removed based on theme config', () => {
@@ -154,13 +183,6 @@ describe('NodeRenderer', () => {
 
     renderer.getOrCreate(makeNode({ color: '#00ff00', size: [6, 3] }), 'd1', noGlow, parent);
     expect(entry.glow).toBeUndefined();
-  });
-
-  it('updates rounded border geometry when size changes', () => {
-    const entry = renderer.getOrCreate(makeNode({ cornerRadius: 0.4 }), 'd1', themeConfig, parent);
-    const before = entry.roundedBorder?.geometry;
-    renderer.getOrCreate(makeNode({ cornerRadius: 0.4, size: [6, 3] }), 'd1', themeConfig, parent);
-    expect(entry.roundedBorder?.geometry).not.toBe(before);
   });
 
   it('rebuilds materials when color changes and disposes old', () => {
@@ -183,16 +205,15 @@ describe('NodeRenderer', () => {
     });
   });
 
-  it('creates rounded border and glow on initial creation', () => {
+  it('creates border mesh and glow on initial creation', () => {
     const glowTheme = { ...themeConfig, nodeGlowIntensity: 0.8 };
     const entry = renderer.getOrCreate(
-      makeNode({ cornerRadius: 0.4 }),
+      makeNode({ cornerRadius: 0.4, borderWidth: 0.05, borderHeight: 0.05 }),
       'd1',
       glowTheme,
       parent,
     );
-    expect(entry.roundedBorder).toBeDefined();
-    expect(entry.border.visible).toBe(false);
+    expect(entry.border).toBeInstanceOf(THREE.Mesh);
     expect(entry.glow).toBeDefined();
   });
 
@@ -273,22 +294,23 @@ describe('NodeRenderer', () => {
     expect(entry.iconHolder).not.toBe(oldHolder);
   });
 
-  it('updates rounded border material color and opacity', () => {
-    const entry = renderer.getOrCreate(
-      makeNode({ cornerRadius: 0.4, borderColor: '#111111', opacity: 0.5 }),
-      'd1',
-      themeConfig,
-      parent,
-    );
+  it('updates border material color and opacity', () => {
     renderer.getOrCreate(
-      makeNode({ cornerRadius: 0.4, borderColor: '#ff00ff', opacity: 0.2 }),
+      makeNode({ borderColor: '#111111', borderWidth: 0.05, borderHeight: 0.05, opacity: 0.5 }),
       'd1',
       themeConfig,
       parent,
     );
-    const mat = entry.roundedBorder?.material as THREE.LineBasicMaterial;
-    expect(mat.color.getHexString()).toBe('ff00ff');
-    expect(mat.opacity).toBeCloseTo(0.2);
+    const entry = renderer.getOrCreate(
+      makeNode({ borderColor: '#ff00ff', borderWidth: 0.05, borderHeight: 0.05, opacity: 0.2 }),
+      'd1',
+      themeConfig,
+      parent,
+    );
+    expect(entry.border).toBeInstanceOf(THREE.Mesh);
+    const wallMat = (entry.border!.material as THREE.Material[])[1] as THREE.MeshStandardMaterial;
+    expect(wallMat.color.getHexString()).toBe('ff00ff');
+    expect(wallMat.opacity).toBeCloseTo(0.2);
   });
 
   it('applies node emissiveColor to front/cap material', () => {
@@ -347,10 +369,10 @@ describe('NodeRenderer', () => {
     expect(registry.meshes.size).toBe(0);
   });
 
-  it('dispose releases rounded border, glow, and icon holder resources', () => {
+  it('dispose releases border, glow, and icon holder resources', () => {
     const glowTheme = { ...themeConfig, nodeGlowIntensity: 0.5 };
     renderer.getOrCreate(
-      makeNode({ cornerRadius: 0.4, iconUrl: 'icon.svg' }),
+      makeNode({ borderWidth: 0.05, borderHeight: 0.05, iconUrl: 'icon.svg' }),
       'd1',
       glowTheme,
       parent,

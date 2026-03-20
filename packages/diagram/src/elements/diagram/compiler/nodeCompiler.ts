@@ -57,6 +57,8 @@ export function compileNode(
     color,
     sideColor,
     borderColor,
+    borderWidth: nd.borderWidth,
+    borderHeight: nd.borderHeight,
     metalness: dsl.metalness ?? nd.metalness,
     roughness: dsl.roughness ?? nd.roughness,
     emissiveIntensity,

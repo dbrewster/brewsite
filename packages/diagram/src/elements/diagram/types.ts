@@ -780,8 +780,13 @@ export interface DiagramNodeState {
   /** CSS hex color for the node box side/edge faces */
   readonly sideColor: string;
 
-  /** CSS hex color for the node border outline (LineSegments overlay) */
+  /** CSS hex color for the node border outline */
   readonly borderColor: string;
+
+  /** Border width as an NVS fraction of the diagram viewport width. */
+  readonly borderWidth: number;
+  /** Border height (Z-depth) as an NVS fraction of the diagram viewport width. */
+  readonly borderHeight: number;
 
   /** Box material metalness [0–1]. Default: 0.35 */
   readonly metalness: number;

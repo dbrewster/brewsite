@@ -49,6 +49,8 @@ export interface SvgIcon3DOptions {
    * Default: 0.45 — polished enough to read bevels, not a mirror.
    */
   roughness?: number;
+  /** Override fill color for all SVG paths. When set, replaces any fill color defined in the SVG source. */
+  fillColorOverride?: string;
 }
 
 // ─── Internal ─────────────────────────────────────────────────────────────────
@@ -169,7 +171,7 @@ export function buildSvgIcon3D(
   svgData: { paths: ReturnType<SVGLoader['parse']>['paths'] },
   options: SvgIcon3DOptions,
 ): THREE.Group {
-  const { width, height, maxDepth, style, metalness = 0.15, roughness = 0.45 } = options;
+  const { width, height, maxDepth, style, metalness = 0.15, roughness = 0.45, fillColorOverride } = options;
 
   const group = new THREE.Group();
   const paths = svgData.paths ?? [];
@@ -191,17 +193,21 @@ export function buildSvgIcon3D(
 
   filledPaths.forEach((path, pathIndex) => {
     const s = (path.userData as { style?: SvgPathStyle } | undefined)?.style;
-    const fillColor = s?.fill ?? '#ffffff';
+    const fillColor = fillColorOverride ?? s?.fill ?? '#ffffff';
     const color = new THREE.Color(fillColor);
     const layer = resolveLayerConfig(pathIndex, totalPaths, style, maxDepth);
 
     const shapes = SVGLoader.createShapes(path);
     if (shapes.length === 0) return;
 
+    const iconMetalness = isSunken ? metalness * 0.2 : metalness * 0.3;
+    const iconRoughness = isSunken ? Math.min(1, roughness * 1.6) : Math.max(roughness, 0.55);
     const material = new THREE.MeshStandardMaterial({
       color,
-      metalness: isSunken ? metalness * 0.4 : metalness,  // less mirror, more matte
-      roughness: isSunken ? Math.min(1, roughness * 1.6) : roughness,
+      emissive: color,
+      emissiveIntensity: 0.35,
+      metalness: iconMetalness,
+      roughness: iconRoughness,
       transparent: true,
       opacity: 1,
       depthWrite: true,

@@ -162,6 +162,19 @@ export function compileDiagram(
 
   const groupDefaults = buildGroupDefaults(theme);
   const groupDslById = new Map(dsl.groups.map((group) => [group.id, group]));
+
+  // Pre-compute max node thickness per group for auto-sizing group border height.
+  // Uses the sizeWithDepthMap (which already has each node's thickness from lines above)
+  // and groupMap (which maps nodeId → groupId).
+  const maxThicknessPerGroup = new Map<string, number>();
+  for (const node of dsl.nodes) {
+    const gid = node.groupId ?? groupMap.get(node.id);
+    if (!gid) continue;
+    const nodeThickness = sizeWithDepthMap.get(node.id)?.[2] ?? nd.thickness;
+    const current = maxThicknessPerGroup.get(gid) ?? 0;
+    if (nodeThickness > current) maxThicknessPerGroup.set(gid, nodeThickness);
+  }
+
   // Add group centers to positions for edge routing (diagram units)
   groupBoundsMap.forEach((bounds, groupId) => {
     if (bounds.w === 0 && bounds.h === 0) return;
@@ -176,9 +189,10 @@ export function compileDiagram(
       ? 0
       : Math.max(0, groupDefaults.borderWidth);
     const borderCenterInset = borderWidthUnits * 0.5;
+    const maxNodeThickness = maxThicknessPerGroup.get(groupId) ?? 0;
     const groupBorderHeight = borderStyle === 'none'
       ? 0.01
-      : Math.max(0.01, groupDefaults.borderHeight);
+      : Math.max(0.01, groupDefaults.borderHeight, maxNodeThickness);
     positions.set(groupId, [centerX, centerY, 0]);
     sizeWithDepthMap.set(groupId, [
       bounds.w + borderCenterInset * 2,
@@ -218,6 +232,8 @@ export function compileDiagram(
       // The renderer multiplies by uniformWorldW to convert to world units.
       thickness: node.thickness * scaleFactor,
       iconDepth: node.iconDepth * scaleFactor,
+      borderWidth: node.borderWidth * scaleFactor,
+      borderHeight: node.borderHeight * scaleFactor,
     }))
     .sort((a, b) => a.position[2] - b.position[2]);
 
@@ -230,9 +246,12 @@ export function compileDiagram(
     normalizedSizeWithDepthMap.set(id, [norm[0], norm[1], originalDepth]);
   }
   // Add group entries for edge routing — use normalized group centers as targets.
+  // Use the auto-computed group depth (max node thickness) from sizeWithDepthMap
+  // so edge routing accounts for the group's actual Z extent.
   for (const [groupId, normBounds] of normalizedGroups) {
     normalizedPositions.set(groupId, [normBounds.x + normBounds.w / 2, normBounds.y + normBounds.h / 2, 0]);
-    normalizedSizeWithDepthMap.set(groupId, [normBounds.w, normBounds.h, 0.01]);
+    const groupDepthValue = sizeWithDepthMap.get(groupId)?.[2] ?? 0.01;
+    normalizedSizeWithDepthMap.set(groupId, [normBounds.w, normBounds.h, groupDepthValue]);
   }
 
   // Route edges with normalized positions (routing math is scale-invariant)
@@ -296,12 +315,14 @@ export function compileDiagram(
       const bounds = normalizedGroups.get(group.id);
       if (!bounds) return null;
       const compiled = compileGroup(group, bounds, theme);
-      // Normalize group borderWidth and borderHeight using the deterministic factor.
+      // Use the auto-computed borderHeight (max of theme default and max node thickness)
+      // from the pre-normalization sizeWithDepthMap, then normalize using scaleFactor.
       // The renderer multiplies by uniformWorldW to convert to world units.
+      const autoComputedBorderHeight = sizeWithDepthMap.get(group.id)?.[2] ?? compiled.borderHeight;
       return {
         ...compiled,
         borderWidth: compiled.borderWidth * scaleFactor,
-        borderHeight: compiled.borderHeight * scaleFactor,
+        borderHeight: autoComputedBorderHeight * scaleFactor,
       };
     })
     .filter((group): group is NonNullable<typeof group> => !!group)

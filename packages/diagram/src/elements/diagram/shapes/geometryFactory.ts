@@ -318,6 +318,113 @@ export function getContentRect(
   }
 }
 
+/**
+ * Creates a 3D extruded frame (ring with hole) for node borders.
+ * The frame sits just in front of the node face (z=0.001) and extrudes forward.
+ * Returns null for shapes that cannot produce a clean frame (cloud, document, parallelogram, oval).
+ *
+ * @param shape       The node shape variant.
+ * @param w           Node width in diagram units.
+ * @param h           Node height in diagram units.
+ * @param borderWidth Thickness of the border frame in diagram units.
+ * @param borderHeight Extrusion depth of the border frame in diagram units.
+ * @param cornerRadius Corner radius for rectangle/square shapes.
+ */
+export function createBorderFrameGeometry(
+  shape: DiagramNodeShape,
+  w: number,
+  h: number,
+  borderWidth: number,
+  borderHeight: number,
+  cornerRadius: number,
+): THREE.ExtrudeGeometry | null {
+  if (borderWidth <= 0 || borderHeight <= 0) return null;
+
+  switch (shape) {
+    case 'rectangle':
+    case 'square': {
+      const outer = createRoundedRectShape(w, h, cornerRadius);
+      const innerW = w - borderWidth * 2;
+      const innerH = h - borderWidth * 2;
+      if (innerW <= 0 || innerH <= 0) return null;
+      const innerRadius = Math.max(0, cornerRadius - borderWidth);
+      const inner = createRoundedRectShape(innerW, innerH, innerRadius);
+      outer.holes.push(inner);
+      const geo = new THREE.ExtrudeGeometry(outer, {
+        depth: borderHeight,
+        bevelEnabled: false,
+      });
+      // Border frame sits just in front of the node face, extruding forward.
+      geo.translate(0, 0, 0.001);
+      return geo;
+    }
+
+    case 'circle':
+    case 'triangle':
+    case 'pentagon':
+    case 'hexagon':
+    case 'heptagon':
+    case 'octagon':
+    case 'nonagon':
+    case 'decagon': {
+      const sides = shape === 'circle' ? 64
+        : shape === 'triangle' ? 3
+        : shape === 'pentagon' ? 5
+        : shape === 'hexagon' ? 6
+        : shape === 'heptagon' ? 7
+        : shape === 'octagon' ? 8
+        : shape === 'nonagon' ? 9
+        : 10;
+      const r = Math.min(w, h) / 2;
+      const innerR = r - borderWidth;
+      if (innerR <= 0) return null;
+      const outer = createRegularPolygonShape(sides, r);
+      const inner = createRegularPolygonShape(sides, innerR);
+      outer.holes.push(inner);
+      const geo = new THREE.ExtrudeGeometry(outer, {
+        depth: borderHeight,
+        bevelEnabled: false,
+      });
+      geo.translate(0, 0, 0.001);
+      return geo;
+    }
+
+    case 'diamond': {
+      const hw = w / 2;
+      const hh = h / 2;
+      const outer = new THREE.Shape();
+      outer.moveTo(0, hh);
+      outer.lineTo(hw, 0);
+      outer.lineTo(0, -hh);
+      outer.lineTo(-hw, 0);
+      outer.closePath();
+      const iHw = hw - borderWidth;
+      const iHh = hh - borderWidth;
+      if (iHw <= 0 || iHh <= 0) return null;
+      const inner = new THREE.Shape();
+      inner.moveTo(0, iHh);
+      inner.lineTo(iHw, 0);
+      inner.lineTo(0, -iHh);
+      inner.lineTo(-iHw, 0);
+      inner.closePath();
+      outer.holes.push(inner);
+      const geo = new THREE.ExtrudeGeometry(outer, {
+        depth: borderHeight,
+        bevelEnabled: false,
+      });
+      geo.translate(0, 0, 0.001);
+      return geo;
+    }
+
+    // Complex shapes — return null (unsupported for 3D frame border)
+    case 'cloud':
+    case 'document':
+    case 'parallelogram':
+    case 'oval':
+      return null;
+  }
+}
+
 export function createShapeGeometry(
   shape: DiagramNodeShape,
   size: readonly [number, number],

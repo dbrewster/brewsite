@@ -49,6 +49,9 @@ export type NodeLabelLayout = {
  * @param labelSizeFactor       Multiplier applied to label base size (from theme).
  * @param sublabelSizeFactor    Multiplier applied to sublabel base size (from theme).
  * @param labelPadding          Vertical offset as a fraction of contentH [0–1]. Positive = downward shift.
+ * @param sublabelWrap          Whether the sublabel should wrap to multiple lines. Default: false.
+ * @param sublabelLength        Character length of the sublabel text. Used for line estimation when wrapping.
+ * @param sublabelMaxLines      Maximum number of wrapped sublabel lines (1–4). Default: 2.
  */
 export function computeNodeLabelLayout(
   contentW: number,
@@ -62,6 +65,9 @@ export function computeNodeLabelLayout(
   labelSizeFactor: number,
   sublabelSizeFactor: number,
   labelPadding: number = 0,
+  sublabelWrap: boolean = false,
+  sublabelLength: number = 0,
+  sublabelMaxLines: number = 2,
 ): NodeLabelLayout {
   // contentW is accepted as a parameter for future use (e.g., text wrapping width),
   // but is not used in the position arithmetic. It is intentionally part of the
@@ -100,7 +106,18 @@ export function computeNodeLabelLayout(
 
   const iconFraction = hasIcon ? iconScale : 0;
   const labelFraction = labelFontSizeBase * labelSizeFactor * 1.1; // includes line height
-  const sublabelFraction = hasSublabel ? sublabelFontSizeBase * sublabelSizeFactor * 1.1 : 0;
+
+  // Estimate sublabel line count when wrapping is enabled
+  const sublabelSingleLine = sublabelFontSizeBase * sublabelSizeFactor * 1.1;
+  let sublabelLines = 1;
+  if (hasSublabel && sublabelWrap && sublabelLength > 0 && contentW > 0) {
+    const sublabelFontW = contentH * sublabelFontSizeBase * sublabelSizeFactor;
+    const charWidth = sublabelFontW * 0.55;
+    const wrapWidth = contentW * 0.85;
+    const charsPerLine = Math.max(1, Math.floor(wrapWidth / charWidth));
+    sublabelLines = Math.min(sublabelMaxLines, Math.ceil(sublabelLength / charsPerLine));
+  }
+  const sublabelFraction = hasSublabel ? sublabelSingleLine * sublabelLines : 0;
 
   const gapIconLabel = hasIcon ? ICON_TO_LABEL_GAP : 0;
   const gapLabelSublabel = hasSublabel ? LABEL_TO_SUBLABEL_GAP : 0;
@@ -121,7 +138,7 @@ export function computeNodeLabelLayout(
     ? contentH * sublabelFontSizeBase * sublabelSizeFactor * fitScale
     : undefined;
   const labelLine = labelFontSize * 1.1;
-  const sublabelLine = sublabelFontSize ? sublabelFontSize * 1.1 : 0;
+  const sublabelLine = sublabelFontSize ? sublabelFontSize * 1.1 * sublabelLines : 0;
   const iconLabelGap = gapIconLabel * fitScale * contentH;
   const labelSublabelGap = gapLabelSublabel * fitScale * contentH;
   const insetH = INSET * fitScale * contentH;
