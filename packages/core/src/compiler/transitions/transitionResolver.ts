@@ -85,13 +85,11 @@ export function makeResolver(
   let defaultT: number;
 
   if (phase === 'interpolate') {
-    // Interpolate: normalize bp within the fallback window [exitStart, enterEnd].
-    // Before the window, t=0 (hold fromState). After the window, t=1 (hold toState).
-    // This prevents the interpolation from starting at the first frame of the block.
-    const defaultPhase = defaultGroup?.interpolate;
-    const rawT = resolveProgress(bp, defaultPhase, fallbackWindow);
+    // Interpolate: t = bp across the full block. The widget's interpolateFn
+    // controls how to use t (e.g., diagram's base-flip at t=0.5 for
+    // non-interpolated fields). Apply only the default group's ease (if any).
     const ease: EaseFn | undefined = defaultGroup?.interpolate?.ease;
-    defaultT = ease ? ease(rawT) : rawT;
+    defaultT = ease ? ease(bp) : bp;
   } else {
     // Exit or enter: normalize bp within the default group's window or fallback.
     const defaultPhase = phase === 'exit' ? defaultGroup?.exit : defaultGroup?.enter;

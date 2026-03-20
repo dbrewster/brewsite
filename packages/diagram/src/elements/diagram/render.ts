@@ -49,6 +49,71 @@ const findScene = (obj: THREE.Object3D): THREE.Scene | null => {
  * The group parameter passed to update() IS the diagram's root group — this renderer
  * does not create or position the root group.
  */
+/**
+ * Build a lightweight fingerprint from the DiagramState fields that drive
+ * geometry, position, and material updates. If the fingerprint is the same
+ * as the previous frame, the full NVS→world conversion and sub-renderer
+ * dispatch can be skipped — saving ~1ms/frame on complex diagrams.
+ *
+ * EXCLUDES: flow animation phase (shader-driven), envMap (applied separately).
+ * INCLUDES: node positions/sizes/opacities/colors/labels, edge paths,
+ *   group bounds/labels, viewportBounds, tilt, z, scale.
+ *
+ * Uses integer-quantized values (×1e4) and base-36 encoding for compact,
+ * allocation-light string building.
+ */
+function buildDiagramFingerprint(state: DiagramState): string {
+  // Pre-size estimate: ~20 chars per node, ~10 per edge, ~15 per group + overhead
+  let fp = '';
+
+  // Top-level scalars
+  const vp = state.viewportBounds;
+  fp += (vp.x * 1e4 | 0).toString(36);
+  fp += (vp.y * 1e4 | 0).toString(36);
+  fp += (vp.w * 1e4 | 0).toString(36);
+  fp += (vp.h * 1e4 | 0).toString(36);
+  fp += (state.tiltRotation[0] * 1e4 | 0).toString(36);
+  fp += (state.z * 1e4 | 0).toString(36);
+  fp += (state.scale * 1e4 | 0).toString(36);
+
+  // Nodes: position, size, opacity, color, label (label changes = visual change)
+  for (const n of state.nodes) {
+    fp += n.id;
+    fp += (n.position[0] * 1e4 | 0).toString(36);
+    fp += (n.position[1] * 1e4 | 0).toString(36);
+    fp += (n.position[2] * 1e4 | 0).toString(36);
+    fp += (n.size[0] * 1e4 | 0).toString(36);
+    fp += (n.size[1] * 1e4 | 0).toString(36);
+    fp += (n.opacity * 1e3 | 0).toString(36);
+    fp += n.color;
+    fp += n.label ?? '';
+    fp += n.sublabel ?? '';
+    fp += (n.thickness * 1e4 | 0).toString(36);
+  }
+
+  // Edges: id + control point count + first/last control point (path identity)
+  for (const e of state.edges) {
+    fp += e.id;
+    fp += e.path.commands.length.toString(36);
+    fp += (e.opacity * 1e3 | 0).toString(36);
+    fp += e.color;
+    fp += (e.thickness * 1e4 | 0).toString(36);
+  }
+
+  // Groups: id, label, bounds
+  for (const g of state.groups) {
+    fp += g.id;
+    fp += g.label ?? '';
+    fp += (g.bounds.x * 1e4 | 0).toString(36);
+    fp += (g.bounds.y * 1e4 | 0).toString(36);
+    fp += (g.bounds.w * 1e4 | 0).toString(36);
+    fp += (g.bounds.h * 1e4 | 0).toString(36);
+    fp += g.color;
+  }
+
+  return fp;
+}
+
 export class DiagramRenderer {
   private lastState = new Map<string, DiagramState>();
   private readonly envMapManager = new EnvMapManager();
@@ -133,20 +198,42 @@ export class DiagramRenderer {
    * @param group  The diagram's root Three.js group (owned by DiagramWidget).
    * @param coords Live NVS→world coordinate service from WidgetRenderContext.
    */
+  /** Diagnostic counters for performance debugging. */
+  _diag = { updateCalls: 0, earlyOuts: 0, fullRebuilds: 0 };
+
+  /** Fingerprint cache: diagram ID → last fingerprint string. */
+  private lastFingerprint = new Map<string, string>();
+  /** Cached converted edges from the previous frame — reused when fingerprint matches. */
+  private lastConvertedEdges = new Map<string, DiagramEdgeState[]>();
+
   update(state: DiagramState, group: THREE.Group, coords: NVSCoordService): void {
+    this._diag.updateCalls++;
     const prev = this.lastState.get(state.id);
 
-    // ─── Early out: same diagram state, same world scale → camera-only change ──
-    // During user zoom/orbit the scene track returns the same DiagramState object
-    // (same tick). Three.js naturally handles camera-driven scaling; no geometry
-    // rebuild is needed. Skip the entire conversion + sub-renderer dispatch.
+    // ─── Early out: reference equality (pre-baked discrete state) ────────────
     if (prev === state) {
-      // Env map still needs updating (opacity/intensity may animate independently)
+      this._diag.earlyOuts++;
       const scene = findScene(group);
       if (scene) {
         this.envMapManager.apply(scene, state.themeConfig.envMapUrl, state.themeConfig.envMapIntensity);
       }
       return;
+    }
+
+    // ─── Content fingerprint: detect whether the state content actually changed.
+    // Functional closures create new object references every frame even when the
+    // content is identical (camera orbit/zoom at the same tick). The fingerprint
+    // lets us reuse the previous frame's converted edge paths so the EdgeRenderer
+    // sees the same path reference and skips expensive TubeGeometry rebuilds.
+    // Nodes, groups, materials, and flow animations still update every frame
+    // (their sub-renderers have cheap internal change detection).
+    const fp = buildDiagramFingerprint(state);
+    const fpMatch = fp === this.lastFingerprint.get(state.id);
+    this.lastFingerprint.set(state.id, fp);
+    if (fpMatch) {
+      this._diag.earlyOuts++;
+    } else {
+      this._diag.fullRebuilds++;
     }
 
     const tc = state.themeConfig;
@@ -283,67 +370,93 @@ export class DiagramRenderer {
       }
     }
 
-    for (const edgeState of state.edges) {
-      const convertedPath = {
-        ...edgeState.path,
-        commands: edgeState.path.commands.map((command) => {
-          if (command.kind === 'line') {
+    // When the fingerprint matches, reuse the previous frame's converted edges.
+    // This preserves object references so the EdgeRenderer's `edge.path !== prev.path`
+    // check passes and it skips the expensive TubeGeometry rebuild.
+    const cachedEdges = fpMatch ? this.lastConvertedEdges.get(state.id) : undefined;
+    const convertedEdges: DiagramEdgeState[] = [];
+
+    for (let ei = 0; ei < state.edges.length; ei++) {
+      const edgeState = state.edges[ei]!;
+
+      // Reuse the cached converted edge if fingerprint matched and index aligns
+      const cached = cachedEdges?.[ei];
+      let convertedEdge: DiagramEdgeState;
+
+      if (cached && cached.id === edgeState.id) {
+        // Same edge, same content — reuse the converted path/controlPoints
+        // so EdgeRenderer sees the same reference and skips geometry rebuild.
+        // Update flow/opacity/color fields that may change independently.
+        convertedEdge = {
+          ...cached,
+          flow: edgeState.flow,
+          flowColor: edgeState.flowColor,
+          opacity: edgeState.opacity,
+          color: edgeState.color,
+        };
+      } else {
+        const convertedPath = {
+          ...edgeState.path,
+          commands: edgeState.path.commands.map((command) => {
+            if (command.kind === 'line') {
+              return {
+                kind: 'line' as const,
+                from: [
+                  (command.from[0] - 0.5) * uniformWorldW,
+                  -(command.from[1] - 0.5) * uniformWorldH,
+                  command.from[2] + NODE_RENDER_Z_OFFSET,
+                ] as const,
+                to: [
+                  (command.to[0] - 0.5) * uniformWorldW,
+                  -(command.to[1] - 0.5) * uniformWorldH,
+                  command.to[2] + NODE_RENDER_Z_OFFSET,
+                ] as const,
+              };
+            }
             return {
-              kind: 'line' as const,
-              from: [
-                (command.from[0] - 0.5) * uniformWorldW,
-                -(command.from[1] - 0.5) * uniformWorldH,
-                command.from[2] + NODE_RENDER_Z_OFFSET,
+              kind: 'cubic' as const,
+              p0: [
+                (command.p0[0] - 0.5) * uniformWorldW,
+                -(command.p0[1] - 0.5) * uniformWorldH,
+                command.p0[2] + NODE_RENDER_Z_OFFSET,
               ] as const,
-              to: [
-                (command.to[0] - 0.5) * uniformWorldW,
-                -(command.to[1] - 0.5) * uniformWorldH,
-                command.to[2] + NODE_RENDER_Z_OFFSET,
+              p1: [
+                (command.p1[0] - 0.5) * uniformWorldW,
+                -(command.p1[1] - 0.5) * uniformWorldH,
+                command.p1[2] + NODE_RENDER_Z_OFFSET,
+              ] as const,
+              p2: [
+                (command.p2[0] - 0.5) * uniformWorldW,
+                -(command.p2[1] - 0.5) * uniformWorldH,
+                command.p2[2] + NODE_RENDER_Z_OFFSET,
+              ] as const,
+              p3: [
+                (command.p3[0] - 0.5) * uniformWorldW,
+                -(command.p3[1] - 0.5) * uniformWorldH,
+                command.p3[2] + NODE_RENDER_Z_OFFSET,
               ] as const,
             };
-          }
-          return {
-            kind: 'cubic' as const,
-            p0: [
-              (command.p0[0] - 0.5) * uniformWorldW,
-              -(command.p0[1] - 0.5) * uniformWorldH,
-              command.p0[2] + NODE_RENDER_Z_OFFSET,
-            ] as const,
-            p1: [
-              (command.p1[0] - 0.5) * uniformWorldW,
-              -(command.p1[1] - 0.5) * uniformWorldH,
-              command.p1[2] + NODE_RENDER_Z_OFFSET,
-            ] as const,
-            p2: [
-              (command.p2[0] - 0.5) * uniformWorldW,
-              -(command.p2[1] - 0.5) * uniformWorldH,
-              command.p2[2] + NODE_RENDER_Z_OFFSET,
-            ] as const,
-            p3: [
-              (command.p3[0] - 0.5) * uniformWorldW,
-              -(command.p3[1] - 0.5) * uniformWorldH,
-              command.p3[2] + NODE_RENDER_Z_OFFSET,
-            ] as const,
-          };
-        }),
-      };
-      const convertedEdge: DiagramEdgeState = {
-        ...edgeState,
-        // Convert edge thickness from NVS fraction to world units via quantized
-        // scale to avoid per-frame geometry rebuilds during transitions.
-        thickness: edgeState.thickness * thicknessScale,
-        path: convertedPath,
-        controlPoints: edgeState.controlPoints.map((cp) => {
-          const localCpX = (cp[0] - 0.5) * uniformWorldW;
-          const localCpY = -(cp[1] - 0.5) * uniformWorldH;
-          return [localCpX, localCpY, cp[2] + NODE_RENDER_Z_OFFSET] as readonly [number, number, number];
-        }),
-      };
+          }),
+        };
+        convertedEdge = {
+          ...edgeState,
+          thickness: edgeState.thickness * thicknessScale,
+          path: convertedPath,
+          controlPoints: edgeState.controlPoints.map((cp) => {
+            const localCpX = (cp[0] - 0.5) * uniformWorldW;
+            const localCpY = -(cp[1] - 0.5) * uniformWorldH;
+            return [localCpX, localCpY, cp[2] + NODE_RENDER_Z_OFFSET] as readonly [number, number, number];
+          }),
+        };
+      }
+
+      convertedEdges.push(convertedEdge);
       this.edgeRenderer.getOrCreate(
         { ...convertedEdge, id: `${state.id}::${convertedEdge.id}` },
         group,
       );
     }
+    this.lastConvertedEdges.set(state.id, convertedEdges);
 
     // ─── Nodes ────────────────────────────────────────────────────────────────
 

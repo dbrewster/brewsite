@@ -1,7 +1,7 @@
 // Core Showcase — demonstrates @brewsite/core architecture and DSL features.
 // Canvas fills the full viewport. TopChrome and BottomChrome are fixed overlays
 // outside the canvas but inside SceneEngine (so they can use engine hooks).
-import {JSX, useRef} from 'react';
+import {JSX, useCallback, useRef} from 'react';
 import { useMemo, useState } from 'react';
 import {
   InputCoordinator,
@@ -14,6 +14,7 @@ import {
   type ThemePolarity,
   type ActiveTheme, type ScrollStageHandle,
 } from '@brewsite/core';
+import { RendererStats } from '@brewsite/core/player/devtools';
 import { ChartTooltipHost } from '@brewsite/charts';
 import { createCoreShowcasePlugins } from './widgetSetup';
 import {ChartProgressIndicator, ThemeToggle} from '../Lights';
@@ -42,6 +43,8 @@ export default function CoreShowcasePage(): JSX.Element {
   const [polarity, setPolarity] = useState<ThemePolarity>('dark');
   const theme = useMemo((): ActiveTheme => ({ family, polarity }), [family, polarity]);
   const scrollStageRef = useRef<ScrollStageHandle | null>(null);
+  const [showStats, setShowStats] = useState(false);
+  const toggleStats = useCallback(() => setShowStats((v) => !v), []);
 
   return (
     <div style={{ position: 'relative', height: '100vh', overflow: 'hidden', background: '#030510' }}>
@@ -109,7 +112,32 @@ export default function CoreShowcasePage(): JSX.Element {
         */}
         <TopChrome />
         <BottomChrome />
+
+        {/* ── Renderer stats (toggle with button) ─────────────────────────── */}
+        {showStats && <RendererStats position="top-left" />}
       </SceneEngine>
+
+      {/* Stats toggle — outside SceneEngine so it's always clickable */}
+      <button
+        onClick={toggleStats}
+        style={{
+          position: 'fixed',
+          top: 8,
+          left: 8,
+          zIndex: 100000,
+          background: showStats ? 'rgba(0, 255, 0, 0.2)' : 'rgba(255, 255, 255, 0.1)',
+          color: showStats ? '#0f0' : '#888',
+          border: '1px solid ' + (showStats ? '#0f04' : '#fff2'),
+          borderRadius: 4,
+          padding: '4px 8px',
+          fontSize: 10,
+          fontFamily: 'monospace',
+          cursor: 'pointer',
+          pointerEvents: 'auto',
+        }}
+      >
+        {showStats ? '● STATS' : '○ Stats'}
+      </button>
     </div>
   );
 }

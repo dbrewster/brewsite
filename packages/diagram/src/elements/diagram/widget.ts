@@ -230,6 +230,9 @@ export class DiagramWidget
   constructor(widgetId: string, defaultState: DiagramState) {
     this.widgetId = widgetId;
     this.defaultState = defaultState;
+    if (process.env.NODE_ENV !== 'production') {
+      this._registerDiagHook();
+    }
   }
 
   /**
@@ -330,6 +333,22 @@ export class DiagramWidget
   /** ILoadable — true once the env map has been initialized. */
   get isLoaded(): boolean {
     return this.renderer.isEnvMapLoaded;
+  }
+
+  /** Diagnostic counters from the internal DiagramRenderer. */
+  get _diag() { return this.renderer._diag; }
+
+  /** Register diagnostic hook on globalThis for RendererStats to discover. */
+  private _registerDiagHook(): void {
+    if (typeof globalThis === 'undefined') return;
+    const existing = (globalThis as Record<string, unknown>).__brewsite_widget_diag as
+      | (() => Array<{ widgetId: string; updateCalls: number; earlyOuts: number; fullRebuilds: number }>)
+      | undefined;
+    const self = this;
+    (globalThis as Record<string, unknown>).__brewsite_widget_diag = () => {
+      const prev = existing ? existing() : [];
+      return [...prev, { widgetId: self.widgetId, ...self._diag }];
+    };
   }
 
   /**

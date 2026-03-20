@@ -555,16 +555,13 @@ export const compileSceneTrack = (options: CompileSceneTrackOptions): SceneTrack
 
         if (inFrom && inTo) {
           // INTERPOLATE: groups come from toState (the incoming scene drives the spec).
-          // The interpolation window spans from exit start → enter end. Before the
-          // exit start, the widget holds fromState (t=0). After enter end, it holds
-          // toState (t=1). This prevents the interpolation from starting at the very
-          // first frame of the block — the scene content holds until the transition
-          // window begins.
+          // Interpolation runs across the full block [0, 1]. The widget's interpolateFn
+          // is responsible for selecting the correct base object at each t value
+          // (e.g., diagram's `base = t < 0.5 ? from : to` for non-interpolated fields).
           const groups = (toState as WithTransitionConfig).__transitionGroups;
-          const interpolateWindow: [number, number] = [sceneExit[0], sceneEnter[1]];
           const rawFn = transitionSpec.interpolateFn(fromState as never, toState as never);
           tBlock.widgetFns[widgetId] = {
-            fn: (bp: number) => rawFn(makeResolver(bp, groups, interpolateWindow, 'interpolate')),
+            fn: (bp: number) => rawFn(makeResolver(bp, groups, [0, 1], 'interpolate')),
             kind: 'interpolate',
           };
         } else if (inFrom) {

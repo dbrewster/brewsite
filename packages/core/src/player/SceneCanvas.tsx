@@ -130,7 +130,7 @@ export const SceneCanvas = forwardRef<HTMLCanvasElement, SceneCanvasProps>(
         <canvas
           ref={internalRef}
           tabIndex={-1}
-          style={{ display: 'block', width: '100%', height: '100%' }}
+          style={{ display: 'block', width: '100%', height: '100%'}}
           {...rest}
         />
         {isLoading && placeholder && (

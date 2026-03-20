@@ -89,7 +89,7 @@ describe('functional transitions', () => {
     expect(fn?.(1)).toEqual({ value: 20, active: true });
   });
 
-  it('functional closure evaluates correctly within transition window (interpolate)', () => {
+  it('functional closure evaluates correctly at midpoint (interpolate)', () => {
     const registry = new WidgetRegistry().register(makeTestWidget(widgetId, testFunctionalSpec));
     const scenes = [
       makeScene('s1', { value: 10, active: true }),
@@ -97,13 +97,10 @@ describe('functional transitions', () => {
     ];
     const track = compileTrack(scenes, registry);
     const fn = track.transitionBlocks?.[0]?.widgetFns[widgetId].fn;
-    // Interpolation is windowed to [exitStart, enterEnd] = [0.8, 1.0] by default.
-    // Before the window, the widget holds fromState (t=0).
-    expect(fn?.(0.5)).toEqual({ value: 10, active: true }); // holds — before window
-    // At the window midpoint (bp=0.9): t = (0.9 - 0.8) / (1.0 - 0.8) = 0.5 → value=15.
-    expect(fn?.(0.9)).toEqual({ value: 15, active: true }); // mid-transition
-    // After the window: t=1 → toState.
-    expect(fn?.(1.0)).toEqual({ value: 20, active: true }); // fully transitioned
+    // Interpolation runs across the full block [0, 1].
+    expect(fn?.(0)).toEqual({ value: 10, active: true });
+    expect(fn?.(0.5)).toEqual({ value: 15, active: true });
+    expect(fn?.(1.0)).toEqual({ value: 20, active: true });
   });
 
   it('exit closure with explicit window [0,0.5]: active until window end, absent after', () => {
@@ -182,11 +179,10 @@ describe('functional transitions', () => {
       makeScene('s2', { value: 20, active: true }),
     ];
     const track = compileTrack(scenes, registry);
-    // At bp=0.5 (midpoint of block), interpolation hasn't started yet (window [0.8, 1.0]).
-    // The widget holds fromState (value=10).
+    // At bp=0.5, interpolation is at midpoint: value = 10 + (20-10)*0.5 = 15.
     const midTick = track.ticks[1];
     expect(midTick?.blockProgress).toBeCloseTo(0.5);
-    expect(midTick?.widgetExtras?.[widgetId]).toEqual({ summary: 10 });
+    expect(midTick?.widgetExtras?.[widgetId]).toEqual({ summary: 15 });
   });
 
   it('two functional widgets in same track both produce closures', () => {
@@ -589,22 +585,15 @@ describe('functional transitions', () => {
       expect(fn).toBeDefined();
       expect(fn?.kind).toBe('interpolate');
 
-      // At bp=0: fully in scene 1 state (before transition window).
+      // At bp=0: fully in scene 1 state.
       const at0 = fn?.fn(0) as OpState;
       expect(at0.opacity).toBe(1);
       expect(at0.z).toBe(0);
 
-      // At bp=0.5: still holding scene 1 (before transition window [0.8, 1.0]).
+      // At bp=0.5: midpoint — interpolated between scenes.
       const atMid = fn?.fn(0.5) as OpState;
-      expect(atMid.opacity).toBe(1);
-      expect(atMid.z).toBe(0);
-
-      // At bp=0.9: midpoint of transition window → intermediate values.
-      // t = (0.9 - 0.8) / (1.0 - 0.8) = 0.5.
-      // opacity = 1 + (0.15 - 1) * 0.5 = 0.575, z = 0 + (-15) * 0.5 = -7.5.
-      const atTransition = fn?.fn(0.9) as OpState;
-      expect(atTransition.opacity).toBeCloseTo(0.575);
-      expect(atTransition.z).toBeCloseTo(-7.5);
+      expect(atMid.opacity).toBeCloseTo(0.575);
+      expect(atMid.z).toBeCloseTo(-7.5);
 
       // At bp=1: fully in scene 2 state.
       const at1 = fn?.fn(1) as OpState;

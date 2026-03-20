@@ -4,3 +4,5 @@ export { CameraControlPanel } from './CameraControlPanel';
 export { CameraInteractionInfoDialog } from './CameraInteractionInfoDialog';
 export { SceneInspector } from './SceneInspector';
 export type { SceneInspectorProps } from './SceneInspector';
+export { RendererStats } from './RendererStats';
+export type { RendererStatsProps } from './RendererStats';

@@ -254,16 +254,18 @@ export class CameraWidget
     if (!camera) return;
     this.lastTick = tick;
 
-    // Drain pending focus override via the typed context callback (no userData bus).
-    // context.setCameraOverride stores the override on the driver; the NEXT tick's
-    // context.cameraOverride will be populated, which is handled in the override path below.
+    // Drain pending focus override: apply it IMMEDIATELY in this tick AND store
+    // it on the driver so subsequent ticks continue using it. Previously the
+    // override was only stored (for the NEXT tick), causing a one-frame delay
+    // where the camera showed the compiled SceneTrack position before jumping
+    // to the orbit position — visible as a ghosting/double-image.
     if (this._pendingFocusOverride) {
       context.setCameraOverride(this._pendingFocusOverride);
-      this._pendingFocusOverride = null;
     }
 
-    // Override path — use typed context.cameraOverride instead of userData.
-    const override = context.cameraOverride;
+    // Use the pending override (this tick) or the stored override (subsequent ticks).
+    const override = this._pendingFocusOverride ?? context.cameraOverride;
+    this._pendingFocusOverride = null;
     if (override?.enabled) {
       if (this.isInteractionActive) this.exitInteractionMode();
       // Track target so orbit/dolly calculations have an up-to-date reference.

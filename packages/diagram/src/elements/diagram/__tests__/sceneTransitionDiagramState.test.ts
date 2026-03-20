@@ -150,20 +150,12 @@ describe('scene transition diagram state — base spread correctness', () => {
     expect(nodeIds).toContain('mobile');
   });
 
-  it('at bp=0.5 (mid-block, before transition window) — still Scene 1 content', () => {
+  it('at bp=0.49 — base is Scene 1 (before t=0.5 flip)', () => {
     const track = buildTrack();
     const fn = track.transitionBlocks![0]!.widgetFns[WIDGET_ID]!.fn;
-    // Default transition window is [0.8, 1.0]. At bp=0.5 the interpolation
-    // has not started, so t=0 and the base should be `from` (Scene 1).
-    const state = fn(0.5) as DiagramState;
-
-    // Group label must still be Scene 1
+    // Interpolation uses full block [0,1]. At t=0.49 < 0.5, base = from (Scene 1).
+    const state = fn(0.49) as DiagramState;
     expect(state.groups[0]!.label).toBe('Frontend Team');
-
-    // Scene 1 nodes should be fully visible
-    const web = state.nodes.find((n) => n.id === 'web');
-    expect(web).toBeDefined();
-    expect(web!.opacity).toBeCloseTo(1);
   });
 
   it('at bp=1.0 (last tick of block) — group label is Scene 2, nodes are Scene 2', () => {
@@ -229,8 +221,8 @@ describe('scene transition diagram state — base spread correctness', () => {
 
     const fn = track.transitionBlocks![0]!.widgetFns[WIDGET_ID]!.fn;
 
-    // At bp=0.9, t = (0.9-0.8)/(1.0-0.8) = 0.5 → midpoint interpolation
-    const state = fn(0.9) as DiagramState;
+    // At bp=0.5, t = 0.5 → midpoint interpolation (full [0,1] range)
+    const state = fn(0.5) as DiagramState;
     expect(state.z).toBeCloseTo(-5);
     expect(state.scale).toBeCloseTo(1.5);
   });

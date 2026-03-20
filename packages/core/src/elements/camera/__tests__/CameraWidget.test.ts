@@ -625,4 +625,95 @@ describe('CameraWidget', () => {
     expect(driver.calls).toContain('setLookAt:smooth');
     expect(driver.position).toEqual([5, 6, 7]);
   });
+
+  // ─── Orbit override same-tick application ──────────────────────────────────
+  // Regression test: applyCameraOrbit sets a pending override that must be
+  // applied in the SAME tick's onTick(), not deferred to the NEXT tick.
+  // A one-frame delay causes the camera to alternate between the compiled
+  // SceneTrack position and the orbit override position — visible as
+  // ghosting/double-images during trackpad orbit.
+
+  it('applyCameraOrbit override is applied in the same tick (no one-frame delay)', () => {
+    const widget = new CameraWidget();
+    const camera = makeCamera();
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ camera, renderer, scene } as never);
+
+    // First tick: set camera to a known compiled position
+    const compiledState: SceneCamera = {
+      enabled: true,
+      descriptor: { mode: 'world', position: [0, 5, 10], target: [0, 0, 0] },
+    };
+    widget.onTick(makeTickCtx(makeTick(0, { camera: compiledState }), scene, compiledState));
+    expect(camera.position.x).toBeCloseTo(0);
+    expect(camera.position.y).toBeCloseTo(5);
+    expect(camera.position.z).toBeCloseTo(10);
+
+    // Simulate orbit input: user drags with a large delta
+    widget.applyCameraOrbit(5.0, 0, 1.0);
+
+    // Track what setCameraOverride receives
+    let capturedOverride: RuntimeCameraOverride | null = null;
+    const ctxWithCapture: AnimationTickContext = {
+      ...makeTickCtx(makeTick(0, { camera: compiledState }), scene, compiledState),
+      setCameraOverride: (o) => { capturedOverride = o; },
+      cameraOverride: null, // no override from previous tick
+    };
+
+    // SAME tick after the orbit input
+    widget.onTick(ctxWithCapture);
+
+    // The override should have been stored
+    expect(capturedOverride).not.toBeNull();
+    expect(capturedOverride!.enabled).toBe(true);
+
+    // AND the camera should be at the ORBIT position, NOT the compiled position.
+    // The orbit moved azimuth by 0.5 * sensitivity, so camera.x should have changed.
+    // If the bug is present, camera would be at the COMPILED position (0, 5, 10)
+    // because the override is deferred to the next tick.
+    expect(
+      camera.position.x,
+      'Camera X should differ from compiled position (0) — orbit was applied. ' +
+      'If this equals 0, the orbit override was deferred to the next tick (ghosting bug).',
+    ).not.toBeCloseTo(0, 1);
+  });
+
+  it('applyCameraOrbit override persists to subsequent ticks via cameraOverride context', () => {
+    const widget = new CameraWidget();
+    const camera = makeCamera();
+    const scene = makeScene();
+    const renderer = makeFakeRenderer();
+    widget.initialize({ camera, renderer, scene } as never);
+
+    // First tick: compiled state
+    const compiledState: SceneCamera = {
+      enabled: true,
+      descriptor: { mode: 'world', position: [0, 5, 10], target: [0, 0, 0] },
+    };
+    widget.onTick(makeTickCtx(makeTick(0, { camera: compiledState }), scene, compiledState));
+
+    // Orbit input — large delta
+    widget.applyCameraOrbit(5.0, 0, 1.0);
+
+    // Tick 2: pending override is drained and stored
+    let storedOverride: RuntimeCameraOverride | null = null;
+    widget.onTick({
+      ...makeTickCtx(makeTick(0, { camera: compiledState }), scene, compiledState),
+      setCameraOverride: (o) => { storedOverride = o; },
+      cameraOverride: null,
+    });
+
+    const orbitX = camera.position.x;
+
+    // Tick 3: no new orbit input, but stored override comes back via context
+    widget.onTick({
+      ...makeTickCtx(makeTick(0, { camera: compiledState }), scene, compiledState),
+      setCameraOverride: () => {},
+      cameraOverride: storedOverride,
+    });
+
+    // Camera should still be at the orbit position, not snapped back to compiled
+    expect(camera.position.x).toBeCloseTo(orbitX, 3);
+  });
 });

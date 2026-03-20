@@ -130,15 +130,15 @@ describe('lighting diagram transition — same ID, different content per scene',
     ).toBe('Soft Result');
   });
 
-  it('bp=0.5: still "Soft Result" (before transition window [0.8, 1.0])', () => {
+  it('bp=0.49: still "Soft Result" (base=from before t=0.5 flip)', () => {
     const { track } = buildTrack();
     const fn = track.transitionBlocks![0]!.widgetFns[DIAGRAM_ID]!.fn;
-    const state = fn(0.5) as DiagramState;
+    const state = fn(0.49) as DiagramState;
 
     const resultNode = state.nodes.find((n) => n.id === 'lt-result');
     expect(
       resultNode!.label,
-      `At bp=0.5, lt-result should still be "Soft Result". Got: "${resultNode!.label}"`,
+      `At bp=0.49, lt-result should be "Soft Result" (base=from). Got: "${resultNode!.label}"`,
     ).toBe('Soft Result');
   });
 

@@ -76,6 +76,7 @@ export class RuntimeDriverImpl implements IRuntimeDriver {
   /** Widget state patches applied on top of compiled state each tick. Set via patchWidgetStates(). */
   private _widgetStatePatches: Record<string, unknown> = {};
 
+
   setAssetsReady(ready: boolean): void {
     this.assetsReady = ready;
     if (ready) {

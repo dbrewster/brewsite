@@ -91,6 +91,16 @@ export type UseSceneEngineResult = {
   resume: () => void;
 
   /**
+   * Register a callback to run BEFORE each tick inside the engine's RAF loop.
+   * Used by InputCoordinator for inertia — ensures progress updates happen in
+   * the same frame as the render, eliminating dual-RAF ghosting.
+   */
+  addPreTickCallback: (cb: () => void) => void;
+
+  /** Remove a previously registered pre-tick callback. */
+  removePreTickCallback: (cb: () => void) => void;
+
+  /**
    * Write raw (pre-mapper) scroll-space progress [0, 1].
    * Used ONLY by ScrollInput source='window' and source={elementRef}.
    * Goes through SceneProgressMapper if one exists (scroll-units mode).
@@ -462,7 +472,12 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
   // ─── WebGL renderer lifecycle ───────────────────────────────────────────────
   useEffect(() => {
     if (!canvas || typeof window === 'undefined') return;
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      alpha: false,
+      powerPreference: 'high-performance',
+    });
     renderer.setPixelRatio(window.devicePixelRatio ?? 1);
     if (typeof renderer.setClearColor === 'function') {
       renderer.setClearColor(0x000000, 0);
@@ -733,6 +748,25 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
       driver,
       getGlobalProgress,
       render: () => {
+        // ── Diagnostic: detect scene graph anomalies before render ──
+        if (process.env.NODE_ENV !== 'production') {
+          const diag = (globalThis as Record<string, unknown>).__brewsite_render_diag as
+            | { enabled: boolean; log: string[] } | undefined;
+          if (diag?.enabled) {
+            // Count visible top-level children and their positions
+            const kids = scene.children.filter((c) => c.visible);
+            const positions = kids.map((c) => `${c.name || c.type}@${c.position.x.toFixed(1)},${c.position.y.toFixed(1)},${c.position.z.toFixed(1)}`);
+            const tick = driver.getCurrentTick();
+            diag.log.push(
+              `frame t=${performance.now().toFixed(0)} tick=${tick?.index ?? -1} bp=${tick?.blockProgress.toFixed(3) ?? '?'} ` +
+              `cam=${camera.position.x.toFixed(1)},${camera.position.y.toFixed(1)},${camera.position.z.toFixed(1)} ` +
+              `children=${kids.length} [${positions.slice(0, 5).join(' | ')}]`
+            );
+            // Keep only last 30 entries
+            if (diag.log.length > 30) diag.log.splice(0, diag.log.length - 30);
+          }
+        }
+
         renderer.setScissorTest(false);
         renderer.setViewport(0, 0, renderer.domElement.clientWidth, renderer.domElement.clientHeight);
         renderer.render(scene, camera);
@@ -878,6 +912,14 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     loopRef.current?.resume();
   }, []);
 
+  const addPreTickCallback = useCallback((cb: () => void) => {
+    loopRef.current?.addPreTickCallback(cb);
+  }, []);
+
+  const removePreTickCallback = useCallback((cb: () => void) => {
+    loopRef.current?.removePreTickCallback(cb);
+  }, []);
+
   return {
     frameState,
     progress: frameState.progress,
@@ -889,6 +931,8 @@ export const useSceneEngine = (options: UseSceneEngineOptions): UseSceneEngineRe
     setControlledProgress,
     pause,
     resume,
+    addPreTickCallback,
+    removePreTickCallback,
     setRawProgress,
     setProgress,
     advanceProgress,

@@ -112,7 +112,6 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
   // ── Inertia state (Y-axis: scroll navigation) ──────────────────────────────
   const yInertiaRef = useRef<InertiaAccumulatorState>(createInertiaState());
   const subscribersRef = useRef(new Set<(rawProgress: number) => void>());
-  const rafRef = useRef<number>(0);
 
   // ── Inertia state (X-axis: carousel navigation) ────────────────────────────
   const xInertiaRef = useRef<InertiaAccumulatorState>(createInertiaState());
@@ -168,9 +167,17 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
     return () => scrollDriver.setSource(null);
   }, [scrollDriver, scrollSource]);
 
-  // ── RAF inertia loop ──────────────────────────────────────────────────────
+  // ── Inertia tick (runs inside the engine's RAF via pre-tick callback) ───────
+  // Previously this was a SEPARATE requestAnimationFrame loop, which caused
+  // dual-RAF ordering jitter: sometimes the inertia updated progress AFTER
+  // the engine rendered, causing the camera to alternate between "no move"
+  // and "double move" frames — visible as ghosting/double-images during
+  // trackpad inertia release.
+  //
+  // Now the inertia tick runs synchronously inside the engine's RAF, BEFORE
+  // getGlobalProgress() and driver.tick(), ensuring consistent state.
   useEffect(() => {
-    const tick = () => {
+    const inertiaTick = () => {
       // ── Y-axis inertia (scroll navigation) ──
       const yConfig: InertiaAccumulatorConfig = {
         sensitivity: inertiaSensitivityRef.current,
@@ -188,7 +195,6 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
         tickUnclamped(xState, X_INERTIA_CONFIG);
 
         if (carouselStepFnRef.current) {
-          // Check if accumulator has crossed the threshold in either direction.
           const acc = xState.progress;
           if (acc >= X_INERTIA_CAROUSEL_THRESHOLD) {
             const steps = Math.floor(acc / X_INERTIA_CAROUSEL_THRESHOLD);
@@ -204,13 +210,11 @@ export function InputCoordinator(props: InputCoordinatorProps): ReactElement | n
 
       // ── Axis lock reset after idle ──
       arbiterIdleCheck(arbiterRef.current, performance.now(), ARBITER_CONFIG);
-
-      rafRef.current = requestAnimationFrame(tick);
     };
 
-    rafRef.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafRef.current);
-  }, [emitProgress]); // sensitivity/decay read from refs per frame
+    engine.addPreTickCallback(inertiaTick);
+    return () => engine.removePreTickCallback(inertiaTick);
+  }, [engine, emitProgress]);
 
   // ── Sync container scrollTop when scrollRegion changes ───────────────────
   useEffect(() => {
